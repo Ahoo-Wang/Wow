@@ -14,6 +14,7 @@
 package me.ahoo.wow.bi.expansion.type
 
 import me.ahoo.wow.bi.expansion.plan.PropertyFilter
+import me.ahoo.wow.bi.type.JsonTokenShape
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toBeanDescription
 import tools.jackson.databind.BeanProperty
@@ -22,14 +23,27 @@ import tools.jackson.databind.annotation.JsonSerialize
 import tools.jackson.databind.introspect.Annotated
 import tools.jackson.databind.introspect.AnnotatedMember
 import tools.jackson.databind.introspect.BeanPropertyDefinition
+import tools.jackson.databind.jsonFormatVisitors.JsonBooleanFormatVisitor
 import tools.jackson.databind.jsonFormatVisitors.JsonFormatVisitable
 import tools.jackson.databind.jsonFormatVisitors.JsonFormatVisitorWrapper
+import tools.jackson.databind.jsonFormatVisitors.JsonIntegerFormatVisitor
+import tools.jackson.databind.jsonFormatVisitors.JsonNumberFormatVisitor
 import tools.jackson.databind.jsonFormatVisitors.JsonObjectFormatVisitor
+import tools.jackson.databind.jsonFormatVisitors.JsonStringFormatVisitor
 import tools.jackson.databind.ser.bean.BeanSerializerBase
 import tools.jackson.databind.ser.impl.UnknownSerializer
 import java.lang.reflect.Modifier
 
 internal object JacksonWireShapeInspector {
+    fun matches(type: ResolvedType, expected: JsonTokenShape): Boolean {
+        if (type.javaType.toBeanDescription().findJsonValueAccessor() != null) {
+            return false
+        }
+        val visitor = TokenShapeVisitor()
+        JsonSerializer.acceptJsonFormatVisitor(type.javaType, visitor)
+        return visitor.shape == expected
+    }
+
     fun inspect(type: ResolvedType): JsonWireShape {
         val beanDescription = type.javaType.toBeanDescription()
         val context = JsonSerializer._serializationContext()
@@ -149,6 +163,31 @@ internal object JacksonWireShapeInspector {
                     property(name, handler, propertyTypeHint)
                 }
             }
+        }
+    }
+
+    private class TokenShapeVisitor : JsonFormatVisitorWrapper.Base() {
+        var shape: JsonTokenShape? = null
+            private set
+
+        override fun expectStringFormat(type: JavaType): JsonStringFormatVisitor {
+            shape = JsonTokenShape.STRING
+            return JsonStringFormatVisitor.Base()
+        }
+
+        override fun expectIntegerFormat(type: JavaType): JsonIntegerFormatVisitor {
+            shape = JsonTokenShape.INTEGER
+            return JsonIntegerFormatVisitor.Base()
+        }
+
+        override fun expectNumberFormat(type: JavaType): JsonNumberFormatVisitor {
+            shape = JsonTokenShape.NUMBER
+            return JsonNumberFormatVisitor.Base()
+        }
+
+        override fun expectBooleanFormat(type: JavaType): JsonBooleanFormatVisitor {
+            shape = JsonTokenShape.BOOLEAN
+            return JsonBooleanFormatVisitor.Base()
         }
     }
 

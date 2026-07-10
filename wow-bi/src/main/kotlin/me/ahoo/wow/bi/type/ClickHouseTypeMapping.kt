@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.bi.type
 
-import java.math.BigDecimal
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
@@ -29,51 +28,68 @@ import java.time.ZonedDateTime
 import java.util.Date
 import java.util.UUID
 
+internal enum class JsonTokenShape {
+    STRING,
+    INTEGER,
+    NUMBER,
+    BOOLEAN,
+}
+
+internal data class ScalarMapping(
+    val tokenShape: JsonTokenShape,
+    val clickHouseType: ClickHouseType.Scalar,
+)
+
 internal object ClickHouseTypeMapping {
-    private val scalarTypes: Map<Class<*>, ClickHouseType.Scalar> = mapOf(
-        String::class.java to ClickHouseType.String,
-        Int::class.java to ClickHouseType.Int32,
-        Int::class.javaObjectType to ClickHouseType.Int32,
-        Long::class.java to ClickHouseType.Int64,
-        Long::class.javaObjectType to ClickHouseType.Int64,
-        Float::class.java to ClickHouseType.Float32,
-        Float::class.javaObjectType to ClickHouseType.Float32,
-        Double::class.java to ClickHouseType.Float64,
-        Double::class.javaObjectType to ClickHouseType.Float64,
-        Boolean::class.java to ClickHouseType.Bool,
-        Boolean::class.javaObjectType to ClickHouseType.Bool,
-        Short::class.java to ClickHouseType.Int16,
-        Short::class.javaObjectType to ClickHouseType.Int16,
-        Char::class.java to ClickHouseType.String,
-        Char::class.javaObjectType to ClickHouseType.String,
-        Byte::class.java to ClickHouseType.Int8,
-        Byte::class.javaObjectType to ClickHouseType.Int8,
-        BigDecimal::class.java to ClickHouseType.Decimal(38, 18),
-        UUID::class.java to ClickHouseType.UUID,
-        Duration::class.java to ClickHouseType.Decimal64(9),
-        kotlin.time.Duration::class.java to ClickHouseType.UInt64,
-        Date::class.java to ClickHouseType.UInt64,
-        java.sql.Date::class.java to ClickHouseType.UInt64,
-        LocalDate::class.java to ClickHouseType.String,
-        LocalDateTime::class.java to ClickHouseType.String,
-        LocalTime::class.java to ClickHouseType.String,
-        Instant::class.java to ClickHouseType.Decimal64(9),
-        ZonedDateTime::class.java to ClickHouseType.String,
-        OffsetDateTime::class.java to ClickHouseType.String,
-        OffsetTime::class.java to ClickHouseType.String,
-        YearMonth::class.java to ClickHouseType.String,
-        MonthDay::class.java to ClickHouseType.String,
-        Period::class.java to ClickHouseType.String,
-        Year::class.java to ClickHouseType.UInt32
+    private val scalarMappings: Map<Class<*>, ScalarMapping> = mapOf(
+        String::class.java to string(ClickHouseType.String),
+        Int::class.java to integer(ClickHouseType.Int32),
+        Int::class.javaObjectType to integer(ClickHouseType.Int32),
+        Long::class.java to integer(ClickHouseType.Int64),
+        Long::class.javaObjectType to integer(ClickHouseType.Int64),
+        Float::class.java to number(ClickHouseType.Float32),
+        Float::class.javaObjectType to number(ClickHouseType.Float32),
+        Double::class.java to number(ClickHouseType.Float64),
+        Double::class.javaObjectType to number(ClickHouseType.Float64),
+        Boolean::class.java to boolean(ClickHouseType.Bool),
+        Boolean::class.javaObjectType to boolean(ClickHouseType.Bool),
+        Short::class.java to integer(ClickHouseType.Int16),
+        Short::class.javaObjectType to integer(ClickHouseType.Int16),
+        Char::class.java to string(ClickHouseType.String),
+        Char::class.javaObjectType to string(ClickHouseType.String),
+        Byte::class.java to integer(ClickHouseType.Int8),
+        Byte::class.javaObjectType to integer(ClickHouseType.Int8),
+        UUID::class.java to string(ClickHouseType.UUID),
+        Duration::class.java to string(ClickHouseType.String),
+        Date::class.java to string(ClickHouseType.String),
+        java.sql.Date::class.java to string(ClickHouseType.String),
+        LocalDate::class.java to string(ClickHouseType.String),
+        LocalDateTime::class.java to string(ClickHouseType.String),
+        LocalTime::class.java to string(ClickHouseType.String),
+        Instant::class.java to string(ClickHouseType.String),
+        ZonedDateTime::class.java to string(ClickHouseType.String),
+        OffsetDateTime::class.java to string(ClickHouseType.String),
+        OffsetTime::class.java to string(ClickHouseType.String),
+        YearMonth::class.java to string(ClickHouseType.String),
+        MonthDay::class.java to string(ClickHouseType.String),
+        Period::class.java to string(ClickHouseType.String),
+        Year::class.java to integer(ClickHouseType.Int32),
     )
 
-    internal fun Class<*>.isClickHouseScalar(): Boolean = scalarTypes.containsKey(this) || isEnum
-
-    internal fun Class<*>.toClickHouseScalar(): ClickHouseType.Scalar {
-        scalarTypes[this]?.let {
-            return it
+    internal fun Class<*>.scalarMapping(): ScalarMapping? =
+        scalarMappings[this] ?: takeIf(Class<*>::isEnum)?.let {
+            string(ClickHouseType.String)
         }
-        require(isEnum) { "Unsupported ClickHouse scalar type: $name" }
-        return ClickHouseType.String
-    }
+
+    private fun string(type: ClickHouseType.Scalar): ScalarMapping =
+        ScalarMapping(JsonTokenShape.STRING, type)
+
+    private fun integer(type: ClickHouseType.Scalar): ScalarMapping =
+        ScalarMapping(JsonTokenShape.INTEGER, type)
+
+    private fun number(type: ClickHouseType.Scalar): ScalarMapping =
+        ScalarMapping(JsonTokenShape.NUMBER, type)
+
+    private fun boolean(type: ClickHouseType.Scalar): ScalarMapping =
+        ScalarMapping(JsonTokenShape.BOOLEAN, type)
 }

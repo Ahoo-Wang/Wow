@@ -92,6 +92,35 @@ class StateExpansionPlannerTest {
     }
 
     @Test
+    fun `should preserve scalar values according to their verified JSON wire shapes`() {
+        val plan = StateExpansionPlanner().plan(biAggregateMetadata)
+        val root = plan.views.first()
+
+        root.column("big_decimal").run {
+            type.assert().isEqualTo(ClickHouseType.String)
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw(input("state"), "bigDecimal"))
+        }
+        root.column("duration").type.assert().isEqualTo(ClickHouseType.String)
+        root.column("date").type.assert().isEqualTo(ClickHouseType.String)
+        root.column("sql_date").type.assert().isEqualTo(ClickHouseType.String)
+        root.column("instant").type.assert().isEqualTo(ClickHouseType.String)
+        root.column("year").type.assert().isEqualTo(ClickHouseType.Int32)
+        root.column("kotlin_duration").type.assert().isEqualTo(ClickHouseType.Int64)
+        root.column("default_enum").run {
+            type.assert().isEqualTo(ClickHouseType.String)
+            extraction.assert().isEqualTo(ColumnExtraction.JsonValue(input("state"), "defaultEnum"))
+        }
+        root.column("numeric_enum").run {
+            type.assert().isEqualTo(ClickHouseType.String)
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw(input("state"), "numericEnum"))
+        }
+        plan.diagnostics.single { it.path == "bigDecimal" }.code.assert()
+            .isEqualTo(BiScriptDiagnosticCode.RAW_JSON_FALLBACK)
+        plan.diagnostics.single { it.path == "numericEnum" }.code.assert()
+            .isEqualTo(BiScriptDiagnosticCode.RAW_JSON_FALLBACK)
+    }
+
+    @Test
     fun `should build child view after freezing all same-table sibling columns`() {
         val plan = StateExpansionPlanner().plan(siblingAggregateMetadata)
 

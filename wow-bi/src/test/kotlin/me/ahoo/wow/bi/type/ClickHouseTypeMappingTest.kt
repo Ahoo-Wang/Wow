@@ -14,9 +14,7 @@
 package me.ahoo.wow.bi.type
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.test.asserts.assertThrownBy
-import me.ahoo.wow.bi.type.ClickHouseTypeMapping.isClickHouseScalar
-import me.ahoo.wow.bi.type.ClickHouseTypeMapping.toClickHouseScalar
+import me.ahoo.wow.bi.type.ClickHouseTypeMapping.scalarMapping
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 import java.time.Duration
@@ -36,60 +34,60 @@ import java.util.UUID
 
 class ClickHouseTypeMappingTest {
     @Test
-    fun `should map every supported JVM scalar`() {
+    fun `should map only lossless JVM scalar wire shapes`() {
         listOf(
-            String::class.java to ClickHouseType.String,
-            Int::class.java to ClickHouseType.Int32,
-            Int::class.javaObjectType to ClickHouseType.Int32,
-            Long::class.java to ClickHouseType.Int64,
-            Long::class.javaObjectType to ClickHouseType.Int64,
-            Float::class.java to ClickHouseType.Float32,
-            Float::class.javaObjectType to ClickHouseType.Float32,
-            Double::class.java to ClickHouseType.Float64,
-            Double::class.javaObjectType to ClickHouseType.Float64,
-            Boolean::class.java to ClickHouseType.Bool,
-            Boolean::class.javaObjectType to ClickHouseType.Bool,
-            Short::class.java to ClickHouseType.Int16,
-            Short::class.javaObjectType to ClickHouseType.Int16,
-            Char::class.java to ClickHouseType.String,
-            Char::class.javaObjectType to ClickHouseType.String,
-            Byte::class.java to ClickHouseType.Int8,
-            Byte::class.javaObjectType to ClickHouseType.Int8,
-            BigDecimal::class.java to ClickHouseType.Decimal(38, 18),
-            UUID::class.java to ClickHouseType.UUID,
-            Duration::class.java to ClickHouseType.Decimal64(9),
-            kotlin.time.Duration::class.java to ClickHouseType.UInt64,
-            Date::class.java to ClickHouseType.UInt64,
-            java.sql.Date::class.java to ClickHouseType.UInt64,
-            LocalDate::class.java to ClickHouseType.String,
-            LocalDateTime::class.java to ClickHouseType.String,
-            LocalTime::class.java to ClickHouseType.String,
-            Instant::class.java to ClickHouseType.Decimal64(9),
-            ZonedDateTime::class.java to ClickHouseType.String,
-            OffsetDateTime::class.java to ClickHouseType.String,
-            OffsetTime::class.java to ClickHouseType.String,
-            YearMonth::class.java to ClickHouseType.String,
-            MonthDay::class.java to ClickHouseType.String,
-            Period::class.java to ClickHouseType.String,
-            Year::class.java to ClickHouseType.UInt32
-        ).forEach { (jvmType, clickHouseType) ->
-            jvmType.isClickHouseScalar().assert().isTrue()
-            jvmType.toClickHouseScalar().assert().isEqualTo(clickHouseType)
+            String::class.java to ScalarMapping(JsonTokenShape.STRING, ClickHouseType.String),
+            Int::class.java to ScalarMapping(JsonTokenShape.INTEGER, ClickHouseType.Int32),
+            Int::class.javaObjectType to ScalarMapping(JsonTokenShape.INTEGER, ClickHouseType.Int32),
+            Long::class.java to ScalarMapping(JsonTokenShape.INTEGER, ClickHouseType.Int64),
+            Long::class.javaObjectType to ScalarMapping(JsonTokenShape.INTEGER, ClickHouseType.Int64),
+            Float::class.java to ScalarMapping(JsonTokenShape.NUMBER, ClickHouseType.Float32),
+            Float::class.javaObjectType to ScalarMapping(JsonTokenShape.NUMBER, ClickHouseType.Float32),
+            Double::class.java to ScalarMapping(JsonTokenShape.NUMBER, ClickHouseType.Float64),
+            Double::class.javaObjectType to ScalarMapping(JsonTokenShape.NUMBER, ClickHouseType.Float64),
+            Boolean::class.java to ScalarMapping(JsonTokenShape.BOOLEAN, ClickHouseType.Bool),
+            Boolean::class.javaObjectType to ScalarMapping(JsonTokenShape.BOOLEAN, ClickHouseType.Bool),
+            Short::class.java to ScalarMapping(JsonTokenShape.INTEGER, ClickHouseType.Int16),
+            Short::class.javaObjectType to ScalarMapping(JsonTokenShape.INTEGER, ClickHouseType.Int16),
+            Char::class.java to ScalarMapping(JsonTokenShape.STRING, ClickHouseType.String),
+            Char::class.javaObjectType to ScalarMapping(JsonTokenShape.STRING, ClickHouseType.String),
+            Byte::class.java to ScalarMapping(JsonTokenShape.INTEGER, ClickHouseType.Int8),
+            Byte::class.javaObjectType to ScalarMapping(JsonTokenShape.INTEGER, ClickHouseType.Int8),
+            UUID::class.java to ScalarMapping(JsonTokenShape.STRING, ClickHouseType.UUID),
+            Duration::class.java to ScalarMapping(JsonTokenShape.STRING, ClickHouseType.String),
+            Date::class.java to ScalarMapping(JsonTokenShape.STRING, ClickHouseType.String),
+            java.sql.Date::class.java to ScalarMapping(JsonTokenShape.STRING, ClickHouseType.String),
+            LocalDate::class.java to ScalarMapping(JsonTokenShape.STRING, ClickHouseType.String),
+            LocalDateTime::class.java to ScalarMapping(JsonTokenShape.STRING, ClickHouseType.String),
+            LocalTime::class.java to ScalarMapping(JsonTokenShape.STRING, ClickHouseType.String),
+            Instant::class.java to ScalarMapping(JsonTokenShape.STRING, ClickHouseType.String),
+            ZonedDateTime::class.java to ScalarMapping(JsonTokenShape.STRING, ClickHouseType.String),
+            OffsetDateTime::class.java to ScalarMapping(JsonTokenShape.STRING, ClickHouseType.String),
+            OffsetTime::class.java to ScalarMapping(JsonTokenShape.STRING, ClickHouseType.String),
+            YearMonth::class.java to ScalarMapping(JsonTokenShape.STRING, ClickHouseType.String),
+            MonthDay::class.java to ScalarMapping(JsonTokenShape.STRING, ClickHouseType.String),
+            Period::class.java to ScalarMapping(JsonTokenShape.STRING, ClickHouseType.String),
+            Year::class.java to ScalarMapping(JsonTokenShape.INTEGER, ClickHouseType.Int32),
+        ).forEach { (jvmType, expected) ->
+            jvmType.scalarMapping().assert().isEqualTo(expected)
         }
     }
 
     @Test
-    fun `should map enum to String`() {
-        SampleEnum::class.java.isClickHouseScalar().assert().isTrue()
-        SampleEnum::class.java.toClickHouseScalar().assert().isEqualTo(ClickHouseType.String)
+    fun `should not claim a fixed scalar mapping for arbitrary precision or inline duration`() {
+        BigDecimal::class.java.scalarMapping().assert().isNull()
+        kotlin.time.Duration::class.java.scalarMapping().assert().isNull()
     }
 
     @Test
-    fun `should reject unsupported JVM type`() {
-        Thread::class.java.isClickHouseScalar().assert().isFalse()
-        assertThrownBy<IllegalArgumentException> {
-            Thread::class.java.toClickHouseScalar()
-        }.hasMessageContaining(Thread::class.java.name)
+    fun `should expose an enum string candidate for wire verification`() {
+        SampleEnum::class.java.scalarMapping().assert()
+            .isEqualTo(ScalarMapping(JsonTokenShape.STRING, ClickHouseType.String))
+    }
+
+    @Test
+    fun `should return null for unsupported JVM type`() {
+        Thread::class.java.scalarMapping().assert().isNull()
     }
 
     private enum class SampleEnum

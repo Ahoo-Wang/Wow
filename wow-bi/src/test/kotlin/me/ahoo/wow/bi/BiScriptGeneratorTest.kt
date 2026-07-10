@@ -40,7 +40,7 @@ class BiScriptGeneratorTest {
         )
         result.diagnostics.map(BiScriptDiagnostic::path)
             .assert()
-            .containsExactly("likeMapItem", "mapItem")
+            .containsExactly("bigDecimal", "likeMapItem", "mapItem", "numericEnum")
         result.diagnostics.all {
             it.code == BiScriptDiagnosticCode.RAW_JSON_FALLBACK &&
                 it.decision == BiScriptMappingDecision.RAW_JSON
@@ -98,12 +98,16 @@ class BiScriptGeneratorTest {
             .containsExactly(
                 "bi-service.aggregate",
                 "bi-service.aggregate",
+                "bi-service.aggregate",
+                "bi-service.aggregate",
                 "bi-service.generic-object-map",
                 "bi-service.generic-object-map",
             )
         result.diagnostics.map(BiScriptDiagnostic::path).assert().containsExactly(
+            "bigDecimal",
             "likeMapItem",
             "mapItem",
+            "numericEnum",
             "genericValues",
             "values",
         )

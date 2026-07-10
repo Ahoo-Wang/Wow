@@ -26,8 +26,8 @@ import me.ahoo.wow.bi.expansion.type.Nullability
 import me.ahoo.wow.bi.expansion.type.ResolvedJsonProperty
 import me.ahoo.wow.bi.expansion.type.ResolvedType
 import me.ahoo.wow.bi.type.ClickHouseType
-import me.ahoo.wow.bi.type.ClickHouseTypeMapping.isClickHouseScalar
-import me.ahoo.wow.bi.type.ClickHouseTypeMapping.toClickHouseScalar
+import me.ahoo.wow.bi.type.ClickHouseTypeMapping.scalarMapping
+import me.ahoo.wow.bi.type.ScalarMapping
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.naming.NamingConverter
@@ -181,16 +181,10 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
             return
         }
 
+        if (collectScalarProperty(parent, name, path, targetName, type, draft, context)) {
+            return
+        }
         when {
-            type.rawClass.isClickHouseScalar() -> collectScalar(
-                parent = parent,
-                name = name,
-                path = path,
-                targetName = targetName,
-                type = type,
-                draft = draft,
-            )
-
             type.javaType.isMapLikeType -> collectMap(
                 parent = parent,
                 name = name,
@@ -223,6 +217,24 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
 
             else -> collectObjectProperty(parent, name, path, targetName, type, draft, context)
         }
+    }
+
+    private fun collectScalarProperty(
+        parent: PlanningNode,
+        name: String,
+        path: String,
+        targetName: String,
+        type: ResolvedType,
+        draft: ViewDraft,
+        context: PlanningContext,
+    ): Boolean {
+        val scalarMapping = type.rawClass.scalarMapping() ?: return false
+        if (JacksonWireShapeInspector.matches(type, scalarMapping.tokenShape)) {
+            collectScalar(parent, name, path, targetName, type, scalarMapping, draft)
+        } else {
+            collectRawFallback(name, path, targetName, parent.source, type, draft, context)
+        }
+        return true
     }
 
     private fun collectObjectProperty(
@@ -264,6 +276,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
         path: String,
         targetName: String,
         type: ResolvedType,
+        scalarMapping: ScalarMapping,
         draft: ViewDraft,
     ) {
         draft.columns.add(
@@ -271,7 +284,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
                 name = name,
                 path = path,
                 targetName = targetName,
-                type = type.toScalarType(parent.nullableAncestor),
+                type = type.toScalarType(scalarMapping, parent.nullableAncestor),
                 extraction = ColumnExtraction.JsonValue(parent.source, name),
                 placement = ColumnPlacement.SELECT,
             )
@@ -329,11 +342,12 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
         draft: ViewDraft,
         context: PlanningContext,
     ) {
-        if (!type.hasSupportedMapShape()) {
+        val valueType = type.arguments.getOrNull(1)
+        val valueMapping = type.supportedMapValueMapping()
+        if (valueType == null || valueMapping == null) {
             collectRawFallback(name, path, targetName, parent.source, type, draft, context)
             return
         }
-        val valueType = type.arguments[1]
 
         draft.columns.add(
             ColumnPlan(
@@ -342,7 +356,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
                 targetName = targetName,
                 type = ClickHouseType.Map(
                     keyType = ClickHouseType.String,
-                    valueType = valueType.toScalarType(nullableAncestor = false),
+                    valueType = valueType.toScalarType(valueMapping, nullableAncestor = false),
                 ),
                 extraction = ColumnExtraction.JsonValue(parent.source, name),
                 placement = ColumnPlacement.SELECT,
@@ -353,6 +367,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
         }
     }
 
+    @Suppress("LongMethod")
     private fun collectCollection(
         parent: PlanningNode,
         name: String,
@@ -367,13 +382,16 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
             collectRawFallback(name, path, targetName, parent.source, type, draft, context)
             return
         }
-        if (elementType.rawClass.isClickHouseScalar()) {
+        val elementMapping = elementType.verifiedScalarMapping()
+        if (elementMapping != null) {
             draft.columns.add(
                 ColumnPlan(
                     name = name,
                     path = path,
                     targetName = targetName,
-                    type = ClickHouseType.Array(elementType.toScalarType(nullableAncestor = false)),
+                    type = ClickHouseType.Array(
+                        elementType.toScalarType(elementMapping, nullableAncestor = false)
+                    ),
                     extraction = ColumnExtraction.JsonValue(parent.source, name),
                     placement = ColumnPlacement.SELECT,
                 )
@@ -387,7 +405,6 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
             collectRawFallback(name, path, targetName, parent.source, type, draft, context)
             return
         }
-
         draft.columns.add(rawObjectArrayColumn(name, path, targetName, parent.source))
         if (type.requiresRawCompanion()) {
             draft.columns.add(
@@ -577,27 +594,41 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
     }
 
     private fun ResolvedType.canRenderDirectly(): Boolean {
-        if (rawClass.isClickHouseScalar()) {
+        if (verifiedScalarMapping() != null) {
             return true
         }
         if (javaType.isMapLikeType) {
             return hasSupportedMapShape()
         }
         if (javaType.isCollectionLikeType || javaType.isArrayType) {
-            return arguments.firstOrNull()?.rawClass?.isClickHouseScalar() == true
+            return arguments.firstOrNull()?.verifiedScalarMapping() != null
         }
         return false
     }
 
-    private fun ResolvedType.hasSupportedMapShape(): Boolean {
+    private fun ResolvedType.hasSupportedMapShape(): Boolean = supportedMapValueMapping() != null
+
+    private fun ResolvedType.supportedMapValueMapping(): ScalarMapping? {
         val keyType = arguments.getOrNull(0)
-        return keyType?.rawClass == String::class.java &&
-            keyType.nullability == Nullability.NON_NULL &&
-            arguments.getOrNull(1)?.rawClass?.isClickHouseScalar() == true
+        if (keyType?.rawClass != String::class.java ||
+            keyType.nullability != Nullability.NON_NULL ||
+            keyType.verifiedScalarMapping() == null
+        ) {
+            return null
+        }
+        return arguments.getOrNull(1)?.verifiedScalarMapping()
     }
 
-    private fun ResolvedType.toScalarType(nullableAncestor: Boolean): ClickHouseType {
-        val scalar = rawClass.toClickHouseScalar()
+    private fun ResolvedType.verifiedScalarMapping(): ScalarMapping? {
+        val mapping = rawClass.scalarMapping() ?: return null
+        return mapping.takeIf { JacksonWireShapeInspector.matches(this, it.tokenShape) }
+    }
+
+    private fun ResolvedType.toScalarType(
+        mapping: ScalarMapping,
+        nullableAncestor: Boolean,
+    ): ClickHouseType {
+        val scalar = mapping.clickHouseType
         return if (requiresRawCompanion() || nullableAncestor) {
             ClickHouseType.Nullable(scalar)
         } else {

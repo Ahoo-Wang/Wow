@@ -13,8 +13,10 @@
 
 package me.ahoo.wow.bi.expansion
 
+import com.fasterxml.jackson.annotation.JsonValue
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.AggregateRoot
+import java.math.BigDecimal
 import java.util.*
 
 @Suppress("UnusedPrivateProperty")
@@ -31,6 +33,7 @@ class BIAggregateState(override val id: String) : Identifier {
     var byte: Byte = 0
     var short: Short = 0
     var char: Char = ' '
+    var bigDecimal: BigDecimal = BigDecimal.ZERO
     var item: Item = Item(id = "", name = "")
     var duration: java.time.Duration = java.time.Duration.ofHours(1)
     var kotlinDuration: kotlin.time.Duration = kotlin.time.Duration.parse("PT1H")
@@ -48,6 +51,8 @@ class BIAggregateState(override val id: String) : Identifier {
     var monthDay = java.time.MonthDay.now()
     var period = java.time.Period.ZERO
     var year = java.time.Year.now()
+    var defaultEnum = DefaultWireEnum.VALUE
+    var numericEnum = NumericWireEnum.VALUE
     var month = java.time.Month.JANUARY
     var dayOfWeek = java.time.DayOfWeek.MONDAY
     var nested: Nested = Nested(id = "", name = "", child = NestedChild(id = "", name = ""))
@@ -73,3 +78,15 @@ class LikeLinkString : LinkedList<String>()
 class LikeListItem : LinkedList<Item>()
 class LikeMapString : HashMap<String, String>()
 class LikeMapItem : HashMap<String, Item>()
+
+enum class DefaultWireEnum {
+    VALUE,
+}
+
+enum class NumericWireEnum(private val value: Int) {
+    VALUE(1),
+    ;
+
+    @JsonValue
+    fun toJsonValue(): Int = value
+}
