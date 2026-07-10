@@ -2,12 +2,11 @@
 
 ## 1. 决策状态
 
-本文是 `wow-bi` 破坏性收口设计，取代
-`2026-07-10-wow-bi-refactor-design.md` 中关于 ABI 兼容层、重复 route options 和旧 expansion API
-的约束。此前已完成的 planner、renderer、稳定排序、SQL quoting 和 diagnostics 继续保留；旧双轨实现不再保留。
+本文是 `wow-bi` 唯一的架构设计事实源。此前已完成的 planner、renderer、稳定排序、SQL quoting 和
+diagnostics 继续保留；旧双轨实现、旧设计和旧实施计划全部删除。
 
-用户已明确允许破坏性变更，并授权在其离线期间自主完成架构决策。因此本文按推荐方案直接执行，
-不再为历史构造器、类名或 SQL schema 保留适配层。
+用户已明确允许破坏性变更，不考虑向前兼容和迁移。因此本文不为历史构造器、类名、配置或 SQL schema
+保留适配层、迁移表或回滚说明。
 
 ## 2. 目标与完成标准
 
@@ -22,10 +21,13 @@
 - ClickHouse 类型由结构化模型表达，构造期无法产生 `Nullable(Array(...))` 等非法组合。
 - nullable scalar 使用 `Nullable(T)`；每个 declared nullable/unknown typed property 使用类型化投影加完整 raw companion。
 - depth cutoff、object map、raw generic 和 unsupported type 只允许 fail 或完整 raw JSON；不允许有损强转。
+- 只有能证明声明 Bean 模型与实际 Jackson wire shape 同构的对象才允许递归展开；其他对象统一 fail 或完整 raw JSON。
+- JVM scalar 映射同时声明 JSON token shape、提取策略和 ClickHouse type；任一环节无法证明无损时统一 raw/fail。
 - planner 发现重复列名、reserved raw 名冲突或 Java nullability 冲突时 fail fast。
 - 本地单测、四个相关模块检查、detekt、文档构建通过。
 - 独立 ClickHouse integration test 可编译，并在 CI Docker 环境执行真实 DDL/query；CI 不静默跳过。
-- 中英文文档只描述当前 API/schema，并给出破坏性迁移与回滚方式。
+- `BiScriptGenerator` 生成的全部 executable statements 在最低支持 ClickHouse 上执行真实 DDL smoke。
+- 中英文文档只描述当前 API/schema，不保留迁移和兼容说明。
 
 ## 3. 方案比较
 
@@ -41,7 +43,7 @@ planner 使用 Kotlin/Java nullability resolver 和结构化 `ClickHouseType`。
 - 非法 ClickHouse 类型在进入 renderer 前即被类型系统拒绝。
 - 复杂值 fallback 不再伪造精度。
 
-代价：SQL schema 改变，nullable composite 增加 reserved companion 列，下游查询需要迁移。
+代价：保守的 wire-shape 判定会让 custom/polymorphic/unwrapped 等对象失去 typed expansion，但始终保留完整 JSON。
 
 ### 3.2 方案 B：统一使用 ClickHouse `JSON`
 
@@ -63,7 +65,8 @@ flowchart LR
     Options["BiScriptOptions"] --> API
     Sort --> Planner["internal StateExpansionPlanner"]
     Planner --> Resolver["JsonPropertyTypeResolver"]
-    Resolver --> Jackson["Jackson serialization surface"]
+    Resolver --> Inspector["JacksonWireShapeInspector"]
+    Inspector --> Jackson["Jackson serialization surface"]
     Resolver --> Kotlin["Kotlin KType and generic substitution"]
     Resolver --> Java["Java annotations and conservative references"]
     Planner --> Plan["immutable StateExpansionPlan"]
@@ -197,6 +200,8 @@ planner 递归进入 generic object 时必须把当前 `ResolvedType` 传回 res
 nullability 初始化该 raw class 的 type-parameter bindings。只传 `JavaType` 会让 `Box<T>.value` 在第二层
 重新退化为 `UNKNOWN`，因此只允许 `resolve(ResolvedType)` 作为递归入口。
 
+`JsonPropertyTypeResolver` 只负责声明类型、泛型和 nullability；它不再声称 Bean properties 就是实际 wire shape。
+
 ### 6.2 Kotlin 规则
 
 - 使用 property/getter 的 `KType.isMarkedNullable`。
@@ -215,6 +220,23 @@ nullability 初始化该 raw class 的 type-parameter bindings。只传 `JavaTyp
 - 未标注 reference 为 `UNKNOWN`，映射时按 nullable 处理；这是可接受所有合法 Java 值的保守 schema，
   不因缺少 annotation 阻断脚本生成。
 - `@JsonProperty(required = true)` 不代表 non-null。
+- Java override 继承最具体父接口/父类 getter 的 return/type-use nullability contract；实现方法不必重复注解。
+
+### 6.4 Jackson wire-shape trust gate
+
+新增内部 `JacksonWireShapeInspector`，使用生产消息序列化所使用的同一个 `JsonSerializer` 和
+`acceptJsonFormatVisitor` 判断实际 wire format。只有同时满足以下条件的对象才返回
+`ExpandableObject(properties)`：
+
+- format visitor 返回 `OBJECT`；
+- visitor 的 property name/type signature 与过滤后的 Bean properties 一一对应；
+- 类型是 concrete、非 sealed、非 polymorphic；
+- 类型和 property 上不存在 `@JsonValue`、`@JsonUnwrapped`、`@JsonAnyGetter`、custom serializer、converter、
+  content/key serializer 等会改变结构的声明。
+
+其他情况返回带内部 reason 的 `Opaque`。嵌套 opaque property 在最近可寻址节点整体 raw/fail；opaque collection
+element 使整个 collection raw/fail；opaque root state 在 root view 中直接透传完整 `state`，禁止生成空 view。
+不扫描或合并运行时子类，不反编译 custom serializer，也不硬编码 `AggregateIdJsonSerializer` 的字段。
 
 ## 7. ClickHouse 类型代数
 
@@ -229,13 +251,26 @@ internal sealed interface ClickHouseType {
 }
 ```
 
-具体 scalar 由不可变 registry 映射，renderer 是唯一 SQL 序列化位置。构造不变量：
+具体 scalar 由不可变 registry 映射，renderer 是唯一 SQL 序列化位置。每个映射同时表达预期 JSON token shape、
+提取策略和 ClickHouse type；format visitor 与预期 token 不一致时该值视为 opaque。构造不变量：
 
 - `Nullable` 只能包装 scalar，不能包装 Array/Map。
 - Map key 必须是 non-null scalar。
 - nested `Nullable(Nullable(T))` 不存在。
 - Decimal precision/scale 和其他参数在构造时校验。
 - 调用方不能在运行期修改全局 JVM-to-SQL mapping。
+
+无损 scalar 决策：
+
+| JVM type | Jackson wire shape | ClickHouse projection |
+| --- | --- | --- |
+| primitive/boxed integer、boolean、char | number/boolean/string | 对应精确 scalar |
+| `Float` / `Double` | number 或 Jackson 已定义的特殊值 | `Float32` / `Float64` |
+| `UUID`、`java.time.Duration`、`java.util.Date`、`java.sql.Date`、`Instant`、其他 `java.time.*` | string | `String` |
+| `Year` | signed integer | `Int32` |
+| `BigDecimal` | arbitrary precision JSON number | 完整 `JSONExtractRaw`，不提供固定 Decimal projection |
+| `kotlin.time.Duration` | Kotlin value-class wire value | 按解析后的实际 `Long` 处理，不注册伪语义映射 |
+| enum | 仅当 format visitor 证明为 string | `String`，否则 raw/fail |
 
 ## 8. 无损投影规则
 
@@ -319,6 +354,8 @@ properties 直接使用 `UnsupportedTypeStrategy`，不复制 enum；最终 `BiS
 
 - `ClickHouseTypeTest`：合法 nested 类型与全部非法构造。
 - `JsonPropertyTypeResolverTest`：Kotlin nullable/generic/inheritance/rename 和 Java annotation/primitive/reference。
+- `JacksonWireShapeInspectorTest`：ordinary bean、interface/abstract/sealed、polymorphic、`@JsonValue`、
+  `@JsonUnwrapped`、custom/contextual serializer 和 `AggregateIdJsonSerializer`。
 - `StateExpansionPlannerNullableTest`：scalar、array element、map value、nullable ancestor、nullable object element、raw companion。
 - planner collision、depth、unsupported/raw generic、确定性和不可变性。
 - renderer 只断言结构/语句和 SQL escaping；完整 golden 仅作为显式 schema snapshot，不作为唯一正确性门禁。
@@ -330,34 +367,35 @@ properties 直接使用 `UnsupportedTypeStrategy`，不复制 enum；最终 `BiS
 
 - 将 `:wow-bi` 加入 root `integrationTestProjects`。
 - `wow-bi/src/integrationTest` 使用固定的最低支持 ClickHouse image 和 Testcontainers ClickHouse module。
-- 创建最小 `state_last` fixture，执行真实 expansion view DDL。
+- 从 `BiScriptGenerator.generate()` 取得与 `script` 同源的 immutable executable statements，执行 global、clear、
+  command、stateEvent、stateLast 和 expansion 的完整 DDL；测试代码不解析 SQL 字符串。
 - 插入 scalar null、array/map null/empty/missing、nullable object、nullable element、object-map mixed JSON。
+- 输入 JSON 必须由 `JsonSerializer` 生成，并覆盖 BigDecimal raw、epoch 前 Date、negative Year、Duration 和 Instant。
 - 查询 `toTypeName`、typed columns 和 raw companion，证明类型与值语义。
 - 本地 `test/check` 保持 Docker-free；显式 `:wow-bi:integrationTest` 需要 Docker。
 - CI integration job 增加 `wow-bi/**` path，并真实运行测试；不使用 `disabledWithoutDocker`。
-- 当前 clustered command/state/Kafka DDL 保持既有行为；本轮 single-node integration 聚焦发生变化的 expansion
-  schema。完整 Keeper/Kafka 集群部署 smoke 属于部署流水线，不在 module 单元边界中伪造。
+- Kafka engine 只验证 DDL/object dependency，不在 module test 中伪造 broker 消费；Keeper、Replicated 和 Distributed
+  对象使用当前单节点集群配置真实创建。
 
-## 12. 文档与迁移
+## 12. 文档
 
 - 中英文代码示例改为 `BiScriptGenerator(options).generate(...)`。
 - 删除 `ScriptEngine`、template/expansion API、route constructor 的说明。
 - 删除 `object-map-strategy`；`unsupported-type-strategy` 改为 `FAIL | RAW_JSON`。
 - 不再复制多份手写完整 SQL；BI 文档保留 canonical 片段，OpenAPI 文档链接 BI 指南。
-- 明确列出 `T -> Nullable(T)`、array/map element nullable、`__raw__*`、raw fallback 和 metadata 变化。
-- `CREATE VIEW IF NOT EXISTS` 不会替换旧定义，升级必须 drop/recreate expansion views。
-- 回滚前保留旧 view 定义；回滚代码后 drop/recreate 旧 schema。command/state source table不因本轮 nullable
-  expansion 变化重建。
+- 明确列出当前 `T -> Nullable(T)`、array/map element nullable、`__raw__*`、raw fallback 和 metadata 规则。
+- 删除迁移表、升级步骤、回滚说明、旧设计和旧实施计划；仓库中只保留当前事实。
+- 模块依赖图必须与 Gradle `api` / `implementation` / feature variant 保持一致。
 
 ## 13. 风险与控制
 
 | 风险 | 控制 |
 | --- | --- |
-| 下游查询依赖旧 non-null schema | 迁移表、schema snapshot 和真实 ClickHouse query test。 |
 | Kotlin member 与 Jackson name 错配 | 按 accessor/member signature 对齐，并测试 `@JsonProperty` rename。 |
+| 声明 Bean 模型与 wire shape 不同 | structural trust gate；opaque 值整体 raw/fail。 |
+| JVM 类型与 JSON token/ClickHouse 类型错配 | 三元映射模型 + `JsonSerializer` 输入的真实 ClickHouse query test。 |
 | Java annotation 生态不一致 | 支持主流 Nullable/NonNull 名称；冲突 fail，未标注 reference 保守 nullable。 |
 | raw companion 与 domain 列冲突 | reserved namespace + planner collision validation。 |
-| legacy 删除造成源码/二进制不兼容 | 明确作为 breaking release；不留适配层，文档给出一对一迁移。 |
 | Docker 在开发机不可用 | 单测与 integration 分层；CI 负责不可跳过的真实 ClickHouse gate。 |
 
 ## 14. 验收命令
@@ -371,5 +409,5 @@ rg -n "ScriptEngine|ScriptTemplateEngine|StateExpansionScriptGenerator|BiScriptR
   wow-bi wow-webflux wow-spring-boot-starter documentation
 ```
 
-最后一条除迁移说明外必须无生产代码命中。若本地 Docker 不可用，必须至少运行
+最后一条必须无生产代码和文档命中。若本地 Docker 不可用，必须至少运行
 `:wow-bi:integrationTestClasses`，记录环境阻断，并由 CI integration gate 执行容器测试后才能发布。
