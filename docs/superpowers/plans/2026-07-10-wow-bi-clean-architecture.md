@@ -311,6 +311,8 @@ git commit -m "feat(bi): preserve nullable state projections"
 - Delete: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/expansion/column/`
 - Delete: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/expansion/SqlTypeMappingTest.kt`
 - Delete: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/expansion/StateExpansionScriptGeneratorTest.kt`
+- Create: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/expansion/BiTestFixtures.kt`
+- Modify: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/expansion/BiTableNamingTest.kt`
 - Delete: `wow-bi/src/test/resources/expected_bi_aggregate_script.sql`
 - Modify: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/BiScriptGeneratorTest.kt`
 - Create: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/BiPublicApiTest.kt`
@@ -343,6 +345,10 @@ Expected: the Kotlin visibility assertion fails because implementation and legac
 
 `BiScriptGenerator` has one constructor and one validated options path. Remove `legacy`, `validateOptions`, `plannerOptions`
 and blank fallbacks. Move Kafka/topic defaults into `BiScriptOptions`.
+
+Move shared aggregate/state/item/nested/Like* fixtures out of the deleted legacy generator test into `BiTestFixtures.kt`
+without changing their package/FQCN or metadata identity. Delete `BiTableNamingTest` assertions/imports that exist only
+for the removed `TableNaming` compatibility extensions; keep direct `BiTableNaming` behavior coverage.
 
 Mark naming, planner/plan, property filter, resolver, types, renderer and SQL syntax `internal`.
 
