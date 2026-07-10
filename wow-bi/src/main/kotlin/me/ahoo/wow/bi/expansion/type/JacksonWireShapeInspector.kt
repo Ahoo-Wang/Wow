@@ -18,6 +18,7 @@ import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toBeanDescription
 import tools.jackson.databind.BeanProperty
 import tools.jackson.databind.JavaType
+import tools.jackson.databind.annotation.JsonSerialize
 import tools.jackson.databind.introspect.Annotated
 import tools.jackson.databind.introspect.AnnotatedMember
 import tools.jackson.databind.introspect.BeanPropertyDefinition
@@ -93,24 +94,29 @@ internal object JacksonWireShapeInspector {
         }
         return properties.asSequence()
             .filter(PropertyFilter::shouldInclude)
-            .mapNotNull { property ->
-                (property.primaryMember ?: property.accessor)?.takeIf { member ->
-                    property.isExplicitlyNamed || '-' !in member.name
-                }
-            }
+            .mapNotNull { property -> property.primaryMember ?: property.accessor }
             .any { member -> member.hasCustomSerialization() }
     }
 
     private fun AnnotatedMember.hasCustomSerialization(): Boolean {
         val config = JsonSerializer.serializationConfig()
         val introspector = config.annotationIntrospector
+        if (getAnnotation(JsonSerialize::class.java) != null) {
+            return true
+        }
+        val serializationConverter = introspector.findSerializationConverter(config, this)
+        val contentConverter = introspector.findSerializationContentConverter(config, this)
         return introspector.findSerializer(config, this) != null ||
             introspector.findContentSerializer(config, this) != null ||
             introspector.findKeySerializer(config, this) != null ||
-            introspector.findSerializationConverter(config, this) != null ||
-            introspector.findSerializationContentConverter(config, this) != null ||
+            serializationConverter.isExplicitConverter() ||
+            contentConverter.isExplicitConverter() ||
             introspector.findUnwrappingNameTransformer(config, this) != null ||
             introspector.findPolymorphicTypeInfo(config, this) != null
+    }
+
+    private fun Any?.isExplicitConverter(): Boolean {
+        return this != null && !javaClass.name.startsWith(KOTLIN_MODULE_PACKAGE_PREFIX)
     }
 
     private data class PropertySignature(val name: String, val type: String)
@@ -145,4 +151,6 @@ internal object JacksonWireShapeInspector {
             }
         }
     }
+
+    private const val KOTLIN_MODULE_PACKAGE_PREFIX = "tools.jackson.module.kotlin."
 }

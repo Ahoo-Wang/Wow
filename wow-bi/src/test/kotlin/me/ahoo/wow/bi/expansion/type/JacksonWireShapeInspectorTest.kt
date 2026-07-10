@@ -91,6 +91,11 @@ class JacksonWireShapeInspectorTest {
     }
 
     @Test
+    fun `should mark explicit serializer on mangled value class property as opaque`() {
+        assertOpaque<MangledPropertySerializerHolder>(JsonWireShapeReason.CUSTOM_SERIALIZATION)
+    }
+
+    @Test
     fun `should mark content serializer as opaque`() {
         assertOpaque<ContentSerializerHolder>(JsonWireShapeReason.CUSTOM_SERIALIZATION)
     }
@@ -103,6 +108,11 @@ class JacksonWireShapeInspectorTest {
     @Test
     fun `should mark property converter as opaque`() {
         assertOpaque<PropertyConverterHolder>(JsonWireShapeReason.CUSTOM_SERIALIZATION)
+    }
+
+    @Test
+    fun `should mark explicit converter on mangled value class property as opaque`() {
+        assertOpaque<MangledPropertyConverterHolder>(JsonWireShapeReason.CUSTOM_SERIALIZATION)
     }
 
     @Test
@@ -171,6 +181,20 @@ private data class PropertySerializerHolder(
     val value: String,
 )
 
+@JvmInline
+internal value class MangledValue(val value: String)
+
+private data class MangledPropertySerializerHolder(
+    @get:JsonSerialize(using = MangledValueSerializer::class)
+    val value: MangledValue,
+)
+
+private class MangledValueSerializer : StdSerializer<MangledValue>(MangledValue::class.java) {
+    override fun serialize(value: MangledValue, generator: JsonGenerator, provider: SerializationContext) {
+        generator.writeString(value.value)
+    }
+}
+
 private data class ContentSerializerHolder(
     @get:JsonSerialize(contentUsing = StringValueSerializer::class)
     val values: List<String>,
@@ -186,6 +210,11 @@ private data class PropertyConverterHolder(
     val value: String,
 )
 
+private data class MangledPropertyConverterHolder(
+    @get:JsonSerialize(converter = MangledValueConverter::class)
+    val value: MangledValue,
+)
+
 private class StringValueSerializer : StdSerializer<String>(String::class.java) {
     override fun serialize(value: String, generator: JsonGenerator, provider: SerializationContext) {
         generator.writeString(value)
@@ -194,4 +223,8 @@ private class StringValueSerializer : StdSerializer<String>(String::class.java) 
 
 private class StringValueConverter : StdConverter<String, String>() {
     override fun convert(value: String): String = value
+}
+
+private class MangledValueConverter : StdConverter<MangledValue, String>() {
+    override fun convert(value: MangledValue): String = value.value
 }
