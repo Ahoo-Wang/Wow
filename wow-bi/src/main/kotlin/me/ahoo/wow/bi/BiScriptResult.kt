@@ -19,20 +19,20 @@ data class BiScriptResult(
 )
 
 enum class BiScriptDiagnosticCode {
-    OBJECT_MAP_FALLBACK,
-    UNSUPPORTED_TYPE_FALLBACK,
+    RAW_JSON_FALLBACK,
     MAX_DEPTH_REACHED,
+}
+
+enum class BiScriptMappingDecision {
+    RAW_JSON,
+    MAX_DEPTH_RAW_JSON,
 }
 
 data class BiScriptDiagnostic(
     val code: BiScriptDiagnosticCode,
-    val severity: Severity,
     val aggregate: String,
     val path: String,
+    val sourceType: String,
+    val decision: BiScriptMappingDecision,
     val message: String,
-) {
-    enum class Severity {
-        WARNING,
-        ERROR,
-    }
-}
+)

@@ -16,6 +16,7 @@ package me.ahoo.wow.bi.expansion.type
 import com.fasterxml.jackson.annotation.JsonProperty
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.example.transfer.domain.AccountState
 import org.junit.jupiter.api.Test
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.javaGetter
@@ -90,6 +91,23 @@ class JsonPropertyTypeResolverTest {
     }
 
     @Test
+    fun `should seed nested generic member resolution from parent resolved arguments`() {
+        val boxedType = JsonPropertyTypeResolver.resolve(KotlinFixture::class.java)
+            .single { it.serializedName == "boxed" }
+            .type
+
+        val value = JsonPropertyTypeResolver.resolve(boxedType).single()
+
+        value.serializedName.assert().isEqualTo("value")
+        value.type.rawClass.assert().isEqualTo(List::class.java)
+        value.type.nullability.assert().isEqualTo(Nullability.NULLABLE)
+        value.type.arguments.single().run {
+            rawClass.assert().isEqualTo(String::class.java)
+            nullability.assert().isEqualTo(Nullability.NULLABLE)
+        }
+    }
+
+    @Test
     fun `should substitute inherited Kotlin generic and keep Jackson rename`() {
         val property = JsonPropertyTypeResolver.resolve(StringDerived::class.java).single()
         val inheritedGetter = GenericBase::class.memberProperties
@@ -147,6 +165,15 @@ class JsonPropertyTypeResolverTest {
         property.origin.assert().isEqualTo(ResolvedTypeOrigin.JAVA)
         property.declaringMember.assert()
             .isEqualTo(JavaNullabilityFixture::class.java.getMethod("getOriginalName"))
+    }
+
+    @Test
+    fun `should inherit non-null contract from Kotlin interface overridden by Java getter`() {
+        val properties = JsonPropertyTypeResolver.resolve(AccountState::class.java)
+            .associateBy { it.serializedName }
+
+        properties.getValue("id").type.nullability.assert().isEqualTo(Nullability.NON_NULL)
+        properties.getValue("name").type.nullability.assert().isEqualTo(Nullability.UNKNOWN)
     }
 
     @Test

@@ -69,6 +69,19 @@ internal sealed interface ClickHouseType {
         }
     }
 
+    data class DateTime(val timezone: kotlin.String) : Scalar(toSql(timezone)) {
+        private companion object {
+            fun toSql(timezone: kotlin.String): kotlin.String {
+                require(timezone.isNotBlank()) { "DateTime timezone must not be blank" }
+                require(timezone.none { it == '\u0000' || it.isISOControl() }) {
+                    "DateTime timezone must not contain control characters"
+                }
+                val literal = timezone.replace("\\", "\\\\").replace("'", "''")
+                return "DateTime('$literal')"
+            }
+        }
+    }
+
     data class Nullable(val type: Scalar) : ClickHouseType {
         override fun toSql(): kotlin.String = "Nullable(${type.toSql()})"
     }

@@ -20,21 +20,11 @@ import me.ahoo.wow.bi.renderer.ClickHouseScriptRenderer
 import me.ahoo.wow.modeling.toStringWithAlias
 import java.util.Collections
 
-class BiScriptGenerator private constructor(
-    private val options: BiScriptOptions,
-    private val validateOptions: Boolean,
-) {
-    constructor(options: BiScriptOptions = BiScriptOptions()) : this(options, validateOptions = true)
-
-    init {
-        if (validateOptions) {
-            options.validate()
-        }
-    }
+class BiScriptGenerator(private val options: BiScriptOptions = BiScriptOptions()) {
 
     fun generate(namedAggregates: Set<NamedAggregate>): BiScriptResult {
         val renderer = ClickHouseScriptRenderer(options)
-        val planner = StateExpansionPlanner(plannerOptions())
+        val planner = StateExpansionPlanner(options)
         val plannedAggregates = namedAggregates
             .sortedWith(compareBy<NamedAggregate> { it.contextName }.thenBy { it.aggregateName })
             .map { namedAggregate ->
@@ -76,19 +66,6 @@ class BiScriptGenerator private constructor(
         )
     }
 
-    private fun plannerOptions(): BiScriptOptions {
-        if (validateOptions) {
-            return options
-        }
-        return options.copy(
-            kafkaBootstrapServers = options.kafkaBootstrapServers.ifBlank {
-                ScriptTemplateEngine.DEFAULT_KAFKA_BOOTSTRAP_SERVERS
-            },
-            topicPrefix = options.topicPrefix.ifBlank { ScriptTemplateEngine.DEFAULT_TOPIC_PREFIX },
-            unsupportedTypeStrategy = UnsupportedTypeStrategy.STRING_WITH_DIAGNOSTIC,
-        )
-    }
-
     private fun StringBuilder.appendSection(
         namedAggregate: NamedAggregate,
         section: String,
@@ -107,6 +84,6 @@ class BiScriptGenerator private constructor(
 
     companion object {
         internal fun legacy(options: BiScriptOptions): BiScriptGenerator =
-            BiScriptGenerator(options, validateOptions = false)
+            BiScriptGenerator(options)
     }
 }

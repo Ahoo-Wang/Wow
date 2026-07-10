@@ -13,17 +13,19 @@
 
 package me.ahoo.wow.bi.expansion.plan
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.bi.BiScriptDiagnosticCode
+import me.ahoo.wow.bi.BiScriptMappingDecision
 import me.ahoo.wow.bi.BiScriptOptions
-import me.ahoo.wow.bi.ObjectMapStrategy
 import me.ahoo.wow.bi.UnsupportedTypeStrategy
 import me.ahoo.wow.bi.expansion.BIAggregate
 import me.ahoo.wow.bi.expansion.BIAggregateState
 import me.ahoo.wow.bi.expansion.Item
+import me.ahoo.wow.bi.type.ClickHouseType
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
@@ -50,24 +52,31 @@ class StateExpansionPlannerTest {
         )
         rootView.columns.map { it.targetName }.assert()
             .isEqualTo(rootView.columns.map { it.targetName }.sorted())
-        rootView.columns.first { it.targetName == "item" }.run {
+        rootView.column("item").run {
+            type.assert().isEqualTo(ClickHouseType.String)
             placement.assert().isEqualTo(ColumnPlacement.WITH)
             extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "item"))
         }
-        rootView.columns.first { it.targetName == "item__id" }.run {
+        rootView.column("item__id").run {
+            type.assert().isEqualTo(ClickHouseType.String)
             placement.assert().isEqualTo(ColumnPlacement.SELECT)
             extraction.assert().isEqualTo(ColumnExtraction.JsonValue("item", "id"))
         }
-        rootView.columns.first { it.targetName == "items" }.run {
-            sqlType.assert().isEqualTo("Array(String)")
+        rootView.column("items").run {
+            type.assert().isEqualTo(ClickHouseType.Array(ClickHouseType.String))
             placement.assert().isEqualTo(ColumnPlacement.SELECT)
             extraction.assert().isEqualTo(ColumnExtraction.JsonArray("state", "items"))
             inherited.assert().isFalse()
         }
+        rootView.column("map_item").run {
+            type.assert().isEqualTo(ClickHouseType.String)
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "mapItem"))
+        }
         plan.diagnostics.single { it.path == "mapItem" }.run {
-            code.assert().isEqualTo(BiScriptDiagnosticCode.OBJECT_MAP_FALLBACK)
+            code.assert().isEqualTo(BiScriptDiagnosticCode.RAW_JSON_FALLBACK)
             aggregate.assert().isEqualTo("bi-service.aggregate")
-            message.contains(Item::class.java.name).assert().isTrue()
+            sourceType.contains(Item::class.java.name).assert().isTrue()
+            decision.assert().isEqualTo(BiScriptMappingDecision.RAW_JSON)
         }
     }
 
@@ -90,282 +99,214 @@ class StateExpansionPlannerTest {
     }
 
     @Test
-    fun `should not count root in max expansion depth and keep truncated object as raw string`() {
+    fun `should keep depth-cut object as one whole raw value`() {
         val plan = StateExpansionPlanner(BiScriptOptions(maxExpansionDepth = 1)).plan(biAggregateMetadata)
         val rootView = plan.views.first()
 
-        rootView.columns.first { it.targetName == "nested__child" }.run {
-            sqlType.assert().isEqualTo("String")
+        rootView.column("nested__child").run {
+            type.assert().isEqualTo(ClickHouseType.String)
             placement.assert().isEqualTo(ColumnPlacement.SELECT)
             extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("nested", "child"))
         }
-        rootView.columns.first { it.targetName == "nested__id" }.run {
-            sqlType.assert().isEqualTo("String")
+        rootView.column("nested__id").run {
+            type.assert().isEqualTo(ClickHouseType.String)
             extraction.assert().isEqualTo(ColumnExtraction.JsonValue("nested", "id"))
         }
         rootView.columns.none { it.targetName == "nested__child__id" }.assert().isTrue()
         plan.diagnostics.single { it.path == "nested.child" }.run {
             code.assert().isEqualTo(BiScriptDiagnosticCode.MAX_DEPTH_REACHED)
-            aggregate.assert().isEqualTo("bi-service.aggregate")
+            sourceType.assert().contains("NestedChild")
+            decision.assert().isEqualTo(BiScriptMappingDecision.MAX_DEPTH_RAW_JSON)
         }
-        plan.diagnostics.none { it.path == "nested.id" }.assert().isTrue()
     }
 
     @Test
-    fun `should keep truncated object array as raw string array`() {
+    fun `should keep depth-cut object collection as one whole raw value`() {
         val plan = StateExpansionPlanner(BiScriptOptions(maxExpansionDepth = 1)).plan(siblingAggregateMetadata)
         val rootView = plan.views.first()
 
-        rootView.columns.first { it.targetName == "alpha__children" }.run {
-            sqlType.assert().isEqualTo("Array(String)")
+        rootView.column("alpha__children").run {
+            type.assert().isEqualTo(ClickHouseType.String)
             placement.assert().isEqualTo(ColumnPlacement.SELECT)
-            extraction.assert().isEqualTo(ColumnExtraction.JsonArray("alpha", "children"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("alpha", "children"))
         }
         plan.views.none { it.targetTableName.endsWith("_alpha__children") }.assert().isTrue()
-        plan.diagnostics.single { it.path == "alpha.children" }.code.assert()
-            .isEqualTo(BiScriptDiagnosticCode.MAX_DEPTH_REACHED)
-    }
-
-    @Test
-    fun `should prioritize depth truncation over strict unsupported nested object`() {
-        val plan = StateExpansionPlanner(BiScriptOptions(maxExpansionDepth = 1))
-            .plan(truncatedPlatformObjectAggregateMetadata)
-
-        plan.views.single().columns.first { it.targetName == "nested__value" }.run {
-            sqlType.assert().isEqualTo("String")
-            placement.assert().isEqualTo(ColumnPlacement.SELECT)
-            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("nested", "value"))
-        }
-        plan.diagnostics.single().run {
-            path.assert().isEqualTo("nested.value")
+        plan.diagnostics.single { it.path == "alpha.children" }.run {
             code.assert().isEqualTo(BiScriptDiagnosticCode.MAX_DEPTH_REACHED)
+            decision.assert().isEqualTo(BiScriptMappingDecision.MAX_DEPTH_RAW_JSON)
         }
-        plan.diagnostics.none {
-            it.code == BiScriptDiagnosticCode.UNSUPPORTED_TYPE_FALLBACK
-        }.assert().isTrue()
-    }
-
-    @Test
-    fun `should prioritize depth truncation over nested object map fallback`() {
-        val plan = StateExpansionPlanner(BiScriptOptions(maxExpansionDepth = 1))
-            .plan(truncatedObjectMapAggregateMetadata)
-
-        plan.views.single().columns.first { it.targetName == "nested__values" }.run {
-            sqlType.assert().isEqualTo("String")
-            placement.assert().isEqualTo(ColumnPlacement.SELECT)
-            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("nested", "values"))
-        }
-        plan.diagnostics.single().run {
-            path.assert().isEqualTo("nested.values")
-            code.assert().isEqualTo(BiScriptDiagnosticCode.MAX_DEPTH_REACHED)
-        }
-        plan.diagnostics.none {
-            it.code == BiScriptDiagnosticCode.OBJECT_MAP_FALLBACK
-        }.assert().isTrue()
     }
 
     @Test
     fun `should include aggregate path and actual type in strict object map failure`() {
         assertThrownBy<IllegalArgumentException> {
             StateExpansionPlanner(
-                BiScriptOptions(objectMapStrategy = ObjectMapStrategy.FAIL)
-            ).plan(biAggregateMetadata)
-        }.hasMessageContaining("bi-service.aggregate")
-            .hasMessageContaining("likeMapItem")
-            .hasMessageContaining(Item::class.java.name)
+                BiScriptOptions(unsupportedTypeStrategy = UnsupportedTypeStrategy.FAIL)
+            ).plan(genericObjectMapAggregateMetadata)
+        }.hasMessageContaining("bi-service.generic-object-map")
+            .hasMessageContaining("genericValues")
+            .hasMessageContaining("java.util.List<me.ahoo.wow.bi.expansion.Item>")
     }
 
     @Test
     fun `should include aggregate path and actual type in strict unsupported failure`() {
         assertThrownBy<IllegalArgumentException> {
-            StateExpansionPlanner().plan(unsupportedAggregateMetadata)
+            StateExpansionPlanner(
+                BiScriptOptions(unsupportedTypeStrategy = UnsupportedTypeStrategy.FAIL)
+            ).plan(unsupportedAggregateMetadata)
         }.hasMessageContaining("bi-service.unsupported")
             .hasMessageContaining("unsupported")
             .hasMessageContaining(Thread::class.java.name)
     }
 
     @Test
-    fun `should downgrade unsupported platform objects structurally with diagnostics`() {
-        val plan = StateExpansionPlanner(
-            BiScriptOptions(unsupportedTypeStrategy = UnsupportedTypeStrategy.STRING_WITH_DIAGNOSTIC)
-        ).plan(unsupportedAggregateMetadata)
+    fun `should preserve unsupported platform object as raw json with structured diagnostic`() {
+        val plan = StateExpansionPlanner().plan(unsupportedAggregateMetadata)
         val rootView = plan.views.single()
 
-        rootView.columns.first { it.targetName == "unsupported" }.run {
-            sqlType.assert().isEqualTo("String")
+        rootView.column("unsupported").run {
+            type.assert().isEqualTo(ClickHouseType.String)
             extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "unsupported"))
         }
-        plan.diagnostics.single { it.path == "unsupported" }.run {
-            code.assert().isEqualTo(BiScriptDiagnosticCode.UNSUPPORTED_TYPE_FALLBACK)
+        plan.diagnostics.single().run {
+            code.assert().isEqualTo(BiScriptDiagnosticCode.RAW_JSON_FALLBACK)
             aggregate.assert().isEqualTo("bi-service.unsupported")
-            message.contains(Thread::class.java.name).assert().isTrue()
+            path.assert().isEqualTo("unsupported")
+            sourceType.assert().isEqualTo(Thread::class.java.name)
+            decision.assert().isEqualTo(BiScriptMappingDecision.RAW_JSON)
         }
     }
 
     @Test
-    fun `should reject non-string map key with complete java type`() {
-        assertThrownBy<IllegalArgumentException> {
-            StateExpansionPlanner().plan(nonStringMapAggregateMetadata)
-        }.hasMessageContaining("bi-service.non-string-map")
-            .hasMessageContaining("values")
-            .hasMessageContaining("java.util.Map<java.lang.Integer,java.lang.String>")
-    }
+    fun `should preserve non-string map as one raw json value`() {
+        val plan = StateExpansionPlanner().plan(nonStringMapAggregateMetadata)
 
-    @Test
-    fun `should preserve non-string map as raw json string with diagnostic`() {
-        val plan = StateExpansionPlanner(
-            BiScriptOptions(unsupportedTypeStrategy = UnsupportedTypeStrategy.STRING_WITH_DIAGNOSTIC)
-        ).plan(nonStringMapAggregateMetadata)
-
-        plan.views.single().columns.single { it.targetName == "values" }.run {
-            sqlType.assert().isEqualTo("String")
-            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "values"))
+        plan.views.single().column("non_string_values").run {
+            type.assert().isEqualTo(ClickHouseType.String)
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "nonStringValues"))
         }
-        plan.diagnostics.single().run {
-            code.assert().isEqualTo(BiScriptDiagnosticCode.UNSUPPORTED_TYPE_FALLBACK)
-            aggregate.assert().isEqualTo("bi-service.non-string-map")
-            path.assert().isEqualTo("values")
-            message.contains("java.util.Map<java.lang.Integer,java.lang.String>").assert().isTrue()
+        plan.diagnostics.single { it.path == "nonStringValues" }.run {
+            code.assert().isEqualTo(BiScriptDiagnosticCode.RAW_JSON_FALLBACK)
+            sourceType.assert().isEqualTo("java.util.Map<java.lang.Integer,java.lang.String>")
+            decision.assert().isEqualTo(BiScriptMappingDecision.RAW_JSON)
         }
     }
 
     @Test
-    fun `should reject raw map key with complete java type`() {
-        assertThrownBy<IllegalArgumentException> {
-            StateExpansionPlanner().plan(rawMapAggregateMetadata)
-        }.hasMessageContaining("bi-service.raw-map")
-            .hasMessageContaining("values")
-            .hasMessageContaining("java.util.Map<java.lang.Object,java.lang.Object>")
+    fun `should preserve raw map as one raw json value`() {
+        val plan = StateExpansionPlanner().plan(nonStringMapAggregateMetadata)
+
+        plan.views.single().column("raw_values").run {
+            type.assert().isEqualTo(ClickHouseType.String)
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "rawValues"))
+        }
+        plan.diagnostics.single { it.path == "rawValues" }.sourceType.assert()
+            .isEqualTo("java.util.Map<java.lang.Object,java.lang.Object>")
     }
 
     @Test
-    fun `should preserve raw map as raw json string with diagnostic`() {
-        val plan = StateExpansionPlanner(
-            BiScriptOptions(unsupportedTypeStrategy = UnsupportedTypeStrategy.STRING_WITH_DIAGNOSTIC)
-        ).plan(rawMapAggregateMetadata)
-
-        plan.views.single().columns.single { it.targetName == "values" }.run {
-            sqlType.assert().isEqualTo("String")
-            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "values"))
-        }
-        plan.diagnostics.single().run {
-            code.assert().isEqualTo(BiScriptDiagnosticCode.UNSUPPORTED_TYPE_FALLBACK)
-            message.contains("java.util.Map<java.lang.Object,java.lang.Object>").assert().isTrue()
-        }
-    }
-
-    @Test
-    fun `should include complete generic value type in object map diagnostic`() {
+    fun `should preserve heterogeneous object map as one whole raw value`() {
         val plan = StateExpansionPlanner().plan(genericObjectMapAggregateMetadata)
+        val rootView = plan.views.single()
 
-        plan.diagnostics.single().run {
-            code.assert().isEqualTo(BiScriptDiagnosticCode.OBJECT_MAP_FALLBACK)
-            message.contains("java.util.List<me.ahoo.wow.bi.expansion.Item>").assert().isTrue()
+        rootView.columns.filter { it.path == "values" }.assert().hasSize(1)
+        rootView.column("values").run {
+            type.assert().isEqualTo(ClickHouseType.String)
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "values"))
         }
+        rootView.columns.none {
+            it.type == ClickHouseType.Map(ClickHouseType.String, ClickHouseType.String)
+        }.assert().isTrue()
     }
 
     @Test
-    fun `should include complete generic value type in strict object map failure`() {
-        assertThrownBy<IllegalArgumentException> {
-            StateExpansionPlanner(
-                BiScriptOptions(objectMapStrategy = ObjectMapStrategy.FAIL)
-            ).plan(genericObjectMapAggregateMetadata)
-        }.hasMessageContaining("bi-service.generic-object-map")
-            .hasMessageContaining("values")
-            .hasMessageContaining("java.util.List<me.ahoo.wow.bi.expansion.Item>")
-    }
-
-    @Test
-    fun `should reject platform collection element before building child view`() {
-        assertThrownBy<IllegalArgumentException> {
-            StateExpansionPlanner().plan(platformCollectionAggregateMetadata)
-        }.hasMessageContaining("bi-service.platform-collection")
-            .hasMessageContaining("values")
-            .hasMessageContaining("java.util.List<java.lang.Thread>")
-    }
-
-    @Test
-    fun `should preserve platform collection as raw string array with diagnostic`() {
-        val plan = StateExpansionPlanner(
-            BiScriptOptions(unsupportedTypeStrategy = UnsupportedTypeStrategy.STRING_WITH_DIAGNOSTIC)
-        ).plan(platformCollectionAggregateMetadata)
+    fun `should preserve unsupported collection as one whole raw value`() {
+        val plan = StateExpansionPlanner().plan(platformCollectionAggregateMetadata)
 
         plan.views.assert().hasSize(1)
-        plan.views.single().columns.single { it.targetName == "values" }.run {
-            sqlType.assert().isEqualTo("Array(String)")
-            extraction.assert().isEqualTo(ColumnExtraction.JsonArray("state", "values"))
+        plan.views.single().column("platform_values").run {
+            type.assert().isEqualTo(ClickHouseType.String)
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "platformValues"))
         }
-        plan.diagnostics.single().run {
-            code.assert().isEqualTo(BiScriptDiagnosticCode.UNSUPPORTED_TYPE_FALLBACK)
-            message.contains("java.util.List<java.lang.Thread>").assert().isTrue()
-        }
+        plan.diagnostics.single { it.path == "platformValues" }.sourceType.assert()
+            .isEqualTo("java.util.List<java.lang.Thread>")
     }
 
     @Test
-    fun `should reject unknown collection element before building child view`() {
-        assertThrownBy<IllegalArgumentException> {
-            StateExpansionPlanner().plan(rawCollectionAggregateMetadata)
-        }.hasMessageContaining("bi-service.raw-collection")
-            .hasMessageContaining("values")
-            .hasMessageContaining("java.util.List<java.lang.Object>")
-    }
-
-    @Test
-    fun `should preserve unknown collection as raw string array with diagnostic`() {
-        val plan = StateExpansionPlanner(
-            BiScriptOptions(unsupportedTypeStrategy = UnsupportedTypeStrategy.STRING_WITH_DIAGNOSTIC)
-        ).plan(rawCollectionAggregateMetadata)
+    fun `should preserve raw generic collection as one whole raw value`() {
+        val plan = StateExpansionPlanner().plan(platformCollectionAggregateMetadata)
 
         plan.views.assert().hasSize(1)
-        plan.views.single().columns.single { it.targetName == "values" }.run {
-            sqlType.assert().isEqualTo("Array(String)")
-            extraction.assert().isEqualTo(ColumnExtraction.JsonArray("state", "values"))
+        plan.views.single().column("raw_values").run {
+            type.assert().isEqualTo(ClickHouseType.String)
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "rawValues"))
         }
-        plan.diagnostics.single().run {
-            code.assert().isEqualTo(BiScriptDiagnosticCode.UNSUPPORTED_TYPE_FALLBACK)
-            message.contains("java.util.List<java.lang.Object>").assert().isTrue()
-        }
+        plan.diagnostics.single { it.path == "rawValues" }.sourceType.assert()
+            .isEqualTo("java.util.List<java.lang.Object>")
     }
 
     @Test
-    fun `should prioritize depth truncation over unsupported nested collection elements`() {
+    fun `should prioritize depth cutoff and retain whole unsupported collections`() {
         val plan = StateExpansionPlanner(BiScriptOptions(maxExpansionDepth = 1))
             .plan(truncatedUnsupportedCollectionAggregateMetadata)
 
         plan.views.assert().hasSize(1)
         val rootColumns = plan.views.single().columns
-        rootColumns.first { it.targetName == "nested__platform_values" }.run {
-            sqlType.assert().isEqualTo("Array(String)")
-            extraction.assert().isEqualTo(ColumnExtraction.JsonArray("nested", "platformValues"))
+        rootColumns.single { it.targetName == "nested__platform_values" }.run {
+            type.assert().isEqualTo(ClickHouseType.String)
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("nested", "platformValues"))
         }
-        rootColumns.first { it.targetName == "nested__raw_values" }.run {
-            sqlType.assert().isEqualTo("Array(String)")
-            extraction.assert().isEqualTo(ColumnExtraction.JsonArray("nested", "rawValues"))
+        rootColumns.single { it.targetName == "nested__raw_values" }.run {
+            type.assert().isEqualTo(ClickHouseType.String)
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("nested", "rawValues"))
         }
         plan.diagnostics.map { it.path to it.code }.assert().containsExactly(
             "nested.platformValues" to BiScriptDiagnosticCode.MAX_DEPTH_REACHED,
             "nested.rawValues" to BiScriptDiagnosticCode.MAX_DEPTH_REACHED,
         )
-        plan.diagnostics.none { it.code == BiScriptDiagnosticCode.UNSUPPORTED_TYPE_FALLBACK }.assert().isTrue()
+        plan.diagnostics.all {
+            it.decision == BiScriptMappingDecision.MAX_DEPTH_RAW_JSON
+        }.assert().isTrue()
     }
 
     @Test
-    fun `should expose java unmodifiable plan collections`() {
+    fun `should reject duplicate normalized target names before rendering`() {
+        assertThrownBy<IllegalArgumentException> {
+            StateExpansionPlanner().plan(duplicateTargetAggregateMetadata)
+        }.hasMessageContaining("foo_bar")
+            .hasMessageContaining("duplicate")
+    }
+
+    @Test
+    fun `should reject domain property colliding with raw companion namespace`() {
+        assertThrownBy<IllegalArgumentException> {
+            StateExpansionPlanner().plan(rawCompanionCollisionAggregateMetadata)
+        }.hasMessageContaining("__raw__name")
+            .hasMessageContaining("collision")
+    }
+
+    @Test
+    fun `should reject domain property colliding with metadata alias`() {
+        assertThrownBy<IllegalArgumentException> {
+            StateExpansionPlanner().plan(metadataAliasCollisionAggregateMetadata)
+        }.hasMessageContaining("__id")
+            .hasMessageContaining("collision")
+    }
+
+    @Test
+    fun `should expose Java unmodifiable deterministic plan collections`() {
         val plan = StateExpansionPlanner().plan(biAggregateMetadata)
         val rootColumns = plan.views.first().columns
 
         assertAll(
-            {
-                assertJavaUnmodifiable(plan.views, plan.views.first())
-            },
-            {
-                assertJavaUnmodifiable(rootColumns, rootColumns.first())
-            },
-            {
-                assertJavaUnmodifiable(plan.diagnostics, plan.diagnostics.first())
-            },
+            { assertJavaUnmodifiable(plan.views, plan.views.first()) },
+            { assertJavaUnmodifiable(rootColumns, rootColumns.first()) },
+            { assertJavaUnmodifiable(plan.diagnostics, plan.diagnostics.first()) },
         )
     }
+
+    private fun ExpansionViewPlan.column(targetName: String): ColumnPlan =
+        columns.single { it.targetName == targetName }
 
     @Suppress("UNCHECKED_CAST")
     private fun <T> assertJavaUnmodifiable(values: List<T>, element: T) {
@@ -406,7 +347,8 @@ private class UnsupportedState(override val id: String) : Identifier {
 private class NonStringMapAggregate(private val state: NonStringMapState)
 
 private class NonStringMapState(override val id: String) : Identifier {
-    val values: Map<Int, String> = emptyMap()
+    val nonStringValues: Map<Int, String> = emptyMap()
+    val rawValues: Map<*, *> = emptyMap<Any, Any>()
 }
 
 @Suppress("UnusedPrivateProperty")
@@ -414,7 +356,10 @@ private class NonStringMapState(override val id: String) : Identifier {
 private class RawMapAggregate(private val state: RawMapState)
 
 private class RawMapState(override val id: String) : Identifier {
-    val values: Map<*, *> = emptyMap<Any, Any>()
+    val fooBar: String = ""
+
+    @get:JsonProperty("foo_bar")
+    val duplicate: String = ""
 }
 
 @Suppress("UnusedPrivateProperty")
@@ -422,7 +367,15 @@ private class RawMapState(override val id: String) : Identifier {
 private class GenericObjectMapAggregate(private val state: GenericObjectMapState)
 
 private class GenericObjectMapState(override val id: String) : Identifier {
-    val values: Map<String, List<Item>> = emptyMap()
+    val genericValues: Map<String, List<Item>> = emptyMap()
+    val values: Map<String, Any?> = mapOf(
+        "string" to "value",
+        "number" to 1,
+        "boolean" to true,
+        "null" to null,
+        "object" to Item("id", "name"),
+        "array" to listOf(1, 2),
+    )
 }
 
 @Suppress("UnusedPrivateProperty")
@@ -430,7 +383,8 @@ private class GenericObjectMapState(override val id: String) : Identifier {
 private class PlatformCollectionAggregate(private val state: PlatformCollectionState)
 
 private class PlatformCollectionState(override val id: String) : Identifier {
-    val values: List<Thread> = emptyList()
+    val platformValues: List<Thread> = emptyList()
+    val rawValues: List<*> = emptyList<Any>()
 }
 
 @Suppress("UnusedPrivateProperty")
@@ -438,12 +392,17 @@ private class PlatformCollectionState(override val id: String) : Identifier {
 private class RawCollectionAggregate(private val state: RawCollectionState)
 
 private class RawCollectionState(override val id: String) : Identifier {
-    val values: List<*> = emptyList<Any>()
+    val name: String? = null
+
+    @get:JsonProperty("__raw__name")
+    val rawName: String = ""
 }
 
 @Suppress("UnusedPrivateProperty")
 @AggregateRoot
-private class TruncatedUnsupportedCollectionAggregate(private val state: TruncatedUnsupportedCollectionState)
+private class TruncatedUnsupportedCollectionAggregate(
+    private val state: TruncatedUnsupportedCollectionState,
+)
 
 private class TruncatedUnsupportedCollectionState(override val id: String) : Identifier {
     val nested: NestedUnsupportedCollections = NestedUnsupportedCollections()
@@ -456,35 +415,25 @@ private data class NestedUnsupportedCollections(
 
 @Suppress("UnusedPrivateProperty")
 @AggregateRoot
-private class TruncatedPlatformObjectAggregate(private val state: TruncatedPlatformObjectState)
-
-private class TruncatedPlatformObjectState(override val id: String) : Identifier {
-    val nested: NestedPlatformObject = NestedPlatformObject()
-}
-
-private data class NestedPlatformObject(val value: Thread = Thread.currentThread())
-
-@Suppress("UnusedPrivateProperty")
-@AggregateRoot
 private class TruncatedObjectMapAggregate(private val state: TruncatedObjectMapState)
 
 private class TruncatedObjectMapState(override val id: String) : Identifier {
-    val nested: NestedObjectMap = NestedObjectMap()
+    @get:JsonProperty("__id")
+    val metadataId: String = ""
 }
-
-private data class NestedObjectMap(val values: Map<String, Item> = emptyMap())
 
 private val siblingAggregateMetadata = aggregateMetadata<SiblingAggregate, SiblingState>()
 private val unsupportedAggregateMetadata = aggregateMetadata<UnsupportedAggregate, UnsupportedState>()
 private val nonStringMapAggregateMetadata = aggregateMetadata<NonStringMapAggregate, NonStringMapState>()
-private val rawMapAggregateMetadata = aggregateMetadata<RawMapAggregate, RawMapState>()
-private val genericObjectMapAggregateMetadata = aggregateMetadata<GenericObjectMapAggregate, GenericObjectMapState>()
+private val genericObjectMapAggregateMetadata =
+    aggregateMetadata<GenericObjectMapAggregate, GenericObjectMapState>()
 private val platformCollectionAggregateMetadata =
     aggregateMetadata<PlatformCollectionAggregate, PlatformCollectionState>()
-private val rawCollectionAggregateMetadata = aggregateMetadata<RawCollectionAggregate, RawCollectionState>()
 private val truncatedUnsupportedCollectionAggregateMetadata =
     aggregateMetadata<TruncatedUnsupportedCollectionAggregate, TruncatedUnsupportedCollectionState>()
-private val truncatedPlatformObjectAggregateMetadata =
-    aggregateMetadata<TruncatedPlatformObjectAggregate, TruncatedPlatformObjectState>()
-private val truncatedObjectMapAggregateMetadata =
+private val duplicateTargetAggregateMetadata =
+    aggregateMetadata<RawMapAggregate, RawMapState>()
+private val rawCompanionCollisionAggregateMetadata =
+    aggregateMetadata<RawCollectionAggregate, RawCollectionState>()
+private val metadataAliasCollisionAggregateMetadata =
     aggregateMetadata<TruncatedObjectMapAggregate, TruncatedObjectMapState>()

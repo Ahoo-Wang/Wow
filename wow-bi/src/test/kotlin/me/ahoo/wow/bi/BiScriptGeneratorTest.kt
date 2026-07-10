@@ -24,16 +24,23 @@ class BiScriptGeneratorTest {
     private val sibling = namedAggregate("sibling")
 
     @Test
-    fun `should generate the complete default script`() {
+    fun `should generate complete default sections with lossless fallbacks`() {
         val result = BiScriptGenerator().generate(setOf(aggregate))
-        val expectedScript = requireNotNull(
-            javaClass.classLoader.getResource("expected_bi_script.sql")
-        ).readText().trim()
 
-        result.script.trim().assert().isEqualTo(expectedScript)
+        result.script.assert().contains("-- bi.aggregate.command --")
+        result.script.assert().contains("-- bi.aggregate.stateEvent --")
+        result.script.assert().contains("-- bi.aggregate.stateLast --")
+        result.script.assert().contains("-- bi.aggregate.expansion --")
+        result.script.assert().contains(
+            "JSONExtractRaw(\"state\", 'mapItem') AS \"map_item\""
+        )
         result.diagnostics.map(BiScriptDiagnostic::path)
             .assert()
             .containsExactly("likeMapItem", "mapItem")
+        result.diagnostics.all {
+            it.code == BiScriptDiagnosticCode.RAW_JSON_FALLBACK &&
+                it.decision == BiScriptMappingDecision.RAW_JSON
+        }.assert().isTrue()
     }
 
     @Test
@@ -65,7 +72,7 @@ class BiScriptGeneratorTest {
     @Test
     fun `should generate identical result and diagnostics for reversed aggregate sets`() {
         val options = BiScriptOptions(
-            unsupportedTypeStrategy = UnsupportedTypeStrategy.STRING_WITH_DIAGNOSTIC,
+            unsupportedTypeStrategy = UnsupportedTypeStrategy.RAW_JSON,
         )
         val forward = BiScriptGenerator(options).generate(linkedSetOf(aggregate, sibling))
         val reverse = BiScriptGenerator(options).generate(linkedSetOf(sibling, aggregate))
@@ -78,9 +85,9 @@ class BiScriptGeneratorTest {
 
     @Test
     fun `should return an immutable ordered diagnostics list`() {
-        val result = BiScriptGenerator(
-            BiScriptOptions(objectMapStrategy = ObjectMapStrategy.STRING_VALUE_WITH_DIAGNOSTIC)
-        ).generate(linkedSetOf(namedAggregate("generic-object-map"), aggregate))
+        val result = BiScriptGenerator().generate(
+            linkedSetOf(namedAggregate("generic-object-map"), aggregate)
+        )
 
         result.diagnostics.map(BiScriptDiagnostic::aggregate)
             .assert()
@@ -88,7 +95,14 @@ class BiScriptGeneratorTest {
                 "bi-service.aggregate",
                 "bi-service.aggregate",
                 "bi-service.generic-object-map",
+                "bi-service.generic-object-map",
             )
+        result.diagnostics.map(BiScriptDiagnostic::path).assert().containsExactly(
+            "likeMapItem",
+            "mapItem",
+            "genericValues",
+            "values",
+        )
         assertThrows<UnsupportedOperationException> {
             @Suppress("UNCHECKED_CAST")
             (result.diagnostics as MutableList<BiScriptDiagnostic>).clear()

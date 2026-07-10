@@ -23,8 +23,9 @@ import me.ahoo.wow.bi.expansion.plan.ExpansionViewPlan
 import me.ahoo.wow.bi.expansion.plan.StateExpansionPlan
 import me.ahoo.wow.bi.renderer.ClickHouseSqlSyntax.quoteIdentifier
 import me.ahoo.wow.bi.renderer.ClickHouseSqlSyntax.stringLiteral
+import me.ahoo.wow.bi.type.ClickHouseType
 
-class ClickHouseScriptRenderer(private val options: BiScriptOptions = BiScriptOptions()) {
+internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = BiScriptOptions()) {
     private val naming = BiTableNaming(options)
 
     fun renderGlobal(): String =
@@ -315,7 +316,7 @@ class ClickHouseScriptRenderer(private val options: BiScriptOptions = BiScriptOp
 
     private fun renderExtraction(column: ColumnPlan): String = when (val extraction = column.extraction) {
         is ColumnExtraction.Source -> identifier(extraction.name)
-        is ColumnExtraction.JsonValue -> jsonValue(extraction.source, extraction.property, column.sqlType)
+        is ColumnExtraction.JsonValue -> jsonValue(extraction.source, extraction.property, column.type.toSql())
         is ColumnExtraction.JsonString -> jsonString(extraction.source, extraction.property)
         is ColumnExtraction.JsonRaw -> jsonRaw(extraction.source, extraction.property)
         is ColumnExtraction.JsonArray -> jsonArray(extraction.source, extraction.property)
@@ -369,26 +370,32 @@ class ClickHouseScriptRenderer(private val options: BiScriptOptions = BiScriptOp
         "toDateTime64(${jsonUInt(source, property)} / 1000.0, 3, ${literal(options.timezone)})"
 
     private val metadataColumns: List<ColumnPlan> = listOf(
-        metadataColumn("id", "String"),
-        metadataColumn("aggregate_id", "String"),
-        metadataColumn("tenant_id", "String"),
-        metadataColumn("owner_id", "String"),
-        metadataColumn("space_id", "String"),
-        metadataColumn("command_id", "String"),
-        metadataColumn("request_id", "String"),
-        metadataColumn("version", "UInt32"),
-        metadataColumn("first_operator", "String"),
-        metadataColumn("first_event_time", "DateTime(${literal(options.timezone)})"),
-        metadataColumn("create_time", "DateTime(${literal(options.timezone)})"),
-        metadataColumn("tags", "Map(String, Array(String))"),
-        metadataColumn("deleted", "Bool"),
+        metadataColumn("id", ClickHouseType.String),
+        metadataColumn("aggregate_id", ClickHouseType.String),
+        metadataColumn("tenant_id", ClickHouseType.String),
+        metadataColumn("owner_id", ClickHouseType.String),
+        metadataColumn("space_id", ClickHouseType.String),
+        metadataColumn("command_id", ClickHouseType.String),
+        metadataColumn("request_id", ClickHouseType.String),
+        metadataColumn("version", ClickHouseType.UInt32),
+        metadataColumn("first_operator", ClickHouseType.String),
+        metadataColumn("first_event_time", ClickHouseType.DateTime(options.timezone)),
+        metadataColumn("create_time", ClickHouseType.DateTime(options.timezone)),
+        metadataColumn(
+            "tags",
+            ClickHouseType.Map(
+                ClickHouseType.String,
+                ClickHouseType.Array(ClickHouseType.String),
+            ),
+        ),
+        metadataColumn("deleted", ClickHouseType.Bool),
     )
 
-    private fun metadataColumn(name: String, sqlType: String): ColumnPlan = ColumnPlan(
+    private fun metadataColumn(name: String, type: ClickHouseType): ColumnPlan = ColumnPlan(
         name = name,
         path = name,
         targetName = "__$name",
-        sqlType = sqlType,
+        type = type,
         extraction = ColumnExtraction.Source(name),
         placement = ColumnPlacement.SELECT,
     )

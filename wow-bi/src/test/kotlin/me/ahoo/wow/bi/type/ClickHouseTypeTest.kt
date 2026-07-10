@@ -33,7 +33,9 @@ class ClickHouseTypeTest {
             ClickHouseType.Bool to "Bool",
             ClickHouseType.UUID to "UUID",
             ClickHouseType.Decimal(38, 18) to "Decimal(38,18)",
-            ClickHouseType.Decimal64(9) to "Decimal64(9)"
+            ClickHouseType.Decimal64(9) to "Decimal64(9)",
+            ClickHouseType.DateTime("Asia/Shanghai") to "DateTime('Asia/Shanghai')",
+            ClickHouseType.DateTime("Zone'Name") to "DateTime('Zone''Name')",
         ).forEach { (type, expectedSql) ->
             type.toSql().assert().isEqualTo(expectedSql)
         }
@@ -75,5 +77,15 @@ class ClickHouseTypeTest {
         assertThrownBy<IllegalArgumentException> {
             ClickHouseType.Decimal64(19)
         }.hasMessageContaining("scale")
+    }
+
+    @Test
+    fun `should reject unsafe DateTime timezone`() {
+        assertThrownBy<IllegalArgumentException> {
+            ClickHouseType.DateTime(" ")
+        }.hasMessageContaining("timezone")
+        assertThrownBy<IllegalArgumentException> {
+            ClickHouseType.DateTime("Asia\nShanghai")
+        }.hasMessageContaining("timezone")
     }
 }

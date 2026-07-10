@@ -20,6 +20,7 @@ import me.ahoo.wow.bi.expansion.plan.ColumnPlacement
 import me.ahoo.wow.bi.expansion.plan.ColumnPlan
 import me.ahoo.wow.bi.expansion.plan.ExpansionViewPlan
 import me.ahoo.wow.bi.expansion.plan.StateExpansionPlan
+import me.ahoo.wow.bi.type.ClickHouseType
 import org.junit.jupiter.api.Test
 
 class ClickHouseScriptRendererTest {
@@ -35,42 +36,42 @@ class ClickHouseScriptRendererTest {
                         column(
                             name = "nested",
                             targetName = "nested\"alias",
-                            sqlType = "String",
+                            type = ClickHouseType.String,
                             extraction = ColumnExtraction.JsonString("state", "nested'property"),
                             placement = ColumnPlacement.WITH,
                         ),
                         column(
                             name = "rawNested",
                             targetName = "raw_nested",
-                            sqlType = "String",
+                            type = ClickHouseType.String,
                             extraction = ColumnExtraction.JsonRaw("state", "raw'nested"),
                             placement = ColumnPlacement.WITH,
                         ),
                         column(
                             name = "items",
                             targetName = "items",
-                            sqlType = "String",
+                            type = ClickHouseType.String,
                             extraction = ColumnExtraction.ArrayJoin("state", "items"),
                             placement = ColumnPlacement.WITH,
                         ),
                         column(
                             name = "amount",
                             targetName = "amount",
-                            sqlType = "Decimal(18, 2)",
+                            type = ClickHouseType.Decimal(18, 2),
                             extraction = ColumnExtraction.JsonValue("state", "amount"),
                             placement = ColumnPlacement.SELECT,
                         ),
                         column(
                             name = "rawItems",
                             targetName = "raw_items",
-                            sqlType = "Array(String)",
+                            type = ClickHouseType.Array(ClickHouseType.String),
                             extraction = ColumnExtraction.JsonArray("state", "rawItems"),
                             placement = ColumnPlacement.SELECT,
                         ),
                         column(
                             name = "sourceVersion",
                             targetName = "copied_version",
-                            sqlType = "UInt32",
+                            type = ClickHouseType.UInt32,
                             extraction = ColumnExtraction.Source("version"),
                             placement = ColumnPlacement.SELECT,
                         ),
@@ -98,13 +99,57 @@ class ClickHouseScriptRendererTest {
             "arrayJoin(JSONExtractArrayRaw(\"state\", 'items')) AS \"items\""
         )
         script.assert().contains(
-            "JSONExtract(\"state\", 'amount', 'Decimal(18, 2)') AS \"amount\""
+            "JSONExtract(\"state\", 'amount', 'Decimal(18,2)') AS \"amount\""
         )
         script.assert().contains(
             "JSONExtractArrayRaw(\"state\", 'rawItems') AS \"raw_items\""
         )
         script.assert().contains("\"version\" AS \"copied_version\"")
         script.assert().contains("FROM \"bi\\\"db\".\"source\\\\table\";")
+    }
+
+    @Test
+    fun `should render nested nullable types from structural model`() {
+        val view = ExpansionViewPlan(
+            targetTableName = "target",
+            sourceTableName = "source",
+            columns = listOf(
+                column(
+                    name = "scalar",
+                    targetName = "scalar",
+                    type = ClickHouseType.Nullable(ClickHouseType.Int32),
+                    extraction = ColumnExtraction.JsonValue("state", "scalar"),
+                    placement = ColumnPlacement.SELECT,
+                ),
+                column(
+                    name = "values",
+                    targetName = "values",
+                    type = ClickHouseType.Array(ClickHouseType.Nullable(ClickHouseType.Int32)),
+                    extraction = ColumnExtraction.JsonValue("state", "values"),
+                    placement = ColumnPlacement.SELECT,
+                ),
+                column(
+                    name = "mapping",
+                    targetName = "mapping",
+                    type = ClickHouseType.Map(
+                        ClickHouseType.String,
+                        ClickHouseType.Nullable(ClickHouseType.Int32),
+                    ),
+                    extraction = ColumnExtraction.JsonValue("state", "mapping"),
+                    placement = ColumnPlacement.SELECT,
+                ),
+            ),
+        )
+
+        val script = ClickHouseScriptRenderer().renderExpansion(
+            StateExpansionPlan(views = listOf(view), diagnostics = emptyList())
+        )
+
+        script.assert().contains("JSONExtract(\"state\", 'scalar', 'Nullable(Int32)')")
+        script.assert().contains("JSONExtract(\"state\", 'values', 'Array(Nullable(Int32))')")
+        script.assert().contains(
+            "JSONExtract(\"state\", 'mapping', 'Map(String, Nullable(Int32))')"
+        )
     }
 
     @Test
@@ -144,14 +189,14 @@ class ClickHouseScriptRendererTest {
     private fun column(
         name: String,
         targetName: String,
-        sqlType: String,
+        type: ClickHouseType,
         extraction: ColumnExtraction,
         placement: ColumnPlacement,
     ) = ColumnPlan(
         name = name,
         path = name,
         targetName = targetName,
-        sqlType = sqlType,
+        type = type,
         extraction = extraction,
         placement = placement,
     )

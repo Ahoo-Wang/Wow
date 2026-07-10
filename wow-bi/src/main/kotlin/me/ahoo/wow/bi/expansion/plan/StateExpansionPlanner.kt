@@ -16,39 +16,47 @@ package me.ahoo.wow.bi.expansion.plan
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.bi.BiScriptDiagnostic
 import me.ahoo.wow.bi.BiScriptDiagnosticCode
+import me.ahoo.wow.bi.BiScriptMappingDecision
 import me.ahoo.wow.bi.BiScriptOptions
-import me.ahoo.wow.bi.ObjectMapStrategy
 import me.ahoo.wow.bi.UnsupportedTypeStrategy
 import me.ahoo.wow.bi.expansion.BiTableNaming
-import me.ahoo.wow.bi.expansion.SqlTypeMapping.isSimple
-import me.ahoo.wow.bi.expansion.SqlTypeMapping.toSqlType
+import me.ahoo.wow.bi.expansion.type.JsonPropertyTypeResolver
+import me.ahoo.wow.bi.expansion.type.Nullability
+import me.ahoo.wow.bi.expansion.type.ResolvedJsonProperty
+import me.ahoo.wow.bi.expansion.type.ResolvedType
+import me.ahoo.wow.bi.type.ClickHouseType
+import me.ahoo.wow.bi.type.ClickHouseTypeMapping.isClickHouseScalar
+import me.ahoo.wow.bi.type.ClickHouseTypeMapping.toClickHouseScalar
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.naming.NamingConverter
 import me.ahoo.wow.serialization.JsonSerializer
-import me.ahoo.wow.serialization.toBeanDescription
-import tools.jackson.databind.JavaType
-import tools.jackson.databind.introspect.BeanPropertyDefinition
 import java.util.Collections
 
-class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptions()) {
+internal class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptions()) {
     private val naming = BiTableNaming(options)
 
     fun plan(namedAggregate: NamedAggregate): StateExpansionPlan {
         val context = PlanningContext(
             aggregate = "${namedAggregate.contextName}.${namedAggregate.aggregateName}",
-            options = options.validate(),
+            options = options,
         )
-        val stateType = namedAggregate.requiredAggregateType<Any>()
+        val stateClass = namedAggregate.requiredAggregateType<Any>()
             .aggregateMetadata<Any, Any>()
             .state
             .aggregateType
+        val stateType = JsonSerializer.constructType(stateClass)
         val sourceTableName = naming.toDistributedTableName(namedAggregate, STATE_LAST_SUFFIX)
         val rootNode = PlanningNode(
             path = "",
             targetName = STATE_COLUMN,
-            type = JsonSerializer.constructType(stateType),
+            type = ResolvedType(
+                javaType = stateType,
+                nullability = Nullability.NON_NULL,
+                arguments = emptyList(),
+            ),
             depth = 0,
+            nullableAncestor = false,
         )
 
         buildView(
@@ -60,7 +68,12 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
         )
         return StateExpansionPlan(
             views = unmodifiableCopy(context.views),
-            diagnostics = unmodifiableCopy(context.diagnostics),
+            diagnostics = unmodifiableCopy(
+                context.diagnostics.sortedWith(
+                    compareBy<BiScriptDiagnostic>(BiScriptDiagnostic::path)
+                        .thenBy { it.code.name }
+                )
+            ),
         )
     }
 
@@ -73,6 +86,7 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
         arrayJoin: CollectionRequest? = null,
     ) {
         val draft = ViewDraft(
+            targetTableName = targetTableName,
             anchorTargetName = node.targetName,
             columns = inheritedColumns.toMutableList(),
         )
@@ -82,16 +96,29 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
                     name = request.name,
                     path = request.path,
                     targetName = request.targetName,
-                    sqlType = "String",
+                    type = ClickHouseType.String,
                     extraction = ColumnExtraction.ArrayJoin(request.sourceName, request.name),
                     placement = ColumnPlacement.WITH,
                 )
             )
+            if (request.rawElementCompanion) {
+                draft.columns.add(
+                    ColumnPlan(
+                        name = request.name,
+                        path = request.path,
+                        targetName = rawTargetName(request.targetName),
+                        type = ClickHouseType.String,
+                        extraction = ColumnExtraction.Source(request.targetName),
+                        placement = ColumnPlacement.SELECT,
+                    )
+                )
+            }
         }
 
         collectObjectProperties(node, draft, context)
+        validateColumnTargets(draft, context)
 
-        val frozenColumns = unmodifiableCopy(draft.columns)
+        val frozenColumns = unmodifiableCopy(draft.columns.sortedBy(ColumnPlan::targetName))
         context.views.add(
             ExpansionViewPlan(
                 targetTableName = targetTableName,
@@ -118,50 +145,39 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
         draft: ViewDraft,
         context: PlanningContext,
     ) {
-        parent.type.toBeanDescription()
-            .findProperties()
-            .asSequence()
-            .filter(PropertyFilter::shouldInclude)
-            .sortedBy(BeanPropertyDefinition::getName)
-            .forEach { property ->
-                collectProperty(parent, property, draft, context)
-            }
+        JsonPropertyTypeResolver.resolve(parent.type).forEach { property ->
+            collectProperty(parent, property, draft, context)
+        }
     }
 
     private fun collectProperty(
         parent: PlanningNode,
-        property: BeanPropertyDefinition,
+        property: ResolvedJsonProperty,
         draft: ViewDraft,
         context: PlanningContext,
     ) {
-        val name = property.name
-        val type = property.primaryType
+        val name = property.serializedName
+        val type = property.type
         val path = childPath(parent.path, name)
         val targetName = childTargetName(parent, name)
+        draft.propertyTargetNames.add(targetName)
 
-        if (shouldTruncateBeforeClassification(parent, type, context)) {
-            collectTruncatedProperty(
-                name = name,
-                path = path,
-                targetName = targetName,
-                sourceName = parent.targetName,
-                type = type,
-                draft = draft,
-                context = context,
-            )
+        if (parent.depth + 1 > context.options.maxExpansionDepth && !type.canRenderDirectly()) {
+            collectDepthFallback(name, path, targetName, parent.targetName, type, draft, context)
             return
         }
 
         when {
-            type.rawClass.isSimple -> draft.columns.add(
-                simpleColumn(name, path, targetName, parent.targetName, type)
+            type.rawClass.isClickHouseScalar() -> collectScalar(
+                parent = parent,
+                name = name,
+                path = path,
+                targetName = targetName,
+                type = type,
+                draft = draft,
             )
 
-            type.isMapLikeType -> draft.columns.add(
-                mapColumn(name, path, targetName, parent.targetName, type, context)
-            )
-
-            type.isCollectionLikeType || type.isArrayType -> collectCollection(
+            type.javaType.isMapLikeType -> collectMap(
                 parent = parent,
                 name = name,
                 path = path,
@@ -171,7 +187,17 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
                 context = context,
             )
 
-            isUnsupportedPlatformObject(type) -> collectUnsupported(
+            type.javaType.isCollectionLikeType || type.javaType.isArrayType -> collectCollection(
+                parent = parent,
+                name = name,
+                path = path,
+                targetName = targetName,
+                type = type,
+                draft = draft,
+                context = context,
+            )
+
+            isUnsupportedPlatformObject(type) -> collectRawFallback(
                 name = name,
                 path = path,
                 targetName = targetName,
@@ -193,47 +219,27 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
         }
     }
 
-    private fun shouldTruncateBeforeClassification(
+    private fun collectScalar(
         parent: PlanningNode,
-        type: JavaType,
-        context: PlanningContext,
-    ): Boolean {
-        if (parent.depth + 1 <= context.options.maxExpansionDepth) {
-            return false
-        }
-        if (type.rawClass.isSimple) {
-            return false
-        }
-        if (type.isCollectionLikeType || type.isArrayType) {
-            return false
-        }
-        if (type.isMapLikeType) {
-            return type.keyType?.rawClass != String::class.java ||
-                type.contentType?.rawClass?.isSimple != true
-        }
-        return isUnsupportedPlatformObject(type)
-    }
-
-    private fun collectTruncatedProperty(
         name: String,
         path: String,
         targetName: String,
-        sourceName: String,
-        type: JavaType,
+        type: ResolvedType,
         draft: ViewDraft,
-        context: PlanningContext,
     ) {
         draft.columns.add(
             ColumnPlan(
                 name = name,
                 path = path,
                 targetName = targetName,
-                sqlType = "String",
-                extraction = ColumnExtraction.JsonRaw(sourceName, name),
+                type = type.toScalarType(parent.nullableAncestor),
+                extraction = ColumnExtraction.JsonValue(parent.targetName, name),
                 placement = ColumnPlacement.SELECT,
             )
         )
-        context.diagnostics.add(depthDiagnostic(context.aggregate, path, type))
+        if (type.requiresRawCompanion()) {
+            draft.columns.add(rawCompanionColumn(name, path, targetName, parent.targetName))
+        }
     }
 
     private fun collectNestedObject(
@@ -241,45 +247,69 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
         name: String,
         path: String,
         targetName: String,
-        type: JavaType,
+        type: ResolvedType,
         draft: ViewDraft,
         context: PlanningContext,
     ) {
-        val propertyDepth = parent.depth + 1
-        val truncated = propertyDepth > context.options.maxExpansionDepth
-        if (truncated) {
-            collectTruncatedProperty(
-                name = name,
-                path = path,
-                targetName = targetName,
-                sourceName = parent.targetName,
-                type = type,
-                draft = draft,
-                context = context,
-            )
-            return
-        }
         draft.columns.add(
             ColumnPlan(
                 name = name,
                 path = path,
                 targetName = targetName,
-                sqlType = "String",
+                type = ClickHouseType.String,
                 extraction = ColumnExtraction.JsonRaw(parent.targetName, name),
                 placement = ColumnPlacement.WITH,
             )
         )
+        if (type.requiresRawCompanion()) {
+            draft.columns.add(rawCompanionColumn(name, path, targetName, parent.targetName))
+        }
 
         collectObjectProperties(
             parent = PlanningNode(
                 path = path,
                 targetName = targetName,
                 type = type,
-                depth = propertyDepth,
+                depth = parent.depth + 1,
+                nullableAncestor = parent.nullableAncestor || type.requiresRawCompanion(),
             ),
             draft = draft,
             context = context,
         )
+    }
+
+    private fun collectMap(
+        parent: PlanningNode,
+        name: String,
+        path: String,
+        targetName: String,
+        type: ResolvedType,
+        draft: ViewDraft,
+        context: PlanningContext,
+    ) {
+        val keyType = type.arguments.getOrNull(0)
+        val valueType = type.arguments.getOrNull(1)
+        if (keyType?.rawClass != String::class.java || valueType?.rawClass?.isClickHouseScalar() != true) {
+            collectRawFallback(name, path, targetName, parent.targetName, type, draft, context)
+            return
+        }
+
+        draft.columns.add(
+            ColumnPlan(
+                name = name,
+                path = path,
+                targetName = targetName,
+                type = ClickHouseType.Map(
+                    keyType = ClickHouseType.String,
+                    valueType = valueType.toScalarType(nullableAncestor = false),
+                ),
+                extraction = ColumnExtraction.JsonValue(parent.targetName, name),
+                placement = ColumnPlacement.SELECT,
+            )
+        )
+        if (type.requiresRawCompanion()) {
+            draft.columns.add(rawCompanionColumn(name, path, targetName, parent.targetName))
+        }
     }
 
     private fun collectCollection(
@@ -287,46 +317,48 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
         name: String,
         path: String,
         targetName: String,
-        type: JavaType,
+        type: ResolvedType,
         draft: ViewDraft,
         context: PlanningContext,
     ) {
-        val elementType = type.contentType
-        if (elementType?.rawClass?.isSimple == true) {
-            val elementSqlType = elementType.rawClass.toSqlType()
+        val elementType = type.arguments.firstOrNull()
+        if (elementType == null) {
+            collectRawFallback(name, path, targetName, parent.targetName, type, draft, context)
+            return
+        }
+        if (elementType.rawClass.isClickHouseScalar()) {
             draft.columns.add(
                 ColumnPlan(
                     name = name,
                     path = path,
                     targetName = targetName,
-                    sqlType = "Array($elementSqlType)",
+                    type = ClickHouseType.Array(elementType.toScalarType(nullableAncestor = false)),
                     extraction = ColumnExtraction.JsonValue(parent.targetName, name),
                     placement = ColumnPlacement.SELECT,
                 )
             )
+            if (type.requiresRawCompanion()) {
+                draft.columns.add(rawCompanionColumn(name, path, targetName, parent.targetName))
+            }
+            return
+        }
+        if (isUnsupportedPlatformObject(elementType)) {
+            collectRawFallback(name, path, targetName, parent.targetName, type, draft, context)
             return
         }
 
-        val propertyDepth = parent.depth + 1
-        val truncated = propertyDepth > context.options.maxExpansionDepth
-        draft.columns.add(
-            rawObjectArrayColumn(name, path, targetName, parent.targetName)
-        )
-        if (truncated) {
-            context.diagnostics.add(depthDiagnostic(context.aggregate, path, type))
-            return
-        }
-        if (elementType == null || isUnsupportedPlatformObject(elementType)) {
-            addUnsupportedTypeDiagnostic(
-                context = context,
-                path = path,
-                typeName = type.toCanonical(),
-                subject = "Unsupported collection element type",
-                fallback = "Array(String)",
+        draft.columns.add(rawObjectArrayColumn(name, path, targetName, parent.targetName))
+        if (type.requiresRawCompanion()) {
+            draft.columns.add(
+                rawCompanionColumn(
+                    name = name,
+                    path = path,
+                    targetName = targetName,
+                    sourceName = parent.targetName,
+                    inherited = false,
+                )
             )
-            return
         }
-
         draft.collectionRequests.add(
             CollectionRequest(
                 name = name,
@@ -338,9 +370,79 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
                     path = path,
                     targetName = targetName,
                     type = elementType,
-                    depth = propertyDepth,
+                    depth = parent.depth + 1,
+                    nullableAncestor = parent.nullableAncestor ||
+                        type.requiresRawCompanion() ||
+                        elementType.requiresRawCompanion(),
                 ),
+                rawElementCompanion = elementType.requiresRawCompanion(),
             )
+        )
+    }
+
+    private fun collectDepthFallback(
+        name: String,
+        path: String,
+        targetName: String,
+        sourceName: String,
+        type: ResolvedType,
+        draft: ViewDraft,
+        context: PlanningContext,
+    ) {
+        draft.columns.add(rawValueColumn(name, path, targetName, sourceName))
+        val sourceType = type.javaType.toCanonical()
+        context.diagnostics.add(
+            BiScriptDiagnostic(
+                code = BiScriptDiagnosticCode.MAX_DEPTH_REACHED,
+                aggregate = context.aggregate,
+                path = path,
+                sourceType = sourceType,
+                decision = BiScriptMappingDecision.MAX_DEPTH_RAW_JSON,
+                message = "Max expansion depth reached at [$path] with type [$sourceType]; " +
+                    "the whole value is preserved as raw JSON.",
+            )
+        )
+    }
+
+    private fun collectRawFallback(
+        name: String,
+        path: String,
+        targetName: String,
+        sourceName: String,
+        type: ResolvedType,
+        draft: ViewDraft,
+        context: PlanningContext,
+    ) {
+        val sourceType = type.javaType.toCanonical()
+        require(context.options.unsupportedTypeStrategy == UnsupportedTypeStrategy.RAW_JSON) {
+            "Unsupported property [$path] for aggregate [${context.aggregate}] with type [$sourceType]."
+        }
+        draft.columns.add(rawValueColumn(name, path, targetName, sourceName))
+        context.diagnostics.add(
+            BiScriptDiagnostic(
+                code = BiScriptDiagnosticCode.RAW_JSON_FALLBACK,
+                aggregate = context.aggregate,
+                path = path,
+                sourceType = sourceType,
+                decision = BiScriptMappingDecision.RAW_JSON,
+                message = "Unsupported property [$path] with type [$sourceType] is preserved as raw JSON.",
+            )
+        )
+    }
+
+    private fun rawValueColumn(
+        name: String,
+        path: String,
+        targetName: String,
+        sourceName: String,
+    ): ColumnPlan {
+        return ColumnPlan(
+            name = name,
+            path = path,
+            targetName = targetName,
+            type = ClickHouseType.String,
+            extraction = ColumnExtraction.JsonRaw(sourceName, name),
+            placement = ColumnPlacement.SELECT,
         )
     }
 
@@ -354,151 +456,76 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
             name = name,
             path = path,
             targetName = targetName,
-            sqlType = "Array(String)",
+            type = ClickHouseType.Array(ClickHouseType.String),
             extraction = ColumnExtraction.JsonArray(sourceName, name),
             placement = ColumnPlacement.SELECT,
             inherited = false,
         )
     }
 
-    private fun collectUnsupported(
+    private fun rawCompanionColumn(
         name: String,
         path: String,
         targetName: String,
         sourceName: String,
-        type: JavaType,
-        draft: ViewDraft,
-        context: PlanningContext,
-    ) {
-        val typeName = type.rawClass.name
-        require(context.options.unsupportedTypeStrategy != UnsupportedTypeStrategy.FAIL) {
-            "Unsupported type property [$path] for aggregate [${context.aggregate}] with type [$typeName]."
-        }
-        context.diagnostics.add(
-            BiScriptDiagnostic(
-                code = BiScriptDiagnosticCode.UNSUPPORTED_TYPE_FALLBACK,
-                severity = BiScriptDiagnostic.Severity.WARNING,
-                aggregate = context.aggregate,
-                path = path,
-                message = "Unsupported type property [$path] with type [$typeName] is rendered as String.",
-            )
-        )
-        draft.columns.add(
-            ColumnPlan(
-                name = name,
-                path = path,
-                targetName = targetName,
-                sqlType = "String",
-                extraction = ColumnExtraction.JsonRaw(sourceName, name),
-                placement = ColumnPlacement.SELECT,
-            )
+        inherited: Boolean = true,
+    ): ColumnPlan {
+        return ColumnPlan(
+            name = name,
+            path = path,
+            targetName = rawTargetName(targetName),
+            type = ClickHouseType.String,
+            extraction = ColumnExtraction.JsonRaw(sourceName, name),
+            placement = ColumnPlacement.SELECT,
+            inherited = inherited,
         )
     }
 
-    private fun mapColumn(
-        name: String,
-        path: String,
-        targetName: String,
-        sourceName: String,
-        type: JavaType,
-        context: PlanningContext,
-    ): ColumnPlan {
-        val mapTypeName = type.toCanonical()
-        if (type.keyType?.rawClass != String::class.java) {
-            addUnsupportedTypeDiagnostic(
-                context = context,
-                path = path,
-                typeName = mapTypeName,
-                subject = "Unsupported map key type",
-                fallback = "raw String",
-            )
-            return ColumnPlan(
-                name = name,
-                path = path,
-                targetName = targetName,
-                sqlType = "String",
-                extraction = ColumnExtraction.JsonRaw(sourceName, name),
-                placement = ColumnPlacement.SELECT,
-            )
+    private fun validateColumnTargets(draft: ViewDraft, context: PlanningContext) {
+        val reservedProperty = draft.propertyTargetNames
+            .sorted()
+            .firstOrNull { it.startsWith(RAW_TARGET_PREFIX) }
+        require(reservedProperty == null) {
+            "Raw companion namespace collision for aggregate [${context.aggregate}] in view " +
+                "[${draft.targetTableName}] at target [$reservedProperty]."
         }
-        val valueType = type.contentType
-        val sqlType = if (valueType.rawClass.isSimple) {
-            "Map(String, ${valueType.rawClass.toSqlType()})"
+
+        val duplicates = (draft.columns.map(ColumnPlan::targetName) + ExpansionViewPlan.METADATA_TARGET_NAMES)
+            .groupingBy { it }
+            .eachCount()
+            .filterValues { it > 1 }
+            .keys
+            .sorted()
+        require(duplicates.isEmpty()) {
+            "Target name collision for aggregate [${context.aggregate}] in view [${draft.targetTableName}]: " +
+                "duplicate target(s) ${duplicates.joinToString(prefix = "[", postfix = "]")}."
+        }
+    }
+
+    private fun ResolvedType.canRenderDirectly(): Boolean {
+        if (rawClass.isClickHouseScalar()) {
+            return true
+        }
+        if (javaType.isMapLikeType) {
+            return arguments.getOrNull(0)?.rawClass == String::class.java &&
+                arguments.getOrNull(1)?.rawClass?.isClickHouseScalar() == true
+        }
+        if (javaType.isCollectionLikeType || javaType.isArrayType) {
+            return arguments.firstOrNull()?.rawClass?.isClickHouseScalar() == true
+        }
+        return false
+    }
+
+    private fun ResolvedType.toScalarType(nullableAncestor: Boolean): ClickHouseType {
+        val scalar = rawClass.toClickHouseScalar()
+        return if (requiresRawCompanion() || nullableAncestor) {
+            ClickHouseType.Nullable(scalar)
         } else {
-            val valueTypeName = valueType.toCanonical()
-            require(context.options.objectMapStrategy != ObjectMapStrategy.FAIL) {
-                "Unsupported object map property [$path] for aggregate [${context.aggregate}] " +
-                    "with value type [$valueTypeName]."
-            }
-            context.diagnostics.add(
-                BiScriptDiagnostic(
-                    code = BiScriptDiagnosticCode.OBJECT_MAP_FALLBACK,
-                    severity = BiScriptDiagnostic.Severity.WARNING,
-                    aggregate = context.aggregate,
-                    path = path,
-                    message = "Object map property [$path] with value type [$valueTypeName] " +
-                        "is rendered as Map(String, String).",
-                )
-            )
-            "Map(String, String)"
+            scalar
         }
-        return ColumnPlan(
-            name = name,
-            path = path,
-            targetName = targetName,
-            sqlType = sqlType,
-            extraction = ColumnExtraction.JsonValue(sourceName, name),
-            placement = ColumnPlacement.SELECT,
-        )
     }
 
-    private fun addUnsupportedTypeDiagnostic(
-        context: PlanningContext,
-        path: String,
-        typeName: String,
-        subject: String,
-        fallback: String,
-    ) {
-        require(context.options.unsupportedTypeStrategy != UnsupportedTypeStrategy.FAIL) {
-            "$subject property [$path] for aggregate [${context.aggregate}] with type [$typeName]."
-        }
-        context.diagnostics.add(
-            BiScriptDiagnostic(
-                code = BiScriptDiagnosticCode.UNSUPPORTED_TYPE_FALLBACK,
-                severity = BiScriptDiagnostic.Severity.WARNING,
-                aggregate = context.aggregate,
-                path = path,
-                message = "$subject property [$path] with type [$typeName] is rendered as $fallback.",
-            )
-        )
-    }
-
-    private fun simpleColumn(
-        name: String,
-        path: String,
-        targetName: String,
-        sourceName: String,
-        type: JavaType,
-    ): ColumnPlan {
-        return ColumnPlan(
-            name = name,
-            path = path,
-            targetName = targetName,
-            sqlType = type.rawClass.toSqlType(),
-            extraction = ColumnExtraction.JsonValue(sourceName, name),
-            placement = ColumnPlacement.SELECT,
-        )
-    }
-
-    private fun depthDiagnostic(aggregate: String, path: String, type: JavaType): BiScriptDiagnostic {
-        return BiScriptDiagnostic(
-            code = BiScriptDiagnosticCode.MAX_DEPTH_REACHED,
-            severity = BiScriptDiagnostic.Severity.WARNING,
-            aggregate = aggregate,
-            path = path,
-            message = "Max expansion depth reached at [$path] with type [${type.rawClass.name}].",
-        )
-    }
+    private fun ResolvedType.requiresRawCompanion(): Boolean = nullability != Nullability.NON_NULL
 
     private fun childPath(parentPath: String, name: String): String {
         return if (parentPath.isBlank()) name else "$parentPath.$name"
@@ -509,6 +536,8 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
         return if (parent.depth == 0) propertyName else "${parent.targetName}__$propertyName"
     }
 
+    private fun rawTargetName(targetName: String): String = "$RAW_TARGET_PREFIX$targetName"
+
     private fun relativeTargetName(anchorTargetName: String, targetName: String): String {
         if (anchorTargetName == STATE_COLUMN) {
             return targetName
@@ -516,7 +545,7 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
         return targetName.removePrefix("${anchorTargetName}__")
     }
 
-    private fun isUnsupportedPlatformObject(type: JavaType): Boolean {
+    private fun isUnsupportedPlatformObject(type: ResolvedType): Boolean {
         val packageName = type.rawClass.packageName
         return packageName.startsWith("java.") ||
             packageName.startsWith("javax.") ||
@@ -530,14 +559,16 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
     private companion object {
         const val STATE_COLUMN = "state"
         const val STATE_LAST_SUFFIX = "state_last"
+        const val RAW_TARGET_PREFIX = "__raw__"
     }
 }
 
 private data class PlanningNode(
     val path: String,
     val targetName: String,
-    val type: JavaType,
+    val type: ResolvedType,
     val depth: Int,
+    val nullableAncestor: Boolean,
 )
 
 private data class CollectionRequest(
@@ -547,11 +578,14 @@ private data class CollectionRequest(
     val targetName: String,
     val tableSuffix: String,
     val elementNode: PlanningNode,
+    val rawElementCompanion: Boolean,
 )
 
 private data class ViewDraft(
+    val targetTableName: String,
     val anchorTargetName: String,
     val columns: MutableList<ColumnPlan>,
+    val propertyTargetNames: MutableList<String> = mutableListOf(),
     val collectionRequests: MutableList<CollectionRequest> = mutableListOf(),
 )
 

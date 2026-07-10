@@ -15,13 +15,31 @@ package me.ahoo.wow.bi.expansion.plan
 
 import me.ahoo.wow.bi.BiScriptDiagnostic
 
-data class ExpansionViewPlan(
+internal data class ExpansionViewPlan(
     val targetTableName: String,
     val sourceTableName: String,
     val columns: List<ColumnPlan>,
-)
+) {
+    companion object {
+        val METADATA_TARGET_NAMES: Set<String> = setOf(
+            "__id",
+            "__aggregate_id",
+            "__tenant_id",
+            "__owner_id",
+            "__space_id",
+            "__command_id",
+            "__request_id",
+            "__version",
+            "__first_operator",
+            "__first_event_time",
+            "__create_time",
+            "__tags",
+            "__deleted",
+        )
+    }
+}
 
-data class StateExpansionPlan(
+internal data class StateExpansionPlan(
     val views: List<ExpansionViewPlan>,
     val diagnostics: List<BiScriptDiagnostic>,
 )

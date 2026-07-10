@@ -42,12 +42,28 @@ internal object JsonPropertyTypeResolver {
     }
 
     fun resolve(type: JavaType): List<ResolvedJsonProperty> {
+        return resolve(type, emptyMap())
+    }
+
+    fun resolve(type: ResolvedType): List<ResolvedJsonProperty> {
+        val rootBindings = type.rawClass.kotlin.typeParameters.mapIndexedNotNull { index, parameter ->
+            type.arguments.getOrNull(index)?.let { argument ->
+                parameter to argument.toShape()
+            }
+        }.toMap()
+        return resolve(type.javaType, rootBindings)
+    }
+
+    private fun resolve(
+        type: JavaType,
+        rootBindings: Map<KTypeParameter, KotlinTypeShape>,
+    ): List<ResolvedJsonProperty> {
         return type.toBeanDescription()
             .findProperties()
             .asSequence()
             .filter(PropertyFilter::shouldInclude)
             .filter(BeanPropertyDefinition::couldSerialize)
-            .map { property -> resolveProperty(type.rawClass, property) }
+            .map { property -> resolveProperty(type.rawClass, property, rootBindings) }
             .sortedBy(ResolvedJsonProperty::serializedName)
             .toList()
     }
@@ -55,6 +71,7 @@ internal object JsonPropertyTypeResolver {
     private fun resolveProperty(
         rootClass: Class<*>,
         property: BeanPropertyDefinition,
+        rootBindings: Map<KTypeParameter, KotlinTypeShape>,
     ): ResolvedJsonProperty {
         val declaringMember = requireNotNull(property.accessor?.member) {
             "Unable to resolve serialization accessor for ${rootClass.name}.${property.name}"
@@ -64,6 +81,7 @@ internal object JsonPropertyTypeResolver {
             val typeParameterBindings = findTypeParameterBindings(
                 rootClass = rootClass.kotlin,
                 targetClass = declaringMember.declaringClass.kotlin,
+                rootBindings = rootBindings,
             )
             val shape = kotlinProperty.returnType.toShape(typeParameterBindings)
             return ResolvedJsonProperty(
@@ -80,7 +98,8 @@ internal object JsonPropertyTypeResolver {
                 rootClass = rootClass,
                 property = property,
                 javaType = property.primaryType,
-                evidence = property.javaAnnotationEvidence(),
+                evidence = property.javaAnnotationEvidence() +
+                    declaringMember.inheritedKotlinEvidence(rootClass, rootBindings),
                 path = property.name,
             ),
             origin = ResolvedTypeOrigin.JAVA,
@@ -101,13 +120,62 @@ internal object JsonPropertyTypeResolver {
         }
     }
 
+    private fun Member.inheritedKotlinEvidence(
+        rootClass: Class<*>,
+        rootBindings: Map<KTypeParameter, KotlinTypeShape>,
+    ): List<JavaAnnotationEvidence> {
+        val method = this as? Method ?: return emptyList()
+        val signals = rootClass.allSupertypes()
+            .mapNotNull { supertype ->
+                val overriddenMethod = supertype.methods.firstOrNull { candidate ->
+                    candidate.name == method.name &&
+                        candidate.parameterTypes.contentEquals(method.parameterTypes) &&
+                        !candidate.isBridge
+                } ?: return@mapNotNull null
+                val property = supertype.kotlinProperty(overriddenMethod) ?: return@mapNotNull null
+                val bindings = findTypeParameterBindings(
+                    rootClass = rootClass.kotlin,
+                    targetClass = supertype.kotlin,
+                    rootBindings = rootBindings,
+                )
+                property.returnType.toShape(bindings).nullability
+            }
+            .toSet()
+        return if (signals.isEmpty()) {
+            emptyList()
+        } else {
+            listOf(JavaAnnotationEvidence(signals = signals, arguments = emptyList()))
+        }
+    }
+
+    private fun Class<*>.allSupertypes(): List<Class<*>> {
+        val discovered = linkedSetOf<Class<*>>()
+
+        fun visit(type: Class<*>) {
+            type.interfaces.sortedBy(Class<*>::getName).forEach { supertype ->
+                if (discovered.add(supertype)) {
+                    visit(supertype)
+                }
+            }
+            type.superclass?.takeIf { it != Any::class.java }?.let { supertype ->
+                if (discovered.add(supertype)) {
+                    visit(supertype)
+                }
+            }
+        }
+
+        visit(this)
+        return discovered.toList()
+    }
+
     private fun findTypeParameterBindings(
         rootClass: KClass<*>,
         targetClass: KClass<*>,
+        rootBindings: Map<KTypeParameter, KotlinTypeShape>,
     ): Map<KTypeParameter, KotlinTypeShape> {
         return findTypeParameterBindings(
             currentClass = rootClass,
-            currentBindings = emptyMap(),
+            currentBindings = rootBindings,
             targetClass = targetClass,
             visited = mutableSetOf(),
         ).orEmpty()
@@ -166,6 +234,13 @@ internal object JsonPropertyTypeResolver {
             arguments = arguments.map { projection ->
                 projection.type?.toShape(substitutions)
             },
+        )
+    }
+
+    private fun ResolvedType.toShape(): KotlinTypeShape {
+        return KotlinTypeShape(
+            nullability = nullability,
+            arguments = arguments.map { argument -> argument.toShape() },
         )
     }
 
@@ -271,6 +346,12 @@ internal object JsonPropertyTypeResolver {
     private fun JavaType.argumentTypes(): List<JavaType> {
         if (isArrayType) {
             return listOf(contentType)
+        }
+        if (isMapLikeType) {
+            return listOfNotNull(keyType, contentType)
+        }
+        if (isCollectionLikeType) {
+            return listOfNotNull(contentType)
         }
         return (0 until containedTypeCount()).mapNotNull(::containedType)
     }

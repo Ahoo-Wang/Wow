@@ -13,17 +13,19 @@
 
 package me.ahoo.wow.bi.expansion.plan
 
-data class ColumnPlan(
+import me.ahoo.wow.bi.type.ClickHouseType
+
+internal data class ColumnPlan(
     val name: String,
     val path: String,
     val targetName: String,
-    val sqlType: String,
+    val type: ClickHouseType,
     val extraction: ColumnExtraction,
     val placement: ColumnPlacement,
     val inherited: Boolean = true,
 )
 
-sealed interface ColumnExtraction {
+internal sealed interface ColumnExtraction {
     data class Source(val name: String) : ColumnExtraction
 
     data class JsonValue(val source: String, val property: String) : ColumnExtraction
@@ -37,7 +39,7 @@ sealed interface ColumnExtraction {
     data class ArrayJoin(val source: String, val property: String) : ColumnExtraction
 }
 
-enum class ColumnPlacement {
+internal enum class ColumnPlacement {
     WITH,
     SELECT,
 }

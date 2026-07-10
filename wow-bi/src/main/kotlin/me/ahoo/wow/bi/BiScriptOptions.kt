@@ -26,10 +26,9 @@ data class BiScriptOptions(
     val kafkaBootstrapServers: String = ScriptTemplateEngine.DEFAULT_KAFKA_BOOTSTRAP_SERVERS,
     val topicPrefix: String = Wow.WOW_PREFIX,
     val maxExpansionDepth: Int = 5,
-    val unsupportedTypeStrategy: UnsupportedTypeStrategy = UnsupportedTypeStrategy.FAIL,
-    val objectMapStrategy: ObjectMapStrategy = ObjectMapStrategy.STRING_VALUE_WITH_DIAGNOSTIC,
+    val unsupportedTypeStrategy: UnsupportedTypeStrategy = UnsupportedTypeStrategy.RAW_JSON,
 ) {
-    fun validate(): BiScriptOptions {
+    init {
         database.requireValidRequiredValue("database")
         consumerDatabase.requireValidRequiredValue("consumerDatabase")
         cluster.requireValidRequiredValue("cluster")
@@ -42,7 +41,6 @@ data class BiScriptOptions(
         require(maxExpansionDepth >= 1) {
             "maxExpansionDepth must be greater than or equal to 1"
         }
-        return this
     }
 }
 
@@ -55,10 +53,5 @@ private fun String.requireValidRequiredValue(name: String) {
 
 enum class UnsupportedTypeStrategy {
     FAIL,
-    STRING_WITH_DIAGNOSTIC,
-}
-
-enum class ObjectMapStrategy {
-    STRING_VALUE_WITH_DIAGNOSTIC,
-    FAIL,
+    RAW_JSON,
 }

@@ -31,49 +31,46 @@ class BiScriptOptionsTest {
         options.kafkaBootstrapServers.assert().isEqualTo("localhost:9093")
         options.topicPrefix.assert().isEqualTo("wow.")
         options.maxExpansionDepth.assert().isEqualTo(5)
-        options.unsupportedTypeStrategy.assert().isEqualTo(UnsupportedTypeStrategy.FAIL)
-        options.objectMapStrategy.assert().isEqualTo(ObjectMapStrategy.STRING_VALUE_WITH_DIAGNOSTIC)
-        options.validate().assert().isSameAs(options)
+        options.unsupportedTypeStrategy.assert().isEqualTo(UnsupportedTypeStrategy.RAW_JSON)
     }
 
     @Test
     fun `should reject blank required values`() {
-        listOf(
-            BiScriptOptions(database = " "),
-            BiScriptOptions(consumerDatabase = " "),
-            BiScriptOptions(cluster = " "),
-            BiScriptOptions(installation = " "),
-            BiScriptOptions(shard = " "),
-            BiScriptOptions(replica = " "),
-            BiScriptOptions(timezone = " "),
-            BiScriptOptions(kafkaBootstrapServers = " "),
-            BiScriptOptions(topicPrefix = " "),
-        ).forEach { options ->
-            options.runCatching { validate() }.isFailure.assert().isTrue()
+        listOf<() -> BiScriptOptions>(
+            { BiScriptOptions(database = " ") },
+            { BiScriptOptions(consumerDatabase = " ") },
+            { BiScriptOptions(cluster = " ") },
+            { BiScriptOptions(installation = " ") },
+            { BiScriptOptions(shard = " ") },
+            { BiScriptOptions(replica = " ") },
+            { BiScriptOptions(timezone = " ") },
+            { BiScriptOptions(kafkaBootstrapServers = " ") },
+            { BiScriptOptions(topicPrefix = " ") },
+        ).forEach { createOptions ->
+            runCatching(createOptions).isFailure.assert().isTrue()
         }
     }
 
     @Test
     fun `should reject control characters in required values`() {
-        listOf(
-            BiScriptOptions(database = "bi\u0000db"),
-            BiScriptOptions(consumerDatabase = "bi\ndb"),
-            BiScriptOptions(cluster = "cluster\tname"),
-            BiScriptOptions(installation = "installation\rname"),
-            BiScriptOptions(shard = "shard\bname"),
-            BiScriptOptions(replica = "replica\u007Fname"),
-            BiScriptOptions(timezone = "Asia\nShanghai"),
-            BiScriptOptions(kafkaBootstrapServers = "localhost\n9093"),
-            BiScriptOptions(topicPrefix = "wow.\u0000"),
-        ).forEach { options ->
-            options.runCatching { validate() }.isFailure.assert().isTrue()
+        listOf<() -> BiScriptOptions>(
+            { BiScriptOptions(database = "bi\u0000db") },
+            { BiScriptOptions(consumerDatabase = "bi\ndb") },
+            { BiScriptOptions(cluster = "cluster\tname") },
+            { BiScriptOptions(installation = "installation\rname") },
+            { BiScriptOptions(shard = "shard\bname") },
+            { BiScriptOptions(replica = "replica\u007Fname") },
+            { BiScriptOptions(timezone = "Asia\nShanghai") },
+            { BiScriptOptions(kafkaBootstrapServers = "localhost\n9093") },
+            { BiScriptOptions(topicPrefix = "wow.\u0000") },
+        ).forEach { createOptions ->
+            runCatching(createOptions).isFailure.assert().isTrue()
         }
     }
 
     @Test
     fun `should reject expansion depth below one`() {
-        BiScriptOptions(maxExpansionDepth = 0)
-            .runCatching { validate() }
+        runCatching { BiScriptOptions(maxExpansionDepth = 0) }
             .isFailure
             .assert()
             .isTrue()
@@ -83,9 +80,10 @@ class BiScriptOptionsTest {
     fun `should expose structured diagnostics`() {
         val diagnostic = BiScriptDiagnostic(
             code = BiScriptDiagnosticCode.MAX_DEPTH_REACHED,
-            severity = BiScriptDiagnostic.Severity.WARNING,
             aggregate = "example.order",
             path = "items.product",
+            sourceType = "example.Product",
+            decision = BiScriptMappingDecision.MAX_DEPTH_RAW_JSON,
             message = "Max expansion depth reached.",
         )
 
@@ -97,9 +95,12 @@ class BiScriptOptionsTest {
         result.script.assert().isEqualTo("SELECT 1")
         result.diagnostics.assert().containsExactly(diagnostic)
         BiScriptDiagnosticCode.entries.assert().containsExactly(
-            BiScriptDiagnosticCode.OBJECT_MAP_FALLBACK,
-            BiScriptDiagnosticCode.UNSUPPORTED_TYPE_FALLBACK,
+            BiScriptDiagnosticCode.RAW_JSON_FALLBACK,
             BiScriptDiagnosticCode.MAX_DEPTH_REACHED,
+        )
+        BiScriptMappingDecision.entries.assert().containsExactly(
+            BiScriptMappingDecision.RAW_JSON,
+            BiScriptMappingDecision.MAX_DEPTH_RAW_JSON,
         )
     }
 }
