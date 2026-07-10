@@ -16,6 +16,11 @@ package me.ahoo.wow.bi.expansion.type
 import com.fasterxml.jackson.annotation.JsonProperty
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.bi.expansion.BIAggregateState
+import me.ahoo.wow.bi.expansion.Item
+import me.ahoo.wow.bi.expansion.LikeLinkString
+import me.ahoo.wow.bi.expansion.LikeListItem
+import me.ahoo.wow.bi.expansion.LikeMapString
 import me.ahoo.wow.example.transfer.domain.AccountState
 import org.junit.jupiter.api.Test
 import kotlin.reflect.full.memberProperties
@@ -108,6 +113,38 @@ class JsonPropertyTypeResolverTest {
     }
 
     @Test
+    fun `should derive semantic generic shapes for concrete Kotlin collection and map subclasses`() {
+        val properties = JsonPropertyTypeResolver.resolve(BIAggregateState::class.java)
+            .associateBy { it.serializedName }
+
+        properties.getValue("likeLinkString").type.run {
+            rawClass.assert().isEqualTo(LikeLinkString::class.java)
+            arguments.single().run {
+                rawClass.assert().isEqualTo(String::class.java)
+                nullability.assert().isEqualTo(Nullability.NON_NULL)
+            }
+        }
+        properties.getValue("likeListItem").type.run {
+            rawClass.assert().isEqualTo(LikeListItem::class.java)
+            arguments.single().run {
+                rawClass.assert().isEqualTo(Item::class.java)
+                nullability.assert().isEqualTo(Nullability.NON_NULL)
+            }
+        }
+        properties.getValue("likeMapString").type.run {
+            rawClass.assert().isEqualTo(LikeMapString::class.java)
+            arguments[0].run {
+                rawClass.assert().isEqualTo(String::class.java)
+                nullability.assert().isEqualTo(Nullability.NON_NULL)
+            }
+            arguments[1].run {
+                rawClass.assert().isEqualTo(String::class.java)
+                nullability.assert().isEqualTo(Nullability.NON_NULL)
+            }
+        }
+    }
+
+    @Test
     fun `should substitute inherited Kotlin generic and keep Jackson rename`() {
         val property = JsonPropertyTypeResolver.resolve(StringDerived::class.java).single()
         val inheritedGetter = GenericBase::class.memberProperties
@@ -177,6 +214,46 @@ class JsonPropertyTypeResolverTest {
     }
 
     @Test
+    fun `should inherit recursive generic nullability from Kotlin contract implemented in Java`() {
+        val properties = JsonPropertyTypeResolver.resolve(
+            JavaNullabilityFixture.KotlinGenericContractState::class.java
+        ).associateBy { it.serializedName }
+
+        properties.getValue("nonNullValues").type.run {
+            nullability.assert().isEqualTo(Nullability.NON_NULL)
+            arguments.single().nullability.assert().isEqualTo(Nullability.NON_NULL)
+        }
+        properties.getValue("nullableElementValues").type.run {
+            nullability.assert().isEqualTo(Nullability.NON_NULL)
+            arguments.single().nullability.assert().isEqualTo(Nullability.NULLABLE)
+        }
+        properties.getValue("unknownKeyValues").type.run {
+            nullability.assert().isEqualTo(Nullability.NON_NULL)
+            arguments.first().nullability.assert().isEqualTo(Nullability.UNKNOWN)
+        }
+    }
+
+    @Test
+    fun `should accept non-null Kotlin contract refinement implemented in Java`() {
+        val property = JsonPropertyTypeResolver.resolve(
+            JavaNullabilityFixture.RefinedContractImplementation::class.java
+        ).single()
+
+        property.serializedName.assert().isEqualTo("refinedValue")
+        property.type.nullability.assert().isEqualTo(Nullability.NON_NULL)
+    }
+
+    @Test
+    fun `should reject conflicting unrelated Kotlin contracts implemented in Java`() {
+        assertThrownBy<IllegalArgumentException> {
+            JsonPropertyTypeResolver.resolve(
+                JavaNullabilityFixture.ConflictingParallelContractImplementation::class.java
+            )
+        }.hasMessageContaining("parallelValue")
+            .hasMessageContaining("Conflicting")
+    }
+
+    @Test
     fun `should reject contradictory Java nullability annotations`() {
         assertThrownBy<IllegalArgumentException> {
             JsonPropertyTypeResolver.resolve(JavaNullabilityFixture.ConflictingAnnotations::class.java)
@@ -204,3 +281,24 @@ private open class GenericBase<T>(
 )
 
 private class StringDerived : GenericBase<String?>(null)
+
+interface KotlinGenericListContract {
+    val nonNullValues: List<String>
+    val nullableElementValues: List<String?>
+}
+
+interface NullableValueContract {
+    val refinedValue: String?
+}
+
+interface RefinedValueContract : NullableValueContract {
+    override val refinedValue: String
+}
+
+interface ParallelNullableValueContract {
+    val parallelValue: String?
+}
+
+interface ParallelNonNullValueContract {
+    val parallelValue: String
+}

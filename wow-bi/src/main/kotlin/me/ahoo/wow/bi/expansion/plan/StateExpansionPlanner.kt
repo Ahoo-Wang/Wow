@@ -287,12 +287,11 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
         draft: ViewDraft,
         context: PlanningContext,
     ) {
-        val keyType = type.arguments.getOrNull(0)
-        val valueType = type.arguments.getOrNull(1)
-        if (keyType?.rawClass != String::class.java || valueType?.rawClass?.isClickHouseScalar() != true) {
+        if (!type.hasSupportedMapShape()) {
             collectRawFallback(name, path, targetName, parent.targetName, type, draft, context)
             return
         }
+        val valueType = type.arguments[1]
 
         draft.columns.add(
             ColumnPlan(
@@ -507,13 +506,19 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
             return true
         }
         if (javaType.isMapLikeType) {
-            return arguments.getOrNull(0)?.rawClass == String::class.java &&
-                arguments.getOrNull(1)?.rawClass?.isClickHouseScalar() == true
+            return hasSupportedMapShape()
         }
         if (javaType.isCollectionLikeType || javaType.isArrayType) {
             return arguments.firstOrNull()?.rawClass?.isClickHouseScalar() == true
         }
         return false
+    }
+
+    private fun ResolvedType.hasSupportedMapShape(): Boolean {
+        val keyType = arguments.getOrNull(0)
+        return keyType?.rawClass == String::class.java &&
+            keyType.nullability == Nullability.NON_NULL &&
+            arguments.getOrNull(1)?.rawClass?.isClickHouseScalar() == true
     }
 
     private fun ResolvedType.toScalarType(nullableAncestor: Boolean): ClickHouseType {

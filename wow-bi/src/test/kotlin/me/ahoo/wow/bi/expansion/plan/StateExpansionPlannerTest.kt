@@ -25,6 +25,7 @@ import me.ahoo.wow.bi.UnsupportedTypeStrategy
 import me.ahoo.wow.bi.expansion.BIAggregate
 import me.ahoo.wow.bi.expansion.BIAggregateState
 import me.ahoo.wow.bi.expansion.Item
+import me.ahoo.wow.bi.expansion.type.JavaNullabilityFixture
 import me.ahoo.wow.bi.type.ClickHouseType
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import org.junit.jupiter.api.Test
@@ -67,6 +68,16 @@ class StateExpansionPlannerTest {
             placement.assert().isEqualTo(ColumnPlacement.SELECT)
             extraction.assert().isEqualTo(ColumnExtraction.JsonArray("state", "items"))
             inherited.assert().isFalse()
+        }
+        rootView.column("like_link_string").type.assert()
+            .isEqualTo(ClickHouseType.Array(ClickHouseType.String))
+        rootView.column("like_map_string").type.assert().isEqualTo(
+            ClickHouseType.Map(ClickHouseType.String, ClickHouseType.String)
+        )
+        plan.views.single { it.targetTableName.endsWith("_like_list_item") }.run {
+            columns.none { it.targetName == "__raw__like_list_item" }.assert().isTrue()
+            column("like_list_item__id").type.assert().isEqualTo(ClickHouseType.String)
+            column("like_list_item__name").type.assert().isEqualTo(ClickHouseType.String)
         }
         rootView.column("map_item").run {
             type.assert().isEqualTo(ClickHouseType.String)
@@ -153,28 +164,83 @@ class StateExpansionPlannerTest {
         assertThrownBy<IllegalArgumentException> {
             StateExpansionPlanner(
                 BiScriptOptions(unsupportedTypeStrategy = UnsupportedTypeStrategy.FAIL)
-            ).plan(unsupportedAggregateMetadata)
-        }.hasMessageContaining("bi-service.unsupported")
-            .hasMessageContaining("unsupported")
+            ).plan(nonStringMapAggregateMetadata)
+        }.hasMessageContaining("bi-service.non-string-map")
+            .hasMessageContaining("aUnsupported")
             .hasMessageContaining(Thread::class.java.name)
     }
 
     @Test
     fun `should preserve unsupported platform object as raw json with structured diagnostic`() {
-        val plan = StateExpansionPlanner().plan(unsupportedAggregateMetadata)
+        val plan = StateExpansionPlanner().plan(nonStringMapAggregateMetadata)
         val rootView = plan.views.single()
 
-        rootView.column("unsupported").run {
+        rootView.column("a_unsupported").run {
             type.assert().isEqualTo(ClickHouseType.String)
-            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "unsupported"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "aUnsupported"))
         }
-        plan.diagnostics.single().run {
+        plan.diagnostics.single { it.path == "aUnsupported" }.run {
             code.assert().isEqualTo(BiScriptDiagnosticCode.RAW_JSON_FALLBACK)
-            aggregate.assert().isEqualTo("bi-service.unsupported")
-            path.assert().isEqualTo("unsupported")
+            aggregate.assert().isEqualTo("bi-service.non-string-map")
+            path.assert().isEqualTo("aUnsupported")
             sourceType.assert().isEqualTo(Thread::class.java.name)
             decision.assert().isEqualTo(BiScriptMappingDecision.RAW_JSON)
         }
+    }
+
+    @Test
+    fun `should preserve Java Kotlin contract generic nullability structurally`() {
+        val root = StateExpansionPlanner().plan(javaContractAggregateMetadata).views.single()
+
+        root.column("non_null_values").type.assert()
+            .isEqualTo(ClickHouseType.Array(ClickHouseType.String))
+        root.column("nullable_element_values").type.assert().isEqualTo(
+            ClickHouseType.Array(ClickHouseType.Nullable(ClickHouseType.String))
+        )
+        root.columns.none { it.targetName == "__raw__non_null_values" }.assert().isTrue()
+        root.columns.none { it.targetName == "__raw__nullable_element_values" }.assert().isTrue()
+    }
+
+    @Test
+    fun `should preserve nullable and unknown map keys as one whole raw value`() {
+        val kotlinPlan = StateExpansionPlanner().plan(nonStringMapAggregateMetadata)
+        val kotlinRoot = kotlinPlan.views.single()
+        kotlinRoot.column("nullable_key_values").run {
+            type.assert().isEqualTo(ClickHouseType.String)
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "nullableKeyValues"))
+        }
+        kotlinRoot.columns.filter { it.path == "nullableKeyValues" }.assert().hasSize(1)
+        kotlinRoot.columns.none { it.targetName == "__raw__nullable_key_values" }.assert().isTrue()
+        kotlinPlan.diagnostics.single { it.path == "nullableKeyValues" }.run {
+            code.assert().isEqualTo(BiScriptDiagnosticCode.RAW_JSON_FALLBACK)
+            sourceType.assert().isEqualTo("java.util.Map<java.lang.String,java.lang.Integer>")
+            decision.assert().isEqualTo(BiScriptMappingDecision.RAW_JSON)
+        }
+
+        val javaPlan = StateExpansionPlanner().plan(javaContractAggregateMetadata)
+        val javaRoot = javaPlan.views.single()
+        javaRoot.column("unknown_key_values").run {
+            type.assert().isEqualTo(ClickHouseType.String)
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "unknownKeyValues"))
+        }
+        javaRoot.columns.filter { it.path == "unknownKeyValues" }.assert().hasSize(1)
+        javaRoot.columns.none { it.targetName == "__raw__unknown_key_values" }.assert().isTrue()
+        javaPlan.diagnostics.single { it.path == "unknownKeyValues" }.run {
+            code.assert().isEqualTo(BiScriptDiagnosticCode.RAW_JSON_FALLBACK)
+            sourceType.assert().isEqualTo("java.util.Map<java.lang.String,java.lang.Integer>")
+            decision.assert().isEqualTo(BiScriptMappingDecision.RAW_JSON)
+        }
+    }
+
+    @Test
+    fun `should reject unknown Java map key under strict strategy`() {
+        assertThrownBy<IllegalArgumentException> {
+            StateExpansionPlanner(
+                BiScriptOptions(unsupportedTypeStrategy = UnsupportedTypeStrategy.FAIL)
+            ).plan(javaContractAggregateMetadata)
+        }.hasMessageContaining("bi-service.unsupported")
+            .hasMessageContaining("unknownKeyValues")
+            .hasMessageContaining("java.util.Map<java.lang.String,java.lang.Integer>")
     }
 
     @Test
@@ -336,18 +402,18 @@ private data class ScalarSibling(val value: String = "")
 
 @Suppress("UnusedPrivateProperty")
 @AggregateRoot
-private class UnsupportedAggregate(private val state: UnsupportedState)
-
-private class UnsupportedState(override val id: String) : Identifier {
-    val unsupported: Thread = Thread.currentThread()
-}
+private class UnsupportedAggregate(
+    private val state: JavaNullabilityFixture.KotlinGenericContractState,
+)
 
 @Suppress("UnusedPrivateProperty")
 @AggregateRoot
 private class NonStringMapAggregate(private val state: NonStringMapState)
 
 private class NonStringMapState(override val id: String) : Identifier {
+    val aUnsupported: Thread = Thread.currentThread()
     val nonStringValues: Map<Int, String> = emptyMap()
+    val nullableKeyValues: Map<String?, Int> = emptyMap()
     val rawValues: Map<*, *> = emptyMap<Any, Any>()
 }
 
@@ -423,7 +489,8 @@ private class TruncatedObjectMapState(override val id: String) : Identifier {
 }
 
 private val siblingAggregateMetadata = aggregateMetadata<SiblingAggregate, SiblingState>()
-private val unsupportedAggregateMetadata = aggregateMetadata<UnsupportedAggregate, UnsupportedState>()
+private val javaContractAggregateMetadata =
+    aggregateMetadata<UnsupportedAggregate, JavaNullabilityFixture.KotlinGenericContractState>()
 private val nonStringMapAggregateMetadata = aggregateMetadata<NonStringMapAggregate, NonStringMapState>()
 private val genericObjectMapAggregateMetadata =
     aggregateMetadata<GenericObjectMapAggregate, GenericObjectMapState>()

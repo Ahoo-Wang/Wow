@@ -16,9 +16,11 @@ package me.ahoo.wow.bi.expansion.type;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotNull;
+import me.ahoo.wow.api.Identifier;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
+import java.util.Map;
 
 public class JavaNullabilityFixture {
     private final int primitive;
@@ -88,6 +90,43 @@ public class JavaNullabilityFixture {
         @NotNull
         public String getConflicting() {
             return conflicting;
+        }
+    }
+
+    public static class KotlinGenericContractState implements KotlinGenericListContract, Identifier {
+        @Override
+        public String getId() {
+            return "id";
+        }
+
+        @Override
+        public List<String> getNonNullValues() {
+            return List.of();
+        }
+
+        @Override
+        public List<String> getNullableElementValues() {
+            return List.of();
+        }
+
+        @NotNull
+        public Map<String, Integer> getUnknownKeyValues() {
+            return Map.of();
+        }
+    }
+
+    public static class RefinedContractImplementation implements RefinedValueContract {
+        @Override
+        public String getRefinedValue() {
+            return "value";
+        }
+    }
+
+    public static class ConflictingParallelContractImplementation
+        implements ParallelNullableValueContract, ParallelNonNullValueContract {
+        @Override
+        public String getParallelValue() {
+            return "value";
         }
     }
 }

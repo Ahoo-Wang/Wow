@@ -125,9 +125,9 @@ internal object JsonPropertyTypeResolver {
         rootBindings: Map<KTypeParameter, KotlinTypeShape>,
     ): List<JavaAnnotationEvidence> {
         val method = this as? Method ?: return emptyList()
-        val signals = rootClass.allSupertypes()
+        val contracts = rootClass.allSupertypes()
             .mapNotNull { supertype ->
-                val overriddenMethod = supertype.methods.firstOrNull { candidate ->
+                val overriddenMethod = supertype.declaredMethods.firstOrNull { candidate ->
                     candidate.name == method.name &&
                         candidate.parameterTypes.contentEquals(method.parameterTypes) &&
                         !candidate.isBridge
@@ -138,14 +138,17 @@ internal object JsonPropertyTypeResolver {
                     targetClass = supertype.kotlin,
                     rootBindings = rootBindings,
                 )
-                property.returnType.toShape(bindings).nullability
+                InheritedKotlinContract(
+                    declaringClass = supertype,
+                    evidence = property.returnType.toShape(bindings).toEvidence(),
+                )
             }
-            .toSet()
-        return if (signals.isEmpty()) {
-            emptyList()
-        } else {
-            listOf(JavaAnnotationEvidence(signals = signals, arguments = emptyList()))
-        }
+        return contracts.filter { candidate ->
+            contracts.none { other ->
+                other !== candidate &&
+                    candidate.declaringClass.isAssignableFrom(other.declaringClass)
+            }
+        }.map(InheritedKotlinContract::evidence)
     }
 
     private fun Class<*>.allSupertypes(): List<Class<*>> {
@@ -229,18 +232,48 @@ internal object JsonPropertyTypeResolver {
                 arguments = emptyList(),
             )
         }
+        val declaredArguments = arguments.map { projection ->
+            projection.type?.toShape(substitutions)
+        }
         return KotlinTypeShape(
             nullability = if (isMarkedNullable) Nullability.NULLABLE else Nullability.NON_NULL,
-            arguments = arguments.map { projection ->
-                projection.type?.toShape(substitutions)
-            },
+            arguments = semanticContainerArguments(declaredArguments) ?: declaredArguments,
         )
+    }
+
+    private fun KType.semanticContainerArguments(
+        declaredArguments: List<KotlinTypeShape?>,
+    ): List<KotlinTypeShape?>? {
+        val rawClass = classifier as? KClass<*> ?: return null
+        val semanticClass = when {
+            Map::class.java.isAssignableFrom(rawClass.java) -> Map::class
+            Collection::class.java.isAssignableFrom(rawClass.java) -> Collection::class
+            else -> return null
+        }
+        val declaredBindings = rawClass.typeParameters.mapIndexedNotNull { index, parameter ->
+            declaredArguments.getOrNull(index)?.let { argument -> parameter to argument }
+        }.toMap()
+        val semanticBindings = findTypeParameterBindings(
+            rootClass = rawClass,
+            targetClass = semanticClass,
+            rootBindings = declaredBindings,
+        )
+        return semanticClass.typeParameters.map(semanticBindings::get)
     }
 
     private fun ResolvedType.toShape(): KotlinTypeShape {
         return KotlinTypeShape(
             nullability = nullability,
             arguments = arguments.map { argument -> argument.toShape() },
+        )
+    }
+
+    private fun KotlinTypeShape.toEvidence(): JavaAnnotationEvidence {
+        return JavaAnnotationEvidence(
+            signals = setOf(nullability),
+            arguments = arguments.map { argument ->
+                argument?.toEvidence() ?: JavaAnnotationEvidence(emptySet(), emptyList())
+            },
         )
     }
 
@@ -375,5 +408,10 @@ internal object JsonPropertyTypeResolver {
     private data class JavaAnnotationEvidence(
         val signals: Set<Nullability>,
         val arguments: List<JavaAnnotationEvidence>,
+    )
+
+    private data class InheritedKotlinContract(
+        val declaringClass: Class<*>,
+        val evidence: JavaAnnotationEvidence,
     )
 }
