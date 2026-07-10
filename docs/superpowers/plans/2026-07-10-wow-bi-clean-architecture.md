@@ -190,6 +190,7 @@ git commit -m "feat(bi): resolve nullable JSON property types"
 - Modify: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/expansion/plan/StateExpansionPlannerTest.kt`
 - Create: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/expansion/plan/StateExpansionPlannerNullableTest.kt`
 - Modify: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/expansion/type/JsonPropertyTypeResolverTest.kt`
+- Modify: `wow-bi/src/test/java/me/ahoo/wow/bi/expansion/type/JavaNullabilityFixture.java`
 - Modify: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/renderer/ClickHouseScriptRendererTest.kt`
 - Modify: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/type/ClickHouseTypeTest.kt`
 
