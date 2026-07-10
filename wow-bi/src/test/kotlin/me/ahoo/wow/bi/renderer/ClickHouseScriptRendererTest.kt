@@ -25,6 +25,40 @@ import org.junit.jupiter.api.Test
 
 class ClickHouseScriptRendererTest {
     @Test
+    fun `should render complete expansion statements in plan order`() {
+        val plan = StateExpansionPlan(
+            views = listOf(
+                ExpansionViewPlan(
+                    targetTableName = "first_view",
+                    sourceTableName = "source",
+                    columns = emptyList(),
+                ),
+                ExpansionViewPlan(
+                    targetTableName = "second_view",
+                    sourceTableName = "source",
+                    columns = emptyList(),
+                ),
+            ),
+            diagnostics = emptyList(),
+        )
+        val renderer = ClickHouseScriptRenderer()
+
+        val statements = renderer.renderExpansionStatements(plan)
+
+        statements.assert().hasSize(2)
+        statements[0].assert().contains("\"first_view\"")
+        statements[1].assert().contains("\"second_view\"")
+        statements.forEach { statement ->
+            statement.trimEnd().endsWith(';').assert().isTrue()
+            statement.windowed("CREATE VIEW".length)
+                .count { it == "CREATE VIEW" }
+                .assert()
+                .isEqualTo(1)
+        }
+        renderer.renderExpansion(plan).assert().isEqualTo(statements.joinToString("\n"))
+    }
+
+    @Test
     @Suppress("LongMethod")
     fun `should render every structural column extraction with centralized quoting`() {
         val plan = StateExpansionPlan(

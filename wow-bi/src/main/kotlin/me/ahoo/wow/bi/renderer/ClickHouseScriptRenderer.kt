@@ -287,7 +287,10 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
     }
 
     fun renderExpansion(plan: StateExpansionPlan): String =
-        plan.views.joinToString("\n", transform = ::renderExpansionView)
+        renderExpansionStatements(plan).joinToString("\n")
+
+    fun renderExpansionStatements(plan: StateExpansionPlan): List<String> =
+        plan.views.map(::renderExpansionView)
 
     private fun renderExpansionView(view: ExpansionViewPlan): String {
         val withSql = view.columns

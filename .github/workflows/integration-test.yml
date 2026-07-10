@@ -25,6 +25,7 @@ on:
       - 'wow-dependencies/**'
       - 'wow-api/**'
       - 'wow-core/**'
+      - 'wow-bi/**'
       - 'wow-query/**'
       - 'wow-spring/**'
       - 'wow-mongo/**'
