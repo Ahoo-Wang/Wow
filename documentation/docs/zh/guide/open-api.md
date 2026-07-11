@@ -191,7 +191,7 @@ CREATE DATABASE IF NOT EXISTS "bi_db_consumer" ON CLUSTER '{cluster}';
 
 :::
 
-展开 schema、结构化类型、原始值语义和破坏性迁移参见[商业智能](./bi)；路由配置与 Kafka/topic 优先级参见[BI 脚本配置](./configuration#bi-脚本配置)。
+当前展开 schema、结构化类型、原始值语义和无损标量映射参见[商业智能](./bi)；路由配置与 Kafka/topic 优先级参见[BI 脚本配置](./configuration#bi-脚本配置)。
 
 ### 生成全局 ID
 

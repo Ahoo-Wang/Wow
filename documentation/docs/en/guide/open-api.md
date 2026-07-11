@@ -190,7 +190,7 @@ CREATE DATABASE IF NOT EXISTS "bi_db_consumer" ON CLUSTER '{cluster}';
 
 :::
 
-See [Business Intelligence](./bi) for the expansion schema, structural types, raw-value semantics, and breaking migration. See [BI Script Configuration](./configuration#bi-script-configuration) for route settings and Kafka/topic precedence.
+See [Business Intelligence](./bi) for the current expansion schema, structural types, raw-value semantics, and lossless scalar mappings. See [BI Script Configuration](./configuration#bi-script-configuration) for route settings and Kafka/topic precedence.
 
 ### Generate Global ID
 

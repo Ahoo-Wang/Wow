@@ -393,7 +393,7 @@ Kafka and topic settings use this precedence:
 
 Every other nullable binding falls back directly to its `BiScriptOptions` default when absent. The Starter performs validation when constructing the domain options: blank required strings, control characters, and `max-expansion-depth < 1` all fail application startup.
 
-See [Business Intelligence](./bi) for the structured result diagnostics and expansion-view migration notes.
+See [Business Intelligence](./bi) for structured result diagnostics, current expansion semantics, and lossless mappings.
 
 ## Bus Type
 

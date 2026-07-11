@@ -53,7 +53,7 @@ planner 使用 Kotlin/Java nullability resolver 和结构化 `ClickHouseType`。
 
 ### 3.3 方案 C：复杂值全部输出 String
 
-所有对象、数组和 Map 统一 `JSONExtractRaw`。
+所有对象、数组和 Map 统一 `simpleJSONExtractRaw`。
 
 未采用原因：虽然无损，但会主动放弃已经可以可靠表达的标量、数组和 Map 类型，降低分析价值。
 
@@ -85,6 +85,7 @@ flowchart LR
 ```mermaid
 graph LR
     WowApi["wow-api"] -->|"api"| Bi["wow-bi"]
+    Core["wow-core"] -->|"implementation"| Bi
     Bi -->|"api"| WebFlux["wow-webflux"]
     Bi -->|"webfluxSupportApi"| Starter["wow-spring-boot-starter"]
     WebFlux -->|"webfluxSupportImplementation"| Starter
@@ -96,9 +97,13 @@ graph LR
 - Starter 的公开 configuration properties 使用 BI enum，只在 `webflux-support` feature 暴露 `wow-bi`。
 - `GlobalRouteModule` 收窄为 `internal`，不额外扩大 WebFlux ABI。
 
-## 5. 公开 API 与删除范围
+## 5. 公开 API 与内部边界
 
-### 5.1 唯一公开 API
+### 5.1 七个公开类型
+
+`wow-bi` 只承诺以下七个公开类型：`BiScriptGenerator`、`BiScriptOptions`、
+`UnsupportedTypeStrategy`、`BiScriptResult`、`BiScriptDiagnostic`、
+`BiScriptDiagnosticCode`、`BiScriptMappingDecision`。
 
 ```kotlin
 class BiScriptGenerator(
@@ -145,28 +150,26 @@ data class BiScriptDiagnostic(
     val decision: BiScriptMappingDecision,
     val message: String,
 )
+
+enum class BiScriptDiagnosticCode {
+    RAW_JSON_FALLBACK,
+    MAX_DEPTH_REACHED,
+}
+
+enum class BiScriptMappingDecision {
+    RAW_JSON,
+    MAX_DEPTH_RAW_JSON,
+}
 ```
 
 所有返回的 diagnostic 都是 warning；严格失败直接抛出包含 aggregate/path/type 的异常，因此删除无生产语义的
 `Severity.ERROR`。`decision` 只描述无损决定，如 `RAW_JSON` 或 `MAX_DEPTH_RAW_JSON`。
 
-### 5.2 删除的 API 与实现
+### 5.2 内部实现边界
 
-- `ScriptEngine`
-- `ScriptTemplateEngine`
-- `StateExpansionScriptGenerator`
-- `SqlBuilder`
-- `TableNaming`
-- 整个 `expansion.column` 包
-- mutable `SqlTypeMapping`
-- `BiScriptRouteOptions` 及 route enums
-- Starter 重复 enums
-- handler/factory 的 `(String, String)` 构造器
-- `GlobalRouteModule(KafkaProperties?)` 构造器
-- `BiScriptGenerator.legacy`、`validateOptions` 双态和 blank fallback
-- 对应 characterization/ABI reflection tests 与 `expected_bi_aggregate_script.sql`
-
-`BiTableNaming`、planner/plan、resolver、renderer/syntax 和结构化 ClickHouse 类型全部 `internal`。
+命名、planner/plan、resolver、renderer/syntax、wire-shape inspector、结构化 ClickHouse 类型和
+executable statement 列表全部 `internal`。WebFlux 与 Starter 只消费上述公开类型，不公开重复配置模型或
+BI 内部规划结构。
 
 ## 6. 类型解析模型
 
@@ -236,7 +239,9 @@ nullability 初始化该 raw class 的 type-parameter bindings。只传 `JavaTyp
 
 其他情况返回带内部 reason 的 `Opaque`。嵌套 opaque property 在最近可寻址节点整体 raw/fail；opaque collection
 element 使整个 collection raw/fail；opaque root state 在 root view 中直接透传完整 `state`，禁止生成空 view。
-不扫描或合并运行时子类，不反编译 custom serializer，也不硬编码 `AggregateIdJsonSerializer` 的字段。
+集合和 Map 只有在 selected serializer 来自 Jackson databind、容器 visitor shape 正确且元素/key/value 映射通过时
+才允许 typed projection；显式或第三方 custom container serializer 统一 raw/fail，不反推其内容语义。
+不扫描或合并运行时子类，不反编译 custom serializer，也不硬编码特定 serializer 的字段。
 
 ## 7. ClickHouse 类型代数
 
@@ -264,11 +269,13 @@ internal sealed interface ClickHouseType {
 
 | JVM type | Jackson wire shape | ClickHouse projection |
 | --- | --- | --- |
+| `String` | string | `String` |
 | primitive/boxed integer、boolean、char | number/boolean/string | 对应精确 scalar |
 | `Float` / `Double` | number 或 Jackson 已定义的特殊值 | `Float32` / `Float64` |
-| `UUID`、`java.time.Duration`、`java.util.Date`、`java.sql.Date`、`Instant`、其他 `java.time.*` | string | `String` |
+| `UUID` | UUID 格式 string | `UUID` |
+| `java.time.Duration`、`java.util.Date`、`java.sql.Date`、`Instant`、其他 `java.time.*` | string | `String` |
 | `Year` | signed integer | `Int32` |
-| `BigDecimal` | arbitrary precision JSON number | 完整 `JSONExtractRaw`，不提供固定 Decimal projection |
+| `BigDecimal` | arbitrary precision JSON number | 完整 `simpleJSONExtractRaw`，不提供固定 Decimal projection |
 | `kotlin.time.Duration` | Kotlin value-class wire value | 按解析后的实际 `Long` 处理，不注册伪语义映射 |
 | enum | 仅当 format visitor 证明为 string | `String`，否则 raw/fail |
 
@@ -289,9 +296,10 @@ ClickHouse 不允许 `Nullable(Array(...))` 或 `Nullable(Map(...))`，但允许
 | `Map<String,T>?` | `Map(String,T)` | `__raw__<target>` |
 | `Child?` | 后代 leaf 使用 effective nullable | `__raw__<target>` |
 | `List<Child?>` | parent raw elements + typed child view | child view 中输出 element raw companion |
-| depth/raw generic/object-map/unsupported | 不伪造 typed 值 | 整个 value 使用 `JSONExtractRaw` |
+| depth/raw generic/object-map/unsupported | 不伪造 typed 值 | 整个 value 使用 `simpleJSONExtractRaw` |
 
-raw companion 命名为 `__raw__<targetName>`，内容直接来自 `JSONExtractRaw`：
+raw companion 命名为 `__raw__<targetName>`，内容直接来自对 Wow `JsonSerializer` 紧凑 JSON 的
+`simpleJSONExtractRaw`；该提取路径保留原始数字 token，不把任意精度数字规范化为浮点表示：
 
 - missing -> `""`
 - explicit null -> `"null"`
@@ -366,7 +374,7 @@ properties 直接使用 `UnsupportedTypeStrategy`，不复制 enum；最终 `BiS
 ### 11.2 ClickHouse integration test
 
 - 将 `:wow-bi` 加入 root `integrationTestProjects`。
-- `wow-bi/src/integrationTest` 使用固定的最低支持 ClickHouse image 和 Testcontainers ClickHouse module。
+- 最低支持版本为 ClickHouse 24.8 LTS；`wow-bi/src/integrationTest` 使用固定的 24.8 image 和 Testcontainers ClickHouse module。
 - 从 `BiScriptGenerator.generate()` 取得与 `script` 同源的 immutable executable statements，执行 global、clear、
   command、stateEvent、stateLast 和 expansion 的完整 DDL；测试代码不解析 SQL 字符串。
 - 插入 scalar null、array/map null/empty/missing、nullable object、nullable element、object-map mixed JSON。
@@ -405,9 +413,7 @@ properties 直接使用 `UnsupportedTypeStrategy`，不复制 enum；最终 `BiS
 ./gradlew :wow-bi:integrationTest
 ./gradlew :wow-bi:check :wow-webflux:check :wow-spring-boot-starter:check :wow-openapi:check detekt
 cd documentation && pnpm docs:build
-rg -n "ScriptEngine|ScriptTemplateEngine|StateExpansionScriptGenerator|BiScriptRouteOptions|ObjectMapStrategy" \
-  wow-bi wow-webflux wow-spring-boot-starter documentation
 ```
 
-最后一条必须无生产代码和文档命中。若本地 Docker 不可用，必须至少运行
-`:wow-bi:integrationTestClasses`，记录环境阻断，并由 CI integration gate 执行容器测试后才能发布。
+若本地 Docker 不可用，必须至少运行 `:wow-bi:integrationTestClasses`，记录环境阻断，并由 CI integration gate
+执行容器测试后才能发布。

@@ -298,6 +298,7 @@ git commit -m "test(bi): execute complete generated ClickHouse DDL"
 **Files:**
 - Delete: `docs/superpowers/specs/2026-07-10-wow-bi-refactor-design.md`
 - Delete: `docs/superpowers/plans/2026-07-10-wow-bi-refactor.md`
+- Delete: `docs/superpowers/plans/2026-07-10-wow-bi-clean-architecture.md`
 - Modify: `documentation/docs/en/guide/bi.md`
 - Modify: `documentation/docs/zh/guide/bi.md`
 - Modify: `documentation/docs/en/guide/advanced/module-dependencies.md`
@@ -312,7 +313,7 @@ git commit -m "test(bi): execute complete generated ClickHouse DDL"
 Run before editing and record that it finds stale content:
 
 ```bash
-rg -n "Breaking Migration|破坏性迁移|BiScriptOptions\.validate|BiScriptRouteOptions|wow_openapi --> wow_bi|Depends on .*wow-bi|依赖.*wow-bi" documentation docs/superpowers
+rg -n "Breaking Migration|破坏性迁移|BiScriptOptions\.validate|BiScriptRouteOptions|wow_openapi --> wow_bi|Depends on .*wow-bi|依赖.*wow-bi" documentation docs/superpowers/specs
 ```
 
 - [ ] **Step 2: Delete stale sources and current-only migration sections**
@@ -332,7 +333,7 @@ Remove the nonexistent `wow-openapi -> wow-bi` edge and correct its prose.
 - [ ] **Step 3: Run documentation gates**
 
 ```bash
-rg -n "Breaking Migration|破坏性迁移|BiScriptOptions\.validate|BiScriptRouteOptions|wow_openapi --> wow_bi|Depends on .*wow-bi|依赖.*wow-bi" documentation docs/superpowers
+rg -n "Breaking Migration|破坏性迁移|BiScriptOptions\.validate|BiScriptRouteOptions|wow_openapi --> wow_bi|Depends on .*wow-bi|依赖.*wow-bi" documentation docs/superpowers/specs
 cd documentation && pnpm docs:build
 ```
 
@@ -364,7 +365,7 @@ git commit -m "docs(bi): keep one current architecture contract"
 ```bash
 cd documentation && pnpm docs:build
 rg -n "ScriptEngine|ScriptTemplateEngine|StateExpansionScriptGenerator|BiScriptRouteOptions|ObjectMapStrategy|Breaking Migration|破坏性迁移" \
-  wow-bi wow-webflux wow-spring-boot-starter documentation docs/superpowers
+  wow-bi wow-webflux wow-spring-boot-starter documentation docs/superpowers/specs
 git diff --check
 git status --short
 ```
@@ -374,4 +375,3 @@ Expected: builds PASS, stale-symbol search has no hits, diff check is clean, and
 - [ ] **Step 3: Run independent whole-branch review**
 
 Review correctness, Jackson/JVM/ClickHouse wire semantics, immutable boundaries, dependency direction, test strength, and current-only documentation. Fix every Critical/Important finding and rerun its covering tests before completion.
-

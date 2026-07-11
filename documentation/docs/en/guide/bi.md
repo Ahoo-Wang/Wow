@@ -38,6 +38,8 @@ val sql: String = result.script
 val diagnostics: List<BiScriptDiagnostic> = result.diagnostics
 ```
 
+The public contract consists of seven types: `BiScriptGenerator`, `BiScriptOptions`, `UnsupportedTypeStrategy`, `BiScriptResult`, `BiScriptDiagnostic`, `BiScriptDiagnosticCode`, and `BiScriptMappingDecision`. Planning, rendering, type mapping, and executable-statement models are internal.
+
 `BiScriptResult` contains:
 
 | Field | Meaning |
@@ -68,6 +70,8 @@ A successful response is always `200` with `Content-Type: application/sql`, and 
 ## Generated SQL Contract
 
 The following fragments show only stable structure. Actual database names, cluster, Kafka address, topic, and aggregate table names come from `BiScriptOptions` and aggregate metadata.
+
+Generated BI SQL requires ClickHouse 24.8 LTS or later. The module integration suite pins the minimum line to a 24.8 image.
 
 ### Aggregate Commands
 
@@ -140,7 +144,7 @@ The root view expands one-to-one objects into columns and inherits state-event m
 
 ```sql
 CREATE VIEW IF NOT EXISTS "bi_db"."example_order_state_last_root" ON CLUSTER '{cluster}' AS
-WITH JSONExtractRaw("__source"."state", 'address') AS "address"
+WITH simpleJSONExtractRaw("__source"."state", 'address') AS "address"
 SELECT JSONExtract("address", 'city', 'String') AS "address__city",
        JSONExtract("__source"."state", 'id', 'String') AS "id",
        JSONExtractArrayRaw("__source"."state", 'items') AS "items",
@@ -170,7 +174,7 @@ Types are generated from structural property nullability. `Nullable` may appear 
 
 ```sql
 JSONExtract("__source"."state", 'name', 'Nullable(String)') AS "name",
-JSONExtractRaw("__source"."state", 'name') AS "__raw__name",
+simpleJSONExtractRaw("__source"."state", 'name') AS "__raw__name",
 JSONExtract("__source"."state", 'scores', 'Array(Nullable(Int32))') AS "scores",
 JSONExtract("__source"."state", 'ratings', 'Map(String, Nullable(Int32))') AS "ratings"
 ```
@@ -190,11 +194,11 @@ Unannotated Java reference types are treated as potentially nullable; explicit K
 
 ### Reserved `__raw__*` Namespace
 
-The `__raw__` prefix is reserved by the generator. Domain-property serialized names must not occupy it. Generation fails on a collision with raw companions or `__*` metadata columns instead of silently overwriting a column.
+The `__raw__` prefix is reserved by the generator. Domain-property serialized names must not occupy it. Generation fails on a collision with raw companions or `__*` metadata columns instead of silently overwriting a column. Raw extraction uses `simpleJSONExtractRaw` against compact JSON produced by Wow `JsonSerializer`; this preserves the original numeric token instead of normalizing arbitrary precision through a floating-point representation.
 
 Raw columns distinguish states that typed extraction cannot always distinguish:
 
-| JSON input | `JSONExtractRaw` result | Typed extraction |
+| JSON input | `simpleJSONExtractRaw` result | Typed extraction |
 |------------|-------------------------|------------------|
 | Missing property | Empty string `""` | Nullable scalar becomes SQL `NULL`; array/Map may become empty. |
 | Explicit `null` | String `"null"` | Nullable scalar becomes SQL `NULL`; array/Map may become empty. |
@@ -204,44 +208,26 @@ The `__raw__*` columns for nullable scalars, arrays, maps, and objects are there
 
 ### Unsupported Types
 
-Object-valued maps, Map keys that are non-String or potentially nullable, platform objects, and unresolved generic shapes cannot be mapped safely to a direct ClickHouse type. The default strategy stores the whole property in its normal target column through `JSONExtractRaw` and emits a diagnostic; `FAIL` rejects generation. Reaching `maxExpansionDepth` also preserves the whole raw value, with a separate depth diagnostic.
+Object-valued maps, Map keys that are non-String or potentially nullable, platform objects, and unresolved generic shapes cannot be mapped safely to a direct ClickHouse type. The default strategy stores the whole property in its normal target column through `simpleJSONExtractRaw` and emits a diagnostic; `FAIL` rejects generation. Reaching `maxExpansionDepth` also preserves the whole raw value, with a separate depth diagnostic.
 
-## Breaking Migration
+### Opaque Jackson Shapes
 
-### Removed API and Configuration Migration Table
+Recursive expansion is enabled only when the configured Wow `JsonSerializer` proves that the declared object and its serialized JSON object have the same property shape. Polymorphic, abstract, sealed, `@JsonValue`, `@JsonUnwrapped`, `@JsonAnyGetter`, custom-serialized, converted, and otherwise unverifiable objects are opaque. An opaque property is preserved as one complete raw JSON value or rejected by `FAIL`; an opaque root preserves the complete `state`. Collections and maps receive typed projections only with Jackson's built-in container serializers and verified element, key, and value mappings.
 
-This table is the only compatibility reference for old names. No compatibility adapter is provided.
+### Lossless Scalar Mappings
 
-| Removed | Replacement |
-|---------|-------------|
-| `ScriptEngine` / `ScriptTemplateEngine` | `BiScriptGenerator` + `BiScriptOptions` |
-| `StateExpansionScriptGenerator` | Internal structural planning through `BiScriptGenerator` |
-| `SqlBuilder` / `SqlTypeMapping` / `TableNaming` / `expansion.column.*` | No direct replacement; SQL construction, type mapping, and column models are handled by the generator's internal structural planner/renderer |
-| `BiTableNaming` and planner, plan, resolver, renderer, syntax, and ClickHouse type implementation types | No supported public replacement; these are now implementation details and callers should depend only on the `BiScriptGenerator` result protocol |
-| `BiScriptOptions.validate()` | Validation runs when constructing `BiScriptOptions`; no explicit `validate()` call is required |
-| `BiScriptDiagnostic.severity` / `Severity` | Removed; returned diagnostics are warnings, while strict failures throw directly |
-| `OBJECT_MAP_FALLBACK` / `UNSUPPORTED_TYPE_FALLBACK` | `RAW_JSON_FALLBACK`, with `sourceType` and `decision` describing the mapping decision |
-| `BiScriptRouteOptions` and route enums | `BiScriptOptions` / `UnsupportedTypeStrategy` |
-| WebFlux String/default constructors | Constructors accepting `BiScriptOptions` |
-| Starter `BiScriptUnsupportedTypeStrategy` / `BiScriptObjectMapStrategy` | Bind `UnsupportedTypeStrategy` directly; object maps no longer have a separate strategy |
-| `GlobalRouteModule(KafkaProperties?)` and its old dual construction path | Use Starter auto-configuration and `wow.bi.script.*`; `GlobalRouteModule` is now internal |
-| `STRING_WITH_DIAGNOSTIC` | `RAW_JSON` |
-| `ObjectMapStrategy` / `object-map-strategy` / `STRING_VALUE_WITH_DIAGNOSTIC` | Unified `unsupported-type-strategy` with `RAW_JSON` / `FAIL` |
+Scalar mappings must agree with both the configured Jackson wire format and the target ClickHouse type. A mismatch follows the same raw/fail policy as any other opaque value.
 
-### Impact Scope
-
-This change modifies generated snapshot-expansion column types, nullability, and raw companion columns. It affects generated expansion views and their downstream queries, views, and BI datasets. Command tables, source state tables, and existing event data do not require data migration merely because view types changed.
-
-`CREATE VIEW IF NOT EXISTS` does not alter an existing view. Upgrades must drop and recreate generated expansion views; rerunning only the create statements is insufficient.
-
-### Rollout
-
-1. Back up current expansion-view definitions and affected downstream query and dataset definitions.
-2. Generate SQL with the new code and configuration; review types, `__raw__*` columns, databases, topics, and diagnostics.
-3. Drop only generated expansion views, children before parents, using the same `ON CLUSTER` scope as the generated SQL; do not run the complete destructive `clear` section.
-4. Recreate views in generated order with the same `ON CLUSTER` scope, then validate column types on every node, missing/null/empty distinctions, and downstream queries.
-5. Deploy consumers that depend on the new columns only after validation passes.
-
-### Rollback
-
-Using the same `ON CLUSTER` scope as rollout, drop the new expansion views from children to parents, restore the backed-up view definitions, and restore the previous application and configuration. If downstream consumers already switched to the new columns, roll back their queries or dataset definitions as well.
+| JVM value | Jackson wire value | ClickHouse projection |
+|-----------|--------------------|-----------------------|
+| `String` | String | `String` |
+| Integer primitives/boxed values | Integer | Exact signed integer type |
+| `Boolean` | Boolean | `Bool` |
+| `Char` and ordinary string enums | String | `String` |
+| `Float` / `Double` | Number, or Jackson's strings for non-finite values | `Float32` / `Float64` |
+| `UUID` | UUID-formatted string | `UUID` |
+| `Duration`, `Date`, `java.sql.Date`, `Instant`, and other `java.time` values | ISO/string representation | `String` |
+| `Year` | Signed integer | `Int32` |
+| `BigDecimal` | Arbitrary-precision number | Complete `simpleJSONExtractRaw` value |
+| Kotlin `Duration` | Resolver-provided `Long` wire value | `Int64` |
+| Enum with a non-string wire format | Unverified scalar | Complete raw value or `FAIL` |
