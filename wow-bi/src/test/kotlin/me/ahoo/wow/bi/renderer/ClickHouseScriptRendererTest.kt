@@ -22,9 +22,43 @@ import me.ahoo.wow.bi.expansion.plan.ColumnReference
 import me.ahoo.wow.bi.expansion.plan.ExpansionViewPlan
 import me.ahoo.wow.bi.expansion.plan.StateExpansionPlan
 import me.ahoo.wow.bi.type.ClickHouseType
+import me.ahoo.wow.configuration.MetadataSearcher
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class ClickHouseScriptRendererTest {
+    @Test
+    fun `should render immutable individual statements for every DDL family`() {
+        val aggregate = MetadataSearcher.localAggregates.single { it.aggregateName == "aggregate" }
+        val renderer = ClickHouseScriptRenderer()
+        val global = renderer.renderGlobalStatements()
+        val clear = renderer.renderClearStatements(aggregate, listOf("root_view", "child_view"))
+        val command = renderer.renderCommandStatements(aggregate)
+        val stateEvent = renderer.renderStateEventStatements(aggregate)
+        val stateLast = renderer.renderStateLastStatements(aggregate)
+
+        global.assert().hasSize(2)
+        clear.assert().hasSize(14)
+        command.assert().hasSize(4)
+        stateEvent.assert().hasSize(5)
+        stateLast.assert().hasSize(3)
+        listOf(global, clear, command, stateEvent, stateLast).flatten().forEach { statement ->
+            statement.lineSequence().none { it.trimStart().startsWith("--") }.assert().isTrue()
+            statement.trimEnd().endsWith(';').assert().isTrue()
+        }
+        renderer.renderGlobal().assert().isEqualTo(global.joinToString("\n\n"))
+        renderer.renderClear(aggregate, listOf("root_view", "child_view"))
+            .assert().isEqualTo(clear.joinToString("\n\n"))
+        renderer.renderCommand(aggregate).assert().isEqualTo(command.joinToString("\n\n"))
+        renderer.renderStateEvent(aggregate).assert().isEqualTo(stateEvent.joinToString("\n\n"))
+        renderer.renderStateLast(aggregate).assert().isEqualTo(stateLast.joinToString("\n\n"))
+
+        assertThrows<UnsupportedOperationException> {
+            @Suppress("UNCHECKED_CAST")
+            (command as MutableList<String>).clear()
+        }
+    }
+
     @Test
     fun `should render complete expansion statements in plan order`() {
         val plan = StateExpansionPlan(
@@ -56,7 +90,7 @@ class ClickHouseScriptRendererTest {
                 .assert()
                 .isEqualTo(1)
         }
-        renderer.renderExpansion(plan).assert().isEqualTo(statements.joinToString("\n"))
+        renderer.renderExpansion(plan).assert().isEqualTo(statements.joinToString("\n\n"))
     }
 
     @Test
@@ -129,7 +163,7 @@ class ClickHouseScriptRendererTest {
                 "\"nested\\\"alias\""
         )
         script.assert().contains(
-            "JSONExtractRaw(\"__source\".\"state\", 'raw''nested') AS \"raw_nested\""
+            "simpleJSONExtractRaw(\"__source\".\"state\", 'raw''nested') AS \"raw_nested\""
         )
         script.assert().contains(
             "arrayJoin(JSONExtractArrayRaw(\"__source\".\"state\", 'items')) AS \"items\""

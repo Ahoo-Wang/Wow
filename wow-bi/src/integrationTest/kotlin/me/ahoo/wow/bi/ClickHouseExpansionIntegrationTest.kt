@@ -16,21 +16,26 @@ package me.ahoo.wow.bi
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.AggregateRoot
-import me.ahoo.wow.bi.expansion.plan.StateExpansionPlanner
-import me.ahoo.wow.bi.renderer.ClickHouseScriptRenderer
 import me.ahoo.wow.bi.renderer.ClickHouseSqlSyntax.quoteIdentifier
+import me.ahoo.wow.bi.renderer.ClickHouseSqlSyntax.stringLiteral
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
 import org.testcontainers.clickhouse.ClickHouseContainer
 import org.testcontainers.utility.DockerImageName
 import org.testcontainers.utility.MountableFile
 import java.sql.Connection
 import java.sql.DriverManager
+import java.math.BigDecimal
+import java.time.Duration
+import java.time.Instant
+import java.time.Year
+import java.util.Date
 
 class ClickHouseExpansionIntegrationTest {
     @Test
     @Suppress("LongMethod")
-    fun `should execute expansion SQL without losing nullable JSON semantics`() {
+    fun `should execute complete generated DDL and preserve scalar wire values`() {
         val options = BiScriptOptions(
             database = DATABASE,
             consumerDatabase = "bi_it_consumer",
@@ -40,13 +45,8 @@ class ClickHouseExpansionIntegrationTest {
             replica = "01",
             timezone = "UTC",
         )
-        val plan = StateExpansionPlanner(options).plan(
-            aggregateMetadata<ClickHouseExpansionAggregate, ClickHouseExpansionState>()
-        )
-        val rootView = plan.views.single { it.targetTableName.endsWith("_root") }
-        val childView = plan.views.single { it.targetTableName.endsWith("_nullable_objects") }
-        rootView.columns.count { it.targetName == "mixed" }.assert().isEqualTo(1)
-        rootView.columns.none { it.targetName == "__raw__mixed" }.assert().isTrue()
+        val namedAggregate = aggregateMetadata<ClickHouseExpansionAggregate, ClickHouseExpansionState>()
+        val result = BiScriptGenerator(options).generate(setOf(namedAggregate))
 
         clickHouse().use { clickHouse ->
             clickHouse.start()
@@ -55,14 +55,12 @@ class ClickHouseExpansionIntegrationTest {
                 clickHouse.username,
                 clickHouse.password,
             ).use { connection ->
-                connection.createSourceTable(rootView.sourceTableName)
-                ClickHouseScriptRenderer(options)
-                    .renderExpansionStatements(plan)
-                    .forEach { statement -> connection.executeSql(statement) }
-                connection.insertStateRows(rootView.sourceTableName)
+                result.statements.forEach(connection::executeSql)
+                connection.assertGeneratedObjects()
+                connection.insertStateRows()
 
                 val rootProjections = connection.queryRows(
-                    sql = rootProjectionSql(rootView.targetTableName),
+                    sql = rootProjectionSql(ROOT_VIEW),
                     columns = ROOT_PROJECTION_COLUMNS,
                 )
                 rootProjections.assert().hasSize(STATE_ROWS.size)
@@ -70,10 +68,15 @@ class ClickHouseExpansionIntegrationTest {
                 rootRows.assert().isEqualTo(EXPECTED_ROOT_ROWS)
 
                 val childRows = connection.queryRows(
-                    sql = childProjectionSql(childView.targetTableName),
+                    sql = childProjectionSql(CHILD_VIEW),
                     columns = CHILD_PROJECTION_COLUMNS,
                 )
                 childRows.assert().containsExactlyElementsOf(EXPECTED_CHILD_ROWS)
+
+                connection.queryRows(
+                    sql = scalarProjectionSql(ROOT_VIEW),
+                    columns = SCALAR_PROJECTION_COLUMNS,
+                ).single().assert().isEqualTo(EXPECTED_SCALAR_ROW)
             }
         }
     }
@@ -86,37 +89,39 @@ class ClickHouseExpansionIntegrationTest {
             )
         }
 
-    private fun Connection.createSourceTable(table: String) {
-        executeSql("CREATE DATABASE IF NOT EXISTS ${identifier(DATABASE)}")
-        executeSql(
-            """
-                CREATE TABLE ${qualified(DATABASE, table)}
-                (
-                    ${identifier("id")} String,
-                    ${identifier("aggregate_id")} String,
-                    ${identifier("tenant_id")} String DEFAULT '',
-                    ${identifier("owner_id")} String DEFAULT '',
-                    ${identifier("space_id")} String DEFAULT '',
-                    ${identifier("command_id")} String DEFAULT '',
-                    ${identifier("request_id")} String DEFAULT '',
-                    ${identifier("version")} UInt32 DEFAULT 0,
-                    ${identifier("state")} String,
-                    ${identifier("first_operator")} String DEFAULT '',
-                    ${identifier("first_event_time")} DateTime('UTC') DEFAULT toDateTime(0, 'UTC'),
-                    ${identifier("create_time")} DateTime('UTC') DEFAULT toDateTime(0, 'UTC'),
-                    ${identifier("tags")} Map(String, Array(String)) DEFAULT map(),
-                    ${identifier("deleted")} Bool DEFAULT false
-                )
-                ENGINE = MergeTree
-                ORDER BY ${identifier("aggregate_id")}
-            """.trimIndent()
+    private fun Connection.assertGeneratedObjects() {
+        val objects = queryRows(
+            sql =
+                "SELECT concat(database, '.', name) AS object_name FROM system.tables " +
+                    "WHERE database IN (${literal(DATABASE)}, ${literal(CONSUMER_DATABASE)})",
+            columns = listOf("object_name"),
+        ).map { it.required("object_name") }
+
+        objects.assert().contains(
+            "$DATABASE.$COMMAND_TABLE",
+            "$DATABASE.$STATE_TABLE",
+            "$DATABASE.$STATE_LAST_TABLE",
+            "$DATABASE.$ROOT_VIEW",
+            "$DATABASE.$CHILD_VIEW",
+            "$CONSUMER_DATABASE.${COMMAND_TABLE}_queue",
+            "$CONSUMER_DATABASE.${COMMAND_TABLE}_consumer",
+            "$CONSUMER_DATABASE.${STATE_TABLE}_queue",
+            "$CONSUMER_DATABASE.${STATE_TABLE}_consumer",
+            "$CONSUMER_DATABASE.${STATE_LAST_TABLE}_consumer",
         )
     }
 
-    private fun Connection.insertStateRows(table: String) {
+    private fun Connection.insertStateRows() {
         prepareStatement(
-            "INSERT INTO ${qualified(DATABASE, table)} " +
-                "(${identifier("id")}, ${identifier("aggregate_id")}, ${identifier("state")}) VALUES (?, ?, ?)"
+            "INSERT INTO ${qualified(DATABASE, STATE_LAST_TABLE)} " +
+                "(${identifier("id")}, ${identifier("context_name")}, ${identifier("aggregate_name")}, " +
+                "${identifier("header")}, ${identifier("aggregate_id")}, ${identifier("tenant_id")}, " +
+                "${identifier("owner_id")}, ${identifier("space_id")}, ${identifier("command_id")}, " +
+                "${identifier("request_id")}, ${identifier("version")}, ${identifier("state")}, " +
+                "${identifier("body")}, ${identifier("first_operator")}, ${identifier("first_event_time")}, " +
+                "${identifier("create_time")}, ${identifier("tags")}, ${identifier("deleted")}) " +
+                "VALUES (?, 'bi-integration-service', 'nullable', map(), ?, '', '', '', '', '', 1, ?, [], '', " +
+                "toDateTime(0, 'UTC'), toDateTime(0, 'UTC'), map(), false)"
         ).use { statement ->
             STATE_ROWS.forEach { (id, state) ->
                 statement.setString(1, id)
@@ -125,10 +130,6 @@ class ClickHouseExpansionIntegrationTest {
                 statement.executeUpdate()
             }
         }
-    }
-
-    private fun Connection.executeSql(sql: String) {
-        createStatement().use { statement -> statement.execute(sql) }
     }
 
     private fun Connection.queryRows(
@@ -185,10 +186,35 @@ class ClickHouseExpansionIntegrationTest {
             ORDER BY isNull(${identifier("nullable_objects__value")}), element_raw
         """.trimIndent()
 
+    private fun scalarProjectionSql(table: String): String =
+        """
+            SELECT
+                ${identifier("big_decimal")} AS big_decimal_raw,
+                ${identifier("date")} AS date_value,
+                toString(${identifier("year")}) AS year_value,
+                ${identifier("duration")} AS duration_value,
+                ${identifier("instant")} AS instant_value,
+                toString(isNaN(${identifier("special_double")})) AS double_is_nan,
+                toString(isInfinite(${identifier("special_float")})) AS float_is_infinite,
+                ${identifier("big_decimals")} AS big_decimals_raw,
+                toJSONString(${identifier("dates")}) AS dates_json,
+                toString(${identifier("years")}['negative']) AS negative_year,
+                toJSONString(${identifier("durations")}) AS durations_json,
+                ${identifier("instants")}['nano'] AS instant_map_value,
+                toString(isNaN(${identifier("special_doubles")}[1])) AS array_nan,
+                toString(isInfinite(${identifier("special_doubles")}[2])) AS array_positive_infinity,
+                toString(isInfinite(${identifier("special_doubles")}[3])) AS array_negative_infinity,
+                toString(${identifier("special_doubles")}[3] < 0) AS array_negative_sign
+            FROM ${qualified(DATABASE, table)}
+            WHERE ${identifier("__id")} = 'row-normal'
+        """.trimIndent()
+
     private fun Map<String, String>.required(name: String): String =
         checkNotNull(this[name]) { "Projection [$name] is missing." }
 
     private fun identifier(value: String): String = quoteIdentifier(value)
+
+    private fun literal(value: String): String = stringLiteral(value)
 
     private fun qualified(database: String, table: String): String =
         "${identifier(database)}.${identifier(table)}"
@@ -197,6 +223,12 @@ class ClickHouseExpansionIntegrationTest {
         const val CLICKHOUSE_IMAGE = "clickhouse/clickhouse-server:24.8.14.39-alpine"
         const val CLUSTER = "test_cluster"
         const val DATABASE = "bi_it"
+        const val CONSUMER_DATABASE = "bi_it_consumer"
+        const val COMMAND_TABLE = "bi_it_nullable_command"
+        const val STATE_TABLE = "bi_it_nullable_state"
+        const val STATE_LAST_TABLE = "bi_it_nullable_state_last"
+        const val ROOT_VIEW = "bi_it_nullable_state_last_root"
+        const val CHILD_VIEW = "bi_it_nullable_state_last_root_nullable_objects"
         const val CLUSTER_CONFIG_RESOURCE = "clickhouse-test-cluster.xml"
         const val CLUSTER_CONFIG_PATH =
             "/etc/clickhouse-server/config.d/clickhouse-test-cluster.xml"
@@ -226,15 +258,109 @@ class ClickHouseExpansionIntegrationTest {
             "value_json",
             "element_raw",
         )
+        val SCALAR_PROJECTION_COLUMNS = listOf(
+            "big_decimal_raw",
+            "date_value",
+            "year_value",
+            "duration_value",
+            "instant_value",
+            "double_is_nan",
+            "float_is_infinite",
+            "big_decimals_raw",
+            "dates_json",
+            "negative_year",
+            "durations_json",
+            "instant_map_value",
+            "array_nan",
+            "array_positive_infinity",
+            "array_negative_infinity",
+            "array_negative_sign",
+        )
+
+        val HIGH_PRECISION_DECIMAL = BigDecimal("123456789012345678901234567890.12345678901234567890")
+        val NEGATIVE_DATE = Date(-1)
+        val NEGATIVE_YEAR = Year.of(-1)
+        val NANO_DURATION = Duration.ofSeconds(1, 123456789)
+        val NANO_INSTANT = Instant.ofEpochSecond(1, 123456789)
+        val BIG_DECIMALS = listOf(HIGH_PRECISION_DECIMAL, BigDecimal("1E+100"))
+        val DATES = listOf(NEGATIVE_DATE, Date(0))
+        val DURATIONS = listOf(NANO_DURATION, Duration.ofSeconds(-1, 500000000))
+        val SPECIAL_DOUBLES = listOf(Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY)
 
         val STATE_ROWS = linkedMapOf(
-            "row-normal" to
-                """{"id":"state-normal","nullableScalar":7,"nullableArray":[1,null,3],"nullableMap":{"a":1,"b":null},"nullableObject":{"value":11},"nullableObjects":[{"value":21},null],"mixed":{"string":"x","number":1,"bool":true,"nil":null,"object":{"x":1},"array":[1,"two"]}}""",
-            "row-null" to
-                """{"id":"state-null","nullableScalar":null,"nullableArray":null,"nullableMap":null,"nullableObject":null,"nullableObjects":null,"mixed":{"case":"null"}}""",
-            "row-empty" to
-                """{"id":"state-empty","nullableScalar":null,"nullableArray":[],"nullableMap":{},"nullableObject":{},"nullableObjects":[],"mixed":{}}""",
-            "row-missing" to """{"id":"state-missing"}""",
+            "row-normal" to JsonSerializer.writeValueAsString(
+                linkedMapOf(
+                    "id" to "state-normal",
+                    "nullableScalar" to 7,
+                    "nullableArray" to listOf(1, null, 3),
+                    "nullableMap" to linkedMapOf("a" to 1, "b" to null),
+                    "nullableObject" to ClickHouseNullableObject(11),
+                    "nullableObjects" to listOf(ClickHouseNullableObject(21), null),
+                    "mixed" to linkedMapOf(
+                        "string" to "x",
+                        "number" to 1,
+                        "bool" to true,
+                        "nil" to null,
+                        "object" to mapOf("x" to 1),
+                        "array" to listOf(1, "two"),
+                    ),
+                    "bigDecimal" to HIGH_PRECISION_DECIMAL,
+                    "date" to NEGATIVE_DATE,
+                    "year" to NEGATIVE_YEAR,
+                    "duration" to NANO_DURATION,
+                    "instant" to NANO_INSTANT,
+                    "specialDouble" to Double.NaN,
+                    "specialFloat" to Float.POSITIVE_INFINITY,
+                    "bigDecimals" to BIG_DECIMALS,
+                    "dates" to DATES,
+                    "years" to mapOf("negative" to NEGATIVE_YEAR),
+                    "durations" to DURATIONS,
+                    "instants" to mapOf("nano" to NANO_INSTANT),
+                    "specialDoubles" to SPECIAL_DOUBLES,
+                )
+            ),
+            "row-null" to JsonSerializer.writeValueAsString(
+                linkedMapOf(
+                    "id" to "state-null",
+                    "nullableScalar" to null,
+                    "nullableArray" to null,
+                    "nullableMap" to null,
+                    "nullableObject" to null,
+                    "nullableObjects" to null,
+                    "mixed" to mapOf("case" to "null"),
+                )
+            ),
+            "row-empty" to JsonSerializer.writeValueAsString(
+                linkedMapOf(
+                    "id" to "state-empty",
+                    "nullableScalar" to null,
+                    "nullableArray" to emptyList<Int>(),
+                    "nullableMap" to emptyMap<String, Int>(),
+                    "nullableObject" to emptyMap<String, Int>(),
+                    "nullableObjects" to emptyList<ClickHouseNullableObject>(),
+                    "mixed" to emptyMap<String, Any>(),
+                )
+            ),
+            "row-missing" to JsonSerializer.writeValueAsString(mapOf("id" to "state-missing")),
+        )
+
+        val EXPECTED_SCALAR_ROW = mapOf(
+            "big_decimal_raw" to JsonSerializer.writeValueAsString(HIGH_PRECISION_DECIMAL),
+            "date_value" to serializedText(NEGATIVE_DATE),
+            "year_value" to "-1",
+            "duration_value" to serializedText(NANO_DURATION),
+            "instant_value" to serializedText(NANO_INSTANT),
+            "double_is_nan" to "1",
+            "float_is_infinite" to "1",
+            "big_decimals_raw" to JsonSerializer.writeValueAsString(BIG_DECIMALS),
+            "dates_json" to JsonSerializer.writeValueAsString(DATES),
+            "negative_year" to "-1",
+            "durations_json" to JsonSerializer.writeValueAsString(DURATIONS),
+            "instant_map_value" to serializedText(NANO_INSTANT),
+            "array_nan" to "1",
+            "array_positive_infinity" to "1",
+            "array_negative_infinity" to "1",
+            "array_negative_sign" to "1",
         )
 
         val EXPECTED_ROOT_ROWS = mapOf(
@@ -351,7 +477,14 @@ class ClickHouseExpansionIntegrationTest {
             "object_array_raw" to objectArrayRaw,
             "mixed_raw" to mixedRaw,
         )
+
+        fun serializedText(value: Any): String =
+            JsonSerializer.readTree(JsonSerializer.writeValueAsString(value)).asString()
     }
+}
+
+private fun Connection.executeSql(sql: String) {
+    createStatement().use { statement -> statement.execute(sql) }
 }
 
 @Suppress("UnusedPrivateProperty")
@@ -365,6 +498,19 @@ internal class ClickHouseExpansionState(override val id: String) : Identifier {
     val nullableObject: ClickHouseNullableObject? = null
     val nullableObjects: List<ClickHouseNullableObject?>? = null
     val mixed: Map<String, Any> = emptyMap()
+    val bigDecimal: BigDecimal = BigDecimal.ZERO
+    val date: Date = Date(0)
+    val year: Year = Year.of(1970)
+    val duration: Duration = Duration.ZERO
+    val instant: Instant = Instant.EPOCH
+    val specialDouble: Double = 0.0
+    val specialFloat: Float = 0f
+    val bigDecimals: List<BigDecimal> = emptyList()
+    val dates: List<Date> = emptyList()
+    val years: Map<String, Year> = emptyMap()
+    val durations: List<Duration> = emptyList()
+    val instants: Map<String, Instant> = emptyMap()
+    val specialDoubles: List<Double> = emptyList()
 }
 
 internal data class ClickHouseNullableObject(val value: Int)

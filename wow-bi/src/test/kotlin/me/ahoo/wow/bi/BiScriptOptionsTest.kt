@@ -89,6 +89,7 @@ class BiScriptOptionsTest {
 
         val result = BiScriptResult(
             script = "SELECT 1",
+            statements = listOf("SELECT 1"),
             diagnostics = listOf(diagnostic),
         )
 

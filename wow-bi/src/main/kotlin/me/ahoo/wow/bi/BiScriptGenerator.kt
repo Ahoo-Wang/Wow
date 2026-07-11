@@ -30,55 +30,59 @@ class BiScriptGenerator(private val options: BiScriptOptions = BiScriptOptions()
             .map { namedAggregate ->
                 PlannedAggregate(namedAggregate, planner.plan(namedAggregate))
             }
+        val globalSection = ScriptSection("global", renderer.renderGlobalStatements())
+        val clearSections = plannedAggregates.map { planned ->
+            ScriptSection(
+                name = "${planned.namedAggregate.toStringWithAlias()}.clear",
+                statements = renderer.renderClearStatements(
+                    namedAggregate = planned.namedAggregate,
+                    expansionTables = planned.plan.views.map { it.targetTableName },
+                ),
+            )
+        }
+        val aggregateSections = plannedAggregates.flatMap { planned ->
+            val name = planned.namedAggregate.toStringWithAlias()
+            listOf(
+                ScriptSection("$name.command", renderer.renderCommandStatements(planned.namedAggregate)),
+                ScriptSection("$name.stateEvent", renderer.renderStateEventStatements(planned.namedAggregate)),
+                ScriptSection("$name.stateLast", renderer.renderStateLastStatements(planned.namedAggregate)),
+                ScriptSection("$name.expansion", renderer.renderExpansionStatements(planned.plan)),
+            )
+        }
+        val orderedSections = listOf(globalSection) + clearSections + aggregateSections
+        val statements = Collections.unmodifiableList(
+            ArrayList(orderedSections.flatMap(ScriptSection::statements))
+        )
         val script = buildString {
-            appendLine("-- global --")
-            appendLine(renderer.renderGlobal())
-            appendLine("-- global --")
+            appendSection(globalSection)
             appendLine("-- clear --")
-            plannedAggregates.forEach { planned ->
-                appendSection(planned.namedAggregate, "clear") {
-                    renderer.renderClear(
-                        namedAggregate = planned.namedAggregate,
-                        expansionTables = planned.plan.views.map { it.targetTableName },
-                    )
-                }
-            }
+            clearSections.forEach { section -> appendSection(section) }
             appendLine("-- clear --")
-            plannedAggregates.forEach { planned ->
-                appendSection(planned.namedAggregate, "command") {
-                    renderer.renderCommand(planned.namedAggregate)
-                }
-                appendSection(planned.namedAggregate, "stateEvent") {
-                    renderer.renderStateEvent(planned.namedAggregate)
-                }
-                appendSection(planned.namedAggregate, "stateLast") {
-                    renderer.renderStateLast(planned.namedAggregate)
-                }
-                appendSection(planned.namedAggregate, "expansion") {
-                    renderer.renderExpansion(planned.plan)
-                }
-            }
+            aggregateSections.forEach { section -> appendSection(section) }
         }
         val diagnostics = plannedAggregates.flatMap { it.plan.diagnostics }
         return BiScriptResult(
             script = script,
+            statements = statements,
             diagnostics = Collections.unmodifiableList(ArrayList(diagnostics)),
         )
     }
 
-    private fun StringBuilder.appendSection(
-        namedAggregate: NamedAggregate,
-        section: String,
-        render: () -> String,
-    ) {
-        val sectionName = "${namedAggregate.toStringWithAlias()}.$section"
-        appendLine("-- $sectionName --")
-        appendLine(render())
-        appendLine("-- $sectionName --")
+    private fun StringBuilder.appendSection(section: ScriptSection) {
+        appendLine("-- ${section.name} --")
+        if (section.statements.isNotEmpty()) {
+            appendLine(section.statements.joinToString("\n\n"))
+        }
+        appendLine("-- ${section.name} --")
     }
 
     private data class PlannedAggregate(
         val namedAggregate: NamedAggregate,
         val plan: StateExpansionPlan,
+    )
+
+    private data class ScriptSection(
+        val name: String,
+        val statements: List<String>,
     )
 }

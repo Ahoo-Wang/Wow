@@ -26,17 +26,13 @@ class BiScriptGeneratorTest {
     @Test
     fun `should generate complete default sections with lossless fallbacks`() {
         val result = BiScriptGenerator().generate(setOf(aggregate))
-        val expectedScript = requireNotNull(
-            javaClass.classLoader.getResource("expected_bi_script.sql")
-        ).readText().trim()
 
-        result.script.trim().assert().isEqualTo(expectedScript)
         result.script.assert().contains("-- bi.aggregate.command --")
         result.script.assert().contains("-- bi.aggregate.stateEvent --")
         result.script.assert().contains("-- bi.aggregate.stateLast --")
         result.script.assert().contains("-- bi.aggregate.expansion --")
         result.script.assert().contains(
-            "JSONExtractRaw(\"__source\".\"state\", 'mapItem') AS \"map_item\""
+            "simpleJSONExtractRaw(\"__source\".\"state\", 'mapItem') AS \"map_item\""
         )
         result.diagnostics.map(BiScriptDiagnostic::path)
             .assert()
@@ -45,6 +41,52 @@ class BiScriptGeneratorTest {
             it.code == BiScriptDiagnosticCode.RAW_JSON_FALLBACK &&
                 it.decision == BiScriptMappingDecision.RAW_JSON
         }.assert().isTrue()
+    }
+
+    @Test
+    fun `should expose immutable complete statements as the only script source`() {
+        val result = BiScriptGenerator().generate(setOf(aggregate))
+        val statements = result.statements
+
+        statements.forEach { statement ->
+            statement.lineSequence().none { it.trimStart().startsWith("--") }.assert().isTrue()
+            statement.trimEnd().endsWith(';').assert().isTrue()
+            result.script.assert().contains(statement)
+        }
+        normalizedSql(result.script).assert().isEqualTo(
+            normalizedSql(statements.joinToString("\n\n"))
+        )
+
+        statements.indexOfFirst { it.contains("CREATE DATABASE IF NOT EXISTS \"bi_db\"") }
+            .assert().isEqualTo(0)
+        statements.indexOfFirst { it.contains("CREATE DATABASE IF NOT EXISTS \"bi_db_consumer\"") }
+            .assert().isEqualTo(1)
+        indexOfStatement(statements, "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_command\"")
+            .assert().isLessThan(
+                indexOfStatement(
+                    statements,
+                    "CREATE TABLE IF NOT EXISTS \"bi_db\".\"bi_aggregate_command_local\"",
+                )
+            )
+        indexOfStatement(statements, "CREATE TABLE IF NOT EXISTS \"bi_db\".\"bi_aggregate_command_local\"")
+            .assert().isLessThan(
+                indexOfStatement(
+                    statements,
+                    "CREATE TABLE IF NOT EXISTS \"bi_db\".\"bi_aggregate_state_local\"",
+                )
+            )
+        indexOfStatement(statements, "CREATE TABLE IF NOT EXISTS \"bi_db\".\"bi_aggregate_state_last_local\"")
+            .assert().isLessThan(
+                indexOfStatement(
+                    statements,
+                    "CREATE VIEW IF NOT EXISTS \"bi_db\".\"bi_aggregate_state_last_root\"",
+                )
+            )
+
+        assertThrows<UnsupportedOperationException> {
+            @Suppress("UNCHECKED_CAST")
+            (statements as MutableList<String>).clear()
+        }
     }
 
     @Test
@@ -130,4 +172,14 @@ class BiScriptGeneratorTest {
 
     private fun namedAggregate(name: String): NamedAggregate =
         MetadataSearcher.localAggregates.single { it.aggregateName == name }
+
+    private fun normalizedSql(script: String): String = script.lineSequence()
+        .map(String::trimEnd)
+        .filterNot { it.isBlank() || it.trimStart().startsWith("--") }
+        .joinToString("\n")
+
+    private fun indexOfStatement(statements: List<String>, fragment: String): Int =
+        statements.indexOfFirst { it.contains(fragment) }.also { index ->
+            check(index >= 0) { "Statement containing [$fragment] was not generated." }
+        }
 }

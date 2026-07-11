@@ -13,8 +13,10 @@
 
 package me.ahoo.wow.bi
 
-data class BiScriptResult(
+@ConsistentCopyVisibility
+data class BiScriptResult internal constructor(
     val script: String,
+    internal val statements: List<String>,
     val diagnostics: List<BiScriptDiagnostic>,
 )
 

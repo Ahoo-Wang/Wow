@@ -25,124 +25,131 @@ import me.ahoo.wow.bi.expansion.plan.StateExpansionPlan
 import me.ahoo.wow.bi.renderer.ClickHouseSqlSyntax.quoteIdentifier
 import me.ahoo.wow.bi.renderer.ClickHouseSqlSyntax.stringLiteral
 import me.ahoo.wow.bi.type.ClickHouseType
+import java.util.Collections
 
 internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = BiScriptOptions()) {
     private val naming = BiTableNaming(options)
 
-    fun renderGlobal(): String =
-        """
-            CREATE DATABASE IF NOT EXISTS ${identifier(options.database)} ${onCluster()};
-            CREATE DATABASE IF NOT EXISTS ${identifier(options.consumerDatabase)} ${onCluster()};
-        """.trimIndent()
+    fun renderGlobal(): String = renderGlobalStatements().joinToString(STATEMENT_SEPARATOR)
 
-    fun renderClear(namedAggregate: NamedAggregate, expansionTables: List<String>): String {
+    fun renderGlobalStatements(): List<String> = immutableStatements(
+        "CREATE DATABASE IF NOT EXISTS ${identifier(options.database)} ${onCluster()};",
+        "CREATE DATABASE IF NOT EXISTS ${identifier(options.consumerDatabase)} ${onCluster()};",
+    )
+
+    fun renderClear(namedAggregate: NamedAggregate, expansionTables: List<String>): String =
+        renderClearStatements(namedAggregate, expansionTables).joinToString(STATEMENT_SEPARATOR)
+
+    fun renderClearStatements(namedAggregate: NamedAggregate, expansionTables: List<String>): List<String> {
         val commandTable = naming.toDistributedTableName(namedAggregate, COMMAND_SUFFIX)
         val stateTable = naming.toDistributedTableName(namedAggregate, STATE_SUFFIX)
         val stateLastTable = naming.toDistributedTableName(namedAggregate, STATE_LAST_SUFFIX)
-        return buildString {
-            appendLine("------------------command------------------")
-            appendDrop(options.database, commandTable)
-            appendDrop(options.database, "${commandTable}_local")
-            appendDrop(options.consumerDatabase, "${commandTable}_queue")
-            appendDrop(options.consumerDatabase, "${commandTable}_consumer")
-            appendLine("------------------command------------------")
-            appendLine("------------------state------------------")
-            appendDrop(options.database, stateTable)
-            appendDrop(options.database, "${stateTable}_event")
-            appendDrop(options.database, "${stateTable}_local")
-            appendDrop(options.consumerDatabase, "${stateTable}_queue")
-            appendDrop(options.consumerDatabase, "${stateTable}_consumer")
-            appendLine("------------------state------------------")
-            appendLine("------------------stateLast------------------")
-            appendDrop(options.database, stateLastTable)
-            appendDrop(options.database, "${stateLastTable}_local")
-            appendDrop(options.consumerDatabase, "${stateLastTable}_consumer")
-            appendLine("------------------stateLast------------------")
-            appendLine("------------------expansion------------------")
-            expansionTables.forEach { appendDrop(options.database, it) }
-            appendLine("------------------expansion------------------")
-        }
+        return immutableStatements(
+            buildList {
+                add(drop(options.database, commandTable))
+                add(drop(options.database, "${commandTable}_local"))
+                add(drop(options.consumerDatabase, "${commandTable}_queue"))
+                add(drop(options.consumerDatabase, "${commandTable}_consumer"))
+                add(drop(options.database, stateTable))
+                add(drop(options.database, "${stateTable}_event"))
+                add(drop(options.database, "${stateTable}_local"))
+                add(drop(options.consumerDatabase, "${stateTable}_queue"))
+                add(drop(options.consumerDatabase, "${stateTable}_consumer"))
+                add(drop(options.database, stateLastTable))
+                add(drop(options.database, "${stateLastTable}_local"))
+                add(drop(options.consumerDatabase, "${stateLastTable}_consumer"))
+                expansionTables.forEach { add(drop(options.database, it)) }
+            }
+        )
     }
 
     @Suppress("LongMethod")
-    fun renderCommand(namedAggregate: NamedAggregate): String {
+    fun renderCommand(namedAggregate: NamedAggregate): String =
+        renderCommandStatements(namedAggregate).joinToString(STATEMENT_SEPARATOR)
+
+    @Suppress("LongMethod")
+    fun renderCommandStatements(namedAggregate: NamedAggregate): List<String> {
         val table = naming.toDistributedTableName(namedAggregate, COMMAND_SUFFIX)
         val localTable = "${table}_local"
         val queueTable = "${table}_queue"
         val consumerTable = "${table}_consumer"
         val topic = naming.toTopicName(namedAggregate, COMMAND_SUFFIX)
-        return """
-            CREATE TABLE IF NOT EXISTS ${qualified(options.database, localTable)} ${onCluster()}
-            (
-                ${identifier("id")} String,
-                ${identifier("context_name")} String,
-                ${identifier("aggregate_name")} String,
-                ${identifier("name")} String,
-                ${identifier("header")} Map(String, String),
-                ${identifier("aggregate_id")} String,
-                ${identifier("tenant_id")} String,
-                ${identifier("owner_id")} String,
-                ${identifier("space_id")} String,
-                ${identifier("request_id")} String,
-                ${identifier("aggregate_version")} Nullable(UInt32),
-                ${identifier("is_create")} Bool,
-                ${identifier("allow_create")} Bool,
-                ${identifier("body_type")} String,
-                ${identifier("body")} String,
-                ${identifier("create_time")} DateTime(${literal(options.timezone)})
-            ) ENGINE = ReplicatedMergeTree(
-                    ${replicatedTablePath()}, ${literal(options.replica)})
+        val aggregateVersionJson = jsonValue("data", "aggregateVersion", "Nullable(UInt32)")
+        return immutableStatements(
+            """
+                CREATE TABLE IF NOT EXISTS ${qualified(options.database, localTable)} ${onCluster()}
+                (
+                    ${identifier("id")} String,
+                    ${identifier("context_name")} String,
+                    ${identifier("aggregate_name")} String,
+                    ${identifier("name")} String,
+                    ${identifier("header")} Map(String, String),
+                    ${identifier("aggregate_id")} String,
+                    ${identifier("tenant_id")} String,
+                    ${identifier("owner_id")} String,
+                    ${identifier("space_id")} String,
+                    ${identifier("request_id")} String,
+                    ${identifier("aggregate_version")} Nullable(UInt32),
+                    ${identifier("is_create")} Bool,
+                    ${identifier("allow_create")} Bool,
+                    ${identifier("body_type")} String,
+                    ${identifier("body")} String,
+                    ${identifier("create_time")} DateTime(${literal(options.timezone)})
+                ) ENGINE = ReplicatedMergeTree(${replicatedTablePath()}, ${literal(options.replica)})
                   PARTITION BY toYYYYMM(${identifier("create_time")})
-                  ORDER BY ${identifier("id")}
-            ;
-
-            CREATE TABLE IF NOT EXISTS ${qualified(options.database, table)} ${onCluster()}
+                  ORDER BY ${identifier("id")};
+            """.trimIndent(),
+            """
+                CREATE TABLE IF NOT EXISTS ${qualified(options.database, table)} ${onCluster()}
                 AS ${qualified(options.database, localTable)}
-                    ENGINE = Distributed(${literal(
-            options.cluster
-        )}, ${identifier(options.database)}, ${literal(localTable)}, sipHash64(${identifier("aggregate_id")}));
-
-            CREATE TABLE IF NOT EXISTS ${qualified(options.consumerDatabase, queueTable)} ${onCluster()}
-            (
-                ${identifier("data")} String
-            ) ENGINE = Kafka(${literal(
-            options.kafkaBootstrapServers
-        )}, ${literal(topic)}, ${literal("clickhouse_$consumerTable")}, ${literal("JSONAsString")});
-
-            CREATE MATERIALIZED VIEW IF NOT EXISTS ${qualified(options.consumerDatabase, consumerTable)}
-                        ${onCluster()}
-                        TO ${qualified(options.database, table)}
-            AS
-            SELECT ${jsonString("data", "id")} AS ${identifier("id")},
-                   ${jsonString("data", "contextName")} AS ${identifier("context_name")},
-                   ${jsonString("data", "aggregateName")} AS ${identifier("aggregate_name")},
-                   ${jsonString("data", "name")} AS ${identifier("name")},
-                   ${jsonValue("data", "header", "Map(String, String)")} AS ${identifier("header")},
-                   ${jsonString("data", "aggregateId")} AS ${identifier("aggregate_id")},
-                   ${jsonString("data", "tenantId")} AS ${identifier("tenant_id")},
-                   ${jsonString("data", "ownerId")} AS ${identifier("owner_id")},
-                   ${jsonString("data", "spaceId")} AS ${identifier("space_id")},
-                   ${jsonString("data", "requestId")} AS ${identifier("request_id")},
-                   ${jsonValue("data", "aggregateVersion", "Nullable(UInt32)")} AS ${identifier("aggregate_version")},
-                   ${jsonBool("data", "isCreate")} AS ${identifier("is_create")},
-                   ${jsonBool("data", "allowCreate")} AS ${identifier("allow_create")},
-                   ${jsonString("data", "bodyType")} AS ${identifier("body_type")},
-                   ${jsonString("data", "body")} AS ${identifier("body")},
-                   ${epochMillis("data", "createTime")} AS ${identifier("create_time")}
-            FROM ${qualified(options.consumerDatabase, queueTable)}
-            ;
-        """.trimIndent()
+                ENGINE = Distributed(${literal(options.cluster)}, ${identifier(options.database)},
+                                     ${literal(localTable)}, sipHash64(${identifier("aggregate_id")}));
+            """.trimIndent(),
+            """
+                CREATE TABLE IF NOT EXISTS ${qualified(options.consumerDatabase, queueTable)} ${onCluster()}
+                (${identifier("data")} String)
+                ENGINE = Kafka(${literal(options.kafkaBootstrapServers)}, ${literal(topic)},
+                               ${literal("clickhouse_$consumerTable")}, ${literal("JSONAsString")});
+            """.trimIndent(),
+            """
+                CREATE MATERIALIZED VIEW IF NOT EXISTS ${qualified(options.consumerDatabase, consumerTable)}
+                ${onCluster()} TO ${qualified(options.database, table)}
+                AS
+                SELECT ${jsonString("data", "id")} AS ${identifier("id")},
+                       ${jsonString("data", "contextName")} AS ${identifier("context_name")},
+                       ${jsonString("data", "aggregateName")} AS ${identifier("aggregate_name")},
+                       ${jsonString("data", "name")} AS ${identifier("name")},
+                       ${jsonValue("data", "header", "Map(String, String)")} AS ${identifier("header")},
+                       ${jsonString("data", "aggregateId")} AS ${identifier("aggregate_id")},
+                       ${jsonString("data", "tenantId")} AS ${identifier("tenant_id")},
+                       ${jsonString("data", "ownerId")} AS ${identifier("owner_id")},
+                       ${jsonString("data", "spaceId")} AS ${identifier("space_id")},
+                       ${jsonString("data", "requestId")} AS ${identifier("request_id")},
+                       $aggregateVersionJson AS ${identifier("aggregate_version")},
+                       ${jsonBool("data", "isCreate")} AS ${identifier("is_create")},
+                       ${jsonBool("data", "allowCreate")} AS ${identifier("allow_create")},
+                       ${jsonString("data", "bodyType")} AS ${identifier("body_type")},
+                       ${jsonString("data", "body")} AS ${identifier("body")},
+                       ${epochMillis("data", "createTime")} AS ${identifier("create_time")}
+                FROM ${qualified(options.consumerDatabase, queueTable)};
+            """.trimIndent(),
+        )
     }
 
     @Suppress("LongMethod")
-    fun renderStateEvent(namedAggregate: NamedAggregate): String {
+    fun renderStateEvent(namedAggregate: NamedAggregate): String =
+        renderStateEventStatements(namedAggregate).joinToString(STATEMENT_SEPARATOR)
+
+    @Suppress("LongMethod")
+    fun renderStateEventStatements(namedAggregate: NamedAggregate): List<String> {
         val table = naming.toDistributedTableName(namedAggregate, STATE_SUFFIX)
         val localTable = "${table}_local"
         val eventTable = "${table}_event"
         val queueTable = "${table}_queue"
         val consumerTable = "${table}_consumer"
         val topic = naming.toTopicName(namedAggregate, STATE_SUFFIX)
-        return """
+        return immutableStatements(
+            """
             CREATE TABLE IF NOT EXISTS ${qualified(options.database, localTable)} ${onCluster()}
             (
                 ${identifier("id")} String,
@@ -168,20 +175,21 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
                   PARTITION BY toYYYYMM(${identifier("create_time")})
                   ORDER BY (${identifier("aggregate_id")}, ${identifier("version")})
             ;
-
+            """.trimIndent(),
+            """
             CREATE TABLE IF NOT EXISTS ${qualified(options.database, table)} ${onCluster()}
                 AS ${qualified(options.database, localTable)}
-                    ENGINE = Distributed(${literal(
-            options.cluster
-        )}, ${identifier(options.database)}, ${literal(localTable)}, sipHash64(${identifier("aggregate_id")}));
-
+                    ENGINE = Distributed(${literal(options.cluster)}, ${identifier(options.database)},
+                                         ${literal(localTable)}, sipHash64(${identifier("aggregate_id")}));
+            """.trimIndent(),
+            """
             CREATE TABLE IF NOT EXISTS ${qualified(options.consumerDatabase, queueTable)} ${onCluster()}
             (
                 ${identifier("data")} String
-            ) ENGINE = Kafka(${literal(
-            options.kafkaBootstrapServers
-        )}, ${literal(topic)}, ${literal("clickhouse_$consumerTable")}, ${literal("JSONAsString")});
-
+            ) ENGINE = Kafka(${literal(options.kafkaBootstrapServers)}, ${literal(topic)},
+                             ${literal("clickhouse_$consumerTable")}, ${literal("JSONAsString")});
+            """.trimIndent(),
+            """
             CREATE MATERIALIZED VIEW IF NOT EXISTS ${qualified(options.consumerDatabase, consumerTable)}
                         ${onCluster()}
                         TO ${qualified(options.database, table)}
@@ -206,12 +214,12 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
                    ${jsonBool("data", "deleted")} AS ${identifier("deleted")}
             FROM ${qualified(options.consumerDatabase, queueTable)}
             ;
-
+            """.trimIndent(),
+            """
             CREATE VIEW IF NOT EXISTS ${qualified(options.database, eventTable)} ${onCluster()}
             AS
-            WITH arrayJoin(arrayZip(arrayEnumerate(${identifier(
-            "body"
-        )}), ${identifier("body")})) AS ${identifier("events")}
+            WITH arrayJoin(arrayZip(arrayEnumerate(${identifier("body")}),
+                                    ${identifier("body")})) AS ${identifier("events")}
             SELECT ${identifier("id")},
                    ${identifier("context_name")},
                    ${identifier("aggregate_name")},
@@ -236,15 +244,20 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
                    ${identifier("tags")},
                    ${identifier("deleted")}
             FROM ${qualified(options.database, table)};
-        """.trimIndent()
+            """.trimIndent(),
+        )
     }
 
-    fun renderStateLast(namedAggregate: NamedAggregate): String {
+    fun renderStateLast(namedAggregate: NamedAggregate): String =
+        renderStateLastStatements(namedAggregate).joinToString(STATEMENT_SEPARATOR)
+
+    fun renderStateLastStatements(namedAggregate: NamedAggregate): List<String> {
         val stateTable = naming.toDistributedTableName(namedAggregate, STATE_SUFFIX)
         val table = naming.toDistributedTableName(namedAggregate, STATE_LAST_SUFFIX)
         val localTable = "${table}_local"
         val consumerTable = "${table}_consumer"
-        return """
+        return immutableStatements(
+            """
             CREATE TABLE IF NOT EXISTS ${qualified(options.database, localTable)} ${onCluster()}
             (
                 ${identifier("id")} String,
@@ -270,13 +283,14 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
                   PARTITION BY toYYYYMM(${identifier("first_event_time")})
                   ORDER BY (${identifier("aggregate_id")})
             ;
-
+            """.trimIndent(),
+            """
             CREATE TABLE IF NOT EXISTS ${qualified(options.database, table)} ${onCluster()}
                 AS ${qualified(options.database, localTable)}
-                    ENGINE = Distributed(${literal(
-            options.cluster
-        )}, ${identifier(options.database)}, ${literal(localTable)}, sipHash64(${identifier("aggregate_id")}));
-
+                    ENGINE = Distributed(${literal(options.cluster)}, ${identifier(options.database)},
+                                         ${literal(localTable)}, sipHash64(${identifier("aggregate_id")}));
+            """.trimIndent(),
+            """
             CREATE MATERIALIZED VIEW IF NOT EXISTS ${qualified(options.consumerDatabase, consumerTable)}
                         ${onCluster()}
                         TO ${qualified(options.database, table)}
@@ -284,14 +298,15 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
             SELECT *
             FROM ${qualified(options.database, stateTable)}
             ;
-        """.trimIndent()
+            """.trimIndent(),
+        )
     }
 
     fun renderExpansion(plan: StateExpansionPlan): String =
-        renderExpansionStatements(plan).joinToString("\n")
+        renderExpansionStatements(plan).joinToString(STATEMENT_SEPARATOR)
 
     fun renderExpansionStatements(plan: StateExpansionPlan): List<String> =
-        plan.views.map(::renderExpansionView)
+        immutableStatements(plan.views.map(::renderExpansionView))
 
     private fun renderExpansionView(view: ExpansionViewPlan): String {
         val withSql = view.columns
@@ -329,9 +344,14 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
         is ColumnExtraction.ArrayJoin -> "arrayJoin(${jsonArray(extraction.source, extraction.property)})"
     }
 
-    private fun StringBuilder.appendDrop(database: String, table: String) {
-        appendLine("DROP TABLE IF EXISTS ${qualified(database, table)} ${onCluster()} SYNC;")
-    }
+    private fun drop(database: String, table: String): String =
+        "DROP TABLE IF EXISTS ${qualified(database, table)} ${onCluster()} SYNC;"
+
+    private fun immutableStatements(vararg statements: String): List<String> =
+        immutableStatements(statements.asList())
+
+    private fun immutableStatements(statements: Collection<String>): List<String> =
+        Collections.unmodifiableList(ArrayList(statements))
 
     private fun qualified(database: String, table: String): String =
         "${identifier(database)}.${identifier(table)}"
@@ -359,10 +379,10 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
         "JSONExtractString(${renderReference(source)}, ${literal(property)})"
 
     private fun jsonRaw(source: String, property: String): String =
-        "JSONExtractRaw(${identifier(source)}, ${literal(property)})"
+        "simpleJSONExtractRaw(${identifier(source)}, ${literal(property)})"
 
     private fun jsonRaw(source: ColumnReference, property: String): String =
-        "JSONExtractRaw(${renderReference(source)}, ${literal(property)})"
+        "simpleJSONExtractRaw(${renderReference(source)}, ${literal(property)})"
 
     private fun jsonArray(source: String, property: String): String =
         "JSONExtractArrayRaw(${identifier(source)}, ${literal(property)})"
@@ -428,5 +448,6 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
         const val STATE_SUFFIX = "state"
         const val STATE_LAST_SUFFIX = "state_last"
         const val SOURCE_ALIAS = "__source"
+        const val STATEMENT_SEPARATOR = "\n\n"
     }
 }
