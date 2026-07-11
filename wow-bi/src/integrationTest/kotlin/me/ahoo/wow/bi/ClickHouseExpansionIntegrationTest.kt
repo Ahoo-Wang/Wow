@@ -24,6 +24,12 @@ import org.junit.jupiter.api.Test
 import org.testcontainers.clickhouse.ClickHouseContainer
 import org.testcontainers.utility.DockerImageName
 import org.testcontainers.utility.MountableFile
+import tools.jackson.core.JsonGenerator
+import tools.jackson.databind.JavaType
+import tools.jackson.databind.SerializationContext
+import tools.jackson.databind.annotation.JsonSerialize
+import tools.jackson.databind.jsonFormatVisitors.JsonFormatVisitorWrapper
+import tools.jackson.databind.ser.std.StdSerializer
 import java.sql.Connection
 import java.sql.DriverManager
 import java.math.BigDecimal
@@ -31,6 +37,9 @@ import java.time.Duration
 import java.time.Instant
 import java.time.Year
 import java.util.Date
+import java.util.UUID
+import kotlin.time.Duration as KotlinDuration
+import kotlin.time.Duration.Companion.nanoseconds
 
 class ClickHouseExpansionIntegrationTest {
     @Test
@@ -47,6 +56,16 @@ class ClickHouseExpansionIntegrationTest {
         )
         val namedAggregate = aggregateMetadata<ClickHouseExpansionAggregate, ClickHouseExpansionState>()
         val result = BiScriptGenerator(options).generate(setOf(namedAggregate))
+        result.diagnostics
+            .filter { it.path == "claimedArrayList" || it.path == "claimedMap" }
+            .associate { it.path to it.code }
+            .assert()
+            .isEqualTo(
+                mapOf(
+                    "claimedArrayList" to BiScriptDiagnosticCode.RAW_JSON_FALLBACK,
+                    "claimedMap" to BiScriptDiagnosticCode.RAW_JSON_FALLBACK,
+                )
+            )
 
         clickHouse().use { clickHouse ->
             clickHouse.start()
@@ -92,23 +111,15 @@ class ClickHouseExpansionIntegrationTest {
     private fun Connection.assertGeneratedObjects() {
         val objects = queryRows(
             sql =
-                "SELECT concat(database, '.', name) AS object_name FROM system.tables " +
+                "SELECT database, name FROM system.tables " +
                     "WHERE database IN (${literal(DATABASE)}, ${literal(CONSUMER_DATABASE)})",
-            columns = listOf("object_name"),
-        ).map { it.required("object_name") }
+            columns = listOf("database", "name"),
+        ).groupBy(
+            keySelector = { it.required("database") },
+            valueTransform = { it.required("name") },
+        ).mapValues { (_, names) -> names.toSet() }
 
-        objects.assert().contains(
-            "$DATABASE.$COMMAND_TABLE",
-            "$DATABASE.$STATE_TABLE",
-            "$DATABASE.$STATE_LAST_TABLE",
-            "$DATABASE.$ROOT_VIEW",
-            "$DATABASE.$CHILD_VIEW",
-            "$CONSUMER_DATABASE.${COMMAND_TABLE}_queue",
-            "$CONSUMER_DATABASE.${COMMAND_TABLE}_consumer",
-            "$CONSUMER_DATABASE.${STATE_TABLE}_queue",
-            "$CONSUMER_DATABASE.${STATE_TABLE}_consumer",
-            "$CONSUMER_DATABASE.${STATE_LAST_TABLE}_consumer",
-        )
+        objects.assert().isEqualTo(EXPECTED_GENERATED_OBJECTS)
     }
 
     private fun Connection.insertStateRows() {
@@ -204,7 +215,17 @@ class ClickHouseExpansionIntegrationTest {
                 toString(isNaN(${identifier("special_doubles")}[1])) AS array_nan,
                 toString(isInfinite(${identifier("special_doubles")}[2])) AS array_positive_infinity,
                 toString(isInfinite(${identifier("special_doubles")}[3])) AS array_negative_infinity,
-                toString(${identifier("special_doubles")}[3] < 0) AS array_negative_sign
+                toString(${identifier("special_doubles")}[3] < 0) AS array_negative_sign,
+                toTypeName(${identifier("sql_date")}) AS sql_date_type,
+                ${identifier("sql_date")} AS sql_date_value,
+                toTypeName(${identifier("kotlin_duration")}) AS kotlin_duration_type,
+                toString(${identifier("kotlin_duration")}) AS kotlin_duration_value,
+                toTypeName(${identifier("uuid")}) AS uuid_type,
+                toString(${identifier("uuid")}) AS uuid_value,
+                toTypeName(${identifier("claimed_array_list")}) AS claimed_array_list_type,
+                ${identifier("claimed_array_list")} AS claimed_array_list_raw,
+                toTypeName(${identifier("claimed_map")}) AS claimed_map_type,
+                ${identifier("claimed_map")} AS claimed_map_raw
             FROM ${qualified(DATABASE, table)}
             WHERE ${identifier("__id")} = 'row-normal'
         """.trimIndent()
@@ -275,6 +296,16 @@ class ClickHouseExpansionIntegrationTest {
             "array_positive_infinity",
             "array_negative_infinity",
             "array_negative_sign",
+            "sql_date_type",
+            "sql_date_value",
+            "kotlin_duration_type",
+            "kotlin_duration_value",
+            "uuid_type",
+            "uuid_value",
+            "claimed_array_list_type",
+            "claimed_array_list_raw",
+            "claimed_map_type",
+            "claimed_map_raw",
         )
 
         val HIGH_PRECISION_DECIMAL = BigDecimal("123456789012345678901234567890.12345678901234567890")
@@ -286,6 +317,32 @@ class ClickHouseExpansionIntegrationTest {
         val DATES = listOf(NEGATIVE_DATE, Date(0))
         val DURATIONS = listOf(NANO_DURATION, Duration.ofSeconds(-1, 500000000))
         val SPECIAL_DOUBLES = listOf(Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY)
+        val SQL_DATE = java.sql.Date.valueOf("1969-12-31")
+        val KOTLIN_DURATION = 1_123_456_789.nanoseconds
+        val UUID_VALUE: UUID = UUID.fromString("123e4567-e89b-12d3-a456-426614174000")
+        val CLAIMED_ARRAY_LIST = ClaimedArrayList().apply { addAll(listOf(1, 2)) }
+        val CLAIMED_MAP = ClaimedMap().apply { put("key", 7) }
+
+        val EXPECTED_GENERATED_OBJECTS = mapOf(
+            DATABASE to setOf(
+                COMMAND_TABLE,
+                "${COMMAND_TABLE}_local",
+                STATE_TABLE,
+                "${STATE_TABLE}_local",
+                "${STATE_TABLE}_event",
+                STATE_LAST_TABLE,
+                "${STATE_LAST_TABLE}_local",
+                ROOT_VIEW,
+                CHILD_VIEW,
+            ),
+            CONSUMER_DATABASE to setOf(
+                "${COMMAND_TABLE}_queue",
+                "${COMMAND_TABLE}_consumer",
+                "${STATE_TABLE}_queue",
+                "${STATE_TABLE}_consumer",
+                "${STATE_LAST_TABLE}_consumer",
+            ),
+        )
 
         val STATE_ROWS = linkedMapOf(
             "row-normal" to JsonSerializer.writeValueAsString(
@@ -317,6 +374,11 @@ class ClickHouseExpansionIntegrationTest {
                     "durations" to DURATIONS,
                     "instants" to mapOf("nano" to NANO_INSTANT),
                     "specialDoubles" to SPECIAL_DOUBLES,
+                    "sqlDate" to SQL_DATE,
+                    "kotlinDuration" to KOTLIN_DURATION,
+                    "uuid" to UUID_VALUE,
+                    "claimedArrayList" to CLAIMED_ARRAY_LIST,
+                    "claimedMap" to CLAIMED_MAP,
                 )
             ),
             "row-null" to JsonSerializer.writeValueAsString(
@@ -361,6 +423,16 @@ class ClickHouseExpansionIntegrationTest {
             "array_positive_infinity" to "1",
             "array_negative_infinity" to "1",
             "array_negative_sign" to "1",
+            "sql_date_type" to "String",
+            "sql_date_value" to serializedText(SQL_DATE),
+            "kotlin_duration_type" to "Int64",
+            "kotlin_duration_value" to JsonSerializer.writeValueAsString(KOTLIN_DURATION),
+            "uuid_type" to "UUID",
+            "uuid_value" to UUID_VALUE.toString(),
+            "claimed_array_list_type" to "String",
+            "claimed_array_list_raw" to JsonSerializer.writeValueAsString(CLAIMED_ARRAY_LIST),
+            "claimed_map_type" to "String",
+            "claimed_map_raw" to JsonSerializer.writeValueAsString(CLAIMED_MAP),
         )
 
         val EXPECTED_ROOT_ROWS = mapOf(
@@ -511,6 +583,50 @@ internal class ClickHouseExpansionState(override val id: String) : Identifier {
     val durations: List<Duration> = emptyList()
     val instants: Map<String, Instant> = emptyMap()
     val specialDoubles: List<Double> = emptyList()
+    val sqlDate: java.sql.Date = java.sql.Date(0)
+    val kotlinDuration: KotlinDuration = KotlinDuration.ZERO
+    val uuid: UUID = UUID(0, 0)
+    val claimedArrayList: ClaimedArrayList = ClaimedArrayList()
+    val claimedMap: ClaimedMap = ClaimedMap()
 }
 
 internal data class ClickHouseNullableObject(val value: Int)
+
+@JsonSerialize(using = ClaimedArrayListSerializer::class)
+internal class ClaimedArrayList : ArrayList<Int>()
+
+internal class ClaimedArrayListSerializer :
+    StdSerializer<ClaimedArrayList>(ClaimedArrayList::class.java) {
+    override fun serialize(
+        value: ClaimedArrayList,
+        generator: JsonGenerator,
+        provider: SerializationContext,
+    ) {
+        generator.writeStartArray()
+        value.forEach { generator.writeString(it.toString().padStart(2, '0')) }
+        generator.writeEndArray()
+    }
+
+    override fun acceptJsonFormatVisitor(visitor: JsonFormatVisitorWrapper, typeHint: JavaType) {
+        visitor.expectArrayFormat(typeHint)
+    }
+}
+
+@JsonSerialize(using = ClaimedMapSerializer::class)
+internal class ClaimedMap : HashMap<String, Int>()
+
+internal class ClaimedMapSerializer : StdSerializer<ClaimedMap>(ClaimedMap::class.java) {
+    override fun serialize(
+        value: ClaimedMap,
+        generator: JsonGenerator,
+        provider: SerializationContext,
+    ) {
+        generator.writeStartObject()
+        value.forEach { (key, item) -> generator.writeStringProperty(key, item.toString().padStart(2, '0')) }
+        generator.writeEndObject()
+    }
+
+    override fun acceptJsonFormatVisitor(visitor: JsonFormatVisitorWrapper, typeHint: JavaType) {
+        visitor.expectMapFormat(typeHint)
+    }
+}
