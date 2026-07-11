@@ -333,6 +333,31 @@ column并产生 `RAW_JSON_FALLBACK` diagnostic。depth cutoff 使用同一 recov
 
 ## 9. Plan 不变量与命名
 
+Recovery 与领域列是两个独立内部模型：
+
+```kotlin
+internal sealed interface JsonPointerSegment {
+    data class Property(val encoded: String) : JsonPointerSegment
+    data class Index(val reference: ColumnReference) : JsonPointerSegment
+}
+
+internal data class CollectionCursorPlan(
+    val source: ColumnReference,
+    val property: String,
+    val cursor: ColumnReference,
+    val element: ColumnReference,
+)
+
+internal class ExpansionRecoveryPlan(
+    cursors: Collection<CollectionCursorPlan>,
+    pointer: Collection<JsonPointerSegment>,
+    val currentIndex: ColumnReference?,
+)
+```
+
+`ExpansionRecoveryPlan` 在构造时复制并冻结 `cursors` 和 `pointer`。collection cursor 不伪装成
+`ColumnPlan`；renderer 根据 recovery plan 生成一次 zipped `arrayJoin`，保证元素与 ordinal 不会漂移。
+
 - property 按 serialized name 稳定排序。
 - view/diagnostics 顺序确定且 Java 侧不可修改。
 - 每个 view 在冻结前检查全部 typed、raw companion 和 metadata alias 的 target name。
@@ -342,6 +367,8 @@ column并产生 `RAW_JSON_FALLBACK` diagnostic。depth cutoff 使用同一 recov
   错误包含 aggregate、两个 source path 和冲突 target。
 - collection child view 继续在同表 sibling 完整收集后构建，保持继承列完整。
 - clear 和 create 复用同一份 plan。
+- Jackson serialized property name 中的 ISO control 与 DEL 按 UTF-8 bytes 统一渲染为 ClickHouse `\xHH`
+  序列，string literal 与 quoted identifier 共用同一编码规则；quote 与 backslash 继续按各自 SQL 上下文转义。
 
 ## 10. WebFlux 与 Spring Boot
 

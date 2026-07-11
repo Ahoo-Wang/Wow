@@ -33,6 +33,19 @@ internal sealed interface ColumnReference {
     data class Alias(override val name: String) : ColumnReference
 }
 
+internal sealed interface JsonPointerSegment {
+    data class Property(val encoded: String) : JsonPointerSegment
+
+    data class Index(val reference: ColumnReference) : JsonPointerSegment
+}
+
+internal data class CollectionCursorPlan(
+    val source: ColumnReference,
+    val property: String,
+    val cursor: ColumnReference,
+    val element: ColumnReference,
+)
+
 internal sealed interface ColumnExtraction {
     data class Reference(val source: ColumnReference) : ColumnExtraction
 
@@ -43,8 +56,6 @@ internal sealed interface ColumnExtraction {
     data class JsonRaw(val source: ColumnReference, val property: String) : ColumnExtraction
 
     data class JsonArray(val source: ColumnReference, val property: String) : ColumnExtraction
-
-    data class ArrayJoin(val source: ColumnReference, val property: String) : ColumnExtraction
 }
 
 internal enum class ColumnPlacement {

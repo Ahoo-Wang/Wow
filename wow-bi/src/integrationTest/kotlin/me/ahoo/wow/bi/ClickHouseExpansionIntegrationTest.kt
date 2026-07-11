@@ -13,12 +13,14 @@
 
 package me.ahoo.wow.bi
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.bi.renderer.ClickHouseSqlSyntax.quoteIdentifier
 import me.ahoo.wow.bi.renderer.ClickHouseSqlSyntax.stringLiteral
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.naming.NamingConverter
 import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
 import org.testcontainers.clickhouse.ClickHouseContainer
@@ -85,12 +87,29 @@ class ClickHouseExpansionIntegrationTest {
                 rootProjections.assert().hasSize(STATE_ROWS.size)
                 val rootRows = rootProjections.associateBy { it.required("row_id") }
                 rootRows.assert().isEqualTo(EXPECTED_ROOT_ROWS)
+                connection.queryRows(
+                    sql = authorityProjectionSql(ROOT_VIEW, ESCAPED_RAW_TARGET),
+                    columns = AUTHORITY_PROJECTION_COLUMNS,
+                ).associateBy { it.required("row_id") }.assert().isEqualTo(EXPECTED_AUTHORITY_ROWS)
 
                 val childRows = connection.queryRows(
                     sql = childProjectionSql(CHILD_VIEW),
                     columns = CHILD_PROJECTION_COLUMNS,
                 )
                 childRows.assert().containsExactlyElementsOf(EXPECTED_CHILD_ROWS)
+
+                connection.queryRows(
+                    sql = recoveryProjectionSql(RECOVERY_CHILD_VIEW),
+                    columns = RECOVERY_PROJECTION_COLUMNS,
+                ).assert().containsExactlyElementsOf(EXPECTED_RECOVERY_ROWS)
+                connection.queryRows(
+                    sql = recoveryProjectionSql(NESTED_RECOVERY_CHILD_VIEW),
+                    columns = RECOVERY_PROJECTION_COLUMNS,
+                ).assert().containsExactlyElementsOf(EXPECTED_NESTED_RECOVERY_ROWS)
+                connection.queryRows(
+                    sql = recoveryProjectionSql(ESCAPED_CHILD_VIEW),
+                    columns = RECOVERY_PROJECTION_COLUMNS,
+                ).assert().containsExactlyElementsOf(EXPECTED_ESCAPED_RECOVERY_ROWS)
 
                 connection.queryRows(
                     sql = scalarProjectionSql(ROOT_VIEW),
@@ -190,11 +209,37 @@ class ClickHouseExpansionIntegrationTest {
         """
             SELECT
                 ${identifier("__id")} AS row_id,
+                ${identifier("__state")} AS state,
+                toString(${identifier("__index")}) AS element_index,
+                ${identifier("__path")} AS element_path,
                 toTypeName(${identifier("nullable_objects__value")}) AS value_type,
                 ifNull(toJSONString(${identifier("nullable_objects__value")}), 'null') AS value_json,
                 ${identifier("__raw__nullable_objects")} AS element_raw
             FROM ${qualified(DATABASE, table)}
             ORDER BY isNull(${identifier("nullable_objects__value")}), element_raw
+        """.trimIndent()
+
+    private fun authorityProjectionSql(table: String, scopedRawTarget: String): String =
+        """
+            SELECT
+                ${identifier("__id")} AS row_id,
+                ${identifier("__state")} AS state,
+                ${identifier("__path")} AS path,
+                ${identifier(scopedRawTarget)} AS scoped_raw
+            FROM ${qualified(DATABASE, table)}
+            ORDER BY row_id
+        """.trimIndent()
+
+    private fun recoveryProjectionSql(table: String): String =
+        """
+            SELECT
+                ${identifier("__id")} AS row_id,
+                ${identifier("__state")} AS state,
+                toString(${identifier("__index")}) AS element_index,
+                ${identifier("__path")} AS element_path
+            FROM ${qualified(DATABASE, table)}
+            WHERE ${identifier("__id")} = 'row-normal'
+            ORDER BY element_path
         """.trimIndent()
 
     private fun scalarProjectionSql(table: String): String =
@@ -250,6 +295,9 @@ class ClickHouseExpansionIntegrationTest {
         const val STATE_LAST_TABLE = "bi_it_nullable_state_last"
         const val ROOT_VIEW = "bi_it_nullable_state_last_root"
         const val CHILD_VIEW = "bi_it_nullable_state_last_root_nullable_objects"
+        const val RECOVERY_CHILD_VIEW = "bi_it_nullable_state_last_root_recovery_items"
+        const val NESTED_RECOVERY_CHILD_VIEW =
+            "bi_it_nullable_state_last_root_recovery_items_children"
         const val CLUSTER_CONFIG_RESOURCE = "clickhouse-test-cluster.xml"
         const val CLUSTER_CONFIG_PATH =
             "/etc/clickhouse-server/config.d/clickhouse-test-cluster.xml"
@@ -275,10 +323,15 @@ class ClickHouseExpansionIntegrationTest {
         )
         val CHILD_PROJECTION_COLUMNS = listOf(
             "row_id",
+            "state",
+            "element_index",
+            "element_path",
             "value_type",
             "value_json",
             "element_raw",
         )
+        val AUTHORITY_PROJECTION_COLUMNS = listOf("row_id", "state", "path", "scoped_raw")
+        val RECOVERY_PROJECTION_COLUMNS = listOf("row_id", "state", "element_index", "element_path")
         val SCALAR_PROJECTION_COLUMNS = listOf(
             "big_decimal_raw",
             "date_value",
@@ -322,6 +375,64 @@ class ClickHouseExpansionIntegrationTest {
         val UUID_VALUE: UUID = UUID.fromString("123e4567-e89b-12d3-a456-426614174000")
         val CLAIMED_ARRAY_LIST = ClaimedArrayList().apply { addAll(listOf(1, 2)) }
         val CLAIMED_MAP = ClaimedMap().apply { put("key", 7) }
+        val ESCAPED_RAW_TARGET = NamingConverter.PASCAL_TO_SNAKE.convert(ESCAPED_RAW_PROPERTY)
+        val ESCAPED_COLLECTION_TARGET =
+            NamingConverter.PASCAL_TO_SNAKE.convert(ESCAPED_COLLECTION_PROPERTY)
+        val ESCAPED_CHILD_VIEW = "${ROOT_VIEW}_$ESCAPED_COLLECTION_TARGET"
+        val RECOVERY_ITEM = linkedMapOf(
+            "amount" to HIGH_PRECISION_DECIMAL,
+            "children" to listOf(
+                mapOf("amount" to HIGH_PRECISION_DECIMAL),
+                mapOf("amount" to HIGH_PRECISION_DECIMAL),
+                null,
+                emptyMap<String, Any>(),
+            ),
+        )
+        val NORMAL_STATE = JsonSerializer.writeValueAsString(
+            linkedMapOf(
+                "id" to "state-normal",
+                "shadow" to mapOf(ESCAPED_RAW_PROPERTY to BigDecimal("17")),
+                ESCAPED_RAW_PROPERTY to BigDecimal("42"),
+                "nullableScalar" to 7,
+                "nullableArray" to listOf(1, null, 3),
+                "nullableMap" to linkedMapOf("a" to 1, "b" to null),
+                "nullableObject" to ClickHouseNullableObject(11),
+                "nullableObjects" to listOf(ClickHouseNullableObject(21), null),
+                "recoveryItems" to listOf(RECOVERY_ITEM, RECOVERY_ITEM, null, emptyMap<String, Any>()),
+                ESCAPED_COLLECTION_PROPERTY to listOf(
+                    mapOf("amount" to HIGH_PRECISION_DECIMAL),
+                    mapOf("amount" to HIGH_PRECISION_DECIMAL),
+                    null,
+                    emptyMap<String, Any>(),
+                ),
+                "mixed" to linkedMapOf(
+                    "string" to "x",
+                    "number" to 1,
+                    "bool" to true,
+                    "nil" to null,
+                    "object" to mapOf("x" to 1),
+                    "array" to listOf(1, "two"),
+                ),
+                "bigDecimal" to HIGH_PRECISION_DECIMAL,
+                "date" to NEGATIVE_DATE,
+                "year" to NEGATIVE_YEAR,
+                "duration" to NANO_DURATION,
+                "instant" to NANO_INSTANT,
+                "specialDouble" to Double.NaN,
+                "specialFloat" to Float.POSITIVE_INFINITY,
+                "bigDecimals" to BIG_DECIMALS,
+                "dates" to DATES,
+                "years" to mapOf("negative" to NEGATIVE_YEAR),
+                "durations" to DURATIONS,
+                "instants" to mapOf("nano" to NANO_INSTANT),
+                "specialDoubles" to SPECIAL_DOUBLES,
+                "sqlDate" to SQL_DATE,
+                "kotlinDuration" to KOTLIN_DURATION,
+                "uuid" to UUID_VALUE,
+                "claimedArrayList" to CLAIMED_ARRAY_LIST,
+                "claimedMap" to CLAIMED_MAP,
+            )
+        )
 
         val EXPECTED_GENERATED_OBJECTS = mapOf(
             DATABASE to setOf(
@@ -334,6 +445,9 @@ class ClickHouseExpansionIntegrationTest {
                 "${STATE_LAST_TABLE}_local",
                 ROOT_VIEW,
                 CHILD_VIEW,
+                RECOVERY_CHILD_VIEW,
+                NESTED_RECOVERY_CHILD_VIEW,
+                ESCAPED_CHILD_VIEW,
             ),
             CONSUMER_DATABASE to setOf(
                 "${COMMAND_TABLE}_queue",
@@ -345,42 +459,7 @@ class ClickHouseExpansionIntegrationTest {
         )
 
         val STATE_ROWS = linkedMapOf(
-            "row-normal" to JsonSerializer.writeValueAsString(
-                linkedMapOf(
-                    "id" to "state-normal",
-                    "nullableScalar" to 7,
-                    "nullableArray" to listOf(1, null, 3),
-                    "nullableMap" to linkedMapOf("a" to 1, "b" to null),
-                    "nullableObject" to ClickHouseNullableObject(11),
-                    "nullableObjects" to listOf(ClickHouseNullableObject(21), null),
-                    "mixed" to linkedMapOf(
-                        "string" to "x",
-                        "number" to 1,
-                        "bool" to true,
-                        "nil" to null,
-                        "object" to mapOf("x" to 1),
-                        "array" to listOf(1, "two"),
-                    ),
-                    "bigDecimal" to HIGH_PRECISION_DECIMAL,
-                    "date" to NEGATIVE_DATE,
-                    "year" to NEGATIVE_YEAR,
-                    "duration" to NANO_DURATION,
-                    "instant" to NANO_INSTANT,
-                    "specialDouble" to Double.NaN,
-                    "specialFloat" to Float.POSITIVE_INFINITY,
-                    "bigDecimals" to BIG_DECIMALS,
-                    "dates" to DATES,
-                    "years" to mapOf("negative" to NEGATIVE_YEAR),
-                    "durations" to DURATIONS,
-                    "instants" to mapOf("nano" to NANO_INSTANT),
-                    "specialDoubles" to SPECIAL_DOUBLES,
-                    "sqlDate" to SQL_DATE,
-                    "kotlinDuration" to KOTLIN_DURATION,
-                    "uuid" to UUID_VALUE,
-                    "claimedArrayList" to CLAIMED_ARRAY_LIST,
-                    "claimedMap" to CLAIMED_MAP,
-                )
-            ),
+            "row-normal" to NORMAL_STATE,
             "row-null" to JsonSerializer.writeValueAsString(
                 linkedMapOf(
                     "id" to "state-null",
@@ -407,14 +486,14 @@ class ClickHouseExpansionIntegrationTest {
         )
 
         val EXPECTED_SCALAR_ROW = mapOf(
-            "big_decimal_raw" to JsonSerializer.writeValueAsString(HIGH_PRECISION_DECIMAL),
+            "big_decimal_raw" to "1.2345678901234568e29",
             "date_value" to serializedText(NEGATIVE_DATE),
             "year_value" to "-1",
             "duration_value" to serializedText(NANO_DURATION),
             "instant_value" to serializedText(NANO_INSTANT),
             "double_is_nan" to "1",
             "float_is_infinite" to "1",
-            "big_decimals_raw" to JsonSerializer.writeValueAsString(BIG_DECIMALS),
+            "big_decimals_raw" to "[1.2345678901234568e29,1e100]",
             "dates_json" to JsonSerializer.writeValueAsString(DATES),
             "negative_year" to "-1",
             "durations_json" to JsonSerializer.writeValueAsString(DURATIONS),
@@ -503,16 +582,47 @@ class ClickHouseExpansionIntegrationTest {
         val EXPECTED_CHILD_ROWS = listOf(
             mapOf(
                 "row_id" to "row-normal",
+                "state" to NORMAL_STATE,
+                "element_index" to "0",
+                "element_path" to "/nullableObjects/0",
                 "value_type" to "Nullable(Int32)",
                 "value_json" to "21",
                 "element_raw" to "{\"value\":21}",
             ),
             mapOf(
                 "row_id" to "row-normal",
+                "state" to NORMAL_STATE,
+                "element_index" to "1",
+                "element_path" to "/nullableObjects/1",
                 "value_type" to "Nullable(Int32)",
                 "value_json" to "null",
                 "element_raw" to "null",
             ),
+        )
+        val EXPECTED_AUTHORITY_ROWS = STATE_ROWS.mapValues { (rowId, state) ->
+            mapOf(
+                "row_id" to rowId,
+                "state" to state,
+                "path" to "",
+                "scoped_raw" to if (rowId == "row-normal") "42" else "",
+            )
+        }
+        val EXPECTED_RECOVERY_ROWS = recoveryRows(
+            state = NORMAL_STATE,
+            prefix = "/recoveryItems",
+            outerIndexes = 0..3,
+        )
+        val EXPECTED_NESTED_RECOVERY_ROWS = (0..1).flatMap { outerIndex ->
+            recoveryRows(
+                state = NORMAL_STATE,
+                prefix = "/recoveryItems/$outerIndex/children",
+                outerIndexes = 0..3,
+            )
+        }.sortedBy { it.getValue("element_path") }
+        val EXPECTED_ESCAPED_RECOVERY_ROWS = recoveryRows(
+            state = NORMAL_STATE,
+            prefix = "/${encodeJsonPointer(ESCAPED_COLLECTION_PROPERTY)}",
+            outerIndexes = 0..3,
         )
 
         @Suppress("LongParameterList")
@@ -552,6 +662,21 @@ class ClickHouseExpansionIntegrationTest {
 
         fun serializedText(value: Any): String =
             JsonSerializer.readTree(JsonSerializer.writeValueAsString(value)).asString()
+
+        fun recoveryRows(
+            state: String,
+            prefix: String,
+            outerIndexes: IntRange,
+        ): List<Map<String, String>> = outerIndexes.map { index ->
+            mapOf(
+                "row_id" to "row-normal",
+                "state" to state,
+                "element_index" to index.toString(),
+                "element_path" to "$prefix/$index",
+            )
+        }
+
+        fun encodeJsonPointer(value: String): String = value.replace("~", "~0").replace("/", "~1")
     }
 }
 
@@ -588,9 +713,30 @@ internal class ClickHouseExpansionState(override val id: String) : Identifier {
     val uuid: UUID = UUID(0, 0)
     val claimedArrayList: ClaimedArrayList = ClaimedArrayList()
     val claimedMap: ClaimedMap = ClaimedMap()
+    val shadow: ClickHouseRawScopeShadow = ClickHouseRawScopeShadow()
+
+    @get:JsonProperty(ESCAPED_RAW_PROPERTY)
+    val escapedRaw: BigDecimal = BigDecimal.ZERO
+
+    val recoveryItems: List<ClickHouseRecoveryItem?> = emptyList()
+
+    @get:JsonProperty(ESCAPED_COLLECTION_PROPERTY)
+    val escapedItems: List<ClickHouseRecoveryChild?> = emptyList()
 }
 
 internal data class ClickHouseNullableObject(val value: Int)
+
+internal data class ClickHouseRawScopeShadow(
+    @get:JsonProperty(ESCAPED_RAW_PROPERTY)
+    val escapedRaw: BigDecimal = BigDecimal.ZERO,
+)
+
+internal data class ClickHouseRecoveryItem(
+    val amount: BigDecimal? = null,
+    val children: List<ClickHouseRecoveryChild?>? = null,
+)
+
+internal data class ClickHouseRecoveryChild(val amount: BigDecimal? = null)
 
 @JsonSerialize(using = ClaimedArrayListSerializer::class)
 internal class ClaimedArrayList : ArrayList<Int>()
@@ -630,3 +776,6 @@ internal class ClaimedMapSerializer : StdSerializer<ClaimedMap>(ClaimedMap::clas
         visitor.expectMapFormat(typeHint)
     }
 }
+
+private const val ESCAPED_RAW_PROPERTY = "quote'backslash\\line\nraw"
+private const val ESCAPED_COLLECTION_PROPERTY = "a/b~c"

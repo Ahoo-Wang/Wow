@@ -29,10 +29,22 @@ class ClickHouseSqlSyntaxTest {
     }
 
     @Test
-    fun `should reject control characters`() {
-        listOf("\u0000", "line\nbreak", "tab\tvalue", "delete\u007F").forEach { value ->
-            ClickHouseSqlSyntax.runCatching { quoteIdentifier(value) }.isFailure.assert().isTrue()
-            ClickHouseSqlSyntax.runCatching { stringLiteral(value) }.isFailure.assert().isTrue()
+    fun `should UTF-8 hex escape every control in literals and identifiers`() {
+        listOf(
+            '\u0000' to "00",
+            '\b' to "08",
+            '\u000C' to "0C",
+            '\n' to "0A",
+            '\r' to "0D",
+            '\t' to "09",
+            '\u000B' to "0B",
+            '\u001F' to "1F",
+            '\u007F' to "7F",
+            '\u0080' to "C2\\x80",
+            '\u009F' to "C2\\x9F",
+        ).forEach { (control, encoded) ->
+            ClickHouseSqlSyntax.stringLiteral("A${control}B").assert().isEqualTo("'A\\x${encoded}B'")
+            ClickHouseSqlSyntax.quoteIdentifier("A${control}B").assert().isEqualTo("\"A\\x${encoded}B\"")
         }
     }
 }

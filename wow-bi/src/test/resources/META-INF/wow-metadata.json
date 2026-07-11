@@ -100,6 +100,46 @@
           "commands" : [ ],
           "events" : [ ]
         },
+        "escaped-path" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.EscapedPathAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        },
+        "state-alias-collision" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.StateAliasCollisionAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        },
+        "path-alias-collision" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.PathAliasCollisionAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        },
+        "index-alias-collision" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.IndexAliasCollisionAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        },
+        "cursor-alias-collision" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.CursorAliasCollisionAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        },
         "opaque-property" : {
           "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
           "type" : "me.ahoo.wow.bi.expansion.plan.OpaquePropertyAggregate",

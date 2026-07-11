@@ -15,11 +15,14 @@ package me.ahoo.wow.bi.renderer
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.bi.BiScriptOptions
+import me.ahoo.wow.bi.expansion.plan.CollectionCursorPlan
 import me.ahoo.wow.bi.expansion.plan.ColumnExtraction
 import me.ahoo.wow.bi.expansion.plan.ColumnPlacement
 import me.ahoo.wow.bi.expansion.plan.ColumnPlan
 import me.ahoo.wow.bi.expansion.plan.ColumnReference
+import me.ahoo.wow.bi.expansion.plan.ExpansionRecoveryPlan
 import me.ahoo.wow.bi.expansion.plan.ExpansionViewPlan
+import me.ahoo.wow.bi.expansion.plan.JsonPointerSegment
 import me.ahoo.wow.bi.expansion.plan.StateExpansionPlan
 import me.ahoo.wow.bi.type.ClickHouseType
 import me.ahoo.wow.configuration.MetadataSearcher
@@ -27,6 +30,76 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
 class ClickHouseScriptRendererTest {
+    @Test
+    @Suppress("LongMethod")
+    fun `should render authoritative state and indexed RFC 6901 recovery coordinates`() {
+        val cursor = alias("__cursor__orders")
+        val root = ExpansionViewPlan(
+            targetTableName = "root",
+            sourceTableName = "source",
+            columns = emptyList(),
+            recovery = ExpansionRecoveryPlan(
+                cursors = emptyList(),
+                pointer = emptyList(),
+                currentIndex = null,
+            ),
+        )
+        val child = ExpansionViewPlan(
+            targetTableName = "orders",
+            sourceTableName = "source",
+            columns = listOf(
+                column(
+                    name = "amount",
+                    targetName = "orders__amount",
+                    type = ClickHouseType.String,
+                    extraction = ColumnExtraction.JsonRaw(alias("orders"), "amount"),
+                    placement = ColumnPlacement.SELECT,
+                )
+            ),
+            recovery = ExpansionRecoveryPlan(
+                cursors = listOf(
+                    CollectionCursorPlan(
+                        source = input("state"),
+                        property = "orders",
+                        cursor = cursor,
+                        element = alias("orders"),
+                    )
+                ),
+                pointer = listOf(
+                    JsonPointerSegment.Property("orders"),
+                    JsonPointerSegment.Index(cursor),
+                ),
+                currentIndex = cursor,
+            ),
+        )
+
+        val statements = ClickHouseScriptRenderer().renderExpansionStatements(
+            StateExpansionPlan(views = listOf(root, child), diagnostics = emptyList())
+        )
+
+        statements[0].assert().contains("\"__source\".\"state\" AS \"__state\"")
+        statements[0].assert().contains("'' AS \"__path\"")
+        statements[0].assert().doesNotContain("AS \"__index\"")
+        statements[1].assert().contains(
+            "arrayJoin(arrayZip(arrayEnumerate(JSONExtractArrayRaw(\"__source\".\"state\", 'orders')),\n" +
+                "                   JSONExtractArrayRaw(\"__source\".\"state\", 'orders'))) " +
+                "AS \"__cursor__orders\""
+        )
+        statements[1].assert().contains(
+            "tupleElement(\"__cursor__orders\", 2) AS \"orders\""
+        )
+        statements[1].assert().contains(
+            "toUInt64(tupleElement(\"__cursor__orders\", 1) - 1) AS \"__index\""
+        )
+        statements[1].assert().contains(
+            "concat('/orders/', toString(tupleElement(\"__cursor__orders\", 1) - 1)) AS \"__path\""
+        )
+        statements[1].assert().contains(
+            "JSONExtractRaw(\"orders\", 'amount') AS \"orders__amount\""
+        )
+        statements.joinToString("\n").assert().doesNotContain("simpleJSONExtractRaw")
+    }
+
     @Test
     fun `should render immutable individual statements for every DDL family`() {
         val aggregate = MetadataSearcher.localAggregates.single { it.aggregateName == "aggregate" }
@@ -67,11 +140,13 @@ class ClickHouseScriptRendererTest {
                     targetTableName = "first_view",
                     sourceTableName = "source",
                     columns = emptyList(),
+                    recovery = rootRecovery(),
                 ),
                 ExpansionViewPlan(
                     targetTableName = "second_view",
                     sourceTableName = "source",
                     columns = emptyList(),
+                    recovery = rootRecovery(),
                 ),
             ),
             diagnostics = emptyList(),
@@ -117,13 +192,6 @@ class ClickHouseScriptRendererTest {
                             placement = ColumnPlacement.WITH,
                         ),
                         column(
-                            name = "items",
-                            targetName = "items",
-                            type = ClickHouseType.String,
-                            extraction = ColumnExtraction.ArrayJoin(input("state"), "items"),
-                            placement = ColumnPlacement.WITH,
-                        ),
-                        column(
                             name = "amount",
                             targetName = "amount",
                             type = ClickHouseType.Decimal(18, 2),
@@ -145,6 +213,7 @@ class ClickHouseScriptRendererTest {
                             placement = ColumnPlacement.SELECT,
                         ),
                     ),
+                    recovery = rootRecovery(),
                 )
             ),
             diagnostics = emptyList(),
@@ -163,10 +232,7 @@ class ClickHouseScriptRendererTest {
                 "\"nested\\\"alias\""
         )
         script.assert().contains(
-            "simpleJSONExtractRaw(\"__source\".\"state\", 'raw''nested') AS \"raw_nested\""
-        )
-        script.assert().contains(
-            "arrayJoin(JSONExtractArrayRaw(\"__source\".\"state\", 'items')) AS \"items\""
+            "JSONExtractRaw(\"__source\".\"state\", 'raw''nested') AS \"raw_nested\""
         )
         script.assert().contains(
             "JSONExtract(\"__source\".\"state\", 'amount', 'Decimal(18,2)') AS \"amount\""
@@ -211,6 +277,7 @@ class ClickHouseScriptRendererTest {
                     placement = ColumnPlacement.SELECT,
                 ),
             ),
+            recovery = rootRecovery(),
         )
 
         val script = ClickHouseScriptRenderer().renderExpansion(
@@ -243,6 +310,7 @@ class ClickHouseScriptRendererTest {
                     placement = ColumnPlacement.SELECT,
                 )
             ),
+            recovery = rootRecovery(),
         )
 
         val script = ClickHouseScriptRenderer().renderExpansion(
@@ -262,6 +330,7 @@ class ClickHouseScriptRendererTest {
             targetTableName = "target",
             sourceTableName = "source",
             columns = emptyList(),
+            recovery = rootRecovery(),
         )
 
         val script = ClickHouseScriptRenderer().renderExpansion(
@@ -306,4 +375,12 @@ class ClickHouseScriptRendererTest {
     )
 
     private fun input(name: String): ColumnReference = ColumnReference.Input(name)
+
+    private fun alias(name: String): ColumnReference = ColumnReference.Alias(name)
+
+    private fun rootRecovery(): ExpansionRecoveryPlan = ExpansionRecoveryPlan(
+        cursors = emptyList(),
+        pointer = emptyList(),
+        currentIndex = null,
+    )
 }

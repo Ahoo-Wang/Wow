@@ -51,6 +51,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
         val sourceTableName = naming.toDistributedTableName(namedAggregate, STATE_LAST_SUFFIX)
         val rootNode = PlanningNode(
             path = "",
+            pointer = emptyList(),
             source = ColumnReference.Input(STATE_COLUMN),
             targetName = STATE_COLUMN,
             type = ResolvedType(
@@ -67,6 +68,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
             sourceTableName = sourceTableName,
             targetTableName = "${sourceTableName}_root",
             inheritedColumns = emptyList(),
+            recovery = ExpansionRecoveryPlan(emptyList(), emptyList(), null),
             context = context,
         )
         return StateExpansionPlan(
@@ -85,6 +87,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
         sourceTableName: String,
         targetTableName: String,
         inheritedColumns: List<ColumnPlan>,
+        recovery: ExpansionRecoveryPlan,
         context: PlanningContext,
         arrayJoin: CollectionRequest? = null,
     ) {
@@ -94,16 +97,6 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
             columns = inheritedColumns.toMutableList(),
         )
         arrayJoin?.let { request ->
-            draft.columns.add(
-                ColumnPlan(
-                    name = request.name,
-                    path = request.path,
-                    targetName = request.targetName,
-                    type = ClickHouseType.String,
-                    extraction = ColumnExtraction.ArrayJoin(request.source, request.name),
-                    placement = ColumnPlacement.WITH,
-                )
-            )
             if (request.rawElementCompanion) {
                 draft.columns.add(
                     ColumnPlan(
@@ -127,16 +120,23 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
                 targetTableName = targetTableName,
                 sourceTableName = sourceTableName,
                 columns = frozenColumns,
+                recovery = recovery,
             )
         )
 
         val finalInheritedColumns = frozenColumns.filter(ColumnPlan::inherited)
         draft.collectionRequests.forEach { request ->
+            val childRecovery = ExpansionRecoveryPlan(
+                cursors = recovery.cursors + request.cursor,
+                pointer = request.pointer,
+                currentIndex = request.cursor.cursor,
+            )
             buildView(
                 node = request.elementNode,
                 sourceTableName = sourceTableName,
                 targetTableName = "${targetTableName}_${request.tableSuffix}",
                 inheritedColumns = finalInheritedColumns,
+                recovery = childRecovery,
                 context = context,
                 arrayJoin = request,
             )
@@ -322,6 +322,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
         collectResolvedProperties(
             parent = PlanningNode(
                 path = path,
+                pointer = parent.pointer + JsonPointerSegment.Property(encodePointerSegment(name)),
                 source = ColumnReference.Alias(targetName),
                 targetName = targetName,
                 type = type,
@@ -431,6 +432,10 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
         elementType: ResolvedType,
         draft: ViewDraft,
     ) {
+        val cursorReference = ColumnReference.Alias(cursorTargetName(targetName))
+        val elementReference = ColumnReference.Alias(targetName)
+        val collectionPointer = parent.pointer + JsonPointerSegment.Property(encodePointerSegment(name))
+        val elementPointer = collectionPointer + JsonPointerSegment.Index(cursorReference)
         draft.columns.add(rawObjectArrayColumn(name, path, targetName, parent.source))
         if (type.requiresRawCompanion()) {
             draft.columns.add(
@@ -450,9 +455,17 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
                 source = parent.source,
                 targetName = targetName,
                 tableSuffix = relativeTargetName(draft.anchorTargetName, targetName),
+                cursor = CollectionCursorPlan(
+                    source = parent.source,
+                    property = name,
+                    cursor = cursorReference,
+                    element = elementReference,
+                ),
+                pointer = elementPointer,
                 elementNode = PlanningNode(
                     path = path,
-                    source = ColumnReference.Alias(targetName),
+                    pointer = elementPointer,
+                    source = elementReference,
                     targetName = targetName,
                     type = elementType,
                     depth = parent.depth + 1,
@@ -484,7 +497,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
                 sourceType = sourceType,
                 decision = BiScriptMappingDecision.MAX_DEPTH_RAW_JSON,
                 message = "Max expansion depth reached at [$path] with type [$sourceType]; " +
-                    "the whole value is preserved as raw JSON.",
+                    "the value is projected as scoped JSON and remains authoritative in __state.",
             )
         )
     }
@@ -516,7 +529,8 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
                 path = path,
                 sourceType = sourceType,
                 decision = BiScriptMappingDecision.RAW_JSON,
-                message = "Unsupported property [$path] with type [$sourceType] is preserved as raw JSON.",
+                message = "Unsupported property [$path] with type [$sourceType] is projected as scoped JSON; " +
+                    "the authoritative lexical value remains in __state.",
             )
         )
     }
@@ -542,7 +556,8 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
                 path = path,
                 sourceType = sourceType,
                 decision = BiScriptMappingDecision.RAW_JSON,
-                message = "Unsupported property [$path] with type [$sourceType] is preserved as raw JSON.",
+                message = "Unsupported property [$path] with type [$sourceType] is projected as scoped JSON; " +
+                    "the authoritative lexical value remains in __state.",
             )
         )
     }
@@ -601,9 +616,12 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
     private fun validateColumnTargets(draft: ViewDraft, context: PlanningContext) {
         val reservedProperty = draft.propertyTargetNames
             .sorted()
-            .firstOrNull { it.startsWith(RAW_TARGET_PREFIX) }
+            .firstOrNull {
+                it.startsWith(RAW_TARGET_PREFIX) ||
+                    it.startsWith(ExpansionViewPlan.CURSOR_TARGET_PREFIX)
+            }
         require(reservedProperty == null) {
-            "Raw companion namespace collision for aggregate [${context.aggregate}] in view " +
+            "Reserved namespace collision for aggregate [${context.aggregate}] in view " +
                 "[${draft.targetTableName}] at target [$reservedProperty]."
         }
 
@@ -618,63 +636,65 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
                 "duplicate target(s) ${duplicates.joinToString(prefix = "[", postfix = "]")}."
         }
     }
-
-    private fun ResolvedType.canRenderDirectly(): Boolean {
-        if (verifiedScalarMapping() != null) {
-            return true
-        }
-        if (javaType.isMapLikeType) {
-            return JacksonWireShapeInspector.matches(this, JsonTokenShape.MAP) && hasSupportedMapShape()
-        }
-        if (javaType.isCollectionLikeType || javaType.isArrayType) {
-            return JacksonWireShapeInspector.matches(this, JsonTokenShape.ARRAY) &&
-                arguments.firstOrNull()?.verifiedScalarMapping() != null
-        }
-        return false
-    }
-
-    private fun ResolvedType.hasSupportedMapShape(): Boolean = supportedMapValueMapping() != null
-
-    private fun ResolvedType.supportedMapValueMapping(): ScalarMapping? {
-        val keyType = arguments.getOrNull(0)
-        if (keyType?.rawClass != String::class.java ||
-            keyType.nullability != Nullability.NON_NULL ||
-            keyType.verifiedScalarMapping() == null
-        ) {
-            return null
-        }
-        return arguments.getOrNull(1)?.verifiedScalarMapping()
-    }
-
-    private fun childPath(parentPath: String, name: String): String {
-        return if (parentPath.isBlank()) name else "$parentPath.$name"
-    }
-
-    private fun childTargetName(parent: PlanningNode, name: String): String {
-        val propertyName = NamingConverter.PASCAL_TO_SNAKE.convert(name)
-        return if (parent.depth == 0) propertyName else "${parent.targetName}__$propertyName"
-    }
-
-    private fun rawTargetName(targetName: String): String = "$RAW_TARGET_PREFIX$targetName"
-
-    private fun relativeTargetName(anchorTargetName: String, targetName: String): String {
-        if (anchorTargetName == STATE_COLUMN) {
-            return targetName
-        }
-        return targetName.removePrefix("${anchorTargetName}__")
-    }
-
-    private fun <T> unmodifiableCopy(values: Collection<T>): List<T> {
-        return Collections.unmodifiableList(ArrayList(values))
-    }
-
-    private companion object {
-        const val STATE_COLUMN = "state"
-        const val STATE_LAST_SUFFIX = "state_last"
-        const val RAW_TARGET_PREFIX = "__raw__"
-        const val ROOT_PATH = "$"
-    }
 }
+
+private fun ResolvedType.canRenderDirectly(): Boolean {
+    if (verifiedScalarMapping() != null) {
+        return true
+    }
+    if (javaType.isMapLikeType) {
+        return JacksonWireShapeInspector.matches(this, JsonTokenShape.MAP) && hasSupportedMapShape()
+    }
+    if (javaType.isCollectionLikeType || javaType.isArrayType) {
+        return JacksonWireShapeInspector.matches(this, JsonTokenShape.ARRAY) &&
+            arguments.firstOrNull()?.verifiedScalarMapping() != null
+    }
+    return false
+}
+
+private fun ResolvedType.hasSupportedMapShape(): Boolean = supportedMapValueMapping() != null
+
+private fun ResolvedType.supportedMapValueMapping(): ScalarMapping? {
+    val keyType = arguments.getOrNull(0)
+    if (keyType?.rawClass != String::class.java ||
+        keyType.nullability != Nullability.NON_NULL ||
+        keyType.verifiedScalarMapping() == null
+    ) {
+        return null
+    }
+    return arguments.getOrNull(1)?.verifiedScalarMapping()
+}
+
+private fun childPath(parentPath: String, name: String): String =
+    if (parentPath.isBlank()) name else "$parentPath.$name"
+
+private fun childTargetName(parent: PlanningNode, name: String): String {
+    val propertyName = NamingConverter.PASCAL_TO_SNAKE.convert(name)
+    return if (parent.depth == 0) propertyName else "${parent.targetName}__$propertyName"
+}
+
+private fun rawTargetName(targetName: String): String = "$RAW_TARGET_PREFIX$targetName"
+
+private fun cursorTargetName(targetName: String): String =
+    "${ExpansionViewPlan.CURSOR_TARGET_PREFIX}$targetName"
+
+private fun encodePointerSegment(value: String): String =
+    value.replace("~", "~0").replace("/", "~1")
+
+private fun relativeTargetName(anchorTargetName: String, targetName: String): String =
+    if (anchorTargetName == STATE_COLUMN) {
+        targetName
+    } else {
+        targetName.removePrefix("${anchorTargetName}__")
+    }
+
+private fun <T> unmodifiableCopy(values: Collection<T>): List<T> =
+    Collections.unmodifiableList(ArrayList(values))
+
+private const val STATE_COLUMN = "state"
+private const val STATE_LAST_SUFFIX = "state_last"
+private const val RAW_TARGET_PREFIX = "__raw__"
+private const val ROOT_PATH = "$"
 
 private fun ResolvedType.verifiedScalarMapping(): ScalarMapping? {
     val mapping = rawClass.scalarMapping() ?: return null
@@ -708,6 +728,7 @@ private fun ResolvedType.isOpaqueCollectionElement(): Boolean {
 
 private data class PlanningNode(
     val path: String,
+    val pointer: List<JsonPointerSegment>,
     val source: ColumnReference,
     val targetName: String,
     val type: ResolvedType,
@@ -721,6 +742,8 @@ private data class CollectionRequest(
     val source: ColumnReference,
     val targetName: String,
     val tableSuffix: String,
+    val cursor: CollectionCursorPlan,
+    val pointer: List<JsonPointerSegment>,
     val elementNode: PlanningNode,
     val rawElementCompanion: Boolean,
 )

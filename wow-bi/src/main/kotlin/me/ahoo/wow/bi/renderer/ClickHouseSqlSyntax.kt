@@ -14,16 +14,31 @@
 package me.ahoo.wow.bi.renderer
 
 internal object ClickHouseSqlSyntax {
-    private fun requireSafe(value: String): String {
-        require(value.none { it == '\u0000' || it.isISOControl() }) {
-            "SQL token must not contain control characters."
+    private fun escape(value: String, quote: Char): String = buildString {
+        value.forEach { character ->
+            when {
+                character == '\\' -> append("\\\\")
+                character == quote -> {
+                    if (quote == '\'') {
+                        append("''")
+                    } else {
+                        append('\\').append(character)
+                    }
+                }
+                character.isISOControl() || character == '\u007F' -> {
+                    character.toString().toByteArray(Charsets.UTF_8).forEach { byte ->
+                        append("\\x")
+                        append((byte.toInt() and 0xFF).toString(16).uppercase().padStart(2, '0'))
+                    }
+                }
+                else -> append(character)
+            }
         }
-        return value
     }
 
     fun quoteIdentifier(value: String): String =
-        "\"${requireSafe(value).replace("\\", "\\\\").replace("\"", "\\\"")}\""
+        "\"${escape(value, '"')}\""
 
     fun stringLiteral(value: String): String =
-        "'${requireSafe(value).replace("\\", "\\\\").replace("'", "''")}'"
+        "'${escape(value, '\'')}'"
 }

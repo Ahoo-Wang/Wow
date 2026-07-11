@@ -16,11 +16,13 @@ package me.ahoo.wow.bi.renderer
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.bi.expansion.BiTableNaming
+import me.ahoo.wow.bi.expansion.plan.CollectionCursorPlan
 import me.ahoo.wow.bi.expansion.plan.ColumnExtraction
 import me.ahoo.wow.bi.expansion.plan.ColumnPlacement
 import me.ahoo.wow.bi.expansion.plan.ColumnPlan
 import me.ahoo.wow.bi.expansion.plan.ColumnReference
 import me.ahoo.wow.bi.expansion.plan.ExpansionViewPlan
+import me.ahoo.wow.bi.expansion.plan.JsonPointerSegment
 import me.ahoo.wow.bi.expansion.plan.StateExpansionPlan
 import me.ahoo.wow.bi.renderer.ClickHouseSqlSyntax.quoteIdentifier
 import me.ahoo.wow.bi.renderer.ClickHouseSqlSyntax.stringLiteral
@@ -309,13 +311,16 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
         immutableStatements(plan.views.map(::renderExpansionView))
 
     private fun renderExpansionView(view: ExpansionViewPlan): String {
-        val withSql = view.columns
+        val domainWithColumns = view.columns
             .filter { it.placement == ColumnPlacement.WITH }
-            .joinToString(",\n", transform = ::renderColumn)
-        val selectSql = view.columns
+            .map(::renderColumn)
+        val withSql = (view.recovery.cursors.flatMap(::renderCursor) + domainWithColumns)
+            .joinToString(",\n")
+        val domainSelectColumns = view.columns
             .filter { it.placement == ColumnPlacement.SELECT }
-            .plus(metadataColumns)
-            .joinToString(",\n", transform = ::renderColumn)
+            .map(::renderColumn)
+        val selectSql = (domainSelectColumns + renderRecovery(view) + metadataColumns.map(::renderColumn))
+            .joinToString(",\n")
         return buildString {
             appendLine(
                 "CREATE VIEW IF NOT EXISTS ${qualified(options.database, view.targetTableName)} ${onCluster()} AS"
@@ -335,13 +340,49 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
     private fun renderColumn(column: ColumnPlan): String =
         "${renderExtraction(column)} AS ${identifier(column.targetName)}"
 
+    private fun renderCursor(cursor: CollectionCursorPlan): List<String> {
+        val elements = jsonArray(cursor.source, cursor.property)
+        return listOf(
+            "arrayJoin(arrayZip(arrayEnumerate($elements),\n" +
+                "                   $elements)) AS ${renderReference(cursor.cursor)}",
+            "tupleElement(${renderReference(cursor.cursor)}, 2) AS ${renderReference(cursor.element)}",
+        )
+    }
+
+    private fun renderRecovery(view: ExpansionViewPlan): List<String> = buildList {
+        add("${renderReference(ColumnReference.Input(STATE_COLUMN))} AS ${identifier(STATE_TARGET)}")
+        view.recovery.currentIndex?.let { currentIndex ->
+            add("toUInt64(${renderZeroBasedIndex(currentIndex)}) AS ${identifier(INDEX_TARGET)}")
+        }
+        add("${renderPointer(view.recovery.pointer)} AS ${identifier(PATH_TARGET)}")
+    }
+
+    private fun renderPointer(pointer: List<JsonPointerSegment>): String {
+        if (pointer.isEmpty()) {
+            return literal("")
+        }
+        val expressions = pointer.mapIndexed { index, segment ->
+            when (segment) {
+                is JsonPointerSegment.Property -> {
+                    val indexSuffix = if (pointer.getOrNull(index + 1) is JsonPointerSegment.Index) "/" else ""
+                    literal("/${segment.encoded}$indexSuffix")
+                }
+
+                is JsonPointerSegment.Index -> "toString(${renderZeroBasedIndex(segment.reference)})"
+            }
+        }
+        return "concat(${expressions.joinToString(", ")})"
+    }
+
+    private fun renderZeroBasedIndex(reference: ColumnReference): String =
+        "tupleElement(${renderReference(reference)}, 1) - 1"
+
     private fun renderExtraction(column: ColumnPlan): String = when (val extraction = column.extraction) {
         is ColumnExtraction.Reference -> renderReference(extraction.source)
         is ColumnExtraction.JsonValue -> jsonValue(extraction.source, extraction.property, column.type.toSql())
         is ColumnExtraction.JsonString -> jsonString(extraction.source, extraction.property)
         is ColumnExtraction.JsonRaw -> jsonRaw(extraction.source, extraction.property)
         is ColumnExtraction.JsonArray -> jsonArray(extraction.source, extraction.property)
-        is ColumnExtraction.ArrayJoin -> "arrayJoin(${jsonArray(extraction.source, extraction.property)})"
     }
 
     private fun drop(database: String, table: String): String =
@@ -379,10 +420,10 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
         "JSONExtractString(${renderReference(source)}, ${literal(property)})"
 
     private fun jsonRaw(source: String, property: String): String =
-        "simpleJSONExtractRaw(${identifier(source)}, ${literal(property)})"
+        "JSONExtractRaw(${identifier(source)}, ${literal(property)})"
 
     private fun jsonRaw(source: ColumnReference, property: String): String =
-        "simpleJSONExtractRaw(${renderReference(source)}, ${literal(property)})"
+        "JSONExtractRaw(${renderReference(source)}, ${literal(property)})"
 
     private fun jsonArray(source: String, property: String): String =
         "JSONExtractArrayRaw(${identifier(source)}, ${literal(property)})"
@@ -447,6 +488,10 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
         const val COMMAND_SUFFIX = "command"
         const val STATE_SUFFIX = "state"
         const val STATE_LAST_SUFFIX = "state_last"
+        const val STATE_COLUMN = "state"
+        const val STATE_TARGET = "__state"
+        const val PATH_TARGET = "__path"
+        const val INDEX_TARGET = "__index"
         const val SOURCE_ALIAS = "__source"
         const val STATEMENT_SEPARATOR = "\n\n"
     }

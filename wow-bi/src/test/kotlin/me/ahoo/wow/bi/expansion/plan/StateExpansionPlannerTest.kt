@@ -41,6 +41,82 @@ class StateExpansionPlannerTest {
     private val biAggregateMetadata = aggregateMetadata<BIAggregate, BIAggregateState>()
 
     @Test
+    fun `should plan immutable root and nested collection recovery coordinates`() {
+        val plan = StateExpansionPlanner().plan(biAggregateMetadata)
+        val root = plan.views.single { it.targetTableName.endsWith("_root") }
+        val child = plan.views.single { it.targetTableName.endsWith("_root_nested_list") }
+        val nestedChild = plan.views.single { it.targetTableName.endsWith("_root_nested_list_list") }
+        val outerCursor = alias("__cursor__nested_list")
+        val innerCursor = alias("__cursor__nested_list__list")
+
+        root.recovery.pointer.assert().isEmpty()
+        root.recovery.currentIndex.assert().isNull()
+        root.recovery.cursors.assert().isEmpty()
+
+        child.recovery.pointer.assert().containsExactly(
+            JsonPointerSegment.Property("nestedList"),
+            JsonPointerSegment.Index(outerCursor),
+        )
+        child.recovery.currentIndex.assert().isEqualTo(outerCursor)
+        child.recovery.cursors.assert().containsExactly(
+            CollectionCursorPlan(
+                source = input("state"),
+                property = "nestedList",
+                cursor = outerCursor,
+                element = alias("nested_list"),
+            )
+        )
+
+        nestedChild.recovery.pointer.assert().containsExactly(
+            JsonPointerSegment.Property("nestedList"),
+            JsonPointerSegment.Index(outerCursor),
+            JsonPointerSegment.Property("list"),
+            JsonPointerSegment.Index(innerCursor),
+        )
+        nestedChild.recovery.currentIndex.assert().isEqualTo(innerCursor)
+        nestedChild.recovery.cursors.assert().containsExactly(
+            CollectionCursorPlan(
+                source = input("state"),
+                property = "nestedList",
+                cursor = outerCursor,
+                element = alias("nested_list"),
+            ),
+            CollectionCursorPlan(
+                source = alias("nested_list"),
+                property = "list",
+                cursor = innerCursor,
+                element = alias("nested_list__list"),
+            ),
+        )
+
+        assertAll(
+            {
+                assertJavaUnmodifiable(
+                    child.recovery.pointer,
+                    JsonPointerSegment.Property("forbidden"),
+                )
+            },
+            {
+                assertJavaUnmodifiable(
+                    child.recovery.cursors,
+                    child.recovery.cursors.single(),
+                )
+            },
+        )
+    }
+
+    @Test
+    fun `should encode serialized collection property as RFC 6901 pointer segment`() {
+        val child = StateExpansionPlanner().plan(escapedPathAggregateMetadata)
+            .views.single { it.recovery.currentIndex != null }
+
+        child.recovery.pointer.assert().containsExactly(
+            JsonPointerSegment.Property("a~1b~0c"),
+            JsonPointerSegment.Index(checkNotNull(child.recovery.currentIndex)),
+        )
+    }
+
+    @Test
     fun `should plan deterministic root and collection views structurally`() {
         val plan = StateExpansionPlanner().plan(biAggregateMetadata)
 
@@ -94,6 +170,7 @@ class StateExpansionPlannerTest {
             aggregate.assert().isEqualTo("bi-service.aggregate")
             sourceType.contains(Item::class.java.name).assert().isTrue()
             decision.assert().isEqualTo(BiScriptMappingDecision.RAW_JSON)
+            message.assert().contains("scoped JSON").contains("__state")
         }
     }
 
@@ -490,6 +567,21 @@ class StateExpansionPlannerTest {
     }
 
     @Test
+    fun `should reject domain properties colliding with recovery aliases`() {
+        listOf(
+            stateAliasCollisionAggregateMetadata to "__state",
+            pathAliasCollisionAggregateMetadata to "__path",
+            indexAliasCollisionAggregateMetadata to "__index",
+            cursorAliasCollisionAggregateMetadata to "__cursor__items",
+        ).forEach { (aggregate, target) ->
+            assertThrownBy<IllegalArgumentException> {
+                StateExpansionPlanner().plan(aggregate)
+            }.hasMessageContaining(target)
+                .hasMessageContaining("collision")
+        }
+    }
+
+    @Test
     fun `should expose Java unmodifiable deterministic plan collections`() {
         val plan = StateExpansionPlanner().plan(biAggregateMetadata)
         val rootColumns = plan.views.first().columns
@@ -497,6 +589,12 @@ class StateExpansionPlannerTest {
         assertAll(
             { assertJavaUnmodifiable(plan.views, plan.views.first()) },
             { assertJavaUnmodifiable(rootColumns, rootColumns.first()) },
+            {
+                assertJavaUnmodifiable(
+                    plan.views.first().recovery.pointer,
+                    JsonPointerSegment.Property("forbidden"),
+                )
+            },
             { assertJavaUnmodifiable(plan.diagnostics, plan.diagnostics.first()) },
         )
     }
@@ -760,6 +858,51 @@ private class TruncatedObjectMapState(override val id: String) : Identifier {
 
 @Suppress("UnusedPrivateProperty")
 @AggregateRoot
+private class EscapedPathAggregate(private val state: EscapedPathState)
+
+private class EscapedPathState(override val id: String) : Identifier {
+    @get:JsonProperty("a/b~c")
+    val items: List<CollectionChild> = emptyList()
+}
+
+@Suppress("UnusedPrivateProperty")
+@AggregateRoot
+private class StateAliasCollisionAggregate(private val state: StateAliasCollisionState)
+
+private class StateAliasCollisionState(override val id: String) : Identifier {
+    @get:JsonProperty("__state")
+    val value: String = ""
+}
+
+@Suppress("UnusedPrivateProperty")
+@AggregateRoot
+private class PathAliasCollisionAggregate(private val state: PathAliasCollisionState)
+
+private class PathAliasCollisionState(override val id: String) : Identifier {
+    @get:JsonProperty("__path")
+    val value: String = ""
+}
+
+@Suppress("UnusedPrivateProperty")
+@AggregateRoot
+private class IndexAliasCollisionAggregate(private val state: IndexAliasCollisionState)
+
+private class IndexAliasCollisionState(override val id: String) : Identifier {
+    @get:JsonProperty("__index")
+    val value: String = ""
+}
+
+@Suppress("UnusedPrivateProperty")
+@AggregateRoot
+private class CursorAliasCollisionAggregate(private val state: CursorAliasCollisionState)
+
+private class CursorAliasCollisionState(override val id: String) : Identifier {
+    @get:JsonProperty("__cursor__items")
+    val value: String = ""
+}
+
+@Suppress("UnusedPrivateProperty")
+@AggregateRoot
 private class OpaquePropertyAggregate(private val state: OpaquePropertyState)
 
 private class OpaquePropertyState(override val id: String) : Identifier {
@@ -796,6 +939,16 @@ private val rawCompanionCollisionAggregateMetadata =
     aggregateMetadata<RawCollectionAggregate, RawCollectionState>()
 private val metadataAliasCollisionAggregateMetadata =
     aggregateMetadata<TruncatedObjectMapAggregate, TruncatedObjectMapState>()
+private val escapedPathAggregateMetadata =
+    aggregateMetadata<EscapedPathAggregate, EscapedPathState>()
+private val stateAliasCollisionAggregateMetadata =
+    aggregateMetadata<StateAliasCollisionAggregate, StateAliasCollisionState>()
+private val pathAliasCollisionAggregateMetadata =
+    aggregateMetadata<PathAliasCollisionAggregate, PathAliasCollisionState>()
+private val indexAliasCollisionAggregateMetadata =
+    aggregateMetadata<IndexAliasCollisionAggregate, IndexAliasCollisionState>()
+private val cursorAliasCollisionAggregateMetadata =
+    aggregateMetadata<CursorAliasCollisionAggregate, CursorAliasCollisionState>()
 private val opaquePropertyAggregateMetadata =
     aggregateMetadata<OpaquePropertyAggregate, OpaquePropertyState>()
 private val opaqueRootAggregateMetadata =

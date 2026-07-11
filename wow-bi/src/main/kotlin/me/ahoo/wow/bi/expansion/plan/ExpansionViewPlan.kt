@@ -14,11 +14,22 @@
 package me.ahoo.wow.bi.expansion.plan
 
 import me.ahoo.wow.bi.BiScriptDiagnostic
+import java.util.Collections
+
+internal class ExpansionRecoveryPlan(
+    cursors: Collection<CollectionCursorPlan>,
+    pointer: Collection<JsonPointerSegment>,
+    val currentIndex: ColumnReference?,
+) {
+    val cursors: List<CollectionCursorPlan> = Collections.unmodifiableList(ArrayList(cursors))
+    val pointer: List<JsonPointerSegment> = Collections.unmodifiableList(ArrayList(pointer))
+}
 
 internal data class ExpansionViewPlan(
     val targetTableName: String,
     val sourceTableName: String,
     val columns: List<ColumnPlan>,
+    val recovery: ExpansionRecoveryPlan,
 ) {
     companion object {
         val METADATA_TARGET_NAMES: Set<String> = setOf(
@@ -35,7 +46,12 @@ internal data class ExpansionViewPlan(
             "__create_time",
             "__tags",
             "__deleted",
+            "__state",
+            "__path",
+            "__index",
         )
+
+        const val CURSOR_TARGET_PREFIX = "__cursor__"
     }
 }
 

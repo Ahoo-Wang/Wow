@@ -32,7 +32,7 @@ class BiScriptGeneratorTest {
         result.script.assert().contains("-- bi.aggregate.stateLast --")
         result.script.assert().contains("-- bi.aggregate.expansion --")
         result.script.assert().contains(
-            "simpleJSONExtractRaw(\"__source\".\"state\", 'mapItem') AS \"map_item\""
+            "JSONExtractRaw(\"__source\".\"state\", 'mapItem') AS \"map_item\""
         )
         result.diagnostics.map(BiScriptDiagnostic::path)
             .assert()
