@@ -365,7 +365,7 @@ wow:
 | `wow.bi.script.kafka-bootstrap-servers` | String | 继承 `wow.kafka.bootstrap-servers`，否则为 `localhost:9093` | BI Kafka broker 覆盖值；继承多个 broker 时以逗号连接 |
 | `wow.bi.script.topic-prefix` | String | 继承 `wow.kafka.topic-prefix`，否则为 `wow.` | BI topic 前缀覆盖值 |
 | `wow.bi.script.max-expansion-depth` | Int | `5` | 复杂属性的最大展开深度，必须大于等于 `1` |
-| `wow.bi.script.unsupported-type-strategy` | Enum | `RAW_JSON` | `RAW_JSON` 保留整个原始值并产生诊断；`FAIL` 中止生成 |
+| `wow.bi.script.unsupported-type-strategy` | Enum | `RAW_JSON` | `RAW_JSON` 生成 scoped JSON 查询便利投影并产生诊断；精确词法值通过 `__state` 与 recovery `__path` 恢复；`FAIL` 中止生成 |
 
 ```yaml
 wow:
