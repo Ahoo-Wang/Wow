@@ -348,7 +348,123 @@ git commit -m "docs(bi): keep one current architecture contract"
 
 ---
 
-## Task 5: Final Verification And Review
+## Task 5: Add An Authoritative State Recovery Channel
+
+**Files:**
+- Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/expansion/plan/ColumnPlan.kt`
+- Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/expansion/plan/ExpansionViewPlan.kt`
+- Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/expansion/plan/StateExpansionPlanner.kt`
+- Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/renderer/ClickHouseScriptRenderer.kt`
+- Modify: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/expansion/plan/StateExpansionPlannerTest.kt`
+- Modify: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/renderer/ClickHouseScriptRendererTest.kt`
+- Modify: `wow-bi/src/integrationTest/kotlin/me/ahoo/wow/bi/ClickHouseExpansionIntegrationTest.kt`
+- Modify: `documentation/docs/en/guide/bi.md`
+- Modify: `documentation/docs/zh/guide/bi.md`
+- Modify: `docs/superpowers/specs/2026-07-10-wow-bi-clean-architecture-design.md`
+
+**Interfaces:**
+- Every `ExpansionViewPlan` owns an immutable recovery plan separate from domain `ColumnPlan` values.
+- Every view projects `state_last.state` directly as `__state` without JSON parsing.
+- Root `__path` is the empty RFC 6901 pointer.
+- Every collection child row projects the current zero-based `__index` and a complete `__path`, for example `/orders/2/lines/5`.
+- RFC 6901 property segments encode `~` as `~0` and `/` as `~1`.
+- `__raw__*` and fallback columns use scoped `JSONExtractRaw` only as convenience projections; `__state` is the only lexical authority.
+
+- [ ] **Step 1: Write failing planner and renderer recovery tests**
+
+Add tests asserting:
+
+```kotlin
+rootView.recovery.pointer.assert().isEmpty()
+childView.recovery.pointer.assert().containsExactly(
+    JsonPointerSegment.Property("orders"),
+    JsonPointerSegment.Index(childView.recovery.currentIndex),
+)
+```
+
+Cover root authority, one-level and nested collections, duplicate elements, nullable elements, `@JsonProperty("a/b~c")` escaping, immutable recovery values, and collisions with `__state`, `__path`, `__index`, and the internal cursor namespace.
+
+Renderer tests must require:
+
+```sql
+"__source"."state" AS "__state"
+arrayJoin(arrayZip(arrayEnumerate(JSONExtractArrayRaw("__source"."state", 'orders')),
+                   JSONExtractArrayRaw("__source"."state", 'orders'))) AS "__cursor__orders"
+toUInt64(tupleElement("__cursor__orders", 1) - 1) AS "__index"
+concat('/orders/', toString(tupleElement("__cursor__orders", 1) - 1)) AS "__path"
+```
+
+They must also require scoped `JSONExtractRaw` and reject `simpleJSONExtractRaw`.
+
+Run:
+
+```bash
+./gradlew :wow-bi:test --tests '*StateExpansionPlannerTest' --tests '*ClickHouseScriptRendererTest'
+```
+
+Expected: FAIL because no recovery plan, index/path, or authoritative state projection exists and renderer still uses `simpleJSONExtractRaw`.
+
+- [ ] **Step 2: Write the failing ClickHouse regression**
+
+Build all JSON through `JsonSerializer` and add:
+
+- a nested object containing the same property name before the top-level target;
+- escaped serialized names containing quote, backslash, newline, `~`, and `/`;
+- duplicate, null, empty, and high-precision collection elements;
+- a nested collection requiring multiple indices.
+
+Assert current raw convenience is scoped correctly, every view's `__state` equals the exact inserted state string, and every child occurrence has the expected zero-based `__index` and RFC 6901 `__path`.
+
+Run:
+
+```bash
+./gradlew :wow-bi:integrationTest --tests '*ClickHouseExpansionIntegrationTest'
+```
+
+Expected: FAIL on the current `simpleJSONExtractRaw` wrong-value case and missing recovery columns.
+
+- [ ] **Step 3: Implement the minimal structured recovery model**
+
+Add internal immutable recovery types:
+
+```kotlin
+internal sealed interface JsonPointerSegment {
+    data class Property(val encoded: String) : JsonPointerSegment
+    data class Index(val reference: ColumnReference) : JsonPointerSegment
+}
+
+internal data class ExpansionRecoveryPlan(
+    val pointer: List<JsonPointerSegment>,
+    val currentIndex: ColumnReference?,
+)
+```
+
+Keep collection cursor/index planning outside domain property columns. Render one zipped array join so the raw element and ordinal cannot drift. Carry inherited pointer segments through nested object and collection planning. Add recovery names to metadata collision validation. Replace `simpleJSONExtractRaw` with scoped `JSONExtractRaw`; do not claim the convenience value is lexical-authoritative.
+
+- [ ] **Step 4: Run focused and real ClickHouse verification**
+
+```bash
+./gradlew :wow-bi:test --tests '*StateExpansionPlannerTest' --tests '*ClickHouseScriptRendererTest'
+./gradlew :wow-bi:integrationTest --tests '*ClickHouseExpansionIntegrationTest'
+./gradlew :wow-bi:detekt
+```
+
+Expected: PASS with exact state/path/index assertions and no `simpleJSONExtractRaw` production hit.
+
+- [ ] **Step 5: Synchronize current documentation**
+
+Document `__state` authority, scoped raw convenience, RFC 6901 `__path`, zero-based `__index`, and the consumer source-slice requirement in both BI guides. Remove every claim that a property raw column preserves arbitrary-precision lexical JSON.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add wow-bi documentation docs/superpowers/specs/2026-07-10-wow-bi-clean-architecture-design.md
+git commit -m "fix(bi): add authoritative state recovery coordinates"
+```
+
+---
+
+## Task 6: Final Verification And Review
 
 **Files:**
 - Modify only files required by verified review findings.
