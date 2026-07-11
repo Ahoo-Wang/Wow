@@ -39,6 +39,9 @@ import java.lang.reflect.Modifier
 
 internal object JacksonWireShapeInspector {
     fun matches(type: ResolvedType, expected: JsonTokenShape): Boolean {
+        if (expected.isContainer && !usesDefaultContainerSerializer(type)) {
+            return false
+        }
         if (type.javaType.toBeanDescription().findJsonValueAccessor() != null) {
             return false
         }
@@ -50,6 +53,17 @@ internal object JacksonWireShapeInspector {
                 visitor.shape == JsonTokenShape.STRING && visitor.valueFormat == JsonValueFormat.UUID
             else -> visitor.shape == expected
         }
+    }
+
+    private fun usesDefaultContainerSerializer(type: ResolvedType): Boolean {
+        val beanDescription = type.javaType.toBeanDescription()
+        if (hasExplicitCustomSerialization(beanDescription.classInfo, beanDescription.findProperties())) {
+            return false
+        }
+        val serializer = JsonSerializer._serializationContext().findValueSerializer(type.javaType)
+        val jacksonDatabindSource = UnknownSerializer::class.java.protectionDomain.codeSource?.location
+            ?: return false
+        return serializer.javaClass.protectionDomain.codeSource?.location == jacksonDatabindSource
     }
 
     fun inspect(type: ResolvedType): JsonWireShape {
@@ -222,3 +236,6 @@ internal object JacksonWireShapeInspector {
 
     private const val KOTLIN_MODULE_PACKAGE_PREFIX = "tools.jackson.module.kotlin."
 }
+
+private val JsonTokenShape.isContainer: Boolean
+    get() = this == JsonTokenShape.ARRAY || this == JsonTokenShape.MAP

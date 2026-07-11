@@ -31,8 +31,10 @@ import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
 import tools.jackson.core.JsonGenerator
+import tools.jackson.databind.JavaType
 import tools.jackson.databind.SerializationContext
 import tools.jackson.databind.annotation.JsonSerialize
+import tools.jackson.databind.jsonFormatVisitors.JsonFormatVisitorWrapper
 import tools.jackson.databind.ser.std.StdSerializer
 
 class StateExpansionPlannerTest {
@@ -425,6 +427,21 @@ class StateExpansionPlannerTest {
     }
 
     @Test
+    fun `should not trust custom container visitor content claims`() {
+        val plan = StateExpansionPlanner().plan(platformCollectionAggregateMetadata)
+        val root = plan.views.single()
+
+        root.column("z_misleading_list").run {
+            type.assert().isEqualTo(ClickHouseType.String)
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw(input("state"), "zMisleadingList"))
+        }
+        root.column("z_misleading_map").run {
+            type.assert().isEqualTo(ClickHouseType.String)
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw(input("state"), "zMisleadingMap"))
+        }
+    }
+
+    @Test
     fun `should prioritize depth cutoff and retain whole unsupported collections`() {
         val plan = StateExpansionPlanner(BiScriptOptions(maxExpansionDepth = 1))
             .plan(truncatedUnsupportedCollectionAggregateMetadata)
@@ -634,6 +651,8 @@ private class PlatformCollectionState(override val id: String) : Identifier {
     val rawValues: List<*> = emptyList<Any>()
     val zCustomList: CustomSerializedStringList = CustomSerializedStringList()
     val zCustomMap: CustomSerializedStringMap = CustomSerializedStringMap()
+    val zMisleadingList: MisleadingIntegerList = MisleadingIntegerList()
+    val zMisleadingMap: MisleadingIntegerMap = MisleadingIntegerMap()
 }
 
 @JsonSerialize(using = CustomSerializedStringListSerializer::class)
@@ -661,6 +680,46 @@ private class CustomSerializedStringMapSerializer :
         provider: SerializationContext,
     ) {
         generator.writeString(value.entries.joinToString())
+    }
+}
+
+@JsonSerialize(using = MisleadingIntegerListSerializer::class)
+private class MisleadingIntegerList : ArrayList<Int>()
+
+private class MisleadingIntegerListSerializer :
+    StdSerializer<MisleadingIntegerList>(MisleadingIntegerList::class.java) {
+    override fun serialize(
+        value: MisleadingIntegerList,
+        generator: JsonGenerator,
+        provider: SerializationContext,
+    ) {
+        generator.writeStartArray()
+        value.forEach { generator.writeString(it.toString()) }
+        generator.writeEndArray()
+    }
+
+    override fun acceptJsonFormatVisitor(visitor: JsonFormatVisitorWrapper, typeHint: JavaType) {
+        visitor.expectArrayFormat(typeHint)
+    }
+}
+
+@JsonSerialize(using = MisleadingIntegerMapSerializer::class)
+private class MisleadingIntegerMap : HashMap<String, Int>()
+
+private class MisleadingIntegerMapSerializer :
+    StdSerializer<MisleadingIntegerMap>(MisleadingIntegerMap::class.java) {
+    override fun serialize(
+        value: MisleadingIntegerMap,
+        generator: JsonGenerator,
+        provider: SerializationContext,
+    ) {
+        generator.writeStartObject()
+        value.forEach { (key, item) -> generator.writeStringProperty(key, item.toString()) }
+        generator.writeEndObject()
+    }
+
+    override fun acceptJsonFormatVisitor(visitor: JsonFormatVisitorWrapper, typeHint: JavaType) {
+        visitor.expectMapFormat(typeHint)
     }
 }
 
