@@ -120,7 +120,10 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
                 )
                 add(
                     """
-                CREATE MATERIALIZED VIEW IF NOT EXISTS ${qualified(options.consumerDatabase, consumerTable)}${scopeClause()}
+                CREATE MATERIALIZED VIEW IF NOT EXISTS ${qualified(
+                        options.consumerDatabase,
+                        consumerTable
+                    )}${scopeClause()}
                 TO ${qualified(options.database, table)}
                 AS
                 SELECT ${jsonString("data", "id")} AS ${identifier("id")},
