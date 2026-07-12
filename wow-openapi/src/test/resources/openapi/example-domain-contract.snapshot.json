@@ -1702,11 +1702,11 @@
 }, {
   "accept" : [ "application/sql" ],
   "id" : "wow.bi_script.generate",
-  "method" : "GET",
+  "method" : "POST",
   "parameterNames" : [ ],
   "path" : "/wow/bi/script",
-  "requestBody" : false,
-  "responseCodes" : [ "200" ],
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400" ],
   "tagNames" : [ "wow" ]
 }, {
   "accept" : [ "application/json" ],

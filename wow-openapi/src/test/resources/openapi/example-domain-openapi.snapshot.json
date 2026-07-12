@@ -3602,6 +3602,75 @@
           }
         },
         "required" : [ "afterId", "size" ]
+      },
+      "wow.openapi.BiScriptClusterRequest" : {
+        "properties" : {
+          "installation" : {
+            "anyOf" : [ { }, { } ]
+          },
+          "name" : {
+            "anyOf" : [ { }, { } ]
+          },
+          "replica" : {
+            "anyOf" : [ { }, { } ]
+          },
+          "shard" : {
+            "anyOf" : [ { }, { } ]
+          }
+        }
+      },
+      "wow.openapi.BiScriptRequest" : {
+        "properties" : {
+          "consumerDatabase" : {
+            "anyOf" : [ { }, { } ]
+          },
+          "database" : {
+            "anyOf" : [ { }, { } ]
+          },
+          "kafkaBootstrapServers" : {
+            "anyOf" : [ { }, { } ]
+          },
+          "maxExpansionDepth" : {
+            "anyOf" : [ { }, {
+              "format" : "int32"
+            } ]
+          },
+          "timezone" : {
+            "anyOf" : [ { }, { } ]
+          },
+          "topicPrefix" : {
+            "anyOf" : [ { }, { } ]
+          },
+          "topology" : {
+            "anyOf" : [ { }, {
+              "$ref" : "#/components/schemas/wow.openapi.BiScriptTopologyRequest"
+            } ]
+          },
+          "unsupportedTypeStrategy" : {
+            "anyOf" : [ { }, {
+              "$ref" : "#/components/schemas/wow.openapi.BiScriptUnsupportedTypeStrategy"
+            } ]
+          }
+        }
+      },
+      "wow.openapi.BiScriptTopologyMode" : {
+        "enum" : [ "CLUSTER", "STANDALONE" ]
+      },
+      "wow.openapi.BiScriptTopologyRequest" : {
+        "properties" : {
+          "cluster" : {
+            "anyOf" : [ { }, {
+              "$ref" : "#/components/schemas/wow.openapi.BiScriptClusterRequest"
+            } ]
+          },
+          "mode" : {
+            "$ref" : "#/components/schemas/wow.openapi.BiScriptTopologyMode"
+          }
+        },
+        "required" : [ "mode" ]
+      },
+      "wow.openapi.BiScriptUnsupportedTypeStrategy" : {
+        "enum" : [ "FAIL", "RAW_JSON" ]
       }
     }
   },
@@ -10460,9 +10529,19 @@
       }
     },
     "/wow/bi/script" : {
-      "get" : {
+      "post" : {
         "operationId" : "wow.bi_script.generate",
         "parameters" : [ ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/wow.openapi.BiScriptRequest"
+              }
+            }
+          },
+          "required" : true
+        },
         "responses" : {
           "200" : {
             "content" : {
@@ -10472,6 +10551,9 @@
                 }
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
           }
         },
         "tags" : [ "wow" ]
