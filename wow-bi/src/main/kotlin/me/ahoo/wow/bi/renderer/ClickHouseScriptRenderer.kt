@@ -47,13 +47,15 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
         val commandTable = naming.toTableName(namedAggregate, COMMAND_SUFFIX)
         val stateTable = naming.toTableName(namedAggregate, STATE_SUFFIX)
         val stateLastTable = naming.toTableName(namedAggregate, STATE_LAST_SUFFIX)
+        val stateDropTableNames = topology.dropTableNames(stateTable)
         return immutableStatements(
             buildList {
                 topology.dropTableNames(commandTable).forEach { add(drop(options.database, it)) }
                 add(drop(options.consumerDatabase, "${commandTable}_queue"))
                 add(drop(options.consumerDatabase, "${commandTable}_consumer"))
-                topology.dropTableNames(stateTable).forEach { add(drop(options.database, it)) }
+                add(drop(options.database, stateDropTableNames.first()))
                 add(drop(options.database, "${stateTable}_event"))
+                stateDropTableNames.drop(1).forEach { add(drop(options.database, it)) }
                 add(drop(options.consumerDatabase, "${stateTable}_queue"))
                 add(drop(options.consumerDatabase, "${stateTable}_consumer"))
                 topology.dropTableNames(stateLastTable).forEach { add(drop(options.database, it)) }

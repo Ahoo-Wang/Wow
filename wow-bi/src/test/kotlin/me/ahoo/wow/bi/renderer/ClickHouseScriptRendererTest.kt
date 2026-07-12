@@ -168,6 +168,28 @@ class ClickHouseScriptRendererTest {
         command.assert().hasSize(4)
         stateEvent.assert().hasSize(5)
         stateLast.assert().hasSize(3)
+        clear.assert().containsExactly(
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_command\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_command_local\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_aggregate_command_queue\" " +
+                "ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_aggregate_command_consumer\" " +
+                "ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_state\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_state_event\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_state_local\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_aggregate_state_queue\" " +
+                "ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_aggregate_state_consumer\" " +
+                "ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_state_last\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_state_last_local\" " +
+                "ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_aggregate_state_last_consumer\" " +
+                "ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db\".\"root_view\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db\".\"child_view\" ON CLUSTER '{cluster}' SYNC;",
+        )
         listOf(global, clear, command, stateEvent, stateLast).flatten().forEach { statement ->
             statement.lineSequence().none { it.trimStart().startsWith("--") }.assert().isTrue()
             statement.trimEnd().endsWith(';').assert().isTrue()
