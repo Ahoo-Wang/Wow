@@ -62,11 +62,39 @@ val diagnostics: List<BiScriptDiagnostic> = result.diagnostics
 Spring WebFlux 路由使用同一个 `BiScriptOptions`：
 
 ```shell
-curl -X GET 'http://localhost:8080/wow/bi/script' \
-  -H 'accept: application/sql'
+curl -X POST 'http://localhost:8080/wow/bi/script' \
+  -H 'content-type: application/json' \
+  -H 'accept: application/sql' \
+  --data '{}'
 ```
 
-成功响应固定为 `200`、`Content-Type: application/sql`，响应体只包含 `result.script`。每条诊断以 WARN 日志输出，不会混入 SQL。配置项及优先级参见[配置](./configuration#bi-脚本配置)。
+JSON 请求体必填。`{}` 保持服务端 `BiScriptOptions` 不变；非 `null` 请求字段只在本次生成中覆盖对应的服务端选项。例如，选择独立拓扑并覆盖数据库：
+
+```json
+{
+  "database": "analytics",
+  "topology": {
+    "mode": "STANDALONE"
+  }
+}
+```
+
+也可以选择集群拓扑，从服务端基础配置继承省略的集群字段，并覆盖 Kafka 配置：
+
+```json
+{
+  "topology": {
+    "mode": "CLUSTER",
+    "cluster": {
+      "name": "production"
+    }
+  },
+  "kafkaBootstrapServers": "kafka:9092",
+  "topicPrefix": "analytics."
+}
+```
+
+提供 `topology` 时必须提供 `topology.mode`。在 `CLUSTER` 模式下，省略的 `cluster` 字段继承当前集群基础配置；如果服务端基础配置是独立模式，则继承领域集群默认值。`STANDALONE` 拒绝 `cluster` 对象。无效或空请求体返回 `400`；缺少或不支持的 `Content-Type` 返回 `415`。成功响应固定为 `200`、`Content-Type: application/sql`，响应体只包含 `result.script`。旧版 `GET` 方法在该路径上没有路由并返回 `404`。每条诊断以 WARN 日志输出，不会混入 SQL。配置项及优先级参见[配置](./configuration#bi-脚本配置)。
 
 ## 生成的 SQL 契约
 

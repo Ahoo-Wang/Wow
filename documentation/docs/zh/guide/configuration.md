@@ -351,7 +351,7 @@ wow:
 
 ### BI 脚本配置
 
-以下属性用于配置 `GET /wow/bi/script` 返回的 ClickHouse SQL：
+以下属性用于建立 `POST /wow/bi/script` 返回的 ClickHouse SQL 的服务端基础配置：
 
 | 属性 | 类型 | 默认值 | 描述 |
 |------|------|--------|------|
@@ -395,13 +395,51 @@ wow:
 
 `STANDALONE` 直接生成使用 `MergeTree` / `ReplacingMergeTree` 的逻辑表，并拒绝配置 `topology.cluster`。`CLUSTER` 生成复制的 `_local` 表及其 `Distributed` 逻辑表；未配置的集群字段使用上表默认值。
 
-Kafka 与 topic 配置按以下优先级解析：
+完整优先级从低到高为：
 
-1. 显式 `wow.bi.script.kafka-bootstrap-servers` / `wow.bi.script.topic-prefix`，即使其值等于默认值；
-2. 对应的 `wow.kafka.bootstrap-servers` / `wow.kafka.topic-prefix`，多个 broker 以逗号连接；
-3. `BiScriptOptions` 领域默认值 `localhost:9093` / `wow.`。
+1. `BiScriptOptions` 领域默认值；
+2. Kafka 的 bootstrap servers 与 topic prefix 配置；
+3. `wow.bi.script.*` 应用配置；
+4. 非 `null` 的 `POST` 请求字段。
 
-其他可空绑定属性未配置时直接回退到 `BiScriptOptions` 默认值。Starter 在构造领域选项时统一执行校验：必填字符串为空白或包含控制字符、`max-expansion-depth < 1`，以及在 `STANDALONE` 模式提供集群字段都会使应用启动失败。
+因此，显式 `wow.bi.script.kafka-bootstrap-servers` / `wow.bi.script.topic-prefix` 会覆盖对应的 `wow.kafka.bootstrap-servers` / `wow.kafka.topic-prefix`，即使其值等于默认值；继承多个 Kafka broker 时以逗号连接。其他未配置的应用绑定属性直接回退到 `BiScriptOptions` 领域默认值。Starter 在构造服务端基础选项时统一执行校验：必填字符串为空白或包含控制字符、`max-expansion-depth < 1`，以及在 `STANDALONE` 模式提供集群字段都会使应用启动失败。
+
+端点要求 `Content-Type: application/json` 和 JSON 请求体。使用 `{}` 可在不提供请求覆盖值的情况下按服务端基础配置生成 SQL：
+
+```bash
+curl -X POST 'http://localhost:8080/wow/bi/script' \
+  -H 'content-type: application/json' \
+  -H 'accept: application/sql' \
+  --data '{}'
+```
+
+非 `null` 请求字段会在本次生成中同时覆盖普通选项和从 Kafka 继承的选项。独立模式请求还可以覆盖数据库：
+
+```json
+{
+  "database": "analytics",
+  "topology": {
+    "mode": "STANDALONE"
+  }
+}
+```
+
+集群模式请求可以只提供部分集群字段。省略的集群字段继承当前集群服务端基础配置；如果服务端基础配置是独立模式，则继承 `BiScriptOptions` 的集群默认值：
+
+```json
+{
+  "topology": {
+    "mode": "CLUSTER",
+    "cluster": {
+      "name": "production"
+    }
+  },
+  "kafkaBootstrapServers": "kafka:9092",
+  "topicPrefix": "analytics."
+}
+```
+
+提供 `topology` 时必须提供 `topology.mode`。`STANDALONE` 拒绝 `cluster` 对象。无效 JSON、空请求体、无效选项值或无效拓扑组合返回 `400`；缺少或不支持的请求 `Content-Type` 返回 `415`。成功响应仅包含 SQL：`200 application/sql`。旧版 `GET` 方法在该路径上没有路由并返回 `404`。
 
 结构化结果诊断、当前展开语义与无损映射参见[商业智能](./bi)。
 

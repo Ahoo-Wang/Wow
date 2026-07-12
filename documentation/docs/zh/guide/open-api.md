@@ -165,19 +165,45 @@ curl -X 'GET' \
 
 ### 生成 BI 同步脚本
 
-`GET /wow/bi/script` 生成当前本地聚合的 ClickHouse 同步与展开 SQL。成功响应契约固定为：
+`POST /wow/bi/script` 生成当前本地聚合的 ClickHouse 同步与展开 SQL，并要求提供 `application/json` 请求体。OpenAPI schema 列出全部请求字段：`database`、`consumerDatabase`、`topology`、`timezone`、`kafkaBootstrapServers`、`topicPrefix`、`maxExpansionDepth` 和 `unsupportedTypeStrategy`；嵌套拓扑字段为 `mode` 与 `cluster`，嵌套集群字段为 `name`、`installation`、`shard` 和 `replica`。schema 同时列出枚举值 `CLUSTER` / `STANDALONE` 与 `FAIL` / `RAW_JSON`。
 
 | 状态 | `Content-Type` | 响应体 |
 |------|----------------|--------|
 | `200` | `application/sql` | 仅 SQL 文本 |
+| `400` | 错误响应 | 空或无效 JSON 请求体、无效选项值或无效拓扑组合 |
+| `415` | 错误响应 | 缺少或不支持的请求 `Content-Type` |
 
-生成诊断逐条写入 WARN 日志，绝不会混入响应体。
+`{}` 保持服务端选项不变；非 `null` 请求字段只在本次生成中覆盖对应的服务端选项。提供 `topology` 时必须提供 `topology.mode`。在 `CLUSTER` 模式下，省略的集群字段继承当前集群服务端基础配置；如果服务端基础配置是独立模式，则继承领域集群默认值。`STANDALONE` 拒绝 `cluster` 对象。旧版 `GET` 方法在该路径上没有路由并返回 `404`。生成诊断逐条写入 WARN 日志，绝不会混入响应体。
 
 ::: code-group
 
-```shell [请求]
-curl -X GET 'http://localhost:8080/wow/bi/script' \
-  -H 'accept: application/sql'
+```shell [空覆盖请求]
+curl -X POST 'http://localhost:8080/wow/bi/script' \
+  -H 'content-type: application/json' \
+  -H 'accept: application/sql' \
+  --data '{}'
+```
+
+```json [独立模式请求]
+{
+  "database": "analytics",
+  "topology": {
+    "mode": "STANDALONE"
+  }
+}
+```
+
+```json [部分集群请求]
+{
+  "topology": {
+    "mode": "CLUSTER",
+    "cluster": {
+      "name": "production"
+    }
+  },
+  "kafkaBootstrapServers": "kafka:9092",
+  "topicPrefix": "analytics."
+}
 ```
 
 ```http [代表性响应开头]

@@ -62,11 +62,39 @@ The default `unsupportedTypeStrategy` is `RAW_JSON`. With `FAIL`, an unsupported
 The Spring WebFlux route uses the same `BiScriptOptions`:
 
 ```shell
-curl -X GET 'http://localhost:8080/wow/bi/script' \
-  -H 'accept: application/sql'
+curl -X POST 'http://localhost:8080/wow/bi/script' \
+  -H 'content-type: application/json' \
+  -H 'accept: application/sql' \
+  --data '{}'
 ```
 
-A successful response is always `200` with `Content-Type: application/sql`, and its body contains only `result.script`. Each diagnostic is emitted as a WARN log and is never mixed into the SQL. See [Configuration](./configuration#bi-script-configuration) for properties and precedence.
+The JSON body is required. `{}` uses the server-side `BiScriptOptions` unchanged. Non-null request fields override the corresponding server options for this generation only. For example, select Standalone topology and override the database with:
+
+```json
+{
+  "database": "analytics",
+  "topology": {
+    "mode": "STANDALONE"
+  }
+}
+```
+
+Or select Cluster topology, inherit omitted cluster fields from the server base, and override Kafka settings with:
+
+```json
+{
+  "topology": {
+    "mode": "CLUSTER",
+    "cluster": {
+      "name": "production"
+    }
+  },
+  "kafkaBootstrapServers": "kafka:9092",
+  "topicPrefix": "analytics."
+}
+```
+
+When `topology` is present, `topology.mode` is mandatory. In `CLUSTER` mode, omitted `cluster` fields inherit the current Cluster base, or the domain Cluster defaults when the server base is Standalone. `STANDALONE` rejects a `cluster` object. An invalid or empty body returns `400`; a missing or unsupported `Content-Type` returns `415`. A successful response is always `200` with `Content-Type: application/sql`, and its body contains only `result.script`. The legacy `GET` method has no route for this path and returns `404`. Each diagnostic is emitted as a WARN log and is never mixed into the SQL. See [Configuration](./configuration#bi-script-configuration) for properties and precedence.
 
 ## Generated SQL Contract
 

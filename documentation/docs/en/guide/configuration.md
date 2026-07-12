@@ -352,7 +352,7 @@ wow:
 
 ### BI Script Configuration
 
-These properties configure the ClickHouse SQL returned by `GET /wow/bi/script`:
+These properties establish the server-side base for the ClickHouse SQL returned by `POST /wow/bi/script`:
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
@@ -396,13 +396,51 @@ wow:
 
 `STANDALONE` generates logical tables with `MergeTree` / `ReplacingMergeTree` directly. It rejects `topology.cluster`. `CLUSTER` generates replicated `_local` tables plus `Distributed` logical tables; omitted cluster fields use the defaults shown above.
 
-Kafka and topic settings use this precedence:
+The complete precedence, from lowest to highest, is:
 
-1. Explicit `wow.bi.script.kafka-bootstrap-servers` / `wow.bi.script.topic-prefix`, even when the value equals the default;
-2. The corresponding `wow.kafka.bootstrap-servers` / `wow.kafka.topic-prefix`, with multiple brokers joined by commas;
-3. The `BiScriptOptions` domain defaults `localhost:9093` / `wow.`.
+1. `BiScriptOptions` domain defaults;
+2. Kafka properties for bootstrap servers and topic prefix;
+3. `wow.bi.script.*` application properties;
+4. Non-null `POST` request fields.
 
-Every other nullable binding falls back directly to its `BiScriptOptions` default when absent. The Starter performs validation when constructing the domain options: blank required strings, control characters, `max-expansion-depth < 1`, and cluster fields supplied in `STANDALONE` mode all fail application startup.
+Thus, explicit `wow.bi.script.kafka-bootstrap-servers` / `wow.bi.script.topic-prefix` values override the corresponding `wow.kafka.bootstrap-servers` / `wow.kafka.topic-prefix` values, even when equal to their defaults. Multiple inherited Kafka brokers are joined with commas. Every other absent application binding falls back directly to its `BiScriptOptions` domain default. The Starter validates the server base while constructing the domain options: blank required strings, control characters, `max-expansion-depth < 1`, and cluster fields supplied in `STANDALONE` mode all fail application startup.
+
+The endpoint requires `Content-Type: application/json` and a JSON body. Use `{}` to generate SQL from the server base without request overrides:
+
+```bash
+curl -X POST 'http://localhost:8080/wow/bi/script' \
+  -H 'content-type: application/json' \
+  -H 'accept: application/sql' \
+  --data '{}'
+```
+
+Non-null request fields override both ordinary options and Kafka-derived options for this generation. A Standalone request can also override the database:
+
+```json
+{
+  "database": "analytics",
+  "topology": {
+    "mode": "STANDALONE"
+  }
+}
+```
+
+A Cluster request may provide only selected cluster fields. Omitted cluster fields inherit the current Cluster server base, or the `BiScriptOptions` Cluster defaults when the server base is Standalone:
+
+```json
+{
+  "topology": {
+    "mode": "CLUSTER",
+    "cluster": {
+      "name": "production"
+    }
+  },
+  "kafkaBootstrapServers": "kafka:9092",
+  "topicPrefix": "analytics."
+}
+```
+
+When `topology` is present, `topology.mode` is mandatory. `STANDALONE` rejects a `cluster` object. Invalid JSON, an empty body, invalid option values, or invalid topology combinations return `400`. A missing or unsupported request `Content-Type` returns `415`. Success is SQL-only: `200 application/sql`. The legacy `GET` method has no route for this path and returns `404`.
 
 See [Business Intelligence](./bi) for structured result diagnostics, current expansion semantics, and lossless mappings.
 
