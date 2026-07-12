@@ -502,6 +502,7 @@ internal class WebFluxAutoConfigurationTest {
                 .bodyValue("{}")
                 .exchange()
                 .expectStatus().isEqualTo(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                .expectHeader().valueEquals("Wow-Error-Code", "UnsupportedMediaType")
         }
     }
 

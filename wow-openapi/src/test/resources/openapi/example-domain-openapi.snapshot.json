@@ -692,6 +692,20 @@
             "$ref" : "#/components/headers/wow.Wow-Error-Code"
           }
         }
+      },
+      "wow.UnsupportedMediaType" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.DefaultErrorInfo"
+            }
+          }
+        },
+        "headers" : {
+          "Wow-Error-Code" : {
+            "$ref" : "#/components/headers/wow.Wow-Error-Code"
+          }
+        }
       }
     },
     "schemas" : {
@@ -11932,6 +11946,9 @@
           },
           "400" : {
             "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/wow.UnsupportedMediaType"
           }
         },
         "tags" : [ "wow" ]

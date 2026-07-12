@@ -25,6 +25,7 @@ object Https {
         const val REQUEST_TIMEOUT = "408"
         const val CONFLICT = "409"
         const val GONE = "410"
+        const val UNSUPPORTED_MEDIA_TYPE = "415"
         const val TOO_MANY_REQUESTS = "429"
     }
 

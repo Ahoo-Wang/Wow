@@ -17,10 +17,12 @@ import me.ahoo.wow.api.Wow
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import me.ahoo.wow.openapi.CommonComponent.Header.errorCodeHeader
+import me.ahoo.wow.openapi.CommonComponent.Response.UNSUPPORTED_MEDIA_TYPE_ERROR_CODE
 import me.ahoo.wow.openapi.CommonComponent.Response.badRequestResponse
 import me.ahoo.wow.openapi.CommonComponent.Response.notFoundResponse
 import me.ahoo.wow.openapi.CommonComponent.Response.requestTimeoutResponse
 import me.ahoo.wow.openapi.CommonComponent.Response.tooManyRequestsResponse
+import me.ahoo.wow.openapi.CommonComponent.Response.unsupportedMediaTypeResponse
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpHeader
@@ -52,6 +54,14 @@ internal fun OpenAPIComponentContext.requestTimeoutResponseRef(): HttpResponse {
     return HttpResponse(
         statusCode = Https.Code.REQUEST_TIMEOUT,
         componentRef = "${Wow.WOW_PREFIX}${ErrorCodes.REQUEST_TIMEOUT}"
+    )
+}
+
+internal fun OpenAPIComponentContext.unsupportedMediaTypeResponseRef(): HttpResponse {
+    unsupportedMediaTypeResponse()
+    return HttpResponse(
+        statusCode = Https.Code.UNSUPPORTED_MEDIA_TYPE,
+        componentRef = "${Wow.WOW_PREFIX}$UNSUPPORTED_MEDIA_TYPE_ERROR_CODE"
     )
 }
 

@@ -27,6 +27,7 @@ import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpSchema
 import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
 import me.ahoo.wow.openapi.contributor.badRequestResponseRef
+import me.ahoo.wow.openapi.contributor.unsupportedMediaTypeResponseRef
 
 object GenerateBIScriptRouteContributor : RouteContributor {
     override val id: String = "global.bi-script"
@@ -61,7 +62,8 @@ object GenerateBIScriptRouteContributor : RouteContributor {
                         description = "The generated BI synchronization script.",
                         content = listOf(HttpContent(Https.MediaType.APPLICATION_SQL, HttpSchema.String))
                     ),
-                    componentContext.badRequestResponseRef()
+                    componentContext.badRequestResponseRef(),
+                    componentContext.unsupportedMediaTypeResponseRef()
                 ),
                 tags = wowTags()
             )

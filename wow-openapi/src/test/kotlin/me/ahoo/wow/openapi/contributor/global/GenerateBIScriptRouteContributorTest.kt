@@ -14,7 +14,9 @@
 package me.ahoo.wow.openapi.contributor.global
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.Wow
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
+import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
@@ -46,9 +48,17 @@ internal class GenerateBIScriptRouteContributorTest {
             )
         }
         contract.responses.map { it.statusCode }.assert()
-            .containsExactly(Https.Code.OK, Https.Code.BAD_REQUEST)
+            .containsExactly(Https.Code.OK, Https.Code.BAD_REQUEST, Https.Code.UNSUPPORTED_MEDIA_TYPE)
         contract.responses.first().content.assert().containsExactly(
             HttpContent(Https.MediaType.APPLICATION_SQL, HttpSchema.String)
         )
+        contract.responses.last().componentRef.assert()
+            .isEqualTo("${Wow.WOW_PREFIX}${CommonComponent.Response.UNSUPPORTED_MEDIA_TYPE_ERROR_CODE}")
+
+        val unsupportedMediaTypeResponse = componentContext.responses[
+            "${Wow.WOW_PREFIX}${CommonComponent.Response.UNSUPPORTED_MEDIA_TYPE_ERROR_CODE}"
+        ]!!
+        unsupportedMediaTypeResponse.headers.assert().containsKey(CommonComponent.Header.ERROR_CODE)
+        unsupportedMediaTypeResponse.content.assert().containsKey(Https.MediaType.APPLICATION_JSON)
     }
 }
