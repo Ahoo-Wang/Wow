@@ -126,7 +126,7 @@ data class BiScriptRequest(
 )
 
 data class BiScriptTopologyRequest(
-    val mode: BiScriptTopologyMode? = null,
+    val mode: BiScriptTopologyMode,
     val cluster: BiScriptClusterRequest? = null,
 )
 
@@ -290,13 +290,6 @@ fun `should use cluster defaults when switching from standalone`() {
 }
 
 @Test
-fun `should require topology mode`() {
-    runCatching {
-        BiScriptRequest(topology = BiScriptTopologyRequest()).toBiScriptOptions(BASE_OPTIONS)
-    }.exceptionOrNull()!!.message.assert().isEqualTo("topology.mode must be configured")
-}
-
-@Test
 fun `should reject cluster details in standalone mode`() {
     runCatching {
         BiScriptRequest(
@@ -341,7 +334,7 @@ internal fun BiScriptRequest.toBiScriptOptions(base: BiScriptOptions): BiScriptO
     )
 
 private fun BiScriptTopologyRequest.toTopology(base: ClickHouseTopology): ClickHouseTopology {
-    return when (requireNotNull(mode) { "topology.mode must be configured" }) {
+    return when (mode) {
         BiScriptTopologyMode.CLUSTER -> {
             val baseCluster = base as? ClickHouseTopology.Cluster ?: ClickHouseTopology.Cluster()
             ClickHouseTopology.Cluster(
