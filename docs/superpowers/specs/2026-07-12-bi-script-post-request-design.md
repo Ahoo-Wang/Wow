@@ -168,7 +168,7 @@ The old GET route is removed and no compatibility route is registered.
 | `STANDALONE` with a cluster object | `400` |
 | Domain-invalid option values | `400` |
 | Unsupported request media type | `415` |
-| `GET /wow/bi/script` | `405` when the path is served by the POST route |
+| `GET /wow/bi/script` | `404` because no GET route is registered |
 
 Error responses use the existing WebFlux global error handling. The route does
 not catch and translate domain validation errors locally because that would
@@ -205,7 +205,7 @@ Implementation follows RED, GREEN, and REFACTOR cycles.
 ### Starter Route Integration Tests
 
 - `POST /wow/bi/script` is registered and generates SQL.
-- `GET /wow/bi/script` returns `405`.
+- `GET /wow/bi/script` returns `404` without a hidden compatibility route.
 - An empty object uses application and Kafka-derived base options.
 - Request values override application and Kafka-derived base options.
 - Missing, malformed, and invalid bodies return `400`.
