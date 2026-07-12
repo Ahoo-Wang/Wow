@@ -15,6 +15,7 @@ package me.ahoo.wow.bi.renderer
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.bi.BiScriptOptions
+import me.ahoo.wow.bi.ClickHouseTopology
 import me.ahoo.wow.bi.expansion.plan.CollectionCursorPlan
 import me.ahoo.wow.bi.expansion.plan.ColumnExtraction
 import me.ahoo.wow.bi.expansion.plan.ColumnPlacement
@@ -30,6 +31,58 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
 class ClickHouseScriptRendererTest {
+    @Test
+    fun `should render a true standalone statement graph`() {
+        val aggregate = MetadataSearcher.localAggregates.single { it.aggregateName == "aggregate" }
+        val renderer = ClickHouseScriptRenderer(
+            BiScriptOptions(topology = ClickHouseTopology.Standalone)
+        )
+        val expansionPlan = StateExpansionPlan(
+            views = listOf(
+                ExpansionViewPlan(
+                    targetTableName = "bi_aggregate_state_last_root",
+                    sourceTableName = "bi_aggregate_state_last",
+                    columns = emptyList(),
+                    recovery = rootRecovery(),
+                )
+            ),
+            diagnostics = emptyList(),
+        )
+
+        val command = renderer.renderCommandStatements(aggregate)
+        val stateEvent = renderer.renderStateEventStatements(aggregate)
+        val stateLast = renderer.renderStateLastStatements(aggregate)
+        val expansion = renderer.renderExpansionStatements(expansionPlan)
+        val sql = (renderer.renderGlobalStatements() + command + stateEvent + stateLast + expansion)
+            .joinToString("\n")
+
+        command.assert().hasSize(3)
+        stateEvent.assert().hasSize(4)
+        stateLast.assert().hasSize(2)
+        sql.assert().doesNotContain("ON CLUSTER", "Replicated", "Distributed", "_local", "/clickhouse/")
+        sql.assert().contains("ENGINE = MergeTree", "ENGINE = ReplacingMergeTree")
+        command.last().assert().contains("TO \"bi_db\".\"bi_aggregate_command\"")
+        stateEvent[2].assert().contains("TO \"bi_db\".\"bi_aggregate_state\"")
+        stateEvent.last().assert().contains("FROM \"bi_db\".\"bi_aggregate_state\"")
+        stateLast.last().assert()
+            .contains("TO \"bi_db\".\"bi_aggregate_state_last\"")
+            .contains("FROM \"bi_db\".\"bi_aggregate_state\"")
+        expansion.single().assert().contains("FROM \"bi_db\".\"bi_aggregate_state_last\"")
+
+        val clear = renderer.renderClearStatements(
+            aggregate,
+            listOf("bi_aggregate_state_last_root", "bi_aggregate_state_last_items"),
+        )
+        clear.assert().hasSize(11)
+        clear.take(9).joinToString("\n").assert().doesNotContain("_local")
+        clear.takeLast(2).map { statement ->
+            statement.substringAfterLast(".\"").substringBefore('"')
+        }.assert().containsExactly(
+            "bi_aggregate_state_last_root",
+            "bi_aggregate_state_last_items",
+        )
+    }
+
     @Test
     @Suppress("LongMethod")
     fun `should render authoritative state and indexed RFC 6901 recovery coordinates`() {
@@ -115,6 +168,28 @@ class ClickHouseScriptRendererTest {
         command.assert().hasSize(4)
         stateEvent.assert().hasSize(5)
         stateLast.assert().hasSize(3)
+        clear.assert().containsExactly(
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_command\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_command_local\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_aggregate_command_queue\" " +
+                "ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_aggregate_command_consumer\" " +
+                "ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_state\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_state_event\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_state_local\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_aggregate_state_queue\" " +
+                "ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_aggregate_state_consumer\" " +
+                "ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_state_last\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_state_last_local\" " +
+                "ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_aggregate_state_last_consumer\" " +
+                "ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db\".\"root_view\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db\".\"child_view\" ON CLUSTER '{cluster}' SYNC;",
+        )
         listOf(global, clear, command, stateEvent, stateLast).flatten().forEach { statement ->
             statement.lineSequence().none { it.trimStart().startsWith("--") }.assert().isTrue()
             statement.trimEnd().endsWith(';').assert().isTrue()
@@ -220,7 +295,10 @@ class ClickHouseScriptRendererTest {
         )
 
         val script = ClickHouseScriptRenderer(
-            BiScriptOptions(database = "bi\"db", cluster = "cluster'name")
+            BiScriptOptions(
+                database = "bi\"db",
+                topology = ClickHouseTopology.Cluster(name = "cluster'name"),
+            )
         ).renderExpansion(plan)
 
         script.assert().contains(

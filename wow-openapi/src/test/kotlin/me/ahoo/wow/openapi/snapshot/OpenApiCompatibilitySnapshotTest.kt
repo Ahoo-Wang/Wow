@@ -29,7 +29,7 @@ import org.junit.jupiter.api.assertThrows
 import java.nio.file.Files
 
 internal class OpenApiCompatibilitySnapshotTest {
-    private val mapper = ObjectMapperFactory.createJson()
+    private val mapper = ObjectMapperFactory.createJson31()
     private val currentContext = MaterializedNamedBoundedContext("example-service")
 
     @Test
@@ -41,6 +41,57 @@ internal class OpenApiCompatibilitySnapshotTest {
             openAPI = openAPI,
             snapshotPath = resourcePath("openapi/example-domain-openapi.snapshot.json")
         )
+    }
+
+    @Test
+    fun `generated BI script request schema should retain its OpenAPI 3 point 1 types`() {
+        val openAPI = OpenAPI()
+        RouterSpecs(currentContext).build().mergeOpenAPIFromCatalog(openAPI)
+
+        val document = mapper.valueToTree<com.fasterxml.jackson.databind.JsonNode>(openAPI)
+        document.path("openapi").asText().assert().isEqualTo("3.1.0")
+        val schemas = document.path("components").path("schemas")
+        val request = schemas.path("wow.openapi.BiScriptRequest")
+        val topology = schemas.path("wow.openapi.BiScriptTopologyRequest")
+        val cluster = schemas.path("wow.openapi.BiScriptClusterRequest")
+        val topologyMode = schemas.path("wow.openapi.BiScriptTopologyMode")
+        val unsupportedTypeStrategy = schemas.path("wow.openapi.BiScriptUnsupportedTypeStrategy")
+
+        request.path("type").asText().assert().isEqualTo("object")
+        topology.path("type").asText().assert().isEqualTo("object")
+        cluster.path("type").asText().assert().isEqualTo("object")
+
+        listOf(
+            "database",
+            "consumerDatabase",
+            "timezone",
+            "kafkaBootstrapServers",
+            "topicPrefix",
+        ).forEach { propertyName ->
+            val alternatives = request.path("properties").path(propertyName).path("anyOf")
+            alternatives.any { it.path("type").asText() == "string" }.assert().isTrue()
+            alternatives.any { it.path("type").asText() == "null" }.assert().isTrue()
+        }
+
+        val maxExpansionDepth = request.path("properties").path("maxExpansionDepth").path("anyOf")
+        val integerAlternative = maxExpansionDepth.first { it.path("type").asText() == "integer" }
+        integerAlternative.path("format").asText().assert().isEqualTo("int32")
+        maxExpansionDepth.any { it.path("type").asText() == "null" }.assert().isTrue()
+
+        listOf("topology", "unsupportedTypeStrategy").forEach { propertyName ->
+            val alternatives = request.path("properties").path(propertyName).path("anyOf")
+            alternatives.any { it.path("type").asText() == "null" }.assert().isTrue()
+            alternatives.any { it.has("\$ref") }.assert().isTrue()
+        }
+
+        request.path("required").isMissingNode.assert().isTrue()
+        topology.path("required").map { it.asText() }.assert().contains("mode")
+        topologyMode.path("type").asText().assert().isEqualTo("string")
+        topologyMode.path("enum").map { it.asText() }.assert()
+            .containsExactly("CLUSTER", "STANDALONE")
+        unsupportedTypeStrategy.path("type").asText().assert().isEqualTo("string")
+        unsupportedTypeStrategy.path("enum").map { it.asText() }.assert()
+            .containsExactly("FAIL", "RAW_JSON")
     }
 
     @Test

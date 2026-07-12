@@ -10,6 +10,7 @@ dependencies {
     api("io.projectreactor:reactor-core")
     api("io.projectreactor.kotlin:reactor-kotlin-extensions")
     ksp(project(":wow-compiler"))
+    kspTest(project(":wow-compiler"))
     testImplementation(project(":wow-test"))
     testImplementation("io.projectreactor:reactor-test")
 }

@@ -38,16 +38,21 @@ class BiPublicApiTest {
             BiScriptGenerator::class.qualifiedName,
             BiScriptMappingDecision::class.qualifiedName,
             BiScriptOptions::class.qualifiedName,
+            BiScriptOptions.Companion::class.qualifiedName,
             BiScriptResult::class.qualifiedName,
+            ClickHouseTopology::class.qualifiedName,
+            ClickHouseTopology.Cluster::class.qualifiedName,
+            ClickHouseTopology.Cluster.Companion::class.qualifiedName,
+            ClickHouseTopology.Standalone::class.qualifiedName,
             UnsupportedTypeStrategy::class.qualifiedName,
         )
     }
 
     @Test
-    fun `should keep option defaults private`() {
+    fun `should expose option limits and keep defaults private`() {
         val companion = requireNotNull(BiScriptOptions::class.companionObject)
 
-        companion.visibility.assert().isEqualTo(KVisibility.PRIVATE)
+        companion.visibility.assert().isEqualTo(KVisibility.PUBLIC)
         companion.declaredMemberProperties
             .associate { it.name to it.visibility }
             .assert()
@@ -55,6 +60,11 @@ class BiPublicApiTest {
                 mapOf(
                     "DEFAULT_KAFKA_BOOTSTRAP_SERVERS" to KVisibility.PRIVATE,
                     "DEFAULT_TOPIC_PREFIX" to KVisibility.PRIVATE,
+                    "MAX_CONSUMER_DATABASE_LENGTH" to KVisibility.PUBLIC,
+                    "MAX_DATABASE_LENGTH" to KVisibility.PUBLIC,
+                    "MAX_KAFKA_BOOTSTRAP_SERVERS_LENGTH" to KVisibility.PUBLIC,
+                    "MAX_TIMEZONE_LENGTH" to KVisibility.PUBLIC,
+                    "MAX_TOPIC_PREFIX_LENGTH" to KVisibility.PUBLIC,
                 )
             )
         listOf("DEFAULT_KAFKA_BOOTSTRAP_SERVERS", "DEFAULT_TOPIC_PREFIX")
@@ -63,6 +73,45 @@ class BiPublicApiTest {
             }
             .assert()
             .isTrue()
+        mapOf(
+            "MAX_DATABASE_LENGTH" to BiScriptOptions.MAX_DATABASE_LENGTH,
+            "MAX_CONSUMER_DATABASE_LENGTH" to BiScriptOptions.MAX_CONSUMER_DATABASE_LENGTH,
+            "MAX_TIMEZONE_LENGTH" to BiScriptOptions.MAX_TIMEZONE_LENGTH,
+            "MAX_KAFKA_BOOTSTRAP_SERVERS_LENGTH" to BiScriptOptions.MAX_KAFKA_BOOTSTRAP_SERVERS_LENGTH,
+            "MAX_TOPIC_PREFIX_LENGTH" to BiScriptOptions.MAX_TOPIC_PREFIX_LENGTH,
+        ).assert().isEqualTo(
+            mapOf(
+                "MAX_DATABASE_LENGTH" to 128,
+                "MAX_CONSUMER_DATABASE_LENGTH" to 128,
+                "MAX_TIMEZONE_LENGTH" to 64,
+                "MAX_KAFKA_BOOTSTRAP_SERVERS_LENGTH" to 4096,
+                "MAX_TOPIC_PREFIX_LENGTH" to 128,
+            )
+        )
+    }
+
+    @Test
+    fun `should expose the cluster value limit`() {
+        val companion = requireNotNull(ClickHouseTopology.Cluster::class.companionObject)
+
+        companion.visibility.assert().isEqualTo(KVisibility.PUBLIC)
+        companion.declaredMemberProperties
+            .associate { it.name to it.visibility }
+            .assert()
+            .isEqualTo(mapOf("MAX_VALUE_LENGTH" to KVisibility.PUBLIC))
+        ClickHouseTopology.Cluster.MAX_VALUE_LENGTH.assert().isEqualTo(128)
+    }
+
+    @Test
+    fun `should not expose validation helpers through JVM file facades`() {
+        listOf(
+            "me.ahoo.wow.bi.BiScriptOptionsKt",
+            "me.ahoo.wow.bi.ClickHouseTopologyKt",
+        ).mapNotNull { className ->
+            runCatching { Class.forName(className, false, javaClass.classLoader) }.getOrNull()
+        }.flatMap { fileFacade ->
+            fileFacade.declaredMethods.filter { Modifier.isPublic(it.modifiers) }
+        }.assert().isEmpty()
     }
 
     private fun productionTypes(): List<KClass<*>> {

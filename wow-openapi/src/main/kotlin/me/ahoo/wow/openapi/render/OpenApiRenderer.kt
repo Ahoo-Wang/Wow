@@ -46,7 +46,9 @@ import me.ahoo.wow.openapi.contract.HttpSchema
 class OpenApiRenderer(private val componentContext: OpenAPIComponentContext? = null) {
 
     fun render(catalog: RouteCatalog, openAPI: OpenAPI): OpenAPI {
-        openAPI.specVersion(SpecVersion.V31)
+        openAPI
+            .openapi(OPENAPI_VERSION_3_1)
+            .specVersion(SpecVersion.V31)
         if (openAPI.paths == null) {
             openAPI.paths = Paths()
         }
@@ -215,6 +217,7 @@ class OpenApiRenderer(private val componentContext: OpenAPIComponentContext? = n
     }
 
     companion object {
+        private const val OPENAPI_VERSION_3_1 = "3.1.0"
         private const val COMPONENTS_SCHEMAS_REF = "#/components/schemas/"
         private const val COMPONENTS_PARAMETERS_REF = "#/components/parameters/"
         private const val COMPONENTS_REQUEST_BODIES_REF = "#/components/requestBodies/"

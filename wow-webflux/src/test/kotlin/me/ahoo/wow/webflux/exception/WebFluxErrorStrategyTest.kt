@@ -40,6 +40,7 @@ import org.springframework.validation.BindException
 import org.springframework.validation.FieldError
 import org.springframework.web.reactive.function.server.RequestPredicates.POST
 import org.springframework.web.reactive.function.server.RouterFunctions.route
+import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -83,6 +84,40 @@ class WebFluxErrorStrategyTest {
         exchange.response.statusCode.assert().isEqualTo(HttpStatus.BAD_REQUEST)
         exchange.response.headers.contentType.assert().isEqualTo(MediaType.APPLICATION_JSON)
         exchange.response.headers.getFirst(ERROR_CODE).assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
+    }
+
+    @Test
+    fun `should preserve error response status in functional server response`() {
+        val request = MockServerRequest.builder()
+            .method(HttpMethod.GET)
+            .uri(URI.create("/missing"))
+            .build()
+
+        DefaultWebFluxErrorStrategy.toServerResponse(
+            request,
+            ResponseStatusException(HttpStatus.NOT_FOUND),
+        )
+            .test()
+            .consumeNextWith {
+                it.statusCode().assert().isEqualTo(HttpStatus.NOT_FOUND)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `should preserve error response status in web exchange`() {
+        val exchange = MockServerWebExchange.from(
+            MockServerHttpRequest.post("/test").build()
+        )
+
+        DefaultWebFluxErrorStrategy.writeToExchange(
+            exchange,
+            ResponseStatusException(HttpStatus.UNSUPPORTED_MEDIA_TYPE),
+        )
+            .test()
+            .verifyComplete()
+
+        exchange.response.statusCode.assert().isEqualTo(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
     }
 
     @Test

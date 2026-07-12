@@ -18,6 +18,8 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.MetadataSearcher
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.nio.file.Files
+import java.nio.file.Path
 
 class BiScriptGeneratorTest {
     private val aggregate = namedAggregate("aggregate")
@@ -41,6 +43,28 @@ class BiScriptGeneratorTest {
             it.code == BiScriptDiagnosticCode.RAW_JSON_FALLBACK &&
                 it.decision == BiScriptMappingDecision.RAW_JSON
         }.assert().isTrue()
+    }
+
+    @Test
+    fun `should match complete scripts for every topology`() {
+        val clusterScript = BiScriptGenerator().generate(setOf(aggregate)).script
+        val standaloneScript = BiScriptGenerator(
+            BiScriptOptions(topology = ClickHouseTopology.Standalone)
+        ).generate(setOf(aggregate)).script
+
+        listOf(clusterScript, standaloneScript).forEach { script ->
+            script.lineSequence().none { line -> line.isNotEmpty() && line.isBlank() }
+                .assert()
+                .isTrue()
+        }
+        assertSnapshot(
+            "expected_bi_cluster_script.sql",
+            clusterScript,
+        )
+        assertSnapshot(
+            "expected_bi_standalone_script.sql",
+            standaloneScript,
+        )
     }
 
     @Test
@@ -95,10 +119,12 @@ class BiScriptGeneratorTest {
             BiScriptOptions(
                 database = "analytics\"db",
                 consumerDatabase = "consumer db",
-                cluster = "cluster'name",
-                installation = "install/name",
-                shard = "shard'name",
-                replica = "replica'name",
+                topology = ClickHouseTopology.Cluster(
+                    name = "cluster'name",
+                    installation = "install/name",
+                    shard = "shard'name",
+                    replica = "replica'name",
+                ),
                 timezone = "UTC",
                 kafkaBootstrapServers = "kafka\\host:9092",
                 topicPrefix = "custom'prefix.",
@@ -172,6 +198,14 @@ class BiScriptGeneratorTest {
 
     private fun namedAggregate(name: String): NamedAggregate =
         MetadataSearcher.localAggregates.single { it.aggregateName == name }
+
+    private fun assertSnapshot(name: String, actual: String) {
+        val path = Path.of("src/test/resources", name)
+        if (System.getenv("UPDATE_BI_SCRIPT_SNAPSHOTS") == "true") {
+            Files.writeString(path, actual)
+        }
+        actual.assert().isEqualTo(Files.readString(path))
+    }
 
     private fun normalizedSql(script: String): String = script.lineSequence()
         .map(String::trimEnd)

@@ -89,6 +89,7 @@ object CommonComponent {
     }
 
     object Response {
+        const val UNSUPPORTED_MEDIA_TYPE_ERROR_CODE = "UnsupportedMediaType"
 
         fun ApiResponseBuilder.withErrorCodeHeader(componentContext: OpenAPIComponentContext): ApiResponseBuilder {
             return header(Header.ERROR_CODE, componentContext.errorCodeHeader())
@@ -112,6 +113,13 @@ object CommonComponent {
             response("${Wow.WOW_PREFIX}${ErrorCodes.REQUEST_TIMEOUT}") {
                 withErrorCodeHeader(this@requestTimeoutResponse)
                 description("Request Timeout")
+                content(schema = errorInfoSchema())
+            }
+
+        fun OpenAPIComponentContext.unsupportedMediaTypeResponse(): io.swagger.v3.oas.models.responses.ApiResponse =
+            response("${Wow.WOW_PREFIX}$UNSUPPORTED_MEDIA_TYPE_ERROR_CODE") {
+                withErrorCodeHeader(this@unsupportedMediaTypeResponse)
+                description("Unsupported Media Type")
                 content(schema = errorInfoSchema())
             }
 

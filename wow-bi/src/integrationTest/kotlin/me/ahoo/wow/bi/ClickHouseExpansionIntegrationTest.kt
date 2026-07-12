@@ -22,7 +22,8 @@ import me.ahoo.wow.bi.renderer.ClickHouseSqlSyntax.stringLiteral
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.naming.NamingConverter
 import me.ahoo.wow.serialization.JsonSerializer
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.TestFactory
 import org.testcontainers.clickhouse.ClickHouseContainer
 import org.testcontainers.utility.DockerImageName
 import org.testcontainers.utility.MountableFile
@@ -32,28 +33,39 @@ import tools.jackson.databind.SerializationContext
 import tools.jackson.databind.annotation.JsonSerialize
 import tools.jackson.databind.jsonFormatVisitors.JsonFormatVisitorWrapper
 import tools.jackson.databind.ser.std.StdSerializer
+import java.math.BigDecimal
 import java.sql.Connection
 import java.sql.DriverManager
-import java.math.BigDecimal
 import java.time.Duration
 import java.time.Instant
 import java.time.Year
 import java.util.Date
 import java.util.UUID
-import kotlin.time.Duration as KotlinDuration
 import kotlin.time.Duration.Companion.nanoseconds
+import kotlin.time.Duration as KotlinDuration
 
 class ClickHouseExpansionIntegrationTest {
-    @Test
+    private data class TopologyCase(
+        val displayName: String,
+        val topology: ClickHouseTopology,
+        val configureContainer: ClickHouseContainer.() -> Unit,
+        val forbiddenObjectSuffixes: Set<String>,
+    )
+
+    @TestFactory
+    fun generatedDdlTopologyTests(): List<DynamicTest> =
+        topologyCases().map { case ->
+            DynamicTest.dynamicTest(case.displayName) {
+                verifyGeneratedDdl(case)
+            }
+        }
+
     @Suppress("LongMethod")
-    fun `should execute complete generated DDL and preserve scalar wire values`() {
+    private fun verifyGeneratedDdl(case: TopologyCase) {
         val options = BiScriptOptions(
             database = DATABASE,
-            consumerDatabase = "bi_it_consumer",
-            cluster = CLUSTER,
-            installation = "test",
-            shard = "01",
-            replica = "01",
+            consumerDatabase = CONSUMER_DATABASE,
+            topology = case.topology,
             timezone = "UTC",
         )
         val namedAggregate = aggregateMetadata<ClickHouseExpansionAggregate, ClickHouseExpansionState>()
@@ -69,7 +81,7 @@ class ClickHouseExpansionIntegrationTest {
                 )
             )
 
-        clickHouse().use { clickHouse ->
+        clickHouse(case).use { clickHouse ->
             clickHouse.start()
             DriverManager.getConnection(
                 clickHouse.jdbcUrl,
@@ -77,8 +89,9 @@ class ClickHouseExpansionIntegrationTest {
                 clickHouse.password,
             ).use { connection ->
                 result.statements.forEach(connection::executeSql)
-                connection.assertGeneratedObjects()
-                connection.insertStateRows()
+                connection.assertGeneratedObjects(case)
+                connection.insertLogicalRows()
+                connection.assertLogicalDataPath()
 
                 val rootProjections = connection.queryRows(
                     sql = rootProjectionSql(ROOT_VIEW),
@@ -119,31 +132,92 @@ class ClickHouseExpansionIntegrationTest {
         }
     }
 
-    private fun clickHouse(): ClickHouseContainer =
-        ClickHouseContainer(DockerImageName.parse(CLICKHOUSE_IMAGE)).apply {
-            withCopyFileToContainer(
-                MountableFile.forClasspathResource(CLUSTER_CONFIG_RESOURCE),
-                CLUSTER_CONFIG_PATH,
-            )
-        }
+    private fun topologyCases(): List<TopologyCase> = listOf(
+        TopologyCase(
+            displayName = "cluster",
+            topology = ClickHouseTopology.Cluster(
+                name = CLUSTER,
+                installation = "test",
+                shard = "01",
+                replica = "01",
+            ),
+            configureContainer = {
+                withCopyFileToContainer(
+                    MountableFile.forClasspathResource(CLUSTER_CONFIG_RESOURCE),
+                    CLUSTER_CONFIG_PATH,
+                )
+            },
+            forbiddenObjectSuffixes = emptySet(),
+        ),
+        TopologyCase(
+            displayName = "standalone",
+            topology = ClickHouseTopology.Standalone,
+            configureContainer = {},
+            forbiddenObjectSuffixes = setOf("_local"),
+        ),
+    )
 
-    private fun Connection.assertGeneratedObjects() {
+    private fun clickHouse(case: TopologyCase): ClickHouseContainer =
+        ClickHouseContainer(DockerImageName.parse(CLICKHOUSE_IMAGE)).apply(case.configureContainer)
+
+    private fun Connection.assertGeneratedObjects(case: TopologyCase) {
         val objects = queryRows(
-            sql =
-                "SELECT database, name FROM system.tables " +
-                    "WHERE database IN (${literal(DATABASE)}, ${literal(CONSUMER_DATABASE)})",
-            columns = listOf("database", "name"),
-        ).groupBy(
+            sql = "SELECT database, name, engine FROM system.tables " +
+                "WHERE database IN (${literal(DATABASE)}, ${literal(CONSUMER_DATABASE)})",
+            columns = listOf("database", "name", "engine"),
+        )
+        objects.groupBy(
             keySelector = { it.required("database") },
             valueTransform = { it.required("name") },
         ).mapValues { (_, names) -> names.toSet() }
+            .assert().isEqualTo(expectedGeneratedObjects(case.topology))
 
-        objects.assert().isEqualTo(EXPECTED_GENERATED_OBJECTS)
+        if (case.topology == ClickHouseTopology.Standalone) {
+            val forbiddenPredicates = (
+                case.forbiddenObjectSuffixes.map { suffix ->
+                    "endsWith(name, ${literal(suffix)})"
+                } + "engine = 'Distributed'"
+                ).joinToString(" OR ")
+            val forbiddenObjects = queryRows(
+                sql = "SELECT database, name, engine FROM system.tables " +
+                    "WHERE database IN (${literal(DATABASE)}, ${literal(CONSUMER_DATABASE)}) " +
+                    "AND ($forbiddenPredicates)",
+                columns = listOf("database", "name", "engine"),
+            )
+            forbiddenObjects.assert().isEmpty()
+        }
     }
 
-    private fun Connection.insertStateRows() {
+    private fun Connection.insertLogicalRows() {
+        executeSql(
+            """
+            INSERT INTO ${qualified(DATABASE, COMMAND_TABLE)}
+            (id, context_name, aggregate_name, name, header, aggregate_id, tenant_id,
+             owner_id, space_id, request_id, aggregate_version, is_create, allow_create,
+             body_type, body, create_time)
+            VALUES ('command-1', 'bi-integration-service', 'nullable', 'Create', map(),
+                    'aggregate-1', '', '', '', 'request-1', 1, true, true,
+                    'example.Create', '{}', toDateTime(0, 'UTC'))
+            """.trimIndent()
+        )
         prepareStatement(
-            "INSERT INTO ${qualified(DATABASE, STATE_LAST_TABLE)} " +
+            "INSERT INTO ${qualified(DATABASE, STATE_TABLE)} " +
+                "(${identifier("id")}, ${identifier("context_name")}, ${identifier("aggregate_name")}, " +
+                "${identifier("header")}, ${identifier("aggregate_id")}, ${identifier("tenant_id")}, " +
+                "${identifier("owner_id")}, ${identifier("space_id")}, ${identifier("command_id")}, " +
+                "${identifier("request_id")}, ${identifier("version")}, ${identifier("state")}, " +
+                "${identifier("body")}, ${identifier("first_operator")}, ${identifier("first_event_time")}, " +
+                "${identifier("create_time")}, ${identifier("tags")}, ${identifier("deleted")}) " +
+                "VALUES ('row-normal', 'bi-integration-service', 'nullable', map(), 'aggregate-1', '', '', '', " +
+                "'command-1', 'request-1', 1, ?, [?], '', " +
+                "toDateTime(0, 'UTC'), toDateTime(0, 'UTC'), map(), false)"
+        ).use { statement ->
+            statement.setString(1, STATE_ROWS.getValue("row-normal"))
+            statement.setString(2, EVENT_BODY)
+            statement.executeUpdate()
+        }
+        prepareStatement(
+            "INSERT INTO ${qualified(DATABASE, STATE_TABLE)} " +
                 "(${identifier("id")}, ${identifier("context_name")}, ${identifier("aggregate_name")}, " +
                 "${identifier("header")}, ${identifier("aggregate_id")}, ${identifier("tenant_id")}, " +
                 "${identifier("owner_id")}, ${identifier("space_id")}, ${identifier("command_id")}, " +
@@ -153,12 +227,42 @@ class ClickHouseExpansionIntegrationTest {
                 "VALUES (?, 'bi-integration-service', 'nullable', map(), ?, '', '', '', '', '', 1, ?, [], '', " +
                 "toDateTime(0, 'UTC'), toDateTime(0, 'UTC'), map(), false)"
         ).use { statement ->
-            STATE_ROWS.forEach { (id, state) ->
+            STATE_ROWS.filterKeys { it != "row-normal" }.forEach { (id, state) ->
                 statement.setString(1, id)
                 statement.setString(2, id)
                 statement.setString(3, state)
                 statement.executeUpdate()
             }
+        }
+    }
+
+    private fun Connection.assertLogicalDataPath() {
+        queryCount(
+            "SELECT count() FROM ${qualified(DATABASE, COMMAND_TABLE)} " +
+                "WHERE ${identifier("aggregate_id")} = 'aggregate-1'"
+        ).assert().isEqualTo(1L)
+        queryCount(
+            "SELECT count() FROM ${qualified(DATABASE, "${STATE_TABLE}_event")} " +
+                "WHERE ${identifier("aggregate_id")} = 'aggregate-1' AND ${identifier("event_id")} = 'event-1'"
+        ).assert().isEqualTo(1L)
+        queryCount(
+            "SELECT count() FROM ${qualified(DATABASE, STATE_LAST_TABLE)} " +
+                "WHERE ${identifier("aggregate_id")} = 'aggregate-1'"
+        ).assert().isEqualTo(1L)
+        queryCount(
+            "SELECT count() FROM ${qualified(DATABASE, ROOT_VIEW)} " +
+                "WHERE ${identifier("__aggregate_id")} = 'aggregate-1'"
+        ).assert().isEqualTo(1L)
+        queryCount(
+            "SELECT count() FROM ${qualified(DATABASE, CHILD_VIEW)} " +
+                "WHERE ${identifier("__aggregate_id")} = 'aggregate-1'"
+        ).assert().isEqualTo(2L)
+    }
+
+    private fun Connection.queryCount(sql: String): Long = createStatement().use { statement ->
+        statement.executeQuery(sql).use { resultSet ->
+            check(resultSet.next()) { "Count query returned no rows: $sql" }
+            resultSet.getLong(1)
         }
     }
 
@@ -285,6 +389,12 @@ class ClickHouseExpansionIntegrationTest {
     private fun qualified(database: String, table: String): String =
         "${identifier(database)}.${identifier(table)}"
 
+    private fun expectedGeneratedObjects(topology: ClickHouseTopology): Map<String, Set<String>> =
+        when (topology) {
+            is ClickHouseTopology.Cluster -> EXPECTED_CLUSTER_OBJECTS
+            ClickHouseTopology.Standalone -> EXPECTED_STANDALONE_OBJECTS
+        }
+
     private companion object {
         const val CLICKHOUSE_IMAGE = "clickhouse/clickhouse-server:24.8.14.39-alpine"
         const val CLUSTER = "test_cluster"
@@ -363,14 +473,14 @@ class ClickHouseExpansionIntegrationTest {
 
         val HIGH_PRECISION_DECIMAL = BigDecimal("123456789012345678901234567890.12345678901234567890")
         val NEGATIVE_DATE = Date(-1)
-        val NEGATIVE_YEAR = Year.of(-1)
-        val NANO_DURATION = Duration.ofSeconds(1, 123456789)
-        val NANO_INSTANT = Instant.ofEpochSecond(1, 123456789)
+        val NEGATIVE_YEAR: Year = Year.of(-1)
+        val NANO_DURATION: Duration = Duration.ofSeconds(1, 123456789)
+        val NANO_INSTANT: Instant = Instant.ofEpochSecond(1, 123456789)
         val BIG_DECIMALS = listOf(HIGH_PRECISION_DECIMAL, BigDecimal("1E+100"))
         val DATES = listOf(NEGATIVE_DATE, Date(0))
         val DURATIONS = listOf(NANO_DURATION, Duration.ofSeconds(-1, 500000000))
         val SPECIAL_DOUBLES = listOf(Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY)
-        val SQL_DATE = java.sql.Date.valueOf("1969-12-31")
+        val SQL_DATE: java.sql.Date = java.sql.Date.valueOf("1969-12-31")
         val KOTLIN_DURATION = 1_123_456_789.nanoseconds
         val UUID_VALUE: UUID = UUID.fromString("123e4567-e89b-12d3-a456-426614174000")
         val CLAIMED_ARRAY_LIST = ClaimedArrayList().apply { addAll(listOf(1, 2)) }
@@ -434,7 +544,11 @@ class ClickHouseExpansionIntegrationTest {
             )
         )
 
-        val EXPECTED_GENERATED_OBJECTS = mapOf(
+        const val EVENT_BODY =
+            "{\"id\":\"event-1\",\"name\":\"Created\",\"revision\":\"1\"," +
+                "\"bodyType\":\"example.Created\",\"body\":\"{}\"}"
+
+        val EXPECTED_CLUSTER_OBJECTS = mapOf(
             DATABASE to setOf(
                 COMMAND_TABLE,
                 "${COMMAND_TABLE}_local",
@@ -443,6 +557,26 @@ class ClickHouseExpansionIntegrationTest {
                 "${STATE_TABLE}_event",
                 STATE_LAST_TABLE,
                 "${STATE_LAST_TABLE}_local",
+                ROOT_VIEW,
+                CHILD_VIEW,
+                RECOVERY_CHILD_VIEW,
+                NESTED_RECOVERY_CHILD_VIEW,
+                ESCAPED_CHILD_VIEW,
+            ),
+            CONSUMER_DATABASE to setOf(
+                "${COMMAND_TABLE}_queue",
+                "${COMMAND_TABLE}_consumer",
+                "${STATE_TABLE}_queue",
+                "${STATE_TABLE}_consumer",
+                "${STATE_LAST_TABLE}_consumer",
+            ),
+        )
+        val EXPECTED_STANDALONE_OBJECTS = mapOf(
+            DATABASE to setOf(
+                COMMAND_TABLE,
+                STATE_TABLE,
+                "${STATE_TABLE}_event",
+                STATE_LAST_TABLE,
                 ROOT_VIEW,
                 CHILD_VIEW,
                 RECOVERY_CHILD_VIEW,
@@ -529,8 +663,8 @@ class ClickHouseExpansionIntegrationTest {
                 objectRaw = "{\"value\":11}",
                 objectArrayRaw = "[{\"value\":21},null]",
                 mixedRaw =
-                    "{\"string\":\"x\",\"number\":1,\"bool\":true,\"nil\":null," +
-                        "\"object\":{\"x\":1},\"array\":[1,\"two\"]}",
+                "{\"string\":\"x\",\"number\":1,\"bool\":true,\"nil\":null," +
+                    "\"object\":{\"x\":1},\"array\":[1,\"two\"]}",
             ),
             "row-null" to rootRow(
                 rowId = "row-null",
