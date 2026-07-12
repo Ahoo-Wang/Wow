@@ -15,11 +15,11 @@ package me.ahoo.wow.event.compensation
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.messaging.function.FunctionKind
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
+import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.compensation.COMPENSATION_ID
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
@@ -152,6 +152,6 @@ class StateEventCompensatorTest {
                 sent += message
             }
 
-        override fun receive(namedAggregates: Set<NamedAggregate>): Flux<StateEventExchange<*>> = Flux.empty()
+        override fun receive(subscription: MessageSubscription): Flux<StateEventExchange<*>> = Flux.empty()
     }
 }

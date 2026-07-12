@@ -44,12 +44,12 @@ interface MessageBus<M : Message<*, *>, E : MessageExchange<*, M>> : AutoCloseab
     fun send(message: M): Mono<Void>
 
     /**
-     * Receives messages for the specified named aggregates.
+     * Receives messages for the specified subscription.
      *
-     * @param namedAggregates The set of named aggregates to receive messages for
-     * @return A [Flux] of message exchanges for the specified aggregates
+     * @param subscription The subscription defining named aggregates and receiver group
+     * @return A [Flux] of message exchanges for the specified subscription
      */
-    fun receive(namedAggregates: Set<NamedAggregate>): Flux<E>
+    fun receive(subscription: MessageSubscription): Flux<E>
 }
 
 /**

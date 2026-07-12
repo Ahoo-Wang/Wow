@@ -16,6 +16,7 @@ package me.ahoo.wow.event
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.messaging.TopicKind
+import me.ahoo.wow.messaging.MessageSubscription
 import org.junit.jupiter.api.Test
 import reactor.test.StepVerifier
 
@@ -29,7 +30,7 @@ class NoOpDomainEventBusTest {
 
     @Test
     fun `receive is empty`() {
-        StepVerifier.create(NoOpDomainEventBus.receive(emptySet()))
+        StepVerifier.create(NoOpDomainEventBus.receive(MessageSubscription(emptySet())))
             .verifyComplete()
     }
 

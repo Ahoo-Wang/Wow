@@ -18,7 +18,7 @@ import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.DistributedMessageBus
-import me.ahoo.wow.messaging.getReceiverGroup
+import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
@@ -75,14 +75,14 @@ abstract class AbstractKafkaBus<M, E>(
 
     abstract fun M.toExchange(receiverOffset: ReceiverOffset): E
 
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<E> {
+    override fun receive(subscription: MessageSubscription): Flux<E> {
         return Flux.deferContextual { contextView ->
             val options = receiverOptionsCustomizer.customize(receiverOptions)
                 .consumerProperty(
                     ConsumerConfig.GROUP_ID_CONFIG,
-                    contextView.getReceiverGroup(),
+                    subscription.receiverGroup,
                 )
-                .subscription(namedAggregates.map { topicConverter.convert(it) }.toSet())
+                .subscription(subscription.namedAggregates.map { topicConverter.convert(it) }.toSet())
             val customizedOptions = contextView.getReceiverOptionsCustomizer()?.customize(options) ?: options
             KafkaReceiver.create(customizedOptions)
                 .receive(Queues.SMALL_BUFFER_SIZE)

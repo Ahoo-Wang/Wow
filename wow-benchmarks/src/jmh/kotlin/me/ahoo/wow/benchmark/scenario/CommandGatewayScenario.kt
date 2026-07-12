@@ -26,6 +26,7 @@ import me.ahoo.wow.command.wait.DefaultWaitCoordinator
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.WaitCoordinator
+import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
@@ -91,7 +92,7 @@ class CommandGatewayScenario private constructor(
             )
             val subscription = if (subscribeToCart) {
                 commandGateway
-                    .receive(setOf(BenchmarkAggregates.cartMetadata.namedAggregate.materialize()))
+                    .receive(MessageSubscription(BenchmarkAggregates.cartMetadata.namedAggregate.materialize()))
                     .subscribe()
             } else {
                 null

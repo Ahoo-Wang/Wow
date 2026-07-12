@@ -17,6 +17,7 @@ import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.configuration.requiredAggregateType
+import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.dispatcher.MainDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
@@ -41,9 +42,9 @@ class CommandDispatcher(
     private val schedulerSupplier: AggregateSchedulerSupplier =
         DefaultAggregateSchedulerSupplier("CommandDispatcher")
 ) : MainDispatcher<ServerCommandExchange<*>>() {
-    override fun receiveMessage(namedAggregate: NamedAggregate): Flux<ServerCommandExchange<*>> {
+    override fun receiveMessage(subscription: MessageSubscription): Flux<ServerCommandExchange<*>> {
         return commandBus
-            .receive(setOf(namedAggregate))
+            .receive(subscription)
             .filterThenAck {
                 !it.message.isVoid
             }

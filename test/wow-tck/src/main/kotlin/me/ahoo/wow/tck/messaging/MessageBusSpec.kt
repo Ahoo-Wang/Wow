@@ -21,8 +21,8 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.Decorator.Companion.getOriginalDelegate
 import me.ahoo.wow.messaging.LocalMessageBus
 import me.ahoo.wow.messaging.MessageBus
+import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.handler.MessageExchange
-import me.ahoo.wow.messaging.writeReceiverGroup
 import me.ahoo.wow.metrics.Metrics.metrizable
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable
@@ -67,7 +67,7 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
             return
         }
         messageBus.subscriberCount(namedAggregate).assert().isEqualTo(0)
-        messageBus.receive(setOf(namedAggregate)).test()
+        messageBus.receive(MessageSubscription(namedAggregate)).test()
             .then {
                 messageBus.subscriberCount(namedAggregate).assert().isEqualTo(1)
             }
@@ -81,8 +81,7 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
         verify {
             val onReady = Sinks.empty<Void>()
             val message = createMessage()
-            receive(setOf(namedAggregate))
-                .writeReceiverGroup(generateGlobalId())
+            receive(MessageSubscription(namedAggregate, receiverGroup = generateGlobalId()))
                 .onReceive(onReady)
                 .doOnSubscribe {
                     onReady.asMono()
@@ -103,8 +102,7 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
     fun receive() {
         verify {
             val onReady = Sinks.empty<Void>()
-            receive(setOf(namedAggregate))
-                .writeReceiverGroup(generateGlobalId())
+            receive(MessageSubscription(namedAggregate, receiverGroup = generateGlobalId()))
                 .onReceive(onReady)
                 .doOnSubscribe {
                     val sendFlux = Flux.range(0, 10)
@@ -128,8 +126,7 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
     fun sendPerformance() {
         verify {
             val onReady = Sinks.empty<Void>()
-            receive(setOf(namedAggregate))
-                .writeReceiverGroup(generateGlobalId())
+            receive(MessageSubscription(namedAggregate, receiverGroup = generateGlobalId()))
                 .onReceive(onReady)
                 .doOnSubscribe {
                     val duration = sendLoop(messageBus = this)
@@ -160,8 +157,7 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
         verify {
             val maxCount: Long = 1000
             val onReady = Sinks.empty<Void>()
-            val duration = receive(setOf(namedAggregate))
-                .writeReceiverGroup(generateGlobalId())
+            val duration = receive(MessageSubscription(namedAggregate, receiverGroup = generateGlobalId()))
                 .onReceive(onReady)
                 .doOnSubscribe {
                     val sendFlux = sendLoop(messageBus = this, maxCount = maxCount.toInt())

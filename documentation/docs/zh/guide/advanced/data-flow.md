@@ -106,7 +106,7 @@ sequenceDiagram
     participant CH as CommandHandler<br>(过滤器链)
     participant AP as AggregateProcessor<br>(CommandAggregate)
 
-    CB->>CD: receive(namedAggregates)
+    CB->>CD: receive(subscription)
     CD->>CD: newAggregateDispatcher(namedAggregate)
     CD->>ACD: 分发消息
     ACD->>CH: filter(exchange)

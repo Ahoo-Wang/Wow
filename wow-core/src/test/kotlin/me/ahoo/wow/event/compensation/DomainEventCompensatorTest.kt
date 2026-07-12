@@ -16,11 +16,11 @@ package me.ahoo.wow.event.compensation
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
+import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.compensation.COMPENSATION_ID
 import me.ahoo.wow.messaging.compensation.CompensationTarget
 import me.ahoo.wow.modeling.aggregateId
@@ -76,7 +76,7 @@ class DomainEventCompensatorTest {
                 sent += message
             }
 
-        override fun receive(namedAggregates: Set<NamedAggregate>): Flux<EventStreamExchange> = Flux.empty()
+        override fun receive(subscription: MessageSubscription): Flux<EventStreamExchange> = Flux.empty()
     }
 }
 

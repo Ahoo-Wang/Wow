@@ -16,9 +16,9 @@ package me.ahoo.wow.opentelemetry.messaging
 import io.opentelemetry.context.Context
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import me.ahoo.wow.api.messaging.Message
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.MessageBus
+import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.opentelemetry.TraceMono
 import me.ahoo.wow.opentelemetry.Traced
@@ -41,8 +41,8 @@ interface TracingMessageBus<M : Message<*, *>, E : MessageExchange<*, M>, B : Me
         )
     }
 
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<E> {
-        return delegate.receive(namedAggregates)
+    override fun receive(subscription: MessageSubscription): Flux<E> {
+        return delegate.receive(subscription)
     }
 
     override fun close() {

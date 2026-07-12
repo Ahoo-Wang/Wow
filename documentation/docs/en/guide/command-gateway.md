@@ -272,7 +272,7 @@ sequenceDiagram
     Gateway->>Notifier: commandSentSignal(waitCommandId)
     Note over Gateway,Notifier: CommandStage.SENT signal
 
-    Kafka->>Dispatcher: receive(namedAggregates)
+    Kafka->>Dispatcher: receive(subscription)
     Dispatcher->>Dispatcher: Group by key, publishOn(scheduler)
     Dispatcher->>Aggregate: handleExchange(exchange)
     Aggregate->>Aggregate: Validate & apply command

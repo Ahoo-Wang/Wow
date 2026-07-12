@@ -174,15 +174,15 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> :
      * Local messages are received for local aggregates, while distributed messages
      * are filtered to exclude those already handled locally.
      *
-     * @param namedAggregates The set of named aggregates to receive messages for
+     * @param subscription The message subscription
      * @return A merged flux of message exchanges from local and distributed sources
      */
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<E> {
-        val localTopics = namedAggregates.filter {
+    override fun receive(subscription: MessageSubscription): Flux<E> {
+        val localTopics = subscription.namedAggregates.filter {
             it.isLocal()
         }.toSet()
-        val localFlux = localBus.receive(localTopics)
-        val distributedFlux = distributedBus.receive(namedAggregates)
+        val localFlux = localBus.receive(subscription.copy(namedAggregates = localTopics))
+        val distributedFlux = distributedBus.receive(subscription)
             .filterThenAck {
                 !it.message.isLocalHandled()
             }

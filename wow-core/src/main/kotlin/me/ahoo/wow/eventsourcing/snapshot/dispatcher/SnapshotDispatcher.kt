@@ -20,6 +20,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
+import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.match
 import me.ahoo.wow.messaging.dispatcher.MainDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageDispatcher
@@ -52,9 +53,9 @@ class SnapshotDispatcher(
         DefaultAggregateSchedulerSupplier(SNAPSHOT_PROCESSOR_NAME)
 ) : MainDispatcher<StateEventExchange<*>>() {
 
-    override fun receiveMessage(namedAggregate: NamedAggregate): Flux<StateEventExchange<*>> {
+    override fun receiveMessage(subscription: MessageSubscription): Flux<StateEventExchange<*>> {
         return stateEventBus
-            .receive(setOf(namedAggregate))
+            .receive(subscription)
             .filterThenAck {
                 it.message.match(SNAPSHOT_FUNCTION)
             }

@@ -16,6 +16,7 @@ package me.ahoo.wow.event.dispatcher
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.messaging.MessageBus
+import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.dispatcher.MainDispatcher
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
@@ -55,8 +56,8 @@ abstract class AbstractEventDispatcher<E : MessageExchange<*, *>, BUS : MessageB
             .toSet()
     }
 
-    override fun receiveMessage(namedAggregate: NamedAggregate): Flux<E> {
-        return messageBus.receive(setOf(namedAggregate))
+    override fun receiveMessage(subscription: MessageSubscription): Flux<E> {
+        return messageBus.receive(subscription)
     }
 
     internal fun stopAggregateDispatchersGracefully(): Mono<Void> = super.stopGracefully()

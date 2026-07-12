@@ -397,7 +397,7 @@ Event processors follow a well-defined lifecycle managed by the dispatcher:
 |---|---|---|---|
 | **Discovery** | `DomainEventFunctionRegistrar.resolveProcessor()` | Scans `@EventProcessor` classes, extracts `@OnEvent` methods, creates `MessageFunction` instances | Spring context refresh |
 | **Registration** | `registerProcessor(processor)` | Registers each `MessageFunction` keyed by event type + aggregate name | After discovery |
-| **Subscription** | `MessageBus.receive(namedAggregates)` | Subscribes to event streams for relevant aggregates | `MessageDispatcher.start()` |
+| **Subscription** | `MessageBus.receive(subscription)` | Subscribes with explicit aggregate and receiver-group semantics | `MessageDispatcher.start()` |
 | **Grouping** | `EventStreamDispatcher` groups by `NamedAggregate` | Routes events to per-aggregate schedulers | On each incoming batch |
 | **Matching** | `supportedFunctions(event)` + `event.match()` | Finds registered functions that handle the given event type | Per event |
 | **Invocation** | `DomainEventFunctionFilter.filter()` | Sets service provider, invokes handler via filter chain | Per event-to-function match |

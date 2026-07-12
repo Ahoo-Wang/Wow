@@ -397,7 +397,7 @@ EventProcessorParser.kt: wow-core/src/main/kotlin/me/ahoo/wow/event/annotation/E
 |---|---|---|---|
 | **发现** | `DomainEventFunctionRegistrar.resolveProcessor()` | 扫描 `@EventProcessor` 类，提取 `@OnEvent` 方法，创建 `MessageFunction` 实例 | Spring 上下文刷新 |
 | **注册** | `registerProcessor(processor)` | 按事件类型 + 聚合名称注册每个 `MessageFunction` | 发现之后 |
-| **订阅** | `MessageBus.receive(namedAggregates)` | 订阅相关聚合的事件流 | `MessageDispatcher.start()` |
+| **订阅** | `MessageBus.receive(subscription)` | 使用显式的聚合集合与消费组语义订阅事件流 | `MessageDispatcher.start()` |
 | **分组** | `EventStreamDispatcher` 按 `NamedAggregate` 分组 | 将事件路由到每个聚合的调度器 | 每次收到批量事件时 |
 | **匹配** | `supportedFunctions(event)` + `event.match()` | 找到处理给定事件类型的已注册函数 | 每个事件 |
 | **调用** | `DomainEventFunctionFilter.filter()` | 设置服务提供者，通过过滤链调用处理器 | 每次事件与函数匹配时 |

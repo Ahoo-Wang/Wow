@@ -16,11 +16,11 @@ package me.ahoo.wow.eventsourcing.state
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.command.CommandAggregate
 import me.ahoo.wow.modeling.command.setCommandAggregate
@@ -143,7 +143,7 @@ class SendStateEventFilterTest {
                 sent += message as StateEvent<MockStateAggregate>
             }
 
-        override fun receive(namedAggregates: Set<NamedAggregate>): Flux<StateEventExchange<*>> = Flux.empty()
+        override fun receive(subscription: MessageSubscription): Flux<StateEventExchange<*>> = Flux.empty()
     }
 
     private class RecordingCommandFilterChain(
