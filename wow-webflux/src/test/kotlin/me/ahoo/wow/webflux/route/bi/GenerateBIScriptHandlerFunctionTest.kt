@@ -31,6 +31,9 @@ import me.ahoo.wow.configuration.NamedAggregateTypeSearcher
 import me.ahoo.wow.configuration.TypeNamedAggregateSearcher
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
+import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyMode
+import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyRequest
 import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunction
 import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testGlobalRouteContract
@@ -43,6 +46,8 @@ import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.web.reactive.function.server.HandlerStrategies
 import org.springframework.web.reactive.function.server.ServerResponse
+import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 import java.lang.reflect.Modifier
 
@@ -60,7 +65,7 @@ class GenerateBIScriptHandlerFunctionTest {
             testGlobalRouteContract(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT)
         )
 
-        handlerFunction.handle(MockServerRequest.builder().build())
+        handlerFunction.handle(MockServerRequest.builder().body(BiScriptRequest().toMono()))
             .test()
             .consumeNextWith { response ->
                 response.statusCode().assert().isEqualTo(HttpStatus.OK)
@@ -73,6 +78,39 @@ class GenerateBIScriptHandlerFunctionTest {
                     assert().contains("'analytics.example.order.command'")
                 }
             }.verifyComplete()
+    }
+
+    @Test
+    fun `should generate BI script from request overrides`() {
+        val handler = GenerateBIScriptHandlerFunction(BASE_OPTIONS)
+        val request = MockServerRequest.builder()
+            .body(
+                BiScriptRequest(
+                    database = "request_db",
+                    topology = BiScriptTopologyRequest(mode = BiScriptTopologyMode.STANDALONE),
+                ).toMono()
+            )
+
+        handler.handle(request).test()
+            .consumeNextWith { response ->
+                response.statusCode().assert().isEqualTo(HttpStatus.OK)
+                response.writeBody().assert()
+                    .contains("CREATE DATABASE IF NOT EXISTS \"request_db\"")
+                    .doesNotContain("ON CLUSTER", "Replicated", "Distributed", "_local")
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `should reject a missing request body`() {
+        GenerateBIScriptHandlerFunction(BASE_OPTIONS)
+            .handle(MockServerRequest.builder().body(Mono.empty<BiScriptRequest>()))
+            .test()
+            .expectErrorMatches {
+                it is IllegalArgumentException &&
+                    it.message == "BI script request body must not be empty"
+            }
+            .verify()
     }
 
     @Test
@@ -96,7 +134,7 @@ class GenerateBIScriptHandlerFunctionTest {
             lateinit var response: ServerResponse
             val warnings = captureHandlerWarnings {
                 response = GenerateBIScriptHandlerFunction(options)
-                    .handle(MockServerRequest.builder().build())
+                    .handle(MockServerRequest.builder().body(BiScriptRequest().toMono()))
                     .block()!!
             }
 
@@ -148,6 +186,11 @@ class GenerateBIScriptHandlerFunctionTest {
 
     private companion object {
         private val APPLICATION_SQL = MediaType.parseMediaType("application/sql")
+        private val BASE_OPTIONS = BiScriptOptions(
+            database = "base_db",
+            consumerDatabase = "base_consumer",
+            topology = ClickHouseTopology.Cluster(name = "base-cluster"),
+        )
         private val SERVER_RESPONSE_CONTEXT = object : ServerResponse.Context {
             private val strategies = HandlerStrategies.withDefaults()
             override fun messageWriters() = strategies.messageWriters()

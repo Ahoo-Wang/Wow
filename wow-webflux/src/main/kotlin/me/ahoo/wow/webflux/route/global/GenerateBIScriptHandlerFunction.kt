@@ -20,6 +20,7 @@ import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
+import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
 import me.ahoo.wow.webflux.route.NoMetadataRouteHandlerFunctionFactorySupport
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -31,7 +32,14 @@ private val APPLICATION_SQL_MEDIA_TYPE = MediaType.parseMediaType("application/s
 
 class GenerateBIScriptHandlerFunction(private val options: BiScriptOptions) : HandlerFunction<ServerResponse> {
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val result = BiScriptGenerator(options).generate(MetadataSearcher.localAggregates)
+        return request.bodyToMono(BiScriptRequest::class.java)
+            .switchIfEmpty(Mono.error(IllegalArgumentException("BI script request body must not be empty")))
+            .map { it.toBiScriptOptions(options) }
+            .flatMap { generateResponse(it) }
+    }
+
+    private fun generateResponse(requestOptions: BiScriptOptions): Mono<ServerResponse> {
+        val result = BiScriptGenerator(requestOptions).generate(MetadataSearcher.localAggregates)
         logDiagnostics(result.diagnostics)
 
         return ServerResponse
