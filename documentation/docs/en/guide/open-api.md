@@ -166,11 +166,13 @@ curl -X 'GET' \
 
 `POST /wow/bi/script` generates ClickHouse synchronization and expansion SQL for the current local aggregates. It requires an `application/json` request body. The OpenAPI schema lists every request field: `database`, `consumerDatabase`, `topology`, `timezone`, `kafkaBootstrapServers`, `topicPrefix`, `maxExpansionDepth`, and `unsupportedTypeStrategy`; nested topology fields are `mode` and `cluster`, and nested cluster fields are `name`, `installation`, `shard`, and `replica`. It also lists the enum values `CLUSTER` / `STANDALONE` and `FAIL` / `RAW_JSON`. A request may lower `maxExpansionDepth`, but cannot exceed the server-configured value, which is the endpoint's safety ceiling.
 
+The same maximum lengths apply to server configuration and every non-null request override: `database` 128 characters, `consumerDatabase` 128, `timezone` 64, `topicPrefix` 128, `kafkaBootstrapServers` 4096, and `topology.cluster.name`, `topology.cluster.installation`, `topology.cluster.shard`, and `topology.cluster.replica` 128 each. A value exactly at its limit is accepted. A longer server value fails application startup; a longer override returns `400`.
+
 | Status | `Content-Type` | Body |
 |--------|----------------|------|
 | `200` | `application/sql` | SQL text only |
-| `400` | Error response | Empty or invalid JSON body, invalid option value, or invalid topology combination |
-| `415` | Error response | Missing or unsupported request `Content-Type` |
+| `400` | Error response | Empty or invalid JSON body, over-limit override, another invalid option value, or invalid topology combination |
+| `415` | Common `wow.UnsupportedMediaType` response | Missing or unsupported request `Content-Type`; runtime `Wow-Error-Code` is `UnsupportedMediaType` |
 
 `{}` uses the server-side options unchanged. Non-null request fields override the corresponding server options for this generation. When `topology` is present, `topology.mode` is mandatory. In `CLUSTER` mode, omitted cluster fields inherit the current Cluster server base, or the domain Cluster defaults when the server base is Standalone. `STANDALONE` rejects a `cluster` object. The legacy `GET` method has no route for this path and returns `404`. Each generated diagnostic is written as a WARN log and is never mixed into the response body.
 

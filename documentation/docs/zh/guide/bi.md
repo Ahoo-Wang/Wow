@@ -94,7 +94,9 @@ JSON 请求体必填。`{}` 保持服务端 `BiScriptOptions` 不变；非 `null
 }
 ```
 
-提供 `topology` 时必须提供 `topology.mode`。在 `CLUSTER` 模式下，省略的 `cluster` 字段继承当前集群基础配置；如果服务端基础配置是独立模式，则继承领域集群默认值。`STANDALONE` 拒绝 `cluster` 对象。无效或空请求体返回 `400`；缺少或不支持的 `Content-Type` 返回 `415`。成功响应固定为 `200`、`Content-Type: application/sql`，响应体只包含 `result.script`。旧版 `GET` 方法在该路径上没有路由并返回 `404`。每条诊断以 WARN 日志输出，不会混入 SQL。配置项及优先级参见[配置](./configuration#bi-脚本配置)。
+服务端配置和每个非 `null` 的 `POST` override 使用相同的最大长度：`database` 128 个字符、`consumerDatabase` 128、`timezone` 64、`topicPrefix` 128、`kafkaBootstrapServers` 4096，`topology.cluster.name`、`topology.cluster.installation`、`topology.cluster.shard`、`topology.cluster.replica` 各 128。长度恰好等于限制的值可被接受；更长的服务端值会使应用启动失败，更长的请求 override 返回 `400`。`maxExpansionDepth` 单独处理：服务端配置值是 HTTP override 的 ceiling。
+
+提供 `topology` 时必须提供 `topology.mode`。在 `CLUSTER` 模式下，省略的 `cluster` 字段继承当前集群基础配置；如果服务端基础配置是独立模式，则继承领域集群默认值。`STANDALONE` 拒绝 `cluster` 对象。无效或空请求体返回 `400`；缺少或不支持的 `Content-Type` 返回 `415`。OpenAPI 通过公共 `wow.UnsupportedMediaType` response 声明该状态，运行时响应携带 `Wow-Error-Code: UnsupportedMediaType`。成功响应固定为 `200`、`Content-Type: application/sql`，响应体只包含 `result.script`。旧版 `GET` 方法在该路径上没有路由并返回 `404`。每条诊断以 WARN 日志输出，不会混入 SQL。配置项及优先级参见[配置](./configuration#bi-脚本配置)。
 
 ## 生成的 SQL 契约
 
