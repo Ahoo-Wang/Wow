@@ -39,6 +39,16 @@ data class BiScriptOptions(
         }
     }
 
+    private fun String.requireValidRequiredValue(name: String, maxLength: Int) {
+        require(isNotBlank()) { "$name must not be blank" }
+        require(none { it == '\u0000' || it.isISOControl() }) {
+            "$name must not contain control characters"
+        }
+        require(length <= maxLength) {
+            "$name length $length must be less than or equal to $maxLength"
+        }
+    }
+
     companion object {
         const val MAX_DATABASE_LENGTH: Int = 128
         const val MAX_CONSUMER_DATABASE_LENGTH: Int = 128
@@ -48,16 +58,6 @@ data class BiScriptOptions(
 
         private const val DEFAULT_KAFKA_BOOTSTRAP_SERVERS: String = "localhost:9093"
         private const val DEFAULT_TOPIC_PREFIX: String = Wow.WOW_PREFIX
-    }
-}
-
-internal fun String.requireValidRequiredValue(name: String, maxLength: Int) {
-    require(isNotBlank()) { "$name must not be blank" }
-    require(none { it == '\u0000' || it.isISOControl() }) {
-        "$name must not contain control characters"
-    }
-    require(length <= maxLength) {
-        "$name length $length must be less than or equal to $maxLength"
     }
 }
 

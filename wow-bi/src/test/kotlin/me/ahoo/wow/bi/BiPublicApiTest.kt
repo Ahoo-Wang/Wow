@@ -102,6 +102,18 @@ class BiPublicApiTest {
         ClickHouseTopology.Cluster.MAX_VALUE_LENGTH.assert().isEqualTo(128)
     }
 
+    @Test
+    fun `should not expose validation helpers through JVM file facades`() {
+        listOf(
+            "me.ahoo.wow.bi.BiScriptOptionsKt",
+            "me.ahoo.wow.bi.ClickHouseTopologyKt",
+        ).mapNotNull { className ->
+            runCatching { Class.forName(className, false, javaClass.classLoader) }.getOrNull()
+        }.flatMap { fileFacade ->
+            fileFacade.declaredMethods.filter { Modifier.isPublic(it.modifiers) }
+        }.assert().isEmpty()
+    }
+
     private fun productionTypes(): List<KClass<*>> {
         val classesRoot = Path.of(
             BiScriptGenerator::class.java.protectionDomain.codeSource.location.toURI()

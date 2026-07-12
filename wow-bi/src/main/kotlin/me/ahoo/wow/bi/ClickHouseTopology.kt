@@ -23,10 +23,20 @@ sealed interface ClickHouseTopology {
         val replica: String = "{replica}",
     ) : ClickHouseTopology {
         init {
-            name.requireValidRequiredValue("name", MAX_VALUE_LENGTH)
-            installation.requireValidRequiredValue("installation", MAX_VALUE_LENGTH)
-            shard.requireValidRequiredValue("shard", MAX_VALUE_LENGTH)
-            replica.requireValidRequiredValue("replica", MAX_VALUE_LENGTH)
+            name.requireValidTopologyValue("name", MAX_VALUE_LENGTH)
+            installation.requireValidTopologyValue("installation", MAX_VALUE_LENGTH)
+            shard.requireValidTopologyValue("shard", MAX_VALUE_LENGTH)
+            replica.requireValidTopologyValue("replica", MAX_VALUE_LENGTH)
+        }
+
+        private fun String.requireValidTopologyValue(name: String, maxLength: Int) {
+            require(isNotBlank()) { "$name must not be blank" }
+            require(none { it == '\u0000' || it.isISOControl() }) {
+                "$name must not contain control characters"
+            }
+            require(length <= maxLength) {
+                "$name length $length must be less than or equal to $maxLength"
+            }
         }
 
         companion object {
