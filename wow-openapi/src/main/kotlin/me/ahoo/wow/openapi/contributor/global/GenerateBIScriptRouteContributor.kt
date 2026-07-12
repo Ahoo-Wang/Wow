@@ -18,7 +18,6 @@ import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
-import me.ahoo.wow.openapi.contributor.badRequestResponseRef
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.openapi.contract.HttpContent
@@ -27,6 +26,7 @@ import me.ahoo.wow.openapi.contract.HttpResponse
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpSchema
 import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
+import me.ahoo.wow.openapi.contributor.badRequestResponseRef
 
 object GenerateBIScriptRouteContributor : RouteContributor {
     override val id: String = "global.bi-script"
