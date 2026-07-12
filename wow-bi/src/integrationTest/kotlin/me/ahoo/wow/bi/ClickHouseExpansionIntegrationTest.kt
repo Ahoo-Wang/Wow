@@ -45,15 +45,37 @@ import kotlin.time.Duration.Companion.nanoseconds
 
 class ClickHouseExpansionIntegrationTest {
     @Test
+    fun `should execute complete standalone DDL without cluster configuration`() {
+        val namedAggregate = aggregateMetadata<ClickHouseExpansionAggregate, ClickHouseExpansionState>()
+        val result = BiScriptGenerator(
+            BiScriptOptions(
+                database = DATABASE,
+                consumerDatabase = CONSUMER_DATABASE,
+                topology = ClickHouseTopology.Standalone,
+                timezone = "UTC",
+            )
+        ).generate(setOf(namedAggregate))
+
+        ClickHouseContainer(DockerImageName.parse(CLICKHOUSE_IMAGE)).use { container ->
+            container.start()
+            DriverManager.getConnection(container.jdbcUrl, container.username, container.password).use { connection ->
+                result.statements.forEach(connection::executeSql)
+            }
+        }
+    }
+
+    @Test
     @Suppress("LongMethod")
     fun `should execute complete generated DDL and preserve scalar wire values`() {
         val options = BiScriptOptions(
             database = DATABASE,
             consumerDatabase = "bi_it_consumer",
-            cluster = CLUSTER,
-            installation = "test",
-            shard = "01",
-            replica = "01",
+            topology = ClickHouseTopology.Cluster(
+                name = CLUSTER,
+                installation = "test",
+                shard = "01",
+                replica = "01",
+            ),
             timezone = "UTC",
         )
         val namedAggregate = aggregateMetadata<ClickHouseExpansionAggregate, ClickHouseExpansionState>()

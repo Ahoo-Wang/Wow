@@ -52,15 +52,14 @@ class BiScriptOptionsTest {
 
         options.database.assert().isEqualTo("bi_db")
         options.consumerDatabase.assert().isEqualTo("bi_db_consumer")
-        options.cluster.assert().isEqualTo("{cluster}")
-        options.installation.assert().isEqualTo("{installation}")
-        options.shard.assert().isEqualTo("{shard}")
-        options.replica.assert().isEqualTo("{replica}")
+        options.topology.assert().isEqualTo(ClickHouseTopology.Cluster())
         options.timezone.assert().isEqualTo("Asia/Shanghai")
         options.kafkaBootstrapServers.assert().isEqualTo("localhost:9093")
         options.topicPrefix.assert().isEqualTo("wow.")
         options.maxExpansionDepth.assert().isEqualTo(5)
         options.unsupportedTypeStrategy.assert().isEqualTo(UnsupportedTypeStrategy.RAW_JSON)
+        BiScriptOptions::class.declaredMemberProperties.map { it.name }.assert()
+            .doesNotContain("cluster", "installation", "shard", "replica")
     }
 
     @Test
@@ -68,10 +67,6 @@ class BiScriptOptionsTest {
         listOf<() -> BiScriptOptions>(
             { BiScriptOptions(database = " ") },
             { BiScriptOptions(consumerDatabase = " ") },
-            { BiScriptOptions(cluster = " ") },
-            { BiScriptOptions(installation = " ") },
-            { BiScriptOptions(shard = " ") },
-            { BiScriptOptions(replica = " ") },
             { BiScriptOptions(timezone = " ") },
             { BiScriptOptions(kafkaBootstrapServers = " ") },
             { BiScriptOptions(topicPrefix = " ") },
@@ -85,10 +80,6 @@ class BiScriptOptionsTest {
         listOf<() -> BiScriptOptions>(
             { BiScriptOptions(database = "bi\u0000db") },
             { BiScriptOptions(consumerDatabase = "bi\ndb") },
-            { BiScriptOptions(cluster = "cluster\tname") },
-            { BiScriptOptions(installation = "installation\rname") },
-            { BiScriptOptions(shard = "shard\bname") },
-            { BiScriptOptions(replica = "replica\u007Fname") },
             { BiScriptOptions(timezone = "Asia\nShanghai") },
             { BiScriptOptions(kafkaBootstrapServers = "localhost\n9093") },
             { BiScriptOptions(topicPrefix = "wow.\u0000") },

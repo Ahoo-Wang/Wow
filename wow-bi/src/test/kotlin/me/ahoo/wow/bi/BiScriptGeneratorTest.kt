@@ -95,10 +95,12 @@ class BiScriptGeneratorTest {
             BiScriptOptions(
                 database = "analytics\"db",
                 consumerDatabase = "consumer db",
-                cluster = "cluster'name",
-                installation = "install/name",
-                shard = "shard'name",
-                replica = "replica'name",
+                topology = ClickHouseTopology.Cluster(
+                    name = "cluster'name",
+                    installation = "install/name",
+                    shard = "shard'name",
+                    replica = "replica'name",
+                ),
                 timezone = "UTC",
                 kafkaBootstrapServers = "kafka\\host:9092",
                 topicPrefix = "custom'prefix.",

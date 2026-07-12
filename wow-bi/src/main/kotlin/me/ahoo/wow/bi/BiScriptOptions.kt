@@ -18,10 +18,7 @@ import me.ahoo.wow.api.Wow
 data class BiScriptOptions(
     val database: String = "bi_db",
     val consumerDatabase: String = "bi_db_consumer",
-    val cluster: String = "{cluster}",
-    val installation: String = "{installation}",
-    val shard: String = "{shard}",
-    val replica: String = "{replica}",
+    val topology: ClickHouseTopology = ClickHouseTopology.Cluster(),
     val timezone: String = "Asia/Shanghai",
     val kafkaBootstrapServers: String = DEFAULT_KAFKA_BOOTSTRAP_SERVERS,
     val topicPrefix: String = DEFAULT_TOPIC_PREFIX,
@@ -31,10 +28,6 @@ data class BiScriptOptions(
     init {
         database.requireValidRequiredValue("database")
         consumerDatabase.requireValidRequiredValue("consumerDatabase")
-        cluster.requireValidRequiredValue("cluster")
-        installation.requireValidRequiredValue("installation")
-        shard.requireValidRequiredValue("shard")
-        replica.requireValidRequiredValue("replica")
         timezone.requireValidRequiredValue("timezone")
         kafkaBootstrapServers.requireValidRequiredValue("kafkaBootstrapServers")
         topicPrefix.requireValidRequiredValue("topicPrefix")
