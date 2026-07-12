@@ -20,6 +20,7 @@ import me.ahoo.cosid.machine.LocalHostAddressSupplier
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.bi.BiScriptGenerator
 import me.ahoo.wow.bi.BiScriptOptions
+import me.ahoo.wow.bi.ClickHouseTopology
 import me.ahoo.wow.bi.UnsupportedTypeStrategy
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.wait.CommandWaitNotifier
@@ -197,10 +198,11 @@ internal class WebFluxAutoConfigurationTest {
             .withPropertyValues(
                 "${BiScriptProperties.PREFIX}.database=analytics",
                 "${BiScriptProperties.PREFIX}.consumer-database=analytics_consumer",
-                "${BiScriptProperties.PREFIX}.cluster=production",
-                "${BiScriptProperties.PREFIX}.installation=primary",
-                "${BiScriptProperties.PREFIX}.shard=02",
-                "${BiScriptProperties.PREFIX}.replica=replica-2",
+                "${BiScriptProperties.PREFIX}.topology.mode=CLUSTER",
+                "${BiScriptProperties.PREFIX}.topology.cluster.name=production",
+                "${BiScriptProperties.PREFIX}.topology.cluster.installation=primary",
+                "${BiScriptProperties.PREFIX}.topology.cluster.shard=02",
+                "${BiScriptProperties.PREFIX}.topology.cluster.replica=replica-2",
                 "${BiScriptProperties.PREFIX}.timezone=UTC",
                 "${BiScriptProperties.PREFIX}.kafka-bootstrap-servers=bi-kafka:19092",
                 "${BiScriptProperties.PREFIX}.topic-prefix=bi.",
@@ -221,10 +223,12 @@ internal class WebFluxAutoConfigurationTest {
                 val expectedOptions = BiScriptOptions(
                     database = "analytics",
                     consumerDatabase = "analytics_consumer",
-                    cluster = "production",
-                    installation = "primary",
-                    shard = "02",
-                    replica = "replica-2",
+                    topology = ClickHouseTopology.Cluster(
+                        name = "production",
+                        installation = "primary",
+                        shard = "02",
+                        replica = "replica-2",
+                    ),
                     timezone = "UTC",
                     kafkaBootstrapServers = "bi-kafka:19092",
                     topicPrefix = "bi.",
@@ -245,6 +249,50 @@ internal class WebFluxAutoConfigurationTest {
                     "'bi.example.order.command'",
                 )
                 script.assert().doesNotContain("kafka:9092", "'kafka.example.order.command'")
+            }
+    }
+
+    @Test
+    fun `should bind standalone BI topology`() {
+        webFluxContextRunner()
+            .withPropertyValues("${BiScriptProperties.PREFIX}.topology.mode=STANDALONE")
+            .run { context ->
+                context.assert().hasNotFailed()
+                context.generateBiScript().assert()
+                    .doesNotContain("ON CLUSTER", "Replicated", "Distributed", "_local")
+            }
+    }
+
+    @Test
+    fun `should reject cluster fields in standalone mode`() {
+        webFluxContextRunner()
+            .withPropertyValues(
+                "${BiScriptProperties.PREFIX}.topology.mode=STANDALONE",
+                "${BiScriptProperties.PREFIX}.topology.cluster.name=unused",
+            )
+            .run { context ->
+                context.startupFailure.assert().isNotNull()
+                context.startupFailure!!.causeChainMessages().assert()
+                    .contains("topology.cluster must not be configured in STANDALONE mode")
+            }
+    }
+
+    @Test
+    fun `should ignore removed flat topology keys and keep default cluster topology`() {
+        webFluxContextRunner()
+            .withPropertyValues(
+                "${BiScriptProperties.PREFIX}.cluster=removed-cluster",
+                "${BiScriptProperties.PREFIX}.installation=removed-installation",
+                "${BiScriptProperties.PREFIX}.shard=removed-shard",
+                "${BiScriptProperties.PREFIX}.replica=removed-replica",
+            )
+            .run { context ->
+                context.assert().hasNotFailed()
+                context.generateBiScript().assert().isEqualTo(
+                    BiScriptGenerator(
+                        BiScriptOptions(topology = ClickHouseTopology.Cluster())
+                    ).generate(MetadataSearcher.localAggregates).script
+                )
             }
     }
 
@@ -317,10 +365,10 @@ internal class WebFluxAutoConfigurationTest {
         val propertyNames = listOf(
             "database" to "database",
             "consumer-database" to "consumerDatabase",
-            "cluster" to "cluster",
-            "installation" to "installation",
-            "shard" to "shard",
-            "replica" to "replica",
+            "topology.cluster.name" to "name",
+            "topology.cluster.installation" to "installation",
+            "topology.cluster.shard" to "shard",
+            "topology.cluster.replica" to "replica",
             "timezone" to "timezone",
             "kafka-bootstrap-servers" to "kafkaBootstrapServers",
             "topic-prefix" to "topicPrefix",

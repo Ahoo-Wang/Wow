@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot.starter.bi
 
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.bi.BiScriptOptions
+import me.ahoo.wow.bi.ClickHouseTopology
 import me.ahoo.wow.bi.UnsupportedTypeStrategy
 import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
@@ -23,10 +24,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 data class BiScriptProperties(
     val database: String? = null,
     val consumerDatabase: String? = null,
-    val cluster: String? = null,
-    val installation: String? = null,
-    val shard: String? = null,
-    val replica: String? = null,
+    val topology: BiScriptTopologyProperties = BiScriptTopologyProperties(),
     val timezone: String? = null,
     val kafkaBootstrapServers: String? = null,
     val topicPrefix: String? = null,
@@ -38,14 +36,28 @@ data class BiScriptProperties(
     }
 }
 
+data class BiScriptTopologyProperties(
+    val mode: BiScriptTopologyMode = BiScriptTopologyMode.CLUSTER,
+    val cluster: BiScriptClusterProperties? = null,
+)
+
+enum class BiScriptTopologyMode {
+    CLUSTER,
+    STANDALONE,
+}
+
+data class BiScriptClusterProperties(
+    val name: String? = null,
+    val installation: String? = null,
+    val shard: String? = null,
+    val replica: String? = null,
+)
+
 internal fun BiScriptProperties.toBiScriptOptions(kafkaProperties: KafkaProperties?): BiScriptOptions {
     return BiScriptOptions(
         database = database ?: defaultBiScriptOptions.database,
         consumerDatabase = consumerDatabase ?: defaultBiScriptOptions.consumerDatabase,
-        cluster = cluster ?: defaultBiScriptOptions.cluster,
-        installation = installation ?: defaultBiScriptOptions.installation,
-        shard = shard ?: defaultBiScriptOptions.shard,
-        replica = replica ?: defaultBiScriptOptions.replica,
+        topology = topology.toTopology(),
         timezone = timezone ?: defaultBiScriptOptions.timezone,
         kafkaBootstrapServers = kafkaBootstrapServers
             ?: kafkaProperties?.bootstrapServersToString()
@@ -58,4 +70,21 @@ internal fun BiScriptProperties.toBiScriptOptions(kafkaProperties: KafkaProperti
     )
 }
 
+private fun BiScriptTopologyProperties.toTopology(): ClickHouseTopology = when (mode) {
+    BiScriptTopologyMode.CLUSTER -> ClickHouseTopology.Cluster(
+        name = cluster?.name ?: defaultCluster.name,
+        installation = cluster?.installation ?: defaultCluster.installation,
+        shard = cluster?.shard ?: defaultCluster.shard,
+        replica = cluster?.replica ?: defaultCluster.replica,
+    )
+
+    BiScriptTopologyMode.STANDALONE -> {
+        require(cluster == null) {
+            "topology.cluster must not be configured in STANDALONE mode"
+        }
+        ClickHouseTopology.Standalone
+    }
+}
+
 private val defaultBiScriptOptions = BiScriptOptions()
+private val defaultCluster = ClickHouseTopology.Cluster()

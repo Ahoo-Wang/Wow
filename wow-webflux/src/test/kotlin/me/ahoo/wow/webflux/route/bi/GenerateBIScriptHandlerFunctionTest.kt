@@ -25,6 +25,7 @@ import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.bi.BiScriptDiagnostic
 import me.ahoo.wow.bi.BiScriptGenerator
 import me.ahoo.wow.bi.BiScriptOptions
+import me.ahoo.wow.bi.ClickHouseTopology
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.configuration.NamedAggregateTypeSearcher
 import me.ahoo.wow.configuration.TypeNamedAggregateSearcher
@@ -51,6 +52,7 @@ class GenerateBIScriptHandlerFunctionTest {
         val options = BiScriptOptions(
             database = "analytics",
             consumerDatabase = "analytics_consumer",
+            topology = ClickHouseTopology.Cluster(name = "analytics-cluster"),
             kafkaBootstrapServers = "kafka:9092",
             topicPrefix = "analytics.",
         )
@@ -66,6 +68,7 @@ class GenerateBIScriptHandlerFunctionTest {
                 response.writeBody().run {
                     assert().contains("CREATE DATABASE IF NOT EXISTS \"analytics\"")
                     assert().contains("CREATE DATABASE IF NOT EXISTS \"analytics_consumer\"")
+                    assert().contains("ON CLUSTER 'analytics-cluster'")
                     assert().contains("ENGINE = Kafka('kafka:9092'")
                     assert().contains("'analytics.example.order.command'")
                 }
@@ -86,7 +89,7 @@ class GenerateBIScriptHandlerFunctionTest {
             every { MetadataSearcher.localAggregates } returns setOf(aggregate)
             every { MetadataSearcher.namedAggregateType } returns aggregateTypes
             every { MetadataSearcher.typeNamedAggregate } returns namedAggregates
-            val options = BiScriptOptions()
+            val options = BiScriptOptions(topology = ClickHouseTopology.Standalone)
             val generated = BiScriptGenerator(options).generate(setOf(aggregate))
             generated.diagnostics.assert().hasSize(2)
 
