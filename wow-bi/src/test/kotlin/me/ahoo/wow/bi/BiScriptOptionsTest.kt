@@ -47,6 +47,44 @@ class BiScriptOptionsTest {
     }
 
     @Test
+    fun `should accept cluster values at the maximum length`() {
+        val value = "x".repeat(ClickHouseTopology.Cluster.MAX_VALUE_LENGTH)
+
+        ClickHouseTopology.Cluster(
+            name = value,
+            installation = value,
+            shard = value,
+            replica = value,
+        ).assert().isEqualTo(
+            ClickHouseTopology.Cluster(
+                name = value,
+                installation = value,
+                shard = value,
+                replica = value,
+            )
+        )
+    }
+
+    @Test
+    fun `should reject every cluster value above the maximum length`() {
+        val maximum = ClickHouseTopology.Cluster.MAX_VALUE_LENGTH
+        val tooLong = "x".repeat(maximum + 1)
+        val invalidValues = listOf(
+            "name" to { ClickHouseTopology.Cluster(name = tooLong) },
+            "installation" to { ClickHouseTopology.Cluster(installation = tooLong) },
+            "shard" to { ClickHouseTopology.Cluster(shard = tooLong) },
+            "replica" to { ClickHouseTopology.Cluster(replica = tooLong) },
+        )
+
+        invalidValues.forEach { (field, createCluster) ->
+            val failure = runCatching(createCluster).exceptionOrNull()
+
+            failure.assert().isNotNull()
+            failure!!.message.assert().contains(field, (maximum + 1).toString(), maximum.toString())
+        }
+    }
+
+    @Test
     fun `should use the designed defaults`() {
         val options = BiScriptOptions()
 
@@ -85,6 +123,87 @@ class BiScriptOptionsTest {
             { BiScriptOptions(topicPrefix = "wow.\u0000") },
         ).forEach { createOptions ->
             runCatching(createOptions).isFailure.assert().isTrue()
+        }
+    }
+
+    @Test
+    fun `should accept every required value at its maximum length`() {
+        listOf(
+            { BiScriptOptions(database = "x".repeat(BiScriptOptions.MAX_DATABASE_LENGTH)) },
+            {
+                BiScriptOptions(
+                    consumerDatabase = "x".repeat(BiScriptOptions.MAX_CONSUMER_DATABASE_LENGTH)
+                )
+            },
+            { BiScriptOptions(timezone = "x".repeat(BiScriptOptions.MAX_TIMEZONE_LENGTH)) },
+            {
+                BiScriptOptions(
+                    kafkaBootstrapServers = "x".repeat(BiScriptOptions.MAX_KAFKA_BOOTSTRAP_SERVERS_LENGTH)
+                )
+            },
+            { BiScriptOptions(topicPrefix = "x".repeat(BiScriptOptions.MAX_TOPIC_PREFIX_LENGTH)) },
+        ).forEach { createOptions ->
+            runCatching(createOptions).isSuccess.assert().isTrue()
+        }
+    }
+
+    @Test
+    fun `should reject every required value above its maximum length`() {
+        val invalidValues = listOf(
+            Triple(
+                "database",
+                BiScriptOptions.MAX_DATABASE_LENGTH,
+                {
+                    BiScriptOptions(
+                        database = "x".repeat(BiScriptOptions.MAX_DATABASE_LENGTH + 1)
+                    )
+                },
+            ),
+            Triple(
+                "consumerDatabase",
+                BiScriptOptions.MAX_CONSUMER_DATABASE_LENGTH,
+                {
+                    BiScriptOptions(
+                        consumerDatabase = "x".repeat(BiScriptOptions.MAX_CONSUMER_DATABASE_LENGTH + 1)
+                    )
+                },
+            ),
+            Triple(
+                "timezone",
+                BiScriptOptions.MAX_TIMEZONE_LENGTH,
+                {
+                    BiScriptOptions(
+                        timezone = "x".repeat(BiScriptOptions.MAX_TIMEZONE_LENGTH + 1)
+                    )
+                },
+            ),
+            Triple(
+                "kafkaBootstrapServers",
+                BiScriptOptions.MAX_KAFKA_BOOTSTRAP_SERVERS_LENGTH,
+                {
+                    BiScriptOptions(
+                        kafkaBootstrapServers = "x".repeat(
+                            BiScriptOptions.MAX_KAFKA_BOOTSTRAP_SERVERS_LENGTH + 1
+                        )
+                    )
+                },
+            ),
+            Triple(
+                "topicPrefix",
+                BiScriptOptions.MAX_TOPIC_PREFIX_LENGTH,
+                {
+                    BiScriptOptions(
+                        topicPrefix = "x".repeat(BiScriptOptions.MAX_TOPIC_PREFIX_LENGTH + 1)
+                    )
+                },
+            ),
+        )
+
+        invalidValues.forEach { (field, maximum, createOptions) ->
+            val failure = runCatching(createOptions).exceptionOrNull()
+
+            failure.assert().isNotNull()
+            failure!!.message.assert().contains(field, (maximum + 1).toString(), maximum.toString())
         }
     }
 

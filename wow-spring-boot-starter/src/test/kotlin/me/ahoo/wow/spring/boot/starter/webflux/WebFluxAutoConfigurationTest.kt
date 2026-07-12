@@ -424,6 +424,38 @@ internal class WebFluxAutoConfigurationTest {
     }
 
     @Test
+    fun `should accept a BI request database at the domain maximum length`() {
+        val database = "d".repeat(BiScriptOptions.MAX_DATABASE_LENGTH)
+
+        webFluxContextRunner().run { context ->
+            context.biScriptClient().post()
+                .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("""{"database":"$database"}""")
+                .exchange()
+                .expectStatus().isOk
+                .expectBody(String::class.java)
+                .value { script ->
+                    script.assert().contains("CREATE DATABASE IF NOT EXISTS \"$database\"")
+                }
+        }
+    }
+
+    @Test
+    fun `should reject a BI request database above the domain maximum length`() {
+        val database = "d".repeat(BiScriptOptions.MAX_DATABASE_LENGTH + 1)
+
+        webFluxContextRunner().run { context ->
+            context.biScriptClient().post()
+                .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("""{"database":"$database"}""")
+                .exchange()
+                .expectStatus().isBadRequest
+        }
+    }
+
+    @Test
     fun `should reject BI request expansion depth above the configured ceiling`() {
         webFluxContextRunner()
             .withPropertyValues("${BiScriptProperties.PREFIX}.max-expansion-depth=3")
