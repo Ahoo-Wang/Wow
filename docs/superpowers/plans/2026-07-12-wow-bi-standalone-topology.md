@@ -6,7 +6,7 @@
 
 **Architecture:** A public sealed `ClickHouseTopology` makes deployment state valid by construction. `StateExpansionPlanner` continues to emit topology-neutral logical names, while an internal topology DDL policy supplies scope, physical table names, engines, distributed facades, and drop targets to `ClickHouseScriptRenderer`.
 
-**Tech Stack:** Kotlin 2.3.20, JVM 17, Gradle, JUnit Jupiter, FluentAssert, Spring Boot configuration properties, Reactor WebFlux, Testcontainers, ClickHouse 24.8, VitePress.
+**Tech Stack:** Kotlin 2.4.0, JVM 17, Gradle, JUnit Jupiter, FluentAssert, Spring Boot configuration properties, Reactor WebFlux, Testcontainers, ClickHouse 24.8, VitePress.
 
 ## Global Constraints
 

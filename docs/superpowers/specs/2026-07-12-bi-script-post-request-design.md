@@ -115,9 +115,11 @@ present, `mode` is mandatory and determines the result:
   `ClickHouseTopology.Cluster()` defaults.
 
 The merged values are passed through the existing `BiScriptOptions` and
-`ClickHouseTopology.Cluster` constructors. Their current validation remains the
-single source of truth for blank strings, control characters, expansion depth,
-and cluster values.
+`ClickHouseTopology.Cluster` constructors. Those constructors remain the single
+source of truth for blank strings, control characters, and topology/cluster
+domain values. `BiScriptOptions` owns the minimum/domain invariant for
+`maxExpansionDepth`, while `BiScriptRequestMapper` additionally ensures that an
+HTTP override cannot exceed the server base `maxExpansionDepth` safety ceiling.
 
 ## Components
 

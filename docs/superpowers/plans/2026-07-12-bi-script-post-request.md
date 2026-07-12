@@ -6,7 +6,7 @@
 
 **Architecture:** `wow-openapi` owns a typed, transport-only BI request contract shared by OpenAPI rendering and WebFlux decoding. `wow-webflux` maps that nullable request over the base `BiScriptOptions` supplied by `wow-spring-boot-starter`, while `wow-bi` remains unchanged and receives only complete validated domain options.
 
-**Tech Stack:** Kotlin 2.4.0, JVM 17, Spring WebFlux 7.0.8, Spring Boot 4.0.6, Jackson, Reactor, JUnit Jupiter, MockK, FluentAssert, Swagger/OpenAPI, Gradle, VitePress.
+**Tech Stack:** Kotlin 2.4.0, JVM 17, Spring WebFlux 7.0.8, Spring Boot 4.1.0, Jackson, Reactor, JUnit Jupiter, MockK, FluentAssert, Swagger/OpenAPI, Gradle, VitePress.
 
 ## Global Constraints
 
