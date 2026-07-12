@@ -30,6 +30,7 @@ Kotlin callers obtain SQL and diagnostics through `BiScriptGenerator`:
 ```kotlin
 val result = BiScriptGenerator(
     BiScriptOptions(
+        topology = ClickHouseTopology.Standalone,
         unsupportedTypeStrategy = UnsupportedTypeStrategy.RAW_JSON,
     )
 ).generate(aggregates)
@@ -38,7 +39,7 @@ val sql: String = result.script
 val diagnostics: List<BiScriptDiagnostic> = result.diagnostics
 ```
 
-The public contract consists of seven types: `BiScriptGenerator`, `BiScriptOptions`, `UnsupportedTypeStrategy`, `BiScriptResult`, `BiScriptDiagnostic`, `BiScriptDiagnosticCode`, and `BiScriptMappingDecision`. Planning, rendering, type mapping, and executable-statement models are internal.
+The public contract consists of eight top-level types: `BiScriptGenerator`, `BiScriptOptions`, `ClickHouseTopology`, `UnsupportedTypeStrategy`, `BiScriptResult`, `BiScriptDiagnostic`, `BiScriptDiagnosticCode`, and `BiScriptMappingDecision`. `ClickHouseTopology` exposes the `Standalone` and `Cluster` variants. `BiScriptGenerator.generate(...)` is the single generation entry point; planning, rendering, type mapping, and executable-statement models are internal.
 
 `BiScriptResult` contains:
 
@@ -69,13 +70,54 @@ A successful response is always `200` with `Content-Type: application/sql`, and 
 
 ## Generated SQL Contract
 
-The following fragments show only stable structure. Actual database names, cluster, Kafka address, topic, and aggregate table names come from `BiScriptOptions` and aggregate metadata.
+The following fragments show only stable structure. Actual database names, deployment topology, Kafka address, topic, and aggregate table names come from `BiScriptOptions` and aggregate metadata.
 
 Generated BI SQL requires ClickHouse 24.8 LTS or later. The module integration suite pins the minimum line to a 24.8 image.
 
+### Deployment Topologies
+
+`BiScriptOptions.topology` selects one of two physical DDL graphs:
+
+| Topology | Physical tables | Logical access | DDL scope |
+|----------|-----------------|----------------|-----------|
+| `ClickHouseTopology.Standalone` | `command`, `state`, and `state_last` use `MergeTree` / `ReplacingMergeTree` directly | The physical tables are the logical tables; no `Distributed` facade is generated | No `ON CLUSTER`, replicated engine, `_local` table, or replication path |
+| `ClickHouseTopology.Cluster(...)` | `command_local`, `state_local`, and `state_last_local` use replicated engines | `command`, `state`, and `state_last` are `Distributed` facades over the local tables | Every database, table, materialized view, and expansion view uses `ON CLUSTER` |
+
+Standalone command storage is a single physical table:
+
+```sql
+CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command"
+(
+    "id" String,
+    "aggregate_id" String,
+    "create_time" DateTime('Asia/Shanghai')
+) ENGINE = MergeTree
+  PARTITION BY toYYYYMM("create_time")
+  ORDER BY "id";
+```
+
+The clustered graph retains a replicated local table plus a distributed facade:
+
+```sql
+CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command_local" ON CLUSTER '{cluster}'
+(
+    "id" String,
+    "aggregate_id" String,
+    "create_time" DateTime('Asia/Shanghai')
+) ENGINE = ReplicatedMergeTree(
+    '/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}', '{replica}')
+  PARTITION BY toYYYYMM("create_time")
+  ORDER BY "id";
+
+CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command" ON CLUSTER '{cluster}'
+AS "bi_db"."example_order_command_local"
+ENGINE = Distributed('{cluster}', "bi_db",
+                     'example_order_command_local', sipHash64("aggregate_id"));
+```
+
 ### Aggregate Commands
 
-The command local table includes tenant, owner, space, request, version, and command-body metadata. The Kafka materialized view extracts the same semantics from message JSON:
+The command table includes tenant, owner, space, request, version, and command-body metadata. In cluster mode the physical table uses the `_local` suffix shown above. The Kafka materialized view extracts the same semantics from message JSON:
 
 ```sql
 CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command_local" ON CLUSTER '{cluster}'
@@ -115,11 +157,28 @@ SELECT "events".1 AS "event_sequence",
        JSONExtract("events".2, 'body', 'String') AS "event_body";
 ```
 
-The state local table is partitioned monthly by `create_time` and ordered by `(aggregate_id, version)`.
+The state table is partitioned monthly by `create_time` and ordered by `(aggregate_id, version)`. Standalone mode renders `ReplacingMergeTree("version")` directly on `example_order_state`; cluster mode renders `ReplicatedReplacingMergeTree(..., "version")` on `example_order_state_local` and adds the distributed `example_order_state` facade.
 
 ### Latest State
 
-The latest-state table receives all columns from the distributed state table and is partitioned by first-event time:
+The latest-state table receives all columns from the state table and is partitioned by first-event time. Standalone mode uses the following physical DDL without clustered clauses:
+
+```sql
+CREATE TABLE IF NOT EXISTS "bi_db"."example_order_state_last"
+(
+    "aggregate_id" String,
+    "version" UInt32,
+    "first_event_time" DateTime('Asia/Shanghai')
+) ENGINE = ReplacingMergeTree("version")
+  PARTITION BY toYYYYMM("first_event_time")
+  ORDER BY "aggregate_id";
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS "bi_db_consumer"."example_order_state_last_consumer"
+TO "bi_db"."example_order_state_last"
+AS SELECT * FROM "bi_db"."example_order_state";
+```
+
+Cluster mode retains the replicated local table and targets its distributed facade:
 
 ```sql
 CREATE TABLE IF NOT EXISTS "bi_db"."example_order_state_last_local" ON CLUSTER '{cluster}'

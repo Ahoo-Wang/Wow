@@ -355,34 +355,45 @@ wow:
 
 | 属性 | 类型 | 默认值 | 描述 |
 |------|------|--------|------|
-| `wow.bi.script.database` | String | `bi_db` | 分布式/本地状态表、命令表及展开视图所在数据库 |
+| `wow.bi.script.database` | String | `bi_db` | 状态表、命令表及展开视图所在数据库 |
 | `wow.bi.script.consumer-database` | String | `bi_db_consumer` | Kafka 队列表和消费物化视图所在数据库 |
-| `wow.bi.script.cluster` | String | `{cluster}` | `ON CLUSTER` 和 `Distributed` 使用的 ClickHouse 集群名 |
-| `wow.bi.script.installation` | String | `{installation}` | 复制表路径中的 installation 段 |
-| `wow.bi.script.shard` | String | `{shard}` | 复制表路径中的 shard 段 |
-| `wow.bi.script.replica` | String | `{replica}` | 传给复制表引擎的副本名 |
+| `wow.bi.script.topology.mode` | Enum | `CLUSTER` | 物理 DDL 拓扑：`CLUSTER` 或 `STANDALONE` |
+| `wow.bi.script.topology.cluster.name` | String | `{cluster}` | `CLUSTER` 模式中 `ON CLUSTER` 和 `Distributed` 使用的集群名 |
+| `wow.bi.script.topology.cluster.installation` | String | `{installation}` | `CLUSTER` 模式复制表路径中的 installation 段 |
+| `wow.bi.script.topology.cluster.shard` | String | `{shard}` | `CLUSTER` 模式复制表路径中的 shard 段 |
+| `wow.bi.script.topology.cluster.replica` | String | `{replica}` | `CLUSTER` 模式中传给复制表引擎的副本名 |
 | `wow.bi.script.timezone` | String | `Asia/Shanghai` | 生成的日期时间列和转换表达式使用的 ClickHouse 时区 |
 | `wow.bi.script.kafka-bootstrap-servers` | String | 继承 `wow.kafka.bootstrap-servers`，否则为 `localhost:9093` | BI Kafka broker 覆盖值；继承多个 broker 时以逗号连接 |
 | `wow.bi.script.topic-prefix` | String | 继承 `wow.kafka.topic-prefix`，否则为 `wow.` | BI topic 前缀覆盖值 |
 | `wow.bi.script.max-expansion-depth` | Int | `5` | 复杂属性的最大展开深度，必须大于等于 `1` |
 | `wow.bi.script.unsupported-type-strategy` | Enum | `RAW_JSON` | `RAW_JSON` 生成 scoped JSON 查询便利投影并产生诊断；精确词法值通过 `__state` 与 recovery `__path` 恢复；`FAIL` 中止生成 |
 
+独立拓扑：
+
 ```yaml
 wow:
   bi:
     script:
-      database: bi_db
-      consumer-database: bi_db_consumer
-      cluster: '{cluster}'
-      installation: '{installation}'
-      shard: '{shard}'
-      replica: '{replica}'
-      timezone: Asia/Shanghai
-      kafka-bootstrap-servers: kafka-0:9092,kafka-1:9092
-      topic-prefix: 'wow.'
-      max-expansion-depth: 5
-      unsupported-type-strategy: RAW_JSON
+      topology:
+        mode: STANDALONE
 ```
+
+集群拓扑：
+
+```yaml
+wow:
+  bi:
+    script:
+      topology:
+        mode: CLUSTER
+        cluster:
+          name: production
+          installation: clickhouse
+          shard: '{shard}'
+          replica: '{replica}'
+```
+
+`STANDALONE` 直接生成使用 `MergeTree` / `ReplacingMergeTree` 的逻辑表，并拒绝配置 `topology.cluster`。`CLUSTER` 生成复制的 `_local` 表及其 `Distributed` 逻辑表；未配置的集群字段使用上表默认值。
 
 Kafka 与 topic 配置按以下优先级解析：
 
@@ -390,7 +401,7 @@ Kafka 与 topic 配置按以下优先级解析：
 2. 对应的 `wow.kafka.bootstrap-servers` / `wow.kafka.topic-prefix`，多个 broker 以逗号连接；
 3. `BiScriptOptions` 领域默认值 `localhost:9093` / `wow.`。
 
-其他可空绑定属性未配置时直接回退到 `BiScriptOptions` 默认值。Starter 在构造领域选项时统一执行校验：必填字符串为空白或包含控制字符，以及 `max-expansion-depth < 1` 都会使应用启动失败。
+其他可空绑定属性未配置时直接回退到 `BiScriptOptions` 默认值。Starter 在构造领域选项时统一执行校验：必填字符串为空白或包含控制字符、`max-expansion-depth < 1`，以及在 `STANDALONE` 模式提供集群字段都会使应用启动失败。
 
 结构化结果诊断、当前展开语义与无损映射参见[商业智能](./bi)。
 
