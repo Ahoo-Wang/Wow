@@ -85,8 +85,9 @@ The OpenAPI operation for `POST /wow/bi/script` declares:
 - the common `415 UnsupportedMediaType` response.
 
 `UnsupportedMediaType` uses the same common error schema and
-`Wow-Error-Code` header shape as other framework errors. The component key and
-runtime error code are both `wow.UnsupportedMediaType`.
+`Wow-Error-Code` header shape as other framework errors. Its OpenAPI component
+key is `wow.UnsupportedMediaType`; the runtime header value remains
+`UnsupportedMediaType`, matching `ResponseStatusExceptionConverter`.
 
 ## Testing Strategy
 
