@@ -164,7 +164,7 @@ curl -X 'GET' \
 
 ### Generate BI Sync Script
 
-`POST /wow/bi/script` generates ClickHouse synchronization and expansion SQL for the current local aggregates. It requires an `application/json` request body. The OpenAPI schema lists every request field: `database`, `consumerDatabase`, `topology`, `timezone`, `kafkaBootstrapServers`, `topicPrefix`, `maxExpansionDepth`, and `unsupportedTypeStrategy`; nested topology fields are `mode` and `cluster`, and nested cluster fields are `name`, `installation`, `shard`, and `replica`. It also lists the enum values `CLUSTER` / `STANDALONE` and `FAIL` / `RAW_JSON`.
+`POST /wow/bi/script` generates ClickHouse synchronization and expansion SQL for the current local aggregates. It requires an `application/json` request body. The OpenAPI schema lists every request field: `database`, `consumerDatabase`, `topology`, `timezone`, `kafkaBootstrapServers`, `topicPrefix`, `maxExpansionDepth`, and `unsupportedTypeStrategy`; nested topology fields are `mode` and `cluster`, and nested cluster fields are `name`, `installation`, `shard`, and `replica`. It also lists the enum values `CLUSTER` / `STANDALONE` and `FAIL` / `RAW_JSON`. A request may lower `maxExpansionDepth`, but cannot exceed the server-configured value, which is the endpoint's safety ceiling.
 
 | Status | `Content-Type` | Body |
 |--------|----------------|------|

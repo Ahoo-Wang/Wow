@@ -165,7 +165,7 @@ curl -X 'GET' \
 
 ### 生成 BI 同步脚本
 
-`POST /wow/bi/script` 生成当前本地聚合的 ClickHouse 同步与展开 SQL，并要求提供 `application/json` 请求体。OpenAPI schema 列出全部请求字段：`database`、`consumerDatabase`、`topology`、`timezone`、`kafkaBootstrapServers`、`topicPrefix`、`maxExpansionDepth` 和 `unsupportedTypeStrategy`；嵌套拓扑字段为 `mode` 与 `cluster`，嵌套集群字段为 `name`、`installation`、`shard` 和 `replica`。schema 同时列出枚举值 `CLUSTER` / `STANDALONE` 与 `FAIL` / `RAW_JSON`。
+`POST /wow/bi/script` 生成当前本地聚合的 ClickHouse 同步与展开 SQL，并要求提供 `application/json` 请求体。OpenAPI schema 列出全部请求字段：`database`、`consumerDatabase`、`topology`、`timezone`、`kafkaBootstrapServers`、`topicPrefix`、`maxExpansionDepth` 和 `unsupportedTypeStrategy`；嵌套拓扑字段为 `mode` 与 `cluster`，嵌套集群字段为 `name`、`installation`、`shard` 和 `replica`。schema 同时列出枚举值 `CLUSTER` / `STANDALONE` 与 `FAIL` / `RAW_JSON`。请求可以降低 `maxExpansionDepth`，但不能超过服务端配置值；该配置是端点的安全上限。
 
 | 状态 | `Content-Type` | 响应体 |
 |------|----------------|--------|

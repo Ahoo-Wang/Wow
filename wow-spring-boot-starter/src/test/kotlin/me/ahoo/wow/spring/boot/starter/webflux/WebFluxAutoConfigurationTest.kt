@@ -424,6 +424,20 @@ internal class WebFluxAutoConfigurationTest {
     }
 
     @Test
+    fun `should reject BI request expansion depth above the configured ceiling`() {
+        webFluxContextRunner()
+            .withPropertyValues("${BiScriptProperties.PREFIX}.max-expansion-depth=3")
+            .run { context ->
+                context.biScriptClient().post()
+                    .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue("""{"maxExpansionDepth":4}""")
+                    .exchange()
+                    .expectStatus().isBadRequest
+            }
+    }
+
+    @Test
     fun `should reject cluster details in a standalone BI request`() {
         webFluxContextRunner().run { context ->
             context.biScriptClient().post()

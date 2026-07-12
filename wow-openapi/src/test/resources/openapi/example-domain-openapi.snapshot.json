@@ -640,7 +640,8 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "format" : "int64"
+              "format" : "int64",
+              "type" : "integer"
             }
           }
         },
@@ -694,23 +695,33 @@
       }
     },
     "schemas" : {
-      "example.StringObjectMap" : { },
+      "example.StringObjectMap" : {
+        "type" : "object"
+      },
       "example.StringStringListMap" : {
         "additionalProperties" : {
-          "items" : { }
-        }
+          "items" : {
+            "type" : "string"
+          },
+          "type" : "array"
+        },
+        "type" : "object"
       },
       "example.cart.AddCartItem" : {
         "properties" : {
           "productId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "quantity" : {
-            "format" : "int32"
+            "exclusiveMinimum" : 0,
+            "format" : "int32",
+            "type" : "integer"
           }
         },
         "required" : [ "productId" ],
-        "title" : "加入购物车"
+        "title" : "加入购物车",
+        "type" : "object"
       },
       "example.cart.CartAggregatedCondition" : {
         "properties" : {
@@ -718,27 +729,34 @@
             "default" : "[]",
             "items" : {
               "$ref" : "#/components/schemas/example.cart.CartAggregatedCondition"
-            }
+            },
+            "type" : "array"
           },
           "field" : {
             "$ref" : "#/components/schemas/example.cart.CartAggregatedFields"
           },
           "operator" : {
-            "$ref" : "#/components/schemas/wow.api.query.Operator"
+            "$ref" : "#/components/schemas/wow.api.query.Operator",
+            "default" : "ALL"
           },
           "options" : {
-            "$ref" : "#/components/schemas/wow.api.query.ConditionOptions"
+            "$ref" : "#/components/schemas/wow.api.query.ConditionOptions",
+            "default" : "{}"
           },
           "value" : { }
-        }
+        },
+        "type" : "object"
       },
       "example.cart.CartAggregatedDomainEventStream" : {
+        "$schema" : "https://json-schema.org/draft/2020-12/schema",
         "properties" : {
           "aggregateId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "aggregateName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "body" : {
             "items" : {
@@ -747,118 +765,169 @@
                   "body" : {
                     "$ref" : "#/components/schemas/example.cart.CartItemAdded"
                   },
-                  "bodyType" : { },
+                  "bodyType" : {
+                    "const" : "me.ahoo.wow.example.api.cart.CartItemAdded",
+                    "type" : "string"
+                  },
                   "id" : {
-                    "minLength" : 1
+                    "minLength" : 1,
+                    "type" : "string"
                   },
                   "name" : {
-                    "minLength" : 1
+                    "const" : "cart_item_added",
+                    "minLength" : 1,
+                    "type" : "string"
                   },
                   "revision" : {
-                    "default" : "0.0.1"
+                    "default" : "0.0.1",
+                    "type" : "string"
                   }
                 },
                 "required" : [ "body", "bodyType", "id", "name", "revision" ],
-                "title" : "商品已加入购物车"
+                "title" : "商品已加入购物车",
+                "type" : "object"
               }, {
                 "properties" : {
                   "body" : {
                     "$ref" : "#/components/schemas/example.cart.CartItemRemoved"
                   },
-                  "bodyType" : { },
+                  "bodyType" : {
+                    "const" : "me.ahoo.wow.example.api.cart.CartItemRemoved",
+                    "type" : "string"
+                  },
                   "id" : {
-                    "minLength" : 1
+                    "minLength" : 1,
+                    "type" : "string"
                   },
                   "name" : {
-                    "minLength" : 1
+                    "const" : "cart_item_removed",
+                    "minLength" : 1,
+                    "type" : "string"
                   },
                   "revision" : {
-                    "default" : "0.0.1"
+                    "default" : "0.0.1",
+                    "type" : "string"
                   }
                 },
                 "required" : [ "body", "bodyType", "id", "name", "revision" ],
-                "title" : "cart_item_removed"
+                "title" : "cart_item_removed",
+                "type" : "object"
               }, {
                 "properties" : {
                   "body" : {
                     "$ref" : "#/components/schemas/example.cart.CartQuantityChanged"
                   },
-                  "bodyType" : { },
+                  "bodyType" : {
+                    "const" : "me.ahoo.wow.example.api.cart.CartQuantityChanged",
+                    "type" : "string"
+                  },
                   "id" : {
-                    "minLength" : 1
+                    "minLength" : 1,
+                    "type" : "string"
                   },
                   "name" : {
-                    "minLength" : 1
+                    "const" : "cart_quantity_changed",
+                    "minLength" : 1,
+                    "type" : "string"
                   },
                   "revision" : {
-                    "default" : "0.0.1"
+                    "default" : "0.0.1",
+                    "type" : "string"
                   }
                 },
                 "required" : [ "body", "bodyType", "id", "name", "revision" ],
-                "title" : "cart_quantity_changed"
+                "title" : "cart_quantity_changed",
+                "type" : "object"
               } ]
             },
-            "minItems" : 1
+            "minItems" : 1,
+            "type" : "array"
           },
           "commandId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "contextName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "createTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
           "header" : {
             "additionalProperties" : true,
             "properties" : {
-              "command_operator" : { },
+              "command_operator" : {
+                "type" : "string"
+              },
               "command_wait_endpoint" : {
-                "format" : "url"
+                "format" : "url",
+                "type" : "string"
               },
               "command_wait_stage" : {
                 "default" : "PROCESSED",
-                "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ]
+                "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ],
+                "type" : "string"
               },
-              "local_first" : { },
-              "remote_ip" : { },
-              "trace_id" : { },
-              "user_agent" : { }
-            }
+              "local_first" : {
+                "type" : "boolean"
+              },
+              "remote_ip" : {
+                "type" : "string"
+              },
+              "trace_id" : {
+                "type" : "string"
+              },
+              "user_agent" : {
+                "type" : "string"
+              }
+            },
+            "type" : "object"
           },
           "id" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "ownerId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "requestId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "spaceId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "tenantId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "version" : {
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "id", "ownerId", "spaceId", "tenantId", "version" ]
+        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "id", "ownerId", "spaceId", "tenantId", "version" ],
+        "type" : "object"
       },
       "example.cart.CartAggregatedDomainEventStreamPagedList" : {
         "properties" : {
           "list" : {
             "items" : {
               "$ref" : "#/components/schemas/example.cart.CartAggregatedDomainEventStream"
-            }
+            },
+            "type" : "array"
           },
           "total" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           }
         },
-        "required" : [ "list", "total" ]
+        "required" : [ "list", "total" ],
+        "type" : "object"
       },
       "example.cart.CartAggregatedDomainEventStreamServerSentEventNonNullData" : {
         "properties" : {
@@ -866,21 +935,34 @@
             "$ref" : "#/components/schemas/example.cart.CartAggregatedDomainEventStream"
           },
           "event" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "id" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "retry" : {
-            "anyOf" : [ { }, {
-              "format" : "int32"
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int32",
+              "type" : "integer"
             } ]
           }
         },
-        "required" : [ "data" ]
+        "required" : [ "data" ],
+        "type" : "object"
       },
       "example.cart.CartAggregatedFields" : {
-        "enum" : [ "", "aggregateId", "tenantId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "tags", "deleted", "state", "state.id", "state.items", "state.items.productId", "state.items.quantity", "state.size" ]
+        "enum" : [ "", "aggregateId", "tenantId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "tags", "deleted", "state", "state.id", "state.items", "state.items.productId", "state.items.quantity", "state.size" ],
+        "type" : "string"
       },
       "example.cart.CartAggregatedListQuery" : {
         "properties" : {
@@ -889,7 +971,8 @@
           },
           "limit" : {
             "default" : "0",
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           },
           "projection" : {
             "$ref" : "#/components/schemas/wow.api.query.Projection"
@@ -898,10 +981,12 @@
             "default" : "[]",
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.Sort"
-            }
+            },
+            "type" : "array"
           }
         },
-        "required" : [ "condition" ]
+        "required" : [ "condition" ],
+        "type" : "object"
       },
       "example.cart.CartAggregatedPagedQuery" : {
         "properties" : {
@@ -918,10 +1003,12 @@
             "default" : "[]",
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.Sort"
-            }
+            },
+            "type" : "array"
           }
         },
-        "required" : [ "condition" ]
+        "required" : [ "condition" ],
+        "type" : "object"
       },
       "example.cart.CartAggregatedSingleQuery" : {
         "properties" : {
@@ -935,19 +1022,25 @@
             "default" : "[]",
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.Sort"
-            }
+            },
+            "type" : "array"
           }
         },
-        "required" : [ "condition" ]
+        "required" : [ "condition" ],
+        "type" : "object"
       },
       "example.cart.CartItem" : {
         "properties" : {
-          "productId" : { },
+          "productId" : {
+            "type" : "string"
+          },
           "quantity" : {
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           }
         },
-        "required" : [ "productId" ]
+        "required" : [ "productId" ],
+        "type" : "object"
       },
       "example.cart.CartItemAdded" : {
         "properties" : {
@@ -956,15 +1049,20 @@
           }
         },
         "required" : [ "added" ],
-        "title" : "商品已加入购物车"
+        "title" : "商品已加入购物车",
+        "type" : "object"
       },
       "example.cart.CartItemRemoved" : {
         "properties" : {
           "productIds" : {
-            "items" : { }
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
           }
         },
-        "required" : [ "productIds" ]
+        "required" : [ "productIds" ],
+        "type" : "object"
       },
       "example.cart.CartQuantityChanged" : {
         "properties" : {
@@ -972,68 +1070,102 @@
             "$ref" : "#/components/schemas/example.cart.CartItem"
           }
         },
-        "required" : [ "changed" ]
+        "required" : [ "changed" ],
+        "type" : "object"
       },
       "example.cart.CartState" : {
         "properties" : {
-          "id" : { },
+          "id" : {
+            "type" : "string"
+          },
           "items" : {
             "items" : {
               "$ref" : "#/components/schemas/example.cart.CartItem"
-            }
+            },
+            "type" : "array"
           },
           "size" : {
             "format" : "int32",
-            "readOnly" : true
+            "readOnly" : true,
+            "type" : "integer"
           }
         },
-        "required" : [ "id" ]
+        "required" : [ "id" ],
+        "type" : "object"
       },
       "example.cart.CartStateMaterializedSnapshot" : {
         "properties" : {
-          "aggregateId" : { },
-          "aggregateName" : { },
-          "contextName" : { },
-          "deleted" : { },
-          "eventId" : { },
+          "aggregateId" : {
+            "type" : "string"
+          },
+          "aggregateName" : {
+            "type" : "string"
+          },
+          "contextName" : {
+            "type" : "string"
+          },
+          "deleted" : {
+            "type" : "boolean"
+          },
+          "eventId" : {
+            "type" : "string"
+          },
           "eventTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
           "firstEventTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
-          "firstOperator" : { },
-          "operator" : { },
-          "ownerId" : { },
+          "firstOperator" : {
+            "type" : "string"
+          },
+          "operator" : {
+            "type" : "string"
+          },
+          "ownerId" : {
+            "type" : "string"
+          },
           "snapshotTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
-          "spaceId" : { },
+          "spaceId" : {
+            "type" : "string"
+          },
           "state" : {
             "$ref" : "#/components/schemas/example.cart.CartState"
           },
           "tags" : {
             "$ref" : "#/components/schemas/example.StringStringListMap"
           },
-          "tenantId" : { },
+          "tenantId" : {
+            "type" : "string"
+          },
           "version" : {
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "snapshotTime", "state", "tenantId", "version" ]
+        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "snapshotTime", "state", "tenantId", "version" ],
+        "type" : "object"
       },
       "example.cart.CartStateMaterializedSnapshotPagedList" : {
         "properties" : {
           "list" : {
             "items" : {
               "$ref" : "#/components/schemas/example.cart.CartStateMaterializedSnapshot"
-            }
+            },
+            "type" : "array"
           },
           "total" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           }
         },
-        "required" : [ "list", "total" ]
+        "required" : [ "list", "total" ],
+        "type" : "object"
       },
       "example.cart.CartStateMaterializedSnapshotServerSentEventNonNullData" : {
         "properties" : {
@@ -1041,31 +1173,46 @@
             "$ref" : "#/components/schemas/example.cart.CartStateMaterializedSnapshot"
           },
           "event" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "id" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "retry" : {
-            "anyOf" : [ { }, {
-              "format" : "int32"
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int32",
+              "type" : "integer"
             } ]
           }
         },
-        "required" : [ "data" ]
+        "required" : [ "data" ],
+        "type" : "object"
       },
       "example.cart.CartStatePagedList" : {
         "properties" : {
           "list" : {
             "items" : {
               "$ref" : "#/components/schemas/example.cart.CartState"
-            }
+            },
+            "type" : "array"
           },
           "total" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           }
         },
-        "required" : [ "list", "total" ]
+        "required" : [ "list", "total" ],
+        "type" : "object"
       },
       "example.cart.CartStateServerSentEventNonNullData" : {
         "properties" : {
@@ -1073,196 +1220,297 @@
             "$ref" : "#/components/schemas/example.cart.CartState"
           },
           "event" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "id" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "retry" : {
-            "anyOf" : [ { }, {
-              "format" : "int32"
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int32",
+              "type" : "integer"
             } ]
           }
         },
-        "required" : [ "data" ]
+        "required" : [ "data" ],
+        "type" : "object"
       },
       "example.cart.CartStateSnapshot" : {
+        "$schema" : "https://json-schema.org/draft/2020-12/schema",
         "properties" : {
           "aggregateId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "aggregateName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "contextName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
-          "deleted" : { },
+          "deleted" : {
+            "type" : "boolean"
+          },
           "eventId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "firstEventTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
-          "firstOperator" : { },
-          "operator" : { },
+          "firstOperator" : {
+            "type" : "string"
+          },
+          "operator" : {
+            "type" : "string"
+          },
           "ownerId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "snapshotTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
           "spaceId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "state" : {
             "properties" : {
-              "id" : { },
+              "id" : {
+                "type" : "string"
+              },
               "items" : {
                 "items" : {
                   "$ref" : "#/components/schemas/example.cart.CartItem"
-                }
+                },
+                "type" : "array"
               }
             },
-            "required" : [ "id" ]
+            "required" : [ "id" ],
+            "type" : "object"
           },
           "tags" : {
             "additionalProperties" : {
-              "items" : { }
-            }
+              "items" : {
+                "type" : "string"
+              },
+              "type" : "array"
+            },
+            "type" : "object"
           },
           "tenantId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "version" : {
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tenantId", "version" ]
+        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tenantId", "version" ],
+        "type" : "object"
       },
       "example.cart.CartStateStateEvent" : {
+        "$schema" : "https://json-schema.org/draft/2020-12/schema",
         "properties" : {
           "aggregateId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "aggregateName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "body" : {
             "items" : {
               "properties" : {
-                "body" : { },
-                "bodyType" : { },
+                "body" : {
+                  "type" : "object"
+                },
+                "bodyType" : {
+                  "type" : "string"
+                },
                 "id" : {
-                  "minLength" : 1
+                  "minLength" : 1,
+                  "type" : "string"
                 },
                 "name" : {
-                  "minLength" : 1
+                  "minLength" : 1,
+                  "type" : "string"
                 },
-                "revision" : { }
+                "revision" : {
+                  "type" : "string"
+                }
               },
-              "required" : [ "body", "bodyType", "id", "name", "revision" ]
+              "required" : [ "body", "bodyType", "id", "name", "revision" ],
+              "type" : "object"
             },
-            "minItems" : 1
+            "minItems" : 1,
+            "type" : "array"
           },
           "commandId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "contextName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "createTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
-          "deleted" : { },
+          "deleted" : {
+            "type" : "boolean"
+          },
           "firstEventTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
-          "firstOperator" : { },
+          "firstOperator" : {
+            "type" : "string"
+          },
           "header" : {
             "additionalProperties" : true,
             "properties" : {
-              "command_operator" : { },
+              "command_operator" : {
+                "type" : "string"
+              },
               "command_wait_endpoint" : {
-                "format" : "url"
+                "format" : "url",
+                "type" : "string"
               },
               "command_wait_stage" : {
                 "default" : "PROCESSED",
-                "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ]
+                "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ],
+                "type" : "string"
               },
-              "local_first" : { },
-              "remote_ip" : { },
-              "trace_id" : { },
-              "user_agent" : { }
-            }
+              "local_first" : {
+                "type" : "boolean"
+              },
+              "remote_ip" : {
+                "type" : "string"
+              },
+              "trace_id" : {
+                "type" : "string"
+              },
+              "user_agent" : {
+                "type" : "string"
+              }
+            },
+            "type" : "object"
           },
           "id" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "ownerId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "requestId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "spaceId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "state" : {
             "properties" : {
-              "id" : { },
+              "id" : {
+                "type" : "string"
+              },
               "items" : {
                 "items" : {
                   "$ref" : "#/components/schemas/example.cart.CartItem"
-                }
+                },
+                "type" : "array"
               }
             },
-            "required" : [ "id" ]
+            "required" : [ "id" ],
+            "type" : "object"
           },
           "tags" : {
             "additionalProperties" : {
-              "items" : { }
-            }
+              "items" : {
+                "type" : "string"
+              },
+              "type" : "array"
+            },
+            "type" : "object"
           },
           "tenantId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "version" : {
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "deleted", "firstEventTime", "firstOperator", "id", "ownerId", "spaceId", "state", "tenantId", "version" ]
+        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "deleted", "firstEventTime", "firstOperator", "id", "ownerId", "spaceId", "state", "tenantId", "version" ],
+        "type" : "object"
       },
       "example.cart.ChangeQuantity" : {
         "properties" : {
           "productId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "quantity" : {
-            "format" : "int32"
+            "exclusiveMinimum" : 0,
+            "format" : "int32",
+            "type" : "integer"
           }
         },
         "required" : [ "productId", "quantity" ],
-        "title" : "变更购买数量"
+        "title" : "变更购买数量",
+        "type" : "object"
       },
-      "example.cart.MockVariableCommand" : { },
+      "example.cart.MockVariableCommand" : {
+        "type" : "object"
+      },
       "example.cart.MockVariableCommand.MockEnum" : {
-        "enum" : [ "First", "Second", "Third" ]
+        "enum" : [ "First", "Second", "Third" ],
+        "type" : "string"
       },
       "example.cart.MountedCommand" : {
-        "title" : "挂载的命令"
+        "title" : "挂载的命令",
+        "type" : "object"
       },
       "example.cart.RemoveCartItem" : {
         "properties" : {
           "productIds" : {
-            "items" : { },
-            "minItems" : 1
+            "items" : {
+              "type" : "string"
+            },
+            "minItems" : 1,
+            "type" : "array"
           }
         },
         "required" : [ "productIds" ],
-        "title" : "删除商品"
+        "title" : "删除商品",
+        "type" : "object"
       },
-      "example.cart.ViewCart" : { },
+      "example.cart.ViewCart" : {
+        "type" : "object"
+      },
       "example.order.AddressChanged" : {
         "properties" : {
           "shippingAddress" : {
@@ -1270,7 +1518,8 @@
           }
         },
         "required" : [ "shippingAddress" ],
-        "title" : "收货地址已修改"
+        "title" : "收货地址已修改",
+        "type" : "object"
       },
       "example.order.ChangeAddress" : {
         "properties" : {
@@ -1279,35 +1528,47 @@
           }
         },
         "required" : [ "shippingAddress" ],
-        "title" : "修改收货地址"
+        "title" : "修改收货地址",
+        "type" : "object"
       },
       "example.order.CreateOrder" : {
         "properties" : {
           "address" : {
             "$ref" : "#/components/schemas/example.order.ShippingAddress"
           },
-          "fromCart" : { },
+          "fromCart" : {
+            "type" : "boolean"
+          },
           "items" : {
             "items" : {
               "$ref" : "#/components/schemas/example.order.CreateOrder.Item"
             },
-            "minItems" : 1
+            "minItems" : 1,
+            "type" : "array"
           }
         },
         "required" : [ "address", "fromCart", "items" ],
-        "title" : "下单"
+        "title" : "下单",
+        "type" : "object"
       },
       "example.order.CreateOrder.Item" : {
         "properties" : {
-          "price" : { },
+          "price" : {
+            "exclusiveMinimum" : 0,
+            "type" : "number"
+          },
           "productId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "quantity" : {
-            "format" : "int32"
+            "exclusiveMinimum" : 0,
+            "format" : "int32",
+            "type" : "integer"
           }
         },
-        "required" : [ "price", "productId", "quantity" ]
+        "required" : [ "price", "productId", "quantity" ],
+        "type" : "object"
       },
       "example.order.OrderAggregatedCondition" : {
         "properties" : {
@@ -1315,27 +1576,34 @@
             "default" : "[]",
             "items" : {
               "$ref" : "#/components/schemas/example.order.OrderAggregatedCondition"
-            }
+            },
+            "type" : "array"
           },
           "field" : {
             "$ref" : "#/components/schemas/example.order.OrderAggregatedFields"
           },
           "operator" : {
-            "$ref" : "#/components/schemas/wow.api.query.Operator"
+            "$ref" : "#/components/schemas/wow.api.query.Operator",
+            "default" : "ALL"
           },
           "options" : {
-            "$ref" : "#/components/schemas/wow.api.query.ConditionOptions"
+            "$ref" : "#/components/schemas/wow.api.query.ConditionOptions",
+            "default" : "{}"
           },
           "value" : { }
-        }
+        },
+        "type" : "object"
       },
       "example.order.OrderAggregatedDomainEventStream" : {
+        "$schema" : "https://json-schema.org/draft/2020-12/schema",
         "properties" : {
           "aggregateId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "aggregateName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "body" : {
             "items" : {
@@ -1344,154 +1612,221 @@
                   "body" : {
                     "$ref" : "#/components/schemas/example.order.AddressChanged"
                   },
-                  "bodyType" : { },
+                  "bodyType" : {
+                    "const" : "me.ahoo.wow.example.api.order.AddressChanged",
+                    "type" : "string"
+                  },
                   "id" : {
-                    "minLength" : 1
+                    "minLength" : 1,
+                    "type" : "string"
                   },
                   "name" : {
-                    "minLength" : 1
+                    "const" : "address_changed",
+                    "minLength" : 1,
+                    "type" : "string"
                   },
                   "revision" : {
-                    "default" : "0.0.1"
+                    "default" : "0.0.1",
+                    "type" : "string"
                   }
                 },
                 "required" : [ "body", "bodyType", "id", "name", "revision" ],
-                "title" : "收货地址已修改"
+                "title" : "收货地址已修改",
+                "type" : "object"
               }, {
                 "properties" : {
                   "body" : {
                     "$ref" : "#/components/schemas/example.order.OrderCreated"
                   },
-                  "bodyType" : { },
+                  "bodyType" : {
+                    "const" : "me.ahoo.wow.example.api.order.OrderCreated",
+                    "type" : "string"
+                  },
                   "id" : {
-                    "minLength" : 1
+                    "minLength" : 1,
+                    "type" : "string"
                   },
                   "name" : {
-                    "minLength" : 1
+                    "const" : "order_created",
+                    "minLength" : 1,
+                    "type" : "string"
                   },
                   "revision" : {
-                    "default" : "0.0.1"
+                    "default" : "0.0.1",
+                    "type" : "string"
                   }
                 },
                 "required" : [ "body", "bodyType", "id", "name", "revision" ],
-                "title" : "order_created"
+                "title" : "order_created",
+                "type" : "object"
               }, {
                 "properties" : {
                   "body" : {
                     "$ref" : "#/components/schemas/example.order.OrderPaid"
                   },
-                  "bodyType" : { },
+                  "bodyType" : {
+                    "const" : "me.ahoo.wow.example.api.order.OrderPaid",
+                    "type" : "string"
+                  },
                   "id" : {
-                    "minLength" : 1
+                    "minLength" : 1,
+                    "type" : "string"
                   },
                   "name" : {
-                    "minLength" : 1
+                    "const" : "order_paid",
+                    "minLength" : 1,
+                    "type" : "string"
                   },
                   "revision" : {
-                    "default" : "0.0.1"
+                    "default" : "0.0.1",
+                    "type" : "string"
                   }
                 },
                 "required" : [ "body", "bodyType", "id", "name", "revision" ],
-                "title" : "order_paid"
+                "title" : "order_paid",
+                "type" : "object"
               }, {
                 "properties" : {
                   "body" : {
                     "$ref" : "#/components/schemas/example.order.OrderReceived"
                   },
-                  "bodyType" : { },
+                  "bodyType" : {
+                    "const" : "me.ahoo.wow.example.api.order.OrderReceived",
+                    "type" : "string"
+                  },
                   "id" : {
-                    "minLength" : 1
+                    "minLength" : 1,
+                    "type" : "string"
                   },
                   "name" : {
-                    "minLength" : 1
+                    "const" : "order_received",
+                    "minLength" : 1,
+                    "type" : "string"
                   },
                   "revision" : {
-                    "default" : "0.0.1"
+                    "default" : "0.0.1",
+                    "type" : "string"
                   }
                 },
                 "required" : [ "body", "bodyType", "id", "name", "revision" ],
-                "title" : "order_received"
+                "title" : "order_received",
+                "type" : "object"
               }, {
                 "properties" : {
                   "body" : {
                     "$ref" : "#/components/schemas/example.order.OrderShipped"
                   },
-                  "bodyType" : { },
+                  "bodyType" : {
+                    "const" : "me.ahoo.wow.example.api.order.OrderShipped",
+                    "type" : "string"
+                  },
                   "id" : {
-                    "minLength" : 1
+                    "minLength" : 1,
+                    "type" : "string"
                   },
                   "name" : {
-                    "minLength" : 1
+                    "const" : "order_shipped",
+                    "minLength" : 1,
+                    "type" : "string"
                   },
                   "revision" : {
-                    "default" : "0.0.1"
+                    "default" : "0.0.1",
+                    "type" : "string"
                   }
                 },
                 "required" : [ "body", "bodyType", "id", "name", "revision" ],
-                "title" : "order_shipped"
+                "title" : "order_shipped",
+                "type" : "object"
               } ]
             },
-            "minItems" : 1
+            "minItems" : 1,
+            "type" : "array"
           },
           "commandId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "contextName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "createTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
           "header" : {
             "additionalProperties" : true,
             "properties" : {
-              "command_operator" : { },
+              "command_operator" : {
+                "type" : "string"
+              },
               "command_wait_endpoint" : {
-                "format" : "url"
+                "format" : "url",
+                "type" : "string"
               },
               "command_wait_stage" : {
                 "default" : "PROCESSED",
-                "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ]
+                "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ],
+                "type" : "string"
               },
-              "local_first" : { },
-              "remote_ip" : { },
-              "trace_id" : { },
-              "user_agent" : { }
-            }
+              "local_first" : {
+                "type" : "boolean"
+              },
+              "remote_ip" : {
+                "type" : "string"
+              },
+              "trace_id" : {
+                "type" : "string"
+              },
+              "user_agent" : {
+                "type" : "string"
+              }
+            },
+            "type" : "object"
           },
           "id" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "ownerId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "requestId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "spaceId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "tenantId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "version" : {
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "id", "ownerId", "spaceId", "tenantId", "version" ]
+        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "id", "ownerId", "spaceId", "tenantId", "version" ],
+        "type" : "object"
       },
       "example.order.OrderAggregatedDomainEventStreamPagedList" : {
         "properties" : {
           "list" : {
             "items" : {
               "$ref" : "#/components/schemas/example.order.OrderAggregatedDomainEventStream"
-            }
+            },
+            "type" : "array"
           },
           "total" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           }
         },
-        "required" : [ "list", "total" ]
+        "required" : [ "list", "total" ],
+        "type" : "object"
       },
       "example.order.OrderAggregatedDomainEventStreamServerSentEventNonNullData" : {
         "properties" : {
@@ -1499,21 +1834,34 @@
             "$ref" : "#/components/schemas/example.order.OrderAggregatedDomainEventStream"
           },
           "event" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "id" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "retry" : {
-            "anyOf" : [ { }, {
-              "format" : "int32"
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int32",
+              "type" : "integer"
             } ]
           }
         },
-        "required" : [ "data" ]
+        "required" : [ "data" ],
+        "type" : "object"
       },
       "example.order.OrderAggregatedFields" : {
-        "enum" : [ "", "aggregateId", "tenantId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "tags", "deleted", "state", "state.address", "state.address.city", "state.address.country", "state.address.detail", "state.address.district", "state.address.province", "state.id", "state.items", "state.items.id", "state.items.price", "state.items.productId", "state.items.quantity", "state.items.totalPrice", "state.paidAmount", "state.payable", "state.status", "state.totalAmount" ]
+        "enum" : [ "", "aggregateId", "tenantId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "tags", "deleted", "state", "state.address", "state.address.city", "state.address.country", "state.address.detail", "state.address.district", "state.address.province", "state.id", "state.items", "state.items.id", "state.items.price", "state.items.productId", "state.items.quantity", "state.items.totalPrice", "state.paidAmount", "state.payable", "state.status", "state.totalAmount" ],
+        "type" : "string"
       },
       "example.order.OrderAggregatedListQuery" : {
         "properties" : {
@@ -1522,7 +1870,8 @@
           },
           "limit" : {
             "default" : "0",
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           },
           "projection" : {
             "$ref" : "#/components/schemas/wow.api.query.Projection"
@@ -1531,10 +1880,12 @@
             "default" : "[]",
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.Sort"
-            }
+            },
+            "type" : "array"
           }
         },
-        "required" : [ "condition" ]
+        "required" : [ "condition" ],
+        "type" : "object"
       },
       "example.order.OrderAggregatedPagedQuery" : {
         "properties" : {
@@ -1551,10 +1902,12 @@
             "default" : "[]",
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.Sort"
-            }
+            },
+            "type" : "array"
           }
         },
-        "required" : [ "condition" ]
+        "required" : [ "condition" ],
+        "type" : "object"
       },
       "example.order.OrderAggregatedSingleQuery" : {
         "properties" : {
@@ -1568,51 +1921,78 @@
             "default" : "[]",
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.Sort"
-            }
+            },
+            "type" : "array"
           }
         },
-        "required" : [ "condition" ]
+        "required" : [ "condition" ],
+        "type" : "object"
       },
       "example.order.OrderCreated" : {
         "properties" : {
           "address" : {
             "$ref" : "#/components/schemas/example.order.ShippingAddress"
           },
-          "fromCart" : { },
+          "fromCart" : {
+            "type" : "boolean"
+          },
           "items" : {
             "items" : {
               "$ref" : "#/components/schemas/example.order.OrderItem"
-            }
+            },
+            "type" : "array"
           },
-          "orderId" : { }
+          "orderId" : {
+            "type" : "string"
+          }
         },
-        "required" : [ "address", "fromCart", "items", "orderId" ]
+        "required" : [ "address", "fromCart", "items", "orderId" ],
+        "type" : "object"
       },
       "example.order.OrderItem" : {
         "properties" : {
-          "id" : { },
-          "price" : { },
-          "productId" : { },
+          "id" : {
+            "type" : "string"
+          },
+          "price" : {
+            "type" : "number"
+          },
+          "productId" : {
+            "type" : "string"
+          },
           "quantity" : {
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           },
           "totalPrice" : {
-            "readOnly" : true
+            "readOnly" : true,
+            "type" : "number"
           }
         },
-        "required" : [ "id", "price", "productId", "quantity" ]
+        "required" : [ "id", "price", "productId", "quantity" ],
+        "type" : "object"
       },
       "example.order.OrderPaid" : {
         "properties" : {
-          "amount" : { },
-          "paid" : { }
+          "amount" : {
+            "type" : "number"
+          },
+          "paid" : {
+            "type" : "boolean"
+          }
         },
-        "required" : [ "amount", "paid" ]
+        "required" : [ "amount", "paid" ],
+        "type" : "object"
       },
-      "example.order.OrderReceived" : { },
-      "example.order.OrderShipped" : { },
+      "example.order.OrderReceived" : {
+        "type" : "object"
+      },
+      "example.order.OrderShipped" : {
+        "type" : "object"
+      },
       "example.order.OrderStatus" : {
         "enum" : [ "CREATED", "PAID", "SHIPPED", "RECEIVED" ],
+        "type" : "string",
         "x-enum-text" : {
           "CREATED" : "已创建",
           "PAID" : "已支付",
@@ -1622,101 +2002,156 @@
       },
       "example.order.PayOrder" : {
         "properties" : {
-          "amount" : { },
+          "amount" : {
+            "exclusiveMinimum" : 0,
+            "type" : "number"
+          },
           "paymentId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           }
         },
-        "required" : [ "amount", "paymentId" ]
+        "required" : [ "amount", "paymentId" ],
+        "type" : "object"
       },
       "example.order.ReceiptOrder" : {
-        "title" : "收货"
+        "title" : "收货",
+        "type" : "object"
       },
       "example.order.ShipOrder" : {
-        "title" : "发货"
+        "title" : "发货",
+        "type" : "object"
       },
       "example.order.ShippingAddress" : {
         "properties" : {
-          "city" : { },
-          "country" : {
-            "minLength" : 1
+          "city" : {
+            "type" : "string"
           },
-          "detail" : { },
-          "district" : { },
+          "country" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "detail" : {
+            "type" : "string"
+          },
+          "district" : {
+            "type" : "string"
+          },
           "province" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           }
         },
-        "required" : [ "city", "country", "detail", "district", "province" ]
+        "required" : [ "city", "country", "detail", "district", "province" ],
+        "type" : "object"
       },
       "example.order.WowExampleOrderState" : {
         "properties" : {
           "address" : {
-            "$ref" : "#/components/schemas/example.order.ShippingAddress"
+            "$ref" : "#/components/schemas/example.order.ShippingAddress",
+            "readOnly" : true
           },
-          "id" : { },
+          "id" : {
+            "type" : "string"
+          },
           "items" : {
             "items" : {
-              "$ref" : "#/components/schemas/example.order.OrderItem"
+              "$ref" : "#/components/schemas/example.order.OrderItem",
+              "readOnly" : true
             },
-            "readOnly" : true
+            "readOnly" : true,
+            "type" : "array"
           },
-          "paidAmount" : { },
+          "paidAmount" : {
+            "type" : "number"
+          },
           "payable" : {
-            "readOnly" : true
+            "readOnly" : true,
+            "type" : "number"
           },
           "status" : {
             "$ref" : "#/components/schemas/example.order.OrderStatus"
           },
-          "totalAmount" : { }
+          "totalAmount" : {
+            "type" : "number"
+          }
         },
-        "required" : [ "id" ]
+        "required" : [ "id" ],
+        "type" : "object"
       },
       "example.order.WowExampleOrderStateMaterializedSnapshot" : {
         "properties" : {
-          "aggregateId" : { },
-          "aggregateName" : { },
-          "contextName" : { },
-          "deleted" : { },
-          "eventId" : { },
+          "aggregateId" : {
+            "type" : "string"
+          },
+          "aggregateName" : {
+            "type" : "string"
+          },
+          "contextName" : {
+            "type" : "string"
+          },
+          "deleted" : {
+            "type" : "boolean"
+          },
+          "eventId" : {
+            "type" : "string"
+          },
           "eventTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
           "firstEventTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
-          "firstOperator" : { },
-          "operator" : { },
-          "ownerId" : { },
+          "firstOperator" : {
+            "type" : "string"
+          },
+          "operator" : {
+            "type" : "string"
+          },
+          "ownerId" : {
+            "type" : "string"
+          },
           "snapshotTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
-          "spaceId" : { },
+          "spaceId" : {
+            "type" : "string"
+          },
           "state" : {
             "$ref" : "#/components/schemas/example.order.WowExampleOrderState"
           },
           "tags" : {
             "$ref" : "#/components/schemas/example.StringStringListMap"
           },
-          "tenantId" : { },
+          "tenantId" : {
+            "type" : "string"
+          },
           "version" : {
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "snapshotTime", "state", "tenantId", "version" ]
+        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "snapshotTime", "state", "tenantId", "version" ],
+        "type" : "object"
       },
       "example.order.WowExampleOrderStateMaterializedSnapshotPagedList" : {
         "properties" : {
           "list" : {
             "items" : {
               "$ref" : "#/components/schemas/example.order.WowExampleOrderStateMaterializedSnapshot"
-            }
+            },
+            "type" : "array"
           },
           "total" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           }
         },
-        "required" : [ "list", "total" ]
+        "required" : [ "list", "total" ],
+        "type" : "object"
       },
       "example.order.WowExampleOrderStateMaterializedSnapshotServerSentEventNonNullData" : {
         "properties" : {
@@ -1724,31 +2159,46 @@
             "$ref" : "#/components/schemas/example.order.WowExampleOrderStateMaterializedSnapshot"
           },
           "event" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "id" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "retry" : {
-            "anyOf" : [ { }, {
-              "format" : "int32"
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int32",
+              "type" : "integer"
             } ]
           }
         },
-        "required" : [ "data" ]
+        "required" : [ "data" ],
+        "type" : "object"
       },
       "example.order.WowExampleOrderStatePagedList" : {
         "properties" : {
           "list" : {
             "items" : {
               "$ref" : "#/components/schemas/example.order.WowExampleOrderState"
-            }
+            },
+            "type" : "array"
           },
           "total" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           }
         },
-        "required" : [ "list", "total" ]
+        "required" : [ "list", "total" ],
+        "type" : "object"
       },
       "example.order.WowExampleOrderStateServerSentEventNonNullData" : {
         "properties" : {
@@ -1756,202 +2206,312 @@
             "$ref" : "#/components/schemas/example.order.WowExampleOrderState"
           },
           "event" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "id" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "retry" : {
-            "anyOf" : [ { }, {
-              "format" : "int32"
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int32",
+              "type" : "integer"
             } ]
           }
         },
-        "required" : [ "data" ]
+        "required" : [ "data" ],
+        "type" : "object"
       },
       "example.order.WowExampleOrderStateSnapshot" : {
+        "$schema" : "https://json-schema.org/draft/2020-12/schema",
         "properties" : {
           "aggregateId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "aggregateName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "contextName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
-          "deleted" : { },
+          "deleted" : {
+            "type" : "boolean"
+          },
           "eventId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "firstEventTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
-          "firstOperator" : { },
-          "operator" : { },
+          "firstOperator" : {
+            "type" : "string"
+          },
+          "operator" : {
+            "type" : "string"
+          },
           "ownerId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "snapshotTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
           "spaceId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "state" : {
             "properties" : {
               "address" : {
-                "$ref" : "#/components/schemas/example.order.ShippingAddress"
-              },
-              "id" : { },
-              "items" : {
-                "items" : {
-                  "$ref" : "#/components/schemas/example.order.OrderItem"
-                },
+                "$ref" : "#/components/schemas/example.order.ShippingAddress",
                 "readOnly" : true
               },
-              "paidAmount" : { },
+              "id" : {
+                "type" : "string"
+              },
+              "items" : {
+                "items" : {
+                  "$ref" : "#/components/schemas/example.order.OrderItem",
+                  "readOnly" : true
+                },
+                "readOnly" : true,
+                "type" : "array"
+              },
+              "paidAmount" : {
+                "type" : "number"
+              },
               "status" : {
                 "$ref" : "#/components/schemas/example.order.OrderStatus"
               },
-              "totalAmount" : { }
+              "totalAmount" : {
+                "type" : "number"
+              }
             },
-            "required" : [ "id" ]
+            "required" : [ "id" ],
+            "type" : "object"
           },
           "tags" : {
             "additionalProperties" : {
-              "items" : { }
-            }
+              "items" : {
+                "type" : "string"
+              },
+              "type" : "array"
+            },
+            "type" : "object"
           },
           "tenantId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "version" : {
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tenantId", "version" ]
+        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tenantId", "version" ],
+        "type" : "object"
       },
       "example.order.WowExampleOrderStateStateEvent" : {
+        "$schema" : "https://json-schema.org/draft/2020-12/schema",
         "properties" : {
           "aggregateId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "aggregateName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "body" : {
             "items" : {
               "properties" : {
-                "body" : { },
-                "bodyType" : { },
+                "body" : {
+                  "type" : "object"
+                },
+                "bodyType" : {
+                  "type" : "string"
+                },
                 "id" : {
-                  "minLength" : 1
+                  "minLength" : 1,
+                  "type" : "string"
                 },
                 "name" : {
-                  "minLength" : 1
+                  "minLength" : 1,
+                  "type" : "string"
                 },
-                "revision" : { }
+                "revision" : {
+                  "type" : "string"
+                }
               },
-              "required" : [ "body", "bodyType", "id", "name", "revision" ]
+              "required" : [ "body", "bodyType", "id", "name", "revision" ],
+              "type" : "object"
             },
-            "minItems" : 1
+            "minItems" : 1,
+            "type" : "array"
           },
           "commandId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "contextName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "createTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
-          "deleted" : { },
+          "deleted" : {
+            "type" : "boolean"
+          },
           "firstEventTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
-          "firstOperator" : { },
+          "firstOperator" : {
+            "type" : "string"
+          },
           "header" : {
             "additionalProperties" : true,
             "properties" : {
-              "command_operator" : { },
+              "command_operator" : {
+                "type" : "string"
+              },
               "command_wait_endpoint" : {
-                "format" : "url"
+                "format" : "url",
+                "type" : "string"
               },
               "command_wait_stage" : {
                 "default" : "PROCESSED",
-                "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ]
+                "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ],
+                "type" : "string"
               },
-              "local_first" : { },
-              "remote_ip" : { },
-              "trace_id" : { },
-              "user_agent" : { }
-            }
+              "local_first" : {
+                "type" : "boolean"
+              },
+              "remote_ip" : {
+                "type" : "string"
+              },
+              "trace_id" : {
+                "type" : "string"
+              },
+              "user_agent" : {
+                "type" : "string"
+              }
+            },
+            "type" : "object"
           },
           "id" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "ownerId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "requestId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "spaceId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "state" : {
             "properties" : {
               "address" : {
-                "$ref" : "#/components/schemas/example.order.ShippingAddress"
-              },
-              "id" : { },
-              "items" : {
-                "items" : {
-                  "$ref" : "#/components/schemas/example.order.OrderItem"
-                },
+                "$ref" : "#/components/schemas/example.order.ShippingAddress",
                 "readOnly" : true
               },
-              "paidAmount" : { },
+              "id" : {
+                "type" : "string"
+              },
+              "items" : {
+                "items" : {
+                  "$ref" : "#/components/schemas/example.order.OrderItem",
+                  "readOnly" : true
+                },
+                "readOnly" : true,
+                "type" : "array"
+              },
+              "paidAmount" : {
+                "type" : "number"
+              },
               "status" : {
                 "$ref" : "#/components/schemas/example.order.OrderStatus"
               },
-              "totalAmount" : { }
+              "totalAmount" : {
+                "type" : "number"
+              }
             },
-            "required" : [ "id" ]
+            "required" : [ "id" ],
+            "type" : "object"
           },
           "tags" : {
             "additionalProperties" : {
-              "items" : { }
-            }
+              "items" : {
+                "type" : "string"
+              },
+              "type" : "array"
+            },
+            "type" : "object"
           },
           "tenantId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "version" : {
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "deleted", "firstEventTime", "firstOperator", "id", "ownerId", "spaceId", "state", "tenantId", "version" ]
+        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "deleted", "firstEventTime", "firstOperator", "id", "ownerId", "spaceId", "state", "tenantId", "version" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockAggregateChanged" : {
         "properties" : {
-          "data" : { }
+          "data" : {
+            "type" : "string"
+          }
         },
-        "required" : [ "data" ]
+        "required" : [ "data" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockAggregateCreated" : {
         "properties" : {
-          "data" : { }
+          "data" : {
+            "type" : "string"
+          }
         },
-        "required" : [ "data" ]
+        "required" : [ "data" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockChangeAggregate" : {
         "properties" : {
-          "data" : { },
-          "id" : { }
+          "data" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string"
+          }
         },
-        "required" : [ "data", "id" ]
+        "required" : [ "data", "id" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateAggregatedCondition" : {
         "properties" : {
@@ -1959,27 +2519,34 @@
             "default" : "[]",
             "items" : {
               "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedCondition"
-            }
+            },
+            "type" : "array"
           },
           "field" : {
             "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedFields"
           },
           "operator" : {
-            "$ref" : "#/components/schemas/wow.api.query.Operator"
+            "$ref" : "#/components/schemas/wow.api.query.Operator",
+            "default" : "ALL"
           },
           "options" : {
-            "$ref" : "#/components/schemas/wow.api.query.ConditionOptions"
+            "$ref" : "#/components/schemas/wow.api.query.ConditionOptions",
+            "default" : "{}"
           },
           "value" : { }
-        }
+        },
+        "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateAggregatedDomainEventStream" : {
+        "$schema" : "https://json-schema.org/draft/2020-12/schema",
         "properties" : {
           "aggregateId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "aggregateName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "body" : {
             "items" : {
@@ -1988,100 +2555,143 @@
                   "body" : {
                     "$ref" : "#/components/schemas/tck.mock_aggregate.MockAggregateChanged"
                   },
-                  "bodyType" : { },
+                  "bodyType" : {
+                    "const" : "me.ahoo.wow.tck.mock.MockAggregateChanged",
+                    "type" : "string"
+                  },
                   "id" : {
-                    "minLength" : 1
+                    "minLength" : 1,
+                    "type" : "string"
                   },
                   "name" : {
-                    "minLength" : 1
+                    "const" : "mock_aggregate_changed",
+                    "minLength" : 1,
+                    "type" : "string"
                   },
                   "revision" : {
-                    "default" : "0.0.1"
+                    "default" : "0.0.1",
+                    "type" : "string"
                   }
                 },
                 "required" : [ "body", "bodyType", "id", "name", "revision" ],
-                "title" : "mock_aggregate_changed"
+                "title" : "mock_aggregate_changed",
+                "type" : "object"
               }, {
                 "properties" : {
                   "body" : {
                     "$ref" : "#/components/schemas/tck.mock_aggregate.MockAggregateCreated"
                   },
-                  "bodyType" : { },
+                  "bodyType" : {
+                    "const" : "me.ahoo.wow.tck.mock.MockAggregateCreated",
+                    "type" : "string"
+                  },
                   "id" : {
-                    "minLength" : 1
+                    "minLength" : 1,
+                    "type" : "string"
                   },
                   "name" : {
-                    "minLength" : 1
+                    "const" : "mock_aggregate_created",
+                    "minLength" : 1,
+                    "type" : "string"
                   },
                   "revision" : {
-                    "default" : "0.0.1"
+                    "default" : "0.0.1",
+                    "type" : "string"
                   }
                 },
                 "required" : [ "body", "bodyType", "id", "name", "revision" ],
-                "title" : "mock_aggregate_created"
+                "title" : "mock_aggregate_created",
+                "type" : "object"
               } ]
             },
-            "minItems" : 1
+            "minItems" : 1,
+            "type" : "array"
           },
           "commandId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "contextName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "createTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
           "header" : {
             "additionalProperties" : true,
             "properties" : {
-              "command_operator" : { },
+              "command_operator" : {
+                "type" : "string"
+              },
               "command_wait_endpoint" : {
-                "format" : "url"
+                "format" : "url",
+                "type" : "string"
               },
               "command_wait_stage" : {
                 "default" : "PROCESSED",
-                "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ]
+                "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ],
+                "type" : "string"
               },
-              "local_first" : { },
-              "remote_ip" : { },
-              "trace_id" : { },
-              "user_agent" : { }
-            }
+              "local_first" : {
+                "type" : "boolean"
+              },
+              "remote_ip" : {
+                "type" : "string"
+              },
+              "trace_id" : {
+                "type" : "string"
+              },
+              "user_agent" : {
+                "type" : "string"
+              }
+            },
+            "type" : "object"
           },
           "id" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "ownerId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "requestId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "spaceId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "tenantId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "version" : {
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "id", "ownerId", "spaceId", "tenantId", "version" ]
+        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "id", "ownerId", "spaceId", "tenantId", "version" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateAggregatedDomainEventStreamPagedList" : {
         "properties" : {
           "list" : {
             "items" : {
               "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedDomainEventStream"
-            }
+            },
+            "type" : "array"
           },
           "total" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           }
         },
-        "required" : [ "list", "total" ]
+        "required" : [ "list", "total" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateAggregatedDomainEventStreamServerSentEventNonNullData" : {
         "properties" : {
@@ -2089,21 +2699,34 @@
             "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedDomainEventStream"
           },
           "event" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "id" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "retry" : {
-            "anyOf" : [ { }, {
-              "format" : "int32"
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int32",
+              "type" : "integer"
             } ]
           }
         },
-        "required" : [ "data" ]
+        "required" : [ "data" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateAggregatedFields" : {
-        "enum" : [ "", "aggregateId", "tenantId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "tags", "deleted", "state", "state.data", "state.id" ]
+        "enum" : [ "", "aggregateId", "tenantId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "tags", "deleted", "state", "state.data", "state.id" ],
+        "type" : "string"
       },
       "tck.mock_aggregate.MockCommandAggregateAggregatedListQuery" : {
         "properties" : {
@@ -2112,7 +2735,8 @@
           },
           "limit" : {
             "default" : "0",
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           },
           "projection" : {
             "$ref" : "#/components/schemas/wow.api.query.Projection"
@@ -2121,10 +2745,12 @@
             "default" : "[]",
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.Sort"
-            }
+            },
+            "type" : "array"
           }
         },
-        "required" : [ "condition" ]
+        "required" : [ "condition" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateAggregatedPagedQuery" : {
         "properties" : {
@@ -2141,10 +2767,12 @@
             "default" : "[]",
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.Sort"
-            }
+            },
+            "type" : "array"
           }
         },
-        "required" : [ "condition" ]
+        "required" : [ "condition" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateAggregatedSingleQuery" : {
         "properties" : {
@@ -2158,10 +2786,12 @@
             "default" : "[]",
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.Sort"
-            }
+            },
+            "type" : "array"
           }
         },
-        "required" : [ "condition" ]
+        "required" : [ "condition" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedCondition" : {
         "properties" : {
@@ -2169,106 +2799,148 @@
             "default" : "[]",
             "items" : {
               "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedCondition"
-            }
+            },
+            "type" : "array"
           },
           "field" : {
             "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedFields"
           },
           "operator" : {
-            "$ref" : "#/components/schemas/wow.api.query.Operator"
+            "$ref" : "#/components/schemas/wow.api.query.Operator",
+            "default" : "ALL"
           },
           "options" : {
-            "$ref" : "#/components/schemas/wow.api.query.ConditionOptions"
+            "$ref" : "#/components/schemas/wow.api.query.ConditionOptions",
+            "default" : "{}"
           },
           "value" : { }
-        }
+        },
+        "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedDomainEventStream" : {
+        "$schema" : "https://json-schema.org/draft/2020-12/schema",
         "properties" : {
           "aggregateId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "aggregateName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "body" : {
             "items" : {
               "properties" : {
-                "body" : { },
-                "bodyType" : { },
+                "body" : {
+                  "type" : "object"
+                },
+                "bodyType" : {
+                  "type" : "string"
+                },
                 "id" : {
-                  "minLength" : 1
+                  "minLength" : 1,
+                  "type" : "string"
                 },
                 "name" : {
-                  "minLength" : 1
+                  "minLength" : 1,
+                  "type" : "string"
                 },
                 "revision" : {
-                  "default" : "0.0.1"
+                  "default" : "0.0.1",
+                  "type" : "string"
                 }
               },
-              "required" : [ "body", "bodyType", "id", "name", "revision" ]
+              "required" : [ "body", "bodyType", "id", "name", "revision" ],
+              "type" : "object"
             },
-            "minItems" : 1
+            "minItems" : 1,
+            "type" : "array"
           },
           "commandId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "contextName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "createTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
           "header" : {
             "additionalProperties" : true,
             "properties" : {
-              "command_operator" : { },
+              "command_operator" : {
+                "type" : "string"
+              },
               "command_wait_endpoint" : {
-                "format" : "url"
+                "format" : "url",
+                "type" : "string"
               },
               "command_wait_stage" : {
                 "default" : "PROCESSED",
-                "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ]
+                "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ],
+                "type" : "string"
               },
-              "local_first" : { },
-              "remote_ip" : { },
-              "trace_id" : { },
-              "user_agent" : { }
-            }
+              "local_first" : {
+                "type" : "boolean"
+              },
+              "remote_ip" : {
+                "type" : "string"
+              },
+              "trace_id" : {
+                "type" : "string"
+              },
+              "user_agent" : {
+                "type" : "string"
+              }
+            },
+            "type" : "object"
           },
           "id" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "ownerId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "requestId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "spaceId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "tenantId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "version" : {
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "id", "ownerId", "spaceId", "tenantId", "version" ]
+        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "id", "ownerId", "spaceId", "tenantId", "version" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedDomainEventStreamPagedList" : {
         "properties" : {
           "list" : {
             "items" : {
               "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedDomainEventStream"
-            }
+            },
+            "type" : "array"
           },
           "total" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           }
         },
-        "required" : [ "list", "total" ]
+        "required" : [ "list", "total" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedDomainEventStreamServerSentEventNonNullData" : {
         "properties" : {
@@ -2276,21 +2948,34 @@
             "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedDomainEventStream"
           },
           "event" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "id" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "retry" : {
-            "anyOf" : [ { }, {
-              "format" : "int32"
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int32",
+              "type" : "integer"
             } ]
           }
         },
-        "required" : [ "data" ]
+        "required" : [ "data" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedFields" : {
-        "enum" : [ "", "aggregateId", "tenantId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "tags", "deleted", "state", "state.id", "state.tenantId" ]
+        "enum" : [ "", "aggregateId", "tenantId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "tags", "deleted", "state", "state.id", "state.tenantId" ],
+        "type" : "string"
       },
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedListQuery" : {
         "properties" : {
@@ -2299,7 +2984,8 @@
           },
           "limit" : {
             "default" : "0",
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           },
           "projection" : {
             "$ref" : "#/components/schemas/wow.api.query.Projection"
@@ -2308,10 +2994,12 @@
             "default" : "[]",
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.Sort"
-            }
+            },
+            "type" : "array"
           }
         },
-        "required" : [ "condition" ]
+        "required" : [ "condition" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedPagedQuery" : {
         "properties" : {
@@ -2328,10 +3016,12 @@
             "default" : "[]",
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.Sort"
-            }
+            },
+            "type" : "array"
           }
         },
-        "required" : [ "condition" ]
+        "required" : [ "condition" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedSingleQuery" : {
         "properties" : {
@@ -2345,10 +3035,12 @@
             "default" : "[]",
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.Sort"
-            }
+            },
+            "type" : "array"
           }
         },
-        "required" : [ "condition" ]
+        "required" : [ "condition" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedCondition" : {
         "properties" : {
@@ -2356,106 +3048,148 @@
             "default" : "[]",
             "items" : {
               "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedCondition"
-            }
+            },
+            "type" : "array"
           },
           "field" : {
             "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedFields"
           },
           "operator" : {
-            "$ref" : "#/components/schemas/wow.api.query.Operator"
+            "$ref" : "#/components/schemas/wow.api.query.Operator",
+            "default" : "ALL"
           },
           "options" : {
-            "$ref" : "#/components/schemas/wow.api.query.ConditionOptions"
+            "$ref" : "#/components/schemas/wow.api.query.ConditionOptions",
+            "default" : "{}"
           },
           "value" : { }
-        }
+        },
+        "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedDomainEventStream" : {
+        "$schema" : "https://json-schema.org/draft/2020-12/schema",
         "properties" : {
           "aggregateId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "aggregateName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "body" : {
             "items" : {
               "properties" : {
-                "body" : { },
-                "bodyType" : { },
+                "body" : {
+                  "type" : "object"
+                },
+                "bodyType" : {
+                  "type" : "string"
+                },
                 "id" : {
-                  "minLength" : 1
+                  "minLength" : 1,
+                  "type" : "string"
                 },
                 "name" : {
-                  "minLength" : 1
+                  "minLength" : 1,
+                  "type" : "string"
                 },
                 "revision" : {
-                  "default" : "0.0.1"
+                  "default" : "0.0.1",
+                  "type" : "string"
                 }
               },
-              "required" : [ "body", "bodyType", "id", "name", "revision" ]
+              "required" : [ "body", "bodyType", "id", "name", "revision" ],
+              "type" : "object"
             },
-            "minItems" : 1
+            "minItems" : 1,
+            "type" : "array"
           },
           "commandId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "contextName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "createTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
           "header" : {
             "additionalProperties" : true,
             "properties" : {
-              "command_operator" : { },
+              "command_operator" : {
+                "type" : "string"
+              },
               "command_wait_endpoint" : {
-                "format" : "url"
+                "format" : "url",
+                "type" : "string"
               },
               "command_wait_stage" : {
                 "default" : "PROCESSED",
-                "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ]
+                "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ],
+                "type" : "string"
               },
-              "local_first" : { },
-              "remote_ip" : { },
-              "trace_id" : { },
-              "user_agent" : { }
-            }
+              "local_first" : {
+                "type" : "boolean"
+              },
+              "remote_ip" : {
+                "type" : "string"
+              },
+              "trace_id" : {
+                "type" : "string"
+              },
+              "user_agent" : {
+                "type" : "string"
+              }
+            },
+            "type" : "object"
           },
           "id" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "ownerId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "requestId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "spaceId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "tenantId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "version" : {
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "id", "ownerId", "spaceId", "tenantId", "version" ]
+        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "id", "ownerId", "spaceId", "tenantId", "version" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedDomainEventStreamPagedList" : {
         "properties" : {
           "list" : {
             "items" : {
               "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedDomainEventStream"
-            }
+            },
+            "type" : "array"
           },
           "total" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           }
         },
-        "required" : [ "list", "total" ]
+        "required" : [ "list", "total" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedDomainEventStreamServerSentEventNonNullData" : {
         "properties" : {
@@ -2463,21 +3197,34 @@
             "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedDomainEventStream"
           },
           "event" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "id" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "retry" : {
-            "anyOf" : [ { }, {
-              "format" : "int32"
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int32",
+              "type" : "integer"
             } ]
           }
         },
-        "required" : [ "data" ]
+        "required" : [ "data" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedFields" : {
-        "enum" : [ "", "aggregateId", "tenantId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "tags", "deleted", "state" ]
+        "enum" : [ "", "aggregateId", "tenantId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "tags", "deleted", "state" ],
+        "type" : "string"
       },
       "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedListQuery" : {
         "properties" : {
@@ -2486,7 +3233,8 @@
           },
           "limit" : {
             "default" : "0",
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           },
           "projection" : {
             "$ref" : "#/components/schemas/wow.api.query.Projection"
@@ -2495,10 +3243,12 @@
             "default" : "[]",
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.Sort"
-            }
+            },
+            "type" : "array"
           }
         },
-        "required" : [ "condition" ]
+        "required" : [ "condition" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedPagedQuery" : {
         "properties" : {
@@ -2515,10 +3265,12 @@
             "default" : "[]",
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.Sort"
-            }
+            },
+            "type" : "array"
           }
         },
-        "required" : [ "condition" ]
+        "required" : [ "condition" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedSingleQuery" : {
         "properties" : {
@@ -2532,70 +3284,110 @@
             "default" : "[]",
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.Sort"
-            }
+            },
+            "type" : "array"
           }
         },
-        "required" : [ "condition" ]
+        "required" : [ "condition" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockCreateAggregate" : {
         "properties" : {
-          "data" : { },
-          "id" : { }
+          "data" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string"
+          }
         },
-        "required" : [ "data", "id" ]
+        "required" : [ "data", "id" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregate" : {
         "properties" : {
-          "data" : { },
-          "id" : { }
+          "data" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string"
+          }
         },
-        "required" : [ "id" ]
+        "required" : [ "id" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregateMaterializedSnapshot" : {
         "properties" : {
-          "aggregateId" : { },
-          "aggregateName" : { },
-          "contextName" : { },
-          "deleted" : { },
-          "eventId" : { },
+          "aggregateId" : {
+            "type" : "string"
+          },
+          "aggregateName" : {
+            "type" : "string"
+          },
+          "contextName" : {
+            "type" : "string"
+          },
+          "deleted" : {
+            "type" : "boolean"
+          },
+          "eventId" : {
+            "type" : "string"
+          },
           "eventTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
           "firstEventTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
-          "firstOperator" : { },
-          "operator" : { },
-          "ownerId" : { },
+          "firstOperator" : {
+            "type" : "string"
+          },
+          "operator" : {
+            "type" : "string"
+          },
+          "ownerId" : {
+            "type" : "string"
+          },
           "snapshotTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
-          "spaceId" : { },
+          "spaceId" : {
+            "type" : "string"
+          },
           "state" : {
             "$ref" : "#/components/schemas/tck.mock_aggregate.MockStateAggregate"
           },
           "tags" : {
             "$ref" : "#/components/schemas/example.StringStringListMap"
           },
-          "tenantId" : { },
+          "tenantId" : {
+            "type" : "string"
+          },
           "version" : {
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "snapshotTime", "state", "tenantId", "version" ]
+        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "snapshotTime", "state", "tenantId", "version" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregateMaterializedSnapshotPagedList" : {
         "properties" : {
           "list" : {
             "items" : {
               "$ref" : "#/components/schemas/tck.mock_aggregate.MockStateAggregateMaterializedSnapshot"
-            }
+            },
+            "type" : "array"
           },
           "total" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           }
         },
-        "required" : [ "list", "total" ]
+        "required" : [ "list", "total" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregateMaterializedSnapshotServerSentEventNonNullData" : {
         "properties" : {
@@ -2603,31 +3395,46 @@
             "$ref" : "#/components/schemas/tck.mock_aggregate.MockStateAggregateMaterializedSnapshot"
           },
           "event" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "id" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "retry" : {
-            "anyOf" : [ { }, {
-              "format" : "int32"
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int32",
+              "type" : "integer"
             } ]
           }
         },
-        "required" : [ "data" ]
+        "required" : [ "data" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregatePagedList" : {
         "properties" : {
           "list" : {
             "items" : {
               "$ref" : "#/components/schemas/tck.mock_aggregate.MockStateAggregate"
-            }
+            },
+            "type" : "array"
           },
           "total" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           }
         },
-        "required" : [ "list", "total" ]
+        "required" : [ "list", "total" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregateServerSentEventNonNullData" : {
         "properties" : {
@@ -2635,210 +3442,332 @@
             "$ref" : "#/components/schemas/tck.mock_aggregate.MockStateAggregate"
           },
           "event" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "id" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "retry" : {
-            "anyOf" : [ { }, {
-              "format" : "int32"
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int32",
+              "type" : "integer"
             } ]
           }
         },
-        "required" : [ "data" ]
+        "required" : [ "data" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregateSnapshot" : {
+        "$schema" : "https://json-schema.org/draft/2020-12/schema",
         "properties" : {
           "aggregateId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "aggregateName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "contextName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
-          "deleted" : { },
+          "deleted" : {
+            "type" : "boolean"
+          },
           "eventId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "firstEventTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
-          "firstOperator" : { },
-          "operator" : { },
+          "firstOperator" : {
+            "type" : "string"
+          },
+          "operator" : {
+            "type" : "string"
+          },
           "ownerId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "snapshotTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
           "spaceId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "state" : {
             "properties" : {
-              "data" : { },
-              "id" : { }
+              "data" : {
+                "type" : "string"
+              },
+              "id" : {
+                "type" : "string"
+              }
             },
-            "required" : [ "id" ]
+            "required" : [ "id" ],
+            "type" : "object"
           },
           "tags" : {
             "additionalProperties" : {
-              "items" : { }
-            }
+              "items" : {
+                "type" : "string"
+              },
+              "type" : "array"
+            },
+            "type" : "object"
           },
           "tenantId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "version" : {
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tenantId", "version" ]
+        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tenantId", "version" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregateStateEvent" : {
+        "$schema" : "https://json-schema.org/draft/2020-12/schema",
         "properties" : {
           "aggregateId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "aggregateName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "body" : {
             "items" : {
               "properties" : {
-                "body" : { },
-                "bodyType" : { },
+                "body" : {
+                  "type" : "object"
+                },
+                "bodyType" : {
+                  "type" : "string"
+                },
                 "id" : {
-                  "minLength" : 1
+                  "minLength" : 1,
+                  "type" : "string"
                 },
                 "name" : {
-                  "minLength" : 1
+                  "minLength" : 1,
+                  "type" : "string"
                 },
-                "revision" : { }
+                "revision" : {
+                  "type" : "string"
+                }
               },
-              "required" : [ "body", "bodyType", "id", "name", "revision" ]
+              "required" : [ "body", "bodyType", "id", "name", "revision" ],
+              "type" : "object"
             },
-            "minItems" : 1
+            "minItems" : 1,
+            "type" : "array"
           },
           "commandId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "contextName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "createTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
-          "deleted" : { },
+          "deleted" : {
+            "type" : "boolean"
+          },
           "firstEventTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
-          "firstOperator" : { },
+          "firstOperator" : {
+            "type" : "string"
+          },
           "header" : {
             "additionalProperties" : true,
             "properties" : {
-              "command_operator" : { },
+              "command_operator" : {
+                "type" : "string"
+              },
               "command_wait_endpoint" : {
-                "format" : "url"
+                "format" : "url",
+                "type" : "string"
               },
               "command_wait_stage" : {
                 "default" : "PROCESSED",
-                "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ]
+                "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ],
+                "type" : "string"
               },
-              "local_first" : { },
-              "remote_ip" : { },
-              "trace_id" : { },
-              "user_agent" : { }
-            }
+              "local_first" : {
+                "type" : "boolean"
+              },
+              "remote_ip" : {
+                "type" : "string"
+              },
+              "trace_id" : {
+                "type" : "string"
+              },
+              "user_agent" : {
+                "type" : "string"
+              }
+            },
+            "type" : "object"
           },
           "id" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "ownerId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "requestId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "spaceId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "state" : {
             "properties" : {
-              "data" : { },
-              "id" : { }
+              "data" : {
+                "type" : "string"
+              },
+              "id" : {
+                "type" : "string"
+              }
             },
-            "required" : [ "id" ]
+            "required" : [ "id" ],
+            "type" : "object"
           },
           "tags" : {
             "additionalProperties" : {
-              "items" : { }
-            }
+              "items" : {
+                "type" : "string"
+              },
+              "type" : "array"
+            },
+            "type" : "object"
           },
           "tenantId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "version" : {
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "deleted", "firstEventTime", "firstOperator", "id", "ownerId", "spaceId", "state", "tenantId", "version" ]
+        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "deleted", "firstEventTime", "firstOperator", "id", "ownerId", "spaceId", "state", "tenantId", "version" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregateWithTenantId" : {
         "properties" : {
-          "id" : { },
-          "tenantId" : { }
+          "id" : {
+            "type" : "string"
+          },
+          "tenantId" : {
+            "type" : "string"
+          }
         },
-        "required" : [ "id", "tenantId" ]
+        "required" : [ "id", "tenantId" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregateWithTenantIdMaterializedSnapshot" : {
         "properties" : {
-          "aggregateId" : { },
-          "aggregateName" : { },
-          "contextName" : { },
-          "deleted" : { },
-          "eventId" : { },
+          "aggregateId" : {
+            "type" : "string"
+          },
+          "aggregateName" : {
+            "type" : "string"
+          },
+          "contextName" : {
+            "type" : "string"
+          },
+          "deleted" : {
+            "type" : "boolean"
+          },
+          "eventId" : {
+            "type" : "string"
+          },
           "eventTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
           "firstEventTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
-          "firstOperator" : { },
-          "operator" : { },
-          "ownerId" : { },
+          "firstOperator" : {
+            "type" : "string"
+          },
+          "operator" : {
+            "type" : "string"
+          },
+          "ownerId" : {
+            "type" : "string"
+          },
           "snapshotTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
-          "spaceId" : { },
+          "spaceId" : {
+            "type" : "string"
+          },
           "state" : {
             "$ref" : "#/components/schemas/tck.mock_aggregate.MockStateAggregateWithTenantId"
           },
           "tags" : {
             "$ref" : "#/components/schemas/example.StringStringListMap"
           },
-          "tenantId" : { },
+          "tenantId" : {
+            "type" : "string"
+          },
           "version" : {
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "snapshotTime", "state", "tenantId", "version" ]
+        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "snapshotTime", "state", "tenantId", "version" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregateWithTenantIdMaterializedSnapshotPagedList" : {
         "properties" : {
           "list" : {
             "items" : {
               "$ref" : "#/components/schemas/tck.mock_aggregate.MockStateAggregateWithTenantIdMaterializedSnapshot"
-            }
+            },
+            "type" : "array"
           },
           "total" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           }
         },
-        "required" : [ "list", "total" ]
+        "required" : [ "list", "total" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregateWithTenantIdMaterializedSnapshotServerSentEventNonNullData" : {
         "properties" : {
@@ -2846,31 +3775,46 @@
             "$ref" : "#/components/schemas/tck.mock_aggregate.MockStateAggregateWithTenantIdMaterializedSnapshot"
           },
           "event" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "id" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "retry" : {
-            "anyOf" : [ { }, {
-              "format" : "int32"
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int32",
+              "type" : "integer"
             } ]
           }
         },
-        "required" : [ "data" ]
+        "required" : [ "data" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregateWithTenantIdPagedList" : {
         "properties" : {
           "list" : {
             "items" : {
               "$ref" : "#/components/schemas/tck.mock_aggregate.MockStateAggregateWithTenantId"
-            }
+            },
+            "type" : "array"
           },
           "total" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           }
         },
-        "required" : [ "list", "total" ]
+        "required" : [ "list", "total" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregateWithTenantIdServerSentEventNonNullData" : {
         "properties" : {
@@ -2878,204 +3822,323 @@
             "$ref" : "#/components/schemas/tck.mock_aggregate.MockStateAggregateWithTenantId"
           },
           "event" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "id" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "retry" : {
-            "anyOf" : [ { }, {
-              "format" : "int32"
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int32",
+              "type" : "integer"
             } ]
           }
         },
-        "required" : [ "data" ]
+        "required" : [ "data" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregateWithTenantIdSnapshot" : {
+        "$schema" : "https://json-schema.org/draft/2020-12/schema",
         "properties" : {
           "aggregateId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "aggregateName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "contextName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
-          "deleted" : { },
+          "deleted" : {
+            "type" : "boolean"
+          },
           "eventId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "firstEventTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
-          "firstOperator" : { },
-          "operator" : { },
+          "firstOperator" : {
+            "type" : "string"
+          },
+          "operator" : {
+            "type" : "string"
+          },
           "ownerId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "snapshotTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
           "spaceId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "state" : {
             "properties" : {
-              "id" : { },
-              "tenantId" : { }
+              "id" : {
+                "type" : "string"
+              },
+              "tenantId" : {
+                "type" : "string"
+              }
             },
-            "required" : [ "id", "tenantId" ]
+            "required" : [ "id", "tenantId" ],
+            "type" : "object"
           },
           "tags" : {
             "additionalProperties" : {
-              "items" : { }
-            }
+              "items" : {
+                "type" : "string"
+              },
+              "type" : "array"
+            },
+            "type" : "object"
           },
           "tenantId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "version" : {
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tenantId", "version" ]
+        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tenantId", "version" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregateWithTenantIdStateEvent" : {
+        "$schema" : "https://json-schema.org/draft/2020-12/schema",
         "properties" : {
           "aggregateId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "aggregateName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "body" : {
             "items" : {
               "properties" : {
-                "body" : { },
-                "bodyType" : { },
+                "body" : {
+                  "type" : "object"
+                },
+                "bodyType" : {
+                  "type" : "string"
+                },
                 "id" : {
-                  "minLength" : 1
+                  "minLength" : 1,
+                  "type" : "string"
                 },
                 "name" : {
-                  "minLength" : 1
+                  "minLength" : 1,
+                  "type" : "string"
                 },
-                "revision" : { }
+                "revision" : {
+                  "type" : "string"
+                }
               },
-              "required" : [ "body", "bodyType", "id", "name", "revision" ]
+              "required" : [ "body", "bodyType", "id", "name", "revision" ],
+              "type" : "object"
             },
-            "minItems" : 1
+            "minItems" : 1,
+            "type" : "array"
           },
           "commandId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "contextName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "createTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
-          "deleted" : { },
+          "deleted" : {
+            "type" : "boolean"
+          },
           "firstEventTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
-          "firstOperator" : { },
+          "firstOperator" : {
+            "type" : "string"
+          },
           "header" : {
             "additionalProperties" : true,
             "properties" : {
-              "command_operator" : { },
+              "command_operator" : {
+                "type" : "string"
+              },
               "command_wait_endpoint" : {
-                "format" : "url"
+                "format" : "url",
+                "type" : "string"
               },
               "command_wait_stage" : {
                 "default" : "PROCESSED",
-                "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ]
+                "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ],
+                "type" : "string"
               },
-              "local_first" : { },
-              "remote_ip" : { },
-              "trace_id" : { },
-              "user_agent" : { }
-            }
+              "local_first" : {
+                "type" : "boolean"
+              },
+              "remote_ip" : {
+                "type" : "string"
+              },
+              "trace_id" : {
+                "type" : "string"
+              },
+              "user_agent" : {
+                "type" : "string"
+              }
+            },
+            "type" : "object"
           },
           "id" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "ownerId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "requestId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "spaceId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "state" : {
             "properties" : {
-              "id" : { },
-              "tenantId" : { }
+              "id" : {
+                "type" : "string"
+              },
+              "tenantId" : {
+                "type" : "string"
+              }
             },
-            "required" : [ "id", "tenantId" ]
+            "required" : [ "id", "tenantId" ],
+            "type" : "object"
           },
           "tags" : {
             "additionalProperties" : {
-              "items" : { }
-            }
+              "items" : {
+                "type" : "string"
+              },
+              "type" : "array"
+            },
+            "type" : "object"
           },
           "tenantId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "version" : {
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "deleted", "firstEventTime", "firstOperator", "id", "ownerId", "spaceId", "state", "tenantId", "version" ]
+        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "deleted", "firstEventTime", "firstOperator", "id", "ownerId", "spaceId", "state", "tenantId", "version" ],
+        "type" : "object"
       },
-      "tck.mock_aggregate.MockStateAggregateWithoutCtorParameters" : { },
+      "tck.mock_aggregate.MockStateAggregateWithoutCtorParameters" : {
+        "type" : "object"
+      },
       "tck.mock_aggregate.MockStateAggregateWithoutCtorParametersMaterializedSnapshot" : {
         "properties" : {
-          "aggregateId" : { },
-          "aggregateName" : { },
-          "contextName" : { },
-          "deleted" : { },
-          "eventId" : { },
+          "aggregateId" : {
+            "type" : "string"
+          },
+          "aggregateName" : {
+            "type" : "string"
+          },
+          "contextName" : {
+            "type" : "string"
+          },
+          "deleted" : {
+            "type" : "boolean"
+          },
+          "eventId" : {
+            "type" : "string"
+          },
           "eventTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
           "firstEventTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
-          "firstOperator" : { },
-          "operator" : { },
-          "ownerId" : { },
+          "firstOperator" : {
+            "type" : "string"
+          },
+          "operator" : {
+            "type" : "string"
+          },
+          "ownerId" : {
+            "type" : "string"
+          },
           "snapshotTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
-          "spaceId" : { },
+          "spaceId" : {
+            "type" : "string"
+          },
           "state" : {
             "$ref" : "#/components/schemas/tck.mock_aggregate.MockStateAggregateWithoutCtorParameters"
           },
           "tags" : {
             "$ref" : "#/components/schemas/example.StringStringListMap"
           },
-          "tenantId" : { },
+          "tenantId" : {
+            "type" : "string"
+          },
           "version" : {
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "snapshotTime", "state", "tenantId", "version" ]
+        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "snapshotTime", "state", "tenantId", "version" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregateWithoutCtorParametersMaterializedSnapshotPagedList" : {
         "properties" : {
           "list" : {
             "items" : {
               "$ref" : "#/components/schemas/tck.mock_aggregate.MockStateAggregateWithoutCtorParametersMaterializedSnapshot"
-            }
+            },
+            "type" : "array"
           },
           "total" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           }
         },
-        "required" : [ "list", "total" ]
+        "required" : [ "list", "total" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregateWithoutCtorParametersMaterializedSnapshotServerSentEventNonNullData" : {
         "properties" : {
@@ -3083,31 +4146,46 @@
             "$ref" : "#/components/schemas/tck.mock_aggregate.MockStateAggregateWithoutCtorParametersMaterializedSnapshot"
           },
           "event" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "id" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "retry" : {
-            "anyOf" : [ { }, {
-              "format" : "int32"
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int32",
+              "type" : "integer"
             } ]
           }
         },
-        "required" : [ "data" ]
+        "required" : [ "data" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregateWithoutCtorParametersPagedList" : {
         "properties" : {
           "list" : {
             "items" : {
               "$ref" : "#/components/schemas/tck.mock_aggregate.MockStateAggregateWithoutCtorParameters"
-            }
+            },
+            "type" : "array"
           },
           "total" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           }
         },
-        "required" : [ "list", "total" ]
+        "required" : [ "list", "total" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregateWithoutCtorParametersServerSentEventNonNullData" : {
         "properties" : {
@@ -3115,173 +4193,271 @@
             "$ref" : "#/components/schemas/tck.mock_aggregate.MockStateAggregateWithoutCtorParameters"
           },
           "event" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "id" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "retry" : {
-            "anyOf" : [ { }, {
-              "format" : "int32"
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int32",
+              "type" : "integer"
             } ]
           }
         },
-        "required" : [ "data" ]
+        "required" : [ "data" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregateWithoutCtorParametersSnapshot" : {
+        "$schema" : "https://json-schema.org/draft/2020-12/schema",
         "properties" : {
           "aggregateId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "aggregateName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "contextName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
-          "deleted" : { },
+          "deleted" : {
+            "type" : "boolean"
+          },
           "eventId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "firstEventTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
-          "firstOperator" : { },
-          "operator" : { },
+          "firstOperator" : {
+            "type" : "string"
+          },
+          "operator" : {
+            "type" : "string"
+          },
           "ownerId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "snapshotTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
           "spaceId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
-          "state" : { },
+          "state" : {
+            "type" : "object"
+          },
           "tags" : {
             "additionalProperties" : {
-              "items" : { }
-            }
+              "items" : {
+                "type" : "string"
+              },
+              "type" : "array"
+            },
+            "type" : "object"
           },
           "tenantId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "version" : {
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tenantId", "version" ]
+        "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tenantId", "version" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockStateAggregateWithoutCtorParametersStateEvent" : {
+        "$schema" : "https://json-schema.org/draft/2020-12/schema",
         "properties" : {
           "aggregateId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "aggregateName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "body" : {
             "items" : {
               "properties" : {
-                "body" : { },
-                "bodyType" : { },
+                "body" : {
+                  "type" : "object"
+                },
+                "bodyType" : {
+                  "type" : "string"
+                },
                 "id" : {
-                  "minLength" : 1
+                  "minLength" : 1,
+                  "type" : "string"
                 },
                 "name" : {
-                  "minLength" : 1
+                  "minLength" : 1,
+                  "type" : "string"
                 },
-                "revision" : { }
+                "revision" : {
+                  "type" : "string"
+                }
               },
-              "required" : [ "body", "bodyType", "id", "name", "revision" ]
+              "required" : [ "body", "bodyType", "id", "name", "revision" ],
+              "type" : "object"
             },
-            "minItems" : 1
+            "minItems" : 1,
+            "type" : "array"
           },
           "commandId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "contextName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "createTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
-          "deleted" : { },
+          "deleted" : {
+            "type" : "boolean"
+          },
           "firstEventTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
-          "firstOperator" : { },
+          "firstOperator" : {
+            "type" : "string"
+          },
           "header" : {
             "additionalProperties" : true,
             "properties" : {
-              "command_operator" : { },
+              "command_operator" : {
+                "type" : "string"
+              },
               "command_wait_endpoint" : {
-                "format" : "url"
+                "format" : "url",
+                "type" : "string"
               },
               "command_wait_stage" : {
                 "default" : "PROCESSED",
-                "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ]
+                "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ],
+                "type" : "string"
               },
-              "local_first" : { },
-              "remote_ip" : { },
-              "trace_id" : { },
-              "user_agent" : { }
-            }
+              "local_first" : {
+                "type" : "boolean"
+              },
+              "remote_ip" : {
+                "type" : "string"
+              },
+              "trace_id" : {
+                "type" : "string"
+              },
+              "user_agent" : {
+                "type" : "string"
+              }
+            },
+            "type" : "object"
           },
           "id" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "ownerId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
           "requestId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "spaceId" : {
-            "default" : ""
+            "default" : "",
+            "type" : "string"
           },
-          "state" : { },
+          "state" : {
+            "type" : "object"
+          },
           "tags" : {
             "additionalProperties" : {
-              "items" : { }
-            }
+              "items" : {
+                "type" : "string"
+              },
+              "type" : "array"
+            },
+            "type" : "object"
           },
           "tenantId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "version" : {
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "deleted", "firstEventTime", "firstOperator", "id", "ownerId", "spaceId", "state", "tenantId", "version" ]
+        "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "deleted", "firstEventTime", "firstOperator", "id", "ownerId", "spaceId", "state", "tenantId", "version" ],
+        "type" : "object"
       },
       "tck.mock_aggregate.MockVoidCommand" : {
         "properties" : {
-          "data" : { }
+          "data" : {
+            "type" : "string"
+          }
         },
-        "required" : [ "data" ]
+        "required" : [ "data" ],
+        "type" : "object"
       },
       "wow.api.BindingError" : {
         "properties" : {
-          "msg" : { },
-          "name" : { }
+          "msg" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
         },
-        "required" : [ "msg", "name" ]
+        "required" : [ "msg", "name" ],
+        "type" : "object"
       },
       "wow.api.DefaultErrorInfo" : {
         "properties" : {
           "bindingErrors" : {
             "items" : {
               "$ref" : "#/components/schemas/wow.api.BindingError"
-            }
+            },
+            "type" : "array"
           },
-          "errorCode" : { },
-          "errorMsg" : { },
+          "errorCode" : {
+            "type" : "string"
+          },
+          "errorMsg" : {
+            "type" : "string"
+          },
           "succeeded" : {
-            "readOnly" : true
+            "readOnly" : true,
+            "type" : "boolean"
           }
         },
-        "required" : [ "errorCode" ]
+        "required" : [ "errorCode" ],
+        "type" : "object"
       },
       "wow.api.abac.DefaultApplyResourceTags" : {
         "properties" : {
@@ -3290,45 +4466,62 @@
           }
         },
         "required" : [ "tags" ],
-        "title" : "Apply ABAC Resource Tags"
+        "title" : "Apply ABAC Resource Tags",
+        "type" : "object"
       },
       "wow.api.command.DefaultDeleteAggregate" : {
-        "title" : "Delete aggregate"
+        "title" : "Delete aggregate",
+        "type" : "object"
       },
       "wow.api.command.DefaultRecoverAggregate" : {
-        "title" : "Recover deleted aggregate"
+        "title" : "Recover deleted aggregate",
+        "type" : "object"
       },
       "wow.api.messaging.FunctionInfoData" : {
         "properties" : {
-          "contextName" : { },
+          "contextName" : {
+            "type" : "string"
+          },
           "functionKind" : {
             "$ref" : "#/components/schemas/wow.api.messaging.FunctionKind"
           },
-          "name" : { },
-          "processorName" : { }
+          "name" : {
+            "type" : "string"
+          },
+          "processorName" : {
+            "type" : "string"
+          }
         },
-        "required" : [ "contextName", "functionKind", "name", "processorName" ]
+        "required" : [ "contextName", "functionKind", "name", "processorName" ],
+        "type" : "object"
       },
       "wow.api.messaging.FunctionKind" : {
-        "enum" : [ "COMMAND", "SOURCING", "EVENT", "STATE_EVENT", "ERROR" ]
+        "enum" : [ "COMMAND", "SOURCING", "EVENT", "STATE_EVENT", "ERROR" ],
+        "type" : "string"
       },
       "wow.api.modeling.AggregateId" : {
+        "$schema" : "https://json-schema.org/draft/2020-12/schema",
         "properties" : {
           "aggregateId" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "aggregateName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "contextName" : {
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           },
           "tenantId" : {
             "default" : "(0)",
-            "minLength" : 1
+            "minLength" : 1,
+            "type" : "string"
           }
         },
-        "required" : [ "aggregateId", "aggregateName", "contextName", "tenantId" ]
+        "required" : [ "aggregateId", "aggregateName", "contextName", "tenantId" ],
+        "type" : "object"
       },
       "wow.api.query.Condition" : {
         "properties" : {
@@ -3336,25 +4529,39 @@
             "default" : "[]",
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.Condition"
-            }
+            },
+            "type" : "array"
           },
-          "field" : { },
+          "field" : {
+            "type" : "string"
+          },
           "operator" : {
-            "$ref" : "#/components/schemas/wow.api.query.Operator"
+            "$ref" : "#/components/schemas/wow.api.query.Operator",
+            "default" : "ALL"
           },
           "options" : {
-            "$ref" : "#/components/schemas/wow.api.query.ConditionOptions"
+            "$ref" : "#/components/schemas/wow.api.query.ConditionOptions",
+            "default" : "{}"
           },
           "value" : { }
-        }
+        },
+        "type" : "object"
       },
       "wow.api.query.ConditionOptions" : {
+        "$schema" : "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties" : true,
         "properties" : {
-          "datePattern" : { },
-          "ignoreCase" : { },
-          "zoneId" : { }
-        }
+          "datePattern" : {
+            "type" : "string"
+          },
+          "ignoreCase" : {
+            "type" : "boolean"
+          },
+          "zoneId" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
       },
       "wow.api.query.ListQuery" : {
         "properties" : {
@@ -3363,7 +4570,8 @@
           },
           "limit" : {
             "default" : "0",
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           },
           "projection" : {
             "$ref" : "#/components/schemas/wow.api.query.Projection"
@@ -3372,13 +4580,16 @@
             "default" : "[]",
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.Sort"
-            }
+            },
+            "type" : "array"
           }
         },
-        "required" : [ "condition" ]
+        "required" : [ "condition" ],
+        "type" : "object"
       },
       "wow.api.query.Operator" : {
-        "enum" : [ "AND", "OR", "NOR", "ID", "IDS", "AGGREGATE_ID", "AGGREGATE_IDS", "TENANT_ID", "OWNER_ID", "SPACE_ID", "DELETED", "ALL", "EQ", "NE", "GT", "LT", "GTE", "LTE", "CONTAINS", "IN", "NOT_IN", "BETWEEN", "ALL_IN", "STARTS_WITH", "ENDS_WITH", "ELEM_MATCH", "NULL", "NOT_NULL", "TRUE", "FALSE", "EXISTS", "TODAY", "BEFORE_TODAY", "TOMORROW", "THIS_WEEK", "NEXT_WEEK", "LAST_WEEK", "THIS_MONTH", "LAST_MONTH", "RECENT_DAYS", "EARLIER_DAYS", "MATCH", "RAW" ]
+        "enum" : [ "AND", "OR", "NOR", "ID", "IDS", "AGGREGATE_ID", "AGGREGATE_IDS", "TENANT_ID", "OWNER_ID", "SPACE_ID", "DELETED", "ALL", "EQ", "NE", "GT", "LT", "GTE", "LTE", "CONTAINS", "IN", "NOT_IN", "BETWEEN", "ALL_IN", "STARTS_WITH", "ENDS_WITH", "ELEM_MATCH", "NULL", "NOT_NULL", "TRUE", "FALSE", "EXISTS", "TODAY", "BEFORE_TODAY", "TOMORROW", "THIS_WEEK", "NEXT_WEEK", "LAST_WEEK", "THIS_MONTH", "LAST_MONTH", "RECENT_DAYS", "EARLIER_DAYS", "MATCH", "RAW" ],
+        "type" : "string"
       },
       "wow.api.query.PagedQuery" : {
         "properties" : {
@@ -3395,90 +4606,134 @@
             "default" : "[]",
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.Sort"
-            }
+            },
+            "type" : "array"
           }
         },
-        "required" : [ "condition" ]
+        "required" : [ "condition" ],
+        "type" : "object"
       },
       "wow.api.query.Pagination" : {
         "properties" : {
           "index" : {
             "default" : "1",
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           },
           "size" : {
             "default" : "10",
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           }
         },
-        "required" : [ "index", "size" ]
+        "required" : [ "index", "size" ],
+        "type" : "object"
       },
       "wow.api.query.Projection" : {
         "properties" : {
           "exclude" : {
             "default" : "[]",
-            "items" : { }
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
           },
           "include" : {
             "default" : "[]",
-            "items" : { }
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
           }
-        }
+        },
+        "type" : "object"
       },
       "wow.api.query.Sort" : {
         "properties" : {
           "direction" : {
             "$ref" : "#/components/schemas/wow.api.query.Sort.Direction"
           },
-          "field" : { }
+          "field" : {
+            "type" : "string"
+          }
         },
-        "required" : [ "direction", "field" ]
+        "required" : [ "direction", "field" ],
+        "type" : "object"
       },
       "wow.api.query.Sort.Direction" : {
-        "enum" : [ "ASC", "DESC" ]
+        "enum" : [ "ASC", "DESC" ],
+        "type" : "string"
       },
       "wow.command.CommandResult" : {
         "properties" : {
-          "aggregateId" : { },
-          "aggregateName" : { },
+          "aggregateId" : {
+            "type" : "string"
+          },
+          "aggregateName" : {
+            "type" : "string"
+          },
           "aggregateVersion" : {
-            "anyOf" : [ { }, {
-              "format" : "int32"
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int32",
+              "type" : "integer"
             } ]
           },
           "bindingErrors" : {
             "items" : {
               "$ref" : "#/components/schemas/wow.api.BindingError"
-            }
+            },
+            "type" : "array"
           },
-          "commandId" : { },
-          "contextName" : { },
-          "errorCode" : { },
-          "errorMsg" : { },
+          "commandId" : {
+            "type" : "string"
+          },
+          "contextName" : {
+            "type" : "string"
+          },
+          "errorCode" : {
+            "type" : "string"
+          },
+          "errorMsg" : {
+            "type" : "string"
+          },
           "function" : {
             "$ref" : "#/components/schemas/wow.api.messaging.FunctionInfoData"
           },
-          "id" : { },
-          "requestId" : { },
+          "id" : {
+            "type" : "string"
+          },
+          "requestId" : {
+            "type" : "string"
+          },
           "result" : {
             "$ref" : "#/components/schemas/example.StringObjectMap"
           },
           "signalTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
           "stage" : {
             "$ref" : "#/components/schemas/wow.command.CommandStage"
           },
           "succeeded" : {
-            "readOnly" : true
+            "readOnly" : true,
+            "type" : "boolean"
           },
-          "tenantId" : { },
-          "waitCommandId" : { }
+          "tenantId" : {
+            "type" : "string"
+          },
+          "waitCommandId" : {
+            "type" : "string"
+          }
         },
-        "required" : [ "aggregateId", "aggregateName", "commandId", "contextName", "function", "id", "requestId", "stage", "tenantId", "waitCommandId" ]
+        "required" : [ "aggregateId", "aggregateName", "commandId", "contextName", "function", "id", "requestId", "stage", "tenantId", "waitCommandId" ],
+        "type" : "object"
       },
       "wow.command.CommandStage" : {
-        "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ]
+        "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ],
+        "type" : "string"
       },
       "wow.command.SimpleWaitSignal" : {
         "properties" : {
@@ -3486,63 +4741,107 @@
             "$ref" : "#/components/schemas/wow.api.modeling.AggregateId"
           },
           "aggregateVersion" : {
-            "anyOf" : [ { }, {
-              "format" : "int32"
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int32",
+              "type" : "integer"
             } ]
           },
           "bindingErrors" : {
             "items" : {
               "$ref" : "#/components/schemas/wow.api.BindingError"
-            }
+            },
+            "type" : "array"
           },
-          "commandId" : { },
+          "commandId" : {
+            "type" : "string"
+          },
           "commands" : {
-            "items" : { }
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
           },
-          "errorCode" : { },
-          "errorMsg" : { },
+          "errorCode" : {
+            "type" : "string"
+          },
+          "errorMsg" : {
+            "type" : "string"
+          },
           "function" : {
             "$ref" : "#/components/schemas/wow.api.messaging.FunctionInfoData"
           },
-          "id" : { },
-          "isLastProjection" : { },
+          "id" : {
+            "type" : "string"
+          },
+          "isLastProjection" : {
+            "type" : "boolean"
+          },
           "result" : {
             "$ref" : "#/components/schemas/example.StringObjectMap"
           },
           "signalTime" : {
-            "format" : "int64"
+            "format" : "int64",
+            "type" : "integer"
           },
           "stage" : {
             "$ref" : "#/components/schemas/wow.command.CommandStage"
           },
           "succeeded" : {
-            "readOnly" : true
+            "readOnly" : true,
+            "type" : "boolean"
           },
-          "waitCommandId" : { }
+          "waitCommandId" : {
+            "type" : "string"
+          }
         },
-        "required" : [ "aggregateId", "commandId", "function", "id", "stage", "waitCommandId" ]
+        "required" : [ "aggregateId", "commandId", "function", "id", "stage", "waitCommandId" ],
+        "type" : "object"
       },
       "wow.configuration.Aggregate" : {
         "properties" : {
           "commands" : {
-            "items" : { }
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
           },
           "events" : {
-            "items" : { }
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
           },
           "id" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "scopes" : {
-            "items" : { }
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
           },
           "tenantId" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "type" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           }
-        }
+        },
+        "type" : "object"
       },
       "wow.configuration.BoundedContext" : {
         "properties" : {
@@ -3550,116 +4849,188 @@
             "$ref" : "#/components/schemas/wow.configuration.StringAggregateMap"
           },
           "alias" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "scopes" : {
-            "items" : { }
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
           }
-        }
+        },
+        "type" : "object"
       },
       "wow.configuration.StringAggregateMap" : {
         "additionalProperties" : {
           "$ref" : "#/components/schemas/wow.configuration.Aggregate"
-        }
+        },
+        "type" : "object"
       },
       "wow.configuration.StringBoundedContextMap" : {
         "additionalProperties" : {
           "$ref" : "#/components/schemas/wow.configuration.BoundedContext"
-        }
+        },
+        "type" : "object"
       },
       "wow.configuration.WowMetadata" : {
         "properties" : {
           "contexts" : {
             "$ref" : "#/components/schemas/wow.configuration.StringBoundedContextMap"
           }
-        }
+        },
+        "type" : "object"
       },
       "wow.messaging.CompensationTarget" : {
         "properties" : {
           "function" : {
             "$ref" : "#/components/schemas/wow.api.messaging.FunctionInfoData"
           },
-          "id" : { }
+          "id" : {
+            "type" : "string"
+          }
         },
-        "required" : [ "function" ]
+        "required" : [ "function" ],
+        "type" : "object"
       },
       "wow.openapi.BatchResult" : {
         "properties" : {
-          "afterId" : { },
+          "afterId" : {
+            "type" : "string"
+          },
           "bindingErrors" : {
             "items" : {
               "$ref" : "#/components/schemas/wow.api.BindingError"
             },
-            "readOnly" : true
+            "readOnly" : true,
+            "type" : "array"
           },
-          "errorCode" : { },
-          "errorMsg" : { },
+          "errorCode" : {
+            "type" : "string"
+          },
+          "errorMsg" : {
+            "type" : "string"
+          },
           "size" : {
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           },
           "succeeded" : {
-            "readOnly" : true
+            "readOnly" : true,
+            "type" : "boolean"
           }
         },
-        "required" : [ "afterId", "size" ]
+        "required" : [ "afterId", "size" ],
+        "type" : "object"
       },
       "wow.openapi.BiScriptClusterRequest" : {
         "properties" : {
           "installation" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "name" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "replica" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "shard" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           }
-        }
+        },
+        "type" : "object"
       },
       "wow.openapi.BiScriptRequest" : {
         "properties" : {
           "consumerDatabase" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "database" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "kafkaBootstrapServers" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "maxExpansionDepth" : {
-            "anyOf" : [ { }, {
-              "format" : "int32"
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int32",
+              "type" : "integer"
             } ]
           },
           "timezone" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "topicPrefix" : {
-            "anyOf" : [ { }, { } ]
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "topology" : {
-            "anyOf" : [ { }, {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
               "$ref" : "#/components/schemas/wow.openapi.BiScriptTopologyRequest"
             } ]
           },
           "unsupportedTypeStrategy" : {
-            "anyOf" : [ { }, {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
               "$ref" : "#/components/schemas/wow.openapi.BiScriptUnsupportedTypeStrategy"
             } ]
           }
-        }
+        },
+        "type" : "object"
       },
       "wow.openapi.BiScriptTopologyMode" : {
-        "enum" : [ "CLUSTER", "STANDALONE" ]
+        "enum" : [ "CLUSTER", "STANDALONE" ],
+        "type" : "string"
       },
       "wow.openapi.BiScriptTopologyRequest" : {
         "properties" : {
           "cluster" : {
-            "anyOf" : [ { }, {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
               "$ref" : "#/components/schemas/wow.openapi.BiScriptClusterRequest"
             } ]
           },
@@ -3667,10 +5038,12 @@
             "$ref" : "#/components/schemas/wow.openapi.BiScriptTopologyMode"
           }
         },
-        "required" : [ "mode" ]
+        "required" : [ "mode" ],
+        "type" : "object"
       },
       "wow.openapi.BiScriptUnsupportedTypeStrategy" : {
-        "enum" : [ "FAIL", "RAW_JSON" ]
+        "enum" : [ "FAIL", "RAW_JSON" ],
+        "type" : "string"
       }
     }
   },
@@ -3681,7 +5054,7 @@
     "x-wow-context-name" : "example-service",
     "x-wow-version" : "8.8.1"
   },
-  "openapi" : "3.0.1",
+  "openapi" : "3.1.0",
   "paths" : {
     "/cart/event/count" : {
       "post" : {
@@ -9273,7 +10646,8 @@
           "name" : "customerId",
           "required" : true,
           "schema" : {
-            "format" : "int32"
+            "format" : "int32",
+            "type" : "integer"
           }
         }, {
           "in" : "header",
@@ -9286,12 +10660,16 @@
           "in" : "header",
           "name" : "headerParameter",
           "required" : true,
-          "schema" : { }
+          "schema" : {
+            "type" : "string"
+          }
         }, {
           "in" : "path",
           "name" : "id",
           "required" : true,
-          "schema" : { }
+          "schema" : {
+            "type" : "string"
+          }
         }, {
           "in" : "path",
           "name" : "mockEnum",

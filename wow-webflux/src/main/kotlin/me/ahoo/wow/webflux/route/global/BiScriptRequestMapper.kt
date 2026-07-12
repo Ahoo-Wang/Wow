@@ -21,8 +21,13 @@ import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyMode
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyRequest
 import me.ahoo.wow.openapi.contract.bi.BiScriptUnsupportedTypeStrategy
 
-internal fun BiScriptRequest.toBiScriptOptions(base: BiScriptOptions): BiScriptOptions =
-    BiScriptOptions(
+internal fun BiScriptRequest.toBiScriptOptions(base: BiScriptOptions): BiScriptOptions {
+    maxExpansionDepth?.let { requestedDepth ->
+        require(requestedDepth <= base.maxExpansionDepth) {
+            "maxExpansionDepth must be less than or equal to the configured maximum of ${base.maxExpansionDepth}"
+        }
+    }
+    return BiScriptOptions(
         database = database ?: base.database,
         consumerDatabase = consumerDatabase ?: base.consumerDatabase,
         topology = topology?.toTopology(base.topology) ?: base.topology,
@@ -33,6 +38,7 @@ internal fun BiScriptRequest.toBiScriptOptions(base: BiScriptOptions): BiScriptO
         unsupportedTypeStrategy = unsupportedTypeStrategy?.toDomain()
             ?: base.unsupportedTypeStrategy,
     )
+}
 
 private fun BiScriptTopologyRequest.toTopology(base: ClickHouseTopology): ClickHouseTopology {
     return when (mode) {

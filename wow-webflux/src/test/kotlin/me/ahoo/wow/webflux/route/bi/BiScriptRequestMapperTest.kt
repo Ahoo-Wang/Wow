@@ -43,7 +43,7 @@ class BiScriptRequestMapperTest {
             timezone = "UTC",
             kafkaBootstrapServers = "request-kafka:9092",
             topicPrefix = "request.",
-            maxExpansionDepth = 7,
+            maxExpansionDepth = 2,
             unsupportedTypeStrategy = BiScriptUnsupportedTypeStrategy.FAIL,
         ).toBiScriptOptions(BASE_OPTIONS)
 
@@ -60,7 +60,7 @@ class BiScriptRequestMapperTest {
                 timezone = "UTC",
                 kafkaBootstrapServers = "request-kafka:9092",
                 topicPrefix = "request.",
-                maxExpansionDepth = 7,
+                maxExpansionDepth = 2,
                 unsupportedTypeStrategy = UnsupportedTypeStrategy.FAIL,
             )
         )
@@ -90,6 +90,30 @@ class BiScriptRequestMapperTest {
             ).toBiScriptOptions(BASE_OPTIONS)
         }.exceptionOrNull()!!.message.assert()
             .isEqualTo("topology.cluster must not be configured in STANDALONE mode")
+    }
+
+    @Test
+    fun `should accept max expansion depth lower than the configured ceiling`() {
+        BiScriptRequest(maxExpansionDepth = 2)
+            .toBiScriptOptions(BASE_OPTIONS)
+            .maxExpansionDepth.assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `should accept max expansion depth equal to the configured ceiling`() {
+        BiScriptRequest(maxExpansionDepth = BASE_OPTIONS.maxExpansionDepth)
+            .toBiScriptOptions(BASE_OPTIONS)
+            .maxExpansionDepth.assert().isEqualTo(BASE_OPTIONS.maxExpansionDepth)
+    }
+
+    @Test
+    fun `should reject max expansion depth above the configured ceiling`() {
+        runCatching {
+            BiScriptRequest(maxExpansionDepth = BASE_OPTIONS.maxExpansionDepth + 1)
+                .toBiScriptOptions(BASE_OPTIONS)
+        }.exceptionOrNull()!!.message.assert().isEqualTo(
+            "maxExpansionDepth must be less than or equal to the configured maximum of 3"
+        )
     }
 
     private companion object {
