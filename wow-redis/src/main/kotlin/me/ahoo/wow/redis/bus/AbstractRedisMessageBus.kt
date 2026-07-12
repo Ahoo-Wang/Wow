@@ -19,7 +19,7 @@ import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.DistributedMessageBus
-import me.ahoo.wow.messaging.getReceiverGroup
+import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
@@ -52,13 +52,13 @@ abstract class AbstractRedisMessageBus<M, E>(
         }
     }
 
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<E> {
+    override fun receive(subscription: MessageSubscription): Flux<E> {
         val options = StreamReceiverOptions.builder().pollTimeout(pollTimeout)
             .build()
 
-        return Flux.deferContextual { contextView ->
-            val group = contextView.getReceiverGroup()
-            val topics = namedAggregates.map(topicConverter::convert)
+        return Flux.defer {
+            val group = subscription.receiverGroup
+            val topics = subscription.namedAggregates.map(topicConverter::convert)
             val createGroupPublisher = topics.map { topic ->
                 createGroup(topic, group)
             }.let { publishers ->

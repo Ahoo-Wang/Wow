@@ -11,6 +11,7 @@ import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.DefaultHeader
+import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.compensation.COMPENSATION_ID
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.modeling.aggregateId
@@ -109,7 +110,7 @@ class DomainEventCompensationFilterTest {
         val commandBus = InMemoryCommandBus()
         val compensationFilter = DomainEventCompensationFilter(commandBus)
         val sink = Sinks.empty<Void>()
-        commandBus.receive(setOf(CompensationEventProcessorTest.LOCAL_AGGREGATE.materialize()))
+        commandBus.receive(MessageSubscription(CompensationEventProcessorTest.LOCAL_AGGREGATE.materialize()))
             .doOnNext {
                 sink.tryEmitEmpty()
             }
@@ -145,7 +146,7 @@ class DomainEventCompensationFilterTest {
     fun `should not retry when retry is disabled`() {
         val commandBus = InMemoryCommandBus()
         val sink = Sinks.empty<Void>()
-        commandBus.receive(setOf(CompensationEventProcessorTest.LOCAL_AGGREGATE.materialize()))
+        commandBus.receive(MessageSubscription(CompensationEventProcessorTest.LOCAL_AGGREGATE.materialize()))
             .doOnNext {
                 sink.tryEmitEmpty()
             }

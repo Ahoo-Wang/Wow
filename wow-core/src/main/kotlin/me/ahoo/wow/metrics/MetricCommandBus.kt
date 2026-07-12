@@ -20,6 +20,7 @@ import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
+import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.metrics.Metrics.tagMetricsSubscriber
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -57,15 +58,15 @@ open class MetricCommandBus<T : CommandBus>(
      * Receives command exchanges for the specified named aggregates and collects metrics on the operation.
      * Metrics collected include timing and tags for aggregate identification and subscriber information.
      *
-     * @param namedAggregates the set of named aggregates to receive commands for
+     * @param subscription the message subscription
      * @return a Flux of server command exchanges
      */
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<*>> =
+    override fun receive(subscription: MessageSubscription): Flux<ServerCommandExchange<*>> =
         delegate
-            .receive(namedAggregates)
+            .receive(subscription)
             .name(Wow.WOW_PREFIX + "command.receive")
             .tagSource()
-            .tag(Metrics.AGGREGATE_KEY, namedAggregates.joinToString(",") { it.aggregateName })
+            .tag(Metrics.AGGREGATE_KEY, subscription.namedAggregates.joinToString(",") { it.aggregateName })
             .tagMetricsSubscriber()
 
     /**

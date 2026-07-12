@@ -20,6 +20,7 @@ import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.wait.TestCommandMessage
+import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
 import org.junit.jupiter.api.Test
 import reactor.core.Scannable
@@ -52,14 +53,14 @@ class MetricCommandBusTest {
             receiveFlux = Flux.just(exchange)
         )
         val commandBus = MetricCommandBus(delegate)
-        val namedAggregates = setOf(command.aggregateId.namedAggregate)
-        val publisher = commandBus.receive(namedAggregates)
+        val subscription = MessageSubscription(command.aggregateId.namedAggregate, receiverGroup = "test-group")
+        val publisher = commandBus.receive(subscription)
 
         StepVerifier.create(publisher)
             .expectNext(exchange)
             .verifyComplete()
 
-        delegate.received.single().assert().isEqualTo(namedAggregates)
+        delegate.received.single().assert().isEqualTo(subscription)
     }
 
     @Test
@@ -72,7 +73,7 @@ class MetricCommandBusTest {
         val commandBus = MetricCommandBus(delegate)
 
         StepVerifier.create(
-            commandBus.receive(setOf(command.aggregateId.namedAggregate))
+            commandBus.receive(MessageSubscription(command.aggregateId.namedAggregate))
                 .writeMetricsSubscriber("command-handler")
         )
             .expectNext(exchange)
@@ -98,7 +99,7 @@ private class RecordingLocalCommandBus(
     private val receiveFlux: Flux<ServerCommandExchange<*>> = Flux.empty(),
 ) : LocalCommandBus {
     val sent: MutableList<CommandMessage<*>> = mutableListOf()
-    val received: MutableList<Set<NamedAggregate>> = mutableListOf()
+    val received: MutableList<MessageSubscription> = mutableListOf()
     var closed: Boolean = false
         private set
 
@@ -107,8 +108,8 @@ private class RecordingLocalCommandBus(
             sent += message
         }
 
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<*>> {
-        received += namedAggregates
+    override fun receive(subscription: MessageSubscription): Flux<ServerCommandExchange<*>> {
+        received += subscription
         return receiveFlux
     }
 

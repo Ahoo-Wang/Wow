@@ -16,7 +16,6 @@ package me.ahoo.wow.command
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.command.validation.CommandValidator
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandWait
@@ -39,6 +38,7 @@ import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
 import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
+import me.ahoo.wow.messaging.MessageSubscription
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -585,7 +585,7 @@ private class RecordingCommandBus : CommandBus {
             sendResult(message)
         }
 
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<*>> = Flux.empty()
+    override fun receive(subscription: MessageSubscription): Flux<ServerCommandExchange<*>> = Flux.empty()
 }
 
 private data class SelfValidatingCommand(

@@ -15,7 +15,7 @@ package me.ahoo.wow.messaging.dispatcher
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.messaging.writeReceiverGroup
+import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
 import me.ahoo.wow.serialization.toJsonString
 import reactor.core.publisher.Flux
@@ -37,8 +37,8 @@ import reactor.core.publisher.Mono
  * class MyMainDispatcher : MainDispatcher<MyMessage>() {
  *     override val namedAggregates = setOf(myAggregate1, myAggregate2)
  *
- *     override fun receiveMessage(namedAggregate: NamedAggregate): Flux<MyMessage> {
- *         // Implementation to receive messages for the aggregate
+ *     override fun receiveMessage(subscription: MessageSubscription): Flux<MyMessage> {
+ *         // Implementation to receive messages for the subscription
  *         return myMessageFlux
  *     }
  *
@@ -75,18 +75,18 @@ abstract class MainDispatcher<T : Any> : MessageDispatcher {
     abstract val namedAggregates: Set<NamedAggregate>
 
     /**
-     * Creates a flux of messages for the specified named aggregate.
+     * Creates a flux of messages for the specified subscription.
      *
      * This method should return a reactive stream of messages that are destined for the given aggregate.
      * The implementation should handle message sourcing, filtering, and any necessary transformations.
      *
-     * @param namedAggregate The named aggregate to receive messages for. Must not be null.
-     * @return A [Flux] of messages for the aggregate. May be empty if no messages are available.
+     * @param subscription The subscription to receive messages for. Must not be null.
+     * @return A [Flux] of messages for the subscription. May be empty if no messages are available.
      *
-     * @throws IllegalArgumentException if the namedAggregate is invalid or unsupported.
+     * @throws IllegalArgumentException if the subscription is invalid or unsupported.
      * @throws RuntimeException if there are issues with message sourcing or connectivity.
      */
-    abstract fun receiveMessage(namedAggregate: NamedAggregate): Flux<T>
+    abstract fun receiveMessage(subscription: MessageSubscription): Flux<T>
 
     /**
      * Creates a new message dispatcher for a specific named aggregate.
@@ -117,9 +117,12 @@ abstract class MainDispatcher<T : Any> : MessageDispatcher {
     private val aggregateDispatchersLazy = lazy {
         namedAggregates
             .map {
+                val subscription = MessageSubscription(
+                    namedAggregate = it,
+                    receiverGroup = name,
+                )
                 val messageFlux =
-                    receiveMessage(it)
-                        .writeReceiverGroup(name)
+                    receiveMessage(subscription)
                         .writeMetricsSubscriber(name)
                 newAggregateDispatcher(it, messageFlux)
             }

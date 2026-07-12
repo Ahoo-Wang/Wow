@@ -5,6 +5,7 @@ import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.InMemoryMessageBus
+import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.tck.event.DomainEventBusSpec
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
@@ -83,7 +84,7 @@ private class RecordingLocalDomainEventBus : LocalDomainEventBus {
 
     override fun send(message: DomainEventStream): Mono<Void> = Mono.empty()
 
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<EventStreamExchange> = Flux.empty()
+    override fun receive(subscription: MessageSubscription): Flux<EventStreamExchange> = Flux.empty()
 
     override fun subscriberCount(namedAggregate: NamedAggregate): Int = 0
 
@@ -97,7 +98,7 @@ private class RecordingDistributedDomainEventBus : DistributedDomainEventBus {
 
     override fun send(message: DomainEventStream): Mono<Void> = Mono.empty()
 
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<EventStreamExchange> = Flux.empty()
+    override fun receive(subscription: MessageSubscription): Flux<EventStreamExchange> = Flux.empty()
 
     override fun close() {
         closed.set(true)

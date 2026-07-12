@@ -85,14 +85,18 @@ class LocalFirstMessageBusTest {
             receiveFlux = Flux.just(filteredDistributedExchange, remoteDistributedExchange)
         )
         val bus = RecordingLocalFirstMessageBus(localBus, distributedBus)
+        val subscription = MessageSubscription(LocalFirstTestMessage(), receiverGroup = "receiver-group")
 
-        StepVerifier.create(bus.receive(setOf(LocalFirstTestMessage())).collectList())
+        StepVerifier.create(bus.receive(subscription).collectList())
             .assertNext { exchanges ->
                 exchanges.map { it.message.id }.toSet().assert().isEqualTo(setOf("local", "remote"))
                 filteredDistributedExchange.acknowledged.assert().isTrue()
                 remoteDistributedExchange.acknowledged.assert().isFalse()
             }
             .verifyComplete()
+
+        localBus.received.single().receiverGroup.assert().isEqualTo(subscription.receiverGroup)
+        distributedBus.received.single().assert().isEqualTo(subscription)
     }
 }
 
@@ -106,6 +110,7 @@ private class RecordingLocalBus(
     private val receiveFlux: Flux<LocalFirstTestExchange> = Flux.empty(),
 ) : LocalMessageBus<LocalFirstTestMessage, LocalFirstTestExchange> {
     val sent: MutableList<LocalFirstTestMessage> = mutableListOf()
+    val received: MutableList<MessageSubscription> = mutableListOf()
     var sendResult: (LocalFirstTestMessage) -> Mono<Void> = { Mono.empty() }
 
     override fun send(message: LocalFirstTestMessage): Mono<Void> =
@@ -114,7 +119,10 @@ private class RecordingLocalBus(
             sendResult(message)
         }
 
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<LocalFirstTestExchange> = receiveFlux
+    override fun receive(subscription: MessageSubscription): Flux<LocalFirstTestExchange> {
+        received += subscription
+        return receiveFlux
+    }
 
     override fun subscriberCount(namedAggregate: NamedAggregate): Int = subscribers
 }
@@ -123,13 +131,17 @@ private class RecordingDistributedBus(
     private val receiveFlux: Flux<LocalFirstTestExchange> = Flux.empty(),
 ) : DistributedMessageBus<LocalFirstTestMessage, LocalFirstTestExchange> {
     val sent: MutableList<LocalFirstTestMessage> = mutableListOf()
+    val received: MutableList<MessageSubscription> = mutableListOf()
 
     override fun send(message: LocalFirstTestMessage): Mono<Void> =
         Mono.fromRunnable {
             sent += message
         }
 
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<LocalFirstTestExchange> = receiveFlux
+    override fun receive(subscription: MessageSubscription): Flux<LocalFirstTestExchange> {
+        received += subscription
+        return receiveFlux
+    }
 }
 
 private class LocalFirstTestMessage(

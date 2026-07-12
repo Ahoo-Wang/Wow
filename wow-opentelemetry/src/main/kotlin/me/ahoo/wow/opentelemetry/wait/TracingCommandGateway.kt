@@ -15,12 +15,12 @@ package me.ahoo.wow.opentelemetry.wait
 
 import io.opentelemetry.context.Context
 import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.wait.WaitPlan
 import me.ahoo.wow.infra.Decorator
+import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.opentelemetry.TraceFlux
 import me.ahoo.wow.opentelemetry.TraceMono
 import me.ahoo.wow.opentelemetry.Traced
@@ -56,7 +56,7 @@ class TracingCommandGateway(override val delegate: CommandGateway) : Traced, Com
         return delegate.send(message)
     }
 
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<*>> {
-        return delegate.receive(namedAggregates)
+    override fun receive(subscription: MessageSubscription): Flux<ServerCommandExchange<*>> {
+        return delegate.receive(subscription)
     }
 }

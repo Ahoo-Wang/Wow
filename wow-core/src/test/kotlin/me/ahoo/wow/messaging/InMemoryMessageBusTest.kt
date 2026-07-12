@@ -41,7 +41,7 @@ class InMemoryMessageBusTest {
         val bus = TestInMemoryMessageBus()
         val message = TestNamedMessage()
 
-        StepVerifier.create(bus.receive(setOf(message)))
+        StepVerifier.create(bus.receive(MessageSubscription(message)))
             .then {
                 bus.subscriberCount(message).assert().isEqualTo(1)
                 bus.send(message).subscribe()
@@ -58,7 +58,7 @@ class InMemoryMessageBusTest {
         val bus = TestInMemoryMessageBus()
         val message = TestNamedMessage()
 
-        StepVerifier.create(bus.receive(setOf(message)))
+        StepVerifier.create(bus.receive(MessageSubscription(message)))
             .then {
                 bus.subscriberCount(message).assert().isEqualTo(1)
                 bus.close()

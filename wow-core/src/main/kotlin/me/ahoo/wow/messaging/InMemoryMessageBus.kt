@@ -112,11 +112,11 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
      * Creates a flux that merges messages from all the sinks corresponding to the
      * named aggregates and converts them to message exchanges.
      *
-     * @param namedAggregates The set of named aggregates to receive messages for
+     * @param subscription The message subscription
      * @return A flux of message exchanges
      */
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<E> {
-        val sources = namedAggregates.map {
+    override fun receive(subscription: MessageSubscription): Flux<E> {
+        val sources = subscription.namedAggregates.map {
             computeSink(it).asFlux()
         }
 

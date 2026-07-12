@@ -49,7 +49,7 @@ classDiagram
     class MessageBus~M,E~ {
         <<interface>>
         +send(M) Mono~Void~
-        +receive(Set~NamedAggregate~) Flux~E~
+        +receive(MessageSubscription) Flux~E~
     }
     class DistributedMessageBus~M,E~ {
         <<interface>>
@@ -62,7 +62,7 @@ classDiagram
         -receiverOptionsCustomizer
         #sender: KafkaSender
         +send(M) Mono~Void~
-        +receive(Set) Flux~E~
+        +receive(MessageSubscription) Flux~E~
         #encode(M) SenderRecord
         #decode(ReceiverRecord) M?
     }

@@ -47,7 +47,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * class CustomAggregateDispatcher(
  *     override val parallelism: Int = 4,
  *     override val scheduler: Scheduler = Schedulers.boundedElastic(),
- *     override val messageFlux: Flux<CommandExchange> = commandBus.receive("my-aggregate")
+ *     override val messageFlux: Flux<CommandExchange> = commandBus.receive(subscription)
  * ) : AggregateDispatcher<CommandExchange>() {
  *
  *     override fun CommandExchange.toGroupKey(): Int {

@@ -20,6 +20,7 @@ import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
+import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.metrics.Metrics.tagMetricsSubscriber
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -56,15 +57,15 @@ open class MetricStateEventBus<T : StateEventBus>(
      * Receives state event exchanges for the specified named aggregates and collects metrics on the operation.
      * Metrics collected include timing and tags for aggregate identification and subscriber information.
      *
-     * @param namedAggregates the set of named aggregates to receive state events for
+     * @param subscription the message subscription
      * @return a Flux of state event exchanges
      */
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<StateEventExchange<*>> =
+    override fun receive(subscription: MessageSubscription): Flux<StateEventExchange<*>> =
         delegate
-            .receive(namedAggregates)
+            .receive(subscription)
             .name(Wow.WOW_PREFIX + "state.receive")
             .tagSource()
-            .tag(Metrics.AGGREGATE_KEY, namedAggregates.joinToString(",") { it.aggregateName })
+            .tag(Metrics.AGGREGATE_KEY, subscription.namedAggregates.joinToString(",") { it.aggregateName })
             .tagMetricsSubscriber()
 
     /**

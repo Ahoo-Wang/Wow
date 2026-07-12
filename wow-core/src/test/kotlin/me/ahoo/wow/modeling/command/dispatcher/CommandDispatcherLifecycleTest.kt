@@ -18,6 +18,7 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.ServerCommandExchange
+import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -50,7 +51,7 @@ class CommandDispatcherLifecycleTest {
     private object NoOpCommandBus : CommandBus {
         override fun send(message: CommandMessage<*>): Mono<Void> = Mono.empty()
 
-        override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<*>> = Flux.never()
+        override fun receive(subscription: MessageSubscription): Flux<ServerCommandExchange<*>> = Flux.never()
     }
 
     private object NoOpCommandHandler : CommandHandler {

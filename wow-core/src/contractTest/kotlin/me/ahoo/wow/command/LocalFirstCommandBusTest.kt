@@ -6,8 +6,8 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.InMemoryMessageBus
+import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.withLocalFirst
-import me.ahoo.wow.messaging.writeReceiverGroup
 import me.ahoo.wow.tck.command.CommandBusSpec
 import me.ahoo.wow.tck.mock.MockVoidCommand
 import org.junit.jupiter.api.Test
@@ -26,8 +26,7 @@ class LocalFirstCommandBusTest : CommandBusSpec() {
             val onReady = Sinks.empty<Void>()
             val message = createMessage()
             message.header.withLocalFirst(false)
-            receive(setOf(namedAggregate))
-                .writeReceiverGroup(GlobalIdGenerator.generateAsString())
+            receive(MessageSubscription(namedAggregate, receiverGroup = GlobalIdGenerator.generateAsString()))
                 .onReceive(onReady)
                 .doOnSubscribe {
                     onReady.asMono()
@@ -49,8 +48,7 @@ class LocalFirstCommandBusTest : CommandBusSpec() {
         verify {
             val onReady = Sinks.empty<Void>()
             val message = MockVoidCommand(generateGlobalId()).toCommandMessage()
-            receive(setOf(namedAggregate))
-                .writeReceiverGroup(GlobalIdGenerator.generateAsString())
+            receive(MessageSubscription(namedAggregate, receiverGroup = GlobalIdGenerator.generateAsString()))
                 .onReceive(onReady)
                 .doOnSubscribe {
                     onReady.asMono()

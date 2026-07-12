@@ -15,7 +15,7 @@ package me.ahoo.wow.messaging.dispatcher
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.messaging.getReceiverGroup
+import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.toNamedAggregate
 import org.junit.jupiter.api.Test
@@ -40,7 +40,7 @@ class MainDispatcherTest {
     }
 
     @Test
-    fun `start creates one child per aggregate and subscribes with receiver group context`() {
+    fun `start creates one child per aggregate with receiver group subscription`() {
         val dispatcher = RecordingMainDispatcher()
 
         StepVerifier.create(dispatcher.receiverGroups.asFlux().take(2))
@@ -68,11 +68,9 @@ class MainDispatcherTest {
             "wow-core-test.command_aggregate".toNamedAggregate().materialize(),
         )
 
-        override fun receiveMessage(namedAggregate: NamedAggregate): Flux<String> {
+        override fun receiveMessage(subscription: MessageSubscription): Flux<String> {
             receiveCount.incrementAndGet()
-            return Flux.deferContextual {
-                Flux.just(it.getReceiverGroup())
-            }
+            return Flux.just(subscription.receiverGroup)
         }
 
         override fun newAggregateDispatcher(

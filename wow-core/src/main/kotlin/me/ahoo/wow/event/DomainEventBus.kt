@@ -14,10 +14,10 @@ package me.ahoo.wow.event
 
 import me.ahoo.wow.api.messaging.TopicKind
 import me.ahoo.wow.api.messaging.TopicKindCapable
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.DistributedMessageBus
 import me.ahoo.wow.messaging.LocalMessageBus
 import me.ahoo.wow.messaging.MessageBus
+import me.ahoo.wow.messaging.MessageSubscription
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -90,8 +90,8 @@ object NoOpDomainEventBus : DomainEventBus {
     /**
      * Receives domain event streams but returns an empty flux.
      *
-     * @param namedAggregates The set of named aggregates to receive events for (ignored)
+     * @param subscription The message subscription (ignored)
      * @return An empty Flux of event stream exchanges
      */
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<EventStreamExchange> = Flux.empty()
+    override fun receive(subscription: MessageSubscription): Flux<EventStreamExchange> = Flux.empty()
 }
