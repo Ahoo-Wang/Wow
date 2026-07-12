@@ -29,10 +29,10 @@ class BiTableNamingTest {
     }
 
     @Test
-    fun `should build distributed table name`() {
+    fun `should build logical table name`() {
         val naming = BiTableNaming()
 
-        naming.toDistributedTableName(biAggregateMetadata, "state_last").assert()
+        naming.toTableName(biAggregateMetadata, "state_last").assert()
             .isEqualTo("bi_aggregate_state_last")
     }
 }

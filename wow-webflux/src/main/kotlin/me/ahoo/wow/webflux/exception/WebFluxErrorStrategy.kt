@@ -18,9 +18,9 @@ import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
-import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.http.MediaType
 import org.springframework.validation.BindingResult
+import org.springframework.web.ErrorResponse
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.server.ServerWebExchange
@@ -33,7 +33,11 @@ interface WebFluxErrorStrategy {
 
 object DefaultWebFluxErrorStrategy : WebFluxErrorStrategy {
     override fun toServerResponse(request: ServerRequest, throwable: Throwable): Mono<ServerResponse> {
-        return throwable.toWebFluxErrorInfo().toServerResponse()
+        val errorInfo = throwable.toWebFluxErrorInfo()
+        return ServerResponse.status(throwable.httpStatus(errorInfo))
+            .contentType(MediaType.APPLICATION_JSON)
+            .header(CommonComponent.Header.ERROR_CODE, errorInfo.errorCode)
+            .bodyValue(errorInfo.toJsonString())
     }
 
     override fun writeToExchange(exchange: ServerWebExchange, throwable: Throwable): Mono<Void> {
@@ -43,12 +47,15 @@ object DefaultWebFluxErrorStrategy : WebFluxErrorStrategy {
         }
 
         val errorInfo = throwable.toWebFluxErrorInfo()
-        response.statusCode = errorInfo.toHttpStatus()
+        response.statusCode = throwable.httpStatus(errorInfo)
         response.headers.contentType = MediaType.APPLICATION_JSON
         response.headers.set(CommonComponent.Header.ERROR_CODE, errorInfo.errorCode)
         return response.writeWith(Mono.just(response.bufferFactory().wrap(errorInfo.toJsonString().toByteArray())))
     }
 }
+
+private fun Throwable.httpStatus(errorInfo: ErrorInfo) =
+    (this as? ErrorResponse)?.statusCode ?: errorInfo.toHttpStatus()
 
 private fun Throwable.toWebFluxErrorInfo(): ErrorInfo {
     return when (this) {

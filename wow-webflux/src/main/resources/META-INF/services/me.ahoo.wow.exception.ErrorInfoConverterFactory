@@ -1,3 +1,4 @@
 me.ahoo.wow.webflux.exception.HandlerMethodValidationExceptionConverterFactory
 me.ahoo.wow.webflux.exception.NoResourceFoundExceptionConverterFactory
+me.ahoo.wow.webflux.exception.ResponseStatusExceptionConverterFactory
 me.ahoo.wow.webflux.exception.ServerWebInputExceptionConverterFactory

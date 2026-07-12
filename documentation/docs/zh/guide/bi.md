@@ -30,6 +30,7 @@ Kotlin 调用方通过 `BiScriptGenerator` 获取 SQL 与诊断：
 ```kotlin
 val result = BiScriptGenerator(
     BiScriptOptions(
+        topology = ClickHouseTopology.Standalone,
         unsupportedTypeStrategy = UnsupportedTypeStrategy.RAW_JSON,
     )
 ).generate(aggregates)
@@ -38,7 +39,7 @@ val sql: String = result.script
 val diagnostics: List<BiScriptDiagnostic> = result.diagnostics
 ```
 
-公开契约只有七个类型：`BiScriptGenerator`、`BiScriptOptions`、`UnsupportedTypeStrategy`、`BiScriptResult`、`BiScriptDiagnostic`、`BiScriptDiagnosticCode` 和 `BiScriptMappingDecision`。规划、渲染、类型映射与 executable statement 模型均为内部实现。
+公开契约包含八个顶层类型：`BiScriptGenerator`、`BiScriptOptions`、`ClickHouseTopology`、`UnsupportedTypeStrategy`、`BiScriptResult`、`BiScriptDiagnostic`、`BiScriptDiagnosticCode` 和 `BiScriptMappingDecision`。`ClickHouseTopology` 提供 `Standalone` 与 `Cluster` 两个变体。`BiScriptGenerator.generate(...)` 是唯一生成入口；规划、渲染、类型映射与 executable statement 模型均为内部实现。
 
 `BiScriptResult` 包含：
 
@@ -61,21 +62,92 @@ val diagnostics: List<BiScriptDiagnostic> = result.diagnostics
 Spring WebFlux 路由使用同一个 `BiScriptOptions`：
 
 ```shell
-curl -X GET 'http://localhost:8080/wow/bi/script' \
-  -H 'accept: application/sql'
+curl -X POST 'http://localhost:8080/wow/bi/script' \
+  -H 'content-type: application/json' \
+  -H 'accept: application/sql' \
+  --data '{}'
 ```
 
-成功响应固定为 `200`、`Content-Type: application/sql`，响应体只包含 `result.script`。每条诊断以 WARN 日志输出，不会混入 SQL。配置项及优先级参见[配置](./configuration#bi-脚本配置)。
+JSON 请求体必填。`{}` 保持服务端 `BiScriptOptions` 不变；非 `null` 请求字段只在本次生成中覆盖对应的服务端选项。例如，选择独立拓扑并覆盖数据库：
+
+```json
+{
+  "database": "analytics",
+  "topology": {
+    "mode": "STANDALONE"
+  }
+}
+```
+
+也可以选择集群拓扑，从服务端基础配置继承省略的集群字段，并覆盖 Kafka 配置：
+
+```json
+{
+  "topology": {
+    "mode": "CLUSTER",
+    "cluster": {
+      "name": "production"
+    }
+  },
+  "kafkaBootstrapServers": "kafka:9092",
+  "topicPrefix": "analytics."
+}
+```
+
+服务端配置和每个非 `null` 的 `POST` override 使用相同的最大长度：`database` 128 个字符、`consumerDatabase` 128、`timezone` 64、`topicPrefix` 128、`kafkaBootstrapServers` 4096，`topology.cluster.name`、`topology.cluster.installation`、`topology.cluster.shard`、`topology.cluster.replica` 各 128。长度恰好等于限制的值可被接受；更长的服务端值会使应用启动失败，更长的请求 override 返回 `400`。`maxExpansionDepth` 单独处理：服务端配置值是 HTTP override 的 ceiling。
+
+提供 `topology` 时必须提供 `topology.mode`。在 `CLUSTER` 模式下，省略的 `cluster` 字段继承当前集群基础配置；如果服务端基础配置是独立模式，则继承领域集群默认值。`STANDALONE` 拒绝 `cluster` 对象。无效或空请求体返回 `400`；缺少或不支持的 `Content-Type` 返回 `415`。OpenAPI 通过公共 `wow.UnsupportedMediaType` response 声明该状态，运行时响应携带 `Wow-Error-Code: UnsupportedMediaType`。成功响应固定为 `200`、`Content-Type: application/sql`，响应体只包含 `result.script`。旧版 `GET` 方法在该路径上没有路由并返回 `404`。每条诊断以 WARN 日志输出，不会混入 SQL。配置项及优先级参见[配置](./configuration#bi-脚本配置)。
 
 ## 生成的 SQL 契约
 
-以下片段只展示稳定结构；实际数据库名、集群、Kafka 地址、topic 和聚合表名由 `BiScriptOptions` 与聚合元数据决定。
+以下片段只展示稳定结构；实际数据库名、部署拓扑、Kafka 地址、topic 和聚合表名由 `BiScriptOptions` 与聚合元数据决定。
 
 生成的 BI SQL 要求 ClickHouse 24.8 LTS 或更高版本；模块集成测试使用 24.8 镜像固定最低支持线。
 
+### 部署拓扑
+
+`BiScriptOptions.topology` 选择两套物理 DDL 图之一：
+
+| 拓扑 | 物理表 | 逻辑访问 | DDL 范围 |
+|------|--------|----------|----------|
+| `ClickHouseTopology.Standalone` | `command`、`state`、`state_last` 直接使用 `MergeTree` / `ReplacingMergeTree` | 物理表就是逻辑表，不生成 `Distributed` 门面 | 不包含 `ON CLUSTER`、复制引擎、`_local` 表和复制路径 |
+| `ClickHouseTopology.Cluster(...)` | `command_local`、`state_local`、`state_last_local` 使用复制引擎 | `command`、`state`、`state_last` 是本地表之上的 `Distributed` 门面 | 数据库、表、物化视图和展开视图都使用 `ON CLUSTER` |
+
+独立模式的命令存储只有一张物理表：
+
+```sql
+CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command"
+(
+    "id" String,
+    "aggregate_id" String,
+    "create_time" DateTime('Asia/Shanghai')
+) ENGINE = MergeTree
+  PARTITION BY toYYYYMM("create_time")
+  ORDER BY "id";
+```
+
+集群模式保留复制本地表和分布式门面：
+
+```sql
+CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command_local" ON CLUSTER '{cluster}'
+(
+    "id" String,
+    "aggregate_id" String,
+    "create_time" DateTime('Asia/Shanghai')
+) ENGINE = ReplicatedMergeTree(
+    '/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}', '{replica}')
+  PARTITION BY toYYYYMM("create_time")
+  ORDER BY "id";
+
+CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command" ON CLUSTER '{cluster}'
+AS "bi_db"."example_order_command_local"
+ENGINE = Distributed('{cluster}', "bi_db",
+                     'example_order_command_local', sipHash64("aggregate_id"));
+```
+
 ### 聚合命令
 
-命令本地表包含租户、拥有者、空间、请求、版本和命令体等元数据，Kafka 物化视图从消息 JSON 中提取同名语义：
+命令表包含租户、拥有者、空间、请求、版本和命令体等元数据；集群模式的物理表使用上文所示的 `_local` 后缀。Kafka 物化视图从消息 JSON 中提取同名语义：
 
 ```sql
 CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command_local" ON CLUSTER '{cluster}'
@@ -115,11 +187,28 @@ SELECT "events".1 AS "event_sequence",
        JSONExtract("events".2, 'body', 'String') AS "event_body";
 ```
 
-状态本地表按 `create_time` 月分区，以 `(aggregate_id, version)` 排序。
+状态表按 `create_time` 月分区，以 `(aggregate_id, version)` 排序。独立模式直接在 `example_order_state` 上生成 `ReplacingMergeTree("version")`；集群模式在 `example_order_state_local` 上生成 `ReplicatedReplacingMergeTree(..., "version")`，并增加分布式 `example_order_state` 门面。
 
 ### 最新状态
 
-最新状态表从状态分布式表接收全部列，并按首次事件时间分区：
+最新状态表从状态表接收全部列，并按首次事件时间分区。独立模式使用以下不含集群子句的物理 DDL：
+
+```sql
+CREATE TABLE IF NOT EXISTS "bi_db"."example_order_state_last"
+(
+    "aggregate_id" String,
+    "version" UInt32,
+    "first_event_time" DateTime('Asia/Shanghai')
+) ENGINE = ReplacingMergeTree("version")
+  PARTITION BY toYYYYMM("first_event_time")
+  ORDER BY "aggregate_id";
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS "bi_db_consumer"."example_order_state_last_consumer"
+TO "bi_db"."example_order_state_last"
+AS SELECT * FROM "bi_db"."example_order_state";
+```
+
+集群模式保留复制本地表，并让物化视图写入其分布式门面：
 
 ```sql
 CREATE TABLE IF NOT EXISTS "bi_db"."example_order_state_last_local" ON CLUSTER '{cluster}'

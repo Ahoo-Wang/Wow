@@ -21,9 +21,13 @@ import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.openapi.contract.HttpContent
+import me.ahoo.wow.openapi.contract.HttpRequestBody
 import me.ahoo.wow.openapi.contract.HttpResponse
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpSchema
+import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
+import me.ahoo.wow.openapi.contributor.badRequestResponseRef
+import me.ahoo.wow.openapi.contributor.unsupportedMediaTypeResponseRef
 
 object GenerateBIScriptRouteContributor : RouteContributor {
     override val id: String = "global.bi-script"
@@ -37,17 +41,29 @@ object GenerateBIScriptRouteContributor : RouteContributor {
         return listOf(
             HttpRouteContract(
                 routeId = wowRouteId("bi_script", "generate"),
-                method = Https.Method.GET,
+                method = Https.Method.POST,
                 path = BuiltInHttpRoutePaths.Global.BI_SCRIPT,
                 handlerKey = BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT,
                 summary = "Generate BI Sync Script",
                 accept = listOf(Https.MediaType.APPLICATION_SQL),
+                requestBody = HttpRequestBody(
+                    required = true,
+                    description = "BI script option overrides.",
+                    content = listOf(
+                        HttpContent(
+                            Https.MediaType.APPLICATION_JSON,
+                            HttpSchema.TypeRef(BiScriptRequest::class.java)
+                        )
+                    )
+                ),
                 responses = listOf(
                     HttpResponse(
                         statusCode = Https.Code.OK,
                         description = "The generated BI synchronization script.",
                         content = listOf(HttpContent(Https.MediaType.APPLICATION_SQL, HttpSchema.String))
-                    )
+                    ),
+                    componentContext.badRequestResponseRef(),
+                    componentContext.unsupportedMediaTypeResponseRef()
                 ),
                 tags = wowTags()
             )

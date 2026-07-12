@@ -352,46 +352,95 @@ wow:
 
 ### BI Script Configuration
 
-These properties configure the ClickHouse SQL returned by `GET /wow/bi/script`:
+These properties establish the server-side base for the ClickHouse SQL returned by `POST /wow/bi/script`:
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `wow.bi.script.database` | String | `bi_db` | Database for distributed/local state and command tables and expansion views |
-| `wow.bi.script.consumer-database` | String | `bi_db_consumer` | Database for Kafka queue tables and consumer materialized views |
-| `wow.bi.script.cluster` | String | `{cluster}` | ClickHouse cluster name used by `ON CLUSTER` and `Distributed` |
-| `wow.bi.script.installation` | String | `{installation}` | Installation segment in the replicated table path |
-| `wow.bi.script.shard` | String | `{shard}` | Shard segment in the replicated table path |
-| `wow.bi.script.replica` | String | `{replica}` | Replica name passed to replicated table engines |
-| `wow.bi.script.timezone` | String | `Asia/Shanghai` | ClickHouse timezone for generated date-time columns and conversions |
-| `wow.bi.script.kafka-bootstrap-servers` | String | Inherit `wow.kafka.bootstrap-servers`; otherwise `localhost:9093` | BI Kafka broker override; multiple inherited brokers are joined with commas |
-| `wow.bi.script.topic-prefix` | String | Inherit `wow.kafka.topic-prefix`; otherwise `wow.` | BI topic prefix override |
+| `wow.bi.script.database` | String | `bi_db` | Database for state and command tables and expansion views; maximum 128 characters |
+| `wow.bi.script.consumer-database` | String | `bi_db_consumer` | Database for Kafka queue tables and consumer materialized views; maximum 128 characters |
+| `wow.bi.script.topology.mode` | Enum | `CLUSTER` | Physical DDL topology: `CLUSTER` or `STANDALONE` |
+| `wow.bi.script.topology.cluster.name` | String | `{cluster}` | Cluster name used by `ON CLUSTER` and `Distributed` in `CLUSTER` mode; maximum 128 characters |
+| `wow.bi.script.topology.cluster.installation` | String | `{installation}` | Installation segment in the replicated table path in `CLUSTER` mode; maximum 128 characters |
+| `wow.bi.script.topology.cluster.shard` | String | `{shard}` | Shard segment in the replicated table path in `CLUSTER` mode; maximum 128 characters |
+| `wow.bi.script.topology.cluster.replica` | String | `{replica}` | Replica name passed to replicated table engines in `CLUSTER` mode; maximum 128 characters |
+| `wow.bi.script.timezone` | String | `Asia/Shanghai` | ClickHouse timezone for generated date-time columns and conversions; maximum 64 characters |
+| `wow.bi.script.kafka-bootstrap-servers` | String | Inherit `wow.kafka.bootstrap-servers`; otherwise `localhost:9093` | BI Kafka broker override; multiple inherited brokers are joined with commas; maximum 4096 characters |
+| `wow.bi.script.topic-prefix` | String | Inherit `wow.kafka.topic-prefix`; otherwise `wow.` | BI topic prefix override; maximum 128 characters |
 | `wow.bi.script.max-expansion-depth` | Int | `5` | Maximum complex-property expansion depth; must be at least `1` |
 | `wow.bi.script.unsupported-type-strategy` | Enum | `RAW_JSON` | `RAW_JSON` emits a scoped JSON convenience projection and a diagnostic; the exact lexical value is recovered from `__state` at the recovery `__path`; `FAIL` stops generation |
+
+Standalone topology:
 
 ```yaml
 wow:
   bi:
     script:
-      database: bi_db
-      consumer-database: bi_db_consumer
-      cluster: '{cluster}'
-      installation: '{installation}'
-      shard: '{shard}'
-      replica: '{replica}'
-      timezone: Asia/Shanghai
-      kafka-bootstrap-servers: kafka-0:9092,kafka-1:9092
-      topic-prefix: 'wow.'
-      max-expansion-depth: 5
-      unsupported-type-strategy: RAW_JSON
+      topology:
+        mode: STANDALONE
 ```
 
-Kafka and topic settings use this precedence:
+Cluster topology:
 
-1. Explicit `wow.bi.script.kafka-bootstrap-servers` / `wow.bi.script.topic-prefix`, even when the value equals the default;
-2. The corresponding `wow.kafka.bootstrap-servers` / `wow.kafka.topic-prefix`, with multiple brokers joined by commas;
-3. The `BiScriptOptions` domain defaults `localhost:9093` / `wow.`.
+```yaml
+wow:
+  bi:
+    script:
+      topology:
+        mode: CLUSTER
+        cluster:
+          name: production
+          installation: clickhouse
+          shard: '{shard}'
+          replica: '{replica}'
+```
 
-Every other nullable binding falls back directly to its `BiScriptOptions` default when absent. The Starter performs validation when constructing the domain options: blank required strings, control characters, and `max-expansion-depth < 1` all fail application startup.
+`STANDALONE` generates logical tables with `MergeTree` / `ReplacingMergeTree` directly. It rejects `topology.cluster`. `CLUSTER` generates replicated `_local` tables plus `Distributed` logical tables; omitted cluster fields use the defaults shown above.
+
+The complete precedence, from lowest to highest, is:
+
+1. `BiScriptOptions` domain defaults;
+2. Kafka properties for bootstrap servers and topic prefix;
+3. `wow.bi.script.*` application properties;
+4. Non-null `POST` request fields.
+
+Thus, explicit `wow.bi.script.kafka-bootstrap-servers` / `wow.bi.script.topic-prefix` values override the corresponding `wow.kafka.bootstrap-servers` / `wow.kafka.topic-prefix` values, even when equal to their defaults. Multiple inherited Kafka brokers are joined with commas. Every other absent application binding falls back directly to its `BiScriptOptions` domain default. The length limits in the table apply equally to the server configuration and the corresponding non-null `POST` overrides (`database`, `consumerDatabase`, `timezone`, `kafkaBootstrapServers`, `topicPrefix`, and the four `topology.cluster.*` fields). A value exactly at its 64, 128, or 4096 character limit is accepted. The Starter validates the server base while constructing the domain options: a value over its limit, blank required strings, control characters, `max-expansion-depth < 1`, and cluster fields supplied in `STANDALONE` mode all fail application startup. For HTTP overrides, the server-configured `maxExpansionDepth` is the request ceiling.
+
+The endpoint requires `Content-Type: application/json` and a JSON body. Use `{}` to generate SQL from the server base without request overrides:
+
+```bash
+curl -X POST 'http://localhost:8080/wow/bi/script' \
+  -H 'content-type: application/json' \
+  -H 'accept: application/sql' \
+  --data '{}'
+```
+
+Non-null request fields override both ordinary options and Kafka-derived options for this generation. A Standalone request can also override the database:
+
+```json
+{
+  "database": "analytics",
+  "topology": {
+    "mode": "STANDALONE"
+  }
+}
+```
+
+A Cluster request may provide only selected cluster fields. Omitted cluster fields inherit the current Cluster server base, or the `BiScriptOptions` Cluster defaults when the server base is Standalone:
+
+```json
+{
+  "topology": {
+    "mode": "CLUSTER",
+    "cluster": {
+      "name": "production"
+    }
+  },
+  "kafkaBootstrapServers": "kafka:9092",
+  "topicPrefix": "analytics."
+}
+```
+
+When `topology` is present, `topology.mode` is mandatory. `STANDALONE` rejects a `cluster` object. Invalid JSON, an empty body, an over-limit non-null override, another invalid option value, or an invalid topology combination returns a `400` response. A missing or unsupported request `Content-Type` returns `415`; OpenAPI declares the common `wow.UnsupportedMediaType` response, and runtime uses `Wow-Error-Code: UnsupportedMediaType`. Success is SQL-only: `200 application/sql`. The legacy `GET` method has no route for this path and returns `404`.
 
 See [Business Intelligence](./bi) for structured result diagnostics, current expansion semantics, and lossless mappings.
 

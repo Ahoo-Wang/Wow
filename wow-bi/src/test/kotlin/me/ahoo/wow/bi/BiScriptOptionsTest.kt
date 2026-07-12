@@ -15,23 +15,89 @@ package me.ahoo.wow.bi
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
+import kotlin.reflect.full.declaredMemberProperties
 
 class BiScriptOptionsTest {
+    @Test
+    fun `should model standalone without cluster state`() {
+        ClickHouseTopology.Standalone.assert().isEqualTo(ClickHouseTopology.Standalone)
+        ClickHouseTopology.Standalone::class.declaredMemberProperties.assert().isEmpty()
+    }
+
+    @Test
+    fun `should use designed cluster defaults`() {
+        ClickHouseTopology.Cluster().assert().isEqualTo(
+            ClickHouseTopology.Cluster(
+                name = "{cluster}",
+                installation = "{installation}",
+                shard = "{shard}",
+                replica = "{replica}",
+            )
+        )
+    }
+
+    @Test
+    fun `should reject invalid cluster values`() {
+        listOf<() -> ClickHouseTopology.Cluster>(
+            { ClickHouseTopology.Cluster(name = " ") },
+            { ClickHouseTopology.Cluster(installation = "bad\nvalue") },
+            { ClickHouseTopology.Cluster(shard = "\t") },
+            { ClickHouseTopology.Cluster(replica = "bad\u0000value") },
+        ).all { runCatching(it).isFailure }.assert().isTrue()
+    }
+
+    @Test
+    fun `should accept cluster values at the maximum length`() {
+        val value = "x".repeat(ClickHouseTopology.Cluster.MAX_VALUE_LENGTH)
+
+        ClickHouseTopology.Cluster(
+            name = value,
+            installation = value,
+            shard = value,
+            replica = value,
+        ).assert().isEqualTo(
+            ClickHouseTopology.Cluster(
+                name = value,
+                installation = value,
+                shard = value,
+                replica = value,
+            )
+        )
+    }
+
+    @Test
+    fun `should reject every cluster value above the maximum length`() {
+        val maximum = ClickHouseTopology.Cluster.MAX_VALUE_LENGTH
+        val tooLong = "x".repeat(maximum + 1)
+        val invalidValues = listOf(
+            "name" to { ClickHouseTopology.Cluster(name = tooLong) },
+            "installation" to { ClickHouseTopology.Cluster(installation = tooLong) },
+            "shard" to { ClickHouseTopology.Cluster(shard = tooLong) },
+            "replica" to { ClickHouseTopology.Cluster(replica = tooLong) },
+        )
+
+        invalidValues.forEach { (field, createCluster) ->
+            val failure = runCatching(createCluster).exceptionOrNull()
+
+            failure.assert().isNotNull()
+            failure!!.message.assert().contains(field, (maximum + 1).toString(), maximum.toString())
+        }
+    }
+
     @Test
     fun `should use the designed defaults`() {
         val options = BiScriptOptions()
 
         options.database.assert().isEqualTo("bi_db")
         options.consumerDatabase.assert().isEqualTo("bi_db_consumer")
-        options.cluster.assert().isEqualTo("{cluster}")
-        options.installation.assert().isEqualTo("{installation}")
-        options.shard.assert().isEqualTo("{shard}")
-        options.replica.assert().isEqualTo("{replica}")
+        options.topology.assert().isEqualTo(ClickHouseTopology.Cluster())
         options.timezone.assert().isEqualTo("Asia/Shanghai")
         options.kafkaBootstrapServers.assert().isEqualTo("localhost:9093")
         options.topicPrefix.assert().isEqualTo("wow.")
         options.maxExpansionDepth.assert().isEqualTo(5)
         options.unsupportedTypeStrategy.assert().isEqualTo(UnsupportedTypeStrategy.RAW_JSON)
+        BiScriptOptions::class.declaredMemberProperties.map { it.name }.assert()
+            .doesNotContain("cluster", "installation", "shard", "replica")
     }
 
     @Test
@@ -39,10 +105,6 @@ class BiScriptOptionsTest {
         listOf<() -> BiScriptOptions>(
             { BiScriptOptions(database = " ") },
             { BiScriptOptions(consumerDatabase = " ") },
-            { BiScriptOptions(cluster = " ") },
-            { BiScriptOptions(installation = " ") },
-            { BiScriptOptions(shard = " ") },
-            { BiScriptOptions(replica = " ") },
             { BiScriptOptions(timezone = " ") },
             { BiScriptOptions(kafkaBootstrapServers = " ") },
             { BiScriptOptions(topicPrefix = " ") },
@@ -56,15 +118,92 @@ class BiScriptOptionsTest {
         listOf<() -> BiScriptOptions>(
             { BiScriptOptions(database = "bi\u0000db") },
             { BiScriptOptions(consumerDatabase = "bi\ndb") },
-            { BiScriptOptions(cluster = "cluster\tname") },
-            { BiScriptOptions(installation = "installation\rname") },
-            { BiScriptOptions(shard = "shard\bname") },
-            { BiScriptOptions(replica = "replica\u007Fname") },
             { BiScriptOptions(timezone = "Asia\nShanghai") },
             { BiScriptOptions(kafkaBootstrapServers = "localhost\n9093") },
             { BiScriptOptions(topicPrefix = "wow.\u0000") },
         ).forEach { createOptions ->
             runCatching(createOptions).isFailure.assert().isTrue()
+        }
+    }
+
+    @Test
+    fun `should accept every required value at its maximum length`() {
+        listOf(
+            { BiScriptOptions(database = "x".repeat(BiScriptOptions.MAX_DATABASE_LENGTH)) },
+            {
+                BiScriptOptions(
+                    consumerDatabase = "x".repeat(BiScriptOptions.MAX_CONSUMER_DATABASE_LENGTH)
+                )
+            },
+            { BiScriptOptions(timezone = "x".repeat(BiScriptOptions.MAX_TIMEZONE_LENGTH)) },
+            {
+                BiScriptOptions(
+                    kafkaBootstrapServers = "x".repeat(BiScriptOptions.MAX_KAFKA_BOOTSTRAP_SERVERS_LENGTH)
+                )
+            },
+            { BiScriptOptions(topicPrefix = "x".repeat(BiScriptOptions.MAX_TOPIC_PREFIX_LENGTH)) },
+        ).forEach { createOptions ->
+            runCatching(createOptions).isSuccess.assert().isTrue()
+        }
+    }
+
+    @Test
+    fun `should reject every required value above its maximum length`() {
+        val invalidValues = listOf(
+            Triple(
+                "database",
+                BiScriptOptions.MAX_DATABASE_LENGTH,
+                {
+                    BiScriptOptions(
+                        database = "x".repeat(BiScriptOptions.MAX_DATABASE_LENGTH + 1)
+                    )
+                },
+            ),
+            Triple(
+                "consumerDatabase",
+                BiScriptOptions.MAX_CONSUMER_DATABASE_LENGTH,
+                {
+                    BiScriptOptions(
+                        consumerDatabase = "x".repeat(BiScriptOptions.MAX_CONSUMER_DATABASE_LENGTH + 1)
+                    )
+                },
+            ),
+            Triple(
+                "timezone",
+                BiScriptOptions.MAX_TIMEZONE_LENGTH,
+                {
+                    BiScriptOptions(
+                        timezone = "x".repeat(BiScriptOptions.MAX_TIMEZONE_LENGTH + 1)
+                    )
+                },
+            ),
+            Triple(
+                "kafkaBootstrapServers",
+                BiScriptOptions.MAX_KAFKA_BOOTSTRAP_SERVERS_LENGTH,
+                {
+                    BiScriptOptions(
+                        kafkaBootstrapServers = "x".repeat(
+                            BiScriptOptions.MAX_KAFKA_BOOTSTRAP_SERVERS_LENGTH + 1
+                        )
+                    )
+                },
+            ),
+            Triple(
+                "topicPrefix",
+                BiScriptOptions.MAX_TOPIC_PREFIX_LENGTH,
+                {
+                    BiScriptOptions(
+                        topicPrefix = "x".repeat(BiScriptOptions.MAX_TOPIC_PREFIX_LENGTH + 1)
+                    )
+                },
+            ),
+        )
+
+        invalidValues.forEach { (field, maximum, createOptions) ->
+            val failure = runCatching(createOptions).exceptionOrNull()
+
+            failure.assert().isNotNull()
+            failure!!.message.assert().contains(field, (maximum + 1).toString(), maximum.toString())
         }
     }
 

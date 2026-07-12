@@ -27,7 +27,7 @@ import kotlin.io.path.readText
 import kotlin.io.path.writeText
 
 internal object OpenApiSnapshotSupport {
-    private val mapper = ObjectMapperFactory.createJson()
+    private val mapper = ObjectMapperFactory.createJson31()
     private val updateSnapshots: Boolean
         get() = System.getProperty("wow.snapshot.update").equals("true", ignoreCase = true)
 

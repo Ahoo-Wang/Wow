@@ -30,6 +30,7 @@ Kotlin callers obtain SQL and diagnostics through `BiScriptGenerator`:
 ```kotlin
 val result = BiScriptGenerator(
     BiScriptOptions(
+        topology = ClickHouseTopology.Standalone,
         unsupportedTypeStrategy = UnsupportedTypeStrategy.RAW_JSON,
     )
 ).generate(aggregates)
@@ -38,7 +39,7 @@ val sql: String = result.script
 val diagnostics: List<BiScriptDiagnostic> = result.diagnostics
 ```
 
-The public contract consists of seven types: `BiScriptGenerator`, `BiScriptOptions`, `UnsupportedTypeStrategy`, `BiScriptResult`, `BiScriptDiagnostic`, `BiScriptDiagnosticCode`, and `BiScriptMappingDecision`. Planning, rendering, type mapping, and executable-statement models are internal.
+The public contract consists of eight top-level types: `BiScriptGenerator`, `BiScriptOptions`, `ClickHouseTopology`, `UnsupportedTypeStrategy`, `BiScriptResult`, `BiScriptDiagnostic`, `BiScriptDiagnosticCode`, and `BiScriptMappingDecision`. `ClickHouseTopology` exposes the `Standalone` and `Cluster` variants. `BiScriptGenerator.generate(...)` is the single generation entry point; planning, rendering, type mapping, and executable-statement models are internal.
 
 `BiScriptResult` contains:
 
@@ -61,21 +62,92 @@ The default `unsupportedTypeStrategy` is `RAW_JSON`. With `FAIL`, an unsupported
 The Spring WebFlux route uses the same `BiScriptOptions`:
 
 ```shell
-curl -X GET 'http://localhost:8080/wow/bi/script' \
-  -H 'accept: application/sql'
+curl -X POST 'http://localhost:8080/wow/bi/script' \
+  -H 'content-type: application/json' \
+  -H 'accept: application/sql' \
+  --data '{}'
 ```
 
-A successful response is always `200` with `Content-Type: application/sql`, and its body contains only `result.script`. Each diagnostic is emitted as a WARN log and is never mixed into the SQL. See [Configuration](./configuration#bi-script-configuration) for properties and precedence.
+The JSON body is required. `{}` uses the server-side `BiScriptOptions` unchanged. Non-null request fields override the corresponding server options for this generation only. For example, select Standalone topology and override the database with:
+
+```json
+{
+  "database": "analytics",
+  "topology": {
+    "mode": "STANDALONE"
+  }
+}
+```
+
+Or select Cluster topology, inherit omitted cluster fields from the server base, and override Kafka settings with:
+
+```json
+{
+  "topology": {
+    "mode": "CLUSTER",
+    "cluster": {
+      "name": "production"
+    }
+  },
+  "kafkaBootstrapServers": "kafka:9092",
+  "topicPrefix": "analytics."
+}
+```
+
+The server configuration and every non-null `POST` override use the same maximum lengths: `database` 128 characters, `consumerDatabase` 128, `timezone` 64, `topicPrefix` 128, `kafkaBootstrapServers` 4096, and each of `topology.cluster.name`, `topology.cluster.installation`, `topology.cluster.shard`, and `topology.cluster.replica` 128. A value exactly at its limit is accepted. A longer server value fails application startup, while a longer request override returns `400`. `maxExpansionDepth` is governed separately: the server-configured value is the ceiling for an HTTP override.
+
+When `topology` is present, `topology.mode` is mandatory. In `CLUSTER` mode, omitted `cluster` fields inherit the current Cluster base, or the domain Cluster defaults when the server base is Standalone. `STANDALONE` rejects a `cluster` object. An invalid or empty body returns `400`; a missing or unsupported `Content-Type` returns `415`. OpenAPI declares that status through the common `wow.UnsupportedMediaType` response, and the runtime response carries `Wow-Error-Code: UnsupportedMediaType`. A successful response is always `200` with `Content-Type: application/sql`, and its body contains only `result.script`. The legacy `GET` method has no route for this path and returns `404`. Each diagnostic is emitted as a WARN log and is never mixed into the SQL. See [Configuration](./configuration#bi-script-configuration) for properties and precedence.
 
 ## Generated SQL Contract
 
-The following fragments show only stable structure. Actual database names, cluster, Kafka address, topic, and aggregate table names come from `BiScriptOptions` and aggregate metadata.
+The following fragments show only stable structure. Actual database names, deployment topology, Kafka address, topic, and aggregate table names come from `BiScriptOptions` and aggregate metadata.
 
 Generated BI SQL requires ClickHouse 24.8 LTS or later. The module integration suite pins the minimum line to a 24.8 image.
 
+### Deployment Topologies
+
+`BiScriptOptions.topology` selects one of two physical DDL graphs:
+
+| Topology | Physical tables | Logical access | DDL scope |
+|----------|-----------------|----------------|-----------|
+| `ClickHouseTopology.Standalone` | `command`, `state`, and `state_last` use `MergeTree` / `ReplacingMergeTree` directly | The physical tables are the logical tables; no `Distributed` facade is generated | No `ON CLUSTER`, replicated engine, `_local` table, or replication path |
+| `ClickHouseTopology.Cluster(...)` | `command_local`, `state_local`, and `state_last_local` use replicated engines | `command`, `state`, and `state_last` are `Distributed` facades over the local tables | Every database, table, materialized view, and expansion view uses `ON CLUSTER` |
+
+Standalone command storage is a single physical table:
+
+```sql
+CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command"
+(
+    "id" String,
+    "aggregate_id" String,
+    "create_time" DateTime('Asia/Shanghai')
+) ENGINE = MergeTree
+  PARTITION BY toYYYYMM("create_time")
+  ORDER BY "id";
+```
+
+The clustered graph retains a replicated local table plus a distributed facade:
+
+```sql
+CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command_local" ON CLUSTER '{cluster}'
+(
+    "id" String,
+    "aggregate_id" String,
+    "create_time" DateTime('Asia/Shanghai')
+) ENGINE = ReplicatedMergeTree(
+    '/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}', '{replica}')
+  PARTITION BY toYYYYMM("create_time")
+  ORDER BY "id";
+
+CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command" ON CLUSTER '{cluster}'
+AS "bi_db"."example_order_command_local"
+ENGINE = Distributed('{cluster}', "bi_db",
+                     'example_order_command_local', sipHash64("aggregate_id"));
+```
+
 ### Aggregate Commands
 
-The command local table includes tenant, owner, space, request, version, and command-body metadata. The Kafka materialized view extracts the same semantics from message JSON:
+The command table includes tenant, owner, space, request, version, and command-body metadata. In cluster mode the physical table uses the `_local` suffix shown above. The Kafka materialized view extracts the same semantics from message JSON:
 
 ```sql
 CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command_local" ON CLUSTER '{cluster}'
@@ -115,11 +187,28 @@ SELECT "events".1 AS "event_sequence",
        JSONExtract("events".2, 'body', 'String') AS "event_body";
 ```
 
-The state local table is partitioned monthly by `create_time` and ordered by `(aggregate_id, version)`.
+The state table is partitioned monthly by `create_time` and ordered by `(aggregate_id, version)`. Standalone mode renders `ReplacingMergeTree("version")` directly on `example_order_state`; cluster mode renders `ReplicatedReplacingMergeTree(..., "version")` on `example_order_state_local` and adds the distributed `example_order_state` facade.
 
 ### Latest State
 
-The latest-state table receives all columns from the distributed state table and is partitioned by first-event time:
+The latest-state table receives all columns from the state table and is partitioned by first-event time. Standalone mode uses the following physical DDL without clustered clauses:
+
+```sql
+CREATE TABLE IF NOT EXISTS "bi_db"."example_order_state_last"
+(
+    "aggregate_id" String,
+    "version" UInt32,
+    "first_event_time" DateTime('Asia/Shanghai')
+) ENGINE = ReplacingMergeTree("version")
+  PARTITION BY toYYYYMM("first_event_time")
+  ORDER BY "aggregate_id";
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS "bi_db_consumer"."example_order_state_last_consumer"
+TO "bi_db"."example_order_state_last"
+AS SELECT * FROM "bi_db"."example_order_state";
+```
+
+Cluster mode retains the replicated local table and targets its distributed facade:
 
 ```sql
 CREATE TABLE IF NOT EXISTS "bi_db"."example_order_state_last_local" ON CLUSTER '{cluster}'

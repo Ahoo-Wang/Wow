@@ -1,6 +1,4 @@
-@file:OptIn(KspExperimental::class)
-
-import com.google.devtools.ksp.KspExperimental
+import com.google.devtools.ksp.gradle.KspAATask
 
 plugins {
     alias(libs.plugins.ksp)
@@ -12,4 +10,11 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-annotations")
     api("jakarta.validation:jakarta.validation-api")
     ksp(project(":wow-compiler"))
+}
+
+// KSP 2.3.10 incremental tracking crashes while resolving nested Java annotation values.
+afterEvaluate {
+    tasks.withType<KspAATask>().configureEach {
+        kspConfig.incremental.set(false)
+    }
 }

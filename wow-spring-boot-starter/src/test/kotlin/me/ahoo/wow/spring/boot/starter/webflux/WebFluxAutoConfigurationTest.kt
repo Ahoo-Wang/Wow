@@ -20,6 +20,7 @@ import me.ahoo.cosid.machine.LocalHostAddressSupplier
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.bi.BiScriptGenerator
 import me.ahoo.wow.bi.BiScriptOptions
+import me.ahoo.wow.bi.ClickHouseTopology
 import me.ahoo.wow.bi.UnsupportedTypeStrategy
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.wait.CommandWaitNotifier
@@ -34,10 +35,14 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
+import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
+import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
+import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyMode
+import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyRequest
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
@@ -73,21 +78,26 @@ import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import org.springframework.mock.web.server.MockServerWebExchange
+import org.springframework.test.web.reactive.server.HttpHandlerConnector
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.web.reactive.function.server.HandlerFunction
+import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.RouterFunctions
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebExceptionHandler
+import org.springframework.web.server.adapter.WebHttpHandlerBuilder
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.time.Duration
 import java.util.stream.Stream
 
+@Suppress("LargeClass")
 internal class WebFluxAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
@@ -197,10 +207,11 @@ internal class WebFluxAutoConfigurationTest {
             .withPropertyValues(
                 "${BiScriptProperties.PREFIX}.database=analytics",
                 "${BiScriptProperties.PREFIX}.consumer-database=analytics_consumer",
-                "${BiScriptProperties.PREFIX}.cluster=production",
-                "${BiScriptProperties.PREFIX}.installation=primary",
-                "${BiScriptProperties.PREFIX}.shard=02",
-                "${BiScriptProperties.PREFIX}.replica=replica-2",
+                "${BiScriptProperties.PREFIX}.topology.mode=CLUSTER",
+                "${BiScriptProperties.PREFIX}.topology.cluster.name=production",
+                "${BiScriptProperties.PREFIX}.topology.cluster.installation=primary",
+                "${BiScriptProperties.PREFIX}.topology.cluster.shard=02",
+                "${BiScriptProperties.PREFIX}.topology.cluster.replica=replica-2",
                 "${BiScriptProperties.PREFIX}.timezone=UTC",
                 "${BiScriptProperties.PREFIX}.kafka-bootstrap-servers=bi-kafka:19092",
                 "${BiScriptProperties.PREFIX}.topic-prefix=bi.",
@@ -221,10 +232,12 @@ internal class WebFluxAutoConfigurationTest {
                 val expectedOptions = BiScriptOptions(
                     database = "analytics",
                     consumerDatabase = "analytics_consumer",
-                    cluster = "production",
-                    installation = "primary",
-                    shard = "02",
-                    replica = "replica-2",
+                    topology = ClickHouseTopology.Cluster(
+                        name = "production",
+                        installation = "primary",
+                        shard = "02",
+                        replica = "replica-2",
+                    ),
                     timezone = "UTC",
                     kafkaBootstrapServers = "bi-kafka:19092",
                     topicPrefix = "bi.",
@@ -245,6 +258,50 @@ internal class WebFluxAutoConfigurationTest {
                     "'bi.example.order.command'",
                 )
                 script.assert().doesNotContain("kafka:9092", "'kafka.example.order.command'")
+            }
+    }
+
+    @Test
+    fun `should bind standalone BI topology`() {
+        webFluxContextRunner()
+            .withPropertyValues("${BiScriptProperties.PREFIX}.topology.mode=STANDALONE")
+            .run { context ->
+                context.assert().hasNotFailed()
+                context.generateBiScript().assert()
+                    .doesNotContain("ON CLUSTER", "Replicated", "Distributed", "_local")
+            }
+    }
+
+    @Test
+    fun `should reject cluster fields in standalone mode`() {
+        webFluxContextRunner()
+            .withPropertyValues(
+                "${BiScriptProperties.PREFIX}.topology.mode=STANDALONE",
+                "${BiScriptProperties.PREFIX}.topology.cluster.name=unused",
+            )
+            .run { context ->
+                context.startupFailure.assert().isNotNull()
+                context.startupFailure!!.causeChainMessages().assert()
+                    .contains("topology.cluster must not be configured in STANDALONE mode")
+            }
+    }
+
+    @Test
+    fun `should ignore removed flat topology keys and keep default cluster topology`() {
+        webFluxContextRunner()
+            .withPropertyValues(
+                "${BiScriptProperties.PREFIX}.cluster=removed-cluster",
+                "${BiScriptProperties.PREFIX}.installation=removed-installation",
+                "${BiScriptProperties.PREFIX}.shard=removed-shard",
+                "${BiScriptProperties.PREFIX}.replica=removed-replica",
+            )
+            .run { context ->
+                context.assert().hasNotFailed()
+                context.generateBiScript().assert().isEqualTo(
+                    BiScriptGenerator(
+                        BiScriptOptions(topology = ClickHouseTopology.Cluster())
+                    ).generate(MetadataSearcher.localAggregates).script
+                )
             }
     }
 
@@ -291,6 +348,165 @@ internal class WebFluxAutoConfigurationTest {
     }
 
     @Test
+    fun `should apply BI request options after application and Kafka options`() {
+        webFluxContextRunner()
+            .withPropertyValues(
+                "${BiScriptProperties.PREFIX}.database=config_db",
+                "${BiScriptProperties.PREFIX}.topology.mode=CLUSTER",
+                "${BiScriptProperties.PREFIX}.topology.cluster.name=config-cluster",
+            )
+            .withBean(KafkaProperties::class.java, {
+                KafkaProperties(bootstrapServers = listOf("config-kafka:9092"), topicPrefix = "config.")
+            })
+            .run { context ->
+                context.generateBiScript(
+                    BiScriptRequest(
+                        database = "request_db",
+                        topology = BiScriptTopologyRequest(mode = BiScriptTopologyMode.STANDALONE),
+                        kafkaBootstrapServers = "request-kafka:9092",
+                        topicPrefix = "request.",
+                    )
+                ).assert()
+                    .contains(
+                        "CREATE DATABASE IF NOT EXISTS \"request_db\"",
+                        "ENGINE = Kafka('request-kafka:9092'",
+                        "'request.example.order.command'",
+                    )
+                    .doesNotContain("config_db", "config-cluster", "config-kafka:9092", "ON CLUSTER")
+            }
+    }
+
+    @Test
+    fun `should not expose the removed BI GET route`() {
+        webFluxContextRunner().run { context ->
+            context.biScriptClient()
+                .get()
+                .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                .accept(MediaType.parseMediaType(Https.MediaType.APPLICATION_SQL))
+                .exchange()
+                .expectStatus().isNotFound
+        }
+    }
+
+    @Test
+    fun `should reject a missing BI request body`() {
+        webFluxContextRunner().run { context ->
+            context.biScriptClient().post()
+                .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                .contentType(MediaType.APPLICATION_JSON)
+                .exchange()
+                .expectStatus().isBadRequest
+        }
+    }
+
+    @Test
+    fun `should reject malformed BI request JSON`() {
+        webFluxContextRunner().run { context ->
+            context.biScriptClient().post()
+                .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("{")
+                .exchange()
+                .expectStatus().isBadRequest
+        }
+    }
+
+    @Test
+    fun `should reject domain-invalid BI request values`() {
+        webFluxContextRunner().run { context ->
+            context.biScriptClient().post()
+                .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("""{"maxExpansionDepth":0}""")
+                .exchange()
+                .expectStatus().isBadRequest
+        }
+    }
+
+    @Test
+    fun `should accept a BI request database at the domain maximum length`() {
+        val database = "d".repeat(BiScriptOptions.MAX_DATABASE_LENGTH)
+
+        webFluxContextRunner().run { context ->
+            context.biScriptClient().post()
+                .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("""{"database":"$database"}""")
+                .exchange()
+                .expectStatus().isOk
+                .expectBody(String::class.java)
+                .value { script ->
+                    script.assert().contains("CREATE DATABASE IF NOT EXISTS \"$database\"")
+                }
+        }
+    }
+
+    @Test
+    fun `should reject a BI request database above the domain maximum length`() {
+        val database = "d".repeat(BiScriptOptions.MAX_DATABASE_LENGTH + 1)
+
+        webFluxContextRunner().run { context ->
+            context.biScriptClient().post()
+                .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("""{"database":"$database"}""")
+                .exchange()
+                .expectStatus().isBadRequest
+        }
+    }
+
+    @Test
+    fun `should reject BI request expansion depth above the configured ceiling`() {
+        webFluxContextRunner()
+            .withPropertyValues("${BiScriptProperties.PREFIX}.max-expansion-depth=3")
+            .run { context ->
+                context.biScriptClient().post()
+                    .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue("""{"maxExpansionDepth":4}""")
+                    .exchange()
+                    .expectStatus().isBadRequest
+            }
+    }
+
+    @Test
+    fun `should reject cluster details in a standalone BI request`() {
+        webFluxContextRunner().run { context ->
+            context.biScriptClient().post()
+                .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("""{"topology":{"mode":"STANDALONE","cluster":{}}}""")
+                .exchange()
+                .expectStatus().isBadRequest
+        }
+    }
+
+    @Test
+    fun `should reject a BI topology without mode`() {
+        webFluxContextRunner().run { context ->
+            context.biScriptClient().post()
+                .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("""{"topology":{}}""")
+                .exchange()
+                .expectStatus().isBadRequest
+        }
+    }
+
+    @Test
+    fun `should reject unsupported BI request media type`() {
+        webFluxContextRunner().run { context ->
+            context.biScriptClient().post()
+                .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                .contentType(MediaType.TEXT_PLAIN)
+                .bodyValue("{}")
+                .exchange()
+                .expectStatus().isEqualTo(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                .expectHeader().valueEquals("Wow-Error-Code", "UnsupportedMediaType")
+        }
+    }
+
+    @Test
     fun `should use domain defaults and register one BI route factory`() {
         webFluxContextRunner()
             .run { context: AssertableApplicationContext ->
@@ -317,10 +533,10 @@ internal class WebFluxAutoConfigurationTest {
         val propertyNames = listOf(
             "database" to "database",
             "consumer-database" to "consumerDatabase",
-            "cluster" to "cluster",
-            "installation" to "installation",
-            "shard" to "shard",
-            "replica" to "replica",
+            "topology.cluster.name" to "name",
+            "topology.cluster.installation" to "installation",
+            "topology.cluster.shard" to "shard",
+            "topology.cluster.replica" to "replica",
             "timezone" to "timezone",
             "kafka-bootstrap-servers" to "kafkaBootstrapServers",
             "topic-prefix" to "topicPrefix",
@@ -562,24 +778,40 @@ internal class WebFluxAutoConfigurationTest {
         return factory
     }
 
-    private fun AssertableApplicationContext.generateBiScript(): String {
+    @Suppress("UNCHECKED_CAST")
+    private fun AssertableApplicationContext.biScriptClient(): WebTestClient {
+        val routerFunction = getBean("commandRouterFunction") as RouterFunction<ServerResponse>
+        val webHandler = RouterFunctions.toWebHandler(routerFunction)
+        val httpHandler = WebHttpHandlerBuilder.webHandler(webHandler)
+            .exceptionHandler(getBean(WebExceptionHandler::class.java))
+            .build()
+        return WebTestClient.bindToServer(HttpHandlerConnector(httpHandler)).build()
+    }
+
+    private fun AssertableApplicationContext.generateBiScript(
+        request: BiScriptRequest = BiScriptRequest(),
+    ): String {
         val factory = biScriptRouteFactory()
         val contract = HttpRouteContract(
             routeId = "bi-script",
-            method = "GET",
+            method = Https.Method.POST,
             path = BuiltInHttpRoutePaths.Global.BI_SCRIPT,
             handlerKey = BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT,
+            accept = listOf(Https.MediaType.APPLICATION_SQL),
         )
         val routerFunction = RouterFunctions.route()
-            .GET(contract.path, factory.create(contract))
+            .POST(contract.path, factory.create(contract))
             .build()
         return WebTestClient.bindToRouterFunction(routerFunction)
             .build()
-            .get()
+            .post()
             .uri(contract.path)
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.parseMediaType(Https.MediaType.APPLICATION_SQL))
+            .bodyValue(request)
             .exchange()
             .expectStatus().isOk
-            .expectHeader().contentType("application/sql")
+            .expectHeader().contentType(Https.MediaType.APPLICATION_SQL)
             .expectBody(String::class.java)
             .returnResult()
             .responseBody!!

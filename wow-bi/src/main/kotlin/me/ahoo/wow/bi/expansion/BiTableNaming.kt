@@ -22,7 +22,7 @@ internal class BiTableNaming(private val options: BiScriptOptions = BiScriptOpti
         return "${options.topicPrefix}${namedAggregate.getContextAlias()}.${namedAggregate.aggregateName}.$suffix"
     }
 
-    fun toDistributedTableName(namedAggregate: NamedAggregate, suffix: String): String {
+    fun toTableName(namedAggregate: NamedAggregate, suffix: String): String {
         val context = namedAggregate.getContextAlias()
             .substringBeforeLast(SERVICE_NAME_SUFFIX)
             .replace("-", "_")

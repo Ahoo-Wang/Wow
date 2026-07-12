@@ -48,7 +48,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
             .state
             .aggregateType
         val stateType = JsonSerializer.constructType(stateClass)
-        val sourceTableName = naming.toDistributedTableName(namedAggregate, STATE_LAST_SUFFIX)
+        val sourceTableName = naming.toTableName(namedAggregate, STATE_LAST_SUFFIX)
         val rootNode = PlanningNode(
             path = "",
             pointer = emptyList(),
