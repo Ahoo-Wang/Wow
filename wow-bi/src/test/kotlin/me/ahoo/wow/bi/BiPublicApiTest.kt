@@ -39,6 +39,9 @@ class BiPublicApiTest {
             BiScriptMappingDecision::class.qualifiedName,
             BiScriptOptions::class.qualifiedName,
             BiScriptResult::class.qualifiedName,
+            ClickHouseTopology::class.qualifiedName,
+            ClickHouseTopology.Cluster::class.qualifiedName,
+            ClickHouseTopology.Standalone::class.qualifiedName,
             UnsupportedTypeStrategy::class.qualifiedName,
         )
     }

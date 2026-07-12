@@ -15,8 +15,37 @@ package me.ahoo.wow.bi
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
+import kotlin.reflect.full.declaredMemberProperties
 
 class BiScriptOptionsTest {
+    @Test
+    fun `should model standalone without cluster state`() {
+        ClickHouseTopology.Standalone.assert().isEqualTo(ClickHouseTopology.Standalone)
+        ClickHouseTopology.Standalone::class.declaredMemberProperties.assert().isEmpty()
+    }
+
+    @Test
+    fun `should use designed cluster defaults`() {
+        ClickHouseTopology.Cluster().assert().isEqualTo(
+            ClickHouseTopology.Cluster(
+                name = "{cluster}",
+                installation = "{installation}",
+                shard = "{shard}",
+                replica = "{replica}",
+            )
+        )
+    }
+
+    @Test
+    fun `should reject invalid cluster values`() {
+        listOf<() -> ClickHouseTopology.Cluster>(
+            { ClickHouseTopology.Cluster(name = " ") },
+            { ClickHouseTopology.Cluster(installation = "bad\nvalue") },
+            { ClickHouseTopology.Cluster(shard = "\t") },
+            { ClickHouseTopology.Cluster(replica = "bad\u0000value") },
+        ).all { runCatching(it).isFailure }.assert().isTrue()
+    }
+
     @Test
     fun `should use the designed defaults`() {
         val options = BiScriptOptions()
