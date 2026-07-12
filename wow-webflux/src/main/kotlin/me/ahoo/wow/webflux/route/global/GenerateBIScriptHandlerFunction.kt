@@ -13,8 +13,10 @@
 
 package me.ahoo.wow.webflux.route.global
 
-import me.ahoo.wow.bi.ScriptEngine
-import me.ahoo.wow.bi.ScriptTemplateEngine
+import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.bi.BiScriptDiagnostic
+import me.ahoo.wow.bi.BiScriptGenerator
+import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
@@ -27,30 +29,37 @@ import reactor.core.publisher.Mono
 
 private val APPLICATION_SQL_MEDIA_TYPE = MediaType.parseMediaType("application/sql")
 
-class GenerateBIScriptHandlerFunction(private val kafkaBootstrapServers: String, private val topicPrefix: String) :
-    HandlerFunction<ServerResponse> {
+class GenerateBIScriptHandlerFunction(private val options: BiScriptOptions) : HandlerFunction<ServerResponse> {
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val script = ScriptEngine.generate(
-            namedAggregates = MetadataSearcher.localAggregates,
-            kafkaBootstrapServers = kafkaBootstrapServers,
-            topicPrefix = topicPrefix
-        )
+        val result = BiScriptGenerator(options).generate(MetadataSearcher.localAggregates)
+        logDiagnostics(result.diagnostics)
 
         return ServerResponse
             .ok()
             .contentType(APPLICATION_SQL_MEDIA_TYPE)
-            .bodyValue(script)
+            .bodyValue(result.script)
+    }
+
+    private fun logDiagnostics(diagnostics: List<BiScriptDiagnostic>) {
+        diagnostics.forEach { diagnostic ->
+            log.warn {
+                "BI script diagnostic - code:[${diagnostic.code}], aggregate:[${diagnostic.aggregate}], " +
+                    "path:[${diagnostic.path}], sourceType:[${diagnostic.sourceType}], " +
+                    "decision:[${diagnostic.decision}], message:[${diagnostic.message}]."
+            }
+        }
+    }
+
+    private companion object {
+        private val log = KotlinLogging.logger(GenerateBIScriptHandlerFunction::class.java.name)
     }
 }
 
-class GenerateBIScriptHandlerFunctionFactory(
-    private val kafkaBootstrapServers: String = ScriptTemplateEngine.DEFAULT_KAFKA_BOOTSTRAP_SERVERS,
-    private val topicPrefix: String = ScriptTemplateEngine.DEFAULT_TOPIC_PREFIX,
-) : NoMetadataRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT) {
-
+class GenerateBIScriptHandlerFunctionFactory(private val options: BiScriptOptions) :
+    NoMetadataRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT) {
     override fun create(
         contract: HttpRouteContract
     ): HandlerFunction<ServerResponse> {
-        return GenerateBIScriptHandlerFunction(kafkaBootstrapServers, topicPrefix)
+        return GenerateBIScriptHandlerFunction(options)
     }
 }

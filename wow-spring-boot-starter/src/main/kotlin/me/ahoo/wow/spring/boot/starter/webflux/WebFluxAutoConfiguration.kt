@@ -26,6 +26,8 @@ import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
+import me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties
+import me.ahoo.wow.spring.boot.starter.bi.toBiScriptOptions
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
@@ -79,7 +81,7 @@ import org.springframework.web.server.WebExceptionHandler
 @AutoConfiguration(after = [CommandAutoConfiguration::class, OpenAPIAutoConfiguration::class])
 @ConditionalOnWowEnabled
 @ConditionalOnWebfluxEnabled
-@EnableConfigurationProperties(WebFluxProperties::class)
+@EnableConfigurationProperties(WebFluxProperties::class, BiScriptProperties::class)
 @ConditionalOnClass(
     name = ["org.springframework.web.server.WebFilter", "me.ahoo.wow.webflux.route.command.CommandHandlerFunction"],
 )
@@ -267,13 +269,14 @@ class WebFluxAutoConfiguration {
         )
     }
 
-    @Bean
+    @Bean(name = ["globalRouteModule"])
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean
-    fun globalRouteModule(
-        kafkaProperties: ObjectProvider<KafkaProperties>
+    internal fun globalRouteModule(
+        kafkaProperties: ObjectProvider<KafkaProperties>,
+        biScriptProperties: BiScriptProperties,
     ): GlobalRouteModule {
-        return GlobalRouteModule(kafkaProperties.getIfAvailable())
+        return GlobalRouteModule(biScriptProperties.toBiScriptOptions(kafkaProperties.getIfAvailable()))
     }
 
     @Bean

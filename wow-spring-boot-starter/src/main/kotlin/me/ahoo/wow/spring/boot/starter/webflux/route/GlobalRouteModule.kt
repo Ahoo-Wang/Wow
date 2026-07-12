@@ -13,25 +13,16 @@
 
 package me.ahoo.wow.spring.boot.starter.webflux.route
 
-import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
+import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.global.GetWowMetadataHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.global.GlobalIdHandlerFunctionFactory
 
-class GlobalRouteModule(kafkaProperties: KafkaProperties?) : WebFluxRouteModule {
-    private val generateBIScriptHandlerFunctionFactory = if (kafkaProperties == null) {
-        GenerateBIScriptHandlerFunctionFactory()
-    } else {
-        GenerateBIScriptHandlerFunctionFactory(
-            kafkaBootstrapServers = kafkaProperties.bootstrapServersToString(),
-            topicPrefix = kafkaProperties.topicPrefix
-        )
-    }
-
+internal class GlobalRouteModule(options: BiScriptOptions) : WebFluxRouteModule {
     override val httpFactories: List<HttpRouteHandlerFunctionFactory> = listOf(
         GlobalIdHandlerFunctionFactory(),
-        generateBIScriptHandlerFunctionFactory,
+        GenerateBIScriptHandlerFunctionFactory(options),
         GetWowMetadataHandlerFunctionFactory(),
     )
 }

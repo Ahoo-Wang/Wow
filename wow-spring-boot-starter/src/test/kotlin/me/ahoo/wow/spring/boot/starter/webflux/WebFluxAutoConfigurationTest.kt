@@ -18,8 +18,12 @@ import io.mockk.spyk
 import me.ahoo.cosid.machine.HostAddressSupplier
 import me.ahoo.cosid.machine.LocalHostAddressSupplier
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.bi.BiScriptGenerator
+import me.ahoo.wow.bi.BiScriptOptions
+import me.ahoo.wow.bi.UnsupportedTypeStrategy
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.wait.CommandWaitNotifier
+import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.event.compensation.StateEventCompensator
@@ -31,11 +35,13 @@ import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
+import me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.command.CommandGatewayAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.enableWow
@@ -58,6 +64,7 @@ import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionRegistrar
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestRemoteIpHeaderAppender
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestUserAgentHeaderAppender
+import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
@@ -69,7 +76,9 @@ import org.springframework.http.HttpStatus
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import org.springframework.mock.web.server.MockServerWebExchange
+import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.web.reactive.function.server.HandlerFunction
+import org.springframework.web.reactive.function.server.RouterFunctions
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.server.ServerWebExchange
@@ -122,6 +131,7 @@ internal class WebFluxAutoConfigurationTest {
                     .hasSingleBean(TracingPolicy::class.java)
                     .hasSingleBean(BatchExecutionPolicy::class.java)
                     .hasSingleBean(WebFluxProperties::class.java)
+                    .hasSingleBean(BiScriptProperties::class.java)
                 val batchExecutionPolicy = context.getBean(BatchExecutionPolicy::class.java)
                 batchExecutionPolicy.concurrency.assert().isOne()
                 batchExecutionPolicy.prefetch.assert().isOne()
@@ -134,6 +144,7 @@ internal class WebFluxAutoConfigurationTest {
                     BuiltInHttpRouteHandlerKeys.Snapshot.REGENERATE,
                     BuiltInHttpRouteHandlerKeys.Event.RESEND_STATE,
                     BuiltInHttpRouteHandlerKeys.Global.GLOBAL_ID,
+                    BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT,
                 ).forEach { handlerKey ->
                     context.assertRouteFactoryRegistered(handlerKey)
                 }
@@ -177,6 +188,163 @@ internal class WebFluxAutoConfigurationTest {
                 val batchExecutionPolicy = context.getBean(BatchExecutionPolicy::class.java)
                 batchExecutionPolicy.concurrency.assert().isEqualTo(4)
                 batchExecutionPolicy.prefetch.assert().isEqualTo(8)
+            }
+    }
+
+    @Test
+    fun `should generate SQL from every explicit BI property and bind the domain strategy directly`() {
+        webFluxContextRunner()
+            .withPropertyValues(
+                "${BiScriptProperties.PREFIX}.database=analytics",
+                "${BiScriptProperties.PREFIX}.consumer-database=analytics_consumer",
+                "${BiScriptProperties.PREFIX}.cluster=production",
+                "${BiScriptProperties.PREFIX}.installation=primary",
+                "${BiScriptProperties.PREFIX}.shard=02",
+                "${BiScriptProperties.PREFIX}.replica=replica-2",
+                "${BiScriptProperties.PREFIX}.timezone=UTC",
+                "${BiScriptProperties.PREFIX}.kafka-bootstrap-servers=bi-kafka:19092",
+                "${BiScriptProperties.PREFIX}.topic-prefix=bi.",
+                "${BiScriptProperties.PREFIX}.max-expansion-depth=7",
+                "${BiScriptProperties.PREFIX}.unsupported-type-strategy=RAW_JSON",
+            )
+            .withBean(KafkaProperties::class.java, {
+                KafkaProperties(
+                    bootstrapServers = listOf("kafka:9092"),
+                    topicPrefix = "kafka.",
+                )
+            })
+            .run { context: AssertableApplicationContext ->
+                context.assert().hasNotFailed()
+                context.getBean(BiScriptProperties::class.java)
+                    .unsupportedTypeStrategy.assert().isEqualTo(UnsupportedTypeStrategy.RAW_JSON)
+
+                val expectedOptions = BiScriptOptions(
+                    database = "analytics",
+                    consumerDatabase = "analytics_consumer",
+                    cluster = "production",
+                    installation = "primary",
+                    shard = "02",
+                    replica = "replica-2",
+                    timezone = "UTC",
+                    kafkaBootstrapServers = "bi-kafka:19092",
+                    topicPrefix = "bi.",
+                    maxExpansionDepth = 7,
+                    unsupportedTypeStrategy = UnsupportedTypeStrategy.RAW_JSON,
+                )
+                val script = context.generateBiScript()
+                script.assert().isEqualTo(
+                    BiScriptGenerator(expectedOptions).generate(MetadataSearcher.localAggregates).script
+                )
+                script.assert().contains(
+                    "CREATE DATABASE IF NOT EXISTS \"analytics\" ON CLUSTER 'production'",
+                    "CREATE DATABASE IF NOT EXISTS \"analytics_consumer\" ON CLUSTER 'production'",
+                    "/clickhouse/primary/production/tables/02/{database}/{table}",
+                    "'replica-2'",
+                    "DateTime('UTC')",
+                    "ENGINE = Kafka('bi-kafka:19092'",
+                    "'bi.example.order.command'",
+                )
+                script.assert().doesNotContain("kafka:9092", "'kafka.example.order.command'")
+            }
+    }
+
+    @Test
+    fun `should inherit Kafka properties when BI Kafka overrides are absent`() {
+        webFluxContextRunner()
+            .withBean(KafkaProperties::class.java, {
+                KafkaProperties(
+                    bootstrapServers = listOf("kafka-a:9092", "kafka-b:9092"),
+                    topicPrefix = "kafka.",
+                )
+            })
+            .run { context: AssertableApplicationContext ->
+                val script = context.generateBiScript()
+                script.assert().contains(
+                    "ENGINE = Kafka('kafka-a:9092,kafka-b:9092'",
+                    "'kafka.example.order.command'",
+                )
+                script.assert().doesNotContain("localhost:9093", "'wow.example.order.command'")
+            }
+    }
+
+    @Test
+    fun `should keep explicit BI defaults ahead of conflicting Kafka properties`() {
+        webFluxContextRunner()
+            .withPropertyValues(
+                "${BiScriptProperties.PREFIX}.kafka-bootstrap-servers=localhost:9093",
+                "${BiScriptProperties.PREFIX}.topic-prefix=wow.",
+            )
+            .withBean(KafkaProperties::class.java, {
+                KafkaProperties(
+                    bootstrapServers = listOf("kafka:9092"),
+                    topicPrefix = "kafka.",
+                )
+            })
+            .run { context: AssertableApplicationContext ->
+                val script = context.generateBiScript()
+                script.assert().contains(
+                    "ENGINE = Kafka('localhost:9093'",
+                    "'wow.example.order.command'",
+                )
+                script.assert().doesNotContain("kafka:9092", "'kafka.example.order.command'")
+            }
+    }
+
+    @Test
+    fun `should use domain defaults and register one BI route factory`() {
+        webFluxContextRunner()
+            .run { context: AssertableApplicationContext ->
+                context.getBean(BiScriptProperties::class.java).assert().isEqualTo(BiScriptProperties())
+                context.assert().hasSingleBean(GlobalRouteModule::class.java)
+                context.getBeanNamesForType(GlobalRouteModule::class.java)
+                    .assert()
+                    .containsExactly("globalRouteModule")
+                val moduleFactory = context.getBean(GlobalRouteModule::class.java).httpFactories.single {
+                    it.handlerKey == BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT
+                }
+                moduleFactory.assert().isSameAs(context.biScriptRouteFactory())
+
+                val script = context.generateBiScript()
+                script.assert().contains("-- global --")
+                script.assert().isEqualTo(
+                    BiScriptGenerator(BiScriptOptions()).generate(MetadataSearcher.localAggregates).script
+                )
+            }
+    }
+
+    @Test
+    fun `should delegate every blank BI string validation to domain options`() {
+        val propertyNames = listOf(
+            "database" to "database",
+            "consumer-database" to "consumerDatabase",
+            "cluster" to "cluster",
+            "installation" to "installation",
+            "shard" to "shard",
+            "replica" to "replica",
+            "timezone" to "timezone",
+            "kafka-bootstrap-servers" to "kafkaBootstrapServers",
+            "topic-prefix" to "topicPrefix",
+        )
+
+        propertyNames.forEach { (propertyName, optionName) ->
+            webFluxContextRunner()
+                .withPropertyValues("${BiScriptProperties.PREFIX}.$propertyName= ")
+                .run { context: AssertableApplicationContext ->
+                    context.startupFailure.assert().isNotNull()
+                    context.startupFailure!!.causeChainMessages().assert()
+                        .contains("$optionName must not be blank")
+                }
+        }
+    }
+
+    @Test
+    fun `should fail startup for an invalid BI expansion depth`() {
+        webFluxContextRunner()
+            .withPropertyValues("${BiScriptProperties.PREFIX}.max-expansion-depth=0")
+            .run { context: AssertableApplicationContext ->
+                val failure = context.startupFailure
+                failure.assert().isNotNull()
+                failure!!.causeChainMessages().assert().contains("maxExpansionDepth must be greater than or equal to 1")
             }
     }
 
@@ -386,6 +554,41 @@ internal class WebFluxAutoConfigurationTest {
         val registrar = getBean(RouteHandlerFunctionRegistrar::class.java)
         registrar.getHttpFactory(handlerKey).assert().isNotNull()
     }
+
+    private fun AssertableApplicationContext.biScriptRouteFactory(): HttpRouteHandlerFunctionFactory {
+        val factory = getBean(RouteHandlerFunctionRegistrar::class.java)
+            .getHttpFactory(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT)!!
+        factory.assert().isInstanceOf(GenerateBIScriptHandlerFunctionFactory::class.java)
+        return factory
+    }
+
+    private fun AssertableApplicationContext.generateBiScript(): String {
+        val factory = biScriptRouteFactory()
+        val contract = HttpRouteContract(
+            routeId = "bi-script",
+            method = "GET",
+            path = BuiltInHttpRoutePaths.Global.BI_SCRIPT,
+            handlerKey = BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT,
+        )
+        val routerFunction = RouterFunctions.route()
+            .GET(contract.path, factory.create(contract))
+            .build()
+        return WebTestClient.bindToRouterFunction(routerFunction)
+            .build()
+            .get()
+            .uri(contract.path)
+            .exchange()
+            .expectStatus().isOk
+            .expectHeader().contentType("application/sql")
+            .expectBody(String::class.java)
+            .returnResult()
+            .responseBody!!
+    }
+
+    private fun Throwable.causeChainMessages(): String =
+        generateSequence(this) { it.cause }
+            .mapNotNull { it.message }
+            .joinToString("\n")
 
     private class TestHttpRouteHandlerFunctionFactory(
         override val handlerKey: String

@@ -13,42 +13,151 @@
 
 package me.ahoo.wow.webflux.route.bi
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
+import io.mockk.every
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.AggregateRoot
+import me.ahoo.wow.bi.BiScriptDiagnostic
+import me.ahoo.wow.bi.BiScriptGenerator
+import me.ahoo.wow.bi.BiScriptOptions
+import me.ahoo.wow.configuration.MetadataSearcher
+import me.ahoo.wow.configuration.NamedAggregateTypeSearcher
+import me.ahoo.wow.configuration.TypeNamedAggregateSearcher
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunction
 import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testGlobalRouteContract
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
+import org.springframework.mock.web.server.MockServerWebExchange
+import org.springframework.web.reactive.function.server.HandlerStrategies
+import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.kotlin.test.test
+import java.lang.reflect.Modifier
 
 class GenerateBIScriptHandlerFunctionTest {
     @Test
-    fun `should handle generate bi script request`() {
-        val handlerFunction = GenerateBIScriptHandlerFunctionFactory().create(
+    fun `should generate configured BI script through factory`() {
+        val options = BiScriptOptions(
+            database = "analytics",
+            consumerDatabase = "analytics_consumer",
+            kafkaBootstrapServers = "kafka:9092",
+            topicPrefix = "analytics.",
+        )
+        val handlerFunction = GenerateBIScriptHandlerFunctionFactory(options).create(
             testGlobalRouteContract(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT)
         )
-        val request = MockServerRequest.builder()
-            .build()
 
-        handlerFunction.handle(request)
+        handlerFunction.handle(MockServerRequest.builder().build())
             .test()
-            .consumeNextWith {
-                it.statusCode().assert().isEqualTo(HttpStatus.OK)
+            .consumeNextWith { response ->
+                response.statusCode().assert().isEqualTo(HttpStatus.OK)
+                response.headers().contentType.assert().isEqualTo(APPLICATION_SQL)
+                response.writeBody().run {
+                    assert().contains("CREATE DATABASE IF NOT EXISTS \"analytics\"")
+                    assert().contains("CREATE DATABASE IF NOT EXISTS \"analytics_consumer\"")
+                    assert().contains("ENGINE = Kafka('kafka:9092'")
+                    assert().contains("'analytics.example.order.command'")
+                }
             }.verifyComplete()
     }
 
     @Test
-    fun `should handle generate bi script when empty`() {
-        val handlerFunction =
-            GenerateBIScriptHandlerFunctionFactory().create(
-                testGlobalRouteContract(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT)
+    fun `should return generated SQL and log every generated diagnostic as a warning`() {
+        val aggregate = MaterializedNamedAggregate("webflux-bi-test", "diagnostic")
+        val aggregateTypes = NamedAggregateTypeSearcher(
+            mapOf(aggregate to DiagnosticAggregate::class.java)
+        )
+        val namedAggregates = TypeNamedAggregateSearcher(
+            mapOf(DiagnosticAggregate::class.java to aggregate)
+        )
+        mockkObject(MetadataSearcher)
+        try {
+            every { MetadataSearcher.localAggregates } returns setOf(aggregate)
+            every { MetadataSearcher.namedAggregateType } returns aggregateTypes
+            every { MetadataSearcher.typeNamedAggregate } returns namedAggregates
+            val options = BiScriptOptions()
+            val generated = BiScriptGenerator(options).generate(setOf(aggregate))
+            generated.diagnostics.assert().hasSize(2)
+
+            lateinit var response: ServerResponse
+            val warnings = captureHandlerWarnings {
+                response = GenerateBIScriptHandlerFunction(options)
+                    .handle(MockServerRequest.builder().build())
+                    .block()!!
+            }
+
+            response.statusCode().assert().isEqualTo(HttpStatus.OK)
+            response.headers().contentType.assert().isEqualTo(APPLICATION_SQL)
+            response.writeBody().assert().isEqualTo(generated.script)
+            warnings.map(ILoggingEvent::getFormattedMessage).assert().isEqualTo(
+                generated.diagnostics.map(::diagnosticLogMessage)
             )
-        val request = MockServerRequest.builder().build()
-        handlerFunction.handle(request)
-            .test()
-            .consumeNextWith {
-                it.statusCode().assert().isEqualTo(HttpStatus.OK)
-            }.verifyComplete()
+        } finally {
+            unmockkObject(MetadataSearcher)
+        }
     }
+
+    @Test
+    fun `should not expose diagnostic logging as public JVM API`() {
+        GenerateBIScriptHandlerFunction::class.java.declaredMethods
+            .filter { Modifier.isPublic(it.modifiers) }
+            .map { it.name }
+            .assert()
+            .containsExactly("handle")
+    }
+
+    private fun diagnosticLogMessage(diagnostic: BiScriptDiagnostic): String =
+        "BI script diagnostic - code:[${diagnostic.code}], aggregate:[${diagnostic.aggregate}], " +
+            "path:[${diagnostic.path}], sourceType:[${diagnostic.sourceType}], " +
+            "decision:[${diagnostic.decision}], message:[${diagnostic.message}]."
+
+    private fun ServerResponse.writeBody(): String {
+        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build())
+        writeTo(exchange, SERVER_RESPONSE_CONTEXT)
+            .test()
+            .verifyComplete()
+        return exchange.response.bodyAsString.block()!!
+    }
+
+    private fun captureHandlerWarnings(block: () -> Unit): List<ILoggingEvent> {
+        val logger = LoggerFactory.getLogger(GenerateBIScriptHandlerFunction::class.java) as Logger
+        val appender = ListAppender<ILoggingEvent>().apply { start() }
+        logger.addAppender(appender)
+        return try {
+            block()
+            appender.list.filter { it.level == Level.WARN }
+        } finally {
+            logger.detachAppender(appender)
+            appender.stop()
+        }
+    }
+
+    private companion object {
+        private val APPLICATION_SQL = MediaType.parseMediaType("application/sql")
+        private val SERVER_RESPONSE_CONTEXT = object : ServerResponse.Context {
+            private val strategies = HandlerStrategies.withDefaults()
+            override fun messageWriters() = strategies.messageWriters()
+            override fun viewResolvers() = strategies.viewResolvers()
+        }
+    }
+}
+
+@AggregateRoot
+@Suppress("UnusedPrivateProperty")
+private class DiagnosticAggregate(private val state: DiagnosticState)
+
+private class DiagnosticState(val id: String) {
+    val otherValues: Map<String, Any> = emptyMap()
+    val values: Map<String, Any> = emptyMap()
 }

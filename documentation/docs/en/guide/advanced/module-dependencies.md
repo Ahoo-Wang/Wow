@@ -36,7 +36,7 @@ The Wow framework is composed of over 20 Gradle modules, each with a single, wel
 
 ## Dependency Graph
 
-The following diagram shows the primary dependency relationships between modules. Arrows point from a module to its dependencies (i.e., `A --> B` means `A` depends on `B`).
+The following diagram shows the primary dependency relationships between modules. Arrows point from a dependency to its consumer, so API exposure and feature-variant boundaries remain visible.
 
 ```mermaid
 graph LR
@@ -84,62 +84,62 @@ graph LR
     end
 
     %% Core dependencies
-    wow_core --> wow_api
-    wow_core --> wow_query
+    wow_api --> wow_core
 
     %% Tooling dependencies
-    wow_compiler --> wow_core
-    wow_schema --> wow_api
-    wow_schema --> wow_core
-    wow_schema --> wow_models
-    wow_openapi --> wow_core
-    wow_openapi --> wow_query
-    wow_openapi --> wow_schema
-    wow_openapi --> wow_bi
-    wow_bi --> wow_core
+    wow_core --> wow_compiler
+    wow_api --> wow_schema
+    wow_core --> wow_schema
+    wow_models --> wow_schema
+    wow_core --> wow_openapi
+    wow_query --> wow_openapi
+    wow_schema --> wow_openapi
+    wow_api -->|"api"| wow_bi
+    wow_core -->|"implementation"| wow_bi
 
     %% Spring dependencies
-    wow_spring --> wow_core
-    wow_spring --> wow_query
-    wow_boot --> wow_core
-    wow_boot --> wow_spring
+    wow_core --> wow_spring
+    wow_query --> wow_spring
+    wow_core --> wow_boot
+    wow_spring --> wow_boot
 
     %% Infrastructure dependencies
-    wow_kafka --> wow_core
-    wow_mongo --> wow_core
-    wow_mongo --> wow_query
-    wow_redis --> wow_core
-    wow_es --> wow_core
-    wow_es --> wow_query
-    wow_webflux --> wow_core
-    wow_webflux --> wow_openapi
-    wow_webflux --> wow_bi
-    wow_otel --> wow_core
-    wow_cosec --> wow_webflux
+    wow_core --> wow_kafka
+    wow_core --> wow_mongo
+    wow_query --> wow_mongo
+    wow_core --> wow_redis
+    wow_core --> wow_es
+    wow_query --> wow_es
+    wow_core --> wow_webflux
+    wow_openapi --> wow_webflux
+    wow_bi -->|"api"| wow_webflux
+    wow_core --> wow_otel
+    wow_webflux --> wow_cosec
 
     %% Client & cache
-    wow_apiclient --> wow_core
-    wow_apiclient --> wow_openapi
-    wow_cocache --> wow_apiclient
-    wow_cocache --> wow_query
+    wow_core --> wow_apiclient
+    wow_openapi --> wow_apiclient
+    wow_apiclient --> wow_cocache
+    wow_query --> wow_cocache
 
     %% Testing
-    wow_test --> wow_core
-    wow_tck --> wow_core
-    wow_tck --> wow_query
-    wow_tck --> wow_test
-    wow_mock --> wow_core
+    wow_core --> wow_test
+    wow_core --> wow_tck
+    wow_query --> wow_tck
+    wow_test --> wow_tck
+    wow_core --> wow_mock
 
-    %% Feature variant dependencies from wow_boot
-    wow_boot -.->|"feature variant"| wow_kafka
-    wow_boot -.->|"feature variant"| wow_mongo
-    wow_boot -.->|"feature variant"| wow_redis
-    wow_boot -.->|"feature variant"| wow_es
-    wow_boot -.->|"feature variant"| wow_webflux
-    wow_boot -.->|"feature variant"| wow_otel
-    wow_boot -.->|"feature variant"| wow_cosec
-    wow_boot -.->|"feature variant"| wow_openapi
-    wow_boot -.->|"feature variant"| wow_mock
+    %% Feature variant dependencies consumed by wow_boot
+    wow_kafka -.->|"feature variant"| wow_boot
+    wow_mongo -.->|"feature variant"| wow_boot
+    wow_redis -.->|"feature variant"| wow_boot
+    wow_es -.->|"feature variant"| wow_boot
+    wow_bi -.->|"webfluxSupportApi"| wow_boot
+    wow_webflux -.->|"webfluxSupportImplementation"| wow_boot
+    wow_otel -.->|"feature variant"| wow_boot
+    wow_cosec -.->|"feature variant"| wow_boot
+    wow_openapi -.->|"feature variant"| wow_boot
+    wow_mock -.->|"feature variant"| wow_boot
 
 
 
@@ -343,13 +343,13 @@ Generates JSON Schema from Wow command/event models using `jsonschema-generator`
 
 #### wow-openapi
 
-Generates OpenAPI specifications from Wow domain models. Depends on `wow-core`, `wow-query`, `wow-schema`, and `wow-bi`.
+Generates OpenAPI specifications from Wow domain models. Its API dependencies are `wow-core`, `wow-query`, and `wow-schema`; it has no dependency on `wow-bi`.
 
 [[wow-openapi/build.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/wow-openapi/build.gradle.kts)]
 
 #### wow-bi
 
-BI sync script generator. A lightweight module that depends only on `wow-core`.
+BI sync script generator. It exposes `wow-api` through its API because `BiScriptGenerator` accepts `NamedAggregate`, and uses `wow-core` as an implementation dependency for metadata and serialization support. `wow-webflux` exposes `wow-bi` through its API, while the Starter exposes it only from the `webflux-support` feature.
 
 [[wow-bi/build.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/wow-bi/build.gradle.kts)]
 
@@ -420,7 +420,7 @@ The `wow-spring-boot-starter` module declares the following optional feature cap
 | `mongo-support` | `wow-mongo` | `spring-boot-starter-data-mongodb-reactive` |
 | `redis-support` | `wow-redis` | `spring-boot-starter-data-redis-reactive` |
 | `kafka-support` | `wow-kafka` | (via reactor-kafka) |
-| `webflux-support` | `wow-webflux` | (via spring-webflux) |
+| `webflux-support` | `wow-bi`, `wow-webflux` | (via spring-webflux) |
 | `elasticsearch-support` | `wow-elasticsearch` | `spring-boot-starter-elasticsearch` |
 | `opentelemetry-support` | `wow-opentelemetry` | (via otel instrumentation) |
 | `openapi-support` | `wow-openapi` | `springdoc-openapi-starter-common` |

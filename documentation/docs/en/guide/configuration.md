@@ -350,6 +350,51 @@ wow:
       enabled: true
 ```
 
+### BI Script Configuration
+
+These properties configure the ClickHouse SQL returned by `GET /wow/bi/script`:
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `wow.bi.script.database` | String | `bi_db` | Database for distributed/local state and command tables and expansion views |
+| `wow.bi.script.consumer-database` | String | `bi_db_consumer` | Database for Kafka queue tables and consumer materialized views |
+| `wow.bi.script.cluster` | String | `{cluster}` | ClickHouse cluster name used by `ON CLUSTER` and `Distributed` |
+| `wow.bi.script.installation` | String | `{installation}` | Installation segment in the replicated table path |
+| `wow.bi.script.shard` | String | `{shard}` | Shard segment in the replicated table path |
+| `wow.bi.script.replica` | String | `{replica}` | Replica name passed to replicated table engines |
+| `wow.bi.script.timezone` | String | `Asia/Shanghai` | ClickHouse timezone for generated date-time columns and conversions |
+| `wow.bi.script.kafka-bootstrap-servers` | String | Inherit `wow.kafka.bootstrap-servers`; otherwise `localhost:9093` | BI Kafka broker override; multiple inherited brokers are joined with commas |
+| `wow.bi.script.topic-prefix` | String | Inherit `wow.kafka.topic-prefix`; otherwise `wow.` | BI topic prefix override |
+| `wow.bi.script.max-expansion-depth` | Int | `5` | Maximum complex-property expansion depth; must be at least `1` |
+| `wow.bi.script.unsupported-type-strategy` | Enum | `RAW_JSON` | `RAW_JSON` emits a scoped JSON convenience projection and a diagnostic; the exact lexical value is recovered from `__state` at the recovery `__path`; `FAIL` stops generation |
+
+```yaml
+wow:
+  bi:
+    script:
+      database: bi_db
+      consumer-database: bi_db_consumer
+      cluster: '{cluster}'
+      installation: '{installation}'
+      shard: '{shard}'
+      replica: '{replica}'
+      timezone: Asia/Shanghai
+      kafka-bootstrap-servers: kafka-0:9092,kafka-1:9092
+      topic-prefix: 'wow.'
+      max-expansion-depth: 5
+      unsupported-type-strategy: RAW_JSON
+```
+
+Kafka and topic settings use this precedence:
+
+1. Explicit `wow.bi.script.kafka-bootstrap-servers` / `wow.bi.script.topic-prefix`, even when the value equals the default;
+2. The corresponding `wow.kafka.bootstrap-servers` / `wow.kafka.topic-prefix`, with multiple brokers joined by commas;
+3. The `BiScriptOptions` domain defaults `localhost:9093` / `wow.`.
+
+Every other nullable binding falls back directly to its `BiScriptOptions` default when absent. The Starter performs validation when constructing the domain options: blank required strings, control characters, and `max-expansion-depth < 1` all fail application startup.
+
+See [Business Intelligence](./bi) for structured result diagnostics, current expansion semantics, and lossless mappings.
+
 ## Bus Type
 
 The framework supports multiple bus implementations:

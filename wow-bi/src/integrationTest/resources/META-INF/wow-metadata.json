@@ -1,0 +1,18 @@
+{
+  "contexts" : {
+    "bi-integration-service" : {
+      "alias" : "bi-it",
+      "scopes" : [ "me.ahoo.wow.bi" ],
+      "aggregates" : {
+        "nullable" : {
+          "scopes" : [ "me.ahoo.wow.bi" ],
+          "type" : "me.ahoo.wow.bi.ClickHouseExpansionAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        }
+      }
+    }
+  }
+}

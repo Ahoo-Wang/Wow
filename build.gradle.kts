@@ -79,6 +79,7 @@ val localContractTestProjects = setOf(
     project(":wow-mock"),
 )
 val integrationTestProjects = setOf(
+    project(":wow-bi"),
     project(":wow-mongo"),
     project(":wow-redis"),
     project(":wow-kafka"),

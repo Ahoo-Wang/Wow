@@ -11,6 +11,150 @@
           "id" : null,
           "commands" : [ ],
           "events" : [ ]
+        },
+        "sibling" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.SiblingAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        },
+        "unsupported" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.UnsupportedAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        },
+        "java-generic-box" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.JavaGenericBoxAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        },
+        "non-string-map" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.NonStringMapAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        },
+        "raw-map" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.RawMapAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        },
+        "generic-object-map" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.GenericObjectMapAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        },
+        "platform-collection" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.PlatformCollectionAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        },
+        "raw-collection" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.RawCollectionAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        },
+        "truncated-unsupported-collection" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.TruncatedUnsupportedCollectionAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        },
+        "truncated-platform-object" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.TruncatedPlatformObjectAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        },
+        "truncated-object-map" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.TruncatedObjectMapAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        },
+        "escaped-path" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.EscapedPathAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        },
+        "state-alias-collision" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.StateAliasCollisionAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        },
+        "path-alias-collision" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.PathAliasCollisionAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        },
+        "index-alias-collision" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.IndexAliasCollisionAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        },
+        "cursor-alias-collision" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.CursorAliasCollisionAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        },
+        "opaque-property" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.OpaquePropertyAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        },
+        "opaque-root" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.OpaqueRootAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
         }
       }
     }
