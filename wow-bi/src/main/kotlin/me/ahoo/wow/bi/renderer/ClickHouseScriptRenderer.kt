@@ -120,8 +120,8 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
                 )
                 add(
                     """
-                CREATE MATERIALIZED VIEW IF NOT EXISTS ${qualified(options.consumerDatabase, consumerTable)}
-                ${topology.scopeClause} TO ${qualified(options.database, table)}
+                CREATE MATERIALIZED VIEW IF NOT EXISTS ${qualified(options.consumerDatabase, consumerTable)}${scopeClause()}
+                TO ${qualified(options.database, table)}
                 AS
                 SELECT ${jsonString("data", "id")} AS ${identifier("id")},
                        ${jsonString("data", "contextName")} AS ${identifier("context_name")},
@@ -205,9 +205,8 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
                 )
                 add(
                     """
-            CREATE MATERIALIZED VIEW IF NOT EXISTS ${qualified(options.consumerDatabase, consumerTable)}
-                        ${topology.scopeClause}
-                        TO ${qualified(options.database, table)}
+            CREATE MATERIALIZED VIEW IF NOT EXISTS ${qualified(options.consumerDatabase, consumerTable)}${scopeClause()}
+            TO ${qualified(options.database, table)}
             AS
             SELECT ${jsonString("data", "id")} AS ${identifier("id")},
                    ${jsonString("data", "contextName")} AS ${identifier("context_name")},
@@ -313,9 +312,8 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
                 )?.let(::add)
                 add(
                     """
-            CREATE MATERIALIZED VIEW IF NOT EXISTS ${qualified(options.consumerDatabase, consumerTable)}
-                        ${topology.scopeClause}
-                        TO ${qualified(options.database, table)}
+            CREATE MATERIALIZED VIEW IF NOT EXISTS ${qualified(options.consumerDatabase, consumerTable)}${scopeClause()}
+            TO ${qualified(options.database, table)}
             AS
             SELECT *
             FROM ${qualified(options.database, stateTable)}

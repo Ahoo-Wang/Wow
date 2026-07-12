@@ -65,7 +65,7 @@ ENGINE = Kafka('localhost:9093', 'wow.bi.aggregate.command',
                'clickhouse_bi_aggregate_command_consumer', 'JSONAsString');
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS "bi_db_consumer"."bi_aggregate_command_consumer"
- TO "bi_db"."bi_aggregate_command"
+TO "bi_db"."bi_aggregate_command"
 AS
 SELECT JSONExtractString("data", 'id') AS "id",
        JSONExtractString("data", 'contextName') AS "context_name",
@@ -118,8 +118,7 @@ CREATE TABLE IF NOT EXISTS "bi_db_consumer"."bi_aggregate_state_queue"
                  'clickhouse_bi_aggregate_state_consumer', 'JSONAsString');
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS "bi_db_consumer"."bi_aggregate_state_consumer"
-            
-            TO "bi_db"."bi_aggregate_state"
+TO "bi_db"."bi_aggregate_state"
 AS
 SELECT JSONExtractString("data", 'id') AS "id",
        JSONExtractString("data", 'contextName') AS "context_name",
@@ -198,8 +197,7 @@ CREATE TABLE IF NOT EXISTS "bi_db"."bi_aggregate_state_last"
 ;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS "bi_db_consumer"."bi_aggregate_state_last_consumer"
-            
-            TO "bi_db"."bi_aggregate_state_last"
+TO "bi_db"."bi_aggregate_state_last"
 AS
 SELECT *
 FROM "bi_db"."bi_aggregate_state"

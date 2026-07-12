@@ -47,15 +47,23 @@ class BiScriptGeneratorTest {
 
     @Test
     fun `should match complete scripts for every topology`() {
+        val clusterScript = BiScriptGenerator().generate(setOf(aggregate)).script
+        val standaloneScript = BiScriptGenerator(
+            BiScriptOptions(topology = ClickHouseTopology.Standalone)
+        ).generate(setOf(aggregate)).script
+
+        listOf(clusterScript, standaloneScript).forEach { script ->
+            script.lineSequence().none { line -> line.isNotEmpty() && line.isBlank() }
+                .assert()
+                .isTrue()
+        }
         assertSnapshot(
             "expected_bi_cluster_script.sql",
-            BiScriptGenerator().generate(setOf(aggregate)).script,
+            clusterScript,
         )
         assertSnapshot(
             "expected_bi_standalone_script.sql",
-            BiScriptGenerator(
-                BiScriptOptions(topology = ClickHouseTopology.Standalone)
-            ).generate(setOf(aggregate)).script,
+            standaloneScript,
         )
     }
 
