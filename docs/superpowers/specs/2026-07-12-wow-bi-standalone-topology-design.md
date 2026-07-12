@@ -207,7 +207,7 @@ a focused failing test.
 
 ### 8.3 Full-script snapshots
 
-- retain `expected_bi_script.sql` as the clustered contract;
+- add `expected_bi_cluster_script.sql` as the clustered contract;
 - add `expected_bi_standalone_script.sql` as the standalone contract;
 - generate both through `BiScriptGenerator` so no parallel generation path can
   emerge.
