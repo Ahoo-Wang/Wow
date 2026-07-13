@@ -46,8 +46,53 @@ class ClickHouseClientOptionsTest {
 
     @Test
     fun `should reject invalid driver options before creating the client`() {
-        val invalidOptions: List<Pair<() -> Any, String>> = listOf(
+        val invalidOptions = invalidEndpointOptions() + invalidTimeoutOptions() + invalidLimitOptions()
+
+        invalidOptions.forEach { (createOptions, expectedMessage) ->
+            assertThrows<IllegalArgumentException> {
+                createOptions()
+            }.message.assert().isEqualTo(expectedMessage)
+        }
+    }
+
+    private fun invalidEndpointOptions(): List<Pair<() -> Any, String>> {
+        return listOf(
             { ClickHouseClientOptions(emptyList()) } to "endpoints must not be empty",
+            {
+                ClickHouseClientOptions(
+                    endpoints = listOf(URI.create("jdbc:clickhouse://clickhouse:8123")),
+                )
+            } to "endpoints[0] must use http or https",
+            {
+                ClickHouseClientOptions(
+                    endpoints = listOf(URI.create("http:///clickhouse")),
+                )
+            } to "endpoints[0] must contain a host",
+            {
+                ClickHouseClientOptions(
+                    endpoints = listOf(URI.create("http://clickhouse")),
+                )
+            } to "endpoints[0] must contain an explicit valid port",
+            {
+                ClickHouseClientOptions(
+                    endpoints = listOf(URI.create("http://clickhouse:65536")),
+                )
+            } to "endpoints[0] must contain an explicit valid port",
+            {
+                ClickHouseClientOptions(
+                    endpoints = listOf(URI.create("http://user@clickhouse:8123")),
+                )
+            } to "endpoints[0] must not contain user info, query, or fragment",
+            {
+                ClickHouseClientOptions(
+                    endpoints = listOf(URI.create("http://clickhouse:8123?database=bi")),
+                )
+            } to "endpoints[0] must not contain user info, query, or fragment",
+            {
+                ClickHouseClientOptions(
+                    endpoints = listOf(URI.create("http://clickhouse:8123#primary")),
+                )
+            } to "endpoints[0] must not contain user info, query, or fragment",
             {
                 ClickHouseClientOptions(
                     endpoints = listOf(ENDPOINT, ENDPOINT),
@@ -56,9 +101,55 @@ class ClickHouseClientOptionsTest {
             {
                 ClickHouseClientOptions(
                     endpoints = listOf(ENDPOINT),
+                    username = " ",
+                )
+            } to "username must not be blank",
+        )
+    }
+
+    private fun invalidTimeoutOptions(): List<Pair<() -> Any, String>> {
+        return listOf(
+            {
+                ClickHouseClientOptions(
+                    endpoints = listOf(ENDPOINT),
+                    connectionTimeout = Duration.ZERO,
+                )
+            } to "connectionTimeout must be greater than zero",
+            {
+                ClickHouseClientOptions(
+                    endpoints = listOf(ENDPOINT),
+                    connectionRequestTimeout = Duration.ofMillis(-1),
+                )
+            } to "connectionRequestTimeout must be greater than zero",
+            {
+                ClickHouseClientOptions(
+                    endpoints = listOf(ENDPOINT),
+                    socketTimeout = Duration.ofMillis(-1),
+                )
+            } to "socketTimeout must not be negative",
+            {
+                ClickHouseClientOptions(
+                    endpoints = listOf(ENDPOINT),
+                    executionTimeout = Duration.ofSeconds(Long.MAX_VALUE),
+                )
+            } to "executionTimeout is too large",
+            {
+                ClickHouseClientOptions(
+                    endpoints = listOf(ENDPOINT),
                     socketTimeout = Duration.ofMillis(Int.MAX_VALUE.toLong() + 1),
                 )
             } to "socketTimeout must not exceed ${Int.MAX_VALUE} milliseconds",
+        )
+    }
+
+    private fun invalidLimitOptions(): List<Pair<() -> Any, String>> {
+        return listOf(
+            {
+                ClickHouseClientOptions(
+                    endpoints = listOf(ENDPOINT),
+                    maxConnections = 0,
+                )
+            } to "maxConnections must be greater than zero",
             {
                 ClickHouseClientOptions(
                     endpoints = listOf(ENDPOINT),
@@ -66,12 +157,6 @@ class ClickHouseClientOptionsTest {
                 )
             } to "maxRetries must not be negative",
         )
-
-        invalidOptions.forEach { (createOptions, expectedMessage) ->
-            assertThrows<IllegalArgumentException> {
-                createOptions()
-            }.message.assert().isEqualTo(expectedMessage)
-        }
     }
 
     private companion object {

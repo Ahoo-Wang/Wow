@@ -117,14 +117,34 @@ class BiDeploymentInspectorAutoConfigurationTest {
         val invalidConfigurations = listOf(
             "inspector.clickhouse.endpoints[0]=jdbc:clickhouse://localhost:8123" to
                 "inspector.clickhouse.endpoints[0] must use http or https",
+            "inspector.clickhouse.endpoints[0]=http:///proxy" to
+                "inspector.clickhouse.endpoints[0] must contain a host",
             "inspector.clickhouse.endpoints[0]=http://clickhouse" to
                 "inspector.clickhouse.endpoints[0] must contain an explicit valid port",
+            "inspector.clickhouse.endpoints[0]=http://user@clickhouse:8123" to
+                "inspector.clickhouse.endpoints[0] must not contain user info, query, or fragment",
+            "inspector.clickhouse.endpoints[0]=http://clickhouse:8123?database=bi" to
+                "inspector.clickhouse.endpoints[0] must not contain user info, query, or fragment",
+            "inspector.clickhouse.endpoints[0]=http://clickhouse:8123#primary" to
+                "inspector.clickhouse.endpoints[0] must not contain user info, query, or fragment",
+            "inspector.clickhouse.endpoints[1]=http://clickhouse:8123" to
+                "inspector.clickhouse.endpoints must not contain duplicates",
+            "inspector.clickhouse.username= " to
+                "inspector.clickhouse.username must not be blank",
             "inspector.timeout=0s" to
                 "inspector.timeout must be greater than zero",
             "inspector.clickhouse.connection-timeout=0s" to
                 "inspector.clickhouse.connection-timeout must be greater than zero",
+            "inspector.clickhouse.connection-timeout=9223372036854775807s" to
+                "inspector.clickhouse.connection-timeout is too large",
             "inspector.clickhouse.connection-request-timeout=0s" to
                 "inspector.clickhouse.connection-request-timeout must be greater than zero",
+            "inspector.clickhouse.socket-timeout=-1ms" to
+                "inspector.clickhouse.socket-timeout must not be negative",
+            "inspector.clickhouse.socket-timeout=2147483648ms" to
+                "inspector.clickhouse.socket-timeout must not exceed ${Int.MAX_VALUE} milliseconds",
+            "inspector.clickhouse.execution-timeout=2147483648ms" to
+                "inspector.clickhouse.execution-timeout must not exceed ${Int.MAX_VALUE} milliseconds",
             "inspector.clickhouse.max-connections=0" to
                 "inspector.clickhouse.max-connections must be greater than zero",
             "inspector.clickhouse.max-retries=-1" to

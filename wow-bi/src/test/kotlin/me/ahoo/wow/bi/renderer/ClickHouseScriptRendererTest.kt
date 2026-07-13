@@ -16,6 +16,7 @@ package me.ahoo.wow.bi.renderer
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.bi.ClickHouseTopology
+import me.ahoo.wow.bi.ObservedBiObject
 import me.ahoo.wow.bi.expansion.plan.CollectionCursorPlan
 import me.ahoo.wow.bi.expansion.plan.ColumnExtraction
 import me.ahoo.wow.bi.expansion.plan.ColumnPlacement
@@ -31,6 +32,21 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
 class ClickHouseScriptRendererTest {
+    @Test
+    fun `should reverse expansion drops and reject unowned observed objects`() {
+        val renderer = ClickHouseScriptRenderer()
+
+        renderer.renderDropExpansionStatements(listOf("root_view", "child_view")).assert().containsExactly(
+            "DROP VIEW IF EXISTS \"bi_db\".\"child_view\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP VIEW IF EXISTS \"bi_db\".\"root_view\" ON CLUSTER '{cluster}' SYNC;",
+        )
+        assertThrows<IllegalStateException> {
+            renderer.renderDropObservedStatements(
+                listOf(ObservedBiObject(database = "bi_db", name = "foreign", engine = "View"))
+            )
+        }.message.assert().contains("Cannot drop an unowned BI catalog object")
+    }
+
     @Test
     fun `should render a true standalone statement graph`() {
         val aggregate = MetadataSearcher.localAggregates.single { it.aggregateName == "aggregate" }

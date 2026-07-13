@@ -23,6 +23,7 @@ import io.mockk.unmockkObject
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.bi.BiDeploymentInspection
+import me.ahoo.wow.bi.BiDeploymentInspectionException
 import me.ahoo.wow.bi.BiDeploymentInspector
 import me.ahoo.wow.bi.BiScriptDiagnostic
 import me.ahoo.wow.bi.BiScriptGenerator
@@ -157,6 +158,69 @@ class GenerateBIScriptHandlerFunctionTest {
                 .body(BiScriptRequest().toMono())
             handler().handle(request).block()!!
                 .headers().contentType.assert().isEqualTo(expected)
+        }
+    }
+
+    @Test
+    fun `should honor accept specificity and reject unsupported representations`() {
+        val acceptedCases = mapOf(
+            "application/*;q=1, application/json;q=0" to APPLICATION_SQL,
+            "application/*+json;q=0, application/json;q=1" to MediaType.APPLICATION_JSON,
+        )
+        acceptedCases.forEach { (accept, expected) ->
+            val request = MockServerRequest.builder()
+                .header("Accept", accept)
+                .body(BiScriptRequest().toMono())
+
+            handler().handle(request).block()!!
+                .headers().contentType.assert().isEqualTo(expected)
+        }
+
+        listOf(
+            "*/*;q=1, application/json;q=0, application/sql;q=0",
+            MediaType.TEXT_PLAIN_VALUE,
+        ).forEach { accept ->
+            val request = MockServerRequest.builder()
+                .header("Accept", accept)
+                .body(BiScriptRequest().toMono())
+
+            val response = handler().handle(request).block()!!
+            response.statusCode().assert().isEqualTo(HttpStatus.NOT_ACCEPTABLE)
+            response.headers().getFirst("Wow-Error-Code").assert().isEqualTo("NotAcceptable")
+        }
+    }
+
+    @Test
+    fun `should map every deployment inspection failure through the route-local handler`() {
+        val failures = listOf(
+            Triple(
+                BiDeploymentInspectionException.Inconsistent("inconsistent"),
+                HttpStatus.BAD_GATEWAY,
+                BiDeploymentInspectionException.INCONSISTENT_ERROR_CODE,
+            ),
+            Triple(
+                BiDeploymentInspectionException.Unavailable(),
+                HttpStatus.SERVICE_UNAVAILABLE,
+                BiDeploymentInspectionException.UNAVAILABLE_ERROR_CODE,
+            ),
+            Triple(
+                BiDeploymentInspectionException.Timeout(),
+                HttpStatus.GATEWAY_TIMEOUT,
+                BiDeploymentInspectionException.TIMEOUT_ERROR_CODE,
+            ),
+        )
+
+        failures.forEach { (failure, expectedStatus, expectedCode) ->
+            val deploymentInspector = BiDeploymentInspector {
+                Mono.error<BiDeploymentInspection>(failure)
+            }
+            val response = handler(deploymentInspector = deploymentInspector)
+                .handle(MockServerRequest.builder().body(BiScriptRequest().toMono()))
+                .block()!!
+
+            response.statusCode().assert().isEqualTo(expectedStatus)
+            response.headers().getFirst("Wow-Error-Code").assert().isEqualTo(expectedCode)
+            response.writeBody().assert().contains(expectedCode)
         }
     }
 

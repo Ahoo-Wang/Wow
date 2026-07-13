@@ -15,12 +15,14 @@ package me.ahoo.wow.openapi.contributor.global
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Wow
+import me.ahoo.wow.api.exception.DefaultErrorInfo
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.openapi.contract.HttpContent
+import me.ahoo.wow.openapi.contract.HttpResponse
 import me.ahoo.wow.openapi.contract.HttpSchema
 import me.ahoo.wow.openapi.contract.bi.BiScriptHeaders
 import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
@@ -32,6 +34,7 @@ internal class GenerateBIScriptRouteContributorTest {
 
     @Test
     fun `should contribute parameterized BI script POST contract`() {
+        GenerateBIScriptRouteContributor.id.assert().isEqualTo("global.bi-script")
         val contract = GenerateBIScriptRouteContributor
             .contributeGlobal(currentContext, componentContext)
             .single()
@@ -72,10 +75,35 @@ internal class GenerateBIScriptRouteContributorTest {
         contract.responses.single { it.statusCode == Https.Code.UNSUPPORTED_MEDIA_TYPE }.componentRef.assert()
             .isEqualTo("${Wow.WOW_PREFIX}${CommonComponent.Response.UNSUPPORTED_MEDIA_TYPE_ERROR_CODE}")
 
+        assertInspectionErrorResponses(contract.responses)
+
         val unsupportedMediaTypeResponse = componentContext.responses[
             "${Wow.WOW_PREFIX}${CommonComponent.Response.UNSUPPORTED_MEDIA_TYPE_ERROR_CODE}"
         ]!!
         unsupportedMediaTypeResponse.headers.assert().containsKey(CommonComponent.Header.ERROR_CODE)
         unsupportedMediaTypeResponse.content.assert().containsKey(Https.MediaType.APPLICATION_JSON)
+    }
+
+    private fun assertInspectionErrorResponses(responses: List<HttpResponse>) {
+        listOf(
+            Https.Code.NOT_ACCEPTABLE,
+            Https.Code.BAD_GATEWAY,
+            Https.Code.SERVICE_UNAVAILABLE,
+            Https.Code.GATEWAY_TIMEOUT,
+        ).forEach { statusCode ->
+            responses.single { it.statusCode == statusCode }.run {
+                description.assert().isNotNull()
+                headers.single().run {
+                    name.assert().isEqualTo(CommonComponent.Header.ERROR_CODE)
+                    componentRef.assert().isEqualTo("${Wow.WOW_PREFIX}${CommonComponent.Header.ERROR_CODE}")
+                }
+                content.assert().containsExactly(
+                    HttpContent(
+                        Https.MediaType.APPLICATION_JSON,
+                        HttpSchema.TypeRef(DefaultErrorInfo::class.java),
+                    )
+                )
+            }
+        }
     }
 }

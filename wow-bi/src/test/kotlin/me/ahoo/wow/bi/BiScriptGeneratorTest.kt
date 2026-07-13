@@ -262,6 +262,72 @@ class BiScriptGeneratorTest {
     }
 
     @Test
+    fun `should reject mixed or missing observed consumer identities`() {
+        val firstIdentity = BiConsumerIdentity("1".repeat(32))
+        val secondIdentity = BiConsumerIdentity("2".repeat(32))
+        val mixedInspection = availableInspection(
+            anchor(identity = firstIdentity),
+            observed(
+                database = "bi_db",
+                name = "legacy_view",
+                kind = BiObjectKind.VIEW,
+                aggregate = "bi-service.legacy",
+                identity = secondIdentity,
+            ),
+        )
+
+        assertThrows<IllegalArgumentException> {
+            generator().generate(setOf(aggregate), BiScriptOperation.Deploy, mixedInspection)
+        }.message.assert().contains("mixed consumer identities")
+
+        val descriptor = BiDeploymentDescriptor.from(BiScriptOptions(consumerGroupNamespace = "test"))
+        val missingIdentityInspection = availableInspection(
+            ObservedBiObject(
+                database = "bi_db_consumer",
+                name = "__wow_bi_deployment",
+                engine = "View",
+                metadata = BiObjectMetadata(
+                    deploymentId = descriptor.deploymentId,
+                    configurationFingerprint = descriptor.configurationFingerprint,
+                    kind = BiObjectKind.ANCHOR,
+                ),
+            )
+        )
+
+        assertThrows<IllegalArgumentException> {
+            generator().generate(setOf(aggregate), BiScriptOperation.Deploy, missingIdentityInspection)
+        }.message.assert().contains("missing its consumer identity anchor")
+    }
+
+    @Test
+    fun `should reject desired objects with inconsistent ownership metadata`() {
+        val inconsistentObjects = listOf(
+            observed(
+                database = "bi_db_consumer",
+                name = "bi_aggregate_command_queue",
+                kind = BiObjectKind.VIEW,
+                aggregate = "bi-service.aggregate",
+            ),
+            observed(
+                database = "bi_db_consumer",
+                name = "bi_aggregate_command_queue",
+                kind = BiObjectKind.QUEUE,
+                aggregate = "bi-service.another",
+            ),
+        )
+
+        inconsistentObjects.forEach { inconsistent ->
+            assertThrows<IllegalArgumentException> {
+                generator().generate(
+                    setOf(aggregate),
+                    BiScriptOperation.Deploy,
+                    availableInspection(inconsistent),
+                )
+            }.message.assert().contains("has inconsistent ownership metadata")
+        }
+    }
+
+    @Test
     fun `should fail closed when a desired object is foreign`() {
         assertThrows<IllegalArgumentException> {
             generator().generate(
@@ -406,6 +472,16 @@ class BiScriptGeneratorTest {
         result.script.assert().doesNotContain(".command --")
         result.diagnostics.map(BiScriptDiagnostic::code)
             .assert().containsExactly(BiScriptDiagnosticCode.INSPECTION_UNAVAILABLE)
+    }
+
+    @Test
+    fun `should require a consumer group namespace only when aggregates create Kafka consumers`() {
+        assertThrows<IllegalArgumentException> {
+            BiScriptGenerator().generate(setOf(aggregate))
+        }.message.assert()
+            .isEqualTo("consumerGroupNamespace must be configured before generating BI Kafka consumers")
+
+        BiScriptGenerator().generate(emptySet()).destructive.assert().isFalse()
     }
 
     private fun namedAggregate(name: String): NamedAggregate =

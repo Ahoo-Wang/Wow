@@ -18,12 +18,34 @@ import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 import tools.jackson.core.JacksonException
+import java.net.URI
 import java.time.Duration
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicReference
 
 class ClickHouseBiDeploymentInspectorTest {
+    @Test
+    fun `should configure and close the official client without opening a connection`() {
+        val inspector = ClickHouseBiDeploymentInspector(
+            ClickHouseClientOptions(
+                endpoints = listOf(URI.create("http://clickhouse:8123")),
+                username = "bi-user",
+                password = "secret",
+                connectionPoolEnabled = false,
+                connectionTimeout = Duration.ofSeconds(1),
+                connectionRequestTimeout = Duration.ofSeconds(2),
+                socketTimeout = Duration.ZERO,
+                executionTimeout = Duration.ZERO,
+                maxConnections = 3,
+                maxRetries = 1,
+            ),
+            inspectionTimeout = Duration.ofSeconds(4),
+        )
+
+        inspector.close()
+    }
+
     @Test
     fun `should inspect an authoritative empty standalone catalog off the caller thread`() {
         val queryThread = AtomicReference<String>()
@@ -110,13 +132,68 @@ class ClickHouseBiDeploymentInspectorTest {
             catalogRecord(node = NODE_B, name = "owned_view", comment = OWNED_COMMENT),
             catalogRecord(node = NODE_A, name = "node_local_table", engine = "MergeTree", engineFull = "A"),
             catalogRecord(node = NODE_B, name = "node_local_table", engine = "MergeTree", engineFull = "B"),
+            catalogRecord(
+                node = NODE_A,
+                database = CLUSTER_OPTIONS.consumerDatabase,
+                name = "bi_aggregate_command_queue",
+                engine = "Kafka",
+            ),
         )
 
         val available = ClickHouseBiDeploymentInspector(client).inspect(CLUSTER_OPTIONS).block()
             as BiDeploymentInspection.Available
 
         available.deployment.objects.map(ObservedBiObject::name).assert()
-            .containsExactly("node_local_table", "owned_view")
+            .containsExactly("node_local_table", "owned_view", "bi_aggregate_command_queue")
+    }
+
+    @Test
+    fun `should reject an empty or unknown cluster replica catalog`() {
+        val emptyCluster = StubClickHouseCatalogClient(emptyList())
+        ClickHouseBiDeploymentInspector(emptyCluster).inspect(CLUSTER_OPTIONS).test()
+            .expectErrorMatches {
+                it is BiDeploymentInspectionException.Inconsistent &&
+                    it.message!!.contains("returned no replicas")
+            }
+            .verify()
+
+        val unknownReplica = clusterClient(catalogRecord(node = NODE_C, comment = OWNED_COMMENT))
+        ClickHouseBiDeploymentInspector(unknownReplica).inspect(CLUSTER_OPTIONS).test()
+            .expectErrorMatches {
+                it is BiDeploymentInspectionException.Inconsistent &&
+                    it.message!!.contains("contains an unknown replica")
+            }
+            .verify()
+    }
+
+    @Test
+    fun `should classify invalid cluster node ports and adapter arguments as inconsistent`() {
+        val invalidPortClient = StubClickHouseCatalogClient(
+            listOf(
+                ClickHouseCatalogRecord(
+                    mapOf(
+                        "host_name" to "clickhouse",
+                        "tcp_port" to "0",
+                    )
+                )
+            )
+        )
+        ClickHouseBiDeploymentInspector(invalidPortClient).inspect(CLUSTER_OPTIONS).test()
+            .expectErrorMatches {
+                it is BiDeploymentInspectionException.Inconsistent &&
+                    it.message!!.contains("must be a valid port")
+            }
+            .verify()
+
+        val failure = IllegalArgumentException("invalid catalog adapter argument")
+        val invalidArgumentClient = StubClickHouseCatalogClient { _, _, _ -> throw failure }
+        ClickHouseBiDeploymentInspector(invalidArgumentClient).inspect(OPTIONS).test()
+            .expectErrorMatches {
+                it is BiDeploymentInspectionException.Inconsistent &&
+                    it.cause === failure &&
+                    it.message == failure.message
+            }
+            .verify()
     }
 
     @Test
@@ -155,6 +232,64 @@ class ClickHouseBiDeploymentInspectorTest {
                     it.message!!.contains("[name] must not be blank")
             }
             .verify()
+    }
+
+    @Test
+    fun `should reject duplicate owned definitions in a standalone catalog`() {
+        val client = StubClickHouseCatalogClient(
+            records(
+                catalogRecord(name = "owned_view", engineFull = "View A", comment = OWNED_COMMENT),
+                catalogRecord(name = "owned_view", engineFull = "View B", comment = OWNED_COMMENT),
+            )
+        )
+
+        ClickHouseBiDeploymentInspector(client).inspect(OPTIONS).test()
+            .expectErrorMatches {
+                it is BiDeploymentInspectionException.Inconsistent &&
+                    it.message!!.contains("has duplicate definitions")
+            }
+            .verify()
+    }
+
+    @Test
+    fun `should fail closed for every invalid owned Kafka queue identity`() {
+        val identity = BiConsumerIdentity.deterministic(DESCRIPTOR)
+        val validComment = queueComment(identity.value)
+        val expectedGroup = "wow-bi.${identity.value}.example_order_command_consumer"
+        val invalidQueues = listOf(
+            catalogRecord(
+                database = OPTIONS.consumerDatabase,
+                name = "example_order_command_queue",
+                engine = "MergeTree",
+                engineFull = "MergeTree",
+                comment = validComment,
+            ) to "must use the Kafka engine",
+            catalogRecord(
+                database = OPTIONS.consumerDatabase,
+                name = "example_order_command_queue",
+                engine = "Kafka",
+                engineFull = "Kafka('kafka:9092', 'topic', '$expectedGroup', 'JSONAsString')",
+                comment = queueComment(null),
+            ) to "is missing consumerIdentity",
+            catalogRecord(
+                database = OPTIONS.consumerDatabase,
+                name = "example_order_command_queue",
+                engine = "Kafka",
+                engineFull = "Kafka('kafka:9092', 'topic', 'wrong-group', 'JSONAsString')",
+                comment = validComment,
+            ) to "has an unexpected Kafka consumer group",
+        )
+
+        invalidQueues.forEach { (record, expectedMessage) ->
+            ClickHouseBiDeploymentInspector(StubClickHouseCatalogClient(records(record)))
+                .inspect(OPTIONS)
+                .test()
+                .expectErrorMatches {
+                    it is BiDeploymentInspectionException.Inconsistent &&
+                        it.message!!.contains(expectedMessage)
+                }
+                .verify()
+        }
     }
 
     @Test
@@ -282,6 +417,16 @@ class ClickHouseBiDeploymentInspectorTest {
         }
     )
 
+    private fun queueComment(identity: String?): String = BiObjectMetadataCodec.encode(
+        BiObjectMetadata(
+            deploymentId = DESCRIPTOR.deploymentId,
+            configurationFingerprint = DESCRIPTOR.configurationFingerprint,
+            aggregate = "example.order",
+            kind = BiObjectKind.QUEUE,
+            consumerIdentity = identity,
+        )
+    )
+
     private class StubClickHouseCatalogClient(
         private val response: (
             sql: String,
@@ -312,6 +457,7 @@ class ClickHouseBiDeploymentInspectorTest {
         val CLUSTER_OPTIONS = OPTIONS.copy(topology = CLUSTER)
         val NODE_A = ClickHouseCatalogNode("clickhouse-a", 9000)
         val NODE_B = ClickHouseCatalogNode("clickhouse-b", 9000)
+        val NODE_C = ClickHouseCatalogNode("clickhouse-c", 9000)
         val OWNED_COMMENT = BiObjectMetadataCodec.encode(
             BiObjectMetadata(
                 deploymentId = DESCRIPTOR.deploymentId,

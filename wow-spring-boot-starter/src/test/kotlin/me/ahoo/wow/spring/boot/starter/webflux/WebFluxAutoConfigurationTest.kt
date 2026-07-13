@@ -24,6 +24,7 @@ import me.ahoo.wow.bi.BiDeploymentInspector
 import me.ahoo.wow.bi.BiScriptGenerator
 import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.bi.ClickHouseTopology
+import me.ahoo.wow.bi.KafkaOffsetStorage
 import me.ahoo.wow.bi.NoOpBiDeploymentInspector
 import me.ahoo.wow.bi.UnsupportedTypeStrategy
 import me.ahoo.wow.command.CommandGateway
@@ -224,6 +225,8 @@ internal class WebFluxAutoConfigurationTest {
                 "${BiScriptProperties.PREFIX}.timezone=UTC",
                 "${BiScriptProperties.PREFIX}.kafka-bootstrap-servers=bi-kafka:19092",
                 "${BiScriptProperties.PREFIX}.topic-prefix=bi.",
+                "${BiScriptProperties.PREFIX}.kafka-offset-storage=KEEPER",
+                "${BiScriptProperties.PREFIX}.kafka-keeper-path-prefix=/custom/wow-bi",
                 "${BiScriptProperties.PREFIX}.max-expansion-depth=7",
                 "${BiScriptProperties.PREFIX}.unsupported-type-strategy=RAW_JSON",
             )
@@ -249,23 +252,12 @@ internal class WebFluxAutoConfigurationTest {
                     kafkaBootstrapServers = "bi-kafka:19092",
                     topicPrefix = "bi.",
                     consumerGroupNamespace = "test",
+                    kafkaOffsetStorage = KafkaOffsetStorage.KEEPER,
+                    kafkaKeeperPathPrefix = "/custom/wow-bi",
                     maxExpansionDepth = 7,
                     unsupportedTypeStrategy = UnsupportedTypeStrategy.RAW_JSON,
                 )
-                val script = context.generateBiScript()
-                script.assert().isEqualTo(
-                    BiScriptGenerator(expectedOptions).generate(MetadataSearcher.localAggregates).script
-                )
-                script.assert().contains(
-                    "CREATE DATABASE IF NOT EXISTS \"analytics\" ON CLUSTER 'production'",
-                    "CREATE DATABASE IF NOT EXISTS \"analytics_consumer\" ON CLUSTER 'production'",
-                    "/clickhouse/primary/production/tables/{shard}/{database}/{table}",
-                    "'{replica}'",
-                    "DateTime64(3, 'UTC')",
-                    "ENGINE = Kafka('bi-kafka:19092'",
-                    "'bi.example.order.command'",
-                )
-                script.assert().doesNotContain("kafka:9092", "'kafka.example.order.command'")
+                context.generateBiScript().assertExplicitBiScript(expectedOptions)
             }
     }
 
@@ -957,6 +949,22 @@ internal class WebFluxAutoConfigurationTest {
             .expectBody(String::class.java)
             .returnResult()
             .responseBody!!
+    }
+
+    private fun String.assertExplicitBiScript(expectedOptions: BiScriptOptions) {
+        assert().isEqualTo(BiScriptGenerator(expectedOptions).generate(MetadataSearcher.localAggregates).script)
+        assert().contains(
+            "CREATE DATABASE IF NOT EXISTS \"analytics\" ON CLUSTER 'production'",
+            "CREATE DATABASE IF NOT EXISTS \"analytics_consumer\" ON CLUSTER 'production'",
+            "/clickhouse/primary/production/tables/{shard}/{database}/{table}",
+            "'{replica}'",
+            "DateTime64(3, 'UTC')",
+            "ENGINE = Kafka('bi-kafka:19092'",
+            "'bi.example.order.command'",
+            "kafka_keeper_path = '/custom/wow-bi/",
+            "SETTINGS allow_experimental_kafka_offsets_storage_in_keeper = 1",
+        )
+        assert().doesNotContain("kafka:9092", "'kafka.example.order.command'")
     }
 
     private fun Throwable.causeChainMessages(): String =
