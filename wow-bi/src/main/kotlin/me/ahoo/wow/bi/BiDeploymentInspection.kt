@@ -13,16 +13,23 @@
 
 package me.ahoo.wow.bi
 
+import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.api.exception.ErrorInfoCapable
 import me.ahoo.wow.serialization.JsonSerializer
 import reactor.core.publisher.Mono
 import java.security.MessageDigest
 import java.util.UUID
 
 fun interface BiDeploymentInspector {
+    val allowsDynamicScope: Boolean
+        get() = false
+
     fun inspect(options: BiScriptOptions): Mono<BiDeploymentInspection>
 }
 
 data object NoOpBiDeploymentInspector : BiDeploymentInspector {
+    override val allowsDynamicScope: Boolean = true
+
     override fun inspect(options: BiScriptOptions): Mono<BiDeploymentInspection> =
         Mono.just(BiDeploymentInspection.Unavailable)
 }
@@ -31,6 +38,35 @@ sealed interface BiDeploymentInspection {
     data object Unavailable : BiDeploymentInspection
 
     data class Available(val deployment: ObservedBiDeployment) : BiDeploymentInspection
+}
+
+sealed class BiDeploymentInspectionException(
+    errorCode: String,
+    message: String,
+    cause: Throwable? = null,
+) : RuntimeException(message, cause), ErrorInfoCapable {
+    override val errorInfo: ErrorInfo = ErrorInfo.of(errorCode, message)
+
+    class Inconsistent(
+        message: String,
+        cause: Throwable? = null,
+    ) : BiDeploymentInspectionException(INCONSISTENT_ERROR_CODE, message, cause)
+
+    class Unavailable(
+        message: String = "BI deployment inspection is unavailable",
+        cause: Throwable? = null,
+    ) : BiDeploymentInspectionException(UNAVAILABLE_ERROR_CODE, message, cause)
+
+    class Timeout(
+        message: String = "BI deployment inspection timed out",
+        cause: Throwable? = null,
+    ) : BiDeploymentInspectionException(TIMEOUT_ERROR_CODE, message, cause)
+
+    companion object {
+        const val INCONSISTENT_ERROR_CODE: String = "BiDeploymentInspectionInconsistent"
+        const val UNAVAILABLE_ERROR_CODE: String = "BiDeploymentInspectionUnavailable"
+        const val TIMEOUT_ERROR_CODE: String = "BiDeploymentInspectionTimeout"
+    }
 }
 
 data class ObservedBiDeployment(val objects: List<ObservedBiObject>) {

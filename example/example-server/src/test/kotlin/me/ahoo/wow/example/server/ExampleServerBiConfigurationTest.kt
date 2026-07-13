@@ -36,12 +36,18 @@ class ExampleServerBiConfigurationTest {
                 properties.firstNotNullOfOrNull { it.getProperty(CONSUMER_GROUP_NAMESPACE_PROPERTY) },
                 "$configuration must provide a stable BI consumer group namespace",
             )
+            assertEquals(
+                "NO_OP",
+                properties.firstNotNullOfOrNull { it.getProperty(INSPECTOR_TYPE_PROPERTY) },
+                "$configuration must keep BI deployment inspection disabled by default",
+            )
         }
     }
 
     private companion object {
         const val BI_ENABLED_PROPERTY = "wow.bi.script.enabled"
         const val CONSUMER_GROUP_NAMESPACE_PROPERTY = "wow.bi.script.consumer-group-namespace"
+        const val INSPECTOR_TYPE_PROPERTY = "wow.bi.script.inspector.type"
         const val CONSUMER_GROUP_NAMESPACE = "example-service-local"
         val CONFIGURATIONS = listOf(
             Path.of("src/main/resources/application.yaml"),

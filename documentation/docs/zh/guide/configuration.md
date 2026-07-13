@@ -369,6 +369,46 @@ wow:
 | `wow.bi.script.kafka-keeper-path-prefix` | String | `/clickhouse/wow-bi` | 仅 `KEEPER` 模式使用的 Keeper 路径前缀 |
 | `wow.bi.script.max-expansion-depth` | Int | `5` | 复杂属性的最大展开深度，必须大于等于 `1` |
 | `wow.bi.script.unsupported-type-strategy` | Enum | `RAW_JSON` | `RAW_JSON` 生成 scoped JSON 查询便利投影并产生诊断；精确词法值通过 `__state` 与 recovery `__path` 恢复；`FAIL` 中止生成 |
+| `wow.bi.script.inspector.type` | Enum | `NO_OP` | 部署状态检查实现：`NO_OP` 或 `CLICKHOUSE`；只有显式选择 `CLICKHOUSE` 才连接 catalog |
+| `wow.bi.script.inspector.timeout` | Duration | `30s` | 完整 inspection 的总 deadline；集群检查包含两次 catalog 操作，因此应大于单次 operation execution timeout |
+| `wow.bi.script.inspector.clickhouse.endpoints` | List&lt;URI&gt; | 无 | 一个或多个互不重复的 ClickHouse HTTP(S) endpoint；必须显式包含端口，可包含反向代理 base path |
+| `wow.bi.script.inspector.clickhouse.username` | String | `default` | ClickHouse Basic Auth 用户名 |
+| `wow.bi.script.inspector.clickhouse.password` | String | 空 | ClickHouse Basic Auth 密码；属性和客户端选项的字符串表示都会脱敏 |
+| `wow.bi.script.inspector.clickhouse.connection-pool-enabled` | Boolean | `true` | 对应 `Client.Builder.enableConnectionPool` |
+| `wow.bi.script.inspector.clickhouse.connection-timeout` | Duration | `3s` | 对应 `Client.Builder.setConnectTimeout`，必须大于零 |
+| `wow.bi.script.inspector.clickhouse.connection-request-timeout` | Duration | `10s` | 等待连接池连接的最长时间；对应 `setConnectionRequestTimeout`，必须大于零 |
+| `wow.bi.script.inspector.clickhouse.socket-timeout` | Duration | `10s` | socket 读写超时；对应 `setSocketTimeout`；零表示不设置驱动 socket deadline |
+| `wow.bi.script.inspector.clickhouse.execution-timeout` | Duration | `10s` | 单次驱动 operation deadline；对应 `setExecutionTimeout`；零表示不设置驱动 operation deadline |
+| `wow.bi.script.inspector.clickhouse.max-connections` | Int | `10` | 每个 endpoint 的最大连接数；对应 `setMaxConnections`，必须大于零 |
+| `wow.bi.script.inspector.clickhouse.max-retries` | Int | `0` | 驱动重试次数；对应 `setMaxRetries`，不得为负数 |
+
+默认 `NO_OP` 不访问 ClickHouse。需要根据实际 catalog ownership marker 对账时显式启用：
+
+```yaml
+wow:
+  bi:
+    script:
+      topology:
+        mode: STANDALONE
+      inspector:
+        type: CLICKHOUSE
+        timeout: 30s
+        clickhouse:
+          endpoints:
+            - http://clickhouse-1:8123
+            - http://clickhouse-2:8123
+          username: default
+          password: ${CLICKHOUSE_PASSWORD:}
+          connection-pool-enabled: true
+          connection-timeout: 3s
+          connection-request-timeout: 10s
+          socket-timeout: 10s
+          execution-timeout: 10s
+          max-connections: 10
+          max-retries: 0
+```
+
+内置 inspector 位于 `wow-bi`，直接使用 ClickHouse 官方 Java `client-v2`。Spring Boot 强类型属性与对应的 `Client.Builder` 概念一一映射，不再把不同语义的驱动超时合并成一个字段。inspector 独占 Client 并随 Spring Context 关闭；同步驱动调用运行在 Reactor `boundedElastic` 上，不再额外创建一层驱动 executor。catalog 查询使用带命名参数的强类型 RowBinary 记录；集群模式同时核验参与副本集合与对象定义。连接错误、超时、无效 ownership marker 或副本不一致都会直接失败，不会静默回退到 `NO_OP`。官方客户端属性尚未覆盖的代理、mTLS 或认证需求可通过自定义 `BiDeploymentInspector` Bean 实现；自定义 Bean 优先于两种内置实现。
 
 独立拓扑：
 
@@ -403,6 +443,8 @@ wow:
 2. Kafka 的 bootstrap servers 与 topic prefix 配置；
 3. `wow.bi.script.*` 应用配置；
 4. 非 `null` 的 `POST` 请求字段。
+
+配置真实 deployment inspector 后，`database`、`consumerDatabase` 与 `topology` 固定使用服务端配置；请求覆盖这些字段会返回 `400`，避免外部请求借用服务端 ClickHouse 凭据查询任意数据库或集群。默认 `NO_OP` inspector 不访问 ClickHouse，因此仍允许这些覆盖。
 
 因此，显式 `wow.bi.script.kafka-bootstrap-servers` / `wow.bi.script.topic-prefix` 会覆盖对应的 `wow.kafka.bootstrap-servers` / `wow.kafka.topic-prefix`，即使其值等于默认值；继承多个 Kafka broker 时以逗号连接。其他未配置的应用绑定属性直接回退到 `BiScriptOptions` 领域默认值。表中的长度限制同时适用于服务端配置和对应的非 `null` `POST` override（`database`、`consumerDatabase`、`timezone`、`kafkaBootstrapServers`、`topicPrefix`、`topology.cluster.name` 和 `topology.cluster.installation`）。长度恰好等于 64、128 或 4096 字符限制的值可被接受。Starter 在构造服务端基础选项时统一执行校验：超过长度限制、必填字符串为空白或包含控制字符、`max-expansion-depth < 1`，以及在 `STANDALONE` 模式提供集群字段都会使应用启动失败。对于 HTTP override，服务端配置的 `maxExpansionDepth` 是请求 ceiling。
 
@@ -441,7 +483,7 @@ curl -X POST 'http://localhost:8080/wow/bi/script' \
 }
 ```
 
-提供 `topology` 时必须提供 `topology.mode`。`STANDALONE` 拒绝 `cluster` 对象。无效 JSON、空请求体、超过长度限制的非 `null` override、其他无效选项值或无效拓扑组合返回 `400`；缺少或不支持的请求 `Content-Type` 返回 `415`。OpenAPI 声明公共 `wow.UnsupportedMediaType` response，运行时使用 `Wow-Error-Code: UnsupportedMediaType`。响应会遵循 `Accept` 的 quality value；JSON 返回 SQL、诊断与 destructive 标记，SQL 与通配符返回 SQL。调用方不再提交 manifest。默认 NoOp inspector 允许离线 `DEPLOY` 并返回未对账诊断，但拒绝 `RESET`；注册 ClickHouse inspector 后，服务从 catalog ownership marker 恢复 identity、清理旧对象，并在 `replayFromEarliestConfirmed=true` 时执行 Reset。
+提供 `topology` 时必须提供 `topology.mode`。`STANDALONE` 拒绝 `cluster` 对象。无效 JSON、空请求体、超过长度限制的非 `null` override、其他无效选项值或无效拓扑组合返回 `400`；缺少或不支持的请求 `Content-Type` 返回 `415`。OpenAPI 声明公共 `wow.UnsupportedMediaType` response，运行时使用 `Wow-Error-Code: UnsupportedMediaType`。启用真实 inspector 后，catalog 状态不一致返回 `502`，ClickHouse 不可用返回 `503`，检查超时返回 `504`。响应会遵循 `Accept` 的 quality value；JSON 返回 SQL、诊断与 destructive 标记，SQL 与通配符返回 SQL。调用方不再提交 manifest。默认 NoOp inspector 允许离线 `DEPLOY` 并返回未对账诊断，但拒绝 `RESET`；显式配置 ClickHouse inspector 后，服务从 catalog ownership marker 恢复 identity、清理旧对象，并在 `replayFromEarliestConfirmed=true` 时执行 Reset。
 
 结构化结果诊断、当前展开语义与无损映射参见[商业智能](./bi)。
 

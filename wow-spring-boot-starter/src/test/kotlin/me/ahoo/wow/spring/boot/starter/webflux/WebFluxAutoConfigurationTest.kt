@@ -58,6 +58,7 @@ import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
 import me.ahoo.wow.spring.boot.starter.modeling.AggregateAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.webflux.WebFluxProperties.Companion.GLOBAL_ERROR_ENABLED
+import me.ahoo.wow.spring.boot.starter.webflux.bi.BiDeploymentInspectorAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.webflux.route.CommandRouteModule
 import me.ahoo.wow.spring.boot.starter.webflux.route.EventRouteModule
 import me.ahoo.wow.spring.boot.starter.webflux.route.GlobalRouteModule
@@ -128,6 +129,7 @@ internal class WebFluxAutoConfigurationTest {
                 EventSourcingAutoConfiguration::class.java,
                 AggregateAutoConfiguration::class.java,
                 OpenAPIAutoConfiguration::class.java,
+                BiDeploymentInspectorAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
@@ -192,6 +194,7 @@ internal class WebFluxAutoConfigurationTest {
                 EventSourcingAutoConfiguration::class.java,
                 AggregateAutoConfiguration::class.java,
                 OpenAPIAutoConfiguration::class.java,
+                BiDeploymentInspectorAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
@@ -697,6 +700,7 @@ internal class WebFluxAutoConfigurationTest {
                 EventSourcingAutoConfiguration::class.java,
                 AggregateAutoConfiguration::class.java,
                 OpenAPIAutoConfiguration::class.java,
+                BiDeploymentInspectorAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
@@ -747,6 +751,7 @@ internal class WebFluxAutoConfigurationTest {
                 EventSourcingAutoConfiguration::class.java,
                 AggregateAutoConfiguration::class.java,
                 OpenAPIAutoConfiguration::class.java,
+                BiDeploymentInspectorAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
@@ -783,6 +788,7 @@ internal class WebFluxAutoConfigurationTest {
                 EventSourcingAutoConfiguration::class.java,
                 AggregateAutoConfiguration::class.java,
                 OpenAPIAutoConfiguration::class.java,
+                BiDeploymentInspectorAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
@@ -826,6 +832,7 @@ internal class WebFluxAutoConfigurationTest {
                 EventSourcingAutoConfiguration::class.java,
                 AggregateAutoConfiguration::class.java,
                 OpenAPIAutoConfiguration::class.java,
+                BiDeploymentInspectorAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,
             )
     }

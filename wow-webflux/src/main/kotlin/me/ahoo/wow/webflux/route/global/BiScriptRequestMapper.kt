@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.webflux.route.global
 
+import me.ahoo.wow.bi.BiDeploymentInspector
 import me.ahoo.wow.bi.BiScriptOperation
 import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.bi.ClickHouseTopology
@@ -43,6 +44,15 @@ internal fun BiScriptRequest.toBiScriptOptions(base: BiScriptOptions): BiScriptO
         unsupportedTypeStrategy = unsupportedTypeStrategy?.toDomain()
             ?: base.unsupportedTypeStrategy,
     )
+}
+
+internal fun BiScriptRequest.requireAllowedInspectionScope(inspector: BiDeploymentInspector) {
+    if (inspector.allowsDynamicScope) {
+        return
+    }
+    require(database == null && consumerDatabase == null && topology == null) {
+        "database, consumerDatabase, and topology overrides are not allowed with the configured BI deployment inspector"
+    }
 }
 
 internal fun BiScriptRequest.toBiScriptOperation(): BiScriptOperation = when (operation) {

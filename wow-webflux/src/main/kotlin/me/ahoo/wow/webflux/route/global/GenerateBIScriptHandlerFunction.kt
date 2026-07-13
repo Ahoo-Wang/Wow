@@ -45,6 +45,7 @@ class GenerateBIScriptHandlerFunction(
         return request.bodyToMono(BiScriptRequest::class.java)
             .switchIfEmpty(Mono.error(IllegalArgumentException("BI script request body must not be empty")))
             .flatMap { body ->
+                body.requireAllowedInspectionScope(deploymentInspector)
                 generateResponse(
                     request = request,
                     requestOptions = body.toBiScriptOptions(options),

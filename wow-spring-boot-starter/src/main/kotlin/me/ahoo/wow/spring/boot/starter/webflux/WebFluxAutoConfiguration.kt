@@ -277,18 +277,14 @@ class WebFluxAutoConfiguration {
     internal fun globalRouteModule(
         kafkaProperties: ObjectProvider<KafkaProperties>,
         biScriptProperties: BiScriptProperties,
-        biDeploymentInspector: BiDeploymentInspector,
+        biDeploymentInspector: ObjectProvider<BiDeploymentInspector>,
     ): GlobalRouteModule {
         return GlobalRouteModule(
             options = biScriptProperties.toBiScriptOptions(kafkaProperties.getIfAvailable()),
             biScriptEnabled = biScriptProperties.enabled,
-            deploymentInspector = biDeploymentInspector,
+            deploymentInspector = biDeploymentInspector.getIfAvailable { NoOpBiDeploymentInspector },
         )
     }
-
-    @Bean
-    @ConditionalOnMissingBean(BiDeploymentInspector::class)
-    fun biDeploymentInspector(): BiDeploymentInspector = NoOpBiDeploymentInspector
 
     @Bean
     fun routeHandlerFunctionRegistrar(

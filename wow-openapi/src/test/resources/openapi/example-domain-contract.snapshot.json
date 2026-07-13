@@ -1706,7 +1706,7 @@
   "parameterNames" : [ ],
   "path" : "/wow/bi/script",
   "requestBody" : true,
-  "responseCodes" : [ "200", "400", "415" ],
+  "responseCodes" : [ "200", "400", "415", "502", "503", "504" ],
   "tagNames" : [ "wow" ]
 }, {
   "accept" : [ "application/json" ],

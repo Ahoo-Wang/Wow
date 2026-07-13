@@ -15,11 +15,15 @@ package me.ahoo.wow.spring.boot.starter.bi
 
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.bi.BiScriptOptions
+import me.ahoo.wow.bi.ClickHouseClientOptions
 import me.ahoo.wow.bi.ClickHouseTopology
 import me.ahoo.wow.bi.KafkaOffsetStorage
 import me.ahoo.wow.bi.UnsupportedTypeStrategy
 import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.boot.context.properties.NestedConfigurationProperty
+import java.net.URI
+import java.time.Duration
 
 @ConfigurationProperties(prefix = BiScriptProperties.PREFIX)
 data class BiScriptProperties(
@@ -35,11 +39,64 @@ data class BiScriptProperties(
     val kafkaKeeperPathPrefix: String? = null,
     val maxExpansionDepth: Int? = null,
     val unsupportedTypeStrategy: UnsupportedTypeStrategy? = null,
+    @NestedConfigurationProperty
+    val inspector: BiDeploymentInspectorProperties = BiDeploymentInspectorProperties(),
 ) {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}bi.script"
     }
 }
+
+data class BiDeploymentInspectorProperties(
+    var type: BiDeploymentInspectorType = BiDeploymentInspectorType.NO_OP,
+    var timeout: Duration = Duration.ofSeconds(30),
+    @NestedConfigurationProperty
+    var clickhouse: BiClickHouseInspectorProperties = BiClickHouseInspectorProperties(),
+)
+
+enum class BiDeploymentInspectorType {
+    NO_OP,
+    CLICKHOUSE,
+}
+
+data class BiClickHouseInspectorProperties(
+    var endpoints: List<URI> = emptyList(),
+    var username: String = "default",
+    var password: String = "",
+    var connectionPoolEnabled: Boolean = true,
+    var connectionTimeout: Duration = Duration.ofSeconds(3),
+    var connectionRequestTimeout: Duration = Duration.ofSeconds(10),
+    var socketTimeout: Duration = Duration.ofSeconds(10),
+    var executionTimeout: Duration = Duration.ofSeconds(10),
+    var maxConnections: Int = 10,
+    var maxRetries: Int = 0,
+) {
+    override fun toString(): String =
+        "BiClickHouseInspectorProperties(" +
+            "endpoints=$endpoints, " +
+            "username=$username, " +
+            "password=******, " +
+            "connectionPoolEnabled=$connectionPoolEnabled, " +
+            "connectionTimeout=$connectionTimeout, " +
+            "connectionRequestTimeout=$connectionRequestTimeout, " +
+            "socketTimeout=$socketTimeout, " +
+            "executionTimeout=$executionTimeout, " +
+            "maxConnections=$maxConnections, " +
+            "maxRetries=$maxRetries)"
+}
+
+internal fun BiClickHouseInspectorProperties.toClientOptions(): ClickHouseClientOptions = ClickHouseClientOptions(
+    endpoints = endpoints,
+    username = username,
+    password = password,
+    connectionPoolEnabled = connectionPoolEnabled,
+    connectionTimeout = connectionTimeout,
+    connectionRequestTimeout = connectionRequestTimeout,
+    socketTimeout = socketTimeout,
+    executionTimeout = executionTimeout,
+    maxConnections = maxConnections,
+    maxRetries = maxRetries,
+)
 
 data class BiScriptTopologyProperties(
     val mode: BiScriptTopologyMode = BiScriptTopologyMode.CLUSTER,

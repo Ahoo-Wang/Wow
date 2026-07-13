@@ -19,6 +19,7 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.bi.BiDeploymentInspectionException
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import org.junit.jupiter.api.BeforeEach
@@ -69,6 +70,29 @@ class WebFluxErrorStrategyTest {
                 it.headers().getFirst(ERROR_CODE).assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
             }
             .verifyComplete()
+    }
+
+    @Test
+    fun `should map BI inspection failures to upstream HTTP statuses`() {
+        val request = MockServerRequest.builder()
+            .method(HttpMethod.POST)
+            .uri(URI.create("/wow/bi/script"))
+            .build()
+        val cases = mapOf(
+            BiDeploymentInspectionException.Inconsistent("inconsistent") to HttpStatus.BAD_GATEWAY,
+            BiDeploymentInspectionException.Unavailable() to HttpStatus.SERVICE_UNAVAILABLE,
+            BiDeploymentInspectionException.Timeout() to HttpStatus.GATEWAY_TIMEOUT,
+        )
+
+        cases.forEach { (error, expectedStatus) ->
+            DefaultWebFluxErrorStrategy.toServerResponse(request, error)
+                .test()
+                .consumeNextWith { response ->
+                    response.statusCode().assert().isEqualTo(expectedStatus)
+                    response.headers().getFirst(ERROR_CODE).assert().isEqualTo(error.errorInfo.errorCode)
+                }
+                .verifyComplete()
+        }
     }
 
     @Test

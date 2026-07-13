@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.openapi.contributor.global
 
+import me.ahoo.wow.api.exception.DefaultErrorInfo
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.catalog.RouteCategory
@@ -28,6 +29,7 @@ import me.ahoo.wow.openapi.contract.HttpSchema
 import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
 import me.ahoo.wow.openapi.contract.bi.BiScriptResponse
 import me.ahoo.wow.openapi.contributor.badRequestResponseRef
+import me.ahoo.wow.openapi.contributor.errorCodeHeaderRef
 import me.ahoo.wow.openapi.contributor.unsupportedMediaTypeResponseRef
 
 object GenerateBIScriptRouteContributor : RouteContributor {
@@ -70,10 +72,41 @@ object GenerateBIScriptRouteContributor : RouteContributor {
                         )
                     ),
                     componentContext.badRequestResponseRef(),
-                    componentContext.unsupportedMediaTypeResponseRef()
+                    componentContext.unsupportedMediaTypeResponseRef(),
+                    inspectionFailureResponse(
+                        componentContext,
+                        Https.Code.BAD_GATEWAY,
+                        "ClickHouse catalog is inconsistent.",
+                    ),
+                    inspectionFailureResponse(
+                        componentContext,
+                        Https.Code.SERVICE_UNAVAILABLE,
+                        "ClickHouse catalog inspection is unavailable.",
+                    ),
+                    inspectionFailureResponse(
+                        componentContext,
+                        Https.Code.GATEWAY_TIMEOUT,
+                        "ClickHouse catalog inspection timed out.",
+                    ),
                 ),
                 tags = wowTags()
             )
         )
     }
+
+    private fun inspectionFailureResponse(
+        componentContext: OpenAPIComponentContext,
+        statusCode: String,
+        description: String,
+    ): HttpResponse = HttpResponse(
+        statusCode = statusCode,
+        description = description,
+        headers = listOf(componentContext.errorCodeHeaderRef()),
+        content = listOf(
+            HttpContent(
+                Https.MediaType.APPLICATION_JSON,
+                HttpSchema.TypeRef(DefaultErrorInfo::class.java),
+            )
+        ),
+    )
 }

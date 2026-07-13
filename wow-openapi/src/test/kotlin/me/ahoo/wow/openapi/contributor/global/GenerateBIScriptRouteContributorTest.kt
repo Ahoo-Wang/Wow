@@ -51,12 +51,19 @@ internal class GenerateBIScriptRouteContributorTest {
             )
         }
         contract.responses.map { it.statusCode }.assert()
-            .containsExactly(Https.Code.OK, Https.Code.BAD_REQUEST, Https.Code.UNSUPPORTED_MEDIA_TYPE)
+            .containsExactly(
+                Https.Code.OK,
+                Https.Code.BAD_REQUEST,
+                Https.Code.UNSUPPORTED_MEDIA_TYPE,
+                Https.Code.BAD_GATEWAY,
+                Https.Code.SERVICE_UNAVAILABLE,
+                Https.Code.GATEWAY_TIMEOUT,
+            )
         contract.responses.first().content.map(HttpContent::mediaType).assert().containsExactly(
             Https.MediaType.APPLICATION_SQL,
             Https.MediaType.APPLICATION_JSON,
         )
-        contract.responses.last().componentRef.assert()
+        contract.responses.single { it.statusCode == Https.Code.UNSUPPORTED_MEDIA_TYPE }.componentRef.assert()
             .isEqualTo("${Wow.WOW_PREFIX}${CommonComponent.Response.UNSUPPORTED_MEDIA_TYPE_ERROR_CODE}")
 
         val unsupportedMediaTypeResponse = componentContext.responses[
