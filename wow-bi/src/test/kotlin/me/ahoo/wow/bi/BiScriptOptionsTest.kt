@@ -225,9 +225,8 @@ class BiScriptOptionsTest {
             script = "SELECT 1",
             statements = listOf("SELECT 1"),
             diagnostics = listOf(diagnostic),
-            operation = BiScriptOperation.Deploy(),
+            operation = BiScriptOperation.Deploy,
             destructive = false,
-            manifest = BiScriptGenerator().generate(emptySet()).manifest,
         )
 
         result.script.assert().isEqualTo("SELECT 1")
@@ -235,14 +234,14 @@ class BiScriptOptionsTest {
         BiScriptDiagnosticCode.entries.assert().containsExactly(
             BiScriptDiagnosticCode.RAW_JSON_FALLBACK,
             BiScriptDiagnosticCode.MAX_DEPTH_REACHED,
-            BiScriptDiagnosticCode.MANIFEST_REQUIRED_FOR_RECONCILIATION,
+            BiScriptDiagnosticCode.INSPECTION_UNAVAILABLE,
             BiScriptDiagnosticCode.ORPHANED_DATA_TABLE,
             BiScriptDiagnosticCode.CLUSTER_INTERNAL_REPLICATION_REQUIRED,
         )
         BiScriptMappingDecision.entries.assert().containsExactly(
             BiScriptMappingDecision.RAW_JSON,
             BiScriptMappingDecision.MAX_DEPTH_RAW_JSON,
-            BiScriptMappingDecision.MANUAL_RECONCILIATION_REQUIRED,
+            BiScriptMappingDecision.RECONCILIATION_SKIPPED,
             BiScriptMappingDecision.DATA_TABLE_RETAINED,
             BiScriptMappingDecision.EXTERNAL_CONFIGURATION_REQUIRED,
         )

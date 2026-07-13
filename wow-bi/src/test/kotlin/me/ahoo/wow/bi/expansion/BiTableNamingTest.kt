@@ -46,4 +46,15 @@ class BiTableNamingTest {
         naming.toTableName(MaterializedNamedAggregate("foo-service-v2", "order"), "state")
             .assert().isEqualTo("foo_service_v2_order_state")
     }
+
+    @Test
+    fun `should normalize dotted context aliases for ClickHouse object names only`() {
+        val naming = BiTableNaming(BiScriptOptions(topicPrefix = "custom."))
+        val aggregate = MaterializedNamedAggregate("wow.api.command", "order")
+
+        naming.toTableName(aggregate, "state").assert()
+            .isEqualTo("wow_api_command_order_state")
+        naming.toTopicName(aggregate, "state").assert()
+            .isEqualTo("custom.wow.api.command.order.state")
+    }
 }

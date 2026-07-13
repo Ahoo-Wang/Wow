@@ -27,6 +27,7 @@ import org.testcontainers.clickhouse.ClickHouseContainer
 import org.testcontainers.containers.Network
 import org.testcontainers.kafka.ConfluentKafkaContainer
 import org.testcontainers.utility.DockerImageName
+import org.testcontainers.utility.MountableFile
 import java.sql.Connection
 import java.sql.DriverManager
 import java.time.Duration
@@ -51,6 +52,7 @@ class KafkaClickHouseIntegrationTest {
                         kafkaBootstrapServers = KAFKA_INTERNAL_BOOTSTRAP_SERVERS,
                         topicPrefix = TOPIC_PREFIX,
                         consumerGroupNamespace = "kafka-clickhouse-integration",
+                        kafkaOffsetStorage = KafkaOffsetStorage.KEEPER,
                     )
                     val aggregate = aggregateMetadata<ClickHouseExpansionAggregate, ClickHouseExpansionState>()
                     val naming = BiTableNaming(options)
@@ -67,14 +69,14 @@ class KafkaClickHouseIntegrationTest {
                         }
                         firstDeploy.statements.forEach { statement -> connection.executeStatement(statement) }
 
-                        connection.awaitLong("SELECT count() FROM $DATABASE.${table(firstDeploy, "command_store")}", 1)
-                        connection.awaitLong("SELECT count() FROM $DATABASE.${table(firstDeploy, "state_store")}", 2)
+                        connection.awaitLong("SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "command_store")}", 1)
+                        connection.awaitLong("SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "state_store")}", 2)
                         connection.awaitLong(
-                            "SELECT version FROM $DATABASE.${table(firstDeploy, "state_last")} " +
+                            "SELECT version FROM $DATABASE.${naming.toTableName(aggregate, "state_last")} " +
                                 "WHERE aggregate_id = '$AGGREGATE_ID'",
                             2,
                         )
-                        connection.queryCommand(firstDeploy).assert().isEqualTo(
+                        connection.queryCommand(naming.toTableName(aggregate, "command")).assert().isEqualTo(
                             CommandProjection(
                                 isVoid = true,
                                 body = "{\"value\":42}",
@@ -82,48 +84,48 @@ class KafkaClickHouseIntegrationTest {
                             )
                         )
                         connection.awaitLong(
-                            "SELECT nullable_scalar FROM $DATABASE.${table(firstDeploy, "state_last_root")} " +
+                            "SELECT nullable_scalar FROM $DATABASE.${naming.toTableName(aggregate, "state_last_root")} " +
                                 "WHERE __aggregate_id = '$AGGREGATE_ID'",
                             2,
                         )
 
                         val redeploy = generator.generate(
                             setOf(aggregate),
-                            BiScriptOperation.Deploy(firstDeploy.manifest),
+                            BiScriptOperation.Deploy,
+                            connection.inspect(options),
                         )
                         redeploy.statements.forEach { statement -> connection.executeStatement(statement) }
                         connection.queryLong(
-                            "SELECT count() FROM $DATABASE.${table(firstDeploy, "state_store")}"
+                            "SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "state_store")}"
                         ).assert().isEqualTo(2)
 
                         producer(kafka).use { producer ->
                             producer.sendJson(commandTopic, "command-2", commandMessage("command-2", 84))
                             producer.sendJson(stateTopic, "state-3", stateMessage(version = 3, scalar = 3))
                         }
-                        connection.awaitLong("SELECT count() FROM $DATABASE.${table(firstDeploy, "command_store")}", 2)
-                        connection.awaitLong("SELECT count() FROM $DATABASE.${table(firstDeploy, "state_store")}", 3)
+                        connection.awaitLong("SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "command_store")}", 2)
+                        connection.awaitLong("SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "state_store")}", 3)
 
                         val reset = generator.generate(
                             setOf(aggregate),
-                            BiScriptOperation.Reset(
-                                previousManifest = redeploy.manifest,
-                                replayFromEarliestConfirmed = true,
-                            ),
+                            BiScriptOperation.Reset(replayFromEarliestConfirmed = true),
+                            connection.inspect(options),
                         )
-                        reset.script.assert().doesNotContain(consumerIdentity(firstDeploy.script))
+                        consumerIdentity(reset.script).assert().isNotEqualTo(consumerIdentity(firstDeploy.script))
                         reset.statements.forEach { statement -> connection.executeStatement(statement) }
 
-                        connection.awaitLong("SELECT count() FROM $DATABASE.${table(reset, "command_store")}", 2)
-                        connection.awaitLong("SELECT count() FROM $DATABASE.${table(reset, "state_store")}", 3)
+                        connection.awaitLong("SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "command_store")}", 2)
+                        connection.awaitLong("SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "state_store")}", 3)
                         connection.awaitLong(
-                            "SELECT version FROM $DATABASE.${table(reset, "state_last")} " +
+                            "SELECT version FROM $DATABASE.${naming.toTableName(aggregate, "state_last")} " +
                                 "WHERE aggregate_id = '$AGGREGATE_ID'",
                             3,
                         )
 
                         val deployAfterReset = generator.generate(
                             setOf(aggregate),
-                            BiScriptOperation.Deploy(reset.manifest),
+                            BiScriptOperation.Deploy,
+                            connection.inspect(options),
                         )
                         consumerIdentity(deployAfterReset.script).assert()
                             .isEqualTo(consumerIdentity(reset.script))
@@ -131,9 +133,9 @@ class KafkaClickHouseIntegrationTest {
                         producer(kafka).use { producer ->
                             producer.sendJson(stateTopic, "state-4", stateMessage(version = 4, scalar = 4))
                         }
-                        connection.awaitLong("SELECT count() FROM $DATABASE.${table(reset, "state_store")}", 4)
+                        connection.awaitLong("SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "state_store")}", 4)
                         connection.awaitLong(
-                            "SELECT version FROM $DATABASE.${table(reset, "state_last")} " +
+                            "SELECT version FROM $DATABASE.${naming.toTableName(aggregate, "state_last")} " +
                                 "WHERE aggregate_id = '$AGGREGATE_ID'",
                             4,
                         )
@@ -152,6 +154,10 @@ class KafkaClickHouseIntegrationTest {
     private fun clickHouse(network: Network): ClickHouseContainer = ClickHouseContainer(
         DockerImageName.parse(CLICKHOUSE_IMAGE)
     ).withNetwork(network)
+        .withCopyFileToContainer(
+            MountableFile.forClasspathResource(CLICKHOUSE_CONFIG_RESOURCE),
+            CLICKHOUSE_CONFIG_PATH,
+        )
 
     private fun connection(container: ClickHouseContainer): Connection = DriverManager.getConnection(
         container.jdbcUrl,
@@ -177,7 +183,7 @@ class KafkaClickHouseIntegrationTest {
         "contextName" to "bi-integration-service",
         "aggregateName" to "nullable",
         "name" to "TestCommand",
-        "header" to emptyMap<String, String>(),
+        "header" to linkedMapOf("body" to "nested-body", "state" to "nested-state"),
         "aggregateId" to AGGREGATE_ID,
         "tenantId" to "tenant",
         "ownerId" to "owner",
@@ -196,7 +202,7 @@ class KafkaClickHouseIntegrationTest {
         "id" to "state-$version",
         "contextName" to "bi-integration-service",
         "aggregateName" to "nullable",
-        "header" to emptyMap<String, String>(),
+        "header" to linkedMapOf("body" to "nested-body", "state" to "nested-state"),
         "aggregateId" to AGGREGATE_ID,
         "tenantId" to "tenant",
         "ownerId" to "owner",
@@ -213,8 +219,30 @@ class KafkaClickHouseIntegrationTest {
         "deleted" to false,
     )
 
-    private fun table(result: BiScriptResult, suffix: String): String =
-        "${result.manifest.aggregates.single().tablePrefix}_$suffix"
+    private fun Connection.inspect(options: BiScriptOptions): BiDeploymentInspection.Available {
+        val objects = createStatement().use { statement ->
+            statement.executeQuery(
+                "SELECT database, name, engine, engine_full, create_table_query, comment " +
+                    "FROM system.tables WHERE database IN ('${options.database}', '${options.consumerDatabase}')"
+            ).use { result ->
+                buildList {
+                    while (result.next()) {
+                        add(
+                            ObservedBiObject(
+                                database = result.getString("database"),
+                                name = result.getString("name"),
+                                engine = result.getString("engine"),
+                                engineFull = result.getString("engine_full"),
+                                createTableQuery = result.getString("create_table_query"),
+                                metadata = BiObjectMetadataCodec.decode(result.getString("comment")),
+                            )
+                        )
+                    }
+                }
+            }
+        }
+        return BiDeploymentInspection.Available(ObservedBiDeployment(objects))
+    }
 
     private fun consumerIdentity(script: String): String = requireNotNull(
         Regex("wow-bi\\.([0-9a-f]{32})\\.").find(script)?.groupValues?.get(1)
@@ -244,11 +272,11 @@ class KafkaClickHouseIntegrationTest {
         actual.assert().isEqualTo(expected)
     }
 
-    private fun Connection.queryCommand(result: BiScriptResult): CommandProjection =
+    private fun Connection.queryCommand(table: String): CommandProjection =
         createStatement().use { statement ->
             statement.executeQuery(
                 "SELECT is_void, body, toUnixTimestamp64Milli(create_time) " +
-                    "FROM $DATABASE.${table(result, "command")} WHERE id = 'command-1'"
+                    "FROM $DATABASE.$table WHERE id = 'command-1'"
             ).use { rows ->
                 check(rows.next()) { "Command row was not found" }
                 CommandProjection(
@@ -267,6 +295,8 @@ class KafkaClickHouseIntegrationTest {
 
     private companion object {
         const val CLICKHOUSE_IMAGE = "clickhouse/clickhouse-server:24.8.14.39-alpine"
+        const val CLICKHOUSE_CONFIG_RESOURCE = "clickhouse-test-cluster.xml"
+        const val CLICKHOUSE_CONFIG_PATH = "/etc/clickhouse-server/config.d/wow-bi-test.xml"
         const val DATABASE = "bi_kafka_it"
         const val CONSUMER_DATABASE = "bi_kafka_it_consumer"
         const val KAFKA_NETWORK_ALIAS = "kafka"

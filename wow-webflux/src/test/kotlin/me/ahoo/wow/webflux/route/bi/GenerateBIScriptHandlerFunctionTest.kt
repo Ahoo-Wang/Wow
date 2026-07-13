@@ -22,10 +22,12 @@ import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.AggregateRoot
+import me.ahoo.wow.bi.BiDeploymentInspection
 import me.ahoo.wow.bi.BiScriptDiagnostic
 import me.ahoo.wow.bi.BiScriptGenerator
 import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.bi.ClickHouseTopology
+import me.ahoo.wow.bi.ObservedBiDeployment
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.configuration.NamedAggregateTypeSearcher
 import me.ahoo.wow.configuration.TypeNamedAggregateSearcher
@@ -33,10 +35,8 @@ import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.bi.BiScriptOperationMode
 import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
-import me.ahoo.wow.openapi.contract.bi.BiScriptResponse
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyMode
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyRequest
-import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunction
 import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testGlobalRouteContract
@@ -118,7 +118,7 @@ class GenerateBIScriptHandlerFunctionTest {
     }
 
     @Test
-    fun `should return structured diagnostics and manifest when JSON is requested`() {
+    fun `should return structured diagnostics without a deployment manifest when JSON is requested`() {
         val request = MockServerRequest.builder()
             .header("Accept", MediaType.APPLICATION_JSON_VALUE)
             .body(BiScriptRequest().toMono())
@@ -128,7 +128,8 @@ class GenerateBIScriptHandlerFunctionTest {
                 response.headers().contentType.assert().isEqualTo(MediaType.APPLICATION_JSON)
                 response.headers().getFirst("Wow-BI-Diagnostic-Count").assert().isNotNull()
                 response.writeBody().assert()
-                    .contains("\"script\"", "\"diagnostics\"", "\"manifest\"")
+                    .contains("\"script\"", "\"diagnostics\"")
+                    .doesNotContain("\"manifest\"")
             }
             .verifyComplete()
     }
@@ -153,19 +154,14 @@ class GenerateBIScriptHandlerFunctionTest {
 
     @Test
     fun `should expose explicit destructive reset over HTTP`() {
-        val handler = GenerateBIScriptHandlerFunction(BASE_OPTIONS)
-        val deployBody = handler.handle(
-            MockServerRequest.builder()
-                .header("Accept", MediaType.APPLICATION_JSON_VALUE)
-                .body(BiScriptRequest().toMono())
-        ).block()!!.writeBody()
-        val previousManifest = JsonSerializer.readValue(deployBody, BiScriptResponse::class.java).manifest
+        val handler = GenerateBIScriptHandlerFunction(BASE_OPTIONS) {
+            Mono.just(BiDeploymentInspection.Available(ObservedBiDeployment(emptyList())))
+        }
         val request = MockServerRequest.builder()
             .header("Accept", MediaType.APPLICATION_JSON_VALUE)
             .body(
                 BiScriptRequest(
                     operation = BiScriptOperationMode.RESET,
-                    previousManifest = previousManifest,
                     replayFromEarliestConfirmed = true,
                 ).toMono()
             )
@@ -173,6 +169,24 @@ class GenerateBIScriptHandlerFunctionTest {
         val body = handler.handle(request).block()!!.writeBody()
         body.assert()
             .contains("\"destructive\":true", "DROP TABLE IF EXISTS", "_state_last_store")
+    }
+
+    @Test
+    fun `should reject reset when the default no-op inspector cannot observe ownership`() {
+        val request = MockServerRequest.builder()
+            .body(
+                BiScriptRequest(
+                    operation = BiScriptOperationMode.RESET,
+                    replayFromEarliestConfirmed = true,
+                ).toMono()
+            )
+
+        GenerateBIScriptHandlerFunction(BASE_OPTIONS).handle(request).test()
+            .expectErrorMatches {
+                it is IllegalArgumentException &&
+                    it.message == "RESET requires an available BI deployment inspection"
+            }
+            .verify()
     }
 
     @Test
@@ -194,7 +208,7 @@ class GenerateBIScriptHandlerFunctionTest {
                 consumerGroupNamespace = "test",
             )
             val generated = BiScriptGenerator(options).generate(setOf(aggregate))
-            generated.diagnostics.assert().hasSize(2)
+            generated.diagnostics.assert().hasSize(3)
 
             lateinit var response: ServerResponse
             val warnings = captureHandlerWarnings {

@@ -441,7 +441,7 @@ curl -X POST 'http://localhost:8080/wow/bi/script' \
 }
 ```
 
-提供 `topology` 时必须提供 `topology.mode`。`STANDALONE` 拒绝 `cluster` 对象。无效 JSON、空请求体、超过长度限制的非 `null` override、其他无效选项值或无效拓扑组合返回 `400`；缺少或不支持的请求 `Content-Type` 返回 `415`。OpenAPI 声明公共 `wow.UnsupportedMediaType` response，运行时使用 `Wow-Error-Code: UnsupportedMediaType`。响应会遵循 `Accept` 的 quality value；JSON 返回 SQL、诊断、destructive 标记和部署 manifest，SQL 与通配符返回 SQL。应持久化 manifest，并在后续操作中作为 `previousManifest` 提交。已移除聚合会一直保留在 `manifest.retainedAggregates`，直到重新启用或被删除。`RESET` 同时要求当前 `previousManifest` 与 `replayFromEarliestConfirmed=true`；它会删除当前及保留的 orphan BI store 表，创建由后续 Deploy 继承的新 consumer generation。
+提供 `topology` 时必须提供 `topology.mode`。`STANDALONE` 拒绝 `cluster` 对象。无效 JSON、空请求体、超过长度限制的非 `null` override、其他无效选项值或无效拓扑组合返回 `400`；缺少或不支持的请求 `Content-Type` 返回 `415`。OpenAPI 声明公共 `wow.UnsupportedMediaType` response，运行时使用 `Wow-Error-Code: UnsupportedMediaType`。响应会遵循 `Accept` 的 quality value；JSON 返回 SQL、诊断与 destructive 标记，SQL 与通配符返回 SQL。调用方不再提交 manifest。默认 NoOp inspector 允许离线 `DEPLOY` 并返回未对账诊断，但拒绝 `RESET`；注册 ClickHouse inspector 后，服务从 catalog ownership marker 恢复 identity、清理旧对象，并在 `replayFromEarliestConfirmed=true` 时执行 Reset。
 
 结构化结果诊断、当前展开语义与无损映射参见[商业智能](./bi)。
 

@@ -171,7 +171,17 @@ class ClickHouseScriptRendererTest {
         stateEvent.assert().hasSize(8)
         stateLast.assert().hasSize(5)
         command.joinToString("\n").assert()
-            .contains("simpleJSONExtractRaw(\"data\", 'body') AS \"body\"")
+            .contains(
+                "simpleJSONExtractRaw(replaceOne(\"data\", " +
+                    "concat('\"header\":', simpleJSONExtractRaw(\"data\", 'header')), " +
+                    "'\"header\":{}'), 'body') AS \"body\""
+            )
+        stateEvent.joinToString("\n").assert()
+            .contains(
+                "simpleJSONExtractRaw(replaceOne(\"data\", " +
+                    "concat('\"header\":', simpleJSONExtractRaw(\"data\", 'header')), " +
+                    "'\"header\":{}'), 'state') AS \"state\""
+            )
         clear.assert().containsExactly(
             "DROP VIEW IF EXISTS \"bi_db_consumer\".\"bi_aggregate_command_consumer\" ON CLUSTER '{cluster}' SYNC;",
             "DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_aggregate_command_queue\" ON CLUSTER '{cluster}' SYNC;",
@@ -321,7 +331,7 @@ class ClickHouseScriptRendererTest {
         )
         script.assert().contains("\"__source\".\"version\" AS \"copied_version\"")
         script.assert().contains(
-            "FROM \"bi\\\"db\".\"source\\\\table\" AS \"__source\";"
+            "FROM \"bi\\\"db\".\"source\\\\table\" AS \"__source\""
         )
     }
 
@@ -400,7 +410,7 @@ class ClickHouseScriptRendererTest {
             "JSONExtract(\"__source\".\"state\", 'id', 'String') AS \"id\""
         )
         script.assert().contains("\"__source\".\"id\" AS \"__id\"")
-        script.assert().contains("FROM \"bi_db\".\"source\" AS \"__source\";")
+        script.assert().contains("FROM \"bi_db\".\"source\" AS \"__source\"")
     }
 
     @Test

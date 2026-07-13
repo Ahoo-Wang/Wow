@@ -4940,61 +4940,6 @@
         "required" : [ "afterId", "size" ],
         "type" : "object"
       },
-      "wow.openapi.BiAggregateManifestContract" : {
-        "properties" : {
-          "aggregate" : {
-            "type" : "string"
-          },
-          "expansionViews" : {
-            "items" : {
-              "type" : "string"
-            },
-            "type" : "array"
-          },
-          "tablePrefix" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "aggregate", "expansionViews", "tablePrefix" ],
-        "type" : "object"
-      },
-      "wow.openapi.BiDeploymentManifestContract" : {
-        "properties" : {
-          "consumerDatabase" : {
-            "type" : "string"
-          },
-          "consumerGroupNamespace" : {
-            "anyOf" : [ {
-              "type" : "null"
-            }, {
-              "type" : "string"
-            } ]
-          },
-          "database" : {
-            "type" : "string"
-          },
-          "kafkaBootstrapServers" : {
-            "type" : "string"
-          },
-          "kafkaKeeperPathPrefix" : {
-            "type" : "string"
-          },
-          "kafkaOffsetStorage" : {
-            "$ref" : "#/components/schemas/wow.openapi.BiScriptKafkaOffsetStorage"
-          },
-          "timezone" : {
-            "type" : "string"
-          },
-          "topicPrefix" : {
-            "type" : "string"
-          },
-          "topology" : {
-            "$ref" : "#/components/schemas/wow.openapi.BiScriptTopologyRequest"
-          }
-        },
-        "required" : [ "consumerDatabase", "consumerGroupNamespace", "database", "kafkaBootstrapServers", "kafkaKeeperPathPrefix", "kafkaOffsetStorage", "timezone", "topicPrefix", "topology" ],
-        "type" : "object"
-      },
       "wow.openapi.BiScriptClusterRequest" : {
         "properties" : {
           "installation" : {
@@ -5038,43 +4983,6 @@
         "required" : [ "aggregate", "code", "decision", "message", "path", "sourceType" ],
         "type" : "object"
       },
-      "wow.openapi.BiScriptKafkaOffsetStorage" : {
-        "enum" : [ "BROKER", "KEEPER" ],
-        "type" : "string"
-      },
-      "wow.openapi.BiScriptManifestContract" : {
-        "properties" : {
-          "aggregates" : {
-            "items" : {
-              "$ref" : "#/components/schemas/wow.openapi.BiAggregateManifestContract"
-            },
-            "type" : "array"
-          },
-          "consumerGeneration" : {
-            "format" : "uuid",
-            "type" : "string"
-          },
-          "deployment" : {
-            "$ref" : "#/components/schemas/wow.openapi.BiDeploymentManifestContract"
-          },
-          "formatVersion" : {
-            "format" : "int32",
-            "type" : "integer"
-          },
-          "layoutVersion" : {
-            "format" : "int32",
-            "type" : "integer"
-          },
-          "retainedAggregates" : {
-            "items" : {
-              "$ref" : "#/components/schemas/wow.openapi.BiAggregateManifestContract"
-            },
-            "type" : "array"
-          }
-        },
-        "required" : [ "aggregates", "consumerGeneration", "deployment", "formatVersion", "layoutVersion", "retainedAggregates" ],
-        "type" : "object"
-      },
       "wow.openapi.BiScriptOperationMode" : {
         "enum" : [ "DEPLOY", "RESET" ],
         "type" : "string"
@@ -5112,13 +5020,6 @@
           },
           "operation" : {
             "$ref" : "#/components/schemas/wow.openapi.BiScriptOperationMode"
-          },
-          "previousManifest" : {
-            "anyOf" : [ {
-              "type" : "null"
-            }, {
-              "$ref" : "#/components/schemas/wow.openapi.BiScriptManifestContract"
-            } ]
           },
           "replayFromEarliestConfirmed" : {
             "anyOf" : [ {
@@ -5169,14 +5070,11 @@
             },
             "type" : "array"
           },
-          "manifest" : {
-            "$ref" : "#/components/schemas/wow.openapi.BiScriptManifestContract"
-          },
           "script" : {
             "type" : "string"
           }
         },
-        "required" : [ "destructive", "diagnostics", "manifest", "script" ],
+        "required" : [ "destructive", "diagnostics", "script" ],
         "type" : "object"
       },
       "wow.openapi.BiScriptTopologyMode" : {

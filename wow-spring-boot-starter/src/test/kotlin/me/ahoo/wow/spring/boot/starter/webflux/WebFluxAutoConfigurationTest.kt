@@ -18,9 +18,12 @@ import io.mockk.spyk
 import me.ahoo.cosid.machine.HostAddressSupplier
 import me.ahoo.cosid.machine.LocalHostAddressSupplier
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.bi.BiDeploymentInspection
+import me.ahoo.wow.bi.BiDeploymentInspector
 import me.ahoo.wow.bi.BiScriptGenerator
 import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.bi.ClickHouseTopology
+import me.ahoo.wow.bi.NoOpBiDeploymentInspector
 import me.ahoo.wow.bi.UnsupportedTypeStrategy
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.wait.CommandWaitNotifier
@@ -427,6 +430,20 @@ internal class WebFluxAutoConfigurationTest {
     }
 
     @Test
+    fun `should reject BI reset when the default inspector is no-op`() {
+        webFluxContextRunner().run { context ->
+            context.biScriptClient().post()
+                .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("""{"operation":"RESET","replayFromEarliestConfirmed":true}""")
+                .exchange()
+                .expectStatus().isBadRequest
+                .expectBody(String::class.java)
+                .value { body -> body.assert().contains("RESET requires an available BI deployment inspection") }
+        }
+    }
+
+    @Test
     fun `should accept a BI request database at the domain maximum length`() {
         val database = "d".repeat(BiScriptOptions.MAX_DATABASE_LENGTH)
 
@@ -517,6 +534,8 @@ internal class WebFluxAutoConfigurationTest {
                     BiScriptProperties(enabled = true, consumerGroupNamespace = "test")
                 )
                 context.assert().hasSingleBean(GlobalRouteModule::class.java)
+                context.getBean(BiDeploymentInspector::class.java).assert()
+                    .isSameAs(NoOpBiDeploymentInspector)
                 context.getBeanNamesForType(GlobalRouteModule::class.java)
                     .assert()
                     .containsExactly("globalRouteModule")
@@ -531,6 +550,18 @@ internal class WebFluxAutoConfigurationTest {
                     BiScriptGenerator(BiScriptOptions(consumerGroupNamespace = "test"))
                         .generate(MetadataSearcher.localAggregates).script
                 )
+            }
+    }
+
+    @Test
+    fun `should back off the default BI deployment inspector`() {
+        val customInspector = BiDeploymentInspector {
+            Mono.just(BiDeploymentInspection.Available(me.ahoo.wow.bi.ObservedBiDeployment(emptyList())))
+        }
+        webFluxContextRunner()
+            .withBean(BiDeploymentInspector::class.java, { customInspector })
+            .run { context ->
+                context.getBean(BiDeploymentInspector::class.java).assert().isSameAs(customInspector)
             }
     }
 

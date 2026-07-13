@@ -164,18 +164,18 @@ curl -X 'GET' \
 
 ### Generate BI Sync Script
 
-`POST /wow/bi/script` generates ClickHouse synchronization and expansion SQL for the current local aggregates. It requires an `application/json` request body. The OpenAPI schema lists deployment overrides plus `operation`, `previousManifest`, and `replayFromEarliestConfirmed`; nested cluster fields are only `name` and `installation`. It also lists the enum values `DEPLOY` / `RESET`, `CLUSTER` / `STANDALONE`, and `FAIL` / `RAW_JSON`. A request may lower `maxExpansionDepth`, but cannot exceed the server-configured value, which is the endpoint's safety ceiling.
+`POST /wow/bi/script` generates ClickHouse synchronization and expansion SQL for the current local aggregates. It requires an `application/json` request body. The OpenAPI schema lists deployment overrides plus `operation` and `replayFromEarliestConfirmed`; `previousManifest` is no longer part of the contract. Nested cluster fields are only `name` and `installation`. It also lists the enum values `DEPLOY` / `RESET`, `CLUSTER` / `STANDALONE`, and `FAIL` / `RAW_JSON`. A request may lower `maxExpansionDepth`, but cannot exceed the server-configured value, which is the endpoint's safety ceiling.
 
 The same maximum lengths apply to server configuration and every non-null request override: `database` 128 characters, `consumerDatabase` 128, `timezone` 64, `topicPrefix` 128, `kafkaBootstrapServers` 4096, and `topology.cluster.name` and `topology.cluster.installation` 128 each. A value exactly at its limit is accepted. A longer server value fails application startup; a longer override returns `400`.
 
 | Status | `Content-Type` | Body |
 |--------|----------------|------|
 | `200` | `application/sql` | SQL text only |
-| `200` | `application/json` | SQL, destructive flag, diagnostics, and the next deployment manifest |
+| `200` | `application/json` | SQL, destructive flag, and diagnostics |
 | `400` | Error response | Empty or invalid JSON body, over-limit override, another invalid option value, or invalid topology combination |
 | `415` | Common `wow.UnsupportedMediaType` response | Missing or unsupported request `Content-Type`; runtime `Wow-Error-Code` is `UnsupportedMediaType` |
 
-`{}` performs a first `DEPLOY` with the server-side options unchanged. Persist the returned JSON manifest and submit it as `previousManifest` on subsequent operations. `RESET` requires that manifest plus `replayFromEarliestConfirmed=true` and is the only destructive operation. When `topology` is present, `topology.mode` is mandatory. In `CLUSTER` mode, omitted cluster fields inherit the current Cluster server base, or the domain Cluster defaults when the server base is Standalone. `STANDALONE` rejects a `cluster` object. The legacy `GET` method has no route for this path and returns `404`.
+`{}` performs `DEPLOY` with the server-side options unchanged; callers do not persist deployment history. The default NoOp inspector returns an unreconciled diagnostic, while a registered ClickHouse inspector restores history from the catalog. `RESET` only carries `replayFromEarliestConfirmed=true`, but returns `400` unless inspection is available. When `topology` is present, `topology.mode` is mandatory. In `CLUSTER` mode, omitted cluster fields inherit the current Cluster server base, or the domain Cluster defaults when the server base is Standalone. `STANDALONE` rejects a `cluster` object. The legacy `GET` method has no route for this path and returns `404`.
 
 ::: code-group
 

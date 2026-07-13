@@ -40,7 +40,7 @@ val sql: String = result.script
 val diagnostics: List<BiScriptDiagnostic> = result.diagnostics
 ```
 
-The public contract also includes `BiScriptOperation`, `BiScriptManifest`, `BiDeploymentManifest`, `BiAggregateManifest`, and `KafkaOffsetStorage`. Normal generation uses non-destructive `Deploy`; pass the previous manifest to reconcile removed expansion views. `Reset` is the only destructive operation, requires the active manifest plus explicit confirmation that the new Kafka group replays from earliest, and creates its generation identity internally.
+The public contract also includes `BiScriptOperation`, `BiDeploymentInspector`, `BiDeploymentInspection`, `ObservedBiDeployment`, and `KafkaOffsetStorage`. Callers no longer persist or submit a manifest. `Deploy` reconciles against ownership markers in the ClickHouse catalog. `Reset` is the only operation that drops data stores and requires explicit confirmation that the new Kafka group replays from earliest.
 
 `BiScriptResult` contains:
 
@@ -48,7 +48,6 @@ The public contract also includes `BiScriptOperation`, `BiScriptManifest`, `BiDe
 |-------|---------|
 | `script` | Complete ClickHouse deployment SQL. `Deploy` preserves data tables; `Reset` contains destructive clear statements. |
 | `diagnostics` | An immutable diagnostic list with stable aggregate and property-path ordering. |
-| `manifest` | The object inventory and consumer-group namespace to persist for the next deployment. |
 | `destructive` | Whether the generated operation drops data tables. |
 
 Each `BiScriptDiagnostic` contains `code`, `aggregate`, `path`, `sourceType`, `decision`, and `message`. The current diagnostic protocol contains only:
@@ -57,6 +56,7 @@ Each `BiScriptDiagnostic` contains `code`, `aggregate`, `path`, `sourceType`, `d
 |--------|------------|---------|
 | `RAW_JSON_FALLBACK` | `RAW_JSON` | An unsupported property uses a scoped JSON convenience projection and authoritative `__state` recovery. |
 | `MAX_DEPTH_REACHED` | `MAX_DEPTH_RAW_JSON` | The maximum expansion depth was reached, so the same recovery contract is used. |
+| `INSPECTION_UNAVAILABLE` | `RECONCILIATION_SKIPPED` | The inspector is unavailable, so only current desired state is generated and stale reconciliation is not claimed. |
 | `ORPHANED_DATA_TABLE` | `DATA_TABLE_RETAINED` | A removed aggregate had its consumers and views retired while its data tables were deliberately preserved. |
 | `CLUSTER_INTERNAL_REPLICATION_REQUIRED` | `EXTERNAL_CONFIGURATION_REQUIRED` | Cluster server configuration must enable `internal_replication=true`. |
 
@@ -101,15 +101,25 @@ Or select Cluster topology, inherit omitted cluster fields from the server base,
 
 The server configuration and every non-null `POST` override use the same maximum lengths: `database` 128 characters, `consumerDatabase` 128, `timezone` 64, `topicPrefix` 128, `kafkaBootstrapServers` 4096, and each of `topology.cluster.name` and `topology.cluster.installation` 128. A value exactly at its limit is accepted. A longer server value fails application startup, while a longer request override returns `400`. `maxExpansionDepth` is governed separately: the server-configured value is the ceiling for an HTTP override.
 
-When `topology` is present, `topology.mode` is mandatory. In `CLUSTER` mode, omitted `cluster` fields inherit the current Cluster base, or the domain Cluster defaults when the server base is Standalone. `STANDALONE` rejects a `cluster` object. An invalid or empty body returns `400`; a missing or unsupported `Content-Type` returns `415`. `Accept` quality values are honored; JSON returns the structured result including diagnostics and manifest, while SQL and wildcards return only `result.script`. Generation runs on the bounded-elastic scheduler. Persist the manifest and send it as `previousManifest` on the next `DEPLOY`. The complete deployment fingerprint cannot change during `Deploy`. Removed aggregates remain in `manifest.retainedAggregates` across Deploy operations so their retained stores remain owned and discoverable until Reset deletes them; reactivating an aggregate removes its tombstone.
+When `topology` is present, `topology.mode` is mandatory. In `CLUSTER` mode, omitted `cluster` fields inherit the current Cluster base, or the domain Cluster defaults when the server base is Standalone. `STANDALONE` rejects a `cluster` object. An invalid or empty body returns `400`; a missing or unsupported `Content-Type` returns `415`. `Accept` quality values are honored; JSON returns SQL, diagnostics, and the destructive flag, while SQL and wildcards return only `result.script`. Generation runs on the bounded-elastic scheduler.
 
-To intentionally rebuild all BI data, send `operation=RESET`, the active deployment's `previousManifest`, and `replayFromEarliestConfirmed=true`. The manifest lets Reset remove both current stores and retained orphan stores. Reset creates a fresh internal consumer generation, returns it in manifest layout 5, and subsequent Deploy operations inherit it. Layout 5 is intentionally incompatible with earlier layouts, so upgrades require a fresh database.
+This version injects `NoOpBiDeploymentInspector` by default. It returns explicit `Unavailable`: ordinary `DEPLOY` remains available for offline generation but emits `INSPECTION_UNAVAILABLE` and cannot clean up stale consumers or views; `RESET` is rejected. For full reconciliation, register a `ClickHouseBiDeploymentInspector` bean with a `WebClient` that has the target base URL and credentials. The default bean backs off automatically. Errors from a real inspector are propagated and never degraded to NoOp.
+
+To intentionally rebuild all BI data, send `operation=RESET` with `replayFromEarliestConfirmed=true`. Only an available inspector can enumerate all owned catalog objects, so Reset first removes current and orphan stores and then creates a fresh consumer identity. Every generated object and a zero-row deployment anchor store version, deployment fingerprint, aggregate owner, object kind, and identity in `system.tables.comment`. Service restarts recover from that catalog state without Wow service memory or an external manifest.
 
 ## Generated SQL Contract
 
 The following fragments show only stable structure. Actual database names, deployment topology, Kafka address, topic, and aggregate table names come from `BiScriptOptions` and aggregate metadata.
 
 Generated BI SQL requires ClickHouse 24.8 LTS or later. The module integration suite pins the minimum line to a 24.8 image.
+
+### Kafka Offset Lifecycle
+
+ClickHouse 24.8 initializes a new Kafka consumer group with `auto.offset.reset=earliest`. Operators may override it through the server-side `<kafka><consumer><auto_offset_reset>` configuration. The first deployment and every `Reset` must keep that value at `earliest` (or the librdkafka synonym `smallest`) so a fresh consumer generation does not skip existing messages. `replayFromEarliestConfirmed=true` confirms this external precondition for a destructive Reset; generated table DDL cannot inspect or override it.
+
+`KafkaOffsetStorage.KEEPER` adds `kafka_keeper_path` and `kafka_replica_name` as Kafka-engine settings and emits the separate CREATE-query setting `allow_experimental_kafka_offsets_storage_in_keeper=1`. ClickHouse 24.8 still marks Keeper-backed Kafka offsets experimental, and the target ClickHouse server must have a reachable Keeper configuration.
+
+Context aliases remain unchanged in Kafka topic names. For ClickHouse object names, `.` and `-` in the context alias are normalized to `_`; for example, `wow.api.command.order` uses the table prefix `wow_api_command_order`. Generation fails when two logical aggregates normalize to the same object name.
 
 ### Deployment Topologies
 
@@ -182,8 +192,14 @@ CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command_store_local" ON CLUSTE
 
 SELECT JSONExtractString("data", 'ownerId') AS "owner_id",
        JSONExtractString("data", 'spaceId') AS "space_id",
-       JSONExtractString("data", 'body') AS "body";
+       simpleJSONExtractRaw(
+           replaceOne("data",
+                      concat('"header":', simpleJSONExtractRaw("data", 'header')),
+                      '"header":{}'),
+           'body') AS "body";
 ```
+
+The lexical extractor masks the top-level `header` before reading `body`, so a nested header key named `body` cannot shadow the command payload. Unlike a full JSON parse and reserialization, this preserves the original body token.
 
 ### Full State Events
 
@@ -201,6 +217,8 @@ WITH arrayJoin(arrayZip(arrayEnumerate("body"), "body")) AS "events"
 SELECT "events".1 AS "event_sequence",
        JSONExtract("events".2, 'body', 'String') AS "event_body";
 ```
+
+The same header-masking lexical extraction is used for top-level `state`, preventing a nested header key named `state` from replacing the authoritative state token.
 
 The writable state store is partitioned monthly by `create_time` and ordered by `(aggregate_id, version)`. Standalone mode writes `example_order_state_store`; cluster mode writes through the distributed store into `example_order_state_store_local`. `example_order_state` is always a deduplicated read view.
 

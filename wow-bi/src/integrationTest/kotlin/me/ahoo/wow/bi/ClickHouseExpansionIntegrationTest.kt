@@ -154,16 +154,23 @@ class ClickHouseExpansionIntegrationTest {
     }
 
     private fun Connection.assertJsonExtractionSemantics() {
+        val unicodeEscape = "\\u0041"
+        val payload =
+            """{"header":{"state":{"wrong":1}},"state": { "n" : 1.2300e+04, "u":"$unicodeEscape" },"isVoid":true,"createTime":-1}"""
         queryRows(
             """
-            SELECT simpleJSONExtractRaw('{"state": { "x" : 1 }, "isVoid": true, "createTime": -1}', 'state') AS raw,
+            WITH ${literal(payload)} AS data,
+                 replaceOne(data,
+                            concat('"header":', simpleJSONExtractRaw(data, 'header')),
+                            '"header":{}') AS data_without_header
+            SELECT simpleJSONExtractRaw(data_without_header, 'state') AS raw,
                    JSONExtractBool('{"state":{},"isVoid":true}', 'isVoid') AS is_void,
                    toUnixTimestamp64Milli(toDateTime64(JSONExtractInt('{"createTime":-1}', 'createTime') / 1000.0, 3, 'UTC')) AS epoch
             """.trimIndent(),
             listOf("raw", "is_void", "epoch"),
         ).single().assert().isEqualTo(
             mapOf(
-                "raw" to " { \"x\" : 1 }",
+                "raw" to " { \"n\" : 1.2300e+04, \"u\":\"$unicodeEscape\" }",
                 "is_void" to "1",
                 "epoch" to "-1",
             )
@@ -236,6 +243,11 @@ class ClickHouseExpansionIntegrationTest {
             valueTransform = { it.required("name") },
         ).mapValues { (_, names) -> names.toSet() }
             .assert().isEqualTo(expectedGeneratedObjects(case.topology))
+        queryRows(
+            sql = "SELECT comment FROM system.tables " +
+                "WHERE database IN (${literal(DATABASE)}, ${literal(CONSUMER_DATABASE)})",
+            columns = listOf("comment"),
+        ).map { it.required("comment") }.all { it.startsWith("wow-bi:") }.assert().isTrue()
 
         if (case.topology == ClickHouseTopology.Standalone) {
             val forbiddenPredicates = (
@@ -636,6 +648,7 @@ class ClickHouseExpansionIntegrationTest {
                 ESCAPED_CHILD_VIEW,
             ),
             CONSUMER_DATABASE to setOf(
+                "__wow_bi_deployment",
                 "${COMMAND_TABLE}_queue",
                 "${COMMAND_TABLE}_consumer",
                 "${STATE_TABLE}_queue",
@@ -659,6 +672,7 @@ class ClickHouseExpansionIntegrationTest {
                 ESCAPED_CHILD_VIEW,
             ),
             CONSUMER_DATABASE to setOf(
+                "__wow_bi_deployment",
                 "${COMMAND_TABLE}_queue",
                 "${COMMAND_TABLE}_consumer",
                 "${STATE_TABLE}_queue",

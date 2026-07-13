@@ -12,6 +12,8 @@
  */
 package me.ahoo.wow.spring.boot.starter.webflux
 
+import me.ahoo.wow.bi.BiDeploymentInspector
+import me.ahoo.wow.bi.NoOpBiDeploymentInspector
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.command.wait.WaitCoordinator
@@ -275,12 +277,18 @@ class WebFluxAutoConfiguration {
     internal fun globalRouteModule(
         kafkaProperties: ObjectProvider<KafkaProperties>,
         biScriptProperties: BiScriptProperties,
+        biDeploymentInspector: BiDeploymentInspector,
     ): GlobalRouteModule {
         return GlobalRouteModule(
             options = biScriptProperties.toBiScriptOptions(kafkaProperties.getIfAvailable()),
             biScriptEnabled = biScriptProperties.enabled,
+            deploymentInspector = biDeploymentInspector,
         )
     }
+
+    @Bean
+    @ConditionalOnMissingBean(BiDeploymentInspector::class)
+    fun biDeploymentInspector(): BiDeploymentInspector = NoOpBiDeploymentInspector
 
     @Bean
     fun routeHandlerFunctionRegistrar(

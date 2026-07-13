@@ -33,15 +33,22 @@ class BiPublicApiTest {
             .sorted()
 
         publicTypes.assert().containsExactly(
-            BiAggregateManifest::class.qualifiedName,
-            BiAggregateManifest.Companion::class.qualifiedName,
-            BiDeploymentManifest::class.qualifiedName,
-            BiManifestTopology::class.qualifiedName,
+            BiConsumerIdentity::class.qualifiedName,
+            BiConsumerIdentity.Companion::class.qualifiedName,
+            BiDeploymentDescriptor::class.qualifiedName,
+            BiDeploymentDescriptor.Companion::class.qualifiedName,
+            BiDeploymentInspection::class.qualifiedName,
+            BiDeploymentInspection.Available::class.qualifiedName,
+            BiDeploymentInspection.Unavailable::class.qualifiedName,
+            BiDeploymentInspector::class.qualifiedName,
+            BiObjectKey::class.qualifiedName,
+            BiObjectKind::class.qualifiedName,
+            BiObjectMetadata::class.qualifiedName,
+            BiObjectMetadata.Companion::class.qualifiedName,
+            BiObjectMetadataCodec::class.qualifiedName,
             BiScriptDiagnostic::class.qualifiedName,
             BiScriptDiagnosticCode::class.qualifiedName,
             BiScriptGenerator::class.qualifiedName,
-            BiScriptManifest::class.qualifiedName,
-            BiScriptManifest.Companion::class.qualifiedName,
             BiScriptMappingDecision::class.qualifiedName,
             BiScriptOperation::class.qualifiedName,
             BiScriptOperation.Deploy::class.qualifiedName,
@@ -54,6 +61,9 @@ class BiPublicApiTest {
             ClickHouseTopology.Cluster.Companion::class.qualifiedName,
             ClickHouseTopology.Standalone::class.qualifiedName,
             KafkaOffsetStorage::class.qualifiedName,
+            NoOpBiDeploymentInspector::class.qualifiedName,
+            ObservedBiDeployment::class.qualifiedName,
+            ObservedBiObject::class.qualifiedName,
             UnsupportedTypeStrategy::class.qualifiedName,
         )
     }

@@ -14,26 +14,19 @@
 package me.ahoo.wow.webflux.route.global
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import me.ahoo.wow.bi.BiManifestTopology
+import me.ahoo.wow.bi.BiDeploymentInspector
 import me.ahoo.wow.bi.BiScriptDiagnostic
 import me.ahoo.wow.bi.BiScriptGenerator
 import me.ahoo.wow.bi.BiScriptOperation
 import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.bi.BiScriptResult
-import me.ahoo.wow.bi.KafkaOffsetStorage
+import me.ahoo.wow.bi.NoOpBiDeploymentInspector
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
-import me.ahoo.wow.openapi.contract.bi.BiAggregateManifestContract
-import me.ahoo.wow.openapi.contract.bi.BiDeploymentManifestContract
-import me.ahoo.wow.openapi.contract.bi.BiScriptClusterRequest
 import me.ahoo.wow.openapi.contract.bi.BiScriptDiagnosticResponse
-import me.ahoo.wow.openapi.contract.bi.BiScriptKafkaOffsetStorage
-import me.ahoo.wow.openapi.contract.bi.BiScriptManifestContract
 import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
 import me.ahoo.wow.openapi.contract.bi.BiScriptResponse
-import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyMode
-import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyRequest
 import me.ahoo.wow.webflux.route.NoMetadataRouteHandlerFunctionFactorySupport
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -44,7 +37,10 @@ import reactor.core.scheduler.Schedulers
 
 private val APPLICATION_SQL_MEDIA_TYPE = MediaType.parseMediaType("application/sql")
 
-class GenerateBIScriptHandlerFunction(private val options: BiScriptOptions) : HandlerFunction<ServerResponse> {
+class GenerateBIScriptHandlerFunction(
+    private val options: BiScriptOptions,
+    private val deploymentInspector: BiDeploymentInspector = NoOpBiDeploymentInspector,
+) : HandlerFunction<ServerResponse> {
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return request.bodyToMono(BiScriptRequest::class.java)
             .switchIfEmpty(Mono.error(IllegalArgumentException("BI script request body must not be empty")))
@@ -61,9 +57,11 @@ class GenerateBIScriptHandlerFunction(private val options: BiScriptOptions) : Ha
         request: ServerRequest,
         requestOptions: BiScriptOptions,
         operation: BiScriptOperation,
-    ): Mono<ServerResponse> = Mono.fromCallable {
-        BiScriptGenerator(requestOptions).generate(MetadataSearcher.localAggregates, operation)
-    }.subscribeOn(Schedulers.boundedElastic()).flatMap { result ->
+    ): Mono<ServerResponse> = deploymentInspector.inspect(requestOptions).flatMap { inspection ->
+        Mono.fromCallable {
+            BiScriptGenerator(requestOptions).generate(MetadataSearcher.localAggregates, operation, inspection)
+        }.subscribeOn(Schedulers.boundedElastic())
+    }.flatMap { result ->
         logDiagnostics(result.diagnostics)
         val response = ServerResponse.ok()
             .header(DIAGNOSTIC_COUNT_HEADER, result.diagnostics.size.toString())
@@ -106,50 +104,6 @@ class GenerateBIScriptHandlerFunction(private val options: BiScriptOptions) : Ha
                 message = diagnostic.message,
             )
         },
-        manifest = BiScriptManifestContract(
-            formatVersion = manifest.formatVersion,
-            layoutVersion = manifest.layoutVersion,
-            deployment = BiDeploymentManifestContract(
-                database = manifest.deployment.database,
-                consumerDatabase = manifest.deployment.consumerDatabase,
-                topology = BiScriptTopologyRequest(
-                    mode = when (manifest.deployment.topology) {
-                        BiManifestTopology.CLUSTER -> BiScriptTopologyMode.CLUSTER
-                        BiManifestTopology.STANDALONE -> BiScriptTopologyMode.STANDALONE
-                    },
-                    cluster = manifest.deployment.clusterName?.let { clusterName ->
-                        BiScriptClusterRequest(
-                            name = clusterName,
-                            installation = manifest.deployment.installation,
-                        )
-                    },
-                ),
-                timezone = manifest.deployment.timezone,
-                kafkaBootstrapServers = manifest.deployment.kafkaBootstrapServers,
-                topicPrefix = manifest.deployment.topicPrefix,
-                consumerGroupNamespace = manifest.deployment.consumerGroupNamespace,
-                kafkaOffsetStorage = when (manifest.deployment.kafkaOffsetStorage) {
-                    KafkaOffsetStorage.BROKER -> BiScriptKafkaOffsetStorage.BROKER
-                    KafkaOffsetStorage.KEEPER -> BiScriptKafkaOffsetStorage.KEEPER
-                },
-                kafkaKeeperPathPrefix = manifest.deployment.kafkaKeeperPathPrefix,
-            ),
-            consumerGeneration = manifest.consumerGeneration,
-            aggregates = manifest.aggregates.map { aggregate ->
-                BiAggregateManifestContract(
-                    aggregate = aggregate.aggregate,
-                    tablePrefix = aggregate.tablePrefix,
-                    expansionViews = aggregate.expansionViews,
-                )
-            },
-            retainedAggregates = manifest.retainedAggregates.map { aggregate ->
-                BiAggregateManifestContract(
-                    aggregate = aggregate.aggregate,
-                    tablePrefix = aggregate.tablePrefix,
-                    expansionViews = aggregate.expansionViews,
-                )
-            },
-        ),
     )
 
     private fun logDiagnostics(diagnostics: List<BiScriptDiagnostic>) {
@@ -168,11 +122,14 @@ class GenerateBIScriptHandlerFunction(private val options: BiScriptOptions) : Ha
     }
 }
 
-class GenerateBIScriptHandlerFunctionFactory(private val options: BiScriptOptions) :
+class GenerateBIScriptHandlerFunctionFactory(
+    private val options: BiScriptOptions,
+    private val deploymentInspector: BiDeploymentInspector = NoOpBiDeploymentInspector,
+) :
     NoMetadataRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT) {
     override fun create(
         contract: HttpRouteContract
     ): HandlerFunction<ServerResponse> {
-        return GenerateBIScriptHandlerFunction(options)
+        return GenerateBIScriptHandlerFunction(options, deploymentInspector)
     }
 }

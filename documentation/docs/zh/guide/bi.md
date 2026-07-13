@@ -40,7 +40,7 @@ val sql: String = result.script
 val diagnostics: List<BiScriptDiagnostic> = result.diagnostics
 ```
 
-公开契约还包含 `BiScriptOperation`、`BiScriptManifest`、`BiDeploymentManifest`、`BiAggregateManifest` 与 `KafkaOffsetStorage`。常规生成使用非破坏性的 `Deploy`，传入上次 manifest 可清理已移除的展开视图。`Reset` 是唯一会删除数据表的操作，必须提供当前 manifest 并明确确认新 Kafka group 会从 earliest 重放，其 generation identity 由框架内部创建。
+公开契约还包含 `BiScriptOperation`、`BiDeploymentInspector`、`BiDeploymentInspection`、`ObservedBiDeployment` 与 `KafkaOffsetStorage`。调用方不再保存或提交 manifest；`Deploy` 根据 ClickHouse catalog 中的 ownership marker 对账，`Reset` 是唯一会删除数据表的操作，并要求明确确认新 Kafka group 会从 earliest 重放。
 
 `BiScriptResult` 包含：
 
@@ -48,7 +48,6 @@ val diagnostics: List<BiScriptDiagnostic> = result.diagnostics
 |------|------|
 | `script` | 完整 ClickHouse 部署 SQL；`Deploy` 保留数据表，`Reset` 才包含破坏性清理。 |
 | `diagnostics` | 按聚合和属性路径稳定排序的不可变诊断列表。 |
-| `manifest` | 需要持久化并在下次部署传回的对象清单与消费组命名空间。 |
 | `destructive` | 生成的操作是否删除数据表。 |
 
 每条 `BiScriptDiagnostic` 包含 `code`、`aggregate`、`path`、`sourceType`、`decision` 和 `message`。当前诊断协议只有：
@@ -57,6 +56,7 @@ val diagnostics: List<BiScriptDiagnostic> = result.diagnostics
 |--------|------------|------|
 | `RAW_JSON_FALLBACK` | `RAW_JSON` | 不支持的属性使用 scoped JSON 查询便利投影和权威 `__state` 恢复。 |
 | `MAX_DEPTH_REACHED` | `MAX_DEPTH_RAW_JSON` | 到达最大展开深度时使用相同恢复契约。 |
+| `INSPECTION_UNAVAILABLE` | `RECONCILIATION_SKIPPED` | inspector 不可用；只生成当前 desired state，不声称完成旧对象对账。 |
 | `ORPHANED_DATA_TABLE` | `DATA_TABLE_RETAINED` | 已移除聚合的 consumer 与视图已退役，但数据表被有意保留。 |
 | `CLUSTER_INTERNAL_REPLICATION_REQUIRED` | `EXTERNAL_CONFIGURATION_REQUIRED` | ClickHouse 集群服务配置必须启用 `internal_replication=true`。 |
 
@@ -101,15 +101,25 @@ JSON 请求体必填。`{}` 保持服务端 `BiScriptOptions` 不变；非 `null
 
 服务端配置和每个非 `null` 的 `POST` override 使用相同的最大长度：`database` 128 个字符、`consumerDatabase` 128、`timezone` 64、`topicPrefix` 128、`kafkaBootstrapServers` 4096，`topology.cluster.name` 与 `topology.cluster.installation` 各 128。长度恰好等于限制的值可被接受；更长的服务端值会使应用启动失败，更长的请求 override 返回 `400`。`maxExpansionDepth` 单独处理：服务端配置值是 HTTP override 的 ceiling。
 
-提供 `topology` 时必须提供 `topology.mode`。在 `CLUSTER` 模式下，省略的 `cluster` 字段继承当前集群基础配置；如果服务端基础配置是独立模式，则继承领域集群默认值。`STANDALONE` 拒绝 `cluster` 对象。无效或空请求体返回 `400`；缺少或不支持的 `Content-Type` 返回 `415`。响应会遵循 `Accept` 的 quality value；JSON 返回包含诊断与 manifest 的结构化结果，SQL 与通配符只返回 `result.script`。生成工作在线程池 `boundedElastic` 上执行。应持久化 manifest 并在下次 `DEPLOY` 请求中作为 `previousManifest` 传回；`Deploy` 期间不允许更换完整 deployment fingerprint。已移除聚合会跨 Deploy 保留在 `manifest.retainedAggregates` 中，使其保留 store 始终有明确所有权并可被后续 Reset 发现；重新启用聚合时会移除对应 tombstone。
+提供 `topology` 时必须提供 `topology.mode`。在 `CLUSTER` 模式下，省略的 `cluster` 字段继承当前集群基础配置；如果服务端基础配置是独立模式，则继承领域集群默认值。`STANDALONE` 拒绝 `cluster` 对象。无效或空请求体返回 `400`；缺少或不支持的 `Content-Type` 返回 `415`。响应会遵循 `Accept` 的 quality value；JSON 返回 SQL、诊断与 destructive 标记，SQL 与通配符只返回 `result.script`。生成工作在线程池 `boundedElastic` 上执行。
 
-如需有意重建全部 BI 数据，请同时发送 `operation=RESET`、当前部署的 `previousManifest` 与 `replayFromEarliestConfirmed=true`。manifest 使 Reset 能同时删除当前 store 和此前保留的 orphan store。Reset 会创建新的内部 consumer generation，在 manifest layout 5 中返回；后续 Deploy 会继承该 generation。Layout 5 与更早布局有意不兼容，升级时必须使用全新数据库。
+本版本默认注入 `NoOpBiDeploymentInspector`。它返回显式 `Unavailable`：普通 `DEPLOY` 仍可离线生成，但会产生 `INSPECTION_UNAVAILABLE` 诊断，无法清理旧 consumer、view 或 expansion view；`RESET` 会被拒绝。需要完整对账时，应用应注册 `ClickHouseBiDeploymentInspector` bean（使用已配置认证与 base URL 的 `WebClient`），默认 bean 会自动退让。真实 inspector 查询失败会直接传播错误，不会降级为 NoOp。
+
+如需有意重建全部 BI 数据，请发送 `operation=RESET` 与 `replayFromEarliestConfirmed=true`。只有可用 inspector 能从 ClickHouse catalog 枚举全部 owned 对象，因此 Reset 会先删除当前及 orphan store，再创建新的 consumer identity。每个生成对象和零行 deployment anchor 都把版本、deployment fingerprint、聚合 owner、对象类型和 identity 写入 `system.tables.comment`；服务重启后直接从 catalog 恢复，不依赖 Wow 服务内存或外部 manifest。
 
 ## 生成的 SQL 契约
 
 以下片段只展示稳定结构；实际数据库名、部署拓扑、Kafka 地址、topic 和聚合表名由 `BiScriptOptions` 与聚合元数据决定。
 
 生成的 BI SQL 要求 ClickHouse 24.8 LTS 或更高版本；模块集成测试使用 24.8 镜像固定最低支持线。
+
+### Kafka Offset 生命周期
+
+ClickHouse 24.8 会为新 Kafka consumer group 初始化 `auto.offset.reset=earliest`。运维可以通过服务端 `<kafka><consumer><auto_offset_reset>` 配置覆盖它。首次部署和每次 `Reset` 都必须保持 `earliest`（或 librdkafka 同义值 `smallest`），否则新的 consumer generation 可能跳过已有消息。破坏性 Reset 的 `replayFromEarliestConfirmed=true` 用于确认该外部前置条件；生成的表 DDL 无法检查或覆盖服务端配置。
+
+`KafkaOffsetStorage.KEEPER` 会把 `kafka_keeper_path`、`kafka_replica_name` 作为 Kafka engine settings，并另外生成 CREATE query setting `allow_experimental_kafka_offsets_storage_in_keeper=1`。ClickHouse 24.8 仍将 Keeper offset 存储标记为实验特性，目标 ClickHouse 服务必须配置可访问的 Keeper。
+
+Kafka topic 名保留 context alias 原值。ClickHouse 对象名会把 context alias 中的 `.` 和 `-` 规范化为 `_`；例如 `wow.api.command.order` 使用表前缀 `wow_api_command_order`。如果两个逻辑聚合规范化为相同对象名，生成会直接失败。
 
 ### 部署拓扑
 
@@ -182,8 +192,14 @@ CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command_store_local" ON CLUSTE
 
 SELECT JSONExtractString("data", 'ownerId') AS "owner_id",
        JSONExtractString("data", 'spaceId') AS "space_id",
-       JSONExtractString("data", 'body') AS "body";
+       simpleJSONExtractRaw(
+           replaceOne("data",
+                      concat('"header":', simpleJSONExtractRaw("data", 'header')),
+                      '"header":{}'),
+           'body') AS "body";
 ```
+
+词法提取会先屏蔽顶层 `header` 再读取 `body`，因此 header 中名为 `body` 的嵌套字段不会抢占命令载荷。与完整 JSON 解析再序列化不同，该方式会保留 body token 的原始词法表示。
 
 ### 全量状态事件
 
@@ -201,6 +217,8 @@ WITH arrayJoin(arrayZip(arrayEnumerate("body"), "body")) AS "events"
 SELECT "events".1 AS "event_sequence",
        JSONExtract("events".2, 'body', 'String') AS "event_body";
 ```
+
+顶层 `state` 使用相同的 header 屏蔽词法提取，避免 header 中名为 `state` 的嵌套字段替换权威状态 token。
 
 可写状态存储按 `create_time` 月分区，以 `(aggregate_id, version)` 排序。独立模式写入 `example_order_state_store`；集群模式通过分布式 store 写入 `example_order_state_store_local`。`example_order_state` 始终是去重读取视图。
 
