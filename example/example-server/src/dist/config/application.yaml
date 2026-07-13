@@ -64,6 +64,12 @@ cosid:
 #        converter:
 #          type: radix
 wow:
+  bi:
+    script:
+      enabled: true
+      consumer-group-namespace: example-service-local
+      inspector:
+        type: NO_OP
   command:
     bus:
       type: in_memory

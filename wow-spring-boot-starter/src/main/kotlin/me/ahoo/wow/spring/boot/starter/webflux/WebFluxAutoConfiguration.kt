@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.spring.boot.starter.webflux
 
+import me.ahoo.wow.bi.BiDeploymentInspector
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.command.wait.WaitCoordinator
@@ -55,6 +56,7 @@ import me.ahoo.wow.webflux.route.command.extractor.CommandBuilderExtractor
 import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandBuilderExtractor
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandMessageExtractor
+import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
@@ -275,8 +277,23 @@ class WebFluxAutoConfiguration {
     internal fun globalRouteModule(
         kafkaProperties: ObjectProvider<KafkaProperties>,
         biScriptProperties: BiScriptProperties,
+        biDeploymentInspector: ObjectProvider<BiDeploymentInspector>,
+        exceptionHandler: RequestExceptionHandler,
     ): GlobalRouteModule {
-        return GlobalRouteModule(biScriptProperties.toBiScriptOptions(kafkaProperties.getIfAvailable()))
+        if (!biScriptProperties.enabled) {
+            return GlobalRouteModule(biScriptHandlerFunctionFactory = null)
+        }
+        val deploymentInspector = requireNotNull(biDeploymentInspector.getIfAvailable()) {
+            "BiDeploymentInspector is required when wow.bi.script.enabled=true " +
+                "(inspector.type=${biScriptProperties.inspector.type})"
+        }
+        return GlobalRouteModule(
+            GenerateBIScriptHandlerFunctionFactory(
+                options = biScriptProperties.toBiScriptOptions(kafkaProperties.getIfAvailable()),
+                deploymentInspector = deploymentInspector,
+                exceptionHandler = exceptionHandler,
+            )
+        )
     }
 
     @Bean

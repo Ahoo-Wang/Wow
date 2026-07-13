@@ -4955,23 +4955,37 @@
             }, {
               "type" : "string"
             } ]
-          },
-          "replica" : {
-            "anyOf" : [ {
-              "type" : "null"
-            }, {
-              "type" : "string"
-            } ]
-          },
-          "shard" : {
-            "anyOf" : [ {
-              "type" : "null"
-            }, {
-              "type" : "string"
-            } ]
           }
         },
         "type" : "object"
+      },
+      "wow.openapi.BiScriptDiagnosticResponse" : {
+        "properties" : {
+          "aggregate" : {
+            "type" : "string"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "decision" : {
+            "type" : "string"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "path" : {
+            "type" : "string"
+          },
+          "sourceType" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "aggregate", "code", "decision", "message", "path", "sourceType" ],
+        "type" : "object"
+      },
+      "wow.openapi.BiScriptOperationMode" : {
+        "enum" : [ "DEPLOY", "RESET" ],
+        "type" : "string"
       },
       "wow.openapi.BiScriptRequest" : {
         "properties" : {
@@ -5004,6 +5018,16 @@
               "type" : "integer"
             } ]
           },
+          "operation" : {
+            "$ref" : "#/components/schemas/wow.openapi.BiScriptOperationMode"
+          },
+          "replayFromEarliestConfirmed" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "boolean"
+            } ]
+          },
           "timezone" : {
             "anyOf" : [ {
               "type" : "null"
@@ -5033,6 +5057,24 @@
             } ]
           }
         },
+        "type" : "object"
+      },
+      "wow.openapi.BiScriptResponse" : {
+        "properties" : {
+          "destructive" : {
+            "type" : "boolean"
+          },
+          "diagnostics" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.openapi.BiScriptDiagnosticResponse"
+            },
+            "type" : "array"
+          },
+          "script" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "destructive", "diagnostics", "script" ],
         "type" : "object"
       },
       "wow.openapi.BiScriptTopologyMode" : {
@@ -11937,9 +11979,22 @@
         "responses" : {
           "200" : {
             "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.openapi.BiScriptResponse"
+                }
+              },
               "application/sql" : {
                 "schema" : {
                   "type" : "string"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-BI-Diagnostic-Count" : {
+                "schema" : {
+                  "format" : "int32",
+                  "type" : "integer"
                 }
               }
             }
@@ -11947,8 +12002,64 @@
           "400" : {
             "$ref" : "#/components/responses/wow.BadRequest"
           },
+          "406" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.DefaultErrorInfo"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.UnsupportedMediaType"
+          },
+          "502" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.DefaultErrorInfo"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "503" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.DefaultErrorInfo"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "504" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.DefaultErrorInfo"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
           }
         },
         "tags" : [ "wow" ]

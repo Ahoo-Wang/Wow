@@ -23,13 +23,16 @@ internal class BiTableNaming(private val options: BiScriptOptions = BiScriptOpti
     }
 
     fun toTableName(namedAggregate: NamedAggregate, suffix: String): String {
-        val context = namedAggregate.getContextAlias()
-            .substringBeforeLast(SERVICE_NAME_SUFFIX)
-            .replace("-", "_")
-        return "${context}_${namedAggregate.aggregateName}_$suffix"
-    }
-
-    private companion object {
-        const val SERVICE_NAME_SUFFIX: String = "-service"
+        return "${toBiTablePrefix(namedAggregate.getContextAlias(), namedAggregate.aggregateName)}_$suffix"
     }
 }
+
+private fun toBiTablePrefix(contextAlias: String, aggregateName: String): String {
+    val normalizedContext = contextAlias
+        .removeSuffix(SERVICE_NAME_SUFFIX)
+        .replace(".", "_")
+        .replace("-", "_")
+    return "${normalizedContext}_$aggregateName"
+}
+
+private const val SERVICE_NAME_SUFFIX: String = "-service"

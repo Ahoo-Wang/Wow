@@ -14,7 +14,15 @@
 package me.ahoo.wow.bi.renderer
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.bi.BiConsumerIdentity
+import me.ahoo.wow.bi.BiDeploymentDescriptor
+import me.ahoo.wow.bi.BiObjectKind
+import me.ahoo.wow.bi.BiObjectMetadata
+import me.ahoo.wow.bi.BiObjectMetadataCodec
 import me.ahoo.wow.bi.BiScriptOptions
+import me.ahoo.wow.bi.ClickHouseTopology
+import me.ahoo.wow.bi.KafkaOffsetStorage
+import me.ahoo.wow.bi.ObservedBiObject
 import me.ahoo.wow.bi.expansion.BiTableNaming
 import me.ahoo.wow.bi.expansion.plan.CollectionCursorPlan
 import me.ahoo.wow.bi.expansion.plan.ColumnExtraction
@@ -27,9 +35,15 @@ import me.ahoo.wow.bi.expansion.plan.StateExpansionPlan
 import me.ahoo.wow.bi.renderer.ClickHouseSqlSyntax.quoteIdentifier
 import me.ahoo.wow.bi.renderer.ClickHouseSqlSyntax.stringLiteral
 import me.ahoo.wow.bi.type.ClickHouseType
+import me.ahoo.wow.modeling.toStringWithAlias
 import java.util.Collections
 
-internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = BiScriptOptions()) {
+internal class ClickHouseScriptRenderer(
+    private val options: BiScriptOptions = BiScriptOptions(consumerGroupNamespace = "test"),
+    private val consumerIdentity: BiConsumerIdentity =
+        BiConsumerIdentity.deterministic(BiDeploymentDescriptor.from(options)),
+    private val deployment: BiDeploymentDescriptor = BiDeploymentDescriptor.from(options),
+) {
     private val naming = BiTableNaming(options)
     private val topology = options.topology.toDdl()
 
@@ -47,22 +61,49 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
         val commandTable = naming.toTableName(namedAggregate, COMMAND_SUFFIX)
         val stateTable = naming.toTableName(namedAggregate, STATE_SUFFIX)
         val stateLastTable = naming.toTableName(namedAggregate, STATE_LAST_SUFFIX)
-        val stateDropTableNames = topology.dropTableNames(stateTable)
         return immutableStatements(
             buildList {
-                topology.dropTableNames(commandTable).forEach { add(drop(options.database, it)) }
+                add(dropView(options.consumerDatabase, "${commandTable}_consumer"))
                 add(drop(options.consumerDatabase, "${commandTable}_queue"))
-                add(drop(options.consumerDatabase, "${commandTable}_consumer"))
-                add(drop(options.database, stateDropTableNames.first()))
-                add(drop(options.database, "${stateTable}_event"))
-                stateDropTableNames.drop(1).forEach { add(drop(options.database, it)) }
+                add(dropView(options.consumerDatabase, "${stateTable}_consumer"))
                 add(drop(options.consumerDatabase, "${stateTable}_queue"))
-                add(drop(options.consumerDatabase, "${stateTable}_consumer"))
-                topology.dropTableNames(stateLastTable).forEach { add(drop(options.database, it)) }
-                add(drop(options.consumerDatabase, "${stateLastTable}_consumer"))
-                expansionTables.forEach { add(drop(options.database, it)) }
+                add(dropView(options.consumerDatabase, "${stateLastTable}_consumer"))
+                expansionTables.asReversed().forEach { add(dropView(options.database, it)) }
+                add(dropView(options.database, "${stateTable}_event"))
+                add(dropView(options.database, commandTable))
+                add(dropView(options.database, stateTable))
+                add(dropView(options.database, stateLastTable))
+                listOf(commandTable, stateTable, stateLastTable).forEach { table ->
+                    topology.dropTableNames(storageTable(table)).forEach { add(drop(options.database, it)) }
+                }
             }
         )
+    }
+
+    fun renderDropExpansionStatements(expansionTables: List<String>): List<String> =
+        immutableStatements(expansionTables.asReversed().map { dropView(options.database, it) })
+
+    fun renderDropObservedStatements(objects: List<ObservedBiObject>): List<String> = immutableStatements(
+        objects.sortedWith(
+            compareBy<ObservedBiObject> { it.metadata?.kind == BiObjectKind.STORE }
+                .thenBy { it.metadata?.kind == BiObjectKind.STORE && it.name.endsWith("_local") }
+                .thenByDescending { it.name.length }
+                .thenBy { it.database }
+                .thenBy { it.name }
+        ).map { observed ->
+            when (observed.metadata?.kind) {
+                BiObjectKind.ANCHOR, BiObjectKind.VIEW, BiObjectKind.CONSUMER ->
+                    dropView(observed.database, observed.name)
+                BiObjectKind.STORE, BiObjectKind.QUEUE -> drop(observed.database, observed.name)
+                null -> error("Cannot drop an unowned BI catalog object: ${observed.database}.${observed.name}")
+            }
+        }
+    )
+
+    fun renderAnchorStatement(): String {
+        val comment = metadataComment(BiObjectKind.ANCHOR, null)
+        return "CREATE OR REPLACE VIEW ${qualified(options.consumerDatabase, DEPLOYMENT_ANCHOR)}" +
+            "${scopeClause()} AS (SELECT 1 AS ${identifier("alive")} WHERE 0) COMMENT $comment;"
     }
 
     @Suppress("LongMethod")
@@ -71,8 +112,14 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
 
     @Suppress("LongMethod")
     fun renderCommandStatements(namedAggregate: NamedAggregate): List<String> {
+        val aggregate = namedAggregate.toStringWithAlias()
+        val storeComment = metadataComment(BiObjectKind.STORE, aggregate)
+        val viewComment = metadataComment(BiObjectKind.VIEW, aggregate)
+        val queueComment = metadataComment(BiObjectKind.QUEUE, aggregate)
+        val consumerComment = metadataComment(BiObjectKind.CONSUMER, aggregate)
         val table = naming.toTableName(namedAggregate, COMMAND_SUFFIX)
-        val physicalTable = topology.physicalTableName(table)
+        val storeTable = storageTable(table)
+        val physicalTable = topology.physicalTableName(storeTable)
         val queueTable = "${table}_queue"
         val consumerTable = "${table}_consumer"
         val topic = naming.toTopicName(namedAggregate, COMMAND_SUFFIX)
@@ -95,27 +142,32 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
                     ${identifier("request_id")} String,
                     ${identifier("aggregate_version")} Nullable(UInt32),
                     ${identifier("is_create")} Bool,
+                    ${identifier("is_void")} Bool,
                     ${identifier("allow_create")} Bool,
                     ${identifier("body_type")} String,
                     ${identifier("body")} String,
-                    ${identifier("create_time")} DateTime(${literal(options.timezone)})
-                ) ${topology.engineSql(MergeTreeKind.AppendOnly)}
+                    ${identifier("create_time")} DateTime64(3, ${literal(options.timezone)})
+                ) ${topology.engineSql(ReplacingMergeTreeSpec(null))}
                   PARTITION BY toYYYYMM(${identifier("create_time")})
-                  ORDER BY ${identifier("id")};
+                  ORDER BY ${identifier("id")}
+                  COMMENT $storeComment;
                     """.trimIndent()
                 )
                 topology.distributedFacade(
                     database = options.database,
-                    logicalTableName = table,
+                    logicalTableName = storeTable,
                     physicalTableName = physicalTable,
                     shardingKey = "sipHash64(${identifier("aggregate_id")})",
-                )?.let(::add)
+                )?.withTableComment(storeComment)?.let(::add)
+                add(dropView(options.consumerDatabase, consumerTable))
+                add(drop(options.consumerDatabase, queueTable))
                 add(
                     """
                 CREATE TABLE IF NOT EXISTS ${qualified(options.consumerDatabase, queueTable)}${scopeClause()}
                 (${identifier("data")} String)
                 ENGINE = Kafka(${literal(options.kafkaBootstrapServers)}, ${literal(topic)},
-                               ${literal("clickhouse_$consumerTable")}, ${literal("JSONAsString")});
+                               ${literal(consumerGroup(consumerTable))}, ${literal("JSONAsString")})
+                ${kafkaSettings(queueTable, queueComment)};
                     """.trimIndent()
                 )
                 add(
@@ -124,8 +176,8 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
                         options.consumerDatabase,
                         consumerTable
                     )}${scopeClause()}
-                TO ${qualified(options.database, table)}
-                AS
+                TO ${qualified(options.database, storeTable)}
+                AS (
                 SELECT ${jsonString("data", "id")} AS ${identifier("id")},
                        ${jsonString("data", "contextName")} AS ${identifier("context_name")},
                        ${jsonString("data", "aggregateName")} AS ${identifier("aggregate_name")},
@@ -138,11 +190,20 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
                        ${jsonString("data", "requestId")} AS ${identifier("request_id")},
                        $aggregateVersionJson AS ${identifier("aggregate_version")},
                        ${jsonBool("data", "isCreate")} AS ${identifier("is_create")},
+                       ${jsonBool("data", "isVoid")} AS ${identifier("is_void")},
                        ${jsonBool("data", "allowCreate")} AS ${identifier("allow_create")},
                        ${jsonString("data", "bodyType")} AS ${identifier("body_type")},
-                       ${jsonString("data", "body")} AS ${identifier("body")},
+                       ${jsonTopLevelLexicalRaw("data", "body")} AS ${identifier("body")},
                        ${epochMillis("data", "createTime")} AS ${identifier("create_time")}
-                FROM ${qualified(options.consumerDatabase, queueTable)};
+                FROM ${qualified(options.consumerDatabase, queueTable)}
+                ) COMMENT $consumerComment;
+                    """.trimIndent()
+                )
+                add(
+                    """
+                CREATE OR REPLACE VIEW ${qualified(options.database, table)}${scopeClause()}
+                AS (SELECT * FROM ${qualified(options.database, storeTable)} FINAL)
+                COMMENT $viewComment;
                     """.trimIndent()
                 )
             }
@@ -153,10 +214,47 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
     fun renderStateEvent(namedAggregate: NamedAggregate): String =
         renderStateEventStatements(namedAggregate).joinToString(STATEMENT_SEPARATOR)
 
+    fun renderStateEventStatements(namedAggregate: NamedAggregate): List<String> = immutableStatements(
+        renderStateStorageStatements(namedAggregate) +
+            renderStatePublicStatements(namedAggregate) +
+            renderStateIngressStatements(namedAggregate)
+    )
+
+    fun renderStateStorageStatements(namedAggregate: NamedAggregate): List<String> =
+        renderStateEventGraphStatements(namedAggregate).take(stateStorageStatementCount())
+
+    fun renderStatePublicStatements(namedAggregate: NamedAggregate): List<String> =
+        renderStateEventGraphStatements(namedAggregate).takeLast(STATE_PUBLIC_STATEMENT_COUNT)
+
+    fun renderStateIngressStatements(namedAggregate: NamedAggregate): List<String> =
+        renderStateEventGraphStatements(namedAggregate)
+            .drop(stateStorageStatementCount())
+            .dropLast(STATE_PUBLIC_STATEMENT_COUNT)
+
+    fun renderPauseIngressStatements(namedAggregate: NamedAggregate): List<String> {
+        val commandTable = naming.toTableName(namedAggregate, COMMAND_SUFFIX)
+        val stateTable = naming.toTableName(namedAggregate, STATE_SUFFIX)
+        return immutableStatements(
+            dropView(options.consumerDatabase, "${commandTable}_consumer"),
+            drop(options.consumerDatabase, "${commandTable}_queue"),
+            dropView(options.consumerDatabase, "${stateTable}_consumer"),
+            drop(options.consumerDatabase, "${stateTable}_queue"),
+        )
+    }
+
+    private fun stateStorageStatementCount(): Int =
+        if (options.topology is ClickHouseTopology.Cluster) 2 else 1
+
     @Suppress("LongMethod")
-    fun renderStateEventStatements(namedAggregate: NamedAggregate): List<String> {
+    private fun renderStateEventGraphStatements(namedAggregate: NamedAggregate): List<String> {
+        val aggregate = namedAggregate.toStringWithAlias()
+        val storeComment = metadataComment(BiObjectKind.STORE, aggregate)
+        val viewComment = metadataComment(BiObjectKind.VIEW, aggregate)
+        val queueComment = metadataComment(BiObjectKind.QUEUE, aggregate)
+        val consumerComment = metadataComment(BiObjectKind.CONSUMER, aggregate)
         val table = naming.toTableName(namedAggregate, STATE_SUFFIX)
-        val physicalTable = topology.physicalTableName(table)
+        val storeTable = storageTable(table)
+        val physicalTable = topology.physicalTableName(storeTable)
         val eventTable = "${table}_event"
         val queueTable = "${table}_queue"
         val consumerTable = "${table}_consumer"
@@ -181,36 +279,39 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
                 ${identifier("state")} String,
                 ${identifier("body")} Array(String),
                 ${identifier("first_operator")} String,
-                ${identifier("first_event_time")} DateTime(${literal(options.timezone)}),
-                ${identifier("create_time")} DateTime(${literal(options.timezone)}),
+                ${identifier("first_event_time")} DateTime64(3, ${literal(options.timezone)}),
+                ${identifier("create_time")} DateTime64(3, ${literal(options.timezone)}),
                 ${identifier("tags")} Map(String, Array(String)),
                 ${identifier("deleted")} Bool
-            ) ${topology.engineSql(MergeTreeKind.Replacing("version"))}
+            ) ${topology.engineSql(ReplacingMergeTreeSpec("version"))}
                   PARTITION BY toYYYYMM(${identifier("create_time")})
                   ORDER BY (${identifier("aggregate_id")}, ${identifier("version")})
-            ;
+                  COMMENT $storeComment;
                     """.trimIndent()
                 )
                 topology.distributedFacade(
                     database = options.database,
-                    logicalTableName = table,
+                    logicalTableName = storeTable,
                     physicalTableName = physicalTable,
                     shardingKey = "sipHash64(${identifier("aggregate_id")})",
-                )?.let(::add)
+                )?.withTableComment(storeComment)?.let(::add)
+                add(dropView(options.consumerDatabase, consumerTable))
+                add(drop(options.consumerDatabase, queueTable))
                 add(
                     """
             CREATE TABLE IF NOT EXISTS ${qualified(options.consumerDatabase, queueTable)}${scopeClause()}
             (
                 ${identifier("data")} String
             ) ENGINE = Kafka(${literal(options.kafkaBootstrapServers)}, ${literal(topic)},
-                             ${literal("clickhouse_$consumerTable")}, ${literal("JSONAsString")});
+                             ${literal(consumerGroup(consumerTable))}, ${literal("JSONAsString")})
+            ${kafkaSettings(queueTable, queueComment)};
                     """.trimIndent()
                 )
                 add(
                     """
             CREATE MATERIALIZED VIEW IF NOT EXISTS ${qualified(options.consumerDatabase, consumerTable)}${scopeClause()}
-            TO ${qualified(options.database, table)}
-            AS
+            TO ${qualified(options.database, storeTable)}
+            AS (
             SELECT ${jsonString("data", "id")} AS ${identifier("id")},
                    ${jsonString("data", "contextName")} AS ${identifier("context_name")},
                    ${jsonString("data", "aggregateName")} AS ${identifier("aggregate_name")},
@@ -222,7 +323,7 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
                    ${jsonString("data", "commandId")} AS ${identifier("command_id")},
                    ${jsonString("data", "requestId")} AS ${identifier("request_id")},
                    ${jsonUInt("data", "version")} AS ${identifier("version")},
-                   ${jsonString("data", "state")} AS ${identifier("state")},
+                   ${jsonTopLevelLexicalRaw("data", "state")} AS ${identifier("state")},
                    ${jsonArray("data", "body")} AS ${identifier("body")},
                    ${jsonString("data", "firstOperator")} AS ${identifier("first_operator")},
                    ${epochMillis("data", "firstEventTime")} AS ${identifier("first_event_time")},
@@ -230,13 +331,20 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
                    ${jsonValue("data", "tags", "Map(String, Array(String))")} AS ${identifier("tags")},
                    ${jsonBool("data", "deleted")} AS ${identifier("deleted")}
             FROM ${qualified(options.consumerDatabase, queueTable)}
-            ;
+            ) COMMENT $consumerComment;
                     """.trimIndent()
                 )
                 add(
                     """
-            CREATE VIEW IF NOT EXISTS ${qualified(options.database, eventTable)}${scopeClause()}
-            AS
+            CREATE OR REPLACE VIEW ${qualified(options.database, table)}${scopeClause()}
+            AS (SELECT * FROM ${qualified(options.database, storeTable)} FINAL)
+            COMMENT $viewComment;
+                    """.trimIndent()
+                )
+                add(
+                    """
+            CREATE OR REPLACE VIEW ${qualified(options.database, eventTable)}${scopeClause()}
+            AS (
             WITH arrayJoin(arrayZip(arrayEnumerate(${identifier("body")}),
                                     ${identifier("body")})) AS ${identifier("events")}
             SELECT ${identifier("id")},
@@ -262,7 +370,8 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
                    ${identifier("create_time")},
                    ${identifier("tags")},
                    ${identifier("deleted")}
-            FROM ${qualified(options.database, table)};
+            FROM ${qualified(options.database, table)}
+            ) COMMENT $viewComment;
                     """.trimIndent()
                 )
             }
@@ -272,10 +381,17 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
     fun renderStateLast(namedAggregate: NamedAggregate): String =
         renderStateLastStatements(namedAggregate).joinToString(STATEMENT_SEPARATOR)
 
+    @Suppress("LongMethod")
     fun renderStateLastStatements(namedAggregate: NamedAggregate): List<String> {
+        val aggregate = namedAggregate.toStringWithAlias()
+        val storeComment = metadataComment(BiObjectKind.STORE, aggregate)
+        val viewComment = metadataComment(BiObjectKind.VIEW, aggregate)
+        val consumerComment = metadataComment(BiObjectKind.CONSUMER, aggregate)
         val stateTable = naming.toTableName(namedAggregate, STATE_SUFFIX)
+        val stateStoreTable = storageTable(stateTable)
         val table = naming.toTableName(namedAggregate, STATE_LAST_SUFFIX)
-        val physicalTable = topology.physicalTableName(table)
+        val storeTable = storageTable(table)
+        val physicalTable = topology.physicalTableName(storeTable)
         val consumerTable = "${table}_consumer"
         return immutableStatements(
             buildList {
@@ -297,30 +413,38 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
                 ${identifier("state")} String,
                 ${identifier("body")} Array(String),
                 ${identifier("first_operator")} String,
-                ${identifier("first_event_time")} DateTime(${literal(options.timezone)}),
-                ${identifier("create_time")} DateTime(${literal(options.timezone)}),
+                ${identifier("first_event_time")} DateTime64(3, ${literal(options.timezone)}),
+                ${identifier("create_time")} DateTime64(3, ${literal(options.timezone)}),
                 ${identifier("tags")} Map(String, Array(String)),
                 ${identifier("deleted")} Bool
-            ) ${topology.engineSql(MergeTreeKind.Replacing("version"))}
+            ) ${topology.engineSql(ReplacingMergeTreeSpec("version"))}
                   PARTITION BY toYYYYMM(${identifier("first_event_time")})
                   ORDER BY (${identifier("aggregate_id")})
-            ;
+                  COMMENT $storeComment;
                     """.trimIndent()
                 )
                 topology.distributedFacade(
                     database = options.database,
-                    logicalTableName = table,
+                    logicalTableName = storeTable,
                     physicalTableName = physicalTable,
                     shardingKey = "sipHash64(${identifier("aggregate_id")})",
-                )?.let(::add)
+                )?.withTableComment(storeComment)?.let(::add)
+                add(dropView(options.consumerDatabase, consumerTable))
                 add(
                     """
             CREATE MATERIALIZED VIEW IF NOT EXISTS ${qualified(options.consumerDatabase, consumerTable)}${scopeClause()}
-            TO ${qualified(options.database, table)}
-            AS
+            TO ${qualified(options.database, storeTable)}
+            AS (
             SELECT *
-            FROM ${qualified(options.database, stateTable)}
-            ;
+            FROM ${qualified(options.database, stateStoreTable)}
+            ) COMMENT $consumerComment;
+                    """.trimIndent()
+                )
+                add(
+                    """
+            CREATE OR REPLACE VIEW ${qualified(options.database, table)}${scopeClause()}
+            AS (SELECT * FROM ${qualified(options.database, storeTable)} FINAL)
+            COMMENT $viewComment;
                     """.trimIndent()
                 )
             }
@@ -330,10 +454,10 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
     fun renderExpansion(plan: StateExpansionPlan): String =
         renderExpansionStatements(plan).joinToString(STATEMENT_SEPARATOR)
 
-    fun renderExpansionStatements(plan: StateExpansionPlan): List<String> =
-        immutableStatements(plan.views.map(::renderExpansionView))
+    fun renderExpansionStatements(plan: StateExpansionPlan, aggregate: String = "test.aggregate"): List<String> =
+        immutableStatements(plan.views.map { view -> renderExpansionView(view, aggregate) })
 
-    private fun renderExpansionView(view: ExpansionViewPlan): String {
+    private fun renderExpansionView(view: ExpansionViewPlan, aggregate: String): String {
         val domainWithColumns = view.columns
             .filter { it.placement == ColumnPlacement.WITH }
             .map(::renderColumn)
@@ -346,8 +470,8 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
             .joinToString(",\n")
         return buildString {
             appendLine(
-                "CREATE VIEW IF NOT EXISTS ${qualified(options.database, view.targetTableName)}" +
-                    "${scopeClause()} AS"
+                "CREATE OR REPLACE VIEW ${qualified(options.database, view.targetTableName)}" +
+                    "${scopeClause()} AS ("
             )
             if (withSql.isNotBlank()) {
                 appendLine("WITH")
@@ -356,8 +480,9 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
             appendLine("SELECT")
             appendLine(selectSql)
             appendLine(
-                "FROM ${qualified(options.database, view.sourceTableName)} AS ${identifier(SOURCE_ALIAS)};"
+                "FROM ${qualified(options.database, view.sourceTableName)} AS ${identifier(SOURCE_ALIAS)}"
             )
+            appendLine(") COMMENT ${metadataComment(BiObjectKind.VIEW, aggregate)};")
         }.trimEnd()
     }
 
@@ -412,6 +537,44 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
     private fun drop(database: String, table: String): String =
         "DROP TABLE IF EXISTS ${qualified(database, table)}${scopeClause()} SYNC;"
 
+    private fun dropView(database: String, view: String): String =
+        "DROP VIEW IF EXISTS ${qualified(database, view)}${scopeClause()} SYNC;"
+
+    private fun storageTable(table: String): String = "${table}_store"
+
+    private fun consumerGroup(consumerTable: String): String {
+        return "wow-bi.${consumerIdentity.value}.$consumerTable"
+    }
+
+    private fun kafkaSettings(queueTable: String, comment: String): String {
+        val settings = buildList {
+            if (options.kafkaOffsetStorage == KafkaOffsetStorage.KEEPER) {
+                val keeperPath = "${options.kafkaKeeperPathPrefix.trimEnd('/')}/" +
+                    "${consumerIdentity.value}/$queueTable"
+                add("kafka_keeper_path = ${literal(keeperPath)}")
+                val replicaName = when (options.topology) {
+                    is ClickHouseTopology.Cluster -> "{replica}"
+                    ClickHouseTopology.Standalone -> consumerIdentity.value
+                }
+                add("kafka_replica_name = ${literal(replicaName)}")
+            }
+        }
+        val engineSettings = settings.takeIf { it.isNotEmpty() }
+            ?.let { "SETTINGS ${it.joinToString(",\n                         ")}" }
+            .orEmpty()
+        val querySettings = if (options.kafkaOffsetStorage == KafkaOffsetStorage.KEEPER) {
+            "\nSETTINGS allow_experimental_kafka_offsets_storage_in_keeper = 1"
+        } else {
+            ""
+        }
+        return listOf(engineSettings, "COMMENT $comment", querySettings)
+            .filter(String::isNotBlank)
+            .joinToString("\n")
+    }
+
+    private fun String.withTableComment(comment: String): String =
+        removeSuffix(";") + "\nCOMMENT $comment;"
+
     private fun immutableStatements(vararg statements: String): List<String> =
         immutableStatements(statements.asList())
 
@@ -424,6 +587,18 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
     private fun identifier(value: String): String = quoteIdentifier(value)
 
     private fun literal(value: String): String = stringLiteral(value)
+
+    private fun metadataComment(kind: BiObjectKind, aggregate: String?): String = literal(
+        BiObjectMetadataCodec.encode(
+            BiObjectMetadata(
+                deploymentId = deployment.deploymentId,
+                configurationFingerprint = deployment.configurationFingerprint,
+                aggregate = aggregate,
+                kind = kind,
+                consumerIdentity = consumerIdentity.value,
+            )
+        )
+    )
 
     private fun scopeClause(): String = topology.scopeClause.takeIf(String::isNotEmpty)?.let { " $it" }.orEmpty()
 
@@ -442,6 +617,15 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
     private fun jsonRaw(source: String, property: String): String =
         "JSONExtractRaw(${identifier(source)}, ${literal(property)})"
 
+    private fun jsonTopLevelLexicalRaw(source: String, property: String): String {
+        val sourceIdentifier = identifier(source)
+        val headerProperty = literal("header")
+        return "simpleJSONExtractRaw(" +
+            "replaceOne($sourceIdentifier, " +
+            "concat(${literal("\"header\":")}, simpleJSONExtractRaw($sourceIdentifier, $headerProperty)), " +
+            "${literal("\"header\":{}")}), ${literal(property)})"
+    }
+
     private fun jsonRaw(source: ColumnReference, property: String): String =
         "JSONExtractRaw(${renderReference(source)}, ${literal(property)})"
 
@@ -459,6 +643,9 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
     private fun jsonUInt(source: String, property: String): String =
         "JSONExtractUInt(${identifier(source)}, ${literal(property)})"
 
+    private fun jsonInt(source: String, property: String): String =
+        "JSONExtractInt(${identifier(source)}, ${literal(property)})"
+
     private fun jsonBool(source: String, property: String): String =
         "JSONExtractBool(${identifier(source)}, ${literal(property)})"
 
@@ -471,7 +658,7 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
         "JSONExtract(${identifier(source)}.$tupleIndex, ${literal(property)}, ${literal(sqlType)})"
 
     private fun epochMillis(source: String, property: String): String =
-        "toDateTime64(${jsonUInt(source, property)} / 1000.0, 3, ${literal(options.timezone)})"
+        "toDateTime64(${jsonInt(source, property)} / 1000.0, 3, ${literal(options.timezone)})"
 
     private val metadataColumns: List<ColumnPlan> = listOf(
         metadataColumn("id", ClickHouseType.String),
@@ -483,8 +670,8 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
         metadataColumn("request_id", ClickHouseType.String),
         metadataColumn("version", ClickHouseType.UInt32),
         metadataColumn("first_operator", ClickHouseType.String),
-        metadataColumn("first_event_time", ClickHouseType.DateTime(options.timezone)),
-        metadataColumn("create_time", ClickHouseType.DateTime(options.timezone)),
+        metadataColumn("first_event_time", ClickHouseType.DateTime64(3, options.timezone)),
+        metadataColumn("create_time", ClickHouseType.DateTime64(3, options.timezone)),
         metadataColumn(
             "tags",
             ClickHouseType.Map(
@@ -504,7 +691,8 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
         placement = ColumnPlacement.SELECT,
     )
 
-    private companion object {
+    companion object {
+        const val DEPLOYMENT_ANCHOR = "__wow_bi_deployment"
         const val COMMAND_SUFFIX = "command"
         const val STATE_SUFFIX = "state"
         const val STATE_LAST_SUFFIX = "state_last"
@@ -514,5 +702,6 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
         const val INDEX_TARGET = "__index"
         const val SOURCE_ALIAS = "__source"
         const val STATEMENT_SEPARATOR = "\n\n"
+        const val STATE_PUBLIC_STATEMENT_COUNT: Int = 2
     }
 }

@@ -31,6 +31,7 @@ Kotlin 调用方通过 `BiScriptGenerator` 获取 SQL 与诊断：
 val result = BiScriptGenerator(
     BiScriptOptions(
         topology = ClickHouseTopology.Standalone,
+        consumerGroupNamespace = "orders-production-blue",
         unsupportedTypeStrategy = UnsupportedTypeStrategy.RAW_JSON,
     )
 ).generate(aggregates)
@@ -39,14 +40,15 @@ val sql: String = result.script
 val diagnostics: List<BiScriptDiagnostic> = result.diagnostics
 ```
 
-公开契约包含八个顶层类型：`BiScriptGenerator`、`BiScriptOptions`、`ClickHouseTopology`、`UnsupportedTypeStrategy`、`BiScriptResult`、`BiScriptDiagnostic`、`BiScriptDiagnosticCode` 和 `BiScriptMappingDecision`。`ClickHouseTopology` 提供 `Standalone` 与 `Cluster` 两个变体。`BiScriptGenerator.generate(...)` 是唯一生成入口；规划、渲染、类型映射与 executable statement 模型均为内部实现。
+公开契约还包含 `BiScriptOperation`、`BiDeploymentInspector`、`BiDeploymentInspection`、`ObservedBiDeployment` 与 `KafkaOffsetStorage`。调用方不再保存或提交 manifest；`Deploy` 根据 ClickHouse catalog 中的 ownership marker 对账，`Reset` 是唯一会删除数据表的操作，并要求明确确认新 Kafka group 会从 earliest 重放。
 
 `BiScriptResult` 包含：
 
 | 字段 | 含义 |
 |------|------|
-| `script` | 完整 ClickHouse 部署 SQL，依次包含全局、清理、命令、状态事件、最新状态和展开段。 |
+| `script` | 完整 ClickHouse 部署 SQL；`Deploy` 保留数据表，`Reset` 才包含破坏性清理。 |
 | `diagnostics` | 按聚合和属性路径稳定排序的不可变诊断列表。 |
+| `destructive` | 生成的操作是否删除数据表。 |
 
 每条 `BiScriptDiagnostic` 包含 `code`、`aggregate`、`path`、`sourceType`、`decision` 和 `message`。当前诊断协议只有：
 
@@ -54,12 +56,15 @@ val diagnostics: List<BiScriptDiagnostic> = result.diagnostics
 |--------|------------|------|
 | `RAW_JSON_FALLBACK` | `RAW_JSON` | 不支持的属性使用 scoped JSON 查询便利投影和权威 `__state` 恢复。 |
 | `MAX_DEPTH_REACHED` | `MAX_DEPTH_RAW_JSON` | 到达最大展开深度时使用相同恢复契约。 |
+| `INSPECTION_UNAVAILABLE` | `RECONCILIATION_SKIPPED` | inspector 不可用；只生成当前 desired state，不声称完成旧对象对账。 |
+| `ORPHANED_DATA_TABLE` | `DATA_TABLE_RETAINED` | 已移除聚合的 consumer 与视图已退役，但数据表被有意保留。 |
+| `CLUSTER_INTERNAL_REPLICATION_REQUIRED` | `EXTERNAL_CONFIGURATION_REQUIRED` | ClickHouse 集群服务配置必须启用 `internal_replication=true`。 |
 
 默认 `unsupportedTypeStrategy` 是 `RAW_JSON`。使用 `FAIL` 时，不支持的属性会立即中止生成，异常消息包含聚合、属性路径和源类型。对象值 Map 使用同一个策略；降级值可通过 `__state` 和当前 recovery path 精确恢复。
 
 ### HTTP 路由
 
-Spring WebFlux 路由使用同一个 `BiScriptOptions`：
+Spring WebFlux 路由及其 Swagger/OpenAPI operation 默认启用。当至少一个本地聚合需要生成 Kafka consumer 时，必须配置部署唯一的 `wow.bi.script.consumer-group-namespace`；否则请求返回 `400`，不会阻止应用启动。配置 `wow.bi.script.enabled=false` 可同时移除运行时路由及其 OpenAPI operation，并且不会构造或校验 BI 生成选项和 inspector。该路由使用同一个 `BiScriptOptions`：
 
 ```shell
 curl -X POST 'http://localhost:8080/wow/bi/script' \
@@ -94,9 +99,13 @@ JSON 请求体必填。`{}` 保持服务端 `BiScriptOptions` 不变；非 `null
 }
 ```
 
-服务端配置和每个非 `null` 的 `POST` override 使用相同的最大长度：`database` 128 个字符、`consumerDatabase` 128、`timezone` 64、`topicPrefix` 128、`kafkaBootstrapServers` 4096，`topology.cluster.name`、`topology.cluster.installation`、`topology.cluster.shard`、`topology.cluster.replica` 各 128。长度恰好等于限制的值可被接受；更长的服务端值会使应用启动失败，更长的请求 override 返回 `400`。`maxExpansionDepth` 单独处理：服务端配置值是 HTTP override 的 ceiling。
+服务端配置和每个非 `null` 的 `POST` override 使用相同的最大长度：`database` 128 个字符、`consumerDatabase` 128、`timezone` 64、`topicPrefix` 128、`kafkaBootstrapServers` 4096，`topology.cluster.name` 与 `topology.cluster.installation` 各 128。长度恰好等于限制的值可被接受；更长的服务端值会使应用启动失败，更长的请求 override 返回 `400`。`maxExpansionDepth` 单独处理：服务端配置值是 HTTP override 的 ceiling。
 
-提供 `topology` 时必须提供 `topology.mode`。在 `CLUSTER` 模式下，省略的 `cluster` 字段继承当前集群基础配置；如果服务端基础配置是独立模式，则继承领域集群默认值。`STANDALONE` 拒绝 `cluster` 对象。无效或空请求体返回 `400`；缺少或不支持的 `Content-Type` 返回 `415`。OpenAPI 通过公共 `wow.UnsupportedMediaType` response 声明该状态，运行时响应携带 `Wow-Error-Code: UnsupportedMediaType`。成功响应固定为 `200`、`Content-Type: application/sql`，响应体只包含 `result.script`。旧版 `GET` 方法在该路径上没有路由并返回 `404`。每条诊断以 WARN 日志输出，不会混入 SQL。配置项及优先级参见[配置](./configuration#bi-脚本配置)。
+提供 `topology` 时必须提供 `topology.mode`。在 `CLUSTER` 模式下，省略的 `cluster` 字段继承当前集群基础配置；如果服务端基础配置是独立模式，则继承领域集群默认值。`STANDALONE` 拒绝 `cluster` 对象。无效或空请求体返回 `400`；缺少或不支持的 `Content-Type` 返回 `415`。响应会遵循 `Accept` 的 quality value；JSON 返回 SQL、诊断与 destructive 标记，SQL 与通配符只返回 `result.script`。请求的表示均不受支持，或所有受支持表示均设为 `q=0` 时返回 `406`。每个成功响应都包含 `Wow-BI-Diagnostic-Count`。生成工作在线程池 `boundedElastic` 上执行。
+
+本版本默认注入 `NoOpBiDeploymentInspector`。它返回显式 `Unavailable`：普通 `DEPLOY` 仅适合首次部署或离线预览，同时会产生 `INSPECTION_UNAVAILABLE` 诊断；它无法清理旧对象，也无法恢复 `RESET` 创建的 consumer identity，配置变化还可能选择新的 consumer group。`RESET` 会被拒绝。需要完整对账时，配置 `wow.bi.script.inspector.type=CLICKHOUSE` 及 `inspector.clickhouse.endpoints`，即可启用 ClickHouse 官方 Java `client-v2` 实现。真实 inspector 查询失败会直接传播错误，不会降级为 NoOp；选择 `CLICKHOUSE` 但缺少 client-v2 类时应用启动失败。自定义 `BiDeploymentInspector` Bean 仍具有最高优先级。
+
+如需有意重建全部 BI 数据，请发送 `operation=RESET` 与 `replayFromEarliestConfirmed=true`。只有可用 inspector 能从 ClickHouse catalog 枚举全部 owned 对象，因此 Reset 会先删除当前及 orphan store，再创建新的 consumer identity。每个生成对象和零行 deployment anchor 都把版本、deployment fingerprint、聚合 owner、对象类型和 identity 写入 `system.tables.comment`；服务重启后直接从 catalog 恢复，不依赖 Wow 服务内存或外部 manifest。
 
 ## 生成的 SQL 契约
 
@@ -104,45 +113,61 @@ JSON 请求体必填。`{}` 保持服务端 `BiScriptOptions` 不变；非 `null
 
 生成的 BI SQL 要求 ClickHouse 24.8 LTS 或更高版本；模块集成测试使用 24.8 镜像固定最低支持线。
 
+### Kafka Offset 生命周期
+
+ClickHouse 24.8 会为新 Kafka consumer group 初始化 `auto.offset.reset=earliest`。运维可以通过服务端 `<kafka><consumer><auto_offset_reset>` 配置覆盖它。首次部署和每次 `Reset` 都必须保持 `earliest`（或 librdkafka 同义值 `smallest`），否则新的 consumer generation 可能跳过已有消息。破坏性 Reset 的 `replayFromEarliestConfirmed=true` 用于确认该外部前置条件；生成的表 DDL 无法检查或覆盖服务端配置。
+
+`KafkaOffsetStorage.KEEPER` 会把 `kafka_keeper_path`、`kafka_replica_name` 作为 Kafka engine settings，并另外生成 CREATE query setting `allow_experimental_kafka_offsets_storage_in_keeper=1`。ClickHouse 24.8 仍将 Keeper offset 存储标记为实验特性，目标 ClickHouse 服务必须配置可访问的 Keeper。
+
+Kafka topic 名保留 context alias 原值。ClickHouse 对象名会把 context alias 中的 `.` 和 `-` 规范化为 `_`；例如 `wow.api.command.order` 使用表前缀 `wow_api_command_order`。如果两个逻辑聚合规范化为相同对象名，生成会直接失败。
+
 ### 部署拓扑
 
 `BiScriptOptions.topology` 选择两套物理 DDL 图之一：
 
+执行集群 DDL 前，ClickHouse `remote_servers` 配置中的每个 shard 都必须设置 `internal_replication=true`。该外部服务配置无法由生成 SQL 验证，因此生成器会返回 `CLUSTER_INTERNAL_REPLICATION_REQUIRED` 诊断。
+
 | 拓扑 | 物理表 | 逻辑访问 | DDL 范围 |
 |------|--------|----------|----------|
-| `ClickHouseTopology.Standalone` | `command`、`state`、`state_last` 直接使用 `MergeTree` / `ReplacingMergeTree` | 物理表就是逻辑表，不生成 `Distributed` 门面 | 不包含 `ON CLUSTER`、复制引擎、`_local` 表和复制路径 |
-| `ClickHouseTopology.Cluster(...)` | `command_local`、`state_local`、`state_last_local` 使用复制引擎 | `command`、`state`、`state_last` 是本地表之上的 `Distributed` 门面 | 数据库、表、物化视图和展开视图都使用 `ON CLUSTER` |
+| `ClickHouseTopology.Standalone` | `*_store` 表直接使用 `ReplacingMergeTree` | `command`、`state`、`state_last` 是对存储表执行 `FINAL` 的只读视图 | 不包含 `ON CLUSTER`、复制引擎、`_local` 表和复制路径 |
+| `ClickHouseTopology.Cluster(...)` | `*_store_local` 使用复制引擎，`*_store` 提供 `Distributed` 写入门面 | `command`、`state`、`state_last` 仍是只读去重视图 | 数据库、表、物化视图和展开视图都使用 `ON CLUSTER` |
 
 独立模式的命令存储只有一张物理表：
 
 ```sql
-CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command"
+CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command_store"
 (
     "id" String,
     "aggregate_id" String,
-    "create_time" DateTime('Asia/Shanghai')
-) ENGINE = MergeTree
+    "create_time" DateTime64(3, 'Asia/Shanghai')
+) ENGINE = ReplacingMergeTree
   PARTITION BY toYYYYMM("create_time")
   ORDER BY "id";
+
+CREATE OR REPLACE VIEW "bi_db"."example_order_command"
+AS SELECT * FROM "bi_db"."example_order_command_store" FINAL;
 ```
 
 集群模式保留复制本地表和分布式门面：
 
 ```sql
-CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command_local" ON CLUSTER '{cluster}'
+CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command_store_local" ON CLUSTER '{cluster}'
 (
     "id" String,
     "aggregate_id" String,
-    "create_time" DateTime('Asia/Shanghai')
-) ENGINE = ReplicatedMergeTree(
+    "create_time" DateTime64(3, 'Asia/Shanghai')
+) ENGINE = ReplicatedReplacingMergeTree(
     '/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}', '{replica}')
   PARTITION BY toYYYYMM("create_time")
   ORDER BY "id";
 
-CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command" ON CLUSTER '{cluster}'
-AS "bi_db"."example_order_command_local"
+CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command_store" ON CLUSTER '{cluster}'
+AS "bi_db"."example_order_command_store_local"
 ENGINE = Distributed('{cluster}', "bi_db",
-                     'example_order_command_local', sipHash64("aggregate_id"));
+                     'example_order_command_store_local', sipHash64("aggregate_id"));
+
+CREATE OR REPLACE VIEW "bi_db"."example_order_command" ON CLUSTER '{cluster}'
+AS SELECT * FROM "bi_db"."example_order_command_store" FINAL;
 ```
 
 ### 聚合命令
@@ -150,7 +175,7 @@ ENGINE = Distributed('{cluster}', "bi_db",
 命令表包含租户、拥有者、空间、请求、版本和命令体等元数据；集群模式的物理表使用上文所示的 `_local` 后缀。Kafka 物化视图从消息 JSON 中提取同名语义：
 
 ```sql
-CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command_local" ON CLUSTER '{cluster}'
+CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command_store_local" ON CLUSTER '{cluster}'
 (
     "id" String,
     "aggregate_id" String,
@@ -159,16 +184,22 @@ CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command_local" ON CLUSTER '{cl
     "space_id" String,
     "aggregate_version" Nullable(UInt32),
     "body" String,
-    "create_time" DateTime('Asia/Shanghai')
-) ENGINE = ReplicatedMergeTree(
+    "create_time" DateTime64(3, 'Asia/Shanghai')
+) ENGINE = ReplicatedReplacingMergeTree(
     '/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}', '{replica}')
   PARTITION BY toYYYYMM("create_time")
   ORDER BY "id";
 
 SELECT JSONExtractString("data", 'ownerId') AS "owner_id",
        JSONExtractString("data", 'spaceId') AS "space_id",
-       JSONExtractString("data", 'body') AS "body";
+       simpleJSONExtractRaw(
+           replaceOne("data",
+                      concat('"header":', simpleJSONExtractRaw("data", 'header')),
+                      '"header":{}'),
+           'body') AS "body";
 ```
+
+词法提取会先屏蔽顶层 `header` 再读取 `body`，因此 header 中名为 `body` 的嵌套字段不会抢占命令载荷。与完整 JSON 解析再序列化不同，该方式会保留 body token 的原始词法表示。
 
 ### 全量状态事件
 
@@ -187,35 +218,40 @@ SELECT "events".1 AS "event_sequence",
        JSONExtract("events".2, 'body', 'String') AS "event_body";
 ```
 
-状态表按 `create_time` 月分区，以 `(aggregate_id, version)` 排序。独立模式直接在 `example_order_state` 上生成 `ReplacingMergeTree("version")`；集群模式在 `example_order_state_local` 上生成 `ReplicatedReplacingMergeTree(..., "version")`，并增加分布式 `example_order_state` 门面。
+顶层 `state` 使用相同的 header 屏蔽词法提取，避免 header 中名为 `state` 的嵌套字段替换权威状态 token。
+
+可写状态存储按 `create_time` 月分区，以 `(aggregate_id, version)` 排序。独立模式写入 `example_order_state_store`；集群模式通过分布式 store 写入 `example_order_state_store_local`。`example_order_state` 始终是去重读取视图。
 
 ### 最新状态
 
-最新状态表从状态表接收全部列，并按首次事件时间分区。独立模式使用以下不含集群子句的物理 DDL：
+最新状态存储从状态 store 接收全部列，并按首次事件时间分区。`example_order_state_last` 是始终执行 `FINAL` 的权威公共视图；可写存储统一隔离在 `*_store` 后缀之后。
 
 ```sql
-CREATE TABLE IF NOT EXISTS "bi_db"."example_order_state_last"
+CREATE TABLE IF NOT EXISTS "bi_db"."example_order_state_last_store"
 (
     "aggregate_id" String,
     "version" UInt32,
-    "first_event_time" DateTime('Asia/Shanghai')
+    "first_event_time" DateTime64(3, 'Asia/Shanghai')
 ) ENGINE = ReplacingMergeTree("version")
   PARTITION BY toYYYYMM("first_event_time")
   ORDER BY "aggregate_id";
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS "bi_db_consumer"."example_order_state_last_consumer"
-TO "bi_db"."example_order_state_last"
-AS SELECT * FROM "bi_db"."example_order_state";
+TO "bi_db"."example_order_state_last_store"
+AS SELECT * FROM "bi_db"."example_order_state_store";
+
+CREATE OR REPLACE VIEW "bi_db"."example_order_state_last"
+AS SELECT * FROM "bi_db"."example_order_state_last_store" FINAL;
 ```
 
 集群模式保留复制本地表，并让物化视图写入其分布式门面：
 
 ```sql
-CREATE TABLE IF NOT EXISTS "bi_db"."example_order_state_last_local" ON CLUSTER '{cluster}'
+CREATE TABLE IF NOT EXISTS "bi_db"."example_order_state_last_store_local" ON CLUSTER '{cluster}'
 (
     "aggregate_id" String,
     "version" UInt32,
-    "first_event_time" DateTime('Asia/Shanghai')
+    "first_event_time" DateTime64(3, 'Asia/Shanghai')
 ) ENGINE = ReplicatedReplacingMergeTree(
     '/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}',
     '{replica}', "version")
@@ -223,8 +259,8 @@ PARTITION BY toYYYYMM("first_event_time")
 ORDER BY "aggregate_id";
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS "bi_db_consumer"."example_order_state_last_consumer"
-TO "bi_db"."example_order_state_last"
-AS SELECT * FROM "bi_db"."example_order_state";
+TO "bi_db"."example_order_state_last_store"
+AS SELECT * FROM "bi_db"."example_order_state_store";
 ```
 
 ### 根展开视图

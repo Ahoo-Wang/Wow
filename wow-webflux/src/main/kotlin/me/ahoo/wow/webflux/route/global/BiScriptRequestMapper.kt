@@ -13,9 +13,12 @@
 
 package me.ahoo.wow.webflux.route.global
 
+import me.ahoo.wow.bi.BiDeploymentInspector
+import me.ahoo.wow.bi.BiScriptOperation
 import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.bi.ClickHouseTopology
 import me.ahoo.wow.bi.UnsupportedTypeStrategy
+import me.ahoo.wow.openapi.contract.bi.BiScriptOperationMode
 import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyMode
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyRequest
@@ -34,10 +37,39 @@ internal fun BiScriptRequest.toBiScriptOptions(base: BiScriptOptions): BiScriptO
         timezone = timezone ?: base.timezone,
         kafkaBootstrapServers = kafkaBootstrapServers ?: base.kafkaBootstrapServers,
         topicPrefix = topicPrefix ?: base.topicPrefix,
+        consumerGroupNamespace = base.consumerGroupNamespace,
+        kafkaOffsetStorage = base.kafkaOffsetStorage,
+        kafkaKeeperPathPrefix = base.kafkaKeeperPathPrefix,
         maxExpansionDepth = maxExpansionDepth ?: base.maxExpansionDepth,
         unsupportedTypeStrategy = unsupportedTypeStrategy?.toDomain()
             ?: base.unsupportedTypeStrategy,
     )
+}
+
+internal fun BiScriptRequest.requireAllowedInspectionScope(inspector: BiDeploymentInspector) {
+    if (inspector.allowsDynamicScope) {
+        return
+    }
+    require(database == null && consumerDatabase == null && topology == null) {
+        "database, consumerDatabase, and topology overrides are not allowed with the configured BI deployment inspector"
+    }
+}
+
+internal fun BiScriptRequest.toBiScriptOperation(): BiScriptOperation = when (operation) {
+    BiScriptOperationMode.DEPLOY -> {
+        require(replayFromEarliestConfirmed == null) {
+            "replayFromEarliestConfirmed is only valid for RESET"
+        }
+        BiScriptOperation.Deploy
+    }
+
+    BiScriptOperationMode.RESET -> {
+        BiScriptOperation.Reset(
+            replayFromEarliestConfirmed = requireNotNull(replayFromEarliestConfirmed) {
+                "replayFromEarliestConfirmed is required for RESET"
+            },
+        )
+    }
 }
 
 private fun BiScriptTopologyRequest.toTopology(base: ClickHouseTopology): ClickHouseTopology {
@@ -47,8 +79,6 @@ private fun BiScriptTopologyRequest.toTopology(base: ClickHouseTopology): ClickH
             ClickHouseTopology.Cluster(
                 name = cluster?.name ?: baseCluster.name,
                 installation = cluster?.installation ?: baseCluster.installation,
-                shard = cluster?.shard ?: baseCluster.shard,
-                replica = cluster?.replica ?: baseCluster.replica,
             )
         }
 

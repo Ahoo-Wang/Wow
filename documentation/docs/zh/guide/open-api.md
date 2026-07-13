@@ -165,17 +165,22 @@ curl -X 'GET' \
 
 ### 生成 BI 同步脚本
 
-`POST /wow/bi/script` 生成当前本地聚合的 ClickHouse 同步与展开 SQL，并要求提供 `application/json` 请求体。OpenAPI schema 列出全部请求字段：`database`、`consumerDatabase`、`topology`、`timezone`、`kafkaBootstrapServers`、`topicPrefix`、`maxExpansionDepth` 和 `unsupportedTypeStrategy`；嵌套拓扑字段为 `mode` 与 `cluster`，嵌套集群字段为 `name`、`installation`、`shard` 和 `replica`。schema 同时列出枚举值 `CLUSTER` / `STANDALONE` 与 `FAIL` / `RAW_JSON`。请求可以降低 `maxExpansionDepth`，但不能超过服务端配置值；该配置是端点的安全上限。
+`POST /wow/bi/script` 生成当前本地聚合的 ClickHouse 同步与展开 SQL，并要求提供 `application/json` 请求体。OpenAPI schema 除部署覆盖字段外还包含 `operation` 与 `replayFromEarliestConfirmed`，不再包含 `previousManifest`；嵌套集群字段只包含 `name` 和 `installation`。schema 同时列出枚举值 `DEPLOY` / `RESET`、`CLUSTER` / `STANDALONE` 与 `FAIL` / `RAW_JSON`。请求可以降低 `maxExpansionDepth`，但不能超过服务端配置值；该配置是端点的安全上限。
 
-服务端配置和每个非 `null` 请求 override 使用相同的最大长度：`database` 128 个字符、`consumerDatabase` 128、`timezone` 64、`topicPrefix` 128、`kafkaBootstrapServers` 4096，`topology.cluster.name`、`topology.cluster.installation`、`topology.cluster.shard`、`topology.cluster.replica` 各 128。长度恰好等于限制的值可被接受；更长的服务端值会使应用启动失败，更长的 override 返回 `400`。
+服务端配置和每个非 `null` 请求 override 使用相同的最大长度：`database` 128 个字符、`consumerDatabase` 128、`timezone` 64、`topicPrefix` 128、`kafkaBootstrapServers` 4096，`topology.cluster.name` 与 `topology.cluster.installation` 各 128。长度恰好等于限制的值可被接受；更长的服务端值会使应用启动失败，更长的 override 返回 `400`。
 
 | 状态 | `Content-Type` | 响应体 |
 |------|----------------|--------|
-| `200` | `application/sql` | 仅 SQL 文本 |
+| `200` | `application/sql` | 仅 SQL 文本；`Wow-BI-Diagnostic-Count` 给出响应体未携带的诊断数量 |
+| `200` | `application/json` | SQL、destructive 标记与诊断；`Wow-BI-Diagnostic-Count` 给出相同的诊断数量 |
 | `400` | 错误响应 | 空或无效 JSON 请求体、超过长度限制的 override、其他无效选项值或无效拓扑组合 |
+| `406` | 错误响应 | 请求的表示均不受支持，或所有受支持的表示均设为 `q=0`；运行时 `Wow-Error-Code` 为 `NotAcceptable` |
 | `415` | 公共 `wow.UnsupportedMediaType` response | 缺少或不支持的请求 `Content-Type`；运行时 `Wow-Error-Code` 为 `UnsupportedMediaType` |
+| `502` | 错误响应 | inspected replica 上的 owned ClickHouse catalog 不一致 |
+| `503` | 错误响应 | ClickHouse catalog inspection 不可用 |
+| `504` | 错误响应 | ClickHouse catalog inspection 超时 |
 
-`{}` 保持服务端选项不变；非 `null` 请求字段只在本次生成中覆盖对应的服务端选项。提供 `topology` 时必须提供 `topology.mode`。在 `CLUSTER` 模式下，省略的集群字段继承当前集群服务端基础配置；如果服务端基础配置是独立模式，则继承领域集群默认值。`STANDALONE` 拒绝 `cluster` 对象。旧版 `GET` 方法在该路径上没有路由并返回 `404`。生成诊断逐条写入 WARN 日志，绝不会混入响应体。
+`{}` 使用服务端选项执行 `DEPLOY`，调用方无需保存部署历史。默认 NoOp inspector 会返回未对账诊断；注册 ClickHouse inspector 后从 catalog 恢复历史。`RESET` 只需 `replayFromEarliestConfirmed=true`，但 inspector 必须可用，否则返回 `400`。提供 `topology` 时必须提供 `topology.mode`。在 `CLUSTER` 模式下，省略的集群字段继承当前集群服务端基础配置；如果服务端基础配置是独立模式，则继承领域集群默认值。`STANDALONE` 拒绝 `cluster` 对象。旧版 `GET` 方法在该路径上没有路由并返回 `404`。
 
 ::: code-group
 
@@ -211,6 +216,7 @@ curl -X POST 'http://localhost:8080/wow/bi/script' \
 ```http [代表性响应开头]
 HTTP/1.1 200 OK
 Content-Type: application/sql
+Wow-BI-Diagnostic-Count: 0
 
 -- global --
 CREATE DATABASE IF NOT EXISTS "bi_db" ON CLUSTER '{cluster}';

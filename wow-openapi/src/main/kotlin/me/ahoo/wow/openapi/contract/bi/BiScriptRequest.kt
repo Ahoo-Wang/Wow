@@ -14,6 +14,7 @@
 package me.ahoo.wow.openapi.contract.bi
 
 data class BiScriptRequest(
+    val operation: BiScriptOperationMode = BiScriptOperationMode.DEPLOY,
     val database: String? = null,
     val consumerDatabase: String? = null,
     val topology: BiScriptTopologyRequest? = null,
@@ -21,7 +22,28 @@ data class BiScriptRequest(
     val kafkaBootstrapServers: String? = null,
     val topicPrefix: String? = null,
     val maxExpansionDepth: Int? = null,
-    val unsupportedTypeStrategy: BiScriptUnsupportedTypeStrategy? = null
+    val unsupportedTypeStrategy: BiScriptUnsupportedTypeStrategy? = null,
+    val replayFromEarliestConfirmed: Boolean? = null,
+)
+
+enum class BiScriptOperationMode {
+    DEPLOY,
+    RESET,
+}
+
+data class BiScriptResponse(
+    val script: String,
+    val destructive: Boolean,
+    val diagnostics: List<BiScriptDiagnosticResponse>,
+)
+
+data class BiScriptDiagnosticResponse(
+    val code: String,
+    val aggregate: String,
+    val path: String,
+    val sourceType: String,
+    val decision: String,
+    val message: String,
 )
 
 data class BiScriptTopologyRequest(
@@ -32,8 +54,6 @@ data class BiScriptTopologyRequest(
 data class BiScriptClusterRequest(
     val name: String? = null,
     val installation: String? = null,
-    val shard: String? = null,
-    val replica: String? = null
 )
 
 enum class BiScriptTopologyMode {

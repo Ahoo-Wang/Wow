@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.openapi.contributor.global
 
+import me.ahoo.wow.api.exception.DefaultErrorInfo
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.catalog.RouteCategory
@@ -21,12 +22,16 @@ import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.openapi.contract.HttpContent
+import me.ahoo.wow.openapi.contract.HttpHeader
 import me.ahoo.wow.openapi.contract.HttpRequestBody
 import me.ahoo.wow.openapi.contract.HttpResponse
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpSchema
+import me.ahoo.wow.openapi.contract.bi.BiScriptHeaders
 import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
+import me.ahoo.wow.openapi.contract.bi.BiScriptResponse
 import me.ahoo.wow.openapi.contributor.badRequestResponseRef
+import me.ahoo.wow.openapi.contributor.errorCodeHeaderRef
 import me.ahoo.wow.openapi.contributor.unsupportedMediaTypeResponseRef
 
 object GenerateBIScriptRouteContributor : RouteContributor {
@@ -45,7 +50,7 @@ object GenerateBIScriptRouteContributor : RouteContributor {
                 path = BuiltInHttpRoutePaths.Global.BI_SCRIPT,
                 handlerKey = BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT,
                 summary = "Generate BI Sync Script",
-                accept = listOf(Https.MediaType.APPLICATION_SQL),
+                accept = listOf(Https.MediaType.APPLICATION_SQL, Https.MediaType.APPLICATION_JSON),
                 requestBody = HttpRequestBody(
                     required = true,
                     description = "BI script option overrides.",
@@ -57,16 +62,67 @@ object GenerateBIScriptRouteContributor : RouteContributor {
                     )
                 ),
                 responses = listOf(
-                    HttpResponse(
-                        statusCode = Https.Code.OK,
-                        description = "The generated BI synchronization script.",
-                        content = listOf(HttpContent(Https.MediaType.APPLICATION_SQL, HttpSchema.String))
-                    ),
+                    successResponse(),
                     componentContext.badRequestResponseRef(),
-                    componentContext.unsupportedMediaTypeResponseRef()
+                    errorResponse(
+                        componentContext,
+                        Https.Code.NOT_ACCEPTABLE,
+                        "None of the requested response media types is supported.",
+                    ),
+                    componentContext.unsupportedMediaTypeResponseRef(),
+                    errorResponse(
+                        componentContext,
+                        Https.Code.BAD_GATEWAY,
+                        "ClickHouse catalog is inconsistent.",
+                    ),
+                    errorResponse(
+                        componentContext,
+                        Https.Code.SERVICE_UNAVAILABLE,
+                        "ClickHouse catalog inspection is unavailable.",
+                    ),
+                    errorResponse(
+                        componentContext,
+                        Https.Code.GATEWAY_TIMEOUT,
+                        "ClickHouse catalog inspection timed out.",
+                    ),
                 ),
                 tags = wowTags()
             )
         )
     }
+
+    private fun successResponse(): HttpResponse = HttpResponse(
+        statusCode = Https.Code.OK,
+        description = "The generated BI synchronization script.",
+        headers = listOf(
+            HttpHeader(
+                name = BiScriptHeaders.DIAGNOSTIC_COUNT,
+                schema = HttpSchema.Integer,
+                description = "The number of generation diagnostics.",
+            )
+        ),
+        content = listOf(
+            HttpContent(Https.MediaType.APPLICATION_SQL, HttpSchema.String),
+            HttpContent(
+                Https.MediaType.APPLICATION_JSON,
+                HttpSchema.TypeRef(BiScriptResponse::class.java),
+            ),
+        )
+    )
+
+    private fun errorResponse(
+        componentContext: OpenAPIComponentContext,
+        statusCode: String,
+        description: String,
+    ): HttpResponse = HttpResponse(
+        statusCode = statusCode,
+        description = description,
+        headers = listOf(componentContext.errorCodeHeaderRef()),
+        content = listOf(
+            HttpContent(
+                Https.MediaType.APPLICATION_JSON,
+                HttpSchema.TypeRef(DefaultErrorInfo::class.java),
+            )
+        ),
+    )
 }

@@ -22,18 +22,25 @@ import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.AggregateRoot
+import me.ahoo.wow.bi.BiDeploymentInspection
+import me.ahoo.wow.bi.BiDeploymentInspectionException
+import me.ahoo.wow.bi.BiDeploymentInspector
 import me.ahoo.wow.bi.BiScriptDiagnostic
 import me.ahoo.wow.bi.BiScriptGenerator
 import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.bi.ClickHouseTopology
+import me.ahoo.wow.bi.NoOpBiDeploymentInspector
+import me.ahoo.wow.bi.ObservedBiDeployment
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.configuration.NamedAggregateTypeSearcher
 import me.ahoo.wow.configuration.TypeNamedAggregateSearcher
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.openapi.contract.bi.BiScriptOperationMode
 import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyMode
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyRequest
+import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunction
 import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testGlobalRouteContract
@@ -60,8 +67,13 @@ class GenerateBIScriptHandlerFunctionTest {
             topology = ClickHouseTopology.Cluster(name = "analytics-cluster"),
             kafkaBootstrapServers = "kafka:9092",
             topicPrefix = "analytics.",
+            consumerGroupNamespace = "test",
         )
-        val handlerFunction = GenerateBIScriptHandlerFunctionFactory(options).create(
+        val handlerFunction = GenerateBIScriptHandlerFunctionFactory(
+            options,
+            NoOpBiDeploymentInspector,
+            WebFluxRequestExceptionHandler(),
+        ).create(
             testGlobalRouteContract(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT)
         )
 
@@ -82,7 +94,7 @@ class GenerateBIScriptHandlerFunctionTest {
 
     @Test
     fun `should generate BI script from request overrides`() {
-        val handler = GenerateBIScriptHandlerFunction(BASE_OPTIONS)
+        val handler = handler()
         val request = MockServerRequest.builder()
             .body(
                 BiScriptRequest(
@@ -103,14 +115,152 @@ class GenerateBIScriptHandlerFunctionTest {
 
     @Test
     fun `should reject a missing request body`() {
-        GenerateBIScriptHandlerFunction(BASE_OPTIONS)
+        handler()
             .handle(MockServerRequest.builder().body(Mono.empty<BiScriptRequest>()))
             .test()
-            .expectErrorMatches {
-                it is IllegalArgumentException &&
-                    it.message == "BI script request body must not be empty"
+            .consumeNextWith { response ->
+                response.statusCode().assert().isEqualTo(HttpStatus.BAD_REQUEST)
+                response.writeBody().assert().contains("BI script request body must not be empty")
             }
-            .verify()
+            .verifyComplete()
+    }
+
+    @Test
+    fun `should return structured diagnostics without a deployment manifest when JSON is requested`() {
+        val request = MockServerRequest.builder()
+            .header("Accept", MediaType.APPLICATION_JSON_VALUE)
+            .body(BiScriptRequest().toMono())
+
+        handler().handle(request).test()
+            .consumeNextWith { response ->
+                response.headers().contentType.assert().isEqualTo(MediaType.APPLICATION_JSON)
+                response.headers().getFirst("Wow-BI-Diagnostic-Count").assert().isNotNull()
+                response.writeBody().assert()
+                    .contains("\"script\"", "\"diagnostics\"")
+                    .doesNotContain("\"manifest\"")
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `should honor quality values and default wildcards to SQL`() {
+        val cases = mapOf(
+            "application/json;q=0, application/sql;q=1" to APPLICATION_SQL,
+            "application/json;q=0.9, application/sql;q=1" to APPLICATION_SQL,
+            "application/sql;q=0.5, application/json;q=1" to MediaType.APPLICATION_JSON,
+            "application/*+json" to MediaType.APPLICATION_JSON,
+            "*/*" to APPLICATION_SQL,
+        )
+
+        cases.forEach { (accept, expected) ->
+            val request = MockServerRequest.builder()
+                .header("Accept", accept)
+                .body(BiScriptRequest().toMono())
+            handler().handle(request).block()!!
+                .headers().contentType.assert().isEqualTo(expected)
+        }
+    }
+
+    @Test
+    fun `should honor accept specificity and reject unsupported representations`() {
+        val acceptedCases = mapOf(
+            "application/*;q=1, application/json;q=0" to APPLICATION_SQL,
+            "application/*+json;q=0, application/json;q=1" to MediaType.APPLICATION_JSON,
+        )
+        acceptedCases.forEach { (accept, expected) ->
+            val request = MockServerRequest.builder()
+                .header("Accept", accept)
+                .body(BiScriptRequest().toMono())
+
+            handler().handle(request).block()!!
+                .headers().contentType.assert().isEqualTo(expected)
+        }
+
+        listOf(
+            "*/*;q=1, application/json;q=0, application/sql;q=0",
+            MediaType.TEXT_PLAIN_VALUE,
+        ).forEach { accept ->
+            val request = MockServerRequest.builder()
+                .header("Accept", accept)
+                .body(BiScriptRequest().toMono())
+
+            val response = handler().handle(request).block()!!
+            response.statusCode().assert().isEqualTo(HttpStatus.NOT_ACCEPTABLE)
+            response.headers().getFirst("Wow-Error-Code").assert().isEqualTo("NotAcceptable")
+        }
+    }
+
+    @Test
+    fun `should map every deployment inspection failure through the route-local handler`() {
+        val failures = listOf(
+            Triple(
+                BiDeploymentInspectionException.Inconsistent("inconsistent"),
+                HttpStatus.BAD_GATEWAY,
+                BiDeploymentInspectionException.INCONSISTENT_ERROR_CODE,
+            ),
+            Triple(
+                BiDeploymentInspectionException.Unavailable(),
+                HttpStatus.SERVICE_UNAVAILABLE,
+                BiDeploymentInspectionException.UNAVAILABLE_ERROR_CODE,
+            ),
+            Triple(
+                BiDeploymentInspectionException.Timeout(),
+                HttpStatus.GATEWAY_TIMEOUT,
+                BiDeploymentInspectionException.TIMEOUT_ERROR_CODE,
+            ),
+        )
+
+        failures.forEach { (failure, expectedStatus, expectedCode) ->
+            val deploymentInspector = BiDeploymentInspector {
+                Mono.error<BiDeploymentInspection>(failure)
+            }
+            val response = handler(deploymentInspector = deploymentInspector)
+                .handle(MockServerRequest.builder().body(BiScriptRequest().toMono()))
+                .block()!!
+
+            response.statusCode().assert().isEqualTo(expectedStatus)
+            response.headers().getFirst("Wow-Error-Code").assert().isEqualTo(expectedCode)
+            response.writeBody().assert().contains(expectedCode)
+        }
+    }
+
+    @Test
+    fun `should expose explicit destructive reset over HTTP`() {
+        val handler = handler(
+            deploymentInspector = BiDeploymentInspector {
+                Mono.just(BiDeploymentInspection.Available(ObservedBiDeployment(emptyList())))
+            }
+        )
+        val request = MockServerRequest.builder()
+            .header("Accept", MediaType.APPLICATION_JSON_VALUE)
+            .body(
+                BiScriptRequest(
+                    operation = BiScriptOperationMode.RESET,
+                    replayFromEarliestConfirmed = true,
+                ).toMono()
+            )
+
+        val body = handler.handle(request).block()!!.writeBody()
+        body.assert()
+            .contains("\"destructive\":true", "DROP TABLE IF EXISTS", "_state_last_store")
+    }
+
+    @Test
+    fun `should reject reset when the default no-op inspector cannot observe ownership`() {
+        val request = MockServerRequest.builder()
+            .body(
+                BiScriptRequest(
+                    operation = BiScriptOperationMode.RESET,
+                    replayFromEarliestConfirmed = true,
+                ).toMono()
+            )
+
+        handler().handle(request).test()
+            .consumeNextWith { response ->
+                response.statusCode().assert().isEqualTo(HttpStatus.BAD_REQUEST)
+                response.writeBody().assert().contains("RESET requires an available BI deployment inspection")
+            }
+            .verifyComplete()
     }
 
     @Test
@@ -127,13 +277,16 @@ class GenerateBIScriptHandlerFunctionTest {
             every { MetadataSearcher.localAggregates } returns setOf(aggregate)
             every { MetadataSearcher.namedAggregateType } returns aggregateTypes
             every { MetadataSearcher.typeNamedAggregate } returns namedAggregates
-            val options = BiScriptOptions(topology = ClickHouseTopology.Standalone)
+            val options = BiScriptOptions(
+                topology = ClickHouseTopology.Standalone,
+                consumerGroupNamespace = "test",
+            )
             val generated = BiScriptGenerator(options).generate(setOf(aggregate))
-            generated.diagnostics.assert().hasSize(2)
+            generated.diagnostics.assert().hasSize(3)
 
             lateinit var response: ServerResponse
             val warnings = captureHandlerWarnings {
-                response = GenerateBIScriptHandlerFunction(options)
+                response = handler(options)
                     .handle(MockServerRequest.builder().body(BiScriptRequest().toMono()))
                     .block()!!
             }
@@ -163,6 +316,15 @@ class GenerateBIScriptHandlerFunctionTest {
             "path:[${diagnostic.path}], sourceType:[${diagnostic.sourceType}], " +
             "decision:[${diagnostic.decision}], message:[${diagnostic.message}]."
 
+    private fun handler(
+        options: BiScriptOptions = BASE_OPTIONS,
+        deploymentInspector: BiDeploymentInspector = NoOpBiDeploymentInspector,
+    ): GenerateBIScriptHandlerFunction = GenerateBIScriptHandlerFunction(
+        options = options,
+        deploymentInspector = deploymentInspector,
+        exceptionHandler = WebFluxRequestExceptionHandler(),
+    )
+
     private fun ServerResponse.writeBody(): String {
         val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build())
         writeTo(exchange, SERVER_RESPONSE_CONTEXT)
@@ -190,6 +352,7 @@ class GenerateBIScriptHandlerFunctionTest {
             database = "base_db",
             consumerDatabase = "base_consumer",
             topology = ClickHouseTopology.Cluster(name = "base-cluster"),
+            consumerGroupNamespace = "test",
         )
         private val SERVER_RESPONSE_CONTEXT = object : ServerResponse.Context {
             private val strategies = HandlerStrategies.withDefaults()

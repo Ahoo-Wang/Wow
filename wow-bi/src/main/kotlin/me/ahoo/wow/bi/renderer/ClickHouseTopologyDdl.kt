@@ -17,18 +17,14 @@ import me.ahoo.wow.bi.ClickHouseTopology
 import me.ahoo.wow.bi.renderer.ClickHouseSqlSyntax.quoteIdentifier
 import me.ahoo.wow.bi.renderer.ClickHouseSqlSyntax.stringLiteral
 
-internal sealed interface MergeTreeKind {
-    data object AppendOnly : MergeTreeKind
-
-    data class Replacing(val versionColumn: String) : MergeTreeKind
-}
+internal data class ReplacingMergeTreeSpec(val versionColumn: String?)
 
 internal interface ClickHouseTopologyDdl {
     val scopeClause: String
 
     fun physicalTableName(logicalTableName: String): String
 
-    fun engineSql(kind: MergeTreeKind): String
+    fun engineSql(spec: ReplacingMergeTreeSpec): String
 
     fun distributedFacade(
         database: String,
@@ -50,18 +46,16 @@ private class ClusterTopologyDdl(private val topology: ClickHouseTopology.Cluste
 
     override fun physicalTableName(logicalTableName: String): String = "${logicalTableName}_local"
 
-    override fun engineSql(kind: MergeTreeKind): String {
+    override fun engineSql(spec: ReplacingMergeTreeSpec): String {
         val path = stringLiteral(
             "/clickhouse/${topology.installation}/${topology.name}/tables/" +
-                "${topology.shard}/{database}/{table}"
+                "{shard}/{database}/{table}"
         )
-        val replica = stringLiteral(topology.replica)
-        return when (kind) {
-            MergeTreeKind.AppendOnly -> "ENGINE = ReplicatedMergeTree($path, $replica)"
-            is MergeTreeKind.Replacing ->
-                "ENGINE = ReplicatedReplacingMergeTree($path, $replica, " +
-                    "${quoteIdentifier(kind.versionColumn)})"
-        }
+        val replica = stringLiteral("{replica}")
+        return spec.versionColumn?.let { versionColumn ->
+            "ENGINE = ReplicatedReplacingMergeTree($path, $replica, " +
+                "${quoteIdentifier(versionColumn)})"
+        } ?: "ENGINE = ReplicatedReplacingMergeTree($path, $replica)"
     }
 
     override fun distributedFacade(
@@ -86,10 +80,10 @@ private data object StandaloneTopologyDdl : ClickHouseTopologyDdl {
 
     override fun physicalTableName(logicalTableName: String): String = logicalTableName
 
-    override fun engineSql(kind: MergeTreeKind): String = when (kind) {
-        MergeTreeKind.AppendOnly -> "ENGINE = MergeTree"
-        is MergeTreeKind.Replacing -> "ENGINE = ReplacingMergeTree(${quoteIdentifier(kind.versionColumn)})"
-    }
+    override fun engineSql(spec: ReplacingMergeTreeSpec): String =
+        spec.versionColumn?.let { versionColumn ->
+            "ENGINE = ReplacingMergeTree(${quoteIdentifier(versionColumn)})"
+        } ?: "ENGINE = ReplacingMergeTree"
 
     override fun distributedFacade(
         database: String,

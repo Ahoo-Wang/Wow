@@ -22,6 +22,9 @@ data class BiScriptOptions(
     val timezone: String = "Asia/Shanghai",
     val kafkaBootstrapServers: String = DEFAULT_KAFKA_BOOTSTRAP_SERVERS,
     val topicPrefix: String = DEFAULT_TOPIC_PREFIX,
+    val consumerGroupNamespace: String? = null,
+    val kafkaOffsetStorage: KafkaOffsetStorage = KafkaOffsetStorage.BROKER,
+    val kafkaKeeperPathPrefix: String = DEFAULT_KAFKA_KEEPER_PATH_PREFIX,
     val maxExpansionDepth: Int = 5,
     val unsupportedTypeStrategy: UnsupportedTypeStrategy = UnsupportedTypeStrategy.RAW_JSON,
 ) {
@@ -34,6 +37,14 @@ data class BiScriptOptions(
             MAX_KAFKA_BOOTSTRAP_SERVERS_LENGTH,
         )
         topicPrefix.requireValidRequiredValue("topicPrefix", MAX_TOPIC_PREFIX_LENGTH)
+        consumerGroupNamespace?.requireValidRequiredValue(
+            "consumerGroupNamespace",
+            MAX_CONSUMER_GROUP_NAMESPACE_LENGTH,
+        )
+        kafkaKeeperPathPrefix.requireValidRequiredValue(
+            "kafkaKeeperPathPrefix",
+            MAX_KAFKA_KEEPER_PATH_PREFIX_LENGTH,
+        )
         require(maxExpansionDepth >= 1) {
             "maxExpansionDepth must be greater than or equal to 1"
         }
@@ -55,13 +66,21 @@ data class BiScriptOptions(
         const val MAX_TIMEZONE_LENGTH: Int = 64
         const val MAX_KAFKA_BOOTSTRAP_SERVERS_LENGTH: Int = 4096
         const val MAX_TOPIC_PREFIX_LENGTH: Int = 128
+        const val MAX_CONSUMER_GROUP_NAMESPACE_LENGTH: Int = 128
+        const val MAX_KAFKA_KEEPER_PATH_PREFIX_LENGTH: Int = 512
 
         private const val DEFAULT_KAFKA_BOOTSTRAP_SERVERS: String = "localhost:9093"
         private const val DEFAULT_TOPIC_PREFIX: String = Wow.WOW_PREFIX
+        private const val DEFAULT_KAFKA_KEEPER_PATH_PREFIX: String = "/clickhouse/wow-bi"
     }
 }
 
 enum class UnsupportedTypeStrategy {
     FAIL,
     RAW_JSON,
+}
+
+enum class KafkaOffsetStorage {
+    BROKER,
+    KEEPER,
 }

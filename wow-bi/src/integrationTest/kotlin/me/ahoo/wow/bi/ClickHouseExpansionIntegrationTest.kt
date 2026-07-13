@@ -67,6 +67,7 @@ class ClickHouseExpansionIntegrationTest {
             consumerDatabase = CONSUMER_DATABASE,
             topology = case.topology,
             timezone = "UTC",
+            consumerGroupNamespace = "integration-test",
         )
         val namedAggregate = aggregateMetadata<ClickHouseExpansionAggregate, ClickHouseExpansionState>()
         val result = BiScriptGenerator(options).generate(setOf(namedAggregate))
@@ -90,6 +91,7 @@ class ClickHouseExpansionIntegrationTest {
             ).use { connection ->
                 result.statements.forEach(connection::executeSql)
                 connection.assertGeneratedObjects(case)
+                connection.assertJsonExtractionSemantics()
                 connection.insertLogicalRows()
                 connection.assertLogicalDataPath()
 
@@ -128,8 +130,80 @@ class ClickHouseExpansionIntegrationTest {
                     sql = scalarProjectionSql(ROOT_VIEW),
                     columns = SCALAR_PROJECTION_COLUMNS,
                 ).single().assert().isEqualTo(EXPECTED_SCALAR_ROW)
+
+                connection.assertLatestStateReadsAreDeduplicated()
+                connection.assertDeployIsIdempotent(result, case)
             }
         }
+    }
+
+    private fun Connection.assertDeployIsIdempotent(
+        result: BiScriptResult,
+        case: TopologyCase,
+    ) {
+        val before = listOf(COMMAND_STORE_TABLE, STATE_STORE_TABLE, STATE_LAST_STORE_TABLE)
+            .associateWith { table -> queryCount("SELECT count() FROM ${qualified(DATABASE, table)}") }
+
+        result.statements.forEach(::executeSql)
+
+        assertGeneratedObjects(case)
+        before.forEach { (table, expectedCount) ->
+            queryCount("SELECT count() FROM ${qualified(DATABASE, table)}")
+                .assert().isEqualTo(expectedCount)
+        }
+    }
+
+    private fun Connection.assertJsonExtractionSemantics() {
+        val unicodeEscape = "\\u0041"
+        val payload =
+            """{"header":{"state":{"wrong":1}},"state": { "n" : 1.2300e+04, "u":"$unicodeEscape" },"isVoid":true,"createTime":-1}"""
+        queryRows(
+            """
+            WITH ${literal(payload)} AS data,
+                 replaceOne(data,
+                            concat('"header":', simpleJSONExtractRaw(data, 'header')),
+                            '"header":{}') AS data_without_header
+            SELECT simpleJSONExtractRaw(data_without_header, 'state') AS raw,
+                   JSONExtractBool('{"state":{},"isVoid":true}', 'isVoid') AS is_void,
+                   toUnixTimestamp64Milli(toDateTime64(JSONExtractInt('{"createTime":-1}', 'createTime') / 1000.0, 3, 'UTC')) AS epoch
+            """.trimIndent(),
+            listOf("raw", "is_void", "epoch"),
+        ).single().assert().isEqualTo(
+            mapOf(
+                "raw" to " { \"n\" : 1.2300e+04, \"u\":\"$unicodeEscape\" }",
+                "is_void" to "1",
+                "epoch" to "-1",
+            )
+        )
+    }
+
+    private fun Connection.assertLatestStateReadsAreDeduplicated() {
+        (1..2).forEach { version ->
+            executeSql(
+                """
+                INSERT INTO ${qualified(DATABASE, STATE_STORE_TABLE)}
+                (id, context_name, aggregate_name, header, aggregate_id, tenant_id, owner_id, space_id,
+                 command_id, request_id, version, state, body, first_operator, first_event_time,
+                 create_time, tags, deleted)
+                VALUES ('latest-$version', 'bi-integration-service', 'nullable', map(),
+                        'aggregate-latest', '', '', '', '', '', $version, '{}', [], '',
+                        toDateTime64(0, 3, 'UTC'), toDateTime64(0, 3, 'UTC'), map(), false)
+                """.trimIndent()
+            )
+        }
+        queryCount(
+            "SELECT count() FROM ${qualified(DATABASE, STATE_LAST_TABLE)} " +
+                "WHERE aggregate_id = 'aggregate-latest'"
+        ).assert().isEqualTo(1L)
+        queryRows(
+            "SELECT version FROM ${qualified(DATABASE, STATE_LAST_TABLE)} " +
+                "WHERE aggregate_id = 'aggregate-latest'",
+            listOf("version"),
+        ).single().required("version").assert().isEqualTo("2")
+        queryCount(
+            "SELECT count() FROM ${qualified(DATABASE, ROOT_VIEW)} " +
+                "WHERE __aggregate_id = 'aggregate-latest'"
+        ).assert().isEqualTo(1L)
     }
 
     private fun topologyCases(): List<TopologyCase> = listOf(
@@ -138,8 +212,6 @@ class ClickHouseExpansionIntegrationTest {
             topology = ClickHouseTopology.Cluster(
                 name = CLUSTER,
                 installation = "test",
-                shard = "01",
-                replica = "01",
             ),
             configureContainer = {
                 withCopyFileToContainer(
@@ -171,6 +243,11 @@ class ClickHouseExpansionIntegrationTest {
             valueTransform = { it.required("name") },
         ).mapValues { (_, names) -> names.toSet() }
             .assert().isEqualTo(expectedGeneratedObjects(case.topology))
+        queryRows(
+            sql = "SELECT comment FROM system.tables " +
+                "WHERE database IN (${literal(DATABASE)}, ${literal(CONSUMER_DATABASE)})",
+            columns = listOf("comment"),
+        ).map { it.required("comment") }.all { it.startsWith("wow-bi:") }.assert().isTrue()
 
         if (case.topology == ClickHouseTopology.Standalone) {
             val forbiddenPredicates = (
@@ -191,7 +268,7 @@ class ClickHouseExpansionIntegrationTest {
     private fun Connection.insertLogicalRows() {
         executeSql(
             """
-            INSERT INTO ${qualified(DATABASE, COMMAND_TABLE)}
+            INSERT INTO ${qualified(DATABASE, COMMAND_STORE_TABLE)}
             (id, context_name, aggregate_name, name, header, aggregate_id, tenant_id,
              owner_id, space_id, request_id, aggregate_version, is_create, allow_create,
              body_type, body, create_time)
@@ -201,7 +278,7 @@ class ClickHouseExpansionIntegrationTest {
             """.trimIndent()
         )
         prepareStatement(
-            "INSERT INTO ${qualified(DATABASE, STATE_TABLE)} " +
+            "INSERT INTO ${qualified(DATABASE, STATE_STORE_TABLE)} " +
                 "(${identifier("id")}, ${identifier("context_name")}, ${identifier("aggregate_name")}, " +
                 "${identifier("header")}, ${identifier("aggregate_id")}, ${identifier("tenant_id")}, " +
                 "${identifier("owner_id")}, ${identifier("space_id")}, ${identifier("command_id")}, " +
@@ -217,7 +294,7 @@ class ClickHouseExpansionIntegrationTest {
             statement.executeUpdate()
         }
         prepareStatement(
-            "INSERT INTO ${qualified(DATABASE, STATE_TABLE)} " +
+            "INSERT INTO ${qualified(DATABASE, STATE_STORE_TABLE)} " +
                 "(${identifier("id")}, ${identifier("context_name")}, ${identifier("aggregate_name")}, " +
                 "${identifier("header")}, ${identifier("aggregate_id")}, ${identifier("tenant_id")}, " +
                 "${identifier("owner_id")}, ${identifier("space_id")}, ${identifier("command_id")}, " +
@@ -401,8 +478,11 @@ class ClickHouseExpansionIntegrationTest {
         const val DATABASE = "bi_it"
         const val CONSUMER_DATABASE = "bi_it_consumer"
         const val COMMAND_TABLE = "bi_it_nullable_command"
+        const val COMMAND_STORE_TABLE = "${COMMAND_TABLE}_store"
         const val STATE_TABLE = "bi_it_nullable_state"
+        const val STATE_STORE_TABLE = "${STATE_TABLE}_store"
         const val STATE_LAST_TABLE = "bi_it_nullable_state_last"
+        const val STATE_LAST_STORE_TABLE = "${STATE_LAST_TABLE}_store"
         const val ROOT_VIEW = "bi_it_nullable_state_last_root"
         const val CHILD_VIEW = "bi_it_nullable_state_last_root_nullable_objects"
         const val RECOVERY_CHILD_VIEW = "bi_it_nullable_state_last_root_recovery_items"
@@ -488,7 +568,8 @@ class ClickHouseExpansionIntegrationTest {
         val ESCAPED_RAW_TARGET = NamingConverter.PASCAL_TO_SNAKE.convert(ESCAPED_RAW_PROPERTY)
         val ESCAPED_COLLECTION_TARGET =
             NamingConverter.PASCAL_TO_SNAKE.convert(ESCAPED_COLLECTION_PROPERTY)
-        val ESCAPED_CHILD_VIEW = "${ROOT_VIEW}_$ESCAPED_COLLECTION_TARGET"
+        const val ESCAPED_COLLECTION_VIEW_SEGMENT = "field_7dc34f9338e4d4c34ea6d6664feeaad1"
+        val ESCAPED_CHILD_VIEW = "${ROOT_VIEW}_$ESCAPED_COLLECTION_VIEW_SEGMENT"
         val RECOVERY_ITEM = linkedMapOf(
             "amount" to HIGH_PRECISION_DECIMAL,
             "children" to listOf(
@@ -551,12 +632,15 @@ class ClickHouseExpansionIntegrationTest {
         val EXPECTED_CLUSTER_OBJECTS = mapOf(
             DATABASE to setOf(
                 COMMAND_TABLE,
-                "${COMMAND_TABLE}_local",
+                COMMAND_STORE_TABLE,
+                "${COMMAND_STORE_TABLE}_local",
                 STATE_TABLE,
-                "${STATE_TABLE}_local",
+                STATE_STORE_TABLE,
+                "${STATE_STORE_TABLE}_local",
                 "${STATE_TABLE}_event",
                 STATE_LAST_TABLE,
-                "${STATE_LAST_TABLE}_local",
+                STATE_LAST_STORE_TABLE,
+                "${STATE_LAST_STORE_TABLE}_local",
                 ROOT_VIEW,
                 CHILD_VIEW,
                 RECOVERY_CHILD_VIEW,
@@ -564,6 +648,7 @@ class ClickHouseExpansionIntegrationTest {
                 ESCAPED_CHILD_VIEW,
             ),
             CONSUMER_DATABASE to setOf(
+                "__wow_bi_deployment",
                 "${COMMAND_TABLE}_queue",
                 "${COMMAND_TABLE}_consumer",
                 "${STATE_TABLE}_queue",
@@ -574,9 +659,12 @@ class ClickHouseExpansionIntegrationTest {
         val EXPECTED_STANDALONE_OBJECTS = mapOf(
             DATABASE to setOf(
                 COMMAND_TABLE,
+                COMMAND_STORE_TABLE,
                 STATE_TABLE,
+                STATE_STORE_TABLE,
                 "${STATE_TABLE}_event",
                 STATE_LAST_TABLE,
+                STATE_LAST_STORE_TABLE,
                 ROOT_VIEW,
                 CHILD_VIEW,
                 RECOVERY_CHILD_VIEW,
@@ -584,6 +672,7 @@ class ClickHouseExpansionIntegrationTest {
                 ESCAPED_CHILD_VIEW,
             ),
             CONSUMER_DATABASE to setOf(
+                "__wow_bi_deployment",
                 "${COMMAND_TABLE}_queue",
                 "${COMMAND_TABLE}_consumer",
                 "${STATE_TABLE}_queue",

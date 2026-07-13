@@ -164,17 +164,22 @@ curl -X 'GET' \
 
 ### Generate BI Sync Script
 
-`POST /wow/bi/script` generates ClickHouse synchronization and expansion SQL for the current local aggregates. It requires an `application/json` request body. The OpenAPI schema lists every request field: `database`, `consumerDatabase`, `topology`, `timezone`, `kafkaBootstrapServers`, `topicPrefix`, `maxExpansionDepth`, and `unsupportedTypeStrategy`; nested topology fields are `mode` and `cluster`, and nested cluster fields are `name`, `installation`, `shard`, and `replica`. It also lists the enum values `CLUSTER` / `STANDALONE` and `FAIL` / `RAW_JSON`. A request may lower `maxExpansionDepth`, but cannot exceed the server-configured value, which is the endpoint's safety ceiling.
+`POST /wow/bi/script` generates ClickHouse synchronization and expansion SQL for the current local aggregates. It requires an `application/json` request body. The OpenAPI schema lists deployment overrides plus `operation` and `replayFromEarliestConfirmed`; `previousManifest` is no longer part of the contract. Nested cluster fields are only `name` and `installation`. It also lists the enum values `DEPLOY` / `RESET`, `CLUSTER` / `STANDALONE`, and `FAIL` / `RAW_JSON`. A request may lower `maxExpansionDepth`, but cannot exceed the server-configured value, which is the endpoint's safety ceiling.
 
-The same maximum lengths apply to server configuration and every non-null request override: `database` 128 characters, `consumerDatabase` 128, `timezone` 64, `topicPrefix` 128, `kafkaBootstrapServers` 4096, and `topology.cluster.name`, `topology.cluster.installation`, `topology.cluster.shard`, and `topology.cluster.replica` 128 each. A value exactly at its limit is accepted. A longer server value fails application startup; a longer override returns `400`.
+The same maximum lengths apply to server configuration and every non-null request override: `database` 128 characters, `consumerDatabase` 128, `timezone` 64, `topicPrefix` 128, `kafkaBootstrapServers` 4096, and `topology.cluster.name` and `topology.cluster.installation` 128 each. A value exactly at its limit is accepted. A longer server value fails application startup; a longer override returns `400`.
 
 | Status | `Content-Type` | Body |
 |--------|----------------|------|
-| `200` | `application/sql` | SQL text only |
+| `200` | `application/sql` | SQL text only; `Wow-BI-Diagnostic-Count` reports diagnostics omitted from the body |
+| `200` | `application/json` | SQL, destructive flag, and diagnostics; `Wow-BI-Diagnostic-Count` reports the same diagnostic count |
 | `400` | Error response | Empty or invalid JSON body, over-limit override, another invalid option value, or invalid topology combination |
+| `406` | Error response | No requested representation is supported, or every supported representation has `q=0`; runtime `Wow-Error-Code` is `NotAcceptable` |
 | `415` | Common `wow.UnsupportedMediaType` response | Missing or unsupported request `Content-Type`; runtime `Wow-Error-Code` is `UnsupportedMediaType` |
+| `502` | Error response | The owned ClickHouse catalog is inconsistent across inspected replicas |
+| `503` | Error response | ClickHouse catalog inspection is unavailable |
+| `504` | Error response | ClickHouse catalog inspection timed out |
 
-`{}` uses the server-side options unchanged. Non-null request fields override the corresponding server options for this generation. When `topology` is present, `topology.mode` is mandatory. In `CLUSTER` mode, omitted cluster fields inherit the current Cluster server base, or the domain Cluster defaults when the server base is Standalone. `STANDALONE` rejects a `cluster` object. The legacy `GET` method has no route for this path and returns `404`. Each generated diagnostic is written as a WARN log and is never mixed into the response body.
+`{}` performs `DEPLOY` with the server-side options unchanged; callers do not persist deployment history. The default NoOp inspector returns an unreconciled diagnostic, while a registered ClickHouse inspector restores history from the catalog. `RESET` only carries `replayFromEarliestConfirmed=true`, but returns `400` unless inspection is available. When `topology` is present, `topology.mode` is mandatory. In `CLUSTER` mode, omitted cluster fields inherit the current Cluster server base, or the domain Cluster defaults when the server base is Standalone. `STANDALONE` rejects a `cluster` object. The legacy `GET` method has no route for this path and returns `404`.
 
 ::: code-group
 
@@ -210,6 +215,7 @@ curl -X POST 'http://localhost:8080/wow/bi/script' \
 ```http [Representative Response Start]
 HTTP/1.1 200 OK
 Content-Type: application/sql
+Wow-BI-Diagnostic-Count: 0
 
 -- global --
 CREATE DATABASE IF NOT EXISTS "bi_db" ON CLUSTER '{cluster}';

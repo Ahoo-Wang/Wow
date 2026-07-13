@@ -22,11 +22,15 @@ object Https {
         const val OK = "200"
         const val BAD_REQUEST = "400"
         const val NOT_FOUND = "404"
+        const val NOT_ACCEPTABLE = "406"
         const val REQUEST_TIMEOUT = "408"
         const val CONFLICT = "409"
         const val GONE = "410"
         const val UNSUPPORTED_MEDIA_TYPE = "415"
         const val TOO_MANY_REQUESTS = "429"
+        const val BAD_GATEWAY = "502"
+        const val SERVICE_UNAVAILABLE = "503"
+        const val GATEWAY_TIMEOUT = "504"
     }
 
     object Method {

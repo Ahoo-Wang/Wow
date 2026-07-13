@@ -17,7 +17,10 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.getContextAliasPrefix
 import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contributor.DefaultRouteContributors
+import me.ahoo.wow.openapi.contributor.global.GenerateBIScriptRouteContributor
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration.Companion.WOW_CURRENT_BOUNDED_CONTEXT
+import me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -26,7 +29,7 @@ import org.springframework.context.annotation.Bean
 
 @AutoConfiguration
 @ConditionalOnOpenAPIEnabled
-@EnableConfigurationProperties(OpenAPIProperties::class)
+@EnableConfigurationProperties(OpenAPIProperties::class, BiScriptProperties::class)
 class OpenAPIAutoConfiguration {
 
     @Bean
@@ -45,9 +48,17 @@ class OpenAPIAutoConfiguration {
     @Bean
     fun routerSpecs(
         @Qualifier(WOW_CURRENT_BOUNDED_CONTEXT) boundedContext: NamedBoundedContext,
-        openAPIComponentContext: OpenAPIComponentContext
+        openAPIComponentContext: OpenAPIComponentContext,
+        biScriptProperties: BiScriptProperties,
     ): RouterSpecs {
-        return RouterSpecs(boundedContext, componentContext = openAPIComponentContext).build()
+        val contributors = DefaultRouteContributors.all().filterNot { contributor ->
+            contributor === GenerateBIScriptRouteContributor && !biScriptProperties.enabled
+        }
+        return RouterSpecs(
+            boundedContext,
+            componentContext = openAPIComponentContext,
+            routeContributors = contributors,
+        ).build()
     }
 
     @Bean

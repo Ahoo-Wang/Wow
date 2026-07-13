@@ -14,16 +14,24 @@
 package me.ahoo.wow.webflux.route.bi
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.bi.BiDeploymentInspection
+import me.ahoo.wow.bi.BiDeploymentInspector
+import me.ahoo.wow.bi.BiScriptOperation
 import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.bi.ClickHouseTopology
+import me.ahoo.wow.bi.NoOpBiDeploymentInspector
 import me.ahoo.wow.bi.UnsupportedTypeStrategy
 import me.ahoo.wow.openapi.contract.bi.BiScriptClusterRequest
+import me.ahoo.wow.openapi.contract.bi.BiScriptOperationMode
 import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyMode
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyRequest
 import me.ahoo.wow.openapi.contract.bi.BiScriptUnsupportedTypeStrategy
+import me.ahoo.wow.webflux.route.global.requireAllowedInspectionScope
+import me.ahoo.wow.webflux.route.global.toBiScriptOperation
 import me.ahoo.wow.webflux.route.global.toBiScriptOptions
 import org.junit.jupiter.api.Test
+import reactor.core.publisher.Mono
 
 class BiScriptRequestMapperTest {
     @Test
@@ -54,8 +62,6 @@ class BiScriptRequestMapperTest {
                 topology = ClickHouseTopology.Cluster(
                     name = "request-cluster",
                     installation = "base-installation",
-                    shard = "base-shard",
-                    replica = "base-replica",
                 ),
                 timezone = "UTC",
                 kafkaBootstrapServers = "request-kafka:9092",
@@ -93,6 +99,24 @@ class BiScriptRequestMapperTest {
     }
 
     @Test
+    fun `should reject catalog scope overrides for a fixed deployment inspector`() {
+        val inspector = BiDeploymentInspector { Mono.just(BiDeploymentInspection.Unavailable) }
+        val requests = listOf(
+            BiScriptRequest(database = BASE_OPTIONS.database),
+            BiScriptRequest(consumerDatabase = BASE_OPTIONS.consumerDatabase),
+            BiScriptRequest(
+                topology = BiScriptTopologyRequest(mode = BiScriptTopologyMode.STANDALONE)
+            ),
+        )
+
+        requests.forEach { request ->
+            runCatching { request.requireAllowedInspectionScope(inspector) }
+                .exceptionOrNull()!!.message.assert().contains("overrides are not allowed")
+        }
+        BiScriptRequest(database = "preview").requireAllowedInspectionScope(NoOpBiDeploymentInspector)
+    }
+
+    @Test
     fun `should accept max expansion depth lower than the configured ceiling`() {
         BiScriptRequest(maxExpansionDepth = 2)
             .toBiScriptOptions(BASE_OPTIONS)
@@ -116,6 +140,40 @@ class BiScriptRequestMapperTest {
         )
     }
 
+    @Test
+    fun `should map deploy without caller supplied deployment history`() {
+        BiScriptRequest().toBiScriptOperation().assert().isEqualTo(BiScriptOperation.Deploy)
+    }
+
+    @Test
+    fun `should require explicit reset confirmation`() {
+        val request = BiScriptRequest(
+            operation = BiScriptOperationMode.RESET,
+            replayFromEarliestConfirmed = true,
+        )
+        val first = request.toBiScriptOperation() as BiScriptOperation.Reset
+
+        first.replayFromEarliestConfirmed.assert().isTrue()
+        runCatching {
+            BiScriptRequest(operation = BiScriptOperationMode.RESET).toBiScriptOperation()
+        }.exceptionOrNull()!!.message.assert()
+            .isEqualTo("replayFromEarliestConfirmed is required for RESET")
+    }
+
+    @Test
+    fun `should reject operation-specific fields in the wrong mode`() {
+        runCatching {
+            BiScriptRequest(replayFromEarliestConfirmed = true).toBiScriptOperation()
+        }.exceptionOrNull()!!.message.assert().isEqualTo("replayFromEarliestConfirmed is only valid for RESET")
+
+        val resetWithoutConfirmation = BiScriptRequest(
+            operation = BiScriptOperationMode.RESET,
+        )
+        runCatching { resetWithoutConfirmation.toBiScriptOperation() }
+            .exceptionOrNull()!!.message.assert()
+            .isEqualTo("replayFromEarliestConfirmed is required for RESET")
+    }
+
     private companion object {
         private val BASE_OPTIONS = BiScriptOptions(
             database = "base_db",
@@ -123,8 +181,6 @@ class BiScriptRequestMapperTest {
             topology = ClickHouseTopology.Cluster(
                 name = "base-cluster",
                 installation = "base-installation",
-                shard = "base-shard",
-                replica = "base-replica",
             ),
             timezone = "Asia/Tokyo",
             kafkaBootstrapServers = "base-kafka:9092",

@@ -356,18 +356,60 @@ These properties establish the server-side base for the ClickHouse SQL returned 
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `wow.bi.script.database` | String | `bi_db` | Database for state and command tables and expansion views; maximum 128 characters |
-| `wow.bi.script.consumer-database` | String | `bi_db_consumer` | Database for Kafka queue tables and consumer materialized views; maximum 128 characters |
+| `wow.bi.script.enabled` | Boolean | `true` | Exposes the BI script HTTP route and its OpenAPI operation; set to `false` to remove both |
+| `wow.bi.script.database` | String | `bi_db` | Database for command/state `*_store` tables plus public, latest-state, and expansion views; maximum 128 characters |
+| `wow.bi.script.consumer-database` | String | `bi_db_consumer` | Database for Kafka queue tables, consumer materialized views, and the deployment anchor; maximum 128 characters |
 | `wow.bi.script.topology.mode` | Enum | `CLUSTER` | Physical DDL topology: `CLUSTER` or `STANDALONE` |
 | `wow.bi.script.topology.cluster.name` | String | `{cluster}` | Cluster name used by `ON CLUSTER` and `Distributed` in `CLUSTER` mode; maximum 128 characters |
 | `wow.bi.script.topology.cluster.installation` | String | `{installation}` | Installation segment in the replicated table path in `CLUSTER` mode; maximum 128 characters |
-| `wow.bi.script.topology.cluster.shard` | String | `{shard}` | Shard segment in the replicated table path in `CLUSTER` mode; maximum 128 characters |
-| `wow.bi.script.topology.cluster.replica` | String | `{replica}` | Replica name passed to replicated table engines in `CLUSTER` mode; maximum 128 characters |
 | `wow.bi.script.timezone` | String | `Asia/Shanghai` | ClickHouse timezone for generated date-time columns and conversions; maximum 64 characters |
 | `wow.bi.script.kafka-bootstrap-servers` | String | Inherit `wow.kafka.bootstrap-servers`; otherwise `localhost:9093` | BI Kafka broker override; multiple inherited brokers are joined with commas; maximum 4096 characters |
 | `wow.bi.script.topic-prefix` | String | Inherit `wow.kafka.topic-prefix`; otherwise `wow.` | BI topic prefix override; maximum 128 characters |
+| `wow.bi.script.consumer-group-namespace` | String | none | Required when generation includes at least one aggregate's Kafka consumers; deployment-unique namespace embedded in every consumer group |
+| `wow.bi.script.kafka-offset-storage` | Enum | `BROKER` | `BROKER` uses Kafka offsets; `KEEPER` enables ClickHouse Keeper-backed offsets |
+| `wow.bi.script.kafka-keeper-path-prefix` | String | `/clickhouse/wow-bi` | Keeper path prefix used only with `KEEPER` |
 | `wow.bi.script.max-expansion-depth` | Int | `5` | Maximum complex-property expansion depth; must be at least `1` |
 | `wow.bi.script.unsupported-type-strategy` | Enum | `RAW_JSON` | `RAW_JSON` emits a scoped JSON convenience projection and a diagnostic; the exact lexical value is recovered from `__state` at the recovery `__path`; `FAIL` stops generation |
+| `wow.bi.script.inspector.type` | Enum | `NO_OP` | Deployment-state inspector: `NO_OP` or `CLICKHOUSE`; the catalog is contacted only when `CLICKHOUSE` is explicitly selected |
+| `wow.bi.script.inspector.timeout` | Duration | `30s` | Deadline for the complete inspection; cluster inspection performs two catalog operations, so this should exceed the per-operation execution timeout |
+| `wow.bi.script.inspector.clickhouse.endpoints` | List&lt;URI&gt; | none | One or more distinct ClickHouse HTTP(S) endpoints; each requires an explicit port and may include a reverse-proxy base path |
+| `wow.bi.script.inspector.clickhouse.username` | String | `default` | ClickHouse Basic Auth username |
+| `wow.bi.script.inspector.clickhouse.password` | String | empty | ClickHouse Basic Auth password; redacted from property and client-option string representations |
+| `wow.bi.script.inspector.clickhouse.connection-pool-enabled` | Boolean | `true` | Maps to `Client.Builder.enableConnectionPool` |
+| `wow.bi.script.inspector.clickhouse.connection-timeout` | Duration | `3s` | Maps to `Client.Builder.setConnectTimeout`; must be positive |
+| `wow.bi.script.inspector.clickhouse.connection-request-timeout` | Duration | `10s` | Maximum wait for a pooled connection; maps to `setConnectionRequestTimeout` and must be positive |
+| `wow.bi.script.inspector.clickhouse.socket-timeout` | Duration | `10s` | Socket read/write timeout; maps to `setSocketTimeout`; zero means no driver socket deadline |
+| `wow.bi.script.inspector.clickhouse.execution-timeout` | Duration | `10s` | Deadline for one driver operation; maps to `setExecutionTimeout`; zero means no driver operation deadline |
+| `wow.bi.script.inspector.clickhouse.max-connections` | Int | `10` | Maximum open connections per endpoint; maps to `setMaxConnections` and must be positive |
+| `wow.bi.script.inspector.clickhouse.max-retries` | Int | `0` | Driver retry count; maps to `setMaxRetries` and must not be negative |
+
+The default `NO_OP` implementation does not contact ClickHouse. Explicitly enable catalog reconciliation with:
+
+```yaml
+wow:
+  bi:
+    script:
+      topology:
+        mode: STANDALONE
+      inspector:
+        type: CLICKHOUSE
+        timeout: 30s
+        clickhouse:
+          endpoints:
+            - http://clickhouse-1:8123
+            - http://clickhouse-2:8123
+          username: default
+          password: ${CLICKHOUSE_PASSWORD:}
+          connection-pool-enabled: true
+          connection-timeout: 3s
+          connection-request-timeout: 10s
+          socket-timeout: 10s
+          execution-timeout: 10s
+          max-connections: 10
+          max-retries: 0
+```
+
+The built-in inspector is implemented in `wow-bi` with the official ClickHouse Java `client-v2`. Its typed Spring Boot properties map one-to-one to the corresponding `Client.Builder` concepts instead of merging unrelated driver timeouts. The inspector owns and closes the client with the Spring context; synchronous driver calls run on Reactor's bounded-elastic scheduler, avoiding a redundant driver executor. Catalog queries use typed RowBinary records and named parameters, and cluster mode verifies replica participation and owned-object definitions while ignoring unrelated replica-local catalog differences. Connection, timeout, invalid ownership-marker, and owned replica-divergence failures propagate without silently falling back to `NO_OP`. Selecting `CLICKHOUSE` without the client-v2 classes fails application startup. Use a custom `BiDeploymentInspector` bean for unsupported proxy, mTLS, or authentication requirements; a custom bean takes precedence over both built-in implementations.
 
 Standalone topology:
 
@@ -375,6 +417,8 @@ Standalone topology:
 wow:
   bi:
     script:
+      enabled: true
+      consumer-group-namespace: orders-production-blue
       topology:
         mode: STANDALONE
 ```
@@ -390,11 +434,9 @@ wow:
         cluster:
           name: production
           installation: clickhouse
-          shard: '{shard}'
-          replica: '{replica}'
 ```
 
-`STANDALONE` generates logical tables with `MergeTree` / `ReplacingMergeTree` directly. It rejects `topology.cluster`. `CLUSTER` generates replicated `_local` tables plus `Distributed` logical tables; omitted cluster fields use the defaults shown above.
+`STANDALONE` creates `*_store` physical tables with `ReplacingMergeTree`; `command`, `state`, and `state_last` remain read-only views that query their stores with `FINAL`. It rejects `topology.cluster`. `CLUSTER` creates replicated `*_store_local` physical tables, `*_store` `Distributed` write facades, and the same public read views; omitted cluster fields use the defaults shown above. Cluster DDL always uses ClickHouse's `{shard}` and `{replica}` server macros, including the Keeper consumer replica identity; they are intentionally not application-level overrides.
 
 The complete precedence, from lowest to highest, is:
 
@@ -403,9 +445,11 @@ The complete precedence, from lowest to highest, is:
 3. `wow.bi.script.*` application properties;
 4. Non-null `POST` request fields.
 
-Thus, explicit `wow.bi.script.kafka-bootstrap-servers` / `wow.bi.script.topic-prefix` values override the corresponding `wow.kafka.bootstrap-servers` / `wow.kafka.topic-prefix` values, even when equal to their defaults. Multiple inherited Kafka brokers are joined with commas. Every other absent application binding falls back directly to its `BiScriptOptions` domain default. The length limits in the table apply equally to the server configuration and the corresponding non-null `POST` overrides (`database`, `consumerDatabase`, `timezone`, `kafkaBootstrapServers`, `topicPrefix`, and the four `topology.cluster.*` fields). A value exactly at its 64, 128, or 4096 character limit is accepted. The Starter validates the server base while constructing the domain options: a value over its limit, blank required strings, control characters, `max-expansion-depth < 1`, and cluster fields supplied in `STANDALONE` mode all fail application startup. For HTTP overrides, the server-configured `maxExpansionDepth` is the request ceiling.
+When a real deployment inspector is configured, `database`, `consumerDatabase`, and `topology` are fixed to the server configuration and request overrides for those fields return `400`. This prevents a public request from using the server's ClickHouse credentials to inspect an arbitrary database or cluster. The default `NO_OP` inspector permits those overrides because it never contacts ClickHouse.
 
-The endpoint requires `Content-Type: application/json` and a JSON body. Use `{}` to generate SQL from the server base without request overrides:
+Thus, explicit `wow.bi.script.kafka-bootstrap-servers` / `wow.bi.script.topic-prefix` values override the corresponding `wow.kafka.bootstrap-servers` / `wow.kafka.topic-prefix` values, even when equal to their defaults. Multiple inherited Kafka brokers are joined with commas. Every other absent application binding falls back directly to its `BiScriptOptions` domain default. The length limits in the table apply equally to the server configuration and the corresponding non-null `POST` overrides (`database`, `consumerDatabase`, `timezone`, `kafkaBootstrapServers`, `topicPrefix`, `topology.cluster.name`, and `topology.cluster.installation`). A value exactly at its 64, 128, or 4096 character limit is accepted. When BI script generation is enabled, the Starter validates the server base while constructing the domain options: a value over its limit, blank required strings, control characters, `max-expansion-depth < 1`, and cluster fields supplied in `STANDALONE` mode all fail application startup. With `enabled=false`, the Starter neither constructs nor validates BI generation options or an inspector. For HTTP overrides, the server-configured `maxExpansionDepth` is the request ceiling.
+
+The endpoint and its OpenAPI operation are present by default and are both removed when `enabled=false`. Missing `consumer-group-namespace` does not fail startup; generation returns `400` only when at least one local aggregate requires Kafka consumers. The endpoint requires `Content-Type: application/json` and a JSON body. Use `{}` to generate SQL from the server base without request overrides:
 
 ```bash
 curl -X POST 'http://localhost:8080/wow/bi/script' \
@@ -440,7 +484,7 @@ A Cluster request may provide only selected cluster fields. Omitted cluster fiel
 }
 ```
 
-When `topology` is present, `topology.mode` is mandatory. `STANDALONE` rejects a `cluster` object. Invalid JSON, an empty body, an over-limit non-null override, another invalid option value, or an invalid topology combination returns a `400` response. A missing or unsupported request `Content-Type` returns `415`; OpenAPI declares the common `wow.UnsupportedMediaType` response, and runtime uses `Wow-Error-Code: UnsupportedMediaType`. Success is SQL-only: `200 application/sql`. The legacy `GET` method has no route for this path and returns `404`.
+When `topology` is present, `topology.mode` is mandatory. `STANDALONE` rejects a `cluster` object. Invalid JSON, an empty body, an over-limit non-null override, another invalid option value, or an invalid topology combination returns a `400` response. A missing or unsupported request `Content-Type` returns `415`; OpenAPI declares the common `wow.UnsupportedMediaType` response, and runtime uses `Wow-Error-Code: UnsupportedMediaType`. With a real inspector, inconsistent catalog state returns `502`, an unavailable ClickHouse service returns `503`, and an inspection timeout returns `504`. `Accept` quality values are honored; JSON returns SQL, diagnostics, and the destructive flag, while SQL and wildcards return SQL. If no requested representation is supported or every supported representation is explicitly assigned `q=0`, the endpoint returns `406` with `Wow-Error-Code: NotAcceptable`. Every `200` response includes `Wow-BI-Diagnostic-Count`, including SQL responses whose body cannot carry diagnostics. Callers no longer submit manifests. The default NoOp inspector permits offline `DEPLOY` with an unreconciled diagnostic but rejects `RESET`. With an explicitly configured ClickHouse inspector, catalog ownership markers restore the identity and drive stale cleanup and confirmed Reset.
 
 See [Business Intelligence](./bi) for structured result diagnostics, current expansion semantics, and lossless mappings.
 

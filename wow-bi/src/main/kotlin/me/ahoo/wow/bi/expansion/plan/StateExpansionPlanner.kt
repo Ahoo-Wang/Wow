@@ -33,6 +33,7 @@ import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.naming.NamingConverter
 import me.ahoo.wow.serialization.JsonSerializer
+import java.security.MessageDigest
 import java.util.Collections
 
 internal class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptions()) {
@@ -134,7 +135,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
             buildView(
                 node = request.elementNode,
                 sourceTableName = sourceTableName,
-                targetTableName = "${targetTableName}_${request.tableSuffix}",
+                targetTableName = "${targetTableName}_${request.tableSuffix.toObjectNameSegment()}",
                 inheritedColumns = finalInheritedColumns,
                 recovery = childRecovery,
                 context = context,
@@ -688,6 +689,17 @@ private fun relativeTargetName(anchorTargetName: String, targetName: String): St
         targetName.removePrefix("${anchorTargetName}__")
     }
 
+private fun String.toObjectNameSegment(): String {
+    if (all { it.isLetterOrDigit() || it == '_' || it == '-' }) {
+        return this
+    }
+    val digest = MessageDigest.getInstance("SHA-256")
+        .digest(toByteArray(Charsets.UTF_8))
+        .take(OBJECT_NAME_HASH_BYTES)
+        .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+    return "field_$digest"
+}
+
 private fun <T> unmodifiableCopy(values: Collection<T>): List<T> =
     Collections.unmodifiableList(ArrayList(values))
 
@@ -695,6 +707,7 @@ private const val STATE_COLUMN = "state"
 private const val STATE_LAST_SUFFIX = "state_last"
 private const val RAW_TARGET_PREFIX = "__raw__"
 private const val ROOT_PATH = "$"
+private const val OBJECT_NAME_HASH_BYTES = 16
 
 private fun ResolvedType.verifiedScalarMapping(): ScalarMapping? {
     val mapping = rawClass.scalarMapping() ?: return null

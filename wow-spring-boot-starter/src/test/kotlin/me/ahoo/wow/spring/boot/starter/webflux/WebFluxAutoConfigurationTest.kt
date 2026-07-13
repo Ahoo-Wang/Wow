@@ -18,9 +18,14 @@ import io.mockk.spyk
 import me.ahoo.cosid.machine.HostAddressSupplier
 import me.ahoo.cosid.machine.LocalHostAddressSupplier
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.bi.BiDeploymentInspection
+import me.ahoo.wow.bi.BiDeploymentInspectionException
+import me.ahoo.wow.bi.BiDeploymentInspector
 import me.ahoo.wow.bi.BiScriptGenerator
 import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.bi.ClickHouseTopology
+import me.ahoo.wow.bi.KafkaOffsetStorage
+import me.ahoo.wow.bi.NoOpBiDeploymentInspector
 import me.ahoo.wow.bi.UnsupportedTypeStrategy
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.wait.CommandWaitNotifier
@@ -55,6 +60,7 @@ import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
 import me.ahoo.wow.spring.boot.starter.modeling.AggregateAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.webflux.WebFluxProperties.Companion.GLOBAL_ERROR_ENABLED
+import me.ahoo.wow.spring.boot.starter.webflux.bi.BiDeploymentInspectorAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.webflux.route.CommandRouteModule
 import me.ahoo.wow.spring.boot.starter.webflux.route.EventRouteModule
 import me.ahoo.wow.spring.boot.starter.webflux.route.GlobalRouteModule
@@ -75,6 +81,7 @@ import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.boot.test.context.FilteredClassLoader
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.http.HttpStatus
@@ -99,7 +106,10 @@ import java.util.stream.Stream
 
 @Suppress("LargeClass")
 internal class WebFluxAutoConfigurationTest {
-    private val contextRunner = ApplicationContextRunner()
+    private val contextRunner = ApplicationContextRunner().withPropertyValues(
+        "${BiScriptProperties.PREFIX}.enabled=true",
+        "${BiScriptProperties.PREFIX}.consumer-group-namespace=test",
+    )
 
     @Test
     fun `should load context with webflux command route and exception handler`() {
@@ -122,6 +132,7 @@ internal class WebFluxAutoConfigurationTest {
                 EventSourcingAutoConfiguration::class.java,
                 AggregateAutoConfiguration::class.java,
                 OpenAPIAutoConfiguration::class.java,
+                BiDeploymentInspectorAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
@@ -186,6 +197,7 @@ internal class WebFluxAutoConfigurationTest {
                 EventSourcingAutoConfiguration::class.java,
                 AggregateAutoConfiguration::class.java,
                 OpenAPIAutoConfiguration::class.java,
+                BiDeploymentInspectorAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
@@ -210,11 +222,11 @@ internal class WebFluxAutoConfigurationTest {
                 "${BiScriptProperties.PREFIX}.topology.mode=CLUSTER",
                 "${BiScriptProperties.PREFIX}.topology.cluster.name=production",
                 "${BiScriptProperties.PREFIX}.topology.cluster.installation=primary",
-                "${BiScriptProperties.PREFIX}.topology.cluster.shard=02",
-                "${BiScriptProperties.PREFIX}.topology.cluster.replica=replica-2",
                 "${BiScriptProperties.PREFIX}.timezone=UTC",
                 "${BiScriptProperties.PREFIX}.kafka-bootstrap-servers=bi-kafka:19092",
                 "${BiScriptProperties.PREFIX}.topic-prefix=bi.",
+                "${BiScriptProperties.PREFIX}.kafka-offset-storage=KEEPER",
+                "${BiScriptProperties.PREFIX}.kafka-keeper-path-prefix=/custom/wow-bi",
                 "${BiScriptProperties.PREFIX}.max-expansion-depth=7",
                 "${BiScriptProperties.PREFIX}.unsupported-type-strategy=RAW_JSON",
             )
@@ -235,29 +247,17 @@ internal class WebFluxAutoConfigurationTest {
                     topology = ClickHouseTopology.Cluster(
                         name = "production",
                         installation = "primary",
-                        shard = "02",
-                        replica = "replica-2",
                     ),
                     timezone = "UTC",
                     kafkaBootstrapServers = "bi-kafka:19092",
                     topicPrefix = "bi.",
+                    consumerGroupNamespace = "test",
+                    kafkaOffsetStorage = KafkaOffsetStorage.KEEPER,
+                    kafkaKeeperPathPrefix = "/custom/wow-bi",
                     maxExpansionDepth = 7,
                     unsupportedTypeStrategy = UnsupportedTypeStrategy.RAW_JSON,
                 )
-                val script = context.generateBiScript()
-                script.assert().isEqualTo(
-                    BiScriptGenerator(expectedOptions).generate(MetadataSearcher.localAggregates).script
-                )
-                script.assert().contains(
-                    "CREATE DATABASE IF NOT EXISTS \"analytics\" ON CLUSTER 'production'",
-                    "CREATE DATABASE IF NOT EXISTS \"analytics_consumer\" ON CLUSTER 'production'",
-                    "/clickhouse/primary/production/tables/02/{database}/{table}",
-                    "'replica-2'",
-                    "DateTime('UTC')",
-                    "ENGINE = Kafka('bi-kafka:19092'",
-                    "'bi.example.order.command'",
-                )
-                script.assert().doesNotContain("kafka:9092", "'kafka.example.order.command'")
+                context.generateBiScript().assertExplicitBiScript(expectedOptions)
             }
     }
 
@@ -299,7 +299,10 @@ internal class WebFluxAutoConfigurationTest {
                 context.assert().hasNotFailed()
                 context.generateBiScript().assert().isEqualTo(
                     BiScriptGenerator(
-                        BiScriptOptions(topology = ClickHouseTopology.Cluster())
+                        BiScriptOptions(
+                            topology = ClickHouseTopology.Cluster(),
+                            consumerGroupNamespace = "test",
+                        )
                     ).generate(MetadataSearcher.localAggregates).script
                 )
             }
@@ -424,6 +427,20 @@ internal class WebFluxAutoConfigurationTest {
     }
 
     @Test
+    fun `should reject BI reset when the default inspector is no-op`() {
+        webFluxContextRunner().run { context ->
+            context.biScriptClient().post()
+                .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("""{"operation":"RESET","replayFromEarliestConfirmed":true}""")
+                .exchange()
+                .expectStatus().isBadRequest
+                .expectBody(String::class.java)
+                .value { body -> body.assert().contains("RESET requires an available BI deployment inspection") }
+        }
+    }
+
+    @Test
     fun `should accept a BI request database at the domain maximum length`() {
         val database = "d".repeat(BiScriptOptions.MAX_DATABASE_LENGTH)
 
@@ -507,11 +524,84 @@ internal class WebFluxAutoConfigurationTest {
     }
 
     @Test
-    fun `should use domain defaults and register one BI route factory`() {
+    fun `should reject a BI response when every supported media type is unacceptable`() {
+        webFluxContextRunner().run { context ->
+            context.biScriptClient().post()
+                .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Accept", "*/*;q=1, application/json;q=0, application/sql;q=0")
+                .bodyValue("{}")
+                .exchange()
+                .expectStatus().isEqualTo(HttpStatus.NOT_ACCEPTABLE)
+                .expectHeader().valueEquals("Wow-Error-Code", "NotAcceptable")
+        }
+    }
+
+    @Test
+    fun `should return BI inspection failures without the global exception handler`() {
+        val unavailableInspector = BiDeploymentInspector {
+            Mono.error(BiDeploymentInspectionException.Unavailable())
+        }
+        webFluxContextRunner()
+            .withPropertyValues(GLOBAL_ERROR_ENABLED + "=false")
+            .withBean(BiDeploymentInspector::class.java, { unavailableInspector })
+            .run { context ->
+                context.assert().doesNotHaveBean(WebExceptionHandler::class.java)
+                context.biScriptClient().post()
+                    .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue("{}")
+                    .exchange()
+                    .expectStatus().isEqualTo(HttpStatus.SERVICE_UNAVAILABLE)
+                    .expectHeader().valueEquals(
+                        "Wow-Error-Code",
+                        BiDeploymentInspectionException.UNAVAILABLE_ERROR_CODE,
+                    )
+            }
+    }
+
+    @Test
+    fun `should fail startup when the configured ClickHouse inspector is unavailable`() {
+        webFluxContextRunner()
+            .withClassLoader(FilteredClassLoader("com.clickhouse.client.api.Client"))
+            .withPropertyValues("${BiScriptProperties.PREFIX}.inspector.type=CLICKHOUSE")
+            .run { context ->
+                context.startupFailure.assert().isNotNull()
+                context.startupFailure!!.causeChainMessages().assert().contains(
+                    "BiDeploymentInspector is required when wow.bi.script.enabled=true " +
+                        "(inspector.type=CLICKHOUSE)"
+                )
+            }
+    }
+
+    @Test
+    fun `should not construct or validate BI generation options when disabled`() {
+        webFluxContextRunner(ApplicationContextRunner())
+            .withPropertyValues(
+                "${BiScriptProperties.PREFIX}.enabled=false",
+                "${BiScriptProperties.PREFIX}.max-expansion-depth=0",
+                "${BiScriptProperties.PREFIX}.topology.mode=STANDALONE",
+                "${BiScriptProperties.PREFIX}.topology.cluster.name=unused",
+            )
+            .run { context ->
+                context.assert().hasNotFailed()
+                context.getBean(RouteHandlerFunctionRegistrar::class.java)
+                    .getHttpFactory(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT)
+                    .assert()
+                    .isNull()
+            }
+    }
+
+    @Test
+    fun `should use configured BI defaults and register one BI route factory`() {
         webFluxContextRunner()
             .run { context: AssertableApplicationContext ->
-                context.getBean(BiScriptProperties::class.java).assert().isEqualTo(BiScriptProperties())
+                context.getBean(BiScriptProperties::class.java).assert().isEqualTo(
+                    BiScriptProperties(enabled = true, consumerGroupNamespace = "test")
+                )
                 context.assert().hasSingleBean(GlobalRouteModule::class.java)
+                context.getBean(BiDeploymentInspector::class.java).assert()
+                    .isSameAs(NoOpBiDeploymentInspector)
                 context.getBeanNamesForType(GlobalRouteModule::class.java)
                     .assert()
                     .containsExactly("globalRouteModule")
@@ -523,8 +613,48 @@ internal class WebFluxAutoConfigurationTest {
                 val script = context.generateBiScript()
                 script.assert().contains("-- global --")
                 script.assert().isEqualTo(
-                    BiScriptGenerator(BiScriptOptions()).generate(MetadataSearcher.localAggregates).script
+                    BiScriptGenerator(BiScriptOptions(consumerGroupNamespace = "test"))
+                        .generate(MetadataSearcher.localAggregates).script
                 )
+            }
+    }
+
+    @Test
+    fun `should back off the default BI deployment inspector`() {
+        val customInspector = BiDeploymentInspector {
+            Mono.just(BiDeploymentInspection.Available(me.ahoo.wow.bi.ObservedBiDeployment(emptyList())))
+        }
+        webFluxContextRunner()
+            .withBean(BiDeploymentInspector::class.java, { customInspector })
+            .run { context ->
+                context.getBean(BiDeploymentInspector::class.java).assert().isSameAs(customInspector)
+            }
+    }
+
+    @Test
+    fun `should expose BI route by default without requiring generation configuration at startup`() {
+        webFluxContextRunner(ApplicationContextRunner())
+            .run { context: AssertableApplicationContext ->
+                context.assert().hasNotFailed()
+                context.getBean(BiScriptProperties::class.java).enabled.assert().isTrue()
+                context.getBean(RouteHandlerFunctionRegistrar::class.java)
+                    .getHttpFactory(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT)
+                    .assert()
+                    .isNotNull()
+            }
+    }
+
+    @Test
+    fun `should reject BI generation without a consumer group namespace at request time`() {
+        webFluxContextRunner(ApplicationContextRunner())
+            .run { context: AssertableApplicationContext ->
+                context.assert().hasNotFailed()
+                context.biScriptClient().post()
+                    .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue("{}")
+                    .exchange()
+                    .expectStatus().isBadRequest
             }
     }
 
@@ -535,8 +665,6 @@ internal class WebFluxAutoConfigurationTest {
             "consumer-database" to "consumerDatabase",
             "topology.cluster.name" to "name",
             "topology.cluster.installation" to "installation",
-            "topology.cluster.shard" to "shard",
-            "topology.cluster.replica" to "replica",
             "timezone" to "timezone",
             "kafka-bootstrap-servers" to "kafkaBootstrapServers",
             "topic-prefix" to "topicPrefix",
@@ -635,6 +763,7 @@ internal class WebFluxAutoConfigurationTest {
                 EventSourcingAutoConfiguration::class.java,
                 AggregateAutoConfiguration::class.java,
                 OpenAPIAutoConfiguration::class.java,
+                BiDeploymentInspectorAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
@@ -685,6 +814,7 @@ internal class WebFluxAutoConfigurationTest {
                 EventSourcingAutoConfiguration::class.java,
                 AggregateAutoConfiguration::class.java,
                 OpenAPIAutoConfiguration::class.java,
+                BiDeploymentInspectorAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
@@ -721,6 +851,7 @@ internal class WebFluxAutoConfigurationTest {
                 EventSourcingAutoConfiguration::class.java,
                 AggregateAutoConfiguration::class.java,
                 OpenAPIAutoConfiguration::class.java,
+                BiDeploymentInspectorAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
@@ -742,8 +873,10 @@ internal class WebFluxAutoConfigurationTest {
         }
     }
 
-    private fun webFluxContextRunner(): ApplicationContextRunner {
-        return contextRunner
+    private fun webFluxContextRunner(
+        base: ApplicationContextRunner = contextRunner,
+    ): ApplicationContextRunner {
+        return base
             .enableWow()
             .withBean(CommandWaitNotifier::class.java, { mockk() })
             .withBean(CommandGateway::class.java, { SagaVerifier.defaultCommandGateway() })
@@ -762,6 +895,7 @@ internal class WebFluxAutoConfigurationTest {
                 EventSourcingAutoConfiguration::class.java,
                 AggregateAutoConfiguration::class.java,
                 OpenAPIAutoConfiguration::class.java,
+                BiDeploymentInspectorAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,
             )
     }
@@ -782,9 +916,9 @@ internal class WebFluxAutoConfigurationTest {
     private fun AssertableApplicationContext.biScriptClient(): WebTestClient {
         val routerFunction = getBean("commandRouterFunction") as RouterFunction<ServerResponse>
         val webHandler = RouterFunctions.toWebHandler(routerFunction)
-        val httpHandler = WebHttpHandlerBuilder.webHandler(webHandler)
-            .exceptionHandler(getBean(WebExceptionHandler::class.java))
-            .build()
+        val httpHandlerBuilder = WebHttpHandlerBuilder.webHandler(webHandler)
+        getBeanProvider(WebExceptionHandler::class.java).ifAvailable(httpHandlerBuilder::exceptionHandler)
+        val httpHandler = httpHandlerBuilder.build()
         return WebTestClient.bindToServer(HttpHandlerConnector(httpHandler)).build()
     }
 
@@ -815,6 +949,22 @@ internal class WebFluxAutoConfigurationTest {
             .expectBody(String::class.java)
             .returnResult()
             .responseBody!!
+    }
+
+    private fun String.assertExplicitBiScript(expectedOptions: BiScriptOptions) {
+        assert().isEqualTo(BiScriptGenerator(expectedOptions).generate(MetadataSearcher.localAggregates).script)
+        assert().contains(
+            "CREATE DATABASE IF NOT EXISTS \"analytics\" ON CLUSTER 'production'",
+            "CREATE DATABASE IF NOT EXISTS \"analytics_consumer\" ON CLUSTER 'production'",
+            "/clickhouse/primary/production/tables/{shard}/{database}/{table}",
+            "'{replica}'",
+            "DateTime64(3, 'UTC')",
+            "ENGINE = Kafka('bi-kafka:19092'",
+            "'bi.example.order.command'",
+            "kafka_keeper_path = '/custom/wow-bi/",
+            "SETTINGS allow_experimental_kafka_offsets_storage_in_keeper = 1",
+        )
+        assert().doesNotContain("kafka:9092", "'kafka.example.order.command'")
     }
 
     private fun Throwable.causeChainMessages(): String =

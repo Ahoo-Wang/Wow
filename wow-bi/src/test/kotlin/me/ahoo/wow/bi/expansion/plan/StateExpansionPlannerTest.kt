@@ -114,6 +114,8 @@ class StateExpansionPlannerTest {
             JsonPointerSegment.Property("a~1b~0c"),
             JsonPointerSegment.Index(checkNotNull(child.recovery.currentIndex)),
         )
+        child.targetTableName.assert()
+            .endsWith("_field_7dc34f9338e4d4c34ea6d6664feeaad1")
     }
 
     @Test
@@ -533,6 +535,10 @@ class StateExpansionPlannerTest {
             type.assert().isEqualTo(ClickHouseType.String)
             extraction.assert().isEqualTo(ColumnExtraction.JsonRaw(alias("nested"), "rawValues"))
         }
+        rootColumns.map(ColumnPlan::targetName).assert().contains(
+            "nested__scalar_values",
+            "nested__scalar_map",
+        )
         plan.diagnostics.map { it.path to it.code }.assert().containsExactly(
             "nested.platformValues" to BiScriptDiagnosticCode.MAX_DEPTH_REACHED,
             "nested.rawValues" to BiScriptDiagnosticCode.MAX_DEPTH_REACHED,
@@ -845,6 +851,8 @@ private class TruncatedUnsupportedCollectionState(override val id: String) : Ide
 private data class NestedUnsupportedCollections(
     val platformValues: List<Thread> = emptyList(),
     val rawValues: List<*> = emptyList<Any>(),
+    val scalarValues: List<String> = emptyList(),
+    val scalarMap: Map<String, Int> = emptyMap(),
 )
 
 @Suppress("UnusedPrivateProperty")

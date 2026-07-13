@@ -4,6 +4,7 @@ import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.SpecVersion
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.openapi.RouterSpecs
+import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -38,5 +39,26 @@ class OpenAPIAutoConfigurationTest {
         openAPI.info.title.assert().isEqualTo(MOCK_AGGREGATE_METADATA.contextName)
         openAPI.paths.assert().isNotNull()
         openAPI.components.assert().isNotNull()
+    }
+
+    @Test
+    fun `should expose BI OpenAPI operation by default and honor explicit disable`() {
+        listOf(null, false, true).forEach { enabled ->
+            val runner = if (enabled == null) {
+                contextRunner
+            } else {
+                contextRunner.withPropertyValues("wow.bi.script.enabled=$enabled")
+            }
+            runner
+                .enableWow()
+                .withUserConfiguration(OpenAPIAutoConfiguration::class.java)
+                .run { context: AssertableApplicationContext ->
+                    val openAPI = OpenAPI()
+                    context.getBean(WowOpenApiCustomizer::class.java).customise(openAPI)
+
+                    openAPI.paths.containsKey(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                        .assert().isEqualTo(enabled != false)
+                }
+        }
     }
 }
