@@ -355,7 +355,7 @@ wow:
 
 | 属性 | 类型 | 默认值 | 描述 |
 |------|------|--------|------|
-| `wow.bi.script.enabled` | Boolean | `false` | 仅显式启用后才暴露 BI 脚本 HTTP 路由及其 OpenAPI operation |
+| `wow.bi.script.enabled` | Boolean | `true` | 暴露 BI 脚本 HTTP 路由及其 OpenAPI operation；配置为 `false` 时同时移除两者 |
 | `wow.bi.script.database` | String | `bi_db` | 状态表、命令表及展开视图所在数据库；最大 128 个字符 |
 | `wow.bi.script.consumer-database` | String | `bi_db_consumer` | Kafka 队列表和消费物化视图所在数据库；最大 128 个字符 |
 | `wow.bi.script.topology.mode` | Enum | `CLUSTER` | 物理 DDL 拓扑：`CLUSTER` 或 `STANDALONE` |
@@ -406,7 +406,7 @@ wow:
 
 因此，显式 `wow.bi.script.kafka-bootstrap-servers` / `wow.bi.script.topic-prefix` 会覆盖对应的 `wow.kafka.bootstrap-servers` / `wow.kafka.topic-prefix`，即使其值等于默认值；继承多个 Kafka broker 时以逗号连接。其他未配置的应用绑定属性直接回退到 `BiScriptOptions` 领域默认值。表中的长度限制同时适用于服务端配置和对应的非 `null` `POST` override（`database`、`consumerDatabase`、`timezone`、`kafkaBootstrapServers`、`topicPrefix`、`topology.cluster.name` 和 `topology.cluster.installation`）。长度恰好等于 64、128 或 4096 字符限制的值可被接受。Starter 在构造服务端基础选项时统一执行校验：超过长度限制、必填字符串为空白或包含控制字符、`max-expansion-depth < 1`，以及在 `STANDALONE` 模式提供集群字段都会使应用启动失败。对于 HTTP override，服务端配置的 `maxExpansionDepth` 是请求 ceiling。
 
-只有 `enabled=true` 时端点才存在；启用但未配置 `consumer-group-namespace` 会导致启动失败。端点要求 `Content-Type: application/json` 和 JSON 请求体。使用 `{}` 可在不提供请求覆盖值的情况下按服务端基础配置生成 SQL：
+端点及其 OpenAPI operation 默认存在，配置 `enabled=false` 时会同时移除。未配置 `consumer-group-namespace` 不会导致启动失败，但在提供部署唯一命名空间前，生成请求会返回 `400`。端点要求 `Content-Type: application/json` 和 JSON 请求体。使用 `{}` 可在不提供请求覆盖值的情况下按服务端基础配置生成 SQL：
 
 ```bash
 curl -X POST 'http://localhost:8080/wow/bi/script' \

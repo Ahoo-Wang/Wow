@@ -42,18 +42,22 @@ class OpenAPIAutoConfigurationTest {
     }
 
     @Test
-    fun `should expose BI OpenAPI operation only when BI route is enabled`() {
-        listOf(false, true).forEach { enabled ->
-            contextRunner
+    fun `should expose BI OpenAPI operation by default and honor explicit disable`() {
+        listOf(null, false, true).forEach { enabled ->
+            val runner = if (enabled == null) {
+                contextRunner
+            } else {
+                contextRunner.withPropertyValues("wow.bi.script.enabled=$enabled")
+            }
+            runner
                 .enableWow()
-                .withPropertyValues("wow.bi.script.enabled=$enabled")
                 .withUserConfiguration(OpenAPIAutoConfiguration::class.java)
                 .run { context: AssertableApplicationContext ->
                     val openAPI = OpenAPI()
                     context.getBean(WowOpenApiCustomizer::class.java).customise(openAPI)
 
                     openAPI.paths.containsKey(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
-                        .assert().isEqualTo(enabled)
+                        .assert().isEqualTo(enabled != false)
                 }
         }
     }

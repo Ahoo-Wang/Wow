@@ -20,16 +20,16 @@ import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contributor.DefaultRouteContributors
 import me.ahoo.wow.openapi.contributor.global.GenerateBIScriptRouteContributor
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration.Companion.WOW_CURRENT_BOUNDED_CONTEXT
+import me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
-import org.springframework.core.env.Environment
 
 @AutoConfiguration
 @ConditionalOnOpenAPIEnabled
-@EnableConfigurationProperties(OpenAPIProperties::class)
+@EnableConfigurationProperties(OpenAPIProperties::class, BiScriptProperties::class)
 class OpenAPIAutoConfiguration {
 
     @Bean
@@ -49,11 +49,10 @@ class OpenAPIAutoConfiguration {
     fun routerSpecs(
         @Qualifier(WOW_CURRENT_BOUNDED_CONTEXT) boundedContext: NamedBoundedContext,
         openAPIComponentContext: OpenAPIComponentContext,
-        environment: Environment,
+        biScriptProperties: BiScriptProperties,
     ): RouterSpecs {
-        val biScriptEnabled = environment.getProperty(BI_SCRIPT_ENABLED_PROPERTY, Boolean::class.java, false)
         val contributors = DefaultRouteContributors.all().filterNot { contributor ->
-            contributor === GenerateBIScriptRouteContributor && !biScriptEnabled
+            contributor === GenerateBIScriptRouteContributor && !biScriptProperties.enabled
         }
         return RouterSpecs(
             boundedContext,
@@ -65,9 +64,5 @@ class OpenAPIAutoConfiguration {
     @Bean
     fun wowOpenApiCustomizer(routerSpecs: RouterSpecs): WowOpenApiCustomizer {
         return WowOpenApiCustomizer(routerSpecs)
-    }
-
-    private companion object {
-        const val BI_SCRIPT_ENABLED_PROPERTY: String = "wow.bi.script.enabled"
     }
 }

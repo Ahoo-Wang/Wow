@@ -23,7 +23,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 
 @ConfigurationProperties(prefix = BiScriptProperties.PREFIX)
 data class BiScriptProperties(
-    val enabled: Boolean = false,
+    val enabled: Boolean = true,
     val database: String? = null,
     val consumerDatabase: String? = null,
     val topology: BiScriptTopologyProperties = BiScriptTopologyProperties(),

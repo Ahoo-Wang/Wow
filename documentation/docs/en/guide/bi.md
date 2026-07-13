@@ -64,7 +64,7 @@ The default `unsupportedTypeStrategy` is `RAW_JSON`. With `FAIL`, an unsupported
 
 ### HTTP Route
 
-The Spring WebFlux route is disabled by default. Enable it with `wow.bi.script.enabled=true` and configure a deployment-unique `wow.bi.script.consumer-group-namespace`; the route then uses the same `BiScriptOptions`:
+The Spring WebFlux route and its Swagger/OpenAPI operation are enabled by default. Configure a deployment-unique `wow.bi.script.consumer-group-namespace` before generating SQL; missing generation configuration produces a `400` response instead of preventing application startup. Set `wow.bi.script.enabled=false` to remove both the runtime route and its OpenAPI operation. The route uses the same `BiScriptOptions`:
 
 ```shell
 curl -X POST 'http://localhost:8080/wow/bi/script' \

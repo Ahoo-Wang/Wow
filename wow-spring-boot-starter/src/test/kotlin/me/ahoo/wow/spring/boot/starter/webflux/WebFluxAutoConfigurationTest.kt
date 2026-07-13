@@ -535,15 +535,29 @@ internal class WebFluxAutoConfigurationTest {
     }
 
     @Test
-    fun `should keep BI route disabled by default`() {
+    fun `should expose BI route by default without requiring generation configuration at startup`() {
         webFluxContextRunner(ApplicationContextRunner())
             .run { context: AssertableApplicationContext ->
                 context.assert().hasNotFailed()
-                context.getBean(BiScriptProperties::class.java).enabled.assert().isFalse()
+                context.getBean(BiScriptProperties::class.java).enabled.assert().isTrue()
                 context.getBean(RouteHandlerFunctionRegistrar::class.java)
                     .getHttpFactory(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT)
                     .assert()
-                    .isNull()
+                    .isNotNull()
+            }
+    }
+
+    @Test
+    fun `should reject BI generation without a consumer group namespace at request time`() {
+        webFluxContextRunner(ApplicationContextRunner())
+            .run { context: AssertableApplicationContext ->
+                context.assert().hasNotFailed()
+                context.biScriptClient().post()
+                    .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue("{}")
+                    .exchange()
+                    .expectStatus().isBadRequest
             }
     }
 

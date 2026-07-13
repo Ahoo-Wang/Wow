@@ -64,7 +64,7 @@ val diagnostics: List<BiScriptDiagnostic> = result.diagnostics
 
 ### HTTP 路由
 
-Spring WebFlux 路由默认关闭。配置 `wow.bi.script.enabled=true` 并提供部署唯一的 `wow.bi.script.consumer-group-namespace` 后，路由使用同一个 `BiScriptOptions`：
+Spring WebFlux 路由及其 Swagger/OpenAPI operation 默认启用。生成 SQL 前必须配置部署唯一的 `wow.bi.script.consumer-group-namespace`；缺少生成配置时请求返回 `400`，不会阻止应用启动。配置 `wow.bi.script.enabled=false` 可同时移除运行时路由及其 OpenAPI operation。该路由使用同一个 `BiScriptOptions`：
 
 ```shell
 curl -X POST 'http://localhost:8080/wow/bi/script' \

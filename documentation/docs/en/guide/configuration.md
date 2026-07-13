@@ -356,7 +356,7 @@ These properties establish the server-side base for the ClickHouse SQL returned 
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `wow.bi.script.enabled` | Boolean | `false` | Exposes the BI script HTTP route and its OpenAPI operation only when explicitly enabled |
+| `wow.bi.script.enabled` | Boolean | `true` | Exposes the BI script HTTP route and its OpenAPI operation; set to `false` to remove both |
 | `wow.bi.script.database` | String | `bi_db` | Database for state and command tables and expansion views; maximum 128 characters |
 | `wow.bi.script.consumer-database` | String | `bi_db_consumer` | Database for Kafka queue tables and consumer materialized views; maximum 128 characters |
 | `wow.bi.script.topology.mode` | Enum | `CLUSTER` | Physical DDL topology: `CLUSTER` or `STANDALONE` |
@@ -407,7 +407,7 @@ The complete precedence, from lowest to highest, is:
 
 Thus, explicit `wow.bi.script.kafka-bootstrap-servers` / `wow.bi.script.topic-prefix` values override the corresponding `wow.kafka.bootstrap-servers` / `wow.kafka.topic-prefix` values, even when equal to their defaults. Multiple inherited Kafka brokers are joined with commas. Every other absent application binding falls back directly to its `BiScriptOptions` domain default. The length limits in the table apply equally to the server configuration and the corresponding non-null `POST` overrides (`database`, `consumerDatabase`, `timezone`, `kafkaBootstrapServers`, `topicPrefix`, `topology.cluster.name`, and `topology.cluster.installation`). A value exactly at its 64, 128, or 4096 character limit is accepted. The Starter validates the server base while constructing the domain options: a value over its limit, blank required strings, control characters, `max-expansion-depth < 1`, and cluster fields supplied in `STANDALONE` mode all fail application startup. For HTTP overrides, the server-configured `maxExpansionDepth` is the request ceiling.
 
-The endpoint is absent unless `enabled=true`, and enabling it without `consumer-group-namespace` fails startup. It requires `Content-Type: application/json` and a JSON body. Use `{}` to generate SQL from the server base without request overrides:
+The endpoint and its OpenAPI operation are present by default and are both removed when `enabled=false`. Missing `consumer-group-namespace` does not fail startup, but a generation request returns `400` until the deployment-unique namespace is configured. The endpoint requires `Content-Type: application/json` and a JSON body. Use `{}` to generate SQL from the server base without request overrides:
 
 ```bash
 curl -X POST 'http://localhost:8080/wow/bi/script' \
