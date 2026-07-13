@@ -19,6 +19,7 @@ import me.ahoo.cosid.machine.HostAddressSupplier
 import me.ahoo.cosid.machine.LocalHostAddressSupplier
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.bi.BiDeploymentInspection
+import me.ahoo.wow.bi.BiDeploymentInspectionException
 import me.ahoo.wow.bi.BiDeploymentInspector
 import me.ahoo.wow.bi.BiScriptGenerator
 import me.ahoo.wow.bi.BiScriptOptions
@@ -79,6 +80,7 @@ import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.boot.test.context.FilteredClassLoader
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.http.HttpStatus
@@ -530,6 +532,75 @@ internal class WebFluxAutoConfigurationTest {
     }
 
     @Test
+    fun `should reject a BI response when every supported media type is unacceptable`() {
+        webFluxContextRunner().run { context ->
+            context.biScriptClient().post()
+                .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Accept", "*/*;q=1, application/json;q=0, application/sql;q=0")
+                .bodyValue("{}")
+                .exchange()
+                .expectStatus().isEqualTo(HttpStatus.NOT_ACCEPTABLE)
+                .expectHeader().valueEquals("Wow-Error-Code", "NotAcceptable")
+        }
+    }
+
+    @Test
+    fun `should return BI inspection failures without the global exception handler`() {
+        val unavailableInspector = BiDeploymentInspector {
+            Mono.error(BiDeploymentInspectionException.Unavailable())
+        }
+        webFluxContextRunner()
+            .withPropertyValues(GLOBAL_ERROR_ENABLED + "=false")
+            .withBean(BiDeploymentInspector::class.java, { unavailableInspector })
+            .run { context ->
+                context.assert().doesNotHaveBean(WebExceptionHandler::class.java)
+                context.biScriptClient().post()
+                    .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue("{}")
+                    .exchange()
+                    .expectStatus().isEqualTo(HttpStatus.SERVICE_UNAVAILABLE)
+                    .expectHeader().valueEquals(
+                        "Wow-Error-Code",
+                        BiDeploymentInspectionException.UNAVAILABLE_ERROR_CODE,
+                    )
+            }
+    }
+
+    @Test
+    fun `should fail startup when the configured ClickHouse inspector is unavailable`() {
+        webFluxContextRunner()
+            .withClassLoader(FilteredClassLoader("com.clickhouse.client.api.Client"))
+            .withPropertyValues("${BiScriptProperties.PREFIX}.inspector.type=CLICKHOUSE")
+            .run { context ->
+                context.startupFailure.assert().isNotNull()
+                context.startupFailure!!.causeChainMessages().assert().contains(
+                    "BiDeploymentInspector is required when wow.bi.script.enabled=true " +
+                        "(inspector.type=CLICKHOUSE)"
+                )
+            }
+    }
+
+    @Test
+    fun `should not construct or validate BI generation options when disabled`() {
+        webFluxContextRunner(ApplicationContextRunner())
+            .withPropertyValues(
+                "${BiScriptProperties.PREFIX}.enabled=false",
+                "${BiScriptProperties.PREFIX}.max-expansion-depth=0",
+                "${BiScriptProperties.PREFIX}.topology.mode=STANDALONE",
+                "${BiScriptProperties.PREFIX}.topology.cluster.name=unused",
+            )
+            .run { context ->
+                context.assert().hasNotFailed()
+                context.getBean(RouteHandlerFunctionRegistrar::class.java)
+                    .getHttpFactory(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT)
+                    .assert()
+                    .isNull()
+            }
+    }
+
+    @Test
     fun `should use configured BI defaults and register one BI route factory`() {
         webFluxContextRunner()
             .run { context: AssertableApplicationContext ->
@@ -853,9 +924,9 @@ internal class WebFluxAutoConfigurationTest {
     private fun AssertableApplicationContext.biScriptClient(): WebTestClient {
         val routerFunction = getBean("commandRouterFunction") as RouterFunction<ServerResponse>
         val webHandler = RouterFunctions.toWebHandler(routerFunction)
-        val httpHandler = WebHttpHandlerBuilder.webHandler(webHandler)
-            .exceptionHandler(getBean(WebExceptionHandler::class.java))
-            .build()
+        val httpHandlerBuilder = WebHttpHandlerBuilder.webHandler(webHandler)
+        getBeanProvider(WebExceptionHandler::class.java).ifAvailable(httpHandlerBuilder::exceptionHandler)
+        val httpHandler = httpHandlerBuilder.build()
         return WebTestClient.bindToServer(HttpHandlerConnector(httpHandler)).build()
     }
 

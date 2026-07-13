@@ -22,6 +22,7 @@ import me.ahoo.wow.bi.ObservedBiDeployment
 import me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties
 import me.ahoo.wow.spring.boot.starter.enableWow
 import org.junit.jupiter.api.Test
+import org.springframework.boot.test.context.FilteredClassLoader
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import reactor.core.publisher.Mono
 import java.time.Duration
@@ -37,6 +38,16 @@ class BiDeploymentInspectorAutoConfigurationTest {
             context.assert().hasNotFailed().hasSingleBean(BiDeploymentInspector::class.java)
             context.getBean(BiDeploymentInspector::class.java).assert().isSameAs(NoOpBiDeploymentInspector)
         }
+    }
+
+    @Test
+    fun `should keep the no-op inspector available without the ClickHouse client`() {
+        contextRunner
+            .withClassLoader(FilteredClassLoader("com.clickhouse.client.api.Client"))
+            .run { context ->
+                context.assert().hasNotFailed().hasSingleBean(BiDeploymentInspector::class.java)
+                context.getBean(BiDeploymentInspector::class.java).assert().isSameAs(NoOpBiDeploymentInspector)
+            }
     }
 
     @Test

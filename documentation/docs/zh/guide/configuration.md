@@ -356,15 +356,15 @@ wow:
 | 属性 | 类型 | 默认值 | 描述 |
 |------|------|--------|------|
 | `wow.bi.script.enabled` | Boolean | `true` | 暴露 BI 脚本 HTTP 路由及其 OpenAPI operation；配置为 `false` 时同时移除两者 |
-| `wow.bi.script.database` | String | `bi_db` | 状态表、命令表及展开视图所在数据库；最大 128 个字符 |
-| `wow.bi.script.consumer-database` | String | `bi_db_consumer` | Kafka 队列表和消费物化视图所在数据库；最大 128 个字符 |
+| `wow.bi.script.database` | String | `bi_db` | command/state `*_store` 存储表、公共视图、最新状态视图及展开视图所在数据库；最大 128 个字符 |
+| `wow.bi.script.consumer-database` | String | `bi_db_consumer` | Kafka 队列表、消费物化视图及 deployment anchor 所在数据库；最大 128 个字符 |
 | `wow.bi.script.topology.mode` | Enum | `CLUSTER` | 物理 DDL 拓扑：`CLUSTER` 或 `STANDALONE` |
 | `wow.bi.script.topology.cluster.name` | String | `{cluster}` | `CLUSTER` 模式中 `ON CLUSTER` 和 `Distributed` 使用的集群名；最大 128 个字符 |
 | `wow.bi.script.topology.cluster.installation` | String | `{installation}` | `CLUSTER` 模式复制表路径中的 installation 段；最大 128 个字符 |
 | `wow.bi.script.timezone` | String | `Asia/Shanghai` | 生成的日期时间列和转换表达式使用的 ClickHouse 时区；最大 64 个字符 |
 | `wow.bi.script.kafka-bootstrap-servers` | String | 继承 `wow.kafka.bootstrap-servers`，否则为 `localhost:9093` | BI Kafka broker 覆盖值；继承多个 broker 时以逗号连接；最大 4096 个字符 |
 | `wow.bi.script.topic-prefix` | String | 继承 `wow.kafka.topic-prefix`，否则为 `wow.` | BI topic 前缀覆盖值；最大 128 个字符 |
-| `wow.bi.script.consumer-group-namespace` | String | 无 | 启用时必填；写入每个 Kafka consumer group 的部署唯一命名空间 |
+| `wow.bi.script.consumer-group-namespace` | String | 无 | 生成内容包含至少一个聚合的 Kafka consumer 时必填；写入每个 consumer group 的部署唯一命名空间 |
 | `wow.bi.script.kafka-offset-storage` | Enum | `BROKER` | `BROKER` 使用 Kafka offset；`KEEPER` 使用 ClickHouse Keeper offset |
 | `wow.bi.script.kafka-keeper-path-prefix` | String | `/clickhouse/wow-bi` | 仅 `KEEPER` 模式使用的 Keeper 路径前缀 |
 | `wow.bi.script.max-expansion-depth` | Int | `5` | 复杂属性的最大展开深度，必须大于等于 `1` |
@@ -408,7 +408,7 @@ wow:
           max-retries: 0
 ```
 
-内置 inspector 位于 `wow-bi`，直接使用 ClickHouse 官方 Java `client-v2`。Spring Boot 强类型属性与对应的 `Client.Builder` 概念一一映射，不再把不同语义的驱动超时合并成一个字段。inspector 独占 Client 并随 Spring Context 关闭；同步驱动调用运行在 Reactor `boundedElastic` 上，不再额外创建一层驱动 executor。catalog 查询使用带命名参数的强类型 RowBinary 记录；集群模式同时核验参与副本集合与对象定义。连接错误、超时、无效 ownership marker 或副本不一致都会直接失败，不会静默回退到 `NO_OP`。官方客户端属性尚未覆盖的代理、mTLS 或认证需求可通过自定义 `BiDeploymentInspector` Bean 实现；自定义 Bean 优先于两种内置实现。
+内置 inspector 位于 `wow-bi`，直接使用 ClickHouse 官方 Java `client-v2`。Spring Boot 强类型属性与对应的 `Client.Builder` 概念一一映射，不再把不同语义的驱动超时合并成一个字段。inspector 独占 Client 并随 Spring Context 关闭；同步驱动调用运行在 Reactor `boundedElastic` 上，不再额外创建一层驱动 executor。catalog 查询使用带命名参数的强类型 RowBinary 记录；集群模式核验参与副本集合与 owned 对象定义，同时忽略无关的副本本地 catalog 差异。连接错误、超时、无效 ownership marker 或 owned 对象副本不一致都会直接失败，不会静默回退到 `NO_OP`。选择 `CLICKHOUSE` 但缺少 client-v2 类时应用启动失败。官方客户端属性尚未覆盖的代理、mTLS 或认证需求可通过自定义 `BiDeploymentInspector` Bean 实现；自定义 Bean 优先于两种内置实现。
 
 独立拓扑：
 
@@ -435,7 +435,7 @@ wow:
           installation: clickhouse
 ```
 
-`STANDALONE` 直接生成使用 `MergeTree` / `ReplacingMergeTree` 的逻辑表，并拒绝配置 `topology.cluster`。`CLUSTER` 生成复制的 `_local` 表及其 `Distributed` 逻辑表；未配置的集群字段使用上表默认值。集群 DDL 始终使用 ClickHouse 服务端 `{shard}` 与 `{replica}` 宏，Keeper consumer 的副本标识也使用 `{replica}`；这些值有意不开放为应用级覆盖项。
+`STANDALONE` 创建使用 `ReplacingMergeTree` 的 `*_store` 物理存储表，`command`、`state`、`state_last` 保持为对存储表执行 `FINAL` 的只读视图，并拒绝配置 `topology.cluster`。`CLUSTER` 创建复制的 `*_store_local` 物理表、作为 `Distributed` 写入门面的 `*_store`，以及相同的公共只读视图；未配置的集群字段使用上表默认值。集群 DDL 始终使用 ClickHouse 服务端 `{shard}` 与 `{replica}` 宏，Keeper consumer 的副本标识也使用 `{replica}`；这些值有意不开放为应用级覆盖项。
 
 完整优先级从低到高为：
 
@@ -446,9 +446,9 @@ wow:
 
 配置真实 deployment inspector 后，`database`、`consumerDatabase` 与 `topology` 固定使用服务端配置；请求覆盖这些字段会返回 `400`，避免外部请求借用服务端 ClickHouse 凭据查询任意数据库或集群。默认 `NO_OP` inspector 不访问 ClickHouse，因此仍允许这些覆盖。
 
-因此，显式 `wow.bi.script.kafka-bootstrap-servers` / `wow.bi.script.topic-prefix` 会覆盖对应的 `wow.kafka.bootstrap-servers` / `wow.kafka.topic-prefix`，即使其值等于默认值；继承多个 Kafka broker 时以逗号连接。其他未配置的应用绑定属性直接回退到 `BiScriptOptions` 领域默认值。表中的长度限制同时适用于服务端配置和对应的非 `null` `POST` override（`database`、`consumerDatabase`、`timezone`、`kafkaBootstrapServers`、`topicPrefix`、`topology.cluster.name` 和 `topology.cluster.installation`）。长度恰好等于 64、128 或 4096 字符限制的值可被接受。Starter 在构造服务端基础选项时统一执行校验：超过长度限制、必填字符串为空白或包含控制字符、`max-expansion-depth < 1`，以及在 `STANDALONE` 模式提供集群字段都会使应用启动失败。对于 HTTP override，服务端配置的 `maxExpansionDepth` 是请求 ceiling。
+因此，显式 `wow.bi.script.kafka-bootstrap-servers` / `wow.bi.script.topic-prefix` 会覆盖对应的 `wow.kafka.bootstrap-servers` / `wow.kafka.topic-prefix`，即使其值等于默认值；继承多个 Kafka broker 时以逗号连接。其他未配置的应用绑定属性直接回退到 `BiScriptOptions` 领域默认值。表中的长度限制同时适用于服务端配置和对应的非 `null` `POST` override（`database`、`consumerDatabase`、`timezone`、`kafkaBootstrapServers`、`topicPrefix`、`topology.cluster.name` 和 `topology.cluster.installation`）。长度恰好等于 64、128 或 4096 字符限制的值可被接受。启用 BI 脚本生成时，Starter 在构造服务端基础选项时统一执行校验：超过长度限制、必填字符串为空白或包含控制字符、`max-expansion-depth < 1`，以及在 `STANDALONE` 模式提供集群字段都会使应用启动失败。配置 `enabled=false` 时，Starter 不构造或校验 BI 生成选项和 inspector。对于 HTTP override，服务端配置的 `maxExpansionDepth` 是请求 ceiling。
 
-端点及其 OpenAPI operation 默认存在，配置 `enabled=false` 时会同时移除。未配置 `consumer-group-namespace` 不会导致启动失败，但在提供部署唯一命名空间前，生成请求会返回 `400`。端点要求 `Content-Type: application/json` 和 JSON 请求体。使用 `{}` 可在不提供请求覆盖值的情况下按服务端基础配置生成 SQL：
+端点及其 OpenAPI operation 默认存在，配置 `enabled=false` 时会同时移除。未配置 `consumer-group-namespace` 不会导致启动失败；只有至少一个本地聚合需要生成 Kafka consumer 时，请求才会返回 `400`。端点要求 `Content-Type: application/json` 和 JSON 请求体。使用 `{}` 可在不提供请求覆盖值的情况下按服务端基础配置生成 SQL：
 
 ```bash
 curl -X POST 'http://localhost:8080/wow/bi/script' \
@@ -483,7 +483,7 @@ curl -X POST 'http://localhost:8080/wow/bi/script' \
 }
 ```
 
-提供 `topology` 时必须提供 `topology.mode`。`STANDALONE` 拒绝 `cluster` 对象。无效 JSON、空请求体、超过长度限制的非 `null` override、其他无效选项值或无效拓扑组合返回 `400`；缺少或不支持的请求 `Content-Type` 返回 `415`。OpenAPI 声明公共 `wow.UnsupportedMediaType` response，运行时使用 `Wow-Error-Code: UnsupportedMediaType`。启用真实 inspector 后，catalog 状态不一致返回 `502`，ClickHouse 不可用返回 `503`，检查超时返回 `504`。响应会遵循 `Accept` 的 quality value；JSON 返回 SQL、诊断与 destructive 标记，SQL 与通配符返回 SQL。调用方不再提交 manifest。默认 NoOp inspector 允许离线 `DEPLOY` 并返回未对账诊断，但拒绝 `RESET`；显式配置 ClickHouse inspector 后，服务从 catalog ownership marker 恢复 identity、清理旧对象，并在 `replayFromEarliestConfirmed=true` 时执行 Reset。
+提供 `topology` 时必须提供 `topology.mode`。`STANDALONE` 拒绝 `cluster` 对象。无效 JSON、空请求体、超过长度限制的非 `null` override、其他无效选项值或无效拓扑组合返回 `400`；缺少或不支持的请求 `Content-Type` 返回 `415`。OpenAPI 声明公共 `wow.UnsupportedMediaType` response，运行时使用 `Wow-Error-Code: UnsupportedMediaType`。启用真实 inspector 后，catalog 状态不一致返回 `502`，ClickHouse 不可用返回 `503`，检查超时返回 `504`。响应会遵循 `Accept` 的 quality value；JSON 返回 SQL、诊断与 destructive 标记，SQL 与通配符返回 SQL。如果请求未接受任何受支持的表示，或将其全部显式设为 `q=0`，端点返回 `406` 及 `Wow-Error-Code: NotAcceptable`。所有 `200` 响应都包含 `Wow-BI-Diagnostic-Count`，包括响应体无法携带诊断的 SQL 响应。调用方不再提交 manifest。默认 NoOp inspector 允许离线 `DEPLOY` 并返回未对账诊断，但拒绝 `RESET`；显式配置 ClickHouse inspector 后，服务从 catalog ownership marker 恢复 identity、清理旧对象，并在 `replayFromEarliestConfirmed=true` 时执行 Reset。
 
 结构化结果诊断、当前展开语义与无损映射参见[商业智能](./bi)。
 

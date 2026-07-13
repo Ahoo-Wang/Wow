@@ -64,7 +64,7 @@ val diagnostics: List<BiScriptDiagnostic> = result.diagnostics
 
 ### HTTP 路由
 
-Spring WebFlux 路由及其 Swagger/OpenAPI operation 默认启用。生成 SQL 前必须配置部署唯一的 `wow.bi.script.consumer-group-namespace`；缺少生成配置时请求返回 `400`，不会阻止应用启动。配置 `wow.bi.script.enabled=false` 可同时移除运行时路由及其 OpenAPI operation。该路由使用同一个 `BiScriptOptions`：
+Spring WebFlux 路由及其 Swagger/OpenAPI operation 默认启用。当至少一个本地聚合需要生成 Kafka consumer 时，必须配置部署唯一的 `wow.bi.script.consumer-group-namespace`；否则请求返回 `400`，不会阻止应用启动。配置 `wow.bi.script.enabled=false` 可同时移除运行时路由及其 OpenAPI operation，并且不会构造或校验 BI 生成选项和 inspector。该路由使用同一个 `BiScriptOptions`：
 
 ```shell
 curl -X POST 'http://localhost:8080/wow/bi/script' \
@@ -101,9 +101,9 @@ JSON 请求体必填。`{}` 保持服务端 `BiScriptOptions` 不变；非 `null
 
 服务端配置和每个非 `null` 的 `POST` override 使用相同的最大长度：`database` 128 个字符、`consumerDatabase` 128、`timezone` 64、`topicPrefix` 128、`kafkaBootstrapServers` 4096，`topology.cluster.name` 与 `topology.cluster.installation` 各 128。长度恰好等于限制的值可被接受；更长的服务端值会使应用启动失败，更长的请求 override 返回 `400`。`maxExpansionDepth` 单独处理：服务端配置值是 HTTP override 的 ceiling。
 
-提供 `topology` 时必须提供 `topology.mode`。在 `CLUSTER` 模式下，省略的 `cluster` 字段继承当前集群基础配置；如果服务端基础配置是独立模式，则继承领域集群默认值。`STANDALONE` 拒绝 `cluster` 对象。无效或空请求体返回 `400`；缺少或不支持的 `Content-Type` 返回 `415`。响应会遵循 `Accept` 的 quality value；JSON 返回 SQL、诊断与 destructive 标记，SQL 与通配符只返回 `result.script`。生成工作在线程池 `boundedElastic` 上执行。
+提供 `topology` 时必须提供 `topology.mode`。在 `CLUSTER` 模式下，省略的 `cluster` 字段继承当前集群基础配置；如果服务端基础配置是独立模式，则继承领域集群默认值。`STANDALONE` 拒绝 `cluster` 对象。无效或空请求体返回 `400`；缺少或不支持的 `Content-Type` 返回 `415`。响应会遵循 `Accept` 的 quality value；JSON 返回 SQL、诊断与 destructive 标记，SQL 与通配符只返回 `result.script`。请求的表示均不受支持，或所有受支持表示均设为 `q=0` 时返回 `406`。每个成功响应都包含 `Wow-BI-Diagnostic-Count`。生成工作在线程池 `boundedElastic` 上执行。
 
-本版本默认注入 `NoOpBiDeploymentInspector`。它返回显式 `Unavailable`：普通 `DEPLOY` 仅适合首次部署或离线预览，同时会产生 `INSPECTION_UNAVAILABLE` 诊断；它无法清理旧对象，也无法恢复 `RESET` 创建的 consumer identity，配置变化还可能选择新的 consumer group。`RESET` 会被拒绝。需要完整对账时，配置 `wow.bi.script.inspector.type=CLICKHOUSE` 及 `inspector.clickhouse.endpoints`，即可启用 ClickHouse 官方 Java `client-v2` 实现。真实 inspector 查询失败会直接传播错误，不会降级为 NoOp。自定义 `BiDeploymentInspector` Bean 仍具有最高优先级。
+本版本默认注入 `NoOpBiDeploymentInspector`。它返回显式 `Unavailable`：普通 `DEPLOY` 仅适合首次部署或离线预览，同时会产生 `INSPECTION_UNAVAILABLE` 诊断；它无法清理旧对象，也无法恢复 `RESET` 创建的 consumer identity，配置变化还可能选择新的 consumer group。`RESET` 会被拒绝。需要完整对账时，配置 `wow.bi.script.inspector.type=CLICKHOUSE` 及 `inspector.clickhouse.endpoints`，即可启用 ClickHouse 官方 Java `client-v2` 实现。真实 inspector 查询失败会直接传播错误，不会降级为 NoOp；选择 `CLICKHOUSE` 但缺少 client-v2 类时应用启动失败。自定义 `BiDeploymentInspector` Bean 仍具有最高优先级。
 
 如需有意重建全部 BI 数据，请发送 `operation=RESET` 与 `replayFromEarliestConfirmed=true`。只有可用 inspector 能从 ClickHouse catalog 枚举全部 owned 对象，因此 Reset 会先删除当前及 orphan store，再创建新的 consumer identity。每个生成对象和零行 deployment anchor 都把版本、deployment fingerprint、聚合 owner、对象类型和 identity 写入 `system.tables.comment`；服务重启后直接从 catalog 恢复，不依赖 Wow 服务内存或外部 manifest。
 

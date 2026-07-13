@@ -22,10 +22,12 @@ import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.openapi.contract.HttpContent
+import me.ahoo.wow.openapi.contract.HttpHeader
 import me.ahoo.wow.openapi.contract.HttpRequestBody
 import me.ahoo.wow.openapi.contract.HttpResponse
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpSchema
+import me.ahoo.wow.openapi.contract.bi.BiScriptHeaders
 import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
 import me.ahoo.wow.openapi.contract.bi.BiScriptResponse
 import me.ahoo.wow.openapi.contributor.badRequestResponseRef
@@ -60,30 +62,25 @@ object GenerateBIScriptRouteContributor : RouteContributor {
                     )
                 ),
                 responses = listOf(
-                    HttpResponse(
-                        statusCode = Https.Code.OK,
-                        description = "The generated BI synchronization script.",
-                        content = listOf(
-                            HttpContent(Https.MediaType.APPLICATION_SQL, HttpSchema.String),
-                            HttpContent(
-                                Https.MediaType.APPLICATION_JSON,
-                                HttpSchema.TypeRef(BiScriptResponse::class.java),
-                            ),
-                        )
-                    ),
+                    successResponse(),
                     componentContext.badRequestResponseRef(),
+                    errorResponse(
+                        componentContext,
+                        Https.Code.NOT_ACCEPTABLE,
+                        "None of the requested response media types is supported.",
+                    ),
                     componentContext.unsupportedMediaTypeResponseRef(),
-                    inspectionFailureResponse(
+                    errorResponse(
                         componentContext,
                         Https.Code.BAD_GATEWAY,
                         "ClickHouse catalog is inconsistent.",
                     ),
-                    inspectionFailureResponse(
+                    errorResponse(
                         componentContext,
                         Https.Code.SERVICE_UNAVAILABLE,
                         "ClickHouse catalog inspection is unavailable.",
                     ),
-                    inspectionFailureResponse(
+                    errorResponse(
                         componentContext,
                         Https.Code.GATEWAY_TIMEOUT,
                         "ClickHouse catalog inspection timed out.",
@@ -94,7 +91,26 @@ object GenerateBIScriptRouteContributor : RouteContributor {
         )
     }
 
-    private fun inspectionFailureResponse(
+    private fun successResponse(): HttpResponse = HttpResponse(
+        statusCode = Https.Code.OK,
+        description = "The generated BI synchronization script.",
+        headers = listOf(
+            HttpHeader(
+                name = BiScriptHeaders.DIAGNOSTIC_COUNT,
+                schema = HttpSchema.Integer,
+                description = "The number of generation diagnostics.",
+            )
+        ),
+        content = listOf(
+            HttpContent(Https.MediaType.APPLICATION_SQL, HttpSchema.String),
+            HttpContent(
+                Https.MediaType.APPLICATION_JSON,
+                HttpSchema.TypeRef(BiScriptResponse::class.java),
+            ),
+        )
+    )
+
+    private fun errorResponse(
         componentContext: OpenAPIComponentContext,
         statusCode: String,
         description: String,

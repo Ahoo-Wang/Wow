@@ -171,10 +171,14 @@ curl -X 'GET' \
 
 | 状态 | `Content-Type` | 响应体 |
 |------|----------------|--------|
-| `200` | `application/sql` | 仅 SQL 文本 |
-| `200` | `application/json` | SQL、destructive 标记与诊断 |
+| `200` | `application/sql` | 仅 SQL 文本；`Wow-BI-Diagnostic-Count` 给出响应体未携带的诊断数量 |
+| `200` | `application/json` | SQL、destructive 标记与诊断；`Wow-BI-Diagnostic-Count` 给出相同的诊断数量 |
 | `400` | 错误响应 | 空或无效 JSON 请求体、超过长度限制的 override、其他无效选项值或无效拓扑组合 |
+| `406` | 错误响应 | 请求的表示均不受支持，或所有受支持的表示均设为 `q=0`；运行时 `Wow-Error-Code` 为 `NotAcceptable` |
 | `415` | 公共 `wow.UnsupportedMediaType` response | 缺少或不支持的请求 `Content-Type`；运行时 `Wow-Error-Code` 为 `UnsupportedMediaType` |
+| `502` | 错误响应 | inspected replica 上的 owned ClickHouse catalog 不一致 |
+| `503` | 错误响应 | ClickHouse catalog inspection 不可用 |
+| `504` | 错误响应 | ClickHouse catalog inspection 超时 |
 
 `{}` 使用服务端选项执行 `DEPLOY`，调用方无需保存部署历史。默认 NoOp inspector 会返回未对账诊断；注册 ClickHouse inspector 后从 catalog 恢复历史。`RESET` 只需 `replayFromEarliestConfirmed=true`，但 inspector 必须可用，否则返回 `400`。提供 `topology` 时必须提供 `topology.mode`。在 `CLUSTER` 模式下，省略的集群字段继承当前集群服务端基础配置；如果服务端基础配置是独立模式，则继承领域集群默认值。`STANDALONE` 拒绝 `cluster` 对象。旧版 `GET` 方法在该路径上没有路由并返回 `404`。
 
@@ -212,6 +216,7 @@ curl -X POST 'http://localhost:8080/wow/bi/script' \
 ```http [代表性响应开头]
 HTTP/1.1 200 OK
 Content-Type: application/sql
+Wow-BI-Diagnostic-Count: 0
 
 -- global --
 CREATE DATABASE IF NOT EXISTS "bi_db" ON CLUSTER '{cluster}';

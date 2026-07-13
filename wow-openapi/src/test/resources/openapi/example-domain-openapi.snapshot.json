@@ -11989,10 +11989,32 @@
                   "type" : "string"
                 }
               }
+            },
+            "headers" : {
+              "Wow-BI-Diagnostic-Count" : {
+                "schema" : {
+                  "format" : "int32",
+                  "type" : "integer"
+                }
+              }
             }
           },
           "400" : {
             "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "406" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.DefaultErrorInfo"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
           },
           "415" : {
             "$ref" : "#/components/responses/wow.UnsupportedMediaType"

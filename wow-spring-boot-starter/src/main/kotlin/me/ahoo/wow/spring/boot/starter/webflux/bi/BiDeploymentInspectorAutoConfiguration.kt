@@ -27,11 +27,11 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
 
 @AutoConfiguration(before = [WebFluxAutoConfiguration::class])
 @ConditionalOnWowEnabled
 @ConditionalOnWebfluxEnabled
-@ConditionalOnClass(name = ["com.clickhouse.client.api.Client", "me.ahoo.wow.bi.ClickHouseBiDeploymentInspector"])
 @ConditionalOnProperty(
     prefix = BiScriptProperties.PREFIX,
     name = ["enabled"],
@@ -50,90 +50,94 @@ class BiDeploymentInspectorAutoConfiguration {
     )
     fun noOpBiDeploymentInspector(): BiDeploymentInspector = NoOpBiDeploymentInspector
 
-    @Bean(destroyMethod = "close")
-    @ConditionalOnMissingBean(BiDeploymentInspector::class)
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = ["com.clickhouse.client.api.Client", "me.ahoo.wow.bi.ClickHouseBiDeploymentInspector"])
     @ConditionalOnProperty(
         prefix = "${BiScriptProperties.PREFIX}.inspector",
         name = ["type"],
         havingValue = "CLICKHOUSE",
     )
-    fun clickHouseBiDeploymentInspector(
-        biScriptProperties: BiScriptProperties,
-    ): ClickHouseBiDeploymentInspector {
-        val inspectorProperties = biScriptProperties.inspector
-        inspectorProperties.timeout.validateTimeout("inspector.timeout")
-        val properties = inspectorProperties.clickhouse
-        properties.validate()
-        return ClickHouseBiDeploymentInspector(
-            clientOptions = properties.toClientOptions(),
-            inspectionTimeout = inspectorProperties.timeout,
-        )
-    }
-
-    private fun BiClickHouseInspectorProperties.validate() {
-        require(endpoints.isNotEmpty()) {
-            "inspector.clickhouse.endpoints must not be empty when inspector.type=CLICKHOUSE"
-        }
-        endpoints.forEachIndexed { index, endpoint -> endpoint.validate(index) }
-        require(endpoints.distinct().size == endpoints.size) {
-            "inspector.clickhouse.endpoints must not contain duplicates"
-        }
-        require(username.isNotBlank()) {
-            "inspector.clickhouse.username must not be blank"
-        }
-        connectionTimeout.validateTimeout("inspector.clickhouse.connection-timeout")
-        connectionRequestTimeout.validateTimeout("inspector.clickhouse.connection-request-timeout")
-        socketTimeout.validateTimeout(
-            property = "inspector.clickhouse.socket-timeout",
-            allowZero = true,
-            maxMillis = Int.MAX_VALUE.toLong(),
-        )
-        executionTimeout.validateTimeout(
-            property = "inspector.clickhouse.execution-timeout",
-            allowZero = true,
-            maxMillis = Int.MAX_VALUE.toLong(),
-        )
-        require(maxConnections > 0) {
-            "inspector.clickhouse.max-connections must be greater than zero"
-        }
-        require(maxRetries >= 0) {
-            "inspector.clickhouse.max-retries must not be negative"
-        }
-    }
-
-    private fun java.net.URI.validate(index: Int) {
-        require(scheme.equals("http", ignoreCase = true) || scheme.equals("https", ignoreCase = true)) {
-            "inspector.clickhouse.endpoints[$index] must use http or https"
-        }
-        require(!host.isNullOrBlank()) {
-            "inspector.clickhouse.endpoints[$index] must contain a host"
-        }
-        require(port in 1..65535) {
-            "inspector.clickhouse.endpoints[$index] must contain an explicit valid port"
-        }
-        require(userInfo == null && query == null && fragment == null) {
-            "inspector.clickhouse.endpoints[$index] must not contain user info, query, or fragment"
-        }
-    }
-
-    private fun java.time.Duration.validateTimeout(
-        property: String,
-        allowZero: Boolean = false,
-        maxMillis: Long = Long.MAX_VALUE,
-    ) {
-        require(!isNegative && (allowZero || !isZero)) {
-            if (allowZero) "$property must not be negative" else "$property must be greater than zero"
-        }
-        val millis = try {
-            toMillis()
-        } catch (error: ArithmeticException) {
-            throw IllegalArgumentException(
-                "$property is too large",
-                error,
+    class ClickHouseConfiguration {
+        @Bean(destroyMethod = "close")
+        @ConditionalOnMissingBean(BiDeploymentInspector::class)
+        fun clickHouseBiDeploymentInspector(
+            biScriptProperties: BiScriptProperties,
+        ): ClickHouseBiDeploymentInspector {
+            val inspectorProperties = biScriptProperties.inspector
+            inspectorProperties.timeout.validateTimeout("inspector.timeout")
+            val properties = inspectorProperties.clickhouse
+            properties.validate()
+            return ClickHouseBiDeploymentInspector(
+                clientOptions = properties.toClientOptions(),
+                inspectionTimeout = inspectorProperties.timeout,
             )
         }
-        require(millis <= maxMillis) {
-            "$property must not exceed $maxMillis milliseconds"
-        }
+    }
+}
+
+private fun BiClickHouseInspectorProperties.validate() {
+    require(endpoints.isNotEmpty()) {
+        "inspector.clickhouse.endpoints must not be empty when inspector.type=CLICKHOUSE"
+    }
+    endpoints.forEachIndexed { index, endpoint -> endpoint.validate(index) }
+    require(endpoints.distinct().size == endpoints.size) {
+        "inspector.clickhouse.endpoints must not contain duplicates"
+    }
+    require(username.isNotBlank()) {
+        "inspector.clickhouse.username must not be blank"
+    }
+    connectionTimeout.validateTimeout("inspector.clickhouse.connection-timeout")
+    connectionRequestTimeout.validateTimeout("inspector.clickhouse.connection-request-timeout")
+    socketTimeout.validateTimeout(
+        property = "inspector.clickhouse.socket-timeout",
+        allowZero = true,
+        maxMillis = Int.MAX_VALUE.toLong(),
+    )
+    executionTimeout.validateTimeout(
+        property = "inspector.clickhouse.execution-timeout",
+        allowZero = true,
+        maxMillis = Int.MAX_VALUE.toLong(),
+    )
+    require(maxConnections > 0) {
+        "inspector.clickhouse.max-connections must be greater than zero"
+    }
+    require(maxRetries >= 0) {
+        "inspector.clickhouse.max-retries must not be negative"
+    }
+}
+
+private fun java.net.URI.validate(index: Int) {
+    require(scheme.equals("http", ignoreCase = true) || scheme.equals("https", ignoreCase = true)) {
+        "inspector.clickhouse.endpoints[$index] must use http or https"
+    }
+    require(!host.isNullOrBlank()) {
+        "inspector.clickhouse.endpoints[$index] must contain a host"
+    }
+    require(port in 1..65535) {
+        "inspector.clickhouse.endpoints[$index] must contain an explicit valid port"
+    }
+    require(userInfo == null && query == null && fragment == null) {
+        "inspector.clickhouse.endpoints[$index] must not contain user info, query, or fragment"
+    }
+}
+
+private fun java.time.Duration.validateTimeout(
+    property: String,
+    allowZero: Boolean = false,
+    maxMillis: Long = Long.MAX_VALUE,
+) {
+    require(!isNegative && (allowZero || !isZero)) {
+        if (allowZero) "$property must not be negative" else "$property must be greater than zero"
+    }
+    val millis = try {
+        toMillis()
+    } catch (error: ArithmeticException) {
+        throw IllegalArgumentException(
+            "$property is too large",
+            error,
+        )
+    }
+    require(millis <= maxMillis) {
+        "$property must not exceed $maxMillis milliseconds"
     }
 }

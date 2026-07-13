@@ -20,26 +20,48 @@ import me.ahoo.wow.bi.BiScriptGenerator
 import me.ahoo.wow.bi.BiScriptOperation
 import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.bi.BiScriptResult
-import me.ahoo.wow.bi.NoOpBiDeploymentInspector
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.bi.BiScriptDiagnosticResponse
+import me.ahoo.wow.openapi.contract.bi.BiScriptHeaders
 import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
 import me.ahoo.wow.openapi.contract.bi.BiScriptResponse
+import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.NoMetadataRouteHandlerFunctionFactorySupport
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
+import org.springframework.web.server.NotAcceptableStatusException
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 
 private val APPLICATION_SQL_MEDIA_TYPE = MediaType.parseMediaType("application/sql")
+private val SUPPORTED_RESPONSE_MEDIA_TYPES = listOf(APPLICATION_SQL_MEDIA_TYPE, MediaType.APPLICATION_JSON)
+
+private data class ResponsePreference(
+    val mediaType: MediaType,
+    val quality: Double,
+    val acceptOrder: Int,
+    val responseOrder: Int,
+)
+
+private fun MediaType.accepts(responseMediaType: MediaType): Boolean =
+    isCompatibleWith(responseMediaType) ||
+        (responseMediaType == MediaType.APPLICATION_JSON && subtype.endsWith("+json"))
+
+private fun MediaType.specificity(): Int = when {
+    isWildcardType -> 0
+    subtype == "*" -> 1
+    subtype.startsWith("*+") -> 2
+    else -> 3
+}
 
 class GenerateBIScriptHandlerFunction(
     private val options: BiScriptOptions,
-    private val deploymentInspector: BiDeploymentInspector = NoOpBiDeploymentInspector,
+    private val deploymentInspector: BiDeploymentInspector,
+    private val exceptionHandler: RequestExceptionHandler,
 ) : HandlerFunction<ServerResponse> {
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return request.bodyToMono(BiScriptRequest::class.java)
@@ -47,17 +69,18 @@ class GenerateBIScriptHandlerFunction(
             .flatMap { body ->
                 body.requireAllowedInspectionScope(deploymentInspector)
                 generateResponse(
-                    request = request,
                     requestOptions = body.toBiScriptOptions(options),
                     operation = body.toBiScriptOperation(),
+                    responseMediaType = request.preferredResponseMediaType(),
                 )
             }
+            .onErrorResume { exceptionHandler.handle(request, it) }
     }
 
     private fun generateResponse(
-        request: ServerRequest,
         requestOptions: BiScriptOptions,
         operation: BiScriptOperation,
+        responseMediaType: MediaType,
     ): Mono<ServerResponse> = deploymentInspector.inspect(requestOptions).flatMap { inspection ->
         Mono.fromCallable {
             BiScriptGenerator(requestOptions).generate(MetadataSearcher.localAggregates, operation, inspection)
@@ -65,31 +88,41 @@ class GenerateBIScriptHandlerFunction(
     }.flatMap { result ->
         logDiagnostics(result.diagnostics)
         val response = ServerResponse.ok()
-            .header(DIAGNOSTIC_COUNT_HEADER, result.diagnostics.size.toString())
-        if (request.prefersJson()) {
+            .header(BiScriptHeaders.DIAGNOSTIC_COUNT, result.diagnostics.size.toString())
+        if (responseMediaType == MediaType.APPLICATION_JSON) {
             response.contentType(MediaType.APPLICATION_JSON).bodyValue(result.toResponse())
         } else {
             response.contentType(APPLICATION_SQL_MEDIA_TYPE).bodyValue(result.script)
         }
     }
 
-    private fun ServerRequest.prefersJson(): Boolean {
-        val accepted = headers().accept()
-            .filter { it.qualityValue > 0.0 }
-            .sortedWith(
-                compareByDescending<MediaType>(MediaType::getQualityValue)
-                    .thenBy(MediaType::isWildcardType)
-                    .thenBy(MediaType::isWildcardSubtype)
-            )
-        val preferred = accepted.firstOrNull { mediaType ->
-            mediaType.isCompatibleWith(MediaType.APPLICATION_JSON) ||
-                mediaType.subtype.endsWith("+json") ||
-                mediaType.isCompatibleWith(APPLICATION_SQL_MEDIA_TYPE)
-        } ?: return false
-        if (preferred.isWildcardType || preferred.isWildcardSubtype) {
-            return false
+    private fun ServerRequest.preferredResponseMediaType(): MediaType {
+        val requested = headers().accept()
+        if (requested.isEmpty()) {
+            return APPLICATION_SQL_MEDIA_TYPE
         }
-        return preferred.isCompatibleWith(MediaType.APPLICATION_JSON) || preferred.subtype.endsWith("+json")
+        return SUPPORTED_RESPONSE_MEDIA_TYPES.mapIndexedNotNull { responseOrder, responseMediaType ->
+            val effectiveAccept = requested.withIndex()
+                .filter { (_, acceptedMediaType) -> acceptedMediaType.accepts(responseMediaType) }
+                .maxWithOrNull(
+                    compareBy<IndexedValue<MediaType>> { (_, mediaType) -> mediaType.specificity() }
+                        .thenBy { (index) -> -index }
+                ) ?: return@mapIndexedNotNull null
+            ResponsePreference(
+                mediaType = responseMediaType,
+                quality = effectiveAccept.value.qualityValue,
+                acceptOrder = effectiveAccept.index,
+                responseOrder = responseOrder,
+            )
+        }.filter { it.quality > 0.0 }
+            .sortedWith(
+                compareByDescending<ResponsePreference> { it.quality }
+                    .thenBy { it.acceptOrder }
+                    .thenBy { it.responseOrder }
+            )
+            .firstOrNull()
+            ?.mediaType
+            ?: throw NotAcceptableStatusException(SUPPORTED_RESPONSE_MEDIA_TYPES)
     }
 
     private fun BiScriptResult.toResponse(): BiScriptResponse = BiScriptResponse(
@@ -118,19 +151,19 @@ class GenerateBIScriptHandlerFunction(
     }
 
     private companion object {
-        const val DIAGNOSTIC_COUNT_HEADER: String = "Wow-BI-Diagnostic-Count"
         private val log = KotlinLogging.logger(GenerateBIScriptHandlerFunction::class.java.name)
     }
 }
 
 class GenerateBIScriptHandlerFunctionFactory(
     private val options: BiScriptOptions,
-    private val deploymentInspector: BiDeploymentInspector = NoOpBiDeploymentInspector,
+    private val deploymentInspector: BiDeploymentInspector,
+    private val exceptionHandler: RequestExceptionHandler,
 ) :
     NoMetadataRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT) {
     override fun create(
         contract: HttpRouteContract
     ): HandlerFunction<ServerResponse> {
-        return GenerateBIScriptHandlerFunction(options, deploymentInspector)
+        return GenerateBIScriptHandlerFunction(options, deploymentInspector, exceptionHandler)
     }
 }

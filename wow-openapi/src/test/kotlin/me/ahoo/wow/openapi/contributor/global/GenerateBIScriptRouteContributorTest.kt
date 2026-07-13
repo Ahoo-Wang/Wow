@@ -22,6 +22,7 @@ import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpSchema
+import me.ahoo.wow.openapi.contract.bi.BiScriptHeaders
 import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
 import org.junit.jupiter.api.Test
 
@@ -54,6 +55,7 @@ internal class GenerateBIScriptRouteContributorTest {
             .containsExactly(
                 Https.Code.OK,
                 Https.Code.BAD_REQUEST,
+                Https.Code.NOT_ACCEPTABLE,
                 Https.Code.UNSUPPORTED_MEDIA_TYPE,
                 Https.Code.BAD_GATEWAY,
                 Https.Code.SERVICE_UNAVAILABLE,
@@ -63,6 +65,10 @@ internal class GenerateBIScriptRouteContributorTest {
             Https.MediaType.APPLICATION_SQL,
             Https.MediaType.APPLICATION_JSON,
         )
+        contract.responses.first().headers.single().run {
+            name.assert().isEqualTo(BiScriptHeaders.DIAGNOSTIC_COUNT)
+            schema.assert().isEqualTo(HttpSchema.Integer)
+        }
         contract.responses.single { it.statusCode == Https.Code.UNSUPPORTED_MEDIA_TYPE }.componentRef.assert()
             .isEqualTo("${Wow.WOW_PREFIX}${CommonComponent.Response.UNSUPPORTED_MEDIA_TYPE_ERROR_CODE}")
 

@@ -17,6 +17,7 @@ import com.clickhouse.client.api.ClientException
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
+import tools.jackson.core.JacksonException
 import java.time.Duration
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeoutException
@@ -78,8 +79,8 @@ class ClickHouseBiDeploymentInspectorTest {
     @Test
     fun `should fail when cluster replicas disagree on an object definition`() {
         val client = clusterClient(
-            catalogRecord(node = NODE_A, engineFull = "View"),
-            catalogRecord(node = NODE_B, engineFull = "View from another replica"),
+            catalogRecord(node = NODE_A, engineFull = "View", comment = OWNED_COMMENT),
+            catalogRecord(node = NODE_B, engineFull = "View from another replica", comment = OWNED_COMMENT),
         )
 
         ClickHouseBiDeploymentInspector(client).inspect(CLUSTER_OPTIONS).test()
@@ -92,14 +93,30 @@ class ClickHouseBiDeploymentInspectorTest {
 
     @Test
     fun `should fail when an object is missing from a cluster replica`() {
-        val client = clusterClient(catalogRecord(node = NODE_A))
+        val client = clusterClient(catalogRecord(node = NODE_A, comment = OWNED_COMMENT))
 
         ClickHouseBiDeploymentInspector(client).inspect(CLUSTER_OPTIONS).test()
             .expectErrorMatches {
                 it is BiDeploymentInspectionException.Inconsistent &&
-                    it.message!!.contains("catalog differs across replicas")
+                    it.message!!.contains("is missing from a replica")
             }
             .verify()
+    }
+
+    @Test
+    fun `should ignore replica-local foreign catalog differences`() {
+        val client = clusterClient(
+            catalogRecord(node = NODE_A, name = "owned_view", comment = OWNED_COMMENT),
+            catalogRecord(node = NODE_B, name = "owned_view", comment = OWNED_COMMENT),
+            catalogRecord(node = NODE_A, name = "node_local_table", engine = "MergeTree", engineFull = "A"),
+            catalogRecord(node = NODE_B, name = "node_local_table", engine = "MergeTree", engineFull = "B"),
+        )
+
+        val available = ClickHouseBiDeploymentInspector(client).inspect(CLUSTER_OPTIONS).block()
+            as BiDeploymentInspection.Available
+
+        available.deployment.objects.map(ObservedBiObject::name).assert()
+            .containsExactly("node_local_table", "owned_view")
     }
 
     @Test
@@ -136,6 +153,30 @@ class ClickHouseBiDeploymentInspectorTest {
             .expectErrorMatches {
                 it is BiDeploymentInspectionException.Inconsistent &&
                     it.message!!.contains("[name] must not be blank")
+            }
+            .verify()
+    }
+
+    @Test
+    fun `should classify a malformed ownership marker as inconsistent`() {
+        val client = StubClickHouseCatalogClient(
+            records(
+                catalogRecord(
+                    database = OPTIONS.consumerDatabase,
+                    name = "broken_anchor",
+                    comment = "wow-bi:{",
+                )
+            )
+        )
+
+        ClickHouseBiDeploymentInspector(client).inspect(OPTIONS).test()
+            .expectErrorMatches {
+                it is BiDeploymentInspectionException.Inconsistent &&
+                    it.cause is JacksonException &&
+                    it.errorInfo.errorCode == BiDeploymentInspectionException.INCONSISTENT_ERROR_CODE &&
+                    it.message ==
+                    "ClickHouse BI catalog object [${OPTIONS.consumerDatabase}.broken_anchor] " +
+                    "contains invalid ownership metadata"
             }
             .verify()
     }
@@ -271,6 +312,14 @@ class ClickHouseBiDeploymentInspectorTest {
         val CLUSTER_OPTIONS = OPTIONS.copy(topology = CLUSTER)
         val NODE_A = ClickHouseCatalogNode("clickhouse-a", 9000)
         val NODE_B = ClickHouseCatalogNode("clickhouse-b", 9000)
+        val OWNED_COMMENT = BiObjectMetadataCodec.encode(
+            BiObjectMetadata(
+                deploymentId = DESCRIPTOR.deploymentId,
+                configurationFingerprint = DESCRIPTOR.configurationFingerprint,
+                aggregate = "example.order",
+                kind = BiObjectKind.VIEW,
+            )
+        )
         val CATALOG_COLUMNS = listOf(
             "database",
             "name",

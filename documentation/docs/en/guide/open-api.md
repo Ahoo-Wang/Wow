@@ -170,10 +170,14 @@ The same maximum lengths apply to server configuration and every non-null reques
 
 | Status | `Content-Type` | Body |
 |--------|----------------|------|
-| `200` | `application/sql` | SQL text only |
-| `200` | `application/json` | SQL, destructive flag, and diagnostics |
+| `200` | `application/sql` | SQL text only; `Wow-BI-Diagnostic-Count` reports diagnostics omitted from the body |
+| `200` | `application/json` | SQL, destructive flag, and diagnostics; `Wow-BI-Diagnostic-Count` reports the same diagnostic count |
 | `400` | Error response | Empty or invalid JSON body, over-limit override, another invalid option value, or invalid topology combination |
+| `406` | Error response | No requested representation is supported, or every supported representation has `q=0`; runtime `Wow-Error-Code` is `NotAcceptable` |
 | `415` | Common `wow.UnsupportedMediaType` response | Missing or unsupported request `Content-Type`; runtime `Wow-Error-Code` is `UnsupportedMediaType` |
+| `502` | Error response | The owned ClickHouse catalog is inconsistent across inspected replicas |
+| `503` | Error response | ClickHouse catalog inspection is unavailable |
+| `504` | Error response | ClickHouse catalog inspection timed out |
 
 `{}` performs `DEPLOY` with the server-side options unchanged; callers do not persist deployment history. The default NoOp inspector returns an unreconciled diagnostic, while a registered ClickHouse inspector restores history from the catalog. `RESET` only carries `replayFromEarliestConfirmed=true`, but returns `400` unless inspection is available. When `topology` is present, `topology.mode` is mandatory. In `CLUSTER` mode, omitted cluster fields inherit the current Cluster server base, or the domain Cluster defaults when the server base is Standalone. `STANDALONE` rejects a `cluster` object. The legacy `GET` method has no route for this path and returns `404`.
 
@@ -211,6 +215,7 @@ curl -X POST 'http://localhost:8080/wow/bi/script' \
 ```http [Representative Response Start]
 HTTP/1.1 200 OK
 Content-Type: application/sql
+Wow-BI-Diagnostic-Count: 0
 
 -- global --
 CREATE DATABASE IF NOT EXISTS "bi_db" ON CLUSTER '{cluster}';

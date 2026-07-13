@@ -22,6 +22,7 @@ object Https {
         const val OK = "200"
         const val BAD_REQUEST = "400"
         const val NOT_FOUND = "404"
+        const val NOT_ACCEPTABLE = "406"
         const val REQUEST_TIMEOUT = "408"
         const val CONFLICT = "409"
         const val GONE = "410"

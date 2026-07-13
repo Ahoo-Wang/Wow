@@ -23,10 +23,12 @@ import io.mockk.unmockkObject
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.bi.BiDeploymentInspection
+import me.ahoo.wow.bi.BiDeploymentInspector
 import me.ahoo.wow.bi.BiScriptDiagnostic
 import me.ahoo.wow.bi.BiScriptGenerator
 import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.bi.ClickHouseTopology
+import me.ahoo.wow.bi.NoOpBiDeploymentInspector
 import me.ahoo.wow.bi.ObservedBiDeployment
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.configuration.NamedAggregateTypeSearcher
@@ -37,6 +39,7 @@ import me.ahoo.wow.openapi.contract.bi.BiScriptOperationMode
 import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyMode
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyRequest
+import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunction
 import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testGlobalRouteContract
@@ -65,7 +68,11 @@ class GenerateBIScriptHandlerFunctionTest {
             topicPrefix = "analytics.",
             consumerGroupNamespace = "test",
         )
-        val handlerFunction = GenerateBIScriptHandlerFunctionFactory(options).create(
+        val handlerFunction = GenerateBIScriptHandlerFunctionFactory(
+            options,
+            NoOpBiDeploymentInspector,
+            WebFluxRequestExceptionHandler(),
+        ).create(
             testGlobalRouteContract(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT)
         )
 
@@ -86,7 +93,7 @@ class GenerateBIScriptHandlerFunctionTest {
 
     @Test
     fun `should generate BI script from request overrides`() {
-        val handler = GenerateBIScriptHandlerFunction(BASE_OPTIONS)
+        val handler = handler()
         val request = MockServerRequest.builder()
             .body(
                 BiScriptRequest(
@@ -107,14 +114,14 @@ class GenerateBIScriptHandlerFunctionTest {
 
     @Test
     fun `should reject a missing request body`() {
-        GenerateBIScriptHandlerFunction(BASE_OPTIONS)
+        handler()
             .handle(MockServerRequest.builder().body(Mono.empty<BiScriptRequest>()))
             .test()
-            .expectErrorMatches {
-                it is IllegalArgumentException &&
-                    it.message == "BI script request body must not be empty"
+            .consumeNextWith { response ->
+                response.statusCode().assert().isEqualTo(HttpStatus.BAD_REQUEST)
+                response.writeBody().assert().contains("BI script request body must not be empty")
             }
-            .verify()
+            .verifyComplete()
     }
 
     @Test
@@ -123,7 +130,7 @@ class GenerateBIScriptHandlerFunctionTest {
             .header("Accept", MediaType.APPLICATION_JSON_VALUE)
             .body(BiScriptRequest().toMono())
 
-        GenerateBIScriptHandlerFunction(BASE_OPTIONS).handle(request).test()
+        handler().handle(request).test()
             .consumeNextWith { response ->
                 response.headers().contentType.assert().isEqualTo(MediaType.APPLICATION_JSON)
                 response.headers().getFirst("Wow-BI-Diagnostic-Count").assert().isNotNull()
@@ -140,6 +147,7 @@ class GenerateBIScriptHandlerFunctionTest {
             "application/json;q=0, application/sql;q=1" to APPLICATION_SQL,
             "application/json;q=0.9, application/sql;q=1" to APPLICATION_SQL,
             "application/sql;q=0.5, application/json;q=1" to MediaType.APPLICATION_JSON,
+            "application/*+json" to MediaType.APPLICATION_JSON,
             "*/*" to APPLICATION_SQL,
         )
 
@@ -147,16 +155,18 @@ class GenerateBIScriptHandlerFunctionTest {
             val request = MockServerRequest.builder()
                 .header("Accept", accept)
                 .body(BiScriptRequest().toMono())
-            GenerateBIScriptHandlerFunction(BASE_OPTIONS).handle(request).block()!!
+            handler().handle(request).block()!!
                 .headers().contentType.assert().isEqualTo(expected)
         }
     }
 
     @Test
     fun `should expose explicit destructive reset over HTTP`() {
-        val handler = GenerateBIScriptHandlerFunction(BASE_OPTIONS) {
-            Mono.just(BiDeploymentInspection.Available(ObservedBiDeployment(emptyList())))
-        }
+        val handler = handler(
+            deploymentInspector = BiDeploymentInspector {
+                Mono.just(BiDeploymentInspection.Available(ObservedBiDeployment(emptyList())))
+            }
+        )
         val request = MockServerRequest.builder()
             .header("Accept", MediaType.APPLICATION_JSON_VALUE)
             .body(
@@ -181,12 +191,12 @@ class GenerateBIScriptHandlerFunctionTest {
                 ).toMono()
             )
 
-        GenerateBIScriptHandlerFunction(BASE_OPTIONS).handle(request).test()
-            .expectErrorMatches {
-                it is IllegalArgumentException &&
-                    it.message == "RESET requires an available BI deployment inspection"
+        handler().handle(request).test()
+            .consumeNextWith { response ->
+                response.statusCode().assert().isEqualTo(HttpStatus.BAD_REQUEST)
+                response.writeBody().assert().contains("RESET requires an available BI deployment inspection")
             }
-            .verify()
+            .verifyComplete()
     }
 
     @Test
@@ -212,7 +222,7 @@ class GenerateBIScriptHandlerFunctionTest {
 
             lateinit var response: ServerResponse
             val warnings = captureHandlerWarnings {
-                response = GenerateBIScriptHandlerFunction(options)
+                response = handler(options)
                     .handle(MockServerRequest.builder().body(BiScriptRequest().toMono()))
                     .block()!!
             }
@@ -241,6 +251,15 @@ class GenerateBIScriptHandlerFunctionTest {
         "BI script diagnostic - code:[${diagnostic.code}], aggregate:[${diagnostic.aggregate}], " +
             "path:[${diagnostic.path}], sourceType:[${diagnostic.sourceType}], " +
             "decision:[${diagnostic.decision}], message:[${diagnostic.message}]."
+
+    private fun handler(
+        options: BiScriptOptions = BASE_OPTIONS,
+        deploymentInspector: BiDeploymentInspector = NoOpBiDeploymentInspector,
+    ): GenerateBIScriptHandlerFunction = GenerateBIScriptHandlerFunction(
+        options = options,
+        deploymentInspector = deploymentInspector,
+        exceptionHandler = WebFluxRequestExceptionHandler(),
+    )
 
     private fun ServerResponse.writeBody(): String {
         val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build())

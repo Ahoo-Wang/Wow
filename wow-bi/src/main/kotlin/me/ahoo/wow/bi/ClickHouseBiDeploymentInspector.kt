@@ -17,6 +17,7 @@ import com.clickhouse.client.api.Client
 import com.clickhouse.client.api.ClientException
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
+import tools.jackson.core.JacksonException
 import java.time.Duration
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeoutException
@@ -121,18 +122,10 @@ class ClickHouseBiDeploymentInspector internal constructor(
             "ClickHouse BI cluster [$cluster] catalog contains an unknown replica"
         }
 
-        val keysByNode = nodes.associateWith { node ->
-            objects.asSequence()
-                .filter { it.node == node }
-                .map { it.objectValue.key }
-                .toSet()
-        }
-        val expectedKeys = keysByNode.values.first()
-        check(keysByNode.values.all { it == expectedKeys }) {
-            "ClickHouse BI cluster [$cluster] catalog differs across replicas"
-        }
-
         objects.groupBy { it.objectValue.key }.forEach { (key, replicas) ->
+            if (replicas.none { it.objectValue.metadata != null }) {
+                return@forEach
+            }
             check(replicas.size == nodes.size && replicas.mapTo(mutableSetOf(), NodeObject::node) == nodes) {
                 "ClickHouse BI catalog object [${key.database}.${key.name}] is missing from a replica"
             }
@@ -146,7 +139,7 @@ class ClickHouseBiDeploymentInspector internal constructor(
     private fun validateObjects(objects: List<ObservedBiObject>): ObservedBiDeployment {
         val uniqueObjects = objects.groupBy(ObservedBiObject::key).map { (key, replicas) ->
             val definitions = replicas.map(ObservedBiObject::toCatalogDefinition).distinct()
-            check(definitions.size == 1) {
+            check(definitions.size == 1 || replicas.none { it.metadata != null }) {
                 "ClickHouse BI catalog object [${key.database}.${key.name}] has duplicate definitions"
             }
             replicas.first()
@@ -237,14 +230,26 @@ internal data class ClickHouseCatalogRecord(
             ?: error("ClickHouse BI catalog column [tcp_port] must be a valid port"),
     )
 
-    fun toObservedObject(): ObservedBiObject = ObservedBiObject(
-        database = required("database"),
-        name = required("name"),
-        engine = required("engine"),
-        engineFull = values["engine_full"].orEmpty(),
-        createTableQuery = values["create_table_query"].orEmpty(),
-        metadata = BiObjectMetadataCodec.decode(values["comment"].orEmpty()),
-    )
+    fun toObservedObject(): ObservedBiObject {
+        val database = required("database")
+        val name = required("name")
+        val metadata = try {
+            BiObjectMetadataCodec.decode(values["comment"].orEmpty())
+        } catch (error: JacksonException) {
+            throw BiDeploymentInspectionException.Inconsistent(
+                "ClickHouse BI catalog object [$database.$name] contains invalid ownership metadata",
+                error,
+            )
+        }
+        return ObservedBiObject(
+            database = database,
+            name = name,
+            engine = required("engine"),
+            engineFull = values["engine_full"].orEmpty(),
+            createTableQuery = values["create_table_query"].orEmpty(),
+            metadata = metadata,
+        )
+    }
 
     private fun required(column: String): String {
         val value = values[column]
