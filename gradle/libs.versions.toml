@@ -20,7 +20,7 @@ reactor-kafka = "1.3.25"
 # ClickHouse
 clickhouse-java = "0.9.8"
 # testing
-junit = "6.1.1"
+junit = "6.1.2"
 fluent-assert = "1.0.0"
 mockk = "1.14.11"
 kotlin-compile-testing = "0.13.0"
