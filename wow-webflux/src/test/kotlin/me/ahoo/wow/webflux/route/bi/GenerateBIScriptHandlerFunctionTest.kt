@@ -31,9 +31,12 @@ import me.ahoo.wow.configuration.NamedAggregateTypeSearcher
 import me.ahoo.wow.configuration.TypeNamedAggregateSearcher
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.openapi.contract.bi.BiScriptOperationMode
 import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
+import me.ahoo.wow.openapi.contract.bi.BiScriptResponse
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyMode
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyRequest
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunction
 import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testGlobalRouteContract
@@ -60,6 +63,7 @@ class GenerateBIScriptHandlerFunctionTest {
             topology = ClickHouseTopology.Cluster(name = "analytics-cluster"),
             kafkaBootstrapServers = "kafka:9092",
             topicPrefix = "analytics.",
+            consumerGroupNamespace = "test",
         )
         val handlerFunction = GenerateBIScriptHandlerFunctionFactory(options).create(
             testGlobalRouteContract(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT)
@@ -114,6 +118,64 @@ class GenerateBIScriptHandlerFunctionTest {
     }
 
     @Test
+    fun `should return structured diagnostics and manifest when JSON is requested`() {
+        val request = MockServerRequest.builder()
+            .header("Accept", MediaType.APPLICATION_JSON_VALUE)
+            .body(BiScriptRequest().toMono())
+
+        GenerateBIScriptHandlerFunction(BASE_OPTIONS).handle(request).test()
+            .consumeNextWith { response ->
+                response.headers().contentType.assert().isEqualTo(MediaType.APPLICATION_JSON)
+                response.headers().getFirst("Wow-BI-Diagnostic-Count").assert().isNotNull()
+                response.writeBody().assert()
+                    .contains("\"script\"", "\"diagnostics\"", "\"manifest\"")
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `should honor quality values and default wildcards to SQL`() {
+        val cases = mapOf(
+            "application/json;q=0, application/sql;q=1" to APPLICATION_SQL,
+            "application/json;q=0.9, application/sql;q=1" to APPLICATION_SQL,
+            "application/sql;q=0.5, application/json;q=1" to MediaType.APPLICATION_JSON,
+            "*/*" to APPLICATION_SQL,
+        )
+
+        cases.forEach { (accept, expected) ->
+            val request = MockServerRequest.builder()
+                .header("Accept", accept)
+                .body(BiScriptRequest().toMono())
+            GenerateBIScriptHandlerFunction(BASE_OPTIONS).handle(request).block()!!
+                .headers().contentType.assert().isEqualTo(expected)
+        }
+    }
+
+    @Test
+    fun `should expose explicit destructive reset over HTTP`() {
+        val handler = GenerateBIScriptHandlerFunction(BASE_OPTIONS)
+        val deployBody = handler.handle(
+            MockServerRequest.builder()
+                .header("Accept", MediaType.APPLICATION_JSON_VALUE)
+                .body(BiScriptRequest().toMono())
+        ).block()!!.writeBody()
+        val previousManifest = JsonSerializer.readValue(deployBody, BiScriptResponse::class.java).manifest
+        val request = MockServerRequest.builder()
+            .header("Accept", MediaType.APPLICATION_JSON_VALUE)
+            .body(
+                BiScriptRequest(
+                    operation = BiScriptOperationMode.RESET,
+                    previousManifest = previousManifest,
+                    replayFromEarliestConfirmed = true,
+                ).toMono()
+            )
+
+        val body = handler.handle(request).block()!!.writeBody()
+        body.assert()
+            .contains("\"destructive\":true", "DROP TABLE IF EXISTS", "_state_last_store")
+    }
+
+    @Test
     fun `should return generated SQL and log every generated diagnostic as a warning`() {
         val aggregate = MaterializedNamedAggregate("webflux-bi-test", "diagnostic")
         val aggregateTypes = NamedAggregateTypeSearcher(
@@ -127,7 +189,10 @@ class GenerateBIScriptHandlerFunctionTest {
             every { MetadataSearcher.localAggregates } returns setOf(aggregate)
             every { MetadataSearcher.namedAggregateType } returns aggregateTypes
             every { MetadataSearcher.typeNamedAggregate } returns namedAggregates
-            val options = BiScriptOptions(topology = ClickHouseTopology.Standalone)
+            val options = BiScriptOptions(
+                topology = ClickHouseTopology.Standalone,
+                consumerGroupNamespace = "test",
+            )
             val generated = BiScriptGenerator(options).generate(setOf(aggregate))
             generated.diagnostics.assert().hasSize(2)
 
@@ -190,6 +255,7 @@ class GenerateBIScriptHandlerFunctionTest {
             database = "base_db",
             consumerDatabase = "base_consumer",
             topology = ClickHouseTopology.Cluster(name = "base-cluster"),
+            consumerGroupNamespace = "test",
         )
         private val SERVER_RESPONSE_CONTEXT = object : ServerResponse.Context {
             private val strategies = HandlerStrategies.withDefaults()

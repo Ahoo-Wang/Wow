@@ -3,47 +3,19 @@ CREATE DATABASE IF NOT EXISTS "bi_db" ON CLUSTER '{cluster}';
 
 CREATE DATABASE IF NOT EXISTS "bi_db_consumer" ON CLUSTER '{cluster}';
 -- global --
--- clear --
--- bi.aggregate.clear --
-DROP TABLE IF EXISTS "bi_db"."bi_aggregate_command" ON CLUSTER '{cluster}' SYNC;
-
-DROP TABLE IF EXISTS "bi_db"."bi_aggregate_command_local" ON CLUSTER '{cluster}' SYNC;
+-- lifecycle --
+-- bi.aggregate.pause-ingress --
+DROP VIEW IF EXISTS "bi_db_consumer"."bi_aggregate_command_consumer" ON CLUSTER '{cluster}' SYNC;
 
 DROP TABLE IF EXISTS "bi_db_consumer"."bi_aggregate_command_queue" ON CLUSTER '{cluster}' SYNC;
 
-DROP TABLE IF EXISTS "bi_db_consumer"."bi_aggregate_command_consumer" ON CLUSTER '{cluster}' SYNC;
-
-DROP TABLE IF EXISTS "bi_db"."bi_aggregate_state" ON CLUSTER '{cluster}' SYNC;
-
-DROP TABLE IF EXISTS "bi_db"."bi_aggregate_state_event" ON CLUSTER '{cluster}' SYNC;
-
-DROP TABLE IF EXISTS "bi_db"."bi_aggregate_state_local" ON CLUSTER '{cluster}' SYNC;
+DROP VIEW IF EXISTS "bi_db_consumer"."bi_aggregate_state_consumer" ON CLUSTER '{cluster}' SYNC;
 
 DROP TABLE IF EXISTS "bi_db_consumer"."bi_aggregate_state_queue" ON CLUSTER '{cluster}' SYNC;
-
-DROP TABLE IF EXISTS "bi_db_consumer"."bi_aggregate_state_consumer" ON CLUSTER '{cluster}' SYNC;
-
-DROP TABLE IF EXISTS "bi_db"."bi_aggregate_state_last" ON CLUSTER '{cluster}' SYNC;
-
-DROP TABLE IF EXISTS "bi_db"."bi_aggregate_state_last_local" ON CLUSTER '{cluster}' SYNC;
-
-DROP TABLE IF EXISTS "bi_db_consumer"."bi_aggregate_state_last_consumer" ON CLUSTER '{cluster}' SYNC;
-
-DROP TABLE IF EXISTS "bi_db"."bi_aggregate_state_last_root" ON CLUSTER '{cluster}' SYNC;
-
-DROP TABLE IF EXISTS "bi_db"."bi_aggregate_state_last_root_items" ON CLUSTER '{cluster}' SYNC;
-
-DROP TABLE IF EXISTS "bi_db"."bi_aggregate_state_last_root_like_list_item" ON CLUSTER '{cluster}' SYNC;
-
-DROP TABLE IF EXISTS "bi_db"."bi_aggregate_state_last_root_nested_list" ON CLUSTER '{cluster}' SYNC;
-
-DROP TABLE IF EXISTS "bi_db"."bi_aggregate_state_last_root_nested_list_list" ON CLUSTER '{cluster}' SYNC;
-
-DROP TABLE IF EXISTS "bi_db"."bi_aggregate_state_last_root_set" ON CLUSTER '{cluster}' SYNC;
--- bi.aggregate.clear --
--- clear --
+-- bi.aggregate.pause-ingress --
+-- lifecycle --
 -- bi.aggregate.command --
-CREATE TABLE IF NOT EXISTS "bi_db"."bi_aggregate_command_local" ON CLUSTER '{cluster}'
+CREATE TABLE IF NOT EXISTS "bi_db"."bi_aggregate_command_store_local" ON CLUSTER '{cluster}'
 (
     "id" String,
     "context_name" String,
@@ -57,26 +29,32 @@ CREATE TABLE IF NOT EXISTS "bi_db"."bi_aggregate_command_local" ON CLUSTER '{clu
     "request_id" String,
     "aggregate_version" Nullable(UInt32),
     "is_create" Bool,
+    "is_void" Bool,
     "allow_create" Bool,
     "body_type" String,
     "body" String,
-    "create_time" DateTime('Asia/Shanghai')
-) ENGINE = ReplicatedMergeTree('/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}', '{replica}')
+    "create_time" DateTime64(3, 'Asia/Shanghai')
+) ENGINE = ReplicatedReplacingMergeTree('/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}', '{replica}')
   PARTITION BY toYYYYMM("create_time")
   ORDER BY "id";
 
-CREATE TABLE IF NOT EXISTS "bi_db"."bi_aggregate_command" ON CLUSTER '{cluster}'
-AS "bi_db"."bi_aggregate_command_local"
+CREATE TABLE IF NOT EXISTS "bi_db"."bi_aggregate_command_store" ON CLUSTER '{cluster}'
+AS "bi_db"."bi_aggregate_command_store_local"
 ENGINE = Distributed('{cluster}', "bi_db",
-                     'bi_aggregate_command_local', sipHash64("aggregate_id"));
+                     'bi_aggregate_command_store_local', sipHash64("aggregate_id"));
+
+DROP VIEW IF EXISTS "bi_db_consumer"."bi_aggregate_command_consumer" ON CLUSTER '{cluster}' SYNC;
+
+DROP TABLE IF EXISTS "bi_db_consumer"."bi_aggregate_command_queue" ON CLUSTER '{cluster}' SYNC;
 
 CREATE TABLE IF NOT EXISTS "bi_db_consumer"."bi_aggregate_command_queue" ON CLUSTER '{cluster}'
 ("data" String)
 ENGINE = Kafka('localhost:9093', 'wow.bi.aggregate.command',
-               'clickhouse_bi_aggregate_command_consumer', 'JSONAsString');
+               'wow-bi.64c3fad89b0d06cb6fa949830f67c9c0.bi_aggregate_command_consumer', 'JSONAsString')
+;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS "bi_db_consumer"."bi_aggregate_command_consumer" ON CLUSTER '{cluster}'
-TO "bi_db"."bi_aggregate_command"
+TO "bi_db"."bi_aggregate_command_store"
 AS
 SELECT JSONExtractString("data", 'id') AS "id",
        JSONExtractString("data", 'contextName') AS "context_name",
@@ -90,14 +68,18 @@ SELECT JSONExtractString("data", 'id') AS "id",
        JSONExtractString("data", 'requestId') AS "request_id",
        JSONExtract("data", 'aggregateVersion', 'Nullable(UInt32)') AS "aggregate_version",
        JSONExtractBool("data", 'isCreate') AS "is_create",
+       JSONExtractBool("data", 'isVoid') AS "is_void",
        JSONExtractBool("data", 'allowCreate') AS "allow_create",
        JSONExtractString("data", 'bodyType') AS "body_type",
-       JSONExtractString("data", 'body') AS "body",
-       toDateTime64(JSONExtractUInt("data", 'createTime') / 1000.0, 3, 'Asia/Shanghai') AS "create_time"
+       simpleJSONExtractRaw("data", 'body') AS "body",
+       toDateTime64(JSONExtractInt("data", 'createTime') / 1000.0, 3, 'Asia/Shanghai') AS "create_time"
 FROM "bi_db_consumer"."bi_aggregate_command_queue";
+
+CREATE OR REPLACE VIEW "bi_db"."bi_aggregate_command" ON CLUSTER '{cluster}'
+AS SELECT * FROM "bi_db"."bi_aggregate_command_store" FINAL;
 -- bi.aggregate.command --
--- bi.aggregate.stateEvent --
-CREATE TABLE IF NOT EXISTS "bi_db"."bi_aggregate_state_local" ON CLUSTER '{cluster}'
+-- bi.aggregate.stateStorage --
+CREATE TABLE IF NOT EXISTS "bi_db"."bi_aggregate_state_store_local" ON CLUSTER '{cluster}'
 (
     "id" String,
     "context_name" String,
@@ -113,8 +95,8 @@ CREATE TABLE IF NOT EXISTS "bi_db"."bi_aggregate_state_local" ON CLUSTER '{clust
     "state" String,
     "body" Array(String),
     "first_operator" String,
-    "first_event_time" DateTime('Asia/Shanghai'),
-    "create_time" DateTime('Asia/Shanghai'),
+    "first_event_time" DateTime64(3, 'Asia/Shanghai'),
+    "create_time" DateTime64(3, 'Asia/Shanghai'),
     "tags" Map(String, Array(String)),
     "deleted" Bool
 ) ENGINE = ReplicatedReplacingMergeTree('/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}', '{replica}', "version")
@@ -122,72 +104,13 @@ CREATE TABLE IF NOT EXISTS "bi_db"."bi_aggregate_state_local" ON CLUSTER '{clust
       ORDER BY ("aggregate_id", "version")
 ;
 
-CREATE TABLE IF NOT EXISTS "bi_db"."bi_aggregate_state" ON CLUSTER '{cluster}'
-AS "bi_db"."bi_aggregate_state_local"
+CREATE TABLE IF NOT EXISTS "bi_db"."bi_aggregate_state_store" ON CLUSTER '{cluster}'
+AS "bi_db"."bi_aggregate_state_store_local"
 ENGINE = Distributed('{cluster}', "bi_db",
-                     'bi_aggregate_state_local', sipHash64("aggregate_id"));
-
-CREATE TABLE IF NOT EXISTS "bi_db_consumer"."bi_aggregate_state_queue" ON CLUSTER '{cluster}'
-(
-    "data" String
-) ENGINE = Kafka('localhost:9093', 'wow.bi.aggregate.state',
-                 'clickhouse_bi_aggregate_state_consumer', 'JSONAsString');
-
-CREATE MATERIALIZED VIEW IF NOT EXISTS "bi_db_consumer"."bi_aggregate_state_consumer" ON CLUSTER '{cluster}'
-TO "bi_db"."bi_aggregate_state"
-AS
-SELECT JSONExtractString("data", 'id') AS "id",
-       JSONExtractString("data", 'contextName') AS "context_name",
-       JSONExtractString("data", 'aggregateName') AS "aggregate_name",
-       JSONExtract("data", 'header', 'Map(String, String)') AS "header",
-       JSONExtractString("data", 'aggregateId') AS "aggregate_id",
-       JSONExtractString("data", 'tenantId') AS "tenant_id",
-       JSONExtractString("data", 'ownerId') AS "owner_id",
-       JSONExtractString("data", 'spaceId') AS "space_id",
-       JSONExtractString("data", 'commandId') AS "command_id",
-       JSONExtractString("data", 'requestId') AS "request_id",
-       JSONExtractUInt("data", 'version') AS "version",
-       JSONExtractString("data", 'state') AS "state",
-       JSONExtractArrayRaw("data", 'body') AS "body",
-       JSONExtractString("data", 'firstOperator') AS "first_operator",
-       toDateTime64(JSONExtractUInt("data", 'firstEventTime') / 1000.0, 3, 'Asia/Shanghai') AS "first_event_time",
-       toDateTime64(JSONExtractUInt("data", 'createTime') / 1000.0, 3, 'Asia/Shanghai') AS "create_time",
-       JSONExtract("data", 'tags', 'Map(String, Array(String))') AS "tags",
-       JSONExtractBool("data", 'deleted') AS "deleted"
-FROM "bi_db_consumer"."bi_aggregate_state_queue"
-;
-
-CREATE VIEW IF NOT EXISTS "bi_db"."bi_aggregate_state_event" ON CLUSTER '{cluster}'
-AS
-WITH arrayJoin(arrayZip(arrayEnumerate("body"),
-                        "body")) AS "events"
-SELECT "id",
-       "context_name",
-       "aggregate_name",
-       "header",
-       "aggregate_id",
-       "tenant_id",
-       "owner_id",
-       "space_id",
-       "command_id",
-       "request_id",
-       "version",
-       "state",
-       "events".1 AS "event_sequence",
-       JSONExtract("events".2, 'id', 'String') AS "event_id",
-       JSONExtract("events".2, 'name', 'String') AS "event_name",
-       JSONExtract("events".2, 'revision', 'String') AS "event_revision",
-       JSONExtract("events".2, 'bodyType', 'String') AS "event_body_type",
-       JSONExtract("events".2, 'body', 'String') AS "event_body",
-       "first_operator",
-       "first_event_time",
-       "create_time",
-       "tags",
-       "deleted"
-FROM "bi_db"."bi_aggregate_state";
--- bi.aggregate.stateEvent --
+                     'bi_aggregate_state_store_local', sipHash64("aggregate_id"));
+-- bi.aggregate.stateStorage --
 -- bi.aggregate.stateLast --
-CREATE TABLE IF NOT EXISTS "bi_db"."bi_aggregate_state_last_local" ON CLUSTER '{cluster}'
+CREATE TABLE IF NOT EXISTS "bi_db"."bi_aggregate_state_last_store_local" ON CLUSTER '{cluster}'
 (
     "id" String,
     "context_name" String,
@@ -203,8 +126,8 @@ CREATE TABLE IF NOT EXISTS "bi_db"."bi_aggregate_state_last_local" ON CLUSTER '{
     "state" String,
     "body" Array(String),
     "first_operator" String,
-    "first_event_time" DateTime('Asia/Shanghai'),
-    "create_time" DateTime('Asia/Shanghai'),
+    "first_event_time" DateTime64(3, 'Asia/Shanghai'),
+    "create_time" DateTime64(3, 'Asia/Shanghai'),
     "tags" Map(String, Array(String)),
     "deleted" Bool
 ) ENGINE = ReplicatedReplacingMergeTree('/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}', '{replica}', "version")
@@ -212,20 +135,25 @@ CREATE TABLE IF NOT EXISTS "bi_db"."bi_aggregate_state_last_local" ON CLUSTER '{
       ORDER BY ("aggregate_id")
 ;
 
-CREATE TABLE IF NOT EXISTS "bi_db"."bi_aggregate_state_last" ON CLUSTER '{cluster}'
-AS "bi_db"."bi_aggregate_state_last_local"
+CREATE TABLE IF NOT EXISTS "bi_db"."bi_aggregate_state_last_store" ON CLUSTER '{cluster}'
+AS "bi_db"."bi_aggregate_state_last_store_local"
 ENGINE = Distributed('{cluster}', "bi_db",
-                     'bi_aggregate_state_last_local', sipHash64("aggregate_id"));
+                     'bi_aggregate_state_last_store_local', sipHash64("aggregate_id"));
+
+DROP VIEW IF EXISTS "bi_db_consumer"."bi_aggregate_state_last_consumer" ON CLUSTER '{cluster}' SYNC;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS "bi_db_consumer"."bi_aggregate_state_last_consumer" ON CLUSTER '{cluster}'
-TO "bi_db"."bi_aggregate_state_last"
+TO "bi_db"."bi_aggregate_state_last_store"
 AS
 SELECT *
-FROM "bi_db"."bi_aggregate_state"
+FROM "bi_db"."bi_aggregate_state_store"
 ;
+
+CREATE OR REPLACE VIEW "bi_db"."bi_aggregate_state_last" ON CLUSTER '{cluster}'
+AS SELECT * FROM "bi_db"."bi_aggregate_state_last_store" FINAL;
 -- bi.aggregate.stateLast --
 -- bi.aggregate.expansion --
-CREATE VIEW IF NOT EXISTS "bi_db"."bi_aggregate_state_last_root" ON CLUSTER '{cluster}' AS
+CREATE OR REPLACE VIEW "bi_db"."bi_aggregate_state_last_root" ON CLUSTER '{cluster}' AS
 WITH
 JSONExtractRaw("__source"."state", 'item') AS "item",
 JSONExtractRaw("__source"."state", 'nested') AS "nested",
@@ -296,7 +224,7 @@ JSONExtract("__source"."state", 'zonedDateTime', 'String') AS "zoned_date_time",
 "__source"."deleted" AS "__deleted"
 FROM "bi_db"."bi_aggregate_state_last" AS "__source";
 
-CREATE VIEW IF NOT EXISTS "bi_db"."bi_aggregate_state_last_root_items" ON CLUSTER '{cluster}' AS
+CREATE OR REPLACE VIEW "bi_db"."bi_aggregate_state_last_root_items" ON CLUSTER '{cluster}' AS
 WITH
 arrayJoin(arrayZip(arrayEnumerate(JSONExtractArrayRaw("__source"."state", 'items')),
                    JSONExtractArrayRaw("__source"."state", 'items'))) AS "__cursor__items",
@@ -369,7 +297,7 @@ concat('/items/', toString(tupleElement("__cursor__items", 1) - 1)) AS "__path",
 "__source"."deleted" AS "__deleted"
 FROM "bi_db"."bi_aggregate_state_last" AS "__source";
 
-CREATE VIEW IF NOT EXISTS "bi_db"."bi_aggregate_state_last_root_like_list_item" ON CLUSTER '{cluster}' AS
+CREATE OR REPLACE VIEW "bi_db"."bi_aggregate_state_last_root_like_list_item" ON CLUSTER '{cluster}' AS
 WITH
 arrayJoin(arrayZip(arrayEnumerate(JSONExtractArrayRaw("__source"."state", 'likeListItem')),
                    JSONExtractArrayRaw("__source"."state", 'likeListItem'))) AS "__cursor__like_list_item",
@@ -442,7 +370,7 @@ concat('/likeListItem/', toString(tupleElement("__cursor__like_list_item", 1) - 
 "__source"."deleted" AS "__deleted"
 FROM "bi_db"."bi_aggregate_state_last" AS "__source";
 
-CREATE VIEW IF NOT EXISTS "bi_db"."bi_aggregate_state_last_root_nested_list" ON CLUSTER '{cluster}' AS
+CREATE OR REPLACE VIEW "bi_db"."bi_aggregate_state_last_root_nested_list" ON CLUSTER '{cluster}' AS
 WITH
 arrayJoin(arrayZip(arrayEnumerate(JSONExtractArrayRaw("__source"."state", 'nestedList')),
                    JSONExtractArrayRaw("__source"."state", 'nestedList'))) AS "__cursor__nested_list",
@@ -516,7 +444,7 @@ concat('/nestedList/', toString(tupleElement("__cursor__nested_list", 1) - 1)) A
 "__source"."deleted" AS "__deleted"
 FROM "bi_db"."bi_aggregate_state_last" AS "__source";
 
-CREATE VIEW IF NOT EXISTS "bi_db"."bi_aggregate_state_last_root_nested_list_list" ON CLUSTER '{cluster}' AS
+CREATE OR REPLACE VIEW "bi_db"."bi_aggregate_state_last_root_nested_list_list" ON CLUSTER '{cluster}' AS
 WITH
 arrayJoin(arrayZip(arrayEnumerate(JSONExtractArrayRaw("__source"."state", 'nestedList')),
                    JSONExtractArrayRaw("__source"."state", 'nestedList'))) AS "__cursor__nested_list",
@@ -597,7 +525,7 @@ concat('/nestedList/', toString(tupleElement("__cursor__nested_list", 1) - 1), '
 "__source"."deleted" AS "__deleted"
 FROM "bi_db"."bi_aggregate_state_last" AS "__source";
 
-CREATE VIEW IF NOT EXISTS "bi_db"."bi_aggregate_state_last_root_set" ON CLUSTER '{cluster}' AS
+CREATE OR REPLACE VIEW "bi_db"."bi_aggregate_state_last_root_set" ON CLUSTER '{cluster}' AS
 WITH
 arrayJoin(arrayZip(arrayEnumerate(JSONExtractArrayRaw("__source"."state", 'set')),
                    JSONExtractArrayRaw("__source"."state", 'set'))) AS "__cursor__set",
@@ -670,3 +598,72 @@ concat('/set/', toString(tupleElement("__cursor__set", 1) - 1)) AS "__path",
 "__source"."deleted" AS "__deleted"
 FROM "bi_db"."bi_aggregate_state_last" AS "__source";
 -- bi.aggregate.expansion --
+-- bi.aggregate.statePublic --
+CREATE OR REPLACE VIEW "bi_db"."bi_aggregate_state" ON CLUSTER '{cluster}'
+AS SELECT * FROM "bi_db"."bi_aggregate_state_store" FINAL;
+
+CREATE OR REPLACE VIEW "bi_db"."bi_aggregate_state_event" ON CLUSTER '{cluster}'
+AS
+WITH arrayJoin(arrayZip(arrayEnumerate("body"),
+                        "body")) AS "events"
+SELECT "id",
+       "context_name",
+       "aggregate_name",
+       "header",
+       "aggregate_id",
+       "tenant_id",
+       "owner_id",
+       "space_id",
+       "command_id",
+       "request_id",
+       "version",
+       "state",
+       "events".1 AS "event_sequence",
+       JSONExtract("events".2, 'id', 'String') AS "event_id",
+       JSONExtract("events".2, 'name', 'String') AS "event_name",
+       JSONExtract("events".2, 'revision', 'String') AS "event_revision",
+       JSONExtract("events".2, 'bodyType', 'String') AS "event_body_type",
+       JSONExtract("events".2, 'body', 'String') AS "event_body",
+       "first_operator",
+       "first_event_time",
+       "create_time",
+       "tags",
+       "deleted"
+FROM "bi_db"."bi_aggregate_state";
+-- bi.aggregate.statePublic --
+-- bi.aggregate.stateIngress --
+DROP VIEW IF EXISTS "bi_db_consumer"."bi_aggregate_state_consumer" ON CLUSTER '{cluster}' SYNC;
+
+DROP TABLE IF EXISTS "bi_db_consumer"."bi_aggregate_state_queue" ON CLUSTER '{cluster}' SYNC;
+
+CREATE TABLE IF NOT EXISTS "bi_db_consumer"."bi_aggregate_state_queue" ON CLUSTER '{cluster}'
+(
+    "data" String
+) ENGINE = Kafka('localhost:9093', 'wow.bi.aggregate.state',
+                 'wow-bi.64c3fad89b0d06cb6fa949830f67c9c0.bi_aggregate_state_consumer', 'JSONAsString')
+;
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS "bi_db_consumer"."bi_aggregate_state_consumer" ON CLUSTER '{cluster}'
+TO "bi_db"."bi_aggregate_state_store"
+AS
+SELECT JSONExtractString("data", 'id') AS "id",
+       JSONExtractString("data", 'contextName') AS "context_name",
+       JSONExtractString("data", 'aggregateName') AS "aggregate_name",
+       JSONExtract("data", 'header', 'Map(String, String)') AS "header",
+       JSONExtractString("data", 'aggregateId') AS "aggregate_id",
+       JSONExtractString("data", 'tenantId') AS "tenant_id",
+       JSONExtractString("data", 'ownerId') AS "owner_id",
+       JSONExtractString("data", 'spaceId') AS "space_id",
+       JSONExtractString("data", 'commandId') AS "command_id",
+       JSONExtractString("data", 'requestId') AS "request_id",
+       JSONExtractUInt("data", 'version') AS "version",
+       simpleJSONExtractRaw("data", 'state') AS "state",
+       JSONExtractArrayRaw("data", 'body') AS "body",
+       JSONExtractString("data", 'firstOperator') AS "first_operator",
+       toDateTime64(JSONExtractInt("data", 'firstEventTime') / 1000.0, 3, 'Asia/Shanghai') AS "first_event_time",
+       toDateTime64(JSONExtractInt("data", 'createTime') / 1000.0, 3, 'Asia/Shanghai') AS "create_time",
+       JSONExtract("data", 'tags', 'Map(String, Array(String))') AS "tags",
+       JSONExtractBool("data", 'deleted') AS "deleted"
+FROM "bi_db_consumer"."bi_aggregate_state_queue"
+;
+-- bi.aggregate.stateIngress --

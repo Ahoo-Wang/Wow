@@ -276,7 +276,10 @@ class WebFluxAutoConfiguration {
         kafkaProperties: ObjectProvider<KafkaProperties>,
         biScriptProperties: BiScriptProperties,
     ): GlobalRouteModule {
-        return GlobalRouteModule(biScriptProperties.toBiScriptOptions(kafkaProperties.getIfAvailable()))
+        return GlobalRouteModule(
+            options = biScriptProperties.toBiScriptOptions(kafkaProperties.getIfAvailable()),
+            biScriptEnabled = biScriptProperties.enabled,
+        )
     }
 
     @Bean

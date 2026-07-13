@@ -27,19 +27,22 @@ class BiScriptGeneratorTest {
 
     @Test
     fun `should generate complete default sections with lossless fallbacks`() {
-        val result = BiScriptGenerator().generate(setOf(aggregate))
+        val result = generator().generate(setOf(aggregate))
 
         result.script.assert().contains("-- bi.aggregate.command --")
-        result.script.assert().contains("-- bi.aggregate.stateEvent --")
+        result.script.assert().contains("-- bi.aggregate.stateStorage --")
         result.script.assert().contains("-- bi.aggregate.stateLast --")
+        result.script.assert().contains("-- bi.aggregate.stateIngress --")
         result.script.assert().contains("-- bi.aggregate.expansion --")
         result.script.assert().contains(
             "JSONExtractRaw(\"__source\".\"state\", 'mapItem') AS \"map_item\""
         )
         result.diagnostics.map(BiScriptDiagnostic::path)
             .assert()
-            .containsExactly("bigDecimal", "likeMapItem", "mapItem", "numericEnum")
-        result.diagnostics.all {
+            .containsExactly("topology.cluster", "bigDecimal", "likeMapItem", "mapItem", "numericEnum")
+        result.diagnostics.first().code.assert()
+            .isEqualTo(BiScriptDiagnosticCode.CLUSTER_INTERNAL_REPLICATION_REQUIRED)
+        result.diagnostics.drop(1).all {
             it.code == BiScriptDiagnosticCode.RAW_JSON_FALLBACK &&
                 it.decision == BiScriptMappingDecision.RAW_JSON
         }.assert().isTrue()
@@ -47,9 +50,9 @@ class BiScriptGeneratorTest {
 
     @Test
     fun `should match complete scripts for every topology`() {
-        val clusterScript = BiScriptGenerator().generate(setOf(aggregate)).script
+        val clusterScript = generator().generate(setOf(aggregate)).script
         val standaloneScript = BiScriptGenerator(
-            BiScriptOptions(topology = ClickHouseTopology.Standalone)
+            BiScriptOptions(topology = ClickHouseTopology.Standalone, consumerGroupNamespace = "test")
         ).generate(setOf(aggregate)).script
 
         listOf(clusterScript, standaloneScript).forEach { script ->
@@ -69,7 +72,7 @@ class BiScriptGeneratorTest {
 
     @Test
     fun `should expose immutable complete statements as the only script source`() {
-        val result = BiScriptGenerator().generate(setOf(aggregate))
+        val result = generator().generate(setOf(aggregate))
         val statements = result.statements
 
         statements.forEach { statement ->
@@ -85,25 +88,21 @@ class BiScriptGeneratorTest {
             .assert().isEqualTo(0)
         statements.indexOfFirst { it.contains("CREATE DATABASE IF NOT EXISTS \"bi_db_consumer\"") }
             .assert().isEqualTo(1)
-        indexOfStatement(statements, "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_command\"")
+        statements.none {
+            it.startsWith("DROP TABLE") && it.contains("\"bi_db\".")
+        }.assert().isTrue()
+        indexOfStatement(statements, "CREATE TABLE IF NOT EXISTS \"bi_db\".\"bi_aggregate_command_store_local\"")
             .assert().isLessThan(
                 indexOfStatement(
                     statements,
-                    "CREATE TABLE IF NOT EXISTS \"bi_db\".\"bi_aggregate_command_local\"",
+                    "CREATE TABLE IF NOT EXISTS \"bi_db\".\"bi_aggregate_state_store_local\"",
                 )
             )
-        indexOfStatement(statements, "CREATE TABLE IF NOT EXISTS \"bi_db\".\"bi_aggregate_command_local\"")
+        indexOfStatement(statements, "CREATE TABLE IF NOT EXISTS \"bi_db\".\"bi_aggregate_state_last_store_local\"")
             .assert().isLessThan(
                 indexOfStatement(
                     statements,
-                    "CREATE TABLE IF NOT EXISTS \"bi_db\".\"bi_aggregate_state_local\"",
-                )
-            )
-        indexOfStatement(statements, "CREATE TABLE IF NOT EXISTS \"bi_db\".\"bi_aggregate_state_last_local\"")
-            .assert().isLessThan(
-                indexOfStatement(
-                    statements,
-                    "CREATE VIEW IF NOT EXISTS \"bi_db\".\"bi_aggregate_state_last_root\"",
+                    "CREATE OR REPLACE VIEW \"bi_db\".\"bi_aggregate_state_last_root\"",
                 )
             )
 
@@ -111,6 +110,192 @@ class BiScriptGeneratorTest {
             @Suppress("UNCHECKED_CAST")
             (statements as MutableList<String>).clear()
         }
+    }
+
+    @Test
+    fun `should render destructive statements only for an explicit reset`() {
+        val deploy = generator().generate(setOf(aggregate))
+        val reset = generator().generate(
+            setOf(aggregate),
+            BiScriptOperation.Reset(
+                previousManifest = deploy.manifest,
+                replayFromEarliestConfirmed = true,
+            ),
+        )
+
+        deploy.destructive.assert().isFalse()
+        deploy.script.assert().doesNotContain("DROP TABLE IF EXISTS \"bi_db\".")
+        reset.destructive.assert().isTrue()
+        reset.manifest.consumerGeneration.assert().isNotEqualTo(deploy.manifest.consumerGeneration)
+        generator().generate(
+            setOf(aggregate),
+            BiScriptOperation.Deploy(reset.manifest),
+        ).manifest.consumerGeneration.assert().isEqualTo(reset.manifest.consumerGeneration)
+        reset.script.assert().contains("DROP TABLE")
+        reset.script.assert().doesNotContain("wow-bi.test.")
+        assertThrows<IllegalArgumentException> {
+            BiScriptOperation.Reset(
+                previousManifest = deploy.manifest,
+                replayFromEarliestConfirmed = false,
+            )
+        }
+    }
+
+    @Test
+    fun `should isolate keeper offsets for an explicit reset`() {
+        val options = BiScriptOptions(
+            consumerGroupNamespace = "test",
+            kafkaOffsetStorage = KafkaOffsetStorage.KEEPER,
+        )
+        val generator = BiScriptGenerator(options)
+        val deploy = generator.generate(setOf(aggregate))
+        val reset = generator.generate(
+            setOf(aggregate),
+            BiScriptOperation.Reset(
+                previousManifest = deploy.manifest,
+                replayFromEarliestConfirmed = true,
+            ),
+        )
+
+        reset.script.assert().contains(
+            "kafka_keeper_path = '/clickhouse/wow-bi/",
+            "kafka_replica_name = '{replica}'",
+        )
+
+        val standalone = BiScriptGenerator(
+            options.copy(topology = ClickHouseTopology.Standalone)
+        ).generate(setOf(aggregate))
+        standalone.script.assert()
+            .contains("kafka_replica_name = '")
+            .doesNotContain("kafka_replica_name = '{replica}'")
+    }
+
+    @Test
+    fun `should drop stale expansion views from the previous manifest without dropping data tables`() {
+        val current = generator().generate(setOf(aggregate))
+        val aggregateManifest = current.manifest.aggregates.single()
+        val previous = current.manifest.copy(
+            aggregates = listOf(
+                aggregateManifest.copy(
+                    expansionViews = aggregateManifest.expansionViews + "bi_aggregate_state_last_root_removed"
+                )
+            )
+        )
+
+        val reconciled = generator().generate(
+            setOf(aggregate),
+            BiScriptOperation.Deploy(previous),
+        )
+
+        reconciled.script.assert().contains(
+            "DROP VIEW IF EXISTS \"bi_db\".\"bi_aggregate_state_last_root_removed\""
+        )
+        reconciled.script.assert().doesNotContain(
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_command\""
+        )
+
+        assertThrows<IllegalArgumentException> {
+            generator().generate(
+                setOf(aggregate),
+                BiScriptOperation.Deploy(
+                    current.manifest.copy(
+                        deployment = current.manifest.deployment.copy(
+                            consumerGroupNamespace = "another-deployment"
+                        )
+                    )
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `should retire removed aggregate consumers and retain their data tables`() {
+        val previous = generator().generate(setOf(aggregate, sibling)).manifest
+        val result = generator().generate(
+            setOf(aggregate),
+            BiScriptOperation.Deploy(previous),
+        )
+
+        result.script.assert().contains(
+            "DROP VIEW IF EXISTS \"bi_db_consumer\".\"bi_sibling_command_consumer\"",
+            "DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_sibling_command_queue\"",
+        )
+        result.script.assert().doesNotContain(
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_sibling_command\"",
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_sibling_state\"",
+        )
+        result.diagnostics.single { it.code == BiScriptDiagnosticCode.ORPHANED_DATA_TABLE }
+            .aggregate.assert().isEqualTo("bi.sibling")
+    }
+
+    @Test
+    fun `should delete manifest orphans during reset`() {
+        val previous = generator().generate(setOf(aggregate, sibling)).manifest
+        val result = generator().generate(
+            setOf(aggregate),
+            BiScriptOperation.Reset(
+                previousManifest = previous,
+                replayFromEarliestConfirmed = true,
+            ),
+        )
+
+        result.script.assert().contains(
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_sibling_command_store\"",
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_sibling_state_store\"",
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_sibling_state_last_store\"",
+        )
+    }
+
+    @Test
+    fun `should retain orphan ownership until reset deletes its stores`() {
+        val initial = generator().generate(setOf(aggregate, sibling)).manifest
+        val removed = generator().generate(
+            setOf(aggregate),
+            BiScriptOperation.Deploy(initial),
+        ).manifest
+        val redeployed = generator().generate(
+            setOf(aggregate),
+            BiScriptOperation.Deploy(removed),
+        ).manifest
+
+        removed.retainedAggregates.map(BiAggregateManifest::aggregate)
+            .assert().isEqualTo(listOf("bi.sibling"))
+        redeployed.retainedAggregates.assert().isEqualTo(removed.retainedAggregates)
+        generator().generate(
+            setOf(aggregate, sibling),
+            BiScriptOperation.Deploy(redeployed),
+        ).manifest.retainedAggregates.assert().isEmpty()
+
+        val reset = generator().generate(
+            setOf(aggregate),
+            BiScriptOperation.Reset(
+                previousManifest = redeployed,
+                replayFromEarliestConfirmed = true,
+            ),
+        )
+        reset.script.assert().contains(
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_sibling_command_store\"",
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_sibling_state_store\"",
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_sibling_state_last_store\"",
+        )
+        reset.manifest.retainedAggregates.assert().isEmpty()
+    }
+
+    @Test
+    fun `should reject previous and current lifecycle object ownership collisions`() {
+        val current = generator().generate(setOf(aggregate))
+        val colliding = BiAggregateManifest(
+            aggregate = "bi-service.aggregate",
+            tablePrefix = "bi_aggregate",
+            expansionViews = listOf("bi_aggregate_state_last_root"),
+        )
+
+        assertThrows<IllegalArgumentException> {
+            generator().generate(
+                setOf(aggregate),
+                BiScriptOperation.Deploy(current.manifest.copy(aggregates = listOf(colliding))),
+            )
+        }.message.assert().contains("BI object name collision")
     }
 
     @Test
@@ -122,21 +307,20 @@ class BiScriptGeneratorTest {
                 topology = ClickHouseTopology.Cluster(
                     name = "cluster'name",
                     installation = "install/name",
-                    shard = "shard'name",
-                    replica = "replica'name",
                 ),
                 timezone = "UTC",
                 kafkaBootstrapServers = "kafka\\host:9092",
                 topicPrefix = "custom'prefix.",
+                consumerGroupNamespace = "blue",
             )
         ).generate(setOf(aggregate))
 
         result.script.assert().contains("\"analytics\\\"db\"")
         result.script.assert().contains("\"consumer db\"")
         result.script.assert().contains("ON CLUSTER 'cluster''name'")
-        result.script.assert().contains("/install/name/cluster''name/tables/shard''name")
-        result.script.assert().contains("'replica''name'")
-        result.script.assert().contains("DateTime('UTC')")
+        result.script.assert().contains("/install/name/cluster''name/tables/{shard}/{database}/{table}")
+        result.script.assert().contains("'{replica}'")
+        result.script.assert().contains("DateTime64(3, 'UTC')")
         result.script.assert().contains("Kafka('kafka\\\\host:9092'")
         result.script.assert().contains("'custom''prefix.bi.aggregate.command'")
     }
@@ -144,26 +328,28 @@ class BiScriptGeneratorTest {
     @Test
     fun `should generate identical result and diagnostics for reversed aggregate sets`() {
         val options = BiScriptOptions(
+            consumerGroupNamespace = "test",
             unsupportedTypeStrategy = UnsupportedTypeStrategy.RAW_JSON,
         )
         val forward = BiScriptGenerator(options).generate(linkedSetOf(aggregate, sibling))
         val reverse = BiScriptGenerator(options).generate(linkedSetOf(sibling, aggregate))
 
         forward.assert().isEqualTo(reverse)
-        forward.script.indexOf("-- bi.aggregate.clear --")
+        forward.script.indexOf("-- bi.aggregate.command --")
             .assert()
-            .isLessThan(forward.script.indexOf("-- bi.sibling.clear --"))
+            .isLessThan(forward.script.indexOf("-- bi.sibling.command --"))
     }
 
     @Test
     fun `should return an immutable ordered diagnostics list`() {
-        val result = BiScriptGenerator().generate(
+        val result = generator().generate(
             linkedSetOf(namedAggregate("generic-object-map"), aggregate)
         )
 
         result.diagnostics.map(BiScriptDiagnostic::aggregate)
             .assert()
             .containsExactly(
+                "*",
                 "bi-service.aggregate",
                 "bi-service.aggregate",
                 "bi-service.aggregate",
@@ -172,6 +358,7 @@ class BiScriptGeneratorTest {
                 "bi-service.generic-object-map",
             )
         result.diagnostics.map(BiScriptDiagnostic::path).assert().containsExactly(
+            "topology.cluster",
             "bigDecimal",
             "likeMapItem",
             "mapItem",
@@ -191,13 +378,17 @@ class BiScriptGeneratorTest {
 
         result.script.assert().contains("-- global --")
         result.script.assert().contains("CREATE DATABASE IF NOT EXISTS")
-        result.script.assert().contains("-- clear --")
+        result.script.assert().contains("-- lifecycle --")
         result.script.assert().doesNotContain(".command --")
         result.diagnostics.assert().isEmpty()
     }
 
     private fun namedAggregate(name: String): NamedAggregate =
         MetadataSearcher.localAggregates.single { it.aggregateName == name }
+
+    private fun generator(
+        options: BiScriptOptions = BiScriptOptions(consumerGroupNamespace = "test"),
+    ): BiScriptGenerator = BiScriptGenerator(options)
 
     private fun assertSnapshot(name: String, actual: String) {
         val path = Path.of("src/test/resources", name)

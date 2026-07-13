@@ -99,7 +99,10 @@ import java.util.stream.Stream
 
 @Suppress("LargeClass")
 internal class WebFluxAutoConfigurationTest {
-    private val contextRunner = ApplicationContextRunner()
+    private val contextRunner = ApplicationContextRunner().withPropertyValues(
+        "${BiScriptProperties.PREFIX}.enabled=true",
+        "${BiScriptProperties.PREFIX}.consumer-group-namespace=test",
+    )
 
     @Test
     fun `should load context with webflux command route and exception handler`() {
@@ -210,8 +213,6 @@ internal class WebFluxAutoConfigurationTest {
                 "${BiScriptProperties.PREFIX}.topology.mode=CLUSTER",
                 "${BiScriptProperties.PREFIX}.topology.cluster.name=production",
                 "${BiScriptProperties.PREFIX}.topology.cluster.installation=primary",
-                "${BiScriptProperties.PREFIX}.topology.cluster.shard=02",
-                "${BiScriptProperties.PREFIX}.topology.cluster.replica=replica-2",
                 "${BiScriptProperties.PREFIX}.timezone=UTC",
                 "${BiScriptProperties.PREFIX}.kafka-bootstrap-servers=bi-kafka:19092",
                 "${BiScriptProperties.PREFIX}.topic-prefix=bi.",
@@ -235,12 +236,11 @@ internal class WebFluxAutoConfigurationTest {
                     topology = ClickHouseTopology.Cluster(
                         name = "production",
                         installation = "primary",
-                        shard = "02",
-                        replica = "replica-2",
                     ),
                     timezone = "UTC",
                     kafkaBootstrapServers = "bi-kafka:19092",
                     topicPrefix = "bi.",
+                    consumerGroupNamespace = "test",
                     maxExpansionDepth = 7,
                     unsupportedTypeStrategy = UnsupportedTypeStrategy.RAW_JSON,
                 )
@@ -251,9 +251,9 @@ internal class WebFluxAutoConfigurationTest {
                 script.assert().contains(
                     "CREATE DATABASE IF NOT EXISTS \"analytics\" ON CLUSTER 'production'",
                     "CREATE DATABASE IF NOT EXISTS \"analytics_consumer\" ON CLUSTER 'production'",
-                    "/clickhouse/primary/production/tables/02/{database}/{table}",
-                    "'replica-2'",
-                    "DateTime('UTC')",
+                    "/clickhouse/primary/production/tables/{shard}/{database}/{table}",
+                    "'{replica}'",
+                    "DateTime64(3, 'UTC')",
                     "ENGINE = Kafka('bi-kafka:19092'",
                     "'bi.example.order.command'",
                 )
@@ -299,7 +299,10 @@ internal class WebFluxAutoConfigurationTest {
                 context.assert().hasNotFailed()
                 context.generateBiScript().assert().isEqualTo(
                     BiScriptGenerator(
-                        BiScriptOptions(topology = ClickHouseTopology.Cluster())
+                        BiScriptOptions(
+                            topology = ClickHouseTopology.Cluster(),
+                            consumerGroupNamespace = "test",
+                        )
                     ).generate(MetadataSearcher.localAggregates).script
                 )
             }
@@ -507,10 +510,12 @@ internal class WebFluxAutoConfigurationTest {
     }
 
     @Test
-    fun `should use domain defaults and register one BI route factory`() {
+    fun `should use configured BI defaults and register one BI route factory`() {
         webFluxContextRunner()
             .run { context: AssertableApplicationContext ->
-                context.getBean(BiScriptProperties::class.java).assert().isEqualTo(BiScriptProperties())
+                context.getBean(BiScriptProperties::class.java).assert().isEqualTo(
+                    BiScriptProperties(enabled = true, consumerGroupNamespace = "test")
+                )
                 context.assert().hasSingleBean(GlobalRouteModule::class.java)
                 context.getBeanNamesForType(GlobalRouteModule::class.java)
                     .assert()
@@ -523,8 +528,22 @@ internal class WebFluxAutoConfigurationTest {
                 val script = context.generateBiScript()
                 script.assert().contains("-- global --")
                 script.assert().isEqualTo(
-                    BiScriptGenerator(BiScriptOptions()).generate(MetadataSearcher.localAggregates).script
+                    BiScriptGenerator(BiScriptOptions(consumerGroupNamespace = "test"))
+                        .generate(MetadataSearcher.localAggregates).script
                 )
+            }
+    }
+
+    @Test
+    fun `should keep BI route disabled by default`() {
+        webFluxContextRunner(ApplicationContextRunner())
+            .run { context: AssertableApplicationContext ->
+                context.assert().hasNotFailed()
+                context.getBean(BiScriptProperties::class.java).enabled.assert().isFalse()
+                context.getBean(RouteHandlerFunctionRegistrar::class.java)
+                    .getHttpFactory(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT)
+                    .assert()
+                    .isNull()
             }
     }
 
@@ -535,8 +554,6 @@ internal class WebFluxAutoConfigurationTest {
             "consumer-database" to "consumerDatabase",
             "topology.cluster.name" to "name",
             "topology.cluster.installation" to "installation",
-            "topology.cluster.shard" to "shard",
-            "topology.cluster.replica" to "replica",
             "timezone" to "timezone",
             "kafka-bootstrap-servers" to "kafkaBootstrapServers",
             "topic-prefix" to "topicPrefix",
@@ -742,8 +759,10 @@ internal class WebFluxAutoConfigurationTest {
         }
     }
 
-    private fun webFluxContextRunner(): ApplicationContextRunner {
-        return contextRunner
+    private fun webFluxContextRunner(
+        base: ApplicationContextRunner = contextRunner,
+    ): ApplicationContextRunner {
+        return base
             .enableWow()
             .withBean(CommandWaitNotifier::class.java, { mockk() })
             .withBean(CommandGateway::class.java, { SagaVerifier.defaultCommandGateway() })

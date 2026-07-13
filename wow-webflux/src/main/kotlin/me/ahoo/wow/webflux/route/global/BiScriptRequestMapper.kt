@@ -13,9 +13,17 @@
 
 package me.ahoo.wow.webflux.route.global
 
+import me.ahoo.wow.bi.BiAggregateManifest
+import me.ahoo.wow.bi.BiDeploymentManifest
+import me.ahoo.wow.bi.BiManifestTopology
+import me.ahoo.wow.bi.BiScriptManifest
+import me.ahoo.wow.bi.BiScriptOperation
 import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.bi.ClickHouseTopology
+import me.ahoo.wow.bi.KafkaOffsetStorage
 import me.ahoo.wow.bi.UnsupportedTypeStrategy
+import me.ahoo.wow.openapi.contract.bi.BiScriptKafkaOffsetStorage
+import me.ahoo.wow.openapi.contract.bi.BiScriptOperationMode
 import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyMode
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyRequest
@@ -34,11 +42,74 @@ internal fun BiScriptRequest.toBiScriptOptions(base: BiScriptOptions): BiScriptO
         timezone = timezone ?: base.timezone,
         kafkaBootstrapServers = kafkaBootstrapServers ?: base.kafkaBootstrapServers,
         topicPrefix = topicPrefix ?: base.topicPrefix,
+        consumerGroupNamespace = base.consumerGroupNamespace,
+        kafkaOffsetStorage = base.kafkaOffsetStorage,
+        kafkaKeeperPathPrefix = base.kafkaKeeperPathPrefix,
         maxExpansionDepth = maxExpansionDepth ?: base.maxExpansionDepth,
         unsupportedTypeStrategy = unsupportedTypeStrategy?.toDomain()
             ?: base.unsupportedTypeStrategy,
     )
 }
+
+internal fun BiScriptRequest.toBiScriptOperation(): BiScriptOperation = when (operation) {
+    BiScriptOperationMode.DEPLOY -> {
+        require(replayFromEarliestConfirmed == null) {
+            "replayFromEarliestConfirmed is only valid for RESET"
+        }
+        BiScriptOperation.Deploy(previousManifest?.toDomain())
+    }
+
+    BiScriptOperationMode.RESET -> {
+        BiScriptOperation.Reset(
+            previousManifest = requireNotNull(previousManifest) {
+                "previousManifest is required for RESET"
+            }.toDomain(),
+            replayFromEarliestConfirmed = requireNotNull(replayFromEarliestConfirmed) {
+                "replayFromEarliestConfirmed is required for RESET"
+            },
+        )
+    }
+}
+
+private fun me.ahoo.wow.openapi.contract.bi.BiScriptManifestContract.toDomain(): BiScriptManifest =
+    BiScriptManifest(
+        formatVersion = formatVersion,
+        layoutVersion = layoutVersion,
+        deployment = BiDeploymentManifest(
+            database = deployment.database,
+            consumerDatabase = deployment.consumerDatabase,
+            topology = when (deployment.topology.mode) {
+                BiScriptTopologyMode.CLUSTER -> BiManifestTopology.CLUSTER
+                BiScriptTopologyMode.STANDALONE -> BiManifestTopology.STANDALONE
+            },
+            clusterName = deployment.topology.cluster?.name,
+            installation = deployment.topology.cluster?.installation,
+            timezone = deployment.timezone,
+            kafkaBootstrapServers = deployment.kafkaBootstrapServers,
+            topicPrefix = deployment.topicPrefix,
+            consumerGroupNamespace = deployment.consumerGroupNamespace,
+            kafkaOffsetStorage = when (deployment.kafkaOffsetStorage) {
+                BiScriptKafkaOffsetStorage.BROKER -> KafkaOffsetStorage.BROKER
+                BiScriptKafkaOffsetStorage.KEEPER -> KafkaOffsetStorage.KEEPER
+            },
+            kafkaKeeperPathPrefix = deployment.kafkaKeeperPathPrefix,
+        ),
+        consumerGeneration = consumerGeneration,
+        aggregates = aggregates.map { aggregate ->
+            BiAggregateManifest(
+                aggregate = aggregate.aggregate,
+                tablePrefix = aggregate.tablePrefix,
+                expansionViews = aggregate.expansionViews,
+            )
+        },
+        retainedAggregates = retainedAggregates.map { aggregate ->
+            BiAggregateManifest(
+                aggregate = aggregate.aggregate,
+                tablePrefix = aggregate.tablePrefix,
+                expansionViews = aggregate.expansionViews,
+            )
+        },
+    )
 
 private fun BiScriptTopologyRequest.toTopology(base: ClickHouseTopology): ClickHouseTopology {
     return when (mode) {
@@ -47,8 +118,6 @@ private fun BiScriptTopologyRequest.toTopology(base: ClickHouseTopology): ClickH
             ClickHouseTopology.Cluster(
                 name = cluster?.name ?: baseCluster.name,
                 installation = cluster?.installation ?: baseCluster.installation,
-                shard = cluster?.shard ?: baseCluster.shard,
-                replica = cluster?.replica ?: baseCluster.replica,
             )
         }
 

@@ -355,16 +355,18 @@ wow:
 
 | 属性 | 类型 | 默认值 | 描述 |
 |------|------|--------|------|
+| `wow.bi.script.enabled` | Boolean | `false` | 仅显式启用后才暴露 BI 脚本 HTTP 路由及其 OpenAPI operation |
 | `wow.bi.script.database` | String | `bi_db` | 状态表、命令表及展开视图所在数据库；最大 128 个字符 |
 | `wow.bi.script.consumer-database` | String | `bi_db_consumer` | Kafka 队列表和消费物化视图所在数据库；最大 128 个字符 |
 | `wow.bi.script.topology.mode` | Enum | `CLUSTER` | 物理 DDL 拓扑：`CLUSTER` 或 `STANDALONE` |
 | `wow.bi.script.topology.cluster.name` | String | `{cluster}` | `CLUSTER` 模式中 `ON CLUSTER` 和 `Distributed` 使用的集群名；最大 128 个字符 |
 | `wow.bi.script.topology.cluster.installation` | String | `{installation}` | `CLUSTER` 模式复制表路径中的 installation 段；最大 128 个字符 |
-| `wow.bi.script.topology.cluster.shard` | String | `{shard}` | `CLUSTER` 模式复制表路径中的 shard 段；最大 128 个字符 |
-| `wow.bi.script.topology.cluster.replica` | String | `{replica}` | `CLUSTER` 模式中传给复制表引擎的副本名；最大 128 个字符 |
 | `wow.bi.script.timezone` | String | `Asia/Shanghai` | 生成的日期时间列和转换表达式使用的 ClickHouse 时区；最大 64 个字符 |
 | `wow.bi.script.kafka-bootstrap-servers` | String | 继承 `wow.kafka.bootstrap-servers`，否则为 `localhost:9093` | BI Kafka broker 覆盖值；继承多个 broker 时以逗号连接；最大 4096 个字符 |
 | `wow.bi.script.topic-prefix` | String | 继承 `wow.kafka.topic-prefix`，否则为 `wow.` | BI topic 前缀覆盖值；最大 128 个字符 |
+| `wow.bi.script.consumer-group-namespace` | String | 无 | 启用时必填；写入每个 Kafka consumer group 的部署唯一命名空间 |
+| `wow.bi.script.kafka-offset-storage` | Enum | `BROKER` | `BROKER` 使用 Kafka offset；`KEEPER` 使用 ClickHouse Keeper offset |
+| `wow.bi.script.kafka-keeper-path-prefix` | String | `/clickhouse/wow-bi` | 仅 `KEEPER` 模式使用的 Keeper 路径前缀 |
 | `wow.bi.script.max-expansion-depth` | Int | `5` | 复杂属性的最大展开深度，必须大于等于 `1` |
 | `wow.bi.script.unsupported-type-strategy` | Enum | `RAW_JSON` | `RAW_JSON` 生成 scoped JSON 查询便利投影并产生诊断；精确词法值通过 `__state` 与 recovery `__path` 恢复；`FAIL` 中止生成 |
 
@@ -374,6 +376,8 @@ wow:
 wow:
   bi:
     script:
+      enabled: true
+      consumer-group-namespace: orders-production-blue
       topology:
         mode: STANDALONE
 ```
@@ -389,11 +393,9 @@ wow:
         cluster:
           name: production
           installation: clickhouse
-          shard: '{shard}'
-          replica: '{replica}'
 ```
 
-`STANDALONE` 直接生成使用 `MergeTree` / `ReplacingMergeTree` 的逻辑表，并拒绝配置 `topology.cluster`。`CLUSTER` 生成复制的 `_local` 表及其 `Distributed` 逻辑表；未配置的集群字段使用上表默认值。
+`STANDALONE` 直接生成使用 `MergeTree` / `ReplacingMergeTree` 的逻辑表，并拒绝配置 `topology.cluster`。`CLUSTER` 生成复制的 `_local` 表及其 `Distributed` 逻辑表；未配置的集群字段使用上表默认值。集群 DDL 始终使用 ClickHouse 服务端 `{shard}` 与 `{replica}` 宏，Keeper consumer 的副本标识也使用 `{replica}`；这些值有意不开放为应用级覆盖项。
 
 完整优先级从低到高为：
 
@@ -402,9 +404,9 @@ wow:
 3. `wow.bi.script.*` 应用配置；
 4. 非 `null` 的 `POST` 请求字段。
 
-因此，显式 `wow.bi.script.kafka-bootstrap-servers` / `wow.bi.script.topic-prefix` 会覆盖对应的 `wow.kafka.bootstrap-servers` / `wow.kafka.topic-prefix`，即使其值等于默认值；继承多个 Kafka broker 时以逗号连接。其他未配置的应用绑定属性直接回退到 `BiScriptOptions` 领域默认值。表中的长度限制同时适用于服务端配置和对应的非 `null` `POST` override（`database`、`consumerDatabase`、`timezone`、`kafkaBootstrapServers`、`topicPrefix` 和四个 `topology.cluster.*` 字段）。长度恰好等于 64、128 或 4096 字符限制的值可被接受。Starter 在构造服务端基础选项时统一执行校验：超过长度限制、必填字符串为空白或包含控制字符、`max-expansion-depth < 1`，以及在 `STANDALONE` 模式提供集群字段都会使应用启动失败。对于 HTTP override，服务端配置的 `maxExpansionDepth` 是请求 ceiling。
+因此，显式 `wow.bi.script.kafka-bootstrap-servers` / `wow.bi.script.topic-prefix` 会覆盖对应的 `wow.kafka.bootstrap-servers` / `wow.kafka.topic-prefix`，即使其值等于默认值；继承多个 Kafka broker 时以逗号连接。其他未配置的应用绑定属性直接回退到 `BiScriptOptions` 领域默认值。表中的长度限制同时适用于服务端配置和对应的非 `null` `POST` override（`database`、`consumerDatabase`、`timezone`、`kafkaBootstrapServers`、`topicPrefix`、`topology.cluster.name` 和 `topology.cluster.installation`）。长度恰好等于 64、128 或 4096 字符限制的值可被接受。Starter 在构造服务端基础选项时统一执行校验：超过长度限制、必填字符串为空白或包含控制字符、`max-expansion-depth < 1`，以及在 `STANDALONE` 模式提供集群字段都会使应用启动失败。对于 HTTP override，服务端配置的 `maxExpansionDepth` 是请求 ceiling。
 
-端点要求 `Content-Type: application/json` 和 JSON 请求体。使用 `{}` 可在不提供请求覆盖值的情况下按服务端基础配置生成 SQL：
+只有 `enabled=true` 时端点才存在；启用但未配置 `consumer-group-namespace` 会导致启动失败。端点要求 `Content-Type: application/json` 和 JSON 请求体。使用 `{}` 可在不提供请求覆盖值的情况下按服务端基础配置生成 SQL：
 
 ```bash
 curl -X POST 'http://localhost:8080/wow/bi/script' \
@@ -439,7 +441,7 @@ curl -X POST 'http://localhost:8080/wow/bi/script' \
 }
 ```
 
-提供 `topology` 时必须提供 `topology.mode`。`STANDALONE` 拒绝 `cluster` 对象。无效 JSON、空请求体、超过长度限制的非 `null` override、其他无效选项值或无效拓扑组合返回 `400`；缺少或不支持的请求 `Content-Type` 返回 `415`。OpenAPI 声明公共 `wow.UnsupportedMediaType` response，运行时使用 `Wow-Error-Code: UnsupportedMediaType`。成功响应仅包含 SQL：`200 application/sql`。旧版 `GET` 方法在该路径上没有路由并返回 `404`。
+提供 `topology` 时必须提供 `topology.mode`。`STANDALONE` 拒绝 `cluster` 对象。无效 JSON、空请求体、超过长度限制的非 `null` override、其他无效选项值或无效拓扑组合返回 `400`；缺少或不支持的请求 `Content-Type` 返回 `415`。OpenAPI 声明公共 `wow.UnsupportedMediaType` response，运行时使用 `Wow-Error-Code: UnsupportedMediaType`。响应会遵循 `Accept` 的 quality value；JSON 返回 SQL、诊断、destructive 标记和部署 manifest，SQL 与通配符返回 SQL。应持久化 manifest，并在后续操作中作为 `previousManifest` 提交。已移除聚合会一直保留在 `manifest.retainedAggregates`，直到重新启用或被删除。`RESET` 同时要求当前 `previousManifest` 与 `replayFromEarliestConfirmed=true`；它会删除当前及保留的 orphan BI store 表，创建由后续 Deploy 继承的新 consumer generation。
 
 结构化结果诊断、当前展开语义与无损映射参见[商业智能](./bi)。
 

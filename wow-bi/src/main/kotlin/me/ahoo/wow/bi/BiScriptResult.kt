@@ -18,16 +18,25 @@ data class BiScriptResult internal constructor(
     val script: String,
     internal val statements: List<String>,
     val diagnostics: List<BiScriptDiagnostic>,
+    val operation: BiScriptOperation,
+    val destructive: Boolean,
+    val manifest: BiScriptManifest,
 )
 
 enum class BiScriptDiagnosticCode {
     RAW_JSON_FALLBACK,
     MAX_DEPTH_REACHED,
+    MANIFEST_REQUIRED_FOR_RECONCILIATION,
+    ORPHANED_DATA_TABLE,
+    CLUSTER_INTERNAL_REPLICATION_REQUIRED,
 }
 
 enum class BiScriptMappingDecision {
     RAW_JSON,
     MAX_DEPTH_RAW_JSON,
+    MANUAL_RECONCILIATION_REQUIRED,
+    DATA_TABLE_RETAINED,
+    EXTERNAL_CONFIGURATION_REQUIRED,
 }
 
 data class BiScriptDiagnostic(

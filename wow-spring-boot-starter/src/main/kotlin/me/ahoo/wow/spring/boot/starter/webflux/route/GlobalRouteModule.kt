@@ -19,10 +19,16 @@ import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.global.GetWowMetadataHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.global.GlobalIdHandlerFunctionFactory
 
-internal class GlobalRouteModule(options: BiScriptOptions) : WebFluxRouteModule {
-    override val httpFactories: List<HttpRouteHandlerFunctionFactory> = listOf(
-        GlobalIdHandlerFunctionFactory(),
-        GenerateBIScriptHandlerFunctionFactory(options),
-        GetWowMetadataHandlerFunctionFactory(),
-    )
+internal class GlobalRouteModule(options: BiScriptOptions, biScriptEnabled: Boolean) : WebFluxRouteModule {
+    override val httpFactories: List<HttpRouteHandlerFunctionFactory> = buildList {
+        add(GlobalIdHandlerFunctionFactory())
+        if (biScriptEnabled) {
+            requireNotNull(options.consumerGroupNamespace) {
+                "${me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties.PREFIX}.consumer-group-namespace " +
+                    "must be configured when BI script generation is enabled"
+            }
+            add(GenerateBIScriptHandlerFunctionFactory(options))
+        }
+        add(GetWowMetadataHandlerFunctionFactory())
+    }
 }

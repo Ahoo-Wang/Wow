@@ -356,16 +356,18 @@ These properties establish the server-side base for the ClickHouse SQL returned 
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
+| `wow.bi.script.enabled` | Boolean | `false` | Exposes the BI script HTTP route and its OpenAPI operation only when explicitly enabled |
 | `wow.bi.script.database` | String | `bi_db` | Database for state and command tables and expansion views; maximum 128 characters |
 | `wow.bi.script.consumer-database` | String | `bi_db_consumer` | Database for Kafka queue tables and consumer materialized views; maximum 128 characters |
 | `wow.bi.script.topology.mode` | Enum | `CLUSTER` | Physical DDL topology: `CLUSTER` or `STANDALONE` |
 | `wow.bi.script.topology.cluster.name` | String | `{cluster}` | Cluster name used by `ON CLUSTER` and `Distributed` in `CLUSTER` mode; maximum 128 characters |
 | `wow.bi.script.topology.cluster.installation` | String | `{installation}` | Installation segment in the replicated table path in `CLUSTER` mode; maximum 128 characters |
-| `wow.bi.script.topology.cluster.shard` | String | `{shard}` | Shard segment in the replicated table path in `CLUSTER` mode; maximum 128 characters |
-| `wow.bi.script.topology.cluster.replica` | String | `{replica}` | Replica name passed to replicated table engines in `CLUSTER` mode; maximum 128 characters |
 | `wow.bi.script.timezone` | String | `Asia/Shanghai` | ClickHouse timezone for generated date-time columns and conversions; maximum 64 characters |
 | `wow.bi.script.kafka-bootstrap-servers` | String | Inherit `wow.kafka.bootstrap-servers`; otherwise `localhost:9093` | BI Kafka broker override; multiple inherited brokers are joined with commas; maximum 4096 characters |
 | `wow.bi.script.topic-prefix` | String | Inherit `wow.kafka.topic-prefix`; otherwise `wow.` | BI topic prefix override; maximum 128 characters |
+| `wow.bi.script.consumer-group-namespace` | String | none | Required when enabled; deployment-unique namespace embedded in every Kafka consumer group |
+| `wow.bi.script.kafka-offset-storage` | Enum | `BROKER` | `BROKER` uses Kafka offsets; `KEEPER` enables ClickHouse Keeper-backed offsets |
+| `wow.bi.script.kafka-keeper-path-prefix` | String | `/clickhouse/wow-bi` | Keeper path prefix used only with `KEEPER` |
 | `wow.bi.script.max-expansion-depth` | Int | `5` | Maximum complex-property expansion depth; must be at least `1` |
 | `wow.bi.script.unsupported-type-strategy` | Enum | `RAW_JSON` | `RAW_JSON` emits a scoped JSON convenience projection and a diagnostic; the exact lexical value is recovered from `__state` at the recovery `__path`; `FAIL` stops generation |
 
@@ -375,6 +377,8 @@ Standalone topology:
 wow:
   bi:
     script:
+      enabled: true
+      consumer-group-namespace: orders-production-blue
       topology:
         mode: STANDALONE
 ```
@@ -390,11 +394,9 @@ wow:
         cluster:
           name: production
           installation: clickhouse
-          shard: '{shard}'
-          replica: '{replica}'
 ```
 
-`STANDALONE` generates logical tables with `MergeTree` / `ReplacingMergeTree` directly. It rejects `topology.cluster`. `CLUSTER` generates replicated `_local` tables plus `Distributed` logical tables; omitted cluster fields use the defaults shown above.
+`STANDALONE` generates logical tables with `MergeTree` / `ReplacingMergeTree` directly. It rejects `topology.cluster`. `CLUSTER` generates replicated `_local` tables plus `Distributed` logical tables; omitted cluster fields use the defaults shown above. Cluster DDL always uses ClickHouse's `{shard}` and `{replica}` server macros, including the Keeper consumer replica identity; they are intentionally not application-level overrides.
 
 The complete precedence, from lowest to highest, is:
 
@@ -403,9 +405,9 @@ The complete precedence, from lowest to highest, is:
 3. `wow.bi.script.*` application properties;
 4. Non-null `POST` request fields.
 
-Thus, explicit `wow.bi.script.kafka-bootstrap-servers` / `wow.bi.script.topic-prefix` values override the corresponding `wow.kafka.bootstrap-servers` / `wow.kafka.topic-prefix` values, even when equal to their defaults. Multiple inherited Kafka brokers are joined with commas. Every other absent application binding falls back directly to its `BiScriptOptions` domain default. The length limits in the table apply equally to the server configuration and the corresponding non-null `POST` overrides (`database`, `consumerDatabase`, `timezone`, `kafkaBootstrapServers`, `topicPrefix`, and the four `topology.cluster.*` fields). A value exactly at its 64, 128, or 4096 character limit is accepted. The Starter validates the server base while constructing the domain options: a value over its limit, blank required strings, control characters, `max-expansion-depth < 1`, and cluster fields supplied in `STANDALONE` mode all fail application startup. For HTTP overrides, the server-configured `maxExpansionDepth` is the request ceiling.
+Thus, explicit `wow.bi.script.kafka-bootstrap-servers` / `wow.bi.script.topic-prefix` values override the corresponding `wow.kafka.bootstrap-servers` / `wow.kafka.topic-prefix` values, even when equal to their defaults. Multiple inherited Kafka brokers are joined with commas. Every other absent application binding falls back directly to its `BiScriptOptions` domain default. The length limits in the table apply equally to the server configuration and the corresponding non-null `POST` overrides (`database`, `consumerDatabase`, `timezone`, `kafkaBootstrapServers`, `topicPrefix`, `topology.cluster.name`, and `topology.cluster.installation`). A value exactly at its 64, 128, or 4096 character limit is accepted. The Starter validates the server base while constructing the domain options: a value over its limit, blank required strings, control characters, `max-expansion-depth < 1`, and cluster fields supplied in `STANDALONE` mode all fail application startup. For HTTP overrides, the server-configured `maxExpansionDepth` is the request ceiling.
 
-The endpoint requires `Content-Type: application/json` and a JSON body. Use `{}` to generate SQL from the server base without request overrides:
+The endpoint is absent unless `enabled=true`, and enabling it without `consumer-group-namespace` fails startup. It requires `Content-Type: application/json` and a JSON body. Use `{}` to generate SQL from the server base without request overrides:
 
 ```bash
 curl -X POST 'http://localhost:8080/wow/bi/script' \
@@ -440,7 +442,7 @@ A Cluster request may provide only selected cluster fields. Omitted cluster fiel
 }
 ```
 
-When `topology` is present, `topology.mode` is mandatory. `STANDALONE` rejects a `cluster` object. Invalid JSON, an empty body, an over-limit non-null override, another invalid option value, or an invalid topology combination returns a `400` response. A missing or unsupported request `Content-Type` returns `415`; OpenAPI declares the common `wow.UnsupportedMediaType` response, and runtime uses `Wow-Error-Code: UnsupportedMediaType`. Success is SQL-only: `200 application/sql`. The legacy `GET` method has no route for this path and returns `404`.
+When `topology` is present, `topology.mode` is mandatory. `STANDALONE` rejects a `cluster` object. Invalid JSON, an empty body, an over-limit non-null override, another invalid option value, or an invalid topology combination returns a `400` response. A missing or unsupported request `Content-Type` returns `415`; OpenAPI declares the common `wow.UnsupportedMediaType` response, and runtime uses `Wow-Error-Code: UnsupportedMediaType`. `Accept` quality values are honored; JSON returns SQL, diagnostics, the destructive flag, and the deployment manifest, while SQL and wildcards return SQL. Persist that manifest and send it as `previousManifest` on subsequent operations. Removed aggregates are carried in `manifest.retainedAggregates` until they are reactivated or deleted. `RESET` requires both the active `previousManifest` and `replayFromEarliestConfirmed=true`; it discards current and retained orphan BI store tables and creates a fresh consumer generation that later Deploy operations inherit.
 
 See [Business Intelligence](./bi) for structured result diagnostics, current expansion semantics, and lossless mappings.
 

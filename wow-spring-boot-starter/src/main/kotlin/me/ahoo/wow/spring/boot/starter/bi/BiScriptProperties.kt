@@ -16,18 +16,23 @@ package me.ahoo.wow.spring.boot.starter.bi
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.bi.ClickHouseTopology
+import me.ahoo.wow.bi.KafkaOffsetStorage
 import me.ahoo.wow.bi.UnsupportedTypeStrategy
 import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
 
 @ConfigurationProperties(prefix = BiScriptProperties.PREFIX)
 data class BiScriptProperties(
+    val enabled: Boolean = false,
     val database: String? = null,
     val consumerDatabase: String? = null,
     val topology: BiScriptTopologyProperties = BiScriptTopologyProperties(),
     val timezone: String? = null,
     val kafkaBootstrapServers: String? = null,
     val topicPrefix: String? = null,
+    val consumerGroupNamespace: String? = null,
+    val kafkaOffsetStorage: KafkaOffsetStorage? = null,
+    val kafkaKeeperPathPrefix: String? = null,
     val maxExpansionDepth: Int? = null,
     val unsupportedTypeStrategy: UnsupportedTypeStrategy? = null,
 ) {
@@ -49,8 +54,6 @@ enum class BiScriptTopologyMode {
 data class BiScriptClusterProperties(
     val name: String? = null,
     val installation: String? = null,
-    val shard: String? = null,
-    val replica: String? = null,
 )
 
 internal fun BiScriptProperties.toBiScriptOptions(kafkaProperties: KafkaProperties?): BiScriptOptions {
@@ -65,6 +68,9 @@ internal fun BiScriptProperties.toBiScriptOptions(kafkaProperties: KafkaProperti
         topicPrefix = topicPrefix
             ?: kafkaProperties?.topicPrefix
             ?: defaultBiScriptOptions.topicPrefix,
+        consumerGroupNamespace = consumerGroupNamespace,
+        kafkaOffsetStorage = kafkaOffsetStorage ?: defaultBiScriptOptions.kafkaOffsetStorage,
+        kafkaKeeperPathPrefix = kafkaKeeperPathPrefix ?: defaultBiScriptOptions.kafkaKeeperPathPrefix,
         maxExpansionDepth = maxExpansionDepth ?: defaultBiScriptOptions.maxExpansionDepth,
         unsupportedTypeStrategy = unsupportedTypeStrategy ?: defaultBiScriptOptions.unsupportedTypeStrategy,
     )
@@ -74,8 +80,6 @@ private fun BiScriptTopologyProperties.toTopology(): ClickHouseTopology = when (
     BiScriptTopologyMode.CLUSTER -> ClickHouseTopology.Cluster(
         name = cluster?.name ?: defaultCluster.name,
         installation = cluster?.installation ?: defaultCluster.installation,
-        shard = cluster?.shard ?: defaultCluster.shard,
-        replica = cluster?.replica ?: defaultCluster.replica,
     )
 
     BiScriptTopologyMode.STANDALONE -> {

@@ -1700,7 +1700,7 @@
   "responseCodes" : [ "200", "400" ],
   "tagNames" : [ "example.order" ]
 }, {
-  "accept" : [ "application/sql" ],
+  "accept" : [ "application/sql", "application/json" ],
   "id" : "wow.bi_script.generate",
   "method" : "POST",
   "parameterNames" : [ ],

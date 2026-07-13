@@ -33,10 +33,19 @@ class BiPublicApiTest {
             .sorted()
 
         publicTypes.assert().containsExactly(
+            BiAggregateManifest::class.qualifiedName,
+            BiAggregateManifest.Companion::class.qualifiedName,
+            BiDeploymentManifest::class.qualifiedName,
+            BiManifestTopology::class.qualifiedName,
             BiScriptDiagnostic::class.qualifiedName,
             BiScriptDiagnosticCode::class.qualifiedName,
             BiScriptGenerator::class.qualifiedName,
+            BiScriptManifest::class.qualifiedName,
+            BiScriptManifest.Companion::class.qualifiedName,
             BiScriptMappingDecision::class.qualifiedName,
+            BiScriptOperation::class.qualifiedName,
+            BiScriptOperation.Deploy::class.qualifiedName,
+            BiScriptOperation.Reset::class.qualifiedName,
             BiScriptOptions::class.qualifiedName,
             BiScriptOptions.Companion::class.qualifiedName,
             BiScriptResult::class.qualifiedName,
@@ -44,6 +53,7 @@ class BiPublicApiTest {
             ClickHouseTopology.Cluster::class.qualifiedName,
             ClickHouseTopology.Cluster.Companion::class.qualifiedName,
             ClickHouseTopology.Standalone::class.qualifiedName,
+            KafkaOffsetStorage::class.qualifiedName,
             UnsupportedTypeStrategy::class.qualifiedName,
         )
     }
@@ -59,10 +69,13 @@ class BiPublicApiTest {
             .isEqualTo(
                 mapOf(
                     "DEFAULT_KAFKA_BOOTSTRAP_SERVERS" to KVisibility.PRIVATE,
+                    "DEFAULT_KAFKA_KEEPER_PATH_PREFIX" to KVisibility.PRIVATE,
                     "DEFAULT_TOPIC_PREFIX" to KVisibility.PRIVATE,
                     "MAX_CONSUMER_DATABASE_LENGTH" to KVisibility.PUBLIC,
+                    "MAX_CONSUMER_GROUP_NAMESPACE_LENGTH" to KVisibility.PUBLIC,
                     "MAX_DATABASE_LENGTH" to KVisibility.PUBLIC,
                     "MAX_KAFKA_BOOTSTRAP_SERVERS_LENGTH" to KVisibility.PUBLIC,
+                    "MAX_KAFKA_KEEPER_PATH_PREFIX_LENGTH" to KVisibility.PUBLIC,
                     "MAX_TIMEZONE_LENGTH" to KVisibility.PUBLIC,
                     "MAX_TOPIC_PREFIX_LENGTH" to KVisibility.PUBLIC,
                 )
@@ -79,6 +92,8 @@ class BiPublicApiTest {
             "MAX_TIMEZONE_LENGTH" to BiScriptOptions.MAX_TIMEZONE_LENGTH,
             "MAX_KAFKA_BOOTSTRAP_SERVERS_LENGTH" to BiScriptOptions.MAX_KAFKA_BOOTSTRAP_SERVERS_LENGTH,
             "MAX_TOPIC_PREFIX_LENGTH" to BiScriptOptions.MAX_TOPIC_PREFIX_LENGTH,
+            "MAX_CONSUMER_GROUP_NAMESPACE_LENGTH" to BiScriptOptions.MAX_CONSUMER_GROUP_NAMESPACE_LENGTH,
+            "MAX_KAFKA_KEEPER_PATH_PREFIX_LENGTH" to BiScriptOptions.MAX_KAFKA_KEEPER_PATH_PREFIX_LENGTH,
         ).assert().isEqualTo(
             mapOf(
                 "MAX_DATABASE_LENGTH" to 128,
@@ -86,6 +101,8 @@ class BiPublicApiTest {
                 "MAX_TIMEZONE_LENGTH" to 64,
                 "MAX_KAFKA_BOOTSTRAP_SERVERS_LENGTH" to 4096,
                 "MAX_TOPIC_PREFIX_LENGTH" to 128,
+                "MAX_CONSUMER_GROUP_NAMESPACE_LENGTH" to 128,
+                "MAX_KAFKA_KEEPER_PATH_PREFIX_LENGTH" to 512,
             )
         )
     }

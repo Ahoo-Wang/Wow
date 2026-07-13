@@ -13,7 +13,10 @@
 
 package me.ahoo.wow.openapi.contract.bi
 
+import java.util.UUID
+
 data class BiScriptRequest(
+    val operation: BiScriptOperationMode = BiScriptOperationMode.DEPLOY,
     val database: String? = null,
     val consumerDatabase: String? = null,
     val topology: BiScriptTopologyRequest? = null,
@@ -21,7 +24,62 @@ data class BiScriptRequest(
     val kafkaBootstrapServers: String? = null,
     val topicPrefix: String? = null,
     val maxExpansionDepth: Int? = null,
-    val unsupportedTypeStrategy: BiScriptUnsupportedTypeStrategy? = null
+    val unsupportedTypeStrategy: BiScriptUnsupportedTypeStrategy? = null,
+    val previousManifest: BiScriptManifestContract? = null,
+    val replayFromEarliestConfirmed: Boolean? = null,
+)
+
+enum class BiScriptOperationMode {
+    DEPLOY,
+    RESET,
+}
+
+data class BiScriptManifestContract(
+    val formatVersion: Int,
+    val layoutVersion: Int,
+    val deployment: BiDeploymentManifestContract,
+    val consumerGeneration: UUID,
+    val aggregates: List<BiAggregateManifestContract>,
+    val retainedAggregates: List<BiAggregateManifestContract>,
+)
+
+data class BiDeploymentManifestContract(
+    val database: String,
+    val consumerDatabase: String,
+    val topology: BiScriptTopologyRequest,
+    val timezone: String,
+    val kafkaBootstrapServers: String,
+    val topicPrefix: String,
+    val consumerGroupNamespace: String?,
+    val kafkaOffsetStorage: BiScriptKafkaOffsetStorage,
+    val kafkaKeeperPathPrefix: String,
+)
+
+enum class BiScriptKafkaOffsetStorage {
+    BROKER,
+    KEEPER,
+}
+
+data class BiAggregateManifestContract(
+    val aggregate: String,
+    val tablePrefix: String,
+    val expansionViews: List<String>,
+)
+
+data class BiScriptResponse(
+    val script: String,
+    val destructive: Boolean,
+    val diagnostics: List<BiScriptDiagnosticResponse>,
+    val manifest: BiScriptManifestContract,
+)
+
+data class BiScriptDiagnosticResponse(
+    val code: String,
+    val aggregate: String,
+    val path: String,
+    val sourceType: String,
+    val decision: String,
+    val message: String,
 )
 
 data class BiScriptTopologyRequest(
@@ -32,8 +90,6 @@ data class BiScriptTopologyRequest(
 data class BiScriptClusterRequest(
     val name: String? = null,
     val installation: String? = null,
-    val shard: String? = null,
-    val replica: String? = null
 )
 
 enum class BiScriptTopologyMode {

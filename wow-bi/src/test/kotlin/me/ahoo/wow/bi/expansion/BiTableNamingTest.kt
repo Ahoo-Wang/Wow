@@ -15,6 +15,7 @@ package me.ahoo.wow.bi.expansion
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.bi.BiScriptOptions
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import org.junit.jupiter.api.Test
 
@@ -34,5 +35,15 @@ class BiTableNamingTest {
 
         naming.toTableName(biAggregateMetadata, "state_last").assert()
             .isEqualTo("bi_aggregate_state_last")
+    }
+
+    @Test
+    fun `should remove service only when it is the terminal suffix`() {
+        val naming = BiTableNaming()
+
+        naming.toTableName(MaterializedNamedAggregate("foo-service", "order"), "state")
+            .assert().isEqualTo("foo_order_state")
+        naming.toTableName(MaterializedNamedAggregate("foo-service-v2", "order"), "state")
+            .assert().isEqualTo("foo_service_v2_order_state")
     }
 }

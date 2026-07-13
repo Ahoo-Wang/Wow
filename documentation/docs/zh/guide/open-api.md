@@ -165,17 +165,18 @@ curl -X 'GET' \
 
 ### 生成 BI 同步脚本
 
-`POST /wow/bi/script` 生成当前本地聚合的 ClickHouse 同步与展开 SQL，并要求提供 `application/json` 请求体。OpenAPI schema 列出全部请求字段：`database`、`consumerDatabase`、`topology`、`timezone`、`kafkaBootstrapServers`、`topicPrefix`、`maxExpansionDepth` 和 `unsupportedTypeStrategy`；嵌套拓扑字段为 `mode` 与 `cluster`，嵌套集群字段为 `name`、`installation`、`shard` 和 `replica`。schema 同时列出枚举值 `CLUSTER` / `STANDALONE` 与 `FAIL` / `RAW_JSON`。请求可以降低 `maxExpansionDepth`，但不能超过服务端配置值；该配置是端点的安全上限。
+`POST /wow/bi/script` 生成当前本地聚合的 ClickHouse 同步与展开 SQL，并要求提供 `application/json` 请求体。OpenAPI schema 除部署覆盖字段外还包含 `operation`、`previousManifest` 与 `replayFromEarliestConfirmed`；嵌套集群字段只包含 `name` 和 `installation`。schema 同时列出枚举值 `DEPLOY` / `RESET`、`CLUSTER` / `STANDALONE` 与 `FAIL` / `RAW_JSON`。请求可以降低 `maxExpansionDepth`，但不能超过服务端配置值；该配置是端点的安全上限。
 
-服务端配置和每个非 `null` 请求 override 使用相同的最大长度：`database` 128 个字符、`consumerDatabase` 128、`timezone` 64、`topicPrefix` 128、`kafkaBootstrapServers` 4096，`topology.cluster.name`、`topology.cluster.installation`、`topology.cluster.shard`、`topology.cluster.replica` 各 128。长度恰好等于限制的值可被接受；更长的服务端值会使应用启动失败，更长的 override 返回 `400`。
+服务端配置和每个非 `null` 请求 override 使用相同的最大长度：`database` 128 个字符、`consumerDatabase` 128、`timezone` 64、`topicPrefix` 128、`kafkaBootstrapServers` 4096，`topology.cluster.name` 与 `topology.cluster.installation` 各 128。长度恰好等于限制的值可被接受；更长的服务端值会使应用启动失败，更长的 override 返回 `400`。
 
 | 状态 | `Content-Type` | 响应体 |
 |------|----------------|--------|
 | `200` | `application/sql` | 仅 SQL 文本 |
+| `200` | `application/json` | SQL、destructive 标记、诊断与下一次部署所需的 manifest |
 | `400` | 错误响应 | 空或无效 JSON 请求体、超过长度限制的 override、其他无效选项值或无效拓扑组合 |
 | `415` | 公共 `wow.UnsupportedMediaType` response | 缺少或不支持的请求 `Content-Type`；运行时 `Wow-Error-Code` 为 `UnsupportedMediaType` |
 
-`{}` 保持服务端选项不变；非 `null` 请求字段只在本次生成中覆盖对应的服务端选项。提供 `topology` 时必须提供 `topology.mode`。在 `CLUSTER` 模式下，省略的集群字段继承当前集群服务端基础配置；如果服务端基础配置是独立模式，则继承领域集群默认值。`STANDALONE` 拒绝 `cluster` 对象。旧版 `GET` 方法在该路径上没有路由并返回 `404`。生成诊断逐条写入 WARN 日志，绝不会混入响应体。
+`{}` 使用服务端选项执行首次 `DEPLOY`。应持久化 JSON 响应中的 manifest，并在后续操作中作为 `previousManifest` 提交。`RESET` 必须同时提供该 manifest 与 `replayFromEarliestConfirmed=true`，且它是唯一的破坏性操作。提供 `topology` 时必须提供 `topology.mode`。在 `CLUSTER` 模式下，省略的集群字段继承当前集群服务端基础配置；如果服务端基础配置是独立模式，则继承领域集群默认值。`STANDALONE` 拒绝 `cluster` 对象。旧版 `GET` 方法在该路径上没有路由并返回 `404`。
 
 ::: code-group
 

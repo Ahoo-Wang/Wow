@@ -35,7 +35,7 @@ class ClickHouseScriptRendererTest {
     fun `should render a true standalone statement graph`() {
         val aggregate = MetadataSearcher.localAggregates.single { it.aggregateName == "aggregate" }
         val renderer = ClickHouseScriptRenderer(
-            BiScriptOptions(topology = ClickHouseTopology.Standalone)
+            BiScriptOptions(topology = ClickHouseTopology.Standalone, consumerGroupNamespace = "test")
         )
         val expansionPlan = StateExpansionPlan(
             views = listOf(
@@ -56,30 +56,32 @@ class ClickHouseScriptRendererTest {
         val sql = (renderer.renderGlobalStatements() + command + stateEvent + stateLast + expansion)
             .joinToString("\n")
 
-        command.assert().hasSize(3)
-        stateEvent.assert().hasSize(4)
-        stateLast.assert().hasSize(2)
+        command.assert().hasSize(6)
+        stateEvent.assert().hasSize(7)
+        stateLast.assert().hasSize(4)
         sql.assert().doesNotContain("ON CLUSTER", "Replicated", "Distributed", "_local", "/clickhouse/")
-        sql.assert().contains("ENGINE = MergeTree", "ENGINE = ReplacingMergeTree")
-        command.last().assert().contains("TO \"bi_db\".\"bi_aggregate_command\"")
-        stateEvent[2].assert().contains("TO \"bi_db\".\"bi_aggregate_state\"")
-        stateEvent.last().assert().contains("FROM \"bi_db\".\"bi_aggregate_state\"")
-        stateLast.last().assert()
-            .contains("TO \"bi_db\".\"bi_aggregate_state_last\"")
-            .contains("FROM \"bi_db\".\"bi_aggregate_state\"")
+        sql.assert().contains("ENGINE = ReplacingMergeTree")
+        command[4].assert().contains("TO \"bi_db\".\"bi_aggregate_command_store\"")
+        command.last().assert().contains("bi_aggregate_command", "bi_aggregate_command_store", "FINAL")
+        stateEvent.any { it.contains("TO \"bi_db\".\"bi_aggregate_state_store\"") }.assert().isTrue()
+        stateEvent.any { it.contains("FROM \"bi_db\".\"bi_aggregate_state\"") }.assert().isTrue()
+        stateLast[2].assert()
+            .contains("TO \"bi_db\".\"bi_aggregate_state_last_store\"")
+            .contains("FROM \"bi_db\".\"bi_aggregate_state_store\"")
+        stateLast.last().assert().contains("bi_aggregate_state_last", "bi_aggregate_state_last_store", "FINAL")
         expansion.single().assert().contains("FROM \"bi_db\".\"bi_aggregate_state_last\"")
 
         val clear = renderer.renderClearStatements(
             aggregate,
             listOf("bi_aggregate_state_last_root", "bi_aggregate_state_last_items"),
         )
-        clear.assert().hasSize(11)
-        clear.take(9).joinToString("\n").assert().doesNotContain("_local")
-        clear.takeLast(2).map { statement ->
+        clear.assert().hasSize(14)
+        clear.take(11).joinToString("\n").assert().doesNotContain("_local")
+        clear.subList(5, 7).map { statement ->
             statement.substringAfterLast(".\"").substringBefore('"')
         }.assert().containsExactly(
-            "bi_aggregate_state_last_root",
             "bi_aggregate_state_last_items",
+            "bi_aggregate_state_last_root",
         )
     }
 
@@ -164,31 +166,30 @@ class ClickHouseScriptRendererTest {
         val stateLast = renderer.renderStateLastStatements(aggregate)
 
         global.assert().hasSize(2)
-        clear.assert().hasSize(14)
-        command.assert().hasSize(4)
-        stateEvent.assert().hasSize(5)
-        stateLast.assert().hasSize(3)
+        clear.assert().hasSize(17)
+        command.assert().hasSize(7)
+        stateEvent.assert().hasSize(8)
+        stateLast.assert().hasSize(5)
+        command.joinToString("\n").assert()
+            .contains("simpleJSONExtractRaw(\"data\", 'body') AS \"body\"")
         clear.assert().containsExactly(
-            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_command\" ON CLUSTER '{cluster}' SYNC;",
-            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_command_local\" ON CLUSTER '{cluster}' SYNC;",
-            "DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_aggregate_command_queue\" " +
-                "ON CLUSTER '{cluster}' SYNC;",
-            "DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_aggregate_command_consumer\" " +
-                "ON CLUSTER '{cluster}' SYNC;",
-            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_state\" ON CLUSTER '{cluster}' SYNC;",
-            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_state_event\" ON CLUSTER '{cluster}' SYNC;",
-            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_state_local\" ON CLUSTER '{cluster}' SYNC;",
-            "DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_aggregate_state_queue\" " +
-                "ON CLUSTER '{cluster}' SYNC;",
-            "DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_aggregate_state_consumer\" " +
-                "ON CLUSTER '{cluster}' SYNC;",
-            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_state_last\" ON CLUSTER '{cluster}' SYNC;",
-            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_state_last_local\" " +
-                "ON CLUSTER '{cluster}' SYNC;",
-            "DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_aggregate_state_last_consumer\" " +
-                "ON CLUSTER '{cluster}' SYNC;",
-            "DROP TABLE IF EXISTS \"bi_db\".\"root_view\" ON CLUSTER '{cluster}' SYNC;",
-            "DROP TABLE IF EXISTS \"bi_db\".\"child_view\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP VIEW IF EXISTS \"bi_db_consumer\".\"bi_aggregate_command_consumer\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_aggregate_command_queue\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP VIEW IF EXISTS \"bi_db_consumer\".\"bi_aggregate_state_consumer\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_aggregate_state_queue\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP VIEW IF EXISTS \"bi_db_consumer\".\"bi_aggregate_state_last_consumer\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP VIEW IF EXISTS \"bi_db\".\"child_view\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP VIEW IF EXISTS \"bi_db\".\"root_view\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP VIEW IF EXISTS \"bi_db\".\"bi_aggregate_state_event\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP VIEW IF EXISTS \"bi_db\".\"bi_aggregate_command\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP VIEW IF EXISTS \"bi_db\".\"bi_aggregate_state\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP VIEW IF EXISTS \"bi_db\".\"bi_aggregate_state_last\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_command_store\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_command_store_local\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_state_store\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_state_store_local\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_state_last_store\" ON CLUSTER '{cluster}' SYNC;",
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_state_last_store_local\" ON CLUSTER '{cluster}' SYNC;",
         )
         listOf(global, clear, command, stateEvent, stateLast).flatten().forEach { statement ->
             statement.lineSequence().none { it.trimStart().startsWith("--") }.assert().isTrue()
@@ -235,8 +236,8 @@ class ClickHouseScriptRendererTest {
         statements[1].assert().contains("\"second_view\"")
         statements.forEach { statement ->
             statement.trimEnd().endsWith(';').assert().isTrue()
-            statement.windowed("CREATE VIEW".length)
-                .count { it == "CREATE VIEW" }
+            statement.windowed("CREATE OR REPLACE VIEW".length)
+                .count { it == "CREATE OR REPLACE VIEW" }
                 .assert()
                 .isEqualTo(1)
         }
@@ -302,7 +303,7 @@ class ClickHouseScriptRendererTest {
         ).renderExpansion(plan)
 
         script.assert().contains(
-            "CREATE VIEW IF NOT EXISTS \"bi\\\"db\".\"target\\\"table\" " +
+            "CREATE OR REPLACE VIEW \"bi\\\"db\".\"target\\\"table\" " +
                 "ON CLUSTER 'cluster''name' AS"
         )
         script.assert().contains(

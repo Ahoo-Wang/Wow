@@ -24,7 +24,7 @@ internal class BiTableNaming(private val options: BiScriptOptions = BiScriptOpti
 
     fun toTableName(namedAggregate: NamedAggregate, suffix: String): String {
         val context = namedAggregate.getContextAlias()
-            .substringBeforeLast(SERVICE_NAME_SUFFIX)
+            .removeSuffix(SERVICE_NAME_SUFFIX)
             .replace("-", "_")
         return "${context}_${namedAggregate.aggregateName}_$suffix"
     }

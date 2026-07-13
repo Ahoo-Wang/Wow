@@ -19,14 +19,10 @@ sealed interface ClickHouseTopology {
     data class Cluster(
         val name: String = "{cluster}",
         val installation: String = "{installation}",
-        val shard: String = "{shard}",
-        val replica: String = "{replica}",
     ) : ClickHouseTopology {
         init {
             name.requireValidTopologyValue("name", MAX_VALUE_LENGTH)
             installation.requireValidTopologyValue("installation", MAX_VALUE_LENGTH)
-            shard.requireValidTopologyValue("shard", MAX_VALUE_LENGTH)
-            replica.requireValidTopologyValue("replica", MAX_VALUE_LENGTH)
         }
 
         private fun String.requireValidTopologyValue(name: String, maxLength: Int) {

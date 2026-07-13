@@ -14,16 +14,25 @@
 package me.ahoo.wow.webflux.route.bi
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.bi.BiAggregateManifest
+import me.ahoo.wow.bi.BiScriptOperation
 import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.bi.ClickHouseTopology
 import me.ahoo.wow.bi.UnsupportedTypeStrategy
+import me.ahoo.wow.openapi.contract.bi.BiAggregateManifestContract
+import me.ahoo.wow.openapi.contract.bi.BiDeploymentManifestContract
 import me.ahoo.wow.openapi.contract.bi.BiScriptClusterRequest
+import me.ahoo.wow.openapi.contract.bi.BiScriptKafkaOffsetStorage
+import me.ahoo.wow.openapi.contract.bi.BiScriptManifestContract
+import me.ahoo.wow.openapi.contract.bi.BiScriptOperationMode
 import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyMode
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyRequest
 import me.ahoo.wow.openapi.contract.bi.BiScriptUnsupportedTypeStrategy
+import me.ahoo.wow.webflux.route.global.toBiScriptOperation
 import me.ahoo.wow.webflux.route.global.toBiScriptOptions
 import org.junit.jupiter.api.Test
+import java.util.UUID
 
 class BiScriptRequestMapperTest {
     @Test
@@ -54,8 +63,6 @@ class BiScriptRequestMapperTest {
                 topology = ClickHouseTopology.Cluster(
                     name = "request-cluster",
                     installation = "base-installation",
-                    shard = "base-shard",
-                    replica = "base-replica",
                 ),
                 timezone = "UTC",
                 kafkaBootstrapServers = "request-kafka:9092",
@@ -116,6 +123,91 @@ class BiScriptRequestMapperTest {
         )
     }
 
+    @Test
+    fun `should map deploy manifest and reject tampered object names`() {
+        val manifest = manifest()
+        val operation = BiScriptRequest(previousManifest = manifest).toBiScriptOperation()
+        (operation as BiScriptOperation.Deploy).previousManifest!!.aggregates.single()
+            .tablePrefix.assert().isEqualTo("base_aggregate")
+
+        runCatching {
+            BiScriptRequest(
+                previousManifest = manifest.copy(
+                    aggregates = listOf(
+                        manifest.aggregates.single().copy(tablePrefix = "unrelated_table")
+                    )
+                )
+            ).toBiScriptOperation()
+        }.exceptionOrNull()!!.message.assert().contains("does not match aggregate")
+    }
+
+    @Test
+    fun `should require a manifest and explicit reset confirmation`() {
+        val request = BiScriptRequest(
+            operation = BiScriptOperationMode.RESET,
+            previousManifest = manifest(),
+            replayFromEarliestConfirmed = true,
+        )
+        val first = request.toBiScriptOperation() as BiScriptOperation.Reset
+
+        first.replayFromEarliestConfirmed.assert().isTrue()
+        first.previousManifest.consumerGeneration.assert().isEqualTo(manifest().consumerGeneration)
+        first.previousManifest.retainedAggregates.map(BiAggregateManifest::aggregate)
+            .assert().isEqualTo(listOf("old.aggregate"))
+        runCatching {
+            BiScriptRequest(operation = BiScriptOperationMode.RESET).toBiScriptOperation()
+        }.exceptionOrNull()!!.message.assert().isEqualTo("previousManifest is required for RESET")
+    }
+
+    @Test
+    fun `should reject operation-specific fields in the wrong mode`() {
+        runCatching {
+            BiScriptRequest(replayFromEarliestConfirmed = true).toBiScriptOperation()
+        }.exceptionOrNull()!!.message.assert().isEqualTo("replayFromEarliestConfirmed is only valid for RESET")
+
+        val resetWithoutConfirmation = BiScriptRequest(
+            operation = BiScriptOperationMode.RESET,
+            previousManifest = manifest(),
+        )
+        runCatching { resetWithoutConfirmation.toBiScriptOperation() }
+            .exceptionOrNull()!!.message.assert()
+            .isEqualTo("replayFromEarliestConfirmed is required for RESET")
+    }
+
+    private fun manifest(): BiScriptManifestContract = BiScriptManifestContract(
+        formatVersion = 1,
+        layoutVersion = 5,
+        deployment = BiDeploymentManifestContract(
+            database = "base_db",
+            consumerDatabase = "base_consumer",
+            topology = BiScriptTopologyRequest(
+                mode = BiScriptTopologyMode.CLUSTER,
+                cluster = BiScriptClusterRequest("base-cluster", "base-installation"),
+            ),
+            timezone = "Asia/Tokyo",
+            kafkaBootstrapServers = "base-kafka:9092",
+            topicPrefix = "base.",
+            consumerGroupNamespace = "test",
+            kafkaOffsetStorage = BiScriptKafkaOffsetStorage.BROKER,
+            kafkaKeeperPathPrefix = "/wow/bi",
+        ),
+        consumerGeneration = UUID.fromString("00000000-0000-0000-0000-000000000001"),
+        aggregates = listOf(
+            BiAggregateManifestContract(
+                aggregate = "base.aggregate",
+                tablePrefix = "base_aggregate",
+                expansionViews = listOf("base_aggregate_state_last_root"),
+            )
+        ),
+        retainedAggregates = listOf(
+            BiAggregateManifestContract(
+                aggregate = "old.aggregate",
+                tablePrefix = "old_aggregate",
+                expansionViews = listOf("old_aggregate_state_last_root"),
+            )
+        ),
+    )
+
     private companion object {
         private val BASE_OPTIONS = BiScriptOptions(
             database = "base_db",
@@ -123,8 +215,6 @@ class BiScriptRequestMapperTest {
             topology = ClickHouseTopology.Cluster(
                 name = "base-cluster",
                 installation = "base-installation",
-                shard = "base-shard",
-                replica = "base-replica",
             ),
             timezone = "Asia/Tokyo",
             kafkaBootstrapServers = "base-kafka:9092",

@@ -30,8 +30,6 @@ class BiScriptOptionsTest {
             ClickHouseTopology.Cluster(
                 name = "{cluster}",
                 installation = "{installation}",
-                shard = "{shard}",
-                replica = "{replica}",
             )
         )
     }
@@ -41,8 +39,6 @@ class BiScriptOptionsTest {
         listOf<() -> ClickHouseTopology.Cluster>(
             { ClickHouseTopology.Cluster(name = " ") },
             { ClickHouseTopology.Cluster(installation = "bad\nvalue") },
-            { ClickHouseTopology.Cluster(shard = "\t") },
-            { ClickHouseTopology.Cluster(replica = "bad\u0000value") },
         ).all { runCatching(it).isFailure }.assert().isTrue()
     }
 
@@ -53,14 +49,10 @@ class BiScriptOptionsTest {
         ClickHouseTopology.Cluster(
             name = value,
             installation = value,
-            shard = value,
-            replica = value,
         ).assert().isEqualTo(
             ClickHouseTopology.Cluster(
                 name = value,
                 installation = value,
-                shard = value,
-                replica = value,
             )
         )
     }
@@ -72,8 +64,6 @@ class BiScriptOptionsTest {
         val invalidValues = listOf(
             "name" to { ClickHouseTopology.Cluster(name = tooLong) },
             "installation" to { ClickHouseTopology.Cluster(installation = tooLong) },
-            "shard" to { ClickHouseTopology.Cluster(shard = tooLong) },
-            "replica" to { ClickHouseTopology.Cluster(replica = tooLong) },
         )
 
         invalidValues.forEach { (field, createCluster) ->
@@ -94,6 +84,9 @@ class BiScriptOptionsTest {
         options.timezone.assert().isEqualTo("Asia/Shanghai")
         options.kafkaBootstrapServers.assert().isEqualTo("localhost:9093")
         options.topicPrefix.assert().isEqualTo("wow.")
+        options.consumerGroupNamespace.assert().isNull()
+        options.kafkaOffsetStorage.assert().isEqualTo(KafkaOffsetStorage.BROKER)
+        options.kafkaKeeperPathPrefix.assert().isEqualTo("/clickhouse/wow-bi")
         options.maxExpansionDepth.assert().isEqualTo(5)
         options.unsupportedTypeStrategy.assert().isEqualTo(UnsupportedTypeStrategy.RAW_JSON)
         BiScriptOptions::class.declaredMemberProperties.map { it.name }.assert()
@@ -108,6 +101,7 @@ class BiScriptOptionsTest {
             { BiScriptOptions(timezone = " ") },
             { BiScriptOptions(kafkaBootstrapServers = " ") },
             { BiScriptOptions(topicPrefix = " ") },
+            { BiScriptOptions(consumerGroupNamespace = " ") },
         ).forEach { createOptions ->
             runCatching(createOptions).isFailure.assert().isTrue()
         }
@@ -121,6 +115,7 @@ class BiScriptOptionsTest {
             { BiScriptOptions(timezone = "Asia\nShanghai") },
             { BiScriptOptions(kafkaBootstrapServers = "localhost\n9093") },
             { BiScriptOptions(topicPrefix = "wow.\u0000") },
+            { BiScriptOptions(consumerGroupNamespace = "blue\n") },
         ).forEach { createOptions ->
             runCatching(createOptions).isFailure.assert().isTrue()
         }
@@ -230,6 +225,9 @@ class BiScriptOptionsTest {
             script = "SELECT 1",
             statements = listOf("SELECT 1"),
             diagnostics = listOf(diagnostic),
+            operation = BiScriptOperation.Deploy(),
+            destructive = false,
+            manifest = BiScriptGenerator().generate(emptySet()).manifest,
         )
 
         result.script.assert().isEqualTo("SELECT 1")
@@ -237,10 +235,16 @@ class BiScriptOptionsTest {
         BiScriptDiagnosticCode.entries.assert().containsExactly(
             BiScriptDiagnosticCode.RAW_JSON_FALLBACK,
             BiScriptDiagnosticCode.MAX_DEPTH_REACHED,
+            BiScriptDiagnosticCode.MANIFEST_REQUIRED_FOR_RECONCILIATION,
+            BiScriptDiagnosticCode.ORPHANED_DATA_TABLE,
+            BiScriptDiagnosticCode.CLUSTER_INTERNAL_REPLICATION_REQUIRED,
         )
         BiScriptMappingDecision.entries.assert().containsExactly(
             BiScriptMappingDecision.RAW_JSON,
             BiScriptMappingDecision.MAX_DEPTH_RAW_JSON,
+            BiScriptMappingDecision.MANUAL_RECONCILIATION_REQUIRED,
+            BiScriptMappingDecision.DATA_TABLE_RETAINED,
+            BiScriptMappingDecision.EXTERNAL_CONFIGURATION_REQUIRED,
         )
     }
 }

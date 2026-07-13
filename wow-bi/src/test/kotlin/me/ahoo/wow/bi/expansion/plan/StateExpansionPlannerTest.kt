@@ -114,6 +114,8 @@ class StateExpansionPlannerTest {
             JsonPointerSegment.Property("a~1b~0c"),
             JsonPointerSegment.Index(checkNotNull(child.recovery.currentIndex)),
         )
+        child.targetTableName.assert()
+            .endsWith("_field_7dc34f9338e4d4c34ea6d6664feeaad1")
     }
 
     @Test

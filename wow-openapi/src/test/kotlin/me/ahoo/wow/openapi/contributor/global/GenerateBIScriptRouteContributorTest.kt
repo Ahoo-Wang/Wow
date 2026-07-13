@@ -37,7 +37,10 @@ internal class GenerateBIScriptRouteContributorTest {
 
         contract.method.assert().isEqualTo(Https.Method.POST)
         contract.path.assert().isEqualTo(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
-        contract.accept.assert().containsExactly(Https.MediaType.APPLICATION_SQL)
+        contract.accept.assert().containsExactly(
+            Https.MediaType.APPLICATION_SQL,
+            Https.MediaType.APPLICATION_JSON,
+        )
         contract.requestBody!!.run {
             required.assert().isTrue()
             content.assert().containsExactly(
@@ -49,8 +52,9 @@ internal class GenerateBIScriptRouteContributorTest {
         }
         contract.responses.map { it.statusCode }.assert()
             .containsExactly(Https.Code.OK, Https.Code.BAD_REQUEST, Https.Code.UNSUPPORTED_MEDIA_TYPE)
-        contract.responses.first().content.assert().containsExactly(
-            HttpContent(Https.MediaType.APPLICATION_SQL, HttpSchema.String)
+        contract.responses.first().content.map(HttpContent::mediaType).assert().containsExactly(
+            Https.MediaType.APPLICATION_SQL,
+            Https.MediaType.APPLICATION_JSON,
         )
         contract.responses.last().componentRef.assert()
             .isEqualTo("${Wow.WOW_PREFIX}${CommonComponent.Response.UNSUPPORTED_MEDIA_TYPE_ERROR_CODE}")

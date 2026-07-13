@@ -26,6 +26,7 @@ import me.ahoo.wow.openapi.contract.HttpResponse
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpSchema
 import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
+import me.ahoo.wow.openapi.contract.bi.BiScriptResponse
 import me.ahoo.wow.openapi.contributor.badRequestResponseRef
 import me.ahoo.wow.openapi.contributor.unsupportedMediaTypeResponseRef
 
@@ -45,7 +46,7 @@ object GenerateBIScriptRouteContributor : RouteContributor {
                 path = BuiltInHttpRoutePaths.Global.BI_SCRIPT,
                 handlerKey = BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT,
                 summary = "Generate BI Sync Script",
-                accept = listOf(Https.MediaType.APPLICATION_SQL),
+                accept = listOf(Https.MediaType.APPLICATION_SQL, Https.MediaType.APPLICATION_JSON),
                 requestBody = HttpRequestBody(
                     required = true,
                     description = "BI script option overrides.",
@@ -60,7 +61,13 @@ object GenerateBIScriptRouteContributor : RouteContributor {
                     HttpResponse(
                         statusCode = Https.Code.OK,
                         description = "The generated BI synchronization script.",
-                        content = listOf(HttpContent(Https.MediaType.APPLICATION_SQL, HttpSchema.String))
+                        content = listOf(
+                            HttpContent(Https.MediaType.APPLICATION_SQL, HttpSchema.String),
+                            HttpContent(
+                                Https.MediaType.APPLICATION_JSON,
+                                HttpSchema.TypeRef(BiScriptResponse::class.java),
+                            ),
+                        )
                     ),
                     componentContext.badRequestResponseRef(),
                     componentContext.unsupportedMediaTypeResponseRef()

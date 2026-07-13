@@ -14,19 +14,33 @@
 package me.ahoo.wow.webflux.route.global
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.bi.BiManifestTopology
 import me.ahoo.wow.bi.BiScriptDiagnostic
 import me.ahoo.wow.bi.BiScriptGenerator
+import me.ahoo.wow.bi.BiScriptOperation
 import me.ahoo.wow.bi.BiScriptOptions
+import me.ahoo.wow.bi.BiScriptResult
+import me.ahoo.wow.bi.KafkaOffsetStorage
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
+import me.ahoo.wow.openapi.contract.bi.BiAggregateManifestContract
+import me.ahoo.wow.openapi.contract.bi.BiDeploymentManifestContract
+import me.ahoo.wow.openapi.contract.bi.BiScriptClusterRequest
+import me.ahoo.wow.openapi.contract.bi.BiScriptDiagnosticResponse
+import me.ahoo.wow.openapi.contract.bi.BiScriptKafkaOffsetStorage
+import me.ahoo.wow.openapi.contract.bi.BiScriptManifestContract
 import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
+import me.ahoo.wow.openapi.contract.bi.BiScriptResponse
+import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyMode
+import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyRequest
 import me.ahoo.wow.webflux.route.NoMetadataRouteHandlerFunctionFactorySupport
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
+import reactor.core.scheduler.Schedulers
 
 private val APPLICATION_SQL_MEDIA_TYPE = MediaType.parseMediaType("application/sql")
 
@@ -34,19 +48,109 @@ class GenerateBIScriptHandlerFunction(private val options: BiScriptOptions) : Ha
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return request.bodyToMono(BiScriptRequest::class.java)
             .switchIfEmpty(Mono.error(IllegalArgumentException("BI script request body must not be empty")))
-            .map { it.toBiScriptOptions(options) }
-            .flatMap { generateResponse(it) }
+            .flatMap { body ->
+                generateResponse(
+                    request = request,
+                    requestOptions = body.toBiScriptOptions(options),
+                    operation = body.toBiScriptOperation(),
+                )
+            }
     }
 
-    private fun generateResponse(requestOptions: BiScriptOptions): Mono<ServerResponse> {
-        val result = BiScriptGenerator(requestOptions).generate(MetadataSearcher.localAggregates)
+    private fun generateResponse(
+        request: ServerRequest,
+        requestOptions: BiScriptOptions,
+        operation: BiScriptOperation,
+    ): Mono<ServerResponse> = Mono.fromCallable {
+        BiScriptGenerator(requestOptions).generate(MetadataSearcher.localAggregates, operation)
+    }.subscribeOn(Schedulers.boundedElastic()).flatMap { result ->
         logDiagnostics(result.diagnostics)
-
-        return ServerResponse
-            .ok()
-            .contentType(APPLICATION_SQL_MEDIA_TYPE)
-            .bodyValue(result.script)
+        val response = ServerResponse.ok()
+            .header(DIAGNOSTIC_COUNT_HEADER, result.diagnostics.size.toString())
+        if (request.prefersJson()) {
+            response.contentType(MediaType.APPLICATION_JSON).bodyValue(result.toResponse())
+        } else {
+            response.contentType(APPLICATION_SQL_MEDIA_TYPE).bodyValue(result.script)
+        }
     }
+
+    private fun ServerRequest.prefersJson(): Boolean {
+        val accepted = headers().accept()
+            .filter { it.qualityValue > 0.0 }
+            .sortedWith(
+                compareByDescending<MediaType>(MediaType::getQualityValue)
+                    .thenBy(MediaType::isWildcardType)
+                    .thenBy(MediaType::isWildcardSubtype)
+            )
+        val preferred = accepted.firstOrNull { mediaType ->
+            mediaType.isCompatibleWith(MediaType.APPLICATION_JSON) ||
+                mediaType.subtype.endsWith("+json") ||
+                mediaType.isCompatibleWith(APPLICATION_SQL_MEDIA_TYPE)
+        } ?: return false
+        if (preferred.isWildcardType || preferred.isWildcardSubtype) {
+            return false
+        }
+        return preferred.isCompatibleWith(MediaType.APPLICATION_JSON) || preferred.subtype.endsWith("+json")
+    }
+
+    private fun BiScriptResult.toResponse(): BiScriptResponse = BiScriptResponse(
+        script = script,
+        destructive = destructive,
+        diagnostics = diagnostics.map { diagnostic ->
+            BiScriptDiagnosticResponse(
+                code = diagnostic.code.name,
+                aggregate = diagnostic.aggregate,
+                path = diagnostic.path,
+                sourceType = diagnostic.sourceType,
+                decision = diagnostic.decision.name,
+                message = diagnostic.message,
+            )
+        },
+        manifest = BiScriptManifestContract(
+            formatVersion = manifest.formatVersion,
+            layoutVersion = manifest.layoutVersion,
+            deployment = BiDeploymentManifestContract(
+                database = manifest.deployment.database,
+                consumerDatabase = manifest.deployment.consumerDatabase,
+                topology = BiScriptTopologyRequest(
+                    mode = when (manifest.deployment.topology) {
+                        BiManifestTopology.CLUSTER -> BiScriptTopologyMode.CLUSTER
+                        BiManifestTopology.STANDALONE -> BiScriptTopologyMode.STANDALONE
+                    },
+                    cluster = manifest.deployment.clusterName?.let { clusterName ->
+                        BiScriptClusterRequest(
+                            name = clusterName,
+                            installation = manifest.deployment.installation,
+                        )
+                    },
+                ),
+                timezone = manifest.deployment.timezone,
+                kafkaBootstrapServers = manifest.deployment.kafkaBootstrapServers,
+                topicPrefix = manifest.deployment.topicPrefix,
+                consumerGroupNamespace = manifest.deployment.consumerGroupNamespace,
+                kafkaOffsetStorage = when (manifest.deployment.kafkaOffsetStorage) {
+                    KafkaOffsetStorage.BROKER -> BiScriptKafkaOffsetStorage.BROKER
+                    KafkaOffsetStorage.KEEPER -> BiScriptKafkaOffsetStorage.KEEPER
+                },
+                kafkaKeeperPathPrefix = manifest.deployment.kafkaKeeperPathPrefix,
+            ),
+            consumerGeneration = manifest.consumerGeneration,
+            aggregates = manifest.aggregates.map { aggregate ->
+                BiAggregateManifestContract(
+                    aggregate = aggregate.aggregate,
+                    tablePrefix = aggregate.tablePrefix,
+                    expansionViews = aggregate.expansionViews,
+                )
+            },
+            retainedAggregates = manifest.retainedAggregates.map { aggregate ->
+                BiAggregateManifestContract(
+                    aggregate = aggregate.aggregate,
+                    tablePrefix = aggregate.tablePrefix,
+                    expansionViews = aggregate.expansionViews,
+                )
+            },
+        ),
+    )
 
     private fun logDiagnostics(diagnostics: List<BiScriptDiagnostic>) {
         diagnostics.forEach { diagnostic ->
@@ -59,6 +163,7 @@ class GenerateBIScriptHandlerFunction(private val options: BiScriptOptions) : Ha
     }
 
     private companion object {
+        const val DIAGNOSTIC_COUNT_HEADER: String = "Wow-BI-Diagnostic-Count"
         private val log = KotlinLogging.logger(GenerateBIScriptHandlerFunction::class.java.name)
     }
 }
