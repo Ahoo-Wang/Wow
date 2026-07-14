@@ -29,15 +29,19 @@ import reactor.core.publisher.Sinks
 import reactor.test.StepVerifier
 import reactor.util.concurrent.Queues
 import reactor.util.context.Context
+import java.lang.reflect.InvocationTargetException
 import java.time.Duration
 import java.util.Queue
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.CyclicBarrier
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
+import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import java.util.stream.Stream
 
@@ -140,6 +144,7 @@ class MpscUnicastManySinkTest {
         val error = IllegalStateException("loser")
 
         sink.tryEmitComplete().assert().isEqualTo(Sinks.EmitResult.OK)
+        sink.scanUnsafe(Scannable.Attr.ERROR).assert().isNull()
         sink.tryEmitError(error).assert().isEqualTo(Sinks.EmitResult.FAIL_TERMINATED)
 
         delegate.completeCalls.get().assert().isEqualTo(1)
@@ -645,6 +650,7 @@ class MpscUnicastManySinkTest {
         sink.inners().count().assert().isEqualTo(0)
         sink.scanUnsafe(Scannable.Attr.CANCELLED).assert().isEqualTo(false)
         sink.scanUnsafe(Scannable.Attr.TERMINATED).assert().isEqualTo(false)
+        sink.scanUnsafe(Scannable.Attr.ERROR).assert().isNull()
         sink.scanUnsafe(Scannable.Attr.BUFFERED).assert().isEqualTo(0)
         val capacity = sink.scanUnsafe(Scannable.Attr.CAPACITY)
         capacity.assert().isNotNull()
@@ -717,18 +723,194 @@ class MpscUnicastManySinkTest {
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun <T : Any> sinkWithDelegate(delegate: Sinks.Many<T>): MpscUnicastManySink<T> {
-        val constructor = MpscUnicastManySink::class.java.getDeclaredConstructor(Sinks.Many::class.java)
-        constructor.isAccessible = true
-        return constructor.newInstance(delegate) as MpscUnicastManySink<T>
-    }
-
-    @Suppress("UNCHECKED_CAST")
     private fun <T : Any> sinkWithQueue(queue: Queue<T>): MpscUnicastManySink<T> {
         val constructor = MpscUnicastManySink::class.java.getDeclaredConstructor(Queue::class.java)
         constructor.isAccessible = true
         return constructor.newInstance(queue) as MpscUnicastManySink<T>
     }
+}
+
+class MpscUnicastManySinkInvariantTest {
+
+    @Test
+    fun `should reject a corrupted exhausted admission count`() {
+        val sink = mpscUnicastManySink<Int>()
+        stateOf(sink).set((1L shl 62) - 1)
+
+        val error = assertThrows<IllegalStateException> {
+            sink.tryEmitNext(1)
+        }
+
+        error.message.assert().isEqualTo("MPSC unicast sink active admission count exhausted.")
+    }
+
+    @Test
+    fun `should reject a corrupted release underflow`() {
+        val sink = mpscUnicastManySink<Int>()
+
+        val invocation = assertThrows<InvocationTargetException> {
+            invokeReleaseNext(sink)
+        }
+        val error = checkNotNull(invocation.cause)
+
+        (error is IllegalStateException).assert().isTrue()
+        error.message.assert().isEqualTo("MPSC unicast sink active admission underflow.")
+    }
+
+    @Test
+    fun `should defer terminal delegation until a claimed signal is published`() {
+        val sink = mpscUnicastManySink<Int>()
+        stateOf(sink).set(1L shl 62)
+
+        invokeDelegateTerminal(sink).assert().isNull()
+    }
+
+    @Test
+    fun `should delegate terminal after the last admitted next returns`() {
+        val producerCount = 3
+        val delegate = BlockingMultipleNextManySink(producerCount)
+        val sink = sinkWithDelegate(delegate)
+        val executor = Executors.newFixedThreadPool(producerCount)
+        val allButLastReleased = CountDownLatch(producerCount - 1)
+        try {
+            val next = (0 until producerCount).map { value ->
+                executor.submit<Sinks.EmitResult> {
+                    sink.tryEmitNext(value).also {
+                        allButLastReleased.countDown()
+                    }
+                }
+            }
+            delegate.allNextEntered.await(5, TimeUnit.SECONDS).assert().isTrue()
+
+            sink.tryEmitComplete().assert().isEqualTo(Sinks.EmitResult.OK)
+            delegate.completeCalls.get().assert().isEqualTo(0)
+
+            delegate.releaseNext.release(producerCount - 1)
+            allButLastReleased.await(5, TimeUnit.SECONDS).assert().isTrue()
+            delegate.completeCalls.get().assert().isEqualTo(0)
+
+            delegate.releaseNext.release()
+            next.forEach { it.get(5, TimeUnit.SECONDS).assert().isEqualTo(Sinks.EmitResult.OK) }
+            delegate.completeCalls.get().assert().isEqualTo(1)
+            sink.tryEmitNext(producerCount).assert().isEqualTo(Sinks.EmitResult.FAIL_TERMINATED)
+        } finally {
+            delegate.releaseNext.release(producerCount)
+            executor.shutdownNow()
+            executor.awaitTermination(5, TimeUnit.SECONDS).assert().isTrue()
+        }
+    }
+
+    @Test
+    fun `should release admission and deliver a claimed terminal when delegate next throws`() {
+        val failure = IllegalStateException("next failed")
+        val delegate = BlockingThrowingNextManySink(failure)
+        val sink = sinkWithDelegate(delegate)
+        val executor = Executors.newSingleThreadExecutor()
+        try {
+            val next = executor.submit<Sinks.EmitResult> { sink.tryEmitNext(1) }
+            delegate.nextEntered.await(5, TimeUnit.SECONDS).assert().isTrue()
+
+            sink.tryEmitComplete().assert().isEqualTo(Sinks.EmitResult.OK)
+            delegate.completeCalls.get().assert().isEqualTo(0)
+            delegate.releaseNext.countDown()
+
+            val execution = assertThrows<ExecutionException> {
+                next.get(5, TimeUnit.SECONDS)
+            }
+            execution.cause.assert().isSameAs(failure)
+            delegate.completeCalls.get().assert().isEqualTo(1)
+            sink.tryEmitNext(2).assert().isEqualTo(Sinks.EmitResult.FAIL_TERMINATED)
+        } finally {
+            delegate.releaseNext.countDown()
+            executor.shutdownNow()
+            executor.awaitTermination(5, TimeUnit.SECONDS).assert().isTrue()
+        }
+    }
+
+    @Test
+    fun `terminal claim should retry after losing its compare and set race`() {
+        val delegate = PausingFirstCancellationScanManySink<Int>()
+        val sink = sinkWithDelegate(delegate)
+        val error = IllegalStateException("winner")
+        val executor = Executors.newSingleThreadExecutor()
+        try {
+            val loser = executor.submit<Sinks.EmitResult> { sink.tryEmitComplete() }
+            delegate.firstScanEntered.await(5, TimeUnit.SECONDS).assert().isTrue()
+
+            sink.tryEmitError(error).assert().isEqualTo(Sinks.EmitResult.OK)
+            delegate.releaseFirstScan.countDown()
+
+            loser.get(5, TimeUnit.SECONDS).assert().isEqualTo(Sinks.EmitResult.FAIL_TERMINATED)
+            delegate.cancellationScans.get().assert().isEqualTo(2)
+            delegate.completeCalls.get().assert().isEqualTo(0)
+            delegate.errorCalls.get().assert().isEqualTo(1)
+            sink.scanUnsafe(Scannable.Attr.ERROR).assert().isSameAs(error)
+        } finally {
+            delegate.releaseFirstScan.countDown()
+            executor.shutdownNow()
+            executor.awaitTermination(5, TimeUnit.SECONDS).assert().isTrue()
+        }
+    }
+
+    @Test
+    fun `emit next should return when the delegate reports zero subscribers`() {
+        val delegate = ScriptedNextManySink<Int>(Sinks.EmitResult.FAIL_ZERO_SUBSCRIBER)
+        val sink = sinkWithDelegate(delegate)
+
+        sink.emitNext(1, Sinks.EmitFailureHandler.FAIL_FAST)
+
+        delegate.nextCalls.get().assert().isEqualTo(1)
+        sink.scanUnsafe(Scannable.Attr.TERMINATED).assert().isEqualTo(false)
+    }
+
+    @Test
+    fun `emit next should reject non serialized emission when the handler declines retry`() {
+        val delegate = ScriptedNextManySink<Int>(Sinks.EmitResult.FAIL_NON_SERIALIZED)
+        val sink = sinkWithDelegate(delegate)
+
+        val error = assertThrows<Sinks.EmissionException> {
+            sink.emitNext(1, Sinks.EmitFailureHandler.FAIL_FAST)
+        }
+
+        error.message.orEmpty().contains("Spec. Rule 1.3").assert().isTrue()
+        delegate.nextCalls.get().assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `emit next overflow should use an empty context without an actual subscriber`() {
+        val delegate = OverflowingNextManySink<Int>()
+        val sink = sinkWithDelegate(delegate)
+
+        sink.emitNext(1, Sinks.EmitFailureHandler.FAIL_FAST)
+
+        Exceptions.isOverflow(delegate.observedError.get()).assert().isTrue()
+        delegate.errorCalls.get().assert().isEqualTo(1)
+    }
+}
+
+@Suppress("UNCHECKED_CAST")
+private fun <T : Any> sinkWithDelegate(delegate: Sinks.Many<T>): MpscUnicastManySink<T> {
+    val constructor = MpscUnicastManySink::class.java.getDeclaredConstructor(Sinks.Many::class.java)
+    constructor.isAccessible = true
+    return constructor.newInstance(delegate) as MpscUnicastManySink<T>
+}
+
+private fun stateOf(sink: MpscUnicastManySink<*>): AtomicLong {
+    val field = MpscUnicastManySink::class.java.getDeclaredField("state")
+    field.isAccessible = true
+    return field.get(sink) as AtomicLong
+}
+
+private fun invokeReleaseNext(sink: MpscUnicastManySink<*>) {
+    val method = MpscUnicastManySink::class.java.getDeclaredMethod("releaseNext")
+    method.isAccessible = true
+    method.invoke(sink)
+}
+
+private fun invokeDelegateTerminal(sink: MpscUnicastManySink<*>): Sinks.EmitResult? {
+    val method = MpscUnicastManySink::class.java.getDeclaredMethod("delegateTerminal")
+    method.isAccessible = true
+    return method.invoke(sink) as Sinks.EmitResult?
 }
 
 private open class AlwaysAcceptingManySink<T : Any>(
@@ -809,6 +991,25 @@ private class OverflowingNextManySink<T : Any> : AlwaysAcceptingManySink<T>() {
     }
 }
 
+private class PausingFirstCancellationScanManySink<T : Any> : AlwaysAcceptingManySink<T>() {
+    val firstScanEntered = CountDownLatch(1)
+    val releaseFirstScan = CountDownLatch(1)
+    val cancellationScans = AtomicInteger()
+
+    override fun scanUnsafe(key: Scannable.Attr<*>): Any? {
+        if (key != Scannable.Attr.CANCELLED) {
+            return backing.scanUnsafe(key)
+        }
+        if (cancellationScans.incrementAndGet() == 1) {
+            firstScanEntered.countDown()
+            check(releaseFirstScan.await(5, TimeUnit.SECONDS)) {
+                "Timed out waiting to release the first cancellation scan."
+            }
+        }
+        return false
+    }
+}
+
 private class BlockingNextManySink : AlwaysAcceptingManySink<Int>() {
     val nextEntered = CountDownLatch(1)
     val releaseNext = CountDownLatch(1)
@@ -849,6 +1050,36 @@ private class BlockingNextManySink : AlwaysAcceptingManySink<Int>() {
         }
 
     override fun asFlux(): Flux<Int> = backing.asFlux()
+}
+
+private class BlockingMultipleNextManySink(
+    producerCount: Int,
+) : AlwaysAcceptingManySink<Int>() {
+    val allNextEntered = CountDownLatch(producerCount)
+    val releaseNext = Semaphore(0)
+
+    override fun tryEmitNext(t: Int): Sinks.EmitResult {
+        allNextEntered.countDown()
+        check(releaseNext.tryAcquire(5, TimeUnit.SECONDS)) {
+            "Timed out waiting to release a blocked next call."
+        }
+        return Sinks.EmitResult.OK
+    }
+}
+
+private class BlockingThrowingNextManySink(
+    private val failure: Throwable,
+) : AlwaysAcceptingManySink<Int>() {
+    val nextEntered = CountDownLatch(1)
+    val releaseNext = CountDownLatch(1)
+
+    override fun tryEmitNext(t: Int): Sinks.EmitResult {
+        nextEntered.countDown()
+        check(releaseNext.await(5, TimeUnit.SECONDS)) {
+            "Timed out waiting to release the throwing next call."
+        }
+        throw failure
+    }
 }
 
 private class PausingOfferQueue<T : Any>(
