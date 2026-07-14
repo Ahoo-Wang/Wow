@@ -16,6 +16,8 @@ package me.ahoo.wow.bi.renderer
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.bi.BiConsumerIdentity
 import me.ahoo.wow.bi.BiDeploymentDescriptor
+import me.ahoo.wow.bi.BiDeploymentPhase
+import me.ahoo.wow.bi.BiObjectKey
 import me.ahoo.wow.bi.BiObjectKind
 import me.ahoo.wow.bi.BiObjectMetadata
 import me.ahoo.wow.bi.BiObjectMetadataCodec
@@ -38,14 +40,24 @@ import me.ahoo.wow.bi.type.ClickHouseType
 import me.ahoo.wow.modeling.toStringWithAlias
 import java.util.Collections
 
+internal enum class CatalogMutationMode {
+    RECONCILE,
+    CREATE_ONLY,
+}
+
+// Keeping the complete ClickHouse graph here preserves shared naming, quoting, and ownership semantics.
+@Suppress("LargeClass")
 internal class ClickHouseScriptRenderer(
     private val options: BiScriptOptions = BiScriptOptions(consumerGroupNamespace = "test"),
     private val consumerIdentity: BiConsumerIdentity =
         BiConsumerIdentity.deterministic(BiDeploymentDescriptor.from(options)),
     private val deployment: BiDeploymentDescriptor = BiDeploymentDescriptor.from(options),
+    private val catalogMutationMode: CatalogMutationMode = CatalogMutationMode.RECONCILE,
+    private val retainedQueueKeys: Set<BiObjectKey> = emptySet(),
 ) {
     private val naming = BiTableNaming(options)
     private val topology = options.topology.toDdl()
+    private val metadataColumns = buildMetadataColumns(options.timezone)
 
     fun renderGlobal(): String = renderGlobalStatements().joinToString(STATEMENT_SEPARATOR)
 
@@ -100,9 +112,9 @@ internal class ClickHouseScriptRenderer(
         }
     )
 
-    fun renderAnchorStatement(): String {
-        val comment = metadataComment(BiObjectKind.ANCHOR, null)
-        return "CREATE OR REPLACE VIEW ${qualified(options.consumerDatabase, DEPLOYMENT_ANCHOR)}" +
+    fun renderAnchorStatement(phase: BiDeploymentPhase = BiDeploymentPhase.STABLE): String {
+        val comment = metadataComment(BiObjectKind.ANCHOR, null, phase)
+        return "$viewCreateClause ${qualified(options.consumerDatabase, DEPLOYMENT_ANCHOR)}" +
             "${scopeClause()} AS (SELECT 1 AS ${identifier("alive")} WHERE 0) COMMENT $comment;"
     }
 
@@ -110,8 +122,22 @@ internal class ClickHouseScriptRenderer(
     fun renderCommand(namedAggregate: NamedAggregate): String =
         renderCommandStatements(namedAggregate).joinToString(STATEMENT_SEPARATOR)
 
+    fun renderCommandStatements(namedAggregate: NamedAggregate): List<String> =
+        renderCommandGraphStatements(namedAggregate)
+
+    fun renderCommandStorageStatements(namedAggregate: NamedAggregate): List<String> =
+        renderCommandGraphStatements(namedAggregate).take(commandStorageStatementCount())
+
+    fun renderCommandPublicStatements(namedAggregate: NamedAggregate): List<String> =
+        renderCommandGraphStatements(namedAggregate).takeLast(COMMAND_PUBLIC_STATEMENT_COUNT)
+
+    fun renderCommandIngressStatements(namedAggregate: NamedAggregate): List<String> =
+        renderCommandGraphStatements(namedAggregate)
+            .drop(commandStorageStatementCount())
+            .dropLast(COMMAND_PUBLIC_STATEMENT_COUNT)
+
     @Suppress("LongMethod")
-    fun renderCommandStatements(namedAggregate: NamedAggregate): List<String> {
+    private fun renderCommandGraphStatements(namedAggregate: NamedAggregate): List<String> {
         val aggregate = namedAggregate.toStringWithAlias()
         val storeComment = metadataComment(BiObjectKind.STORE, aggregate)
         val viewComment = metadataComment(BiObjectKind.VIEW, aggregate)
@@ -128,7 +154,7 @@ internal class ClickHouseScriptRenderer(
             buildList {
                 add(
                     """
-                CREATE TABLE IF NOT EXISTS ${qualified(options.database, physicalTable)}${scopeClause()}
+                $tableCreateClause ${qualified(options.database, physicalTable)}${scopeClause()}
                 (
                     ${identifier("id")} String,
                     ${identifier("context_name")} String,
@@ -158,21 +184,25 @@ internal class ClickHouseScriptRenderer(
                     logicalTableName = storeTable,
                     physicalTableName = physicalTable,
                     shardingKey = "sipHash64(${identifier("aggregate_id")})",
+                    createIfNotExists = catalogMutationMode == CatalogMutationMode.RECONCILE,
                 )?.withTableComment(storeComment)?.let(::add)
-                add(dropView(options.consumerDatabase, consumerTable))
-                add(drop(options.consumerDatabase, queueTable))
-                add(
-                    """
-                CREATE TABLE IF NOT EXISTS ${qualified(options.consumerDatabase, queueTable)}${scopeClause()}
+                if (catalogMutationMode == CatalogMutationMode.RECONCILE) {
+                    add(dropView(options.consumerDatabase, consumerTable))
+                }
+                if (!isQueueRetained(queueTable)) {
+                    add(
+                        """
+                CREATE TABLE ${qualified(options.consumerDatabase, queueTable)}${scopeClause()}
                 (${identifier("data")} String)
                 ENGINE = Kafka(${literal(options.kafkaBootstrapServers)}, ${literal(topic)},
                                ${literal(consumerGroup(consumerTable))}, ${literal("JSONAsString")})
                 ${kafkaSettings(queueTable, queueComment)};
-                    """.trimIndent()
-                )
+                        """.trimIndent()
+                    )
+                }
                 add(
                     """
-                CREATE MATERIALIZED VIEW IF NOT EXISTS ${qualified(
+                $materializedViewCreateClause ${qualified(
                         options.consumerDatabase,
                         consumerTable
                     )}${scopeClause()}
@@ -201,7 +231,7 @@ internal class ClickHouseScriptRenderer(
                 )
                 add(
                     """
-                CREATE OR REPLACE VIEW ${qualified(options.database, table)}${scopeClause()}
+                $viewCreateClause ${qualified(options.database, table)}${scopeClause()}
                 AS (SELECT * FROM ${qualified(options.database, storeTable)} FINAL)
                 COMMENT $viewComment;
                     """.trimIndent()
@@ -236,13 +266,14 @@ internal class ClickHouseScriptRenderer(
         val stateTable = naming.toTableName(namedAggregate, STATE_SUFFIX)
         return immutableStatements(
             dropView(options.consumerDatabase, "${commandTable}_consumer"),
-            drop(options.consumerDatabase, "${commandTable}_queue"),
             dropView(options.consumerDatabase, "${stateTable}_consumer"),
-            drop(options.consumerDatabase, "${stateTable}_queue"),
         )
     }
 
     private fun stateStorageStatementCount(): Int =
+        if (options.topology is ClickHouseTopology.Cluster) 2 else 1
+
+    private fun commandStorageStatementCount(): Int =
         if (options.topology is ClickHouseTopology.Cluster) 2 else 1
 
     @Suppress("LongMethod")
@@ -263,7 +294,7 @@ internal class ClickHouseScriptRenderer(
             buildList {
                 add(
                     """
-            CREATE TABLE IF NOT EXISTS ${qualified(options.database, physicalTable)}${scopeClause()}
+            $tableCreateClause ${qualified(options.database, physicalTable)}${scopeClause()}
             (
                 ${identifier("id")} String,
                 ${identifier("context_name")} String,
@@ -294,22 +325,26 @@ internal class ClickHouseScriptRenderer(
                     logicalTableName = storeTable,
                     physicalTableName = physicalTable,
                     shardingKey = "sipHash64(${identifier("aggregate_id")})",
+                    createIfNotExists = catalogMutationMode == CatalogMutationMode.RECONCILE,
                 )?.withTableComment(storeComment)?.let(::add)
-                add(dropView(options.consumerDatabase, consumerTable))
-                add(drop(options.consumerDatabase, queueTable))
-                add(
-                    """
-            CREATE TABLE IF NOT EXISTS ${qualified(options.consumerDatabase, queueTable)}${scopeClause()}
+                if (catalogMutationMode == CatalogMutationMode.RECONCILE) {
+                    add(dropView(options.consumerDatabase, consumerTable))
+                }
+                if (!isQueueRetained(queueTable)) {
+                    add(
+                        """
+            CREATE TABLE ${qualified(options.consumerDatabase, queueTable)}${scopeClause()}
             (
                 ${identifier("data")} String
             ) ENGINE = Kafka(${literal(options.kafkaBootstrapServers)}, ${literal(topic)},
                              ${literal(consumerGroup(consumerTable))}, ${literal("JSONAsString")})
             ${kafkaSettings(queueTable, queueComment)};
-                    """.trimIndent()
-                )
+                        """.trimIndent()
+                    )
+                }
                 add(
                     """
-            CREATE MATERIALIZED VIEW IF NOT EXISTS ${qualified(options.consumerDatabase, consumerTable)}${scopeClause()}
+            $materializedViewCreateClause ${qualified(options.consumerDatabase, consumerTable)}${scopeClause()}
             TO ${qualified(options.database, storeTable)}
             AS (
             SELECT ${jsonString("data", "id")} AS ${identifier("id")},
@@ -336,14 +371,14 @@ internal class ClickHouseScriptRenderer(
                 )
                 add(
                     """
-            CREATE OR REPLACE VIEW ${qualified(options.database, table)}${scopeClause()}
+            $viewCreateClause ${qualified(options.database, table)}${scopeClause()}
             AS (SELECT * FROM ${qualified(options.database, storeTable)} FINAL)
             COMMENT $viewComment;
                     """.trimIndent()
                 )
                 add(
                     """
-            CREATE OR REPLACE VIEW ${qualified(options.database, eventTable)}${scopeClause()}
+            $viewCreateClause ${qualified(options.database, eventTable)}${scopeClause()}
             AS (
             WITH arrayJoin(arrayZip(arrayEnumerate(${identifier("body")}),
                                     ${identifier("body")})) AS ${identifier("events")}
@@ -364,7 +399,7 @@ internal class ClickHouseScriptRenderer(
                    ${jsonTupleValue("events", 2, "name", "String")} AS ${identifier("event_name")},
                    ${jsonTupleValue("events", 2, "revision", "String")} AS ${identifier("event_revision")},
                    ${jsonTupleValue("events", 2, "bodyType", "String")} AS ${identifier("event_body_type")},
-                   ${jsonTupleValue("events", 2, "body", "String")} AS ${identifier("event_body")},
+                   ${jsonTupleRaw("events", 2, "body")} AS ${identifier("event_body")},
                    ${identifier("first_operator")},
                    ${identifier("first_event_time")},
                    ${identifier("create_time")},
@@ -397,7 +432,7 @@ internal class ClickHouseScriptRenderer(
             buildList {
                 add(
                     """
-            CREATE TABLE IF NOT EXISTS ${qualified(options.database, physicalTable)}${scopeClause()}
+            $tableCreateClause ${qualified(options.database, physicalTable)}${scopeClause()}
             (
                 ${identifier("id")} String,
                 ${identifier("context_name")} String,
@@ -428,11 +463,14 @@ internal class ClickHouseScriptRenderer(
                     logicalTableName = storeTable,
                     physicalTableName = physicalTable,
                     shardingKey = "sipHash64(${identifier("aggregate_id")})",
+                    createIfNotExists = catalogMutationMode == CatalogMutationMode.RECONCILE,
                 )?.withTableComment(storeComment)?.let(::add)
-                add(dropView(options.consumerDatabase, consumerTable))
+                if (catalogMutationMode == CatalogMutationMode.RECONCILE) {
+                    add(dropView(options.consumerDatabase, consumerTable))
+                }
                 add(
                     """
-            CREATE MATERIALIZED VIEW IF NOT EXISTS ${qualified(options.consumerDatabase, consumerTable)}${scopeClause()}
+            $materializedViewCreateClause ${qualified(options.consumerDatabase, consumerTable)}${scopeClause()}
             TO ${qualified(options.database, storeTable)}
             AS (
             SELECT *
@@ -442,7 +480,7 @@ internal class ClickHouseScriptRenderer(
                 )
                 add(
                     """
-            CREATE OR REPLACE VIEW ${qualified(options.database, table)}${scopeClause()}
+            $viewCreateClause ${qualified(options.database, table)}${scopeClause()}
             AS (SELECT * FROM ${qualified(options.database, storeTable)} FINAL)
             COMMENT $viewComment;
                     """.trimIndent()
@@ -470,7 +508,7 @@ internal class ClickHouseScriptRenderer(
             .joinToString(",\n")
         return buildString {
             appendLine(
-                "CREATE OR REPLACE VIEW ${qualified(options.database, view.targetTableName)}" +
+                "$viewCreateClause ${qualified(options.database, view.targetTableName)}" +
                     "${scopeClause()} AS ("
             )
             if (withSql.isNotBlank()) {
@@ -588,11 +626,17 @@ internal class ClickHouseScriptRenderer(
 
     private fun literal(value: String): String = stringLiteral(value)
 
-    private fun metadataComment(kind: BiObjectKind, aggregate: String?): String = literal(
+    private fun metadataComment(
+        kind: BiObjectKind,
+        aggregate: String?,
+        phase: BiDeploymentPhase = BiDeploymentPhase.STABLE,
+    ): String = literal(
         BiObjectMetadataCodec.encode(
             BiObjectMetadata(
                 deploymentId = deployment.deploymentId,
                 configurationFingerprint = deployment.configurationFingerprint,
+                topologyFingerprint = deployment.topologyFingerprint,
+                phase = phase,
                 aggregate = aggregate,
                 kind = kind,
                 consumerIdentity = consumerIdentity.value,
@@ -657,39 +701,32 @@ internal class ClickHouseScriptRenderer(
     ): String =
         "JSONExtract(${identifier(source)}.$tupleIndex, ${literal(property)}, ${literal(sqlType)})"
 
+    private fun jsonTupleRaw(source: String, tupleIndex: Int, property: String): String =
+        "JSONExtractRaw(${identifier(source)}.$tupleIndex, ${literal(property)})"
+
+    private val tableCreateClause: String
+        get() = when (catalogMutationMode) {
+            CatalogMutationMode.RECONCILE -> "CREATE TABLE IF NOT EXISTS"
+            CatalogMutationMode.CREATE_ONLY -> "CREATE TABLE"
+        }
+
+    private val materializedViewCreateClause: String
+        get() = when (catalogMutationMode) {
+            CatalogMutationMode.RECONCILE -> "CREATE MATERIALIZED VIEW IF NOT EXISTS"
+            CatalogMutationMode.CREATE_ONLY -> "CREATE MATERIALIZED VIEW"
+        }
+
+    private val viewCreateClause: String
+        get() = when (catalogMutationMode) {
+            CatalogMutationMode.RECONCILE -> "CREATE OR REPLACE VIEW"
+            CatalogMutationMode.CREATE_ONLY -> "CREATE VIEW"
+        }
+
+    private fun isQueueRetained(queueTable: String): Boolean =
+        BiObjectKey(options.consumerDatabase, queueTable) in retainedQueueKeys
+
     private fun epochMillis(source: String, property: String): String =
         "toDateTime64(${jsonInt(source, property)} / 1000.0, 3, ${literal(options.timezone)})"
-
-    private val metadataColumns: List<ColumnPlan> = listOf(
-        metadataColumn("id", ClickHouseType.String),
-        metadataColumn("aggregate_id", ClickHouseType.String),
-        metadataColumn("tenant_id", ClickHouseType.String),
-        metadataColumn("owner_id", ClickHouseType.String),
-        metadataColumn("space_id", ClickHouseType.String),
-        metadataColumn("command_id", ClickHouseType.String),
-        metadataColumn("request_id", ClickHouseType.String),
-        metadataColumn("version", ClickHouseType.UInt32),
-        metadataColumn("first_operator", ClickHouseType.String),
-        metadataColumn("first_event_time", ClickHouseType.DateTime64(3, options.timezone)),
-        metadataColumn("create_time", ClickHouseType.DateTime64(3, options.timezone)),
-        metadataColumn(
-            "tags",
-            ClickHouseType.Map(
-                ClickHouseType.String,
-                ClickHouseType.Array(ClickHouseType.String),
-            ),
-        ),
-        metadataColumn("deleted", ClickHouseType.Bool),
-    )
-
-    private fun metadataColumn(name: String, type: ClickHouseType): ColumnPlan = ColumnPlan(
-        name = name,
-        path = name,
-        targetName = "__$name",
-        type = type,
-        extraction = ColumnExtraction.Reference(ColumnReference.Input(name)),
-        placement = ColumnPlacement.SELECT,
-    )
 
     companion object {
         const val DEPLOYMENT_ANCHOR = "__wow_bi_deployment"
@@ -702,6 +739,38 @@ internal class ClickHouseScriptRenderer(
         const val INDEX_TARGET = "__index"
         const val SOURCE_ALIAS = "__source"
         const val STATEMENT_SEPARATOR = "\n\n"
+        const val COMMAND_PUBLIC_STATEMENT_COUNT: Int = 1
         const val STATE_PUBLIC_STATEMENT_COUNT: Int = 2
     }
 }
+
+private fun buildMetadataColumns(timezone: String): List<ColumnPlan> = listOf(
+    metadataColumn("id", ClickHouseType.String),
+    metadataColumn("aggregate_id", ClickHouseType.String),
+    metadataColumn("tenant_id", ClickHouseType.String),
+    metadataColumn("owner_id", ClickHouseType.String),
+    metadataColumn("space_id", ClickHouseType.String),
+    metadataColumn("command_id", ClickHouseType.String),
+    metadataColumn("request_id", ClickHouseType.String),
+    metadataColumn("version", ClickHouseType.UInt32),
+    metadataColumn("first_operator", ClickHouseType.String),
+    metadataColumn("first_event_time", ClickHouseType.DateTime64(3, timezone)),
+    metadataColumn("create_time", ClickHouseType.DateTime64(3, timezone)),
+    metadataColumn(
+        "tags",
+        ClickHouseType.Map(
+            ClickHouseType.String,
+            ClickHouseType.Array(ClickHouseType.String),
+        ),
+    ),
+    metadataColumn("deleted", ClickHouseType.Bool),
+)
+
+private fun metadataColumn(name: String, type: ClickHouseType): ColumnPlan = ColumnPlan(
+    name = name,
+    path = name,
+    targetName = "__$name",
+    type = type,
+    extraction = ColumnExtraction.Reference(ColumnReference.Input(name)),
+    placement = ColumnPlacement.SELECT,
+)

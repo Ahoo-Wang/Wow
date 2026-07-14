@@ -63,6 +63,7 @@ internal class GenerateBIScriptRouteContributorTest {
                 Https.Code.BAD_GATEWAY,
                 Https.Code.SERVICE_UNAVAILABLE,
                 Https.Code.GATEWAY_TIMEOUT,
+                Https.Code.INTERNAL_SERVER_ERROR,
             )
         contract.responses.first().content.map(HttpContent::mediaType).assert().containsExactly(
             Https.MediaType.APPLICATION_SQL,
@@ -90,6 +91,7 @@ internal class GenerateBIScriptRouteContributorTest {
             Https.Code.BAD_GATEWAY,
             Https.Code.SERVICE_UNAVAILABLE,
             Https.Code.GATEWAY_TIMEOUT,
+            Https.Code.INTERNAL_SERVER_ERROR,
         ).forEach { statusCode ->
             responses.single { it.statusCode == statusCode }.run {
                 description.assert().isNotNull()

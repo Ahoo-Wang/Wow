@@ -50,7 +50,10 @@ object GenerateBIScriptRouteContributor : RouteContributor {
                 path = BuiltInHttpRoutePaths.Global.BI_SCRIPT,
                 handlerKey = BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT,
                 summary = "Generate BI Sync Script",
-                accept = listOf(Https.MediaType.APPLICATION_SQL, Https.MediaType.APPLICATION_JSON),
+                accept = listOf(
+                    Https.MediaType.APPLICATION_SQL,
+                    Https.MediaType.APPLICATION_JSON,
+                ),
                 requestBody = HttpRequestBody(
                     required = true,
                     description = "BI script option overrides.",
@@ -84,6 +87,11 @@ object GenerateBIScriptRouteContributor : RouteContributor {
                         componentContext,
                         Https.Code.GATEWAY_TIMEOUT,
                         "ClickHouse catalog inspection timed out.",
+                    ),
+                    errorResponse(
+                        componentContext,
+                        Https.Code.INTERNAL_SERVER_ERROR,
+                        "Unexpected BI script generation failure.",
                     ),
                 ),
                 tags = wowTags()

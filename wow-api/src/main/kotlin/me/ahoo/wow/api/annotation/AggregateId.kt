@@ -19,7 +19,10 @@ const val DEFAULT_AGGREGATE_ID_NAME = "id"
 /**
  * Marks a field or property as the aggregate identifier.
  *
- * The aggregate ID uniquely identifies an instance of an aggregate within its bounded context.
+ * The aggregate ID uniquely identifies an instance within its named aggregate. This uniqueness is global across
+ * tenants: tenant ID is routing and isolation context, not a namespace that permits reusing the same aggregate ID.
+ * Two instances of the same aggregate type must therefore never share an ID, even when they belong to different
+ * tenants.
  * This annotation is used by the framework to automatically map command payloads to the correct
  * aggregate instances and to generate routing information.
  *

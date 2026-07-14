@@ -24,6 +24,7 @@ import me.ahoo.wow.naming.NamingConverter
 import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.TestFactory
+import org.junit.jupiter.api.assertThrows
 import org.testcontainers.clickhouse.ClickHouseContainer
 import org.testcontainers.utility.DockerImageName
 import org.testcontainers.utility.MountableFile
@@ -34,8 +35,10 @@ import tools.jackson.databind.annotation.JsonSerialize
 import tools.jackson.databind.jsonFormatVisitors.JsonFormatVisitorWrapper
 import tools.jackson.databind.ser.std.StdSerializer
 import java.math.BigDecimal
+import java.net.URI
 import java.sql.Connection
 import java.sql.DriverManager
+import java.sql.SQLException
 import java.time.Duration
 import java.time.Instant
 import java.time.Year
@@ -70,7 +73,9 @@ class ClickHouseExpansionIntegrationTest {
             consumerGroupNamespace = "integration-test",
         )
         val namedAggregate = aggregateMetadata<ClickHouseExpansionAggregate, ClickHouseExpansionState>()
-        val result = BiScriptGenerator(options).generate(setOf(namedAggregate))
+        val generator = BiScriptGenerator(options)
+        val namedAggregates = setOf(namedAggregate)
+        val result = generator.generate(namedAggregates)
         result.diagnostics
             .filter { it.path == "claimedArrayList" || it.path == "claimedMap" }
             .associate { it.path to it.code }
@@ -132,17 +137,64 @@ class ClickHouseExpansionIntegrationTest {
                 ).single().assert().isEqualTo(EXPECTED_SCALAR_ROW)
 
                 connection.assertLatestStateReadsAreDeduplicated()
-                connection.assertDeployIsIdempotent(result, case)
+                connection.assertOfflineDeployFailsClosed(result, case)
+                ClickHouseBiDeploymentInspector(
+                    ClickHouseClientOptions(
+                        endpoints = listOf(URI.create(clickHouse.httpUrl)),
+                        username = clickHouse.username,
+                        password = clickHouse.password,
+                    )
+                ).use { inspector ->
+                    repeat(2) {
+                        val authoritativeDeploy = generator.generate(
+                            namedAggregates,
+                            inspection = inspector.inspect(options).block()!!,
+                        )
+                        connection.assertAuthoritativeDeployIsIdempotent(authoritativeDeploy, case)
+                    }
+                }
             }
         }
     }
 
-    private fun Connection.assertDeployIsIdempotent(
+    private fun Connection.assertOfflineDeployFailsClosed(
         result: BiScriptResult,
         case: TopologyCase,
     ) {
         val before = listOf(COMMAND_STORE_TABLE, STATE_STORE_TABLE, STATE_LAST_STORE_TABLE)
             .associateWith { table -> queryCount("SELECT count() FROM ${qualified(DATABASE, table)}") }
+
+        val failure = assertThrows<SQLException> {
+            result.statements.forEach(::executeSql)
+        }
+        generateSequence<Throwable>(failure) { error -> error.cause }
+            .mapNotNull { error -> error.message }
+            .joinToString("\n")
+            .assert()
+            .contains("TABLE_ALREADY_EXISTS")
+
+        assertGeneratedObjects(case)
+        before.forEach { (table, expectedCount) ->
+            queryCount("SELECT count() FROM ${qualified(DATABASE, table)}")
+                .assert().isEqualTo(expectedCount)
+        }
+    }
+
+    private fun Connection.assertAuthoritativeDeployIsIdempotent(
+        result: BiScriptResult,
+        case: TopologyCase,
+    ) {
+        val before = listOf(COMMAND_STORE_TABLE, STATE_STORE_TABLE, STATE_LAST_STORE_TABLE)
+            .associateWith { table -> queryCount("SELECT count() FROM ${qualified(DATABASE, table)}") }
+        val queueUuids = queueUuids()
+        queueUuids.values.forEach { uuid -> uuid.assert().isNotEqualTo(NIL_UUID) }
+        val script = result.statements.joinToString("\n")
+        queueUuids.keys.forEach { queue ->
+            script.assert().doesNotContain(
+                "DROP TABLE IF EXISTS ${qualified(CONSUMER_DATABASE, queue)}",
+                "CREATE TABLE ${qualified(CONSUMER_DATABASE, queue)}",
+            )
+        }
 
         result.statements.forEach(::executeSql)
 
@@ -151,7 +203,17 @@ class ClickHouseExpansionIntegrationTest {
             queryCount("SELECT count() FROM ${qualified(DATABASE, table)}")
                 .assert().isEqualTo(expectedCount)
         }
+        queueUuids().assert().isEqualTo(queueUuids)
     }
+
+    private fun Connection.queueUuids(): Map<String, String> =
+        listOf("${COMMAND_TABLE}_queue", "${STATE_TABLE}_queue").associateWith { queue ->
+            queryRows(
+                "SELECT toString(uuid) AS uuid FROM system.tables " +
+                    "WHERE database = ${literal(CONSUMER_DATABASE)} AND name = ${literal(queue)}",
+                listOf("uuid"),
+            ).single().getValue("uuid")
+        }
 
     private fun Connection.assertJsonExtractionSemantics() {
         val unicodeEscape = "\\u0041"
@@ -483,6 +545,7 @@ class ClickHouseExpansionIntegrationTest {
         const val STATE_STORE_TABLE = "${STATE_TABLE}_store"
         const val STATE_LAST_TABLE = "bi_it_nullable_state_last"
         const val STATE_LAST_STORE_TABLE = "${STATE_LAST_TABLE}_store"
+        const val NIL_UUID = "00000000-0000-0000-0000-000000000000"
         const val ROOT_VIEW = "bi_it_nullable_state_last_root"
         const val CHILD_VIEW = "bi_it_nullable_state_last_root_nullable_objects"
         const val RECOVERY_CHILD_VIEW = "bi_it_nullable_state_last_root_recovery_items"

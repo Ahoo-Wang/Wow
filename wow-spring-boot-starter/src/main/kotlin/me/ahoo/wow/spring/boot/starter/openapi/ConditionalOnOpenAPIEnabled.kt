@@ -15,7 +15,6 @@ package me.ahoo.wow.spring.boot.starter.openapi
 
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
-import me.ahoo.wow.spring.boot.starter.mongo.ENABLED_KEY
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 

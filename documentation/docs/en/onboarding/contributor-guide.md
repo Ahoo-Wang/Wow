@@ -576,7 +576,7 @@ Source: [README.md:70-99](https://github.com/Ahoo-Wang/Wow/blob/main/README.md#L
 | Interface / Class | Module | Role | Source |
 |---|---|---|---|
 | `Named` | `wow-api` | Base interface for nameable objects | [Named.kt:22](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/naming/Named.kt#L22) |
-| `AggregateId` | `wow-api` | Composite aggregate identifier: tenant + context + name + id | [AggregateId.kt:29](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/modeling/AggregateId.kt#L29) |
+| `AggregateId` | `wow-api` | Aggregate coordinates carrying tenant, context, name, and ID; the ID is unique within the named aggregate across tenants | [AggregateId.kt:29](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/modeling/AggregateId.kt#L29) |
 | `CommandMessage<C>` | `wow-api` | Command envelope with aggregate targeting, versioning, idempotency | [CommandMessage.kt:53](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt#L53) |
 | `DomainEvent<T>` | `wow-api` | Immutable fact about past state change, carries aggregate identity | [DomainEvent.kt:52](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L52) |
 | `Message<SOURCE, T>` | `wow-api` | Generic message with header + body, fluent API | [Message.kt:38](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/messaging/Message.kt#L38) |
@@ -1042,7 +1042,7 @@ allEvents!!.forEach { println("Event: ${it.body}") }
 | Term | Definition | Key Source |
 |---|---|---|
 | **Aggregate** | A cluster of domain objects treated as a single transactional unit. In Wow, split into `CommandAggregate` (handles commands) and `StateAggregate` (holds state). | [CommandAggregate.kt:41-53](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt#L41-L53) |
-| **AggregateId** | Composite identifier: `tenantId` + `contextName` + `aggregateName` + `id`. Supports multi-tenancy, sharding, and comparison. | [AggregateId.kt:29-57](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/modeling/AggregateId.kt#L29-L57) |
+| **AggregateId** | Aggregate coordinates carrying `tenantId`, `contextName`, `aggregateName`, and `id`. Within one named aggregate, `id` is unique across tenants; `tenantId` is routing and isolation context, not an ID namespace. | [AggregateId.kt:29-57](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/modeling/AggregateId.kt#L29-L57) |
 | **Aggregate Root** | The entry point to an aggregate. Annotated with `@AggregateRoot`. All external references go through it. | [AggregateRoot.kt:66](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoot.kt#L66) |
 | **Bounded Context** | A DDD term for a boundary within which a domain model is consistent. In Wow, defined by the `@BoundedContext` annotation and the `contextName` in `AggregateId`. | [AggregateId.kt:29](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/modeling/AggregateId.kt#L29) |
 | **Command** | A request to change the state of an aggregate. Represented by `CommandMessage<C>`. Commands are imperative: "Do this." | [CommandMessage.kt:53](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt#L53) |

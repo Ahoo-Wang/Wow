@@ -66,7 +66,7 @@ class BiDeploymentInspectorAutoConfiguration {
             val inspectorProperties = biScriptProperties.inspector
             inspectorProperties.timeout.validateTimeout("inspector.timeout")
             val properties = inspectorProperties.clickhouse
-            properties.validate()
+            properties.validate(inspectorProperties.timeout)
             return ClickHouseBiDeploymentInspector(
                 clientOptions = properties.toClientOptions(),
                 inspectionTimeout = inspectorProperties.timeout,
@@ -75,7 +75,7 @@ class BiDeploymentInspectorAutoConfiguration {
     }
 }
 
-private fun BiClickHouseInspectorProperties.validate() {
+private fun BiClickHouseInspectorProperties.validate(inspectionTimeout: java.time.Duration) {
     require(endpoints.isNotEmpty()) {
         "inspector.clickhouse.endpoints must not be empty when inspector.type=CLICKHOUSE"
     }
@@ -90,9 +90,11 @@ private fun BiClickHouseInspectorProperties.validate() {
     connectionRequestTimeout.validateTimeout("inspector.clickhouse.connection-request-timeout")
     socketTimeout.validateTimeout(
         property = "inspector.clickhouse.socket-timeout",
-        allowZero = true,
         maxMillis = Int.MAX_VALUE.toLong(),
     )
+    require(socketTimeout <= inspectionTimeout) {
+        "inspector.clickhouse.socket-timeout must not exceed inspector.timeout"
+    }
     executionTimeout.validateTimeout(
         property = "inspector.clickhouse.execution-timeout",
         allowZero = true,

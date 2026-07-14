@@ -395,6 +395,8 @@ This mapping (see [FunctionKind.kt:27-71](https://github.com/Ahoo-Wang/Wow/blob/
 
 Wow supports multi-tenancy at the aggregate level. Every `AggregateId` includes a `tenantId` property. Commands are scoped to a tenant, and the event store partitions events by tenant.
 
+> **Aggregate ID uniqueness:** `tenantId` does not create an independent aggregate-ID namespace. Within the same `NamedAggregate` (`contextName` + `aggregateName`), `id` must be unique across all tenants. For example, two `order` aggregate instances must not both use `order-123`, even if one belongs to tenant A and the other to tenant B. The tenant ID remains routing and isolation context, but it does not relax aggregate ID uniqueness.
+
 Tenancy can be configured at the annotation level:
 
 - `@TenantId` on a command parameter to extract tenant from the command body

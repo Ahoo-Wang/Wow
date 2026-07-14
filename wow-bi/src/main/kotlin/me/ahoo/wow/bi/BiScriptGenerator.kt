@@ -17,13 +17,14 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.bi.expansion.BiTableNaming
 import me.ahoo.wow.bi.expansion.plan.StateExpansionPlan
 import me.ahoo.wow.bi.expansion.plan.StateExpansionPlanner
+import me.ahoo.wow.bi.renderer.CatalogMutationMode
 import me.ahoo.wow.bi.renderer.ClickHouseScriptRenderer
 import me.ahoo.wow.modeling.toStringWithAlias
 import java.util.Collections
 
 class BiScriptGenerator(private val options: BiScriptOptions = BiScriptOptions()) {
 
-    @Suppress("LongMethod")
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun generate(
         namedAggregates: Set<NamedAggregate>,
         operation: BiScriptOperation = BiScriptOperation.Deploy,
@@ -43,12 +44,24 @@ class BiScriptGenerator(private val options: BiScriptOptions = BiScriptOptions()
             .sortedWith(compareBy<NamedAggregate> { it.contextName }.thenBy { it.aggregateName })
             .map { namedAggregate -> PlannedAggregate(namedAggregate, planner.plan(namedAggregate)) }
         val descriptor = BiDeploymentDescriptor.from(options)
-        val desiredObjects = plannedAggregates.desiredObjects() + desiredAnchor()
+        val shouldRenderDeploymentAnchor = options.consumerGroupNamespace != null
+        require(operation !is BiScriptOperation.Reset || shouldRenderDeploymentAnchor) {
+            "consumerGroupNamespace must be configured before RESET so its recovery state can be persisted"
+        }
+        val desiredObjects = plannedAggregates.desiredObjects() +
+            if (shouldRenderDeploymentAnchor) listOf(desiredAnchor()) else emptyList()
         validateDesiredObjectNames(desiredObjects)
         val observed = (inspection as? BiDeploymentInspection.Available)?.deployment
         observed?.validate(descriptor, desiredObjects, operation)
         val consumerIdentity = resolveConsumerIdentity(operation, descriptor, observed)
-        val renderer = ClickHouseScriptRenderer(options, consumerIdentity, descriptor)
+        val retainedQueueKeys = resolveRetainedQueueKeys(operation, desiredObjects, descriptor, observed)
+        val renderer = ClickHouseScriptRenderer(
+            options,
+            consumerIdentity,
+            descriptor,
+            if (observed == null) CatalogMutationMode.CREATE_ONLY else CatalogMutationMode.RECONCILE,
+            retainedQueueKeys,
+        )
 
         val globalSection = ScriptSection("global", renderer.renderGlobalStatements())
         val lifecycleSections = renderLifecycle(
@@ -59,29 +72,54 @@ class BiScriptGenerator(private val options: BiScriptOptions = BiScriptOptions()
             observed,
             renderer,
         )
-        val aggregateSections = plannedAggregates.flatMap { planned ->
+        val durableAggregateSections = plannedAggregates.flatMap { planned ->
             val name = planned.namedAggregate.toStringWithAlias()
             listOf(
-                ScriptSection("$name.command", renderer.renderCommandStatements(planned.namedAggregate)),
+                ScriptSection("$name.commandStorage", renderer.renderCommandStorageStatements(planned.namedAggregate)),
                 ScriptSection("$name.stateStorage", renderer.renderStateStorageStatements(planned.namedAggregate)),
                 ScriptSection("$name.stateLast", renderer.renderStateLastStatements(planned.namedAggregate)),
                 ScriptSection("$name.expansion", renderer.renderExpansionStatements(planned.plan, name)),
+                ScriptSection("$name.commandPublic", renderer.renderCommandPublicStatements(planned.namedAggregate)),
                 ScriptSection("$name.statePublic", renderer.renderStatePublicStatements(planned.namedAggregate)),
+            )
+        }
+        val ingressSections = plannedAggregates.flatMap { planned ->
+            val name = planned.namedAggregate.toStringWithAlias()
+            listOf(
+                ScriptSection("$name.commandIngress", renderer.renderCommandIngressStatements(planned.namedAggregate)),
                 ScriptSection("$name.stateIngress", renderer.renderStateIngressStatements(planned.namedAggregate)),
             )
         }
-        val anchorSection = ScriptSection("deployment-anchor", listOf(renderer.renderAnchorStatement()))
-        val orderedSections = listOf(globalSection) + lifecycleSections + aggregateSections + anchorSection
+        val resetIntentSection = if (operation is BiScriptOperation.Reset) {
+            ScriptSection(
+                "deployment-reset-intent",
+                listOf(renderer.renderAnchorStatement(BiDeploymentPhase.RESETTING)),
+            )
+        } else {
+            null
+        }
+        val anchorSection = if (shouldRenderDeploymentAnchor) {
+            ScriptSection(
+                "deployment-anchor",
+                listOf(renderer.renderAnchorStatement(BiDeploymentPhase.STABLE)),
+            )
+        } else {
+            null
+        }
+        val orderedSections = listOf(globalSection) + listOfNotNull(resetIntentSection) + lifecycleSections +
+            durableAggregateSections + listOfNotNull(anchorSection) + ingressSections
         val statements = Collections.unmodifiableList(
             ArrayList(orderedSections.flatMap(ScriptSection::statements))
         )
         val script = buildString {
             appendSection(globalSection)
             appendLine("-- lifecycle --")
+            resetIntentSection?.let { section -> appendSection(section) }
             lifecycleSections.forEach { section -> appendSection(section) }
             appendLine("-- lifecycle --")
-            aggregateSections.forEach { section -> appendSection(section) }
-            appendSection(anchorSection)
+            durableAggregateSections.forEach { section -> appendSection(section) }
+            anchorSection?.let { section -> appendSection(section) }
+            ingressSections.forEach { section -> appendSection(section) }
         }
         val diagnostics = buildList {
             if (plannedAggregates.isNotEmpty()) {
@@ -102,6 +140,25 @@ class BiScriptGenerator(private val options: BiScriptOptions = BiScriptOptions()
         )
     }
 
+    private fun resolveRetainedQueueKeys(
+        operation: BiScriptOperation,
+        desiredObjects: List<DesiredBiObject>,
+        descriptor: BiDeploymentDescriptor,
+        observed: ObservedBiDeployment?,
+    ): Set<BiObjectKey> {
+        if (operation != BiScriptOperation.Deploy || observed == null) {
+            return emptySet()
+        }
+        val desiredQueueKeys = desiredObjects.asSequence()
+            .filter { it.kind == BiObjectKind.QUEUE }
+            .map(DesiredBiObject::key)
+            .toSet()
+        return observed.ownedBy(descriptor).asSequence()
+            .filter { it.metadata?.kind == BiObjectKind.QUEUE && it.key in desiredQueueKeys }
+            .map(ObservedBiObject::key)
+            .toSet()
+    }
+
     private fun renderLifecycle(
         operation: BiScriptOperation,
         plannedAggregates: List<PlannedAggregate>,
@@ -112,13 +169,15 @@ class BiScriptGenerator(private val options: BiScriptOptions = BiScriptOptions()
     ): List<ScriptSection> = buildList {
         when (operation) {
             BiScriptOperation.Deploy -> {
-                plannedAggregates.forEach { planned ->
-                    add(
-                        ScriptSection(
-                            "${planned.namedAggregate.toStringWithAlias()}.pause-ingress",
-                            renderer.renderPauseIngressStatements(planned.namedAggregate),
+                if (observed != null) {
+                    plannedAggregates.forEach { planned ->
+                        add(
+                            ScriptSection(
+                                "${planned.namedAggregate.toStringWithAlias()}.pause-ingress",
+                                renderer.renderPauseIngressStatements(planned.namedAggregate),
+                            )
                         )
-                    )
+                    }
                 }
                 val desiredKeys = desiredObjects.map(DesiredBiObject::key).toSet()
                 val staleObjects = observed?.ownedBy(descriptor).orEmpty()
@@ -131,7 +190,9 @@ class BiScriptGenerator(private val options: BiScriptOptions = BiScriptOptions()
             }
 
             is BiScriptOperation.Reset -> {
+                val anchorKey = desiredAnchor().key
                 val ownedObjects = checkNotNull(observed).ownedBy(descriptor)
+                    .filterNot { it.key == anchorKey }
                 if (ownedObjects.isNotEmpty()) {
                     add(ScriptSection("reset-observed-catalog", renderer.renderDropObservedStatements(ownedObjects)))
                 }
@@ -146,7 +207,18 @@ class BiScriptGenerator(private val options: BiScriptOptions = BiScriptOptions()
     ): BiConsumerIdentity = when (operation) {
         BiScriptOperation.Deploy ->
             observed?.consumerIdentity(descriptor) ?: BiConsumerIdentity.deterministic(descriptor)
-        is BiScriptOperation.Reset -> BiConsumerIdentity.random()
+        is BiScriptOperation.Reset ->
+            observed?.resettingAnchor(descriptor)?.metadata?.consumerIdentity
+                ?.let(::BiConsumerIdentity)
+                ?: BiConsumerIdentity.random()
+    }
+
+    private fun ObservedBiDeployment.resettingAnchor(
+        descriptor: BiDeploymentDescriptor,
+    ): ObservedBiObject? = objects.firstOrNull { observed ->
+        observed.key == desiredAnchor().key &&
+            observed.metadata?.deploymentId == descriptor.deploymentId &&
+            observed.metadata.phase == BiDeploymentPhase.RESETTING
     }
 
     private fun ObservedBiDeployment.consumerIdentity(descriptor: BiDeploymentDescriptor): BiConsumerIdentity? {
@@ -169,26 +241,125 @@ class BiScriptGenerator(private val options: BiScriptOptions = BiScriptOptions()
         operation: BiScriptOperation,
     ) {
         val desiredByKey = desiredObjects.associateBy(DesiredBiObject::key)
+        validateDeploymentTopology(descriptor)
+        validateDeploymentAnchor(descriptor, operation)
         objects.forEach { observed ->
-            val desired = desiredByKey[observed.key]
-            val metadata = observed.metadata
-            if (desired != null) {
-                require(metadata != null && metadata.deploymentId == descriptor.deploymentId) {
-                    "BI object [${observed.database}.${observed.name}] is occupied by a foreign catalog object"
-                }
-                require(metadata.kind == desired.kind && metadata.aggregate == desired.aggregate) {
-                    "BI object [${observed.database}.${observed.name}] has inconsistent ownership metadata"
-                }
-            }
-            if (metadata?.deploymentId == descriptor.deploymentId && operation == BiScriptOperation.Deploy) {
-                require(metadata.configurationFingerprint == descriptor.configurationFingerprint) {
-                    "Observed BI deployment configuration differs from the requested configuration; use RESET"
-                }
-            }
+            validateObservedObject(
+                observed = observed,
+                desired = desiredByKey[observed.key],
+                descriptor = descriptor,
+                operation = operation,
+            )
         }
         if (operation == BiScriptOperation.Deploy) {
             consumerIdentity(descriptor)
         }
+    }
+
+    private fun ObservedBiDeployment.validateDeploymentTopology(
+        descriptor: BiDeploymentDescriptor,
+    ) {
+        val currentObjects = ownedBy(descriptor)
+        if (currentObjects.isEmpty()) {
+            return
+        }
+        val observedTopologies = currentObjects.map { observed ->
+            requireNotNull(observed.metadata).topologyFingerprint
+        }.distinct()
+        require(observedTopologies.size <= 1) {
+            "Observed BI deployment contains mixed topology fingerprints: $observedTopologies"
+        }
+        require(observedTopologies.single() == descriptor.topologyFingerprint) {
+            "Observed BI deployment topology differs from the requested topology and cannot be migrated through " +
+                "DEPLOY or RESET"
+        }
+    }
+
+    private fun ObservedBiDeployment.validateDeploymentAnchor(
+        descriptor: BiDeploymentDescriptor,
+        operation: BiScriptOperation,
+    ) {
+        val deploymentAnchors = objects.filter { observed ->
+            observed.metadata?.deploymentId == descriptor.deploymentId &&
+                observed.metadata.kind == BiObjectKind.ANCHOR
+        }
+        require(deploymentAnchors.size <= 1) {
+            "Observed BI deployment contains multiple deployment anchors: " +
+                deploymentAnchors.map { anchor -> "${anchor.database}.${anchor.name}" }.sorted()
+        }
+        deploymentAnchors.singleOrNull()?.let { anchor ->
+            val canonicalAnchor = desiredAnchor().key
+            require(anchor.key == canonicalAnchor) {
+                "Observed BI deployment anchor must use canonical key " +
+                    "[${canonicalAnchor.database}.${canonicalAnchor.name}], but found " +
+                    "[${anchor.database}.${anchor.name}]"
+            }
+        }
+        resettingAnchor(descriptor)?.let { anchor ->
+            val metadata = checkNotNull(anchor.metadata)
+            when (operation) {
+                BiScriptOperation.Deploy -> throw IllegalArgumentException(
+                    "Observed BI deployment is RESETTING; retry RESET with the same configuration"
+                )
+
+                is BiScriptOperation.Reset -> require(
+                    metadata.configurationFingerprint == descriptor.configurationFingerprint
+                ) {
+                    "Observed BI deployment is RESETTING with a different configuration; " +
+                        "retry RESET with the original configuration"
+                }
+            }
+        }
+    }
+
+    private fun validateObservedObject(
+        observed: ObservedBiObject,
+        desired: DesiredBiObject?,
+        descriptor: BiDeploymentDescriptor,
+        operation: BiScriptOperation,
+    ) {
+        val metadata = observed.metadata
+        if (desired != null) {
+            require(
+                metadata != null &&
+                    metadata.deploymentId == descriptor.deploymentId
+            ) {
+                "BI object [${observed.database}.${observed.name}] is occupied by a foreign catalog object"
+            }
+            require(metadata.kind == desired.kind && metadata.aggregate == desired.aggregate) {
+                "BI object [${observed.database}.${observed.name}] has inconsistent ownership metadata"
+            }
+            if (desired.kind == BiObjectKind.ANCHOR) {
+                require(observed.engine == desired.expectedEngine) {
+                    "BI deployment anchor [${observed.database}.${observed.name}] must use the View engine"
+                }
+            } else {
+                require(observed.engine == desired.expectedEngine) {
+                    "BI object [${observed.database}.${observed.name}] has incompatible engine " +
+                        "[${observed.engine}]; expected engine [${desired.expectedEngine}]"
+                }
+            }
+        } else if (metadata?.deploymentId == descriptor.deploymentId) {
+            require(metadata.kind.acceptsEngine(observed.engine)) {
+                "BI object [${observed.database}.${observed.name}] kind [${metadata.kind}] has incompatible engine " +
+                    "[${observed.engine}]"
+            }
+        }
+        if (metadata?.deploymentId == descriptor.deploymentId && operation == BiScriptOperation.Deploy) {
+            require(metadata.configurationFingerprint == descriptor.configurationFingerprint) {
+                "Observed BI deployment configuration differs from the requested configuration; use RESET"
+            }
+        }
+    }
+
+    private fun BiObjectKind.acceptsEngine(engine: String): Boolean = when (this) {
+        BiObjectKind.ANCHOR,
+        BiObjectKind.VIEW,
+        -> engine == "View"
+
+        BiObjectKind.STORE -> engine in STORE_ENGINES
+        BiObjectKind.QUEUE -> engine == "Kafka"
+        BiObjectKind.CONSUMER -> engine == "MaterializedView"
     }
 
     private fun ObservedBiDeployment.ownedBy(descriptor: BiDeploymentDescriptor): List<ObservedBiObject> =
@@ -206,17 +377,7 @@ class BiScriptGenerator(private val options: BiScriptOptions = BiScriptOptions()
         val stateLast = naming.toTableName(namedAggregate, "state_last")
         return buildList {
             listOf(command, state, stateLast).forEach { table ->
-                val store = "${table}_store"
-                add(DesiredBiObject(BiObjectKey(options.database, store), aggregate, BiObjectKind.STORE))
-                if (options.topology is ClickHouseTopology.Cluster) {
-                    add(
-                        DesiredBiObject(
-                            BiObjectKey(options.database, "${store}_local"),
-                            aggregate,
-                            BiObjectKind.STORE,
-                        )
-                    )
-                }
+                addDesiredStores(table, aggregate)
             }
             add(DesiredBiObject(BiObjectKey(options.database, command), aggregate, BiObjectKind.VIEW))
             add(DesiredBiObject(BiObjectKey(options.database, state), aggregate, BiObjectKind.VIEW))
@@ -252,6 +413,28 @@ class BiScriptGenerator(private val options: BiScriptOptions = BiScriptOptions()
                     BiObjectKey(options.consumerDatabase, "${stateLast}_consumer"),
                     aggregate,
                     BiObjectKind.CONSUMER,
+                )
+            )
+        }
+    }
+
+    private fun MutableList<DesiredBiObject>.addDesiredStores(
+        table: String,
+        aggregate: String,
+    ) {
+        val store = "${table}_store"
+        val storeEngine = when (options.topology) {
+            is ClickHouseTopology.Cluster -> "Distributed"
+            ClickHouseTopology.Standalone -> "ReplacingMergeTree"
+        }
+        add(DesiredBiObject(BiObjectKey(options.database, store), aggregate, BiObjectKind.STORE, storeEngine))
+        if (options.topology is ClickHouseTopology.Cluster) {
+            add(
+                DesiredBiObject(
+                    BiObjectKey(options.database, "${store}_local"),
+                    aggregate,
+                    BiObjectKind.STORE,
+                    "ReplicatedReplacingMergeTree",
                 )
             )
         }
@@ -341,10 +524,30 @@ class BiScriptGenerator(private val options: BiScriptOptions = BiScriptOptions()
         val key: BiObjectKey,
         val aggregate: String?,
         val kind: BiObjectKind,
+        val expectedEngine: String = kind.defaultEngine,
     )
 
     private data class ScriptSection(
         val name: String,
         val statements: List<String>,
     )
+
+    private companion object {
+        val STORE_ENGINES: Set<String> = setOf(
+            "ReplacingMergeTree",
+            "ReplicatedReplacingMergeTree",
+            "Distributed",
+        )
+
+        val BiObjectKind.defaultEngine: String
+            get() = when (this) {
+                BiObjectKind.ANCHOR,
+                BiObjectKind.VIEW,
+                -> "View"
+
+                BiObjectKind.STORE -> "ReplacingMergeTree"
+                BiObjectKind.QUEUE -> "Kafka"
+                BiObjectKind.CONSUMER -> "MaterializedView"
+            }
+    }
 }

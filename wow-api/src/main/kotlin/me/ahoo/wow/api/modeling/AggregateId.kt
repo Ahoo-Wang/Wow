@@ -20,6 +20,11 @@ import me.ahoo.wow.api.Identifier
  * As an identifier, it not only identifies the aggregate root but also supports naming, decorator pattern,
  * tenant identification, and value comparison.
  *
+ * The [id] must be unique within the same [namedAggregate], regardless of [tenantId]. The tenant ID provides
+ * routing and isolation context; it does not create a separate namespace in which the same aggregate ID may be
+ * reused. Consequently, two instances of the same named aggregate must never share an [id], even when they belong
+ * to different tenants.
+ *
  * @see Identifier
  * @see NamedAggregate
  * @see NamedAggregateDecorator
@@ -34,6 +39,7 @@ interface AggregateId :
     Comparable<AggregateId> {
     /**
      * The named aggregate that this ID belongs to.
+     * Within this scope, [id] is unique across all tenants.
      * @see MaterializedNamedAggregate
      */
     override val namedAggregate: NamedAggregate

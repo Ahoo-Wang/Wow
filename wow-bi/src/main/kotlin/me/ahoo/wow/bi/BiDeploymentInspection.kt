@@ -24,13 +24,22 @@ fun interface BiDeploymentInspector {
     val allowsDynamicScope: Boolean
         get() = false
 
-    fun inspect(options: BiScriptOptions): Mono<BiDeploymentInspection>
+    fun inspect(
+        options: BiScriptOptions,
+        operation: BiScriptOperation,
+    ): Mono<BiDeploymentInspection>
+
+    fun inspect(options: BiScriptOptions): Mono<BiDeploymentInspection> =
+        inspect(options, BiScriptOperation.Deploy)
 }
 
 data object NoOpBiDeploymentInspector : BiDeploymentInspector {
     override val allowsDynamicScope: Boolean = true
 
-    override fun inspect(options: BiScriptOptions): Mono<BiDeploymentInspection> =
+    override fun inspect(
+        options: BiScriptOptions,
+        operation: BiScriptOperation,
+    ): Mono<BiDeploymentInspection> =
         Mono.just(BiDeploymentInspection.Unavailable)
 }
 
@@ -70,6 +79,18 @@ sealed class BiDeploymentInspectionException(
 }
 
 data class ObservedBiDeployment(val objects: List<ObservedBiObject>) {
+    init {
+        val duplicateKeys = objects.groupingBy(ObservedBiObject::key)
+            .eachCount()
+            .filterValues { count -> count > 1 }
+            .keys
+            .map { key -> "${key.database}.${key.name}" }
+            .sorted()
+        require(duplicateKeys.isEmpty()) {
+            "Observed BI deployment contains duplicate catalog objects: ${duplicateKeys.joinToString()}"
+        }
+    }
+
     val ownedObjects: List<ObservedBiObject>
         get() = objects.filter { it.metadata != null }
 }
@@ -95,11 +116,18 @@ enum class BiObjectKind {
     CONSUMER,
 }
 
+enum class BiDeploymentPhase {
+    STABLE,
+    RESETTING,
+}
+
 data class BiObjectMetadata(
     val protocolVersion: Int = CURRENT_PROTOCOL_VERSION,
     val layoutVersion: Int = CURRENT_LAYOUT_VERSION,
+    val phase: BiDeploymentPhase = BiDeploymentPhase.STABLE,
     val deploymentId: String,
     val configurationFingerprint: String,
+    val topologyFingerprint: String,
     val aggregate: String? = null,
     val kind: BiObjectKind,
     val consumerIdentity: String? = null,
@@ -115,14 +143,23 @@ data class BiObjectMetadata(
         require(DIGEST_PATTERN.matches(configurationFingerprint)) {
             "Invalid BI configurationFingerprint: $configurationFingerprint"
         }
+        require(DIGEST_PATTERN.matches(topologyFingerprint)) {
+            "Invalid BI topologyFingerprint: $topologyFingerprint"
+        }
         consumerIdentity?.let(::BiConsumerIdentity)
         require(kind == BiObjectKind.ANCHOR || aggregate != null) {
             "BI catalog object [$kind] requires an aggregate owner"
         }
+        require(phase != BiDeploymentPhase.RESETTING || kind == BiObjectKind.ANCHOR) {
+            "BI RESETTING phase is only valid for the deployment anchor"
+        }
+        require(phase != BiDeploymentPhase.RESETTING || consumerIdentity != null) {
+            "BI RESETTING deployment anchor requires a consumer identity"
+        }
     }
 
     companion object {
-        const val CURRENT_PROTOCOL_VERSION: Int = 1
+        const val CURRENT_PROTOCOL_VERSION: Int = 2
         const val CURRENT_LAYOUT_VERSION: Int = 6
         private val DIGEST_PATTERN = Regex("[0-9a-f]{32}")
     }
@@ -131,16 +168,61 @@ data class BiObjectMetadata(
 object BiObjectMetadataCodec {
     private const val PREFIX = "wow-bi:"
 
-    fun encode(metadata: BiObjectMetadata): String =
-        PREFIX + JsonSerializer.writeValueAsString(metadata)
+    fun encode(metadata: BiObjectMetadata): String {
+        return PREFIX + JsonSerializer.writeValueAsString(
+            BiObjectMetadataWire(
+                protocolVersion = metadata.protocolVersion,
+                layoutVersion = metadata.layoutVersion,
+                phase = metadata.phase,
+                deploymentId = metadata.deploymentId,
+                configurationFingerprint = metadata.configurationFingerprint,
+                topologyFingerprint = metadata.topologyFingerprint,
+                aggregate = metadata.aggregate,
+                kind = metadata.kind,
+                consumerIdentity = metadata.consumerIdentity,
+            )
+        )
+    }
 
     fun decode(comment: String): BiObjectMetadata? {
         if (!comment.startsWith(PREFIX)) {
             return null
         }
-        return JsonSerializer.readValue(comment.removePrefix(PREFIX), BiObjectMetadata::class.java)
+        val wire = JsonSerializer.readValue(comment.removePrefix(PREFIX), BiObjectMetadataWire::class.java)
+        require(wire.protocolVersion == BiObjectMetadata.CURRENT_PROTOCOL_VERSION) {
+            "Unsupported BI object metadata protocol version: ${wire.protocolVersion}"
+        }
+        val phase = requireNotNull(wire.phase) {
+            "BI object metadata protocol v2 requires phase"
+        }
+        val topologyFingerprint = requireNotNull(wire.topologyFingerprint) {
+            "BI object metadata protocol v2 requires topologyFingerprint"
+        }
+        return BiObjectMetadata(
+            protocolVersion = wire.protocolVersion,
+            layoutVersion = wire.layoutVersion,
+            phase = phase,
+            deploymentId = wire.deploymentId,
+            configurationFingerprint = wire.configurationFingerprint,
+            topologyFingerprint = topologyFingerprint,
+            aggregate = wire.aggregate,
+            kind = wire.kind,
+            consumerIdentity = wire.consumerIdentity,
+        )
     }
 }
+
+private data class BiObjectMetadataWire(
+    val protocolVersion: Int,
+    val layoutVersion: Int,
+    val phase: BiDeploymentPhase? = null,
+    val deploymentId: String,
+    val configurationFingerprint: String,
+    val topologyFingerprint: String? = null,
+    val aggregate: String? = null,
+    val kind: BiObjectKind,
+    val consumerIdentity: String? = null,
+)
 
 @JvmInline
 value class BiConsumerIdentity(val value: String) {
@@ -162,6 +244,7 @@ value class BiConsumerIdentity(val value: String) {
 data class BiDeploymentDescriptor(
     val deploymentId: String,
     val configurationFingerprint: String,
+    val topologyFingerprint: String,
 ) {
     companion object {
         fun from(options: BiScriptOptions): BiDeploymentDescriptor {
@@ -188,7 +271,16 @@ data class BiDeploymentDescriptor(
                     options.kafkaKeeperPathPrefix,
                 ).joinToString("\u0000")
             )
-            return BiDeploymentDescriptor(deploymentId, configurationFingerprint)
+            val topologyFingerprint = sha256(
+                listOf(
+                    options.database,
+                    options.consumerDatabase,
+                    if (cluster == null) "STANDALONE" else "CLUSTER",
+                    cluster?.name.orEmpty(),
+                    cluster?.installation.orEmpty(),
+                ).joinToString("\u0000")
+            )
+            return BiDeploymentDescriptor(deploymentId, configurationFingerprint, topologyFingerprint)
         }
     }
 }

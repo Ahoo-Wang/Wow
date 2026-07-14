@@ -8,6 +8,7 @@ import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
+import org.springframework.boot.test.context.FilteredClassLoader
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 
@@ -25,6 +26,34 @@ class OpenAPIAutoConfigurationTest {
                 context.assert()
                     .hasSingleBean(RouterSpecs::class.java)
                     .hasSingleBean(WowOpenApiCustomizer::class.java)
+            }
+    }
+
+    @Test
+    fun `should keep route catalog when OpenAPI documentation is disabled`() {
+        contextRunner
+            .enableWow()
+            .withPropertyValues("wow.openapi.enabled=false")
+            .withUserConfiguration(OpenAPIAutoConfiguration::class.java)
+            .run { context: AssertableApplicationContext ->
+                context.assert()
+                    .hasNotFailed()
+                    .hasSingleBean(RouterSpecs::class.java)
+                    .doesNotHaveBean("wowOpenApiCustomizer")
+            }
+    }
+
+    @Test
+    fun `should keep route catalog without Springdoc`() {
+        contextRunner
+            .enableWow()
+            .withClassLoader(FilteredClassLoader("org.springdoc.core.customizers.OpenApiCustomizer"))
+            .withUserConfiguration(OpenAPIAutoConfiguration::class.java)
+            .run { context: AssertableApplicationContext ->
+                context.assert()
+                    .hasNotFailed()
+                    .hasSingleBean(RouterSpecs::class.java)
+                    .doesNotHaveBean("wowOpenApiCustomizer")
             }
     }
 

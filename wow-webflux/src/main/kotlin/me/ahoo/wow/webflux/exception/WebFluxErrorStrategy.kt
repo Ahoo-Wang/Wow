@@ -14,6 +14,9 @@
 package me.ahoo.wow.webflux.exception
 
 import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.api.exception.ErrorInfoCapable
+import me.ahoo.wow.exception.ErrorCodes
+import me.ahoo.wow.exception.ErrorInfoConverterRegistrar
 import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.serialization.toJsonString
@@ -25,6 +28,8 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
+import java.io.FileNotFoundException
+import java.util.concurrent.TimeoutException
 
 interface WebFluxErrorStrategy {
     fun toServerResponse(request: ServerRequest, throwable: Throwable): Mono<ServerResponse>
@@ -60,6 +65,21 @@ private fun Throwable.httpStatus(errorInfo: ErrorInfo) =
 private fun Throwable.toWebFluxErrorInfo(): ErrorInfo {
     return when (this) {
         is BindingResult -> toBindingErrorInfo()
-        else -> toErrorInfo()
+        is ErrorInfoCapable,
+        is ErrorInfo,
+        is ErrorResponse,
+        is IllegalArgumentException,
+        is IllegalStateException,
+        is TimeoutException,
+        is FileNotFoundException,
+        -> toErrorInfo()
+
+        else -> if (ErrorInfoConverterRegistrar.get(javaClass) != null) {
+            toErrorInfo()
+        } else {
+            ErrorInfo.of(ErrorCodes.INTERNAL_SERVER_ERROR, UNEXPECTED_SERVER_ERROR_MESSAGE)
+        }
     }
 }
+
+private const val UNEXPECTED_SERVER_ERROR_MESSAGE = "Unexpected server error"

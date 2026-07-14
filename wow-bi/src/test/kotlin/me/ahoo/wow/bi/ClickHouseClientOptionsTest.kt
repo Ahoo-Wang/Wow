@@ -36,11 +36,28 @@ class ClickHouseClientOptionsTest {
     }
 
     @Test
-    fun `should allow driver zero semantics for socket and execution timeouts`() {
+    fun `should allow a zero execution timeout while requiring a socket deadline`() {
         ClickHouseClientOptions(
             endpoints = listOf(ENDPOINT),
-            socketTimeout = Duration.ZERO,
             executionTimeout = Duration.ZERO,
+        )
+
+        assertThrows<IllegalArgumentException> {
+            ClickHouseClientOptions(
+                endpoints = listOf(ENDPOINT),
+                socketTimeout = Duration.ZERO,
+            )
+        }.message.assert().isEqualTo("socketTimeout must be greater than zero")
+    }
+
+    @Test
+    fun `should accept the minimum one millisecond timeout boundary`() {
+        ClickHouseClientOptions(
+            endpoints = listOf(ENDPOINT),
+            connectionTimeout = Duration.ofMillis(1),
+            connectionRequestTimeout = Duration.ofMillis(1),
+            socketTimeout = Duration.ofMillis(1),
+            executionTimeout = Duration.ofMillis(1),
         )
     }
 
@@ -118,15 +135,39 @@ class ClickHouseClientOptionsTest {
             {
                 ClickHouseClientOptions(
                     endpoints = listOf(ENDPOINT),
+                    connectionTimeout = Duration.ofNanos(1),
+                )
+            } to "connectionTimeout must be at least 1 millisecond",
+            {
+                ClickHouseClientOptions(
+                    endpoints = listOf(ENDPOINT),
                     connectionRequestTimeout = Duration.ofMillis(-1),
                 )
             } to "connectionRequestTimeout must be greater than zero",
             {
                 ClickHouseClientOptions(
                     endpoints = listOf(ENDPOINT),
+                    connectionRequestTimeout = Duration.ofNanos(1),
+                )
+            } to "connectionRequestTimeout must be at least 1 millisecond",
+            {
+                ClickHouseClientOptions(
+                    endpoints = listOf(ENDPOINT),
                     socketTimeout = Duration.ofMillis(-1),
                 )
-            } to "socketTimeout must not be negative",
+            } to "socketTimeout must be greater than zero",
+            {
+                ClickHouseClientOptions(
+                    endpoints = listOf(ENDPOINT),
+                    socketTimeout = Duration.ofNanos(1),
+                )
+            } to "socketTimeout must be at least 1 millisecond",
+            {
+                ClickHouseClientOptions(
+                    endpoints = listOf(ENDPOINT),
+                    executionTimeout = Duration.ofNanos(1),
+                )
+            } to "executionTimeout must be zero or at least 1 millisecond",
             {
                 ClickHouseClientOptions(
                     endpoints = listOf(ENDPOINT),

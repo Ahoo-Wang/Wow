@@ -46,6 +46,7 @@ class BiPublicApiTest {
             BiDeploymentInspectionException.Timeout::class.qualifiedName,
             BiDeploymentInspectionException.Unavailable::class.qualifiedName,
             BiDeploymentInspector::class.qualifiedName,
+            BiDeploymentPhase::class.qualifiedName,
             BiObjectKey::class.qualifiedName,
             BiObjectKind::class.qualifiedName,
             BiObjectMetadata::class.qualifiedName,

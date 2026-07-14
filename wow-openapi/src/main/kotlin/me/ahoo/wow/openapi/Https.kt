@@ -28,6 +28,7 @@ object Https {
         const val GONE = "410"
         const val UNSUPPORTED_MEDIA_TYPE = "415"
         const val TOO_MANY_REQUESTS = "429"
+        const val INTERNAL_SERVER_ERROR = "500"
         const val BAD_GATEWAY = "502"
         const val SERVICE_UNAVAILABLE = "503"
         const val GATEWAY_TIMEOUT = "504"

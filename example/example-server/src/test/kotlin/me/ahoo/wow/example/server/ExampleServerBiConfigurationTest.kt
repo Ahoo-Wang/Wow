@@ -29,7 +29,7 @@ class ExampleServerBiConfigurationTest {
             assertEquals(
                 true,
                 properties.firstNotNullOfOrNull { it.getProperty(BI_ENABLED_PROPERTY) },
-                "$configuration must explicitly enable the BI script endpoint",
+                "$configuration must keep the BI script endpoint enabled",
             )
             assertEquals(
                 CONSUMER_GROUP_NAMESPACE,
@@ -39,7 +39,7 @@ class ExampleServerBiConfigurationTest {
             assertEquals(
                 "NO_OP",
                 properties.firstNotNullOfOrNull { it.getProperty(INSPECTOR_TYPE_PROPERTY) },
-                "$configuration must keep BI deployment inspection disabled by default",
+                "$configuration must use the NO_OP BI deployment inspector",
             )
         }
     }

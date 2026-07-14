@@ -73,6 +73,28 @@ class WebFluxErrorStrategyTest {
     }
 
     @Test
+    fun `should map an unclassified throwable to a safe internal server response`() {
+        val failure = NullPointerException("sensitive implementation detail")
+
+        WebTestClient.bindToRouterFunction(
+            route(POST("/test")) { request ->
+                DefaultWebFluxErrorStrategy.toServerResponse(request, failure)
+            }
+        ).build()
+            .post()
+            .uri("/test")
+            .exchange()
+            .expectStatus().isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR)
+            .expectHeader().valueEquals(ERROR_CODE, ErrorCodes.INTERNAL_SERVER_ERROR)
+            .expectBody(String::class.java)
+            .consumeWith { result ->
+                result.responseBody!!.assert()
+                    .contains(ErrorCodes.INTERNAL_SERVER_ERROR, "Unexpected server error")
+                    .doesNotContain("sensitive implementation detail")
+            }
+    }
+
+    @Test
     fun `should map BI inspection failures to upstream HTTP statuses`() {
         val request = MockServerRequest.builder()
             .method(HttpMethod.POST)
@@ -108,6 +130,24 @@ class WebFluxErrorStrategyTest {
         exchange.response.statusCode.assert().isEqualTo(HttpStatus.BAD_REQUEST)
         exchange.response.headers.contentType.assert().isEqualTo(MediaType.APPLICATION_JSON)
         exchange.response.headers.getFirst(ERROR_CODE).assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
+    }
+
+    @Test
+    fun `should write an unclassified throwable as a safe internal server error`() {
+        val exchange = MockServerWebExchange.from(
+            MockServerHttpRequest.get("/test").build()
+        )
+
+        DefaultWebFluxErrorStrategy.writeToExchange(
+            exchange,
+            NullPointerException("sensitive implementation detail"),
+        ).test().verifyComplete()
+
+        exchange.response.statusCode.assert().isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR)
+        exchange.response.headers.getFirst(ERROR_CODE).assert().isEqualTo(ErrorCodes.INTERNAL_SERVER_ERROR)
+        exchange.response.bodyAsString.block()!!.assert()
+            .contains(ErrorCodes.INTERNAL_SERVER_ERROR, "Unexpected server error")
+            .doesNotContain("sensitive implementation detail")
     }
 
     @Test

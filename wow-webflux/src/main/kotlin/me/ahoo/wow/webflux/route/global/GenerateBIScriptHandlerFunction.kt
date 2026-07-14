@@ -74,14 +74,14 @@ class GenerateBIScriptHandlerFunction(
                     responseMediaType = request.preferredResponseMediaType(),
                 )
             }
-            .onErrorResume { exceptionHandler.handle(request, it) }
+            .onErrorResume { error -> exceptionHandler.handle(request, error) }
     }
 
     private fun generateResponse(
         requestOptions: BiScriptOptions,
         operation: BiScriptOperation,
         responseMediaType: MediaType,
-    ): Mono<ServerResponse> = deploymentInspector.inspect(requestOptions).flatMap { inspection ->
+    ): Mono<ServerResponse> = deploymentInspector.inspect(requestOptions, operation).flatMap { inspection ->
         Mono.fromCallable {
             BiScriptGenerator(requestOptions).generate(MetadataSearcher.localAggregates, operation, inspection)
         }.subscribeOn(Schedulers.boundedElastic())

@@ -72,12 +72,12 @@ class ClickHouseScriptRendererTest {
         val sql = (renderer.renderGlobalStatements() + command + stateEvent + stateLast + expansion)
             .joinToString("\n")
 
-        command.assert().hasSize(6)
-        stateEvent.assert().hasSize(7)
+        command.assert().hasSize(5)
+        stateEvent.assert().hasSize(6)
         stateLast.assert().hasSize(4)
         sql.assert().doesNotContain("ON CLUSTER", "Replicated", "Distributed", "_local", "/clickhouse/")
         sql.assert().contains("ENGINE = ReplacingMergeTree")
-        command[4].assert().contains("TO \"bi_db\".\"bi_aggregate_command_store\"")
+        command.any { it.contains("TO \"bi_db\".\"bi_aggregate_command_store\"") }.assert().isTrue()
         command.last().assert().contains("bi_aggregate_command", "bi_aggregate_command_store", "FINAL")
         stateEvent.any { it.contains("TO \"bi_db\".\"bi_aggregate_state_store\"") }.assert().isTrue()
         stateEvent.any { it.contains("FROM \"bi_db\".\"bi_aggregate_state\"") }.assert().isTrue()
@@ -99,6 +99,18 @@ class ClickHouseScriptRendererTest {
             "bi_aggregate_state_last_items",
             "bi_aggregate_state_last_root",
         )
+    }
+
+    @Test
+    fun `should preserve the lexical JSON of an event body`() {
+        val aggregate = MetadataSearcher.localAggregates.single { it.aggregateName == "aggregate" }
+        val eventView = ClickHouseScriptRenderer()
+            .renderStateEventStatements(aggregate)
+            .joinToString("\n")
+
+        eventView.assert()
+            .contains("JSONExtractRaw(\"events\".2, 'body') AS \"event_body\"")
+            .doesNotContain("JSONExtract(\"events\".2, 'body', 'String') AS \"event_body\"")
     }
 
     @Test
@@ -183,8 +195,8 @@ class ClickHouseScriptRendererTest {
 
         global.assert().hasSize(2)
         clear.assert().hasSize(17)
-        command.assert().hasSize(7)
-        stateEvent.assert().hasSize(8)
+        command.assert().hasSize(6)
+        stateEvent.assert().hasSize(7)
         stateLast.assert().hasSize(5)
         command.joinToString("\n").assert()
             .contains(
