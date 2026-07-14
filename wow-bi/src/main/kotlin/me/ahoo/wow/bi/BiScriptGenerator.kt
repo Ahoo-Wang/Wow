@@ -379,16 +379,24 @@ class BiScriptGenerator(private val options: BiScriptOptions = BiScriptOptions()
             listOf(command, state, stateLast).forEach { table ->
                 addDesiredStores(table, aggregate)
             }
-            add(DesiredBiObject(BiObjectKey(options.database, command), aggregate, BiObjectKind.VIEW))
-            add(DesiredBiObject(BiObjectKey(options.database, state), aggregate, BiObjectKind.VIEW))
-            add(DesiredBiObject(BiObjectKey(options.database, "${state}_event"), aggregate, BiObjectKind.VIEW))
-            add(DesiredBiObject(BiObjectKey(options.database, stateLast), aggregate, BiObjectKind.VIEW))
+            add(DesiredBiObject(BiObjectKey(options.database, command), aggregate, BiObjectKind.VIEW, VIEW_ENGINE))
+            add(DesiredBiObject(BiObjectKey(options.database, state), aggregate, BiObjectKind.VIEW, VIEW_ENGINE))
+            add(
+                DesiredBiObject(
+                    BiObjectKey(options.database, "${state}_event"),
+                    aggregate,
+                    BiObjectKind.VIEW,
+                    VIEW_ENGINE,
+                )
+            )
+            add(DesiredBiObject(BiObjectKey(options.database, stateLast), aggregate, BiObjectKind.VIEW, VIEW_ENGINE))
             plan.views.forEach { view ->
                 add(
                     DesiredBiObject(
                         BiObjectKey(options.database, view.targetTableName),
                         aggregate,
                         BiObjectKind.VIEW,
+                        VIEW_ENGINE,
                     )
                 )
             }
@@ -398,6 +406,7 @@ class BiScriptGenerator(private val options: BiScriptOptions = BiScriptOptions()
                         BiObjectKey(options.consumerDatabase, "${table}_queue"),
                         aggregate,
                         BiObjectKind.QUEUE,
+                        QUEUE_ENGINE,
                     )
                 )
                 add(
@@ -405,6 +414,7 @@ class BiScriptGenerator(private val options: BiScriptOptions = BiScriptOptions()
                         BiObjectKey(options.consumerDatabase, "${table}_consumer"),
                         aggregate,
                         BiObjectKind.CONSUMER,
+                        CONSUMER_ENGINE,
                     )
                 )
             }
@@ -413,6 +423,7 @@ class BiScriptGenerator(private val options: BiScriptOptions = BiScriptOptions()
                     BiObjectKey(options.consumerDatabase, "${stateLast}_consumer"),
                     aggregate,
                     BiObjectKind.CONSUMER,
+                    CONSUMER_ENGINE,
                 )
             )
         }
@@ -445,6 +456,7 @@ class BiScriptGenerator(private val options: BiScriptOptions = BiScriptOptions()
             BiObjectKey(options.consumerDatabase, ClickHouseScriptRenderer.DEPLOYMENT_ANCHOR),
             null,
             BiObjectKind.ANCHOR,
+            VIEW_ENGINE,
         )
 
     private fun validateDesiredObjectNames(objects: List<DesiredBiObject>) {
@@ -524,7 +536,7 @@ class BiScriptGenerator(private val options: BiScriptOptions = BiScriptOptions()
         val key: BiObjectKey,
         val aggregate: String?,
         val kind: BiObjectKind,
-        val expectedEngine: String = kind.defaultEngine,
+        val expectedEngine: String,
     )
 
     private data class ScriptSection(
@@ -533,21 +545,14 @@ class BiScriptGenerator(private val options: BiScriptOptions = BiScriptOptions()
     )
 
     private companion object {
+        const val VIEW_ENGINE: String = "View"
+        const val QUEUE_ENGINE: String = "Kafka"
+        const val CONSUMER_ENGINE: String = "MaterializedView"
+
         val STORE_ENGINES: Set<String> = setOf(
             "ReplacingMergeTree",
             "ReplicatedReplacingMergeTree",
             "Distributed",
         )
-
-        val BiObjectKind.defaultEngine: String
-            get() = when (this) {
-                BiObjectKind.ANCHOR,
-                BiObjectKind.VIEW,
-                -> "View"
-
-                BiObjectKind.STORE -> "ReplacingMergeTree"
-                BiObjectKind.QUEUE -> "Kafka"
-                BiObjectKind.CONSUMER -> "MaterializedView"
-            }
     }
 }

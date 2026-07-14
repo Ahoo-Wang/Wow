@@ -19,8 +19,11 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.bi.BiDeploymentInspectionException
 import me.ahoo.wow.exception.ErrorCodes
+import me.ahoo.wow.exception.ErrorInfoConverter
+import me.ahoo.wow.exception.ErrorInfoConverterRegistrar
 import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -92,6 +95,34 @@ class WebFluxErrorStrategyTest {
                     .contains(ErrorCodes.INTERNAL_SERVER_ERROR, "Unexpected server error")
                     .doesNotContain("sensitive implementation detail")
             }
+    }
+
+    @Test
+    fun `should honor a registered converter for an otherwise unclassified throwable`() {
+        val errorCode = "CUSTOM_WEBFLUX_FAILURE"
+        val previous = ErrorInfoConverterRegistrar.register(
+            RegisteredWebFluxFailure::class.java,
+            ErrorInfoConverter<Throwable> { ErrorInfo.of(errorCode, "mapped failure") },
+        )
+        val request = MockServerRequest.builder()
+            .method(HttpMethod.POST)
+            .uri(URI.create("/test"))
+            .build()
+
+        try {
+            DefaultWebFluxErrorStrategy.toServerResponse(request, RegisteredWebFluxFailure())
+                .test()
+                .consumeNextWith { response ->
+                    response.statusCode().assert().isEqualTo(HttpStatus.BAD_REQUEST)
+                    response.headers().getFirst(ERROR_CODE).assert().isEqualTo(errorCode)
+                }
+                .verifyComplete()
+        } finally {
+            ErrorInfoConverterRegistrar.unregister(RegisteredWebFluxFailure::class.java)
+            previous?.let { converter ->
+                ErrorInfoConverterRegistrar.register(RegisteredWebFluxFailure::class.java, converter)
+            }
+        }
     }
 
     @Test
@@ -284,3 +315,5 @@ class WebFluxErrorStrategyTest {
         return builder.toString()
     }
 }
+
+private class RegisteredWebFluxFailure : RuntimeException()

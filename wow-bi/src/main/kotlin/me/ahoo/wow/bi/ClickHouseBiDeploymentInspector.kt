@@ -25,6 +25,7 @@ import reactor.core.scheduler.Schedulers
 import tools.jackson.core.JacksonException
 import java.time.Duration
 import java.time.temporal.ChronoUnit
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ExecutionException
@@ -32,6 +33,16 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+
+private const val CLICKHOUSE_CATALOG_CLEANUP_THREADS: Int = 4
+private const val CLICKHOUSE_CATALOG_CLEANUP_TTL_SECONDS: Int = 60
+private val CLICKHOUSE_CATALOG_CLEANUP_SCHEDULER: Scheduler = Schedulers.newBoundedElastic(
+    CLICKHOUSE_CATALOG_CLEANUP_THREADS,
+    Schedulers.DEFAULT_BOUNDED_ELASTIC_QUEUESIZE,
+    "wow-bi-catalog-cleanup",
+    CLICKHOUSE_CATALOG_CLEANUP_TTL_SECONDS,
+    true,
+)
 
 /**
  * Reads Wow BI ownership markers directly from the ClickHouse system catalog.
@@ -491,6 +502,9 @@ internal class NativeClickHouseCatalogClient internal constructor(
         } catch (error: TimeoutException) {
             responseLifecycle.abandon()
             throwTimedOutQuery(error)
+        } catch (error: CancellationException) {
+            responseLifecycle.abandon()
+            throwCancelledQuery(error)
         } catch (error: ExecutionException) {
             responseLifecycle.abandon()
             throwFailedQuery(error.cause)
@@ -512,6 +526,9 @@ internal class NativeClickHouseCatalogClient internal constructor(
 
     private fun throwCancelledQuery(): Nothing =
         throw ClientException("ClickHouse BI catalog query was cancelled")
+
+    private fun throwCancelledQuery(cause: CancellationException): Nothing =
+        throw ClientException("ClickHouse BI catalog query was cancelled", cause)
 
     private class QueryResponseLifecycle(
         responseFuture: CompletableFuture<QueryResponse>,
@@ -554,7 +571,7 @@ internal class NativeClickHouseCatalogClient internal constructor(
                 return
             }
             if (cleanupScheduled.compareAndSet(false, true)) {
-                Schedulers.boundedElastic().schedule {
+                CLICKHOUSE_CATALOG_CLEANUP_SCHEDULER.schedule {
                     closeResponse(propagateFailure = false)
                 }
             }

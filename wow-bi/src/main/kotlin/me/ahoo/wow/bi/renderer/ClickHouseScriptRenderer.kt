@@ -112,7 +112,7 @@ internal class ClickHouseScriptRenderer(
         }
     )
 
-    fun renderAnchorStatement(phase: BiDeploymentPhase = BiDeploymentPhase.STABLE): String {
+    fun renderAnchorStatement(phase: BiDeploymentPhase): String {
         val comment = metadataComment(BiObjectKind.ANCHOR, null, phase)
         return "$viewCreateClause ${qualified(options.consumerDatabase, DEPLOYMENT_ANCHOR)}" +
             "${scopeClause()} AS (SELECT 1 AS ${identifier("alive")} WHERE 0) COMMENT $comment;"

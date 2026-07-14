@@ -15,6 +15,7 @@ package me.ahoo.wow.bi
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.configuration.MetadataSearcher
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -442,6 +443,24 @@ class BiScriptGeneratorTest {
     }
 
     @Test
+    fun `should reject multiple deployment anchors before choosing a canonical anchor`() {
+        val canonicalAnchor = anchor()
+        val duplicateAnchor = canonicalAnchor.copy(name = "rogue_deployment_anchor")
+
+        assertThrows<IllegalArgumentException> {
+            generator().generate(
+                setOf(aggregate),
+                BiScriptOperation.Deploy,
+                availableInspection(canonicalAnchor, duplicateAnchor),
+            )
+        }.message.assert().contains(
+            "multiple deployment anchors",
+            "__wow_bi_deployment",
+            "rogue_deployment_anchor",
+        )
+    }
+
+    @Test
     fun `should reset an identified empty scope and require a durable anchor namespace`() {
         val staleStore = observed(
             database = "bi_db",
@@ -530,6 +549,55 @@ class BiScriptGeneratorTest {
                 )
             }.message.assert().contains("incompatible", "engine")
         }
+    }
+
+    @Test
+    fun `should validate and reconcile a stale consumer by its physical engine`() {
+        val staleConsumer = observed(
+            database = "bi_db_consumer",
+            name = "bi_removed_command_consumer",
+            kind = BiObjectKind.CONSUMER,
+            aggregate = "bi-service.removed",
+        )
+
+        generator().generate(
+            setOf(aggregate),
+            BiScriptOperation.Deploy,
+            availableInspection(anchor(), staleConsumer.copy(engine = "MaterializedView")),
+        ).script.assert().contains(
+            "DROP VIEW IF EXISTS \"bi_db_consumer\".\"bi_removed_command_consumer\""
+        )
+
+        assertThrows<IllegalArgumentException> {
+            generator().generate(
+                setOf(aggregate),
+                BiScriptOperation.Deploy,
+                availableInspection(anchor(), staleConsumer.copy(engine = "View")),
+            )
+        }.message.assert().contains("incompatible engine", "bi_removed_command_consumer")
+    }
+
+    @Test
+    fun `should reconcile an owned stale queue without touching an unowned catalog object`() {
+        val staleQueue = observed(
+            database = "bi_db_consumer",
+            name = "bi_removed_command_queue",
+            kind = BiObjectKind.QUEUE,
+            aggregate = "bi-service.removed",
+        )
+        val userTable = ObservedBiObject(
+            database = "bi_db",
+            name = "user_managed_table",
+            engine = "MergeTree",
+        )
+
+        generator().generate(
+            setOf(aggregate),
+            BiScriptOperation.Deploy,
+            availableInspection(anchor(), staleQueue, userTable),
+        ).script.assert()
+            .contains("DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_removed_command_queue\"")
+            .doesNotContain("user_managed_table")
     }
 
     @Test
@@ -769,6 +837,17 @@ class BiScriptGeneratorTest {
         forward.script.indexOf("-- bi.aggregate.commandStorage --")
             .assert()
             .isLessThan(forward.script.indexOf("-- bi.sibling.commandStorage --"))
+    }
+
+    @Test
+    fun `should reject duplicate aggregate inputs that resolve to the same BI object names`() {
+        val duplicate = object : NamedAggregateDecorator {
+            override val namedAggregate: NamedAggregate = aggregate
+        }
+
+        assertThrows<IllegalArgumentException> {
+            generator().generate(linkedSetOf(aggregate, duplicate))
+        }.message.assert().contains("BI object name collision", "bi_aggregate_command_store")
     }
 
     @Test

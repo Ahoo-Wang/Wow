@@ -31,7 +31,7 @@ internal interface ClickHouseTopologyDdl {
         logicalTableName: String,
         physicalTableName: String,
         shardingKey: String,
-        createIfNotExists: Boolean = true,
+        createIfNotExists: Boolean,
     ): String?
 
     fun dropTableNames(logicalTableName: String): List<String>
