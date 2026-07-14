@@ -49,6 +49,7 @@ import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import java.io.FileNotFoundException
 import java.net.URI
 import java.nio.charset.StandardCharsets
 
@@ -122,6 +123,28 @@ class WebFluxErrorStrategyTest {
             previous?.let { converter ->
                 ErrorInfoConverterRegistrar.register(RegisteredWebFluxFailure::class.java, converter)
             }
+        }
+    }
+
+    @Test
+    fun `should preserve explicit safe exception mappings`() {
+        val request = MockServerRequest.builder()
+            .method(HttpMethod.POST)
+            .uri(URI.create("/test"))
+            .build()
+        val cases = listOf(
+            Triple(IllegalStateException("bad state"), ErrorCodes.ILLEGAL_STATE, HttpStatus.BAD_REQUEST),
+            Triple(FileNotFoundException("missing"), ErrorCodes.NOT_FOUND, HttpStatus.NOT_FOUND),
+        )
+
+        cases.forEach { (failure, expectedCode, expectedStatus) ->
+            DefaultWebFluxErrorStrategy.toServerResponse(request, failure)
+                .test()
+                .consumeNextWith { response ->
+                    response.statusCode().assert().isEqualTo(expectedStatus)
+                    response.headers().getFirst(ERROR_CODE).assert().isEqualTo(expectedCode)
+                }
+                .verifyComplete()
         }
     }
 

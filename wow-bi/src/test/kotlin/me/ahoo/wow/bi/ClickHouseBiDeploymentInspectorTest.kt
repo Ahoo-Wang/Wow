@@ -236,6 +236,21 @@ class ClickHouseBiDeploymentInspectorTest {
     }
 
     @Test
+    fun `should use a safe default message for catalog validation failures without a message`() {
+        listOf(IllegalArgumentException(), IllegalStateException()).forEach { failure ->
+            val client = StubClickHouseCatalogClient { _, _, _ -> throw failure }
+
+            ClickHouseBiDeploymentInspector(client).inspect(OPTIONS).test()
+                .expectErrorMatches {
+                    it is BiDeploymentInspectionException.Inconsistent &&
+                        it.message == "ClickHouse BI catalog is inconsistent" &&
+                        it.cause === failure
+                }
+                .verify()
+        }
+    }
+
+    @Test
     fun `should accept a catalog that is identical on every cluster replica`() {
         val client = clusterClient(
             catalogRecord(node = NODE_A),
@@ -359,6 +374,8 @@ class ClickHouseBiDeploymentInspectorTest {
         val expectedGroup = "wow-bi.${identity.value}.example_order_command_consumer"
         val malformedDefinitions = listOf(
             "NotKafka('localhost:9093', 'wow.example.order.command', '$expectedGroup', 'JSONAsString')",
+            "Kafka",
+            "Kafka()",
             "Kafka 'localhost:9093', 'wow.example.order.command', '$expectedGroup', 'JSONAsString'",
             "Kafka('localhost:9093', 'wow.example.order.command', '$expectedGroup', 'JSONAsString'",
             "Kafka('localhost:9093'], 'wow.example.order.command', '$expectedGroup', 'JSONAsString')",
@@ -396,6 +413,8 @@ class ClickHouseBiDeploymentInspectorTest {
             "Kafka(concat('localhost', ':9093'), 'wow.example.order.command', " +
                 "'$expectedGroup', 'JSONAsString')",
             "Kafka(['localhost:9093'], 'wow.example.order.command', '$expectedGroup', 'JSONAsString')",
+            "Kafka('local\\'host:9093', 'wow.example.order.command', '$expectedGroup', 'JSONAsString')",
+            "Kafka('local''host:9093', 'wow.example.order.command', '$expectedGroup', 'JSONAsString')",
         )
 
         ClickHouseBiDeploymentInspector(
@@ -770,15 +789,11 @@ class ClickHouseBiDeploymentInspectorTest {
         val response = mockk<QueryResponse>(relaxed = true)
         val responseFuture = CompletableFuture<QueryResponse>()
         val queryStarted = CountDownLatch(1)
-        val cleanupThread = AtomicReference<String>()
         every {
             client.query(any<String>(), any<Map<String, Any>>(), any<QuerySettings>())
         } answers {
             queryStarted.countDown()
             responseFuture
-        }
-        every { response.close() } answers {
-            cleanupThread.set(Thread.currentThread().name)
         }
         val timeoutScheduler = VirtualTimeScheduler.create()
 
@@ -797,10 +812,56 @@ class ClickHouseBiDeploymentInspectorTest {
 
             responseFuture.complete(response).assert().isTrue()
             verify(exactly = 1, timeout = 1_000) { response.close() }
-            cleanupThread.get().assert().startsWith("wow-bi-catalog-cleanup-")
             responseFuture.isCancelled.assert().isFalse()
         } finally {
             timeoutScheduler.dispose()
+        }
+    }
+
+    @Test
+    fun `should isolate cancelled response cleanup from the blocking query scheduler`() {
+        val client = mockk<Client>(relaxed = true)
+        val response = mockk<QueryResponse>(relaxed = true)
+        val responseFuture = CompletableFuture<QueryResponse>()
+        val queryStarted = CountDownLatch(1)
+        val cleanupThread = AtomicReference<String>()
+        val cancellation = ClickHouseQueryCancellation()
+        val executor = Executors.newSingleThreadExecutor()
+        every {
+            client.query(any<String>(), any<Map<String, Any>>(), any<QuerySettings>())
+        } answers {
+            queryStarted.countDown()
+            responseFuture
+        }
+        every { response.close() } answers {
+            cleanupThread.set(Thread.currentThread().name)
+            throw IllegalStateException("close failed")
+        }
+
+        try {
+            val queryFailure = CompletableFuture.supplyAsync(
+                {
+                    runCatching {
+                        NativeClickHouseCatalogClient(client).query(
+                            sql = "SELECT catalog",
+                            parameters = emptyMap(),
+                            columns = CATALOG_COLUMNS,
+                            cancellation = cancellation,
+                        )
+                    }.exceptionOrNull()
+                },
+                executor,
+            )
+            queryStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
+
+            cancellation.cancel()
+            (queryFailure.get(1, TimeUnit.SECONDS) is ClientException).assert().isTrue()
+            responseFuture.complete(response).assert().isTrue()
+
+            verify(exactly = 1, timeout = 1_000) { response.close() }
+            cleanupThread.get().assert().startsWith("wow-bi-catalog-cleanup-")
+        } finally {
+            executor.shutdownNow()
         }
     }
 
