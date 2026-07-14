@@ -23,11 +23,13 @@ import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.serialization.StringSerializer
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.testcontainers.clickhouse.ClickHouseContainer
 import org.testcontainers.containers.Network
 import org.testcontainers.kafka.ConfluentKafkaContainer
 import org.testcontainers.utility.DockerImageName
 import org.testcontainers.utility.MountableFile
+import java.net.URI
 import java.sql.Connection
 import java.sql.DriverManager
 import java.time.Duration
@@ -61,16 +63,25 @@ class KafkaClickHouseIntegrationTest {
                     val generator = BiScriptGenerator(options)
                     val firstDeploy = generator.generate(setOf(aggregate))
 
-                    connection(clickHouse).use { connection ->
-                        producer(kafka).use { producer ->
-                            producer.sendJson(commandTopic, "command-1", commandMessage("command-1", 42))
-                            producer.sendJson(stateTopic, "state-1", stateMessage(version = 1, scalar = 1))
-                            producer.sendJson(stateTopic, "state-2", stateMessage(version = 2, scalar = 2))
-                        }
-                        firstDeploy.statements.forEach { statement -> connection.executeStatement(statement) }
+                    inspector(clickHouse).use { inspector ->
+                        connection(clickHouse).use { connection ->
+                            producer(kafka).use { producer ->
+                                producer.sendJson(commandTopic, "command-1", commandMessage("command-1", 42))
+                                producer.sendJson(stateTopic, "state-1", stateMessage(version = 1, scalar = 1))
+                                producer.sendJson(stateTopic, "state-2", stateMessage(version = 2, scalar = 2))
+                            }
+                            firstDeploy.statements.forEach { statement -> connection.executeStatement(statement) }
 
                         connection.awaitLong("SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "command_store")}", 1)
                         connection.awaitLong("SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "state_store")}", 2)
+                        connection.awaitLong(
+                            "SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "state_event")}",
+                            2,
+                        )
+                        connection.queryString(
+                            "SELECT event_body FROM $DATABASE.${naming.toTableName(aggregate, "state_event")} " +
+                                "WHERE version = 2",
+                        ).assert().isEqualTo("{\"value\":2}")
                         connection.awaitLong(
                             "SELECT version FROM $DATABASE.${naming.toTableName(aggregate, "state_last")} " +
                                 "WHERE aggregate_id = '$AGGREGATE_ID'",
@@ -88,16 +99,32 @@ class KafkaClickHouseIntegrationTest {
                                 "WHERE __aggregate_id = '$AGGREGATE_ID'",
                             2,
                         )
+                        val queueUuids = listOf("command", "state").associateWith { suffix ->
+                            connection.queryString(
+                                "SELECT toString(uuid) FROM system.tables " +
+                                    "WHERE database = '$CONSUMER_DATABASE' AND " +
+                                "name = '${naming.toTableName(aggregate, "${suffix}_queue")}'",
+                            )
+                        }
+                        queueUuids.values.forEach { uuid -> uuid.assert().isNotEqualTo(NIL_UUID) }
 
                         val redeploy = generator.generate(
                             setOf(aggregate),
                             BiScriptOperation.Deploy,
-                            connection.inspect(options),
+                            inspector.inspectAvailable(options),
                         )
+                        redeploy.assertDoesNotMutateQueues(naming, aggregate)
                         redeploy.statements.forEach { statement -> connection.executeStatement(statement) }
                         connection.queryLong(
                             "SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "state_store")}"
                         ).assert().isEqualTo(2)
+                        queueUuids.forEach { (suffix, uuid) ->
+                            connection.queryString(
+                                "SELECT toString(uuid) FROM system.tables " +
+                                    "WHERE database = '$CONSUMER_DATABASE' AND " +
+                                    "name = '${naming.toTableName(aggregate, "${suffix}_queue")}'",
+                            ).assert().isEqualTo(uuid)
+                        }
 
                         producer(kafka).use { producer ->
                             producer.sendJson(commandTopic, "command-2", commandMessage("command-2", 84))
@@ -109,27 +136,74 @@ class KafkaClickHouseIntegrationTest {
                         val reset = generator.generate(
                             setOf(aggregate),
                             BiScriptOperation.Reset(replayFromEarliestConfirmed = true),
-                            connection.inspect(options),
+                            inspector.inspectAvailable(options, BiScriptOperation.Reset(true)),
                         )
-                        consumerIdentity(reset.script).assert().isNotEqualTo(consumerIdentity(firstDeploy.script))
-                        reset.statements.forEach { statement -> connection.executeStatement(statement) }
+                        val resetIdentity = consumerIdentity(reset.script)
+                        resetIdentity.assert().isNotEqualTo(consumerIdentity(firstDeploy.script))
+                        val firstDurableStatement = reset.indexOfStatement(
+                            "CREATE TABLE IF NOT EXISTS \"$DATABASE\".\"${
+                                naming.toTableName(aggregate, "command_store")
+                            }\""
+                        )
+                        reset.statements.take(firstDurableStatement)
+                            .forEach { statement -> connection.executeStatement(statement) }
 
-                        connection.awaitLong("SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "command_store")}", 2)
-                        connection.awaitLong("SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "state_store")}", 3)
+                        val resettingInspection = inspector.inspectAvailable(
+                            options,
+                            BiScriptOperation.Reset(true),
+                        )
+                        resettingInspection.anchorMetadata().phase.assert().isEqualTo(BiDeploymentPhase.RESETTING)
+                        resettingInspection.consumerIdentity().assert().isEqualTo(resetIdentity)
+                        assertThrows<IllegalArgumentException> {
+                            generator.generate(setOf(aggregate), BiScriptOperation.Deploy, resettingInspection)
+                        }.message.assert().contains("RESETTING")
+
+                        val retryReset = generator.generate(
+                            setOf(aggregate),
+                            BiScriptOperation.Reset(replayFromEarliestConfirmed = true),
+                            resettingInspection,
+                        )
+                        consumerIdentity(retryReset.script).assert().isEqualTo(resetIdentity)
+                        val stableAnchorStatement = retryReset.indexOfAnchorStatement(BiDeploymentPhase.STABLE)
+                        retryReset.statements.take(stableAnchorStatement + 1)
+                            .forEach { statement -> connection.executeStatement(statement) }
+
+                        val stableInspection = inspector.inspectAvailable(options)
+                        stableInspection.anchorMetadata().phase.assert().isEqualTo(BiDeploymentPhase.STABLE)
+                        stableInspection.consumerIdentity().assert().isEqualTo(resetIdentity)
+                        listOf("command", "state").flatMap { suffix ->
+                            listOf(
+                                naming.toTableName(aggregate, "${suffix}_queue"),
+                                naming.toTableName(aggregate, "${suffix}_consumer"),
+                            )
+                        }.forEach { table ->
+                            connection.queryLong(
+                                "SELECT count() FROM system.tables WHERE database = '$CONSUMER_DATABASE' " +
+                                    "AND name = '$table'"
+                            ).assert().isZero()
+                        }
+
+                        val deployAfterReset = generator.generate(
+                            setOf(aggregate),
+                            BiScriptOperation.Deploy,
+                            stableInspection,
+                        )
+                        consumerIdentity(deployAfterReset.script).assert().isEqualTo(resetIdentity)
+                        deployAfterReset.statements.forEach { statement -> connection.executeStatement(statement) }
+                        inspector.inspectAvailable(options).consumerIdentity().assert().isEqualTo(resetIdentity)
+                        connection.awaitLong(
+                            "SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "command_store")}",
+                            2,
+                        )
+                        connection.awaitLong(
+                            "SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "state_store")}",
+                            3,
+                        )
                         connection.awaitLong(
                             "SELECT version FROM $DATABASE.${naming.toTableName(aggregate, "state_last")} " +
                                 "WHERE aggregate_id = '$AGGREGATE_ID'",
                             3,
                         )
-
-                        val deployAfterReset = generator.generate(
-                            setOf(aggregate),
-                            BiScriptOperation.Deploy,
-                            connection.inspect(options),
-                        )
-                        consumerIdentity(deployAfterReset.script).assert()
-                            .isEqualTo(consumerIdentity(reset.script))
-                        deployAfterReset.statements.forEach { statement -> connection.executeStatement(statement) }
                         producer(kafka).use { producer ->
                             producer.sendJson(stateTopic, "state-4", stateMessage(version = 4, scalar = 4))
                         }
@@ -139,6 +213,7 @@ class KafkaClickHouseIntegrationTest {
                                 "WHERE aggregate_id = '$AGGREGATE_ID'",
                             4,
                         )
+                        }
                     }
                 }
             }
@@ -164,6 +239,24 @@ class KafkaClickHouseIntegrationTest {
         container.username,
         container.password,
     )
+
+    private fun inspector(container: ClickHouseContainer): ClickHouseBiDeploymentInspector =
+        ClickHouseBiDeploymentInspector(
+            clientOptions = ClickHouseClientOptions(
+                endpoints = listOf(URI.create(container.httpUrl)),
+                username = container.username,
+                password = container.password,
+                connectionTimeout = Duration.ofSeconds(5),
+                socketTimeout = Duration.ofSeconds(10),
+            ),
+            inspectionTimeout = Duration.ofSeconds(10),
+        )
+
+    private fun ClickHouseBiDeploymentInspector.inspectAvailable(
+        options: BiScriptOptions,
+        operation: BiScriptOperation = BiScriptOperation.Deploy,
+    ): BiDeploymentInspection.Available =
+        inspect(options, operation).block() as BiDeploymentInspection.Available
 
     private fun producer(container: ConfluentKafkaContainer): KafkaProducer<String, String> = KafkaProducer(
         mapOf(
@@ -211,7 +304,15 @@ class KafkaClickHouseIntegrationTest {
         "requestId" to "request-$version",
         "version" to version,
         "state" to mapOf("id" to AGGREGATE_ID, "nullableScalar" to scalar),
-        "body" to emptyList<Any>(),
+        "body" to listOf(
+            mapOf(
+                "id" to "event-$version",
+                "name" to "TestEvent",
+                "revision" to "1.0.0",
+                "bodyType" to "TestEvent",
+                "body" to mapOf("value" to scalar),
+            )
+        ),
         "firstOperator" to "tester",
         "firstEventTime" to 1_000L * version,
         "createTime" to 1_000L * version,
@@ -219,34 +320,44 @@ class KafkaClickHouseIntegrationTest {
         "deleted" to false,
     )
 
-    private fun Connection.inspect(options: BiScriptOptions): BiDeploymentInspection.Available {
-        val objects = createStatement().use { statement ->
-            statement.executeQuery(
-                "SELECT database, name, engine, engine_full, create_table_query, comment " +
-                    "FROM system.tables WHERE database IN ('${options.database}', '${options.consumerDatabase}')"
-            ).use { result ->
-                buildList {
-                    while (result.next()) {
-                        add(
-                            ObservedBiObject(
-                                database = result.getString("database"),
-                                name = result.getString("name"),
-                                engine = result.getString("engine"),
-                                engineFull = result.getString("engine_full"),
-                                createTableQuery = result.getString("create_table_query"),
-                                metadata = BiObjectMetadataCodec.decode(result.getString("comment")),
-                            )
-                        )
-                    }
-                }
-            }
-        }
-        return BiDeploymentInspection.Available(ObservedBiDeployment(objects))
-    }
-
     private fun consumerIdentity(script: String): String = requireNotNull(
         Regex("wow-bi\\.([0-9a-f]{32})\\.").find(script)?.groupValues?.get(1)
     )
+
+    private fun BiDeploymentInspection.Available.consumerIdentity(): String =
+        requireNotNull(anchorMetadata().consumerIdentity)
+
+    private fun BiDeploymentInspection.Available.anchorMetadata(): BiObjectMetadata =
+        requireNotNull(
+            deployment.objects.single { observed -> observed.metadata?.kind == BiObjectKind.ANCHOR }.metadata
+        )
+
+    private fun BiScriptResult.indexOfStatement(fragment: String): Int =
+        statements.indexOfFirst { statement -> statement.contains(fragment) }.also { index ->
+            check(index >= 0) { "Statement containing [$fragment] was not generated." }
+        }
+
+    private fun BiScriptResult.indexOfAnchorStatement(phase: BiDeploymentPhase): Int =
+        statements.indexOfFirst { statement ->
+            statement.contains("__wow_bi_deployment") && statement.contains("\"phase\":\"$phase\"")
+        }.also { index ->
+            check(index >= 0) { "Deployment anchor in phase [$phase] was not generated." }
+        }
+
+    private fun BiScriptResult.assertDoesNotMutateQueues(
+        naming: BiTableNaming,
+        aggregate: me.ahoo.wow.api.modeling.NamedAggregate,
+    ) {
+        val script = statements.joinToString("\n")
+        listOf("command", "state").forEach { suffix ->
+            val queue = naming.toTableName(aggregate, "${suffix}_queue")
+            script.assert()
+                .doesNotContain(
+                    "DROP TABLE IF EXISTS \"$CONSUMER_DATABASE\".\"$queue\"",
+                    "CREATE TABLE \"$CONSUMER_DATABASE\".\"$queue\"",
+                )
+        }
+    }
 
     private fun Connection.executeStatement(sql: String) {
         createStatement().use { statement -> statement.execute(sql) }
@@ -256,6 +367,13 @@ class KafkaClickHouseIntegrationTest {
         statement.executeQuery(sql).use { result ->
             check(result.next()) { "Query returned no rows: $sql" }
             result.getLong(1)
+        }
+    }
+
+    private fun Connection.queryString(sql: String): String = createStatement().use { statement ->
+        statement.executeQuery(sql).use { result ->
+            check(result.next()) { "Query returned no rows: $sql" }
+            result.getString(1)
         }
     }
 
@@ -301,6 +419,7 @@ class KafkaClickHouseIntegrationTest {
         const val CONSUMER_DATABASE = "bi_kafka_it_consumer"
         const val KAFKA_NETWORK_ALIAS = "kafka"
         const val KAFKA_INTERNAL_BOOTSTRAP_SERVERS = "$KAFKA_NETWORK_ALIAS:19092"
+        const val NIL_UUID = "00000000-0000-0000-0000-000000000000"
         const val TOPIC_PREFIX = "bi-e2e."
         const val AGGREGATE_ID = "aggregate-kafka"
         val AWAIT_TIMEOUT: Duration = Duration.ofSeconds(30)

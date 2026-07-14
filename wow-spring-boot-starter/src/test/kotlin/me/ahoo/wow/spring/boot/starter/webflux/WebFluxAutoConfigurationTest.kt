@@ -526,20 +526,49 @@ internal class WebFluxAutoConfigurationTest {
     @Test
     fun `should reject a BI response when every supported media type is unacceptable`() {
         webFluxContextRunner().run { context ->
-            context.biScriptClient().post()
-                .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
-                .contentType(MediaType.APPLICATION_JSON)
-                .header("Accept", "*/*;q=1, application/json;q=0, application/sql;q=0")
-                .bodyValue("{}")
-                .exchange()
-                .expectStatus().isEqualTo(HttpStatus.NOT_ACCEPTABLE)
-                .expectHeader().valueEquals("Wow-Error-Code", "NotAcceptable")
+            listOf(
+                "*/*;q=1, application/json;q=0, application/sql;q=0",
+                MediaType.TEXT_PLAIN_VALUE,
+            ).forEach { accept ->
+                context.biScriptClient().post()
+                    .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Accept", accept)
+                    .bodyValue("{}")
+                    .exchange()
+                    .expectStatus().isEqualTo(HttpStatus.NOT_ACCEPTABLE)
+                    .expectHeader().valueEquals("Wow-Error-Code", "NotAcceptable")
+            }
         }
     }
 
     @Test
+    fun `should build runtime routes when OpenAPI documentation is disabled`() {
+        webFluxContextRunner()
+            .withPropertyValues("wow.openapi.enabled=false")
+            .run { context ->
+                context.assert()
+                    .hasNotFailed()
+                    .hasBean("commandRouterFunction")
+                    .doesNotHaveBean("wowOpenApiCustomizer")
+            }
+    }
+
+    @Test
+    fun `should build runtime routes without Springdoc`() {
+        webFluxContextRunner()
+            .withClassLoader(FilteredClassLoader("org.springdoc.core.customizers.OpenApiCustomizer"))
+            .run { context ->
+                context.assert()
+                    .hasNotFailed()
+                    .hasBean("commandRouterFunction")
+                    .doesNotHaveBean("wowOpenApiCustomizer")
+            }
+    }
+
+    @Test
     fun `should return BI inspection failures without the global exception handler`() {
-        val unavailableInspector = BiDeploymentInspector {
+        val unavailableInspector = BiDeploymentInspector { _, _ ->
             Mono.error(BiDeploymentInspectionException.Unavailable())
         }
         webFluxContextRunner()
@@ -589,6 +618,12 @@ internal class WebFluxAutoConfigurationTest {
                     .getHttpFactory(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT)
                     .assert()
                     .isNull()
+                context.biScriptClient().post()
+                    .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue("{}")
+                    .exchange()
+                    .expectStatus().isNotFound
             }
     }
 
@@ -621,7 +656,7 @@ internal class WebFluxAutoConfigurationTest {
 
     @Test
     fun `should back off the default BI deployment inspector`() {
-        val customInspector = BiDeploymentInspector {
+        val customInspector = BiDeploymentInspector { _, _ ->
             Mono.just(BiDeploymentInspection.Available(me.ahoo.wow.bi.ObservedBiDeployment(emptyList())))
         }
         webFluxContextRunner()

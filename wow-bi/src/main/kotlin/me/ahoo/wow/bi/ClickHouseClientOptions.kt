@@ -38,10 +38,22 @@ data class ClickHouseClientOptions(
         endpoints.forEachIndexed { index, endpoint -> endpoint.validate(index) }
         require(endpoints.distinct().size == endpoints.size) { "endpoints must not contain duplicates" }
         require(username.isNotBlank()) { "username must not be blank" }
-        connectionTimeout.requireValidTimeout("connectionTimeout")
-        connectionRequestTimeout.requireValidTimeout("connectionRequestTimeout")
-        socketTimeout.requireValidTimeout("socketTimeout", allowZero = true, maxMillis = Int.MAX_VALUE.toLong())
-        executionTimeout.requireValidTimeout("executionTimeout", allowZero = true, maxMillis = Int.MAX_VALUE.toLong())
+        connectionTimeout.requireValidTimeout("connectionTimeout", requireAtLeastOneMillisecond = true)
+        connectionRequestTimeout.requireValidTimeout(
+            "connectionRequestTimeout",
+            requireAtLeastOneMillisecond = true,
+        )
+        socketTimeout.requireValidTimeout(
+            "socketTimeout",
+            maxMillis = Int.MAX_VALUE.toLong(),
+            requireAtLeastOneMillisecond = true,
+        )
+        executionTimeout.requireValidTimeout(
+            "executionTimeout",
+            allowZero = true,
+            maxMillis = Int.MAX_VALUE.toLong(),
+            requireAtLeastOneMillisecond = true,
+        )
         require(maxConnections > 0) { "maxConnections must be greater than zero" }
         require(maxRetries >= 0) { "maxRetries must not be negative" }
     }
@@ -78,6 +90,7 @@ internal fun Duration.requireValidTimeout(
     name: String,
     allowZero: Boolean = false,
     maxMillis: Long = Long.MAX_VALUE,
+    requireAtLeastOneMillisecond: Boolean = false,
 ): Long {
     require(!isNegative && (allowZero || !isZero)) {
         if (allowZero) "$name must not be negative" else "$name must be greater than zero"
@@ -86,6 +99,13 @@ internal fun Duration.requireValidTimeout(
         toMillis()
     } catch (error: ArithmeticException) {
         throw IllegalArgumentException("$name is too large", error)
+    }
+    require(!requireAtLeastOneMillisecond || isZero || millis >= 1) {
+        if (allowZero) {
+            "$name must be zero or at least 1 millisecond"
+        } else {
+            "$name must be at least 1 millisecond"
+        }
     }
     require(millis <= maxMillis) { "$name must not exceed $maxMillis milliseconds" }
     return millis

@@ -4,18 +4,9 @@ CREATE DATABASE IF NOT EXISTS "bi_db";
 CREATE DATABASE IF NOT EXISTS "bi_db_consumer";
 -- global --
 -- lifecycle --
--- bi.aggregate.pause-ingress --
-DROP VIEW IF EXISTS "bi_db_consumer"."bi_aggregate_command_consumer" SYNC;
-
-DROP TABLE IF EXISTS "bi_db_consumer"."bi_aggregate_command_queue" SYNC;
-
-DROP VIEW IF EXISTS "bi_db_consumer"."bi_aggregate_state_consumer" SYNC;
-
-DROP TABLE IF EXISTS "bi_db_consumer"."bi_aggregate_state_queue" SYNC;
--- bi.aggregate.pause-ingress --
 -- lifecycle --
--- bi.aggregate.command --
-CREATE TABLE IF NOT EXISTS "bi_db"."bi_aggregate_command_store"
+-- bi.aggregate.commandStorage --
+CREATE TABLE "bi_db"."bi_aggregate_command_store"
 (
     "id" String,
     "context_name" String,
@@ -37,47 +28,10 @@ CREATE TABLE IF NOT EXISTS "bi_db"."bi_aggregate_command_store"
 ) ENGINE = ReplacingMergeTree
   PARTITION BY toYYYYMM("create_time")
   ORDER BY "id"
-  COMMENT 'wow-bi:{"protocolVersion":1,"layoutVersion":6,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","aggregate":"bi.aggregate","kind":"STORE","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
-
-DROP VIEW IF EXISTS "bi_db_consumer"."bi_aggregate_command_consumer" SYNC;
-
-DROP TABLE IF EXISTS "bi_db_consumer"."bi_aggregate_command_queue" SYNC;
-
-CREATE TABLE IF NOT EXISTS "bi_db_consumer"."bi_aggregate_command_queue"
-("data" String)
-ENGINE = Kafka('localhost:9093', 'wow.bi.aggregate.command',
-               'wow-bi.39b2524473ea17aea282d31d216a901c.bi_aggregate_command_consumer', 'JSONAsString')
-COMMENT 'wow-bi:{"protocolVersion":1,"layoutVersion":6,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","aggregate":"bi.aggregate","kind":"QUEUE","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
-
-CREATE MATERIALIZED VIEW IF NOT EXISTS "bi_db_consumer"."bi_aggregate_command_consumer"
-TO "bi_db"."bi_aggregate_command_store"
-AS (
-SELECT JSONExtractString("data", 'id') AS "id",
-       JSONExtractString("data", 'contextName') AS "context_name",
-       JSONExtractString("data", 'aggregateName') AS "aggregate_name",
-       JSONExtractString("data", 'name') AS "name",
-       JSONExtract("data", 'header', 'Map(String, String)') AS "header",
-       JSONExtractString("data", 'aggregateId') AS "aggregate_id",
-       JSONExtractString("data", 'tenantId') AS "tenant_id",
-       JSONExtractString("data", 'ownerId') AS "owner_id",
-       JSONExtractString("data", 'spaceId') AS "space_id",
-       JSONExtractString("data", 'requestId') AS "request_id",
-       JSONExtract("data", 'aggregateVersion', 'Nullable(UInt32)') AS "aggregate_version",
-       JSONExtractBool("data", 'isCreate') AS "is_create",
-       JSONExtractBool("data", 'isVoid') AS "is_void",
-       JSONExtractBool("data", 'allowCreate') AS "allow_create",
-       JSONExtractString("data", 'bodyType') AS "body_type",
-       simpleJSONExtractRaw(replaceOne("data", concat('"header":', simpleJSONExtractRaw("data", 'header')), '"header":{}'), 'body') AS "body",
-       toDateTime64(JSONExtractInt("data", 'createTime') / 1000.0, 3, 'Asia/Shanghai') AS "create_time"
-FROM "bi_db_consumer"."bi_aggregate_command_queue"
-) COMMENT 'wow-bi:{"protocolVersion":1,"layoutVersion":6,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","aggregate":"bi.aggregate","kind":"CONSUMER","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
-
-CREATE OR REPLACE VIEW "bi_db"."bi_aggregate_command"
-AS (SELECT * FROM "bi_db"."bi_aggregate_command_store" FINAL)
-COMMENT 'wow-bi:{"protocolVersion":1,"layoutVersion":6,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","aggregate":"bi.aggregate","kind":"VIEW","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
--- bi.aggregate.command --
+  COMMENT 'wow-bi:{"protocolVersion":2,"layoutVersion":6,"phase":"STABLE","deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","topologyFingerprint":"a9268847ae91435222ea21e31ac14c47","aggregate":"bi.aggregate","kind":"STORE","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
+-- bi.aggregate.commandStorage --
 -- bi.aggregate.stateStorage --
-CREATE TABLE IF NOT EXISTS "bi_db"."bi_aggregate_state_store"
+CREATE TABLE "bi_db"."bi_aggregate_state_store"
 (
     "id" String,
     "context_name" String,
@@ -100,10 +54,10 @@ CREATE TABLE IF NOT EXISTS "bi_db"."bi_aggregate_state_store"
 ) ENGINE = ReplacingMergeTree("version")
       PARTITION BY toYYYYMM("create_time")
       ORDER BY ("aggregate_id", "version")
-      COMMENT 'wow-bi:{"protocolVersion":1,"layoutVersion":6,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","aggregate":"bi.aggregate","kind":"STORE","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
+      COMMENT 'wow-bi:{"protocolVersion":2,"layoutVersion":6,"phase":"STABLE","deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","topologyFingerprint":"a9268847ae91435222ea21e31ac14c47","aggregate":"bi.aggregate","kind":"STORE","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
 -- bi.aggregate.stateStorage --
 -- bi.aggregate.stateLast --
-CREATE TABLE IF NOT EXISTS "bi_db"."bi_aggregate_state_last_store"
+CREATE TABLE "bi_db"."bi_aggregate_state_last_store"
 (
     "id" String,
     "context_name" String,
@@ -126,23 +80,21 @@ CREATE TABLE IF NOT EXISTS "bi_db"."bi_aggregate_state_last_store"
 ) ENGINE = ReplacingMergeTree("version")
       PARTITION BY toYYYYMM("first_event_time")
       ORDER BY ("aggregate_id")
-      COMMENT 'wow-bi:{"protocolVersion":1,"layoutVersion":6,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","aggregate":"bi.aggregate","kind":"STORE","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
+      COMMENT 'wow-bi:{"protocolVersion":2,"layoutVersion":6,"phase":"STABLE","deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","topologyFingerprint":"a9268847ae91435222ea21e31ac14c47","aggregate":"bi.aggregate","kind":"STORE","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
 
-DROP VIEW IF EXISTS "bi_db_consumer"."bi_aggregate_state_last_consumer" SYNC;
-
-CREATE MATERIALIZED VIEW IF NOT EXISTS "bi_db_consumer"."bi_aggregate_state_last_consumer"
+CREATE MATERIALIZED VIEW "bi_db_consumer"."bi_aggregate_state_last_consumer"
 TO "bi_db"."bi_aggregate_state_last_store"
 AS (
 SELECT *
 FROM "bi_db"."bi_aggregate_state_store"
-) COMMENT 'wow-bi:{"protocolVersion":1,"layoutVersion":6,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","aggregate":"bi.aggregate","kind":"CONSUMER","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
+) COMMENT 'wow-bi:{"protocolVersion":2,"layoutVersion":6,"phase":"STABLE","deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","topologyFingerprint":"a9268847ae91435222ea21e31ac14c47","aggregate":"bi.aggregate","kind":"CONSUMER","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
 
-CREATE OR REPLACE VIEW "bi_db"."bi_aggregate_state_last"
+CREATE VIEW "bi_db"."bi_aggregate_state_last"
 AS (SELECT * FROM "bi_db"."bi_aggregate_state_last_store" FINAL)
-COMMENT 'wow-bi:{"protocolVersion":1,"layoutVersion":6,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","aggregate":"bi.aggregate","kind":"VIEW","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
+COMMENT 'wow-bi:{"protocolVersion":2,"layoutVersion":6,"phase":"STABLE","deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","topologyFingerprint":"a9268847ae91435222ea21e31ac14c47","aggregate":"bi.aggregate","kind":"VIEW","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
 -- bi.aggregate.stateLast --
 -- bi.aggregate.expansion --
-CREATE OR REPLACE VIEW "bi_db"."bi_aggregate_state_last_root" AS (
+CREATE VIEW "bi_db"."bi_aggregate_state_last_root" AS (
 WITH
 JSONExtractRaw("__source"."state", 'item') AS "item",
 JSONExtractRaw("__source"."state", 'nested') AS "nested",
@@ -212,9 +164,9 @@ JSONExtract("__source"."state", 'zonedDateTime', 'String') AS "zoned_date_time",
 "__source"."tags" AS "__tags",
 "__source"."deleted" AS "__deleted"
 FROM "bi_db"."bi_aggregate_state_last" AS "__source"
-) COMMENT 'wow-bi:{"protocolVersion":1,"layoutVersion":6,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","aggregate":"bi.aggregate","kind":"VIEW","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
+) COMMENT 'wow-bi:{"protocolVersion":2,"layoutVersion":6,"phase":"STABLE","deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","topologyFingerprint":"a9268847ae91435222ea21e31ac14c47","aggregate":"bi.aggregate","kind":"VIEW","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
 
-CREATE OR REPLACE VIEW "bi_db"."bi_aggregate_state_last_root_items" AS (
+CREATE VIEW "bi_db"."bi_aggregate_state_last_root_items" AS (
 WITH
 arrayJoin(arrayZip(arrayEnumerate(JSONExtractArrayRaw("__source"."state", 'items')),
                    JSONExtractArrayRaw("__source"."state", 'items'))) AS "__cursor__items",
@@ -286,9 +238,9 @@ concat('/items/', toString(tupleElement("__cursor__items", 1) - 1)) AS "__path",
 "__source"."tags" AS "__tags",
 "__source"."deleted" AS "__deleted"
 FROM "bi_db"."bi_aggregate_state_last" AS "__source"
-) COMMENT 'wow-bi:{"protocolVersion":1,"layoutVersion":6,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","aggregate":"bi.aggregate","kind":"VIEW","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
+) COMMENT 'wow-bi:{"protocolVersion":2,"layoutVersion":6,"phase":"STABLE","deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","topologyFingerprint":"a9268847ae91435222ea21e31ac14c47","aggregate":"bi.aggregate","kind":"VIEW","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
 
-CREATE OR REPLACE VIEW "bi_db"."bi_aggregate_state_last_root_like_list_item" AS (
+CREATE VIEW "bi_db"."bi_aggregate_state_last_root_like_list_item" AS (
 WITH
 arrayJoin(arrayZip(arrayEnumerate(JSONExtractArrayRaw("__source"."state", 'likeListItem')),
                    JSONExtractArrayRaw("__source"."state", 'likeListItem'))) AS "__cursor__like_list_item",
@@ -360,9 +312,9 @@ concat('/likeListItem/', toString(tupleElement("__cursor__like_list_item", 1) - 
 "__source"."tags" AS "__tags",
 "__source"."deleted" AS "__deleted"
 FROM "bi_db"."bi_aggregate_state_last" AS "__source"
-) COMMENT 'wow-bi:{"protocolVersion":1,"layoutVersion":6,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","aggregate":"bi.aggregate","kind":"VIEW","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
+) COMMENT 'wow-bi:{"protocolVersion":2,"layoutVersion":6,"phase":"STABLE","deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","topologyFingerprint":"a9268847ae91435222ea21e31ac14c47","aggregate":"bi.aggregate","kind":"VIEW","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
 
-CREATE OR REPLACE VIEW "bi_db"."bi_aggregate_state_last_root_nested_list" AS (
+CREATE VIEW "bi_db"."bi_aggregate_state_last_root_nested_list" AS (
 WITH
 arrayJoin(arrayZip(arrayEnumerate(JSONExtractArrayRaw("__source"."state", 'nestedList')),
                    JSONExtractArrayRaw("__source"."state", 'nestedList'))) AS "__cursor__nested_list",
@@ -435,9 +387,9 @@ concat('/nestedList/', toString(tupleElement("__cursor__nested_list", 1) - 1)) A
 "__source"."tags" AS "__tags",
 "__source"."deleted" AS "__deleted"
 FROM "bi_db"."bi_aggregate_state_last" AS "__source"
-) COMMENT 'wow-bi:{"protocolVersion":1,"layoutVersion":6,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","aggregate":"bi.aggregate","kind":"VIEW","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
+) COMMENT 'wow-bi:{"protocolVersion":2,"layoutVersion":6,"phase":"STABLE","deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","topologyFingerprint":"a9268847ae91435222ea21e31ac14c47","aggregate":"bi.aggregate","kind":"VIEW","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
 
-CREATE OR REPLACE VIEW "bi_db"."bi_aggregate_state_last_root_nested_list_list" AS (
+CREATE VIEW "bi_db"."bi_aggregate_state_last_root_nested_list_list" AS (
 WITH
 arrayJoin(arrayZip(arrayEnumerate(JSONExtractArrayRaw("__source"."state", 'nestedList')),
                    JSONExtractArrayRaw("__source"."state", 'nestedList'))) AS "__cursor__nested_list",
@@ -517,9 +469,9 @@ concat('/nestedList/', toString(tupleElement("__cursor__nested_list", 1) - 1), '
 "__source"."tags" AS "__tags",
 "__source"."deleted" AS "__deleted"
 FROM "bi_db"."bi_aggregate_state_last" AS "__source"
-) COMMENT 'wow-bi:{"protocolVersion":1,"layoutVersion":6,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","aggregate":"bi.aggregate","kind":"VIEW","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
+) COMMENT 'wow-bi:{"protocolVersion":2,"layoutVersion":6,"phase":"STABLE","deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","topologyFingerprint":"a9268847ae91435222ea21e31ac14c47","aggregate":"bi.aggregate","kind":"VIEW","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
 
-CREATE OR REPLACE VIEW "bi_db"."bi_aggregate_state_last_root_set" AS (
+CREATE VIEW "bi_db"."bi_aggregate_state_last_root_set" AS (
 WITH
 arrayJoin(arrayZip(arrayEnumerate(JSONExtractArrayRaw("__source"."state", 'set')),
                    JSONExtractArrayRaw("__source"."state", 'set'))) AS "__cursor__set",
@@ -591,14 +543,19 @@ concat('/set/', toString(tupleElement("__cursor__set", 1) - 1)) AS "__path",
 "__source"."tags" AS "__tags",
 "__source"."deleted" AS "__deleted"
 FROM "bi_db"."bi_aggregate_state_last" AS "__source"
-) COMMENT 'wow-bi:{"protocolVersion":1,"layoutVersion":6,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","aggregate":"bi.aggregate","kind":"VIEW","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
+) COMMENT 'wow-bi:{"protocolVersion":2,"layoutVersion":6,"phase":"STABLE","deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","topologyFingerprint":"a9268847ae91435222ea21e31ac14c47","aggregate":"bi.aggregate","kind":"VIEW","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
 -- bi.aggregate.expansion --
+-- bi.aggregate.commandPublic --
+CREATE VIEW "bi_db"."bi_aggregate_command"
+AS (SELECT * FROM "bi_db"."bi_aggregate_command_store" FINAL)
+COMMENT 'wow-bi:{"protocolVersion":2,"layoutVersion":6,"phase":"STABLE","deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","topologyFingerprint":"a9268847ae91435222ea21e31ac14c47","aggregate":"bi.aggregate","kind":"VIEW","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
+-- bi.aggregate.commandPublic --
 -- bi.aggregate.statePublic --
-CREATE OR REPLACE VIEW "bi_db"."bi_aggregate_state"
+CREATE VIEW "bi_db"."bi_aggregate_state"
 AS (SELECT * FROM "bi_db"."bi_aggregate_state_store" FINAL)
-COMMENT 'wow-bi:{"protocolVersion":1,"layoutVersion":6,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","aggregate":"bi.aggregate","kind":"VIEW","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
+COMMENT 'wow-bi:{"protocolVersion":2,"layoutVersion":6,"phase":"STABLE","deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","topologyFingerprint":"a9268847ae91435222ea21e31ac14c47","aggregate":"bi.aggregate","kind":"VIEW","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
 
-CREATE OR REPLACE VIEW "bi_db"."bi_aggregate_state_event"
+CREATE VIEW "bi_db"."bi_aggregate_state_event"
 AS (
 WITH arrayJoin(arrayZip(arrayEnumerate("body"),
                         "body")) AS "events"
@@ -619,28 +576,57 @@ SELECT "id",
        JSONExtract("events".2, 'name', 'String') AS "event_name",
        JSONExtract("events".2, 'revision', 'String') AS "event_revision",
        JSONExtract("events".2, 'bodyType', 'String') AS "event_body_type",
-       JSONExtract("events".2, 'body', 'String') AS "event_body",
+       JSONExtractRaw("events".2, 'body') AS "event_body",
        "first_operator",
        "first_event_time",
        "create_time",
        "tags",
        "deleted"
 FROM "bi_db"."bi_aggregate_state"
-) COMMENT 'wow-bi:{"protocolVersion":1,"layoutVersion":6,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","aggregate":"bi.aggregate","kind":"VIEW","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
+) COMMENT 'wow-bi:{"protocolVersion":2,"layoutVersion":6,"phase":"STABLE","deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","topologyFingerprint":"a9268847ae91435222ea21e31ac14c47","aggregate":"bi.aggregate","kind":"VIEW","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
 -- bi.aggregate.statePublic --
+-- deployment-anchor --
+CREATE VIEW "bi_db_consumer"."__wow_bi_deployment" AS (SELECT 1 AS "alive" WHERE 0) COMMENT 'wow-bi:{"protocolVersion":2,"layoutVersion":6,"phase":"STABLE","deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","topologyFingerprint":"a9268847ae91435222ea21e31ac14c47","aggregate":null,"kind":"ANCHOR","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
+-- deployment-anchor --
+-- bi.aggregate.commandIngress --
+CREATE TABLE "bi_db_consumer"."bi_aggregate_command_queue"
+("data" String)
+ENGINE = Kafka('localhost:9093', 'wow.bi.aggregate.command',
+               'wow-bi.39b2524473ea17aea282d31d216a901c.bi_aggregate_command_consumer', 'JSONAsString')
+COMMENT 'wow-bi:{"protocolVersion":2,"layoutVersion":6,"phase":"STABLE","deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","topologyFingerprint":"a9268847ae91435222ea21e31ac14c47","aggregate":"bi.aggregate","kind":"QUEUE","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
+
+CREATE MATERIALIZED VIEW "bi_db_consumer"."bi_aggregate_command_consumer"
+TO "bi_db"."bi_aggregate_command_store"
+AS (
+SELECT JSONExtractString("data", 'id') AS "id",
+       JSONExtractString("data", 'contextName') AS "context_name",
+       JSONExtractString("data", 'aggregateName') AS "aggregate_name",
+       JSONExtractString("data", 'name') AS "name",
+       JSONExtract("data", 'header', 'Map(String, String)') AS "header",
+       JSONExtractString("data", 'aggregateId') AS "aggregate_id",
+       JSONExtractString("data", 'tenantId') AS "tenant_id",
+       JSONExtractString("data", 'ownerId') AS "owner_id",
+       JSONExtractString("data", 'spaceId') AS "space_id",
+       JSONExtractString("data", 'requestId') AS "request_id",
+       JSONExtract("data", 'aggregateVersion', 'Nullable(UInt32)') AS "aggregate_version",
+       JSONExtractBool("data", 'isCreate') AS "is_create",
+       JSONExtractBool("data", 'isVoid') AS "is_void",
+       JSONExtractBool("data", 'allowCreate') AS "allow_create",
+       JSONExtractString("data", 'bodyType') AS "body_type",
+       simpleJSONExtractRaw(replaceOne("data", concat('"header":', simpleJSONExtractRaw("data", 'header')), '"header":{}'), 'body') AS "body",
+       toDateTime64(JSONExtractInt("data", 'createTime') / 1000.0, 3, 'Asia/Shanghai') AS "create_time"
+FROM "bi_db_consumer"."bi_aggregate_command_queue"
+) COMMENT 'wow-bi:{"protocolVersion":2,"layoutVersion":6,"phase":"STABLE","deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","topologyFingerprint":"a9268847ae91435222ea21e31ac14c47","aggregate":"bi.aggregate","kind":"CONSUMER","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
+-- bi.aggregate.commandIngress --
 -- bi.aggregate.stateIngress --
-DROP VIEW IF EXISTS "bi_db_consumer"."bi_aggregate_state_consumer" SYNC;
-
-DROP TABLE IF EXISTS "bi_db_consumer"."bi_aggregate_state_queue" SYNC;
-
-CREATE TABLE IF NOT EXISTS "bi_db_consumer"."bi_aggregate_state_queue"
+CREATE TABLE "bi_db_consumer"."bi_aggregate_state_queue"
 (
     "data" String
 ) ENGINE = Kafka('localhost:9093', 'wow.bi.aggregate.state',
                  'wow-bi.39b2524473ea17aea282d31d216a901c.bi_aggregate_state_consumer', 'JSONAsString')
-COMMENT 'wow-bi:{"protocolVersion":1,"layoutVersion":6,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","aggregate":"bi.aggregate","kind":"QUEUE","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
+COMMENT 'wow-bi:{"protocolVersion":2,"layoutVersion":6,"phase":"STABLE","deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","topologyFingerprint":"a9268847ae91435222ea21e31ac14c47","aggregate":"bi.aggregate","kind":"QUEUE","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS "bi_db_consumer"."bi_aggregate_state_consumer"
+CREATE MATERIALIZED VIEW "bi_db_consumer"."bi_aggregate_state_consumer"
 TO "bi_db"."bi_aggregate_state_store"
 AS (
 SELECT JSONExtractString("data", 'id') AS "id",
@@ -662,8 +648,5 @@ SELECT JSONExtractString("data", 'id') AS "id",
        JSONExtract("data", 'tags', 'Map(String, Array(String))') AS "tags",
        JSONExtractBool("data", 'deleted') AS "deleted"
 FROM "bi_db_consumer"."bi_aggregate_state_queue"
-) COMMENT 'wow-bi:{"protocolVersion":1,"layoutVersion":6,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","aggregate":"bi.aggregate","kind":"CONSUMER","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
+) COMMENT 'wow-bi:{"protocolVersion":2,"layoutVersion":6,"phase":"STABLE","deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","topologyFingerprint":"a9268847ae91435222ea21e31ac14c47","aggregate":"bi.aggregate","kind":"CONSUMER","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
 -- bi.aggregate.stateIngress --
--- deployment-anchor --
-CREATE OR REPLACE VIEW "bi_db_consumer"."__wow_bi_deployment" AS (SELECT 1 AS "alive" WHERE 0) COMMENT 'wow-bi:{"protocolVersion":1,"layoutVersion":6,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","configurationFingerprint":"39b2524473ea17aea282d31d216a901c","aggregate":null,"kind":"ANCHOR","consumerIdentity":"39b2524473ea17aea282d31d216a901c"}';
--- deployment-anchor --

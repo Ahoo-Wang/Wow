@@ -31,6 +31,7 @@ internal interface ClickHouseTopologyDdl {
         logicalTableName: String,
         physicalTableName: String,
         shardingKey: String,
+        createIfNotExists: Boolean,
     ): String?
 
     fun dropTableNames(logicalTableName: String): List<String>
@@ -63,13 +64,16 @@ private class ClusterTopologyDdl(private val topology: ClickHouseTopology.Cluste
         logicalTableName: String,
         physicalTableName: String,
         shardingKey: String,
-    ): String =
-        """
-            CREATE TABLE IF NOT EXISTS ${qualified(database, logicalTableName)} $scopeClause
+        createIfNotExists: Boolean,
+    ): String {
+        val ifNotExistsClause = if (createIfNotExists) " IF NOT EXISTS" else ""
+        return """
+            CREATE TABLE$ifNotExistsClause ${qualified(database, logicalTableName)} $scopeClause
             AS ${qualified(database, physicalTableName)}
             ENGINE = Distributed(${stringLiteral(topology.name)}, ${quoteIdentifier(database)},
                                  ${stringLiteral(physicalTableName)}, $shardingKey);
         """.trimIndent()
+    }
 
     override fun dropTableNames(logicalTableName: String): List<String> =
         listOf(logicalTableName, physicalTableName(logicalTableName))
@@ -90,6 +94,7 @@ private data object StandaloneTopologyDdl : ClickHouseTopologyDdl {
         logicalTableName: String,
         physicalTableName: String,
         shardingKey: String,
+        createIfNotExists: Boolean,
     ): String? = null
 
     override fun dropTableNames(logicalTableName: String): List<String> = listOf(logicalTableName)

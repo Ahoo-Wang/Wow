@@ -12019,6 +12019,20 @@
           "415" : {
             "$ref" : "#/components/responses/wow.UnsupportedMediaType"
           },
+          "500" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.DefaultErrorInfo"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
           "502" : {
             "content" : {
               "application/json" : {

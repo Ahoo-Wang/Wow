@@ -14,6 +14,8 @@
 package me.ahoo.wow.webflux.route
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.openapi.contract.HttpResponse
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import org.junit.jupiter.api.Test
@@ -66,17 +68,56 @@ class HttpRoutePredicateFactoryTest {
         predicate.test(request).assert().isFalse()
     }
 
+    @Test
+    fun `should let BI handler negotiate unsupported accept`() {
+        val contract = routeContract(
+            method = "GET",
+            path = "/test/{id}",
+            accept = MediaType.APPLICATION_JSON_VALUE,
+            handlerKey = BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT,
+        )
+        val predicate = factory.create(contract)
+        val request = serverRequest(
+            MockServerHttpRequest
+                .get("/test/aggregate-id")
+                .accept(MediaType.TEXT_PLAIN)
+        )
+
+        predicate.test(request).assert().isTrue()
+    }
+
+    @Test
+    fun `should not infer handler-managed negotiation from a declared not acceptable response`() {
+        val contract = routeContract(
+            method = "GET",
+            path = "/test/{id}",
+            accept = MediaType.APPLICATION_JSON_VALUE,
+            responses = listOf(HttpResponse(statusCode = "406")),
+        )
+        val predicate = factory.create(contract)
+        val request = serverRequest(
+            MockServerHttpRequest
+                .get("/test/aggregate-id")
+                .accept(MediaType.TEXT_PLAIN)
+        )
+
+        predicate.test(request).assert().isFalse()
+    }
+
     private fun routeContract(
         method: String,
         path: String,
-        accept: String
+        accept: String,
+        handlerKey: String = "handler.key",
+        responses: List<HttpResponse> = emptyList(),
     ): HttpRouteContract {
         return HttpRouteContract(
             routeId = "test.route",
             method = method,
             path = path,
             accept = listOf(accept),
-            handlerKey = "handler.key",
+            responses = responses,
+            handlerKey = handlerKey,
             handlerMetadata = HttpRouteHandlerMetadata.None
         )
     }

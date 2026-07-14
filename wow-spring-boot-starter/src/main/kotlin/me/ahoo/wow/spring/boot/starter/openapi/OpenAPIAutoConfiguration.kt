@@ -19,16 +19,20 @@ import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contributor.DefaultRouteContributors
 import me.ahoo.wow.openapi.contributor.global.GenerateBIScriptRouteContributor
+import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration.Companion.WOW_CURRENT_BOUNDED_CONTEXT
 import me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
 
 @AutoConfiguration
-@ConditionalOnOpenAPIEnabled
+@ConditionalOnWowEnabled
+@ConditionalOnClass(name = ["me.ahoo.wow.openapi.RouterSpecs"])
 @EnableConfigurationProperties(OpenAPIProperties::class, BiScriptProperties::class)
 class OpenAPIAutoConfiguration {
 
@@ -61,8 +65,13 @@ class OpenAPIAutoConfiguration {
         ).build()
     }
 
-    @Bean
-    fun wowOpenApiCustomizer(routerSpecs: RouterSpecs): WowOpenApiCustomizer {
-        return WowOpenApiCustomizer(routerSpecs)
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnOpenAPIEnabled
+    @ConditionalOnClass(name = ["org.springdoc.core.customizers.OpenApiCustomizer"])
+    class SpringdocConfiguration {
+        @Bean
+        fun wowOpenApiCustomizer(routerSpecs: RouterSpecs): WowOpenApiCustomizer {
+            return WowOpenApiCustomizer(routerSpecs)
+        }
     }
 }

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.webflux.route
 
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import org.springframework.http.HttpMethod
 import org.springframework.http.MediaType
@@ -21,10 +22,19 @@ import org.springframework.web.reactive.function.server.RequestPredicates
 
 internal class HttpRoutePredicateFactory {
     fun create(contract: HttpRouteContract): RequestPredicate {
-        val acceptMediaTypes = MediaType.parseMediaTypes(contract.accept).toTypedArray()
+        val acceptMediaTypes = contract.runtimeAcceptMediaTypes()
         val httpMethod = HttpMethod.valueOf(contract.method)
         return RequestPredicates.path(contract.path)
             .and(RequestPredicates.method(httpMethod))
             .and(RequestPredicates.accept(*acceptMediaTypes))
     }
 }
+
+private fun HttpRouteContract.runtimeAcceptMediaTypes(): Array<MediaType> =
+    if (handlerKey in HANDLER_NEGOTIATED_ACCEPT_KEYS) {
+        arrayOf(MediaType.ALL)
+    } else {
+        MediaType.parseMediaTypes(accept).toTypedArray()
+    }
+
+private val HANDLER_NEGOTIATED_ACCEPT_KEYS = setOf(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT)

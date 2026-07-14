@@ -576,7 +576,7 @@ Source: [README.md:70-99](https://github.com/Ahoo-Wang/Wow/blob/main/README.md#L
 | 接口 / 类 | 模块 | 角色 | 源代码 |
 |---|---|---|---|
 | `Named` | `wow-api` | 可命名对象的基接口 | [Named.kt:22](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/naming/Named.kt#L22) |
-| `AggregateId` | `wow-api` | 复合聚合标识符：tenant + context + name + id | [AggregateId.kt:29](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/modeling/AggregateId.kt#L29) |
+| `AggregateId` | `wow-api` | 携带租户、上下文、名称与 ID 的聚合坐标；ID 在命名聚合范围内跨租户唯一 | [AggregateId.kt:29](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/modeling/AggregateId.kt#L29) |
 | `CommandMessage<C>` | `wow-api` | 命令信封，包含聚合定位、版本控制、幂等性 | [CommandMessage.kt:53](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt#L53) |
 | `DomainEvent<T>` | `wow-api` | 关于过去状态变更的不可变事实，携带聚合标识 | [DomainEvent.kt:52](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L52) |
 | `Message<SOURCE, T>` | `wow-api` | 带 header + body 的泛型消息，流式 API | [Message.kt:38](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/messaging/Message.kt#L38) |
@@ -1042,7 +1042,7 @@ allEvents!!.forEach { println("Event: ${it.body}") }
 | 术语 | 定义 | 关键源代码 |
 |---|---|---|
 | **聚合（Aggregate）** | 一组作为单个事务单元处理的领域对象。在 Wow 中，分为 `CommandAggregate`（处理命令）和 `StateAggregate`（持有状态）。 | [CommandAggregate.kt:41-53](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt#L41-L53) |
-| **聚合标识（AggregateId）** | 复合标识符：`tenantId` + `contextName` + `aggregateName` + `id`。支持多租户、分片和比较。 | [AggregateId.kt:29-57](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/modeling/AggregateId.kt#L29-L57) |
+| **聚合标识（AggregateId）** | 携带 `tenantId`、`contextName`、`aggregateName` 与 `id` 的聚合坐标。在同一个命名聚合范围内，`id` 跨租户唯一；`tenantId` 是路由和隔离上下文，不是 ID 命名空间。 | [AggregateId.kt:29-57](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/modeling/AggregateId.kt#L29-L57) |
 | **聚合根（Aggregate Root）** | 聚合的入口点。使用 `@AggregateRoot` 注解。所有外部引用都通过它进行。 | [AggregateRoot.kt:66](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoot.kt#L66) |
 | **限界上下文（Bounded Context）** | DDD 术语，指领域模型在其中保持一致的边界。在 Wow 中，由 `@BoundedContext` 注解和 `AggregateId` 中的 `contextName` 定义。 | [AggregateId.kt:29](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/modeling/AggregateId.kt#L29) |
 | **命令（Command）** | 改变聚合状态的请求。由 `CommandMessage<C>` 表示。命令是祈使式的："执行这个。" | [CommandMessage.kt:53](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt#L53) |

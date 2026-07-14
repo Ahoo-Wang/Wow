@@ -64,7 +64,15 @@ val diagnostics: List<BiScriptDiagnostic> = result.diagnostics
 
 ### HTTP 路由
 
-Spring WebFlux 路由及其 Swagger/OpenAPI operation 默认启用。当至少一个本地聚合需要生成 Kafka consumer 时，必须配置部署唯一的 `wow.bi.script.consumer-group-namespace`；否则请求返回 `400`，不会阻止应用启动。配置 `wow.bi.script.enabled=false` 可同时移除运行时路由及其 OpenAPI operation，并且不会构造或校验 BI 生成选项和 inspector。该路由使用同一个 `BiScriptOptions`：
+Spring WebFlux 路由及其 Swagger/OpenAPI operation 默认开启。启用本身不会增加鉴权，因此应用安全策略必须保护该管理端点；配置 `wow.bi.script.enabled=false` 会同时移除二者。`DEPLOY` 生成 Kafka consumer 时，以及所有 `RESET`（包括空聚合作用域），都必须配置部署唯一的 `wow.bi.script.consumer-group-namespace`；缺少配置时请求返回 `400`，不会阻止应用启动。未配置 namespace 的空 `DEPLOY` 不会创建 anchor；配置后，空作用域也会获得可供后续聚合复用的持久部署身份。禁用时 Starter 不构造或校验 BI 生成选项和 inspector。该路由使用同一个 `BiScriptOptions`：
+
+```yaml
+wow:
+  bi:
+    script:
+      enabled: true
+      consumer-group-namespace: orders-production-blue
+```
 
 ```shell
 curl -X POST 'http://localhost:8080/wow/bi/script' \
@@ -103,9 +111,20 @@ JSON 请求体必填。`{}` 保持服务端 `BiScriptOptions` 不变；非 `null
 
 提供 `topology` 时必须提供 `topology.mode`。在 `CLUSTER` 模式下，省略的 `cluster` 字段继承当前集群基础配置；如果服务端基础配置是独立模式，则继承领域集群默认值。`STANDALONE` 拒绝 `cluster` 对象。无效或空请求体返回 `400`；缺少或不支持的 `Content-Type` 返回 `415`。响应会遵循 `Accept` 的 quality value；JSON 返回 SQL、诊断与 destructive 标记，SQL 与通配符只返回 `result.script`。请求的表示均不受支持，或所有受支持表示均设为 `q=0` 时返回 `406`。每个成功响应都包含 `Wow-BI-Diagnostic-Count`。生成工作在线程池 `boundedElastic` 上执行。
 
-本版本默认注入 `NoOpBiDeploymentInspector`。它返回显式 `Unavailable`：普通 `DEPLOY` 仅适合首次部署或离线预览，同时会产生 `INSPECTION_UNAVAILABLE` 诊断；它无法清理旧对象，也无法恢复 `RESET` 创建的 consumer identity，配置变化还可能选择新的 consumer group。`RESET` 会被拒绝。需要完整对账时，配置 `wow.bi.script.inspector.type=CLICKHOUSE` 及 `inspector.clickhouse.endpoints`，即可启用 ClickHouse 官方 Java `client-v2` 实现。真实 inspector 查询失败会直接传播错误，不会降级为 NoOp；选择 `CLICKHOUSE` 但缺少 client-v2 类时应用启动失败。自定义 `BiDeploymentInspector` Bean 仍具有最高优先级。
+Starter 默认注入 `NoOpBiDeploymentInspector`。它返回显式 `Unavailable`：普通 `DEPLOY` 仅适合首次部署或离线预览，同时会产生 `INSPECTION_UNAVAILABLE` 诊断；它无法清理旧对象，也无法恢复 `RESET` 创建的 consumer identity，配置变化还可能选择新的 consumer group。`RESET` 会被拒绝。需要完整对账时，配置 `wow.bi.script.inspector.type=CLICKHOUSE` 及 `inspector.clickhouse.endpoints`，即可启用 ClickHouse 官方 Java `client-v2` 实现。真实 inspector 查询失败会直接传播错误，不会降级为 NoOp；选择 `CLICKHOUSE` 但缺少 client-v2 类时应用启动失败。自定义 `BiDeploymentInspector` Bean 仍具有最高优先级。
 
-如需有意重建全部 BI 数据，请发送 `operation=RESET` 与 `replayFromEarliestConfirmed=true`。只有可用 inspector 能从 ClickHouse catalog 枚举全部 owned 对象，因此 Reset 会先删除当前及 orphan store，再创建新的 consumer identity。每个生成对象和零行 deployment anchor 都把版本、deployment fingerprint、聚合 owner、对象类型和 identity 写入 `system.tables.comment`；服务重启后直接从 catalog 恢复，不依赖 Wow 服务内存或外部 manifest。
+如需有意重建全部 BI 数据，请发送 `operation=RESET` 与 `replayFromEarliestConfirmed=true`。Reset 还要求配置 `consumerGroupNamespace`，以便在 canonical anchor 中持久化恢复状态。只有可用 inspector 能从 ClickHouse catalog 枚举全部 owned 对象。每个生成对象和零行 deployment anchor 都把协议/布局版本、deployment phase、fingerprint、聚合 owner、对象类型和 identity 写入 `system.tables.comment`；服务重启后直接从 catalog 恢复，不依赖 Wow 服务内存或外部 manifest。
+
+元数据协议 v2 使 Reset 能从进程或 SQL 客户端中断中恢复。生成语句必须按顺序执行，并且执行器必须在首个错误处停止：
+
+1. 先把 canonical anchor 写为 `RESETTING`，并记录新的 consumer identity。
+2. 保留该 anchor，删除其余全部 owned 对象并重建持久表/视图图。
+3. 把 anchor 替换为 `STABLE`。
+4. 最后创建 Kafka queue 表和 Kafka consumer 物化视图。
+
+执行中断后绝不能盲目重放原 SQL 文件，必须重新 inspection，并根据 catalog 当前 phase 重新生成。如果 anchor 是 `RESETTING`，应使用相同配置重新生成 `RESET`；生成器会复用已记录的 identity，而 `DEPLOY` 会被拒绝。如果 anchor 已是 `STABLE`、但 Kafka ingress 尚未完成，应生成 `DEPLOY` 补齐。重放已完成的 Reset 可能先删除重建数据、却继续复用已经提交 offset 的 Kafka identity；进入 `STABLE` 后重新生成 Reset 则会有意开启新的 reset epoch 和 identity。协议 v2 会有意拒绝 v1 ownership marker；采用 v2 前必须停止旧 consumer，并显式清理或重建旧范围。外部协调必须保证整个 BI 物理对象命名空间只有一个写者，而不只是每个 `deploymentId` 一个写者；共享数据库和规范化对象名的 deployment 仍可能在 inspection 后发生竞争。ClickHouse `ON CLUSTER` DDL 不是跨副本事务，副本分歧仍是 fail-closed 的运维恢复场景。
+
+`DEPLOY` 与 `RESET` 只对账当前物理归属范围，不迁移 `database`、`consumerDatabase`、`consumerGroupNamespace`、拓扑模式、cluster name 或 installation。可见的 topology fingerprint 漂移会被拒绝；范围变化可能使旧对象不可发现，因此必须先停止旧 consumer、显式清理旧范围，再部署新范围。
 
 ## 生成的 SQL 契约
 
@@ -215,16 +234,16 @@ JSONExtract("data", 'tags', 'Map(String, Array(String))') AS "tags"
 
 WITH arrayJoin(arrayZip(arrayEnumerate("body"), "body")) AS "events"
 SELECT "events".1 AS "event_sequence",
-       JSONExtract("events".2, 'body', 'String') AS "event_body";
+       JSONExtractRaw("events".2, 'body') AS "event_body";
 ```
 
 顶层 `state` 使用相同的 header 屏蔽词法提取，避免 header 中名为 `state` 的嵌套字段替换权威状态 token。
 
-可写状态存储按 `create_time` 月分区，以 `(aggregate_id, version)` 排序。独立模式写入 `example_order_state_store`；集群模式通过分布式 store 写入 `example_order_state_store_local`。`example_order_state` 始终是去重读取视图。
+可写状态存储按 `create_time` 月分区，以 `(aggregate_id, version)` 排序。该排序键依赖 Wow 的聚合标识契约：在同一个命名聚合范围内，`aggregate_id` 必须跨所有租户保持唯一，`tenant_id` 不是可复用聚合 ID 的命名空间。独立模式写入 `example_order_state_store`；集群模式通过分布式 store 写入 `example_order_state_store_local`。`example_order_state` 始终是去重读取视图。
 
 ### 最新状态
 
-最新状态存储从状态 store 接收全部列，并按首次事件时间分区。`example_order_state_last` 是始终执行 `FINAL` 的权威公共视图；可写存储统一隔离在 `*_store` 后缀之后。
+最新状态存储从状态 store 接收全部列，并按首次事件时间分区。其 `ORDER BY aggregate_id` 同样要求聚合 ID 在命名聚合范围内跨租户保持唯一。`example_order_state_last` 是始终执行 `FINAL` 的权威公共视图；可写存储统一隔离在 `*_store` 后缀之后。
 
 ```sql
 CREATE TABLE IF NOT EXISTS "bi_db"."example_order_state_last_store"
@@ -268,7 +287,7 @@ AS SELECT * FROM "bi_db"."example_order_state_store";
 根视图将一对一对象展开为列，并以 `__*` 列继承状态事件元数据。物理输入列统一通过固定表别名 `__source` 限定，避免领域输出别名遮蔽元数据列：
 
 ```sql
-CREATE VIEW IF NOT EXISTS "bi_db"."example_order_state_last_root" ON CLUSTER '{cluster}' AS
+CREATE OR REPLACE VIEW "bi_db"."example_order_state_last_root" ON CLUSTER '{cluster}' AS
 WITH JSONExtractRaw("__source"."state", 'address') AS "address"
 SELECT JSONExtract("address", 'city', 'String') AS "address__city",
        JSONExtract("__source"."state", 'id', 'String') AS "id",
@@ -286,7 +305,7 @@ FROM "bi_db"."example_order_state_last" AS "__source";
 对象集合生成子视图；`arrayJoin` 将每个对象元素展开成一行，同时继承父视图列和元数据：
 
 ```sql
-CREATE VIEW IF NOT EXISTS "bi_db"."example_order_state_last_root_items" ON CLUSTER '{cluster}' AS
+CREATE OR REPLACE VIEW "bi_db"."example_order_state_last_root_items" ON CLUSTER '{cluster}' AS
 WITH arrayJoin(arrayZip(arrayEnumerate(JSONExtractArrayRaw("__source"."state", 'items')),
                         JSONExtractArrayRaw("__source"."state", 'items'))) AS "__cursor__items",
      tupleElement("__cursor__items", 2) AS "items"

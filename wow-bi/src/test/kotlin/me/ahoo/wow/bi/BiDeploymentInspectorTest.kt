@@ -25,10 +25,18 @@ class BiDeploymentInspectorTest {
             .isEqualTo(BiDeploymentInspection.Unavailable)
         NoOpBiDeploymentInspector.allowsDynamicScope.assert().isTrue()
 
-        val authoritative = BiDeploymentInspector {
+        val inspectedOperations = mutableListOf<BiScriptOperation>()
+        val authoritative = BiDeploymentInspector { _, operation ->
+            inspectedOperations += operation
             Mono.just(BiDeploymentInspection.Available(ObservedBiDeployment(emptyList())))
         }
         authoritative.allowsDynamicScope.assert().isFalse()
+        authoritative.inspect(BiScriptOptions()).block()
+        authoritative.inspect(BiScriptOptions(), BiScriptOperation.Reset(true)).block()
+        inspectedOperations.assert().containsExactly(
+            BiScriptOperation.Deploy,
+            BiScriptOperation.Reset(true),
+        )
     }
 
     @Test
@@ -36,6 +44,7 @@ class BiDeploymentInspectorTest {
         val metadata = BiObjectMetadata(
             deploymentId = "a".repeat(32),
             configurationFingerprint = "b".repeat(32),
+            topologyFingerprint = "c".repeat(32),
             aggregate = "example.order",
             kind = BiObjectKind.QUEUE,
         )
@@ -45,6 +54,100 @@ class BiDeploymentInspectorTest {
         encoded.assert().startsWith("wow-bi:")
         BiObjectMetadataCodec.decode(encoded).assert().isEqualTo(metadata)
         BiObjectMetadataCodec.decode("user-owned").assert().isNull()
+    }
+
+    @Test
+    fun `object metadata codec should reject protocol v1`() {
+        val legacy = """
+            wow-bi:{
+              "protocolVersion": 1,
+              "layoutVersion": 6,
+              "deploymentId": "${"a".repeat(32)}",
+              "configurationFingerprint": "${"b".repeat(32)}",
+              "aggregate": null,
+              "kind": "ANCHOR",
+              "consumerIdentity": "${"c".repeat(32)}"
+            }
+        """.trimIndent()
+
+        assertThrows<IllegalArgumentException> {
+            BiObjectMetadataCodec.decode(legacy)
+        }.message.assert().contains("Unsupported BI object metadata protocol version: 1")
+    }
+
+    @Test
+    fun `object metadata codec should fail closed when protocol v2 phase is missing`() {
+        val incomplete = """
+            wow-bi:{
+              "protocolVersion": 2,
+              "layoutVersion": 6,
+              "deploymentId": "${"a".repeat(32)}",
+              "configurationFingerprint": "${"b".repeat(32)}",
+              "aggregate": null,
+              "kind": "ANCHOR",
+              "consumerIdentity": "${"c".repeat(32)}"
+            }
+        """.trimIndent()
+
+        assertThrows<IllegalArgumentException> {
+            BiObjectMetadataCodec.decode(incomplete)
+        }.message.assert().contains("protocol v2 requires phase")
+    }
+
+    @Test
+    fun `object metadata codec should fail closed when protocol v2 topology fingerprint is missing`() {
+        val incomplete = """
+            wow-bi:{
+              "protocolVersion": 2,
+              "layoutVersion": 6,
+              "phase": "STABLE",
+              "deploymentId": "${"a".repeat(32)}",
+              "configurationFingerprint": "${"b".repeat(32)}",
+              "aggregate": null,
+              "kind": "ANCHOR",
+              "consumerIdentity": "${"c".repeat(32)}"
+            }
+        """.trimIndent()
+
+        assertThrows<IllegalArgumentException> {
+            BiObjectMetadataCodec.decode(incomplete)
+        }.message.assert().contains("protocol v2 requires topologyFingerprint")
+    }
+
+    @Test
+    fun `object metadata codec should fail closed for an unknown wire protocol`() {
+        val unknown = """
+            wow-bi:{
+              "protocolVersion": 3,
+              "layoutVersion": 6,
+              "phase": "STABLE",
+              "deploymentId": "${"a".repeat(32)}",
+              "configurationFingerprint": "${"b".repeat(32)}",
+              "aggregate": null,
+              "kind": "ANCHOR",
+              "consumerIdentity": "${"c".repeat(32)}"
+            }
+        """.trimIndent()
+
+        assertThrows<IllegalArgumentException> {
+            BiObjectMetadataCodec.decode(unknown)
+        }.message.assert().contains("Unsupported BI object metadata protocol version: 3")
+    }
+
+    @Test
+    fun `observed deployment should reject duplicate catalog keys`() {
+        val duplicate = ObservedBiObject(
+            database = "bi_db_consumer",
+            name = "__wow_bi_deployment",
+            engine = "View",
+        )
+
+        assertThrows<IllegalArgumentException> {
+            ObservedBiDeployment(listOf(duplicate, duplicate.copy(engineFull = "View")))
+        }.message.assert().contains(
+            "duplicate catalog object",
+            "bi_db_consumer.__wow_bi_deployment",
+        )
     }
 
     @Test
@@ -58,10 +161,35 @@ class BiDeploymentInspectorTest {
     }
 
     @Test
+    fun `deployment descriptor should distinguish physical ownership scopes and topology`() {
+        val options = BiScriptOptions(
+            database = "bi_db",
+            consumerDatabase = "bi_db_consumer",
+            consumerGroupNamespace = "orders-blue",
+            topology = ClickHouseTopology.Cluster(name = "cluster-a", installation = "installation-a"),
+        )
+        val descriptor = BiDeploymentDescriptor.from(options)
+
+        BiDeploymentDescriptor.from(options.copy(database = "other_db")).deploymentId.assert()
+            .isNotEqualTo(descriptor.deploymentId)
+        BiDeploymentDescriptor.from(options.copy(consumerDatabase = "other_consumer_db")).deploymentId.assert()
+            .isNotEqualTo(descriptor.deploymentId)
+        BiDeploymentDescriptor.from(options.copy(consumerGroupNamespace = "orders-green")).deploymentId.assert()
+            .isNotEqualTo(descriptor.deploymentId)
+
+        val changedTopology = BiDeploymentDescriptor.from(
+            options.copy(topology = ClickHouseTopology.Cluster(name = "cluster-b", installation = "installation-a"))
+        )
+        changedTopology.deploymentId.assert().isEqualTo(descriptor.deploymentId)
+        changedTopology.topologyFingerprint.assert().isNotEqualTo(descriptor.topologyFingerprint)
+    }
+
+    @Test
     fun `object metadata should reject every incompatible ownership marker`() {
         val valid = BiObjectMetadata(
             deploymentId = "a".repeat(32),
             configurationFingerprint = "b".repeat(32),
+            topologyFingerprint = "d".repeat(32),
             aggregate = "example.order",
             kind = BiObjectKind.QUEUE,
             consumerIdentity = "c".repeat(32),
@@ -74,8 +202,10 @@ class BiDeploymentInspectorTest {
             { valid.copy(deploymentId = "invalid") } to "Invalid BI deploymentId",
             { valid.copy(configurationFingerprint = "invalid") } to
                 "Invalid BI configurationFingerprint",
+            { valid.copy(topologyFingerprint = "invalid") } to "Invalid BI topologyFingerprint",
             { valid.copy(consumerIdentity = "invalid") } to "Invalid BI consumer identity",
             { valid.copy(aggregate = null) } to "requires an aggregate owner",
+            { valid.copy(phase = BiDeploymentPhase.RESETTING) } to "RESETTING phase is only valid for the deployment anchor",
         )
 
         invalidMetadata.forEach { (createMetadata, expectedMessage) ->
@@ -85,6 +215,14 @@ class BiDeploymentInspectorTest {
         }
 
         valid.copy(kind = BiObjectKind.ANCHOR, aggregate = null).aggregate.assert().isNull()
+        assertThrows<IllegalArgumentException> {
+            valid.copy(
+                kind = BiObjectKind.ANCHOR,
+                aggregate = null,
+                phase = BiDeploymentPhase.RESETTING,
+                consumerIdentity = null,
+            )
+        }.message.assert().contains("RESETTING deployment anchor requires a consumer identity")
     }
 
     @Test

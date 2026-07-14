@@ -100,7 +100,7 @@ class BiScriptRequestMapperTest {
 
     @Test
     fun `should reject catalog scope overrides for a fixed deployment inspector`() {
-        val inspector = BiDeploymentInspector { Mono.just(BiDeploymentInspection.Unavailable) }
+        val inspector = BiDeploymentInspector { _, _ -> Mono.just(BiDeploymentInspection.Unavailable) }
         val requests = listOf(
             BiScriptRequest(database = BASE_OPTIONS.database),
             BiScriptRequest(consumerDatabase = BASE_OPTIONS.consumerDatabase),

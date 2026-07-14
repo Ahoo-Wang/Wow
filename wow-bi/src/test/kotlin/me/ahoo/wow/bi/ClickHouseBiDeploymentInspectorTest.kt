@@ -13,17 +13,34 @@
 
 package me.ahoo.wow.bi
 
+import com.clickhouse.client.api.Client
 import com.clickhouse.client.api.ClientException
+import com.clickhouse.client.api.data_formats.ClickHouseBinaryFormatReader
+import com.clickhouse.client.api.query.QueryResponse
+import com.clickhouse.client.api.query.QuerySettings
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.assertTimeoutPreemptively
 import reactor.kotlin.test.test
+import reactor.test.scheduler.VirtualTimeScheduler
 import tools.jackson.core.JacksonException
+import java.net.SocketTimeoutException
 import java.net.URI
 import java.time.Duration
+import java.util.concurrent.CancellationException
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
+@Suppress("LargeClass")
 class ClickHouseBiDeploymentInspectorTest {
     @Test
     fun `should configure and close the official client without opening a connection`() {
@@ -35,7 +52,7 @@ class ClickHouseBiDeploymentInspectorTest {
                 connectionPoolEnabled = false,
                 connectionTimeout = Duration.ofSeconds(1),
                 connectionRequestTimeout = Duration.ofSeconds(2),
-                socketTimeout = Duration.ZERO,
+                socketTimeout = Duration.ofSeconds(4),
                 executionTimeout = Duration.ZERO,
                 maxConnections = 3,
                 maxRetries = 1,
@@ -47,11 +64,31 @@ class ClickHouseBiDeploymentInspectorTest {
     }
 
     @Test
+    fun `should reject a socket timeout longer than the total inspection timeout`() {
+        val failure = assertThrows<IllegalArgumentException> {
+            ClickHouseBiDeploymentInspector(
+                ClickHouseClientOptions(
+                    endpoints = listOf(URI.create("http://clickhouse:8123")),
+                    socketTimeout = Duration.ofSeconds(5),
+                ),
+                inspectionTimeout = Duration.ofSeconds(4),
+            )
+        }
+
+        failure.message.assert().contains("socketTimeout", "inspectionTimeout")
+    }
+
+    @Test
     fun `should inspect an authoritative empty standalone catalog off the caller thread`() {
         val queryThread = AtomicReference<String>()
         val client = StubClickHouseCatalogClient { sql, parameters, columns ->
             queryThread.set(Thread.currentThread().name)
-            sql.assert().contains("FROM system.tables").doesNotContain("clusterAllReplicas")
+            sql.assert()
+                .contains(
+                    "FROM system.tables",
+                    "show_table_uuid_in_table_create_query_if_not_nil = 0",
+                )
+                .doesNotContain("clusterAllReplicas")
             parameters.assert().isEqualTo(
                 mapOf(
                     "database" to OPTIONS.database,
@@ -75,6 +112,7 @@ class ClickHouseBiDeploymentInspectorTest {
         val metadata = BiObjectMetadata(
             deploymentId = DESCRIPTOR.deploymentId,
             configurationFingerprint = DESCRIPTOR.configurationFingerprint,
+            topologyFingerprint = DESCRIPTOR.topologyFingerprint,
             aggregate = "example.order",
             kind = BiObjectKind.QUEUE,
             consumerIdentity = identity.value,
@@ -85,8 +123,9 @@ class ClickHouseBiDeploymentInspectorTest {
                     database = OPTIONS.consumerDatabase,
                     name = "example_order_command_queue",
                     engine = "Kafka",
-                    engineFull = "Kafka('kafka:9092', 'topic', " +
-                        "'wow-bi.${identity.value}.example_order_command_consumer', 'JSONAsString')",
+                    engineFull = "Kafka('localhost:9093', 'wow.example.order.command', " +
+                        "'wow-bi.${identity.value}.example_order_command_consumer', 'JSONAsString') " +
+                        "SETTINGS kafka_num_consumers = 2",
                     comment = BiObjectMetadataCodec.encode(metadata),
                 )
             )
@@ -197,6 +236,21 @@ class ClickHouseBiDeploymentInspectorTest {
     }
 
     @Test
+    fun `should use a safe default message for catalog validation failures without a message`() {
+        listOf(IllegalArgumentException(), IllegalStateException()).forEach { failure ->
+            val client = StubClickHouseCatalogClient { _, _, _ -> throw failure }
+
+            ClickHouseBiDeploymentInspector(client).inspect(OPTIONS).test()
+                .expectErrorMatches {
+                    it is BiDeploymentInspectionException.Inconsistent &&
+                        it.message == "ClickHouse BI catalog is inconsistent" &&
+                        it.cause === failure
+                }
+                .verify()
+        }
+    }
+
+    @Test
     fun `should accept a catalog that is identical on every cluster replica`() {
         val client = clusterClient(
             catalogRecord(node = NODE_A),
@@ -207,6 +261,21 @@ class ClickHouseBiDeploymentInspectorTest {
             as BiDeploymentInspection.Available
 
         available.deployment.objects.assert().hasSize(1)
+    }
+
+    @Test
+    fun `should reject duplicate owned rows from one cluster node when another replica is missing`() {
+        val client = clusterClient(
+            catalogRecord(node = NODE_A, comment = OWNED_COMMENT),
+            catalogRecord(node = NODE_A, comment = OWNED_COMMENT),
+        )
+
+        ClickHouseBiDeploymentInspector(client).inspect(CLUSTER_OPTIONS).test()
+            .expectErrorMatches {
+                it is BiDeploymentInspectionException.Inconsistent &&
+                    it.message!!.contains("is missing from a replica")
+            }
+            .verify()
     }
 
     @Test
@@ -278,12 +347,395 @@ class ClickHouseBiDeploymentInspectorTest {
                 engineFull = "Kafka('kafka:9092', 'topic', 'wrong-group', 'JSONAsString')",
                 comment = validComment,
             ) to "has an unexpected Kafka consumer group",
+            catalogRecord(
+                database = OPTIONS.consumerDatabase,
+                name = "example_order_command_queue",
+                engine = "Kafka",
+                engineFull = "Kafka('$expectedGroup', 'topic', 'wrong-group', 'JSONAsString')",
+                comment = validComment,
+            ) to "has an unexpected Kafka consumer group",
         )
 
         invalidQueues.forEach { (record, expectedMessage) ->
             ClickHouseBiDeploymentInspector(StubClickHouseCatalogClient(records(record)))
                 .inspect(OPTIONS)
                 .test()
+                .expectErrorMatches {
+                    it is BiDeploymentInspectionException.Inconsistent &&
+                        it.message!!.contains(expectedMessage)
+                }
+                .verify()
+        }
+    }
+
+    @Test
+    fun `should fail closed for malformed Kafka engine expressions`() {
+        val identity = BiConsumerIdentity.deterministic(DESCRIPTOR)
+        val expectedGroup = "wow-bi.${identity.value}.example_order_command_consumer"
+        val malformedDefinitions = listOf(
+            "NotKafka('localhost:9093', 'wow.example.order.command', '$expectedGroup', 'JSONAsString')",
+            "Kafka",
+            "Kafka()",
+            "Kafka 'localhost:9093', 'wow.example.order.command', '$expectedGroup', 'JSONAsString'",
+            "Kafka('localhost:9093', 'wow.example.order.command', '$expectedGroup', 'JSONAsString'",
+            "Kafka('localhost:9093'], 'wow.example.order.command', '$expectedGroup', 'JSONAsString')",
+        )
+
+        malformedDefinitions.forEach { engineFull ->
+            val client = StubClickHouseCatalogClient(
+                records(
+                    catalogRecord(
+                        database = OPTIONS.consumerDatabase,
+                        name = "example_order_command_queue",
+                        engine = "Kafka",
+                        engineFull = engineFull,
+                        comment = queueComment(identity.value),
+                    )
+                )
+            )
+
+            ClickHouseBiDeploymentInspector(client).inspect(OPTIONS).test()
+                .expectErrorMatches {
+                    it is BiDeploymentInspectionException.Inconsistent &&
+                        it.message!!.contains("unexpected Kafka consumer group")
+                }
+                .verify()
+        }
+    }
+
+    @Test
+    fun `should parse whitespace and nested Kafka engine arguments without shifting consumer identity`() {
+        val identity = BiConsumerIdentity.deterministic(DESCRIPTOR)
+        val expectedGroup = "wow-bi.${identity.value}.example_order_command_consumer"
+        val whitespaceDefinition =
+            "Kafka   ('localhost:9093', 'wow.example.order.command', '$expectedGroup', 'JSONAsString')"
+        val nestedDefinitions = listOf(
+            "Kafka(concat('localhost', ':9093'), 'wow.example.order.command', " +
+                "'$expectedGroup', 'JSONAsString')",
+            "Kafka(['localhost:9093'], 'wow.example.order.command', '$expectedGroup', 'JSONAsString')",
+            "Kafka('local\\'host:9093', 'wow.example.order.command', '$expectedGroup', 'JSONAsString')",
+            "Kafka('local''host:9093', 'wow.example.order.command', '$expectedGroup', 'JSONAsString')",
+        )
+
+        ClickHouseBiDeploymentInspector(
+            StubClickHouseCatalogClient(
+                records(
+                    catalogRecord(
+                        database = OPTIONS.consumerDatabase,
+                        name = "example_order_command_queue",
+                        engine = "Kafka",
+                        engineFull = whitespaceDefinition,
+                        comment = queueComment(identity.value),
+                    )
+                )
+            )
+        ).inspect(OPTIONS).test()
+            .expectNextCount(1)
+            .verifyComplete()
+
+        nestedDefinitions.forEach { nestedDefinition ->
+            ClickHouseBiDeploymentInspector(
+                StubClickHouseCatalogClient(
+                    records(
+                        catalogRecord(
+                            database = OPTIONS.consumerDatabase,
+                            name = "example_order_command_queue",
+                            engine = "Kafka",
+                            engineFull = nestedDefinition,
+                            comment = queueComment(identity.value),
+                        )
+                    )
+                )
+            ).inspect(OPTIONS).test()
+                .expectErrorMatches {
+                    it is BiDeploymentInspectionException.Inconsistent &&
+                        it.message!!.contains("unexpected Kafka bootstrap servers")
+                }
+                .verify()
+        }
+    }
+
+    @Test
+    fun `should accept a cluster Keeper state queue with the replica placeholder`() {
+        val options = CLUSTER_OPTIONS.copy(kafkaOffsetStorage = KafkaOffsetStorage.KEEPER)
+        val descriptor = BiDeploymentDescriptor.from(options)
+        val identity = BiConsumerIdentity.deterministic(descriptor)
+        val queueName = "example_order_state_queue"
+        val expectedGroup = "wow-bi.${identity.value}.example_order_state_consumer"
+        val keeperPath = "${options.kafkaKeeperPathPrefix}/${identity.value}/$queueName"
+        val engineFull =
+            "Kafka('localhost:9093', 'wow.example.order.state', '$expectedGroup', 'JSONAsString') " +
+                "SETTINGS kafka_keeper_path = '$keeperPath', kafka_replica_name = '{replica}'"
+        val client = clusterClient(
+            catalogRecord(
+                node = NODE_A,
+                database = options.consumerDatabase,
+                name = queueName,
+                engine = "Kafka",
+                engineFull = engineFull,
+                comment = queueComment(identity.value, options),
+            ),
+            catalogRecord(
+                node = NODE_B,
+                database = options.consumerDatabase,
+                name = queueName,
+                engine = "Kafka",
+                engineFull = engineFull,
+                comment = queueComment(identity.value, options),
+            ),
+        )
+
+        ClickHouseBiDeploymentInspector(client).inspect(options).test()
+            .assertNext { inspection ->
+                val available = inspection as BiDeploymentInspection.Available
+                available.deployment.objects.single().name.assert().isEqualTo(queueName)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `should defer requested source validation while its deployment anchor is resetting`() {
+        val identity = BiConsumerIdentity.deterministic(DESCRIPTOR)
+        val expectedGroup = "wow-bi.${identity.value}.example_order_command_consumer"
+        val resettingAnchor = BiObjectMetadataCodec.encode(
+            BiObjectMetadata(
+                deploymentId = DESCRIPTOR.deploymentId,
+                configurationFingerprint = DESCRIPTOR.configurationFingerprint,
+                topologyFingerprint = DESCRIPTOR.topologyFingerprint,
+                phase = BiDeploymentPhase.RESETTING,
+                aggregate = null,
+                kind = BiObjectKind.ANCHOR,
+                consumerIdentity = identity.value,
+            )
+        )
+        val client = StubClickHouseCatalogClient(
+            records(
+                catalogRecord(
+                    database = OPTIONS.consumerDatabase,
+                    name = "__wow_bi_deployment",
+                    comment = resettingAnchor,
+                ),
+                catalogRecord(
+                    database = OPTIONS.consumerDatabase,
+                    name = "example_order_command_queue",
+                    engine = "Kafka",
+                    engineFull = "Kafka('old-kafka:9092', 'old.example.order.command', " +
+                        "'$expectedGroup', 'JSONAsString')",
+                    comment = queueComment(identity.value),
+                ),
+            )
+        )
+
+        ClickHouseBiDeploymentInspector(client).inspect(OPTIONS).test()
+            .expectNextCount(1)
+            .verifyComplete()
+    }
+
+    @Test
+    fun `should fail closed when an owned Kafka queue source definition drifted`() {
+        val identity = BiConsumerIdentity.deterministic(DESCRIPTOR)
+        val expectedGroup = "wow-bi.${identity.value}.example_order_command_consumer"
+        val validComment = queueComment(identity.value)
+        val invalidDefinitions = listOf(
+            "Kafka('other:9092', 'wow.example.order.command', '$expectedGroup', 'JSONAsString')" to
+                "unexpected Kafka bootstrap servers",
+            "Kafka('localhost:9093', 'other.topic', '$expectedGroup', 'JSONAsString')" to
+                "unexpected Kafka topic",
+            "Kafka('localhost:9093', 'wow.example.order.command', '$expectedGroup', 'JSONEachRow')" to
+                "unexpected Kafka format",
+            "Kafka('localhost:9093', 'wow.example.order.command', '$expectedGroup', 'JSONAsString') " +
+                "SETTINGS kafka_keeper_path = '/unexpected', kafka_replica_name = '${identity.value}'" to
+                "unexpected Keeper offset settings",
+        )
+
+        invalidDefinitions.forEach { (engineFull, expectedMessage) ->
+            val client = StubClickHouseCatalogClient(
+                records(
+                    catalogRecord(
+                        database = OPTIONS.consumerDatabase,
+                        name = "example_order_command_queue",
+                        engine = "Kafka",
+                        engineFull = engineFull,
+                        comment = validComment,
+                    )
+                )
+            )
+
+            ClickHouseBiDeploymentInspector(client).inspect(OPTIONS).test()
+                .expectErrorMatches {
+                    it is BiDeploymentInspectionException.Inconsistent &&
+                        it.message!!.contains(expectedMessage)
+                }
+                .verify()
+        }
+    }
+
+    @Test
+    fun `should defer requested configuration changes to the generator for deploy and reset`() {
+        val identity = BiConsumerIdentity.deterministic(DESCRIPTOR)
+        val expectedGroup = "wow-bi.${identity.value}.example_order_command_consumer"
+        val client = StubClickHouseCatalogClient(
+            records(
+                catalogRecord(
+                    database = OPTIONS.consumerDatabase,
+                    name = "example_order_command_queue",
+                    engine = "Kafka",
+                    engineFull = "Kafka('localhost:9093', 'wow.example.order.command', " +
+                        "'$expectedGroup', 'JSONAsString')",
+                    comment = queueComment(identity.value),
+                )
+            )
+        )
+        val changedOptions = OPTIONS.copy(
+            kafkaBootstrapServers = "changed-kafka:9092",
+            topicPrefix = "changed.",
+            kafkaOffsetStorage = KafkaOffsetStorage.KEEPER,
+            kafkaKeeperPathPrefix = "/changed",
+        )
+        val inspector = ClickHouseBiDeploymentInspector(client)
+
+        inspector.inspect(changedOptions).test()
+            .assertNext { inspection ->
+                val available = inspection as BiDeploymentInspection.Available
+                available.deployment.objects.single().metadata.assert().isNotNull()
+            }
+            .verifyComplete()
+
+        inspector.inspect(changedOptions, BiScriptOperation.Reset(true)).test()
+            .assertNext { inspection ->
+                val available = inspection as BiDeploymentInspection.Available
+                available.deployment.objects.single().metadata.assert().isNotNull()
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `should not validate another deployment queue against the requested configuration`() {
+        val foreignOptions = OPTIONS.copy(
+            consumerGroupNamespace = "foreign",
+            kafkaBootstrapServers = "foreign-kafka:9092",
+            topicPrefix = "foreign.",
+        )
+        val foreignDescriptor = BiDeploymentDescriptor.from(foreignOptions)
+        val foreignIdentity = BiConsumerIdentity.deterministic(foreignDescriptor)
+        val foreignGroup = "wow-bi.${foreignIdentity.value}.example_order_command_consumer"
+        val inspector = ClickHouseBiDeploymentInspector(
+            StubClickHouseCatalogClient(
+                records(
+                    catalogRecord(
+                        database = foreignOptions.consumerDatabase,
+                        name = "example_order_command_queue",
+                        engine = "Kafka",
+                        engineFull = "Kafka('foreign-kafka:9092', 'foreign.example.order.command', " +
+                            "'$foreignGroup', 'JSONAsString')",
+                        comment = queueComment(foreignIdentity.value, foreignOptions),
+                    )
+                )
+            )
+        )
+
+        inspector.inspect(OPTIONS).test()
+            .assertNext { inspection ->
+                val available = inspection as BiDeploymentInspection.Available
+                available.deployment.objects.single().metadata!!.deploymentId.assert()
+                    .isEqualTo(foreignDescriptor.deploymentId)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `should keep reset inspection strict for queue ownership identity and format`() {
+        val identity = BiConsumerIdentity.deterministic(DESCRIPTOR)
+        val expectedGroup = "wow-bi.${identity.value}.example_order_command_consumer"
+        val invalidDefinitions = listOf(
+            "Kafka('localhost:9093', 'wow.example.order.command', 'wrong-group', 'JSONAsString')" to
+                "unexpected Kafka consumer group",
+            "Kafka('localhost:9093', 'wow.example.order.command', '$expectedGroup', 'JSONEachRow')" to
+                "unexpected Kafka format",
+        )
+
+        invalidDefinitions.forEach { (engineFull, expectedMessage) ->
+            val inspector = ClickHouseBiDeploymentInspector(
+                StubClickHouseCatalogClient(
+                    records(
+                        catalogRecord(
+                            database = OPTIONS.consumerDatabase,
+                            name = "example_order_command_queue",
+                            engine = "Kafka",
+                            engineFull = engineFull,
+                            comment = queueComment(identity.value),
+                        )
+                    )
+                )
+            )
+
+            inspector.inspect(OPTIONS, BiScriptOperation.Reset(true)).test()
+                .expectErrorMatches {
+                    it is BiDeploymentInspectionException.Inconsistent &&
+                        it.message!!.contains(expectedMessage)
+                }
+                .verify()
+        }
+    }
+
+    @Test
+    fun `should keep reset inspection strict for the owned queue name`() {
+        val identity = BiConsumerIdentity.deterministic(DESCRIPTOR)
+        val queueName = "example_order_unknown_queue"
+        val expectedGroup = "wow-bi.${identity.value}.example_order_unknown_consumer"
+        val inspector = ClickHouseBiDeploymentInspector(
+            StubClickHouseCatalogClient(
+                records(
+                    catalogRecord(
+                        database = OPTIONS.consumerDatabase,
+                        name = queueName,
+                        engine = "Kafka",
+                        engineFull = "Kafka('localhost:9093', 'wow.example.order.unknown', " +
+                            "'$expectedGroup', 'JSONAsString')",
+                        comment = queueComment(identity.value),
+                    )
+                )
+            )
+        )
+
+        inspector.inspect(OPTIONS, BiScriptOperation.Reset(true)).test()
+            .expectErrorMatches {
+                it is BiDeploymentInspectionException.Inconsistent &&
+                    it.message!!.contains("unsupported queue name")
+            }
+            .verify()
+    }
+
+    @Test
+    fun `should fail closed when an owned Kafka queue Keeper identity drifted`() {
+        val options = OPTIONS.copy(kafkaOffsetStorage = KafkaOffsetStorage.KEEPER)
+        val descriptor = BiDeploymentDescriptor.from(options)
+        val identity = BiConsumerIdentity.deterministic(descriptor)
+        val expectedGroup = "wow-bi.${identity.value}.example_order_command_consumer"
+        val expectedPath = "${options.kafkaKeeperPathPrefix}/${identity.value}/example_order_command_queue"
+        val invalidDefinitions = listOf(
+            "Kafka('localhost:9093', 'wow.example.order.command', '$expectedGroup', 'JSONAsString') " +
+                "SETTINGS kafka_keeper_path = '/unexpected', kafka_replica_name = '${identity.value}'" to
+                "unexpected Kafka Keeper path",
+            "Kafka('localhost:9093', 'wow.example.order.command', '$expectedGroup', 'JSONAsString') " +
+                "SETTINGS kafka_keeper_path = '$expectedPath', kafka_replica_name = 'other'" to
+                "unexpected Kafka Keeper replica name",
+        )
+
+        invalidDefinitions.forEach { (engineFull, expectedMessage) ->
+            val client = StubClickHouseCatalogClient(
+                records(
+                    catalogRecord(
+                        database = options.consumerDatabase,
+                        name = "example_order_command_queue",
+                        engine = "Kafka",
+                        engineFull = engineFull,
+                        comment = queueComment(identity.value, options),
+                    )
+                )
+            )
+
+            ClickHouseBiDeploymentInspector(client).inspect(options).test()
                 .expectErrorMatches {
                     it is BiDeploymentInspectionException.Inconsistent &&
                         it.message!!.contains(expectedMessage)
@@ -332,6 +784,503 @@ class ClickHouseBiDeploymentInspectorTest {
     }
 
     @Test
+    fun `should drain and close a native response that arrives after inspection timeout`() {
+        val client = mockk<Client>(relaxed = true)
+        val response = mockk<QueryResponse>(relaxed = true)
+        val responseFuture = CompletableFuture<QueryResponse>()
+        val queryStarted = CountDownLatch(1)
+        every {
+            client.query(any<String>(), any<Map<String, Any>>(), any<QuerySettings>())
+        } answers {
+            queryStarted.countDown()
+            responseFuture
+        }
+        val timeoutScheduler = VirtualTimeScheduler.create()
+
+        try {
+            ClickHouseBiDeploymentInspector(
+                NativeClickHouseCatalogClient(client),
+                Duration.ofMillis(10),
+                timeoutScheduler,
+            ).inspect(OPTIONS).test()
+                .then {
+                    queryStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
+                    timeoutScheduler.advanceTimeBy(Duration.ofMillis(10))
+                }
+                .expectError(BiDeploymentInspectionException.Timeout::class.java)
+                .verify()
+
+            responseFuture.complete(response).assert().isTrue()
+            verify(exactly = 1, timeout = 1_000) { response.close() }
+            responseFuture.isCancelled.assert().isFalse()
+        } finally {
+            timeoutScheduler.dispose()
+        }
+    }
+
+    @Test
+    fun `should isolate cancelled response cleanup from the blocking query scheduler`() {
+        val client = mockk<Client>(relaxed = true)
+        val response = mockk<QueryResponse>(relaxed = true)
+        val responseFuture = CompletableFuture<QueryResponse>()
+        val queryStarted = CountDownLatch(1)
+        val cleanupThread = AtomicReference<String>()
+        val cancellation = ClickHouseQueryCancellation()
+        val executor = Executors.newSingleThreadExecutor()
+        every {
+            client.query(any<String>(), any<Map<String, Any>>(), any<QuerySettings>())
+        } answers {
+            queryStarted.countDown()
+            responseFuture
+        }
+        every { response.close() } answers {
+            cleanupThread.set(Thread.currentThread().name)
+            throw IllegalStateException("close failed")
+        }
+
+        try {
+            val queryFailure = CompletableFuture.supplyAsync(
+                {
+                    runCatching {
+                        NativeClickHouseCatalogClient(client).query(
+                            sql = "SELECT catalog",
+                            parameters = emptyMap(),
+                            columns = CATALOG_COLUMNS,
+                            cancellation = cancellation,
+                        )
+                    }.exceptionOrNull()
+                },
+                executor,
+            )
+            queryStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
+
+            cancellation.cancel()
+            (queryFailure.get(1, TimeUnit.SECONDS) is ClientException).assert().isTrue()
+            responseFuture.complete(response).assert().isTrue()
+
+            verify(exactly = 1, timeout = 1_000) { response.close() }
+            cleanupThread.get().assert().startsWith("wow-bi-catalog-cleanup-")
+        } finally {
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `should isolate cancellation between concurrent native inspections`() {
+        val client = mockk<Client>(relaxed = true)
+        val responseA = mockk<QueryResponse>(relaxed = true)
+        val responseB = mockk<QueryResponse>(relaxed = true)
+        val readerB = mockk<ClickHouseBinaryFormatReader>(relaxed = true)
+        val responseFutureA = CompletableFuture<QueryResponse>()
+        val responseFutureB = CompletableFuture<QueryResponse>()
+        val queryStartedA = CountDownLatch(1)
+        val queryStartedB = CountDownLatch(1)
+        val optionsA = OPTIONS.copy(database = "bi_a", consumerDatabase = "bi_a_consumer")
+        val optionsB = OPTIONS.copy(database = "bi_b", consumerDatabase = "bi_b_consumer")
+        every {
+            client.query(any<String>(), any<Map<String, Any>>(), any<QuerySettings>())
+        } answers {
+            when (secondArg<Map<String, Any>>()["database"]) {
+                optionsA.database -> {
+                    queryStartedA.countDown()
+                    responseFutureA
+                }
+
+                optionsB.database -> {
+                    queryStartedB.countDown()
+                    responseFutureB
+                }
+
+                else -> error("Unexpected catalog query parameters: ${secondArg<Map<String, Any>>()}")
+            }
+        }
+        every { client.newBinaryFormatReader(responseB) } returns readerB
+        every { readerB.next() } returns null
+        val inspector = ClickHouseBiDeploymentInspector(NativeClickHouseCatalogClient(client))
+        val resultB = AtomicReference<BiDeploymentInspection?>()
+        val errorB = AtomicReference<Throwable?>()
+        val completedB = CountDownLatch(1)
+        val subscriptionA = inspector.inspect(optionsA).subscribe()
+        var subscriptionB: reactor.core.Disposable? = null
+
+        try {
+            queryStartedA.await(1, TimeUnit.SECONDS).assert().isTrue()
+            subscriptionB = inspector.inspect(optionsB).subscribe(
+                resultB::set,
+                {
+                    errorB.set(it)
+                    completedB.countDown()
+                },
+                completedB::countDown,
+            )
+            queryStartedB.await(1, TimeUnit.SECONDS).assert().isTrue()
+
+            subscriptionA.dispose()
+            responseFutureB.complete(responseB).assert().isTrue()
+
+            completedB.await(1, TimeUnit.SECONDS).assert().isTrue()
+            errorB.get().assert().isNull()
+            (resultB.get() is BiDeploymentInspection.Available).assert().isTrue()
+            responseFutureA.complete(responseA).assert().isTrue()
+            verify(exactly = 1, timeout = 1_000) { responseA.close() }
+            verify(exactly = 1) { responseB.close() }
+        } finally {
+            subscriptionA.dispose()
+            subscriptionB?.dispose()
+            inspector.close()
+        }
+    }
+
+    @Test
+    fun `should not start a native query when cancellation already happened`() {
+        val client = mockk<Client>(relaxed = true)
+        val cancellation = ClickHouseQueryCancellation().apply { cancel() }
+
+        try {
+            val failure = assertThrows<ClientException> {
+                NativeClickHouseCatalogClient(client).query(
+                    sql = "SELECT catalog",
+                    parameters = emptyMap(),
+                    columns = CATALOG_COLUMNS,
+                    cancellation = cancellation,
+                )
+            }
+
+            failure.message.assert().contains("query was cancelled")
+            verify(exactly = 0) {
+                client.query(any<String>(), any<Map<String, Any>>(), any<QuerySettings>())
+            }
+        } finally {
+            Thread.interrupted()
+        }
+    }
+
+    @Test
+    fun `should invoke cancellation callbacks exactly once before and after cancellation`() {
+        val cancellation = ClickHouseQueryCancellation()
+        val callbackCount = AtomicInteger()
+        val registration = cancellation.invokeOnCancel(callbackCount::incrementAndGet)
+
+        cancellation.cancel()
+        cancellation.cancel()
+        cancellation.invokeOnCancel(callbackCount::incrementAndGet).close()
+        registration.close()
+
+        callbackCount.get().assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `should close native response exactly once when cancellation wins before claim`() {
+        val client = mockk<Client>(relaxed = true)
+        val response = mockk<QueryResponse>(relaxed = true)
+        val cancellation = ClickHouseQueryCancellation()
+        val responseFuture = object : CompletableFuture<QueryResponse>() {
+            override fun get(): QueryResponse {
+                cancellation.cancel()
+                return super.get()
+            }
+        }.apply {
+            complete(response)
+        }
+        every {
+            client.query(any<String>(), any<Map<String, Any>>(), any<QuerySettings>())
+        } returns responseFuture
+        val executor = Executors.newSingleThreadExecutor()
+
+        try {
+            val failure = CompletableFuture.supplyAsync(
+                {
+                    runCatching {
+                        NativeClickHouseCatalogClient(client).query(
+                            sql = "SELECT catalog",
+                            parameters = emptyMap(),
+                            columns = CATALOG_COLUMNS,
+                            cancellation = cancellation,
+                        )
+                    }.exceptionOrNull()
+                },
+                executor,
+            ).get(1, TimeUnit.SECONDS)
+
+            (failure is ClientException).assert().isTrue()
+            failure?.message.assert().contains("query was cancelled")
+            verify(exactly = 1) { response.close() }
+            verify(exactly = 0) { client.newBinaryFormatReader(response) }
+        } finally {
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `should close native response exactly once when claim wins before cancellation`() {
+        val client = mockk<Client>(relaxed = true)
+        val response = mockk<QueryResponse>(relaxed = true)
+        val reader = mockk<ClickHouseBinaryFormatReader>(relaxed = true)
+        val cancellation = ClickHouseQueryCancellation()
+        val readerStarted = CountDownLatch(1)
+        val releaseReader = CountDownLatch(1)
+        every {
+            client.query(any<String>(), any<Map<String, Any>>(), any<QuerySettings>())
+        } returns CompletableFuture.completedFuture(response)
+        every { client.newBinaryFormatReader(response) } returns reader
+        every { response.close() } answers {
+            releaseReader.countDown()
+        }
+        every { reader.next() } answers {
+            readerStarted.countDown()
+            while (true) {
+                try {
+                    releaseReader.await()
+                    break
+                } catch (_: InterruptedException) {
+                    // Cancellation interrupts the query thread after the response was claimed.
+                }
+            }
+            null
+        }
+        val executor = Executors.newSingleThreadExecutor()
+
+        try {
+            val result = CompletableFuture.supplyAsync(
+                {
+                    NativeClickHouseCatalogClient(client).query(
+                        sql = "SELECT catalog",
+                        parameters = emptyMap(),
+                        columns = CATALOG_COLUMNS,
+                        cancellation = cancellation,
+                    )
+                },
+                executor,
+            )
+            readerStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
+
+            cancellation.cancel()
+            releaseReader.await(1, TimeUnit.SECONDS).assert().isTrue()
+
+            result.get(1, TimeUnit.SECONDS).assert().isEmpty()
+            verify(exactly = 1) { reader.close() }
+            verify(exactly = 1) { response.close() }
+        } finally {
+            releaseReader.countDown()
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `should emit inspection timeout without waiting for graceful response close`() {
+        val client = mockk<Client>(relaxed = true)
+        val response = mockk<QueryResponse>(relaxed = true)
+        val reader = mockk<ClickHouseBinaryFormatReader>(relaxed = true)
+        val responseFuture = CompletableFuture.completedFuture(response)
+        val readerStarted = CountDownLatch(1)
+        val releaseReader = CountDownLatch(1)
+        val closeStarted = CountDownLatch(1)
+        val releaseClose = CountDownLatch(1)
+        every {
+            client.query(any<String>(), any<Map<String, Any>>(), any<QuerySettings>())
+        } returns responseFuture
+        every { client.newBinaryFormatReader(response) } returns reader
+        every { reader.next() } answers {
+            readerStarted.countDown()
+            while (true) {
+                try {
+                    releaseReader.await()
+                    break
+                } catch (_: InterruptedException) {
+                    // Simulate a socket read that ignores thread interruption.
+                }
+            }
+            null
+        }
+        every { response.close() } answers {
+            closeStarted.countDown()
+            releaseClose.await(500, TimeUnit.MILLISECONDS)
+        }
+        val timeoutScheduler = VirtualTimeScheduler.create()
+
+        try {
+            ClickHouseBiDeploymentInspector(
+                NativeClickHouseCatalogClient(client),
+                Duration.ofMillis(10),
+                timeoutScheduler,
+            ).inspect(OPTIONS).test()
+                .then {
+                    readerStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
+                    assertTimeoutPreemptively(Duration.ofMillis(200)) {
+                        timeoutScheduler.advanceTimeBy(Duration.ofMillis(10))
+                    }
+                }
+                .expectError(BiDeploymentInspectionException.Timeout::class.java)
+                .verify(Duration.ofMillis(200))
+
+            closeStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
+        } finally {
+            releaseReader.countDown()
+            releaseClose.countDown()
+            timeoutScheduler.dispose()
+        }
+        verify(exactly = 1, timeout = 1_000) { response.close() }
+    }
+
+    @Test
+    fun `should drain and close a native response that arrives after execution timeout`() {
+        val client = mockk<Client>(relaxed = true)
+        val response = mockk<QueryResponse>(relaxed = true)
+        val responseFuture = CompletableFuture<QueryResponse>()
+        every {
+            client.query(any<String>(), any<Map<String, Any>>(), any<QuerySettings>())
+        } returns responseFuture
+
+        val failure = assertThrows<ClientException> {
+            NativeClickHouseCatalogClient(client, Duration.ofMillis(10)).query(
+                sql = "SELECT catalog",
+                parameters = emptyMap(),
+                columns = CATALOG_COLUMNS,
+            )
+        }
+
+        failure.message.assert().contains("query timed out")
+        (failure.cause is TimeoutException).assert().isTrue()
+        responseFuture.complete(response).assert().isTrue()
+        verify(exactly = 1, timeout = 1_000) { response.close() }
+        responseFuture.isCancelled.assert().isFalse()
+    }
+
+    @Test
+    fun `should classify a cancelled native query future as unavailable`() {
+        val client = mockk<Client>(relaxed = true)
+        val cancelledFuture = CompletableFuture<QueryResponse>().apply { cancel(false) }
+        every {
+            client.query(any<String>(), any<Map<String, Any>>(), any<QuerySettings>())
+        } returns cancelledFuture
+
+        ClickHouseBiDeploymentInspector(NativeClickHouseCatalogClient(client)).inspect(OPTIONS).test()
+            .expectErrorMatches {
+                it is BiDeploymentInspectionException.Unavailable &&
+                    it.cause is ClientException &&
+                    it.cause?.cause is CancellationException
+            }
+            .verify()
+
+        verify(exactly = 0) { client.newBinaryFormatReader(any()) }
+    }
+
+    @Test
+    fun `should classify exceptionally completed native query futures`() {
+        val failures = listOf(
+            IllegalStateException("transport failed") to BiDeploymentInspectionException.Unavailable::class.java,
+            SocketTimeoutException("socket timed out") to BiDeploymentInspectionException.Timeout::class.java,
+        )
+
+        failures.forEach { (failure, expectedType) ->
+            val client = mockk<Client>(relaxed = true)
+            every {
+                client.query(any<String>(), any<Map<String, Any>>(), any<QuerySettings>())
+            } returns CompletableFuture.failedFuture(failure)
+
+            ClickHouseBiDeploymentInspector(NativeClickHouseCatalogClient(client)).inspect(OPTIONS).test()
+                .expectErrorMatches { error ->
+                    expectedType.isInstance(error) &&
+                        error.cause is ClientException &&
+                        error.cause?.cause === failure
+                }
+                .verify()
+
+            verify(exactly = 0) { client.newBinaryFormatReader(any()) }
+        }
+    }
+
+    @Test
+    fun `should suppress late inspection failures after cancellation`() {
+        val failures = listOf(
+            BiDeploymentInspectionException.Unavailable("cancelled inspection"),
+            IllegalArgumentException("cancelled argument"),
+            IllegalStateException("cancelled state"),
+        )
+
+        failures.forEach { failure ->
+            val client = object : ClickHouseCatalogClient {
+                override fun query(
+                    sql: String,
+                    parameters: Map<String, Any>,
+                    columns: List<String>,
+                ): List<ClickHouseCatalogRecord> = error("The cancellation-aware overload must be used")
+
+                override fun query(
+                    sql: String,
+                    parameters: Map<String, Any>,
+                    columns: List<String>,
+                    cancellation: ClickHouseQueryCancellation,
+                ): List<ClickHouseCatalogRecord> {
+                    cancellation.cancel()
+                    throw failure
+                }
+
+                override fun close() = Unit
+            }
+
+            ClickHouseBiDeploymentInspector(client).inspect(OPTIONS).block().assert()
+                .isEqualTo(BiDeploymentInspection.Unavailable)
+        }
+    }
+
+    @Test
+    fun `should close native reader and response after reading catalog records`() {
+        val client = mockk<Client>(relaxed = true)
+        val response = mockk<QueryResponse>(relaxed = true)
+        val reader = mockk<ClickHouseBinaryFormatReader>(relaxed = true)
+        val values = mapOf(
+            "database" to OPTIONS.database,
+            "name" to "foreign_view",
+            "engine" to "View",
+            "engine_full" to "View",
+            "create_table_query" to "CREATE VIEW",
+            "comment" to "",
+        )
+        every {
+            client.query(any<String>(), any<Map<String, Any>>(), any<QuerySettings>())
+        } returns CompletableFuture.completedFuture(response)
+        every { client.newBinaryFormatReader(response) } returns reader
+        every { reader.next() } returns values andThen null
+        every { reader.getString(any<String>()) } answers { values[firstArg()] }
+
+        val records = NativeClickHouseCatalogClient(client).query(
+            sql = "SELECT catalog",
+            parameters = emptyMap(),
+            columns = CATALOG_COLUMNS,
+        )
+
+        records.single().toObservedObject().name.assert().isEqualTo("foreign_view")
+        verify(exactly = 1) { reader.close() }
+        verify(exactly = 1) { response.close() }
+    }
+
+    @Test
+    fun `should close native reader and response when reading a catalog record fails`() {
+        val client = mockk<Client>(relaxed = true)
+        val response = mockk<QueryResponse>(relaxed = true)
+        val reader = mockk<ClickHouseBinaryFormatReader>(relaxed = true)
+        val failure = IllegalStateException("catalog read failed")
+        every {
+            client.query(any<String>(), any<Map<String, Any>>(), any<QuerySettings>())
+        } returns CompletableFuture.completedFuture(response)
+        every { client.newBinaryFormatReader(response) } returns reader
+        every { reader.next() } throws failure
+
+        val actual = assertThrows<IllegalStateException> {
+            NativeClickHouseCatalogClient(client).query(
+                sql = "SELECT catalog",
+                parameters = emptyMap(),
+                columns = CATALOG_COLUMNS,
+            )
+        }
+
+        (actual === failure).assert().isTrue()
+        verify(exactly = 1) { reader.close() }
+        verify(exactly = 1) { response.close() }
+    }
+
+    @Test
     fun `should classify native client failures as unavailable inspection`() {
         val failure = ClientException("upstream credentials were rejected")
         val client = StubClickHouseCatalogClient { _, _, _ -> throw failure }
@@ -377,6 +1326,7 @@ class ClickHouseBiDeploymentInspectorTest {
         )
         return StubClickHouseCatalogClient { sql, parameters, _ ->
             parameters["cluster"].assert().isEqualTo(CLUSTER.name)
+            sql.assert().contains("show_table_uuid_in_table_create_query_if_not_nil = 0")
             if (responses.size == 2) {
                 sql.assert().contains("system.one", "clusterAllReplicas")
             } else {
@@ -417,15 +1367,22 @@ class ClickHouseBiDeploymentInspectorTest {
         }
     )
 
-    private fun queueComment(identity: String?): String = BiObjectMetadataCodec.encode(
-        BiObjectMetadata(
-            deploymentId = DESCRIPTOR.deploymentId,
-            configurationFingerprint = DESCRIPTOR.configurationFingerprint,
-            aggregate = "example.order",
-            kind = BiObjectKind.QUEUE,
-            consumerIdentity = identity,
+    private fun queueComment(
+        identity: String?,
+        options: BiScriptOptions = OPTIONS,
+    ): String {
+        val descriptor = BiDeploymentDescriptor.from(options)
+        return BiObjectMetadataCodec.encode(
+            BiObjectMetadata(
+                deploymentId = descriptor.deploymentId,
+                configurationFingerprint = descriptor.configurationFingerprint,
+                topologyFingerprint = descriptor.topologyFingerprint,
+                aggregate = "example.order",
+                kind = BiObjectKind.QUEUE,
+                consumerIdentity = identity,
+            )
         )
-    )
+    }
 
     private class StubClickHouseCatalogClient(
         private val response: (
@@ -462,6 +1419,7 @@ class ClickHouseBiDeploymentInspectorTest {
             BiObjectMetadata(
                 deploymentId = DESCRIPTOR.deploymentId,
                 configurationFingerprint = DESCRIPTOR.configurationFingerprint,
+                topologyFingerprint = DESCRIPTOR.topologyFingerprint,
                 aggregate = "example.order",
                 kind = BiObjectKind.VIEW,
             )

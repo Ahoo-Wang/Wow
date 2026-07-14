@@ -22,24 +22,32 @@ import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.AggregateRoot
+import me.ahoo.wow.bi.BiDeploymentDescriptor
 import me.ahoo.wow.bi.BiDeploymentInspection
 import me.ahoo.wow.bi.BiDeploymentInspectionException
 import me.ahoo.wow.bi.BiDeploymentInspector
+import me.ahoo.wow.bi.BiObjectKind
+import me.ahoo.wow.bi.BiObjectMetadata
 import me.ahoo.wow.bi.BiScriptDiagnostic
 import me.ahoo.wow.bi.BiScriptGenerator
+import me.ahoo.wow.bi.BiScriptOperation
 import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.bi.ClickHouseTopology
 import me.ahoo.wow.bi.NoOpBiDeploymentInspector
 import me.ahoo.wow.bi.ObservedBiDeployment
+import me.ahoo.wow.bi.ObservedBiObject
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.configuration.NamedAggregateTypeSearcher
 import me.ahoo.wow.configuration.TypeNamedAggregateSearcher
+import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.bi.BiScriptOperationMode
 import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyMode
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyRequest
+import me.ahoo.wow.webflux.exception.RequestExceptionHandler
+import me.ahoo.wow.webflux.exception.WebFluxErrorStrategy
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunction
 import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
@@ -52,7 +60,9 @@ import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.web.reactive.function.server.HandlerStrategies
+import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
+import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
@@ -211,7 +221,7 @@ class GenerateBIScriptHandlerFunctionTest {
         )
 
         failures.forEach { (failure, expectedStatus, expectedCode) ->
-            val deploymentInspector = BiDeploymentInspector {
+            val deploymentInspector = BiDeploymentInspector { _, _ ->
                 Mono.error<BiDeploymentInspection>(failure)
             }
             val response = handler(deploymentInspector = deploymentInspector)
@@ -225,10 +235,98 @@ class GenerateBIScriptHandlerFunctionTest {
     }
 
     @Test
+    fun `should map an unexpected generation failure to a safe internal server error`() {
+        val deploymentInspector = BiDeploymentInspector { _, _ ->
+            Mono.error<BiDeploymentInspection>(NullPointerException("sensitive implementation detail"))
+        }
+
+        val response = handler(deploymentInspector = deploymentInspector)
+            .handle(MockServerRequest.builder().body(BiScriptRequest().toMono()))
+            .block()!!
+
+        response.statusCode().assert().isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR)
+        response.headers().getFirst("Wow-Error-Code").assert().isEqualTo(ErrorCodes.INTERNAL_SERVER_ERROR)
+        response.writeBody().assert()
+            .contains(ErrorCodes.INTERNAL_SERVER_ERROR, "Unexpected server error")
+            .doesNotContain("sensitive implementation detail")
+    }
+
+    @Test
+    fun `should preserve an unexpected failure for a custom request exception handler`() {
+        val failure = NullPointerException("custom-handler-detail")
+        val deploymentInspector = BiDeploymentInspector { _, _ ->
+            Mono.error<BiDeploymentInspection>(failure)
+        }
+        lateinit var received: Throwable
+        val customExceptionHandler = object : RequestExceptionHandler {
+            override fun handle(
+                request: ServerRequest,
+                throwable: Throwable,
+            ): Mono<ServerResponse> {
+                received = throwable
+                return ServerResponse.status(HttpStatus.CONFLICT).build()
+            }
+        }
+
+        val response = handler(
+            deploymentInspector = deploymentInspector,
+            exceptionHandler = customExceptionHandler,
+        ).handle(MockServerRequest.builder().body(BiScriptRequest().toMono())).block()!!
+
+        response.statusCode().assert().isEqualTo(HttpStatus.CONFLICT)
+        received.assert().isSameAs(failure)
+    }
+
+    @Test
+    fun `should preserve an unexpected failure for a custom webflux error strategy`() {
+        val failure = NullPointerException("custom-strategy-detail")
+        val deploymentInspector = BiDeploymentInspector { _, _ ->
+            Mono.error<BiDeploymentInspection>(failure)
+        }
+        lateinit var received: Throwable
+        val customErrorStrategy = object : WebFluxErrorStrategy {
+            override fun toServerResponse(request: ServerRequest, throwable: Throwable): Mono<ServerResponse> {
+                received = throwable
+                return ServerResponse.status(HttpStatus.CONFLICT).build()
+            }
+
+            override fun writeToExchange(exchange: ServerWebExchange, throwable: Throwable): Mono<Void> = Mono.empty()
+        }
+
+        val response = handler(
+            deploymentInspector = deploymentInspector,
+            exceptionHandler = WebFluxRequestExceptionHandler(customErrorStrategy),
+        ).handle(MockServerRequest.builder().body(BiScriptRequest().toMono())).block()!!
+
+        response.statusCode().assert().isEqualTo(HttpStatus.CONFLICT)
+        received.assert().isSameAs(failure)
+    }
+
+    @Test
     fun `should expose explicit destructive reset over HTTP`() {
+        val descriptor = BiDeploymentDescriptor.from(BASE_OPTIONS)
         val handler = handler(
-            deploymentInspector = BiDeploymentInspector {
-                Mono.just(BiDeploymentInspection.Available(ObservedBiDeployment(emptyList())))
+            deploymentInspector = BiDeploymentInspector { _, _ ->
+                Mono.just(
+                    BiDeploymentInspection.Available(
+                        ObservedBiDeployment(
+                            listOf(
+                                ObservedBiObject(
+                                    database = BASE_OPTIONS.database,
+                                    name = "example_cart_state_last_store",
+                                    engine = "Distributed",
+                                    metadata = BiObjectMetadata(
+                                        deploymentId = descriptor.deploymentId,
+                                        configurationFingerprint = descriptor.configurationFingerprint,
+                                        topologyFingerprint = descriptor.topologyFingerprint,
+                                        aggregate = "example.cart",
+                                        kind = BiObjectKind.STORE,
+                                    ),
+                                )
+                            )
+                        )
+                    )
+                )
             }
         )
         val request = MockServerRequest.builder()
@@ -243,6 +341,60 @@ class GenerateBIScriptHandlerFunctionTest {
         val body = handler.handle(request).block()!!.writeBody()
         body.assert()
             .contains("\"destructive\":true", "DROP TABLE IF EXISTS", "_state_last_store")
+    }
+
+    @Test
+    fun `should inspect changed configuration with reset semantics over HTTP`() {
+        val descriptor = BiDeploymentDescriptor.from(BASE_OPTIONS)
+        lateinit var inspectedOptions: BiScriptOptions
+        lateinit var inspectedOperation: BiScriptOperation
+        val deploymentInspector = object : BiDeploymentInspector {
+            override fun inspect(options: BiScriptOptions): Mono<BiDeploymentInspection> =
+                error("The handler must provide the requested operation")
+
+            override fun inspect(
+                options: BiScriptOptions,
+                operation: BiScriptOperation,
+            ): Mono<BiDeploymentInspection> {
+                inspectedOptions = options
+                inspectedOperation = operation
+                return Mono.just(
+                    BiDeploymentInspection.Available(
+                        ObservedBiDeployment(
+                            listOf(
+                                ObservedBiObject(
+                                    database = BASE_OPTIONS.consumerDatabase,
+                                    name = "__wow_bi_deployment",
+                                    engine = "View",
+                                    metadata = BiObjectMetadata(
+                                        deploymentId = descriptor.deploymentId,
+                                        configurationFingerprint = descriptor.configurationFingerprint,
+                                        topologyFingerprint = descriptor.topologyFingerprint,
+                                        kind = BiObjectKind.ANCHOR,
+                                        consumerIdentity = descriptor.configurationFingerprint,
+                                    ),
+                                )
+                            )
+                        )
+                    )
+                )
+            }
+        }
+        val request = MockServerRequest.builder()
+            .body(
+                BiScriptRequest(
+                    operation = BiScriptOperationMode.RESET,
+                    replayFromEarliestConfirmed = true,
+                    kafkaBootstrapServers = "changed-kafka:9092",
+                ).toMono()
+            )
+
+        val response = handler(deploymentInspector = deploymentInspector).handle(request).block()!!
+
+        response.statusCode().assert().isEqualTo(HttpStatus.OK)
+        response.writeBody().assert().contains("changed-kafka:9092")
+        inspectedOptions.kafkaBootstrapServers.assert().isEqualTo("changed-kafka:9092")
+        inspectedOperation.assert().isEqualTo(BiScriptOperation.Reset(true))
     }
 
     @Test
@@ -319,10 +471,11 @@ class GenerateBIScriptHandlerFunctionTest {
     private fun handler(
         options: BiScriptOptions = BASE_OPTIONS,
         deploymentInspector: BiDeploymentInspector = NoOpBiDeploymentInspector,
+        exceptionHandler: RequestExceptionHandler = WebFluxRequestExceptionHandler(),
     ): GenerateBIScriptHandlerFunction = GenerateBIScriptHandlerFunction(
         options = options,
         deploymentInspector = deploymentInspector,
-        exceptionHandler = WebFluxRequestExceptionHandler(),
+        exceptionHandler = exceptionHandler,
     )
 
     private fun ServerResponse.writeBody(): String {

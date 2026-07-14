@@ -408,6 +408,8 @@ classDiagram
 
 Wow 在聚合级别支持多租户。每个 `AggregateId` 都包含一个 `tenantId` 属性。命令作用域限定为租户，事件存储按租户分区事件。
 
+> **聚合 ID 唯一性约束：** `tenantId` 不会创建独立的聚合 ID 命名空间。在同一个 `NamedAggregate`（`contextName` + `aggregateName`）范围内，`id` 必须在所有租户之间保持唯一。例如，两个 `order` 聚合实例不能同时使用 `order-123`，即使它们分别属于租户 A 和租户 B。租户 ID 仍用于路由和隔离，但不会放宽聚合 ID 的唯一性。
+
 租户可以在注解级别配置：
 
 - 命令参数上的 `@TenantId` 从命令体提取租户

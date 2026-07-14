@@ -139,8 +139,12 @@ class BiDeploymentInspectorAutoConfigurationTest {
                 "inspector.clickhouse.connection-timeout is too large",
             "inspector.clickhouse.connection-request-timeout=0s" to
                 "inspector.clickhouse.connection-request-timeout must be greater than zero",
+            "inspector.clickhouse.socket-timeout=0s" to
+                "inspector.clickhouse.socket-timeout must be greater than zero",
             "inspector.clickhouse.socket-timeout=-1ms" to
-                "inspector.clickhouse.socket-timeout must not be negative",
+                "inspector.clickhouse.socket-timeout must be greater than zero",
+            "inspector.clickhouse.socket-timeout=31s" to
+                "inspector.clickhouse.socket-timeout must not exceed inspector.timeout",
             "inspector.clickhouse.socket-timeout=2147483648ms" to
                 "inspector.clickhouse.socket-timeout must not exceed ${Int.MAX_VALUE} milliseconds",
             "inspector.clickhouse.execution-timeout=2147483648ms" to
@@ -166,7 +170,7 @@ class BiDeploymentInspectorAutoConfigurationTest {
 
     @Test
     fun `should let a custom inspector override ClickHouse configuration`() {
-        val customInspector = BiDeploymentInspector {
+        val customInspector = BiDeploymentInspector { _, _ ->
             Mono.just(BiDeploymentInspection.Available(ObservedBiDeployment(emptyList())))
         }
         contextRunner

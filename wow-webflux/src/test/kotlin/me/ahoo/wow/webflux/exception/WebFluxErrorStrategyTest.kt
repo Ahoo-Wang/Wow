@@ -19,8 +19,11 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.bi.BiDeploymentInspectionException
 import me.ahoo.wow.exception.ErrorCodes
+import me.ahoo.wow.exception.ErrorInfoConverter
+import me.ahoo.wow.exception.ErrorInfoConverterRegistrar
 import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -46,6 +49,7 @@ import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import java.io.FileNotFoundException
 import java.net.URI
 import java.nio.charset.StandardCharsets
 
@@ -70,6 +74,78 @@ class WebFluxErrorStrategyTest {
                 it.headers().getFirst(ERROR_CODE).assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
             }
             .verifyComplete()
+    }
+
+    @Test
+    fun `should map an unclassified throwable to a safe internal server response`() {
+        val failure = NullPointerException("sensitive implementation detail")
+
+        WebTestClient.bindToRouterFunction(
+            route(POST("/test")) { request ->
+                DefaultWebFluxErrorStrategy.toServerResponse(request, failure)
+            }
+        ).build()
+            .post()
+            .uri("/test")
+            .exchange()
+            .expectStatus().isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR)
+            .expectHeader().valueEquals(ERROR_CODE, ErrorCodes.INTERNAL_SERVER_ERROR)
+            .expectBody(String::class.java)
+            .consumeWith { result ->
+                result.responseBody!!.assert()
+                    .contains(ErrorCodes.INTERNAL_SERVER_ERROR, "Unexpected server error")
+                    .doesNotContain("sensitive implementation detail")
+            }
+    }
+
+    @Test
+    fun `should honor a registered converter for an otherwise unclassified throwable`() {
+        val errorCode = "CUSTOM_WEBFLUX_FAILURE"
+        val previous = ErrorInfoConverterRegistrar.register(
+            RegisteredWebFluxFailure::class.java,
+            ErrorInfoConverter<Throwable> { ErrorInfo.of(errorCode, "mapped failure") },
+        )
+        val request = MockServerRequest.builder()
+            .method(HttpMethod.POST)
+            .uri(URI.create("/test"))
+            .build()
+
+        try {
+            DefaultWebFluxErrorStrategy.toServerResponse(request, RegisteredWebFluxFailure())
+                .test()
+                .consumeNextWith { response ->
+                    response.statusCode().assert().isEqualTo(HttpStatus.BAD_REQUEST)
+                    response.headers().getFirst(ERROR_CODE).assert().isEqualTo(errorCode)
+                }
+                .verifyComplete()
+        } finally {
+            ErrorInfoConverterRegistrar.unregister(RegisteredWebFluxFailure::class.java)
+            previous?.let { converter ->
+                ErrorInfoConverterRegistrar.register(RegisteredWebFluxFailure::class.java, converter)
+            }
+        }
+    }
+
+    @Test
+    fun `should preserve explicit safe exception mappings`() {
+        val request = MockServerRequest.builder()
+            .method(HttpMethod.POST)
+            .uri(URI.create("/test"))
+            .build()
+        val cases = listOf(
+            Triple(IllegalStateException("bad state"), ErrorCodes.ILLEGAL_STATE, HttpStatus.BAD_REQUEST),
+            Triple(FileNotFoundException("missing"), ErrorCodes.NOT_FOUND, HttpStatus.NOT_FOUND),
+        )
+
+        cases.forEach { (failure, expectedCode, expectedStatus) ->
+            DefaultWebFluxErrorStrategy.toServerResponse(request, failure)
+                .test()
+                .consumeNextWith { response ->
+                    response.statusCode().assert().isEqualTo(expectedStatus)
+                    response.headers().getFirst(ERROR_CODE).assert().isEqualTo(expectedCode)
+                }
+                .verifyComplete()
+        }
     }
 
     @Test
@@ -108,6 +184,24 @@ class WebFluxErrorStrategyTest {
         exchange.response.statusCode.assert().isEqualTo(HttpStatus.BAD_REQUEST)
         exchange.response.headers.contentType.assert().isEqualTo(MediaType.APPLICATION_JSON)
         exchange.response.headers.getFirst(ERROR_CODE).assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
+    }
+
+    @Test
+    fun `should write an unclassified throwable as a safe internal server error`() {
+        val exchange = MockServerWebExchange.from(
+            MockServerHttpRequest.get("/test").build()
+        )
+
+        DefaultWebFluxErrorStrategy.writeToExchange(
+            exchange,
+            NullPointerException("sensitive implementation detail"),
+        ).test().verifyComplete()
+
+        exchange.response.statusCode.assert().isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR)
+        exchange.response.headers.getFirst(ERROR_CODE).assert().isEqualTo(ErrorCodes.INTERNAL_SERVER_ERROR)
+        exchange.response.bodyAsString.block()!!.assert()
+            .contains(ErrorCodes.INTERNAL_SERVER_ERROR, "Unexpected server error")
+            .doesNotContain("sensitive implementation detail")
     }
 
     @Test
@@ -244,3 +338,5 @@ class WebFluxErrorStrategyTest {
         return builder.toString()
     }
 }
+
+private class RegisteredWebFluxFailure : RuntimeException()
