@@ -147,19 +147,20 @@ open class CommandWriteE2EBenchmark {
     }
 
     private fun createSentScenario(): CommandGatewayScenario {
+        // Keep the unicast sink draining; otherwise this benchmark measures retained backlog and GC.
         return when (scenario) {
             "ceiling" -> CommandGatewayScenario.create(
                 validator = NoOpValidator,
                 idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider {
                     NoOpIdempotencyChecker
                 },
-                subscribeToCart = false,
+                subscribeToCart = true,
             )
 
             "noop-store",
             "in-memory-new-aggregate",
             "in-memory-growing-stream" -> CommandGatewayScenario.create(
-                subscribeToCart = false,
+                subscribeToCart = true,
             )
 
             else -> error("Unsupported command write E2E scenario: $scenario")

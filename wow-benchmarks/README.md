@@ -72,6 +72,35 @@ both tasks on the same one-thread quick profile.
 
 The quick grouped report is written to `wow-benchmarks/results/reports/quick-grouped.md`.
 
+For a matched comparison of the legacy locked unicast sink and the atomic MPSC sink, run:
+
+```bash
+./gradlew :wow-benchmarks:benchmarkCommandIngressSinkDiagnostic --no-parallel
+```
+
+This diagnostic uses `SingleShotTime` with a fixed batch of 1,000,000 emissions per worker. It
+covers `threads=1,4` with either zero subscribers (bounded buffering diagnostic) or one continuously
+draining subscriber (production-path diagnostic). The sink is recreated for every JMH iteration;
+the zero-subscriber case is discarded without a late drain so cleanup work does not contaminate the
+measurement. `bare-mpsc` is an unsafe root-cause control without production terminal coordination;
+only `legacy-lock` and `atomic-mpsc` are production candidates. Results are written under
+`wow-benchmarks/results/jmh/command-ingress-sink-diagnostic/` and are diagnostic evidence rather
+than standalone framework capacity.
+
+To validate whether a sink-level result survives the real command pipeline, run the matched
+single-binary E2E diagnostic:
+
+```bash
+./gradlew :wow-benchmarks:benchmarkCommandIngressSinkDiagnostic \
+  :wow-benchmarks:benchmarkCommandIngressE2EDiagnostic \
+  :wow-benchmarks:generateCommandIngressDiagnosticReport --no-parallel
+```
+
+This runs only `sendAndWaitProcessed` with the `ceiling` scenario at `threads=1,4`, comparing the
+legacy locked ingress with the current production ingress. It is intentionally separate from the
+normal Quick and Full reports.
+The combined report is written to `wow-benchmarks/results/reports/quick-command-ingress.md`.
+
 ### Full Baseline Run
 
 ```bash
