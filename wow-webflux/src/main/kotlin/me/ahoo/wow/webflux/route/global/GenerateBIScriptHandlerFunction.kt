@@ -89,9 +89,8 @@ class GenerateBIScriptHandlerFunction internal constructor(
         operation: BiScriptOperation,
         responseMediaType: MediaType,
     ): Mono<ServerResponse> {
-        val namedAggregates = MetadataSearcher.localAggregates
         val generator = BiScriptGenerator(requestOptions)
-        return Mono.fromCallable { generator.prepare(namedAggregates) }
+        return Mono.fromCallable { generator.prepare(MetadataSearcher.localAggregates) }
             .subscribeOn(generationScheduler)
             .mapGenerationOverload()
             .flatMap { preparation ->

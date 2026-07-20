@@ -63,7 +63,7 @@ internal object ClickHouseStoreShapeValidator {
                 "Owned BI store [${observed.qualifiedName}] must use the " +
                     "$REPLICATED_REPLACING_MERGE_TREE_ENGINE engine"
             }
-            validateReplicatedStoreEngine(observed, layout)
+            validateReplicatedStoreEngine(topology, observed, layout)
             store.validateKeys(layout)
         } else {
             check(observed.engine == DISTRIBUTED_ENGINE) {
@@ -77,11 +77,23 @@ internal object ClickHouseStoreShapeValidator {
         store.validateColumns(layout, options.timezone)
     }
 
-    private fun validateReplicatedStoreEngine(observed: ObservedBiObject, layout: StoreLayout) {
+    private fun validateReplicatedStoreEngine(
+        topology: ClickHouseTopology.Cluster,
+        observed: ObservedBiObject,
+        layout: StoreLayout,
+    ) {
+        val expectedArguments = buildList {
+            add(
+                ClickHouseSqlSyntax.stringLiteral(
+                    "/clickhouse/${topology.installation}/${topology.name}/tables/" +
+                        "{shard}/{database}/{table}"
+                )
+            )
+            add(ClickHouseSqlSyntax.stringLiteral("{replica}"))
+            layout.versionColumn?.let(::add)
+        }
         val actualArguments = observed.engineFull.functionArguments(REPLICATED_REPLACING_MERGE_TREE_ENGINE)
-        val expectedArgumentCount = if (layout.versionColumn == null) 2 else 3
-        val versionMatches = layout.versionColumn == null || actualArguments?.getOrNull(2) == layout.versionColumn
-        check(actualArguments?.size == expectedArgumentCount && versionMatches) {
+        check(actualArguments == expectedArguments) {
             "Owned BI store [${observed.qualifiedName}] has an unexpected replicated engine definition"
         }
     }

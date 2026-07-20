@@ -37,7 +37,9 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
             "consumerGroupNamespace must be configured before RESET so its recovery state can be persisted"
         }
         val desiredObjects = preparation.desiredObjects
-        val observed = (inspection as? BiDeploymentInspection.Available)?.deployment
+        val availableInspection = inspection as? BiDeploymentInspection.Available
+        val observed = availableInspection?.deployment
+        val ownershipRegistry = availableInspection?.reconciliation?.ownershipRegistry
         observed?.let { deployment -> observedPolicy.validate(deployment, descriptor, desiredObjects, operation) }
         val consumerIdentity = resolveConsumerIdentity(operation, descriptor, observed)
         val retainedQueueKeys = resolveRetainedQueueKeys(operation, desiredObjects, descriptor, observed)
@@ -53,9 +55,7 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
                 descriptor = descriptor,
                 consumerIdentity = consumerIdentity,
                 desiredObjects = desiredObjects,
-                current = (inspection as? BiDeploymentInspection.Available)
-                    ?.reconciliation
-                    ?.ownershipRegistry,
+                current = ownershipRegistry,
             )
         } else {
             null
@@ -88,7 +88,15 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
                 )
             }
         val lifecycleSections = renderLifecycle(
-            LifecycleRenderContext(operation, plannedAggregates, desiredObjects, descriptor, observed, renderer)
+            LifecycleRenderContext(
+                operation,
+                plannedAggregates,
+                desiredObjects,
+                descriptor,
+                observed,
+                ownershipRegistry,
+                renderer,
+            )
         )
         val durableAggregateSections = durableAggregateSections(renderedAggregates)
         val ingressSections = ingressSections(renderedAggregates)
@@ -101,20 +109,17 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
             null
         }
         val resetRegistrySection = if (operation is BiScriptOperation.Reset) {
-            (inspection as? BiDeploymentInspection.Available)
-                ?.reconciliation
-                ?.ownershipRegistry
-                ?.let { registry ->
-                    ScriptSection(
-                        "reset-ownership-registry",
-                        listOf(
-                            ClickHouseOwnershipRegistryRenderer(
-                                options = options,
-                                deploymentId = descriptor.deploymentId,
-                            ).renderDropStatement(registry.name)
-                        ),
-                    )
-                }
+            ownershipRegistry?.let { registry ->
+                ScriptSection(
+                    "reset-ownership-registry",
+                    listOf(
+                        ClickHouseOwnershipRegistryRenderer(
+                            options = options,
+                            deploymentId = descriptor.deploymentId,
+                        ).renderDropStatement(registry.name)
+                    ),
+                )
+            }
         } else {
             null
         }
@@ -269,19 +274,46 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
                         options.consumerDatabase,
                         ClickHouseScriptRenderer.DEPLOYMENT_ANCHOR,
                     )
-                    val ownedObjects = observedPolicy.ownedBy(checkNotNull(observed), descriptor)
+                    val ownedObjects = resolveResetOwnedObjects(
+                        deployment = checkNotNull(observed),
+                        descriptor = descriptor,
+                        ownershipRegistry = ownershipRegistry,
+                    )
                         .filterNot { it.key == anchorKey }
                     if (ownedObjects.isNotEmpty()) {
                         add(
                             ScriptSection(
                                 "reset-observed-catalog",
-                                renderer.renderDropObservedStatements(ownedObjects),
+                                renderer.renderDropOwnedStatements(ownedObjects),
                             )
                         )
                     }
                 }
             }
         }
+    }
+
+    private fun resolveResetOwnedObjects(
+        deployment: ObservedBiDeployment,
+        descriptor: BiDeploymentDescriptor,
+        ownershipRegistry: BiOwnershipRegistry?,
+    ): List<BiOwnedObject> {
+        val ownedByKey = observedPolicy.ownedBy(deployment, descriptor).associate { observed ->
+            observed.key to BiOwnedObject(
+                key = observed.key,
+                kind = checkNotNull(observed.metadata).kind,
+            )
+        }.toMutableMap()
+        if (ownershipRegistry == null) {
+            return ownedByKey.values.toList()
+        }
+        val observedKeys = deployment.objects.mapTo(hashSetOf(), ObservedBiObject::key)
+        ownershipRegistry.entries.asSequence()
+            .filter { entry -> entry.key in observedKeys }
+            .forEach { entry ->
+                ownedByKey[entry.key] = BiOwnedObject(entry.key, entry.kind)
+            }
+        return ownedByKey.values.toList()
     }
 
     private fun resolveConsumerIdentity(
@@ -312,6 +344,7 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
         val desiredObjects: List<DesiredBiObject>,
         val descriptor: BiDeploymentDescriptor,
         val observed: ObservedBiDeployment?,
+        val ownershipRegistry: BiOwnershipRegistry?,
         val renderer: ClickHouseScriptRenderer,
     )
 

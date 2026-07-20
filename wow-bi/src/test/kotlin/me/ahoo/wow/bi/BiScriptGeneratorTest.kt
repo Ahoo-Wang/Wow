@@ -398,6 +398,48 @@ class BiScriptGeneratorTest {
     }
 
     @Test
+    fun `should delete registry owned objects whose catalog comment is missing during reset`() {
+        val options = BiScriptOptions(consumerGroupNamespace = "test")
+        val descriptor = BiDeploymentDescriptor.from(options)
+        val identity = BiConsumerIdentity.deterministic(descriptor)
+        val key = BiObjectKey("bi_db", "bi_sibling_command_store")
+        val registry = BiOwnershipRegistry.empty(descriptor.deploymentId)
+            .beginCreate(
+                BiOwnershipRegistration(
+                    key = key,
+                    kind = BiObjectKind.STORE,
+                    aggregate = "bi-service.sibling",
+                    consumerIdentity = identity.value,
+                    definitionFingerprint = "a".repeat(32),
+                )
+            ).markMutationVerified(key)
+        val inspection = BiDeploymentInspection.Available.reconciled(
+            deployment = ObservedBiDeployment(
+                listOf(
+                    anchor(options = options, identity = identity),
+                    ObservedBiObject(
+                        database = key.database,
+                        name = key.name,
+                        engine = "ReplacingMergeTree",
+                    ),
+                )
+            ),
+            repairableComputedDrifts = emptyList(),
+            ownershipRegistry = registry,
+        )
+
+        val result = generator(options).generate(
+            setOf(aggregate),
+            BiScriptOperation.Reset(true),
+            inspection,
+        )
+
+        result.script.assert().contains(
+            "DROP TABLE IF EXISTS \"${key.database}\".\"${key.name}\""
+        )
+    }
+
+    @Test
     fun `should drop the ownership registry after persisting reset intent`() {
         val options = BiScriptOptions(consumerGroupNamespace = "test")
         val descriptor = BiDeploymentDescriptor.from(options)

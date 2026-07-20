@@ -137,6 +137,11 @@ data class ObservedBiObject(
 
 data class BiObjectKey(val database: String, val name: String)
 
+internal data class BiOwnedObject(
+    val key: BiObjectKey,
+    val kind: BiObjectKind,
+)
+
 enum class BiObjectKind {
     ANCHOR,
     STORE,

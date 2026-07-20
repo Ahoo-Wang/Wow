@@ -134,6 +134,7 @@ class GenerateBIScriptHandlerFunctionTest {
     @Test
     fun `should generate BI scripts on the dedicated generation scheduler`() {
         val accessedThreads = ConcurrentLinkedQueue<String>()
+        val metadataLookupThreads = ConcurrentLinkedQueue<String>()
         val aggregate = ThreadRecordingNamedAggregate(
             contextName = "webflux-bi-test",
             aggregateName = "generation-scheduler",
@@ -151,7 +152,10 @@ class GenerateBIScriptHandlerFunctionTest {
         val requestScheduler = Schedulers.newSingle("request-event-loop")
         mockkObject(MetadataSearcher)
         try {
-            every { MetadataSearcher.localAggregates } returns setOf(aggregate)
+            every { MetadataSearcher.localAggregates } answers {
+                metadataLookupThreads.add(Thread.currentThread().name)
+                setOf(aggregate)
+            }
             every { MetadataSearcher.namedAggregateType } returns aggregateTypes
             every { MetadataSearcher.typeNamedAggregate } returns namedAggregates
 
@@ -165,6 +169,10 @@ class GenerateBIScriptHandlerFunctionTest {
                 .block()!!
 
             response.statusCode().assert().isEqualTo(HttpStatus.OK)
+            metadataLookupThreads.assert().isNotEmpty()
+            metadataLookupThreads.all { threadName ->
+                threadName.startsWith("wow-bi-script-generation-")
+            }.assert().isTrue()
             accessedThreads.assert().isNotEmpty()
             accessedThreads.all { threadName ->
                 threadName.startsWith("wow-bi-script-generation-")

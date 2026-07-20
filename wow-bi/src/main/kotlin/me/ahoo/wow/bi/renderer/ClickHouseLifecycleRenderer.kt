@@ -16,6 +16,7 @@ package me.ahoo.wow.bi.renderer
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.bi.BiDeploymentPhase
 import me.ahoo.wow.bi.BiObjectKind
+import me.ahoo.wow.bi.BiOwnedObject
 import me.ahoo.wow.bi.ObservedBiObject
 
 internal class ClickHouseLifecycleRenderer(private val context: ClickHouseRenderContext) {
@@ -26,20 +27,29 @@ internal class ClickHouseLifecycleRenderer(private val context: ClickHouseRender
         )
     }
 
-    fun renderDropObserved(objects: List<ObservedBiObject>): List<String> = with(context) {
+    fun renderDropObserved(objects: List<ObservedBiObject>): List<String> =
+        renderDropOwned(
+            objects.map { observed ->
+                val kind = checkNotNull(observed.metadata?.kind) {
+                    "Cannot drop an unowned BI catalog object: ${observed.database}.${observed.name}"
+                }
+                BiOwnedObject(observed.key, kind)
+            }
+        )
+
+    fun renderDropOwned(objects: List<BiOwnedObject>): List<String> = with(context) {
         immutableStatements(
             objects.sortedWith(
-                compareBy<ObservedBiObject> { it.metadata?.kind == BiObjectKind.STORE }
-                    .thenBy { it.metadata?.kind == BiObjectKind.STORE && it.name.endsWith("_local") }
-                    .thenByDescending { it.name.length }
-                    .thenBy { it.database }
-                    .thenBy { it.name }
-            ).map { observed ->
-                when (observed.metadata?.kind) {
+                compareBy<BiOwnedObject> { it.kind == BiObjectKind.STORE }
+                    .thenBy { it.kind == BiObjectKind.STORE && it.key.name.endsWith("_local") }
+                    .thenByDescending { it.key.name.length }
+                    .thenBy { it.key.database }
+                    .thenBy { it.key.name }
+            ).map { owned ->
+                when (owned.kind) {
                     BiObjectKind.ANCHOR, BiObjectKind.VIEW, BiObjectKind.CONSUMER ->
-                        dropView(observed.database, observed.name)
-                    BiObjectKind.STORE, BiObjectKind.QUEUE -> drop(observed.database, observed.name)
-                    null -> error("Cannot drop an unowned BI catalog object: ${observed.database}.${observed.name}")
+                        dropView(owned.key.database, owned.key.name)
+                    BiObjectKind.STORE, BiObjectKind.QUEUE -> drop(owned.key.database, owned.key.name)
                 }
             }
         )

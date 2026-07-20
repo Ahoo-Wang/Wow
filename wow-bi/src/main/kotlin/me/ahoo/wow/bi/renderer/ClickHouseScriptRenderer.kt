@@ -18,6 +18,7 @@ import me.ahoo.wow.bi.BiConsumerIdentity
 import me.ahoo.wow.bi.BiDeploymentDescriptor
 import me.ahoo.wow.bi.BiDeploymentPhase
 import me.ahoo.wow.bi.BiObjectKey
+import me.ahoo.wow.bi.BiOwnedObject
 import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.bi.ExpectedBiQuery
 import me.ahoo.wow.bi.ObservedBiObject
@@ -71,6 +72,9 @@ internal class ClickHouseScriptRenderer(
 
     fun renderDropObservedStatements(objects: List<ObservedBiObject>): List<String> =
         lifecycle.renderDropObserved(objects)
+
+    fun renderDropOwnedStatements(objects: List<BiOwnedObject>): List<String> =
+        lifecycle.renderDropOwned(objects)
 
     fun renderAnchorStatement(
         phase: BiDeploymentPhase,

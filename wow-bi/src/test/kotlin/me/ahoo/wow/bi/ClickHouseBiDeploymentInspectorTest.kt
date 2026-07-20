@@ -574,7 +574,8 @@ class ClickHouseBiDeploymentInspectorTest {
         val local = catalogRecord(
             name = "example_order_state_store_local",
             engine = "ReplicatedReplacingMergeTree",
-            engineFull = "ReplicatedReplacingMergeTree('/expanded/path', '{replica}', version) " +
+            engineFull = "ReplicatedReplacingMergeTree(" +
+                "'/clickhouse/test/test-cluster/tables/{shard}/{database}/{table}', '{replica}', version) " +
                 "PARTITION BY toYYYYMM(create_time) ORDER BY (tenant_id, aggregate_id, version)",
             comment = storeComment(CLUSTER_OPTIONS),
             partitionKey = "toYYYYMM(create_time)",
@@ -598,6 +599,48 @@ class ClickHouseBiDeploymentInspectorTest {
             as BiDeploymentInspection.Available
 
         available.deployment.objects.assert().hasSize(2)
+    }
+
+    @Test
+    fun `should reject mismatched replicated store path and replica`() {
+        val distributed = catalogRecord(
+            name = "example_order_state_store",
+            engine = "Distributed",
+            engineFull = "Distributed('test-cluster', 'bi_db', 'example_order_state_store_local', " +
+                "sipHash64(tenant_id, aggregate_id))",
+            comment = storeComment(CLUSTER_OPTIONS),
+        )
+        val invalidInvocations = listOf(
+            "ReplicatedReplacingMergeTree('/clickhouse/other/test-cluster/tables/" +
+                "{shard}/{database}/{table}', '{replica}', version)",
+            "ReplicatedReplacingMergeTree('/clickhouse/test/test-cluster/tables/" +
+                "{shard}/{database}/{table}', 'other-replica', version)",
+        )
+
+        invalidInvocations.forEach { invalidInvocation ->
+            val invalidLocal = catalogRecord(
+                name = "example_order_state_store_local",
+                engine = "ReplicatedReplacingMergeTree",
+                engineFull = "$invalidInvocation PARTITION BY toYYYYMM(create_time) " +
+                    "ORDER BY (tenant_id, aggregate_id, version)",
+                comment = storeComment(CLUSTER_OPTIONS),
+                partitionKey = "toYYYYMM(create_time)",
+                sortingKey = "tenant_id, aggregate_id, version",
+            )
+            val client = clusterClient(
+                invalidLocal.withNode(NODE_A),
+                invalidLocal.withNode(NODE_B),
+                distributed.withNode(NODE_A),
+                distributed.withNode(NODE_B),
+            )
+
+            ClickHouseBiDeploymentInspector(client).inspect(CLUSTER_OPTIONS).test()
+                .expectErrorMatches { error ->
+                    error is BiDeploymentInspectionException.Inconsistent &&
+                        error.message!!.contains("unexpected replicated engine definition")
+                }
+                .verify()
+        }
     }
 
     @Test
