@@ -155,7 +155,7 @@ class EventStreamSchemaInitializerTest : SchemaInitializerSpec() {
     }
 
     @Test
-    fun `should allow a custom non unique request id index in aggregate scoped mode`() {
+    fun `should allow a default named non unique request id index in aggregate scoped mode`() {
         val database = mongo.database()
         val namedAggregate = MaterializedNamedAggregate("", "testNonUniqueRequestIdIndex")
         val collectionName = getCollectionName(namedAggregate)
@@ -164,14 +164,13 @@ class EventStreamSchemaInitializerTest : SchemaInitializerSpec() {
         database.createCollection(collectionName).toMono().block()
         collection.createIndex(
             Indexes.ascending(MessageRecords.REQUEST_ID),
-            IndexOptions().name("custom_request_id"),
         ).toMono().block()
 
         initAggregateSchema(database, namedAggregate)
 
         val indexes = collection.listIndexes().toFlux().collectList().block()!!
             .associateBy { it.getString("name") }
-        indexes.containsKey("custom_request_id").assert().isTrue()
+        indexes.containsKey(REQUEST_ID_UNIQUE_INDEX_NAME).assert().isTrue()
         indexes.containsKey("${MessageRecords.AGGREGATE_ID}_1_${MessageRecords.REQUEST_ID}_1")
             .assert()
             .isTrue()
@@ -212,6 +211,29 @@ class EventStreamSchemaInitializerTest : SchemaInitializerSpec() {
         assertThrownBy<IllegalStateException> {
             EventStreamSchemaInitializer(database, enableRequestIdUniqueIndex = true).initSchema(namedAggregate)
         }
+        collection.drop().toMono().block()
+    }
+
+    @Test
+    fun `should allow a default named non unique aggregate request id index in global mode`() {
+        val database = mongo.database()
+        val namedAggregate = MaterializedNamedAggregate("", "testNonUniqueAggregateRequestIdIndex")
+        val collectionName = getCollectionName(namedAggregate)
+        val collection = database.getCollection(collectionName)
+        collection.drop().toMono().block()
+        database.createCollection(collectionName).toMono().block()
+        collection.createIndex(
+            Indexes.ascending(MessageRecords.AGGREGATE_ID, MessageRecords.REQUEST_ID),
+        ).toMono().block()
+
+        EventStreamSchemaInitializer(database, enableRequestIdUniqueIndex = true).initSchema(namedAggregate)
+
+        val indexes = collection.listIndexes().toFlux().collectList().block()!!
+            .associateBy { it.getString("name") }
+        indexes.containsKey("${MessageRecords.AGGREGATE_ID}_1_${MessageRecords.REQUEST_ID}_1")
+            .assert()
+            .isTrue()
+        indexes[REQUEST_ID_UNIQUE_INDEX_NAME]?.getBoolean("unique", false).assert().isTrue()
         collection.drop().toMono().block()
     }
 

@@ -14,10 +14,13 @@
 package me.ahoo.wow.mongo
 
 import com.mongodb.MongoException
+import com.mongodb.reactivestreams.client.MongoCollection
 import com.mongodb.reactivestreams.client.MongoDatabase
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.infra.accessor.function.reactive.toBlockable
+import me.ahoo.wow.serialization.MessageRecords
+import org.bson.Document
 import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
 
@@ -69,6 +72,44 @@ object AggregateSchemaInitializer {
             }
             return true
         }
+    }
+
+    @Deprecated("Use EventStreamSchemaInitializer or SnapshotSchemaInitializer to reconcile managed indexes.")
+    fun MongoCollection<Document>.createAggregateIdIndex() {
+        reconcileIndexes(listOf(hashedIndex(MessageRecords.AGGREGATE_ID)))
+    }
+
+    @Deprecated("Use EventStreamSchemaInitializer to reconcile managed indexes.")
+    fun MongoCollection<Document>.createAggregateIdAndVersionUniqueIndex() {
+        reconcileIndexes(
+            listOf(
+                ascendingIndex(MessageRecords.AGGREGATE_ID, MessageRecords.VERSION, unique = true),
+            ),
+        )
+    }
+
+    @Deprecated("Use EventStreamSchemaInitializer to reconcile managed indexes.")
+    fun MongoCollection<Document>.createRequestIdUniqueIndex() {
+        reconcileIndexes(listOf(ascendingIndex(MessageRecords.REQUEST_ID, unique = true)))
+    }
+
+    @Deprecated("Use EventStreamSchemaInitializer to reconcile managed indexes.")
+    fun MongoCollection<Document>.createAggregateIdAndRequestIdUniqueIndex() {
+        reconcileIndexes(
+            listOf(
+                ascendingIndex(MessageRecords.AGGREGATE_ID, MessageRecords.REQUEST_ID, unique = true),
+            ),
+        )
+    }
+
+    @Deprecated("Use EventStreamSchemaInitializer or SnapshotSchemaInitializer to reconcile managed indexes.")
+    fun MongoCollection<Document>.createTenantIdIndex() {
+        reconcileIndexes(listOf(hashedIndex(MessageRecords.TENANT_ID)))
+    }
+
+    @Deprecated("Use EventStreamSchemaInitializer or SnapshotSchemaInitializer to reconcile managed indexes.")
+    fun MongoCollection<Document>.createOwnerIdIndex() {
+        reconcileIndexes(listOf(hashedIndex(MessageRecords.OWNER_ID)))
     }
 
     private const val NAMESPACE_EXISTS_CODE = 48

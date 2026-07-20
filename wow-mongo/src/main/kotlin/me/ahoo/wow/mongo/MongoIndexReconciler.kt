@@ -79,9 +79,8 @@ private fun MongoCollection<Document>.requireNoForbiddenIndexes(
 ) {
     forbiddenIndexes.forEach { forbidden ->
         existingIndexes.firstOrNull { actual ->
-            val sameKeyUnique = MongoIndexCompatibility.hasSameKeyFields(actual, forbidden) &&
+            MongoIndexCompatibility.hasSameKeyFields(actual, forbidden) &&
                 MongoIndexCompatibility.isUnique(actual)
-            actual.getString("name") == forbidden.name || sameKeyUnique
         }?.let { actual ->
             throw MongoIndexSchemaMismatchException(
                 collectionName = namespace.fullName,
