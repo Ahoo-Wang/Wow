@@ -14,8 +14,17 @@
 package me.ahoo.wow.mongo
 
 import com.mongodb.reactivestreams.client.MongoDatabase
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCheckpointCollectionName
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
+import me.ahoo.wow.mongo.Documents.ID_FIELD
+import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.serialization.state.StateAggregateRecords
+import org.junit.jupiter.api.Test
+import reactor.kotlin.core.publisher.toFlux
+import reactor.kotlin.core.publisher.toMono
 
 class SnapshotSchemaInitializerTest : SchemaInitializerSpec() {
 
@@ -29,5 +38,31 @@ class SnapshotSchemaInitializerTest : SchemaInitializerSpec() {
 
     override fun getCollectionName(namedAggregate: NamedAggregate): String {
         return namedAggregate.toSnapshotCollectionName()
+    }
+
+    override fun getExpectedIndexNames(): Set<String> = setOf(
+        "${MessageRecords.TENANT_ID}_hashed",
+        "${MessageRecords.OWNER_ID}_hashed",
+        "${ID_FIELD}_hashed",
+        "${StateAggregateRecords.DELETED}_hashed",
+    )
+
+    @Test
+    fun `should not initialize checkpoint schema when initializing latest snapshots`() {
+        val database = mongo.database()
+        val namedAggregate = MaterializedNamedAggregate("", "testCheckpointDisabled")
+        val checkpointCollectionName = namedAggregate.toSnapshotCheckpointCollectionName()
+        database.getCollection(checkpointCollectionName).drop().toMono().block()
+
+        SnapshotSchemaInitializer(database).initSchema(namedAggregate)
+
+        database.listCollectionNames()
+            .toFlux()
+            .collectList()
+            .block()!!
+            .contains(checkpointCollectionName)
+            .assert()
+            .isFalse()
+        database.getCollection(namedAggregate.toSnapshotCollectionName()).drop().toMono().block()
     }
 }

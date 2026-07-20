@@ -61,6 +61,17 @@ graph TB
 
 Each aggregate type gets its own collection, partitioned by aggregate name. This design isolates hot aggregates from each other and enables per-aggregate sharding and index tuning.
 
+This collection layout assumes that one MongoDB database serves exactly one bounded context. During startup, the
+Starter atomically claims the current `wow.context-name` in `wow_database_metadata`. Instances of the same context
+can restart safely; a different context pointing to that database fails before its EventStore, SnapshotStore, query
+factory, or PrepareKeyFactory is created and reports that a separate database is required. This includes a dedicated
+`prepare-database` when event and snapshot storage use another backend, and remains active when `auto-init-schema` is
+disabled. For an existing unmarked database, the first upgraded instance checks every existing `*_event_stream`,
+`*_snapshot`, and `*_snapshot_checkpoint` collection for a document owned by another context before writing the
+marker. Legacy `prepare_*` records contain no context metadata, so audit prepare database mappings before rollout;
+the first upgraded context claims an otherwise unmarked prepare-only database. The aggregate collection scan can be
+expensive on large legacy databases, so upgrade the database's real owner first.
+
 ## Installation
 
 ::: code-group
@@ -187,7 +198,13 @@ Collection names are derived from aggregate metadata using deterministic suffixe
 |---|---|---|
 | Event Stream | `{aggregateName}_event_stream` | `order_event_stream` |
 | Snapshot | `{aggregateName}_snapshot` | `order_snapshot` |
+| Snapshot Checkpoint | `{aggregateName}_snapshot_checkpoint` | `order_snapshot_checkpoint` |
 | Prepare Key | `prepare_{name}` | `prepare_username_idx` |
+
+Event-stream, snapshot, and prepare collection names intentionally remain backward compatible and do not include
+`contextName`. Database ownership is recorded separately in `wow_database_metadata`; do not delete or edit this
+collection manually. To hand a database to another context, migrate or remove the original event-stream, snapshot,
+and prepare data first, then remove the ownership marker before starting the new service.
 
 ### Event Stream Collection (`{aggregateName}_event_stream`)
 
@@ -283,21 +300,21 @@ The key document-level transformation is the **primary key mapping**: event stre
 
 ## Schema Initialization and Indexes
 
-The `wow.mongo.auto-init-schema` flag (default `true`) controls whether collections and indexes are created automatically on startup. Two initializers handle this:
+The `wow.mongo.auto-init-schema` flag (default `true`) controls whether collections and indexes are created automatically on startup. Three focused initializers handle this:
 
 ### EventStreamSchemaInitializer
 
 On initialization, the `EventStreamSchemaInitializer.initSchema()` method:
 
 1. Ensures the collection exists via `database.ensureCollection(collectionName)`
-2. Creates a **hashed index** on `aggregateId` for fast aggregate-scoped queries
+2. Creates a **hashed index** on `aggregateId` for equality lookups and hashed sharding
 3. Creates the **unique compound index** `{aggregateId: 1, version: 1}` for optimistic concurrency control
 4. Creates either a global `requestId` unique index or a compound `{aggregateId, requestId}` unique index, depending on the `enableRequestIdUniqueIndex` flag (default `false` for sharded cluster compatibility)
 5. Creates hashed indexes on `tenantId` and `ownerId` for multi-tenancy filtering
 
 | Index | Fields | Type | Purpose |
 |---|---|---|---|
-| `aggregateId_hashed` | `aggregateId` | Hashed | Aggregate-scoped queries |
+| `aggregateId_hashed` | `aggregateId` | Hashed | Equality lookups and hashed sharding |
 | `aggregateId_1_version_1` | `aggregateId`, `version` | Unique | Optimistic concurrency -- prevents version conflicts |
 | `aggregateId_1_requestId_1` | `aggregateId`, `requestId` | Unique | Request idempotency (shard-safe variant) |
 | `requestId_1` | `requestId` | Unique | Request idempotency (non-sharded variant) |
@@ -316,6 +333,12 @@ The `SnapshotSchemaInitializer.initSchema()` creates:
 | `ownerId_hashed` | `ownerId` | Hashed | Owner-based filtering |
 | `_id_hashed` | `_id` | Hashed | Fast aggregate lookup by ID |
 | `deleted_hashed` | `deleted` | Hashed | Soft-delete filtering |
+
+### SnapshotCheckpointSchemaInitializer
+
+When `wow.eventsourcing.snapshot.checkpoint.enabled=true`,
+`SnapshotCheckpointSchemaInitializer` creates the `<aggregate>_snapshot_checkpoint` sidecar and its unique
+`{tenantId: 1, aggregateId: 1, version: 1}` index. The sidecar is not created while checkpointing remains disabled.
 
 ## Query Services
 

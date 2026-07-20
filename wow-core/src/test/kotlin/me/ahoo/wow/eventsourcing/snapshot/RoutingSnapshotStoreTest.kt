@@ -117,7 +117,7 @@ class RoutingSnapshotStoreTest {
     private fun routingSnapshotStore(
         defaultStore: SnapshotStore,
         orderStore: SnapshotStore
-    ): SnapshotStore {
+    ): RoutingSnapshotStore {
         val routeKey = NamedAggregateStub(order.contextName, order.aggregateName)
         return RoutingSnapshotStore(
             AggregateSnapshotStoreRegistry(
@@ -128,7 +128,7 @@ class RoutingSnapshotStoreTest {
     }
 
     private class RecordingSnapshotStore(
-        private val failure: Throwable? = null
+        private val failure: Throwable? = null,
     ) : SnapshotStore {
         override val name: String = "recording"
         var lastOperation: String? = null

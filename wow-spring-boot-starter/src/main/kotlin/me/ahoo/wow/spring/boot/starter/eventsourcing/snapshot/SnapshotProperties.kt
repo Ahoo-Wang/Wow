@@ -34,6 +34,22 @@ data class SnapshotProperties(
     }
 }
 
+@ConfigurationProperties(prefix = SnapshotCheckpointProperties.PREFIX)
+data class SnapshotCheckpointProperties(
+    @DefaultValue("false") val enabled: Boolean = false,
+    @DefaultValue("100") val versionInterval: Int = 100,
+) {
+    init {
+        require(versionInterval > 0) {
+            "versionInterval must be positive."
+        }
+    }
+
+    companion object {
+        const val PREFIX = "${SnapshotProperties.PREFIX}.checkpoint"
+    }
+}
+
 enum class Strategy {
     ALL,
     VERSION_OFFSET,

@@ -15,8 +15,8 @@ package me.ahoo.wow.eventsourcing.snapshot
 import me.ahoo.wow.api.modeling.AggregateId
 import reactor.core.publisher.Mono
 
-class RoutingSnapshotStore(
-    private val registry: AggregateSnapshotStoreRegistry
+open class RoutingSnapshotStore(
+    protected val registry: AggregateSnapshotStoreRegistry
 ) : SnapshotStore {
     override val name: String
         get() = NAME
@@ -32,5 +32,30 @@ class RoutingSnapshotStore(
 
     companion object {
         const val NAME = "routing"
+
+        fun create(registry: AggregateSnapshotStoreRegistry): RoutingSnapshotStore =
+            if (registry.supportsHistoricalCheckpoints) {
+                VersionedRoutingSnapshotStore(registry)
+            } else {
+                RoutingSnapshotStore(registry)
+            }
     }
+}
+
+private class VersionedRoutingSnapshotStore(
+    registry: AggregateSnapshotStoreRegistry,
+) : RoutingSnapshotStore(registry),
+    VersionedSnapshotStore {
+
+    override fun <S : Any> loadAtOrBefore(
+        aggregateId: AggregateId,
+        maxVersion: Int,
+    ): Mono<Snapshot<S>> =
+        versionedStore(aggregateId).loadAtOrBefore(aggregateId, maxVersion)
+
+    override fun <S : Any> saveCheckpoint(snapshot: Snapshot<S>): Mono<Void> =
+        versionedStore(snapshot.aggregateId).saveCheckpoint(snapshot)
+
+    private fun versionedStore(aggregateId: AggregateId): VersionedSnapshotStore =
+        registry.get(aggregateId.namedAggregate) as VersionedSnapshotStore
 }

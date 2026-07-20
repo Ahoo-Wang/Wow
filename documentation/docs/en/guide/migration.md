@@ -41,6 +41,41 @@ Before upgrading, check the following:
 2. **Configuration Changes**: Check for configuration property changes
 3. **Metadata Changes**: Regenerate metadata files
 
+## Mongo Ownership Guard and Snapshot Checkpoints
+
+This upgrade keeps aggregate-name-only Mongo collection names, but adds a durable
+`wow_database_metadata` ownership marker. The supported deployment layout is one bounded context per MongoDB
+database.
+
+Before rollout:
+
+1. Inspect every configured event-stream, snapshot, and prepare database. Check all `*_event_stream`, `*_snapshot`,
+   `*_snapshot_checkpoint`, and `prepare_*` collections.
+2. Confirm that each database belongs to only one `wow.context-name`; a mixed database must be split before upgrade.
+3. Upgrade the database's real owner first. The first upgraded instance scans legacy aggregate collections before
+   atomically claiming the marker. Legacy `prepare_*` records contain no context metadata, so a prepare-only database
+   is claimed by the first upgraded context and must be audited before rollout.
+4. Audit existing managed indexes. Missing indexes are created, but incompatible key order, uniqueness, TTL,
+   partial-filter, collation, sparse, or hidden options block startup and require a controlled migration.
+
+Do not edit the marker to bypass a context mismatch. Move or remove the old data, then remove the marker only when
+the database is intentionally reassigned.
+
+Historical snapshot checkpoints are disabled by default:
+
+```yaml
+wow:
+  eventsourcing:
+    snapshot:
+      checkpoint:
+        enabled: false
+        version-interval: 100
+```
+
+Enabling the feature creates `<aggregate>_snapshot_checkpoint` sidecars and stores only newly produced matching
+versions; it does not backfill history. Roll back by disabling the feature, and retain the sidecars until validation
+and retention decisions are complete.
+
 ## Migrating from Traditional Architecture
 
 ### Migration Strategy

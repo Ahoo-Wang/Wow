@@ -61,6 +61,17 @@ graph TB
 
 每种聚合类型拥有自己的集合，按聚合名称分区。这种设计将热聚合彼此隔离，并支持按聚合进行分片和索引调优。
 
+该集合布局假设一个 MongoDB database 只服务一个 bounded context。Starter 启动时会在
+`wow_database_metadata` 中原子认领当前 `wow.context-name`；同一 context 的实例可安全重复启动，
+不同 context 误连到该 database 时会在创建 EventStore、SnapshotStore、查询 factory 或
+PrepareKeyFactory 前失败，并提示配置独立数据库。即使 event 与 snapshot 使用其他后端，独立的
+`prepare-database` 也会执行该检查；该检查不受 `auto-init-schema` 影响。对于尚无所有权标记的存量
+database，首次启动会先从已有 `*_event_stream`、`*_snapshot` 和 `*_snapshot_checkpoint` 集合中
+查找属于其他 context 的文档，确认不存在历史混写后再写入标记。存量 `prepare_*` 文档没有 context
+元数据，因此上线前必须审计 prepare database 映射；首个升级的 context 会认领尚未标记且仅含
+prepare 数据的 database。aggregate 全量校验只在首次认领时执行；大型存量数据库应优先升级其真实
+所有者服务，并预留扫描时间。
+
 ## 安装
 
 ::: code-group
@@ -187,7 +198,12 @@ wow:
 |---|---|---|
 | 事件流 | `{aggregateName}_event_stream` | `order_event_stream` |
 | 快照 | `{aggregateName}_snapshot` | `order_snapshot` |
+| 快照 Checkpoint | `{aggregateName}_snapshot_checkpoint` | `order_snapshot_checkpoint` |
 | PrepareKey | `prepare_{name}` | `prepare_username_idx` |
+
+事件流、快照与 PrepareKey 集合名称刻意保持兼容，不会加入 `contextName`。bounded context 的数据库
+所有权由 `wow_database_metadata` 单独记录；不要删除或手工改写该集合。若确需将数据库交给另一个
+context，应先迁移或清空原事件流、快照与 PrepareKey 数据，再删除所有权标记并启动新服务。
 
 ### 事件流集合 (`{aggregateName}_event_stream`)
 
@@ -283,21 +299,21 @@ wow:
 
 ## 模式初始化与索引
 
-`wow.mongo.auto-init-schema` 标志（默认 `true`）控制在启动时是否自动创建集合和索引。两个初始化器处理此过程：
+`wow.mongo.auto-init-schema` 标志（默认 `true`）控制在启动时是否自动创建集合和索引。三个职责单一的初始化器处理此过程：
 
 ### EventStreamSchemaInitializer
 
 在初始化时，`EventStreamSchemaInitializer.initSchema()` 方法：
 
 1. 通过 `database.ensureCollection(collectionName)` 确保集合存在
-2. 在 `aggregateId` 上创建 **哈希索引** 以支持快速的聚合范围查询
+2. 在 `aggregateId` 上创建 **哈希索引** 以支持等值查询和哈希分片
 3. 创建 **唯一复合索引** `{aggregateId: 1, version: 1}` 用于乐观并发控制
 4. 根据 `enableRequestIdUniqueIndex` 标志（默认为 `false` 以兼容分片集群），创建全局 `requestId` 唯一索引或复合 `{aggregateId, requestId}` 唯一索引
 5. 在 `tenantId` 和 `ownerId` 上创建哈希索引以支持多租户过滤
 
 | 索引 | 字段 | 类型 | 用途 |
 |---|---|---|---|
-| `aggregateId_hashed` | `aggregateId` | 哈希 | 聚合范围查询 |
+| `aggregateId_hashed` | `aggregateId` | 哈希 | 等值查询和哈希分片 |
 | `aggregateId_1_version_1` | `aggregateId`, `version` | 唯一 | 乐观并发控制——防止版本冲突 |
 | `aggregateId_1_requestId_1` | `aggregateId`, `requestId` | 唯一 | 请求幂等性（分片安全变体） |
 | `requestId_1` | `requestId` | 唯一 | 请求幂等性（非分片变体） |
@@ -316,6 +332,12 @@ wow:
 | `ownerId_hashed` | `ownerId` | 哈希 | 基于所有者的过滤 |
 | `_id_hashed` | `_id` | 哈希 | 按 ID 快速查找聚合 |
 | `deleted_hashed` | `deleted` | 哈希 | 软删除过滤 |
+
+### SnapshotCheckpointSchemaInitializer
+
+仅当 `wow.eventsourcing.snapshot.checkpoint.enabled=true` 时，
+`SnapshotCheckpointSchemaInitializer` 才会创建 `<aggregate>_snapshot_checkpoint` sidecar，以及唯一
+索引 `{tenantId: 1, aggregateId: 1, version: 1}`。checkpoint 保持关闭时不会创建该集合。
 
 ## 查询服务
 

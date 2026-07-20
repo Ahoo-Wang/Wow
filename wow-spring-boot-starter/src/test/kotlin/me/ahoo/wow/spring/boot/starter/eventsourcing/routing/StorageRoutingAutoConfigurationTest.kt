@@ -23,6 +23,7 @@ import me.ahoo.wow.eventsourcing.RoutingEventStore
 import me.ahoo.wow.eventsourcing.snapshot.RoutingSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import me.ahoo.wow.eventsourcing.snapshot.VersionedSnapshotStore
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
@@ -254,6 +255,7 @@ class StorageRoutingAutoConfigurationTest {
                 context.getBean(EventStore::class.java).assert().isSameAs(stores.mongoEventStore)
                 val snapshotStore = context.getBean(SnapshotStore::class.java)
                 snapshotStore.assert().isSameAs(context.getBean(RoutingSnapshotStore::class.java))
+                (snapshotStore is VersionedSnapshotStore).assert().isFalse()
 
                 StepVerifier.create(snapshotStore.getVersion(cartAggregateId()))
                     .expectNext(7)
