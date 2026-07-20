@@ -23,16 +23,34 @@ class ClickHouseMaterializedViewTargetParserTest {
             "CREATE MATERIALIZED VIEW `consumer db`.`to` TO \"target.db\".\"target table\" " +
                 "(`value` String) AS (SELECT 'TO ignored' AS value)"
         ).assert().isEqualTo(BiObjectKey("target.db", "target table"))
+        ClickHouseMaterializedViewTargetParser.parse(
+            "CREATE MATERIALIZED VIEW db.mv TO \"target\"\"db\".`target\\`table` AS SELECT 1"
+        ).assert().isEqualTo(BiObjectKey("target\"db", "target`table"))
+        ClickHouseMaterializedViewTargetParser.parse(
+            "CREATE MATERIALIZED VIEW db.mv TO target_db.target_table AS SELECT 1"
+        ).assert().isEqualTo(BiObjectKey("target_db", "target_table"))
     }
 
     @Test
     fun `should fail closed for unsupported or malformed ddl`() {
         ClickHouseMaterializedViewTargetParser.parse("CREATE VIEW db.view AS SELECT 1").assert().isNull()
         ClickHouseMaterializedViewTargetParser.parse(
+            "CREATE MATERIALIZED VIEW db.mv TO db.target"
+        ).assert().isNull()
+        ClickHouseMaterializedViewTargetParser.parse(
             "CREATE MATERIALIZED VIEW db.mv TO target AS SELECT 1"
         ).assert().isNull()
         ClickHouseMaterializedViewTargetParser.parse(
+            "CREATE MATERIALIZED VIEW db.mv TO 'db'.target AS SELECT 1"
+        ).assert().isNull()
+        ClickHouseMaterializedViewTargetParser.parse(
+            "CREATE MATERIALIZED VIEW db.mv TO db.'target' AS SELECT 1"
+        ).assert().isNull()
+        ClickHouseMaterializedViewTargetParser.parse(
             "CREATE MATERIALIZED VIEW db.mv TO db.first TO db.second AS SELECT 1"
+        ).assert().isNull()
+        ClickHouseMaterializedViewTargetParser.parse(
+            "CREATE MATERIALIZED VIEW db.mv TO \"unterminated AS SELECT 1"
         ).assert().isNull()
     }
 }

@@ -86,7 +86,7 @@ internal object ClickHouseStoreShapeValidator {
             add(
                 ClickHouseSqlSyntax.stringLiteral(
                     "/clickhouse/${topology.installation}/${topology.name}/tables/" +
-                        "{shard}/{database}/{table}"
+                        "{shard}/${observed.database}/${observed.name}"
                 )
             )
             add(ClickHouseSqlSyntax.stringLiteral("{replica}"))
@@ -94,7 +94,8 @@ internal object ClickHouseStoreShapeValidator {
         }
         val actualArguments = observed.engineFull.functionArguments(REPLICATED_REPLACING_MERGE_TREE_ENGINE)
         check(actualArguments == expectedArguments) {
-            "Owned BI store [${observed.qualifiedName}] has an unexpected replicated engine definition"
+            "Owned BI store [${observed.qualifiedName}] has unexpected replicated engine arguments " +
+                "$actualArguments; expected $expectedArguments"
         }
     }
 

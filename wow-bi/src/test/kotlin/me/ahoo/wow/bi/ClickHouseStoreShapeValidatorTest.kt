@@ -112,6 +112,79 @@ class ClickHouseStoreShapeValidatorTest {
         }.message.assert().contains("unexpected distributed engine definition")
     }
 
+    @Test
+    fun `should accept ClickHouse-expanded database and table replication macros`() {
+        val clusterOptions = options.copy(
+            topology = ClickHouseTopology.Cluster(name = "cluster", installation = "installation")
+        )
+        val localStore = stateStore(
+            name = "example_order_state_store_local",
+            engine = "ReplicatedReplacingMergeTree",
+            engineFull = "ReplicatedReplacingMergeTree(" +
+                "'/clickhouse/installation/cluster/tables/{shard}/bi_db/" +
+                "example_order_state_store_local', '{replica}', version)",
+            sortingKey = "tenant_id, aggregate_id, version",
+        )
+
+        assertDoesNotThrow {
+            ClickHouseStoreShapeValidator.validate(clusterOptions, localStore)
+        }
+    }
+
+    @Test
+    fun `should reject engines that do not match the configured topology`() {
+        val standaloneStore = commandStore()
+        assertThrows<IllegalStateException> {
+            ClickHouseStoreShapeValidator.validate(
+                options,
+                standaloneStore.copy(
+                    observed = standaloneStore.observed.copy(engine = "MergeTree")
+                ),
+            )
+        }.message.assert().contains("must use the ReplacingMergeTree engine")
+
+        val clusterOptions = options.copy(
+            topology = ClickHouseTopology.Cluster(name = "cluster", installation = "installation")
+        )
+        val localStore = stateStore(
+            name = "example_order_state_store_local",
+            engine = "ReplacingMergeTree",
+            sortingKey = "tenant_id, aggregate_id, version",
+        )
+        assertThrows<IllegalStateException> {
+            ClickHouseStoreShapeValidator.validate(clusterOptions, localStore)
+        }.message.assert().contains("must use the ReplicatedReplacingMergeTree engine")
+
+        val distributedStore = stateStore(
+            name = "example_order_state_store",
+            engine = "ReplacingMergeTree",
+            partitionKey = "",
+            sortingKey = "",
+        )
+        assertThrows<IllegalStateException> {
+            ClickHouseStoreShapeValidator.validate(clusterOptions, distributedStore)
+        }.message.assert().contains("must use the Distributed engine")
+    }
+
+    @Test
+    fun `should reject local table keys on a distributed facade`() {
+        val clusterOptions = options.copy(
+            topology = ClickHouseTopology.Cluster(name = "cluster", installation = "installation")
+        )
+        val distributedStore = stateStore(
+            name = "example_order_state_store",
+            engine = "Distributed",
+            engineFull = "Distributed('cluster', 'bi_db', 'example_order_state_store_local', " +
+                "sipHash64(tenant_id, aggregate_id))",
+            partitionKey = "toYYYYMM(create_time)",
+            sortingKey = "tenant_id, aggregate_id, version",
+        )
+
+        assertThrows<IllegalStateException> {
+            ClickHouseStoreShapeValidator.validate(clusterOptions, distributedStore)
+        }.message.assert().contains("must not define local table keys")
+    }
+
     private fun commandStore(columns: List<ClickHouseCatalogColumn> = commandColumns) = ClickHouseCatalogObject(
         observed = ObservedBiObject(
             database = options.database,

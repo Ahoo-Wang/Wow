@@ -575,7 +575,8 @@ class ClickHouseBiDeploymentInspectorTest {
             name = "example_order_state_store_local",
             engine = "ReplicatedReplacingMergeTree",
             engineFull = "ReplicatedReplacingMergeTree(" +
-                "'/clickhouse/test/test-cluster/tables/{shard}/{database}/{table}', '{replica}', version) " +
+                "'/clickhouse/test/test-cluster/tables/{shard}/bi_db/" +
+                "example_order_state_store_local', '{replica}', version) " +
                 "PARTITION BY toYYYYMM(create_time) ORDER BY (tenant_id, aggregate_id, version)",
             comment = storeComment(CLUSTER_OPTIONS),
             partitionKey = "toYYYYMM(create_time)",
@@ -612,9 +613,9 @@ class ClickHouseBiDeploymentInspectorTest {
         )
         val invalidInvocations = listOf(
             "ReplicatedReplacingMergeTree('/clickhouse/other/test-cluster/tables/" +
-                "{shard}/{database}/{table}', '{replica}', version)",
+                "{shard}/bi_db/example_order_state_store_local', '{replica}', version)",
             "ReplicatedReplacingMergeTree('/clickhouse/test/test-cluster/tables/" +
-                "{shard}/{database}/{table}', 'other-replica', version)",
+                "{shard}/bi_db/example_order_state_store_local', 'other-replica', version)",
         )
 
         invalidInvocations.forEach { invalidInvocation ->
@@ -637,7 +638,7 @@ class ClickHouseBiDeploymentInspectorTest {
             ClickHouseBiDeploymentInspector(client).inspect(CLUSTER_OPTIONS).test()
                 .expectErrorMatches { error ->
                     error is BiDeploymentInspectionException.Inconsistent &&
-                        error.message!!.contains("unexpected replicated engine definition")
+                        error.message!!.contains("unexpected replicated engine arguments")
                 }
                 .verify()
         }
