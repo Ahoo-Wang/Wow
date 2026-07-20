@@ -23,13 +23,17 @@ class KafkaDomainEventBus(
     topicConverter: EventStreamTopicConverter = DefaultEventStreamTopicConverter(),
     senderOptions: SenderOptions<String, String>,
     receiverOptions: ReceiverOptions<String, String>,
-    receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer
+    receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
+    receiverPolicy: KafkaReceiverPolicy = KafkaReceiverPolicy(),
+    recordDecodeFailureHandler: KafkaRecordDecodeFailureHandler = FailKafkaRecordDecodeFailureHandler,
 ) : DistributedDomainEventBus,
     AbstractKafkaBus<DomainEventStream, EventStreamExchange>(
         topicConverter,
         senderOptions,
         receiverOptions,
         receiverOptionsCustomizer,
+        receiverPolicy,
+        recordDecodeFailureHandler,
     ) {
 
     override val messageType: Class<DomainEventStream>

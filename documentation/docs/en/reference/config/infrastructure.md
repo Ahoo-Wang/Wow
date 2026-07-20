@@ -15,6 +15,11 @@ description: Configuration options for infrastructure integrations including Kaf
 | `wow.kafka.properties` | Map\<String, String\> | `{}` | Additional Kafka client properties |
 | `wow.kafka.producer` | Map\<String, String\> | `{}` | Kafka producer-specific properties |
 | `wow.kafka.consumer` | Map\<String, String\> | `{}` | Kafka consumer-specific properties |
+| `wow.kafka.receiver.prefetch-batches` | Integer | `1` | Kafka poll batches prefetched by the reactive receiver |
+| `wow.kafka.receiver.max-deferred-commits` | Integer | `1` | Out-of-order commits retained to preserve offset gaps |
+| `wow.kafka.receiver.retry-attempts` | Long | `3` | Retry attempts per consecutive receiver failure burst |
+| `wow.kafka.receiver.retry-backoff` | Duration | `10s` | Minimum receiver retry backoff |
+| `wow.kafka.receiver.decode-failure-strategy` | Enum | `FAIL` | Invalid record policy: `FAIL` or `ACKNOWLEDGE` |
 
 ```yaml
 wow:
@@ -23,6 +28,12 @@ wow:
     bootstrap-servers:
       - localhost:9092
     topic-prefix: "wow."
+    receiver:
+      prefetch-batches: 1
+      max-deferred-commits: 1
+      retry-attempts: 3
+      retry-backoff: 10s
+      decode-failure-strategy: FAIL
     producer:
       acks: all
       retries: 3

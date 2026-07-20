@@ -18,22 +18,21 @@ import me.ahoo.wow.command.ServerCommandExchange
 import reactor.kafka.receiver.ReceiverOffset
 import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.sender.SenderOptions
-import reactor.util.retry.Retry
-import reactor.util.retry.RetryBackoffSpec
-import java.time.Duration
-
-internal val DEFAULT_RECEIVE_RETRY_SPEC: RetryBackoffSpec = Retry.backoff(3, Duration.ofSeconds(10))
 
 class KafkaCommandBus(
     topicConverter: CommandTopicConverter = DefaultCommandTopicConverter(),
     senderOptions: SenderOptions<String, String>,
     receiverOptions: ReceiverOptions<String, String>,
-    receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer
+    receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
+    receiverPolicy: KafkaReceiverPolicy = KafkaReceiverPolicy(),
+    recordDecodeFailureHandler: KafkaRecordDecodeFailureHandler = FailKafkaRecordDecodeFailureHandler,
 ) : DistributedCommandBus, AbstractKafkaBus<CommandMessage<*>, ServerCommandExchange<*>>(
     topicConverter,
     senderOptions,
     receiverOptions,
     receiverOptionsCustomizer,
+    receiverPolicy,
+    recordDecodeFailureHandler,
 ) {
 
     override val messageType: Class<CommandMessage<*>>

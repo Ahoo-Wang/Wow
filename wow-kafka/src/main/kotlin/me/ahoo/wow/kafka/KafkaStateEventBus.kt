@@ -23,13 +23,17 @@ class KafkaStateEventBus(
     topicConverter: StateEventTopicConverter = DefaultStateEventTopicConverter(),
     senderOptions: SenderOptions<String, String>,
     receiverOptions: ReceiverOptions<String, String>,
-    receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer
+    receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
+    receiverPolicy: KafkaReceiverPolicy = KafkaReceiverPolicy(),
+    recordDecodeFailureHandler: KafkaRecordDecodeFailureHandler = FailKafkaRecordDecodeFailureHandler,
 ) : DistributedStateEventBus,
     AbstractKafkaBus<StateEvent<*>, StateEventExchange<*>>(
         topicConverter,
         senderOptions,
         receiverOptions,
         receiverOptionsCustomizer,
+        receiverPolicy,
+        recordDecodeFailureHandler,
     ) {
 
     override val messageType: Class<StateEvent<*>>
