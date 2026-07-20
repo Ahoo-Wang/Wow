@@ -29,6 +29,7 @@ import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.spring.boot.starter.BusType
+import me.ahoo.wow.spring.boot.starter.WowProperties
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.event.EventAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.event.EventProperties
@@ -48,6 +49,18 @@ import reactor.core.publisher.Mono
 internal class SnapshotAutoConfigurationTest {
 
     private val contextRunner = ApplicationContextRunner()
+
+    @Test
+    fun `legacy constructor keeps checkpoints disabled by default`() {
+        val configuration = SnapshotAutoConfiguration(
+            wowProperties = WowProperties(contextName = "test"),
+            snapshotProperties = SnapshotProperties(),
+        )
+        val snapshotStore = configuration.inMemorySnapshotStore()
+
+        configuration.simpleSnapshotStrategy(snapshotStore).assert()
+            .isInstanceOf(SimpleSnapshotStrategy::class.java)
+    }
 
     @Test
     fun `should load context with snapshot beans`() {

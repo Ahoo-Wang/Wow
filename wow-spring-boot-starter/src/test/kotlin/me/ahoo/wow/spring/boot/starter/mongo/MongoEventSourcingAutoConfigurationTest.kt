@@ -21,16 +21,22 @@ import com.mongodb.reactivestreams.client.MongoCollection
 import com.mongodb.reactivestreams.client.MongoDatabase
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.configuration.MetadataSearcher
+import me.ahoo.wow.configuration.NamedAggregateTypeSearcher
 import me.ahoo.wow.mongo.MongoDatabaseContextGuard
 import me.ahoo.wow.mongo.MongoEventStore
 import me.ahoo.wow.mongo.MongoSnapshotStore
 import me.ahoo.wow.mongo.prepare.MongoPrepareKeyFactory
+import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
+import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotCheckpointProperties
 import org.bson.Document
 import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
@@ -42,6 +48,49 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner
 
 class MongoEventSourcingAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
+
+    @Test
+    fun `legacy constructor keeps checkpoint schema initialization disabled`() {
+        val configuration = MongoEventSourcingAutoConfiguration(
+            MongoProperties(
+                autoInitSchema = false,
+                eventStreamDatabase = null,
+                snapshotDatabase = "testSnapshot",
+                prepareDatabase = null,
+            ),
+        )
+
+        configuration.mongoSnapshotStore(
+            mongoClient = mongoClient("order-service"),
+            dataMongoProperties = null,
+            currentBoundedContext = MaterializedNamedBoundedContext("order-service"),
+        ).assert().isInstanceOf(MongoSnapshotStore::class.java)
+    }
+
+    @Test
+    fun `should initialize checkpoint schemas when explicitly enabled`() {
+        val configuration = MongoEventSourcingAutoConfiguration(
+            mongoProperties = MongoProperties(
+                autoInitSchema = true,
+                eventStreamDatabase = null,
+                snapshotDatabase = "testSnapshot",
+                prepareDatabase = null,
+            ),
+            checkpointProperties = SnapshotCheckpointProperties(enabled = true),
+        )
+        mockkObject(MetadataSearcher)
+        try {
+            every { MetadataSearcher.namedAggregateType } returns NamedAggregateTypeSearcher(emptyMap())
+
+            configuration.mongoSnapshotStore(
+                mongoClient = mongoClient("order-service"),
+                dataMongoProperties = null,
+                currentBoundedContext = MaterializedNamedBoundedContext("order-service"),
+            ).assert().isInstanceOf(MongoSnapshotStore::class.java)
+        } finally {
+            unmockkObject(MetadataSearcher)
+        }
+    }
 
     @Test
     fun `should load context with mongo event sourcing beans`() {

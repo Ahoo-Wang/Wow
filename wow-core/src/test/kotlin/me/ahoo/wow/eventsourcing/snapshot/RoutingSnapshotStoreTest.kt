@@ -114,10 +114,41 @@ class RoutingSnapshotStoreTest {
             .verify()
     }
 
+    @Test
+    fun `load at or before falls back to the latest snapshot for a legacy store`() {
+        val aggregateId = order.aggregateId("order-1")
+        val latest = snapshot(aggregateId)
+        val orderStore = RecordingSnapshotStore(loadedSnapshot = latest)
+        val routingStore = routingSnapshotStore(RecordingSnapshotStore(), orderStore)
+
+        StepVerifier.create(routingStore.loadAtOrBefore<MockStateAggregate>(aggregateId, latest.version))
+            .expectNext(latest)
+            .verifyComplete()
+        StepVerifier.create(routingStore.loadAtOrBefore<MockStateAggregate>(aggregateId, latest.version - 1))
+            .verifyComplete()
+
+        orderStore.lastOperation.assert().isEqualTo("load")
+        orderStore.lastAggregateId.assert().isEqualTo(aggregateId)
+    }
+
+    @Test
+    fun `save checkpoint rejects a legacy selected store`() {
+        val aggregateId = order.aggregateId("order-1")
+        val routingStore = routingSnapshotStore(RecordingSnapshotStore(), RecordingSnapshotStore())
+
+        StepVerifier.create(routingStore.saveCheckpoint(snapshot(aggregateId)))
+            .expectErrorSatisfies { error ->
+                error.assert()
+                    .isInstanceOf(IllegalStateException::class.java)
+                    .hasMessageContaining("does not support historical checkpoints")
+            }
+            .verify()
+    }
+
     private fun routingSnapshotStore(
         defaultStore: SnapshotStore,
         orderStore: SnapshotStore
-    ): SnapshotStore {
+    ): RoutingSnapshotStore {
         val routeKey = NamedAggregateStub(order.contextName, order.aggregateName)
         return RoutingSnapshotStore(
             AggregateSnapshotStoreRegistry(
@@ -128,7 +159,8 @@ class RoutingSnapshotStoreTest {
     }
 
     private class RecordingSnapshotStore(
-        private val failure: Throwable? = null
+        private val failure: Throwable? = null,
+        private val loadedSnapshot: Snapshot<MockStateAggregate>? = null,
     ) : SnapshotStore {
         override val name: String = "recording"
         var lastOperation: String? = null
@@ -136,7 +168,9 @@ class RoutingSnapshotStoreTest {
 
         override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
             record("load", aggregateId)
-            return failure?.let { Mono.error(it) } ?: Mono.empty()
+            failure?.let { return Mono.error(it) }
+            @Suppress("UNCHECKED_CAST")
+            return loadedSnapshot?.let { Mono.just(it as Snapshot<S>) } ?: Mono.empty()
         }
 
         override fun getVersion(aggregateId: AggregateId): Mono<Int> {
