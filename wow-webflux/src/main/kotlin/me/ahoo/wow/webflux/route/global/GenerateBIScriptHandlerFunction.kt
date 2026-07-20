@@ -14,6 +14,7 @@
 package me.ahoo.wow.webflux.route.global
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.bi.BiDeploymentInspectionException
 import me.ahoo.wow.bi.BiDeploymentInspector
 import me.ahoo.wow.bi.BiScriptDiagnostic
 import me.ahoo.wow.bi.BiScriptGenerator
@@ -29,40 +30,46 @@ import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
 import me.ahoo.wow.openapi.contract.bi.BiScriptResponse
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.NoMetadataRouteHandlerFunctionFactorySupport
+import me.ahoo.wow.webflux.route.preferredResponseMediaType
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
-import org.springframework.web.server.NotAcceptableStatusException
 import reactor.core.publisher.Mono
+import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
+import java.util.concurrent.RejectedExecutionException
 
 private val APPLICATION_SQL_MEDIA_TYPE = MediaType.parseMediaType("application/sql")
 private val SUPPORTED_RESPONSE_MEDIA_TYPES = listOf(APPLICATION_SQL_MEDIA_TYPE, MediaType.APPLICATION_JSON)
-
-private data class ResponsePreference(
-    val mediaType: MediaType,
-    val quality: Double,
-    val acceptOrder: Int,
-    val responseOrder: Int,
+private const val BI_SCRIPT_GENERATION_THREADS: Int = 4
+private const val BI_SCRIPT_GENERATION_QUEUE_SIZE: Int = 256
+private const val BI_SCRIPT_GENERATION_TTL_SECONDS: Int = 60
+private val BI_SCRIPT_GENERATION_SCHEDULER: Scheduler = Schedulers.newBoundedElastic(
+    BI_SCRIPT_GENERATION_THREADS,
+    BI_SCRIPT_GENERATION_QUEUE_SIZE,
+    "wow-bi-script-generation",
+    BI_SCRIPT_GENERATION_TTL_SECONDS,
+    true,
 )
 
-private fun MediaType.accepts(responseMediaType: MediaType): Boolean =
-    isCompatibleWith(responseMediaType) ||
-        (responseMediaType == MediaType.APPLICATION_JSON && subtype.endsWith("+json"))
-
-private fun MediaType.specificity(): Int = when {
-    isWildcardType -> 0
-    subtype == "*" -> 1
-    subtype.startsWith("*+") -> 2
-    else -> 3
-}
-
-class GenerateBIScriptHandlerFunction(
+class GenerateBIScriptHandlerFunction internal constructor(
     private val options: BiScriptOptions,
     private val deploymentInspector: BiDeploymentInspector,
     private val exceptionHandler: RequestExceptionHandler,
+    private val generationScheduler: Scheduler,
 ) : HandlerFunction<ServerResponse> {
+    constructor(
+        options: BiScriptOptions,
+        deploymentInspector: BiDeploymentInspector,
+        exceptionHandler: RequestExceptionHandler,
+    ) : this(
+        options = options,
+        deploymentInspector = deploymentInspector,
+        exceptionHandler = exceptionHandler,
+        generationScheduler = BI_SCRIPT_GENERATION_SCHEDULER,
+    )
+
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return request.bodyToMono(BiScriptRequest::class.java)
             .switchIfEmpty(Mono.error(IllegalArgumentException("BI script request body must not be empty")))
@@ -71,7 +78,7 @@ class GenerateBIScriptHandlerFunction(
                 generateResponse(
                     requestOptions = body.toBiScriptOptions(options),
                     operation = body.toBiScriptOperation(),
-                    responseMediaType = request.preferredResponseMediaType(),
+                    responseMediaType = request.preferredResponseMediaType(SUPPORTED_RESPONSE_MEDIA_TYPES),
                 )
             }
             .onErrorResume { error -> exceptionHandler.handle(request, error) }
@@ -81,49 +88,37 @@ class GenerateBIScriptHandlerFunction(
         requestOptions: BiScriptOptions,
         operation: BiScriptOperation,
         responseMediaType: MediaType,
-    ): Mono<ServerResponse> = deploymentInspector.inspect(requestOptions, operation).flatMap { inspection ->
-        Mono.fromCallable {
-            BiScriptGenerator(requestOptions).generate(MetadataSearcher.localAggregates, operation, inspection)
-        }.subscribeOn(Schedulers.boundedElastic())
-    }.flatMap { result ->
-        logDiagnostics(result.diagnostics)
-        val response = ServerResponse.ok()
-            .header(BiScriptHeaders.DIAGNOSTIC_COUNT, result.diagnostics.size.toString())
-        if (responseMediaType == MediaType.APPLICATION_JSON) {
-            response.contentType(MediaType.APPLICATION_JSON).bodyValue(result.toResponse())
-        } else {
-            response.contentType(APPLICATION_SQL_MEDIA_TYPE).bodyValue(result.script)
-        }
+    ): Mono<ServerResponse> {
+        val generator = BiScriptGenerator(requestOptions)
+        return Mono.fromCallable { generator.prepare(MetadataSearcher.localAggregates) }
+            .subscribeOn(generationScheduler)
+            .mapGenerationOverload()
+            .flatMap { preparation ->
+                deploymentInspector.inspect(requestOptions, operation, preparation).flatMap { inspection ->
+                    Mono.fromCallable {
+                        generator.generate(preparation, operation, inspection)
+                    }.subscribeOn(generationScheduler)
+                        .mapGenerationOverload()
+                }
+            }.flatMap { result ->
+                logDiagnostics(result.diagnostics)
+                val response = ServerResponse.ok()
+                    .header(BiScriptHeaders.DIAGNOSTIC_COUNT, result.diagnostics.size.toString())
+                if (responseMediaType == MediaType.APPLICATION_JSON) {
+                    response.contentType(MediaType.APPLICATION_JSON).bodyValue(result.toResponse())
+                } else {
+                    response.contentType(APPLICATION_SQL_MEDIA_TYPE).bodyValue(result.script)
+                }
+            }
     }
 
-    private fun ServerRequest.preferredResponseMediaType(): MediaType {
-        val requested = headers().accept()
-        if (requested.isEmpty()) {
-            return APPLICATION_SQL_MEDIA_TYPE
+    private fun <T : Any> Mono<T>.mapGenerationOverload(): Mono<T> =
+        onErrorMap(RejectedExecutionException::class.java) { error ->
+            BiDeploymentInspectionException.Unavailable(
+                message = "Wow BI script generation is overloaded",
+                cause = error,
+            )
         }
-        return SUPPORTED_RESPONSE_MEDIA_TYPES.mapIndexedNotNull { responseOrder, responseMediaType ->
-            val effectiveAccept = requested.withIndex()
-                .filter { (_, acceptedMediaType) -> acceptedMediaType.accepts(responseMediaType) }
-                .maxWithOrNull(
-                    compareBy<IndexedValue<MediaType>> { (_, mediaType) -> mediaType.specificity() }
-                        .thenBy { (index) -> -index }
-                ) ?: return@mapIndexedNotNull null
-            ResponsePreference(
-                mediaType = responseMediaType,
-                quality = effectiveAccept.value.qualityValue,
-                acceptOrder = effectiveAccept.index,
-                responseOrder = responseOrder,
-            )
-        }.filter { it.quality > 0.0 }
-            .sortedWith(
-                compareByDescending<ResponsePreference> { it.quality }
-                    .thenBy { it.acceptOrder }
-                    .thenBy { it.responseOrder }
-            )
-            .firstOrNull()
-            ?.mediaType
-            ?: throw NotAcceptableStatusException(SUPPORTED_RESPONSE_MEDIA_TYPES)
-    }
 
     private fun BiScriptResult.toResponse(): BiScriptResponse = BiScriptResponse(
         script = script,

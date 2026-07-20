@@ -54,6 +54,7 @@ class BiDeploymentInspectorAutoConfigurationTest {
     fun `should explicitly configure the native ClickHouse inspector`() {
         contextRunner
             .withPropertyValues(
+                "${BiScriptProperties.PREFIX}.enabled=true",
                 "${BiScriptProperties.PREFIX}.inspector.type=CLICKHOUSE",
                 "${BiScriptProperties.PREFIX}.inspector.timeout=4s",
                 "${BiScriptProperties.PREFIX}.inspector.clickhouse.endpoints[0]=http://clickhouse-1:8123/",
@@ -104,7 +105,10 @@ class BiDeploymentInspectorAutoConfigurationTest {
     @Test
     fun `should fail startup when ClickHouse inspection lacks endpoints`() {
         contextRunner
-            .withPropertyValues("${BiScriptProperties.PREFIX}.inspector.type=CLICKHOUSE")
+            .withPropertyValues(
+                "${BiScriptProperties.PREFIX}.enabled=true",
+                "${BiScriptProperties.PREFIX}.inspector.type=CLICKHOUSE",
+            )
             .run { context ->
                 context.startupFailure.assert().isNotNull()
                 context.startupFailure!!.causeChainMessages().assert()
@@ -157,6 +161,7 @@ class BiDeploymentInspectorAutoConfigurationTest {
         invalidConfigurations.forEach { (property, expectedMessage) ->
             contextRunner
                 .withPropertyValues(
+                    "${BiScriptProperties.PREFIX}.enabled=true",
                     "${BiScriptProperties.PREFIX}.inspector.type=CLICKHOUSE",
                     "${BiScriptProperties.PREFIX}.inspector.clickhouse.endpoints[0]=http://clickhouse:8123",
                     "${BiScriptProperties.PREFIX}.$property",
@@ -170,12 +175,15 @@ class BiDeploymentInspectorAutoConfigurationTest {
 
     @Test
     fun `should let a custom inspector override ClickHouse configuration`() {
-        val customInspector = BiDeploymentInspector { _, _ ->
+        val customInspector = BiDeploymentInspector { _, _, _ ->
             Mono.just(BiDeploymentInspection.Available(ObservedBiDeployment(emptyList())))
         }
         contextRunner
             .withBean(BiDeploymentInspector::class.java, { customInspector })
-            .withPropertyValues("${BiScriptProperties.PREFIX}.inspector.type=CLICKHOUSE")
+            .withPropertyValues(
+                "${BiScriptProperties.PREFIX}.enabled=true",
+                "${BiScriptProperties.PREFIX}.inspector.type=CLICKHOUSE",
+            )
             .run { context ->
                 context.assert().hasNotFailed().hasSingleBean(BiDeploymentInspector::class.java)
                 context.getBean(BiDeploymentInspector::class.java).assert().isSameAs(customInspector)

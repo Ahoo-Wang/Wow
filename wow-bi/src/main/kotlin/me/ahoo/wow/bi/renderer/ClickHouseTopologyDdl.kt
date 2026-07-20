@@ -19,6 +19,14 @@ import me.ahoo.wow.bi.renderer.ClickHouseSqlSyntax.stringLiteral
 
 internal data class ReplacingMergeTreeSpec(val versionColumn: String?)
 
+internal data class DistributedFacadeSpec(
+    val database: String,
+    val logicalTableName: String,
+    val physicalTableName: String,
+    val shardingKey: String,
+    val createIfNotExists: Boolean,
+)
+
 internal interface ClickHouseTopologyDdl {
     val scopeClause: String
 
@@ -26,13 +34,7 @@ internal interface ClickHouseTopologyDdl {
 
     fun engineSql(spec: ReplacingMergeTreeSpec): String
 
-    fun distributedFacade(
-        database: String,
-        logicalTableName: String,
-        physicalTableName: String,
-        shardingKey: String,
-        createIfNotExists: Boolean,
-    ): String?
+    fun distributedFacade(spec: DistributedFacadeSpec): String?
 
     fun dropTableNames(logicalTableName: String): List<String>
 }
@@ -59,19 +61,13 @@ private class ClusterTopologyDdl(private val topology: ClickHouseTopology.Cluste
         } ?: "ENGINE = ReplicatedReplacingMergeTree($path, $replica)"
     }
 
-    override fun distributedFacade(
-        database: String,
-        logicalTableName: String,
-        physicalTableName: String,
-        shardingKey: String,
-        createIfNotExists: Boolean,
-    ): String {
-        val ifNotExistsClause = if (createIfNotExists) " IF NOT EXISTS" else ""
+    override fun distributedFacade(spec: DistributedFacadeSpec): String {
+        val ifNotExistsClause = if (spec.createIfNotExists) " IF NOT EXISTS" else ""
         return """
-            CREATE TABLE$ifNotExistsClause ${qualified(database, logicalTableName)} $scopeClause
-            AS ${qualified(database, physicalTableName)}
-            ENGINE = Distributed(${stringLiteral(topology.name)}, ${quoteIdentifier(database)},
-                                 ${stringLiteral(physicalTableName)}, $shardingKey);
+            CREATE TABLE$ifNotExistsClause ${topologyQualified(spec.database, spec.logicalTableName)} $scopeClause
+            AS ${topologyQualified(spec.database, spec.physicalTableName)}
+            ENGINE = Distributed(${stringLiteral(topology.name)}, ${quoteIdentifier(spec.database)},
+                                 ${stringLiteral(spec.physicalTableName)}, ${spec.shardingKey});
         """.trimIndent()
     }
 
@@ -89,16 +85,10 @@ private data object StandaloneTopologyDdl : ClickHouseTopologyDdl {
             "ENGINE = ReplacingMergeTree(${quoteIdentifier(versionColumn)})"
         } ?: "ENGINE = ReplacingMergeTree"
 
-    override fun distributedFacade(
-        database: String,
-        logicalTableName: String,
-        physicalTableName: String,
-        shardingKey: String,
-        createIfNotExists: Boolean,
-    ): String? = null
+    override fun distributedFacade(spec: DistributedFacadeSpec): String? = null
 
     override fun dropTableNames(logicalTableName: String): List<String> = listOf(logicalTableName)
 }
 
-private fun qualified(database: String, table: String): String =
+private fun topologyQualified(database: String, table: String): String =
     "${quoteIdentifier(database)}.${quoteIdentifier(table)}"

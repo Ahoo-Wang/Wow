@@ -38,7 +38,11 @@ import java.util.concurrent.TimeUnit
 
 class KafkaClickHouseIntegrationTest {
     @Test
-    @Suppress("LongMethod")
+    @Suppress(
+        "LongMethod",
+        "CyclomaticComplexMethod",
+        "NestedBlockDepth",
+    ) // Ordered multi-container lifecycle scenario.
     fun `should consume Kafka messages and replay from earliest after reset`() {
         Network.newNetwork().use { network ->
             kafka(network).use { kafka ->
@@ -72,147 +76,162 @@ class KafkaClickHouseIntegrationTest {
                             }
                             firstDeploy.statements.forEach { statement -> connection.executeStatement(statement) }
 
-                        connection.awaitLong("SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "command_store")}", 1)
-                        connection.awaitLong("SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "state_store")}", 2)
-                        connection.awaitLong(
-                            "SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "state_event")}",
-                            2,
-                        )
-                        connection.queryString(
-                            "SELECT event_body FROM $DATABASE.${naming.toTableName(aggregate, "state_event")} " +
-                                "WHERE version = 2",
-                        ).assert().isEqualTo("{\"value\":2}")
-                        connection.awaitLong(
-                            "SELECT version FROM $DATABASE.${naming.toTableName(aggregate, "state_last")} " +
-                                "WHERE aggregate_id = '$AGGREGATE_ID'",
-                            2,
-                        )
-                        connection.queryCommand(naming.toTableName(aggregate, "command")).assert().isEqualTo(
-                            CommandProjection(
-                                isVoid = true,
-                                body = "{\"value\":42}",
-                                createTime = -1,
+                            connection.awaitLong(
+                                "SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "command_store")}",
+                                1,
                             )
-                        )
-                        connection.awaitLong(
-                            "SELECT nullable_scalar FROM $DATABASE.${naming.toTableName(aggregate, "state_last_root")} " +
-                                "WHERE __aggregate_id = '$AGGREGATE_ID'",
-                            2,
-                        )
-                        val queueUuids = listOf("command", "state").associateWith { suffix ->
+                            connection.awaitLong(
+                                "SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "state_store")}",
+                                2,
+                            )
+                            connection.awaitLong(
+                                "SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "state_event")}",
+                                2,
+                            )
                             connection.queryString(
-                                "SELECT toString(uuid) FROM system.tables " +
-                                    "WHERE database = '$CONSUMER_DATABASE' AND " +
-                                "name = '${naming.toTableName(aggregate, "${suffix}_queue")}'",
+                                "SELECT event_body FROM $DATABASE.${naming.toTableName(aggregate, "state_event")} " +
+                                    "WHERE version = 2",
+                            ).assert().isEqualTo("{\"value\":2}")
+                            connection.awaitLong(
+                                "SELECT version FROM $DATABASE.${naming.toTableName(aggregate, "state_last")} " +
+                                    "WHERE aggregate_id = '$AGGREGATE_ID'",
+                                2,
                             )
-                        }
-                        queueUuids.values.forEach { uuid -> uuid.assert().isNotEqualTo(NIL_UUID) }
-
-                        val redeploy = generator.generate(
-                            setOf(aggregate),
-                            BiScriptOperation.Deploy,
-                            inspector.inspectAvailable(options),
-                        )
-                        redeploy.assertDoesNotMutateQueues(naming, aggregate)
-                        redeploy.statements.forEach { statement -> connection.executeStatement(statement) }
-                        connection.queryLong(
-                            "SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "state_store")}"
-                        ).assert().isEqualTo(2)
-                        queueUuids.forEach { (suffix, uuid) ->
-                            connection.queryString(
-                                "SELECT toString(uuid) FROM system.tables " +
-                                    "WHERE database = '$CONSUMER_DATABASE' AND " +
-                                    "name = '${naming.toTableName(aggregate, "${suffix}_queue")}'",
-                            ).assert().isEqualTo(uuid)
-                        }
-
-                        producer(kafka).use { producer ->
-                            producer.sendJson(commandTopic, "command-2", commandMessage("command-2", 84))
-                            producer.sendJson(stateTopic, "state-3", stateMessage(version = 3, scalar = 3))
-                        }
-                        connection.awaitLong("SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "command_store")}", 2)
-                        connection.awaitLong("SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "state_store")}", 3)
-
-                        val reset = generator.generate(
-                            setOf(aggregate),
-                            BiScriptOperation.Reset(replayFromEarliestConfirmed = true),
-                            inspector.inspectAvailable(options, BiScriptOperation.Reset(true)),
-                        )
-                        val resetIdentity = consumerIdentity(reset.script)
-                        resetIdentity.assert().isNotEqualTo(consumerIdentity(firstDeploy.script))
-                        val firstDurableStatement = reset.indexOfStatement(
-                            "CREATE TABLE IF NOT EXISTS \"$DATABASE\".\"${
-                                naming.toTableName(aggregate, "command_store")
-                            }\""
-                        )
-                        reset.statements.take(firstDurableStatement)
-                            .forEach { statement -> connection.executeStatement(statement) }
-
-                        val resettingInspection = inspector.inspectAvailable(
-                            options,
-                            BiScriptOperation.Reset(true),
-                        )
-                        resettingInspection.anchorMetadata().phase.assert().isEqualTo(BiDeploymentPhase.RESETTING)
-                        resettingInspection.consumerIdentity().assert().isEqualTo(resetIdentity)
-                        assertThrows<IllegalArgumentException> {
-                            generator.generate(setOf(aggregate), BiScriptOperation.Deploy, resettingInspection)
-                        }.message.assert().contains("RESETTING")
-
-                        val retryReset = generator.generate(
-                            setOf(aggregate),
-                            BiScriptOperation.Reset(replayFromEarliestConfirmed = true),
-                            resettingInspection,
-                        )
-                        consumerIdentity(retryReset.script).assert().isEqualTo(resetIdentity)
-                        val stableAnchorStatement = retryReset.indexOfAnchorStatement(BiDeploymentPhase.STABLE)
-                        retryReset.statements.take(stableAnchorStatement + 1)
-                            .forEach { statement -> connection.executeStatement(statement) }
-
-                        val stableInspection = inspector.inspectAvailable(options)
-                        stableInspection.anchorMetadata().phase.assert().isEqualTo(BiDeploymentPhase.STABLE)
-                        stableInspection.consumerIdentity().assert().isEqualTo(resetIdentity)
-                        listOf("command", "state").flatMap { suffix ->
-                            listOf(
-                                naming.toTableName(aggregate, "${suffix}_queue"),
-                                naming.toTableName(aggregate, "${suffix}_consumer"),
+                            connection.queryCommand(naming.toTableName(aggregate, "command")).assert().isEqualTo(
+                                CommandProjection(
+                                    isVoid = true,
+                                    body = "{\"value\":42}",
+                                    createTime = -1,
+                                )
                             )
-                        }.forEach { table ->
+                            connection.awaitLong(
+                                "SELECT nullable_scalar FROM $DATABASE.${naming.toTableName(aggregate, "state_last_root")} " +
+                                    "WHERE __aggregate_id = '$AGGREGATE_ID'",
+                                2,
+                            )
+                            val queueUuids = listOf("command", "state").associateWith { suffix ->
+                                connection.queryString(
+                                    "SELECT toString(uuid) FROM system.tables " +
+                                        "WHERE database = '$CONSUMER_DATABASE' AND " +
+                                        "name = '${naming.toTableName(aggregate, "${suffix}_queue")}'",
+                                )
+                            }
+                            queueUuids.values.forEach { uuid -> uuid.assert().isNotEqualTo(NIL_UUID) }
+
+                            val redeploy = generator.generate(
+                                setOf(aggregate),
+                                BiScriptOperation.Deploy,
+                                inspector.inspectAvailable(options),
+                            )
+                            redeploy.assertDoesNotMutateQueues(naming, aggregate)
+                            redeploy.statements.forEach { statement -> connection.executeStatement(statement) }
                             connection.queryLong(
-                                "SELECT count() FROM system.tables WHERE database = '$CONSUMER_DATABASE' " +
-                                    "AND name = '$table'"
-                            ).assert().isZero()
-                        }
+                                "SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "state_store")}"
+                            ).assert().isEqualTo(2)
+                            queueUuids.forEach { (suffix, uuid) ->
+                                connection.queryString(
+                                    "SELECT toString(uuid) FROM system.tables " +
+                                        "WHERE database = '$CONSUMER_DATABASE' AND " +
+                                        "name = '${naming.toTableName(aggregate, "${suffix}_queue")}'",
+                                ).assert().isEqualTo(uuid)
+                            }
 
-                        val deployAfterReset = generator.generate(
-                            setOf(aggregate),
-                            BiScriptOperation.Deploy,
-                            stableInspection,
-                        )
-                        consumerIdentity(deployAfterReset.script).assert().isEqualTo(resetIdentity)
-                        deployAfterReset.statements.forEach { statement -> connection.executeStatement(statement) }
-                        inspector.inspectAvailable(options).consumerIdentity().assert().isEqualTo(resetIdentity)
-                        connection.awaitLong(
-                            "SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "command_store")}",
-                            2,
-                        )
-                        connection.awaitLong(
-                            "SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "state_store")}",
-                            3,
-                        )
-                        connection.awaitLong(
-                            "SELECT version FROM $DATABASE.${naming.toTableName(aggregate, "state_last")} " +
-                                "WHERE aggregate_id = '$AGGREGATE_ID'",
-                            3,
-                        )
-                        producer(kafka).use { producer ->
-                            producer.sendJson(stateTopic, "state-4", stateMessage(version = 4, scalar = 4))
-                        }
-                        connection.awaitLong("SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "state_store")}", 4)
-                        connection.awaitLong(
-                            "SELECT version FROM $DATABASE.${naming.toTableName(aggregate, "state_last")} " +
-                                "WHERE aggregate_id = '$AGGREGATE_ID'",
-                            4,
-                        )
+                            producer(kafka).use { producer ->
+                                producer.sendJson(commandTopic, "command-2", commandMessage("command-2", 84))
+                                producer.sendJson(stateTopic, "state-3", stateMessage(version = 3, scalar = 3))
+                            }
+                            connection.awaitLong(
+                                "SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "command_store")}",
+                                2,
+                            )
+                            connection.awaitLong(
+                                "SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "state_store")}",
+                                3,
+                            )
+
+                            val reset = generator.generate(
+                                setOf(aggregate),
+                                BiScriptOperation.Reset(replayFromEarliestConfirmed = true),
+                                inspector.inspectAvailable(options, BiScriptOperation.Reset(true)),
+                            )
+                            val resetIdentity = consumerIdentity(reset.script)
+                            resetIdentity.assert().isNotEqualTo(consumerIdentity(firstDeploy.script))
+                            val firstDurableStatement = reset.indexOfStatement(
+                                "CREATE TABLE IF NOT EXISTS \"$DATABASE\".\"${
+                                    naming.toTableName(aggregate, "command_store")
+                                }\""
+                            )
+                            reset.statements.take(firstDurableStatement)
+                                .forEach { statement -> connection.executeStatement(statement) }
+
+                            val resettingInspection = inspector.inspectAvailable(
+                                options,
+                                BiScriptOperation.Reset(true),
+                            )
+                            resettingInspection.anchorMetadata().phase.assert().isEqualTo(BiDeploymentPhase.RESETTING)
+                            resettingInspection.consumerIdentity().assert().isEqualTo(resetIdentity)
+                            assertThrows<IllegalArgumentException> {
+                                generator.generate(setOf(aggregate), BiScriptOperation.Deploy, resettingInspection)
+                            }.message.assert().contains("RESETTING")
+
+                            val retryReset = generator.generate(
+                                setOf(aggregate),
+                                BiScriptOperation.Reset(replayFromEarliestConfirmed = true),
+                                resettingInspection,
+                            )
+                            consumerIdentity(retryReset.script).assert().isEqualTo(resetIdentity)
+                            val stableAnchorStatement = retryReset.indexOfAnchorStatement(BiDeploymentPhase.STABLE)
+                            retryReset.statements.take(stableAnchorStatement + 1)
+                                .forEach { statement -> connection.executeStatement(statement) }
+
+                            val stableInspection = inspector.inspectAvailable(options)
+                            stableInspection.anchorMetadata().phase.assert().isEqualTo(BiDeploymentPhase.STABLE)
+                            stableInspection.consumerIdentity().assert().isEqualTo(resetIdentity)
+                            listOf("command", "state").flatMap { suffix ->
+                                listOf(
+                                    naming.toTableName(aggregate, "${suffix}_queue"),
+                                    naming.toTableName(aggregate, "${suffix}_consumer"),
+                                )
+                            }.forEach { table ->
+                                connection.queryLong(
+                                    "SELECT count() FROM system.tables WHERE database = '$CONSUMER_DATABASE' " +
+                                        "AND name = '$table'"
+                                ).assert().isZero()
+                            }
+
+                            val deployAfterReset = generator.generate(
+                                setOf(aggregate),
+                                BiScriptOperation.Deploy,
+                                stableInspection,
+                            )
+                            consumerIdentity(deployAfterReset.script).assert().isEqualTo(resetIdentity)
+                            deployAfterReset.statements.forEach { statement -> connection.executeStatement(statement) }
+                            inspector.inspectAvailable(options).consumerIdentity().assert().isEqualTo(resetIdentity)
+                            connection.awaitLong(
+                                "SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "command_store")}",
+                                2,
+                            )
+                            connection.awaitLong(
+                                "SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "state_store")}",
+                                3,
+                            )
+                            connection.awaitLong(
+                                "SELECT version FROM $DATABASE.${naming.toTableName(aggregate, "state_last")} " +
+                                    "WHERE aggregate_id = '$AGGREGATE_ID'",
+                                3,
+                            )
+                            producer(kafka).use { producer ->
+                                producer.sendJson(stateTopic, "state-4", stateMessage(version = 4, scalar = 4))
+                            }
+                            connection.awaitLong(
+                                "SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "state_store")}",
+                                4,
+                            )
+                            connection.awaitLong(
+                                "SELECT version FROM $DATABASE.${naming.toTableName(aggregate, "state_last")} " +
+                                    "WHERE aggregate_id = '$AGGREGATE_ID'",
+                                4,
+                            )
                         }
                     }
                 }
@@ -256,7 +275,13 @@ class KafkaClickHouseIntegrationTest {
         options: BiScriptOptions,
         operation: BiScriptOperation = BiScriptOperation.Deploy,
     ): BiDeploymentInspection.Available =
-        inspect(options, operation).block() as BiDeploymentInspection.Available
+        inspect(
+            options,
+            operation,
+            BiScriptGenerator(options).prepare(
+                setOf(aggregateMetadata<ClickHouseExpansionAggregate, ClickHouseExpansionState>())
+            ),
+        ).block() as BiDeploymentInspection.Available
 
     private fun producer(container: ConfluentKafkaContainer): KafkaProducer<String, String> = KafkaProducer(
         mapOf(

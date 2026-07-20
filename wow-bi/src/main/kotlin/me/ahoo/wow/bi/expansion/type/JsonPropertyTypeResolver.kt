@@ -40,6 +40,11 @@ import kotlin.reflect.jvm.javaField
 import kotlin.reflect.jvm.javaGetter
 
 internal object JsonPropertyTypeResolver {
+    private data class JavaTypeResolutionContext(
+        val rootClass: Class<*>,
+        val property: BeanPropertyDefinition,
+    )
+
     fun resolve(type: Class<*>): List<ResolvedJsonProperty> {
         return resolve(JsonSerializer.constructType(type), emptyMap(), emptyMap())
     }
@@ -90,17 +95,23 @@ internal object JsonPropertyTypeResolver {
         val declaringMember = requireNotNull(property.accessor?.member) {
             "Unable to resolve serialization accessor for ${rootClass.name}.${property.name}"
         }
-        val kotlinProperty = rootClass.kotlinProperty(declaringMember)
+        val kotlinProperty = TypeHierarchyResolver.run {
+            rootClass.kotlinProperty(declaringMember)
+        }
         if (kotlinProperty != null) {
-            val typeParameterBindings = findTypeParameterBindings(
-                rootClass = rootClass.kotlin,
-                targetClass = declaringMember.declaringClass.kotlin,
-                rootBindings = kotlinRootBindings,
-            )
-            val shape = kotlinProperty.returnType.toShape(
-                substitutions = typeParameterBindings,
-                declarationOrigin = ResolvedTypeOrigin.KOTLIN,
-            )
+            val typeParameterBindings = KotlinTypeShapeResolver.run {
+                findTypeParameterBindings(
+                    rootClass = rootClass.kotlin,
+                    targetClass = declaringMember.declaringClass.kotlin,
+                    rootBindings = kotlinRootBindings,
+                )
+            }
+            val shape = KotlinTypeShapeResolver.run {
+                kotlinProperty.returnType.toShape(
+                    substitutions = typeParameterBindings,
+                    declarationOrigin = ResolvedTypeOrigin.KOTLIN,
+                )
+            }
             return ResolvedJsonProperty(
                 serializedName = property.name,
                 type = property.primaryType.resolveKotlinType(shape),
@@ -109,340 +120,375 @@ internal object JsonPropertyTypeResolver {
             )
         }
 
-        val javaTypeParameterBindingPaths = findJavaTypeParameterBindings(
-            rootClass = rootClass,
-            targetClass = declaringMember.declaringClass,
-            rootBindings = javaRootBindings,
-        )
+        val javaTypeParameterBindingPaths = TypeHierarchyResolver.run {
+            findJavaTypeParameterBindings(
+                rootClass = rootClass,
+                targetClass = declaringMember.declaringClass,
+                rootBindings = javaRootBindings,
+            )
+        }
         return ResolvedJsonProperty(
             serializedName = property.name,
-            type = resolveJavaType(
-                rootClass = rootClass,
-                property = property,
-                javaType = property.primaryType,
-                evidence = javaTypeParameterBindingPaths.flatMap { bindings ->
-                    property.javaAnnotationEvidence(bindings)
-                } +
-                    declaringMember.inheritedKotlinEvidence(rootClass, kotlinRootBindings) +
-                    declaringMember.inheritedJavaEvidence(rootClass, javaRootBindings),
-                path = property.name,
-            ),
+            type = JavaAnnotationEvidenceResolver.run {
+                resolveJavaType(
+                    context = JavaTypeResolutionContext(rootClass, property),
+                    javaType = property.primaryType,
+                    evidence = javaTypeParameterBindingPaths.flatMap { bindings ->
+                        property.javaAnnotationEvidence(bindings)
+                    } +
+                        TypeHierarchyResolver.run {
+                            declaringMember.inheritedKotlinEvidence(rootClass, kotlinRootBindings)
+                        } +
+                        TypeHierarchyResolver.run {
+                            declaringMember.inheritedJavaEvidence(rootClass, javaRootBindings)
+                        },
+                    path = property.name,
+                )
+            },
             origin = ResolvedTypeOrigin.JAVA,
             declaringMember = declaringMember,
         )
     }
 
-    private fun Class<*>.kotlinProperty(member: Member): KProperty1<*, *>? {
-        if (getDeclaredAnnotation(Metadata::class.java) == null) {
-            return null
-        }
-        return kotlin.memberProperties.firstOrNull { property ->
-            when (member) {
-                is Method -> property.javaGetter == member
-                is Field -> property.javaField == member
-                else -> false
+    private object TypeHierarchyResolver {
+        fun Class<*>.kotlinProperty(member: Member): KProperty1<*, *>? {
+            if (getDeclaredAnnotation(Metadata::class.java) == null) {
+                return null
+            }
+            return kotlin.memberProperties.firstOrNull { property ->
+                when (member) {
+                    is Method -> property.javaGetter == member
+                    is Field -> property.javaField == member
+                    else -> false
+                }
             }
         }
-    }
 
-    private fun Member.inheritedKotlinEvidence(
-        rootClass: Class<*>,
-        rootBindings: Map<KTypeParameter, KotlinTypeShape>,
-    ): List<JavaAnnotationEvidence> {
-        val method = this as? Method ?: return emptyList()
-        val contracts = rootClass.allSupertypes()
-            .mapNotNull { supertype ->
-                val overriddenMethod = supertype.declaredMethods.firstOrNull { candidate ->
-                    candidate.name == method.name &&
-                        candidate.parameterTypes.contentEquals(method.parameterTypes) &&
-                        !candidate.isBridge
-                } ?: return@mapNotNull null
-                val property = supertype.kotlinProperty(overriddenMethod) ?: return@mapNotNull null
-                val bindings = findTypeParameterBindings(
-                    rootClass = rootClass.kotlin,
-                    targetClass = supertype.kotlin,
-                    rootBindings = rootBindings,
-                )
-                InheritedKotlinContract(
-                    declaringClass = supertype,
-                    evidence = property.returnType.toShape(
-                        substitutions = bindings,
-                        declarationOrigin = ResolvedTypeOrigin.KOTLIN,
-                    ).toEvidence(),
-                )
-            }
-        return contracts.filter { candidate ->
-            contracts.none { other ->
-                other !== candidate &&
-                    candidate.declaringClass.isAssignableFrom(other.declaringClass)
-            }
-        }.map(InheritedKotlinContract::evidence)
-    }
-
-    private fun Member.inheritedJavaEvidence(
-        rootClass: Class<*>,
-        rootBindings: Map<TypeVariable<*>, JavaAnnotationEvidence>,
-    ): List<JavaAnnotationEvidence> {
-        val method = this as? Method ?: return emptyList()
-        val contracts = rootClass.allSupertypes()
-            .filter { it.getDeclaredAnnotation(Metadata::class.java) == null }
-            .flatMap { supertype ->
-                val overriddenMethod = supertype.declaredMethods.firstOrNull { candidate ->
-                    candidate.name == method.name &&
-                        candidate.parameterTypes.contentEquals(method.parameterTypes) &&
-                        !candidate.isBridge
-                } ?: return@flatMap emptyList()
-                findJavaTypeParameterBindings(
-                    rootClass = rootClass,
-                    targetClass = supertype,
-                    rootBindings = rootBindings,
-                ).map { bindings ->
-                    InheritedJavaContract(
+        fun Member.inheritedKotlinEvidence(
+            rootClass: Class<*>,
+            rootBindings: Map<KTypeParameter, KotlinTypeShape>,
+        ): List<JavaAnnotationEvidence> {
+            val method = this as? Method ?: return emptyList()
+            val contracts = rootClass.allSupertypes()
+                .mapNotNull { supertype ->
+                    val overriddenMethod = supertype.declaredMethods.firstOrNull { candidate ->
+                        candidate.name == method.name &&
+                            candidate.parameterTypes.contentEquals(method.parameterTypes) &&
+                            !candidate.isBridge
+                    } ?: return@mapNotNull null
+                    val property = supertype.kotlinProperty(overriddenMethod) ?: return@mapNotNull null
+                    val bindings = KotlinTypeShapeResolver.run {
+                        findTypeParameterBindings(
+                            rootClass = rootClass.kotlin,
+                            targetClass = supertype.kotlin,
+                            rootBindings = rootBindings,
+                        )
+                    }
+                    InheritedKotlinContract(
                         declaringClass = supertype,
-                        evidence = overriddenMethod.annotatedReturnType.toEvidence(
-                            declarationAnnotations = overriddenMethod.annotations.asIterable(),
-                            substitutions = bindings,
-                        ),
+                        evidence = KotlinTypeShapeResolver.run {
+                            property.returnType.toShape(
+                                substitutions = bindings,
+                                declarationOrigin = ResolvedTypeOrigin.KOTLIN,
+                            )
+                        }.toEvidence(),
                     )
                 }
-            }
-        return contracts.filter { candidate ->
-            contracts.none { other ->
-                other !== candidate &&
-                    candidate.declaringClass != other.declaringClass &&
-                    candidate.declaringClass.isAssignableFrom(other.declaringClass)
-            }
-        }.map(InheritedJavaContract::evidence)
-    }
-
-    private fun Class<*>.allSupertypes(): List<Class<*>> {
-        val discovered = linkedSetOf<Class<*>>()
-
-        fun visit(type: Class<*>) {
-            type.interfaces.sortedBy(Class<*>::getName).forEach { supertype ->
-                if (discovered.add(supertype)) {
-                    visit(supertype)
+            return contracts.filter { candidate ->
+                contracts.none { other ->
+                    other !== candidate &&
+                        candidate.declaringClass.isAssignableFrom(other.declaringClass)
                 }
-            }
-            type.superclass?.takeIf { it != Any::class.java }?.let { supertype ->
-                if (discovered.add(supertype)) {
-                    visit(supertype)
+            }.map(InheritedKotlinContract::evidence)
+        }
+
+        fun Member.inheritedJavaEvidence(
+            rootClass: Class<*>,
+            rootBindings: Map<TypeVariable<*>, JavaAnnotationEvidence>,
+        ): List<JavaAnnotationEvidence> {
+            val method = this as? Method ?: return emptyList()
+            val contracts = rootClass.allSupertypes()
+                .filter { it.getDeclaredAnnotation(Metadata::class.java) == null }
+                .flatMap { supertype ->
+                    val overriddenMethod = supertype.declaredMethods.firstOrNull { candidate ->
+                        candidate.name == method.name &&
+                            candidate.parameterTypes.contentEquals(method.parameterTypes) &&
+                            !candidate.isBridge
+                    } ?: return@flatMap emptyList()
+                    findJavaTypeParameterBindings(
+                        rootClass = rootClass,
+                        targetClass = supertype,
+                        rootBindings = rootBindings,
+                    ).map { bindings ->
+                        InheritedJavaContract(
+                            declaringClass = supertype,
+                            evidence = JavaAnnotationEvidenceResolver.run {
+                                overriddenMethod.annotatedReturnType.toEvidence(
+                                    declarationAnnotations = overriddenMethod.annotations.asIterable(),
+                                    substitutions = bindings,
+                                )
+                            },
+                        )
+                    }
                 }
-            }
+            return contracts.filter { candidate ->
+                contracts.none { other ->
+                    other !== candidate &&
+                        candidate.declaringClass != other.declaringClass &&
+                        candidate.declaringClass.isAssignableFrom(other.declaringClass)
+                }
+            }.map(InheritedJavaContract::evidence)
         }
 
-        visit(this)
-        return discovered.toList()
-    }
+        private fun Class<*>.allSupertypes(): List<Class<*>> {
+            val discovered = linkedSetOf<Class<*>>()
 
-    private fun findJavaTypeParameterBindings(
-        rootClass: Class<*>,
-        targetClass: Class<*>,
-        rootBindings: Map<TypeVariable<*>, JavaAnnotationEvidence>,
-    ): List<Map<TypeVariable<*>, JavaAnnotationEvidence>> {
-        return findJavaTypeParameterBindings(
-            currentClass = rootClass,
-            currentBindings = rootBindings,
-            targetClass = targetClass,
-            visited = emptySet(),
-        ).ifEmpty { listOf(emptyMap()) }
-    }
-
-    private fun findJavaTypeParameterBindings(
-        currentClass: Class<*>,
-        currentBindings: Map<TypeVariable<*>, JavaAnnotationEvidence>,
-        targetClass: Class<*>,
-        visited: Set<Class<*>>,
-    ): List<Map<TypeVariable<*>, JavaAnnotationEvidence>> {
-        if (currentClass == targetClass) {
-            return listOf(currentBindings)
-        }
-        if (currentClass in visited) {
-            return emptyList()
-        }
-        val currentPath = visited + currentClass
-
-        val supertypes = buildList {
-            addAll(currentClass.annotatedInterfaces)
-            currentClass.annotatedSuperclass?.let { superclass -> add(superclass) }
-        }
-            .mapNotNull { annotatedType ->
-                annotatedType.rawClass()?.let { rawClass -> rawClass to annotatedType }
-            }
-            .filter { (rawClass) -> targetClass.isAssignableFrom(rawClass) }
-            .sortedBy { (rawClass) -> rawClass.name }
-        return supertypes.flatMap { (superClass, annotatedType) ->
-            val annotatedArguments = (annotatedType as? AnnotatedParameterizedType)
-                ?.annotatedActualTypeArguments
-                .orEmpty()
-            val superBindings = buildMap<TypeVariable<*>, JavaAnnotationEvidence> {
-                superClass.typeParameters.forEachIndexed { index, parameter ->
-                    annotatedArguments.getOrNull(index)?.let { argument ->
-                        put(parameter, argument.toEvidence(substitutions = currentBindings))
+            fun visit(type: Class<*>) {
+                type.interfaces.sortedBy(Class<*>::getName).forEach { supertype ->
+                    if (discovered.add(supertype)) {
+                        visit(supertype)
+                    }
+                }
+                type.superclass?.takeIf { it != Any::class.java }?.let { supertype ->
+                    if (discovered.add(supertype)) {
+                        visit(supertype)
                     }
                 }
             }
-            findJavaTypeParameterBindings(
-                currentClass = superClass,
-                currentBindings = superBindings,
+
+            visit(this)
+            return discovered.toList()
+        }
+
+        fun findJavaTypeParameterBindings(
+            rootClass: Class<*>,
+            targetClass: Class<*>,
+            rootBindings: Map<TypeVariable<*>, JavaAnnotationEvidence>,
+        ): List<Map<TypeVariable<*>, JavaAnnotationEvidence>> {
+            return findJavaTypeParameterBindings(
+                currentClass = rootClass,
+                currentBindings = rootBindings,
                 targetClass = targetClass,
-                visited = currentPath,
+                visited = emptySet(),
+            ).ifEmpty { listOf(emptyMap()) }
+        }
+
+        private fun findJavaTypeParameterBindings(
+            currentClass: Class<*>,
+            currentBindings: Map<TypeVariable<*>, JavaAnnotationEvidence>,
+            targetClass: Class<*>,
+            visited: Set<Class<*>>,
+        ): List<Map<TypeVariable<*>, JavaAnnotationEvidence>> {
+            if (currentClass == targetClass) {
+                return listOf(currentBindings)
+            }
+            if (currentClass in visited) {
+                return emptyList()
+            }
+            val currentPath = visited + currentClass
+
+            val supertypes = buildList {
+                addAll(currentClass.annotatedInterfaces)
+                currentClass.annotatedSuperclass?.let { superclass -> add(superclass) }
+            }
+                .mapNotNull { annotatedType ->
+                    annotatedType.rawClass()?.let { rawClass -> rawClass to annotatedType }
+                }
+                .filter { (rawClass) -> targetClass.isAssignableFrom(rawClass) }
+                .sortedBy { (rawClass) -> rawClass.name }
+            return supertypes.flatMap { (superClass, annotatedType) ->
+                val annotatedArguments = (annotatedType as? AnnotatedParameterizedType)
+                    ?.annotatedActualTypeArguments
+                    .orEmpty()
+                val superBindings = buildMap<TypeVariable<*>, JavaAnnotationEvidence> {
+                    superClass.typeParameters.forEachIndexed { index, parameter ->
+                        annotatedArguments.getOrNull(index)?.let { argument ->
+                            put(
+                                parameter,
+                                JavaAnnotationEvidenceResolver.run {
+                                    argument.toEvidence(substitutions = currentBindings)
+                                },
+                            )
+                        }
+                    }
+                }
+                findJavaTypeParameterBindings(
+                    currentClass = superClass,
+                    currentBindings = superBindings,
+                    targetClass = targetClass,
+                    visited = currentPath,
+                )
+            }
+        }
+
+        private fun AnnotatedType.rawClass(): Class<*>? {
+            return when (val reflectedType = type) {
+                is Class<*> -> reflectedType
+                is ParameterizedType -> reflectedType.rawType as? Class<*>
+                else -> null
+            }
+        }
+
+        fun KClass<*>.declarationOrigin(): ResolvedTypeOrigin {
+            return if (java.getDeclaredAnnotation(Metadata::class.java) == null) {
+                ResolvedTypeOrigin.JAVA
+            } else {
+                ResolvedTypeOrigin.KOTLIN
+            }
+        }
+
+        fun KotlinTypeShape.toEvidence(): JavaAnnotationEvidence {
+            return JavaAnnotationEvidence(
+                signals = setOf(nullability),
+                arguments = arguments.map { argument ->
+                    argument?.toEvidence() ?: JavaAnnotationEvidence(emptySet(), emptyList())
+                },
             )
         }
     }
 
-    private fun AnnotatedType.rawClass(): Class<*>? {
-        return when (val reflectedType = type) {
-            is Class<*> -> reflectedType
-            is ParameterizedType -> reflectedType.rawType as? Class<*>
-            else -> null
+    private object KotlinTypeShapeResolver {
+        fun findTypeParameterBindings(
+            rootClass: KClass<*>,
+            targetClass: KClass<*>,
+            rootBindings: Map<KTypeParameter, KotlinTypeShape>,
+        ): Map<KTypeParameter, KotlinTypeShape> {
+            return findTypeParameterBindings(
+                currentClass = rootClass,
+                currentBindings = rootBindings,
+                targetClass = targetClass,
+                visited = mutableSetOf(),
+            ).orEmpty()
         }
-    }
 
-    private fun KClass<*>.declarationOrigin(): ResolvedTypeOrigin {
-        return if (java.getDeclaredAnnotation(Metadata::class.java) == null) {
-            ResolvedTypeOrigin.JAVA
-        } else {
-            ResolvedTypeOrigin.KOTLIN
-        }
-    }
+        private fun findTypeParameterBindings(
+            currentClass: KClass<*>,
+            currentBindings: Map<KTypeParameter, KotlinTypeShape>,
+            targetClass: KClass<*>,
+            visited: MutableSet<KClass<*>>,
+        ): Map<KTypeParameter, KotlinTypeShape>? {
+            if (currentClass == targetClass) {
+                return currentBindings
+            }
+            if (!visited.add(currentClass)) {
+                return null
+            }
 
-    private fun findTypeParameterBindings(
-        rootClass: KClass<*>,
-        targetClass: KClass<*>,
-        rootBindings: Map<KTypeParameter, KotlinTypeShape>,
-    ): Map<KTypeParameter, KotlinTypeShape> {
-        return findTypeParameterBindings(
-            currentClass = rootClass,
-            currentBindings = rootBindings,
-            targetClass = targetClass,
-            visited = mutableSetOf(),
-        ).orEmpty()
-    }
-
-    private fun findTypeParameterBindings(
-        currentClass: KClass<*>,
-        currentBindings: Map<KTypeParameter, KotlinTypeShape>,
-        targetClass: KClass<*>,
-        visited: MutableSet<KClass<*>>,
-    ): Map<KTypeParameter, KotlinTypeShape>? {
-        if (currentClass == targetClass) {
-            return currentBindings
-        }
-        if (!visited.add(currentClass)) {
+            currentClass.supertypes.forEach { supertype ->
+                val superClass = supertype.classifier as? KClass<*> ?: return@forEach
+                val superBindings = superClass.typeParameters.mapIndexedNotNull { index, parameter ->
+                    val argument = supertype.arguments.getOrNull(index)?.type ?: return@mapIndexedNotNull null
+                    parameter to argument.toShape(
+                        substitutions = currentBindings,
+                        declarationOrigin = TypeHierarchyResolver.run { currentClass.declarationOrigin() },
+                    )
+                }.toMap()
+                findTypeParameterBindings(
+                    currentClass = superClass,
+                    currentBindings = superBindings,
+                    targetClass = targetClass,
+                    visited = visited,
+                )?.let { return it }
+            }
             return null
         }
 
-        currentClass.supertypes.forEach { supertype ->
-            val superClass = supertype.classifier as? KClass<*> ?: return@forEach
-            val superBindings = superClass.typeParameters.mapIndexedNotNull { index, parameter ->
-                val argument = supertype.arguments.getOrNull(index)?.type ?: return@mapIndexedNotNull null
-                parameter to argument.toShape(
-                    substitutions = currentBindings,
-                    declarationOrigin = currentClass.declarationOrigin(),
-                )
-            }.toMap()
-            findTypeParameterBindings(
-                currentClass = superClass,
-                currentBindings = superBindings,
-                targetClass = targetClass,
-                visited = visited,
-            )?.let { return it }
-        }
-        return null
-    }
-
-    private fun KType.toShape(
-        substitutions: Map<KTypeParameter, KotlinTypeShape>,
-        declarationOrigin: ResolvedTypeOrigin,
-    ): KotlinTypeShape {
-        val typeParameter = classifier as? KTypeParameter
-        if (typeParameter != null) {
-            val useSiteNullability = explicitNullability()
-            val substituted = substitutions[typeParameter]
-            if (substituted != null) {
-                return substituted.copy(
-                    nullability = combineNullability(
-                        substituted.nullability,
-                        useSiteNullability,
+        fun KType.toShape(
+            substitutions: Map<KTypeParameter, KotlinTypeShape>,
+            declarationOrigin: ResolvedTypeOrigin,
+        ): KotlinTypeShape {
+            val typeParameter = classifier as? KTypeParameter
+            if (typeParameter != null) {
+                val useSiteNullability = explicitNullability()
+                val substituted = substitutions[typeParameter]
+                if (substituted != null) {
+                    return substituted.copy(
+                        nullability = combineNullability(
+                            substituted.nullability,
+                            useSiteNullability,
+                        )
                     )
+                }
+                return KotlinTypeShape(
+                    nullability = useSiteNullability,
+                    arguments = emptyList(),
                 )
             }
+            val declaredArguments = arguments.map { projection ->
+                projection.type?.toShape(substitutions, declarationOrigin)
+            }
             return KotlinTypeShape(
-                nullability = useSiteNullability,
-                arguments = emptyList(),
+                nullability = concreteNullability(declarationOrigin),
+                arguments = semanticContainerArguments(declaredArguments) ?: declaredArguments,
             )
         }
-        val declaredArguments = arguments.map { projection ->
-            projection.type?.toShape(substitutions, declarationOrigin)
-        }
-        return KotlinTypeShape(
-            nullability = concreteNullability(declarationOrigin),
-            arguments = semanticContainerArguments(declaredArguments) ?: declaredArguments,
-        )
-    }
 
-    private fun KType.concreteNullability(declarationOrigin: ResolvedTypeOrigin): Nullability {
-        val explicitNullability = explicitNullability()
-        if (explicitNullability != Nullability.UNKNOWN) {
-            return explicitNullability
+        private fun KType.concreteNullability(declarationOrigin: ResolvedTypeOrigin): Nullability {
+            val explicitNullability = explicitNullability()
+            if (explicitNullability != Nullability.UNKNOWN) {
+                return explicitNullability
+            }
+            val rawClass = classifier as? KClass<*>
+            return if (rawClass?.java?.isPrimitive == true || declarationOrigin == ResolvedTypeOrigin.KOTLIN) {
+                Nullability.NON_NULL
+            } else {
+                Nullability.UNKNOWN
+            }
         }
-        val rawClass = classifier as? KClass<*>
-        return if (rawClass?.java?.isPrimitive == true || declarationOrigin == ResolvedTypeOrigin.KOTLIN) {
-            Nullability.NON_NULL
-        } else {
-            Nullability.UNKNOWN
-        }
-    }
 
-    private fun KType.explicitNullability(): Nullability {
-        val signals = annotations.mapNotNull { it.toNullability() }.toMutableSet()
-        if (isMarkedNullable) {
-            signals.add(Nullability.NULLABLE)
+        private fun KType.explicitNullability(): Nullability {
+            val signals = annotations.mapNotNull { annotation ->
+                JavaAnnotationEvidenceResolver.run { annotation.toNullability() }
+            }.toMutableSet()
+            if (isMarkedNullable) {
+                signals.add(Nullability.NULLABLE)
+            }
+            require(!(signals.contains(Nullability.NULLABLE) && signals.contains(Nullability.NON_NULL))) {
+                "Conflicting nullability annotations on generic type [$this]."
+            }
+            return when {
+                signals.contains(Nullability.NULLABLE) -> Nullability.NULLABLE
+                signals.contains(Nullability.NON_NULL) -> Nullability.NON_NULL
+                else -> Nullability.UNKNOWN
+            }
         }
-        require(!(signals.contains(Nullability.NULLABLE) && signals.contains(Nullability.NON_NULL))) {
-            "Conflicting nullability annotations on generic type [$this]."
-        }
-        return when {
-            signals.contains(Nullability.NULLABLE) -> Nullability.NULLABLE
-            signals.contains(Nullability.NON_NULL) -> Nullability.NON_NULL
-            else -> Nullability.UNKNOWN
-        }
-    }
 
-    private fun KType.semanticContainerArguments(
-        declaredArguments: List<KotlinTypeShape?>,
-    ): List<KotlinTypeShape?>? {
-        val rawClass = classifier as? KClass<*> ?: return null
-        val semanticClass = when {
-            Map::class.java.isAssignableFrom(rawClass.java) -> Map::class
-            Collection::class.java.isAssignableFrom(rawClass.java) -> Collection::class
-            else -> return null
+        private fun KType.semanticContainerArguments(
+            declaredArguments: List<KotlinTypeShape?>,
+        ): List<KotlinTypeShape?>? {
+            val rawClass = classifier as? KClass<*> ?: return null
+            val semanticClass = when {
+                Map::class.java.isAssignableFrom(rawClass.java) -> Map::class
+                Collection::class.java.isAssignableFrom(rawClass.java) -> Collection::class
+                else -> return null
+            }
+            val declaredBindings = rawClass.typeParameters.mapIndexedNotNull { index, parameter ->
+                declaredArguments.getOrNull(index)?.let { argument -> parameter to argument }
+            }.toMap()
+            val semanticBindings = findTypeParameterBindings(
+                rootClass = rawClass,
+                targetClass = semanticClass,
+                rootBindings = declaredBindings,
+            )
+            return semanticClass.typeParameters.map(semanticBindings::get)
         }
-        val declaredBindings = rawClass.typeParameters.mapIndexedNotNull { index, parameter ->
-            declaredArguments.getOrNull(index)?.let { argument -> parameter to argument }
-        }.toMap()
-        val semanticBindings = findTypeParameterBindings(
-            rootClass = rawClass,
-            targetClass = semanticClass,
-            rootBindings = declaredBindings,
-        )
-        return semanticClass.typeParameters.map(semanticBindings::get)
+
+        private fun combineNullability(
+            first: Nullability,
+            second: Nullability,
+        ): Nullability {
+            return when {
+                first == Nullability.NULLABLE || second == Nullability.NULLABLE -> Nullability.NULLABLE
+                first == Nullability.NON_NULL || second == Nullability.NON_NULL -> Nullability.NON_NULL
+                else -> Nullability.UNKNOWN
+            }
+        }
     }
 
     private fun ResolvedType.toShape(): KotlinTypeShape {
         return KotlinTypeShape(
             nullability = nullability,
             arguments = arguments.map { argument -> argument.toShape() },
-        )
-    }
-
-    private fun KotlinTypeShape.toEvidence(): JavaAnnotationEvidence {
-        return JavaAnnotationEvidence(
-            signals = setOf(nullability),
-            arguments = arguments.map { argument ->
-                argument?.toEvidence() ?: JavaAnnotationEvidence(emptySet(), emptyList())
-            },
         )
     }
 
@@ -454,7 +500,7 @@ internal object JsonPropertyTypeResolver {
     }
 
     private fun JavaType.resolveKotlinType(shape: KotlinTypeShape?): ResolvedType {
-        val argumentTypes = argumentTypes()
+        val argumentTypes = JavaAnnotationEvidenceResolver.run { argumentTypes() }
         return ResolvedType(
             javaType = this,
             nullability = if (isPrimitive) Nullability.NON_NULL else shape?.nullability ?: Nullability.UNKNOWN,
@@ -464,155 +510,144 @@ internal object JsonPropertyTypeResolver {
         )
     }
 
-    private fun resolveJavaType(
-        rootClass: Class<*>,
-        property: BeanPropertyDefinition,
-        javaType: JavaType,
-        evidence: List<JavaAnnotationEvidence>,
-        path: String,
-    ): ResolvedType {
-        val signals = evidence.flatMapTo(mutableSetOf()) { it.signals }
-        if (javaType.isPrimitive) {
-            signals.add(Nullability.NON_NULL)
+    private object JavaAnnotationEvidenceResolver {
+        fun resolveJavaType(
+            context: JavaTypeResolutionContext,
+            javaType: JavaType,
+            evidence: List<JavaAnnotationEvidence>,
+            path: String,
+        ): ResolvedType = with(context) {
+            val signals = evidence.flatMapTo(mutableSetOf()) { it.signals }
+            if (javaType.isPrimitive) {
+                signals.add(Nullability.NON_NULL)
+            }
+            require(!(signals.contains(Nullability.NULLABLE) && signals.contains(Nullability.NON_NULL))) {
+                "Conflicting nullability annotations for ${rootClass.name}.${property.name} at $path"
+            }
+            val nullability = when {
+                signals.contains(Nullability.NULLABLE) -> Nullability.NULLABLE
+                signals.contains(Nullability.NON_NULL) -> Nullability.NON_NULL
+                else -> Nullability.UNKNOWN
+            }
+            return ResolvedType(
+                javaType = javaType,
+                nullability = nullability,
+                arguments = javaType.argumentTypes().mapIndexed { index, argumentType ->
+                    resolveJavaType(
+                        context = context,
+                        javaType = argumentType,
+                        evidence = evidence.mapNotNull { it.arguments.getOrNull(index) },
+                        path = "$path[$index]",
+                    )
+                },
+            )
         }
-        require(!(signals.contains(Nullability.NULLABLE) && signals.contains(Nullability.NON_NULL))) {
-            "Conflicting nullability annotations for ${rootClass.name}.${property.name} at $path"
-        }
-        val nullability = when {
-            signals.contains(Nullability.NULLABLE) -> Nullability.NULLABLE
-            signals.contains(Nullability.NON_NULL) -> Nullability.NON_NULL
-            else -> Nullability.UNKNOWN
-        }
-        return ResolvedType(
-            javaType = javaType,
-            nullability = nullability,
-            arguments = javaType.argumentTypes().mapIndexed { index, argumentType ->
-                resolveJavaType(
-                    rootClass = rootClass,
-                    property = property,
-                    javaType = argumentType,
-                    evidence = evidence.mapNotNull { it.arguments.getOrNull(index) },
-                    path = "$path[$index]",
-                )
-            },
-        )
-    }
 
-    private fun BeanPropertyDefinition.javaAnnotationEvidence(
-        substitutions: Map<TypeVariable<*>, JavaAnnotationEvidence>,
-    ): List<JavaAnnotationEvidence> {
-        return buildList {
-            getter?.annotated?.let { method ->
-                add(
-                    method.annotatedReturnType.toEvidence(
-                        declarationAnnotations = method.annotations.asIterable(),
-                        substitutions = substitutions,
-                    )
-                )
-            }
-            field?.annotated?.let { field ->
-                add(
-                    field.annotatedType.toEvidence(
-                        declarationAnnotations = field.annotations.asIterable(),
-                        substitutions = substitutions,
-                    )
-                )
-            }
-            constructorParameters.forEachRemaining { parameter ->
-                parameter.reflectionParameter()?.let { reflectionParameter ->
+        fun BeanPropertyDefinition.javaAnnotationEvidence(
+            substitutions: Map<TypeVariable<*>, JavaAnnotationEvidence>,
+        ): List<JavaAnnotationEvidence> {
+            return buildList {
+                getter?.annotated?.let { method ->
                     add(
-                        reflectionParameter.annotatedType.toEvidence(
-                            declarationAnnotations = reflectionParameter.annotations.asIterable(),
+                        method.annotatedReturnType.toEvidence(
+                            declarationAnnotations = method.annotations.asIterable(),
+                            substitutions = substitutions,
+                        )
+                    )
+                }
+                field?.annotated?.let { field ->
+                    add(
+                        field.annotatedType.toEvidence(
+                            declarationAnnotations = field.annotations.asIterable(),
+                            substitutions = substitutions,
+                        )
+                    )
+                }
+                constructorParameters.forEachRemaining { parameter ->
+                    parameter.reflectionParameter()?.let { reflectionParameter ->
+                        add(
+                            reflectionParameter.annotatedType.toEvidence(
+                                declarationAnnotations = reflectionParameter.annotations.asIterable(),
+                                substitutions = substitutions,
+                            )
+                        )
+                    }
+                }
+                recordComponent()?.let { component ->
+                    add(
+                        component.annotatedType.toEvidence(
+                            declarationAnnotations = component.annotations.asIterable(),
                             substitutions = substitutions,
                         )
                     )
                 }
             }
-            recordComponent()?.let { component ->
-                add(
-                    component.annotatedType.toEvidence(
-                        declarationAnnotations = component.annotations.asIterable(),
-                        substitutions = substitutions,
-                    )
+        }
+
+        private fun BeanPropertyDefinition.recordComponent(): RecordComponent? {
+            val member = accessor?.member ?: return null
+            val declaringClass = member.declaringClass
+            if (!declaringClass.isRecord) {
+                return null
+            }
+            return declaringClass.recordComponents.firstOrNull { component ->
+                when (member) {
+                    is Method -> component.accessor == member
+                    is Field -> component.name == member.name
+                    else -> false
+                }
+            }
+        }
+
+        private fun AnnotatedParameter.reflectionParameter(): Parameter? {
+            return (owner.member as? Executable)?.parameters?.getOrNull(index)
+        }
+
+        fun AnnotatedType.toEvidence(
+            declarationAnnotations: Iterable<Annotation> = emptyList(),
+            substitutions: Map<TypeVariable<*>, JavaAnnotationEvidence> = emptyMap(),
+        ): JavaAnnotationEvidence {
+            val signals = (declarationAnnotations + annotations.asIterable())
+                .mapNotNull { it.toNullability() }
+                .toSet()
+            val substituted = (type as? TypeVariable<*>)?.let(substitutions::get)
+            if (substituted != null) {
+                return JavaAnnotationEvidence(
+                    signals = signals.ifEmpty { substituted.signals },
+                    arguments = substituted.arguments,
                 )
             }
+            val arguments = when (this) {
+                is AnnotatedParameterizedType -> annotatedActualTypeArguments.map {
+                    it.toEvidence(substitutions = substitutions)
+                }
+                is AnnotatedArrayType -> listOf(
+                    annotatedGenericComponentType.toEvidence(substitutions = substitutions)
+                )
+                else -> emptyList()
+            }
+            return JavaAnnotationEvidence(signals = signals, arguments = arguments)
         }
-    }
 
-    private fun BeanPropertyDefinition.recordComponent(): RecordComponent? {
-        val member = accessor?.member ?: return null
-        val declaringClass = member.declaringClass
-        if (!declaringClass.isRecord) {
-            return null
-        }
-        return declaringClass.recordComponents.firstOrNull { component ->
-            when (member) {
-                is Method -> component.accessor == member
-                is Field -> component.name == member.name
-                else -> false
+        fun Annotation.toNullability(): Nullability? {
+            return when (annotationClass.java.simpleName) {
+                "Nullable", "CheckForNull" -> Nullability.NULLABLE
+                "NotNull", "NonNull" -> Nullability.NON_NULL
+                else -> null
             }
         }
-    }
 
-    private fun AnnotatedParameter.reflectionParameter(): Parameter? {
-        return (owner.member as? Executable)?.parameters?.getOrNull(index)
-    }
-
-    private fun AnnotatedType.toEvidence(
-        declarationAnnotations: Iterable<Annotation> = emptyList(),
-        substitutions: Map<TypeVariable<*>, JavaAnnotationEvidence> = emptyMap(),
-    ): JavaAnnotationEvidence {
-        val signals = (declarationAnnotations + annotations.asIterable())
-            .mapNotNull { it.toNullability() }
-            .toSet()
-        val substituted = (type as? TypeVariable<*>)?.let(substitutions::get)
-        if (substituted != null) {
-            return JavaAnnotationEvidence(
-                signals = signals.ifEmpty { substituted.signals },
-                arguments = substituted.arguments,
-            )
-        }
-        val arguments = when (this) {
-            is AnnotatedParameterizedType -> annotatedActualTypeArguments.map {
-                it.toEvidence(substitutions = substitutions)
+        fun JavaType.argumentTypes(): List<JavaType> {
+            if (isArrayType) {
+                return listOf(contentType)
             }
-            is AnnotatedArrayType -> listOf(
-                annotatedGenericComponentType.toEvidence(substitutions = substitutions)
-            )
-            else -> emptyList()
-        }
-        return JavaAnnotationEvidence(signals = signals, arguments = arguments)
-    }
-
-    private fun Annotation.toNullability(): Nullability? {
-        return when (annotationClass.java.simpleName) {
-            "Nullable", "CheckForNull" -> Nullability.NULLABLE
-            "NotNull", "NonNull" -> Nullability.NON_NULL
-            else -> null
-        }
-    }
-
-    private fun JavaType.argumentTypes(): List<JavaType> {
-        if (isArrayType) {
-            return listOf(contentType)
-        }
-        if (isMapLikeType) {
-            return listOfNotNull(keyType, contentType)
-        }
-        if (isCollectionLikeType) {
-            return listOfNotNull(contentType)
-        }
-        return (0 until containedTypeCount()).mapNotNull(::containedType)
-    }
-
-    private fun combineNullability(
-        first: Nullability,
-        second: Nullability,
-    ): Nullability {
-        return when {
-            first == Nullability.NULLABLE || second == Nullability.NULLABLE -> Nullability.NULLABLE
-            first == Nullability.NON_NULL || second == Nullability.NON_NULL -> Nullability.NON_NULL
-            else -> Nullability.UNKNOWN
+            if (isMapLikeType) {
+                return listOfNotNull(keyType, contentType)
+            }
+            if (isCollectionLikeType) {
+                return listOfNotNull(contentType)
+            }
+            return (0 until containedTypeCount()).mapNotNull(::containedType)
         }
     }
 

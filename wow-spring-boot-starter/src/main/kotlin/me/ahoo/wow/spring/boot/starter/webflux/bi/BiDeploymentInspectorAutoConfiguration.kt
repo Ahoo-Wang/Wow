@@ -79,7 +79,7 @@ private fun BiClickHouseInspectorProperties.validate(inspectionTimeout: java.tim
     require(endpoints.isNotEmpty()) {
         "inspector.clickhouse.endpoints must not be empty when inspector.type=CLICKHOUSE"
     }
-    endpoints.forEachIndexed { index, endpoint -> endpoint.validate(index) }
+    endpoints.forEachIndexed { index, endpoint -> endpoint.validateEndpoint(index) }
     require(endpoints.distinct().size == endpoints.size) {
         "inspector.clickhouse.endpoints must not contain duplicates"
     }
@@ -108,7 +108,7 @@ private fun BiClickHouseInspectorProperties.validate(inspectionTimeout: java.tim
     }
 }
 
-private fun java.net.URI.validate(index: Int) {
+private fun java.net.URI.validateEndpoint(index: Int) {
     require(scheme.equals("http", ignoreCase = true) || scheme.equals("https", ignoreCase = true)) {
         "inspector.clickhouse.endpoints[$index] must use http or https"
     }

@@ -568,7 +568,7 @@ internal class WebFluxAutoConfigurationTest {
 
     @Test
     fun `should return BI inspection failures without the global exception handler`() {
-        val unavailableInspector = BiDeploymentInspector { _, _ ->
+        val unavailableInspector = BiDeploymentInspector { _, _, _ ->
             Mono.error(BiDeploymentInspectionException.Unavailable())
         }
         webFluxContextRunner()
@@ -656,7 +656,7 @@ internal class WebFluxAutoConfigurationTest {
 
     @Test
     fun `should back off the default BI deployment inspector`() {
-        val customInspector = BiDeploymentInspector { _, _ ->
+        val customInspector = BiDeploymentInspector { _, _, _ ->
             Mono.just(BiDeploymentInspection.Available(me.ahoo.wow.bi.ObservedBiDeployment(emptyList())))
         }
         webFluxContextRunner()
@@ -954,7 +954,7 @@ internal class WebFluxAutoConfigurationTest {
         val httpHandlerBuilder = WebHttpHandlerBuilder.webHandler(webHandler)
         getBeanProvider(WebExceptionHandler::class.java).ifAvailable(httpHandlerBuilder::exceptionHandler)
         val httpHandler = httpHandlerBuilder.build()
-        return WebTestClient.bindToServer(HttpHandlerConnector(httpHandler)).build()
+        return WebTestClient.bindToServer(HttpHandlerConnector(httpHandler)).buildBiScriptClient()
     }
 
     private fun AssertableApplicationContext.generateBiScript(
@@ -972,7 +972,8 @@ internal class WebFluxAutoConfigurationTest {
             .POST(contract.path, factory.create(contract))
             .build()
         return WebTestClient.bindToRouterFunction(routerFunction)
-            .build()
+            .configureClient()
+            .buildBiScriptClient()
             .post()
             .uri(contract.path)
             .contentType(MediaType.APPLICATION_JSON)
@@ -985,6 +986,11 @@ internal class WebFluxAutoConfigurationTest {
             .returnResult()
             .responseBody!!
     }
+
+    private fun WebTestClient.Builder.buildBiScriptClient(): WebTestClient =
+        codecs { configurer ->
+            configurer.defaultCodecs().maxInMemorySize(BI_SCRIPT_TEST_MAX_IN_MEMORY_SIZE)
+        }.build()
 
     private fun String.assertExplicitBiScript(expectedOptions: BiScriptOptions) {
         assert().isEqualTo(BiScriptGenerator(expectedOptions).generate(MetadataSearcher.localAggregates).script)
@@ -1006,6 +1012,10 @@ internal class WebFluxAutoConfigurationTest {
         generateSequence(this) { it.cause }
             .mapNotNull { it.message }
             .joinToString("\n")
+
+    private companion object {
+        const val BI_SCRIPT_TEST_MAX_IN_MEMORY_SIZE: Int = 1024 * 1024
+    }
 
     private class TestHttpRouteHandlerFunctionFactory(
         override val handlerKey: String

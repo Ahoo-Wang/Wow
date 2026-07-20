@@ -169,6 +169,7 @@ private data class OrdinaryBean(val name: String)
 
 private interface PaymentContract
 
+@Suppress("UnnecessaryAbstractClass") // Abstract polymorphic shape is the inspection case under test.
 private abstract class AbstractPayment
 
 private sealed interface Payment

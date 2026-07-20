@@ -927,6 +927,7 @@ private data class OpaqueCardPayment(val lastFour: String) : OpaquePayment
 @AggregateRoot
 private class OpaqueRootAggregate(private val state: OpaqueRootState)
 
+@Suppress("UnnecessaryAbstractClass") // Abstract root state is the unsupported shape under test.
 private abstract class OpaqueRootState : Identifier
 
 private val siblingAggregateMetadata = aggregateMetadata<SiblingAggregate, SiblingState>()

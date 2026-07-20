@@ -100,7 +100,7 @@ class BiScriptRequestMapperTest {
 
     @Test
     fun `should reject catalog scope overrides for a fixed deployment inspector`() {
-        val inspector = BiDeploymentInspector { _, _ -> Mono.just(BiDeploymentInspection.Unavailable) }
+        val inspector = BiDeploymentInspector { _, _, _ -> Mono.just(BiDeploymentInspection.Unavailable) }
         val requests = listOf(
             BiScriptRequest(database = BASE_OPTIONS.database),
             BiScriptRequest(consumerDatabase = BASE_OPTIONS.consumerDatabase),
@@ -164,7 +164,8 @@ class BiScriptRequestMapperTest {
     fun `should reject operation-specific fields in the wrong mode`() {
         runCatching {
             BiScriptRequest(replayFromEarliestConfirmed = true).toBiScriptOperation()
-        }.exceptionOrNull()!!.message.assert().isEqualTo("replayFromEarliestConfirmed is only valid for RESET")
+        }.exceptionOrNull()!!.message.assert()
+            .isEqualTo("replayFromEarliestConfirmed is only valid for RESET")
 
         val resetWithoutConfirmation = BiScriptRequest(
             operation = BiScriptOperationMode.RESET,

@@ -40,7 +40,7 @@ val sql: String = result.script
 val diagnostics: List<BiScriptDiagnostic> = result.diagnostics
 ```
 
-The public contract also includes `BiScriptOperation`, `BiDeploymentInspector`, `BiDeploymentInspection`, `ObservedBiDeployment`, and `KafkaOffsetStorage`. Callers no longer persist or submit a manifest. `Deploy` reconciles against ownership markers in the ClickHouse catalog. `Reset` is the only operation that drops data stores and requires explicit confirmation that the new Kafka group replays from earliest.
+The public contract also includes `BiScriptOperation`, `BiDeploymentInspector`, `BiDeploymentInspection`, `ObservedBiDeployment`, and `KafkaOffsetStorage`. Callers no longer persist or submit a manifest. `Deploy` reconciles against ownership markers in the ClickHouse catalog. `Reset` is the only destructive operation and rebuilds the current layout.
 
 `BiScriptResult` contains:
 
@@ -64,7 +64,16 @@ The default `unsupportedTypeStrategy` is `RAW_JSON`. With `FAIL`, an unsupported
 
 ### HTTP Route
 
-The Spring WebFlux route and its Swagger/OpenAPI operation are enabled by default. This does not add authentication, so the application security policy must protect the management endpoint; set `wow.bi.script.enabled=false` to remove both. Configure a deployment-unique `wow.bi.script.consumer-group-namespace` whenever `DEPLOY` generates Kafka consumers and for every `RESET`, including an empty aggregate scope. Missing configuration returns `400` instead of preventing application startup. An empty `DEPLOY` without a namespace remains unanchored; supplying one gives the empty scope a durable deployment identity that later aggregate additions can reuse. While disabled, the Starter does not construct or validate BI generation options or an inspector. The route uses the same `BiScriptOptions`:
+The Spring WebFlux route and its Swagger/OpenAPI operation are enabled by default and are both omitted when
+`wow.bi.script.enabled=false`. The default assumes that the service is exposed only through a security gateway:
+the Starter does not add authentication, and the route shares the main application port and WebFlux filter chain,
+so the gateway must restrict `/wow/bi/script`. Disable the route explicitly in any environment that does not meet
+this deployment precondition. Configure a deployment-unique `wow.bi.script.consumer-group-namespace` whenever `DEPLOY`
+generates Kafka consumers and for every `RESET`, including an empty aggregate scope. Missing configuration returns
+`400` instead of preventing application startup. An empty `DEPLOY` without a namespace remains unanchored; supplying
+one gives the empty scope a durable deployment identity that later aggregate additions can reuse. While disabled,
+the Starter does not construct or validate BI generation options or an inspector. The route uses the same
+`BiScriptOptions`:
 
 ```yaml
 wow:
@@ -113,18 +122,31 @@ When `topology` is present, `topology.mode` is mandatory. In `CLUSTER` mode, omi
 
 By default the Starter injects `NoOpBiDeploymentInspector`. It returns explicit `Unavailable`: ordinary `DEPLOY` remains available for an initial deployment or offline preview but emits `INSPECTION_UNAVAILABLE`, cannot clean up stale objects, and cannot recover a consumer identity created by `RESET`; configuration changes can therefore select a different consumer group. `RESET` is rejected. For full reconciliation, configure `wow.bi.script.inspector.type=CLICKHOUSE` together with `inspector.clickhouse.endpoints` to enable the official ClickHouse Java `client-v2` implementation. Errors from a real inspector propagate and are never degraded to NoOp; selecting `CLICKHOUSE` without the client-v2 classes fails startup. A custom `BiDeploymentInspector` bean still has the highest priority.
 
+The production request path passes one immutable preparation through ClickHouse inspection and final rendering. For a stable deployment, the inspector compares every desired View and consumer materialized view against the renderer-owned query manifest. It canonicalizes both SELECT bodies with ClickHouse `formatQuerySingleLineOrNull`, reads the observed body from `system.tables.as_select`, and validates a materialized view's exact `TO` target separately. A mismatch emits `COMPUTED_OBJECT_DRIFT` and keeps the inspection available so the generated `DEPLOY` can repair it: the ownership registry first persists the new definition fingerprint as `PENDING_UPDATE`; ordinary Views use `CREATE OR REPLACE`, consumer materialized views are paused and recreated; after verification the registry returns to `ACTIVE`, while stores and Kafka queue identities are retained. Durable store or queue contract drift remains fail-closed and requires `RESET`.
+
 To intentionally rebuild all BI data, send `operation=RESET` with `replayFromEarliestConfirmed=true`. Reset also requires a configured `consumerGroupNamespace` so its recovery state has a durable canonical anchor. Only an available inspector can enumerate all owned catalog objects. Every generated object and a zero-row deployment anchor store protocol/layout version, deployment phase, fingerprint, aggregate owner, object kind, and identity in `system.tables.comment`. Service restarts recover from that catalog state without Wow service memory or an external manifest.
 
-Metadata protocol v2 makes Reset recoverable across process or SQL-client interruption. Generated statements must be executed in order and the executor must stop on the first error:
+Before reading HEAD/OBJECT state, the inspector validates the ownership registry's engine, replication path, sorting key, comment, and complete column schema. An ordinary `DEPLOY` still rejects missing registry-referenced `ACTIVE/RETIRED` objects or surviving `TOMBSTONE` objects. A confirmed `RESET` treats those conditions as recoverable physical drift, retains the registry's exact ownership scope, and generates complete cleanup and rebuild SQL.
+
+The current metadata protocol makes Reset recoverable across process or SQL-client interruption. Generated statements must be executed in order and the executor must stop on the first error:
 
 1. Write the canonical anchor as `RESETTING` with a new consumer identity.
-2. Keep that anchor while dropping all other owned objects and rebuilding the durable table/view graph.
+2. Keep that anchor, drop the old ownership registry, then drop other owned objects and rebuild the durable
+   table/view graph.
 3. Replace the anchor as `STABLE`.
 4. Create Kafka queue tables and Kafka consumer materialized views last.
 
-If execution stops, never replay the original SQL file blindly: inspect the catalog and regenerate from its current phase. While the anchor is `RESETTING`, generate `RESET` with the same configuration; the generator reuses the recorded identity, while `DEPLOY` is rejected. If the anchor is already `STABLE` but Kafka ingress is incomplete, generate `DEPLOY` to finish it. Replaying a completed Reset could delete rebuilt data while reusing already-committed Kafka offsets; generating another Reset after `STABLE` deliberately begins a new reset epoch and identity instead. Protocol v2 intentionally rejects v1 ownership markers; adopting v2 requires stopping the old consumers and explicitly cleaning or rebuilding the old scope. External coordination must guarantee one writer for the entire physical BI object namespace, not merely one writer per `deploymentId`; deployments that share databases and normalized object names can otherwise race after inspection. ClickHouse `ON CLUSTER` DDL is not a cross-replica transaction, so replica divergence remains a fail-closed operational recovery case.
+Dropping the old registry after the `RESETTING` anchor is intentional: its former `ACTIVE` rows must not reject the
+temporarily absent objects during interrupted-reset inspection. The next authoritative `DEPLOY` bootstraps a fresh
+exact registry from the rebuilt catalog. Until that deploy finishes, inspection uses the explicit no-registry
+bootstrap path rather than treating the stale pre-reset snapshot as authoritative.
+
+If execution stops, never replay the original SQL file blindly: inspect the catalog and regenerate from its current phase. While the anchor is `RESETTING`, generate `RESET` with the same configuration; the generator reuses the recorded identity, while `DEPLOY` is rejected. If the anchor is already `STABLE` but Kafka ingress is incomplete, generate `DEPLOY` to finish it. Replaying a completed Reset could delete rebuilt data while reusing already-committed Kafka offsets; generating another Reset after `STABLE` deliberately creates a new reset identity. Metadata and ownership-registry rows from earlier BI layouts are rejected rather than interpreted or migrated; stop old consumers, remove or archive the old BI databases, and deploy a clean current-layout scope. External coordination must guarantee one writer for the entire physical BI object namespace, not merely one writer per `deploymentId`; deployments that share databases and normalized object names can otherwise race after inspection. ClickHouse `ON CLUSTER` DDL is not a cross-replica transaction, so replica divergence remains a fail-closed operational recovery case.
 
 `DEPLOY` and `RESET` reconcile only the current physical ownership scope; they do not migrate `database`, `consumerDatabase`, `consumerGroupNamespace`, topology mode, cluster name, or installation. Visible topology-fingerprint drift is rejected. A scope change can make old objects undiscoverable, so stop old consumers, explicitly clean the old scope, and only then deploy the new scope.
+
+See [BI Deployment and Recovery](./bi-operations) for production rollout, operation selection, interruption
+recovery, acceptance, and rollback procedures.
 
 ## Generated SQL Contract
 
@@ -239,21 +261,22 @@ SELECT "events".1 AS "event_sequence",
 
 The same header-masking lexical extraction is used for top-level `state`, preventing a nested header key named `state` from replacing the authoritative state token.
 
-The writable state store is partitioned monthly by `create_time` and ordered by `(aggregate_id, version)`. This key relies on Wow's aggregate identity contract: within one named aggregate, `aggregate_id` is unique across all tenants; `tenant_id` is not a namespace in which an ID may be reused. Standalone mode writes `example_order_state_store`; cluster mode writes through the distributed store into `example_order_state_store_local`. `example_order_state` is always a deduplicated read view.
+The writable state store is partitioned monthly by `create_time` and ordered by `(tenant_id, aggregate_id, version)`. `tenant_id` is the aggregate-ID namespace, so different tenants may reuse the same `aggregate_id` without colliding. In cluster mode, state and latest-state stores are sharded with `sipHash64(tenant_id, aggregate_id)`. Standalone mode writes `example_order_state_store`; cluster mode writes through the distributed store into `example_order_state_store_local`. `example_order_state` is always a deduplicated read view.
 
 ### Latest State
 
-The latest-state store receives all columns from the state store and is partitioned by first-event time. Its `ORDER BY aggregate_id` likewise requires aggregate IDs to remain unique across tenants within the named aggregate. `example_order_state_last` is the authoritative public view and always applies `FINAL`; storage tables are intentionally separated behind the `*_store` suffix.
+The latest-state store receives all columns from the state store and is partitioned by first-event time. Its sorting key is `(tenant_id, aggregate_id)`, matching the state identity boundary. `example_order_state_last` is the authoritative public view and always applies `FINAL`; storage tables are intentionally separated behind the `*_store` suffix.
 
 ```sql
 CREATE TABLE IF NOT EXISTS "bi_db"."example_order_state_last_store"
 (
+    "tenant_id" String,
     "aggregate_id" String,
     "version" UInt32,
     "first_event_time" DateTime64(3, 'Asia/Shanghai')
 ) ENGINE = ReplacingMergeTree("version")
   PARTITION BY toYYYYMM("first_event_time")
-  ORDER BY "aggregate_id";
+  ORDER BY ("tenant_id", "aggregate_id");
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS "bi_db_consumer"."example_order_state_last_consumer"
 TO "bi_db"."example_order_state_last_store"
@@ -268,6 +291,7 @@ Cluster mode retains the replicated local table and targets its distributed faca
 ```sql
 CREATE TABLE IF NOT EXISTS "bi_db"."example_order_state_last_store_local" ON CLUSTER '{cluster}'
 (
+    "tenant_id" String,
     "aggregate_id" String,
     "version" UInt32,
     "first_event_time" DateTime64(3, 'Asia/Shanghai')
@@ -275,7 +299,7 @@ CREATE TABLE IF NOT EXISTS "bi_db"."example_order_state_last_store_local" ON CLU
     '/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}',
     '{replica}', "version")
 PARTITION BY toYYYYMM("first_event_time")
-ORDER BY "aggregate_id";
+ORDER BY ("tenant_id", "aggregate_id");
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS "bi_db_consumer"."example_order_state_last_consumer"
 TO "bi_db"."example_order_state_last_store"

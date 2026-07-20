@@ -75,7 +75,8 @@ class ClickHouseExpansionIntegrationTest {
         val namedAggregate = aggregateMetadata<ClickHouseExpansionAggregate, ClickHouseExpansionState>()
         val generator = BiScriptGenerator(options)
         val namedAggregates = setOf(namedAggregate)
-        val result = generator.generate(namedAggregates)
+        val preparation = generator.prepare(namedAggregates)
+        val result = generator.generate(preparation)
         result.diagnostics
             .filter { it.path == "claimedArrayList" || it.path == "claimedMap" }
             .associate { it.path to it.code }
@@ -147,11 +148,18 @@ class ClickHouseExpansionIntegrationTest {
                 ).use { inspector ->
                     repeat(2) {
                         val authoritativeDeploy = generator.generate(
-                            namedAggregates,
-                            inspection = inspector.inspect(options).block()!!,
+                            preparation,
+                            inspection = inspector.inspect(options, BiScriptOperation.Deploy, preparation).block()!!,
                         )
                         connection.assertAuthoritativeDeployIsIdempotent(authoritativeDeploy, case)
                     }
+                    connection.assertComputedViewDriftIsRepaired(generator, preparation, inspector, options, case)
+                    connection.assertComputedConsumerTargetDriftIsRepaired(
+                        generator,
+                        preparation,
+                        inspector,
+                        options,
+                    )
                 }
             }
         }
@@ -184,6 +192,9 @@ class ClickHouseExpansionIntegrationTest {
         result: BiScriptResult,
         case: TopologyCase,
     ) {
+        result.diagnostics.none { diagnostic ->
+            diagnostic.code == BiScriptDiagnosticCode.COMPUTED_OBJECT_DRIFT
+        }.assert().isTrue()
         val before = listOf(COMMAND_STORE_TABLE, STATE_STORE_TABLE, STATE_LAST_STORE_TABLE)
             .associateWith { table -> queryCount("SELECT count() FROM ${qualified(DATABASE, table)}") }
         val queueUuids = queueUuids()
@@ -204,6 +215,100 @@ class ClickHouseExpansionIntegrationTest {
                 .assert().isEqualTo(expectedCount)
         }
         queueUuids().assert().isEqualTo(queueUuids)
+    }
+
+    private fun Connection.assertComputedViewDriftIsRepaired(
+        generator: BiScriptGenerator,
+        preparation: BiScriptPreparation,
+        inspector: ClickHouseBiDeploymentInspector,
+        options: BiScriptOptions,
+        case: TopologyCase,
+    ) {
+        val before = listOf(COMMAND_STORE_TABLE, STATE_STORE_TABLE, STATE_LAST_STORE_TABLE)
+            .associateWith { table -> queryCount("SELECT count() FROM ${qualified(DATABASE, table)}") }
+        val queueUuids = queueUuids()
+        val comment = queryRows(
+            "SELECT comment FROM system.tables WHERE database = ${literal(DATABASE)} " +
+                "AND name = ${literal(ROOT_VIEW)}",
+            listOf("comment"),
+        ).single().required("comment")
+        executeSql(
+            "CREATE OR REPLACE VIEW ${qualified(DATABASE, ROOT_VIEW)} AS " +
+                "SELECT * FROM ${qualified(DATABASE, STATE_LAST_STORE_TABLE)} FINAL " +
+                "COMMENT ${literal(comment)}"
+        )
+
+        val inspection = inspector.inspect(options, BiScriptOperation.Deploy, preparation).block()!!
+        val repair = generator.generate(preparation, inspection = inspection)
+        repair.diagnostics.single { diagnostic ->
+            diagnostic.code == BiScriptDiagnosticCode.COMPUTED_OBJECT_DRIFT &&
+                diagnostic.path.endsWith(".$ROOT_VIEW")
+        }.message.assert().contains("definition drift", "SELECT")
+
+        repair.statements.forEach(::executeSql)
+
+        assertGeneratedObjects(case)
+        before.forEach { (table, expectedCount) ->
+            queryCount("SELECT count() FROM ${qualified(DATABASE, table)}").assert().isEqualTo(expectedCount)
+        }
+        queueUuids().assert().isEqualTo(queueUuids)
+        val converged = generator.generate(
+            preparation,
+            inspection = inspector.inspect(options, BiScriptOperation.Deploy, preparation).block()!!,
+        )
+        converged.diagnostics.none { diagnostic ->
+            diagnostic.code == BiScriptDiagnosticCode.COMPUTED_OBJECT_DRIFT
+        }.assert().isTrue()
+    }
+
+    private fun Connection.assertComputedConsumerTargetDriftIsRepaired(
+        generator: BiScriptGenerator,
+        preparation: BiScriptPreparation,
+        inspector: ClickHouseBiDeploymentInspector,
+        options: BiScriptOptions,
+    ) {
+        val consumer = "${STATE_LAST_TABLE}_consumer"
+        val driftTarget = "__wow_bi_drift_target"
+        val before = listOf(COMMAND_STORE_TABLE, STATE_STORE_TABLE, STATE_LAST_STORE_TABLE)
+            .associateWith { table -> queryCount("SELECT count() FROM ${qualified(DATABASE, table)}") }
+        val queueUuids = queueUuids()
+        val comment = queryRows(
+            "SELECT comment FROM system.tables WHERE database = ${literal(CONSUMER_DATABASE)} " +
+                "AND name = ${literal(consumer)}",
+            listOf("comment"),
+        ).single().required("comment")
+        executeSql("DROP VIEW ${qualified(CONSUMER_DATABASE, consumer)}")
+        executeSql(
+            "CREATE TABLE ${qualified(DATABASE, driftTarget)} ENGINE = Memory AS " +
+                "SELECT * FROM ${qualified(DATABASE, STATE_LAST_STORE_TABLE)} WHERE 0"
+        )
+        executeSql(
+            "CREATE MATERIALIZED VIEW ${qualified(CONSUMER_DATABASE, consumer)} " +
+                "TO ${qualified(DATABASE, driftTarget)} AS (SELECT * FROM " +
+                "${qualified(DATABASE, STATE_STORE_TABLE)}) COMMENT ${literal(comment)}"
+        )
+
+        val inspection = inspector.inspect(options, BiScriptOperation.Deploy, preparation).block()!!
+        val repair = generator.generate(preparation, inspection = inspection)
+        repair.diagnostics.single { diagnostic ->
+            diagnostic.code == BiScriptDiagnosticCode.COMPUTED_OBJECT_DRIFT &&
+                diagnostic.path.endsWith(".$consumer")
+        }.message.assert().contains("definition drift", "TARGET")
+
+        repair.statements.forEach(::executeSql)
+        executeSql("DROP TABLE ${qualified(DATABASE, driftTarget)}")
+
+        before.forEach { (table, expectedCount) ->
+            queryCount("SELECT count() FROM ${qualified(DATABASE, table)}").assert().isEqualTo(expectedCount)
+        }
+        queueUuids().assert().isEqualTo(queueUuids)
+        val converged = generator.generate(
+            preparation,
+            inspection = inspector.inspect(options, BiScriptOperation.Deploy, preparation).block()!!,
+        )
+        converged.diagnostics.none { diagnostic ->
+            diagnostic.code == BiScriptDiagnosticCode.COMPUTED_OBJECT_DRIFT
+        }.assert().isTrue()
     }
 
     private fun Connection.queueUuids(): Map<String, String> =
@@ -240,32 +345,39 @@ class ClickHouseExpansionIntegrationTest {
     }
 
     private fun Connection.assertLatestStateReadsAreDeduplicated() {
-        (1..2).forEach { version ->
-            executeSql(
-                """
-                INSERT INTO ${qualified(DATABASE, STATE_STORE_TABLE)}
-                (id, context_name, aggregate_name, header, aggregate_id, tenant_id, owner_id, space_id,
-                 command_id, request_id, version, state, body, first_operator, first_event_time,
-                 create_time, tags, deleted)
-                VALUES ('latest-$version', 'bi-integration-service', 'nullable', map(),
-                        'aggregate-latest', '', '', '', '', '', $version, '{}', [], '',
-                        toDateTime64(0, 3, 'UTC'), toDateTime64(0, 3, 'UTC'), map(), false)
-                """.trimIndent()
-            )
+        listOf("tenant-a", "tenant-b").forEach { tenantId ->
+            for (version in 1..2) {
+                executeSql(
+                    """
+                    INSERT INTO ${qualified(DATABASE, STATE_STORE_TABLE)}
+                    (id, context_name, aggregate_name, header, aggregate_id, tenant_id, owner_id, space_id,
+                     command_id, request_id, version, state, body, first_operator, first_event_time,
+                     create_time, tags, deleted)
+                    VALUES ('latest-$tenantId-$version', 'bi-integration-service', 'nullable', map(),
+                            'aggregate-latest', '$tenantId', '', '', '', '', $version, '{}', [], '',
+                            toDateTime64(0, 3, 'UTC'), toDateTime64(0, 3, 'UTC'), map(), false)
+                    """.trimIndent()
+                )
+            }
         }
         queryCount(
             "SELECT count() FROM ${qualified(DATABASE, STATE_LAST_TABLE)} " +
                 "WHERE aggregate_id = 'aggregate-latest'"
-        ).assert().isEqualTo(1L)
+        ).assert().isEqualTo(2L)
         queryRows(
-            "SELECT version FROM ${qualified(DATABASE, STATE_LAST_TABLE)} " +
-                "WHERE aggregate_id = 'aggregate-latest'",
-            listOf("version"),
-        ).single().required("version").assert().isEqualTo("2")
+            "SELECT tenant_id, version FROM ${qualified(DATABASE, STATE_LAST_TABLE)} " +
+                "WHERE aggregate_id = 'aggregate-latest' ORDER BY tenant_id",
+            listOf("tenant_id", "version"),
+        ).assert().isEqualTo(
+            listOf(
+                mapOf("tenant_id" to "tenant-a", "version" to "2"),
+                mapOf("tenant_id" to "tenant-b", "version" to "2"),
+            )
+        )
         queryCount(
             "SELECT count() FROM ${qualified(DATABASE, ROOT_VIEW)} " +
                 "WHERE __aggregate_id = 'aggregate-latest'"
-        ).assert().isEqualTo(1L)
+        ).assert().isEqualTo(2L)
     }
 
     private fun topologyCases(): List<TopologyCase> = listOf(
@@ -295,6 +407,13 @@ class ClickHouseExpansionIntegrationTest {
         ClickHouseContainer(DockerImageName.parse(CLICKHOUSE_IMAGE)).apply(case.configureContainer)
 
     private fun Connection.assertGeneratedObjects(case: TopologyCase) {
+        val options = BiScriptOptions(
+            database = DATABASE,
+            consumerDatabase = CONSUMER_DATABASE,
+            topology = case.topology,
+            timezone = "UTC",
+            consumerGroupNamespace = "integration-test",
+        )
         val objects = queryRows(
             sql = "SELECT database, name, engine FROM system.tables " +
                 "WHERE database IN (${literal(DATABASE)}, ${literal(CONSUMER_DATABASE)})",
@@ -304,12 +423,14 @@ class ClickHouseExpansionIntegrationTest {
             keySelector = { it.required("database") },
             valueTransform = { it.required("name") },
         ).mapValues { (_, names) -> names.toSet() }
-            .assert().isEqualTo(expectedGeneratedObjects(case.topology))
+            .assert().isEqualTo(expectedGeneratedObjects(case.topology, options))
         queryRows(
             sql = "SELECT comment FROM system.tables " +
                 "WHERE database IN (${literal(DATABASE)}, ${literal(CONSUMER_DATABASE)})",
             columns = listOf("comment"),
-        ).map { it.required("comment") }.all { it.startsWith("wow-bi:") }.assert().isTrue()
+        ).map { it.required("comment") }
+            .all { comment -> comment.startsWith("wow-bi:") || comment.startsWith("wow-bi-registry:") }
+            .assert().isTrue()
 
         if (case.topology == ClickHouseTopology.Standalone) {
             val forbiddenPredicates = (
@@ -528,11 +649,19 @@ class ClickHouseExpansionIntegrationTest {
     private fun qualified(database: String, table: String): String =
         "${identifier(database)}.${identifier(table)}"
 
-    private fun expectedGeneratedObjects(topology: ClickHouseTopology): Map<String, Set<String>> =
-        when (topology) {
+    private fun expectedGeneratedObjects(
+        topology: ClickHouseTopology,
+        options: BiScriptOptions,
+    ): Map<String, Set<String>> {
+        val expected = when (topology) {
             is ClickHouseTopology.Cluster -> EXPECTED_CLUSTER_OBJECTS
             ClickHouseTopology.Standalone -> EXPECTED_STANDALONE_OBJECTS
         }
+        val registryName = BiOwnershipRegistry.empty(
+            BiDeploymentDescriptor.from(options).deploymentId,
+        ).name
+        return expected + (CONSUMER_DATABASE to checkNotNull(expected[CONSUMER_DATABASE]) + registryName)
+    }
 
     private companion object {
         const val CLICKHOUSE_IMAGE = "clickhouse/clickhouse-server:24.8.14.39-alpine"
