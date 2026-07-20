@@ -22,11 +22,26 @@ import me.ahoo.wow.bi.expansion.LikeLinkString
 import me.ahoo.wow.bi.expansion.LikeListItem
 import me.ahoo.wow.bi.expansion.LikeMapString
 import me.ahoo.wow.example.transfer.domain.AccountState
+import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.javaGetter
 
 class JsonPropertyTypeResolverTest {
+    @Test
+    fun `should resolve the same Java contract through every entry point`() {
+        val javaType = JsonSerializer.constructType(JavaNullabilityFixture::class.java)
+        val resolvedType = ResolvedType(
+            javaType = javaType,
+            nullability = Nullability.UNKNOWN,
+            arguments = emptyList(),
+        )
+
+        JsonPropertyTypeResolver.resolve(JavaNullabilityFixture::class.java).assert()
+            .isEqualTo(JsonPropertyTypeResolver.resolve(javaType))
+            .isEqualTo(JsonPropertyTypeResolver.resolve(resolvedType))
+    }
+
     @Test
     fun `should preserve recursive Kotlin nullability`() {
         val properties = JsonPropertyTypeResolver.resolve(KotlinFixture::class.java)

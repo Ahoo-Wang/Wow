@@ -33,13 +33,9 @@ import org.junit.jupiter.api.assertThrows
 
 class ClickHouseScriptRendererTest {
     @Test
-    fun `should reverse expansion drops and reject unowned observed objects`() {
+    fun `should reject unowned observed objects`() {
         val renderer = ClickHouseScriptRenderer()
 
-        renderer.renderDropExpansionStatements(listOf("root_view", "child_view")).assert().containsExactly(
-            "DROP VIEW IF EXISTS \"bi_db\".\"child_view\" ON CLUSTER '{cluster}' SYNC;",
-            "DROP VIEW IF EXISTS \"bi_db\".\"root_view\" ON CLUSTER '{cluster}' SYNC;",
-        )
         assertThrows<IllegalStateException> {
             renderer.renderDropObservedStatements(
                 listOf(ObservedBiObject(database = "bi_db", name = "foreign", engine = "View"))
@@ -65,8 +61,12 @@ class ClickHouseScriptRendererTest {
             diagnostics = emptyList(),
         )
 
-        val command = renderer.renderCommandStatements(aggregate)
-        val stateEvent = renderer.renderStateEventStatements(aggregate)
+        val command = renderer.renderCommandStorageStatements(aggregate) +
+            renderer.renderCommandIngressStatements(aggregate) +
+            renderer.renderCommandPublicStatements(aggregate)
+        val stateEvent = renderer.renderStateStorageStatements(aggregate) +
+            renderer.renderStateIngressStatements(aggregate) +
+            renderer.renderStatePublicStatements(aggregate)
         val stateLast = renderer.renderStateLastStatements(aggregate)
         val expansion = renderer.renderExpansionStatements(expansionPlan)
         val sql = (renderer.renderGlobalStatements() + command + stateEvent + stateLast + expansion)
@@ -87,25 +87,21 @@ class ClickHouseScriptRendererTest {
         stateLast.last().assert().contains("bi_aggregate_state_last", "bi_aggregate_state_last_store", "FINAL")
         expansion.single().assert().contains("FROM \"bi_db\".\"bi_aggregate_state_last\"")
 
-        val clear = renderer.renderClearStatements(
-            aggregate,
-            listOf("bi_aggregate_state_last_root", "bi_aggregate_state_last_items"),
-        )
-        clear.assert().hasSize(14)
-        clear.take(11).joinToString("\n").assert().doesNotContain("_local")
-        clear.subList(5, 7).map { statement ->
-            statement.substringAfterLast(".\"").substringBefore('"')
-        }.assert().containsExactly(
-            "bi_aggregate_state_last_items",
-            "bi_aggregate_state_last_root",
-        )
+        stateEvent.joinToString("\n").assert()
+            .contains("ORDER BY (\"tenant_id\", \"aggregate_id\", \"version\")")
+        stateLast.joinToString("\n").assert()
+            .contains("ORDER BY (\"tenant_id\", \"aggregate_id\")")
     }
 
     @Test
     fun `should preserve the lexical JSON of an event body`() {
         val aggregate = MetadataSearcher.localAggregates.single { it.aggregateName == "aggregate" }
-        val eventView = ClickHouseScriptRenderer()
-            .renderStateEventStatements(aggregate)
+        val renderer = ClickHouseScriptRenderer()
+        val eventView = (
+            renderer.renderStateStorageStatements(aggregate) +
+                renderer.renderStateIngressStatements(aggregate) +
+                renderer.renderStatePublicStatements(aggregate)
+            )
             .joinToString("\n")
 
         eventView.assert()
@@ -188,13 +184,16 @@ class ClickHouseScriptRendererTest {
         val aggregate = MetadataSearcher.localAggregates.single { it.aggregateName == "aggregate" }
         val renderer = ClickHouseScriptRenderer()
         val global = renderer.renderGlobalStatements()
-        val clear = renderer.renderClearStatements(aggregate, listOf("root_view", "child_view"))
-        val command = renderer.renderCommandStatements(aggregate)
-        val stateEvent = renderer.renderStateEventStatements(aggregate)
+        val commandStorage = renderer.renderCommandStorageStatements(aggregate)
+        val command = commandStorage +
+            renderer.renderCommandIngressStatements(aggregate) +
+            renderer.renderCommandPublicStatements(aggregate)
+        val stateEvent = renderer.renderStateStorageStatements(aggregate) +
+            renderer.renderStateIngressStatements(aggregate) +
+            renderer.renderStatePublicStatements(aggregate)
         val stateLast = renderer.renderStateLastStatements(aggregate)
 
         global.assert().hasSize(2)
-        clear.assert().hasSize(17)
         command.assert().hasSize(6)
         stateEvent.assert().hasSize(7)
         stateLast.assert().hasSize(5)
@@ -210,39 +209,14 @@ class ClickHouseScriptRendererTest {
                     "concat('\"header\":', simpleJSONExtractRaw(\"data\", 'header')), " +
                     "'\"header\":{}'), 'state') AS \"state\""
             )
-        clear.assert().containsExactly(
-            "DROP VIEW IF EXISTS \"bi_db_consumer\".\"bi_aggregate_command_consumer\" ON CLUSTER '{cluster}' SYNC;",
-            "DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_aggregate_command_queue\" ON CLUSTER '{cluster}' SYNC;",
-            "DROP VIEW IF EXISTS \"bi_db_consumer\".\"bi_aggregate_state_consumer\" ON CLUSTER '{cluster}' SYNC;",
-            "DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_aggregate_state_queue\" ON CLUSTER '{cluster}' SYNC;",
-            "DROP VIEW IF EXISTS \"bi_db_consumer\".\"bi_aggregate_state_last_consumer\" ON CLUSTER '{cluster}' SYNC;",
-            "DROP VIEW IF EXISTS \"bi_db\".\"child_view\" ON CLUSTER '{cluster}' SYNC;",
-            "DROP VIEW IF EXISTS \"bi_db\".\"root_view\" ON CLUSTER '{cluster}' SYNC;",
-            "DROP VIEW IF EXISTS \"bi_db\".\"bi_aggregate_state_event\" ON CLUSTER '{cluster}' SYNC;",
-            "DROP VIEW IF EXISTS \"bi_db\".\"bi_aggregate_command\" ON CLUSTER '{cluster}' SYNC;",
-            "DROP VIEW IF EXISTS \"bi_db\".\"bi_aggregate_state\" ON CLUSTER '{cluster}' SYNC;",
-            "DROP VIEW IF EXISTS \"bi_db\".\"bi_aggregate_state_last\" ON CLUSTER '{cluster}' SYNC;",
-            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_command_store\" ON CLUSTER '{cluster}' SYNC;",
-            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_command_store_local\" ON CLUSTER '{cluster}' SYNC;",
-            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_state_store\" ON CLUSTER '{cluster}' SYNC;",
-            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_state_store_local\" ON CLUSTER '{cluster}' SYNC;",
-            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_state_last_store\" ON CLUSTER '{cluster}' SYNC;",
-            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_state_last_store_local\" ON CLUSTER '{cluster}' SYNC;",
-        )
-        listOf(global, clear, command, stateEvent, stateLast).flatten().forEach { statement ->
+        listOf(global, command, stateEvent, stateLast).flatten().forEach { statement ->
             statement.lineSequence().none { it.trimStart().startsWith("--") }.assert().isTrue()
             statement.trimEnd().endsWith(';').assert().isTrue()
         }
-        renderer.renderGlobal().assert().isEqualTo(global.joinToString("\n\n"))
-        renderer.renderClear(aggregate, listOf("root_view", "child_view"))
-            .assert().isEqualTo(clear.joinToString("\n\n"))
-        renderer.renderCommand(aggregate).assert().isEqualTo(command.joinToString("\n\n"))
-        renderer.renderStateEvent(aggregate).assert().isEqualTo(stateEvent.joinToString("\n\n"))
-        renderer.renderStateLast(aggregate).assert().isEqualTo(stateLast.joinToString("\n\n"))
 
         assertThrows<UnsupportedOperationException> {
             @Suppress("UNCHECKED_CAST")
-            (command as MutableList<String>).clear()
+            (commandStorage as MutableList<String>).clear()
         }
     }
 
@@ -279,7 +253,6 @@ class ClickHouseScriptRendererTest {
                 .assert()
                 .isEqualTo(1)
         }
-        renderer.renderExpansion(plan).assert().isEqualTo(statements.joinToString("\n\n"))
     }
 
     @Test
@@ -338,7 +311,7 @@ class ClickHouseScriptRendererTest {
                 database = "bi\"db",
                 topology = ClickHouseTopology.Cluster(name = "cluster'name"),
             )
-        ).renderExpansion(plan)
+        ).renderExpansionStatements(plan).joinToString("\n\n")
 
         script.assert().contains(
             "CREATE OR REPLACE VIEW \"bi\\\"db\".\"target\\\"table\" " +
@@ -397,9 +370,9 @@ class ClickHouseScriptRendererTest {
             recovery = rootRecovery(),
         )
 
-        val script = ClickHouseScriptRenderer().renderExpansion(
+        val script = ClickHouseScriptRenderer().renderExpansionStatements(
             StateExpansionPlan(views = listOf(view), diagnostics = emptyList())
-        )
+        ).joinToString("\n\n")
 
         script.assert().contains(
             "JSONExtract(\"__source\".\"state\", 'scalar', 'Nullable(Int32)')"
@@ -430,9 +403,9 @@ class ClickHouseScriptRendererTest {
             recovery = rootRecovery(),
         )
 
-        val script = ClickHouseScriptRenderer().renderExpansion(
+        val script = ClickHouseScriptRenderer().renderExpansionStatements(
             StateExpansionPlan(views = listOf(view), diagnostics = emptyList())
-        )
+        ).joinToString("\n\n")
 
         script.assert().contains(
             "JSONExtract(\"__source\".\"state\", 'id', 'String') AS \"id\""
@@ -450,9 +423,9 @@ class ClickHouseScriptRendererTest {
             recovery = rootRecovery(),
         )
 
-        val script = ClickHouseScriptRenderer().renderExpansion(
+        val script = ClickHouseScriptRenderer().renderExpansionStatements(
             StateExpansionPlan(views = listOf(emptyView), diagnostics = emptyList())
-        )
+        ).joinToString("\n\n")
 
         listOf(
             "\"__source\".\"id\" AS \"__id\"",

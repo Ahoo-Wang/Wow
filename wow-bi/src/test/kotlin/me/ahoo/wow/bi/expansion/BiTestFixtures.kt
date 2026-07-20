@@ -39,24 +39,26 @@ class BIAggregateState(override val id: String) : Identifier {
     var kotlinDuration: kotlin.time.Duration = kotlin.time.Duration.parse("PT1H")
     var date = java.util.Date()
     var sqlDate = java.sql.Date(System.currentTimeMillis())
-    var uuid = UUID.randomUUID()
-    var localDate = java.time.LocalDate.now()
-    var localDateTime = java.time.LocalDateTime.now()
-    var localTime = java.time.LocalTime.now()
-    var instant = java.time.Instant.now()
-    var zonedDateTime = java.time.ZonedDateTime.now()
-    var offsetDateTime = java.time.OffsetDateTime.now()
-    var offsetTime = java.time.OffsetTime.now()
-    var yearMonth = java.time.YearMonth.now()
-    var monthDay = java.time.MonthDay.now()
-    var period = java.time.Period.ZERO
-    var year = java.time.Year.now()
+    var uuid: UUID = UUID.randomUUID()
+    var localDate: java.time.LocalDate = java.time.LocalDate.now()
+    var localDateTime: java.time.LocalDateTime = java.time.LocalDateTime.now()
+    var localTime: java.time.LocalTime = java.time.LocalTime.now()
+    var instant: java.time.Instant = java.time.Instant.now()
+    var zonedDateTime: java.time.ZonedDateTime = java.time.ZonedDateTime.now()
+    var offsetDateTime: java.time.OffsetDateTime = java.time.OffsetDateTime.now()
+    var offsetTime: java.time.OffsetTime = java.time.OffsetTime.now()
+    var yearMonth: java.time.YearMonth = java.time.YearMonth.now()
+    var monthDay: java.time.MonthDay = java.time.MonthDay.now()
+    var period: java.time.Period = java.time.Period.ZERO
+    var year: java.time.Year = java.time.Year.now()
     var defaultEnum = DefaultWireEnum.VALUE
     var numericEnum = NumericWireEnum.VALUE
     var month = java.time.Month.JANUARY
     var dayOfWeek = java.time.DayOfWeek.MONDAY
     var nested: Nested = Nested(id = "", name = "", child = NestedChild(id = "", name = ""))
     var stringList: List<String> = emptyList()
+
+    @Suppress("ArrayPrimitive") // Boxed Array<Int> is the wire-shape fixture under test.
     var intArray: Array<Int> = kotlin.emptyArray()
     var map: Map<String, String> = emptyMap()
     var mapItem: Map<String, Item> = emptyMap()

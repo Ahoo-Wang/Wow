@@ -158,7 +158,7 @@ internal object JacksonWireShapeInspector {
     private data class PropertySignature(val name: String, val type: String)
 
     private class ObjectShapeVisitor : JsonFormatVisitorWrapper.Base() {
-        var properties: MutableList<PropertySignature>? = null
+        var properties: List<PropertySignature>? = null
             private set
 
         override fun expectObjectFormat(type: JavaType): JsonObjectFormatVisitor {

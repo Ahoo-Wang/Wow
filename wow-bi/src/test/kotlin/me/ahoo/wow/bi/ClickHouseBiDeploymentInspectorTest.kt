@@ -22,9 +22,13 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.configuration.MetadataSearcher
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.assertTimeoutPreemptively
+import reactor.core.publisher.Mono
+import reactor.core.scheduler.Schedulers
 import reactor.kotlin.test.test
 import reactor.test.scheduler.VirtualTimeScheduler
 import tools.jackson.core.JacksonException
@@ -79,23 +83,28 @@ class ClickHouseBiDeploymentInspectorTest {
     }
 
     @Test
-    fun `should inspect an authoritative empty standalone catalog off the caller thread`() {
+    fun `should inspect an authoritative empty standalone catalog on the dedicated scheduler`() {
         val queryThread = AtomicReference<String>()
         val client = StubClickHouseCatalogClient { sql, parameters, columns ->
             queryThread.set(Thread.currentThread().name)
-            sql.assert()
-                .contains(
-                    "FROM system.tables",
-                    "show_table_uuid_in_table_create_query_if_not_nil = 0",
-                )
-                .doesNotContain("clusterAllReplicas")
+            if (sql.contains("registryTable")) {
+                columns.assert().containsExactlyElementsOf(REGISTRY_TABLE_COLUMNS)
+                return@StubClickHouseCatalogClient emptyList()
+            }
+            sql.assert().contains("FROM system.tables").doesNotContain("clusterAllReplicas")
+            if (columns == CATALOG_COLUMNS) {
+                sql.assert().contains("show_table_uuid_in_table_create_query_if_not_nil = 0")
+            }
             parameters.assert().isEqualTo(
                 mapOf(
                     "database" to OPTIONS.database,
                     "consumerDatabase" to OPTIONS.consumerDatabase,
+                    "ownershipPrefix" to BI_OBJECT_METADATA_PREFIX,
+                    "databaseTables" to "[]",
+                    "consumerDatabaseTables" to "['__wow_bi_deployment']",
                 )
             )
-            columns.assert().containsExactlyElementsOf(CATALOG_COLUMNS)
+            columns.assert().containsExactlyElementsOf(OBJECT_KEY_COLUMNS)
             emptyList()
         }
 
@@ -103,7 +112,338 @@ class ClickHouseBiDeploymentInspectorTest {
             as BiDeploymentInspection.Available
 
         inspection.deployment.objects.assert().isEmpty()
-        queryThread.get().assert().startsWith("boundedElastic-")
+        queryThread.get().assert().startsWith("wow-bi-catalog-inspection-")
+    }
+
+    @Test
+    fun `should scope the standalone catalog query to desired and owned objects`() {
+        val aggregate = MetadataSearcher.localAggregates.single { it.aggregateName == "aggregate" }
+        val queryCount = AtomicInteger()
+        val candidateName = "bi_aggregate_command_store"
+        val client = StubClickHouseCatalogClient { sql, parameters, columns ->
+            queryCount.incrementAndGet()
+            when (columns) {
+                REGISTRY_TABLE_COLUMNS -> {
+                    parameters["registryDatabase"].assert().isEqualTo(OPTIONS.consumerDatabase)
+                    parameters["registryTable"].toString().assert().startsWith("__wow_bi_registry_")
+                    emptyList()
+                }
+
+                OBJECT_KEY_COLUMNS -> {
+                    sql.assert()
+                        .contains(
+                            "startsWith(comment, {ownershipPrefix:String})",
+                            "name IN {databaseTables:Array(String)}",
+                            "name IN {consumerDatabaseTables:Array(String)}",
+                        )
+                        .doesNotContain("create_table_query")
+                    parameters["ownershipPrefix"].assert().isEqualTo("wow-bi:")
+                    parameters["databaseTables"].toString().assert().contains(
+                        candidateName,
+                        "bi_aggregate_state_store",
+                        "bi_aggregate_state_last_store",
+                    )
+                    parameters["consumerDatabaseTables"].toString().assert().contains(
+                        "bi_aggregate_command_queue",
+                        "bi_aggregate_state_consumer",
+                        "__wow_bi_deployment",
+                    )
+                    listOf(catalogRecord(database = OPTIONS.database, name = candidateName))
+                }
+
+                CATALOG_COLUMNS -> {
+                    sql.assert()
+                        .contains("create_table_query", "name IN {databaseTables:Array(String)}")
+                        .doesNotContain("startsWith(comment", "ownershipPrefix")
+                    parameters.containsKey("ownershipPrefix").assert().isFalse()
+                    parameters["databaseTables"].toString().assert().contains(candidateName)
+                    emptyList()
+                }
+
+                else -> error("Unexpected catalog columns: $columns")
+            }
+        }
+
+        val inspection = ClickHouseBiDeploymentInspector(client)
+            .inspect(OPTIONS, BiScriptOperation.Deploy, setOf(aggregate))
+            .block() as BiDeploymentInspection.Available
+
+        inspection.deployment.objects.assert().isEmpty()
+        queryCount.get().assert().isEqualTo(3)
+    }
+
+    @Test
+    fun `should prepare the scoped catalog on the caller scheduler`() {
+        val aggregate = MetadataSearcher.localAggregates.single { it.aggregateName == "aggregate" }
+        val planningThread = AtomicReference<String>()
+        val recordingAggregate = object : NamedAggregate {
+            override val contextName: String
+                get() {
+                    planningThread.compareAndSet(null, Thread.currentThread().name)
+                    return aggregate.contextName
+                }
+            override val aggregateName: String
+                get() {
+                    planningThread.compareAndSet(null, Thread.currentThread().name)
+                    return aggregate.aggregateName
+                }
+        }
+        val requestScheduler = Schedulers.newSingle("request-event-loop")
+        try {
+            val inspection = Mono.defer {
+                ClickHouseBiDeploymentInspector(StubClickHouseCatalogClient(emptyList()))
+                    .inspect(OPTIONS, BiScriptOperation.Deploy, setOf(recordingAggregate))
+            }.subscribeOn(requestScheduler).block() as BiDeploymentInspection.Available
+
+            inspection.deployment.objects.assert().isEmpty()
+            planningThread.get().assert()
+                .startsWith("request-event-loop")
+        } finally {
+            requestScheduler.dispose()
+        }
+    }
+
+    @Test
+    fun `should reuse prepared desired object keys without replanning during inspection`() {
+        val aggregate = MetadataSearcher.localAggregates.single { it.aggregateName == "aggregate" }
+        var rejectMetadataAccess = false
+        val guardedAggregate = object : NamedAggregate {
+            override val contextName: String
+                get() {
+                    check(!rejectMetadataAccess) { "prepared inspection must not read aggregate metadata again" }
+                    return aggregate.contextName
+                }
+            override val aggregateName: String
+                get() {
+                    check(!rejectMetadataAccess) { "prepared inspection must not read aggregate metadata again" }
+                    return aggregate.aggregateName
+                }
+        }
+        val preparation = BiScriptGenerator(OPTIONS).prepare(setOf(guardedAggregate))
+        rejectMetadataAccess = true
+
+        val inspection = ClickHouseBiDeploymentInspector(StubClickHouseCatalogClient(emptyList()))
+            .inspect(OPTIONS, BiScriptOperation.Deploy, preparation)
+            .block() as BiDeploymentInspection.Available
+
+        inspection.deployment.objects.assert().isEmpty()
+    }
+
+    @Test
+    @Suppress("LongMethod") // Keeps the prepared manifest, catalog fixture, and generated diagnostic in one proof.
+    fun `should report repairable computed definition drift from prepared inspection`() {
+        val aggregate = MetadataSearcher.localAggregates.single { it.aggregateName == "aggregate" }
+        val generator = BiScriptGenerator(OPTIONS)
+        val preparation = generator.prepare(setOf(aggregate))
+        val desiredView = preparation.desiredObjects.first { desired -> desired.kind == BiObjectKind.VIEW }
+        val viewMetadata = BiObjectMetadata(
+            deploymentId = DESCRIPTOR.deploymentId,
+            configurationFingerprint = DESCRIPTOR.configurationFingerprint,
+            topologyFingerprint = DESCRIPTOR.topologyFingerprint,
+            aggregate = desiredView.aggregate,
+            kind = BiObjectKind.VIEW,
+        )
+        val anchorMetadata = BiObjectMetadata(
+            deploymentId = DESCRIPTOR.deploymentId,
+            configurationFingerprint = DESCRIPTOR.configurationFingerprint,
+            topologyFingerprint = DESCRIPTOR.topologyFingerprint,
+            kind = BiObjectKind.ANCHOR,
+            consumerIdentity = BiConsumerIdentity.deterministic(DESCRIPTOR).value,
+        )
+        val catalog = records(
+            catalogRecord(
+                database = desiredView.key.database,
+                name = desiredView.key.name,
+                comment = BiObjectMetadataCodec.encode(viewMetadata),
+                createTableQuery = "CREATE VIEW ${desiredView.key.database}.${desiredView.key.name} " +
+                    "AS SELECT 1 AS drifted",
+                asSelect = "SELECT 1 AS drifted",
+            ),
+            catalogRecord(
+                database = OPTIONS.consumerDatabase,
+                name = "__wow_bi_deployment",
+                comment = BiObjectMetadataCodec.encode(anchorMetadata),
+                createTableQuery = "CREATE VIEW ${OPTIONS.consumerDatabase}.__wow_bi_deployment " +
+                    "AS SELECT 1 AS alive WHERE 0",
+                asSelect = "SELECT 1 AS alive WHERE 0",
+            ),
+        )
+        val client = StubClickHouseCatalogClient { sql, _, _ ->
+            if (sql.contains("formatQuerySingleLineOrNull(JSONExtractString")) {
+                listOf(
+                    ClickHouseCatalogRecord(
+                        mapOf(
+                            "database" to desiredView.key.database,
+                            "name" to desiredView.key.name,
+                            "canonical_select" to checkNotNull(desiredView.expectedQuery).selectSql,
+                        )
+                    )
+                )
+            } else {
+                catalog
+            }
+        }
+
+        val inspection = ClickHouseBiDeploymentInspector(client)
+            .inspect(OPTIONS, BiScriptOperation.Deploy, preparation)
+            .block() as BiDeploymentInspection.Available
+        val result = generator.generate(preparation, inspection = inspection)
+
+        result.diagnostics.any { diagnostic ->
+            diagnostic.message.contains("definition drift") && diagnostic.message.contains(desiredView.key.name)
+        }.assert().isTrue()
+        result.script.assert().contains(
+            "CREATE OR REPLACE VIEW \"${desiredView.key.database}\".\"${desiredView.key.name}\""
+        )
+    }
+
+    @Test
+    fun `should scope every cluster replica catalog query to desired and owned objects`() {
+        val aggregate = MetadataSearcher.localAggregates.single { it.aggregateName == "aggregate" }
+        val candidateName = "bi_aggregate_command_store"
+        val queryCount = AtomicInteger()
+        val client = StubClickHouseCatalogClient { sql, parameters, columns ->
+            queryCount.incrementAndGet()
+            when {
+                sql.contains("system.one") -> listOf(nodeRecord(NODE_A), nodeRecord(NODE_B))
+                sql.contains("registryTable") -> emptyList()
+                columns == OBJECT_KEY_COLUMNS -> {
+                    sql.assert().contains(
+                        "SELECT DISTINCT database, name",
+                        "clusterAllReplicas",
+                        "startsWith(comment, {ownershipPrefix:String})",
+                        "name IN {databaseTables:Array(String)}",
+                    ).doesNotContain("create_table_query")
+                    parameters["cluster"].assert().isEqualTo(CLUSTER.name)
+                    parameters["ownershipPrefix"].assert().isEqualTo("wow-bi:")
+                    parameters["databaseTables"].toString().assert().contains(candidateName)
+                    listOf(catalogRecord(database = CLUSTER_OPTIONS.database, name = candidateName))
+                }
+
+                else -> {
+                    columns.assert().containsExactlyElementsOf(NODE_COLUMNS + CATALOG_COLUMNS)
+                    sql.assert()
+                        .contains("clusterAllReplicas", "create_table_query", "name IN {databaseTables:Array(String)}")
+                        .doesNotContain("startsWith(comment", "ownershipPrefix")
+                    parameters["cluster"].assert().isEqualTo(CLUSTER.name)
+                    parameters.containsKey("ownershipPrefix").assert().isFalse()
+                    parameters["databaseTables"].toString().assert().contains(candidateName)
+                    emptyList()
+                }
+            }
+        }
+
+        val inspection = ClickHouseBiDeploymentInspector(client)
+            .inspect(CLUSTER_OPTIONS, BiScriptOperation.Deploy, setOf(aggregate))
+            .block() as BiDeploymentInspection.Available
+
+        inspection.deployment.objects.assert().isEmpty()
+        queryCount.get().assert().isEqualTo(5)
+    }
+
+    @Test
+    fun `should bound concurrent catalog inspections`() {
+        val activeQueries = AtomicInteger()
+        val maximumActiveQueries = AtomicInteger()
+        val firstFourQueries = CountDownLatch(4)
+        val unexpectedFifthQuery = CountDownLatch(1)
+        val releaseQueries = CountDownLatch(1)
+        val client = StubClickHouseCatalogClient { _, _, _ ->
+            val active = activeQueries.incrementAndGet()
+            maximumActiveQueries.accumulateAndGet(active, ::maxOf)
+            if (active > 4) {
+                unexpectedFifthQuery.countDown()
+            }
+            firstFourQueries.countDown()
+            try {
+                releaseQueries.await(5, TimeUnit.SECONDS).assert().isTrue()
+                emptyList()
+            } finally {
+                activeQueries.decrementAndGet()
+            }
+        }
+
+        val futures = List(8) {
+            ClickHouseBiDeploymentInspector(client).inspect(OPTIONS).toFuture()
+        }
+        try {
+            firstFourQueries.await(5, TimeUnit.SECONDS).assert().isTrue()
+            unexpectedFifthQuery.await(250, TimeUnit.MILLISECONDS).assert().isFalse()
+        } finally {
+            releaseQueries.countDown()
+        }
+        CompletableFuture.allOf(*futures.toTypedArray()).get(5, TimeUnit.SECONDS)
+
+        maximumActiveQueries.get().assert().isEqualTo(4)
+    }
+
+    @Test
+    fun `should classify a saturated inspection scheduler as unavailable`() {
+        val queryStarted = CountDownLatch(1)
+        val releaseQuery = CountDownLatch(1)
+        val scheduler = Schedulers.newBoundedElastic(1, 1, "saturated-bi-inspection")
+        val client = StubClickHouseCatalogClient { _, _, _ ->
+            queryStarted.countDown()
+            releaseQuery.await(5, TimeUnit.SECONDS).assert().isTrue()
+            emptyList()
+        }
+        val inspector = ClickHouseBiDeploymentInspector(
+            catalogClient = client,
+            inspectionScheduler = scheduler,
+        )
+        val active = inspector.inspect(OPTIONS).toFuture()
+        try {
+            queryStarted.await(5, TimeUnit.SECONDS).assert().isTrue()
+            val queued = inspector.inspect(OPTIONS).toFuture()
+
+            inspector.inspect(OPTIONS).test()
+                .expectErrorMatches { error ->
+                    error is BiDeploymentInspectionException.Unavailable &&
+                        error.message == "ClickHouse BI catalog inspection is overloaded"
+                }
+                .verify()
+
+            releaseQuery.countDown()
+            CompletableFuture.allOf(active, queued).get(5, TimeUnit.SECONDS)
+        } finally {
+            releaseQuery.countDown()
+            scheduler.dispose()
+        }
+    }
+
+    @Test
+    fun `should classify rejected scoped planning as unavailable`() {
+        val aggregate = MetadataSearcher.localAggregates.single { it.aggregateName == "aggregate" }
+        val queryStarted = CountDownLatch(1)
+        val releaseQuery = CountDownLatch(1)
+        val scheduler = Schedulers.newBoundedElastic(1, 1, "saturated-bi-scope")
+        val client = StubClickHouseCatalogClient { _, _, _ ->
+            queryStarted.countDown()
+            releaseQuery.await(5, TimeUnit.SECONDS).assert().isTrue()
+            emptyList()
+        }
+        val inspector = ClickHouseBiDeploymentInspector(
+            catalogClient = client,
+            inspectionScheduler = scheduler,
+        )
+        val active = inspector.inspect(OPTIONS).toFuture()
+        try {
+            queryStarted.await(5, TimeUnit.SECONDS).assert().isTrue()
+            val queued = inspector.inspect(OPTIONS).toFuture()
+
+            inspector.inspect(OPTIONS, BiScriptOperation.Deploy, setOf(aggregate)).test()
+                .expectErrorMatches { error ->
+                    error is BiDeploymentInspectionException.Unavailable &&
+                        error.message == "ClickHouse BI catalog inspection is overloaded"
+                }
+                .verify()
+
+            releaseQuery.countDown()
+            CompletableFuture.allOf(active, queued).get(5, TimeUnit.SECONDS)
+        } finally {
+            releaseQuery.countDown()
+            scheduler.dispose()
+        }
     }
 
     @Test
@@ -135,6 +475,148 @@ class ClickHouseBiDeploymentInspectorTest {
             as BiDeploymentInspection.Available
 
         available.deployment.objects.single().metadata.assert().isEqualTo(metadata)
+    }
+
+    @Test
+    fun `should validate every standalone store physical shape`() {
+        val stores = listOf(
+            catalogRecord(
+                name = "example_order_command_store",
+                engine = "ReplacingMergeTree",
+                engineFull = "ReplacingMergeTree PARTITION BY toYYYYMM(create_time) ORDER BY id SETTINGS x = 1",
+                comment = storeComment(),
+                partitionKey = "toYYYYMM(create_time)",
+                sortingKey = "id",
+            ),
+            catalogRecord(
+                name = "example_order_state_store",
+                engine = "ReplacingMergeTree",
+                engineFull = "ReplacingMergeTree(version) PARTITION BY toYYYYMM(create_time) " +
+                    "ORDER BY (tenant_id, aggregate_id, version)",
+                comment = storeComment(),
+                partitionKey = "toYYYYMM(create_time)",
+                sortingKey = "tenant_id, aggregate_id, version",
+            ),
+            catalogRecord(
+                name = "example_order_state_last_store",
+                engine = "ReplacingMergeTree",
+                engineFull = "ReplacingMergeTree(version) PARTITION BY toYYYYMM(first_event_time) " +
+                    "ORDER BY (tenant_id, aggregate_id)",
+                comment = storeComment(),
+                partitionKey = "toYYYYMM(first_event_time)",
+                sortingKey = "tenant_id, aggregate_id",
+            ),
+        )
+
+        val available = ClickHouseBiDeploymentInspector(StubClickHouseCatalogClient(stores))
+            .inspect(OPTIONS)
+            .block() as BiDeploymentInspection.Available
+
+        available.deployment.objects.assert().hasSize(3)
+    }
+
+    @Test
+    fun `should reject a standalone store with a drifted column type`() {
+        val store = catalogRecord(
+            name = "example_order_command_store",
+            engine = "ReplacingMergeTree",
+            engineFull = "ReplacingMergeTree PARTITION BY toYYYYMM(create_time) ORDER BY id",
+            comment = storeComment(),
+            partitionKey = "toYYYYMM(create_time)",
+            sortingKey = "id",
+        )
+        val client = StubClickHouseCatalogClient { sql, _, _ ->
+            if (sql.contains("system.columns")) {
+                expectedColumnRecords(listOf(store), "tenant_id" to "UInt64")
+            } else {
+                listOf(store)
+            }
+        }
+
+        ClickHouseBiDeploymentInspector(client).inspect(OPTIONS).test()
+            .expectErrorMatches { error ->
+                error is BiDeploymentInspectionException.Inconsistent &&
+                    error.message!!.contains("unexpected column schema") &&
+                    error.message!!.contains("tenant_id")
+            }
+            .verify()
+    }
+
+    @Test
+    fun `should reject standalone store engine and naming drift`() {
+        val invalidEngine = catalogRecord(
+            name = "example_order_state_store",
+            engine = "ReplacingMergeTree",
+            engineFull = "ReplacingMergeTree PARTITION BY toYYYYMM(create_time) " +
+                "ORDER BY (tenant_id, aggregate_id, version)",
+            comment = storeComment(),
+            partitionKey = "toYYYYMM(create_time)",
+            sortingKey = "tenant_id, aggregate_id, version",
+        )
+        ClickHouseBiDeploymentInspector(StubClickHouseCatalogClient(listOf(invalidEngine))).inspect(OPTIONS).test()
+            .expectErrorMatches { error ->
+                error is BiDeploymentInspectionException.Inconsistent &&
+                    error.message!!.contains("unexpected engine definition")
+            }
+            .verify()
+
+        val unsupportedName = invalidEngine.copyWithName("example_order_store")
+        ClickHouseBiDeploymentInspector(StubClickHouseCatalogClient(listOf(unsupportedName))).inspect(OPTIONS).test()
+            .expectErrorMatches { error ->
+                error is BiDeploymentInspectionException.Inconsistent &&
+                    error.message!!.contains("unsupported store name")
+            }
+            .verify()
+    }
+
+    @Test
+    fun `should validate cluster local and distributed store physical shapes`() {
+        val local = catalogRecord(
+            name = "example_order_state_store_local",
+            engine = "ReplicatedReplacingMergeTree",
+            engineFull = "ReplicatedReplacingMergeTree('/expanded/path', '{replica}', version) " +
+                "PARTITION BY toYYYYMM(create_time) ORDER BY (tenant_id, aggregate_id, version)",
+            comment = storeComment(CLUSTER_OPTIONS),
+            partitionKey = "toYYYYMM(create_time)",
+            sortingKey = "tenant_id, aggregate_id, version",
+        )
+        val distributed = catalogRecord(
+            name = "example_order_state_store",
+            engine = "Distributed",
+            engineFull = "Distributed('test-cluster', 'bi_db', 'example_order_state_store_local', " +
+                "sipHash64(tenant_id, aggregate_id))",
+            comment = storeComment(CLUSTER_OPTIONS),
+        )
+        val client = clusterClient(
+            local.withNode(NODE_A),
+            local.withNode(NODE_B),
+            distributed.withNode(NODE_A),
+            distributed.withNode(NODE_B),
+        )
+
+        val available = ClickHouseBiDeploymentInspector(client).inspect(CLUSTER_OPTIONS).block()
+            as BiDeploymentInspection.Available
+
+        available.deployment.objects.assert().hasSize(2)
+    }
+
+    @Test
+    fun `should keep reset available for repairing drifted store keys`() {
+        val drifted = catalogRecord(
+            name = "example_order_command_store",
+            engine = "ReplacingMergeTree",
+            engineFull = "ReplacingMergeTree ORDER BY create_time",
+            comment = storeComment(),
+            sortingKey = "create_time",
+        )
+        val inspector = ClickHouseBiDeploymentInspector(StubClickHouseCatalogClient(listOf(drifted)))
+
+        inspector.inspect(OPTIONS).test()
+            .expectError(BiDeploymentInspectionException.Inconsistent::class.java)
+            .verify()
+        inspector.inspect(OPTIONS, BiScriptOperation.Reset(true)).test()
+            .expectNextMatches { it is BiDeploymentInspection.Available }
+            .verifyComplete()
     }
 
     @Test
@@ -923,7 +1405,7 @@ class ClickHouseBiDeploymentInspectorTest {
             (resultB.get() is BiDeploymentInspection.Available).assert().isTrue()
             responseFutureA.complete(responseA).assert().isTrue()
             verify(exactly = 1, timeout = 1_000) { responseA.close() }
-            verify(exactly = 1) { responseB.close() }
+            verify(exactly = 2) { responseB.close() }
         } finally {
             subscriptionA.dispose()
             subscriptionB?.dispose()
@@ -1318,21 +1800,27 @@ class ClickHouseBiDeploymentInspectorTest {
     }
 
     private fun clusterClient(vararg catalog: ClickHouseCatalogRecord): StubClickHouseCatalogClient {
-        val responses = ArrayDeque(
-            listOf(
-                listOf(nodeRecord(NODE_A), nodeRecord(NODE_B)),
-                catalog.toList(),
-            )
-        )
-        return StubClickHouseCatalogClient { sql, parameters, _ ->
+        return StubClickHouseCatalogClient { sql, parameters, columns ->
             parameters["cluster"].assert().isEqualTo(CLUSTER.name)
-            sql.assert().contains("show_table_uuid_in_table_create_query_if_not_nil = 0")
-            if (responses.size == 2) {
-                sql.assert().contains("system.one", "clusterAllReplicas")
-            } else {
-                sql.assert().contains("system.tables", "clusterAllReplicas")
+            when {
+                sql.contains("system.one") -> {
+                    sql.assert().contains("show_table_uuid_in_table_create_query_if_not_nil = 0")
+                    listOf(nodeRecord(NODE_A), nodeRecord(NODE_B))
+                }
+
+                sql.contains("registryTable") -> emptyList()
+                sql.contains("system.columns") -> expectedColumnRecords(catalog.toList())
+                else -> {
+                    sql.assert().contains(
+                        "system.tables",
+                        "clusterAllReplicas",
+                    )
+                    if (columns == CATALOG_COLUMNS) {
+                        sql.assert().contains("show_table_uuid_in_table_create_query_if_not_nil = 0")
+                    }
+                    catalog.toList()
+                }
             }
-            responses.removeFirst()
         }
     }
 
@@ -1352,6 +1840,10 @@ class ClickHouseBiDeploymentInspectorTest {
         engine: String = "View",
         engineFull: String = "View",
         comment: String = "",
+        createTableQuery: String = "CREATE VIEW",
+        asSelect: String = "",
+        partitionKey: String = "",
+        sortingKey: String = "",
     ): ClickHouseCatalogRecord = ClickHouseCatalogRecord(
         buildMap {
             node?.let {
@@ -1362,10 +1854,40 @@ class ClickHouseBiDeploymentInspectorTest {
             put("name", name)
             put("engine", engine)
             put("engine_full", engineFull)
-            put("create_table_query", "CREATE VIEW")
+            put("create_table_query", createTableQuery)
+            put("as_select", asSelect)
             put("comment", comment)
+            put("partition_key", partitionKey)
+            put("sorting_key", sortingKey)
         }
     )
+
+    private fun ClickHouseCatalogRecord.withNode(node: ClickHouseCatalogNode): ClickHouseCatalogRecord {
+        val catalogObject = toCatalogObject()
+        return catalogRecord(
+            node = node,
+            database = catalogObject.observed.database,
+            name = catalogObject.observed.name,
+            engine = catalogObject.observed.engine,
+            engineFull = catalogObject.observed.engineFull,
+            comment = catalogObject.observed.metadata?.let(BiObjectMetadataCodec::encode).orEmpty(),
+            partitionKey = catalogObject.partitionKey,
+            sortingKey = catalogObject.sortingKey,
+        )
+    }
+
+    private fun ClickHouseCatalogRecord.copyWithName(name: String): ClickHouseCatalogRecord {
+        val catalogObject = toCatalogObject()
+        return catalogRecord(
+            database = catalogObject.observed.database,
+            name = name,
+            engine = catalogObject.observed.engine,
+            engineFull = catalogObject.observed.engineFull,
+            comment = catalogObject.observed.metadata?.let(BiObjectMetadataCodec::encode).orEmpty(),
+            partitionKey = catalogObject.partitionKey,
+            sortingKey = catalogObject.sortingKey,
+        )
+    }
 
     private fun queueComment(
         identity: String?,
@@ -1384,14 +1906,29 @@ class ClickHouseBiDeploymentInspectorTest {
         )
     }
 
-    private class StubClickHouseCatalogClient(
+    private fun storeComment(options: BiScriptOptions = OPTIONS): String {
+        val descriptor = BiDeploymentDescriptor.from(options)
+        return BiObjectMetadataCodec.encode(
+            BiObjectMetadata(
+                deploymentId = descriptor.deploymentId,
+                configurationFingerprint = descriptor.configurationFingerprint,
+                topologyFingerprint = descriptor.topologyFingerprint,
+                aggregate = "example.order",
+                kind = BiObjectKind.STORE,
+            )
+        )
+    }
+
+    private inner class StubClickHouseCatalogClient(
         private val response: (
             sql: String,
             parameters: Map<String, Any>,
             columns: List<String>,
         ) -> List<ClickHouseCatalogRecord>,
     ) : ClickHouseCatalogClient {
-        constructor(records: List<ClickHouseCatalogRecord>) : this({ _, _, _ -> records })
+        constructor(records: List<ClickHouseCatalogRecord>) : this({ sql, _, _ ->
+            if (sql.contains("system.columns")) expectedColumnRecords(records) else records
+        })
 
         var closed: Boolean = false
             private set
@@ -1407,6 +1944,57 @@ class ClickHouseBiDeploymentInspectorTest {
         }
     }
 
+    private fun expectedColumnRecords(
+        records: List<ClickHouseCatalogRecord>,
+        override: Pair<String, String>? = null,
+    ): List<ClickHouseCatalogRecord> = records.flatMap { record ->
+        val catalogObject = record.toCatalogObject()
+        if (catalogObject.observed.metadata?.kind != BiObjectKind.STORE) {
+            return@flatMap emptyList()
+        }
+        val node = runCatching(record::toNode).getOrNull()
+        val logicalName = catalogObject.observed.name.removeSuffix("_local")
+        val columns = if (logicalName.endsWith("_command_store")) COMMAND_STORE_COLUMNS else STATE_STORE_COLUMNS
+        columns.mapIndexed { index, (name, type) ->
+            catalogColumnRecord(
+                node = node,
+                database = catalogObject.observed.database,
+                table = catalogObject.observed.name,
+                name = name,
+                type = override?.takeIf { it.first == name }?.second ?: type,
+                position = index + 1,
+            )
+        }
+    }
+
+    private fun catalogColumnRecord(
+        node: ClickHouseCatalogNode?,
+        database: String,
+        table: String,
+        name: String,
+        type: String,
+        position: Int,
+    ): ClickHouseCatalogRecord = ClickHouseCatalogRecord(
+        buildMap {
+            node?.let {
+                put("host_name", it.hostName)
+                put("tcp_port", it.tcpPort.toString())
+            }
+            put("database", database)
+            put("table", table)
+            put("name", name)
+            put("type", type)
+            put("position", position.toString())
+        }
+    )
+
+    private fun ClickHouseBiDeploymentInspector.inspect(
+        options: BiScriptOptions,
+        operation: BiScriptOperation = BiScriptOperation.Deploy,
+        namedAggregates: Set<NamedAggregate> = emptySet(),
+    ): Mono<BiDeploymentInspection> =
+        inspect(options, operation, BiScriptGenerator(options).prepare(namedAggregates))
+
     private companion object {
         val OPTIONS = BiScriptOptions(consumerGroupNamespace = "test", topology = ClickHouseTopology.Standalone)
         val DESCRIPTOR = BiDeploymentDescriptor.from(OPTIONS)
@@ -1415,6 +2003,16 @@ class ClickHouseBiDeploymentInspectorTest {
         val NODE_A = ClickHouseCatalogNode("clickhouse-a", 9000)
         val NODE_B = ClickHouseCatalogNode("clickhouse-b", 9000)
         val NODE_C = ClickHouseCatalogNode("clickhouse-c", 9000)
+        val NODE_COLUMNS = listOf("host_name", "tcp_port")
+        val OBJECT_KEY_COLUMNS = listOf("database", "name")
+        val REGISTRY_TABLE_COLUMNS = listOf(
+            "database",
+            "name",
+            "engine",
+            "engine_full",
+            "comment",
+            "sorting_key",
+        )
         val OWNED_COMMENT = BiObjectMetadataCodec.encode(
             BiObjectMetadata(
                 deploymentId = DESCRIPTOR.deploymentId,
@@ -1430,7 +2028,49 @@ class ClickHouseBiDeploymentInspectorTest {
             "engine",
             "engine_full",
             "create_table_query",
+            "as_select",
             "comment",
+            "partition_key",
+            "sorting_key",
+        )
+        val COMMAND_STORE_COLUMNS = listOf(
+            "id" to "String",
+            "context_name" to "String",
+            "aggregate_name" to "String",
+            "name" to "String",
+            "header" to "Map(String, String)",
+            "aggregate_id" to "String",
+            "tenant_id" to "String",
+            "owner_id" to "String",
+            "space_id" to "String",
+            "request_id" to "String",
+            "aggregate_version" to "Nullable(UInt32)",
+            "is_create" to "Bool",
+            "is_void" to "Bool",
+            "allow_create" to "Bool",
+            "body_type" to "String",
+            "body" to "String",
+            "create_time" to "DateTime64(3, 'Asia/Shanghai')",
+        )
+        val STATE_STORE_COLUMNS = listOf(
+            "id" to "String",
+            "context_name" to "String",
+            "aggregate_name" to "String",
+            "header" to "Map(String, String)",
+            "aggregate_id" to "String",
+            "tenant_id" to "String",
+            "owner_id" to "String",
+            "space_id" to "String",
+            "command_id" to "String",
+            "request_id" to "String",
+            "version" to "UInt32",
+            "state" to "String",
+            "body" to "Array(String)",
+            "first_operator" to "String",
+            "first_event_time" to "DateTime64(3, 'Asia/Shanghai')",
+            "create_time" to "DateTime64(3, 'Asia/Shanghai')",
+            "tags" to "Map(String, Array(String))",
+            "deleted" to "Bool",
         )
     }
 }

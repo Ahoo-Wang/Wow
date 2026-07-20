@@ -28,6 +28,7 @@ enum class BiScriptDiagnosticCode {
     INSPECTION_UNAVAILABLE,
     ORPHANED_DATA_TABLE,
     CLUSTER_INTERNAL_REPLICATION_REQUIRED,
+    COMPUTED_OBJECT_DRIFT,
 }
 
 enum class BiScriptMappingDecision {
@@ -36,6 +37,7 @@ enum class BiScriptMappingDecision {
     RECONCILIATION_SKIPPED,
     DATA_TABLE_RETAINED,
     EXTERNAL_CONFIGURATION_REQUIRED,
+    RECONCILIATION_PLANNED,
 }
 
 data class BiScriptDiagnostic(

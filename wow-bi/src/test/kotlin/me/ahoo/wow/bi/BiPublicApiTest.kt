@@ -26,6 +26,7 @@ import kotlin.reflect.full.declaredMemberProperties
 
 class BiPublicApiTest {
     @Test
+    @Suppress("LongMethod")
     fun `should expose only the supported Kotlin API types`() {
         val publicTypes = productionTypes()
             .filter { it.isEffectivelyPublic() }
@@ -61,6 +62,7 @@ class BiPublicApiTest {
             BiScriptOperation.Reset::class.qualifiedName,
             BiScriptOptions::class.qualifiedName,
             BiScriptOptions.Companion::class.qualifiedName,
+            BiScriptPreparation::class.qualifiedName,
             BiScriptResult::class.qualifiedName,
             ClickHouseBiDeploymentInspector::class.qualifiedName,
             ClickHouseClientOptions::class.qualifiedName,

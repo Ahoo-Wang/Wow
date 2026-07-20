@@ -21,18 +21,20 @@ import reactor.core.publisher.Mono
 class BiDeploymentInspectorTest {
     @Test
     fun `no-op inspector should report unavailable instead of an empty deployment`() {
-        NoOpBiDeploymentInspector.inspect(BiScriptOptions()).block().assert()
+        val options = BiScriptOptions()
+        val preparation = BiScriptGenerator(options).prepare(emptySet())
+        NoOpBiDeploymentInspector.inspect(options, BiScriptOperation.Deploy, preparation).block().assert()
             .isEqualTo(BiDeploymentInspection.Unavailable)
         NoOpBiDeploymentInspector.allowsDynamicScope.assert().isTrue()
 
         val inspectedOperations = mutableListOf<BiScriptOperation>()
-        val authoritative = BiDeploymentInspector { _, operation ->
+        val authoritative = BiDeploymentInspector { _, operation, _ ->
             inspectedOperations += operation
             Mono.just(BiDeploymentInspection.Available(ObservedBiDeployment(emptyList())))
         }
         authoritative.allowsDynamicScope.assert().isFalse()
-        authoritative.inspect(BiScriptOptions()).block()
-        authoritative.inspect(BiScriptOptions(), BiScriptOperation.Reset(true)).block()
+        authoritative.inspect(options, BiScriptOperation.Deploy, preparation).block()
+        authoritative.inspect(options, BiScriptOperation.Reset(true), preparation).block()
         inspectedOperations.assert().containsExactly(
             BiScriptOperation.Deploy,
             BiScriptOperation.Reset(true),
@@ -57,65 +59,28 @@ class BiDeploymentInspectorTest {
     }
 
     @Test
-    fun `object metadata codec should reject protocol v1`() {
+    fun `object metadata codec should reject legacy metadata`() {
         val legacy = """
-            wow-bi:{
-              "protocolVersion": 1,
-              "layoutVersion": 6,
-              "deploymentId": "${"a".repeat(32)}",
-              "configurationFingerprint": "${"b".repeat(32)}",
-              "aggregate": null,
-              "kind": "ANCHOR",
-              "consumerIdentity": "${"c".repeat(32)}"
-            }
-        """.trimIndent()
-
-        assertThrows<IllegalArgumentException> {
-            BiObjectMetadataCodec.decode(legacy)
-        }.message.assert().contains("Unsupported BI object metadata protocol version: 1")
-    }
-
-    @Test
-    fun `object metadata codec should fail closed when protocol v2 phase is missing`() {
-        val incomplete = """
-            wow-bi:{
-              "protocolVersion": 2,
-              "layoutVersion": 6,
-              "deploymentId": "${"a".repeat(32)}",
-              "configurationFingerprint": "${"b".repeat(32)}",
-              "aggregate": null,
-              "kind": "ANCHOR",
-              "consumerIdentity": "${"c".repeat(32)}"
-            }
-        """.trimIndent()
-
-        assertThrows<IllegalArgumentException> {
-            BiObjectMetadataCodec.decode(incomplete)
-        }.message.assert().contains("protocol v2 requires phase")
-    }
-
-    @Test
-    fun `object metadata codec should fail closed when protocol v2 topology fingerprint is missing`() {
-        val incomplete = """
             wow-bi:{
               "protocolVersion": 2,
               "layoutVersion": 6,
               "phase": "STABLE",
               "deploymentId": "${"a".repeat(32)}",
               "configurationFingerprint": "${"b".repeat(32)}",
+              "topologyFingerprint": "${"c".repeat(32)}",
               "aggregate": null,
               "kind": "ANCHOR",
-              "consumerIdentity": "${"c".repeat(32)}"
+              "consumerIdentity": "${"d".repeat(32)}"
             }
         """.trimIndent()
 
         assertThrows<IllegalArgumentException> {
-            BiObjectMetadataCodec.decode(incomplete)
-        }.message.assert().contains("protocol v2 requires topologyFingerprint")
+            BiObjectMetadataCodec.decode(legacy)
+        }.message.assert().contains("Unsupported BI object metadata protocol version: 2")
     }
 
     @Test
-    fun `object metadata codec should fail closed for an unknown wire protocol`() {
+    fun `object metadata codec should fail closed for an invalid v3 layout pair`() {
         val unknown = """
             wow-bi:{
               "protocolVersion": 3,
@@ -123,6 +88,7 @@ class BiDeploymentInspectorTest {
               "phase": "STABLE",
               "deploymentId": "${"a".repeat(32)}",
               "configurationFingerprint": "${"b".repeat(32)}",
+              "topologyFingerprint": "${"d".repeat(32)}",
               "aggregate": null,
               "kind": "ANCHOR",
               "consumerIdentity": "${"c".repeat(32)}"
@@ -131,7 +97,7 @@ class BiDeploymentInspectorTest {
 
         assertThrows<IllegalArgumentException> {
             BiObjectMetadataCodec.decode(unknown)
-        }.message.assert().contains("Unsupported BI object metadata protocol version: 3")
+        }.message.assert().contains("Unsupported BI object metadata layout version: 6")
     }
 
     @Test

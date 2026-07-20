@@ -28,6 +28,32 @@ class BiScriptGeneratorTest {
     private val sibling = namedAggregate("sibling")
 
     @Test
+    fun `should reuse a request scoped preparation and reject different options`() {
+        val originalGenerator = generator()
+        val requestAggregates = linkedSetOf(aggregate)
+        val preparation = originalGenerator.prepare(requestAggregates)
+        requestAggregates.clear()
+
+        preparation.namedAggregates.assert().containsExactly(aggregate)
+        assertThrows<UnsupportedOperationException> {
+            @Suppress("UNCHECKED_CAST")
+            (preparation.desiredObjects as MutableList<DesiredBiObject>).clear()
+        }
+
+        originalGenerator.generate(preparation).assert()
+            .isEqualTo(originalGenerator.generate(setOf(aggregate)))
+
+        val changedOptions = BiScriptOptions(
+            consumerGroupNamespace = "test",
+            topicPrefix = "changed.",
+            maxExpansionDepth = 1,
+        )
+        assertThrows<IllegalArgumentException> {
+            BiScriptGenerator(changedOptions).generate(preparation)
+        }.message.assert().contains("prepared with different BI script options")
+    }
+
+    @Test
     fun `should generate complete default sections with lossless fallbacks`() {
         val result = generator().generate(setOf(aggregate))
 
@@ -369,6 +395,31 @@ class BiScriptGeneratorTest {
             "DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_sibling_command_queue\"",
             "DROP TABLE IF EXISTS \"bi_db\".\"bi_sibling_command_store\"",
         )
+    }
+
+    @Test
+    fun `should drop the ownership registry after persisting reset intent`() {
+        val options = BiScriptOptions(consumerGroupNamespace = "test")
+        val descriptor = BiDeploymentDescriptor.from(options)
+        val registry = BiOwnershipRegistry.empty(descriptor.deploymentId)
+        val inspection = BiDeploymentInspection.Available.reconciled(
+            deployment = ObservedBiDeployment(listOf(anchor(options = options))),
+            repairableComputedDrifts = emptyList(),
+            ownershipRegistry = registry,
+        )
+
+        val result = generator(options).generate(
+            setOf(aggregate),
+            BiScriptOperation.Reset(true),
+            inspection,
+        )
+
+        val resetIntent = result.script.indexOf("deployment-reset-intent")
+        val registryDrop = result.script.indexOf(
+            "DROP TABLE IF EXISTS \"${options.consumerDatabase}\".\"${registry.name}\""
+        )
+        resetIntent.assert().isLessThan(registryDrop)
+        registryDrop.assert().isGreaterThanOrEqualTo(0)
     }
 
     @Test
@@ -733,7 +784,7 @@ class BiScriptGeneratorTest {
     }
 
     @Test
-    fun `should reject topology migration through deploy or reset`() {
+    fun `should reject topology changes through deploy or reset`() {
         val currentOptions = BiScriptOptions(
             consumerGroupNamespace = "test",
             topology = ClickHouseTopology.Cluster(name = "current-cluster", installation = "current-installation"),
@@ -750,7 +801,7 @@ class BiScriptGeneratorTest {
             listOf(BiScriptOperation.Deploy, BiScriptOperation.Reset(true)).forEach { operation ->
                 assertThrows<IllegalArgumentException> {
                     generator(changedOptions).generate(setOf(aggregate), operation, inspection)
-                }.message.assert().contains("topology", "cannot be migrated")
+                }.message.assert().contains("topology", "cannot be changed")
             }
         }
     }

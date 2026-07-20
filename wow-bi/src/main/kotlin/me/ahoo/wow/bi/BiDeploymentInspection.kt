@@ -13,11 +13,13 @@
 
 package me.ahoo.wow.bi
 
+import com.fasterxml.jackson.annotation.JsonInclude
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.exception.ErrorInfoCapable
 import me.ahoo.wow.serialization.JsonSerializer
 import reactor.core.publisher.Mono
 import java.security.MessageDigest
+import java.util.Collections
 import java.util.UUID
 
 fun interface BiDeploymentInspector {
@@ -27,10 +29,8 @@ fun interface BiDeploymentInspector {
     fun inspect(
         options: BiScriptOptions,
         operation: BiScriptOperation,
+        preparation: BiScriptPreparation,
     ): Mono<BiDeploymentInspection>
-
-    fun inspect(options: BiScriptOptions): Mono<BiDeploymentInspection> =
-        inspect(options, BiScriptOperation.Deploy)
 }
 
 data object NoOpBiDeploymentInspector : BiDeploymentInspector {
@@ -39,6 +39,7 @@ data object NoOpBiDeploymentInspector : BiDeploymentInspector {
     override fun inspect(
         options: BiScriptOptions,
         operation: BiScriptOperation,
+        preparation: BiScriptPreparation,
     ): Mono<BiDeploymentInspection> =
         Mono.just(BiDeploymentInspection.Unavailable)
 }
@@ -46,7 +47,35 @@ data object NoOpBiDeploymentInspector : BiDeploymentInspector {
 sealed interface BiDeploymentInspection {
     data object Unavailable : BiDeploymentInspection
 
-    data class Available(val deployment: ObservedBiDeployment) : BiDeploymentInspection
+    class Available private constructor(
+        val deployment: ObservedBiDeployment,
+        internal val reconciliation: BiReconciliationSnapshot,
+    ) : BiDeploymentInspection {
+        constructor(deployment: ObservedBiDeployment) : this(deployment, BiReconciliationSnapshot.EMPTY)
+
+        internal companion object {
+            fun reconciled(
+                deployment: ObservedBiDeployment,
+                repairableComputedDrifts: List<RepairableBiObjectDrift>,
+                ownershipRegistry: BiOwnershipRegistry?,
+            ): Available = Available(
+                deployment,
+                BiReconciliationSnapshot(
+                    Collections.unmodifiableList(ArrayList(repairableComputedDrifts)),
+                    ownershipRegistry,
+                ),
+            )
+        }
+    }
+}
+
+internal data class BiReconciliationSnapshot(
+    val repairableComputedDrifts: List<RepairableBiObjectDrift>,
+    val ownershipRegistry: BiOwnershipRegistry?,
+) {
+    companion object {
+        val EMPTY = BiReconciliationSnapshot(emptyList(), null)
+    }
 }
 
 sealed class BiDeploymentInspectionException(
@@ -131,6 +160,7 @@ data class BiObjectMetadata(
     val aggregate: String? = null,
     val kind: BiObjectKind,
     val consumerIdentity: String? = null,
+    val registryRevision: Long? = null,
 ) {
     init {
         require(protocolVersion == CURRENT_PROTOCOL_VERSION) {
@@ -156,20 +186,19 @@ data class BiObjectMetadata(
         require(phase != BiDeploymentPhase.RESETTING || consumerIdentity != null) {
             "BI RESETTING deployment anchor requires a consumer identity"
         }
+        registryRevision?.let { require(it >= 0) { "registryRevision must not be negative" } }
     }
 
     companion object {
-        const val CURRENT_PROTOCOL_VERSION: Int = 2
-        const val CURRENT_LAYOUT_VERSION: Int = 6
+        const val CURRENT_PROTOCOL_VERSION: Int = 3
+        const val CURRENT_LAYOUT_VERSION: Int = 7
         private val DIGEST_PATTERN = Regex("[0-9a-f]{32}")
     }
 }
 
 object BiObjectMetadataCodec {
-    private const val PREFIX = "wow-bi:"
-
-    fun encode(metadata: BiObjectMetadata): String {
-        return PREFIX + JsonSerializer.writeValueAsString(
+    fun encode(metadata: BiObjectMetadata): String =
+        BI_OBJECT_METADATA_PREFIX + JsonSerializer.writeValueAsString(
             BiObjectMetadataWire(
                 protocolVersion = metadata.protocolVersion,
                 layoutVersion = metadata.layoutVersion,
@@ -180,23 +209,26 @@ object BiObjectMetadataCodec {
                 aggregate = metadata.aggregate,
                 kind = metadata.kind,
                 consumerIdentity = metadata.consumerIdentity,
+                registryRevision = metadata.registryRevision,
             )
         )
-    }
 
     fun decode(comment: String): BiObjectMetadata? {
-        if (!comment.startsWith(PREFIX)) {
+        if (!comment.startsWith(BI_OBJECT_METADATA_PREFIX)) {
             return null
         }
-        val wire = JsonSerializer.readValue(comment.removePrefix(PREFIX), BiObjectMetadataWire::class.java)
+        val wire = JsonSerializer.readValue(
+            comment.removePrefix(BI_OBJECT_METADATA_PREFIX),
+            BiObjectMetadataWire::class.java,
+        )
         require(wire.protocolVersion == BiObjectMetadata.CURRENT_PROTOCOL_VERSION) {
             "Unsupported BI object metadata protocol version: ${wire.protocolVersion}"
         }
         val phase = requireNotNull(wire.phase) {
-            "BI object metadata protocol v2 requires phase"
+            "BI object metadata protocol v${wire.protocolVersion} requires phase"
         }
         val topologyFingerprint = requireNotNull(wire.topologyFingerprint) {
-            "BI object metadata protocol v2 requires topologyFingerprint"
+            "BI object metadata protocol v${wire.protocolVersion} requires topologyFingerprint"
         }
         return BiObjectMetadata(
             protocolVersion = wire.protocolVersion,
@@ -208,10 +240,14 @@ object BiObjectMetadataCodec {
             aggregate = wire.aggregate,
             kind = wire.kind,
             consumerIdentity = wire.consumerIdentity,
+            registryRevision = wire.registryRevision,
         )
     }
 }
 
+internal const val BI_OBJECT_METADATA_PREFIX: String = "wow-bi:"
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
 private data class BiObjectMetadataWire(
     val protocolVersion: Int,
     val layoutVersion: Int,
@@ -222,6 +258,7 @@ private data class BiObjectMetadataWire(
     val aggregate: String? = null,
     val kind: BiObjectKind,
     val consumerIdentity: String? = null,
+    val registryRevision: Long? = null,
 )
 
 @JvmInline

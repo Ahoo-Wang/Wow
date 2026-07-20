@@ -237,6 +237,7 @@ class BiScriptOptionsTest {
             BiScriptDiagnosticCode.INSPECTION_UNAVAILABLE,
             BiScriptDiagnosticCode.ORPHANED_DATA_TABLE,
             BiScriptDiagnosticCode.CLUSTER_INTERNAL_REPLICATION_REQUIRED,
+            BiScriptDiagnosticCode.COMPUTED_OBJECT_DRIFT,
         )
         BiScriptMappingDecision.entries.assert().containsExactly(
             BiScriptMappingDecision.RAW_JSON,
@@ -244,6 +245,7 @@ class BiScriptOptionsTest {
             BiScriptMappingDecision.RECONCILIATION_SKIPPED,
             BiScriptMappingDecision.DATA_TABLE_RETAINED,
             BiScriptMappingDecision.EXTERNAL_CONFIGURATION_REQUIRED,
+            BiScriptMappingDecision.RECONCILIATION_PLANNED,
         )
     }
 }
