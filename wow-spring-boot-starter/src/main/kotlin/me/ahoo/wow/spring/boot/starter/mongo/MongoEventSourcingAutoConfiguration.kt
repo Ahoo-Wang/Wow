@@ -205,13 +205,17 @@ class MongoEventSourcingAutoConfiguration @Autowired constructor(
     @ConditionalOnMissingBean
     fun mongoPrepareKeyFactory(
         mongoClient: MongoClient,
-        dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?
+        dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?,
+        @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
+        currentBoundedContext: NamedBoundedContext,
     ): PrepareKeyFactory {
         val prepareDatabaseName = mongoProperties.prepareDatabase ?: dataMongoProperties?.mongoClientDatabase
         requireNotNull(prepareDatabaseName) {
             "${MongoProperties.PREFIX}.prepare-database must not be null!"
         }
         val prepareDatabase = mongoClient.getDatabase(prepareDatabaseName)
+        MongoDatabaseContextGuard(prepareDatabase)
+            .ensureContext(currentBoundedContext.contextName)
         return MongoPrepareKeyFactory(prepareDatabase)
     }
 }

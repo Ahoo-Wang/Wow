@@ -125,7 +125,7 @@ class StorageRoutingAutoConfiguration {
             defaultEventStorage = eventStoreProperties.storage,
             defaultSnapshotStorage = snapshotProperties.storage,
         ).resolveSnapshotRoutes(storageRoutingProperties)
-        return RoutingSnapshotStore(
+        return RoutingSnapshotStore.create(
             AggregateSnapshotStoreRegistry(
                 defaultSnapshotStore = resolvedRoutes.defaultSnapshotStore,
                 routes = resolvedRoutes.snapshotRoutes,

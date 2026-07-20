@@ -15,7 +15,7 @@ package me.ahoo.wow.eventsourcing.snapshot
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.metrics.MetricSnapshotStore
+import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -67,13 +67,16 @@ class VersionedSnapshotStoreTest {
 
     @Test
     fun `routing and metric decorators preserve checkpoint operations`() {
-        val routing = RoutingSnapshotStore(
+        val routing = RoutingSnapshotStore.create(
             AggregateSnapshotStoreRegistry(
                 defaultSnapshotStore = InMemorySnapshotStore(),
                 routes = emptyMap(),
             ),
         )
-        val store: VersionedSnapshotStore = MetricSnapshotStore(routing)
+        val store = routing.metrizable()
+
+        (store is VersionedSnapshotStore).assert().isTrue()
+        store as VersionedSnapshotStore
 
         store.saveCheckpoint(snapshot(10, "checkpoint")).block()
 
@@ -98,37 +101,24 @@ class VersionedSnapshotStoreTest {
     }
 
     @Test
-    fun `routing and metric decorators reject checkpoint writes to a legacy store`() {
+    fun `routing and metric decorators do not advertise checkpoint support for legacy backends`() {
         val legacyStore = LegacySnapshotStore(snapshot(10, "latest"))
-        val routing = RoutingSnapshotStore(
+        val legacyDefaultRouting = RoutingSnapshotStore.create(
             AggregateSnapshotStoreRegistry(
                 defaultSnapshotStore = legacyStore,
                 routes = emptyMap(),
             ),
         )
+        val legacyRouteRouting = RoutingSnapshotStore.create(
+            AggregateSnapshotStoreRegistry(
+                defaultSnapshotStore = InMemorySnapshotStore(),
+                routes = mapOf(aggregateId.namedAggregate to legacyStore),
+            ),
+        )
 
-        StepVerifier.create(routing.saveCheckpoint(snapshot(10, "checkpoint")))
-            .expectErrorMessage(
-                "Snapshot store [legacy] selected for [${aggregateId.namedAggregate}] " +
-                    "does not support historical checkpoints.",
-            )
-            .verify()
-        StepVerifier.create(MetricSnapshotStore(legacyStore).saveCheckpoint(snapshot(10, "checkpoint")))
-            .expectErrorMessage("Snapshot store [legacy] does not support historical checkpoints.")
-            .verify()
-    }
-
-    @Test
-    fun `metric decorator falls back to a legacy latest snapshot`() {
-        val eligible = MetricSnapshotStore(LegacySnapshotStore(snapshot(10, "latest")))
-
-        StepVerifier.create(eligible.loadAtOrBefore<MockStateAggregate>(aggregateId, 10))
-            .assertNext { checkpoint ->
-                checkpoint.version.assert().isEqualTo(10)
-            }
-            .verifyComplete()
-        StepVerifier.create(eligible.loadAtOrBefore<MockStateAggregate>(aggregateId, 9))
-            .verifyComplete()
+        (legacyDefaultRouting is VersionedSnapshotStore).assert().isFalse()
+        (legacyRouteRouting is VersionedSnapshotStore).assert().isFalse()
+        (legacyStore.metrizable() is VersionedSnapshotStore).assert().isFalse()
     }
 
     @Test

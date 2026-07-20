@@ -63,10 +63,13 @@ graph TB
 
 该集合布局假设一个 MongoDB database 只服务一个 bounded context。Starter 启动时会在
 `wow_database_metadata` 中原子认领当前 `wow.context-name`；同一 context 的实例可安全重复启动，
-不同 context 误连到该 database 时会在创建 EventStore/SnapshotStore 前失败，并提示配置独立数据库。
-该检查不受 `auto-init-schema` 影响。对于尚无所有权标记的存量 database，首次启动会先从已有
-`*_event_stream`、`*_snapshot` 和 `*_snapshot_checkpoint` 集合中查找属于其他 context 的文档，
-确认不存在历史混写后再写入标记。该全量校验只在首次认领时执行；大型存量数据库应优先升级其真实
+不同 context 误连到该 database 时会在创建 EventStore、SnapshotStore、查询 factory 或
+PrepareKeyFactory 前失败，并提示配置独立数据库。即使 event 与 snapshot 使用其他后端，独立的
+`prepare-database` 也会执行该检查；该检查不受 `auto-init-schema` 影响。对于尚无所有权标记的存量
+database，首次启动会先从已有 `*_event_stream`、`*_snapshot` 和 `*_snapshot_checkpoint` 集合中
+查找属于其他 context 的文档，确认不存在历史混写后再写入标记。存量 `prepare_*` 文档没有 context
+元数据，因此上线前必须审计 prepare database 映射；首个升级的 context 会认领尚未标记且仅含
+prepare 数据的 database。aggregate 全量校验只在首次认领时执行；大型存量数据库应优先升级其真实
 所有者服务，并预留扫描时间。
 
 ## 安装
@@ -198,9 +201,9 @@ wow:
 | 快照 Checkpoint | `{aggregateName}_snapshot_checkpoint` | `order_snapshot_checkpoint` |
 | PrepareKey | `prepare_{name}` | `prepare_username_idx` |
 
-事件流与快照集合名称刻意保持兼容，不会加入 `contextName`。bounded context 的数据库所有权由
-`wow_database_metadata` 单独记录；不要删除或手工改写该集合。若确需将数据库交给另一个 context，
-应先迁移或清空原事件流与快照数据，再删除所有权标记并启动新服务。
+事件流、快照与 PrepareKey 集合名称刻意保持兼容，不会加入 `contextName`。bounded context 的数据库
+所有权由 `wow_database_metadata` 单独记录；不要删除或手工改写该集合。若确需将数据库交给另一个
+context，应先迁移或清空原事件流、快照与 PrepareKey 数据，再删除所有权标记并启动新服务。
 
 ### 事件流集合 (`{aggregateName}_event_stream`)
 

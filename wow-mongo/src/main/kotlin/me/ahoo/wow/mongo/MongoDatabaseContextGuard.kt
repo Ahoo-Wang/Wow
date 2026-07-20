@@ -27,9 +27,9 @@ import reactor.kotlin.core.publisher.toMono
 /**
  * Enforces the default deployment invariant that one MongoDB database belongs to one bounded context.
  *
- * The aggregate collections intentionally remain named by aggregate name only. A durable ownership marker prevents
- * independently deployed bounded contexts from silently sharing the same database. Existing unmarked databases are
- * checked for foreign-context documents in every aggregate collection before the marker is claimed.
+ * Physical aggregate and prepare collection names intentionally omit the bounded context. A durable ownership marker
+ * prevents independently deployed bounded contexts from silently sharing the same database. Existing unmarked
+ * databases are checked for foreign-context documents in every aggregate collection before the marker is claimed.
  */
 class MongoDatabaseContextGuard(private val database: MongoDatabase) {
 
@@ -60,9 +60,8 @@ class MongoDatabaseContextGuard(private val database: MongoDatabase) {
         }
         check(ownerContextName == contextName) {
             "MongoDB database [${database.name}] is owned by bounded context [$ownerContextName], but bounded context " +
-                "[$contextName] attempted to use it. The aggregate-name-only collection layout requires one bounded " +
-                "context per MongoDB database. Configure a separate event-stream/snapshot database for each bounded " +
-                "context."
+                "[$contextName] attempted to use it. The contextless physical collection layout requires one bounded " +
+                "context per MongoDB database. Configure a separate MongoDB database for each bounded context."
         }
     }
 

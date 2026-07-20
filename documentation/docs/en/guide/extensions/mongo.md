@@ -63,11 +63,14 @@ Each aggregate type gets its own collection, partitioned by aggregate name. This
 
 This collection layout assumes that one MongoDB database serves exactly one bounded context. During startup, the
 Starter atomically claims the current `wow.context-name` in `wow_database_metadata`. Instances of the same context
-can restart safely; a different context pointing to that database fails before its EventStore/SnapshotStore is
-created and reports that a separate database is required. This guard remains active when `auto-init-schema` is
+can restart safely; a different context pointing to that database fails before its EventStore, SnapshotStore, query
+factory, or PrepareKeyFactory is created and reports that a separate database is required. This includes a dedicated
+`prepare-database` when event and snapshot storage use another backend, and remains active when `auto-init-schema` is
 disabled. For an existing unmarked database, the first upgraded instance checks every existing `*_event_stream`,
 `*_snapshot`, and `*_snapshot_checkpoint` collection for a document owned by another context before writing the
-marker. This one-time scan can be expensive on large legacy databases, so upgrade the database's real owner first.
+marker. Legacy `prepare_*` records contain no context metadata, so audit prepare database mappings before rollout;
+the first upgraded context claims an otherwise unmarked prepare-only database. The aggregate collection scan can be
+expensive on large legacy databases, so upgrade the database's real owner first.
 
 ## Installation
 
@@ -198,10 +201,10 @@ Collection names are derived from aggregate metadata using deterministic suffixe
 | Snapshot Checkpoint | `{aggregateName}_snapshot_checkpoint` | `order_snapshot_checkpoint` |
 | Prepare Key | `prepare_{name}` | `prepare_username_idx` |
 
-Event-stream and snapshot collection names intentionally remain backward compatible and do not include
+Event-stream, snapshot, and prepare collection names intentionally remain backward compatible and do not include
 `contextName`. Database ownership is recorded separately in `wow_database_metadata`; do not delete or edit this
-collection manually. To hand a database to another context, migrate or remove the original event-stream and snapshot
-data first, then remove the ownership marker before starting the new service.
+collection manually. To hand a database to another context, migrate or remove the original event-stream, snapshot,
+and prepare data first, then remove the ownership marker before starting the new service.
 
 ### Event Stream Collection (`{aggregateName}_event_stream`)
 

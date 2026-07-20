@@ -25,6 +25,10 @@ class AggregateSnapshotStoreRegistry(
             namedAggregate.materialize()
         }
 
+    internal val supportsHistoricalCheckpoints: Boolean =
+        defaultSnapshotStore is VersionedSnapshotStore &&
+            this.routes.values.all { store -> store is VersionedSnapshotStore }
+
     fun get(namedAggregate: NamedAggregate): SnapshotStore =
         routes[namedAggregate.materialize()] ?: defaultSnapshotStore
 }

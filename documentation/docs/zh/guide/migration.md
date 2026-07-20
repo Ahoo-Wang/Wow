@@ -49,10 +49,12 @@ context。
 
 上线前：
 
-1. 检查各 event-stream 与 snapshot database 中所有 `*_event_stream`、`*_snapshot` 和
-   `*_snapshot_checkpoint` collection。
+1. 检查所有已配置的 event-stream、snapshot 与 prepare database，以及其中的 `*_event_stream`、
+   `*_snapshot`、`*_snapshot_checkpoint` 和 `prepare_*` collection。
 2. 确认每个 database 只属于一个 `wow.context-name`；历史混写数据库必须先拆分。
 3. 先升级数据库的真实所有者。第一个新版本实例会扫描存量 aggregate collection，再原子认领标记。
+   存量 `prepare_*` 文档没有 context 元数据，因此 prepare-only database 会由首个升级 context 认领，
+   上线前必须先审计其映射关系。
 4. 审计现有受管索引。缺失索引会创建；key 顺序、unique、TTL、partial filter、collation、sparse 或
    hidden 选项不兼容时会阻止启动，必须执行受控迁移。
 

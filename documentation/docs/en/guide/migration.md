@@ -49,11 +49,12 @@ database.
 
 Before rollout:
 
-1. Inspect every `*_event_stream`, `*_snapshot`, and `*_snapshot_checkpoint` collection in each configured
-   event-stream and snapshot database.
+1. Inspect every configured event-stream, snapshot, and prepare database. Check all `*_event_stream`, `*_snapshot`,
+   `*_snapshot_checkpoint`, and `prepare_*` collections.
 2. Confirm that each database belongs to only one `wow.context-name`; a mixed database must be split before upgrade.
 3. Upgrade the database's real owner first. The first upgraded instance scans legacy aggregate collections before
-   atomically claiming the marker.
+   atomically claiming the marker. Legacy `prepare_*` records contain no context metadata, so a prepare-only database
+   is claimed by the first upgraded context and must be audited before rollout.
 4. Audit existing managed indexes. Missing indexes are created, but incompatible key order, uniqueness, TTL,
    partial-filter, collation, sparse, or hidden options block startup and require a controlled migration.
 

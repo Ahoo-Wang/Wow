@@ -37,6 +37,8 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotCheckpointProperties
+import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
+import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
 import org.bson.Document
 import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
@@ -140,6 +142,34 @@ class MongoEventSourcingAutoConfigurationTest {
                 "${MongoProperties.PREFIX}.snapshot-database=testSnapshot",
                 "${MongoProperties.PREFIX}.prepare-database=testPrepare",
                 "${MongoProperties.PREFIX}.auto-init-schema=false",
+                "wow.context-name=payment-service",
+            )
+            .withBean(MongoClient::class.java, {
+                mongoClient("order-service")
+            })
+            .withUserConfiguration(MongoEventSourcingAutoConfiguration::class.java)
+            .run { context ->
+                context.startupFailure.assert().isNotNull()
+                generateSequence(context.startupFailure) { error -> error.cause }
+                    .mapNotNull(Throwable::message)
+                    .toList()
+                    .assert()
+                    .anyMatch {
+                        it.contains("order-service") &&
+                            it.contains("payment-service") &&
+                            it.contains("one bounded context per MongoDB database")
+                    }
+            }
+    }
+
+    @Test
+    fun `should guard a dedicated prepare database when event and snapshot use other storage`() {
+        contextRunner
+            .enableWow()
+            .withPropertyValues(
+                "${MongoProperties.PREFIX}.prepare-database=testPrepare",
+                "${EventStoreProperties.STORAGE}=${StorageType.IN_MEMORY_NAME}",
+                "${SnapshotProperties.STORAGE}=${StorageType.IN_MEMORY_NAME}",
                 "wow.context-name=payment-service",
             )
             .withBean(MongoClient::class.java, {
