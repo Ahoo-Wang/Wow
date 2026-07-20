@@ -98,6 +98,23 @@ class MongoDatabaseContextGuardTest {
     }
 
     @Test
+    fun `should reject an ownership marker without a layout version`() {
+        mongo.database()
+            .getCollection(MongoDatabaseContextGuard.METADATA_COLLECTION_NAME)
+            .insertOne(
+                Document(Documents.ID_FIELD, "boundedContext")
+                    .append(MessageRecords.CONTEXT_NAME, "order-service"),
+            )
+            .toMono()
+            .block()
+
+        val error = assertThrows<IllegalStateException> {
+            MongoDatabaseContextGuard(mongo.database()).ensureContext("order-service")
+        }
+        error.message.assert().contains("unsupported context ownership layout version", "[null]", "[1]")
+    }
+
+    @Test
     fun `should atomically select one owner when different contexts claim concurrently`() {
         val executor = Executors.newFixedThreadPool(2)
         val start = CountDownLatch(1)

@@ -77,6 +77,27 @@ class EventStreamSchemaInitializerTest : SchemaInitializerSpec() {
     }
 
     @Test
+    fun `should reject a managed index name with different ordered keys`() {
+        val database = mongo.database()
+        val namedAggregate = MaterializedNamedAggregate("", "testManagedIndexKeyMismatch")
+        val collectionName = getCollectionName(namedAggregate)
+        val collection = database.getCollection(collectionName)
+        collection.drop().toMono().block()
+        database.createCollection(collectionName).toMono().block()
+        collection.createIndex(
+            Indexes.descending(MessageRecords.AGGREGATE_ID, MessageRecords.VERSION),
+            IndexOptions().name(AGGREGATE_ID_AND_VERSION_UNIQUE_INDEX_NAME).unique(true),
+        ).toMono().block()
+
+        runCatching {
+            initAggregateSchema(database, namedAggregate)
+        }.exceptionOrNull()!!.message.assert()
+            .contains(AGGREGATE_ID_AND_VERSION_UNIQUE_INDEX_NAME)
+            .contains("existing index definition differs")
+        collection.drop().toMono().block()
+    }
+
+    @Test
     fun `should reject a custom name for managed index keys`() {
         val database = mongo.database()
         val namedAggregate = MaterializedNamedAggregate("", "testCustomManagedIndexName")
@@ -130,6 +151,30 @@ class EventStreamSchemaInitializerTest : SchemaInitializerSpec() {
         runCatching {
             initAggregateSchema(database, namedAggregate)
         }.exceptionOrNull()!!.message.assert().contains("for [legacy_global_request_id]")
+        collection.drop().toMono().block()
+    }
+
+    @Test
+    fun `should allow a custom non unique request id index in aggregate scoped mode`() {
+        val database = mongo.database()
+        val namedAggregate = MaterializedNamedAggregate("", "testNonUniqueRequestIdIndex")
+        val collectionName = getCollectionName(namedAggregate)
+        val collection = database.getCollection(collectionName)
+        collection.drop().toMono().block()
+        database.createCollection(collectionName).toMono().block()
+        collection.createIndex(
+            Indexes.ascending(MessageRecords.REQUEST_ID),
+            IndexOptions().name("custom_request_id"),
+        ).toMono().block()
+
+        initAggregateSchema(database, namedAggregate)
+
+        val indexes = collection.listIndexes().toFlux().collectList().block()!!
+            .associateBy { it.getString("name") }
+        indexes.containsKey("custom_request_id").assert().isTrue()
+        indexes.containsKey("${MessageRecords.AGGREGATE_ID}_1_${MessageRecords.REQUEST_ID}_1")
+            .assert()
+            .isTrue()
         collection.drop().toMono().block()
     }
 

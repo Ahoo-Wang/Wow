@@ -55,18 +55,20 @@ class MongoEventSourcingAutoConfigurationTest {
     fun `legacy constructor keeps checkpoint schema initialization disabled`() {
         val configuration = MongoEventSourcingAutoConfiguration(
             MongoProperties(
-                autoInitSchema = false,
+                autoInitSchema = true,
                 eventStreamDatabase = null,
                 snapshotDatabase = "testSnapshot",
                 prepareDatabase = null,
             ),
         )
 
-        configuration.mongoSnapshotStore(
-            mongoClient = mongoClient("order-service"),
-            dataMongoProperties = null,
-            currentBoundedContext = MaterializedNamedBoundedContext("order-service"),
-        ).assert().isInstanceOf(MongoSnapshotStore::class.java)
+        withEmptyAggregateMetadata {
+            configuration.mongoSnapshotStore(
+                mongoClient = mongoClient("order-service"),
+                dataMongoProperties = null,
+                currentBoundedContext = MaterializedNamedBoundedContext("order-service"),
+            ).assert().isInstanceOf(MongoSnapshotStore::class.java)
+        }
     }
 
     @Test
@@ -80,17 +82,12 @@ class MongoEventSourcingAutoConfigurationTest {
             ),
             checkpointProperties = SnapshotCheckpointProperties(enabled = true),
         )
-        mockkObject(MetadataSearcher)
-        try {
-            every { MetadataSearcher.namedAggregateType } returns NamedAggregateTypeSearcher(emptyMap())
-
+        withEmptyAggregateMetadata {
             configuration.mongoSnapshotStore(
                 mongoClient = mongoClient("order-service"),
                 dataMongoProperties = null,
                 currentBoundedContext = MaterializedNamedBoundedContext("order-service"),
             ).assert().isInstanceOf(MongoSnapshotStore::class.java)
-        } finally {
-            unmockkObject(MetadataSearcher)
         }
     }
 
@@ -213,6 +210,16 @@ class MongoEventSourcingAutoConfigurationTest {
 
         return mockk<MongoClient> {
             every { getDatabase(any()) } returns database
+        }
+    }
+
+    private fun withEmptyAggregateMetadata(block: () -> Unit) {
+        mockkObject(MetadataSearcher)
+        try {
+            every { MetadataSearcher.namedAggregateType } returns NamedAggregateTypeSearcher(emptyMap())
+            block()
+        } finally {
+            unmockkObject(MetadataSearcher)
         }
     }
 

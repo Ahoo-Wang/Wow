@@ -83,15 +83,14 @@ class MongoDatabaseContextGuard(private val database: MongoDatabase) {
                             contextName = document.getString(MessageRecords.CONTEXT_NAME),
                         )
                     }
-            }.collectList()
+            }.next()
             .block()
-            .orEmpty()
-            .forEach { existing ->
-                check(existing.contextName == contextName) {
+            ?.let { existing ->
+                error(
                     "MongoDB database [${database.name}] collection [${existing.collectionName}] belongs to bounded " +
                         "context [${existing.contextName}], but bounded context [$contextName] attempted to use the " +
-                        "same aggregate-name-only layout. Use one bounded context per MongoDB database."
-                }
+                        "same aggregate-name-only layout. Use one bounded context per MongoDB database.",
+                )
             }
     }
 
