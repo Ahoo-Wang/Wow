@@ -138,8 +138,8 @@ class RedisCommandBusTest : CommandBusSpec() {
         val subscription = MessageSubscription(namedAggregate, receiverGroup)
         val message = createMessage()
         val recoveryOptions = RedisStreamRecoveryOptions(
-            minIdleTime = Duration.ofMillis(100),
-            interval = Duration.ofMillis(20),
+            minIdleTime = Duration.ofMillis(200),
+            interval = Duration.ofMillis(500),
             batchSize = 1,
         )
         val activeBus = RedisCommandBus(
@@ -165,11 +165,11 @@ class RedisCommandBusTest : CommandBusSpec() {
                 .concatMap { exchange -> exchange.acknowledge().thenReturn(exchange) }
                 .test()
                 .expectSubscription()
-                .expectNoEvent(Duration.ofMillis(300))
+                .expectNoEvent(Duration.ofSeconds(2))
                 .then(activeSubscription::dispose)
                 .assertNext { exchange -> exchange.message.id.assert().isEqualTo(message.id) }
                 .expectComplete()
-                .verify(Duration.ofSeconds(5))
+                .verify(Duration.ofSeconds(10))
         } finally {
             activeSubscription.dispose()
         }

@@ -61,12 +61,16 @@ class RedisPendingMessageRecovererTest {
             scanner.scan(topic, group, scanRequest())
         } returns Mono.just(page("1-0", listOf(pending("1-0", currentConsumer.name)), complete = true))
 
-        StepVerifier.create(
+        StepVerifier.withVirtualTime {
             recoverer(options(interval = Duration.ofDays(1)))
                 .recover(topic, currentConsumer)
-                .takeUntilOther(Mono.delay(Duration.ofMillis(20))),
-        ).verifyComplete()
+                .takeUntilOther(Mono.delay(Duration.ofSeconds(1)))
+        }
+            .expectSubscription()
+            .thenAwait(Duration.ofSeconds(1))
+            .verifyComplete()
 
+        verify(exactly = 1) { scanner.scan(topic, group, scanRequest()) }
         verify(exactly = 0) {
             streamOps.claim(
                 topic,
@@ -88,11 +92,14 @@ class RedisPendingMessageRecovererTest {
             leaseRegistry.findActiveConsumers(topic, group, setOf(activePeer))
         } returns Mono.just(setOf(activePeer))
 
-        StepVerifier.create(
+        StepVerifier.withVirtualTime {
             recoverer(options(interval = Duration.ofDays(1)))
                 .recover(topic, currentConsumer)
-                .takeUntilOther(Mono.delay(Duration.ofMillis(20))),
-        ).verifyComplete()
+                .takeUntilOther(Mono.delay(Duration.ofSeconds(1)))
+        }
+            .expectSubscription()
+            .thenAwait(Duration.ofSeconds(1))
+            .verifyComplete()
 
         verify(exactly = 1) {
             leaseRegistry.findActiveConsumers(topic, group, setOf(activePeer))
@@ -322,11 +329,14 @@ class RedisPendingMessageRecovererTest {
         } returns Flux.empty()
         val observations = mutableListOf<RedisMessageBusObservation>()
 
-        StepVerifier.create(
+        StepVerifier.withVirtualTime {
             recoverer(options(interval = Duration.ofDays(1)), observations)
                 .recover(topic, currentConsumer)
-                .takeUntilOther(Mono.delay(Duration.ofMillis(20))),
-        ).verifyComplete()
+                .takeUntilOther(Mono.delay(Duration.ofSeconds(1)))
+        }
+            .expectSubscription()
+            .thenAwait(Duration.ofSeconds(1))
+            .verifyComplete()
 
         observations.assert().containsExactly(
             RedisMessageBusObservation.PendingClaimCompleted(
