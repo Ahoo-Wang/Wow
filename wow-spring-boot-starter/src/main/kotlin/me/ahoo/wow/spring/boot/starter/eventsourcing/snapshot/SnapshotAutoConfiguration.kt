@@ -14,11 +14,14 @@
 package me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.eventsourcing.snapshot.CompositeSnapshotStrategy
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshotStrategy
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStrategy
+import me.ahoo.wow.eventsourcing.snapshot.VersionIntervalCheckpointStrategy
 import me.ahoo.wow.eventsourcing.snapshot.VersionOffsetSnapshotStrategy
+import me.ahoo.wow.eventsourcing.snapshot.VersionedSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.dispatcher.DefaultSnapshotHandler
 import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotDispatcher
 import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotFunctionFilter
@@ -35,6 +38,7 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnSnapshotStoreStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.command.SnapshotDispatcherLauncher
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -45,11 +49,20 @@ import org.springframework.context.annotation.Bean
 @AutoConfiguration
 @ConditionalOnWowEnabled
 @ConditionalOnSnapshotEnabled
-@EnableConfigurationProperties(SnapshotProperties::class)
-class SnapshotAutoConfiguration(
+@EnableConfigurationProperties(SnapshotProperties::class, SnapshotCheckpointProperties::class)
+class SnapshotAutoConfiguration @Autowired constructor(
     private val wowProperties: WowProperties,
-    private val snapshotProperties: SnapshotProperties
+    private val snapshotProperties: SnapshotProperties,
+    private val checkpointProperties: SnapshotCheckpointProperties,
 ) {
+    constructor(
+        wowProperties: WowProperties,
+        snapshotProperties: SnapshotProperties,
+    ) : this(
+        wowProperties = wowProperties,
+        snapshotProperties = snapshotProperties,
+        checkpointProperties = SnapshotCheckpointProperties(),
+    )
 
     @Bean(name = ["inMemorySnapshotStore", "inMemorySnapshotRepository"])
     @ConditionalOnSnapshotStoreStorage(StorageType.IN_MEMORY)
@@ -75,9 +88,10 @@ class SnapshotAutoConfiguration(
     fun simpleSnapshotStrategy(
         snapshotStore: SnapshotStore
     ): SnapshotStrategy {
-        return SimpleSnapshotStrategy(
+        val latestStrategy = SimpleSnapshotStrategy(
             snapshotStore = snapshotStore,
         )
+        return latestStrategy.withCheckpoint(snapshotStore)
     }
 
     @Bean
@@ -88,9 +102,29 @@ class SnapshotAutoConfiguration(
     fun versionOffsetSnapshotStrategy(
         snapshotStore: SnapshotStore
     ): SnapshotStrategy {
-        return VersionOffsetSnapshotStrategy(
+        val latestStrategy = VersionOffsetSnapshotStrategy(
             versionOffset = snapshotProperties.versionOffset,
             snapshotStore = snapshotStore
+        )
+        return latestStrategy.withCheckpoint(snapshotStore)
+    }
+
+    private fun SnapshotStrategy.withCheckpoint(snapshotStore: SnapshotStore): SnapshotStrategy {
+        if (!checkpointProperties.enabled) {
+            return this
+        }
+        check(snapshotStore is VersionedSnapshotStore) {
+            "Snapshot store [${snapshotStore.name}] does not support historical checkpoints, " +
+                "but ${SnapshotCheckpointProperties.PREFIX}.enabled=true."
+        }
+        return CompositeSnapshotStrategy(
+            listOf(
+                this,
+                VersionIntervalCheckpointStrategy(
+                    versionInterval = checkpointProperties.versionInterval,
+                    snapshotStore = snapshotStore,
+                ),
+            ),
         )
     }
 

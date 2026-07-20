@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.eventsourcing.snapshot.CompositeSnapshotStrategy
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshotStrategy
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
@@ -141,6 +142,88 @@ internal class SnapshotAutoConfigurationTest {
                 val binding = context.getBean(SnapshotStoreBinding::class.java)
                 binding.storage.assert().isEqualTo(StorageType.IN_MEMORY)
                 binding.snapshotStore.assert().isSameAs(snapshotStore)
+            }
+    }
+
+    @Test
+    fun `should compose immutable checkpoint strategy when explicitly enabled`() {
+        contextRunner
+            .enableWow()
+            .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
+            .withBean(StateEventBus::class.java, { InMemoryStateEventBus() })
+            .withPropertyValues(
+                "${EventStoreProperties.STORAGE}=${StorageType.IN_MEMORY_NAME}",
+                "${SnapshotProperties.STORAGE}=${StorageType.IN_MEMORY_NAME}",
+                "${SnapshotCheckpointProperties.PREFIX}.enabled=true",
+                "${SnapshotCheckpointProperties.PREFIX}.version-interval=25",
+                "${EventProperties.BUS_TYPE}=${BusType.IN_MEMORY_NAME}",
+            )
+            .withUserConfiguration(
+                EventAutoConfiguration::class.java,
+                EventStoreAutoConfiguration::class.java,
+                SnapshotAutoConfiguration::class.java,
+            )
+            .run { context: AssertableApplicationContext ->
+                context.assert()
+                    .hasNotFailed()
+                    .hasSingleBean(CompositeSnapshotStrategy::class.java)
+                val checkpoint = context.getBean(SnapshotCheckpointProperties::class.java)
+                checkpoint.enabled.assert().isTrue()
+                checkpoint.versionInterval.assert().isEqualTo(25)
+            }
+    }
+
+    @Test
+    fun `should reject a non-positive checkpoint interval during binding`() {
+        contextRunner
+            .enableWow()
+            .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
+            .withBean(StateEventBus::class.java, { InMemoryStateEventBus() })
+            .withPropertyValues(
+                "${EventStoreProperties.STORAGE}=${StorageType.IN_MEMORY_NAME}",
+                "${SnapshotProperties.STORAGE}=${StorageType.IN_MEMORY_NAME}",
+                "${SnapshotCheckpointProperties.PREFIX}.enabled=true",
+                "${SnapshotCheckpointProperties.PREFIX}.version-interval=0",
+                "${EventProperties.BUS_TYPE}=${BusType.IN_MEMORY_NAME}",
+            )
+            .withUserConfiguration(
+                EventAutoConfiguration::class.java,
+                EventStoreAutoConfiguration::class.java,
+                SnapshotAutoConfiguration::class.java,
+            )
+            .run { context ->
+                context.startupFailure.assert().isNotNull()
+            }
+    }
+
+    @Test
+    fun `should fail fast when the selected snapshot store lacks checkpoint support`() {
+        contextRunner
+            .enableWow()
+            .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
+            .withBean(StateEventBus::class.java, { InMemoryStateEventBus() })
+            .withPropertyValues(
+                "${EventStoreProperties.STORAGE}=${StorageType.IN_MEMORY_NAME}",
+                "${SnapshotProperties.STORAGE}=${StorageType.IN_MEMORY_NAME}",
+                "${SnapshotCheckpointProperties.PREFIX}.enabled=true",
+                "${EventProperties.BUS_TYPE}=${BusType.IN_MEMORY_NAME}",
+            )
+            .withUserConfiguration(
+                EventAutoConfiguration::class.java,
+                EventStoreAutoConfiguration::class.java,
+                SnapshotAutoConfiguration::class.java,
+                SnapshotStoreDecoratorConfiguration::class.java,
+            )
+            .run { context ->
+                context.startupFailure.assert().isNotNull()
+                generateSequence(context.startupFailure) { error -> error.cause }
+                    .mapNotNull(Throwable::message)
+                    .toList()
+                    .assert()
+                    .anyMatch {
+                        it.contains("does not support historical checkpoints") &&
+                            it.contains("${SnapshotCheckpointProperties.PREFIX}.enabled=true")
+                    }
             }
     }
 

@@ -13,17 +13,30 @@
 
 package me.ahoo.wow.spring.boot.starter.mongo
 
+import com.mongodb.client.model.FindOneAndUpdateOptions
+import com.mongodb.reactivestreams.client.FindPublisher
+import com.mongodb.reactivestreams.client.ListCollectionNamesPublisher
 import com.mongodb.reactivestreams.client.MongoClient
+import com.mongodb.reactivestreams.client.MongoCollection
+import com.mongodb.reactivestreams.client.MongoDatabase
+import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.mongo.MongoDatabaseContextGuard
 import me.ahoo.wow.mongo.MongoEventStore
 import me.ahoo.wow.mongo.MongoSnapshotStore
 import me.ahoo.wow.mongo.prepare.MongoPrepareKeyFactory
+import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
+import org.bson.Document
+import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
+import org.reactivestreams.Publisher
+import org.reactivestreams.Subscriber
+import org.reactivestreams.Subscription
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 
@@ -40,9 +53,10 @@ class MongoEventSourcingAutoConfigurationTest {
                 "${MongoProperties.PREFIX}.prepare-database=testPrepare",
                 "${MongoProperties.PREFIX}.error-database=testError",
                 "${MongoProperties.PREFIX}.auto-init-schema=false",
+                "wow.context-name=order-service",
             )
             .withBean(MongoClient::class.java, {
-                mockk(relaxed = true)
+                mongoClient("order-service")
             })
             .withUserConfiguration(
                 MongoEventSourcingAutoConfiguration::class.java,
@@ -66,5 +80,101 @@ class MongoEventSourcingAutoConfigurationTest {
                 snapshotBinding.storage.assert().isEqualTo(StorageType.MONGO)
                 snapshotBinding.snapshotStore.assert().isSameAs(snapshotStore)
             }
+    }
+
+    @Test
+    fun `should reject a database owned by another context when auto init is disabled`() {
+        contextRunner
+            .enableWow()
+            .withPropertyValues(
+                "${MongoProperties.PREFIX}.event-stream-database=testEventStream",
+                "${MongoProperties.PREFIX}.snapshot-database=testSnapshot",
+                "${MongoProperties.PREFIX}.prepare-database=testPrepare",
+                "${MongoProperties.PREFIX}.auto-init-schema=false",
+                "wow.context-name=payment-service",
+            )
+            .withBean(MongoClient::class.java, {
+                mongoClient("order-service")
+            })
+            .withUserConfiguration(MongoEventSourcingAutoConfiguration::class.java)
+            .run { context ->
+                context.startupFailure.assert().isNotNull()
+                generateSequence(context.startupFailure) { error -> error.cause }
+                    .mapNotNull(Throwable::message)
+                    .toList()
+                    .assert()
+                    .anyMatch {
+                        it.contains("order-service") &&
+                            it.contains("payment-service") &&
+                            it.contains("one bounded context per MongoDB database")
+                    }
+            }
+    }
+
+    private fun mongoClient(ownerContextName: String): MongoClient {
+        val marker = Document()
+            .append(MessageRecords.CONTEXT_NAME, ownerContextName)
+            .append(MongoDatabaseContextGuard.LAYOUT_VERSION_FIELD, 1)
+        val markerCollection = mockk<MongoCollection<Document>>()
+        val markerPublisher = mockk<FindPublisher<Document>>()
+        every { markerCollection.find(any<Bson>()) } returns markerPublisher
+        every { markerPublisher.first() } returns publisherOf(marker)
+        every {
+            markerCollection.findOneAndUpdate(
+                any<Bson>(),
+                any<Bson>(),
+                any<FindOneAndUpdateOptions>(),
+            )
+        } returns publisherOf(marker)
+
+        val database = mockk<MongoDatabase>()
+        every { database.name } returns "testDatabase"
+        every { database.listCollectionNames() } returns emptyCollectionNamesPublisher()
+        every { database.getCollection(any()) } returns markerCollection
+
+        return mockk<MongoClient> {
+            every { getDatabase(any()) } returns database
+        }
+    }
+
+    private fun emptyCollectionNamesPublisher(): ListCollectionNamesPublisher {
+        return mockk {
+            every { subscribe(any()) } answers {
+                firstArg<Subscriber<in String>>().complete()
+            }
+        }
+    }
+
+    private fun <T> publisherOf(value: T): Publisher<T> {
+        return Publisher { subscriber ->
+            subscriber.onSubscribe(
+                object : Subscription {
+                    private var emitted = false
+
+                    override fun request(numberOfElements: Long) {
+                        if (emitted) {
+                            return
+                        }
+                        emitted = true
+                        subscriber.onNext(value)
+                        subscriber.onComplete()
+                    }
+
+                    override fun cancel() = Unit
+                },
+            )
+        }
+    }
+
+    private fun <T> Subscriber<in T>.complete() {
+        onSubscribe(
+            object : Subscription {
+                override fun request(numberOfElements: Long) {
+                    onComplete()
+                }
+
+                override fun cancel() = Unit
+            },
+        )
     }
 }

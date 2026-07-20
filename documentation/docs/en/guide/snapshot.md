@@ -109,7 +109,21 @@ interface SnapshotStore : Named {
     fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void>
     fun getVersion(aggregateId: AggregateId): Mono<Int>
 }
+
+interface VersionedSnapshotStore : SnapshotStore {
+    fun <S : Any> loadAtOrBefore(
+        aggregateId: AggregateId,
+        maxVersion: Int
+    ): Mono<Snapshot<S>>
+
+    fun <S : Any> saveCheckpoint(snapshot: Snapshot<S>): Mono<Void>
+}
 ```
+
+`SnapshotStore.save()` continues to maintain only the latest snapshot. `VersionedSnapshotStore`
+adds immutable historical checkpoints without changing that contract. It loads the greatest
+checkpoint no newer than a requested version. Duplicate aggregate/version writes are first-wins,
+and storage failures are propagated.
 
 ### In-Memory Implementation
 
@@ -152,13 +166,21 @@ wow:
       enabled: true  # Whether to enable snapshots
       strategy: all  # Snapshot strategy (all, version_offset)
       version-offset: 5  # Version offset (only valid for version_offset strategy)
+      checkpoint:
+        enabled: false  # Off by default; evaluate storage growth first
+        version-interval: 100
 ```
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `wow.snapshot.enabled` | `false` | Enable snapshot store |
-| `wow.snapshot.interval` | `100` | Events before new snapshot |
-| `wow.snapshot.store.type` | Event store backend | Snapshot storage backend |
+| `wow.eventsourcing.snapshot.enabled` | `true` | Enable latest snapshots |
+| `wow.eventsourcing.snapshot.checkpoint.enabled` | `false` | Enable immutable historical checkpoints |
+| `wow.eventsourcing.snapshot.checkpoint.version-interval` | `100` | Checkpoint version interval |
+
+Enabling the feature only accumulates newly produced matching versions; it does not backfill old
+history automatically. Roll back by disabling `checkpoint.enabled`. MongoDB stores checkpoints in
+the separate `<aggregate>_snapshot_checkpoint` sidecar.
+
 
 ## Aggregate Loading Optimization
 

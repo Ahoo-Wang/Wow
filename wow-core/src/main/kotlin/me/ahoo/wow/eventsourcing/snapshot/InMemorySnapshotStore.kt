@@ -19,12 +19,13 @@ import me.ahoo.wow.serialization.toObject
 import reactor.core.publisher.Mono
 import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentSkipListMap
 
 /**
  * In-memory implementation of SnapshotStore for testing and development.
  * Stores snapshots as JSON strings in a thread-safe map.
  */
-class InMemorySnapshotStore : SnapshotStore {
+class InMemorySnapshotStore : VersionedSnapshotStore {
     companion object {
         /**
          * The name of this repository.
@@ -42,6 +43,8 @@ class InMemorySnapshotStore : SnapshotStore {
      * Thread-safe storage for snapshots, keyed by aggregate ID.
      */
     private val aggregateIdMapSnapshot = ConcurrentHashMap<AggregateId, ObjectNode>()
+    private val aggregateIdMapCheckpoints =
+        ConcurrentHashMap<AggregateId, ConcurrentSkipListMap<Int, ObjectNode>>()
 
     /**
      * Loads a snapshot from the in-memory map by deserializing the JSON string.
@@ -64,4 +67,31 @@ class InMemorySnapshotStore : SnapshotStore {
         Mono.fromRunnable {
             aggregateIdMapSnapshot[snapshot.aggregateId] = snapshot.toJsonNode()
         }
+
+    override fun <S : Any> loadAtOrBefore(
+        aggregateId: AggregateId,
+        maxVersion: Int,
+    ): Mono<Snapshot<S>> {
+        require(maxVersion >= 0) {
+            "maxVersion must be greater than or equal to 0."
+        }
+        return Mono.defer {
+            val checkpoint = aggregateIdMapCheckpoints[aggregateId]
+                ?.floorEntry(maxVersion)
+                ?.value
+                ?.toObject<Snapshot<S>>()
+            Mono.justOrEmpty(checkpoint)
+        }
+    }
+
+    override fun <S : Any> saveCheckpoint(snapshot: Snapshot<S>): Mono<Void> {
+        require(snapshot.version > 0) {
+            "checkpoint version must be greater than 0."
+        }
+        return Mono.fromRunnable {
+            aggregateIdMapCheckpoints.computeIfAbsent(snapshot.aggregateId) {
+                ConcurrentSkipListMap()
+            }.putIfAbsent(snapshot.version, snapshot.toJsonNode())
+        }
+    }
 }

@@ -41,6 +41,38 @@ implementation("me.ahoo.wow:wow-spring-boot-starter:新版本号")
 2. **配置变更**：检查配置属性是否有变更
 3. **元数据变更**：重新生成元数据文件
 
+## Mongo 所有权保护与 Snapshot Checkpoint
+
+本次升级保留仅含 aggregate name 的 Mongo collection 命名，但新增持久化
+`wow_database_metadata` 所有权标记。支持的部署布局是一个 MongoDB database 只属于一个 bounded
+context。
+
+上线前：
+
+1. 检查各 event-stream 与 snapshot database 中所有 `*_event_stream`、`*_snapshot` 和
+   `*_snapshot_checkpoint` collection。
+2. 确认每个 database 只属于一个 `wow.context-name`；历史混写数据库必须先拆分。
+3. 先升级数据库的真实所有者。第一个新版本实例会扫描存量 aggregate collection，再原子认领标记。
+4. 审计现有受管索引。缺失索引会创建；key 顺序、unique、TTL、partial filter、collation、sparse 或
+   hidden 选项不兼容时会阻止启动，必须执行受控迁移。
+
+不要通过修改所有权标记绕过 context 冲突。应先迁移或删除旧数据；只有明确重新分配空数据库时才删除
+标记。
+
+历史 snapshot checkpoint 默认关闭：
+
+```yaml
+wow:
+  eventsourcing:
+    snapshot:
+      checkpoint:
+        enabled: false
+        version-interval: 100
+```
+
+启用后会创建 `<aggregate>_snapshot_checkpoint` sidecar，并且只保存升级后新产生的匹配版本，不会自动
+回填历史。回滚时关闭该功能；在完成验证与保留策略决策前保留 sidecar。
+
 ## 从传统架构迁移
 
 ### 迁移策略

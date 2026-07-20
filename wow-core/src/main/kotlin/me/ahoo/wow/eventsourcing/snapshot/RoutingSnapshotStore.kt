@@ -17,7 +17,7 @@ import reactor.core.publisher.Mono
 
 class RoutingSnapshotStore(
     private val registry: AggregateSnapshotStoreRegistry
-) : SnapshotStore {
+) : VersionedSnapshotStore {
     override val name: String
         get() = NAME
 
@@ -29,6 +29,32 @@ class RoutingSnapshotStore(
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> =
         registry.get(snapshot.aggregateId.namedAggregate).save(snapshot)
+
+    override fun <S : Any> loadAtOrBefore(
+        aggregateId: AggregateId,
+        maxVersion: Int,
+    ): Mono<Snapshot<S>> {
+        return Mono.defer {
+            val selectedStore = registry.get(aggregateId.namedAggregate)
+            if (selectedStore is VersionedSnapshotStore) {
+                selectedStore.loadAtOrBefore(aggregateId, maxVersion)
+            } else {
+                selectedStore.load<S>(aggregateId)
+                    .filter { snapshot -> snapshot.version <= maxVersion }
+            }
+        }
+    }
+
+    override fun <S : Any> saveCheckpoint(snapshot: Snapshot<S>): Mono<Void> {
+        return Mono.defer {
+            val selectedStore = registry.get(snapshot.aggregateId.namedAggregate)
+            check(selectedStore is VersionedSnapshotStore) {
+                "Snapshot store [${selectedStore.name}] selected for [${snapshot.aggregateId.namedAggregate}] " +
+                    "does not support historical checkpoints."
+            }
+            selectedStore.saveCheckpoint(snapshot)
+        }
+    }
 
     companion object {
         const val NAME = "routing"

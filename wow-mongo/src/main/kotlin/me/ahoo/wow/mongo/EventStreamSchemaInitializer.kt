@@ -17,14 +17,9 @@ import com.mongodb.reactivestreams.client.MongoDatabase
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.MetadataSearcher
-import me.ahoo.wow.mongo.AggregateSchemaInitializer.createAggregateIdAndRequestIdUniqueIndex
-import me.ahoo.wow.mongo.AggregateSchemaInitializer.createAggregateIdAndVersionUniqueIndex
-import me.ahoo.wow.mongo.AggregateSchemaInitializer.createAggregateIdIndex
-import me.ahoo.wow.mongo.AggregateSchemaInitializer.createOwnerIdIndex
-import me.ahoo.wow.mongo.AggregateSchemaInitializer.createRequestIdUniqueIndex
-import me.ahoo.wow.mongo.AggregateSchemaInitializer.createTenantIdIndex
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.ensureCollection
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
+import me.ahoo.wow.serialization.MessageRecords
 
 class EventStreamSchemaInitializer(
     private val database: MongoDatabase,
@@ -53,18 +48,29 @@ class EventStreamSchemaInitializer(
         log.info {
             "Init NamedAggregate Schema [$namedAggregate] to Database:[${database.name}] CollectionName [$collectionName]"
         }
-        if (!database.ensureCollection(collectionName)) {
-            return
-        }
+        database.ensureCollection(collectionName)
         val eventStreamCollection = database.getCollection(collectionName)
-        eventStreamCollection.createAggregateIdIndex()
-        eventStreamCollection.createAggregateIdAndVersionUniqueIndex()
-        if (enableRequestIdUniqueIndex) {
-            eventStreamCollection.createRequestIdUniqueIndex()
+        val requestIdIndex = if (enableRequestIdUniqueIndex) {
+            ascendingIndex(MessageRecords.REQUEST_ID, unique = true)
         } else {
-            eventStreamCollection.createAggregateIdAndRequestIdUniqueIndex()
+            ascendingIndex(MessageRecords.AGGREGATE_ID, MessageRecords.REQUEST_ID, unique = true)
         }
-        eventStreamCollection.createTenantIdIndex()
-        eventStreamCollection.createOwnerIdIndex()
+        val forbiddenIndexes = if (enableRequestIdUniqueIndex) {
+            listOf(
+                ascendingIndex(MessageRecords.AGGREGATE_ID, MessageRecords.REQUEST_ID, unique = true),
+            )
+        } else {
+            listOf(ascendingIndex(MessageRecords.REQUEST_ID, unique = true))
+        }
+        eventStreamCollection.reconcileIndexes(
+            expectedIndexes = listOf(
+                hashedIndex(MessageRecords.AGGREGATE_ID),
+                ascendingIndex(MessageRecords.AGGREGATE_ID, MessageRecords.VERSION, unique = true),
+                requestIdIndex,
+                hashedIndex(MessageRecords.TENANT_ID),
+                hashedIndex(MessageRecords.OWNER_ID),
+            ),
+            forbiddenIndexes = forbiddenIndexes,
+        )
     }
 }

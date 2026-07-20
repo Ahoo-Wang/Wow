@@ -18,11 +18,10 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.ensureCollection
-import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
+import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCheckpointCollectionName
 import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.serialization.state.StateAggregateRecords
 
-class SnapshotSchemaInitializer(private val database: MongoDatabase) {
+class SnapshotCheckpointSchemaInitializer(private val database: MongoDatabase) {
     companion object {
         private val log = KotlinLogging.logger {}
     }
@@ -34,18 +33,20 @@ class SnapshotSchemaInitializer(private val database: MongoDatabase) {
     }
 
     fun initSchema(namedAggregate: NamedAggregate) {
-        val collectionName = namedAggregate.toSnapshotCollectionName()
+        val collectionName = namedAggregate.toSnapshotCheckpointCollectionName()
         log.info {
-            "Init NamedAggregate Schema [$namedAggregate] to Database:[${database.name}] CollectionName [$collectionName]"
+            "Init NamedAggregate checkpoint schema [$namedAggregate] to Database:[${database.name}] " +
+                "CollectionName [$collectionName]"
         }
         database.ensureCollection(collectionName)
-        val snapshotCollection = database.getCollection(collectionName)
-        snapshotCollection.reconcileIndexes(
+        database.getCollection(collectionName).reconcileIndexes(
             listOf(
-                hashedIndex(MessageRecords.TENANT_ID),
-                hashedIndex(MessageRecords.OWNER_ID),
-                hashedIndex(Documents.ID_FIELD),
-                hashedIndex(StateAggregateRecords.DELETED),
+                ascendingIndex(
+                    MessageRecords.TENANT_ID,
+                    MessageRecords.AGGREGATE_ID,
+                    MessageRecords.VERSION,
+                    unique = true,
+                ),
             ),
         )
     }

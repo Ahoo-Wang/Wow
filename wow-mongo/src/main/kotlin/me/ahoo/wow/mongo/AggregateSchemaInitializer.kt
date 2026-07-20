@@ -13,25 +13,23 @@
 
 package me.ahoo.wow.mongo
 
-import com.mongodb.client.model.IndexOptions
-import com.mongodb.client.model.Indexes
-import com.mongodb.reactivestreams.client.MongoCollection
+import com.mongodb.MongoException
 import com.mongodb.reactivestreams.client.MongoDatabase
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.infra.accessor.function.reactive.toBlockable
-import me.ahoo.wow.serialization.MessageRecords
-import org.bson.Document
 import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
 
+@Suppress("TooManyFunctions")
 object AggregateSchemaInitializer {
     private val log = KotlinLogging.logger {}
     const val AGGREGATE_ID_AND_VERSION_UNIQUE_INDEX_NAME = "aggregateId_1_version_1"
     const val REQUEST_ID_UNIQUE_INDEX_NAME = "requestId_1"
-    private val uniqueIndexOptions = IndexOptions().unique(true)
     private const val EVENT_STREAM_COLLECTION_SUFFIX = "_event_stream"
     private const val SNAPSHOT_COLLECTION_SUFFIX = "_snapshot"
+    private const val SNAPSHOT_CHECKPOINT_COLLECTION_SUFFIX = "_snapshot_checkpoint"
+
     fun NamedAggregate.toEventStreamCollectionName(): String {
         return "${this.aggregateName}$EVENT_STREAM_COLLECTION_SUFFIX"
     }
@@ -40,52 +38,38 @@ object AggregateSchemaInitializer {
         return "${this.aggregateName}$SNAPSHOT_COLLECTION_SUFFIX"
     }
 
+    fun NamedAggregate.toSnapshotCheckpointCollectionName(): String {
+        return "${this.aggregateName}$SNAPSHOT_CHECKPOINT_COLLECTION_SUFFIX"
+    }
+
     fun MongoDatabase.ensureCollection(collectionName: String): Boolean {
         listCollectionNames().toFlux().collectList().toBlockable().block()!!.let {
             if (it.contains(collectionName)) {
                 log.info {
-                    "Ensure Collection [$collectionName already exists,ignore create."
+                    "Ensure Collection [$collectionName] already exists, ignore create."
                 }
                 return false
             }
             log.info {
                 "Ensure Collection [$collectionName] Creating."
             }
-            this.createCollection(collectionName).toMono().block()
+            try {
+                this.createCollection(collectionName).toMono().block()
+            } catch (error: MongoException) {
+                if (error.code != NAMESPACE_EXISTS_CODE) {
+                    throw error
+                }
+                log.info {
+                    "Collection [$collectionName] was created concurrently, continue initialization."
+                }
+                return false
+            }
             log.info {
-                "Ensure Collection [$collectionName] Creating."
+                "Collection [$collectionName] created."
             }
             return true
         }
     }
 
-    fun MongoCollection<Document>.createAggregateIdIndex() {
-        createIndex(Indexes.hashed(MessageRecords.AGGREGATE_ID))
-            .toMono().toBlockable().block()
-    }
-
-    fun MongoCollection<Document>.createAggregateIdAndVersionUniqueIndex() {
-        createIndex(Indexes.ascending(MessageRecords.AGGREGATE_ID, MessageRecords.VERSION), uniqueIndexOptions)
-            .toMono().toBlockable().block()
-    }
-
-    fun MongoCollection<Document>.createRequestIdUniqueIndex() {
-        createIndex(Indexes.ascending(MessageRecords.REQUEST_ID), uniqueIndexOptions)
-            .toMono().toBlockable().block()
-    }
-
-    fun MongoCollection<Document>.createAggregateIdAndRequestIdUniqueIndex() {
-        createIndex(Indexes.ascending(MessageRecords.AGGREGATE_ID, MessageRecords.REQUEST_ID), uniqueIndexOptions)
-            .toMono().toBlockable().block()
-    }
-
-    fun MongoCollection<Document>.createTenantIdIndex() {
-        createIndex(Indexes.hashed(MessageRecords.TENANT_ID))
-            .toMono().toBlockable().block()
-    }
-
-    fun MongoCollection<Document>.createOwnerIdIndex() {
-        createIndex(Indexes.hashed(MessageRecords.OWNER_ID))
-            .toMono().toBlockable().block()
-    }
+    private const val NAMESPACE_EXISTS_CODE = 48
 }

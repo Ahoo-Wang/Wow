@@ -21,6 +21,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 abstract class SchemaInitializerSpec {
     @JvmField
@@ -35,6 +38,8 @@ abstract class SchemaInitializerSpec {
     abstract fun initAllAggregateSchema(database: MongoDatabase)
     abstract fun initAggregateSchema(database: MongoDatabase, namedAggregate: NamedAggregate)
     abstract fun getCollectionName(namedAggregate: NamedAggregate): String
+    abstract fun getExpectedIndexNames(): Set<String>
+    open fun getExpectedUniqueIndexNames(): Set<String> = emptySet()
 
     @Test
     fun `should initialize aggregate schema`() {
@@ -48,5 +53,54 @@ abstract class SchemaInitializerSpec {
             it.assert().contains(collectionName)
         }
         database.getCollection(collectionName).drop().toMono().block()
+    }
+
+    @Test
+    fun `should reconcile indexes for existing collection`() {
+        val database = mongo.database()
+        val namedAggregate = me.ahoo.wow.modeling.MaterializedNamedAggregate("", "testReconcileSchema")
+        val collectionName = getCollectionName(namedAggregate)
+        val collection = database.getCollection(collectionName)
+        collection.drop().toMono().block()
+        database.createCollection(collectionName).toMono().block()
+
+        initAggregateSchema(database, namedAggregate)
+        initAggregateSchema(database, namedAggregate)
+
+        collection.listIndexes().toFlux().collectList().block()!!.let { indexes ->
+            val indexesByName = indexes.associateBy { it.getString("name") }
+            indexesByName.keys.containsAll(getExpectedIndexNames()).assert().isTrue()
+            getExpectedUniqueIndexNames().all { indexName ->
+                indexesByName[indexName]?.getBoolean("unique", false) == true
+            }.assert().isTrue()
+        }
+        collection.drop().toMono().block()
+    }
+
+    @Test
+    fun `should initialize aggregate schema concurrently`() {
+        val database = mongo.database()
+        val namedAggregate = me.ahoo.wow.modeling.MaterializedNamedAggregate("", "testConcurrentInitSchema")
+        val collectionName = getCollectionName(namedAggregate)
+        database.getCollection(collectionName).drop().toMono().block()
+        val executor = Executors.newFixedThreadPool(2)
+        val start = CountDownLatch(1)
+        try {
+            val initializations = List(2) {
+                executor.submit<Result<Unit>> {
+                    start.await()
+                    runCatching {
+                        initAggregateSchema(database, namedAggregate)
+                    }
+                }
+            }
+            start.countDown()
+            initializations.forEach { initialization ->
+                initialization.get(10, TimeUnit.SECONDS).getOrThrow()
+            }
+        } finally {
+            executor.shutdownNow()
+            database.getCollection(collectionName).drop().toMono().block()
+        }
     }
 }

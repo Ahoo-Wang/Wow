@@ -17,6 +17,7 @@ import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import me.ahoo.wow.eventsourcing.snapshot.VersionedSnapshotStore
 import reactor.core.publisher.Mono
 
 /**
@@ -29,7 +30,7 @@ import reactor.core.publisher.Mono
 class MetricSnapshotStore(
     delegate: SnapshotStore
 ) : AbstractMetricDecorator<SnapshotStore>(delegate),
-    SnapshotStore {
+    VersionedSnapshotStore {
     /**
      * The name of the snapshot store.
      * This delegates to the underlying snapshot store implementation.
@@ -83,4 +84,33 @@ class MetricSnapshotStore(
             .tagSource()
             .tag(Metrics.AGGREGATE_KEY, snapshot.aggregateId.aggregateName)
             .metrics()
+
+    override fun <S : Any> loadAtOrBefore(
+        aggregateId: AggregateId,
+        maxVersion: Int,
+    ): Mono<Snapshot<S>> {
+        val source = if (delegate is VersionedSnapshotStore) {
+            delegate.loadAtOrBefore<S>(aggregateId, maxVersion)
+        } else {
+            delegate.load<S>(aggregateId).filter { snapshot -> snapshot.version <= maxVersion }
+        }
+        return source
+            .name(Wow.WOW_PREFIX + "snapshot.checkpoint.load")
+            .tagSource()
+            .tag(Metrics.AGGREGATE_KEY, aggregateId.aggregateName)
+            .metrics()
+    }
+
+    override fun <S : Any> saveCheckpoint(snapshot: Snapshot<S>): Mono<Void> {
+        return Mono.defer {
+            check(delegate is VersionedSnapshotStore) {
+                "Snapshot store [${delegate.name}] does not support historical checkpoints."
+            }
+            delegate.saveCheckpoint(snapshot)
+        }
+            .name(Wow.WOW_PREFIX + "snapshot.checkpoint.save")
+            .tagSource()
+            .tag(Metrics.AGGREGATE_KEY, snapshot.aggregateId.aggregateName)
+            .metrics()
+    }
 }

@@ -109,7 +109,20 @@ interface SnapshotStore : Named {
     fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void>
     fun getVersion(aggregateId: AggregateId): Mono<Int>
 }
+
+interface VersionedSnapshotStore : SnapshotStore {
+    fun <S : Any> loadAtOrBefore(
+        aggregateId: AggregateId,
+        maxVersion: Int
+    ): Mono<Snapshot<S>>
+
+    fun <S : Any> saveCheckpoint(snapshot: Snapshot<S>): Mono<Void>
+}
 ```
+
+`SnapshotStore.save()` 仍只维护最新快照。`VersionedSnapshotStore` 在不改变该契约的前提下增加不可变
+历史 checkpoint：读取不大于目标版本的最大 checkpoint。相同 aggregate/version 的重复写入采用
+first-wins，存储错误会继续向上传播。
 
 ### 内存实现
 
@@ -152,13 +165,21 @@ wow:
       enabled: true  # 是否启用快照
       strategy: all  # 快照策略 (all, version_offset)
       version-offset: 5  # 版本偏移（仅对 version_offset 策略有效）
+      checkpoint:
+        enabled: false  # 默认关闭，先评估存储增长
+        version-interval: 100
 ```
 
 | 属性 | 默认值 | 描述 |
 |----------|---------|-------------|
-| `wow.snapshot.enabled` | `false` | 启用快照存储 |
-| `wow.snapshot.interval` | `100` | 创建新快照前的事件数 |
-| `wow.snapshot.store.type` | 事件存储后端 | 快照存储后端 |
+| `wow.eventsourcing.snapshot.enabled` | `true` | 启用最新快照 |
+| `wow.eventsourcing.snapshot.checkpoint.enabled` | `false` | 启用不可变历史 checkpoint |
+| `wow.eventsourcing.snapshot.checkpoint.version-interval` | `100` | checkpoint 版本间隔 |
+
+启用后只会从新产生的匹配版本开始积累 checkpoint，不会自动回填旧历史。回滚只需关闭
+`checkpoint.enabled`。MongoDB 将 checkpoint 存放在独立的
+`<aggregate>_snapshot_checkpoint` sidecar。
+
 
 ## 聚合加载优化
 
