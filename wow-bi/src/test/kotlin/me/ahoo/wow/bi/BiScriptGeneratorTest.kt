@@ -86,6 +86,18 @@ class BiScriptGeneratorTest {
     }
 
     @Test
+    fun `bootstrap registry creation should be retryable before its first head is written`() {
+        val options = BiScriptOptions(consumerGroupNamespace = "test")
+        val registryName = BiOwnershipRegistry.empty(
+            BiDeploymentDescriptor.from(options).deploymentId
+        ).name
+
+        generator(options).generate(setOf(aggregate)).script.assert().contains(
+            "CREATE TABLE IF NOT EXISTS \"${options.consumerDatabase}\".\"$registryName\""
+        )
+    }
+
+    @Test
     fun `should match complete scripts for every topology`() {
         val clusterScript = generator().generate(setOf(aggregate)).script
         val standaloneScript = BiScriptGenerator(
@@ -274,7 +286,11 @@ class BiScriptGeneratorTest {
         result.diagnostics.single { it.code == BiScriptDiagnosticCode.INSPECTION_UNAVAILABLE }
             .decision.assert().isEqualTo(BiScriptMappingDecision.RECONCILIATION_SKIPPED)
         result.script.assert().contains("__wow_bi_deployment", "wow-bi:")
-        result.statements.drop(2).joinToString("\n").assert()
+        result.statements
+            .drop(2)
+            .filterNot { it.contains("__wow_bi_registry_") }
+            .joinToString("\n")
+            .assert()
             .doesNotContain("DROP ", "CREATE OR REPLACE", "IF NOT EXISTS")
             .contains(
                 "CREATE TABLE \"bi_db\".\"bi_aggregate_command_store_local\"",

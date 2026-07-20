@@ -64,7 +64,6 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
             ClickHouseOwnershipRegistryRenderer(
                 options = options,
                 deploymentId = descriptor.deploymentId,
-                createIfNotExists = observed != null,
             )
         }
         val renderedAggregates = plannedAggregates.map { planned ->

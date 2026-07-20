@@ -4,7 +4,7 @@ CREATE DATABASE IF NOT EXISTS "bi_db" ON CLUSTER '{cluster}';
 CREATE DATABASE IF NOT EXISTS "bi_db_consumer" ON CLUSTER '{cluster}';
 -- global --
 -- ownership-registry --
-CREATE TABLE "bi_db_consumer"."__wow_bi_registry_82ea723bc0a7d5fe1a1f3dfcfd696fd4" ON CLUSTER '{cluster}'
+CREATE TABLE IF NOT EXISTS "bi_db_consumer"."__wow_bi_registry_82ea723bc0a7d5fe1a1f3dfcfd696fd4" ON CLUSTER '{cluster}'
 (
     "deployment_id" FixedString(32),
     "row_kind" LowCardinality(String),

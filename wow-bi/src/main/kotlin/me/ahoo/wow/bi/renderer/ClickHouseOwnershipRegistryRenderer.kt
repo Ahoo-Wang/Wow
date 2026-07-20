@@ -29,7 +29,6 @@ import me.ahoo.wow.bi.snapshotFingerprint
 internal class ClickHouseOwnershipRegistryRenderer(
     private val options: BiScriptOptions,
     private val deploymentId: String,
-    private val createIfNotExists: Boolean = true,
 ) {
     init {
         require(DEPLOYMENT_ID_PATTERN.matches(deploymentId)) {
@@ -39,9 +38,8 @@ internal class ClickHouseOwnershipRegistryRenderer(
 
     fun renderCreateStatements(registryName: String): List<String> {
         val comment = literal("$REGISTRY_COMMENT_PREFIX$deploymentId")
-        val ifNotExists = if (createIfNotExists) " IF NOT EXISTS" else ""
         val create = """
-            CREATE TABLE$ifNotExists ${qualified(options.consumerDatabase, registryName)}${scopeClause()}
+            CREATE TABLE IF NOT EXISTS ${qualified(options.consumerDatabase, registryName)}${scopeClause()}
             (
                 ${identifier("deployment_id")} FixedString(32),
                 ${identifier("row_kind")} LowCardinality(String),
