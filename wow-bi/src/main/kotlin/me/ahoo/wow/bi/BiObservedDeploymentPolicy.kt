@@ -134,10 +134,15 @@ internal class BiObservedDeploymentPolicy(private val options: BiScriptOptions) 
                 require(observed.engine == desired.expectedEngine) {
                     "BI deployment anchor [${observed.database}.${observed.name}] must use the View engine"
                 }
-            } else {
+            } else if (operation == BiScriptOperation.Deploy) {
                 require(observed.engine == desired.expectedEngine) {
                     "BI object [${observed.database}.${observed.name}] has incompatible engine " +
                         "[${observed.engine}]; expected engine [${desired.expectedEngine}]"
+                }
+            } else {
+                require(desired.kind.acceptsEngine(observed.engine, allowStoreDrift = true)) {
+                    "BI object [${observed.database}.${observed.name}] kind [${desired.kind}] has incompatible " +
+                        "engine [${observed.engine}] for RESET"
                 }
             }
         } else if (metadata?.deploymentId == descriptor.deploymentId) {
@@ -153,12 +158,17 @@ internal class BiObservedDeploymentPolicy(private val options: BiScriptOptions) 
         }
     }
 
-    private fun BiObjectKind.acceptsEngine(engine: String): Boolean = when (this) {
+    private fun BiObjectKind.acceptsEngine(
+        engine: String,
+        allowStoreDrift: Boolean = false,
+    ): Boolean = when (this) {
         BiObjectKind.ANCHOR,
         BiObjectKind.VIEW,
         -> engine == "View"
 
-        BiObjectKind.STORE -> engine in STORE_ENGINES
+        BiObjectKind.STORE ->
+            if (allowStoreDrift) engine !in VIEW_ENGINES && engine != "Kafka" else engine in STORE_ENGINES
+
         BiObjectKind.QUEUE -> engine == "Kafka"
         BiObjectKind.CONSUMER -> engine == "MaterializedView"
     }
@@ -172,5 +182,6 @@ internal class BiObservedDeploymentPolicy(private val options: BiScriptOptions) 
             "ReplicatedReplacingMergeTree",
             "Distributed",
         )
+        val VIEW_ENGINES: Set<String> = setOf("View", "MaterializedView")
     }
 }

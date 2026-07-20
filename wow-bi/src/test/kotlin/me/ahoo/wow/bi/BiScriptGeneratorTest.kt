@@ -450,6 +450,53 @@ class BiScriptGeneratorTest {
             inspection,
         )
 
+        val objectDrop = result.script.indexOf(
+            "DROP TABLE IF EXISTS \"${key.database}\".\"${key.name}\""
+        )
+        val registryDrop = result.script.indexOf(
+            "DROP TABLE IF EXISTS \"${options.consumerDatabase}\".\"${registry.name}\""
+        )
+        objectDrop.assert().isGreaterThanOrEqualTo(0)
+        objectDrop.assert().isLessThan(registryDrop)
+    }
+
+    @Test
+    fun `should reconcile registry owned stale objects whose catalog comment is missing during deploy`() {
+        val options = BiScriptOptions(consumerGroupNamespace = "test")
+        val descriptor = BiDeploymentDescriptor.from(options)
+        val identity = BiConsumerIdentity.deterministic(descriptor)
+        val key = BiObjectKey(options.consumerDatabase, "bi_sibling_command_queue")
+        val registry = BiOwnershipRegistry.empty(descriptor.deploymentId)
+            .beginCreate(
+                BiOwnershipRegistration(
+                    key = key,
+                    kind = BiObjectKind.QUEUE,
+                    aggregate = "bi-service.sibling",
+                    consumerIdentity = identity.value,
+                    definitionFingerprint = "a".repeat(32),
+                )
+            ).markMutationVerified(key)
+        val inspection = BiDeploymentInspection.Available.reconciled(
+            deployment = ObservedBiDeployment(
+                listOf(
+                    anchor(options = options, identity = identity),
+                    ObservedBiObject(
+                        database = key.database,
+                        name = key.name,
+                        engine = "Kafka",
+                    ),
+                )
+            ),
+            repairableComputedDrifts = emptyList(),
+            ownershipRegistry = registry,
+        )
+
+        val result = generator(options).generate(
+            setOf(aggregate),
+            BiScriptOperation.Deploy,
+            inspection,
+        )
+
         result.script.assert().contains(
             "DROP TABLE IF EXISTS \"${key.database}\".\"${key.name}\""
         )
@@ -725,6 +772,26 @@ class BiScriptGeneratorTest {
                 availableInspection(distributedStoreUsingLocalEngine),
             )
         }.message.assert().contains("expected engine", "Distributed")
+    }
+
+    @Test
+    fun `should let reset repair a desired store engine drift`() {
+        val driftedStore = observed(
+            database = "bi_db",
+            name = "bi_aggregate_command_store",
+            kind = BiObjectKind.STORE,
+            aggregate = "bi.aggregate",
+        ).copy(engine = "MergeTree")
+
+        val result = generator().generate(
+            setOf(aggregate),
+            BiScriptOperation.Reset(true),
+            availableInspection(anchor(), driftedStore),
+        )
+
+        result.script.assert().contains(
+            "DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_command_store\""
+        )
     }
 
     @Test

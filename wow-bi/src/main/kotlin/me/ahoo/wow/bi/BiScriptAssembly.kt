@@ -152,7 +152,8 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
                 ingressSections +
                 listOfNotNull(registryConfirmationSection, anchorSection)
         } else {
-            listOf(globalSection) + listOfNotNull(resetIntentSection, resetRegistrySection) + lifecycleSections +
+            listOf(globalSection) + listOfNotNull(resetIntentSection) + lifecycleSections +
+                listOfNotNull(resetRegistrySection) +
                 durableAggregateSections + listOfNotNull(anchorSection) + ingressSections
         }
         val statements = Collections.unmodifiableList(ArrayList(orderedSections.flatMap(ScriptSection::statements)))
@@ -162,8 +163,8 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
             registryIntentSection?.let { section -> appendSection(section) }
             appendLine("-- lifecycle --")
             resetIntentSection?.let { section -> appendSection(section) }
-            resetRegistrySection?.let { section -> appendSection(section) }
             lifecycleSections.forEach { section -> appendSection(section) }
+            resetRegistrySection?.let { section -> appendSection(section) }
             appendLine("-- lifecycle --")
             durableAggregateSections.forEach { section -> appendSection(section) }
             if (operation == BiScriptOperation.Deploy) {
@@ -255,14 +256,16 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
                         }
                     }
                     val desiredKeys = desiredObjects.map(DesiredBiObject::key).toSet()
-                    val staleObjects = observed?.let { deployment -> observedPolicy.ownedBy(deployment, descriptor) }
+                    val staleObjects = observed?.let { deployment ->
+                        resolveOwnedCatalogObjects(deployment, descriptor, ownershipRegistry)
+                    }
                         .orEmpty()
-                        .filter { it.key !in desiredKeys && it.metadata?.kind != BiObjectKind.STORE }
+                        .filter { it.key !in desiredKeys && it.kind != BiObjectKind.STORE }
                     if (staleObjects.isNotEmpty()) {
                         add(
                             ScriptSection(
                                 "reconcile-observed-catalog",
-                                renderer.renderDropObservedStatements(staleObjects),
+                                renderer.renderDropOwnedStatements(staleObjects),
                             )
                         )
                     }
@@ -273,7 +276,7 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
                         options.consumerDatabase,
                         ClickHouseScriptRenderer.DEPLOYMENT_ANCHOR,
                     )
-                    val ownedObjects = resolveResetOwnedObjects(
+                    val ownedObjects = resolveOwnedCatalogObjects(
                         deployment = checkNotNull(observed),
                         descriptor = descriptor,
                         ownershipRegistry = ownershipRegistry,
@@ -292,7 +295,7 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
         }
     }
 
-    private fun resolveResetOwnedObjects(
+    private fun resolveOwnedCatalogObjects(
         deployment: ObservedBiDeployment,
         descriptor: BiDeploymentDescriptor,
         ownershipRegistry: BiOwnershipRegistry?,

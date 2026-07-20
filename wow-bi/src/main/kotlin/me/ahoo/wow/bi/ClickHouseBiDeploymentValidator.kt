@@ -85,7 +85,12 @@ internal object ClickHouseBiDeploymentValidator {
                     operation == BiScriptOperation.Deploy &&
                         deploymentStable &&
                         queue.observed.metadata?.deploymentId == descriptor.deploymentId
-                validateQueueIdentity(options, queue.observed, validateRequestedConfiguration)
+                validateQueueIdentity(
+                    options = options,
+                    queue = queue.observed,
+                    validateConsumerGroup = operation == BiScriptOperation.Deploy,
+                    validateRequestedConfiguration = validateRequestedConfiguration,
+                )
             }
     }
 
@@ -154,6 +159,7 @@ internal object ClickHouseBiDeploymentValidator {
     private fun validateQueueIdentity(
         options: BiScriptOptions,
         queue: ObservedBiObject,
+        validateConsumerGroup: Boolean,
         validateRequestedConfiguration: Boolean,
     ) {
         check(queue.engine == "Kafka") {
@@ -167,8 +173,10 @@ internal object ClickHouseBiDeploymentValidator {
         val expectedGroup = "wow-bi.$identity.$consumerName"
         val arguments = queue.engineFull.functionArguments("Kafka").orEmpty()
         val actualGroup = arguments.getOrNull(KAFKA_GROUP_ARGUMENT_INDEX)
-        check(actualGroup == ClickHouseSqlSyntax.stringLiteral(expectedGroup)) {
-            "Owned BI queue [${queue.database}.${queue.name}] has an unexpected Kafka consumer group"
+        if (validateConsumerGroup) {
+            check(actualGroup == ClickHouseSqlSyntax.stringLiteral(expectedGroup)) {
+                "Owned BI queue [${queue.database}.${queue.name}] has an unexpected Kafka consumer group"
+            }
         }
         val streamKind = when {
             queue.name.endsWith("_command_queue") -> "command"

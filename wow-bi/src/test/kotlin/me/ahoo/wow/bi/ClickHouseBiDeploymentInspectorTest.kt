@@ -1170,38 +1170,55 @@ class ClickHouseBiDeploymentInspectorTest {
     }
 
     @Test
-    fun `should keep reset inspection strict for queue ownership identity and format`() {
+    fun `should allow reset to repair Kafka consumer group drift`() {
         val identity = BiConsumerIdentity.deterministic(DESCRIPTOR)
-        val expectedGroup = "wow-bi.${identity.value}.example_order_command_consumer"
-        val invalidDefinitions = listOf(
-            "Kafka('localhost:9093', 'wow.example.order.command', 'wrong-group', 'JSONAsString')" to
-                "unexpected Kafka consumer group",
-            "Kafka('localhost:9093', 'wow.example.order.command', '$expectedGroup', 'JSONEachRow')" to
-                "unexpected Kafka format",
-        )
-
-        invalidDefinitions.forEach { (engineFull, expectedMessage) ->
-            val inspector = ClickHouseBiDeploymentInspector(
-                StubClickHouseCatalogClient(
-                    records(
-                        catalogRecord(
-                            database = OPTIONS.consumerDatabase,
-                            name = "example_order_command_queue",
-                            engine = "Kafka",
-                            engineFull = engineFull,
-                            comment = queueComment(identity.value),
-                        )
+        val driftedEngine =
+            "Kafka('localhost:9093', 'wow.example.order.command', 'wrong-group', 'JSONAsString')"
+        val inspector = ClickHouseBiDeploymentInspector(
+            StubClickHouseCatalogClient(
+                records(
+                    catalogRecord(
+                        database = OPTIONS.consumerDatabase,
+                        name = "example_order_command_queue",
+                        engine = "Kafka",
+                        engineFull = driftedEngine,
+                        comment = queueComment(identity.value),
                     )
                 )
             )
+        )
 
-            inspector.inspect(OPTIONS, BiScriptOperation.Reset(true)).test()
-                .expectErrorMatches {
-                    it is BiDeploymentInspectionException.Inconsistent &&
-                        it.message!!.contains(expectedMessage)
-                }
-                .verify()
-        }
+        inspector.inspect(OPTIONS, BiScriptOperation.Reset(true)).test()
+            .expectNextCount(1)
+            .verifyComplete()
+    }
+
+    @Test
+    fun `should keep reset inspection strict for the Kafka format`() {
+        val identity = BiConsumerIdentity.deterministic(DESCRIPTOR)
+        val expectedGroup = "wow-bi.${identity.value}.example_order_command_consumer"
+        val invalidEngine =
+            "Kafka('localhost:9093', 'wow.example.order.command', '$expectedGroup', 'JSONEachRow')"
+        val inspector = ClickHouseBiDeploymentInspector(
+            StubClickHouseCatalogClient(
+                records(
+                    catalogRecord(
+                        database = OPTIONS.consumerDatabase,
+                        name = "example_order_command_queue",
+                        engine = "Kafka",
+                        engineFull = invalidEngine,
+                        comment = queueComment(identity.value),
+                    )
+                )
+            )
+        )
+
+        inspector.inspect(OPTIONS, BiScriptOperation.Reset(true)).test()
+            .expectErrorMatches {
+                it is BiDeploymentInspectionException.Inconsistent &&
+                    it.message!!.contains("unexpected Kafka format")
+            }
+            .verify()
     }
 
     @Test
