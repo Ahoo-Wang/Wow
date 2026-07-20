@@ -40,13 +40,13 @@ val sql: String = result.script
 val diagnostics: List<BiScriptDiagnostic> = result.diagnostics
 ```
 
-公开契约还包含 `BiScriptOperation`、`BiDeploymentInspector`、`BiDeploymentInspection`、`ObservedBiDeployment` 与 `KafkaOffsetStorage`。调用方不再保存或提交 manifest；`Deploy` 根据 ClickHouse catalog 中的 ownership marker 对账，`Reset` 是唯一会删除数据表的操作，并要求明确确认新 Kafka group 会从 earliest 重放。
+公开契约还包含 `BiScriptOperation`、`BiDeploymentInspector`、`BiDeploymentInspection`、`ObservedBiDeployment` 与 `KafkaOffsetStorage`。调用方不再保存或提交 manifest；`Deploy` 根据 ClickHouse catalog 中的 ownership marker 对账。`Reset` 是唯一的破坏性操作，用于重建当前布局。
 
 `BiScriptResult` 包含：
 
 | 字段 | 含义 |
 |------|------|
-| `script` | 完整 ClickHouse 部署 SQL；`Deploy` 保留数据表，`Reset` 才包含破坏性清理。 |
+| `script` | 完整 ClickHouse 部署 SQL；`Deploy` 保留数据表，`Reset` 包含破坏性清理。 |
 | `diagnostics` | 按聚合和属性路径稳定排序的不可变诊断列表。 |
 | `destructive` | 生成的操作是否删除数据表。 |
 
@@ -64,7 +64,14 @@ val diagnostics: List<BiScriptDiagnostic> = result.diagnostics
 
 ### HTTP 路由
 
-Spring WebFlux 路由及其 Swagger/OpenAPI operation 默认开启。启用本身不会增加鉴权，因此应用安全策略必须保护该管理端点；配置 `wow.bi.script.enabled=false` 会同时移除二者。`DEPLOY` 生成 Kafka consumer 时，以及所有 `RESET`（包括空聚合作用域），都必须配置部署唯一的 `wow.bi.script.consumer-group-namespace`；缺少配置时请求返回 `400`，不会阻止应用启动。未配置 namespace 的空 `DEPLOY` 不会创建 anchor；配置后，空作用域也会获得可供后续聚合复用的持久部署身份。禁用时 Starter 不构造或校验 BI 生成选项和 inspector。该路由使用同一个 `BiScriptOptions`：
+Spring WebFlux 路由及其 Swagger/OpenAPI operation 默认开启；配置 `wow.bi.script.enabled=false`
+会同时移除二者。该默认值以“服务仅通过安全网关暴露”为部署前提：Starter 本身不增加鉴权，该路由与主应用
+共用端口和 WebFlux filter chain，因此网关必须限制 `/wow/bi/script`。不满足此前提的环境必须显式关闭路由。
+`DEPLOY` 生成 Kafka consumer 时，以及所有
+`RESET`（包括空聚合作用域），都必须配置部署唯一的 `wow.bi.script.consumer-group-namespace`；缺少配置时请求
+返回 `400`，不会阻止应用启动。未配置 namespace 的空 `DEPLOY` 不会创建 anchor；配置后，空作用域也会获得
+可供后续聚合复用的持久部署身份。禁用时 Starter 不构造或校验 BI 生成选项和 inspector。该路由使用同一个
+`BiScriptOptions`：
 
 ```yaml
 wow:
@@ -113,18 +120,29 @@ JSON 请求体必填。`{}` 保持服务端 `BiScriptOptions` 不变；非 `null
 
 Starter 默认注入 `NoOpBiDeploymentInspector`。它返回显式 `Unavailable`：普通 `DEPLOY` 仅适合首次部署或离线预览，同时会产生 `INSPECTION_UNAVAILABLE` 诊断；它无法清理旧对象，也无法恢复 `RESET` 创建的 consumer identity，配置变化还可能选择新的 consumer group。`RESET` 会被拒绝。需要完整对账时，配置 `wow.bi.script.inspector.type=CLICKHOUSE` 及 `inspector.clickhouse.endpoints`，即可启用 ClickHouse 官方 Java `client-v2` 实现。真实 inspector 查询失败会直接传播错误，不会降级为 NoOp；选择 `CLICKHOUSE` 但缺少 client-v2 类时应用启动失败。自定义 `BiDeploymentInspector` Bean 仍具有最高优先级。
 
+生产请求链会把同一份 immutable preparation 依次交给 ClickHouse inspection 与最终 renderer。对稳定 deployment，inspector 会用 renderer 共享的 query manifest 核验每个目标 View 和 consumer materialized view：在 ClickHouse 端以 `formatQuerySingleLineOrNull` 规范化 SELECT body，从 `system.tables.as_select` 读取真实查询，并单独校验 materialized view 的精确 `TO` target。发现差异时返回 `COMPUTED_OBJECT_DRIFT`，但仍保持 inspection 可用，使生成的 `DEPLOY` 能完成修复：ownership registry 先持久化 `PENDING_UPDATE` 的新定义指纹；普通 View 使用 `CREATE OR REPLACE`，consumer materialized view 会先暂停再重建；确认成功后 registry 转为 `ACTIVE`，而 store 与 Kafka queue identity 保持不变。持久 store 或 queue 的契约漂移仍然 fail-closed，必须执行 `RESET`。
+
 如需有意重建全部 BI 数据，请发送 `operation=RESET` 与 `replayFromEarliestConfirmed=true`。Reset 还要求配置 `consumerGroupNamespace`，以便在 canonical anchor 中持久化恢复状态。只有可用 inspector 能从 ClickHouse catalog 枚举全部 owned 对象。每个生成对象和零行 deployment anchor 都把协议/布局版本、deployment phase、fingerprint、聚合 owner、对象类型和 identity 写入 `system.tables.comment`；服务重启后直接从 catalog 恢复，不依赖 Wow 服务内存或外部 manifest。
 
-元数据协议 v2 使 Reset 能从进程或 SQL 客户端中断中恢复。生成语句必须按顺序执行，并且执行器必须在首个错误处停止：
+Inspector 会先核验 ownership registry 自身的 engine、复制路径、排序键、comment 和完整列结构，再读取其中的 HEAD/OBJECT 状态。普通 `DEPLOY` 仍会拒绝 registry 引用的 `ACTIVE/RETIRED` 对象缺失或 `TOMBSTONE` 对象残留；已确认的 `RESET` 将这些情况视为可恢复物理漂移，保留 registry 中的精确归属范围并生成完整清理与重建 SQL。
+
+当前元数据协议使 Reset 能从进程或 SQL 客户端中断中恢复。生成语句必须按顺序执行，并且执行器必须在首个错误处停止：
 
 1. 先把 canonical anchor 写为 `RESETTING`，并记录新的 consumer identity。
-2. 保留该 anchor，删除其余全部 owned 对象并重建持久表/视图图。
+2. 保留该 anchor，删除旧 ownership registry，再删除其余 owned 对象并重建持久表/视图图。
 3. 把 anchor 替换为 `STABLE`。
 4. 最后创建 Kafka queue 表和 Kafka consumer 物化视图。
 
-执行中断后绝不能盲目重放原 SQL 文件，必须重新 inspection，并根据 catalog 当前 phase 重新生成。如果 anchor 是 `RESETTING`，应使用相同配置重新生成 `RESET`；生成器会复用已记录的 identity，而 `DEPLOY` 会被拒绝。如果 anchor 已是 `STABLE`、但 Kafka ingress 尚未完成，应生成 `DEPLOY` 补齐。重放已完成的 Reset 可能先删除重建数据、却继续复用已经提交 offset 的 Kafka identity；进入 `STABLE` 后重新生成 Reset 则会有意开启新的 reset epoch 和 identity。协议 v2 会有意拒绝 v1 ownership marker；采用 v2 前必须停止旧 consumer，并显式清理或重建旧范围。外部协调必须保证整个 BI 物理对象命名空间只有一个写者，而不只是每个 `deploymentId` 一个写者；共享数据库和规范化对象名的 deployment 仍可能在 inspection 后发生竞争。ClickHouse `ON CLUSTER` DDL 不是跨副本事务，副本分歧仍是 fail-closed 的运维恢复场景。
+在 `RESETTING` anchor 之后删除旧 registry 是有意设计：旧 `ACTIVE` 条目不能在中断恢复检查时拒绝
+暂时不存在的对象。下一次 authoritative `DEPLOY` 会根据重建后的 catalog 引导生成新的 exact
+registry；该 Deploy 完成前，inspection 使用显式的“无 registry bootstrap”路径，而不会继续信任
+Reset 前的过期快照。
+
+执行中断后绝不能盲目重放原 SQL 文件，必须重新 inspection，并根据 catalog 当前 phase 重新生成。如果 anchor 是 `RESETTING`，应使用相同配置重新生成 `RESET`；生成器会复用已记录的 identity，而 `DEPLOY` 会被拒绝。如果 anchor 已是 `STABLE`、但 Kafka ingress 尚未完成，应生成 `DEPLOY` 补齐。重放已完成的 Reset 可能先删除重建数据、却继续复用已经提交 offset 的 Kafka identity；进入 `STABLE` 后重新生成 Reset 则会有意创建新的 reset identity。旧 BI 布局的 metadata 与 ownership registry 会被拒绝，不会被解释或迁移；升级时必须停止旧 consumer，删除或归档旧 BI 数据库，再部署干净的当前布局。外部协调必须保证整个 BI 物理对象命名空间只有一个写者，而不只是每个 `deploymentId` 一个写者；共享数据库和规范化对象名的 deployment 仍可能在 inspection 后发生竞争。ClickHouse `ON CLUSTER` DDL 不是跨副本事务，副本分歧仍是 fail-closed 的运维恢复场景。
 
 `DEPLOY` 与 `RESET` 只对账当前物理归属范围，不迁移 `database`、`consumerDatabase`、`consumerGroupNamespace`、拓扑模式、cluster name 或 installation。可见的 topology fingerprint 漂移会被拒绝；范围变化可能使旧对象不可发现，因此必须先停止旧 consumer、显式清理旧范围，再部署新范围。
+
+生产发布、操作选择、中断恢复、验收与回滚步骤参见 [BI 部署与恢复](./bi-operations)。
 
 ## 生成的 SQL 契约
 
@@ -239,21 +257,22 @@ SELECT "events".1 AS "event_sequence",
 
 顶层 `state` 使用相同的 header 屏蔽词法提取，避免 header 中名为 `state` 的嵌套字段替换权威状态 token。
 
-可写状态存储按 `create_time` 月分区，以 `(aggregate_id, version)` 排序。该排序键依赖 Wow 的聚合标识契约：在同一个命名聚合范围内，`aggregate_id` 必须跨所有租户保持唯一，`tenant_id` 不是可复用聚合 ID 的命名空间。独立模式写入 `example_order_state_store`；集群模式通过分布式 store 写入 `example_order_state_store_local`。`example_order_state` 始终是去重读取视图。
+可写状态存储按 `create_time` 月分区，以 `(tenant_id, aggregate_id, version)` 排序。`tenant_id` 是聚合 ID 的命名空间，因此不同租户可以复用相同的 `aggregate_id` 而不会发生冲突。集群模式下，状态与最新状态存储都使用 `sipHash64(tenant_id, aggregate_id)` 分片。独立模式写入 `example_order_state_store`；集群模式通过分布式 store 写入 `example_order_state_store_local`。`example_order_state` 始终是去重读取视图。
 
 ### 最新状态
 
-最新状态存储从状态 store 接收全部列，并按首次事件时间分区。其 `ORDER BY aggregate_id` 同样要求聚合 ID 在命名聚合范围内跨租户保持唯一。`example_order_state_last` 是始终执行 `FINAL` 的权威公共视图；可写存储统一隔离在 `*_store` 后缀之后。
+最新状态存储从状态 store 接收全部列，并按首次事件时间分区。其排序键为 `(tenant_id, aggregate_id)`，与状态身份边界保持一致。`example_order_state_last` 是始终执行 `FINAL` 的权威公共视图；可写存储统一隔离在 `*_store` 后缀之后。
 
 ```sql
 CREATE TABLE IF NOT EXISTS "bi_db"."example_order_state_last_store"
 (
+    "tenant_id" String,
     "aggregate_id" String,
     "version" UInt32,
     "first_event_time" DateTime64(3, 'Asia/Shanghai')
 ) ENGINE = ReplacingMergeTree("version")
   PARTITION BY toYYYYMM("first_event_time")
-  ORDER BY "aggregate_id";
+  ORDER BY ("tenant_id", "aggregate_id");
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS "bi_db_consumer"."example_order_state_last_consumer"
 TO "bi_db"."example_order_state_last_store"
@@ -268,6 +287,7 @@ AS SELECT * FROM "bi_db"."example_order_state_last_store" FINAL;
 ```sql
 CREATE TABLE IF NOT EXISTS "bi_db"."example_order_state_last_store_local" ON CLUSTER '{cluster}'
 (
+    "tenant_id" String,
     "aggregate_id" String,
     "version" UInt32,
     "first_event_time" DateTime64(3, 'Asia/Shanghai')
@@ -275,7 +295,7 @@ CREATE TABLE IF NOT EXISTS "bi_db"."example_order_state_last_store_local" ON CLU
     '/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}',
     '{replica}', "version")
 PARTITION BY toYYYYMM("first_event_time")
-ORDER BY "aggregate_id";
+ORDER BY ("tenant_id", "aggregate_id");
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS "bi_db_consumer"."example_order_state_last_consumer"
 TO "bi_db"."example_order_state_last_store"

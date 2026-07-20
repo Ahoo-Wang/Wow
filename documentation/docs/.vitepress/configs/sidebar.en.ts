@@ -73,6 +73,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Test Suite', link: 'test-suite'},
                 {text: 'Test Runtime', link: 'test-runtime'},
                 {text: 'Business Intelligence', link: 'bi'},
+                {text: 'BI Deployment and Recovery', link: 'bi-operations'},
                 {text: 'Event Compensation', link: 'event-compensation'},
             ],
         },
