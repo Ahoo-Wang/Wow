@@ -16,8 +16,10 @@ package me.ahoo.wow.spring.boot.starter.redis
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
+import me.ahoo.wow.redis.bus.CompositeRedisMessageBusObserver
 import me.ahoo.wow.redis.bus.RedisCommandBus
 import me.ahoo.wow.redis.bus.RedisDomainEventBus
+import me.ahoo.wow.redis.bus.RedisMessageBusObserver
 import me.ahoo.wow.redis.bus.RedisStateEventBus
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
@@ -25,9 +27,11 @@ import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.command.CommandProperties
 import me.ahoo.wow.spring.boot.starter.event.EventProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.state.StateProperties
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration
 import org.springframework.context.annotation.Bean
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
@@ -39,6 +43,7 @@ import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 @ConditionalOnWowEnabled
 @ConditionalOnRedisEnabled
 @ConditionalOnClass(RedisCommandBus::class)
+@EnableConfigurationProperties(RedisStreamRecoveryProperties::class)
 class RedisMessageBusAutoConfiguration {
 
     @Bean
@@ -46,8 +51,16 @@ class RedisMessageBusAutoConfiguration {
         CommandProperties.BUS_TYPE,
         havingValue = BusType.REDIS_NAME,
     )
-    fun redisCommandBus(redisTemplate: ReactiveStringRedisTemplate): DistributedCommandBus {
-        return RedisCommandBus(redisTemplate)
+    fun redisCommandBus(
+        redisTemplate: ReactiveStringRedisTemplate,
+        recoveryProperties: RedisStreamRecoveryProperties,
+        observers: ObjectProvider<RedisMessageBusObserver>,
+    ): DistributedCommandBus {
+        return RedisCommandBus(
+            redisTemplate = redisTemplate,
+            recoveryOptions = recoveryProperties.toOptions(),
+            observer = observers.toObserver(),
+        )
     }
 
     @Bean
@@ -55,8 +68,16 @@ class RedisMessageBusAutoConfiguration {
         EventProperties.BUS_TYPE,
         havingValue = BusType.REDIS_NAME,
     )
-    fun redisDomainEventBus(redisTemplate: ReactiveStringRedisTemplate): DistributedDomainEventBus {
-        return RedisDomainEventBus(redisTemplate)
+    fun redisDomainEventBus(
+        redisTemplate: ReactiveStringRedisTemplate,
+        recoveryProperties: RedisStreamRecoveryProperties,
+        observers: ObjectProvider<RedisMessageBusObserver>,
+    ): DistributedDomainEventBus {
+        return RedisDomainEventBus(
+            redisTemplate = redisTemplate,
+            recoveryOptions = recoveryProperties.toOptions(),
+            observer = observers.toObserver(),
+        )
     }
 
     @Bean
@@ -64,7 +85,24 @@ class RedisMessageBusAutoConfiguration {
         StateProperties.BUS_TYPE,
         havingValue = BusType.REDIS_NAME,
     )
-    fun redisStateEventBus(redisTemplate: ReactiveStringRedisTemplate): DistributedStateEventBus {
-        return RedisStateEventBus(redisTemplate)
+    fun redisStateEventBus(
+        redisTemplate: ReactiveStringRedisTemplate,
+        recoveryProperties: RedisStreamRecoveryProperties,
+        observers: ObjectProvider<RedisMessageBusObserver>,
+    ): DistributedStateEventBus {
+        return RedisStateEventBus(
+            redisTemplate = redisTemplate,
+            recoveryOptions = recoveryProperties.toOptions(),
+            observer = observers.toObserver(),
+        )
+    }
+
+    private fun ObjectProvider<RedisMessageBusObserver>.toObserver(): RedisMessageBusObserver {
+        val observers = orderedStream().toList()
+        return when (observers.size) {
+            0 -> RedisMessageBusObserver.NOOP
+            1 -> observers.single()
+            else -> CompositeRedisMessageBusObserver(observers)
+        }
     }
 }

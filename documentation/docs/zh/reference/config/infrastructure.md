@@ -55,6 +55,10 @@ wow:
 | 属性 | 类型 | 默认值 | 描述 |
 |----------|------|---------|-------------|
 | `wow.redis.enabled` | Boolean | `true` | 启用 Redis 集成 |
+| `wow.redis.message-bus.recovery.enabled` | Boolean | `true` | 恢复被遗留的 Redis Stream pending 消息 |
+| `wow.redis.message-bus.recovery.min-idle-time` | Duration | `5m` | pending 消息可恢复前的最小空闲时间 |
+| `wow.redis.message-bus.recovery.interval` | Duration | `30s` | pending 消息扫描间隔 |
+| `wow.redis.message-bus.recovery.batch-size` | Long | `100` | 每页 `XPENDING` 最大记录数 |
 
 Redis 连接通过 Spring Boot 标准的 `spring.data.redis.*` 属性进行配置。
 
@@ -68,6 +72,12 @@ spring:
 wow:
   redis:
     enabled: true
+    message-bus:
+      recovery:
+        enabled: true
+        min-idle-time: 5m
+        interval: 30s
+        batch-size: 100
 ```
 
 

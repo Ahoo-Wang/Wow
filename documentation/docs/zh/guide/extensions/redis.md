@@ -79,6 +79,10 @@ implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive
 | 名称                  | 数据类型                  | 说明          | 默认值    |
 |---------------------|-----------------------|-------------|--------|
 | `enabled`           | `Boolean`             | 是否启用        | `true` |
+| `message-bus.recovery.enabled` | `Boolean` | 是否恢复被遗留的 pending 消息 | `true` |
+| `message-bus.recovery.min-idle-time` | `Duration` | 触发恢复前的最小空闲时间 | `5m` |
+| `message-bus.recovery.interval` | `Duration` | pending 消息扫描间隔 | `30s` |
+| `message-bus.recovery.batch-size` | `Long` | 每页 `XPENDING` 最大记录数 | `100` |
 
 **YAML 配置样例**
 
@@ -107,6 +111,12 @@ wow:
         type: redis
   redis:
     enabled: true
+    message-bus:
+      recovery:
+        enabled: true
+        min-idle-time: 5m
+        interval: 30s
+        batch-size: 100
 ```
 
 ## 命令总线
@@ -128,6 +138,20 @@ Redis 命令总线使用 Redis Streams 实现消息传递：
 ```
 {contextName}.{processorName}
 ```
+
+### Pending 消息恢复
+
+Redis 消息总线会在 `min-idle-time` 后恢复旧 consumer 遗留在 Pending Entries List（PEL）中的记录。
+恢复流程使用 consumer lease、有界 `XPENDING` 扫描和原子 `XCLAIM`。恢复链路失败不会终止实时消费，
+而会在下一轮扫描时重试。
+
+消息语义仍为 at-least-once，因此 handler 必须幂等；`min-idle-time` 必须覆盖最长 handler 执行、
+重试和优雅停机时间。恢复默认开启。仅应在临时回滚时设置
+`wow.redis.message-bus.recovery.enabled=false`；关闭后会恢复旧行为，使被遗留的 PEL 记录可能永久滞留。
+
+缺少 `msg` 字段或 JSON 非法的记录不会再终止 consumer。此类记录保留在 PEL 中供人工诊断，同时输出
+不含 payload 的错误日志和 `RedisMessageBusObservation.RecordDecodeFailed` 观测事件。应用可注册非阻塞的
+`RedisMessageBusObserver` Bean 接入指标或告警。
 
 ## 事件总线
 
