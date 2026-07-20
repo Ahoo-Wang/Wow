@@ -20,12 +20,12 @@ import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.sender.SenderOptions
 
 class KafkaCommandBus(
-    topicConverter: CommandTopicConverter = DefaultCommandTopicConverter(),
+    topicConverter: CommandTopicConverter,
     senderOptions: SenderOptions<String, String>,
     receiverOptions: ReceiverOptions<String, String>,
-    receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
-    receiverPolicy: KafkaReceiverPolicy = KafkaReceiverPolicy(),
-    recordDecodeFailureHandler: KafkaRecordDecodeFailureHandler = FailKafkaRecordDecodeFailureHandler,
+    receiverOptionsCustomizer: ReceiverOptionsCustomizer,
+    receiverPolicy: KafkaReceiverPolicy,
+    recordDecodeFailureHandler: KafkaRecordDecodeFailureHandler,
 ) : DistributedCommandBus, AbstractKafkaBus<CommandMessage<*>, ServerCommandExchange<*>>(
     topicConverter,
     senderOptions,
@@ -34,6 +34,19 @@ class KafkaCommandBus(
     receiverPolicy,
     recordDecodeFailureHandler,
 ) {
+    constructor(
+        topicConverter: CommandTopicConverter = DefaultCommandTopicConverter(),
+        senderOptions: SenderOptions<String, String>,
+        receiverOptions: ReceiverOptions<String, String>,
+        receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
+    ) : this(
+        topicConverter = topicConverter,
+        senderOptions = senderOptions,
+        receiverOptions = receiverOptions,
+        receiverOptionsCustomizer = receiverOptionsCustomizer,
+        receiverPolicy = KafkaReceiverPolicy(),
+        recordDecodeFailureHandler = FailKafkaRecordDecodeFailureHandler,
+    )
 
     override val messageType: Class<CommandMessage<*>>
         get() = CommandMessage::class.java

@@ -173,6 +173,8 @@ internal class KafkaCommandBusTest : CommandBusSpec() {
             topicConverter = topicConverter,
             senderOptions = kafka.senderOptions(),
             receiverOptions = kafka.receiverOptions(),
+            receiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
+            receiverPolicy = KafkaReceiverPolicy(),
             recordDecodeFailureHandler = AcknowledgeKafkaRecordDecodeFailureHandler,
         )
         val rawSender = KafkaSender.create(kafka.senderOptions())

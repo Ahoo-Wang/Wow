@@ -20,12 +20,12 @@ import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.sender.SenderOptions
 
 class KafkaDomainEventBus(
-    topicConverter: EventStreamTopicConverter = DefaultEventStreamTopicConverter(),
+    topicConverter: EventStreamTopicConverter,
     senderOptions: SenderOptions<String, String>,
     receiverOptions: ReceiverOptions<String, String>,
-    receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
-    receiverPolicy: KafkaReceiverPolicy = KafkaReceiverPolicy(),
-    recordDecodeFailureHandler: KafkaRecordDecodeFailureHandler = FailKafkaRecordDecodeFailureHandler,
+    receiverOptionsCustomizer: ReceiverOptionsCustomizer,
+    receiverPolicy: KafkaReceiverPolicy,
+    recordDecodeFailureHandler: KafkaRecordDecodeFailureHandler,
 ) : DistributedDomainEventBus,
     AbstractKafkaBus<DomainEventStream, EventStreamExchange>(
         topicConverter,
@@ -35,6 +35,19 @@ class KafkaDomainEventBus(
         receiverPolicy,
         recordDecodeFailureHandler,
     ) {
+    constructor(
+        topicConverter: EventStreamTopicConverter = DefaultEventStreamTopicConverter(),
+        senderOptions: SenderOptions<String, String>,
+        receiverOptions: ReceiverOptions<String, String>,
+        receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
+    ) : this(
+        topicConverter = topicConverter,
+        senderOptions = senderOptions,
+        receiverOptions = receiverOptions,
+        receiverOptionsCustomizer = receiverOptionsCustomizer,
+        receiverPolicy = KafkaReceiverPolicy(),
+        recordDecodeFailureHandler = FailKafkaRecordDecodeFailureHandler,
+    )
 
     override val messageType: Class<DomainEventStream>
         get() = DomainEventStream::class.java

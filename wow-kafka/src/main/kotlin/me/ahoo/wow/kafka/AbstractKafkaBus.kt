@@ -39,11 +39,25 @@ abstract class AbstractKafkaBus<M, E>(
     private val topicConverter: AggregateTopicConverter,
     private val senderOptions: SenderOptions<String, String>,
     private val receiverOptions: ReceiverOptions<String, String>,
-    private val receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
-    private val receiverPolicy: KafkaReceiverPolicy = KafkaReceiverPolicy(),
-    private val recordDecodeFailureHandler: KafkaRecordDecodeFailureHandler = FailKafkaRecordDecodeFailureHandler,
+    private val receiverOptionsCustomizer: ReceiverOptionsCustomizer,
+    private val receiverPolicy: KafkaReceiverPolicy,
+    private val recordDecodeFailureHandler: KafkaRecordDecodeFailureHandler,
 ) : DistributedMessageBus<M, E>
     where M : Message<*, *>, M : AggregateIdCapable, M : NamedAggregate, E : MessageExchange<*, M> {
+    constructor(
+        topicConverter: AggregateTopicConverter,
+        senderOptions: SenderOptions<String, String>,
+        receiverOptions: ReceiverOptions<String, String>,
+        receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
+    ) : this(
+        topicConverter = topicConverter,
+        senderOptions = senderOptions,
+        receiverOptions = receiverOptions,
+        receiverOptionsCustomizer = receiverOptionsCustomizer,
+        receiverPolicy = KafkaReceiverPolicy(),
+        recordDecodeFailureHandler = FailKafkaRecordDecodeFailureHandler,
+    )
+
     companion object {
         private val log = KotlinLogging.logger {}
     }
@@ -76,6 +90,12 @@ abstract class AbstractKafkaBus<M, E>(
 
     abstract fun M.toExchange(receiverOffset: ReceiverOffset): E
 
+    protected open fun createReceiver(
+        receiverOptions: ReceiverOptions<String, String>,
+    ): KafkaReceiver<String, String> {
+        return KafkaReceiver.create(receiverOptions)
+    }
+
     override fun receive(subscription: MessageSubscription): Flux<E> {
         return Flux.deferContextual { contextView ->
             val options = receiverOptionsCustomizer.customize(
@@ -87,7 +107,7 @@ abstract class AbstractKafkaBus<M, E>(
                 )
                 .subscription(subscription.namedAggregates.map { topicConverter.convert(it) }.toSet())
             val customizedOptions = contextView.getReceiverOptionsCustomizer()?.customize(options) ?: options
-            KafkaReceiver.create(customizedOptions)
+            createReceiver(customizedOptions)
                 .receive(receiverPolicy.prefetchBatches)
                 .retryWhen(receiverPolicy.retrySpec)
                 .concatMap(::decodeRecord)
