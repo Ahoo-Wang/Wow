@@ -568,7 +568,7 @@ internal class WebFluxAutoConfigurationTest {
 
     @Test
     fun `should return BI inspection failures without the global exception handler`() {
-        val unavailableInspector = BiDeploymentInspector { _, _ ->
+        val unavailableInspector = BiDeploymentInspector { _, _, _ ->
             Mono.error(BiDeploymentInspectionException.Unavailable())
         }
         webFluxContextRunner()
@@ -656,7 +656,7 @@ internal class WebFluxAutoConfigurationTest {
 
     @Test
     fun `should back off the default BI deployment inspector`() {
-        val customInspector = BiDeploymentInspector { _, _ ->
+        val customInspector = BiDeploymentInspector { _, _, _ ->
             Mono.just(BiDeploymentInspection.Available(me.ahoo.wow.bi.ObservedBiDeployment(emptyList())))
         }
         webFluxContextRunner()

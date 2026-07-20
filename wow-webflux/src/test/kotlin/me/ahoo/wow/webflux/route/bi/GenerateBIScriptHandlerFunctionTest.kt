@@ -22,6 +22,7 @@ import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.AggregateRoot
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.bi.BiDeploymentDescriptor
 import me.ahoo.wow.bi.BiDeploymentInspection
 import me.ahoo.wow.bi.BiDeploymentInspectionException
@@ -32,6 +33,7 @@ import me.ahoo.wow.bi.BiScriptDiagnostic
 import me.ahoo.wow.bi.BiScriptGenerator
 import me.ahoo.wow.bi.BiScriptOperation
 import me.ahoo.wow.bi.BiScriptOptions
+import me.ahoo.wow.bi.BiScriptPreparation
 import me.ahoo.wow.bi.ClickHouseTopology
 import me.ahoo.wow.bi.NoOpBiDeploymentInspector
 import me.ahoo.wow.bi.ObservedBiDeployment
@@ -64,9 +66,13 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
+import reactor.core.scheduler.Schedulers
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 import java.lang.reflect.Modifier
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class GenerateBIScriptHandlerFunctionTest {
     @Test
@@ -100,6 +106,109 @@ class GenerateBIScriptHandlerFunctionTest {
                     assert().contains("'analytics.example.order.command'")
                 }
             }.verifyComplete()
+    }
+
+    @Test
+    fun `should pass one request scoped preparation through inspection and generation`() {
+        var preparedInspectionInvoked = false
+        val inspector = object : BiDeploymentInspector {
+            override fun inspect(
+                options: BiScriptOptions,
+                operation: BiScriptOperation,
+                preparation: BiScriptPreparation,
+            ): Mono<BiDeploymentInspection> {
+                preparedInspectionInvoked = true
+                return Mono.just(BiDeploymentInspection.Unavailable)
+            }
+        }
+
+        handler(deploymentInspector = inspector)
+            .handle(MockServerRequest.builder().body(BiScriptRequest().toMono()))
+            .test()
+            .consumeNextWith { response -> response.statusCode().assert().isEqualTo(HttpStatus.OK) }
+            .verifyComplete()
+
+        preparedInspectionInvoked.assert().isTrue()
+    }
+
+    @Test
+    fun `should generate BI scripts on the dedicated generation scheduler`() {
+        val accessedThreads = ConcurrentLinkedQueue<String>()
+        val aggregate = ThreadRecordingNamedAggregate(
+            contextName = "webflux-bi-test",
+            aggregateName = "generation-scheduler",
+            accessedThreads = accessedThreads,
+        )
+        val aggregateTypes = NamedAggregateTypeSearcher(
+            mapOf(
+                MaterializedNamedAggregate("webflux-bi-test", "generation-scheduler") to
+                    DiagnosticAggregate::class.java
+            )
+        )
+        val namedAggregates = TypeNamedAggregateSearcher(
+            mapOf(DiagnosticAggregate::class.java to aggregate)
+        )
+        val requestScheduler = Schedulers.newSingle("request-event-loop")
+        mockkObject(MetadataSearcher)
+        try {
+            every { MetadataSearcher.localAggregates } returns setOf(aggregate)
+            every { MetadataSearcher.namedAggregateType } returns aggregateTypes
+            every { MetadataSearcher.typeNamedAggregate } returns namedAggregates
+
+            val response = handler(
+                BiScriptOptions(
+                    topology = ClickHouseTopology.Standalone,
+                    consumerGroupNamespace = "test",
+                )
+            ).handle(MockServerRequest.builder().body(BiScriptRequest().toMono()))
+                .subscribeOn(requestScheduler)
+                .block()!!
+
+            response.statusCode().assert().isEqualTo(HttpStatus.OK)
+            accessedThreads.assert().isNotEmpty()
+            accessedThreads.all { threadName ->
+                threadName.startsWith("wow-bi-script-generation-")
+            }.assert().isTrue()
+        } finally {
+            requestScheduler.dispose()
+            unmockkObject(MetadataSearcher)
+        }
+    }
+
+    @Test
+    fun `should classify a saturated generation scheduler as unavailable`() {
+        val scheduler = Schedulers.newBoundedElastic(
+            1,
+            1,
+            "saturated-bi-generation",
+            60,
+            true,
+        )
+        val activeStarted = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        scheduler.schedule {
+            activeStarted.countDown()
+            release.await()
+        }
+        activeStarted.await(5, TimeUnit.SECONDS).assert().isTrue()
+        scheduler.schedule { release.await() }
+        try {
+            val response = GenerateBIScriptHandlerFunction(
+                options = BASE_OPTIONS,
+                deploymentInspector = NoOpBiDeploymentInspector,
+                exceptionHandler = WebFluxRequestExceptionHandler(),
+                generationScheduler = scheduler,
+            ).handle(MockServerRequest.builder().body(BiScriptRequest().toMono()))
+                .block()!!
+
+            response.statusCode().assert().isEqualTo(HttpStatus.SERVICE_UNAVAILABLE)
+            response.headers().getFirst("Wow-Error-Code").assert()
+                .isEqualTo(BiDeploymentInspectionException.UNAVAILABLE_ERROR_CODE)
+            response.writeBody().assert().contains("Wow BI script generation is overloaded")
+        } finally {
+            release.countDown()
+            scheduler.dispose()
+        }
     }
 
     @Test
@@ -221,7 +330,7 @@ class GenerateBIScriptHandlerFunctionTest {
         )
 
         failures.forEach { (failure, expectedStatus, expectedCode) ->
-            val deploymentInspector = BiDeploymentInspector { _, _ ->
+            val deploymentInspector = BiDeploymentInspector { _, _, _ ->
                 Mono.error<BiDeploymentInspection>(failure)
             }
             val response = handler(deploymentInspector = deploymentInspector)
@@ -236,7 +345,7 @@ class GenerateBIScriptHandlerFunctionTest {
 
     @Test
     fun `should map an unexpected generation failure to a safe internal server error`() {
-        val deploymentInspector = BiDeploymentInspector { _, _ ->
+        val deploymentInspector = BiDeploymentInspector { _, _, _ ->
             Mono.error<BiDeploymentInspection>(NullPointerException("sensitive implementation detail"))
         }
 
@@ -254,7 +363,7 @@ class GenerateBIScriptHandlerFunctionTest {
     @Test
     fun `should preserve an unexpected failure for a custom request exception handler`() {
         val failure = NullPointerException("custom-handler-detail")
-        val deploymentInspector = BiDeploymentInspector { _, _ ->
+        val deploymentInspector = BiDeploymentInspector { _, _, _ ->
             Mono.error<BiDeploymentInspection>(failure)
         }
         lateinit var received: Throwable
@@ -280,7 +389,7 @@ class GenerateBIScriptHandlerFunctionTest {
     @Test
     fun `should preserve an unexpected failure for a custom webflux error strategy`() {
         val failure = NullPointerException("custom-strategy-detail")
-        val deploymentInspector = BiDeploymentInspector { _, _ ->
+        val deploymentInspector = BiDeploymentInspector { _, _, _ ->
             Mono.error<BiDeploymentInspection>(failure)
         }
         lateinit var received: Throwable
@@ -306,7 +415,7 @@ class GenerateBIScriptHandlerFunctionTest {
     fun `should expose explicit destructive reset over HTTP`() {
         val descriptor = BiDeploymentDescriptor.from(BASE_OPTIONS)
         val handler = handler(
-            deploymentInspector = BiDeploymentInspector { _, _ ->
+            deploymentInspector = BiDeploymentInspector { _, _, _ ->
                 Mono.just(
                     BiDeploymentInspection.Available(
                         ObservedBiDeployment(
@@ -349,12 +458,10 @@ class GenerateBIScriptHandlerFunctionTest {
         lateinit var inspectedOptions: BiScriptOptions
         lateinit var inspectedOperation: BiScriptOperation
         val deploymentInspector = object : BiDeploymentInspector {
-            override fun inspect(options: BiScriptOptions): Mono<BiDeploymentInspection> =
-                error("The handler must provide the requested operation")
-
             override fun inspect(
                 options: BiScriptOptions,
                 operation: BiScriptOperation,
+                preparation: BiScriptPreparation,
             ): Mono<BiDeploymentInspection> {
                 inspectedOptions = options
                 inspectedOperation = operation
@@ -522,4 +629,25 @@ private class DiagnosticAggregate(private val state: DiagnosticState)
 private class DiagnosticState(val id: String) {
     val otherValues: Map<String, Any> = emptyMap()
     val values: Map<String, Any> = emptyMap()
+}
+
+private class ThreadRecordingNamedAggregate(
+    contextName: String,
+    aggregateName: String,
+    private val accessedThreads: ConcurrentLinkedQueue<String>,
+) : NamedAggregate {
+    private val rawContextName = contextName
+    private val rawAggregateName = aggregateName
+
+    override val contextName: String
+        get() {
+            accessedThreads.add(Thread.currentThread().name)
+            return rawContextName
+        }
+
+    override val aggregateName: String
+        get() {
+            accessedThreads.add(Thread.currentThread().name)
+            return rawAggregateName
+        }
 }
