@@ -55,6 +55,10 @@ wow:
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `wow.redis.enabled` | Boolean | `true` | Enable Redis integration |
+| `wow.redis.message-bus.recovery.enabled` | Boolean | `true` | Recover abandoned Redis Stream pending messages |
+| `wow.redis.message-bus.recovery.min-idle-time` | Duration | `5m` | Minimum idle time before a pending message is recoverable |
+| `wow.redis.message-bus.recovery.interval` | Duration | `30s` | Interval between pending-message sweeps |
+| `wow.redis.message-bus.recovery.batch-size` | Long | `100` | Maximum records per `XPENDING` page |
 
 Redis connection is configured through Spring Boot's standard `spring.data.redis.*` properties.
 
@@ -68,6 +72,12 @@ spring:
 wow:
   redis:
     enabled: true
+    message-bus:
+      recovery:
+        enabled: true
+        min-idle-time: 5m
+        interval: 30s
+        batch-size: 100
 ```
 
 

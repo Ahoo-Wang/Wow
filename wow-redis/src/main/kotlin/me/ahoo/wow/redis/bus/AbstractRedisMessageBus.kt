@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.redis.bus
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.lettuce.core.RedisBusyException
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.AggregateIdCapable
@@ -32,6 +33,8 @@ import org.springframework.data.redis.stream.StreamReceiver
 import org.springframework.data.redis.stream.StreamReceiver.StreamReceiverOptions
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.publisher.SynchronousSink
+import tools.jackson.core.JacksonException
 import java.time.Duration
 
 const val MESSAGE_FIELD = "msg"
@@ -39,7 +42,9 @@ const val MESSAGE_FIELD = "msg"
 abstract class AbstractRedisMessageBus<M, E>(
     private val redisTemplate: ReactiveStringRedisTemplate,
     private val topicConverter: AggregateTopicConverter,
-    private val pollTimeout: Duration = Duration.ofSeconds(2)
+    private val pollTimeout: Duration = Duration.ofSeconds(2),
+    private val recoveryOptions: RedisStreamRecoveryOptions = RedisStreamRecoveryOptions.DEFAULT,
+    private val messageBusObserver: RedisMessageBusObserver = RedisMessageBusObserver.NOOP,
 ) : DistributedMessageBus<M, E>
     where M : Message<*, *>, M : AggregateIdCapable, M : NamedAggregate, E : MessageExchange<*, M> {
     private val streamOps = redisTemplate.opsForStream<String, String>()
@@ -91,17 +96,99 @@ abstract class AbstractRedisMessageBus<M, E>(
         group: String
     ): Flux<E> {
         val streamOffset = StreamOffset.create(topic, ReadOffset.lastConsumed())
-        return StreamReceiver.create(
+        val liveRecords = StreamReceiver.create(
             redisTemplate.connectionFactory,
             options
         )
-            .receive(consumer, streamOffset).map {
-                val message = requireNotNull(it.value[MESSAGE_FIELD]).toObject(messageType)
-                message.withReadOnly()
-                val acknowledgePublisher = streamOps.acknowledge(topic, group, it.id).then()
-                message.toExchange(acknowledgePublisher)
-            }
+            .receive(consumer, streamOffset)
+        val records = if (recoveryOptions.enabled) {
+            val leaseRegistry = DefaultRedisConsumerLeaseRegistry(redisTemplate, recoveryOptions)
+            val leasedLiveRecords = leaseRegistry.withLease(
+                topic = topic,
+                consumer = consumer,
+                source = liveRecords,
+            )
+            val recoveredRecords = RedisPendingMessageRecoverer(
+                streamOps = streamOps,
+                scanner = DefaultRedisPendingMessageScanner(
+                    redisTemplate = redisTemplate,
+                    streamOps = streamOps,
+                    observer = messageBusObserver,
+                ),
+                leaseRegistry = leaseRegistry,
+                options = recoveryOptions,
+                observer = messageBusObserver,
+            ).recover(topic, consumer)
+            Flux.merge(
+                leasedLiveRecords,
+                recoveredRecords,
+            )
+        } else {
+            liveRecords
+        }
+        return records.handle<E> { record, sink ->
+            record.decode(topic, group, consumer.name, sink)
+        }
+    }
+
+    private fun MapRecord<String, String, String>.decode(
+        topic: String,
+        group: String,
+        consumerName: String,
+        sink: SynchronousSink<E>,
+    ) {
+        val encodedMessage = value[MESSAGE_FIELD]
+        if (encodedMessage == null) {
+            reportDecodeFailure(
+                failure = RedisMessageBusObservation.RecordDecodeFailed(
+                    topic = topic,
+                    consumerGroup = group,
+                    recordId = id.value,
+                    messageType = messageType.name,
+                    reason = RedisRecordDecodeFailureReason.MISSING_MESSAGE_FIELD,
+                    failureType = null,
+                ),
+                consumerName = consumerName,
+            )
+            return
+        }
+        try {
+            val message = encodedMessage.toObject(messageType)
+            message.withReadOnly()
+            val acknowledgePublisher = streamOps.acknowledge(topic, group, id).then()
+            sink.next(message.toExchange(acknowledgePublisher))
+        } catch (failure: JacksonException) {
+            reportDecodeFailure(
+                failure = RedisMessageBusObservation.RecordDecodeFailed(
+                    topic = topic,
+                    consumerGroup = group,
+                    recordId = id.value,
+                    messageType = messageType.name,
+                    reason = RedisRecordDecodeFailureReason.DESERIALIZATION_FAILED,
+                    failureType = failure.javaClass.name,
+                ),
+                consumerName = consumerName,
+            )
+        }
+    }
+
+    private fun reportDecodeFailure(
+        failure: RedisMessageBusObservation.RecordDecodeFailed,
+        consumerName: String,
+    ) {
+        messageBusObserver.notifySafely(failure)
+        log.error {
+            "Failed to decode Redis Stream record [${failure.recordId}] from topic [${failure.topic}] " +
+                "for consumer group [${failure.consumerGroup}] as consumer [$consumerName] " +
+                "with message type [${failure.messageType}], reason [${failure.reason}], " +
+                "and failure type [${failure.failureType}]. " +
+                "The record remains pending; its payload was omitted from this log."
+        }
     }
 
     abstract fun M.toExchange(acknowledgePublisher: Mono<Void>): E
+
+    companion object {
+        private val log = KotlinLogging.logger {}
+    }
 }

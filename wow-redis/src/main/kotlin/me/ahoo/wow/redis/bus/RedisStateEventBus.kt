@@ -20,16 +20,46 @@ import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 import reactor.core.publisher.Mono
 import java.time.Duration
 
-class RedisStateEventBus(
+class RedisStateEventBus private constructor(
     redisTemplate: ReactiveStringRedisTemplate,
-    topicConverter: StateEventTopicConverter = DefaultStateEventTopicConverter,
-    pollTimeout: Duration = Duration.ofSeconds(2)
+    topicConverter: StateEventTopicConverter,
+    pollTimeout: Duration,
+    recoveryOptions: RedisStreamRecoveryOptions,
+    messageBusObserver: RedisMessageBusObserver,
 ) : DistributedStateEventBus,
     AbstractRedisMessageBus<StateEvent<*>, StateEventExchange<*>>(
         redisTemplate,
         topicConverter,
         pollTimeout,
+        recoveryOptions,
+        messageBusObserver,
     ) {
+    constructor(
+        redisTemplate: ReactiveStringRedisTemplate,
+        topicConverter: StateEventTopicConverter = DefaultStateEventTopicConverter,
+        pollTimeout: Duration = Duration.ofSeconds(2),
+    ) : this(
+        redisTemplate = redisTemplate,
+        topicConverter = topicConverter,
+        pollTimeout = pollTimeout,
+        recoveryOptions = RedisStreamRecoveryOptions.DEFAULT,
+        messageBusObserver = RedisMessageBusObserver.NOOP,
+    )
+
+    constructor(
+        redisTemplate: ReactiveStringRedisTemplate,
+        recoveryOptions: RedisStreamRecoveryOptions,
+        observer: RedisMessageBusObserver = RedisMessageBusObserver.NOOP,
+        topicConverter: StateEventTopicConverter = DefaultStateEventTopicConverter,
+        pollTimeout: Duration = Duration.ofSeconds(2),
+    ) : this(
+        redisTemplate = redisTemplate,
+        topicConverter = topicConverter,
+        pollTimeout = pollTimeout,
+        recoveryOptions = recoveryOptions,
+        messageBusObserver = observer,
+    )
+
     override val messageType: Class<StateEvent<*>>
         get() = StateEvent::class.java
 

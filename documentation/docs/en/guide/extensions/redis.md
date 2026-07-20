@@ -79,6 +79,10 @@ implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive
 | Name                  | Data Type               | Description | Default Value |
 |---------------------|-----------------------|-------------|---------------|
 | `enabled`           | `Boolean`             | Whether to enable | `true` |
+| `message-bus.recovery.enabled` | `Boolean` | Recover abandoned pending messages | `true` |
+| `message-bus.recovery.min-idle-time` | `Duration` | Minimum idle time before recovery | `5m` |
+| `message-bus.recovery.interval` | `Duration` | Interval between pending-message sweeps | `30s` |
+| `message-bus.recovery.batch-size` | `Long` | Maximum records per `XPENDING` page | `100` |
 
 **YAML Configuration Example**
 
@@ -107,6 +111,12 @@ wow:
         type: redis
   redis:
     enabled: true
+    message-bus:
+      recovery:
+        enabled: true
+        min-idle-time: 5m
+        interval: 30s
+        batch-size: 100
 ```
 
 ## Command Bus
@@ -128,6 +138,22 @@ Each processor corresponds to a consumer group:
 ```
 {contextName}.{processorName}
 ```
+
+### Pending-message recovery
+
+The Redis message bus recovers records abandoned in an old consumer's Pending Entries List (PEL)
+after `min-idle-time`. It uses consumer leases, bounded `XPENDING` scans, and atomic `XCLAIM`.
+Recovery failures are isolated from live delivery and retried on the next sweep.
+
+Delivery remains at least once. Handlers must therefore be idempotent, and `min-idle-time` must
+cover the longest handler execution, retry, and graceful-shutdown duration. Recovery is enabled by
+default. Set `wow.redis.message-bus.recovery.enabled=false` only as a temporary rollback; doing so
+restores the previous behavior in which abandoned PEL records can remain stranded.
+
+Records without the `msg` field or with invalid JSON no longer terminate the consumer. They remain
+pending for manual diagnosis, while a payload-free error and a `RedisMessageBusObservation.RecordDecodeFailed`
+observation are emitted. Applications can register non-blocking `RedisMessageBusObserver` beans for
+metrics or alerting.
 
 ## Event Bus
 
