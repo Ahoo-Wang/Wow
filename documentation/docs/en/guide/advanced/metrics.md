@@ -5,7 +5,7 @@ description: Micrometer metrics collection for comprehensive performance monitor
 
 # Metrics
 
-The Wow framework integrates Micrometer metrics collection functionality, providing comprehensive performance monitoring and observability for all core components.
+The Wow framework integrates Reactor and Micrometer metrics for its core reactive components.
 
 ## Installation
 
@@ -28,45 +28,60 @@ implementation 'io.micrometer:micrometer-core'
 
 The Wow framework automatically collects metrics for the following components:
 
-### Command Bus Metrics
+The names below are Reactor publisher base names. Reactor creates meters such as `<base>.subscribed`,
+`<base>.requested`, `<base>.onNext.delay`, and `<base>.flow.duration` according to the publisher type.
 
-- `wow.command.bus.send`: Command send count and latency
-- `wow.command.bus.receive`: Command receive count and latency
-- Metrics categorized by aggregate type and command type
+### Command Metrics
+
+- `wow.command.send`
+- `wow.command.receive`
+- `wow.command.handle`
 
 ### Event Bus Metrics
 
-- `wow.event.bus.send`: Event publish count and latency
-- `wow.event.bus.receive`: Event receive count and latency
-- Metrics categorized by aggregate type and event type
+- `wow.event.send`
+- `wow.event.receive`
+- `wow.event.handle`
+- `wow.state.send`
+- `wow.state.receive`
 
 ### Event Store Metrics
 
 - `wow.eventstore.append`: Event append count and latency
 - `wow.eventstore.load`: Event load count and latency
-- Metrics categorized by aggregate type
+- `wow.eventstore.last`
+- `wow.eventstore.exists.request.id`
+- `wow.eventstore.scanAggregateId`
 
 ### Snapshot Metrics
 
 - `wow.snapshot.save`: Snapshot save count and latency
 - `wow.snapshot.load`: Snapshot load count and latency
-- Metrics categorized by aggregate type
+- `wow.snapshot.getVersion`
+- `wow.snapshot.checkpoint.save`
+- `wow.snapshot.checkpoint.load`
+- `wow.snapshot.event`
+- `wow.snapshot.handle`
 
 ### Handler Metrics
 
-- `wow.command.handler`: Command processing count and latency
-- `wow.event.handler`: Event processing count and latency
-- `wow.projection.handler`: Projection processing count and latency
-- `wow.saga.handler`: Saga processing count and latency
+- `wow.projection.handle`
+- `wow.saga.handle`
+- `wow.dispatcher`
 
 ## Metrics Tags
 
-All metrics include the following tags:
+Tags depend on the operation. Wow-defined tags are:
 
-- `aggregate`: Aggregate name
-- `context`: Bounded context name
-- `type`: Component type (command, event, projection, saga)
-- `name`: Handler or bus name
+- `source`: Original decorated component type
+- `aggregate`: Aggregate name, or a canonical sorted aggregate list for receive publishers
+- `command`: Command name on command send/handle publishers
+- `event`: Event name on event handlers
+- `processor`: Processor name on handler publishers
+- `subscriber`: Subscriber identity on receive publishers; the Reactor context value overrides the subscription receiver group
+- `dispatcher`: Dispatcher name on dispatcher publishers
+
+Reactor adds tags such as `type`, `status`, and `exception` depending on the generated meter. Internal dispatcher routing keys are intentionally not exported as tags because they multiply time-series cardinality. A bounded-context tag is not currently emitted.
 
 ## Custom Metrics
 
@@ -110,12 +125,12 @@ class OrderService(
 
 ```kotlin
 fun <T> Flux<T>.tagMetrics(operation: String): Flux<T> {
-    return this.tag(operation)
+    return this.name(operation)
         .metrics()
 }
 
 fun <T> Mono<T>.tagMetrics(operation: String): Mono<T> {
-    return this.tag(operation)
+    return this.name(operation)
         .metrics()
 }
 ```
@@ -144,6 +159,8 @@ wow:
     enabled: true  # Enabled by default
 ```
 
+Wow's current Reactor decorators write to Micrometer's global registry. Keep Spring Boot's global-registry bridge enabled so application registries receive these meters. Explicit application-registry injection is planned for a future metrics integration revision.
+
 ## Monitoring Dashboard
 
 ### Prometheus + Grafana
@@ -161,16 +178,7 @@ scrape_configs:
 
 ### Common Queries
 
-```yaml
-# Command processing latency
-histogram_quantile(0.95, rate(wow_command_handler_duration_seconds_bucket[5m]))
-
-# Event publishing rate
-rate(wow_event_bus_send_total[5m])
-
-# Error rate
-rate(wow_command_handler_errors_total[5m]) / rate(wow_command_handler_total[5m])
-```
+Exporter naming depends on the registry. Inspect `/actuator/metrics` or the target registry first, then build queries from the generated Reactor suffixes such as `flow.duration` and `onNext.delay`.
 
 ## Performance Impact
 
@@ -191,7 +199,7 @@ rate(wow_command_handler_errors_total[5m]) / rate(wow_command_handler_total[5m])
 
 Check:
 1. Whether Micrometer dependencies are correctly added
-2. Whether MeterRegistry Bean is correctly configured
+2. Whether the MeterRegistry Bean is correctly configured and connected to Micrometer's global registry
 3. Whether `/actuator/metrics` endpoint is accessible
 
 ### Performance Issues

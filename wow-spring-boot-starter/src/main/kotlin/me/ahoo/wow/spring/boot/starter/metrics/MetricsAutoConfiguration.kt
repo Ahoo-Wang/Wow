@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot.starter.metrics
 
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean
 
 @AutoConfiguration
@@ -23,6 +24,7 @@ import org.springframework.context.annotation.Bean
 class MetricsAutoConfiguration {
 
     @Bean
+    @ConditionalOnMissingBean
     fun metricsBeanPostProcessor(): MetricsBeanPostProcessor {
         return MetricsBeanPostProcessor()
     }

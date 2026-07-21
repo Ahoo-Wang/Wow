@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.messaging.dispatcher
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.TestNamedMessage
@@ -28,6 +29,7 @@ import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
+import io.micrometer.core.instrument.Metrics as MicrometerMetrics
 
 class AggregateDispatcherTest {
 
@@ -96,14 +98,41 @@ class AggregateDispatcherTest {
             .verifyComplete()
     }
 
+    @Test
+    fun `dispatcher metrics should not expose routing group keys`() {
+        val meterRegistry = SimpleMeterRegistry()
+        MicrometerMetrics.addRegistry(meterRegistry)
+        try {
+            val dispatcherName = "metrics-cardinality-dispatcher"
+            val dispatcher = RecordingAggregateDispatcher(
+                messageFlux = Flux.just(TestExchange(group = 1), TestExchange(group = 2)),
+                name = dispatcherName,
+            )
+
+            dispatcher.start()
+
+            val dispatcherMeterIds = meterRegistry.meters
+                .map { it.id }
+                .filter { it.name.startsWith("wow.dispatcher") }
+                .filter { it.getTag("dispatcher") == dispatcherName }
+            dispatcherMeterIds.assert().isNotEmpty()
+            dispatcherMeterIds
+                .mapNotNull { it.getTag("group.key") }
+                .assert().isEmpty()
+        } finally {
+            MicrometerMetrics.removeRegistry(meterRegistry)
+            meterRegistry.close()
+        }
+    }
+
     private open class RecordingAggregateDispatcher(
         override val messageFlux: Flux<TestExchange>,
         private val handle: ((TestExchange) -> Mono<Void>)? = null,
-        override val scheduler: Scheduler = Schedulers.immediate()
+        override val scheduler: Scheduler = Schedulers.immediate(),
+        override val name: String = "recording-dispatcher",
     ) : AggregateDispatcher<TestExchange>() {
         override val parallelism: Int = 2
         override val namedAggregate: NamedAggregate = "wow-core-test.messaging_aggregate".toNamedAggregate().materialize()
-        override val name: String = "recording-dispatcher"
         val handled: Sinks.Many<TestExchange> = Sinks.many().replay().all()
         val groups = mutableListOf<Int>()
 
