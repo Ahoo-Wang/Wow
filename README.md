@@ -217,6 +217,12 @@ class CartSagaSpec : SagaSpec<CartSaga>({
 | [Order Service](./example) | Kotlin | Aggregates, sagas, projections — full DDD demo |
 | [Bank Transfer](./example/transfer) | Java | Simple event sourcing demo |
 
+## Community
+
+- [Contributing Guide](CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security Policy](SECURITY.md)
+
 ## License
 
 Wow is released under the [Apache 2.0 License](LICENSE).

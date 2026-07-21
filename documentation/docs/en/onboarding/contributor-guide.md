@@ -1140,7 +1140,7 @@ After completing this guide, you should be ready to:
 1. **Explore the example domain**: Read through `Order.kt`, `Cart.kt`, `OrderState.kt`, `CartState.kt`, and their tests. These are the best references for how patterns work in practice.
 2. **Read the getting started guide**: [Getting Started Guide](../guide/index.md)
 3. **Set up a test project**: Use the [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) to create a sandbox project.
-4. **Pick a good first issue**: Look for issues labeled "good first issue" in the [GitHub Issues](https://github.com/Ahoo-Wang/Wow/issues).
+4. **Review the open issues**: Choose a suitably scoped task from [GitHub Issues](https://github.com/Ahoo-Wang/Wow/issues), or use the appropriate issue template to propose one.
 5. **Run the example server**: `./gradlew example-server:bootRun` to see the framework in action.
 
 ## Related Pages
@@ -1155,4 +1155,6 @@ After completing this guide, you should be ready to:
 
 ::: info Contribution Welcome
 If you find errors, missing information, or confusing explanations in this guide, please open an issue or a pull request. The onboarding guide itself is part of the wiki and follows the same contribution workflow as the rest of the project.
+
+See the repository [Contributing Guide](https://github.com/Ahoo-Wang/Wow/blob/main/CONTRIBUTING.md), [Code of Conduct](https://github.com/Ahoo-Wang/Wow/blob/main/CODE_OF_CONDUCT.md), and [Security Policy](https://github.com/Ahoo-Wang/Wow/blob/main/SECURITY.md) before contributing.
 :::
