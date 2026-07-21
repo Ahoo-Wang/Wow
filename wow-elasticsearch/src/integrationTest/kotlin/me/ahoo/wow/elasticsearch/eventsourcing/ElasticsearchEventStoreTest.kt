@@ -42,6 +42,13 @@ class ElasticsearchEventStoreTest : EventStoreSpec() {
     override fun appendEventStreamWhenDuplicateRequestIdException() = Unit
 
     @Test
+    fun `scan aggregate id should be empty when index is missing`() {
+        eventStore.scanAggregateId(namedAggregate)
+            .test()
+            .verifyComplete()
+    }
+
+    @Test
     fun `load by version should continue across version gaps`() {
         val client = ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch)
         client.initEventStreamTemplate()
