@@ -161,7 +161,7 @@ Key behavioral characteristics visible in the flow:
 1. **Non-blocking reactive pipeline**: Both `send` and `receive` return reactive types (`Mono<Void>`, `Flux<E>`) -- the sender never blocks.
 2. **Read-only marking**: Every message is marked read-only before serialization at [AbstractKafkaBus.kt:57](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt#L57), preventing accidental mutation.
 3. **Partition key is aggregate ID**: The record key is always set to `message.aggregateId.id` at [AbstractKafkaBus.kt:106](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt#L106), guaranteeing ordered processing per aggregate.
-4. **Manual offset management**: Offsets are acknowledged explicitly via `exchange.acknowledge()` rather than auto-committed, giving the processor full control over at-least-once delivery semantics.
+4. **Gap-safe manual offset management**: Offsets are acknowledged explicitly via `exchange.acknowledge()`. Deferred commits prevent a later completed record from committing past an earlier in-flight record.
 
 ## Installation
 
@@ -201,6 +201,11 @@ implementation("me.ahoo.wow:wow-kafka")
 | `properties` | `Map<String, String>` | No | `{}` | Common configuration |
 | `producer` | `Map<String, String>` | No | `{}` | Producer configuration |
 | `consumer` | `Map<String, String>` | No | `{}` | Consumer configuration |
+| `receiver.prefetch-batches` | `Int` | No | `1` | Number of Kafka poll batches prefetched by the reactive receiver |
+| `receiver.max-deferred-commits` | `Int` | No | `1` | Maximum number of out-of-order commits retained to preserve offset gaps |
+| `receiver.retry-attempts` | `Long` | No | `3` | Retry attempts for each consecutive receiver failure burst |
+| `receiver.retry-backoff` | `Duration` | No | `10s` | Minimum receiver retry backoff |
+| `receiver.decode-failure-strategy` | `FAIL` / `ACKNOWLEDGE` | No | `FAIL` | Whether an invalid record stops the receiver or is explicitly skipped |
 
 ### Bus Type Selection
 
@@ -231,6 +236,12 @@ wow:
   kafka:
     bootstrap-servers: localhost:9092
     topic-prefix: 'wow.'
+    receiver:
+      prefetch-batches: 1
+      max-deferred-commits: 1
+      retry-attempts: 3
+      retry-backoff: 10s
+      decode-failure-strategy: FAIL
 ```
 
 ### SenderOptions and ReceiverOptions
@@ -244,11 +255,20 @@ All serialization is performed at the application layer as JSON strings (via `me
 
 ### Receiver Retry Policy
 
-When a `KafkaReceiver` encounters a transient error during polling, it retries up to **3 times with a 10-second backoff** before propagating the error:
+When a `KafkaReceiver` encounters an error, it retries up to **3 times with a 10-second minimum backoff** before propagating the error. Retry accounting uses `transientErrors(true)`, so a successfully received record resets the retry budget for the next consecutive failure burst.
 
 ```kotlin
-internal val DEFAULT_RECEIVE_RETRY_SPEC: RetryBackoffSpec = Retry.backoff(3, Duration.ofSeconds(10))
+Retry.backoff(3, Duration.ofSeconds(10))
+    .transientErrors(true)
 ```
+
+Use `wow.kafka.receiver.retry-attempts` and `wow.kafka.receiver.retry-backoff` to tune this policy.
+
+### Decode Failure Policy
+
+The receiver validates JSON decoding and the transport invariants that the Kafka key equals the decoded aggregate ID and that the record topic matches the decoded aggregate. The default `FAIL` strategy leaves an invalid record unacknowledged and terminates the receive stream with payload-free metadata diagnostics.
+
+Set `wow.kafka.receiver.decode-failure-strategy: ACKNOWLEDGE` only when explicitly accepting data loss for invalid records. The record is acknowledged only after the failure handler completes. Applications that require a dead-letter queue can provide a custom `KafkaRecordDecodeFailureHandler`: completion authorizes acknowledgment, while an error keeps the record unacknowledged.
 
 ## Topic Naming Rules
 
@@ -433,7 +453,9 @@ Before serialization, each message is marked as read-only via `message.withReadO
 
 ### 3. Manual Offset Acknowledgment
 
-Auto-commit is disabled by the framework. Instead, each `Exchange` implementation wraps a `ReceiverOffset` and exposes an `acknowledge()` method. The processor calls this after successful processing, giving full control over at-least-once semantics. If processing fails, the offset is not acknowledged and the message is re-delivered.
+Auto-commit is disabled by the framework. Each `Exchange` wraps a `ReceiverOffset` and exposes an `acknowledge()` method. Deferred commits preserve gaps when aggregate groups finish out of order, so a later acknowledgment cannot commit past an earlier in-flight record.
+
+The core processor uses `finallyAck`, so business-handler errors are acknowledged after the error path completes. Redelivery therefore depends on where the failure occurs; receiver/decode failures under the default `FAIL` strategy remain unacknowledged, while completed exchange processing is acknowledged even when the handler reports an error.
 
 ### 4. Correlation Metadata for Send Feedback
 
@@ -446,8 +468,8 @@ While Kafka broker metrics (consumer lag, request rate, ISR) should be monitored
 | Signal | Source | What It Reveals |
 |---|---|---|
 | Send errors | `doOnNext` in [AbstractKafkaBus.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt) | Kafka broker unavailability, topic creation issues |
-| Decode errors | `decode()` in [AbstractKafkaBus.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt) | Schema/version mismatch, corrupted messages |
-| Receiver retry | `DEFAULT_RECEIVE_RETRY_SPEC` | Transient broker/network failures |
+| Decode errors | `KafkaRecordDecodeFailureHandler` | Schema/version mismatch, corrupted messages, key/topic invariant violations |
+| Receiver retry | `KafkaReceiverPolicy.retrySpec` | Consecutive broker/network failure bursts |
 | Close events | `close()` in [AbstractKafkaBus.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt) | Graceful shutdown coverage |
 
 ## Troubleshooting
@@ -531,6 +553,12 @@ wow:
       - kafka-1:9092
       - kafka-2:9092
     topic-prefix: 'wow.'
+    receiver:
+      prefetch-batches: 1
+      max-deferred-commits: 1
+      retry-attempts: 3
+      retry-backoff: 10s
+      decode-failure-strategy: FAIL
     properties:
       security.protocol: SASL_SSL
       sasl.mechanism: PLAIN
@@ -564,7 +592,7 @@ wow:
 
 | Topic | Description |
 |---|---|
-| [Configuration Reference](../../reference/config/kafka.md) | Complete property reference for `wow.kafka.*` |
+| [Configuration Reference](../../reference/config/infrastructure.md#kafka) | Complete property reference for `wow.kafka.*` |
 | [Spring Boot Starter](spring-boot-starter.md) | Auto-configuration and feature variants |
 | [Command Gateway](../command-gateway.md) | Command gateway and wait plans |
 | [Event Processor](../event-processor.md) | Event processing pipeline |

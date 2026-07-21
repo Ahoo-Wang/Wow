@@ -15,14 +15,17 @@ package me.ahoo.wow.spring.boot.starter.kafka
 
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.EnabledCapable
+import me.ahoo.wow.kafka.KafkaReceiverPolicy
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
 import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.boot.context.properties.NestedConfigurationProperty
 import org.springframework.boot.context.properties.bind.DefaultValue
 import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.sender.SenderOptions
+import java.time.Duration
 
 @ConfigurationProperties(prefix = KafkaProperties.PREFIX)
 class KafkaProperties(
@@ -34,7 +37,8 @@ class KafkaProperties(
      */
     val properties: Map<String, String> = mapOf(),
     val producer: Map<String, String> = mapOf(),
-    val consumer: Map<String, String> = mapOf()
+    val consumer: Map<String, String> = mapOf(),
+    @NestedConfigurationProperty val receiver: KafkaReceiverProperties = KafkaReceiverProperties(),
 ) : EnabledCapable {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}kafka"
@@ -65,4 +69,29 @@ class KafkaProperties(
         }
         return ReceiverOptions.create(receiverProperties)
     }
+}
+
+class KafkaReceiverProperties(
+    @DefaultValue("1") var prefetchBatches: Int = KafkaReceiverPolicy.DEFAULT_PREFETCH_BATCHES,
+    @DefaultValue("1") var maxDeferredCommits: Int = KafkaReceiverPolicy.DEFAULT_MAX_DEFERRED_COMMITS,
+    @DefaultValue("3") var retryAttempts: Long = KafkaReceiverPolicy.DEFAULT_RETRY_ATTEMPTS,
+    @DefaultValue("10s") var retryBackoff: Duration = KafkaReceiverPolicy.DEFAULT_RETRY_BACKOFF,
+    @DefaultValue("FAIL")
+    var decodeFailureStrategy: KafkaRecordDecodeFailureStrategy = KafkaRecordDecodeFailureStrategy.FAIL,
+) {
+    fun toPolicy(): KafkaReceiverPolicy {
+        return KafkaReceiverPolicy(
+            prefetchBatches = prefetchBatches,
+            maxDeferredCommits = maxDeferredCommits,
+            retrySpec = KafkaReceiverPolicy.defaultRetrySpec(
+                maxAttempts = retryAttempts,
+                minBackoff = retryBackoff,
+            ),
+        )
+    }
+}
+
+enum class KafkaRecordDecodeFailureStrategy {
+    FAIL,
+    ACKNOWLEDGE,
 }

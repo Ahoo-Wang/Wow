@@ -16,13 +16,17 @@ package me.ahoo.wow.spring.boot.starter.kafka
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
+import me.ahoo.wow.kafka.AcknowledgeKafkaRecordDecodeFailureHandler
 import me.ahoo.wow.kafka.CommandTopicConverter
 import me.ahoo.wow.kafka.DefaultCommandTopicConverter
 import me.ahoo.wow.kafka.DefaultEventStreamTopicConverter
 import me.ahoo.wow.kafka.DefaultStateEventTopicConverter
 import me.ahoo.wow.kafka.EventStreamTopicConverter
+import me.ahoo.wow.kafka.FailKafkaRecordDecodeFailureHandler
 import me.ahoo.wow.kafka.KafkaCommandBus
 import me.ahoo.wow.kafka.KafkaDomainEventBus
+import me.ahoo.wow.kafka.KafkaReceiverPolicy
+import me.ahoo.wow.kafka.KafkaRecordDecodeFailureHandler
 import me.ahoo.wow.kafka.KafkaStateEventBus
 import me.ahoo.wow.kafka.NoOpReceiverOptionsCustomizer
 import me.ahoo.wow.kafka.ReceiverOptionsCustomizer
@@ -55,6 +59,21 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
 
     @Bean
     @ConditionalOnMissingBean
+    fun kafkaReceiverPolicy(): KafkaReceiverPolicy {
+        return kafkaProperties.receiver.toPolicy()
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    fun kafkaRecordDecodeFailureHandler(): KafkaRecordDecodeFailureHandler {
+        return when (kafkaProperties.receiver.decodeFailureStrategy) {
+            KafkaRecordDecodeFailureStrategy.FAIL -> FailKafkaRecordDecodeFailureHandler
+            KafkaRecordDecodeFailureStrategy.ACKNOWLEDGE -> AcknowledgeKafkaRecordDecodeFailureHandler
+        }
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     fun defaultCommandTopicConverter(): CommandTopicConverter {
         return DefaultCommandTopicConverter(kafkaProperties.topicPrefix)
     }
@@ -67,13 +86,17 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
     )
     fun kafkaCommandBus(
         topicConverter: CommandTopicConverter,
-        receiverOptionsCustomizer: ReceiverOptionsCustomizer
+        receiverOptionsCustomizer: ReceiverOptionsCustomizer,
+        receiverPolicy: KafkaReceiverPolicy,
+        recordDecodeFailureHandler: KafkaRecordDecodeFailureHandler,
     ): DistributedCommandBus {
         return KafkaCommandBus(
             topicConverter = topicConverter,
             senderOptions = kafkaProperties.buildSenderOptions(),
             receiverOptions = kafkaProperties.buildReceiverOptions(),
             receiverOptionsCustomizer = receiverOptionsCustomizer,
+            receiverPolicy = receiverPolicy,
+            recordDecodeFailureHandler = recordDecodeFailureHandler,
         )
     }
 
@@ -91,13 +114,17 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
     )
     fun kafkaDomainEventBus(
         topicConverter: EventStreamTopicConverter,
-        receiverOptionsCustomizer: ReceiverOptionsCustomizer
+        receiverOptionsCustomizer: ReceiverOptionsCustomizer,
+        receiverPolicy: KafkaReceiverPolicy,
+        recordDecodeFailureHandler: KafkaRecordDecodeFailureHandler,
     ): DistributedDomainEventBus {
         return KafkaDomainEventBus(
             topicConverter = topicConverter,
             senderOptions = kafkaProperties.buildSenderOptions(),
             receiverOptions = kafkaProperties.buildReceiverOptions(),
             receiverOptionsCustomizer = receiverOptionsCustomizer,
+            receiverPolicy = receiverPolicy,
+            recordDecodeFailureHandler = recordDecodeFailureHandler,
         )
     }
 
@@ -115,13 +142,17 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
     )
     fun kafkaStateEventBus(
         topicConverter: StateEventTopicConverter,
-        receiverOptionsCustomizer: ReceiverOptionsCustomizer
+        receiverOptionsCustomizer: ReceiverOptionsCustomizer,
+        receiverPolicy: KafkaReceiverPolicy,
+        recordDecodeFailureHandler: KafkaRecordDecodeFailureHandler,
     ): DistributedStateEventBus {
         return KafkaStateEventBus(
             topicConverter = topicConverter,
             senderOptions = kafkaProperties.buildSenderOptions(),
             receiverOptions = kafkaProperties.buildReceiverOptions(),
             receiverOptionsCustomizer = receiverOptionsCustomizer,
+            receiverPolicy = receiverPolicy,
+            recordDecodeFailureHandler = recordDecodeFailureHandler,
         )
     }
 }

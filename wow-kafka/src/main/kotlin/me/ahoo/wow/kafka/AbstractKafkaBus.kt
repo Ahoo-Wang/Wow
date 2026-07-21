@@ -34,15 +34,30 @@ import reactor.kafka.receiver.ReceiverRecord
 import reactor.kafka.sender.KafkaSender
 import reactor.kafka.sender.SenderOptions
 import reactor.kafka.sender.SenderRecord
-import reactor.util.concurrent.Queues
 
 abstract class AbstractKafkaBus<M, E>(
     private val topicConverter: AggregateTopicConverter,
     private val senderOptions: SenderOptions<String, String>,
     private val receiverOptions: ReceiverOptions<String, String>,
-    private val receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer
+    private val receiverOptionsCustomizer: ReceiverOptionsCustomizer,
+    private val receiverPolicy: KafkaReceiverPolicy,
+    private val recordDecodeFailureHandler: KafkaRecordDecodeFailureHandler,
 ) : DistributedMessageBus<M, E>
     where M : Message<*, *>, M : AggregateIdCapable, M : NamedAggregate, E : MessageExchange<*, M> {
+    constructor(
+        topicConverter: AggregateTopicConverter,
+        senderOptions: SenderOptions<String, String>,
+        receiverOptions: ReceiverOptions<String, String>,
+        receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
+    ) : this(
+        topicConverter = topicConverter,
+        senderOptions = senderOptions,
+        receiverOptions = receiverOptions,
+        receiverOptionsCustomizer = receiverOptionsCustomizer,
+        receiverPolicy = KafkaReceiverPolicy(),
+        recordDecodeFailureHandler = FailKafkaRecordDecodeFailureHandler,
+    )
+
     companion object {
         private val log = KotlinLogging.logger {}
     }
@@ -75,22 +90,27 @@ abstract class AbstractKafkaBus<M, E>(
 
     abstract fun M.toExchange(receiverOffset: ReceiverOffset): E
 
+    protected open fun createReceiver(
+        receiverOptions: ReceiverOptions<String, String>,
+    ): KafkaReceiver<String, String> {
+        return KafkaReceiver.create(receiverOptions)
+    }
+
     override fun receive(subscription: MessageSubscription): Flux<E> {
         return Flux.deferContextual { contextView ->
-            val options = receiverOptionsCustomizer.customize(receiverOptions)
+            val options = receiverOptionsCustomizer.customize(
+                receiverOptions.maxDeferredCommits(receiverPolicy.maxDeferredCommits),
+            )
                 .consumerProperty(
                     ConsumerConfig.GROUP_ID_CONFIG,
                     subscription.receiverGroup,
                 )
                 .subscription(subscription.namedAggregates.map { topicConverter.convert(it) }.toSet())
             val customizedOptions = contextView.getReceiverOptionsCustomizer()?.customize(options) ?: options
-            KafkaReceiver.create(customizedOptions)
-                .receive(Queues.SMALL_BUFFER_SIZE)
-                .retryWhen(DEFAULT_RECEIVE_RETRY_SPEC)
-                .mapNotNull {
-                    val message = decode(it) ?: return@mapNotNull null
-                    message.toExchange(it.receiverOffset())
-                }
+            createReceiver(customizedOptions)
+                .receive(receiverPolicy.prefetchBatches)
+                .retryWhen(receiverPolicy.retrySpec)
+                .concatMap(::decodeRecord)
         }
     }
 
@@ -110,16 +130,31 @@ abstract class AbstractKafkaBus<M, E>(
         return SenderRecord.create(producerRecord, Sinks.empty())
     }
 
-    @Suppress("TooGenericExceptionCaught")
-    protected fun decode(receiverRecord: ReceiverRecord<String, String>): M? {
-        return try {
-            receiverRecord.value().toObject(messageType)
-        } catch (e: Throwable) {
-            log.error(e) {
-                "Failed to decode ReceiverRecord[$receiverRecord]."
-            }
-            null
+    private fun decodeRecord(receiverRecord: ReceiverRecord<String, String>): Mono<E> {
+        return Mono.fromCallable {
+            decode(receiverRecord)
+        }.onErrorResume(Exception::class.java) {
+            val failure = KafkaRecordDecodeFailure(receiverRecord, it)
+            recordDecodeFailureHandler.handle(failure)
+                .then(
+                    Mono.fromRunnable {
+                        receiverRecord.receiverOffset().acknowledge()
+                    },
+                ).then(Mono.empty())
+        }.map {
+            it.toExchange(receiverRecord.receiverOffset())
         }
+    }
+
+    protected fun decode(receiverRecord: ReceiverRecord<String, String>): M {
+        val message = receiverRecord.value().toObject(messageType)
+        require(receiverRecord.key() == message.aggregateId.id) {
+            "Kafka record key does not match the decoded aggregate id."
+        }
+        require(receiverRecord.topic() == topicConverter.convert(message)) {
+            "Kafka record topic does not match the decoded aggregate."
+        }
+        return message
     }
 
     override fun close() {
