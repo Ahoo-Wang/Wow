@@ -23,10 +23,29 @@ import me.ahoo.wow.serialization.MessageRecords
 
 object EventStreamConditionConverter : AbstractElasticsearchConditionConverter() {
     override fun convert(condition: Condition): Query = internalConvert(condition)
+
+    override fun id(condition: Condition): Query {
+        return term {
+            it.field(MessageRecords.ID)
+                .value(condition.valueAs<String>())
+        }
+    }
+
+    override fun ids(condition: Condition): Query {
+        return terms {
+            it.field(MessageRecords.ID)
+                .terms { builder ->
+                    condition.valueAs<List<String>>().map {
+                        FieldValue.of(it)
+                    }.let { builder.value(it) }
+                }
+        }
+    }
+
     override fun aggregateId(condition: Condition): Query {
         return term {
             it.field(MessageRecords.AGGREGATE_ID)
-                .value(FieldValue.of(condition.value))
+                .value(condition.valueAs<String>())
         }
     }
 
@@ -34,7 +53,7 @@ object EventStreamConditionConverter : AbstractElasticsearchConditionConverter()
         return terms {
             it.field(MessageRecords.AGGREGATE_ID)
                 .terms { builder ->
-                    condition.valueAs<List<Any>>().map {
+                    condition.valueAs<List<String>>().map {
                         FieldValue.of(it)
                     }.toList().let { builder.value(it) }
                 }

@@ -487,9 +487,12 @@ class ElasticsearchConditionConverterTest {
         }
         assertConvert(
             query,
-            term {
-                it.field("field")
-                    .value(FieldValue.NULL)
+            bool { boolBuilder ->
+                boolBuilder.mustNot { builder ->
+                    builder.exists {
+                        it.field("field")
+                    }
+                }
             }
         )
     }
@@ -503,13 +506,8 @@ class ElasticsearchConditionConverterTest {
         }
         assertConvert(
             query,
-            bool { boolBuilder ->
-                boolBuilder.mustNot { builder ->
-                    builder.term {
-                        it.field("field")
-                            .value(FieldValue.NULL)
-                    }
-                }
+            exists {
+                it.field("field")
             }
         )
     }

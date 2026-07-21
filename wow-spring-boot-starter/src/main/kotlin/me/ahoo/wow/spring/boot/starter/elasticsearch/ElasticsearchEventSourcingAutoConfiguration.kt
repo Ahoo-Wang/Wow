@@ -42,6 +42,7 @@ import org.springframework.data.elasticsearch.core.ReactiveElasticsearchOperatio
 
 @AutoConfiguration(after = [ElasticsearchRestClientAutoConfiguration::class])
 @ConditionalOnWowEnabled
+@ConditionalOnElasticsearchEnabled
 @ConditionalOnClass(ElasticsearchEventStore::class)
 @EnableConfigurationProperties(ElasticsearchProperties::class)
 class ElasticsearchEventSourcingAutoConfiguration(private val elasticsearchProperties: ElasticsearchProperties) {

@@ -14,6 +14,7 @@
 package me.ahoo.wow.elasticsearch.query
 
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
+import co.elastic.clients.elasticsearch.core.CountRequest
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
@@ -22,8 +23,7 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.PagedQuery
-import me.ahoo.wow.api.query.Pagination
+import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.api.query.isEmpty
 import me.ahoo.wow.elasticsearch.query.ElasticsearchProjectionConverter.toSourceFilter
@@ -59,14 +59,13 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
     }
 
     override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> {
-        val pagedQuery =
-            PagedQuery(
-                condition = listQuery.condition,
-                projection = listQuery.projection,
-                sort = listQuery.sort,
-                pagination = Pagination(index = 1, size = listQuery.limit.searchSize())
-            )
-        return dynamicPaged(pagedQuery).flatMapIterable { it.list }
+        val searchRequest = createSearchRequest(
+            query = listQuery,
+            from = 0,
+            size = listQuery.limit.searchSize(),
+            trackTotalHits = false,
+        )
+        return search(searchRequest).flatMapIterable { it.list }
     }
 
     override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<R>> {
@@ -80,37 +79,60 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
         }
     }
 
-    @Suppress("UNCHECKED_CAST")
     override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> {
+        val searchRequest = createSearchRequest(
+            query = pagedQuery,
+            from = pagedQuery.pagination.offset(),
+            size = pagedQuery.pagination.size,
+            trackTotalHits = true,
+        )
+        return search(searchRequest)
+    }
+
+    private fun createSearchRequest(
+        query: Queryable<*>,
+        from: Int,
+        size: Int,
+        trackTotalHits: Boolean,
+    ): SearchRequest {
         val searchRequest = SearchRequest.of {
             it.index(indexName)
-                .query(conditionConverter.convert(pagedQuery.condition))
-                .from(pagedQuery.pagination.offset())
-                .size(pagedQuery.pagination.size)
+                .query(conditionConverter.convert(query.condition))
+                .from(from)
+                .size(size)
 
-            if (pagedQuery.sort.isNotEmpty()) {
-                it.sort(pagedQuery.sort.toSortOptions())
+            it.trackTotalHits { trackHits -> trackHits.enabled(trackTotalHits) }
+            if (query.sort.isNotEmpty()) {
+                it.sort(query.sort.toSortOptions())
             }
-            if (!pagedQuery.projection.isEmpty()) {
+            if (!query.projection.isEmpty()) {
                 it.source {
-                    it.filter(pagedQuery.projection.toSourceFilter())
+                    it.filter(query.projection.toSourceFilter())
                 }
             }
             it
         }
+        return searchRequest
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun search(searchRequest: SearchRequest): Mono<PagedList<DynamicDocument>> {
         return elasticsearchClient.search(searchRequest, Map::class.java)
-            .mapNotNull<PagedList<DynamicDocument>> { result ->
-                val list = result.hits()?.hits()?.map { hit ->
+            .map { result ->
+                val list = result.hits()?.hits()?.mapNotNull { hit ->
                     hit.source()?.let {
                         (it as MutableMap<String, Any?>).toDynamicDocument()
                     }
-                } as List<DynamicDocument>? ?: emptyList()
+                } ?: emptyList()
                 PagedList(result.hits()?.total()?.value() ?: 0, list)
             }
     }
 
     override fun count(condition: Condition): Mono<Long> {
-        val pagedQuery = PagedQuery(condition = condition, pagination = Pagination(index = 1, size = 0))
-        return dynamicPaged(pagedQuery).map { it.total }
+        val countRequest = CountRequest.of {
+            it.index(indexName)
+                .query(conditionConverter.convert(condition))
+        }
+        return elasticsearchClient.count(countRequest).map { it.count() }
     }
 }

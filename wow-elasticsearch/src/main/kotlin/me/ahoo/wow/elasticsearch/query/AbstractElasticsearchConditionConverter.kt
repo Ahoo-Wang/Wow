@@ -231,15 +231,18 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
     }
 
     override fun isNull(condition: Condition): Query {
-        return term {
-            it.field(condition.field)
-                .value(FieldValue.NULL)
+        return bool { builder ->
+            builder.mustNot {
+                it.exists {
+                    it.field(condition.field)
+                }
+            }
         }
     }
 
     override fun notNull(condition: Condition): Query {
-        return bool {
-            it.mustNot(isNull(condition))
+        return exists {
+            it.field(condition.field)
         }
     }
 

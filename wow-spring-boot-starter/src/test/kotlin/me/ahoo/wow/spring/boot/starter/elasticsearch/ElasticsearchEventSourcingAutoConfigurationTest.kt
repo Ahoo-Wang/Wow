@@ -42,6 +42,24 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
+    fun `should not load context when elasticsearch is disabled`() {
+        contextRunner
+            .enableWow()
+            .withPropertyValues("${ElasticsearchProperties.PREFIX}.enabled=false")
+            .withPropertyValues("${SnapshotProperties.STORAGE}=${StorageType.ELASTICSEARCH_NAME}")
+            .withPropertyValues("${EventStoreProperties.STORAGE}=${StorageType.ELASTICSEARCH_NAME}")
+            .withUserConfiguration(ElasticsearchEventSourcingAutoConfiguration::class.java)
+            .run { context: AssertableApplicationContext ->
+                context.assert()
+                    .hasNotFailed()
+                    .doesNotHaveBean(Jackson3JsonpMapper::class.java)
+                    .doesNotHaveBean(ElasticsearchEventStore::class.java)
+                    .doesNotHaveBean(ElasticsearchSnapshotStore::class.java)
+                    .doesNotHaveBean(IndexTemplateInitializer::class.java)
+            }
+    }
+
+    @Test
     fun `should load context with elasticsearch event sourcing beans`() {
         val elasticsearchTemplate = mockk<ReactiveElasticsearchOperations> {
             every { indexOps(any<IndexCoordinates>()) } returns mockk<ReactiveIndexOperations> {

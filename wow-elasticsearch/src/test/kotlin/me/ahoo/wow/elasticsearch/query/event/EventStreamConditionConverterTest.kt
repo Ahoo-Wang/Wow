@@ -23,6 +23,23 @@ import org.junit.jupiter.api.Test
 
 class EventStreamConditionConverterTest {
     @Test
+    fun `should convert event stream id condition`() {
+        val actual = EventStreamConditionConverter.convert(condition { id("streamId") })
+
+        actual.term().field().assert().isEqualTo(MessageRecords.ID)
+        actual.term().value().stringValue().assert().isEqualTo("streamId")
+    }
+
+    @Test
+    fun `should convert event stream ids condition`() {
+        val actual = EventStreamConditionConverter.convert(condition { ids("streamId-1", "streamId-2") })
+
+        actual.terms().field().assert().isEqualTo(MessageRecords.ID)
+        actual.terms().terms().value().map { it.stringValue() }
+            .assert().containsExactly("streamId-1", "streamId-2")
+    }
+
+    @Test
     fun `should convert aggregate id condition`() {
         val condition = condition { aggregateId("aggregateId") }
         val actual = EventStreamConditionConverter.convert(condition)
