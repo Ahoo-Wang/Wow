@@ -38,14 +38,18 @@ import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.opentelemetry.WowOpenTelemetryAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.projection.ProjectionDispatcherAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.query.QueryAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.redis.RedisEventSourcingAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.redis.RedisProperties
 import me.ahoo.wow.spring.boot.starter.saga.StatelessSagaAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.webflux.WebFluxAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.webflux.WowWebClientAutoConfiguration
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.getBean
+import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 
 class PrepareAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
@@ -63,6 +67,30 @@ class PrepareAutoConfigurationTest {
                     .hasSingleBean(PrepareKeyProxyFactory::class.java)
                     .hasSingleBean(PrepareProperties::class.java)
                     .hasSingleBean(PrepareKeyInitializer::class.java)
+            }
+    }
+
+    @Test
+    fun `should create prepare proxy factory after redis prepare key factory`() {
+        contextRunner
+            .enableWow()
+            .withPropertyValues(
+                "${PrepareProperties.STORAGE}=${PrepareStorage.REDIS_NAME}",
+            )
+            .withBean(ReactiveStringRedisTemplate::class.java, {
+                mockk<ReactiveStringRedisTemplate>()
+            })
+            .withConfiguration(
+                AutoConfigurations.of(
+                    PrepareAutoConfiguration::class.java,
+                    RedisEventSourcingAutoConfiguration::class.java,
+                )
+            )
+            .run { context: AssertableApplicationContext ->
+                context.assert()
+                    .hasSingleBean(PrepareKeyFactory::class.java)
+                    .hasSingleBean(PrepareKeyProxyFactory::class.java)
+                    .hasSingleBean(RedisProperties::class.java)
             }
     }
 

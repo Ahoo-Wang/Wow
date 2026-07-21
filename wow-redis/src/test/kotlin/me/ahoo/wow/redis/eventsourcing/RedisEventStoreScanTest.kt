@@ -162,7 +162,8 @@ class RedisEventStoreScanTest {
             it.contains("001").assert().isFalse()
             it.contains("001" + "\u0000" + TenantId.DEFAULT_TENANT_ID).assert().isFalse()
             it.contains("002" + "\u0000" + TenantId.DEFAULT_TENANT_ID).assert().isTrue()
-            it.contains(AggregateIdScanner.LAST_ID).assert().isFalse()
+            it.contains("~order" + "\u0000" + TenantId.DEFAULT_TENANT_ID).assert().isTrue()
+            it.contains("订单-1" + "\u0000" + TenantId.DEFAULT_TENANT_ID).assert().isTrue()
         }
         limitSlots.forEach {
             it.count.assert().isEqualTo(2)

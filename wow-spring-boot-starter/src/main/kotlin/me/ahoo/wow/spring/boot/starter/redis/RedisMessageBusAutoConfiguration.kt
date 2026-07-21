@@ -25,11 +25,14 @@ import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.command.CommandProperties
+import me.ahoo.wow.spring.boot.starter.event.EventAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.event.EventProperties
+import me.ahoo.wow.spring.boot.starter.eventsourcing.state.StateAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.eventsourcing.state.StateProperties
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration
@@ -37,7 +40,11 @@ import org.springframework.context.annotation.Bean
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 
 @AutoConfiguration(
-    before = [CommandAutoConfiguration::class],
+    before = [
+        CommandAutoConfiguration::class,
+        EventAutoConfiguration::class,
+        StateAutoConfiguration::class,
+    ],
     after = [DataRedisReactiveAutoConfiguration::class],
 )
 @ConditionalOnWowEnabled
@@ -51,6 +58,7 @@ class RedisMessageBusAutoConfiguration {
         CommandProperties.BUS_TYPE,
         havingValue = BusType.REDIS_NAME,
     )
+    @ConditionalOnMissingBean(DistributedCommandBus::class)
     fun redisCommandBus(
         redisTemplate: ReactiveStringRedisTemplate,
         recoveryProperties: RedisStreamRecoveryProperties,
@@ -68,6 +76,7 @@ class RedisMessageBusAutoConfiguration {
         EventProperties.BUS_TYPE,
         havingValue = BusType.REDIS_NAME,
     )
+    @ConditionalOnMissingBean(DistributedDomainEventBus::class)
     fun redisDomainEventBus(
         redisTemplate: ReactiveStringRedisTemplate,
         recoveryProperties: RedisStreamRecoveryProperties,
@@ -85,6 +94,7 @@ class RedisMessageBusAutoConfiguration {
         StateProperties.BUS_TYPE,
         havingValue = BusType.REDIS_NAME,
     )
+    @ConditionalOnMissingBean(DistributedStateEventBus::class)
     fun redisStateEventBus(
         redisTemplate: ReactiveStringRedisTemplate,
         recoveryProperties: RedisStreamRecoveryProperties,

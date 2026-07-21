@@ -31,9 +31,9 @@ flowchart TB
             SS["State Stream"]
         end
         subgraph Storage["Storage"]
-            EH["Event Hash"]
-            SH["Snapshot Hash"]
-            PK["Prepare Key"]
+            EH["Event ZSET"]
+            SH["Snapshot String"]
+            PK["Prepare Hash"]
         end
     end
     
@@ -109,6 +109,8 @@ wow:
     state:
       bus:
         type: redis
+  prepare:
+    storage: redis
   redis:
     enabled: true
     message-bus:
@@ -126,10 +128,10 @@ The Redis command bus uses Redis Streams for message delivery:
 ### Stream Naming Rules
 
 ```
-{prefix}{contextName}.{aggregateName}.command
+{contextAlias}.{aggregateName}:command
 ```
 
-Example: `wow.order-service.order.command`
+Example: `order-service.order:command`
 
 ### Consumer Groups
 
@@ -150,6 +152,10 @@ cover the longest handler execution, retry, and graceful-shutdown duration. Reco
 default. Set `wow.redis.message-bus.recovery.enabled=false` only as a temporary rollback; doing so
 restores the previous behavior in which abandoned PEL records can remain stranded.
 
+Pending recovery and live delivery run concurrently. Redis Streams does not guarantee that an older
+recovered record is delivered before a newer live record, so handlers must tolerate recovery-time
+reordering as well as duplicate delivery.
+
 Records without the `msg` field or with invalid JSON no longer terminate the consumer. They remain
 pending for manual diagnosis, while a payload-free error and a `RedisMessageBusObservation.RecordDecodeFailed`
 observation are emitted. Applications can register non-blocking `RedisMessageBusObserver` beans for
@@ -160,13 +166,13 @@ metrics or alerting.
 ### Domain Event Stream
 
 ```
-{prefix}{contextName}.{aggregateName}.event
+{contextAlias}.{aggregateName}:event
 ```
 
 ### State Event Stream
 
 ```
-{prefix}{contextName}.{aggregateName}.state
+{contextAlias}.{aggregateName}:state
 ```
 
 ## Event Store
@@ -198,24 +204,28 @@ Request IDs are stored in the bucket-aligned SET key shown above.
 
 ## Snapshot Storage
 
-Snapshots are stored using Hash structure:
+Snapshots are stored as String values:
 
 ```
-Key: {prefix}{contextName}.{aggregateName}:{aggregateId}:snapshot
+Key: {contextAlias}.{aggregateName}:snapshot:{aggregateId}@{tenantId}
 Value: {snapshotJson}
 ```
 
 ## Prepare Key
 
-PrepareKey uses String structure:
+PrepareKey uses a Hash:
 
 ```
-Key: {prefix}prepare:{keyName}:{key}
-Value: {preparedValue}
-TTL: Based on configuration or permanent
+Key: prepare:{key}
+Field: value = {preparedValueJson}
+Field: ttlAt = {expirationTimestamp}
 ```
 
 ## Connection Pool Configuration
+
+Connection pooling requires Apache Commons Pool 2 on the application classpath. The
+`redis-support` capability does not add that optional dependency; without it, the pool settings
+below are not applied.
 
 ```yaml
 spring:
@@ -271,25 +281,29 @@ spring:
 
 ## Performance Optimization
 
-### Pipeline Batch Operations
+### Batch Operations
 
-The Redis extension automatically uses Pipeline to optimize batch operations, reducing network round trips.
+The event store uses Lua scripts for atomic append operations. Snapshot and message-bus operations
+are issued individually; the extension does not automatically pipeline arbitrary batch work.
 
 ### Memory Optimization
 
-1. **Set Reasonable TTL**: Set expiration time for temporary data
-2. **Compressed Storage**: Enable data compression to reduce memory usage
-3. **Monitor Memory**: Regularly check memory usage
+1. **Separate authoritative data from cache data**: Do not apply cache eviction policies to EventStore keys
+2. **Capacity-plan Streams**: Acknowledgement removes records from the PEL, not from the Stream; Wow does not automatically trim Streams
+3. **Monitor memory and persistence**: Configure persistence, replication, and alerting according to the durability requirement
 
 ### Recommended Configuration
 
 ```yaml
 # Redis server configuration recommendations
 maxmemory 4gb
-maxmemory-policy allkeys-lru
+maxmemory-policy noeviction
 tcp-keepalive 300
 timeout 0
 ```
+
+`allkeys-lru` can evict event streams, idempotency indexes, aggregate indexes, or snapshots
+independently and must not be used when Redis is the authoritative EventStore.
 
 ## Troubleshooting
 
@@ -376,6 +390,8 @@ wow:
         type: redis
         local-first:
           enabled: true
+  prepare:
+    storage: redis
   redis:
     enabled: true
 ```
@@ -384,6 +400,6 @@ wow:
 
 1. **Enable LocalFirst Mode**: Process local messages first to reduce network latency
 2. **Use Cluster Mode**: Use Redis cluster in production for high availability and scalability
-3. **Configure Connection Pool Properly**: Configure appropriate connection pool size based on concurrency
+3. **Configure Connection Pool Properly**: Add Commons Pool 2 and size the pool based on measured concurrency
 4. **Monitor Memory Usage**: Regularly monitor Redis memory usage to avoid OOM
 5. **Enable Persistence**: Configure RDB or AOF persistence to prevent data loss
