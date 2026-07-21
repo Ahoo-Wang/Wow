@@ -15,11 +15,55 @@ package me.ahoo.wow.tck.container
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class ElasticsearchTestFixtureTest {
 
     @Test
     fun `should expose authentication username`() {
         ElasticsearchTestFixture().username.assert().isEqualTo(WowTestContainers.ELASTIC_USER)
+    }
+
+    @Test
+    fun `should reuse and close managed resource`() {
+        val fixture = ElasticsearchTestFixture()
+        val resource = TestResource("client")
+
+        val first = fixture.getOrCreateResource("client") { resource }
+        val second = fixture.getOrCreateResource("client") { TestResource("unused") }
+
+        first.assert().isSameAs(resource)
+        second.assert().isSameAs(resource)
+        fixture.closeManagedResources()
+        resource.closed.assert().isTrue()
+    }
+
+    @Test
+    fun `should close every resource in reverse order when one close fails`() {
+        val fixture = ElasticsearchTestFixture()
+        val closeOrder = mutableListOf<String>()
+        fixture.getOrCreateResource("first") { TestResource("first", closeOrder) }
+        fixture.getOrCreateResource("second") { TestResource("second", closeOrder, failOnClose = true) }
+
+        assertThrows<IllegalStateException> {
+            fixture.closeManagedResources()
+        }
+
+        closeOrder.assert().containsExactly("second", "first")
+    }
+
+    private class TestResource(
+        private val name: String,
+        private val closeOrder: MutableList<String> = mutableListOf(),
+        private val failOnClose: Boolean = false,
+    ) : AutoCloseable {
+        var closed: Boolean = false
+            private set
+
+        override fun close() {
+            closed = true
+            closeOrder.add(name)
+            check(!failOnClose) { "close failed: $name" }
+        }
     }
 }
