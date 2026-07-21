@@ -169,8 +169,7 @@ class ClickHouseExpansionIntegrationTest {
         result: BiScriptResult,
         case: TopologyCase,
     ) {
-        val before = listOf(COMMAND_STORE_TABLE, STATE_STORE_TABLE, STATE_LAST_STORE_TABLE)
-            .associateWith { table -> queryCount("SELECT count() FROM ${qualified(DATABASE, table)}") }
+        val before = logicalStoreCounts()
 
         val failure = assertThrows<SQLException> {
             result.statements.forEach(::executeSql)
@@ -182,10 +181,7 @@ class ClickHouseExpansionIntegrationTest {
             .contains("TABLE_ALREADY_EXISTS")
 
         assertGeneratedObjects(case)
-        before.forEach { (table, expectedCount) ->
-            queryCount("SELECT count() FROM ${qualified(DATABASE, table)}")
-                .assert().isEqualTo(expectedCount)
-        }
+        logicalStoreCounts().assert().isEqualTo(before)
     }
 
     private fun Connection.assertAuthoritativeDeployIsIdempotent(
@@ -195,8 +191,7 @@ class ClickHouseExpansionIntegrationTest {
         result.diagnostics.none { diagnostic ->
             diagnostic.code == BiScriptDiagnosticCode.COMPUTED_OBJECT_DRIFT
         }.assert().isTrue()
-        val before = listOf(COMMAND_STORE_TABLE, STATE_STORE_TABLE, STATE_LAST_STORE_TABLE)
-            .associateWith { table -> queryCount("SELECT count() FROM ${qualified(DATABASE, table)}") }
+        val before = logicalStoreCounts()
         val queueUuids = queueUuids()
         queueUuids.values.forEach { uuid -> uuid.assert().isNotEqualTo(NIL_UUID) }
         val script = result.statements.joinToString("\n")
@@ -210,10 +205,7 @@ class ClickHouseExpansionIntegrationTest {
         result.statements.forEach(::executeSql)
 
         assertGeneratedObjects(case)
-        before.forEach { (table, expectedCount) ->
-            queryCount("SELECT count() FROM ${qualified(DATABASE, table)}")
-                .assert().isEqualTo(expectedCount)
-        }
+        logicalStoreCounts().assert().isEqualTo(before)
         queueUuids().assert().isEqualTo(queueUuids)
     }
 
@@ -224,8 +216,7 @@ class ClickHouseExpansionIntegrationTest {
         options: BiScriptOptions,
         case: TopologyCase,
     ) {
-        val before = listOf(COMMAND_STORE_TABLE, STATE_STORE_TABLE, STATE_LAST_STORE_TABLE)
-            .associateWith { table -> queryCount("SELECT count() FROM ${qualified(DATABASE, table)}") }
+        val before = logicalStoreCounts()
         val queueUuids = queueUuids()
         val comment = queryRows(
             "SELECT comment FROM system.tables WHERE database = ${literal(DATABASE)} " +
@@ -248,9 +239,7 @@ class ClickHouseExpansionIntegrationTest {
         repair.statements.forEach(::executeSql)
 
         assertGeneratedObjects(case)
-        before.forEach { (table, expectedCount) ->
-            queryCount("SELECT count() FROM ${qualified(DATABASE, table)}").assert().isEqualTo(expectedCount)
-        }
+        logicalStoreCounts().assert().isEqualTo(before)
         queueUuids().assert().isEqualTo(queueUuids)
         val converged = generator.generate(
             preparation,
@@ -269,8 +258,7 @@ class ClickHouseExpansionIntegrationTest {
     ) {
         val consumer = "${STATE_LAST_TABLE}_consumer"
         val driftTarget = "__wow_bi_drift_target"
-        val before = listOf(COMMAND_STORE_TABLE, STATE_STORE_TABLE, STATE_LAST_STORE_TABLE)
-            .associateWith { table -> queryCount("SELECT count() FROM ${qualified(DATABASE, table)}") }
+        val before = logicalStoreCounts()
         val queueUuids = queueUuids()
         val comment = queryRows(
             "SELECT comment FROM system.tables WHERE database = ${literal(CONSUMER_DATABASE)} " +
@@ -298,9 +286,7 @@ class ClickHouseExpansionIntegrationTest {
         repair.statements.forEach(::executeSql)
         executeSql("DROP TABLE ${qualified(DATABASE, driftTarget)}")
 
-        before.forEach { (table, expectedCount) ->
-            queryCount("SELECT count() FROM ${qualified(DATABASE, table)}").assert().isEqualTo(expectedCount)
-        }
+        logicalStoreCounts().assert().isEqualTo(before)
         queueUuids().assert().isEqualTo(queueUuids)
         val converged = generator.generate(
             preparation,
@@ -318,6 +304,11 @@ class ClickHouseExpansionIntegrationTest {
                     "WHERE database = ${literal(CONSUMER_DATABASE)} AND name = ${literal(queue)}",
                 listOf("uuid"),
             ).single().getValue("uuid")
+        }
+
+    private fun Connection.logicalStoreCounts(): Map<String, Long> =
+        listOf(COMMAND_STORE_TABLE, STATE_STORE_TABLE, STATE_LAST_STORE_TABLE).associateWith { table ->
+            queryCount("SELECT count() FROM ${qualified(DATABASE, table)} FINAL")
         }
 
     private fun Connection.assertJsonExtractionSemantics() {
