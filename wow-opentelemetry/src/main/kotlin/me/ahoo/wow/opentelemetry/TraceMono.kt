@@ -24,14 +24,21 @@ class TraceMono<T : Any, O : Any>(
     private val request: T,
     private val source: Mono<O>
 ) : Mono<O>() {
+    @Suppress("TooGenericExceptionCaught")
     override fun subscribe(actual: CoreSubscriber<in O>) {
         if (!instrumenter.shouldStart(parentContext, request)) {
             source.subscribe(actual)
             return
         }
         val otelContext = instrumenter.start(parentContext, request)
-        otelContext.makeCurrent().use {
-            source.subscribe(TraceSubscriber(instrumenter, otelContext, request, actual))
+        val traceSubscriber = TraceSubscriber(instrumenter, otelContext, request, actual)
+        try {
+            otelContext.makeCurrent().use {
+                source.subscribe(traceSubscriber)
+            }
+        } catch (error: Throwable) {
+            traceSubscriber.endSpan(error)
+            throw error
         }
     }
 }

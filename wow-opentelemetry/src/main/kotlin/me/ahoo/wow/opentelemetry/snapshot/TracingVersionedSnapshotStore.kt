@@ -15,47 +15,46 @@ package me.ahoo.wow.opentelemetry.snapshot
 
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
-import me.ahoo.wow.infra.Decorator
+import me.ahoo.wow.eventsourcing.snapshot.VersionedSnapshotStore
 import me.ahoo.wow.opentelemetry.ReactorTraceContext
 import me.ahoo.wow.opentelemetry.TraceMono
-import me.ahoo.wow.opentelemetry.Traced
 import reactor.core.publisher.Mono
 
-open class TracingSnapshotStore(override val delegate: SnapshotStore) :
-    Traced,
-    SnapshotStore,
-    Decorator<SnapshotStore> {
-    override val name: String
-        get() = delegate.name
+class TracingVersionedSnapshotStore(
+    private val checkpointStore: VersionedSnapshotStore,
+) : TracingSnapshotStore(checkpointStore),
+    VersionedSnapshotStore {
 
-    override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
+    override fun <S : Any> loadAtOrBefore(
+        aggregateId: AggregateId,
+        maxVersion: Int,
+    ): Mono<Snapshot<S>> {
         return Mono.deferContextual {
             val parentContext = ReactorTraceContext.get(it)
             val source = Mono.defer {
-                delegate.load<S>(aggregateId)
+                checkpointStore.loadAtOrBefore<S>(aggregateId, maxVersion)
             }
-            TraceMono(parentContext, SnapshotStoreInstrumenter.LOAD_INSTRUMENTER, aggregateId, source)
+            TraceMono(
+                parentContext,
+                SnapshotStoreInstrumenter.CHECKPOINT_LOAD_INSTRUMENTER,
+                aggregateId,
+                source,
+            )
         }
     }
 
-    override fun getVersion(aggregateId: AggregateId): Mono<Int> {
+    override fun <S : Any> saveCheckpoint(snapshot: Snapshot<S>): Mono<Void> {
         return Mono.deferContextual {
             val parentContext = ReactorTraceContext.get(it)
             val source = Mono.defer {
-                delegate.getVersion(aggregateId)
+                checkpointStore.saveCheckpoint(snapshot)
             }
-            TraceMono(parentContext, SnapshotStoreInstrumenter.VERSION_INSTRUMENTER, aggregateId, source)
-        }
-    }
-
-    override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
-        return Mono.deferContextual {
-            val parentContext = ReactorTraceContext.get(it)
-            val source = Mono.defer {
-                delegate.save(snapshot)
-            }
-            TraceMono(parentContext, SnapshotStoreInstrumenter.SAVE_INSTRUMENTER, snapshot.aggregateId, source)
+            TraceMono(
+                parentContext,
+                SnapshotStoreInstrumenter.CHECKPOINT_SAVE_INSTRUMENTER,
+                snapshot.aggregateId,
+                source,
+            )
         }
     }
 }

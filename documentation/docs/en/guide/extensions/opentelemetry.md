@@ -57,3 +57,15 @@ implementation 'me.ahoo.wow:wow-opentelemetry'
 </dependency>
 ```
 :::
+
+## Configuration
+
+When `wow-opentelemetry` is on the classpath, Wow tracing auto-configuration is enabled by default. It can be disabled without removing the dependency:
+
+```yaml
+wow:
+  opentelemetry:
+    enabled: false
+```
+
+Initialize `GlobalOpenTelemetry` before the Wow application context creates tracing filters and decorators. Use the OpenTelemetry Java agent or register an SDK during application bootstrap; registering the SDK after Wow tracing instrumenters have initialized is too late.

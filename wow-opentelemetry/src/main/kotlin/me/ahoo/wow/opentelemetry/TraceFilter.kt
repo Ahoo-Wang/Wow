@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.opentelemetry
 
-import io.opentelemetry.context.Context
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
@@ -29,8 +28,12 @@ open class TraceFilter<T : MessageExchange<*, *>>(private val instrumenter: Inst
         exchange: T,
         next: FilterChain<T>
     ): Mono<Void> {
-        val source = next.filter(exchange)
-        val parentContext = Context.current()
-        return ExchangeTraceMono(parentContext, instrumenter, exchange, source)
+        return Mono.deferContextual {
+            val parentContext = ReactorTraceContext.get(it)
+            val source = Mono.defer {
+                next.filter(exchange)
+            }
+            ExchangeTraceMono(parentContext, instrumenter, exchange, source)
+        }
     }
 }
