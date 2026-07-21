@@ -119,12 +119,13 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
     private fun search(searchRequest: SearchRequest): Mono<PagedList<DynamicDocument>> {
         return elasticsearchClient.search(searchRequest, Map::class.java)
             .map { result ->
-                val list = result.hits()?.hits()?.mapNotNull { hit ->
+                val hits = result.hits()
+                val list = hits.hits().mapNotNull { hit ->
                     hit.source()?.let {
                         (it as MutableMap<String, Any?>).toDynamicDocument()
                     }
-                } ?: emptyList()
-                PagedList(result.hits()?.total()?.value() ?: 0, list)
+                }
+                PagedList(hits.total()?.value() ?: 0, list)
             }
     }
 
