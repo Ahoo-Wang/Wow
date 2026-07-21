@@ -97,9 +97,11 @@ wow:
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `wow.elasticsearch.enabled` | Boolean | `true` | Enable Elasticsearch integration |
-| `wow.elasticsearch.auto-init-template` | Boolean | `true` | Automatically initialize index templates on startup |
+| `wow.elasticsearch.auto-init-template` | Boolean | `true` | Initialize required index templates before startup completes |
 
 Elasticsearch connection is configured through Spring Boot's standard `spring.elasticsearch.*` properties.
+When automatic initialization is enabled, a failed, empty, or unacknowledged template request fails application startup.
+Set `auto-init-template` to `false` only when templates are managed externally.
 
 ```yaml
 spring:

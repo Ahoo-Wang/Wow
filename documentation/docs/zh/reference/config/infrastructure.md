@@ -97,9 +97,11 @@ wow:
 | 属性 | 类型 | 默认值 | 描述 |
 |----------|------|---------|-------------|
 | `wow.elasticsearch.enabled` | Boolean | `true` | 启用 Elasticsearch 集成 |
-| `wow.elasticsearch.auto-init-template` | Boolean | `true` | 启动时自动初始化索引模板 |
+| `wow.elasticsearch.auto-init-template` | Boolean | `true` | 在应用启动完成前初始化所需索引模板 |
 
 Elasticsearch 连接通过 Spring Boot 标准的 `spring.elasticsearch.*` 属性进行配置。
+开启自动初始化时，模板请求失败、无响应结果或未确认都会导致应用启动失败。
+仅当索引模板由外部系统管理时，才应将 `auto-init-template` 设为 `false`。
 
 ```yaml
 spring:

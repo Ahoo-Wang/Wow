@@ -85,6 +85,10 @@ wow:
       storage: elasticsearch
 ```
 
+Required index templates are installed before application startup completes. A failed or unacknowledged request fails
+startup. Set `wow.elasticsearch.auto-init-template=false` only when templates are managed externally. The built-in
+templates intentionally leave shard and replica counts to the cluster or to a higher-priority operator template.
+
 ## Index Naming Rules
 
 | Data Type | Index Naming Format | Example |
@@ -101,10 +105,6 @@ POST _index_template/wow-event-stream-template
     "wow.*.es"
   ],
   "template": {
-    "settings": {
-      "number_of_shards": 3,
-      "number_of_replicas": 2
-    },
     "mappings": {
       "properties": {
         "aggregateId": {
@@ -185,10 +185,6 @@ POST _index_template/wow-snapshot-template
     "wow.*.snapshot"
   ],
   "template": {
-    "settings": {
-      "number_of_shards": 3,
-      "number_of_replicas": 2
-    },
     "mappings": {
       "properties": {
         "contextName": {
@@ -275,6 +271,7 @@ POST _index_template/wow-order-snapshot-template
   "index_patterns": [
     "wow.*.order.snapshot"
   ],
+  "priority": 100,
   "template": {
     "mappings": {
       "properties": {
@@ -299,6 +296,10 @@ POST _index_template/wow-order-snapshot-template
   }
 }
 ```
+
+The higher priority makes the aggregate template win over Wow's default snapshot template. The shortened example
+shows only the custom fields; a production replacement must also include the required baseline snapshot mappings, or
+compose both baseline and custom mappings from component templates.
 
 ### Execute Full-Text Search
 

@@ -421,7 +421,7 @@ dependencies {
 | `redis-support` | `wow-redis` | `spring-boot-starter-data-redis-reactive` |
 | `kafka-support` | `wow-kafka` | （通过 reactor-kafka） |
 | `webflux-support` | `wow-bi`、`wow-webflux` | （通过 spring-webflux） |
-| `elasticsearch-support` | `wow-elasticsearch` | `spring-boot-starter-elasticsearch` |
+| `elasticsearch-support` | `wow-elasticsearch` | `spring-boot-starter-data-elasticsearch` |
 | `opentelemetry-support` | `wow-opentelemetry` | （通过 otel instrumentation） |
 | `openapi-support` | `wow-openapi` | `springdoc-openapi-starter-common` |
 | `cosec-support` | `wow-cosec` | （通过 wow-cosec） |

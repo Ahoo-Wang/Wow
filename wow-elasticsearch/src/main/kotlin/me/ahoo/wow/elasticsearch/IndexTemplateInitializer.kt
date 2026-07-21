@@ -72,9 +72,37 @@ class IndexTemplateInitializer(private val elasticsearchOperations: ReactiveElas
     }
 
     fun initAll() {
-        initEventStreamTemplate().subscribe(InitSubscriber("InitEventStreamTemplate"))
-        initSnapshotTemplate().subscribe(InitSubscriber("InitSnapshotTemplate"))
+        ensureAllTemplates().block()
     }
 
+    fun ensureEventStreamTemplate(): Mono<Void> {
+        return initEventStreamTemplate().requireAcknowledged(EVENT_STREAM_TEMPLATE_NAME)
+    }
+
+    fun ensureSnapshotTemplate(): Mono<Void> {
+        return initSnapshotTemplate().requireAcknowledged(SNAPSHOT_TEMPLATE_NAME)
+    }
+
+    fun ensureAllTemplates(): Mono<Void> {
+        return ensureEventStreamTemplate().then(Mono.defer(::ensureSnapshotTemplate))
+    }
+
+    private fun Mono<Boolean>.requireAcknowledged(templateName: String): Mono<Void> {
+        return switchIfEmpty(
+            Mono.error(
+                IllegalStateException("Elasticsearch index template [$templateName] returned no acknowledgement."),
+            ),
+        ).flatMap { acknowledged ->
+            if (acknowledged) {
+                Mono.empty()
+            } else {
+                Mono.error(
+                    IllegalStateException("Elasticsearch index template [$templateName] was not acknowledged."),
+                )
+            }
+        }
+    }
+
+    @Deprecated("Template initialization is now awaited and failures are propagated by initAll().")
     class InitSubscriber(override val name: String) : SafeSubscriber<Boolean>()
 }
