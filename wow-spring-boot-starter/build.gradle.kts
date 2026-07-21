@@ -57,7 +57,7 @@ dependencies {
     "webfluxSupportImplementation"(project(":wow-webflux"))
     "cosecSupportImplementation"(project(":wow-cosec"))
     "elasticsearchSupportImplementation"(project(":wow-elasticsearch"))
-    "elasticsearchSupportImplementation"("org.springframework.boot:spring-boot-starter-elasticsearch")
+    "elasticsearchSupportImplementation"("org.springframework.boot:spring-boot-starter-data-elasticsearch")
     "opentelemetrySupportImplementation"(project(":wow-opentelemetry"))
     "openapiSupportApi"(project(":wow-bi"))
     "openapiSupportImplementation"(project(":wow-openapi"))

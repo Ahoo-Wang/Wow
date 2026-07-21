@@ -421,7 +421,7 @@ The `wow-spring-boot-starter` module declares the following optional feature cap
 | `redis-support` | `wow-redis` | `spring-boot-starter-data-redis-reactive` |
 | `kafka-support` | `wow-kafka` | (via reactor-kafka) |
 | `webflux-support` | `wow-bi`, `wow-webflux` | (via spring-webflux) |
-| `elasticsearch-support` | `wow-elasticsearch` | `spring-boot-starter-elasticsearch` |
+| `elasticsearch-support` | `wow-elasticsearch` | `spring-boot-starter-data-elasticsearch` |
 | `opentelemetry-support` | `wow-opentelemetry` | (via otel instrumentation) |
 | `openapi-support` | `wow-openapi` | `springdoc-openapi-starter-common` |
 | `cosec-support` | `wow-cosec` | (via wow-cosec) |

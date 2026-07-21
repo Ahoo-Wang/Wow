@@ -85,6 +85,10 @@ wow:
       storage: elasticsearch
 ```
 
+应用启动完成前会安装所需索引模板；请求失败或未确认会导致启动失败。仅当索引模板由外部系统管理时，才应设置
+`wow.elasticsearch.auto-init-template=false`。内置模板不会固定分片数和副本数，这些拓扑参数应由集群或更高优先级的
+运维模板管理。
+
 ## 索引命名规则
 
 | 数据类型 | 索引命名格式 | 示例 |
@@ -101,10 +105,6 @@ POST _index_template/wow-event-stream-template
     "wow.*.es"
   ],
   "template": {
-    "settings": {
-      "number_of_shards": 3,
-      "number_of_replicas": 2
-    },
     "mappings": {
       "properties": {
         "aggregateId": {
@@ -185,10 +185,6 @@ POST _index_template/wow-snapshot-template
     "wow.*.snapshot"
   ],
   "template": {
-    "settings": {
-      "number_of_shards": 3,
-      "number_of_replicas": 2
-    },
     "mappings": {
       "properties": {
         "contextName": {
@@ -275,6 +271,7 @@ POST _index_template/wow-order-snapshot-template
   "index_patterns": [
     "wow.*.order.snapshot"
   ],
+  "priority": 100,
   "template": {
     "mappings": {
       "properties": {
@@ -299,6 +296,9 @@ POST _index_template/wow-order-snapshot-template
   }
 }
 ```
+
+更高的优先级会使聚合模板覆盖 Wow 默认快照模板。上例为简洁起见只展示自定义字段；生产模板还必须包含快照所需的
+基础映射，或者通过 component template 组合基础映射与自定义映射。
 
 ::: tip
 如果需要中文分词支持，可以安装 [IK 分析器插件](https://github.com/medcl/elasticsearch-analysis-ik)，然后使用 `ik_max_word` 和 `ik_smart` 分析器。
