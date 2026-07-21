@@ -17,40 +17,19 @@ breaking-change:
       - '^breaking/'
 
 maintenance:
-  - any:
-      - head-branch:
-          - '^chore/'
-          - '^build/'
-          - '^ci/'
-      - changed-files:
-          - any-glob-to-all-files:
-              - '.github/**'
-              - 'config/**'
-              - 'gradle/**'
-              - 'build.gradle.kts'
-              - 'settings.gradle.kts'
-              - 'gradle.properties'
+  - head-branch:
+      - '^chore/'
+      - '^build/'
+      - '^ci/'
 
 dependencies:
-  - any:
-      - head-branch:
-          - '^renovate/'
-          - '^dependabot/'
-      - changed-files:
-          - any-glob-to-all-files:
-              - 'gradle/libs.versions.toml'
-              - '**/package.json'
-              - '**/pnpm-lock.yaml'
+  - head-branch:
+      - '^renovate/'
+      - '^dependabot/'
 
 documentation:
-  - any:
-      - head-branch:
-          - '^docs/'
-      - changed-files:
-          - any-glob-to-all-files:
-              - '**/*.md'
-              - 'documentation/**'
-              - 'document/**'
+  - head-branch:
+      - '^docs/'
 
 'area: core':
   - changed-files:
