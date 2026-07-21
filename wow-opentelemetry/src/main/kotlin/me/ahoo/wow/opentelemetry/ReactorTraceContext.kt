@@ -14,18 +14,22 @@
 package me.ahoo.wow.opentelemetry
 
 import io.opentelemetry.context.Context
-import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
-import me.ahoo.wow.messaging.handler.MessageExchange
-import reactor.core.CoreSubscriber
+import reactor.util.context.ContextView
 
-class ExchangeTraceSubscriber<T : MessageExchange<*, *>>(
-    instrumenter: Instrumenter<T, Unit>,
-    otelContext: Context,
-    private val exchange: T,
-    actual: CoreSubscriber<in Void>
-) : TraceSubscriber<T, Void>(instrumenter, otelContext, exchange, actual) {
+internal object ReactorTraceContext {
+    private val contextKey = Any()
 
-    override fun onComplete() {
-        complete(exchange.getError())
+    fun get(contextView: ContextView): Context {
+        if (contextView.hasKey(contextKey)) {
+            return contextView.get(contextKey)
+        }
+        return Context.current()
+    }
+
+    fun set(
+        reactorContext: reactor.util.context.Context,
+        otelContext: Context,
+    ): reactor.util.context.Context {
+        return reactorContext.put(contextKey, otelContext)
     }
 }

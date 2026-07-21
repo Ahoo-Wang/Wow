@@ -13,13 +13,13 @@
 
 package me.ahoo.wow.opentelemetry.messaging
 
-import io.opentelemetry.context.Context
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.MessageBus
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.handler.MessageExchange
+import me.ahoo.wow.opentelemetry.ReactorTraceContext
 import me.ahoo.wow.opentelemetry.TraceMono
 import me.ahoo.wow.opentelemetry.Traced
 import reactor.core.publisher.Flux
@@ -31,14 +31,18 @@ interface TracingMessageBus<M : Message<*, *>, E : MessageExchange<*, M>, B : Me
     Decorator<B> {
     val producerInstrumenter: Instrumenter<M, Unit>
     override fun send(message: M): Mono<Void> {
-        val source = delegate.send(message)
-        val parentContext = Context.current()
-        return TraceMono(
-            parentContext = parentContext,
-            instrumenter = producerInstrumenter,
-            request = message,
-            source = source,
-        )
+        return Mono.deferContextual {
+            val parentContext = ReactorTraceContext.get(it)
+            val source = Mono.defer {
+                delegate.send(message)
+            }
+            TraceMono(
+                parentContext = parentContext,
+                instrumenter = producerInstrumenter,
+                request = message,
+                source = source,
+            )
+        }
     }
 
     override fun receive(subscription: MessageSubscription): Flux<E> {

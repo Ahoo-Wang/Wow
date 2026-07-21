@@ -45,21 +45,25 @@ class WowOpenTelemetryAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnMissingBean
     fun traceSnapshotFilter(): TraceSnapshotFilter {
         return TraceSnapshotFilter
     }
 
     @Bean
+    @ConditionalOnMissingBean
     fun traceStatelessSagaFilter(): TraceStatelessSagaFilter {
         return TraceStatelessSagaFilter
     }
 
     @Bean
+    @ConditionalOnMissingBean
     fun traceEventProcessorFilter(): TraceEventProcessorFilter {
         return TraceEventProcessorFilter
     }
 
     @Bean
+    @ConditionalOnMissingBean
     fun tracingBeanPostProcessor(): TracingBeanPostProcessor {
         return TracingBeanPostProcessor()
     }

@@ -13,7 +13,19 @@
 
 package me.ahoo.wow.spring.boot.starter.opentelemetry
 
+import me.ahoo.wow.api.Wow
+import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 
 @ConditionalOnClass(name = ["me.ahoo.wow.opentelemetry.WowInstrumenter"])
-annotation class ConditionalOnOpenTelemetryEnabled
+@ConditionalOnProperty(
+    value = [ConditionalOnOpenTelemetryEnabled.ENABLED_KEY],
+    matchIfMissing = true,
+    havingValue = "true",
+)
+annotation class ConditionalOnOpenTelemetryEnabled {
+    companion object {
+        const val ENABLED_KEY: String = Wow.WOW_PREFIX + "opentelemetry" + ENABLED_SUFFIX_KEY
+    }
+}

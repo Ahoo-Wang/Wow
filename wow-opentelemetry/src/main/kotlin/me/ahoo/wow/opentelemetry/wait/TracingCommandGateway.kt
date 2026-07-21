@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.opentelemetry.wait
 
-import io.opentelemetry.context.Context
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.CommandResult
@@ -21,6 +20,7 @@ import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.wait.WaitPlan
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.MessageSubscription
+import me.ahoo.wow.opentelemetry.ReactorTraceContext
 import me.ahoo.wow.opentelemetry.TraceFlux
 import me.ahoo.wow.opentelemetry.TraceMono
 import me.ahoo.wow.opentelemetry.Traced
@@ -32,24 +32,34 @@ class TracingCommandGateway(override val delegate: CommandGateway) : Traced, Com
         command: CommandMessage<C>,
         waitPlan: WaitPlan
     ): Flux<CommandResult> {
-        return TraceFlux(
-            parentContext = Context.current(),
-            instrumenter = WaitPlanInstrumenter.INSTRUMENTER,
-            request = command,
-            source = delegate.sendAndWaitStream(command, waitPlan),
-        )
+        return Flux.deferContextual {
+            val source = Flux.defer {
+                delegate.sendAndWaitStream(command, waitPlan)
+            }
+            TraceFlux(
+                parentContext = ReactorTraceContext.get(it),
+                instrumenter = WaitPlanInstrumenter.INSTRUMENTER,
+                request = command,
+                source = source,
+            )
+        }
     }
 
     override fun <C : Any> sendAndWait(
         command: CommandMessage<C>,
         waitPlan: WaitPlan
     ): Mono<CommandResult> {
-        return TraceMono(
-            parentContext = Context.current(),
-            instrumenter = WaitPlanInstrumenter.INSTRUMENTER,
-            request = command,
-            source = delegate.sendAndWait(command, waitPlan),
-        )
+        return Mono.deferContextual {
+            val source = Mono.defer {
+                delegate.sendAndWait(command, waitPlan)
+            }
+            TraceMono(
+                parentContext = ReactorTraceContext.get(it),
+                instrumenter = WaitPlanInstrumenter.INSTRUMENTER,
+                request = command,
+                source = source,
+            )
+        }
     }
 
     override fun send(message: CommandMessage<*>): Mono<Void> {

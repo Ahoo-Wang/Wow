@@ -17,32 +17,86 @@ import io.opentelemetry.context.Context
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import org.reactivestreams.Subscription
 import reactor.core.CoreSubscriber
+import java.util.concurrent.atomic.AtomicBoolean
 
 open class TraceSubscriber<T : Any, O : Any>(
     private val instrumenter: Instrumenter<T, Unit>,
     private val otelContext: Context,
     private val request: T,
-    private val actual: CoreSubscriber<in O>
+    protected val actual: CoreSubscriber<in O>
 ) : CoreSubscriber<O> {
+    private val ended = AtomicBoolean()
+
     override fun currentContext(): reactor.util.context.Context {
-        return actual.currentContext()
+        return ReactorTraceContext.set(actual.currentContext(), otelContext)
     }
 
     override fun onSubscribe(subscription: Subscription) {
-        actual.onSubscribe(subscription)
+        withContext {
+            actual.onSubscribe(TraceSubscription(subscription))
+        }
     }
 
     override fun onNext(signal: O) {
-        actual.onNext(signal)
+        withContext {
+            actual.onNext(signal)
+        }
     }
 
     override fun onError(throwable: Throwable) {
-        instrumenter.end(otelContext, request, null, throwable)
-        actual.onError(throwable)
+        terminate(throwable) {
+            actual.onError(throwable)
+        }
     }
 
     override fun onComplete() {
-        instrumenter.end(otelContext, request, null, null)
-        actual.onComplete()
+        complete(null)
+    }
+
+    protected fun complete(error: Throwable?) {
+        terminate(error) {
+            actual.onComplete()
+        }
+    }
+
+    internal fun endSpan(error: Throwable?): Boolean {
+        if (!ended.compareAndSet(false, true)) {
+            return false
+        }
+        instrumenter.end(otelContext, request, null, error)
+        return true
+    }
+
+    private fun terminate(error: Throwable?, signal: () -> Unit) {
+        if (!endSpan(error)) {
+            return
+        }
+        withContext(signal)
+    }
+
+    private fun withContext(block: () -> Unit) {
+        otelContext.makeCurrent().use {
+            block()
+        }
+    }
+
+    private inner class TraceSubscription(
+        private val delegate: Subscription,
+    ) : Subscription {
+        override fun request(n: Long) {
+            withContext {
+                delegate.request(n)
+            }
+        }
+
+        override fun cancel() {
+            try {
+                withContext {
+                    delegate.cancel()
+                }
+            } finally {
+                endSpan(null)
+            }
+        }
     }
 }

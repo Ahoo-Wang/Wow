@@ -57,3 +57,15 @@ implementation 'me.ahoo.wow:wow-opentelemetry'
 </dependency>
 ```
 :::
+
+## 配置
+
+当 `wow-opentelemetry` 位于 classpath 时，Wow 默认开启链路追踪自动配置。无需移除依赖即可关闭：
+
+```yaml
+wow:
+  opentelemetry:
+    enabled: false
+```
+
+请在 Wow 应用上下文创建 tracing filters 和 decorators 前初始化 `GlobalOpenTelemetry`。可以使用 OpenTelemetry Java Agent，或在应用启动阶段注册 SDK；若在 Wow tracing instrumenters 初始化后才注册 SDK，则时机过晚。

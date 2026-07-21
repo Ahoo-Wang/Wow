@@ -13,12 +13,12 @@
 
 package me.ahoo.wow.opentelemetry.eventsourcing
 
-import io.opentelemetry.context.Context
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.infra.Decorator
+import me.ahoo.wow.opentelemetry.ReactorTraceContext
 import me.ahoo.wow.opentelemetry.TraceFlux
 import me.ahoo.wow.opentelemetry.TraceMono
 import me.ahoo.wow.opentelemetry.Traced
@@ -27,33 +27,41 @@ import reactor.core.publisher.Mono
 
 class TracingEventStore(override val delegate: EventStore) : Traced, EventStore, Decorator<EventStore> {
     override fun append(eventStream: DomainEventStream): Mono<Void> {
-        return Mono.defer {
-            val parentContext = Context.current()
-            val source = delegate.append(eventStream)
+        return Mono.deferContextual {
+            val parentContext = ReactorTraceContext.get(it)
+            val source = Mono.defer {
+                delegate.append(eventStream)
+            }
             TraceMono(parentContext, EventStoreInstrumenter.APPEND_INSTRUMENTER, eventStream, source)
         }
     }
 
     override fun load(aggregateId: AggregateId, headVersion: Int, tailVersion: Int): Flux<DomainEventStream> {
-        return Flux.defer {
-            val parentContext = Context.current()
-            val source = delegate.load(aggregateId, headVersion, tailVersion)
+        return Flux.deferContextual {
+            val parentContext = ReactorTraceContext.get(it)
+            val source = Flux.defer {
+                delegate.load(aggregateId, headVersion, tailVersion)
+            }
             TraceFlux(parentContext, EventStoreInstrumenter.LOAD_INSTRUMENTER, aggregateId, source)
         }
     }
 
     override fun load(aggregateId: AggregateId, headEventTime: Long, tailEventTime: Long): Flux<DomainEventStream> {
-        return Flux.defer {
-            val parentContext = Context.current()
-            val source = delegate.load(aggregateId, headEventTime, tailEventTime)
+        return Flux.deferContextual {
+            val parentContext = ReactorTraceContext.get(it)
+            val source = Flux.defer {
+                delegate.load(aggregateId, headEventTime, tailEventTime)
+            }
             TraceFlux(parentContext, EventStoreInstrumenter.LOAD_INSTRUMENTER, aggregateId, source)
         }
     }
 
     override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
-        return Mono.defer {
-            val parentContext = Context.current()
-            val source = delegate.last(aggregateId)
+        return Mono.deferContextual {
+            val parentContext = ReactorTraceContext.get(it)
+            val source = Mono.defer {
+                delegate.last(aggregateId)
+            }
             TraceMono(parentContext, EventStoreInstrumenter.LOAD_INSTRUMENTER, aggregateId, source)
         }
     }

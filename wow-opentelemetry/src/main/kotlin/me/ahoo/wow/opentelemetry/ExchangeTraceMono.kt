@@ -25,14 +25,21 @@ class ExchangeTraceMono<T : MessageExchange<*, *>>(
     private val request: T,
     private val source: Mono<Void>
 ) : Mono<Void>() {
+    @Suppress("TooGenericExceptionCaught")
     override fun subscribe(actual: CoreSubscriber<in Void>) {
         if (!instrumenter.shouldStart(parentContext, request)) {
             source.subscribe(actual)
             return
         }
         val otelContext = instrumenter.start(parentContext, request)
-        otelContext.makeCurrent().use {
-            source.subscribe(ExchangeTraceSubscriber(instrumenter, otelContext, request, actual))
+        val traceSubscriber = ExchangeTraceSubscriber(instrumenter, otelContext, request, actual)
+        try {
+            otelContext.makeCurrent().use {
+                source.subscribe(traceSubscriber)
+            }
+        } catch (error: Throwable) {
+            traceSubscriber.endSpan(error)
+            throw error
         }
     }
 }

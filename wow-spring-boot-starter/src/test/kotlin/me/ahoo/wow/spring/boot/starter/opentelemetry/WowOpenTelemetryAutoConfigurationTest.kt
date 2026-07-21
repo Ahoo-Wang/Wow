@@ -14,12 +14,15 @@
 package me.ahoo.wow.spring.boot.starter.opentelemetry
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
+import me.ahoo.wow.eventsourcing.snapshot.VersionedSnapshotStore
 import me.ahoo.wow.opentelemetry.aggregate.TraceAggregateFilter
 import me.ahoo.wow.opentelemetry.eventprocessor.TraceEventProcessorFilter
 import me.ahoo.wow.opentelemetry.projection.TraceProjectionFilter
 import me.ahoo.wow.opentelemetry.saga.TraceStatelessSagaFilter
 import me.ahoo.wow.opentelemetry.snapshot.TraceSnapshotFilter
 import me.ahoo.wow.spring.boot.starter.enableWow
+import me.ahoo.wow.spring.boot.starter.metrics.MetricsBeanPostProcessor
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -41,6 +44,54 @@ internal class WowOpenTelemetryAutoConfigurationTest {
                     .hasSingleBean(TraceSnapshotFilter::class.java)
                     .hasSingleBean(TraceStatelessSagaFilter::class.java)
                     .hasSingleBean(TraceEventProcessorFilter::class.java)
+                    .hasSingleBean(TracingBeanPostProcessor::class.java)
             }
+    }
+
+    @Test
+    fun `should disable open telemetry`() {
+        contextRunner
+            .enableWow()
+            .withPropertyValues("${ConditionalOnOpenTelemetryEnabled.ENABLED_KEY}=false")
+            .withUserConfiguration(
+                WowOpenTelemetryAutoConfiguration::class.java,
+            )
+            .run { context: AssertableApplicationContext ->
+                context.assert()
+                    .doesNotHaveBean(TraceAggregateFilter::class.java)
+                    .doesNotHaveBean(TraceProjectionFilter::class.java)
+                    .doesNotHaveBean(TraceSnapshotFilter::class.java)
+                    .doesNotHaveBean(TraceStatelessSagaFilter::class.java)
+                    .doesNotHaveBean(TraceEventProcessorFilter::class.java)
+                    .doesNotHaveBean(TracingBeanPostProcessor::class.java)
+            }
+    }
+
+    @Test
+    fun `should back off when custom trace filter exists`() {
+        contextRunner
+            .enableWow()
+            .withBean("customTraceSnapshotFilter", TraceSnapshotFilter::class.java, { TraceSnapshotFilter })
+            .withUserConfiguration(
+                WowOpenTelemetryAutoConfiguration::class.java,
+            )
+            .run { context: AssertableApplicationContext ->
+                context.assert().hasSingleBean(TraceSnapshotFilter::class.java)
+            }
+    }
+
+    @Test
+    fun `should preserve versioned snapshot store capability`() {
+        val tracedStore = TracingBeanPostProcessor().postProcessAfterInitialization(
+            InMemorySnapshotStore(),
+            "snapshotStore",
+        )
+        val metricStore = MetricsBeanPostProcessor().postProcessAfterInitialization(
+            tracedStore,
+            "snapshotStore",
+        )
+
+        tracedStore.assert().isInstanceOf(VersionedSnapshotStore::class.java)
+        metricStore.assert().isInstanceOf(VersionedSnapshotStore::class.java)
     }
 }
