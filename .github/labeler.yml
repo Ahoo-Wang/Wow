@@ -1,0 +1,92 @@
+bug:
+  - head-branch:
+      - '^fix/'
+      - '^bugfix/'
+
+enhancement:
+  - head-branch:
+      - '^feature/'
+      - '^feat/'
+
+performance:
+  - head-branch:
+      - '^perf/'
+
+breaking-change:
+  - head-branch:
+      - '^breaking/'
+
+maintenance:
+  - any:
+      - head-branch:
+          - '^chore/'
+          - '^build/'
+          - '^ci/'
+      - changed-files:
+          - any-glob-to-all-files:
+              - '.github/**'
+              - 'config/**'
+              - 'gradle/**'
+              - 'build.gradle.kts'
+              - 'settings.gradle.kts'
+              - 'gradle.properties'
+
+dependencies:
+  - any:
+      - head-branch:
+          - '^renovate/'
+          - '^dependabot/'
+      - changed-files:
+          - any-glob-to-all-files:
+              - 'gradle/libs.versions.toml'
+              - '**/package.json'
+              - '**/pnpm-lock.yaml'
+
+documentation:
+  - any:
+      - head-branch:
+          - '^docs/'
+      - changed-files:
+          - any-glob-to-all-files:
+              - '**/*.md'
+              - 'documentation/**'
+              - 'document/**'
+
+'area: core':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'wow-core/**'
+
+'area: api':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'wow-api/**'
+          - 'wow-openapi/**'
+          - 'wow-schema/**'
+
+'area: spring':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'wow-spring/**'
+          - 'wow-spring-boot-starter/**'
+          - 'wow-webflux/**'
+
+'area: infrastructure':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'wow-kafka/**'
+          - 'wow-mongo/**'
+          - 'wow-redis/**'
+          - 'wow-elasticsearch/**'
+
+'area: compensation':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'compensation/**'
+
+'area: documentation':
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.md'
+          - 'documentation/**'
+          - 'document/**'

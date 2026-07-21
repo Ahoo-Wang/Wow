@@ -1,17 +1,20 @@
 ---
 name: "\U0001F41B Bug Report"
 about: Something isn't working as expected
+title: "[Bug] "
+labels: bug
+assignees: ''
 ---
 
 ## Bug Report
 
-Before report a bug, make sure you have:
+Before reporting a bug, make sure you have:
 
-- Searched open and closed [GitHub issues](https://github.com/Ahoo-Wang/Wow/issues).
-- Read documentation: [Wow Doc](https://github.com/Ahoo-Wang/Wow/).
+- Searched the open and closed [GitHub issues](https://github.com/Ahoo-Wang/Wow/issues).
+- Read the [Wow documentation](https://wow.ahoo.me/).
 
-Please pay attention on issues you submitted, because we maybe need more details.
-If no response anymore and we cannot reproduce it on current information, we will **close it**.
+Please monitor the issue after submitting it because maintainers may need more details.
+If the problem cannot be reproduced with the available information and no additional details are provided, the issue may be closed.
 
 Please answer these questions before submitting your issue. Thanks!
 
@@ -21,8 +24,8 @@ Please answer these questions before submitting your issue. Thanks!
 
 ### Actual behavior
 
-### Reason analyze (If you can)
+### Root cause analysis (if known)
 
 ### Steps to reproduce the behavior
 
-### Example codes for reproduce this issue (such as a github link).
+### Minimal reproduction (for example, a GitHub repository)

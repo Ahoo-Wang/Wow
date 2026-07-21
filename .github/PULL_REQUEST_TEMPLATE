@@ -1,6 +1,22 @@
-Fixes #ISSUSE_ID.
+Closes #ISSUE_ID
 
-Changes proposed in this pull request:
--
--
--
+## Goal
+
+Describe the problem and the completion criteria.
+
+## Changes
+
+Summarize the behavior and implementation changes.
+
+## Verification
+
+List the commands that were run and their results.
+
+## Compatibility and risks
+
+- [ ] This change preserves public API and generated contract compatibility.
+- [ ] Tests cover the changed behavior or the verification alternative is explained.
+- [ ] Documentation is updated when user-visible behavior changes.
+- [ ] No credentials, generated build output, or local environment files are included.
+
+Describe any migration, rollback, performance, concurrency, data, or deployment impact.

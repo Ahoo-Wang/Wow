@@ -219,6 +219,12 @@ class CartSagaSpec : SagaSpec<CartSaga>({
 | [订单服务](./example) | Kotlin | 聚合根、Saga、投影 — 完整 DDD 示例 |
 | [银行转账](./example/transfer) | Java | 简单事件溯源示例 |
 
+## 社区
+
+- [贡献指南](CONTRIBUTING.md)
+- [行为准则](CODE_OF_CONDUCT.md)
+- [安全策略](SECURITY.md)
+
 ## License
 
 Wow 基于 [Apache 2.0](LICENSE) 协议开源。
