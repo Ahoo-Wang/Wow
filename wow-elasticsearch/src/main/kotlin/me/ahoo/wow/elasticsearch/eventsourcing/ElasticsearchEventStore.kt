@@ -14,8 +14,10 @@
 package me.ahoo.wow.elasticsearch.eventsourcing
 
 import co.elastic.clients.elasticsearch._types.ElasticsearchException
+import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.OpType
 import co.elastic.clients.elasticsearch._types.Refresh
+import co.elastic.clients.elasticsearch.core.search.Hit
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
@@ -43,8 +45,18 @@ class ElasticsearchEventStore(
 ) : AbstractEventStore() {
     companion object {
         private const val VERSION_CONFLICT_CODE = 409
+        private const val NOT_FOUND_CODE = 404
         private const val DEFAULT_BATCH_SIZE = 10000
     }
+
+    init {
+        require(batchSize > 0) { "batchSize[$batchSize] must be greater than 0." }
+    }
+
+    private data class EventStreamPage(
+        val streams: List<DomainEventStream>,
+        val nextSearchAfter: List<FieldValue>?,
+    )
 
     private fun DomainEventStream.toDocId(): String = "${this.aggregateId.id}-${this.version}"
 
@@ -73,45 +85,14 @@ class ElasticsearchEventStore(
         aggregateId: AggregateId,
         headVersion: Int,
         tailVersion: Int
-    ): Flux<DomainEventStream> = loopStream(aggregateId, headVersion, tailVersion)
-
-    private fun loopStream(
-        aggregateId: AggregateId,
-        headVersion: Int,
-        tailVersion: Int
     ): Flux<DomainEventStream> {
-        var endVersion = headVersion + batchSize - 1
-        if (tailVersion < endVersion) {
-            endVersion = tailVersion
-        }
-        return findEventStream(aggregateId, headVersion, endVersion).flatMapMany {
-            val previousStreams = Flux.fromIterable(it)
-            val requestSize = endVersion - headVersion + 1
-            if (it.size < requestSize) {
-                return@flatMapMany previousStreams
-            }
-            val lastVersion = it.last().version
-            if (lastVersion >= tailVersion) {
-                return@flatMapMany previousStreams
-            }
-            val nextStreams = loopStream(aggregateId, lastVersion + 1, tailVersion)
-            return@flatMapMany previousStreams.concatWith(nextStreams)
-        }
-    }
-
-    private fun findEventStream(
-        aggregateId: AggregateId,
-        headVersion: Int,
-        tailVersion: Int
-    ): Mono<List<DomainEventStream>> {
         val condition =
             condition {
                 tenantId(aggregateId.tenantId)
                 MessageRecords.AGGREGATE_ID eq aggregateId.id
                 MessageRecords.VERSION between headVersion to tailVersion
             }
-        val size = tailVersion - headVersion + 1
-        return searchEventStream(aggregateId, condition, size)
+        return searchEventStreams(aggregateId, condition)
     }
 
     override fun loadStream(
@@ -125,30 +106,79 @@ class ElasticsearchEventStore(
                 MessageRecords.AGGREGATE_ID eq aggregateId.id
                 MessageRecords.CREATE_TIME between headEventTime to tailEventTime
             }
-        return searchEventStream(aggregateId, condition).flatMapIterable {
-            it
+        return searchEventStreams(aggregateId, condition)
+    }
+
+    private fun searchEventStreams(
+        aggregateId: AggregateId,
+        condition: Condition,
+    ): Flux<DomainEventStream> {
+        return searchEventStreamPage(aggregateId, condition)
+            .expand { page ->
+                page.nextSearchAfter?.let { searchAfter ->
+                    searchEventStreamPage(aggregateId, condition, searchAfter)
+                } ?: Mono.empty()
+            }
+            .concatMapIterable { it.streams }
+    }
+
+    private fun searchEventStreamPage(
+        aggregateId: AggregateId,
+        condition: Condition,
+        searchAfter: List<FieldValue> = emptyList(),
+    ): Mono<EventStreamPage> {
+        return searchEventStreamHits(
+            aggregateId = aggregateId,
+            condition = condition,
+            size = batchSize,
+            searchAfter = searchAfter,
+        ).map { hits ->
+            val streams = hits.map { hit -> requireNotNull(hit.source()) }
+            val nextSearchAfter = if (hits.size < batchSize) {
+                null
+            } else {
+                hits.last().sort().also {
+                    check(it.isNotEmpty()) { "Elasticsearch search_after cursor must not be empty." }
+                }
+            }
+            EventStreamPage(streams, nextSearchAfter)
         }
     }
 
-    private fun searchEventStream(
+    private fun searchEventStreamHits(
         aggregateId: AggregateId,
         condition: Condition,
-        size: Int = batchSize
-    ): Mono<List<DomainEventStream>> {
+        size: Int,
+        searchAfter: List<FieldValue> = emptyList(),
+        descending: Boolean = false,
+    ): Mono<List<Hit<DomainEventStream>>> {
         val query = EventStreamConditionConverter.convert(condition)
-        val sort = sort { MessageRecords.VERSION.asc() }.toSortOptions()
+        val sort = sort {
+            if (descending) {
+                MessageRecords.VERSION.desc()
+                MessageRecords.ID.desc()
+            } else {
+                MessageRecords.VERSION.asc()
+                MessageRecords.ID.asc()
+            }
+        }.toSortOptions()
         return elasticsearchClient
-            .search({
-                it
+            .search({ request ->
+                request
                     .index(aggregateId.toEventStreamIndexName())
                     .query(query)
                     .size(size)
                     .routing(aggregateId.id)
                     .sort(sort)
+                if (searchAfter.isNotEmpty()) {
+                    request.searchAfter(searchAfter)
+                }
+                request
             }, DomainEventStream::class.java)
             .map {
-                it.hits().hits().map { hit -> hit.source() as DomainEventStream }
+                it.hits().hits()
             }
+            .onErrorResume(::missingIndexAsEmpty)
     }
 
     override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
@@ -157,20 +187,14 @@ class ElasticsearchEventStore(
                 tenantId(aggregateId.tenantId)
                 MessageRecords.AGGREGATE_ID eq aggregateId.id
             }
-        val sort = sort { MessageRecords.VERSION.desc() }.toSortOptions()
-        return elasticsearchClient
-            .search({
-                it
-                    .index(aggregateId.toEventStreamIndexName())
-                    .query(EventStreamConditionConverter.convert(condition))
-                    .size(1)
-                    .routing(aggregateId.id)
-                    .sort(sort)
-            }, DomainEventStream::class.java)
+        return searchEventStreamHits(
+            aggregateId = aggregateId,
+            condition = condition,
+            size = 1,
+            descending = true,
+        )
             .mapNotNull {
                 it
-                    .hits()
-                    .hits()
                     .firstOrNull()
                     ?.source()
             }
@@ -199,6 +223,7 @@ class ElasticsearchEventStore(
                     .size(limit)
                     .sort(sort)
             }, Map::class.java)
+            .onErrorResume(::missingIndexAsEmpty)
             .flatMapIterable<AggregateId> {
                 it.hits().hits().map { hit ->
                     val source = requireNotNull(hit.source())
@@ -207,5 +232,12 @@ class ElasticsearchEventStore(
                     namedAggregate.aggregateId(aggregateId, tenantId)
                 }
             }
+    }
+
+    private fun <T : Any> missingIndexAsEmpty(error: Throwable): Mono<T> {
+        if (error is ElasticsearchException && error.status() == NOT_FOUND_CODE) {
+            return Mono.empty()
+        }
+        return Mono.error(error)
     }
 }

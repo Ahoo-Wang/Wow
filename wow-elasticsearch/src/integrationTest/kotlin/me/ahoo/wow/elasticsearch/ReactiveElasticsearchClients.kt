@@ -22,13 +22,20 @@ import org.springframework.data.elasticsearch.support.HttpHeaders
 import java.time.Duration
 
 object ReactiveElasticsearchClients {
+    private const val CLIENT_RESOURCE_KEY = "reactive-elasticsearch-client"
+
     fun createReactiveElasticsearchClient(
         elasticsearch: ElasticsearchTestFixture,
     ): ReactiveElasticsearchClient {
+        return elasticsearch.getOrCreateResource(CLIENT_RESOURCE_KEY) {
+            createReactiveElasticsearchClientResource(elasticsearch)
+        }
+    }
+
+    private fun createReactiveElasticsearchClientResource(
+        elasticsearch: ElasticsearchTestFixture,
+    ): ReactiveElasticsearchClient {
         val httpHeaders = HttpHeaders()
-//        httpHeaders["X-Elastic-Product"] = listOf("Elasticsearch")
-//        httpHeaders["Content-Type"] = listOf("application/json")
-//        httpHeaders["Accept"] = listOf("application/vnd.elasticsearch+json; compatible-with=8")
         val clientConfiguration =
             ClientConfiguration
                 .builder()
@@ -40,13 +47,15 @@ object ReactiveElasticsearchClients {
                 .withDefaultHeaders(httpHeaders)
                 .build()
         val rest5Client = Rest5Clients.getRest5Client(clientConfiguration)
-        val elasticsearchClient =
+        return try {
             ElasticsearchClients.createReactive(
                 rest5Client,
                 null,
                 WowJsonpMapper,
             )
-
-        return elasticsearchClient
+        } catch (error: Throwable) {
+            rest5Client.close()
+            throw error
+        }
     }
 }

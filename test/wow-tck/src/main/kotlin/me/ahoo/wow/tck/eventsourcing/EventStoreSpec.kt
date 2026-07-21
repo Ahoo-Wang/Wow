@@ -47,6 +47,8 @@ import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream as gener
 abstract class EventStoreSpec {
     val namedAggregate = EventStoreSpec::class.java.requiredNamedAggregate()
     lateinit var eventStore: EventStore
+    protected open val concurrencyTestIterations: Int = DEFAULT_CONCURRENCY_TEST_ITERATIONS
+    protected open val concurrencyTestMaxConcurrency: Int = DEFAULT_CONCURRENCY_TEST_MAX_CONCURRENCY
 
     @BeforeEach
     open fun setup() {
@@ -243,11 +245,14 @@ abstract class EventStoreSpec {
     @Test
     fun appendEventStreamWhenParallel() {
         val eventStore = createEventStore().metrizable()
-        Flux.range(0, TIMES)
-            .parallel(DEFAULT_PARALLELISM)
-            .runOn(Schedulers.parallel())
-            .flatMap { eventStore.append(generateEventStream()) }
-            .sequential()
+        Flux.range(0, concurrencyTestIterations)
+            .flatMap(
+                {
+                    eventStore.append(generateEventStream())
+                        .subscribeOn(Schedulers.parallel())
+                },
+                concurrencyTestMaxConcurrency,
+            )
             .test()
             .expectSubscription()
             .expectNextCount(0)
@@ -261,14 +266,17 @@ abstract class EventStoreSpec {
         eventStore.append(eventStream)
             .test()
             .verifyComplete()
-        Flux.range(0, TIMES)
-            .parallel(DEFAULT_PARALLELISM)
-            .runOn(Schedulers.parallel())
-            .flatMap { eventStore.load(eventStream.aggregateId) }
-            .sequential()
+        Flux.range(0, concurrencyTestIterations)
+            .flatMap(
+                {
+                    eventStore.load(eventStream.aggregateId)
+                        .subscribeOn(Schedulers.parallel())
+                },
+                concurrencyTestMaxConcurrency,
+            )
             .test()
             .expectSubscription()
-            .expectNextCount(TIMES.toLong())
+            .expectNextCount(concurrencyTestIterations.toLong())
             .verifyComplete()
     }
 
@@ -530,7 +538,13 @@ abstract class EventStoreSpec {
     }
 
     companion object {
-        const val TIMES = 1000
-        const val DEFAULT_PARALLELISM = 2
+        const val DEFAULT_CONCURRENCY_TEST_ITERATIONS = 1000
+        const val DEFAULT_CONCURRENCY_TEST_MAX_CONCURRENCY = 2
+
+        @Deprecated("Use DEFAULT_CONCURRENCY_TEST_ITERATIONS.")
+        const val TIMES = DEFAULT_CONCURRENCY_TEST_ITERATIONS
+
+        @Deprecated("Use DEFAULT_CONCURRENCY_TEST_MAX_CONCURRENCY.")
+        const val DEFAULT_PARALLELISM = DEFAULT_CONCURRENCY_TEST_MAX_CONCURRENCY
     }
 }
