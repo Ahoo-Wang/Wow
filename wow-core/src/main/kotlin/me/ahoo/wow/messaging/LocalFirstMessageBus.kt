@@ -66,13 +66,14 @@ fun <M : Message<*, *>> M.isLocalFirst(): Boolean = header.isLocalFirst()
  * Determines if this message should use local-first routing.
  *
  * Local-first routing is used when the aggregate is local and the header
- * doesn't explicitly disable local-first (set to false).
+ * doesn't explicitly disable local-first (set to `false`, compared case-insensitively
+ * so values like `FALSE`/`False` also disable routing).
  *
  * @return true if local-first routing should be used, false otherwise
  */
 fun <M> M.shouldLocalFirst(): Boolean
     where M : Message<*, *>, M : NamedAggregate =
-    isLocal() && header[LOCAL_FIRST_HEADER] != false.toString()
+    isLocal() && !header[LOCAL_FIRST_HEADER].equals(false.toString(), ignoreCase = true)
 
 /**
  * Checks if this message has been handled locally.

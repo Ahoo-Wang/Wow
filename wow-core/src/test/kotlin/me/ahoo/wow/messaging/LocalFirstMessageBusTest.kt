@@ -74,6 +74,39 @@ class LocalFirstMessageBusTest {
     }
 
     @Test
+    fun `send skips local bus when local first is disabled case insensitively`() {
+        val localBus = RecordingLocalBus(subscribers = 1)
+        val distributedBus = RecordingDistributedBus()
+        val bus = RecordingLocalFirstMessageBus(localBus, distributedBus)
+        val message = LocalFirstTestMessage(
+            id = "message-id",
+            header = DefaultHeader.empty().with(LOCAL_FIRST_HEADER, "FALSE"),
+        )
+
+        StepVerifier.create(bus.send(message))
+            .verifyComplete()
+
+        localBus.sent.assert().isEmpty()
+        distributedBus.sent.single().assert().isSameAs(message)
+        message.isLocalFirst().assert().isFalse()
+    }
+
+    @Test
+    fun `send skips local bus when aggregate is not local`() {
+        val localBus = RecordingLocalBus(subscribers = 1)
+        val distributedBus = RecordingDistributedBus()
+        val bus = RecordingLocalFirstMessageBus(localBus, distributedBus)
+        val message = LocalFirstTestMessage(id = "message-id", aggregateName = "non_local_aggregate")
+
+        StepVerifier.create(bus.send(message))
+            .verifyComplete()
+
+        localBus.sent.assert().isEmpty()
+        distributedBus.sent.single().assert().isSameAs(message)
+        message.shouldLocalFirst().assert().isFalse()
+    }
+
+    @Test
     fun `receive filters distributed messages already handled locally and acknowledges them`() {
         val localExchange = LocalFirstTestExchange(LocalFirstTestMessage(id = "local"))
         val filteredDistributedExchange = LocalFirstTestExchange(
@@ -149,11 +182,11 @@ private class LocalFirstTestMessage(
     override val header: Header = DefaultHeader.empty(),
     override val body: String = "body",
     override val createTime: Long = 1,
+    override val aggregateName: String = "modeling_command_aggregate",
 ) : Message<LocalFirstTestMessage, String>,
     NamedAggregate,
     Copyable<LocalFirstTestMessage> {
     override val contextName: String = "wow-core-test"
-    override val aggregateName: String = "modeling_command_aggregate"
 
     override fun copy(): LocalFirstTestMessage =
         LocalFirstTestMessage(
@@ -161,6 +194,7 @@ private class LocalFirstTestMessage(
             header = header.copy(),
             body = body,
             createTime = createTime,
+            aggregateName = aggregateName,
         )
 }
 
