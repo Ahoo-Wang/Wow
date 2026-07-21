@@ -31,9 +31,9 @@ flowchart TB
             SS["State Stream"]
         end
         subgraph Storage["存储"]
-            EH["Event Hash"]
-            SH["Snapshot Hash"]
-            PK["Prepare Key"]
+            EH["Event ZSET"]
+            SH["Snapshot String"]
+            PK["Prepare Hash"]
         end
     end
     
@@ -109,6 +109,8 @@ wow:
     state:
       bus:
         type: redis
+  prepare:
+    storage: redis
   redis:
     enabled: true
     message-bus:
@@ -126,10 +128,10 @@ Redis 命令总线使用 Redis Streams 实现消息传递：
 ### Stream 命名规则
 
 ```
-{prefix}{contextName}.{aggregateName}.command
+{contextAlias}.{aggregateName}:command
 ```
 
-示例：`wow.order-service.order.command`
+示例：`order-service.order:command`
 
 ### 消费者组
 
@@ -149,6 +151,9 @@ Redis 消息总线会在 `min-idle-time` 后恢复旧 consumer 遗留在 Pending
 重试和优雅停机时间。恢复默认开启。仅应在临时回滚时设置
 `wow.redis.message-bus.recovery.enabled=false`；关闭后会恢复旧行为，使被遗留的 PEL 记录可能永久滞留。
 
+Pending 恢复与实时消费并发运行。Redis Streams 不保证较旧的恢复消息一定先于较新的实时消息交付，
+因此 handler 除了处理重复投递，还必须容忍恢复期间的乱序。
+
 缺少 `msg` 字段或 JSON 非法的记录不会再终止 consumer。此类记录保留在 PEL 中供人工诊断，同时输出
 不含 payload 的错误日志和 `RedisMessageBusObservation.RecordDecodeFailed` 观测事件。应用可注册非阻塞的
 `RedisMessageBusObserver` Bean 接入指标或告警。
@@ -158,13 +163,13 @@ Redis 消息总线会在 `min-idle-time` 后恢复旧 consumer 遗留在 Pending
 ### 领域事件 Stream
 
 ```
-{prefix}{contextName}.{aggregateName}.event
+{contextAlias}.{aggregateName}:event
 ```
 
 ### 状态事件 Stream
 
 ```
-{prefix}{contextName}.{aggregateName}.state
+{contextAlias}.{aggregateName}:state
 ```
 
 ## 事件存储
@@ -196,24 +201,27 @@ Member: {aggregateId}\u0000{tenantId}
 
 ## 快照存储
 
-快照使用 Hash 结构存储：
+快照使用 String value 存储：
 
 ```
-Key: {prefix}{contextName}.{aggregateName}:{aggregateId}:snapshot
+Key: {contextAlias}.{aggregateName}:snapshot:{aggregateId}@{tenantId}
 Value: {snapshotJson}
 ```
 
 ## 预分配 Key
 
-PrepareKey 使用 String 结构：
+PrepareKey 使用 Hash 结构：
 
 ```
-Key: {prefix}prepare:{keyName}:{key}
-Value: {preparedValue}
-TTL: 根据配置或永久
+Key: prepare:{key}
+Field: value = {preparedValueJson}
+Field: ttlAt = {expirationTimestamp}
 ```
 
 ## 连接池配置
+
+连接池需要应用 classpath 中存在 Apache Commons Pool 2。`redis-support` capability 不会引入这个
+可选依赖；缺少它时，下面的连接池参数不会生效。
 
 ```yaml
 spring:
@@ -269,25 +277,28 @@ spring:
 
 ## 性能优化
 
-### Pipeline 批量操作
+### 批量操作
 
-Redis 扩展自动使用 Pipeline 优化批量操作，减少网络往返次数。
+EventStore 使用 Lua 脚本保证追加操作的原子性。Snapshot 与 MessageBus 操作逐条发送，扩展不会自动
+对任意批处理启用 Pipeline。
 
 ### 内存优化
 
-1. **合理设置 TTL**：为临时数据设置过期时间
-2. **压缩存储**：启用数据压缩减少内存占用
-3. **监控内存**：定期检查内存使用情况
+1. **隔离权威数据与缓存数据**：不要对 EventStore Key 使用缓存淘汰策略
+2. **规划 Stream 容量**：ACK 只会从 PEL 移除记录，不会删除 Stream 记录；Wow 当前不会自动 trim Stream
+3. **监控内存与持久化**：根据持久性要求配置持久化、复制和告警
 
 ### 建议配置
 
 ```yaml
 # Redis 服务端配置建议
 maxmemory 4gb
-maxmemory-policy allkeys-lru
+maxmemory-policy noeviction
 tcp-keepalive 300
 timeout 0
 ```
+
+Redis 作为权威 EventStore 时不得使用 `allkeys-lru`；它可能独立淘汰事件流、幂等索引、聚合索引或快照。
 
 ## 故障排查
 
@@ -374,6 +385,8 @@ wow:
         type: redis
         local-first:
           enabled: true
+  prepare:
+    storage: redis
   redis:
     enabled: true
 ```
@@ -382,6 +395,6 @@ wow:
 
 1. **启用 LocalFirst 模式**：本地消息优先处理，减少网络延迟
 2. **使用集群模式**：生产环境使用 Redis 集群保证高可用和扩展性
-3. **合理配置连接池**：根据并发量配置适当的连接池大小
+3. **合理配置连接池**：引入 Commons Pool 2，并根据实测并发量配置连接池大小
 4. **监控内存使用**：定期监控 Redis 内存使用，避免 OOM
 5. **启用持久化**：配置 RDB 或 AOF 持久化防止数据丢失
