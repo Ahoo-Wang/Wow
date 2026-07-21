@@ -14,7 +14,12 @@
 package me.ahoo.wow.spring.boot.starter.opentelemetry
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.eventsourcing.AggregateEventStoreRegistry
+import me.ahoo.wow.eventsourcing.InMemoryEventStore
+import me.ahoo.wow.eventsourcing.RoutingEventStore
+import me.ahoo.wow.eventsourcing.snapshot.AggregateSnapshotStoreRegistry
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
+import me.ahoo.wow.eventsourcing.snapshot.RoutingSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.VersionedSnapshotStore
 import me.ahoo.wow.opentelemetry.aggregate.TraceAggregateFilter
 import me.ahoo.wow.opentelemetry.eventprocessor.TraceEventProcessorFilter
@@ -92,6 +97,49 @@ internal class WowOpenTelemetryAutoConfigurationTest {
         )
 
         tracedStore.assert().isInstanceOf(VersionedSnapshotStore::class.java)
+        metricStore.assert().isInstanceOf(VersionedSnapshotStore::class.java)
+    }
+
+    @Test
+    fun `metrics should keep traced routing event store transparent`() {
+        val routingStore = RoutingEventStore(
+            AggregateEventStoreRegistry(
+                defaultEventStore = InMemoryEventStore(),
+                routes = emptyMap(),
+            ),
+        )
+        val tracedStore = TracingBeanPostProcessor().postProcessAfterInitialization(
+            routingStore,
+            "eventStore",
+        )
+
+        val metricStore = MetricsBeanPostProcessor().postProcessAfterInitialization(
+            tracedStore,
+            "eventStore",
+        )
+
+        metricStore.assert().isSameAs(tracedStore)
+    }
+
+    @Test
+    fun `metrics should keep traced routing snapshot store transparent`() {
+        val routingStore = RoutingSnapshotStore.create(
+            AggregateSnapshotStoreRegistry(
+                defaultSnapshotStore = InMemorySnapshotStore(),
+                routes = emptyMap(),
+            ),
+        )
+        val tracedStore = TracingBeanPostProcessor().postProcessAfterInitialization(
+            routingStore,
+            "snapshotStore",
+        )
+
+        val metricStore = MetricsBeanPostProcessor().postProcessAfterInitialization(
+            tracedStore,
+            "snapshotStore",
+        )
+
+        metricStore.assert().isSameAs(tracedStore)
         metricStore.assert().isInstanceOf(VersionedSnapshotStore::class.java)
     }
 }

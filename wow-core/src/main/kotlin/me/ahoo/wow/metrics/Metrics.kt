@@ -30,6 +30,7 @@ import me.ahoo.wow.eventsourcing.snapshot.VersionedSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotHandler
 import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
 import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
+import me.ahoo.wow.infra.Decorator.Companion.getOriginalDelegate
 import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
 import me.ahoo.wow.projection.ProjectionHandler
 import me.ahoo.wow.saga.stateless.StatelessSagaHandler
@@ -208,7 +209,7 @@ object Metrics {
      * @return the metrizable event store
      */
     fun EventStore.metrizable(): EventStore {
-        if (this is RoutingEventStore) {
+        if (getOriginalDelegate() is RoutingEventStore) {
             return this
         }
         return metrizable {
@@ -235,7 +236,7 @@ object Metrics {
      * @return the metrizable snapshot store
      */
     fun SnapshotStore.metrizable(): SnapshotStore {
-        if (this is RoutingSnapshotStore) {
+        if (getOriginalDelegate() is RoutingSnapshotStore) {
             return this
         }
         return metrizable {

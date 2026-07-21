@@ -15,6 +15,8 @@ package me.ahoo.wow.spring.boot.starter.metrics
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.metrics.Metrics.metrizable
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.core.Ordered
 
@@ -24,7 +26,7 @@ class MetricsBeanPostProcessor : BeanPostProcessor, Ordered {
     }
 
     override fun postProcessAfterInitialization(bean: Any, beanName: String): Any {
-        val metatableBean = bean.metrizable()
+        val metatableBean = bean.metrizableBean()
         if (metatableBean !== bean) {
             log.info {
                 "Magnetizable bean [$beanName] [${bean.javaClass.name}] -> [${metatableBean.javaClass.name}]"
@@ -36,4 +38,19 @@ class MetricsBeanPostProcessor : BeanPostProcessor, Ordered {
     override fun getOrder(): Int {
         return Ordered.LOWEST_PRECEDENCE
     }
+
+    private fun Any.metrizableBean(): Any =
+        when (this) {
+            is EventStoreBinding -> {
+                val metricEventStore = eventStore.metrizable()
+                if (metricEventStore === eventStore) this else copy(eventStore = metricEventStore)
+            }
+
+            is SnapshotStoreBinding -> {
+                val metricSnapshotStore = snapshotStore.metrizable()
+                if (metricSnapshotStore === snapshotStore) this else copy(snapshotStore = metricSnapshotStore)
+            }
+
+            else -> metrizable()
+        }
 }
