@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.metrics
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
@@ -22,11 +23,13 @@ import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.wait.TestCommandMessage
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import org.junit.jupiter.api.Test
 import reactor.core.Scannable
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
+import io.micrometer.core.instrument.Metrics as MicrometerMetrics
 
 class MetricCommandBusTest {
 
@@ -81,6 +84,44 @@ class MetricCommandBusTest {
     }
 
     @Test
+    fun `receive should use receiver group as default subscriber tag`() {
+        withMeterRegistry { meterRegistry ->
+            val commandBus = MetricCommandBus(RecordingLocalCommandBus())
+            val subscription = MessageSubscription(
+                MaterializedNamedAggregate("sales", "Order"),
+                receiverGroup = "order-handler",
+            )
+
+            commandBus.receive(subscription).blockLast()
+
+            meterRegistry.receiveMeterIds()
+                .mapNotNull { it.getTag(Metrics.SUBSCRIBER_KEY) }
+                .toSet()
+                .assert().containsExactly("order-handler")
+        }
+    }
+
+    @Test
+    fun `receive should canonicalize aggregate tag order`() {
+        withMeterRegistry { meterRegistry ->
+            val commandBus = MetricCommandBus(RecordingLocalCommandBus())
+            val inventory = MaterializedNamedAggregate("sales", "Inventory")
+            val payment = MaterializedNamedAggregate("sales", "Payment")
+
+            commandBus.receive(MessageSubscription(linkedSetOf(payment, inventory), "handler"))
+                .blockLast()
+            commandBus.receive(MessageSubscription(linkedSetOf(inventory, payment), "handler"))
+                .blockLast()
+
+            meterRegistry.receiveMeterIds()
+                .mapNotNull { it.getTag(Metrics.AGGREGATE_KEY) }
+                .filter { "Inventory" in it || "Payment" in it }
+                .toSet()
+                .assert().containsExactly("Inventory,Payment")
+        }
+    }
+
+    @Test
     fun `local command bus should delegate subscriber count and close`() {
         val command = TestCommandMessage(id = "command-id")
         val delegate = RecordingLocalCommandBus(subscribers = 3)
@@ -92,6 +133,21 @@ class MetricCommandBusTest {
 
         delegate.closed.assert().isTrue()
     }
+
+    private fun withMeterRegistry(block: (SimpleMeterRegistry) -> Unit) {
+        val meterRegistry = SimpleMeterRegistry()
+        MicrometerMetrics.addRegistry(meterRegistry)
+        try {
+            block(meterRegistry)
+        } finally {
+            MicrometerMetrics.removeRegistry(meterRegistry)
+            meterRegistry.close()
+        }
+    }
+
+    private fun SimpleMeterRegistry.receiveMeterIds() = meters
+        .map { it.id }
+        .filter { it.name.startsWith("wow.command.receive") }
 }
 
 private class RecordingLocalCommandBus(

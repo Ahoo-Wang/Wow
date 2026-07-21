@@ -22,6 +22,7 @@ import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.metrics.Metrics.tagMetricsSubscriber
+import me.ahoo.wow.metrics.Metrics.toMetricsAggregateTag
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -66,8 +67,8 @@ open class MetricCommandBus<T : CommandBus>(
             .receive(subscription)
             .name(Wow.WOW_PREFIX + "command.receive")
             .tagSource()
-            .tag(Metrics.AGGREGATE_KEY, subscription.namedAggregates.joinToString(",") { it.aggregateName })
-            .tagMetricsSubscriber()
+            .tag(Metrics.AGGREGATE_KEY, subscription.namedAggregates.toMetricsAggregateTag())
+            .tagMetricsSubscriber(subscription.receiverGroup)
 
     /**
      * Closes the command bus and releases any resources.

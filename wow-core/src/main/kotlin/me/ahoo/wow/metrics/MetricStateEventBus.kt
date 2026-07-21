@@ -22,6 +22,7 @@ import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.metrics.Metrics.tagMetricsSubscriber
+import me.ahoo.wow.metrics.Metrics.toMetricsAggregateTag
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -65,8 +66,8 @@ open class MetricStateEventBus<T : StateEventBus>(
             .receive(subscription)
             .name(Wow.WOW_PREFIX + "state.receive")
             .tagSource()
-            .tag(Metrics.AGGREGATE_KEY, subscription.namedAggregates.joinToString(",") { it.aggregateName })
-            .tagMetricsSubscriber()
+            .tag(Metrics.AGGREGATE_KEY, subscription.namedAggregates.toMetricsAggregateTag())
+            .tagMetricsSubscriber(subscription.receiverGroup)
 
     /**
      * Closes the state event bus and releases any resources.

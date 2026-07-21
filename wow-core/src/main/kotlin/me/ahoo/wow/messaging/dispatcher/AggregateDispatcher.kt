@@ -211,7 +211,6 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
             .name(Wow.WOW_PREFIX + "dispatcher")
             .tag("dispatcher", name)
             .tag(Metrics.AGGREGATE_KEY, namedAggregate.aggregateName)
-            .tag("group.key", grouped.key().toString())
             .metrics()
             .concatMap { exchange ->
                 activeTaskCounter.incrementAndGet()

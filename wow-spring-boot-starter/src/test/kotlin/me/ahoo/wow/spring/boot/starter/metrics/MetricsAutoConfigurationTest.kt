@@ -52,4 +52,19 @@ class MetricsAutoConfigurationTest {
                     .doesNotHaveBean(MetricsBeanPostProcessor::class.java)
             }
     }
+
+    @Test
+    fun `should back off when custom metrics post processor exists`() {
+        contextRunner
+            .enableWow()
+            .withBean(
+                "customMetricsBeanPostProcessor",
+                MetricsBeanPostProcessor::class.java,
+                { MetricsBeanPostProcessor() },
+            )
+            .withUserConfiguration(MetricsAutoConfiguration::class.java)
+            .run { context: AssertableApplicationContext ->
+                context.assert().hasSingleBean(MetricsBeanPostProcessor::class.java)
+            }
+    }
 }

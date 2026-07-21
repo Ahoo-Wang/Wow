@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.metrics
 
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.LocalCommandBus
@@ -53,6 +54,9 @@ object Metrics {
 
     /** Metric tag key for subscriber identification */
     const val SUBSCRIBER_KEY = "subscriber"
+
+    /** Stable fallback used when no subscriber has been written to Reactor context. */
+    const val UNKNOWN_SUBSCRIBER = "unknown"
 
     /** Metric tag key for command names */
     const val COMMAND_KEY = "command"
@@ -105,17 +109,28 @@ object Metrics {
 
     /**
      * Tags a Flux stream with subscriber information from the reactive context.
-     * If no subscriber is present in the context, applies default metrics without subscriber tagging.
+     * If no subscriber is present in the context, uses [UNKNOWN_SUBSCRIBER] so the tag schema stays stable.
      *
      * @param T the type of elements in the Flux
      * @return the tagged Flux stream
      */
-    fun <T : Any> Flux<T>.tagMetricsSubscriber(): Flux<T> {
+    fun <T : Any> Flux<T>.tagMetricsSubscriber(): Flux<T> = tagMetricsSubscriber(UNKNOWN_SUBSCRIBER)
+
+    /**
+     * Tags a Flux with a stable subscriber key. Reactor context can override the explicit fallback,
+     * while publishers without that context still use the same meter tag schema.
+     */
+    fun <T : Any> Flux<T>.tagMetricsSubscriber(defaultSubscriber: String): Flux<T> {
         return Flux.deferContextual {
-            val metricsSubscriber = it.getMetricsSubscriber() ?: return@deferContextual this.metrics()
+            val metricsSubscriber = it.getMetricsSubscriber() ?: defaultSubscriber
             tag(SUBSCRIBER_KEY, metricsSubscriber).metrics()
         }
     }
+
+    /** Returns a deterministic aggregate tag value for logically equivalent subscriptions. */
+    internal fun Iterable<NamedAggregate>.toMetricsAggregateTag(): String =
+        sortedWith(compareBy(NamedAggregate::contextName, NamedAggregate::aggregateName))
+            .joinToString(",") { it.aggregateName }
 
     /**
      * Wraps a LocalCommandBus with metrics collection capabilities.
