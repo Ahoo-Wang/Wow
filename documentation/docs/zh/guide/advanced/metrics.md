@@ -83,6 +83,12 @@ Wow 框架自动为以下组件收集指标：
 
 Reactor 会根据生成的 meter 添加 `type`、`status`、`exception` 等标签。内部 dispatcher 路由 key 会放大时序基数，因此不会作为标签导出。当前尚未生成限界上下文标签。
 
+### 存储路由指标归属
+
+启用聚合级存储路由时，EventStore 与 SnapshotStore 指标只由最终选中的物理 leaf backend 记录。`RoutingEventStore` 和 `RoutingSnapshotStore` 对指标透明，因此一次存储操作只产生一组 meter，`source` 标签标识 `MongoEventStore`、`RedisEventStore` 等实际后端。
+
+原先筛选 `source=RoutingEventStore` 或 `source=RoutingSnapshotStore` 的仪表盘需要切换到实际后端 source。跨 `source` 聚合的查询不再重复统计路由操作。
+
 ## 自定义指标
 
 ### 手动指标收集

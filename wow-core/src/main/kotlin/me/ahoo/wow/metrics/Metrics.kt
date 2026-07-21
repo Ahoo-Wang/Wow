@@ -22,12 +22,15 @@ import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.event.LocalDomainEventBus
 import me.ahoo.wow.event.dispatcher.DomainEventHandler
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.RoutingEventStore
+import me.ahoo.wow.eventsourcing.snapshot.RoutingSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStrategy
 import me.ahoo.wow.eventsourcing.snapshot.VersionedSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotHandler
 import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
 import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
+import me.ahoo.wow.infra.Decorator.Companion.getOriginalDelegate
 import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
 import me.ahoo.wow.projection.ProjectionHandler
 import me.ahoo.wow.saga.stateless.StatelessSagaHandler
@@ -201,13 +204,18 @@ object Metrics {
     /**
      * Wraps an EventStore with metrics collection capabilities.
      * Returns a MetricEventStore that collects metrics on event storage operations.
+     * RoutingEventStore remains transparent because the selected leaf store owns storage metrics.
      *
      * @return the metrizable event store
      */
-    fun EventStore.metrizable(): EventStore =
-        metrizable {
+    fun EventStore.metrizable(): EventStore {
+        if (getOriginalDelegate() is RoutingEventStore) {
+            return this
+        }
+        return metrizable {
             MetricEventStore(this)
         }
+    }
 
     /**
      * Wraps a SnapshotStrategy with metrics collection capabilities.
@@ -223,17 +231,22 @@ object Metrics {
     /**
      * Wraps a SnapshotStore with metrics collection capabilities.
      * Returns a MetricSnapshotStore that collects metrics on snapshot storage operations.
+     * RoutingSnapshotStore remains transparent because the selected leaf store owns storage metrics.
      *
      * @return the metrizable snapshot store
      */
-    fun SnapshotStore.metrizable(): SnapshotStore =
-        metrizable {
+    fun SnapshotStore.metrizable(): SnapshotStore {
+        if (getOriginalDelegate() is RoutingSnapshotStore) {
+            return this
+        }
+        return metrizable {
             if (this is VersionedSnapshotStore) {
                 MetricVersionedSnapshotStore(this)
             } else {
                 MetricSnapshotStore(this)
             }
         }
+    }
 
     /**
      * Wraps a CommandHandler with metrics collection capabilities.

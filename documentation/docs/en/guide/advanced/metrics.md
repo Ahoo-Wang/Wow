@@ -83,6 +83,12 @@ Tags depend on the operation. Wow-defined tags are:
 
 Reactor adds tags such as `type`, `status`, and `exception` depending on the generated meter. Internal dispatcher routing keys are intentionally not exported as tags because they multiply time-series cardinality. A bounded-context tag is not currently emitted.
 
+### Storage Routing Ownership
+
+When aggregate-specific storage routing is enabled, event-store and snapshot-store metrics are recorded only by the selected leaf backend. `RoutingEventStore` and `RoutingSnapshotStore` are metric-transparent, so one storage operation produces one set of meters and the `source` tag identifies the physical backend such as `MongoEventStore` or `RedisEventStore`.
+
+Dashboards that previously selected `source=RoutingEventStore` or `source=RoutingSnapshotStore` must switch to the physical backend source. Queries that aggregate across `source` no longer double-count routed operations.
+
 ## Custom Metrics
 
 ### Manual Metrics Collection
