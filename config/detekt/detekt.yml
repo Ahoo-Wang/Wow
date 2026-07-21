@@ -15,11 +15,11 @@ style:
   UnusedPrivateMember:
     active: false
   ProtectedMemberInFinalClass:
-    active: false
+    active: true
   MagicNumber:
     active: false
   UnnecessaryAbstractClass:
-    active: false
+    active: true
   LoopWithTooManyJumpStatements:
     active: false
   WildcardImport:
@@ -33,9 +33,9 @@ naming:
     active: false
 exceptions:
   SwallowedException:
-    active: false
+    active: true
   ThrowingExceptionsWithoutMessageOrCause:
-    active: false
+    active: true
 performance:
   SpreadOperator:
     active: false

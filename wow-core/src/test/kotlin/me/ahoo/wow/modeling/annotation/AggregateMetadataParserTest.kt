@@ -18,6 +18,7 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.ORDER_LAST
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class AggregateMetadataParserTest {
 
@@ -52,9 +53,11 @@ class AggregateMetadataParserTest {
 
     @Test
     fun `parser rejects command aggregates without one parameter constructor`() {
-        assertThrownBy<IllegalStateException> {
+        val exception = assertThrows<IllegalStateException> {
             aggregateMetadata<MockCommandAggregateWithoutConstructor, MockCommandAggregateWithoutConstructor>()
         }
+
+        exception.cause.assert().isInstanceOf(NoSuchElementException::class.java)
     }
 
     @Test
