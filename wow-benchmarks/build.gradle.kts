@@ -7,6 +7,7 @@ plugins {
 dependencies {
     implementation(project(":example-domain"))
     implementation(project(":wow-test"))
+    implementation(project(":wow-mock"))
     implementation(project(":wow-redis"))
     implementation(project(":wow-mongo"))
     implementation(project(":wow-webflux"))

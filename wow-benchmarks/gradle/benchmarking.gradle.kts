@@ -268,6 +268,7 @@ val componentSuite = BenchmarkSuite(
         "me.ahoo.wow.benchmark.component.WaitNotifyComponentBenchmark",
         "me.ahoo.wow.benchmark.component.SerializationComponentBenchmark",
         "me.ahoo.wow.benchmark.component.CommandPipelineComponentBenchmark",
+        "me.ahoo.wow.benchmark.component.CommandDispatcherChainComponentBenchmark",
         "me.ahoo.wow.benchmark.component.MongoDocumentComponentBenchmark",
     ),
     resultFileName = "component.json",
