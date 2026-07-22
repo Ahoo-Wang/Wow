@@ -1124,12 +1124,6 @@ fun StringBuilder.appendInfrastructureRuntime() {
     appendLine()
 }
 
-fun BenchmarkRunProfile.reportLabel(): String {
-    return id.replaceFirstChar { firstChar ->
-        if (firstChar.isLowerCase()) firstChar.titlecase(Locale.US) else firstChar.toString()
-    }
-}
-
 fun registerBenchmarkThreadTask(
     taskName: String,
     suite: BenchmarkSuite,
@@ -1378,6 +1372,12 @@ data class BenchmarkResultGroup(
     val profile: BenchmarkRunProfile
         get() = taskSpec.profile
 }
+
+data class GroupedBenchmarkReportSpec(
+    val label: String,
+    val expectedProfileIds: Set<String>,
+    val performanceConclusionSource: Boolean,
+)
 
 data class BenchmarkGroupReport(
     val group: BenchmarkResultGroup,
@@ -1952,16 +1952,20 @@ fun StringBuilder.appendAllocationBottlenecks(rows: List<ParsedBenchmarkResult>)
 
 fun renderGroupedBenchmarkReport(
     groups: List<BenchmarkResultGroup>,
+    spec: GroupedBenchmarkReportSpec,
     version: String,
 ): String {
     val parser = JsonSlurper()
-    val reportProfileIds = groups.map { it.profile.id }.distinct()
-    if (reportProfileIds.size != 1) {
-        throw GradleException("Grouped benchmark report requires one run profile id, found: $reportProfileIds")
+    val reportProfiles = groups.map { it.profile }.distinctBy { it.id }
+    val reportProfileIds = reportProfiles.map { it.id }.toSet()
+    if (reportProfileIds != spec.expectedProfileIds) {
+        throw GradleException(
+            "${spec.label} grouped benchmark report requires run profile ids " +
+                "${spec.expectedProfileIds}, found: $reportProfileIds"
+        )
     }
-    val reportProfile = groups.first().profile
-    val reportLabel = reportProfile.reportLabel()
     val reportProfileConfigs = groups.map { it.profile.configSummary() }.distinct()
+    val hasMultipleRunProfiles = reportProfiles.size > 1 || reportProfileConfigs.size > 1
     val parsedGroups = groups.map { parseBenchmarkGroup(parser, it) }
     val allRows = parsedGroups.flatMap { it.rows }
     val allManifests = parsedGroups.flatMap { it.manifests }
@@ -1981,14 +1985,14 @@ fun renderGroupedBenchmarkReport(
         throw GradleException("No benchmark rows were available for grouped report generation.")
     }
     val sb = StringBuilder()
-    sb.appendLine("# $reportLabel Grouped Benchmark Report")
+    sb.appendLine("# ${spec.label} Grouped Benchmark Report")
     sb.appendLine()
     sb.appendLine("## Policy")
-    if (reportProfile.id == baselineE2EProfile.id) {
+    if (spec.performanceConclusionSource) {
         sb.appendLine("- Baseline E2E results are the performance conclusion source.")
     } else {
         sb.appendLine(
-            "- $reportLabel results are directional feedback; run Baseline E2E before updating baselines " +
+            "- ${spec.label} results are directional feedback; run Baseline E2E before updating baselines " +
                 "or claiming framework performance conclusions."
         )
     }
@@ -2006,12 +2010,12 @@ fun renderGroupedBenchmarkReport(
     sb.appendBenchmarkRunProvenance(allManifests)
     sb.appendBenchmarkEnvironment(
         version = version,
-        profile = reportProfile.takeIf { reportProfileConfigs.size == 1 },
+        profile = if (hasMultipleRunProfiles) null else reportProfiles.singleOrNull(),
     )
     if (infrastructureRows.isNotEmpty()) {
         sb.appendInfrastructureRuntime()
     }
-    if (reportProfileConfigs.size > 1) {
+    if (hasMultipleRunProfiles) {
         sb.appendLine("## Run Profiles")
         sb.appendLine()
         groups.forEach { group ->
@@ -2110,7 +2114,7 @@ fun renderGroupedBenchmarkReport(
         }
         sb.appendLine()
     }
-    return sb.toString()
+    return sb.toString().trimEnd() + "\n"
 }
 
 fun renderSingleBenchmarkReport(
@@ -2291,6 +2295,11 @@ tasks.register("generateBaselineBenchmarkReport") {
         outputFile.delete()
         val report = renderGroupedBenchmarkReport(
             groups = baselineReportTaskSpecs.map(::benchmarkResultGroup),
+            spec = GroupedBenchmarkReportSpec(
+                label = "Baseline",
+                expectedProfileIds = setOf(baselineE2EProfile.id, exhaustiveComponentProfile.id),
+                performanceConclusionSource = true,
+            ),
             version = project.version.toString(),
         )
         outputFile.parentFile.mkdirs()
@@ -2310,6 +2319,11 @@ tasks.register("generateQuickBenchmarkReport") {
         outputFile.delete()
         val report = renderGroupedBenchmarkReport(
             groups = quickReportTaskSpecs.map(::benchmarkResultGroup),
+            spec = GroupedBenchmarkReportSpec(
+                label = "Quick",
+                expectedProfileIds = setOf(quickProfile.id),
+                performanceConclusionSource = false,
+            ),
             version = project.version.toString(),
         )
         outputFile.parentFile.mkdirs()
