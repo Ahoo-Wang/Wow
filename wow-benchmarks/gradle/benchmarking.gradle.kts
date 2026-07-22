@@ -34,6 +34,7 @@ data class BenchmarkSuite(
     val requiredForGroupedReport: Boolean = false,
     val performanceConclusionSource: Boolean = false,
     val requiredServices: List<BenchmarkRequiredService> = emptyList(),
+    val parameters: Map<String, List<String>> = emptyMap(),
 )
 
 data class BenchmarkRunProfile(
@@ -194,6 +195,32 @@ val fullProfile = BenchmarkRunProfile(
     includeAsyncProfiler = true,
 )
 
+val commandIngressSinkDiagnosticProfile = BenchmarkRunProfile(
+    id = "command-ingress-sink-diagnostic",
+    warmupIterations = 3,
+    warmupTime = "1s",
+    measurementIterations = 10,
+    measurementTime = "1s",
+    forks = 3,
+    threads = listOf(1, 4),
+    benchmarkModes = listOf("ss"),
+    includeGcProfiler = true,
+    includeAsyncProfiler = false,
+)
+
+val commandIngressE2EDiagnosticProfile = BenchmarkRunProfile(
+    id = "command-ingress-e2e-diagnostic",
+    warmupIterations = 3,
+    warmupTime = "1s",
+    measurementIterations = 5,
+    measurementTime = "1s",
+    forks = 3,
+    threads = listOf(1, 4),
+    benchmarkModes = listOf("thrpt"),
+    includeGcProfiler = true,
+    includeAsyncProfiler = false,
+)
+
 val smokeSuite = BenchmarkSuite(
     id = "smoke",
     displayName = "Smoke",
@@ -275,6 +302,35 @@ val componentSuite = BenchmarkSuite(
     humanFileName = "component-human.txt",
     requiredForGroupedReport = false,
     performanceConclusionSource = false,
+)
+
+val commandIngressSinkDiagnosticSuite = BenchmarkSuite(
+    id = "command-ingress-sink-diagnostic",
+    displayName = "Command Ingress Sink Diagnostic",
+    commandName = "benchmarkCommandIngressSinkDiagnostic",
+    includeClasses = listOf(
+        "me.ahoo.wow.benchmark.component.CommandIngressSinkComponentBenchmark",
+    ),
+    resultFileName = "command-ingress-sink-diagnostic.json",
+    humanFileName = "command-ingress-sink-diagnostic-human.txt",
+    requiredForGroupedReport = false,
+    performanceConclusionSource = false,
+)
+
+val commandIngressE2EDiagnosticSuite = BenchmarkSuite(
+    id = "command-ingress-e2e-diagnostic",
+    displayName = "Command Ingress E2E Diagnostic",
+    commandName = "benchmarkCommandIngressE2EDiagnostic",
+    includeClasses = listOf(
+        "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark",
+    ),
+    resultFileName = "command-ingress-e2e-diagnostic.json",
+    humanFileName = "command-ingress-e2e-diagnostic-human.txt",
+    requiredForGroupedReport = false,
+    performanceConclusionSource = false,
+    parameters = mapOf(
+        "ingressStrategy" to listOf("current-production", "legacy-lock"),
+    ),
 )
 
 val webFluxSuite = BenchmarkSuite(
@@ -695,6 +751,10 @@ fun registerBenchmarkThreadTask(
             add(profile.forks.toString())
             add("-foe")
             add("true")
+            suite.parameters.forEach { (name, values) ->
+                add("-p")
+                add("$name=${values.joinToString(",")}")
+            }
             add("-rf")
             add("json")
             add("-rff")
@@ -730,6 +790,11 @@ fun registerBenchmarkAggregateTask(
     val threadTasks = profile.threads.map { threads ->
         registerBenchmarkThreadTask("${taskName}Thread$threads", suite, profile, threads)
     }
+    threadTasks.zipWithNext().forEach { (previous, next) ->
+        next.configure {
+            mustRunAfter(previous)
+        }
+    }
     tasks.register(taskName) {
         description = "Runs ${suite.displayName} JMH benchmarks with the ${profile.id} profile."
         group = if (taskName == "benchmarkSmoke") {
@@ -748,6 +813,16 @@ registerBenchmarkAggregateTask("benchmarkQuickInfrastructureE2E", infrastructure
 registerBenchmarkAggregateTask("benchmarkFullInfrastructureE2E", infrastructureE2ESuite, fullProfile)
 registerBenchmarkAggregateTask("benchmarkQuickComponent", componentSuite, quickProfile)
 registerBenchmarkAggregateTask("benchmarkFullComponent", componentSuite, fullProfile)
+registerBenchmarkAggregateTask(
+    "benchmarkCommandIngressSinkDiagnostic",
+    commandIngressSinkDiagnosticSuite,
+    commandIngressSinkDiagnosticProfile,
+)
+registerBenchmarkAggregateTask(
+    "benchmarkCommandIngressE2EDiagnostic",
+    commandIngressE2EDiagnosticSuite,
+    commandIngressE2EDiagnosticProfile,
+)
 registerBenchmarkAggregateTask("benchmarkQuickWebFlux", quickWebFluxSuite, quickWebFluxProfile)
 registerBenchmarkAggregateTask("benchmarkFullWebFlux", webFluxSuite, fullProfile)
 
@@ -763,6 +838,7 @@ val reportsDir = resultsDir.dir("reports")
 val benchmarkReportFile = reportsDir.file("quick-framework-e2e.md")
 val infrastructureBenchmarkReportFile = reportsDir.file("quick-infrastructure-e2e.md")
 val webFluxBenchmarkReportFile = reportsDir.file("quick-webflux.md")
+val commandIngressDiagnosticReportFile = reportsDir.file("quick-command-ingress.md")
 val groupedBenchmarkReport = reportsDir.file("full-grouped.md")
 val quickGroupedBenchmarkReport = reportsDir.file("quick-grouped.md")
 
@@ -1330,6 +1406,162 @@ fun renderBottleneckBenchmarkReport(
     return sb.toString()
 }
 
+fun requireDiagnosticRow(
+    rows: List<ParsedBenchmarkResult>,
+    threads: Int,
+    mode: String,
+    parameter: String,
+): ParsedBenchmarkResult =
+    rows.singleOrNull { row ->
+        row.threads == threads && row.mode == mode && row.benchmark.contains(parameter)
+    } ?: throw GradleException(
+        "Missing diagnostic row for threads=$threads, mode=$mode, parameter=$parameter."
+    )
+
+fun confidenceIntervalsSeparated(
+    first: ParsedBenchmarkResult,
+    second: ParsedBenchmarkResult,
+): Boolean {
+    val firstError = first.scoreError ?: return false
+    val secondError = second.scoreError ?: return false
+    return first.score - firstError > second.score + secondError ||
+        second.score - secondError > first.score + firstError
+}
+
+fun renderCommandIngressDiagnosticReport(): String {
+    val sinkGroup = benchmarkResultGroup(commandIngressSinkDiagnosticSuite, commandIngressSinkDiagnosticProfile)
+    val e2eGroup = benchmarkResultGroup(commandIngressE2EDiagnosticSuite, commandIngressE2EDiagnosticProfile)
+    val parser = JsonSlurper()
+    val sinkRows = parseBenchmarkGroup(parser, sinkGroup).rows
+    val e2eRows = parseBenchmarkGroup(parser, e2eGroup).rows
+    val currentT1 = requireDiagnosticRow(e2eRows, 1, "thrpt", "ingressStrategy=current-production")
+    val legacyT1 = requireDiagnosticRow(e2eRows, 1, "thrpt", "ingressStrategy=legacy-lock")
+    val currentT4 = requireDiagnosticRow(e2eRows, 4, "thrpt", "ingressStrategy=current-production")
+    val legacyT4 = requireDiagnosticRow(e2eRows, 4, "thrpt", "ingressStrategy=legacy-lock")
+    val atomicSinkT4 = requireDiagnosticRow(
+        sinkRows,
+        4,
+        "ss",
+        "strategy=atomic-mpsc, subscriberCount=1",
+    )
+    val legacySinkT4 = requireDiagnosticRow(
+        sinkRows,
+        4,
+        "ss",
+        "strategy=legacy-lock, subscriberCount=1",
+    )
+    val t1Gain = (currentT1.score / legacyT1.score - 1.0) * 100.0
+    val t4Gain = (currentT4.score / legacyT4.score - 1.0) * 100.0
+    val t4AllocationDelta = currentT4.allocationBytesPerOp?.let { currentAllocation ->
+        legacyT4.allocationBytesPerOp?.let { legacyAllocation -> currentAllocation - legacyAllocation }
+    }
+    val t4AllocationDeltaPercent = t4AllocationDelta?.let { delta ->
+        legacyT4.allocationBytesPerOp
+            ?.takeIf { it != 0.0 }
+            ?.let { baseline -> delta / baseline * 100.0 }
+    }
+    val sinkRatio = if (atomicSinkT4.score >= legacySinkT4.score) {
+        atomicSinkT4.score / legacySinkT4.score
+    } else {
+        legacySinkT4.score / atomicSinkT4.score
+    }
+    val sinkDirection = if (atomicSinkT4.score >= legacySinkT4.score) "slower" else "faster"
+    val isolatedSinkConclusion = if (atomicSinkT4.score >= legacySinkT4.score) {
+        "does not make an isolated no-op sink faster"
+    } else {
+        "makes the isolated no-op sink faster"
+    }
+    val t4IntervalsSeparated = confidenceIntervalsSeparated(currentT4, legacyT4)
+    val t1IntervalsSeparated = confidenceIntervalsSeparated(currentT1, legacyT1)
+    val t4Direction = if (t4Gain >= 0.0) "gain" else "regression"
+    val t1Direction = if (t1Gain >= 0.0) "gain" else "regression"
+    val allocationConclusion = when {
+        t4AllocationDeltaPercent == null -> "Allocation comparison is unavailable."
+        t4AllocationDeltaPercent <= 0.0 -> "No allocation increase was observed."
+        t4AllocationDeltaPercent <= 1.0 -> "The allocation increase is below 1%."
+        else -> "The allocation increase exceeds 1% and is a material regression signal."
+    }
+    val pipelineConclusion = if (t4Gain > 0.0 && t4IntervalsSeparated) {
+        "the t4 processed pipeline has a statistically separated net throughput gain"
+    } else {
+        "the t4 processed pipeline does not confirm a statistically separated net throughput gain"
+    }
+    val sb = StringBuilder()
+    sb.appendLine("<!--")
+    sb.appendLine(
+        "  This file is auto-generated by `./gradlew :wow-benchmarks:benchmarkCommandIngressSinkDiagnostic " +
+            ":wow-benchmarks:benchmarkCommandIngressE2EDiagnostic " +
+            ":wow-benchmarks:generateCommandIngressDiagnosticReport --no-parallel`."
+    )
+    sb.appendLine("  Do not manually edit benchmark results.")
+    sb.appendLine("-->")
+    sb.appendLine()
+    sb.appendLine("# Quick Command Ingress Diagnostic Report")
+    sb.appendLine()
+    sb.appendLine(
+        "This matched single-binary diagnostic separates bare sink cost from the real " +
+            "`sendAndWaitProcessed` pipeline effect. It is stronger than comparing reports from different commits, " +
+            "but remains local benchmark evidence rather than a cross-machine capacity claim."
+    )
+    sb.appendLine()
+    sb.appendBenchmarkEnvironment(project.version.toString(), null)
+    sb.appendLine("- **Sink Diagnostic JMH Config**: ${commandIngressSinkDiagnosticProfile.configSummary()}")
+    sb.appendLine("- **E2E Diagnostic JMH Config**: ${commandIngressE2EDiagnosticProfile.configSummary()}")
+    sb.appendLine()
+    sb.appendLine("## Conclusion")
+    sb.appendLine()
+    sb.appendLine(
+        "- **Primary t4 E2E $t4Direction**: `${String.format(Locale.US, "%.2f", legacyT4.score)} -> " +
+            "${String.format(Locale.US, "%.2f", currentT4.score)} ops/s` " +
+            "(`${String.format(Locale.US, "%+.2f", t4Gain)}%`). " +
+            "The JMH confidence intervals are " +
+            "${if (t4IntervalsSeparated) "separated" else "overlapping"}."
+    )
+    sb.appendLine(
+        "- **t1 guardrail ($t1Direction)**: `${String.format(Locale.US, "%.2f", legacyT1.score)} -> " +
+            "${String.format(Locale.US, "%.2f", currentT1.score)} ops/s` " +
+            "(`${String.format(Locale.US, "%+.2f", t1Gain)}%`); the confidence intervals are " +
+            "${if (t1IntervalsSeparated) "separated" else "overlapping"}. " +
+            if (t1IntervalsSeparated) {
+                "The t1 $t1Direction is statistically separated."
+            } else {
+                "No t1 change is claimed."
+            }
+    )
+    sb.appendLine(
+        "- **t4 E2E allocation**: `${formatAllocationBytes(legacyT4.allocationBytesPerOp)} -> " +
+            "${formatAllocationBytes(currentT4.allocationBytesPerOp)}` " +
+            "(`delta=${t4AllocationDelta?.let { String.format(Locale.US, "%+.1f B/op", it) } ?: "unavailable"}`). " +
+            allocationConclusion
+    )
+    sb.appendLine(
+        "- **Raw sink trade-off**: with one draining subscriber at t4, atomic MPSC is " +
+            "`${String.format(Locale.US, "%.2f", sinkRatio)}x` $sinkDirection than the legacy lock in per-worker " +
+            "single-shot latency and allocates `${formatAllocationBytes(atomicSinkT4.allocationBytesPerOp)}`."
+    )
+    sb.appendLine()
+    sb.appendLine("## Interpretation")
+    sb.appendLine()
+    sb.appendLine(
+        "The optimization $isolatedSinkConclusion. Its framework-level effect comes from " +
+            "removing the legacy lock convoy around synchronous downstream `onNext` work: concurrent producers " +
+            "can enqueue while one producer drains the command pipeline. The MPSC node allocation and atomic " +
+            "coordination cost are visible in the component result; $pipelineConclusion. $allocationConclusion"
+    )
+    sb.appendLine()
+    sb.appendLine("The zero-subscriber component rows are buffering diagnostics only. They retain a fixed backlog " +
+        "per iteration and must not be used as production-path performance evidence.")
+    sb.appendLine()
+    sb.appendLine("## Sink Component Results")
+    sb.appendLine()
+    sb.appendBenchmarkTable(sinkRows)
+    sb.appendLine()
+    sb.appendLine("## Matched Framework E2E Results")
+    sb.appendLine()
+    sb.appendBenchmarkTable(e2eRows)
+    return sb.toString()
+}
+
 tasks.register("generateBenchmarkReport") {
     description = "Generate quick framework E2E benchmark report from JMH JSON results."
     group = "benchmark"
@@ -1344,13 +1576,32 @@ tasks.register("generateBenchmarkReport") {
             command = "./gradlew :wow-benchmarks:benchmarkQuickE2E :wow-benchmarks:generateBenchmarkReport",
             description = "Quick Framework E2E results are directional local feedback. " +
                 "Use Full E2E runs for formal performance conclusions. " +
-                "Framework E2E isolates command pipeline overhead with in-memory or noop stores.",
-        )
+                "Framework E2E isolates command pipeline overhead with in-memory or noop stores. " +
+                "The sent-path benchmark keeps a no-op receiver subscribed so it measures acknowledged ingress " +
+                "instead of an unbounded retained backlog.",
+        ) + "\n## Command Ingress Diagnostic\n\n" +
+            "See [Quick Command Ingress Diagnostic Report](quick-command-ingress.md) for the matched " +
+            "legacy-lock versus current-production A/B evidence.\n"
 
         val outputFile = benchmarkReportFile.asFile
         outputFile.parentFile.mkdirs()
         outputFile.writeText(report)
         logger.lifecycle("Benchmark report generated: ${outputFile.absolutePath}")
+    }
+}
+
+tasks.register("generateCommandIngressDiagnosticReport") {
+    description = "Generate the matched command ingress component and E2E diagnostic report."
+    group = "benchmark"
+    mustRunAfter("benchmarkCommandIngressSinkDiagnostic", "benchmarkCommandIngressE2EDiagnostic")
+    outputs.file(commandIngressDiagnosticReportFile)
+    outputs.upToDateWhen { false }
+
+    doLast {
+        val outputFile = commandIngressDiagnosticReportFile.asFile
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(renderCommandIngressDiagnosticReport())
+        logger.lifecycle("Command ingress diagnostic report generated: ${outputFile.absolutePath}")
     }
 }
 

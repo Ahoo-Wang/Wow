@@ -17,7 +17,7 @@ import com.google.errorprone.annotations.ThreadSafe
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.infra.sink.concurrent
+import me.ahoo.wow.infra.sink.prepareConcurrentSink
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Flux
@@ -61,7 +61,7 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
      * @return The sink for the aggregate
      */
     private fun computeSink(namedAggregate: NamedAggregate): Sinks.Many<M> =
-        sinks.computeIfAbsent(namedAggregate.materialize()) { sinkSupplier(it).concurrent() }
+        sinks.computeIfAbsent(namedAggregate.materialize()) { sinkSupplier(it).prepareConcurrentSink() }
 
     /**
      * Returns the number of subscribers for the specified named aggregate.
