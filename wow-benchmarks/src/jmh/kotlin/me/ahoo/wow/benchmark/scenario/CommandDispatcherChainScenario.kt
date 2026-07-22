@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.benchmark.scenario
 
-import me.ahoo.wow.BenchmarkAggregateSchedulerSupplier
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkIds
 import me.ahoo.wow.command.ServerCommandExchange
@@ -24,11 +23,11 @@ import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.modeling.command.dispatcher.AggregateCommandDispatcher
 import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
+import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import org.openjdk.jmh.infra.Blackhole
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.core.scheduler.Scheduler
-import reactor.core.scheduler.Schedulers
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -74,6 +73,7 @@ class CommandDispatcherChainScenario private constructor(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val aggregateIdCardinality: Int,
     private val handlerCost: HandlerCost,
+    private val schedulerSupplier: AggregateSchedulerSupplier,
 ) : AutoCloseable {
 
     private val aggregateIdCycle = AtomicInteger(0)
@@ -107,6 +107,7 @@ class CommandDispatcherChainScenario private constructor(
 
     override fun close() {
         dispatcher.stopGracefully().block()
+        schedulerSupplier.stopGracefully().block()
     }
 
     companion object {
@@ -119,19 +120,14 @@ class CommandDispatcherChainScenario private constructor(
         ): CommandDispatcherChainScenario {
             val messageSink = Sinks.many().unicast().onBackpressureBuffer<ServerCommandExchange<*>>()
             val handler = DispatchChainHandler(handlerCost)
-            val scheduler: Scheduler = when (schedulerStrategy) {
-                SchedulerStrategy.PARALLEL ->
-                    BenchmarkAggregateSchedulerSupplier().getOrInitialize(BenchmarkAggregates.namedAggregate)
-                SchedulerStrategy.IMMEDIATE ->
-                    Schedulers.immediate()
-            }
+            val schedulerSupplier = schedulerStrategy.toSchedulerSupplier()
             @Suppress("UNCHECKED_CAST")
             val dispatcher = AggregateCommandDispatcher<Any, Any>(
                 aggregateMetadata = aggregateMetadata as AggregateMetadata<Any, Any>,
                 messageFlux = messageSink.asFlux(),
                 parallelism = parallelism,
                 commandHandler = handler,
-                scheduler = scheduler,
+                scheduler = schedulerSupplier.getOrInitialize(BenchmarkAggregates.namedAggregate),
             )
             dispatcher.start()
             return CommandDispatcherChainScenario(
@@ -140,6 +136,7 @@ class CommandDispatcherChainScenario private constructor(
                 aggregateMetadata = aggregateMetadata,
                 aggregateIdCardinality = aggregateIdCardinality.coerceAtLeast(1),
                 handlerCost = handlerCost,
+                schedulerSupplier = schedulerSupplier,
             )
         }
     }
