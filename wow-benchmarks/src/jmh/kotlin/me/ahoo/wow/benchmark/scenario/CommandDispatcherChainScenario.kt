@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.benchmark.scenario
 
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkIds
 import me.ahoo.wow.command.ServerCommandExchange
@@ -74,6 +75,7 @@ class CommandDispatcherChainScenario private constructor(
     private val aggregateIdCardinality: Int,
     private val handlerCost: HandlerCost,
     private val schedulerSupplier: AggregateSchedulerSupplier,
+    private val commandMessages: List<CommandMessage<*>>,
 ) : AutoCloseable {
 
     private val aggregateIdCycle = AtomicInteger(0)
@@ -81,23 +83,12 @@ class CommandDispatcherChainScenario private constructor(
     /**
      * Builds the next [ServerCommandExchange] together with its completion sink.
      *
-     * The benchmark emits the exchange to [messageSink], then blocks on
-     * [DispatchedExchange.await] to wait for the dispatch chain to finish processing it.
+     * Only the lightweight per-invocation objects (exchange + completion sink + attribute
+     * write) are allocated here; the command messages are pre-built once in [create] so the
+     * benchmark's measured time reflects the dispatch chain, not message construction.
      */
     fun nextExchange(): DispatchedExchange {
-        val idIndex = aggregateIdCycle.getAndIncrement() % aggregateIdCardinality
-        val aggregateId = if (aggregateIdCardinality == 1) {
-            BenchmarkAggregates.FIXED_AGGREGATE_ID
-        } else {
-            "${BenchmarkAggregates.FIXED_AGGREGATE_ID}-$idIndex"
-        }
-        val commandId = BenchmarkIds.nextGlobalId()
-        val commandMessage = AddCartItem(productId = "productId").toCommandMessage(
-            id = commandId,
-            requestId = commandId,
-            aggregateId = aggregateId,
-            namedAggregate = BenchmarkAggregates.namedAggregate,
-        )
+        val commandMessage = commandMessages[aggregateIdCycle.getAndIncrement() % commandMessages.size]
         val completionSink = Sinks.empty<Void>()
         val exchange = SimpleServerCommandExchange(commandMessage)
         exchange.setAggregateMetadata(aggregateMetadata)
@@ -121,6 +112,24 @@ class CommandDispatcherChainScenario private constructor(
             val messageSink = Sinks.many().unicast().onBackpressureBuffer<ServerCommandExchange<*>>()
             val handler = DispatchChainHandler(handlerCost)
             val schedulerSupplier = schedulerStrategy.toSchedulerSupplier()
+            // Pre-build the command messages once (the expensive part: metadata reflection,
+            // aggregate-id construction) so per-invocation timing covers only the dispatch
+            // chain and the lightweight exchange/sink allocation, not message construction.
+            val cardinality = aggregateIdCardinality.coerceAtLeast(1)
+            val commandMessages = List(cardinality) { index ->
+                val aggregateId = if (cardinality == 1) {
+                    BenchmarkAggregates.FIXED_AGGREGATE_ID
+                } else {
+                    "${BenchmarkAggregates.FIXED_AGGREGATE_ID}-$index"
+                }
+                val commandId = BenchmarkIds.nextGlobalId()
+                AddCartItem(productId = "productId").toCommandMessage(
+                    id = commandId,
+                    requestId = commandId,
+                    aggregateId = aggregateId,
+                    namedAggregate = BenchmarkAggregates.namedAggregate,
+                )
+            }
             @Suppress("UNCHECKED_CAST")
             val dispatcher = AggregateCommandDispatcher<Any, Any>(
                 aggregateMetadata = aggregateMetadata as AggregateMetadata<Any, Any>,
@@ -134,9 +143,10 @@ class CommandDispatcherChainScenario private constructor(
                 dispatcher = dispatcher,
                 messageSink = messageSink,
                 aggregateMetadata = aggregateMetadata,
-                aggregateIdCardinality = aggregateIdCardinality.coerceAtLeast(1),
+                aggregateIdCardinality = cardinality,
                 handlerCost = handlerCost,
                 schedulerSupplier = schedulerSupplier,
+                commandMessages = commandMessages,
             )
         }
     }
