@@ -28,6 +28,7 @@ import org.openjdk.jmh.infra.Blackhole
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.core.scheduler.Scheduler
+import reactor.core.scheduler.Schedulers
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -47,6 +48,21 @@ const val DISPATCH_CHAIN_COMPLETION_KEY: String = "__DISPATCH_CHAIN_COMPLETION__
 enum class HandlerCost {
     NOOP,
     SIMULATED,
+}
+
+/**
+ * Scheduler strategy for the dispatch chain's `publishOn`.
+ *
+ * - [PARALLEL]: production default — a dedicated `newParallel` pool. Each dispatch
+ *   crosses from the emitting thread to a scheduler thread and back, modeling the real
+ *   cross-thread round trip.
+ * - [IMMEDIATE]: uses `Schedulers.immediate()`, so `publishOn` does not switch threads.
+ *   Comparing [IMMEDIATE] against [PARALLEL] isolates the cross-thread handoff cost from
+ *   the groupBy/concatMap dispatch-structure cost.
+ */
+enum class SchedulerStrategy {
+    PARALLEL,
+    IMMEDIATE,
 }
 
 /**
@@ -113,23 +129,24 @@ class CommandDispatcherChainScenario private constructor(
             aggregateMetadata: AggregateMetadata<*, *> = BenchmarkAggregates.cartMetadata,
             aggregateIdCardinality: Int = 1,
             handlerCost: HandlerCost = HandlerCost.NOOP,
+            schedulerStrategy: SchedulerStrategy = SchedulerStrategy.PARALLEL,
             parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
-            schedulerSupplier: () -> Scheduler = {
-                BenchmarkAggregateSchedulerSupplier().getOrInitialize(
-                    BenchmarkAggregates.namedAggregate,
-                )
-            },
         ): CommandDispatcherChainScenario {
             val messageSink = Sinks.many().unicast().onBackpressureBuffer<ServerCommandExchange<*>>()
             val handler = DispatchChainHandler(handlerCost)
-
+            val scheduler: Scheduler = when (schedulerStrategy) {
+                SchedulerStrategy.PARALLEL ->
+                    BenchmarkAggregateSchedulerSupplier().getOrInitialize(BenchmarkAggregates.namedAggregate)
+                SchedulerStrategy.IMMEDIATE ->
+                    Schedulers.immediate()
+            }
             @Suppress("UNCHECKED_CAST")
             val dispatcher = AggregateCommandDispatcher<Any, Any>(
                 aggregateMetadata = aggregateMetadata as AggregateMetadata<Any, Any>,
                 messageFlux = messageSink.asFlux(),
                 parallelism = parallelism,
                 commandHandler = handler,
-                scheduler = schedulerSupplier(),
+                scheduler = scheduler,
             )
             dispatcher.start()
             return CommandDispatcherChainScenario(
