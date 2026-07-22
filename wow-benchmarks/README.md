@@ -191,7 +191,7 @@ Every successful thread-level JMH run writes a neighboring `*.manifest.json` sid
 - `gc.alloc.rate.norm` is normalized allocation per operation. Reports use binary prefixes (`KiB`, `MiB`, `GiB`); lower is usually better.
 - `±` is the JMH-reported error. Compact units affect presentation only; reports retain raw precision for sorting, comparisons, and regression gates.
 - Quick reports contain throughput and allocation results only. They are useful for local regression checks, but the shorter run profile has wider variance than Baseline E2E.
-- `benchmarkCompare` displays baseline/current JMH errors when available. The current regression gate still uses the configured point-estimate threshold; the errors are diagnostic and do not yet change the status calculation.
+- `benchmarkCompare` first applies the configured point-estimate threshold, then uses baseline/current JMH error intervals to classify a threshold crossing. Non-overlapping intervals produce a regression or improvement candidate; overlapping or missing intervals remain inconclusive until a controlled confirmation run.
 - Framework E2E reports isolate Wow command-pipeline overhead; they are not Redis, Mongo, or production deployment capacity numbers.
 - WebFlux Adapter reports isolate functional WebFlux adapter code. They are useful for adapter bottleneck diagnosis, but they are not HTTP server capacity or Framework E2E conclusion numbers.
 
