@@ -515,6 +515,7 @@ val quickComponentSuite = componentSuite.copy(
 )
 
 val quickComponentProfile = quickProfile.copy(
+    threads = benchmarkThreadsProperty("benchmarkQuickComponentThreads", listOf(1)),
     parameters = mapOf(
         "eventCount" to "10,500",
         "handlerCost" to "NOOP",

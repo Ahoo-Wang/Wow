@@ -166,10 +166,16 @@ Every successful thread-level JMH run writes a neighboring `*.manifest.json` sid
 
 ## Configuration
 
-Default quick threads are `1,4`:
+Default Framework E2E quick threads are `1,4`:
 
 ```bash
 ./gradlew :wow-benchmarks:benchmarkQuickE2E -PbenchmarkQuickThreads=1,4
+```
+
+Quick Component defaults to one thread because component isolation, not scaling, is its responsibility:
+
+```bash
+./gradlew :wow-benchmarks:benchmarkQuickComponent -PbenchmarkQuickComponentThreads=1
 ```
 
 Quick WebFlux uses its own thread property because it has a shorter run profile:

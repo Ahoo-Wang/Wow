@@ -92,6 +92,7 @@ test/code-coverage-report/build/reports/jacoco/codeCoverageReport/codeCoverageRe
 ```
 
 快速基准测试使用有边界的代表性 catalog 和较短的 JMH 设置，适合本地快速发现回归；正式吞吐与分配结论仍以 Baseline E2E 为准。
+Quick Component 默认仅运行单线程；扩展性行为由 Framework E2E 负责，而不是由隔离组件测量承担。
 Infrastructure 基准测试需要本地 Redis 和 MongoDB 服务。
 
 ## 基线与诊断基准测试

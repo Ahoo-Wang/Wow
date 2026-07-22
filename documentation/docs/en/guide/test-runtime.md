@@ -92,6 +92,7 @@ Benchmark smoke checks that selected JMH paths still compile and execute. It is 
 ```
 
 Quick benchmarks use bounded representative catalogs and short JMH settings. They are useful for local regression feedback, but Baseline E2E remains the source for formal throughput and allocation conclusions.
+Quick Component defaults to one thread; scaling behavior belongs to Framework E2E rather than isolated component measurements.
 Infrastructure benchmarks require local Redis and MongoDB services.
 
 ## Baseline And Diagnostic Benchmarks
