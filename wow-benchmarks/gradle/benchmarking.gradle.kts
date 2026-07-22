@@ -4,6 +4,8 @@ import com.sun.management.OperatingSystemMXBean as SunOperatingSystemMXBean
 import org.gradle.api.GradleException
 import org.gradle.api.file.RegularFile
 import org.gradle.api.provider.Provider
+import org.gradle.api.services.BuildService
+import org.gradle.api.services.BuildServiceParameters
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.jvm.tasks.Jar
@@ -11,12 +13,18 @@ import java.io.File
 import java.lang.management.ManagementFactory
 import java.net.InetSocketAddress
 import java.net.Socket
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
 import java.time.Instant
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Locale
+import java.util.UUID
 import java.util.concurrent.TimeUnit
+
+val benchmarkBaselineSchemaVersion = 2
 
 data class BenchmarkRequiredService(
     val service: String,
@@ -24,10 +32,21 @@ data class BenchmarkRequiredService(
     val port: Int,
 )
 
+fun BenchmarkRequiredService.toRunSpec(): Map<String, Any> {
+    return linkedMapOf(
+        "service" to service,
+        "host" to host,
+        "port" to port,
+    )
+}
+
+fun BenchmarkSuite.requiredServicesRunSpec(): List<Map<String, Any>> {
+    return requiredServices.map(BenchmarkRequiredService::toRunSpec)
+}
+
 data class BenchmarkSuite(
     val id: String,
     val displayName: String,
-    val commandName: String,
     val includeClasses: List<String>,
     val resultFileName: String,
     val humanFileName: String,
@@ -45,19 +64,35 @@ data class BenchmarkRunProfile(
     val forks: Int,
     val threads: List<Int>,
     val benchmarkModes: List<String>,
+    val jvmArgs: List<String>,
     val includeGcProfiler: Boolean,
     val includeAsyncProfiler: Boolean,
+    val parameters: Map<String, String> = emptyMap(),
 )
 
-data class BenchmarkReportSpec(
+data class BenchmarkTaskSpec(
+    val taskName: String,
     val suite: BenchmarkSuite,
     val profile: BenchmarkRunProfile,
+    val description: String,
+    val taskGroup: String = "benchmark",
 )
 
 data class CommandOutput(
     val exitCode: Int,
     val output: String,
 )
+
+abstract class BenchmarkRunIdentityService : BuildService<BuildServiceParameters.None>, AutoCloseable {
+    val runId: String = UUID.randomUUID().toString()
+
+    override fun close() = Unit
+}
+
+val benchmarkRunIdentityService = gradle.sharedServices.registerIfAbsent(
+    "benchmarkRunIdentity",
+    BenchmarkRunIdentityService::class,
+) {}
 
 data class DockerContainerRuntime(
     val label: String,
@@ -142,6 +177,72 @@ fun benchmarkThreadsProperty(propertyName: String, defaultThreads: List<Int>): L
         .getOrElse(defaultThreads)
 }
 
+fun benchmarkIncludesProperty(propertyName: String, defaultIncludes: List<String>): List<String> {
+    return providers.gradleProperty(propertyName)
+        .map { value ->
+            val includes = value.split(",")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .distinct()
+            if (includes.isEmpty()) {
+                throw GradleException("Gradle property $propertyName must contain at least one benchmark include.")
+            }
+            includes
+        }
+        .getOrElse(defaultIncludes)
+}
+
+fun benchmarkModesProperty(propertyName: String, defaultModes: List<String>): List<String> {
+    return providers.gradleProperty(propertyName)
+        .map { value ->
+            val modes = value.split(",")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .distinct()
+            if (modes.isEmpty()) {
+                throw GradleException("Gradle property $propertyName must contain at least one benchmark mode.")
+            }
+            val unsupportedModes = modes - setOf("thrpt", "avgt")
+            if (unsupportedModes.isNotEmpty()) {
+                throw GradleException(
+                    "Gradle property $propertyName contains unsupported benchmark modes: " +
+                        unsupportedModes.joinToString(",")
+                )
+            }
+            modes
+        }
+        .getOrElse(defaultModes)
+}
+
+val benchmarkJvmArgs = listOf(
+    "-Xmx4g",
+    "-Xms4g",
+    "-XX:+UseG1GC",
+    "-XX:+UnlockDiagnosticVMOptions",
+    "-XX:+DebugNonSafepoints",
+    "-XX:+AlwaysPreTouch",
+)
+
+val smokeBenchmarkJvmArgs = listOf(
+    "-Xmx512m",
+    "-Xms512m",
+    "-XX:+UseG1GC",
+)
+
+val quickBenchmarkJvmArgs = listOf(
+    "-Xmx1g",
+    "-Xms1g",
+    "-XX:+UseG1GC",
+)
+
+val asyncBenchmarkJvmArgs = listOf(
+    "-Xmx2g",
+    "-Xms2g",
+    "-XX:+UseG1GC",
+    "-XX:+UnlockDiagnosticVMOptions",
+    "-XX:+DebugNonSafepoints",
+)
+
 val smokeProfile = BenchmarkRunProfile(
     id = "smoke",
     warmupIterations = 0,
@@ -151,6 +252,11 @@ val smokeProfile = BenchmarkRunProfile(
     forks = 1,
     threads = listOf(1),
     benchmarkModes = listOf("thrpt"),
+    jvmArgs = smokeBenchmarkJvmArgs,
+    parameters = mapOf(
+        "scenario" to "ceiling",
+        "schedulerStrategy" to "IMMEDIATE",
+    ),
     includeGcProfiler = false,
     includeAsyncProfiler = false,
 )
@@ -158,14 +264,15 @@ val smokeProfile = BenchmarkRunProfile(
 val quickProfile = BenchmarkRunProfile(
     id = "quick",
     warmupIterations = 1,
-    warmupTime = "3s",
+    warmupTime = "2s",
     measurementIterations = 2,
-    measurementTime = "5s",
+    measurementTime = "3s",
     forks = 1,
     threads = benchmarkThreadsProperty("benchmarkQuickThreads", listOf(1, 4)),
-    benchmarkModes = listOf("thrpt", "avgt"),
+    benchmarkModes = listOf("thrpt"),
+    jvmArgs = quickBenchmarkJvmArgs,
     includeGcProfiler = true,
-    includeAsyncProfiler = true,
+    includeAsyncProfiler = false,
 )
 
 val quickWebFluxProfile = BenchmarkRunProfile(
@@ -177,34 +284,119 @@ val quickWebFluxProfile = BenchmarkRunProfile(
     forks = 1,
     threads = benchmarkThreadsProperty("benchmarkQuickWebFluxThreads", listOf(1, 4)),
     benchmarkModes = listOf("thrpt"),
+    jvmArgs = quickBenchmarkJvmArgs,
     includeGcProfiler = true,
     includeAsyncProfiler = false,
 )
 
-val fullProfile = BenchmarkRunProfile(
-    id = "full",
-    warmupIterations = 3,
-    warmupTime = "10s",
-    measurementIterations = 5,
-    measurementTime = "20s",
-    forks = 3,
-    threads = benchmarkThreadsProperty("benchmarkThreads", listOf(1, 2, 4, 8)),
-    benchmarkModes = listOf("thrpt", "avgt"),
+val baselineE2EProfile = BenchmarkRunProfile(
+    id = "baseline",
+    warmupIterations = 2,
+    warmupTime = "3s",
+    measurementIterations = 3,
+    measurementTime = "5s",
+    forks = 2,
+    threads = benchmarkThreadsProperty("benchmarkBaselineThreads", listOf(1, 4)),
+    benchmarkModes = listOf("thrpt"),
+    jvmArgs = benchmarkJvmArgs,
     includeGcProfiler = true,
+    includeAsyncProfiler = false,
+)
+
+val latencyE2EProfile = BenchmarkRunProfile(
+    id = "latency",
+    warmupIterations = 1,
+    warmupTime = "2s",
+    measurementIterations = 3,
+    measurementTime = "3s",
+    forks = 2,
+    threads = benchmarkThreadsProperty("benchmarkLatencyThreads", listOf(1)),
+    benchmarkModes = listOf("avgt"),
+    jvmArgs = benchmarkJvmArgs,
+    includeGcProfiler = true,
+    includeAsyncProfiler = false,
+)
+
+val diagnosticComponentProfile = BenchmarkRunProfile(
+    id = "diagnostic",
+    warmupIterations = 1,
+    warmupTime = "2s",
+    measurementIterations = 3,
+    measurementTime = "3s",
+    forks = 1,
+    threads = benchmarkThreadsProperty("benchmarkDiagnosticThreads", listOf(1)),
+    benchmarkModes = benchmarkModesProperty("benchmarkDiagnosticModes", listOf("thrpt")),
+    jvmArgs = quickBenchmarkJvmArgs,
+    includeGcProfiler = true,
+    includeAsyncProfiler = false,
+)
+
+val exhaustiveComponentProfile = BenchmarkRunProfile(
+    id = "exhaustive",
+    warmupIterations = 1,
+    warmupTime = "2s",
+    measurementIterations = 2,
+    measurementTime = "3s",
+    forks = 1,
+    threads = benchmarkThreadsProperty("benchmarkExhaustiveThreads", listOf(1)),
+    benchmarkModes = benchmarkModesProperty("benchmarkExhaustiveModes", listOf("thrpt")),
+    jvmArgs = quickBenchmarkJvmArgs,
+    includeGcProfiler = true,
+    includeAsyncProfiler = false,
+)
+
+val exhaustiveWebFluxProfile = BenchmarkRunProfile(
+    id = "exhaustive",
+    warmupIterations = 1,
+    warmupTime = "3s",
+    measurementIterations = 3,
+    measurementTime = "5s",
+    forks = 1,
+    threads = benchmarkThreadsProperty("benchmarkExhaustiveWebFluxThreads", listOf(1, 4)),
+    benchmarkModes = listOf("thrpt", "avgt"),
+    jvmArgs = benchmarkJvmArgs,
+    includeGcProfiler = true,
+    includeAsyncProfiler = false,
+)
+
+val baselineInfrastructureProfile = BenchmarkRunProfile(
+    id = "baseline",
+    warmupIterations = 2,
+    warmupTime = "5s",
+    measurementIterations = 3,
+    measurementTime = "10s",
+    forks = 2,
+    threads = benchmarkThreadsProperty("benchmarkBaselineInfrastructureThreads", listOf(1, 4)),
+    benchmarkModes = listOf("thrpt", "avgt"),
+    jvmArgs = benchmarkJvmArgs,
+    includeGcProfiler = true,
+    includeAsyncProfiler = false,
+)
+
+val asyncProfile = BenchmarkRunProfile(
+    id = "async",
+    warmupIterations = 1,
+    warmupTime = "2s",
+    measurementIterations = 2,
+    measurementTime = "3s",
+    forks = 1,
+    threads = benchmarkThreadsProperty("benchmarkAsyncThreads", listOf(1)),
+    benchmarkModes = listOf("thrpt"),
+    jvmArgs = asyncBenchmarkJvmArgs,
+    includeGcProfiler = false,
     includeAsyncProfiler = true,
 )
 
 val smokeSuite = BenchmarkSuite(
     id = "smoke",
     displayName = "Smoke",
-    commandName = "benchmarkSmoke",
     includeClasses = listOf(
-        "me.ahoo.wow.benchmark.component.CommandIdComponentBenchmark",
-        "me.ahoo.wow.benchmark.component.CommandMessageComponentBenchmark",
-        "me.ahoo.wow.benchmark.component.AccessorComponentBenchmark",
-        "me.ahoo.wow.benchmark.component.SerializationComponentBenchmark",
-        "me.ahoo.wow.benchmark.e2e.CommandWriteE2EBenchmark",
-        "me.ahoo.wow.benchmark.webflux.WebFluxSmokeBenchmark",
+        "me.ahoo.wow.benchmark.component.CommandIdComponentBenchmark.createAggregateId",
+        "me.ahoo.wow.benchmark.component.CommandMessageComponentBenchmark.createCommandMessage",
+        "me.ahoo.wow.benchmark.component.AccessorComponentBenchmark.functionAccessorInvoke1",
+        "me.ahoo.wow.benchmark.component.SerializationComponentBenchmark.commandSerializeDeserialize",
+        "me.ahoo.wow.benchmark.e2e.CommandWriteE2EBenchmark.sendAndWaitProcessed",
+        "me.ahoo.wow.benchmark.webflux.WebFluxSmokeBenchmark.monoCommandResultServerResponseOnly",
     ),
     resultFileName = "benchmark-smoke.json",
     humanFileName = "benchmark-smoke-human.txt",
@@ -215,9 +407,9 @@ val smokeSuite = BenchmarkSuite(
 val frameworkE2ESuite = BenchmarkSuite(
     id = "framework-e2e",
     displayName = "Primary Framework E2E",
-    commandName = "benchmarkFullE2E",
     includeClasses = listOf(
         "me.ahoo.wow.benchmark.e2e.CommandWriteE2EBenchmark",
+        "me.ahoo.wow.benchmark.e2e.CommandSendE2EBenchmark",
     ),
     resultFileName = "framework-e2e.json",
     humanFileName = "framework-e2e-human.txt",
@@ -228,7 +420,6 @@ val frameworkE2ESuite = BenchmarkSuite(
 val infrastructureE2ESuite = BenchmarkSuite(
     id = "infrastructure-e2e",
     displayName = "Infrastructure E2E",
-    commandName = "benchmarkFullInfrastructureE2E",
     includeClasses = listOf(
         "me.ahoo.wow.benchmark.infrastructure.redis.RedisCommandWriteE2EBenchmark",
         "me.ahoo.wow.benchmark.infrastructure.mongo.MongoCommandWriteE2EBenchmark",
@@ -254,7 +445,6 @@ val infrastructureE2ESuite = BenchmarkSuite(
 val componentSuite = BenchmarkSuite(
     id = "component",
     displayName = "Component",
-    commandName = "benchmarkFullComponent",
     includeClasses = listOf(
         "me.ahoo.wow.benchmark.component.CommandIdComponentBenchmark",
         "me.ahoo.wow.benchmark.component.CommandMessageComponentBenchmark",
@@ -262,6 +452,7 @@ val componentSuite = BenchmarkSuite(
         "me.ahoo.wow.benchmark.component.CommandValidationComponentBenchmark",
         "me.ahoo.wow.benchmark.component.IdempotencyComponentBenchmark",
         "me.ahoo.wow.benchmark.component.AggregateLoadComponentBenchmark",
+        "me.ahoo.wow.benchmark.component.AggregateRepositoryLoadComponentBenchmark",
         "me.ahoo.wow.benchmark.component.AggregateHandleComponentBenchmark",
         "me.ahoo.wow.benchmark.component.EventStoreComponentBenchmark",
         "me.ahoo.wow.benchmark.component.EventPublishComponentBenchmark",
@@ -280,7 +471,6 @@ val componentSuite = BenchmarkSuite(
 val webFluxSuite = BenchmarkSuite(
     id = "webflux",
     displayName = "WebFlux Adapter",
-    commandName = "benchmarkFullWebFlux",
     includeClasses = listOf(
         "me.ahoo.wow.benchmark.webflux.CommandHandlerFunctionBenchmark",
         "me.ahoo.wow.benchmark.webflux.WebFluxResponseBenchmark",
@@ -306,44 +496,247 @@ val quickWebFluxSuite = webFluxSuite.copy(
     )
 )
 
-val reportSuites = listOf(frameworkE2ESuite, infrastructureE2ESuite, componentSuite, webFluxSuite)
-val quickReportSpecs = listOf(
-    BenchmarkReportSpec(frameworkE2ESuite, quickProfile),
-    BenchmarkReportSpec(infrastructureE2ESuite, quickProfile),
-    BenchmarkReportSpec(componentSuite, quickProfile),
-    BenchmarkReportSpec(quickWebFluxSuite, quickWebFluxProfile),
+val quickComponentSuite = componentSuite.copy(
+    includeClasses = listOf(
+        "me.ahoo.wow.benchmark.component.CommandIdComponentBenchmark.generateGlobalIdAndCreateAggregateId",
+        "me.ahoo.wow.benchmark.component.CommandMessageComponentBenchmark.createCommandMessage",
+        "me.ahoo.wow.benchmark.component.CommandMessageComponentBenchmark.readCommandMessageProperties",
+        "me.ahoo.wow.benchmark.component.CommandValidationComponentBenchmark.validateCommandBody",
+        "me.ahoo.wow.benchmark.component.IdempotencyComponentBenchmark.checkKnownRequestId",
+        "me.ahoo.wow.benchmark.component.AggregateLoadComponentBenchmark.recoverConstantSizeStateFromEvents",
+        "me.ahoo.wow.benchmark.component.AggregateRepositoryLoadComponentBenchmark.loadEmptyStateAggregate",
+        "me.ahoo.wow.benchmark.component.AggregateRepositoryLoadComponentBenchmark.loadSnapshot",
+        "me.ahoo.wow.benchmark.component.AggregateHandleComponentBenchmark.processCommandAggregate",
+        "me.ahoo.wow.benchmark.component.EventStoreComponentBenchmark.appendInMemoryNewAggregateEventStream",
+        "me.ahoo.wow.benchmark.component.EventStoreComponentBenchmark.appendNoopEventStream",
+        "me.ahoo.wow.benchmark.component.EventPublishComponentBenchmark.publishDomainEventStream",
+        "me.ahoo.wow.benchmark.component.WaitNotifyComponentBenchmark.registerWaitRegistration",
+        "me.ahoo.wow.benchmark.component.WaitNotifyComponentBenchmark.notifyProcessed",
+        "me.ahoo.wow.benchmark.component.WaitNotifyComponentBenchmark.waitForProcessed",
+        "me.ahoo.wow.benchmark.component.SerializationComponentBenchmark.commandSerializeDeserialize",
+        "me.ahoo.wow.benchmark.component.SerializationComponentBenchmark.eventStreamSerializeDeserialize",
+        "me.ahoo.wow.benchmark.component.CommandPipelineComponentBenchmark.handleAggregateOnly",
+        "me.ahoo.wow.benchmark.component.CommandPipelineComponentBenchmark.handleAggregateWithoutRetry",
+        "me.ahoo.wow.benchmark.component.CommandPipelineComponentBenchmark.handleAggregateAndSendDomainEvent",
+        "me.ahoo.wow.benchmark.component.CommandPipelineComponentBenchmark.handleAggregateAndSendDomainStateEvents",
+        "me.ahoo.wow.benchmark.component.CommandPipelineComponentBenchmark.handleAggregateAndNotifyProcessedWithoutWait",
+        "me.ahoo.wow.benchmark.component.CommandPipelineComponentBenchmark.handleAggregateAndNotifyProcessedWithLocalWait",
+        "me.ahoo.wow.benchmark.component.CommandDispatcherChainComponentBenchmark.dispatchSingleHotAggregateThroughChain",
+        "me.ahoo.wow.benchmark.component.MongoDocumentComponentBenchmark.eventStreamToDocument",
+    )
 )
 
-val benchmarkJvmArgs = listOf(
-    "-Xmx4g",
-    "-Xms4g",
-    "-XX:+UseG1GC",
-    "-XX:+UnlockDiagnosticVMOptions",
-    "-XX:+DebugNonSafepoints",
-    "-XX:+AlwaysPreTouch",
+val quickComponentProfile = quickProfile.copy(
+    threads = benchmarkThreadsProperty("benchmarkQuickComponentThreads", listOf(1)),
+    parameters = mapOf(
+        "eventCount" to "10,500",
+        "handlerCost" to "NOOP",
+    )
+)
+
+val diagnosticComponentSuite = quickComponentSuite.copy(
+    includeClasses = benchmarkIncludesProperty(
+        "benchmarkDiagnosticComponentIncludes",
+        quickComponentSuite.includeClasses,
+    ),
+)
+
+val diagnosticComponentRunProfile = diagnosticComponentProfile.copy(
+    parameters = quickComponentProfile.parameters,
+)
+
+val asyncE2ESuite = frameworkE2ESuite.copy(
+    includeClasses = benchmarkIncludesProperty(
+        "benchmarkAsyncE2EIncludes",
+        frameworkE2ESuite.includeClasses,
+    ),
+)
+
+val asyncComponentSuite = quickComponentSuite.copy(
+    includeClasses = benchmarkIncludesProperty(
+        "benchmarkAsyncComponentIncludes",
+        quickComponentSuite.includeClasses,
+    ),
+)
+
+val asyncComponentProfile = asyncProfile.copy(parameters = quickComponentProfile.parameters)
+
+val asyncWebFluxSuite = quickWebFluxSuite.copy(
+    includeClasses = benchmarkIncludesProperty(
+        "benchmarkAsyncWebFluxIncludes",
+        quickWebFluxSuite.includeClasses,
+    ),
+)
+
+val smokeTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkSmoke",
+    suite = smokeSuite,
+    profile = smokeProfile,
+    description = "Runs the bounded cross-layer JMH verification catalog.",
+    taskGroup = "verification",
+)
+
+val quickE2ETaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkQuickE2E",
+    suite = frameworkE2ESuite,
+    profile = quickProfile,
+    description = "Runs the bounded Framework E2E feedback catalog.",
+)
+
+val baselineE2ETaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkBaselineE2E",
+    suite = frameworkE2ESuite,
+    profile = baselineE2EProfile,
+    description = "Runs the formal Framework E2E throughput and allocation baseline.",
+)
+
+val latencyE2ETaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkLatencyE2E",
+    suite = frameworkE2ESuite,
+    profile = latencyE2EProfile,
+    description = "Runs the optional Framework E2E average-latency profile.",
+)
+
+val quickInfrastructureE2ETaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkQuickInfrastructureE2E",
+    suite = infrastructureE2ESuite,
+    profile = quickProfile,
+    description = "Runs the bounded infrastructure feedback catalog.",
+)
+
+val baselineInfrastructureE2ETaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkBaselineInfrastructureE2E",
+    suite = infrastructureE2ESuite,
+    profile = baselineInfrastructureProfile,
+    description = "Runs the formal Redis and Mongo infrastructure baseline.",
+)
+
+val quickComponentTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkQuickComponent",
+    suite = quickComponentSuite,
+    profile = quickComponentProfile,
+    description = "Runs the representative Component feedback catalog.",
+)
+
+val diagnosticComponentTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkDiagnosticComponent",
+    suite = diagnosticComponentSuite,
+    profile = diagnosticComponentRunProfile,
+    description = "Runs the selected Component diagnostic catalog.",
+)
+
+val exhaustiveComponentTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkExhaustiveComponent",
+    suite = componentSuite,
+    profile = exhaustiveComponentProfile,
+    description = "Runs every Component workload with the bounded exhaustive profile.",
+)
+
+val quickWebFluxTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkQuickWebFlux",
+    suite = quickWebFluxSuite,
+    profile = quickWebFluxProfile,
+    description = "Runs the representative WebFlux adapter feedback catalog.",
+)
+
+val exhaustiveWebFluxTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkExhaustiveWebFlux",
+    suite = webFluxSuite,
+    profile = exhaustiveWebFluxProfile,
+    description = "Runs the complete WebFlux adapter catalog.",
+)
+
+val asyncE2ETaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkAsyncE2E",
+    suite = asyncE2ESuite,
+    profile = asyncProfile,
+    description = "Profiles selected Framework E2E workloads with AsyncProfiler.",
+)
+
+val asyncComponentTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkAsyncComponent",
+    suite = asyncComponentSuite,
+    profile = asyncComponentProfile,
+    description = "Profiles selected Component workloads with AsyncProfiler.",
+)
+
+val asyncWebFluxTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkAsyncWebFlux",
+    suite = asyncWebFluxSuite,
+    profile = asyncProfile,
+    description = "Profiles selected WebFlux adapter workloads with AsyncProfiler.",
+)
+
+val benchmarkTaskSpecs = listOf(
+    smokeTaskSpec,
+    quickE2ETaskSpec,
+    baselineE2ETaskSpec,
+    latencyE2ETaskSpec,
+    quickInfrastructureE2ETaskSpec,
+    baselineInfrastructureE2ETaskSpec,
+    quickComponentTaskSpec,
+    diagnosticComponentTaskSpec,
+    exhaustiveComponentTaskSpec,
+    quickWebFluxTaskSpec,
+    exhaustiveWebFluxTaskSpec,
+    asyncE2ETaskSpec,
+    asyncComponentTaskSpec,
+    asyncWebFluxTaskSpec,
+)
+
+val baselineReportTaskSpecs = listOf(
+    baselineE2ETaskSpec,
+    baselineInfrastructureE2ETaskSpec,
+    exhaustiveComponentTaskSpec,
+    exhaustiveWebFluxTaskSpec,
+)
+
+val quickReportTaskSpecs = listOf(
+    quickE2ETaskSpec,
+    quickInfrastructureE2ETaskSpec,
+    quickComponentTaskSpec,
+    quickWebFluxTaskSpec,
 )
 
 fun benchmarkIncludePattern(includes: List<String>): String {
     return includes.joinToString("|") { Regex.escape(it) + ".*" }
 }
 
-fun benchmarkProfilerArgs(includeGcProfiler: Boolean, includeAsyncProfiler: Boolean): List<String> {
-    if (!includeGcProfiler && !includeAsyncProfiler) {
+val benchmarkAsyncProfilerLib = providers.gradleProperty("benchmarkAsyncProfilerLib")
+    .map { libraryPath -> file(libraryPath) }
+    .getOrElse(file("/opt/async-profiler/lib/libasyncProfiler.dylib"))
+
+fun benchmarkProfilingDirectory(
+    profile: BenchmarkRunProfile,
+    suite: BenchmarkSuite,
+    threads: Int,
+): File {
+    return layout.buildDirectory
+        .dir("profiling/${profile.id}/${suite.id}/threads-$threads")
+        .get()
+        .asFile
+}
+
+fun benchmarkProfilerArgs(
+    profile: BenchmarkRunProfile,
+    suite: BenchmarkSuite,
+    threads: Int,
+): List<String> {
+    if (!profile.includeGcProfiler && !profile.includeAsyncProfiler) {
         return emptyList()
     }
-    val asyncProfilerLib = file("/opt/async-profiler/lib/libasyncProfiler.dylib")
     return buildList {
-        if (includeGcProfiler) {
+        if (profile.includeGcProfiler) {
             add("-prof")
             add("gc")
         }
-        if (includeAsyncProfiler) {
+        if (profile.includeAsyncProfiler) {
+            val profilingDirectory = benchmarkProfilingDirectory(profile, suite, threads)
             add("-prof")
-            if (asyncProfilerLib.exists()) {
-                add("async:output=flamegraph;dir=build/profiling;event=cpu;libPath=${asyncProfilerLib.absolutePath}")
-            } else {
-                add("stack:lines=10;top=20")
-            }
+            add(
+                "async:output=flamegraph;dir=${profilingDirectory.absolutePath};event=cpu;" +
+                    "libPath=${benchmarkAsyncProfilerLib.absolutePath}"
+            )
         }
     }
 }
@@ -381,6 +774,82 @@ fun suiteHumanFile(
         layout.projectDirectory.file(
             "results/jmh/${profile.id}/${suite.id}/threads-$threads-${suite.humanFileName}"
         )
+    }
+}
+
+fun suiteManifestFile(
+    profile: BenchmarkRunProfile,
+    suite: BenchmarkSuite,
+    threads: Int,
+): Provider<RegularFile> {
+    val resultBaseName = suite.resultFileName.removeSuffix(".json")
+    return providers.provider {
+        layout.projectDirectory.file(
+            "results/jmh/${profile.id}/${suite.id}/threads-$threads-$resultBaseName.manifest.json"
+        )
+    }
+}
+
+fun suiteInProgressManifestFile(
+    profile: BenchmarkRunProfile,
+    suite: BenchmarkSuite,
+    threads: Int,
+): Provider<RegularFile> {
+    val resultBaseName = suite.resultFileName.removeSuffix(".json")
+    return providers.provider {
+        layout.projectDirectory.file(
+            "results/jmh/${profile.id}/${suite.id}/threads-$threads-$resultBaseName.manifest.in-progress.json"
+        )
+    }
+}
+
+fun fileSha256(file: File): String {
+    val digest = MessageDigest.getInstance("SHA-256")
+    file.inputStream().buffered().use { input ->
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        while (true) {
+            val count = input.read(buffer)
+            if (count < 0) {
+                break
+            }
+            digest.update(buffer, 0, count)
+        }
+    }
+    return digest.digest().joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+}
+
+fun writePrettyJson(file: File, value: Any) {
+    file.parentFile.mkdirs()
+    file.writeText(JsonOutput.prettyPrint(JsonOutput.toJson(value)))
+}
+
+fun publishJsonAtomically(file: File, value: Any) {
+    val temporaryFile = File(file.parentFile, "${file.name}.tmp")
+    writePrettyJson(temporaryFile, value)
+    runCatching {
+        Files.move(
+            temporaryFile.toPath(),
+            file.toPath(),
+            StandardCopyOption.ATOMIC_MOVE,
+            StandardCopyOption.REPLACE_EXISTING,
+        )
+    }.getOrElse {
+        Files.move(
+            temporaryFile.toPath(),
+            file.toPath(),
+            StandardCopyOption.REPLACE_EXISTING,
+        )
+    }
+}
+
+fun requestedBenchmarkProfilers(profile: BenchmarkRunProfile): List<String> {
+    return buildList {
+        if (profile.includeGcProfiler) {
+            add("gc")
+        }
+        if (profile.includeAsyncProfiler) {
+            add("async")
+        }
     }
 }
 
@@ -602,22 +1071,54 @@ fun StringBuilder.appendBenchmarkEnvironment(
     version: String,
     profile: BenchmarkRunProfile?,
 ) {
-    appendLine("## Environment")
+    appendLine("## Report Generation Environment")
     appendLine("- **Version**: $version")
     appendLine("- **JVM**: ${System.getProperty("java.vm.name")} ${System.getProperty("java.vm.version")}")
     appendLine("- **OS**: ${System.getProperty("os.name")} ${System.getProperty("os.version")} ${System.getProperty("os.arch")}")
-    appendLine("- **DateTime**: ${reportDateTime()}")
+    appendLine("- **Generated At**: ${reportDateTime()}")
     appendLine("- **CPU Cores**: ${Runtime.getRuntime().availableProcessors()}")
     appendLine("- **Physical Memory**: ${formatMemoryBytes(physicalMemoryBytes())}")
-    appendLine("- **Benchmark JVM Args**: `${benchmarkJvmArgs.joinToString(" ")}`")
     if (profile != null) {
+        appendLine("- **Benchmark JVM Args**: `${profile.jvmArgs.joinToString(" ")}`")
         appendLine("- **JMH Config**: ${profile.configSummary()}")
+    } else {
+        appendLine("- **Benchmark JVM Args**: see per-suite Run Profiles below")
+    }
+    appendLine()
+}
+
+fun StringBuilder.appendBenchmarkRunProvenance(manifests: List<ParsedBenchmarkRunManifest>) {
+    validateBenchmarkRunManifests(
+        manifests = manifests,
+        context = "grouped benchmark report",
+        requireSameRunId = false,
+    )
+    val reference = manifests.first()
+    appendLine("## Benchmark Run Provenance")
+    appendLine("- **Source Commit**: `${reference.sourceCommit}`")
+    appendLine("- **Source Dirty**: `${reference.sourceDirty}`")
+    appendLine("- **Project Version**: `${reference.projectVersion}`")
+    appendLine("- **JMH Jar SHA-256**: `${reference.jmhJarSha256}`")
+    appendLine("- **Runtime JVM**: ${reference.vmName} ${reference.vmVersion} / Java ${reference.javaVersion}")
+    appendLine("- **Runtime OS**: ${reference.osName} ${reference.osVersion} ${reference.osArch}")
+    appendLine("- **CPU Cores**: ${reference.availableProcessors}")
+    appendLine("- **Physical Memory**: ${formatMemoryBytes(reference.physicalMemoryBytes)}")
+    appendLine()
+    appendLine("| Suite | Profile | Threads | Run ID | Started | Completed | Profilers | Rows | Result SHA-256 |")
+    appendLine("|-------|---------|---------|--------|---------|-----------|-----------|------|----------------|")
+    manifests.sortedWith(compareBy({ it.suite }, { it.threads })).forEach { manifest ->
+        val profilers = manifest.resolvedProfilerArgs.ifEmpty { listOf("none") }.joinToString(" ")
+        appendLine(
+            "| ${manifest.suite} | ${manifest.profile} | ${manifest.threads} | `${manifest.runId}` | " +
+                "${manifest.startedAt} | ${manifest.completedAt} | `${profilers}` | " +
+                "${manifest.resultRowCount} | `${manifest.resultSha256}` |"
+        )
     }
     appendLine()
 }
 
 fun StringBuilder.appendInfrastructureRuntime() {
-    appendLine("## Infrastructure Runtime")
+    appendLine("## Report-Time Infrastructure Runtime")
     appendLine("- **Benchmark Client**: ${benchmarkClientLocation()}")
     appendLine("- **Docker Compose Env File**: `${benchmarkReportPath(benchmarkDockerEnvFile)}`")
     appendLine("- **Docker Server**: ${dockerServerSummary()}")
@@ -635,31 +1136,6 @@ fun StringBuilder.appendInfrastructureRuntime() {
     appendLine()
 }
 
-fun BenchmarkRunProfile.reportLabel(): String {
-    return when (id) {
-        smokeProfile.id -> "Smoke"
-        quickProfile.id -> "Quick"
-        fullProfile.id -> "Full"
-        else -> id.replaceFirstChar { firstChar ->
-            if (firstChar.isLowerCase()) firstChar.titlecase(Locale.US) else firstChar.toString()
-        }
-    }
-}
-
-fun BenchmarkSuite.taskName(profile: BenchmarkRunProfile): String {
-    if (profile.id == smokeProfile.id) {
-        return commandName
-    }
-    val profileLabel = profile.reportLabel()
-    return when (id) {
-        frameworkE2ESuite.id -> "benchmark${profileLabel}E2E"
-        infrastructureE2ESuite.id -> "benchmark${profileLabel}InfrastructureE2E"
-        componentSuite.id -> "benchmark${profileLabel}Component"
-        webFluxSuite.id -> "benchmark${profileLabel}WebFlux"
-        else -> commandName
-    }
-}
-
 fun registerBenchmarkThreadTask(
     taskName: String,
     suite: BenchmarkSuite,
@@ -669,9 +1145,12 @@ fun registerBenchmarkThreadTask(
     val jmhJar = tasks.named<Jar>("jmhJar")
     val resultFile = suiteResultFile(profile, suite, threads)
     val humanFile = suiteHumanFile(profile, suite, threads)
+    val manifestFile = suiteManifestFile(profile, suite, threads)
+    val inProgressManifestFile = suiteInProgressManifestFile(profile, suite, threads)
     return tasks.register<JavaExec>(taskName) {
         description = "Runs ${suite.displayName} JMH benchmarks with ${profile.id} profile and $threads thread(s)."
         dependsOn(jmhJar)
+        usesService(benchmarkRunIdentityService)
         classpath(jmhJar.flatMap { it.archiveFile })
         mainClass.set("org.openjdk.jmh.Main")
 
@@ -695,6 +1174,10 @@ fun registerBenchmarkThreadTask(
             add(profile.forks.toString())
             add("-foe")
             add("true")
+            profile.parameters.forEach { (name, value) ->
+                add("-p")
+                add("$name=$value")
+            }
             add("-rf")
             add("json")
             add("-rff")
@@ -702,54 +1185,167 @@ fun registerBenchmarkThreadTask(
             add("-o")
             add(humanFile.get().asFile.absolutePath)
             add("-jvmArgs")
-            add(benchmarkJvmArgs.joinToString(" "))
+            add(profile.jvmArgs.joinToString(" "))
         }
+        val profilerArgs = benchmarkProfilerArgs(profile, suite, threads)
+        val profilingDirectory = benchmarkProfilingDirectory(profile, suite, threads)
         args(jmhArgs)
-        args(benchmarkProfilerArgs(profile.includeGcProfiler, profile.includeAsyncProfiler))
+        args(profilerArgs)
 
         outputs.file(resultFile)
         outputs.file(humanFile)
+        outputs.file(manifestFile)
+        if (profile.includeAsyncProfiler) {
+            outputs.dir(profilingDirectory)
+        }
         outputs.upToDateWhen { false }
 
         doFirst {
-            resultFile.get().asFile.parentFile.mkdirs()
-            humanFile.get().asFile.parentFile.mkdirs()
+            val result = resultFile.get().asFile
+            val human = humanFile.get().asFile
+            val manifest = manifestFile.get().asFile
+            val inProgressManifest = inProgressManifestFile.get().asFile
+            manifest.delete()
+            result.delete()
+            human.delete()
+            inProgressManifest.delete()
+            result.parentFile.mkdirs()
+            human.parentFile.mkdirs()
+            if (profile.includeAsyncProfiler) {
+                if (!benchmarkAsyncProfilerLib.isFile) {
+                    throw GradleException(
+                        "AsyncProfiler library is required for $path: ${benchmarkAsyncProfilerLib.absolutePath}. " +
+                            "Set -PbenchmarkAsyncProfilerLib=/path/to/libasyncProfiler.dylib."
+                    )
+                }
+                project.delete(profilingDirectory)
+                profilingDirectory.mkdirs()
+            }
+
+            val gitRoot = rootProject.projectDir.absolutePath
+            val commitOutput = runCommand(listOf("git", "-C", gitRoot, "rev-parse", "HEAD"))
+            if (commitOutput.exitCode != 0 || commitOutput.output.isBlank()) {
+                throw GradleException("Unable to resolve benchmark source commit: ${commitOutput.output}")
+            }
+            val statusOutput = runCommand(
+                listOf("git", "-C", gitRoot, "status", "--porcelain", "--untracked-files=normal")
+            )
+            if (statusOutput.exitCode != 0) {
+                throw GradleException("Unable to resolve benchmark source status: ${statusOutput.output}")
+            }
+            val jmhJarFile = jmhJar.get().archiveFile.get().asFile
+            val startedAt = Instant.now().toString()
+            val inProgress = linkedMapOf<String, Any?>(
+                "schemaVersion" to 1,
+                "status" to "IN_PROGRESS",
+                "runId" to benchmarkRunIdentityService.get().runId,
+                "taskPath" to path,
+                "startedAt" to startedAt,
+                "projectVersion" to project.version.toString(),
+                "source" to linkedMapOf(
+                    "commit" to commitOutput.output,
+                    "dirty" to statusOutput.output.isNotBlank(),
+                    "jmhJarSha256" to fileSha256(jmhJarFile),
+                ),
+                "runSpec" to linkedMapOf(
+                    "suite" to suite.id,
+                    "profile" to profile.id,
+                    "threads" to threads,
+                    "includePattern" to benchmarkIncludePattern(suite.includeClasses),
+                    "modes" to profile.benchmarkModes,
+                    "warmupIterations" to profile.warmupIterations,
+                    "warmupTime" to profile.warmupTime,
+                    "measurementIterations" to profile.measurementIterations,
+                    "measurementTime" to profile.measurementTime,
+                    "forks" to profile.forks,
+                    "parameters" to profile.parameters,
+                    "jvmArgs" to profile.jvmArgs,
+                    "requestedProfilers" to requestedBenchmarkProfilers(profile),
+                    "resolvedJmhArgs" to jmhArgs,
+                    "resolvedProfilerArgs" to profilerArgs,
+                    "requiredServices" to suite.requiredServicesRunSpec(),
+                ),
+                "runtime" to linkedMapOf(
+                    "javaVersion" to System.getProperty("java.version"),
+                    "vmName" to System.getProperty("java.vm.name"),
+                    "vmVersion" to System.getProperty("java.vm.version"),
+                    "javaExecutable" to javaLauncher.orNull?.executablePath?.asFile?.absolutePath,
+                    "osName" to System.getProperty("os.name"),
+                    "osVersion" to System.getProperty("os.version"),
+                    "osArch" to System.getProperty("os.arch"),
+                    "availableProcessors" to Runtime.getRuntime().availableProcessors(),
+                    "physicalMemoryBytes" to physicalMemoryBytes(),
+                ),
+            )
+            writePrettyJson(inProgressManifest, inProgress)
             environment(benchmarkDockerRuntimeEnvironment())
             suite.requiredServices.forEach { requiredService ->
                 requireBenchmarkService(requiredService.service, requiredService.host, requiredService.port)
             }
         }
+
+        doLast {
+            val result = resultFile.get().asFile
+            val human = humanFile.get().asFile
+            val manifest = manifestFile.get().asFile
+            val inProgressManifest = inProgressManifestFile.get().asFile
+            if (!result.isFile || result.length() == 0L) {
+                throw GradleException("JMH result file is missing or empty: ${result.absolutePath}")
+            }
+            if (!human.isFile || human.length() == 0L) {
+                throw GradleException("JMH human output is missing or empty: ${human.absolutePath}")
+            }
+            val parsedResults = JsonSlurper().parseText(result.readText()) as? List<*>
+                ?: throw GradleException("JMH result must be a JSON array: ${result.absolutePath}")
+            if (parsedResults.isEmpty()) {
+                throw GradleException("JMH result contains no benchmark rows: ${result.absolutePath}")
+            }
+            @Suppress("UNCHECKED_CAST")
+            val manifestData = LinkedHashMap(
+                JsonSlurper().parseText(inProgressManifest.readText()) as Map<String, Any?>
+            )
+            manifestData["status"] = "SUCCESS"
+            manifestData["completedAt"] = Instant.now().toString()
+            manifestData["artifacts"] = linkedMapOf(
+                "result" to linkedMapOf(
+                    "path" to result.name,
+                    "size" to result.length(),
+                    "sha256" to fileSha256(result),
+                    "rowCount" to parsedResults.size,
+                ),
+                "human" to linkedMapOf(
+                    "path" to human.name,
+                    "size" to human.length(),
+                    "sha256" to fileSha256(human),
+                ),
+            )
+            publishJsonAtomically(manifest, manifestData)
+            inProgressManifest.delete()
+        }
     }
 }
 
-fun registerBenchmarkAggregateTask(
-    taskName: String,
-    suite: BenchmarkSuite,
-    profile: BenchmarkRunProfile,
-) {
+fun registerBenchmarkTask(taskSpec: BenchmarkTaskSpec) {
+    val taskName = taskSpec.taskName
+    val suite = taskSpec.suite
+    val profile = taskSpec.profile
     val threadTasks = profile.threads.map { threads ->
         registerBenchmarkThreadTask("${taskName}Thread$threads", suite, profile, threads)
     }
     tasks.register(taskName) {
-        description = "Runs ${suite.displayName} JMH benchmarks with the ${profile.id} profile."
-        group = if (taskName == "benchmarkSmoke") {
-            "verification"
-        } else {
-            "benchmark"
-        }
+        description = taskSpec.description
+        group = taskSpec.taskGroup
         dependsOn(threadTasks)
+        doLast {
+            parseBenchmarkGroup(
+                parser = JsonSlurper(),
+                group = benchmarkResultGroup(taskSpec),
+            )
+        }
     }
 }
 
-registerBenchmarkAggregateTask("benchmarkSmoke", smokeSuite, smokeProfile)
-registerBenchmarkAggregateTask("benchmarkQuickE2E", frameworkE2ESuite, quickProfile)
-registerBenchmarkAggregateTask("benchmarkFullE2E", frameworkE2ESuite, fullProfile)
-registerBenchmarkAggregateTask("benchmarkQuickInfrastructureE2E", infrastructureE2ESuite, quickProfile)
-registerBenchmarkAggregateTask("benchmarkFullInfrastructureE2E", infrastructureE2ESuite, fullProfile)
-registerBenchmarkAggregateTask("benchmarkQuickComponent", componentSuite, quickProfile)
-registerBenchmarkAggregateTask("benchmarkFullComponent", componentSuite, fullProfile)
-registerBenchmarkAggregateTask("benchmarkQuickWebFlux", quickWebFluxSuite, quickWebFluxProfile)
-registerBenchmarkAggregateTask("benchmarkFullWebFlux", webFluxSuite, fullProfile)
+benchmarkTaskSpecs.forEach(::registerBenchmarkTask)
 
 tasks.named("jmh") {
     enabled = false
@@ -763,25 +1359,65 @@ val reportsDir = resultsDir.dir("reports")
 val benchmarkReportFile = reportsDir.file("quick-framework-e2e.md")
 val infrastructureBenchmarkReportFile = reportsDir.file("quick-infrastructure-e2e.md")
 val webFluxBenchmarkReportFile = reportsDir.file("quick-webflux.md")
-val groupedBenchmarkReport = reportsDir.file("full-grouped.md")
+val baselineGroupedBenchmarkReport = reportsDir.file("baseline-grouped.md")
 val quickGroupedBenchmarkReport = reportsDir.file("quick-grouped.md")
 
 data class BenchmarkResultFile(
     val threads: Int,
     val resultFile: Provider<RegularFile>,
+    val humanFile: Provider<RegularFile>,
+    val manifestFile: Provider<RegularFile>,
 )
 
 data class BenchmarkResultGroup(
-    val suite: BenchmarkSuite,
-    val profile: BenchmarkRunProfile,
+    val taskSpec: BenchmarkTaskSpec,
     val resultFiles: List<BenchmarkResultFile>,
+) {
+    val suite: BenchmarkSuite
+        get() = taskSpec.suite
+    val profile: BenchmarkRunProfile
+        get() = taskSpec.profile
+}
+
+data class GroupedBenchmarkReportSpec(
+    val label: String,
+    val expectedProfileIds: Set<String>,
+    val performanceConclusionSource: Boolean,
 )
 
 data class BenchmarkGroupReport(
     val group: BenchmarkResultGroup,
     val rows: List<ParsedBenchmarkResult>,
+    val manifests: List<ParsedBenchmarkRunManifest>,
     val sourceRowCount: Int = rows.size,
     val unavailableReason: String? = null,
+)
+
+data class ParsedBenchmarkRunManifest(
+    val runId: String,
+    val taskPath: String,
+    val startedAt: String,
+    val completedAt: String,
+    val projectVersion: String,
+    val sourceCommit: String,
+    val sourceDirty: Boolean,
+    val jmhJarSha256: String,
+    val suite: String,
+    val profile: String,
+    val threads: Int,
+    val jvmArgs: List<String>,
+    val requestedProfilers: List<String>,
+    val resolvedProfilerArgs: List<String>,
+    val javaVersion: String,
+    val vmName: String,
+    val vmVersion: String,
+    val osName: String,
+    val osVersion: String,
+    val osArch: String,
+    val availableProcessors: Int,
+    val physicalMemoryBytes: Long?,
+    val resultSha256: String,
+    val resultRowCount: Int,
 )
 
 data class ParsedBenchmarkResult(
@@ -804,14 +1440,17 @@ data class FormattedBenchmarkScore(
     val unit: String,
 )
 
-fun benchmarkResultGroup(suite: BenchmarkSuite, profile: BenchmarkRunProfile = fullProfile): BenchmarkResultGroup {
+fun benchmarkResultGroup(taskSpec: BenchmarkTaskSpec): BenchmarkResultGroup {
+    val suite = taskSpec.suite
+    val profile = taskSpec.profile
     return BenchmarkResultGroup(
-        suite = suite,
-        profile = profile,
+        taskSpec = taskSpec,
         resultFiles = profile.threads.map { threads ->
             BenchmarkResultFile(
                 threads = threads,
                 resultFile = suiteResultFile(profile, suite, threads),
+                humanFile = suiteHumanFile(profile, suite, threads),
+                manifestFile = suiteManifestFile(profile, suite, threads),
             )
         },
     )
@@ -936,41 +1575,277 @@ fun parseBenchmarkResultFile(
     }
 }
 
+fun manifestMap(container: Map<*, *>, key: String, source: String): Map<*, *> {
+    return container[key] as? Map<*, *>
+        ?: throw GradleException("Benchmark manifest is missing object '$key': $source")
+}
+
+fun manifestString(container: Map<*, *>, key: String, source: String): String {
+    return (container[key] as? String)?.takeIf { it.isNotBlank() }
+        ?: throw GradleException("Benchmark manifest is missing string '$key': $source")
+}
+
+fun manifestInt(container: Map<*, *>, key: String, source: String): Int {
+    return (container[key] as? Number)?.toInt()
+        ?: throw GradleException("Benchmark manifest is missing integer '$key': $source")
+}
+
+fun manifestStringList(container: Map<*, *>, key: String, source: String): List<String> {
+    val values = container[key] as? List<*>
+        ?: throw GradleException("Benchmark manifest is missing array '$key': $source")
+    return values.mapIndexed { index, value ->
+        value as? String
+            ?: throw GradleException("Benchmark manifest '$key[$index]' must be a string: $source")
+    }
+}
+
+fun manifestStringMap(container: Map<*, *>, key: String, source: String): Map<String, String> {
+    val values = container[key] as? Map<*, *>
+        ?: throw GradleException("Benchmark manifest is missing object '$key': $source")
+    return values.entries.associate { (entryKey, entryValue) ->
+        val stringKey = entryKey as? String
+            ?: throw GradleException("Benchmark manifest '$key' contains a non-string key: $source")
+        val stringValue = entryValue as? String
+            ?: throw GradleException("Benchmark manifest '$key.$stringKey' must be a string: $source")
+        stringKey to stringValue
+    }
+}
+
+fun requireManifestValue(actual: Any?, expected: Any?, field: String, source: String) {
+    if (actual != expected) {
+        throw GradleException(
+            "Benchmark manifest '$field' mismatch in $source: expected [$expected], found [$actual]."
+        )
+    }
+}
+
+fun parseBenchmarkRunManifest(
+    parser: JsonSlurper,
+    group: BenchmarkResultGroup,
+    resultSource: BenchmarkResultFile,
+): ParsedBenchmarkRunManifest {
+    val resultFile = resultSource.resultFile.get().asFile
+    val humanFile = resultSource.humanFile.get().asFile
+    val manifestFile = resultSource.manifestFile.get().asFile
+    if (!manifestFile.isFile) {
+        throw GradleException(
+            "Benchmark run manifest not found for ${group.suite.displayName}: ${manifestFile.absolutePath}. " +
+                "Rerun ${group.taskSpec.taskName}; raw JMH JSON without provenance is not accepted."
+        )
+    }
+    val sourcePath = manifestFile.absolutePath
+    val manifest = parser.parseText(manifestFile.readText()) as? Map<*, *>
+        ?: throw GradleException("Benchmark manifest must be a JSON object: $sourcePath")
+    requireManifestValue((manifest["schemaVersion"] as? Number)?.toInt(), 1, "schemaVersion", sourcePath)
+    requireManifestValue(manifest["status"], "SUCCESS", "status", sourcePath)
+
+    val source = manifestMap(manifest, "source", sourcePath)
+    val runSpec = manifestMap(manifest, "runSpec", sourcePath)
+    val runtime = manifestMap(manifest, "runtime", sourcePath)
+    val artifacts = manifestMap(manifest, "artifacts", sourcePath)
+    val resultArtifact = manifestMap(artifacts, "result", sourcePath)
+    val humanArtifact = manifestMap(artifacts, "human", sourcePath)
+
+    requireManifestValue(manifestString(runSpec, "suite", sourcePath), group.suite.id, "runSpec.suite", sourcePath)
+    requireManifestValue(manifestString(runSpec, "profile", sourcePath), group.profile.id, "runSpec.profile", sourcePath)
+    requireManifestValue(manifestInt(runSpec, "threads", sourcePath), resultSource.threads, "runSpec.threads", sourcePath)
+    requireManifestValue(
+        manifestString(runSpec, "includePattern", sourcePath),
+        benchmarkIncludePattern(group.suite.includeClasses),
+        "runSpec.includePattern",
+        sourcePath,
+    )
+    requireManifestValue(
+        manifestStringList(runSpec, "modes", sourcePath),
+        group.profile.benchmarkModes,
+        "runSpec.modes",
+        sourcePath,
+    )
+    requireManifestValue(
+        manifestInt(runSpec, "warmupIterations", sourcePath),
+        group.profile.warmupIterations,
+        "runSpec.warmupIterations",
+        sourcePath,
+    )
+    requireManifestValue(runSpec["warmupTime"], group.profile.warmupTime, "runSpec.warmupTime", sourcePath)
+    requireManifestValue(
+        manifestInt(runSpec, "measurementIterations", sourcePath),
+        group.profile.measurementIterations,
+        "runSpec.measurementIterations",
+        sourcePath,
+    )
+    requireManifestValue(
+        manifestString(runSpec, "measurementTime", sourcePath),
+        group.profile.measurementTime,
+        "runSpec.measurementTime",
+        sourcePath,
+    )
+    requireManifestValue(manifestInt(runSpec, "forks", sourcePath), group.profile.forks, "runSpec.forks", sourcePath)
+    requireManifestValue(
+        manifestStringMap(runSpec, "parameters", sourcePath),
+        group.profile.parameters,
+        "runSpec.parameters",
+        sourcePath,
+    )
+    requireManifestValue(
+        manifestStringList(runSpec, "jvmArgs", sourcePath),
+        group.profile.jvmArgs,
+        "runSpec.jvmArgs",
+        sourcePath,
+    )
+    requireManifestValue(
+        manifestStringList(runSpec, "requestedProfilers", sourcePath),
+        requestedBenchmarkProfilers(group.profile),
+        "runSpec.requestedProfilers",
+        sourcePath,
+    )
+    requireManifestValue(
+        runSpec["requiredServices"],
+        group.suite.requiredServicesRunSpec(),
+        "runSpec.requiredServices",
+        sourcePath,
+    )
+
+    if (!resultFile.isFile || !humanFile.isFile) {
+        throw GradleException("Benchmark artifacts referenced by manifest are missing: $sourcePath")
+    }
+    requireManifestValue(manifestString(resultArtifact, "path", sourcePath), resultFile.name, "artifacts.result.path", sourcePath)
+    requireManifestValue(
+        (resultArtifact["size"] as? Number)?.toLong(),
+        resultFile.length(),
+        "artifacts.result.size",
+        sourcePath,
+    )
+    val resultSha256 = manifestString(resultArtifact, "sha256", sourcePath)
+    requireManifestValue(resultSha256, fileSha256(resultFile), "artifacts.result.sha256", sourcePath)
+    val parsedResultRows = parser.parseText(resultFile.readText()) as? List<*>
+        ?: throw GradleException("JMH result must be a JSON array: ${resultFile.absolutePath}")
+    val resultRowCount = manifestInt(resultArtifact, "rowCount", sourcePath)
+    requireManifestValue(resultRowCount, parsedResultRows.size, "artifacts.result.rowCount", sourcePath)
+    requireManifestValue(manifestString(humanArtifact, "path", sourcePath), humanFile.name, "artifacts.human.path", sourcePath)
+    requireManifestValue(
+        (humanArtifact["size"] as? Number)?.toLong(),
+        humanFile.length(),
+        "artifacts.human.size",
+        sourcePath,
+    )
+    requireManifestValue(
+        manifestString(humanArtifact, "sha256", sourcePath),
+        fileSha256(humanFile),
+        "artifacts.human.sha256",
+        sourcePath,
+    )
+
+    return ParsedBenchmarkRunManifest(
+        runId = manifestString(manifest, "runId", sourcePath),
+        taskPath = manifestString(manifest, "taskPath", sourcePath),
+        startedAt = manifestString(manifest, "startedAt", sourcePath),
+        completedAt = manifestString(manifest, "completedAt", sourcePath),
+        projectVersion = manifestString(manifest, "projectVersion", sourcePath),
+        sourceCommit = manifestString(source, "commit", sourcePath),
+        sourceDirty = source["dirty"] as? Boolean
+            ?: throw GradleException("Benchmark manifest is missing boolean 'source.dirty': $sourcePath"),
+        jmhJarSha256 = manifestString(source, "jmhJarSha256", sourcePath),
+        suite = manifestString(runSpec, "suite", sourcePath),
+        profile = manifestString(runSpec, "profile", sourcePath),
+        threads = manifestInt(runSpec, "threads", sourcePath),
+        jvmArgs = manifestStringList(runSpec, "jvmArgs", sourcePath),
+        requestedProfilers = manifestStringList(runSpec, "requestedProfilers", sourcePath),
+        resolvedProfilerArgs = manifestStringList(runSpec, "resolvedProfilerArgs", sourcePath),
+        javaVersion = manifestString(runtime, "javaVersion", sourcePath),
+        vmName = manifestString(runtime, "vmName", sourcePath),
+        vmVersion = manifestString(runtime, "vmVersion", sourcePath),
+        osName = manifestString(runtime, "osName", sourcePath),
+        osVersion = manifestString(runtime, "osVersion", sourcePath),
+        osArch = manifestString(runtime, "osArch", sourcePath),
+        availableProcessors = manifestInt(runtime, "availableProcessors", sourcePath),
+        physicalMemoryBytes = (runtime["physicalMemoryBytes"] as? Number)?.toLong(),
+        resultSha256 = resultSha256,
+        resultRowCount = resultRowCount,
+    )
+}
+
+fun validateBenchmarkRunManifests(
+    manifests: List<ParsedBenchmarkRunManifest>,
+    context: String,
+    requireSameRunId: Boolean,
+) {
+    if (manifests.isEmpty()) {
+        throw GradleException("No benchmark run manifests were available for $context.")
+    }
+    val comparableFields = linkedMapOf<String, List<Any?>>(
+        "source commit" to manifests.map { it.sourceCommit },
+        "source dirty state" to manifests.map { it.sourceDirty },
+        "JMH jar SHA-256" to manifests.map { it.jmhJarSha256 },
+        "project version" to manifests.map { it.projectVersion },
+        "Java version" to manifests.map { it.javaVersion },
+        "VM" to manifests.map { "${it.vmName} ${it.vmVersion}" },
+        "OS" to manifests.map { "${it.osName} ${it.osVersion} ${it.osArch}" },
+        "available processor count" to manifests.map { it.availableProcessors },
+        "physical memory bytes" to manifests.map { it.physicalMemoryBytes },
+    )
+    if (requireSameRunId) {
+        comparableFields["run ID"] = manifests.map { it.runId }
+    }
+    comparableFields.forEach { (field, values) ->
+        if (values.distinct().size != 1) {
+            throw GradleException("Benchmark manifests mix different $field values for $context: ${values.distinct()}")
+        }
+    }
+}
+
 fun parseBenchmarkGroup(
     parser: JsonSlurper,
     group: BenchmarkResultGroup,
 ): BenchmarkGroupReport {
-    val presentFiles = group.resultFiles
-        .map { it.threads to it.resultFile.get().asFile }
-        .filter { (_, resultFile) -> resultFile.exists() }
-    if (presentFiles.isEmpty()) {
+    val presentResults = group.resultFiles.filter { it.resultFile.get().asFile.exists() }
+    if (presentResults.isEmpty()) {
         if (!group.suite.requiredForGroupedReport) {
             return BenchmarkGroupReport(
                 group = group,
                 rows = emptyList(),
+                manifests = emptyList(),
                 unavailableReason = "Status: unavailable. Result files were not present. " +
-                    "Run ${group.suite.taskName(group.profile)} to include this optional group.",
+                    "Run ${group.taskSpec.taskName} to include this optional group.",
             )
         }
         val missingFiles = group.resultFiles.joinToString(", ") { it.resultFile.get().asFile.absolutePath }
         throw GradleException(
             "JMH results not found for ${group.suite.displayName}: $missingFiles. " +
-                "Run ${group.suite.taskName(group.profile)} first."
+            "Run ${group.taskSpec.taskName} first."
         )
     }
-    val missingRequiredFile = group.resultFiles
-        .map { it.resultFile.get().asFile }
-        .firstOrNull { !it.exists() }
-    if (group.suite.requiredForGroupedReport && missingRequiredFile != null) {
+    if (presentResults.size != group.resultFiles.size) {
+        val missingFiles = group.resultFiles
+            .filterNot { it.resultFile.get().asFile.exists() }
+            .joinToString(", ") { it.resultFile.get().asFile.absolutePath }
         throw GradleException(
-            "JMH result file not found for ${group.suite.displayName}: ${missingRequiredFile.absolutePath}. " +
-                "Run ${group.suite.taskName(group.profile)} first."
+            "Benchmark result set is incomplete for ${group.suite.displayName}: $missingFiles. " +
+                "Run ${group.taskSpec.taskName} first."
         )
     }
-    val rows = presentFiles.flatMap { (threads, resultFile) ->
-        parseBenchmarkResultFile(parser, group, resultFile, threads)
+    val manifests = presentResults.map { resultSource ->
+        parseBenchmarkRunManifest(parser, group, resultSource)
     }
-    return BenchmarkGroupReport(group = group, rows = rows, sourceRowCount = rows.size)
+    validateBenchmarkRunManifests(
+        manifests = manifests,
+        context = "${group.suite.displayName}/${group.profile.id}",
+        requireSameRunId = true,
+    )
+    val rows = presentResults.flatMap { resultSource ->
+        parseBenchmarkResultFile(
+            parser = parser,
+            group = group,
+            resultFile = resultSource.resultFile.get().asFile,
+            threads = resultSource.threads,
+        )
+    }
+    return BenchmarkGroupReport(
+        group = group,
+        rows = rows,
+        manifests = manifests,
+        sourceRowCount = rows.size,
+    )
 }
 
 fun formatScoreError(scoreError: Double?): String {
@@ -1091,18 +1966,23 @@ fun StringBuilder.appendAllocationBottlenecks(rows: List<ParsedBenchmarkResult>)
 
 fun renderGroupedBenchmarkReport(
     groups: List<BenchmarkResultGroup>,
+    spec: GroupedBenchmarkReportSpec,
     version: String,
 ): String {
     val parser = JsonSlurper()
-    val reportProfileIds = groups.map { it.profile.id }.distinct()
-    if (reportProfileIds.size != 1) {
-        throw GradleException("Grouped benchmark report requires one run profile id, found: $reportProfileIds")
+    val reportProfiles = groups.map { it.profile }.distinctBy { it.id }
+    val reportProfileIds = reportProfiles.map { it.id }.toSet()
+    if (reportProfileIds != spec.expectedProfileIds) {
+        throw GradleException(
+            "${spec.label} grouped benchmark report requires run profile ids " +
+                "${spec.expectedProfileIds}, found: $reportProfileIds"
+        )
     }
-    val reportProfile = groups.first().profile
-    val reportLabel = reportProfile.reportLabel()
     val reportProfileConfigs = groups.map { it.profile.configSummary() }.distinct()
+    val hasMultipleRunProfiles = reportProfiles.size > 1 || reportProfileConfigs.size > 1
     val parsedGroups = groups.map { parseBenchmarkGroup(parser, it) }
     val allRows = parsedGroups.flatMap { it.rows }
+    val allManifests = parsedGroups.flatMap { it.manifests }
     val frameworkRows = parsedGroups
         .filter { it.group.suite.id == frameworkE2ESuite.id }
         .flatMap { it.rows }
@@ -1119,14 +1999,14 @@ fun renderGroupedBenchmarkReport(
         throw GradleException("No benchmark rows were available for grouped report generation.")
     }
     val sb = StringBuilder()
-    sb.appendLine("# $reportLabel Grouped Benchmark Report")
+    sb.appendLine("# ${spec.label} Grouped Benchmark Report")
     sb.appendLine()
     sb.appendLine("## Policy")
-    if (reportProfile.id == fullProfile.id) {
-        sb.appendLine("- Full E2E results are the performance conclusion source.")
+    if (spec.performanceConclusionSource) {
+        sb.appendLine("- Baseline E2E results are the performance conclusion source.")
     } else {
         sb.appendLine(
-            "- $reportLabel results are directional feedback; run Full E2E before updating baselines " +
+            "- ${spec.label} results are directional feedback; run Baseline E2E before updating baselines " +
                 "or claiming framework performance conclusions."
         )
     }
@@ -1141,18 +2021,22 @@ fun renderGroupedBenchmarkReport(
     sb.appendLine("- Component results explain bottlenecks and are not standalone performance goals.")
     sb.appendLine("- Smoke results are excluded from performance reports.")
     sb.appendLine()
+    sb.appendBenchmarkRunProvenance(allManifests)
     sb.appendBenchmarkEnvironment(
         version = version,
-        profile = reportProfile.takeIf { reportProfileConfigs.size == 1 },
+        profile = if (hasMultipleRunProfiles) null else reportProfiles.singleOrNull(),
     )
     if (infrastructureRows.isNotEmpty()) {
         sb.appendInfrastructureRuntime()
     }
-    if (reportProfileConfigs.size > 1) {
+    if (hasMultipleRunProfiles) {
         sb.appendLine("## Run Profiles")
         sb.appendLine()
         groups.forEach { group ->
-            sb.appendLine("- **${group.suite.displayName}**: ${group.profile.configSummary()}")
+            sb.appendLine(
+                "- **${group.suite.displayName}**: ${group.profile.configSummary()}, " +
+                    "jvmArgs=`${group.profile.jvmArgs.joinToString(" ")}`"
+            )
         }
         sb.appendLine()
     }
@@ -1221,9 +2105,10 @@ fun renderGroupedBenchmarkReport(
         val rows = groupReport.rows
         sb.appendLine("## ${group.suite.displayName} Results")
         sb.appendLine()
-        sb.appendLine("- **Command**: `./gradlew :wow-benchmarks:${group.suite.taskName(group.profile)}`")
+        sb.appendLine("- **Command**: `./gradlew :wow-benchmarks:${group.taskSpec.taskName}`")
         sb.appendLine("- **JMH Config**: ${group.profile.configSummary()}")
-        val performanceConclusionSource = group.profile.id == fullProfile.id && group.suite.performanceConclusionSource
+        val performanceConclusionSource =
+            group.profile.id == baselineE2EProfile.id && group.suite.performanceConclusionSource
         sb.appendLine("- **Performance Conclusion Source**: ${if (performanceConclusionSource) "yes" else "no"}")
         sb.appendLine("- **Source Row Count**: ${groupReport.sourceRowCount}")
         sb.appendLine("- **Parsed Row Count**: ${rows.size}")
@@ -1243,7 +2128,7 @@ fun renderGroupedBenchmarkReport(
         }
         sb.appendLine()
     }
-    return sb.toString()
+    return sb.toString().trimEnd() + "\n"
 }
 
 fun renderSingleBenchmarkReport(
@@ -1257,7 +2142,7 @@ fun renderSingleBenchmarkReport(
     if (groupReport.rows.isEmpty()) {
         throw GradleException(
             "No benchmark rows were available for ${group.suite.displayName}. " +
-                "Run ${group.suite.taskName(group.profile)} first."
+                "Run ${group.taskSpec.taskName} first."
         )
     }
     val sb = StringBuilder()
@@ -1270,6 +2155,7 @@ fun renderSingleBenchmarkReport(
     sb.appendLine()
     sb.appendLine(description)
     sb.appendLine()
+    sb.appendBenchmarkRunProvenance(groupReport.manifests)
     sb.appendBenchmarkEnvironment(project.version.toString(), group.profile)
     if (includeInfrastructureRuntime) {
         sb.appendInfrastructureRuntime()
@@ -1290,7 +2176,7 @@ fun renderBottleneckBenchmarkReport(
     if (groupReport.rows.isEmpty()) {
         throw GradleException(
             "No benchmark rows were available for ${group.suite.displayName}. " +
-                "Run ${group.suite.taskName(group.profile)} first."
+                "Run ${group.taskSpec.taskName} first."
         )
     }
     val sb = StringBuilder()
@@ -1303,6 +2189,7 @@ fun renderBottleneckBenchmarkReport(
     sb.appendLine()
     sb.appendLine(description)
     sb.appendLine()
+    sb.appendBenchmarkRunProvenance(groupReport.manifests)
     sb.appendBenchmarkEnvironment(project.version.toString(), group.profile)
     sb.appendLine("## Source Files")
     sb.appendLine()
@@ -1339,11 +2226,11 @@ tasks.register("generateBenchmarkReport") {
 
     doLast {
         val report = renderSingleBenchmarkReport(
-            group = benchmarkResultGroup(frameworkE2ESuite, quickProfile),
+            group = benchmarkResultGroup(quickE2ETaskSpec),
             title = "Quick Framework E2E Benchmark Report",
             command = "./gradlew :wow-benchmarks:benchmarkQuickE2E :wow-benchmarks:generateBenchmarkReport",
             description = "Quick Framework E2E results are directional local feedback. " +
-                "Use Full E2E runs for formal performance conclusions. " +
+                "Use Baseline E2E runs for formal performance conclusions. " +
                 "Framework E2E isolates command pipeline overhead with in-memory or noop stores.",
         )
 
@@ -1363,13 +2250,13 @@ tasks.register("generateInfrastructureBenchmarkReport") {
 
     doLast {
         val report = renderSingleBenchmarkReport(
-            group = benchmarkResultGroup(infrastructureE2ESuite, quickProfile),
+            group = benchmarkResultGroup(quickInfrastructureE2ETaskSpec),
             title = "Quick Infrastructure E2E Benchmark Report",
             command = "./gradlew :wow-benchmarks:benchmarkQuickInfrastructureE2E " +
                 ":wow-benchmarks:generateInfrastructureBenchmarkReport",
             description = "Quick Infrastructure E2E results are directional local feedback for real Redis " +
                 "and Mongo persistence paths. They include local service and machine effects; " +
-                "use Full Infrastructure E2E for formal infrastructure conclusions.",
+                "use Baseline Infrastructure E2E for formal infrastructure conclusions.",
             includeInfrastructureRuntime = true,
         )
 
@@ -1389,14 +2276,14 @@ tasks.register("generateQuickWebFluxBenchmarkReport") {
 
     doLast {
         val report = renderBottleneckBenchmarkReport(
-            group = benchmarkResultGroup(quickWebFluxSuite, quickWebFluxProfile),
+            group = benchmarkResultGroup(quickWebFluxTaskSpec),
             title = "Quick WebFlux Benchmark Report",
             command = "./gradlew :wow-benchmarks:benchmarkQuickWebFlux " +
                 ":wow-benchmarks:generateQuickWebFluxBenchmarkReport",
             description = "Quick WebFlux results are short-loop local feedback for command dispatch, " +
                 "response construction, and aggregate tracing hotspots. The profile keeps the JMH GC profiler " +
                 "so gc.alloc.rate.norm remains available, but skips async profiler flamegraphs; " +
-                "run Full WebFlux for the complete benchmark matrix.",
+                "run Exhaustive WebFlux for the complete benchmark matrix.",
         )
 
         val outputFile = webFluxBenchmarkReportFile.asFile
@@ -1406,17 +2293,27 @@ tasks.register("generateQuickWebFluxBenchmarkReport") {
     }
 }
 
-tasks.register("generateGroupedBenchmarkReport") {
-    description = "Generate full grouped E2E and component benchmark reports from JMH JSON results."
+tasks.register("generateBaselineBenchmarkReport") {
+    description = "Generate the formal grouped benchmark report from baseline and exhaustive JMH results."
     group = "benchmark"
-    mustRunAfter("benchmarkFullE2E", "benchmarkFullInfrastructureE2E", "benchmarkFullComponent", "benchmarkFullWebFlux")
-    outputs.file(groupedBenchmarkReport)
+    mustRunAfter(
+        "benchmarkBaselineE2E",
+        "benchmarkBaselineInfrastructureE2E",
+        "benchmarkExhaustiveComponent",
+        "benchmarkExhaustiveWebFlux",
+    )
+    outputs.file(baselineGroupedBenchmarkReport)
     outputs.upToDateWhen { false }
     doLast {
-        val outputFile = groupedBenchmarkReport.asFile
+        val outputFile = baselineGroupedBenchmarkReport.asFile
         outputFile.delete()
         val report = renderGroupedBenchmarkReport(
-            groups = reportSuites.map { benchmarkResultGroup(it, fullProfile) },
+            groups = baselineReportTaskSpecs.map(::benchmarkResultGroup),
+            spec = GroupedBenchmarkReportSpec(
+                label = "Baseline",
+                expectedProfileIds = setOf(baselineE2EProfile.id, exhaustiveComponentProfile.id),
+                performanceConclusionSource = true,
+            ),
             version = project.version.toString(),
         )
         outputFile.parentFile.mkdirs()
@@ -1435,7 +2332,12 @@ tasks.register("generateQuickBenchmarkReport") {
         val outputFile = quickGroupedBenchmarkReport.asFile
         outputFile.delete()
         val report = renderGroupedBenchmarkReport(
-            groups = quickReportSpecs.map { benchmarkResultGroup(it.suite, it.profile) },
+            groups = quickReportTaskSpecs.map(::benchmarkResultGroup),
+            spec = GroupedBenchmarkReportSpec(
+                label = "Quick",
+                expectedProfileIds = setOf(quickProfile.id),
+                performanceConclusionSource = false,
+            ),
             version = project.version.toString(),
         )
         outputFile.parentFile.mkdirs()
@@ -1452,7 +2354,9 @@ data class BenchmarkComparisonRow(
     val threads: Int,
     val unit: String,
     val score: Double,
+    val scoreError: Double?,
     val allocationBytesPerOp: Double?,
+    val allocationErrorBytesPerOp: Double?,
 )
 
 data class BenchmarkMetricComparison(
@@ -1462,7 +2366,10 @@ data class BenchmarkMetricComparison(
     val mode: String,
     val threads: Int,
     val baseline: Double,
+    val baselineError: Double?,
     val current: Double,
+    val currentError: Double?,
+    val unit: String,
     val deltaPercent: Double?,
     val thresholdPercent: Double,
     val higherIsBetter: Boolean,
@@ -1501,7 +2408,9 @@ fun ParsedBenchmarkResult.toComparisonRow(): BenchmarkComparisonRow {
         threads = threads,
         unit = unit,
         score = score,
+        scoreError = scoreError,
         allocationBytesPerOp = allocationBytesPerOp,
+        allocationErrorBytesPerOp = allocationErrorBytesPerOp,
     )
 }
 
@@ -1514,11 +2423,57 @@ fun parsePositiveInt(value: Any?): Int? {
     return parsed.takeIf { it > 0 }
 }
 
-fun parsedFrameworkE2EResults(): List<ParsedBenchmarkResult> {
+fun parseMetricError(value: Any?): Double? {
+    return parseMetricNumber(value)?.takeIf { it >= 0.0 }
+}
+
+fun parsedFrameworkE2EReport(): BenchmarkGroupReport {
     return parseBenchmarkGroup(
         parser = JsonSlurper(),
-        group = benchmarkResultGroup(frameworkE2ESuite, fullProfile),
-    ).rows
+        group = benchmarkResultGroup(baselineE2ETaskSpec),
+    )
+}
+
+fun benchmarkBaselineRunSpec(): Map<String, Any?> {
+    val taskSpec = baselineE2ETaskSpec
+    val profile = taskSpec.profile
+    return linkedMapOf(
+        "taskName" to taskSpec.taskName,
+        "suite" to taskSpec.suite.id,
+        "profile" to profile.id,
+        "includePattern" to benchmarkIncludePattern(taskSpec.suite.includeClasses),
+        "threads" to profile.threads,
+        "modes" to profile.benchmarkModes,
+        "warmupIterations" to profile.warmupIterations,
+        "warmupTime" to profile.warmupTime,
+        "measurementIterations" to profile.measurementIterations,
+        "measurementTime" to profile.measurementTime,
+        "forks" to profile.forks,
+        "parameters" to profile.parameters,
+        "jvmArgs" to profile.jvmArgs,
+        "profilers" to requestedBenchmarkProfilers(profile),
+    )
+}
+
+fun requireCleanBenchmarkWorkspace(): String {
+    val gitRoot = rootProject.projectDir.absolutePath
+    val commitOutput = runCommand(listOf("git", "-C", gitRoot, "rev-parse", "HEAD"))
+    if (commitOutput.exitCode != 0 || commitOutput.output.isBlank()) {
+        throw GradleException("Unable to resolve benchmark source commit: ${commitOutput.output}")
+    }
+    val statusOutput = runCommand(
+        listOf("git", "-C", gitRoot, "status", "--porcelain", "--untracked-files=normal")
+    )
+    if (statusOutput.exitCode != 0) {
+        throw GradleException("Unable to resolve benchmark source status: ${statusOutput.output}")
+    }
+    if (statusOutput.output.isNotBlank()) {
+        throw GradleException(
+            "Benchmark baseline updates require a clean Git workspace. " +
+                "Commit the intended source and rerun benchmarkBaselineE2E before updating the baseline."
+        )
+    }
+    return commitOutput.output
 }
 
 fun ParsedBenchmarkResult.toBaselineJsonRow(): Map<String, Any?> {
@@ -1564,52 +2519,95 @@ fun parsedResultBaselineRow(row: Map<*, *>, source: String, rowIndex: Int): Benc
         threads = threads,
         unit = unit,
         score = score,
+        scoreError = parseMetricError(row["scoreError"]),
         allocationBytesPerOp = parseMetricNumber(row["allocationBytesPerOp"]),
-    )
-}
-
-fun legacyJmhBaselineRow(row: Map<*, *>, source: String, rowIndex: Int): BenchmarkComparisonRow {
-    val benchmark = row["benchmark"] as? String ?: throw GradleException(
-        "Invalid legacy JMH baseline row at index $rowIndex in $source: missing benchmark."
-    )
-    val threads = parsePositiveInt(row["threads"]) ?: throw GradleException(
-        "Legacy JMH baseline row for $benchmark at index $rowIndex in $source does not contain a usable threads value. " +
-            "Regenerate the baseline with :wow-benchmarks:updateBenchmarkBaseline."
-    )
-    val primaryMetric = row["primaryMetric"] as? Map<*, *> ?: throw GradleException(
-        "Invalid legacy JMH baseline row for $benchmark at index $rowIndex in $source: missing primaryMetric."
-    )
-    val mode = row["mode"] as? String ?: "unknown"
-    val score = parseMetricNumber(primaryMetric["score"]) ?: throw GradleException(
-        "Invalid legacy JMH baseline row for $benchmark at index $rowIndex in $source: missing primaryMetric.score."
-    )
-    val unit = primaryMetric["scoreUnit"] as? String ?: throw GradleException(
-        "Invalid legacy JMH baseline row for $benchmark at index $rowIndex in $source: missing primaryMetric.scoreUnit."
-    )
-    val secondaryMetrics = row["secondaryMetrics"] as? Map<*, *>
-    val allocationMetric = secondaryMetrics?.get("gc.alloc.rate.norm") as? Map<*, *>
-    val identity = benchmarkIdentity(row)
-    return BenchmarkComparisonRow(
-        key = comparisonKey(identity, mode, threads),
-        benchmark = identity,
-        displayName = benchmarkDisplayName(row),
-        mode = mode,
-        threads = threads,
-        unit = unit,
-        score = score,
-        allocationBytesPerOp = parseMetricNumber(allocationMetric?.get("score")),
+        allocationErrorBytesPerOp = parseMetricError(row["allocationErrorBytesPerOp"]),
     )
 }
 
 fun parseBaselineComparisonRows(baselineFile: File): Map<String, BenchmarkComparisonRow> {
-    val parsed = JsonSlurper().parseText(baselineFile.readText())
+    val parsed = JsonSlurper().parseText(baselineFile.readText()) as? Map<*, *>
+        ?: throw GradleException(
+            "Benchmark baseline must use the current object schema. " +
+                "Regenerate it with :wow-benchmarks:updateBenchmarkBaseline."
+        )
     val source = baselineFile.absolutePath
-    val rows = when (parsed) {
-        is Map<*, *> -> parsed["results"] as? List<*>
-            ?: throw GradleException("Benchmark baseline is missing results array: $source")
-        is List<*> -> parsed
-        else -> throw GradleException("Benchmark baseline must be a JSON object or array: $source")
+    val schemaVersion = (parsed["schemaVersion"] as? Number)?.toInt()
+    if (schemaVersion != benchmarkBaselineSchemaVersion) {
+        throw GradleException(
+            "Benchmark baseline schema is incompatible: expected $benchmarkBaselineSchemaVersion, " +
+                "found ${schemaVersion ?: "missing"}. " +
+                "Regenerate it with :wow-benchmarks:updateBenchmarkBaseline."
+        )
     }
+    if (parsed["suite"] != frameworkE2ESuite.id || parsed["profile"] != baselineE2EProfile.id) {
+        throw GradleException(
+            "Benchmark baseline identity is incompatible: expected " +
+                "suite=${frameworkE2ESuite.id}, profile=${baselineE2EProfile.id}. " +
+                "Regenerate it with :wow-benchmarks:updateBenchmarkBaseline."
+        )
+    }
+    val baselineSource = parsed["source"] as? Map<*, *>
+        ?: throw GradleException("Benchmark baseline is missing source provenance: $source")
+    if (baselineSource["dirty"] != false) {
+        throw GradleException("Benchmark baseline source must be clean: $source")
+    }
+    listOf("commit", "jmhJarSha256", "runId").forEach { field ->
+        if ((baselineSource[field] as? String).isNullOrBlank()) {
+            throw GradleException("Benchmark baseline source is missing $field: $source")
+        }
+    }
+    val actualRunSpec = parsed["runSpec"] as? Map<*, *>
+        ?: throw GradleException("Benchmark baseline is missing runSpec: $source")
+    val expectedRunSpec = benchmarkBaselineRunSpec()
+    if (actualRunSpec != expectedRunSpec) {
+        throw GradleException(
+            "Benchmark baseline runSpec is incompatible with ${baselineE2ETaskSpec.taskName}. " +
+                "Regenerate it with :wow-benchmarks:updateBenchmarkBaseline."
+        )
+    }
+    if ((parsed["projectVersion"] as? String).isNullOrBlank()) {
+        throw GradleException("Benchmark baseline is missing projectVersion: $source")
+    }
+    val runtime = parsed["runtime"] as? Map<*, *>
+        ?: throw GradleException("Benchmark baseline is missing runtime provenance: $source")
+    listOf("javaVersion", "vmName", "vmVersion", "osName", "osVersion", "osArch").forEach { field ->
+        if ((runtime[field] as? String).isNullOrBlank()) {
+            throw GradleException("Benchmark baseline runtime is missing $field: $source")
+        }
+    }
+    if (parsePositiveInt(runtime["availableProcessors"]) == null) {
+        throw GradleException("Benchmark baseline runtime is missing positive availableProcessors: $source")
+    }
+    val artifacts = parsed["artifacts"] as? List<*>
+        ?: throw GradleException("Benchmark baseline is missing artifacts provenance: $source")
+    if (artifacts.isEmpty()) {
+        throw GradleException("Benchmark baseline contains no artifact provenance: $source")
+    }
+    val artifactThreads = artifacts.mapIndexed { artifactIndex, rawArtifact ->
+        val artifact = rawArtifact as? Map<*, *>
+            ?: throw GradleException("Benchmark baseline artifact $artifactIndex must be an object: $source")
+        listOf("taskPath", "startedAt", "completedAt", "resultSha256").forEach { field ->
+            if ((artifact[field] as? String).isNullOrBlank()) {
+                throw GradleException("Benchmark baseline artifact $artifactIndex is missing $field: $source")
+            }
+        }
+        if (parsePositiveInt(artifact["resultRowCount"]) == null) {
+            throw GradleException(
+                "Benchmark baseline artifact $artifactIndex is missing positive resultRowCount: $source"
+            )
+        }
+        parsePositiveInt(artifact["threads"])
+            ?: throw GradleException("Benchmark baseline artifact $artifactIndex is missing positive threads: $source")
+    }
+    if (artifactThreads != baselineE2EProfile.threads) {
+        throw GradleException(
+            "Benchmark baseline artifact threads are incompatible: " +
+                "expected ${baselineE2EProfile.threads}, found $artifactThreads."
+        )
+    }
+    val rows = parsed["results"] as? List<*>
+        ?: throw GradleException("Benchmark baseline is missing results array: $source")
     if (rows.isEmpty()) {
         throw GradleException("Benchmark baseline contains no rows: $source")
     }
@@ -1617,11 +2615,7 @@ fun parseBaselineComparisonRows(baselineFile: File): Map<String, BenchmarkCompar
         val row = rawRow as? Map<*, *> ?: throw GradleException(
             "Invalid benchmark baseline row at index $rowIndex in $source: expected row to be a JSON object."
         )
-        if (row.containsKey("primaryMetric")) {
-            legacyJmhBaselineRow(row, source, rowIndex)
-        } else {
-            parsedResultBaselineRow(row, source, rowIndex)
-        }
+        parsedResultBaselineRow(row, source, rowIndex)
     }.associateBy { it.key }
 }
 
@@ -1638,7 +2632,10 @@ fun compareMetric(
     baseRow: BenchmarkComparisonRow,
     latestRow: BenchmarkComparisonRow,
     baseline: Double,
+    baselineError: Double?,
     current: Double,
+    currentError: Double?,
+    unit: String,
     thresholdPercent: Double,
     higherIsBetter: Boolean,
 ): BenchmarkMetricComparison {
@@ -1654,7 +2651,10 @@ fun compareMetric(
         mode = latestRow.mode,
         threads = latestRow.threads,
         baseline = baseline,
+        baselineError = baselineError,
         current = current,
+        currentError = currentError,
+        unit = unit,
         deltaPercent = deltaPercent,
         thresholdPercent = thresholdPercent,
         higherIsBetter = higherIsBetter,
@@ -1698,7 +2698,10 @@ fun benchmarkMetricComparisons(
                 baseRow = baseRow,
                 latestRow = latestRow,
                 baseline = baseRow.score,
+                baselineError = baseRow.scoreError,
                 current = latestRow.score,
+                currentError = latestRow.scoreError,
+                unit = latestRow.unit,
                 thresholdPercent = benchmarkThroughputRegressionPercent,
                 higherIsBetter = true,
             )
@@ -1708,7 +2711,10 @@ fun benchmarkMetricComparisons(
                 baseRow = baseRow,
                 latestRow = latestRow,
                 baseline = baseRow.score,
+                baselineError = baseRow.scoreError,
                 current = latestRow.score,
+                currentError = latestRow.scoreError,
+                unit = latestRow.unit,
                 thresholdPercent = benchmarkLatencyRegressionPercent,
                 higherIsBetter = false,
             )
@@ -1720,7 +2726,10 @@ fun benchmarkMetricComparisons(
                     baseRow = baseRow,
                     latestRow = latestRow,
                     baseline = baseRow.allocationBytesPerOp,
+                    baselineError = baseRow.allocationErrorBytesPerOp,
                     current = latestRow.allocationBytesPerOp,
+                    currentError = latestRow.allocationErrorBytesPerOp,
+                    unit = "B/op",
                     thresholdPercent = benchmarkAllocationRegressionPercent,
                     higherIsBetter = false,
                 )
@@ -1732,9 +2741,18 @@ fun benchmarkMetricComparisons(
     }
 }
 
+fun formatComparisonNumber(value: Double?): String {
+    return value?.let { String.format(Locale.US, "%.6g", it) } ?: "-"
+}
+
+fun formatComparisonError(value: Double?): String {
+    return value?.let { "+/-${String.format(Locale.US, "%.6g", it)}" } ?: "-"
+}
+
 tasks.register("benchmarkCompare") {
     description = "Compare primary framework E2E benchmark results against baseline."
     group = "benchmark"
+    mustRunAfter(baselineE2ETaskSpec.taskName)
 
     doLast {
         val baselineFile = frameworkE2EBaselineJson.asFile
@@ -1745,7 +2763,7 @@ tasks.register("benchmarkCompare") {
             )
         }
         val baseline = parseBaselineComparisonRows(baselineFile)
-        val latest = parsedComparisonRows(parsedFrameworkE2EResults())
+        val latest = parsedComparisonRows(parsedFrameworkE2EReport().rows)
         val allBenchmarks = (baseline.keys + latest.keys).sorted()
         val comparisons = benchmarkMetricComparisons(baseline, latest)
         val comparisonsByKey = comparisons.groupBy { it.key }
@@ -1765,8 +2783,14 @@ tasks.register("benchmarkCompare") {
                 "allocation=${benchmarkAllocationRegressionPercent}%"
         )
         println()
-        println("| Metric | Benchmark | Threads | Mode | Baseline | Current | Delta % | Threshold | Status |")
-        println("|--------|-----------|---------|------|----------|---------|---------|-----------|--------|")
+        println(
+            "| Metric | Benchmark | Threads | Mode | Baseline | Baseline Error | Current | " +
+                "Current Error | Unit | Delta % | Threshold | Status |"
+        )
+        println(
+            "|--------|-----------|---------|------|----------|----------------|---------|" +
+                "---------------|------|---------|-----------|--------|"
+        )
 
         for (benchmark in allBenchmarks) {
             val baseRow = baseline[benchmark]
@@ -1775,15 +2799,16 @@ tasks.register("benchmarkCompare") {
             if (baseRow == null) {
                 println(
                     "| result | ${latestRow?.displayName ?: benchmark} | ${latestRow?.threads ?: "-"} | " +
-                        "${latestRow?.mode ?: "-"} | - | ${latestRow?.score?.let { String.format(Locale.US, "%.2f", it) } ?: "-"} | " +
-                        "NEW | - | NEW |"
+                        "${latestRow?.mode ?: "-"} | - | - | ${formatComparisonNumber(latestRow?.score)} | " +
+                        "${formatComparisonError(latestRow?.scoreError)} | ${latestRow?.unit ?: "-"} | NEW | - | NEW |"
                 )
                 continue
             }
             if (latestRow == null) {
                 println(
                     "| result | ${baseRow.displayName} | ${baseRow.threads} | ${baseRow.mode} | " +
-                        "${String.format(Locale.US, "%.2f", baseRow.score)} | - | REMOVED | - | REMOVED |"
+                        "${formatComparisonNumber(baseRow.score)} | ${formatComparisonError(baseRow.scoreError)} | " +
+                        "- | - | ${baseRow.unit} | REMOVED | - | REMOVED |"
                 )
                 continue
             }
@@ -1791,8 +2816,10 @@ tasks.register("benchmarkCompare") {
                 .forEach { comparison ->
                     println(
                         "| ${comparison.metric} | ${comparison.displayName} | ${comparison.threads} | ${comparison.mode} | " +
-                            "${String.format(Locale.US, "%.2f", comparison.baseline)} | " +
-                            "${String.format(Locale.US, "%.2f", comparison.current)} | " +
+                            "${formatComparisonNumber(comparison.baseline)} | " +
+                            "${formatComparisonError(comparison.baselineError)} | " +
+                            "${formatComparisonNumber(comparison.current)} | " +
+                            "${formatComparisonError(comparison.currentError)} | ${comparison.unit} | " +
                             "${comparison.deltaPercent?.let { String.format(Locale.US, "%+.1f%%", it) } ?: "n/a"} | " +
                             "${String.format(Locale.US, "%.1f%%", comparison.thresholdPercent)} | ${comparison.status()} |"
                     )
@@ -1816,21 +2843,72 @@ tasks.register("benchmarkCompare") {
 }
 
 tasks.register("updateBenchmarkBaseline") {
-    description = "Copy primary framework E2E benchmark results as the new baseline."
+    description = "Publish clean, provenance-backed Framework E2E results as the new baseline."
     group = "benchmark"
+    mustRunAfter(baselineE2ETaskSpec.taskName)
 
     doLast {
-        val localRows = parsedFrameworkE2EResults()
+        val currentCommit = requireCleanBenchmarkWorkspace()
+        val benchmarkReport = parsedFrameworkE2EReport()
+        val manifests = benchmarkReport.manifests
+        val manifestThreads = manifests.map { it.threads }
+        if (manifestThreads != baselineE2EProfile.threads) {
+            throw GradleException(
+                "Benchmark baseline manifests do not preserve the requested thread order: " +
+                    "expected ${baselineE2EProfile.threads}, found $manifestThreads."
+            )
+        }
+        if (manifests.any { it.sourceDirty }) {
+            throw GradleException(
+                "Benchmark baseline updates reject dirty benchmark runs. " +
+                    "Rerun ${baselineE2ETaskSpec.taskName} from a clean Git workspace."
+            )
+        }
+        val sourceCommit = manifests.first().sourceCommit
+        if (sourceCommit != currentCommit) {
+            throw GradleException(
+                "Benchmark results were produced from commit $sourceCommit, but HEAD is $currentCommit. " +
+                    "Rerun ${baselineE2ETaskSpec.taskName} before updating the baseline."
+            )
+        }
+        val sourceManifest = manifests.first()
         val baselineFile = frameworkE2EBaselineJson.asFile
         val baselineJson = linkedMapOf(
-            "schemaVersion" to 1,
+            "schemaVersion" to benchmarkBaselineSchemaVersion,
             "suite" to frameworkE2ESuite.id,
-            "profile" to fullProfile.id,
+            "profile" to baselineE2EProfile.id,
             "generatedAt" to Instant.now().toString(),
-            "results" to localRows.map { it.toBaselineJsonRow() },
+            "projectVersion" to sourceManifest.projectVersion,
+            "source" to linkedMapOf(
+                "commit" to sourceCommit,
+                "dirty" to false,
+                "jmhJarSha256" to sourceManifest.jmhJarSha256,
+                "runId" to sourceManifest.runId,
+            ),
+            "runSpec" to benchmarkBaselineRunSpec(),
+            "runtime" to linkedMapOf(
+                "javaVersion" to sourceManifest.javaVersion,
+                "vmName" to sourceManifest.vmName,
+                "vmVersion" to sourceManifest.vmVersion,
+                "osName" to sourceManifest.osName,
+                "osVersion" to sourceManifest.osVersion,
+                "osArch" to sourceManifest.osArch,
+                "availableProcessors" to sourceManifest.availableProcessors,
+                "physicalMemoryBytes" to sourceManifest.physicalMemoryBytes,
+            ),
+            "artifacts" to manifests.map { manifest ->
+                linkedMapOf(
+                    "taskPath" to manifest.taskPath,
+                    "startedAt" to manifest.startedAt,
+                    "completedAt" to manifest.completedAt,
+                    "threads" to manifest.threads,
+                    "resultSha256" to manifest.resultSha256,
+                    "resultRowCount" to manifest.resultRowCount,
+                )
+            },
+            "results" to benchmarkReport.rows.map { it.toBaselineJsonRow() },
         )
-        baselineFile.parentFile.mkdirs()
-        baselineFile.writeText(JsonOutput.prettyPrint(JsonOutput.toJson(baselineJson)))
+        publishJsonAtomically(baselineFile, baselineJson)
         logger.lifecycle("Baseline updated: ${baselineFile.absolutePath}")
     }
 }

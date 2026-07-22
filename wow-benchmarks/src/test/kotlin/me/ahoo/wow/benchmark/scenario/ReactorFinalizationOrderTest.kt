@@ -11,22 +11,23 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.benchmark.component
+package me.ahoo.wow.benchmark.scenario
 
-import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
-import me.ahoo.wow.test.validation.TestValidator
-import org.openjdk.jmh.annotations.Benchmark
-import org.openjdk.jmh.annotations.Scope
-import org.openjdk.jmh.annotations.State
-import org.openjdk.jmh.infra.Blackhole
+import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Test
+import reactor.core.publisher.Mono
 
-@State(Scope.Thread)
-open class CommandValidationComponentBenchmark {
-    private val commandMessage = BenchmarkCommands.commandPathAddCartItem()
+class ReactorFinalizationOrderTest {
 
-    @Benchmark
-    fun validateCommandBody(blackhole: Blackhole) {
-        val violations = TestValidator.validate(commandMessage.body)
-        blackhole.consume(violations)
+    @Test
+    fun `should invoke outer finalizer before inner finalizer`() {
+        val callbacks = mutableListOf<String>()
+
+        Mono.empty<Void>()
+            .doFinally { callbacks += "inner" }
+            .doFinally { callbacks += "outer" }
+            .block()
+
+        callbacks.assert().containsExactlyElementsOf(listOf("outer", "inner"))
     }
 }

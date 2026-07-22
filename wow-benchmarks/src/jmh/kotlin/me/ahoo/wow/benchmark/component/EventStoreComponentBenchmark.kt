@@ -33,11 +33,15 @@ open class EventStoreComponentBenchmark {
     }
 
     private lateinit var inMemoryEventStore: InMemoryEventStore
+    private lateinit var inMemoryAppendEventStreams: List<DomainEventStream>
     private val eventStream: DomainEventStream = BenchmarkEvents.singleEventStream()
 
     @Setup
     fun setup() {
         inMemoryEventStore = InMemoryEventStore()
+        inMemoryAppendEventStreams = List(APPENDS_PER_INVOCATION) {
+            BenchmarkEvents.singleEventStream()
+        }
     }
 
     @Benchmark
@@ -47,17 +51,18 @@ open class EventStoreComponentBenchmark {
 
     @Benchmark
     @OperationsPerInvocation(APPENDS_PER_INVOCATION)
-    fun appendInMemoryEventStream(blackhole: Blackhole) {
-        repeat(APPENDS_PER_INVOCATION) {
-            val result = inMemoryEventStore.append(BenchmarkEvents.singleEventStream()).block()
+    fun appendInMemoryNewAggregateEventStream(blackhole: Blackhole) {
+        for (appendEventStream in inMemoryAppendEventStreams) {
+            val result = inMemoryEventStore.append(appendEventStream).block()
             blackhole.consume(result)
         }
+        // The reset cost is intentionally amortized across APPENDS_PER_INVOCATION operations.
         inMemoryEventStore = InMemoryEventStore()
     }
 
     @Benchmark
     fun appendNoopEventStream(blackhole: Blackhole) {
-        val result = NoopEventStore.append(BenchmarkEvents.singleEventStream()).block()
+        val result = NoopEventStore.append(eventStream).block()
         blackhole.consume(result)
     }
 

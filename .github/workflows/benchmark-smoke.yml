@@ -25,6 +25,11 @@ on:
       - 'wow-benchmarks/**'
       - 'wow-core/**'
       - 'wow-api/**'
+      - 'wow-webflux/**'
+      - 'wow-mongo/**'
+      - 'wow-redis/**'
+      - 'test/wow-test/**'
+      - 'test/wow-mock/**'
       - 'example/**'
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -49,5 +54,5 @@ jobs:
           cache: gradle
           settings-path: ${{ github.workspace }}
 
-      - name: Run benchmark smoke
-        run: ./gradlew :wow-benchmarks:benchmarkSmoke --stacktrace
+      - name: Run benchmark tests and smoke
+        run: ./gradlew :wow-benchmarks:test :wow-benchmarks:benchmarkSmoke --stacktrace

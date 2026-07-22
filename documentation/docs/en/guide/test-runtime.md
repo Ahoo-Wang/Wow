@@ -91,20 +91,26 @@ Benchmark smoke checks that selected JMH paths still compile and execute. It is 
 ./gradlew :wow-benchmarks:generateQuickBenchmarkReport
 ```
 
-Quick benchmarks use the same catalog as full benchmarks with shorter JMH settings. They are useful for local regression feedback, but full E2E remains the source for performance conclusions.
+Quick benchmarks use bounded representative catalogs and short JMH settings. They are useful for local regression feedback, but Baseline E2E remains the source for formal throughput and allocation conclusions.
+Quick Component defaults to one thread; scaling behavior belongs to Framework E2E rather than isolated component measurements.
 Infrastructure benchmarks require local Redis and MongoDB services.
 
-## Full Benchmarks
+## Baseline And Diagnostic Benchmarks
 
 ```bash
-./gradlew :wow-benchmarks:benchmarkFullE2E
-./gradlew :wow-benchmarks:benchmarkFullComponent
-./gradlew :wow-benchmarks:benchmarkFullInfrastructureE2E
-./gradlew :wow-benchmarks:generateGroupedBenchmarkReport
+./gradlew :wow-benchmarks:benchmarkBaselineE2E
+./gradlew :wow-benchmarks:benchmarkLatencyE2E
+./gradlew :wow-benchmarks:benchmarkDiagnosticComponent \
+  -PbenchmarkDiagnosticComponentIncludes=me.ahoo.wow.benchmark.component.CommandPipelineComponentBenchmark.handleAggregateAndSendDomainEvent
+./gradlew :wow-benchmarks:benchmarkExhaustiveComponent
+./gradlew :wow-benchmarks:benchmarkBaselineInfrastructureE2E
+./gradlew :wow-benchmarks:generateBaselineBenchmarkReport
 ```
 
-Full E2E results are used for framework performance conclusions. Component results explain bottlenecks and should not be reported as standalone framework performance goals.
+Baseline E2E is a bounded, two-fork throughput and allocation run used for formal framework comparisons. Latency E2E is optional and isolated from the default baseline cost. Diagnostic Component accepts exact benchmark includes for focused investigation; Exhaustive Component retains the complete catalog as a rare escape hatch. Generic aliases are intentionally absent; callers must select the purpose-specific task.
+Component results explain bottlenecks and should not be reported as standalone framework performance goals.
 Infrastructure E2E results expose storage-path bottlenecks when Redis and MongoDB are available.
+`updateBenchmarkBaseline` accepts only clean manifests produced from the current clean `HEAD`. Schema v2 records source, run specification, runtime, and artifact hashes so stale or incomplete evidence fails closed.
 
 ## CI Workflows
 

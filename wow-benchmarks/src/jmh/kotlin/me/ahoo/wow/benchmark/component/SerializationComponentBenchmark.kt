@@ -16,7 +16,6 @@ package me.ahoo.wow.benchmark.component
 import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
 import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import org.openjdk.jmh.annotations.Benchmark
@@ -87,10 +86,6 @@ open class SerializationComponentBenchmark {
         blackhole.consume(obj)
     }
 
-    @Benchmark
-    fun serializePayloadWithSharedMapper(blackhole: Blackhole) {
-        blackhole.consume(JsonSerializer.writeValueAsString(payload))
-    }
 }
 
 private data class SmallPayload(val name: String = "test", val value: Int = 42)
