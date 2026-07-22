@@ -6,11 +6,14 @@
 
 核心结论：
 
-- **跨线程往返占调度链开销的约 95%**。消除 `publishOn` 的线程切换（`IMMEDIATE`）后，吞吐提升 **20–25 倍**。
+- **隔离视角**：跨线程往返占调度链开销的约 95%。消除 `publishOn` 的线程切换（`IMMEDIATE`）后，吞吐提升 **20–25 倍**。
+- **端到端视角（关键修正）**：在真实 MongoDB event store 的端到端命令写入中，跨线程往返的相对开销**急剧缩小到 ~5%**——被 I/O 延迟淹没。两个策略的 t1→t4 扩展比相同（~3.5×），说明 I/O 场景下瓶颈在存储而非线程切换。
 - **"调度器池过度订阅"假设被推翻**。aggregate-id 基数（1 vs 256）在 `PARALLEL` 下仅带来 ~15% 差异，远小于跨线程本身的量级。
 - 调度链结构开销（`groupBy`/`flatMap`/`concatMap` 的分配与协调）相比之下**可忽略**。
 
-> **方法声明**：本报告数据来自新建的 `CommandDispatcherChainComponentBenchmark`（隔离基准，剥离 gateway/bus/aggregate/event-store），在本机用 JMH 快速档（warmup 1×2s、measurement 2×2s、fork=1）采集，为**方向性结论**。正式性能结论需以 Full 档基准为准。
+> **适用范围**：跨线程消除优化的收益**取决于命令路径是否包含阻塞 I/O**。纯内存/计算密集的命令路径收益巨大（20–25×）；涉及 event store I/O 的真实路径收益有限（~5%）。优化应优先瞄准**无 I/O 的本地命令路径**（如纯投影、saga 内存处理），而非 I/O 主导的持久化路径。
+
+> **方法声明**：本报告数据来自新建的两个基准——`CommandDispatcherChainComponentBenchmark`（隔离基准，剥离 gateway/bus/aggregate/event-store）与 `MongoCommandWriteCrossThreadBenchmark`（端到端，真实 MongoDB），在本机用 JMH 快速档采集，为**方向性结论**。正式性能结论需以 Full 档基准为准。
 
 ## 动机
 
@@ -88,6 +91,28 @@
 
 **结论**：t1→t4 仅扩展 ~1.3 倍（理想应接近 4×）。扩展性受限于每次操作的**固定跨线程同步成本**（emit→调度器线程→completion sink→回调用方），加线程不降低单次操作的同步成本，只增加并发度。这与 `sendAndWaitProcessed` E2E 的 t4→t8 回退（168K→155K）现象一致。
 
+## 验证：真实 MongoDB 端到端
+
+隔离基准证明了跨线程是调度链的 95% 开销。但真实命令写入包含 event store I/O——一个关键问题是：**I/O 延迟是否淹没跨线程开销？** 为此新增 `MongoCommandWriteCrossThreadBenchmark`，镜像 `MongoCommandWriteE2EBenchmark`（完整 `sendAndWaitForProcessed` + 真实 `MongoEventStore`），但参数化 `SchedulerStrategy`。
+
+### 数据（本机，localhost MongoDB，快速档）
+
+| 线程 | PARALLEL (ops/s) | IMMEDIATE (ops/s) | IMMEDIATE 优势 | 扩展比 (t4/t1) |
+|------|------|------|------|------|
+| t1 | 2,961 | 3,119 | +5.3% | — |
+| t4 | 10,272 | 10,867 | +5.8% | PARALLEL 3.47× / IMMEDIATE 3.48× |
+
+### 修正性结论
+
+1. **I/O 场景下跨线程开销急剧缩小**：从隔离基准的 20–25 倍差距坍缩到 ~5%。Mongo 单次写入延迟（~300μs，由 1/3000 推算）远大于跨线程切换（~2–5μs），把后者淹没。
+2. **扩展性瓶颈转移**：两个策略的 t1→t4 扩展比几乎相同（3.47× vs 3.48×），说明 I/O 场景下瓶颈是存储并发能力，不是线程切换。这与隔离基准（纯 CPU，扩展受跨线程限制）形成对照。
+3. **IMMEDIATE 在 t4 也无显著优势**（+5.8%）：I/O 等待期间线程本就让出 CPU，跨线程切换的相对机会成本更低。
+
+**对优化方向的修正**：跨线程消除（如 coroutine-first）的收益**取决于命令路径的 I/O 特性**：
+
+- **无 I/O 路径**（纯内存聚合处理、投影/saga 的内存阶段、`sendAndWaitForSent`）：收益巨大（20–25×），是高价值优化目标。
+- **I/O 主导路径**（`sendAndWaitProcessed` 持久化命令）：收益有限（~5%），不应作为主要优化理由；这类路径的优化应瞄准存储层（如 Mongo 文档转换单遍化、批量化）。
+
 ## 结论与对优化方向的影响
 
 ### 已被推翻的假设
@@ -113,15 +138,17 @@
 
 | 产物 | 说明 |
 |------|------|
-| `CommandDispatcherChainScenario.kt` | 隔离场景构建器 |
-| `CommandDispatcherChainComponentBenchmark.kt` | JMH 基准，3 参数（cardinality/handlerCost/schedulerStrategy） |
-| `benchmarking.gradle.kts` | 注册到 `componentSuite.includeClasses` |
-| 本报告 | 跨线程开销归因与优化方向结论 |
+| `CommandDispatcherChainScenario.kt` | 隔离场景构建器（纯内存，剥离 gateway/bus/aggregate/event-store） |
+| `CommandDispatcherChainComponentBenchmark.kt` | 隔离基准，3 参数（cardinality/handlerCost/schedulerStrategy） |
+| `MongoCommandWriteCrossThreadBenchmark.kt` | 端到端基准，真实 MongoDB + schedulerStrategy 参数 |
+| `benchmarking.gradle.kts` | 注册隔离基准到 `componentSuite.includeClasses` |
+| 本报告 | 跨线程开销归因、I/O 场景修正、优化方向结论 |
 
 所有改动已提交至 `perf/dispatcher-chain-benchmark` 分支。
 
 ## 后续建议
 
-1. 以 Full 档基准（`benchmarkFullComponent`）产出正式数据，并用 `updateBenchmarkBaseline` 建立回归基线；
-2. 评估 coroutine-first 运行时对跨线程开销的实际消除程度（用本基准对比）；
-3. 评估"命令入调度直达"在 handler 纯 CPU 场景下的可行性（需区分 I/O-bound 与 CPU-bound handler）。
+1. 以 Full 档基准（`benchmarkFullComponent`、`benchmarkFullInfrastructureE2E`）产出正式数据，并用 `updateBenchmarkBaseline` 建立回归基线；
+2. 将 `MongoCommandWriteCrossThreadBenchmark` 加入 `infrastructureE2ESuite.includeClasses`（当前仅作为诊断工具，未注册到正式 suite）；
+3. 评估 coroutine-first 运行时对**无 I/O 路径**跨线程开销的实际消除程度（用隔离基准对比；预期收益最大）；
+4. I/O 主导路径的优化应转向存储层（Mongo 文档转换单遍化、批量化），而非跨线程消除。
