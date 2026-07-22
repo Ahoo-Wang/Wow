@@ -16,11 +16,8 @@ package me.ahoo.wow.event
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DEFAULT_EVENT_SEQUENCE
-import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Header
-import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.OwnerId
-import me.ahoo.wow.api.modeling.SpaceId
 import me.ahoo.wow.api.modeling.SpaceIdCapable
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
@@ -94,16 +91,24 @@ fun Any.toDomainEventStream(
     val streamSpaceId = upstream.spaceId.ifBlank {
         stateSpaceId
     }
-    val events =
-        flatEvent().toDomainEvents(
-            streamVersion = streamVersion,
+    val commandId = upstream.commandId
+    val events = flatEvent().mapIndexedWithLast { index, event, isLast ->
+        val nonNullEvent = requireNotNull(event) {
+            "Domain event at index[$index] must not be null."
+        }
+        nonNullEvent.toDomainEvent(
+            id = generateGlobalId(),
+            version = streamVersion,
+            sequence = index + DEFAULT_EVENT_SEQUENCE,
+            isLast = isLast,
             aggregateId = aggregateId,
-            command = upstream,
             ownerId = streamOwnerId,
             spaceId = streamSpaceId,
-            eventStreamHeader = header,
+            commandId = commandId,
+            header = header.copy(),
             createTime = createTime,
         )
+    }
 
     return SimpleDomainEventStream(
         id = eventStreamId,
@@ -113,49 +118,22 @@ fun Any.toDomainEventStream(
     )
 }
 
-/**
- * Converts an iterable of event objects to a list of domain events.
- *
- * This internal function processes a collection of event objects, converting each
- * one to a DomainEvent with proper sequencing, versioning, and metadata. Events
- * are numbered sequentially starting from DEFAULT_EVENT_SEQUENCE.
- *
- * @param streamVersion The version number for the event stream
- * @param aggregateId The aggregate ID for all events
- * @param command The command that triggered these events
- * @param ownerId The owner ID for the events
- * @param eventStreamHeader The header to attach to each event
- * @param createTime The creation timestamp for all events
- * @return A list of domain events with proper sequencing
- *
- * @see DomainEvent
- * @see AggregateId
- * @see CommandMessage
- * @see DEFAULT_EVENT_SEQUENCE
- */
-private fun Iterable<*>.toDomainEvents(
-    streamVersion: Int,
-    aggregateId: AggregateId,
-    command: CommandMessage<*>,
-    ownerId: String,
-    spaceId: SpaceId,
-    eventStreamHeader: Header,
-    createTime: Long
-): List<DomainEvent<Any>> {
-    val eventCount = count()
-    return mapIndexed { index, event ->
-        val sequence = (index + DEFAULT_EVENT_SEQUENCE)
-        event!!.toDomainEvent(
-            id = generateGlobalId(),
-            version = streamVersion,
-            sequence = sequence,
-            isLast = sequence == eventCount,
-            aggregateId = aggregateId,
-            ownerId = ownerId,
-            spaceId = spaceId,
-            commandId = command.commandId,
-            header = eventStreamHeader.copy(),
-            createTime = createTime,
-        )
-    }.toList()
+private inline fun <T, R> Iterable<T>.mapIndexedWithLast(
+    transform: (index: Int, value: T, isLast: Boolean) -> R
+): List<R> {
+    val iterator = iterator()
+    val result = if (this is Collection<*>) ArrayList<R>(size) else ArrayList()
+    if (!iterator.hasNext()) {
+        return result
+    }
+
+    var index = 0
+    var value = iterator.next()
+    while (iterator.hasNext()) {
+        result += transform(index, value, false)
+        value = iterator.next()
+        index++
+    }
+    result += transform(index, value, true)
+    return result
 }

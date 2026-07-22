@@ -20,6 +20,7 @@ import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class DomainEventStreamFactoryTest {
 
@@ -75,5 +76,59 @@ class DomainEventStreamFactoryTest {
 
         events[0].header["trace"] = "event-local"
         events[1].header["trace"].assert().isEqualTo("trace-1")
+        stream.header["trace"].assert().isEqualTo("trace-1")
+    }
+
+    @Test
+    fun `toDomainEventStream traverses one-shot iterable once`() {
+        val aggregateId = FIXTURE_NAMED_AGGREGATE.toNamedAggregate().aggregateId("one-shot-aggregate")
+        val upstream = GivenInitializationCommand(aggregateId = aggregateId)
+        val iterator = listOf(
+            FixtureNamedEvent("first"),
+            FixtureRevisedEvent("second"),
+        ).iterator()
+        var iteratorCalls = 0
+        val oneShotEvents = Iterable {
+            iteratorCalls++
+            check(iteratorCalls == 1) { "one-shot iterable was traversed more than once" }
+            iterator
+        }
+
+        val stream = oneShotEvents.toDomainEventStream(upstream = upstream)
+
+        iteratorCalls.assert().isOne()
+        stream.size.assert().isEqualTo(2)
+        stream.body[0].isLast.assert().isFalse()
+        stream.body[1].isLast.assert().isTrue()
+    }
+
+    @Test
+    fun `toDomainEventStream marks a single event as last and rejects an empty iterable`() {
+        val aggregateId = FIXTURE_NAMED_AGGREGATE.toNamedAggregate().aggregateId("event-count-boundary")
+        val upstream = GivenInitializationCommand(aggregateId = aggregateId)
+
+        val singleEventStream = listOf(FixtureNamedEvent("single"))
+            .toDomainEventStream(upstream = upstream)
+
+        singleEventStream.size.assert().isOne()
+        singleEventStream.body.single().sequence.assert().isEqualTo(DEFAULT_EVENT_SEQUENCE)
+        singleEventStream.body.single().isLast.assert().isTrue()
+
+        val error = assertThrows<IllegalArgumentException> {
+            emptyList<Any>().toDomainEventStream(upstream = upstream)
+        }
+        error.message.assert().isEqualTo("events can not be empty.")
+    }
+
+    @Test
+    fun `toDomainEventStream rejects null event with its index`() {
+        val aggregateId = FIXTURE_NAMED_AGGREGATE.toNamedAggregate().aggregateId("nullable-event-aggregate")
+        val upstream = GivenInitializationCommand(aggregateId = aggregateId)
+
+        val error = assertThrows<IllegalArgumentException> {
+            listOf<Any?>(FixtureNamedEvent("first"), null).toDomainEventStream(upstream = upstream)
+        }
+
+        error.message.assert().isEqualTo("Domain event at index[1] must not be null.")
     }
 }
