@@ -21,6 +21,21 @@ import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 
 /**
+ * Scheduler strategy for the dispatch chain's `publishOn`.
+ *
+ * - [PARALLEL]: production default — a dedicated `newParallel` pool. Each dispatch
+ *   crosses from the emitting thread to a scheduler thread and back, modeling the real
+ *   cross-thread round trip.
+ * - [IMMEDIATE]: uses [Schedulers.immediate], so `publishOn` does not switch threads.
+ *   Comparing [IMMEDIATE] against [PARALLEL] isolates the cross-thread handoff cost from
+ *   the groupBy/concatMap dispatch-structure cost.
+ */
+enum class SchedulerStrategy {
+    PARALLEL,
+    IMMEDIATE,
+}
+
+/**
  * Maps a [SchedulerStrategy] to the [AggregateSchedulerSupplier] it implies, so every
  * end-to-end command-write benchmark can expose the scheduler's performance impact via a
  * single `@Param` without duplicating the wiring.

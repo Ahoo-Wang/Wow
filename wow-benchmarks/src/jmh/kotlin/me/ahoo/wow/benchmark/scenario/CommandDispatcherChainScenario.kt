@@ -51,21 +51,6 @@ enum class HandlerCost {
 }
 
 /**
- * Scheduler strategy for the dispatch chain's `publishOn`.
- *
- * - [PARALLEL]: production default — a dedicated `newParallel` pool. Each dispatch
- *   crosses from the emitting thread to a scheduler thread and back, modeling the real
- *   cross-thread round trip.
- * - [IMMEDIATE]: uses `Schedulers.immediate()`, so `publishOn` does not switch threads.
- *   Comparing [IMMEDIATE] against [PARALLEL] isolates the cross-thread handoff cost from
- *   the groupBy/concatMap dispatch-structure cost.
- */
-enum class SchedulerStrategy {
-    PARALLEL,
-    IMMEDIATE,
-}
-
-/**
  * Isolated scenario that measures the [AggregateCommandDispatcher] dispatch chain
  * (`groupBy` → `publishOn` → `concatMap`) in isolation, stripped of the command gateway,
  * command bus, aggregate processor, and event-store paths.
