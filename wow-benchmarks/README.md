@@ -98,6 +98,22 @@ The clean Framework E2E + Component + WebFlux quick evidence bundle completed in
 
 Baseline E2E is the formal regression source for its exact synchronous command-send and command-write workloads; it is not a production capacity model. Its single-command blocking rows remain regression controls, while Batch Sequential c1 is the primary CommandWrite framework-cost signal. Baseline keeps `threads=1,4` and two independent forks, with bounded `2x3s` warmup and `3x5s` measurement iterations. The eight-workload matrix has a theoretical measurement floor of about 11 minutes; the clean reference run completed in `11m44s`. Use `updateBenchmarkBaseline` only after reviewing the comparison in a controlled environment.
 
+`benchmarkCompare` reports threshold crossings as regression or improvement candidates instead of treating one run as a confirmed cross-run change. Coverage changes still fail comparison. Confirm a candidate with the same JVM, fork, warmup, measurement, and GC-profiler configuration as Baseline while selecting only the affected method and parameters:
+
+```bash
+./gradlew :wow-benchmarks:benchmarkConfirmE2E \
+  -PbenchmarkConfirmE2EThreads=4 \
+  -PbenchmarkConfirmE2EIncludes=me.ahoo.wow.benchmark.e2e.CommandSendE2EBenchmark.sendAndWaitSent \
+  '-PbenchmarkConfirmE2EParameters=gatewayScenario=validated' --no-parallel
+
+./gradlew :wow-benchmarks:benchmarkConfirmE2E \
+  -PbenchmarkConfirmE2EThreads=4 \
+  -PbenchmarkConfirmE2EIncludes=me.ahoo.wow.benchmark.e2e.CommandWriteE2EBenchmark.sendAndWaitProcessed \
+  '-PbenchmarkConfirmE2EParameters=scenario=ceiling;schedulerStrategy=IMMEDIATE,PARALLEL' --no-parallel
+```
+
+Confirmation results are diagnostic evidence under `results/jmh/confirmation/`; they never replace the accepted baseline or enter grouped reports automatically.
+
 Average-time measurement is optional and isolated so it does not delay every baseline run:
 
 ```bash

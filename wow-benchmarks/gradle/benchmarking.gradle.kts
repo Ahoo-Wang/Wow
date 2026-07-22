@@ -192,6 +192,38 @@ fun benchmarkIncludesProperty(propertyName: String, defaultIncludes: List<String
         .getOrElse(defaultIncludes)
 }
 
+fun parseBenchmarkParameters(propertyName: String, value: String): Map<String, String> {
+    val parameters = linkedMapOf<String, String>()
+    value.split(";")
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .forEach { parameter ->
+            val separatorIndex = parameter.indexOf('=')
+            if (separatorIndex <= 0 || separatorIndex == parameter.lastIndex) {
+                throw GradleException(
+                    "Gradle property $propertyName must use name=value entries separated by semicolons: $parameter"
+                )
+            }
+            val name = parameter.substring(0, separatorIndex).trim()
+            val parameterValue = parameter.substring(separatorIndex + 1).trim()
+            if (name.isEmpty() || parameterValue.isEmpty()) {
+                throw GradleException(
+                    "Gradle property $propertyName must use non-empty parameter names and values: $parameter"
+                )
+            }
+            if (parameters.put(name, parameterValue) != null) {
+                throw GradleException("Gradle property $propertyName contains duplicate parameter: $name")
+            }
+        }
+    return parameters
+}
+
+fun benchmarkParametersProperty(propertyName: String): Map<String, String> {
+    return providers.gradleProperty(propertyName)
+        .map { value -> parseBenchmarkParameters(propertyName, value) }
+        .getOrElse(emptyMap())
+}
+
 fun benchmarkModesProperty(propertyName: String, defaultModes: List<String>): List<String> {
     return providers.gradleProperty(propertyName)
         .map { value ->
@@ -319,6 +351,12 @@ val latencyE2EProfile = BenchmarkRunProfile(
     jvmArgs = benchmarkJvmArgs,
     includeGcProfiler = true,
     includeAsyncProfiler = false,
+)
+
+val confirmationE2EProfile = baselineE2EProfile.copy(
+    id = "confirmation",
+    threads = benchmarkThreadsProperty("benchmarkConfirmE2EThreads", listOf(4)),
+    parameters = benchmarkParametersProperty("benchmarkConfirmE2EParameters"),
 )
 
 val diagnosticComponentProfile = BenchmarkRunProfile(
@@ -569,6 +607,15 @@ val asyncE2ESuite = frameworkE2ESuite.copy(
     ),
 )
 
+val confirmationE2ESuite = frameworkE2ESuite.copy(
+    includeClasses = benchmarkIncludesProperty(
+        "benchmarkConfirmE2EIncludes",
+        frameworkE2ESuite.includeClasses,
+    ),
+    requiredForGroupedReport = false,
+    formalRegressionSource = false,
+)
+
 val asyncComponentSuite = quickComponentSuite.copy(
     includeClasses = benchmarkIncludesProperty(
         "benchmarkAsyncComponentIncludes",
@@ -619,6 +666,13 @@ val latencyE2ETaskSpec = BenchmarkTaskSpec(
     suite = frameworkE2ESuite,
     profile = latencyE2EProfile,
     description = "Runs the optional Framework E2E average-latency profile.",
+)
+
+val confirmationE2ETaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkConfirmE2E",
+    suite = confirmationE2ESuite,
+    profile = confirmationE2EProfile,
+    description = "Confirms selected Framework E2E signals with the formal baseline measurement profile.",
 )
 
 val quickInfrastructureE2ETaskSpec = BenchmarkTaskSpec(
@@ -697,6 +751,7 @@ val benchmarkTaskSpecs = listOf(
     quickBatchE2ETaskSpec,
     baselineE2ETaskSpec,
     latencyE2ETaskSpec,
+    confirmationE2ETaskSpec,
     quickInfrastructureE2ETaskSpec,
     baselineInfrastructureE2ETaskSpec,
     quickComponentTaskSpec,
@@ -3103,7 +3158,11 @@ fun BenchmarkMetricComparison.status(): String {
     if (intervalsOverlap != false) {
         return "${metricStatus}_INCONCLUSIVE"
     }
-    return if (regression) "${metricStatus}_REGRESSION" else "${metricStatus}_IMPROVED"
+    return if (regression) {
+        "${metricStatus}_REGRESSION_CANDIDATE"
+    } else {
+        "${metricStatus}_IMPROVEMENT_CANDIDATE"
+    }
 }
 
 val verifyBenchmarkComparisonClassification = tasks.register("verifyBenchmarkComparisonClassification") {
@@ -3111,6 +3170,28 @@ val verifyBenchmarkComparisonClassification = tasks.register("verifyBenchmarkCom
     group = "verification"
 
     doLast {
+        check(
+            parseBenchmarkParameters(
+                "benchmarkConfirmE2EParameters",
+                "scenario=ceiling;schedulerStrategy=IMMEDIATE,PARALLEL",
+            ) == linkedMapOf(
+                "scenario" to "ceiling",
+                "schedulerStrategy" to "IMMEDIATE,PARALLEL",
+            )
+        )
+        check(
+            runCatching {
+                parseBenchmarkParameters("benchmarkConfirmE2EParameters", "scenario")
+            }.exceptionOrNull() is GradleException
+        )
+        check(
+            runCatching {
+                parseBenchmarkParameters(
+                    "benchmarkConfirmE2EParameters",
+                    "scenario=ceiling;scenario=noop-store",
+                )
+            }.exceptionOrNull() is GradleException
+        )
         check(confidenceIntervalsOverlap(100.0, 10.0, 85.0, 10.0) == true)
         check(confidenceIntervalsOverlap(100.0, 5.0, 80.0, 5.0) == false)
         check(confidenceIntervalsOverlap(100.0, null, 80.0, 5.0) == null)
@@ -3131,14 +3212,14 @@ val verifyBenchmarkComparisonClassification = tasks.register("verifyBenchmarkCom
             higherIsBetter = true,
         )
         check(noisyRegression.status() == "THROUGHPUT_INCONCLUSIVE")
-        check(noisyRegression.copy(currentError = 5.0).status() == "THROUGHPUT_REGRESSION")
+        check(noisyRegression.copy(currentError = 5.0).status() == "THROUGHPUT_REGRESSION_CANDIDATE")
         check(noisyRegression.copy(currentError = null).status() == "THROUGHPUT_INCONCLUSIVE")
         check(
             noisyRegression.copy(
                 current = 120.0,
                 currentError = 5.0,
                 deltaPercent = 20.0,
-            ).status() == "THROUGHPUT_IMPROVED"
+            ).status() == "THROUGHPUT_IMPROVEMENT_CANDIDATE"
         )
     }
 }
@@ -3214,10 +3295,10 @@ fun renderBenchmarkComparisonReport(
 ): String {
     val allBenchmarks = (baseline.keys + latest.keys).sorted()
     val comparisonsByKey = comparisons.groupBy { it.key }
-    val regressions = comparisons.count { it.status().endsWith("_REGRESSION") }
-    val improvements = comparisons.count { it.status().endsWith("_IMPROVED") }
+    val regressionCandidates = comparisons.count { it.status().endsWith("_REGRESSION_CANDIDATE") }
+    val improvementCandidates = comparisons.count { it.status().endsWith("_IMPROVEMENT_CANDIDATE") }
     val inconclusive = comparisons.count { it.status().endsWith("_INCONCLUSIVE") }
-    val stable = comparisons.size - regressions - improvements - inconclusive
+    val stable = comparisons.size - regressionCandidates - improvementCandidates - inconclusive
     val actionableComparisons = comparisons.filter { it.status() != "STABLE" }
     val coverageChanges = allBenchmarks.count { benchmark ->
         baseline[benchmark] == null || latest[benchmark] == null
@@ -3234,17 +3315,19 @@ fun renderBenchmarkComparisonReport(
                 "allocation=${benchmarkAllocationRegressionPercent}%"
         )
         appendLine(
-            "- **Classification**: `REGRESSION`/`IMPROVED` requires both a threshold crossing and " +
-                "non-overlapping JMH error intervals; `INCONCLUSIVE` crosses the threshold but has " +
-                "overlapping or unavailable intervals."
+            "- **Classification**: `REGRESSION_CANDIDATE`/`IMPROVEMENT_CANDIDATE` requires both a " +
+                "threshold crossing and non-overlapping JMH error intervals; `INCONCLUSIVE` crosses " +
+                "the threshold but has overlapping or unavailable intervals."
         )
         appendLine(
-            "- **Interpretation**: JMH error describes measurement uncertainty inside each run. " +
-                "Treat regressions as investigation signals until a controlled rerun or profile identifies the cause."
+            "- **Interpretation**: JMH error describes measurement uncertainty inside one run, not " +
+                "cross-run machine variance. Candidates are investigation signals and do not fail comparison; " +
+                "confirm them with a controlled targeted rerun before treating them as regressions."
         )
         appendLine()
         appendLine(
-            "**Summary:** $regressions regression(s), $improvements improvement(s), " +
+            "**Summary:** $regressionCandidates regression candidate(s), " +
+                "$improvementCandidates improvement candidate(s), " +
                 "$inconclusive inconclusive comparison(s), $stable stable metric comparison(s), " +
                 "$coverageChanges coverage change(s)."
         )
@@ -3359,7 +3442,7 @@ tasks.register("benchmarkCompare") {
         val allBenchmarks = (baseline.keys + latest.keys).sorted()
         val comparisons = benchmarkMetricComparisons(baseline, latest)
 
-        val regressions = comparisons.count { it.status().endsWith("_REGRESSION") }
+        val regressionCandidates = comparisons.count { it.status().endsWith("_REGRESSION_CANDIDATE") }
         val coverageChanges = allBenchmarks.count { benchmark ->
             baseline[benchmark] == null || latest[benchmark] == null
         }
@@ -3379,8 +3462,11 @@ tasks.register("benchmarkCompare") {
         if (coverageChanges > 0) {
             throw GradleException("Benchmark coverage changed: $coverageChanges new or removed result row(s)")
         }
-        if (regressions > 0) {
-            throw GradleException("Benchmark regressions detected: $regressions")
+        if (regressionCandidates > 0) {
+            logger.warn(
+                "Benchmark regression candidates detected: $regressionCandidates. " +
+                    "Run controlled targeted confirmation before treating them as regressions."
+            )
         }
     }
 }
