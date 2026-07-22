@@ -43,8 +43,8 @@ Quick uses throughput mode, a `1x2s` warmup, `2x3s` measurements, one fork, the 
 ./gradlew :wow-benchmarks:benchmarkQuickInfrastructureE2E :wow-benchmarks:generateInfrastructureBenchmarkReport
 ```
 
-This writes the checked-in quick Infrastructure E2E report to [`results/reports/quick-infrastructure-e2e.md`](results/reports/quick-infrastructure-e2e.md).
-Infrastructure E2E requires local Redis and MongoDB services and measures persistence-path behavior, not framework-only overhead.
+This generates `results/reports/quick-infrastructure-e2e.md` on demand. The repository does not retain stale Infrastructure evidence when a current Redis/Mongo run is unavailable.
+Infrastructure E2E requires local Redis and MongoDB services and measures persistence-path behavior, not framework-only overhead. Commit the generated report only with intentionally collected, provenance-backed Infrastructure results.
 
 ### WebFlux Adapter Report
 
@@ -146,7 +146,7 @@ The Gradle model keeps four responsibilities separate: `BenchmarkSuite` owns wor
 | Path | Contents | Commit Policy |
 |------|----------|---------------|
 | `wow-benchmarks/results/reports/quick-framework-e2e.md` | Generated quick Framework E2E report. | Commit when intentionally updating the visible benchmark report. |
-| `wow-benchmarks/results/reports/quick-infrastructure-e2e.md` | Generated quick Infrastructure E2E report. | Commit when intentionally updating Redis/Mongo benchmark evidence. |
+| `wow-benchmarks/results/reports/quick-infrastructure-e2e.md` | Quick Infrastructure E2E report generated on demand; it may be absent in a fresh checkout. | Commit only with intentionally collected, provenance-backed Redis/Mongo evidence. |
 | `wow-benchmarks/results/reports/quick-grouped.md` | Generated quick E2E/component/infrastructure grouped report. | Commit when intentionally updating grouped benchmark evidence. |
 | `wow-benchmarks/results/reports/baseline-grouped.md` | Generated Baseline E2E/exhaustive Component/infrastructure grouped report. | Commit when intentionally updating formal benchmark evidence. |
 | `wow-benchmarks/results/jmh/` | Local JMH JSON and human-readable outputs. | Do not commit generated run output. |

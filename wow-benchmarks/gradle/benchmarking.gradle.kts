@@ -32,6 +32,18 @@ data class BenchmarkRequiredService(
     val port: Int,
 )
 
+fun BenchmarkRequiredService.toRunSpec(): Map<String, Any> {
+    return linkedMapOf(
+        "service" to service,
+        "host" to host,
+        "port" to port,
+    )
+}
+
+fun BenchmarkSuite.requiredServicesRunSpec(): List<Map<String, Any>> {
+    return requiredServices.map(BenchmarkRequiredService::toRunSpec)
+}
+
 data class BenchmarkSuite(
     val id: String,
     val displayName: String,
@@ -1251,13 +1263,7 @@ fun registerBenchmarkThreadTask(
                     "requestedProfilers" to requestedBenchmarkProfilers(profile),
                     "resolvedJmhArgs" to jmhArgs,
                     "resolvedProfilerArgs" to profilerArgs,
-                    "requiredServices" to suite.requiredServices.map { requiredService ->
-                        linkedMapOf(
-                            "service" to requiredService.service,
-                            "host" to requiredService.host,
-                            "port" to requiredService.port,
-                        )
-                    },
+                    "requiredServices" to suite.requiredServicesRunSpec(),
                 ),
                 "runtime" to linkedMapOf(
                     "javaVersion" to System.getProperty("java.version"),
@@ -1693,6 +1699,12 @@ fun parseBenchmarkRunManifest(
         "runSpec.requestedProfilers",
         sourcePath,
     )
+    requireManifestValue(
+        runSpec["requiredServices"],
+        group.suite.requiredServicesRunSpec(),
+        "runSpec.requiredServices",
+        sourcePath,
+    )
 
     if (!resultFile.isFile || !humanFile.isFile) {
         throw GradleException("Benchmark artifacts referenced by manifest are missing: $sourcePath")
@@ -1769,6 +1781,8 @@ fun validateBenchmarkRunManifests(
         "Java version" to manifests.map { it.javaVersion },
         "VM" to manifests.map { "${it.vmName} ${it.vmVersion}" },
         "OS" to manifests.map { "${it.osName} ${it.osVersion} ${it.osArch}" },
+        "available processor count" to manifests.map { it.availableProcessors },
+        "physical memory bytes" to manifests.map { it.physicalMemoryBytes },
     )
     if (requireSameRunId) {
         comparableFields["run ID"] = manifests.map { it.runId }
@@ -2836,7 +2850,14 @@ tasks.register("updateBenchmarkBaseline") {
     doLast {
         val currentCommit = requireCleanBenchmarkWorkspace()
         val benchmarkReport = parsedFrameworkE2EReport()
-        val manifests = benchmarkReport.manifests.sortedBy { it.threads }
+        val manifests = benchmarkReport.manifests
+        val manifestThreads = manifests.map { it.threads }
+        if (manifestThreads != baselineE2EProfile.threads) {
+            throw GradleException(
+                "Benchmark baseline manifests do not preserve the requested thread order: " +
+                    "expected ${baselineE2EProfile.threads}, found $manifestThreads."
+            )
+        }
         if (manifests.any { it.sourceDirty }) {
             throw GradleException(
                 "Benchmark baseline updates reject dirty benchmark runs. " +
