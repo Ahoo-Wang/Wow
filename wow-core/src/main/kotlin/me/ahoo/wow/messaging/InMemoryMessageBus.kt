@@ -53,15 +53,35 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
      * Map of sinks keyed by materialized named aggregates.
      */
     private val sinks: MutableMap<NamedAggregate, Sinks.Many<M>> = ConcurrentHashMap()
+    private val lifecycleLock = Any()
+
+    @Volatile
+    private var closing = false
 
     /**
      * Computes or retrieves the sink for the given named aggregate.
      *
      * @param namedAggregate The named aggregate for which to get the sink
-     * @return The sink for the aggregate
+     * @return The sink for the aggregate, or null while the bus is closing
      */
-    private fun computeSink(namedAggregate: NamedAggregate): Sinks.Many<M> =
-        sinks.computeIfAbsent(namedAggregate.materialize()) { sinkSupplier(it).concurrent() }
+    private fun computeSink(namedAggregate: NamedAggregate): Sinks.Many<M>? {
+        if (closing) {
+            return null
+        }
+        val materialized = namedAggregate.materialize()
+        sinks[materialized]?.let {
+            return it
+        }
+        return synchronized(lifecycleLock) {
+            if (closing) {
+                null
+            } else {
+                sinks[materialized] ?: sinkSupplier(materialized).concurrent().also {
+                    sinks[materialized] = it
+                }
+            }
+        }
+    }
 
     /**
      * Returns the number of subscribers for the specified named aggregate.
@@ -87,6 +107,12 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
         return Mono.fromRunnable {
             val sink = computeSink(message)
             message.withReadOnly()
+            if (sink == null) {
+                log.debug {
+                    "Send [$message], but the message bus is closing."
+                }
+                return@fromRunnable
+            }
             val emitResult = sink.tryEmitNext(message)
             if (emitResult == Sinks.EmitResult.FAIL_ZERO_SUBSCRIBER) {
                 log.debug {
@@ -116,8 +142,8 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
      * @return A flux of message exchanges
      */
     override fun receive(subscription: MessageSubscription): Flux<E> {
-        val sources = subscription.namedAggregates.map {
-            computeSink(it).asFlux()
+        val sources = subscription.namedAggregates.mapNotNull {
+            computeSink(it)?.asFlux()
         }
 
         return Flux.merge(sources).map {
@@ -126,18 +152,31 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
     }
 
     override fun close() {
-        sinks.forEach { (aggregate, many) ->
-            val emitResult = many.tryEmitComplete()
-            if (emitResult.isSuccess) {
-                log.debug {
-                    "Close [${aggregate.aggregateName}] sink - [$emitResult]."
-                }
-            } else {
-                log.warn {
-                    "Close [${aggregate.aggregateName}] sink - [$emitResult]."
+        val detachedSinks = synchronized(lifecycleLock) {
+            if (closing) {
+                return
+            }
+            closing = true
+            sinks.entries.map { entry -> entry.key to entry.value }
+        }
+        try {
+            detachedSinks.forEach { (aggregate, many) ->
+                val emitResult = many.tryEmitComplete()
+                if (emitResult.isSuccess) {
+                    log.debug {
+                        "Close [${aggregate.aggregateName}] sink - [$emitResult]."
+                    }
+                } else {
+                    log.warn {
+                        "Close [${aggregate.aggregateName}] sink - [$emitResult]."
+                    }
                 }
             }
+        } finally {
+            synchronized(lifecycleLock) {
+                sinks.clear()
+                closing = false
+            }
         }
-        sinks.clear()
     }
 }
