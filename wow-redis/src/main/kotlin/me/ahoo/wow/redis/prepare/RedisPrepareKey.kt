@@ -17,16 +17,14 @@ import me.ahoo.wow.infra.prepare.PrepareKey
 import me.ahoo.wow.infra.prepare.PreparedValue
 import me.ahoo.wow.infra.prepare.PreparedValue.Companion.toTtlAt
 import me.ahoo.wow.redis.RedisScripts
-import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.wrap
-import me.ahoo.wow.redis.prepare.PrepareKeyConverter.toKey
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 import org.springframework.data.redis.core.script.RedisScript
 import reactor.core.publisher.Mono
 
-const val VALUE_FIELD = "value"
-const val TTL_AT_FIELD = "ttlAt"
+private const val VALUE_FIELD = "value"
+private const val TTL_AT_FIELD = "ttlAt"
 
 class RedisPrepareKey<V : Any>(
     override val name: String,
@@ -34,19 +32,19 @@ class RedisPrepareKey<V : Any>(
     private val redisTemplate: ReactiveStringRedisTemplate
 ) : PrepareKey<V> {
     companion object {
-        val SCRIPT_PREPARE_PREPARE: RedisScript<Boolean> =
+        private val SCRIPT_PREPARE_PREPARE: RedisScript<Boolean> =
             RedisScripts.load("prepare_prepare.lua", Boolean::class.java)
 
-        val SCRIPT_PREPARE_REPREPARE: RedisScript<Boolean> =
+        private val SCRIPT_PREPARE_REPREPARE: RedisScript<Boolean> =
             RedisScripts.load("prepare_reprepare.lua", Boolean::class.java)
 
-        val SCRIPT_PREPARE_REPREPARE_WITH_OLD_VALUE: RedisScript<Boolean> =
+        private val SCRIPT_PREPARE_REPREPARE_WITH_OLD_VALUE: RedisScript<Boolean> =
             RedisScripts.load("prepare_reprepare_with_old_value.lua", Boolean::class.java)
 
-        val SCRIPT_PREPARE_ROLLBACK: RedisScript<Boolean> =
+        private val SCRIPT_PREPARE_ROLLBACK: RedisScript<Boolean> =
             RedisScripts.load("prepare_rollback.lua", Boolean::class.java)
 
-        val SCRIPT_PREPARE_ROLLBACK_WITH_OLD_VALUE: RedisScript<Boolean> =
+        private val SCRIPT_PREPARE_ROLLBACK_WITH_OLD_VALUE: RedisScript<Boolean> =
             RedisScripts.load("prepare_rollback_with_old_value.lua", Boolean::class.java)
     }
 
@@ -59,11 +57,12 @@ class RedisPrepareKey<V : Any>(
         return value.toTtlAt(ttlAt)
     }
 
+    private fun redisKey(key: String): String = PrepareKeyLayout.key(name, key)
+
     override fun prepare(key: String, value: PreparedValue<V>): Mono<Boolean> {
-        val wrappedKey = key.wrap()
         return redisTemplate.execute(
             SCRIPT_PREPARE_PREPARE,
-            listOf(wrappedKey),
+            listOf(redisKey(key)),
             listOf(
                 System.currentTimeMillis().toString(),
                 value.ttlAt.toString(),
@@ -73,8 +72,7 @@ class RedisPrepareKey<V : Any>(
     }
 
     override fun getValue(key: String): Mono<PreparedValue<V>> {
-        val redisKey = key.toKey()
-        return redisTemplate.opsForHash<String, String>().entries(redisKey)
+        return redisTemplate.opsForHash<String, String>().entries(redisKey(key))
             .collectMap({ it.key }, { it.value })
             .mapNotNull {
                 it.decode()
@@ -82,10 +80,9 @@ class RedisPrepareKey<V : Any>(
     }
 
     override fun rollback(key: String): Mono<Boolean> {
-        val wrappedKey = key.wrap()
         return redisTemplate.execute(
             SCRIPT_PREPARE_ROLLBACK,
-            listOf(wrappedKey),
+            listOf(redisKey(key)),
             listOf(
                 System.currentTimeMillis().toString(),
             ),
@@ -93,10 +90,9 @@ class RedisPrepareKey<V : Any>(
     }
 
     override fun reprepare(key: String, value: PreparedValue<V>): Mono<Boolean> {
-        val wrappedKey = key.wrap()
         return redisTemplate.execute(
             SCRIPT_PREPARE_REPREPARE,
-            listOf(wrappedKey),
+            listOf(redisKey(key)),
             listOf(
                 value.ttlAt.toString(),
                 value.value.toJsonString(),
@@ -105,10 +101,9 @@ class RedisPrepareKey<V : Any>(
     }
 
     override fun reprepare(key: String, oldValue: V, newValue: PreparedValue<V>): Mono<Boolean> {
-        val wrappedKey = key.wrap()
         return redisTemplate.execute(
             SCRIPT_PREPARE_REPREPARE_WITH_OLD_VALUE,
-            listOf(wrappedKey),
+            listOf(redisKey(key)),
             listOf(
                 newValue.ttlAt.toString(),
                 newValue.value.toJsonString(),
@@ -118,10 +113,9 @@ class RedisPrepareKey<V : Any>(
     }
 
     override fun rollback(key: String, value: V): Mono<Boolean> {
-        val wrappedKey = key.wrap()
         return redisTemplate.execute(
             SCRIPT_PREPARE_ROLLBACK_WITH_OLD_VALUE,
-            listOf(wrappedKey),
+            listOf(redisKey(key)),
             listOf(
                 value.toJsonString(),
             ),

@@ -22,8 +22,7 @@ import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 import reactor.core.publisher.Mono
 
 class RedisSnapshotStore(
-    private val redisTemplate: ReactiveStringRedisTemplate,
-    private val keyConverter: AggregateKeyConverter = DefaultSnapshotKeyConverter
+    private val redisTemplate: ReactiveStringRedisTemplate
 ) : SnapshotStore {
     companion object {
         const val NAME = "redis"
@@ -33,14 +32,14 @@ class RedisSnapshotStore(
         get() = NAME
 
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
-        val snapshotKey = keyConverter.convert(aggregateId)
+        val snapshotKey = SnapshotKeyLayout.key(aggregateId)
         return redisTemplate.opsForValue()
             .get(snapshotKey)
             .map { it.toObject<Snapshot<S>>() }
     }
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
-        val snapshotKey = keyConverter.convert(snapshot.aggregateId)
+        val snapshotKey = SnapshotKeyLayout.key(snapshot.aggregateId)
         return redisTemplate.opsForValue()
             .set(snapshotKey, snapshot.toJsonString())
             .then()

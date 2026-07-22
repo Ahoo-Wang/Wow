@@ -24,7 +24,7 @@ import me.ahoo.wow.eventsourcing.DuplicateAggregateIdException
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
-import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toAggregateIdIndexMember
+import me.ahoo.wow.redis.eventsourcing.EventStreamKeyLayout.toAggregateIdIndexMember
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import org.junit.jupiter.api.Test
 import org.springframework.data.domain.Range
@@ -40,7 +40,7 @@ private const val EXPECTED_BUCKET_QUERY_CONCURRENCY = 16
 class RedisEventStoreScanTest {
     private fun aggregateIdIndexKey(id: String): String {
         val bucket = id.hashCode().mod(128)
-        return "{order-service.order:es:$bucket}:ids"
+        return "{v2:es:b3JkZXItc2VydmljZQ.b3JkZXI:$bucket}:ids"
     }
 
     @Test
@@ -53,11 +53,11 @@ class RedisEventStoreScanTest {
         val eventStream = generateEventStream(aggregateId, eventCount = 1)
         every {
             redisTemplate.execute(
-                RedisEventStore.SCRIPT_EVENT_STEAM_APPEND,
+                RedisEventStore.SCRIPT_EVENT_STREAM_APPEND,
                 capture(keysSlot),
                 capture(argumentsSlot),
             )
-        } returns Flux.just("1")
+        } returns Flux.just(ErrorCodes.SUCCEEDED)
         val eventStore = RedisEventStore(redisTemplate)
 
         eventStore.append(eventStream)
@@ -66,16 +66,21 @@ class RedisEventStoreScanTest {
 
         val bucket = "order-1".hashCode().mod(128)
         keysSlot.captured.assert().containsExactly(
-            "{order-service.order:es:$bucket}:order-1@tenant-1",
-            "{order-service.order:es:$bucket}:ids",
+            "{v2:es:b3JkZXItc2VydmljZQ.b3JkZXI:$bucket}:b3JkZXItMQ.dGVuYW50LTE",
+            "{v2:es:b3JkZXItc2VydmljZQ.b3JkZXI:$bucket}:ids",
+            "{v2:es:b3JkZXItc2VydmljZQ.b3JkZXI:$bucket}:b3JkZXItMQ.dGVuYW50LTE:req_idx",
         )
         val hashTags = keysSlot.captured.map { key ->
             key.substringAfter("{").substringBefore("}")
         }
-        hashTags.distinct().assert().containsExactly("order-service.order:es:$bucket")
-        argumentsSlot.captured.assert().hasSize(4)
-        argumentsSlot.captured.last().assert()
-            .isEqualTo("order-1" + "\u0000" + "tenant-1")
+        hashTags.distinct().assert().containsExactly("v2:es:b3JkZXItc2VydmljZQ.b3JkZXI:$bucket")
+        argumentsSlot.captured.assert().hasSize(6)
+        argumentsSlot.captured[3].assert()
+            .isEqualTo("006f0072006400650072002d0031.dGVuYW50LTE")
+        argumentsSlot.captured[4].assert()
+            .isEqualTo("006f0072006400650072002d0031.")
+        argumentsSlot.captured[5].assert()
+            .isEqualTo("006f0072006400650072002d0031/")
     }
 
     @Test
@@ -86,7 +91,7 @@ class RedisEventStoreScanTest {
         val eventStream = generateEventStream(aggregateId, eventCount = 1)
         every {
             redisTemplate.execute(
-                RedisEventStore.SCRIPT_EVENT_STEAM_APPEND,
+                RedisEventStore.SCRIPT_EVENT_STREAM_APPEND,
                 any<List<String>>(),
                 any<List<*>>(),
             )
@@ -109,7 +114,7 @@ class RedisEventStoreScanTest {
         val eventStream = generateEventStream(aggregateId, eventCount = 1)
         every {
             redisTemplate.execute(
-                RedisEventStore.SCRIPT_EVENT_STEAM_APPEND,
+                RedisEventStore.SCRIPT_EVENT_STREAM_APPEND,
                 any<List<String>>(),
                 any<List<*>>(),
             )
@@ -120,6 +125,77 @@ class RedisEventStoreScanTest {
             .test()
             .expectErrorSatisfies {
                 it.assert().isInstanceOf(DuplicateRequestIdException::class.java)
+            }
+            .verify()
+    }
+
+    @Test
+    fun `append should map duplicate aggregate id script result`() {
+        val namedAggregate = MaterializedNamedAggregate("order-service", "order")
+        val redisTemplate = mockk<ReactiveStringRedisTemplate>()
+        val eventStream = generateEventStream(
+            namedAggregate.aggregateId("order-1", tenantId = "tenant-1"),
+            eventCount = 1,
+        )
+        every {
+            redisTemplate.execute(
+                RedisEventStore.SCRIPT_EVENT_STREAM_APPEND,
+                any<List<String>>(),
+                any<List<*>>(),
+            )
+        } returns Flux.just(ErrorCodes.DUPLICATE_AGGREGATE_ID)
+        val eventStore = RedisEventStore(redisTemplate)
+
+        eventStore.append(eventStream)
+            .test()
+            .expectErrorSatisfies {
+                it.assert().isInstanceOf(DuplicateAggregateIdException::class.java)
+            }
+            .verify()
+    }
+
+    @Test
+    fun `append should reject an unexpected script result`() {
+        val namedAggregate = MaterializedNamedAggregate("order-service", "order")
+        val redisTemplate = mockk<ReactiveStringRedisTemplate>()
+        val eventStream = generateEventStream(namedAggregate.aggregateId("order-1"), eventCount = 1)
+        every {
+            redisTemplate.execute(
+                RedisEventStore.SCRIPT_EVENT_STREAM_APPEND,
+                any<List<String>>(),
+                any<List<*>>(),
+            )
+        } returns Flux.just("Unexpected")
+        val eventStore = RedisEventStore(redisTemplate)
+
+        eventStore.append(eventStream)
+            .test()
+            .expectErrorSatisfies { error ->
+                error.assert().isInstanceOf(IllegalStateException::class.java)
+                error.message.assert().contains("Unexpected Redis EventStore append result")
+            }
+            .verify()
+    }
+
+    @Test
+    fun `append should reject an empty script result`() {
+        val namedAggregate = MaterializedNamedAggregate("order-service", "order")
+        val redisTemplate = mockk<ReactiveStringRedisTemplate>()
+        val eventStream = generateEventStream(namedAggregate.aggregateId("order-1"), eventCount = 1)
+        every {
+            redisTemplate.execute(
+                RedisEventStore.SCRIPT_EVENT_STREAM_APPEND,
+                any<List<String>>(),
+                any<List<*>>(),
+            )
+        } returns Flux.empty()
+        val eventStore = RedisEventStore(redisTemplate)
+
+        eventStore.append(eventStream)
+            .test()
+            .expectErrorSatisfies { error ->
+                error.assert().isInstanceOf(IllegalStateException::class.java)
+                error.message.assert().contains("returned no result")
             }
             .verify()
     }
@@ -159,11 +235,14 @@ class RedisEventStoreScanTest {
 
         rangeSlots.assert().isNotEmpty()
         rangeSlots.forEach {
-            it.contains("001").assert().isFalse()
-            it.contains("001" + "\u0000" + TenantId.DEFAULT_TENANT_ID).assert().isFalse()
-            it.contains("002" + "\u0000" + TenantId.DEFAULT_TENANT_ID).assert().isTrue()
-            it.contains("~order" + "\u0000" + TenantId.DEFAULT_TENANT_ID).assert().isTrue()
-            it.contains("订单-1" + "\u0000" + TenantId.DEFAULT_TENANT_ID).assert().isTrue()
+            it.contains(EventStreamKeyLayout.toAggregateIdIndexMember(namedAggregate.aggregateId("001")))
+                .assert().isFalse()
+            it.contains(EventStreamKeyLayout.toAggregateIdIndexMember(namedAggregate.aggregateId("0010")))
+                .assert().isTrue()
+            it.contains(EventStreamKeyLayout.toAggregateIdIndexMember(namedAggregate.aggregateId("002")))
+                .assert().isTrue()
+            it.contains(EventStreamKeyLayout.toAggregateIdIndexMember(namedAggregate.aggregateId("订单-1")))
+                .assert().isTrue()
         }
         limitSlots.forEach {
             it.count.assert().isEqualTo(2)

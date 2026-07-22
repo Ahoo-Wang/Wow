@@ -10,17 +10,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package me.ahoo.wow.redis.eventsourcing
 
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
-import org.springframework.data.redis.core.ReactiveStringRedisTemplate
+import me.ahoo.wow.api.modeling.AggregateId
 
-@Deprecated("Use RedisSnapshotStore.", ReplaceWith("RedisSnapshotStore(redisTemplate, keyConverter)"))
-class RedisSnapshotRepository(
-    redisTemplate: ReactiveStringRedisTemplate,
-    keyConverter: AggregateKeyConverter = DefaultSnapshotKeyConverter
-) : SnapshotStore by RedisSnapshotStore(redisTemplate, keyConverter) {
-    companion object {
-        const val NAME = RedisSnapshotStore.NAME
+internal object SnapshotKeyLayout {
+    private const val LAYOUT_PREFIX = "v2:snapshot"
+    private const val DELIMITER = ':'
+
+    fun key(aggregateId: AggregateId): String {
+        val scope = CanonicalRedisKeyCodec.encodeScope(aggregateId.namedAggregate)
+        val identity = CanonicalRedisKeyCodec.encodeIdentity(aggregateId)
+        return "$LAYOUT_PREFIX$DELIMITER{$scope.$identity}"
     }
 }

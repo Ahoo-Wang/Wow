@@ -16,8 +16,11 @@ package me.ahoo.wow.redis.prepare
 import me.ahoo.wow.api.annotation.PreparableKey
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.infra.prepare.PrepareKey
+import me.ahoo.wow.infra.prepare.PreparedValue.Companion.toForever
 import me.ahoo.wow.infra.prepare.proxy.DefaultPrepareKeyProxyFactory
 import me.ahoo.wow.infra.prepare.proxy.prepareKeyMetadata
+import org.junit.jupiter.api.Test
+import reactor.kotlin.test.test
 
 class StringRedisPrepareKeyTest : RedisPrepareKeySpec<String>() {
     override val name: String = StringPrepareKey.NAME
@@ -31,6 +34,30 @@ class StringRedisPrepareKeyTest : RedisPrepareKeySpec<String>() {
     override fun createPrepareKey(name: String): PrepareKey<String> {
         val metadata = prepareKeyMetadata<StringPrepareKey>()
         return DefaultPrepareKeyProxyFactory(prepareKeyFactory).create(metadata)
+    }
+
+    @Test
+    fun `same raw key should be isolated by prepare name`() {
+        val username = prepareKeyFactory.create("username", String::class.java)
+        val email = prepareKeyFactory.create("email", String::class.java)
+
+        username.prepare("same:{雪}", "alice".toForever())
+            .test()
+            .expectNext(true)
+            .verifyComplete()
+        email.prepare("same:{雪}", "alice@example.com".toForever())
+            .test()
+            .expectNext(true)
+            .verifyComplete()
+
+        username.get("same:{雪}")
+            .test()
+            .expectNext("alice")
+            .verifyComplete()
+        email.get("same:{雪}")
+            .test()
+            .expectNext("alice@example.com")
+            .verifyComplete()
     }
 
     @PreparableKey(name = StringPrepareKey.NAME)

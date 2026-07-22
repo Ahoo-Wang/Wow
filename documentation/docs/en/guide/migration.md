@@ -41,6 +41,80 @@ Before upgrading, check the following:
 2. **Configuration Changes**: Check for configuration property changes
 3. **Metadata Changes**: Regenerate metadata files
 
+## Redis EventStore Canonical v2 Layout (introduced in vNEXT)
+
+When upgrading from v8.6.x or v8.8.x to vNEXT, treat Redis persistence as a hard storage-format cutover. Redis
+EventStore, Redis SnapshotStore, and Redis PrepareKey read and write canonical v2 keys only. There is no legacy
+fallback, dual write, or built-in migrator, and old runtimes cannot read new v2 writes. The new EventStore also
+enforces that `AggregateId.id` is unique within a named aggregate across all tenants.
+
+The Spring Boot starter checks the exact sentinel keys created by successful writes in the published v8.6 and v8.8
+EventStore layouts. It checks local aggregates resolved to the auto-configured `RedisEventStore`, supports Redis
+Cluster without runtime `SCAN`, and blocks startup when incompatible data is found. It does not cover direct-library
+usage, independently constructed custom stores, retired aggregate metadata, or snapshot-only Redis routes. A legacy
+snapshot has no aggregate-independent exact sentinel. Canonical v2 ignores legacy snapshot keys. A missing v2
+snapshot causes aggregate loading to replay events, but normal loading does not persist a rebuilt snapshot
+automatically.
+
+The exact-key guard is not a substitute for an offline data audit. A historical alias change, key eviction, or a
+manually deleted or corrupted legacy index can hide the sentinel while orphaned streams remain. The resolved context
+alias (the configured alias, or `contextName` when no alias is configured) and aggregate name form the persistent v2
+key scope. The migration manifest must pin every historical source alias to the target resolved alias. Changing the
+resolved alias or aggregate name after a write requires a separate offline key migration.
+
+Use an offline cutover:
+
+1. Stop traffic and every old-version writer, drain in-flight appends to zero, and create a consistent Redis backup
+   together with event-count and version baselines. Do not use a mixed-version rolling deployment.
+2. Inventory all legacy event ZSETs, v8.6 shared request SETs, v8.8 per-stream request SETs, v8.8 bucketed ID ZSETs,
+   and legacy snapshot and PrepareKey hashes in every logical database on every Cluster primary. Record source key,
+   Redis type, cardinality, checksum, and target mapping. Use identity embedded in event or snapshot JSON as the
+   authority; an ambiguous historical key is only a locator.
+3. Audit each named aggregate for duplicate `AggregateId.id` values across tenants. Resolve every collision before
+   migration; canonical v2 intentionally cannot represent two owners of one ID.
+4. Use an empty v2 target scope on the first run. For disposable data, remove only the inventoried legacy keys from
+   the target or use an empty dedicated database. Never use `FLUSHDB` on a database shared with message-bus or
+   application data. Keep the complete source dataset immutable for rollback.
+5. Run a separately reviewed offline migrator. Its durable manifest must record source key, target keys, source and
+   target checksums, status, and last completed batch. Resume may reuse a target only when manifest and checksum
+   match; otherwise fail without overwriting. Copy operations must be idempotent, and partial target data must not be
+   accepted without manifest-backed re-verification.
+6. Preserve every event ZSET member and score, and verify identity consistency plus contiguous score/version order.
+   Treat committed event JSON as authoritative for v2 request-ID SETs. For v8.6, compare the shared SET with
+   `union(event.requestId)` in both directions and report shared-only and event-only differences separately; never fan
+   it out to streams. For v8.8, compute the symmetric difference between each source per-stream SET and that stream's
+   event request IDs. A non-empty difference fails migration unless an explicit reviewed disposition is recorded.
+7. Rebuild every non-empty aggregate-ID index in the 128-bucket space. The bucket is
+   `aggregateId.id.hashCode().mod(128)` using Java/Kotlin UTF-16 `String.hashCode`; keys and members must use the exact
+   canonical v2 codec. The runtime does not perform this conversion.
+8. Verify ordered member-and-score checksums, first/last versions, request-ID equality, the complete ID index,
+   aggregate-ID scan results, and representative state replay. A failed run must retain its manifest and last verified
+   cursor, then either clean the partial target or resume from that cursor; the application must not start meanwhile.
+9. After full verification, an in-place migration must remove or move every legacy key in the recorded inventory.
+   Delete sentinel keys last, rerun inventory, and require zero legacy keys. With a separate target database, keep the
+   complete source dataset read-only through the rollback window.
+10. Start one new instance against the target and run isolated-ID read/write smoke tests. Explicitly regenerate
+    snapshots, then verify snapshot counts and versions before switching traffic and scaling out. Use the single-ID
+    regenerate route from the complete inventory. The batch route may be treated as exhaustive only when the audited
+    ID domain is strictly above `AggregateIdScanner.FIRST_ID`; otherwise it can omit lower IDs.
+
+Rollback is a coordinated application-and-data operation. Before production v2 writes, reconnect the untouched
+legacy dataset and old runtime. After any production v2 write, first stop traffic and v2 writers, then reverse-migrate
+or replay those writes before restarting the old runtime; restoring only the cutover backup loses every later v2
+write. Prefer a separate target database or namespace.
+
+The mandatory exact-key check is an internal startup invariant. It is intentionally neither optional nor exposed as
+a compatibility or migration setting.
+
+Source, JVM binary, and behavioral compatibility are intentionally broken for Redis layout internals. Removed APIs
+include `AggregateKeyConverter`, `RedisWrappedKey`, `RedisSnapshotRepository`, `EventStreamKeyConverter`,
+`DefaultSnapshotKeyConverter`, `PrepareKeyConverter`, and `RedisEventStore.SCRIPT_EVENT_STEAM_APPEND`; the
+`redisSnapshotRepository` bean alias and custom snapshot-key converter constructor are also removed. The new
+`SCRIPT_EVENT_STREAM_APPEND` is internal, with no public replacement. Canonical converter outputs changed, PrepareKey
+now includes its `name`, and v2 rejects empty aggregate/prepare IDs and unpaired UTF-16 surrogates. Application code
+should use `EventStore`, `SnapshotStore`, and `PrepareKey`; reviewed offline tooling must independently implement and
+verify the documented v2 codec. Replace `vNEXT` with the actual release number before publishing.
+
 ## Mongo Ownership Guard and Snapshot Checkpoints
 
 This upgrade keeps aggregate-name-only Mongo collection names, but adds a durable
