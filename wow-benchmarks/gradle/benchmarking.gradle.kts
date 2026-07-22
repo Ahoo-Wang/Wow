@@ -1386,6 +1386,7 @@ val batchBenchmarkReportFile = reportsDir.file("quick-batch-command-write-e2e.md
 val infrastructureBenchmarkReportFile = reportsDir.file("quick-infrastructure-e2e.md")
 val webFluxBenchmarkReportFile = reportsDir.file("quick-webflux.md")
 val baselineGroupedBenchmarkReport = reportsDir.file("baseline-grouped.md")
+val baselineComparisonReport = reportsDir.file("baseline-comparison.md")
 val quickGroupedBenchmarkReport = reportsDir.file("quick-grouped.md")
 
 data class BenchmarkResultFile(
@@ -3059,6 +3060,24 @@ fun compareMetric(
     )
 }
 
+fun confidenceIntervalsOverlap(
+    baseline: Double,
+    baselineError: Double?,
+    current: Double,
+    currentError: Double?,
+): Boolean? {
+    if (baselineError == null || currentError == null) {
+        return null
+    }
+    val baselineErrorMagnitude = kotlin.math.abs(baselineError)
+    val currentErrorMagnitude = kotlin.math.abs(currentError)
+    val baselineLower = baseline - baselineErrorMagnitude
+    val baselineUpper = baseline + baselineErrorMagnitude
+    val currentLower = current - currentErrorMagnitude
+    val currentUpper = current + currentErrorMagnitude
+    return baselineLower <= currentUpper && currentLower <= baselineUpper
+}
+
 fun BenchmarkMetricComparison.status(): String {
     val delta = deltaPercent ?: return "STABLE"
     val regression = if (higherIsBetter) {
@@ -3066,18 +3085,66 @@ fun BenchmarkMetricComparison.status(): String {
     } else {
         delta > thresholdPercent
     }
-    if (regression) {
-        return "${metric.uppercase(Locale.US)}_REGRESSION"
-    }
     val improvement = if (higherIsBetter) {
         delta > thresholdPercent
     } else {
         delta < -thresholdPercent
     }
-    if (improvement) {
-        return "${metric.uppercase(Locale.US)}_IMPROVED"
+    if (!regression && !improvement) {
+        return "STABLE"
     }
-    return "STABLE"
+    val metricStatus = metric.uppercase(Locale.US)
+    val intervalsOverlap = confidenceIntervalsOverlap(
+        baseline = baseline,
+        baselineError = baselineError,
+        current = current,
+        currentError = currentError,
+    )
+    if (intervalsOverlap != false) {
+        return "${metricStatus}_INCONCLUSIVE"
+    }
+    return if (regression) "${metricStatus}_REGRESSION" else "${metricStatus}_IMPROVED"
+}
+
+val verifyBenchmarkComparisonClassification = tasks.register("verifyBenchmarkComparisonClassification") {
+    description = "Verify benchmark threshold and uncertainty classification."
+    group = "verification"
+
+    doLast {
+        check(confidenceIntervalsOverlap(100.0, 10.0, 85.0, 10.0) == true)
+        check(confidenceIntervalsOverlap(100.0, 5.0, 80.0, 5.0) == false)
+        check(confidenceIntervalsOverlap(100.0, null, 80.0, 5.0) == null)
+
+        val noisyRegression = BenchmarkMetricComparison(
+            key = "test",
+            metric = "throughput",
+            displayName = "test",
+            mode = "thrpt",
+            threads = 1,
+            baseline = 100.0,
+            baselineError = 10.0,
+            current = 80.0,
+            currentError = 15.0,
+            unit = "ops/s",
+            deltaPercent = -20.0,
+            thresholdPercent = 10.0,
+            higherIsBetter = true,
+        )
+        check(noisyRegression.status() == "THROUGHPUT_INCONCLUSIVE")
+        check(noisyRegression.copy(currentError = 5.0).status() == "THROUGHPUT_REGRESSION")
+        check(noisyRegression.copy(currentError = null).status() == "THROUGHPUT_INCONCLUSIVE")
+        check(
+            noisyRegression.copy(
+                current = 120.0,
+                currentError = 5.0,
+                deltaPercent = 20.0,
+            ).status() == "THROUGHPUT_IMPROVED"
+        )
+    }
+}
+
+tasks.named("check") {
+    dependsOn(verifyBenchmarkComparisonClassification)
 }
 
 fun benchmarkMetricComparisons(
@@ -3139,70 +3206,108 @@ fun benchmarkMetricComparisons(
     }
 }
 
-tasks.register("benchmarkCompare") {
-    description = "Compare primary framework E2E benchmark results against baseline."
-    group = "benchmark"
-    mustRunAfter(baselineE2ETaskSpec.taskName)
+fun renderBenchmarkComparisonReport(
+    baselineFile: File,
+    baseline: Map<String, BenchmarkComparisonRow>,
+    latest: Map<String, BenchmarkComparisonRow>,
+    comparisons: List<BenchmarkMetricComparison>,
+): String {
+    val allBenchmarks = (baseline.keys + latest.keys).sorted()
+    val comparisonsByKey = comparisons.groupBy { it.key }
+    val regressions = comparisons.count { it.status().endsWith("_REGRESSION") }
+    val improvements = comparisons.count { it.status().endsWith("_IMPROVED") }
+    val inconclusive = comparisons.count { it.status().endsWith("_INCONCLUSIVE") }
+    val stable = comparisons.size - regressions - improvements - inconclusive
+    val actionableComparisons = comparisons.filter { it.status() != "STABLE" }
+    val coverageChanges = allBenchmarks.count { benchmark ->
+        baseline[benchmark] == null || latest[benchmark] == null
+    }
+    val baselinePath = baselineFile.relativeTo(rootProject.projectDir).invariantSeparatorsPath
 
-    doLast {
-        val baselineFile = frameworkE2EBaselineJson.asFile
-        if (!baselineFile.exists()) {
-            throw GradleException(
-                "Baseline not found: ${baselineFile.absolutePath}. " +
-                    "Run :wow-benchmarks:updateBenchmarkBaseline first."
-            )
-        }
-        val baseline = parseBaselineComparisonRows(baselineFile)
-        val latest = parsedComparisonRows(parsedFrameworkE2EReport().rows)
-        val allBenchmarks = (baseline.keys + latest.keys).sorted()
-        val comparisons = benchmarkMetricComparisons(baseline, latest)
-        val comparisonsByKey = comparisons.groupBy { it.key }
-
-        val regressions = comparisons.count { it.status().endsWith("_REGRESSION") }
-        val improvements = comparisons.count { it.status().endsWith("_IMPROVED") }
-        val coverageChanges = allBenchmarks.count { benchmark ->
-            baseline[benchmark] == null || latest[benchmark] == null
-        }
-
-        println()
-        println("## Benchmark Comparison")
-        println("Baseline: ${baselineFile.absolutePath}")
-        println(
-            "Thresholds: throughput=${benchmarkThroughputRegressionPercent}%, " +
+    return buildString {
+        appendLine("# Framework E2E Baseline Comparison")
+        appendLine()
+        appendLine("- **Accepted Baseline**: `$baselinePath`")
+        appendLine(
+            "- **Thresholds**: throughput=${benchmarkThroughputRegressionPercent}%, " +
                 "latency=${benchmarkLatencyRegressionPercent}%, " +
                 "allocation=${benchmarkAllocationRegressionPercent}%"
         )
-        println()
-        println(
-            "| Metric | Benchmark | Threads | Mode | Baseline | Baseline Error | Current | " +
-                "Current Error | Delta % | Threshold | Status |"
+        appendLine(
+            "- **Classification**: `REGRESSION`/`IMPROVED` requires both a threshold crossing and " +
+                "non-overlapping JMH error intervals; `INCONCLUSIVE` crosses the threshold but has " +
+                "overlapping or unavailable intervals."
         )
-        println(
+        appendLine(
+            "- **Interpretation**: JMH error describes measurement uncertainty inside each run. " +
+                "Treat regressions as investigation signals until a controlled rerun or profile identifies the cause."
+        )
+        appendLine()
+        appendLine(
+            "**Summary:** $regressions regression(s), $improvements improvement(s), " +
+                "$inconclusive inconclusive comparison(s), $stable stable metric comparison(s), " +
+                "$coverageChanges coverage change(s)."
+        )
+        appendLine()
+        appendLine("## Actionable Signals")
+        appendLine()
+        appendLine("| Status | Metric | Benchmark | Threads | Baseline | Current | Delta |")
+        appendLine("|--------|--------|-----------|---------|----------|---------|-------|")
+        actionableComparisons.forEach { comparison ->
+            val scale = benchmarkMetricScale(
+                values = listOf(comparison.baseline, comparison.current),
+                unit = comparison.unit,
+            )
+            val baselineScore = formatScaledBenchmarkScore(
+                comparison.baseline,
+                comparison.baselineError,
+                scale,
+            )
+            val currentScore = formatScaledBenchmarkScore(
+                comparison.current,
+                comparison.currentError,
+                scale,
+            )
+            appendLine(
+                "| ${comparison.status()} | ${comparison.metric} | ${comparison.displayName} | " +
+                    "${comparison.threads} | ${baselineScore.scoreWithUnit} | " +
+                    "${currentScore.scoreWithUnit} | " +
+                    "${comparison.deltaPercent?.let { String.format(Locale.US, "%+.1f%%", it) } ?: "n/a"} |"
+            )
+        }
+        appendLine()
+        appendLine("## Full Comparison")
+        appendLine()
+        appendLine(
+            "| Metric | Benchmark | Threads | Mode | Baseline | Baseline Error | Current | " +
+                "Current Error | Delta | Threshold | Status |"
+        )
+        appendLine(
             "|--------|-----------|---------|------|----------|----------------|---------|" +
-                "---------------|---------|-----------|--------|"
+                "---------------|-------|-----------|--------|"
         )
 
-        for (benchmark in allBenchmarks) {
+        allBenchmarks.forEach { benchmark ->
             val baseRow = baseline[benchmark]
             val latestRow = latest[benchmark]
 
             if (baseRow == null) {
                 val newRow = requireNotNull(latestRow)
                 val newScore = formatBenchmarkScore(newRow.score, newRow.scoreError, newRow.unit)
-                println(
+                appendLine(
                     "| result | ${newRow.displayName} | ${newRow.threads} | ${newRow.mode} | " +
                         "- | - | ${newScore.scoreWithUnit} | ${newScore.errorWithUnit} | NEW | - | NEW |"
                 )
-                continue
+                return@forEach
             }
             if (latestRow == null) {
                 val removedScore = formatBenchmarkScore(baseRow.score, baseRow.scoreError, baseRow.unit)
-                println(
+                appendLine(
                     "| result | ${baseRow.displayName} | ${baseRow.threads} | ${baseRow.mode} | " +
                         "${removedScore.scoreWithUnit} | ${removedScore.errorWithUnit} | - | - | " +
                         "REMOVED | - | REMOVED |"
                 )
-                continue
+                return@forEach
             }
             comparisonsByKey.getValue(benchmark)
                 .forEach { comparison ->
@@ -3220,22 +3325,56 @@ tasks.register("benchmarkCompare") {
                         comparison.currentError,
                         scale,
                     )
-                    println(
-                        "| ${comparison.metric} | ${comparison.displayName} | ${comparison.threads} | ${comparison.mode} | " +
-                            "${baselineScore.scoreWithUnit} | ${baselineScore.errorWithUnit} | " +
-                            "${currentScore.scoreWithUnit} | ${currentScore.errorWithUnit} | " +
+                    appendLine(
+                        "| ${comparison.metric} | ${comparison.displayName} | ${comparison.threads} | " +
+                            "${comparison.mode} | ${baselineScore.scoreWithUnit} | " +
+                            "${baselineScore.errorWithUnit} | ${currentScore.scoreWithUnit} | " +
+                            "${currentScore.errorWithUnit} | " +
                             "${comparison.deltaPercent?.let { String.format(Locale.US, "%+.1f%%", it) } ?: "n/a"} | " +
-                            "${String.format(Locale.US, "%.1f%%", comparison.thresholdPercent)} | ${comparison.status()} |"
+                            "${String.format(Locale.US, "%.1f%%", comparison.thresholdPercent)} | " +
+                            "${comparison.status()} |"
                     )
                 }
         }
+    }
+}
 
-        println()
-        println(
-            "Summary: $regressions regression(s), $improvements improvement(s), " +
-                "${comparisons.size - regressions - improvements} stable metric comparison(s), " +
-                "$coverageChanges coverage change(s)"
+tasks.register("benchmarkCompare") {
+    description = "Compare primary framework E2E benchmark results against baseline."
+    group = "benchmark"
+    mustRunAfter(baselineE2ETaskSpec.taskName)
+    outputs.file(baselineComparisonReport)
+    outputs.upToDateWhen { false }
+
+    doLast {
+        val baselineFile = frameworkE2EBaselineJson.asFile
+        if (!baselineFile.exists()) {
+            throw GradleException(
+                "Baseline not found: ${baselineFile.absolutePath}. " +
+                    "Run :wow-benchmarks:updateBenchmarkBaseline first."
+            )
+        }
+        val baseline = parseBaselineComparisonRows(baselineFile)
+        val latest = parsedComparisonRows(parsedFrameworkE2EReport().rows)
+        val allBenchmarks = (baseline.keys + latest.keys).sorted()
+        val comparisons = benchmarkMetricComparisons(baseline, latest)
+
+        val regressions = comparisons.count { it.status().endsWith("_REGRESSION") }
+        val coverageChanges = allBenchmarks.count { benchmark ->
+            baseline[benchmark] == null || latest[benchmark] == null
+        }
+        val report = renderBenchmarkComparisonReport(
+            baselineFile = baselineFile,
+            baseline = baseline,
+            latest = latest,
+            comparisons = comparisons,
         )
+        val reportFile = baselineComparisonReport.asFile
+        reportFile.parentFile.mkdirs()
+        reportFile.writeText(report)
+        println()
+        println(report)
+        logger.lifecycle("Benchmark comparison report generated: ${reportFile.absolutePath}")
 
         if (coverageChanges > 0) {
             throw GradleException("Benchmark coverage changed: $coverageChanges new or removed result row(s)")
