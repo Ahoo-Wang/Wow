@@ -16,28 +16,64 @@ package me.ahoo.wow.spring
 import me.ahoo.wow.messaging.dispatcher.MessageDispatcher
 import org.springframework.context.SmartLifecycle
 import java.time.Duration
-import java.util.concurrent.atomic.AtomicBoolean
 
 open class MessageDispatcherLauncher(
     private val messageDispatcher: MessageDispatcher,
     private val shutdownTimeout: Duration
 ) : SmartLifecycle {
-    private val running = AtomicBoolean(false)
+    private enum class LifecycleState {
+        STOPPED,
+        STARTING,
+        RUNNING,
+        STOP_REQUIRED
+    }
+
+    private val lifecycleMonitor = Any()
+
+    @Volatile
+    private var lifecycleState = LifecycleState.STOPPED
+
+    // MessageDispatcher does not expose a narrower recoverable failure type.
+    @Suppress("TooGenericExceptionCaught")
     override fun start() {
-        if (!running.compareAndSet(false, true)) {
-            return
+        synchronized(lifecycleMonitor) {
+            if (lifecycleState != LifecycleState.STOPPED) {
+                return
+            }
+            lifecycleState = LifecycleState.STARTING
+            try {
+                messageDispatcher.start()
+                lifecycleState = LifecycleState.RUNNING
+            } catch (startFailure: RuntimeException) {
+                lifecycleState = LifecycleState.STOP_REQUIRED
+                try {
+                    stopDispatcher()
+                } catch (cleanupFailure: RuntimeException) {
+                    if (cleanupFailure !== startFailure) {
+                        startFailure.addSuppressed(cleanupFailure)
+                    }
+                }
+                throw startFailure
+            }
         }
-        messageDispatcher.start()
     }
 
     override fun stop() {
-        if (!running.compareAndSet(true, false)) {
-            return
+        synchronized(lifecycleMonitor) {
+            if (lifecycleState == LifecycleState.STOPPED) {
+                return
+            }
+            lifecycleState = LifecycleState.STOP_REQUIRED
+            stopDispatcher()
         }
-        messageDispatcher.stop(shutdownTimeout)
     }
 
     override fun isRunning(): Boolean {
-        return running.get()
+        return lifecycleState != LifecycleState.STOPPED
+    }
+
+    private fun stopDispatcher() {
+        messageDispatcher.stop(shutdownTimeout)
+        lifecycleState = LifecycleState.STOPPED
     }
 }
