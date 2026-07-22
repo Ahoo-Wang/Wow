@@ -41,14 +41,19 @@ class SimpleMessageFunctionRegistrar<F : MessageFunction<*, *, *>> : MessageFunc
     private val registrar: CopyOnWriteArraySet<F> = CopyOnWriteArraySet()
     private val topicIndex: ConcurrentHashMap<MaterializedNamedAggregate, CopyOnWriteArraySet<F>> = ConcurrentHashMap()
     private val unindexedRegistrar: CopyOnWriteArraySet<F> = CopyOnWriteArraySet()
+    private val mutationLock = Any()
+    private val indexedTopics = HashMap<F, Set<MaterializedNamedAggregate>>()
 
-    private fun index(function: F) {
-        if (function.supportedTopics.isEmpty()) {
+    private fun index(
+        function: F,
+        supportedTopics: Set<MaterializedNamedAggregate>
+    ) {
+        if (supportedTopics.isEmpty()) {
             unindexedRegistrar.add(function)
             return
         }
-        function.supportedTopics.forEach { topic ->
-            topicIndex.compute(topic.materialize()) { _, functions ->
+        supportedTopics.forEach { topic ->
+            topicIndex.compute(topic) { _, functions ->
                 (functions ?: CopyOnWriteArraySet()).also {
                     it.add(function)
                 }
@@ -56,14 +61,16 @@ class SimpleMessageFunctionRegistrar<F : MessageFunction<*, *, *>> : MessageFunc
         }
     }
 
-    private fun deindex(function: F) {
-        if (function.supportedTopics.isEmpty()) {
+    private fun deindex(
+        function: F,
+        supportedTopics: Set<MaterializedNamedAggregate>
+    ) {
+        if (supportedTopics.isEmpty()) {
             unindexedRegistrar.remove(function)
             return
         }
-        function.supportedTopics.forEach { topic ->
-            val materializedTopic = topic.materialize()
-            topicIndex.computeIfPresent(materializedTopic) { _, functions ->
+        supportedTopics.forEach { topic ->
+            topicIndex.computeIfPresent(topic) { _, functions ->
                 functions.remove(function)
                 if (functions.isEmpty()) {
                     null
@@ -83,8 +90,16 @@ class SimpleMessageFunctionRegistrar<F : MessageFunction<*, *, *>> : MessageFunc
         log.info {
             "Register $function."
         }
-        if (registrar.add(function)) {
-            index(function)
+        synchronized(mutationLock) {
+            if (function in registrar) {
+                return
+            }
+            val supportedTopics = function.supportedTopics
+                .mapTo(LinkedHashSet()) { it.materialize() }
+            if (registrar.add(function)) {
+                indexedTopics[function] = supportedTopics
+                index(function, supportedTopics)
+            }
         }
     }
 
@@ -97,8 +112,10 @@ class SimpleMessageFunctionRegistrar<F : MessageFunction<*, *, *>> : MessageFunc
         log.info {
             "Unregister $function."
         }
-        if (registrar.remove(function)) {
-            deindex(function)
+        synchronized(mutationLock) {
+            if (registrar.remove(function)) {
+                deindex(function, indexedTopics.remove(function).orEmpty())
+            }
         }
     }
 
@@ -106,8 +123,7 @@ class SimpleMessageFunctionRegistrar<F : MessageFunction<*, *, *>> : MessageFunc
         val filteredRegistrar = SimpleMessageFunctionRegistrar<F>()
         val filteredFunctions = registrar.filter(predicate)
         filteredFunctions.forEach {
-            filteredRegistrar.registrar.add(it)
-            filteredRegistrar.index(it)
+            filteredRegistrar.register(it)
         }
         return filteredRegistrar
     }

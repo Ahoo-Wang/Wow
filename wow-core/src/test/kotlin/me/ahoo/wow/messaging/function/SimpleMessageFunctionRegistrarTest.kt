@@ -21,6 +21,11 @@ import me.ahoo.wow.messaging.TestNamedMessage
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import org.junit.jupiter.api.Test
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.concurrent.thread
 
 class SimpleMessageFunctionRegistrarTest {
 
@@ -65,6 +70,43 @@ class SimpleMessageFunctionRegistrarTest {
     }
 
     @Test
+    fun `concurrent unregister cannot leave a function in topic index`() {
+        val indexEntered = CountDownLatch(1)
+        val releaseIndex = CountDownLatch(1)
+        val function = BlockingTopicsRegistrarFunction(topic, indexEntered, releaseIndex)
+        val registrar = SimpleMessageFunctionRegistrar<BlockingTopicsRegistrarFunction>()
+        val registerFailure = AtomicReference<Throwable?>()
+        val unregisterFailure = AtomicReference<Throwable?>()
+        val registerThread = thread(start = false, name = "registrar-register") {
+            runCatching { registrar.register(function) }
+                .onFailure(registerFailure::set)
+        }
+        val unregisterThread = thread(start = false, name = "registrar-unregister") {
+            runCatching { registrar.unregister(function) }
+                .onFailure(unregisterFailure::set)
+        }
+
+        try {
+            registerThread.start()
+            indexEntered.await(5, TimeUnit.SECONDS).assert().isTrue()
+            unregisterThread.start()
+            waitUntilBlockedOrTerminated(unregisterThread)
+        } finally {
+            releaseIndex.countDown()
+        }
+        registerThread.join(5_000)
+        unregisterThread.join(5_000)
+
+        registerThread.isAlive.assert().isFalse()
+        unregisterThread.isAlive.assert().isFalse()
+        registerFailure.get().assert().isNull()
+        unregisterFailure.get().assert().isNull()
+        registrar.functions.assert().isEmpty()
+        registrar.supportedFunctions(TestNamedMessage(body = TestMessageBody())).toList()
+            .assert().isEmpty()
+    }
+
+    @Test
     fun `filter creates a scoped registrar without mutating the source registrar`() {
         val matching = RegistrarFunction(id = "matching", supportedTopics = setOf(topic))
         val skipped = RegistrarFunction(id = "skipped", supportedTopics = setOf(topic))
@@ -79,6 +121,41 @@ class SimpleMessageFunctionRegistrarTest {
         filtered.supportedFunctions(TestNamedMessage(body = TestMessageBody())).toList()
             .assert().isEqualTo(listOf(matching))
     }
+
+    private fun waitUntilBlockedOrTerminated(thread: Thread) {
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+        while (thread.isAlive && thread.state != Thread.State.BLOCKED && System.nanoTime() < deadline) {
+            Thread.yield()
+        }
+        (thread.state == Thread.State.BLOCKED || !thread.isAlive).assert().isTrue()
+    }
+}
+
+private class BlockingTopicsRegistrarFunction(
+    private val topic: NamedAggregate,
+    private val indexEntered: CountDownLatch,
+    private val releaseIndex: CountDownLatch,
+) : MessageFunction<Any, MessageExchange<*, *>, String> {
+    private val blockRegisterOnce = AtomicBoolean()
+
+    override val processor: Any = Any()
+    override val contextName: String = "wow-core-test"
+    override val processorName: String = "BlockingRegistrarProcessor"
+    override val name: String = "blocking"
+    override val functionKind: FunctionKind = FunctionKind.EVENT
+    override val supportedType: Class<*> = TestMessageBody::class.java
+    override val supportedTopics: Set<NamedAggregate>
+        get() {
+            if (Thread.currentThread().name == "registrar-register" && blockRegisterOnce.compareAndSet(false, true)) {
+                indexEntered.countDown()
+                check(releaseIndex.await(5, TimeUnit.SECONDS)) { "Timed out waiting to release topic indexing." }
+            }
+            return setOf(topic)
+        }
+
+    override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? = null
+
+    override fun invoke(exchange: MessageExchange<*, *>): String = name
 }
 
 private data class RegistrarFunction(
