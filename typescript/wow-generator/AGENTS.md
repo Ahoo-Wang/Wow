@@ -12,7 +12,7 @@ pnpm --filter fetcher-generator build
 pnpm --filter fetcher-generator test
 
 # Run a single test file
-pnpm --filter fetcher-generator vitest run src/index.test.ts
+pnpm --filter fetcher-generator vitest run test/index.test.ts
 
 # Lint
 pnpm --filter fetcher-generator lint
@@ -27,7 +27,7 @@ node dist/cli.js generate -i <openapi-spec> -o <output-dir> -t tsconfig.json
 ## Testing
 
 - Vitest with `globals: true` and `@vitest/coverage-v8`
-- Test files: `*.test.ts` alongside source files
+- Test files: `*.test.ts` in a `test/` directory at the package root (mirroring `src/`)
 - `--testTimeout=15000` (longer timeout for code generation tests)
 - Test spec fixture: `test/demo.spec.json`
 
