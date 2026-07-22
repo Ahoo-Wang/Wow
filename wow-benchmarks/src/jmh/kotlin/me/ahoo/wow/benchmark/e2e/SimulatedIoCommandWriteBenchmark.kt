@@ -18,6 +18,7 @@ import me.ahoo.wow.benchmark.scenario.CommandDispatcherScenario
 import me.ahoo.wow.benchmark.scenario.SchedulerStrategy
 import me.ahoo.wow.benchmark.scenario.consumeWowResult
 import me.ahoo.wow.benchmark.scenario.toSchedulerSupplier
+import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.mock.DelayEventStore
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Level
@@ -61,8 +62,16 @@ open class SimulatedIoCommandWriteBenchmark {
     fun setup() {
         failures.set(0)
         val delay = parseDelay(ioDelay)
+        // Bypass DelayEventStore for the zero-delay row: delaySubscription(Duration.ZERO) still
+        // schedules a timer task, which would add an unrelated reactor-scheduler handoff and
+        // contaminate the "pure framework" baseline point this row is meant to provide.
+        val eventStore = if (delay.isZero) {
+            InMemoryEventStore()
+        } else {
+            DelayEventStore(delaySupplier = { delay })
+        }
         commandDispatcherScenario = CommandDispatcherScenario.create(
-            eventStore = DelayEventStore(delaySupplier = { delay }),
+            eventStore = eventStore,
             schedulerSupplier = SchedulerStrategy.valueOf(schedulerStrategy).toSchedulerSupplier(),
         )
     }

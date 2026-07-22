@@ -172,8 +172,11 @@ private class DispatchChainHandler(
             Blackhole.consumeCPU(SIMULATED_CPU_TOKENS)
         }
         val completionSink = context.getAttribute(DISPATCH_CHAIN_COMPLETION_KEY) as? Sinks.Empty<Void>
-        completionSink?.tryEmitEmpty()
-        return Mono.empty()
+        // Emit the completion signal from the returned Mono's terminal callback rather than
+        // synchronously here, so the benchmark only unblocks after the dispatch chain
+        // (concatMap + its doFinally bookkeeping) has fully completed handling this exchange.
+        val done: Mono<Void> = Mono.empty()
+        return done.doOnTerminate { completionSink?.tryEmitEmpty() }
     }
 
     private companion object {
