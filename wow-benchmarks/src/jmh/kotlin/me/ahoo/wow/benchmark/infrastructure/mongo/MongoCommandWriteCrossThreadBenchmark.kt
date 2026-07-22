@@ -13,14 +13,13 @@
 
 package me.ahoo.wow.benchmark.infrastructure.mongo
 
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
 import me.ahoo.wow.benchmark.scenario.CommandDispatcherScenario
 import me.ahoo.wow.benchmark.scenario.SchedulerStrategy
 import me.ahoo.wow.benchmark.scenario.consumeWowResult
+import me.ahoo.wow.benchmark.scenario.toSchedulerSupplier
 import me.ahoo.wow.infrastructure.mongo.MongoBenchmarkFixture
 import me.ahoo.wow.mongo.MongoEventStore
-import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Level
 import org.openjdk.jmh.annotations.Param
@@ -29,9 +28,6 @@ import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.infra.Blackhole
-import reactor.core.publisher.Mono
-import reactor.core.scheduler.Scheduler
-import reactor.core.scheduler.Schedulers
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -67,7 +63,7 @@ open class MongoCommandWriteCrossThreadBenchmark {
         fixture = MongoBenchmarkFixture()
         commandDispatcherScenario = CommandDispatcherScenario.create(
             eventStore = MongoEventStore(fixture.database),
-            schedulerSupplier = schedulerSupplierFor(SchedulerStrategy.valueOf(schedulerStrategy)),
+            schedulerSupplier = SchedulerStrategy.valueOf(schedulerStrategy).toSchedulerSupplier(),
         )
     }
 
@@ -95,24 +91,6 @@ open class MongoCommandWriteCrossThreadBenchmark {
             commandDispatcherScenario.commandGateway
                 .sendAndWaitForProcessed(BenchmarkCommands.newAggregateAddCartItem())
                 .block()
-        }
-    }
-
-    private companion object {
-        fun schedulerSupplierFor(strategy: SchedulerStrategy): AggregateSchedulerSupplier =
-            when (strategy) {
-                SchedulerStrategy.PARALLEL -> me.ahoo.wow.BenchmarkAggregateSchedulerSupplier()
-                SchedulerStrategy.IMMEDIATE -> ImmediateAggregateSchedulerSupplier
-            }
-
-        /**
-         * Returns [Schedulers.immediate] for every aggregate so the dispatcher's `publishOn`
-         * becomes a no-op, keeping the full command-write round trip on the calling thread.
-         */
-        object ImmediateAggregateSchedulerSupplier : AggregateSchedulerSupplier {
-            override fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler = Schedulers.immediate()
-
-            override fun stopGracefully(): Mono<Void> = Mono.empty()
         }
     }
 }

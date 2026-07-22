@@ -15,11 +15,14 @@ package me.ahoo.wow.benchmark.infrastructure.mongo
 
 import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
 import me.ahoo.wow.benchmark.scenario.CommandDispatcherScenario
+import me.ahoo.wow.benchmark.scenario.SchedulerStrategy
 import me.ahoo.wow.benchmark.scenario.consumeWowResult
+import me.ahoo.wow.benchmark.scenario.toSchedulerSupplier
 import me.ahoo.wow.infrastructure.mongo.MongoBenchmarkFixture
 import me.ahoo.wow.mongo.MongoEventStore
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Level
+import org.openjdk.jmh.annotations.Param
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
@@ -28,7 +31,11 @@ import org.openjdk.jmh.infra.Blackhole
 import java.util.concurrent.atomic.AtomicInteger
 
 @State(Scope.Benchmark)
+@Suppress("VarCouldBeVal") // JMH injects @Param fields via reflection, so they must be `var`.
 open class MongoCommandWriteE2EBenchmark {
+    @Param("PARALLEL", "IMMEDIATE")
+    private var schedulerStrategy: String = SchedulerStrategy.PARALLEL.name
+
     private lateinit var fixture: MongoBenchmarkFixture
     private lateinit var commandDispatcherScenario: CommandDispatcherScenario
     private val failures = AtomicInteger()
@@ -39,6 +46,7 @@ open class MongoCommandWriteE2EBenchmark {
         fixture = MongoBenchmarkFixture()
         commandDispatcherScenario = CommandDispatcherScenario.create(
             eventStore = MongoEventStore(fixture.database),
+            schedulerSupplier = SchedulerStrategy.valueOf(schedulerStrategy).toSchedulerSupplier(),
         )
     }
 

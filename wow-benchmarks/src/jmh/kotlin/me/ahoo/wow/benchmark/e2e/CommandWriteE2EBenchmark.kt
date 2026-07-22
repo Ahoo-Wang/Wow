@@ -21,7 +21,9 @@ import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
 import me.ahoo.wow.benchmark.fixture.BenchmarkIdempotency
 import me.ahoo.wow.benchmark.scenario.CommandDispatcherScenario
 import me.ahoo.wow.benchmark.scenario.CommandGatewayScenario
+import me.ahoo.wow.benchmark.scenario.SchedulerStrategy
 import me.ahoo.wow.benchmark.scenario.consumeWowResult
+import me.ahoo.wow.benchmark.scenario.toSchedulerSupplier
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.validation.NoOpValidator
@@ -52,6 +54,7 @@ import org.openjdk.jmh.infra.Blackhole
 import java.util.concurrent.atomic.AtomicInteger
 
 @State(Scope.Benchmark)
+@Suppress("VarCouldBeVal") // JMH injects @Param fields via reflection, so they must be `var`.
 open class CommandWriteE2EBenchmark {
     @Param(
         "ceiling",
@@ -60,6 +63,9 @@ open class CommandWriteE2EBenchmark {
     )
     lateinit var scenario: String
 
+    @Param("PARALLEL", "IMMEDIATE")
+    private var schedulerStrategy: String = SchedulerStrategy.PARALLEL.name
+
     private lateinit var commandDispatcherScenario: CommandDispatcherScenario
     private lateinit var sentGatewayScenario: CommandGatewayScenario
     private val failures = AtomicInteger()
@@ -67,6 +73,7 @@ open class CommandWriteE2EBenchmark {
     @Setup(Level.Iteration)
     fun setup() {
         failures.set(0)
+        val schedulerSupplier = SchedulerStrategy.valueOf(schedulerStrategy).toSchedulerSupplier()
         commandDispatcherScenario = when (scenario) {
             "ceiling" -> createScenario(
                 eventStore = NoopEventStore,
@@ -74,11 +81,14 @@ open class CommandWriteE2EBenchmark {
                     NoOpIdempotencyChecker
                 },
                 validator = NoOpValidator,
+                schedulerSupplier = schedulerSupplier,
             )
 
-            "noop-store" -> createScenario(eventStore = NoopEventStore)
-            "in-memory-new-aggregate" -> createScenario(eventStore = InMemoryEventStore())
-            "in-memory-growing-stream" -> createScenario(eventStore = InMemoryEventStore())
+            "noop-store" -> createScenario(eventStore = NoopEventStore, schedulerSupplier = schedulerSupplier)
+            "in-memory-new-aggregate" ->
+                createScenario(eventStore = InMemoryEventStore(), schedulerSupplier = schedulerSupplier)
+            "in-memory-growing-stream" ->
+                createScenario(eventStore = InMemoryEventStore(), schedulerSupplier = schedulerSupplier)
             else -> error("Unsupported command write E2E scenario: $scenario")
         }
         sentGatewayScenario = createSentScenario()
