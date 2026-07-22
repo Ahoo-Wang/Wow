@@ -1167,6 +1167,12 @@ fun StringBuilder.appendBenchmarkEnvironment(
     appendLine()
 }
 
+fun formatRequiredServiceEndpoints(requiredServices: List<BenchmarkRequiredService>): String {
+    return requiredServices.joinToString(", ") { service ->
+        "${service.service}=${service.host}:${service.port}"
+    }
+}
+
 fun StringBuilder.appendBenchmarkRunProvenance(manifests: List<ParsedBenchmarkRunManifest>) {
     validateBenchmarkRunManifests(
         manifests = manifests,
@@ -1183,6 +1189,12 @@ fun StringBuilder.appendBenchmarkRunProvenance(manifests: List<ParsedBenchmarkRu
     appendLine("- **Runtime OS**: ${reference.osName} ${reference.osVersion} ${reference.osArch}")
     appendLine("- **CPU Cores**: ${reference.availableProcessors}")
     appendLine("- **Physical Memory**: ${formatMemoryBytes(reference.physicalMemoryBytes)}")
+    manifests.groupBy { it.suite }
+        .mapValues { (_, suiteManifests) -> suiteManifests.first().requiredServices }
+        .filterValues { it.isNotEmpty() }
+        .forEach { (suite, requiredServices) ->
+            appendLine("- **$suite Required Services**: `${formatRequiredServiceEndpoints(requiredServices)}`")
+        }
     appendLine()
     appendLine("| Suite | Profile | Threads | Run ID | Started | Completed | Profilers | Rows | Result SHA-256 |")
     appendLine("|-------|---------|---------|--------|---------|-----------|-----------|------|----------------|")
@@ -1490,6 +1502,7 @@ data class ParsedBenchmarkRunManifest(
     val jvmArgs: List<String>,
     val requestedProfilers: List<String>,
     val resolvedProfilerArgs: List<String>,
+    val requiredServices: List<BenchmarkRequiredService>,
     val javaVersion: String,
     val vmName: String,
     val vmVersion: String,
@@ -1712,12 +1725,50 @@ fun manifestStringMap(container: Map<*, *>, key: String, source: String): Map<St
     }
 }
 
+fun manifestRequiredServices(container: Map<*, *>, key: String, source: String): List<BenchmarkRequiredService> {
+    val values = container[key] as? List<*>
+        ?: throw GradleException("Benchmark manifest is missing array '$key': $source")
+    val requiredServices = values.mapIndexed { index, value ->
+        val serviceSource = "$key[$index]"
+        val service = value as? Map<*, *>
+            ?: throw GradleException("Benchmark manifest '$serviceSource' must be an object: $source")
+        val serviceName = (service["service"] as? String)?.takeIf { it.isNotBlank() }
+            ?: throw GradleException("Benchmark manifest '$serviceSource.service' must be a non-blank string: $source")
+        val host = (service["host"] as? String)?.takeIf { it.isNotBlank() }
+            ?: throw GradleException("Benchmark manifest '$serviceSource.host' must be a non-blank string: $source")
+        val portNumber = service["port"] as? Number
+        val port = portNumber?.toLong()
+            ?.takeIf { portNumber.toDouble() == it.toDouble() && it in 1..65535 }
+            ?.toInt()
+            ?: throw GradleException("Benchmark manifest '$serviceSource.port' must be a valid TCP port: $source")
+        BenchmarkRequiredService(service = serviceName, host = host, port = port)
+    }
+    val duplicateServices = requiredServices.groupingBy { it.service }.eachCount().filterValues { it > 1 }.keys
+    if (duplicateServices.isNotEmpty()) {
+        throw GradleException("Benchmark manifest '$key' contains duplicate services $duplicateServices: $source")
+    }
+    return requiredServices
+}
+
 fun requireManifestValue(actual: Any?, expected: Any?, field: String, source: String) {
     if (actual != expected) {
         throw GradleException(
             "Benchmark manifest '$field' mismatch in $source: expected [$expected], found [$actual]."
         )
     }
+}
+
+fun requireManifestServiceIdentity(
+    actual: List<BenchmarkRequiredService>,
+    expected: List<BenchmarkRequiredService>,
+    source: String,
+) {
+    requireManifestValue(
+        actual.map { it.service },
+        expected.map { it.service },
+        "runSpec.requiredServices services",
+        source,
+    )
 }
 
 fun parseBenchmarkRunManifest(
@@ -1800,12 +1851,8 @@ fun parseBenchmarkRunManifest(
         "runSpec.requestedProfilers",
         sourcePath,
     )
-    requireManifestValue(
-        runSpec["requiredServices"],
-        group.suite.requiredServicesRunSpec(),
-        "runSpec.requiredServices",
-        sourcePath,
-    )
+    val requiredServices = manifestRequiredServices(runSpec, "requiredServices", sourcePath)
+    requireManifestServiceIdentity(requiredServices, group.suite.requiredServices, sourcePath)
 
     if (!resultFile.isFile || !humanFile.isFile) {
         throw GradleException("Benchmark artifacts referenced by manifest are missing: $sourcePath")
@@ -1853,6 +1900,7 @@ fun parseBenchmarkRunManifest(
         jvmArgs = manifestStringList(runSpec, "jvmArgs", sourcePath),
         requestedProfilers = manifestStringList(runSpec, "requestedProfilers", sourcePath),
         resolvedProfilerArgs = manifestStringList(runSpec, "resolvedProfilerArgs", sourcePath),
+        requiredServices = requiredServices,
         javaVersion = manifestString(runtime, "javaVersion", sourcePath),
         vmName = manifestString(runtime, "vmName", sourcePath),
         vmVersion = manifestString(runtime, "vmVersion", sourcePath),
@@ -1891,6 +1939,15 @@ fun validateBenchmarkRunManifests(
     comparableFields.forEach { (field, values) ->
         if (values.distinct().size != 1) {
             throw GradleException("Benchmark manifests mix different $field values for $context: ${values.distinct()}")
+        }
+    }
+    manifests.groupBy { it.suite }.forEach { (suite, suiteManifests) ->
+        val requiredServices = suiteManifests.map { it.requiredServices }
+        if (requiredServices.distinct().size != 1) {
+            throw GradleException(
+                "Benchmark manifests mix different required services for suite '$suite' in $context: " +
+                    requiredServices.distinct()
+            )
         }
     }
 }
@@ -2297,8 +2354,78 @@ val verifyBenchmarkReportFormatting = tasks.register("verifyBenchmarkReportForma
     }
 }
 
+val verifyBenchmarkRequiredServiceManifest = tasks.register("verifyBenchmarkRequiredServiceManifest") {
+    description = "Verify benchmark required-service manifest parsing and identity rules."
+    group = "verification"
+
+    doLast {
+        val manifest = mapOf(
+            "requiredServices" to listOf(
+                mapOf("service" to "Redis", "host" to "redis.internal", "port" to 6380),
+                mapOf("service" to "MongoDB", "host" to "mongo.internal", "port" to 27018),
+            )
+        )
+        val requiredServices = manifestRequiredServices(manifest, "requiredServices", "verification")
+        check(
+            requiredServices == listOf(
+                BenchmarkRequiredService("Redis", "redis.internal", 6380),
+                BenchmarkRequiredService("MongoDB", "mongo.internal", 27018),
+            )
+        )
+        check(
+            formatRequiredServiceEndpoints(requiredServices) ==
+                "Redis=redis.internal:6380, MongoDB=mongo.internal:27018"
+        )
+        requireManifestServiceIdentity(
+            actual = requiredServices,
+            expected = listOf(
+                BenchmarkRequiredService("Redis", "localhost", 6379),
+                BenchmarkRequiredService("MongoDB", "localhost", 27017),
+            ),
+            source = "verification",
+        )
+        check(
+            runCatching {
+                requireManifestServiceIdentity(
+                    actual = requiredServices,
+                    expected = listOf(BenchmarkRequiredService("Redis", "localhost", 6379)),
+                    source = "verification",
+                )
+            }.exceptionOrNull() is GradleException
+        )
+        check(
+            runCatching {
+                manifestRequiredServices(
+                    mapOf(
+                        "requiredServices" to listOf(
+                            mapOf("service" to "Redis", "host" to "localhost", "port" to 0),
+                        )
+                    ),
+                    "requiredServices",
+                    "verification",
+                )
+            }.exceptionOrNull() is GradleException
+        )
+        check(
+            runCatching {
+                manifestRequiredServices(
+                    mapOf(
+                        "requiredServices" to listOf(
+                            mapOf("service" to "Redis", "host" to "redis-a", "port" to 6379),
+                            mapOf("service" to "Redis", "host" to "redis-b", "port" to 6380),
+                        )
+                    ),
+                    "requiredServices",
+                    "verification",
+                )
+            }.exceptionOrNull() is GradleException
+        )
+    }
+}
+
 tasks.named("check") {
     dependsOn(verifyBenchmarkReportFormatting)
+    dependsOn(verifyBenchmarkRequiredServiceManifest)
 }
 
 fun StringBuilder.appendBenchmarkTable(rows: List<ParsedBenchmarkResult>) {
