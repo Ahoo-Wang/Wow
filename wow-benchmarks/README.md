@@ -13,6 +13,7 @@ Use it for three jobs:
 |-------|-------|---------|------------|
 | Smoke | A small cross-section of component, Framework E2E, and WebFlux adapter benchmarks. | PR safety; proves the JMH jar and selected benchmark paths still run. | `benchmarkSmoke` |
 | Framework E2E | Command write path with in-memory or noop infrastructure. | Quick feedback, bounded formal throughput baselines, and optional latency diagnosis. | `benchmarkQuickE2E`, `benchmarkBaselineE2E`, `benchmarkLatencyE2E` |
+| Batch CommandWrite E2E | Paired 32-command workloads using either 32 blocking boundaries or one sequential/concurrent batch boundary. | Isolating the net effect of amortizing single-command `block()` overhead. | `benchmarkQuickBatchE2E` |
 | Component | Isolated command, aggregate, event, wait, serialization, accessor, and pipeline pieces. | Quick feedback, targeted diagnosis, or rare exhaustive catalog checks. | `benchmarkQuickComponent`, `benchmarkDiagnosticComponent`, `benchmarkExhaustiveComponent` |
 | WebFlux Adapter | Spring WebFlux request, response, SSE, and aggregate tracing adapter paths without a real Netty server. | Diagnosing HTTP adapter overhead and WebFlux-specific allocation hot spots. These results are not Framework E2E conclusion data. | `benchmarkQuickWebFlux`, `benchmarkExhaustiveWebFlux` |
 | Infrastructure E2E | Command write path through Redis or Mongo persistence. | Storage-path bottleneck checks when local services are available. | `benchmarkQuickInfrastructureE2E`, `benchmarkBaselineInfrastructureE2E` |
@@ -36,6 +37,16 @@ Smoke is intentionally short and does not produce a performance report.
 
 This writes the checked-in quick Framework E2E report to [`results/reports/quick-framework-e2e.md`](results/reports/quick-framework-e2e.md).
 Quick uses throughput mode, a `1x2s` warmup, `2x3s` measurements, one fork, the GC profiler, and a 1 GiB heap. Treat it as directional local feedback; use Baseline E2E before making formal performance claims.
+
+### Batch CommandWrite E2E Report
+
+```bash
+./gradlew :wow-benchmarks:benchmarkQuickBatchE2E :wow-benchmarks:generateBatchBenchmarkReport
+```
+
+This writes the checked-in Batch CommandWrite report to [`results/reports/quick-batch-command-write-e2e.md`](results/reports/quick-batch-command-write-e2e.md).
+Each JMH invocation sends 32 independent commands through the complete command-write path. The paired workloads compare 32 individual `block()` calls with one reactive batch using concurrency `1` or `4`. `@OperationsPerInvocation(32)` normalizes throughput and allocation to one command, not one batch. The suite uses one JMH thread and remains separate from Framework Quick and Baseline so it does not lengthen their iteration loop.
+The nine-workload matrix has a theoretical measurement floor of 72 seconds; the reference validation run completed in `1m19s`.
 
 ### Infrastructure E2E Report
 
@@ -146,6 +157,7 @@ The Gradle model keeps four responsibilities separate: `BenchmarkSuite` owns wor
 | Path | Contents | Commit Policy |
 |------|----------|---------------|
 | `wow-benchmarks/results/reports/quick-framework-e2e.md` | Generated quick Framework E2E report. | Commit when intentionally updating the visible benchmark report. |
+| `wow-benchmarks/results/reports/quick-batch-command-write-e2e.md` | Generated quick Batch CommandWrite E2E report. | Commit when intentionally updating the visible batch benchmark report. |
 | `wow-benchmarks/results/reports/quick-infrastructure-e2e.md` | Quick Infrastructure E2E report generated on demand; it may be absent in a fresh checkout. | Commit only with intentionally collected, provenance-backed Redis/Mongo evidence. |
 | `wow-benchmarks/results/reports/quick-grouped.md` | Generated quick E2E/component/infrastructure grouped report. | Commit when intentionally updating grouped benchmark evidence. |
 | `wow-benchmarks/results/reports/baseline-grouped.md` | Generated Baseline E2E/exhaustive Component/infrastructure grouped report. | Commit when intentionally updating formal benchmark evidence. |

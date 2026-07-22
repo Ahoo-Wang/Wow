@@ -275,6 +275,10 @@ val quickProfile = BenchmarkRunProfile(
     includeAsyncProfiler = false,
 )
 
+val quickBatchE2EProfile = quickProfile.copy(
+    threads = listOf(1),
+)
+
 val quickWebFluxProfile = BenchmarkRunProfile(
     id = "quick",
     warmupIterations = 0,
@@ -396,6 +400,7 @@ val smokeSuite = BenchmarkSuite(
         "me.ahoo.wow.benchmark.component.AccessorComponentBenchmark.functionAccessorInvoke1",
         "me.ahoo.wow.benchmark.component.SerializationComponentBenchmark.commandSerializeDeserialize",
         "me.ahoo.wow.benchmark.e2e.CommandWriteE2EBenchmark.sendAndWaitProcessed",
+        "me.ahoo.wow.benchmark.e2e.BatchCommandWriteE2EBenchmark.sendBatchSequentialAndWaitProcessed",
         "me.ahoo.wow.benchmark.webflux.WebFluxSmokeBenchmark.monoCommandResultServerResponseOnly",
     ),
     resultFileName = "benchmark-smoke.json",
@@ -415,6 +420,18 @@ val frameworkE2ESuite = BenchmarkSuite(
     humanFileName = "framework-e2e-human.txt",
     requiredForGroupedReport = true,
     performanceConclusionSource = true,
+)
+
+val batchCommandWriteE2ESuite = BenchmarkSuite(
+    id = "batch-command-write-e2e",
+    displayName = "Batch CommandWrite E2E",
+    includeClasses = listOf(
+        "me.ahoo.wow.benchmark.e2e.BatchCommandWriteE2EBenchmark",
+    ),
+    resultFileName = "batch-command-write-e2e.json",
+    humanFileName = "batch-command-write-e2e-human.txt",
+    requiredForGroupedReport = false,
+    performanceConclusionSource = false,
 )
 
 val infrastructureE2ESuite = BenchmarkSuite(
@@ -583,6 +600,13 @@ val quickE2ETaskSpec = BenchmarkTaskSpec(
     description = "Runs the bounded Framework E2E feedback catalog.",
 )
 
+val quickBatchE2ETaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkQuickBatchE2E",
+    suite = batchCommandWriteE2ESuite,
+    profile = quickBatchE2EProfile,
+    description = "Runs the single-subscription Batch CommandWrite E2E feedback catalog.",
+)
+
 val baselineE2ETaskSpec = BenchmarkTaskSpec(
     taskName = "benchmarkBaselineE2E",
     suite = frameworkE2ESuite,
@@ -670,6 +694,7 @@ val asyncWebFluxTaskSpec = BenchmarkTaskSpec(
 val benchmarkTaskSpecs = listOf(
     smokeTaskSpec,
     quickE2ETaskSpec,
+    quickBatchE2ETaskSpec,
     baselineE2ETaskSpec,
     latencyE2ETaskSpec,
     quickInfrastructureE2ETaskSpec,
@@ -1357,6 +1382,7 @@ val resultsDir = layout.projectDirectory.dir("results")
 val frameworkE2EBaselineJson = resultsDir.file("baselines/framework-e2e.json")
 val reportsDir = resultsDir.dir("reports")
 val benchmarkReportFile = reportsDir.file("quick-framework-e2e.md")
+val batchBenchmarkReportFile = reportsDir.file("quick-batch-command-write-e2e.md")
 val infrastructureBenchmarkReportFile = reportsDir.file("quick-infrastructure-e2e.md")
 val webFluxBenchmarkReportFile = reportsDir.file("quick-webflux.md")
 val baselineGroupedBenchmarkReport = reportsDir.file("baseline-grouped.md")
@@ -1438,7 +1464,13 @@ data class FormattedBenchmarkScore(
     val score: String,
     val error: String,
     val unit: String,
-)
+) {
+    val scoreWithUnit: String
+        get() = "$score $unit"
+
+    val errorWithUnit: String
+        get() = if (error == "-") "-" else "$error $unit"
+}
 
 data class BenchmarkMetricScale(
     val multiplier: Double,
@@ -1958,10 +1990,22 @@ fun formatBenchmarkScore(score: Double, scoreError: Double?, unit: String): Form
     return formatBenchmarkMetric(score, scoreError, unit)
 }
 
+fun formatScaledBenchmarkScore(
+    score: Double,
+    scoreError: Double?,
+    scale: BenchmarkMetricScale,
+): FormattedBenchmarkScore {
+    return FormattedBenchmarkScore(
+        score = formatMetricNumber(score * scale.multiplier),
+        error = formatMetricError(scoreError, scale),
+        unit = scale.unit,
+    )
+}
+
 fun formatAllocationBytes(allocationBytesPerOp: Double?): String {
     return allocationBytesPerOp?.let { allocation ->
         val formatted = formatBenchmarkMetric(allocation, null, "B/op")
-        "${formatted.score} ${formatted.unit}"
+        formatted.scoreWithUnit
     } ?: "-"
 }
 
@@ -1976,6 +2020,9 @@ val verifyBenchmarkReportFormatting = tasks.register("verifyBenchmarkReportForma
                 FormattedBenchmarkScore("668.85", "±1.24", "M ops/s")
         )
         check(formatBenchmarkScore(0.000_85, 0.000_02, "ms/op") == FormattedBenchmarkScore("850", "±20", "ns/op"))
+        check(formatBenchmarkScore(1_573.91, 42.0, "ops/s").scoreWithUnit == "1.57 k ops/s")
+        check(formatBenchmarkScore(1_573.91, 42.0, "ops/s").errorWithUnit == "±0.04 k ops/s")
+        check(formatBenchmarkScore(1_573.91, null, "ops/s").errorWithUnit == "-")
         check(formatAllocationBytes(2_982_851.6) == "2.84 MiB/op")
         check(formatAllocationBytes(272.0) == "272 B/op")
         check(formatAllocationBytes(0.0) == "0 B/op")
@@ -1990,8 +2037,8 @@ tasks.named("check") {
 }
 
 fun StringBuilder.appendBenchmarkTable(rows: List<ParsedBenchmarkResult>) {
-    appendLine("| Suite | Benchmark | Threads | Mode | Score | Error | Unit | gc.alloc.rate.norm |")
-    appendLine("|-------|-----------|---------|------|-------|-------|------|-------------------|")
+    appendLine("| Suite | Benchmark | Threads | Mode | Score | Error | gc.alloc.rate.norm |")
+    appendLine("|-------|-----------|---------|------|-------|-------|-------------------|")
     rows.sortedWith(
         compareBy<ParsedBenchmarkResult> { it.suite.displayName }
             .thenBy { it.displayName }
@@ -2002,15 +2049,15 @@ fun StringBuilder.appendBenchmarkTable(rows: List<ParsedBenchmarkResult>) {
             val score = formatBenchmarkScore(row.score, row.scoreError, row.unit)
             appendLine(
                 "| ${row.suite.displayName} | ${row.displayName} | ${row.threads} | ${row.mode} | " +
-                    "${score.score} | ${score.error} | ${score.unit} | " +
+                    "${score.scoreWithUnit} | ${score.errorWithUnit} | " +
                     "${formatAllocationBytes(row.allocationBytesPerOp)} |"
             )
         }
 }
 
 fun StringBuilder.appendThroughputBottlenecks(rows: List<ParsedBenchmarkResult>) {
-    appendLine("| Suite | Threads | Benchmark | Score | Error | Unit |")
-    appendLine("|-------|---------|-----------|-------|-------|------|")
+    appendLine("| Suite | Threads | Benchmark | Score | Error |")
+    appendLine("|-------|---------|-----------|-------|-------|")
     rows.filter { it.unit.contains("ops", ignoreCase = true) }
         .sortedBy { it.score }
         .take(10)
@@ -2018,7 +2065,7 @@ fun StringBuilder.appendThroughputBottlenecks(rows: List<ParsedBenchmarkResult>)
             val score = formatBenchmarkScore(row.score, row.scoreError, row.unit)
             appendLine(
                 "| ${row.suite.displayName} | ${row.threads} | ${row.displayName} | " +
-                    "${score.score} | ${score.error} | ${score.unit} |"
+                    "${score.scoreWithUnit} | ${score.errorWithUnit} |"
             )
         }
 }
@@ -2037,8 +2084,8 @@ fun allocationBottleneckRows(rows: List<ParsedBenchmarkResult>): List<ParsedBenc
 }
 
 fun StringBuilder.appendAllocationBottlenecks(rows: List<ParsedBenchmarkResult>) {
-    appendLine("| Suite | Threads | Benchmark | Mode | Allocation | Error | Score | Unit |")
-    appendLine("|-------|---------|-----------|------|------------|-------|-------|------|")
+    appendLine("| Suite | Threads | Benchmark | Mode | Allocation | Allocation Error | Score |")
+    appendLine("|-------|---------|-----------|------|------------|------------------|-------|")
     allocationBottleneckRows(rows)
         .forEach { row ->
             val allocation = formatBenchmarkMetric(
@@ -2049,9 +2096,7 @@ fun StringBuilder.appendAllocationBottlenecks(rows: List<ParsedBenchmarkResult>)
             val score = formatBenchmarkScore(row.score, row.scoreError, row.unit)
             appendLine(
                 "| ${row.suite.displayName} | ${row.threads} | ${row.displayName} | ${row.mode} | " +
-                    "${allocation.score} ${allocation.unit} | " +
-                    "${if (allocation.error == "-") "-" else "${allocation.error} ${allocation.unit}"} | " +
-                    "${score.score} | ${score.unit} |"
+                    "${allocation.scoreWithUnit} | ${allocation.errorWithUnit} | ${score.scoreWithUnit} |"
             )
         }
 }
@@ -2061,6 +2106,7 @@ fun StringBuilder.appendBenchmarkValueGuide() {
     appendLine()
     appendLine("- Throughput uses decimal prefixes: `k` = 1,000, `M` = 1,000,000, `G` = 1,000,000,000.")
     appendLine("- Allocation uses binary prefixes: `KiB` = 1,024 bytes, `MiB` = 1,048,576 bytes.")
+    appendLine("- Every displayed score and error keeps its scaled unit attached, for example `1.57 k ops/s`.")
     appendLine("- Average latency is automatically scaled to `ns/op`, `µs/op`, `ms/op`, or `s/op`.")
     appendLine("- `±` is the JMH-reported error. Scaling changes presentation only; calculations keep raw precision.")
     appendLine()
@@ -2343,6 +2389,31 @@ tasks.register("generateBenchmarkReport") {
         outputFile.parentFile.mkdirs()
         outputFile.writeText(report)
         logger.lifecycle("Benchmark report generated: ${outputFile.absolutePath}")
+    }
+}
+
+tasks.register("generateBatchBenchmarkReport") {
+    description = "Generate quick Batch CommandWrite E2E benchmark report from JMH JSON results."
+    group = "benchmark"
+    mustRunAfter("benchmarkQuickBatchE2E")
+    outputs.file(batchBenchmarkReportFile)
+    outputs.upToDateWhen { false }
+
+    doLast {
+        val report = renderSingleBenchmarkReport(
+            group = benchmarkResultGroup(quickBatchE2ETaskSpec),
+            title = "Quick Batch CommandWrite E2E Benchmark Report",
+            command = "./gradlew :wow-benchmarks:benchmarkQuickBatchE2E " +
+                ":wow-benchmarks:generateBatchBenchmarkReport",
+            description = "Quick Batch CommandWrite E2E compares 32 individual blocking boundaries with " +
+                "one sequential or concurrent reactive batch boundary. JMH normalizes scores per command, " +
+                "so the results isolate the net effect of amortizing per-block overhead.",
+        )
+
+        val outputFile = batchBenchmarkReportFile.asFile
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(report)
+        logger.lifecycle("Batch CommandWrite benchmark report generated: ${outputFile.absolutePath}")
     }
 }
 
@@ -2882,11 +2953,11 @@ tasks.register("benchmarkCompare") {
         println()
         println(
             "| Metric | Benchmark | Threads | Mode | Baseline | Baseline Error | Current | " +
-                "Current Error | Unit | Delta % | Threshold | Status |"
+                "Current Error | Delta % | Threshold | Status |"
         )
         println(
             "|--------|-----------|---------|------|----------|----------------|---------|" +
-                "---------------|------|---------|-----------|--------|"
+                "---------------|---------|-----------|--------|"
         )
 
         for (benchmark in allBenchmarks) {
@@ -2898,7 +2969,7 @@ tasks.register("benchmarkCompare") {
                 val newScore = formatBenchmarkScore(newRow.score, newRow.scoreError, newRow.unit)
                 println(
                     "| result | ${newRow.displayName} | ${newRow.threads} | ${newRow.mode} | " +
-                        "- | - | ${newScore.score} | ${newScore.error} | ${newScore.unit} | NEW | - | NEW |"
+                        "- | - | ${newScore.scoreWithUnit} | ${newScore.errorWithUnit} | NEW | - | NEW |"
                 )
                 continue
             }
@@ -2906,7 +2977,7 @@ tasks.register("benchmarkCompare") {
                 val removedScore = formatBenchmarkScore(baseRow.score, baseRow.scoreError, baseRow.unit)
                 println(
                     "| result | ${baseRow.displayName} | ${baseRow.threads} | ${baseRow.mode} | " +
-                        "${removedScore.score} | ${removedScore.error} | - | - | ${removedScore.unit} | " +
+                        "${removedScore.scoreWithUnit} | ${removedScore.errorWithUnit} | - | - | " +
                         "REMOVED | - | REMOVED |"
                 )
                 continue
@@ -2917,12 +2988,20 @@ tasks.register("benchmarkCompare") {
                         values = listOf(comparison.baseline, comparison.current),
                         unit = comparison.unit,
                     )
+                    val baselineScore = formatScaledBenchmarkScore(
+                        comparison.baseline,
+                        comparison.baselineError,
+                        scale,
+                    )
+                    val currentScore = formatScaledBenchmarkScore(
+                        comparison.current,
+                        comparison.currentError,
+                        scale,
+                    )
                     println(
                         "| ${comparison.metric} | ${comparison.displayName} | ${comparison.threads} | ${comparison.mode} | " +
-                            "${formatMetricNumber(comparison.baseline * scale.multiplier)} | " +
-                            "${formatMetricError(comparison.baselineError, scale)} | " +
-                            "${formatMetricNumber(comparison.current * scale.multiplier)} | " +
-                            "${formatMetricError(comparison.currentError, scale)} | ${scale.unit} | " +
+                            "${baselineScore.scoreWithUnit} | ${baselineScore.errorWithUnit} | " +
+                            "${currentScore.scoreWithUnit} | ${currentScore.errorWithUnit} | " +
                             "${comparison.deltaPercent?.let { String.format(Locale.US, "%+.1f%%", it) } ?: "n/a"} | " +
                             "${String.format(Locale.US, "%.1f%%", comparison.thresholdPercent)} | ${comparison.status()} |"
                     )
