@@ -230,30 +230,26 @@ internal class KafkaCommandBusTest : CommandBusSpec() {
         val bus = KafkaCommandBus(
             topicConverter = topicConverter,
             senderOptions = kafka.senderOptions(),
-            receiverOptions = kafka.receiverOptions(),
+            receiverOptions = kafka.receiverOptions()
+                .consumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+                .consumerProperty(ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, false),
         )
         val rawSender = KafkaSender.create(kafka.senderOptions())
         val receiverGroup = generateGlobalId()
-        val ready = Sinks.empty<Void>()
 
         try {
-            bus.receive(MessageSubscription(namedAggregate, receiverGroup))
-                .contextWrite {
-                    it.writeReceiverOptionsCustomizer { options ->
-                        options.subscription(setOf(record.topic()))
-                            .addAssignListener {
-                                ready.tryEmitEmpty()
+            // Create the random topic before subscribing so readiness does not depend on consumer auto-creation.
+            rawSender.createOutbound()
+                .send(Mono.just(record))
+                .then()
+                .thenMany(
+                    bus.receive(MessageSubscription(namedAggregate, receiverGroup))
+                        .contextWrite {
+                            it.writeReceiverOptionsCustomizer { options ->
+                                options.subscription(setOf(record.topic()))
                             }
-                    }
-                }
-                .doOnSubscribe {
-                    ready.asMono()
-                        .then(
-                            rawSender.createOutbound()
-                                .send(Mono.just(record))
-                                .then(),
-                        ).subscribe()
-                }
+                        }
+                )
                 .test()
                 .expectErrorSatisfies {
                     it.assert().isInstanceOf(KafkaRecordDecodeException::class.java)
