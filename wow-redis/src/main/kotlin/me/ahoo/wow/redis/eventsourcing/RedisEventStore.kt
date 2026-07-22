@@ -19,14 +19,16 @@ import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
 import me.ahoo.wow.eventsourcing.AggregateIdScanner
+import me.ahoo.wow.eventsourcing.DuplicateAggregateIdException
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.redis.RedisScripts
-import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.AGGREGATE_ID_INDEX_BUCKETS
-import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toAggregateIdFromIndexMember
-import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toAggregateIdIndexKey
-import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toAggregateIdIndexMember
-import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toAggregateIdIndexMemberLowerBound
+import me.ahoo.wow.redis.eventsourcing.EventStreamKeyLayout.AGGREGATE_ID_INDEX_BUCKETS
+import me.ahoo.wow.redis.eventsourcing.EventStreamKeyLayout.toAggregateIdFromIndexMember
+import me.ahoo.wow.redis.eventsourcing.EventStreamKeyLayout.toAggregateIdIndexKey
+import me.ahoo.wow.redis.eventsourcing.EventStreamKeyLayout.toAggregateIdIndexMember
+import me.ahoo.wow.redis.eventsourcing.EventStreamKeyLayout.toAggregateIdIndexMemberLowerBound
+import me.ahoo.wow.redis.eventsourcing.EventStreamKeyLayout.toAggregateIdIndexMemberPrefix
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import org.springframework.data.domain.Range
@@ -41,32 +43,38 @@ class RedisEventStore(
 ) : AbstractEventStore() {
     companion object {
         internal const val AGGREGATE_ID_INDEX_SCAN_CONCURRENCY = 16
-
-        val SCRIPT_EVENT_STEAM_APPEND: RedisScript<String> =
-            RedisScripts.load("event_steam_append.lua", String::class.java)
+        internal val SCRIPT_EVENT_STREAM_APPEND: RedisScript<String> =
+            RedisScripts.load("event_stream_append.lua", String::class.java)
     }
 
     override fun appendStream(eventStream: DomainEventStream): Mono<Void> {
         val aggregateId = eventStream.aggregateId
-        val eventStreamKey = EventStreamKeyConverter.convert(aggregateId)
+        val eventStreamKey = EventStreamKeyLayout.key(aggregateId)
         val aggregateIdIndexKey = aggregateId.toAggregateIdIndexKey()
+        val requestIndexKey = EventStreamKeyLayout.requestIndexKey(aggregateId)
         return redisTemplate.execute(
-            SCRIPT_EVENT_STEAM_APPEND,
-            listOf(eventStreamKey, aggregateIdIndexKey),
+            SCRIPT_EVENT_STREAM_APPEND,
+            listOf(eventStreamKey, aggregateIdIndexKey, requestIndexKey),
             listOf(
                 eventStream.requestId,
                 eventStream.version.toString(),
                 eventStream.toJsonString(),
                 toAggregateIdIndexMember(aggregateId),
+                toAggregateIdIndexMemberPrefix(aggregateId.id),
+                toAggregateIdIndexMemberLowerBound(aggregateId.id),
             ),
-        ).next().flatMap {
-            handleAppendResult(eventStream, it)
-        }
+        ).next()
+            .switchIfEmpty(Mono.error(IllegalStateException("Redis EventStore append script returned no result.")))
+            .flatMap { handleAppendResult(eventStream, it) }
     }
 
     private fun handleAppendResult(eventStream: DomainEventStream, result: String): Mono<Void> {
         return when (result) {
+            ErrorCodes.SUCCEEDED -> Mono.empty()
+
             ErrorCodes.EVENT_VERSION_CONFLICT -> Mono.error(EventVersionConflictException(eventStream))
+
+            ErrorCodes.DUPLICATE_AGGREGATE_ID -> Mono.error(DuplicateAggregateIdException(eventStream))
 
             ErrorCodes.DUPLICATE_REQUEST_ID -> Mono.error(
                 DuplicateRequestIdException(
@@ -75,12 +83,14 @@ class RedisEventStore(
                 )
             )
 
-            else -> Mono.empty()
+            else -> Mono.error(
+                IllegalStateException("Unexpected Redis EventStore append result:[$result].")
+            )
         }
     }
 
     override fun loadStream(aggregateId: AggregateId, headVersion: Int, tailVersion: Int): Flux<DomainEventStream> {
-        val key = EventStreamKeyConverter.convert(aggregateId)
+        val key = EventStreamKeyLayout.key(aggregateId)
         val range = Range.closed(headVersion.toDouble(), tailVersion.toDouble())
         return redisTemplate.opsForZSet().rangeByScore(key, range, Limit.unlimited())
             .map {
@@ -97,12 +107,12 @@ class RedisEventStore(
     }
 
     override fun existsRequestId(aggregateId: AggregateId, requestId: String): Mono<Boolean> {
-        val requestIdxKey = "${EventStreamKeyConverter.convert(aggregateId)}:req_idx"
+        val requestIdxKey = EventStreamKeyLayout.requestIndexKey(aggregateId)
         return redisTemplate.opsForSet().isMember(requestIdxKey, requestId)
     }
 
     override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
-        val key = EventStreamKeyConverter.convert(aggregateId)
+        val key = EventStreamKeyLayout.key(aggregateId)
         val range = Range.closed<Long>(0, 0)
         return redisTemplate.opsForZSet().reverseRange(key, range)
             .map {

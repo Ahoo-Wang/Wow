@@ -177,21 +177,29 @@ metrics or alerting.
 
 ## Event Store
 
-Redis event store uses bucketed Redis Cluster hash tags so event stream append, request idempotency, and aggregate ID scanning indexes can be updated atomically in one Lua script.
+Redis EventStore uses the canonical v2 key layout. User-controlled components are encoded as unpadded Base64URL;
+the aggregate ID scan index uses lowercase, fixed-width UTF-16 hexadecimal so Redis lexicographical order remains
+the same as `String` order. Bucketed Redis Cluster hash tags keep each event stream, request-id index, and aggregate-ID
+index in one slot so append and uniqueness checks remain atomic in one Lua script.
 
 ### Data Structure
 
 ```
-Event stream ZSET key: {{contextAlias}.{aggregateName}:es:{bucket}}:{aggregateId}@{tenantId}
+resolvedContextAlias = configured context alias, otherwise contextName
+scope = Base64URL(UTF-8(resolvedContextAlias)) + "." + Base64URL(UTF-8(aggregateName))
+identity = Base64URL(UTF-8(aggregateId.id)) + "." + Base64URL(UTF-8(tenantId))
+bucket = aggregateId.id.hashCode().mod(128) // Java/Kotlin UTF-16 String.hashCode
+
+Event stream ZSET key: {v2:es:<scope>:<bucket>}:<identity>
 Score: {version}
 Member: {eventStreamJson}
 
-Request id SET key: {{contextAlias}.{aggregateName}:es:{bucket}}:{aggregateId}@{tenantId}:req_idx
+Request id SET key: {v2:es:<scope>:<bucket>}:<identity>:req_idx
 Member: {requestId}
 
-Aggregate ID ZSET key: {{contextAlias}.{aggregateName}:es:{bucket}}:ids
+Aggregate ID ZSET key: {v2:es:<scope>:<bucket>}:ids
 Score: 0
-Member: {aggregateId}\u0000{tenantId}
+Member: {aggregateIdUtf16Hex}.{Base64URL(tenantId)}
 ```
 
 ### Request Idempotency
@@ -200,23 +208,36 @@ Request IDs are stored in the bucket-aligned SET key shown above.
 
 ### Aggregate ID Scanning
 
-`EventStore.scanAggregateId` scans bucketed aggregate ID indexes and merges the results in lexicographical order. Aggregate IDs are globally unique, so the scanner stores one member per aggregate and decodes `tenantId` from the ZSET member.
+`EventStore.scanAggregateId` scans bucketed aggregate ID indexes and merges the results in lexicographical order.
+`AggregateId.id` is unique within a named aggregate regardless of `tenantId`; the append Lua script rejects an attempt
+to create the same ID in another tenant with `DuplicateAggregateIdException` before writing any event or request ID.
 
 ## Snapshot Storage
 
 Snapshots are stored as String values:
 
 ```
-Key: {contextAlias}.{aggregateName}:snapshot:{aggregateId}@{tenantId}
+Key: v2:snapshot:{<scope>.<identity>}
 Value: {snapshotJson}
 ```
+
+### Upgrade boundary
+
+The runtime reads and writes canonical v2 only. It does not dual-read, dual-write, or migrate published incompatible
+layouts. At startup, the Spring Boot starter checks exact v8.6 shared request-index keys and v8.8 bucketed aggregate-ID
+index keys for local aggregates resolved to the auto-configured `RedisEventStore`. A match fails startup with the
+aggregate and Redis key. The check fails closed when Redis is unavailable and cannot be disabled. Direct-library,
+independently constructed custom-store, retired-aggregate, and snapshot-only Redis usages require an offline audit.
+
+Do not perform a mixed-version rolling deployment. See the [migration guide](../migration.md#redis-eventstore-canonical-v2-layout)
+for the required offline cutover and rollback boundary.
 
 ## Prepare Key
 
 PrepareKey uses a Hash:
 
 ```
-Key: prepare:{key}
+Key: v2:prepare:{Base64URL(UTF-8(name)).Base64URL(UTF-8(key))}
 Field: value = {preparedValueJson}
 Field: ttlAt = {expirationTimestamp}
 ```

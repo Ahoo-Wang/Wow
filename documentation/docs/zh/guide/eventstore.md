@@ -207,7 +207,7 @@ stateDiagram-v2
 
 **MongoDB** 为每种聚合类型使用独立的集合。集合名称由聚合的上下文名称和聚合名称派生（例如 `order_event_stream`）。文档使用唯一复合索引 `(aggregate_id, version)` 和 `(aggregate_id, request_id)` 进行索引 ([EventStreamSchemaInitializer.kt:51-69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/EventStreamSchemaInitializer.kt#L51-L69))。
 
-**Redis** 将事件流存储在按聚合 ID 键的**有序集合**中。每个成员是 JSON 序列化的 `DomainEventStream`，按版本号评分。追加操作使用 Lua 脚本实现原子性 -- 在单个事务中检查版本冲突和重复请求 ID ([RedisEventStore.kt:44-65](https://github.com/Ahoo-Wang/Wow/blob/main/wow-redis/src/main/kotlin/me/ahoo/wow/redis/eventsourcing/RedisEventStore.kt#L44-L65))。不支持时间范围加载。
+**Redis** 将事件流存储在按聚合 ID 键的**有序集合**中。每个成员是 JSON 序列化的 `DomainEventStream`，按版本号评分。追加操作使用 Lua 脚本实现原子性 -- 在单个事务中检查版本冲突、重复请求 ID 和跨租户聚合 ID 唯一性（[RedisEventStore.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-redis/src/main/kotlin/me/ahoo/wow/redis/eventsourcing/RedisEventStore.kt)）。不支持时间范围加载。
 
 
 ## 配置

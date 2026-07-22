@@ -11,12 +11,16 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.redis.eventsourcing
+package me.ahoo.wow.redis.prepare
 
-import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.redis.RedisKeyComponentCodec
 
-const val DELIMITER = ":"
+internal object PrepareKeyLayout {
+    private const val LAYOUT_PREFIX = "v2:prepare"
 
-fun interface AggregateKeyConverter {
-    fun convert(aggregateId: AggregateId): String
+    fun key(name: String, key: String): String {
+        require(name.isNotEmpty()) { "Prepare key name must not be empty." }
+        require(key.isNotEmpty()) { "Prepare key must not be empty." }
+        return "$LAYOUT_PREFIX:{${RedisKeyComponentCodec.encode(name)}.${RedisKeyComponentCodec.encode(key)}}"
+    }
 }
