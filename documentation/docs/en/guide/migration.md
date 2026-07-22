@@ -41,9 +41,9 @@ Before upgrading, check the following:
 2. **Configuration Changes**: Check for configuration property changes
 3. **Metadata Changes**: Regenerate metadata files
 
-## Redis EventStore Canonical v2 Layout (introduced in vNEXT)
+## Redis EventStore Canonical v2 Layout (introduced in v8.9.0)
 
-When upgrading from v8.6.x or v8.8.x to vNEXT, treat Redis persistence as a hard storage-format cutover. Redis
+When upgrading from v8.6.x or v8.8.x to v8.9.0, treat Redis persistence as a hard storage-format cutover. Redis
 EventStore, Redis SnapshotStore, and Redis PrepareKey read and write canonical v2 keys only. There is no legacy
 fallback, dual write, or built-in migrator, and old runtimes cannot read new v2 writes. The new EventStore also
 enforces that `AggregateId.id` is unique within a named aggregate across all tenants.
@@ -113,7 +113,7 @@ include `AggregateKeyConverter`, `RedisWrappedKey`, `RedisSnapshotRepository`, `
 `SCRIPT_EVENT_STREAM_APPEND` is internal, with no public replacement. Canonical converter outputs changed, PrepareKey
 now includes its `name`, and v2 rejects empty aggregate/prepare IDs and unpaired UTF-16 surrogates. Application code
 should use `EventStore`, `SnapshotStore`, and `PrepareKey`; reviewed offline tooling must independently implement and
-verify the documented v2 codec. Replace `vNEXT` with the actual release number before publishing.
+verify the documented v2 codec.
 
 ## Mongo Ownership Guard and Snapshot Checkpoints
 
