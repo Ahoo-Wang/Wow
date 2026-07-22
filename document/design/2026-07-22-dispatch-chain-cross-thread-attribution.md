@@ -113,6 +113,39 @@
 - **无 I/O 路径**（纯内存聚合处理、投影/saga 的内存阶段、`sendAndWaitForSent`）：收益巨大（20–25×），是高价值优化目标。
 - **I/O 主导路径**（`sendAndWaitProcessed` 持久化命令）：收益有限（~5%），不应作为主要优化理由；这类路径的优化应瞄准存储层（如 Mongo 文档转换单遍化、批量化）。
 
+## 深挖：框架 vs I/O 的精确分解
+
+为界定跨线程消除的绝对收益上限，运行了 `CommandWriteFrameworkBreakdownBenchmark`（此前仅有源码、从未记录结果），在四种 event store 下测同一 `sendAndWaitProcessed`：
+
+| scenario | 吞吐 (ops/s) | 延迟 (µs/op) | 增量含义 |
+|------|------|------|------|
+| ceiling-noop（NoopEventStore + NoOp 幂等/校验） | 94,539 | 10.6 | 纯框架天花板（含跨线程往返 + 调度 + 等待） |
+| noop-store（NoopEventStore + Bloom 幂等 + 校验） | 89,104 | 11.2 | + 幂等/校验 CPU（+0.6µs） |
+| in-memory-new-aggregate（InMemoryEventStore） | 86,661 | 11.5 | + 内存 append CPU（+0.3µs） |
+| mongo（MongoEventStore） | 2,984 | 335 | + Mongo append I/O（**+323µs**） |
+
+**精确分解**：
+- 框架开销天花板 ≈ **10.6µs**（含全部跨线程往返、调度、等待机制）
+- Mongo I/O 增量 ≈ **323µs**，占 mongo 总延迟的 **96.5%**
+- 跨线程往返（隔离基准占框架的 ~95%）≈ 10µs，占 mongo 总延迟的 **~3%**
+
+**绝对收益上限**：跨线程消除最多省 ~10µs/命令。在 Mongo 场景（335µs）这仅占 ~3%——与 Mongo 跨线程基准的 ~5% 结论一致（后者含更多噪声）。
+
+### 适用性边界（关键修正）
+
+深挖代码路径（`sendAndWaitForProcessed` 全链追踪）确认了一个决定性事实：
+
+> **`sendAndWaitForProcessed` 路径上，没有任何成功的、无 I/O 的生产命令子路径。** 每个到达 `SimpleCommandAggregate.process` 并产生事件的非 void、非重复命令都会调 `eventStore.append`（`SimpleCommandAggregate.kt:133`）。void 命令在调度前被过滤（`CommandDispatcher.kt:45-51`），重复命令在 gateway 被幂等拦截——两者都不产生 PROCESSED 信号。
+
+这意味着"无 I/O 路径收益巨大"的结论，其生产适用场景**高度受限**：
+
+1. **`StorageType.IN_MEMORY` 部署**（`EventStoreAutoConfiguration.kt:32-36`，配置 `wow.event-store.storage=in-memory`）：框架开销是全部开销，跨线程占 ~95%。这是真实的（虽非典型）生产配置——纯计算聚合、临时处理。**跨线程消除在此场景价值最大。**
+2. **`sendAndWaitForSent`**：返回点在 gateway（`commandBus.send` 后），**不经调度器**，无跨线程往返可消除。已是快路径。
+3. **Mongo/Redis 持久化部署**（主流场景）：跨线程占 ~3-5%，收益有限。
+4. **PROJECTED / EVENT_HANDLED / SAGA_HANDLED 阶段**：这些阶段在 append 之后，由独立 dispatcher（各自 `publishOn`）处理。若 projector/handler 是纯 CPU，其调度链跨线程占比高（复用同一 `AggregateDispatcher` 基础设施）。但 `sendAndWait(projected)` 总延迟仍含 Mongo append（PROCESSED 先完成），投影阶段增量（几 µs）相对总延迟可忽略。**除非整条链路无 I/O（IN_MEMORY 部署），否则收益被 append 主导。**
+
+**最终判断**：跨线程消除（coroutine-first 等）的实战价值**集中在 `StorageType.IN_MEMORY` 部署**。对于主流的 Mongo/Redis 持久化部署，优化收益 ≤5%，应优先投入存储层（Mongo 文档转换、批量化）或 I/O 并发度，而非跨线程消除。
+
 ## 结论与对优化方向的影响
 
 ### 已被推翻的假设
