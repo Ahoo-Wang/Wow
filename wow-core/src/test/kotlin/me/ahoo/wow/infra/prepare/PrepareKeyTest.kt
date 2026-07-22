@@ -55,6 +55,24 @@ class PrepareKeyTest {
     }
 
     @Test
+    fun `using prepare rolls back successful preparation when operation throws synchronously`() {
+        val prepareKey = InMemoryPrepareKey<String>()
+        val failure = IllegalStateException("operation failed synchronously")
+
+        StepVerifier.create(
+            prepareKey.usingPrepare("reserved", "value") {
+                throw failure
+            }
+        )
+            .expectErrorMatches { it === failure }
+            .verify()
+
+        StepVerifier.create(prepareKey.getValue("reserved"))
+            .verifyComplete()
+        prepareKey.rolledBack.assert().isEqualTo(listOf("reserved" to "value"))
+    }
+
+    @Test
     fun `reprepare changing key prepares new key and rolls back old key`() {
         val prepareKey = InMemoryPrepareKey<String>()
         prepareKey.prepare("old-key", "old-value").block()

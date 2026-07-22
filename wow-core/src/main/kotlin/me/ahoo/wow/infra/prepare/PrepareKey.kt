@@ -352,7 +352,7 @@ interface PrepareKey<V : Any> : Named {
     ): Mono<R> {
         return prepare(key, value)
             .flatMap { prepared ->
-                then(prepared).onErrorResume {
+                Mono.defer { then(prepared) }.onErrorResume {
                     val errorMono = Mono.error<R>(it)
                     if (!prepared) {
                         return@onErrorResume errorMono
