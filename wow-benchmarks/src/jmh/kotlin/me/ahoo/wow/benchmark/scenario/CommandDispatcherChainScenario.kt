@@ -60,11 +60,9 @@ enum class HandlerCost {
  * benchmark block until the dispatch chain has fully processed that exchange, so each
  * measured operation covers the ingress-to-handled round trip through the scheduler.
  *
- * The [aggregateIdCardinality] parameter controls how many distinct aggregate IDs are
- * cycled through:
- * - `1`: every command hashes to one group and is serialized by `concatMap`
- *   (single hot aggregate).
- * - `>1`: commands spread across groups, exercising `flatMap` concurrency.
+ * The scenario can cycle through multiple aggregate IDs, but concurrency claims require
+ * the caller to keep multiple messages outstanding. A caller that emits and immediately
+ * awaits one exchange only measures sequential ingress-to-handler completion.
  *
  * @author ahoo wang
  */
@@ -181,12 +179,16 @@ private class DispatchChainHandler(
         if (handlerCost == HandlerCost.SIMULATED) {
             Blackhole.consumeCPU(SIMULATED_CPU_TOKENS)
         }
-        val completionSink = context.getAttribute(DISPATCH_CHAIN_COMPLETION_KEY) as? Sinks.Empty<Void>
-        // Emit the completion signal from the returned Mono's terminal callback rather than
-        // synchronously here, so the benchmark only unblocks after the dispatch chain
-        // (concatMap + its doFinally bookkeeping) has fully completed handling this exchange.
+        val completionSink = checkNotNull(
+            context.getAttribute(DISPATCH_CHAIN_COMPLETION_KEY) as? Sinks.Empty<Void>
+        ) {
+            "Dispatch-chain completion sink is missing."
+        }
+        // Reactor invokes nested doFinally callbacks from the outside in. The dispatcher's
+        // outer doFinally therefore decrements its active-task counter before this callback
+        // acknowledges the exchange to the benchmark.
         val done: Mono<Void> = Mono.empty()
-        return done.doOnTerminate { completionSink?.tryEmitEmpty() }
+        return done.doFinally { completionSink.tryEmitEmpty().orThrow() }
     }
 
     private companion object {

@@ -91,20 +91,25 @@ test/code-coverage-report/build/reports/jacoco/codeCoverageReport/codeCoverageRe
 ./gradlew :wow-benchmarks:generateQuickBenchmarkReport
 ```
 
-快速基准测试使用与完整基准测试相同的 catalog，但 JMH 设置更短，适合本地快速发现回归；性能结论仍以 Full E2E 为准。
+快速基准测试使用有边界的代表性 catalog 和较短的 JMH 设置，适合本地快速发现回归；正式吞吐与分配结论仍以 Baseline E2E 为准。
 Infrastructure 基准测试需要本地 Redis 和 MongoDB 服务。
 
-## 完整基准测试
+## 基线与诊断基准测试
 
 ```bash
-./gradlew :wow-benchmarks:benchmarkFullE2E
-./gradlew :wow-benchmarks:benchmarkFullComponent
-./gradlew :wow-benchmarks:benchmarkFullInfrastructureE2E
-./gradlew :wow-benchmarks:generateGroupedBenchmarkReport
+./gradlew :wow-benchmarks:benchmarkBaselineE2E
+./gradlew :wow-benchmarks:benchmarkLatencyE2E
+./gradlew :wow-benchmarks:benchmarkDiagnosticComponent \
+  -PbenchmarkDiagnosticComponentIncludes=me.ahoo.wow.benchmark.component.CommandPipelineComponentBenchmark.handleAggregateAndSendDomainEvent
+./gradlew :wow-benchmarks:benchmarkExhaustiveComponent
+./gradlew :wow-benchmarks:benchmarkBaselineInfrastructureE2E
+./gradlew :wow-benchmarks:generateBaselineBenchmarkReport
 ```
 
-Full E2E 结果用于框架性能结论。Component 结果用于解释瓶颈，不应作为独立框架性能目标对外报告。
+Baseline E2E 是有边界的三 fork 吞吐与分配基线，用于正式框架对比。Latency E2E 为可选任务，不再把延迟测量成本强制叠加到每次基线运行。Diagnostic Component 支持精确 benchmark include；Exhaustive Component 仅作为极少执行的完整 catalog 逃生口。基准模块有意不提供泛化别名，调用方必须选择用途明确的任务。
+Component 结果用于解释瓶颈，不应作为独立框架性能目标对外报告。
 Infrastructure E2E 结果用于在 Redis 和 MongoDB 可用时暴露存储路径瓶颈。
+`updateBenchmarkBaseline` 仅接受由当前 clean `HEAD` 生成的 clean manifest。Schema v2 记录 source、run specification、runtime 与 artifact hash，使陈旧或不完整证据直接失败。
 
 ## CI 工作流
 

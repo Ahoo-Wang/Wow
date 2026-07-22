@@ -20,7 +20,6 @@ import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
 import me.ahoo.wow.benchmark.fixture.BenchmarkIdempotency
 import me.ahoo.wow.benchmark.scenario.CommandDispatcherScenario
-import me.ahoo.wow.benchmark.scenario.CommandGatewayScenario
 import me.ahoo.wow.benchmark.scenario.SchedulerStrategy
 import me.ahoo.wow.benchmark.scenario.consumeWowResult
 import me.ahoo.wow.benchmark.scenario.toSchedulerSupplier
@@ -67,7 +66,6 @@ open class CommandWriteE2EBenchmark {
     private var schedulerStrategy: String = SchedulerStrategy.PARALLEL.name
 
     private lateinit var commandDispatcherScenario: CommandDispatcherScenario
-    private lateinit var sentGatewayScenario: CommandGatewayScenario
     private val failures = AtomicInteger()
 
     @Setup(Level.Iteration)
@@ -87,11 +85,8 @@ open class CommandWriteE2EBenchmark {
             "noop-store" -> createScenario(eventStore = NoopEventStore, schedulerSupplier = schedulerSupplier)
             "in-memory-new-aggregate" ->
                 createScenario(eventStore = InMemoryEventStore(), schedulerSupplier = schedulerSupplier)
-            "in-memory-growing-stream" ->
-                createScenario(eventStore = InMemoryEventStore(), schedulerSupplier = schedulerSupplier)
             else -> error("Unsupported command write E2E scenario: $scenario")
         }
-        sentGatewayScenario = createSentScenario()
     }
 
     @TearDown(Level.Iteration)
@@ -104,20 +99,7 @@ open class CommandWriteE2EBenchmark {
                 )
             }
         } finally {
-            try {
-                commandDispatcherScenario.close()
-            } finally {
-                sentGatewayScenario.close()
-            }
-        }
-    }
-
-    @Benchmark
-    fun sendAndWaitSent(blackhole: Blackhole) {
-        blackhole.consumeWowResult(onError = { failures.incrementAndGet() }) {
-            sentGatewayScenario.commandGateway
-                .sendAndWaitForSent(createCommandMessage())
-                .block()
+            commandDispatcherScenario.close()
         }
     }
 
@@ -156,32 +138,11 @@ open class CommandWriteE2EBenchmark {
         )
     }
 
-    private fun createSentScenario(): CommandGatewayScenario {
-        return when (scenario) {
-            "ceiling" -> CommandGatewayScenario.create(
-                validator = NoOpValidator,
-                idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider {
-                    NoOpIdempotencyChecker
-                },
-                subscribeToCart = false,
-            )
-
-            "noop-store",
-            "in-memory-new-aggregate",
-            "in-memory-growing-stream" -> CommandGatewayScenario.create(
-                subscribeToCart = false,
-            )
-
-            else -> error("Unsupported command write E2E scenario: $scenario")
-        }
-    }
-
     private fun createCommandMessage(): CommandMessage<AddCartItem> {
         return when (scenario) {
             "ceiling" -> BenchmarkCommands.commandPathAddCartItem()
             "noop-store" -> BenchmarkCommands.commandPathAddCartItem()
             "in-memory-new-aggregate" -> BenchmarkCommands.newAggregateAddCartItem()
-            "in-memory-growing-stream" -> BenchmarkCommands.fixedAggregateAddCartItem()
             else -> error("Unsupported command write E2E scenario: $scenario")
         }
     }

@@ -634,7 +634,7 @@ flowchart TB
 
 4. **PROCESSED 模式的瓶颈是事件存储追加延迟。** MongoDB 插入延迟在 ~18k TPS 时占主导地位。切换到 Redis 或调优 MongoDB 写关注度可以提高这个上限。
 
-5. **JMH 基准测试按层分离。** `wow-benchmarks` 模块区分 Smoke、Quick、Full E2E 和 Component 基准。Full E2E 结果用于框架性能结论；Component 结果用于解释 command message 创建、聚合处理、event store append、事件发布、wait notify 和序列化等瓶颈。
+5. **JMH 基准测试按层分离。** `wow-benchmarks` 模块区分 Smoke、Quick、有界的 Baseline/Latency E2E 和 Diagnostic/Exhaustive Component 基准。Baseline E2E 结果用于框架性能结论；Component 结果用于解释 command message 创建、聚合处理、event store append、事件发布、wait notify 和序列化等瓶颈。
 
 ### TPS 扩展模型（每节点）
 
@@ -752,7 +752,7 @@ flowchart TB
 7. **研究 `WaitPlan` 链**：[WaitPlan.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt) 和 [CommandStage.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt)。理解阶段如何形成有向无环图。
 8. **检查自动配置**：[WowAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt) 和所有子配置。这是框架如何将自己接入 Spring Boot 的方式。
 9. **查看测试示例**：[OrderTest.kt](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/order/tradition/OrderTest.kt)（聚合测试）和 [CartSagaSpec.kt](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSagaSpec.kt)（Saga 测试）。带 `fork` 支持的 Given-When-Expect DSL 功能强大。
-10. **运行基准测试套件**：使用 `./gradlew :wow-benchmarks:benchmarkQuickE2E` 和 `./gradlew :wow-benchmarks:benchmarkQuickComponent` 获取快速反馈。完整分析使用 `./gradlew :wow-benchmarks:benchmarkFullE2E` 和 `./gradlew :wow-benchmarks:benchmarkFullComponent`。
+10. **运行基准测试套件**：使用 `./gradlew :wow-benchmarks:benchmarkQuickE2E` 和 `./gradlew :wow-benchmarks:benchmarkQuickComponent` 获取快速反馈。正式吞吐对比使用 `benchmarkBaselineE2E`；定向调查使用 `benchmarkLatencyE2E`、`benchmarkDiagnosticComponent`，极少数情况下再使用 `benchmarkExhaustiveComponent` 完整逃生口。
 
 ---
 

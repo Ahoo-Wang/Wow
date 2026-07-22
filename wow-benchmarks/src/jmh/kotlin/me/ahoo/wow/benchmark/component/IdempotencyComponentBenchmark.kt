@@ -14,10 +14,9 @@
 package me.ahoo.wow.benchmark.component
 
 import me.ahoo.wow.benchmark.fixture.BenchmarkIdempotency
-import me.ahoo.wow.benchmark.fixture.BenchmarkIds
-import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import org.openjdk.jmh.annotations.Benchmark
+import org.openjdk.jmh.annotations.Level
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
@@ -29,32 +28,17 @@ open class IdempotencyComponentBenchmark {
         const val KNOWN_REQUEST_ID = "known-request-id"
     }
 
-    private lateinit var idempotencyChecker: BloomFilterIdempotencyChecker
-    private lateinit var bloomFilterChecker: BloomFilterIdempotencyChecker
+    private lateinit var knownRequestChecker: BloomFilterIdempotencyChecker
 
-    @Setup
+    @Setup(Level.Iteration)
     fun setup() {
-        BenchmarkIds.installDeterministicGlobalIdGenerator()
-        idempotencyChecker = BenchmarkIdempotency.bloomFilterChecker()
-        bloomFilterChecker = BenchmarkIdempotency.bloomFilterChecker()
-        idempotencyChecker.check(KNOWN_REQUEST_ID)
-    }
-
-    @Benchmark
-    fun checkNewRequestId(blackhole: Blackhole) {
-        val result = idempotencyChecker.check(generateGlobalId())
-        blackhole.consume(result)
+        knownRequestChecker = BenchmarkIdempotency.bloomFilterChecker()
+        check(knownRequestChecker.check(KNOWN_REQUEST_ID))
     }
 
     @Benchmark
     fun checkKnownRequestId(blackhole: Blackhole) {
-        val result = idempotencyChecker.check(KNOWN_REQUEST_ID)
-        blackhole.consume(result)
-    }
-
-    @Benchmark
-    fun checkBloomFilterRequestId(blackhole: Blackhole) {
-        val result = bloomFilterChecker.check(BenchmarkIds.nextGlobalId())
+        val result = knownRequestChecker.check(KNOWN_REQUEST_ID)
         blackhole.consume(result)
     }
 }

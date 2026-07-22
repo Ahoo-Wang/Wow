@@ -32,6 +32,10 @@ import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Thread)
 open class WaitNotifyComponentBenchmark {
+    private companion object {
+        const val REGISTRATION_COMMAND_ID = "benchmark-registration-command-id"
+    }
+
     private lateinit var notifier: LocalCommandWaitNotifier
     private lateinit var waitCoordinator: WaitCoordinator
 
@@ -44,7 +48,7 @@ open class WaitNotifyComponentBenchmark {
 
     @Benchmark
     fun registerWaitRegistration(blackhole: Blackhole) {
-        val waitPlan = CommandWait.processed(BenchmarkIds.nextGlobalId())
+        val waitPlan = CommandWait.processed(REGISTRATION_COMMAND_ID)
         val handle = waitCoordinator.createLast(waitPlan)
         handle.cancel()
         blackhole.consume(handle)

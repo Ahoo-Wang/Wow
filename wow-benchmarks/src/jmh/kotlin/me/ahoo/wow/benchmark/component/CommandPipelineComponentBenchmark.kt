@@ -15,11 +15,8 @@ package me.ahoo.wow.benchmark.component
 
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
-import me.ahoo.wow.benchmark.fixture.BenchmarkIdempotency
 import me.ahoo.wow.benchmark.fixture.BenchmarkIds
-import me.ahoo.wow.benchmark.scenario.CommandDispatcherScenario
 import me.ahoo.wow.benchmark.scenario.CommandPipelineScenario
-import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandWait
 import me.ahoo.wow.command.wait.DefaultWaitCoordinator
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
@@ -29,20 +26,23 @@ import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.eventsourcing.NoopEventStore
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
-import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
-import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.messaging.MessageSubscription
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.infra.Blackhole
+import reactor.core.Disposable
 
 @State(Scope.Thread)
 open class CommandPipelineComponentBenchmark {
-    private lateinit var commandDispatcherScenario: CommandDispatcherScenario
     private lateinit var commandPipelineScenario: CommandPipelineScenario
     private lateinit var waitCoordinator: WaitCoordinator
+    private lateinit var domainEventBus: InMemoryDomainEventBus
+    private lateinit var stateEventBus: InMemoryStateEventBus
+    private lateinit var domainEventSubscription: Disposable
+    private lateinit var stateEventSubscription: Disposable
 
     @Setup
     fun setup() {
@@ -50,23 +50,13 @@ open class CommandPipelineComponentBenchmark {
         val aggregateMetadata = BenchmarkAggregates.cartMetadata
         val eventStore = NoopEventStore
         val snapshotRepository = InMemorySnapshotRepository()
-        val domainEventBus = InMemoryDomainEventBus()
-        val stateEventBus = InMemoryStateEventBus()
+        domainEventBus = InMemoryDomainEventBus()
+        stateEventBus = InMemoryStateEventBus()
+        val subscription = MessageSubscription(BenchmarkAggregates.namedAggregate)
+        domainEventSubscription = domainEventBus.receive(subscription).subscribe()
+        stateEventSubscription = stateEventBus.receive(subscription).subscribe()
         waitCoordinator = DefaultWaitCoordinator()
         val commandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator)
-        commandDispatcherScenario = CommandDispatcherScenario.create(
-            eventStore = eventStore,
-            snapshotRepository = snapshotRepository,
-            domainEventBus = domainEventBus,
-            stateEventBus = stateEventBus,
-            validator = NoOpValidator,
-            commandWaitNotifier = commandWaitNotifier,
-            waitCoordinator = waitCoordinator,
-            idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider {
-                BenchmarkIdempotency.bloomFilterChecker()
-            },
-            namedAggregate = aggregateMetadata.namedAggregate.materialize(),
-        )
         commandPipelineScenario = CommandPipelineScenario.create(
             eventStore = eventStore,
             snapshotRepository = snapshotRepository,
@@ -79,7 +69,10 @@ open class CommandPipelineComponentBenchmark {
 
     @TearDown
     fun tearDown() {
-        commandDispatcherScenario.close()
+        stateEventSubscription.dispose()
+        domainEventSubscription.dispose()
+        stateEventBus.close()
+        domainEventBus.close()
     }
 
     @Benchmark
@@ -132,14 +125,6 @@ open class CommandPipelineComponentBenchmark {
         val result = commandPipelineScenario.aggregateDomainStateAndProcessedNotifierHandler
             .handle(exchange)
             .then(handle.await())
-            .block()
-        blackhole.consume(result)
-    }
-
-    @Benchmark
-    fun sendCommandFireAndForget(blackhole: Blackhole) {
-        val result = commandDispatcherScenario.commandGateway
-            .send(BenchmarkCommands.commandPathAddCartItem())
             .block()
         blackhole.consume(result)
     }

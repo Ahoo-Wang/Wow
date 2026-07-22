@@ -37,10 +37,32 @@ open class AggregateLoadComponentBenchmark {
     @Param("10", "50", "100", "500")
     var eventCount: Int = 10
 
-    private lateinit var repository: EventSourcingStateAggregateRepository
-    private lateinit var emptyAggregateId: AggregateId
     private lateinit var recoveryAggregateId: AggregateId
     private lateinit var eventStreams: List<DomainEventStream>
+
+    @Setup
+    fun setup() {
+        recoveryAggregateId = BenchmarkAggregates.aggregateId()
+        eventStreams = BenchmarkEvents.constantSizeEventStreams(recoveryAggregateId, eventCount)
+    }
+
+    @Benchmark
+    fun recoverConstantSizeStateFromEvents(blackhole: Blackhole) {
+        val aggregate = ConstructorStateAggregateFactory.create(
+            BenchmarkAggregates.cartMetadata.state,
+            recoveryAggregateId,
+        )
+        for (eventStream in eventStreams) {
+            aggregate.onSourcing(eventStream)
+        }
+        blackhole.consume(aggregate)
+    }
+}
+
+@State(Scope.Thread)
+open class AggregateRepositoryLoadComponentBenchmark {
+    private lateinit var repository: EventSourcingStateAggregateRepository
+    private lateinit var emptyAggregateId: AggregateId
     private lateinit var snapshotRepository: SnapshotRepository
     private lateinit var snapshotAggregateId: AggregateId
 
@@ -52,8 +74,6 @@ open class AggregateLoadComponentBenchmark {
             InMemoryEventStore(),
         )
         emptyAggregateId = BenchmarkAggregates.aggregateId()
-        recoveryAggregateId = BenchmarkAggregates.aggregateId()
-        eventStreams = BenchmarkEvents.eventStreams(recoveryAggregateId, eventCount)
         snapshotRepository = InMemorySnapshotRepository()
         snapshotAggregateId = BenchmarkAggregates.aggregateId()
         val aggregate = ConstructorStateAggregateFactory.create(
@@ -71,18 +91,6 @@ open class AggregateLoadComponentBenchmark {
             BenchmarkAggregates.cartMetadata.state,
             Int.MAX_VALUE,
         ).block()
-        blackhole.consume(aggregate)
-    }
-
-    @Benchmark
-    fun recoverFromEvents(blackhole: Blackhole) {
-        val aggregate = ConstructorStateAggregateFactory.create(
-            BenchmarkAggregates.cartMetadata.state,
-            recoveryAggregateId,
-        )
-        for (eventStream in eventStreams) {
-            aggregate.onSourcing(eventStream)
-        }
         blackhole.consume(aggregate)
     }
 

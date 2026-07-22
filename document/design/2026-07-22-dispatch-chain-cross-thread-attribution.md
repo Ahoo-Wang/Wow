@@ -13,7 +13,7 @@
 
 > **适用范围**：跨线程消除优化的收益**取决于命令路径是否包含阻塞 I/O**。纯内存/计算密集的命令路径收益巨大（20–25×）；涉及 event store I/O 的真实路径收益有限（~5%）。优化应优先瞄准**无 I/O 的本地命令路径**（如纯投影、saga 内存处理），而非 I/O 主导的持久化路径。
 
-> **方法声明**：本报告数据来自新建的 `CommandDispatcherChainComponentBenchmark`（隔离基准，剥离 gateway/bus/aggregate/event-store）以及对 `MongoCommandWriteE2EBenchmark`（端到端，真实 MongoDB，已纳入 `SchedulerStrategy` 参数）的测量，在本机用 JMH 快速档采集，为**方向性结论**。正式性能结论需以 Full 档基准为准。
+> **方法声明**：本报告数据来自新建的 `CommandDispatcherChainComponentBenchmark`（隔离基准，剥离 gateway/bus/aggregate/event-store）以及对 `MongoCommandWriteE2EBenchmark`（端到端，真实 MongoDB，已纳入 `SchedulerStrategy` 参数）的测量，在本机用 JMH 快速档采集，为**方向性结论**。正式性能结论需以 Baseline 档基准为准。
 
 ## 动机
 
@@ -182,6 +182,6 @@
 
 ## 后续建议
 
-1. 以 Full 档基准（`benchmarkFullComponent`、`benchmarkFullInfrastructureE2E`）产出正式数据，并用 `updateBenchmarkBaseline` 建立回归基线；
+1. 以 `benchmarkBaselineE2E` 产出正式框架基线；使用 `benchmarkDiagnosticComponent` 定向分析 dispatcher chain，并仅在需要完整 catalog 时运行 `benchmarkExhaustiveComponent`；Infrastructure 正式数据使用 `benchmarkBaselineInfrastructureE2E`；
 2. 评估 coroutine-first 运行时对**无 I/O 路径**跨线程开销的实际消除程度（用隔离基准对比；预期收益最大）；
 3. I/O 主导路径的优化应转向存储层（Mongo 文档转换单遍化、批量化），而非跨线程消除。

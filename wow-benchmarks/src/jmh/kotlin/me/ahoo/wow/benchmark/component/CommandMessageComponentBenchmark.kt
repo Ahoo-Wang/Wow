@@ -13,9 +13,11 @@
 
 package me.ahoo.wow.benchmark.component
 
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
 import me.ahoo.wow.benchmark.fixture.BenchmarkHeaders
 import me.ahoo.wow.benchmark.fixture.BenchmarkIds
+import me.ahoo.wow.example.api.cart.AddCartItem
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
@@ -24,9 +26,12 @@ import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Thread)
 open class CommandMessageComponentBenchmark {
+    private lateinit var commandMessage: CommandMessage<AddCartItem>
+
     @Setup
     fun setup() {
         BenchmarkIds.installDeterministicGlobalIdGenerator()
+        commandMessage = BenchmarkCommands.commandPathAddCartItem()
     }
 
     @Benchmark
@@ -49,10 +54,9 @@ open class CommandMessageComponentBenchmark {
 
     @Benchmark
     fun readCommandMessageProperties(blackhole: Blackhole) {
-        val message = BenchmarkCommands.commandPathAddCartItem()
-        blackhole.consume(message.id)
-        blackhole.consume(message.aggregateId)
-        blackhole.consume(message.requestId)
-        blackhole.consume(message.body)
+        blackhole.consume(commandMessage.id)
+        blackhole.consume(commandMessage.aggregateId)
+        blackhole.consume(commandMessage.requestId)
+        blackhole.consume(commandMessage.body)
     }
 }

@@ -37,10 +37,11 @@ import org.openjdk.jmh.infra.Blackhole
  * dispatch-chain overhead itself — turning what was previously only inferable via an
  * end-to-end delta into a directly attributable measurement.
  *
+ * The workload uses one aggregate ID, so each invocation measures a single hot aggregate
+ * without claiming multi-group concurrency. Shared-chain contention requires a separate
+ * benchmark with multiple outstanding messages on one dispatcher.
+ *
  * Parameters:
- * - [aggregateIdCardinality]: number of distinct aggregate IDs cycled through.
- *   `1` forces every command into one `concatMap` group (single hot aggregate); higher
- *   values spread load across groups and exercise `flatMap` concurrency.
  * - [handlerCost]: [HandlerCost.NOOP] measures pure dispatch overhead;
  *   [HandlerCost.SIMULATED] adds a small fixed CPU budget to reveal the dispatch share of
  *   end-to-end latency.
@@ -62,9 +63,6 @@ import org.openjdk.jmh.infra.Blackhole
 @State(Scope.Thread)
 @Suppress("VarCouldBeVal") // JMH injects @Param fields via reflection, so they must be `var`.
 open class CommandDispatcherChainComponentBenchmark {
-    @Param("1", "16", "256")
-    private var aggregateIdCardinality: Int = 1
-
     @Param("NOOP", "SIMULATED")
     private var handlerCost: String = HandlerCost.NOOP.name
 
@@ -78,7 +76,7 @@ open class CommandDispatcherChainComponentBenchmark {
         BenchmarkIds.installDeterministicGlobalIdGenerator()
         scenario = CommandDispatcherChainScenario.create(
             aggregateMetadata = BenchmarkAggregates.cartMetadata,
-            aggregateIdCardinality = aggregateIdCardinality,
+            aggregateIdCardinality = 1,
             handlerCost = HandlerCost.valueOf(handlerCost),
             schedulerStrategy = SchedulerStrategy.valueOf(schedulerStrategy),
         )
@@ -90,9 +88,9 @@ open class CommandDispatcherChainComponentBenchmark {
     }
 
     @Benchmark
-    fun dispatchThroughChain(blackhole: Blackhole) {
+    fun dispatchSingleHotAggregateThroughChain(blackhole: Blackhole) {
         val dispatched = scenario.nextExchange()
-        scenario.messageSink.tryEmitNext(dispatched.exchange)
+        scenario.messageSink.tryEmitNext(dispatched.exchange).orThrow()
         blackhole.consume(dispatched.await().block())
     }
 }

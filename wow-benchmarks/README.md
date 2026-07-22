@@ -12,10 +12,11 @@ Use it for three jobs:
 | Layer | Scope | Use For | Main Tasks |
 |-------|-------|---------|------------|
 | Smoke | A small cross-section of component, Framework E2E, and WebFlux adapter benchmarks. | PR safety; proves the JMH jar and selected benchmark paths still run. | `benchmarkSmoke` |
-| Framework E2E | Command write path with in-memory or noop infrastructure. | Framework throughput and latency feedback without Redis or Mongo noise. Full E2E is the formal framework conclusion source. | `benchmarkQuickE2E`, `benchmarkFullE2E` |
-| Component | Isolated command, aggregate, event, wait, serialization, accessor, and pipeline pieces. | Explaining bottlenecks seen in E2E results. Do not publish component scores as standalone framework capacity. | `benchmarkQuickComponent`, `benchmarkFullComponent` |
-| WebFlux Adapter | Spring WebFlux request, response, SSE, and aggregate tracing adapter paths without a real Netty server. | Diagnosing HTTP adapter overhead and WebFlux-specific allocation hot spots. These results are not Framework E2E conclusion data. | `benchmarkQuickWebFlux`, `benchmarkFullWebFlux` |
-| Infrastructure E2E | Command write path through Redis or Mongo persistence. | Storage-path bottleneck checks when local services are available. | `benchmarkQuickInfrastructureE2E`, `benchmarkFullInfrastructureE2E` |
+| Framework E2E | Command write path with in-memory or noop infrastructure. | Quick feedback, bounded formal throughput baselines, and optional latency diagnosis. | `benchmarkQuickE2E`, `benchmarkBaselineE2E`, `benchmarkLatencyE2E` |
+| Component | Isolated command, aggregate, event, wait, serialization, accessor, and pipeline pieces. | Quick feedback, targeted diagnosis, or rare exhaustive catalog checks. | `benchmarkQuickComponent`, `benchmarkDiagnosticComponent`, `benchmarkExhaustiveComponent` |
+| WebFlux Adapter | Spring WebFlux request, response, SSE, and aggregate tracing adapter paths without a real Netty server. | Diagnosing HTTP adapter overhead and WebFlux-specific allocation hot spots. These results are not Framework E2E conclusion data. | `benchmarkQuickWebFlux`, `benchmarkExhaustiveWebFlux` |
+| Infrastructure E2E | Command write path through Redis or Mongo persistence. | Storage-path bottleneck checks when local services are available. | `benchmarkQuickInfrastructureE2E`, `benchmarkBaselineInfrastructureE2E` |
+| Async Profiling | Short, selected CPU profiles written outside comparable quick/baseline/exhaustive results. | Producing flamegraphs after a regression has been isolated. | `benchmarkAsyncE2E`, `benchmarkAsyncComponent`, `benchmarkAsyncWebFlux` |
 
 ## Recommended Workflows
 
@@ -34,7 +35,7 @@ Smoke is intentionally short and does not produce a performance report.
 ```
 
 This writes the checked-in quick Framework E2E report to [`results/reports/quick-framework-e2e.md`](results/reports/quick-framework-e2e.md).
-Treat it as directional local feedback; use Full E2E before making formal performance claims.
+Quick uses throughput mode, a `1x2s` warmup, `2x3s` measurements, one fork, the GC profiler, and a 1 GiB heap. Treat it as directional local feedback; use Baseline E2E before making formal performance claims.
 
 ### Infrastructure E2E Report
 
@@ -49,8 +50,10 @@ Infrastructure E2E requires local Redis and MongoDB services and measures persis
 
 ```bash
 ./gradlew :wow-benchmarks:benchmarkQuickE2E -PbenchmarkQuickThreads=1
-./gradlew :wow-benchmarks:benchmarkQuickWebFlux -PbenchmarkQuickThreads=1
-./gradlew :wow-benchmarks:generateQuickBenchmarkReport -PbenchmarkQuickThreads=1
+./gradlew :wow-benchmarks:benchmarkQuickWebFlux -PbenchmarkQuickWebFluxThreads=1
+./gradlew :wow-benchmarks:generateQuickBenchmarkReport \
+  -PbenchmarkQuickThreads=1 \
+  -PbenchmarkQuickWebFluxThreads=1
 ```
 
 WebFlux Adapter results are included in the grouped report when the suite has
@@ -65,26 +68,77 @@ both tasks on the same one-thread quick profile.
 ```bash
 ./gradlew :wow-benchmarks:benchmarkQuickE2E
 ./gradlew :wow-benchmarks:benchmarkQuickComponent
-./gradlew :wow-benchmarks:benchmarkQuickWebFlux -PbenchmarkQuickThreads=1
+./gradlew :wow-benchmarks:benchmarkQuickWebFlux -PbenchmarkQuickWebFluxThreads=1
 ./gradlew :wow-benchmarks:benchmarkQuickInfrastructureE2E
-./gradlew :wow-benchmarks:generateQuickBenchmarkReport
+./gradlew :wow-benchmarks:generateQuickBenchmarkReport -PbenchmarkQuickWebFluxThreads=1
 ```
 
 The quick grouped report is written to `wow-benchmarks/results/reports/quick-grouped.md`.
+Quick Component intentionally runs a representative 27-case matrix per thread instead of the complete 60-case matrix.
 
-### Full Baseline Run
+### Bounded Framework Baseline
 
 ```bash
-./gradlew :wow-benchmarks:benchmarkFullE2E --no-parallel
-./gradlew :wow-benchmarks:benchmarkFullComponent --no-parallel
-./gradlew :wow-benchmarks:benchmarkFullWebFlux --no-parallel
-./gradlew :wow-benchmarks:benchmarkFullInfrastructureE2E --no-parallel
-./gradlew :wow-benchmarks:generateGroupedBenchmarkReport
+./gradlew :wow-benchmarks:benchmarkBaselineE2E --no-parallel
+./gradlew :wow-benchmarks:benchmarkCompare
 ```
 
-Full runs are expensive. Prefer `--no-parallel` for stable measurements, especially on developer machines where parallel JMH tasks compete for CPU and memory.
+Baseline E2E is the formal framework throughput and allocation conclusion source. It keeps `threads=1,4` and three independent forks, but uses bounded `2x3s` warmup and `3x5s` measurement iterations. The eight-workload matrix has a theoretical measurement floor of about 17 minutes instead of hours. Use `updateBenchmarkBaseline` only after reviewing the comparison in a controlled environment.
 
-The full grouped report is written to `wow-benchmarks/results/reports/full-grouped.md`.
+Average-time measurement is optional and isolated so it does not delay every baseline run:
+
+```bash
+./gradlew :wow-benchmarks:benchmarkLatencyE2E --no-parallel
+```
+
+The default single-thread latency task has a theoretical measurement floor of about three minutes.
+
+### Component Diagnosis
+
+```bash
+./gradlew :wow-benchmarks:benchmarkDiagnosticComponent \
+  -PbenchmarkDiagnosticComponentIncludes=me.ahoo.wow.benchmark.component.CommandPipelineComponentBenchmark.handleAggregateAndSendDomainEvent
+```
+
+Diagnostic Component defaults to throughput, one thread, one fork, and the representative quick catalog. Select exact methods with `benchmarkDiagnosticComponentIncludes`; request average time with `-PbenchmarkDiagnosticModes=avgt` or both modes with `thrpt,avgt`.
+
+The complete 60-workload catalog remains available as an explicit escape hatch and is no longer part of the normal iteration loop:
+
+```bash
+./gradlew :wow-benchmarks:benchmarkExhaustiveComponent --no-parallel
+```
+
+Its default throughput-only single-thread profile has a theoretical measurement floor of about eight minutes. Generic aliases are intentionally absent; select a purpose-specific task.
+
+### Optional Exhaustive Grouped Report
+
+```bash
+./gradlew :wow-benchmarks:benchmarkBaselineE2E --no-parallel
+./gradlew :wow-benchmarks:benchmarkExhaustiveComponent --no-parallel
+./gradlew :wow-benchmarks:benchmarkExhaustiveWebFlux --no-parallel
+./gradlew :wow-benchmarks:benchmarkBaselineInfrastructureE2E --no-parallel
+./gradlew :wow-benchmarks:generateBaselineBenchmarkReport
+```
+
+Run this only when a cross-layer evidence package is required. Prefer `--no-parallel` for stable measurements because parallel JMH tasks compete for CPU and memory.
+
+The formal grouped report is written to `wow-benchmarks/results/reports/baseline-grouped.md`.
+
+### On-Demand CPU Profiling
+
+```bash
+./gradlew :wow-benchmarks:benchmarkAsyncE2E \
+  -PbenchmarkAsyncE2EIncludes=me.ahoo.wow.benchmark.e2e.CommandWriteE2EBenchmark.sendAndWaitProcessed
+
+./gradlew :wow-benchmarks:benchmarkAsyncComponent \
+  -PbenchmarkAsyncComponentIncludes=me.ahoo.wow.benchmark.component.CommandPipelineComponentBenchmark.handleAggregateAndSendDomainEvent
+```
+
+Async tasks use a short single-thread throughput profile and write flamegraphs under `wow-benchmarks/build/profiling/async/<suite>/threads-<n>/`. They are diagnostic only and are excluded from reports, comparisons, and baselines. The task fails if AsyncProfiler is unavailable; configure a custom library with `-PbenchmarkAsyncProfilerLib=/path/to/libasyncProfiler.dylib`.
+
+## Task Model
+
+The Gradle model keeps four responsibilities separate: `BenchmarkSuite` owns workload selection and required services; `BenchmarkRunProfile` owns JMH methodology and result namespace; `BenchmarkTaskSpec` explicitly binds a task name to one suite and profile; reports consume those task specs as their source of truth. Do not derive task names from suite/profile IDs or add historical aliases to the core model.
 
 ## Reports And Results
 
@@ -93,18 +147,20 @@ The full grouped report is written to `wow-benchmarks/results/reports/full-group
 | `wow-benchmarks/results/reports/quick-framework-e2e.md` | Generated quick Framework E2E report. | Commit when intentionally updating the visible benchmark report. |
 | `wow-benchmarks/results/reports/quick-infrastructure-e2e.md` | Generated quick Infrastructure E2E report. | Commit when intentionally updating Redis/Mongo benchmark evidence. |
 | `wow-benchmarks/results/reports/quick-grouped.md` | Generated quick E2E/component/infrastructure grouped report. | Commit when intentionally updating grouped benchmark evidence. |
-| `wow-benchmarks/results/reports/full-grouped.md` | Generated full E2E/component/infrastructure grouped report. | Commit when intentionally updating formal benchmark evidence. |
+| `wow-benchmarks/results/reports/baseline-grouped.md` | Generated Baseline E2E/exhaustive Component/infrastructure grouped report. | Commit when intentionally updating formal benchmark evidence. |
 | `wow-benchmarks/results/jmh/` | Local JMH JSON and human-readable outputs. | Do not commit generated run output. |
 | `wow-benchmarks/results/baselines/framework-e2e.json` | Framework E2E comparison baseline, when present. | Commit only intentional baseline updates. |
 
 Files under `results/reports/*.md` are generated. Do not hand-edit benchmark rows; rerun the benchmark/report task instead.
+Every successful thread-level JMH run writes a neighboring `*.manifest.json` sidecar with the source commit and dirty state, run specification, resolved profiler arguments, runtime, and SHA-256 digests for the JSON and human output. Failed runs do not publish a success manifest. Report and comparison tasks reject raw results with missing, mixed, or mismatched manifests.
 
 ## Reading The Report
 
 - `thrpt` scores are throughput, normally shown as `ops/s`. Higher is better.
 - `avgt` scores are average latency. The report converts tiny JMH `s/op` values to readable latency units such as `us/op`.
 - `gc.alloc.rate.norm` is normalized allocation per operation. Lower is usually better.
-- Quick reports are useful for local regression checks, but the shorter run profile has wider variance than Full E2E.
+- Quick reports contain throughput and allocation results only. They are useful for local regression checks, but the shorter run profile has wider variance than Baseline E2E.
+- `benchmarkCompare` displays baseline/current JMH errors when available. The current regression gate still uses the configured point-estimate threshold; the errors are diagnostic and do not yet change the status calculation.
 - Framework E2E reports isolate Wow command-pipeline overhead; they are not Redis, Mongo, or production deployment capacity numbers.
 - WebFlux Adapter reports isolate functional WebFlux adapter code. They are useful for adapter bottleneck diagnosis, but they are not HTTP server capacity or Framework E2E conclusion numbers.
 
@@ -116,13 +172,30 @@ Default quick threads are `1,4`:
 ./gradlew :wow-benchmarks:benchmarkQuickE2E -PbenchmarkQuickThreads=1,4
 ```
 
-Default full threads are `1,2,4,8`:
+Quick WebFlux uses its own thread property because it has a shorter run profile:
 
 ```bash
-./gradlew :wow-benchmarks:benchmarkFullE2E -PbenchmarkThreads=1,2,4,8 --no-parallel
+./gradlew :wow-benchmarks:benchmarkQuickWebFlux -PbenchmarkQuickWebFluxThreads=1,4
 ```
 
-Benchmark JVM args are defined in `wow-benchmarks/gradle/benchmarking.gradle.kts` and are included in generated reports.
+Baseline, latency, diagnostic, and exhaustive profiles use purpose-specific properties:
+
+```bash
+./gradlew :wow-benchmarks:benchmarkBaselineE2E -PbenchmarkBaselineThreads=1,4 --no-parallel
+./gradlew :wow-benchmarks:benchmarkLatencyE2E -PbenchmarkLatencyThreads=1 --no-parallel
+./gradlew :wow-benchmarks:benchmarkDiagnosticComponent \
+  -PbenchmarkDiagnosticThreads=1 -PbenchmarkDiagnosticModes=thrpt
+./gradlew :wow-benchmarks:benchmarkExhaustiveComponent \
+  -PbenchmarkExhaustiveThreads=1 -PbenchmarkExhaustiveModes=thrpt
+./gradlew :wow-benchmarks:benchmarkExhaustiveWebFlux \
+  -PbenchmarkExhaustiveWebFluxThreads=1,4 --no-parallel
+./gradlew :wow-benchmarks:benchmarkBaselineInfrastructureE2E \
+  -PbenchmarkBaselineInfrastructureThreads=1,4 --no-parallel
+```
+
+Async tasks default to one thread. `benchmarkAsyncE2EIncludes`, `benchmarkAsyncComponentIncludes`, and `benchmarkAsyncWebFluxIncludes` accept comma-separated exact benchmark class or method names.
+
+Quick, Diagnostic, and Exhaustive Component use a 1 GiB heap without `AlwaysPreTouch`; Baseline and Latency E2E use the stable 4 GiB benchmark JVM configuration; Async uses a 2 GiB profiling JVM. All resolved JVM and profiler arguments are included in the run manifest.
 
 ## Infrastructure Requirements
 
@@ -177,4 +250,6 @@ If these services are not running, use Framework E2E and Component benchmarks in
 ./gradlew :wow-benchmarks:updateBenchmarkBaseline
 ```
 
-Use `benchmarkCompare` after collecting the relevant Framework E2E results. Use `updateBenchmarkBaseline` only when the current benchmark output is accepted as the new baseline.
+Use `benchmarkCompare` after collecting the relevant Framework E2E results. Use `updateBenchmarkBaseline` only when the current benchmark output is accepted as the new baseline. Baseline publication requires both the current workspace and every source manifest to be clean, and the manifest commit must equal `HEAD`.
+Benchmark class names, method names, modes, threads, and parameters are part of the comparison identity. After changing any of them, collect a new Baseline E2E run in the same controlled environment before intentionally replacing the baseline; do not promote Quick, Latency, Diagnostic, Async, or old JSON under the new identity.
+Schema v2 stores the source commit, run ID, JMH jar hash, exact run specification, JVM/OS runtime, per-thread result hashes, and result rows. Comparison rejects baselines whose schema, identity, run specification, clean-source state, or provenance is incomplete.

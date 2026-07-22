@@ -18,6 +18,7 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.example.api.cart.CartItem
 import me.ahoo.wow.example.api.cart.CartItemAdded
+import me.ahoo.wow.example.api.cart.CartQuantityChanged
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 
 object BenchmarkEvents {
@@ -48,6 +49,32 @@ object BenchmarkEvents {
         return (1..eventCount).map { version ->
             val event = CartItemAdded(CartItem("product-$version", version))
             listOf<Any>(event).toDomainEventStream(
+                upstream = GivenInitializationCommand(aggregateId),
+                aggregateVersion = version - 1,
+            )
+        }
+    }
+
+    /**
+     * Creates a sourcing workload whose aggregate state remains constant in size.
+     *
+     * The first event adds one cart item; subsequent events update that same item. This
+     * keeps the benchmark focused on event-sourcing dispatch instead of the quadratic list
+     * growth caused by repeatedly appending distinct cart items.
+     */
+    fun constantSizeEventStreams(
+        aggregateId: AggregateId = BenchmarkAggregates.aggregateId(),
+        eventCount: Int,
+    ): List<DomainEventStream> {
+        require(eventCount > 0) { "eventCount must be greater than zero." }
+        return (1..eventCount).map { version ->
+            val item = CartItem("productId", version)
+            val event = if (version == 1) {
+                CartItemAdded(item)
+            } else {
+                CartQuantityChanged(item)
+            }
+            listOf(event).toDomainEventStream(
                 upstream = GivenInitializationCommand(aggregateId),
                 aggregateVersion = version - 1,
             )
