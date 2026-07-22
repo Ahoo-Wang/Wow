@@ -106,7 +106,7 @@ Infrastructure benchmarks require local Redis and MongoDB services.
 ./gradlew :wow-benchmarks:generateBaselineBenchmarkReport
 ```
 
-Baseline E2E is a bounded, three-fork throughput and allocation run used for formal framework comparisons. Latency E2E is optional and isolated from the default baseline cost. Diagnostic Component accepts exact benchmark includes for focused investigation; Exhaustive Component retains the complete catalog as a rare escape hatch. Generic aliases are intentionally absent; callers must select the purpose-specific task.
+Baseline E2E is a bounded, two-fork throughput and allocation run used for formal framework comparisons. Latency E2E is optional and isolated from the default baseline cost. Diagnostic Component accepts exact benchmark includes for focused investigation; Exhaustive Component retains the complete catalog as a rare escape hatch. Generic aliases are intentionally absent; callers must select the purpose-specific task.
 Component results explain bottlenecks and should not be reported as standalone framework performance goals.
 Infrastructure E2E results expose storage-path bottlenecks when Redis and MongoDB are available.
 `updateBenchmarkBaseline` accepts only clean manifests produced from the current clean `HEAD`. Schema v2 records source, run specification, runtime, and artifact hashes so stale or incomplete evidence fails closed.

@@ -106,7 +106,7 @@ Infrastructure 基准测试需要本地 Redis 和 MongoDB 服务。
 ./gradlew :wow-benchmarks:generateBaselineBenchmarkReport
 ```
 
-Baseline E2E 是有边界的三 fork 吞吐与分配基线，用于正式框架对比。Latency E2E 为可选任务，不再把延迟测量成本强制叠加到每次基线运行。Diagnostic Component 支持精确 benchmark include；Exhaustive Component 仅作为极少执行的完整 catalog 逃生口。基准模块有意不提供泛化别名，调用方必须选择用途明确的任务。
+Baseline E2E 是有边界的双 fork 吞吐与分配基线，用于正式框架对比。Latency E2E 为可选任务，不再把延迟测量成本强制叠加到每次基线运行。Diagnostic Component 支持精确 benchmark include；Exhaustive Component 仅作为极少执行的完整 catalog 逃生口。基准模块有意不提供泛化别名，调用方必须选择用途明确的任务。
 Component 结果用于解释瓶颈，不应作为独立框架性能目标对外报告。
 Infrastructure E2E 结果用于在 Redis 和 MongoDB 可用时暴露存储路径瓶颈。
 `updateBenchmarkBaseline` 仅接受由当前 clean `HEAD` 生成的 clean manifest。Schema v2 记录 source、run specification、runtime 与 artifact hash，使陈旧或不完整证据直接失败。

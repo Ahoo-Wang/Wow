@@ -83,7 +83,7 @@ Quick Component intentionally runs a representative 27-case matrix per thread in
 ./gradlew :wow-benchmarks:benchmarkCompare
 ```
 
-Baseline E2E is the formal framework throughput and allocation conclusion source. It keeps `threads=1,4` and three independent forks, but uses bounded `2x3s` warmup and `3x5s` measurement iterations. The eight-workload matrix has a theoretical measurement floor of about 17 minutes instead of hours. Use `updateBenchmarkBaseline` only after reviewing the comparison in a controlled environment.
+Baseline E2E is the formal framework throughput and allocation conclusion source. It keeps `threads=1,4` and two independent forks, with bounded `2x3s` warmup and `3x5s` measurement iterations. The eight-workload matrix has a theoretical measurement floor of about 11 minutes and an observed wall-clock target below 20 minutes. Use `updateBenchmarkBaseline` only after reviewing the comparison in a controlled environment.
 
 Average-time measurement is optional and isolated so it does not delay every baseline run:
 
