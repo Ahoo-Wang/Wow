@@ -1,0 +1,81 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.benchmark.component
+
+import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
+import me.ahoo.wow.benchmark.fixture.BenchmarkIds
+import me.ahoo.wow.benchmark.scenario.CommandDispatcherChainScenario
+import me.ahoo.wow.benchmark.scenario.HandlerCost
+import org.openjdk.jmh.annotations.Benchmark
+import org.openjdk.jmh.annotations.Param
+import org.openjdk.jmh.annotations.Scope
+import org.openjdk.jmh.annotations.Setup
+import org.openjdk.jmh.annotations.State
+import org.openjdk.jmh.annotations.TearDown
+import org.openjdk.jmh.infra.Blackhole
+
+/**
+ * Isolates the [me.ahoo.wow.modeling.command.dispatcher.AggregateCommandDispatcher] dispatch
+ * chain (`groupBy` → `publishOn` → `concatMap`) from the surrounding command gateway, bus,
+ * aggregate processor, and event-store paths.
+ *
+ * Each measured operation feeds one [me.ahoo.wow.command.ServerCommandExchange] into the
+ * dispatcher's message flux and blocks until the dispatch chain has finished handling it.
+ * The handler is a noop (or a bounded simulated-work variant), so the measured cost is the
+ * dispatch-chain overhead itself — turning what was previously only inferable via an
+ * end-to-end delta into a directly attributable measurement.
+ *
+ * Parameters:
+ * - [aggregateIdCardinality]: number of distinct aggregate IDs cycled through.
+ *   `1` forces every command into one `concatMap` group (single hot aggregate); higher
+ *   values spread load across groups and exercise `flatMap` concurrency.
+ * - [handlerCost]: [HandlerCost.NOOP] measures pure dispatch overhead;
+ *   [HandlerCost.SIMULATED] adds a small fixed CPU budget to reveal the dispatch share of
+ *   end-to-end latency.
+ *
+ * @author ahoo wang
+ */
+@State(Scope.Thread)
+@Suppress("VarCouldBeVal") // JMH injects @Param fields via reflection, so they must be `var`.
+open class CommandDispatcherChainComponentBenchmark {
+    @Param("1", "16", "256")
+    private var aggregateIdCardinality: Int = 1
+
+    @Param("NOOP", "SIMULATED")
+    private var handlerCost: String = HandlerCost.NOOP.name
+
+    private lateinit var scenario: CommandDispatcherChainScenario
+
+    @Setup
+    fun setup() {
+        BenchmarkIds.installDeterministicGlobalIdGenerator()
+        scenario = CommandDispatcherChainScenario.create(
+            aggregateMetadata = BenchmarkAggregates.cartMetadata,
+            aggregateIdCardinality = aggregateIdCardinality,
+            handlerCost = HandlerCost.valueOf(handlerCost),
+        )
+    }
+
+    @TearDown
+    fun tearDown() {
+        scenario.close()
+    }
+
+    @Benchmark
+    fun dispatchThroughChain(blackhole: Blackhole) {
+        val dispatched = scenario.nextExchange()
+        scenario.messageSink.tryEmitNext(dispatched.exchange)
+        blackhole.consume(dispatched.await().block())
+    }
+}
