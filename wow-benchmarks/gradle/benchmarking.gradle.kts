@@ -1440,6 +1440,11 @@ data class FormattedBenchmarkScore(
     val unit: String,
 )
 
+data class BenchmarkMetricScale(
+    val multiplier: Double,
+    val unit: String,
+)
+
 fun benchmarkResultGroup(taskSpec: BenchmarkTaskSpec): BenchmarkResultGroup {
     val suite = taskSpec.suite
     val profile = taskSpec.profile
@@ -1848,15 +1853,11 @@ fun parseBenchmarkGroup(
     )
 }
 
-fun formatScoreError(scoreError: Double?): String {
-    return scoreError?.let { "+/-${String.format(Locale.US, "%.2f", it)}" } ?: "-"
-}
-
 fun latencyUnitSeconds(unit: String): Double? {
     return when (unit) {
         "s" -> 1.0
         "ms" -> 1.0e-3
-        "us" -> 1.0e-6
+        "us", "µs" -> 1.0e-6
         "ns" -> 1.0e-9
         else -> null
     }
@@ -1867,41 +1868,125 @@ fun latencyDisplayUnit(secondsPerOp: Double): String {
     return when {
         absoluteSeconds == 0.0 -> "s"
         absoluteSeconds < 1.0e-6 -> "ns"
-        absoluteSeconds < 1.0e-3 -> "us"
+        absoluteSeconds < 1.0e-3 -> "µs"
         absoluteSeconds < 1.0 -> "ms"
         else -> "s"
     }
 }
 
-fun formatBenchmarkScore(score: Double, scoreError: Double?, unit: String): FormattedBenchmarkScore {
+fun benchmarkMetricScale(values: List<Double>, unit: String): BenchmarkMetricScale {
+    val magnitude = values.maxOfOrNull { kotlin.math.abs(it) } ?: 0.0
     val latencySourceUnit = unit.removeSuffix("/op").takeIf { unit.endsWith("/op") }
-    val sourceSeconds = latencySourceUnit?.let { latencyUnitSeconds(it) }
+    val sourceSeconds = latencySourceUnit?.let(::latencyUnitSeconds)
     if (sourceSeconds != null) {
-        val secondsPerOp = score * sourceSeconds
-        val displayUnit = latencyDisplayUnit(secondsPerOp)
-        val displaySeconds = latencyUnitSeconds(displayUnit)!!
-        val displayScore = secondsPerOp / displaySeconds
-        val displayError = scoreError?.let { "+/-${String.format(Locale.US, "%.2f", it * sourceSeconds / displaySeconds)}" }
-            ?: "-"
-        return FormattedBenchmarkScore(
-            score = String.format(Locale.US, "%.2f", displayScore),
-            error = displayError,
+        val secondsPerOp = magnitude * sourceSeconds
+        val displayUnit = if (secondsPerOp == 0.0) {
+            latencySourceUnit.replace("us", "µs")
+        } else {
+            latencyDisplayUnit(secondsPerOp)
+        }
+        return BenchmarkMetricScale(
+            multiplier = sourceSeconds / latencyUnitSeconds(displayUnit)!!,
             unit = "$displayUnit/op",
         )
     }
+    if (unit.equals("B/op", ignoreCase = true)) {
+        val (divisor, displayUnit) = when {
+            magnitude >= 1024.0 * 1024.0 * 1024.0 -> 1024.0 * 1024.0 * 1024.0 to "GiB/op"
+            magnitude >= 1024.0 * 1024.0 -> 1024.0 * 1024.0 to "MiB/op"
+            magnitude >= 1024.0 -> 1024.0 to "KiB/op"
+            else -> 1.0 to "B/op"
+        }
+        return BenchmarkMetricScale(multiplier = 1.0 / divisor, unit = displayUnit)
+    }
+    if (unit.contains("ops", ignoreCase = true)) {
+        val (divisor, prefix) = when {
+            magnitude >= 1.0e12 -> 1.0e12 to "T"
+            magnitude >= 1.0e9 -> 1.0e9 to "G"
+            magnitude >= 1.0e6 -> 1.0e6 to "M"
+            magnitude >= 1.0e3 -> 1.0e3 to "k"
+            else -> 1.0 to ""
+        }
+        val displayUnit = if (prefix.isEmpty()) unit else "$prefix $unit"
+        return BenchmarkMetricScale(multiplier = 1.0 / divisor, unit = displayUnit)
+    }
+    return BenchmarkMetricScale(multiplier = 1.0, unit = unit)
+}
+
+fun formatMetricNumber(value: Double): String {
+    if (value == 0.0) {
+        return "0"
+    }
+    val formatted = if (kotlin.math.abs(value) < 0.01) {
+        String.format(Locale.US, "%.2g", value)
+    } else {
+        String.format(Locale.US, "%.2f", value)
+    }
+    return if (formatted.contains('e', ignoreCase = true)) {
+        formatted
+    } else {
+        formatted.trimEnd('0').trimEnd('.')
+    }
+}
+
+fun formatMetricError(error: Double?, scale: BenchmarkMetricScale): String {
+    return error?.let {
+        val scaledError = kotlin.math.abs(it * scale.multiplier)
+        if (scaledError in 0.0..<0.01 && scaledError != 0.0) {
+            "±<0.01"
+        } else {
+            "±${formatMetricNumber(scaledError)}"
+        }
+    } ?: "-"
+}
+
+fun formatBenchmarkMetric(
+    score: Double,
+    scoreError: Double?,
+    unit: String,
+    scaleReferenceValues: List<Double> = listOf(score),
+): FormattedBenchmarkScore {
+    val scale = benchmarkMetricScale(scaleReferenceValues, unit)
     return FormattedBenchmarkScore(
-        score = String.format(Locale.US, "%.2f", score),
-        error = formatScoreError(scoreError),
-        unit = unit,
+        score = formatMetricNumber(score * scale.multiplier),
+        error = formatMetricError(scoreError, scale),
+        unit = scale.unit,
     )
 }
 
-fun formatAllocationBytes(allocationBytesPerOp: Double?): String {
-    return allocationBytesPerOp?.let { String.format(Locale.US, "%.1f B/op", it) } ?: "-"
+fun formatBenchmarkScore(score: Double, scoreError: Double?, unit: String): FormattedBenchmarkScore {
+    return formatBenchmarkMetric(score, scoreError, unit)
 }
 
-fun formatAllocationError(allocationErrorBytesPerOp: Double?): String {
-    return allocationErrorBytesPerOp?.let { "+/-${String.format(Locale.US, "%.1f B/op", it)}" } ?: "-"
+fun formatAllocationBytes(allocationBytesPerOp: Double?): String {
+    return allocationBytesPerOp?.let { allocation ->
+        val formatted = formatBenchmarkMetric(allocation, null, "B/op")
+        "${formatted.score} ${formatted.unit}"
+    } ?: "-"
+}
+
+val verifyBenchmarkReportFormatting = tasks.register("verifyBenchmarkReportFormatting") {
+    description = "Verify human-readable benchmark metric formatting."
+    group = "verification"
+
+    doLast {
+        check(formatBenchmarkScore(1_573.91, 42.0, "ops/s") == FormattedBenchmarkScore("1.57", "±0.04", "k ops/s"))
+        check(
+            formatBenchmarkScore(668_849_367.69, 1_240_000.0, "ops/s") ==
+                FormattedBenchmarkScore("668.85", "±1.24", "M ops/s")
+        )
+        check(formatBenchmarkScore(0.000_85, 0.000_02, "ms/op") == FormattedBenchmarkScore("850", "±20", "ns/op"))
+        check(formatAllocationBytes(2_982_851.6) == "2.84 MiB/op")
+        check(formatAllocationBytes(272.0) == "272 B/op")
+        check(formatAllocationBytes(0.0) == "0 B/op")
+        check(formatMetricNumber(0.004_2) == "0.0042")
+        check(formatMetricError(0.004_2, BenchmarkMetricScale(1.0, "ops/s")) == "±<0.01")
+        check(formatAllocationBytes(null) == "-")
+    }
+}
+
+tasks.named("check") {
+    dependsOn(verifyBenchmarkReportFormatting)
 }
 
 fun StringBuilder.appendBenchmarkTable(rows: List<ParsedBenchmarkResult>) {
@@ -1930,9 +2015,10 @@ fun StringBuilder.appendThroughputBottlenecks(rows: List<ParsedBenchmarkResult>)
         .sortedBy { it.score }
         .take(10)
         .forEach { row ->
+            val score = formatBenchmarkScore(row.score, row.scoreError, row.unit)
             appendLine(
                 "| ${row.suite.displayName} | ${row.threads} | ${row.displayName} | " +
-                    "${String.format(Locale.US, "%.2f", row.score)} | ${formatScoreError(row.scoreError)} | ${row.unit} |"
+                    "${score.score} | ${score.error} | ${score.unit} |"
             )
         }
 }
@@ -1955,13 +2041,29 @@ fun StringBuilder.appendAllocationBottlenecks(rows: List<ParsedBenchmarkResult>)
     appendLine("|-------|---------|-----------|------|------------|-------|-------|------|")
     allocationBottleneckRows(rows)
         .forEach { row ->
+            val allocation = formatBenchmarkMetric(
+                score = row.allocationBytesPerOp!!,
+                scoreError = row.allocationErrorBytesPerOp,
+                unit = "B/op",
+            )
+            val score = formatBenchmarkScore(row.score, row.scoreError, row.unit)
             appendLine(
                 "| ${row.suite.displayName} | ${row.threads} | ${row.displayName} | ${row.mode} | " +
-                    "${formatAllocationBytes(row.allocationBytesPerOp)} | " +
-                    "${formatAllocationError(row.allocationErrorBytesPerOp)} | " +
-                    "${String.format(Locale.US, "%.2f", row.score)} | ${row.unit} |"
+                    "${allocation.score} ${allocation.unit} | " +
+                    "${if (allocation.error == "-") "-" else "${allocation.error} ${allocation.unit}"} | " +
+                    "${score.score} | ${score.unit} |"
             )
         }
+}
+
+fun StringBuilder.appendBenchmarkValueGuide() {
+    appendLine("## Reading Values")
+    appendLine()
+    appendLine("- Throughput uses decimal prefixes: `k` = 1,000, `M` = 1,000,000, `G` = 1,000,000,000.")
+    appendLine("- Allocation uses binary prefixes: `KiB` = 1,024 bytes, `MiB` = 1,048,576 bytes.")
+    appendLine("- Average latency is automatically scaled to `ns/op`, `µs/op`, `ms/op`, or `s/op`.")
+    appendLine("- `±` is the JMH-reported error. Scaling changes presentation only; calculations keep raw precision.")
+    appendLine()
 }
 
 fun renderGroupedBenchmarkReport(
@@ -2021,6 +2123,7 @@ fun renderGroupedBenchmarkReport(
     sb.appendLine("- Component results explain bottlenecks and are not standalone performance goals.")
     sb.appendLine("- Smoke results are excluded from performance reports.")
     sb.appendLine()
+    sb.appendBenchmarkValueGuide()
     sb.appendBenchmarkRunProvenance(allManifests)
     sb.appendBenchmarkEnvironment(
         version = version,
@@ -2155,6 +2258,7 @@ fun renderSingleBenchmarkReport(
     sb.appendLine()
     sb.appendLine(description)
     sb.appendLine()
+    sb.appendBenchmarkValueGuide()
     sb.appendBenchmarkRunProvenance(groupReport.manifests)
     sb.appendBenchmarkEnvironment(project.version.toString(), group.profile)
     if (includeInfrastructureRuntime) {
@@ -2189,6 +2293,7 @@ fun renderBottleneckBenchmarkReport(
     sb.appendLine()
     sb.appendLine(description)
     sb.appendLine()
+    sb.appendBenchmarkValueGuide()
     sb.appendBenchmarkRunProvenance(groupReport.manifests)
     sb.appendBenchmarkEnvironment(project.version.toString(), group.profile)
     sb.appendLine("## Source Files")
@@ -2741,14 +2846,6 @@ fun benchmarkMetricComparisons(
     }
 }
 
-fun formatComparisonNumber(value: Double?): String {
-    return value?.let { String.format(Locale.US, "%.6g", it) } ?: "-"
-}
-
-fun formatComparisonError(value: Double?): String {
-    return value?.let { "+/-${String.format(Locale.US, "%.6g", it)}" } ?: "-"
-}
-
 tasks.register("benchmarkCompare") {
     description = "Compare primary framework E2E benchmark results against baseline."
     group = "benchmark"
@@ -2797,29 +2894,35 @@ tasks.register("benchmarkCompare") {
             val latestRow = latest[benchmark]
 
             if (baseRow == null) {
+                val newRow = requireNotNull(latestRow)
+                val newScore = formatBenchmarkScore(newRow.score, newRow.scoreError, newRow.unit)
                 println(
-                    "| result | ${latestRow?.displayName ?: benchmark} | ${latestRow?.threads ?: "-"} | " +
-                        "${latestRow?.mode ?: "-"} | - | - | ${formatComparisonNumber(latestRow?.score)} | " +
-                        "${formatComparisonError(latestRow?.scoreError)} | ${latestRow?.unit ?: "-"} | NEW | - | NEW |"
+                    "| result | ${newRow.displayName} | ${newRow.threads} | ${newRow.mode} | " +
+                        "- | - | ${newScore.score} | ${newScore.error} | ${newScore.unit} | NEW | - | NEW |"
                 )
                 continue
             }
             if (latestRow == null) {
+                val removedScore = formatBenchmarkScore(baseRow.score, baseRow.scoreError, baseRow.unit)
                 println(
                     "| result | ${baseRow.displayName} | ${baseRow.threads} | ${baseRow.mode} | " +
-                        "${formatComparisonNumber(baseRow.score)} | ${formatComparisonError(baseRow.scoreError)} | " +
-                        "- | - | ${baseRow.unit} | REMOVED | - | REMOVED |"
+                        "${removedScore.score} | ${removedScore.error} | - | - | ${removedScore.unit} | " +
+                        "REMOVED | - | REMOVED |"
                 )
                 continue
             }
             comparisonsByKey.getValue(benchmark)
                 .forEach { comparison ->
+                    val scale = benchmarkMetricScale(
+                        values = listOf(comparison.baseline, comparison.current),
+                        unit = comparison.unit,
+                    )
                     println(
                         "| ${comparison.metric} | ${comparison.displayName} | ${comparison.threads} | ${comparison.mode} | " +
-                            "${formatComparisonNumber(comparison.baseline)} | " +
-                            "${formatComparisonError(comparison.baselineError)} | " +
-                            "${formatComparisonNumber(comparison.current)} | " +
-                            "${formatComparisonError(comparison.currentError)} | ${comparison.unit} | " +
+                            "${formatMetricNumber(comparison.baseline * scale.multiplier)} | " +
+                            "${formatMetricError(comparison.baselineError, scale)} | " +
+                            "${formatMetricNumber(comparison.current * scale.multiplier)} | " +
+                            "${formatMetricError(comparison.currentError, scale)} | ${scale.unit} | " +
                             "${comparison.deltaPercent?.let { String.format(Locale.US, "%+.1f%%", it) } ?: "n/a"} | " +
                             "${String.format(Locale.US, "%.1f%%", comparison.thresholdPercent)} | ${comparison.status()} |"
                     )

@@ -157,9 +157,10 @@ Every successful thread-level JMH run writes a neighboring `*.manifest.json` sid
 
 ## Reading The Report
 
-- `thrpt` scores are throughput, normally shown as `ops/s`. Higher is better.
-- `avgt` scores are average latency. The report converts tiny JMH `s/op` values to readable latency units such as `us/op`.
-- `gc.alloc.rate.norm` is normalized allocation per operation. Lower is usually better.
+- `thrpt` scores are throughput. Reports use decimal prefixes (`k`, `M`, `G`) so, for example, `1.57 k ops/s` means 1,570 operations per second. Higher is better.
+- `avgt` scores are average latency. Reports automatically select `ns/op`, `µs/op`, `ms/op`, or `s/op`.
+- `gc.alloc.rate.norm` is normalized allocation per operation. Reports use binary prefixes (`KiB`, `MiB`, `GiB`); lower is usually better.
+- `±` is the JMH-reported error. Compact units affect presentation only; reports retain raw precision for sorting, comparisons, and regression gates.
 - Quick reports contain throughput and allocation results only. They are useful for local regression checks, but the shorter run profile has wider variance than Baseline E2E.
 - `benchmarkCompare` displays baseline/current JMH errors when available. The current regression gate still uses the configured point-estimate threshold; the errors are diagnostic and do not yet change the status calculation.
 - Framework E2E reports isolate Wow command-pipeline overhead; they are not Redis, Mongo, or production deployment capacity numbers.
