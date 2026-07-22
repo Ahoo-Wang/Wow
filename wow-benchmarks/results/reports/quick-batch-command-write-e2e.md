@@ -16,7 +16,7 @@ Quick Batch CommandWrite E2E compares 32 individual blocking boundaries with one
 - `±` is the JMH-reported error. Scaling changes presentation only; calculations keep raw precision.
 
 ## Benchmark Run Provenance
-- **Source Commit**: `9ad4b082a9a2504af2ca839072f2d1606ad08d1d`
+- **Source Commit**: `705c9610ffcfc47c813694460dc311374885a18f`
 - **Source Dirty**: `true`
 - **Project Version**: `8.9.0`
 - **JMH Jar SHA-256**: `264e446f22fa0ae471fed066ff1a0ea82311dff859823be9d8b76883c028dd8b`
@@ -27,28 +27,52 @@ Quick Batch CommandWrite E2E compares 32 individual blocking boundaries with one
 
 | Suite | Profile | Threads | Run ID | Started | Completed | Profilers | Rows | Result SHA-256 |
 |-------|---------|---------|--------|---------|-----------|-----------|------|----------------|
-| batch-command-write-e2e | quick | 1 | `f09bb91c-351f-4dcf-a1e4-588a4e55224c` | 2026-07-22T12:40:10.676857Z | 2026-07-22T12:41:29.155851Z | `-prof gc` | 9 | `8ecbe037c2d1f1d82b17c692c19a6b88b467f48e19d442a413c42eea3ca6390c` |
+| batch-command-write-e2e | quick | 1 | `5be62422-964f-4d4a-8f7d-44c87b36ea84` | 2026-07-22T13:13:00.714522Z | 2026-07-22T13:14:18.884825Z | `-prof gc` | 9 | `264b92bb6f6ce6b3773be0bc6d6f54058faf664217522bae9b514f80e5989a27` |
 
 ## Report Generation Environment
 - **Version**: 8.9.0
 - **JVM**: OpenJDK 64-Bit Server VM 17.0.7+7-LTS
 - **OS**: Mac OS X 26.5.2 aarch64
-- **Generated At**: 2026-07-22T20:44:31+08:00
+- **Generated At**: 2026-07-22T21:14:18+08:00
 - **CPU Cores**: 14
 - **Physical Memory**: 24.0 GiB
 - **Benchmark JVM Args**: `-Xmx1g -Xms1g -XX:+UseG1GC`
 - **JMH Config**: warmup=1x2s, measurement=2x3s, fork=1, threads=1, modes=thrpt, profilers=gc
 
+## Paired Comparison
+
+The same 32-command workload is normalized per command. Sequential c1 isolates boundary amortization; Concurrent c4 adds bounded concurrency.
+
+### Throughput
+
+| Scenario | Individual (32 blocks) | Sequential c1 | vs Individual | Concurrent c4 | vs Individual | c4 / c1 |
+|----------|------------------------|---------------|---------------|---------------|---------------|---------|
+| `ceiling` | 97.18 k ops/s | 134.47 k ops/s | +38.4% | 280.41 k ops/s | +188.6% | 2.09× |
+| `noop-store` | 94.16 k ops/s | 121.68 k ops/s | +29.2% | 234.94 k ops/s | +149.5% | 1.93× |
+| `in-memory-new-aggregate` | 87.58 k ops/s | 107.39 k ops/s | +22.6% | 199.5 k ops/s | +127.8% | 1.86× |
+
+Higher throughput is better. Changes use unrounded JMH scores.
+
+### Allocation per Command
+
+| Scenario | Individual (32 blocks) | Sequential c1 | Reduction | Concurrent c4 | Reduction | c4 / c1 |
+|----------|------------------------|---------------|-----------|---------------|-----------|---------|
+| `ceiling` | 3.86 KiB/op | 142.64 B/op | 96.4% | 582.63 B/op | 85.3% | 4.08× |
+| `noop-store` | 4.8 KiB/op | 251.47 B/op | 94.9% | 1.8 KiB/op | 62.6% | 7.31× |
+| `in-memory-new-aggregate` | 4.6 KiB/op | 255.11 B/op | 94.6% | 1.63 KiB/op | 64.6% | 6.53× |
+
+Lower allocation is better. Reduction is relative to Individual; c4 / c1 makes the concurrency trade-off explicit.
+
 ## Results
 
 | Suite | Benchmark | Threads | Mode | Score | Error | gc.alloc.rate.norm |
 |-------|-----------|---------|------|-------|-------|-------------------|
-| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendBatchConcurrentAndWaitProcessed (scenario=ceiling) | 1 | thrpt | 260.83 k ops/s | - | 626.34 B/op |
-| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendBatchConcurrentAndWaitProcessed (scenario=in-memory-new-aggregate) | 1 | thrpt | 199.04 k ops/s | - | 1.89 KiB/op |
-| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendBatchConcurrentAndWaitProcessed (scenario=noop-store) | 1 | thrpt | 231.36 k ops/s | - | 2.12 KiB/op |
-| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendBatchSequentialAndWaitProcessed (scenario=ceiling) | 1 | thrpt | 132.32 k ops/s | - | 142.7 B/op |
-| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendBatchSequentialAndWaitProcessed (scenario=in-memory-new-aggregate) | 1 | thrpt | 105.57 k ops/s | - | 256.81 B/op |
-| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendBatchSequentialAndWaitProcessed (scenario=noop-store) | 1 | thrpt | 115.26 k ops/s | - | 255.32 B/op |
-| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendIndividuallyAndWaitProcessed (scenario=ceiling) | 1 | thrpt | 95.41 k ops/s | - | 3.86 KiB/op |
-| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendIndividuallyAndWaitProcessed (scenario=in-memory-new-aggregate) | 1 | thrpt | 83.91 k ops/s | - | 4.6 KiB/op |
-| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendIndividuallyAndWaitProcessed (scenario=noop-store) | 1 | thrpt | 89.37 k ops/s | - | 4.8 KiB/op |
+| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendBatchConcurrentAndWaitProcessed (scenario=ceiling) | 1 | thrpt | 280.41 k ops/s | - | 582.63 B/op |
+| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendBatchConcurrentAndWaitProcessed (scenario=in-memory-new-aggregate) | 1 | thrpt | 199.5 k ops/s | - | 1.63 KiB/op |
+| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendBatchConcurrentAndWaitProcessed (scenario=noop-store) | 1 | thrpt | 234.94 k ops/s | - | 1.8 KiB/op |
+| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendBatchSequentialAndWaitProcessed (scenario=ceiling) | 1 | thrpt | 134.47 k ops/s | - | 142.64 B/op |
+| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendBatchSequentialAndWaitProcessed (scenario=in-memory-new-aggregate) | 1 | thrpt | 107.39 k ops/s | - | 255.11 B/op |
+| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendBatchSequentialAndWaitProcessed (scenario=noop-store) | 1 | thrpt | 121.68 k ops/s | - | 251.47 B/op |
+| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendIndividuallyAndWaitProcessed (scenario=ceiling) | 1 | thrpt | 97.18 k ops/s | - | 3.86 KiB/op |
+| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendIndividuallyAndWaitProcessed (scenario=in-memory-new-aggregate) | 1 | thrpt | 87.58 k ops/s | - | 4.6 KiB/op |
+| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendIndividuallyAndWaitProcessed (scenario=noop-store) | 1 | thrpt | 94.16 k ops/s | - | 4.8 KiB/op |

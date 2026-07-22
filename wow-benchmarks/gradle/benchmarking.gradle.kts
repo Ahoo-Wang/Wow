@@ -1452,6 +1452,7 @@ data class ParsedBenchmarkResult(
     val threads: Int,
     val benchmark: String,
     val displayName: String,
+    val parameters: Map<String, String>,
     val mode: String,
     val score: Double,
     val scoreError: Double?,
@@ -1522,6 +1523,12 @@ fun benchmarkIdentity(result: Map<*, *>, benchmark: String = result["benchmark"]
     val paramText = params.entries.sortedBy { it.key.toString() }
         .joinToString(", ") { "${it.key}=${it.value}" }
     return "$benchmark ($paramText)"
+}
+
+fun benchmarkParameters(result: Map<*, *>): Map<String, String> {
+    @Suppress("UNCHECKED_CAST")
+    val params = result["params"] as? Map<*, *> ?: return emptyMap()
+    return params.entries.associate { (key, value) -> key.toString() to value.toString() }
 }
 
 fun parseMetricNumber(value: Any?): Double? {
@@ -1602,6 +1609,7 @@ fun parseBenchmarkResultFile(
             threads = threads,
             benchmark = benchmarkIdentity(result, benchmark),
             displayName = benchmarkDisplayName(result, benchmark),
+            parameters = benchmarkParameters(result),
             mode = result["mode"] as? String ?: "unknown",
             score = score,
             scoreError = scoreError,
@@ -2009,6 +2017,165 @@ fun formatAllocationBytes(allocationBytesPerOp: Double?): String {
     } ?: "-"
 }
 
+fun relativeChangePercent(reference: Double, current: Double): Double {
+    require(reference > 0.0) { "Comparison reference must be greater than zero: $reference" }
+    return (current / reference - 1.0) * 100.0
+}
+
+fun reductionPercent(reference: Double, current: Double): Double {
+    return -relativeChangePercent(reference, current)
+}
+
+fun formatSignedPercent(value: Double): String = String.format(Locale.US, "%+.1f%%", value)
+
+fun formatUnsignedPercent(value: Double): String = String.format(Locale.US, "%.1f%%", value)
+
+fun formatRatio(reference: Double, current: Double): String {
+    require(reference > 0.0) { "Ratio reference must be greater than zero: $reference" }
+    return String.format(Locale.US, "%.2f×", current / reference)
+}
+
+data class BatchCommandWriteComparison(
+    val scenario: String,
+    val individual: ParsedBenchmarkResult,
+    val sequential: ParsedBenchmarkResult,
+    val concurrent: ParsedBenchmarkResult,
+)
+
+val batchCommandWriteMethods = setOf(
+    "sendIndividuallyAndWaitProcessed",
+    "sendBatchSequentialAndWaitProcessed",
+    "sendBatchConcurrentAndWaitProcessed",
+)
+
+val batchCommandWriteScenarioOrder = listOf(
+    "ceiling",
+    "noop-store",
+    "in-memory-new-aggregate",
+)
+
+fun benchmarkMethodName(row: ParsedBenchmarkResult): String {
+    return row.benchmark.substringBefore(" (").substringAfterLast('.')
+}
+
+fun batchCommandWriteComparisons(rows: List<ParsedBenchmarkResult>): List<BatchCommandWriteComparison> {
+    val throughputRows = rows.filter { it.unit.equals("ops/s", ignoreCase = true) }
+    val rowsByScenario = throughputRows.groupBy { row ->
+        row.parameters["scenario"] ?: throw GradleException(
+            "Batch CommandWrite result is missing the required 'scenario' parameter: ${row.benchmark}"
+        )
+    }
+    val unexpectedScenarios = rowsByScenario.keys - batchCommandWriteScenarioOrder.toSet()
+    if (unexpectedScenarios.isNotEmpty()) {
+        throw GradleException("Unexpected Batch CommandWrite scenarios: ${unexpectedScenarios.sorted()}")
+    }
+    val missingScenarios = batchCommandWriteScenarioOrder.toSet() - rowsByScenario.keys
+    if (missingScenarios.isNotEmpty()) {
+        throw GradleException("Missing Batch CommandWrite scenarios: ${missingScenarios.sorted()}")
+    }
+
+    return batchCommandWriteScenarioOrder.map { scenario ->
+        val scenarioRows = rowsByScenario.getValue(scenario)
+        val rowsByMethod = scenarioRows.groupBy(::benchmarkMethodName)
+        val unexpectedMethods = rowsByMethod.keys - batchCommandWriteMethods
+        if (unexpectedMethods.isNotEmpty()) {
+            throw GradleException(
+                "Unexpected Batch CommandWrite methods for scenario '$scenario': ${unexpectedMethods.sorted()}"
+            )
+        }
+        fun requiredRow(method: String): ParsedBenchmarkResult {
+            val matches = rowsByMethod[method].orEmpty()
+            if (matches.size != 1) {
+                throw GradleException(
+                    "Batch CommandWrite scenario '$scenario' requires exactly one '$method' throughput row, " +
+                        "found ${matches.size}."
+                )
+            }
+            return matches.single()
+        }
+
+        BatchCommandWriteComparison(
+            scenario = scenario,
+            individual = requiredRow("sendIndividuallyAndWaitProcessed"),
+            sequential = requiredRow("sendBatchSequentialAndWaitProcessed"),
+            concurrent = requiredRow("sendBatchConcurrentAndWaitProcessed"),
+        )
+    }
+}
+
+fun StringBuilder.appendBatchCommandWriteComparisons(rows: List<ParsedBenchmarkResult>) {
+    val comparisons = batchCommandWriteComparisons(rows)
+    appendLine("## Paired Comparison")
+    appendLine()
+    appendLine(
+        "The same 32-command workload is normalized per command. " +
+            "Sequential c1 isolates boundary amortization; Concurrent c4 adds bounded concurrency."
+    )
+    appendLine()
+    appendLine("### Throughput")
+    appendLine()
+    appendLine(
+        "| Scenario | Individual (32 blocks) | Sequential c1 | vs Individual | " +
+            "Concurrent c4 | vs Individual | c4 / c1 |"
+    )
+    appendLine("|----------|------------------------|---------------|---------------|---------------|---------------|---------|")
+    comparisons.forEach { comparison ->
+        val individual = formatBenchmarkScore(
+            comparison.individual.score,
+            comparison.individual.scoreError,
+            comparison.individual.unit,
+        )
+        val sequential = formatBenchmarkScore(
+            comparison.sequential.score,
+            comparison.sequential.scoreError,
+            comparison.sequential.unit,
+        )
+        val concurrent = formatBenchmarkScore(
+            comparison.concurrent.score,
+            comparison.concurrent.scoreError,
+            comparison.concurrent.unit,
+        )
+        appendLine(
+            "| `${comparison.scenario}` | ${individual.scoreWithUnit} | ${sequential.scoreWithUnit} | " +
+                "${formatSignedPercent(relativeChangePercent(comparison.individual.score, comparison.sequential.score))} | " +
+                "${concurrent.scoreWithUnit} | " +
+                "${formatSignedPercent(relativeChangePercent(comparison.individual.score, comparison.concurrent.score))} | " +
+                "${formatRatio(comparison.sequential.score, comparison.concurrent.score)} |"
+        )
+    }
+    appendLine()
+    appendLine("Higher throughput is better. Changes use unrounded JMH scores.")
+    appendLine()
+    appendLine("### Allocation per Command")
+    appendLine()
+    appendLine(
+        "| Scenario | Individual (32 blocks) | Sequential c1 | Reduction | " +
+            "Concurrent c4 | Reduction | c4 / c1 |"
+    )
+    appendLine("|----------|------------------------|---------------|-----------|---------------|-----------|---------|")
+    comparisons.forEach { comparison ->
+        val individual = comparison.individual.allocationBytesPerOp
+            ?: throw GradleException("Missing individual allocation for Batch scenario '${comparison.scenario}'.")
+        val sequential = comparison.sequential.allocationBytesPerOp
+            ?: throw GradleException("Missing sequential allocation for Batch scenario '${comparison.scenario}'.")
+        val concurrent = comparison.concurrent.allocationBytesPerOp
+            ?: throw GradleException("Missing concurrent allocation for Batch scenario '${comparison.scenario}'.")
+        appendLine(
+            "| `${comparison.scenario}` | ${formatAllocationBytes(individual)} | " +
+                "${formatAllocationBytes(sequential)} | " +
+                "${formatUnsignedPercent(reductionPercent(individual, sequential))} | " +
+                "${formatAllocationBytes(concurrent)} | " +
+                "${formatUnsignedPercent(reductionPercent(individual, concurrent))} | " +
+                "${formatRatio(sequential, concurrent)} |"
+        )
+    }
+    appendLine()
+    appendLine(
+        "Lower allocation is better. Reduction is relative to Individual; c4 / c1 makes the concurrency trade-off explicit."
+    )
+    appendLine()
+}
+
 val verifyBenchmarkReportFormatting = tasks.register("verifyBenchmarkReportFormatting") {
     description = "Verify human-readable benchmark metric formatting."
     group = "verification"
@@ -2029,6 +2196,11 @@ val verifyBenchmarkReportFormatting = tasks.register("verifyBenchmarkReportForma
         check(formatMetricNumber(0.004_2) == "0.0042")
         check(formatMetricError(0.004_2, BenchmarkMetricScale(1.0, "ops/s")) == "±<0.01")
         check(formatAllocationBytes(null) == "-")
+        check(relativeChangePercent(100.0, 125.0) == 25.0)
+        check(reductionPercent(100.0, 25.0) == 75.0)
+        check(formatSignedPercent(25.04) == "+25.0%")
+        check(formatUnsignedPercent(75.04) == "75.0%")
+        check(formatRatio(100.0, 197.0) == "1.97×")
     }
 }
 
@@ -2286,6 +2458,7 @@ fun renderSingleBenchmarkReport(
     command: String,
     description: String,
     includeInfrastructureRuntime: Boolean = false,
+    appendBeforeResults: StringBuilder.(List<ParsedBenchmarkResult>) -> Unit = {},
 ): String {
     val groupReport = parseBenchmarkGroup(JsonSlurper(), group)
     if (groupReport.rows.isEmpty()) {
@@ -2310,6 +2483,7 @@ fun renderSingleBenchmarkReport(
     if (includeInfrastructureRuntime) {
         sb.appendInfrastructureRuntime()
     }
+    sb.appendBeforeResults(groupReport.rows)
     sb.appendLine("## Results")
     sb.appendLine()
     sb.appendBenchmarkTable(groupReport.rows)
@@ -2408,6 +2582,7 @@ tasks.register("generateBatchBenchmarkReport") {
             description = "Quick Batch CommandWrite E2E compares 32 individual blocking boundaries with " +
                 "one sequential or concurrent reactive batch boundary. JMH normalizes scores per command, " +
                 "so the results isolate the net effect of amortizing per-block overhead.",
+            appendBeforeResults = { rows -> appendBatchCommandWriteComparisons(rows) },
         )
 
         val outputFile = batchBenchmarkReportFile.asFile
