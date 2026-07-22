@@ -75,6 +75,7 @@ both tasks on the same one-thread quick profile.
 
 The quick grouped report is written to `wow-benchmarks/results/reports/quick-grouped.md`.
 Quick Component intentionally runs a representative 27-case matrix per thread instead of the complete 60-case matrix.
+The clean Framework E2E + Component + WebFlux quick evidence bundle completed in `7m34s` on the reference development machine.
 
 ### Bounded Framework Baseline
 
@@ -83,7 +84,7 @@ Quick Component intentionally runs a representative 27-case matrix per thread in
 ./gradlew :wow-benchmarks:benchmarkCompare
 ```
 
-Baseline E2E is the formal framework throughput and allocation conclusion source. It keeps `threads=1,4` and two independent forks, with bounded `2x3s` warmup and `3x5s` measurement iterations. The eight-workload matrix has a theoretical measurement floor of about 11 minutes and an observed wall-clock target below 20 minutes. Use `updateBenchmarkBaseline` only after reviewing the comparison in a controlled environment.
+Baseline E2E is the formal framework throughput and allocation conclusion source. It keeps `threads=1,4` and two independent forks, with bounded `2x3s` warmup and `3x5s` measurement iterations. The eight-workload matrix has a theoretical measurement floor of about 11 minutes; the clean reference run completed in `11m44s`. Use `updateBenchmarkBaseline` only after reviewing the comparison in a controlled environment.
 
 Average-time measurement is optional and isolated so it does not delay every baseline run:
 
