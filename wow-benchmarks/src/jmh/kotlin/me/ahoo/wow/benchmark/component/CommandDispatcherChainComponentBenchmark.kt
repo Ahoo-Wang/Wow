@@ -49,6 +49,14 @@ import org.openjdk.jmh.infra.Blackhole
  *   `Schedulers.immediate()` so `publishOn` does not switch threads. Comparing the two
  *   isolates the cross-thread handoff cost from the groupBy/concatMap structure cost.
  *
+ * Threading semantics: this benchmark uses [Scope.Thread], matching the other component
+ * benchmarks. Each JMH worker thread gets its own `CommandDispatcherChainScenario` (its own
+ * `AggregateCommandDispatcher` and scheduler pool). The single-thread (`-t 1`) rows are the
+ * primary signal — they measure one dispatch chain's round-trip cost in isolation. Multi-
+ * thread rows measure aggregate throughput of N independent dispatch chains, NOT contention
+ * on a single shared chain; for shared-chain contention under realistic I/O, use the E2E
+ * benchmarks (`CommandWriteE2EBenchmark` etc., which use [Scope.Benchmark]).
+ *
  * @author ahoo wang
  */
 @State(Scope.Thread)
