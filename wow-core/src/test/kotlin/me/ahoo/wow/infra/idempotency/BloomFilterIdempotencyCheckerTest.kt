@@ -18,7 +18,10 @@ import com.google.common.hash.Funnels
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import java.time.Duration
+import java.util.concurrent.Callable
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.CyclicBarrier
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
@@ -100,6 +103,33 @@ class BloomFilterIdempotencyCheckerTest {
         firstResult.get().assert().isTrue()
         secondResult.get().assert().isTrue()
         creations.get().assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `should allow the same element only once under concurrent checks`() {
+        val parallelism = 32
+        val executor = Executors.newFixedThreadPool(parallelism)
+        try {
+            repeat(100) { round ->
+                val checker = BloomFilterIdempotencyChecker(Duration.ofMinutes(1)) {
+                    BloomFilter.create(Funnels.stringFunnel(Charsets.UTF_8), 100_000)
+                }
+                checker.check("warmup-$round").assert().isTrue()
+                val barrier = CyclicBarrier(parallelism)
+                val allowed = executor.invokeAll(
+                    List(parallelism) {
+                        Callable {
+                            barrier.await(5, TimeUnit.SECONDS)
+                            checker.check("request-$round")
+                        }
+                    },
+                ).count { result -> result.get() }
+
+                allowed.assert().isEqualTo(1)
+            }
+        } finally {
+            executor.shutdownNow()
+        }
     }
 
     private fun awaitBlocked(thread: Thread) {

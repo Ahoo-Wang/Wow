@@ -13,8 +13,11 @@
 package me.ahoo.wow.infra.idempotency
 
 import com.google.common.hash.BloomFilter
+import com.google.common.util.concurrent.Striped
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.time.Duration
+import java.util.concurrent.locks.Lock
+import kotlin.concurrent.withLock
 
 /**
  * Idempotency checker implementation using Bloom filters for efficient duplicate detection.
@@ -38,11 +41,13 @@ class BloomFilterIdempotencyChecker(
     private val bloomFilterSupplier: () -> BloomFilter<String>
 ) : IdempotencyChecker {
     companion object {
+        private const val ELEMENT_LOCK_STRIPES = 256
         private val log = KotlinLogging.logger {}
     }
 
     private val ttlNanos = ttl.coerceAtLeast(Duration.ZERO).toNanos()
     private val refreshLock = Any()
+    private val elementLocks: Striped<Lock> = Striped.lock(ELEMENT_LOCK_STRIPES)
 
     @Volatile
     private var bloomFilter: BloomFilter<String>? = null
@@ -90,11 +95,13 @@ class BloomFilterIdempotencyChecker(
      * @return true if the element appears to be unique, false if it's a potential duplicate
      */
     override fun check(element: String): Boolean {
-        val currentBloomFilter = currentBloomFilter()
-        val contain = currentBloomFilter.mightContain(element)
-        if (!contain) {
-            currentBloomFilter.put(element)
+        return elementLocks.get(element).withLock {
+            val currentBloomFilter = currentBloomFilter()
+            val contain = currentBloomFilter.mightContain(element)
+            if (!contain) {
+                currentBloomFilter.put(element)
+            }
+            !contain
         }
-        return !contain
     }
 }
