@@ -182,7 +182,8 @@ The Gradle model keeps four responsibilities separate: `BenchmarkSuite` owns wor
 | `wow-benchmarks/results/baselines/framework-e2e.json` | Framework E2E comparison baseline, when present. | Commit only intentional baseline updates. |
 
 Files under `results/reports/*.md` are generated. Do not hand-edit benchmark rows; rerun the benchmark/report task instead.
-Every successful thread-level JMH run writes a neighboring `*.manifest.json` sidecar with the source commit and dirty state, run specification, resolved profiler arguments, runtime, and SHA-256 digests for the JSON and human output. Failed runs do not publish a success manifest. Report and comparison tasks reject raw results with missing, mixed, or mismatched manifests.
+Every successful thread-level JMH run writes a neighboring `*.manifest.json` sidecar with the source commit and dirty state, run specification, resolved required-service endpoints, profiler arguments, runtime, and SHA-256 digests for the JSON and human output. Failed runs do not publish a success manifest. Report and comparison tasks reject raw results with missing, mixed, or mismatched manifests.
+Infrastructure reports validate captured service names against the suite identity and display the captured host/port provenance. They do not reinterpret historical evidence using the report-time Redis or MongoDB environment variables.
 
 ## Reading The Report
 
