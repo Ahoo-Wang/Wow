@@ -3,6 +3,7 @@
 ## Policy
 - Quick results are directional feedback; run Baseline E2E before updating baselines or claiming framework performance conclusions.
 - Framework E2E results isolate command pipeline overhead with in-memory or noop stores; they are not production persistence capacity.
+- Single-command blocking rows are synchronous round-trip regression controls. Use Batch CommandWrite Sequential c1 as the primary framework-cost signal.
 - Infrastructure E2E results reflect real Redis or Mongo persistence paths when services are available.
 - No-snapshot growing-stream scenarios are diagnostics for replay pressure, not default E2E goals.
 - Component results explain bottlenecks and are not standalone performance goals.
@@ -38,7 +39,7 @@
 - **Version**: 8.9.0
 - **JVM**: OpenJDK 64-Bit Server VM 17.0.7+7-LTS
 - **OS**: Mac OS X 26.5.2 aarch64
-- **Generated At**: 2026-07-22T20:44:31+08:00
+- **Generated At**: 2026-07-22T21:36:47+08:00
 - **CPU Cores**: 14
 - **Physical Memory**: 24.0 GiB
 - **Benchmark JVM Args**: see per-suite Run Profiles below
@@ -242,7 +243,7 @@
 
 - **Command**: `./gradlew :wow-benchmarks:benchmarkQuickE2E`
 - **JMH Config**: warmup=1x2s, measurement=2x3s, fork=1, threads=1,4, modes=thrpt, profilers=gc
-- **Performance Conclusion Source**: no
+- **Formal Regression Source**: no
 - **Source Row Count**: 16
 - **Parsed Row Count**: 16
 
@@ -274,7 +275,7 @@
 
 - **Command**: `./gradlew :wow-benchmarks:benchmarkQuickInfrastructureE2E`
 - **JMH Config**: warmup=1x2s, measurement=2x3s, fork=1, threads=1,4, modes=thrpt, profilers=gc
-- **Performance Conclusion Source**: no
+- **Formal Regression Source**: no
 - **Source Row Count**: 0
 - **Parsed Row Count**: 0
 
@@ -287,7 +288,7 @@ Status: unavailable. Result files were not present. Run benchmarkQuickInfrastruc
 
 - **Command**: `./gradlew :wow-benchmarks:benchmarkQuickComponent`
 - **JMH Config**: warmup=1x2s, measurement=2x3s, fork=1, threads=1, modes=thrpt, profilers=gc
-- **Performance Conclusion Source**: no
+- **Formal Regression Source**: no
 - **Source Row Count**: 27
 - **Parsed Row Count**: 27
 
@@ -328,7 +329,7 @@ Status: unavailable. Result files were not present. Run benchmarkQuickInfrastruc
 
 - **Command**: `./gradlew :wow-benchmarks:benchmarkQuickWebFlux`
 - **JMH Config**: warmup=0, measurement=1x2s, fork=1, threads=1,4, modes=thrpt, profilers=gc
-- **Performance Conclusion Source**: no
+- **Formal Regression Source**: no
 - **Source Row Count**: 30
 - **Parsed Row Count**: 30
 

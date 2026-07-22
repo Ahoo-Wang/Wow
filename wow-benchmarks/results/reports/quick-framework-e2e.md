@@ -5,7 +5,7 @@
 
 # Quick Framework E2E Benchmark Report
 
-Quick Framework E2E results are directional local feedback. Use Baseline E2E runs for formal performance conclusions. Framework E2E isolates command pipeline overhead with in-memory or noop stores.
+Quick Framework E2E results are directional local feedback. Use Baseline E2E runs for formal regression checks of the exact synchronous workloads. Framework E2E isolates command pipeline overhead with in-memory or noop stores; its single-command blocking rows are controls, not production capacity signals.
 
 ## Reading Values
 
@@ -34,7 +34,7 @@ Quick Framework E2E results are directional local feedback. Use Baseline E2E run
 - **Version**: 8.9.0
 - **JVM**: OpenJDK 64-Bit Server VM 17.0.7+7-LTS
 - **OS**: Mac OS X 26.5.2 aarch64
-- **Generated At**: 2026-07-22T20:44:31+08:00
+- **Generated At**: 2026-07-22T21:36:47+08:00
 - **CPU Cores**: 14
 - **Physical Memory**: 24.0 GiB
 - **Benchmark JVM Args**: `-Xmx1g -Xms1g -XX:+UseG1GC`

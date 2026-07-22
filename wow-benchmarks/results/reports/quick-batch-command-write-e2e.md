@@ -5,7 +5,7 @@
 
 # Quick Batch CommandWrite E2E Benchmark Report
 
-Quick Batch CommandWrite E2E compares 32 individual blocking boundaries with one sequential or concurrent reactive batch boundary. JMH normalizes scores per command, so the results isolate the net effect of amortizing per-block overhead.
+Quick Batch CommandWrite E2E compares 32 individual blocking boundaries with one sequential or concurrent reactive batch boundary. JMH normalizes scores per command, so the results isolate the net effect of amortizing per-block overhead. Sequential c1 is the primary framework-cost signal; Concurrent c4 is a scaling signal; Individual blocks is the control.
 
 ## Reading Values
 
@@ -33,7 +33,7 @@ Quick Batch CommandWrite E2E compares 32 individual blocking boundaries with one
 - **Version**: 8.9.0
 - **JVM**: OpenJDK 64-Bit Server VM 17.0.7+7-LTS
 - **OS**: Mac OS X 26.5.2 aarch64
-- **Generated At**: 2026-07-22T21:25:17+08:00
+- **Generated At**: 2026-07-22T21:37:19+08:00
 - **CPU Cores**: 14
 - **Physical Memory**: 24.0 GiB
 - **Benchmark JVM Args**: `-Xmx1g -Xms1g -XX:+UseG1GC`
@@ -43,9 +43,16 @@ Quick Batch CommandWrite E2E compares 32 individual blocking boundaries with one
 
 The same 32-command workload is normalized per command. Sequential c1 isolates boundary amortization; Concurrent c4 adds bounded concurrency.
 
+### Signal Roles
+
+- **Control**: `Individual (32 blocks)` quantifies distortion from one blocking boundary per command.
+- **Primary framework-cost signal**: `Sequential c1` amortizes the harness boundary without introducing command concurrency.
+- **Scaling signal**: `Concurrent c4` adds bounded concurrency and exposes its throughput/allocation trade-off.
+- These roles define how to read this paired Quick experiment; they do not promote it to a formal regression source.
+
 ### Throughput
 
-| Scenario | Individual (32 blocks) | Sequential c1 | vs Individual | Concurrent c4 | vs Individual | c4 / c1 |
+| Scenario | Control | Primary c1 | vs Control | Scaling c4 | vs Control | c4 / c1 |
 |----------|------------------------|---------------|---------------|---------------|---------------|---------|
 | `ceiling` | 94.75 k ops/s | 129.13 k ops/s | +36.3% | 268.2 k ops/s | +183.1% | 2.08× |
 | `noop-store` | 92.16 k ops/s | 114.81 k ops/s | +24.6% | 230.21 k ops/s | +149.8% | 2.01× |
@@ -55,13 +62,13 @@ Higher throughput is better. Changes use unrounded JMH scores.
 
 ### Allocation per Command
 
-| Scenario | Individual (32 blocks) | Sequential c1 | Reduction | Concurrent c4 | Reduction | c4 / c1 |
+| Scenario | Control | Primary c1 | Reduction vs Control | Scaling c4 | Reduction vs Control | c4 / c1 |
 |----------|------------------------|---------------|-----------|---------------|-----------|---------|
 | `ceiling` | 3.86 KiB/op | 142.75 B/op | 96.4% | 657.39 B/op | 83.4% | 4.61× |
 | `noop-store` | 4.8 KiB/op | 255.59 B/op | 94.8% | 2.36 KiB/op | 50.7% | 9.47× |
 | `in-memory-new-aggregate` | 4.57 KiB/op | 255.69 B/op | 94.5% | 1.94 KiB/op | 57.6% | 7.77× |
 
-Lower allocation is better. Reduction is relative to Individual; c4 / c1 makes the concurrency trade-off explicit.
+Lower allocation is better. Reduction is relative to the Control; c4 / c1 makes the concurrency trade-off explicit.
 
 ## Results
 

@@ -51,7 +51,7 @@ data class BenchmarkSuite(
     val resultFileName: String,
     val humanFileName: String,
     val requiredForGroupedReport: Boolean = false,
-    val performanceConclusionSource: Boolean = false,
+    val formalRegressionSource: Boolean = false,
     val requiredServices: List<BenchmarkRequiredService> = emptyList(),
 )
 
@@ -406,7 +406,7 @@ val smokeSuite = BenchmarkSuite(
     resultFileName = "benchmark-smoke.json",
     humanFileName = "benchmark-smoke-human.txt",
     requiredForGroupedReport = false,
-    performanceConclusionSource = false,
+    formalRegressionSource = false,
 )
 
 val frameworkE2ESuite = BenchmarkSuite(
@@ -419,7 +419,7 @@ val frameworkE2ESuite = BenchmarkSuite(
     resultFileName = "framework-e2e.json",
     humanFileName = "framework-e2e-human.txt",
     requiredForGroupedReport = true,
-    performanceConclusionSource = true,
+    formalRegressionSource = true,
 )
 
 val batchCommandWriteE2ESuite = BenchmarkSuite(
@@ -431,7 +431,7 @@ val batchCommandWriteE2ESuite = BenchmarkSuite(
     resultFileName = "batch-command-write-e2e.json",
     humanFileName = "batch-command-write-e2e-human.txt",
     requiredForGroupedReport = false,
-    performanceConclusionSource = false,
+    formalRegressionSource = false,
 )
 
 val infrastructureE2ESuite = BenchmarkSuite(
@@ -444,7 +444,7 @@ val infrastructureE2ESuite = BenchmarkSuite(
     resultFileName = "infrastructure-e2e.json",
     humanFileName = "infrastructure-e2e-human.txt",
     requiredForGroupedReport = false,
-    performanceConclusionSource = false,
+    formalRegressionSource = false,
     requiredServices = listOf(
         BenchmarkRequiredService(
             service = "Redis",
@@ -482,7 +482,7 @@ val componentSuite = BenchmarkSuite(
     resultFileName = "component.json",
     humanFileName = "component-human.txt",
     requiredForGroupedReport = false,
-    performanceConclusionSource = false,
+    formalRegressionSource = false,
 )
 
 val webFluxSuite = BenchmarkSuite(
@@ -496,7 +496,7 @@ val webFluxSuite = BenchmarkSuite(
     resultFileName = "webflux.json",
     humanFileName = "webflux-human.txt",
     requiredForGroupedReport = false,
-    performanceConclusionSource = false,
+    formalRegressionSource = false,
 )
 
 val quickWebFluxSuite = webFluxSuite.copy(
@@ -1408,7 +1408,7 @@ data class BenchmarkResultGroup(
 data class GroupedBenchmarkReportSpec(
     val label: String,
     val expectedProfileIds: Set<String>,
-    val performanceConclusionSource: Boolean,
+    val formalRegressionSource: Boolean,
 )
 
 data class BenchmarkGroupReport(
@@ -2042,11 +2042,37 @@ data class BatchCommandWriteComparison(
     val concurrent: ParsedBenchmarkResult,
 )
 
-val batchCommandWriteMethods = setOf(
-    "sendIndividuallyAndWaitProcessed",
-    "sendBatchSequentialAndWaitProcessed",
-    "sendBatchConcurrentAndWaitProcessed",
-)
+enum class BatchCommandWriteSignal(
+    val method: String,
+    val displayName: String,
+    val columnLabel: String,
+    val role: String,
+    val interpretation: String,
+) {
+    CONTROL(
+        method = "sendIndividuallyAndWaitProcessed",
+        displayName = "Individual (32 blocks)",
+        columnLabel = "Control",
+        role = "Control",
+        interpretation = "quantifies distortion from one blocking boundary per command",
+    ),
+    PRIMARY(
+        method = "sendBatchSequentialAndWaitProcessed",
+        displayName = "Sequential c1",
+        columnLabel = "Primary c1",
+        role = "Primary framework-cost signal",
+        interpretation = "amortizes the harness boundary without introducing command concurrency",
+    ),
+    SCALING(
+        method = "sendBatchConcurrentAndWaitProcessed",
+        displayName = "Concurrent c4",
+        columnLabel = "Scaling c4",
+        role = "Scaling signal",
+        interpretation = "adds bounded concurrency and exposes its throughput/allocation trade-off",
+    ),
+}
+
+val batchCommandWriteMethods = BatchCommandWriteSignal.entries.mapTo(mutableSetOf()) { it.method }
 
 val batchCommandWriteScenarioOrder = listOf(
     "ceiling",
@@ -2083,11 +2109,11 @@ fun batchCommandWriteComparisons(rows: List<ParsedBenchmarkResult>): List<BatchC
                 "Unexpected Batch CommandWrite methods for scenario '$scenario': ${unexpectedMethods.sorted()}"
             )
         }
-        fun requiredRow(method: String): ParsedBenchmarkResult {
-            val matches = rowsByMethod[method].orEmpty()
+        fun requiredRow(signal: BatchCommandWriteSignal): ParsedBenchmarkResult {
+            val matches = rowsByMethod[signal.method].orEmpty()
             if (matches.size != 1) {
                 throw GradleException(
-                    "Batch CommandWrite scenario '$scenario' requires exactly one '$method' throughput row, " +
+                    "Batch CommandWrite scenario '$scenario' requires exactly one '${signal.method}' throughput row, " +
                         "found ${matches.size}."
                 )
             }
@@ -2096,9 +2122,9 @@ fun batchCommandWriteComparisons(rows: List<ParsedBenchmarkResult>): List<BatchC
 
         BatchCommandWriteComparison(
             scenario = scenario,
-            individual = requiredRow("sendIndividuallyAndWaitProcessed"),
-            sequential = requiredRow("sendBatchSequentialAndWaitProcessed"),
-            concurrent = requiredRow("sendBatchConcurrentAndWaitProcessed"),
+            individual = requiredRow(BatchCommandWriteSignal.CONTROL),
+            sequential = requiredRow(BatchCommandWriteSignal.PRIMARY),
+            concurrent = requiredRow(BatchCommandWriteSignal.SCALING),
         )
     }
 }
@@ -2112,11 +2138,21 @@ fun StringBuilder.appendBatchCommandWriteComparisons(rows: List<ParsedBenchmarkR
             "Sequential c1 isolates boundary amortization; Concurrent c4 adds bounded concurrency."
     )
     appendLine()
+    appendLine("### Signal Roles")
+    appendLine()
+    BatchCommandWriteSignal.entries.forEach { signal ->
+        appendLine("- **${signal.role}**: `${signal.displayName}` ${signal.interpretation}.")
+    }
+    appendLine(
+        "- These roles define how to read this paired Quick experiment; they do not promote it to a formal regression source."
+    )
+    appendLine()
     appendLine("### Throughput")
     appendLine()
     appendLine(
-        "| Scenario | Individual (32 blocks) | Sequential c1 | vs Individual | " +
-            "Concurrent c4 | vs Individual | c4 / c1 |"
+        "| Scenario | ${BatchCommandWriteSignal.CONTROL.columnLabel} | " +
+            "${BatchCommandWriteSignal.PRIMARY.columnLabel} | vs Control | " +
+            "${BatchCommandWriteSignal.SCALING.columnLabel} | vs Control | c4 / c1 |"
     )
     appendLine("|----------|------------------------|---------------|---------------|---------------|---------------|---------|")
     comparisons.forEach { comparison ->
@@ -2149,8 +2185,9 @@ fun StringBuilder.appendBatchCommandWriteComparisons(rows: List<ParsedBenchmarkR
     appendLine("### Allocation per Command")
     appendLine()
     appendLine(
-        "| Scenario | Individual (32 blocks) | Sequential c1 | Reduction | " +
-            "Concurrent c4 | Reduction | c4 / c1 |"
+        "| Scenario | ${BatchCommandWriteSignal.CONTROL.columnLabel} | " +
+            "${BatchCommandWriteSignal.PRIMARY.columnLabel} | Reduction vs Control | " +
+            "${BatchCommandWriteSignal.SCALING.columnLabel} | Reduction vs Control | c4 / c1 |"
     )
     appendLine("|----------|------------------------|---------------|-----------|---------------|-----------|---------|")
     comparisons.forEach { comparison ->
@@ -2171,7 +2208,7 @@ fun StringBuilder.appendBatchCommandWriteComparisons(rows: List<ParsedBenchmarkR
     }
     appendLine()
     appendLine(
-        "Lower allocation is better. Reduction is relative to Individual; c4 / c1 makes the concurrency trade-off explicit."
+        "Lower allocation is better. Reduction is relative to the Control; c4 / c1 makes the concurrency trade-off explicit."
     )
     appendLine()
 }
@@ -2322,8 +2359,11 @@ fun renderGroupedBenchmarkReport(
     sb.appendLine("# ${spec.label} Grouped Benchmark Report")
     sb.appendLine()
     sb.appendLine("## Policy")
-    if (spec.performanceConclusionSource) {
-        sb.appendLine("- Baseline E2E results are the performance conclusion source.")
+    if (spec.formalRegressionSource) {
+        sb.appendLine(
+            "- Baseline E2E is the formal regression source for its exact synchronous workloads; " +
+                "it is not a production capacity model."
+        )
     } else {
         sb.appendLine(
             "- ${spec.label} results are directional feedback; run Baseline E2E before updating baselines " +
@@ -2333,6 +2373,10 @@ fun renderGroupedBenchmarkReport(
     sb.appendLine(
         "- Framework E2E results isolate command pipeline overhead with in-memory or noop stores; " +
             "they are not production persistence capacity."
+    )
+    sb.appendLine(
+        "- Single-command blocking rows are synchronous round-trip regression controls. " +
+            "Use Batch CommandWrite Sequential c1 as the primary framework-cost signal."
     )
     sb.appendLine("- Infrastructure E2E results reflect real Redis or Mongo persistence paths when services are available.")
     sb.appendLine(
@@ -2428,9 +2472,9 @@ fun renderGroupedBenchmarkReport(
         sb.appendLine()
         sb.appendLine("- **Command**: `./gradlew :wow-benchmarks:${group.taskSpec.taskName}`")
         sb.appendLine("- **JMH Config**: ${group.profile.configSummary()}")
-        val performanceConclusionSource =
-            group.profile.id == baselineE2EProfile.id && group.suite.performanceConclusionSource
-        sb.appendLine("- **Performance Conclusion Source**: ${if (performanceConclusionSource) "yes" else "no"}")
+        val formalRegressionSource =
+            group.profile.id == baselineE2EProfile.id && group.suite.formalRegressionSource
+        sb.appendLine("- **Formal Regression Source**: ${if (formalRegressionSource) "yes" else "no"}")
         sb.appendLine("- **Source Row Count**: ${groupReport.sourceRowCount}")
         sb.appendLine("- **Parsed Row Count**: ${rows.size}")
         sb.appendLine()
@@ -2555,8 +2599,9 @@ tasks.register("generateBenchmarkReport") {
             title = "Quick Framework E2E Benchmark Report",
             command = "./gradlew :wow-benchmarks:benchmarkQuickE2E :wow-benchmarks:generateBenchmarkReport",
             description = "Quick Framework E2E results are directional local feedback. " +
-                "Use Baseline E2E runs for formal performance conclusions. " +
-                "Framework E2E isolates command pipeline overhead with in-memory or noop stores.",
+                "Use Baseline E2E runs for formal regression checks of the exact synchronous workloads. " +
+                "Framework E2E isolates command pipeline overhead with in-memory or noop stores; " +
+                "its single-command blocking rows are controls, not production capacity signals.",
         )
 
         val outputFile = benchmarkReportFile.asFile
@@ -2581,7 +2626,9 @@ tasks.register("generateBatchBenchmarkReport") {
                 ":wow-benchmarks:generateBatchBenchmarkReport",
             description = "Quick Batch CommandWrite E2E compares 32 individual blocking boundaries with " +
                 "one sequential or concurrent reactive batch boundary. JMH normalizes scores per command, " +
-                "so the results isolate the net effect of amortizing per-block overhead.",
+                "so the results isolate the net effect of amortizing per-block overhead. " +
+                "Sequential c1 is the primary framework-cost signal; Concurrent c4 is a scaling signal; " +
+                "Individual blocks is the control.",
             appendBeforeResults = { rows -> appendBatchCommandWriteComparisons(rows) },
         )
 
@@ -2663,7 +2710,7 @@ tasks.register("generateBaselineBenchmarkReport") {
             spec = GroupedBenchmarkReportSpec(
                 label = "Baseline",
                 expectedProfileIds = setOf(baselineE2EProfile.id, exhaustiveComponentProfile.id),
-                performanceConclusionSource = true,
+                formalRegressionSource = true,
             ),
             version = project.version.toString(),
         )
@@ -2687,7 +2734,7 @@ tasks.register("generateQuickBenchmarkReport") {
             spec = GroupedBenchmarkReportSpec(
                 label = "Quick",
                 expectedProfileIds = setOf(quickProfile.id),
-                performanceConclusionSource = false,
+                formalRegressionSource = false,
             ),
             version = project.version.toString(),
         )
