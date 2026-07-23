@@ -17,12 +17,14 @@ import com.google.errorprone.annotations.ThreadSafe
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.infra.sink.concurrent
+import me.ahoo.wow.infra.sink.CloseSettlementAware
+import me.ahoo.wow.infra.sink.prepareConcurrentSink
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -76,7 +78,7 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
             if (closing) {
                 null
             } else {
-                sinks[materialized] ?: sinkSupplier(materialized).concurrent().also {
+                sinks[materialized] ?: sinkSupplier(materialized).prepareConcurrentSink().also {
                     sinks[materialized] = it
                 }
             }
@@ -159,24 +161,114 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
             closing = true
             sinks.entries.map { entry -> entry.key to entry.value }
         }
+        val settledSinks = mutableListOf<Pair<NamedAggregate, Sinks.Many<M>>>()
+        val pendingSettlements = mutableListOf<PendingCloseSettlement<M>>()
+        var closeFailure: Throwable? = null
+        detachedSinks.forEach { (aggregate, many) ->
+            val attempt = tryCloseSink(aggregate, many)
+            attempt.settledSink?.let(settledSinks::add)
+            attempt.pendingSettlement?.let(pendingSettlements::add)
+            attempt.failure?.let { closeFailure = mergeCloseFailure(closeFailure, it) }
+        }
+        if (pendingSettlements.isEmpty()) {
+            finishClose(settledSinks)
+        } else {
+            CompletableFuture.allOf(*pendingSettlements.map { it.settled }.toTypedArray())
+                .whenComplete { _, error ->
+                    if (error != null) {
+                        log.warn(error) {
+                            "Failed to settle one or more in-memory sink close signals."
+                        }
+                    }
+                    /*
+                     * Exceptional settlement still means the MPSC close state machine
+                     * reached its final linearization point. That sink is terminal and
+                     * cannot be retried, so it must not remain cached and block a fresh
+                     * subscription for the same aggregate.
+                     */
+                    val asynchronouslySettled = pendingSettlements.map {
+                        it.aggregate to it.many
+                    }
+                    finishClose(settledSinks + asynchronouslySettled)
+                }
+        }
+        closeFailure?.let { throw it }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun tryCloseSink(
+        aggregate: NamedAggregate,
+        many: Sinks.Many<M>,
+    ): CloseAttempt<M> =
         try {
-            detachedSinks.forEach { (aggregate, many) ->
-                val emitResult = many.tryEmitComplete()
-                if (emitResult.isSuccess) {
+            val emitResult = many.tryEmitComplete()
+            when {
+                emitResult.isSuccess ||
+                    emitResult == Sinks.EmitResult.FAIL_TERMINATED ||
+                    emitResult == Sinks.EmitResult.FAIL_CANCELLED -> {
                     log.debug {
                         "Close [${aggregate.aggregateName}] sink - [$emitResult]."
                     }
-                } else {
-                    log.warn {
-                        "Close [${aggregate.aggregateName}] sink - [$emitResult]."
+                    val settlement = many.closeSettlement()
+                    if (settlement == null) {
+                        CloseAttempt(settledSink = aggregate to many)
+                    } else {
+                        CloseAttempt(
+                            pendingSettlement = PendingCloseSettlement(aggregate, many, settlement),
+                        )
                     }
                 }
+
+                else -> CloseAttempt(
+                    failure = Sinks.EmissionException(
+                        emitResult,
+                        "In-memory [${aggregate.aggregateName}] sink rejected close with [$emitResult].",
+                    ),
+                )
             }
-        } finally {
-            synchronized(lifecycleLock) {
-                sinks.clear()
-                closing = false
+        } catch (error: Throwable) {
+            log.warn(error) {
+                "Failed to close [${aggregate.aggregateName}] sink."
             }
+            CloseAttempt(
+                pendingSettlement = many.closeSettlement()?.let {
+                    PendingCloseSettlement(aggregate, many, it)
+                },
+                failure = error,
+            )
+        }
+
+    private fun mergeCloseFailure(current: Throwable?, next: Throwable): Throwable {
+        if (current == null) {
+            return next
+        }
+        if (current !== next) {
+            current.addSuppressed(next)
+        }
+        return current
+    }
+
+    private fun Sinks.Many<M>.closeSettlement(): CompletableFuture<Unit>? =
+        (this as? CloseSettlementAware)?.closeSettled
+
+    private fun finishClose(detachedSinks: List<Pair<NamedAggregate, Sinks.Many<M>>>) {
+        synchronized(lifecycleLock) {
+            detachedSinks.forEach { (aggregate, many) ->
+                sinks.remove(aggregate, many)
+            }
+            closing = false
         }
     }
+
+    private data class PendingCloseSettlement<M : Any>(
+        val aggregate: NamedAggregate,
+        val many: Sinks.Many<M>,
+        val settled: CompletableFuture<Unit>,
+    )
+
+    private data class CloseAttempt<M : Any>(
+        val settledSink: Pair<NamedAggregate, Sinks.Many<M>>? = null,
+        val pendingSettlement: PendingCloseSettlement<M>? = null,
+        val failure: Throwable? = null,
+    )
 }

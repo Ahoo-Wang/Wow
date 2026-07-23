@@ -14,7 +14,7 @@ package me.ahoo.wow.command
 
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.infra.sink.concurrent
+import me.ahoo.wow.infra.sink.mpscUnicastManySink
 import me.ahoo.wow.messaging.InMemoryMessageBus
 import reactor.core.publisher.Sinks
 import reactor.core.publisher.Sinks.Many
@@ -25,18 +25,19 @@ import reactor.core.publisher.Sinks.Many
  * making it suitable for single-instance or testing scenarios.
  *
  * @param sinkSupplier Function that creates a unicast sink for each named aggregate.
- *                     Defaults to unicast with backpressure buffer.
+ *                     Defaults to an atomic MPSC unicast sink with backpressure buffer.
  * @author ahoo wang
  */
 class InMemoryCommandBus(
     /**
      * Supplier for creating sinks for command distribution.
-     * Uses unicast mode to ensure each command reaches exactly one consumer.
+     * Uses atomic MPSC admission and unicast mode to support concurrent senders while
+     * ensuring each command reaches exactly one consumer.
      *
      * @see Sinks.UnicastSpec
      */
     override val sinkSupplier: (NamedAggregate) -> Many<CommandMessage<*>> = {
-        Sinks.unsafe().many().unicast().onBackpressureBuffer<CommandMessage<*>>().concurrent()
+        mpscUnicastManySink()
     }
 ) : InMemoryMessageBus<CommandMessage<*>, ServerCommandExchange<*>>(),
     LocalCommandBus {

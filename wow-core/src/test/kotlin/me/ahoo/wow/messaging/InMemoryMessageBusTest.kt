@@ -16,15 +16,21 @@ package me.ahoo.wow.messaging
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.infra.sink.concurrent
+import me.ahoo.wow.infra.sink.mpscUnicastManySink
 import me.ahoo.wow.messaging.handler.MessageExchange
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.reactivestreams.Subscription
+import reactor.core.CoreSubscriber
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Sinks
 import reactor.test.StepVerifier
+import reactor.util.context.Context
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 class InMemoryMessageBusTest {
@@ -71,6 +77,26 @@ class InMemoryMessageBusTest {
             .verifyComplete()
 
         bus.subscriberCount(message).assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `unaccepted terminal should keep the ordinary sink available for close retry`() {
+        val bus = RetryCloseInMemoryMessageBus()
+        val message = TestNamedMessage()
+        val completed = CountDownLatch(1)
+        val subscription = bus.receive(MessageSubscription(message)).subscribe({}, {}, completed::countDown)
+        try {
+            assertThrows<Sinks.EmissionException> {
+                bus.close()
+            }
+            bus.subscriberCount(message).assert().isEqualTo(1)
+
+            bus.close()
+            completed.await(5, TimeUnit.SECONDS).assert().isTrue()
+            bus.subscriberCount(message).assert().isZero()
+        } finally {
+            subscription.dispose()
+        }
     }
 
     @Test
@@ -137,6 +163,127 @@ class InMemoryMessageBusTest {
         bus.subscriberCount(concurrentMessage).assert().isZero()
     }
 
+    @Test
+    fun `throwing sink should not bypass a pending mpsc close settlement`() {
+        val bus = MixedCloseInMemoryMessageBus()
+        val activeMessage = TestNamedMessage(aggregateName = "active")
+        val throwingMessage = TestNamedMessage(aggregateName = "throwing")
+        val concurrentMessage = TestNamedMessage(aggregateName = "concurrent")
+        val onNextEntered = CountDownLatch(1)
+        val releaseOnNext = CountDownLatch(1)
+        val activeCompleted = CountDownLatch(1)
+        val activeSubscription = bus.receive(MessageSubscription(activeMessage)).subscribe(
+            {
+                onNextEntered.countDown()
+                check(releaseOnNext.await(5, TimeUnit.SECONDS)) {
+                    "Timed out waiting to release active MPSC delivery."
+                }
+            },
+            { throw AssertionError("Expected active MPSC completion.", it) },
+            { activeCompleted.countDown() },
+        )
+        val throwingSubscription = bus.receive(MessageSubscription(throwingMessage)).subscribe()
+        val executor = java.util.concurrent.Executors.newSingleThreadExecutor()
+        try {
+            val activeSend = executor.submit { bus.send(activeMessage).block(Duration.ofSeconds(5)) }
+            onNextEntered.await(5, TimeUnit.SECONDS).assert().isTrue()
+
+            assertThrows<IllegalStateException> {
+                bus.close()
+            }
+            StepVerifier.create(bus.receive(MessageSubscription(concurrentMessage)))
+                .expectComplete()
+                .verify(Duration.ofSeconds(1))
+
+            releaseOnNext.countDown()
+            activeSend.get(5, TimeUnit.SECONDS)
+            activeCompleted.await(5, TimeUnit.SECONDS).assert().isTrue()
+
+            val reopened = bus.receive(MessageSubscription(concurrentMessage)).subscribe()
+            try {
+                bus.subscriberCount(concurrentMessage).assert().isEqualTo(1)
+            } finally {
+                reopened.dispose()
+            }
+        } finally {
+            releaseOnNext.countDown()
+            activeSubscription.dispose()
+            throwingSubscription.dispose()
+            executor.shutdownNow()
+            executor.awaitTermination(5, TimeUnit.SECONDS).assert().isTrue()
+            bus.close()
+        }
+    }
+
+    @Test
+    fun `exceptionally settled mpsc sink should be removed before reopening the bus`() {
+        val bus = MpscInMemoryMessageBus()
+        val message = TestNamedMessage()
+        val completionFailure = IllegalStateException("completion failed")
+        val subscription = AtomicReference<Subscription>()
+        bus.receive(MessageSubscription(message)).subscribe(
+            object : CoreSubscriber<TestMessageExchange> {
+                override fun currentContext(): Context = Context.empty()
+
+                override fun onSubscribe(delegate: Subscription) {
+                    subscription.set(delegate)
+                    delegate.request(Long.MAX_VALUE)
+                }
+
+                override fun onNext(exchange: TestMessageExchange) = Unit
+
+                override fun onError(throwable: Throwable) = Unit
+
+                override fun onComplete() {
+                    throw completionFailure
+                }
+            },
+        )
+
+        assertThrows<IllegalStateException> {
+            bus.close()
+        }.assert().isSameAs(completionFailure)
+
+        val reopenedError = AtomicReference<Throwable?>()
+        val reopened = bus.receive(MessageSubscription(message)).subscribe({}, reopenedError::set)
+        try {
+            reopenedError.get().assert().isNull()
+            bus.subscriberCount(message).assert().isEqualTo(1)
+        } finally {
+            reopened.dispose()
+            subscription.get().cancel()
+            bus.close()
+        }
+    }
+
+    @Test
+    fun `shared close failure should not stop remaining sinks or leave the bus closing`() {
+        val failure = IllegalStateException("shared close failure")
+        val closeCalls = AtomicInteger()
+        val bus = SharedFailureInMemoryMessageBus(failure, closeCalls)
+        val firstMessage = TestNamedMessage(aggregateName = "first")
+        val secondMessage = TestNamedMessage(aggregateName = "second")
+        val reopenedMessage = TestNamedMessage(aggregateName = "reopened")
+        val first = bus.receive(MessageSubscription(firstMessage)).subscribe()
+        val second = bus.receive(MessageSubscription(secondMessage)).subscribe()
+        try {
+            assertThrows<IllegalStateException> {
+                bus.close()
+            }.assert().isSameAs(failure)
+            closeCalls.get().assert().isEqualTo(2)
+
+            val reopened = bus.receive(MessageSubscription(reopenedMessage)).subscribe()
+            try {
+                bus.subscriberCount(reopenedMessage).assert().isEqualTo(1)
+            } finally {
+                reopened.dispose()
+            }
+        } finally {
+            first.dispose()
+            second.dispose()
+        }
+    }
+
     private fun awaitBlocked(thread: Thread) {
         val deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos()
         while (thread.state != Thread.State.BLOCKED && System.nanoTime() < deadline) {
@@ -167,6 +314,80 @@ private class BlockingSinkInMemoryMessageBus(
     }
 
     override fun TestNamedMessage.createExchange(): TestMessageExchange = TestMessageExchange(this)
+}
+
+private class RetryCloseInMemoryMessageBus : InMemoryMessageBus<TestNamedMessage, TestMessageExchange>() {
+    override val sinkSupplier: (NamedAggregate) -> Sinks.Many<TestNamedMessage> = {
+        RetryCompleteManySink()
+    }
+
+    override fun TestNamedMessage.createExchange(): TestMessageExchange = TestMessageExchange(this)
+}
+
+private class MixedCloseInMemoryMessageBus : InMemoryMessageBus<TestNamedMessage, TestMessageExchange>() {
+    override val sinkSupplier: (NamedAggregate) -> Sinks.Many<TestNamedMessage> = {
+        when (it.aggregateName) {
+            "active" -> mpscUnicastManySink()
+            "throwing" -> ThrowingCompleteManySink()
+            else -> Sinks.unsafe().many().multicast().onBackpressureBuffer()
+        }
+    }
+
+    override fun TestNamedMessage.createExchange(): TestMessageExchange = TestMessageExchange(this)
+}
+
+private class MpscInMemoryMessageBus : InMemoryMessageBus<TestNamedMessage, TestMessageExchange>() {
+    override val sinkSupplier: (NamedAggregate) -> Sinks.Many<TestNamedMessage> = {
+        mpscUnicastManySink()
+    }
+
+    override fun TestNamedMessage.createExchange(): TestMessageExchange = TestMessageExchange(this)
+}
+
+private class SharedFailureInMemoryMessageBus(
+    private val failure: Throwable,
+    private val closeCalls: AtomicInteger,
+) : InMemoryMessageBus<TestNamedMessage, TestMessageExchange>() {
+    override val sinkSupplier: (NamedAggregate) -> Sinks.Many<TestNamedMessage> = {
+        SharedFailureCompleteManySink(failure, closeCalls)
+    }
+
+    override fun TestNamedMessage.createExchange(): TestMessageExchange = TestMessageExchange(this)
+}
+
+private class ThrowingCompleteManySink<T : Any>(
+    private val attempts: AtomicInteger = AtomicInteger(),
+    private val backing: Sinks.Many<T> = Sinks.unsafe().many().multicast().onBackpressureBuffer(),
+) : Sinks.Many<T> by backing {
+    override fun tryEmitComplete(): Sinks.EmitResult =
+        if (attempts.getAndIncrement() == 0) {
+            throw IllegalStateException("close failed")
+        } else {
+            backing.tryEmitComplete()
+        }
+}
+
+private class SharedFailureCompleteManySink<T : Any>(
+    private val failure: Throwable,
+    private val closeCalls: AtomicInteger,
+    private val backing: Sinks.Many<T> = Sinks.unsafe().many().multicast().onBackpressureBuffer(),
+) : Sinks.Many<T> by backing {
+    override fun tryEmitComplete(): Sinks.EmitResult {
+        closeCalls.incrementAndGet()
+        throw failure
+    }
+}
+
+private class RetryCompleteManySink<T : Any>(
+    private val attempts: AtomicInteger = AtomicInteger(),
+    private val backing: Sinks.Many<T> = Sinks.unsafe().many().multicast().onBackpressureBuffer(),
+) : Sinks.Many<T> by backing {
+    override fun tryEmitComplete(): Sinks.EmitResult =
+        if (attempts.getAndIncrement() == 0) {
+            Sinks.EmitResult.FAIL_NON_SERIALIZED
+        } else {
+            backing.tryEmitComplete()
+        }
 }
 
 private class TestMessageExchange(
