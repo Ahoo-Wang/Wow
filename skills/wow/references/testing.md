@@ -44,9 +44,10 @@ class CartSpec : AggregateSpec<Cart, CartState>(
 | Method | Description |
 |--------|-------------|
 | `givenOwnerId(id)` | Set the owner ID for owner-aware aggregate scenarios |
-| `givenEvent(event)` | Initialize with a domain event |
-| `givenEvent(events)` | Initialize with multiple events |
-| `givenState(state, version)` | Initialize with direct state |
+| `givenSpaceId(id)` | Set the space ID for space-aware (multi-tenant) aggregate scenarios |
+| `givenEvent(event) { }` | Initialize with a domain event; trailing `block` (`WhenDsl`) is required |
+| `givenEvent(events) { }` | Initialize with multiple events; trailing `block` is required |
+| `givenState(state, version) { }` | Initialize with direct state; trailing `block` is required |
 | `inject { register(...) }` | Inject mock services |
 | `name("description")` | Name this test scenario |
 
@@ -208,10 +209,11 @@ class TransferSagaSpec : SagaSpec<TransferSaga>({
 
 | Method | Description |
 |--------|-------------|
-| `whenEvent(event, ownerId)` | Trigger saga with event |
+| `whenEvent(event, state, ownerId, spaceId) { }` | Trigger saga with event; `state`/`spaceId` optional. Trailing `block` is required. |
 | `name("description")` | Name this test scenario |
 | `functionFilter { }` | Filter message functions |
 | `functionName("name")` | Filter by function name |
+| `inject { }` | Register mock services for saga dependencies (extends `InjectServiceCapable`) |
 
 ### Saga ExpectDsl Methods
 

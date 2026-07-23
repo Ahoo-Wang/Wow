@@ -281,7 +281,7 @@ class Order(private val state: OrderState) { ... }
 Each aggregate gets a dedicated Reactor Scheduler to control concurrent execution:
 
 ```kotlin
-fun interface AggregateSchedulerSupplier {
+interface AggregateSchedulerSupplier : GracefullyStoppable {
     fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler
 }
 ```

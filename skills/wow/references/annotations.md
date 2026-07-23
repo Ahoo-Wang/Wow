@@ -311,7 +311,7 @@ class Order(private val state: OrderState) { ... }
 **Parameters:**
 | Attribute | Default | Description |
 |---|---|---|
-| `resourceName` | lowercased class name | Custom API path segment |
+| `resourceName` | `""` (empty; falls back to lowercased class name at runtime) | Custom API path segment |
 | `enabled` | `true` | Set `false` to disable automatic route generation |
 | `spaced` | `false` | Space-separate the resource name in URL paths |
 | `owner` | `NEVER` | Ownership policy: `NEVER`, `ALWAYS`, or `AGGREGATE_ID` |

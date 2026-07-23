@@ -97,7 +97,7 @@ wow:
 | `wow.command.bus.type` | BusType | `kafka` | Command bus implementation |
 | `wow.command.bus.local-first.enabled` | Boolean | `true` | Enable LocalFirst mode |
 | `wow.command.idempotency.enabled` | Boolean | `true` | Enable idempotency checking |
-| `wow.command.idempotency.bloom-filter.expected-insertions` | Int | `1000000` | Bloom filter capacity |
+| `wow.command.idempotency.bloom-filter.expected-insertions` | Long | `1000000` | Bloom filter capacity |
 | `wow.command.idempotency.bloom-filter.ttl` | Duration | `PT60S` | Bloom filter TTL |
 | `wow.command.idempotency.bloom-filter.fpp` | Double | `0.00001` | False positive probability |
 
@@ -129,8 +129,40 @@ wow:
 |----------|------|---------|-------------|
 | `wow.eventsourcing.snapshot.enabled` | Boolean | `true` | Enable snapshot functionality |
 | `wow.eventsourcing.snapshot.strategy` | Strategy | `all` | Snapshot strategy: `all` or `version_offset` |
-| `wow.eventsourcing.snapshot.version-offset` | Int | `10` | Version offset for VERSION_OFFSET strategy |
+| `wow.eventsourcing.snapshot.version-offset` | Int | `5` | Version offset for VERSION_OFFSET strategy (`DEFAULT_VERSION_OFFSET`) |
 | `wow.eventsourcing.snapshot.storage` | StorageType | `mongo` | Snapshot storage backend |
+
+### Snapshot Checkpoint
+
+Persist the latest snapshot version as an immutable checkpoint at a fixed version interval. The checkpoint is written via `VersionIntervalCheckpointStrategy`; it does not change projection or rebuild behavior on its own.
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `wow.eventsourcing.snapshot.checkpoint.enabled` | Boolean | `false` | Persist the snapshot version checkpoint |
+| `wow.eventsourcing.snapshot.checkpoint.version-interval` | Int | `100` | How often (in versions) to persist the checkpoint; must be positive |
+
+### Storage Routing
+
+Route different aggregates to different storage backends within a single service. When a matching route is configured, Wow installs a `RoutingEventStore` / `RoutingSnapshotStore`; unlisted aggregates fall back to the default storage. A configured channel **must set exactly one** of `storage` or `binding` — an empty channel (e.g. `event: {}`) fails fast at startup.
+
+```yaml
+wow:
+  eventsourcing:
+    storage-routing:
+      aggregates:
+        HotAggregate:
+          event:
+            storage: redis
+          snapshot:
+            storage: redis
+```
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `wow.eventsourcing.storage-routing.aggregates.<name>.event.storage` | StorageType | _(required if `binding` absent)_ | Event store backend for this aggregate |
+| `wow.eventsourcing.storage-routing.aggregates.<name>.event.binding` | String | _(required if `storage` absent)_ | Bound event store bean name |
+| `wow.eventsourcing.storage-routing.aggregates.<name>.snapshot.storage` | StorageType | _(required if `binding` absent)_ | Snapshot store backend for this aggregate |
+| `wow.eventsourcing.storage-routing.aggregates.<name>.snapshot.binding` | String | _(required if `storage` absent)_ | Bound snapshot store bean name |
 
 ## Infrastructure
 
@@ -188,6 +220,17 @@ wow:
 |----------|------|---------|-------------|
 | `wow.webflux.enabled` | Boolean | `true` | Enable WebFlux support |
 | `wow.webflux.global-error.enabled` | Boolean | `true` | Enable global error handling |
+| `wow.webflux.batch.concurrency` | Int | `1` | Concurrency for batch command requests |
+| `wow.webflux.batch.prefetch` | Int | `1` | Prefetch count for batch command requests |
+| `wow.webflux.command.request.appender.agent.enabled` | Boolean | `true` | Append client `User-Agent` to command request context (set `false` to disable) |
+| `wow.webflux.command.request.appender.ip.enabled` | Boolean | `true` | Append client IP to command request context (set `false` to disable) |
+
+### Observability Toggles
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `wow.opentelemetry.enabled` | Boolean | `true` | Enable OpenTelemetry tracing instrumentation (`matchIfMissing`; requires `wow-opentelemetry` on classpath) |
+| `wow.metrics.enabled` | Boolean | `true` | Enable Micrometer/Prometheus metrics collection (`matchIfMissing`) |
 
 ## Bus Types
 
