@@ -18,12 +18,18 @@ import me.ahoo.wow.api.Copyable
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.infra.sink.mpscUnicastManySink
 import me.ahoo.wow.messaging.handler.MessageExchange
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.publisher.Sinks
 import reactor.test.StepVerifier
+import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 class LocalFirstMessageBusTest {
 
@@ -71,6 +77,47 @@ class LocalFirstMessageBusTest {
         localBus.sent.assert().isEmpty()
         distributedBus.sent.single().assert().isSameAs(message)
         message.isLocalFirst().assert().isFalse()
+    }
+
+    @Test
+    fun `send skips an in-memory bus while its active sink is closing`() {
+        val localBus = MpscLocalBus()
+        val distributedBus = RecordingDistributedBus()
+        val bus = RecordingLocalFirstMessageBus(localBus, distributedBus)
+        val activeMessage = LocalFirstTestMessage(id = "active")
+        val fallbackMessage = LocalFirstTestMessage(id = "fallback")
+        val onNextEntered = CountDownLatch(1)
+        val releaseOnNext = CountDownLatch(1)
+        val localSubscription = localBus.receive(MessageSubscription(activeMessage)).subscribe {
+            onNextEntered.countDown()
+            check(releaseOnNext.await(5, TimeUnit.SECONDS)) {
+                "Timed out waiting to release the active local delivery."
+            }
+        }
+        val executor = Executors.newSingleThreadExecutor()
+        try {
+            val activeSend = executor.submit {
+                localBus.send(activeMessage).block(Duration.ofSeconds(5))
+            }
+            onNextEntered.await(5, TimeUnit.SECONDS).assert().isTrue()
+
+            localBus.close()
+            localBus.subscriberCount(activeMessage).assert().isZero()
+
+            StepVerifier.create(bus.send(fallbackMessage))
+                .verifyComplete()
+            distributedBus.sent.single().assert().isSameAs(fallbackMessage)
+            fallbackMessage.isLocalFirst().assert().isFalse()
+
+            releaseOnNext.countDown()
+            activeSend.get(5, TimeUnit.SECONDS)
+        } finally {
+            releaseOnNext.countDown()
+            localSubscription.dispose()
+            executor.shutdownNow()
+            executor.awaitTermination(5, TimeUnit.SECONDS).assert().isTrue()
+            localBus.close()
+        }
     }
 
     @Test
@@ -137,6 +184,15 @@ private class RecordingLocalFirstMessageBus(
     override val localBus: LocalMessageBus<LocalFirstTestMessage, LocalFirstTestExchange>,
     override val distributedBus: DistributedMessageBus<LocalFirstTestMessage, LocalFirstTestExchange>,
 ) : LocalFirstMessageBus<LocalFirstTestMessage, LocalFirstTestExchange>
+
+private class MpscLocalBus : InMemoryMessageBus<LocalFirstTestMessage, LocalFirstTestExchange>() {
+    override val sinkSupplier: (NamedAggregate) -> Sinks.Many<LocalFirstTestMessage> = {
+        mpscUnicastManySink()
+    }
+
+    override fun LocalFirstTestMessage.createExchange(): LocalFirstTestExchange =
+        LocalFirstTestExchange(this)
+}
 
 private class RecordingLocalBus(
     private val subscribers: Int = 0,

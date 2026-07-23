@@ -28,6 +28,7 @@ import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.infra.Blackhole
+import reactor.core.scheduler.Schedulers
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -35,10 +36,11 @@ import java.util.concurrent.atomic.AtomicInteger
  * Sweeps the "simulated I/O latency vs cross-thread handoff" trade-off curve for
  * `sendAndWaitProcessed`, without requiring a real database.
  *
- * Uses [DelayEventStore] (in-memory store with an injected per-operation delay) so the
- * event-store I/O cost is a controlled variable. Combined with [schedulerStrategy], this
- * answers: how much I/O latency is needed before the dispatcher's `publishOn` cross-thread
- * handoff becomes negligible relative to the total command-write latency.
+ * The `direct` profile uses [InMemoryEventStore] as a pure framework ceiling. The asynchronous
+ * profiles all use [DelayEventStore] (including `async-0`) so timer handoff topology remains
+ * constant while the injected per-operation delay changes. Combined with [schedulerStrategy],
+ * this answers how much I/O latency is needed before the dispatcher's `publishOn` cross-thread
+ * handoff becomes negligible relative to total command-write latency.
  *
  * The sweep fills the gap between the two previously measured extremes:
  * - NoopEventStore (0 I/O): cross-thread ~95% of dispatch-chain cost.
@@ -49,11 +51,14 @@ import java.util.concurrent.atomic.AtomicInteger
 @State(Scope.Benchmark)
 @Suppress("VarCouldBeVal") // JMH injects @Param fields via reflection, so they must be `var`.
 open class SimulatedIoCommandWriteBenchmark {
-    @Param("0", "20us", "100us", "500us", "2ms")
-    private var ioDelay: String = "0"
+    @Param("direct", "async-0", "20us", "100us", "500us", "2ms")
+    private var ioDelay: String = "direct"
 
     @Param("PARALLEL", "IMMEDIATE")
     private var schedulerStrategy: String = SchedulerStrategy.PARALLEL.name
+
+    @Param("cpu")
+    private var schedulerPoolSize: String = "cpu"
 
     private lateinit var commandDispatcherScenario: CommandDispatcherScenario
     private val failures = AtomicInteger()
@@ -61,18 +66,17 @@ open class SimulatedIoCommandWriteBenchmark {
     @Setup(Level.Iteration)
     fun setup() {
         failures.set(0)
-        val delay = parseDelay(ioDelay)
-        // Bypass DelayEventStore for the zero-delay row: delaySubscription(Duration.ZERO) still
-        // schedules a timer task, which would add an unrelated reactor-scheduler handoff and
-        // contaminate the "pure framework" baseline point this row is meant to provide.
-        val eventStore = if (delay.isZero) {
-            InMemoryEventStore()
-        } else {
-            DelayEventStore(delaySupplier = { delay })
+        val eventStore = when (ioDelay) {
+            "direct" -> InMemoryEventStore()
+            else -> {
+                val delay = parseDelay(ioDelay)
+                DelayEventStore(delaySupplier = { delay })
+            }
         }
         commandDispatcherScenario = CommandDispatcherScenario.create(
             eventStore = eventStore,
-            schedulerSupplier = SchedulerStrategy.valueOf(schedulerStrategy).toSchedulerSupplier(),
+            schedulerSupplier = SchedulerStrategy.valueOf(schedulerStrategy)
+                .toSchedulerSupplier(resolveSchedulerPoolSize(schedulerPoolSize)),
         )
     }
 
@@ -83,7 +87,8 @@ open class SimulatedIoCommandWriteBenchmark {
             if (failureCount > 0) {
                 throw IllegalStateException(
                     "Simulated I/O command write recorded $failureCount failure(s) " +
-                        "[ioDelay=$ioDelay, schedulerStrategy=$schedulerStrategy].",
+                        "[ioDelay=$ioDelay, schedulerStrategy=$schedulerStrategy, " +
+                        "schedulerPoolSize=$schedulerPoolSize].",
                 )
             }
         } finally {
@@ -103,10 +108,23 @@ open class SimulatedIoCommandWriteBenchmark {
     private companion object {
         fun parseDelay(value: String): Duration =
             when {
-                value == "0" -> Duration.ZERO
+                value == "async-0" -> Duration.ZERO
                 value.endsWith("us") -> Duration.ofNanos(value.removeSuffix("us").toLong() * 1_000L)
                 value.endsWith("ms") -> Duration.ofMillis(value.removeSuffix("ms").toLong())
-                else -> error("Unsupported ioDelay value: $value (expected '0', '<n>us', or '<n>ms')")
+                else -> error(
+                    "Unsupported ioDelay value: $value " +
+                        "(expected 'direct', 'async-0', '<n>us', or '<n>ms')",
+                )
+            }
+
+        fun resolveSchedulerPoolSize(value: String): Int =
+            when (value) {
+                "cpu" -> Schedulers.DEFAULT_POOL_SIZE
+                else -> value.toInt().also {
+                    require(it > 0) {
+                        "schedulerPoolSize must be greater than 0."
+                    }
+                }
             }
     }
 }
