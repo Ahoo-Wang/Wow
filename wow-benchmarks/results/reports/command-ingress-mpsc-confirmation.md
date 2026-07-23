@@ -15,17 +15,17 @@
 - `current-production`：当前默认 `InMemoryCommandBus`，使用 `MpscUnicastManySink`；
 - `legacy-lock`：显式注入旧版 unsafe unicast sink，并用 `ConcurrentManySink` 包装。
 
-四线程结果从 `163,681.38 ± 5,061.44 ops/s` 提升到
-`201,068.01 ± 6,588.78 ops/s`，点估计提升 **22.84%**。两组 JMH error
-区间不重叠，且规范化分配量只增加 **9.28 B/op（0.24%）**。
+四线程结果从 `161,912.38 ± 2,576.38 ops/s` 提升到
+`200,570.23 ± 2,724.71 ops/s`，点估计提升 **23.88%**。两组 JMH error
+区间不重叠，且规范化分配量只增加 **8.84 B/op（0.23%）**。
 
 clean run 达到以下预设阈值：
 
 | 验收项 | 标准 | 结果 | 判定 |
 |---|---:|---:|---|
-| 四线程吞吐量 | 提升至少 10% | +22.84% | PASS |
-| 测量区分度 | JMH error 区间不重叠 | `[194,479.23, 207,656.79]` vs `[158,619.94, 168,742.82]` | PASS |
-| 分配回归 | 不超过 1% | +0.24% | PASS |
+| 四线程吞吐量 | 提升至少 10% | +23.88% | PASS |
+| 测量区分度 | JMH error 区间不重叠 | `[197,845.52, 203,294.94]` vs `[159,336.00, 164,488.76]` | PASS |
+| 分配回归 | 不超过 1% | +0.23% | PASS |
 | 正确性 | 相关 test/check 全部通过 | 后续章节记录 | PASS |
 
 ## 优化范围
@@ -38,6 +38,8 @@ clean run 达到以下预设阈值：
 3. terminal/cancellation claim 后立即拒绝新值；物理控制信号等待已 admission 的 `onNext` 返回，并在所有已委派路径返回后才完成 close settlement；
 4. 用 opaque `Flux`/`Subscription` 隐藏 factory-owned queue，阻止下游直接 fusion 或暴露 raw sink；
 5. 保留自定义 sink 的兼容行为：非 MPSC sink 仍由 `ConcurrentManySink` 包装。
+6. close 期间不再暴露待结算 sink 的旧 subscriber；普通 sink 的 terminal callback 抛错时，
+   仅在 `Scannable` 已确认终止或取消后移除，保留未接受 terminal 的重试能力。
 
 ### Reactor Sink 语义兼容
 
@@ -96,9 +98,9 @@ Scheduler；`publishOn` 继续承担调用线程隔离。
 | 项 | 值 |
 |---|---|
 | Project version | `8.9.1` |
-| Source commit | `597356669e65f2dd8f7ea3ebc5b4df39075e6335` |
+| Source commit | `060a2ea297cda413d87da673375a450ce9eaada5` |
 | Source dirty | `false` |
-| JMH JAR SHA-256 | `893594fe72368432bfcd6f96826b384205221a2a50884c9c3c81f53238993dc9` |
+| JMH JAR SHA-256 | `30cb80352ed56f959179629274b8e928ef0056d6c9c285c4f2ee40b6248b84f2` |
 | JVM | OpenJDK 17.0.7+7-LTS |
 | OS | Mac OS X 26.5.2 aarch64 |
 | CPU | 14 available processors |
@@ -110,7 +112,7 @@ Scheduler；`publishOn` 继续承担调用线程隔离。
 | JVM args | `-Xmx4g -Xms4g -XX:+UseG1GC -XX:+AlwaysPreTouch` 及 profiling 辅助参数 |
 | Profiler | `gc` |
 
-同一个 run ID `2e4e599e-a1e9-4b35-97ff-d9661d67974e` 依次运行 t1 和 t4。
+同一个 run ID `8d49668d-386d-414b-a68e-89f8fa49ac46` 依次运行 t1 和 t4。
 
 ## 配对 A/B 结果
 
@@ -118,37 +120,37 @@ Scheduler；`publishOn` 继续承担调用线程隔离。
 
 | Threads | Strategy | Score | JMH Error | Error interval |
 |---:|---|---:|---:|---:|
-| 1 | `current-production` | 93,714.58 ops/s | ±5,209.91 | `[88,504.67, 98,924.48]` |
-| 1 | `legacy-lock` | 93,595.39 ops/s | ±6,267.48 | `[87,327.91, 99,862.87]` |
-| 4 | `current-production` | **201,068.01 ops/s** | ±6,588.78 | `[194,479.23, 207,656.79]` |
-| 4 | `legacy-lock` | 163,681.38 ops/s | ±5,061.44 | `[158,619.94, 168,742.82]` |
+| 1 | `current-production` | 94,194.12 ops/s | ±1,237.31 | `[92,956.82, 95,431.43]` |
+| 1 | `legacy-lock` | 93,788.72 ops/s | ±1,634.11 | `[92,154.61, 95,422.84]` |
+| 4 | `current-production` | **200,570.23 ops/s** | ±2,724.71 | `[197,845.52, 203,294.94]` |
+| 4 | `legacy-lock` | 161,912.38 ops/s | ±2,576.38 | `[159,336.00, 164,488.76]` |
 
-- t1 点估计为 `+0.13%`，error 区间重叠，单线程吞吐没有可区分变化；
-- t4 点估计为 **+22.84%**，且 error 区间不重叠，是本轮主要收益证据；
-- `current-production` 的 t4/t1 扩展比为 `2.15×`，`legacy-lock` 为 `1.75×`。
+- t1 点估计为 `+0.43%`，error 区间重叠，单线程吞吐没有可区分变化；
+- t4 点估计为 **+23.88%**，且 error 区间不重叠，是本轮主要收益证据；
+- `current-production` 的 t4/t1 扩展比为 `2.13×`，`legacy-lock` 为 `1.73×`。
 
 ### Allocation
 
 | Threads | Strategy | `gc.alloc.rate.norm` | JMH Error |
 |---:|---|---:|---:|
-| 1 | `current-production` | 3,937.40 B/op | ±0.77 |
-| 1 | `legacy-lock` | 3,913.40 B/op | ±0.81 |
-| 4 | `current-production` | 3,928.27 B/op | ±0.34 |
-| 4 | `legacy-lock` | 3,919.00 B/op | ±0.41 |
+| 1 | `current-production` | 3,937.38 B/op | ±0.26 |
+| 1 | `legacy-lock` | 3,913.37 B/op | ±0.37 |
+| 4 | `current-production` | 3,928.22 B/op | ±0.39 |
+| 4 | `legacy-lock` | 3,919.38 B/op | ±0.51 |
 
-t4 每条命令增加 `9.28 B/op`，即 `0.24%`；验收使用与主要吞吐结论相同的 t4 数据。
+t4 每条命令增加 `8.84 B/op`，即 `0.23%`；验收使用与主要吞吐结论相同的 t4 数据。
 
 ### 原始证据
 
 | Threads | Result SHA-256 | Manifest SHA-256 |
 |---:|---|---|
-| 1 | `05da1870bd3f82b1850d7e1bf2e8947386e50dd4d054499663573d2631b2af90` | `1dd37b68c1d3bc571a1b6d7de5fb608b7978715e6911e33aff30e4486fdfdb14` |
-| 4 | `4da089386f3d9cb39b4f1b07655ac37d9dd548a785f9bda94b9d759ba54477d5` | `a0a43ae38a3e1fb2a59c3db20a065bfec7f17ce1f3e21b27d39b91bb930096c5` |
+| 1 | `df9047ae1ad6533f2d4cd327a6526ab5197199068ecb7dbf8c9734835aea0531` | `7a180d1d2f3f169807b57375fdf7d2489a7f1155f3af215c0594d94a0bd4be09` |
+| 4 | `0c8784b7b248c1dd79898eaccc45a531915bce7aaeee64b7b5078642a592bc5f` | `6a858cbd267d5ecaec5b93dda17a9e095d35de71734f7351abb172c8508572ed` |
 
 本地原始文件位于：
 
 ```text
-wow-benchmarks/results/jmh/confirmation/command-ingress-e2e-clean-final/
+wow-benchmarks/results/jmh/confirmation/framework-e2e/
 ```
 
 该目录按仓库规则被 `.gitignore` 排除；上表 hash 用于确认报告对应的原始 JSON 和
@@ -253,10 +255,10 @@ wow-benchmarks/results/jmh/confirmation/scheduler-pool-simulated-io-e2e/
 
 | Suite | Tests | Failures |
 |---|---:|---:|
-| `wow-core:test` | 804 | 0 |
+| `wow-core:test` | 808 | 0 |
 | `wow-core:contractTest` | 128 | 0 |
 | `wow-benchmarks:test` | 13 | 0 |
-| Total | 945 | 0 |
+| Total | 949 | 0 |
 
 `wow-core:detekt`、核心单测/契约测试、benchmark check、JMH compilation 和
 `git diff --check` 同时通过。
@@ -268,6 +270,8 @@ wow-benchmarks/results/jmh/confirmation/scheduler-pool-simulated-io-e2e/
 - active `onNext` 与 terminal、cancel、close 的竞态；
 - terminal/cancel 物理委派返回、双控制路径 settlement 与 close CAS 线性化；
 - exceptional close settlement 后移除终止 sink 并允许同 aggregate 重建；
+- async close 期间隐藏旧 subscriber，避免 `LocalFirstMessageBus` 错误标记消息已本地处理；
+- 普通 Reactor sink 的 terminal callback 抛错后移除已终止实例，未接受 terminal 时保留重试；
 - late subscriber、第二订阅者、overflow、drop/discard 和 retry handler；
 - Reactor native/custom 差分语义、callback failure cancellation 和 Flux scan；
 - terminal claim/delegation 位状态不变量；
