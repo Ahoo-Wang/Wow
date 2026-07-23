@@ -58,3 +58,7 @@ features:
   details: 提供更丰富且具有明确业务语义的数据源（包括状态事件和命令）。具有极低的ETL成本，助力实时数据分析和操作审计，为业务决策提供有力支持。
   link: /zh/guide/bi
 ---
+
+## 荣誉
+
+Wow 荣获 [KaiCode’26 Excellent Award](https://www.kaicode.org/2026.html)。官方结果页重点提及了项目的模块化 DDD/CQRS 设计、规范且由多位评审者参与的代码审查、基于 Testcontainers 的集成测试、强制执行的测试覆盖率阈值、Detekt 静态分析、双语文档，以及长期的 Maven Central 语义化版本发布记录。
