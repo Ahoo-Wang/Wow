@@ -17,6 +17,7 @@
   <a href="https://github.com/Ahoo-Wang/Wow/actions/workflows/integration-test.yml"><img src="https://github.com/Ahoo-Wang/Wow/actions/workflows/integration-test.yml/badge.svg" alt="CI"/></a>
   <a href="https://kotlin.link/"><img src="https://kotlin.link/awesome-kotlin.svg" alt="Awesome Kotlin"/></a>
   <a href="https://deepwiki.com/Ahoo-Wang/Wow"><img src="https://deepwiki.com/badge.svg" alt="DeepWiki"/></a>
+  <a href="https://www.kaicode.org/2026.html"><img src="https://img.shields.io/badge/KaiCode%2726-Excellent%20Award-gold" alt="KaiCode'26 Excellent Award"/></a>
 </p>
 
 <p align="center">
@@ -55,6 +56,10 @@ Wow was built to change that. After years of production validation, it distills 
 - **Business Intelligence** — State events and commands serve as rich, real-time data sources, reducing ETL to simple SQL scripts
 - **Operation Audit** — Every command and its resulting domain events are recorded with clear business semantics
 - **Engineering Quality** — In API testing, Wow-based projects showed only **1/3** the bug count of traditional-architecture projects at the same skill level
+
+## Recognition
+
+Wow received the [KaiCode’26 Excellent Award](https://www.kaicode.org/2026.html). The official results highlighted its modular DDD/CQRS design, disciplined multi-reviewer code review, Testcontainers-based integration testing, enforced test coverage thresholds, Detekt static analysis, bilingual documentation, and long history of semantically versioned releases on Maven Central.
 
 ## Features
 
