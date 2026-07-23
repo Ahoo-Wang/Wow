@@ -1,3 +1,8 @@
+---
+title: Event Compensation Example
+description: A real-world compensation application built with Wow, showing how to handle and recover from data inconsistencies caused by event processing failures.
+---
+
 # Event Compensation
 
 _[Event Compensation](https://github.com/Ahoo-Wang/Wow/tree/main/compensation)_ is a real-world application built with the _Wow_ framework, designed to handle and recover from data inconsistencies caused by event processing failures.

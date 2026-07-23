@@ -56,7 +56,7 @@ data class CartItem(val productId: String, val quantity: Int)
 
 Wow replaces AssertJ's `assertThat()` with an extension function `.assert()` from `me.ahoo.test:fluent-assert-core`.
 
-<!-- Source: testing convention from CLAUDE.md:90 and AggregateVerifier.kt examples -->
+<!-- Source: testing convention from AGENTS.md and AggregateVerifier.kt examples -->
 ```kotlin
 // NOT this:
 assertThat(items).hasSize(1)
@@ -180,7 +180,7 @@ Wow 8.x requires Spring Boot 4.x and is automatically configured via `wow-spring
 
 The starter uses Gradle feature variants to declare optional capabilities. Depend on what you need:
 
-<!-- Source: CLAUDE.md:76-77 -->
+<!-- Source: AGENTS.md -->
 | Capability | Gradle Dependency | Provides |
 |---|---|---|
 | `mongo-support` | `wow-mongo` | Event store + snapshot store via MongoDB |
@@ -193,7 +193,7 @@ The starter uses Gradle feature variants to declare optional capabilities. Depen
 | `cosec-support` | `wow-cosec` | Authorization and access control |
 | `mock-support` | `wow-mock` | In-memory implementations for testing |
 
-Source: [CLAUDE.md:76-77](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L76-L77)
+Source: [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md)
 
 #### Auto-Registration via KSP
 
@@ -204,7 +204,7 @@ The `wow-compiler` KSP processor scans your classpath at compile time and genera
 
 You do not write controllers. You write domain models. The framework generates the REST layer automatically.
 
-Source: [CLAUDE.md:66](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L66)
+Source: [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md)
 
 #### Reactive + Spring Integration
 
@@ -438,12 +438,12 @@ graph TB
     CORE --> BI
     CORE --> QUERY
     COMP_API --> COMP_CORE
-    COMP_CORE --> COMP_DOM
+    COMP_API --> COMP_DOM
     COMP_DOM --> COMP_SRV
 
 ```
 
-<!-- Sources: settings.gradle.kts:19-83, CLAUDE.md:48-62, build.gradle.kts:31-51 -->
+<!-- Sources: settings.gradle.kts:19-83, AGENTS.md, build.gradle.kts:31-51 -->
 
 ---
 
@@ -652,7 +652,7 @@ Source: [gradle.properties:13-21](https://github.com/Ahoo-Wang/Wow/blob/main/gra
 
 #### Module-Specific Builds
 
-<!-- Source: CLAUDE.md:12-18 -->
+<!-- Source: AGENTS.md -->
 ```bash
 # Build and test a specific module
 ./gradlew wow-core:check
@@ -678,7 +678,7 @@ dependencies {
 }
 ```
 
-Source: [CLAUDE.md:66](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L66)
+Source: [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md)
 
 The processor generates:
 - **Command routing metadata**: Maps command types to the aggregates that handle them.
@@ -873,13 +873,13 @@ Integration tests are located in:
 | `wow-it` | End-to-end integration tests | Docker (Testcontainers) |
 | `example-domain` tests | Example domain tests (fast, no Docker needed) | Nothing extra |
 
-<!-- Source: CLAUDE.md:68, build.gradle.kts:45-53 -->
+<!-- Source: AGENTS.md, build.gradle.kts:45-53 -->
 
 #### Coverage Enforcement
 
 Domain modules (`example-domain`, `wow-compensation-domain`) enforce 80% minimum test coverage via JaCoCo:
 
-<!-- Source: CLAUDE.md:94 -->
+<!-- Source: AGENTS.md -->
 ```bash
 # Verify coverage (enforced on domain modules)
 ./gradlew jacocoTestCoverageVerification
@@ -1048,13 +1048,13 @@ allEvents!!.forEach { println("Event: ${it.body}") }
 | **Command** | A request to change the state of an aggregate. Represented by `CommandMessage<C>`. Commands are imperative: "Do this." | [CommandMessage.kt:53](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt#L53) |
 | **Command Bus** | Low-level dispatch mechanism for commands. Transports commands to the appropriate aggregate processor. | [CommandBus.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandBus.kt) |
 | **Command Gateway** | High-level API for sending commands with wait plan support. Returns `Mono<CommandResult>`. | [CommandGateway.kt:75](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L75) |
-| **CQRS** | Command Query Responsibility Segregation. Commands (writes) are separated from queries (reads). Different models, different stores. | [CLAUDE.md:7](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L7) |
+| **CQRS** | Command Query Responsibility Segregation. Commands (writes) are separated from queries (reads). Different models, different stores. | [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) |
 | **Domain Event** | An immutable fact about something that happened. Represented by `DomainEvent<T>`. Events are declarative: "This happened." | [DomainEvent.kt:52](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L52) |
 | **Event Sourcing** | Storing state as a sequence of events. Current state = replay all events. Enables audit trail, temporal queries, and event-driven architectures. | [DomainEvent.kt:22-51](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L22-L51) |
-| **KSP** | Kotlin Symbol Processing. Compile-time code generator. `wow-compiler` generates routing metadata, event handler registrations, and OpenAPI specs. | [CLAUDE.md:66](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L66) |
+| **KSP** | Kotlin Symbol Processing. Compile-time code generator. `wow-compiler` generates routing metadata, event handler registrations, and OpenAPI specs. | [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) |
 | **Projection** | A read model built from domain events. Updated asynchronously by projection processors. Stored in Elasticsearch or MongoDB for querying. | [wow-elasticsearch, wow-mongo in settings.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L30-L31) |
 | **Saga** | A long-running business process that coordinates multiple aggregates. Listens to events and sends commands. Can be stateless (`@StatelessSaga`) or stateful. | [StatelessSaga.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/StatelessSaga.kt#L69) |
-| **Snapshot** | A point-in-time capture of aggregate state. Avoids replaying all events from the beginning. Automatically managed by the framework. | [CLAUDE.md:68](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L68) |
+| **Snapshot** | A point-in-time capture of aggregate state. Avoids replaying all events from the beginning. Automatically managed by the framework. | [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) |
 | **State Sourcing** | The process of applying domain events to reconstruct aggregate state. Functions annotated with `@OnSourcing`. Must be deterministic. | [OnSourcing.kt:59](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/OnSourcing.kt#L59) |
 | **Wait Plan** | Controls when a command caller receives a response: SENT (accepted), PROCESSED (executed), or SNAPSHOT (persisted). | [WaitPlan.kt:60](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt#L60) |
 | **Compensation** | The process of recovering from failures in distributed sagas. Wow includes a compensation engine and a React dashboard for monitoring. | [compensation/ in settings.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L56-L63) |
@@ -1067,14 +1067,14 @@ allEvents!!.forEach { println("Event: ${it.body}") }
 
 | Rule | Details | Source |
 |---|---|---|
-| **Copyright header** | Apache 2.0 license header on all source files | [CLAUDE.md:107](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L107) |
-| **Reactive non-blocking** | All command/event paths must be non-blocking. Use `Mono`/`Flux` or `suspend`. | [CLAUDE.md:102](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L102) |
-| **Extension assert** | Use `.assert()` extension (from `me.ahoo.test:fluent-assert-core`), not AssertJ's `assertThat()` | [CLAUDE.md:90](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L90) |
+| **Copyright header** | Apache 2.0 license header on all source files | [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) |
+| **Reactive non-blocking** | All command/event paths must be non-blocking. Use `Mono`/`Flux` or `suspend`. | [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) |
+| **Extension assert** | Use `.assert()` extension (from `me.ahoo.test:fluent-assert-core`), not AssertJ's `assertThat()` | [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) |
 | **JUnit 5 (Jupiter)** | Tests use JUnit Jupiter API. `JUnitPlatform` runner. | [build.gradle.kts:107-108](https://github.com/Ahoo-Wang/Wow/blob/main/build.gradle.kts#L107-L108) |
 | **MockK for mocking** | Use `io.mockk:mockk` for Kotlin-native mocking. | [build.gradle.kts:129](https://github.com/Ahoo-Wang/Wow/blob/main/build.gradle.kts#L129) |
-| **Package naming** | All packages under `me.ahoo.wow`. | [CLAUDE.md:7](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L7) |
-| **Serialization** | Jackson (`tools.jackson` for framework internals, `fasterxml` for Spring compatibility) | [CLAUDE.md:103](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L103) |
-| **Logging** | `kotlin-logging` + SLF4J + Logback. Logger via `LoggerFactory.getLogger(MyClass::class.java)`. | [CLAUDE.md:105](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L105) |
+| **Package naming** | All packages under `me.ahoo.wow`. | [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) |
+| **Serialization** | Jackson (`tools.jackson` for framework internals, `fasterxml` for Spring compatibility) | [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) |
+| **Logging** | `kotlin-logging` + SLF4J + Logback. Logger via `LoggerFactory.getLogger(MyClass::class.java)`. | [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) |
 
 ### Optional Annotations (Convention over Configuration)
 
@@ -1115,7 +1115,7 @@ Use this table to navigate the codebase quickly.
 
 | File / Directory | Description |
 |---|---|
-| [`CLAUDE.md`](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md) | Build commands, architecture overview, code conventions |
+| [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) | Build commands, architecture overview, code conventions |
 | [`README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/README.md) | Project overview, features, performance benchmarks, test examples |
 | [`settings.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts) | Module registration — all subprojects listed here |
 | [`build.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/main/build.gradle.kts) | Root build: detekt, publishing, testing, toolchains, dependency management |
@@ -1138,7 +1138,7 @@ Use this table to navigate the codebase quickly.
 After completing this guide, you should be ready to:
 
 1. **Explore the example domain**: Read through `Order.kt`, `Cart.kt`, `OrderState.kt`, `CartState.kt`, and their tests. These are the best references for how patterns work in practice.
-2. **Read the getting started guide**: [Getting Started Guide](../guide/index.md)
+2. **Read the getting started guide**: [Getting Started Guide](../guide/getting-started.md)
 3. **Set up a test project**: Use the [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) to create a sandbox project.
 4. **Review the open issues**: Choose a suitably scoped task from [GitHub Issues](https://github.com/Ahoo-Wang/Wow/issues), or use the appropriate issue template to propose one.
 5. **Run the example server**: `./gradlew example-server:bootRun` to see the framework in action.
@@ -1147,9 +1147,9 @@ After completing this guide, you should be ready to:
 
 | Page | Description |
 |---|---|
-| [Getting Started Guide](../guide/index.md) | Quick-start tutorial for building a Wow microservice |
+| [Getting Started Guide](../guide/getting-started.md) | Quick-start tutorial for building a Wow microservice |
 | [Configuration Reference](../guide/configuration.md) | Configuration properties and Spring Boot auto-configuration |
-| [Architecture Overview](../../README.md) | High-level project architecture from README |
+| [Architecture Overview](../guide/advanced/architecture.md) | High-level project architecture overview |
 
 ---
 

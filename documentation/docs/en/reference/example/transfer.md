@@ -1,3 +1,8 @@
+---
+title: Bank Account Transfer (JAVA)
+description: A classic DDD bank account transfer scenario implemented with Wow in Java, demonstrating event sourcing and Saga-based distributed transactions.
+---
+
 # Bank Account Transfer (JAVA)
 
 The _[Bank Account Transfer Example](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/)_ is a classic Domain-Driven Design (DDD) application scenario. Next, we will learn how to use Wow for domain-driven design and service development through a simple bank account transfer case.

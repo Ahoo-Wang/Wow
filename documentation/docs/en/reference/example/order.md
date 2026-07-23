@@ -1,3 +1,8 @@
+---
+title: Order System Example
+description: A comprehensive sample project demonstrating Wow's capabilities for building domain-driven microservices — aggregate modeling, event sourcing, CQRS, and Saga transactions.
+---
+
 # Order System
 
 The [Order System Example](https://github.com/Ahoo-Wang/Wow/tree/main/example/) is a comprehensive sample project demonstrating the Wow framework's capabilities for building domain-driven microservices. This example showcases aggregate modeling, event sourcing, CQRS patterns, and Saga-based distributed transactions.
@@ -335,8 +340,8 @@ wow:
 
 ## Related Documentation
 
-- [Aggregate Modeling](./modeling) - Learn about aggregate patterns
-- [Event Store](./eventstore) - Understand event sourcing
-- [Command Gateway](./command-gateway) - Command processing details
-- [Saga](./saga) - Distributed transaction patterns
-- [Test Suite](./test-suite) - Testing patterns
+- [Aggregate Modeling](../../guide/modeling) - Learn about aggregate patterns
+- [Event Store](../../guide/eventstore) - Understand event sourcing
+- [Command Gateway](../../guide/command-gateway) - Command processing details
+- [Saga](../../guide/saga) - Distributed transaction patterns
+- [Test Suite](../../guide/test-suite) - Testing patterns

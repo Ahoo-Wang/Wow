@@ -667,8 +667,8 @@ wow:
 
 | Topic | Description |
 |---|---|
-| [MongoDB Configuration Reference](../../reference/config/mongo.md) | Configuration reference for `wow.mongo.*` properties |
-| [Event Sourcing Configuration](../../reference/config/eventsourcing.md) | Storage backend selection (`wow.eventsourcing.store.storage`) |
-| [Snapshot Configuration](../../reference/config/snapshot.md) | Snapshot strategies and storage backend selection |
+| [MongoDB Configuration Reference](../../reference/config/infrastructure) | Configuration reference for `wow.mongo.*` properties |
+| [Event Sourcing Configuration](../../reference/config/core) | Storage backend selection (`wow.eventsourcing.store.storage`) |
+| [Snapshot Configuration](../../reference/config/core) | Snapshot strategies and storage backend selection |
 | [Redis Extension](redis.md) | Alternative event store and snapshot backend |
 | [Spring Boot Starter](spring-boot-starter.md) | Auto-configuration and feature variants |

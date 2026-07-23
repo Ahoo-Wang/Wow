@@ -73,7 +73,7 @@ flowchart TB
 
 ```
 
-<!-- Sources: [settings.gradle.kts:19-63](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L19-L63) (module structure), [wow-api/src/main/kotlin/me/ahoo/wow/api/Wow.kt:26-45](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/Wow.kt#L26-L45) (core API contracts), wiki/en/guide/architecture.md (architecture overview), wiki/en/guide/saga.md (distributed transactions) -->
+<!-- Sources: [settings.gradle.kts:19-80](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L19-L80) (module structure), [wow-api/src/main/kotlin/me/ahoo/wow/api/Wow.kt:26-45](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/Wow.kt#L26-L45) (core API contracts), guide/advanced/architecture.md (architecture overview), guide/saga.md (distributed transactions) -->
 
 ### Who Uses Wow
 
@@ -123,7 +123,7 @@ flowchart LR
 
 ```
 
-<!-- Sources: [wow-test/src/main/kotlin/me/ahoo/wow/test/AggregateSpec.kt:69-108](https://github.com/Ahoo-Wang/Wow/blob/main/test/wow-test/src/main/kotlin/me/ahoo/wow/test/AggregateSpec.kt#L69-L108) (testing DSL), [wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/OnCommand.kt:70-87](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/OnCommand.kt#L70-L87) (command handlers), wiki/en/guide/modeling.md (domain modeling workflow), wiki/en/guide/testing.md (Given-When-Expect pattern) -->
+<!-- Sources: [wow-test/src/main/kotlin/me/ahoo/wow/test/AggregateSpec.kt:69-108](https://github.com/Ahoo-Wang/Wow/blob/main/test/wow-test/src/main/kotlin/me/ahoo/wow/test/AggregateSpec.kt#L69-L108) (testing DSL), [wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/OnCommand.kt:70-87](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/OnCommand.kt#L70-L87) (command handlers), guide/modeling.md (domain modeling workflow), guide/test-suite.md (Given-When-Expect pattern) -->
 
 **Key insight for PMs**: The testing phase (Phase 3) is integrated into development, not an afterthought. Wow's testing tools let developers verify business rules without setting up databases or infrastructure. This means your acceptance criteria can be directly validated as unit tests, catching bugs before they reach manual QA.
 
@@ -167,7 +167,7 @@ sequenceDiagram
 
 ```
 
-<!-- Sources: [wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaHandler.kt:36-43](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaHandler.kt#L36-L43) (saga event routing), [compensation/wow-compensation-domain/src/main/kotlin/me/ahoo/wow/compensation/domain/ExecutionFailed.kt:37-138](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/main/kotlin/me/ahoo/wow/compensation/domain/ExecutionFailed.kt#L37-L138) (compensation state machine), wiki/en/guide/saga.md (distributed transaction flow), wiki/en/guide/event-compensation.md (compensation mechanism) -->
+<!-- Sources: [wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaHandler.kt:36-43](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaHandler.kt#L36-L43) (saga event routing), [compensation/wow-compensation-domain/src/main/kotlin/me/ahoo/wow/compensation/domain/ExecutionFailed.kt:37-138](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/main/kotlin/me/ahoo/wow/compensation/domain/ExecutionFailed.kt#L37-L138) (compensation state machine), guide/saga.md (distributed transaction flow), guide/event-compensation.md (compensation mechanism) -->
 
 **Key insight for PMs**: If any step in this process fails, Wow automatically reverses the steps that already succeeded ("compensation"). Failed operations appear on a visual dashboard where your operations team can inspect and manually retry them if needed. No data gets stuck in an inconsistent state.
 
@@ -198,7 +198,7 @@ flowchart TB
 
 ```
 
-<!-- Sources: [wow-bi/src/main/kotlin/me/ahoo/wow/bi/](https://github.com/Ahoo-Wang/Wow/tree/main/wow-bi/src/main/kotlin/me/ahoo/wow/bi/) (BI module), [compensation/dashboard/src/](https://github.com/Ahoo-Wang/Wow/tree/main/compensation/dashboard/src/) (React dashboard), wiki/en/guide/architecture.md (auto-generated OpenAPI), wiki/en/guide/bi.md (BI module), wiki/en/guide/event-compensation.md (dashboard) -->
+<!-- Sources: [wow-bi/src/main/kotlin/me/ahoo/wow/bi/](https://github.com/Ahoo-Wang/Wow/tree/main/wow-bi/src/main/kotlin/me/ahoo/wow/bi/) (BI module), [compensation/dashboard/src/](https://github.com/Ahoo-Wang/Wow/tree/main/compensation/dashboard/src/) (React dashboard), guide/advanced/architecture.md (auto-generated OpenAPI), guide/bi.md (BI module), guide/event-compensation.md (dashboard) -->
 
 ---
 
@@ -210,17 +210,17 @@ The following table describes each major capability in plain language, the busin
 
 | Capability | Plain-Language Description | Business Value | Learn More |
 |---|---|---|---|
-| **Permanent Audit Trail** | Every change to your data is saved as an immutable history record. You can replay the entire history to see exactly what happened and when. | Regulatory compliance, customer dispute resolution, forensic debugging of production issues. Answer "why is this order in this state?" instantly. | [Event Sourcing](../deep-dive/architecture/overview.md) |
+| **Permanent Audit Trail** | Every change to your data is saved as an immutable history record. You can replay the entire history to see exactly what happened and when. | Regulatory compliance, customer dispute resolution, forensic debugging of production issues. Answer "why is this order in this state?" instantly. | [Event Sourcing](../guide/eventstore.md) |
 | **Automatic API Endpoints** | When your team defines a business concept (like an Order), Wow automatically creates the REST API for creating, updating, and querying it. No manual API wiring. | Dramatically faster feature delivery. Consistent API design across all services. API documentation is always up to date. | [Aggregate Modeling](../guide/modeling.md) |
 | **Distributed Transaction Coordination** | When a business process spans multiple services (Order → Inventory → Payment → Shipping), Wow coordinates the entire flow and automatically reverses steps if anything fails. | Reliable multi-step processes without custom error-handling code. Operations team can monitor and retry failed processes from a dashboard. | [Saga Transactions](../guide/saga.md) |
 | **Automatic Failure Recovery** | If a step in a business process fails (network glitch, downstream service down), Wow retries it automatically with increasing delays between attempts. Failed operations appear on a visual dashboard. | No lost business operations due to transient errors. Operations team gets visibility into failures and can intervene manually if auto-retry is exhausted. | [Event Compensation](../guide/event-compensation.md) |
 | **Separate Read and Write Models** | The data structures optimized for making changes differ from those optimized for displaying data. Wow maintains both automatically, keeping them in sync through events. | Fast dashboards and reports even under heavy write loads. Each side can scale independently. Query performance does not degrade write throughput. | [Projection Processors](../guide/projection.md) |
 | **Business Intelligence Pipeline** | Wow can stream every business state change directly to data warehouses (like ClickHouse). The BI tool auto-generates the scripts to set this up. | Real-time business dashboards without building custom ETL pipelines. Business analysts get access to complete aggregate state histories for trend analysis. | [Business Intelligence](../guide/bi.md) |
 | **Visual Monitoring Dashboard** | A web-based dashboard (built with React / Ant Design) shows every failed business operation, lets your team retry them, modify retry timing, and mark issues as resolved. | Operations visibility without needing to query databases or read logs. Non-engineers can monitor the health of business processes. | [Compensation Dashboard](../guide/event-compensation.md) |
-| **Point-in-Time State Reconstruction** | You can ask the system to show you the state of any business object at any point in the past — not just "what is the current state" but "what was the state last Tuesday at 3:14 PM." | Audit and compliance. Customer support can see exactly what a customer saw at a specific moment. Fraud investigation teams can trace state changes over time. | [Event Store](../deep-dive/data/event-store.md) |
-| **Built-in Testing Framework** | Developers write tests using plain business scenarios ("Given an empty cart, When I add an item, Expect the cart has one item"). | PMs can review test scenarios as acceptance criteria. Higher test coverage means fewer production bugs. Teams report significantly fewer defects compared to traditional approaches. | [Testing Guide](../guide/testing.md) |
+| **Point-in-Time State Reconstruction** | You can ask the system to show you the state of any business object at any point in the past — not just "what is the current state" but "what was the state last Tuesday at 3:14 PM." | Audit and compliance. Customer support can see exactly what a customer saw at a specific moment. Fraud investigation teams can trace state changes over time. | [Event Store](../guide/eventstore.md) |
+| **Built-in Testing Framework** | Developers write tests using plain business scenarios ("Given an empty cart, When I add an item, Expect the cart has one item"). | PMs can review test scenarios as acceptance criteria. Higher test coverage means fewer production bugs. Teams report significantly fewer defects compared to traditional approaches. | [Testing Guide](../guide/test-suite.md) |
 | **Authorization and Access Control** | Wow includes a pluggable authorization framework (`wow-cosec`) that controls who can send which commands and view which data. Multi-tenant isolation is built in. | Security requirements met at the framework level rather than custom per-service implementation. Multi-tenancy support for SaaS products. | [CoSec Documentation](https://github.com/Ahoo-Wang/CoSec) |
-| **Observability and Monitoring** | Built-in integration with industry-standard monitoring tools (OpenTelemetry). Every command and event is traced end-to-end. | Performance monitoring. Identify bottlenecks in business processes. SLA tracking for business operations. | [Architecture Overview](../deep-dive/architecture/overview.md) |
+| **Observability and Monitoring** | Built-in integration with industry-standard monitoring tools (OpenTelemetry). Every command and event is traced end-to-end. | Performance monitoring. Identify bottlenecks in business processes. SLA tracking for business operations. | [Architecture Overview](../guide/advanced/architecture.md) |
 
 ### Technology Support Matrix
 
@@ -237,7 +237,7 @@ Wow integrates with your existing infrastructure. Your team can choose the stora
 | **Data Warehouse** | ClickHouse (via `wow-bi` module) | Auto-generated ETL scripts for business intelligence. |
 
 This matrix reflects the full range of backends supported by Wow's pluggable extension architecture. Each backend is implemented in a separate module so your team can include only what you need.
-<!-- Source: [settings.gradle.kts:19-63](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L19-L63) (all module definitions) -->
+<!-- Source: [settings.gradle.kts:19-80](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L19-L80) (all module definitions) -->
 
 ---
 
@@ -338,7 +338,7 @@ flowchart TB
 
 ```
 
-<!-- Sources: [settings.gradle.kts:40](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L40) (wow-cosec module), [wow-cosec/src/main/kotlin/me/ahoo/wow/cosec/](https://github.com/Ahoo-Wang/Wow/tree/main/wow-cosec/src/main/kotlin/me/ahoo/wow/cosec/) (authorization framework), wiki/en/guide/architecture.md (security layer), wiki/en/guide/saga.md (multi-tenancy) -->
+<!-- Sources: [settings.gradle.kts:39](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L39) (wow-cosec module), [wow-cosec/src/main/kotlin/me/ahoo/wow/cosec/](https://github.com/Ahoo-Wang/Wow/tree/main/wow-cosec/src/main/kotlin/me/ahoo/wow/cosec/) (authorization framework), guide/advanced/architecture.md (security layer), guide/saga.md (multi-tenancy) -->
 
 **Key points**: Authentication (proving who you are) is handled by your existing system. Authorization (what you are allowed to do) can use Wow's built-in `wow-cosec` module for fine-grained, policy-based access control at the command and query level.
 
@@ -519,14 +519,14 @@ For PMs, the key takeaways are:
 
 | Page | Description |
 |---|---|
-| [Getting Started Guide](../guide/index.md) | Developer onboarding — project setup, dependencies, build commands |
-| [Architecture Overview](../guide/architecture.md) | Deep dive into Wow's layered architecture and module structure |
+| [Getting Started Guide](../guide/getting-started.md) | Developer onboarding — project setup, dependencies, build commands |
+| [Architecture Overview](../guide/advanced/architecture.md) | Deep dive into Wow's layered architecture and module structure |
 | [Domain Modeling](../guide/modeling.md) | How to design aggregate roots, commands, and events |
 | [Saga Transactions](../guide/saga.md) | Distributed transaction coordination across services |
 | [Event Compensation](../guide/event-compensation.md) | Automatic failure recovery and the visual compensation dashboard |
 | [Business Intelligence](../guide/bi.md) | Streaming business data to data warehouses for analytics |
-| [Testing Guide](../guide/testing.md) | Given-When-Expect testing pattern for business rule validation |
+| [Testing Guide](../guide/test-suite.md) | Given-When-Expect testing pattern for business rule validation |
 | [Projection Processors](../guide/projection.md) | How read models are built and kept up to date |
-| [Configuration Reference](../reference/config/basic.md) | All configuration properties for customizing Wow behavior |
+| [Configuration Reference](../reference/config/core.md) | All configuration properties for customizing Wow behavior |
 | [Example: Order Domain](../reference/example/order.md) | A working example of an e-commerce order system built with Wow |
 | [Example: Bank Transfer](../reference/example/transfer.md) | A working example of a financial transfer system built with Wow |

@@ -506,5 +506,5 @@ Projections and sagas use `LogResumeErrorHandler` — errors are logged but proc
 
 ## Related Pages
 
-- [Architecture Overview](./overview) — layered architecture and CQRS patterns
+- [Architecture Overview](./architecture) — layered architecture and CQRS patterns
 - [Module Dependencies](./module-dependencies) — detailed module dependency graph

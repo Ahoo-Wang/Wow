@@ -72,7 +72,9 @@ class Order(private val state: OrderState) {
         check(state.status == OrderStatus.PAID) {
             "Cannot ship unpaid order"
         }
-        // Return event -- never mutate state directly
+        // Return event -- never mutate state directly.
+        // OrderShipped is an event (here a Kotlin `object`; a `data class` carrying
+        // fields like `OrderShipped(orderId = state.id)` is equally valid).
         return OrderShipped
     }
 }
@@ -425,7 +427,7 @@ The following table summarizes how each concept maps to a Wow artifact:
 
 | Page | Description |
 |---|---|
-| [Overview](./overview.md) | Framework philosophy and module overview |
+| [Overview](./introduction.md) | Framework philosophy and module overview |
 | [Getting Started](./getting-started.md) | Project setup and first aggregate |
-| [Architecture](./architecture.md) | Filter chain, dispatchers, data flow |
-| [Aggregate Modeling](./aggregate-modeling.md) | Aggregate design patterns and state management |
+| [Architecture](./advanced/architecture.md) | Filter chain, dispatchers, data flow |
+| [Aggregate Modeling](./modeling.md) | Aggregate design patterns and state management |
