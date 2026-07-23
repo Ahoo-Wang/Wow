@@ -391,5 +391,5 @@ wow:
 
 - [Event Processor](./event-processor) - For general event handling
 - [Query Service](./query) - For querying read models
-- [CQRS Pattern](./reference/awesome/cqrs) - For understanding CQRS architecture
+- [CQRS Pattern](./core-concepts) - For understanding CQRS architecture
 - [Event Sourcing](./eventstore) - For understanding event storage

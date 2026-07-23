@@ -85,7 +85,9 @@ class Order(private val state: OrderState) {
         check(state.status == OrderStatus.PAID) {
             "Cannot ship unpaid order"
         }
-        // 返回事件 -- 永远不直接修改状态
+        // 返回事件 -- 永远不直接修改状态。
+        // OrderShipped 是一个事件（此处为 Kotlin `object`；使用携带字段的
+        // `data class`（如 `OrderShipped(orderId = state.id)`）同样有效）。
         return OrderShipped
     }
 }
@@ -438,7 +440,7 @@ Wow 在聚合级别支持多租户。每个 `AggregateId` 都包含一个 `tenan
 
 | 页面 | 描述 |
 |---|---|
-| [概述](./overview.md) | 框架理念和模块概览 |
+| [概述](./introduction.md) | 框架理念和模块概览 |
 | [快速开始](./getting-started.md) | 项目设置和第一个聚合 |
-| [架构](./architecture.md) | 过滤器链、分发器、数据流 |
-| [聚合建模](./aggregate-modeling.md) | 聚合设计模式和状态管理 |
+| [架构](./advanced/architecture.md) | 过滤器链、分发器、数据流 |
+| [聚合建模](./modeling.md) | 聚合设计模式和状态管理 |

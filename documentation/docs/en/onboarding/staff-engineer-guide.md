@@ -26,7 +26,7 @@ Wow is a **compiler-driven, fully reactive** CQRS + Event Sourcing framework. It
 | Message bus backends | Kafka (distributed), Redis (distributed), In-Memory (local) | [settings.gradle.kts:27-30](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L27-L30) |
 | Saga support | Stateless sagas with compile-time event-to-command mapping | [wow-core saga](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless) |
 | Compensation | First-class dashboard + retry engine for failed events | [compensation/](https://github.com/Ahoo-Wang/Wow/blob/main/compensation) |
-| Test coverage enforcement | 80% minimum (jacoco), Given-When-Expect DSL | [CLAUDE.md:93](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L93) |
+| Test coverage enforcement | 80% minimum (jacoco), Given-When-Expect DSL | [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) |
 
 ---
 
@@ -206,7 +206,7 @@ class WaitPlan_Flow:
 
 This diagram shows the full architectural surface area — all modules, their relationships, and the data flow topology.
 
-<!-- Sources: settings.gradle.kts:19-41, CLAUDE.md:46-61, wow-api annotations, wow-core packages -->
+<!-- Sources: settings.gradle.kts:19-41, AGENTS.md, wow-api annotations, wow-core packages -->
 
 ```mermaid
 graph TB
@@ -256,7 +256,7 @@ graph TB
         MONGO[MongoDB<br>Event + Snapshot Store]
         REDIS[Redis<br>Event + Snapshot Store]
         KAFKA[Apache Kafka<br>Distributed Message Bus]
-        ESDB[Elasticsearch<br>Projection Store]
+        ESDB[Elasticsearch<br>Event/Snapshot/Projection Store]
         COCACHE[CoCache<br>Projection Cache]
     end
 
@@ -284,7 +284,6 @@ graph TB
     CA --> KA
     ESA --> MA
     ESA --> RA
-    R2A --> ESA
     ESA --> ELA
     WF --> OA
     COSA --> AC
@@ -335,17 +334,17 @@ graph TB
 | `wow-api` | Pure API contracts: `CommandMessage`, `DomainEvent`, `AggregateId`, all annotations | Foundation | [settings.gradle.kts:21](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L21) |
 | `wow-core` | Framework engine: command/event bus, event store abstractions, projections, sagas, wait plans | Engine | [settings.gradle.kts:22](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L22) |
 | `wow-compiler` | KSP processor: generates command routing, event metadata, OpenAPI specs at compile time | Dev-time | [settings.gradle.kts:26](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L26) |
-| `wow-spring` | Spring IoC integration: `SpringServiceProvider` bridge | Integration | [settings.gradle.kts:32](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L32) |
-| `wow-spring-boot-starter` | Auto-configuration with feature variants (`mongo-support`, `kafka-support`, etc.) | Integration | [settings.gradle.kts:34](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L34) |
-| `wow-webflux` | WebFlux command endpoint auto-registration | API Layer | [settings.gradle.kts:33](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L33) |
+| `wow-spring` | Spring IoC integration: `SpringServiceProvider` bridge | Integration | [settings.gradle.kts:31](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L31) |
+| `wow-spring-boot-starter` | Auto-configuration with feature variants (`mongo-support`, `kafka-support`, etc.) | Integration | [settings.gradle.kts:33](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L33) |
+| `wow-webflux` | WebFlux command endpoint auto-registration | API Layer | [settings.gradle.kts:32](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L32) |
 | `wow-kafka` | Distributed command/event bus via Kafka | Messaging | [settings.gradle.kts:27](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L27) |
 | `wow-mongo` | MongoDB event store + snapshot store | Storage | [settings.gradle.kts:28](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L28) |
-| `wow-redis` | Redis event store + snapshot store | Storage | [settings.gradle.kts:30](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L30) |
-| `wow-elasticsearch` | Elasticsearch projection store | Storage | [settings.gradle.kts:31](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L31) |
-| `wow-test` | Unit testing DSL: `AggregateSpec`, `SagaSpec` (Given-When-Expect) | Dev-time | [settings.gradle.kts:44-45](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L44-L45) |
-| `wow-cosec` | ABAC authorization framework | Cross-cutting | [settings.gradle.kts:40](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L40) |
-| `wow-opentelemetry` | Tracing + metrics via OpenTelemetry | Cross-cutting | [settings.gradle.kts:35](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L35) |
-| `compensation/*` | Event compensation orchestrator + dashboard | Cross-cutting | [settings.gradle.kts:56-63](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L56-L63) |
+| `wow-redis` | Redis event store + snapshot store | Storage | [settings.gradle.kts:29](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L29) |
+| `wow-elasticsearch` | Elasticsearch event store, snapshot store, and projection/query store | Storage | [settings.gradle.kts:30](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L30) |
+| `wow-test` | Unit testing DSL: `AggregateSpec`, `SagaSpec` (Given-When-Expect) | Dev-time | [settings.gradle.kts:43](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L43) |
+| `wow-cosec` | ABAC authorization framework | Cross-cutting | [settings.gradle.kts:39](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L39) |
+| `wow-opentelemetry` | Tracing + metrics via OpenTelemetry | Cross-cutting | [settings.gradle.kts:34](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L34) |
+| `compensation/*` | Event compensation orchestrator + dashboard | Cross-cutting | [settings.gradle.kts:55-61](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L55-L61) |
 | `wow-cocache` | CoCache-based projection caching layer | Storage | [settings.gradle.kts:24](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L24) |
 
 ---
@@ -498,6 +497,7 @@ flowchart TB
         IM[InMemoryEventStore<br>ConcurrentHashMap]
         MONGO_ES[MongoEventStore<br>append=insertOne, load=find with sort]
         REDIS_ES[RedisEventStore<br>append=ZADD, load=ZRANGEBYSCORE]
+        ES_ES[ElasticsearchEventStore<br>append=index, load=search]
     end
 
     subgraph "Scalability Strategies"
@@ -517,8 +517,10 @@ flowchart TB
     ESI --> IM
     ESI --> MONGO_ES
     ESI --> REDIS_ES
+    ESI --> ES_ES
     MONGO_ES --> SNAP
     REDIS_ES --> SNAP
+    ES_ES --> SNAP
     ESI --> FANOUT
     MONGO_ES --> OPT
     MONGO_ES --> IDEM
@@ -760,15 +762,15 @@ When adopting Wow, use this format to document architectural decisions. Each dec
 
 | Page | Relevance |
 |---|---|
-| [Architecture Guide](../guide/architecture.md) | High-level architecture overview for developers |
-| [Configuration Reference](../reference/config/basic.md) | Full `wow.*` configuration property reference |
-| [Command Configuration](../reference/config/command.md) | Command bus, gateway, wait plan configuration |
-| [Event Configuration](../reference/config/event.md) | Event bus, dispatcher configuration |
-| [Event Sourcing Configuration](../reference/config/eventsourcing.md) | Event store, snapshot, state configuration |
+| [Architecture Guide](../guide/advanced/architecture.md) | High-level architecture overview for developers |
+| [Configuration Reference](../reference/config/core.md) | Full `wow.*` configuration property reference |
+| [Command Configuration](../reference/config/core.md) | Command bus, gateway, wait plan configuration |
+| [Event Configuration](../reference/config/core.md) | Event bus, dispatcher configuration |
+| [Event Sourcing Configuration](../reference/config/core.md) | Event store, snapshot, state configuration |
 | [Saga Guide](../guide/saga.md) | Stateless saga development guide |
 | [Event Compensation](../guide/event-compensation.md) | Compensation orchestrator and dashboard |
-| [Testing Guide](../guide/testing.md) | AggregateSpec/SagaSpec DSL reference |
-| [Architecture Deep Dive](../deep-dive/architecture/overview.md) | Detailed component internals |
-| [Event Store Deep Dive](../deep-dive/data/event-store.md) | Event store design and performance characteristics |
+| [Testing Guide](../guide/test-suite.md) | AggregateSpec/SagaSpec DSL reference |
+| [Architecture Deep Dive](../guide/advanced/architecture.md) | Detailed component internals |
+| [Event Store Deep Dive](../guide/eventstore.md) | Event store design and performance characteristics |
 | [Example: Order Service](../reference/example/order.md) | Complete Order aggregate with saga and projection |
 | [Example: Transfer Service](../reference/example/transfer.md) | Java-based simple event sourcing example |

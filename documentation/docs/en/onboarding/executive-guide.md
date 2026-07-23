@@ -28,13 +28,13 @@ onMounted(() => {
 
 ## Executive Summary
 
-The **Wow Framework** is a production-grade, open-source microservice framework purpose-built for teams adopting **Domain-Driven Design (DDD)**, **CQRS**, and **Event Sourcing** on the JVM. It eliminates the months of custom infrastructure work that organizations typically invest when building event-sourced systems from scratch, replacing it with a curated, battle-tested platform of 25+ modules.
+The **Wow Framework** is a production-grade, open-source microservice framework purpose-built for teams adopting **Domain-Driven Design (DDD)**, **CQRS**, and **Event Sourcing** on the JVM. It eliminates the months of custom infrastructure work that organizations typically invest when building event-sourced systems from scratch, replacing it with a curated, battle-tested platform of 37 modules.
 
 The framework's core philosophy is **"Domain Model as a Service"** -- development teams write only their domain model (commands, events, aggregate state), and the framework automatically generates command routing, event persistence, projection pipelines, OpenAPI endpoints, and distributed saga orchestration. At compile time, a KSP processor generates routing tables and API specifications, eliminating runtime reflection overhead. Performance benchmarks from the [example workload](https://github.com/Ahoo-Wang/Wow/blob/main/example) demonstrate ~60,000 transactions per second in fire-and-forget mode with 29 ms average latency, and ~19,000 TPS with full processing guarantees at 239 ms latency -- performance characteristics suitable for high-throughput transactional systems in e-commerce, logistics, financial services, and gaming.
 
-For leadership teams evaluating whether to invest in event-sourced architecture, Wow represents the lowest-risk on-ramp available on the JVM ecosystem: Apache 2.0 licensed (no vendor lock-in), Maven Central published, Spring Boot 4.x native, and backed by an active open-source community with CI/CD, integration testing, and code coverage enforcement. Version 8.3.x has been in production deployment since 2025, demonstrating maturity for enterprise adoption.
+For leadership teams evaluating whether to invest in event-sourced architecture, Wow represents the lowest-risk on-ramp available on the JVM ecosystem: Apache 2.0 licensed (no vendor lock-in), Maven Central published, Spring Boot 4.x native, and backed by an active open-source community with CI/CD, integration testing, and code coverage enforcement. The framework has been in active production development across multiple 8.x releases (current version 8.9.1), demonstrating maturity for enterprise adoption.
 
-<!-- Sources: README.md:1-16, gradle.properties:23, wiki/en/index.md:78-85, README.md:70-98 -->
+<!-- Sources: README.md:1-16, gradle.properties:23, index.md (home), README.md:70-98 -->
 
 ---
 
@@ -45,7 +45,7 @@ The following diagram positions Wow within the broader CQRS/Event Sourcing ecosy
 ```mermaid
 graph TB
     subgraph ECOSYSTEM["<b>CQRS/ES Ecosystem on JVM</b>"]
-        WOW["<b>Wow Framework</b><br>Full-stack CQRS+ES<br>DDD-first, Reactive<br>25+ Modules<br>Apache 2.0"]
+        WOW["<b>Wow Framework</b><br>Full-stack CQRS+ES<br>DDD-first, Reactive<br>37 Modules<br>Apache 2.0"]
         AXON["Axon Framework<br>Full-stack CQRS+ES<br>Spring-native<br>AxonIQ commercial"]
         AKKA["Akka/Pekko<br>Actor model<br>Not CQRS-specific<br>Requires custom ES layer"]
         RAW["Spring Boot Alone<br>No CQRS/ES abstractions<br>Teams build everything<br>from scratch"]
@@ -78,7 +78,7 @@ graph TB
 
 ```
 
-<!-- Sources: README.md:30-34, wiki/en/guide/index.md:7-16, wiki/en/reference/cqrs.md:18-19 -->
+<!-- Sources: README.md:30-34, guide/getting-started.md, guide/core-concepts.md -->
 
 ---
 
@@ -88,20 +88,20 @@ Wow provides a comprehensive set of capabilities out of the box. The table below
 
 | Capability | What It Provides | Module | Strategic Value | Source |
 |---|---|---|---|---|
-| **DDD Aggregate Modeling** | First-class support for aggregate roots, state aggregates, value objects, and domain events. Three modeling patterns: single-class, inheritance, aggregation. | `wow-core` | Eliminates boilerplate; developers write only domain logic | [CLAUDE.md:46-47](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L46-L47) |
-| **Command Bus** | Reactive command routing with configurable wait plans (SENT, PROCESSED, PROJECTED, SAGA_HANDLED). Local-first routing for performance. | `wow-core`, `wow-kafka` | Decouples command senders from handlers; enables fire-and-forget or synchronous semantics | [CLAUDE.md:46-47](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L46-L47) |
-| **Snapshot Store** | Periodic state snapshots to accelerate aggregate loading. Configurable snapshot intervals. | `wow-core`, `wow-mongo`, `wow-redis` | Prevents long event replays for high-event-count aggregates; keeps latency predictable | [wiki/en/deep-dive/data/snapshot-store.md](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/deep-dive/data/snapshot-store.md) |
-| **Saga Orchestration** | Distributed transaction support via event-driven choreography. Automatic compensation on failure. | `wow-core` | Enables multi-aggregate business transactions without distributed locking | [wiki/en/guide/saga.md](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/guide/saga.md) |
-| **Event Compensation** | Failure tracking, automatic retry, and a React-based dashboard for operational visibility. | `compensation/` modules | Operational safety net for saga failures; reduces MTTR for production incidents | [wiki/en/guide/event-compensation.md](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/guide/event-compensation.md) |
-| **Compile-Time Codegen** | KSP processor generates command routing tables, event handler metadata, and OpenAPI specs. Zero runtime reflection. | `wow-compiler` | Faster startup; type-safety at build time; automatic API documentation | [CLAUDE.md:48](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L48) |
-| **OpenAPI / WebFlux** | Spring WebFlux integration auto-registers command endpoints as HTTP routes. Swagger UI out of the box. | `wow-webflux`, `wow-openapi` | Zero-controller development; API docs always in sync with domain model | [wiki/en/deep-dive/integrations/spring-boot.md](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/deep-dive/integrations/spring-boot.md) |
-| **Authorization** | Policy-based command/query authorization via the CoSec extension. | `wow-cosec` | Declarative access control integrated into the command processing pipeline | [CLAUDE.md:84](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L84) |
-| **Observability** | OpenTelemetry integration for distributed tracing and metrics. Prometheus-compatible metrics export. | `wow-opentelemetry` | Full visibility into command/event flows; integrates with existing observability stacks | [CLAUDE.md:83](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L83) |
-| **Testing DSL** | Given-When-Expect pattern for aggregate and saga testing. `AggregateSpec` and `SagaSpec` with 80%+ coverage easily achievable. | `wow-test` | Lower defect rates; faster onboarding; confidence in business logic correctness | [wiki/en/guide/testing.md](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/guide/testing.md) |
-| **Query Support** | Read-side query model with `wow-query` module for direct query access to read models. | `wow-query` | Complements projections with query APIs; supports CoCache caching layer | [CLAUDE.md:49](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L49) |
-| **BI / Analytics** | Business Intelligence sync script generator for feeding aggregate state into data warehouses. | `wow-bi` | Enables data teams to consume domain events directly; eliminates manual ETL | [wiki/en/guide/bi.md](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/guide/bi.md) |
-| **API Client** | Auto-generated RESTful API client for type-safe service-to-service communication. | `wow-apiclient` | Eliminates hand-written HTTP client code; type-safe inter-service calls | [CLAUDE.md:86](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L86) |
-| **JSON Schema** | JSON Schema generation from command and event models for API contracts and validation. | `wow-schema` | Supports API governance and contract testing initiatives | [CLAUDE.md:81](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L81) |
+| **DDD Aggregate Modeling** | First-class support for aggregate roots, state aggregates, value objects, and domain events. Three modeling patterns: single-class, inheritance, aggregation. | `wow-core` | Eliminates boilerplate; developers write only domain logic | [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) |
+| **Command Bus** | Reactive command routing with configurable wait plans (SENT, PROCESSED, PROJECTED, SAGA_HANDLED). Local-first routing for performance. | `wow-core`, `wow-kafka` | Decouples command senders from handlers; enables fire-and-forget or synchronous semantics | [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) |
+| **Snapshot Store** | Periodic state snapshots to accelerate aggregate loading. Configurable snapshot intervals. | `wow-core`, `wow-mongo`, `wow-redis` | Prevents long event replays for high-event-count aggregates; keeps latency predictable | [Snapshot Guide](/guide/snapshot) |
+| **Saga Orchestration** | Distributed transaction support via event-driven choreography. Automatic compensation on failure. | `wow-core` | Enables multi-aggregate business transactions without distributed locking | [Saga Guide](/guide/saga) |
+| **Event Compensation** | Failure tracking, automatic retry, and a React-based dashboard for operational visibility. | `compensation/` modules | Operational safety net for saga failures; reduces MTTR for production incidents | [Event Compensation Guide](/guide/event-compensation) |
+| **Compile-Time Codegen** | KSP processor generates command routing tables, event handler metadata, and OpenAPI specs. Zero runtime reflection. | `wow-compiler` | Faster startup; type-safety at build time; automatic API documentation | [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) |
+| **OpenAPI / WebFlux** | Spring WebFlux integration auto-registers command endpoints as HTTP routes. Swagger UI out of the box. | `wow-webflux`, `wow-openapi` | Zero-controller development; API docs always in sync with domain model | [Spring Boot Starter Guide](/guide/extensions/spring-boot-starter) |
+| **Authorization** | Policy-based command/query authorization via the CoSec extension. | `wow-cosec` | Declarative access control integrated into the command processing pipeline | [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) |
+| **Observability** | OpenTelemetry integration for distributed tracing and metrics. Prometheus-compatible metrics export. | `wow-opentelemetry` | Full visibility into command/event flows; integrates with existing observability stacks | [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) |
+| **Testing DSL** | Given-When-Expect pattern for aggregate and saga testing. `AggregateSpec` and `SagaSpec` with 80%+ coverage easily achievable. | `wow-test` | Lower defect rates; faster onboarding; confidence in business logic correctness | [Testing Guide](/guide/test-suite) |
+| **Query Support** | Read-side query model with `wow-query` module for direct query access to read models. | `wow-query` | Complements projections with query APIs; supports CoCache caching layer | [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) |
+| **BI / Analytics** | Business Intelligence sync script generator for feeding aggregate state into data warehouses. | `wow-bi` | Enables data teams to consume domain events directly; eliminates manual ETL | [BI Guide](/guide/bi) |
+| **API Client** | Auto-generated RESTful API client for type-safe service-to-service communication. | `wow-apiclient` | Eliminates hand-written HTTP client code; type-safe inter-service calls | [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) |
+| **JSON Schema** | JSON Schema generation from command and event models for API contracts and validation. | `wow-schema` | Supports API governance and contract testing initiatives | [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) |
 
 ### Capability Coverage by Business Concern
 
@@ -117,7 +117,7 @@ graph TB
 
 ```
 
-<!-- Sources: README.md:30-45, wiki/en/index.md:21-58, CLAUDE.md:46-89 -->
+<!-- Sources: README.md:30-45, index.md (home features), AGENTS.md -->
 
 ---
 
@@ -146,14 +146,13 @@ graph TB
     F2 --> F1
     F3 --> F1
     F3 --> F2
-    F4 --> F2
     F5 --> F2
     F6 --> F5
     F7 --> F2
 
 ```
 
-<!-- Sources: wiki/en/guide/architecture.md:30-91, CLAUDE.md:44-89, settings.gradle.kts:19-63 -->
+<!-- Sources: guide/advanced/architecture.md, AGENTS.md, settings.gradle.kts:19-80 -->
 
 ---
 
@@ -166,14 +165,14 @@ Every technology adoption carries risk. The following assessment evaluates Wow a
 | Risk Category | Risk | Severity | Probability | Mitigation | Source Evidence |
 |---|---|---|---|---|---|
 | **Technical** | Single-maintainer risk (small core team) | High | Medium | Apache 2.0 license enables forking; Maven Central published artifacts are immutable; comprehensive test suite (80%+ coverage) ensures stability regardless of contributor count | [codecov](https://codecov.io/gh/Ahoo-Wang/Wow), [Maven Central](https://central.sonatype.com/artifact/me.ahoo.wow/wow-core) |
-| **Technical** | Kotlin/JVM talent market constraints | Medium | Medium | Kotlin interops seamlessly with Java; Wow includes a [Java example project](https://github.com/Ahoo-Wang/Wow/tree/main/example/transfer); Kotlin adoption is growing in enterprise Spring shops | [CLAUDE.md:98](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L98), [example/transfer](https://github.com/Ahoo-Wang/Wow/tree/main/example/transfer) |
-| **Technical** | Kafka dependency for production | Medium | Low | Kafka is optional -- Redis Streams and in-memory buses are available; LocalFirst mode routes commands locally before falling back to distributed bus; Kafka is a mature, well-understood infrastructure component | [wiki/en/reference/config/basic.md:36-44](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/reference/config/basic.md#L36-L44) |
-| **Technical** | Reactive programming learning curve | Medium | High | All command/event paths are non-blocking via Project Reactor; developers unfamiliar with reactive patterns need ramp-up; testing DSL abstracts much of the complexity; `Mono`/`Flux` are well-documented in Spring ecosystem | [wiki/en/guide/architecture.md:73-76](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/guide/architecture.md#L73-L76) |
-| **Operational** | Event store unbounded growth | Medium | High | Snapshots reduce replay cost; event store partitioning by aggregate ID; event archival strategies can be implemented at the application level; the framework does not pressure auto-delete (retention is a feature, not a bug) | [wiki/en/deep-dive/data/snapshot-store.md](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/deep-dive/data/snapshot-store.md) |
-| **Operational** | Debugging event-sourced systems | Medium | Medium | Compensation dashboard provides event-level visibility; OpenTelemetry tracing follows command-to-event-to-projection paths; point-in-time state reconstruction enables replay-based debugging | [wiki/en/guide/event-compensation.md](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/guide/event-compensation.md) |
+| **Technical** | Kotlin/JVM talent market constraints | Medium | Medium | Kotlin interops seamlessly with Java; Wow includes a [Java example project](https://github.com/Ahoo-Wang/Wow/tree/main/example/transfer); Kotlin adoption is growing in enterprise Spring shops | [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md), [example/transfer](https://github.com/Ahoo-Wang/Wow/tree/main/example/transfer) |
+| **Technical** | Kafka dependency for production | Medium | Low | Kafka is optional -- Redis Streams and in-memory buses are available; LocalFirst mode routes commands locally before falling back to distributed bus; Kafka is a mature, well-understood infrastructure component | [Configuration Reference](/reference/config/infrastructure) |
+| **Technical** | Reactive programming learning curve | Medium | High | All command/event paths are non-blocking via Project Reactor; developers unfamiliar with reactive patterns need ramp-up; testing DSL abstracts much of the complexity; `Mono`/`Flux` are well-documented in Spring ecosystem | [Architecture Guide](/guide/advanced/architecture) |
+| **Operational** | Event store unbounded growth | Medium | High | Snapshots reduce replay cost; event store partitioning by aggregate ID; event archival strategies can be implemented at the application level; the framework does not pressure auto-delete (retention is a feature, not a bug) | [Snapshot Guide](/guide/snapshot) |
+| **Operational** | Debugging event-sourced systems | Medium | Medium | Compensation dashboard provides event-level visibility; OpenTelemetry tracing follows command-to-event-to-projection paths; point-in-time state reconstruction enables replay-based debugging | [Event Compensation Guide](/guide/event-compensation) |
 | **Adoption** | Team resistance to DDD/CQRS/ES paradigm | High | High | Start with a single bounded context (the incremental adoption strategy detailed below); the testing DSL makes correctness visible; success with one context builds organizational confidence; Wow's compile-time code generation eliminates CRUD-style boilerplate that teams default to | See Adoption Strategy section below |
-| **Adoption** | Version upgrade risk (8.x to 9.x) | Medium | Low | Semantic versioning; migration guides documented; the framework's clean module separation means internal API breaks are unlikely to cascade to domain code | [wiki/en/guide/migration.md](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/guide/migration.md) |
-| **Adoption** | Competition from Axon Framework (larger community) | Low | Medium | Axon has a larger community but is commercially motivated (AxonIQ); Wow is Apache 2.0 with no commercial entity behind it, eliminating vendor-lock concerns; Wow's compile-time code generation and reactive-first architecture are differentiators | [wiki/en/reference/cqrs.md:18-19](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/reference/cqrs.md#L18-L19) |
+| **Adoption** | Version upgrade risk (8.x to 9.x) | Medium | Low | Semantic versioning; migration guides documented; the framework's clean module separation means internal API breaks are unlikely to cascade to domain code | [Migration Guide](/guide/migration) |
+| **Adoption** | Competition from Axon Framework (larger community) | Low | Medium | Axon has a larger community but is commercially motivated (AxonIQ); Wow is Apache 2.0 with no commercial entity behind it, eliminating vendor-lock concerns; Wow's compile-time code generation and reactive-first architecture are differentiators | [Core Concepts](/guide/core-concepts) |
 
 ### Risk Interdependency Map
 
@@ -193,7 +192,7 @@ graph TB
 
 ```
 
-<!-- Sources: Comprehensive analysis based on README.md, CLAUDE.md, wiki/en/guide/, and settings.gradle.kts -->
+<!-- Sources: Comprehensive analysis based on README.md, AGENTS.md, guide/, and settings.gradle.kts -->
 
 ---
 
@@ -227,7 +226,7 @@ The build-vs-buy calculation for event-sourced infrastructure on the JVM is star
 
 These estimates assume a senior team of 3-4 engineers. Wow provides this entire stack under the Apache 2.0 license -- no procurement, no contract negotiation, no vendor dependency.
 
-<!-- Sources: README.md:30-97, CLAUDE.md:46-89, settings.gradle.kts:19-63 -->
+<!-- Sources: README.md:30-97, AGENTS.md, settings.gradle.kts:19-80 -->
 
 ### Return on Investment Model
 
@@ -255,7 +254,7 @@ graph TB
 
 ```
 
-<!-- Sources: README.md:70-98, wiki/en/index.md:78-85, wiki/en/guide/testing.md -->
+<!-- Sources: README.md:70-98, index.md (home), guide/test-suite.md -->
 
 ---
 
@@ -283,7 +282,7 @@ graph TB
 | **Compensation** | Embedded in application | $0 incremental | Dashboard is served from the same application instance |
 
 
-<!-- Sources: README.md:20-25, wiki/en/reference/config/, CLAUDE.md:59-65 -->
+<!-- Sources: README.md:20-25, reference/config/, AGENTS.md -->
 
 ### Scaling Characteristics
 
@@ -294,7 +293,7 @@ graph TB
 | **Event history depth** | Long-lived aggregates accumulate events | Snapshots at configurable intervals; only incremental events replayed since last snapshot |
 | **Team scaling** | Each bounded context is independently deployable | Module-per-context pattern; teams own their domain without coordination |
 
-<!-- Sources: README.md:70-98, wiki/en/deep-dive/data/snapshot-store.md -->
+<!-- Sources: README.md:70-98, guide/snapshot.md -->
 
 ---
 
@@ -328,7 +327,7 @@ graph TB
 
 The [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) and [example projects](https://github.com/Ahoo-Wang/Wow/tree/main/example) serve as reference implementations throughout training.
 
-<!-- Sources: wiki/en/guide/index.md:7-16, CLAUDE.md:34-52, wiki/en/guide/testing.md -->
+<!-- Sources: guide/getting-started.md, AGENTS.md, guide/test-suite.md -->
 
 ---
 
@@ -351,7 +350,7 @@ The [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) an
 | **Authorization** | CoSec (policy-based) | AxonIQ Console / Spring Security | Spring Security (custom integration) | Custom |
 | **API Exposure** | Auto-generated WebFlux endpoints + Swagger UI | Axon Server HTTP API or custom Spring MVC | Spring MVC / WebFlux (manual controllers) | Akka HTTP (manual routes) |
 | **Community Size** | Growing (~1.6K GitHub stars) | Large (~3K+ GitHub stars) | N/A | Large (Akka legacy + Pekko fork) |
-| **Ecosystem Maturity** | Production since 2023; v8.3.x stable | Production since 2010; v4.x stable | N/A | Production since 2009 (Akka) |
+| **Ecosystem Maturity** | v8.9.1 stable | Production since 2010; v4.x stable | N/A | Production since 2009 (Akka) |
 | **Vendor Lock-In Risk** | None (Apache 2.0, Maven Central) | Medium (Axon Server commercial features; AxonIQ as primary maintainer) | None (but you own all code) | None (Apache 2.0) |
 | **Ramp-Up Time** | 2-4 weeks (if DDD/CQRS/ES concepts known) | 2-4 weeks (if DDD/CQRS/ES concepts known) | 6-12 months (build infrastructure) | 3-6 months (build CQRS/ES on top of actors) |
 
@@ -377,7 +376,7 @@ flowchart TD
 
 ```
 
-<!-- Sources: wiki/en/reference/cqrs.md:18-19, README.md:1-16, CLAUDE.md:46-89 -->
+<!-- Sources: guide/core-concepts.md, README.md:1-16, AGENTS.md -->
 
 ---
 
@@ -404,7 +403,7 @@ flowchart TB
 
 ```
 
-<!-- Sources: wiki/en/guide/index.md:7-16, CLAUDE.md:46-89 -->
+<!-- Sources: guide/getting-started.md, AGENTS.md -->
 
 ### Selection Criteria for Pilot Context
 
@@ -426,7 +425,7 @@ Choose the first bounded context carefully. The ideal pilot:
 | **Production** | MongoDB replica set or Atlas | Kafka cluster (3+ brokers) | Elasticsearch cluster | OpenTelemetry + Prometheus + Grafana |
 | **Enterprise** | Multi-region MongoDB | Multi-region Kafka | Multi-region Elasticsearch | Full observability stack with alerting |
 
-<!-- Sources: wiki/en/reference/config/, wiki/en/deep-dive/data/event-store.md -->
+<!-- Sources: reference/config/, guide/eventstore.md -->
 
 ---
 
@@ -442,9 +441,9 @@ Choose the first bounded context carefully. The ideal pilot:
    - [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) -- starter scaffolding
 
 3. **Review the documentation**:
-   - [Getting Started Guide](/guide/) -- comprehensive onboarding
-   - [Architecture Overview](/deep-dive/architecture/overview) -- technical deep-dive
-   - [Configuration Reference](/reference/config/basic) -- all configuration options
+   - [Getting Started Guide](/guide/getting-started) -- comprehensive onboarding
+   - [Architecture Overview](/guide/advanced/architecture) -- technical deep-dive
+   - [Configuration Reference](/reference/config/core) -- all configuration options
 
 4. **Assess team readiness**: Survey your engineering team for familiarity with DDD, CQRS, Event Sourcing, reactive programming, and Kotlin. Identify knowledge gaps and plan training.
 
@@ -482,7 +481,7 @@ Choose the first bounded context carefully. The ideal pilot:
 | Second bounded context live | Month 4 | Confirm velocity improvement |
 | Platform capability established | Month 6 | Organization-wide adoption decision |
 
-<!-- Sources: wiki/en/guide/index.md, wiki/en/guide/architecture.md, README.md:70-98, CLAUDE.md:46-89 -->
+<!-- Sources: guide/getting-started.md, guide/advanced/architecture.md, README.md:70-98, AGENTS.md -->
 
 ---
 
@@ -492,14 +491,14 @@ Choose the first bounded context carefully. The ideal pilot:
 |---|---|---|
 | **Version** | 8.9.1 | [gradle.properties:23](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties#L23) |
 | **License** | Apache 2.0 | [gradle.properties:28-29](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties#L28-L29) |
-| **Language** | Kotlin 2.3 / JVM 17+ | [CLAUDE.md:100](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L100) |
-| **Framework** | Spring Boot 4.x | [CLAUDE.md:3](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L3) |
-| **Modules** | 25+ | [settings.gradle.kts:19-63](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L19-L63) |
+| **Language** | Kotlin 2.3 / JVM 17+ | [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) |
+| **Framework** | Spring Boot 4.x | [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) |
+| **Modules** | 37 | [settings.gradle.kts:19-80](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L19-L80) |
 | **Performance (SENT)** | ~60K TPS (AddCartItem), ~48K TPS (CreateOrder) | [README.md:70-98](https://github.com/Ahoo-Wang/Wow/blob/main/README.md#L70-L98) |
 | **Performance (PROCESSED)** | ~19K TPS (AddCartItem), ~18K TPS (CreateOrder) | [README.md:70-98](https://github.com/Ahoo-Wang/Wow/blob/main/README.md#L70-L98) |
 | **Test Coverage** | 80%+ easily achievable | [README.md:121-128](https://github.com/Ahoo-Wang/Wow/blob/main/README.md#L121-L128) |
-| **Max End-to-End Latency (SENT)** | 29 ms | [wiki/en/index.md:83](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/index.md#L83) |
-| **Max End-to-End Latency (PROCESSED)** | 239 ms | [wiki/en/index.md:84](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/index.md#L84) |
+| **Max End-to-End Latency (SENT)** | 29 ms | [README.md:70-98](https://github.com/Ahoo-Wang/Wow/blob/main/README.md#L70-L98) |
+| **Max End-to-End Latency (PROCESSED)** | 239 ms | [README.md:70-98](https://github.com/Ahoo-Wang/Wow/blob/main/README.md#L70-L98) |
 | **GitHub Stars** | ~1,600+ | [GitHub](https://github.com/Ahoo-Wang/Wow) |
 | **Maven Central** | Published | [Maven Central](https://central.sonatype.com/artifact/me.ahoo.wow/wow-core) |
 | **CI/CD** | GitHub Actions with integration tests | [Integration Test](https://github.com/Ahoo-Wang/Wow/actions/workflows/integration-test.yml) |
@@ -512,13 +511,13 @@ Choose the first bounded context carefully. The ideal pilot:
 | Page | Description |
 |---|---|
 | [Home](/) | Wow Framework overview, features, architecture, and performance benchmarks |
-| [Getting Started Guide](/guide/) | Complete onboarding guide for developers |
-| [Architecture Overview](/deep-dive/architecture/overview) | Technical deep-dive into the framework architecture |
+| [Getting Started Guide](/guide/getting-started) | Complete onboarding guide for developers |
+| [Architecture Overview](/guide/advanced/architecture) | Technical deep-dive into the framework architecture |
 | [Example: Order & Cart](https://github.com/Ahoo-Wang/Wow/tree/main/example) | Full DDD + CQRS + Saga reference implementation |
 | [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) | Official starter template for new projects |
-| [Configuration Reference](/reference/config/basic) | Complete configuration options for all modules |
+| [Configuration Reference](/reference/config/core) | Complete configuration options for all modules |
 | [Saga Guide](/guide/saga) | Distributed transaction implementation guide |
 | [Event Compensation](/guide/event-compensation) | Failure handling and retry infrastructure |
 | [Testing Guide](/guide/test-suite) | AggregateSpec and SagaSpec testing DSL |
 | [Migration Guide](/guide/migration) | Version upgrade instructions |
-| [Awesome CQRS](/reference/awesome/cqrs) | Related frameworks, books, and resources |
+| [Ecosystem](/reference/ecosystem) | Related frameworks, books, and resources |

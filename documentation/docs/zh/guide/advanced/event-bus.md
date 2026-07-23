@@ -499,11 +499,11 @@ wow:
 
 | 页面 | 描述 |
 |---|---|
-| [命令总线](./command-bus) | 命令路由和分发架构 |
+| [命令网关](../command-gateway) | 命令路由和分发架构 |
 | [事件存储](../eventstore) | 领域事件如何持久化和加载 |
 | [事件处理器](../event-processor) | 创建和配置事件处理器 |
 | [Saga 处理器](../saga) | 通过事件进行分布式事务编排 |
-| [Kafka 配置](../../reference/config/kafka) | Kafka 连接和主题配置 |
-| [事件配置](../../reference/config/event) | 事件总线类型和路由设置 |
-| [架构概览](./overview.md) | 框架高层架构 |
-| [CQRS 参考](../../reference/awesome/cqrs) | Wow 中的 CQRS 模式 |
+| [Kafka 配置](../../reference/config/infrastructure) | Kafka 连接和主题配置 |
+| [事件配置](../../reference/config/core) | 事件总线类型和路由设置 |
+| [架构概览](./architecture) | 框架高层架构 |
+| [核心概念](../core-concepts) | Wow 中的 CQRS 模式 |

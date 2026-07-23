@@ -1,3 +1,8 @@
+---
+title: 事件补偿示例
+description: 一个使用 Wow 构建的真实补偿应用，展示如何处理和恢复由事件处理失败导致的数据不一致。
+---
+
 # 事件补偿
 
 _[事件补偿](https://github.com/Ahoo-Wang/Wow/tree/main/compensation)_ 是一个基于 _Wow_ 框架开发的真实应用案例，用于处理和恢复因事件处理失败而导致的数据不一致性。

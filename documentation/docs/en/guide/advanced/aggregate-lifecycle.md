@@ -663,6 +663,6 @@ The `AggregateRoute.Owner.ALWAYS` setting on the `Order` aggregate ensures that 
 | [Event Sourcing](../eventstore) | Event store, snapshots, and full replay mechanics |
 | [Domain Modeling](../modeling) | Designing aggregates, commands, events, and state classes |
 | [Saga Orchestration](../saga) | Distributed transaction support via sagas |
-| [Configuration Reference: Event Sourcing](../../reference/config/eventsourcing) | Event sourcing configuration properties |
-| [Configuration Reference: Snapshot](../../reference/config/snapshot) | Snapshot store configuration |
+| [Configuration Reference: Event Sourcing](../../reference/config/core) | Event sourcing configuration properties |
+| [Configuration Reference: Snapshot](../../reference/config/core) | Snapshot store configuration |
 | [Testing](../test-suite) | AggregateSpec and Given-When-Expect testing DSL |
