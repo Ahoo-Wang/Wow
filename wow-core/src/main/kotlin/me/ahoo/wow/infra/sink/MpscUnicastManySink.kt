@@ -75,7 +75,6 @@ internal class MpscUnicastManySink<T : Any> private constructor(
     private val closeFailure = AtomicReference<Throwable?>()
     private val settlementLock = Any()
     private var downstreamOperations = 0
-    private val downstreamTerminated = AtomicBoolean()
     override val closeSettled = CompletableFuture<Unit>()
     private val flux = OpaqueFlux(
         source = sink.asFlux(),
@@ -85,7 +84,6 @@ internal class MpscUnicastManySink<T : Any> private constructor(
         isCancellationRequested = ::isCancellationRequested,
         beginDownstreamOperation = ::beginDownstreamOperation,
         endDownstreamOperation = ::endDownstreamOperation,
-        markDownstreamTerminated = ::markDownstreamTerminated,
         scanAttribute = ::scanUnsafe,
         innerScannables = ::inners,
     )
@@ -261,11 +259,6 @@ internal class MpscUnicastManySink<T : Any> private constructor(
         }
     }
 
-    private fun markDownstreamTerminated() {
-        downstreamTerminated.set(true)
-        tryCompleteCloseSettlement()
-    }
-
     private fun tryCompleteCloseSettlement() {
         synchronized(settlementLock) {
             if (closeSettled.isDone || downstreamOperations != 0) {
@@ -313,20 +306,12 @@ internal class MpscUnicastManySink<T : Any> private constructor(
         if (current and (CANCELLATION_DELEGATED or TERMINAL_DELEGATED) == 0L) return false
         if (!isDelegationSettled(current, CANCELLATION_DELEGATED, CANCELLATION_SETTLED)) return false
         if (!isDelegationSettled(current, TERMINAL_DELEGATED, TERMINAL_SETTLED)) return false
-        return hasSettledCloseOutcome(current)
+        return true
     }
 
     private fun isDelegationSettled(current: Long, delegated: Long, settled: Long): Boolean {
         if (current and delegated == 0L) return true
         return current and settled != 0L
-    }
-
-    private fun hasSettledCloseOutcome(current: Long): Boolean {
-        if (current and CANCELLATION_SETTLED != 0L) return true
-        if (closeFailure.get() != null) return true
-        if (current and TERMINAL_SETTLED == 0L) return false
-        if (downstreamTerminated.get()) return true
-        return subscription.get() == null
     }
 
     @Suppress("TooGenericExceptionCaught")
@@ -512,7 +497,6 @@ private class OpaqueFlux<T : Any>(
     private val isCancellationRequested: () -> Boolean,
     private val beginDownstreamOperation: () -> Unit,
     private val endDownstreamOperation: () -> Unit,
-    private val markDownstreamTerminated: () -> Unit,
     private val scanAttribute: (Scannable.Attr<*>) -> Any?,
     private val innerScannables: () -> Stream<out Scannable>,
 ) : Flux<T>(),
@@ -539,7 +523,6 @@ private class OpaqueFlux<T : Any>(
                     isCancellationRequested = isCancellationRequested,
                     beginDownstreamOperation = beginDownstreamOperation,
                     endDownstreamOperation = endDownstreamOperation,
-                    markDownstreamTerminated = markDownstreamTerminated,
                 ),
             )
         } finally {
@@ -568,7 +551,6 @@ private class OpaqueSubscriber<T : Any>(
     private val isCancellationRequested: () -> Boolean,
     private val beginDownstreamOperation: () -> Unit,
     private val endDownstreamOperation: () -> Unit,
-    private val markDownstreamTerminated: () -> Unit,
 ) : CoreSubscriber<T>, Scannable {
     override fun currentContext(): Context = actual.currentContext()
 
@@ -593,22 +575,14 @@ private class OpaqueSubscriber<T : Any>(
     }
 
     override fun onError(throwable: Throwable) {
-        try {
-            if (!isCancellationRequested()) {
-                actual.onError(throwable)
-            }
-        } finally {
-            markDownstreamTerminated()
+        if (!isCancellationRequested()) {
+            actual.onError(throwable)
         }
     }
 
     override fun onComplete() {
-        try {
-            if (!isCancellationRequested()) {
-                actual.onComplete()
-            }
-        } finally {
-            markDownstreamTerminated()
+        if (!isCancellationRequested()) {
+            actual.onComplete()
         }
     }
 

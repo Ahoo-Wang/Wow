@@ -203,6 +203,19 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
         try {
             val emitResult = many.tryEmitComplete()
             when {
+                emitResult == Sinks.EmitResult.FAIL_ZERO_SUBSCRIBER -> {
+                    /*
+                     * Some unicast sinks cannot retain a terminal before their
+                     * first subscriber. Nobody can observe that completion, so
+                     * detach the sink instead of waiting for a settlement that
+                     * cannot occur.
+                     */
+                    log.debug {
+                        "Close [${aggregate.aggregateName}] sink - [$emitResult]."
+                    }
+                    CloseAttempt(settledSink = aggregate to many)
+                }
+
                 emitResult.isSuccess ||
                     emitResult == Sinks.EmitResult.FAIL_TERMINATED ||
                     emitResult == Sinks.EmitResult.FAIL_CANCELLED -> {

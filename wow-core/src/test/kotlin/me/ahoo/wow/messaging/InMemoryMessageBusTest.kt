@@ -100,6 +100,28 @@ class InMemoryMessageBusTest {
     }
 
     @Test
+    fun `zero subscriber completion should detach an unbuffered unicast sink`() {
+        val sinkCreations = AtomicInteger()
+        val bus = ZeroSubscriberCloseInMemoryMessageBus(sinkCreations)
+        val message = TestNamedMessage()
+
+        bus.send(message).block(Duration.ofSeconds(1))
+        sinkCreations.get().assert().isEqualTo(1)
+        bus.subscriberCount(message).assert().isZero()
+
+        bus.close()
+
+        val reopened = bus.receive(MessageSubscription(message)).subscribe()
+        try {
+            sinkCreations.get().assert().isEqualTo(2)
+            bus.subscriberCount(message).assert().isEqualTo(1)
+        } finally {
+            reopened.dispose()
+            bus.close()
+        }
+    }
+
+    @Test
     fun `close racing first sink creation should not orphan the receiving flux`() {
         val sinkSupplierEntered = CountDownLatch(1)
         val releaseSinkSupplier = CountDownLatch(1)
@@ -319,6 +341,17 @@ private class BlockingSinkInMemoryMessageBus(
 private class RetryCloseInMemoryMessageBus : InMemoryMessageBus<TestNamedMessage, TestMessageExchange>() {
     override val sinkSupplier: (NamedAggregate) -> Sinks.Many<TestNamedMessage> = {
         RetryCompleteManySink()
+    }
+
+    override fun TestNamedMessage.createExchange(): TestMessageExchange = TestMessageExchange(this)
+}
+
+private class ZeroSubscriberCloseInMemoryMessageBus(
+    private val sinkCreations: AtomicInteger,
+) : InMemoryMessageBus<TestNamedMessage, TestMessageExchange>() {
+    override val sinkSupplier: (NamedAggregate) -> Sinks.Many<TestNamedMessage> = {
+        sinkCreations.incrementAndGet()
+        Sinks.unsafe().many().unicast().onBackpressureError()
     }
 
     override fun TestNamedMessage.createExchange(): TestMessageExchange = TestMessageExchange(this)

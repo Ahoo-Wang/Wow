@@ -844,6 +844,51 @@ class MpscUnicastManySinkTest {
     }
 
     @Test
+    fun `close settlement should not wait for downstream demand`() {
+        val sink = mpscUnicastManySink<Int>()
+        val subscription = AtomicReference<Subscription>()
+        val values = mutableListOf<Int>()
+        val completed = AtomicBoolean()
+        sink.asFlux().subscribe(
+            object : CoreSubscriber<Int> {
+                override fun currentContext(): Context = Context.empty()
+
+                override fun onSubscribe(delegate: Subscription) {
+                    subscription.set(delegate)
+                }
+
+                override fun onNext(value: Int) {
+                    values.add(value)
+                }
+
+                override fun onError(throwable: Throwable) {
+                    throw AssertionError("Expected completion.", throwable)
+                }
+
+                override fun onComplete() {
+                    completed.set(true)
+                }
+            },
+        )
+
+        try {
+            sink.tryEmitNext(1).assert().isEqualTo(Sinks.EmitResult.OK)
+            sink.tryEmitComplete().assert().isEqualTo(Sinks.EmitResult.OK)
+
+            sink.closeSettled.isDone.assert().isTrue()
+            values.assert().isEmpty()
+            completed.get().assert().isFalse()
+            sink.scan(Scannable.Attr.BUFFERED).assert().isEqualTo(1)
+
+            subscription.get().request(1)
+            values.assert().containsExactly(1)
+            completed.get().assert().isTrue()
+        } finally {
+            subscription.get().cancel()
+        }
+    }
+
+    @Test
     fun `close settlement should wait for a physically delegated cancellation to return`() {
         val delegate = BlockingRequestAndCancelManySink()
         val sink = sinkWithDelegate(delegate)
