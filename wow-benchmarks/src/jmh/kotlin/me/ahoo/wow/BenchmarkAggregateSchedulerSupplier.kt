@@ -22,12 +22,20 @@ import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import java.util.concurrent.ConcurrentHashMap
 
-class BenchmarkAggregateSchedulerSupplier : AggregateSchedulerSupplier {
+class BenchmarkAggregateSchedulerSupplier(
+    private val schedulerPoolSize: Int = Schedulers.DEFAULT_POOL_SIZE,
+) : AggregateSchedulerSupplier {
+    init {
+        require(schedulerPoolSize > 0) {
+            "schedulerPoolSize must be greater than 0."
+        }
+    }
+
     private val schedulers: MutableMap<MaterializedNamedAggregate, Scheduler> = ConcurrentHashMap()
 
     override fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler =
         schedulers.computeIfAbsent(namedAggregate.materialize()) {
-            Schedulers.newParallel("BenchmarkAggregate-${it.aggregateName}", Schedulers.DEFAULT_POOL_SIZE)
+            Schedulers.newParallel("BenchmarkAggregate-${it.aggregateName}", schedulerPoolSize)
         }
 
     @Suppress("ForbiddenVoid")

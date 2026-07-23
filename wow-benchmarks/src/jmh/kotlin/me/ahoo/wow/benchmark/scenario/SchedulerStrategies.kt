@@ -37,15 +37,17 @@ enum class SchedulerStrategy {
 
 /**
  * Maps a [SchedulerStrategy] to the [AggregateSchedulerSupplier] it implies, so every
- * end-to-end command-write benchmark can expose the scheduler's performance impact via a
- * single `@Param` without duplicating the wiring.
+ * end-to-end command-write benchmark can expose the scheduler's strategy and pool-size
+ * impact without duplicating the wiring.
  *
  * - [SchedulerStrategy.PARALLEL] -> [BenchmarkAggregateSchedulerSupplier] (production default).
  * - [SchedulerStrategy.IMMEDIATE] -> [ImmediateAggregateSchedulerSupplier] (no thread switch).
  */
-fun SchedulerStrategy.toSchedulerSupplier(): AggregateSchedulerSupplier =
+fun SchedulerStrategy.toSchedulerSupplier(
+    schedulerPoolSize: Int = Schedulers.DEFAULT_POOL_SIZE,
+): AggregateSchedulerSupplier =
     when (this) {
-        SchedulerStrategy.PARALLEL -> BenchmarkAggregateSchedulerSupplier()
+        SchedulerStrategy.PARALLEL -> BenchmarkAggregateSchedulerSupplier(schedulerPoolSize)
         SchedulerStrategy.IMMEDIATE -> ImmediateAggregateSchedulerSupplier
     }
 
