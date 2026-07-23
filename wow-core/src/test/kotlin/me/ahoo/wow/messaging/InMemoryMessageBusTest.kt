@@ -279,6 +279,44 @@ class InMemoryMessageBusTest {
     }
 
     @Test
+    fun `terminal callback failure should detach an ordinary terminated sink`() {
+        val bus = TestInMemoryMessageBus()
+        val message = TestNamedMessage()
+        val completionFailure = IllegalStateException("completion failed")
+        bus.receive(MessageSubscription(message)).subscribe(
+            object : CoreSubscriber<TestMessageExchange> {
+                override fun currentContext(): Context = Context.empty()
+
+                override fun onSubscribe(delegate: Subscription) {
+                    delegate.request(Long.MAX_VALUE)
+                }
+
+                override fun onNext(exchange: TestMessageExchange) = Unit
+
+                override fun onError(throwable: Throwable) = Unit
+
+                override fun onComplete() {
+                    throw completionFailure
+                }
+            },
+        )
+
+        assertThrows<IllegalStateException> {
+            bus.close()
+        }.assert().isSameAs(completionFailure)
+
+        val reopenedError = AtomicReference<Throwable?>()
+        val reopened = bus.receive(MessageSubscription(message)).subscribe({}, reopenedError::set)
+        try {
+            reopenedError.get().assert().isNull()
+            bus.subscriberCount(message).assert().isEqualTo(1)
+        } finally {
+            reopened.dispose()
+            bus.close()
+        }
+    }
+
+    @Test
     fun `shared close failure should not stop remaining sinks or leave the bus closing`() {
         val failure = IllegalStateException("shared close failure")
         val closeCalls = AtomicInteger()

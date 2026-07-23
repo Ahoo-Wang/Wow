@@ -21,6 +21,7 @@ import me.ahoo.wow.infra.sink.CloseSettlementAware
 import me.ahoo.wow.infra.sink.prepareConcurrentSink
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.modeling.materialize
+import reactor.core.Scannable
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
@@ -89,10 +90,16 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
      * Returns the number of subscribers for the specified named aggregate.
      *
      * @param namedAggregate The named aggregate to check
-     * @return The number of current subscribers, or 0 if no sink exists
+     * @return The number of current subscribers, or 0 if no sink exists or the bus is closing
      */
     override fun subscriberCount(namedAggregate: NamedAggregate): Int {
+        if (closing) {
+            return 0
+        }
         val sink = sinks[namedAggregate.materialize()] ?: return 0
+        if (closing) {
+            return 0
+        }
         return sink.currentSubscriberCount()
     }
 
@@ -243,8 +250,14 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
             log.warn(error) {
                 "Failed to close [${aggregate.aggregateName}] sink."
             }
+            val settlement = many.closeSettlement()
             CloseAttempt(
-                pendingSettlement = many.closeSettlement()?.let {
+                settledSink = if (settlement == null && many.isTerminatedOrCancelled()) {
+                    aggregate to many
+                } else {
+                    null
+                },
+                pendingSettlement = settlement?.let {
                     PendingCloseSettlement(aggregate, many, it)
                 },
                 failure = error,
@@ -263,6 +276,10 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
 
     private fun Sinks.Many<M>.closeSettlement(): CompletableFuture<Unit>? =
         (this as? CloseSettlementAware)?.closeSettled
+
+    private fun Sinks.Many<M>.isTerminatedOrCancelled(): Boolean =
+        scan(Scannable.Attr.TERMINATED) == true ||
+            scan(Scannable.Attr.CANCELLED) == true
 
     private fun finishClose(detachedSinks: List<Pair<NamedAggregate, Sinks.Many<M>>>) {
         synchronized(lifecycleLock) {
