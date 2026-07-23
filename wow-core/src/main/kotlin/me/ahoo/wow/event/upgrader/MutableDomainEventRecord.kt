@@ -31,10 +31,17 @@ import tools.jackson.databind.node.ObjectNode
  * during the upgrading process.
  *
  * @property actual The underlying ObjectNode containing the event data
+ * @param actualAggregateId The aggregate identifier represented by the record
+ * @param actualHeader The message header represented by the record
+ * @property version The aggregate version
+ * @property ownerId The owner identifier
+ * @property spaceId The space identifier
+ * @property commandId The command identifier
+ * @property sequence The event sequence
+ * @property isLast Whether this is the last event in the stream
+ * @property createTime The event creation timestamp
  *
  * @constructor Creates a new MutableDomainEventRecord wrapping the given ObjectNode
- *
- * @param actual The ObjectNode to wrap
  *
  * @see DomainEventRecord
  * @see ObjectNode

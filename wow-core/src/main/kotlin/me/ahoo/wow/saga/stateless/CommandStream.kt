@@ -35,7 +35,7 @@ interface CommandStream : Iterable<CommandMessage<*>> {
  * Default implementation of [CommandStream] that holds a list of command messages.
  *
  * @property domainEventId The ID of the domain event that triggered this command stream.
- * @property commands The list of command messages to be sent.
+ * @param commands The list of command messages to be sent.
  */
 data class DefaultCommandStream(
     override val domainEventId: String,

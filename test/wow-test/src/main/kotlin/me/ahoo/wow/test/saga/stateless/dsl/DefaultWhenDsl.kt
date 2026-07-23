@@ -32,7 +32,6 @@ import org.junit.jupiter.api.DynamicContainer
  *
  * @param T The type of the saga being tested.
  * @property delegate The underlying when stage that handles event processing.
- * @property name The name of the test scenario (can be set via [name] method).
  */
 class DefaultWhenDsl<T : Any>(
     override val delegate: WhenStage<T>
@@ -83,6 +82,7 @@ class DefaultWhenDsl<T : Any>(
      * @param event The domain event to process.
      * @param state Optional state to provide to state-aware saga functions.
      * @param ownerId The owner ID for the event processing.
+     * @param spaceId The space ID for the event processing.
      * @param block The expectation block that defines assertions on the saga results.
      */
     override fun whenEvent(

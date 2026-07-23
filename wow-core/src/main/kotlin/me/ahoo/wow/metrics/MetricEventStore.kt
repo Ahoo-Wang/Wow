@@ -26,7 +26,7 @@ import reactor.core.publisher.Mono
  * This class wraps an EventStore implementation and adds metrics collection with tags for
  * aggregate name and source identification to track event store performance.
  *
- * @property delegate the underlying event store implementation
+ * @param delegate the underlying event store implementation
  */
 class MetricEventStore(
     delegate: EventStore

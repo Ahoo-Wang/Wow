@@ -27,7 +27,6 @@ export interface FailedDetailsProps {
 }
 
 export function FailedDetails({ state }: FailedDetailsProps) {
-  // 基本信息
   const basicItems: DescriptionsProps["items"] = [
     {
       key: "id",
@@ -88,7 +87,6 @@ export function FailedDetails({ state }: FailedDetailsProps) {
       span: 1,
     },
   ];
-  // 函数信息
   const functionItems: DescriptionsProps["items"] = [
     {
       key: "contextName",
@@ -115,7 +113,6 @@ export function FailedDetails({ state }: FailedDetailsProps) {
       span: 1,
     },
   ];
-  // EventId 信息
   const eventIdItems: DescriptionsProps["items"] = [
     {
       key: "contextName",
@@ -170,7 +167,6 @@ export function FailedDetails({ state }: FailedDetailsProps) {
       span: 1,
     },
   ];
-  // 重试信息
   const retryItems: DescriptionsProps["items"] = [
     {
       key: "retries",

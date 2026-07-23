@@ -62,10 +62,10 @@ interface ExpectStage<S : Any> : AggregateExpecter<S, ExpectStage<S>> {
  *
  * @param C the type of the command aggregate
  * @param S the type of the aggregate state
- * @property metadata metadata about the aggregate
- * @property commandAggregateFactory factory for creating command aggregates
- * @property serviceProvider provider for service dependencies
- * @property expectedResultMono reactive stream containing the expected result
+ * @param metadata metadata about the aggregate
+ * @param commandAggregateFactory factory for creating command aggregates
+ * @param serviceProvider provider for service dependencies
+ * @param expectedResultMono reactive stream containing the expected result
  */
 internal class DefaultExpectStage<C : Any, S : Any>(
     private val metadata: AggregateMetadata<C, S>,

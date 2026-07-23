@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2025 [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -14,24 +14,22 @@
 package me.ahoo.wow.api.abac
 
 /**
- * 合并两个 ABAC 标签集合。
+ * Merges two ABAC tag maps.
  *
- * 合并规则：对于同一 key，将两个标签的值列表合并（并集）。
- * - 若 key 只存在于一方，则保留该 key 的所有值
- * - 若 key 同时存在于双方，则合并值列表并去重
+ * Values for the same key are combined as an ordered union. Keys present in only one
+ * map retain all of their values.
  *
- * **使用示例：**
+ * **Example:**
  * ```
  * val tags1 = mapOf("dept" to listOf("eng"), "role" to listOf("admin"))
  * val tags2 = mapOf("dept" to listOf("pm"), "team" to listOf("backend"))
  *
  * tags1.merge(tags2)
- * // 结果：{ "dept": ["eng", "pm"], "role": ["admin"], "team": ["backend"] }
+ * // Result: { "dept": ["eng", "pm"], "role": ["admin"], "team": ["backend"] }
  * ```
  *
- * @param other 另一个待合并的标签集合
- * @return 合并后的新标签集合
- * @see AbacTags ABAC 标签集合类型
+ * @param other tags to merge into this map
+ * @return a new map containing the merged tags
  */
 fun AbacTags.merge(other: AbacTags): AbacTags {
     if (other.isEmpty()) {

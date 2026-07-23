@@ -20,9 +20,10 @@ import me.ahoo.wow.api.modeling.FirstEventTimeCapable
  * Represents a simplified materialized snapshot with generic state.
  * This data class implements multiple interfaces to provide version, materialization, first event time, and state information.
  *
- * @param version The version of the snapshot, used to indicate the version of the state.
- * @param firstEventTime The timestamp of the first event, used to record when the state was first changed.
- * @param state The current state, with a generic type.
+ * @param S The type of the state data.
+ * @property version The version of the snapshot, used to indicate the version of the state.
+ * @property firstEventTime The timestamp of the first event, used to record when the state was first changed.
+ * @property state The current state, with a generic type.
  */
 data class SmallMaterializedSnapshot<S : Any>(
     override val version: Int,

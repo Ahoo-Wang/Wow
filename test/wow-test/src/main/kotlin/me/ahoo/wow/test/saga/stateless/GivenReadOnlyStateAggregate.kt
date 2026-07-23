@@ -33,12 +33,14 @@ import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
  * @property state The current state of the aggregate.
  * @property version The current version of the aggregate.
  * @property ownerId The owner identifier of the aggregate.
+ * @property spaceId The space identifier of the aggregate.
  * @property deleted Whether the aggregate is marked as deleted.
  * @property eventId The ID of the last processed event.
  * @property firstOperator The operator who created the first event.
  * @property operator The operator who created the last event.
  * @property firstEventTime The timestamp of the first event.
  * @property eventTime The timestamp of the last event.
+ * @property tags ABAC tags associated with the aggregate.
  */
 class GivenReadOnlyStateAggregate<S : Any>(
     override val aggregateId: AggregateId,

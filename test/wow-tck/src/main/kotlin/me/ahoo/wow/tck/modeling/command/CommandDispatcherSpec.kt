@@ -205,7 +205,7 @@ abstract class CommandDispatcherSpec {
             .toFlux()
             .metrics()
             .flatMap({
-                // 生成聚合
+                // Create the aggregate before collecting dispatcher metrics.
                 commandGateway
                     .sendAndWaitForProcessed(it!!.toCommandMessage())
             }, Int.MAX_VALUE)
@@ -221,9 +221,7 @@ abstract class CommandDispatcherSpec {
             "------------- Aggregate Created Duration:[$createdDuration] Throughput:[${creates.size.toDouble() / createdDuration.toMillis() * 1000}/s]-------------",
         )
         LoggingMeterRegistryInitializer.publishMeters()
-        /*
-         * 模拟聚合命令乱序
-         */
+        // Simulate aggregate commands arriving out of order.
         val changedDuration = buildList {
             repeat(concurrency) {
                 val randomCreate = creates[ThreadLocalRandom.current().nextInt(0, aggregateCount)]

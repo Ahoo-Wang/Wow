@@ -15,7 +15,7 @@ package me.ahoo.wow.models.common
 
 interface TerminatedCapable {
     /**
-     * 是否已终止，包括: 已完成、已取消、已失败
+     * Whether processing has completed, been cancelled, or failed.
      */
     val terminated: Boolean
 }

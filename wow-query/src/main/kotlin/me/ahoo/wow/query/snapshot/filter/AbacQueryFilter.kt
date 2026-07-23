@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2025 [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -31,19 +31,19 @@ import reactor.kotlin.core.publisher.toMono
 import reactor.util.context.ContextView
 
 /**
- * ABAC 查询过滤器。
+ * Filters snapshot queries using attribute-based access control (ABAC).
  *
- * 在查询快照（Snapshot）时，根据当前上下文中的主体（Principal）标签
- * 自动注入权限过滤条件，实现基于属性的访问控制。
+ * Principal tags from the current context are converted into query conditions and
+ * appended to snapshot queries.
  *
- * ## 权限匹配规则
+ * ## Matching rules
  *
- * | 主体标签 | 资源标签 | 匹配结果 |
+ * | Principal tags | Resource tags | Result |
  * |---------|---------|---------|
- * | wildcard (`["*"]`) | 任意 | ✅ 匹配 |
- * | `["a", "b"]` | `["a"]` | ✅ 匹配 |
- * | `["a", "b"]` | `["c"]` | ❌ 不匹配 |
- * | 任意 | 无该 key | ✅ 匹配（资源公开） |
+ * | wildcard (`["*"]`) | any | match |
+ * | `["a", "b"]` | `["a"]` | match |
+ * | `["a", "b"]` | `["c"]` | no match |
+ * | any | key absent | match (public resource) |
  *
  * @see SnapshotQueryFilter
  */
@@ -52,12 +52,12 @@ import reactor.util.context.ContextView
 abstract class AbacQueryFilter : SnapshotQueryFilter {
     companion object {
         /**
-         * 将单个标签条目转换为查询条件。
+         * Converts one principal tag into a nested query condition.
          *
-         * - wildcard：key 存在即可（通配）
-         * - 非 wildcard：(key 不存在 OR 值在列表中)
+         * A wildcard requires only that the key exists. Other values match when the
+         * key is absent or its value is in the principal tag value set.
          *
-         * @return 嵌套查询条件
+         * @return the nested query condition
          */
         fun Map.Entry<AbacTagKey, AbacTagValue>.toCondition(): Condition =
             condition {
@@ -74,11 +74,9 @@ abstract class AbacQueryFilter : SnapshotQueryFilter {
             }
 
         /**
-         * 将标签集合转换为 AND 查询条件。
+         * Combines all principal tags with AND semantics.
          *
-         * 所有标签 key 必须同时满足（AND 逻辑）。
-         *
-         * @return 所有标签条件的 AND 组合
+         * @return the combined tag condition
          */
         fun AbacTags.toCondition(): Condition =
             condition {
@@ -91,21 +89,20 @@ abstract class AbacQueryFilter : SnapshotQueryFilter {
     }
 
     /**
-     * 从当前上下文获取主体的 ABAC 标签。
+     * Resolves the principal's ABAC tags from the current context.
      *
-     * @param contextView 上下文视图
-     * @param context 查询上下文，可用于提取标签来源（如请求头、用户信息等）
-     * @return 主体的标签映射
+     * @param contextView the Reactor context
+     * @param context the query context used to resolve tag sources
+     * @return the principal tag map
      */
     abstract fun getPrincipalTags(contextView: ContextView, context: QueryContext<*, *>): Mono<AbacTags>
 
     /**
-     * 从当前上下文解析 ABAC 查询条件。
+     * Resolves the ABAC condition for the current context.
      *
-     * @param contextView 上下文视图
-     * @param context 查询上下文
-     * @return 若主体无标签，返回全匹配（不过滤）；
-     *         否则返回所有标签的 AND 条件
+     * @param contextView the Reactor context
+     * @param context the query context
+     * @return an unrestricted condition when no tags exist, otherwise the combined tag condition
      */
     open fun resolveCondition(contextView: ContextView, context: QueryContext<*, *>): Mono<Condition> {
         return getPrincipalTags(contextView, context).map {

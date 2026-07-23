@@ -36,12 +36,12 @@ import reactor.core.scheduler.Scheduler
  *
  * @param C The type of the command aggregate root.
  * @param S The type of the state aggregate.
- * @property aggregateMetadata The metadata for the aggregate being dispatched.
- * @param parallelism The level of parallelism for message processing.
- * @param scheduler The scheduler for handling messages.
- * @param messageFlux The flux of command exchanges to process.
  * @param name The name of this dispatcher.
+ * @property aggregateMetadata The metadata for the aggregate being dispatched.
+ * @param messageFlux The flux of command exchanges to process.
+ * @param parallelism The level of parallelism for message processing.
  * @param commandHandler The command handler for processing commands.
+ * @param scheduler The scheduler for handling messages.
  */
 class AggregateCommandDispatcher<C : Any, S : Any>(
     override val name: String =

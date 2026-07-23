@@ -121,14 +121,10 @@ class SimpleCommandAggregate<C : Any, S : Any>(
                 "Failed to process command[${message.id}]: Undefined command[${message.body.javaClass}]."
             }
             commandFunction.invoke(exchange).doOnNext {
-                /**
-                 * 将领域事件朔源到当前状态聚合根.
-                 */
+                // Apply emitted events before persistence so the in-memory state stays current.
                 commandState = commandState.onSourcing(state, it)
             }.flatMap { eventStream ->
-                /**
-                 * 持久化事件存储,完成持久化领域事件意味着命令已经完成.
-                 */
+                // A command is complete only after its domain events are persisted.
                 exchange.setAggregateVersion(eventStream.version)
                 commandState.onStore(eventStore, eventStream).doOnNext { commandState = it }
                     .doOnError { commandState = CommandState.EXPIRED }.thenReturn(eventStream)

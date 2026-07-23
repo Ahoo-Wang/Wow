@@ -1,12 +1,32 @@
-# KDoc Comment Standards
+# Code Comment Standards
 
 ## Core Principles
 
-- Use the project's comment language.
+- Write source-code comments and API documentation in English. User-facing documentation follows the language of the page.
 - Comment why, not what. Do not annotate self-explanatory code.
-- Use Kotlin KDoc reference syntax: `[ClassName]` or `[ClassName.methodName]`.
+- Treat comments as maintained code: update or remove them whenever the behavior changes.
 - Do not comment trivial getters, setters, or obvious field assignments.
+- Do not keep disabled code in comments; rely on version control.
 - Use Wow `@Summary` and `@Description` on commands and domain events. These annotations feed schema/API metadata and are not a replacement for KDoc.
+
+## Comment Forms
+
+- Use KDoc for non-obvious public Kotlin contracts and Javadoc for non-obvious public Java contracts. Document semantics, constraints, units, failure modes, concurrency, compatibility, or usage—not the declaration's spelling.
+- Use `//` for implementation rationale, invariants, compatibility constraints, and non-obvious edge cases.
+- Reserve block comments for KDoc, Javadoc, license headers, or explanations that genuinely need multiple paragraphs.
+- In Kotlin KDoc, use Markdown and links such as `[ClassName]` or `[ClassName.methodName]`; do not use Javadoc HTML tags.
+- Keep `@param`, `@property`, `@return`, and `@throws` tags accurate. Omit tags that add no information beyond the signature.
+- Do not commit inline task markers. Track deferred work in the issue tracker and use `Issue #1234: explain the constraint.` only when the code needs that context.
+- Preserve the existing Apache 2.0 header. New hand-written source files copy the header used by neighboring files.
+- Never hand-edit generated comments. Fix the schema, metadata, template, or generator input instead.
+
+Tests and examples may use short phase comments when they make a scenario easier to scan, but should not narrate every assertion or mock setup. Performance claims belong beside a reproducible benchmark or must identify the benchmark, environment, and evidence that support them.
+
+## Automated Checks
+
+- Run `./gradlew detekt` to check Kotlin KDoc consistency and reject inline task markers.
+- Run `pnpm lint` in `compensation/dashboard` to check comment spacing and reject inline task markers in hand-written dashboard sources.
+- Review comment language, accuracy, and rationale during code review. These semantic requirements are deliberately not enforced by natural-language heuristics.
 
 ## API Layer
 

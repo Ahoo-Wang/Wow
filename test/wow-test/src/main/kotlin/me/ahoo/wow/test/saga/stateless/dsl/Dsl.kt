@@ -103,6 +103,7 @@ interface WhenDsl<T : Any> :
      * @param event The domain event that triggers the saga.
      * @param state Optional state to provide to the saga processing.
      * @param ownerId The owner ID for the event processing.
+     * @param spaceId The space ID for the event processing.
      * @param block The expectation block that defines assertions on the saga results.
      */
     fun whenEvent(

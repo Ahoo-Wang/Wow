@@ -32,7 +32,7 @@ import reactor.core.publisher.Mono
  * aggregate name and source identification.
  *
  * @param T the specific type of StateEventBus being decorated
- * @property delegate the underlying state event bus implementation
+ * @param delegate the underlying state event bus implementation
  */
 open class MetricStateEventBus<T : StateEventBus>(
     delegate: T
@@ -83,7 +83,7 @@ open class MetricStateEventBus<T : StateEventBus>(
  * Extends MetricStateEventBus to provide metrics collection for local state event bus operations
  * while maintaining the LocalStateEventBus interface.
  *
- * @property delegate the underlying local state event bus implementation
+ * @param delegate the underlying local state event bus implementation
  */
 class MetricLocalStateEventBus(
     delegate: LocalStateEventBus
@@ -104,7 +104,7 @@ class MetricLocalStateEventBus(
  * Extends MetricStateEventBus to provide metrics collection for distributed state event bus operations
  * while maintaining the DistributedStateEventBus interface.
  *
- * @property delegate the underlying distributed state event bus implementation
+ * @param delegate the underlying distributed state event bus implementation
  */
 class MetricDistributedStateEventBus(
     delegate: DistributedStateEventBus

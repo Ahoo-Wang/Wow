@@ -56,7 +56,6 @@ class OrderMessageFunction : MessageFunction<Any, DomainEventExchange<Any>, Mono
         if (log.isDebugEnabled) {
             log.debug(exchange.message.body.toString())
         }
-        // write
         return Mono.empty()
     }
 

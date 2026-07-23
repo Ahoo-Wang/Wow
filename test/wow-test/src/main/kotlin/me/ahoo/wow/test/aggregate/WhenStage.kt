@@ -47,6 +47,7 @@ interface WhenStage<S : Any> {
      * @param command the command to execute
      * @param header optional command header (defaults to empty)
      * @param ownerId optional owner ID override (defaults to previously set owner)
+     * @param spaceId optional space ID override
      * @return an ExpectStage for defining expectations on the results
      */
     fun whenCommand(
@@ -71,13 +72,14 @@ interface WhenStage<S : Any> {
  *
  * @param C the type of the command aggregate
  * @param S the type of the aggregate state
- * @property aggregateId the aggregate identifier
- * @property ownerId the owner ID for the command
- * @property events the events to replay for state setup
- * @property metadata aggregate metadata
- * @property stateAggregateFactory factory for creating state aggregates
- * @property commandAggregateFactory factory for creating command aggregates
- * @property serviceProvider provider for service dependencies
+ * @param aggregateId the aggregate identifier
+ * @param ownerId the owner ID for the command
+ * @param spaceId the space ID for the command
+ * @param events the events to replay for state setup
+ * @param metadata aggregate metadata
+ * @param stateAggregateFactory factory for creating state aggregates
+ * @param commandAggregateFactory factory for creating command aggregates
+ * @param serviceProvider provider for service dependencies
  */
 internal class DefaultWhenStage<C : Any, S : Any>(
     private val aggregateId: AggregateId,
@@ -191,10 +193,10 @@ internal class DefaultWhenStage<C : Any, S : Any>(
  *
  * @param C the type of the command aggregate
  * @param S the type of the aggregate state
- * @property metadata aggregate metadata
- * @property stateAggregate the pre-initialized state aggregate
- * @property commandAggregateFactory factory for creating command aggregates
- * @property serviceProvider provider for service dependencies
+ * @param metadata aggregate metadata
+ * @param stateAggregate the pre-initialized state aggregate
+ * @param commandAggregateFactory factory for creating command aggregates
+ * @param serviceProvider provider for service dependencies
  */
 internal class GivenStateWhenStage<C : Any, S : Any>(
     private val metadata: AggregateMetadata<C, S>,
@@ -211,6 +213,7 @@ internal class GivenStateWhenStage<C : Any, S : Any>(
      * @param command the command to execute
      * @param header the command header
      * @param ownerId the owner ID for the command
+     * @param spaceId the space ID for the command
      * @return an ExpectStage containing the execution results
      */
     override fun whenCommand(

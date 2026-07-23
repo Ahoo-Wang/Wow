@@ -41,17 +41,8 @@ import me.ahoo.wow.messaging.withLocalFirst
  * necessary properties like aggregate targeting, headers, and timing information.
  * It supports method chaining for easy construction of complex command messages.
  *
- * @property body the command payload object
- * @property requestId unique identifier for the request (optional)
- * @property aggregateId the target aggregate instance identifier (optional)
- * @property tenantId the tenant identifier for multi-tenancy (optional)
- * @property ownerId the owner identifier of the aggregate (optional)
- * @property aggregateVersion expected version for optimistic concurrency (optional)
- * @property namedAggregate the named aggregate information (optional)
- * @property header message headers for additional metadata
- * @property createTime timestamp when the command was created
- * @property upstream the domain event that triggered this command (optional)
- * @property ownerIdSameAsAggregateId whether owner ID should match aggregate ID
+ * The builder exposes the command body, aggregate targeting, ownership and space information,
+ * optimistic-concurrency version, headers, creation time, and optional upstream event.
  * @see MutableCommandBuilder
  * @see Identifier
  */

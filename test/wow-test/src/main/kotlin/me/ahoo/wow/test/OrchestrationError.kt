@@ -93,6 +93,7 @@ class OrchestrationError(
  * }
  * ```
  *
+ * @param R result type produced by [block]
  * @param displayName The display name for the dynamic test.
  * @param block The test logic to execute, which may throw an AssertionError.
  * @return A DynamicTest instance that can be executed by JUnit.

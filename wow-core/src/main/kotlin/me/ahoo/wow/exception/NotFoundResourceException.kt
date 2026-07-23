@@ -57,6 +57,7 @@ class NotFoundResourceException(
  *     .throwNotFoundIfEmpty("Resource with ID $id not found")
  * ```
  *
+ * @param T the element type
  * @param errorMsg the error message for the exception
  * @param cause the underlying cause, if any
  * @return a Mono that signals NotFoundResourceException if empty
@@ -82,6 +83,7 @@ fun <T : Any> Mono<T>.throwNotFoundIfEmpty(
  *     .throwNotFoundIfEmpty("No resources found")
  * ```
  *
+ * @param T the element type
  * @param errorMsg the error message for the exception
  * @param cause the underlying cause, if any
  * @return a Flux that signals NotFoundResourceException if empty
@@ -106,6 +108,7 @@ fun <T : Any> Flux<T>.throwNotFoundIfEmpty(
  * // resource is guaranteed to be non-null here
  * ```
  *
+ * @param T the value type
  * @param errorMsg the error message for the exception
  * @param cause the underlying cause, if any
  * @return the non-null value

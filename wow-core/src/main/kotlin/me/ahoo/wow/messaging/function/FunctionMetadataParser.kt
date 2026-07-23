@@ -55,6 +55,8 @@ object FunctionMetadataParser {
      * Analyzes the function's parameters, annotations, and context to determine
      * how it should be invoked as a message function.
      *
+     * @param P The processor type.
+     * @param R The return type.
      * @param accessorFactory Factory function to create the function accessor
      * @return Metadata describing how to invoke this function
      * @throws IllegalStateException if the function is not properly annotated
@@ -64,9 +66,7 @@ object FunctionMetadataParser {
     ): FunctionAccessorMetadata<P, R> {
         val parameterTypes = valueParameters
         check(parameterTypes.isNotEmpty()) { "The function has at least one parameter." }
-        /*
-         * 消息函数第一个参数必须为消息.
-         */
+        // A message function always receives the message as its first parameter.
         val firstParameterType = parameterTypes[0]
         val firstParameterKind = firstParameterType.toFirstParameterKind()
         val functionKind = toFunctionKind()

@@ -33,7 +33,7 @@ import me.ahoo.wow.configuration.MetadataSearcher
  *
  * The factory is ordered with [ORDER_LAST] to serve as a fallback when other factories cannot provide a generator.
  *
- * @property idProvider the [IdGeneratorProvider] used to retrieve or store ID generators. Defaults to [DefaultIdGeneratorProvider.INSTANCE].
+ * @param idProvider the [IdGeneratorProvider] used to retrieve or store ID generators. Defaults to [DefaultIdGeneratorProvider.INSTANCE].
  * @see AggregateIdGeneratorFactory
  * @see NamedAggregate
  * @see IdGenerator

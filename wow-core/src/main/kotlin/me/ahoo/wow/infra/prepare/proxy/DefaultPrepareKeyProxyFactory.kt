@@ -22,7 +22,7 @@ import java.lang.reflect.Proxy
  * This factory uses Java's Proxy class to create runtime proxy instances that delegate
  * to actual PrepareKey implementations through an invocation handler.
  *
- * @property prepareKeyFactory the factory used to create the underlying PrepareKey instances
+ * @param prepareKeyFactory the factory used to create the underlying PrepareKey instances
  *
  * @see PrepareKeyProxyFactory
  * @see PrepareKeyInvocationHandler

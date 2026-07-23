@@ -64,6 +64,7 @@ fun Any.flatEvent(): Iterable<Any> =
  * @param upstream The command message that triggered these events
  * @param aggregateVersion The current version of the aggregate
  * @param stateOwnerId The owner ID from the current state (default: DEFAULT_OWNER_ID)
+ * @param stateSpaceId The space ID from the current state (default: DEFAULT_SPACE_ID)
  * @param header The header to propagate to the event stream (default: empty header)
  * @param createTime The timestamp for event creation (default: current time)
  * @return A new DomainEventStream containing the converted events

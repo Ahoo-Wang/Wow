@@ -30,7 +30,7 @@ import reactor.core.publisher.Mono
  *
  * @param P The processor type
  * @param M The message exchange type
- * @property namedBoundedContext The bounded context this processor belongs to
+ * @param namedBoundedContext The bounded context this processor belongs to
  * @property name The name of the processor
  * @property processorType The class of the processor
  * @property functionRegistry Set of function metadata for this processor

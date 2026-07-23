@@ -29,6 +29,7 @@ interface Snapshot<S : Any> :
 /**
  * Simple implementation of Snapshot that wraps a ReadOnlyStateAggregate with a snapshot time.
  *
+ * @param S the type of the state
  * @param delegate the state aggregate being snapshotted
  * @param snapshotTime the time when the snapshot was taken (default: current time)
  */

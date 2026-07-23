@@ -28,13 +28,13 @@ import me.ahoo.wow.test.dsl.AbstractDynamicTestBuilder
  * It creates dynamic test nodes that can be executed by JUnit 5.
  *
  * @param T The type of the saga being tested.
- * @property processorType The class of the saga processor.
- * @property publicServiceProvider A service provider for public services accessible during testing.
+ * @param processorType The class of the saga processor.
  */
 class DefaultStatelessSagaDsl<T : Any>(
     private val processorType: Class<T>
 ) : AbstractDynamicTestBuilder(),
     StatelessSagaDsl<T> {
+    /** Public services copied into each saga test context. */
     override val publicServiceProvider: ServiceProvider = SimpleServiceProvider()
 
     /**

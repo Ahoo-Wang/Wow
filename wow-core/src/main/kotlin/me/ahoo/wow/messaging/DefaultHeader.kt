@@ -20,7 +20,7 @@ import me.ahoo.wow.api.messaging.Header
  * This class provides a mutable header implementation that can be made read-only.
  * It delegates map operations to an internal mutable map while enforcing read-only constraints.
  *
- * @property delegate The underlying mutable map that stores header key-value pairs
+ * @param delegate The underlying mutable map that stores header key-value pairs
  * @property isReadOnly Whether this header is read-only (volatile for thread safety)
  * @author ahoo wang
  */
@@ -64,6 +64,7 @@ class DefaultHeader(
     /**
      * Executes a write operation if the header is not read-only.
      *
+     * @param T The result type.
      * @param block The block of code to execute for the write operation
      * @return The result of the block execution
      * @throws UnsupportedOperationException if the header is read-only

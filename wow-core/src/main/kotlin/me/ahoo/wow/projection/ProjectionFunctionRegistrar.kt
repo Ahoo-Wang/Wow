@@ -25,7 +25,7 @@ import reactor.core.publisher.Mono
  * Registrar for projection functions that creates message functions from processors
  * annotated with projection metadata.
  *
- * @property actual The underlying message function registrar (default: [SimpleMessageFunctionRegistrar]).
+ * @param actual The underlying message function registrar (default: [SimpleMessageFunctionRegistrar]).
  */
 class ProjectionFunctionRegistrar(
     actual: MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> =

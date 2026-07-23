@@ -42,11 +42,11 @@ import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
 /**
- * Order Aggregate.
+ * Order aggregate.
  *
- * 为了防止命令处理函数不小心修改聚合状态，可拆分成聚合状态类存放聚合状态.
+ * State is isolated in [OrderState] so command handlers cannot mutate it accidentally.
  *
- * [me.ahoo.wow.api.annotation.AggregateRoot] 注解是可选的标记.
+ * [AggregateRoot] is an optional marker annotation.
  *
  * @author ahoo wang
  * @see me.ahoo.wow.modeling.command.CommandAggregate
@@ -60,13 +60,10 @@ class Order(private val state: OrderState) {
     }
 
     /**
-     * 此时的聚合处于空状态,也可以理解为该方法是一个聚合工厂,订阅首个聚合命令并发布首个领域事件.
+     * Creates an order from its first command while the aggregate is uninitialized.
+     * The conventional `onCommand` name makes the command-handler annotation optional.
      *
-     *
-     * [me.ahoo.wow.modeling.annotation.OnCommand] 注解是可选的,约定命令默认命令函数为名 `onCommand`
-     *
-     *
-     * ### Kotlin 协程 Style
+     * ### Kotlin coroutine style
      * ```kotlin
      *     suspend fun onCommand(
      *         command: CommandMessage<CreateOrder>,
@@ -101,7 +98,9 @@ class Order(private val state: OrderState) {
      *     }
      * ```
      *
-     * @param specification 该外部服务将会通过 IOC 容器自动注入进来
+     * @param command The create-order command message.
+     * @param specification The creation rules injected by the IoC container.
+     * @param commandResultAccessor Records the total amount in the command result.
      */
     fun onCommand(
         command: CommandMessage<CreateOrder>,
@@ -146,15 +145,6 @@ class Order(private val state: OrderState) {
         return Mono.empty()
     }
 
-    /**
-     * ***** 重要：命令处理函数不直接修改聚合状态，而是通过执行完业务验证逻辑后返回领域事件来由聚合朔源事件修改聚合状态，并且发布到事件总线 *****.
-     *
-     * 命令处理函数职责:
-     * 1. 验证命令参数是否符合业务规范
-     * 2. 验证当前当前状态是否可以执行该命令
-     * 3. 返回事件，用于对外发布聚合状态变更事件(可对外发布多个事件)
-     *
-     */
     fun onCommand(changeAddress: ChangeAddress): AddressChanged {
         check(OrderStatus.CREATED == state.status) {
             "The current order[${state.id}] status[${state.status}] cannot modify the address"
@@ -177,18 +167,14 @@ class Order(private val state: OrderState) {
     }
 
     /**
-     * *订单服务* 订阅 *支付服务* 发布的集成事件 `PaymentOrderPaid`，适配成 *订单服务* 限界上下文 `PayOrder` 命令.
-     *
-     * @see PaymentOrderPaid
+     * Applies a payment-service event after it has been adapted to [PayOrder].
      */
     fun onCommand(payOrder: PayOrder): Iterable<*> {
         if (OrderStatus.CREATED != state.status) {
             if (log.isWarnEnabled) {
                 log.warn("The current order[{}] status[{}] cannot pay order.", state.id, state.status)
             }
-            /*
-             * 订单领域不会关注该事件（修改订单状态），但需要发布该事件。支付服务需要关注该事件，为客户执行退款操作。
-             */
+            /* The order state ignores this event, while the payment service uses it to issue a refund. */
             return listOf(
                 OrderPayDuplicated(
                     paymentId = payOrder.paymentId,
@@ -204,14 +190,9 @@ class Order(private val state: OrderState) {
         }
         val overPay = payOrder.amount - currentPayable
         val orderPaid = OrderPaid(currentPayable, true)
-        /*
-         * 该订单超付事件会由支付服务订阅，并给客户退款。
-         */
+        /* The payment service consumes this event to refund the excess amount. */
         val overPaid = OrderOverPaid(payOrder.paymentId, overPay)
-        /*
-         * OnCommand、OnEvent 函数可返回多个领域事件：已支付成功事件，以及订单超付事件.
-         * 事件发布顺序与该List保持一致
-         */
+        /* Event publication preserves the list order. */
         return listOf(orderPaid, overPaid)
     }
 }

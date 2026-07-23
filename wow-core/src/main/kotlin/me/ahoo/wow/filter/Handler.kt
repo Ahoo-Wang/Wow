@@ -104,29 +104,23 @@ class LogResumeErrorHandler<T> : ErrorHandler<T> {
 }
 
 /**
- * 抽象处理器类，封装了处理链和错误处理逻辑
- * @param T 上下文的类型
- * @param chain 处理链，用于执行一系列处理逻辑
- * @param errorHandler 错误处理器，用于处理发生异常时的逻辑
+ * Base handler that delegates processing to [chain] and failures to [errorHandler].
+ *
+ * @param T context type
+ * @param chain filter chain used to process the context
+ * @param errorHandler handler used when processing fails
  */
 abstract class AbstractHandler<T>(
     private val chain: FilterChain<T>,
     private val errorHandler: ErrorHandler<T>
 ) : Handler<T> {
-    /**
-     * 执行处理逻辑的方法，当发生异常时使用错误处理器进行处理
-     * @param context 处理的上下文
-     * @return 完成信号的Mono，当发生异常时通过错误处理器进行处理
-     */
     override fun handle(context: T): Mono<Void> =
         chain
             .filter(context)
             .onErrorResume {
-                // 如果上下文实现了ErrorAccessor接口，则设置错误信息
                 if (context is ErrorAccessor) {
                     context.setError(it)
                 }
-                // 使用错误处理器处理异常
                 errorHandler.handle(context, it)
             }
 }

@@ -17,15 +17,15 @@ import me.ahoo.wow.event.DomainEventStream
 /**
  * State Aggregate .
  *
- * 1. 聚合状态容器
- * 2. 订阅领域事件，修改聚合状态
- * 3. 状态聚合必须具有无参构造函数，作为序列化使用
+ * Holds aggregate state and applies domain events to evolve it.
+ * State implementations require a no-argument constructor for serialization.
  *
  * @author ahoo wang
  */
 interface StateAggregate<S : Any> : ReadOnlyStateAggregate<S> {
     /**
-     * 当聚合未找到匹配的 `onSourcing` 方法时，不会认为产生的故障，忽略该事件，但更新聚合版本号为该领域事件的版本号.
+     * Ignores an event when no matching `onSourcing` function exists, while still advancing
+     * the aggregate version to the event version.
      */
     @Throws(SourcingVersionConflictException::class)
     fun onSourcing(eventStream: DomainEventStream): StateAggregate<S>

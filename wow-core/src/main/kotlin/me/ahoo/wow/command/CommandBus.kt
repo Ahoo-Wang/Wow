@@ -31,11 +31,11 @@ import me.ahoo.wow.messaging.MessageBus
  * @see InMemoryCommandBus
  * @see LocalCommandBus
  * @see DistributedCommandBus
- * @property topicKind The topic kind for command messages, always returns [TopicKind.COMMAND]
  */
 interface CommandBus :
     MessageBus<CommandMessage<*>, ServerCommandExchange<*>>,
     TopicKindCapable {
+    /** The topic kind for command messages. */
     override val topicKind: TopicKind
         get() = TopicKind.COMMAND
 }

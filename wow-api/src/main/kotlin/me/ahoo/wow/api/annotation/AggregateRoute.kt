@@ -47,6 +47,7 @@ import java.lang.annotation.Inherited
  *                    class name (lowercased) will be used. This affects URL generation.
  * @param enabled Whether routing is enabled for this aggregate. When false, no routes
  *               will be generated. Defaults to true.
+ * @param spaced Whether routes include a space identifier path segment.
  * @param owner Ownership policy determining tenant isolation. Controls whether operations
  *             require owner context and how ownership is determined.
  *

@@ -62,7 +62,7 @@ import java.util.stream.Stream
  * ```
  *
  * @param T The type of the saga being tested, must be a class that implements the saga logic.
- * @property block The test specification block that defines the saga test scenarios.
+ * @param block The test specification block that defines the saga test scenarios.
  * This is a lambda with receiver of type StatelessSagaDsl<T>, where T is the saga type.
  * It contains the test definitions using the DSL methods.
  */

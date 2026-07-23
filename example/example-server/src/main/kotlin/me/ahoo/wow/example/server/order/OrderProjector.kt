@@ -35,12 +35,6 @@ class OrderProjector {
         if (log.isInfoEnabled) {
             log.info(orderCreated.toString())
         }
-        // write
-//        Mono.just(orderCreated).delayElement(Duration.ofSeconds(3)).doOnNext {
-//            if (log.isInfoEnabled) {
-//                log.info("Block Mono.just(orderCreated)")
-//            }
-//        }.block()
     }
 
     @Suppress("UnusedParameter")
@@ -61,7 +55,6 @@ class OrderProjector {
         if (log.isDebugEnabled) {
             log.debug(addressChanged.toString())
         }
-        // write
         return Mono.empty()
     }
 

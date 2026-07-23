@@ -26,17 +26,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore
  *
  * @author ahoo wang
  *
- * @property version The current version number of the entity as an integer.
- *                   Versions are monotonically increasing and start from 1 for initialized entities.
- *                   A version of 0 indicates an uninitialized state.
- *
- * @property initialized A computed property that indicates whether the entity has been initialized.
- *                       Returns true if the version is greater than [UNINITIALIZED_VERSION].
- *                       This property is ignored during JSON serialization.
- *
- * @property isInitialVersion A computed property that indicates whether the entity is at its initial version.
- *                            Returns true if the version equals [INITIAL_VERSION].
- *                            This property is ignored during JSON serialization.
  */
 interface Version {
     companion object {
@@ -53,14 +42,26 @@ interface Version {
         const val INITIAL_VERSION = 1
     }
 
+    /**
+     * The current version number of the entity.
+     *
+     * Versions are monotonically increasing and start from [INITIAL_VERSION] for initialized entities.
+     * [UNINITIALIZED_VERSION] indicates an uninitialized state.
+     */
     val version: Int
 
+    /**
+     * Whether the entity has been initialized.
+     */
     @get:JsonIgnore
     val initialized: Boolean
         get() {
             return version > UNINITIALIZED_VERSION
         }
 
+    /**
+     * Whether the entity is at its initial version.
+     */
     @get:JsonIgnore
     val isInitialVersion: Boolean
         get() {

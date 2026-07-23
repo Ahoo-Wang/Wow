@@ -25,6 +25,7 @@ interface SnapshotStore : Named {
     /**
      * Loads the latest snapshot for the specified aggregate.
      *
+     * @param S the type of the state
      * @param aggregateId the ID of the aggregate
      * @return a Mono emitting the snapshot or empty if none exists
      */
@@ -46,6 +47,7 @@ interface SnapshotStore : Named {
     /**
      * Saves a snapshot to the store.
      *
+     * @param S the type of the state
      * @param snapshot the snapshot to save
      * @return a Mono that completes when the save operation is done
      */

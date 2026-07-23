@@ -32,7 +32,7 @@ import reactor.core.publisher.Mono
  * aggregate name and source identification.
  *
  * @param T the specific type of DomainEventBus being decorated
- * @property delegate the underlying domain event bus implementation
+ * @param delegate the underlying domain event bus implementation
  */
 open class MetricDomainEventBus<T : DomainEventBus>(
     delegate: T
@@ -83,7 +83,7 @@ open class MetricDomainEventBus<T : DomainEventBus>(
  * Extends MetricDomainEventBus to provide metrics collection for local domain event bus operations
  * while maintaining the LocalDomainEventBus interface.
  *
- * @property delegate the underlying local domain event bus implementation
+ * @param delegate the underlying local domain event bus implementation
  */
 class MetricLocalDomainEventBus(
     delegate: LocalDomainEventBus
@@ -104,7 +104,7 @@ class MetricLocalDomainEventBus(
  * Extends MetricDomainEventBus to provide metrics collection for distributed domain event bus operations
  * while maintaining the DistributedDomainEventBus interface.
  *
- * @property delegate the underlying distributed domain event bus implementation
+ * @param delegate the underlying distributed domain event bus implementation
  */
 class MetricDistributedDomainEventBus(
     delegate: DistributedDomainEventBus

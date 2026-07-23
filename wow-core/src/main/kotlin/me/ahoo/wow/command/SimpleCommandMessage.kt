@@ -34,6 +34,7 @@ import me.ahoo.wow.naming.annotation.toName
  * @param body The actual command payload.
  * @param aggregateId Identifier of the aggregate this command targets.
  * @param ownerId Identifier of the owner/user initiating the command. Defaults to default owner.
+ * @param spaceId Identifier of the space containing the aggregate. Defaults to the default space.
  * @param requestId Identifier for request deduplication. Defaults to the message ID.
  * @param aggregateVersion Expected version of the aggregate for optimistic concurrency. Null means no version check.
  * @param name Human-readable name of the command. Defaults to the simple class name of the body.

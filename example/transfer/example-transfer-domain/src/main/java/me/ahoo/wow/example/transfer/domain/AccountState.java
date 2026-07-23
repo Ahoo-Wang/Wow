@@ -22,17 +22,11 @@ import org.jetbrains.annotations.NotNull;
 public class AccountState implements Identifier {
     private final String id;
     private String name;
-    /**
-     * 余额
-     */
+    /** Available balance. */
     private long balanceAmount = 0L;
-    /**
-     * 已锁定金额
-     */
+    /** Locked balance. */
     private long lockedAmount = 0L;
-    /**
-     * 账号已冻结标记
-     */
+    /** Whether the account is frozen. */
     private boolean frozen = false;
 
     @JsonCreator

@@ -28,13 +28,7 @@ interface AppProps {
 }
 
 /**
- * 创建外部链接菜单项
- * @param key 唯一标识
- * @param label 显示文本
- * @param url 链接地址
- * @param icon 图标
- * @param style 样式
- * @returns MenuItem
+ * Creates a menu item that opens an external URL.
  */
 const createExternalLinkItem = (
   key: string,
@@ -54,9 +48,7 @@ const createExternalLinkItem = (
 });
 
 /**
- * 创建导航菜单项
- * @param navItem 导航项配置
- * @returns MenuItem
+ * Creates a menu item for an application route.
  */
 const createNavItem = (navItem: NavItem): MenuItem => ({
   key: navItem.path,
@@ -67,11 +59,8 @@ const createNavItem = (navItem: NavItem): MenuItem => ({
 export default function App({ navItems }: AppProps) {
   const location = useLocation();
 
-  // 构建菜单项数组
   const menuItems: MenuItem[] = [
-    // 导航菜单项
     ...navItems.map(createNavItem),
-    // 外部链接菜单项
     createExternalLinkItem(
       "github",
       "GitHub",

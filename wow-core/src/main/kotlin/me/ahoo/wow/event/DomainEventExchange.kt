@@ -57,9 +57,6 @@ interface DomainEventExchange<T : Any> : EventExchange<DomainEventExchange<T>, D
  *
  * @constructor Creates a new SimpleDomainEventExchange with the given message and attributes
  *
- * @param message The domain event message
- * @param attributes The mutable map of attributes (default: ConcurrentHashMap)
- *
  * @see DomainEventExchange
  * @see DomainEvent
  */
@@ -77,7 +74,6 @@ class SimpleDomainEventExchange<T : Any>(
  *
  * @param S The type of the aggregate state
  * @param T The type of the domain event body
- * @property state The read-only state aggregate containing current state information
  *
  * @see DomainEventExchange
  * @see ReadOnlyStateAggregate
@@ -94,9 +90,9 @@ interface StateDomainEventExchange<S : Any, T : Any> : DomainEventExchange<T> {
      * This method first tries to extract from the parent implementation, then checks
      * if the requested type matches the state aggregate or its state.
      *
+     * @param T The type to extract
      * @param type The class type to extract
      * @return The extracted object of the specified type, or null if not found
-     * @param T The type to extract
      *
      * @see MessageExchange.extractDeclared
      */
@@ -130,10 +126,6 @@ interface StateDomainEventExchange<S : Any, T : Any> : DomainEventExchange<T> {
  * @property attributes Mutable map for storing exchange attributes (default: empty ConcurrentHashMap)
  *
  * @constructor Creates a new SimpleStateDomainEventExchange with state, message, and attributes
- *
- * @param state The read-only state aggregate
- * @param message The domain event message
- * @param attributes The mutable map of attributes (default: ConcurrentHashMap)
  *
  * @see StateDomainEventExchange
  * @see ReadOnlyStateAggregate

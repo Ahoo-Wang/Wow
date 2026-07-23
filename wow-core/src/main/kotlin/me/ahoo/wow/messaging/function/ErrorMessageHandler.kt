@@ -28,6 +28,7 @@ object LogResumeErrorMessageHandler {
     /**
      * Handles errors in a Mono by logging them and returning an empty Mono.
      *
+     * @param T The element type.
      * @param handled The Mono that might contain errors
      * @return A Mono that logs errors and resumes with empty
      */

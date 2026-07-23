@@ -29,7 +29,8 @@ import org.junit.jupiter.api.DynamicContainer
  * the transition from command execution to expectation verification.
  *
  * @param S the state type of the aggregate
- * @property delegate the underlying WhenStage that handles command execution
+ * @property context shared aggregate DSL context
+ * @param delegate the underlying WhenStage that handles command execution
  */
 class DefaultWhenDsl<S : Any>(
     override val context: AggregateDslContext<S>,
@@ -62,6 +63,7 @@ class DefaultWhenDsl<S : Any>(
      * @param command the command to execute
      * @param header message header for the command
      * @param ownerId the owner identifier for the command
+     * @param spaceId the space identifier for the command
      * @param block the expectation definition using ExpectDsl
      */
     override fun whenCommand(

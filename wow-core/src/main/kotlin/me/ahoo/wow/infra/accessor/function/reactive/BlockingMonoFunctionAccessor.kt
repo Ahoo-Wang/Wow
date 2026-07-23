@@ -26,8 +26,8 @@ import kotlin.reflect.KFunction
  *
  * @param T the type of the target object
  * @param D the type of data in the Mono
- * @property monoFunctionAccessor the underlying mono function accessor
- * @property scheduler the scheduler to use for blocking operations (defaults to bounded elastic)
+ * @param monoFunctionAccessor the underlying mono function accessor
+ * @param scheduler the scheduler to use for blocking operations (defaults to bounded elastic)
  */
 class BlockingMonoFunctionAccessor<T, D : Any>(
     private val monoFunctionAccessor: MonoFunctionAccessor<T, Mono<D>>,

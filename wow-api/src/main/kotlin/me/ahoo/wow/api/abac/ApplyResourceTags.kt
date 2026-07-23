@@ -22,9 +22,9 @@ interface ApplyResourceTags : ApplyAbacTags
 interface ResourceTagsApplied : AbacTagsApplied
 
 /**
- * 应用 ABAC 资源标签的默认实现。
+ * Default command for applying ABAC resource tags.
  *
- * @property tags 标签映射
+ * @property tags tags to apply
  */
 @CommandRoute(action = "tags", method = CommandRoute.Method.PUT, appendIdPath = CommandRoute.AppendPath.ALWAYS)
 data class DefaultApplyResourceTags(
@@ -32,9 +32,9 @@ data class DefaultApplyResourceTags(
 ) : ApplyResourceTags
 
 /**
- * ABAC 资源标签已应用事件的默认实现。
+ * Default event emitted after ABAC resource tags are applied.
  *
- * @property tags 标签映射
+ * @property tags applied tags
  */
 data class DefaultResourceTagsApplied(
     override val tags: AbacTags

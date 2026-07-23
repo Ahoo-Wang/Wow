@@ -29,8 +29,6 @@ import reactor.core.publisher.Sinks.Many
  *
  * @constructor Creates a new InMemoryDomainEventBus with the specified sink supplier
  *
- * @param sinkSupplier The function to create sinks for named aggregates
- *
  * @see LocalDomainEventBus
  * @see InMemoryMessageBus
  * @see Sinks.Many
@@ -44,7 +42,7 @@ class InMemoryDomainEventBus(
     /**
      * Creates an EventStreamExchange from a DomainEventStream.
      *
-     * @param message The domain event stream to wrap
+     * @receiver The domain event stream to wrap
      * @return A new SimpleEventStreamExchange containing the message
      *
      * @see EventStreamExchange

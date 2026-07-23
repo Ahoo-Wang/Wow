@@ -31,9 +31,8 @@ class PrepareKeyInitializer : ApplicationContextAware, SmartInitializingSingleto
     }
 
     /**
-     * 在所有单例Bean初始化完成后执行
-     * 获取所有PrepareKey类型的Bean，由于PrepareKey的初始化工作在构造函数中完成，
-     * 所以只要获取到Bean就已完成初始化
+     * Resolves every [PrepareKey] bean after singleton creation, triggering the
+     * constructor-based initialization of each bean.
      */
     override fun afterSingletonsInstantiated() {
         val prepareKeys = applicationContext.getBeansOfType(PrepareKey::class.java)

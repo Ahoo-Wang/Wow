@@ -77,9 +77,11 @@ interface GivenStage<S : Any> : InjectServiceCapable<GivenStage<S>> {
  * This convenience method combines the given setup (with no events) and command execution
  * in a single call, useful for testing commands on empty aggregates.
  *
+ * @param S the aggregate state type
  * @param command the command to execute
  * @param header optional command header (defaults to empty)
  * @param ownerId optional owner ID override (defaults to previously set owner)
+ * @param spaceId optional space ID override
  * @return an ExpectStage for defining expectations
  */
 fun <S : Any> GivenStage<S>.whenCommand(

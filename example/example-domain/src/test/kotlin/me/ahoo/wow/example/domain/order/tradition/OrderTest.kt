@@ -107,17 +107,11 @@ internal class OrderTest {
         }
     }
 
-    /**
-     * 创建订单
-     */
     @Test
     fun `should create order`() {
         mockCreateOrder()
     }
 
-    /**
-     * 创建订单-非中国的收货地址
-     */
     @Test
     fun `should reject order given non-China address`() {
         val orderItem = CreateOrder.Item(
@@ -148,9 +142,6 @@ internal class OrderTest {
             }.verify()
     }
 
-    /**
-     * 创建订单-空订单项
-     */
     @Test
     fun `should reject order given empty items`() {
         aggregateVerifier<Order, OrderState>()
@@ -161,16 +152,10 @@ internal class OrderTest {
             .whenCommand(CreateOrder(listOf(), SHIPPING_ADDRESS, false))
             .expectErrorType(CommandValidationException::class)
             .expectStateAggregate {
-                /*
-                 * 该聚合对象处于未初始化状态，即该聚合未创建成功.
-                 */
                 initialized.assert().isFalse()
             }.verify()
     }
 
-    /**
-     * 创建订单-库存不足
-     */
     @Test
     fun `should reject order when inventory shortage`() {
         val orderItem = CreateOrder.Item(
@@ -182,9 +167,6 @@ internal class OrderTest {
         val inventoryService = object : InventoryService {
             override fun getInventory(productId: String): Mono<Int> {
                 return orderItems.filter { it.productId == productId }
-                    /*
-                     * 模拟库存不足
-                     */
                     .map { it.quantity - 1 }.first().toMono()
             }
         }
@@ -200,21 +182,12 @@ internal class OrderTest {
             }
             .given()
             .whenCommand(CreateOrder(orderItems, SHIPPING_ADDRESS, false))
-            /*
-             * 期望：库存不足异常.
-             */
             .expectErrorType(InventoryShortageException::class)
             .expectStateAggregate {
-                /*
-                 * 该聚合对象处于未初始化状态，即该聚合未创建成功.
-                 */
                 initialized.assert().isFalse()
             }.verify()
     }
 
-    /**
-     * 创建订单-下单价格与当前价格不一致
-     */
     @Test
     fun `should reject order when price inconsistency`() {
         val orderItem = CreateOrder.Item(
@@ -231,9 +204,6 @@ internal class OrderTest {
         val pricingService = object : PricingService {
             override fun getProductPrice(productId: String): Mono<BigDecimal> {
                 return orderItems.filter { it.productId == productId }
-                    /*
-                     * 模拟下单价格、商品定价不一致
-                     */
                     .map { it.price.plus(BigDecimal.valueOf(1)) }.first().toMono()
             }
         }
@@ -243,9 +213,6 @@ internal class OrderTest {
             }
             .given()
             .whenCommand(CreateOrder(orderItems, SHIPPING_ADDRESS, false))
-            /*
-             * 期望：价格不一致异常.
-             */
             .expectErrorType(PriceInconsistencyException::class).verify()
     }
 
@@ -260,49 +227,25 @@ internal class OrderTest {
         return verifiedStage
             .then()
             .given()
-            /*
-             * 2. 当接收到命令
-             */
             .whenCommand(payOrder)
-            /*
-             * 3.1 期望将会产生1个事件
-             */
             .expectEventCount(1)
-            /*
-             * 3.2 期望将会产生一个 OrderPaid 事件 (3.1 可以不需要)
-             */
             .expectEventType(OrderPaid::class)
-            /*
-             * 3.3 期望产生的事件状态
-             */
             .expectEventBody<OrderPaid> {
                 amount.assert().isEqualTo(payOrder.amount)
             }
-            /*
-             * 4. 期望当前聚合状态
-             */
             .expectState {
                 address.assert().isEqualTo(SHIPPING_ADDRESS)
                 paidAmount.assert().isEqualTo(payOrder.amount)
                 status.assert().isEqualTo(OrderStatus.PAID)
             }
-            /*
-             * 完成测试编排后，验证期望.
-             */
             .verify()
     }
 
-    /**
-     * 支付订单
-     */
     @Test
     fun `should pay order`() {
         mockPayOrder()
     }
 
-    /**
-     * 重复支付订单
-     */
     @Test
     fun `should reject duplicate payment`() {
         val verifiedStage = mockPayOrder()
@@ -323,9 +266,6 @@ internal class OrderTest {
             .verify()
     }
 
-    /**
-     * 支付订单-超付
-     */
     @Test
     fun `should handle over payment`() {
         val verifiedStage = mockCreateOrder()
@@ -339,26 +279,14 @@ internal class OrderTest {
         verifiedStage
             .then()
             .given()
-            /*
-             * 2. 处理 PayOrder 命令
-             */
             .whenCommand(payOrder)
-            /*
-             * 3.1 期望将会产生俩个事件分别是： OrderPaid、OrderOverPaid
-             */
             .expectEventType(OrderPaid::class, OrderOverPaid::class)
-            /*
-             * 3.2 期望产生的事件状态
-             */
             .expectEventIterator {
                 val orderPaid = nextEventBody<OrderPaid>()
                 orderPaid.paid.assert().isTrue()
                 val orderOverPaid = nextEventBody<OrderOverPaid>()
                 orderOverPaid.overPay.assert().isEqualTo(payOrder.amount.minus(previousState.totalAmount))
             }
-            /*
-             * 4. 期望当前聚合状态
-             */
             .expectState {
                 paidAmount.assert().isEqualTo(previousState.totalAmount)
                 status.assert().isEqualTo(OrderStatus.PAID)
@@ -373,18 +301,12 @@ internal class OrderTest {
             .then().given()
             .whenCommand(shipOrder)
             .expectEventType(OrderShipped::class)
-            /*
-             * 4. 期望当前聚合状态
-             */
             .expectState {
                 status.assert().isEqualTo(OrderStatus.SHIPPED)
             }
             .verify()
     }
 
-    /**
-     * 发货
-     */
     @Test
     fun `should ship order`() {
         mockShip()
@@ -411,9 +333,6 @@ internal class OrderTest {
             .whenCommand(shipOrder)
             .expectErrorType(IllegalStateException::class)
             .expectState {
-                /*
-                 * 验证聚合状态[未]发生变更.
-                 */
                 paidAmount.assert().isEqualTo(BigDecimal.ZERO)
                 status.assert().isEqualTo(OrderStatus.CREATED)
             }

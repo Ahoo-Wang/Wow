@@ -34,10 +34,6 @@ import reactor.core.publisher.Mono
  * state from event sourcing and resending state events to the state event bus
  * with compensation metadata.
  *
- * @property stateAggregateFactory Factory for creating state aggregates
- * @property eventStore The event store for retrieving historical events
- * @property stateEventBus The state event bus for publishing compensated state events
- *
  * @constructor Creates a new StateEventCompensator with the specified dependencies
  *
  * @param stateAggregateFactory The factory for creating state aggregates

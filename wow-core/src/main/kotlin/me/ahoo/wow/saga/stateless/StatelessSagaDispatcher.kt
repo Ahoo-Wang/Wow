@@ -25,13 +25,13 @@ import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
  * This dispatcher extends [CompositeEventDispatcher] to provide event-driven processing for sagas
  * that don't maintain state between events.
  *
- * @property name The name of the dispatcher, typically formatted as `applicationName.StatelessSagaDispatcher`.
- * @property parallelism The number of parallel threads for processing messages (default: [MessageParallelism.DEFAULT_PARALLELISM]).
- * @property domainEventBus The bus for publishing domain events.
- * @property stateEventBus The bus for publishing state events.
- * @property functionRegistrar The registrar for stateless saga functions.
- * @property eventHandler The handler for processing domain events.
- * @property schedulerSupplier The supplier for aggregate schedulers (default: [DefaultAggregateSchedulerSupplier] with "SagaDispatcher" prefix).
+ * @param name The name of the dispatcher, typically formatted as `applicationName.StatelessSagaDispatcher`.
+ * @param parallelism The number of parallel threads for processing messages (default: [MessageParallelism.DEFAULT_PARALLELISM]).
+ * @param domainEventBus The bus for publishing domain events.
+ * @param stateEventBus The bus for publishing state events.
+ * @param functionRegistrar The registrar for stateless saga functions.
+ * @param eventHandler The handler for processing domain events.
+ * @param schedulerSupplier The supplier for aggregate schedulers (default: [DefaultAggregateSchedulerSupplier] with "SagaDispatcher" prefix).
  */
 class StatelessSagaDispatcher(
     /**

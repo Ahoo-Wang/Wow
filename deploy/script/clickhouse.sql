@@ -95,7 +95,7 @@ CREATE TABLE bi_db.order_order_state_last_local on cluster '{cluster}'
 ) ENGINE = ReplicatedReplacingMergeTree(
            '/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}', '{replica}',
            version)
---    分区算法为 `sipHash64(aggregateId) % 8`,防止相同聚合ID的状态被放置在不同分区从而导致 `Replacing` 合并失效。
+--    Partition by `sipHash64(aggregateId) % 8` so all states of the same aggregate remain in one partition and `Replacing` can merge them.
       PARTITION BY sipHash64(aggregateId) % 8
       ORDER BY (aggregateId)
 ;

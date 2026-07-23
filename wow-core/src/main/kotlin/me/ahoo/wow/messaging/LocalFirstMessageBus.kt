@@ -47,6 +47,7 @@ fun Header.isLocalFirst(): Boolean = this[LOCAL_FIRST_HEADER].toBoolean()
 /**
  * Sets the local-first flag on this message.
  *
+ * @param M The message type.
  * @param localFirst Whether to enable local-first routing (default: true)
  * @return This message with the local-first flag set
  */

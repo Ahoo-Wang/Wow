@@ -30,7 +30,6 @@ class OrderEventProcessor {
         if (log.isDebugEnabled) {
             log.debug(orderCreated.toString())
         }
-        // write
         return Mono.empty()
     }
 
@@ -38,7 +37,6 @@ class OrderEventProcessor {
         if (log.isDebugEnabled) {
             log.debug(addressChanged.toString())
         }
-        // write
         return Mono.empty()
     }
 

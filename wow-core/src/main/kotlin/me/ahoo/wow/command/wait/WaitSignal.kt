@@ -46,9 +46,8 @@ interface NullableAggregateVersionCapable {
  * WaitSignal contains all information about a specific stage in command processing,
  * including success/failure status, aggregate state, and any generated commands.
  *
- * @property stage the command processing stage this signal represents
- * @property isLastProjection whether this is the final projection for the command
- * @property commands list of command IDs sent by Saga as a result of this processing
+ * [stage] identifies the command-processing stage, [isLastProjection] marks the final projection,
+ * and [commands] contains command IDs sent by a saga as a result of this processing.
  * @see CommandStage
  * @see SimpleWaitSignal
  */

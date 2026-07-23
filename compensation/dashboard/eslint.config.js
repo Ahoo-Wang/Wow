@@ -20,6 +20,14 @@ export default tseslint.config([
     rules: {
       ...reactHooks.configs["recommended-latest"].rules,
       ...reactRefresh.configs.vite.rules,
+      "spaced-comment": ["error", "always", { markers: ["/"] }],
+      "no-warning-comments": [
+        "error",
+        {
+          terms: ["todo", "fixme", "hack", "stopship"],
+          location: "anywhere",
+        },
+      ],
       "@typescript-eslint/consistent-type-imports": [
         "error",
         {

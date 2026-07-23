@@ -64,7 +64,7 @@ object EventMetadataParser : CacheableMetadataParser() {
      * information needed to construct EventMetadata.
      *
      * @param E The event type
-     * @property eventType The class being visited
+     * @param eventType The class being visited
      *
      * @see ClassVisitor
      * @see EventMetadata

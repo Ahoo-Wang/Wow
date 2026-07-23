@@ -81,8 +81,8 @@ data class MetadataNamedAggregateGetter<T>(
  * then constructs a named aggregate using an optional context name.
  *
  * @param T The type of the target object.
- * @property contextName The optional context name to use when constructing the named aggregate.
- * @property aggregateNameGetter The property getter for extracting the aggregate name from the target.
+ * @param contextName The optional context name to use when constructing the named aggregate.
+ * @param aggregateNameGetter The property getter for extracting the aggregate name from the target.
  */
 class SimpleNamedAggregateGetter<T>(
     private val contextName: String?,

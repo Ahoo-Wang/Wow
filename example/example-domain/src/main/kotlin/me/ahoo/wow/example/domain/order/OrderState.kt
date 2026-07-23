@@ -31,7 +31,7 @@ import me.ahoo.wow.models.common.StatusCapable
 import java.math.BigDecimal
 
 /**
- * 订单聚合状态 .
+ * Event-sourced state for [Order].
  *
  * @author ahoo wang
  * @see me.ahoo.wow.modeling.state.StateAggregate
@@ -39,7 +39,7 @@ import java.math.BigDecimal
 @Schema(name = "WowExampleOrderState")
 class OrderState(
     /**
-     * [me.ahoo.wow.api.annotation.AggregateId] 注解是可选的，约定默认使用字段名为 `id` 为聚合ID.
+     * The conventional `id` name makes the aggregate-ID annotation optional.
      */
     val id: String
 ) : StatusCapable<OrderStatus>, StateAggregateTagsExtractor<OrderState> {
@@ -59,7 +59,7 @@ class OrderState(
         private set
 
     /**
-     * 订单剩余应付金额.
+     * The amount that remains payable.
      */
     val payable: BigDecimal
         get() {
@@ -67,17 +67,8 @@ class OrderState(
         }
 
     /**
-     * 事件概念：既定事实，已发生的事实.(不可篡改)
-     * <pre>
-     * 事件朔源处理函数职责/概念.
-     * 1.修改聚合状态（并且有且只有这一种方式）
-     </pre> *
-     * 因为事件朔源处理函数只负责将聚合状态执行变更，所以一般只需同步处理，返回值为 void .
-     * 并且事件朔源函数不对外部环境/服务产生依赖。
-     *
-     *
-     * [me.ahoo.wow.api.annotation.OnSourcing] 注解是可选的，约定默认使用方法名 `onSourcing` .
-     *
+     * Applies the initial event without external dependencies.
+     * The conventional `onSourcing` name makes the sourcing annotation optional.
      */
     fun onSourcing(orderCreated: OrderCreated) {
         address = orderCreated.address

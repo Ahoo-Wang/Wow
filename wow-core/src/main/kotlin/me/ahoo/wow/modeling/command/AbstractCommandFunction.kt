@@ -30,7 +30,7 @@ import reactor.core.publisher.Mono
  *
  * @param C The type of the command aggregate.
  * @property commandAggregate The command aggregate instance this function belongs to.
- * @property afterCommandFunctions List of after-command functions to execute after the main command.
+ * @param afterCommandFunctions List of after-command functions to execute after the main command.
  *
  * @constructor Creates a new AbstractCommandFunction with the specified command aggregate and after functions.
  */

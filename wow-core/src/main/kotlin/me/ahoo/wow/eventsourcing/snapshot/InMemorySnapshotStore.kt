@@ -49,6 +49,7 @@ class InMemorySnapshotStore : VersionedSnapshotStore {
     /**
      * Loads a snapshot from the in-memory map by deserializing the JSON string.
      *
+     * @param S the aggregate state type
      * @param aggregateId the ID of the aggregate
      * @return a Mono emitting the snapshot or empty if not found
      */
@@ -60,6 +61,7 @@ class InMemorySnapshotStore : VersionedSnapshotStore {
     /**
      * Saves a snapshot to the in-memory map by serializing it to JSON.
      *
+     * @param S the aggregate state type
      * @param snapshot the snapshot to save
      * @return a Mono that completes when the save operation is done
      */

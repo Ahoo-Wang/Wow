@@ -26,7 +26,7 @@ import me.ahoo.wow.example.api.order.OrderCreated
 class CartSaga {
 
     /**
-     * 下单之后删除购物车相应商品
+     * Removes purchased products from the cart after an order is created from it.
      */
     @Retry(maxRetries = 5, minBackoff = 60, executionTimeout = 10)
     @OnEvent

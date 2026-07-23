@@ -36,6 +36,7 @@ object GivenInitialization
  * @property aggregateId the identifier of the aggregate to initialize
  * @property id unique identifier for this command (auto-generated)
  * @property ownerId the owner of the aggregate (defaults to system owner)
+ * @property spaceId the command's space identifier
  * @property requestId unique identifier for the request (auto-generated)
  * @property isCreate indicates this is a creation command
  * @property allowCreate allows aggregate creation if it doesn't exist

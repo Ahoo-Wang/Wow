@@ -33,7 +33,7 @@ import kotlin.reflect.KFunction
  * This condition checks for specific annotations or default function names
  * to determine if a function should be processed as a message handler.
  *
- * @property onMessageAnnotations The annotation classes to check for
+ * @param onMessageAnnotations The annotation classes to check for
  */
 class MessageAnnotationFunctionCondition(
     private vararg val onMessageAnnotations: KClass<out Annotation>
@@ -71,7 +71,7 @@ class MessageAnnotationFunctionCondition(
  * message processors and their handler functions.
  *
  * @param E The message exchange type
- * @property functionCondition Condition to filter which functions to include
+ * @param functionCondition Condition to filter which functions to include
  * @see me.ahoo.wow.api.annotation.OnMessage
  */
 open class ProcessorMetadataParser<E : MessageExchange<*, *>>(
@@ -80,6 +80,8 @@ open class ProcessorMetadataParser<E : MessageExchange<*, *>>(
     /**
      * Parses a processor class to extract its metadata.
      *
+     * @param TYPE The processor type.
+     * @param M The metadata type.
      * @param type The processor class to parse
      * @return The metadata for the processor
      */
@@ -96,8 +98,8 @@ open class ProcessorMetadataParser<E : MessageExchange<*, *>>(
  *
  * @param P The processor type
  * @param E The message exchange type
- * @property processorType The class being visited
- * @property functionCondition Condition to filter functions
+ * @param processorType The class being visited
+ * @param functionCondition Condition to filter functions
  */
 internal class ProcessorMetadataVisitor<P : Any, E : MessageExchange<*, *>>(
     private val processorType: Class<P>,

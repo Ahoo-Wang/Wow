@@ -23,7 +23,7 @@ import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 
 /**
- * 主动刷新缓存.
+ * Proactively refreshes aggregate state caches.
  */
 @JvmDefaultWithoutCompatibility
 abstract class StateCacheRefresher<S : Any, D, M : DomainEventExchange<*>>(

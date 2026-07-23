@@ -75,6 +75,7 @@ interface AggregateSchedulerSupplier : GracefullyStoppable {
  * identification in thread dumps and monitoring tools.
  *
  * @property name the name of this scheduler supplier, used as a prefix for scheduler names
+ * @property parallelism the number of parallel workers used by each aggregate scheduler
  *
  * Example usage:
  * ```kotlin

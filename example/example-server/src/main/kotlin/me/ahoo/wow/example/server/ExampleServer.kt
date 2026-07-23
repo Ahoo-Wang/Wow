@@ -31,13 +31,5 @@ import org.springframework.boot.runApplication
 class ExampleServer
 
 fun main(args: Array<String>) {
-//    val loggingRegistryConfig = object : LoggingRegistryConfig {
-//        override fun get(key: String): String? = null
-//        override fun step(): Duration {
-//            return Duration.ofSeconds(10)
-//        }
-//    }
-//    val loggingMeterRegistry = LoggingMeterRegistry.builder(loggingRegistryConfig).build()
-//    Metrics.addRegistry(loggingMeterRegistry)
     runApplication<ExampleServer>(*args)
 }

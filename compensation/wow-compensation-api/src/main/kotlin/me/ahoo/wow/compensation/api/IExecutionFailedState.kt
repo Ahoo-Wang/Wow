@@ -67,7 +67,7 @@ interface ExecutionFailedInfo : IRecoverable, ExecutionFailedErrorInfo {
 
 interface IRetrySpec {
     /**
-     * 最大重试次数
+     * Maximum number of retry attempts.
      */
     val maxRetries: Int
 
@@ -79,7 +79,7 @@ interface IRetrySpec {
     val minBackoff: Int
 
     /**
-     * 执行超时时间
+     * Execution timeout.
      *
      * @see java.time.temporal.ChronoUnit.SECONDS
      */
@@ -108,23 +108,23 @@ data class RetrySpec(
 
 data class RetryState(
     /**
-     * 当前已尝试次数
+     * Number of attempts made so far.
      */
     val retries: Int,
     /**
-     * 当前尝试执行点
+     * Timestamp of the current attempt.
      *
      * @see java.time.temporal.ChronoUnit.MILLIS
      */
     val retryAt: Long,
     /**
-     * 执行超时时间点
+     * Execution timeout deadline.
      *
      * @see java.time.temporal.ChronoUnit.MILLIS
      */
     val timeoutAt: Long,
     /**
-     * 下次重试时间点
+     * Timestamp of the next retry.
      *
      * @see java.time.temporal.ChronoUnit.MILLIS
      */

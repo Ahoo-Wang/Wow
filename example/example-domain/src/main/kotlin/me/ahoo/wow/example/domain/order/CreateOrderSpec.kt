@@ -24,7 +24,7 @@ interface CreateOrderSpec {
 }
 
 /**
- * 创建订单规范/业务规则/约束.
+ * Validates the business constraints for creating an order.
  *
  * @author ahoo wang
  */
@@ -39,9 +39,6 @@ class DefaultCreateOrderSpec(
             .thenReturn(orderItem)
     }
 
-    /**
-     * 预校验库存.
-     */
     private fun checkInventory(orderItem: CreateOrderItem): Mono<Int> {
         return inventoryService.getInventory(orderItem.productId)
             .doOnNext {
@@ -51,9 +48,6 @@ class DefaultCreateOrderSpec(
             }
     }
 
-    /**
-     * 验证商品客户端下单时的价格与最新的定价服务价格时否一致.
-     */
     private fun checkPrice(orderItem: CreateOrderItem): Mono<BigDecimal> {
         return pricingService.getProductPrice(orderItem.productId)
             .doOnNext { unitPrice ->

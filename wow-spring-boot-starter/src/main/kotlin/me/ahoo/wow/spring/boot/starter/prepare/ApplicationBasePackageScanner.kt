@@ -36,14 +36,13 @@ class ApplicationBasePackageScanner : EnvironmentAware, BeanFactoryAware {
     }
 
     /**
-     * 从Environment中获取指定key对应的字符串集合
+     * Reads a string set from the environment.
      *
-     * 该方法支持两种配置方式：
-     * 1. 逗号分隔的单个属性值（如 "package1,package2,package3"）
-     * 2. 数组形式的属性值（如 "key[0]=value1", "key[1]=value2"）
+     * Supports either a comma-separated property or indexed properties such as
+     * `key[0]=value1` and `key[1]=value2`.
      *
-     * @param key 配置项的键名
-     * @return 解析后的字符串集合，如果未找到配置则返回空集合
+     * @param key the configuration property name
+     * @return the configured values, or an empty set when the property is absent
      */
     fun getStringSet(key: String): Set<String> {
         val basePackages = env.getProperty(key)
@@ -64,9 +63,7 @@ class ApplicationBasePackageScanner : EnvironmentAware, BeanFactoryAware {
     }
 
     /**
-     * 获取应用的基础包路径集合
-     *
-     * @return 应用配置的扫描基础包路径集合，如果没有配置则返回空集合
+     * @return application base packages, or an empty set when none are registered
      */
     fun getApplicationBasePackages(): Set<String> {
         if (!AutoConfigurationPackages.has(beanFactory)) {

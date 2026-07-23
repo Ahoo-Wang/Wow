@@ -56,6 +56,7 @@ class EventStoreStateAggregateRepository(
      * Loads a state aggregate by replaying events up to the specified version.
      * Starts from an empty state and applies all events from the expected next version.
      *
+     * @param S the type of the aggregate state
      * @param aggregateId the ID of the aggregate to load
      * @param metadata metadata for the state aggregate type
      * @param tailVersion the maximum version to load
@@ -83,6 +84,7 @@ class EventStoreStateAggregateRepository(
      * Loads a state aggregate by replaying events up to the specified event time.
      * Starts from an empty state and applies all events from the next event time.
      *
+     * @param S the type of the aggregate state
      * @param aggregateId the ID of the aggregate to load
      * @param metadata metadata for the state aggregate type
      * @param tailEventTime the maximum event time to load

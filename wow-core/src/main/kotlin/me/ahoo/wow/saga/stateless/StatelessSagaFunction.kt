@@ -35,9 +35,9 @@ import reactor.kotlin.core.publisher.toMono
  * This function wraps a delegate message function and extends its behavior to handle command execution
  * and collection into a [CommandStream] for stateless saga processing.
  *
- * @property delegate The underlying message function that handles the domain event processing.
- * @property commandGateway The gateway used to send commands.
- * @property commandMessageFactory The factory for creating command messages.
+ * @param delegate The underlying message function that handles the domain event processing.
+ * @param commandGateway The gateway used to send commands.
+ * @param commandMessageFactory The factory for creating command messages.
  */
 class StatelessSagaFunction(
     override val delegate: MessageFunction<Any, DomainEventExchange<*>, Mono<*>>,

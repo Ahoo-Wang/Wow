@@ -22,9 +22,6 @@ package me.ahoo.wow.api.command
  * - Preventing duplicate command execution
  * - Debugging and auditing command flows
  *
- * @property commandId A unique string identifier for the command. Implementations should generate
- *                     globally unique values, typically using UUIDs or similar mechanisms.
- *
  * @see CommandMessage for the complete command message interface that includes this identifier
  *
  * Example usage:

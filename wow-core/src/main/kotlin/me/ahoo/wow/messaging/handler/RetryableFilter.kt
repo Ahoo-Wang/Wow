@@ -39,6 +39,7 @@ val DEFAULT_RETRY_SPEC: RetryBackoffSpec = Retry.backoff(3, Duration.ofSeconds(2
  * This filter is ordered to run before other processing filters and will
  * retry failed operations according to the specified retry specification.
  *
+ * @param T The message exchange type.
  * @param retrySpec The retry specification to use (default: DEFAULT_RETRY_SPEC)
  */
 @Order(

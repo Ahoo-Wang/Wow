@@ -28,7 +28,6 @@ class OrderSaga {
         if (log.isDebugEnabled) {
             log.debug(orderCreated.toString())
         }
-        // write
         return Mono.empty()
     }
 
@@ -37,7 +36,6 @@ class OrderSaga {
         if (log.isDebugEnabled) {
             log.debug(orderCreated.toString())
         }
-        // write
         return Mono.empty()
     }
 }

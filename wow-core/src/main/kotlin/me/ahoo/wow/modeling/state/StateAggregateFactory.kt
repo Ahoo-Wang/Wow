@@ -29,8 +29,7 @@ import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
 import reactor.core.publisher.Mono
 
 /**
- * Aggregate Factory .
- * 创建一个未初始化/空状态的聚合.
+ * Creates an uninitialized aggregate with empty state.
  *
  * @author ahoo wang
  */

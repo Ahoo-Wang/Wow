@@ -28,9 +28,8 @@ import reactor.core.publisher.Mono
  *
  * @param C The type of the command aggregate.
  * @property function The underlying function accessor metadata.
- * @property include Set of command classes that this function should execute for (empty means all).
- * @property exclude Set of command classes that this function should not execute for.
- * @property order The ordering information for this function.
+ * [include] is the set of command classes this function executes for (empty means all),
+ * [exclude] is the set it does not execute for, and [order] controls execution ordering.
  *
  * @constructor Creates metadata by parsing annotations from the function.
  */

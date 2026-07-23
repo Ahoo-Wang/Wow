@@ -30,11 +30,13 @@ typealias SpaceId = String
  * - Data type partitioning (e.g., "metadata", "analytics", "cache")
  * - Business domain separation (e.g., "primary", "archive", "backup")
  *
- * @property spaceId The namespace string used for data layering under a tenant. This value should
- * be non-null and represent a valid identifier for the data layer. An empty string indicates the
- * default namespace for the tenant.
  */
 interface SpaceIdCapable {
+    /**
+     * The namespace string used for data layering under a tenant.
+     *
+     * An empty string indicates the default namespace for the tenant.
+     */
     val spaceId: SpaceId
 
     companion object {

@@ -35,9 +35,8 @@ import reactor.core.publisher.Mono
  *
  * @param C The type of the command aggregate root.
  * @param S The type of the state aggregate.
- * @property state The associated state aggregate containing the current state.
- * @property commandRoot The command aggregate root instance.
- * @property commandState The current state of command processing.
+ * The [state] contains the current aggregate state, [commandRoot] is the command aggregate root,
+ * and [commandState] tracks the current command-processing state.
  */
 interface CommandAggregate<C : Any, S : Any> :
     NamedTypedAggregate<C>,
