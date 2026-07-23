@@ -24,7 +24,7 @@ import reactor.core.publisher.Mono
  * This class wraps a SnapshotStore implementation and adds metrics collection with tags for
  * aggregate name and source identification to track snapshot store performance.
  *
- * @property delegate the underlying snapshot store implementation
+ * @param delegate the underlying snapshot store implementation
  */
 open class MetricSnapshotStore(
     delegate: SnapshotStore

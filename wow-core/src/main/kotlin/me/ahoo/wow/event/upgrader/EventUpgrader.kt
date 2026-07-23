@@ -82,9 +82,6 @@ interface EventNamedAggregate :
  *
  * @constructor Creates a new MaterializedEventNamedAggregate
  *
- * @param namedAggregate The materialized named aggregate
- * @param name The event name
- *
  * @see EventNamedAggregate
  * @see NamedAggregate
  * @see materialize

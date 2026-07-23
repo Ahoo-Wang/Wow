@@ -33,10 +33,10 @@ import java.util.concurrent.ConcurrentHashMap
  * for a particular named aggregate. It extends AbstractAggregateEventDispatcher
  * to provide concrete implementation for event stream processing.
  *
- * @property namedAggregate The named aggregate this dispatcher handles
  * @property name The name of this dispatcher (default: derived from aggregate name)
- * @property parallelism The level of parallelism for processing (default: DEFAULT_PARALLELISM)
+ * @property namedAggregate The named aggregate this dispatcher handles
  * @property messageFlux The flux of event stream exchanges to process
+ * @property parallelism The level of parallelism for processing (default: DEFAULT_PARALLELISM)
  * @property functionRegistrar The registrar containing event processing functions
  * @property eventHandler The handler for processing individual events
  * @property scheduler The scheduler for managing event processing concurrency

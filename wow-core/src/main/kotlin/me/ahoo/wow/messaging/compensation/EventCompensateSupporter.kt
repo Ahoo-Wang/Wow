@@ -27,8 +27,8 @@ import reactor.kotlin.core.publisher.toMono
  * routing compensation requests to the appropriate compensator based on
  * the function kind.
  *
- * @property domainEventCompensator Handles domain event compensations
- * @property stateEventCompensator Handles state event compensations
+ * @param domainEventCompensator Handles domain event compensations
+ * @param stateEventCompensator Handles state event compensations
  */
 class EventCompensateSupporter(
     private val domainEventCompensator: DomainEventCompensator,

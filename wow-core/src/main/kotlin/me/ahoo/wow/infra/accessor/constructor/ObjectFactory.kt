@@ -41,8 +41,8 @@ interface ObjectFactory<T : Any> {
  * enabling automatic dependency injection during object instantiation.
  *
  * @param T the type of object that will be created
- * @property constructorAccessor the accessor for the constructor to use
- * @property serviceProvider the service provider for resolving dependencies
+ * @param constructorAccessor the accessor for the constructor to use
+ * @param serviceProvider the service provider for resolving dependencies
  */
 class InjectableObjectFactory<T : Any>(
     private val constructorAccessor: ConstructorAccessor<T>,

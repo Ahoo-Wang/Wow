@@ -29,10 +29,6 @@ import me.ahoo.wow.api.modeling.SpaceId
  * - Organizational restructuring (e.g., moving between department spaces)
  * - Multi-tenant data isolation (e.g., separating data by workspace or project)
  *
- * @property toSpaceId The target namespace/space identifier to which the aggregate is being transferred.
- *                     This should be a non-empty string representing a valid space identifier.
- *                     An empty string indicates the default space for the tenant.
- *
  * @see SpaceIdCapable for the interface that defines space identification
  * @see OwnerTransferred for ownership transfer events
  *

@@ -31,7 +31,7 @@ import reactor.core.publisher.Mono
  * provider context and executes the event function before continuing the
  * filter chain.
  *
- * @property serviceProvider The service provider for dependency injection
+ * @param serviceProvider The service provider for dependency injection
  *
  * @see ExchangeFilter
  * @see me.ahoo.wow.event.DomainEventExchange

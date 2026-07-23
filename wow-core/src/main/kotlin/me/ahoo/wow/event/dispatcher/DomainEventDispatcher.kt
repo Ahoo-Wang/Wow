@@ -27,13 +27,13 @@ import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
  * of event processing, including subscription to event streams and distribution
  * of events to appropriate handlers.
  *
- * @property name The name of this dispatcher, typically formatted as `applicationName.DomainEventDispatcher`
- * @property parallelism The level of parallelism for processing events (default: DEFAULT_PARALLELISM)
- * @property domainEventBus The domain event bus for publishing and subscribing to domain events
- * @property stateEventBus The state event bus for handling state-related events
- * @property functionRegistrar The registrar for domain event handler functions
- * @property eventHandler The event handler for processing domain events
- * @property schedulerSupplier Supplier for creating schedulers for aggregate processing
+ * @param name The name of this dispatcher, typically formatted as `applicationName.DomainEventDispatcher`
+ * @param parallelism The level of parallelism for processing events (default: DEFAULT_PARALLELISM)
+ * @param domainEventBus The domain event bus for publishing and subscribing to domain events
+ * @param stateEventBus The state event bus for handling state-related events
+ * @param functionRegistrar The registrar for domain event handler functions
+ * @param eventHandler The event handler for processing domain events
+ * @param schedulerSupplier Supplier for creating schedulers for aggregate processing
  *
  * @see CompositeEventDispatcher
  * @see me.ahoo.wow.event.DomainEventBus

@@ -38,9 +38,6 @@ interface EventStreamExchange : EventExchange<EventStreamExchange, DomainEventSt
  *
  * @constructor Creates a new SimpleEventStreamExchange with the given message and attributes
  *
- * @param message The domain event stream message
- * @param attributes The mutable map of attributes (default: ConcurrentHashMap)
- *
  * @see EventStreamExchange
  * @see DomainEventStream
  */

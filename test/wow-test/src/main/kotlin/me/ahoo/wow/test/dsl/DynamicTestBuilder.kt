@@ -21,10 +21,10 @@ import org.junit.jupiter.api.DynamicNode
  * Implementations of this interface provide a list of [DynamicNode] instances
  * that can be used to create dynamic tests at runtime.
  *
- * @property dynamicNodes A list of dynamic test nodes to be executed.
  * @see DynamicNode
  */
 interface DynamicTestBuilder {
+    /** Dynamic test nodes to execute. */
     val dynamicNodes: List<DynamicNode>
 }
 
@@ -33,9 +33,8 @@ interface DynamicTestBuilder {
  *
  * This class can be extended to build custom dynamic test builders that accumulate
  * [DynamicNode] instances during test construction.
- *
- * @property dynamicNodes A mutable list of dynamic test nodes that can be modified by subclasses.
  */
 abstract class AbstractDynamicTestBuilder : DynamicTestBuilder {
+    /** Mutable dynamic test nodes that subclasses can append to. */
     override val dynamicNodes: MutableList<DynamicNode> = mutableListOf()
 }

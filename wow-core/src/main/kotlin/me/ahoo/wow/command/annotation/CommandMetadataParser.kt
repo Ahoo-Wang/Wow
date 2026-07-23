@@ -84,7 +84,7 @@ object CommandMetadataParser : CacheableMetadataParser() {
  * and extract relevant metadata such as property getters and command characteristics.
  *
  * @param C the type of the command class being visited
- * @property commandType the Class object of the command type
+ * @param commandType the Class object of the command type
  * @author ahoo wang
  * @see ClassVisitor
  * @see CommandMetadata

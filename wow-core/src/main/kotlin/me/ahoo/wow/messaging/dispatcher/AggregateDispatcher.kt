@@ -69,9 +69,6 @@ import java.util.concurrent.atomic.AtomicInteger
  * ```
  *
  * @param T The type of message exchange being handled, must implement MessageExchange
- * @property parallelism The level of parallelism for processing grouped exchanges. Higher values allow more concurrent processing but may increase resource usage.
- * @property scheduler The scheduler used for processing message exchanges. Determines the thread pool and execution context.
- * @property messageFlux The reactive stream of message exchanges to be processed. This flux is subscribed to when start() is called.
  *
  * @see MessageDispatcher for the interface this class implements
  * @see SafeSubscriber for error handling capabilities

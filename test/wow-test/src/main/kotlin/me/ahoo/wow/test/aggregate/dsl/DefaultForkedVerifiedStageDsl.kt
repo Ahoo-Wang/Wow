@@ -28,6 +28,7 @@ import org.junit.jupiter.api.DynamicContainer
  * or error conditions from the same verified state.
  *
  * @param S the state type of the aggregate
+ * @property context shared aggregate DSL context
  * @property delegate the underlying VerifiedStage that provides the verified result
  */
 class DefaultForkedVerifiedStageDsl<S : Any>(
@@ -51,6 +52,7 @@ class DefaultForkedVerifiedStageDsl<S : Any>(
      * @param command the command to execute
      * @param header message header for the command
      * @param ownerId the owner identifier for the command
+     * @param spaceId the space identifier for the command
      * @param block the expectation definition using ExpectDsl
      */
     override fun whenCommand(

@@ -25,13 +25,13 @@ import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
  * This dispatcher extends [CompositeEventDispatcher] to provide event-driven processing for projections
  * that transform domain events into read models or perform side effects.
  *
- * @property name The name of the dispatcher, typically formatted as `applicationName.ProjectionDispatcher`.
- * @property parallelism The number of parallel threads for processing messages (default: [MessageParallelism.DEFAULT_PARALLELISM]).
- * @property domainEventBus The bus for publishing domain events.
- * @property stateEventBus The bus for publishing state events.
- * @property functionRegistrar The registrar for projection functions.
- * @property eventHandler The handler for processing domain events.
- * @property schedulerSupplier The supplier for aggregate schedulers (default: [DefaultAggregateSchedulerSupplier] with "ProjectionDispatcher" prefix).
+ * @param name The name of the dispatcher, typically formatted as `applicationName.ProjectionDispatcher`.
+ * @param parallelism The number of parallel threads for processing messages (default: [MessageParallelism.DEFAULT_PARALLELISM]).
+ * @param domainEventBus The bus for publishing domain events.
+ * @param stateEventBus The bus for publishing state events.
+ * @param functionRegistrar The registrar for projection functions.
+ * @param eventHandler The handler for processing domain events.
+ * @param schedulerSupplier The supplier for aggregate schedulers (default: [DefaultAggregateSchedulerSupplier] with "ProjectionDispatcher" prefix).
  */
 class ProjectionDispatcher(
     /**

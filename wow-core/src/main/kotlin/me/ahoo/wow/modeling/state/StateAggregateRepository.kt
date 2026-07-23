@@ -28,6 +28,9 @@ interface StateAggregateRepository {
      * Load State Aggregate.
      *
      * `stateAggregate.initialized=false` means that no aggregate was found.
+     * @param S the type of the aggregate state.
+     * @param aggregateId the aggregate identifier.
+     * @param metadata the aggregate state metadata.
      * @param tailVersion [Int.MAX_VALUE] means that the latest version is loaded.
      */
     fun <S : Any> load(

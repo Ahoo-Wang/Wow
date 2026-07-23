@@ -23,7 +23,7 @@ import kotlin.reflect.KFunction
  *
  * @param T the type of the target object
  * @param D the type of data in the Publisher
- * @property function the Kotlin function that returns a Publisher
+ * @param function the Kotlin function that returns a Publisher
  */
 class PublisherMonoFunctionAccessor<T, D : Any>(
     function: KFunction<*>

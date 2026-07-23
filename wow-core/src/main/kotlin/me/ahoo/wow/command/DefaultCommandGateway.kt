@@ -36,12 +36,12 @@ import reactor.core.publisher.Mono
  * This gateway provides comprehensive command handling including validation,
  * idempotency checking, and various sending strategies with optional waiting.
  *
- * @property commandWaitEndpoint The endpoint for command waiting functionality.
- * @property commandBus The underlying command bus for sending commands.
- * @property validator The validator for command body validation.
- * @property requestIdChecker Checker for command request ID idempotency.
- * @property waitCoordinator Coordinator for managing wait handles.
- * @property commandWaitNotifier Notifier for command wait signals.
+ * @param commandWaitEndpoint The endpoint for command waiting functionality.
+ * @param commandBus The underlying command bus for sending commands.
+ * @param validator The validator for command body validation.
+ * @param requestIdChecker Checker for command request ID idempotency.
+ * @param waitCoordinator Coordinator for managing wait handles.
+ * @param commandWaitNotifier Notifier for command wait signals.
  */
 class DefaultCommandGateway(
     private val commandWaitEndpoint: CommandWaitEndpoint,
@@ -79,9 +79,7 @@ class DefaultCommandGateway(
         requestIdChecker
             .check(command.aggregateId, command.requestId)
             .flatMap {
-                /*
-                 * 检查命令幂等性，如果该命令通过幂等性检查则返回 {@code true},表示该命令不重复.
-                 */
+                // Continue only when the command passes the idempotency check.
                 if (it) {
                     return@flatMap Mono.empty<Void>()
                 }
@@ -255,6 +253,7 @@ class DefaultCommandGateway(
      * @param C The type of the command body.
      * @param command The command message to send.
      * @param waitPlan The plan defining how and what to wait for.
+     * @param waitHandle The registered handle that receives wait signals.
      * @return A Mono that completes when the command is sent successfully.
      * @throws DuplicateRequestIdException if the command is not idempotent.
      * @throws jakarta.validation.ConstraintViolationException if validation fails.

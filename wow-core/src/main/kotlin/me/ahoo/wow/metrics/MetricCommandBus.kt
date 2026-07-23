@@ -32,7 +32,7 @@ import reactor.core.publisher.Mono
  * aggregate name, command name, and source identification.
  *
  * @param T the specific type of CommandBus being decorated
- * @property delegate the underlying command bus implementation
+ * @param delegate the underlying command bus implementation
  */
 open class MetricCommandBus<T : CommandBus>(
     delegate: T
@@ -84,7 +84,7 @@ open class MetricCommandBus<T : CommandBus>(
  * Extends MetricCommandBus to provide metrics collection for local command bus operations
  * while maintaining the LocalCommandBus interface.
  *
- * @property delegate the underlying local command bus implementation
+ * @param delegate the underlying local command bus implementation
  */
 class MetricLocalCommandBus(
     delegate: LocalCommandBus
@@ -105,7 +105,7 @@ class MetricLocalCommandBus(
  * Extends MetricCommandBus to provide metrics collection for distributed command bus operations
  * while maintaining the DistributedCommandBus interface.
  *
- * @property delegate the underlying distributed command bus implementation
+ * @param delegate the underlying distributed command bus implementation
  */
 class MetricDistributedCommandBus(
     delegate: DistributedCommandBus

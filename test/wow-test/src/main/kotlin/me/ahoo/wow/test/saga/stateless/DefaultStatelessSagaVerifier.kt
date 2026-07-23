@@ -46,10 +46,10 @@ import java.util.function.Consumer
  * in response to domain events, providing the foundation for expectation verification.
  *
  * @param T The type of the saga being tested.
- * @property sagaMetadata Metadata about the saga processor.
- * @property serviceProvider Provider for dependency injection.
- * @property commandGateway Gateway for sending commands.
- * @property commandMessageFactory Factory for creating command messages.
+ * @param sagaMetadata Metadata about the saga processor.
+ * @param serviceProvider Provider for dependency injection.
+ * @param commandGateway Gateway for sending commands.
+ * @param commandMessageFactory Factory for creating command messages.
  */
 internal class DefaultWhenStage<T : Any>(
     private val sagaMetadata: ProcessorMetadata<T, DomainEventExchange<*>>,
@@ -74,6 +74,7 @@ internal class DefaultWhenStage<T : Any>(
      *
      * @param event The event to convert.
      * @param ownerId The owner ID for the domain event.
+     * @param spaceId The space ID for the domain event.
      * @return A [DomainEvent] instance.
      */
     private fun toDomainEvent(
@@ -125,6 +126,7 @@ internal class DefaultWhenStage<T : Any>(
      * @param event The domain event to process.
      * @param state Optional state to provide to state-aware saga functions.
      * @param ownerId The owner ID for the event processing.
+     * @param spaceId The space ID for the event processing.
      * @return An expectation stage for verifying the saga results.
      */
     @Suppress("UNCHECKED_CAST")
@@ -188,6 +190,7 @@ internal class DefaultWhenStage<T : Any>(
      * @param event The event to wrap in an exchange.
      * @param state Optional state for state-aware exchanges.
      * @param ownerId The owner ID for the event.
+     * @param spaceId The space ID for the event.
      * @return A configured [DomainEventExchange].
      */
     private fun toEventExchange(
@@ -213,7 +216,7 @@ internal class DefaultWhenStage<T : Any>(
  * them against the actual results of saga processing.
  *
  * @param T The type of the saga being tested.
- * @property expectedResultMono A Mono that provides the expected result when subscribed to.
+ * @param expectedResultMono A Mono that provides the expected result when subscribed to.
  */
 internal class DefaultExpectStage<T : Any>(
     private val expectedResultMono: Mono<ExpectedResult<T>>

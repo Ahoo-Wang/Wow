@@ -49,8 +49,6 @@ enum class FirstParameterKind {
  * Represents a parameter that can be injected into a message function.
  *
  * @property parameter The Kotlin parameter reflection object
- * @property type The type of the parameter (lazy-loaded)
- * @property name The name of the parameter from @Name annotation, or empty if not annotated
  */
 data class InjectParameter(
     val parameter: KParameter

@@ -1,3 +1,11 @@
+comments:
+  DeprecatedBlockTag:
+    active: true
+  KDocReferencesNonPublicProperty:
+    active: true
+  OutdatedDocumentation:
+    active: true
+    allowParamOnConstructorProperties: true
 complexity:
   LongParameterList:
     active: false
@@ -6,6 +14,17 @@ complexity:
   TooManyFunctions:
     active: false
 style:
+  ForbiddenComment:
+    comments:
+      - reason: 'FIXME comments are not actionable; fix the issue or track it externally.'
+        value: 'FIXME'
+      - reason: 'HACK comments hide design debt; explain the constraint or reference an issue.'
+        value: 'HACK'
+      - reason: 'STOPSHIP markers must be resolved before code is committed.'
+        value: 'STOPSHIP'
+      - reason: 'TODO comments belong in the issue tracker, not in source code.'
+        value: 'TODO'
+    allowedPatterns: ''
   MaxLineLength:
     maxLineLength: 300
   ReturnCount:

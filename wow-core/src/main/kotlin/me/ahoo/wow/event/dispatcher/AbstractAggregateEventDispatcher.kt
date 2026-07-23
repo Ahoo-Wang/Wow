@@ -37,9 +37,6 @@ import reactor.core.publisher.Mono
  *
  * @param E The type of message exchange being handled
  *
- * @property functionRegistrar The registrar containing event processing functions
- * @property eventHandler The handler responsible for processing individual events
- *
  * @see AggregateDispatcher
  * @see MessageExchange
  * @see me.ahoo.wow.event.DomainEventStream
@@ -65,7 +62,6 @@ abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEve
     /**
      * Converts the exchange to a group key for parallel processing.
      *
-     * @param exchange The message exchange
      * @return The group key for partitioning events
      *
      * @see MessageParallelism.toGroupKey

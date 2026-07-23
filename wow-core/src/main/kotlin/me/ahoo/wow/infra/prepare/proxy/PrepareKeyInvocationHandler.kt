@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap
  * This handler delegates method calls to the underlying PrepareKey implementation,
  * with special handling for default methods in interfaces.
  *
- * @property metadata the metadata for the proxy configuration
+ * @param metadata the metadata for the proxy configuration
  * @property delegate the actual PrepareKey instance to delegate calls to
  *
  * @see DefaultPrepareKeyProxyFactory

@@ -38,6 +38,7 @@ import me.ahoo.wow.naming.annotation.toName
  * @property body The event payload data
  * @property aggregateId The aggregate ID this event belongs to
  * @property ownerId The owner identifier (default: DEFAULT_OWNER_ID)
+ * @property spaceId The space identifier (default: DEFAULT_SPACE_ID)
  * @property version The aggregate version when this event was created
  * @property sequence The sequence number within the event stream (default: DEFAULT_EVENT_SEQUENCE)
  * @property revision The event schema revision (default: DEFAULT_REVISION)

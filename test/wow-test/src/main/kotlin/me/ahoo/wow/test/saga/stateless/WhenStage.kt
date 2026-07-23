@@ -65,6 +65,7 @@ interface WhenStage<T : Any> : InjectServiceCapable<WhenStage<T>> {
      * @param event The domain event that triggers the saga.
      * @param state Optional state to provide to the saga processing.
      * @param ownerId The owner ID for the event processing.
+     * @param spaceId The space ID for the event processing.
      * @return An expectation stage to define assertions on the saga results.
      */
     fun whenEvent(

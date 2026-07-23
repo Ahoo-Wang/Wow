@@ -30,7 +30,7 @@ import me.ahoo.wow.test.dsl.NameSpecCapable.Companion.appendName
  *
  * @param C the command type that triggers aggregate operations
  * @param S the state type maintained by the aggregate
- * @property commandAggregateType the class of the command aggregate being tested, used to create verifiers
+ * @param commandAggregateType the class of the command aggregate being tested, used to create verifiers
  */
 class DefaultAggregateDsl<C : Any, S : Any>(
     private val commandAggregateType: Class<C>

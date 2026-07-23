@@ -33,9 +33,6 @@ package me.ahoo.wow.api.modeling
  * @param ID The type of the identifier. Common implementations include [String] (UUID-based),
  *           [Long] (sequence-based), or custom composite types for complex scenarios.
  *
- * @property id The unique identifier value for this entity. Must be non-null and should be
- *              immutable once assigned. The format and generation strategy is implementation-dependent.
- *
  * @see AggregateIdCapable for aggregate-level identity with additional metadata
  * @see me.ahoo.wow.api.modeling.NamedAggregate for named aggregate identity
  *

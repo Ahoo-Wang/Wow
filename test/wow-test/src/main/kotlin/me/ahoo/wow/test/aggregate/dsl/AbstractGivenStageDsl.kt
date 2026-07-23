@@ -171,6 +171,7 @@ abstract class AbstractGivenStageDsl<S : Any> :
      * @param command the command object to execute on the aggregate
      * @param header optional message header containing additional context for the command
      * @param ownerId the owner identifier for the command execution
+     * @param spaceId the space identifier for the command execution
      * @param block the expectation definition using ExpectDsl for result validation
      */
     override fun whenCommand(

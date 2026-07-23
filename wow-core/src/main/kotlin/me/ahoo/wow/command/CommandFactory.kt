@@ -44,6 +44,7 @@ import me.ahoo.wow.modeling.aggregateId
  * @param aggregateId target aggregate instance ID (optional, extracted from command if available)
  * @param tenantId tenant identifier (optional, extracted from command if available)
  * @param ownerId owner identifier (optional, extracted from command if available)
+ * @param spaceId space identifier (optional, extracted from command if available)
  * @param aggregateVersion expected aggregate version (optional, extracted from command if available)
  * @param namedAggregate named aggregate information (optional, extracted from command if available)
  * @param header message headers (default empty)

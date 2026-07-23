@@ -39,6 +39,7 @@ import me.ahoo.wow.modeling.aggregateId
  * @param id The unique event ID (default: generated global ID)
  * @param version The aggregate version for this event (default: INITIAL_VERSION)
  * @param ownerId The owner ID of the event (default: DEFAULT_OWNER_ID)
+ * @param spaceId The space ID of the event (default: DEFAULT_SPACE_ID)
  * @param sequence The sequence number within the event stream (default: DEFAULT_EVENT_SEQUENCE)
  * @param isLast Whether this is the last event in the stream (default: true)
  * @param header The event header containing metadata (default: empty header)
@@ -93,6 +94,7 @@ fun <T : Any> T.toDomainEvent(
  * @param tenantId The tenant identifier
  * @param commandId The ID of the command that triggered this event
  * @param ownerId The owner ID of the event (default: DEFAULT_OWNER_ID)
+ * @param spaceId The space ID of the event (default: DEFAULT_SPACE_ID)
  * @param id The unique event ID (default: generated global ID)
  * @param version The aggregate version for this event (default: INITIAL_VERSION)
  * @param sequence The sequence number within the event stream (default: DEFAULT_EVENT_SEQUENCE)

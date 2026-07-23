@@ -40,9 +40,6 @@ object KotlinReadOnlyCheck : Predicate<FieldScope> {
         if (property is KMutableProperty<*>) {
             return false
         }
-        /**
-         * 判断是否在构造函数中赋值
-         */
         return fieldScope.isConstructorParameter().not()
     }
 

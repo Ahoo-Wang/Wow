@@ -27,9 +27,6 @@ import me.ahoo.wow.messaging.LocalFirstMessageBus
  *
  * @constructor Creates a new LocalFirstDomainEventBus with the specified buses
  *
- * @param distributedBus The distributed event bus
- * @param localBus The local event bus (default: InMemoryDomainEventBus)
- *
  * @see DomainEventBus
  * @see LocalFirstMessageBus
  * @see DistributedDomainEventBus

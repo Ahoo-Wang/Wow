@@ -14,7 +14,7 @@
 package me.ahoo.wow.example.transfer.api;
 
 /**
- * 账户已创建
+ * Indicates that an account was created.
  */
 public record AccountCreated(
         String name,

@@ -29,9 +29,6 @@ import reactor.core.publisher.Mono
  * event streams to the event bus with compensation metadata. It can compensate
  * individual event streams or resend ranges of events from the event store.
  *
- * @property eventStore The event store for retrieving historical events
- * @property eventBus The domain event bus for publishing compensated events
- *
  * @constructor Creates a new DomainEventCompensator with the specified dependencies
  *
  * @param eventStore The event store to use for loading events

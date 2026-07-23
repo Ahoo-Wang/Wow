@@ -23,7 +23,7 @@ import kotlin.reflect.KFunction
  *
  * @param T the type of the target object
  * @param D the type of individual items in the Flux
- * @property function the Kotlin function that returns a Flux
+ * @param function the Kotlin function that returns a Flux
  */
 class FluxMonoFunctionAccessor<T, D : Any>(
     function: KFunction<*>

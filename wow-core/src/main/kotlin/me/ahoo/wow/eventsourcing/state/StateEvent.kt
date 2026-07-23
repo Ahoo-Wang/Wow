@@ -58,9 +58,11 @@ interface StateEvent<S : Any> :
         /**
          * Converts a DomainEventStream to a StateEvent with the given state.
          *
+         * @param S the type of the state
          * @param state the state of the aggregate
          * @param firstOperator the first operator (default: from header)
          * @param firstEventTime the first event time (default: createTime)
+         * @param tags the ABAC tags associated with the aggregate
          * @param deleted whether the aggregate is deleted (default: false)
          * @return a StateEvent wrapping this domain event stream
          */
@@ -83,6 +85,7 @@ interface StateEvent<S : Any> :
         /**
          * Converts a DomainEventStream to a StateEvent using the state from a ReadOnlyStateAggregate.
          *
+         * @param S the type of the state
          * @param stateAggregate the state aggregate to extract state from
          * @return a StateEvent wrapping this domain event stream
          */
@@ -101,10 +104,12 @@ interface StateEvent<S : Any> :
 /**
  * Data class implementation of StateEvent that wraps a DomainEventStream with state information.
  *
+ * @param S the type of the state
  * @param delegate the domain event stream being wrapped
  * @param state the state of the aggregate
  * @param firstOperator the first operator (default: from delegate header)
  * @param firstEventTime the first event time (default: from delegate)
+ * @param tags the ABAC tags associated with the aggregate
  * @param deleted whether the aggregate is deleted (default: false)
  */
 data class StateEventData<S : Any>(

@@ -19,9 +19,13 @@ package me.ahoo.wow.api.modeling
  * entities and value objects treated as a single unit. In Domain-Driven Design (DDD),
  * aggregates are the basic units for maintaining data consistency.
  *
- * @property aggregateId The aggregate ID used to uniquely identify an aggregate instance. Its `id` value must be
- * unique within the named aggregate across all tenants; tenant ID is not an aggregate-ID namespace.
  */
 interface AggregateIdCapable {
+    /**
+     * The aggregate ID used to uniquely identify an aggregate instance.
+     *
+     * Its [AggregateId.id] value must be unique within the named aggregate across all tenants;
+     * tenant ID is not an aggregate-ID namespace.
+     */
     val aggregateId: AggregateId
 }

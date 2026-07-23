@@ -41,9 +41,6 @@ import me.ahoo.wow.serialization.event.JsonDomainEvent
  * - All events in a stream belong to the same aggregate
  * - Events are immutable once created
  *
- * @property aggregateId The aggregate ID this event stream belongs to
- * @property size The number of events in this stream
- *
  * @see DomainEvent
  * @see NamedBoundedContextMessage
  * @see AggregateIdCapable
@@ -68,20 +65,8 @@ interface DomainEventStream :
  * @property requestId The request ID that initiated this event stream
  * @property header The message header containing metadata (default: empty header)
  * @property body The list of domain events in this stream
- * @property aggregateId The aggregate ID (derived from the first event)
- * @property contextName The bounded context name (derived from aggregateId)
- * @property aggregateName The aggregate name (derived from aggregateId)
- * @property ownerId The owner ID (derived from the first event)
- * @property commandId The command ID (derived from the first event)
- * @property version The aggregate version (derived from the first event)
- * @property size The number of events in the stream
- * @property createTime The creation timestamp (derived from the first event)
  *
  * @constructor Creates a new SimpleDomainEventStream
- * @param id The stream ID
- * @param requestId The request ID
- * @param header The message header
- * @param body The list of domain events (must not be empty)
  * @throws IllegalArgumentException if the event list is empty
  *
  * @see DomainEventStream

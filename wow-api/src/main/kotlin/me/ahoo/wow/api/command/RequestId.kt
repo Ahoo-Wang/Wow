@@ -23,9 +23,6 @@ package me.ahoo.wow.api.command
  * - Debugging and monitoring request flows
  * - Supporting distributed tracing and logging
  *
- * @property requestId A unique string identifier for the request. Implementations should generate
- *                     globally unique values, typically using UUIDs or similar mechanisms.
- *
  * @see CommandMessage for the complete command message interface that includes this identifier
  *
  * Example usage:

@@ -17,6 +17,7 @@ List the commands that were run and their results.
 - [ ] This change preserves public API and generated contract compatibility.
 - [ ] Tests cover the changed behavior or the verification alternative is explained.
 - [ ] Documentation is updated when user-visible behavior changes.
+- [ ] Comments and API documentation explain non-obvious constraints and remain accurate after this change.
 - [ ] No credentials, generated build output, or local environment files are included.
 
 Describe any migration, rollback, performance, concurrency, data, or deployment impact.

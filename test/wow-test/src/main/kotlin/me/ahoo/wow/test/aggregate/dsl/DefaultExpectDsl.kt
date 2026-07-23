@@ -34,6 +34,7 @@ import kotlin.reflect.KClass
  * and converts expectations into JUnit 5 dynamic tests that can be executed dynamically.
  *
  * @param S the state type of the aggregate being tested
+ * @property context shared aggregate DSL context
  * @property delegate the underlying ExpectStage that performs the actual verification logic
  */
 class DefaultExpectDsl<S : Any>(

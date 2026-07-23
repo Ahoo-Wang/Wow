@@ -35,7 +35,7 @@ interface TenantId {
         /**
          * Returns the default tenant ID if the given string is null.
          *
-         * @param this The nullable string to check.
+         * @receiver The nullable string to check.
          * @return The string itself if not null, otherwise DEFAULT_TENANT_ID.
          */
         fun String?.orDefaultTenantId(): String = this ?: DEFAULT_TENANT_ID

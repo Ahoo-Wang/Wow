@@ -22,10 +22,10 @@ import me.ahoo.wow.api.annotation.Order
  * Implementations of this interface provide a way to determine the relative position or priority of instances
  * in collections or sequences.
  *
- * @property order The ordering value that determines the position or priority of this entity.
- *                 This property is read-only and must be implemented by classes that implement this interface.
- *                 The [Order] type encapsulates the ordering logic and comparison rules.
  */
 interface Ordered {
+    /**
+     * The ordering value that determines the position or priority of this entity.
+     */
     val order: Order
 }

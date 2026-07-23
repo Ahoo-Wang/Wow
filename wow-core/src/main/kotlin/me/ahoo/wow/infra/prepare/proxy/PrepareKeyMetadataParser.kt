@@ -60,7 +60,7 @@ object PrepareKeyMetadataParser : CacheableMetadataParser() {
  * the interface type, and the generic value type parameter.
  *
  * @param P the PrepareKey interface type
- * @property prepareKeyType the Kotlin class being visited
+ * @param prepareKeyType the Kotlin class being visited
  */
 class PrepareKeyMetadataVisitor<P : Any>(
     private val prepareKeyType: KClass<P>

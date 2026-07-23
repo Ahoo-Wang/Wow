@@ -64,6 +64,7 @@ object ExchangeAck {
      * For each exchange, if it matches the predicate, it passes through.
      * If it doesn't match, it's acknowledged and filtered out.
      *
+     * @param T The message exchange type.
      * @param predicate The predicate to test exchanges against
      * @return A flux containing only exchanges that match the predicate
      */

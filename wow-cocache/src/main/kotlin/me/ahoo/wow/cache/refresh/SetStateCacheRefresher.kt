@@ -24,7 +24,7 @@ import me.ahoo.wow.event.StateDomainEventExchange
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 
 /**
- * 主动刷新缓存.
+ * Updates the cache from the latest aggregate state.
  */
 @JvmDefaultWithoutCompatibility
 open class SetStateCacheRefresher<K, S : Any, D>(

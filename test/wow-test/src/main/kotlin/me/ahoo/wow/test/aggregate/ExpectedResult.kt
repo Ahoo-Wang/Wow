@@ -29,7 +29,6 @@ import me.ahoo.wow.modeling.state.StateAggregate
  * @property stateAggregate the resulting state of the aggregate after command execution
  * @property domainEventStream the stream of domain events produced by the command (null if error occurred)
  * @property error any Throwable that occurred during command execution (null if successful)
- * @property hasError convenience property indicating whether an error occurred
  */
 data class ExpectedResult<S : Any>(
     val exchange: ServerCommandExchange<*>,
@@ -37,5 +36,6 @@ data class ExpectedResult<S : Any>(
     val domainEventStream: DomainEventStream? = null,
     val error: Throwable? = null
 ) {
+    /** Whether command execution produced an error. */
     val hasError = error != null
 }

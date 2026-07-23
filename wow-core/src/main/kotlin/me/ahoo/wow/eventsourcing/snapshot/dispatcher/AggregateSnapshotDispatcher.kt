@@ -27,12 +27,12 @@ import reactor.core.scheduler.Scheduler
  * Dispatcher for handling snapshot operations on state events for a specific aggregate.
  * Routes state event exchanges to the snapshot handler for processing.
  *
- * @param snapshotHandler the handler responsible for creating and storing snapshots
- * @param namedAggregate the named aggregate this dispatcher handles
  * @param name the name of this dispatcher (default: aggregateName-AggregateSnapshotDispatcher)
- * @param parallelism the number of parallel processing groups (default: MessageParallelism.DEFAULT_PARALLELISM)
- * @param scheduler the scheduler for processing messages
+ * @param namedAggregate the named aggregate this dispatcher handles
  * @param messageFlux the flux of state event exchanges to process
+ * @param parallelism the number of parallel processing groups (default: MessageParallelism.DEFAULT_PARALLELISM)
+ * @param snapshotHandler the handler responsible for creating and storing snapshots
+ * @param scheduler the scheduler for processing messages
  */
 class AggregateSnapshotDispatcher(
     override val name: String =

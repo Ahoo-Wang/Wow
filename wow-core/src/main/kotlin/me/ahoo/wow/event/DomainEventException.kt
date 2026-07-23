@@ -26,8 +26,6 @@ import me.ahoo.wow.exception.WowException
  *
  * @property domainEvent The domain event containing error information
  * @constructor Creates a new DomainEventException from a domain event with error info
- *
- * @param domainEvent The domain event that contains error details
  * @throws IllegalArgumentException if the domain event body is not ErrorInfo
  *
  * @see WowException

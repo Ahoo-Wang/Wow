@@ -23,7 +23,7 @@ interface CreateOrderItem {
 }
 
 /**
- * 订单项为实体对象 .
+ * An entity representing an item in an order.
  *
  * @author ahoo wang
  */

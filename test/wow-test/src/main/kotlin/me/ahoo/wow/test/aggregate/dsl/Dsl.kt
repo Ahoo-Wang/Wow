@@ -217,6 +217,7 @@ interface WhenDsl<S : Any> :
      * @param command the command object to execute on the aggregate
      * @param header optional command header for additional context (defaults to empty)
      * @param ownerId optional owner ID override for the command execution
+     * @param spaceId optional space ID override for the command execution
      * @param block the expectation block that defines assertions on command results
      */
     fun whenCommand(

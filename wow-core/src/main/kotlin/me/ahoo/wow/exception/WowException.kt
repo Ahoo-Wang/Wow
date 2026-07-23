@@ -36,9 +36,9 @@ import java.util.concurrent.TimeoutException
  * ```
  *
  * @property errorCode the standardized error code for this exception
- * @property errorMsg the error message
- * @property bindingErrors optional list of field-level validation errors
+ * @param errorMsg the error message
  * @param cause the underlying cause of this exception, if any
+ * @property bindingErrors optional list of field-level validation errors
  * @see ErrorInfo
  * @see BindingError
  */

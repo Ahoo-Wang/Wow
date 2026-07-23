@@ -29,10 +29,6 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
  * @param SOURCE The self-referential type for fluent method chaining (typically the implementing class)
  * @param T The type of the message body payload
  *
- * @property header The message header containing metadata key-value pairs
- * @property body The typed payload of the message
- * @property createTime The timestamp when the message was created (Unix timestamp in milliseconds)
- * @property isReadOnly Whether the message is in read-only mode (derived from header state)
  */
 @Suppress("UNCHECKED_CAST")
 interface Message<SOURCE : Message<SOURCE, T>, out T> :

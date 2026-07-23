@@ -69,6 +69,7 @@ interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> :
      * Checks if the given message is supported by this function.
      * A message is supported if its body is an instance of the supported type and its aggregate matches one of the supported topics.
      *
+     * @param M the type of the message
      * @param message the message to check
      * @return true if the message is supported, false otherwise
      */
@@ -82,6 +83,7 @@ interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> :
     /**
      * Retrieves an annotation of the specified type from the function's metadata.
      *
+     * @param A the annotation type
      * @param annotationClass the class of the annotation to retrieve
      * @return the annotation instance if present, null otherwise
      */
@@ -154,6 +156,7 @@ interface MessageFunctionAccessor<P : Any, in M : MessageExchange<*, *>, out R> 
     /**
      * Retrieves an annotation from the function's accessor using reflection.
      *
+     * @param A the annotation type
      * @param annotationClass the class of the annotation to retrieve
      * @return the annotation instance if present, null otherwise
      */
@@ -166,6 +169,9 @@ interface MessageFunctionAccessor<P : Any, in M : MessageExchange<*, *>, out R> 
  * Creates either a SimpleMessageFunctionAccessor or InjectableMessageFunctionAccessor based on whether
  * the function has injectable parameters.
  *
+ * @param P the processor type
+ * @param M the message exchange type
+ * @param R the return type
  * @param processor the processor instance to use
  * @return a MessageFunctionAccessor implementation
  *

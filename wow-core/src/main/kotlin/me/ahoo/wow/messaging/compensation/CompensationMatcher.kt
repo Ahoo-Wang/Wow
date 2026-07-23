@@ -65,6 +65,7 @@ object CompensationMatcher {
     /**
      * Marks this message for compensation with the specified target.
      *
+     * @param M The message type.
      * @param target The compensation target to associate with this message
      * @return This message with compensation headers set
      */

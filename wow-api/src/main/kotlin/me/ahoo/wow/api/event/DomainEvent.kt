@@ -38,11 +38,6 @@ const val DEFAULT_EVENT_SEQUENCE = 1
  *
  * @param T The type of the event body payload
  *
- * @property aggregateId The identifier of the aggregate that published this event
- * @property sequence The sequence number of this event within the aggregate's event stream
- * @property revision The version of the aggregate when this event was published
- * @property isLast Whether this is the final event in the current event stream
- *
  * @see me.ahoo.wow.api.messaging.NamedMessage for base messaging capabilities
  * @see me.ahoo.wow.api.modeling.AggregateId for aggregate identification
  * @see Revision for versioning information

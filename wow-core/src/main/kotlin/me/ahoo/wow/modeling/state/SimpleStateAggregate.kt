@@ -45,12 +45,14 @@ import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
  * @property metadata Metadata describing the state aggregate, including sourcing functions.
  * @property state The current state of the aggregate.
  * @property ownerId The identifier of the current owner of the aggregate. Defaults to [OwnerId.DEFAULT_OWNER_ID].
+ * @property spaceId The identifier of the current space of the aggregate. Defaults to [SpaceIdCapable.DEFAULT_SPACE_ID].
  * @property version The current version of the aggregate. Defaults to [Version.UNINITIALIZED_VERSION].
  * @property eventId The ID of the last processed event. Defaults to an empty string.
  * @property firstOperator The operator who initiated the first event. Defaults to an empty string.
  * @property operator The operator who initiated the last event. Defaults to an empty string.
  * @property firstEventTime The timestamp of the first event. Defaults to 0.
  * @property eventTime The timestamp of the last event. Defaults to 0.
+ * @property tags The ABAC tags associated with the aggregate.
  * @property deleted Indicates whether the aggregate has been deleted. Defaults to false.
  */
 class SimpleStateAggregate<S : Any>(

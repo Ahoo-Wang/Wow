@@ -69,6 +69,7 @@ interface IMaterializedSnapshot<SOURCE : IMaterializedSnapshot<SOURCE, S>, S : A
  * @property aggregateName The name of the aggregate.
  * @property tenantId The identifier of the tenant that owns this aggregate.
  * @property ownerId The identifier of the owner of this aggregate. Defaults to the default owner ID.
+ * @property spaceId The identifier of the space containing this aggregate.
  * @property aggregateId The unique identifier of this aggregate instance.
  * @property version The version number of this snapshot.
  * @property eventId The identifier of the last event that led to this snapshot.
@@ -78,6 +79,7 @@ interface IMaterializedSnapshot<SOURCE : IMaterializedSnapshot<SOURCE, S>, S : A
  * @property eventTime The timestamp of the last event for this aggregate.
  * @property state The actual state data of the aggregate.
  * @property snapshotTime The timestamp when this snapshot was created.
+ * @property tags The ABAC tags associated with the snapshot.
  * @property deleted Whether this aggregate has been marked as deleted.
  */
 data class MaterializedSnapshot<S : Any>(

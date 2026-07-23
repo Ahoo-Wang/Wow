@@ -33,15 +33,18 @@ import me.ahoo.wow.api.modeling.TenantId
  * Each snapshot corresponds to a specific version of the state within a tenant and owner context,
  * and records information such as event IDs and operation times to support tracing and auditing.
  *
- * @param tenantId Identifier for the tenant to which the snapshot belongs, used for multi-tenant differentiation.
- * @param ownerId Identifier for the owner of the snapshot, usually representing the creator or responsible person.
- * @param version The version number of the snapshot, used to track changes over time.
- * @param eventId The ID of the event that triggered the creation of this snapshot.
- * @param firstOperator The first operator who performed an operation on the state.
- * @param operator The operator who last performed an operation on the state.
- * @param firstEventTime The timestamp of the first event, marking the beginning of the state's history.
- * @param eventTime The timestamp of the last event, marking the last update time of the state.
- * @param state The actual state data, its type is generic, allowing for different types of state data.
+ * @param S The type of the state data.
+ * @property tenantId Identifier for the tenant to which the snapshot belongs, used for multi-tenant differentiation.
+ * @property ownerId Identifier for the owner of the snapshot, usually representing the creator or responsible person.
+ * @property spaceId Identifier for the space containing the snapshot.
+ * @property version The version number of the snapshot, used to track changes over time.
+ * @property eventId The ID of the event that triggered the creation of this snapshot.
+ * @property firstOperator The first operator who performed an operation on the state.
+ * @property operator The operator who last performed an operation on the state.
+ * @property firstEventTime The timestamp of the first event, marking the beginning of the state's history.
+ * @property eventTime The timestamp of the last event, marking the last update time of the state.
+ * @property state The actual state data, its type is generic, allowing for different types of state data.
+ * @property tags The ABAC tags associated with the snapshot.
  */
 data class MediumMaterializedSnapshot<S : Any>(
     override val tenantId: String,

@@ -18,8 +18,10 @@ import me.ahoo.wow.api.exception.ErrorInfo
 /**
  * The result of a batch operation.
  *
- * @param afterId The ID of the last record successfully executed in batch processing.
- * @param size Number of records successfully processed in the batch.
+ * @property afterId The ID of the last record successfully executed in batch processing.
+ * @property size Number of records successfully processed in the batch.
+ * @property errorCode The result error code.
+ * @property errorMsg The result error message.
  */
 data class BatchResult(
     val afterId: String,

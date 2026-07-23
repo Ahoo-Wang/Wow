@@ -19,7 +19,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DomainEventExchange
 
 /**
- * 主动逐出缓存.
+ * Evicts aggregate state from the cache.
  */
 open class EvictStateCacheRefresher<K, S : Any, D>(
     namedAggregate: NamedAggregate,

@@ -105,9 +105,6 @@ data class CommandRouteMetadata<C>(
  * @property variableName The name of the variable.
  * @property required Indicates if the variable is required.
  * @property bound Whether the command body field is bound. Defaults to true.
- * @property fieldName Provides the name of the last field in the [fieldPath].
- * @property variableType Dynamically determines the type of the variable based on the provided [field] and [fieldPath]. It returns `null` if the [field] is null or if the [fieldPath] cannot be resolved.
- *
  */
 data class VariableMetadata(
     val field: Field?,
@@ -116,10 +113,16 @@ data class VariableMetadata(
     val required: Boolean,
     val bound: Boolean = true
 ) {
+    /**
+     * The name of the last field in [fieldPath].
+     */
     val fieldName: String by lazy {
         fieldPath.last()
     }
 
+    /**
+     * The variable type resolved from [field] and [fieldPath], or `null` when it cannot be resolved.
+     */
     val variableType: Type? by lazy {
         this.field ?: return@lazy null
         if (fieldPath.isEmpty()) {

@@ -44,6 +44,7 @@ object TypeFieldPaths {
      *
      * @param parentName The name of the parent property (used for nested properties).
      * @param fields A list of initial properties to include in the result.
+     * @param maxDepth The maximum nested-property depth to inspect.
      * @return A list of all property paths.
      */
     fun KClass<*>.allFieldPaths(
@@ -63,8 +64,9 @@ object TypeFieldPaths {
      * Internal method to recursively retrieve all property paths.
      *
      * @param fieldPaths The list to store property paths.
-     * @param resolved A set to keep track of resolved properties to avoid duplicates.
      * @param parentName The name of the parent property (used for nested properties).
+     * @param depth The current nested-property depth.
+     * @param maxDepth The maximum nested-property depth to inspect.
      */
     private fun KClass<*>.allFieldPathsInternal(
         fieldPaths: LinkedHashSet<String>,
@@ -91,7 +93,6 @@ object TypeFieldPaths {
 
         memberProperties.filter {
             it.visibility == KVisibility.PUBLIC &&
-                // 排除静态属性
                 it.isConst.not() &&
                 it.scanAnnotation<JsonIgnore>()?.value != true
         }.forEach { property ->

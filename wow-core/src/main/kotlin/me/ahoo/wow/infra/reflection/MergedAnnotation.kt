@@ -24,7 +24,7 @@ import kotlin.reflect.full.declaredMembers
 import kotlin.reflect.full.superclasses
 
 /**
- * 获取继承自父类或者接口的注解
+ * Finds annotations inherited from a superclass or interface.
  */
 class MergedAnnotation(val element: KAnnotatedElement) {
 
@@ -120,9 +120,7 @@ class MergedAnnotation(val element: KAnnotatedElement) {
                 return true
             }
 
-            /**
-             * 遍历比较参数类型,排除第一个参数
-             */
+            // The first parameter is the receiver and is not part of the declared signature.
             for (i in 1 until this.parameters.size) {
                 if (this.parameters[i].type != other.parameters[i].type) {
                     return false

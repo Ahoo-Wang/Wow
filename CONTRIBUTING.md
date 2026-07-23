@@ -57,6 +57,24 @@ See the [contributor onboarding guide](https://wow.ahoo.me/onboarding/contributo
 - Keep generated output, credentials, signing keys, tokens, IDE state, `.gradle/`, and `node_modules/` out of commits.
 - Follow the existing conventional commit style, for example `fix(core): handle empty event stream`.
 
+## Commenting Guidelines
+
+Comments are part of the maintained code. Keep them concise, accurate, and focused on information that the code cannot express clearly on its own. The detailed examples and domain-specific rules live in the canonical [code comment standards](skills/wow-development-workflow/references/comment-standards.md).
+
+- Write source-code comments and API documentation in English. User-facing documentation follows the language of the page.
+- Use KDoc or Javadoc for public contracts whose behavior, constraints, failure modes, or usage are not obvious from the declaration. Do not add documentation that merely repeats a symbol name or type.
+- Use `//` for implementation rationale, invariants, compatibility constraints, and non-obvious edge cases. Describe why the code takes an approach rather than narrating each operation.
+- Reserve block comments for KDoc, Javadoc, license headers, or explanations that genuinely need multiple paragraphs. Do not keep disabled code in comments; rely on version control.
+- Keep documentation next to the declaration it describes. Update or remove it in the same change whenever behavior changes.
+- Use Markdown links such as `[CommandBus]` in KDoc. Keep `@param`, `@property`, `@return`, and `@throws` tags accurate and avoid redundant tags.
+- Do not commit inline task markers such as `TODO`, `FIXME`, `HACK`, or `STOPSHIP`. Track deferred work in the issue tracker and use `Issue #1234: explain the constraint.` only when the code needs that context.
+- Preserve the existing Apache 2.0 header in source files that already carry it. New hand-written source files should copy the header used by neighboring files.
+- Do not edit generated comments under paths such as `compensation/dashboard/src/generated/`; fix their schema or generator input instead.
+
+Detekt checks Kotlin KDoc consistency and task markers. ESLint checks dashboard comment spacing and task markers. Comment language and semantic quality remain review requirements because automated natural-language classification is not reliable enough for enforcement.
+
+These checks intentionally do not require comments on every declaration: unnecessary comments are noise, not documentation.
+
 ## Pull Requests
 
 1. Create a focused branch from `main`.

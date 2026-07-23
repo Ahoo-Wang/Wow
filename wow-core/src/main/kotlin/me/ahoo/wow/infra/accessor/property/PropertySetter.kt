@@ -43,7 +43,7 @@ fun interface PropertySetter<in T, in V> {
  *
  * @param T the type of the target object
  * @param V the type of the property value
- * @property property the Kotlin mutable property to modify
+ * @param property the Kotlin mutable property to modify
  */
 class SimplePropertySetter<T, V>(
     private val property: KMutableProperty1<T, V>

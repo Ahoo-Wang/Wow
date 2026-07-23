@@ -29,7 +29,7 @@ import me.ahoo.wow.api.annotation.Order
  *
  * The factory is ordered with [ORDER_FIRST] to prioritize it when loading global ID generators.
  *
- * @property idProvider the [IdGeneratorProvider] used to retrieve ID generators. Defaults to [DefaultIdGeneratorProvider.INSTANCE].
+ * @param idProvider the [IdGeneratorProvider] used to retrieve ID generators. Defaults to [DefaultIdGeneratorProvider.INSTANCE].
  * @see GlobalIdGeneratorFactory
  * @see CosIdGenerator
  */

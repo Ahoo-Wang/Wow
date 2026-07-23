@@ -140,6 +140,7 @@ class SimpleMessageFunctionRegistrar<F : MessageFunction<*, *, *>> : MessageFunc
      * Filters the registered functions to only include those that can handle
      * the message's type and aggregate.
      *
+     * @param M The message type.
      * @param message The message to find supporting functions for
      * @return A sequence of functions that support this message
      */
