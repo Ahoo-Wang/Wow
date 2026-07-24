@@ -33,16 +33,19 @@ import me.ahoo.wow.saga.stateless.StatelessSagaHandler
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.WowProperties
+import me.ahoo.wow.spring.boot.starter.createSchedulerSupplier
 import me.ahoo.wow.spring.saga.StatelessSagaDispatcherLauncher
 import me.ahoo.wow.spring.saga.StatelessSagaProcessorAutoRegistrar
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Bean
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
+@EnableConfigurationProperties(StatelessSagaDispatcherProperties::class)
 class StatelessSagaAutoConfiguration(private val wowProperties: WowProperties) {
 
     @Bean
@@ -102,14 +105,21 @@ class StatelessSagaAutoConfiguration(private val wowProperties: WowProperties) {
         handlerRegistrar: StatelessSagaFunctionRegistrar,
         domainEventBus: DomainEventBus,
         stateEventBus: StateEventBus,
-        statelessSagaHandler: StatelessSagaHandler
+        statelessSagaHandler: StatelessSagaHandler,
+        statelessSagaDispatcherProperties: StatelessSagaDispatcherProperties,
     ): StatelessSagaDispatcher {
         return StatelessSagaDispatcher(
             name = "${namedBoundedContext.contextName}.${StatelessSagaDispatcher::class.simpleName}",
+            parallelism = statelessSagaDispatcherProperties.stripeCount,
             domainEventBus = domainEventBus,
             stateEventBus = stateEventBus,
             functionRegistrar = handlerRegistrar,
             eventHandler = statelessSagaHandler,
+            schedulerSupplier = createSchedulerSupplier(
+                name = "SagaDispatcher",
+                stripeCount = statelessSagaDispatcherProperties.stripeCount,
+                schedulerPoolSize = statelessSagaDispatcherProperties.schedulerPoolSize,
+            ),
         )
     }
 

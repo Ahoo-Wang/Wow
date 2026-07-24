@@ -26,6 +26,7 @@ import me.ahoo.wow.saga.stateless.StatelessSagaDispatcher
 import me.ahoo.wow.saga.stateless.StatelessSagaFunctionFilter
 import me.ahoo.wow.saga.stateless.StatelessSagaFunctionRegistrar
 import me.ahoo.wow.saga.stateless.StatelessSagaHandler
+import me.ahoo.wow.spring.boot.starter.assertDispatcherTuning
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.saga.StatelessSagaDispatcherLauncher
 import me.ahoo.wow.spring.saga.StatelessSagaProcessorAutoRegistrar
@@ -40,6 +41,10 @@ internal class StatelessSagaAutoConfigurationTest {
     fun `should load context with stateless saga dispatcher beans`() {
         contextRunner
             .enableWow()
+            .withPropertyValues(
+                "${StatelessSagaDispatcherProperties.PREFIX}.stripe-count=104",
+                "${StatelessSagaDispatcherProperties.PREFIX}.scheduler-pool-size=5",
+            )
             .withBean(CommandGateway::class.java, { mockk() })
             .withBean(CommandMessageFactory::class.java, { mockk() })
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
@@ -58,6 +63,8 @@ internal class StatelessSagaAutoConfigurationTest {
                     .hasSingleBean(StatelessSagaDispatcher::class.java)
                     .hasSingleBean(StatelessSagaDispatcherLauncher::class.java)
 
+                context.getBean(StatelessSagaDispatcher::class.java)
+                    .assertDispatcherTuning(expectedStripeCount = 104, expectedSchedulerPoolSize = 5)
                 val processorAutoRegistrar = context.getBean(StatelessSagaProcessorAutoRegistrar::class.java)
                 processorAutoRegistrar.start()
                 processorAutoRegistrar.stop()

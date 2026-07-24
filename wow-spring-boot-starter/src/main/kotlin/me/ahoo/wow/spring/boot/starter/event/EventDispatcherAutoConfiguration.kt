@@ -32,16 +32,19 @@ import me.ahoo.wow.messaging.handler.RetryableFilter
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.WowProperties
+import me.ahoo.wow.spring.boot.starter.createSchedulerSupplier
 import me.ahoo.wow.spring.event.DomainEventDispatcherLauncher
 import me.ahoo.wow.spring.event.EventProcessorAutoRegistrar
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Bean
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
+@EnableConfigurationProperties(EventDispatcherProperties::class)
 class EventDispatcherAutoConfiguration(private val wowProperties: WowProperties) {
 
     @Bean
@@ -101,14 +104,21 @@ class EventDispatcherAutoConfiguration(private val wowProperties: WowProperties)
         domainEventBus: DomainEventBus,
         stateEventBus: StateEventBus,
         handlerRegistrar: DomainEventFunctionRegistrar,
-        eventDispatcherHandler: DomainEventHandler
+        eventDispatcherHandler: DomainEventHandler,
+        eventDispatcherProperties: EventDispatcherProperties,
     ): DomainEventDispatcher {
         return DomainEventDispatcher(
             name = "${namedBoundedContext.contextName}.${DomainEventDispatcher::class.simpleName}",
+            parallelism = eventDispatcherProperties.stripeCount,
             domainEventBus = domainEventBus,
             stateEventBus = stateEventBus,
             functionRegistrar = handlerRegistrar,
             eventHandler = eventDispatcherHandler,
+            schedulerSupplier = createSchedulerSupplier(
+                name = "EventDispatcher",
+                stripeCount = eventDispatcherProperties.stripeCount,
+                schedulerPoolSize = eventDispatcherProperties.schedulerPoolSize,
+            ),
         )
     }
 

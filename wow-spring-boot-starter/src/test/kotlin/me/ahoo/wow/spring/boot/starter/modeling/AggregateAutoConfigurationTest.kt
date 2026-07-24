@@ -25,11 +25,14 @@ import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.modeling.command.AggregateProcessorFactory
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
 import me.ahoo.wow.modeling.command.dispatcher.AggregateProcessorFilter
+import me.ahoo.wow.modeling.command.dispatcher.CommandDispatcher
 import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
 import me.ahoo.wow.modeling.command.dispatcher.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
+import me.ahoo.wow.spring.boot.starter.assertDispatcherTuning
+import me.ahoo.wow.spring.boot.starter.command.CommandDispatcherProperties
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.opentelemetry.WowOpenTelemetryAutoConfiguration
 import me.ahoo.wow.spring.command.CommandDispatcherLauncher
@@ -46,6 +49,10 @@ internal class AggregateAutoConfigurationTest {
     fun `should load context with aggregate processing beans`() {
         contextRunner
             .enableWow()
+            .withPropertyValues(
+                "${CommandDispatcherProperties.PREFIX}.stripe-count=101",
+                "${CommandDispatcherProperties.PREFIX}.scheduler-pool-size=2",
+            )
             .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
             .withBean(SnapshotStore::class.java, { NoOpSnapshotStore })
             .withBean(EventStore::class.java, { InMemoryEventStore() })
@@ -66,6 +73,9 @@ internal class AggregateAutoConfigurationTest {
                     .hasSingleBean(FilterChain::class.java)
                     .hasSingleBean(CommandHandler::class.java)
                     .hasSingleBean(CommandDispatcherLauncher::class.java)
+
+                context.getBean(CommandDispatcher::class.java)
+                    .assertDispatcherTuning(expectedStripeCount = 101, expectedSchedulerPoolSize = 2)
             }
     }
 }
