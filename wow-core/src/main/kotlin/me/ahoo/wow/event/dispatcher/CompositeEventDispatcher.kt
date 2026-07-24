@@ -50,7 +50,8 @@ import reactor.core.publisher.Mono
  * ```
  *
  * @param name The name of this dispatcher, typically formatted as `applicationName.DomainEventDispatcher`.
- * @param parallelism The level of parallelism for processing events. Defaults to [MessageParallelism.DEFAULT_PARALLELISM].
+ * @param parallelism The number of event ordering stripes, independent from Scheduler workers.
+ * Defaults to [MessageParallelism.DEFAULT_PARALLELISM].
  * @param domainEventBus The domain event bus for publishing and subscribing to domain events.
  * @param stateEventBus The state event bus for handling state-related events.
  * @param functionRegistrar The registrar for domain event handler functions.
@@ -67,7 +68,7 @@ open class CompositeEventDispatcher(
      */
     override val name: String,
     /**
-     * The level of parallelism for processing events.
+     * The number of ordering stripes for processing events.
      * @default MessageParallelism.DEFAULT_PARALLELISM
      */
     private val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
@@ -128,7 +129,8 @@ open class CompositeEventDispatcher(
     /**
      * Stops the composite event dispatcher gracefully by stopping both the event stream dispatcher and state event dispatcher.
      *
-     * This method waits for both dispatchers to complete their current processing and shut down cleanly.
+     * This method cancels both dispatchers, waits for cancellation to propagate, and then disposes
+     * their shared Scheduler supplier. It does not drain queued events.
      *
      * @return A [Mono] that completes when both dispatchers have stopped gracefully.
      */

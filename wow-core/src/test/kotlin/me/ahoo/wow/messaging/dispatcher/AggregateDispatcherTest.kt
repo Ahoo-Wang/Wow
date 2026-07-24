@@ -29,6 +29,9 @@ import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import io.micrometer.core.instrument.Metrics as MicrometerMetrics
 
 class AggregateDispatcherTest {
@@ -55,6 +58,31 @@ class AggregateDispatcherTest {
         dispatcher.start()
 
         StepVerifier.create(dispatcher.stopGracefully())
+            .verifyComplete()
+    }
+
+    @Test
+    fun `stopGracefully is idempotent before start`() {
+        val dispatcher = RecordingAggregateDispatcher(messageFlux = Flux.never())
+
+        StepVerifier.create(dispatcher.stopGracefully())
+            .verifyComplete()
+        StepVerifier.create(dispatcher.stopGracefully())
+            .verifyComplete()
+    }
+
+    @Test
+    fun `terminatedSignal completes after a non-empty message flux completes`() {
+        val exchange = TestExchange(group = 1)
+        val dispatcher = RecordingAggregateDispatcher(messageFlux = Flux.just(exchange))
+
+        dispatcher.start()
+
+        StepVerifier.create(dispatcher.terminatedSignal)
+            .expectComplete()
+            .verify(Duration.ofSeconds(1))
+        StepVerifier.create(dispatcher.handled.asFlux().take(1))
+            .expectNext(exchange)
             .verifyComplete()
     }
 
@@ -86,6 +114,39 @@ class AggregateDispatcherTest {
     }
 
     @Test
+    fun `stopGracefully waits until every active group observes cancellation`() {
+        val source = Sinks.many().unicast().onBackpressureBuffer<TestExchange>()
+        val invoked = CountDownLatch(2)
+        val cancelledCount = AtomicInteger()
+        val scheduler = Schedulers.newParallel("aggregate-dispatcher-test", 2)
+        val dispatcher = RecordingAggregateDispatcher(
+            messageFlux = source.asFlux(),
+            handle = {
+                invoked.countDown()
+                Mono.never<Void>()
+                    .doOnCancel { cancelledCount.incrementAndGet() }
+            },
+            scheduler = scheduler,
+        )
+        try {
+            dispatcher.start()
+
+            source.tryEmitNext(TestExchange(group = 1)).orThrow()
+            source.tryEmitNext(TestExchange(group = 2)).orThrow()
+            check(invoked.await(1, TimeUnit.SECONDS)) {
+                "Both groups should enter their handlers before shutdown."
+            }
+
+            StepVerifier.create(dispatcher.stopGracefully())
+                .verifyComplete()
+
+            cancelledCount.get().assert().isEqualTo(2)
+        } finally {
+            scheduler.dispose()
+        }
+    }
+
+    @Test
     fun `handleExchange errors are propagated to subscriber error hook`() {
         val source = Sinks.many().unicast().onBackpressureBuffer<TestExchange>()
         val error = IllegalStateException("handler failed")
@@ -96,6 +157,9 @@ class AggregateDispatcherTest {
             .then { source.tryEmitNext(TestExchange(group = 3)).orThrow() }
             .expectNext(error)
             .verifyComplete()
+        StepVerifier.create(dispatcher.terminatedSignal)
+            .expectComplete()
+            .verify(Duration.ofSeconds(1))
     }
 
     @Test
