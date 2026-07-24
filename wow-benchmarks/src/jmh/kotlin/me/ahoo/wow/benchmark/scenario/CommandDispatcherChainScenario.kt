@@ -184,9 +184,7 @@ private class DispatchChainHandler(
         ) {
             "Dispatch-chain completion sink is missing."
         }
-        // Reactor invokes nested doFinally callbacks from the outside in. The dispatcher's
-        // outer doFinally therefore decrements its active-task counter before this callback
-        // acknowledges the exchange to the benchmark.
+        // Acknowledges the exchange only after the handler Mono terminates.
         val done: Mono<Void> = Mono.empty()
         return done.doFinally { completionSink.tryEmitEmpty().orThrow() }
     }

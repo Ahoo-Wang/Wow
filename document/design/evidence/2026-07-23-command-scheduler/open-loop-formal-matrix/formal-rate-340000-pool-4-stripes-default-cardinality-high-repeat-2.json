@@ -1,0 +1,227 @@
+{
+  "schemaVersion" : 1,
+  "status" : "SUCCESS",
+  "engine" : "bounded-open-loop",
+  "runId" : "5476a813-ba3c-49f4-bf71-0d6011e24291",
+  "startedAt" : "2026-07-23T15:18:50.757184Z",
+  "completedAt" : "2026-07-23T15:19:21.399906Z",
+  "config" : {
+    "ratePerSecond" : 340000,
+    "warmupSeconds" : 10.0,
+    "measurementSeconds" : 20.0,
+    "producerCount" : 16,
+    "maxInFlight" : 65536,
+    "requestTimeoutMillis" : 5000,
+    "watchdogIntervalMillis" : 5,
+    "startLeadMillis" : 250,
+    "schedulerPoolSizeToken" : "4",
+    "schedulerPoolSize" : 4,
+    "stripeCountToken" : "default",
+    "stripeCount" : 896,
+    "aggregateCardinality" : "high",
+    "aggregatePlacement" : "BALANCED",
+    "configuredStripeCount" : 896,
+    "theoreticalMaxActiveStripes" : 896
+  },
+  "protocol" : {
+    "arrivalModel" : "constant-absolute-time",
+    "waitApi" : "sendAndWait-last-processed",
+    "sentObservation" : "benchmark-command-bus-doOnSuccess",
+    "admission" : "immediate-client-shed-at-max-in-flight",
+    "timeout" : "removable-deadline-wheel-from-scheduled-arrival-half-open-deadline",
+    "serverDrain" : "command-bus-subscription-through-command-handler-terminal",
+    "latencyPercentiles" : {
+      "generatorLag" : "measurement-admitted-conditional",
+      "scheduledToSent" : "measurement-sent-conditional",
+      "processedLatencies" : "measurement-processed-by-deadline-conditional",
+      "sentToProcessed" : "measurement-causally-ordered-observations-only"
+    },
+    "observerEffect" : {
+      "sentProbe" : "one deferred bus wrapper, terminal hooks, and one client-state lookup",
+      "serverDrainProbe" : "one ticket state machine per bus subscription and handler terminal hooks",
+      "timeoutProbe" : "O(1) client sampling plus removable deadline buckets; sweep cost is reported"
+    }
+  },
+  "timing" : {
+    "plannedStartNanos" : 123275068968916,
+    "measurementStartNanos" : 123285068968916,
+    "measurementEndNanos" : 123305068968916,
+    "drainCompletedNanos" : 123305071225125,
+    "drainAfterMeasurementMillis" : 2.256209,
+    "serverOutstandingBeforeScenarioClose" : 0
+  },
+  "results" : {
+    "cohorts" : {
+      "warmup" : {
+        "planned" : 3400000,
+        "generatorMissed" : 9,
+        "generatorExpired" : 0,
+        "shedAtMaxInFlight" : 497823,
+        "admitted" : 2902168,
+        "sent" : 2902168,
+        "sentByDeadline" : 2902168,
+        "processedByDeadline" : 2902168,
+        "commandFailed" : 0,
+        "gatewayFailed" : 0,
+        "timedOut" : 0,
+        "forcedCancelled" : 0,
+        "terminal" : 2902168
+      },
+      "measurement" : {
+        "planned" : 6800000,
+        "generatorMissed" : 11,
+        "generatorExpired" : 0,
+        "shedAtMaxInFlight" : 0,
+        "admitted" : 6799989,
+        "sent" : 6799989,
+        "sentByDeadline" : 6799989,
+        "processedByDeadline" : 6799989,
+        "commandFailed" : 0,
+        "gatewayFailed" : 0,
+        "timedOut" : 0,
+        "forcedCancelled" : 0,
+        "terminal" : 6799989
+      }
+    },
+    "measurementWindow" : {
+      "sent" : 6799989,
+      "processedByDeadline" : 6799983,
+      "terminal" : 6799983,
+      "sentPerSecond" : 339999.45,
+      "processedByDeadlinePerSecond" : 339999.15,
+      "terminalPerSecond" : 339999.15,
+      "byArrivalCohort" : {
+        "warmup" : {
+          "sent" : 0,
+          "processedByDeadline" : 4,
+          "terminal" : 4
+        },
+        "measurement" : {
+          "sent" : 6799989,
+          "processedByDeadline" : 6799979,
+          "terminal" : 6799979
+        }
+      }
+    },
+    "measurementYield" : {
+      "admittedPerPlanned" : 0.9999983823529411,
+      "sentByDeadlinePerPlanned" : 0.9999983823529411,
+      "processedByDeadlinePerPlanned" : 0.9999983823529411,
+      "shedPerPlanned" : 0.0,
+      "timeoutPerPlanned" : 0.0,
+      "allOfferedScheduledToProcessedP99Micros" : 4268.032,
+      "allOfferedP99ConditionalPercentile" : 99.00016014731789,
+      "allOfferedP99Status" : "deadline-censored-empirical-order-statistic"
+    },
+    "measurementLatencyMicros" : {
+      "generatorLagForAdmitted" : {
+        "count" : 6799989,
+        "mean" : 31.835574063575663,
+        "min" : 0.18,
+        "p50" : 19.168,
+        "p95" : 73.856,
+        "p99" : 241.40800000000002,
+        "max" : 6111.232
+      },
+      "scheduledToSentForSent" : {
+        "count" : 6799989,
+        "mean" : 35.75456043281835,
+        "min" : 0.9560000000000001,
+        "p50" : 22.656,
+        "p95" : 78.336,
+        "p99" : 244.48000000000002,
+        "max" : 6119.424
+      },
+      "scheduledToProcessedForProcessedByDeadline" : {
+        "count" : 6799989,
+        "mean" : 242.73674061649268,
+        "min" : 4.696,
+        "p50" : 53.120000000000005,
+        "p95" : 1105.92,
+        "p99" : 4268.032,
+        "max" : 12517.376
+      },
+      "admittedToProcessedForProcessedByDeadline" : {
+        "count" : 6799989,
+        "mean" : 210.90113026418115,
+        "min" : 3.708,
+        "p50" : 31.136,
+        "p95" : 995.328,
+        "p99" : 4165.6320000000005,
+        "max" : 9682.944
+      },
+      "sentToProcessedForCausallyOrderedObservations" : {
+        "count" : 6799989,
+        "mean" : 206.98275211092226,
+        "min" : 0.083,
+        "p50" : 27.36,
+        "p95" : 992.256,
+        "p99" : 4161.536,
+        "max" : 9682.944
+      },
+      "sentObservedAfterProcessed" : 0
+    },
+    "clientInFlight" : {
+      "runPeak" : 65536,
+      "measurementPeak" : 2560,
+      "sampleCount" : 3909,
+      "mean" : 71.3274494755692,
+      "firstDecileMean" : 117.23589743589744,
+      "lastDecileMean" : 121.45780051150895,
+      "lastMinusFirstDecileMean" : 4.2219030756115075
+    },
+    "serverOutstanding" : {
+      "created" : 9702157,
+      "sendSucceeded" : 9702157,
+      "sendFailed" : 0,
+      "sendCancelled" : 0,
+      "handlerStarted" : 9702157,
+      "handlerTerminated" : 9702157,
+      "handlerFailed" : 0,
+      "naturallyClosed" : 9702157,
+      "forcedClosed" : 0,
+      "runPeak" : 65540,
+      "finalOutstanding" : 0,
+      "finalActiveTickets" : 0,
+      "missingHandlerTicket" : 0,
+      "duplicateTransitions" : 0,
+      "lateTransitions" : 0,
+      "handlerTerminalSignals" : {
+        "ON_COMPLETE" : 9702157
+      }
+    },
+    "timeoutObserver" : {
+      "resolutionNanos" : 5000000,
+      "sweepCount" : 5779,
+      "elapsedTicks" : 6000,
+      "bucketsVisited" : 6000,
+      "candidatesVisited" : 5915,
+      "expired" : 0,
+      "meanSweepMicros" : 7.753747188094826,
+      "maxSweepMicros" : 433.792,
+      "finalWheelSize" : 0
+    },
+    "commandFailureStages" : { },
+    "invariants" : {
+      "valid" : true,
+      "violations" : [ ],
+      "finalClientInFlight" : 0,
+      "finalActiveClientRequests" : 0,
+      "finalDeadlineRegistrations" : 0,
+      "finalServerOutstanding" : 0,
+      "finalActiveServerTickets" : 0
+    }
+  },
+  "producerFailures" : [ ],
+  "runtime" : {
+    "javaVersion" : "17.0.7",
+    "vmName" : "OpenJDK 64-Bit Server VM",
+    "vmVersion" : "17.0.7+7-LTS",
+    "javaHome" : "/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home",
+    "javaExecutable" : "/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java",
+    "osName" : "Mac OS X",
+    "osVersion" : "26.5.2",
+    "osArch" : "aarch64",
+    "availableProcessors" : 14
+  }
+}

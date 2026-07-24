@@ -101,6 +101,59 @@ wow:
   shutdown-timeout: 120s
 ```
 
+## Dispatcher 调优
+
+`stripe-count` 与 `scheduler-pool-size` 控制不同的资源边界：
+
+- `stripe-count` 是按 aggregate ID 哈希的顺序分片数。相同 stripe 内串行执行；降低它会增加哈希碰撞和队头阻塞。
+- `scheduler-pool-size` 是**每个命名聚合类型**的专用 Reactor Scheduler worker 数，不是整个角色的线程上限。一个角色的总线程上界近似为活跃聚合类型数乘以该值。
+
+| 属性 | 默认值 | 描述 |
+|------|--------|------|
+| `wow.command.dispatcher.stripe-count` | `64 × CPU` | 命令顺序分片数 |
+| `wow.command.dispatcher.scheduler-pool-size` | `CPU` | 每个命令聚合类型的 worker 数 |
+| `wow.event.dispatcher.stripe-count` | `64 × CPU` | 领域事件顺序分片数 |
+| `wow.event.dispatcher.scheduler-pool-size` | `CPU` | 每个事件聚合类型的 worker 数 |
+| `wow.projection.dispatcher.stripe-count` | `64 × CPU` | Projection 顺序分片数 |
+| `wow.projection.dispatcher.scheduler-pool-size` | `CPU` | 每个 Projection 聚合类型的 worker 数 |
+| `wow.saga.stateless.dispatcher.stripe-count` | `64 × CPU` | Stateless Saga 顺序分片数 |
+| `wow.saga.stateless.dispatcher.scheduler-pool-size` | `CPU` | 每个 Stateless Saga 聚合类型的 worker 数 |
+
+未显式配置角色属性时，`stripe-count` 继续兼容 JVM system property
+`-Dwow.parallelism`，`scheduler-pool-size` 继续兼容
+`-Dreactor.schedulers.defaultPoolSize`。角色属性只影响对应 Wow dispatcher，不会改变
+其他 Reactor 组件。所有值必须大于 `0`。
+
+以下数值仅用于展示四个角色可独立覆盖，并不是通用推荐值：
+
+```yaml
+wow:
+  command:
+    dispatcher:
+      stripe-count: 896
+      scheduler-pool-size: 4
+  event:
+    dispatcher:
+      stripe-count: 896
+      scheduler-pool-size: 8
+  projection:
+    dispatcher:
+      stripe-count: 896
+      scheduler-pool-size: 4
+  saga:
+    stateless:
+      dispatcher:
+        stripe-count: 896
+        scheduler-pool-size: 4
+```
+
+极短、纯内存、非阻塞的命令可从 pool `2–4` 开始基准扫描；CPU-heavy handler
+应从接近可用处理器数开始。对于同质极短路径，可连同 stripe
+`4/16/64/default` 做二维扫描；降低 stripe 会增加碰撞与队头阻塞，只有在 p95/p99、
+热点 ID 和异质 handler 同时通过验收时才应采用。不要只凭 CPU 数量修改默认值，必须
+同时检查吞吐、积压、上下文切换和真实存储延迟。Snapshot dispatcher 暂未提供角色级
+配置，仍使用兼容默认。
+
 ## 命令总线配置
 
 ### CommandProperties

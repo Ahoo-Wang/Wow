@@ -115,6 +115,29 @@ wow:
 | `wow.eventsourcing.state.bus.type` | BusType | `kafka` | State event bus type |
 | `wow.eventsourcing.state.bus.local-first.enabled` | Boolean | `true` | Enable LocalFirst mode |
 
+## Dispatcher Tuning
+
+`stripe-count` controls aggregate-ID ordering domains; it is not a thread count.
+`scheduler-pool-size` controls the dedicated Reactor Scheduler workers created for each
+materialized named aggregate type; it is not a role-wide thread cap.
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `wow.command.dispatcher.stripe-count` | Int | `64 × CPU` | Command ordering stripes |
+| `wow.command.dispatcher.scheduler-pool-size` | Int | `CPU` | Workers per command aggregate type |
+| `wow.event.dispatcher.stripe-count` | Int | `64 × CPU` | Domain event ordering stripes |
+| `wow.event.dispatcher.scheduler-pool-size` | Int | `CPU` | Workers per event aggregate type |
+| `wow.projection.dispatcher.stripe-count` | Int | `64 × CPU` | Projection ordering stripes |
+| `wow.projection.dispatcher.scheduler-pool-size` | Int | `CPU` | Workers per projection aggregate type |
+| `wow.saga.stateless.dispatcher.stripe-count` | Int | `64 × CPU` | Stateless saga ordering stripes |
+| `wow.saga.stateless.dispatcher.scheduler-pool-size` | Int | `CPU` | Workers per stateless saga aggregate type |
+
+Every value must be greater than `0`. When a role-specific property is absent,
+`stripe-count` falls back to `-Dwow.parallelism` and `scheduler-pool-size` falls back to
+`-Dreactor.schedulers.defaultPoolSize`. Keep the defaults for unknown workloads; lower values
+must be validated against CPU-heavy handlers, hash collisions, head-of-line blocking, tail
+latency, and the number of active aggregate types.
+
 ## Event Sourcing
 
 ### Event Store

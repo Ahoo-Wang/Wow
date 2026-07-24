@@ -159,7 +159,8 @@ abstract class MainDispatcher<T : Any> : MessageDispatcher {
      * Stops the dispatcher gracefully by shutting down all aggregate dispatchers.
      *
      * Logs the closure and calls [MessageDispatcher.stopGracefully] on each aggregate dispatcher.
-     * This method waits for all dispatchers to complete their current operations before shutting down.
+     * This method cancels all aggregate dispatchers and waits for cancellation to propagate.
+     * It does not drain queued messages or wait for active business operations to succeed.
      * It should be called during the application's shutdown phase.
      *
      * @return A [Mono] that completes when all aggregate dispatchers have stopped gracefully.

@@ -1,6 +1,26 @@
 {
   "groups": [
     {
+      "name": "wow.command.dispatcher",
+      "type": "me.ahoo.wow.spring.boot.starter.command.CommandDispatcherProperties",
+      "description": "Command dispatcher stripe and Scheduler worker tuning."
+    },
+    {
+      "name": "wow.event.dispatcher",
+      "type": "me.ahoo.wow.spring.boot.starter.event.EventDispatcherProperties",
+      "description": "Domain event dispatcher stripe and Scheduler worker tuning."
+    },
+    {
+      "name": "wow.projection.dispatcher",
+      "type": "me.ahoo.wow.spring.boot.starter.projection.ProjectionDispatcherProperties",
+      "description": "Projection dispatcher stripe and Scheduler worker tuning."
+    },
+    {
+      "name": "wow.saga.stateless.dispatcher",
+      "type": "me.ahoo.wow.spring.boot.starter.saga.StatelessSagaDispatcherProperties",
+      "description": "Stateless saga dispatcher stripe and Scheduler worker tuning."
+    },
+    {
       "name": "wow.eventsourcing.storage-routing",
       "type": "me.ahoo.wow.spring.boot.starter.eventsourcing.routing.StorageRoutingProperties",
       "description": "Aggregate-level EventStore and SnapshotStore routing."
@@ -12,6 +32,46 @@
     }
   ],
   "properties": [
+    {
+      "name": "wow.command.dispatcher.stripe-count",
+      "type": "java.lang.Integer",
+      "description": "Number of command ordering stripes. Defaults to the wow.parallelism JVM system property when set, otherwise 64 times the available processors."
+    },
+    {
+      "name": "wow.command.dispatcher.scheduler-pool-size",
+      "type": "java.lang.Integer",
+      "description": "Worker count of each named aggregate's dedicated command Scheduler, not a role-wide thread cap. Defaults to Reactor's default parallel pool size."
+    },
+    {
+      "name": "wow.event.dispatcher.stripe-count",
+      "type": "java.lang.Integer",
+      "description": "Number of domain event ordering stripes. Defaults to the wow.parallelism JVM system property when set, otherwise 64 times the available processors."
+    },
+    {
+      "name": "wow.event.dispatcher.scheduler-pool-size",
+      "type": "java.lang.Integer",
+      "description": "Worker count of each named aggregate's dedicated domain event Scheduler, shared by its event-stream and state-event paths. Defaults to Reactor's default parallel pool size."
+    },
+    {
+      "name": "wow.projection.dispatcher.stripe-count",
+      "type": "java.lang.Integer",
+      "description": "Number of projection ordering stripes. Defaults to the wow.parallelism JVM system property when set, otherwise 64 times the available processors."
+    },
+    {
+      "name": "wow.projection.dispatcher.scheduler-pool-size",
+      "type": "java.lang.Integer",
+      "description": "Worker count of each named aggregate's dedicated projection Scheduler, shared by its event-stream and state-event paths. Defaults to Reactor's default parallel pool size."
+    },
+    {
+      "name": "wow.saga.stateless.dispatcher.stripe-count",
+      "type": "java.lang.Integer",
+      "description": "Number of stateless saga ordering stripes. Defaults to the wow.parallelism JVM system property when set, otherwise 64 times the available processors."
+    },
+    {
+      "name": "wow.saga.stateless.dispatcher.scheduler-pool-size",
+      "type": "java.lang.Integer",
+      "description": "Worker count of each named aggregate's dedicated stateless saga Scheduler, shared by its event-stream and state-event paths. Defaults to Reactor's default parallel pool size."
+    },
     {
       "name": "wow.eventsourcing.storage-routing.aggregates.*.event.storage",
       "type": "me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType",

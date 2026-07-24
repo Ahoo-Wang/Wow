@@ -20,6 +20,7 @@ import me.ahoo.wow.command.validation.validateCommand
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.CommandWaitNotifier
+import me.ahoo.wow.command.wait.SkipsSuccessfulSentSignal
 import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.command.wait.WaitHandle
 import me.ahoo.wow.command.wait.WaitPlan
@@ -269,8 +270,12 @@ class DefaultCommandGateway(
             waitPlan.propagate(commandWaitEndpoint, command.header)
             commandBus.send(command)
         }.doOnSuccess {
-            val waitSignal = command.commandSentSignal(waitPlan.waitCommandId)
-            waitHandle.next(waitSignal)
+            if (waitHandle !is SkipsSuccessfulSentSignal ||
+                waitPlan.target.stage == CommandStage.SENT
+            ) {
+                val waitSignal = command.commandSentSignal(waitPlan.waitCommandId)
+                waitHandle.next(waitSignal)
+            }
         }.doOnError {
             val waitSignal = command.commandSentSignal(waitPlan.waitCommandId, it)
             waitHandle.next(waitSignal)

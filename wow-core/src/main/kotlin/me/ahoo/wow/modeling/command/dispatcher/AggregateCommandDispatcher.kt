@@ -25,21 +25,21 @@ import reactor.core.scheduler.Scheduler
 /**
  * Aggregate command dispatcher grouped by named aggregate.
  *
- * This dispatcher manages command processing for a specific named aggregate, ensuring proper
- * parallelism and thread affinity. Each aggregate ID is bound to one worker thread, but one
- * worker can handle multiple aggregate IDs, providing efficient resource utilization.
+ * This dispatcher manages command processing for a specific named aggregate. Aggregate IDs
+ * hash to ordering stripes; exchanges in one stripe enter the command handler sequentially
+ * after a Scheduler handoff. Asynchronous handlers and stores may switch threads downstream.
  *
  * Key characteristics:
- * - One AggregateId binds to one Worker (Thread)
- * - One Worker can be bound by multiple aggregateIds
- * - Workers have aggregate ID affinity for consistent processing
+ * - One AggregateId consistently maps to one ordering stripe
+ * - Multiple aggregate IDs may collide on the same stripe
+ * - Each stripe preserves handler-entry order
  *
  * @param C The type of the command aggregate root.
  * @param S The type of the state aggregate.
  * @param name The name of this dispatcher.
  * @property aggregateMetadata The metadata for the aggregate being dispatched.
  * @param messageFlux The flux of command exchanges to process.
- * @param parallelism The level of parallelism for message processing.
+ * @param parallelism The number of ordering stripes, independent from Scheduler workers.
  * @param commandHandler The command handler for processing commands.
  * @param scheduler The scheduler for handling messages.
  */
@@ -67,7 +67,7 @@ class AggregateCommandDispatcher<C : Any, S : Any>(
     }
 
     /**
-     * Generates a group key for the command exchange to ensure proper parallelism and ordering.
+     * Generates an ordering-stripe key for the command exchange.
      *
      * @return The group key for this exchange.
      */

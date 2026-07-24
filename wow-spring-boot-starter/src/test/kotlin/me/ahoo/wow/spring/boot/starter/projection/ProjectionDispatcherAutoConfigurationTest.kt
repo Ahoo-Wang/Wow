@@ -22,6 +22,7 @@ import me.ahoo.wow.projection.ProjectionDispatcher
 import me.ahoo.wow.projection.ProjectionFunctionFilter
 import me.ahoo.wow.projection.ProjectionFunctionRegistrar
 import me.ahoo.wow.projection.ProjectionHandler
+import me.ahoo.wow.spring.boot.starter.assertDispatcherTuning
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.opentelemetry.WowOpenTelemetryAutoConfiguration
 import me.ahoo.wow.spring.projection.ProjectionDispatcherLauncher
@@ -37,6 +38,10 @@ internal class ProjectionDispatcherAutoConfigurationTest {
     fun `should load context with projection dispatcher beans`() {
         contextRunner
             .enableWow()
+            .withPropertyValues(
+                "${ProjectionDispatcherProperties.PREFIX}.stripe-count=103",
+                "${ProjectionDispatcherProperties.PREFIX}.scheduler-pool-size=4",
+            )
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(StateEventBus::class.java, { InMemoryStateEventBus() })
             .withUserConfiguration(
@@ -52,6 +57,9 @@ internal class ProjectionDispatcherAutoConfigurationTest {
                     .hasSingleBean(ProjectionHandler::class.java)
                     .hasSingleBean(ProjectionDispatcher::class.java)
                     .hasSingleBean(ProjectionDispatcherLauncher::class.java)
+
+                context.getBean(ProjectionDispatcher::class.java)
+                    .assertDispatcherTuning(expectedStripeCount = 103, expectedSchedulerPoolSize = 4)
             }
     }
 }

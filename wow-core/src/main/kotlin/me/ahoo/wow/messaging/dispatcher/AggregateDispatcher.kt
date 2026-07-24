@@ -25,7 +25,7 @@ import reactor.core.publisher.GroupedFlux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.core.scheduler.Scheduler
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Abstract dispatcher for handling message exchanges for a specific aggregate with graceful shutdown support.
@@ -36,9 +36,9 @@ import java.util.concurrent.atomic.AtomicInteger
  * within each group while allowing concurrent processing across different groups.
  *
  * Key features:
- * - Parallel message processing with configurable parallelism level
+ * - Parallel message processing with a configurable ordering-stripe count
  * - Metrics collection for monitoring dispatcher performance
- * - Graceful shutdown that waits for active tasks to complete
+ * - Graceful shutdown that waits for active group cancellation to settle
  * - Error handling through SafeSubscriber integration
  * - Scheduler-based execution for resource management
  *
@@ -82,18 +82,16 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
     TerminatedSignalCapable<Void> {
     companion object {
         private val log = KotlinLogging.logger {}
+        private const val ROOT_TERMINATED_MASK = Long.MIN_VALUE
     }
 
     /**
-     * The level of parallelism for processing grouped exchanges.
+     * The number of ordering stripes for grouped exchanges.
      *
-     * This value determines how many groups can be processed concurrently.
-     * Each group processes exchanges sequentially, but different groups
-     * can be processed in parallel. A higher parallelism value allows
-     * more concurrent processing but may increase resource consumption.
-     *
-     * Typical values range from 1 (sequential processing) to the number
-     * of available CPU cores or higher for I/O-bound workloads.
+     * This value bounds the key space used by [toGroupKey] and the number of
+     * groups subscribed by `flatMap`. Each stripe processes exchanges
+     * sequentially. It is independent from the worker count of [scheduler];
+     * reducing it can increase hash collisions and head-of-line blocking.
      */
     abstract override val parallelism: Int
 
@@ -116,7 +114,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
      *
      * This reactive stream provides the source of messages that the dispatcher
      * will handle. The flux is grouped by key and processed in parallel
-     * according to the configured parallelism level.
+     * according to the configured ordering-stripe count.
      *
      * The flux should emit MessageExchange instances that can be processed
      * by the handleExchange() method implementation.
@@ -126,7 +124,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
     private val terminatedSink = Sinks.empty<Void>()
 
     override val terminatedSignal: Mono<Void> = terminatedSink.asMono()
-    private val activeTaskCounter = AtomicInteger(0)
+    private val terminationState = AtomicLong(0)
 
     private fun tryEmitTerminated() {
         if (terminatedSink.terminated) {
@@ -166,6 +164,9 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
             .flatMap({ grouped ->
                 handleGroupedExchange(grouped)
             }, parallelism, parallelism)
+            .doFinally {
+                markRootTerminated()
+            }
             .subscribe(this)
     }
 
@@ -175,7 +176,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
      * This extension function determines how message exchanges are grouped
      * for parallel processing. Exchanges with the same key will be processed
      * sequentially within their group, while different groups can be processed
-     * concurrently based on the parallelism level.
+     * concurrently based on the ordering-stripe count.
      *
      * A good grouping strategy distributes load evenly across groups while
      * maintaining ordering requirements. Common approaches include:
@@ -194,7 +195,9 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
      * This private method processes a group of message exchanges that share
      * the same grouping key. It applies metrics collection, schedules execution
      * on the configured scheduler, and processes exchanges sequentially within
-     * the group. Task counting is managed for graceful shutdown support.
+     * the group. Group lifecycle tracking ensures that the terminated signal is
+     * emitted only after the root subscription and every subscribed group has
+     * observed termination.
      *
      * Metrics are collected for monitoring dispatcher performance, including
      * processing time, error rates, and throughput per group.
@@ -203,26 +206,80 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
      * @return A Mono that completes when all exchanges in the group are handled
      */
     private fun handleGroupedExchange(grouped: GroupedFlux<Int, T>): Mono<Void> =
-        grouped
-            .publishOn(scheduler)
-            .name(Wow.WOW_PREFIX + "dispatcher")
-            .tag("dispatcher", name)
-            .tag(Metrics.AGGREGATE_KEY, namedAggregate.aggregateName)
-            .metrics()
-            .concatMap { exchange ->
-                activeTaskCounter.incrementAndGet()
-                Mono.defer {
-                    handleExchange(exchange)
-                }.doFinally {
-                    val remaining = activeTaskCounter.decrementAndGet()
-                    if (isDisposed && remaining <= 0) {
-                        log.info {
-                            "[$name] All active tasks completed after disposal."
+        Mono.defer {
+            if (!tryRegisterActiveGroup()) {
+                return@defer Mono.empty()
+            }
+            Mono.defer {
+                grouped
+                    .publishOn(scheduler)
+                    .name(Wow.WOW_PREFIX + "dispatcher")
+                    .tag("dispatcher", name)
+                    .tag(Metrics.AGGREGATE_KEY, namedAggregate.aggregateName)
+                    .metrics()
+                    .concatMap { exchange ->
+                        Mono.defer {
+                            handleExchange(exchange)
                         }
-                        tryEmitTerminated()
-                    }
+                    }.then()
+            }.doFinally {
+                unregisterActiveGroup()
+            }
+        }
+
+    /**
+     * Registers a group only while the root subscription is active.
+     *
+     * The root-terminated flag and active-group count share one CAS state so a
+     * concurrently subscribing group cannot be missed by shutdown.
+     */
+    private fun tryRegisterActiveGroup(): Boolean {
+        while (true) {
+            val currentState = terminationState.get()
+            if (currentState and ROOT_TERMINATED_MASK != 0L) {
+                return false
+            }
+            check(currentState < Long.MAX_VALUE) {
+                "[$name] Active group count overflow."
+            }
+            if (terminationState.compareAndSet(currentState, currentState + 1)) {
+                return true
+            }
+        }
+    }
+
+    private fun unregisterActiveGroup() {
+        while (true) {
+            val currentState = terminationState.get()
+            val activeGroupCount = currentState and Long.MAX_VALUE
+            check(activeGroupCount > 0) {
+                "[$name] Active group count underflow."
+            }
+            val updatedState = currentState - 1
+            if (terminationState.compareAndSet(currentState, updatedState)) {
+                if (updatedState == ROOT_TERMINATED_MASK) {
+                    tryEmitTerminated()
                 }
-            }.then()
+                return
+            }
+        }
+    }
+
+    private fun markRootTerminated() {
+        while (true) {
+            val currentState = terminationState.get()
+            if (currentState and ROOT_TERMINATED_MASK != 0L) {
+                return
+            }
+            val updatedState = currentState or ROOT_TERMINATED_MASK
+            if (terminationState.compareAndSet(currentState, updatedState)) {
+                if (updatedState == ROOT_TERMINATED_MASK) {
+                    tryEmitTerminated()
+                }
+                return
+            }
+        }
+    }
 
     /**
      * Handles a single message exchange.
@@ -242,28 +299,26 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
     /**
      * Performs a graceful shutdown of the dispatcher.
      *
-     * This method initiates shutdown by first cancelling the subscription to stop
-     * accepting new messages, then waits for all currently active tasks to complete.
+     * This method initiates shutdown by cancelling the subscription to stop
+     * accepting new messages and to cancel any active exchange handling.
      *
-     * The method returns a Mono that completes when shutdown is fully finished,
-     * allowing for reactive shutdown coordination. This ensures no message
-     * processing is interrupted mid-flight.
+     * The method returns a Mono that completes after cancellation has propagated
+     * through the dispatch pipeline and the subscriber has terminated.
      *
-     * @return A Mono that completes when all active tasks have finished and shutdown is complete
+     * @return A Mono that completes when cancellation has settled for the root subscription and active groups
      * @see stop for the blocking version
      * @see cancel for subscription cancellation
      */
     override fun stopGracefully(): Mono<Void> {
         log.info {
-            "[$name] Stop gracefully. Active task count: ${activeTaskCounter.get()}."
+            "[$name] Stop gracefully."
         }
         cancel()
-        if (activeTaskCounter.get() <= 0) {
-            log.info {
-                "[$name] No active tasks. Stop complete."
-            }
-            tryEmitTerminated()
-        }
+        /*
+         * BaseSubscriber.cancel() does not invoke hookFinally before subscription.
+         * This idempotent mark also closes the concurrent start/stop registration window.
+         */
+        markRootTerminated()
         return terminatedSignal.doFinally {
             log.info {
                 "[$name] [$it] Graceful shutdown complete."

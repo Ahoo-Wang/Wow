@@ -1,0 +1,381 @@
+# JMH version: 1.37
+# VM version: JDK 17.0.7, OpenJDK 64-Bit Server VM, 17.0.7+7-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java
+# VM options: -Xmx4g -Xms4g -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+AlwaysPreTouch
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 3 s each
+# Measurement: 3 iterations, 5 s each
+# Timeout: 10 min per iteration
+# Threads: 16 threads, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+# Benchmark: me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed
+# Parameters: (handlerCpuTokens = 0, ingressStrategy = current-production, lastWaitSentSignalStrategy = skip-unobservable-successful-sent, localNotificationStrategy = parse-locality, processedWaitTargetStrategy = fresh-processed-target, schedulerPoolSize = 4, stripeCount = default, taskCounterStrategy = group-lifecycle)
+
+# Run progress: 0.00% complete, ETA 00:02:48
+# Fork: 1 of 2
+# Warmup Iteration   1: 216444.581 ops/s
+# Warmup Iteration   2: 339266.453 ops/s
+Iteration   1: 345075.321 ops/s
+                 gc.alloc.rate:      1160.480 MB/sec
+                 gc.alloc.rate.norm: 3528.967 B/op
+                 gc.count:           8.000 counts
+                 gc.time:            15.000 ms
+
+Iteration   2: 350820.506 ops/s
+                 gc.alloc.rate:      1180.243 MB/sec
+                 gc.alloc.rate.norm: 3529.170 B/op
+                 gc.count:           8.000 counts
+                 gc.time:            10.000 ms
+
+Iteration   3: 349017.616 ops/s
+                 gc.alloc.rate:      1174.198 MB/sec
+                 gc.alloc.rate.norm: 3529.015 B/op
+                 gc.count:           9.000 counts
+                 gc.time:            11.000 ms
+
+
+# Run progress: 12.50% complete, ETA 00:02:37
+# Fork: 2 of 2
+# Warmup Iteration   1: 230660.111 ops/s
+# Warmup Iteration   2: 346420.626 ops/s
+Iteration   1: 349245.649 ops/s
+                 gc.alloc.rate:      1174.940 MB/sec
+                 gc.alloc.rate.norm: 3529.383 B/op
+                 gc.count:           9.000 counts
+                 gc.time:            15.000 ms
+
+Iteration   2: 351426.465 ops/s
+                 gc.alloc.rate:      1181.283 MB/sec
+                 gc.alloc.rate.norm: 3528.861 B/op
+                 gc.count:           8.000 counts
+                 gc.time:            10.000 ms
+
+Iteration   3: 351204.405 ops/s
+                 gc.alloc.rate:      1181.339 MB/sec
+                 gc.alloc.rate.norm: 3528.219 B/op
+                 gc.count:           8.000 counts
+                 gc.time:            11.000 ms
+
+
+
+Result "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed":
+  349464.994 ±(99.9%) 6662.859 ops/s [Average]
+  (min, avg, max) = (345075.321, 349464.994, 351426.465), stdev = 2376.040
+  CI (99.9%): [342802.135, 356127.853] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.alloc.rate":
+  1175.414 ±(99.9%) 22.350 MB/sec [Average]
+  (min, avg, max) = (1160.480, 1175.414, 1181.339), stdev = 7.970
+  CI (99.9%): [1153.064, 1197.764] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.alloc.rate.norm":
+  3528.936 ±(99.9%) 1.108 B/op [Average]
+  (min, avg, max) = (3528.219, 3528.936, 3529.383), stdev = 0.395
+  CI (99.9%): [3527.828, 3530.044] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.count":
+  50.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (8.000, 8.333, 9.000), stdev = 0.516
+  CI (99.9%): [50.000, 50.000] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.time":
+  72.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (10.000, 12.000, 15.000), stdev = 2.366
+  CI (99.9%): [72.000, 72.000] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 17.0.7, OpenJDK 64-Bit Server VM, 17.0.7+7-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java
+# VM options: -Xmx4g -Xms4g -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+AlwaysPreTouch
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 3 s each
+# Measurement: 3 iterations, 5 s each
+# Timeout: 10 min per iteration
+# Threads: 16 threads, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+# Benchmark: me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed
+# Parameters: (handlerCpuTokens = 0, ingressStrategy = current-production, lastWaitSentSignalStrategy = skip-unobservable-successful-sent, localNotificationStrategy = parse-locality, processedWaitTargetStrategy = shared-processed-target, schedulerPoolSize = 4, stripeCount = default, taskCounterStrategy = group-lifecycle)
+
+# Run progress: 25.00% complete, ETA 00:02:14
+# Fork: 1 of 2
+# Warmup Iteration   1: 213600.580 ops/s
+# Warmup Iteration   2: 345988.754 ops/s
+Iteration   1: 351805.540 ops/s
+                 gc.alloc.rate:      1175.341 MB/sec
+                 gc.alloc.rate.norm: 3504.773 B/op
+                 gc.count:           8.000 counts
+                 gc.time:            14.000 ms
+
+Iteration   2: 350873.705 ops/s
+                 gc.alloc.rate:      1172.096 MB/sec
+                 gc.alloc.rate.norm: 3504.228 B/op
+                 gc.count:           8.000 counts
+                 gc.time:            11.000 ms
+
+Iteration   3: 351510.687 ops/s
+                 gc.alloc.rate:      1174.338 MB/sec
+                 gc.alloc.rate.norm: 3504.495 B/op
+                 gc.count:           9.000 counts
+                 gc.time:            11.000 ms
+
+
+# Run progress: 37.50% complete, ETA 00:01:52
+# Fork: 2 of 2
+# Warmup Iteration   1: 236803.418 ops/s
+# Warmup Iteration   2: 347897.643 ops/s
+Iteration   1: 356260.721 ops/s
+                 gc.alloc.rate:      1189.913 MB/sec
+                 gc.alloc.rate.norm: 3503.953 B/op
+                 gc.count:           9.000 counts
+                 gc.time:            15.000 ms
+
+Iteration   2: 355639.498 ops/s
+                 gc.alloc.rate:      1185.771 MB/sec
+                 gc.alloc.rate.norm: 3504.779 B/op
+                 gc.count:           8.000 counts
+                 gc.time:            11.000 ms
+
+Iteration   3: 356713.492 ops/s
+                 gc.alloc.rate:      1191.970 MB/sec
+                 gc.alloc.rate.norm: 3505.041 B/op
+                 gc.count:           9.000 counts
+                 gc.time:            11.000 ms
+
+
+
+Result "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed":
+  353800.607 ±(99.9%) 7493.988 ops/s [Average]
+  (min, avg, max) = (350873.705, 353800.607, 356713.492), stdev = 2672.428
+  CI (99.9%): [346306.620, 361294.595] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.alloc.rate":
+  1181.572 ±(99.9%) 24.327 MB/sec [Average]
+  (min, avg, max) = (1172.096, 1181.572, 1191.970), stdev = 8.675
+  CI (99.9%): [1157.245, 1205.898] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.alloc.rate.norm":
+  3504.545 ±(99.9%) 1.126 B/op [Average]
+  (min, avg, max) = (3503.953, 3504.545, 3505.041), stdev = 0.401
+  CI (99.9%): [3503.419, 3505.670] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.count":
+  51.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (8.000, 8.500, 9.000), stdev = 0.548
+  CI (99.9%): [51.000, 51.000] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.time":
+  73.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (11.000, 12.167, 15.000), stdev = 1.835
+  CI (99.9%): [73.000, 73.000] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 17.0.7, OpenJDK 64-Bit Server VM, 17.0.7+7-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java
+# VM options: -Xmx4g -Xms4g -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+AlwaysPreTouch
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 3 s each
+# Measurement: 3 iterations, 5 s each
+# Timeout: 10 min per iteration
+# Threads: 16 threads, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+# Benchmark: me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed
+# Parameters: (handlerCpuTokens = 0, ingressStrategy = current-production, lastWaitSentSignalStrategy = skip-unobservable-successful-sent, localNotificationStrategy = direct-signal-upper-bound, processedWaitTargetStrategy = fresh-processed-target, schedulerPoolSize = 4, stripeCount = default, taskCounterStrategy = group-lifecycle)
+
+# Run progress: 50.00% complete, ETA 00:01:29
+# Fork: 1 of 2
+# Warmup Iteration   1: 225818.822 ops/s
+# Warmup Iteration   2: 344781.257 ops/s
+Iteration   1: 352324.552 ops/s
+                 gc.alloc.rate:      1185.249 MB/sec
+                 gc.alloc.rate.norm: 3529.070 B/op
+                 gc.count:           8.000 counts
+                 gc.time:            15.000 ms
+
+Iteration   2: 354522.849 ops/s
+                 gc.alloc.rate:      1192.435 MB/sec
+                 gc.alloc.rate.norm: 3528.245 B/op
+                 gc.count:           8.000 counts
+                 gc.time:            10.000 ms
+
+Iteration   3: 356329.276 ops/s
+                 gc.alloc.rate:      1198.610 MB/sec
+                 gc.alloc.rate.norm: 3528.665 B/op
+                 gc.count:           9.000 counts
+                 gc.time:            11.000 ms
+
+
+# Run progress: 62.50% complete, ETA 00:01:07
+# Fork: 2 of 2
+# Warmup Iteration   1: 222271.968 ops/s
+# Warmup Iteration   2: 345915.334 ops/s
+Iteration   1: 352013.432 ops/s
+                 gc.alloc.rate:      1184.119 MB/sec
+                 gc.alloc.rate.norm: 3528.662 B/op
+                 gc.count:           8.000 counts
+                 gc.time:            15.000 ms
+
+Iteration   2: 350713.193 ops/s
+                 gc.alloc.rate:      1179.033 MB/sec
+                 gc.alloc.rate.norm: 3528.386 B/op
+                 gc.count:           8.000 counts
+                 gc.time:            10.000 ms
+
+Iteration   3: 352834.342 ops/s
+                 gc.alloc.rate:      1187.076 MB/sec
+                 gc.alloc.rate.norm: 3529.464 B/op
+                 gc.count:           9.000 counts
+                 gc.time:            11.000 ms
+
+
+
+Result "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed":
+  353122.941 ±(99.9%) 5608.225 ops/s [Average]
+  (min, avg, max) = (350713.193, 353122.941, 356329.276), stdev = 1999.947
+  CI (99.9%): [347514.716, 358731.166] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.alloc.rate":
+  1187.754 ±(99.9%) 19.256 MB/sec [Average]
+  (min, avg, max) = (1179.033, 1187.754, 1198.610), stdev = 6.867
+  CI (99.9%): [1168.497, 1207.010] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.alloc.rate.norm":
+  3528.749 ±(99.9%) 1.263 B/op [Average]
+  (min, avg, max) = (3528.245, 3528.749, 3529.464), stdev = 0.450
+  CI (99.9%): [3527.485, 3530.012] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.count":
+  50.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (8.000, 8.333, 9.000), stdev = 0.516
+  CI (99.9%): [50.000, 50.000] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.time":
+  72.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (10.000, 12.000, 15.000), stdev = 2.366
+  CI (99.9%): [72.000, 72.000] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 17.0.7, OpenJDK 64-Bit Server VM, 17.0.7+7-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java
+# VM options: -Xmx4g -Xms4g -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+AlwaysPreTouch
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 3 s each
+# Measurement: 3 iterations, 5 s each
+# Timeout: 10 min per iteration
+# Threads: 16 threads, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+# Benchmark: me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed
+# Parameters: (handlerCpuTokens = 0, ingressStrategy = current-production, lastWaitSentSignalStrategy = skip-unobservable-successful-sent, localNotificationStrategy = direct-signal-upper-bound, processedWaitTargetStrategy = shared-processed-target, schedulerPoolSize = 4, stripeCount = default, taskCounterStrategy = group-lifecycle)
+
+# Run progress: 75.00% complete, ETA 00:00:44
+# Fork: 1 of 2
+# Warmup Iteration   1: 233187.323 ops/s
+# Warmup Iteration   2: 344271.769 ops/s
+Iteration   1: 349565.639 ops/s
+                 gc.alloc.rate:      1167.682 MB/sec
+                 gc.alloc.rate.norm: 3504.525 B/op
+                 gc.count:           8.000 counts
+                 gc.time:            14.000 ms
+
+Iteration   2: 350763.271 ops/s
+                 gc.alloc.rate:      1171.867 MB/sec
+                 gc.alloc.rate.norm: 3504.752 B/op
+                 gc.count:           8.000 counts
+                 gc.time:            11.000 ms
+
+Iteration   3: 350202.476 ops/s
+                 gc.alloc.rate:      1170.036 MB/sec
+                 gc.alloc.rate.norm: 3504.384 B/op
+                 gc.count:           8.000 counts
+                 gc.time:            10.000 ms
+
+
+# Run progress: 87.50% complete, ETA 00:00:22
+# Fork: 2 of 2
+# Warmup Iteration   1: 231237.555 ops/s
+# Warmup Iteration   2: 347855.603 ops/s
+Iteration   1: 353500.505 ops/s
+                 gc.alloc.rate:      1181.121 MB/sec
+                 gc.alloc.rate.norm: 3504.643 B/op
+                 gc.count:           8.000 counts
+                 gc.time:            13.000 ms
+
+Iteration   2: 355055.333 ops/s
+                 gc.alloc.rate:      1186.077 MB/sec
+                 gc.alloc.rate.norm: 3504.099 B/op
+                 gc.count:           9.000 counts
+                 gc.time:            12.000 ms
+
+Iteration   3: 355301.883 ops/s
+                 gc.alloc.rate:      1187.228 MB/sec
+                 gc.alloc.rate.norm: 3504.732 B/op
+                 gc.count:           8.000 counts
+                 gc.time:            10.000 ms
+
+
+
+Result "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed":
+  352398.185 ±(99.9%) 7118.924 ops/s [Average]
+  (min, avg, max) = (349565.639, 352398.185, 355301.883), stdev = 2538.677
+  CI (99.9%): [345279.261, 359517.108] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.alloc.rate":
+  1177.335 ±(99.9%) 23.958 MB/sec [Average]
+  (min, avg, max) = (1167.682, 1177.335, 1187.228), stdev = 8.544
+  CI (99.9%): [1153.377, 1201.294] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.alloc.rate.norm":
+  3504.522 ±(99.9%) 0.698 B/op [Average]
+  (min, avg, max) = (3504.099, 3504.522, 3504.752), stdev = 0.249
+  CI (99.9%): [3503.824, 3505.220] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.count":
+  49.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (8.000, 8.167, 9.000), stdev = 0.408
+  CI (99.9%): [49.000, 49.000] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.time":
+  70.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (10.000, 11.667, 14.000), stdev = 1.633
+  CI (99.9%): [70.000, 70.000] (assumes normal distribution)
+
+
+# Run complete. Total time: 00:02:59
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                                                                     (handlerCpuTokens)   (ingressStrategy)       (lastWaitSentSignalStrategy)  (localNotificationStrategy)  (processedWaitTargetStrategy)  (schedulerPoolSize)  (stripeCount)  (taskCounterStrategy)   Mode  Cnt       Score      Error   Units
+CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed                                      0  current-production  skip-unobservable-successful-sent               parse-locality         fresh-processed-target                    4        default        group-lifecycle  thrpt    6  349464.994 ± 6662.859   ops/s
+CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.alloc.rate                        0  current-production  skip-unobservable-successful-sent               parse-locality         fresh-processed-target                    4        default        group-lifecycle  thrpt    6    1175.414 ±   22.350  MB/sec
+CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.alloc.rate.norm                   0  current-production  skip-unobservable-successful-sent               parse-locality         fresh-processed-target                    4        default        group-lifecycle  thrpt    6    3528.936 ±    1.108    B/op
+CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.count                             0  current-production  skip-unobservable-successful-sent               parse-locality         fresh-processed-target                    4        default        group-lifecycle  thrpt    6      50.000             counts
+CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.time                              0  current-production  skip-unobservable-successful-sent               parse-locality         fresh-processed-target                    4        default        group-lifecycle  thrpt    6      72.000                 ms
+CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed                                      0  current-production  skip-unobservable-successful-sent               parse-locality        shared-processed-target                    4        default        group-lifecycle  thrpt    6  353800.607 ± 7493.988   ops/s
+CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.alloc.rate                        0  current-production  skip-unobservable-successful-sent               parse-locality        shared-processed-target                    4        default        group-lifecycle  thrpt    6    1181.572 ±   24.327  MB/sec
+CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.alloc.rate.norm                   0  current-production  skip-unobservable-successful-sent               parse-locality        shared-processed-target                    4        default        group-lifecycle  thrpt    6    3504.545 ±    1.126    B/op
+CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.count                             0  current-production  skip-unobservable-successful-sent               parse-locality        shared-processed-target                    4        default        group-lifecycle  thrpt    6      51.000             counts
+CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.time                              0  current-production  skip-unobservable-successful-sent               parse-locality        shared-processed-target                    4        default        group-lifecycle  thrpt    6      73.000                 ms
+CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed                                      0  current-production  skip-unobservable-successful-sent    direct-signal-upper-bound         fresh-processed-target                    4        default        group-lifecycle  thrpt    6  353122.941 ± 5608.225   ops/s
+CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.alloc.rate                        0  current-production  skip-unobservable-successful-sent    direct-signal-upper-bound         fresh-processed-target                    4        default        group-lifecycle  thrpt    6    1187.754 ±   19.256  MB/sec
+CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.alloc.rate.norm                   0  current-production  skip-unobservable-successful-sent    direct-signal-upper-bound         fresh-processed-target                    4        default        group-lifecycle  thrpt    6    3528.749 ±    1.263    B/op
+CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.count                             0  current-production  skip-unobservable-successful-sent    direct-signal-upper-bound         fresh-processed-target                    4        default        group-lifecycle  thrpt    6      50.000             counts
+CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.time                              0  current-production  skip-unobservable-successful-sent    direct-signal-upper-bound         fresh-processed-target                    4        default        group-lifecycle  thrpt    6      72.000                 ms
+CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed                                      0  current-production  skip-unobservable-successful-sent    direct-signal-upper-bound        shared-processed-target                    4        default        group-lifecycle  thrpt    6  352398.185 ± 7118.924   ops/s
+CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.alloc.rate                        0  current-production  skip-unobservable-successful-sent    direct-signal-upper-bound        shared-processed-target                    4        default        group-lifecycle  thrpt    6    1177.335 ±   23.958  MB/sec
+CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.alloc.rate.norm                   0  current-production  skip-unobservable-successful-sent    direct-signal-upper-bound        shared-processed-target                    4        default        group-lifecycle  thrpt    6    3504.522 ±    0.698    B/op
+CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.count                             0  current-production  skip-unobservable-successful-sent    direct-signal-upper-bound        shared-processed-target                    4        default        group-lifecycle  thrpt    6      49.000             counts
+CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.time                              0  current-production  skip-unobservable-successful-sent    direct-signal-upper-bound        shared-processed-target                    4        default        group-lifecycle  thrpt    6      70.000                 ms
+
+Benchmark result is saved to /Users/ahoo/.codex/worktrees/4a83/Wow/wow-benchmarks/results/jmh/confirmation/framework-e2e/threads-16-framework-e2e.json

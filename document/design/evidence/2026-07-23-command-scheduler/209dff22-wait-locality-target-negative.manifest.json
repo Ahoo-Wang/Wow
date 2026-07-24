@@ -1,0 +1,123 @@
+{
+    "schemaVersion": 1,
+    "status": "SUCCESS",
+    "runId": "209dff22-821d-42d6-91a8-ec10fbe23a8e",
+    "taskPath": ":wow-benchmarks:benchmarkConfirmE2EThread16",
+    "startedAt": "2026-07-23T22:33:47.541652Z",
+    "projectVersion": "8.9.1",
+    "source": {
+        "commit": "6c6e4ebbe891fed0752f635391b1b034c988dd66",
+        "dirty": true,
+        "jmhJarSha256": "e07e5ec87316b24662387e3149440b9cb6b99d902b678efa084c6c3af7fb50b8"
+    },
+    "runSpec": {
+        "suite": "framework-e2e",
+        "profile": "confirmation",
+        "threads": 16,
+        "includePattern": "\\Qme.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed\\E.*",
+        "modes": [
+            "thrpt"
+        ],
+        "warmupIterations": 2,
+        "warmupTime": "3s",
+        "measurementIterations": 3,
+        "measurementTime": "5s",
+        "forks": 2,
+        "parameters": {
+            "ingressStrategy": "current-production",
+            "schedulerPoolSize": "4",
+            "stripeCount": "default",
+            "taskCounterStrategy": "group-lifecycle",
+            "handlerCpuTokens": "0",
+            "lastWaitSentSignalStrategy": "skip-unobservable-successful-sent",
+            "localNotificationStrategy": "parse-locality,direct-signal-upper-bound",
+            "processedWaitTargetStrategy": "fresh-processed-target,shared-processed-target"
+        },
+        "jvmArgs": [
+            "-Xmx4g",
+            "-Xms4g",
+            "-XX:+UseG1GC",
+            "-XX:+UnlockDiagnosticVMOptions",
+            "-XX:+DebugNonSafepoints",
+            "-XX:+AlwaysPreTouch"
+        ],
+        "requestedProfilers": [
+            "gc"
+        ],
+        "resolvedJmhArgs": [
+            "\\Qme.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed\\E.*",
+            "-bm",
+            "thrpt",
+            "-t",
+            "16",
+            "-wi",
+            "2",
+            "-w",
+            "3s",
+            "-i",
+            "3",
+            "-r",
+            "5s",
+            "-f",
+            "2",
+            "-foe",
+            "true",
+            "-p",
+            "ingressStrategy=current-production",
+            "-p",
+            "schedulerPoolSize=4",
+            "-p",
+            "stripeCount=default",
+            "-p",
+            "taskCounterStrategy=group-lifecycle",
+            "-p",
+            "handlerCpuTokens=0",
+            "-p",
+            "lastWaitSentSignalStrategy=skip-unobservable-successful-sent",
+            "-p",
+            "localNotificationStrategy=parse-locality,direct-signal-upper-bound",
+            "-p",
+            "processedWaitTargetStrategy=fresh-processed-target,shared-processed-target",
+            "-rf",
+            "json",
+            "-rff",
+            "/Users/ahoo/.codex/worktrees/4a83/Wow/wow-benchmarks/results/jmh/confirmation/framework-e2e/threads-16-framework-e2e.json",
+            "-o",
+            "/Users/ahoo/.codex/worktrees/4a83/Wow/wow-benchmarks/results/jmh/confirmation/framework-e2e/threads-16-framework-e2e-human.txt",
+            "-jvmArgs",
+            "-Xmx4g -Xms4g -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+AlwaysPreTouch"
+        ],
+        "resolvedProfilerArgs": [
+            "-prof",
+            "gc"
+        ],
+        "requiredServices": [
+            
+        ]
+    },
+    "runtime": {
+        "javaVersion": "17.0.7",
+        "vmName": "OpenJDK 64-Bit Server VM",
+        "vmVersion": "17.0.7+7-LTS",
+        "javaExecutable": "/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java",
+        "osName": "Mac OS X",
+        "osVersion": "26.5.2",
+        "osArch": "aarch64",
+        "availableProcessors": 14,
+        "physicalMemoryBytes": 25769803776
+    },
+    "completedAt": "2026-07-23T22:36:47.506253Z",
+    "artifacts": {
+        "result": {
+            "path": "threads-16-framework-e2e.json",
+            "size": 27907,
+            "sha256": "4daf2c9c25632517952b84ba3d1e0fc28a871a0805b96244a64ed4dc2297e208",
+            "rowCount": 4
+        },
+        "human": {
+            "path": "threads-16-framework-e2e-human.txt",
+            "size": 24157,
+            "sha256": "041491c322c31b9a87f94fc8f7b9ba33d156e28ac525387fd340b480bdd75b59"
+        }
+    }
+}

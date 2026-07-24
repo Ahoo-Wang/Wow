@@ -15,6 +15,8 @@ package me.ahoo.wow.command.wait
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.messaging.function.FunctionKind
+import me.ahoo.wow.command.SimpleServerCommandExchange
+import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.saga.stateless.DefaultCommandStream
 import me.ahoo.wow.saga.stateless.setCommandStream
 import org.junit.jupiter.api.Test
@@ -59,6 +61,41 @@ class MonoCommandWaitNotifierTest {
     }
 
     @Test
+    fun `notification happens before downstream completion`() {
+        val order = mutableListOf<String>()
+        val notifier = orderedNotifier(order)
+        val exchange = testCommandExchange(stage = CommandStage.PROCESSED)
+
+        Mono.empty<Void>()
+            .thenNotifyAndForget(notifier, CommandStage.PROCESSED, exchange)
+            .doOnSuccess {
+                order += "downstream"
+            }.block()
+
+        order.assert().containsExactly("notify", "downstream")
+    }
+
+    @Test
+    fun `notification happens before downstream error`() {
+        val order = mutableListOf<String>()
+        val notifier = orderedNotifier(order)
+        val exchange = testCommandExchange(stage = CommandStage.PROCESSED)
+        val error = IllegalStateException("boom")
+
+        StepVerifier.create(
+            Mono.error<Void>(error)
+                .thenNotifyAndForget(notifier, CommandStage.PROCESSED, exchange)
+                .doOnError {
+                    order += "downstream"
+                },
+        )
+            .expectErrorMatches { it === error }
+            .verify()
+
+        order.assert().containsExactly("notify", "downstream")
+    }
+
+    @Test
     fun `source completes without notification when processing stage is not needed`() {
         val notifier = RecordingCommandWaitNotifier()
         val exchange = testCommandExchange(stage = CommandStage.PROCESSED)
@@ -67,6 +104,69 @@ class MonoCommandWaitNotifierTest {
             .verifyComplete()
 
         notifier.notifications.assert().isEmpty()
+    }
+
+    @Test
+    fun `signal function mismatch skips notification`() {
+        val notifier = RecordingCommandWaitNotifier()
+        val exchange = testDomainEventExchange(
+            stage = CommandStage.PROJECTED,
+            function = testNamedFunction(name = "expected"),
+        )
+        exchange.setFunction(testFunction(name = "actual"))
+
+        StepVerifier.create(
+            Mono.empty<Void>().thenNotifyAndForget(
+                notifier,
+                CommandStage.PROJECTED,
+                exchange,
+            ),
+        ).verifyComplete()
+
+        notifier.notifications.assert().isEmpty()
+    }
+
+    @Test
+    fun `each subscription reads the current wait headers`() {
+        val notifier = RecordingCommandWaitNotifier()
+        val header = DefaultHeader.empty()
+        val exchange = SimpleServerCommandExchange(TestCommandMessage(header = header))
+        val notified = Mono.empty<Void>()
+            .thenNotifyAndForget(notifier, CommandStage.PROCESSED, exchange)
+
+        StepVerifier.create(notified).verifyComplete()
+        CommandWait.processed(exchange.message.commandId)
+            .propagate(
+                object : CommandWaitEndpoint {
+                    override val endpoint: String = TEST_ENDPOINT
+                },
+                header,
+            )
+        StepVerifier.create(notified).verifyComplete()
+
+        notifier.notifications.assert().hasSize(1)
+        notifier.notifications.single().endpoint.assert().isEqualTo(TEST_ENDPOINT)
+    }
+
+    @Test
+    fun `source sees downstream subscriber context`() {
+        val notifier = RecordingCommandWaitNotifier()
+        val exchange = testCommandExchange(stage = CommandStage.PROCESSED)
+        var observedContext: String? = null
+        val source = Mono.deferContextual<Void> {
+            observedContext = it.get("context-key")
+            Mono.empty()
+        }
+
+        StepVerifier.create(
+            source
+                .thenNotifyAndForget(notifier, CommandStage.PROCESSED, exchange)
+                .contextWrite {
+                    it.put("context-key", "context-value")
+                },
+        ).verifyComplete()
+
+        observedContext.assert().isEqualTo("context-value")
     }
 
     @Test
@@ -162,4 +262,19 @@ class MonoCommandWaitNotifierTest {
 
         notifier.notifications.assert().isEmpty()
     }
+
+    private fun orderedNotifier(order: MutableList<String>): CommandWaitNotifier =
+        object : CommandWaitNotifier {
+            override fun notify(
+                commandWaitEndpoint: String,
+                waitSignal: WaitSignal,
+            ): Mono<Void> = Mono.empty()
+
+            override fun notifyAndForget(
+                commandWaitEndpoint: String,
+                waitSignal: WaitSignal,
+            ) {
+                order += "notify"
+            }
+        }
 }

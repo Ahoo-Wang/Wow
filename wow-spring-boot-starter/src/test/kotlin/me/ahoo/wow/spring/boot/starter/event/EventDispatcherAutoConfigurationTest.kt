@@ -25,6 +25,7 @@ import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.messaging.handler.RetryableFilter
 import me.ahoo.wow.spring.boot.starter.BusType
+import me.ahoo.wow.spring.boot.starter.assertDispatcherTuning
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.opentelemetry.WowOpenTelemetryAutoConfiguration
 import me.ahoo.wow.spring.event.DomainEventDispatcherLauncher
@@ -42,7 +43,11 @@ internal class EventDispatcherAutoConfigurationTest {
     fun `should load context with event dispatcher beans`() {
         contextRunner
             .enableWow()
-            .withPropertyValues("${EventProperties.BUS_TYPE}=${BusType.IN_MEMORY_NAME}")
+            .withPropertyValues(
+                "${EventProperties.BUS_TYPE}=${BusType.IN_MEMORY_NAME}",
+                "${EventDispatcherProperties.PREFIX}.stripe-count=102",
+                "${EventDispatcherProperties.PREFIX}.scheduler-pool-size=3",
+            )
             .withBean(EventStore::class.java, { mockk() })
             .withBean(StateEventBus::class.java, { InMemoryStateEventBus() })
             .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
@@ -60,6 +65,9 @@ internal class EventDispatcherAutoConfigurationTest {
                     .hasSingleBean(DomainEventFunctionFilter::class.java)
                     .hasSingleBean(DomainEventDispatcher::class.java)
                     .hasSingleBean(DomainEventDispatcherLauncher::class.java)
+
+                context.getBean(DomainEventDispatcher::class.java)
+                    .assertDispatcherTuning(expectedStripeCount = 102, expectedSchedulerPoolSize = 3)
             }
     }
 }

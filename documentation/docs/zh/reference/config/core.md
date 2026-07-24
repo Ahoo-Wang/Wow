@@ -23,6 +23,26 @@ wow:
   shutdown-timeout: 120s
 ```
 
+## DispatcherProperties
+
+Command、Domain Event、Projection 与 Stateless Saga 可以独立配置顺序分片数和
+每个命名聚合类型的 Scheduler worker 数：
+
+| 完整属性 | 数据类型 | 描述 | 默认值 |
+|------|-----------|-------------|---------------|
+| `wow.command.dispatcher.stripe-count` | Int | 命令顺序分片数 | `64 × CPU` |
+| `wow.command.dispatcher.scheduler-pool-size` | Int | 每个命令聚合类型的 worker 数 | `CPU` |
+| `wow.event.dispatcher.stripe-count` | Int | 领域事件顺序分片数 | `64 × CPU` |
+| `wow.event.dispatcher.scheduler-pool-size` | Int | 每个事件聚合类型的 worker 数 | `CPU` |
+| `wow.projection.dispatcher.stripe-count` | Int | Projection 顺序分片数 | `64 × CPU` |
+| `wow.projection.dispatcher.scheduler-pool-size` | Int | 每个 Projection 聚合类型的 worker 数 | `CPU` |
+| `wow.saga.stateless.dispatcher.stripe-count` | Int | Stateless Saga 顺序分片数 | `64 × CPU` |
+| `wow.saga.stateless.dispatcher.scheduler-pool-size` | Int | 每个 Stateless Saga 聚合类型的 worker 数 | `CPU` |
+
+所有值必须大于 `0`。`scheduler-pool-size` 是每个命名聚合类型的 pool 大小，不是角色
+总线程上限。未配置时仍兼容 JVM system properties `wow.parallelism` 和
+`reactor.schedulers.defaultPoolSize`。完整示例与调优边界见[配置指南](../../guide/configuration.md#dispatcher-调优)。
+
 ## BusProperties
 
 `BusProperties` 是 `CommandBus`、`EventBus` 和 `StateEventBus` 的公共配置。

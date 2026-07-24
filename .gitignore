@@ -41,3 +41,4 @@ docs/superpowers/
 
 # Benchmark generated outputs
 wow-benchmarks/results/jmh/
+wow-benchmarks/results/open-loop/

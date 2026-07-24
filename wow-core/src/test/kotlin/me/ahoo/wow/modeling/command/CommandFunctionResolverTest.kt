@@ -32,9 +32,6 @@ class CommandFunctionResolverTest {
 
         first.assert().isNotNull()
         second.assert().isSameAs(first)
-        resolver.functionCache("commandFunctionCache")
-            .cache()
-            .assert().hasSize(1)
     }
 
     @Test
@@ -46,9 +43,6 @@ class CommandFunctionResolverTest {
 
         first.assert().isNotNull()
         second.assert().isSameAs(first)
-        resolver.functionCache("errorFunctionCache")
-            .cache()
-            .assert().hasSize(1)
     }
 
     @Test
@@ -57,10 +51,6 @@ class CommandFunctionResolverTest {
 
         resolver.errorFunction(String::class.java).assert().isNull()
         resolver.errorFunction(String::class.java).assert().isNull()
-
-        resolver.functionCache("errorFunctionCache")
-            .cache()
-            .assert().isNull()
     }
 
     private fun afterCommandResolver(): CommandFunctionResolver<MockAfterCommandAggregate> {
@@ -85,18 +75,5 @@ class CommandFunctionResolverTest {
             metadata = metadata.command,
         )
         return CommandFunctionResolver(metadata.command, commandAggregate)
-    }
-
-    private fun CommandFunctionResolver<*>.functionCache(fieldName: String): FunctionCache<*> {
-        val field = CommandFunctionResolver::class.java.getDeclaredField(fieldName)
-        field.isAccessible = true
-        return field.get(this) as FunctionCache<*>
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    private fun FunctionCache<*>.cache(): MutableMap<Class<*>, Any>? {
-        val field = FunctionCache::class.java.getDeclaredField("cache")
-        field.isAccessible = true
-        return field.get(this) as MutableMap<Class<*>, Any>?
     }
 }

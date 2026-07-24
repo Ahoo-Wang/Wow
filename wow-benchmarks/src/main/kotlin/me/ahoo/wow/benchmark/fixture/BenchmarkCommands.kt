@@ -50,6 +50,15 @@ object BenchmarkCommands {
         )
     }
 
+    fun commandPathAddCartItem(aggregateId: String): CommandMessage<AddCartItem> {
+        return addCartItem(
+            id = BenchmarkIds.nextGlobalId(),
+            requestId = BenchmarkIds.nextGlobalId(),
+            aggregateId = aggregateId,
+            namedAggregate = BenchmarkAggregates.namedAggregate,
+        )
+    }
+
     fun smokeAddCartItem(): CommandMessage<AddCartItem> {
         return addCartItem(
             id = "benchmark-command-id",

@@ -41,14 +41,18 @@ import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.WowProperties
+import me.ahoo.wow.spring.boot.starter.command.CommandDispatcherProperties
+import me.ahoo.wow.spring.boot.starter.createSchedulerSupplier
 import me.ahoo.wow.spring.command.CommandDispatcherLauncher
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
+@EnableConfigurationProperties(CommandDispatcherProperties::class)
 class AggregateAutoConfiguration(private val wowProperties: WowProperties) {
     @Bean
     @ConditionalOnMissingBean
@@ -140,11 +144,18 @@ class AggregateAutoConfiguration(private val wowProperties: WowProperties) {
         namedBoundedContext: NamedBoundedContext,
         commandBus: CommandGateway,
         commandHandler: CommandHandler,
+        commandDispatcherProperties: CommandDispatcherProperties,
     ): CommandDispatcher {
         return CommandDispatcher(
             name = "${namedBoundedContext.contextName}.${CommandDispatcher::class.simpleName}",
+            parallelism = commandDispatcherProperties.stripeCount,
             commandBus = commandBus,
             commandHandler = commandHandler,
+            schedulerSupplier = createSchedulerSupplier(
+                name = CommandDispatcher::class.simpleName!!,
+                stripeCount = commandDispatcherProperties.stripeCount,
+                schedulerPoolSize = commandDispatcherProperties.schedulerPoolSize,
+            ),
         )
     }
 

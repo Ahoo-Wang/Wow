@@ -14,6 +14,7 @@
 package me.ahoo.wow.modeling.command
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
 
 class FunctionCacheTest {
@@ -35,6 +36,23 @@ class FunctionCacheTest {
         first.assert().isEqualTo("resolved")
         second.assert().isEqualTo("resolved")
         resolveCount.assert().isEqualTo(1)
+        cache.singleEntry().assert().isNotNull()
+        cache.cache().assert().isNull()
+    }
+
+    @Test
+    fun `second distinct success promotes the single entry to a map`() {
+        val cache = FunctionCache<String>()
+
+        val first = cache.get(String::class.java) { "first" }
+        val second = cache.get(Int::class.java) { "second" }
+        val third = cache.get(Long::class.java) { "third" }
+
+        cache.get(String::class.java) { "replacement" }.assert().isSameAs(first)
+        cache.get(Int::class.java) { "replacement" }.assert().isSameAs(second)
+        cache.get(Long::class.java) { "replacement" }.assert().isSameAs(third)
+        cache.singleEntry().assert().isNull()
+        cache.cache().assert().hasSize(3)
     }
 
     @Test
@@ -52,7 +70,52 @@ class FunctionCacheTest {
         }.assert().isNull()
 
         resolveCount.assert().isEqualTo(2)
+        cache.singleEntry().assert().isNull()
         cache.cache().assert().isNull()
+    }
+
+    @Test
+    fun `unsuccessful second resolution keeps the single entry`() {
+        val cache = FunctionCache<String>()
+        val first = cache.get(String::class.java) { "first" }
+
+        cache.get(Int::class.java) { null }.assert().isNull()
+        assertThrownBy<IllegalStateException> {
+            cache.get(Int::class.java) {
+                throw IllegalStateException("failed")
+            }
+        }
+
+        cache.get(String::class.java) { "replacement" }.assert().isSameAs(first)
+        cache.singleEntry().assert().isNotNull()
+        cache.cache().assert().isNull()
+    }
+
+    @Test
+    fun `resolver failure is not cached`() {
+        val cache = FunctionCache<String>()
+        var resolveCount = 0
+
+        assertThrownBy<IllegalStateException> {
+            cache.get(String::class.java) {
+                resolveCount++
+                throw IllegalStateException("failed")
+            }
+        }
+        cache.get(String::class.java) {
+            resolveCount++
+            "resolved"
+        }.assert().isEqualTo("resolved")
+
+        resolveCount.assert().isEqualTo(2)
+        cache.singleEntry().assert().isNotNull()
+        cache.cache().assert().isNull()
+    }
+
+    private fun FunctionCache<*>.singleEntry(): Any? {
+        val field = FunctionCache::class.java.getDeclaredField("singleEntry")
+        field.isAccessible = true
+        return field.get(this)
     }
 
     @Suppress("UNCHECKED_CAST")

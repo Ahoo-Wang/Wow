@@ -13,11 +13,15 @@
 
 package me.ahoo.wow.benchmark.infrastructure.mongo
 
+import me.ahoo.wow.api.Version
 import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
 import me.ahoo.wow.benchmark.scenario.CommandDispatcherScenario
 import me.ahoo.wow.benchmark.scenario.SchedulerStrategy
 import me.ahoo.wow.benchmark.scenario.consumeWowResult
+import me.ahoo.wow.benchmark.scenario.resolveSchedulerPoolSize
+import me.ahoo.wow.benchmark.scenario.resolveStripeCount
 import me.ahoo.wow.benchmark.scenario.toSchedulerSupplier
+import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.infrastructure.mongo.MongoBenchmarkFixture
 import me.ahoo.wow.mongo.MongoEventStore
 import org.openjdk.jmh.annotations.Benchmark
@@ -36,6 +40,12 @@ open class MongoCommandWriteE2EBenchmark {
     @Param("PARALLEL", "IMMEDIATE")
     private var schedulerStrategy: String = SchedulerStrategy.PARALLEL.name
 
+    @Param("cpu")
+    private var schedulerPoolSize: String = "cpu"
+
+    @Param("default")
+    private var stripeCount: String = "default"
+
     private lateinit var fixture: MongoBenchmarkFixture
     private lateinit var commandDispatcherScenario: CommandDispatcherScenario
     private val failures = AtomicInteger()
@@ -46,7 +56,9 @@ open class MongoCommandWriteE2EBenchmark {
         fixture = MongoBenchmarkFixture()
         commandDispatcherScenario = CommandDispatcherScenario.create(
             eventStore = MongoEventStore(fixture.database),
-            schedulerSupplier = SchedulerStrategy.valueOf(schedulerStrategy).toSchedulerSupplier(),
+            schedulerSupplier = SchedulerStrategy.valueOf(schedulerStrategy)
+                .toSchedulerSupplier(resolveSchedulerPoolSize(schedulerPoolSize)),
+            stripeCount = resolveStripeCount(stripeCount),
         )
     }
 
@@ -71,9 +83,17 @@ open class MongoCommandWriteE2EBenchmark {
     @Benchmark
     fun sendAndWaitProcessed(blackHole: Blackhole) {
         blackHole.consumeWowResult(onError = { failures.incrementAndGet() }) {
-            commandDispatcherScenario.commandGateway
-                .sendAndWaitForProcessed(BenchmarkCommands.newAggregateAddCartItem())
-                .block()
+            val command = BenchmarkCommands.newAggregateAddCartItem()
+            val result = checkNotNull(
+                commandDispatcherScenario.commandGateway
+                    .sendAndWaitForProcessed(command)
+                    .block()
+            )
+            check(result.succeeded)
+            check(result.stage == CommandStage.PROCESSED)
+            check(result.aggregateId == command.aggregateId.id)
+            check(result.aggregateVersion == Version.INITIAL_VERSION)
+            result
         }
     }
 }

@@ -94,6 +94,17 @@ val benchmarkRunIdentityService = gradle.sharedServices.registerIfAbsent(
     BenchmarkRunIdentityService::class,
 ) {}
 
+abstract class OpenLoopExecutionService : BuildService<BuildServiceParameters.None>, AutoCloseable {
+    override fun close() = Unit
+}
+
+val openLoopExecutionService = gradle.sharedServices.registerIfAbsent(
+    "openLoopExecution",
+    OpenLoopExecutionService::class,
+) {
+    maxParallelUsages.set(1)
+}
+
 data class DockerContainerRuntime(
     val label: String,
     val containerName: String,
@@ -359,6 +370,76 @@ val confirmationE2EProfile = baselineE2EProfile.copy(
     parameters = benchmarkParametersProperty("benchmarkConfirmE2EParameters"),
 )
 
+val commandIngressHeadOfLineScenarios = listOf(
+    "DISTINCT_UNIFORM_POOL4",
+    "DISTINCT_ONE_SLOW_POOL4",
+    "COLLIDING_UNIFORM_POOL4",
+    "COLLIDING_ONE_SLOW_POOL4",
+    "DISTINCT_UNIFORM_POOL1",
+    "DISTINCT_ONE_SLOW_POOL1",
+)
+
+val commandIngressHeadOfLineE2EProfile = BenchmarkRunProfile(
+    id = "scheduler-hol",
+    warmupIterations = 2,
+    warmupTime = "3s",
+    measurementIterations = 3,
+    measurementTime = "5s",
+    forks = 3,
+    threads = listOf(4),
+    benchmarkModes = listOf("thrpt", "sample"),
+    jvmArgs = benchmarkJvmArgs,
+    includeGcProfiler = false,
+    includeAsyncProfiler = false,
+    parameters = benchmarkParametersProperty("benchmarkCommandIngressHolParameters").ifEmpty {
+        mapOf("contentionScenario" to commandIngressHeadOfLineScenarios.joinToString(","))
+    },
+)
+
+val multiAggregateSchedulerProfile = BenchmarkRunProfile(
+    id = "multi-aggregate-scheduler",
+    warmupIterations = 2,
+    warmupTime = "2s",
+    measurementIterations = 4,
+    measurementTime = "3s",
+    forks = 3,
+    threads = benchmarkThreadsProperty(
+        "benchmarkMultiAggregateSchedulerThreads",
+        listOf(16),
+    ),
+    benchmarkModes = benchmarkModesProperty(
+        "benchmarkMultiAggregateSchedulerModes",
+        listOf("thrpt"),
+    ),
+    jvmArgs = benchmarkJvmArgs,
+    includeGcProfiler = true,
+    includeAsyncProfiler = false,
+    parameters =
+        benchmarkParametersProperty("benchmarkMultiAggregateSchedulerParameters"),
+)
+
+val multiAggregateSchedulerFixedBudgetProfile = multiAggregateSchedulerProfile.copy(
+    id = "multi-aggregate-scheduler-fixed-budget",
+    parameters =
+        benchmarkParametersProperty("benchmarkMultiAggregateSchedulerFixedBudgetParameters"),
+)
+
+val multiAggregateSchedulerIsolationProfile = BenchmarkRunProfile(
+    id = "multi-aggregate-scheduler-isolation",
+    warmupIterations = 2,
+    warmupTime = "2s",
+    measurementIterations = 3,
+    measurementTime = "3s",
+    forks = 3,
+    threads = listOf(8),
+    benchmarkModes = listOf("thrpt", "sample"),
+    jvmArgs = benchmarkJvmArgs,
+    includeGcProfiler = false,
+    includeAsyncProfiler = false,
+    parameters =
+        benchmarkParametersProperty("benchmarkMultiAggregateSchedulerIsolationParameters"),
+)
+
 val diagnosticComponentProfile = BenchmarkRunProfile(
     id = "diagnostic",
     warmupIterations = 1,
@@ -371,6 +452,23 @@ val diagnosticComponentProfile = BenchmarkRunProfile(
     jvmArgs = quickBenchmarkJvmArgs,
     includeGcProfiler = true,
     includeAsyncProfiler = false,
+)
+
+val openLoopObserverComponentProfile = diagnosticComponentProfile.copy(
+    id = "open-loop-observer",
+    warmupIterations = 3,
+    warmupTime = "250ms",
+    measurementIterations = 10,
+    measurementTime = "250ms",
+    forks = 3,
+    threads = benchmarkThreadsProperty(
+        "benchmarkOpenLoopObserverThreads",
+        listOf(1, 4, 16),
+    ),
+    benchmarkModes = benchmarkModesProperty(
+        "benchmarkOpenLoopObserverModes",
+        listOf("avgt"),
+    ),
 )
 
 val exhaustiveComponentProfile = BenchmarkRunProfile(
@@ -412,6 +510,25 @@ val baselineInfrastructureProfile = BenchmarkRunProfile(
     benchmarkModes = listOf("thrpt", "avgt"),
     jvmArgs = benchmarkJvmArgs,
     includeGcProfiler = true,
+    includeAsyncProfiler = false,
+)
+
+val pureCreateSchedulerScreenProfile = BenchmarkRunProfile(
+    id = "pure-create-scheduler-screen",
+    warmupIterations = 2,
+    warmupTime = "3s",
+    measurementIterations = 3,
+    measurementTime = "5s",
+    forks = 1,
+    threads = listOf(14),
+    benchmarkModes = listOf("thrpt"),
+    jvmArgs = benchmarkJvmArgs,
+    parameters = mapOf(
+        "schedulerStrategy" to "PARALLEL",
+        "schedulerPoolSize" to "2,4,8,14",
+        "stripeCount" to "64,224,896",
+    ),
+    includeGcProfiler = false,
     includeAsyncProfiler = false,
 )
 
@@ -472,6 +589,18 @@ val batchCommandWriteE2ESuite = BenchmarkSuite(
     formalRegressionSource = false,
 )
 
+val commandIngressHeadOfLineE2ESuite = BenchmarkSuite(
+    id = "command-ingress-hol-e2e",
+    displayName = "Command Ingress Head-of-Line E2E",
+    includeClasses = listOf(
+        "me.ahoo.wow.benchmark.e2e.CommandIngressHeadOfLineBenchmark.contention",
+    ),
+    resultFileName = "command-ingress-hol-e2e.json",
+    humanFileName = "command-ingress-hol-e2e-human.txt",
+    requiredForGroupedReport = false,
+    formalRegressionSource = false,
+)
+
 val infrastructureE2ESuite = BenchmarkSuite(
     id = "infrastructure-e2e",
     displayName = "Infrastructure E2E",
@@ -497,6 +626,13 @@ val infrastructureE2ESuite = BenchmarkSuite(
     ),
 )
 
+val pureCreateSchedulerScreenSuite = infrastructureE2ESuite.copy(
+    id = "pure-create-scheduler-screen",
+    displayName = "Pure Create Scheduler Screen",
+    resultFileName = "pure-create-scheduler-screen.json",
+    humanFileName = "pure-create-scheduler-screen-human.txt",
+)
+
 val componentSuite = BenchmarkSuite(
     id = "component",
     displayName = "Component",
@@ -519,6 +655,54 @@ val componentSuite = BenchmarkSuite(
     ),
     resultFileName = "component.json",
     humanFileName = "component-human.txt",
+    requiredForGroupedReport = false,
+    formalRegressionSource = false,
+)
+
+val openLoopObserverComponentSuite = BenchmarkSuite(
+    id = "open-loop-observer-component",
+    displayName = "Open-Loop Observer Component",
+    includeClasses = listOf(
+        "me.ahoo.wow.benchmark.openloop.OpenLoopObserverComponentBenchmark",
+    ),
+    resultFileName = "open-loop-observer-component.json",
+    humanFileName = "open-loop-observer-component-human.txt",
+    requiredForGroupedReport = false,
+    formalRegressionSource = false,
+)
+
+val multiAggregateSchedulerSuite = BenchmarkSuite(
+    id = "multi-aggregate-scheduler-component",
+    displayName = "Multi-Aggregate Scheduler Component",
+    includeClasses = listOf(
+        "me.ahoo.wow.benchmark.component.MultiAggregateSchedulerComponentBenchmark",
+    ),
+    resultFileName = "multi-aggregate-scheduler-component.json",
+    humanFileName = "multi-aggregate-scheduler-component-human.txt",
+    requiredForGroupedReport = false,
+    formalRegressionSource = false,
+)
+
+val multiAggregateSchedulerFixedBudgetSuite = BenchmarkSuite(
+    id = "multi-aggregate-scheduler-fixed-budget",
+    displayName = "Multi-Aggregate Scheduler Fixed Worker Budget",
+    includeClasses = listOf(
+        "me.ahoo.wow.benchmark.component.MultiAggregateFixedWorkerBudgetComponentBenchmark",
+    ),
+    resultFileName = "multi-aggregate-scheduler-fixed-budget.json",
+    humanFileName = "multi-aggregate-scheduler-fixed-budget-human.txt",
+    requiredForGroupedReport = false,
+    formalRegressionSource = false,
+)
+
+val multiAggregateSchedulerIsolationSuite = BenchmarkSuite(
+    id = "multi-aggregate-scheduler-isolation",
+    displayName = "Multi-Aggregate Scheduler Isolation",
+    includeClasses = listOf(
+        "me.ahoo.wow.benchmark.component.MultiAggregateSchedulerIsolationBenchmark",
+    ),
+    resultFileName = "multi-aggregate-scheduler-isolation.json",
+    humanFileName = "multi-aggregate-scheduler-isolation-human.txt",
     requiredForGroupedReport = false,
     formalRegressionSource = false,
 )
@@ -675,6 +859,13 @@ val confirmationE2ETaskSpec = BenchmarkTaskSpec(
     description = "Confirms selected Framework E2E signals with the formal baseline measurement profile.",
 )
 
+val commandIngressHeadOfLineE2ETaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkCommandIngressHolE2E",
+    suite = commandIngressHeadOfLineE2ESuite,
+    profile = commandIngressHeadOfLineE2EProfile,
+    description = "Measures stripe and Scheduler worker head-of-line effects with isolated fast-command latency.",
+)
+
 val quickInfrastructureE2ETaskSpec = BenchmarkTaskSpec(
     taskName = "benchmarkQuickInfrastructureE2E",
     suite = infrastructureE2ESuite,
@@ -689,6 +880,14 @@ val baselineInfrastructureE2ETaskSpec = BenchmarkTaskSpec(
     description = "Runs the formal Redis and Mongo infrastructure baseline.",
 )
 
+val pureCreateSchedulerScreenTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkPureCreateSchedulerScreen",
+    suite = pureCreateSchedulerScreenSuite,
+    profile = pureCreateSchedulerScreenProfile,
+    description =
+        "Screens fixed-14-thread scheduler pool and stripe configurations on real pure-create PROCESSED paths.",
+)
+
 val quickComponentTaskSpec = BenchmarkTaskSpec(
     taskName = "benchmarkQuickComponent",
     suite = quickComponentSuite,
@@ -701,6 +900,38 @@ val diagnosticComponentTaskSpec = BenchmarkTaskSpec(
     suite = diagnosticComponentSuite,
     profile = diagnosticComponentRunProfile,
     description = "Runs the selected Component diagnostic catalog.",
+)
+
+val openLoopObserverComponentTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkOpenLoopObserverComponent",
+    suite = openLoopObserverComponentSuite,
+    profile = openLoopObserverComponentProfile,
+    description =
+        "Measures only the write-side cost of bounded-open-loop latency recorders.",
+)
+
+val multiAggregateSchedulerTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkMultiAggregateScheduler",
+    suite = multiAggregateSchedulerSuite,
+    profile = multiAggregateSchedulerProfile,
+    description =
+        "Compares per-aggregate and role-shared Scheduler topology across aggregate counts.",
+)
+
+val multiAggregateSchedulerFixedBudgetTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkMultiAggregateSchedulerFixedBudget",
+    suite = multiAggregateSchedulerFixedBudgetSuite,
+    profile = multiAggregateSchedulerFixedBudgetProfile,
+    description =
+        "Compares Scheduler ownership while holding total role worker capacity constant.",
+)
+
+val multiAggregateSchedulerIsolationTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkMultiAggregateSchedulerIsolation",
+    suite = multiAggregateSchedulerIsolationSuite,
+    profile = multiAggregateSchedulerIsolationProfile,
+    description =
+        "Measures equal-budget Scheduler work conservation and cross-type isolation.",
 )
 
 val exhaustiveComponentTaskSpec = BenchmarkTaskSpec(
@@ -752,10 +983,16 @@ val benchmarkTaskSpecs = listOf(
     baselineE2ETaskSpec,
     latencyE2ETaskSpec,
     confirmationE2ETaskSpec,
+    commandIngressHeadOfLineE2ETaskSpec,
     quickInfrastructureE2ETaskSpec,
     baselineInfrastructureE2ETaskSpec,
+    pureCreateSchedulerScreenTaskSpec,
     quickComponentTaskSpec,
     diagnosticComponentTaskSpec,
+    openLoopObserverComponentTaskSpec,
+    multiAggregateSchedulerTaskSpec,
+    multiAggregateSchedulerFixedBudgetTaskSpec,
+    multiAggregateSchedulerIsolationTaskSpec,
     exhaustiveComponentTaskSpec,
     quickWebFluxTaskSpec,
     exhaustiveWebFluxTaskSpec,
@@ -1435,6 +1672,1693 @@ fun registerBenchmarkTask(taskSpec: BenchmarkTaskSpec) {
             )
         }
     }
+}
+
+data class CommandProcessedOpenLoopTaskSpec(
+    val taskName: String,
+    val profile: String,
+    val ratePerSecond: Long,
+    val repeat: Int,
+    val warmupSeconds: Long,
+    val measurementSeconds: Long,
+    val producerCount: Int,
+    val maxInFlight: Int,
+    val requestTimeoutMillis: Long,
+    val watchdogIntervalMillis: Long,
+    val startLeadMillis: Long,
+    val maxGeneratorMissedRatio: Double,
+    val maxGeneratorLagP99Millis: Long,
+    val observationMode: String,
+    val schedulerPoolSize: String,
+    val stripeCount: String,
+    val aggregateCardinality: String,
+    val jvmArgs: List<String>,
+    val observationDesignModes: List<String> = emptyList(),
+    val observationDesignSequence: List<String> = emptyList(),
+    val observationDesignPosition: Int? = null,
+    val observationDesignBlockSize: Int? = null,
+)
+
+fun isFormalOpenLoopProfile(profile: String): Boolean =
+    when (profile) {
+        "formal" -> true
+        "smoke", "observer-diagnostic" -> false
+        else -> throw GradleException("Unsupported open-loop profile[$profile].")
+    }
+
+val supportedOpenLoopObservationModes = setOf(
+    "FULL",
+    "NO_DEADLINE_WHEEL",
+    "NO_SERVER_TRACKER",
+    "GENERATOR_ONLY_LATENCY",
+    "NO_LATENCY",
+)
+
+fun normalizeOpenLoopObservationMode(rawValue: String): String =
+    rawValue.trim().replace("-", "_").uppercase(Locale.US)
+
+fun validateCommandProcessedOpenLoopTaskSpec(spec: CommandProcessedOpenLoopTaskSpec) {
+    val formalEvidence = isFormalOpenLoopProfile(spec.profile)
+    if (spec.observationMode !in supportedOpenLoopObservationModes) {
+        throw GradleException(
+            "Unsupported open-loop observation mode[${spec.observationMode}]. Supported values: " +
+                supportedOpenLoopObservationModes.sorted().joinToString()
+        )
+    }
+    if (formalEvidence && spec.observationMode != "FULL") {
+        throw GradleException(
+            "Formal open-loop benchmarks require observationMode=FULL; " +
+                "diagnostic observer ablations cannot be published as capacity evidence."
+        )
+    }
+    if (spec.profile == "observer-diagnostic") {
+        val modes = spec.observationDesignModes
+        if (modes.isEmpty() || modes.distinct() != modes) {
+            throw GradleException(
+                "Observer diagnostics require a non-empty, unique observationDesignModes list."
+            )
+        }
+        if (modes.any { it !in supportedOpenLoopObservationModes }) {
+            throw GradleException(
+                "observationDesignModes contains an unsupported mode: $modes"
+            )
+        }
+        val expectedBlockSize = minimumBalancedOpenLoopObservationRepeats(modes)
+        if (spec.observationDesignBlockSize != expectedBlockSize) {
+            throw GradleException(
+                "observationDesignBlockSize[${spec.observationDesignBlockSize}] does not " +
+                    "match Williams block size[$expectedBlockSize]."
+            )
+        }
+        val expectedSequence = orderedOpenLoopObservationModes(modes, spec.repeat)
+        if (spec.observationDesignSequence != expectedSequence) {
+            throw GradleException(
+                "observationDesignSequence[${spec.observationDesignSequence}] does not " +
+                    "match repeat ${spec.repeat} sequence[$expectedSequence]."
+            )
+        }
+        val expectedPosition = expectedSequence.indexOf(spec.observationMode)
+        if (spec.observationDesignPosition != expectedPosition) {
+            throw GradleException(
+                "observationDesignPosition[${spec.observationDesignPosition}] does not " +
+                    "match mode ${spec.observationMode} position[$expectedPosition]."
+            )
+        }
+    } else if (
+        spec.observationDesignModes.isNotEmpty() ||
+        spec.observationDesignSequence.isNotEmpty() ||
+        spec.observationDesignPosition != null ||
+        spec.observationDesignBlockSize != null
+    ) {
+        throw GradleException(
+            "Only observer-diagnostic tasks may declare an observation design."
+        )
+    }
+    commandProcessedOpenLoopResolvedSchedulerPoolSize(spec)
+    commandProcessedOpenLoopResolvedStripeCount(spec)
+}
+
+fun commandProcessedOpenLoopPositiveInt(
+    name: String,
+    rawValue: String,
+): Int =
+    rawValue.toIntOrNull()
+        ?.takeIf { it > 0 }
+        ?: throw GradleException("$name must be a positive integer: $rawValue")
+
+fun commandProcessedOpenLoopJvmIntArgument(
+    spec: CommandProcessedOpenLoopTaskSpec,
+    prefix: String,
+    name: String,
+): Int? =
+    spec.jvmArgs
+        .mapNotNull { argument ->
+            argument.takeIf { it.startsWith(prefix) }?.removePrefix(prefix)
+        }
+        .lastOrNull()
+        ?.let { commandProcessedOpenLoopPositiveInt(name, it) }
+
+fun commandProcessedOpenLoopActiveProcessors(
+    spec: CommandProcessedOpenLoopTaskSpec,
+): Int =
+    commandProcessedOpenLoopJvmIntArgument(
+        spec = spec,
+        prefix = "-XX:ActiveProcessorCount=",
+        name = "ActiveProcessorCount",
+    ) ?: Runtime.getRuntime().availableProcessors()
+
+fun commandProcessedOpenLoopResolvedSchedulerPoolSize(
+    spec: CommandProcessedOpenLoopTaskSpec,
+): Int =
+    if (spec.schedulerPoolSize == "cpu") {
+        commandProcessedOpenLoopJvmIntArgument(
+            spec = spec,
+            prefix = "-Dreactor.schedulers.defaultPoolSize=",
+            name = "reactor.schedulers.defaultPoolSize",
+        ) ?: System.getProperty("reactor.schedulers.defaultPoolSize")
+            ?.let {
+                commandProcessedOpenLoopPositiveInt(
+                    "reactor.schedulers.defaultPoolSize",
+                    it,
+                )
+            }
+        ?: commandProcessedOpenLoopActiveProcessors(spec)
+    } else {
+        commandProcessedOpenLoopPositiveInt("schedulerPoolSize", spec.schedulerPoolSize)
+    }
+
+fun commandProcessedOpenLoopResolvedStripeCount(
+    spec: CommandProcessedOpenLoopTaskSpec,
+): Int =
+    if (spec.stripeCount == "default") {
+        commandProcessedOpenLoopJvmIntArgument(
+            spec = spec,
+            prefix = "-Dwow.parallelism=",
+            name = "wow.parallelism",
+        ) ?: System.getProperty("wow.parallelism")
+            ?.let { commandProcessedOpenLoopPositiveInt("wow.parallelism", it) }
+        ?: runCatching {
+            Math.multiplyExact(64, commandProcessedOpenLoopActiveProcessors(spec))
+        }.getOrElse {
+            throw GradleException("Resolved default stripeCount overflows Int.", it)
+        }
+    } else {
+        commandProcessedOpenLoopPositiveInt("stripeCount", spec.stripeCount)
+    }
+
+val commandProcessedOpenLoopOrchestratorSha256 =
+    fileSha256(file("gradle/benchmarking.gradle.kts"))
+
+fun commandProcessedOpenLoopRunnerSourceFiles(root: File): List<File> =
+    rootProject.fileTree(root) {
+        include(
+            "**/*.java",
+            "**/*.json",
+            "**/*.kt",
+            "**/*.kts",
+            "**/*.properties",
+            "**/*.toml",
+            "**/*.yaml",
+            "**/*.yml",
+            "**/src/**/resources/**",
+        )
+        exclude(
+            ".git/**",
+            ".gradle/**",
+            ".agents/**",
+            ".codex/**",
+            "**/build/**",
+            "**/node_modules/**",
+            "**/results/**",
+            "compensation/dashboard/**",
+            "document/**",
+            "documentation/**",
+        )
+    }.files
+        .filter(File::isFile)
+        .sortedBy { source -> source.relativeTo(root).invariantSeparatorsPath }
+
+fun computeCommandProcessedOpenLoopRunnerSourceSha256(
+    root: File = rootProject.projectDir,
+): String {
+    val digest = MessageDigest.getInstance("SHA-256")
+    val sourceFiles = commandProcessedOpenLoopRunnerSourceFiles(root)
+    sourceFiles.forEach { source ->
+        val relativePath = source.relativeTo(root).invariantSeparatorsPath
+        digest.update(relativePath.toByteArray(Charsets.UTF_8))
+        digest.update(0.toByte())
+        source.inputStream().buffered().use { input ->
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) {
+                    break
+                }
+                digest.update(buffer, 0, count)
+            }
+        }
+        digest.update(0.toByte())
+    }
+    return digest.digest().joinToString("") { byte ->
+        "%02x".format(byte.toInt() and 0xff)
+    }
+}
+
+val commandProcessedOpenLoopRunnerSourceSha256 =
+    computeCommandProcessedOpenLoopRunnerSourceSha256()
+
+fun commandProcessedOpenLoopObservationDesignId(
+    spec: CommandProcessedOpenLoopTaskSpec,
+): String =
+    if (spec.observationDesignModes.isEmpty()) {
+        "none"
+    } else {
+        val identity =
+            "williams-v1\n" +
+                "modes=${spec.observationDesignModes.joinToString(",")}\n" +
+                "blockSize=${spec.observationDesignBlockSize}"
+        MessageDigest.getInstance("SHA-256")
+            .digest(identity.toByteArray(Charsets.UTF_8))
+            .take(8)
+            .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+    }
+
+fun commandProcessedOpenLoopProtocolIdentity(spec: CommandProcessedOpenLoopTaskSpec): String =
+    listOf(
+        "profile" to spec.profile,
+        "ratePerSecond" to spec.ratePerSecond,
+        "warmupSeconds" to spec.warmupSeconds,
+        "measurementSeconds" to spec.measurementSeconds,
+        "producerCount" to spec.producerCount,
+        "maxInFlight" to spec.maxInFlight,
+        "requestTimeoutMillis" to spec.requestTimeoutMillis,
+        "watchdogIntervalMillis" to spec.watchdogIntervalMillis,
+        "startLeadMillis" to spec.startLeadMillis,
+        "maxGeneratorMissedRatio" to spec.maxGeneratorMissedRatio,
+        "maxGeneratorLagP99Millis" to spec.maxGeneratorLagP99Millis,
+        "observationMode" to spec.observationMode,
+        "observationDesignId" to commandProcessedOpenLoopObservationDesignId(spec),
+        "observationDesignModes" to spec.observationDesignModes.joinToString(","),
+        "observationDesignBlockSize" to spec.observationDesignBlockSize,
+        "observationDesignSequence" to spec.observationDesignSequence.joinToString(","),
+        "observationDesignPosition" to spec.observationDesignPosition,
+        "schedulerPoolSizeToken" to spec.schedulerPoolSize,
+        "schedulerPoolSize" to commandProcessedOpenLoopResolvedSchedulerPoolSize(spec),
+        "stripeCountToken" to spec.stripeCount,
+        "stripeCount" to commandProcessedOpenLoopResolvedStripeCount(spec),
+        "aggregateCardinality" to spec.aggregateCardinality,
+        "jvmArgs" to spec.jvmArgs.joinToString("\u001f"),
+        "orchestratorSha256" to commandProcessedOpenLoopOrchestratorSha256,
+        "runnerSourceSha256" to commandProcessedOpenLoopRunnerSourceSha256,
+    ).joinToString("\n") { (name, value) -> "$name=$value" }
+
+fun commandProcessedOpenLoopProtocolFingerprint(
+    spec: CommandProcessedOpenLoopTaskSpec,
+): String {
+    val digest = MessageDigest.getInstance("SHA-256")
+        .digest(commandProcessedOpenLoopProtocolIdentity(spec).toByteArray(Charsets.UTF_8))
+    return digest
+        .take(12)
+        .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+}
+
+fun commandProcessedOpenLoopResultPrefix(spec: CommandProcessedOpenLoopTaskSpec): String =
+    "${spec.profile}-rate-${spec.ratePerSecond}-" +
+        "pool-${openLoopSafeToken(spec.schedulerPoolSize)}-" +
+        "${commandProcessedOpenLoopResolvedSchedulerPoolSize(spec)}-" +
+        "stripes-${openLoopSafeToken(spec.stripeCount)}-" +
+        "${commandProcessedOpenLoopResolvedStripeCount(spec)}-" +
+        "cardinality-${openLoopSafeToken(spec.aggregateCardinality)}-" +
+        "producers-${spec.producerCount}-watchdog-${spec.watchdogIntervalMillis}ms-" +
+        "observer-${openLoopSafeToken(spec.observationMode.lowercase(Locale.US))}-" +
+        "protocol-${commandProcessedOpenLoopProtocolFingerprint(spec)}-repeat-${spec.repeat}"
+
+fun positiveOpenLoopLong(
+    propertyName: String,
+    defaultValue: Long,
+): Long {
+    val rawValue = providers.gradleProperty(propertyName).orNull ?: defaultValue.toString()
+    return rawValue.toLongOrNull()
+        ?.takeIf { it > 0 }
+        ?: throw GradleException("$propertyName must be a positive integer: $rawValue")
+}
+
+fun positiveOpenLoopInt(
+    propertyName: String,
+    defaultValue: Int,
+): Int {
+    val value = positiveOpenLoopLong(propertyName, defaultValue.toLong())
+    if (value > Int.MAX_VALUE) {
+        throw GradleException("$propertyName must not exceed ${Int.MAX_VALUE}: $value")
+    }
+    return value.toInt()
+}
+
+fun openLoopRatio(
+    propertyName: String,
+    defaultValue: Double,
+): Double {
+    val rawValue = providers.gradleProperty(propertyName).orNull ?: defaultValue.toString()
+    return rawValue.toDoubleOrNull()
+        ?.takeIf { it.isFinite() && it in 0.0..1.0 }
+        ?: throw GradleException(
+            "$propertyName must be a finite number between 0 and 1: $rawValue"
+        )
+}
+
+fun openLoopPositiveToken(
+    propertyName: String,
+    defaultValue: String,
+    namedValue: String,
+): String {
+    val value = providers.gradleProperty(propertyName).orNull ?: defaultValue
+    if (value == namedValue || value.toIntOrNull()?.let { it > 0 } == true) {
+        return value
+    }
+    throw GradleException(
+        "$propertyName must be '$namedValue' or a positive integer: $value"
+    )
+}
+
+fun openLoopRates(): List<Long> {
+    val rawValue = providers.gradleProperty("benchmarkOpenLoopRates").orNull
+        ?: "200000,300000,350000,400000"
+    val rates = rawValue.split(",")
+        .map(String::trim)
+        .filter(String::isNotEmpty)
+        .map { token ->
+            token.toLongOrNull()
+                ?.takeIf { it > 0 }
+                ?: throw GradleException(
+                    "benchmarkOpenLoopRates must contain only positive integers: $token"
+                )
+        }
+        .distinct()
+    if (rates.isEmpty()) {
+        throw GradleException("benchmarkOpenLoopRates must contain at least one rate.")
+    }
+    return rates
+}
+
+fun openLoopSafeToken(value: String): String =
+    value.replace(Regex("[^A-Za-z0-9._-]"), "-")
+
+fun openLoopObservationModes(
+    propertyName: String,
+    defaultValue: String,
+): List<String> {
+    val rawValue = providers.gradleProperty(propertyName).orNull ?: defaultValue
+    val modes = rawValue
+        .split(",")
+        .map(::normalizeOpenLoopObservationMode)
+        .filter(String::isNotEmpty)
+        .distinct()
+    if (modes.isEmpty()) {
+        throw GradleException("$propertyName must contain at least one observation mode.")
+    }
+    val unsupported = modes.filterNot(supportedOpenLoopObservationModes::contains)
+    if (unsupported.isNotEmpty()) {
+        throw GradleException(
+            "$propertyName contains unsupported observation mode(s): ${unsupported.joinToString()}. " +
+                "Supported values: ${supportedOpenLoopObservationModes.sorted().joinToString()}."
+        )
+    }
+    return modes
+}
+
+fun orderedOpenLoopObservationModes(
+    modes: List<String>,
+    repeat: Int,
+): List<String> {
+    require(modes.isNotEmpty()) {
+        "Observation modes must not be empty."
+    }
+    require(repeat > 0) {
+        "Observation repeat must be positive."
+    }
+    if (modes.size == 1) {
+        return modes
+    }
+    val baseIndexes = buildList {
+        add(0)
+        var lower = 1
+        var upper = modes.lastIndex
+        while (size < modes.size) {
+            add(lower++)
+            if (size < modes.size) {
+                add(upper--)
+            }
+        }
+    }
+    val designSize = minimumBalancedOpenLoopObservationRepeats(modes)
+    val designRow = (repeat - 1) % designSize
+    val offset = designRow % modes.size
+    val row = baseIndexes.map { index ->
+        modes[(index + offset) % modes.size]
+    }
+    return if (designRow >= modes.size) row.reversed() else row
+}
+
+fun minimumBalancedOpenLoopObservationRepeats(modes: List<String>): Int {
+    require(modes.isNotEmpty()) {
+        "Observation modes must not be empty."
+    }
+    return when {
+        modes.size == 1 -> 1
+        modes.size % 2 == 0 -> modes.size
+        else -> modes.size * 2
+    }
+}
+
+fun registerCommandProcessedOpenLoopTask(
+    spec: CommandProcessedOpenLoopTaskSpec,
+): TaskProvider<JavaExec> {
+    validateCommandProcessedOpenLoopTaskSpec(spec)
+    val resolvedSchedulerPoolSize =
+        commandProcessedOpenLoopResolvedSchedulerPoolSize(spec)
+    val resolvedStripeCount = commandProcessedOpenLoopResolvedStripeCount(spec)
+    val jmhJar = tasks.named<Jar>("jmhJar")
+    val resultPrefix = commandProcessedOpenLoopResultPrefix(spec)
+    val resultFile = layout.projectDirectory.file(
+        "results/open-loop/command-processed/$resultPrefix.json"
+    )
+    val humanFile = layout.projectDirectory.file(
+        "results/open-loop/command-processed/$resultPrefix.md"
+    )
+    val manifestFile = layout.projectDirectory.file(
+        "results/open-loop/command-processed/$resultPrefix.manifest.json"
+    )
+    val inProgressManifestFile = layout.projectDirectory.file(
+        "results/open-loop/command-processed/$resultPrefix.manifest.in-progress.json"
+    )
+    val runnerArgs = listOf(
+        "--resultPath=${resultFile.asFile.absolutePath}",
+        "--humanPath=${humanFile.asFile.absolutePath}",
+        "--ratePerSecond=${spec.ratePerSecond}",
+        "--warmupSeconds=${spec.warmupSeconds}",
+        "--measurementSeconds=${spec.measurementSeconds}",
+        "--producerCount=${spec.producerCount}",
+        "--maxInFlight=${spec.maxInFlight}",
+        "--requestTimeoutMillis=${spec.requestTimeoutMillis}",
+        "--watchdogIntervalMillis=${spec.watchdogIntervalMillis}",
+        "--startLeadMillis=${spec.startLeadMillis}",
+        "--maxGeneratorMissedRatio=${spec.maxGeneratorMissedRatio}",
+        "--maxGeneratorLagP99Millis=${spec.maxGeneratorLagP99Millis}",
+        "--observationMode=${spec.observationMode}",
+        "--schedulerPoolSizeToken=${spec.schedulerPoolSize}",
+        "--schedulerPoolSize=$resolvedSchedulerPoolSize",
+        "--stripeCountToken=${spec.stripeCount}",
+        "--stripeCount=$resolvedStripeCount",
+        "--aggregateCardinality=${spec.aggregateCardinality}",
+    )
+
+    return tasks.register<JavaExec>(spec.taskName) {
+        description =
+            "Runs the command PROCESSED bounded-open-loop benchmark at ${spec.ratePerSecond} commands/s " +
+                "(repeat ${spec.repeat})."
+        group = "benchmark"
+        dependsOn(jmhJar)
+        usesService(benchmarkRunIdentityService)
+        usesService(openLoopExecutionService)
+        classpath(jmhJar.flatMap { it.archiveFile })
+        mainClass.set("me.ahoo.wow.benchmark.openloop.CommandProcessedOpenLoopRunner")
+        jvmArgs(spec.jvmArgs)
+        args(runnerArgs)
+
+        outputs.file(resultFile)
+        outputs.file(humanFile)
+        outputs.file(manifestFile)
+        outputs.upToDateWhen { false }
+
+        doFirst {
+            validateCommandProcessedOpenLoopTaskSpec(spec)
+            val formalEvidence = isFormalOpenLoopProfile(spec.profile)
+            val currentRunnerSourceSha256 =
+                computeCommandProcessedOpenLoopRunnerSourceSha256()
+            if (
+                currentRunnerSourceSha256 !=
+                commandProcessedOpenLoopRunnerSourceSha256
+            ) {
+                throw GradleException(
+                    "Open-loop runner source changed after Gradle configuration; " +
+                        "restart the task so its protocol fingerprint is recomputed."
+                )
+            }
+            val result = resultFile.asFile
+            val human = humanFile.asFile
+            val manifest = manifestFile.asFile
+            val inProgressManifest = inProgressManifestFile.asFile
+            val gitRoot = rootProject.projectDir.absolutePath
+            val commitOutput = runCommand(listOf("git", "-C", gitRoot, "rev-parse", "HEAD"))
+            if (commitOutput.exitCode != 0 || commitOutput.output.isBlank()) {
+                throw GradleException(
+                    "Unable to resolve open-loop benchmark source commit: ${commitOutput.output}"
+                )
+            }
+            val statusOutput = runCommand(
+                listOf("git", "-C", gitRoot, "status", "--porcelain", "--untracked-files=normal")
+            )
+            if (statusOutput.exitCode != 0) {
+                throw GradleException(
+                    "Unable to resolve open-loop benchmark source status: ${statusOutput.output}"
+                )
+            }
+            if (formalEvidence && statusOutput.output.isNotBlank()) {
+                throw GradleException(
+                    "Formal open-loop benchmarks require a clean source tree so the runner " +
+                        "can be rebuilt from the recorded commit. Use the smoke task while " +
+                        "developing, or commit the exact source before collecting formal evidence."
+                )
+            }
+            if (formalEvidence) {
+                val injectedJvmEnvironment = listOf(
+                    "JAVA_TOOL_OPTIONS",
+                    "_JAVA_OPTIONS",
+                    "JDK_JAVA_OPTIONS",
+                ).filter { name -> !System.getenv(name).isNullOrBlank() }
+                if (injectedJvmEnvironment.isNotEmpty()) {
+                    throw GradleException(
+                        "Formal open-loop benchmarks reject JVM option injection through " +
+                            "${injectedJvmEnvironment.joinToString()}; " +
+                            "declare every JVM option in the benchmark profile."
+                    )
+                }
+            }
+            manifest.delete()
+            result.delete()
+            human.delete()
+            inProgressManifest.delete()
+            result.parentFile.mkdirs()
+            val runnerJarFile = jmhJar.get().archiveFile.get().asFile
+            val runId = benchmarkRunIdentityService.get().runId
+            args("--runId=$runId")
+            val inProgress = linkedMapOf<String, Any?>(
+                "schemaVersion" to 1,
+                "status" to "IN_PROGRESS",
+                "engine" to "bounded-open-loop",
+                "runId" to runId,
+                "taskPath" to path,
+                "startedAt" to Instant.now().toString(),
+                "projectVersion" to project.version.toString(),
+                "source" to linkedMapOf(
+                    "commit" to commitOutput.output,
+                    "dirty" to statusOutput.output.isNotBlank(),
+                    "runnerJarSha256" to fileSha256(runnerJarFile),
+                    "orchestratorSha256" to commandProcessedOpenLoopOrchestratorSha256,
+                    "runnerSourceSha256" to
+                        commandProcessedOpenLoopRunnerSourceSha256,
+                ),
+                "runSpec" to linkedMapOf(
+                    "profile" to spec.profile,
+                    "ratePerSecond" to spec.ratePerSecond,
+                    "repeat" to spec.repeat,
+                    "warmupSeconds" to spec.warmupSeconds,
+                    "measurementSeconds" to spec.measurementSeconds,
+                    "producerCount" to spec.producerCount,
+                    "maxInFlight" to spec.maxInFlight,
+                    "requestTimeoutMillis" to spec.requestTimeoutMillis,
+                    "watchdogIntervalMillis" to spec.watchdogIntervalMillis,
+                    "startLeadMillis" to spec.startLeadMillis,
+                    "maxGeneratorMissedRatio" to spec.maxGeneratorMissedRatio,
+                    "maxGeneratorLagP99Millis" to spec.maxGeneratorLagP99Millis,
+                    "observationMode" to spec.observationMode,
+                    "observationDesignId" to
+                        commandProcessedOpenLoopObservationDesignId(spec),
+                    "observationDesignModes" to spec.observationDesignModes,
+                    "observationDesignBlockSize" to spec.observationDesignBlockSize,
+                    "observationDesignSequence" to spec.observationDesignSequence,
+                    "observationDesignPosition" to spec.observationDesignPosition,
+                    "observationDesignBlock" to spec.observationDesignBlockSize
+                        ?.let { blockSize -> ((spec.repeat - 1) / blockSize) + 1 },
+                    "observationDesignRow" to spec.observationDesignBlockSize
+                        ?.let { blockSize -> ((spec.repeat - 1) % blockSize) + 1 },
+                    "schedulerPoolSizeToken" to spec.schedulerPoolSize,
+                    "schedulerPoolSize" to resolvedSchedulerPoolSize,
+                    "stripeCountToken" to spec.stripeCount,
+                    "stripeCount" to resolvedStripeCount,
+                    "aggregateCardinality" to spec.aggregateCardinality,
+                    "jvmArgs" to spec.jvmArgs,
+                    "runnerArgs" to runnerArgs,
+                    "protocolFingerprint" to
+                        commandProcessedOpenLoopProtocolFingerprint(spec),
+                ),
+                "orchestratorRuntime" to linkedMapOf(
+                    "javaVersion" to System.getProperty("java.version"),
+                    "vmName" to System.getProperty("java.vm.name"),
+                    "vmVersion" to System.getProperty("java.vm.version"),
+                    "javaExecutable" to javaLauncher.orNull?.executablePath?.asFile?.absolutePath,
+                    "osName" to System.getProperty("os.name"),
+                    "osVersion" to System.getProperty("os.version"),
+                    "osArch" to System.getProperty("os.arch"),
+                    "availableProcessors" to Runtime.getRuntime().availableProcessors(),
+                    "physicalMemoryBytes" to physicalMemoryBytes(),
+                ),
+            )
+            writePrettyJson(inProgressManifest, inProgress)
+        }
+
+        doLast {
+            val result = resultFile.asFile
+            val human = humanFile.asFile
+            val manifest = manifestFile.asFile
+            val inProgressManifest = inProgressManifestFile.asFile
+            if (!result.isFile || result.length() == 0L) {
+                throw GradleException(
+                    "Open-loop result file is missing or empty: ${result.absolutePath}"
+                )
+            }
+            if (!human.isFile || human.length() == 0L) {
+                throw GradleException(
+                    "Open-loop human output is missing or empty: ${human.absolutePath}"
+                )
+            }
+            val parsedResult = JsonSlurper().parseText(result.readText()) as? Map<*, *>
+                ?: throw GradleException(
+                    "Open-loop result must be a JSON object: ${result.absolutePath}"
+                )
+            @Suppress("UNCHECKED_CAST")
+            val manifestData = LinkedHashMap(
+                JsonSlurper().parseText(inProgressManifest.readText()) as Map<String, Any?>
+            )
+            fun requireResultValue(
+                actual: Any?,
+                expected: Any?,
+                field: String,
+            ) {
+                if (actual != expected) {
+                    throw GradleException(
+                        "Open-loop result $field[$actual] does not match run spec[$expected]."
+                    )
+                }
+            }
+            fun resultLong(
+                source: Map<*, *>,
+                field: String,
+            ): Long =
+                (source[field] as? Number)?.toLong()
+                    ?: throw GradleException("Open-loop result is missing numeric $field.")
+
+            fun resultDouble(
+                source: Map<*, *>,
+                field: String,
+            ): Double =
+                (source[field] as? Number)?.toDouble()
+                    ?: throw GradleException("Open-loop result is missing numeric $field.")
+
+            if (parsedResult["status"] != "SUCCESS") {
+                val validity = parsedResult["validity"] as? Map<*, *>
+                throw GradleException(
+                    "Open-loop runner did not publish SUCCESS: ${parsedResult["status"]}; " +
+                        "violations=${validity?.get("violations")}"
+                )
+            }
+            val validity = parsedResult["validity"] as? Map<*, *>
+                ?: throw GradleException("Open-loop result is missing top-level validity.")
+            if (validity["valid"] != true) {
+                throw GradleException(
+                    "Open-loop result top-level validity is invalid: ${validity["violations"]}"
+                )
+            }
+            val validityViolations = validity["violations"] as? List<*>
+                ?: throw GradleException(
+                    "Open-loop result top-level validity is missing violations."
+                )
+            if (validityViolations.isNotEmpty()) {
+                throw GradleException(
+                    "Open-loop result claims valid with violations: $validityViolations"
+                )
+            }
+            requireResultValue(
+                parsedResult["engine"],
+                "bounded-open-loop",
+                "engine",
+            )
+            requireResultValue(
+                parsedResult["runId"],
+                manifestData["runId"],
+                "runId",
+            )
+            val resultConfig = parsedResult["config"] as? Map<*, *>
+                ?: throw GradleException("Open-loop result is missing config.")
+            requireResultValue(
+                resultLong(resultConfig, "ratePerSecond"),
+                spec.ratePerSecond,
+                "config.ratePerSecond",
+            )
+            requireResultValue(
+                resultDouble(resultConfig, "warmupSeconds"),
+                spec.warmupSeconds.toDouble(),
+                "config.warmupSeconds",
+            )
+            requireResultValue(
+                resultDouble(resultConfig, "measurementSeconds"),
+                spec.measurementSeconds.toDouble(),
+                "config.measurementSeconds",
+            )
+            requireResultValue(
+                resultLong(resultConfig, "producerCount"),
+                spec.producerCount.toLong(),
+                "config.producerCount",
+            )
+            requireResultValue(
+                resultLong(resultConfig, "maxInFlight"),
+                spec.maxInFlight.toLong(),
+                "config.maxInFlight",
+            )
+            requireResultValue(
+                resultLong(resultConfig, "requestTimeoutMillis"),
+                spec.requestTimeoutMillis,
+                "config.requestTimeoutMillis",
+            )
+            requireResultValue(
+                resultLong(resultConfig, "watchdogIntervalMillis"),
+                spec.watchdogIntervalMillis,
+                "config.watchdogIntervalMillis",
+            )
+            requireResultValue(
+                resultLong(resultConfig, "startLeadMillis"),
+                spec.startLeadMillis,
+                "config.startLeadMillis",
+            )
+            requireResultValue(
+                resultDouble(resultConfig, "maxGeneratorMissedRatio"),
+                spec.maxGeneratorMissedRatio,
+                "config.maxGeneratorMissedRatio",
+            )
+            requireResultValue(
+                resultLong(resultConfig, "maxGeneratorLagP99Millis"),
+                spec.maxGeneratorLagP99Millis,
+                "config.maxGeneratorLagP99Millis",
+            )
+            requireResultValue(
+                resultConfig["observationMode"],
+                spec.observationMode,
+                "config.observationMode",
+            )
+            val resultProtocol = parsedResult["protocol"] as? Map<*, *>
+                ?: throw GradleException("Open-loop result is missing protocol.")
+            requireResultValue(
+                resultProtocol["fullObservationCoverage"],
+                spec.observationMode == "FULL",
+                "protocol.fullObservationCoverage",
+            )
+            if (
+                isFormalOpenLoopProfile(spec.profile) &&
+                resultProtocol["fullObservationCoverage"] != true
+            ) {
+                throw GradleException(
+                    "Formal open-loop result does not have FULL observation coverage."
+                )
+            }
+            requireResultValue(
+                resultConfig["schedulerPoolSizeToken"],
+                spec.schedulerPoolSize,
+                "config.schedulerPoolSizeToken",
+            )
+            requireResultValue(
+                resultConfig["stripeCountToken"],
+                spec.stripeCount,
+                "config.stripeCountToken",
+            )
+            requireResultValue(
+                resultConfig["aggregateCardinality"],
+                spec.aggregateCardinality,
+                "config.aggregateCardinality",
+            )
+            val resultSchedulerPoolSize = resultLong(
+                resultConfig,
+                "schedulerPoolSize",
+            )
+            val resultStripeCount = resultLong(resultConfig, "stripeCount")
+            requireResultValue(
+                resultSchedulerPoolSize,
+                resolvedSchedulerPoolSize.toLong(),
+                "config.schedulerPoolSize",
+            )
+            requireResultValue(
+                resultStripeCount,
+                resolvedStripeCount.toLong(),
+                "config.stripeCount",
+            )
+            val parsedResults = parsedResult["results"] as? Map<*, *>
+                ?: throw GradleException("Open-loop result is missing results.")
+            val invariants = parsedResults["invariants"] as? Map<*, *>
+                ?: throw GradleException("Open-loop result is missing invariants.")
+            if (invariants["valid"] != true) {
+                throw GradleException(
+                    "Open-loop result invariants are invalid: ${invariants["violations"]}"
+                )
+            }
+            val childRuntime = parsedResult["runtime"] as? Map<*, *>
+                ?: throw GradleException("Open-loop result is missing child runtime.")
+            listOf(
+                "javaVersion",
+                "vmName",
+                "vmVersion",
+                "javaHome",
+                "javaExecutable",
+                "osName",
+                "osVersion",
+                "osArch",
+            ).forEach { field ->
+                val value = childRuntime[field] as? String
+                if (value.isNullOrBlank()) {
+                    throw GradleException(
+                        "Open-loop child runtime is missing non-blank $field."
+                    )
+                }
+            }
+            val childProcessors = resultLong(childRuntime, "availableProcessors")
+            if (childProcessors <= 0) {
+                throw GradleException(
+                    "Open-loop child runtime availableProcessors must be positive."
+                )
+            }
+            val childMaxMemoryBytes = resultLong(childRuntime, "maxMemoryBytes")
+            if (childMaxMemoryBytes <= 0) {
+                throw GradleException(
+                    "Open-loop child runtime maxMemoryBytes must be positive."
+                )
+            }
+            val childJvmInputArguments =
+                (childRuntime["jvmInputArguments"] as? List<*>)
+                    ?.map { argument ->
+                        argument as? String
+                            ?: throw GradleException(
+                                "Open-loop child JVM input argument must be a string."
+                            )
+                    }
+                    ?: throw GradleException(
+                        "Open-loop child runtime is missing jvmInputArguments."
+                    )
+            spec.jvmArgs.forEach { expectedArgument ->
+                if (expectedArgument !in childJvmInputArguments) {
+                    throw GradleException(
+                        "Open-loop child JVM input arguments are missing " +
+                            "configured argument[$expectedArgument]: $childJvmInputArguments"
+                    )
+                }
+            }
+            if (childRuntime["effectiveSystemProperties"] !is Map<*, *>) {
+                throw GradleException(
+                    "Open-loop child runtime is missing effectiveSystemProperties."
+                )
+            }
+            @Suppress("UNCHECKED_CAST")
+            val runSpec = LinkedHashMap(
+                manifestData["runSpec"] as Map<String, Any?>
+            )
+            runSpec["resolvedSchedulerPoolSize"] = resolvedSchedulerPoolSize
+            runSpec["resolvedStripeCount"] = resolvedStripeCount
+            manifestData["runSpec"] = runSpec
+            val manifestRuntime = linkedMapOf<String, Any?>()
+            childRuntime.forEach { (key, value) ->
+                if (key is String) {
+                    manifestRuntime[key] = value
+                }
+            }
+            val orchestratorRuntime = manifestData["orchestratorRuntime"] as? Map<*, *>
+            manifestRuntime["physicalMemoryBytes"] =
+                orchestratorRuntime?.get("physicalMemoryBytes")
+            manifestData["runtime"] = manifestRuntime
+            manifestData["status"] = "SUCCESS"
+            manifestData["completedAt"] = Instant.now().toString()
+            manifestData["artifacts"] = linkedMapOf(
+                "result" to linkedMapOf(
+                    "path" to result.name,
+                    "size" to result.length(),
+                    "sha256" to fileSha256(result),
+                ),
+                "human" to linkedMapOf(
+                    "path" to human.name,
+                    "size" to human.length(),
+                    "sha256" to fileSha256(human),
+                ),
+            )
+            publishJsonAtomically(manifest, manifestData)
+            inProgressManifest.delete()
+        }
+    }
+}
+
+val commandProcessedOpenLoopSchedulerPoolSize = openLoopPositiveToken(
+    propertyName = "benchmarkOpenLoopSchedulerPoolSize",
+    defaultValue = "4",
+    namedValue = "cpu",
+)
+val commandProcessedOpenLoopStripeCount = openLoopPositiveToken(
+    propertyName = "benchmarkOpenLoopStripeCount",
+    defaultValue = "default",
+    namedValue = "default",
+)
+val commandProcessedOpenLoopWarmupSeconds =
+    positiveOpenLoopLong("benchmarkOpenLoopWarmupSeconds", 10)
+val commandProcessedOpenLoopMeasurementSeconds =
+    positiveOpenLoopLong("benchmarkOpenLoopMeasurementSeconds", 20)
+val commandProcessedOpenLoopProducerCount =
+    positiveOpenLoopInt("benchmarkOpenLoopProducerCount", 16)
+val commandProcessedOpenLoopMaxInFlight =
+    positiveOpenLoopInt("benchmarkOpenLoopMaxInFlight", 65_536)
+val commandProcessedOpenLoopRequestTimeoutMillis =
+    positiveOpenLoopLong("benchmarkOpenLoopRequestTimeoutMillis", 5_000)
+val commandProcessedOpenLoopWatchdogIntervalMillis =
+    positiveOpenLoopLong("benchmarkOpenLoopWatchdogIntervalMillis", 5)
+val commandProcessedOpenLoopStartLeadMillis =
+    positiveOpenLoopLong("benchmarkOpenLoopStartLeadMillis", 250)
+val commandProcessedOpenLoopMaxGeneratorMissedRatio =
+    openLoopRatio("benchmarkOpenLoopMaxGeneratorMissedRatio", 0.001)
+val commandProcessedOpenLoopMaxGeneratorLagP99Millis =
+    positiveOpenLoopLong("benchmarkOpenLoopMaxGeneratorLagP99Millis", 5)
+val commandProcessedOpenLoopAggregateCardinality =
+    providers.gradleProperty("benchmarkOpenLoopAggregateCardinality").orNull ?: "high"
+val commandProcessedOpenLoopRepeats =
+    positiveOpenLoopInt("benchmarkOpenLoopRepeats", 3)
+
+val commandProcessedOpenLoopTasks = openLoopRates().flatMap { ratePerSecond ->
+    (1..commandProcessedOpenLoopRepeats).map { repeat ->
+        registerCommandProcessedOpenLoopTask(
+            CommandProcessedOpenLoopTaskSpec(
+                taskName = "benchmarkCommandProcessedOpenLoopRate${ratePerSecond}Repeat$repeat",
+                profile = "formal",
+                ratePerSecond = ratePerSecond,
+                repeat = repeat,
+                warmupSeconds = commandProcessedOpenLoopWarmupSeconds,
+                measurementSeconds = commandProcessedOpenLoopMeasurementSeconds,
+                producerCount = commandProcessedOpenLoopProducerCount,
+                maxInFlight = commandProcessedOpenLoopMaxInFlight,
+                requestTimeoutMillis = commandProcessedOpenLoopRequestTimeoutMillis,
+                watchdogIntervalMillis = commandProcessedOpenLoopWatchdogIntervalMillis,
+                startLeadMillis = commandProcessedOpenLoopStartLeadMillis,
+                maxGeneratorMissedRatio =
+                    commandProcessedOpenLoopMaxGeneratorMissedRatio,
+                maxGeneratorLagP99Millis =
+                    commandProcessedOpenLoopMaxGeneratorLagP99Millis,
+                observationMode = "FULL",
+                schedulerPoolSize = commandProcessedOpenLoopSchedulerPoolSize,
+                stripeCount = commandProcessedOpenLoopStripeCount,
+                aggregateCardinality = commandProcessedOpenLoopAggregateCardinality,
+                jvmArgs = benchmarkJvmArgs,
+            )
+        )
+    }
+}
+
+tasks.register("benchmarkCommandProcessedOpenLoop") {
+    description =
+        "Runs the formal command PROCESSED bounded-open-loop rate matrix in isolated JVMs."
+    group = "benchmark"
+    dependsOn(commandProcessedOpenLoopTasks)
+}
+
+val commandProcessedOpenLoopSmoke = registerCommandProcessedOpenLoopTask(
+    CommandProcessedOpenLoopTaskSpec(
+        taskName = "benchmarkCommandProcessedOpenLoopSmoke",
+        profile = "smoke",
+        ratePerSecond = 1_000,
+        repeat = 1,
+        warmupSeconds = 1,
+        measurementSeconds = 1,
+        producerCount = 2,
+        maxInFlight = 128,
+        requestTimeoutMillis = 2_000,
+        watchdogIntervalMillis = 5,
+        startLeadMillis = 250,
+        maxGeneratorMissedRatio = 0.001,
+        maxGeneratorLagP99Millis = 5,
+        observationMode = "FULL",
+        schedulerPoolSize = "4",
+        stripeCount = "default",
+        aggregateCardinality = "high",
+        jvmArgs = smokeBenchmarkJvmArgs,
+    )
+)
+
+val commandProcessedOpenLoopObservationModes = openLoopObservationModes(
+    propertyName = "benchmarkOpenLoopObservationModes",
+    defaultValue =
+        "FULL,NO_DEADLINE_WHEEL,NO_SERVER_TRACKER,GENERATOR_ONLY_LATENCY,NO_LATENCY",
+)
+val commandProcessedOpenLoopObservationRate =
+    positiveOpenLoopLong("benchmarkOpenLoopObservationRate", 340_000)
+val commandProcessedOpenLoopObservationWarmupSeconds =
+    positiveOpenLoopLong("benchmarkOpenLoopObservationWarmupSeconds", 5)
+val commandProcessedOpenLoopObservationMeasurementSeconds =
+    positiveOpenLoopLong("benchmarkOpenLoopObservationMeasurementSeconds", 10)
+val commandProcessedOpenLoopObservationBlockSize =
+    minimumBalancedOpenLoopObservationRepeats(
+        commandProcessedOpenLoopObservationModes
+    )
+val commandProcessedOpenLoopObservationRepeats =
+    positiveOpenLoopInt(
+        "benchmarkOpenLoopObservationRepeats",
+        commandProcessedOpenLoopObservationBlockSize,
+    ).also { repeatCount ->
+        if (repeatCount % commandProcessedOpenLoopObservationBlockSize != 0) {
+            throw GradleException(
+                "benchmarkOpenLoopObservationRepeats[$repeatCount] must contain complete " +
+                    "Williams-balanced blocks of $commandProcessedOpenLoopObservationBlockSize " +
+                    "repeats for ${commandProcessedOpenLoopObservationModes.size} mode(s)."
+            )
+        }
+    }
+
+val commandProcessedOpenLoopObservationSpecs =
+    (1..commandProcessedOpenLoopObservationRepeats).flatMap { repeat ->
+        val orderedModes = orderedOpenLoopObservationModes(
+            modes = commandProcessedOpenLoopObservationModes,
+            repeat = repeat,
+        )
+        orderedModes.mapIndexed { position, observationMode ->
+            CommandProcessedOpenLoopTaskSpec(
+                taskName =
+                    "benchmarkCommandProcessedOpenLoopObservation" +
+                        observationMode.replace("_", "") +
+                        "Repeat$repeat",
+                profile = "observer-diagnostic",
+                ratePerSecond = commandProcessedOpenLoopObservationRate,
+                repeat = repeat,
+                warmupSeconds = commandProcessedOpenLoopObservationWarmupSeconds,
+                measurementSeconds =
+                    commandProcessedOpenLoopObservationMeasurementSeconds,
+                producerCount = commandProcessedOpenLoopProducerCount,
+                maxInFlight = commandProcessedOpenLoopMaxInFlight,
+                requestTimeoutMillis = commandProcessedOpenLoopRequestTimeoutMillis,
+                watchdogIntervalMillis =
+                    commandProcessedOpenLoopWatchdogIntervalMillis,
+                startLeadMillis = commandProcessedOpenLoopStartLeadMillis,
+                maxGeneratorMissedRatio =
+                    commandProcessedOpenLoopMaxGeneratorMissedRatio,
+                maxGeneratorLagP99Millis =
+                    commandProcessedOpenLoopMaxGeneratorLagP99Millis,
+                observationMode = observationMode,
+                schedulerPoolSize = commandProcessedOpenLoopSchedulerPoolSize,
+                stripeCount = commandProcessedOpenLoopStripeCount,
+                aggregateCardinality = commandProcessedOpenLoopAggregateCardinality,
+                jvmArgs = benchmarkJvmArgs,
+                observationDesignModes = commandProcessedOpenLoopObservationModes,
+                observationDesignSequence = orderedModes,
+                observationDesignPosition = position,
+                observationDesignBlockSize =
+                    commandProcessedOpenLoopObservationBlockSize,
+            )
+        }
+    }
+
+val commandProcessedOpenLoopObservationBlockFingerprint =
+    MessageDigest.getInstance("SHA-256")
+        .digest(
+            commandProcessedOpenLoopObservationSpecs
+                .joinToString("\n", transform = ::commandProcessedOpenLoopProtocolFingerprint)
+                .toByteArray(Charsets.UTF_8)
+        )
+        .take(12)
+        .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+val commandProcessedOpenLoopObservationBlockManifest =
+    layout.projectDirectory.file(
+        "results/open-loop/command-processed/" +
+            "observer-diagnostic-block-" +
+            "$commandProcessedOpenLoopObservationBlockFingerprint.manifest.json"
+    )
+val commandProcessedOpenLoopObservationBlockInProgressManifest =
+    layout.projectDirectory.file(
+        "results/open-loop/command-processed/" +
+            "observer-diagnostic-block-" +
+            "$commandProcessedOpenLoopObservationBlockFingerprint.manifest.in-progress.json"
+    )
+val prepareCommandProcessedOpenLoopObservationBlock =
+    tasks.register("prepareCommandProcessedOpenLoopObservationBlock") {
+        description =
+            "Invalidates the previous observer-ablation block manifest before leaf execution."
+        usesService(benchmarkRunIdentityService)
+        outputs.upToDateWhen { false }
+        doLast {
+            val manifest = commandProcessedOpenLoopObservationBlockManifest.asFile
+            val inProgress =
+                commandProcessedOpenLoopObservationBlockInProgressManifest.asFile
+            manifest.delete()
+            inProgress.delete()
+            val runId = benchmarkRunIdentityService.get().runId
+            publishJsonAtomically(
+                inProgress,
+                linkedMapOf(
+                    "schemaVersion" to 1,
+                    "status" to "IN_PROGRESS",
+                    "engine" to "bounded-open-loop-observer-block",
+                    "runId" to runId,
+                    "startedAt" to Instant.now().toString(),
+                    "source" to linkedMapOf(
+                        "runnerSourceSha256" to
+                            commandProcessedOpenLoopRunnerSourceSha256,
+                        "orchestratorSha256" to
+                            commandProcessedOpenLoopOrchestratorSha256,
+                    ),
+                    "design" to linkedMapOf(
+                        "id" to commandProcessedOpenLoopObservationDesignId(
+                            commandProcessedOpenLoopObservationSpecs.first()
+                        ),
+                        "kind" to "williams-v1",
+                        "modes" to commandProcessedOpenLoopObservationModes,
+                        "blockSize" to
+                            commandProcessedOpenLoopObservationBlockSize,
+                        "repeats" to commandProcessedOpenLoopObservationRepeats,
+                    ),
+                    "expectedLeaves" to
+                        commandProcessedOpenLoopObservationSpecs.map { spec ->
+                            linkedMapOf(
+                                "repeat" to spec.repeat,
+                                "mode" to spec.observationMode,
+                                "sequence" to spec.observationDesignSequence,
+                                "position" to spec.observationDesignPosition,
+                                "protocolFingerprint" to
+                                    commandProcessedOpenLoopProtocolFingerprint(spec),
+                            )
+                        },
+                )
+            )
+        }
+    }
+
+val commandProcessedOpenLoopObservationTasks =
+    commandProcessedOpenLoopObservationSpecs.map { spec ->
+        registerCommandProcessedOpenLoopTask(spec).also { task ->
+            task.configure {
+                dependsOn(prepareCommandProcessedOpenLoopObservationBlock)
+            }
+        }
+    }
+
+commandProcessedOpenLoopObservationTasks.zipWithNext().forEach { (previous, next) ->
+    next.configure {
+        mustRunAfter(previous)
+    }
+}
+
+tasks.register("benchmarkCommandProcessedOpenLoopObservationDiagnostic") {
+    description =
+        "Runs one or more complete benchmark-only observer-ablation blocks; " +
+            "results are diagnostic and are not formal capacity evidence."
+    group = "benchmark"
+    dependsOn(commandProcessedOpenLoopObservationTasks)
+    outputs.file(commandProcessedOpenLoopObservationBlockManifest)
+    outputs.upToDateWhen { false }
+    doLast {
+        val expectedRunId = benchmarkRunIdentityService.get().runId
+        val parsedLeaves =
+            commandProcessedOpenLoopObservationSpecs.map { spec ->
+                val manifestFile = file(
+                    "results/open-loop/command-processed/" +
+                        "${commandProcessedOpenLoopResultPrefix(spec)}.manifest.json"
+                )
+                if (!manifestFile.isFile || manifestFile.length() == 0L) {
+                    throw GradleException(
+                        "Observer block leaf manifest is missing: " +
+                            manifestFile.absolutePath
+                    )
+                }
+                val manifest =
+                    JsonSlurper().parseText(manifestFile.readText()) as? Map<*, *>
+                        ?: throw GradleException(
+                            "Observer block leaf manifest must be a JSON object: " +
+                                manifestFile.absolutePath
+                        )
+                if (manifest["status"] != "SUCCESS") {
+                    throw GradleException(
+                        "Observer block leaf is not SUCCESS: ${manifestFile.name}"
+                    )
+                }
+                if (manifest["runId"] != expectedRunId) {
+                    throw GradleException(
+                        "Observer block leaf runId[${manifest["runId"]}] does not " +
+                            "match block runId[$expectedRunId]: ${manifestFile.name}"
+                    )
+                }
+                val runSpec = manifest["runSpec"] as? Map<*, *>
+                    ?: throw GradleException(
+                        "Observer block leaf is missing runSpec: ${manifestFile.name}"
+                    )
+                fun requireLeafValue(
+                    field: String,
+                    expected: Any?,
+                ) {
+                    val actual = runSpec[field]
+                    val normalizedActual =
+                        if (actual is Number && expected is Int) {
+                            actual.toInt()
+                        } else {
+                            actual
+                        }
+                    if (normalizedActual != expected) {
+                        throw GradleException(
+                            "Observer block leaf ${manifestFile.name} " +
+                                "$field[$normalizedActual] does not match[$expected]."
+                        )
+                    }
+                }
+                requireLeafValue("repeat", spec.repeat)
+                requireLeafValue("observationMode", spec.observationMode)
+                requireLeafValue(
+                    "observationDesignId",
+                    commandProcessedOpenLoopObservationDesignId(spec),
+                )
+                requireLeafValue(
+                    "observationDesignModes",
+                    spec.observationDesignModes,
+                )
+                requireLeafValue(
+                    "observationDesignBlockSize",
+                    spec.observationDesignBlockSize,
+                )
+                requireLeafValue(
+                    "observationDesignSequence",
+                    spec.observationDesignSequence,
+                )
+                requireLeafValue(
+                    "observationDesignPosition",
+                    spec.observationDesignPosition,
+                )
+                requireLeafValue(
+                    "protocolFingerprint",
+                    commandProcessedOpenLoopProtocolFingerprint(spec),
+                )
+                val source = manifest["source"] as? Map<*, *>
+                    ?: throw GradleException(
+                        "Observer block leaf is missing source: ${manifestFile.name}"
+                    )
+                if (
+                    source["runnerSourceSha256"] !=
+                    commandProcessedOpenLoopRunnerSourceSha256
+                ) {
+                    throw GradleException(
+                        "Observer block leaf source fingerprint mismatch: " +
+                        manifestFile.name
+                    )
+                }
+                if (
+                    source["orchestratorSha256"] !=
+                    commandProcessedOpenLoopOrchestratorSha256
+                ) {
+                    throw GradleException(
+                        "Observer block leaf orchestrator fingerprint mismatch: " +
+                            manifestFile.name
+                    )
+                }
+                if ((source["commit"] as? String).isNullOrBlank()) {
+                    throw GradleException(
+                        "Observer block leaf source commit is missing: " +
+                            manifestFile.name
+                    )
+                }
+                if (source["dirty"] !is Boolean) {
+                    throw GradleException(
+                        "Observer block leaf source dirty flag is missing: " +
+                            manifestFile.name
+                    )
+                }
+                val artifacts = manifest["artifacts"] as? Map<*, *>
+                    ?: throw GradleException(
+                        "Observer block leaf is missing artifacts: " +
+                            manifestFile.name
+                    )
+                listOf("result", "human").forEach { artifactName ->
+                    val artifact = artifacts[artifactName] as? Map<*, *>
+                        ?: throw GradleException(
+                            "Observer block leaf ${manifestFile.name} is missing " +
+                                "$artifactName artifact metadata."
+                        )
+                    val artifactPath = artifact["path"] as? String
+                        ?: throw GradleException(
+                            "Observer block leaf ${manifestFile.name} has no " +
+                                "$artifactName artifact path."
+                        )
+                    val artifactFile =
+                        manifestFile.parentFile.resolve(artifactPath).canonicalFile
+                    val artifactRoot = manifestFile.parentFile.canonicalFile
+                    if (
+                        !artifactFile.toPath().startsWith(artifactRoot.toPath()) ||
+                        !artifactFile.isFile
+                    ) {
+                        throw GradleException(
+                            "Observer block leaf ${manifestFile.name} has an invalid " +
+                                "$artifactName artifact path[$artifactPath]."
+                        )
+                    }
+                    val expectedSize = (artifact["size"] as? Number)?.toLong()
+                    if (expectedSize == null || artifactFile.length() != expectedSize) {
+                        throw GradleException(
+                            "Observer block leaf ${manifestFile.name} $artifactName " +
+                                "artifact size mismatch."
+                        )
+                    }
+                    val expectedSha256 = artifact["sha256"] as? String
+                    if (
+                        expectedSha256.isNullOrBlank() ||
+                        fileSha256(artifactFile) != expectedSha256
+                    ) {
+                        throw GradleException(
+                            "Observer block leaf ${manifestFile.name} $artifactName " +
+                                "artifact SHA-256 mismatch."
+                        )
+                    }
+                }
+                Triple(spec, manifestFile, manifest)
+            }
+        val sourceIdentityValues = parsedLeaves
+            .map { (_, _, manifest) ->
+                val source = manifest["source"] as Map<*, *>
+                source["commit"] to source["dirty"]
+            }
+            .toSet()
+        if (sourceIdentityValues.size != 1) {
+            throw GradleException(
+                "Observer block mixes source commit/dirty identities: " +
+                    sourceIdentityValues
+            )
+        }
+        val runnerJarSha256Values = parsedLeaves
+            .map { (_, _, manifest) ->
+                (manifest["source"] as Map<*, *>)["runnerJarSha256"]
+            }
+            .toSet()
+        if (
+            runnerJarSha256Values.size != 1 ||
+            (runnerJarSha256Values.singleOrNull() as? String).isNullOrBlank()
+        ) {
+            throw GradleException(
+                "Observer block mixes runner JARs: $runnerJarSha256Values"
+            )
+        }
+        val completedManifest =
+            commandProcessedOpenLoopObservationBlockManifest.asFile
+        val inProgressManifest =
+            commandProcessedOpenLoopObservationBlockInProgressManifest.asFile
+        publishJsonAtomically(
+            completedManifest,
+            linkedMapOf(
+                "schemaVersion" to 1,
+                "status" to "SUCCESS",
+                "engine" to "bounded-open-loop-observer-block",
+                "runId" to expectedRunId,
+                "completedAt" to Instant.now().toString(),
+                "source" to linkedMapOf(
+                    "runnerSourceSha256" to
+                        commandProcessedOpenLoopRunnerSourceSha256,
+                    "orchestratorSha256" to
+                        commandProcessedOpenLoopOrchestratorSha256,
+                    "commit" to sourceIdentityValues.single().first,
+                    "dirty" to sourceIdentityValues.single().second,
+                    "runnerJarSha256" to runnerJarSha256Values.single(),
+                ),
+                "design" to linkedMapOf(
+                    "id" to commandProcessedOpenLoopObservationDesignId(
+                        commandProcessedOpenLoopObservationSpecs.first()
+                    ),
+                    "kind" to "williams-v1",
+                    "modes" to commandProcessedOpenLoopObservationModes,
+                    "blockSize" to commandProcessedOpenLoopObservationBlockSize,
+                    "repeats" to commandProcessedOpenLoopObservationRepeats,
+                    "completedBlocks" to
+                        commandProcessedOpenLoopObservationRepeats /
+                        commandProcessedOpenLoopObservationBlockSize,
+                ),
+                "leaves" to parsedLeaves.map { (spec, manifestFile, manifest) ->
+                    val artifacts = manifest["artifacts"] as Map<*, *>
+                    linkedMapOf(
+                        "repeat" to spec.repeat,
+                        "mode" to spec.observationMode,
+                        "sequence" to spec.observationDesignSequence,
+                        "position" to spec.observationDesignPosition,
+                        "protocolFingerprint" to
+                            commandProcessedOpenLoopProtocolFingerprint(spec),
+                        "manifestPath" to
+                            manifestFile.relativeTo(project.projectDir)
+                                .invariantSeparatorsPath,
+                        "manifestSha256" to fileSha256(manifestFile),
+                        "artifacts" to artifacts,
+                    )
+                },
+            )
+        )
+        inProgressManifest.delete()
+    }
+}
+
+val verifyCommandProcessedOpenLoopPolicy =
+    tasks.register("verifyCommandProcessedOpenLoopPolicy") {
+        description =
+            "Verifies formal FULL-observer policy and collision-resistant open-loop artifact identity."
+        group = "verification"
+
+        doLast {
+            val formal = CommandProcessedOpenLoopTaskSpec(
+                taskName = "verification",
+                profile = "formal",
+                ratePerSecond = 340_000,
+                repeat = 1,
+                warmupSeconds = 10,
+                measurementSeconds = 20,
+                producerCount = 16,
+                maxInFlight = 65_536,
+                requestTimeoutMillis = 5_000,
+                watchdogIntervalMillis = 5,
+                startLeadMillis = 250,
+                maxGeneratorMissedRatio = 0.001,
+                maxGeneratorLagP99Millis = 5,
+                observationMode = "FULL",
+                schedulerPoolSize = "cpu",
+                stripeCount = "default",
+                aggregateCardinality = "high",
+                jvmArgs = benchmarkJvmArgs,
+            )
+            validateCommandProcessedOpenLoopTaskSpec(formal)
+            check(
+                runCatching {
+                    validateCommandProcessedOpenLoopTaskSpec(
+                        formal.copy(observationMode = "NO_LATENCY")
+                    )
+                }.exceptionOrNull() is GradleException
+            )
+            val twoModeDesign = listOf("FULL", "NO_LATENCY")
+            val twoModeFirstSequence =
+                orderedOpenLoopObservationModes(twoModeDesign, repeat = 1)
+            val diagnosticNoLatency = formal.copy(
+                profile = "observer-diagnostic",
+                observationMode = "NO_LATENCY",
+                observationDesignModes = twoModeDesign,
+                observationDesignSequence = twoModeFirstSequence,
+                observationDesignPosition =
+                    twoModeFirstSequence.indexOf("NO_LATENCY"),
+                observationDesignBlockSize =
+                    minimumBalancedOpenLoopObservationRepeats(twoModeDesign),
+            )
+            validateCommandProcessedOpenLoopTaskSpec(diagnosticNoLatency)
+            check(
+                runCatching {
+                    validateCommandProcessedOpenLoopTaskSpec(
+                        formal.copy(profile = "formal-v2")
+                    )
+                }.exceptionOrNull() is GradleException
+            )
+            check(normalizeOpenLoopObservationMode("no-server-tracker") == "NO_SERVER_TRACKER")
+            check(
+                orderedOpenLoopObservationModes(
+                    listOf("FULL", "NO_LATENCY"),
+                    repeat = 1,
+                ) == listOf("FULL", "NO_LATENCY")
+            )
+            check(
+                orderedOpenLoopObservationModes(
+                    listOf("FULL", "NO_LATENCY"),
+                    repeat = 2,
+                ) == listOf("NO_LATENCY", "FULL")
+            )
+            check(
+                (1..6).map { repeat ->
+                    orderedOpenLoopObservationModes(
+                        listOf("FULL", "GENERATOR_ONLY_LATENCY", "NO_LATENCY"),
+                        repeat,
+                    )
+                } == listOf(
+                    listOf("FULL", "GENERATOR_ONLY_LATENCY", "NO_LATENCY"),
+                    listOf("GENERATOR_ONLY_LATENCY", "NO_LATENCY", "FULL"),
+                    listOf("NO_LATENCY", "FULL", "GENERATOR_ONLY_LATENCY"),
+                    listOf("NO_LATENCY", "GENERATOR_ONLY_LATENCY", "FULL"),
+                    listOf("FULL", "NO_LATENCY", "GENERATOR_ONLY_LATENCY"),
+                    listOf("GENERATOR_ONLY_LATENCY", "FULL", "NO_LATENCY"),
+                )
+            )
+            val fiveModes = listOf("A", "B", "C", "D", "E")
+            val balancedRepeatCount =
+                minimumBalancedOpenLoopObservationRepeats(fiveModes)
+            check(balancedRepeatCount == 10)
+            val balancedRows = (1..balancedRepeatCount).map { repeat ->
+                orderedOpenLoopObservationModes(fiveModes, repeat)
+            }
+            fiveModes.indices.forEach { position ->
+                val positionCounts = balancedRows
+                    .groupingBy { row -> row[position] }
+                    .eachCount()
+                check(positionCounts.values.toSet() == setOf(2))
+                check(positionCounts.keys == fiveModes.toSet())
+            }
+            val predecessorCounts = balancedRows
+                .flatMap { row -> row.zipWithNext() }
+                .groupingBy { it }
+                .eachCount()
+            val expectedPredecessors = fiveModes.flatMap { predecessor ->
+                fiveModes
+                    .filterNot { it == predecessor }
+                    .map { successor -> predecessor to successor }
+            }.toSet()
+            check(predecessorCounts.keys == expectedPredecessors)
+            check(predecessorCounts.values.toSet() == setOf(2))
+            val fourModes = listOf("A", "B", "C", "D")
+            val evenBalancedRows =
+                (1..minimumBalancedOpenLoopObservationRepeats(fourModes)).map { repeat ->
+                    orderedOpenLoopObservationModes(fourModes, repeat)
+                }
+            fourModes.indices.forEach { position ->
+                check(
+                    evenBalancedRows
+                        .groupingBy { row -> row[position] }
+                        .eachCount()
+                        .values
+                        .toSet() == setOf(1)
+                )
+            }
+            val evenPredecessorCounts = evenBalancedRows
+                .flatMap { row -> row.zipWithNext() }
+                .groupingBy { it }
+                .eachCount()
+            check(
+                evenPredecessorCounts.keys ==
+                    fourModes.flatMap { predecessor ->
+                        fourModes
+                            .filterNot { it == predecessor }
+                            .map { successor -> predecessor to successor }
+                    }.toSet()
+            )
+            check(evenPredecessorCounts.values.toSet() == setOf(1))
+            check(
+                runCatching {
+                    validateCommandProcessedOpenLoopTaskSpec(
+                        diagnosticNoLatency.copy(observationMode = "PARTIAL")
+                    )
+                }.exceptionOrNull() is GradleException
+            )
+
+            val identical = formal.copy()
+            check(
+                commandProcessedOpenLoopProtocolFingerprint(formal) ==
+                    commandProcessedOpenLoopProtocolFingerprint(identical)
+            )
+            listOf(
+                formal.copy(producerCount = 8),
+                formal.copy(watchdogIntervalMillis = 50),
+                formal.copy(
+                    profile = "smoke",
+                    observationMode = "GENERATOR_ONLY_LATENCY",
+                ),
+            ).forEach { changed ->
+                check(
+                    commandProcessedOpenLoopProtocolFingerprint(formal) !=
+                        commandProcessedOpenLoopProtocolFingerprint(changed)
+                )
+                check(
+                    commandProcessedOpenLoopResultPrefix(formal) !=
+                        commandProcessedOpenLoopResultPrefix(changed)
+                )
+            }
+            val fiveModeDesign = listOf(
+                "FULL",
+                "NO_DEADLINE_WHEEL",
+                "NO_SERVER_TRACKER",
+                "GENERATOR_ONLY_LATENCY",
+                "NO_LATENCY",
+            )
+            val fiveModeFirstSequence =
+                orderedOpenLoopObservationModes(
+                    fiveModeDesign,
+                    repeat = 1,
+                )
+            val fiveModeFull = formal.copy(
+                profile = "observer-diagnostic",
+                observationMode = "FULL",
+                observationDesignModes = fiveModeDesign,
+                observationDesignSequence = fiveModeFirstSequence,
+                observationDesignPosition = fiveModeFirstSequence.indexOf("FULL"),
+                observationDesignBlockSize =
+                    minimumBalancedOpenLoopObservationRepeats(
+                        fiveModeDesign
+                    ),
+            )
+            val twoModeFull = diagnosticNoLatency.copy(
+                observationMode = "FULL",
+                observationDesignPosition =
+                    twoModeFirstSequence.indexOf("FULL"),
+            )
+            validateCommandProcessedOpenLoopTaskSpec(fiveModeFull)
+            validateCommandProcessedOpenLoopTaskSpec(twoModeFull)
+            check(
+                commandProcessedOpenLoopProtocolFingerprint(fiveModeFull) !=
+                    commandProcessedOpenLoopProtocolFingerprint(twoModeFull)
+            )
+            check(
+                commandProcessedOpenLoopResultPrefix(fiveModeFull) !=
+                    commandProcessedOpenLoopResultPrefix(twoModeFull)
+            )
+            val constrainedCpu = formal.copy(
+                jvmArgs = benchmarkJvmArgs + "-XX:ActiveProcessorCount=7",
+            )
+            check(commandProcessedOpenLoopResolvedSchedulerPoolSize(constrainedCpu) == 7)
+            check(commandProcessedOpenLoopResolvedStripeCount(constrainedCpu) == 448)
+            check(
+                commandProcessedOpenLoopProtocolFingerprint(formal) !=
+                    commandProcessedOpenLoopProtocolFingerprint(constrainedCpu)
+            )
+            val explicitDefaultParallelism = formal.copy(
+                jvmArgs = benchmarkJvmArgs + "-Dwow.parallelism=257",
+            )
+            check(commandProcessedOpenLoopResolvedStripeCount(explicitDefaultParallelism) == 257)
+            check(
+                commandProcessedOpenLoopProtocolFingerprint(formal) !=
+                    commandProcessedOpenLoopProtocolFingerprint(explicitDefaultParallelism)
+            )
+            val explicitReactorPool = formal.copy(
+                jvmArgs = benchmarkJvmArgs + "-Dreactor.schedulers.defaultPoolSize=9",
+            )
+            check(commandProcessedOpenLoopResolvedSchedulerPoolSize(explicitReactorPool) == 9)
+            check(
+                commandProcessedOpenLoopProtocolFingerprint(formal) !=
+                    commandProcessedOpenLoopProtocolFingerprint(explicitReactorPool)
+            )
+            val prefix = commandProcessedOpenLoopResultPrefix(formal)
+            check(
+                prefix.contains(
+                    "pool-cpu-${commandProcessedOpenLoopResolvedSchedulerPoolSize(formal)}"
+                )
+            )
+            check(
+                prefix.contains(
+                    "stripes-default-${commandProcessedOpenLoopResolvedStripeCount(formal)}"
+                )
+            )
+            check(prefix.contains("producers-16"))
+            check(prefix.contains("watchdog-5ms"))
+            check(prefix.contains("observer-full"))
+            check(prefix.contains("protocol-"))
+
+            val fingerprintRoot =
+                temporaryDir.resolve("runner-source-fingerprint").apply {
+                    deleteRecursively()
+                }
+            val serviceResource = fingerprintRoot.resolve(
+                "module/src/main/resources/META-INF/services/example.Service"
+            ).apply {
+                parentFile.mkdirs()
+                writeText("example.Implementation\n")
+            }
+            val xmlResource = fingerprintRoot.resolve(
+                "module/src/main/resources/logback.xml"
+            ).apply {
+                parentFile.mkdirs()
+                writeText("<configuration/>\n")
+            }
+            val fingerprintFiles =
+                commandProcessedOpenLoopRunnerSourceFiles(fingerprintRoot)
+            check(fingerprintFiles.contains(serviceResource))
+            check(fingerprintFiles.contains(xmlResource))
+            val resourceFingerprint =
+                computeCommandProcessedOpenLoopRunnerSourceSha256(fingerprintRoot)
+            serviceResource.writeText("example.OtherImplementation\n")
+            check(
+                resourceFingerprint !=
+                    computeCommandProcessedOpenLoopRunnerSourceSha256(fingerprintRoot)
+            )
+        }
+    }
+
+tasks.named("check") {
+    dependsOn(verifyCommandProcessedOpenLoopPolicy)
 }
 
 benchmarkTaskSpecs.forEach(::registerBenchmarkTask)

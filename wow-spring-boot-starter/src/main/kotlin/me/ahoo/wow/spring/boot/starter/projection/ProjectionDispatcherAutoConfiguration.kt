@@ -31,16 +31,19 @@ import me.ahoo.wow.projection.ProjectionHandler
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.WowProperties
+import me.ahoo.wow.spring.boot.starter.createSchedulerSupplier
 import me.ahoo.wow.spring.projection.ProjectionDispatcherLauncher
 import me.ahoo.wow.spring.projection.ProjectionProcessorAutoRegistrar
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Bean
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
+@EnableConfigurationProperties(ProjectionDispatcherProperties::class)
 class ProjectionDispatcherAutoConfiguration(private val wowProperties: WowProperties) {
 
     @Bean
@@ -98,14 +101,21 @@ class ProjectionDispatcherAutoConfiguration(private val wowProperties: WowProper
         handlerRegistrar: ProjectionFunctionRegistrar,
         domainEventBus: DomainEventBus,
         stateEventBus: StateEventBus,
-        projectionHandler: ProjectionHandler
+        projectionHandler: ProjectionHandler,
+        projectionDispatcherProperties: ProjectionDispatcherProperties,
     ): ProjectionDispatcher {
         return ProjectionDispatcher(
             name = "${namedBoundedContext.contextName}.${ProjectionDispatcher::class.simpleName}",
+            parallelism = projectionDispatcherProperties.stripeCount,
             domainEventBus = domainEventBus,
             stateEventBus = stateEventBus,
             functionRegistrar = handlerRegistrar,
             eventHandler = projectionHandler,
+            schedulerSupplier = createSchedulerSupplier(
+                name = ProjectionDispatcher::class.simpleName!!,
+                stripeCount = projectionDispatcherProperties.stripeCount,
+                schedulerPoolSize = projectionDispatcherProperties.schedulerPoolSize,
+            ),
         )
     }
 

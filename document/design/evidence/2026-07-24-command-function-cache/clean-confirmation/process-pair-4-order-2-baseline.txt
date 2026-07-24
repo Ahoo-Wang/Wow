@@ -1,0 +1,97 @@
+# JMH version: 1.37
+# VM version: JDK 17.0.7, OpenJDK 64-Bit Server VM, 17.0.7+7-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java
+# VM options: -Xms2g -Xmx2g -XX:+UseG1GC
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 16 threads, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+# Benchmark: me.ahoo.wow.benchmark.component.AggregateHandleComponentBenchmark.processCommandAggregate
+
+# Run progress: 0.00% complete, ETA 00:00:14
+# Fork: 1 of 1
+# Warmup Iteration   1: kotlin-logging: initializing... active logger factory: Slf4jLoggerFactory
+845437.803 ops/s
+# Warmup Iteration   2: 1084959.943 ops/s
+Iteration   1: 1016609.158 ops/s
+                 gc.alloc.rate:      5024.224 MB/sec
+                 gc.alloc.rate.norm: 5184.004 B/op
+                 gc.count:           8.000 counts
+                 gc.time:            8.000 ms
+
+Iteration   2: 1013686.860 ops/s
+                 gc.alloc.rate:      5009.614 MB/sec
+                 gc.alloc.rate.norm: 5184.004 B/op
+                 gc.count:           8.000 counts
+                 gc.time:            7.000 ms
+
+Iteration   3: 1011422.936 ops/s
+                 gc.alloc.rate:      4998.689 MB/sec
+                 gc.alloc.rate.norm: 5184.004 B/op
+                 gc.count:           8.000 counts
+                 gc.time:            7.000 ms
+
+Iteration   4: 1012063.150 ops/s
+                 gc.alloc.rate:      5001.964 MB/sec
+                 gc.alloc.rate.norm: 5184.004 B/op
+                 gc.count:           8.000 counts
+                 gc.time:            7.000 ms
+
+Iteration   5: 1016109.796 ops/s
+                 gc.alloc.rate:      5022.154 MB/sec
+                 gc.alloc.rate.norm: 5184.004 B/op
+                 gc.count:           9.000 counts
+                 gc.time:            8.000 ms
+
+
+
+Result "me.ahoo.wow.benchmark.component.AggregateHandleComponentBenchmark.processCommandAggregate":
+  1013978.380 ±(99.9%) 8978.548 ops/s [Average]
+  (min, avg, max) = (1011422.936, 1013978.380, 1016609.158), stdev = 2331.700
+  CI (99.9%): [1004999.832, 1022956.928] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.component.AggregateHandleComponentBenchmark.processCommandAggregate:gc.alloc.rate":
+  5011.329 ±(99.9%) 44.485 MB/sec [Average]
+  (min, avg, max) = (4998.689, 5011.329, 5024.224), stdev = 11.553
+  CI (99.9%): [4966.844, 5055.815] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.component.AggregateHandleComponentBenchmark.processCommandAggregate:gc.alloc.rate.norm":
+  5184.004 ±(99.9%) 0.001 B/op [Average]
+  (min, avg, max) = (5184.004, 5184.004, 5184.004), stdev = 0.001
+  CI (99.9%): [5184.004, 5184.005] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.component.AggregateHandleComponentBenchmark.processCommandAggregate:gc.count":
+  41.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (8.000, 8.200, 9.000), stdev = 0.447
+  CI (99.9%): [41.000, 41.000] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.component.AggregateHandleComponentBenchmark.processCommandAggregate:gc.time":
+  37.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (7.000, 7.400, 8.000), stdev = 0.548
+  CI (99.9%): [37.000, 37.000] (assumes normal distribution)
+
+
+# Run complete. Total time: 00:00:14
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                                                                      Mode  Cnt        Score      Error   Units
+AggregateHandleComponentBenchmark.processCommandAggregate                     thrpt    5  1013978.380 ± 8978.548   ops/s
+AggregateHandleComponentBenchmark.processCommandAggregate:gc.alloc.rate       thrpt    5     5011.329 ±   44.485  MB/sec
+AggregateHandleComponentBenchmark.processCommandAggregate:gc.alloc.rate.norm  thrpt    5     5184.004 ±    0.001    B/op
+AggregateHandleComponentBenchmark.processCommandAggregate:gc.count            thrpt    5       41.000             counts
+AggregateHandleComponentBenchmark.processCommandAggregate:gc.time             thrpt    5       37.000                 ms
+
+Benchmark result is saved to /private/tmp/wow-function-cache-clean-confirmation-20260724/process-pair-4-order-2-baseline.json

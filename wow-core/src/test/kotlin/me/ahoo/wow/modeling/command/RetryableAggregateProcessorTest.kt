@@ -30,6 +30,7 @@ import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockChangeAggregate
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import org.junit.jupiter.api.Test
+import reactor.core.Exceptions
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
@@ -92,6 +93,56 @@ class RetryableAggregateProcessorTest {
         exchange.getError().assert().isNull()
     }
 
+    @Test
+    fun `processor does not retry a non-recoverable append failure`() {
+        val failure = IllegalStateException("not recoverable")
+        val eventStore = RetryableEventStore(
+            failure = failure,
+            failuresBeforeSuccess = Int.MAX_VALUE,
+        )
+        val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("aggregate-1")
+        val exchange =
+            SimpleServerCommandExchange(
+                MockCreateAggregate("aggregate-1", "created").toCommandMessage()
+            ).setServiceProvider(SimpleServiceProvider())
+
+        StepVerifier.create(processor(aggregateId, eventStore).process(exchange))
+            .expectErrorSatisfies {
+                it.assert().isSameAs(failure)
+            }
+            .verify()
+
+        eventStore.attempts.get().assert().isEqualTo(1)
+        exchange.getError().assert().isSameAs(failure)
+    }
+
+    @Test
+    fun `processor propagates retry exhausted with last recoverable failure`() {
+        val failure = TimeoutException("timeout")
+        val eventStore = RetryableEventStore(
+            failure = failure,
+            failuresBeforeSuccess = Int.MAX_VALUE,
+        )
+        val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("aggregate-1")
+        val exchange =
+            SimpleServerCommandExchange(
+                MockCreateAggregate("aggregate-1", "created").toCommandMessage()
+            ).setServiceProvider(SimpleServiceProvider())
+
+        StepVerifier.withVirtualTime {
+            processor(aggregateId, eventStore).process(exchange)
+        }
+            .thenAwait(Duration.ofSeconds(10))
+            .expectErrorSatisfies {
+                Exceptions.isRetryExhausted(it).assert().isTrue()
+                it.cause.assert().isSameAs(failure)
+            }
+            .verify()
+
+        eventStore.attempts.get().assert().isEqualTo(4)
+        exchange.getError().assert().isSameAs(failure)
+    }
+
     private fun processor(
         aggregateId: AggregateId,
         eventStore: EventStore,
@@ -108,13 +159,16 @@ class RetryableAggregateProcessorTest {
             commandAggregateFactory = SimpleCommandAggregateFactory(eventStore),
         )
 
-    private class RetryableEventStore : EventStore {
+    private class RetryableEventStore(
+        private val failure: Throwable = TimeoutException("timeout"),
+        private val failuresBeforeSuccess: Int = 3,
+    ) : EventStore {
         private val delegate = InMemoryEventStore()
         val attempts = AtomicInteger()
 
         override fun append(eventStream: DomainEventStream): Mono<Void> {
-            if (attempts.incrementAndGet() < 4) {
-                return TimeoutException("timeout").toMono()
+            if (attempts.incrementAndGet() <= failuresBeforeSuccess) {
+                return failure.toMono()
             }
             return delegate.append(eventStream)
         }

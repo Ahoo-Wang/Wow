@@ -1,0 +1,617 @@
+# JMH version: 1.37
+# VM version: JDK 17.0.7, OpenJDK 64-Bit Server VM, 17.0.7+7-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java
+# VM options: -Xms2g -Xmx2g -XX:+UseG1GC
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 16 threads, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+# Benchmark: me.ahoo.wow.benchmark.component.AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents
+# Parameters: (eventCount = 500, eventPattern = MIXED_TWO_TYPES, functionCachePolicy = MAP_FIRST, sourcingRegistryPolicy = EAGER)
+
+# Run progress: 0.00% complete, ETA 00:02:48
+# Fork: 1 of 3
+# Warmup Iteration   1: 1265848.742 ops/s
+# Warmup Iteration   2: 1367425.441 ops/s
+Iteration   1: 1364310.926 ops/s
+                 gc.alloc.rate:      73517.170 MB/sec
+                 gc.alloc.rate.norm: 56520.003 B/op
+                 gc.count:           121.000 counts
+                 gc.time:            103.000 ms
+
+Iteration   2: 1345563.646 ops/s
+                 gc.alloc.rate:      72500.258 MB/sec
+                 gc.alloc.rate.norm: 56520.003 B/op
+                 gc.count:           120.000 counts
+                 gc.time:            108.000 ms
+
+Iteration   3: 1332692.787 ops/s
+                 gc.alloc.rate:      71803.073 MB/sec
+                 gc.alloc.rate.norm: 56520.003 B/op
+                 gc.count:           118.000 counts
+                 gc.time:            105.000 ms
+
+Iteration   4: 1305405.206 ops/s
+                 gc.alloc.rate:      70336.208 MB/sec
+                 gc.alloc.rate.norm: 56520.003 B/op
+                 gc.count:           115.000 counts
+                 gc.time:            103.000 ms
+
+Iteration   5: 1296088.335 ops/s
+                 gc.alloc.rate:      69833.337 MB/sec
+                 gc.alloc.rate.norm: 56520.003 B/op
+                 gc.count:           115.000 counts
+                 gc.time:            104.000 ms
+
+
+# Run progress: 8.33% complete, ETA 00:02:41
+# Fork: 2 of 3
+# Warmup Iteration   1: 1106300.398 ops/s
+# Warmup Iteration   2: 1187406.304 ops/s
+Iteration   1: 1161858.294 ops/s
+                 gc.alloc.rate:      62613.327 MB/sec
+                 gc.alloc.rate.norm: 56520.004 B/op
+                 gc.count:           103.000 counts
+                 gc.time:            95.000 ms
+
+Iteration   2: 1141935.036 ops/s
+                 gc.alloc.rate:      61534.028 MB/sec
+                 gc.alloc.rate.norm: 56520.004 B/op
+                 gc.count:           101.000 counts
+                 gc.time:            94.000 ms
+
+Iteration   3: 1134036.232 ops/s
+                 gc.alloc.rate:      61097.277 MB/sec
+                 gc.alloc.rate.norm: 56520.004 B/op
+                 gc.count:           101.000 counts
+                 gc.time:            95.000 ms
+
+Iteration   4: 1130254.019 ops/s
+                 gc.alloc.rate:      60913.764 MB/sec
+                 gc.alloc.rate.norm: 56520.004 B/op
+                 gc.count:           100.000 counts
+                 gc.time:            95.000 ms
+
+Iteration   5: 1119723.459 ops/s
+                 gc.alloc.rate:      60305.046 MB/sec
+                 gc.alloc.rate.norm: 56520.004 B/op
+                 gc.count:           100.000 counts
+                 gc.time:            93.000 ms
+
+
+# Run progress: 16.67% complete, ETA 00:02:26
+# Fork: 3 of 3
+# Warmup Iteration   1: 1056084.060 ops/s
+# Warmup Iteration   2: 1131892.589 ops/s
+Iteration   1: 1130975.727 ops/s
+                 gc.alloc.rate:      60908.198 MB/sec
+                 gc.alloc.rate.norm: 56520.004 B/op
+                 gc.count:           101.000 counts
+                 gc.time:            95.000 ms
+
+Iteration   2: 1126531.801 ops/s
+                 gc.alloc.rate:      60695.365 MB/sec
+                 gc.alloc.rate.norm: 56520.004 B/op
+                 gc.count:           100.000 counts
+                 gc.time:            97.000 ms
+
+Iteration   3: 1120387.199 ops/s
+                 gc.alloc.rate:      60352.601 MB/sec
+                 gc.alloc.rate.norm: 56520.004 B/op
+                 gc.count:           99.000 counts
+                 gc.time:            95.000 ms
+
+Iteration   4: 1122110.049 ops/s
+                 gc.alloc.rate:      60439.110 MB/sec
+                 gc.alloc.rate.norm: 56520.004 B/op
+                 gc.count:           100.000 counts
+                 gc.time:            96.000 ms
+
+Iteration   5: 1118996.975 ops/s
+                 gc.alloc.rate:      60304.767 MB/sec
+                 gc.alloc.rate.norm: 56520.004 B/op
+                 gc.count:           99.000 counts
+                 gc.time:            94.000 ms
+
+
+
+Result "me.ahoo.wow.benchmark.component.AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents":
+  1196724.646 ±(99.9%) 105209.354 ops/s [Average]
+  (min, avg, max) = (1118996.975, 1196724.646, 1364310.926), stdev = 98412.895
+  CI (99.9%): [1091515.292, 1301934.000] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.component.AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.alloc.rate":
+  64476.902 ±(99.9%) 5672.847 MB/sec [Average]
+  (min, avg, max) = (60304.767, 64476.902, 73517.170), stdev = 5306.384
+  CI (99.9%): [58804.055, 70149.748] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.component.AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.alloc.rate.norm":
+  56520.004 ±(99.9%) 0.001 B/op [Average]
+  (min, avg, max) = (56520.003, 56520.004, 56520.004), stdev = 0.001
+  CI (99.9%): [56520.003, 56520.004] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.component.AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.count":
+  1593.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (99.000, 106.200, 121.000), stdev = 8.670
+  CI (99.9%): [1593.000, 1593.000] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.component.AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.time":
+  1472.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (93.000, 98.133, 108.000), stdev = 4.941
+  CI (99.9%): [1472.000, 1472.000] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 17.0.7, OpenJDK 64-Bit Server VM, 17.0.7+7-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java
+# VM options: -Xms2g -Xmx2g -XX:+UseG1GC
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 16 threads, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+# Benchmark: me.ahoo.wow.benchmark.component.AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents
+# Parameters: (eventCount = 500, eventPattern = MIXED_TWO_TYPES, functionCachePolicy = MAP_FIRST, sourcingRegistryPolicy = ADAPTIVE)
+
+# Run progress: 25.00% complete, ETA 00:02:12
+# Fork: 1 of 3
+# Warmup Iteration   1: 850649.842 ops/s
+# Warmup Iteration   2: 920846.369 ops/s
+Iteration   1: 912776.548 ops/s
+                 gc.alloc.rate:      49006.726 MB/sec
+                 gc.alloc.rate.norm: 56288.005 B/op
+                 gc.count:           81.000 counts
+                 gc.time:            78.000 ms
+
+Iteration   2: 919673.903 ops/s
+                 gc.alloc.rate:      49362.726 MB/sec
+                 gc.alloc.rate.norm: 56288.005 B/op
+                 gc.count:           82.000 counts
+                 gc.time:            80.000 ms
+
+Iteration   3: 888941.728 ops/s
+                 gc.alloc.rate:      47738.496 MB/sec
+                 gc.alloc.rate.norm: 56288.005 B/op
+                 gc.count:           79.000 counts
+                 gc.time:            75.000 ms
+
+Iteration   4: 909538.628 ops/s
+                 gc.alloc.rate:      48819.719 MB/sec
+                 gc.alloc.rate.norm: 56288.005 B/op
+                 gc.count:           81.000 counts
+                 gc.time:            79.000 ms
+
+Iteration   5: 920973.601 ops/s
+                 gc.alloc.rate:      49422.044 MB/sec
+                 gc.alloc.rate.norm: 56288.005 B/op
+                 gc.count:           81.000 counts
+                 gc.time:            79.000 ms
+
+
+# Run progress: 33.33% complete, ETA 00:01:57
+# Fork: 2 of 3
+# Warmup Iteration   1: 785219.301 ops/s
+# Warmup Iteration   2: 851312.562 ops/s
+Iteration   1: 851406.340 ops/s
+                 gc.alloc.rate:      45655.775 MB/sec
+                 gc.alloc.rate.norm: 56288.005 B/op
+                 gc.count:           76.000 counts
+                 gc.time:            73.000 ms
+
+Iteration   2: 821315.684 ops/s
+                 gc.alloc.rate:      44124.493 MB/sec
+                 gc.alloc.rate.norm: 56288.005 B/op
+                 gc.count:           73.000 counts
+                 gc.time:            71.000 ms
+
+Iteration   3: 844142.571 ops/s
+                 gc.alloc.rate:      45269.673 MB/sec
+                 gc.alloc.rate.norm: 56288.005 B/op
+                 gc.count:           75.000 counts
+                 gc.time:            73.000 ms
+
+Iteration   4: 854601.761 ops/s
+                 gc.alloc.rate:      45883.589 MB/sec
+                 gc.alloc.rate.norm: 56288.006 B/op
+                 gc.count:           75.000 counts
+                 gc.time:            72.000 ms
+
+Iteration   5: 832655.380 ops/s
+                 gc.alloc.rate:      44653.855 MB/sec
+                 gc.alloc.rate.norm: 56288.005 B/op
+                 gc.count:           74.000 counts
+                 gc.time:            72.000 ms
+
+
+# Run progress: 41.67% complete, ETA 00:01:43
+# Fork: 3 of 3
+# Warmup Iteration   1: 818878.888 ops/s
+# Warmup Iteration   2: 923395.508 ops/s
+Iteration   1: 921249.905 ops/s
+                 gc.alloc.rate:      49445.919 MB/sec
+                 gc.alloc.rate.norm: 56288.005 B/op
+                 gc.count:           81.000 counts
+                 gc.time:            75.000 ms
+
+Iteration   2: 913535.230 ops/s
+                 gc.alloc.rate:      49028.015 MB/sec
+                 gc.alloc.rate.norm: 56288.005 B/op
+                 gc.count:           81.000 counts
+                 gc.time:            77.000 ms
+
+Iteration   3: 864408.953 ops/s
+                 gc.alloc.rate:      46356.769 MB/sec
+                 gc.alloc.rate.norm: 56288.005 B/op
+                 gc.count:           77.000 counts
+                 gc.time:            76.000 ms
+
+Iteration   4: 866925.193 ops/s
+                 gc.alloc.rate:      46498.590 MB/sec
+                 gc.alloc.rate.norm: 56288.005 B/op
+                 gc.count:           77.000 counts
+                 gc.time:            76.000 ms
+
+Iteration   5: 872222.238 ops/s
+                 gc.alloc.rate:      46806.928 MB/sec
+                 gc.alloc.rate.norm: 56288.005 B/op
+                 gc.count:           77.000 counts
+                 gc.time:            76.000 ms
+
+
+
+Result "me.ahoo.wow.benchmark.component.AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents":
+  879624.511 ±(99.9%) 37266.281 ops/s [Average]
+  (min, avg, max) = (821315.684, 879624.511, 921249.905), stdev = 34858.902
+  CI (99.9%): [842358.230, 916890.792] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.component.AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.alloc.rate":
+  47204.888 ±(99.9%) 2006.567 MB/sec [Average]
+  (min, avg, max) = (44124.493, 47204.888, 49445.919), stdev = 1876.944
+  CI (99.9%): [45198.321, 49211.455] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.component.AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.alloc.rate.norm":
+  56288.005 ±(99.9%) 0.001 B/op [Average]
+  (min, avg, max) = (56288.005, 56288.005, 56288.006), stdev = 0.001
+  CI (99.9%): [56288.005, 56288.005] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.component.AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.count":
+  1170.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (73.000, 78.000, 82.000), stdev = 3.024
+  CI (99.9%): [1170.000, 1170.000] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.component.AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.time":
+  1132.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (71.000, 75.467, 80.000), stdev = 2.825
+  CI (99.9%): [1132.000, 1132.000] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 17.0.7, OpenJDK 64-Bit Server VM, 17.0.7+7-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java
+# VM options: -Xms2g -Xmx2g -XX:+UseG1GC
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 16 threads, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+# Benchmark: me.ahoo.wow.benchmark.component.AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents
+# Parameters: (eventCount = 500, eventPattern = MIXED_TWO_TYPES, functionCachePolicy = SINGLE_ENTRY, sourcingRegistryPolicy = EAGER)
+
+# Run progress: 50.00% complete, ETA 00:01:28
+# Fork: 1 of 3
+# Warmup Iteration   1: 1049671.332 ops/s
+# Warmup Iteration   2: 1118239.600 ops/s
+Iteration   1: 1112427.103 ops/s
+                 gc.alloc.rate:      59954.221 MB/sec
+                 gc.alloc.rate.norm: 56520.004 B/op
+                 gc.count:           99.000 counts
+                 gc.time:            95.000 ms
+
+Iteration   2: 1002653.601 ops/s
+                 gc.alloc.rate:      54031.892 MB/sec
+                 gc.alloc.rate.norm: 56520.004 B/op
+                 gc.count:           89.000 counts
+                 gc.time:            93.000 ms
+
+Iteration   3: 1043821.265 ops/s
+                 gc.alloc.rate:      56240.802 MB/sec
+                 gc.alloc.rate.norm: 56520.004 B/op
+                 gc.count:           93.000 counts
+                 gc.time:            95.000 ms
+
+Iteration   4: 1051416.316 ops/s
+                 gc.alloc.rate:      56655.187 MB/sec
+                 gc.alloc.rate.norm: 56520.004 B/op
+                 gc.count:           93.000 counts
+                 gc.time:            94.000 ms
+
+Iteration   5: 1057841.256 ops/s
+                 gc.alloc.rate:      57006.024 MB/sec
+                 gc.alloc.rate.norm: 56520.004 B/op
+                 gc.count:           94.000 counts
+                 gc.time:            96.000 ms
+
+
+# Run progress: 58.33% complete, ETA 00:01:13
+# Fork: 2 of 3
+# Warmup Iteration   1: 1010602.486 ops/s
+# Warmup Iteration   2: 1114554.580 ops/s
+Iteration   1: 1109705.148 ops/s
+                 gc.alloc.rate:      59746.994 MB/sec
+                 gc.alloc.rate.norm: 56520.004 B/op
+                 gc.count:           99.000 counts
+                 gc.time:            95.000 ms
+
+Iteration   2: 1012571.025 ops/s
+                 gc.alloc.rate:      54573.673 MB/sec
+                 gc.alloc.rate.norm: 56520.004 B/op
+                 gc.count:           90.000 counts
+                 gc.time:            94.000 ms
+
+Iteration   3: 1041426.107 ops/s
+                 gc.alloc.rate:      56125.898 MB/sec
+                 gc.alloc.rate.norm: 56520.004 B/op
+                 gc.count:           93.000 counts
+                 gc.time:            93.000 ms
+
+Iteration   4: 1053346.764 ops/s
+                 gc.alloc.rate:      56750.454 MB/sec
+                 gc.alloc.rate.norm: 56520.004 B/op
+                 gc.count:           94.000 counts
+                 gc.time:            95.000 ms
+
+Iteration   5: 1053364.956 ops/s
+                 gc.alloc.rate:      56792.648 MB/sec
+                 gc.alloc.rate.norm: 56520.004 B/op
+                 gc.count:           94.000 counts
+                 gc.time:            94.000 ms
+
+
+# Run progress: 66.67% complete, ETA 00:00:58
+# Fork: 3 of 3
+# Warmup Iteration   1: 1074184.714 ops/s
+# Warmup Iteration   2: 1202726.666 ops/s
+Iteration   1: 1183964.657 ops/s
+                 gc.alloc.rate:      63827.883 MB/sec
+                 gc.alloc.rate.norm: 56520.004 B/op
+                 gc.count:           106.000 counts
+                 gc.time:            103.000 ms
+
+Iteration   2: 1103638.201 ops/s
+                 gc.alloc.rate:      59489.068 MB/sec
+                 gc.alloc.rate.norm: 56520.004 B/op
+                 gc.count:           98.000 counts
+                 gc.time:            99.000 ms
+
+Iteration   3: 991887.108 ops/s
+                 gc.alloc.rate:      53460.296 MB/sec
+                 gc.alloc.rate.norm: 56520.005 B/op
+                 gc.count:           88.000 counts
+                 gc.time:            91.000 ms
+
+Iteration   4: 1125952.943 ops/s
+                 gc.alloc.rate:      60679.629 MB/sec
+                 gc.alloc.rate.norm: 56520.004 B/op
+                 gc.count:           99.000 counts
+                 gc.time:            99.000 ms
+
+Iteration   5: 1132057.210 ops/s
+                 gc.alloc.rate:      60964.666 MB/sec
+                 gc.alloc.rate.norm: 56520.004 B/op
+                 gc.count:           101.000 counts
+                 gc.time:            100.000 ms
+
+
+
+Result "me.ahoo.wow.benchmark.component.AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents":
+  1071738.244 ±(99.9%) 57794.868 ops/s [Average]
+  (min, avg, max) = (991887.108, 1071738.244, 1183964.657), stdev = 54061.355
+  CI (99.9%): [1013943.376, 1129533.112] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.component.AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.alloc.rate":
+  57753.289 ±(99.9%) 3111.923 MB/sec [Average]
+  (min, avg, max) = (53460.296, 57753.289, 63827.883), stdev = 2910.894
+  CI (99.9%): [54641.366, 60865.212] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.component.AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.alloc.rate.norm":
+  56520.004 ±(99.9%) 0.001 B/op [Average]
+  (min, avg, max) = (56520.004, 56520.004, 56520.005), stdev = 0.001
+  CI (99.9%): [56520.004, 56520.004] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.component.AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.count":
+  1430.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (88.000, 95.333, 106.000), stdev = 4.909
+  CI (99.9%): [1430.000, 1430.000] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.component.AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.time":
+  1436.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (91.000, 95.733, 103.000), stdev = 3.173
+  CI (99.9%): [1436.000, 1436.000] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 17.0.7, OpenJDK 64-Bit Server VM, 17.0.7+7-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java
+# VM options: -Xms2g -Xmx2g -XX:+UseG1GC
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 16 threads, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+# Benchmark: me.ahoo.wow.benchmark.component.AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents
+# Parameters: (eventCount = 500, eventPattern = MIXED_TWO_TYPES, functionCachePolicy = SINGLE_ENTRY, sourcingRegistryPolicy = ADAPTIVE)
+
+# Run progress: 75.00% complete, ETA 00:00:44
+# Fork: 1 of 3
+# Warmup Iteration   1: 847126.932 ops/s
+# Warmup Iteration   2: 925877.804 ops/s
+Iteration   1: 919998.661 ops/s
+                 gc.alloc.rate:      49314.678 MB/sec
+                 gc.alloc.rate.norm: 56272.005 B/op
+                 gc.count:           82.000 counts
+                 gc.time:            78.000 ms
+
+Iteration   2: 900397.350 ops/s
+                 gc.alloc.rate:      48271.519 MB/sec
+                 gc.alloc.rate.norm: 56272.005 B/op
+                 gc.count:           79.000 counts
+                 gc.time:            75.000 ms
+
+Iteration   3: 856173.831 ops/s
+                 gc.alloc.rate:      45850.010 MB/sec
+                 gc.alloc.rate.norm: 56272.005 B/op
+                 gc.count:           76.000 counts
+                 gc.time:            75.000 ms
+
+Iteration   4: 865955.019 ops/s
+                 gc.alloc.rate:      46486.936 MB/sec
+                 gc.alloc.rate.norm: 56272.005 B/op
+                 gc.count:           77.000 counts
+                 gc.time:            77.000 ms
+
+Iteration   5: 870503.167 ops/s
+                 gc.alloc.rate:      46687.684 MB/sec
+                 gc.alloc.rate.norm: 56272.005 B/op
+                 gc.count:           77.000 counts
+                 gc.time:            76.000 ms
+
+
+# Run progress: 83.33% complete, ETA 00:00:29
+# Fork: 2 of 3
+# Warmup Iteration   1: 991250.738 ops/s
+# Warmup Iteration   2: 1095481.228 ops/s
+Iteration   1: 1047964.080 ops/s
+                 gc.alloc.rate:      56213.935 MB/sec
+                 gc.alloc.rate.norm: 56272.004 B/op
+                 gc.count:           92.000 counts
+                 gc.time:            91.000 ms
+
+Iteration   2: 1030415.200 ops/s
+                 gc.alloc.rate:      55216.658 MB/sec
+                 gc.alloc.rate.norm: 56272.004 B/op
+                 gc.count:           92.000 counts
+                 gc.time:            94.000 ms
+
+Iteration   3: 1033210.672 ops/s
+                 gc.alloc.rate:      55417.527 MB/sec
+                 gc.alloc.rate.norm: 56272.004 B/op
+                 gc.count:           92.000 counts
+                 gc.time:            95.000 ms
+
+Iteration   4: 1033124.604 ops/s
+                 gc.alloc.rate:      55427.550 MB/sec
+                 gc.alloc.rate.norm: 56272.004 B/op
+                 gc.count:           91.000 counts
+                 gc.time:            92.000 ms
+
+Iteration   5: 1016467.069 ops/s
+                 gc.alloc.rate:      54498.124 MB/sec
+                 gc.alloc.rate.norm: 56272.004 B/op
+                 gc.count:           89.000 counts
+                 gc.time:            90.000 ms
+
+
+# Run progress: 91.67% complete, ETA 00:00:14
+# Fork: 3 of 3
+# Warmup Iteration   1: 1025746.804 ops/s
+# Warmup Iteration   2: 1120584.568 ops/s
+Iteration   1: 1077545.376 ops/s
+                 gc.alloc.rate:      57767.795 MB/sec
+                 gc.alloc.rate.norm: 56272.004 B/op
+                 gc.count:           96.000 counts
+                 gc.time:            97.000 ms
+
+Iteration   2: 1011910.948 ops/s
+                 gc.alloc.rate:      54286.574 MB/sec
+                 gc.alloc.rate.norm: 56272.004 B/op
+                 gc.count:           89.000 counts
+                 gc.time:            93.000 ms
+
+Iteration   3: 1038066.651 ops/s
+                 gc.alloc.rate:      55650.359 MB/sec
+                 gc.alloc.rate.norm: 56272.004 B/op
+                 gc.count:           92.000 counts
+                 gc.time:            95.000 ms
+
+Iteration   4: 1064068.790 ops/s
+                 gc.alloc.rate:      57065.709 MB/sec
+                 gc.alloc.rate.norm: 56272.004 B/op
+                 gc.count:           94.000 counts
+                 gc.time:            96.000 ms
+
+Iteration   5: 1066088.523 ops/s
+                 gc.alloc.rate:      57187.245 MB/sec
+                 gc.alloc.rate.norm: 56272.004 B/op
+                 gc.count:           94.000 counts
+                 gc.time:            95.000 ms
+
+
+
+Result "me.ahoo.wow.benchmark.component.AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents":
+  988792.663 ±(99.9%) 86490.154 ops/s [Average]
+  (min, avg, max) = (856173.831, 988792.663, 1077545.376), stdev = 80902.944
+  CI (99.9%): [902302.509, 1075282.817] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.component.AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.alloc.rate":
+  53022.820 ±(99.9%) 4642.546 MB/sec [Average]
+  (min, avg, max) = (45850.010, 53022.820, 57767.795), stdev = 4342.640
+  CI (99.9%): [48380.275, 57665.366] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.component.AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.alloc.rate.norm":
+  56272.005 ±(99.9%) 0.001 B/op [Average]
+  (min, avg, max) = (56272.004, 56272.005, 56272.005), stdev = 0.001
+  CI (99.9%): [56272.004, 56272.005] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.component.AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.count":
+  1312.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (76.000, 87.467, 96.000), stdev = 7.120
+  CI (99.9%): [1312.000, 1312.000] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.component.AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.time":
+  1319.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (75.000, 87.933, 97.000), stdev = 8.803
+  CI (99.9%): [1319.000, 1319.000] (assumes normal distribution)
+
+
+# Run complete. Total time: 00:02:56
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                                                                                     (eventCount)   (eventPattern)  (functionCachePolicy)  (sourcingRegistryPolicy)   Mode  Cnt        Score        Error   Units
+AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents                              500  MIXED_TWO_TYPES              MAP_FIRST                     EAGER  thrpt   15  1196724.646 ± 105209.354   ops/s
+AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.alloc.rate                500  MIXED_TWO_TYPES              MAP_FIRST                     EAGER  thrpt   15    64476.902 ±   5672.847  MB/sec
+AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.alloc.rate.norm           500  MIXED_TWO_TYPES              MAP_FIRST                     EAGER  thrpt   15    56520.004 ±      0.001    B/op
+AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.count                     500  MIXED_TWO_TYPES              MAP_FIRST                     EAGER  thrpt   15     1593.000               counts
+AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.time                      500  MIXED_TWO_TYPES              MAP_FIRST                     EAGER  thrpt   15     1472.000                   ms
+AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents                              500  MIXED_TWO_TYPES              MAP_FIRST                  ADAPTIVE  thrpt   15   879624.511 ±  37266.281   ops/s
+AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.alloc.rate                500  MIXED_TWO_TYPES              MAP_FIRST                  ADAPTIVE  thrpt   15    47204.888 ±   2006.567  MB/sec
+AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.alloc.rate.norm           500  MIXED_TWO_TYPES              MAP_FIRST                  ADAPTIVE  thrpt   15    56288.005 ±      0.001    B/op
+AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.count                     500  MIXED_TWO_TYPES              MAP_FIRST                  ADAPTIVE  thrpt   15     1170.000               counts
+AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.time                      500  MIXED_TWO_TYPES              MAP_FIRST                  ADAPTIVE  thrpt   15     1132.000                   ms
+AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents                              500  MIXED_TWO_TYPES           SINGLE_ENTRY                     EAGER  thrpt   15  1071738.244 ±  57794.868   ops/s
+AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.alloc.rate                500  MIXED_TWO_TYPES           SINGLE_ENTRY                     EAGER  thrpt   15    57753.289 ±   3111.923  MB/sec
+AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.alloc.rate.norm           500  MIXED_TWO_TYPES           SINGLE_ENTRY                     EAGER  thrpt   15    56520.004 ±      0.001    B/op
+AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.count                     500  MIXED_TWO_TYPES           SINGLE_ENTRY                     EAGER  thrpt   15     1430.000               counts
+AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.time                      500  MIXED_TWO_TYPES           SINGLE_ENTRY                     EAGER  thrpt   15     1436.000                   ms
+AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents                              500  MIXED_TWO_TYPES           SINGLE_ENTRY                  ADAPTIVE  thrpt   15   988792.663 ±  86490.154   ops/s
+AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.alloc.rate                500  MIXED_TWO_TYPES           SINGLE_ENTRY                  ADAPTIVE  thrpt   15    53022.820 ±   4642.546  MB/sec
+AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.alloc.rate.norm           500  MIXED_TWO_TYPES           SINGLE_ENTRY                  ADAPTIVE  thrpt   15    56272.005 ±      0.001    B/op
+AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.count                     500  MIXED_TWO_TYPES           SINGLE_ENTRY                  ADAPTIVE  thrpt   15     1312.000               counts
+AdaptiveSourcingRegistryReplayComponentBenchmark.replayConstantSizeEvents:gc.time                      500  MIXED_TWO_TYPES           SINGLE_ENTRY                  ADAPTIVE  thrpt   15     1319.000                   ms
+
+Benchmark result is saved to /private/tmp/adaptive-sourcing-replay-formal-t16.json

@@ -1,0 +1,111 @@
+{
+    "schemaVersion": 1,
+    "status": "SUCCESS",
+    "runId": "1fa976db-2550-4b2a-af72-0d26a50c9b77",
+    "taskPath": ":wow-benchmarks:benchmarkConfirmE2EThread16",
+    "startedAt": "2026-07-23T10:09:52.509832Z",
+    "projectVersion": "8.9.1",
+    "source": {
+        "commit": "6c6e4ebbe891fed0752f635391b1b034c988dd66",
+        "dirty": true,
+        "jmhJarSha256": "14c8fac7e14399026c13c8067e8794e22614fed557f29436e95181a9d5b0306b"
+    },
+    "runSpec": {
+        "suite": "framework-e2e",
+        "profile": "confirmation",
+        "threads": 16,
+        "includePattern": "\\Qme.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed\\E.*",
+        "modes": [
+            "thrpt"
+        ],
+        "warmupIterations": 2,
+        "warmupTime": "3s",
+        "measurementIterations": 3,
+        "measurementTime": "5s",
+        "forks": 2,
+        "parameters": {
+            "ingressStrategy": "current-production",
+            "schedulerPoolSize": "4,cpu",
+            "taskCounterStrategy": "group-lifecycle",
+            "handlerCpuTokens": "0,100000"
+        },
+        "jvmArgs": [
+            "-Xmx4g",
+            "-Xms4g",
+            "-XX:+UseG1GC",
+            "-XX:+UnlockDiagnosticVMOptions",
+            "-XX:+DebugNonSafepoints",
+            "-XX:+AlwaysPreTouch"
+        ],
+        "requestedProfilers": [
+            "gc"
+        ],
+        "resolvedJmhArgs": [
+            "\\Qme.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed\\E.*",
+            "-bm",
+            "thrpt",
+            "-t",
+            "16",
+            "-wi",
+            "2",
+            "-w",
+            "3s",
+            "-i",
+            "3",
+            "-r",
+            "5s",
+            "-f",
+            "2",
+            "-foe",
+            "true",
+            "-p",
+            "ingressStrategy=current-production",
+            "-p",
+            "schedulerPoolSize=4,cpu",
+            "-p",
+            "taskCounterStrategy=group-lifecycle",
+            "-p",
+            "handlerCpuTokens=0,100000",
+            "-rf",
+            "json",
+            "-rff",
+            "/Users/ahoo/.codex/worktrees/4a83/Wow/wow-benchmarks/results/jmh/confirmation/framework-e2e/threads-16-framework-e2e.json",
+            "-o",
+            "/Users/ahoo/.codex/worktrees/4a83/Wow/wow-benchmarks/results/jmh/confirmation/framework-e2e/threads-16-framework-e2e-human.txt",
+            "-jvmArgs",
+            "-Xmx4g -Xms4g -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+AlwaysPreTouch"
+        ],
+        "resolvedProfilerArgs": [
+            "-prof",
+            "gc"
+        ],
+        "requiredServices": [
+            
+        ]
+    },
+    "runtime": {
+        "javaVersion": "17.0.7",
+        "vmName": "OpenJDK 64-Bit Server VM",
+        "vmVersion": "17.0.7+7-LTS",
+        "javaExecutable": "/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java",
+        "osName": "Mac OS X",
+        "osVersion": "26.5.2",
+        "osArch": "aarch64",
+        "availableProcessors": 14,
+        "physicalMemoryBytes": 25769803776
+    },
+    "completedAt": "2026-07-23T10:12:52.393344Z",
+    "artifacts": {
+        "result": {
+            "path": "threads-16-framework-e2e.json",
+            "size": 26697,
+            "sha256": "c3d276e93b383df4827914753f0832ddf9f9ba4601533691fd452be9acf3d580",
+            "rowCount": 4
+        },
+        "human": {
+            "path": "threads-16-framework-e2e-human.txt",
+            "size": 20789,
+            "sha256": "3817d06547b298ed541eaa57934cd702b783ea5ded820e997b3ef911c1e9ea2b"
+        }
+    }
+}

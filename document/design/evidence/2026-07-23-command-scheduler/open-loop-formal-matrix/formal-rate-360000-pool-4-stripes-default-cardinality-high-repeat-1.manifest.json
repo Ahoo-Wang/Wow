@@ -1,0 +1,90 @@
+{
+    "schemaVersion": 1,
+    "status": "SUCCESS",
+    "engine": "bounded-open-loop",
+    "runId": "5476a813-ba3c-49f4-bf71-0d6011e24291",
+    "taskPath": ":wow-benchmarks:benchmarkCommandProcessedOpenLoopRate360000Repeat1",
+    "startedAt": "2026-07-23T15:19:53.427945Z",
+    "projectVersion": "8.9.1",
+    "source": {
+        "commit": "6c6e4ebbe891fed0752f635391b1b034c988dd66",
+        "dirty": true,
+        "runnerJarSha256": "214913070a82bf2a2a24b4a213a49805085edb0c9596b6da224ee7ad20c161c6"
+    },
+    "runSpec": {
+        "profile": "formal",
+        "ratePerSecond": 360000,
+        "repeat": 1,
+        "warmupSeconds": 10,
+        "measurementSeconds": 20,
+        "producerCount": 16,
+        "maxInFlight": 65536,
+        "requestTimeoutMillis": 5000,
+        "watchdogIntervalMillis": 5,
+        "startLeadMillis": 250,
+        "schedulerPoolSize": "4",
+        "stripeCount": "default",
+        "aggregateCardinality": "high",
+        "jvmArgs": [
+            "-Xmx4g",
+            "-Xms4g",
+            "-XX:+UseG1GC",
+            "-XX:+UnlockDiagnosticVMOptions",
+            "-XX:+DebugNonSafepoints",
+            "-XX:+AlwaysPreTouch"
+        ],
+        "runnerArgs": [
+            "--resultPath=/Users/ahoo/.codex/worktrees/4a83/Wow/wow-benchmarks/results/open-loop/command-processed/formal-rate-360000-pool-4-stripes-default-cardinality-high-repeat-1.json",
+            "--humanPath=/Users/ahoo/.codex/worktrees/4a83/Wow/wow-benchmarks/results/open-loop/command-processed/formal-rate-360000-pool-4-stripes-default-cardinality-high-repeat-1.md",
+            "--ratePerSecond=360000",
+            "--warmupSeconds=10",
+            "--measurementSeconds=20",
+            "--producerCount=16",
+            "--maxInFlight=65536",
+            "--requestTimeoutMillis=5000",
+            "--watchdogIntervalMillis=5",
+            "--startLeadMillis=250",
+            "--schedulerPoolSize=4",
+            "--stripeCount=default",
+            "--aggregateCardinality=high"
+        ],
+        "resolvedSchedulerPoolSize": 4,
+        "resolvedStripeCount": 896
+    },
+    "orchestratorRuntime": {
+        "javaVersion": "17.0.7",
+        "vmName": "OpenJDK 64-Bit Server VM",
+        "vmVersion": "17.0.7+7-LTS",
+        "javaExecutable": "/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java",
+        "osName": "Mac OS X",
+        "osVersion": "26.5.2",
+        "osArch": "aarch64",
+        "availableProcessors": 14,
+        "physicalMemoryBytes": 25769803776
+    },
+    "runtime": {
+        "javaVersion": "17.0.7",
+        "vmName": "OpenJDK 64-Bit Server VM",
+        "vmVersion": "17.0.7+7-LTS",
+        "javaHome": "/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home",
+        "javaExecutable": "/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java",
+        "osName": "Mac OS X",
+        "osVersion": "26.5.2",
+        "osArch": "aarch64",
+        "availableProcessors": 14,
+        "physicalMemoryBytes": 25769803776
+    },
+    "completedAt": "2026-07-23T15:20:25.051824Z",
+    "artifacts": {
+        "result": {
+            "path": "formal-rate-360000-pool-4-stripes-default-cardinality-high-repeat-1.json",
+            "size": 7279,
+            "sha256": "b16b88808f0d9591ed1e8f4aed9b78438080779f12f5fd8658bcd3481149b5ae"
+        },
+        "human": {
+            "path": "formal-rate-360000-pool-4-stripes-default-cardinality-high-repeat-1.md",
+            "size": 852,
+            "sha256": "246f32f00e81718680c222d5607ac71a12fae01c47cf43b9d374b51b14e5d4d1"
+        }
+    }
+}
