@@ -41,18 +41,49 @@ internal class CommandFunctionResolver<C : Any>(
     }
 }
 
+private class FunctionCacheEntry<F : Any>(
+    val functionType: Class<*>,
+    val function: F
+)
+
+/**
+ * Aggregate-instance function cache optimized for the common single-command-type lifecycle.
+ *
+ * A successful first resolution uses one immutable entry. A second distinct success promotes
+ * the cache to a map, while misses and resolver failures leave the current state unchanged.
+ * The immutable entry keeps its key and function coherent under accidental concurrent access,
+ * but this cache remains non-thread-safe like the aggregate instance that owns it.
+ */
 internal class FunctionCache<F : Any> {
+    private var singleEntry: FunctionCacheEntry<F>? = null
     private var cache: MutableMap<Class<*>, F>? = null
 
     fun get(functionType: Class<*>, resolver: (Class<*>) -> F?): F? {
-        cache?.get(functionType)?.let {
-            return it
+        val currentCache = cache
+        if (currentCache != null) {
+            currentCache[functionType]?.let {
+                return it
+            }
+            val function = resolver(functionType) ?: return null
+            currentCache[functionType] = function
+            return function
+        }
+
+        val entry = singleEntry
+        if (entry != null && entry.functionType === functionType) {
+            return entry.function
         }
         val function = resolver(functionType) ?: return null
-        val currentCache = cache ?: HashMap<Class<*>, F>(1).also {
-            cache = it
+        if (entry == null) {
+            singleEntry = FunctionCacheEntry(functionType, function)
+            return function
         }
-        currentCache[functionType] = function
+
+        val promotedCache = HashMap<Class<*>, F>(4)
+        promotedCache[entry.functionType] = entry.function
+        promotedCache[functionType] = function
+        cache = promotedCache
+        singleEntry = null
         return function
     }
 }
