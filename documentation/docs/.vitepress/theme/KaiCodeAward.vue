@@ -12,101 +12,113 @@
 -->
 
 <script setup lang="ts">
-import {computed, nextTick, onBeforeUnmount, onMounted, ref, type CSSProperties} from 'vue'
+import type confetti from 'canvas-confetti'
+import {computed, nextTick, onBeforeUnmount, onMounted, ref} from 'vue'
 import {useData, withBase} from 'vitepress'
 
 const {frontmatter, lang} = useData()
 const showAward = computed(() => frontmatter.value.kaicodeAward === true)
 const isChinese = computed(() => lang.value.startsWith('zh'))
 const banner = ref<HTMLElement | null>(null)
+const confettiCanvas = ref<HTMLCanvasElement | null>(null)
 const celebrating = ref(false)
 let celebrationObserver: IntersectionObserver | undefined
+let confettiInstance: confetti.CreateTypes | undefined
+let accentTimer: ReturnType<typeof window.setTimeout> | undefined
 
-type ConfettiStyle = CSSProperties & Record<`--confetti-${string}`, string>
-
-type ConfettiColor = 'gold' | 'red' | 'blue' | 'purple'
-type ConfettiKind = 'ribbon-long' | 'ribbon-short' | 'diamond'
-type ConfettiSide = 'left' | 'right'
-
-const leftColors: ConfettiColor[] = ['gold', 'red', 'gold', 'red']
-const rightColors: ConfettiColor[] = ['gold', 'purple', 'blue', 'gold', 'purple', 'blue']
-const confettiPieces = Array.from({length: 32}, (_, index) => {
-    const side: ConfettiSide = index % 2 === 0 ? 'left' : 'right'
-    const sideIndex = Math.floor(index / 2)
-    const direction = side === 'left' ? 1 : -1
-    const kind: ConfettiKind = sideIndex < 2
-        ? 'ribbon-long'
-        : sideIndex < 5
-            ? 'ribbon-short'
-            : 'diamond'
-    const color = side === 'left'
-        ? leftColors[sideIndex % leftColors.length]
-        : rightColors[sideIndex % rightColors.length]
-    const travel = direction * (
-        side === 'left' && kind === 'ribbon-long'
-            ? 8 + sideIndex * 12
-            : side === 'left' && kind === 'ribbon-short'
-                ? 20 + (sideIndex - 2) * 18
-                : kind === 'ribbon-long'
-                    ? 72 + sideIndex * 44
-                    : kind === 'ribbon-short'
-                        ? 118 + (sideIndex * 63) % 180
-                        : 150 + (sideIndex * 79) % 390
-    )
-    const mobileTravel = direction * (
-        kind === 'ribbon-long'
-            ? 48 + sideIndex * 30
-            : 74 + (sideIndex * 37) % 150
-    )
-    const spin = direction * (420 + (sideIndex * 89) % 720)
-    const width = kind === 'ribbon-long'
-        ? 56 + sideIndex % 2 * 14
-        : kind === 'ribbon-short'
-            ? 38 + sideIndex % 3 * 10
-            : 12 + sideIndex % 4 * 4
-    const style: ConfettiStyle = {
-        '--confetti-origin': side === 'left' ? '0%' : '100%',
-        '--confetti-travel': `${travel}px`,
-        '--confetti-mobile-travel': `${mobileTravel}px`,
-        '--confetti-apex': `${-(160 + (sideIndex * 43) % 220)}px`,
-        '--confetti-delay': `${0.04 + ((sideIndex * 13) % 24) / 100}s`,
-        '--confetti-duration': `${2.35 + ((sideIndex * 17) % 72) / 100}s`,
-        '--confetti-spin': `${spin}deg`,
-        '--confetti-apex-spin': `${Math.round(spin * 0.4)}deg`,
-        '--confetti-width': `${width}px`,
-        '--confetti-peak-opacity': `${0.8 + sideIndex % 3 * 0.08}`,
-        '--confetti-blur': `${sideIndex % 7 === 0 ? 0.7 : 0}px`,
+const fireCelebration = () => {
+    if (!confettiInstance) {
+        return
     }
 
-    return {
-        id: index,
-        side,
-        sideIndex,
-        kind,
-        asset: `/images/award-confetti/${kind}-${color}.webp`,
-        style,
+    const compact = window.matchMedia('(max-width: 767px)').matches
+    const particleCount = compact ? 16 : 26
+    const ticks = compact ? 150 : 190
+
+    void confettiInstance({
+        particleCount,
+        angle: 58,
+        spread: compact ? 42 : 48,
+        startVelocity: compact ? 42 : 54,
+        decay: 0.91,
+        gravity: 1.08,
+        drift: 0.08,
+        ticks,
+        scalar: compact ? 0.78 : 0.94,
+        shapes: ['square', 'circle'],
+        colors: ['#f0ad5d', '#d3862d', '#d0011b', '#ffdf9e'],
+        origin: {x: 0.02, y: compact ? 0.9 : 0.88},
+    })
+    void confettiInstance({
+        particleCount,
+        angle: 122,
+        spread: compact ? 42 : 48,
+        startVelocity: compact ? 42 : 54,
+        decay: 0.91,
+        gravity: 1.08,
+        drift: -0.08,
+        ticks,
+        scalar: compact ? 0.78 : 0.94,
+        shapes: ['square', 'circle'],
+        colors: ['#f0ad5d', '#d3862d', '#4f8cff', '#8247e5', '#ffdf9e'],
+        origin: {x: 0.98, y: compact ? 0.9 : 0.88},
+    })
+
+    accentTimer = window.setTimeout(() => {
+        if (!confettiInstance) {
+            return
+        }
+        const accentCount = compact ? 3 : 6
+        void confettiInstance({
+            particleCount: accentCount,
+            angle: 62,
+            spread: 32,
+            startVelocity: compact ? 34 : 42,
+            decay: 0.9,
+            gravity: 0.92,
+            ticks: compact ? 120 : 150,
+            scalar: compact ? 0.7 : 0.88,
+            shapes: ['star'],
+            colors: ['#ffd98a', '#f0ad5d', '#d0011b'],
+            origin: {x: 0.03, y: compact ? 0.9 : 0.88},
+        })
+        void confettiInstance({
+            particleCount: accentCount,
+            angle: 118,
+            spread: 32,
+            startVelocity: compact ? 34 : 42,
+            decay: 0.9,
+            gravity: 0.92,
+            ticks: compact ? 120 : 150,
+            scalar: compact ? 0.7 : 0.88,
+            shapes: ['star'],
+            colors: ['#ffd98a', '#4f8cff', '#8247e5'],
+            origin: {x: 0.97, y: compact ? 0.9 : 0.88},
+        })
+    }, 110)
+}
+
+const startCelebration = () => {
+    if (celebrating.value) {
+        return
     }
-})
-const foregroundConfettiPieces = confettiPieces.filter(
-    piece => piece.side === 'left' && piece.sideIndex < 3,
-)
-const backgroundConfettiPieces = confettiPieces.filter(
-    piece => piece.side !== 'left' || piece.sideIndex >= 3,
-)
+    celebrating.value = true
+    fireCelebration()
+}
 
 const observeAward = () => {
     if (!banner.value || celebrating.value) {
         return
     }
     if (!('IntersectionObserver' in window)) {
-        celebrating.value = true
+        startCelebration()
         return
     }
     celebrationObserver = new IntersectionObserver(([entry]) => {
         if (!entry.isIntersecting) {
             return
         }
-        celebrating.value = true
+        startCelebration()
         celebrationObserver?.disconnect()
     }, {threshold: 0.2})
     celebrationObserver.observe(banner.value)
@@ -114,11 +126,23 @@ const observeAward = () => {
 
 onMounted(async () => {
     await nextTick()
+    if (confettiCanvas.value) {
+        const {default: canvasConfetti} = await import('canvas-confetti')
+        confettiInstance = canvasConfetti.create(confettiCanvas.value, {
+            resize: true,
+            useWorker: true,
+            disableForReducedMotion: true,
+        })
+    }
     observeAward()
 })
 
 onBeforeUnmount(() => {
     celebrationObserver?.disconnect()
+    if (accentTimer) {
+        window.clearTimeout(accentTimer)
+    }
+    confettiInstance?.reset()
 })
 
 const copy = computed(() => isChinese.value
@@ -143,8 +167,13 @@ const copy = computed(() => isChinese.value
         aria-labelledby="kaicode-award-title"
     >
         <div class="kaicode-award-banner__inner">
+            <canvas
+                ref="confettiCanvas"
+                class="kaicode-award-banner__confetti-canvas"
+                aria-hidden="true"
+            ></canvas>
             <div
-                class="kaicode-award-banner__confetti kaicode-award-banner__confetti--background"
+                class="kaicode-award-banner__celebration-assets"
                 aria-hidden="true"
             >
                 <img
@@ -157,23 +186,6 @@ const copy = computed(() => isChinese.value
                     :src="withBase('/images/award-confetti/diamond-gold.webp')"
                     alt=""
                 />
-                <i
-                    v-for="piece in backgroundConfettiPieces"
-                    :key="piece.id"
-                    class="kaicode-award-banner__confetti-piece"
-                    :class="[
-                        `kaicode-award-banner__confetti-piece--${piece.side}`,
-                        `kaicode-award-banner__confetti-piece--${piece.kind}`,
-                    ]"
-                    :style="piece.style"
-                >
-                    <img :src="withBase(piece.asset)" alt="" />
-                </i>
-            </div>
-            <div
-                class="kaicode-award-banner__confetti kaicode-award-banner__confetti--foreground"
-                aria-hidden="true"
-            >
                 <img
                     class="kaicode-award-banner__confetti-cluster kaicode-award-banner__confetti-cluster--left"
                     :src="withBase('/images/award-confetti/cluster-left.webp')"
@@ -184,18 +196,6 @@ const copy = computed(() => isChinese.value
                     :src="withBase('/images/award-confetti/cluster-right.webp')"
                     alt=""
                 />
-                <i
-                    v-for="piece in foregroundConfettiPieces"
-                    :key="piece.id"
-                    class="kaicode-award-banner__confetti-piece"
-                    :class="[
-                        `kaicode-award-banner__confetti-piece--${piece.side}`,
-                        `kaicode-award-banner__confetti-piece--${piece.kind}`,
-                    ]"
-                    :style="piece.style"
-                >
-                    <img :src="withBase(piece.asset)" alt="" />
-                </i>
             </div>
             <a
                 class="kaicode-award-banner__artwork-link"
@@ -298,16 +298,23 @@ const copy = computed(() => isChinese.value
     transform: rotate(18deg);
 }
 
-.kaicode-award-banner__confetti {
+.kaicode-award-banner__confetti-canvas {
     position: absolute;
     inset: 0;
     z-index: 3;
+    display: block;
+    width: 100%;
+    height: 100%;
     overflow: hidden;
     pointer-events: none;
 }
 
-.kaicode-award-banner__confetti--foreground {
+.kaicode-award-banner__celebration-assets {
+    position: absolute;
+    inset: 0;
     z-index: 5;
+    overflow: hidden;
+    pointer-events: none;
 }
 
 .kaicode-award-banner__confetti-cluster {
@@ -344,25 +351,6 @@ const copy = computed(() => isChinese.value
 
 .kaicode-award-banner__confetti-flare--right {
     right: -2px;
-}
-
-.kaicode-award-banner__confetti-piece {
-    --confetti-flight: var(--confetti-travel);
-
-    position: absolute;
-    bottom: -32px;
-    left: var(--confetti-origin);
-    width: var(--confetti-width);
-    height: auto;
-    opacity: 0;
-    filter: blur(var(--confetti-blur));
-}
-
-.kaicode-award-banner__confetti-piece img {
-    display: block;
-    width: 100%;
-    height: auto;
-    filter: drop-shadow(0 2px 4px rgba(24, 12, 3, 0.28));
 }
 
 .kaicode-award-banner__artwork-link {
@@ -494,16 +482,6 @@ const copy = computed(() => isChinese.value
         will-change: transform, opacity;
     }
 
-    .kaicode-award-banner.is-celebrating .kaicode-award-banner__confetti-piece {
-        animation: kaicode-award-confetti-flight-x var(--confetti-duration) linear var(--confetti-delay) both;
-        will-change: transform, opacity;
-    }
-
-    .kaicode-award-banner.is-celebrating .kaicode-award-banner__confetti-piece img {
-        animation: kaicode-award-confetti-flight-y var(--confetti-duration) linear var(--confetti-delay) both;
-        will-change: transform;
-    }
-
     .kaicode-award-banner__inner {
         animation:
             kaicode-award-reveal 0.9s cubic-bezier(0.16, 1, 0.3, 1) both,
@@ -629,42 +607,6 @@ const copy = computed(() => isChinese.value
     100% {
         opacity: 0;
         transform: translateY(-20px) scale(1.04);
-    }
-}
-
-@keyframes kaicode-award-confetti-flight-x {
-    0% {
-        opacity: 0;
-        transform: translate3d(0, 0, 0) scale(0.35);
-    }
-
-    7% {
-        opacity: var(--confetti-peak-opacity);
-    }
-
-    74% {
-        opacity: var(--confetti-peak-opacity);
-    }
-
-    100% {
-        opacity: 0;
-        transform: translate3d(var(--confetti-flight), 0, 0) scale(0.82);
-    }
-}
-
-@keyframes kaicode-award-confetti-flight-y {
-    0% {
-        transform: translate3d(0, 0, 0) rotate(0);
-        animation-timing-function: cubic-bezier(0.12, 0.7, 0.24, 1);
-    }
-
-    40% {
-        transform: translate3d(0, var(--confetti-apex), 0) rotate(var(--confetti-apex-spin));
-        animation-timing-function: cubic-bezier(0.3, 0, 0.72, 0.42);
-    }
-
-    100% {
-        transform: translate3d(0, 94px, 0) rotate(var(--confetti-spin));
     }
 }
 
@@ -813,14 +755,6 @@ const copy = computed(() => isChinese.value
     .kaicode-award-banner__artwork {
         width: 220px;
         padding: 14px;
-    }
-
-    .kaicode-award-banner__confetti-piece {
-        --confetti-flight: var(--confetti-mobile-travel);
-    }
-
-    .kaicode-award-banner__confetti-piece:nth-of-type(n + 21) {
-        display: none;
     }
 
     .kaicode-award-banner__confetti-flare {
