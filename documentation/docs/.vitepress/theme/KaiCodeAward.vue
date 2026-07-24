@@ -12,12 +12,61 @@
 -->
 
 <script setup lang="ts">
-import {computed} from 'vue'
+import {computed, nextTick, onBeforeUnmount, onMounted, ref, type CSSProperties} from 'vue'
 import {useData, withBase} from 'vitepress'
 
 const {frontmatter, lang} = useData()
 const showAward = computed(() => frontmatter.value.kaicodeAward === true)
 const isChinese = computed(() => lang.value.startsWith('zh'))
+const banner = ref<HTMLElement | null>(null)
+const celebrating = ref(false)
+let celebrationObserver: IntersectionObserver | undefined
+
+type ConfettiStyle = CSSProperties & Record<`--confetti-${string}`, string>
+
+const confettiPalette = ['#d3862d', '#d0011b', '#f0ad5d', '#5b8cff', '#9b5cff', '#ffcf70']
+const confettiPieces = Array.from({length: 36}, (_, index) => {
+    const style: ConfettiStyle = {
+        '--confetti-x': `${(index * 37 + 7) % 100}%`,
+        '--confetti-drift': `${(index * 53) % 150 - 75}px`,
+        '--confetti-delay': `${((index * 29) % 95) / 100}s`,
+        '--confetti-duration': `${2.1 + ((index * 17) % 90) / 100}s`,
+        '--confetti-spin': `${540 + (index * 71) % 720}deg`,
+        '--confetti-color': confettiPalette[index % confettiPalette.length],
+        '--confetti-width': `${6 + index % 4}px`,
+        '--confetti-height': `${10 + index % 5 * 2}px`,
+    }
+
+    return {id: index, style}
+})
+
+const observeAward = () => {
+    if (!banner.value || celebrating.value) {
+        return
+    }
+    if (!('IntersectionObserver' in window)) {
+        celebrating.value = true
+        return
+    }
+    celebrationObserver = new IntersectionObserver(([entry]) => {
+        if (!entry.isIntersecting) {
+            return
+        }
+        celebrating.value = true
+        celebrationObserver?.disconnect()
+    }, {threshold: 0.2})
+    celebrationObserver.observe(banner.value)
+}
+
+onMounted(async () => {
+    await nextTick()
+    observeAward()
+})
+
+onBeforeUnmount(() => {
+    celebrationObserver?.disconnect()
+})
+
 const copy = computed(() => isChinese.value
     ? {
         eyebrow: '开源工程荣誉',
@@ -34,10 +83,20 @@ const copy = computed(() => isChinese.value
 <template>
     <section
         v-if="showAward"
+        ref="banner"
         class="kaicode-award-banner"
+        :class="{'is-celebrating': celebrating}"
         aria-labelledby="kaicode-award-title"
     >
         <div class="kaicode-award-banner__inner">
+            <div class="kaicode-award-banner__confetti" aria-hidden="true">
+                <i
+                    v-for="piece in confettiPieces"
+                    :key="piece.id"
+                    class="kaicode-award-banner__confetti-piece"
+                    :style="piece.style"
+                />
+            </div>
             <a
                 class="kaicode-award-banner__artwork-link"
                 href="https://www.kaicode.org/2026.html"
@@ -131,6 +190,34 @@ const copy = computed(() => isChinese.value
     filter: blur(3px);
     content: "";
     transform: rotate(18deg);
+}
+
+.kaicode-award-banner__confetti {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.kaicode-award-banner__confetti-piece {
+    position: absolute;
+    top: -24px;
+    left: var(--confetti-x);
+    width: var(--confetti-width);
+    height: var(--confetti-height);
+    opacity: 0;
+    background: var(--confetti-color);
+    border-radius: 2px;
+    box-shadow: 0 0 8px color-mix(in srgb, var(--confetti-color) 45%, transparent);
+}
+
+.kaicode-award-banner__confetti-piece:nth-child(3n) {
+    border-radius: 50%;
+}
+
+.kaicode-award-banner__confetti-piece:nth-child(4n) {
+    clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
 }
 
 .kaicode-award-banner__artwork-link {
@@ -263,6 +350,11 @@ const copy = computed(() => isChinese.value
 }
 
 @media (prefers-reduced-motion: no-preference) {
+    .kaicode-award-banner.is-celebrating .kaicode-award-banner__confetti-piece {
+        animation: kaicode-award-confetti-fall var(--confetti-duration) cubic-bezier(0.18, 0.65, 0.35, 1) var(--confetti-delay) both;
+        will-change: transform, opacity;
+    }
+
     .kaicode-award-banner__inner {
         animation:
             kaicode-award-reveal 0.9s cubic-bezier(0.16, 1, 0.3, 1) both,
@@ -341,6 +433,44 @@ const copy = computed(() => isChinese.value
     .kaicode-award-banner__cta:hover {
         background: rgba(211, 134, 45, 0.22);
         transform: translateY(-1px);
+    }
+}
+
+@keyframes kaicode-award-confetti-fall {
+    0% {
+        opacity: 0;
+        transform: translate3d(0, -32px, 0) rotateX(0) rotateZ(0) scale(0.6);
+    }
+
+    9% {
+        opacity: 1;
+    }
+
+    38% {
+        opacity: 1;
+        transform:
+            translate3d(calc(var(--confetti-drift) * -0.28), 180px, 0)
+            rotateX(calc(var(--confetti-spin) * 0.32))
+            rotateZ(calc(var(--confetti-spin) * 0.18))
+            scale(1);
+    }
+
+    72% {
+        opacity: 0.95;
+        transform:
+            translate3d(calc(var(--confetti-drift) * 0.64), 390px, 0)
+            rotateX(calc(var(--confetti-spin) * 0.7))
+            rotateZ(calc(var(--confetti-spin) * 0.66))
+            scale(0.92);
+    }
+
+    100% {
+        opacity: 0;
+        transform:
+            translate3d(var(--confetti-drift), 720px, 0)
+            rotateX(var(--confetti-spin))
+            rotateZ(calc(var(--confetti-spin) * 0.86))
+            scale(0.72);
     }
 }
 
