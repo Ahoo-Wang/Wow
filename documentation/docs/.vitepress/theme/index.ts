@@ -12,15 +12,19 @@
  */
 
 import DefaultTheme from 'vitepress/theme'
-import {onMounted, watch, nextTick} from 'vue'
+import {h, onMounted, watch, nextTick} from 'vue'
 import {type Theme, useRoute} from 'vitepress'
 import mediumZoom from 'medium-zoom'
 import './global.css'
+import KaiCodeAward from './KaiCodeAward.vue'
 import CopyOrDownloadAsMarkdownButtons
     from 'vitepress-plugin-llms/vitepress-components/CopyOrDownloadAsMarkdownButtons.vue'
 
 export default {
     extends: DefaultTheme,
+    Layout: () => h(DefaultTheme.Layout, null, {
+        'home-hero-after': () => h(KaiCodeAward),
+    }),
     enhanceApp({app}) {
         app.component('CopyOrDownloadAsMarkdownButtons', CopyOrDownloadAsMarkdownButtons)
     },

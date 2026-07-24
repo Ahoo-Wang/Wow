@@ -1,5 +1,6 @@
 ---
 layout: home
+kaicodeAward: true
 title: 基于 DDD & EventSourcing 的现代响应式 CQRS 架构微服务开发框架
 hero:
   name: "Wow"
@@ -12,9 +13,6 @@ hero:
     - theme: brand
       text: 快速上手
       link: /zh/guide/getting-started
-    - theme: alt
-      text: KaiCode’26 Excellent Award
-      link: https://www.kaicode.org/2026.html
     - theme: alt
       text: 简介
       link: /zh/guide/introduction

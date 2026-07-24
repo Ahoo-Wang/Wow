@@ -1,5 +1,6 @@
 ---
 layout: home
+kaicodeAward: true
 title: Modern Reactive CQRS Architecture Microservice Development Framework Based on DDD & EventSourcing
 hero:
   name: "Wow"
@@ -12,9 +13,6 @@ hero:
     - theme: brand
       text: Get Started
       link: /guide/getting-started
-    - theme: alt
-      text: KaiCode’26 Excellent Award
-      link: https://www.kaicode.org/2026.html
     - theme: alt
       text: Introduction
       link: /guide/introduction

@@ -9,7 +9,8 @@
 <p align="center">基于 DDD & Event Sourcing 的现代响应式 CQRS 架构微服务开发框架</p>
 
 <p align="center">
-  <a href="https://www.kaicode.org/2026.html"><img src="https://img.shields.io/badge/KaiCode%2726-Excellent%20Award-gold?style=for-the-badge" alt="KaiCode'26 Excellent Award"/></a>
+  <a href="https://www.kaicode.org/2026.html"><img width="280" src="https://www.kaicode.org/images/2026/wow.svg" alt="KaiCode'26 Excellent Award"/></a><br/>
+  <strong>KaiCode’26 Excellent Award</strong>
 </p>
 
 <p align="center">
