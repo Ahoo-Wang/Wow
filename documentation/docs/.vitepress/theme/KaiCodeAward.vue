@@ -13,7 +13,7 @@
 
 <script setup lang="ts">
 import type confetti from 'canvas-confetti'
-import {computed, nextTick, onBeforeUnmount, onMounted, ref} from 'vue'
+import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import {useData, withBase} from 'vitepress'
 
 const {frontmatter, lang} = useData()
@@ -25,6 +25,7 @@ const celebrating = ref(false)
 let celebrationObserver: IntersectionObserver | undefined
 let confettiInstance: confetti.CreateTypes | undefined
 let accentTimer: ReturnType<typeof window.setTimeout> | undefined
+let initializationVersion = 0
 
 const fireCelebration = () => {
     if (!confettiInstance) {
@@ -124,26 +125,64 @@ const observeAward = () => {
     celebrationObserver.observe(banner.value)
 }
 
-onMounted(async () => {
-    await nextTick()
-    if (confettiCanvas.value) {
-        const {default: canvasConfetti} = await import('canvas-confetti')
-        confettiInstance = canvasConfetti.create(confettiCanvas.value, {
-            resize: true,
-            useWorker: true,
-            disableForReducedMotion: true,
-        })
-    }
-    observeAward()
-})
-
-onBeforeUnmount(() => {
+const resetCelebration = () => {
     celebrationObserver?.disconnect()
+    celebrationObserver = undefined
     if (accentTimer) {
         window.clearTimeout(accentTimer)
+        accentTimer = undefined
     }
     confettiInstance?.reset()
+    confettiInstance = undefined
+    celebrating.value = false
+}
+
+const initializeAward = async () => {
+    const version = ++initializationVersion
+    await nextTick()
+    const canvas = confettiCanvas.value
+    if (!showAward.value || !canvas) {
+        return
+    }
+
+    const {default: canvasConfetti} = await import('canvas-confetti')
+    if (
+        version !== initializationVersion
+        || !showAward.value
+        || confettiCanvas.value !== canvas
+    ) {
+        return
+    }
+
+    resetCelebration()
+    confettiInstance = canvasConfetti.create(canvas, {
+        resize: true,
+        useWorker: true,
+        disableForReducedMotion: true,
+    })
+    observeAward()
+}
+
+const teardownAward = () => {
+    initializationVersion++
+    resetCelebration()
+}
+
+onMounted(() => {
+    if (showAward.value) {
+        void initializeAward()
+    }
 })
+
+watch(showAward, visible => {
+    if (visible) {
+        void initializeAward()
+        return
+    }
+    teardownAward()
+})
+
+onBeforeUnmount(teardownAward)
 
 const copy = computed(() => isChinese.value
     ? {
