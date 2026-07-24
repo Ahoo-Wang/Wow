@@ -13,6 +13,9 @@ hero:
       text: 快速上手
       link: /zh/guide/getting-started
     - theme: alt
+      text: KaiCode’26 Excellent Award
+      link: https://www.kaicode.org/2026.html
+    - theme: alt
       text: 简介
       link: /zh/guide/introduction
     - theme: alt

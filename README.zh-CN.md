@@ -9,6 +9,10 @@
 <p align="center">基于 DDD & Event Sourcing 的现代响应式 CQRS 架构微服务开发框架</p>
 
 <p align="center">
+  <a href="https://www.kaicode.org/2026.html"><img src="https://img.shields.io/badge/KaiCode%2726-Excellent%20Award-gold?style=for-the-badge" alt="KaiCode'26 Excellent Award"/></a>
+</p>
+
+<p align="center">
   <a href="https://github.com/Ahoo-Wang/Wow/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202-4EB1BA.svg" alt="License"/></a>
   <a href="https://github.com/Ahoo-Wang/Wow/releases"><img src="https://img.shields.io/github/release/Ahoo-Wang/Wow.svg" alt="GitHub release"/></a>
   <a href="https://central.sonatype.com/artifact/me.ahoo.wow/wow-core"><img src="https://img.shields.io/maven-central/v/me.ahoo.wow/wow-core" alt="Maven Central"/></a>
@@ -17,7 +21,6 @@
   <a href="https://github.com/Ahoo-Wang/Wow/actions/workflows/integration-test.yml"><img src="https://github.com/Ahoo-Wang/Wow/actions/workflows/integration-test.yml/badge.svg" alt="CI"/></a>
   <a href="https://kotlin.link/"><img src="https://kotlin.link/awesome-kotlin.svg" alt="Awesome Kotlin"/></a>
   <a href="https://deepwiki.com/Ahoo-Wang/Wow"><img src="https://deepwiki.com/badge.svg" alt="DeepWiki"/></a>
-  <a href="https://www.kaicode.org/2026.html"><img src="https://img.shields.io/badge/KaiCode%2726-Excellent%20Award-gold" alt="KaiCode'26 Excellent Award"/></a>
 </p>
 
 <p align="center">
@@ -29,6 +32,10 @@
 </p>
 
 ---
+
+## 荣誉
+
+Wow 荣获 [KaiCode’26 Excellent Award](https://www.kaicode.org/2026.html)。官方结果页重点提及了项目的模块化 DDD/CQRS 设计、规范且由多位评审者参与的代码审查、基于 Testcontainers 的集成测试、强制执行的测试覆盖率阈值、Detekt 静态分析、双语文档，以及长期的 Maven Central 语义化版本发布记录。
 
 ## 快速开始
 
@@ -58,10 +65,6 @@ Wow 正是为改变这一现状而生。历经多年生产环境验证，将 DDD
 - **工程质量** — 在 API 测试中，基于 Wow 的项目缺陷数仅为同等研发水平传统架构项目的 **1/3**
 
 > 值得一提的是，领域驱动设计和事件溯源并非微服务架构的专属，_Wow_ 框架不仅适用于微服务开发，同样也可用于构建基于领域驱动设计的单体应用程序。
-
-## 荣誉
-
-Wow 荣获 [KaiCode’26 Excellent Award](https://www.kaicode.org/2026.html)。官方结果页重点提及了项目的模块化 DDD/CQRS 设计、规范且由多位评审者参与的代码审查、基于 Testcontainers 的集成测试、强制执行的测试覆盖率阈值、Detekt 静态分析、双语文档，以及长期的 Maven Central 语义化版本发布记录。
 
 ## 特性一览
 
