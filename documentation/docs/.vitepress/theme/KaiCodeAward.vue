@@ -13,12 +13,11 @@
 
 <script setup lang="ts">
 import {computed} from 'vue'
-import {useData, useRoute} from 'vitepress'
+import {useData} from 'vitepress'
 
-const route = useRoute()
-const {frontmatter} = useData()
+const {frontmatter, lang} = useData()
 const showAward = computed(() => frontmatter.value.kaicodeAward === true)
-const isChinese = computed(() => route.path.startsWith('/zh/'))
+const isChinese = computed(() => lang.value.startsWith('zh'))
 const copy = computed(() => isChinese.value
     ? {
         eyebrow: '开源工程荣誉',
