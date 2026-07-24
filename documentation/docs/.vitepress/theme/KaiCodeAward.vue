@@ -101,8 +101,27 @@ const copy = computed(() => isChinese.value
 .kaicode-award-banner__inner::before {
     position: absolute;
     inset: 0 auto 0 0;
+    z-index: 2;
     width: 5px;
     background: linear-gradient(180deg, #d3862d, #d0011b);
+    content: "";
+}
+
+.kaicode-award-banner__inner::after {
+    position: absolute;
+    top: -52%;
+    left: -18%;
+    z-index: 0;
+    width: 58%;
+    aspect-ratio: 1;
+    pointer-events: none;
+    background: radial-gradient(
+            circle,
+            rgba(255, 190, 95, 0.24),
+            rgba(211, 134, 45, 0.09) 42%,
+            transparent 72%
+    );
+    filter: blur(10px);
     content: "";
 }
 
@@ -169,6 +188,15 @@ const copy = computed(() => isChinese.value
     box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
 }
 
+:global(html.dark) .kaicode-award-banner__inner::after {
+    background: radial-gradient(
+            circle,
+            rgba(240, 173, 93, 0.24),
+            rgba(208, 1, 27, 0.09) 42%,
+            transparent 72%
+    );
+}
+
 :global(html.dark) .kaicode-award-banner__eyebrow {
     color: #f0ad5d;
 }
@@ -179,6 +207,36 @@ const copy = computed(() => isChinese.value
 }
 
 @media (prefers-reduced-motion: no-preference) {
+    .kaicode-award-banner__inner {
+        animation: kaicode-award-reveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .kaicode-award-banner__inner::after {
+        animation: kaicode-award-glow 7s ease-in-out 0.7s infinite alternate;
+    }
+
+    .kaicode-award-banner__artwork-link {
+        animation: kaicode-award-float 4.8s ease-in-out 0.8s infinite;
+    }
+
+    .kaicode-award-banner__eyebrow,
+    .kaicode-award-banner__title,
+    .kaicode-award-banner__cta {
+        animation: kaicode-award-content-reveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .kaicode-award-banner__eyebrow {
+        animation-delay: 0.12s;
+    }
+
+    .kaicode-award-banner__title {
+        animation-delay: 0.2s;
+    }
+
+    .kaicode-award-banner__cta {
+        animation-delay: 0.28s;
+    }
+
     .kaicode-award-banner__artwork,
     .kaicode-award-banner__cta {
         transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
@@ -192,6 +250,53 @@ const copy = computed(() => isChinese.value
     .kaicode-award-banner__cta:hover {
         background: rgba(211, 134, 45, 0.22);
         transform: translateY(-1px);
+    }
+}
+
+@keyframes kaicode-award-reveal {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.985);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes kaicode-award-content-reveal {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes kaicode-award-float {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-7px);
+    }
+}
+
+@keyframes kaicode-award-glow {
+    from {
+        opacity: 0.35;
+        transform: translate3d(-8%, -6%, 0) scale(0.95);
+    }
+
+    to {
+        opacity: 0.75;
+        transform: translate3d(72%, 22%, 0) scale(1.16);
     }
 }
 
