@@ -24,21 +24,75 @@ let celebrationObserver: IntersectionObserver | undefined
 
 type ConfettiStyle = CSSProperties & Record<`--confetti-${string}`, string>
 
-const confettiPalette = ['#d3862d', '#d0011b', '#f0ad5d', '#5b8cff', '#9b5cff', '#ffcf70']
-const confettiPieces = Array.from({length: 36}, (_, index) => {
+type ConfettiColor = 'gold' | 'red' | 'blue' | 'purple'
+type ConfettiKind = 'ribbon-long' | 'ribbon-short' | 'diamond'
+type ConfettiSide = 'left' | 'right'
+
+const leftColors: ConfettiColor[] = ['gold', 'red', 'gold', 'red']
+const rightColors: ConfettiColor[] = ['gold', 'purple', 'blue', 'gold', 'purple', 'blue']
+const confettiPieces = Array.from({length: 32}, (_, index) => {
+    const side: ConfettiSide = index % 2 === 0 ? 'left' : 'right'
+    const sideIndex = Math.floor(index / 2)
+    const direction = side === 'left' ? 1 : -1
+    const kind: ConfettiKind = sideIndex < 2
+        ? 'ribbon-long'
+        : sideIndex < 5
+            ? 'ribbon-short'
+            : 'diamond'
+    const color = side === 'left'
+        ? leftColors[sideIndex % leftColors.length]
+        : rightColors[sideIndex % rightColors.length]
+    const travel = direction * (
+        side === 'left' && kind === 'ribbon-long'
+            ? 8 + sideIndex * 12
+            : side === 'left' && kind === 'ribbon-short'
+                ? 20 + (sideIndex - 2) * 18
+                : kind === 'ribbon-long'
+                    ? 72 + sideIndex * 44
+                    : kind === 'ribbon-short'
+                        ? 118 + (sideIndex * 63) % 180
+                        : 150 + (sideIndex * 79) % 390
+    )
+    const mobileTravel = direction * (
+        kind === 'ribbon-long'
+            ? 48 + sideIndex * 30
+            : 74 + (sideIndex * 37) % 150
+    )
+    const spin = direction * (420 + (sideIndex * 89) % 720)
+    const width = kind === 'ribbon-long'
+        ? 56 + sideIndex % 2 * 14
+        : kind === 'ribbon-short'
+            ? 38 + sideIndex % 3 * 10
+            : 12 + sideIndex % 4 * 4
     const style: ConfettiStyle = {
-        '--confetti-x': `${(index * 37 + 7) % 100}%`,
-        '--confetti-drift': `${(index * 53) % 150 - 75}px`,
-        '--confetti-delay': `${((index * 29) % 95) / 100}s`,
-        '--confetti-duration': `${2.1 + ((index * 17) % 90) / 100}s`,
-        '--confetti-spin': `${540 + (index * 71) % 720}deg`,
-        '--confetti-color': confettiPalette[index % confettiPalette.length],
-        '--confetti-width': `${6 + index % 4}px`,
-        '--confetti-height': `${10 + index % 5 * 2}px`,
+        '--confetti-origin': side === 'left' ? '0%' : '100%',
+        '--confetti-travel': `${travel}px`,
+        '--confetti-mobile-travel': `${mobileTravel}px`,
+        '--confetti-apex': `${-(160 + (sideIndex * 43) % 220)}px`,
+        '--confetti-delay': `${0.04 + ((sideIndex * 13) % 24) / 100}s`,
+        '--confetti-duration': `${2.35 + ((sideIndex * 17) % 72) / 100}s`,
+        '--confetti-spin': `${spin}deg`,
+        '--confetti-apex-spin': `${Math.round(spin * 0.4)}deg`,
+        '--confetti-width': `${width}px`,
+        '--confetti-peak-opacity': `${0.8 + sideIndex % 3 * 0.08}`,
+        '--confetti-blur': `${sideIndex % 7 === 0 ? 0.7 : 0}px`,
     }
 
-    return {id: index, style}
+    return {
+        id: index,
+        side,
+        sideIndex,
+        kind,
+        asset: `/images/award-confetti/${kind}-${color}.webp`,
+        style,
+    }
 })
+const foregroundConfettiPieces = confettiPieces.filter(
+    piece => piece.side === 'left' && piece.sideIndex < 3,
+)
+const backgroundConfettiPieces = confettiPieces.filter(
+    piece => piece.side !== 'left' || piece.sideIndex >= 3,
+)
 
 const observeAward = () => {
     if (!banner.value || celebrating.value) {
@@ -89,13 +143,59 @@ const copy = computed(() => isChinese.value
         aria-labelledby="kaicode-award-title"
     >
         <div class="kaicode-award-banner__inner">
-            <div class="kaicode-award-banner__confetti" aria-hidden="true">
+            <div
+                class="kaicode-award-banner__confetti kaicode-award-banner__confetti--background"
+                aria-hidden="true"
+            >
+                <img
+                    class="kaicode-award-banner__confetti-flare kaicode-award-banner__confetti-flare--left"
+                    :src="withBase('/images/award-confetti/diamond-gold.webp')"
+                    alt=""
+                />
+                <img
+                    class="kaicode-award-banner__confetti-flare kaicode-award-banner__confetti-flare--right"
+                    :src="withBase('/images/award-confetti/diamond-gold.webp')"
+                    alt=""
+                />
                 <i
-                    v-for="piece in confettiPieces"
+                    v-for="piece in backgroundConfettiPieces"
                     :key="piece.id"
                     class="kaicode-award-banner__confetti-piece"
+                    :class="[
+                        `kaicode-award-banner__confetti-piece--${piece.side}`,
+                        `kaicode-award-banner__confetti-piece--${piece.kind}`,
+                    ]"
                     :style="piece.style"
+                >
+                    <img :src="withBase(piece.asset)" alt="" />
+                </i>
+            </div>
+            <div
+                class="kaicode-award-banner__confetti kaicode-award-banner__confetti--foreground"
+                aria-hidden="true"
+            >
+                <img
+                    class="kaicode-award-banner__confetti-cluster kaicode-award-banner__confetti-cluster--left"
+                    :src="withBase('/images/award-confetti/cluster-left.webp')"
+                    alt=""
                 />
+                <img
+                    class="kaicode-award-banner__confetti-cluster kaicode-award-banner__confetti-cluster--right"
+                    :src="withBase('/images/award-confetti/cluster-right.webp')"
+                    alt=""
+                />
+                <i
+                    v-for="piece in foregroundConfettiPieces"
+                    :key="piece.id"
+                    class="kaicode-award-banner__confetti-piece"
+                    :class="[
+                        `kaicode-award-banner__confetti-piece--${piece.side}`,
+                        `kaicode-award-banner__confetti-piece--${piece.kind}`,
+                    ]"
+                    :style="piece.style"
+                >
+                    <img :src="withBase(piece.asset)" alt="" />
+                </i>
             </div>
             <a
                 class="kaicode-award-banner__artwork-link"
@@ -110,6 +210,12 @@ const copy = computed(() => isChinese.value
                     height="575"
                     :src="withBase('/images/kaicode-2026-wow.svg')"
                     alt="KaiCode'26 Excellent Award"
+                />
+                <img
+                    class="kaicode-award-banner__artwork-sparkle"
+                    :src="withBase('/images/award-confetti/diamond-gold.webp')"
+                    alt=""
+                    aria-hidden="true"
                 />
             </a>
             <div class="kaicode-award-banner__content">
@@ -200,29 +306,68 @@ const copy = computed(() => isChinese.value
     pointer-events: none;
 }
 
-.kaicode-award-banner__confetti-piece {
+.kaicode-award-banner__confetti--foreground {
+    z-index: 5;
+}
+
+.kaicode-award-banner__confetti-cluster {
     position: absolute;
-    top: -24px;
-    left: var(--confetti-x);
-    width: var(--confetti-width);
-    height: var(--confetti-height);
+    bottom: -12px;
+    height: auto;
     opacity: 0;
-    background: var(--confetti-color);
-    border-radius: 2px;
-    box-shadow: 0 0 8px color-mix(in srgb, var(--confetti-color) 45%, transparent);
+    filter: drop-shadow(0 8px 12px rgba(24, 12, 3, 0.22));
 }
 
-.kaicode-award-banner__confetti-piece:nth-child(3n) {
-    border-radius: 50%;
+.kaicode-award-banner__confetti-cluster--left {
+    left: -52px;
+    width: 300px;
 }
 
-.kaicode-award-banner__confetti-piece:nth-child(4n) {
-    clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+.kaicode-award-banner__confetti-cluster--right {
+    right: -52px;
+    width: 330px;
+}
+
+.kaicode-award-banner__confetti-flare {
+    position: absolute;
+    bottom: -16px;
+    width: 32px;
+    height: auto;
+    opacity: 0;
+    filter: drop-shadow(0 0 10px rgba(255, 189, 80, 0.9))
+        drop-shadow(0 0 26px rgba(211, 134, 45, 0.78));
+}
+
+.kaicode-award-banner__confetti-flare--left {
+    left: -2px;
+}
+
+.kaicode-award-banner__confetti-flare--right {
+    right: -2px;
+}
+
+.kaicode-award-banner__confetti-piece {
+    --confetti-flight: var(--confetti-travel);
+
+    position: absolute;
+    bottom: -32px;
+    left: var(--confetti-origin);
+    width: var(--confetti-width);
+    height: auto;
+    opacity: 0;
+    filter: blur(var(--confetti-blur));
+}
+
+.kaicode-award-banner__confetti-piece img {
+    display: block;
+    width: 100%;
+    height: auto;
+    filter: drop-shadow(0 2px 4px rgba(24, 12, 3, 0.28));
 }
 
 .kaicode-award-banner__artwork-link {
     position: relative;
-    z-index: 1;
+    z-index: 4;
     justify-self: center;
     isolation: isolate;
 }
@@ -245,26 +390,15 @@ const copy = computed(() => isChinese.value
     content: "";
 }
 
-.kaicode-award-banner__artwork-link::after {
+.kaicode-award-banner__artwork-sparkle {
     position: absolute;
     top: 2%;
     right: 2%;
     z-index: 2;
     width: 22px;
-    height: 22px;
-    background: linear-gradient(135deg, #fff8dc, #f0ad5d);
-    clip-path: polygon(
-            50% 0,
-            61% 39%,
-            100% 50%,
-            61% 61%,
-            50% 100%,
-            39% 61%,
-            0 50%,
-            39% 39%
-    );
+    height: auto;
     filter: drop-shadow(0 0 8px rgba(255, 214, 147, 0.8));
-    content: "";
+    pointer-events: none;
 }
 
 .kaicode-award-banner__artwork {
@@ -281,7 +415,7 @@ const copy = computed(() => isChinese.value
 
 .kaicode-award-banner__content {
     position: relative;
-    z-index: 1;
+    z-index: 6;
 }
 
 .kaicode-award-banner__eyebrow {
@@ -350,9 +484,24 @@ const copy = computed(() => isChinese.value
 }
 
 @media (prefers-reduced-motion: no-preference) {
-    .kaicode-award-banner.is-celebrating .kaicode-award-banner__confetti-piece {
-        animation: kaicode-award-confetti-fall var(--confetti-duration) cubic-bezier(0.18, 0.65, 0.35, 1) var(--confetti-delay) both;
+    .kaicode-award-banner.is-celebrating .kaicode-award-banner__confetti-cluster {
+        animation: kaicode-award-confetti-cluster 1.9s cubic-bezier(0.16, 1, 0.3, 1) 0.06s both;
         will-change: transform, opacity;
+    }
+
+    .kaicode-award-banner.is-celebrating .kaicode-award-banner__confetti-flare {
+        animation: kaicode-award-confetti-flare 1.12s cubic-bezier(0.16, 1, 0.3, 1) 0.02s both;
+        will-change: transform, opacity;
+    }
+
+    .kaicode-award-banner.is-celebrating .kaicode-award-banner__confetti-piece {
+        animation: kaicode-award-confetti-flight-x var(--confetti-duration) linear var(--confetti-delay) both;
+        will-change: transform, opacity;
+    }
+
+    .kaicode-award-banner.is-celebrating .kaicode-award-banner__confetti-piece img {
+        animation: kaicode-award-confetti-flight-y var(--confetti-duration) linear var(--confetti-delay) both;
+        will-change: transform;
     }
 
     .kaicode-award-banner__inner {
@@ -382,7 +531,7 @@ const copy = computed(() => isChinese.value
         will-change: transform;
     }
 
-    .kaicode-award-banner__artwork-link::after {
+    .kaicode-award-banner__artwork-sparkle {
         animation: kaicode-award-sparkle 2.4s ease-in-out 0.8s infinite;
     }
 
@@ -436,41 +585,86 @@ const copy = computed(() => isChinese.value
     }
 }
 
-@keyframes kaicode-award-confetti-fall {
+@keyframes kaicode-award-confetti-flare {
     0% {
         opacity: 0;
-        transform: translate3d(0, -32px, 0) rotateX(0) rotateZ(0) scale(0.6);
+        transform: translateY(0) scale(0.2) rotate(0);
     }
 
-    9% {
+    20% {
         opacity: 1;
+        transform: translateY(-5px) scale(1.08) rotate(35deg);
     }
 
-    38% {
-        opacity: 1;
-        transform:
-            translate3d(calc(var(--confetti-drift) * -0.28), 180px, 0)
-            rotateX(calc(var(--confetti-spin) * 0.32))
-            rotateZ(calc(var(--confetti-spin) * 0.18))
-            scale(1);
-    }
-
-    72% {
-        opacity: 0.95;
-        transform:
-            translate3d(calc(var(--confetti-drift) * 0.64), 390px, 0)
-            rotateX(calc(var(--confetti-spin) * 0.7))
-            rotateZ(calc(var(--confetti-spin) * 0.66))
-            scale(0.92);
+    62% {
+        opacity: 0.86;
+        transform: translateY(-10px) scale(1.28) rotate(62deg);
     }
 
     100% {
         opacity: 0;
-        transform:
-            translate3d(var(--confetti-drift), 720px, 0)
-            rotateX(var(--confetti-spin))
-            rotateZ(calc(var(--confetti-spin) * 0.86))
-            scale(0.72);
+        transform: translateY(-18px) scale(1.8) rotate(90deg);
+    }
+}
+
+@keyframes kaicode-award-confetti-cluster {
+    0% {
+        opacity: 0;
+        transform: translateY(46px) scale(0.42);
+    }
+
+    18% {
+        opacity: 0.96;
+    }
+
+    58% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+
+    78% {
+        opacity: 0.92;
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateY(-20px) scale(1.04);
+    }
+}
+
+@keyframes kaicode-award-confetti-flight-x {
+    0% {
+        opacity: 0;
+        transform: translate3d(0, 0, 0) scale(0.35);
+    }
+
+    7% {
+        opacity: var(--confetti-peak-opacity);
+    }
+
+    74% {
+        opacity: var(--confetti-peak-opacity);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translate3d(var(--confetti-flight), 0, 0) scale(0.82);
+    }
+}
+
+@keyframes kaicode-award-confetti-flight-y {
+    0% {
+        transform: translate3d(0, 0, 0) rotate(0);
+        animation-timing-function: cubic-bezier(0.12, 0.7, 0.24, 1);
+    }
+
+    40% {
+        transform: translate3d(0, var(--confetti-apex), 0) rotate(var(--confetti-apex-spin));
+        animation-timing-function: cubic-bezier(0.3, 0, 0.72, 0.42);
+    }
+
+    100% {
+        transform: translate3d(0, 94px, 0) rotate(var(--confetti-spin));
     }
 }
 
@@ -619,6 +813,28 @@ const copy = computed(() => isChinese.value
     .kaicode-award-banner__artwork {
         width: 220px;
         padding: 14px;
+    }
+
+    .kaicode-award-banner__confetti-piece {
+        --confetti-flight: var(--confetti-mobile-travel);
+    }
+
+    .kaicode-award-banner__confetti-piece:nth-of-type(n + 21) {
+        display: none;
+    }
+
+    .kaicode-award-banner__confetti-flare {
+        width: 28px;
+    }
+
+    .kaicode-award-banner__confetti-cluster--left {
+        left: -72px;
+        width: 250px;
+    }
+
+    .kaicode-award-banner__confetti-cluster--right {
+        right: -72px;
+        width: 250px;
     }
 }
 
