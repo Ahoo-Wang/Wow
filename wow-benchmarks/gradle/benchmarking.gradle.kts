@@ -534,6 +534,25 @@ val pureCreateSchedulerScreenProfile = BenchmarkRunProfile(
     includeAsyncProfiler = false,
 )
 
+val pureCreateMainPrPairProfile = BenchmarkRunProfile(
+    id = "pure-create-main-pr-pair",
+    warmupIterations = 2,
+    warmupTime = "5s",
+    measurementIterations = 3,
+    measurementTime = "10s",
+    forks = 1,
+    threads = listOf(14),
+    benchmarkModes = listOf("thrpt"),
+    jvmArgs = benchmarkJvmArgs,
+    parameters = mapOf(
+        "schedulerStrategy" to "PARALLEL",
+        "schedulerPoolSize" to "14",
+        "stripeCount" to "896",
+    ),
+    includeGcProfiler = false,
+    includeAsyncProfiler = false,
+)
+
 val asyncProfile = BenchmarkRunProfile(
     id = "async",
     warmupIterations = 1,
@@ -633,6 +652,13 @@ val pureCreateSchedulerScreenSuite = infrastructureE2ESuite.copy(
     displayName = "Pure Create Scheduler Screen",
     resultFileName = "pure-create-scheduler-screen.json",
     humanFileName = "pure-create-scheduler-screen-human.txt",
+)
+
+val pureCreateMainPrPairSuite = infrastructureE2ESuite.copy(
+    id = "pure-create-main-pr-pair",
+    displayName = "Pure Create Main/PR Pair",
+    resultFileName = "pure-create-main-pr-pair.json",
+    humanFileName = "pure-create-main-pr-pair-human.txt",
 )
 
 val componentSuite = BenchmarkSuite(
@@ -890,6 +916,14 @@ val pureCreateSchedulerScreenTaskSpec = BenchmarkTaskSpec(
         "Screens fixed-14-thread scheduler pool and stripe configurations on real pure-create PROCESSED paths.",
 )
 
+val pureCreateMainPrPairTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkPureCreateMainPrPair",
+    suite = pureCreateMainPrPairSuite,
+    profile = pureCreateMainPrPairProfile,
+    description =
+        "Runs one fixed-14-thread Mongo/Redis pure-create PROCESSED period for an external paired A/B.",
+)
+
 val quickComponentTaskSpec = BenchmarkTaskSpec(
     taskName = "benchmarkQuickComponent",
     suite = quickComponentSuite,
@@ -989,6 +1023,7 @@ val benchmarkTaskSpecs = listOf(
     quickInfrastructureE2ETaskSpec,
     baselineInfrastructureE2ETaskSpec,
     pureCreateSchedulerScreenTaskSpec,
+    pureCreateMainPrPairTaskSpec,
     quickComponentTaskSpec,
     diagnosticComponentTaskSpec,
     openLoopObserverComponentTaskSpec,

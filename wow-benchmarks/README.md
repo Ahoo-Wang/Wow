@@ -482,6 +482,17 @@ provenance-backed single-cell confirmation, override all three JMH parameters ex
   --no-parallel --console=plain
 ```
 
+For a clean external `main`/PR crossover, use the dedicated period task. It fixes 14 JMH callers,
+`PARALLEL`, pool `14`, stripes `896`, two 5-second warmups, and three 10-second measurements:
+
+```bash
+./gradlew :wow-benchmarks:benchmarkPureCreateMainPrPair --no-parallel --console=plain
+```
+
+Run baseline and candidate source trees serially in a predeclared `AB`/`BA` order. Each invocation
+overwrites its local result path, so preserve the JSON, human output, and manifest before starting
+the next period.
+
 Scheduler HOL intentionally fixes four threads because `@GroupThreads(1) + @GroupThreads(3)`
 defines one experimental group. Its thread count and `thrpt,sample` modes are not configurable.
 Only `benchmarkCommandIngressHolParameters` is exposed for selecting a subset of the six
