@@ -46,12 +46,20 @@ interface WaitStreamHandle : WaitHandle {
     fun stream(): Flux<WaitSignal>
 }
 
+/**
+ * Internal capability indicating that a last-result handle does not need a successful
+ * SENT signal before a later target stage. Unknown/public SPI implementations keep the
+ * original notification behavior by default.
+ */
+internal interface SkipsSuccessfulSentSignal
+
 const val DEFAULT_WAIT_STREAM_QUEUE_LINK_SIZE: Int = 16
 
 internal class DefaultWaitLastHandle(
     override val plan: WaitPlan,
     private val onTerminate: () -> Unit,
-) : WaitLastHandle {
+) : WaitLastHandle,
+    SkipsSuccessfulSentSignal {
     override val waitCommandId: String = plan.waitCommandId
     private val sink = Sinks.one<WaitSignal>()
     private val lock = Any()
