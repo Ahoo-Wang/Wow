@@ -87,12 +87,17 @@ const copy = computed(() => isChinese.value
     margin: 0 auto;
     padding: clamp(28px, 4vw, 44px);
     overflow: hidden;
-    background: linear-gradient(
-            135deg,
-            rgba(211, 134, 45, 0.16),
-            rgba(208, 1, 27, 0.06) 52%,
-            var(--vp-c-bg-soft)
-    );
+    background:
+        radial-gradient(circle at 12% 24%, rgba(255, 190, 95, 0.2), transparent 34%),
+        radial-gradient(circle at 88% 78%, rgba(208, 1, 27, 0.08), transparent 38%),
+        linear-gradient(
+                135deg,
+                rgba(211, 134, 45, 0.16),
+                rgba(208, 1, 27, 0.06) 52%,
+                var(--vp-c-bg-soft)
+        );
+    background-position: 0 0, 100% 100%, 0 0;
+    background-size: 130% 130%, 140% 140%, 100% 100%;
     border: 1px solid rgba(211, 134, 45, 0.42);
     border-radius: 20px;
     box-shadow: 0 18px 48px rgba(67, 42, 14, 0.12);
@@ -109,26 +114,70 @@ const copy = computed(() => isChinese.value
 
 .kaicode-award-banner__inner::after {
     position: absolute;
-    top: -52%;
-    left: -18%;
+    top: -72%;
+    left: -44%;
     z-index: 0;
-    width: 58%;
-    aspect-ratio: 1;
+    width: 32%;
+    height: 244%;
     pointer-events: none;
-    background: radial-gradient(
-            circle,
-            rgba(255, 190, 95, 0.24),
-            rgba(211, 134, 45, 0.09) 42%,
-            transparent 72%
+    background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 220, 166, 0.06) 28%,
+            rgba(255, 225, 181, 0.36) 50%,
+            rgba(211, 134, 45, 0.08) 72%,
+            transparent
     );
-    filter: blur(10px);
+    filter: blur(3px);
     content: "";
+    transform: rotate(18deg);
 }
 
 .kaicode-award-banner__artwork-link {
     position: relative;
     z-index: 1;
     justify-self: center;
+    isolation: isolate;
+}
+
+.kaicode-award-banner__artwork-link::before {
+    position: absolute;
+    inset: -18px;
+    z-index: -1;
+    background: conic-gradient(
+            from 0deg,
+            transparent 0 18%,
+            rgba(240, 173, 93, 0.72) 28%,
+            rgba(208, 1, 27, 0.5) 42%,
+            transparent 58% 82%,
+            rgba(240, 173, 93, 0.55) 92%
+    );
+    border-radius: 26px;
+    filter: blur(12px);
+    opacity: 0.72;
+    content: "";
+}
+
+.kaicode-award-banner__artwork-link::after {
+    position: absolute;
+    top: 2%;
+    right: 2%;
+    z-index: 2;
+    width: 22px;
+    height: 22px;
+    background: linear-gradient(135deg, #fff8dc, #f0ad5d);
+    clip-path: polygon(
+            50% 0,
+            61% 39%,
+            100% 50%,
+            61% 61%,
+            50% 100%,
+            39% 61%,
+            0 50%,
+            39% 39%
+    );
+    filter: drop-shadow(0 0 8px rgba(255, 214, 147, 0.8));
+    content: "";
 }
 
 .kaicode-award-banner__artwork {
@@ -179,21 +228,28 @@ const copy = computed(() => isChinese.value
 }
 
 :global(html.dark) .kaicode-award-banner__inner {
-    background: linear-gradient(
-            135deg,
-            rgba(211, 134, 45, 0.14),
-            rgba(208, 1, 27, 0.07) 52%,
-            var(--vp-c-bg-soft)
-    );
+    background:
+        radial-gradient(circle at 12% 24%, rgba(240, 173, 93, 0.2), transparent 34%),
+        radial-gradient(circle at 88% 78%, rgba(208, 1, 27, 0.11), transparent 38%),
+        linear-gradient(
+                135deg,
+                rgba(211, 134, 45, 0.14),
+                rgba(208, 1, 27, 0.07) 52%,
+                var(--vp-c-bg-soft)
+        );
+    background-position: 0 0, 100% 100%, 0 0;
+    background-size: 130% 130%, 140% 140%, 100% 100%;
     box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
 }
 
 :global(html.dark) .kaicode-award-banner__inner::after {
-    background: radial-gradient(
-            circle,
-            rgba(240, 173, 93, 0.24),
-            rgba(208, 1, 27, 0.09) 42%,
-            transparent 72%
+    background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 214, 147, 0.05) 28%,
+            rgba(255, 225, 181, 0.28) 50%,
+            rgba(240, 173, 93, 0.07) 72%,
+            transparent
     );
 }
 
@@ -208,33 +264,68 @@ const copy = computed(() => isChinese.value
 
 @media (prefers-reduced-motion: no-preference) {
     .kaicode-award-banner__inner {
-        animation: kaicode-award-reveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+        animation:
+            kaicode-award-reveal 0.9s cubic-bezier(0.16, 1, 0.3, 1) both,
+            kaicode-award-background 8s ease-in-out 1s infinite alternate;
+        will-change: transform, opacity, background-position;
+    }
+
+    .kaicode-award-banner__inner::before {
+        animation: kaicode-award-accent-pulse 2.8s ease-in-out 1s infinite;
     }
 
     .kaicode-award-banner__inner::after {
-        animation: kaicode-award-glow 7s ease-in-out 0.7s infinite alternate;
+        animation: kaicode-award-sweep 5.4s cubic-bezier(0.45, 0, 0.2, 1) 0.9s infinite;
+        will-change: transform, opacity;
     }
 
     .kaicode-award-banner__artwork-link {
-        animation: kaicode-award-float 4.8s ease-in-out 0.8s infinite;
+        animation: kaicode-award-float 4.2s ease-in-out 0.8s infinite;
+        transform-style: preserve-3d;
+        will-change: transform;
+    }
+
+    .kaicode-award-banner__artwork-link::before {
+        animation: kaicode-award-halo 7s linear infinite;
+        will-change: transform;
+    }
+
+    .kaicode-award-banner__artwork-link::after {
+        animation: kaicode-award-sparkle 2.4s ease-in-out 0.8s infinite;
     }
 
     .kaicode-award-banner__eyebrow,
     .kaicode-award-banner__title,
     .kaicode-award-banner__cta {
-        animation: kaicode-award-content-reveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+        animation: kaicode-award-content-reveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
 
     .kaicode-award-banner__eyebrow {
-        animation-delay: 0.12s;
+        animation-delay: 0.18s;
     }
 
     .kaicode-award-banner__title {
-        animation-delay: 0.2s;
+        color: transparent;
+        background: linear-gradient(
+                105deg,
+                var(--vp-c-text-1) 0 38%,
+                #f0ad5d 48%,
+                #fff0d1 51%,
+                var(--vp-c-text-1) 62% 100%
+        );
+        background-clip: text;
+        background-position: 110% 0;
+        background-size: 260% 100%;
+        -webkit-background-clip: text;
+        animation:
+            kaicode-award-content-reveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.28s both,
+            kaicode-award-title-shimmer 5.2s ease-in-out 1.4s infinite;
     }
 
     .kaicode-award-banner__cta {
-        animation-delay: 0.28s;
+        animation:
+            kaicode-award-content-reveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.38s both,
+            kaicode-award-cta-pulse 3.4s ease-in-out 1.5s infinite;
     }
 
     .kaicode-award-banner__artwork,
@@ -254,13 +345,19 @@ const copy = computed(() => isChinese.value
 }
 
 @keyframes kaicode-award-reveal {
-    from {
+    0% {
         opacity: 0;
-        transform: translateY(20px) scale(0.985);
+        filter: blur(10px);
+        transform: translateY(32px) scale(0.96);
     }
 
-    to {
+    62% {
         opacity: 1;
+    }
+
+    100% {
+        opacity: 1;
+        filter: blur(0);
         transform: translateY(0) scale(1);
     }
 }
@@ -268,11 +365,13 @@ const copy = computed(() => isChinese.value
 @keyframes kaicode-award-content-reveal {
     from {
         opacity: 0;
-        transform: translateY(12px);
+        filter: blur(4px);
+        transform: translateY(18px);
     }
 
     to {
         opacity: 1;
+        filter: blur(0);
         transform: translateY(0);
     }
 }
@@ -280,23 +379,98 @@ const copy = computed(() => isChinese.value
 @keyframes kaicode-award-float {
     0%,
     100% {
-        transform: translateY(0);
+        transform: perspective(900px) translateY(0) rotateX(0) rotateY(-1.5deg) scale(1);
     }
 
     50% {
-        transform: translateY(-7px);
+        transform: perspective(900px) translateY(-11px) rotateX(1.5deg) rotateY(1.5deg) scale(1.02);
     }
 }
 
-@keyframes kaicode-award-glow {
+@keyframes kaicode-award-background {
     from {
-        opacity: 0.35;
-        transform: translate3d(-8%, -6%, 0) scale(0.95);
+        background-position: 0 0, 100% 100%, 0 0;
     }
 
     to {
-        opacity: 0.75;
-        transform: translate3d(72%, 22%, 0) scale(1.16);
+        background-position: 18% 12%, 82% 86%, 0 0;
+    }
+}
+
+@keyframes kaicode-award-sweep {
+    0%,
+    12% {
+        opacity: 0;
+        transform: translate3d(-40%, 0, 0) rotate(18deg);
+    }
+
+    22% {
+        opacity: 0.9;
+    }
+
+    58% {
+        opacity: 0.65;
+    }
+
+    72%,
+    100% {
+        opacity: 0;
+        transform: translate3d(520%, 0, 0) rotate(18deg);
+    }
+}
+
+@keyframes kaicode-award-halo {
+    to {
+        transform: rotate(1turn);
+    }
+}
+
+@keyframes kaicode-award-sparkle {
+    0%,
+    100% {
+        opacity: 0.42;
+        transform: scale(0.72) rotate(0);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.2) rotate(90deg);
+    }
+}
+
+@keyframes kaicode-award-title-shimmer {
+    0%,
+    22% {
+        background-position: 110% 0;
+    }
+
+    56%,
+    100% {
+        background-position: -25% 0;
+    }
+}
+
+@keyframes kaicode-award-cta-pulse {
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(211, 134, 45, 0);
+    }
+
+    50% {
+        box-shadow:
+            0 0 0 5px rgba(211, 134, 45, 0.08),
+            0 0 24px rgba(211, 134, 45, 0.24);
+    }
+}
+
+@keyframes kaicode-award-accent-pulse {
+    0%,
+    100% {
+        box-shadow: 0 0 0 rgba(208, 1, 27, 0);
+    }
+
+    50% {
+        box-shadow: 0 0 18px rgba(208, 1, 27, 0.62);
     }
 }
 
