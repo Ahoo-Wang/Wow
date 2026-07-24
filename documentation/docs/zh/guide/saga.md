@@ -278,7 +278,8 @@ Saga 共享事件处理基础设施。主要配置通过注解完成：
 | Saga 发现 | `@StatelessSaga` | N/A | 由 `StatelessSagaFunctionRegistrar` 自动发现 | [StatelessSagaFunctionRegistrar.kt:34-55](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunctionRegistrar.kt#L34-L55) |
 | 事件处理器 | `@OnEvent` | 方法名 `onEvent` | 响应领域事件 | [OnEvent.kt:62-79](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/OnEvent.kt#L62-L79) |
 | 状态感知处理器 | `@OnStateEvent` | 方法名 `onStateEvent` | 响应状态变更事件 | [OnStateEvent.kt:66-81](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/OnStateEvent.kt#L66-L81) |
-| 分发器并行度 | `MessageParallelism.DEFAULT_PARALLELISM` | 框架默认值 | 并行消息处理线程数 | [StatelessSagaDispatcher.kt:41](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaDispatcher.kt#L41) |
+| 分发器顺序分片 | `wow.saga.stateless.dispatcher.stripe-count` | `64 × CPU` | Aggregate ID 哈希顺序分片，不是 worker 线程数 | [StatelessSagaDispatcher.kt:41](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaDispatcher.kt#L41) |
+| 分发器 worker | `wow.saga.stateless.dispatcher.scheduler-pool-size` | `CPU` | 每个命名聚合类型的 Scheduler worker 数 | [AggregateSchedulerSupplier.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/scheduler/AggregateSchedulerSupplier.kt) |
 
 ### 重试配置
 

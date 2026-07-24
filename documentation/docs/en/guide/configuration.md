@@ -102,6 +102,60 @@ wow:
   shutdown-timeout: 120s
 ```
 
+## Dispatcher Tuning
+
+`stripe-count` and `scheduler-pool-size` control different resource boundaries:
+
+- `stripe-count` is the number of aggregate-ID hash ordering stripes. A stripe executes serially; reducing it increases hash collisions and head-of-line blocking.
+- `scheduler-pool-size` is the Reactor Scheduler worker count **for each named aggregate type**, not a role-wide thread cap. A role's thread upper bound is approximately its active aggregate type count multiplied by this value.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `wow.command.dispatcher.stripe-count` | `64 × CPU` | Command ordering stripes |
+| `wow.command.dispatcher.scheduler-pool-size` | `CPU` | Workers per command aggregate type |
+| `wow.event.dispatcher.stripe-count` | `64 × CPU` | Domain event ordering stripes |
+| `wow.event.dispatcher.scheduler-pool-size` | `CPU` | Workers per event aggregate type |
+| `wow.projection.dispatcher.stripe-count` | `64 × CPU` | Projection ordering stripes |
+| `wow.projection.dispatcher.scheduler-pool-size` | `CPU` | Workers per projection aggregate type |
+| `wow.saga.stateless.dispatcher.stripe-count` | `64 × CPU` | Stateless saga ordering stripes |
+| `wow.saga.stateless.dispatcher.scheduler-pool-size` | `CPU` | Workers per stateless saga aggregate type |
+
+When a role property is absent, `stripe-count` remains compatible with the
+`-Dwow.parallelism` JVM system property and `scheduler-pool-size` remains compatible with
+`-Dreactor.schedulers.defaultPoolSize`. Role properties affect only the corresponding Wow
+dispatcher and do not change other Reactor components. Every value must be greater than `0`.
+
+The following values only demonstrate independent role overrides; they are not universal recommendations:
+
+```yaml
+wow:
+  command:
+    dispatcher:
+      stripe-count: 896
+      scheduler-pool-size: 4
+  event:
+    dispatcher:
+      stripe-count: 896
+      scheduler-pool-size: 8
+  projection:
+    dispatcher:
+      stripe-count: 896
+      scheduler-pool-size: 4
+  saga:
+    stateless:
+      dispatcher:
+        stripe-count: 896
+        scheduler-pool-size: 4
+```
+
+For very short, in-memory, non-blocking commands, start a benchmark sweep around pool sizes
+`2–4`; for CPU-heavy handlers, start near the available processor count. For homogeneous,
+very short paths, also sweep stripes across `4/16/64/default`. Fewer stripes increase
+collisions and head-of-line blocking, so accept a lower value only after p95/p99, hot-ID, and
+heterogeneous-handler validation. Do not change a default from CPU count alone: verify
+throughput, backlog, context switches, and real storage latency together. The snapshot
+dispatcher does not yet expose role-level tuning and continues to use the compatible defaults.
+
 ## Command Bus Configuration
 
 ### CommandProperties

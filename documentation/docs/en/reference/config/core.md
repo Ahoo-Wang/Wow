@@ -23,6 +23,27 @@ wow:
   shutdown-timeout: 120s
 ```
 
+## DispatcherProperties
+
+Command, domain event, projection, and stateless saga dispatchers can independently configure
+their ordering stripe count and Scheduler workers per named aggregate type:
+
+| Full Property | Data Type | Description | Default Value |
+|------|-----------|-------------|---------------|
+| `wow.command.dispatcher.stripe-count` | Int | Command ordering stripes | `64 × CPU` |
+| `wow.command.dispatcher.scheduler-pool-size` | Int | Workers per command aggregate type | `CPU` |
+| `wow.event.dispatcher.stripe-count` | Int | Domain event ordering stripes | `64 × CPU` |
+| `wow.event.dispatcher.scheduler-pool-size` | Int | Workers per event aggregate type | `CPU` |
+| `wow.projection.dispatcher.stripe-count` | Int | Projection ordering stripes | `64 × CPU` |
+| `wow.projection.dispatcher.scheduler-pool-size` | Int | Workers per projection aggregate type | `CPU` |
+| `wow.saga.stateless.dispatcher.stripe-count` | Int | Stateless saga ordering stripes | `64 × CPU` |
+| `wow.saga.stateless.dispatcher.scheduler-pool-size` | Int | Workers per stateless saga aggregate type | `CPU` |
+
+Every value must be greater than `0`. `scheduler-pool-size` is a per-named-aggregate pool size,
+not a role-wide thread cap. When absent, the JVM system properties `wow.parallelism` and
+`reactor.schedulers.defaultPoolSize` remain compatible fallbacks. See the
+[configuration guide](../../guide/configuration.md#dispatcher-tuning) for examples and tuning boundaries.
+
 ## BusProperties
 
 `BusProperties` is the shared configuration for `CommandBus`, `EventBus`, and `StateEventBus`.

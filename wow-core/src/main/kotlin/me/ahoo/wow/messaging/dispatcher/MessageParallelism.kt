@@ -17,14 +17,14 @@ import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.modeling.mod
 
 /**
- * Utility object for calculating message processing parallelism.
+ * Utility object for calculating message ordering stripes.
  *
- * Provides default parallelism settings and functions to compute grouping keys
- * for parallel message processing based on aggregate IDs.
+ * Provides the default stripe count and functions to compute stripe keys from
+ * aggregate IDs. The stripe count is independent from Scheduler worker count.
  */
 object MessageParallelism {
     /**
-     * Default parallelism level for message processing.
+     * Default ordering-stripe count for message processing.
      *
      * Can be overridden by the "wow.parallelism" system property.
      * Defaults to 64 times the number of available processors.
@@ -33,11 +33,11 @@ object MessageParallelism {
         ?: (64 * Runtime.getRuntime().availableProcessors())
 
     /**
-     * Computes a grouping key for parallel processing based on the aggregate ID.
+     * Computes an ordering-stripe key based on the aggregate ID.
      *
      * Uses modulo operation to distribute aggregate IDs across parallel groups.
      *
-     * @param parallelism The number of parallel groups (default: DEFAULT_PARALLELISM)
+     * @param parallelism The number of ordering stripes (default: DEFAULT_PARALLELISM)
      * @return An integer key between 0 and parallelism-1
      */
     fun AggregateIdCapable.toGroupKey(parallelism: Int = DEFAULT_PARALLELISM): Int = aggregateId.mod(parallelism)

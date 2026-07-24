@@ -28,7 +28,8 @@ import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
  * of events to appropriate handlers.
  *
  * @param name The name of this dispatcher, typically formatted as `applicationName.DomainEventDispatcher`
- * @param parallelism The level of parallelism for processing events (default: DEFAULT_PARALLELISM)
+ * @param parallelism The number of event ordering stripes, independent from Scheduler workers
+ * (default: DEFAULT_PARALLELISM)
  * @param domainEventBus The domain event bus for publishing and subscribing to domain events
  * @param stateEventBus The state event bus for handling state-related events
  * @param functionRegistrar The registrar for domain event handler functions
@@ -47,7 +48,7 @@ class DomainEventDispatcher(
      */
     name: String,
     /**
-     * The level of parallelism for processing events.
+     * The number of ordering stripes for processing events.
      * @default MessageParallelism.DEFAULT_PARALLELISM
      */
     parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,

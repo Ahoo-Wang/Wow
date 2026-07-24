@@ -26,7 +26,8 @@ import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
  * that transform domain events into read models or perform side effects.
  *
  * @param name The name of the dispatcher, typically formatted as `applicationName.ProjectionDispatcher`.
- * @param parallelism The number of parallel threads for processing messages (default: [MessageParallelism.DEFAULT_PARALLELISM]).
+ * @param parallelism The number of ordering stripes, independent from Scheduler workers
+ * (default: [MessageParallelism.DEFAULT_PARALLELISM]).
  * @param domainEventBus The bus for publishing domain events.
  * @param stateEventBus The bus for publishing state events.
  * @param functionRegistrar The registrar for projection functions.

@@ -28,7 +28,7 @@ import reactor.core.publisher.Mono
 abstract class AbstractEventDispatcher<E : MessageExchange<*, *>, BUS : MessageBus<*, E>> : MainDispatcher<E>() {
 
     /**
-     * The level of parallelism for processing events.
+     * The number of ordering stripes for processing events.
      */
     abstract val parallelism: Int
 

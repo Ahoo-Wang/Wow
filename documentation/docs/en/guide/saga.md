@@ -278,7 +278,8 @@ Sagas share the event processing infrastructure. The primary configuration is th
 | Saga discovery | `@StatelessSaga` | N/A | Auto-discovered by `StatelessSagaFunctionRegistrar` | [StatelessSagaFunctionRegistrar.kt:34-55](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunctionRegistrar.kt#L34-L55) |
 | Event handler | `@OnEvent` | Method name `onEvent` | Responds to domain events | [OnEvent.kt:62-79](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/OnEvent.kt#L62-L79) |
 | State-aware handler | `@OnStateEvent` | Method name `onStateEvent` | Responds to state change events | [OnStateEvent.kt:66-81](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/OnStateEvent.kt#L66-L81) |
-| Dispatcher parallelism | `MessageParallelism.DEFAULT_PARALLELISM` | Framework default | Parallel message processing threads | [StatelessSagaDispatcher.kt:41](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaDispatcher.kt#L41) |
+| Dispatcher ordering stripes | `wow.saga.stateless.dispatcher.stripe-count` | `64 × CPU` | Aggregate-ID hash ordering stripes, not worker threads | [StatelessSagaDispatcher.kt:41](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaDispatcher.kt#L41) |
+| Dispatcher workers | `wow.saga.stateless.dispatcher.scheduler-pool-size` | `CPU` | Scheduler workers per named aggregate type | [AggregateSchedulerSupplier.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/scheduler/AggregateSchedulerSupplier.kt) |
 
 ### Retry Configuration
 
