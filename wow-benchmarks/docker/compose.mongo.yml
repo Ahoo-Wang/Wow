@@ -2,7 +2,7 @@ name: ${WOW_BENCHMARK_MONGO_PROJECT_NAME:-wow-benchmarks-mongo}
 
 services:
   mongo:
-    image: ${WOW_BENCHMARK_MONGO_IMAGE:-mongo:8.3.4}
+    image: ${WOW_BENCHMARK_MONGO_IMAGE:-mongo:8.3.7}
     container_name: ${WOW_BENCHMARK_MONGO_CONTAINER_NAME:-wow-benchmark-mongo}
     restart: unless-stopped
     ports:
