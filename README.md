@@ -9,6 +9,10 @@
 <p align="center">Modern Reactive CQRS Architecture Microservice Development Framework<br>Based on DDD & Event Sourcing</p>
 
 <p align="center">
+  <a href="https://www.kaicode.org/2026.html"><img src="https://img.shields.io/badge/KaiCode%2726-Excellent%20Award-gold?style=for-the-badge" alt="KaiCode'26 Excellent Award"/></a>
+</p>
+
+<p align="center">
   <a href="https://github.com/Ahoo-Wang/Wow/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202-4EB1BA.svg" alt="License"/></a>
   <a href="https://github.com/Ahoo-Wang/Wow/releases"><img src="https://img.shields.io/github/release/Ahoo-Wang/Wow.svg" alt="GitHub release"/></a>
   <a href="https://central.sonatype.com/artifact/me.ahoo.wow/wow-core"><img src="https://img.shields.io/maven-central/v/me.ahoo.wow/wow-core" alt="Maven Central"/></a>
@@ -28,6 +32,10 @@
 </p>
 
 ---
+
+## Recognition
+
+Wow received the [KaiCode’26 Excellent Award](https://www.kaicode.org/2026.html). The official results highlighted its modular DDD/CQRS design, disciplined multi-reviewer code review, Testcontainers-based integration testing, enforced test coverage thresholds, Detekt static analysis, bilingual documentation, and long history of semantically versioned releases on Maven Central.
 
 ## Quick Start
 

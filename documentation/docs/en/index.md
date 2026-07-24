@@ -13,6 +13,9 @@ hero:
       text: Get Started
       link: /guide/getting-started
     - theme: alt
+      text: KaiCode’26 Excellent Award
+      link: https://www.kaicode.org/2026.html
+    - theme: alt
       text: Introduction
       link: /guide/introduction
     - theme: alt
@@ -58,3 +61,7 @@ features:
   details: Provide richer data sources with clear business semantics (including state events and commands). With extremely low ETL cost, help real-time data analysis and operation audit, provide strong support for business decision-making.
   link: /guide/bi
 ---
+
+## Recognition
+
+Wow received the [KaiCode’26 Excellent Award](https://www.kaicode.org/2026.html). The official results highlighted its modular DDD/CQRS design, disciplined multi-reviewer code review, Testcontainers-based integration testing, enforced test coverage thresholds, Detekt static analysis, bilingual documentation, and long history of semantically versioned releases on Maven Central.

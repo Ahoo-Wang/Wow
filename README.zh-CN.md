@@ -9,6 +9,10 @@
 <p align="center">基于 DDD & Event Sourcing 的现代响应式 CQRS 架构微服务开发框架</p>
 
 <p align="center">
+  <a href="https://www.kaicode.org/2026.html"><img src="https://img.shields.io/badge/KaiCode%2726-Excellent%20Award-gold?style=for-the-badge" alt="KaiCode'26 Excellent Award"/></a>
+</p>
+
+<p align="center">
   <a href="https://github.com/Ahoo-Wang/Wow/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202-4EB1BA.svg" alt="License"/></a>
   <a href="https://github.com/Ahoo-Wang/Wow/releases"><img src="https://img.shields.io/github/release/Ahoo-Wang/Wow.svg" alt="GitHub release"/></a>
   <a href="https://central.sonatype.com/artifact/me.ahoo.wow/wow-core"><img src="https://img.shields.io/maven-central/v/me.ahoo.wow/wow-core" alt="Maven Central"/></a>
@@ -28,6 +32,10 @@
 </p>
 
 ---
+
+## 荣誉
+
+Wow 荣获 [KaiCode’26 Excellent Award](https://www.kaicode.org/2026.html)。官方结果页重点提及了项目的模块化 DDD/CQRS 设计、规范且由多位评审者参与的代码审查、基于 Testcontainers 的集成测试、强制执行的测试覆盖率阈值、Detekt 静态分析、双语文档，以及长期的 Maven Central 语义化版本发布记录。
 
 ## 快速开始
 
