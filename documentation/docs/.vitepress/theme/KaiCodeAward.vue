@@ -22,13 +22,11 @@ const copy = computed(() => isChinese.value
     ? {
         eyebrow: '开源工程荣誉',
         title: 'Wow 荣获 KaiCode’26 Excellent Award',
-        description: '获奖理由包括模块化 DDD/CQRS 设计、规范审查与测试、静态分析、双语文档及持续发布记录。',
         cta: '查看官方结果',
     }
     : {
         eyebrow: 'Open-source engineering recognition',
         title: 'Wow received the KaiCode’26 Excellent Award',
-        description: 'Recognized for modular DDD/CQRS design, disciplined review and testing, static analysis, bilingual documentation, and sustained releases.',
         cta: 'View official results',
     })
 </script>
@@ -60,7 +58,6 @@ const copy = computed(() => isChinese.value
                 <h2 id="kaicode-award-title" class="kaicode-award-banner__title">
                     {{ copy.title }}
                 </h2>
-                <p class="kaicode-award-banner__description">{{ copy.description }}</p>
                 <a
                     class="kaicode-award-banner__cta"
                     href="https://www.kaicode.org/2026.html"
@@ -142,18 +139,10 @@ const copy = computed(() => isChinese.value
 }
 
 .kaicode-award-banner__title {
-    margin: 0 0 14px;
+    margin: 0 0 22px;
     color: var(--vp-c-text-1);
     font-size: clamp(30px, 4vw, 44px);
     line-height: 1.12;
-}
-
-.kaicode-award-banner__description {
-    max-width: 700px;
-    margin: 0 0 22px;
-    color: var(--vp-c-text-2);
-    font-size: 16px;
-    line-height: 1.7;
 }
 
 .kaicode-award-banner__cta {
@@ -221,11 +210,6 @@ const copy = computed(() => isChinese.value
     .kaicode-award-banner__artwork {
         width: 220px;
         padding: 14px;
-    }
-
-    .kaicode-award-banner__description {
-        margin-right: auto;
-        margin-left: auto;
     }
 }
 
