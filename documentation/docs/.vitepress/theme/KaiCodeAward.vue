@@ -13,7 +13,7 @@
 
 <script setup lang="ts">
 import {computed} from 'vue'
-import {useData} from 'vitepress'
+import {useData, withBase} from 'vitepress'
 
 const {frontmatter, lang} = useData()
 const showAward = computed(() => frontmatter.value.kaicodeAward === true)
@@ -49,7 +49,7 @@ const copy = computed(() => isChinese.value
                     class="kaicode-award-banner__artwork"
                     width="669"
                     height="575"
-                    src="https://www.kaicode.org/images/2026/wow.svg"
+                    :src="withBase('/images/kaicode-2026-wow.svg')"
                     alt="KaiCode'26 Excellent Award"
                 />
             </a>

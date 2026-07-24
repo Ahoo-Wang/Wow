@@ -9,7 +9,7 @@
 <p align="center">Modern Reactive CQRS Architecture Microservice Development Framework<br>Based on DDD & Event Sourcing</p>
 
 <p align="center">
-  <a href="https://www.kaicode.org/2026.html"><img width="280" src="https://www.kaicode.org/images/2026/wow.svg" alt="KaiCode'26 Excellent Award"/></a><br/>
+  <a href="https://www.kaicode.org/2026.html"><img width="280" src="documentation/docs/public/images/kaicode-2026-wow.svg" alt="KaiCode'26 Excellent Award"/></a><br/>
   <strong>KaiCode’26 Excellent Award</strong>
 </p>
 
