@@ -24,8 +24,12 @@ import me.ahoo.wow.command.wait.WaitTransition
 internal class StageWaitState(
     override val plan: WaitPlan,
 ) : WaitState {
+    private companion object {
+        val EMPTY_RESULT: Map<String, Any> = emptyMap()
+    }
+
     private val target = plan.target as StageWaitTarget
-    private val result = mutableMapOf<String, Any>()
+    private var accumulatedResult: MutableMap<String, Any>? = null
     private var processed: Boolean = false
     override var completed: Boolean = false
         private set
@@ -43,7 +47,7 @@ internal class StageWaitState(
         mergeResult(signal)
         processed = processed || signal.stage == CommandStage.PROCESSED
         if (!signal.succeeded && target.stage.isPrevious(signal.stage)) {
-            return complete(signal, signal.copyResult(resultSnapshot()))
+            return complete(signal, signal.withMergedResult())
         }
 
         val selectedFinalSignal = selectStageFinalSignal(target, signal)
@@ -70,16 +74,26 @@ internal class StageWaitState(
 
     private fun mergeResult(signal: WaitSignal) {
         if (signal.result.isNotEmpty()) {
-            result.putAll(signal.result)
+            val mergedResult = accumulatedResult ?: mutableMapOf<String, Any>().also {
+                accumulatedResult = it
+            }
+            mergedResult.putAll(signal.result)
         }
     }
 
     private fun resultSnapshot(): Map<String, Any> =
-        if (result.isEmpty()) {
-            emptyMap()
+        if (accumulatedResult.isNullOrEmpty()) {
+            EMPTY_RESULT
         } else {
-            result.toMap()
+            accumulatedResult!!.toMap()
         }
+
+    private fun WaitSignal.withMergedResult(): WaitSignal {
+        if (accumulatedResult == null && result === EMPTY_RESULT) {
+            return this
+        }
+        return copyResult(resultSnapshot())
+    }
 
     private fun canComplete(): Boolean {
         finalSignal ?: return false
@@ -96,7 +110,7 @@ internal class StageWaitState(
         if (target.stage == CommandStage.PROJECTED && !signal.isLastProjection) {
             return null
         }
-        return signal.copyResult(resultSnapshot())
+        return signal.withMergedResult()
     }
 
     private val CommandStage.isAfterProcessed: Boolean

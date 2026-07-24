@@ -48,6 +48,31 @@ class StageWaitStateTest {
     }
 
     @Test
+    fun completeProcessedWithoutCopyingEmptyResult() {
+        val state = StageWaitState(CommandWait.processed("wait-id"))
+        val processed = testSignal(CommandStage.PROCESSED)
+
+        val reduction = stateMachine.next(state, processed)
+
+        reduction.completed.assert().isTrue()
+        reduction.finalSignal.assert().isSameAs(processed)
+    }
+
+    @Test
+    fun completeProcessedCopiesMutableEmptyResult() {
+        val state = StageWaitState(CommandWait.processed("wait-id"))
+        val mutableResult = mutableMapOf<String, Any>()
+        val processed = testSignal(CommandStage.PROCESSED, result = mutableResult)
+
+        val reduction = stateMachine.next(state, processed)
+        mutableResult["late"] = true
+
+        reduction.completed.assert().isTrue()
+        reduction.finalSignal.assert().isNotSameAs(processed)
+        reduction.finalSignal!!.result.assert().isEmpty()
+    }
+
+    @Test
     fun assumesSignalsArePreRoutedByWaitCommandId() {
         val state = StageWaitState(CommandWait.processed("wait-id"))
         val processed = testSignal(

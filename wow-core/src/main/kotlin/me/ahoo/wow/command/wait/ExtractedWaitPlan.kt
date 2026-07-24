@@ -82,7 +82,14 @@ fun Header.extractWaitTarget(): WaitTarget? {
     }
     val stage = extractWaitingStage()
     if (stage != null) {
-        return StageWaitTarget(stage, extractWaitFunction().takeIf { stage.shouldWaitFunction })
+        return StageWaitTarget(
+            stage = stage,
+            function = if (stage.shouldWaitFunction) {
+                extractWaitFunction()
+            } else {
+                null
+            },
+        )
     }
     if (tail != null) {
         return StageWaitTarget(tail.stage, tail.function.takeIf { tail.stage.shouldWaitFunction })

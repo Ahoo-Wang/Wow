@@ -22,11 +22,17 @@ import me.ahoo.wow.command.wait.CommandWait
 import me.ahoo.wow.command.wait.DefaultWaitCoordinator
 import me.ahoo.wow.command.wait.RecordingCommandWaitNotifier
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
+import me.ahoo.wow.command.wait.SkipsSuccessfulSentSignal
 import me.ahoo.wow.command.wait.TestCommandMessage
 import me.ahoo.wow.command.wait.WaitCoordinator
+import me.ahoo.wow.command.wait.WaitLastHandle
+import me.ahoo.wow.command.wait.WaitPlan
+import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitTestEvent
 import me.ahoo.wow.command.wait.extractWaitPlan
 import me.ahoo.wow.command.wait.testAggregateId
+import me.ahoo.wow.command.wait.testFunction
+import me.ahoo.wow.command.wait.testNamedFunction
 import me.ahoo.wow.command.wait.testSignal
 import me.ahoo.wow.command.wait.waitPlanHeader
 import me.ahoo.wow.event.toDomainEventStream
@@ -310,6 +316,138 @@ class DefaultCommandGatewayTest {
     }
 
     @Test
+    fun `send and wait last skips successful sent signal before processed target`() {
+        val waitCoordinator = RecordingLastWaitCoordinator()
+        val gateway = commandGateway(waitCoordinator = waitCoordinator)
+        val command = TestCommandMessage(id = "command-id")
+        val waitPlan = CommandWait.processed("wait-command-id")
+
+        StepVerifier.create(gateway.sendAndWait(command, waitPlan))
+            .then {
+                waitCoordinator.lastHandle.signals.assert().isEmpty()
+                waitCoordinator.signal(
+                    testSignal(
+                        CommandStage.PROCESSED,
+                        waitCommandId = "wait-command-id",
+                        commandId = "command-id",
+                    )
+                ).assert().isTrue()
+            }
+            .assertNext {
+                it.stage.assert().isEqualTo(CommandStage.PROCESSED)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `send and wait chain completes without successful sent signal`() {
+        val waitCoordinator = RecordingLastWaitCoordinator()
+        val gateway = commandGateway(waitCoordinator = waitCoordinator)
+        val command = TestCommandMessage(id = "command-id")
+        val waitPlan = CommandWait.chain(
+            waitCommandId = "command-id",
+            function = testNamedFunction(),
+            tailStage = CommandStage.PROCESSED,
+            tailFunction = testNamedFunction(),
+        )
+
+        StepVerifier.create(gateway.sendAndWait(command, waitPlan))
+            .then {
+                waitCoordinator.lastHandle.signals.assert().isEmpty()
+                waitCoordinator.signal(
+                    testSignal(
+                        stage = CommandStage.SAGA_HANDLED,
+                        waitCommandId = "command-id",
+                        commandId = "command-id",
+                        function = testFunction(),
+                        commands = emptyList(),
+                    )
+                ).assert().isTrue()
+                waitCoordinator.signal(
+                    testSignal(
+                        stage = CommandStage.PROCESSED,
+                        waitCommandId = "command-id",
+                        commandId = "command-id",
+                    )
+                ).assert().isTrue()
+            }
+            .assertNext {
+                it.stage.assert().isEqualTo(CommandStage.SAGA_HANDLED)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `send and wait last retains successful sent signal for sent target`() {
+        val waitCoordinator = RecordingLastWaitCoordinator()
+        val gateway = commandGateway(waitCoordinator = waitCoordinator)
+        val command = TestCommandMessage(id = "command-id")
+
+        StepVerifier.create(gateway.sendAndWait(command, CommandWait.sent("wait-command-id")))
+            .assertNext {
+                it.stage.assert().isEqualTo(CommandStage.SENT)
+            }
+            .verifyComplete()
+
+        waitCoordinator.lastHandle.signals
+            .map { it.stage }
+            .assert()
+            .containsExactly(CommandStage.SENT)
+    }
+
+    @Test
+    fun `send and wait last retains successful sent signal for custom handle`() {
+        val waitCoordinator = RecordingLastWaitCoordinator(skipsSuccessfulSentSignal = false)
+        val gateway = commandGateway(waitCoordinator = waitCoordinator)
+        val command = TestCommandMessage(id = "command-id")
+        val waitPlan = CommandWait.processed("wait-command-id")
+
+        StepVerifier.create(gateway.sendAndWait(command, waitPlan))
+            .then {
+                waitCoordinator.lastHandle.signals
+                    .map { it.stage }
+                    .assert()
+                    .containsExactly(CommandStage.SENT)
+                waitCoordinator.signal(
+                    testSignal(
+                        CommandStage.PROCESSED,
+                        waitCommandId = "wait-command-id",
+                        commandId = "command-id",
+                    )
+                ).assert().isTrue()
+            }
+            .assertNext {
+                it.stage.assert().isEqualTo(CommandStage.PROCESSED)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `send and wait last retains failed sent signal`() {
+        val commandBus = RecordingCommandBus().apply {
+            sendResult = { Mono.error(IllegalStateException("bus failed")) }
+        }
+        val waitCoordinator = RecordingLastWaitCoordinator()
+        val gateway = commandGateway(
+            commandBus = commandBus,
+            waitCoordinator = waitCoordinator,
+        )
+
+        StepVerifier.create(
+            gateway.sendAndWait(
+                TestCommandMessage(id = "command-id"),
+                CommandWait.processed("wait-command-id"),
+            )
+        ).expectError(CommandResultException::class.java)
+            .verify()
+
+        waitCoordinator.lastHandle.signals.single().let {
+            it.stage.assert().isEqualTo(CommandStage.SENT)
+            it.succeeded.assert().isFalse()
+        }
+    }
+
+    @Test
     fun `send and wait maps failed final signal to command result exception`() {
         val waitCoordinator = DefaultWaitCoordinator()
         val gateway = commandGateway(waitCoordinator = waitCoordinator)
@@ -587,6 +725,39 @@ private class RecordingCommandBus : CommandBus {
 
     override fun receive(subscription: MessageSubscription): Flux<ServerCommandExchange<*>> = Flux.empty()
 }
+
+private class RecordingLastWaitCoordinator(
+    private val delegate: WaitCoordinator = DefaultWaitCoordinator(),
+    private val skipsSuccessfulSentSignal: Boolean = true,
+) : WaitCoordinator by delegate {
+    lateinit var lastHandle: RecordingWaitLastHandle
+        private set
+
+    override fun createLast(plan: WaitPlan): WaitLastHandle =
+        if (skipsSuccessfulSentSignal) {
+            SkippingSuccessfulSentRecordingWaitLastHandle(delegate.createLast(plan))
+        } else {
+            RecordingWaitLastHandle(delegate.createLast(plan))
+        }.also {
+            lastHandle = it
+        }
+}
+
+private open class RecordingWaitLastHandle(
+    private val delegate: WaitLastHandle,
+) : WaitLastHandle by delegate {
+    val signals: MutableList<WaitSignal> = mutableListOf()
+
+    override fun next(signal: WaitSignal): Boolean {
+        signals += signal
+        return delegate.next(signal)
+    }
+}
+
+private class SkippingSuccessfulSentRecordingWaitLastHandle(
+    delegate: WaitLastHandle,
+) : RecordingWaitLastHandle(delegate),
+    SkipsSuccessfulSentSignal
 
 private data class SelfValidatingCommand(
     val validated: AtomicInteger,
