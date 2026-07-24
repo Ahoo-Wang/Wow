@@ -2,13 +2,21 @@
 
 ## Decision
 
-Under the fixed 14-worker, fresh-aggregate workload, no scheduler configuration can currently
-support a claim of at least 20% higher throughput on both MongoDB and Redis.
+The clean, eight-pair `main`/PR A/B shows that the current runtime changes are incremental, not a
+20% production-throughput breakthrough:
+
+- MongoDB: **+0.42%**, with a two-sided 95% CI of **-0.19% to +1.03%**;
+- Redis: **+2.92%**, with a two-sided 95% CI of **+2.46% to +3.39%**.
+
+The one-sided 95% conservative gain bounds are -0.07% for MongoDB and +2.55% for Redis. Both are
+far below the predeclared gate, so the candidate does not demonstrate at least 20% higher
+throughput on either backend. The earlier scheduler screen also found no fixed configuration that
+improved both backends.
 
 The 20% target is interpreted as a relative throughput increase:
 
 ```text
-candidate throughput / baseline throughput > 1.20
+LCB95(candidate throughput / baseline throughput) > 1.20
 ```
 
 This conclusion is deliberately narrower than general command throughput:
@@ -18,8 +26,9 @@ This conclusion is deliberately narrower than general command throughput:
 - MongoDB or Redis must acknowledge the version-1 append;
 - snapshot load, event-history load/replay, projection, saga, and downstream consumers are excluded.
 
-No production batching or persistence change is recommended from the experiments below. The
-backend-specific probes did not beat their own unbatched baselines.
+This does not show that the code is globally optimal. It shows that the scheduler and current core
+runtime direction cannot supply the missing headroom under this workload. No production batching
+or persistence change is recommended from the rejected probes below.
 
 ## Measured path
 
@@ -53,6 +62,103 @@ The retained infrastructure benchmarks additionally assert that every result:
 - succeeds at `CommandStage.PROCESSED`;
 - belongs to the command's aggregate;
 - reports `Version.INITIAL_VERSION`.
+
+## Clean `main` vs PR paired A/B
+
+The formal comparison used two clean, detached measurement trees:
+
+- baseline production code: `b187af6303e88fd8311f749c4af2ded24590d4cc`;
+- baseline with neutral harness: `220e0fc8652e0871aa152f085b69efd14c853de1`;
+- candidate: `b38afec22ae7462b581434fd7bb6c7c605b757f5`;
+- `origin/main` at run time: `b68be955d0d38a24af56e3b9e05398a7fca84092`.
+
+The only change from the baseline production commit to the run-time `origin/main` was README and
+documentation-site content, so their runtime code is equivalent. The complete `wow-benchmarks`
+tree was identical on both measurement refs:
+
+```text
+wow-benchmarks tree: c60b1f4af69eccaaff4f2f8aa05e53159835c273
+harness class bundle: 58bf216ee2ee103558ed5b01b58547ffab0e799ba702423c130b8b9815dc7467
+baseline JMH JAR: aa189666b74ce7051efc02fb0fd0bcb0e515339e4be6b64e9b9b22efd22148c9
+candidate JMH JAR: f9373063021d2fcb15b3d0adc7162a0b9583509b92609d606089b65dbb6d15d3
+```
+
+The full JAR hashes differ because they contain the baseline or candidate runtime. The class-bundle
+hash covers the sorted names and bytes of all benchmark and infrastructure harness classes and is
+identical.
+
+### Protocol and integrity
+
+One unscored warm-up pair preceded eight formal pairs. The order was frozen before score
+inspection:
+
+```text
+AB, BA, BA, AB, BA, AB, AB, BA
+```
+
+A is the baseline and B is the candidate. Each position was a separate serial process using:
+
+- 14 JMH callers;
+- `PARALLEL`, scheduler pool `14`, and `896` stripes;
+- two 5-second warmups and three 10-second measurements;
+- one fork, G1, a fixed 4 GiB heap, and no profiler.
+
+All 16 manifests reported `SUCCESS`, `dirty=false`, the exact commit and run specification, and two
+result rows. The 48 JSON, human-output, and manifest files matched their recorded sizes and
+SHA-256 values. Invocation times did not overlap. MongoDB and Redis remained healthy with
+`restartCount=0`.
+
+For each backend and pair:
+
+```text
+x[i] = ln(candidate throughput / baseline throughput)
+ratio = exp(mean(x))
+LCB95 = exp(mean(x) - t(0.95, 7) * sd(x) / sqrt(8))
+```
+
+The acceptance rule requires the MongoDB and Redis one-sided 95% lower bounds to each exceed
+`1.20`. Because success requires both component claims, this is an intersection-union test and
+does not require a multiplicity correction.
+
+### Results
+
+| Backend | n | Baseline arithmetic mean | Candidate arithmetic mean | Geometric ratio | Gain | Two-sided 95% CI | One-sided 95% LCB | `> 1.20` |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| MongoDB | 8 | 21,340.38 | 21,429.87 | 1.004182 | +0.42% | -0.19% to +1.03% | 0.999325 (-0.07%) | No |
+| Redis | 8 | 26,672.55 | 27,452.90 | 1.029241 | +2.92% | +2.46% to +3.39% | 1.025536 (+2.55%) | No |
+
+| Pair | Order | MongoDB baseline | MongoDB candidate | MongoDB gain | Redis baseline | Redis candidate | Redis gain |
+|---:|:---:|---:|---:|---:|---:|---:|---:|
+| 1 | AB | 21,370.45 | 21,429.31 | +0.28% | 26,578.00 | 27,531.22 | +3.59% |
+| 2 | BA | 21,557.46 | 21,543.11 | -0.07% | 26,670.98 | 27,483.94 | +3.05% |
+| 3 | BA | 20,987.44 | 20,936.23 | -0.24% | 26,551.64 | 27,108.77 | +2.10% |
+| 4 | AB | 21,124.63 | 21,367.71 | +1.15% | 26,689.78 | 27,253.43 | +2.11% |
+| 5 | BA | 21,514.55 | 21,420.12 | -0.44% | 26,844.11 | 27,659.26 | +3.04% |
+| 6 | AB | 21,420.14 | 21,503.54 | +0.39% | 26,725.41 | 27,652.20 | +3.47% |
+| 7 | AB | 21,315.65 | 21,684.96 | +1.73% | 26,677.35 | 27,459.99 | +2.93% |
+| 8 | BA | 21,432.74 | 21,553.99 | +0.57% | 26,643.14 | 27,474.40 | +3.12% |
+
+MongoDB's AB and BA geometric ratios were 1.00885 and 0.99953, respectively; the balanced order
+prevents that order sensitivity from being mistaken for candidate benefit. Redis was more stable:
+1.03023 for AB and 1.02825 for BA.
+
+The candidate result is the combined effect of all runtime changes that reach this path:
+
+1. removing per-command shared atomic lifecycle updates from the aggregate dispatcher;
+2. skipping the successful `SENT` signal for the default non-`SENT` last-result wait;
+3. lazily allocating wait results and reusing an empty `PROCESSED` signal;
+4. using a single-entry command-function cache before promotion to a map.
+
+The Spring Boot per-role scheduler properties are not measured because the fixture constructs the
+dispatcher directly. The A/B cannot attribute a percentage to any individual change.
+
+Raw evidence and the dependency-free verifier are retained under
+`document/design/evidence/2026-07-24-pure-create-main-pr-pair/`.
+
+The environment was deliberately controlled but is not production-equivalent: JDK 17.0.7 on an
+Apple Silicon host, Docker Desktop with 4 vCPUs and about 5.8 GiB, tmpfs-backed MongoDB 8.3.4 and
+Redis 7.4.9, and Redis persistence disabled. The result is local real-backend, fixed-concurrency,
+short-window E2E evidence, not an open-loop production capacity or latency claim.
 
 ## Scheduler configuration screen
 
@@ -181,12 +287,14 @@ Consequently:
 - `pool=8, stripes=896` is the least-bad non-baseline common point, not an optimization;
 - `pool=2, stripes=224` is a MongoDB-specific diagnostic point, not a common default;
 - no fixed scheduler configuration should be promoted with a 20% cross-backend claim.
+- the clean code A/B must not be presented as scheduler-configuration gain because both sides used
+  the same `pool=14, stripes=896` configuration.
 
 ## What would be required next
 
-If the requirement remains a single cross-backend configuration with at least 20% improvement,
-stop this direction. A formal A/B run cannot turn the observed Redis regressions into a credible
-20% candidate.
+If the requirement remains at least 20% on both backends, stop tuning the fixed scheduler and stop
+expecting the current allocation/notifier changes to close the gap. The clean A/B places their
+combined MongoDB effect near zero and their Redis effect near 3% in this environment.
 
 The next potentially material experiments require backend-specific behavior or a changed
 constraint:
@@ -202,4 +310,5 @@ constraint:
 
 Any future candidate should first pass a cheap real-backend screen, then use clean-source,
 balanced A/B blocks. The formal acceptance criterion should be a one-sided confidence lower bound
-above `1.20` for each backend, with correction if a simultaneous cross-backend 95% claim is made.
+above `1.20` for each backend. Requiring both backend component claims is an intersection-union
+gate and does not require a multiplicity correction.

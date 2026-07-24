@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "scope": "fresh aggregate command through sendAndWaitForProcessed and acknowledged version-1 append",
+  "target": {
+    "interpretation": "relative throughput",
+    "ratio": 1.2,
+    "acceptance": "MongoDB and Redis one-sided 95% lower confidence bounds must each be greater than 1.20"
+  },
+  "source": {
+    "originMainAtRun": "b68be955d0d38a24af56e3b9e05398a7fca84092",
+    "baselineProductionCommit": "b187af6303e88fd8311f749c4af2ded24590d4cc",
+    "baselineHarnessCommit": "220e0fc8652e0871aa152f085b69efd14c853de1",
+    "candidateCommit": "b38afec22ae7462b581434fd7bb6c7c605b757f5",
+    "baselineProductionEquivalence": "origin/main differs from baselineProductionCommit only in README and documentation-site files",
+    "baselineCleanAfterRun": true,
+    "candidateCleanAfterRun": true
+  },
+  "trees": {
+    "baselineRoot": "0cfc368f09c0e5810e6c69d14c81ba176658d833",
+    "candidateRoot": "7d3033276a0400dea3c9cb0458216c9b36588f0f",
+    "baseline": {
+      "wow-api": "711fdc5d4759bc54bb2895e365447db8cad78975",
+      "wow-core": "f6d389ddd1b6038b4c059c9d17f7109e5ca2efe2",
+      "wow-mongo": "6853e3d34ae0d714bfeef776b24c0540a8d88894",
+      "wow-redis": "0d9309e8113621dd4d2bc1eaf9fcbc1416acf1a7",
+      "wow-benchmarks": "c60b1f4af69eccaaff4f2f8aa05e53159835c273"
+    },
+    "candidate": {
+      "wow-api": "711fdc5d4759bc54bb2895e365447db8cad78975",
+      "wow-core": "5fb41bb8836d4156bfa12ef671ceb12be03c9529",
+      "wow-mongo": "6853e3d34ae0d714bfeef776b24c0540a8d88894",
+      "wow-redis": "0d9309e8113621dd4d2bc1eaf9fcbc1416acf1a7",
+      "wow-benchmarks": "c60b1f4af69eccaaff4f2f8aa05e53159835c273"
+    }
+  },
+  "jmh": {
+    "baselineJarSha256": "aa189666b74ce7051efc02fb0fd0bcb0e515339e4be6b64e9b9b22efd22148c9",
+    "candidateJarSha256": "f9373063021d2fcb15b3d0adc7162a0b9583509b92609d606089b65dbb6d15d3",
+    "equivalentHarnessBundleSha256": "58bf216ee2ee103558ed5b01b58547ffab0e799ba702423c130b8b9815dc7467",
+    "harnessBundleAlgorithm": "SHA-256 over sorted JAR entry name plus NUL plus bytes for ^me/ahoo/wow/(benchmark|infrastructure)/.*\\.class$",
+    "runnerSha256": "8b33029b3347559f6e5195e0e79e48fdec1325313481096a6087c9a2adb73f9f",
+    "unscoredWarmupPairs": 1,
+    "formalPairOrder": [
+      "AB",
+      "BA",
+      "BA",
+      "AB",
+      "BA",
+      "AB",
+      "AB",
+      "BA"
+    ],
+    "formalPairs": 8,
+    "formalInvocations": 16,
+    "earliestStarted": "2026-07-24T10:06:52.550775Z",
+    "latestCompleted": "2026-07-24T10:32:18.943491Z",
+    "overlap": false
+  },
+  "runSpec": {
+    "threads": 14,
+    "mode": "thrpt",
+    "schedulerStrategy": "PARALLEL",
+    "schedulerPoolSize": 14,
+    "stripeCount": 896,
+    "warmupIterations": 2,
+    "warmupTime": "5s",
+    "measurementIterations": 3,
+    "measurementTime": "10s",
+    "forks": 1,
+    "profilers": [],
+    "jvmArgs": [
+      "-Xmx4g",
+      "-Xms4g",
+      "-XX:+UseG1GC",
+      "-XX:+UnlockDiagnosticVMOptions",
+      "-XX:+DebugNonSafepoints",
+      "-XX:+AlwaysPreTouch"
+    ]
+  },
+  "runtime": {
+    "javaVersion": "17.0.7",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "17.0.7+7-LTS",
+    "javaExecutable": "/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java",
+    "osName": "Mac OS X",
+    "osVersion": "26.5.2",
+    "osArch": "aarch64",
+    "availableProcessors": 14,
+    "physicalMemoryBytes": 25769803776
+  },
+  "docker": {
+    "serverVersion": "29.6.2",
+    "operatingSystem": "Docker Desktop",
+    "architecture": "aarch64",
+    "cpus": 4,
+    "memoryBytes": 6212636672,
+    "driver": "overlay2"
+  },
+  "services": {
+    "mongo": {
+      "image": "mongo:8.3.4",
+      "imageId": "sha256:6818b4556f741c6d220e7edf3d51730719d965f51d5c4e80ac9e0eeafcaac94d",
+      "startedAt": "2026-07-24T05:20:00.588669001Z",
+      "statusAfterRun": "healthy",
+      "restartCountAfterRun": 0,
+      "tmpfs": {
+        "/data/configdb": "rw,noexec,nosuid,size=512m",
+        "/data/db": "rw,noexec,nosuid,size=4096m"
+      },
+      "command": [
+        "mongod",
+        "--auth",
+        "--bind_ip_all",
+        "--wiredTigerCacheSizeGB",
+        "2",
+        "--wiredTigerCollectionBlockCompressor",
+        "none",
+        "--wiredTigerJournalCompressor",
+        "none",
+        "--setParameter",
+        "diagnosticDataCollectionEnabled=false",
+        "--setParameter",
+        "ttlMonitorEnabled=false"
+      ]
+    },
+    "redis": {
+      "image": "redis:7.4.9-alpine",
+      "imageId": "sha256:80dd823f4d2bf93dd5e418a0ae2817319a1ba279953e234082e54a5a18306223",
+      "startedAt": "2026-07-24T05:20:33.255431794Z",
+      "statusAfterRun": "healthy",
+      "restartCountAfterRun": 0,
+      "tmpfs": {
+        "/data": "rw,noexec,nosuid,size=1024m"
+      },
+      "command": [
+        "redis-server",
+        "/usr/local/etc/redis/redis.conf"
+      ]
+    }
+  },
+  "configurationSha256": {
+    "wow-benchmarks/docker/benchmark.env": "4f37b267b9549fde40e58725a48c8e1da98a3860927000c1d4488287091cb0a4",
+    "wow-benchmarks/docker/compose.mongo.yml": "1ef2fac4e3c8f5f1f2772c55f8f985b9de143aba6484d0fe47ace8333581c1f2",
+    "wow-benchmarks/docker/compose.redis.yml": "26b40364cdf0fa8c474d9b61fa0005e8177d7aaa862daf7d5c35340ffbc274aa",
+    "wow-benchmarks/docker/redis.conf": "e6f481fa4873d1ac61072008310d0c985bd14d6e22a9db35cb0181f15e6e790a"
+  }
+}

@@ -493,6 +493,32 @@ Run baseline and candidate source trees serially in a predeclared `AB`/`BA` orde
 overwrites its local result path, so preserve the JSON, human output, and manifest before starting
 the next period.
 
+The task is one measurement period, not a formal conclusion by itself. For a fixed 14-caller
+`main`/candidate claim, first run one unscored warm-up pair, then predeclare at least eight
+independent pairs with balanced order, for example:
+
+```text
+AB, BA, BA, AB, BA, AB, AB, BA
+```
+
+Use a separate process for every position, keep both stores and the host configuration unchanged,
+and never run baseline and candidate concurrently. Reject a period before score inspection if its
+manifest is not `SUCCESS`, its source is dirty, its commit/JAR/run specification is unexpected, or
+its two artifact hashes and row count do not match. Replace the whole affected pair; do not remove
+an outlier after inspecting throughput.
+
+For pair `i`, analyze each backend independently with
+`x[i] = ln(candidate[i] / baseline[i])`. With eight pairs:
+
+```text
+ratio = exp(mean(x))
+LCB95 = exp(mean(x) - t(0.95, 7) * sd(x) / sqrt(8))
+```
+
+To claim at least 20% higher throughput on both MongoDB and Redis, both one-sided lower bounds must
+be greater than `1.20`. JMH measurement iterations are not independent pair samples. Preserve the
+complete manifests and environment identity alongside the results.
+
 Scheduler HOL intentionally fixes four threads because `@GroupThreads(1) + @GroupThreads(3)`
 defines one experimental group. Its thread count and `thrpt,sample` modes are not configurable.
 Only `benchmarkCommandIngressHolParameters` is exposed for selecting a subset of the six

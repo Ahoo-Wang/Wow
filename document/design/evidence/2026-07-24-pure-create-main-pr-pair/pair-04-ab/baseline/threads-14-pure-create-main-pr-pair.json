@@ -1,0 +1,124 @@
+[
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "me.ahoo.wow.benchmark.infrastructure.mongo.MongoCommandWriteE2EBenchmark.sendAndWaitProcessed",
+        "mode" : "thrpt",
+        "threads" : 14,
+        "forks" : 1,
+        "jvm" : "/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Xmx4g",
+            "-Xms4g",
+            "-XX:+UseG1GC",
+            "-XX:+UnlockDiagnosticVMOptions",
+            "-XX:+DebugNonSafepoints",
+            "-XX:+AlwaysPreTouch"
+        ],
+        "jdkVersion" : "17.0.7",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "17.0.7+7-LTS",
+        "warmupIterations" : 2,
+        "warmupTime" : "5 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "10 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "schedulerPoolSize" : "14",
+            "schedulerStrategy" : "PARALLEL",
+            "stripeCount" : "896"
+        },
+        "primaryMetric" : {
+            "score" : 21124.630452723526,
+            "scoreError" : 1344.7340173978523,
+            "scoreConfidence" : [
+                19779.896435325674,
+                22469.364470121378
+            ],
+            "scorePercentiles" : {
+                "0.0" : 21040.163398675526,
+                "50.0" : 21157.805029779953,
+                "90.0" : 21175.922929715096,
+                "95.0" : 21175.922929715096,
+                "99.0" : 21175.922929715096,
+                "99.9" : 21175.922929715096,
+                "99.99" : 21175.922929715096,
+                "99.999" : 21175.922929715096,
+                "99.9999" : 21175.922929715096,
+                "100.0" : 21175.922929715096
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    21040.163398675526,
+                    21157.805029779953,
+                    21175.922929715096
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "me.ahoo.wow.benchmark.infrastructure.redis.RedisCommandWriteE2EBenchmark.sendAndWaitProcessed",
+        "mode" : "thrpt",
+        "threads" : 14,
+        "forks" : 1,
+        "jvm" : "/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Xmx4g",
+            "-Xms4g",
+            "-XX:+UseG1GC",
+            "-XX:+UnlockDiagnosticVMOptions",
+            "-XX:+DebugNonSafepoints",
+            "-XX:+AlwaysPreTouch"
+        ],
+        "jdkVersion" : "17.0.7",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "17.0.7+7-LTS",
+        "warmupIterations" : 2,
+        "warmupTime" : "5 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "10 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "schedulerPoolSize" : "14",
+            "schedulerStrategy" : "PARALLEL",
+            "stripeCount" : "896"
+        },
+        "primaryMetric" : {
+            "score" : 26689.77712890939,
+            "scoreError" : 2350.3968776184042,
+            "scoreConfidence" : [
+                24339.380251290986,
+                29040.174006527795
+            ],
+            "scorePercentiles" : {
+                "0.0" : 26545.14873901376,
+                "50.0" : 26731.92576557548,
+                "90.0" : 26792.25688213893,
+                "95.0" : 26792.25688213893,
+                "99.0" : 26792.25688213893,
+                "99.9" : 26792.25688213893,
+                "99.99" : 26792.25688213893,
+                "99.999" : 26792.25688213893,
+                "99.9999" : 26792.25688213893,
+                "100.0" : 26792.25688213893
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    26545.14873901376,
+                    26792.25688213893,
+                    26731.92576557548
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    }
+]
+
+
