@@ -29,7 +29,7 @@
     "@monaco-editor/react": "4.7.0",
     "antd": "^6.5.1",
     "dayjs": "^1.11.21",
-    "monaco-editor": "^0.55.1",
+    "monaco-editor": "^0.56.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router": "^7.18.1"
