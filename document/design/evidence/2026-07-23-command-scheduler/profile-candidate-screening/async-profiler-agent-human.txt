@@ -1,0 +1,86 @@
+# JMH version: 1.37
+# VM version: JDK 17.0.7, OpenJDK 64-Bit Server VM, 17.0.7+7-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java
+# VM options: -Xms2g -Xmx2g -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -agentpath:/opt/async-profiler/lib/libasyncProfiler.dylib=start,event=cpu,interval=1000000,jstackdepth=256,file=/Users/ahoo/.codex/worktrees/4a83/Wow/wow-benchmarks/build/profiling/jfr/command-ingress-current-absolute-20260724/full-fork-cpu.jfr
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 3 s each
+# Measurement: 3 iterations, 5 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+# Benchmark: me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed
+# Parameters: (handlerCpuTokens = 0, ingressStrategy = current-production, lastWaitSentSignalStrategy = skip-unobservable-successful-sent, schedulerPoolSize = cpu, stripeCount = default, taskCounterStrategy = group-lifecycle)
+
+# Run progress: 0.00% complete, ETA 00:00:21
+# Fork: 1 of 1
+Profiling started
+# Warmup Iteration   1: 73312.784 ops/s
+# Warmup Iteration   2: 95857.000 ops/s
+Iteration   1: 97340.774 ops/s
+                 gc.alloc.rate:      329.732 MB/sec
+                 gc.alloc.rate.norm: 3552.713 B/op
+                 gc.count:           5.000 counts
+                 gc.time:            13.000 ms
+
+Iteration   2: 97748.354 ops/s
+                 gc.alloc.rate:      331.128 MB/sec
+                 gc.alloc.rate.norm: 3552.679 B/op
+                 gc.count:           4.000 counts
+                 gc.time:            10.000 ms
+
+Iteration   3: 98377.810 ops/s
+                 gc.alloc.rate:      333.251 MB/sec
+                 gc.alloc.rate.norm: 3552.573 B/op
+                 gc.count:           5.000 counts
+                 gc.time:            9.000 ms
+
+
+
+Result "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed":
+  97822.313 ±(99.9%) 9531.595 ops/s [Average]
+  (min, avg, max) = (97340.774, 97822.313, 98377.810), stdev = 522.459
+  CI (99.9%): [88290.717, 107353.908] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.alloc.rate":
+  331.370 ±(99.9%) 32.328 MB/sec [Average]
+  (min, avg, max) = (329.732, 331.370, 333.251), stdev = 1.772
+  CI (99.9%): [299.042, 363.698] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.alloc.rate.norm":
+  3552.655 ±(99.9%) 1.335 B/op [Average]
+  (min, avg, max) = (3552.573, 3552.655, 3552.713), stdev = 0.073
+  CI (99.9%): [3551.320, 3553.990] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.count":
+  14.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (4.000, 4.667, 5.000), stdev = 0.577
+  CI (99.9%): [14.000, 14.000] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.time":
+  32.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (9.000, 10.667, 13.000), stdev = 2.082
+  CI (99.9%): [32.000, 32.000] (assumes normal distribution)
+
+
+# Run complete. Total time: 00:00:21
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                                                                     (handlerCpuTokens)   (ingressStrategy)       (lastWaitSentSignalStrategy)  (schedulerPoolSize)  (stripeCount)  (taskCounterStrategy)   Mode  Cnt      Score      Error   Units
+CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed                                      0  current-production  skip-unobservable-successful-sent                  cpu        default        group-lifecycle  thrpt    3  97822.313 ± 9531.595   ops/s
+CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.alloc.rate                        0  current-production  skip-unobservable-successful-sent                  cpu        default        group-lifecycle  thrpt    3    331.370 ±   32.328  MB/sec
+CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.alloc.rate.norm                   0  current-production  skip-unobservable-successful-sent                  cpu        default        group-lifecycle  thrpt    3   3552.655 ±    1.335    B/op
+CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.count                             0  current-production  skip-unobservable-successful-sent                  cpu        default        group-lifecycle  thrpt    3     14.000             counts
+CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed:gc.time                              0  current-production  skip-unobservable-successful-sent                  cpu        default        group-lifecycle  thrpt    3     32.000                 ms
+
+Benchmark result is saved to wow-benchmarks/build/profiling/jfr/command-ingress-current-absolute-20260724/agent-result.json

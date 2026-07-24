@@ -1,0 +1,120 @@
+{
+    "schemaVersion": 1,
+    "status": "SUCCESS",
+    "runId": "c60d2ee1-42c5-451e-8dc8-1ddacbafb169",
+    "taskPath": ":wow-benchmarks:benchmarkConfirmE2EThread16",
+    "startedAt": "2026-07-23T15:40:43.998023Z",
+    "projectVersion": "8.9.1",
+    "source": {
+        "commit": "6c6e4ebbe891fed0752f635391b1b034c988dd66",
+        "dirty": true,
+        "jmhJarSha256": "74979920a45e03852f3903734a02a65ab318007cc4e2f5baf6fbaad8bc31ff03"
+    },
+    "runSpec": {
+        "suite": "framework-e2e",
+        "profile": "confirmation",
+        "threads": 16,
+        "includePattern": "\\Qme.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed\\E.*",
+        "modes": [
+            "thrpt"
+        ],
+        "warmupIterations": 2,
+        "warmupTime": "3s",
+        "measurementIterations": 3,
+        "measurementTime": "5s",
+        "forks": 2,
+        "parameters": {
+            "ingressStrategy": "current-production",
+            "schedulerPoolSize": "4",
+            "stripeCount": "default",
+            "taskCounterStrategy": "group-lifecycle",
+            "handlerCpuTokens": "0",
+            "lastWaitSentSignalStrategy": "skip-unobservable-successful-sent",
+            "retrySpecAssemblyStrategy": "SHARED_BASE_SPEC,LEGACY_PER_PROCESSOR_BASE_SPEC"
+        },
+        "jvmArgs": [
+            "-Xmx4g",
+            "-Xms4g",
+            "-XX:+UseG1GC",
+            "-XX:+UnlockDiagnosticVMOptions",
+            "-XX:+DebugNonSafepoints",
+            "-XX:+AlwaysPreTouch"
+        ],
+        "requestedProfilers": [
+            "gc"
+        ],
+        "resolvedJmhArgs": [
+            "\\Qme.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed\\E.*",
+            "-bm",
+            "thrpt",
+            "-t",
+            "16",
+            "-wi",
+            "2",
+            "-w",
+            "3s",
+            "-i",
+            "3",
+            "-r",
+            "5s",
+            "-f",
+            "2",
+            "-foe",
+            "true",
+            "-p",
+            "ingressStrategy=current-production",
+            "-p",
+            "schedulerPoolSize=4",
+            "-p",
+            "stripeCount=default",
+            "-p",
+            "taskCounterStrategy=group-lifecycle",
+            "-p",
+            "handlerCpuTokens=0",
+            "-p",
+            "lastWaitSentSignalStrategy=skip-unobservable-successful-sent",
+            "-p",
+            "retrySpecAssemblyStrategy=SHARED_BASE_SPEC,LEGACY_PER_PROCESSOR_BASE_SPEC",
+            "-rf",
+            "json",
+            "-rff",
+            "/Users/ahoo/.codex/worktrees/4a83/Wow/wow-benchmarks/results/jmh/confirmation/framework-e2e/threads-16-framework-e2e.json",
+            "-o",
+            "/Users/ahoo/.codex/worktrees/4a83/Wow/wow-benchmarks/results/jmh/confirmation/framework-e2e/threads-16-framework-e2e-human.txt",
+            "-jvmArgs",
+            "-Xmx4g -Xms4g -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+AlwaysPreTouch"
+        ],
+        "resolvedProfilerArgs": [
+            "-prof",
+            "gc"
+        ],
+        "requiredServices": [
+            
+        ]
+    },
+    "runtime": {
+        "javaVersion": "17.0.7",
+        "vmName": "OpenJDK 64-Bit Server VM",
+        "vmVersion": "17.0.7+7-LTS",
+        "javaExecutable": "/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java",
+        "osName": "Mac OS X",
+        "osVersion": "26.5.2",
+        "osArch": "aarch64",
+        "availableProcessors": 14,
+        "physicalMemoryBytes": 25769803776
+    },
+    "completedAt": "2026-07-23T15:42:14.795920Z",
+    "artifacts": {
+        "result": {
+            "path": "threads-16-framework-e2e.json",
+            "size": 13837,
+            "sha256": "2c29a706e74e8bcdb8b3009d93edd038e9302b6bd7a36d50b90040237c34be56",
+            "rowCount": 2
+        },
+        "human": {
+            "path": "threads-16-framework-e2e-human.txt",
+            "size": 12391,
+            "sha256": "6b238a8c13decc3bd6ab246364be947a28ff8d7482fcd9718bbb616992723fa6"
+        }
+    }
+}

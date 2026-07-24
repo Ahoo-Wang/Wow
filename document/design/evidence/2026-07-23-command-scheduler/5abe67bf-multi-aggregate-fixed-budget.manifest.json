@@ -1,0 +1,100 @@
+{
+    "schemaVersion": 1,
+    "status": "SUCCESS",
+    "runId": "5abe67bf-794f-4a37-9c3f-7e938bd99aa5",
+    "taskPath": ":wow-benchmarks:benchmarkMultiAggregateSchedulerFixedBudgetThread16",
+    "startedAt": "2026-07-24T01:45:44.198993Z",
+    "projectVersion": "8.9.1",
+    "source": {
+        "commit": "6c6e4ebbe891fed0752f635391b1b034c988dd66",
+        "dirty": true,
+        "jmhJarSha256": "b510bd2e25d474bf5a5c0b6dd31ea26ec44342424e6805f09fb76f3a3cc17b02"
+    },
+    "runSpec": {
+        "suite": "multi-aggregate-scheduler-fixed-budget",
+        "profile": "multi-aggregate-scheduler-fixed-budget",
+        "threads": 16,
+        "includePattern": "\\Qme.ahoo.wow.benchmark.component.MultiAggregateFixedWorkerBudgetComponentBenchmark\\E.*",
+        "modes": [
+            "thrpt"
+        ],
+        "warmupIterations": 2,
+        "warmupTime": "2s",
+        "measurementIterations": 4,
+        "measurementTime": "3s",
+        "forks": 3,
+        "parameters": {
+            
+        },
+        "jvmArgs": [
+            "-Xmx4g",
+            "-Xms4g",
+            "-XX:+UseG1GC",
+            "-XX:+UnlockDiagnosticVMOptions",
+            "-XX:+DebugNonSafepoints",
+            "-XX:+AlwaysPreTouch"
+        ],
+        "requestedProfilers": [
+            "gc"
+        ],
+        "resolvedJmhArgs": [
+            "\\Qme.ahoo.wow.benchmark.component.MultiAggregateFixedWorkerBudgetComponentBenchmark\\E.*",
+            "-bm",
+            "thrpt",
+            "-t",
+            "16",
+            "-wi",
+            "2",
+            "-w",
+            "2s",
+            "-i",
+            "4",
+            "-r",
+            "3s",
+            "-f",
+            "3",
+            "-foe",
+            "true",
+            "-rf",
+            "json",
+            "-rff",
+            "/Users/ahoo/.codex/worktrees/4a83/Wow/wow-benchmarks/results/jmh/multi-aggregate-scheduler-fixed-budget/multi-aggregate-scheduler-fixed-budget/threads-16-multi-aggregate-scheduler-fixed-budget.json",
+            "-o",
+            "/Users/ahoo/.codex/worktrees/4a83/Wow/wow-benchmarks/results/jmh/multi-aggregate-scheduler-fixed-budget/multi-aggregate-scheduler-fixed-budget/threads-16-multi-aggregate-scheduler-fixed-budget-human.txt",
+            "-jvmArgs",
+            "-Xmx4g -Xms4g -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+AlwaysPreTouch"
+        ],
+        "resolvedProfilerArgs": [
+            "-prof",
+            "gc"
+        ],
+        "requiredServices": [
+            
+        ]
+    },
+    "runtime": {
+        "javaVersion": "17.0.7",
+        "vmName": "OpenJDK 64-Bit Server VM",
+        "vmVersion": "17.0.7+7-LTS",
+        "javaExecutable": "/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java",
+        "osName": "Mac OS X",
+        "osVersion": "26.5.2",
+        "osArch": "aarch64",
+        "availableProcessors": 14,
+        "physicalMemoryBytes": 25769803776
+    },
+    "completedAt": "2026-07-24T01:52:57.803810Z",
+    "artifacts": {
+        "result": {
+            "path": "threads-16-multi-aggregate-scheduler-fixed-budget.json",
+            "size": 58796,
+            "sha256": "ff48e9b7b674f578b4fb9ee28122a3a4d77b83d494ea98fb85173cebfb5e8546",
+            "rowCount": 8
+        },
+        "human": {
+            "path": "threads-16-multi-aggregate-scheduler-fixed-budget-human.txt",
+            "size": 49584,
+            "sha256": "48ff6c87b8cf4c6b58c485837569f7c6ac1952e0d39aab8b302231ef0791d1ef"
+        }
+    }
+}

@@ -1,0 +1,176 @@
+[
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed",
+        "mode" : "thrpt",
+        "threads" : 16,
+        "forks" : 1,
+        "jvm" : "/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Xms2g",
+            "-Xmx2g",
+            "-XX:+UseG1GC"
+        ],
+        "jdkVersion" : "17.0.7",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "17.0.7+7-LTS",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "2 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "handlerCpuTokens" : "0",
+            "ingressStrategy" : "current-production",
+            "lastWaitSentSignalStrategy" : "skip-unobservable-successful-sent",
+            "schedulerPoolSize" : "4",
+            "stripeCount" : "default",
+            "taskCounterStrategy" : "group-lifecycle"
+        },
+        "primaryMetric" : {
+            "score" : 380818.5569584183,
+            "scoreError" : 56429.640401357115,
+            "scoreConfidence" : [
+                324388.91655706114,
+                437248.1973597754
+            ],
+            "scorePercentiles" : {
+                "0.0" : 377431.84672592557,
+                "50.0" : 381529.6153794224,
+                "90.0" : 383494.2087699069,
+                "95.0" : 383494.2087699069,
+                "99.0" : 383494.2087699069,
+                "99.9" : 383494.2087699069,
+                "99.99" : 383494.2087699069,
+                "99.999" : 383494.2087699069,
+                "99.9999" : 383494.2087699069,
+                "100.0" : 383494.2087699069
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    383494.2087699069,
+                    381529.6153794224,
+                    377431.84672592557
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+            "gc.alloc.rate" : {
+                "score" : 1267.1773129802077,
+                "scoreError" : 184.00256251123264,
+                "scoreConfidence" : [
+                    1083.1747504689752,
+                    1451.1798754914403
+                ],
+                "scorePercentiles" : {
+                    "0.0" : 1256.2772422688313,
+                    "50.0" : 1269.0756258612676,
+                    "90.0" : 1276.179070810524,
+                    "95.0" : 1276.179070810524,
+                    "99.0" : 1276.179070810524,
+                    "99.9" : 1276.179070810524,
+                    "99.99" : 1276.179070810524,
+                    "99.999" : 1276.179070810524,
+                    "99.9999" : 1276.179070810524,
+                    "100.0" : 1276.179070810524
+                },
+                "scoreUnit" : "MB/sec",
+                "rawData" : [
+                    [
+                        1276.179070810524,
+                        1269.0756258612676,
+                        1256.2772422688313
+                    ]
+                ]
+            },
+            "gc.alloc.rate.norm" : {
+                "score" : 3493.06689808302,
+                "scoreError" : 5.61233115861941,
+                "scoreConfidence" : [
+                    3487.4545669244008,
+                    3498.6792292416394
+                ],
+                "scorePercentiles" : {
+                    "0.0" : 3492.753199862704,
+                    "50.0" : 3493.079414991537,
+                    "90.0" : 3493.3680793948197,
+                    "95.0" : 3493.3680793948197,
+                    "99.0" : 3493.3680793948197,
+                    "99.9" : 3493.3680793948197,
+                    "99.99" : 3493.3680793948197,
+                    "99.999" : 3493.3680793948197,
+                    "99.9999" : 3493.3680793948197,
+                    "100.0" : 3493.3680793948197
+                },
+                "scoreUnit" : "B/op",
+                "rawData" : [
+                    [
+                        3493.3680793948197,
+                        3492.753199862704,
+                        3493.079414991537
+                    ]
+                ]
+            },
+            "gc.count" : {
+                "score" : 21.0,
+                "scoreError" : "NaN",
+                "scoreConfidence" : [
+                    21.0,
+                    21.0
+                ],
+                "scorePercentiles" : {
+                    "0.0" : 7.0,
+                    "50.0" : 7.0,
+                    "90.0" : 7.0,
+                    "95.0" : 7.0,
+                    "99.0" : 7.0,
+                    "99.9" : 7.0,
+                    "99.99" : 7.0,
+                    "99.999" : 7.0,
+                    "99.9999" : 7.0,
+                    "100.0" : 7.0
+                },
+                "scoreUnit" : "counts",
+                "rawData" : [
+                    [
+                        7.0,
+                        7.0,
+                        7.0
+                    ]
+                ]
+            },
+            "gc.time" : {
+                "score" : 31.0,
+                "scoreError" : "NaN",
+                "scoreConfidence" : [
+                    31.0,
+                    31.0
+                ],
+                "scorePercentiles" : {
+                    "0.0" : 9.0,
+                    "50.0" : 10.0,
+                    "90.0" : 12.0,
+                    "95.0" : 12.0,
+                    "99.0" : 12.0,
+                    "99.9" : 12.0,
+                    "99.99" : 12.0,
+                    "99.999" : 12.0,
+                    "99.9999" : 12.0,
+                    "100.0" : 12.0
+                },
+                "scoreUnit" : "ms",
+                "rawData" : [
+                    [
+                        12.0,
+                        10.0,
+                        9.0
+                    ]
+                ]
+            }
+        }
+    }
+]
+
+

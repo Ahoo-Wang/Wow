@@ -1,0 +1,100 @@
+{
+    "schemaVersion": 1,
+    "status": "SUCCESS",
+    "runId": "0aac8db2-18c3-4c10-a078-89818b0144e3",
+    "taskPath": ":wow-benchmarks:benchmarkMultiAggregateSchedulerIsolationThread8",
+    "startedAt": "2026-07-24T01:00:39.533224Z",
+    "projectVersion": "8.9.1",
+    "source": {
+        "commit": "6c6e4ebbe891fed0752f635391b1b034c988dd66",
+        "dirty": true,
+        "jmhJarSha256": "c8c084a6b3b58a03992ea03c3027563062f4000d32be5a163f1e41773b48de4d"
+    },
+    "runSpec": {
+        "suite": "multi-aggregate-scheduler-isolation",
+        "profile": "multi-aggregate-scheduler-isolation",
+        "threads": 8,
+        "includePattern": "\\Qme.ahoo.wow.benchmark.component.MultiAggregateSchedulerIsolationBenchmark\\E.*",
+        "modes": [
+            "thrpt",
+            "sample"
+        ],
+        "warmupIterations": 2,
+        "warmupTime": "2s",
+        "measurementIterations": 3,
+        "measurementTime": "3s",
+        "forks": 3,
+        "parameters": {
+            
+        },
+        "jvmArgs": [
+            "-Xmx4g",
+            "-Xms4g",
+            "-XX:+UseG1GC",
+            "-XX:+UnlockDiagnosticVMOptions",
+            "-XX:+DebugNonSafepoints",
+            "-XX:+AlwaysPreTouch"
+        ],
+        "requestedProfilers": [
+            
+        ],
+        "resolvedJmhArgs": [
+            "\\Qme.ahoo.wow.benchmark.component.MultiAggregateSchedulerIsolationBenchmark\\E.*",
+            "-bm",
+            "thrpt,sample",
+            "-t",
+            "8",
+            "-wi",
+            "2",
+            "-w",
+            "2s",
+            "-i",
+            "3",
+            "-r",
+            "3s",
+            "-f",
+            "3",
+            "-foe",
+            "true",
+            "-rf",
+            "json",
+            "-rff",
+            "/Users/ahoo/.codex/worktrees/4a83/Wow/wow-benchmarks/results/jmh/multi-aggregate-scheduler-isolation/multi-aggregate-scheduler-isolation/threads-8-multi-aggregate-scheduler-isolation.json",
+            "-o",
+            "/Users/ahoo/.codex/worktrees/4a83/Wow/wow-benchmarks/results/jmh/multi-aggregate-scheduler-isolation/multi-aggregate-scheduler-isolation/threads-8-multi-aggregate-scheduler-isolation-human.txt",
+            "-jvmArgs",
+            "-Xmx4g -Xms4g -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+AlwaysPreTouch"
+        ],
+        "resolvedProfilerArgs": [
+            
+        ],
+        "requiredServices": [
+            
+        ]
+    },
+    "runtime": {
+        "javaVersion": "17.0.7",
+        "vmName": "OpenJDK 64-Bit Server VM",
+        "vmVersion": "17.0.7+7-LTS",
+        "javaExecutable": "/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java",
+        "osName": "Mac OS X",
+        "osVersion": "26.5.2",
+        "osArch": "aarch64",
+        "availableProcessors": 14,
+        "physicalMemoryBytes": 25769803776
+    },
+    "completedAt": "2026-07-24T01:12:43.031674Z",
+    "artifacts": {
+        "result": {
+            "path": "threads-8-multi-aggregate-scheduler-isolation.json",
+            "size": 6370543,
+            "sha256": "9c5159e65ad938e335ff503f9bede747dedbbcb9fde8a8e7ec2b099d988e4bb1",
+            "rowCount": 16
+        },
+        "human": {
+            "path": "threads-8-multi-aggregate-scheduler-isolation-human.txt",
+            "size": 209772,
+            "sha256": "9f0b39a7251d506c56edaea99f47a88038346b3dd938ac0563f66b129b3ddf21"
+        }
+    }
+}

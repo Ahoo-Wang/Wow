@@ -1,0 +1,102 @@
+{
+    "schemaVersion": 1,
+    "status": "SUCCESS",
+    "runId": "ef55684b-1ae4-4f51-a651-4224aeed19fe",
+    "taskPath": ":wow-benchmarks:benchmarkCommandIngressHolE2EThread4",
+    "startedAt": "2026-07-23T12:50:42.255588Z",
+    "projectVersion": "8.9.1",
+    "source": {
+        "commit": "6c6e4ebbe891fed0752f635391b1b034c988dd66",
+        "dirty": true,
+        "jmhJarSha256": "1432a68ca9e8a77a794e31a9c1e7438cb9df2beb36c0230ad27011f0947578b6"
+    },
+    "runSpec": {
+        "suite": "command-ingress-hol-e2e",
+        "profile": "scheduler-hol",
+        "threads": 4,
+        "includePattern": "\\Qme.ahoo.wow.benchmark.e2e.CommandIngressHeadOfLineBenchmark.contention\\E.*",
+        "modes": [
+            "thrpt",
+            "sample"
+        ],
+        "warmupIterations": 2,
+        "warmupTime": "3s",
+        "measurementIterations": 3,
+        "measurementTime": "5s",
+        "forks": 3,
+        "parameters": {
+            "contentionScenario": "DISTINCT_UNIFORM_POOL4,DISTINCT_ONE_SLOW_POOL4,COLLIDING_UNIFORM_POOL4,COLLIDING_ONE_SLOW_POOL4,DISTINCT_UNIFORM_POOL1,DISTINCT_ONE_SLOW_POOL1"
+        },
+        "jvmArgs": [
+            "-Xmx4g",
+            "-Xms4g",
+            "-XX:+UseG1GC",
+            "-XX:+UnlockDiagnosticVMOptions",
+            "-XX:+DebugNonSafepoints",
+            "-XX:+AlwaysPreTouch"
+        ],
+        "requestedProfilers": [
+            
+        ],
+        "resolvedJmhArgs": [
+            "\\Qme.ahoo.wow.benchmark.e2e.CommandIngressHeadOfLineBenchmark.contention\\E.*",
+            "-bm",
+            "thrpt,sample",
+            "-t",
+            "4",
+            "-wi",
+            "2",
+            "-w",
+            "3s",
+            "-i",
+            "3",
+            "-r",
+            "5s",
+            "-f",
+            "3",
+            "-foe",
+            "true",
+            "-p",
+            "contentionScenario=DISTINCT_UNIFORM_POOL4,DISTINCT_ONE_SLOW_POOL4,COLLIDING_UNIFORM_POOL4,COLLIDING_ONE_SLOW_POOL4,DISTINCT_UNIFORM_POOL1,DISTINCT_ONE_SLOW_POOL1",
+            "-rf",
+            "json",
+            "-rff",
+            "/Users/ahoo/.codex/worktrees/4a83/Wow/wow-benchmarks/results/jmh/scheduler-hol/command-ingress-hol-e2e/threads-4-command-ingress-hol-e2e.json",
+            "-o",
+            "/Users/ahoo/.codex/worktrees/4a83/Wow/wow-benchmarks/results/jmh/scheduler-hol/command-ingress-hol-e2e/threads-4-command-ingress-hol-e2e-human.txt",
+            "-jvmArgs",
+            "-Xmx4g -Xms4g -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+AlwaysPreTouch"
+        ],
+        "resolvedProfilerArgs": [
+            
+        ],
+        "requiredServices": [
+            
+        ]
+    },
+    "runtime": {
+        "javaVersion": "17.0.7",
+        "vmName": "OpenJDK 64-Bit Server VM",
+        "vmVersion": "17.0.7+7-LTS",
+        "javaExecutable": "/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java",
+        "osName": "Mac OS X",
+        "osVersion": "26.5.2",
+        "osArch": "aarch64",
+        "availableProcessors": 14,
+        "physicalMemoryBytes": 25769803776
+    },
+    "completedAt": "2026-07-23T13:03:48.440174Z",
+    "artifacts": {
+        "result": {
+            "path": "threads-4-command-ingress-hol-e2e.json",
+            "size": 2973969,
+            "sha256": "18a911456f1e5ea9ebfeeddff0a9353f54514090ac5ca3825b0ccc79fa948216",
+            "rowCount": 12
+        },
+        "human": {
+            "path": "threads-4-command-ingress-hol-e2e-human.txt",
+            "size": 167042,
+            "sha256": "11cf79ae4a33b71dc4189a34409b5f6b135c6d28b04e03fdd0f96b85a404d81f"
+        }
+    }
+}

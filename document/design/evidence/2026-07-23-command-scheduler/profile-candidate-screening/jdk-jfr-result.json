@@ -1,0 +1,175 @@
+[
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "me.ahoo.wow.benchmark.e2e.CommandIngressE2EDiagnosticBenchmark.sendAndWaitProcessed",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Xms2g",
+            "-Xmx2g",
+            "-XX:+UseG1GC",
+            "-XX:+UnlockDiagnosticVMOptions",
+            "-XX:+DebugNonSafepoints",
+            "-XX:FlightRecorderOptions=stackdepth=256",
+            "-XX:StartFlightRecording=filename=/Users/ahoo/.codex/worktrees/4a83/Wow/wow-benchmarks/build/profiling/jfr/command-ingress-current-absolute-20260724/full-fork-jdk.jfr,settings=profile,dumponexit=true"
+        ],
+        "jdkVersion" : "17.0.7",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "17.0.7+7-LTS",
+        "warmupIterations" : 1,
+        "warmupTime" : "3 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 2,
+        "measurementTime" : "5 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "handlerCpuTokens" : "0",
+            "ingressStrategy" : "current-production",
+            "lastWaitSentSignalStrategy" : "skip-unobservable-successful-sent",
+            "schedulerPoolSize" : "cpu",
+            "stripeCount" : "default",
+            "taskCounterStrategy" : "group-lifecycle"
+        },
+        "primaryMetric" : {
+            "score" : 97773.93371477368,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 97683.68945876777,
+                "50.0" : 97773.93371477368,
+                "90.0" : 97864.17797077961,
+                "95.0" : 97864.17797077961,
+                "99.0" : 97864.17797077961,
+                "99.9" : 97864.17797077961,
+                "99.99" : 97864.17797077961,
+                "99.999" : 97864.17797077961,
+                "99.9999" : 97864.17797077961,
+                "100.0" : 97864.17797077961
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    97864.17797077961,
+                    97683.68945876777
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+            "gc.alloc.rate" : {
+                "score" : 331.2125253200085,
+                "scoreError" : "NaN",
+                "scoreConfidence" : [
+                    "NaN",
+                    "NaN"
+                ],
+                "scorePercentiles" : {
+                    "0.0" : 330.88734118690286,
+                    "50.0" : 331.2125253200085,
+                    "90.0" : 331.5377094531142,
+                    "95.0" : 331.5377094531142,
+                    "99.0" : 331.5377094531142,
+                    "99.9" : 331.5377094531142,
+                    "99.99" : 331.5377094531142,
+                    "99.999" : 331.5377094531142,
+                    "99.9999" : 331.5377094531142,
+                    "100.0" : 331.5377094531142
+                },
+                "scoreUnit" : "MB/sec",
+                "rawData" : [
+                    [
+                        331.5377094531142,
+                        330.88734118690286
+                    ]
+                ]
+            },
+            "gc.alloc.rate.norm" : {
+                "score" : 3553.0831345201022,
+                "scoreError" : "NaN",
+                "scoreConfidence" : [
+                    "NaN",
+                    "NaN"
+                ],
+                "scorePercentiles" : {
+                    "0.0" : 3552.696843602593,
+                    "50.0" : 3553.0831345201022,
+                    "90.0" : 3553.469425437611,
+                    "95.0" : 3553.469425437611,
+                    "99.0" : 3553.469425437611,
+                    "99.9" : 3553.469425437611,
+                    "99.99" : 3553.469425437611,
+                    "99.999" : 3553.469425437611,
+                    "99.9999" : 3553.469425437611,
+                    "100.0" : 3553.469425437611
+                },
+                "scoreUnit" : "B/op",
+                "rawData" : [
+                    [
+                        3553.469425437611,
+                        3552.696843602593
+                    ]
+                ]
+            },
+            "gc.count" : {
+                "score" : 10.0,
+                "scoreError" : "NaN",
+                "scoreConfidence" : [
+                    10.0,
+                    10.0
+                ],
+                "scorePercentiles" : {
+                    "0.0" : 5.0,
+                    "50.0" : 5.0,
+                    "90.0" : 5.0,
+                    "95.0" : 5.0,
+                    "99.0" : 5.0,
+                    "99.9" : 5.0,
+                    "99.99" : 5.0,
+                    "99.999" : 5.0,
+                    "99.9999" : 5.0,
+                    "100.0" : 5.0
+                },
+                "scoreUnit" : "counts",
+                "rawData" : [
+                    [
+                        5.0,
+                        5.0
+                    ]
+                ]
+            },
+            "gc.time" : {
+                "score" : 20.0,
+                "scoreError" : "NaN",
+                "scoreConfidence" : [
+                    20.0,
+                    20.0
+                ],
+                "scorePercentiles" : {
+                    "0.0" : 9.0,
+                    "50.0" : 10.0,
+                    "90.0" : 11.0,
+                    "95.0" : 11.0,
+                    "99.0" : 11.0,
+                    "99.9" : 11.0,
+                    "99.99" : 11.0,
+                    "99.999" : 11.0,
+                    "99.9999" : 11.0,
+                    "100.0" : 11.0
+                },
+                "scoreUnit" : "ms",
+                "rawData" : [
+                    [
+                        9.0,
+                        11.0
+                    ]
+                ]
+            }
+        }
+    }
+]
+
+
