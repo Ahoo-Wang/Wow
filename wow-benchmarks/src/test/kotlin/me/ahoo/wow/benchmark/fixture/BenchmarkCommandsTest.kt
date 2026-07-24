@@ -40,4 +40,13 @@ class BenchmarkCommandsTest {
         commandMessage.isCreate.assert().isFalse()
         commandMessage.aggregateVersion.assert().isNull()
     }
+
+    @Test
+    fun `should create command path message for explicit aggregate id`() {
+        val commandMessage = BenchmarkCommands.commandPathAddCartItem("explicit-aggregate-id")
+
+        commandMessage.aggregateId.id.assert().isEqualTo("explicit-aggregate-id")
+        commandMessage.isCreate.assert().isTrue()
+        commandMessage.aggregateVersion.assert().isEqualTo(Version.UNINITIALIZED_VERSION)
+    }
 }

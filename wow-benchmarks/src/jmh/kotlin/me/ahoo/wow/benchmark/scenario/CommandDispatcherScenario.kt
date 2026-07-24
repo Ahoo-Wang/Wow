@@ -43,10 +43,12 @@ import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.ioc.SimpleServiceProvider
+import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.modeling.command.RetryableAggregateProcessorFactory
 import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
 import me.ahoo.wow.modeling.command.dispatcher.AggregateProcessorFilter
 import me.ahoo.wow.modeling.command.dispatcher.CommandDispatcher
+import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
 import me.ahoo.wow.modeling.command.dispatcher.DefaultCommandHandler
 import me.ahoo.wow.modeling.command.dispatcher.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.materialize
@@ -74,6 +76,7 @@ class CommandDispatcherScenario private constructor(
             domainEventBus: DomainEventBus = InMemoryDomainEventBus(),
             stateEventBus: StateEventBus = InMemoryStateEventBus(),
             schedulerSupplier: AggregateSchedulerSupplier = BenchmarkAggregateSchedulerSupplier(),
+            stripeCount: Int = MessageParallelism.DEFAULT_PARALLELISM,
             idempotencyCheckerProvider: AggregateIdempotencyCheckerProvider =
                 DefaultAggregateIdempotencyCheckerProvider {
                     BenchmarkIdempotency.bloomFilterChecker()
@@ -83,6 +86,7 @@ class CommandDispatcherScenario private constructor(
             commandWaitNotifier: CommandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator),
             commandWaitEndpoint: CommandWaitEndpoint = SimpleCommandWaitEndpoint(""),
             namedAggregate: NamedAggregate = BenchmarkAggregates.cartMetadata.namedAggregate.materialize(),
+            commandHandlerDecorator: (CommandHandler) -> CommandHandler = { it },
         ): CommandDispatcherScenario {
             val gatewayScenario = CommandGatewayScenario.create(
                 commandBus = commandBus,
@@ -110,10 +114,12 @@ class CommandDispatcherScenario private constructor(
                 .addFilter(SendStateEventFilter(stateEventBus))
                 .addFilter(ProcessedNotifierFilter(commandWaitNotifier))
                 .build()
+            val commandHandler = commandHandlerDecorator(DefaultCommandHandler(chain))
             val commandDispatcher = CommandDispatcher(
                 namedAggregates = setOf(namedAggregate),
+                parallelism = stripeCount,
                 commandBus = gatewayScenario.commandGateway,
-                commandHandler = DefaultCommandHandler(chain),
+                commandHandler = commandHandler,
                 schedulerSupplier = schedulerSupplier,
             )
             commandDispatcher.start()
