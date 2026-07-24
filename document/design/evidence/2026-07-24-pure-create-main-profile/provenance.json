@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "evidenceId": "2026-07-24-pure-create-main-profile",
+  "scope": {
+    "workload": "fresh aggregate command -> sendAndWaitForProcessed -> acknowledged version-1 append",
+    "backends": [
+      "MongoDB",
+      "Redis"
+    ],
+    "excluded": [
+      "snapshot load or replay",
+      "event-history load or replay",
+      "projection",
+      "saga",
+      "downstream event consumers"
+    ]
+  },
+  "source": {
+    "profileHarnessCommit": "ad427df203905485279f15e1efc719f2a371dd86",
+    "profileHarnessTree": "29e5e44253312fc125085095f70f19a096f31d93",
+    "profileBenchmarkTree": "2c94013d564e636413d9a1bd34632465093d84db",
+    "profileJmhJarSha256": "198936b1cc0e1fdb133bbf1d0e877a52a19b273b10b323bc99a305c82893ffd6",
+    "finalLocalEquivalentCommit": "a654f626d799d3f7a434e276a90592970cade947",
+    "mergedMainCommit": "07b46a384e18d7d52c476406bee4b30389bc2f32",
+    "mergedTree": "73f418d5942155c089621b9a5345eb92187e3262",
+    "productionEquivalence": "profile harness and merged-equivalent local commit have identical production sources; differences outside wow-benchmarks are test-only"
+  },
+  "runtime": {
+    "os": "Darwin 25.5.0 arm64",
+    "hostProcessorsVisibleToJmh": 14,
+    "java": "Zulu OpenJDK 17.0.7+7-LTS",
+    "asyncProfiler": {
+      "version": "4.2.1",
+      "librarySha256": "4f85208e0aa28bd1701518da05ad9a40ce3ebab231dde364e040106ac9b6137b"
+    },
+    "dockerDesktop": {
+      "cpus": 4,
+      "memoryBytes": 6212636672,
+      "architecture": "aarch64"
+    }
+  },
+  "containers": {
+    "mongo": {
+      "image": "mongo:8.3.4",
+      "imageId": "sha256:6818b4556f741c6d220e7edf3d51730719d965f51d5c4e80ac9e0eeafcaac94d",
+      "statusBeforeAndAfter": "running/healthy",
+      "restartCount": 0,
+      "startedAt": "2026-07-24T05:20:00.588669001Z",
+      "command": [
+        "mongod",
+        "--auth",
+        "--bind_ip_all",
+        "--wiredTigerCacheSizeGB",
+        "2",
+        "--wiredTigerCollectionBlockCompressor",
+        "none",
+        "--wiredTigerJournalCompressor",
+        "none",
+        "--setParameter",
+        "diagnosticDataCollectionEnabled=false",
+        "--setParameter",
+        "ttlMonitorEnabled=false"
+      ]
+    },
+    "redis": {
+      "image": "redis:7.4.9-alpine",
+      "imageId": "sha256:80dd823f4d2bf93dd5e418a0ae2817319a1ba279953e234082e54a5a18306223",
+      "statusBeforeAndAfter": "running/healthy",
+      "restartCount": 0,
+      "startedAt": "2026-07-24T05:20:33.255431794Z",
+      "command": [
+        "redis-server",
+        "/usr/local/etc/redis/redis.conf"
+      ]
+    }
+  },
+  "commonProtocol": {
+    "threads": 14,
+    "schedulerStrategy": "PARALLEL",
+    "schedulerPoolSize": 14,
+    "stripeCount": 896,
+    "forks": 1,
+    "jvmArgs": [
+      "-Xms4g",
+      "-Xmx4g",
+      "-XX:+UseG1GC",
+      "-XX:+AlwaysPreTouch",
+      "-XX:+UnlockDiagnosticVMOptions",
+      "-XX:+DebugNonSafepoints"
+    ]
+  },
+  "profiles": {
+    "cpu": {
+      "runWindowLocal": {
+        "startedAt": "2026-07-24T22:34:47+0800",
+        "completedAt": "2026-07-24T22:38:52+0800"
+      },
+      "order": [
+        "mongo-1",
+        "redis-1",
+        "redis-2",
+        "mongo-2"
+      ],
+      "warmupIterations": 2,
+      "warmupTime": "5s",
+      "measurementIterations": 1,
+      "measurementTime": "30s",
+      "profiler": "async:event=cpu;output=text,collapsed,flamegraph;direction=both",
+      "scoreUsage": "diagnostic only"
+    },
+    "gc": {
+      "runWindowLocal": {
+        "startedAt": "2026-07-24T22:39:25+0800",
+        "completedAt": "2026-07-24T22:43:11+0800"
+      },
+      "order": [
+        "redis-1",
+        "mongo-1",
+        "mongo-2",
+        "redis-2"
+      ],
+      "warmupIterations": 2,
+      "warmupTime": "5s",
+      "measurementIterations": 3,
+      "measurementTime": "10s",
+      "profiler": "jmh-gc",
+      "scoreUsage": "exact allocation and GC evidence"
+    },
+    "allocation": {
+      "runWindowLocal": {
+        "startedAt": "2026-07-24T22:50:49+0800",
+        "completedAt": "2026-07-24T22:52:15+0800"
+      },
+      "order": [
+        "mongo",
+        "redis"
+      ],
+      "warmupIterations": 2,
+      "warmupTime": "5s",
+      "measurementIterations": 1,
+      "measurementTime": "20s",
+      "profiler": "async:event=alloc;output=text,collapsed,flamegraph;direction=both",
+      "scoreUsage": "allocation attribution only"
+    }
+  },
+  "limitations": [
+    "profile throughput is not an acceptance score",
+    "macOS CPU sampling over-represented parked native frames",
+    "Redis CPU repeat 1 was under-sampled",
+    "allocation sample percentages are not CPU-time percentages",
+    "inclusive allocation families can overlap"
+  ]
+}

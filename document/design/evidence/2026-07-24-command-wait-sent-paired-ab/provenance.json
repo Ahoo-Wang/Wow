@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "evidenceId": "2026-07-24-command-wait-sent-paired-ab",
+  "scope": {
+    "workload": "fresh aggregate command -> sendAndWaitForProcessed -> acknowledged version-1 append",
+    "backends": [
+      "MongoDB",
+      "Redis"
+    ],
+    "excluded": [
+      "snapshot load or replay",
+      "event-history load or replay",
+      "projection",
+      "saga",
+      "downstream event consumers"
+    ],
+    "targetInterpretation": "one-sided 95% lower bound above 1.20 for each backend"
+  },
+  "source": {
+    "baselineProductionCommit": "a37beee3a0b09b220bb857a24008ca77984f4785",
+    "baselineHarnessCommit": "b8dbb0da67dc8b471ffe1e8b5e3418fb744da6ea",
+    "candidateProductionCommit": "c7697de1e62ee5b5d5c3231233424b5122e0193a",
+    "candidateHarnessCommit": "ad427df203905485279f15e1efc719f2a371dd86",
+    "finalLocalEquivalentCommit": "a654f626d799d3f7a434e276a90592970cade947",
+    "mergedMainCommit": "07b46a384e18d7d52c476406bee4b30389bc2f32",
+    "mergedTree": "73f418d5942155c089621b9a5345eb92187e3262",
+    "benchmarkTree": "2c94013d564e636413d9a1bd34632465093d84db",
+    "baselineJmhJarSha256": "239148992aee05ce23d0e8bf1c1112f87064d5f2e48d62197f6820c2e941a91c",
+    "candidateJmhJarSha256": "198936b1cc0e1fdb133bbf1d0e877a52a19b273b10b323bc99a305c82893ffd6",
+    "productionEquivalence": "candidate harness and merged-equivalent local commit differ only in wow-benchmarks and test sources"
+  },
+  "runtime": {
+    "os": "Darwin arm64",
+    "hostProcessorsVisibleToJmh": 14,
+    "java": "Zulu OpenJDK 17.0.7+7-LTS",
+    "dockerDesktop": {
+      "cpus": 4,
+      "memoryBytes": 6212636672,
+      "architecture": "aarch64"
+    }
+  },
+  "containers": {
+    "mongo": {
+      "image": "mongo:8.3.4",
+      "imageId": "sha256:6818b4556f741c6d220e7edf3d51730719d965f51d5c4e80ac9e0eeafcaac94d",
+      "restartCount": 0
+    },
+    "redis": {
+      "image": "redis:7.4.9-alpine",
+      "imageId": "sha256:80dd823f4d2bf93dd5e418a0ae2817319a1ba279953e234082e54a5a18306223",
+      "restartCount": 0
+    }
+  },
+  "protocol": {
+    "formalRunWindowUtc": {
+      "startedAt": "2026-07-24T11:14:23.315159Z",
+      "completedAt": "2026-07-24T11:39:52.150969Z"
+    },
+    "unscoredWarmupPairs": 1,
+    "formalOrders": [
+      "AB",
+      "BA",
+      "BA",
+      "AB",
+      "BA",
+      "AB",
+      "AB",
+      "BA"
+    ],
+    "threads": 14,
+    "schedulerStrategy": "PARALLEL",
+    "schedulerPoolSize": 14,
+    "stripeCount": 896,
+    "warmupIterations": 2,
+    "warmupTime": "5s",
+    "measurementIterations": 3,
+    "measurementTime": "10s",
+    "forks": 1,
+    "profilers": [],
+    "jvmArgs": [
+      "-Xms4g",
+      "-Xmx4g",
+      "-XX:+UseG1GC",
+      "-XX:+UnlockDiagnosticVMOptions",
+      "-XX:+DebugNonSafepoints",
+      "-XX:+AlwaysPreTouch"
+    ]
+  },
+  "results": {
+    "mongo": {
+      "pairs": 8,
+      "baselineArithmeticMeanOpsPerSecond": 21371.999965082,
+      "candidateArithmeticMeanOpsPerSecond": 21508.651481978,
+      "geometricRatio": 1.006384230,
+      "gainPercent": 0.638423,
+      "twoSided95Ratio": [
+        1.001631235,
+        1.011159779
+      ],
+      "oneSided95LowerRatio": 1.002574256
+    },
+    "redis": {
+      "pairs": 8,
+      "baselineArithmeticMeanOpsPerSecond": 26687.931459105,
+      "candidateArithmeticMeanOpsPerSecond": 27338.488107973,
+      "geometricRatio": 1.024356315,
+      "gainPercent": 2.435631,
+      "twoSided95Ratio": [
+        1.017577841,
+        1.031179942
+      ],
+      "oneSided95LowerRatio": 1.018921700
+    }
+  }
+}
