@@ -1,0 +1,9 @@
+baselineCommit=04b4310f69d9b578d26144782bfa08abec58c5e5
+candidateCommit=dfa607d0ea6c2d7a663dbd49f01608e6ba7607d2
+baselineStatus=0
+candidateStatus=0
+4659b9560901f89857438eabeb28fa41d70e4dcb0daf863a9301183e7607c573  /private/tmp/wow-function-cache-clean-baseline/wow-benchmarks/build/libs/wow-benchmarks-8.9.1-jmh.jar
+94675ccc7f907468087fcf8e39696919a646351504cef8c500fe15236f1f546d  /private/tmp/wow-function-cache-clean-candidate/wow-benchmarks/build/libs/wow-benchmarks-8.9.1-jmh.jar
+openjdk version "17.0.7" 2023-04-18 LTS
+OpenJDK Runtime Environment Zulu17.42+19-CA (build 17.0.7+7-LTS)
+OpenJDK 64-Bit Server VM Zulu17.42+19-CA (build 17.0.7+7-LTS, mixed mode, sharing)
