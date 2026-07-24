@@ -506,5 +506,5 @@ graph TB
 
 ## 相关页面
 
-- [架构概览](./overview) — 分层架构和 CQRS 模式
+- [架构概览](./architecture) — 分层架构和 CQRS 模式
 - [模块依赖](./module-dependencies) — 详细的模块依赖图

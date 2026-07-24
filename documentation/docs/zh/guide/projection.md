@@ -391,5 +391,5 @@ wow:
 
 - [事件处理器](./event-processor) - 用于一般事件处理
 - [查询服务](./query) - 用于查询读模型
-- [CQRS 模式](./reference/awesome/cqrs) - 了解 CQRS 架构
+- [CQRS 模式](./core-concepts) - 了解 CQRS 架构
 - [事件溯源](./eventstore) - 了解事件存储

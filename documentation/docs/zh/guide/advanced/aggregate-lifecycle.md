@@ -663,6 +663,6 @@ class Order(private val state: OrderState) {
 | [事件溯源](../eventstore) | 事件存储、快照和完全重放机制 |
 | [领域建模](../modeling) | 设计聚合、命令、事件和状态类 |
 | [Saga 编排](../saga) | 通过 Saga 实现分布式事务支持 |
-| [配置参考：事件溯源](../../reference/config/eventsourcing) | 事件溯源配置属性 |
-| [配置参考：快照](../../reference/config/snapshot) | 快照存储配置 |
+| [配置参考：事件溯源](../../reference/config/core) | 事件溯源配置属性 |
+| [配置参考：快照](../../reference/config/core) | 快照存储配置 |
 | [测试](../test-suite) | AggregateSpec 和 Given-When-Expect 测试 DSL |

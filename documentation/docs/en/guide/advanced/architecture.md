@@ -87,11 +87,11 @@ flowchart TB
     style T1 fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
 ```
 
-<!-- Sources: settings.gradle.kts:19-63, wow-api/src/main/kotlin/me/ahoo/wow/api/Wow.kt:26-45 -->
+<!-- Sources: settings.gradle.kts:19-80, wow-api/src/main/kotlin/me/ahoo/wow/api/Wow.kt:26-45 -->
 
 ## Module Hierarchy
 
-The module hierarchy is defined in [settings.gradle.kts:19-63](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L19-L63). Every module depends only on modules above it in the hierarchy, ensuring no circular dependencies.
+The module hierarchy is defined in [settings.gradle.kts:19-80](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L19-L80). Every module depends only on modules above it in the hierarchy, ensuring no circular dependencies.
 
 ### Layer Breakdown
 
@@ -397,7 +397,7 @@ flowchart LR
 Between the write and read sides, Wow introduces **state events** (`StateEvent`). After command processing, the framework publishes the full current state of the aggregate as an event. This enables:
 - **Projections** that rebuild read models from complete state snapshots rather than incremental deltas
 - **Business Intelligence** pipelines that consume aggregate states directly into data warehouses
-- **Cache warming** via [CoCache](../config/cocache) for ultra-low-latency query services
+- **Cache warming** via [CoCache](../extensions/cocache) for ultra-low-latency query services
 
 ## Compile-Time Code Generation (wow-compiler)
 
@@ -427,13 +427,13 @@ The architectural choices of the Wow Framework directly enable its performance p
 
 | Page | Description |
 |---|---|
-| [Introduction](./introduction) | Overview of Wow framework features and value proposition |
-| [Domain Modeling](./modeling) | How to design aggregate roots, commands, and events |
+| [Introduction](../introduction) | Overview of Wow framework features and value proposition |
+| [Domain Modeling](../modeling) | How to design aggregate roots, commands, and events |
 | [Command Gateway](../command-gateway) | Deep-dive into command sending and wait plans |
-| [Event Sourcing](./event-sourcing) | Event store, snapshots, and state rebuild mechanics |
-| [Saga Orchestration](./saga) | Distributed transaction support via sagas |
-| [Projections](./projection) | Building and updating read models |
-| [Testing](./testing) | AggregateSpec and SagaSpec testing DSL |
-| [Spring Boot Integration](../reference/spring-boot) | Auto-configuration details and property reference |
-| [CoCache](../config/cocache) | Projection caching for query performance |
-| [Observability](../reference/observability) | OpenTelemetry tracing and metrics |
+| [Event Sourcing](../eventstore) | Event store, snapshots, and state rebuild mechanics |
+| [Saga Orchestration](../saga) | Distributed transaction support via sagas |
+| [Projections](../projection) | Building and updating read models |
+| [Testing](../test-suite) | AggregateSpec and SagaSpec testing DSL |
+| [Spring Boot Integration](../extensions/spring-boot-starter) | Auto-configuration details and property reference |
+| [CoCache](../extensions/cocache) | Projection caching for query performance |
+| [Observability](../../reference/config/observability) | OpenTelemetry tracing and metrics |

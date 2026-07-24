@@ -1,3 +1,8 @@
+---
+title: 订单系统示例
+description: 一个综合示例项目，演示 Wow 构建领域驱动微服务的能力 —— 聚合建模、事件溯源、CQRS 和 Saga 事务。
+---
+
 # 订单系统
 
 [订单系统示例](https://github.com/Ahoo-Wang/Wow/tree/main/example/) 是一个基于 Wow 框架构建的领域驱动微服务的综合示例项目。该示例展示了聚合建模、事件溯源、CQRS 模式和基于 Saga 的分布式事务。
@@ -335,8 +340,8 @@ wow:
 
 ## 相关文档
 
-- [聚合建模](./modeling) - 了解聚合模式
-- [事件存储](./eventstore) - 理解事件溯源
-- [命令网关](./command-gateway) - 命令处理详情
-- [Saga](./saga) - 分布式事务模式
-- [测试套件](./test-suite) - 测试模式
+- [聚合建模](../../guide/modeling) - 了解聚合模式
+- [事件存储](../../guide/eventstore) - 理解事件溯源
+- [命令网关](../../guide/command-gateway) - 命令处理详情
+- [Saga](../../guide/saga) - 分布式事务模式
+- [测试套件](../../guide/test-suite) - 测试模式

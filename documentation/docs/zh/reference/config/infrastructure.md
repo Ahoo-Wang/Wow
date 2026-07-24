@@ -120,6 +120,10 @@ wow:
 |----------|------|---------|-------------|
 | `wow.webflux.enabled` | Boolean | `true` | 启用 WebFlux 命令端点自动注册 |
 | `wow.webflux.global-error.enabled` | Boolean | `true` | 启用全局错误处理 |
+| `wow.webflux.batch.concurrency` | Integer | `1` | 批量命令请求的并发数 |
+| `wow.webflux.batch.prefetch` | Integer | `1` | 批量命令请求的预取数 |
+| `wow.webflux.command.request.appender.agent.enabled` | Boolean | `true` | 将客户端 `User-Agent` 追加到命令请求上下文（设为 `false` 可禁用） |
+| `wow.webflux.command.request.appender.ip.enabled` | Boolean | `true` | 将客户端 IP 追加到命令请求上下文（设为 `false` 可禁用） |
 
 ```yaml
 wow:
@@ -127,4 +131,14 @@ wow:
     enabled: true
     global-error:
       enabled: true
+    batch:
+      concurrency: 1
+      prefetch: 1
+    command:
+      request:
+        appender:
+          agent:
+            enabled: true
+          ip:
+            enabled: true
 ```

@@ -16,6 +16,9 @@ if (SITE_BASE == '/wow/') {
 
 // https://vitepress.dev/reference/site-config
 let userConfig = defineConfig({
+    // Kept true intentionally: dead links have been audited and fixed across EN/ZH.
+    // Retained as true so that external (translation/example) links that occasionally
+    // drift do not break the build in CI.
     ignoreDeadLinks: true,
     head: head,
     base: SITE_BASE,

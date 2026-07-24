@@ -1,3 +1,8 @@
+---
+title: 银行账户转账(JAVA)
+description: 一个经典的 DDD 银行账户转账场景，使用 Wow 以 Java 实现，演示事件溯源和基于 Saga 的分布式事务。
+---
+
 # 银行账户转账(JAVA)
 
 _[银行账户转账案例](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/)_ 是一个经典的领域驱动设计（DDD）应用场景。接下来我们通过一个简单的银行账户转账案例，来了解如何使用 Wow 进行领域驱动设计以及服务开发。

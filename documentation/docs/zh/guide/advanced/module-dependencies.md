@@ -447,5 +447,5 @@ include(":wow-mongo")
 
 ## 相关页面
 
-- [架构概览](./overview) — 高层架构和 CQRS 模式
+- [架构概览](./architecture) — 高层架构和 CQRS 模式
 - [数据流](./data-flow) — 命令和事件管道的逐步追踪

@@ -13,7 +13,7 @@ description: Fundamental configuration options for the Wow framework, including 
 | Name | Data Type | Description | Default Value |
 |------|-----------|-------------|---------------|
 | `enabled` | Boolean | Enable/disable the Wow framework | `true` |
-| `context-name` | String | Bounded context name for the service | `${spring.application.name}` |
+| `context-name` | String | Bounded context name for the service | Falls back to (required) `spring.application.name` |
 | `shutdown-timeout` | Duration | Graceful shutdown timeout | `60s` |
 
 ```yaml
@@ -168,7 +168,7 @@ wow:
 
 | Name | Data Type | Description | Default Value |
 |------|-----------|-------------|---------------|
-| `storage` | `EventStoreStorage` | Event store storage backend | `mongo` |
+| `storage` | `StorageType` | Event store storage backend | `mongo` |
 
 ```yaml
 wow:
@@ -177,12 +177,15 @@ wow:
       storage: mongo
 ```
 
-#### EventStoreStorage
+#### StorageType
+
+The `StorageType` enum is shared across the event store and snapshot store.
 
 ```kotlin
-enum class EventStoreStorage {
+enum class StorageType {
     MONGO,
     REDIS,
+    ELASTICSEARCH,
     IN_MEMORY,
     DELAY
     ;
@@ -199,7 +202,7 @@ enum class EventStoreStorage {
 | `enabled` | `Boolean` | Whether to enable snapshots | `true` |
 | `strategy` | `Strategy` | Snapshot strategy | `all` |
 | `version-offset` | `Int` | Version offset threshold | `5` |
-| `storage` | `SnapshotStorage` | Snapshot storage backend | `mongo` |
+| `storage` | `StorageType` | Snapshot storage backend | `mongo` |
 
 ```yaml
 wow:
@@ -221,17 +224,70 @@ enum class Strategy {
 }
 ```
 
-#### SnapshotStorage
+The snapshot `storage` property reuses the shared [`StorageType`](#storagetype) enum.
 
-```kotlin
-enum class SnapshotStorage {
-    MONGO,
-    REDIS,
-    ELASTICSEARCH,
-    IN_MEMORY,
-    DELAY
-    ;
-}
+### SnapshotCheckpointProperties
+
+Persist the latest snapshot version as an immutable checkpoint (`VersionIntervalCheckpointStrategy`)
+at a fixed aggregate-version interval. The checkpoint is available via `VersionedSnapshotStore.loadAtOrBefore`,
+which an application can use to resume from a recent version without replaying the entire
+history — but the flag only adds the checkpoint writes; it does not change projection or
+rebuild behavior on its own.
+
+- Configuration class: [SnapshotCheckpointProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotProperties.kt)
+- Prefix: `wow.eventsourcing.snapshot.checkpoint`
+
+| Name | Data Type | Description | Default Value |
+|------|-----------|-------------|---------------|
+| `enabled` | `Boolean` | Persist the snapshot version checkpoint | `false` |
+| `version-interval` | `Int` | How often (in versions) to persist the checkpoint; must be positive | `100` |
+
+```yaml
+wow:
+  eventsourcing:
+    snapshot:
+      checkpoint:
+        enabled: true
+        version-interval: 100
+```
+
+### StorageRoutingProperties
+
+Route different aggregates to different storage backends within a single service. When a
+matching route is configured, Wow installs a `RoutingEventStore` / `RoutingSnapshotStore`
+that dispatches per aggregate to the bound store, falling back to the default storage
+(`wow.eventsourcing.store.storage` / `wow.eventsourcing.snapshot.storage`) for unlisted
+aggregates.
+
+- Configuration class: [StorageRoutingProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRoutingProperties.kt)
+- Prefix: `wow.eventsourcing.storage-routing`
+
+| Name | Data Type | Description | Default Value |
+|------|-----------|-------------|---------------|
+| `aggregates` | `Map<String, AggregateStorageRouteProperties>` | Per-aggregate route keyed by aggregate name | `{}` (empty) |
+
+Each aggregate route accepts an `event` and/or `snapshot` channel. **A configured channel
+must set exactly one** of `storage` or `binding` — an empty channel (e.g. `event: {}`) fails
+fast at startup. Omitting a channel entirely is what falls back to the default store.
+
+| Name | Data Type | Description | Default Value |
+|------|-----------|-------------|---------------|
+| `storage` | `StorageType` | Storage backend for this channel (overrides the default) | _(required if `binding` absent)_ |
+| `binding` | `String` | Name of the bound store/query-service bean to use | _(required if `storage` absent)_ |
+
+```yaml
+wow:
+  eventsourcing:
+    storage-routing:
+      aggregates:
+        # Hot aggregate: keep events and snapshots in Redis for low latency
+        HotAggregate:
+          event:
+            storage: redis
+          snapshot:
+            storage: redis
+        # Cold aggregate: fall back to the default MongoDB store
+        # (no route entry needed — default applies)
 ```
 
 ## State Event Bus

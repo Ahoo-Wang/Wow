@@ -666,8 +666,8 @@ wow:
 
 | 主题 | 描述 |
 |---|---|
-| [MongoDB 配置参考](../../reference/config/mongo.md) | `wow.mongo.*` 属性的配置参考 |
-| [事件溯源配置](../../reference/config/eventsourcing.md) | 存储后端选择（`wow.eventsourcing.store.storage`） |
-| [快照配置](../../reference/config/snapshot.md) | 快照策略和存储后端选择 |
+| [MongoDB 配置参考](../../reference/config/infrastructure) | `wow.mongo.*` 属性的配置参考 |
+| [事件溯源配置](../../reference/config/core) | 存储后端选择（`wow.eventsourcing.store.storage`） |
+| [快照配置](../../reference/config/core) | 快照策略和存储后端选择 |
 | [Redis 扩展](redis.md) | 替代的事件存储和快照后端 |
 | [Spring Boot Starter](spring-boot-starter.md) | 自动配置和功能变体 |

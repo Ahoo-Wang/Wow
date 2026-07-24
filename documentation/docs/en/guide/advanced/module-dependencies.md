@@ -447,5 +447,5 @@ The `wow-dependencies` module acts as a centralized BOM/platform for all third-p
 
 ## Related Pages
 
-- [Architecture Overview](./overview) — high-level architecture and CQRS patterns
+- [Architecture Overview](./architecture) — high-level architecture and CQRS patterns
 - [Data Flow](./data-flow) — step-by-step trace through the command and event pipeline

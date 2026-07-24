@@ -499,11 +499,11 @@ When an event's `revision` does not match the current schema version, Wow's even
 
 | Page | Description |
 |---|---|
-| [Command Bus](./command-bus) | Command routing and dispatch architecture |
+| [Command Gateway](../command-gateway) | Command routing and dispatch architecture |
 | [Event Store](../eventstore) | How domain events are persisted and loaded |
 | [Event Processor](../event-processor) | Creating and configuring event handlers |
 | [Saga Processor](../saga) | Distributed transaction orchestration via events |
-| [Kafka Configuration](../../reference/config/kafka) | Kafka connection and topic configuration |
-| [Event Configuration](../../reference/config/event) | Event bus type and routing settings |
-| [Architecture Overview](./overview.md) | High-level framework architecture |
-| [CQRS Reference](../../reference/awesome/cqrs) | CQRS patterns in Wow |
+| [Kafka Configuration](../../reference/config/infrastructure) | Kafka connection and topic configuration |
+| [Event Configuration](../../reference/config/core) | Event bus type and routing settings |
+| [Architecture Overview](./architecture) | High-level framework architecture |
+| [Core Concepts](../core-concepts) | CQRS patterns in Wow |

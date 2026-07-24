@@ -120,6 +120,10 @@ wow:
 |----------|------|---------|-------------|
 | `wow.webflux.enabled` | Boolean | `true` | Enable WebFlux command endpoint auto-registration |
 | `wow.webflux.global-error.enabled` | Boolean | `true` | Enable global error handling |
+| `wow.webflux.batch.concurrency` | Integer | `1` | Concurrency for batch command requests |
+| `wow.webflux.batch.prefetch` | Integer | `1` | Prefetch count for batch command requests |
+| `wow.webflux.command.request.appender.agent.enabled` | Boolean | `true` | Append the client `User-Agent` to the command request context (set `false` to disable) |
+| `wow.webflux.command.request.appender.ip.enabled` | Boolean | `true` | Append the client IP to the command request context (set `false` to disable) |
 
 ```yaml
 wow:
@@ -127,4 +131,14 @@ wow:
     enabled: true
     global-error:
       enabled: true
+    batch:
+      concurrency: 1
+      prefetch: 1
+    command:
+      request:
+        appender:
+          agent:
+            enabled: true
+          ip:
+            enabled: true
 ```
