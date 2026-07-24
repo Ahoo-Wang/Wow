@@ -513,6 +513,25 @@ val baselineInfrastructureProfile = BenchmarkRunProfile(
     includeAsyncProfiler = false,
 )
 
+val pureCreateSchedulerScreenProfile = BenchmarkRunProfile(
+    id = "pure-create-scheduler-screen",
+    warmupIterations = 2,
+    warmupTime = "3s",
+    measurementIterations = 3,
+    measurementTime = "5s",
+    forks = 1,
+    threads = listOf(14),
+    benchmarkModes = listOf("thrpt"),
+    jvmArgs = benchmarkJvmArgs,
+    parameters = mapOf(
+        "schedulerStrategy" to "PARALLEL",
+        "schedulerPoolSize" to "2,4,8,14",
+        "stripeCount" to "64,224,896",
+    ),
+    includeGcProfiler = false,
+    includeAsyncProfiler = false,
+)
+
 val asyncProfile = BenchmarkRunProfile(
     id = "async",
     warmupIterations = 1,
@@ -605,6 +624,13 @@ val infrastructureE2ESuite = BenchmarkSuite(
             port = benchmarkDockerPort("WOW_BENCHMARK_MONGO_HOST_PORT", 27017),
         ),
     ),
+)
+
+val pureCreateSchedulerScreenSuite = infrastructureE2ESuite.copy(
+    id = "pure-create-scheduler-screen",
+    displayName = "Pure Create Scheduler Screen",
+    resultFileName = "pure-create-scheduler-screen.json",
+    humanFileName = "pure-create-scheduler-screen-human.txt",
 )
 
 val componentSuite = BenchmarkSuite(
@@ -854,6 +880,14 @@ val baselineInfrastructureE2ETaskSpec = BenchmarkTaskSpec(
     description = "Runs the formal Redis and Mongo infrastructure baseline.",
 )
 
+val pureCreateSchedulerScreenTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkPureCreateSchedulerScreen",
+    suite = pureCreateSchedulerScreenSuite,
+    profile = pureCreateSchedulerScreenProfile,
+    description =
+        "Screens fixed-14-thread scheduler pool and stripe configurations on real pure-create PROCESSED paths.",
+)
+
 val quickComponentTaskSpec = BenchmarkTaskSpec(
     taskName = "benchmarkQuickComponent",
     suite = quickComponentSuite,
@@ -952,6 +986,7 @@ val benchmarkTaskSpecs = listOf(
     commandIngressHeadOfLineE2ETaskSpec,
     quickInfrastructureE2ETaskSpec,
     baselineInfrastructureE2ETaskSpec,
+    pureCreateSchedulerScreenTaskSpec,
     quickComponentTaskSpec,
     diagnosticComponentTaskSpec,
     openLoopObserverComponentTaskSpec,
