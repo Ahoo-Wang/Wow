@@ -13,6 +13,9 @@ hero:
       text: Get Started
       link: /guide/getting-started
     - theme: alt
+      text: KaiCode’26 Excellent Award
+      link: https://www.kaicode.org/2026.html
+    - theme: alt
       text: Introduction
       link: /guide/introduction
     - theme: alt
