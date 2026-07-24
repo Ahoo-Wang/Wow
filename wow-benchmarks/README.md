@@ -473,6 +473,15 @@ Baseline, latency, diagnostic, and exhaustive profiles use purpose-specific prop
   -PbenchmarkBaselineInfrastructureThreads=1,4 --no-parallel
 ```
 
+The fixed-14-thread pure-create scheduler screen defaults to the full scheduler matrix. For a
+provenance-backed single-cell confirmation, override all three JMH parameters explicitly:
+
+```bash
+./gradlew :wow-benchmarks:benchmarkPureCreateSchedulerScreen \
+  '-PbenchmarkPureCreateSchedulerScreenParameters=schedulerStrategy=PARALLEL;schedulerPoolSize=14;stripeCount=896' \
+  --no-parallel --console=plain
+```
+
 Scheduler HOL intentionally fixes four threads because `@GroupThreads(1) + @GroupThreads(3)`
 defines one experimental group. Its thread count and `thrpt,sample` modes are not configurable.
 Only `benchmarkCommandIngressHolParameters` is exposed for selecting a subset of the six

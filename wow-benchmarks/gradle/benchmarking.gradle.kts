@@ -523,11 +523,13 @@ val pureCreateSchedulerScreenProfile = BenchmarkRunProfile(
     threads = listOf(14),
     benchmarkModes = listOf("thrpt"),
     jvmArgs = benchmarkJvmArgs,
-    parameters = mapOf(
-        "schedulerStrategy" to "PARALLEL",
-        "schedulerPoolSize" to "2,4,8,14",
-        "stripeCount" to "64,224,896",
-    ),
+    parameters = benchmarkParametersProperty("benchmarkPureCreateSchedulerScreenParameters").ifEmpty {
+        mapOf(
+            "schedulerStrategy" to "PARALLEL",
+            "schedulerPoolSize" to "2,4,8,14",
+            "stripeCount" to "64,224,896",
+        )
+    },
     includeGcProfiler = false,
     includeAsyncProfiler = false,
 )
