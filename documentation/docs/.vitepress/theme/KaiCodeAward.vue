@@ -360,7 +360,7 @@ const copy = computed(() => isChinese.value
     position: absolute;
     bottom: -12px;
     height: auto;
-    opacity: 0;
+    opacity: 1;
     filter: drop-shadow(0 8px 12px rgba(24, 12, 3, 0.22));
 }
 
@@ -639,13 +639,9 @@ const copy = computed(() => isChinese.value
         transform: translateY(0) scale(1);
     }
 
-    78% {
-        opacity: 0.92;
-    }
-
     100% {
-        opacity: 0;
-        transform: translateY(-20px) scale(1.04);
+        opacity: 1;
+        transform: translateY(0) scale(1);
     }
 }
 
