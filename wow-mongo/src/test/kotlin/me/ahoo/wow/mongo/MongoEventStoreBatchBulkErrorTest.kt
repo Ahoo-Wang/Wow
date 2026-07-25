@@ -206,7 +206,7 @@ class MongoEventStoreBatchBulkErrorTest {
             MongoEventStoreBatchOptions(
                 enabled = true,
                 maxSize = 2,
-                maxDelay = Duration.ofMillis(10),
+                maxDelay = Duration.ofSeconds(10),
             ),
         )
     }
