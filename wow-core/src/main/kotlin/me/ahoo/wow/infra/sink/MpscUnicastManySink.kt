@@ -482,6 +482,10 @@ internal class MpscUnicastManySink<T : Any> private constructor(
 internal fun <T : Any> mpscUnicastManySink(): MpscUnicastManySink<T> =
     MpscUnicastManySink.create()
 
+/**
+ * Preserves the factory-owned MPSC fast path and serializes every other sink on
+ * its caller threads. [concurrent] is idempotent for existing decorators.
+ */
 internal fun <T : Any> Sinks.Many<T>.prepareConcurrentSink(): Sinks.Many<T> =
     if (this is MpscUnicastManySink<*>) {
         this

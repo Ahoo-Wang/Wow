@@ -800,7 +800,8 @@ wow:
 // Source: wow-core/src/main/kotlin/me/ahoo/wow/command/InMemoryCommandBus.kt:31-50
 class InMemoryCommandBus(
     override val sinkSupplier: (NamedAggregate) -> Many<CommandMessage<*>> = {
-        Sinks.unsafe().many().unicast().onBackpressureBuffer<CommandMessage<*>>().concurrent()
+        // 内部实现；自定义 supplier 可以返回任意 Sinks.Many。
+        mpscUnicastManySink()
     }
 ) : InMemoryMessageBus<CommandMessage<*>, ServerCommandExchange<*>>(),
     LocalCommandBus

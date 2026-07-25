@@ -21,37 +21,36 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /**
- * Thread-safe [Sinks.Many] decorator.
+ * Concurrent-emission [Sinks.Many] decorator.
  *
  * Reactor sinks reject concurrent emissions with [Sinks.EmitResult.FAIL_NON_SERIALIZED].
- * A [ReentrantLock] serializes every emission while allowing virtual threads to unmount
- * when they contend for the lock.
+ * A [ReentrantLock] serializes every emission call on its originating thread,
+ * preserving synchronous results, exception identity, thread-local context and
+ * downstream reentrancy.
+ * Subscription, scan and subscriber-count operations are delegated without acquiring
+ * this lock.
  *
  * @param T non-null element type
  * @param delegate sink whose emissions are serialized
  */
-class ConcurrentManySink<T : Any>(override val delegate: Sinks.Many<T>) :
-    Sinks.Many<T>,
+class ConcurrentManySink<T : Any>(
+    override val delegate: Sinks.Many<T>,
+) : Sinks.Many<T>,
     Decorator<Sinks.Many<T>> {
     private val lock = ReentrantLock()
 
-    override fun tryEmitNext(t: T): Sinks.EmitResult {
+    override fun tryEmitNext(t: T): Sinks.EmitResult =
         lock.withLock {
-            return delegate.tryEmitNext(t)
+            delegate.tryEmitNext(t)
         }
-    }
 
-    override fun tryEmitComplete(): Sinks.EmitResult {
-        lock.withLock {
-            return delegate.tryEmitComplete()
-        }
-    }
+    override fun tryEmitComplete(): Sinks.EmitResult =
+        lock.withLock(delegate::tryEmitComplete)
 
-    override fun tryEmitError(error: Throwable): Sinks.EmitResult {
+    override fun tryEmitError(error: Throwable): Sinks.EmitResult =
         lock.withLock {
-            return delegate.tryEmitError(error)
+            delegate.tryEmitError(error)
         }
-    }
 
     override fun emitNext(t: T, failureHandler: Sinks.EmitFailureHandler) {
         lock.withLock {
@@ -71,22 +70,23 @@ class ConcurrentManySink<T : Any>(override val delegate: Sinks.Many<T>) :
         }
     }
 
-    override fun currentSubscriberCount(): Int {
-        return delegate.currentSubscriberCount()
-    }
+    override fun currentSubscriberCount(): Int = delegate.currentSubscriberCount()
 
-    override fun asFlux(): Flux<T> {
-        return delegate.asFlux()
-    }
+    override fun asFlux(): Flux<T> = delegate.asFlux()
 
-    override fun scanUnsafe(key: Scannable.Attr<*>): Any? {
-        return delegate.scanUnsafe(key)
-    }
+    override fun scanUnsafe(key: Scannable.Attr<*>): Any? = delegate.scanUnsafe(key)
 }
 
-fun <T : Any> Sinks.Many<T>.concurrent(): ConcurrentManySink<T> {
-    if (this is ConcurrentManySink) {
-        return this
+/**
+ * Makes every emission method of this sink safe for concurrent producers.
+ *
+ * Existing [ConcurrentManySink] instances are returned unchanged. Other sinks retain
+ * their original subscription, backpressure, terminal and scan-attribute behavior while
+ * emission calls are serialized on their caller threads.
+ */
+fun <T : Any> Sinks.Many<T>.concurrent(): ConcurrentManySink<T> =
+    if (this is ConcurrentManySink<T>) {
+        this
+    } else {
+        ConcurrentManySink(this)
     }
-    return ConcurrentManySink(this)
-}
