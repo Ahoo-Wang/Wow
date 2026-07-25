@@ -800,7 +800,8 @@ The simplest bus -- uses Reactor `Sinks.Many` (unicast, backpressure-buffered) t
 // Source: wow-core/src/main/kotlin/me/ahoo/wow/command/InMemoryCommandBus.kt:31-50
 class InMemoryCommandBus(
     override val sinkSupplier: (NamedAggregate) -> Many<CommandMessage<*>> = {
-        Sinks.unsafe().many().unicast().onBackpressureBuffer<CommandMessage<*>>().concurrent()
+        // Internal implementation; custom suppliers may return any Sinks.Many.
+        mpscUnicastManySink()
     }
 ) : InMemoryMessageBus<CommandMessage<*>, ServerCommandExchange<*>>(),
     LocalCommandBus
