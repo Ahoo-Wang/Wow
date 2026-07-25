@@ -3,6 +3,7 @@ package me.ahoo.wow.spring.boot.starter.metrics
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
@@ -15,6 +16,8 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBindin
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import java.io.Closeable
+import java.util.concurrent.atomic.AtomicInteger
 
 class MetricsAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
@@ -46,6 +49,28 @@ class MetricsAutoConfigurationTest {
 
         metricBinding.eventStore.assert().isInstanceOf(MetricEventStore::class.java)
         processedAgain.assert().isSameAs(metricBinding)
+    }
+
+    @Test
+    fun `metrics post processor should preserve inferred event store destruction`() {
+        val closeCount = AtomicInteger()
+
+        contextRunner
+            .enableWow()
+            .withBean(
+                "closeableEventStore",
+                EventStore::class.java,
+                { CloseableEventStore(closeCount) },
+            )
+            .withUserConfiguration(MetricsAutoConfiguration::class.java)
+            .run { context ->
+                context.getBean("closeableEventStore")
+                    .assert()
+                    .isInstanceOf(MetricEventStore::class.java)
+                closeCount.get().assert().isEqualTo(0)
+            }
+
+        closeCount.get().assert().isEqualTo(1)
     }
 
     @Test
@@ -108,5 +133,14 @@ class MetricsAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 context.assert().hasSingleBean(MetricsBeanPostProcessor::class.java)
             }
+    }
+}
+
+private class CloseableEventStore(
+    private val closeCount: AtomicInteger,
+) : EventStore by InMemoryEventStore(),
+    Closeable {
+    override fun close() {
+        closeCount.incrementAndGet()
     }
 }
