@@ -21,12 +21,14 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /**
- * Thread-safe [Sinks.Many] decorator.
+ * Concurrent-emission [Sinks.Many] decorator.
  *
  * Reactor sinks reject concurrent emissions with [Sinks.EmitResult.FAIL_NON_SERIALIZED].
- * A [ReentrantLock] serializes every delegate call on its originating thread,
+ * A [ReentrantLock] serializes every emission call on its originating thread,
  * preserving synchronous results, exception identity, thread-local context and
  * downstream reentrancy.
+ * Subscription, scan and subscriber-count operations are delegated without acquiring
+ * this lock.
  *
  * @param T non-null element type
  * @param delegate sink whose emissions are serialized
@@ -80,7 +82,7 @@ class ConcurrentManySink<T : Any>(
  *
  * Existing [ConcurrentManySink] instances are returned unchanged. Other sinks retain
  * their original subscription, backpressure, terminal and scan-attribute behavior while
- * delegate calls are serialized on their caller threads.
+ * emission calls are serialized on their caller threads.
  */
 fun <T : Any> Sinks.Many<T>.concurrent(): ConcurrentManySink<T> =
     if (this is ConcurrentManySink<T>) {
