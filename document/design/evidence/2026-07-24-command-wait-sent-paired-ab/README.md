@@ -60,6 +60,11 @@ The acceptance gate requires the MongoDB and Redis lower bounds to each exceed `
 The candidate harness commit and the final merged-equivalent local commit have identical
 production sources. Their differences outside `wow-benchmarks` are test-only.
 
+The exact temporary commit and tree objects are retained in the
+[`source-objects.bundle`](source/README.md). The bundle uses the baseline production commit as its
+only prerequisite and preserves the baseline harness, candidate production and harness, final
+local commit, and measured benchmark tree even if their original refs are later deleted.
+
 ## Layout and verification
 
 Each `pair-NN-ab` or `pair-NN-ba` directory contains `baseline` and `candidate` subdirectories.
@@ -67,6 +72,8 @@ The JMH JSON, human output, and manifest retain the filenames recorded inside ea
 
 - `summary.csv` contains every per-pair score and ratio.
 - `provenance.json` records the cross-run source, runtime, container, and protocol identity.
+- `source/` retains the exact otherwise-unreachable Git objects and their machine-readable
+  manifest.
 - Every per-run manifest retains its own result and human-output hashes.
 - `SHA256SUMS` covers the retained files other than itself.
 
@@ -74,6 +81,7 @@ Verify the retained package:
 
 ```bash
 shasum -a 256 -c SHA256SUMS
+git bundle verify source/source-objects.bundle
 ```
 
 ## Interpretation limits

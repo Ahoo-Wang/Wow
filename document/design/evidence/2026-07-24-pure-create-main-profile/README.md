@@ -23,7 +23,8 @@ is the throughput evidence of record.
 
 The profile JAR was built from `ad427df203905485279f15e1efc719f2a371dd86`. Its production
 sources are equivalent to merged `main`; the overlay only supplies the neutral benchmark harness
-and test changes.
+and test changes. The exact profile-harness Git objects are retained in the paired evidence
+package's [measured-source bundle](../2026-07-24-command-wait-sent-paired-ab/source/README.md).
 
 ## Exact allocation and GC measurements
 

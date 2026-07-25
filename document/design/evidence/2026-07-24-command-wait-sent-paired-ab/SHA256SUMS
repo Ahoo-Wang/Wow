@@ -1,4 +1,4 @@
-147864043203302d869394c0548163148d25d6bac7a6a75b9fd14cad4dd84fa2  ./README.md
+29e2447dd0d8cb1a8ec6d24b50ed19e9b9f1bba2a41d70e69484cf6b31eb9dc2  ./README.md
 fd6183ec57b7abcfe1144c96ceeef90a7f42a15952545cb080c6c9e1932b0272  ./pair-01-ab/baseline/threads-14-pure-create-main-pr-pair-human.txt
 abc69d3f0b8ca85a2590fd027736e0e0503c4d1eebfcb90463a59e4c5f45001e  ./pair-01-ab/baseline/threads-14-pure-create-main-pr-pair.json
 681673af866ec3ea27a59d2cf9b29aa78df30f0d0b8770b01f9acc9b321fff39  ./pair-01-ab/baseline/threads-14-pure-create-main-pr-pair.manifest.json
@@ -47,5 +47,8 @@ c5c4389e097b63799ebe0c6ab7c51b4cc9e131cad5fb9124059e4c50a8974e67  ./pair-08-ba/b
 e41a41058d249df7ec8a462a3548f58173acca615dfa4052b9dee27a839776c7  ./pair-08-ba/candidate/threads-14-pure-create-main-pr-pair-human.txt
 7bf1b816914a9129ff4cb4849972cc9512fe654727bee82b3b92f43611b61eac  ./pair-08-ba/candidate/threads-14-pure-create-main-pr-pair.json
 e54f824e5298c2e7f7d7ffba7b7666fffc450dc2a38f51c89c77fe1c46822b8e  ./pair-08-ba/candidate/threads-14-pure-create-main-pr-pair.manifest.json
-aef1c3d2ed9b51fb5c99646200c609fac223ced88b80c8fa44a6caed47e9b6a2  ./provenance.json
+52c8337b178727e39d3c1a90cb63abccd17fa228be2df5ee9aae1a098cfb1309  ./provenance.json
+d8fdcc879565798fe28bd1d40f6f07fd3588ce0247bdd4808ba97ec12e9aba2f  ./source/README.md
+d78e1f27adfdecbea51ebff3e5d0723e70deb6c87215d6e961e13de0cd5cd44a  ./source/manifest.json
+d1c518e013e76d430e86a845da29967f70f84ffa391512ab90c15ff13a8b5d5d  ./source/source-objects.bundle
 1ac30bdca50c40625af060de0d0f37dd74ad597ae65a76c14ddc994089cef762  ./summary.csv

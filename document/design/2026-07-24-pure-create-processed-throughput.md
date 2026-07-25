@@ -16,6 +16,10 @@ It deliberately excludes snapshot load/replay, event-history replay, projections
 downstream consumers. The fixed configuration is 14 JMH callers, 14 aggregate-scheduler workers,
 896 ordering stripes, G1, and a fixed 4 GiB heap.
 
+The fixed scheduler settings are an experimental control, not a tuning result. This archive does
+not compare scheduler-pool or stripe-count alternatives and cannot establish that `14`/`896` is
+optimal.
+
 The throughput target is interpreted as a relative gain of at least 20% on each backend:
 
 ```text
@@ -73,8 +77,9 @@ unprofiled, balanced real-backend A/B runs may establish a throughput gain.
 3. MongoDB: separately test a schema-compatible direct `Document` builder that avoids the
    Jackson-to-map conversion. Treat it as an incremental candidate unless E2E evidence shows
    otherwise.
-4. Do not resume fixed scheduler tuning unless the workload or allowed in-flight concurrency
-   changes. The retained configuration screen found no common MongoDB/Redis improvement.
+4. Treat scheduler-pool and stripe-count tuning as unmeasured for this real-backend workload. If
+   reconsidered, run and retain a dedicated paired MongoDB/Redis configuration screen; do not use
+   the fixed `14`/`896` control as evidence of optimality.
 
 ## Evidence integrity
 

@@ -23,7 +23,12 @@
     "finalLocalEquivalentCommit": "a654f626d799d3f7a434e276a90592970cade947",
     "mergedMainCommit": "07b46a384e18d7d52c476406bee4b30389bc2f32",
     "mergedTree": "73f418d5942155c089621b9a5345eb92187e3262",
-    "productionEquivalence": "profile harness and merged-equivalent local commit have identical production sources; differences outside wow-benchmarks are test-only"
+    "productionEquivalence": "profile harness and merged-equivalent local commit have identical production sources; differences outside wow-benchmarks are test-only",
+    "sourceObjectBundle": {
+      "path": "../2026-07-24-command-wait-sent-paired-ab/source/source-objects.bundle",
+      "sha256": "d1c518e013e76d430e86a845da29967f70f84ffa391512ab90c15ff13a8b5d5d",
+      "profileHarnessHead": "ad427df203905485279f15e1efc719f2a371dd86"
+    }
   },
   "runtime": {
     "os": "Darwin 25.5.0 arm64",

@@ -27,7 +27,17 @@
     "benchmarkTree": "2c94013d564e636413d9a1bd34632465093d84db",
     "baselineJmhJarSha256": "239148992aee05ce23d0e8bf1c1112f87064d5f2e48d62197f6820c2e941a91c",
     "candidateJmhJarSha256": "198936b1cc0e1fdb133bbf1d0e877a52a19b273b10b323bc99a305c82893ffd6",
-    "productionEquivalence": "candidate harness and merged-equivalent local commit differ only in wow-benchmarks and test sources"
+    "productionEquivalence": "candidate harness and merged-equivalent local commit differ only in wow-benchmarks and test sources",
+    "sourceObjectBundle": {
+      "path": "source/source-objects.bundle",
+      "sha256": "d1c518e013e76d430e86a845da29967f70f84ffa391512ab90c15ff13a8b5d5d",
+      "prerequisiteCommit": "a37beee3a0b09b220bb857a24008ca77984f4785",
+      "heads": {
+        "baselineHarness": "b8dbb0da67dc8b471ffe1e8b5e3418fb744da6ea",
+        "candidateHarness": "ad427df203905485279f15e1efc719f2a371dd86",
+        "finalLocalEquivalent": "a654f626d799d3f7a434e276a90592970cade947"
+      }
+    }
   },
   "runtime": {
     "os": "Darwin arm64",
