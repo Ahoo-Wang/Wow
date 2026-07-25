@@ -18,6 +18,8 @@ import com.mongodb.reactivestreams.client.MongoCollection
 import com.mongodb.reactivestreams.client.MongoDatabase
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.event.DomainEventStream
@@ -36,6 +38,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
@@ -65,6 +68,73 @@ class MongoEventStoreBatchCloseTest {
 
         appendResult.join()
         verify(exactly = 1) { collection.insertMany(any<List<Document>>(), any()) }
+    }
+
+    @Test
+    fun `normal close should be idempotent and reject later appends`() {
+        val batcher = MongoEventStoreBatcher(
+            database = mockk(),
+            options = batchOptions(maxSize = 2),
+        )
+
+        batcher.close()
+        batcher.close()
+
+        StepVerifier.create(batcher.append(eventStream("order-after-close")))
+            .expectErrorMatches {
+                it is IllegalStateException && it.message == "MongoEventStore is closed."
+            }.verify()
+    }
+
+    @Test
+    fun `append racing with close should be rejected before reaching MongoDB`() {
+        val database = mockk<MongoDatabase>()
+        val batcher = MongoEventStoreBatcher(
+            database = database,
+            options = batchOptions(maxSize = 2),
+        )
+        val eventStream = eventStream("order-racing-close")
+        val document = eventStream.toDocument()
+        val conversionStarted = CountDownLatch(1)
+        val releaseConversion = CountDownLatch(1)
+        val appendExecutor = Executors.newSingleThreadExecutor()
+        var appendSubmission: Future<CompletableFuture<Void?>>? = null
+        mockkStatic("me.ahoo.wow.mongo.DocumentsKt")
+
+        try {
+            every { eventStream.toDocument() } answers {
+                conversionStarted.countDown()
+                releaseConversion.await()
+                document
+            }
+            appendSubmission = appendExecutor.submit<CompletableFuture<Void?>> {
+                batcher.append(eventStream).toFuture()
+            }
+            conversionStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
+
+            batcher.close()
+            releaseConversion.countDown()
+
+            val appendResult = checkNotNull(appendSubmission).get(1, TimeUnit.SECONDS)
+            assertThrows<CompletionException>(appendResult::join)
+                .cause.assert().isInstanceOf(IllegalStateException::class.java)
+            verify(exactly = 0) { database.getCollection(any<String>()) }
+        } finally {
+            releaseConversion.countDown()
+            appendExecutor.shutdown()
+            appendSubmission?.let { submission ->
+                runCatching {
+                    submission.get(1, TimeUnit.SECONDS)
+                        .get(1, TimeUnit.SECONDS)
+                }
+            }
+            if (!appendExecutor.awaitTermination(1, TimeUnit.SECONDS)) {
+                appendExecutor.shutdownNow()
+                appendExecutor.awaitTermination(1, TimeUnit.SECONDS)
+            }
+            runCatching(batcher::close)
+            unmockkStatic("me.ahoo.wow.mongo.DocumentsKt")
+        }
     }
 
     @Test
@@ -236,7 +306,11 @@ class MongoEventStoreBatchCloseTest {
         } returns Mono.just(InsertManyResult.acknowledged(emptyMap()))
         val batcher = MongoEventStoreBatcher(
             database = database,
-            options = batchOptions(maxSize = 2),
+            options = MongoEventStoreBatchOptions(
+                enabled = true,
+                maxSize = 2,
+                maxDelay = Duration.ofHours(1),
+            ),
             closeTimeout = Duration.ofMillis(50),
         )
 
@@ -334,6 +408,10 @@ class MongoEventStoreBatchCloseTest {
         val closeError = assertThrows<MongoEventStoreBatchCloseTimeoutException> {
             batcher.close()
         }
+        closeError.timeout.assert().isEqualTo(Duration.ofMillis(50))
+        closeError.message.assert().isEqualTo(
+            "MongoEventStore batcher did not close within [PT0.05S]."
+        )
         assertTimeoutPreemptively(Duration.ofSeconds(1)) {
             assertThrows<CompletionException> {
                 first.join()
@@ -347,6 +425,66 @@ class MongoEventStoreBatchCloseTest {
             assertThrows<MongoEventStoreBatchCloseTimeoutException> {
                 batcher.close()
             }.assert().isSameAs(closeError)
+        }
+    }
+
+    @Test
+    fun `interrupted close should preserve interrupt and fail pending appends`() {
+        val database = mockk<MongoDatabase>()
+        val collection = mockk<MongoCollection<Document>>()
+        val writeSubscribed = CountDownLatch(1)
+        every { database.getCollection(any<String>()) } returns collection
+        every {
+            collection.insertMany(any<List<Document>>(), any())
+        } returns Mono.defer {
+            writeSubscribed.countDown()
+            Mono.never()
+        }
+        val batcher = MongoEventStoreBatcher(
+            database = database,
+            options = batchOptions(maxSize = 2),
+            closeTimeout = Duration.ofSeconds(1),
+        )
+        val first = batcher.append(eventStream("order-1")).toFuture()
+        val second = batcher.append(eventStream("order-2")).toFuture()
+        val closeObservation = CompletableFuture<Pair<Throwable?, Boolean>>()
+        val closeThread = Thread(
+            {
+                Thread.currentThread().interrupt()
+                val error = runCatching(batcher::close).exceptionOrNull()
+                val interruptPreserved = Thread.currentThread().isInterrupted
+                Thread.interrupted()
+                closeObservation.complete(error to interruptPreserved)
+            },
+            "wow-mongo-interrupted-close-test"
+        ).apply {
+            isDaemon = true
+        }
+
+        try {
+            writeSubscribed.await(1, TimeUnit.SECONDS).assert().isTrue()
+            closeThread.start()
+            val (observedError, interruptPreserved) =
+                closeObservation.get(1, TimeUnit.SECONDS)
+            val closeError = checkNotNull(observedError)
+            closeError.assert().isInstanceOf(IllegalStateException::class.java)
+            closeError.cause.assert().isInstanceOf(InterruptedException::class.java)
+            interruptPreserved.assert().isTrue()
+
+            listOf(first, second).forEach {
+                assertThrows<CompletionException>(it::join)
+                    .cause.assert().isSameAs(closeError)
+            }
+            assertThrows<IllegalStateException> {
+                batcher.close()
+            }.assert().isSameAs(closeError)
+        } finally {
+            if (closeThread.isAlive) {
+                closeThread.interrupt()
+                closeThread.join(1_000)
+            } else {
+                runCatching(batcher::close)
+            }
         }
     }
 

@@ -496,13 +496,11 @@ internal class MongoEventStoreBatcher(
     }
 
     private fun initiateClose() {
-        var emitResult: Sinks.EmitResult? = null
         synchronized(emissionLock) {
             while (true) {
                 when (val current = lifecycle.get()) {
                     Lifecycle.Open -> {
                         if (lifecycle.compareAndSet(current, Lifecycle.Closing)) {
-                            emitResult = requests.tryEmitComplete()
                             break
                         }
                     }
@@ -515,7 +513,11 @@ internal class MongoEventStoreBatcher(
                 }
             }
         }
-        if (emitResult?.isFailure == true && emitResult != Sinks.EmitResult.FAIL_TERMINATED) {
+        // Sink completion runs the processor callback synchronously. Keep it outside
+        // emissionLock because resultExecutor.terminated() acquires this lock while
+        // ThreadPoolExecutor still owns its main lock.
+        val emitResult = requests.tryEmitComplete()
+        if (emitResult.isFailure && emitResult != Sinks.EmitResult.FAIL_TERMINATED) {
             val error = IllegalStateException("Failed to close MongoEventStore batcher: $emitResult")
             failLifecycle(error, disposeProcessor = true)
         }

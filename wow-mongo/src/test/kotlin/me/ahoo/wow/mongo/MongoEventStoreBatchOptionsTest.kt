@@ -49,6 +49,15 @@ class MongoEventStoreBatchOptionsTest {
     }
 
     @Test
+    fun `negative max delay should be rejected`() {
+        val error = assertThrows<IllegalArgumentException> {
+            MongoEventStoreBatchOptions(maxDelay = Duration.ofMillis(-1))
+        }
+
+        error.message.assert().isEqualTo("maxDelay must be positive.")
+    }
+
+    @Test
     fun `max pending appends should cover a full batch`() {
         val error = assertThrows<IllegalArgumentException> {
             MongoEventStoreBatchOptions(

@@ -31,8 +31,10 @@ import io.mockk.slot
 import io.mockk.unmockkStatic
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
+import me.ahoo.wow.exception.recoverable
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.event.MockDomainEventStreams
@@ -367,6 +369,46 @@ class MongoEventStoreBatchTest {
     }
 
     @Test
+    fun `unacknowledged batch result should fail that batch without terminating later batches`() {
+        val database = mockk<MongoDatabase>()
+        val collection = mockk<MongoCollection<Document>>()
+        var attempts = 0
+        every { database.getCollection(any<String>()) } returns collection
+        every {
+            collection.insertMany(any<List<Document>>(), any())
+        } answers {
+            if (attempts++ == 0) {
+                Mono.just(InsertManyResult.unacknowledged())
+            } else {
+                Mono.just(InsertManyResult.acknowledged(emptyMap()))
+            }
+        }
+
+        MongoEventStore(database, batchOptions(maxSize = 2)).use { eventStore ->
+            val failedSignals = Mono.zip(
+                eventStore.append(eventStream("order-1")).materialize(),
+                eventStore.append(eventStream("order-2")).materialize(),
+            ).block()!!
+
+            failedSignals.t1.throwable.assert().isInstanceOf(IllegalStateException::class.java)
+            failedSignals.t1.throwable?.message.assert()
+                .isEqualTo("MongoDB did not acknowledge the event stream batch append.")
+            failedSignals.t2.throwable.assert().isInstanceOf(IllegalStateException::class.java)
+            failedSignals.t2.throwable?.message.assert()
+                .isEqualTo("MongoDB did not acknowledge the event stream batch append.")
+
+            StepVerifier.create(
+                Flux.merge(
+                    eventStore.append(eventStream("order-3")),
+                    eventStore.append(eventStream("order-4")),
+                ).then()
+            ).verifyComplete()
+        }
+
+        verify(exactly = 2) { collection.insertMany(any<List<Document>>(), any()) }
+    }
+
+    @Test
     fun `document conversion error should fail only the matching append`() {
         val database = mockk<MongoDatabase>()
         val collection = mockk<MongoCollection<Document>>()
@@ -482,6 +524,26 @@ class MongoEventStoreBatchTest {
     }
 
     @Test
+    fun `a fully cancelled batch should not call MongoDB`() {
+        val database = mockk<MongoDatabase>()
+        val batcher = MongoEventStoreBatcher(
+            database = database,
+            options = MongoEventStoreBatchOptions(
+                enabled = true,
+                maxSize = 2,
+                maxDelay = Duration.ofHours(1),
+                maxPendingAppends = 2,
+            ),
+        )
+
+        val cancelled = batcher.append(eventStream("order-cancelled")).subscribe()
+        cancelled.dispose()
+        batcher.close()
+
+        verify(exactly = 0) { database.getCollection(any<String>()) }
+    }
+
+    @Test
     fun `pending capacity should reject overflow without terminating the batcher`() {
         val database = mockk<MongoDatabase>()
         val collection = mockk<MongoCollection<Document>>()
@@ -502,7 +564,15 @@ class MongoEventStoreBatchTest {
             val second = eventStore.append(eventStream("order-2")).toFuture()
 
             StepVerifier.create(eventStore.append(eventStream("order-overflow")))
-                .expectError(MongoEventStoreBatchOverflowException::class.java)
+                .expectErrorSatisfies { error ->
+                    error.assert().isInstanceOf(MongoEventStoreBatchOverflowException::class.java)
+                    val overflow = error as MongoEventStoreBatchOverflowException
+                    overflow.maxPendingAppends.assert().isEqualTo(2)
+                    overflow.message.assert().isEqualTo(
+                        "MongoEventStore batch pending append capacity[2] has been exhausted."
+                    )
+                    overflow.recoverable.assert().isEqualTo(RecoverableType.RECOVERABLE)
+                }
                 .verify()
 
             insertResult.tryEmitValue(InsertManyResult.acknowledged(emptyMap()))
