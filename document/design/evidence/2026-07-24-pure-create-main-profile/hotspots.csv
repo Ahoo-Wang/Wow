@@ -1,0 +1,20 @@
+backend,family,samples,sample_percent,relationship,interpretation
+mongo,mongo_driver_or_bson,18956,61.732,inclusive,Overlaps narrower MongoDB families and is not additive
+mongo,domain_event_stream_to_document,3350,10.910,inclusive,Jackson-to-map plus Document construction
+mongo,jackson_map_conversion,2714,8.838,inclusive,Subset of toDocument
+mongo,bson_document_encode,2557,8.327,inclusive,Driver BSON encoding
+mongo,bson_codec_lookup,2008,6.539,inclusive,Driver BSON codec lookup
+mongo,state_event_publish,939,3.058,inclusive,Shared post-store state-event path
+mongo,in_memory_bus,388,1.264,inclusive,Shared local bus path
+redis,encode_sortable_id_total,7745,26.607,inclusive,Encoding body across all three callers
+redis,encode_from_index_member,2545,8.743,exclusive-partition-of-encode,Encoding-body samples called by encodeIndexMember
+redis,encode_from_index_prefix,2566,8.815,exclusive-partition-of-encode,Encoding-body samples called by indexMemberPrefix
+redis,encode_from_index_lower_bound,2634,9.049,exclusive-partition-of-encode,Encoding-body samples called by indexMemberAfterId
+redis,index_member_full_path,2699,9.272,mutually-exclusive-full-path,Encoding plus index-member string assembly
+redis,index_prefix_full_path,2665,9.155,mutually-exclusive-full-path,Encoding plus prefix string assembly
+redis,index_lower_bound_full_path,2697,9.265,mutually-exclusive-full-path,Encoding plus lower-bound string assembly
+redis,spring_script_keys_and_args,1854,6.369,inclusive,Spring Redis script argument construction
+redis,event_json,1056,3.628,inclusive,Event-stream JSON serialization
+redis,lettuce_subscription_queue,885,3.040,inclusive,Lettuce reactive subscription queue
+redis,state_event_publish,1070,3.676,inclusive,Shared post-store state-event path
+redis,in_memory_bus,415,1.426,inclusive,Shared local bus path
