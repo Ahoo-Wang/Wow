@@ -11,8 +11,8 @@ This report measures an append-path E2E workload from per-invocation event-strea
 
 | JMH Threads | Pairs | insertOne geometric mean | insertMany batch geometric mean | Paired ratio | Gain | Paired 95% CI | Required lower bound | Verdict |
 |-------------|------:|-------------:|--------------------:|-------------:|-----:|---------------:|---------------------:|---------|
-| 1 | 8 | 22.51 k ops/s | 53.03 k ops/s | 2.356178× | +135.618% | [2.212780×, 2.508868×] | > 1.050000× | **PASS** |
-| 4 | 8 | 31.01 k ops/s | 57.01 k ops/s | 1.838506× | +83.851% | [1.759418×, 1.921148×] | > 1.050000× | **PASS** |
+| 1 | 8 | 22.26 k ops/s | 52.03 k ops/s | 2.337346× | +133.735% | [2.258217×, 2.419247×] | > 1.050000× | **PASS** |
+| 4 | 8 | 29.51 k ops/s | 56.54 k ops/s | 1.915580× | +91.558% | [1.825285×, 2.010342×] | > 1.050000× | **PASS** |
 
 All measured thread configurations pass because each unrounded paired 95% CI lower bound is strictly greater than the configured `1.05×` throughput threshold.
 
@@ -31,8 +31,8 @@ All measured thread configurations pass because each unrounded paired 95% CI low
 
 | JMH Threads | AB pairs | AB geometric ratio | BA pairs | BA geometric ratio | Pair ratio range (descriptive) | Pairs > 1.05× (descriptive) |
 |-------------|---------:|-------------------:|---------:|-------------------:|-----------------:|---------------:|
-| 1 | 4 | 2.339617× | 4 | 2.372856× | [2.160389×, 2.719142×] | 8/8 |
-| 4 | 4 | 1.871011× | 4 | 1.806565× | [1.708661×, 1.985599×] | 8/8 |
+| 1 | 4 | 2.335371× | 4 | 2.339322× | [2.214198×, 2.515445×] | 8/8 |
+| 4 | 4 | 1.888197× | 4 | 1.943360× | [1.745711×, 2.105010×] | 8/8 |
 
 AB and BA subgroup ratios are diagnostics for a fixed-order artifact; they are not additional hypothesis tests and do not prove that order effects are absent.
 
@@ -40,31 +40,31 @@ AB and BA subgroup ratios are diagnostics for a fixed-order artifact; they are n
 
 | JMH Threads | Round | Order | insertOne | insertMany batch | Ratio | Gain |
 |-------------|------:|:-----:|----------:|-----------------:|------:|-----:|
-| 1 | 1 | AB | 22.94 k ops/s | 57.14 k ops/s | 2.491267× | +149.127% |
-| 1 | 2 | BA | 22.38 k ops/s | 60.87 k ops/s | 2.719142× | +171.914% |
-| 1 | 3 | AB | 22.48 k ops/s | 51.54 k ops/s | 2.293352× | +129.335% |
-| 1 | 4 | BA | 22.28 k ops/s | 50.9 k ops/s | 2.284907× | +128.491% |
-| 1 | 5 | AB | 22.72 k ops/s | 55.16 k ops/s | 2.427481× | +142.748% |
-| 1 | 6 | BA | 21.77 k ops/s | 47.57 k ops/s | 2.185096× | +118.510% |
-| 1 | 7 | AB | 22.77 k ops/s | 49.2 k ops/s | 2.160389× | +116.039% |
-| 1 | 8 | BA | 22.75 k ops/s | 53.13 k ops/s | 2.335149× | +133.515% |
-| 4 | 1 | AB | 31.69 k ops/s | 55.83 k ops/s | 1.761867× | +76.187% |
-| 4 | 2 | BA | 31.69 k ops/s | 57.81 k ops/s | 1.824227× | +82.423% |
-| 4 | 3 | AB | 29.24 k ops/s | 58.05 k ops/s | 1.985599× | +98.560% |
-| 4 | 4 | BA | 32.24 k ops/s | 55.08 k ops/s | 1.708661× | +70.866% |
-| 4 | 5 | AB | 29.25 k ops/s | 57.69 k ops/s | 1.972127× | +97.213% |
-| 4 | 6 | BA | 30.46 k ops/s | 56.53 k ops/s | 1.856013× | +85.601% |
-| 4 | 7 | AB | 32.18 k ops/s | 57.16 k ops/s | 1.776257× | +77.626% |
-| 4 | 8 | BA | 31.49 k ops/s | 57.98 k ops/s | 1.841190× | +84.119% |
+| 1 | 1 | AB | 21.97 k ops/s | 52.6 k ops/s | 2.394380× | +139.438% |
+| 1 | 2 | BA | 22.19 k ops/s | 52.27 k ops/s | 2.355269× | +135.527% |
+| 1 | 3 | AB | 22.25 k ops/s | 49.63 k ops/s | 2.230482× | +123.048% |
+| 1 | 4 | BA | 23.04 k ops/s | 53.74 k ops/s | 2.333078× | +133.308% |
+| 1 | 5 | AB | 22.45 k ops/s | 49.71 k ops/s | 2.214198× | +121.420% |
+| 1 | 6 | BA | 22.48 k ops/s | 53.49 k ops/s | 2.379273× | +137.927% |
+| 1 | 7 | AB | 20.85 k ops/s | 52.45 k ops/s | 2.515445× | +151.544% |
+| 1 | 8 | BA | 22.94 k ops/s | 52.54 k ops/s | 2.290584× | +129.058% |
+| 4 | 1 | AB | 30.1 k ops/s | 55.05 k ops/s | 1.829017× | +82.902% |
+| 4 | 2 | BA | 29.36 k ops/s | 56.84 k ops/s | 1.936271× | +93.627% |
+| 4 | 3 | AB | 29.7 k ops/s | 57.91 k ops/s | 1.950057× | +95.006% |
+| 4 | 4 | BA | 29.18 k ops/s | 61.42 k ops/s | 2.105010× | +110.501% |
+| 4 | 5 | AB | 30.04 k ops/s | 57.85 k ops/s | 1.925349× | +92.535% |
+| 4 | 6 | BA | 28.91 k ops/s | 50.48 k ops/s | 1.745711× | +74.571% |
+| 4 | 7 | AB | 30.34 k ops/s | 56.16 k ops/s | 1.851036× | +85.104% |
+| 4 | 8 | BA | 28.53 k ops/s | 57.18 k ops/s | 2.004567× | +100.457% |
 
 ## Benchmark Run Provenance
 
 - **Suite**: `mongo-batch-append-paired-e2e`
 - **Profile**: `paired-confirmation`
-- **Run ID**: `0bddd8c0-04a6-4f87-834e-fdd2ceeacf8a`
-- **Run Window**: 2026-07-25T00:43:32.399933Z to 2026-07-25T00:50:29.227105Z
-- **Source Commit**: `be7de318e36601389f5edecc11a46b9af10ab225`
-- **Source Dirty**: `true`
+- **Run ID**: `eb49a7f8-f617-41b8-9167-fb66219c42ab`
+- **Run Window**: 2026-07-25T01:15:10.554740Z to 2026-07-25T01:22:06.790071Z
+- **Source Commit**: `c37331ea5c7f60fc05b880c1e5cb92dad873a000`
+- **Source Dirty**: `false`
 - **Project Version**: `8.9.1`
 - **JMH Jar SHA-256**: `628beed4242fc1e0e4384bda8978df4d6c445c98bf3741dd844bf34323b5261e`
 - **Runtime JVM**: OpenJDK 64-Bit Server VM 17.0.7+7-LTS / Java 17.0.7
@@ -73,50 +73,50 @@ AB and BA subgroup ratios are diagnostics for a fixed-order artifact; they are n
 - **Physical Memory**: 24.0 GiB
 - **Required Services**: `MongoDB=localhost:27017`
 - **Successful Leg Manifests**: 32
-- **Combined Result SHA-256**: `5d618ff7af0eb0345e243993bf1043e2e8d14006471d8416572127a2ab455a1a` (`SHA-256` over sorted `taskPath=resultSha256` lines)
+- **Combined Result SHA-256**: `710b371e9c878ba3147831d89d9f482b1b6958eba18317b965a3e7034e3a70bb` (`SHA-256` over sorted `taskPath=resultSha256` lines)
 
 ### Artifact Evidence
 
 | Threads | Round | Order | Position | Variant | Task | Started | Completed | Result SHA-256 |
 |---------|------:|:-----:|---------:|---------|------|---------|-----------|----------------|
-| 1 | 1 | AB | 1 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R01Direct` | 2026-07-25T00:43:32.399933Z | 2026-07-25T00:43:45.387933Z | `859a2d63b33323cad630af48989ef169ccf227527113867367f5a6cd762bdf4f` |
-| 1 | 1 | AB | 2 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R01Batch` | 2026-07-25T00:43:45.447063Z | 2026-07-25T00:43:58.258773Z | `c8bf304bcda20303499b7d067dbc8512a8358eb73a9d412327efa73f19239cf0` |
-| 1 | 2 | BA | 1 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R02Batch` | 2026-07-25T00:43:58.308570Z | 2026-07-25T00:44:11.047545Z | `676d1d30c65985da24966514de743baccd91b20240ec0f6eae20d7c1a3a54df8` |
-| 1 | 2 | BA | 2 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R02Direct` | 2026-07-25T00:44:11.086770Z | 2026-07-25T00:44:23.726762Z | `4b535fc9f042b6ab91b96276a50eb24c77693ddb3405f57bd6b526e406a804e0` |
-| 1 | 3 | AB | 1 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R03Direct` | 2026-07-25T00:44:23.784992Z | 2026-07-25T00:44:36.579051Z | `6ab88239c93180eb04ef3e6c8b247a027368c9f0e29aa1ee36f77ddf667d6ff0` |
-| 1 | 3 | AB | 2 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R03Batch` | 2026-07-25T00:44:36.636964Z | 2026-07-25T00:44:49.386153Z | `9e58ad6fb4296f368b1a1c247f425adfb69382832ccf52ef9f2ac0674ddf2656` |
-| 1 | 4 | BA | 1 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R04Batch` | 2026-07-25T00:44:49.443404Z | 2026-07-25T00:45:02.606830Z | `13c6ca4471c81f23d827e3e0b510034c52f2679931c34fa444eb524484d2147d` |
-| 1 | 4 | BA | 2 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R04Direct` | 2026-07-25T00:45:02.698281Z | 2026-07-25T00:45:15.709910Z | `df13f6d26741ea390da99efbff1505d7927df1d28b559039fd1a7ec84bec6e6b` |
-| 1 | 5 | AB | 1 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R05Direct` | 2026-07-25T00:45:15.775421Z | 2026-07-25T00:45:28.765818Z | `89398d7a2194ea9168b8bf65cb270e4ec34e0970a90465e2b8db6478824e4d22` |
-| 1 | 5 | AB | 2 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R05Batch` | 2026-07-25T00:45:28.822778Z | 2026-07-25T00:45:41.755791Z | `db64bfd5bd5976760abfd3ee2565b86fde2b9165ea91714b7e10157e16d942d5` |
-| 1 | 6 | BA | 1 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R06Batch` | 2026-07-25T00:45:41.809774Z | 2026-07-25T00:45:54.744880Z | `4c508e6d287bcf5ba0981ba806eb8ec6d05b0b98fe6dd9b443b21dbc4fdf88e2` |
-| 1 | 6 | BA | 2 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R06Direct` | 2026-07-25T00:45:54.816980Z | 2026-07-25T00:46:07.745572Z | `99f5661aaa52577dad2ab05048a9cd9cdfbd71c65de3d03892151f75a794a531` |
-| 1 | 7 | AB | 1 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R07Direct` | 2026-07-25T00:46:07.810024Z | 2026-07-25T00:46:20.729549Z | `dfce1d109119cc29796f540d2de519312aa4f2707948f5f3039d5ab531fd434c` |
-| 1 | 7 | AB | 2 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R07Batch` | 2026-07-25T00:46:20.793444Z | 2026-07-25T00:46:33.756370Z | `032a47a5e9640fb52b8d600353495c5a9e9cd79c5559ac175e88320430158f2d` |
-| 1 | 8 | BA | 1 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R08Batch` | 2026-07-25T00:46:33.818813Z | 2026-07-25T00:46:46.789922Z | `4bf23a684e0249f24c5261c778bb17e0f07a168edc97c9ba356f09ede64f8dd0` |
-| 1 | 8 | BA | 2 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R08Direct` | 2026-07-25T00:46:46.851874Z | 2026-07-25T00:46:59.838948Z | `6b9472b7fbf87e63f2beebe6642b3b422ca1d5afd70356094baa91dbb4e91a7b` |
-| 4 | 1 | AB | 1 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R01Direct` | 2026-07-25T00:46:59.893498Z | 2026-07-25T00:47:12.894061Z | `4e8b52a1d6aaadeebd59165c534091fe94e40fe032f4da260f66d7a36db7bd72` |
-| 4 | 1 | AB | 2 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R01Batch` | 2026-07-25T00:47:12.948625Z | 2026-07-25T00:47:25.965817Z | `b609dcdba157790a5900537560b236d9110b5b71f51adfd14ffee10121a92801` |
-| 4 | 2 | BA | 1 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R02Batch` | 2026-07-25T00:47:26.022857Z | 2026-07-25T00:47:38.965925Z | `76336474f01ec92ce768c6dce614110a4b14a571a027a839169ee47ae70f9c78` |
-| 4 | 2 | BA | 2 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R02Direct` | 2026-07-25T00:47:39.027179Z | 2026-07-25T00:47:52.004260Z | `b540c527159197be152a460727a65dcfb077b97ce8639a8683be2e1e268aad66` |
-| 4 | 3 | AB | 1 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R03Direct` | 2026-07-25T00:47:52.077163Z | 2026-07-25T00:48:05.176674Z | `f12e229717a6d861bd79c475556ac163c2740585a95b79277174fc15abe7de2b` |
-| 4 | 3 | AB | 2 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R03Batch` | 2026-07-25T00:48:05.232232Z | 2026-07-25T00:48:18.300897Z | `be7c5db25298e10d60e11547108b86cdfa8a028d56e2d38a2dec0f1bff4aeea7` |
-| 4 | 4 | BA | 1 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R04Batch` | 2026-07-25T00:48:18.356701Z | 2026-07-25T00:48:31.434532Z | `f0265cb87887ae0569223f7e2bebc3f5aa477b780ef24bd581d84775a414ff10` |
-| 4 | 4 | BA | 2 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R04Direct` | 2026-07-25T00:48:31.483045Z | 2026-07-25T00:48:44.547606Z | `2673227fb5bef53e049c78e2ce75acca4c387b02dc4fc6e8e432ef74bd763233` |
-| 4 | 5 | AB | 1 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R05Direct` | 2026-07-25T00:48:44.601410Z | 2026-07-25T00:48:57.638718Z | `4adce77eb8be883aaf0e9f848d46196852506229d1e4736a488dd7c800e65c0d` |
-| 4 | 5 | AB | 2 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R05Batch` | 2026-07-25T00:48:57.694023Z | 2026-07-25T00:49:10.727287Z | `e6a531c66295fa007683743b83652485e961a03a3ff32ca08c9070ed1c39de79` |
-| 4 | 6 | BA | 1 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R06Batch` | 2026-07-25T00:49:10.781955Z | 2026-07-25T00:49:23.799677Z | `62734d6c5c91ba06bc4b0270c6bc3b30d8e96fdb5f7ed1da9d1462c34bfc4be4` |
-| 4 | 6 | BA | 2 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R06Direct` | 2026-07-25T00:49:23.867947Z | 2026-07-25T00:49:36.898879Z | `f62d170d840122b44e9a3af07ebbe2974df2166b0805f15873254010464cb86b` |
-| 4 | 7 | AB | 1 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R07Direct` | 2026-07-25T00:49:36.955547Z | 2026-07-25T00:49:49.977960Z | `5fc2c0f9897526a1e3665a1bb5586518de8f17f4e4014fac603bc8c7f61e87d7` |
-| 4 | 7 | AB | 2 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R07Batch` | 2026-07-25T00:49:50.019864Z | 2026-07-25T00:50:03.006468Z | `af9fd8f86434cfc58be29f1d2c200b9abc18c7e0084ee754a7554b305308024d` |
-| 4 | 8 | BA | 1 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R08Batch` | 2026-07-25T00:50:03.064060Z | 2026-07-25T00:50:16.101818Z | `47a0d7462185c77f8c50fecc654bb711f115007fadfe3f1b9688109d321eaaeb` |
-| 4 | 8 | BA | 2 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R08Direct` | 2026-07-25T00:50:16.157525Z | 2026-07-25T00:50:29.227105Z | `3a60a0e528c7785dfd775914b6322e3b7146236efe8a96cdd2d12beaf5fe75d8` |
+| 1 | 1 | AB | 1 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R01Direct` | 2026-07-25T01:15:10.554740Z | 2026-07-25T01:15:23.772047Z | `e8ee28e27fa62599dbcee579d8adcc93293ff661113bffd5a0193612462fae50` |
+| 1 | 1 | AB | 2 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R01Batch` | 2026-07-25T01:15:23.830425Z | 2026-07-25T01:15:36.817581Z | `cb608b476feb1532cefcec456ee267c911f557be309fb0bbac6b39a239b6efd1` |
+| 1 | 2 | BA | 1 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R02Batch` | 2026-07-25T01:15:36.869440Z | 2026-07-25T01:15:49.791971Z | `b25fa1bdc12e1791fb1d9c7cf8640feee4c41f548b7a624c638dfccf681e6d4e` |
+| 1 | 2 | BA | 2 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R02Direct` | 2026-07-25T01:15:49.851122Z | 2026-07-25T01:16:02.820845Z | `49fb1c9bdcbd430c35224479bd89141570609ce00fc985498429d90b4b754b00` |
+| 1 | 3 | AB | 1 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R03Direct` | 2026-07-25T01:16:02.874647Z | 2026-07-25T01:16:15.916471Z | `6718c89e45d42aee9bc07633a3693f6edd98b59fad2713635f08ee3963788c95` |
+| 1 | 3 | AB | 2 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R03Batch` | 2026-07-25T01:16:15.971488Z | 2026-07-25T01:16:29.020576Z | `4e152b88748aeacd109087a319a33b1f210ee27303bfa99a1061d031738d3041` |
+| 1 | 4 | BA | 1 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R04Batch` | 2026-07-25T01:16:29.074852Z | 2026-07-25T01:16:42.112296Z | `12432f68e20cf83aa31b45a57dc00f0001e8d76a21dc4e7a489e3d19efeaff91` |
+| 1 | 4 | BA | 2 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R04Direct` | 2026-07-25T01:16:42.166540Z | 2026-07-25T01:16:55.181939Z | `ad0f30365a5dd167da7d4f07b8e3e77ca5e70245ad6b486533e9a0578cd37731` |
+| 1 | 5 | AB | 1 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R05Direct` | 2026-07-25T01:16:55.235014Z | 2026-07-25T01:17:08.255626Z | `41724a7e93a6ed66e9fb17ab1a817f24e5f73540531e6b944a8628c858f522f6` |
+| 1 | 5 | AB | 2 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R05Batch` | 2026-07-25T01:17:08.313861Z | 2026-07-25T01:17:21.402381Z | `6b778a94fedaf21529071dd2cd39b9c5cb4d9bcec3361262c54f96c63d798f79` |
+| 1 | 6 | BA | 1 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R06Batch` | 2026-07-25T01:17:21.458214Z | 2026-07-25T01:17:34.507964Z | `92842148c4f4888e0ebb943363caa96bdd722dc507471d6d4f67334f1a308596` |
+| 1 | 6 | BA | 2 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R06Direct` | 2026-07-25T01:17:34.571471Z | 2026-07-25T01:17:47.577605Z | `3d7006b99a201635484e6c2fdcfb509b4594cf9f0406fc50e2ec799525eee1bf` |
+| 1 | 7 | AB | 1 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R07Direct` | 2026-07-25T01:17:47.631897Z | 2026-07-25T01:18:00.611483Z | `7cbbee26590c6bd3447e840fc29a9bbb0f837914cc4876a9e3c945278a89aabd` |
+| 1 | 7 | AB | 2 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R07Batch` | 2026-07-25T01:18:00.671729Z | 2026-07-25T01:18:13.470070Z | `6092b229be222a6749d54346992b3ef0c75bef27d3cff87ad8537546bc63a155` |
+| 1 | 8 | BA | 1 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R08Batch` | 2026-07-25T01:18:13.523213Z | 2026-07-25T01:18:26.341791Z | `465976b95046e603d38c3b4a87b6c661d56e8a891be5e81b852e1a43a022afb2` |
+| 1 | 8 | BA | 2 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET1R08Direct` | 2026-07-25T01:18:26.393706Z | 2026-07-25T01:18:39.232091Z | `ac3e4a56565387a03a616650c2f685b9b1822a01d6aec9f34c63adb15a413b37` |
+| 4 | 1 | AB | 1 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R01Direct` | 2026-07-25T01:18:39.281266Z | 2026-07-25T01:18:52.193165Z | `bcd112acf55dfba9c1550eb4fb77633045e6fc35a4c53c0e221b4d69e1aa9b04` |
+| 4 | 1 | AB | 2 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R01Batch` | 2026-07-25T01:18:52.239146Z | 2026-07-25T01:19:05.171098Z | `afc3881f0143879f93c845be057d99aece4b2822f0e2e7665c77a6ac12eae795` |
+| 4 | 2 | BA | 1 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R02Batch` | 2026-07-25T01:19:05.218709Z | 2026-07-25T01:19:18.184135Z | `560d430f812ae813682f4b461e3c7aaa34a4e0dc474c4d3965bee1134b6bf33c` |
+| 4 | 2 | BA | 2 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R02Direct` | 2026-07-25T01:19:18.231981Z | 2026-07-25T01:19:31.161573Z | `51289ee364d475319bba9430102d11fbc63ee1af06d68271a2249909cdd026bd` |
+| 4 | 3 | AB | 1 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R03Direct` | 2026-07-25T01:19:31.208742Z | 2026-07-25T01:19:44.140465Z | `9c13f59d51e3d89e8b4bb2705d8162a4f30fd7465cbe97e2dc58ea1bb938cce7` |
+| 4 | 3 | AB | 2 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R03Batch` | 2026-07-25T01:19:44.188009Z | 2026-07-25T01:19:57.112065Z | `b331096ae2240e0c93490cd9ab03ea7b4b4030255a223eaf46e8f597c31b3f48` |
+| 4 | 4 | BA | 1 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R04Batch` | 2026-07-25T01:19:57.160006Z | 2026-07-25T01:20:10.009410Z | `360c1492a92fdc691f4a9f8a7b43d95e497f2f0673f2f62746d5de44cd4804d3` |
+| 4 | 4 | BA | 2 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R04Direct` | 2026-07-25T01:20:10.047637Z | 2026-07-25T01:20:22.955816Z | `750e377fe394b32ae2e60f61e3d02db992f5ec10e441e44a9f58ce09203e0443` |
+| 4 | 5 | AB | 1 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R05Direct` | 2026-07-25T01:20:23.001217Z | 2026-07-25T01:20:35.957060Z | `e84e52070b74165c2f987d41d0ae7a67ce09b417a00925a0aa4660ff7fd56371` |
+| 4 | 5 | AB | 2 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R05Batch` | 2026-07-25T01:20:36.006560Z | 2026-07-25T01:20:48.908314Z | `a4822dd3f1737107bc87dc2a8059c14c285bb39263d5dba3033bf5de3ade886d` |
+| 4 | 6 | BA | 1 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R06Batch` | 2026-07-25T01:20:48.955017Z | 2026-07-25T01:21:01.939353Z | `8dd697ec5a71a682fd4846d2a6886fe0ba42653f7bf0a0b39456493bf402ee58` |
+| 4 | 6 | BA | 2 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R06Direct` | 2026-07-25T01:21:01.987894Z | 2026-07-25T01:21:14.998835Z | `11942836f7481286210ed3a6c8df156837ba247fb19b61b46994c007370e7d8c` |
+| 4 | 7 | AB | 1 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R07Direct` | 2026-07-25T01:21:15.033663Z | 2026-07-25T01:21:27.930911Z | `f8305f18cc2df943aa42e77935691e5ea12b799caf1a8615825611620ab29c5b` |
+| 4 | 7 | AB | 2 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R07Batch` | 2026-07-25T01:21:27.965538Z | 2026-07-25T01:21:40.872887Z | `460661cc6ed8512565be3fd5720a30371309cf4546e3dc5c582d898f769e0f91` |
+| 4 | 8 | BA | 1 | batch | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R08Batch` | 2026-07-25T01:21:40.923408Z | 2026-07-25T01:21:53.834549Z | `fda02d9276dfd56a9c736ce859bbc8cd86673231acb38d0af57078e6906e02d0` |
+| 4 | 8 | BA | 2 | direct | `:wow-benchmarks:benchmarkMongoBatchAppendPairedE2ET4R08Direct` | 2026-07-25T01:21:53.881114Z | 2026-07-25T01:22:06.790071Z | `4279a8bb1108a21da95b447a4977f4f67bea3cf6ce2935e971dccc95e827b27d` |
 
 ## Report Generation Environment
 - **Version**: 8.9.1
 - **JVM**: OpenJDK 64-Bit Server VM 17.0.7+7-LTS
 - **OS**: Mac OS X 26.5.2 aarch64
-- **Generated At**: 2026-07-25T08:50:29+08:00
+- **Generated At**: 2026-07-25T09:22:06+08:00
 - **CPU Cores**: 14
 - **Physical Memory**: 24.0 GiB
 - **Benchmark JVM Args**: `-Xmx4g -Xms4g -XX:+UseG1GC -XX:+AlwaysPreTouch`
