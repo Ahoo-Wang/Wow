@@ -34,7 +34,7 @@ importers:
         version: 3.16.10(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.16.10))
       '@ahoo-wang/fetcher-viewer':
         specifier: ^3.16.10
-        version: 3.16.10(c2760fb119db298dc2f38b7d4d5a026f)
+        version: 3.16.10(b63b26179b1c374a872201de936adaba)
       '@ahoo-wang/fetcher-wow':
         specifier: ^3.16.10
         version: 3.16.10(@ahoo-wang/fetcher-decorator@3.16.10(@ahoo-wang/fetcher@3.16.10))(@ahoo-wang/fetcher-eventstream@3.16.10(@ahoo-wang/fetcher@3.16.10))(@ahoo-wang/fetcher@3.16.10)
@@ -45,8 +45,8 @@ importers:
         specifier: 4.7.0
         version: 4.7.0(monaco-editor@0.56.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       antd:
-        specifier: ^6.5.1
-        version: 6.5.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: ^6.5.2
+        version: 6.5.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       dayjs:
         specifier: ^1.11.21
         version: 1.11.21
@@ -1275,8 +1275,8 @@ packages:
     resolution: {integrity: sha512-Cxwpt2SfTzTtXcfOlzGEee8O+c+MmUgGrNiBcXnuWxuFJHe6a5Hz7qwhwe5OgaSYI0IJvkLqWX1ASG+cJOkEiA==}
     engines: {node: '>=10'}
 
-  antd@6.5.1:
-    resolution: {integrity: sha512-VZVVF9zYI6S0NHqboVhCoY9Iiqj6dphW1NPB+sEaAf2HuIQ0haXWXj7ZvAXTRDzusktV6+cvvrSZEdRi4twATg==}
+  antd@6.5.2:
+    resolution: {integrity: sha512-ntYx0lr4Jq192QnBkDWkDqEeoberXZ34vSE9SgiP/0J6DY8O0pzR3bVZLBsdpCSguVkwjtEAP+QNeMN7LNAvgw==}
     peerDependencies:
       react: '>=18.0.0'
       react-dom: '>=18.0.0'
@@ -2276,7 +2276,7 @@ snapshots:
     dependencies:
       '@ahoo-wang/fetcher-eventbus': 3.16.10(@ahoo-wang/fetcher@3.16.10)
 
-  '@ahoo-wang/fetcher-viewer@3.16.10(c2760fb119db298dc2f38b7d4d5a026f)':
+  '@ahoo-wang/fetcher-viewer@3.16.10(b63b26179b1c374a872201de936adaba)':
     dependencies:
       '@ahoo-wang/fetcher': 3.16.10
       '@ahoo-wang/fetcher-decorator': 3.16.10(@ahoo-wang/fetcher@3.16.10)
@@ -2287,7 +2287,7 @@ snapshots:
       '@ahoo-wang/fetcher-storage': 3.16.10(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.16.10))
       '@ahoo-wang/fetcher-wow': 3.16.10(@ahoo-wang/fetcher-decorator@3.16.10(@ahoo-wang/fetcher@3.16.10))(@ahoo-wang/fetcher-eventstream@3.16.10(@ahoo-wang/fetcher@3.16.10))(@ahoo-wang/fetcher@3.16.10)
       '@ant-design/icons': 6.3.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      antd: 6.5.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      antd: 6.5.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       dayjs: 1.11.21
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
@@ -3409,7 +3409,7 @@ snapshots:
 
   ansi-styles@5.2.0: {}
 
-  antd@6.5.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+  antd@6.5.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
     dependencies:
       '@ant-design/colors': 8.0.1
       '@ant-design/cssinjs': 2.1.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
