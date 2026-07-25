@@ -34,6 +34,7 @@ import java.util.concurrent.Semaphore
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
@@ -75,16 +76,18 @@ internal class MongoEventStoreBatcher(
     private inner class AppendRequest(
         val eventStream: DomainEventStream,
         val document: Document,
+        val collectionName: String,
     ) {
-        val collectionName: String = eventStream.toEventStreamCollectionName()
         val result: Sinks.Empty<Void> = Sinks.empty()
         private val state = AtomicReference<RequestState>(RequestState.Queued)
+        private val queueSlotHeld = AtomicBoolean(true)
 
         fun claim(): Boolean {
             while (true) {
                 when (state.get()) {
                     RequestState.Queued -> {
                         if (state.compareAndSet(RequestState.Queued, RequestState.InFlight)) {
+                            releaseQueueSlot()
                             return true
                         }
                     }
@@ -103,12 +106,15 @@ internal class MongoEventStoreBatcher(
         }
 
         fun cancel() {
-            state.compareAndSet(RequestState.Queued, RequestState.Cancelled)
+            if (state.compareAndSet(RequestState.Queued, RequestState.Cancelled)) {
+                releaseAdmission()
+            }
         }
 
         fun discardAdmission() {
             if (state.compareAndSet(RequestState.Queued, RequestState.Terminated)) {
-                release()
+                releaseQueueSlot()
+                releaseAdmission()
             }
         }
 
@@ -118,7 +124,7 @@ internal class MongoEventStoreBatcher(
 
         private fun discardCancelled() {
             if (state.compareAndSet(RequestState.Cancelled, RequestState.Terminated)) {
-                release()
+                releaseQueueSlot()
             }
         }
 
@@ -149,7 +155,7 @@ internal class MongoEventStoreBatcher(
                 when (val current = state.get()) {
                     is RequestState.Settled -> {
                         if (state.compareAndSet(current, RequestState.Terminated)) {
-                            release()
+                            releaseAdmission()
                             when (val outcome = current.outcome) {
                                 AppendOutcome.Success -> result.tryEmitEmpty()
                                 is AppendOutcome.Failure -> result.tryEmitError(outcome.error)
@@ -174,7 +180,8 @@ internal class MongoEventStoreBatcher(
                     RequestState.InFlight,
                     -> {
                         if (state.compareAndSet(current, RequestState.Terminated)) {
-                            release()
+                            releaseQueueSlot()
+                            releaseAdmission()
                             result.tryEmitError(error)
                             return
                         }
@@ -192,14 +199,22 @@ internal class MongoEventStoreBatcher(
             }
         }
 
-        private fun release() {
-            pending.remove(this)
-            availablePendingAppends.release()
+        private fun releaseAdmission() {
+            if (pending.remove(this)) {
+                availablePendingAppends.release()
+            }
+        }
+
+        private fun releaseQueueSlot() {
+            if (queueSlotHeld.compareAndSet(true, false)) {
+                availableQueuedRequests.release()
+            }
         }
     }
 
     private val emissionLock = Any()
     private val availablePendingAppends = Semaphore(options.maxPendingAppends)
+    private val availableQueuedRequests = Semaphore(options.maxPendingAppends)
     private val requestQueue = ArrayBlockingQueue<AppendRequest>(options.maxPendingAppends)
     private val requests = Sinks.many().unicast().onBackpressureBuffer(requestQueue)
     private val pending = ConcurrentHashMap.newKeySet<AppendRequest>()
@@ -235,7 +250,8 @@ internal class MongoEventStoreBatcher(
         processor = requests.asFlux()
             // The fair-backpressure variant can strand the remainder of a partial
             // window in a timeout/upstream race. The intermediate queue requests
-            // every buffer eagerly but remains bounded by append admission.
+            // every buffer eagerly. Queue-slot admission keeps cancelled placeholders
+            // bounded independently from live append admission.
             .bufferTimeout(options.maxSize, options.maxDelay)
             .onBackpressureBuffer(options.maxPendingAppends)
             .concatMap(::appendBatch)
@@ -252,7 +268,7 @@ internal class MongoEventStoreBatcher(
                 return@defer Mono.error(it)
             }
             val document = eventStream.toDocument()
-            val request = AppendRequest(eventStream, document)
+            val collectionName = eventStream.toEventStreamCollectionName()
             if (!availablePendingAppends.tryAcquire()) {
                 terminalErrorOrClosed()?.let {
                     return@defer Mono.error(it)
@@ -261,6 +277,16 @@ internal class MongoEventStoreBatcher(
                     MongoEventStoreBatchOverflowException(options.maxPendingAppends)
                 )
             }
+            if (!availableQueuedRequests.tryAcquire()) {
+                availablePendingAppends.release()
+                terminalErrorOrClosed()?.let {
+                    return@defer Mono.error(it)
+                }
+                return@defer Mono.error(
+                    MongoEventStoreBatchOverflowException(options.maxPendingAppends)
+                )
+            }
+            val request = AppendRequest(eventStream, document, collectionName)
             pending.add(request)
             val emitResult = synchronized(emissionLock) {
                 when (lifecycle.get()) {

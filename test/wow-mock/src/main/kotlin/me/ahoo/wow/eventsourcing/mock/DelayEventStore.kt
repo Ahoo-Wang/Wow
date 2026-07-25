@@ -51,4 +51,8 @@ class DelayEventStore(
     ): Flux<AggregateId> {
         return delegate.scanAggregateId(namedAggregate, afterId, limit).delaySubscription(delaySupplier())
     }
+
+    override fun close() {
+        delegate.close()
+    }
 }

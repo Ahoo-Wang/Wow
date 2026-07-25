@@ -13,13 +13,6 @@
 
 package me.ahoo.wow.mongo
 
-import com.mongodb.MongoBulkWriteException
-import com.mongodb.ServerAddress
-import com.mongodb.bulk.BulkWriteError
-import com.mongodb.bulk.BulkWriteInsert
-import com.mongodb.bulk.BulkWriteResult
-import com.mongodb.bulk.BulkWriteUpsert
-import com.mongodb.bulk.WriteConcernError
 import com.mongodb.client.model.InsertManyOptions
 import com.mongodb.client.result.InsertManyResult
 import com.mongodb.reactivestreams.client.MongoCollection
@@ -33,12 +26,12 @@ import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.exception.recoverable
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
+import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.event.MockDomainEventStreams
-import org.bson.BsonDocument
 import org.bson.Document
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -81,6 +74,46 @@ class MongoEventStoreBatchTest {
         insertOptions.captured.isOrdered.assert().isFalse()
         verify(exactly = 1) { collection.insertMany(any<List<Document>>(), any()) }
         verify(exactly = 0) { collection.insertOne(any<Document>()) }
+    }
+
+    @Test
+    fun `one batch should isolate writes by event stream collection`() {
+        val database = mockk<MongoDatabase>()
+        val orderCollection = mockk<MongoCollection<Document>>()
+        val paymentCollection = mockk<MongoCollection<Document>>()
+        val paymentAggregate = MaterializedNamedAggregate("payment-service", "payment")
+        val orderDocuments = slot<List<Document>>()
+        val paymentDocuments = slot<List<Document>>()
+        every {
+            database.getCollection(namedAggregate.toEventStreamCollectionName())
+        } returns orderCollection
+        every {
+            database.getCollection(paymentAggregate.toEventStreamCollectionName())
+        } returns paymentCollection
+        every {
+            orderCollection.insertMany(capture(orderDocuments), any())
+        } returns Mono.just(InsertManyResult.acknowledged(emptyMap()))
+        every {
+            paymentCollection.insertMany(capture(paymentDocuments), any())
+        } returns Mono.just(InsertManyResult.acknowledged(emptyMap()))
+
+        MongoEventStore(database, batchOptions(maxSize = 2)).use { eventStore ->
+            StepVerifier.create(
+                Flux.merge(
+                    eventStore.append(eventStream("order-1")),
+                    eventStore.append(eventStream("payment-1", aggregate = paymentAggregate)),
+                ).then()
+            ).verifyComplete()
+        }
+
+        orderDocuments.captured.single()
+            .getString(MessageRecords.AGGREGATE_ID)
+            .assert().isEqualTo("order-1")
+        paymentDocuments.captured.single()
+            .getString(MessageRecords.AGGREGATE_ID)
+            .assert().isEqualTo("payment-1")
+        verify(exactly = 1) { orderCollection.insertMany(any<List<Document>>(), any()) }
+        verify(exactly = 1) { paymentCollection.insertMany(any<List<Document>>(), any()) }
     }
 
     @Test
@@ -157,182 +190,6 @@ class MongoEventStoreBatchTest {
         }
 
         verify(atLeast = 1) { collection.insertMany(any<List<Document>>(), any()) }
-    }
-
-    @Test
-    fun `unordered bulk error should fail only the matching append`() {
-        val database = mockk<MongoDatabase>()
-        val collection = mockk<MongoCollection<Document>>()
-        val bulkError = MongoBulkWriteException(
-            BulkWriteResult.acknowledged(
-                1,
-                0,
-                0,
-                0,
-                emptyList<BulkWriteUpsert>(),
-                emptyList<BulkWriteInsert>(),
-            ),
-            listOf(
-                BulkWriteError(
-                    11000,
-                    "duplicate key - ${AggregateSchemaInitializer.AGGREGATE_ID_AND_VERSION_UNIQUE_INDEX_NAME}",
-                    BsonDocument(),
-                    0,
-                )
-            ),
-            null,
-            ServerAddress("localhost"),
-            emptySet(),
-        )
-        every { database.getCollection(any<String>()) } returns collection
-        every {
-            collection.insertMany(any<List<Document>>(), any())
-        } returns Mono.error(bulkError)
-
-        MongoEventStore(database, batchOptions(maxSize = 2)).use { eventStore ->
-            StepVerifier.create(
-                Flux.merge(
-                    eventStore.append(eventStream("order-1", aggregateVersion = 1))
-                        .thenReturn("unexpected-first-success")
-                        .onErrorResume(EventVersionConflictException::class.java) {
-                            Mono.just("first-conflict")
-                        },
-                    eventStore.append(eventStream("order-2", aggregateVersion = 1))
-                        .thenReturn("second-success"),
-                ).collectList()
-            ).assertNext { results ->
-                results.assert().contains("first-conflict", "second-success")
-            }.verifyComplete()
-        }
-    }
-
-    @Test
-    fun `write error should take precedence over write concern error for matching append`() {
-        val database = mockk<MongoDatabase>()
-        val collection = mockk<MongoCollection<Document>>()
-        val bulkError = MongoBulkWriteException(
-            BulkWriteResult.acknowledged(
-                1,
-                0,
-                0,
-                0,
-                emptyList<BulkWriteUpsert>(),
-                emptyList<BulkWriteInsert>(),
-            ),
-            listOf(
-                BulkWriteError(
-                    11000,
-                    "duplicate key - ${AggregateSchemaInitializer.AGGREGATE_ID_AND_VERSION_UNIQUE_INDEX_NAME}",
-                    BsonDocument(),
-                    0,
-                )
-            ),
-            WriteConcernError(
-                64,
-                "WriteConcernFailed",
-                "write concern failed",
-                BsonDocument(),
-            ),
-            ServerAddress("localhost"),
-            emptySet(),
-        )
-        every { database.getCollection(any<String>()) } returns collection
-        every {
-            collection.insertMany(any<List<Document>>(), any())
-        } returns Mono.error(bulkError)
-
-        MongoEventStore(database, batchOptions(maxSize = 2)).use { eventStore ->
-            val signals = Mono.zip(
-                eventStore.append(eventStream("order-1", aggregateVersion = 1)).materialize(),
-                eventStore.append(eventStream("order-2", aggregateVersion = 1)).materialize(),
-            ).block()!!
-
-            signals.t1.throwable.assert().isInstanceOf(EventVersionConflictException::class.java)
-            signals.t2.throwable.assert().isSameAs(bulkError)
-        }
-    }
-
-    @Test
-    fun `recoverable write concern error should fail every uncertain append`() {
-        val database = mockk<MongoDatabase>()
-        val collection = mockk<MongoCollection<Document>>()
-        val bulkError = MongoBulkWriteException(
-            BulkWriteResult.acknowledged(
-                0,
-                0,
-                0,
-                0,
-                emptyList<BulkWriteUpsert>(),
-                emptyList<BulkWriteInsert>(),
-            ),
-            emptyList(),
-            WriteConcernError(
-                91,
-                "ShutdownInProgress",
-                "shutdown in progress",
-                BsonDocument(),
-            ),
-            ServerAddress("localhost"),
-            emptySet(),
-        )
-        every { database.getCollection(any<String>()) } returns collection
-        every {
-            collection.insertMany(any<List<Document>>(), any())
-        } returns Mono.error(bulkError)
-
-        MongoEventStore(database, batchOptions(maxSize = 2)).use { eventStore ->
-            val signals = Mono.zip(
-                eventStore.append(eventStream("order-1")).materialize(),
-                eventStore.append(eventStream("order-2")).materialize(),
-            ).block()!!
-
-            signals.t1.throwable.assert().isInstanceOf(RecoverableMongoBulkWriteException::class.java)
-            signals.t2.throwable.assert().isSameAs(signals.t1.throwable)
-            val recoverableError = signals.t1.throwable as RecoverableMongoBulkWriteException
-            recoverableError.error.code.assert().isEqualTo(91)
-            recoverableError.cause.assert().isSameAs(bulkError)
-        }
-    }
-
-    @Test
-    fun `inconsistent bulk result should not infer a successful append`() {
-        val database = mockk<MongoDatabase>()
-        val collection = mockk<MongoCollection<Document>>()
-        val bulkError = MongoBulkWriteException(
-            BulkWriteResult.acknowledged(
-                0,
-                0,
-                0,
-                0,
-                emptyList<BulkWriteUpsert>(),
-                emptyList<BulkWriteInsert>(),
-            ),
-            listOf(
-                BulkWriteError(
-                    11000,
-                    "duplicate key - ${AggregateSchemaInitializer.AGGREGATE_ID_AND_VERSION_UNIQUE_INDEX_NAME}",
-                    BsonDocument(),
-                    0,
-                )
-            ),
-            null,
-            ServerAddress("localhost"),
-            emptySet(),
-        )
-        every { database.getCollection(any<String>()) } returns collection
-        every {
-            collection.insertMany(any<List<Document>>(), any())
-        } returns Mono.error(bulkError)
-
-        MongoEventStore(database, batchOptions(maxSize = 2)).use { eventStore ->
-            val signals = Mono.zip(
-                eventStore.append(eventStream("order-1", aggregateVersion = 1)).materialize(),
-                eventStore.append(eventStream("order-2", aggregateVersion = 1)).materialize(),
-            ).block()!!
-
-            signals.t1.throwable.assert().isSameAs(bulkError)
-            signals.t2.throwable.assert().isSameAs(bulkError)
-        }
     }
 
     @Test
@@ -645,9 +502,13 @@ class MongoEventStoreBatchTest {
         }
     }
 
-    private fun eventStream(id: String, aggregateVersion: Int = 0): DomainEventStream {
+    private fun eventStream(
+        id: String,
+        aggregateVersion: Int = 0,
+        aggregate: MaterializedNamedAggregate = namedAggregate,
+    ): DomainEventStream {
         return MockDomainEventStreams.generateEventStream(
-            aggregateId = namedAggregate.aggregateId(id),
+            aggregateId = aggregate.aggregateId(id),
             aggregateVersion = aggregateVersion,
             eventCount = 1,
         )

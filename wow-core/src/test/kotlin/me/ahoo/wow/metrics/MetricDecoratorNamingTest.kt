@@ -50,6 +50,25 @@ internal class MetricDecoratorNamingTest {
             .verifyComplete()
     }
 
+    @Test
+    fun `event store decorator should delegate close through the EventStore abstraction`() {
+        val delegate = CloseCountingEventStore()
+        val eventStore: EventStore = MetricEventStore(delegate)
+
+        eventStore.close()
+
+        delegate.closeCount.assert().isEqualTo(1)
+    }
+
+    private class CloseCountingEventStore : EventStore by NoOpEventStore {
+        var closeCount: Int = 0
+            private set
+
+        override fun close() {
+            closeCount++
+        }
+    }
+
     private object NoOpEventStore : EventStore {
         override fun append(eventStream: DomainEventStream): Mono<Void> = Mono.empty()
 

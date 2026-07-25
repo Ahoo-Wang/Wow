@@ -13,12 +13,30 @@
 
 package me.ahoo.wow.eventsourcing.mock
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
+import org.junit.jupiter.api.Test
 
 class DelayEventStoreTest : EventStoreSpec() {
     override fun createEventStore(): EventStore {
         return DelayEventStore().metrizable()
+    }
+
+    @Test
+    fun `close should delegate to the original EventStore`() {
+        var closeCount = 0
+        val delegate = object : EventStore by InMemoryEventStore() {
+            override fun close() {
+                closeCount++
+            }
+        }
+        val eventStore: EventStore = DelayEventStore(delegate = delegate)
+
+        eventStore.close()
+
+        closeCount.assert().isEqualTo(1)
     }
 }

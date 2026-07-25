@@ -121,4 +121,8 @@ class MetricEventStore(
             .tagSource()
             .tag(Metrics.AGGREGATE_KEY, namedAggregate.aggregateName)
             .metrics()
+
+    override fun close() {
+        delegate.close()
+    }
 }

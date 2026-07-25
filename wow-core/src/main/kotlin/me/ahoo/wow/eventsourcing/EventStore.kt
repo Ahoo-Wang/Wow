@@ -26,7 +26,16 @@ import reactor.core.publisher.Mono
  */
 interface EventStore :
     RequestIdExistenceChecker,
-    AggregateIdScanner {
+    AggregateIdScanner,
+    AutoCloseable {
+    /**
+     * Closes this event store and releases owned resources.
+     *
+     * Decorators should forward this call to their delegate. Stores without owned
+     * resources may rely on this no-op implementation.
+     */
+    override fun close() = Unit
+
     /**
      * Appends a domain event stream to the event store.
      * Ensures transaction consistency and handles version conflicts.

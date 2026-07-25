@@ -23,6 +23,8 @@ import io.mockk.unmockkStatic
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.metrics.MetricEventStore
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.event.MockDomainEventStreams
@@ -47,6 +49,19 @@ class MongoEventStoreBatchCloseTest {
     private val namedAggregate = MaterializedNamedAggregate("order-service", "order")
 
     @Test
+    fun `close timeout should be positive`() {
+        listOf(Duration.ZERO, Duration.ofNanos(-1)).forEach { closeTimeout ->
+            assertThrows<IllegalArgumentException> {
+                MongoEventStoreBatcher(
+                    database = mockk(),
+                    options = batchOptions(maxSize = 2),
+                    closeTimeout = closeTimeout,
+                )
+            }.message.assert().isEqualTo("closeTimeout must be positive.")
+        }
+    }
+
+    @Test
     fun `close should flush a partial batch`() {
         val database = mockk<MongoDatabase>()
         val collection = mockk<MongoCollection<Document>>()
@@ -64,6 +79,32 @@ class MongoEventStoreBatchCloseTest {
         )
 
         val appendResult = eventStore.append(eventStream("order-1")).toFuture()
+        eventStore.close()
+
+        appendResult.join()
+        verify(exactly = 1) { collection.insertMany(any<List<Document>>(), any()) }
+    }
+
+    @Test
+    fun `closing a decorated EventStore should flush a partial batch`() {
+        val database = mockk<MongoDatabase>()
+        val collection = mockk<MongoCollection<Document>>()
+        every { database.getCollection(any<String>()) } returns collection
+        every {
+            collection.insertMany(any<List<Document>>(), any())
+        } returns Mono.just(InsertManyResult.acknowledged(emptyMap()))
+        val eventStore: EventStore = MetricEventStore(
+            MongoEventStore(
+                database,
+                MongoEventStoreBatchOptions(
+                    enabled = true,
+                    maxSize = 8,
+                    maxDelay = Duration.ofHours(1),
+                )
+            )
+        )
+
+        val appendResult = eventStore.append(eventStream("order-decorated")).toFuture()
         eventStore.close()
 
         appendResult.join()
