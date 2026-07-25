@@ -495,7 +495,7 @@ flowchart TB
 
     subgraph "Backend Implementations"
         IM[InMemoryEventStore<br>ConcurrentHashMap]
-        MONGO_ES[MongoEventStore<br>append=insertOne, load=find with sort]
+        MONGO_ES[MongoEventStore<br>append=insertOne/insertMany, load=find with sort]
         REDIS_ES[RedisEventStore<br>append=ZADD, load=ZRANGEBYSCORE]
         ES_ES[ElasticsearchEventStore<br>append=index, load=search]
     end

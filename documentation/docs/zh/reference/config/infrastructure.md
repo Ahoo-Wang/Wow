@@ -51,6 +51,10 @@ wow:
 | `wow.mongo.event-stream-database` | String? | `null` | 事件流使用的独立数据库（默认使用主数据库） |
 | `wow.mongo.snapshot-database` | String? | `null` | 快照使用的独立数据库（默认使用主数据库） |
 | `wow.mongo.prepare-database` | String? | `null` | PrepareKey 存储使用的独立数据库（默认使用主数据库） |
+| `wow.mongo.event-store-batch.enabled` | Boolean | `false` | 使用 MongoDB `insertMany` 批量写入并发 EventStore 追加请求 |
+| `wow.mongo.event-store-batch.max-size` | Int | `128` | 同一集合单批最多包含的事件流数量 |
+| `wow.mongo.event-store-batch.max-delay` | Duration | `1ms` | 收集不足一批请求的最长等待时间 |
+| `wow.mongo.event-store-batch.max-pending-appends` | Int | `4096` | 等待或正在写入的 append 最大接收数量；必须不小于 `max-size` |
 
 ```yaml
 wow:
@@ -59,6 +63,11 @@ wow:
     auto-init-schema: true
     event-stream-database: wow_events
     snapshot-database: wow_snapshots
+    event-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-appends: 4096
 ```
 
 ## Redis

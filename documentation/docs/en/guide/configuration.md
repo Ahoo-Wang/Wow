@@ -264,6 +264,10 @@ wow:
 | `wow.mongo.event-stream-database` | String | Spring MongoDB database | Event stream database |
 | `wow.mongo.snapshot-database` | String | Spring MongoDB database | Snapshot database |
 | `wow.mongo.prepare-database` | String | Spring MongoDB database | Prepare key database |
+| `wow.mongo.event-store-batch.enabled` | Boolean | `false` | Enable transparent event-store append batching |
+| `wow.mongo.event-store-batch.max-size` | Int | `128` | Maximum event streams per collection batch |
+| `wow.mongo.event-store-batch.max-delay` | Duration | `1ms` | Maximum wait used to collect a partial batch |
+| `wow.mongo.event-store-batch.max-pending-appends` | Int | `4096` | Maximum accepted appends waiting or being written; must be at least `max-size` |
 
 ```yaml
 wow:
@@ -273,6 +277,11 @@ wow:
     event-stream-database: wow_event_db
     snapshot-database: wow_snapshot_db
     prepare-database: wow_prepare_db
+    event-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-appends: 4096
 ```
 
 ### Redis Configuration

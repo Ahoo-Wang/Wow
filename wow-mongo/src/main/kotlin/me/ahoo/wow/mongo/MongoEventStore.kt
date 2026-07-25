@@ -32,10 +32,29 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
+import java.io.Closeable
 
-class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore() {
+class MongoEventStore(
+    private val database: MongoDatabase,
+    val batchOptions: MongoEventStoreBatchOptions,
+) : AbstractEventStore(),
+    Closeable {
+    constructor(database: MongoDatabase) : this(
+        database = database,
+        batchOptions = MongoEventStoreBatchOptions(),
+    )
+
+    private val batcher = if (batchOptions.enabled) {
+        MongoEventStoreBatcher(database, batchOptions)
+    } else {
+        null
+    }
 
     override fun appendStream(eventStream: DomainEventStream): Mono<Void> {
+        val batcher = batcher
+        if (batcher != null) {
+            return batcher.append(eventStream)
+        }
         val eventStreamCollectionName = eventStream.toEventStreamCollectionName()
         val document = eventStream.toDocument()
 
@@ -158,5 +177,9 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
                 val tenantId = it.getString(MessageRecords.TENANT_ID)
                 namedAggregate.aggregateId(aggregateId, tenantId)
             }
+    }
+
+    override fun close() {
+        batcher?.close()
     }
 }

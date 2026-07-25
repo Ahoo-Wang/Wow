@@ -14,6 +14,7 @@ Use it for three jobs:
 | Smoke | A small cross-section of component, Framework E2E, and WebFlux adapter benchmarks. | PR safety; proves the JMH jar and selected benchmark paths still run. | `benchmarkSmoke` |
 | Framework E2E | Synchronous command send/write round trips with in-memory or noop infrastructure. | Quick feedback, exact-workload regression baselines, and optional latency diagnosis; not production capacity. | `benchmarkQuickE2E`, `benchmarkBaselineE2E`, `benchmarkLatencyE2E` |
 | Batch CommandWrite E2E | Paired 32-command workloads using either 32 blocking boundaries or one sequential/concurrent batch boundary. | Primary framework-cost signal without per-command blocking distortion, plus bounded-concurrency scaling diagnosis. | `benchmarkQuickBatchE2E` |
+| Mongo Batch Append | A 128-event-stream append-path workload using `insertOne` or transparent unordered `insertMany` batching. | Measuring and confirming Mongo EventStore batch throughput gains with real local MongoDB I/O. | `benchmarkQuickMongoBatchAppend`, `benchmarkConfirmMongoBatchAppend`, `benchmarkMongoBatchAppendPairedE2E` |
 | Component | Isolated command, aggregate, event, wait, serialization, accessor, and pipeline pieces. | Quick feedback, targeted diagnosis, or rare exhaustive catalog checks. | `benchmarkQuickComponent`, `benchmarkDiagnosticComponent`, `benchmarkExhaustiveComponent` |
 | WebFlux Adapter | Spring WebFlux request, response, SSE, and aggregate tracing adapter paths without a real Netty server. | Diagnosing HTTP adapter overhead and WebFlux-specific allocation hot spots. These results are not Framework E2E conclusion data. | `benchmarkQuickWebFlux`, `benchmarkExhaustiveWebFlux` |
 | Infrastructure E2E | Command write path through Redis or Mongo persistence. | Storage-path bottleneck checks when local services are available. | `benchmarkQuickInfrastructureE2E`, `benchmarkBaselineInfrastructureE2E` |
@@ -175,6 +176,9 @@ The Gradle model keeps four responsibilities separate: `BenchmarkSuite` owns wor
 |------|----------|---------------|
 | `wow-benchmarks/results/reports/quick-framework-e2e.md` | Generated quick Framework E2E report. | Commit when intentionally updating the visible benchmark report. |
 | `wow-benchmarks/results/reports/quick-batch-command-write-e2e.md` | Generated quick Batch CommandWrite E2E report. | Commit when intentionally updating the visible batch benchmark report. |
+| `wow-benchmarks/results/reports/quick-mongo-batch-append.md` | Generated quick Mongo EventStore append comparison. | Commit with intentionally collected, provenance-backed MongoDB evidence. |
+| `wow-benchmarks/results/reports/confirmation-mongo-batch-append.md` | Generated multiple-fork Mongo EventStore append comparison. | Commit intentionally collected provenance-backed evidence; use for independent JMH point estimates and error intervals. |
+| `wow-benchmarks/results/reports/mongo-batch-append-paired-e2e.md` | Generated AB/BA paired Mongo EventStore append E2E report. | Commit intentionally collected provenance-backed evidence; prefer for the quantified local batching-gain conclusion. |
 | `wow-benchmarks/results/reports/quick-infrastructure-e2e.md` | Quick Infrastructure E2E report generated on demand; it may be absent in a fresh checkout. | Commit only with intentionally collected, provenance-backed Redis/Mongo evidence. |
 | `wow-benchmarks/results/reports/quick-grouped.md` | Generated quick E2E/component/infrastructure grouped report. | Commit when intentionally updating grouped benchmark evidence. |
 | `wow-benchmarks/results/reports/baseline-grouped.md` | Generated Baseline E2E/exhaustive Component/infrastructure grouped report. | Commit when intentionally updating formal benchmark evidence. |
@@ -184,6 +188,44 @@ The Gradle model keeps four responsibilities separate: `BenchmarkSuite` owns wor
 Files under `results/reports/*.md` are generated. Do not hand-edit benchmark rows; rerun the benchmark/report task instead.
 Every successful thread-level JMH run writes a neighboring `*.manifest.json` sidecar with the source commit and dirty state, run specification, resolved required-service endpoints, profiler arguments, runtime, and SHA-256 digests for the JSON and human output. Failed runs do not publish a success manifest. Report and comparison tasks reject raw results with missing, mixed, or mismatched manifests.
 Infrastructure reports validate captured service names against the suite identity and display the captured host/port provenance. They do not reinterpret historical evidence using the report-time Redis or MongoDB environment variables.
+
+### Mongo Batch Append Reports
+
+```bash
+./gradlew :wow-benchmarks:benchmarkQuickMongoBatchAppend \
+  :wow-benchmarks:generateMongoBatchAppendBenchmarkReport \
+  --no-parallel
+```
+
+The paired workload submits 128 independent event streams through one reactive subscription and normalizes JMH
+throughput per event stream. It compares concurrent `insertOne` calls with `MongoEventStore` batching enabled at
+`maxSize=128` and `maxDelay=1ms`; the task requires only MongoDB. Quick results are directional point estimates.
+
+For quantified local evidence with multiple forks and JMH error intervals:
+
+```bash
+./gradlew :wow-benchmarks:benchmarkConfirmMongoBatchAppend \
+  :wow-benchmarks:generateMongoBatchAppendConfirmationReport \
+  --no-parallel
+```
+
+For the append-path E2E gain decision, run the counterbalanced paired experiment:
+
+```bash
+./gradlew :wow-benchmarks:benchmarkMongoBatchAppendPairedE2E \
+  :wow-benchmarks:generateMongoBatchAppendPairedE2EReport \
+  --no-parallel
+```
+
+This runs eight pairs for each of one and four JMH threads, alternating AB (`insertOne → batch`) and BA
+(`batch → insertOne`). Each leg is isolated in its own JMH process. The report calculates a Student-t 95%
+confidence interval over paired `log(batch / insertOne)` ratios and passes the configured gain threshold only
+when the unrounded lower bound is greater than `1.05×`. The measured append-path workload includes per-invocation
+event-stream creation, the shared Reactor harness, `MongoEventStore.append`, Mongo driver/network/write
+acknowledgement, and the final wait. It does not include Command Gateway ingress or downstream event processing.
+
+Benchmark thread-level tasks also share a Gradle execution lock so they cannot load the same MongoDB service
+concurrently when global Gradle parallel execution is enabled.
 
 ## Reading The Report
 

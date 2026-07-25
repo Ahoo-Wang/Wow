@@ -53,6 +53,7 @@ data class BenchmarkSuite(
     val requiredForGroupedReport: Boolean = false,
     val formalRegressionSource: Boolean = false,
     val requiredServices: List<BenchmarkRequiredService> = emptyList(),
+    val runMetadata: Map<String, String> = emptyMap(),
 )
 
 data class BenchmarkRunProfile(
@@ -92,7 +93,9 @@ abstract class BenchmarkRunIdentityService : BuildService<BuildServiceParameters
 val benchmarkRunIdentityService = gradle.sharedServices.registerIfAbsent(
     "benchmarkRunIdentity",
     BenchmarkRunIdentityService::class,
-) {}
+) {
+    maxParallelUsages.set(1)
+}
 
 data class DockerContainerRuntime(
     val label: String,
@@ -311,6 +314,10 @@ val quickBatchE2EProfile = quickProfile.copy(
     threads = listOf(1),
 )
 
+val quickMongoBatchAppendProfile = quickProfile.copy(
+    threads = benchmarkThreadsProperty("benchmarkQuickMongoBatchThreads", listOf(1, 4)),
+)
+
 val quickWebFluxProfile = BenchmarkRunProfile(
     id = "quick",
     warmupIterations = 0,
@@ -415,6 +422,31 @@ val baselineInfrastructureProfile = BenchmarkRunProfile(
     includeAsyncProfiler = false,
 )
 
+val confirmationMongoBatchAppendProfile = baselineInfrastructureProfile.copy(
+    id = "confirmation",
+    threads = benchmarkThreadsProperty("benchmarkConfirmMongoBatchThreads", listOf(1, 4)),
+    benchmarkModes = listOf("thrpt"),
+)
+
+val pairedMongoBatchAppendProfile = BenchmarkRunProfile(
+    id = "paired-confirmation",
+    warmupIterations = 2,
+    warmupTime = "3s",
+    measurementIterations = 1,
+    measurementTime = "5s",
+    forks = 1,
+    threads = listOf(1, 4),
+    benchmarkModes = listOf("thrpt"),
+    jvmArgs = listOf(
+        "-Xmx4g",
+        "-Xms4g",
+        "-XX:+UseG1GC",
+        "-XX:+AlwaysPreTouch",
+    ),
+    includeGcProfiler = false,
+    includeAsyncProfiler = false,
+)
+
 val asyncProfile = BenchmarkRunProfile(
     id = "async",
     warmupIterations = 1,
@@ -489,6 +521,25 @@ val infrastructureE2ESuite = BenchmarkSuite(
             host = benchmarkDockerConfig("WOW_BENCHMARK_REDIS_HOST", "localhost"),
             port = benchmarkDockerPort("WOW_BENCHMARK_REDIS_HOST_PORT", 6379),
         ),
+        BenchmarkRequiredService(
+            service = "MongoDB",
+            host = benchmarkDockerConfig("WOW_BENCHMARK_MONGO_HOST", "localhost"),
+            port = benchmarkDockerPort("WOW_BENCHMARK_MONGO_HOST_PORT", 27017),
+        ),
+    ),
+)
+
+val mongoBatchAppendSuite = BenchmarkSuite(
+    id = "mongo-batch-append",
+    displayName = "Mongo EventStore Batch Append",
+    includeClasses = listOf(
+        "me.ahoo.wow.benchmark.infrastructure.mongo.MongoEventStoreAppendBenchmark",
+    ),
+    resultFileName = "mongo-batch-append.json",
+    humanFileName = "mongo-batch-append-human.txt",
+    requiredForGroupedReport = false,
+    formalRegressionSource = false,
+    requiredServices = listOf(
         BenchmarkRequiredService(
             service = "MongoDB",
             host = benchmarkDockerConfig("WOW_BENCHMARK_MONGO_HOST", "localhost"),
@@ -682,6 +733,20 @@ val quickInfrastructureE2ETaskSpec = BenchmarkTaskSpec(
     description = "Runs the bounded infrastructure feedback catalog.",
 )
 
+val quickMongoBatchAppendTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkQuickMongoBatchAppend",
+    suite = mongoBatchAppendSuite,
+    profile = quickMongoBatchAppendProfile,
+    description = "Compares Mongo EventStore insertOne throughput with transparent insertMany batching.",
+)
+
+val confirmationMongoBatchAppendTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkConfirmMongoBatchAppend",
+    suite = mongoBatchAppendSuite,
+    profile = confirmationMongoBatchAppendProfile,
+    description = "Confirms Mongo EventStore insertMany batch throughput with stable measurement settings.",
+)
+
 val baselineInfrastructureE2ETaskSpec = BenchmarkTaskSpec(
     taskName = "benchmarkBaselineInfrastructureE2E",
     suite = infrastructureE2ESuite,
@@ -753,6 +818,8 @@ val benchmarkTaskSpecs = listOf(
     latencyE2ETaskSpec,
     confirmationE2ETaskSpec,
     quickInfrastructureE2ETaskSpec,
+    quickMongoBatchAppendTaskSpec,
+    confirmationMongoBatchAppendTaskSpec,
     baselineInfrastructureE2ETaskSpec,
     quickComponentTaskSpec,
     diagnosticComponentTaskSpec,
@@ -1209,18 +1276,27 @@ fun StringBuilder.appendBenchmarkRunProvenance(manifests: List<ParsedBenchmarkRu
     appendLine()
 }
 
-fun StringBuilder.appendInfrastructureRuntime() {
+fun StringBuilder.appendInfrastructureRuntime(
+    requiredServices: List<BenchmarkRequiredService>? = null,
+) {
+    val requiredServiceNames = requiredServices?.mapTo(mutableSetOf()) { service -> service.service }
     appendLine("## Report-Time Infrastructure Runtime")
     appendLine("- **Benchmark Client**: ${benchmarkClientLocation()}")
     appendLine("- **Docker Compose Env File**: `${benchmarkReportPath(benchmarkDockerEnvFile)}`")
     appendLine("- **Docker Server**: ${dockerServerSummary()}")
     appendLine("- **Docker Desktop VM**: ${dockerDesktopVmSummary()}")
-    dockerContainerRuntimes().forEach { containerRuntime ->
-        appendLine("- **${containerRuntime.label} Container**: `${containerRuntime.containerName}`")
-        appendLine("  - Image: ${markdownCodeOrUnavailable(containerRuntime.image)}")
-        appendLine("  - Image ID: ${markdownCodeOrUnavailable(containerRuntime.imageId)}")
-        appendLine("  - Repo Digests: ${markdownCodeOrUnavailable(containerRuntime.repoDigests)}")
-    }
+    dockerContainerRuntimes()
+        .filter { containerRuntime ->
+            requiredServiceNames == null ||
+                containerRuntime.label in requiredServiceNames ||
+                (containerRuntime.label == "Mongo" && "MongoDB" in requiredServiceNames)
+        }
+        .forEach { containerRuntime ->
+            appendLine("- **${containerRuntime.label} Container**: `${containerRuntime.containerName}`")
+            appendLine("  - Image: ${markdownCodeOrUnavailable(containerRuntime.image)}")
+            appendLine("  - Image ID: ${markdownCodeOrUnavailable(containerRuntime.imageId)}")
+            appendLine("  - Repo Digests: ${markdownCodeOrUnavailable(containerRuntime.repoDigests)}")
+        }
     appendLine(
         "- **Network Note**: Host JVM infrastructure benchmarks use Docker-published localhost ports; " +
             "Docker Desktop host-to-VM networking can materially affect Redis and Mongo results."
@@ -1356,6 +1432,7 @@ fun registerBenchmarkThreadTask(
                     "resolvedJmhArgs" to jmhArgs,
                     "resolvedProfilerArgs" to profilerArgs,
                     "requiredServices" to suite.requiredServicesRunSpec(),
+                    "metadata" to suite.runMetadata,
                 ),
                 "runtime" to linkedMapOf(
                     "javaVersion" to System.getProperty("java.version"),
@@ -1450,6 +1527,9 @@ val frameworkE2EBaselineJson = resultsDir.file("baselines/framework-e2e.json")
 val reportsDir = resultsDir.dir("reports")
 val benchmarkReportFile = reportsDir.file("quick-framework-e2e.md")
 val batchBenchmarkReportFile = reportsDir.file("quick-batch-command-write-e2e.md")
+val mongoBatchAppendReportFile = reportsDir.file("quick-mongo-batch-append.md")
+val mongoBatchAppendConfirmationReportFile = reportsDir.file("confirmation-mongo-batch-append.md")
+val mongoBatchAppendPairedE2EReportFile = reportsDir.file("mongo-batch-append-paired-e2e.md")
 val infrastructureBenchmarkReportFile = reportsDir.file("quick-infrastructure-e2e.md")
 val webFluxBenchmarkReportFile = reportsDir.file("quick-webflux.md")
 val baselineGroupedBenchmarkReport = reportsDir.file("baseline-grouped.md")
@@ -1503,6 +1583,7 @@ data class ParsedBenchmarkRunManifest(
     val requestedProfilers: List<String>,
     val resolvedProfilerArgs: List<String>,
     val requiredServices: List<BenchmarkRequiredService>,
+    val runMetadata: Map<String, String>,
     val javaVersion: String,
     val vmName: String,
     val vmVersion: String,
@@ -1725,6 +1806,13 @@ fun manifestStringMap(container: Map<*, *>, key: String, source: String): Map<St
     }
 }
 
+fun manifestOptionalStringMap(container: Map<*, *>, key: String, source: String): Map<String, String> {
+    if (container[key] == null) {
+        return emptyMap()
+    }
+    return manifestStringMap(container, key, source)
+}
+
 fun manifestRequiredServices(container: Map<*, *>, key: String, source: String): List<BenchmarkRequiredService> {
     val values = container[key] as? List<*>
         ?: throw GradleException("Benchmark manifest is missing array '$key': $source")
@@ -1853,6 +1941,8 @@ fun parseBenchmarkRunManifest(
     )
     val requiredServices = manifestRequiredServices(runSpec, "requiredServices", sourcePath)
     requireManifestServiceIdentity(requiredServices, group.suite.requiredServices, sourcePath)
+    val runMetadata = manifestOptionalStringMap(runSpec, "metadata", sourcePath)
+    requireManifestValue(runMetadata, group.suite.runMetadata, "runSpec.metadata", sourcePath)
 
     if (!resultFile.isFile || !humanFile.isFile) {
         throw GradleException("Benchmark artifacts referenced by manifest are missing: $sourcePath")
@@ -1901,6 +1991,7 @@ fun parseBenchmarkRunManifest(
         requestedProfilers = manifestStringList(runSpec, "requestedProfilers", sourcePath),
         resolvedProfilerArgs = manifestStringList(runSpec, "resolvedProfilerArgs", sourcePath),
         requiredServices = requiredServices,
+        runMetadata = runMetadata,
         javaVersion = manifestString(runtime, "javaVersion", sourcePath),
         vmName = manifestString(runtime, "vmName", sourcePath),
         vmVersion = manifestString(runtime, "vmVersion", sourcePath),
@@ -2004,6 +2095,470 @@ fun parseBenchmarkGroup(
         manifests = manifests,
         sourceRowCount = rows.size,
     )
+}
+
+enum class MongoBatchPairedVariant(
+    val id: String,
+    val displayName: String,
+    val methodName: String,
+    val taskSuffix: String,
+) {
+    DIRECT(
+        id = "direct",
+        displayName = "insertOne",
+        methodName = "appendWithInsertOne",
+        taskSuffix = "Direct",
+    ),
+    BATCH(
+        id = "batch",
+        displayName = "insertMany batch",
+        methodName = "appendWithInsertManyBatch",
+        taskSuffix = "Batch",
+    ),
+}
+
+enum class MongoBatchPairedOrder(
+    val id: String,
+    val displayName: String,
+) {
+    DIRECT_THEN_BATCH(id = "AB", displayName = "insertOne → batch"),
+    BATCH_THEN_DIRECT(id = "BA", displayName = "batch → insertOne"),
+}
+
+data class MongoBatchPairedTrialSpec(
+    val threads: Int,
+    val round: Int,
+    val order: MongoBatchPairedOrder,
+    val position: Int,
+    val variant: MongoBatchPairedVariant,
+    val taskSpec: BenchmarkTaskSpec,
+    val task: TaskProvider<JavaExec>,
+)
+
+data class ParsedMongoBatchPairedLeg(
+    val trial: MongoBatchPairedTrialSpec,
+    val row: ParsedBenchmarkResult,
+    val manifest: ParsedBenchmarkRunManifest,
+)
+
+data class MongoBatchPairedObservation(
+    val threads: Int,
+    val round: Int,
+    val order: MongoBatchPairedOrder,
+    val directScore: Double,
+    val batchScore: Double,
+    val unit: String,
+) {
+    val ratio: Double
+        get() = batchScore / directScore
+}
+
+data class MongoBatchPairedExperiment(
+    val legs: List<ParsedMongoBatchPairedLeg>,
+    val observations: List<MongoBatchPairedObservation>,
+) {
+    val manifests: List<ParsedBenchmarkRunManifest>
+        get() = legs.map(ParsedMongoBatchPairedLeg::manifest)
+}
+
+enum class MongoBatchPairedVerdict(
+    val displayName: String,
+) {
+    PASS("PASS"),
+    INCONCLUSIVE("INCONCLUSIVE"),
+    REGRESSION("REGRESSION"),
+}
+
+data class MongoBatchPairedStatistics(
+    val threads: Int,
+    val pairCount: Int,
+    val directGeometricMean: Double,
+    val batchGeometricMean: Double,
+    val geometricRatio: Double,
+    val lower95Ratio: Double,
+    val upper95Ratio: Double,
+    val directThenBatchRatio: Double,
+    val batchThenDirectRatio: Double,
+    val minimumPairRatio: Double,
+    val maximumPairRatio: Double,
+    val passingPairCount: Int,
+    val verdict: MongoBatchPairedVerdict,
+)
+
+val mongoBatchPairedRounds = 8
+val mongoBatchPairedOperationsPerInvocation = 128
+val mongoBatchPairedMinimumRatio = 1.05
+val mongoBatchPairedProtocolVersion = "1"
+val mongoBatchPairedBenchmarkClass =
+    "me.ahoo.wow.benchmark.infrastructure.mongo.MongoEventStoreAppendBenchmark"
+
+fun mongoBatchPairedT95Critical(pairCount: Int): Double {
+    return when (pairCount) {
+        8 -> 2.364624251
+        else -> throw GradleException(
+            "The Mongo paired protocol has no configured 95% Student-t critical value for $pairCount pairs."
+        )
+    }
+}
+
+fun mongoBatchPairedOrder(round: Int): MongoBatchPairedOrder {
+    return if (round % 2 == 1) {
+        MongoBatchPairedOrder.DIRECT_THEN_BATCH
+    } else {
+        MongoBatchPairedOrder.BATCH_THEN_DIRECT
+    }
+}
+
+fun MongoBatchPairedOrder.variants(): List<MongoBatchPairedVariant> {
+    return when (this) {
+        MongoBatchPairedOrder.DIRECT_THEN_BATCH ->
+            listOf(MongoBatchPairedVariant.DIRECT, MongoBatchPairedVariant.BATCH)
+
+        MongoBatchPairedOrder.BATCH_THEN_DIRECT ->
+            listOf(MongoBatchPairedVariant.BATCH, MongoBatchPairedVariant.DIRECT)
+    }
+}
+
+fun mongoBatchPairedTaskPath(taskName: String): String {
+    return if (project.path == ":") {
+        ":$taskName"
+    } else {
+        "${project.path}:$taskName"
+    }
+}
+
+val mongoBatchPairedTrials = buildList {
+    pairedMongoBatchAppendProfile.threads.forEach { threads ->
+        (1..mongoBatchPairedRounds).forEach { round ->
+            val order = mongoBatchPairedOrder(round)
+            order.variants().forEachIndexed { index, variant ->
+                val roundId = round.toString().padStart(2, '0')
+                val position = index + 1
+                val resultId = "round-$roundId-${order.id.lowercase()}-$position-${variant.id}"
+                val suite = BenchmarkSuite(
+                    id = "mongo-batch-append-paired-e2e",
+                    displayName = "Mongo EventStore Batch Append Paired E2E",
+                    includeClasses = listOf("$mongoBatchPairedBenchmarkClass.${variant.methodName}"),
+                    resultFileName = "$resultId.json",
+                    humanFileName = "$resultId-human.txt",
+                    requiredForGroupedReport = false,
+                    formalRegressionSource = false,
+                    requiredServices = mongoBatchAppendSuite.requiredServices,
+                    runMetadata = linkedMapOf(
+                        "experiment" to "mongo-batch-append-paired-e2e",
+                        "protocolVersion" to mongoBatchPairedProtocolVersion,
+                        "pairCountPerThread" to mongoBatchPairedRounds.toString(),
+                        "operationsPerInvocation" to mongoBatchPairedOperationsPerInvocation.toString(),
+                        "statistic" to "paired-log-ratio-student-t",
+                        "confidenceLevel" to "0.95",
+                        "tCritical" to mongoBatchPairedT95Critical(mongoBatchPairedRounds).toString(),
+                        "minimumRatio" to mongoBatchPairedMinimumRatio.toString(),
+                        "acceptanceRule" to "lower95Ratio>minimumRatio",
+                        "round" to round.toString(),
+                        "order" to order.id,
+                        "position" to position.toString(),
+                        "variant" to variant.id,
+                        "method" to variant.methodName,
+                    ),
+                )
+                val taskName =
+                    "benchmarkMongoBatchAppendPairedE2ET${threads}R${roundId}${variant.taskSuffix}"
+                val taskSpec = BenchmarkTaskSpec(
+                    taskName = taskName,
+                    suite = suite,
+                    profile = pairedMongoBatchAppendProfile.copy(threads = listOf(threads)),
+                    description = "Runs paired Mongo append E2E round $round/$mongoBatchPairedRounds " +
+                        "(${order.id} position $position: ${variant.displayName}) with $threads JMH thread(s).",
+                )
+                val task = registerBenchmarkThreadTask(
+                    taskName = taskName,
+                    suite = suite,
+                    profile = taskSpec.profile,
+                    threads = threads,
+                )
+                add(
+                    MongoBatchPairedTrialSpec(
+                        threads = threads,
+                        round = round,
+                        order = order,
+                        position = position,
+                        variant = variant,
+                        taskSpec = taskSpec,
+                        task = task,
+                    )
+                )
+            }
+        }
+    }
+}
+
+mongoBatchPairedTrials.zipWithNext().forEach { (previous, current) ->
+    current.task.configure {
+        mustRunAfter(previous.task)
+    }
+}
+
+fun parseMongoBatchPairedExperiment(parser: JsonSlurper = JsonSlurper()): MongoBatchPairedExperiment {
+    val legs = mongoBatchPairedTrials.map { trial ->
+        val report = parseBenchmarkGroup(
+            parser = parser,
+            group = benchmarkResultGroup(trial.taskSpec),
+        )
+        if (report.rows.size != 1 || report.manifests.size != 1) {
+            throw GradleException(
+                "Paired Mongo benchmark leg is missing or incomplete: ${trial.taskSpec.taskName}. " +
+                    "Run benchmarkMongoBatchAppendPairedE2E first."
+            )
+        }
+        val row = report.rows.single()
+        val manifest = report.manifests.single()
+        if (row.threads != trial.threads) {
+            throw GradleException(
+                "Paired Mongo benchmark thread mismatch for ${trial.taskSpec.taskName}: " +
+                    "expected ${trial.threads}, found ${row.threads}."
+            )
+        }
+        if (row.mode != "thrpt" || !row.unit.equals("ops/s", ignoreCase = true)) {
+            throw GradleException(
+                "Paired Mongo benchmark must contain one thrpt ops/s row: ${trial.taskSpec.taskName}."
+            )
+        }
+        if (!row.score.isFinite() || row.score <= 0.0) {
+            throw GradleException(
+                "Paired Mongo benchmark score must be positive and finite: ${trial.taskSpec.taskName}."
+            )
+        }
+        val actualMethod = benchmarkMethodName(row)
+        if (actualMethod != trial.variant.methodName) {
+            throw GradleException(
+                "Paired Mongo benchmark method mismatch for ${trial.taskSpec.taskName}: " +
+                    "expected ${trial.variant.methodName}, found $actualMethod."
+            )
+        }
+        val expectedTaskPath = mongoBatchPairedTaskPath(trial.taskSpec.taskName)
+        if (manifest.taskPath != expectedTaskPath) {
+            throw GradleException(
+                "Paired Mongo benchmark task path mismatch: expected $expectedTaskPath, found ${manifest.taskPath}."
+            )
+        }
+        ParsedMongoBatchPairedLeg(trial = trial, row = row, manifest = manifest)
+    }
+
+    validateBenchmarkRunManifests(
+        manifests = legs.map(ParsedMongoBatchPairedLeg::manifest),
+        context = "Mongo EventStore Batch Append Paired E2E",
+        requireSameRunId = true,
+    )
+    legs.zipWithNext().forEach { (previous, current) ->
+        val previousCompletedAt = Instant.parse(previous.manifest.completedAt)
+        val currentStartedAt = Instant.parse(current.manifest.startedAt)
+        if (currentStartedAt.isBefore(previousCompletedAt)) {
+            throw GradleException(
+                "Paired Mongo benchmark legs did not execute in declared AB/BA order: " +
+                    "${previous.trial.taskSpec.taskName} completed at $previousCompletedAt, " +
+                    "${current.trial.taskSpec.taskName} started at $currentStartedAt."
+            )
+        }
+    }
+
+    val observations = legs.groupBy { it.trial.threads to it.trial.round }
+        .toSortedMap(compareBy<Pair<Int, Int>>({ it.first }, { it.second }))
+        .map { (key, roundLegs) ->
+            val (threads, round) = key
+            if (roundLegs.size != MongoBatchPairedVariant.entries.size) {
+                throw GradleException(
+                    "Paired Mongo benchmark round must contain direct and batch legs: threads=$threads, round=$round."
+                )
+            }
+            val legsByVariant = roundLegs.associateBy { it.trial.variant }
+            if (legsByVariant.size != MongoBatchPairedVariant.entries.size) {
+                throw GradleException(
+                    "Paired Mongo benchmark round contains duplicate variants: threads=$threads, round=$round."
+                )
+            }
+            val expectedOrder = mongoBatchPairedOrder(round)
+            val actualOrder = roundLegs.sortedBy { it.trial.position }.map { it.trial.variant }
+            if (roundLegs.any { it.trial.order != expectedOrder } || actualOrder != expectedOrder.variants()) {
+                throw GradleException(
+                    "Paired Mongo benchmark round order mismatch: threads=$threads, round=$round, " +
+                        "expected ${expectedOrder.id}, found $actualOrder."
+                )
+            }
+            val direct = checkNotNull(legsByVariant[MongoBatchPairedVariant.DIRECT])
+            val batch = checkNotNull(legsByVariant[MongoBatchPairedVariant.BATCH])
+            if (!direct.row.unit.equals(batch.row.unit, ignoreCase = true)) {
+                throw GradleException(
+                    "Paired Mongo benchmark unit mismatch: threads=$threads, round=$round, " +
+                        "direct=${direct.row.unit}, batch=${batch.row.unit}."
+                )
+            }
+            MongoBatchPairedObservation(
+                threads = threads,
+                round = round,
+                order = expectedOrder,
+                directScore = direct.row.score,
+                batchScore = batch.row.score,
+                unit = direct.row.unit,
+            )
+        }
+
+    pairedMongoBatchAppendProfile.threads.forEach { threads ->
+        val threadRounds = observations.filter { it.threads == threads }.map { it.round }
+        val expectedRounds = (1..mongoBatchPairedRounds).toList()
+        if (threadRounds != expectedRounds) {
+            throw GradleException(
+                "Paired Mongo benchmark rounds are incomplete for threads=$threads: " +
+                    "expected $expectedRounds, found $threadRounds."
+            )
+        }
+    }
+    return MongoBatchPairedExperiment(legs = legs, observations = observations)
+}
+
+fun geometricMean(values: List<Double>, context: String): Double {
+    if (values.isEmpty()) {
+        throw GradleException("Cannot calculate a geometric mean for an empty $context sample.")
+    }
+    values.forEach { value ->
+        if (!value.isFinite() || value <= 0.0) {
+            throw GradleException("$context values must be positive and finite: $value.")
+        }
+    }
+    return kotlin.math.exp(values.sumOf { value -> kotlin.math.ln(value) } / values.size)
+}
+
+fun classifyMongoBatchPairedVerdict(
+    lower95Ratio: Double,
+    upper95Ratio: Double,
+): MongoBatchPairedVerdict {
+    if (!lower95Ratio.isFinite() || lower95Ratio <= 0.0 ||
+        !upper95Ratio.isFinite() || upper95Ratio <= 0.0 ||
+        lower95Ratio > upper95Ratio
+    ) {
+        throw GradleException(
+            "Paired Mongo confidence bounds must be positive, finite, and ordered: " +
+                "[$lower95Ratio, $upper95Ratio]."
+        )
+    }
+    return when {
+        lower95Ratio > mongoBatchPairedMinimumRatio -> MongoBatchPairedVerdict.PASS
+        upper95Ratio < 1.0 -> MongoBatchPairedVerdict.REGRESSION
+        else -> MongoBatchPairedVerdict.INCONCLUSIVE
+    }
+}
+
+fun calculateMongoBatchPairedStatistics(
+    observations: List<MongoBatchPairedObservation>,
+): MongoBatchPairedStatistics {
+    if (observations.size != mongoBatchPairedRounds) {
+        throw GradleException(
+            "Paired Mongo statistics require exactly $mongoBatchPairedRounds observations, " +
+                "found ${observations.size}."
+        )
+    }
+    val threads = observations.map(MongoBatchPairedObservation::threads).distinct().singleOrNull()
+        ?: throw GradleException("Paired Mongo statistics cannot mix JMH thread counts.")
+    val expectedRounds = (1..mongoBatchPairedRounds).toList()
+    val actualRounds = observations.sortedBy(MongoBatchPairedObservation::round)
+        .map(MongoBatchPairedObservation::round)
+    if (actualRounds != expectedRounds) {
+        throw GradleException(
+            "Paired Mongo statistics require rounds $expectedRounds for threads=$threads, found $actualRounds."
+        )
+    }
+    observations.forEach { observation ->
+        val expectedOrder = mongoBatchPairedOrder(observation.round)
+        if (observation.order != expectedOrder) {
+            throw GradleException(
+                "Paired Mongo statistics require ${expectedOrder.id} for threads=$threads, " +
+                    "round=${observation.round}."
+            )
+        }
+        if (!observation.unit.equals("ops/s", ignoreCase = true)) {
+            throw GradleException(
+                "Paired Mongo statistics require ops/s, found ${observation.unit} for threads=$threads."
+            )
+        }
+        if (!observation.directScore.isFinite() || observation.directScore <= 0.0 ||
+            !observation.batchScore.isFinite() || observation.batchScore <= 0.0
+        ) {
+            throw GradleException(
+                "Paired Mongo statistics require positive finite scores for threads=$threads, " +
+                    "round=${observation.round}."
+            )
+        }
+    }
+
+    val ratios = observations.map(MongoBatchPairedObservation::ratio)
+    ratios.forEach { ratio ->
+        if (!ratio.isFinite() || ratio <= 0.0) {
+            throw GradleException("Paired Mongo ratios must be positive and finite: $ratio.")
+        }
+    }
+    val logRatios = observations.map { observation ->
+        kotlin.math.ln(observation.batchScore) - kotlin.math.ln(observation.directScore)
+    }
+    val meanLogRatio = logRatios.average()
+    val sampleVariance = logRatios.sumOf { logRatio ->
+        val deviation = logRatio - meanLogRatio
+        deviation * deviation
+    } / (logRatios.size - 1)
+    val standardError = kotlin.math.sqrt(sampleVariance) / kotlin.math.sqrt(logRatios.size.toDouble())
+    val margin = mongoBatchPairedT95Critical(logRatios.size) * standardError
+    val lower95Ratio = kotlin.math.exp(meanLogRatio - margin)
+    val upper95Ratio = kotlin.math.exp(meanLogRatio + margin)
+    val geometricRatio = kotlin.math.exp(meanLogRatio)
+    val orderRatios = observations.groupBy(MongoBatchPairedObservation::order)
+        .mapValues { (order, orderObservations) ->
+            geometricMean(
+                values = orderObservations.map(MongoBatchPairedObservation::ratio),
+                context = "${order.id} Mongo paired ratio",
+            )
+        }
+    val directThenBatchRatio = orderRatios[MongoBatchPairedOrder.DIRECT_THEN_BATCH]
+        ?: throw GradleException("Paired Mongo statistics are missing AB observations.")
+    val batchThenDirectRatio = orderRatios[MongoBatchPairedOrder.BATCH_THEN_DIRECT]
+        ?: throw GradleException("Paired Mongo statistics are missing BA observations.")
+    val verdict = classifyMongoBatchPairedVerdict(lower95Ratio, upper95Ratio)
+    return MongoBatchPairedStatistics(
+        threads = threads,
+        pairCount = observations.size,
+        directGeometricMean = geometricMean(
+            observations.map(MongoBatchPairedObservation::directScore),
+            "direct Mongo throughput",
+        ),
+        batchGeometricMean = geometricMean(
+            observations.map(MongoBatchPairedObservation::batchScore),
+            "batch Mongo throughput",
+        ),
+        geometricRatio = geometricRatio,
+        lower95Ratio = lower95Ratio,
+        upper95Ratio = upper95Ratio,
+        directThenBatchRatio = directThenBatchRatio,
+        batchThenDirectRatio = batchThenDirectRatio,
+        minimumPairRatio = ratios.min(),
+        maximumPairRatio = ratios.max(),
+        passingPairCount = ratios.count { it > mongoBatchPairedMinimumRatio },
+        verdict = verdict,
+    )
+}
+
+fun MongoBatchPairedExperiment.statistics(): List<MongoBatchPairedStatistics> {
+    return observations.groupBy(MongoBatchPairedObservation::threads)
+        .toSortedMap()
+        .map { (_, threadObservations) ->
+            calculateMongoBatchPairedStatistics(threadObservations)
+        }
+}
+
+val benchmarkMongoBatchAppendPairedE2E = tasks.register("benchmarkMongoBatchAppendPairedE2E") {
+    description = "Runs the counterbalanced AB/BA paired Mongo EventStore append E2E confirmation."
+    group = "benchmark"
+    dependsOn(mongoBatchPairedTrials.map(MongoBatchPairedTrialSpec::task))
+
+    doLast {
+        parseMongoBatchPairedExperiment()
+    }
 }
 
 fun latencyUnitSeconds(unit: String): Double? {
@@ -2326,6 +2881,310 @@ fun StringBuilder.appendBatchCommandWriteComparisons(rows: List<ParsedBenchmarkR
     appendLine()
 }
 
+fun StringBuilder.appendMongoBatchAppendComparisons(rows: List<ParsedBenchmarkResult>) {
+    val throughputRows = rows.filter { it.unit.equals("ops/s", ignoreCase = true) }
+    val rowsByThreads = throughputRows.groupBy(ParsedBenchmarkResult::threads)
+    appendLine("## Independent JMH Comparison")
+    appendLine()
+    appendLine(
+        "Both methods append 128 independent event streams through one reactive subscription. " +
+            "JMH normalizes scores per event stream."
+    )
+    appendLine()
+    appendLine("| JMH Threads | insertOne | insertMany batch | Point change | Evidence |")
+    appendLine("|-------------|-----------|------------------|--------------|----------|")
+    rowsByThreads.toSortedMap().forEach { (threads, threadRows) ->
+        val rowsByMethod = threadRows.associateBy(::benchmarkMethodName)
+        val direct = rowsByMethod["appendWithInsertOne"]
+            ?: throw GradleException("Missing appendWithInsertOne throughput row for threads=$threads.")
+        val batch = rowsByMethod["appendWithInsertManyBatch"]
+            ?: throw GradleException("Missing appendWithInsertManyBatch throughput row for threads=$threads.")
+        val scale = benchmarkMetricScale(listOf(direct.score, batch.score), direct.unit)
+        val directScore = formatScaledBenchmarkScore(direct.score, direct.scoreError, scale)
+        val batchScore = formatScaledBenchmarkScore(batch.score, batch.scoreError, scale)
+        val intervalsOverlap = confidenceIntervalsOverlap(
+            baseline = direct.score,
+            baselineError = direct.scoreError,
+            current = batch.score,
+            currentError = batch.scoreError,
+        )
+        val evidence = when {
+            intervalsOverlap != false -> "INCONCLUSIVE"
+            batch.score > direct.score -> "THROUGHPUT_IMPROVEMENT_CANDIDATE"
+            batch.score < direct.score -> "THROUGHPUT_REGRESSION_CANDIDATE"
+            else -> "STABLE"
+        }
+        appendLine(
+            "| $threads | ${directScore.scoreWithUnit} | ${batchScore.scoreWithUnit} | " +
+                "${formatSignedPercent(relativeChangePercent(direct.score, batch.score))} | $evidence |"
+        )
+    }
+    appendLine()
+    appendLine(
+        "Higher throughput is better. Point changes use unrounded JMH scores from the same run; " +
+            "missing or overlapping error intervals are `INCONCLUSIVE`."
+    )
+    appendLine()
+}
+
+fun sha256Text(value: String): String {
+    return MessageDigest.getInstance("SHA-256")
+        .digest(value.toByteArray(Charsets.UTF_8))
+        .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+}
+
+fun mongoBatchPairedCombinedResultDigest(legs: List<ParsedMongoBatchPairedLeg>): String {
+    val digestInput = legs.sortedBy { it.manifest.taskPath }
+        .joinToString(separator = "\n", postfix = "\n") { leg ->
+            "${leg.manifest.taskPath}=${leg.manifest.resultSha256}"
+        }
+    return sha256Text(digestInput)
+}
+
+fun formatMongoBatchRatio(value: Double): String {
+    return String.format(Locale.US, "%.6f×", value)
+}
+
+fun formatMongoBatchGain(value: Double): String {
+    return String.format(Locale.US, "%+.3f%%", (value - 1.0) * 100.0)
+}
+
+fun mongoBatchPairedVerdictSummary(
+    statistics: List<MongoBatchPairedStatistics>,
+): String {
+    if (statistics.isEmpty()) {
+        throw GradleException("Cannot summarize an empty paired Mongo experiment.")
+    }
+    val allPass = statistics.all { threadStatistics ->
+        threadStatistics.verdict == MongoBatchPairedVerdict.PASS
+    }
+    return if (allPass) {
+        "All measured thread configurations pass because each unrounded paired 95% CI lower bound is " +
+            "strictly greater than the configured `1.05×` throughput threshold."
+    } else {
+        val verdictSummary = statistics.joinToString(", ") { threadStatistics ->
+            "threads=${threadStatistics.threads}: ${threadStatistics.verdict.displayName}"
+        }
+        "The configured acceptance rule is `unrounded paired 95% CI lower bound > 1.05×`; " +
+            "observed verdicts: $verdictSummary."
+    }
+}
+
+fun renderMongoBatchAppendPairedE2EReport(
+    experiment: MongoBatchPairedExperiment,
+): String {
+    val command = "./gradlew :wow-benchmarks:benchmarkMongoBatchAppendPairedE2E " +
+        ":wow-benchmarks:generateMongoBatchAppendPairedE2EReport --no-parallel"
+    val manifests = experiment.manifests
+    val statistics = experiment.statistics()
+    val reference = manifests.first()
+    val startedAt = manifests.minOf { manifest -> Instant.parse(manifest.startedAt) }
+    val completedAt = manifests.maxOf { manifest -> Instant.parse(manifest.completedAt) }
+    val combinedResultDigest = mongoBatchPairedCombinedResultDigest(experiment.legs)
+    val sb = StringBuilder()
+    sb.appendLine("<!--")
+    sb.appendLine("  This file is auto-generated by `$command`.")
+    sb.appendLine("  Do not manually edit benchmark results.")
+    sb.appendLine("-->")
+    sb.appendLine()
+    sb.appendLine("# Mongo EventStore Batch Append Paired E2E Benchmark Report")
+    sb.appendLine()
+    sb.appendLine(
+        "This report measures an append-path E2E workload from per-invocation event-stream creation and " +
+            "reactive subscription through `MongoEventStore.append` completion after MongoDB acknowledgement. " +
+            "It compares the direct `insertOne` path with transparent unordered `insertMany` batching. " +
+            "It does not include Command Gateway ingress, command handling, event publication, or projection, " +
+            "and it is not a production-capacity claim."
+    )
+    sb.appendLine()
+    sb.appendLine("## Result")
+    sb.appendLine()
+    sb.appendLine(
+        "| JMH Threads | Pairs | insertOne geometric mean | insertMany batch geometric mean | Paired ratio | Gain | " +
+            "Paired 95% CI | Required lower bound | Verdict |"
+    )
+    sb.appendLine(
+        "|-------------|------:|-------------:|--------------------:|-------------:|-----:|" +
+            "---------------:|---------------------:|---------|"
+    )
+    statistics.forEach { threadStatistics ->
+        val scale = benchmarkMetricScale(
+            values = listOf(
+                threadStatistics.directGeometricMean,
+                threadStatistics.batchGeometricMean,
+            ),
+            unit = "ops/s",
+        )
+        val direct = formatScaledBenchmarkScore(
+            score = threadStatistics.directGeometricMean,
+            scoreError = null,
+            scale = scale,
+        ).scoreWithUnit
+        val batch = formatScaledBenchmarkScore(
+            score = threadStatistics.batchGeometricMean,
+            scoreError = null,
+            scale = scale,
+        ).scoreWithUnit
+        sb.appendLine(
+            "| ${threadStatistics.threads} | ${threadStatistics.pairCount} | $direct | $batch | " +
+                "${formatMongoBatchRatio(threadStatistics.geometricRatio)} | " +
+                "${formatMongoBatchGain(threadStatistics.geometricRatio)} | " +
+                "[${formatMongoBatchRatio(threadStatistics.lower95Ratio)}, " +
+                "${formatMongoBatchRatio(threadStatistics.upper95Ratio)}] | " +
+                "> ${formatMongoBatchRatio(mongoBatchPairedMinimumRatio)} | " +
+                "**${threadStatistics.verdict.displayName}** |"
+        )
+    }
+    sb.appendLine()
+    sb.appendLine(mongoBatchPairedVerdictSummary(statistics))
+    sb.appendLine()
+    sb.appendLine("## Scope And Methodology")
+    sb.appendLine()
+    sb.appendLine(
+        "- Each invocation creates and submits $mongoBatchPairedOperationsPerInvocation independent single-event " +
+            "streams through one reactive subscription, including the shared Reactor harness and final blocking " +
+            "wait, and waits for all append publishers to complete."
+    )
+    sb.appendLine(
+        "- `@OperationsPerInvocation($mongoBatchPairedOperationsPerInvocation)` normalizes throughput per event " +
+            "stream; the statistical sample is the $mongoBatchPairedRounds run pairs, not the appends inside an invocation."
+    )
+    sb.appendLine(
+        "- Odd rounds use AB (`insertOne → batch`); even rounds use BA (`batch → insertOne`). " +
+            "Every leg is a separate JMH process with one measurement fork, and Gradle executes all legs serially."
+    )
+    sb.appendLine(
+        "- JMH configuration: `${pairedMongoBatchAppendProfile.configSummary()}`; " +
+            "JVM args: `${pairedMongoBatchAppendProfile.jvmArgs.joinToString(" ")}`."
+    )
+    sb.appendLine(
+        "- For pair `i`, `r_i = batch_i / insertOne_i`. The point estimate is " +
+            "`exp(mean(ln(r_i)))`; the interval is the two-sided Student-t 95% CI on log ratios " +
+            "with `df=${mongoBatchPairedRounds - 1}` and " +
+            "`t=${mongoBatchPairedT95Critical(mongoBatchPairedRounds)}`, exponentiated back to the ratio scale."
+    )
+    sb.appendLine(
+        "- Protocol version `$mongoBatchPairedProtocolVersion`, pair count, operations per invocation, statistic, " +
+            "confidence level, t critical value, configured `1.05×` threshold, and acceptance rule are captured " +
+            "in every leg manifest."
+    )
+    sb.appendLine(
+        "- A single leg has only one measurement iteration, so its JMH `scoreError` is not used. " +
+            "Uncertainty comes from the eight paired log ratios for each thread configuration."
+    )
+    sb.appendLine(
+        "- The interval assumes the eight log-ratio pairs are independent and approximately normal. " +
+            "AB/BA alternation is fixed rather than randomized, so it cannot eliminate time trends or autocorrelation."
+    )
+    sb.appendLine()
+    sb.appendLine("## Order Diagnostics")
+    sb.appendLine()
+    sb.appendLine(
+        "| JMH Threads | AB pairs | AB geometric ratio | BA pairs | BA geometric ratio | " +
+            "Pair ratio range (descriptive) | Pairs > 1.05× (descriptive) |"
+    )
+    sb.appendLine("|-------------|---------:|-------------------:|---------:|-------------------:|-----------------:|---------------:|")
+    statistics.forEach { threadStatistics ->
+        sb.appendLine(
+            "| ${threadStatistics.threads} | ${mongoBatchPairedRounds / 2} | " +
+                "${formatMongoBatchRatio(threadStatistics.directThenBatchRatio)} | " +
+                "${mongoBatchPairedRounds / 2} | " +
+                "${formatMongoBatchRatio(threadStatistics.batchThenDirectRatio)} | " +
+                "[${formatMongoBatchRatio(threadStatistics.minimumPairRatio)}, " +
+                "${formatMongoBatchRatio(threadStatistics.maximumPairRatio)}] | " +
+                "${threadStatistics.passingPairCount}/${threadStatistics.pairCount} |"
+        )
+    }
+    sb.appendLine()
+    sb.appendLine(
+        "AB and BA subgroup ratios are diagnostics for a fixed-order artifact; they are not additional " +
+            "hypothesis tests and do not prove that order effects are absent."
+    )
+    sb.appendLine()
+    sb.appendLine("## Per-Pair Results")
+    sb.appendLine()
+    sb.appendLine("| JMH Threads | Round | Order | insertOne | insertMany batch | Ratio | Gain |")
+    sb.appendLine("|-------------|------:|:-----:|----------:|-----------------:|------:|-----:|")
+    experiment.observations
+        .sortedWith(compareBy(MongoBatchPairedObservation::threads, MongoBatchPairedObservation::round))
+        .forEach { observation ->
+            val scale = benchmarkMetricScale(
+                values = listOf(observation.directScore, observation.batchScore),
+                unit = observation.unit,
+            )
+            val direct = formatScaledBenchmarkScore(
+                score = observation.directScore,
+                scoreError = null,
+                scale = scale,
+            ).scoreWithUnit
+            val batch = formatScaledBenchmarkScore(
+                score = observation.batchScore,
+                scoreError = null,
+                scale = scale,
+            ).scoreWithUnit
+            sb.appendLine(
+                "| ${observation.threads} | ${observation.round} | ${observation.order.id} | " +
+                    "$direct | $batch | " +
+                    "${formatMongoBatchRatio(observation.ratio)} | " +
+                    "${formatMongoBatchGain(observation.ratio)} |"
+            )
+        }
+    sb.appendLine()
+    sb.appendLine("## Benchmark Run Provenance")
+    sb.appendLine()
+    sb.appendLine("- **Suite**: `${reference.suite}`")
+    sb.appendLine("- **Profile**: `${reference.profile}`")
+    sb.appendLine("- **Run ID**: `${reference.runId}`")
+    sb.appendLine("- **Run Window**: $startedAt to $completedAt")
+    sb.appendLine("- **Source Commit**: `${reference.sourceCommit}`")
+    sb.appendLine("- **Source Dirty**: `${reference.sourceDirty}`")
+    sb.appendLine("- **Project Version**: `${reference.projectVersion}`")
+    sb.appendLine("- **JMH Jar SHA-256**: `${reference.jmhJarSha256}`")
+    sb.appendLine("- **Runtime JVM**: ${reference.vmName} ${reference.vmVersion} / Java ${reference.javaVersion}")
+    sb.appendLine("- **Runtime OS**: ${reference.osName} ${reference.osVersion} ${reference.osArch}")
+    sb.appendLine("- **CPU Cores**: ${reference.availableProcessors}")
+    sb.appendLine("- **Physical Memory**: ${formatMemoryBytes(reference.physicalMemoryBytes)}")
+    sb.appendLine(
+        "- **Required Services**: `${formatRequiredServiceEndpoints(reference.requiredServices)}`"
+    )
+    sb.appendLine("- **Successful Leg Manifests**: ${manifests.size}")
+    sb.appendLine(
+        "- **Combined Result SHA-256**: `$combinedResultDigest` " +
+            "(`SHA-256` over sorted `taskPath=resultSha256` lines)"
+    )
+    sb.appendLine()
+    sb.appendLine("### Artifact Evidence")
+    sb.appendLine()
+    sb.appendLine("| Threads | Round | Order | Position | Variant | Task | Started | Completed | Result SHA-256 |")
+    sb.appendLine("|---------|------:|:-----:|---------:|---------|------|---------|-----------|----------------|")
+    experiment.legs.forEach { leg ->
+        sb.appendLine(
+            "| ${leg.trial.threads} | ${leg.trial.round} | ${leg.trial.order.id} | " +
+                "${leg.trial.position} | ${leg.trial.variant.id} | `${leg.manifest.taskPath}` | " +
+                "${leg.manifest.startedAt} | ${leg.manifest.completedAt} | " +
+                "`${leg.manifest.resultSha256}` |"
+        )
+    }
+    sb.appendLine()
+    sb.appendBenchmarkEnvironment(project.version.toString(), pairedMongoBatchAppendProfile)
+    sb.appendInfrastructureRuntime(reference.requiredServices)
+    sb.appendLine("## Limitations")
+    sb.appendLine()
+    sb.appendLine(
+        "- Manifests capture the benchmark JVM/OS and MongoDB endpoint. Docker container/image details above are " +
+            "report-time context, not cryptographically bound run-time provenance."
+    )
+    sb.appendLine(
+        "- Throughput-only legs do not identify CPU, allocation, network, or storage bottlenecks; use profiling " +
+            "and production telemetry before capacity planning."
+    )
+    sb.appendLine(
+        "- MongoDB command counts are intentionally excluded because this experiment does not capture them in " +
+            "the provenance manifests."
+    )
+    return sb.toString()
+}
+
 val verifyBenchmarkReportFormatting = tasks.register("verifyBenchmarkReportFormatting") {
     description = "Verify human-readable benchmark metric formatting."
     group = "verification"
@@ -2423,9 +3282,148 @@ val verifyBenchmarkRequiredServiceManifest = tasks.register("verifyBenchmarkRequ
     }
 }
 
+fun requireApproximatelyEqual(
+    actual: Double,
+    expected: Double,
+    tolerance: Double,
+    label: String,
+) {
+    if (!actual.isFinite() || !expected.isFinite() || !tolerance.isFinite() || tolerance < 0.0 ||
+        kotlin.math.abs(actual - expected) > tolerance
+    ) {
+        throw GradleException(
+            "$label mismatch: expected $expected ± $tolerance, found $actual."
+        )
+    }
+}
+
+val verifyMongoBatchPairedStatistics = tasks.register("verifyMongoBatchPairedStatistics") {
+    description = "Verify paired Mongo append geometric ratios, confidence intervals, and input rules."
+    group = "verification"
+
+    doLast {
+        val directScores = listOf(
+            21824.464088325072,
+            22665.57373944818,
+            21960.77788353063,
+            18777.29501410656,
+            19181.048326321983,
+            17282.34688914761,
+            20952.233671009188,
+            21409.070798847537,
+        )
+        val batchScores = listOf(
+            47659.112156572126,
+            54280.70485575845,
+            49273.90636133233,
+            49047.07547170062,
+            41358.67718614385,
+            34294.41614419429,
+            44497.059313479025,
+            48948.13027021249,
+        )
+        val observations = directScores.indices.map { index ->
+            val round = index + 1
+            MongoBatchPairedObservation(
+                threads = 1,
+                round = round,
+                order = mongoBatchPairedOrder(round),
+                directScore = directScores[index],
+                batchScore = batchScores[index],
+                unit = "ops/s",
+            )
+        }
+        val statistics = calculateMongoBatchPairedStatistics(observations)
+        requireApproximatelyEqual(
+            statistics.directGeometricMean,
+            20428.514273072244,
+            1.0e-9,
+            "direct geometric mean",
+        )
+        requireApproximatelyEqual(
+            statistics.batchGeometricMean,
+            45786.228991770986,
+            1.0e-9,
+            "batch geometric mean",
+        )
+        requireApproximatelyEqual(statistics.geometricRatio, 2.2412902073903584, 1.0e-12, "paired ratio")
+        requireApproximatelyEqual(statistics.lower95Ratio, 2.091192146065691, 1.0e-12, "paired CI lower")
+        requireApproximatelyEqual(statistics.upper95Ratio, 2.4021617540955105, 1.0e-12, "paired CI upper")
+        requireApproximatelyEqual(
+            statistics.directThenBatchRatio,
+            2.1764150928966677,
+            1.0e-12,
+            "AB ratio",
+        )
+        requireApproximatelyEqual(
+            statistics.batchThenDirectRatio,
+            2.3080991351967324,
+            1.0e-12,
+            "BA ratio",
+        )
+        check(statistics.pairCount == mongoBatchPairedRounds)
+        check(statistics.passingPairCount == mongoBatchPairedRounds)
+        check(statistics.verdict == MongoBatchPairedVerdict.PASS)
+        check(formatMongoBatchRatio(statistics.geometricRatio) == "2.241290×")
+        check(formatMongoBatchGain(statistics.geometricRatio) == "+124.129%")
+        check(classifyMongoBatchPairedVerdict(mongoBatchPairedMinimumRatio, 1.2) ==
+            MongoBatchPairedVerdict.INCONCLUSIVE)
+
+        val inconclusiveStatistics = calculateMongoBatchPairedStatistics(
+            observations.map { observation ->
+                observation.copy(batchScore = observation.directScore)
+            }
+        )
+        check(inconclusiveStatistics.verdict == MongoBatchPairedVerdict.INCONCLUSIVE)
+        val regressionStatistics = calculateMongoBatchPairedStatistics(
+            observations.map { observation ->
+                observation.copy(batchScore = observation.directScore / 2.0)
+            }
+        )
+        check(regressionStatistics.verdict == MongoBatchPairedVerdict.REGRESSION)
+        val mixedSummary = mongoBatchPairedVerdictSummary(
+            listOf(statistics, inconclusiveStatistics.copy(threads = 4))
+        )
+        check("All measured thread configurations pass" !in mixedSummary)
+        check("threads=4: INCONCLUSIVE" in mixedSummary)
+
+        val missingRoundFailure = runCatching {
+            calculateMongoBatchPairedStatistics(observations.dropLast(1))
+        }.exceptionOrNull()
+        check(missingRoundFailure is GradleException)
+
+        val wrongOrderFailure = runCatching {
+            calculateMongoBatchPairedStatistics(
+                observations.map { observation ->
+                    if (observation.round == 2) {
+                        observation.copy(order = MongoBatchPairedOrder.DIRECT_THEN_BATCH)
+                    } else {
+                        observation
+                    }
+                }
+            )
+        }.exceptionOrNull()
+        check(wrongOrderFailure is GradleException)
+
+        val invalidScoreFailure = runCatching {
+            calculateMongoBatchPairedStatistics(
+                observations.map { observation ->
+                    if (observation.round == 1) {
+                        observation.copy(batchScore = Double.NaN)
+                    } else {
+                        observation
+                    }
+                }
+            )
+        }.exceptionOrNull()
+        check(invalidScoreFailure is GradleException)
+    }
+}
+
 tasks.named("check") {
     dependsOn(verifyBenchmarkReportFormatting)
     dependsOn(verifyBenchmarkRequiredServiceManifest)
+    dependsOn(verifyMongoBatchPairedStatistics)
 }
 
 fun StringBuilder.appendBenchmarkTable(rows: List<ParsedBenchmarkResult>) {
@@ -2819,6 +3817,78 @@ tasks.register("generateBatchBenchmarkReport") {
         outputFile.parentFile.mkdirs()
         outputFile.writeText(report)
         logger.lifecycle("Batch CommandWrite benchmark report generated: ${outputFile.absolutePath}")
+    }
+}
+
+tasks.register("generateMongoBatchAppendBenchmarkReport") {
+    description = "Generate the quick Mongo EventStore batch append comparison report."
+    group = "benchmark"
+    mustRunAfter("benchmarkQuickMongoBatchAppend")
+    outputs.file(mongoBatchAppendReportFile)
+    outputs.upToDateWhen { false }
+
+    doLast {
+        val report = renderSingleBenchmarkReport(
+            group = benchmarkResultGroup(quickMongoBatchAppendTaskSpec),
+            title = "Quick Mongo EventStore Batch Append Benchmark Report",
+            command = "./gradlew :wow-benchmarks:benchmarkQuickMongoBatchAppend " +
+                ":wow-benchmarks:generateMongoBatchAppendBenchmarkReport --no-parallel",
+            description = "This paired Quick experiment compares the previous insertOne write path with " +
+                "transparent unordered insertMany batching against the same MongoDB service. " +
+                "It is directional local evidence rather than a cross-machine capacity claim.",
+            includeInfrastructureRuntime = true,
+            appendBeforeResults = { rows -> appendMongoBatchAppendComparisons(rows) },
+        )
+
+        val outputFile = mongoBatchAppendReportFile.asFile
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(report)
+        logger.lifecycle("Mongo batch append benchmark report generated: ${outputFile.absolutePath}")
+    }
+}
+
+tasks.register("generateMongoBatchAppendConfirmationReport") {
+    description = "Generate the confirmation Mongo EventStore batch append comparison report."
+    group = "benchmark"
+    mustRunAfter("benchmarkConfirmMongoBatchAppend")
+    outputs.file(mongoBatchAppendConfirmationReportFile)
+    outputs.upToDateWhen { false }
+
+    doLast {
+        val report = renderSingleBenchmarkReport(
+            group = benchmarkResultGroup(confirmationMongoBatchAppendTaskSpec),
+            title = "Confirmation Mongo EventStore Batch Append Benchmark Report",
+            command = "./gradlew :wow-benchmarks:benchmarkConfirmMongoBatchAppend " +
+                ":wow-benchmarks:generateMongoBatchAppendConfirmationReport --no-parallel",
+            description = "This confirmation experiment compares insertOne with transparent unordered " +
+                "insertMany batching for saturated 128-request append workloads. It uses multiple forks and " +
+                "confidence intervals, but remains local evidence rather than a production capacity claim.",
+            includeInfrastructureRuntime = true,
+            appendBeforeResults = { rows -> appendMongoBatchAppendComparisons(rows) },
+        )
+
+        val outputFile = mongoBatchAppendConfirmationReportFile.asFile
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(report)
+        logger.lifecycle("Mongo batch append confirmation report generated: ${outputFile.absolutePath}")
+    }
+}
+
+tasks.register("generateMongoBatchAppendPairedE2EReport") {
+    description = "Generate the paired AB/BA Mongo EventStore append E2E benchmark report."
+    group = "benchmark"
+    mustRunAfter(benchmarkMongoBatchAppendPairedE2E)
+    mustRunAfter(mongoBatchPairedTrials.map(MongoBatchPairedTrialSpec::task))
+    outputs.file(mongoBatchAppendPairedE2EReportFile)
+    outputs.upToDateWhen { false }
+
+    doLast {
+        val experiment = parseMongoBatchPairedExperiment()
+        val report = renderMongoBatchAppendPairedE2EReport(experiment)
+        val outputFile = mongoBatchAppendPairedE2EReportFile.asFile
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(report)
+        logger.lifecycle("Mongo batch append paired E2E benchmark report generated: ${outputFile.absolutePath}")
     }
 }
 

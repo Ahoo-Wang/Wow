@@ -51,6 +51,10 @@ wow:
 | `wow.mongo.event-stream-database` | String? | `null` | Separate database for event streams (defaults to main database) |
 | `wow.mongo.snapshot-database` | String? | `null` | Separate database for snapshots (defaults to main database) |
 | `wow.mongo.prepare-database` | String? | `null` | Separate database for PrepareKey storage (defaults to main database) |
+| `wow.mongo.event-store-batch.enabled` | Boolean | `false` | Batch concurrent event-store appends with MongoDB `insertMany` |
+| `wow.mongo.event-store-batch.max-size` | Int | `128` | Maximum event streams in one collection batch |
+| `wow.mongo.event-store-batch.max-delay` | Duration | `1ms` | Maximum time to collect a partial batch |
+| `wow.mongo.event-store-batch.max-pending-appends` | Int | `4096` | Maximum accepted appends waiting or being written; must be at least `max-size` |
 
 ```yaml
 wow:
@@ -59,6 +63,11 @@ wow:
     auto-init-schema: true
     event-stream-database: wow_events
     snapshot-database: wow_snapshots
+    event-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-appends: 4096
 ```
 
 ## Redis

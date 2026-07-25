@@ -263,6 +263,10 @@ wow:
 | `wow.mongo.event-stream-database` | String | Spring MongoDB 数据库 | 事件流数据库 |
 | `wow.mongo.snapshot-database` | String | Spring MongoDB 数据库 | 快照数据库 |
 | `wow.mongo.prepare-database` | String | Spring MongoDB 数据库 | 预分配键数据库 |
+| `wow.mongo.event-store-batch.enabled` | Boolean | `false` | 启用透明的 EventStore 追加批处理 |
+| `wow.mongo.event-store-batch.max-size` | Int | `128` | 同一集合单批最多包含的事件流数量 |
+| `wow.mongo.event-store-batch.max-delay` | Duration | `1ms` | 收集不足一批请求的最长等待时间 |
+| `wow.mongo.event-store-batch.max-pending-appends` | Int | `4096` | 等待或正在写入的 append 最大接收数量；必须不小于 `max-size` |
 
 ```yaml
 wow:
@@ -272,6 +276,11 @@ wow:
     event-stream-database: wow_event_db
     snapshot-database: wow_snapshot_db
     prepare-database: wow_prepare_db
+    event-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-appends: 4096
 ```
 
 ### Redis 配置

@@ -57,14 +57,29 @@ import org.springframework.context.annotation.Bean
 @ConditionalOnWowEnabled
 @ConditionalOnMongoEnabled
 @ConditionalOnClass(MongoEventStore::class)
-@EnableConfigurationProperties(MongoProperties::class, SnapshotCheckpointProperties::class)
+@EnableConfigurationProperties(
+    MongoProperties::class,
+    MongoEventStoreBatchProperties::class,
+    SnapshotCheckpointProperties::class,
+)
 class MongoEventSourcingAutoConfiguration @Autowired constructor(
     private val mongoProperties: MongoProperties,
     private val checkpointProperties: SnapshotCheckpointProperties,
+    private val eventStoreBatchProperties: MongoEventStoreBatchProperties,
 ) {
+    constructor(
+        mongoProperties: MongoProperties,
+        checkpointProperties: SnapshotCheckpointProperties,
+    ) : this(
+        mongoProperties = mongoProperties,
+        checkpointProperties = checkpointProperties,
+        eventStoreBatchProperties = MongoEventStoreBatchProperties(),
+    )
+
     constructor(mongoProperties: MongoProperties) : this(
         mongoProperties = mongoProperties,
         checkpointProperties = SnapshotCheckpointProperties(),
+        eventStoreBatchProperties = MongoEventStoreBatchProperties(),
     )
 
     @Bean
@@ -81,7 +96,10 @@ class MongoEventSourcingAutoConfiguration @Autowired constructor(
         if (mongoProperties.autoInitSchema) {
             EventStreamSchemaInitializer(eventStoreDatabase).initAll()
         }
-        return MongoEventStore(eventStoreDatabase)
+        return MongoEventStore(
+            database = eventStoreDatabase,
+            batchOptions = eventStoreBatchProperties.toOptions(),
+        )
     }
 
     @Bean
