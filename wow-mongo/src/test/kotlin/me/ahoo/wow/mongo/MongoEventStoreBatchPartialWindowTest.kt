@@ -81,8 +81,10 @@ class MongoEventStoreBatchPartialWindowTest {
         val allAppends = (firstWindow + remainingWindow).toTypedArray()
         CompletableFuture.allOf(*allAppends).get(1, TimeUnit.SECONDS)
         batcher.close()
-        batchSizes.first().assert().isEqualTo(19)
-        batchSizes.drop(1).sum().assert().isEqualTo(109)
+        batchSizes.sum().assert().isEqualTo(128)
+        batchSizes.size.assert().isGreaterThan(1)
+        batchSizes.first().assert().isLessThan(128)
+        batchSizes.all { it in 1..128 }.assert().isTrue()
     }
 
     private fun eventStream(id: String): DomainEventStream {

@@ -47,6 +47,8 @@ internal class MongoEventStoreBatcher(
 
         data object Closing : Lifecycle
 
+        data object DrainingResults : Lifecycle
+
         data object Closed : Lifecycle
 
         data class Failed(val cause: Throwable) : Lifecycle
@@ -202,8 +204,10 @@ internal class MongoEventStoreBatcher(
     private val requests = Sinks.many().unicast().onBackpressureBuffer(requestQueue)
     private val pending = ConcurrentHashMap.newKeySet<AppendRequest>()
     private val lifecycle = AtomicReference<Lifecycle>(Lifecycle.Open)
+    private val processorTermination = CompletableFuture<Unit>()
     private val termination = CompletableFuture<Unit>()
-    private val resultExecutor = ThreadPoolExecutor(
+    private val resultDispatchContext = ThreadLocal<Boolean>()
+    private val resultExecutor = object : ThreadPoolExecutor(
         RESULT_DISPATCHER_THREADS.coerceAtMost(options.maxPendingAppends),
         RESULT_DISPATCHER_THREADS.coerceAtMost(options.maxPendingAppends),
         0,
@@ -217,7 +221,11 @@ internal class MongoEventStoreBatcher(
                 isDaemon = true
             }
         }
-    )
+    ) {
+        override fun terminated() {
+            completeResultDrain()
+        }
+    }
     private val processor: Disposable
 
     init {
@@ -258,6 +266,7 @@ internal class MongoEventStoreBatcher(
                 when (lifecycle.get()) {
                     Lifecycle.Open -> requests.tryEmitNext(request)
                     Lifecycle.Closing,
+                    Lifecycle.DrainingResults,
                     Lifecycle.Closed,
                     is Lifecycle.Failed,
                     -> Sinks.EmitResult.FAIL_TERMINATED
@@ -339,10 +348,23 @@ internal class MongoEventStoreBatcher(
     }
 
     private fun dispatchResults(signal: () -> Unit) {
+        val contextualSignal = Runnable {
+            val previousContext = resultDispatchContext.get()
+            resultDispatchContext.set(true)
+            try {
+                signal()
+            } finally {
+                if (previousContext == null) {
+                    resultDispatchContext.remove()
+                } else {
+                    resultDispatchContext.set(previousContext)
+                }
+            }
+        }
         try {
-            resultExecutor.execute(signal)
+            resultExecutor.execute(contextualSignal)
         } catch (_: RejectedExecutionException) {
-            signal()
+            contextualSignal.run()
         }
     }
 
@@ -356,6 +378,7 @@ internal class MongoEventStoreBatcher(
         return when (val current = lifecycle.get()) {
             Lifecycle.Open -> null
             Lifecycle.Closing,
+            Lifecycle.DrainingResults,
             Lifecycle.Closed,
             -> IllegalStateException("MongoEventStore is closed.")
 
@@ -368,6 +391,7 @@ internal class MongoEventStoreBatcher(
             is Lifecycle.Failed -> return current.cause
             Lifecycle.Open,
             Lifecycle.Closing,
+            Lifecycle.DrainingResults,
             Lifecycle.Closed,
             -> Unit
         }
@@ -395,11 +419,12 @@ internal class MongoEventStoreBatcher(
                     Lifecycle.Open,
                     Lifecycle.Closing,
                     -> {
-                        if (lifecycle.compareAndSet(current, Lifecycle.Closed)) {
-                            terminal = Lifecycle.Closed
+                        if (lifecycle.compareAndSet(current, Lifecycle.DrainingResults)) {
+                            terminal = Lifecycle.DrainingResults
                         }
                     }
 
+                    Lifecycle.DrainingResults -> terminal = Lifecycle.DrainingResults
                     Lifecycle.Closed -> terminal = Lifecycle.Closed
 
                     is Lifecycle.Failed -> terminal = current
@@ -407,14 +432,66 @@ internal class MongoEventStoreBatcher(
             }
             checkNotNull(terminal)
         }
-        resultExecutor.shutdown()
         when (terminalLifecycle) {
             Lifecycle.Open,
             Lifecycle.Closing,
             -> error("Unexpected MongoEventStore lifecycle: $terminalLifecycle")
 
+            Lifecycle.DrainingResults -> processorTermination.complete(Unit)
+            Lifecycle.Closed -> {
+                processorTermination.complete(Unit)
+                termination.complete(Unit)
+            }
+
+            is Lifecycle.Failed -> {
+                processorTermination.completeExceptionally(terminalLifecycle.cause)
+                termination.completeExceptionally(terminalLifecycle.cause)
+            }
+        }
+        resultExecutor.shutdown()
+    }
+
+    private fun completeResultDrain() {
+        val terminalLifecycle = synchronized(emissionLock) {
+            var terminal: Lifecycle? = null
+            while (terminal == null) {
+                when (val current = lifecycle.get()) {
+                    Lifecycle.DrainingResults -> {
+                        if (lifecycle.compareAndSet(current, Lifecycle.Closed)) {
+                            terminal = Lifecycle.Closed
+                        }
+                    }
+
+                    Lifecycle.Closed -> terminal = Lifecycle.Closed
+                    is Lifecycle.Failed -> terminal = current
+                    Lifecycle.Open,
+                    Lifecycle.Closing,
+                    -> {
+                        val failed = Lifecycle.Failed(
+                            IllegalStateException(
+                                "MongoEventStore result dispatcher terminated before the processor."
+                            )
+                        )
+                        if (lifecycle.compareAndSet(current, failed)) {
+                            terminal = failed
+                        }
+                    }
+                }
+            }
+            checkNotNull(terminal)
+        }
+        when (terminalLifecycle) {
+            Lifecycle.Open,
+            Lifecycle.Closing,
+            Lifecycle.DrainingResults,
+            -> error("Unexpected MongoEventStore lifecycle: $terminalLifecycle")
+
             Lifecycle.Closed -> termination.complete(Unit)
-            is Lifecycle.Failed -> termination.completeExceptionally(terminalLifecycle.cause)
+            is Lifecycle.Failed -> {
+                processorTermination.completeExceptionally(terminalLifecycle.cause)
+                termination.completeExceptionally(terminalLifecycle.cause)
+                failPending(terminalLifecycle.cause)
+            }
         }
     }
 
@@ -431,6 +508,7 @@ internal class MongoEventStoreBatcher(
                     }
 
                     Lifecycle.Closing,
+                    Lifecycle.DrainingResults,
                     Lifecycle.Closed,
                     is Lifecycle.Failed,
                     -> return
@@ -449,8 +527,20 @@ internal class MongoEventStoreBatcher(
     }
 
     private fun awaitTermination() {
+        // A result callback cannot join the dispatcher worker that is currently
+        // running it. It still waits until every MongoDB batch has settled and
+        // every result task has been submitted; external callers also await
+        // complete result dispatch.
+        val closeTermination = if (
+            resultDispatchContext.get() == true &&
+            lifecycle.get() !is Lifecycle.Failed
+        ) {
+            processorTermination
+        } else {
+            termination
+        }
         try {
-            termination.get(closeTimeout.toNanos(), TimeUnit.NANOSECONDS)
+            closeTermination.get(closeTimeout.toNanos(), TimeUnit.NANOSECONDS)
         } catch (error: TimeoutException) {
             closeTimedOut()?.let {
                 throw it
@@ -486,6 +576,7 @@ internal class MongoEventStoreBatcher(
                 when (val current = lifecycle.get()) {
                     Lifecycle.Open,
                     Lifecycle.Closing,
+                    Lifecycle.DrainingResults,
                     -> {
                         val failed = Lifecycle.Failed(error)
                         if (lifecycle.compareAndSet(current, failed)) {
@@ -507,6 +598,7 @@ internal class MongoEventStoreBatcher(
         val terminalError = when (terminalLifecycle) {
             Lifecycle.Open,
             Lifecycle.Closing,
+            Lifecycle.DrainingResults,
             Lifecycle.Closed,
             -> error("Unexpected MongoEventStore lifecycle: $terminalLifecycle")
 
@@ -516,6 +608,7 @@ internal class MongoEventStoreBatcher(
             processor.dispose()
         }
         resultExecutor.shutdown()
+        processorTermination.completeExceptionally(terminalError)
         termination.completeExceptionally(terminalError)
         failPending(terminalError)
         return terminalError

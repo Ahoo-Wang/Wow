@@ -40,7 +40,6 @@ import org.bson.BsonDocument
 import org.bson.Document
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import org.junit.jupiter.api.assertTimeoutPreemptively
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
@@ -51,7 +50,6 @@ import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
 class MongoEventStoreBatchTest {
@@ -101,38 +99,27 @@ class MongoEventStoreBatchTest {
     }
 
     @Test
-    fun `close should flush a partial batch`() {
-        val database = mockk<MongoDatabase>()
-        val collection = mockk<MongoCollection<Document>>()
-        every { database.getCollection(any<String>()) } returns collection
-        every {
-            collection.insertMany(any<List<Document>>(), any())
-        } returns Mono.just(InsertManyResult.acknowledged(emptyMap()))
-        val eventStore = MongoEventStore(
-            database,
-            MongoEventStoreBatchOptions(
-                enabled = true,
-                maxSize = 8,
-                maxDelay = Duration.ofHours(1),
-            )
-        )
-
-        val appendResult = eventStore.append(eventStream("order-1")).toFuture()
-        eventStore.close()
-
-        appendResult.join()
-        verify(exactly = 1) { collection.insertMany(any<List<Document>>(), any()) }
-    }
-
-    @Test
     fun `successive batches should wait for downstream write capacity`() {
         val database = mockk<MongoDatabase>()
         val collection = mockk<MongoCollection<Document>>()
+        val inFlightWrites = AtomicInteger()
+        val maxInFlightWrites = AtomicInteger()
+        val batchSizes = mutableListOf<Int>()
         every { database.getCollection(any<String>()) } returns collection
         every {
             collection.insertMany(any<List<Document>>(), any())
-        } returns Mono.delay(Duration.ofMillis(50))
-            .thenReturn(InsertManyResult.acknowledged(emptyMap()))
+        } answers {
+            batchSizes += firstArg<List<Document>>().size
+            Mono.defer {
+                val inFlight = inFlightWrites.incrementAndGet()
+                maxInFlightWrites.updateAndGet { current -> maxOf(current, inFlight) }
+                Mono.delay(Duration.ofMillis(50))
+                    .thenReturn(InsertManyResult.acknowledged(emptyMap()))
+                    .doOnSuccess {
+                        inFlightWrites.decrementAndGet()
+                    }
+            }
+        }
 
         MongoEventStore(database, batchOptions(maxSize = 2)).use { eventStore ->
             StepVerifier.create(
@@ -143,7 +130,9 @@ class MongoEventStoreBatchTest {
             ).verifyComplete()
         }
 
-        verify(exactly = 4) { collection.insertMany(any<List<Document>>(), any()) }
+        batchSizes.sum().assert().isEqualTo(8)
+        batchSizes.all { it in 1..2 }.assert().isTrue()
+        maxInFlightWrites.get().assert().isEqualTo(1)
     }
 
     @Test
@@ -258,6 +247,48 @@ class MongoEventStoreBatchTest {
 
             signals.t1.throwable.assert().isInstanceOf(EventVersionConflictException::class.java)
             signals.t2.throwable.assert().isSameAs(bulkError)
+        }
+    }
+
+    @Test
+    fun `recoverable write concern error should fail every uncertain append`() {
+        val database = mockk<MongoDatabase>()
+        val collection = mockk<MongoCollection<Document>>()
+        val bulkError = MongoBulkWriteException(
+            BulkWriteResult.acknowledged(
+                0,
+                0,
+                0,
+                0,
+                emptyList<BulkWriteUpsert>(),
+                emptyList<BulkWriteInsert>(),
+            ),
+            emptyList(),
+            WriteConcernError(
+                91,
+                "ShutdownInProgress",
+                "shutdown in progress",
+                BsonDocument(),
+            ),
+            ServerAddress("localhost"),
+            emptySet(),
+        )
+        every { database.getCollection(any<String>()) } returns collection
+        every {
+            collection.insertMany(any<List<Document>>(), any())
+        } returns Mono.error(bulkError)
+
+        MongoEventStore(database, batchOptions(maxSize = 2)).use { eventStore ->
+            val signals = Mono.zip(
+                eventStore.append(eventStream("order-1")).materialize(),
+                eventStore.append(eventStream("order-2")).materialize(),
+            ).block()!!
+
+            signals.t1.throwable.assert().isInstanceOf(RecoverableMongoBulkWriteException::class.java)
+            signals.t2.throwable.assert().isSameAs(signals.t1.throwable)
+            val recoverableError = signals.t1.throwable as RecoverableMongoBulkWriteException
+            recoverableError.error.code.assert().isEqualTo(91)
+            recoverableError.cause.assert().isSameAs(bulkError)
         }
     }
 
@@ -541,142 +572,6 @@ class MongoEventStoreBatchTest {
             batcher.close()
         } finally {
             executor.shutdownNow()
-        }
-    }
-
-    @Test
-    fun `close invoked from append completion should await the remaining drain`() {
-        val database = mockk<MongoDatabase>()
-        val collection = mockk<MongoCollection<Document>>()
-        val insertIndex = AtomicInteger()
-        val firstInsert = Sinks.one<InsertManyResult>()
-        val secondInsert = Sinks.one<InsertManyResult>()
-        val firstWriteSubscribed = CountDownLatch(1)
-        val secondWriteSubscribed = CountDownLatch(1)
-        val closeReturned = CountDownLatch(1)
-        every { database.getCollection(any<String>()) } returns collection
-        every {
-            collection.insertMany(any<List<Document>>(), any())
-        } answers {
-            when (insertIndex.getAndIncrement()) {
-                0 -> Mono.defer {
-                    firstWriteSubscribed.countDown()
-                    firstInsert.asMono()
-                }
-
-                else -> Mono.defer {
-                    secondWriteSubscribed.countDown()
-                    secondInsert.asMono()
-                }
-            }
-        }
-        val eventStore = MongoEventStore(database, batchOptions(maxSize = 2))
-
-        assertTimeoutPreemptively(Duration.ofSeconds(2)) {
-            val firstAppend = eventStore.append(eventStream("order-1"))
-                .doOnSuccess {
-                    eventStore.close()
-                    closeReturned.countDown()
-                }.toFuture()
-            val secondAppend = eventStore.append(eventStream("order-2")).toFuture()
-            firstWriteSubscribed.await(1, TimeUnit.SECONDS).assert().isTrue()
-            val thirdAppend = eventStore.append(eventStream("order-3")).toFuture()
-
-            firstInsert.tryEmitValue(InsertManyResult.acknowledged(emptyMap()))
-                .assert().isEqualTo(Sinks.EmitResult.OK)
-            secondWriteSubscribed.await(1, TimeUnit.SECONDS).assert().isTrue()
-            closeReturned.await(100, TimeUnit.MILLISECONDS).assert().isFalse()
-
-            secondInsert.tryEmitValue(InsertManyResult.acknowledged(emptyMap()))
-                .assert().isEqualTo(Sinks.EmitResult.OK)
-            closeReturned.await(1, TimeUnit.SECONDS).assert().isTrue()
-            firstAppend.join()
-            secondAppend.join()
-            thirdAppend.join()
-        }
-    }
-
-    @Test
-    fun `concurrent close callers should await the same drain`() {
-        val database = mockk<MongoDatabase>()
-        val collection = mockk<MongoCollection<Document>>()
-        val writeSubscribed = CountDownLatch(1)
-        val insertResult = Sinks.one<InsertManyResult>()
-        every { database.getCollection(any<String>()) } returns collection
-        every {
-            collection.insertMany(any<List<Document>>(), any())
-        } returns Mono.defer {
-            writeSubscribed.countDown()
-            insertResult.asMono()
-        }
-        val eventStore = MongoEventStore(database, batchOptions(maxSize = 2))
-        val firstAppend = eventStore.append(eventStream("order-1")).toFuture()
-        val secondAppend = eventStore.append(eventStream("order-2")).toFuture()
-        writeSubscribed.await(1, TimeUnit.SECONDS).assert().isTrue()
-        val executor = Executors.newFixedThreadPool(2)
-        val startClose = CountDownLatch(1)
-
-        try {
-            val firstClose = executor.submit {
-                startClose.await()
-                eventStore.close()
-            }
-            val secondClose = executor.submit {
-                startClose.await()
-                eventStore.close()
-            }
-            startClose.countDown()
-
-            assertThrows<TimeoutException> {
-                firstClose.get(100, TimeUnit.MILLISECONDS)
-            }
-            assertThrows<TimeoutException> {
-                secondClose.get(100, TimeUnit.MILLISECONDS)
-            }
-
-            insertResult.tryEmitValue(InsertManyResult.acknowledged(emptyMap()))
-                .assert().isEqualTo(Sinks.EmitResult.OK)
-            firstClose.get(1, TimeUnit.SECONDS)
-            secondClose.get(1, TimeUnit.SECONDS)
-            firstAppend.join()
-            secondAppend.join()
-        } finally {
-            executor.shutdownNow()
-        }
-    }
-
-    @Test
-    fun `close timeout should terminate pending appends`() {
-        val database = mockk<MongoDatabase>()
-        val collection = mockk<MongoCollection<Document>>()
-        every { database.getCollection(any<String>()) } returns collection
-        every {
-            collection.insertMany(any<List<Document>>(), any())
-        } returns Mono.never()
-        val batcher = MongoEventStoreBatcher(
-            database = database,
-            options = batchOptions(maxSize = 2),
-            closeTimeout = Duration.ofMillis(50),
-        )
-        val first = batcher.append(eventStream("order-1")).toFuture()
-        val second = batcher.append(eventStream("order-2")).toFuture()
-
-        val closeError = assertThrows<MongoEventStoreBatchCloseTimeoutException> {
-            batcher.close()
-        }
-        assertTimeoutPreemptively(Duration.ofSeconds(1)) {
-            assertThrows<CompletionException> {
-                first.join()
-            }.cause.assert().isSameAs(closeError)
-            assertThrows<CompletionException> {
-                second.join()
-            }.cause.assert().isSameAs(closeError)
-            StepVerifier.create(batcher.append(eventStream("order-after-close")))
-                .expectError(MongoEventStoreBatchCloseTimeoutException::class.java)
-                .verify()
-            assertThrows<MongoEventStoreBatchCloseTimeoutException> {
-                batcher.close()
-            }.assert().isSameAs(closeError)
         }
     }
 

@@ -13,9 +13,11 @@
 
 package me.ahoo.wow.mongo
 
+import com.mongodb.MongoBulkWriteException
 import com.mongodb.MongoWriteException
 import com.mongodb.ServerAddress
 import com.mongodb.WriteError
+import com.mongodb.bulk.WriteConcernError
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
@@ -94,6 +96,35 @@ class ErrorMappingTest {
         val result = writeException.toWowError(eventStream)
         result.assert().isInstanceOf(RecoverableMongoWriteException::class.java)
         (result as RecoverableMongoWriteException).error.code.assert().isEqualTo(10107)
+    }
+
+    @Test
+    fun `recoverable bulk write error maps to RecoverableMongoBulkWriteException`() {
+        val eventStream = mockEventStream()
+        val writeError = WriteError(10107, "NotWritablePrimary", BsonDocument())
+        val bulkWriteException = mockk<MongoBulkWriteException>(relaxed = true)
+
+        val result = writeError.toWowError(eventStream, bulkWriteException)
+
+        result.assert().isInstanceOf(RecoverableMongoBulkWriteException::class.java)
+        val recoverableError = result as RecoverableMongoBulkWriteException
+        recoverableError.error.assert().isSameAs(writeError)
+        recoverableError.cause.assert().isSameAs(bulkWriteException)
+    }
+
+    @Test
+    fun `non-recoverable write concern error returns original bulk exception`() {
+        val bulkWriteException = mockk<MongoBulkWriteException>()
+        val writeConcernError = WriteConcernError(
+            64,
+            "WriteConcernFailed",
+            "write concern failed",
+            BsonDocument(),
+        )
+
+        writeConcernError.toWowError(bulkWriteException)
+            .assert()
+            .isSameAs(bulkWriteException)
     }
 
     @Test
