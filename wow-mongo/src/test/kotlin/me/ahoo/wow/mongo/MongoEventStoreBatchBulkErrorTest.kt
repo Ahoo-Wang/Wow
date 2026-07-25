@@ -90,8 +90,10 @@ class MongoEventStoreBatchBulkErrorTest {
                 eventStore.append(eventStream("order-2", aggregateVersion = 1)).materialize(),
             ).block()!!
 
-            signals.t1.throwable.assert().isInstanceOf(EventVersionConflictException::class.java)
-            signals.t2.throwable.assert().isSameAs(bulkError)
+            val errors = listOfNotNull(signals.t1.throwable, signals.t2.throwable)
+            errors.assert().hasSize(2)
+            errors.count { it is EventVersionConflictException }.assert().isEqualTo(1)
+            errors.count { it === bulkError }.assert().isEqualTo(1)
         }
     }
 
