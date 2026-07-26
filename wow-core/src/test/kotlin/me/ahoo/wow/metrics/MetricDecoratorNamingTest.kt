@@ -17,6 +17,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import org.junit.jupiter.api.Test
@@ -60,7 +62,26 @@ internal class MetricDecoratorNamingTest {
         delegate.closeCount.assert().isEqualTo(1)
     }
 
+    @Test
+    fun `snapshot store decorator should delegate close through the SnapshotStore abstraction`() {
+        val delegate = CloseCountingSnapshotStore()
+        val snapshotStore: SnapshotStore = MetricSnapshotStore(delegate)
+
+        snapshotStore.close()
+
+        delegate.closeCount.assert().isEqualTo(1)
+    }
+
     private class CloseCountingEventStore : EventStore by NoOpEventStore {
+        var closeCount: Int = 0
+            private set
+
+        override fun close() {
+            closeCount++
+        }
+    }
+
+    private class CloseCountingSnapshotStore : SnapshotStore by NoOpSnapshotStore {
         var closeCount: Int = 0
             private set
 

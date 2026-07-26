@@ -14,6 +14,7 @@
 package me.ahoo.wow.infrastructure
 
 import me.ahoo.wow.benchmark.infrastructure.BenchmarkMongoConfig
+import me.ahoo.wow.benchmark.infrastructure.BenchmarkElasticsearchConfig
 import me.ahoo.wow.benchmark.infrastructure.BenchmarkRedisConfig
 import me.ahoo.wow.benchmark.infrastructure.BenchmarkServiceEndpoint
 import java.net.InetSocketAddress
@@ -26,6 +27,10 @@ object InfrastructureAvailability {
 
     fun requireMongo(config: BenchmarkMongoConfig) {
         requireService("MongoDB", config.endpoint)
+    }
+
+    fun requireElasticsearch(config: BenchmarkElasticsearchConfig) {
+        requireService("Elasticsearch", config.endpoint)
     }
 
     private fun requireService(service: String, endpoint: BenchmarkServiceEndpoint) {

@@ -13,9 +13,11 @@
 
 package me.ahoo.wow.elasticsearch.eventsourcing
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
 import me.ahoo.wow.elasticsearch.TemplateInitializer.initEventStreamTemplate
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
@@ -25,6 +27,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import reactor.core.publisher.Flux
 import reactor.kotlin.test.test
+import java.time.Duration
 
 class ElasticsearchEventStoreTest : EventStoreSpec() {
     @JvmField
@@ -96,5 +99,50 @@ class ElasticsearchEventStoreTest : EventStoreSpec() {
             .test()
             .expectNext(1, 2, 3)
             .verifyComplete()
+    }
+
+    @Test
+    fun `bulk create should isolate a version conflict from another append`() {
+        val client = ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch)
+        client.initEventStreamTemplate()
+        val conflicting = generateEventStream(
+            aggregateId = namedAggregate.aggregateId(generateGlobalId()),
+            aggregateVersion = 1,
+            eventCount = 1,
+        )
+        val successful = generateEventStream(
+            aggregateId = namedAggregate.aggregateId(generateGlobalId()),
+            aggregateVersion = 1,
+            eventCount = 1,
+        )
+        ElasticsearchEventStore(client).append(conflicting).block()
+
+        ElasticsearchEventStore(
+            elasticsearchClient = client,
+            batchOptions = ElasticsearchEventStoreBatchOptions(
+                enabled = true,
+                maxSize = 2,
+                maxDelay = Duration.ofSeconds(1),
+            ),
+        ).use { store ->
+            Flux.merge(
+                store.append(conflicting).materialize(),
+                store.append(successful).materialize(),
+            )
+                .collectList()
+                .test()
+                .assertNext { signals ->
+                    signals.single { it.isOnError }.throwable
+                        .assert()
+                        .isInstanceOf(EventVersionConflictException::class.java)
+                    signals.count { it.isOnComplete }.assert().isEqualTo(1)
+                }
+                .verifyComplete()
+
+            store.load(successful.aggregateId)
+                .test()
+                .expectNext(successful)
+                .verifyComplete()
+        }
     }
 }

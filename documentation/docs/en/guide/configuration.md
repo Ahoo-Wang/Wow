@@ -302,12 +302,35 @@ wow:
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `wow.elasticsearch.enabled` | Boolean | `true` | Enable Elasticsearch support |
+| `wow.elasticsearch.event-store-batch.enabled` | Boolean | `false` | Enable transparent EventStore Bulk `create` batching |
+| `wow.elasticsearch.event-store-batch.max-size` | Int | `128` | Maximum event streams per Bulk request |
+| `wow.elasticsearch.event-store-batch.max-delay` | Duration | `1ms` | Maximum wait used to collect a partial event batch |
+| `wow.elasticsearch.event-store-batch.max-pending-appends` | Int | `4096` | Maximum accepted appends waiting or being written; must be at least `max-size` |
+| `wow.elasticsearch.snapshot-store-batch.enabled` | Boolean | `false` | Enable transparent SnapshotStore Bulk `index` batching |
+| `wow.elasticsearch.snapshot-store-batch.max-size` | Int | `128` | Maximum snapshots per Bulk request |
+| `wow.elasticsearch.snapshot-store-batch.max-delay` | Duration | `1ms` | Maximum wait used to collect a partial snapshot batch |
+| `wow.elasticsearch.snapshot-store-batch.max-pending-saves` | Int | `4096` | Maximum accepted saves waiting or being written; must be at least `max-size` |
 
 ```yaml
 wow:
   elasticsearch:
     enabled: true
+    event-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-appends: 4096
+    snapshot-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-saves: 4096
 ```
+
+Batching is opt-in. Event writes use Bulk `create`, preserving no-overwrite and
+version-conflict semantics. Snapshot writes use Elasticsearch external
+versioning in both direct and batch modes, so a stale or equal version cannot
+overwrite a newer snapshot.
 
 ## Feature Configuration
 

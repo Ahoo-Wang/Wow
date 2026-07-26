@@ -326,7 +326,7 @@ class MongoEventStoreBatchTest {
             every { validStream1.toDocument() } returns validDocument1
             every { validStream2.toDocument() } returns validDocument2
 
-            MongoEventStoreBatcher(
+            BatchMongoEventStreamAppender(
                 database = database,
                 options = MongoEventStoreBatchOptions(
                     enabled = true,
@@ -383,7 +383,7 @@ class MongoEventStoreBatchTest {
     @Test
     fun `a fully cancelled batch should not call MongoDB`() {
         val database = mockk<MongoDatabase>()
-        val batcher = MongoEventStoreBatcher(
+        val batcher = BatchMongoEventStreamAppender(
             database = database,
             options = MongoEventStoreBatchOptions(
                 enabled = true,
@@ -456,7 +456,7 @@ class MongoEventStoreBatchTest {
             collection.insertMany(any<List<Document>>(), any())
         } returns insertResult.asMono()
         val pendingCapacity = 16
-        val batcher = MongoEventStoreBatcher(
+        val batcher = BatchMongoEventStreamAppender(
             database = database,
             options = MongoEventStoreBatchOptions(
                 enabled = true,

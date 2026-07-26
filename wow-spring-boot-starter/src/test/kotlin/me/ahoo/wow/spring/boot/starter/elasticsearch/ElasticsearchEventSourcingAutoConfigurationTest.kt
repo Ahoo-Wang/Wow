@@ -127,6 +127,16 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
             .enableWow()
             .withPropertyValues("${SnapshotProperties.STORAGE}=${StorageType.ELASTICSEARCH_NAME}")
             .withPropertyValues("${EventStoreProperties.STORAGE}=${StorageType.ELASTICSEARCH_NAME}")
+            .withPropertyValues(
+                "${ElasticsearchProperties.PREFIX}.event-store-batch.enabled=true",
+                "${ElasticsearchProperties.PREFIX}.event-store-batch.max-size=64",
+                "${ElasticsearchProperties.PREFIX}.event-store-batch.max-delay=2ms",
+                "${ElasticsearchProperties.PREFIX}.event-store-batch.max-pending-appends=2048",
+                "${ElasticsearchProperties.PREFIX}.snapshot-store-batch.enabled=true",
+                "${ElasticsearchProperties.PREFIX}.snapshot-store-batch.max-size=32",
+                "${ElasticsearchProperties.PREFIX}.snapshot-store-batch.max-delay=3ms",
+                "${ElasticsearchProperties.PREFIX}.snapshot-store-batch.max-pending-saves=1024",
+            )
             .withBean(ReactiveElasticsearchClient::class.java, {
                 mock(ReactiveElasticsearchClient::class.java)
             })
@@ -149,6 +159,7 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
                     .hasSingleBean(SnapshotStoreBinding::class.java)
                     .hasSingleBean(ElasticsearchSnapshotQueryServiceFactory::class.java)
                 context.containsBean("snapshotRepository").assert().isFalse()
+                assertBatchOptions(context)
                 val eventStore = context.getBean(ElasticsearchEventStore::class.java)
                 val eventBinding = context.getBean(EventStoreBinding::class.java)
                 eventBinding.storage.assert().isEqualTo(StorageType.ELASTICSEARCH)
@@ -159,6 +170,20 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
                 snapshotBinding.storage.assert().isEqualTo(StorageType.ELASTICSEARCH)
                 snapshotBinding.snapshotStore.assert().isSameAs(snapshotStore)
             }
+    }
+
+    private fun assertBatchOptions(context: AssertableApplicationContext) {
+        val eventOptions = context.getBean(ElasticsearchEventStore::class.java).batchOptions
+        eventOptions.enabled.assert().isTrue()
+        eventOptions.maxSize.assert().isEqualTo(64)
+        eventOptions.maxDelay.assert().isEqualTo(java.time.Duration.ofMillis(2))
+        eventOptions.maxPendingAppends.assert().isEqualTo(2048)
+
+        val snapshotOptions = context.getBean(ElasticsearchSnapshotStore::class.java).batchOptions
+        snapshotOptions.enabled.assert().isTrue()
+        snapshotOptions.maxSize.assert().isEqualTo(32)
+        snapshotOptions.maxDelay.assert().isEqualTo(java.time.Duration.ofMillis(3))
+        snapshotOptions.maxPendingSaves.assert().isEqualTo(1024)
     }
 
     @Test

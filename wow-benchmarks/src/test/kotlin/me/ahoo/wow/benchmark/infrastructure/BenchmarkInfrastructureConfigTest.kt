@@ -33,6 +33,8 @@ class BenchmarkInfrastructureConfigTest {
         config.mongo.username.assert().isEqualTo("root")
         config.mongo.password.assert().isEqualTo("root")
         config.mongo.connectionString().assert().isEqualTo("mongodb://root:root@localhost:27017")
+        config.elasticsearch.endpoint.host.assert().isEqualTo("localhost")
+        config.elasticsearch.endpoint.port.assert().isEqualTo(9200)
     }
 
     @Test
@@ -47,6 +49,8 @@ class BenchmarkInfrastructureConfigTest {
                     "WOW_BENCHMARK_MONGO_HOST_PORT" to "27018",
                     "WOW_BENCHMARK_MONGO_ROOT_USERNAME" to "admin",
                     "WOW_BENCHMARK_MONGO_ROOT_PASSWORD" to "secret",
+                    "WOW_BENCHMARK_ELASTICSEARCH_HOST" to "elasticsearch.local",
+                    "WOW_BENCHMARK_ELASTICSEARCH_HOST_PORT" to "9201",
                 )[name]
             },
         )
@@ -58,6 +62,8 @@ class BenchmarkInfrastructureConfigTest {
         config.mongo.username.assert().isEqualTo("admin")
         config.mongo.password.assert().isEqualTo("secret")
         config.mongo.connectionString().assert().isEqualTo("mongodb://admin:secret@mongo.local:27018")
+        config.elasticsearch.endpoint.host.assert().isEqualTo("elasticsearch.local")
+        config.elasticsearch.endpoint.port.assert().isEqualTo(9201)
     }
 
     @Test
@@ -67,18 +73,24 @@ class BenchmarkInfrastructureConfigTest {
                 mapOf(
                     "wow.benchmark.redis.host" to "property.redis",
                     "wow.benchmark.redis.port" to "6381",
+                    "wow.benchmark.elasticsearch.host" to "property.elasticsearch",
+                    "wow.benchmark.elasticsearch.port" to "9202",
                 )[name]
             },
             environment = { name ->
                 mapOf(
                     "WOW_BENCHMARK_REDIS_HOST" to "env.redis",
                     "WOW_BENCHMARK_REDIS_HOST_PORT" to "6380",
+                    "WOW_BENCHMARK_ELASTICSEARCH_HOST" to "env.elasticsearch",
+                    "WOW_BENCHMARK_ELASTICSEARCH_HOST_PORT" to "9201",
                 )[name]
             },
         )
 
         config.redis.endpoint.host.assert().isEqualTo("property.redis")
         config.redis.endpoint.port.assert().isEqualTo(6381)
+        config.elasticsearch.endpoint.host.assert().isEqualTo("property.elasticsearch")
+        config.elasticsearch.endpoint.port.assert().isEqualTo(9202)
     }
 
     @Test

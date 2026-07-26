@@ -107,6 +107,14 @@ wow:
 |----------|------|---------|-------------|
 | `wow.elasticsearch.enabled` | Boolean | `true` | Enable Elasticsearch integration |
 | `wow.elasticsearch.auto-init-template` | Boolean | `true` | Initialize required index templates before startup completes |
+| `wow.elasticsearch.event-store-batch.enabled` | Boolean | `false` | Enable transparent EventStore Bulk `create` batching |
+| `wow.elasticsearch.event-store-batch.max-size` | Int | `128` | Maximum event streams per Bulk request |
+| `wow.elasticsearch.event-store-batch.max-delay` | Duration | `1ms` | Maximum wait used to collect a partial event batch |
+| `wow.elasticsearch.event-store-batch.max-pending-appends` | Int | `4096` | Maximum accepted appends waiting or being written; must be at least `max-size` |
+| `wow.elasticsearch.snapshot-store-batch.enabled` | Boolean | `false` | Enable transparent SnapshotStore Bulk `index` batching |
+| `wow.elasticsearch.snapshot-store-batch.max-size` | Int | `128` | Maximum snapshots per Bulk request |
+| `wow.elasticsearch.snapshot-store-batch.max-delay` | Duration | `1ms` | Maximum wait used to collect a partial snapshot batch |
+| `wow.elasticsearch.snapshot-store-batch.max-pending-saves` | Int | `4096` | Maximum accepted saves waiting or being written; must be at least `max-size` |
 
 Elasticsearch connection is configured through Spring Boot's standard `spring.elasticsearch.*` properties.
 When automatic initialization is enabled, a failed, empty, or unacknowledged template request fails application startup.
@@ -121,7 +129,21 @@ wow:
   elasticsearch:
     enabled: true
     auto-init-template: true
+    event-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-appends: 4096
+    snapshot-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-saves: 4096
 ```
+
+Batching is opt-in. EventStore batching uses Bulk `create`; SnapshotStore uses
+external versioning in both direct and batch modes to prevent stale snapshots
+from overwriting newer snapshots.
 
 ## WebFlux
 

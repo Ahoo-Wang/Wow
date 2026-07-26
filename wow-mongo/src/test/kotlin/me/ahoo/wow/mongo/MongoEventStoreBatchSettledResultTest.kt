@@ -82,7 +82,7 @@ class MongoEventStoreBatchSettledResultTest {
         val collection = mockk<MongoCollection<Document>>()
         val insertIndex = AtomicInteger()
         val fixture = SaturatedResultFixture(
-            batcher = MongoEventStoreBatcher(
+            batcher = BatchMongoEventStreamAppender(
                 database = database,
                 options = MongoEventStoreBatchOptions(
                     enabled = true,
@@ -117,7 +117,7 @@ class MongoEventStoreBatchSettledResultTest {
     }
 
     private data class SaturatedResultFixture(
-        val batcher: MongoEventStoreBatcher,
+        val batcher: BatchMongoEventStreamAppender,
         val blockedWriteSubscribed: CountDownLatch = CountDownLatch(1),
         val resultCallbacksStarted: CountDownLatch = CountDownLatch(4),
         val releaseResultCallbacks: CountDownLatch = CountDownLatch(1),

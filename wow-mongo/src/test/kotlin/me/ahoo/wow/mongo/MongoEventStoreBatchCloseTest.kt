@@ -52,7 +52,7 @@ class MongoEventStoreBatchCloseTest {
     fun `close timeout should be positive`() {
         listOf(Duration.ZERO, Duration.ofNanos(-1)).forEach { closeTimeout ->
             assertThrows<IllegalArgumentException> {
-                MongoEventStoreBatcher(
+                BatchMongoEventStreamAppender(
                     database = mockk(),
                     options = batchOptions(maxSize = 2),
                     closeTimeout = closeTimeout,
@@ -113,7 +113,7 @@ class MongoEventStoreBatchCloseTest {
 
     @Test
     fun `normal close should be idempotent and reject later appends`() {
-        val batcher = MongoEventStoreBatcher(
+        val batcher = BatchMongoEventStreamAppender(
             database = mockk(),
             options = batchOptions(maxSize = 2),
         )
@@ -130,7 +130,7 @@ class MongoEventStoreBatchCloseTest {
     @Test
     fun `append racing with close should be rejected before reaching MongoDB`() {
         val database = mockk<MongoDatabase>()
-        val batcher = MongoEventStoreBatcher(
+        val batcher = BatchMongoEventStreamAppender(
             database = database,
             options = batchOptions(maxSize = 2),
         )
@@ -240,7 +240,7 @@ class MongoEventStoreBatchCloseTest {
         every {
             collection.insertMany(any<List<Document>>(), any())
         } returns Mono.just(InsertManyResult.acknowledged(emptyMap()))
-        val batcher = MongoEventStoreBatcher(
+        val batcher = BatchMongoEventStreamAppender(
             database = database,
             options = MongoEventStoreBatchOptions(
                 enabled = true,
@@ -294,7 +294,7 @@ class MongoEventStoreBatchCloseTest {
         every {
             collection.insertMany(any<List<Document>>(), any())
         } returns Mono.just(InsertManyResult.acknowledged(emptyMap()))
-        val batcher = MongoEventStoreBatcher(
+        val batcher = BatchMongoEventStreamAppender(
             database = database,
             options = MongoEventStoreBatchOptions(
                 enabled = true,
@@ -345,7 +345,7 @@ class MongoEventStoreBatchCloseTest {
         every {
             collection.insertMany(any<List<Document>>(), any())
         } returns Mono.just(InsertManyResult.acknowledged(emptyMap()))
-        val batcher = MongoEventStoreBatcher(
+        val batcher = BatchMongoEventStreamAppender(
             database = database,
             options = MongoEventStoreBatchOptions(
                 enabled = true,
@@ -438,7 +438,7 @@ class MongoEventStoreBatchCloseTest {
         every {
             collection.insertMany(any<List<Document>>(), any())
         } returns Mono.never()
-        val batcher = MongoEventStoreBatcher(
+        val batcher = BatchMongoEventStreamAppender(
             database = database,
             options = batchOptions(maxSize = 2),
             closeTimeout = Duration.ofMillis(50),
@@ -481,7 +481,7 @@ class MongoEventStoreBatchCloseTest {
             writeSubscribed.countDown()
             Mono.never()
         }
-        val batcher = MongoEventStoreBatcher(
+        val batcher = BatchMongoEventStreamAppender(
             database = database,
             options = batchOptions(maxSize = 2),
             closeTimeout = Duration.ofSeconds(1),

@@ -83,4 +83,8 @@ open class MetricSnapshotStore(
             .tagSource()
             .tag(Metrics.AGGREGATE_KEY, snapshot.aggregateId.aggregateName)
             .metrics()
+
+    override fun close() {
+        delegate.close()
+    }
 }

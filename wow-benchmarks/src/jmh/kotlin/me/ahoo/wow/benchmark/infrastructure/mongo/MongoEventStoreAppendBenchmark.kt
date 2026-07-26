@@ -13,10 +13,16 @@
 
 package me.ahoo.wow.benchmark.infrastructure.mongo
 
+import com.mongodb.client.model.InsertManyOptions
+import com.mongodb.reactivestreams.client.MongoCollection
+import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
 import me.ahoo.wow.infrastructure.mongo.MongoBenchmarkFixture
+import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
 import me.ahoo.wow.mongo.MongoEventStore
 import me.ahoo.wow.mongo.MongoEventStoreBatchOptions
+import me.ahoo.wow.mongo.toDocument
+import org.bson.Document
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Level
 import org.openjdk.jmh.annotations.OperationsPerInvocation
@@ -26,17 +32,22 @@ import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.infra.Blackhole
 import reactor.core.publisher.Flux
+import reactor.kotlin.core.publisher.toMono
 import java.time.Duration
 
 @State(Scope.Benchmark)
 open class MongoEventStoreAppendBenchmark {
     private lateinit var fixture: MongoBenchmarkFixture
+    private lateinit var documentCollection: MongoCollection<Document>
     private lateinit var directEventStore: MongoEventStore
     private lateinit var batchEventStore: MongoEventStore
 
-    @Setup(Level.Iteration)
-    fun setup() {
+    @Setup(Level.Trial)
+    fun setupTrial() {
         fixture = MongoBenchmarkFixture()
+        documentCollection = fixture.database.getCollection(
+            BenchmarkAggregates.namedAggregate.toEventStreamCollectionName()
+        )
         directEventStore = MongoEventStore(fixture.database)
         batchEventStore = MongoEventStore(
             database = fixture.database,
@@ -48,8 +59,15 @@ open class MongoEventStoreAppendBenchmark {
         )
     }
 
-    @TearDown(Level.Iteration)
-    fun tearDown() {
+    @Setup(Level.Iteration)
+    fun setupIteration() {
+        checkNotNull(
+            documentCollection.deleteMany(Document()).toMono().block()
+        ).wasAcknowledged().let(::check)
+    }
+
+    @TearDown(Level.Trial)
+    fun tearDownTrial() {
         try {
             batchEventStore.close()
         } finally {
@@ -61,6 +79,21 @@ open class MongoEventStoreAppendBenchmark {
     @OperationsPerInvocation(APPENDS_PER_INVOCATION)
     fun appendWithInsertOne(blackhole: Blackhole) {
         append(directEventStore, blackhole)
+    }
+
+    @Benchmark
+    @OperationsPerInvocation(APPENDS_PER_INVOCATION)
+    fun appendWithNativeInsertMany(blackhole: Blackhole) {
+        val documents = List(APPENDS_PER_INVOCATION) {
+            BenchmarkEvents.singleEventStream().toDocument()
+        }
+        val result = documentCollection
+            .insertMany(documents, UNORDERED_INSERT)
+            .toMono()
+            .block()
+        checkNotNull(result)
+        check(result.wasAcknowledged())
+        blackhole.consume(result)
     }
 
     @Benchmark
@@ -86,5 +119,6 @@ open class MongoEventStoreAppendBenchmark {
 
     companion object {
         const val APPENDS_PER_INVOCATION: Int = 128
+        private val UNORDERED_INSERT = InsertManyOptions().ordered(false)
     }
 }

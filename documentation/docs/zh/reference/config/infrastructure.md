@@ -107,6 +107,14 @@ wow:
 |----------|------|---------|-------------|
 | `wow.elasticsearch.enabled` | Boolean | `true` | 启用 Elasticsearch 集成 |
 | `wow.elasticsearch.auto-init-template` | Boolean | `true` | 在应用启动完成前初始化所需索引模板 |
+| `wow.elasticsearch.event-store-batch.enabled` | Boolean | `false` | 启用透明的 EventStore Bulk `create` 批处理 |
+| `wow.elasticsearch.event-store-batch.max-size` | Int | `128` | 单个 Bulk 请求最多包含的事件流数量 |
+| `wow.elasticsearch.event-store-batch.max-delay` | Duration | `1ms` | 收集不足一批事件的最长等待时间 |
+| `wow.elasticsearch.event-store-batch.max-pending-appends` | Int | `4096` | 等待或正在写入的 append 最大接收数量；必须不小于 `max-size` |
+| `wow.elasticsearch.snapshot-store-batch.enabled` | Boolean | `false` | 启用透明的 SnapshotStore Bulk `index` 批处理 |
+| `wow.elasticsearch.snapshot-store-batch.max-size` | Int | `128` | 单个 Bulk 请求最多包含的快照数量 |
+| `wow.elasticsearch.snapshot-store-batch.max-delay` | Duration | `1ms` | 收集不足一批快照的最长等待时间 |
+| `wow.elasticsearch.snapshot-store-batch.max-pending-saves` | Int | `4096` | 等待或正在写入的 save 最大接收数量；必须不小于 `max-size` |
 
 Elasticsearch 连接通过 Spring Boot 标准的 `spring.elasticsearch.*` 属性进行配置。
 开启自动初始化时，模板请求失败、无响应结果或未确认都会导致应用启动失败。
@@ -121,7 +129,20 @@ wow:
   elasticsearch:
     enabled: true
     auto-init-template: true
+    event-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-appends: 4096
+    snapshot-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-saves: 4096
 ```
+
+批处理默认关闭。EventStore 批处理使用 Bulk `create`；SnapshotStore 在
+direct 和 batch 模式下都使用 external versioning，防止旧快照覆盖新快照。
 
 ## WebFlux
 

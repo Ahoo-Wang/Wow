@@ -32,6 +32,7 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStreamQuerySer
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotQueryServiceFactoryBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -51,8 +52,21 @@ import org.springframework.data.elasticsearch.core.ReactiveElasticsearchOperatio
 @ConditionalOnElasticsearchEnabled
 @ConditionalOnElasticsearchStorage
 @ConditionalOnClass(ElasticsearchEventStore::class)
-@EnableConfigurationProperties(ElasticsearchProperties::class)
-class ElasticsearchEventSourcingAutoConfiguration(private val elasticsearchProperties: ElasticsearchProperties) {
+@EnableConfigurationProperties(
+    ElasticsearchProperties::class,
+    ElasticsearchEventStoreBatchProperties::class,
+    ElasticsearchSnapshotStoreBatchProperties::class,
+)
+class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
+    private val elasticsearchProperties: ElasticsearchProperties,
+    private val eventStoreBatchProperties: ElasticsearchEventStoreBatchProperties,
+    private val snapshotStoreBatchProperties: ElasticsearchSnapshotStoreBatchProperties,
+) {
+    constructor(elasticsearchProperties: ElasticsearchProperties) : this(
+        elasticsearchProperties = elasticsearchProperties,
+        eventStoreBatchProperties = ElasticsearchEventStoreBatchProperties(),
+        snapshotStoreBatchProperties = ElasticsearchSnapshotStoreBatchProperties(),
+    )
 
     @Bean
     @ConditionalOnMissingBean(JsonpMapper::class)
@@ -69,7 +83,10 @@ class ElasticsearchEventSourcingAutoConfiguration(private val elasticsearchPrope
         if (elasticsearchProperties.autoInitTemplate) {
             indexTemplateInitializer.ensureEventStreamTemplate().block()
         }
-        return ElasticsearchEventStore(elasticsearchClient)
+        return ElasticsearchEventStore(
+            elasticsearchClient = elasticsearchClient,
+            batchOptions = eventStoreBatchProperties.toOptions(),
+        )
     }
 
     @Bean
@@ -115,7 +132,10 @@ class ElasticsearchEventSourcingAutoConfiguration(private val elasticsearchPrope
         if (elasticsearchProperties.autoInitTemplate) {
             indexTemplateInitializer.ensureSnapshotTemplate().block()
         }
-        return ElasticsearchSnapshotStore(elasticsearchClient)
+        return ElasticsearchSnapshotStore(
+            elasticsearchClient = elasticsearchClient,
+            batchOptions = snapshotStoreBatchProperties.toOptions(),
+        )
     }
 
     @Bean

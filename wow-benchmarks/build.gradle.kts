@@ -10,6 +10,7 @@ dependencies {
     implementation(project(":wow-mock"))
     implementation(project(":wow-redis"))
     implementation(project(":wow-mongo"))
+    implementation(project(":wow-elasticsearch"))
     implementation(project(":wow-webflux"))
     implementation("org.springframework:spring-test")
     jmh(libs.jmh.core)

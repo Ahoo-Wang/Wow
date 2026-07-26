@@ -17,7 +17,11 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.metrics.MetricEventStore
+import me.ahoo.wow.metrics.MetricSnapshotStore
+import me.ahoo.wow.opentelemetry.snapshot.TracingSnapshotStore
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -30,6 +34,16 @@ class TracingEventStoreTest {
         val eventStore: EventStore = TracingEventStore(MetricEventStore(delegate))
 
         eventStore.close()
+
+        delegate.closeCount.assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `decorator chain should close the original SnapshotStore exactly once`() {
+        val delegate = CloseCountingSnapshotStore()
+        val snapshotStore: SnapshotStore = TracingSnapshotStore(MetricSnapshotStore(delegate))
+
+        snapshotStore.close()
 
         delegate.closeCount.assert().isEqualTo(1)
     }
@@ -53,6 +67,15 @@ class TracingEventStoreTest {
         ): Flux<DomainEventStream> = Flux.empty()
 
         override fun last(aggregateId: AggregateId): Mono<DomainEventStream> = Mono.empty()
+
+        override fun close() {
+            closeCount++
+        }
+    }
+
+    private class CloseCountingSnapshotStore : SnapshotStore by NoOpSnapshotStore {
+        var closeCount: Int = 0
+            private set
 
         override fun close() {
             closeCount++

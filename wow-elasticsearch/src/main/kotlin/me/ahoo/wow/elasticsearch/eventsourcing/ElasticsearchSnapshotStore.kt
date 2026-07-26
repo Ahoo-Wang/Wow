@@ -18,15 +18,52 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
-import me.ahoo.wow.serialization.toLinkedHashMap
 import org.springframework.data.elasticsearch.RestStatusException
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
 
-class ElasticsearchSnapshotStore(
+class ElasticsearchSnapshotStore private constructor(
     private val elasticsearchClient: ReactiveElasticsearchClient,
-    private val refreshPolicy: Refresh = Refresh.True
-) : SnapshotStore {
+    private val refreshPolicy: Refresh,
+    val batchOptions: ElasticsearchSnapshotStoreBatchOptions,
+    private val saver: ElasticsearchSnapshotSaver,
+) : SnapshotStore,
+    AutoCloseable {
+    constructor(
+        elasticsearchClient: ReactiveElasticsearchClient,
+        refreshPolicy: Refresh = Refresh.True,
+    ) : this(
+        elasticsearchClient = elasticsearchClient,
+        refreshPolicy = refreshPolicy,
+        batchOptions = ElasticsearchSnapshotStoreBatchOptions(),
+        saver = DirectElasticsearchSnapshotSaver(
+            elasticsearchClient = elasticsearchClient,
+            refreshPolicy = refreshPolicy,
+        ),
+    )
+
+    constructor(
+        elasticsearchClient: ReactiveElasticsearchClient,
+        batchOptions: ElasticsearchSnapshotStoreBatchOptions,
+        refreshPolicy: Refresh = Refresh.True,
+    ) : this(
+        elasticsearchClient = elasticsearchClient,
+        refreshPolicy = refreshPolicy,
+        batchOptions = batchOptions,
+        saver = if (batchOptions.enabled) {
+            BatchElasticsearchSnapshotSaver(
+                elasticsearchClient = elasticsearchClient,
+                refreshPolicy = refreshPolicy,
+                options = batchOptions,
+            )
+        } else {
+            DirectElasticsearchSnapshotSaver(
+                elasticsearchClient = elasticsearchClient,
+                refreshPolicy = refreshPolicy,
+            )
+        },
+    )
+
     companion object {
         private const val NOT_FOUND_CODE = 404
         const val NAME = "elasticsearch"
@@ -56,11 +93,10 @@ class ElasticsearchSnapshotStore(
     }
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
-        return elasticsearchClient.index {
-            it.index(snapshot.aggregateId.toSnapshotIndexName())
-                .id(snapshot.aggregateId.id)
-                .document(snapshot.toLinkedHashMap())
-                .refresh(refreshPolicy)
-        }.then()
+        return saver.save(snapshot)
+    }
+
+    override fun close() {
+        saver.close()
     }
 }

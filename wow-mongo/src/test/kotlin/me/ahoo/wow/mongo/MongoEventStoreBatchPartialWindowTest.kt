@@ -58,7 +58,7 @@ class MongoEventStoreBatchPartialWindowTest {
                 Mono.just(InsertManyResult.acknowledged(emptyMap()))
             }
         }
-        val batcher = MongoEventStoreBatcher(
+        val batcher = BatchMongoEventStreamAppender(
             database = database,
             options = MongoEventStoreBatchOptions(
                 enabled = true,

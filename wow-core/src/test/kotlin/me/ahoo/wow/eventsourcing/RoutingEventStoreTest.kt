@@ -166,6 +166,18 @@ class RoutingEventStoreTest {
             .verify()
     }
 
+    @Test
+    fun `close should not close non-owned leaf stores`() {
+        val defaultStore = RecordingEventStore()
+        val orderStore = RecordingEventStore()
+        val routingStore = routingEventStore(defaultStore, orderStore)
+
+        routingStore.close()
+
+        defaultStore.closeCount.assert().isZero()
+        orderStore.closeCount.assert().isZero()
+    }
+
     private fun routingEventStore(
         defaultStore: EventStore,
         orderStore: EventStore
@@ -187,6 +199,11 @@ class RoutingEventStoreTest {
         var lastNamedAggregate: NamedAggregate? = null
         var lastAfterId: String? = null
         var lastLimit: Int? = null
+        var closeCount: Int = 0
+
+        override fun close() {
+            closeCount++
+        }
 
         override fun append(eventStream: DomainEventStream): Mono<Void> {
             record("append", eventStream.aggregateId)

@@ -316,6 +316,12 @@ val quickBatchE2EProfile = quickProfile.copy(
 
 val quickMongoBatchAppendProfile = quickProfile.copy(
     threads = benchmarkThreadsProperty("benchmarkQuickMongoBatchThreads", listOf(1, 4)),
+    benchmarkModes = listOf("thrpt", "avgt"),
+)
+
+val quickElasticsearchBatchAppendProfile = quickProfile.copy(
+    threads = benchmarkThreadsProperty("benchmarkQuickElasticsearchBatchThreads", listOf(1, 4)),
+    benchmarkModes = listOf("thrpt", "avgt"),
 )
 
 val quickWebFluxProfile = BenchmarkRunProfile(
@@ -425,7 +431,11 @@ val baselineInfrastructureProfile = BenchmarkRunProfile(
 val confirmationMongoBatchAppendProfile = baselineInfrastructureProfile.copy(
     id = "confirmation",
     threads = benchmarkThreadsProperty("benchmarkConfirmMongoBatchThreads", listOf(1, 4)),
-    benchmarkModes = listOf("thrpt"),
+)
+
+val confirmationElasticsearchBatchAppendProfile = baselineInfrastructureProfile.copy(
+    id = "confirmation",
+    threads = benchmarkThreadsProperty("benchmarkConfirmElasticsearchBatchThreads", listOf(1, 4)),
 )
 
 val pairedMongoBatchAppendProfile = BenchmarkRunProfile(
@@ -544,6 +554,25 @@ val mongoBatchAppendSuite = BenchmarkSuite(
             service = "MongoDB",
             host = benchmarkDockerConfig("WOW_BENCHMARK_MONGO_HOST", "localhost"),
             port = benchmarkDockerPort("WOW_BENCHMARK_MONGO_HOST_PORT", 27017),
+        ),
+    ),
+)
+
+val elasticsearchBatchAppendSuite = BenchmarkSuite(
+    id = "elasticsearch-batch-append",
+    displayName = "Elasticsearch EventStore Batch Append",
+    includeClasses = listOf(
+        "me.ahoo.wow.benchmark.infrastructure.elasticsearch.ElasticsearchEventStoreAppendBenchmark",
+    ),
+    resultFileName = "elasticsearch-batch-append.json",
+    humanFileName = "elasticsearch-batch-append-human.txt",
+    requiredForGroupedReport = false,
+    formalRegressionSource = false,
+    requiredServices = listOf(
+        BenchmarkRequiredService(
+            service = "Elasticsearch",
+            host = benchmarkDockerConfig("WOW_BENCHMARK_ELASTICSEARCH_HOST", "localhost"),
+            port = benchmarkDockerPort("WOW_BENCHMARK_ELASTICSEARCH_HOST_PORT", 9200),
         ),
     ),
 )
@@ -737,14 +766,28 @@ val quickMongoBatchAppendTaskSpec = BenchmarkTaskSpec(
     taskName = "benchmarkQuickMongoBatchAppend",
     suite = mongoBatchAppendSuite,
     profile = quickMongoBatchAppendProfile,
-    description = "Compares Mongo EventStore insertOne throughput with transparent insertMany batching.",
+    description = "Compares Mongo single, native insertMany, and coordinated batch throughput and latency.",
 )
 
 val confirmationMongoBatchAppendTaskSpec = BenchmarkTaskSpec(
     taskName = "benchmarkConfirmMongoBatchAppend",
     suite = mongoBatchAppendSuite,
     profile = confirmationMongoBatchAppendProfile,
-    description = "Confirms Mongo EventStore insertMany batch throughput with stable measurement settings.",
+    description = "Confirms Mongo batch throughput and latency with stable measurement settings.",
+)
+
+val quickElasticsearchBatchAppendTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkQuickElasticsearchBatchAppend",
+    suite = elasticsearchBatchAppendSuite,
+    profile = quickElasticsearchBatchAppendProfile,
+    description = "Compares single create, native Bulk create, and coordinated Elasticsearch EventStore batching.",
+)
+
+val confirmationElasticsearchBatchAppendTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkConfirmElasticsearchBatchAppend",
+    suite = elasticsearchBatchAppendSuite,
+    profile = confirmationElasticsearchBatchAppendProfile,
+    description = "Confirms Elasticsearch Bulk create throughput and latency with stable measurement settings.",
 )
 
 val baselineInfrastructureE2ETaskSpec = BenchmarkTaskSpec(
@@ -820,6 +863,8 @@ val benchmarkTaskSpecs = listOf(
     quickInfrastructureE2ETaskSpec,
     quickMongoBatchAppendTaskSpec,
     confirmationMongoBatchAppendTaskSpec,
+    quickElasticsearchBatchAppendTaskSpec,
+    confirmationElasticsearchBatchAppendTaskSpec,
     baselineInfrastructureE2ETaskSpec,
     quickComponentTaskSpec,
     diagnosticComponentTaskSpec,
@@ -1195,6 +1240,13 @@ fun dockerContainerRuntimes(): List<DockerContainerRuntime> {
                 defaultValue = "wow-benchmark-mongo",
             ),
         ),
+        dockerContainerRuntime(
+            label = "Elasticsearch",
+            containerName = benchmarkDockerConfig(
+                name = "WOW_BENCHMARK_ELASTICSEARCH_CONTAINER_NAME",
+                defaultValue = "wow-benchmark-elasticsearch",
+            ),
+        ),
     )
 }
 
@@ -1299,7 +1351,7 @@ fun StringBuilder.appendInfrastructureRuntime(
         }
     appendLine(
         "- **Network Note**: Host JVM infrastructure benchmarks use Docker-published localhost ports; " +
-            "Docker Desktop host-to-VM networking can materially affect Redis and Mongo results."
+            "Docker Desktop host-to-VM networking can materially affect Redis, Mongo, and Elasticsearch results."
     )
     appendLine()
 }
@@ -1530,6 +1582,9 @@ val batchBenchmarkReportFile = reportsDir.file("quick-batch-command-write-e2e.md
 val mongoBatchAppendReportFile = reportsDir.file("quick-mongo-batch-append.md")
 val mongoBatchAppendConfirmationReportFile = reportsDir.file("confirmation-mongo-batch-append.md")
 val mongoBatchAppendPairedE2EReportFile = reportsDir.file("mongo-batch-append-paired-e2e.md")
+val elasticsearchBatchAppendReportFile = reportsDir.file("quick-elasticsearch-batch-append.md")
+val elasticsearchBatchAppendConfirmationReportFile =
+    reportsDir.file("confirmation-elasticsearch-batch-append.md")
 val infrastructureBenchmarkReportFile = reportsDir.file("quick-infrastructure-e2e.md")
 val webFluxBenchmarkReportFile = reportsDir.file("quick-webflux.md")
 val baselineGroupedBenchmarkReport = reportsDir.file("baseline-grouped.md")
@@ -2881,50 +2936,171 @@ fun StringBuilder.appendBatchCommandWriteComparisons(rows: List<ParsedBenchmarkR
     appendLine()
 }
 
-fun StringBuilder.appendMongoBatchAppendComparisons(rows: List<ParsedBenchmarkResult>) {
-    val throughputRows = rows.filter { it.unit.equals("ops/s", ignoreCase = true) }
-    val rowsByThreads = throughputRows.groupBy(ParsedBenchmarkResult::threads)
-    appendLine("## Independent JMH Comparison")
+data class StorageBatchMethods(
+    val single: String,
+    val nativeBatch: String,
+    val coordinatedBatch: String,
+    val singleLabel: String,
+    val nativeBatchLabel: String,
+    val coordinatedBatchLabel: String,
+)
+
+data class StorageBatchComparisonKey(
+    val threads: Int,
+    val parameters: Map<String, String>,
+)
+
+fun storageBatchComparisonKey(row: ParsedBenchmarkResult): StorageBatchComparisonKey {
+    return StorageBatchComparisonKey(
+        threads = row.threads,
+        parameters = row.parameters.toSortedMap(),
+    )
+}
+
+fun storageBatchParameters(parameters: Map<String, String>): String {
+    return parameters.entries.joinToString(", ") { (name, value) -> "$name=$value" }
+        .ifBlank { "-" }
+}
+
+fun storageBatchRows(
+    rows: List<ParsedBenchmarkResult>,
+    methods: StorageBatchMethods,
+    key: StorageBatchComparisonKey,
+): Triple<ParsedBenchmarkResult, ParsedBenchmarkResult, ParsedBenchmarkResult> {
+    val rowsByMethod = rows.associateBy(::benchmarkMethodName)
+    val single = rowsByMethod[methods.single]
+        ?: throw GradleException("Missing ${methods.single} row for $key.")
+    val nativeBatch = rowsByMethod[methods.nativeBatch]
+        ?: throw GradleException("Missing ${methods.nativeBatch} row for $key.")
+    val coordinatedBatch = rowsByMethod[methods.coordinatedBatch]
+        ?: throw GradleException("Missing ${methods.coordinatedBatch} row for $key.")
+    return Triple(single, nativeBatch, coordinatedBatch)
+}
+
+fun StringBuilder.appendStorageBatchMetricComparison(
+    rows: List<ParsedBenchmarkResult>,
+    methods: StorageBatchMethods,
+    throughput: Boolean,
+) {
+    val metricRows = if (throughput) {
+        rows.filter { it.unit.equals("ops/s", ignoreCase = true) }
+    } else {
+        rows.filter { it.mode == "avgt" }
+    }
+    val rowsByKey = metricRows.groupBy(::storageBatchComparisonKey)
+    val metricName = if (throughput) "Throughput" else "Amortized time per event"
+    appendLine("### $metricName")
     appendLine()
     appendLine(
-        "Both methods append 128 independent event streams through one reactive subscription. " +
-            "JMH normalizes scores per event stream."
+        "| JMH Threads | Parameters | ${methods.singleLabel} | ${methods.nativeBatchLabel} | " +
+            "${methods.coordinatedBatchLabel} | Native vs single | Coordinated vs single | " +
+            "Coordinated vs native |"
     )
-    appendLine()
-    appendLine("| JMH Threads | insertOne | insertMany batch | Point change | Evidence |")
-    appendLine("|-------------|-----------|------------------|--------------|----------|")
-    rowsByThreads.toSortedMap().forEach { (threads, threadRows) ->
-        val rowsByMethod = threadRows.associateBy(::benchmarkMethodName)
-        val direct = rowsByMethod["appendWithInsertOne"]
-            ?: throw GradleException("Missing appendWithInsertOne throughput row for threads=$threads.")
-        val batch = rowsByMethod["appendWithInsertManyBatch"]
-            ?: throw GradleException("Missing appendWithInsertManyBatch throughput row for threads=$threads.")
-        val scale = benchmarkMetricScale(listOf(direct.score, batch.score), direct.unit)
-        val directScore = formatScaledBenchmarkScore(direct.score, direct.scoreError, scale)
-        val batchScore = formatScaledBenchmarkScore(batch.score, batch.scoreError, scale)
-        val intervalsOverlap = confidenceIntervalsOverlap(
-            baseline = direct.score,
-            baselineError = direct.scoreError,
-            current = batch.score,
-            currentError = batch.scoreError,
+    appendLine("|-------------|------------|--------|--------|--------|------------------|-----------------------|-----------------------|")
+    rowsByKey.entries
+        .sortedWith(
+            compareBy(
+                { it.key.threads },
+                { storageBatchParameters(it.key.parameters) },
+            )
         )
-        val evidence = when {
-            intervalsOverlap != false -> "INCONCLUSIVE"
-            batch.score > direct.score -> "THROUGHPUT_IMPROVEMENT_CANDIDATE"
-            batch.score < direct.score -> "THROUGHPUT_REGRESSION_CANDIDATE"
-            else -> "STABLE"
+        .forEach { (key, comparisonRows) ->
+            val (single, nativeBatch, coordinatedBatch) =
+                storageBatchRows(comparisonRows, methods, key)
+            check(single.unit == nativeBatch.unit && single.unit == coordinatedBatch.unit) {
+                "Storage batch comparison units do not match for $key."
+            }
+            val scale = benchmarkMetricScale(
+                listOf(single.score, nativeBatch.score, coordinatedBatch.score),
+                single.unit,
+            )
+            val singleScore = formatScaledBenchmarkScore(single.score, single.scoreError, scale)
+            val nativeBatchScore = formatScaledBenchmarkScore(
+                nativeBatch.score,
+                nativeBatch.scoreError,
+                scale,
+            )
+            val coordinatedBatchScore = formatScaledBenchmarkScore(
+                coordinatedBatch.score,
+                coordinatedBatch.scoreError,
+                scale,
+            )
+            val nativeVsSingle = if (throughput) {
+                relativeChangePercent(single.score, nativeBatch.score)
+            } else {
+                reductionPercent(single.score, nativeBatch.score)
+            }
+            val coordinatedVsSingle = if (throughput) {
+                relativeChangePercent(single.score, coordinatedBatch.score)
+            } else {
+                reductionPercent(single.score, coordinatedBatch.score)
+            }
+            val coordinatedVsNative = relativeChangePercent(nativeBatch.score, coordinatedBatch.score)
+            appendLine(
+                "| ${key.threads} | `${storageBatchParameters(key.parameters)}` | " +
+                    "${singleScore.scoreWithUnit} | ${nativeBatchScore.scoreWithUnit} | " +
+                    "${coordinatedBatchScore.scoreWithUnit} | ${formatSignedPercent(nativeVsSingle)} | " +
+                    "${formatSignedPercent(coordinatedVsSingle)} | " +
+                    "${formatSignedPercent(coordinatedVsNative)} |"
+            )
         }
+    appendLine()
+    if (throughput) {
+        appendLine("Higher throughput is better; positive changes are gains.")
+    } else {
         appendLine(
-            "| $threads | ${directScore.scoreWithUnit} | ${batchScore.scoreWithUnit} | " +
-                "${formatSignedPercent(relativeChangePercent(direct.score, batch.score))} | $evidence |"
+            "Lower amortized time is better. JMH divides each 128-event invocation's wall time by 128; " +
+                "this is not an independent single-request response latency. The two `vs single` columns " +
+                "report time reduction; `Coordinated vs native` reports the end-to-end time delta."
         )
     }
     appendLine()
+}
+
+fun StringBuilder.appendStorageBatchComparisons(
+    rows: List<ParsedBenchmarkResult>,
+    methods: StorageBatchMethods,
+) {
+    appendLine("## Three-Layer JMH Comparison")
+    appendLine()
     appendLine(
-        "Higher throughput is better. Point changes use unrounded JMH scores from the same run; " +
-            "missing or overlapping error intervals are `INCONCLUSIVE`."
+        "Each invocation writes 128 independent event streams and JMH normalizes scores per event stream. " +
+            "The three layers distinguish single-request protocol cost, native storage bulk capability, " +
+            "and the end-to-end coordinator path. The coordinated path includes batch formation and may " +
+            "flush a partial batch on `maxDelay`, so its delta from native Bulk is not a pure coordinator " +
+            "CPU-cost estimate."
     )
     appendLine()
+    appendStorageBatchMetricComparison(rows, methods, throughput = true)
+    appendStorageBatchMetricComparison(rows, methods, throughput = false)
+}
+
+fun StringBuilder.appendMongoBatchAppendComparisons(rows: List<ParsedBenchmarkResult>) {
+    appendStorageBatchComparisons(
+        rows = rows,
+        methods = StorageBatchMethods(
+            single = "appendWithInsertOne",
+            nativeBatch = "appendWithNativeInsertMany",
+            coordinatedBatch = "appendWithInsertManyBatch",
+            singleLabel = "EventStore insertOne",
+            nativeBatchLabel = "Native insertMany",
+            coordinatedBatchLabel = "Coordinated batch",
+        ),
+    )
+}
+
+fun StringBuilder.appendElasticsearchBatchAppendComparisons(rows: List<ParsedBenchmarkResult>) {
+    appendStorageBatchComparisons(
+        rows = rows,
+        methods = StorageBatchMethods(
+            single = "appendWithSingleCreate",
+            nativeBatch = "appendWithNativeBulkCreate",
+            coordinatedBatch = "appendWithCoordinatedBulkCreate",
+            singleLabel = "EventStore create",
+            nativeBatchLabel = "Native Bulk create",
+            coordinatedBatchLabel = "Coordinated Bulk",
+        ),
+    )
 }
 
 fun sha256Text(value: String): String {
@@ -3497,7 +3673,7 @@ fun StringBuilder.appendBenchmarkValueGuide() {
     appendLine("- Throughput uses decimal prefixes: `k` = 1,000, `M` = 1,000,000, `G` = 1,000,000,000.")
     appendLine("- Allocation uses binary prefixes: `KiB` = 1,024 bytes, `MiB` = 1,048,576 bytes.")
     appendLine("- Every displayed score and error keeps its scaled unit attached, for example `1.57 k ops/s`.")
-    appendLine("- Average latency is automatically scaled to `ns/op`, `µs/op`, `ms/op`, or `s/op`.")
+    appendLine("- Average-time results are automatically scaled to `ns/op`, `µs/op`, `ms/op`, or `s/op`.")
     appendLine("- `±` is the JMH-reported error. Scaling changes presentation only; calculations keep raw precision.")
     appendLine()
 }
@@ -3706,7 +3882,7 @@ fun renderSingleBenchmarkReport(
     sb.appendBenchmarkRunProvenance(groupReport.manifests)
     sb.appendBenchmarkEnvironment(project.version.toString(), group.profile)
     if (includeInfrastructureRuntime) {
-        sb.appendInfrastructureRuntime()
+        sb.appendInfrastructureRuntime(group.suite.requiredServices)
     }
     sb.appendBeforeResults(groupReport.rows)
     sb.appendLine("## Results")
@@ -3832,9 +4008,11 @@ tasks.register("generateMongoBatchAppendBenchmarkReport") {
             group = benchmarkResultGroup(quickMongoBatchAppendTaskSpec),
             title = "Quick Mongo EventStore Batch Append Benchmark Report",
             command = "./gradlew :wow-benchmarks:benchmarkQuickMongoBatchAppend " +
-                ":wow-benchmarks:generateMongoBatchAppendBenchmarkReport --no-parallel",
-            description = "This paired Quick experiment compares the previous insertOne write path with " +
-                "transparent unordered insertMany batching against the same MongoDB service. " +
+                ":wow-benchmarks:generateMongoBatchAppendBenchmarkReport " +
+                "-PbenchmarkQuickMongoBatchThreads=${quickMongoBatchAppendProfile.threads.joinToString(",")} " +
+                "--no-parallel",
+            description = "This Quick experiment compares the EventStore insertOne path, native unordered " +
+                "insertMany, and transparent coordinated batching against the same MongoDB service. " +
                 "It is directional local evidence rather than a cross-machine capacity claim.",
             includeInfrastructureRuntime = true,
             appendBeforeResults = { rows -> appendMongoBatchAppendComparisons(rows) },
@@ -3859,10 +4037,13 @@ tasks.register("generateMongoBatchAppendConfirmationReport") {
             group = benchmarkResultGroup(confirmationMongoBatchAppendTaskSpec),
             title = "Confirmation Mongo EventStore Batch Append Benchmark Report",
             command = "./gradlew :wow-benchmarks:benchmarkConfirmMongoBatchAppend " +
-                ":wow-benchmarks:generateMongoBatchAppendConfirmationReport --no-parallel",
-            description = "This confirmation experiment compares insertOne with transparent unordered " +
-                "insertMany batching for saturated 128-request append workloads. It uses multiple forks and " +
-                "confidence intervals, but remains local evidence rather than a production capacity claim.",
+                ":wow-benchmarks:generateMongoBatchAppendConfirmationReport " +
+                "-PbenchmarkConfirmMongoBatchThreads=" +
+                "${confirmationMongoBatchAppendProfile.threads.joinToString(",")} --no-parallel",
+            description = "This confirmation experiment compares EventStore insertOne, native unordered " +
+                "insertMany, and transparent coordinated batching for saturated 128-request append workloads. " +
+                "It uses multiple forks and confidence intervals, but remains local evidence rather than a " +
+                "production capacity claim.",
             includeInfrastructureRuntime = true,
             appendBeforeResults = { rows -> appendMongoBatchAppendComparisons(rows) },
         )
@@ -3871,6 +4052,66 @@ tasks.register("generateMongoBatchAppendConfirmationReport") {
         outputFile.parentFile.mkdirs()
         outputFile.writeText(report)
         logger.lifecycle("Mongo batch append confirmation report generated: ${outputFile.absolutePath}")
+    }
+}
+
+tasks.register("generateElasticsearchBatchAppendBenchmarkReport") {
+    description = "Generate the quick Elasticsearch EventStore batch append comparison report."
+    group = "benchmark"
+    mustRunAfter("benchmarkQuickElasticsearchBatchAppend")
+    outputs.file(elasticsearchBatchAppendReportFile)
+    outputs.upToDateWhen { false }
+
+    doLast {
+        val report = renderSingleBenchmarkReport(
+            group = benchmarkResultGroup(quickElasticsearchBatchAppendTaskSpec),
+            title = "Quick Elasticsearch EventStore Batch Append Benchmark Report",
+            command = "./gradlew :wow-benchmarks:benchmarkQuickElasticsearchBatchAppend " +
+                ":wow-benchmarks:generateElasticsearchBatchAppendBenchmarkReport " +
+                "-PbenchmarkQuickElasticsearchBatchThreads=" +
+                "${quickElasticsearchBatchAppendProfile.threads.joinToString(",")} --no-parallel",
+            description = "This Quick experiment compares EventStore create, native Bulk create, and " +
+                "transparent coordinated Bulk create with identical refresh policies. It reports both " +
+                "throughput and amortized time per event and is directional local evidence.",
+            includeInfrastructureRuntime = true,
+            appendBeforeResults = { rows -> appendElasticsearchBatchAppendComparisons(rows) },
+        )
+
+        val outputFile = elasticsearchBatchAppendReportFile.asFile
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(report)
+        logger.lifecycle("Elasticsearch batch append benchmark report generated: ${outputFile.absolutePath}")
+    }
+}
+
+tasks.register("generateElasticsearchBatchAppendConfirmationReport") {
+    description = "Generate the confirmation Elasticsearch EventStore batch append comparison report."
+    group = "benchmark"
+    mustRunAfter("benchmarkConfirmElasticsearchBatchAppend")
+    outputs.file(elasticsearchBatchAppendConfirmationReportFile)
+    outputs.upToDateWhen { false }
+
+    doLast {
+        val report = renderSingleBenchmarkReport(
+            group = benchmarkResultGroup(confirmationElasticsearchBatchAppendTaskSpec),
+            title = "Confirmation Elasticsearch EventStore Batch Append Benchmark Report",
+            command = "./gradlew :wow-benchmarks:benchmarkConfirmElasticsearchBatchAppend " +
+                ":wow-benchmarks:generateElasticsearchBatchAppendConfirmationReport " +
+                "-PbenchmarkConfirmElasticsearchBatchThreads=" +
+                "${confirmationElasticsearchBatchAppendProfile.threads.joinToString(",")} --no-parallel",
+            description = "This confirmation experiment compares EventStore create, native Bulk create, and " +
+                "transparent coordinated Bulk create for saturated 128-request workloads. It uses multiple " +
+                "forks and reports throughput and amortized time per event for refresh=false and refresh=true.",
+            includeInfrastructureRuntime = true,
+            appendBeforeResults = { rows -> appendElasticsearchBatchAppendComparisons(rows) },
+        )
+
+        val outputFile = elasticsearchBatchAppendConfirmationReportFile.asFile
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(report)
+        logger.lifecycle(
+            "Elasticsearch batch append confirmation report generated: ${outputFile.absolutePath}"
+        )
     }
 }
 

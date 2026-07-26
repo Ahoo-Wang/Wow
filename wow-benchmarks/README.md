@@ -14,7 +14,8 @@ Use it for three jobs:
 | Smoke | A small cross-section of component, Framework E2E, and WebFlux adapter benchmarks. | PR safety; proves the JMH jar and selected benchmark paths still run. | `benchmarkSmoke` |
 | Framework E2E | Synchronous command send/write round trips with in-memory or noop infrastructure. | Quick feedback, exact-workload regression baselines, and optional latency diagnosis; not production capacity. | `benchmarkQuickE2E`, `benchmarkBaselineE2E`, `benchmarkLatencyE2E` |
 | Batch CommandWrite E2E | Paired 32-command workloads using either 32 blocking boundaries or one sequential/concurrent batch boundary. | Primary framework-cost signal without per-command blocking distortion, plus bounded-concurrency scaling diagnosis. | `benchmarkQuickBatchE2E` |
-| Mongo Batch Append | A 128-event-stream append-path workload using `insertOne` or transparent unordered `insertMany` batching. | Measuring and confirming Mongo EventStore batch throughput gains with real local MongoDB I/O. | `benchmarkQuickMongoBatchAppend`, `benchmarkConfirmMongoBatchAppend`, `benchmarkMongoBatchAppendPairedE2E` |
+| Mongo Batch Append | A 128-event-stream append-path workload comparing EventStore `insertOne`, native unordered `insertMany`, and coordinated batching. | Separating protocol Bulk capability from the end-to-end coordinated path with real local MongoDB I/O. | `benchmarkQuickMongoBatchAppend`, `benchmarkConfirmMongoBatchAppend`, `benchmarkMongoBatchAppendPairedE2E` |
+| Elasticsearch Batch Append | A 128-event-stream append-path workload comparing EventStore `create`, native Bulk `create`, and coordinated Bulk `create` with `refresh=false,true`. | Measuring Elasticsearch Bulk capability and the end-to-end coordinated path without changing no-overwrite semantics. | `benchmarkQuickElasticsearchBatchAppend`, `benchmarkConfirmElasticsearchBatchAppend` |
 | Component | Isolated command, aggregate, event, wait, serialization, accessor, and pipeline pieces. | Quick feedback, targeted diagnosis, or rare exhaustive catalog checks. | `benchmarkQuickComponent`, `benchmarkDiagnosticComponent`, `benchmarkExhaustiveComponent` |
 | WebFlux Adapter | Spring WebFlux request, response, SSE, and aggregate tracing adapter paths without a real Netty server. | Diagnosing HTTP adapter overhead and WebFlux-specific allocation hot spots. These results are not Framework E2E conclusion data. | `benchmarkQuickWebFlux`, `benchmarkExhaustiveWebFlux` |
 | Infrastructure E2E | Command write path through Redis or Mongo persistence. | Storage-path bottleneck checks when local services are available. | `benchmarkQuickInfrastructureE2E`, `benchmarkBaselineInfrastructureE2E` |
@@ -179,6 +180,8 @@ The Gradle model keeps four responsibilities separate: `BenchmarkSuite` owns wor
 | `wow-benchmarks/results/reports/quick-mongo-batch-append.md` | Generated quick Mongo EventStore append comparison. | Commit with intentionally collected, provenance-backed MongoDB evidence. |
 | `wow-benchmarks/results/reports/confirmation-mongo-batch-append.md` | Generated multiple-fork Mongo EventStore append comparison. | Commit intentionally collected provenance-backed evidence; use for independent JMH point estimates and error intervals. |
 | `wow-benchmarks/results/reports/mongo-batch-append-paired-e2e.md` | Generated AB/BA paired Mongo EventStore append E2E report. | Commit intentionally collected provenance-backed evidence; prefer for the quantified local batching-gain conclusion. |
+| `wow-benchmarks/results/reports/quick-elasticsearch-batch-append.md` | Generated quick Elasticsearch EventStore append comparison. | Commit with intentionally collected, provenance-backed Elasticsearch evidence. |
+| `wow-benchmarks/results/reports/confirmation-elasticsearch-batch-append.md` | Generated multiple-fork Elasticsearch EventStore append comparison. | Commit intentionally collected provenance-backed evidence; use for independent JMH point estimates and error intervals. |
 | `wow-benchmarks/results/reports/quick-infrastructure-e2e.md` | Quick Infrastructure E2E report generated on demand; it may be absent in a fresh checkout. | Commit only with intentionally collected, provenance-backed Redis/Mongo evidence. |
 | `wow-benchmarks/results/reports/quick-grouped.md` | Generated quick E2E/component/infrastructure grouped report. | Commit when intentionally updating grouped benchmark evidence. |
 | `wow-benchmarks/results/reports/baseline-grouped.md` | Generated Baseline E2E/exhaustive Component/infrastructure grouped report. | Commit when intentionally updating formal benchmark evidence. |
@@ -187,7 +190,7 @@ The Gradle model keeps four responsibilities separate: `BenchmarkSuite` owns wor
 
 Files under `results/reports/*.md` are generated. Do not hand-edit benchmark rows; rerun the benchmark/report task instead.
 Every successful thread-level JMH run writes a neighboring `*.manifest.json` sidecar with the source commit and dirty state, run specification, resolved required-service endpoints, profiler arguments, runtime, and SHA-256 digests for the JSON and human output. Failed runs do not publish a success manifest. Report and comparison tasks reject raw results with missing, mixed, or mismatched manifests.
-Infrastructure reports validate captured service names against the suite identity and display the captured host/port provenance. They do not reinterpret historical evidence using the report-time Redis or MongoDB environment variables.
+Infrastructure reports validate captured service names against the suite identity and display the captured host/port provenance. They do not reinterpret historical evidence using report-time Redis, MongoDB, or Elasticsearch environment variables.
 
 ### Mongo Batch Append Reports
 
@@ -197,9 +200,11 @@ Infrastructure reports validate captured service names against the suite identit
   --no-parallel
 ```
 
-The paired workload submits 128 independent event streams through one reactive subscription and normalizes JMH
-throughput per event stream. It compares concurrent `insertOne` calls with `MongoEventStore` batching enabled at
-`maxSize=128` and `maxDelay=1ms`; the task requires only MongoDB. Quick results are directional point estimates.
+Each workload writes 128 independent event streams and normalizes JMH throughput and average time per event.
+The three paths are EventStore `insertOne`, native unordered `insertMany`, and `MongoEventStore` coordinated
+batching with `maxSize=128` and `maxDelay=1ms`. This separates the driver's native batch capability from
+the end-to-end coordinated path; their delta also includes batch formation and possible partial flushes.
+The task requires only MongoDB. Quick results are directional point estimates.
 
 For quantified local evidence with multiple forks and JMH error intervals:
 
@@ -227,13 +232,40 @@ acknowledgement, and the final wait. It does not include Command Gateway ingress
 Benchmark thread-level tasks also share a Gradle execution lock so they cannot load the same MongoDB service
 concurrently when global Gradle parallel execution is enabled.
 
+### Elasticsearch Batch Append Reports
+
+```bash
+./gradlew :wow-benchmarks:benchmarkQuickElasticsearchBatchAppend \
+  :wow-benchmarks:generateElasticsearchBatchAppendBenchmarkReport \
+  --no-parallel
+```
+
+Each workload writes 128 independent event streams and normalizes JMH throughput and average time per event.
+The three paths are EventStore single `create`, native Bulk `create`, and coordinated Bulk `create` with
+`maxSize=128` and `maxDelay=1ms`. The average-time score is the 128-event invocation wall time amortized
+per event, not an independent single-request response latency. All three use the same `refresh` parameter, and the task runs both
+`refresh=false` and `refresh=true`, so refresh cost is not hidden in only one comparison leg.
+
+For multiple forks and JMH error intervals:
+
+```bash
+./gradlew :wow-benchmarks:benchmarkConfirmElasticsearchBatchAppend \
+  :wow-benchmarks:generateElasticsearchBatchAppendConfirmationReport \
+  --no-parallel
+```
+
+Both tasks require only Elasticsearch. They measure the EventStore append path through the local reactive
+client; they do not include Command Gateway ingress, aggregate execution, or downstream event processing.
+Quick results remain directional until a controlled multiple-fork confirmation
+run is collected from a clean `HEAD`.
+
 ## Reading The Report
 
 - `thrpt` scores are throughput. Reports use decimal prefixes (`k`, `M`, `G`) so, for example, `1.57 k ops/s` means 1,570 operations per second. Higher is better.
-- `avgt` scores are average latency. Reports automatically select `ns/op`, `µs/op`, `ms/op`, or `s/op`.
+- `avgt` scores are average time. Storage batch suites normalize a 128-event invocation per event, so their values are amortized time per event rather than independent single-request response latency. Reports automatically select `ns/op`, `µs/op`, `ms/op`, or `s/op`.
 - `gc.alloc.rate.norm` is normalized allocation per operation. Reports use binary prefixes (`KiB`, `MiB`, `GiB`); lower is usually better.
 - `±` is the JMH-reported error. Compact units affect presentation only; reports retain raw precision for sorting, comparisons, and regression gates.
-- Quick reports contain throughput and allocation results only. They are useful for local regression checks, but the shorter run profile has wider variance than Baseline E2E.
+- Most Quick reports contain throughput and allocation results. Storage batch reports additionally run average-time mode so they expose end-to-end batching amortized time, but the short one-fork profile still has wider variance than confirmation or Baseline evidence. The coordinated-to-native delta includes batch formation and possible partial flushes; it is not a pure coordinator CPU-overhead measurement.
 - `benchmarkCompare` first applies the configured point-estimate threshold, then uses baseline/current JMH error intervals to classify a threshold crossing. Non-overlapping intervals produce a regression or improvement candidate; overlapping or missing intervals remain inconclusive until a controlled confirmation run.
 - Framework E2E reports isolate Wow command-pipeline overhead; they are not Redis, Mongo, or production deployment capacity numbers.
 - WebFlux Adapter reports isolate functional WebFlux adapter code. They are useful for adapter bottleneck diagnosis, but they are not HTTP server capacity or Framework E2E conclusion numbers.
@@ -285,6 +317,7 @@ Infrastructure E2E benchmarks require local services:
 |---------|----------|
 | Redis | `localhost:6379` |
 | MongoDB | `localhost:27017` |
+| Elasticsearch | `localhost:9200` |
 
 For Redis, use the benchmark Docker profile:
 
@@ -311,8 +344,20 @@ WiredTiger cache at 2 GiB, disables diagnostic and TTL background work, and
 disables WiredTiger collection and journal compression to reduce local CPU
 overhead in write-heavy infrastructure benchmarks.
 
+For Elasticsearch, use the benchmark Docker profile:
+
+```bash
+docker compose \
+  --env-file wow-benchmarks/docker/benchmark.env \
+  -f wow-benchmarks/docker/compose.elasticsearch.yml up -d
+```
+
+The Elasticsearch profile disables security and persistent storage, uses tmpfs-backed
+data, and configures a fixed heap for repeatable local write-path measurements.
+
 Docker image tags, container names, host ports, tmpfs sizes, Mongo credentials,
-healthcheck intervals, Docker log retention, and the Mongo WiredTiger cache size
+healthcheck intervals, Docker log retention, the Mongo WiredTiger cache size, and the
+Elasticsearch heap
 are configured in `wow-benchmarks/docker/benchmark.env`. The benchmark Gradle
 tasks read the same file and pass those values to the JMH process. Use
 `-PbenchmarkDockerEnvFile=/path/to/env-file` when running benchmarks with a

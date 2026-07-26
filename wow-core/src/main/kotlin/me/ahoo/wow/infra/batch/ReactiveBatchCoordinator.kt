@@ -11,19 +11,13 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.mongo
+package me.ahoo.wow.infra.batch
 
-import com.mongodb.MongoBulkWriteException
-import com.mongodb.client.model.InsertManyOptions
-import com.mongodb.reactivestreams.client.MongoDatabase
-import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
-import org.bson.Document
+import me.ahoo.wow.infra.lifecycle.GracefullyStoppable
 import reactor.core.Disposable
-import reactor.core.publisher.Flux
+import reactor.core.Exceptions
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
-import reactor.kotlin.core.publisher.toMono
 import java.time.Duration
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.CompletableFuture
@@ -38,11 +32,19 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
-internal class MongoEventStoreBatcher(
-    private val database: MongoDatabase,
-    private val options: MongoEventStoreBatchOptions,
-    private val closeTimeout: Duration = DEFAULT_CLOSE_TIMEOUT,
-) : AutoCloseable {
+/**
+ * Coordinates bounded, non-blocking admission and per-item completion for
+ * storage-independent reactive batches.
+ *
+ * The coordinator owns batching, cancellation, backpressure and graceful
+ * shutdown. A [ReactiveBatchWriter] owns protocol-specific request construction,
+ * execution and result mapping.
+ */
+class ReactiveBatchCoordinator<T : Any>(
+    val name: String,
+    val options: ReactiveBatchOptions,
+    private val writer: ReactiveBatchWriter<T>,
+) : GracefullyStoppable {
     private sealed interface Lifecycle {
         data object Open : Lifecycle
 
@@ -55,119 +57,103 @@ internal class MongoEventStoreBatcher(
         data class Failed(val cause: Throwable) : Lifecycle
     }
 
-    private sealed interface AppendOutcome {
-        data object Success : AppendOutcome
+    private sealed interface ItemState {
+        data object Queued : ItemState
 
-        data class Failure(val error: Throwable) : AppendOutcome
+        data object InFlight : ItemState
+
+        data object Cancelled : ItemState
+
+        data class Settled(val outcome: BatchItemResult) : ItemState
+
+        data object Terminated : ItemState
     }
 
-    private sealed interface RequestState {
-        data object Queued : RequestState
-
-        data object InFlight : RequestState
-
-        data object Cancelled : RequestState
-
-        data class Settled(val outcome: AppendOutcome) : RequestState
-
-        data object Terminated : RequestState
-    }
-
-    private inner class AppendRequest(
-        val eventStream: DomainEventStream,
-        val document: Document,
-        val collectionName: String,
+    private inner class PendingItem(
+        val value: T,
     ) {
         val result: Sinks.Empty<Void> = Sinks.empty()
-        private val state = AtomicReference<RequestState>(RequestState.Queued)
+        private val state = AtomicReference<ItemState>(ItemState.Queued)
         private val queueSlotHeld = AtomicBoolean(true)
 
         fun claim(): Boolean {
             while (true) {
                 when (state.get()) {
-                    RequestState.Queued -> {
-                        if (state.compareAndSet(RequestState.Queued, RequestState.InFlight)) {
+                    ItemState.Queued -> {
+                        if (state.compareAndSet(ItemState.Queued, ItemState.InFlight)) {
                             releaseQueueSlot()
                             return true
                         }
                     }
 
-                    RequestState.Cancelled -> {
+                    ItemState.Cancelled -> {
                         discardCancelled()
                         return false
                     }
 
-                    RequestState.InFlight,
-                    is RequestState.Settled,
-                    RequestState.Terminated,
+                    ItemState.InFlight,
+                    is ItemState.Settled,
+                    ItemState.Terminated,
                     -> return false
                 }
             }
         }
 
         fun cancel() {
-            if (state.compareAndSet(RequestState.Queued, RequestState.Cancelled)) {
+            if (state.compareAndSet(ItemState.Queued, ItemState.Cancelled)) {
                 releaseAdmission()
             }
         }
 
         fun discardAdmission() {
-            if (state.compareAndSet(RequestState.Queued, RequestState.Terminated)) {
+            if (state.compareAndSet(ItemState.Queued, ItemState.Terminated)) {
                 releaseQueueSlot()
                 releaseAdmission()
             }
         }
 
-        fun settleSuccess() = settle(AppendOutcome.Success)
-
-        fun settleFailure(error: Throwable) = settle(AppendOutcome.Failure(error))
-
-        private fun discardCancelled() {
-            if (state.compareAndSet(RequestState.Cancelled, RequestState.Terminated)) {
-                releaseQueueSlot()
-            }
-        }
-
-        private fun settle(outcome: AppendOutcome) {
+        fun settle(outcome: BatchItemResult) {
             while (true) {
                 when (val current = state.get()) {
-                    RequestState.InFlight -> {
-                        if (state.compareAndSet(current, RequestState.Settled(outcome))) {
+                    ItemState.InFlight -> {
+                        if (state.compareAndSet(current, ItemState.Settled(outcome))) {
                             return
                         }
                     }
 
-                    RequestState.Cancelled -> {
+                    ItemState.Cancelled -> {
                         discardCancelled()
                         return
                     }
 
-                    RequestState.Queued,
-                    is RequestState.Settled,
-                    RequestState.Terminated,
+                    ItemState.Queued,
+                    is ItemState.Settled,
+                    ItemState.Terminated,
                     -> return
                 }
             }
         }
 
+        fun settleFailure(error: Throwable) = settle(BatchItemResult.Failure(error))
+
         fun signalSettled() {
             while (true) {
                 when (val current = state.get()) {
-                    is RequestState.Settled -> {
-                        if (state.compareAndSet(current, RequestState.Terminated)) {
+                    is ItemState.Settled -> {
+                        if (state.compareAndSet(current, ItemState.Terminated)) {
                             releaseAdmission()
                             when (val outcome = current.outcome) {
-                                AppendOutcome.Success -> result.tryEmitEmpty()
-                                is AppendOutcome.Failure -> result.tryEmitError(outcome.error)
+                                BatchItemResult.Success -> result.tryEmitEmpty()
+                                is BatchItemResult.Failure -> result.tryEmitError(outcome.error)
                             }
                             return
                         }
                     }
 
-                    RequestState.Queued,
-                    RequestState.InFlight,
-                    RequestState.Cancelled,
-                    RequestState.Terminated,
+                    ItemState.Queued,
+                    ItemState.InFlight,
+                    ItemState.Cancelled,
+                    ItemState.Terminated,
                     -> return
                 }
             }
@@ -176,10 +162,10 @@ internal class MongoEventStoreBatcher(
         fun failIfUnsettled(error: Throwable) {
             while (true) {
                 when (val current = state.get()) {
-                    RequestState.Queued,
-                    RequestState.InFlight,
+                    ItemState.Queued,
+                    ItemState.InFlight,
                     -> {
-                        if (state.compareAndSet(current, RequestState.Terminated)) {
+                        if (state.compareAndSet(current, ItemState.Terminated)) {
                             releaseQueueSlot()
                             releaseAdmission()
                             result.tryEmitError(error)
@@ -187,51 +173,57 @@ internal class MongoEventStoreBatcher(
                         }
                     }
 
-                    RequestState.Cancelled -> {
+                    ItemState.Cancelled -> {
                         discardCancelled()
                         return
                     }
 
-                    is RequestState.Settled,
-                    RequestState.Terminated,
+                    is ItemState.Settled,
+                    ItemState.Terminated,
                     -> return
                 }
             }
         }
 
+        private fun discardCancelled() {
+            if (state.compareAndSet(ItemState.Cancelled, ItemState.Terminated)) {
+                releaseQueueSlot()
+            }
+        }
+
         private fun releaseAdmission() {
             if (pending.remove(this)) {
-                availablePendingAppends.release()
+                availablePendingItems.release()
             }
         }
 
         private fun releaseQueueSlot() {
             if (queueSlotHeld.compareAndSet(true, false)) {
-                availableQueuedRequests.release()
+                availableQueuedItems.release()
             }
         }
     }
 
     private val emissionLock = Any()
-    private val availablePendingAppends = Semaphore(options.maxPendingAppends)
-    private val availableQueuedRequests = Semaphore(options.maxPendingAppends)
-    private val requestQueue = ArrayBlockingQueue<AppendRequest>(options.maxPendingAppends)
-    private val requests = Sinks.many().unicast().onBackpressureBuffer(requestQueue)
-    private val pending = ConcurrentHashMap.newKeySet<AppendRequest>()
+    private val availablePendingItems = Semaphore(options.maxPendingItems)
+    private val availableQueuedItems = Semaphore(options.maxPendingItems)
+    private val itemQueue = ArrayBlockingQueue<PendingItem>(options.maxPendingItems)
+    private val items = Sinks.many().unicast().onBackpressureBuffer(itemQueue)
+    private val pending = ConcurrentHashMap.newKeySet<PendingItem>()
     private val lifecycle = AtomicReference<Lifecycle>(Lifecycle.Open)
     private val processorTermination = CompletableFuture<Unit>()
     private val termination = CompletableFuture<Unit>()
     private val resultDispatchContext = ThreadLocal<Boolean>()
     private val resultExecutor = object : ThreadPoolExecutor(
-        RESULT_DISPATCHER_THREADS.coerceAtMost(options.maxPendingAppends),
-        RESULT_DISPATCHER_THREADS.coerceAtMost(options.maxPendingAppends),
+        RESULT_DISPATCHER_THREADS.coerceAtMost(options.maxPendingItems),
+        RESULT_DISPATCHER_THREADS.coerceAtMost(options.maxPendingItems),
         0,
         TimeUnit.MILLISECONDS,
-        ArrayBlockingQueue(options.maxPendingAppends),
+        ArrayBlockingQueue(options.maxPendingItems),
         { runnable ->
             Thread(
                 runnable,
-                "wow-mongo-event-store-result-${RESULT_THREAD_SEQUENCE.incrementAndGet()}"
+                "$name-batch-result-${RESULT_THREAD_SEQUENCE.incrementAndGet()}"
             ).apply {
                 isDaemon = true
             }
@@ -244,17 +236,15 @@ internal class MongoEventStoreBatcher(
     private val processor: Disposable
 
     init {
-        require(!closeTimeout.isNegative && !closeTimeout.isZero) {
-            "closeTimeout must be positive."
+        require(name.isNotBlank()) {
+            "name must not be blank."
         }
-        processor = requests.asFlux()
-            // The fair-backpressure variant can strand the remainder of a partial
-            // window in a timeout/upstream race. The intermediate queue requests
-            // every buffer eagerly. Queue-slot admission keeps cancelled placeholders
-            // bounded independently from live append admission.
+        processor = items.asFlux()
+            // Queue-slot admission bounds cancelled placeholders independently
+            // from live-item admission while bufferTimeout owns a partial window.
             .bufferTimeout(options.maxSize, options.maxDelay)
-            .onBackpressureBuffer(options.maxPendingAppends)
-            .concatMap(::appendBatch)
+            .onBackpressureBuffer(options.maxPendingItems)
+            .concatMap(::writeBatch)
             .subscribe(
                 {},
                 ::terminateProcessor,
@@ -262,35 +252,45 @@ internal class MongoEventStoreBatcher(
             )
     }
 
-    fun append(eventStream: DomainEventStream): Mono<Void> {
+    fun submit(item: T): Mono<Void> = submit { item }
+
+    @Suppress("TooGenericExceptionCaught")
+    fun submit(itemFactory: () -> T): Mono<Void> {
         return Mono.defer {
             terminalErrorOrClosed()?.let {
                 return@defer Mono.error(it)
             }
-            val document = eventStream.toDocument()
-            val collectionName = eventStream.toEventStreamCollectionName()
-            if (!availablePendingAppends.tryAcquire()) {
+            if (!availablePendingItems.tryAcquire()) {
                 terminalErrorOrClosed()?.let {
                     return@defer Mono.error(it)
                 }
-                return@defer Mono.error(
-                    MongoEventStoreBatchOverflowException(options.maxPendingAppends)
-                )
+                return@defer Mono.error(overflowError())
             }
-            if (!availableQueuedRequests.tryAcquire()) {
-                availablePendingAppends.release()
+            if (!availableQueuedItems.tryAcquire()) {
+                availablePendingItems.release()
                 terminalErrorOrClosed()?.let {
                     return@defer Mono.error(it)
                 }
-                return@defer Mono.error(
-                    MongoEventStoreBatchOverflowException(options.maxPendingAppends)
-                )
+                return@defer Mono.error(overflowError())
             }
-            val request = AppendRequest(eventStream, document, collectionName)
-            pending.add(request)
+            terminalErrorOrClosed()?.let {
+                availableQueuedItems.release()
+                availablePendingItems.release()
+                return@defer Mono.error(it)
+            }
+            val item = try {
+                itemFactory()
+            } catch (error: Throwable) {
+                availableQueuedItems.release()
+                availablePendingItems.release()
+                Exceptions.throwIfFatal(error)
+                return@defer Mono.error(error)
+            }
+            val pendingItem = PendingItem(item)
+            pending.add(pendingItem)
             val emitResult = synchronized(emissionLock) {
                 when (lifecycle.get()) {
-                    Lifecycle.Open -> requests.tryEmitNext(request)
+                    Lifecycle.Open -> items.tryEmitNext(pendingItem)
                     Lifecycle.Closing,
                     Lifecycle.DrainingResults,
                     Lifecycle.Closed,
@@ -299,77 +299,51 @@ internal class MongoEventStoreBatcher(
                 }
             }
             if (emitResult.isFailure) {
-                request.discardAdmission()
+                pendingItem.discardAdmission()
                 return@defer Mono.error(enqueueFailure(emitResult))
             }
-            request.result.asMono()
-                .doOnCancel(request::cancel)
+            pendingItem.result.asMono()
+                .doOnCancel(pendingItem::cancel)
         }
     }
 
-    private fun appendBatch(batch: List<AppendRequest>): Mono<Void> {
-        val claimedBatch = batch.filter(AppendRequest::claim)
+    private fun writeBatch(batch: List<PendingItem>): Mono<Void> {
+        val claimedBatch = batch.filter { it.claim() }
         if (claimedBatch.isEmpty()) {
             return Mono.empty()
         }
-        return Flux.fromIterable(claimedBatch.groupBy(AppendRequest::collectionName).values)
-            .flatMap(::appendCollectionBatch)
-            .then()
-    }
-
-    private fun appendCollectionBatch(batch: List<AppendRequest>): Mono<Void> {
         return Mono.defer {
-            database.getCollection(batch.first().collectionName)
-                .insertMany(batch.map(AppendRequest::document), UNORDERED_INSERT_MANY_OPTIONS)
-                .toMono()
-        }.doOnNext {
-            check(it.wasAcknowledged()) {
-                "MongoDB did not acknowledge the event stream batch append."
-            }
-        }.then()
-            .doOnSuccess {
-                batch.forEach(AppendRequest::settleSuccess)
-                dispatchResults {
-                    batch.forEach(AppendRequest::signalSettled)
-                }
-            }.onErrorResume(MongoBulkWriteException::class.java) { error ->
-                settleBulkWriteError(batch, error)
-                dispatchResults { batch.forEach(AppendRequest::signalSettled) }
-                Mono.empty()
-            }.onErrorResume { error ->
-                batch.forEach {
-                    it.settleFailure(error)
-                }
-                dispatchResults { batch.forEach(AppendRequest::signalSettled) }
-                Mono.empty()
-            }
-    }
-
-    private fun settleBulkWriteError(batch: List<AppendRequest>, error: MongoBulkWriteException) {
-        val writeErrors = error.writeErrors
-        val errorsByIndex = writeErrors.associateBy { it.index }
-        val writeConcernError = error.writeConcernError?.toWowError(error)
-        val invalidWriteErrors = errorsByIndex.size != writeErrors.size ||
-            errorsByIndex.keys.any { it !in batch.indices }
-        val invalidWriteResult = writeConcernError == null &&
-            (
-                writeErrors.isEmpty() ||
-                    !error.writeResult.wasAcknowledged() ||
-                    error.writeResult.insertedCount != batch.size - writeErrors.size
+            writer.write(claimedBatch.map { it.value })
+        }.switchIfEmpty(
+            Mono.error(
+                ReactiveBatchProtocolException(
+                    "Reactive batch writer[$name] completed without item results."
                 )
-        if (invalidWriteErrors || invalidWriteResult) {
-            batch.forEach {
+            )
+        ).flatMap { outcomes ->
+            if (outcomes.size != claimedBatch.size) {
+                return@flatMap Mono.error<Void>(
+                    ReactiveBatchProtocolException(
+                        "Reactive batch writer[$name] returned ${outcomes.size} item results " +
+                            "for ${claimedBatch.size} inputs."
+                    )
+                )
+            }
+            claimedBatch.zip(outcomes).forEach { (item, outcome) ->
+                item.settle(outcome)
+            }
+            dispatchResults {
+                claimedBatch.forEach { it.signalSettled() }
+            }
+            Mono.empty()
+        }.onErrorResume { error ->
+            claimedBatch.forEach {
                 it.settleFailure(error)
             }
-            return
-        }
-        batch.forEachIndexed { index, request ->
-            val writeError = errorsByIndex[index]
-            when {
-                writeError != null -> request.settleFailure(writeError.toWowError(request.eventStream, error))
-                writeConcernError != null -> request.settleFailure(writeConcernError)
-                else -> request.settleSuccess()
+            dispatchResults {
+                claimedBatch.forEach { it.signalSettled() }
             }
+            Mono.empty()
         }
     }
 
@@ -400,13 +374,19 @@ internal class MongoEventStoreBatcher(
         }
     }
 
+    private fun overflowError(): ReactiveBatchOverflowException =
+        ReactiveBatchOverflowException(name, options.maxPendingItems)
+
+    private fun closedError(): ReactiveBatchClosedException =
+        ReactiveBatchClosedException(name)
+
     private fun terminalErrorOrClosed(): Throwable? {
         return when (val current = lifecycle.get()) {
             Lifecycle.Open -> null
             Lifecycle.Closing,
             Lifecycle.DrainingResults,
             Lifecycle.Closed,
-            -> IllegalStateException("MongoEventStore is closed.")
+            -> closedError()
 
             is Lifecycle.Failed -> current.cause
         }
@@ -422,14 +402,14 @@ internal class MongoEventStoreBatcher(
             -> Unit
         }
         return when (emitResult) {
-            Sinks.EmitResult.FAIL_OVERFLOW ->
-                MongoEventStoreBatchOverflowException(options.maxPendingAppends)
-
+            Sinks.EmitResult.FAIL_OVERFLOW -> overflowError()
             Sinks.EmitResult.FAIL_CANCELLED,
             Sinks.EmitResult.FAIL_TERMINATED,
-            -> IllegalStateException("MongoEventStore is closed.")
+            -> closedError()
 
-            else -> IllegalStateException("Failed to enqueue MongoEventStore append: $emitResult")
+            else -> IllegalStateException(
+                "Failed to enqueue reactive batch item[$name]: $emitResult"
+            )
         }
     }
 
@@ -452,7 +432,6 @@ internal class MongoEventStoreBatcher(
 
                     Lifecycle.DrainingResults -> terminal = Lifecycle.DrainingResults
                     Lifecycle.Closed -> terminal = Lifecycle.Closed
-
                     is Lifecycle.Failed -> terminal = current
                 }
             }
@@ -461,7 +440,7 @@ internal class MongoEventStoreBatcher(
         when (terminalLifecycle) {
             Lifecycle.Open,
             Lifecycle.Closing,
-            -> error("Unexpected MongoEventStore lifecycle: $terminalLifecycle")
+            -> error("Unexpected reactive batch lifecycle[$name]: $terminalLifecycle")
 
             Lifecycle.DrainingResults -> processorTermination.complete(Unit)
             Lifecycle.Closed -> {
@@ -495,7 +474,7 @@ internal class MongoEventStoreBatcher(
                     -> {
                         val failed = Lifecycle.Failed(
                             IllegalStateException(
-                                "MongoEventStore result dispatcher terminated before the processor."
+                                "Reactive batch result dispatcher[$name] terminated before the processor."
                             )
                         )
                         if (lifecycle.compareAndSet(current, failed)) {
@@ -510,7 +489,7 @@ internal class MongoEventStoreBatcher(
             Lifecycle.Open,
             Lifecycle.Closing,
             Lifecycle.DrainingResults,
-            -> error("Unexpected MongoEventStore lifecycle: $terminalLifecycle")
+            -> error("Unexpected reactive batch lifecycle[$name]: $terminalLifecycle")
 
             Lifecycle.Closed -> termination.complete(Unit)
             is Lifecycle.Failed -> {
@@ -539,26 +518,31 @@ internal class MongoEventStoreBatcher(
                 }
             }
         }
-        // Sink completion runs the processor callback synchronously. Keep it outside
-        // emissionLock because resultExecutor.terminated() acquires this lock while
-        // ThreadPoolExecutor still owns its main lock.
-        val emitResult = requests.tryEmitComplete()
+        val emitResult = items.tryEmitComplete()
         if (emitResult.isFailure && emitResult != Sinks.EmitResult.FAIL_TERMINATED) {
-            val error = IllegalStateException("Failed to close MongoEventStore batcher: $emitResult")
-            failLifecycle(error, disposeProcessor = true)
+            failLifecycle(
+                IllegalStateException(
+                    "Failed to close reactive batch coordinator[$name]: $emitResult"
+                ),
+                disposeProcessor = true,
+            )
         }
     }
 
-    override fun close() {
+    override fun stopGracefully(): Mono<Void> {
         initiateClose()
-        awaitTermination()
+        return Mono.fromFuture(termination).then()
     }
 
-    private fun awaitTermination() {
-        // A result callback cannot join the dispatcher worker that is currently
-        // running it. It still waits until every MongoDB batch has settled and
-        // every result task has been submitted; external callers also await
-        // complete result dispatch.
+    override fun close() {
+        close(DEFAULT_CLOSE_TIMEOUT)
+    }
+
+    fun close(timeout: Duration) {
+        require(!timeout.isNegative && !timeout.isZero) {
+            "timeout must be positive."
+        }
+        initiateClose()
         val closeTermination = if (
             resultDispatchContext.get() == true &&
             lifecycle.get() !is Lifecycle.Failed
@@ -568,33 +552,32 @@ internal class MongoEventStoreBatcher(
             termination
         }
         try {
-            closeTermination.get(closeTimeout.toNanos(), TimeUnit.NANOSECONDS)
+            closeTermination.get(timeout.toNanos(), TimeUnit.NANOSECONDS)
         } catch (error: TimeoutException) {
-            closeTimedOut()?.let {
+            closeTimedOut(timeout)?.let {
                 throw it
             }
         } catch (error: InterruptedException) {
             closeInterrupted(error)
         } catch (error: ExecutionException) {
-            rethrowProcessorFailure(error)
+            throw error.cause ?: error
         }
     }
 
-    private fun closeTimedOut(): Throwable? {
+    private fun closeTimedOut(timeout: Duration): Throwable? {
         return failLifecycle(
-            MongoEventStoreBatchCloseTimeoutException(closeTimeout),
+            ReactiveBatchCloseTimeoutException(name, timeout),
             disposeProcessor = true,
         )
     }
 
     private fun closeInterrupted(error: InterruptedException): Nothing {
         Thread.currentThread().interrupt()
-        val interruption = IllegalStateException("Interrupted while closing MongoEventStore batcher.", error)
+        val interruption = IllegalStateException(
+            "Interrupted while closing reactive batch coordinator[$name].",
+            error,
+        )
         throw failLifecycle(interruption, disposeProcessor = true) ?: interruption
-    }
-
-    private fun rethrowProcessorFailure(error: ExecutionException): Nothing {
-        throw error.cause ?: error
     }
 
     private fun failLifecycle(error: Throwable, disposeProcessor: Boolean): Throwable? {
@@ -613,7 +596,6 @@ internal class MongoEventStoreBatcher(
                     }
 
                     Lifecycle.Closed -> terminal = Lifecycle.Closed
-
                     is Lifecycle.Failed -> terminal = current
                 }
             }
@@ -628,7 +610,7 @@ internal class MongoEventStoreBatcher(
             Lifecycle.Closing,
             Lifecycle.DrainingResults,
             Lifecycle.Closed,
-            -> error("Unexpected MongoEventStore lifecycle: $terminalLifecycle")
+            -> error("Unexpected reactive batch lifecycle[$name]: $terminalLifecycle")
 
             is Lifecycle.Failed -> terminalLifecycle.cause
         }
@@ -643,9 +625,8 @@ internal class MongoEventStoreBatcher(
     }
 
     private companion object {
-        val UNORDERED_INSERT_MANY_OPTIONS: InsertManyOptions = InsertManyOptions().ordered(false)
         val DEFAULT_CLOSE_TIMEOUT: Duration = Duration.ofSeconds(30)
         const val RESULT_DISPATCHER_THREADS: Int = 4
-        val RESULT_THREAD_SEQUENCE = AtomicInteger()
+        val RESULT_THREAD_SEQUENCE: AtomicInteger = AtomicInteger()
     }
 }

@@ -21,6 +21,14 @@ open class RoutingSnapshotStore(
     override val name: String
         get() = NAME
 
+    /**
+     * Routing stores do not own stores supplied through [registry].
+     *
+     * The lifecycle owner (for example, the Spring container or a manual
+     * composition root) must close each registered leaf store.
+     */
+    override fun close() = Unit
+
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> =
         registry.get(aggregateId.namedAggregate).load(aggregateId)
 

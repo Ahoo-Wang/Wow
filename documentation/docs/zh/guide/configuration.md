@@ -301,12 +301,34 @@ wow:
 | 属性 | 类型 | 默认值 | 描述 |
 |------|------|--------|------|
 | `wow.elasticsearch.enabled` | Boolean | `true` | 启用 Elasticsearch 支持 |
+| `wow.elasticsearch.event-store-batch.enabled` | Boolean | `false` | 启用透明的 EventStore Bulk `create` 批处理 |
+| `wow.elasticsearch.event-store-batch.max-size` | Int | `128` | 单个 Bulk 请求最多包含的事件流数量 |
+| `wow.elasticsearch.event-store-batch.max-delay` | Duration | `1ms` | 收集不足一批事件的最长等待时间 |
+| `wow.elasticsearch.event-store-batch.max-pending-appends` | Int | `4096` | 等待或正在写入的 append 最大接收数量；必须不小于 `max-size` |
+| `wow.elasticsearch.snapshot-store-batch.enabled` | Boolean | `false` | 启用透明的 SnapshotStore Bulk `index` 批处理 |
+| `wow.elasticsearch.snapshot-store-batch.max-size` | Int | `128` | 单个 Bulk 请求最多包含的快照数量 |
+| `wow.elasticsearch.snapshot-store-batch.max-delay` | Duration | `1ms` | 收集不足一批快照的最长等待时间 |
+| `wow.elasticsearch.snapshot-store-batch.max-pending-saves` | Int | `4096` | 等待或正在写入的 save 最大接收数量；必须不小于 `max-size` |
 
 ```yaml
 wow:
   elasticsearch:
     enabled: true
+    event-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-appends: 4096
+    snapshot-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-saves: 4096
 ```
+
+批处理默认关闭。事件写入使用 Bulk `create`，保持不覆盖及版本冲突语义。
+快照在 direct 和 batch 模式下都使用 Elasticsearch external versioning，
+因此旧版本或相同版本不能覆盖已存储的新快照。
 
 ## 功能配置
 

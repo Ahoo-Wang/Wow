@@ -181,8 +181,8 @@ class MongoEventStoreBatchCancellationTest {
     private fun createBatcher(
         database: MongoDatabase,
         maxPendingAppends: Int,
-    ): MongoEventStoreBatcher {
-        return MongoEventStoreBatcher(
+    ): BatchMongoEventStreamAppender {
+        return BatchMongoEventStreamAppender(
             database = database,
             options = MongoEventStoreBatchOptions(
                 enabled = true,
