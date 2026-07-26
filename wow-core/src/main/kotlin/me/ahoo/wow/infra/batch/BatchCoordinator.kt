@@ -38,13 +38,13 @@ import java.util.concurrent.atomic.AtomicReference
  * storage-independent reactive batches.
  *
  * The coordinator owns batching, cancellation, backpressure and graceful
- * shutdown. A [ReactiveBatchWriter] owns protocol-specific request construction,
+ * shutdown. A [BatchWriter] owns protocol-specific request construction,
  * execution and result mapping.
  */
-class ReactiveBatchCoordinator<T : Any>(
+class BatchCoordinator<T : Any>(
     val name: String,
-    val options: ReactiveBatchOptions,
-    private val writer: ReactiveBatchWriter<T>,
+    val options: BatchOptions,
+    private val writer: BatchWriter<T>,
 ) : GracefullyStoppable {
     private sealed interface Lifecycle {
         data object Open : Lifecycle
@@ -160,28 +160,33 @@ class ReactiveBatchCoordinator<T : Any>(
             }
         }
 
-        fun failIfUnsettled(error: Throwable) {
+        fun settleFailureIfUnsettled(error: Throwable): Boolean {
             while (true) {
                 when (val current = state.get()) {
                     ItemState.Queued,
                     ItemState.InFlight,
                     -> {
-                        if (state.compareAndSet(current, ItemState.Terminated)) {
-                            releaseQueueSlot()
-                            releaseAdmission()
-                            result.tryEmitError(error)
-                            return
+                        if (
+                            state.compareAndSet(
+                                current,
+                                ItemState.Settled(BatchItemResult.Failure(error)),
+                            )
+                        ) {
+                            if (current == ItemState.Queued) {
+                                releaseQueueSlot()
+                            }
+                            return true
                         }
                     }
 
                     ItemState.Cancelled -> {
                         discardCancelled()
-                        return
+                        return false
                     }
 
                     is ItemState.Settled,
                     ItemState.Terminated,
-                    -> return
+                    -> return false
                 }
             }
         }
@@ -328,15 +333,15 @@ class ReactiveBatchCoordinator<T : Any>(
             writer.write(claimedBatch.map { it.value })
         }.switchIfEmpty(
             Mono.error(
-                ReactiveBatchProtocolException(
-                    "Reactive batch writer[$name] completed without item results."
+                BatchProtocolException(
+                    "Batch writer[$name] completed without item results."
                 )
             )
         ).flatMap { outcomes ->
             if (outcomes.size != claimedBatch.size) {
                 return@flatMap Mono.error<Void>(
-                    ReactiveBatchProtocolException(
-                        "Reactive batch writer[$name] returned ${outcomes.size} item results " +
+                    BatchProtocolException(
+                        "Batch writer[$name] returned ${outcomes.size} item results " +
                             "for ${claimedBatch.size} inputs."
                     )
                 )
@@ -344,16 +349,16 @@ class ReactiveBatchCoordinator<T : Any>(
             claimedBatch.zip(outcomes).forEach { (item, outcome) ->
                 item.settle(outcome)
             }
-            dispatchResults {
-                claimedBatch.forEach { it.signalSettled() }
+            claimedBatch.forEach { item ->
+                dispatchResults(item::signalSettled)
             }
             Mono.empty()
         }.onErrorResume { error ->
             claimedBatch.forEach {
                 it.settleFailure(error)
             }
-            dispatchResults {
-                claimedBatch.forEach { it.signalSettled() }
+            claimedBatch.forEach { item ->
+                dispatchResults(item::signalSettled)
             }
             Mono.empty()
         }
@@ -380,17 +385,28 @@ class ReactiveBatchCoordinator<T : Any>(
         }
     }
 
-    private fun failPending(error: Throwable) {
-        pending.toList().forEach {
-            it.failIfUnsettled(error)
+    private fun dispatchPendingFailures(error: Throwable) {
+        pending.toList()
+            .filter {
+                it.settleFailureIfUnsettled(error)
+            }.forEach { item ->
+                dispatchResults(item::signalSettled)
+            }
+    }
+
+    private fun failPendingAfterResultDispatcherTermination(error: Throwable) {
+        pending.toList().forEach { item ->
+            if (item.settleFailureIfUnsettled(error)) {
+                item.signalSettled()
+            }
         }
     }
 
-    private fun overflowError(): ReactiveBatchOverflowException =
-        ReactiveBatchOverflowException(name, options.maxPendingItems)
+    private fun overflowError(): BatchOverflowException =
+        BatchOverflowException(name, options.maxPendingItems)
 
-    private fun closedError(): ReactiveBatchClosedException =
-        ReactiveBatchClosedException(name)
+    private fun closedError(): BatchClosedException =
+        BatchClosedException(name)
 
     private fun terminalErrorOrClosed(): Throwable? {
         return when (val current = lifecycle.get()) {
@@ -420,7 +436,7 @@ class ReactiveBatchCoordinator<T : Any>(
             -> closedError()
 
             else -> IllegalStateException(
-                "Failed to enqueue reactive batch item[$name]: $emitResult"
+                "Failed to enqueue batch item[$name]: $emitResult"
             )
         }
     }
@@ -452,7 +468,7 @@ class ReactiveBatchCoordinator<T : Any>(
         when (terminalLifecycle) {
             Lifecycle.Open,
             Lifecycle.Closing,
-            -> error("Unexpected reactive batch lifecycle[$name]: $terminalLifecycle")
+            -> error("Unexpected batch lifecycle[$name]: $terminalLifecycle")
 
             Lifecycle.DrainingResults -> processorTermination.complete(Unit)
             Lifecycle.Closed -> {
@@ -486,7 +502,7 @@ class ReactiveBatchCoordinator<T : Any>(
                     -> {
                         val failed = Lifecycle.Failed(
                             IllegalStateException(
-                                "Reactive batch result dispatcher[$name] terminated before the processor."
+                                "Batch result dispatcher[$name] terminated before the processor."
                             )
                         )
                         if (lifecycle.compareAndSet(current, failed)) {
@@ -501,13 +517,13 @@ class ReactiveBatchCoordinator<T : Any>(
             Lifecycle.Open,
             Lifecycle.Closing,
             Lifecycle.DrainingResults,
-            -> error("Unexpected reactive batch lifecycle[$name]: $terminalLifecycle")
+            -> error("Unexpected batch lifecycle[$name]: $terminalLifecycle")
 
             Lifecycle.Closed -> termination.complete(Unit)
             is Lifecycle.Failed -> {
                 processorTermination.completeExceptionally(terminalLifecycle.cause)
                 termination.completeExceptionally(terminalLifecycle.cause)
-                failPending(terminalLifecycle.cause)
+                failPendingAfterResultDispatcherTermination(terminalLifecycle.cause)
             }
         }
     }
@@ -534,7 +550,7 @@ class ReactiveBatchCoordinator<T : Any>(
         if (emitResult.isFailure && emitResult != Sinks.EmitResult.FAIL_TERMINATED) {
             failLifecycle(
                 IllegalStateException(
-                    "Failed to close reactive batch coordinator[$name]: $emitResult"
+                    "Failed to close batch coordinator[$name]: $emitResult"
                 ),
                 disposeProcessor = true,
             )
@@ -543,7 +559,7 @@ class ReactiveBatchCoordinator<T : Any>(
 
     override fun stopGracefully(): Mono<Void> {
         initiateClose()
-        return Mono.fromFuture(termination).then()
+        return Mono.fromFuture(termination, true).then()
     }
 
     override fun close() {
@@ -578,7 +594,7 @@ class ReactiveBatchCoordinator<T : Any>(
 
     private fun closeTimedOut(timeout: Duration): Throwable? {
         return failLifecycle(
-            ReactiveBatchCloseTimeoutException(name, timeout),
+            BatchCloseTimeoutException(name, timeout),
             disposeProcessor = true,
         )
     }
@@ -586,13 +602,14 @@ class ReactiveBatchCoordinator<T : Any>(
     private fun closeInterrupted(error: InterruptedException): Nothing {
         Thread.currentThread().interrupt()
         val interruption = IllegalStateException(
-            "Interrupted while closing reactive batch coordinator[$name].",
+            "Interrupted while closing batch coordinator[$name].",
             error,
         )
         throw failLifecycle(interruption, disposeProcessor = true) ?: interruption
     }
 
     private fun failLifecycle(error: Throwable, disposeProcessor: Boolean): Throwable? {
+        var installedFailure = false
         val terminalLifecycle = synchronized(emissionLock) {
             var terminal: Lifecycle? = null
             while (terminal == null) {
@@ -603,6 +620,7 @@ class ReactiveBatchCoordinator<T : Any>(
                     -> {
                         val failed = Lifecycle.Failed(error)
                         if (lifecycle.compareAndSet(current, failed)) {
+                            installedFailure = true
                             terminal = failed
                         }
                     }
@@ -622,17 +640,20 @@ class ReactiveBatchCoordinator<T : Any>(
             Lifecycle.Closing,
             Lifecycle.DrainingResults,
             Lifecycle.Closed,
-            -> error("Unexpected reactive batch lifecycle[$name]: $terminalLifecycle")
+            -> error("Unexpected batch lifecycle[$name]: $terminalLifecycle")
 
             is Lifecycle.Failed -> terminalLifecycle.cause
+        }
+        if (!installedFailure) {
+            return terminalError
         }
         if (disposeProcessor) {
             processor.dispose()
         }
+        dispatchPendingFailures(terminalError)
         resultExecutor.shutdown()
         processorTermination.completeExceptionally(terminalError)
         termination.completeExceptionally(terminalError)
-        failPending(terminalError)
         return terminalError
     }
 

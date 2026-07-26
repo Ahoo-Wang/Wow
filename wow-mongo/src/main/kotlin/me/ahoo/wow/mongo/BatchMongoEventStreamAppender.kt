@@ -15,12 +15,12 @@ package me.ahoo.wow.mongo
 
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.infra.batch.ReactiveBatchCloseTimeoutException
-import me.ahoo.wow.infra.batch.ReactiveBatchClosedException
-import me.ahoo.wow.infra.batch.ReactiveBatchCoordinator
-import me.ahoo.wow.infra.batch.ReactiveBatchOptions
-import me.ahoo.wow.infra.batch.ReactiveBatchOverflowException
-import me.ahoo.wow.infra.batch.ReactiveBatchWriter
+import me.ahoo.wow.infra.batch.BatchCloseTimeoutException
+import me.ahoo.wow.infra.batch.BatchClosedException
+import me.ahoo.wow.infra.batch.BatchCoordinator
+import me.ahoo.wow.infra.batch.BatchOptions
+import me.ahoo.wow.infra.batch.BatchOverflowException
+import me.ahoo.wow.infra.batch.BatchWriter
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
 import org.bson.Document
 import reactor.core.publisher.Mono
@@ -39,7 +39,7 @@ internal class BatchMongoEventStreamAppender(
     private val closeTimeout: Duration = DEFAULT_CLOSE_TIMEOUT,
 ) : MongoEventStreamAppender {
     private data class MappedCloseTimeout(
-        val source: ReactiveBatchCloseTimeoutException,
+        val source: BatchCloseTimeoutException,
         val mapped: MongoEventStoreBatchCloseTimeoutException,
     )
 
@@ -50,14 +50,14 @@ internal class BatchMongoEventStreamAppender(
     }
 
     private val mappedCloseTimeout = AtomicReference<MappedCloseTimeout?>()
-    private val coordinator = ReactiveBatchCoordinator(
+    private val coordinator = BatchCoordinator(
         name = MongoEventStore::class.simpleName!!,
-        options = ReactiveBatchOptions(
+        options = BatchOptions(
             maxSize = options.maxSize,
             maxDelay = options.maxDelay,
             maxPendingItems = options.maxPendingAppends,
         ),
-        writer = ReactiveBatchWriter(MongoEventStreamBatchWriter(database)::write),
+        writer = BatchWriter(MongoEventStreamBatchWriter(database)::write),
     )
 
     override fun append(eventStream: DomainEventStream): Mono<Void> {
@@ -81,20 +81,20 @@ internal class BatchMongoEventStreamAppender(
 
     private fun toMongoBatchError(error: Throwable): Throwable {
         return when (error) {
-            is ReactiveBatchOverflowException ->
+            is BatchOverflowException ->
                 MongoEventStoreBatchOverflowException(options.maxPendingAppends)
 
-            is ReactiveBatchClosedException ->
+            is BatchClosedException ->
                 IllegalStateException("MongoEventStore is closed.")
 
-            is ReactiveBatchCloseTimeoutException -> mapCloseTimeout(error)
+            is BatchCloseTimeoutException -> mapCloseTimeout(error)
 
             else -> error
         }
     }
 
     private fun mapCloseTimeout(
-        error: ReactiveBatchCloseTimeoutException,
+        error: BatchCloseTimeoutException,
     ): MongoEventStoreBatchCloseTimeoutException {
         while (true) {
             val current = mappedCloseTimeout.get()

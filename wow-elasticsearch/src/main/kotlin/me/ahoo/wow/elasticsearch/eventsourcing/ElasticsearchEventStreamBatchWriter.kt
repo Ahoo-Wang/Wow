@@ -62,7 +62,17 @@ internal class ElasticsearchEventStreamBatchWriter(
         return elasticsearchClient.bulk(request)
             .map { response ->
                 val responseItems = response.items()
-                validateResponse(batch, responseItems, response.errors())
+                validateElasticsearchBulkResponse(
+                    expectedItems = batch.map {
+                        ElasticsearchBulkItemExpectation(
+                            operationType = OperationType.Create,
+                            indexExpression = it.index,
+                            id = it.id,
+                        )
+                    },
+                    responseItems = responseItems,
+                    responseErrors = response.errors(),
+                )
                 batch.zip(responseItems).map { (append, item) ->
                     item.toBatchItemResult(append.eventStream)
                 }
@@ -82,51 +92,10 @@ internal class ElasticsearchEventStreamBatchWriter(
         }
     }
 
-    private fun validateResponse(
-        batch: List<ElasticsearchEventStreamAppend>,
-        responseItems: List<BulkResponseItem>,
-        responseErrors: Boolean,
-    ) {
-        val mismatchMessage = when {
-            responseItems.size != batch.size ->
-                "Elasticsearch bulk response item count[${responseItems.size}] " +
-                    "does not match request item count[${batch.size}]."
-
-            else -> {
-                val mismatchedItem = batch.zip(responseItems)
-                    .withIndex()
-                    .firstOrNull { (_, pair) ->
-                        val (append, item) = pair
-                        item.operationType() != OperationType.Create ||
-                            item.index() != append.index ||
-                            item.id() != append.id
-                    }
-                when {
-                    mismatchedItem != null -> {
-                        val (index, pair) = mismatchedItem
-                        val (append, item) = pair
-                        "Elasticsearch bulk response item[$index] does not match its request: " +
-                            "expected[create ${append.index}/${append.id}], " +
-                            "actual[${item.operationType()} ${item.index()}/${item.id()}]."
-                    }
-
-                    responseErrors != responseItems.any { !it.isSuccessful() } ->
-                        "Elasticsearch bulk response errors[$responseErrors] is inconsistent " +
-                            "with its item failures."
-
-                    else -> null
-                }
-            }
-        }
-        if (mismatchMessage != null) {
-            throw ElasticsearchBulkResponseException(mismatchMessage)
-        }
-    }
-
     private fun BulkResponseItem.toBatchItemResult(
         eventStream: DomainEventStream,
     ): BatchItemResult {
-        if (isSuccessful()) {
+        if (isSuccessfulResponse()) {
             return BatchItemResult.Success
         }
         val itemException = ElasticsearchBulkItemException(
@@ -147,12 +116,7 @@ internal class ElasticsearchEventStreamBatchWriter(
         return BatchItemResult.Failure(resultError)
     }
 
-    private fun BulkResponseItem.isSuccessful(): Boolean {
-        return status() in SUCCESS_STATUS_RANGE && error() == null
-    }
-
     private companion object {
         const val VERSION_CONFLICT_STATUS = 409
-        val SUCCESS_STATUS_RANGE = 200..299
     }
 }

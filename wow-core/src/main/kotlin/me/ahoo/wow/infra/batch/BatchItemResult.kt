@@ -31,6 +31,6 @@ sealed interface BatchItemResult {
  * input order. A terminal publisher failure marks every input in that batch as
  * failed without terminating the coordinator.
  */
-fun interface ReactiveBatchWriter<T : Any> {
+fun interface BatchWriter<T : Any> {
     fun write(items: List<T>): Mono<List<BatchItemResult>>
 }

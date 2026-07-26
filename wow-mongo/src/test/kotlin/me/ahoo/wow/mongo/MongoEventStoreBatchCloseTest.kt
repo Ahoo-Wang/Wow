@@ -336,7 +336,7 @@ class MongoEventStoreBatchCloseTest {
     }
 
     @Test
-    fun `close timeout should include result dispatch backlog`() {
+    fun `close timeout should include a blocking callback without delaying another result`() {
         val database = mockk<MongoDatabase>()
         val collection = mockk<MongoCollection<Document>>()
         val resultCallbackStarted = CountDownLatch(1)
@@ -368,7 +368,7 @@ class MongoEventStoreBatchCloseTest {
                 batcher.close()
             }
             first.isDone.assert().isFalse()
-            second.isDone.assert().isFalse()
+            second.isDone.assert().isTrue()
 
             releaseResultCallback.countDown()
             CompletableFuture.allOf(first, second).get(1, TimeUnit.SECONDS)

@@ -71,6 +71,33 @@ class ElasticsearchEventStreamBatchWriterTest {
     }
 
     @Test
+    fun `concrete response index should be accepted for an alias request`() {
+        every { client.bulk(any<BulkRequest>()) } returns Mono.just(
+            bulkResponse(
+                errors = false,
+                responseItem(
+                    index = "event-order-000001",
+                    id = "order-1-1",
+                    status = 201,
+                ),
+            )
+        )
+
+        ElasticsearchEventStreamBatchWriter(client, Refresh.False)
+            .write(
+                listOf(
+                    append(
+                        index = "event-order-write",
+                        id = "order-1-1",
+                    ),
+                )
+            )
+            .test()
+            .expectNext(listOf(BatchItemResult.Success))
+            .verifyComplete()
+    }
+
+    @Test
     fun `version conflict should fail only its corresponding append`() {
         every { client.bulk(any<BulkRequest>()) } returns Mono.just(
             bulkResponse(
@@ -164,6 +191,52 @@ class ElasticsearchEventStreamBatchWriterTest {
     }
 
     @Test
+    fun `response id mismatch should fail the whole writer call`() {
+        every { client.bulk(any<BulkRequest>()) } returns Mono.just(
+            bulkResponse(
+                errors = false,
+                responseItem(index = "event-order", id = "unexpected-id", status = 201),
+            )
+        )
+
+        ElasticsearchEventStreamBatchWriter(client, Refresh.False)
+            .write(listOf(append(id = "order-1-1")))
+            .test()
+            .expectErrorMatches { error ->
+                error is ElasticsearchBulkResponseException &&
+                    error.message.orEmpty().contains("item[0]") &&
+                    error.message.orEmpty().contains("expected[Create event-order/order-1-1]") &&
+                    error.message.orEmpty().contains("actual[Create event-order/unexpected-id]")
+            }
+            .verify()
+    }
+
+    @Test
+    fun `response operation mismatch should fail the whole writer call`() {
+        every { client.bulk(any<BulkRequest>()) } returns Mono.just(
+            bulkResponse(
+                errors = false,
+                responseItem(
+                    index = "event-order",
+                    id = "order-1-1",
+                    status = 201,
+                    operationType = OperationType.Index,
+                ),
+            )
+        )
+
+        ElasticsearchEventStreamBatchWriter(client, Refresh.False)
+            .write(listOf(append(id = "order-1-1")))
+            .test()
+            .expectErrorMatches { error ->
+                error is ElasticsearchBulkResponseException &&
+                    error.message.orEmpty().contains("expected[Create event-order/order-1-1]") &&
+                    error.message.orEmpty().contains("actual[Index event-order/order-1-1]")
+            }
+            .verify()
+    }
+
+    @Test
     fun `inconsistent errors flag should fail the whole writer call`() {
         every { client.bulk(any<BulkRequest>()) } returns Mono.just(
             bulkResponse(
@@ -215,9 +288,10 @@ class ElasticsearchEventStreamBatchWriterTest {
         id: String,
         status: Int,
         errorType: String? = null,
+        operationType: OperationType = OperationType.Create,
     ): BulkResponseItem {
         return BulkResponseItem.of { item ->
-            item.operationType(OperationType.Create)
+            item.operationType(operationType)
                 .index(index)
                 .id(id)
                 .status(status)

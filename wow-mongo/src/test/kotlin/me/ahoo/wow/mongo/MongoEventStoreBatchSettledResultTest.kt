@@ -65,13 +65,13 @@ class MongoEventStoreBatchSettledResultTest {
             }
             settledAppends[8].isDone.assert().isFalse()
             settledAppends[9].isDone.assert().isFalse()
+
+            fixture.releaseResultCallbacks.countDown()
+            settledAppends.forEach(CompletableFuture<Void?>::join)
             blockedAppends.forEach {
                 assertThrows<CompletionException>(it::join)
                     .cause.assert().isSameAs(closeError)
             }
-
-            fixture.releaseResultCallbacks.countDown()
-            settledAppends.forEach(CompletableFuture<Void?>::join)
         } finally {
             fixture.releaseResultCallbacks.countDown()
         }

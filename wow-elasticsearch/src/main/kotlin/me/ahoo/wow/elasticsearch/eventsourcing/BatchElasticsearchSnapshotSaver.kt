@@ -16,12 +16,12 @@ package me.ahoo.wow.elasticsearch.eventsourcing
 import co.elastic.clients.elasticsearch._types.Refresh
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
-import me.ahoo.wow.infra.batch.ReactiveBatchCloseTimeoutException
-import me.ahoo.wow.infra.batch.ReactiveBatchClosedException
-import me.ahoo.wow.infra.batch.ReactiveBatchCoordinator
-import me.ahoo.wow.infra.batch.ReactiveBatchOptions
-import me.ahoo.wow.infra.batch.ReactiveBatchOverflowException
-import me.ahoo.wow.infra.batch.ReactiveBatchWriter
+import me.ahoo.wow.infra.batch.BatchCloseTimeoutException
+import me.ahoo.wow.infra.batch.BatchClosedException
+import me.ahoo.wow.infra.batch.BatchCoordinator
+import me.ahoo.wow.infra.batch.BatchOptions
+import me.ahoo.wow.infra.batch.BatchOverflowException
+import me.ahoo.wow.infra.batch.BatchWriter
 import me.ahoo.wow.serialization.toLinkedHashMap
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
@@ -35,7 +35,7 @@ internal class BatchElasticsearchSnapshotSaver(
     private val closeTimeout: Duration = DEFAULT_CLOSE_TIMEOUT,
 ) : ElasticsearchSnapshotSaver {
     private data class MappedCloseTimeout(
-        val source: ReactiveBatchCloseTimeoutException,
+        val source: BatchCloseTimeoutException,
         val mapped: ElasticsearchSnapshotStoreBatchCloseTimeoutException,
     )
 
@@ -46,14 +46,14 @@ internal class BatchElasticsearchSnapshotSaver(
     }
 
     private val mappedCloseTimeout = AtomicReference<MappedCloseTimeout?>()
-    private val coordinator = ReactiveBatchCoordinator(
+    private val coordinator = BatchCoordinator(
         name = ElasticsearchSnapshotStore::class.simpleName!!,
-        options = ReactiveBatchOptions(
+        options = BatchOptions(
             maxSize = options.maxSize,
             maxDelay = options.maxDelay,
             maxPendingItems = options.maxPendingSaves,
         ),
-        writer = ReactiveBatchWriter(
+        writer = BatchWriter(
             ElasticsearchSnapshotBatchWriter(
                 elasticsearchClient = elasticsearchClient,
                 refreshPolicy = refreshPolicy,
@@ -83,20 +83,20 @@ internal class BatchElasticsearchSnapshotSaver(
 
     private fun toElasticsearchBatchError(error: Throwable): Throwable {
         return when (error) {
-            is ReactiveBatchOverflowException ->
+            is BatchOverflowException ->
                 ElasticsearchSnapshotStoreBatchOverflowException(options.maxPendingSaves)
 
-            is ReactiveBatchClosedException ->
+            is BatchClosedException ->
                 IllegalStateException("ElasticsearchSnapshotStore is closed.")
 
-            is ReactiveBatchCloseTimeoutException -> mapCloseTimeout(error)
+            is BatchCloseTimeoutException -> mapCloseTimeout(error)
 
             else -> error
         }
     }
 
     private fun mapCloseTimeout(
-        error: ReactiveBatchCloseTimeoutException,
+        error: BatchCloseTimeoutException,
     ): ElasticsearchSnapshotStoreBatchCloseTimeoutException {
         while (true) {
             val current = mappedCloseTimeout.get()

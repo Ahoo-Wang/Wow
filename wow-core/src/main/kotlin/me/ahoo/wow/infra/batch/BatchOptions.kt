@@ -16,12 +16,12 @@ package me.ahoo.wow.infra.batch
 import java.time.Duration
 
 /**
- * Storage-independent limits for [ReactiveBatchCoordinator].
+ * Storage-independent limits for [BatchCoordinator].
  *
  * Enabling batching is deliberately not part of this type. The component that
  * owns a coordinator decides whether to compose a direct or batched writer.
  */
-data class ReactiveBatchOptions(
+data class BatchOptions(
     val maxSize: Int,
     val maxDelay: Duration,
     /**

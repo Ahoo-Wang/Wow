@@ -16,25 +16,25 @@ package me.ahoo.wow.infra.batch
 import me.ahoo.wow.exception.RecoverableException
 import java.time.Duration
 
-class ReactiveBatchOverflowException(
+class BatchOverflowException(
     val coordinatorName: String,
     val maxPendingItems: Int,
 ) : IllegalStateException(
-    "Reactive batch coordinator[$coordinatorName] pending capacity[$maxPendingItems] has been exhausted."
+    "Batch coordinator[$coordinatorName] pending capacity[$maxPendingItems] has been exhausted."
 ),
     RecoverableException
 
-class ReactiveBatchClosedException(
+class BatchClosedException(
     val coordinatorName: String,
-) : IllegalStateException("Reactive batch coordinator[$coordinatorName] is closed.")
+) : IllegalStateException("Batch coordinator[$coordinatorName] is closed.")
 
-class ReactiveBatchCloseTimeoutException(
+class BatchCloseTimeoutException(
     val coordinatorName: String,
     val timeout: Duration,
 ) : IllegalStateException(
-    "Reactive batch coordinator[$coordinatorName] did not close within [$timeout]."
+    "Batch coordinator[$coordinatorName] did not close within [$timeout]."
 )
 
-class ReactiveBatchProtocolException(
+class BatchProtocolException(
     message: String,
 ) : IllegalStateException(message)

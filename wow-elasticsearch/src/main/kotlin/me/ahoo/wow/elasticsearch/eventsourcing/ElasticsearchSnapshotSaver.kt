@@ -33,27 +33,38 @@ internal class DirectElasticsearchSnapshotSaver(
     private val elasticsearchClient: ReactiveElasticsearchClient,
     private val refreshPolicy: Refresh,
 ) : ElasticsearchSnapshotSaver {
+    private val versionConflictResolver = ElasticsearchSnapshotVersionConflictResolver(
+        elasticsearchClient = elasticsearchClient,
+        refreshPolicy = refreshPolicy,
+    )
+
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
+        val save = ElasticsearchSnapshotSave(
+            index = snapshot.aggregateId.toSnapshotIndexName(),
+            id = snapshot.aggregateId.id,
+            document = snapshot.toLinkedHashMap(),
+            version = snapshot.version,
+        )
         val request = IndexRequest.of<Map<String, Any?>> {
-            it.index(snapshot.aggregateId.toSnapshotIndexName())
-                .id(snapshot.aggregateId.id)
-                .document(snapshot.toLinkedHashMap())
-                .version(snapshot.version.toLong())
+            it.index(save.index)
+                .id(save.id)
+                .document(save.document)
+                .version(save.version.toLong())
                 .versionType(VersionType.External)
                 .refresh(refreshPolicy)
         }
         return elasticsearchClient.index(request)
+            .then()
             .onErrorResume { error ->
                 if (
                     error is ElasticsearchException &&
                     error.status() == VERSION_CONFLICT_STATUS
                 ) {
-                    Mono.empty()
+                    versionConflictResolver.resolve(save)
                 } else {
                     Mono.error(error)
                 }
             }
-            .then()
     }
 
     private companion object {

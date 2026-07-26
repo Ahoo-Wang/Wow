@@ -17,7 +17,6 @@ import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.elasticsearch._types.VersionType
 import co.elastic.clients.elasticsearch.core.BulkRequest
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation
-import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem
 import co.elastic.clients.elasticsearch.core.bulk.OperationType
 import me.ahoo.wow.infra.batch.BatchItemResult
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
@@ -34,6 +33,11 @@ internal class ElasticsearchSnapshotBatchWriter(
     private val elasticsearchClient: ReactiveElasticsearchClient,
     private val refreshPolicy: Refresh,
 ) {
+    private val versionConflictResolver = ElasticsearchSnapshotVersionConflictResolver(
+        elasticsearchClient = elasticsearchClient,
+        refreshPolicy = refreshPolicy,
+    )
+
     private data class SnapshotKey(
         val index: String,
         val id: String,
@@ -47,18 +51,69 @@ internal class ElasticsearchSnapshotBatchWriter(
                 .operations(coalesced.map(::toIndexOperation))
         }
         return elasticsearchClient.bulk(request)
-            .map { response ->
+            .flatMap { response ->
                 val responseItems = response.items()
-                validateResponse(coalesced, responseItems, response.errors())
-                val resultsByKey = coalesced.zip(responseItems).associate { (save, item) ->
-                    save.toKey() to item.toBatchItemResult()
-                }
-                batch.map { save ->
-                    checkNotNull(resultsByKey[save.toKey()]) {
-                        "Elasticsearch snapshot batch writer did not produce a result for " +
-                            "${save.index}/${save.id}."
+                validateElasticsearchBulkResponse(
+                    expectedItems = coalesced.map {
+                        ElasticsearchBulkItemExpectation(
+                            operationType = OperationType.Index,
+                            indexExpression = it.index,
+                            id = it.id,
+                        )
+                    },
+                    responseItems = responseItems,
+                    responseErrors = response.errors(),
+                )
+                val resultsByKey = mutableMapOf<SnapshotKey, BatchItemResult>()
+                val versionConflicts = mutableListOf<ElasticsearchSnapshotSave>()
+                coalesced.zip(responseItems).forEach { (save, item) ->
+                    if (item.status() == VERSION_CONFLICT_STATUS) {
+                        versionConflicts += save
+                    } else {
+                        resultsByKey[save.toKey()] = if (item.isSuccessfulResponse()) {
+                            BatchItemResult.Success
+                        } else {
+                            BatchItemResult.Failure(
+                                ElasticsearchBulkItemException(
+                                    operationType = item.operationType(),
+                                    index = item.index(),
+                                    id = item.id(),
+                                    status = item.status(),
+                                    error = item.error(),
+                                )
+                            )
+                        }
                     }
                 }
+
+                resolveVersionConflicts(versionConflicts)
+                    .map { conflictResults ->
+                        versionConflicts.zip(conflictResults).forEach { (save, result) ->
+                            resultsByKey[save.toKey()] = result
+                        }
+                        batch.map { save ->
+                            checkNotNull(resultsByKey[save.toKey()]) {
+                                "Elasticsearch snapshot batch writer did not produce a result for " +
+                                    "${save.index}/${save.id}."
+                            }
+                        }
+                    }
+            }
+    }
+
+    private fun resolveVersionConflicts(
+        versionConflicts: List<ElasticsearchSnapshotSave>,
+    ): Mono<List<BatchItemResult>> {
+        if (versionConflicts.isEmpty()) {
+            return Mono.just(emptyList())
+        }
+        return versionConflictResolver.resolve(versionConflicts)
+            .onErrorResume { error ->
+                Mono.just(
+                    versionConflicts.map {
+                        BatchItemResult.Failure(error)
+                    }
+                )
             }
     }
 
@@ -92,72 +147,11 @@ internal class ElasticsearchSnapshotBatchWriter(
         }
     }
 
-    private fun validateResponse(
-        batch: List<ElasticsearchSnapshotSave>,
-        responseItems: List<BulkResponseItem>,
-        responseErrors: Boolean,
-    ) {
-        val mismatchMessage = when {
-            responseItems.size != batch.size ->
-                "Elasticsearch bulk response item count[${responseItems.size}] " +
-                    "does not match request item count[${batch.size}]."
-
-            else -> {
-                val mismatchedItem = batch.zip(responseItems)
-                    .withIndex()
-                    .firstOrNull { (_, pair) ->
-                        val (save, item) = pair
-                        item.operationType() != OperationType.Index ||
-                            item.index() != save.index ||
-                            item.id() != save.id
-                    }
-                when {
-                    mismatchedItem != null -> {
-                        val (index, pair) = mismatchedItem
-                        val (save, item) = pair
-                        "Elasticsearch bulk response item[$index] does not match its request: " +
-                            "expected[index ${save.index}/${save.id}], " +
-                            "actual[${item.operationType()} ${item.index()}/${item.id()}]."
-                    }
-
-                    responseErrors != responseItems.any { !it.isSuccessfulResponse() } ->
-                        "Elasticsearch bulk response errors[$responseErrors] is inconsistent " +
-                            "with its item failures."
-
-                    else -> null
-                }
-            }
-        }
-        if (mismatchMessage != null) {
-            throw ElasticsearchBulkResponseException(mismatchMessage)
-        }
-    }
-
-    private fun BulkResponseItem.toBatchItemResult(): BatchItemResult {
-        if (isSuccessfulResponse() || status() == VERSION_CONFLICT_STATUS) {
-            return BatchItemResult.Success
-        }
-        return BatchItemResult.Failure(
-            ElasticsearchBulkItemException(
-                operationType = operationType(),
-                index = index(),
-                id = id(),
-                status = status(),
-                error = error(),
-            )
-        )
-    }
-
-    private fun BulkResponseItem.isSuccessfulResponse(): Boolean {
-        return status() in SUCCESS_STATUS_RANGE && error() == null
-    }
-
     private fun ElasticsearchSnapshotSave.toKey(): SnapshotKey {
         return SnapshotKey(index = index, id = id)
     }
 
     private companion object {
         const val VERSION_CONFLICT_STATUS = 409
-        val SUCCESS_STATUS_RANGE = 200..299
     }
 }

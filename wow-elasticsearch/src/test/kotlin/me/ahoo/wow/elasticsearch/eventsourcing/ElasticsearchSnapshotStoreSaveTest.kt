@@ -18,6 +18,7 @@ import co.elastic.clients.elasticsearch._types.VersionType
 import co.elastic.clients.elasticsearch.core.BulkRequest
 import co.elastic.clients.elasticsearch.core.BulkResponse
 import co.elastic.clients.elasticsearch.core.IndexRequest
+import co.elastic.clients.elasticsearch.core.UpdateRequest
 import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem
 import co.elastic.clients.elasticsearch.core.bulk.OperationType
 import io.mockk.every
@@ -67,16 +68,93 @@ class ElasticsearchSnapshotStoreSaveTest {
     }
 
     @Test
-    fun `direct stale version conflict should be an idempotent success`() {
+    fun `direct external version conflict should use source version guarded update`() {
         val conflict = mockk<ElasticsearchException> {
             every { status() } returns 409
         }
         every { client.index(any<IndexRequest<Map<String, Any?>>>()) } returns Mono.error(conflict)
+        val updateRequest = slot<UpdateRequest<Map<String, Any?>, Map<String, Any?>>>()
+
+        @Suppress("UNCHECKED_CAST")
+        val documentClass = Map::class.java as Class<Map<String, Any?>>
+        every {
+            client.update(
+                capture(updateRequest),
+                documentClass,
+            )
+        } returns Mono.just(mockk())
 
         ElasticsearchSnapshotStore(client)
             .save(snapshot(id = "order-stale", version = 2))
             .test()
             .verifyComplete()
+
+        updateRequest.captured.id().assert().isEqualTo("order-stale")
+        updateRequest.captured.refresh().assert().isEqualTo(
+            co.elastic.clients.elasticsearch._types.Refresh.True
+        )
+        updateRequest.captured.retryOnConflict().assert().isNotNull()
+        checkNotNull(updateRequest.captured.upsert())["version"].assert().isEqualTo(2)
+        checkNotNull(updateRequest.captured.script())
+            .params().keys.assert().contains("version", "snapshot")
+    }
+
+    @Test
+    fun `direct conflict fallback failure should not be swallowed`() {
+        val conflict = mockk<ElasticsearchException> {
+            every { status() } returns 409
+        }
+        val fallbackFailure = IllegalStateException("stored snapshot version is unavailable")
+        every { client.index(any<IndexRequest<Map<String, Any?>>>()) } returns Mono.error(conflict)
+
+        @Suppress("UNCHECKED_CAST")
+        val documentClass = Map::class.java as Class<Map<String, Any?>>
+        every {
+            client.update(
+                any<UpdateRequest<Map<String, Any?>, Map<String, Any?>>>(),
+                documentClass,
+            )
+        } returns Mono.error(fallbackFailure)
+
+        ElasticsearchSnapshotStore(client)
+            .save(snapshot(id = "order-invalid-legacy", version = 2))
+            .test()
+            .expectErrorMatches { it === fallbackFailure }
+            .verify()
+    }
+
+    @Test
+    fun `direct non conflict failures should not invoke version conflict fallback`() {
+        val ordinaryFailure = IllegalStateException("index unavailable")
+        val serviceUnavailable = mockk<ElasticsearchException> {
+            every { status() } returns 503
+        }
+        every {
+            client.index(any<IndexRequest<Map<String, Any?>>>())
+        } returnsMany listOf(
+            Mono.error(ordinaryFailure),
+            Mono.error(serviceUnavailable),
+        )
+
+        ElasticsearchSnapshotStore(client).use { store ->
+            store.save(snapshot(id = "order-ordinary-failure", version = 2))
+                .test()
+                .expectErrorMatches { it === ordinaryFailure }
+                .verify()
+            store.save(snapshot(id = "order-service-unavailable", version = 2))
+                .test()
+                .expectErrorMatches { it === serviceUnavailable }
+                .verify()
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        val documentClass = Map::class.java as Class<Map<String, Any?>>
+        verify(exactly = 0) {
+            client.update(
+                any<UpdateRequest<Map<String, Any?>, Map<String, Any?>>>(),
+                documentClass,
+            )
+        }
     }
 
     @Test

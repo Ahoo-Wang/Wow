@@ -14,6 +14,8 @@
 package me.ahoo.wow.elasticsearch.eventsourcing
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.elasticsearch.IndexNameConverter.EVENT_STREAM_SUFFIX
+import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
 import me.ahoo.wow.elasticsearch.TemplateInitializer.initEventStreamTemplate
 import me.ahoo.wow.eventsourcing.EventStore
@@ -142,6 +144,58 @@ class ElasticsearchEventStoreTest : EventStoreSpec() {
             store.load(successful.aggregateId)
                 .test()
                 .expectNext(successful)
+                .verifyComplete()
+        }
+    }
+
+    @Test
+    fun `bulk create through a write alias should accept its concrete response index`() {
+        val client = ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch)
+        client.initEventStreamTemplate()
+        val aggregateId = namedAggregate.aggregateId(generateGlobalId())
+        val alias = aggregateId.toEventStreamIndexName()
+        val concreteIndex = alias.removeSuffix(EVENT_STREAM_SUFFIX) +
+            "-000001$EVENT_STREAM_SUFFIX"
+        client.indices().create { create -> create.index(concreteIndex) }
+            .then(
+                reactor.core.publisher.Mono.defer {
+                    client.indices().updateAliases { aliases ->
+                        aliases.actions { action ->
+                            action.add { add ->
+                                add.index(concreteIndex)
+                                    .alias(alias)
+                                    .isWriteIndex(true)
+                            }
+                        }
+                    }
+                }
+            )
+            .block()
+        val streams = listOf(1, 2).map { version ->
+            generateEventStream(
+                aggregateId = aggregateId,
+                aggregateVersion = version - 1,
+                eventCount = 1,
+            )
+        }
+
+        ElasticsearchEventStore(
+            elasticsearchClient = client,
+            batchOptions = ElasticsearchEventStoreBatchOptions(
+                enabled = true,
+                maxSize = 2,
+                maxDelay = Duration.ofSeconds(1),
+            ),
+        ).use { store ->
+            Flux.merge(streams.map(store::append))
+                .then()
+                .test()
+                .verifyComplete()
+
+            store.load(aggregateId)
+                .map { it.version }
+                .test()
+                .expectNext(1, 2)
                 .verifyComplete()
         }
     }

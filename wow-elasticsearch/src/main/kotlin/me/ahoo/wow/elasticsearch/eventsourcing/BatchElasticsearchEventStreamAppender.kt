@@ -16,12 +16,12 @@ package me.ahoo.wow.elasticsearch.eventsourcing
 import co.elastic.clients.elasticsearch._types.Refresh
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.infra.batch.ReactiveBatchCloseTimeoutException
-import me.ahoo.wow.infra.batch.ReactiveBatchClosedException
-import me.ahoo.wow.infra.batch.ReactiveBatchCoordinator
-import me.ahoo.wow.infra.batch.ReactiveBatchOptions
-import me.ahoo.wow.infra.batch.ReactiveBatchOverflowException
-import me.ahoo.wow.infra.batch.ReactiveBatchWriter
+import me.ahoo.wow.infra.batch.BatchCloseTimeoutException
+import me.ahoo.wow.infra.batch.BatchClosedException
+import me.ahoo.wow.infra.batch.BatchCoordinator
+import me.ahoo.wow.infra.batch.BatchOptions
+import me.ahoo.wow.infra.batch.BatchOverflowException
+import me.ahoo.wow.infra.batch.BatchWriter
 import me.ahoo.wow.serialization.toLinkedHashMap
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
@@ -35,7 +35,7 @@ internal class BatchElasticsearchEventStreamAppender(
     private val closeTimeout: Duration = DEFAULT_CLOSE_TIMEOUT,
 ) : ElasticsearchEventStreamAppender {
     private data class MappedCloseTimeout(
-        val source: ReactiveBatchCloseTimeoutException,
+        val source: BatchCloseTimeoutException,
         val mapped: ElasticsearchEventStoreBatchCloseTimeoutException,
     )
 
@@ -46,14 +46,14 @@ internal class BatchElasticsearchEventStreamAppender(
     }
 
     private val mappedCloseTimeout = AtomicReference<MappedCloseTimeout?>()
-    private val coordinator = ReactiveBatchCoordinator(
+    private val coordinator = BatchCoordinator(
         name = ElasticsearchEventStore::class.simpleName!!,
-        options = ReactiveBatchOptions(
+        options = BatchOptions(
             maxSize = options.maxSize,
             maxDelay = options.maxDelay,
             maxPendingItems = options.maxPendingAppends,
         ),
-        writer = ReactiveBatchWriter(
+        writer = BatchWriter(
             ElasticsearchEventStreamBatchWriter(
                 elasticsearchClient = elasticsearchClient,
                 refreshPolicy = refreshPolicy,
@@ -84,20 +84,20 @@ internal class BatchElasticsearchEventStreamAppender(
 
     private fun toElasticsearchBatchError(error: Throwable): Throwable {
         return when (error) {
-            is ReactiveBatchOverflowException ->
+            is BatchOverflowException ->
                 ElasticsearchEventStoreBatchOverflowException(options.maxPendingAppends)
 
-            is ReactiveBatchClosedException ->
+            is BatchClosedException ->
                 IllegalStateException("ElasticsearchEventStore is closed.")
 
-            is ReactiveBatchCloseTimeoutException -> mapCloseTimeout(error)
+            is BatchCloseTimeoutException -> mapCloseTimeout(error)
 
             else -> error
         }
     }
 
     private fun mapCloseTimeout(
-        error: ReactiveBatchCloseTimeoutException,
+        error: BatchCloseTimeoutException,
     ): ElasticsearchEventStoreBatchCloseTimeoutException {
         while (true) {
             val current = mappedCloseTimeout.get()
