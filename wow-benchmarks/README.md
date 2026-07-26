@@ -184,7 +184,9 @@ The Gradle model keeps four responsibilities separate: `BenchmarkSuite` owns wor
 | `wow-benchmarks/results/reports/quick-elasticsearch-batch-append.md` | Generated quick Elasticsearch EventStore append comparison. | Commit with intentionally collected, provenance-backed Elasticsearch evidence. |
 | `wow-benchmarks/results/reports/confirmation-elasticsearch-batch-append.md` | Generated multiple-fork Elasticsearch EventStore append comparison. | Commit intentionally collected provenance-backed evidence; use for independent JMH point estimates and error intervals. |
 | `wow-benchmarks/results/reports/tuning-mongo-batch-options.md` | Generated Mongo EventStore batch-options screening matrix. | Commit only with the exact candidate grid and clean-source manifest used to choose confirmation candidates. |
+| `wow-benchmarks/results/reports/tuning-mongo-batch-options.frontier.json` | Machine-checked Mongo screening frontier evidence. | Commit with its generated screening report; never edit it by hand. |
 | `wow-benchmarks/results/reports/tuning-elasticsearch-batch-options.md` | Generated Elasticsearch EventStore batch-options screening matrix. | Commit only with the exact candidate grid and clean-source manifest used to choose confirmation candidates. |
+| `wow-benchmarks/results/reports/tuning-elasticsearch-batch-options.frontier.json` | Machine-checked Elasticsearch screening frontier evidence. | Commit with its generated screening report; never edit it by hand. |
 | `wow-benchmarks/results/reports/confirmation-mongo-batch-options.md` | Generated multiple-fork Mongo batch-options confirmation. | Commit with the current default and selected candidate set before changing defaults. |
 | `wow-benchmarks/results/reports/confirmation-mongo-batch-options-paired.md` | Generated 24-pair Mongo batch-options finalist confirmation. | Commit only after the pre-registered current/finalist experiment completes from one clean source commit. |
 | `wow-benchmarks/results/reports/confirmation-elasticsearch-batch-options.md` | Generated multiple-fork Elasticsearch batch-options confirmation. | Commit with the current default and selected candidate set before changing defaults. |
@@ -194,9 +196,9 @@ The Gradle model keeps four responsibilities separate: `BenchmarkSuite` owns wor
 | `wow-benchmarks/results/jmh/` | Local JMH JSON and human-readable outputs. | Do not commit generated run output. |
 | `wow-benchmarks/results/baselines/framework-e2e.json` | Framework E2E comparison baseline, when present. | Commit only intentional baseline updates. |
 
-Files under `results/reports/*.md` are generated. Do not hand-edit benchmark rows; rerun the benchmark/report task instead.
-Every successful thread-level JMH run writes a neighboring `*.manifest.json` sidecar with the source commit and dirty state, run specification, resolved required-service endpoints, profiler arguments, runtime, and SHA-256 digests for the JSON and human output. Failed runs do not publish a success manifest. Report and comparison tasks reject raw results with missing, mixed, or mismatched manifests.
-Infrastructure reports validate captured service names against the suite identity and display the captured host/port provenance. They do not reinterpret historical evidence using report-time Redis, MongoDB, or Elasticsearch environment variables.
+Files under `results/reports/*.md` and `*.frontier.json` are generated. Do not hand-edit benchmark rows or frontier evidence; rerun the benchmark/report task instead.
+Every successful thread-level JMH run writes a neighboring schema-v2 `*.manifest.json` sidecar with the source commit and dirty state, run specification, resolved required-service endpoints, profiler arguments, runtime, and SHA-256 digests for the JSON and human output. For a local Docker-backed service, the manifest binds the TCP connection's actual remote IP to a structured container-port/protocol/host-IP/host-port mapping, plus running state, container ID/start time, image reference, image ID, available repository digests, an allowlisted structured performance configuration, required Compose identity/config hash, and a deterministic configuration SHA-256 both before sampling and after JMH completes. IPv4 and IPv6 wildcard bindings cover only their own address family. Raw container commands, entrypoints, and environment values are not persisted. The task publishes `SUCCESS` only when those captures have the same ordered service identity and stable container/configuration values; a stopped/restarted container, endpoint mismatch, or configuration change leaves only the in-progress manifest. Failed runs do not publish a success manifest. Report and comparison tasks reject raw results with missing, mixed, restarted, or differently configured containers.
+Infrastructure reports validate captured service names against the suite identity and display the captured host/port and container provenance. A separately labelled report-time diagnostics section is live context only; it cannot reinterpret historical evidence using current Redis, MongoDB, Elasticsearch, or Docker state. Schema-v1 raw results must be rerun rather than upgraded at report time.
 
 ### Mongo Batch Append Reports
 
@@ -265,6 +267,30 @@ client; they do not include Command Gateway ingress, aggregate execution, or dow
 Quick results remain directional until a controlled multiple-fork confirmation
 run is collected from a clean `HEAD`.
 
+After the final coordinator/Store implementation is committed, refresh the stale append-path evidence from
+that clean `HEAD`. The currently committed quick and independent confirmation reports were sampled at
+`119908c807b9f9196b36ab5d3c8b074490cce55c`; the Mongo paired report was sampled at
+`b97f56b003b3f2067c3566d12cded2202e243fe8`. They also use schema-v1 manifests, so the following are the
+exact required rerun tasks:
+
+```bash
+./gradlew \
+  :wow-benchmarks:benchmarkQuickMongoBatchAppend \
+  :wow-benchmarks:generateMongoBatchAppendBenchmarkReport \
+  :wow-benchmarks:benchmarkConfirmMongoBatchAppend \
+  :wow-benchmarks:generateMongoBatchAppendConfirmationReport \
+  :wow-benchmarks:benchmarkMongoBatchAppendPairedE2E \
+  :wow-benchmarks:generateMongoBatchAppendPairedE2EReport \
+  --no-parallel
+
+./gradlew \
+  :wow-benchmarks:benchmarkQuickElasticsearchBatchAppend \
+  :wow-benchmarks:generateElasticsearchBatchAppendBenchmarkReport \
+  :wow-benchmarks:benchmarkConfirmElasticsearchBatchAppend \
+  :wow-benchmarks:generateElasticsearchBatchAppendConfirmationReport \
+  --no-parallel
+```
+
 ### Storage Batch Options Tuning
 
 The tuning suites encode a candidate as `<maxSize>x<maxDelayMicros>us`. The
@@ -272,54 +298,111 @@ default scan covers `maxSize=16,32,64,128,256,512` and
 `maxDelay=250µs,500µs,1ms,2ms,4ms`:
 
 ```bash
-./gradlew :wow-benchmarks:benchmarkTuneMongoBatchOptions --no-parallel
+./gradlew :wow-benchmarks:benchmarkTuneMongoBatchOptions \
+  :wow-benchmarks:generateMongoBatchOptionsTuningReport \
+  --no-parallel
 
-./gradlew :wow-benchmarks:benchmarkTuneElasticsearchBatchOptions --no-parallel
-
-./gradlew :wow-benchmarks:generateMongoBatchOptionsTuningReport \
-  :wow-benchmarks:generateElasticsearchBatchOptionsTuningReport
+# Complete and commit Mongo confirmation before starting this separate campaign.
+./gradlew :wow-benchmarks:benchmarkTuneElasticsearchBatchOptions \
+  :wow-benchmarks:generateElasticsearchBatchOptionsTuningReport \
+  --no-parallel
 ```
 
-Commit the tuning harness first and run both benchmarks from the same clean
-`HEAD`; tuning tasks reject a dirty source tree. Run MongoDB and Elasticsearch
-separately, then generate both reports only after both benchmark tasks have
-finished so the first generated report cannot dirty the second run. Each candidate is measured through
-the coordinated Store path with 1, 32, 128, and 512 concurrent appends; Elasticsearch
-retains separate `refresh=false` and `refresh=true` rows. Screening point
-estimates only select candidates. Keep the current `128x1000us` candidate in
-confirmation and pass 2-3 distinct shortlisted pairs explicitly:
+Commit the tuning harness first and process MongoDB and Elasticsearch as separate clean-source campaigns;
+tuning tasks reject a dirty tree. For one store, run its screening benchmark, generate its report and
+`*.frontier.json`, review and commit exactly those two generated files, then run the exact
+confirmation benchmark-plus-report command emitted by that report before starting the other store
+(or use separate branches). Confirmation requires the screening commit to be an ancestor of `HEAD` and
+permits only that store's report and frontier paths between them. It rereads the retained raw screening
+JSON and manifest, verifies both hashes, reconstructs the original custom scan parameters, validates the
+complete matrix, and recomputes the ordered frontier. Keep `results/jmh/tuning-scan/` until confirmation
+and any required paired runs finish.
 
-Review and commit both screening reports (or remove them and restore a clean
+The report-only commit may change `HEAD`; source code, harness, Compose, environment, README, or unrelated
+report changes may not. Screening and confirmation must retain the same reproducible JMH jar, benchmark
+harness, JVM, OS, CPU/memory, required endpoints, Docker server, image, published-port bindings, and
+container configuration.
+
+Each JMH invocation submits
+1, 32, 128, or 512 concurrent appends **per JMH worker thread**. Therefore, the closed-loop upper bound on
+simultaneous appends is `operationsPerInvocation × JMH threads`: at four JMH threads the four workloads
+can expose up to 4, 128, 512, and 2,048 in-flight appends respectively. Elasticsearch retains separate
+`refresh=false` and `refresh=true` rows.
+
+Screening point estimates only select candidates. The generated report first applies the saturated,
+guard, and allocation gates, then computes the complete Pareto frontier. A candidate is removed only
+when another eligible candidate is no worse on primary representative throughput, preferred-refresh
+saturated throughput, worst saturated throughput, worst guard throughput, and allocation, and is
+strictly better on at least one metric. Frontier display order is deterministic by those metrics, then
+smaller `maxSize`, shorter `maxDelay`, and encoded option. Every non-dominated challenger must be
+confirmed; the report emits the exact command with the current `128x1000us` option plus the complete
+frontier and its report generator. Confirmation rejects missing raw evidence, changed result or manifest
+bytes, a sidecar that disagrees with the recomputed frontier, and any omitted, added, or reordered
+candidate. There is no arbitrary two-candidate cutoff.
+
+For the existing refined Mongo scan at
+`b1a17d4cd9c96a1c0d1c80bc6eccd0d14f8b883f`, this rule yields the six-challenger frontier
+`192x150us,256x200us,512x250us,256x250us,128x250us,512x375us`. The minimum confirmation set for that
+evidence is therefore current plus all six challengers:
+
+Review and commit both screening reports and their frontier sidecars (or remove them and restore a clean
 tree) before starting confirmation. Confirmation deliberately refuses to run
 while generated-but-uncommitted screening reports make the source tree dirty.
 
 ```bash
 ./gradlew :wow-benchmarks:benchmarkConfirmMongoBatchOptions \
-  -PbenchmarkConfirmMongoBatchOptionsParameters='batchOptions=128x1000us,256x500us' \
+  :wow-benchmarks:generateMongoBatchOptionsTuningConfirmationReport \
+  -PbenchmarkConfirmMongoBatchOptionsParameters='batchOptions=128x1000us,192x150us,256x200us,512x250us,256x250us,128x250us,512x375us' \
   --no-parallel
-
-./gradlew :wow-benchmarks:benchmarkConfirmElasticsearchBatchOptions \
-  -PbenchmarkConfirmElasticsearchBatchOptionsParameters='batchOptions=128x1000us,256x500us' \
-  --no-parallel
-
-./gradlew :wow-benchmarks:generateMongoBatchOptionsTuningConfirmationReport \
-  :wow-benchmarks:generateElasticsearchBatchOptionsTuningConfirmationReport \
-  -PbenchmarkConfirmMongoBatchOptionsParameters='batchOptions=128x1000us,256x500us' \
-  -PbenchmarkConfirmElasticsearchBatchOptionsParameters='batchOptions=128x1000us,256x500us'
 ```
 
-If the Mongo multiple-fork report leaves the single surviving finalist
-`INCONCLUSIVE`, commit the report and run the pre-registered paired confirmation
-from a clean `HEAD`:
+The existing scan manifests are schema v1 and predate the final coordinator code. Treat the six-option
+list as the deterministic result of that historical dataset, not as new default evidence: rerun the
+refined scan from the final clean commit, generate its schema-v2 report, and use the frontier command
+emitted by that report. The Elasticsearch report emits its own independent complete-frontier command
+when at least one challenger survives; do not reuse Mongo candidates for Elasticsearch. If any frontier
+candidate is omitted or remains `INCONCLUSIVE`, neither the
+current setting nor a challenger may be described as the proven optimum or as a closed default decision.
+
+The command above must evaluate the complete Mongo frontier in one multiple-fork run. Treat each
+multiple-fork `PASS` or `REGRESSION` as that candidate's final verdict. Run the parameterized paired
+confirmation from a clean `HEAD` for **every** candidate left `INCONCLUSIVE`; a PASS does not allow
+lower-ranked unresolved candidates to be skipped. Process paired work in the deterministic frontier
+order so the evidence trail remains reproducible.
 
 ```bash
 ./gradlew :wow-benchmarks:benchmarkMongoBatchOptionsPairedConfirmation \
   :wow-benchmarks:generateMongoBatchOptionsPairedConfirmationReport \
+  -PbenchmarkMongoBatchOptionsPairedFinalist=192x150us \
   --no-parallel
 ```
 
-The paired protocol compares current `128x1000us` with finalist `256x200us`
-through the same coordinated EventStore path. It runs 24 pairs in a
+The property is mandatory, has no default, accepts one in-range `<maxSize>x<maxDelayMicros>us` option, and
+must differ from current `128x1000us`. A shared preflight runs once before the paired legs: it revalidates
+the raw screening frontier, requires the finalist to belong to it, recomputes the complete multiple-fork
+report, and permits paired execution only when that finalist's verdict is `INCONCLUSIVE`. The selected
+finalist is captured in every leg's profile and manifest metadata and in the
+generated report command. For the historical frontier above, process `INCONCLUSIVE` candidates in this exact
+order:
+`192x150us → 256x200us → 512x250us → 256x250us → 128x250us → 512x375us`.
+After committing the first candidate's report, the next unresolved candidate's reproducible invocation is:
+
+```bash
+./gradlew :wow-benchmarks:benchmarkMongoBatchOptionsPairedConfirmation \
+  :wow-benchmarks:generateMongoBatchOptionsPairedConfirmationReport \
+  -PbenchmarkMongoBatchOptionsPairedFinalist=256x200us \
+  --no-parallel
+```
+
+Commit each candidate report before advancing because the next parameterized run intentionally replaces
+the same local paired-result paths and generated report. Paired `PASS`, `REGRESSION`, and `NO_BENEFIT`
+are final for that candidate; paired `INCONCLUSIVE` leaves the overall default decision open. After every
+frontier candidate has a final verdict, select the highest-ranked `PASS`. If none pass, retain current.
+This deterministic policy still does not prove a global optimum
+outside the tested workloads and parameter space.
+
+The paired protocol compares the selected finalist with current through the same coordinated EventStore
+path. It runs 24 pairs in a
 pre-registered balanced, non-periodic AB/BA order for every combination of
 isolated, burst32, representative128, saturated512 and JMH threads 1/4. This is
 192 pairs and 384 independent JVM legs in total; allow roughly 80-100 minutes
@@ -331,8 +414,7 @@ throughput lower bound to be at least `1/1.10`, every saturated lower bound to
 be at least `0.95`, every allocation upper bound to be at most `1.10`, and both
 representative128 throughput lower bounds to exceed `1.0`. AB/BA order-effect
 and lag-one order-adjusted log-ratio residual diagnostics must also pass; an anomaly forces
-`INCONCLUSIVE` unless a safety regression is already proven. Any non-PASS
-verdict keeps the current default.
+`INCONCLUSIVE` unless a safety regression is already proven.
 
 The task refuses dirty sources and incomplete evidence. Run IDs are required to
 match within each workload/thread stratum, while different completed strata may
@@ -344,9 +426,11 @@ example:
 ```bash
 ./gradlew \
   :wow-benchmarks:benchmarkMongoBatchOptionsPairedConfirmationT4Representative128 \
+  -PbenchmarkMongoBatchOptionsPairedFinalist=192x150us \
   --no-parallel
 
 ./gradlew :wow-benchmarks:generateMongoBatchOptionsPairedConfirmationReport \
+  -PbenchmarkMongoBatchOptionsPairedFinalist=192x150us \
   --no-parallel
 ```
 

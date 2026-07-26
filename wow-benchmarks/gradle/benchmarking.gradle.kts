@@ -10,6 +10,9 @@ import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.jvm.tasks.Jar
 import java.io.File
+import java.net.Inet4Address
+import java.net.Inet6Address
+import java.net.InetAddress
 import java.lang.management.ManagementFactory
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -99,12 +102,78 @@ val benchmarkRunIdentityService = gradle.sharedServices.registerIfAbsent(
 }
 
 data class DockerContainerRuntime(
+    val service: String,
     val label: String,
     val containerName: String,
+    val containerId: String?,
     val image: String?,
     val imageId: String?,
-    val repoDigests: String?,
+    val repoDigests: List<String>,
+    val startedAt: String?,
+    val running: Boolean?,
+    val connectedAddress: String?,
+    val publishedPorts: List<DockerPublishedPortBinding>,
+    val performanceConfiguration: Map<String, String>,
+    val composeProject: String?,
+    val composeService: String?,
+    val composeConfigHash: String?,
+    val composeConfigFiles: String?,
+    val configurationSha256: String?,
 )
+
+data class DockerPublishedPortBinding(
+    val containerPort: Int,
+    val protocol: String,
+    val hostIp: String,
+    val hostPort: Int,
+)
+
+fun DockerPublishedPortBinding.toRunSpec(): Map<String, Any> {
+    return linkedMapOf(
+        "containerPort" to containerPort,
+        "protocol" to protocol,
+        "hostIp" to hostIp,
+        "hostPort" to hostPort,
+    )
+}
+
+fun DockerContainerRuntime.toRunSpec(): Map<String, Any?> {
+    return linkedMapOf(
+        "service" to service,
+        "label" to label,
+        "containerName" to containerName,
+        "containerId" to containerId,
+        "image" to image,
+        "imageId" to imageId,
+        "repoDigests" to repoDigests,
+        "startedAt" to startedAt,
+        "running" to running,
+        "connectedAddress" to connectedAddress,
+        "publishedPorts" to publishedPorts.map(DockerPublishedPortBinding::toRunSpec),
+        "performanceConfiguration" to performanceConfiguration,
+        "composeProject" to composeProject,
+        "composeService" to composeService,
+        "composeConfigHash" to composeConfigHash,
+        "composeConfigFiles" to composeConfigFiles,
+        "configurationSha256" to configurationSha256,
+    )
+}
+
+data class BenchmarkInfrastructureRuntime(
+    val capturedAt: String,
+    val clientLocation: String,
+    val dockerServer: String?,
+    val containers: List<DockerContainerRuntime>,
+)
+
+fun BenchmarkInfrastructureRuntime.toRunSpec(): Map<String, Any?> {
+    return linkedMapOf(
+        "capturedAt" to capturedAt,
+        "clientLocation" to clientLocation,
+        "dockerServer" to dockerServer,
+        "containers" to containers.map(DockerContainerRuntime::toRunSpec),
+    )
+}
 
 fun parseBenchmarkDockerEnvFile(envFile: File): Map<String, String> {
     if (!envFile.exists()) {
@@ -503,8 +572,13 @@ val storageBatchTuningConfirmationProfile = BenchmarkRunProfile(
     includeAsyncProfiler = false,
 )
 
+val storageBatchTuningConfirmationThreads = listOf(1, 4)
+
 val mongoBatchOptionsTuningConfirmationProfile = storageBatchTuningConfirmationProfile.copy(
-    threads = benchmarkThreadsProperty("benchmarkConfirmMongoBatchOptionsThreads", listOf(1, 4)),
+    threads = benchmarkThreadsProperty(
+        "benchmarkConfirmMongoBatchOptionsThreads",
+        storageBatchTuningConfirmationThreads,
+    ),
     parameters = benchmarkParametersProperty(
         "benchmarkConfirmMongoBatchOptionsParameters",
         mapOf("batchOptions" to mongoCurrentStorageBatchOptions),
@@ -512,7 +586,10 @@ val mongoBatchOptionsTuningConfirmationProfile = storageBatchTuningConfirmationP
 )
 
 val elasticsearchBatchOptionsTuningConfirmationProfile = storageBatchTuningConfirmationProfile.copy(
-    threads = benchmarkThreadsProperty("benchmarkConfirmElasticsearchBatchOptionsThreads", listOf(1, 4)),
+    threads = benchmarkThreadsProperty(
+        "benchmarkConfirmElasticsearchBatchOptionsThreads",
+        storageBatchTuningConfirmationThreads,
+    ),
     parameters = benchmarkParametersProperty(
         "benchmarkConfirmElasticsearchBatchOptionsParameters",
         mapOf("batchOptions" to elasticsearchCurrentStorageBatchOptions),
@@ -691,6 +768,16 @@ val elasticsearchBatchOptionsTuningSuite = BenchmarkSuite(
 
 val storageBatchTuningOptionFormat = Regex("""([1-9]\d*)x([1-9]\d*)us""")
 
+fun requireStorageBatchTuningOption(option: String, source: String) {
+    val match = storageBatchTuningOptionFormat.matchEntire(option)
+        ?: throw GradleException(
+            "$source must use '<maxSize>x<maxDelayMicros>us': $option"
+        )
+    if (match.groupValues[1].toIntOrNull() == null || match.groupValues[2].toLongOrNull() == null) {
+        throw GradleException("$source is out of range: $option")
+    }
+}
+
 fun storageBatchTuningOptions(profile: BenchmarkRunProfile): List<String> {
     val encodedOptions = profile.parameters["batchOptions"]
         ?: throw GradleException("Storage batch tuning profile must define batchOptions.")
@@ -700,15 +787,7 @@ fun storageBatchTuningOptions(profile: BenchmarkRunProfile): List<String> {
     if (options.isEmpty() || options.distinct().size != options.size) {
         throw GradleException("Storage batch tuning options must be non-empty and distinct: $encodedOptions")
     }
-    options.forEach { option ->
-        val match = storageBatchTuningOptionFormat.matchEntire(option)
-            ?: throw GradleException(
-                "Storage batch tuning option must use '<maxSize>x<maxDelayMicros>us': $option"
-            )
-        if (match.groupValues[1].toIntOrNull() == null || match.groupValues[2].toLongOrNull() == null) {
-            throw GradleException("Storage batch tuning option is out of range: $option")
-        }
-    }
+    options.forEach { option -> requireStorageBatchTuningOption(option, "Storage batch tuning option") }
     return options
 }
 
@@ -723,24 +802,44 @@ fun currentStorageBatchOptions(suite: BenchmarkSuite): String {
 fun validateStorageBatchTuningExecution(
     suite: BenchmarkSuite,
     profile: BenchmarkRunProfile,
-) {
+    currentJmhJarSha256: String? = null,
+): ValidatedStorageBatchTuningScreening? {
     val options = storageBatchTuningOptions(profile)
     if (profile.id != "tuning-confirmation") {
-        return
+        return null
     }
-    if (options.size !in 2..3) {
+    if (options.size < 2) {
         throw GradleException(
-            "Storage batch tuning confirmation requires 2-3 distinct batchOptions, found ${options.size}: " +
+            "Storage batch tuning confirmation requires the current option and at least one distinct " +
+                "challenger, found ${options.size}: " +
                 options.joinToString(",")
+        )
+    }
+    if (profile.threads != storageBatchTuningConfirmationThreads) {
+        throw GradleException(
+            "Formal storage batch confirmation requires threads " +
+                "$storageBatchTuningConfirmationThreads, found ${profile.threads}."
         )
     }
     val currentOptions = currentStorageBatchOptions(suite)
     if (currentOptions !in options) {
         throw GradleException(
             "Storage batch tuning confirmation must include current options $currentOptions: " +
-                options.joinToString(",")
+            options.joinToString(",")
         )
     }
+    val screening = validateStorageBatchTuningScreeningEvidence(
+        suite = suite,
+        currentJmhJarSha256 = currentJmhJarSha256,
+    )
+    requireStorageBatchTuningConfirmationOptions(
+        options = options,
+        suiteId = suite.id,
+        currentOptions = currentOptions,
+        evidence = screening.evidence,
+        source = storageBatchTuningFrontierEvidenceFile(suite).absolutePath,
+    )
+    return screening
 }
 
 val componentSuite = BenchmarkSuite(
@@ -1133,15 +1232,18 @@ fun benchmarkProfilerArgs(
     }
 }
 
-fun requireBenchmarkService(service: String, host: String, port: Int) {
-    val available = runCatching {
+fun requireBenchmarkService(service: String, host: String, port: Int): String {
+    return runCatching {
         Socket().use { socket ->
             socket.connect(InetSocketAddress(host, port), 2000)
+            socket.inetAddress.hostAddress.substringBefore('%')
         }
-    }.isSuccess
-    require(available) {
-        "$service is required for Infrastructure I/O benchmarks at $host:$port. " +
-            "Start $service and rerun the selected infrastructure benchmark task."
+    }.getOrElse { error ->
+        throw GradleException(
+            "$service is required for Infrastructure I/O benchmarks at $host:$port. " +
+                "Start $service and rerun the selected infrastructure benchmark task.",
+            error,
+        )
     }
 }
 
@@ -1285,7 +1387,11 @@ fun formatMemoryBytes(bytes: Long?): String {
     return "${String.format(Locale.US, "%.1f", gib)} GiB"
 }
 
-fun runCommand(command: List<String>, timeoutSeconds: Long = 3): CommandOutput {
+fun runCommand(
+    command: List<String>,
+    timeoutSeconds: Long = 3,
+    trimOutput: Boolean = true,
+): CommandOutput {
     if (command.isEmpty()) {
         return CommandOutput(exitCode = -1, output = "empty command")
     }
@@ -1299,9 +1405,10 @@ fun runCommand(command: List<String>, timeoutSeconds: Long = 3): CommandOutput {
             process.waitFor(1, TimeUnit.SECONDS)
             return CommandOutput(exitCode = -1, output = "timed out after ${timeoutSeconds}s")
         }
+        val rawOutput = process.inputStream.bufferedReader().readText()
         CommandOutput(
             exitCode = process.exitValue(),
-            output = process.inputStream.bufferedReader().readText().trim(),
+            output = if (trimOutput) rawOutput.trim() else rawOutput,
         )
     } catch (error: Exception) {
         CommandOutput(
@@ -1376,57 +1483,383 @@ fun dockerDesktopVmSummary(): String {
     return "networkType=$networkType CPUs=$cpus Memory=$memoryMiB"
 }
 
-fun dockerContainerRuntime(label: String, containerName: String): DockerContainerRuntime {
-    val inspectOutput = runCommand(
-        listOf(
-            "docker",
-            "inspect",
-            containerName,
-            "--format",
-            "{{.Config.Image}}|{{.Image}}",
+fun dockerPerformanceConfiguration(
+    service: String,
+    command: List<String>,
+    environment: List<String>,
+): Map<String, String> {
+    val configuration = linkedMapOf<String, String>()
+    if (service == "MongoDB") {
+        val valueOptions = mapOf(
+            "--wiredTigerCacheSizeGB" to "wiredTiger.cacheSizeGB",
+            "--wiredTigerCollectionBlockCompressor" to "wiredTiger.collectionBlockCompressor",
+            "--wiredTigerJournalCompressor" to "wiredTiger.journalCompressor",
         )
-    )
+        command.forEachIndexed { index, option ->
+            valueOptions[option]?.let { name ->
+                command.getOrNull(index + 1)?.takeIf(String::isNotBlank)?.let { value ->
+                    configuration[name] = value
+                }
+            }
+            if (option == "--setParameter") {
+                val parameter = command.getOrNull(index + 1).orEmpty()
+                val parts = parameter.split("=", limit = 2)
+                if (parts.size == 2 &&
+                    parts[0] in setOf("diagnosticDataCollectionEnabled", "ttlMonitorEnabled")
+                ) {
+                    configuration["setParameter.${parts[0]}"] = parts[1]
+                }
+            }
+        }
+    }
+    if (service == "Elasticsearch") {
+        val environmentByName = environment.mapNotNull { entry ->
+            val parts = entry.split("=", limit = 2)
+            parts.takeIf { it.size == 2 }?.let { it[0] to it[1] }
+        }.toMap()
+        listOf(
+            "ingest.geoip.downloader.enabled",
+            "cluster.routing.allocation.disk.threshold_enabled",
+        ).forEach { name ->
+            environmentByName[name]?.let { value -> configuration[name] = value }
+        }
+        val javaOptions = environmentByName["ES_JAVA_OPTS"].orEmpty()
+        Regex("""(?:^|\s)-Xms(\S+)""").find(javaOptions)?.groupValues?.get(1)?.let { value ->
+            configuration["heap.initial"] = value
+        }
+        Regex("""(?:^|\s)-Xmx(\S+)""").find(javaOptions)?.groupValues?.get(1)?.let { value ->
+            configuration["heap.maximum"] = value
+        }
+    }
+    return configuration.toSortedMap()
+}
+
+fun dockerContainerRuntime(
+    service: String,
+    label: String,
+    containerName: String,
+    required: Boolean = false,
+): DockerContainerRuntime {
+    val inspectOutput = runCommand(listOf("docker", "inspect", containerName))
     if (inspectOutput.exitCode != 0 || inspectOutput.output.isBlank()) {
+        if (required) {
+            throw GradleException(
+                "Unable to capture run-time Docker provenance for required $service container " +
+                    "'$containerName': ${inspectOutput.output}"
+            )
+        }
         return DockerContainerRuntime(
+            service = service,
             label = label,
             containerName = containerName,
+            containerId = null,
             image = null,
             imageId = null,
-            repoDigests = null,
+            repoDigests = emptyList(),
+            startedAt = null,
+            running = null,
+            connectedAddress = null,
+            publishedPorts = emptyList(),
+            performanceConfiguration = emptyMap(),
+            composeProject = null,
+            composeService = null,
+            composeConfigHash = null,
+            composeConfigFiles = null,
+            configurationSha256 = null,
         )
     }
-    val parts = inspectOutput.output.lineSequence()
-        .first()
-        .split("|", limit = 2)
-    val image = parts.getOrNull(0)?.takeIf { it.isNotBlank() && it != "<no value>" }
-    val imageId = parts.getOrNull(1)?.takeIf { it.isNotBlank() && it != "<no value>" }
-    val repoDigests = image?.let { imageName ->
+    val inspectRows = runCatching {
+        JsonSlurper().parseText(inspectOutput.output) as? List<*>
+    }.getOrNull()
+    val inspect = inspectRows?.singleOrNull() as? Map<*, *>
+    if (inspect == null) {
+        if (required) {
+            throw GradleException(
+                "Docker inspect returned unusable provenance for required $service container '$containerName'."
+            )
+        }
+        return DockerContainerRuntime(
+            service = service,
+            label = label,
+            containerName = containerName,
+            containerId = null,
+            image = null,
+            imageId = null,
+            repoDigests = emptyList(),
+            startedAt = null,
+            running = null,
+            connectedAddress = null,
+            publishedPorts = emptyList(),
+            performanceConfiguration = emptyMap(),
+            composeProject = null,
+            composeService = null,
+            composeConfigHash = null,
+            composeConfigFiles = null,
+            configurationSha256 = null,
+        )
+    }
+    val config = inspect["Config"] as? Map<*, *> ?: emptyMap<Any, Any>()
+    val state = inspect["State"] as? Map<*, *> ?: emptyMap<Any, Any>()
+    val networkSettings = inspect["NetworkSettings"] as? Map<*, *> ?: emptyMap<Any, Any>()
+    val labels = config["Labels"] as? Map<*, *> ?: emptyMap<Any, Any>()
+    fun stringList(value: Any?): List<String> {
+        return (value as? List<*>)
+            ?.mapNotNull { item -> (item as? String)?.takeIf(String::isNotBlank) }
+            ?: emptyList()
+    }
+    val containerId = (inspect["Id"] as? String)?.takeIf(String::isNotBlank)
+    val image = (config["Image"] as? String)?.takeIf(String::isNotBlank)
+    val imageId = (inspect["Image"] as? String)?.takeIf(String::isNotBlank)
+    val repoDigests = imageId?.let { capturedImageId ->
         val imageOutput = runCommand(
             listOf(
                 "docker",
                 "image",
                 "inspect",
-                imageName,
+                capturedImageId,
                 "--format",
                 "{{json .RepoDigests}}",
             )
         )
-        imageOutput.output
-            .takeIf { imageOutput.exitCode == 0 }
-            ?.takeIf { it.isNotBlank() && it != "[]" && it != "null" }
+        if (imageOutput.exitCode != 0 || imageOutput.output.isBlank()) {
+            emptyList()
+        } else {
+            runCatching {
+                (JsonSlurper().parseText(imageOutput.output) as? List<*>)
+                    ?.mapNotNull { digest -> digest as? String }
+                    ?.sorted()
+                    ?: emptyList()
+            }.getOrElse { emptyList() }
+        }
+    } ?: emptyList()
+    val command = stringList(config["Cmd"])
+    val environment = stringList(config["Env"])
+    val performanceConfiguration = dockerPerformanceConfiguration(service, command, environment)
+    val publishedPorts = (networkSettings["Ports"] as? Map<*, *>)
+        ?.entries
+        ?.flatMap { (rawContainerPort, rawBindings) ->
+            val containerPortAndProtocol = (rawContainerPort as? String)
+                ?.split("/", limit = 2)
+                ?.takeIf { it.size == 2 }
+                ?: return@flatMap emptyList()
+            val containerPort = containerPortAndProtocol[0].toIntOrNull()
+                ?.takeIf { it in 1..65535 }
+                ?: return@flatMap emptyList()
+            val protocol = containerPortAndProtocol[1].lowercase()
+            (rawBindings as? List<*>)
+                ?.mapNotNull { rawBinding ->
+                    val binding = rawBinding as? Map<*, *> ?: return@mapNotNull null
+                    val hostIp = (binding["HostIp"] as? String).orEmpty()
+                    val hostPort = (binding["HostPort"] as? String)
+                        ?.toIntOrNull()
+                        ?.takeIf { it in 1..65535 }
+                        ?: return@mapNotNull null
+                    DockerPublishedPortBinding(
+                        containerPort = containerPort,
+                        protocol = protocol,
+                        hostIp = hostIp,
+                        hostPort = hostPort,
+                    )
+                }
+                ?: emptyList()
+        }
+        ?.sortedWith(
+            compareBy(
+                DockerPublishedPortBinding::containerPort,
+                DockerPublishedPortBinding::protocol,
+                DockerPublishedPortBinding::hostIp,
+                DockerPublishedPortBinding::hostPort,
+            )
+        )
+        ?: emptyList()
+    fun label(name: String): String? {
+        return (labels[name] as? String)?.takeIf(String::isNotBlank)
     }
-    return DockerContainerRuntime(
+    val composeProject = label("com.docker.compose.project")
+    val composeService = label("com.docker.compose.service")
+    val composeConfigHash = label("com.docker.compose.config-hash")
+    val composeConfigFiles = label("com.docker.compose.project.config_files")
+    val configuration = linkedMapOf<String, Any?>(
+        "imageId" to imageId,
+        "publishedPorts" to publishedPorts.map(DockerPublishedPortBinding::toRunSpec),
+        "performanceConfiguration" to performanceConfiguration,
+        "composeProject" to composeProject,
+        "composeService" to composeService,
+        "composeConfigHash" to composeConfigHash,
+        "composeConfigFiles" to composeConfigFiles,
+    )
+    val runtime = DockerContainerRuntime(
+        service = service,
         label = label,
         containerName = containerName,
+        containerId = containerId,
         image = image,
         imageId = imageId,
         repoDigests = repoDigests,
+        startedAt = (state["StartedAt"] as? String)?.takeIf(String::isNotBlank),
+        running = state["Running"] as? Boolean,
+        connectedAddress = null,
+        publishedPorts = publishedPorts,
+        performanceConfiguration = performanceConfiguration,
+        composeProject = composeProject,
+        composeService = composeService,
+        composeConfigHash = composeConfigHash,
+        composeConfigFiles = composeConfigFiles,
+        configurationSha256 = sha256Text(JsonOutput.toJson(configuration)),
+    )
+    if (required) {
+        val missing = linkedMapOf(
+            "containerId" to runtime.containerId,
+            "image" to runtime.image,
+            "imageId" to runtime.imageId,
+            "startedAt" to runtime.startedAt,
+            "composeProject" to runtime.composeProject,
+            "composeService" to runtime.composeService,
+            "composeConfigHash" to runtime.composeConfigHash,
+            "configurationSha256" to runtime.configurationSha256,
+        ).filterValues { value -> value.isNullOrBlank() }.keys
+        if (missing.isNotEmpty()) {
+            throw GradleException(
+                "Run-time Docker provenance for required $service container '$containerName' is incomplete: " +
+                    missing.joinToString(",")
+                )
+        }
+        if (runtime.running != true) {
+            throw GradleException(
+                "Required $service container '$containerName' is not running."
+            )
+        }
+    }
+    return runtime
+}
+
+fun benchmarkContainerRuntime(
+    requiredService: BenchmarkRequiredService,
+    connectedAddress: String,
+): DockerContainerRuntime? {
+    val descriptor = when (requiredService.service) {
+        "Redis" -> Triple(
+            "Redis",
+            "WOW_BENCHMARK_REDIS_CONTAINER_NAME",
+            "wow-benchmark-redis",
+        )
+
+        "MongoDB" -> Triple(
+            "Mongo",
+            "WOW_BENCHMARK_MONGO_CONTAINER_NAME",
+            "wow-benchmark-mongo",
+        )
+
+        "Elasticsearch" -> Triple(
+            "Elasticsearch",
+            "WOW_BENCHMARK_ELASTICSEARCH_CONTAINER_NAME",
+            "wow-benchmark-elasticsearch",
+        )
+
+        else -> return null
+    }
+    val internalPort = when (requiredService.service) {
+        "Redis" -> 6379
+        "MongoDB" -> 27017
+        "Elasticsearch" -> 9200
+        else -> error("Unsupported benchmark container service: ${requiredService.service}")
+    }
+    val runtime = dockerContainerRuntime(
+        service = requiredService.service,
+        label = descriptor.first,
+        containerName = benchmarkDockerConfig(descriptor.second, descriptor.third),
+        required = true,
+    ).copy(connectedAddress = connectedAddress)
+    requireBenchmarkContainerEndpoint(runtime, requiredService, internalPort)
+    return runtime
+}
+
+fun normalizedIpAddress(value: String): InetAddress? {
+    return runCatching {
+        InetAddress.getByName(value.removePrefix("[").removeSuffix("]").substringBefore('%'))
+    }.getOrNull()
+}
+
+fun dockerHostBindingCoversConnectedAddress(hostIp: String, connectedAddress: String): Boolean {
+    val boundAddress = normalizedIpAddress(hostIp) ?: return false
+    val connected = normalizedIpAddress(connectedAddress) ?: return false
+    return when {
+        boundAddress.isAnyLocalAddress -> {
+            (boundAddress is Inet4Address && connected is Inet4Address) ||
+                (boundAddress is Inet6Address && connected is Inet6Address)
+        }
+
+        else -> boundAddress.address.contentEquals(connected.address)
+    }
+}
+
+fun requireBenchmarkContainerEndpoint(
+    runtime: DockerContainerRuntime,
+    requiredService: BenchmarkRequiredService,
+    internalPort: Int,
+) {
+    if (runtime.running != true) {
+        throw GradleException(
+            "Required ${requiredService.service} container '${runtime.containerName}' is not running."
+        )
+    }
+    val connectedAddress = runtime.connectedAddress
+        ?: throw GradleException(
+            "Required ${requiredService.service} endpoint is missing its connected remote address."
+        )
+    if (runtime.publishedPorts.none { binding ->
+            binding.containerPort == internalPort &&
+                binding.protocol == "tcp" &&
+                binding.hostPort == requiredService.port &&
+                dockerHostBindingCoversConnectedAddress(binding.hostIp, connectedAddress)
+        }) {
+        throw GradleException(
+            "Required ${requiredService.service} endpoint ${requiredService.host}:${requiredService.port} " +
+                "connected to $connectedAddress but does not match published port $internalPort/tcp " +
+                "on container '${runtime.containerName}': " +
+                runtime.publishedPorts
+        )
+    }
+}
+
+fun isLocalBenchmarkHost(host: String): Boolean {
+    return host.lowercase() in setOf("localhost", "127.0.0.1", "::1", "0:0:0:0:0:0:0:1")
+}
+
+fun captureBenchmarkInfrastructureRuntime(
+    requiredServices: List<BenchmarkRequiredService>,
+    connectedAddresses: Map<String, String> = emptyMap(),
+): BenchmarkInfrastructureRuntime {
+    val localContainerServices = requiredServices
+        .filter { requiredService -> isLocalBenchmarkHost(requiredService.host) }
+        .mapNotNull { requiredService ->
+            val connectedAddress = connectedAddresses[requiredService.service]
+                ?: throw GradleException(
+                    "Missing connected address for required local ${requiredService.service} endpoint."
+                )
+            benchmarkContainerRuntime(requiredService, connectedAddress)
+        }
+    val dockerServer = if (localContainerServices.isEmpty()) {
+        null
+    } else {
+        dockerServerSummary().also { summary ->
+            if (summary.startsWith("unavailable")) {
+                throw GradleException("Unable to capture run-time Docker server provenance: $summary")
+            }
+        }
+    }
+    return BenchmarkInfrastructureRuntime(
+        capturedAt = Instant.now().toString(),
+        clientLocation = benchmarkClientLocation(),
+        dockerServer = dockerServer,
+        containers = localContainerServices,
     )
 }
 
 fun dockerContainerRuntimes(): List<DockerContainerRuntime> {
     return listOf(
         dockerContainerRuntime(
+            service = "Redis",
             label = "Redis",
             containerName = benchmarkDockerConfig(
                 name = "WOW_BENCHMARK_REDIS_CONTAINER_NAME",
@@ -1434,6 +1867,7 @@ fun dockerContainerRuntimes(): List<DockerContainerRuntime> {
             ),
         ),
         dockerContainerRuntime(
+            service = "MongoDB",
             label = "Mongo",
             containerName = benchmarkDockerConfig(
                 name = "WOW_BENCHMARK_MONGO_CONTAINER_NAME",
@@ -1441,6 +1875,7 @@ fun dockerContainerRuntimes(): List<DockerContainerRuntime> {
             ),
         ),
         dockerContainerRuntime(
+            service = "Elasticsearch",
             label = "Elasticsearch",
             containerName = benchmarkDockerConfig(
                 name = "WOW_BENCHMARK_ELASTICSEARCH_CONTAINER_NAME",
@@ -1451,7 +1886,13 @@ fun dockerContainerRuntimes(): List<DockerContainerRuntime> {
 }
 
 fun markdownCodeOrUnavailable(value: String?): String {
-    return value?.takeIf { it.isNotBlank() }?.let { "`$it`" } ?: "unavailable"
+    val normalized = value?.replace(Regex("[\\r\\n]+"), " ")?.takeIf { it.isNotBlank() }
+        ?: return "unavailable"
+    val longestBacktickRun = Regex("`+").findAll(normalized)
+        .maxOfOrNull { match -> match.value.length }
+        ?: 0
+    val fence = "`".repeat(longestBacktickRun + 1)
+    return "$fence $normalized $fence"
 }
 
 fun benchmarkReportPath(file: File): String {
@@ -1492,6 +1933,73 @@ fun formatRequiredServiceEndpoints(requiredServices: List<BenchmarkRequiredServi
     }
 }
 
+fun StringBuilder.appendCapturedInfrastructureRuntime(
+    manifests: List<ParsedBenchmarkRunManifest>,
+) {
+    val runtimes = manifests.flatMap { manifest ->
+        listOf(
+            manifest.infrastructureRuntime,
+            manifest.completionInfrastructureRuntime,
+        )
+    }
+    validateBenchmarkInfrastructureRuntimeStability(
+        runtimes = runtimes,
+        context = "captured run-time infrastructure report",
+    )
+    val reference = runtimes.first()
+    val containers = runtimes.flatMap(BenchmarkInfrastructureRuntime::containers)
+        .distinctBy(DockerContainerRuntime::service)
+        .sortedBy(DockerContainerRuntime::service)
+    appendLine("### Manifest-bound Run-Time Infrastructure")
+    appendLine()
+    val capturedAtValues = runtimes.map(BenchmarkInfrastructureRuntime::capturedAt).sorted()
+    appendLine(
+        "- **Captured At**: " +
+            if (capturedAtValues.size == 1) {
+                capturedAtValues.single()
+            } else {
+                "${capturedAtValues.first()} to ${capturedAtValues.last()}"
+            }
+    )
+    appendLine("- **Benchmark Client**: ${reference.clientLocation}")
+    appendLine("- **Docker Server**: ${reference.dockerServer ?: "not required by these suites"}")
+    if (containers.isEmpty()) {
+        appendLine("- **Local Docker Containers**: none required; service endpoints remain bound in each run manifest.")
+    }
+    containers.forEach { runtime ->
+        appendLine("- **${runtime.label} Container**: ${markdownCodeOrUnavailable(runtime.containerName)}")
+        appendLine("  - Running: `${runtime.running}`")
+        appendLine("  - Container ID: ${markdownCodeOrUnavailable(runtime.containerId)}")
+        appendLine("  - Started At: ${markdownCodeOrUnavailable(runtime.startedAt)}")
+        appendLine("  - Image: ${markdownCodeOrUnavailable(runtime.image)}")
+        appendLine("  - Image ID: ${markdownCodeOrUnavailable(runtime.imageId)}")
+        appendLine(
+            "  - Repo Digests: " +
+                markdownCodeOrUnavailable(runtime.repoDigests.takeIf { it.isNotEmpty() }?.joinToString(","))
+        )
+        appendLine("  - Configuration SHA-256: ${markdownCodeOrUnavailable(runtime.configurationSha256)}")
+        appendLine(
+            "  - Published Ports: " +
+                markdownCodeOrUnavailable(runtime.publishedPorts.takeIf { it.isNotEmpty() }?.joinToString(","))
+        )
+        appendLine(
+            "  - Performance Configuration: " +
+                markdownCodeOrUnavailable(
+                    runtime.performanceConfiguration.takeIf { it.isNotEmpty() }
+                        ?.entries
+                        ?.joinToString(",") { (name, value) -> "$name=$value" }
+                )
+        )
+        appendLine(
+            "  - Compose: project=${markdownCodeOrUnavailable(runtime.composeProject)}, " +
+                "service=${markdownCodeOrUnavailable(runtime.composeService)}, " +
+                "config hash=${markdownCodeOrUnavailable(runtime.composeConfigHash)}, " +
+                "config files=${markdownCodeOrUnavailable(runtime.composeConfigFiles)}"
+        )
+    }
+    appendLine()
+}
+
 fun StringBuilder.appendBenchmarkRunProvenance(manifests: List<ParsedBenchmarkRunManifest>) {
     validateBenchmarkRunManifests(
         manifests = manifests,
@@ -1515,6 +2023,7 @@ fun StringBuilder.appendBenchmarkRunProvenance(manifests: List<ParsedBenchmarkRu
             appendLine("- **$suite Required Services**: `${formatRequiredServiceEndpoints(requiredServices)}`")
         }
     appendLine()
+    appendCapturedInfrastructureRuntime(manifests)
     appendLine("| Suite | Profile | Threads | Run ID | Started | Completed | Profilers | Rows | Result SHA-256 |")
     appendLine("|-------|---------|---------|--------|---------|-----------|-----------|------|----------------|")
     manifests.sortedWith(compareBy({ it.suite }, { it.threads })).forEach { manifest ->
@@ -1532,9 +2041,17 @@ fun StringBuilder.appendInfrastructureRuntime(
     requiredServices: List<BenchmarkRequiredService>? = null,
 ) {
     val requiredServiceNames = requiredServices?.mapTo(mutableSetOf()) { service -> service.service }
-    appendLine("## Report-Time Infrastructure Runtime")
+    appendLine("## Report-Time Infrastructure Diagnostics")
+    appendLine(
+        "This section is live diagnostic context only. Manifest-bound run-time container identity and " +
+            "configuration above are the evidence used for comparability checks."
+    )
+    appendLine()
     appendLine("- **Benchmark Client**: ${benchmarkClientLocation()}")
-    appendLine("- **Docker Compose Env File**: `${benchmarkReportPath(benchmarkDockerEnvFile)}`")
+    appendLine(
+        "- **Docker Compose Env File**: " +
+            markdownCodeOrUnavailable(benchmarkReportPath(benchmarkDockerEnvFile))
+    )
     appendLine("- **Docker Server**: ${dockerServerSummary()}")
     appendLine("- **Docker Desktop VM**: ${dockerDesktopVmSummary()}")
     dockerContainerRuntimes()
@@ -1544,10 +2061,18 @@ fun StringBuilder.appendInfrastructureRuntime(
                 (containerRuntime.label == "Mongo" && "MongoDB" in requiredServiceNames)
         }
         .forEach { containerRuntime ->
-            appendLine("- **${containerRuntime.label} Container**: `${containerRuntime.containerName}`")
+            appendLine(
+                "- **${containerRuntime.label} Container**: " +
+                    markdownCodeOrUnavailable(containerRuntime.containerName)
+            )
             appendLine("  - Image: ${markdownCodeOrUnavailable(containerRuntime.image)}")
             appendLine("  - Image ID: ${markdownCodeOrUnavailable(containerRuntime.imageId)}")
-            appendLine("  - Repo Digests: ${markdownCodeOrUnavailable(containerRuntime.repoDigests)}")
+            appendLine(
+                "  - Repo Digests: " +
+                    markdownCodeOrUnavailable(
+                        containerRuntime.repoDigests.takeIf { it.isNotEmpty() }?.joinToString(",")
+                    )
+            )
         }
     appendLine(
         "- **Network Note**: Host JVM infrastructure benchmarks use Docker-published localhost ports; " +
@@ -1621,11 +2146,18 @@ fun registerBenchmarkThreadTask(
         outputs.upToDateWhen { false }
 
         doFirst {
+            val jmhJarFile = jmhJar.get().archiveFile.get().asFile
             val isStorageBatchTuning =
                 suite.id == mongoBatchOptionsTuningSuite.id ||
                     suite.id == elasticsearchBatchOptionsTuningSuite.id
-            if (isStorageBatchTuning) {
-                validateStorageBatchTuningExecution(suite, profile)
+            val validatedScreening = if (isStorageBatchTuning) {
+                validateStorageBatchTuningExecution(
+                    suite = suite,
+                    profile = profile,
+                    currentJmhJarSha256 = fileSha256(jmhJarFile),
+                )
+            } else {
+                null
             }
             val gitRoot = rootProject.projectDir.absolutePath
             val commitOutput = runCommand(listOf("git", "-C", gitRoot, "rev-parse", "HEAD"))
@@ -1672,10 +2204,29 @@ fun registerBenchmarkThreadTask(
                 profilingDirectory.mkdirs()
             }
 
-            val jmhJarFile = jmhJar.get().archiveFile.get().asFile
+            environment(benchmarkDockerRuntimeEnvironment())
+            val connectedAddresses = suite.requiredServices.associate { requiredService ->
+                requiredService.service to requireBenchmarkService(
+                    requiredService.service,
+                    requiredService.host,
+                    requiredService.port,
+                )
+            }
+            val infrastructureRuntime = captureBenchmarkInfrastructureRuntime(
+                requiredServices = suite.requiredServices,
+                connectedAddresses = connectedAddresses,
+            )
+            validatedScreening?.let { screening ->
+                requireCurrentBenchmarkEnvironmentCompatibility(
+                    screening = screening.report.manifests.single(),
+                    requiredServices = suite.requiredServices,
+                    infrastructureRuntime = infrastructureRuntime,
+                    context = path,
+                )
+            }
             val startedAt = Instant.now().toString()
             val inProgress = linkedMapOf<String, Any?>(
-                "schemaVersion" to 1,
+                "schemaVersion" to 2,
                 "status" to "IN_PROGRESS",
                 "runId" to benchmarkRunIdentityService.get().runId,
                 "taskPath" to path,
@@ -1716,12 +2267,9 @@ fun registerBenchmarkThreadTask(
                     "availableProcessors" to Runtime.getRuntime().availableProcessors(),
                     "physicalMemoryBytes" to physicalMemoryBytes(),
                 ),
+                "infrastructure" to infrastructureRuntime.toRunSpec(),
             )
             writePrettyJson(inProgressManifest, inProgress)
-            environment(benchmarkDockerRuntimeEnvironment())
-            suite.requiredServices.forEach { requiredService ->
-                requireBenchmarkService(requiredService.service, requiredService.host, requiredService.port)
-            }
         }
 
         doLast {
@@ -1744,6 +2292,29 @@ fun registerBenchmarkThreadTask(
             val manifestData = LinkedHashMap(
                 JsonSlurper().parseText(inProgressManifest.readText()) as Map<String, Any?>
             )
+            val startedInfrastructureRuntime = manifestInfrastructureRuntime(
+                container = manifestData,
+                key = "infrastructure",
+                source = inProgressManifest.absolutePath,
+            )
+            val completionConnectedAddresses = suite.requiredServices.associate { requiredService ->
+                requiredService.service to requireBenchmarkService(
+                    requiredService.service,
+                    requiredService.host,
+                    requiredService.port,
+                )
+            }
+            val completionInfrastructureRuntime = captureBenchmarkInfrastructureRuntime(
+                requiredServices = suite.requiredServices,
+                connectedAddresses = completionConnectedAddresses,
+            )
+            validateBenchmarkInfrastructureRuntimeWindow(
+                started = startedInfrastructureRuntime,
+                completed = completionInfrastructureRuntime,
+                requiredServices = suite.requiredServices,
+                context = path,
+            )
+            manifestData["infrastructureAtCompletion"] = completionInfrastructureRuntime.toRunSpec()
             manifestData["status"] = "SUCCESS"
             manifestData["completedAt"] = Instant.now().toString()
             manifestData["artifacts"] = linkedMapOf(
@@ -1793,6 +2364,11 @@ tasks.named("jmh") {
     description = "Disabled. Use the layered benchmark tasks instead."
 }
 
+tasks.named<Jar>("jmhJar") {
+    isPreserveFileTimestamps = false
+    isReproducibleFileOrder = true
+}
+
 val resultsDir = layout.projectDirectory.dir("results")
 val frameworkE2EBaselineJson = resultsDir.file("baselines/framework-e2e.json")
 val reportsDir = resultsDir.dir("reports")
@@ -1807,6 +2383,10 @@ val elasticsearchBatchAppendConfirmationReportFile =
 val mongoBatchOptionsTuningReportFile = reportsDir.file("tuning-mongo-batch-options.md")
 val elasticsearchBatchOptionsTuningReportFile =
     reportsDir.file("tuning-elasticsearch-batch-options.md")
+val mongoBatchOptionsFrontierEvidenceFile =
+    reportsDir.file("tuning-mongo-batch-options.frontier.json")
+val elasticsearchBatchOptionsFrontierEvidenceFile =
+    reportsDir.file("tuning-elasticsearch-batch-options.frontier.json")
 val mongoBatchOptionsTuningConfirmationReportFile =
     reportsDir.file("confirmation-mongo-batch-options.md")
 val mongoBatchOptionsPairedConfirmationReportFile =
@@ -1867,6 +2447,8 @@ data class ParsedBenchmarkRunManifest(
     val resolvedProfilerArgs: List<String>,
     val requiredServices: List<BenchmarkRequiredService>,
     val runMetadata: Map<String, String>,
+    val infrastructureRuntime: BenchmarkInfrastructureRuntime,
+    val completionInfrastructureRuntime: BenchmarkInfrastructureRuntime,
     val javaVersion: String,
     val vmName: String,
     val vmVersion: String,
@@ -2063,9 +2645,35 @@ fun manifestString(container: Map<*, *>, key: String, source: String): String {
         ?: throw GradleException("Benchmark manifest is missing string '$key': $source")
 }
 
-fun manifestInt(container: Map<*, *>, key: String, source: String): Int {
-    return (container[key] as? Number)?.toInt()
+fun manifestOptionalString(container: Map<*, *>, key: String, source: String): String? {
+    val value = container[key] ?: return null
+    return (value as? String)?.takeIf { it.isNotBlank() }
+        ?: throw GradleException("Benchmark manifest '$key' must be null or a non-blank string: $source")
+}
+
+fun manifestLong(container: Map<*, *>, key: String, source: String): Long {
+    val number = container[key] as? Number
         ?: throw GradleException("Benchmark manifest is missing integer '$key': $source")
+    return runCatching {
+        java.math.BigDecimal(number.toString()).longValueExact()
+    }.getOrElse {
+        throw GradleException(
+            "Benchmark manifest '$key' must be a finite whole number in Long range: $source"
+        )
+    }
+}
+
+fun manifestInt(container: Map<*, *>, key: String, source: String): Int {
+    val value = manifestLong(container, key, source)
+    if (value !in Int.MIN_VALUE..Int.MAX_VALUE) {
+        throw GradleException("Benchmark manifest '$key' must be in Int range: $source")
+    }
+    return value.toInt()
+}
+
+fun manifestBoolean(container: Map<*, *>, key: String, source: String): Boolean {
+    return container[key] as? Boolean
+        ?: throw GradleException("Benchmark manifest is missing boolean '$key': $source")
 }
 
 fun manifestStringList(container: Map<*, *>, key: String, source: String): List<String> {
@@ -2096,6 +2704,35 @@ fun manifestOptionalStringMap(container: Map<*, *>, key: String, source: String)
     return manifestStringMap(container, key, source)
 }
 
+fun manifestPublishedPorts(
+    container: Map<*, *>,
+    key: String,
+    source: String,
+): List<DockerPublishedPortBinding> {
+    val values = container[key] as? List<*>
+        ?: throw GradleException("Benchmark manifest is missing array '$key': $source")
+    return values.mapIndexed { index, value ->
+        val bindingSource = "$key[$index]"
+        val binding = value as? Map<*, *>
+            ?: throw GradleException(
+                "Benchmark manifest '$bindingSource' must be an object: $source"
+            )
+        val containerPort = manifestInt(binding, "containerPort", "$source ($bindingSource)")
+        val hostPort = manifestInt(binding, "hostPort", "$source ($bindingSource)")
+        if (containerPort !in 1..65535 || hostPort !in 1..65535) {
+            throw GradleException(
+                "Benchmark manifest '$bindingSource' contains an invalid TCP/UDP port: $source"
+            )
+        }
+        DockerPublishedPortBinding(
+            containerPort = containerPort,
+            protocol = manifestString(binding, "protocol", "$source ($bindingSource)").lowercase(),
+            hostIp = manifestString(binding, "hostIp", "$source ($bindingSource)"),
+            hostPort = hostPort,
+        )
+    }
+}
+
 fun manifestRequiredServices(container: Map<*, *>, key: String, source: String): List<BenchmarkRequiredService> {
     val values = container[key] as? List<*>
         ?: throw GradleException("Benchmark manifest is missing array '$key': $source")
@@ -2107,11 +2744,12 @@ fun manifestRequiredServices(container: Map<*, *>, key: String, source: String):
             ?: throw GradleException("Benchmark manifest '$serviceSource.service' must be a non-blank string: $source")
         val host = (service["host"] as? String)?.takeIf { it.isNotBlank() }
             ?: throw GradleException("Benchmark manifest '$serviceSource.host' must be a non-blank string: $source")
-        val portNumber = service["port"] as? Number
-        val port = portNumber?.toLong()
-            ?.takeIf { portNumber.toDouble() == it.toDouble() && it in 1..65535 }
+        val port = manifestLong(service, "port", "$source ($serviceSource)")
+            .takeIf { it in 1..65535 }
             ?.toInt()
-            ?: throw GradleException("Benchmark manifest '$serviceSource.port' must be a valid TCP port: $source")
+            ?: throw GradleException(
+                "Benchmark manifest '$serviceSource.port' must be a valid TCP port: $source"
+            )
         BenchmarkRequiredService(service = serviceName, host = host, port = port)
     }
     val duplicateServices = requiredServices.groupingBy { it.service }.eachCount().filterValues { it > 1 }.keys
@@ -2121,10 +2759,310 @@ fun manifestRequiredServices(container: Map<*, *>, key: String, source: String):
     return requiredServices
 }
 
+fun manifestInfrastructureRuntime(
+    container: Map<*, *>,
+    key: String,
+    source: String,
+): BenchmarkInfrastructureRuntime {
+    val infrastructure = manifestMap(container, key, source)
+    val rawContainers = infrastructure["containers"] as? List<*>
+        ?: throw GradleException("Benchmark manifest is missing array '$key.containers': $source")
+    val containers = rawContainers.mapIndexed { index, rawContainer ->
+        val containerSource = "$key.containers[$index]"
+        val runtime = rawContainer as? Map<*, *>
+            ?: throw GradleException("Benchmark manifest '$containerSource' must be an object: $source")
+        DockerContainerRuntime(
+            service = manifestString(runtime, "service", "$source ($containerSource)"),
+            label = manifestString(runtime, "label", "$source ($containerSource)"),
+            containerName = manifestString(runtime, "containerName", "$source ($containerSource)"),
+            containerId = manifestString(runtime, "containerId", "$source ($containerSource)"),
+            image = manifestString(runtime, "image", "$source ($containerSource)"),
+            imageId = manifestString(runtime, "imageId", "$source ($containerSource)"),
+            repoDigests = manifestStringList(runtime, "repoDigests", "$source ($containerSource)"),
+            startedAt = manifestString(runtime, "startedAt", "$source ($containerSource)"),
+            running = manifestBoolean(runtime, "running", "$source ($containerSource)"),
+            connectedAddress = manifestString(
+                runtime,
+                "connectedAddress",
+                "$source ($containerSource)",
+            ),
+            publishedPorts = manifestPublishedPorts(
+                runtime,
+                "publishedPorts",
+                "$source ($containerSource)",
+            ),
+            performanceConfiguration = manifestStringMap(
+                runtime,
+                "performanceConfiguration",
+                "$source ($containerSource)",
+            ),
+            composeProject = manifestOptionalString(runtime, "composeProject", "$source ($containerSource)"),
+            composeService = manifestOptionalString(runtime, "composeService", "$source ($containerSource)"),
+            composeConfigHash = manifestOptionalString(runtime, "composeConfigHash", "$source ($containerSource)"),
+            composeConfigFiles = manifestOptionalString(runtime, "composeConfigFiles", "$source ($containerSource)"),
+            configurationSha256 = manifestString(
+                runtime,
+                "configurationSha256",
+                "$source ($containerSource)",
+            ),
+        )
+    }
+    val duplicateServices = containers.groupingBy(DockerContainerRuntime::service)
+        .eachCount()
+        .filterValues { count -> count > 1 }
+        .keys
+    if (duplicateServices.isNotEmpty()) {
+        throw GradleException(
+            "Benchmark manifest '$key.containers' contains duplicate services $duplicateServices: $source"
+        )
+    }
+    return BenchmarkInfrastructureRuntime(
+        capturedAt = manifestString(infrastructure, "capturedAt", source),
+        clientLocation = manifestString(infrastructure, "clientLocation", source),
+        dockerServer = manifestOptionalString(infrastructure, "dockerServer", source),
+        containers = containers,
+    )
+}
+
 fun requireManifestValue(actual: Any?, expected: Any?, field: String, source: String) {
     if (actual != expected) {
         throw GradleException(
             "Benchmark manifest '$field' mismatch in $source: expected [$expected], found [$actual]."
+        )
+    }
+}
+
+fun requireManifestInfrastructureIdentity(
+    actual: BenchmarkInfrastructureRuntime,
+    requiredServices: List<BenchmarkRequiredService>,
+    source: String,
+) {
+    val supportedContainerServices = setOf("Redis", "MongoDB", "Elasticsearch")
+    val localServices = requiredServices
+        .filter { service ->
+            service.service in supportedContainerServices && isLocalBenchmarkHost(service.host)
+        }
+    val expectedServices = localServices
+        .map(BenchmarkRequiredService::service)
+    requireManifestValue(
+        actual.containers.map(DockerContainerRuntime::service),
+        expectedServices,
+        "infrastructure.containers services",
+        source,
+    )
+    if (expectedServices.isNotEmpty() && actual.dockerServer == null) {
+        throw GradleException(
+            "Benchmark manifest is missing run-time Docker server provenance for local services " +
+            "$expectedServices: $source"
+        )
+    }
+    actual.containers.zip(localServices).forEach { (runtime, requiredService) ->
+        val internalPort = when (requiredService.service) {
+            "Redis" -> 6379
+            "MongoDB" -> 27017
+            "Elasticsearch" -> 9200
+            else -> error("Unsupported benchmark container service: ${requiredService.service}")
+        }
+        requireBenchmarkContainerEndpoint(runtime, requiredService, internalPort)
+        if (runtime.composeProject == null ||
+            runtime.composeService == null ||
+            runtime.composeConfigHash == null
+        ) {
+            throw GradleException(
+                "Benchmark manifest requires Compose identity and config hash for local " +
+                    "${requiredService.service}: $source"
+            )
+        }
+    }
+}
+
+fun validateBenchmarkInfrastructureRuntimeStability(
+    runtimes: List<BenchmarkInfrastructureRuntime>,
+    context: String,
+) {
+    if (runtimes.isEmpty()) {
+        throw GradleException("No benchmark infrastructure runtime was available for $context.")
+    }
+    val clientLocations = runtimes.map(BenchmarkInfrastructureRuntime::clientLocation).distinct()
+    if (clientLocations.size != 1) {
+        throw GradleException(
+            "Benchmark manifests mix different benchmark client locations for $context: $clientLocations"
+        )
+    }
+    val dockerServers = runtimes.mapNotNull(BenchmarkInfrastructureRuntime::dockerServer).distinct()
+    if (dockerServers.size > 1) {
+        throw GradleException(
+            "Benchmark manifests mix different Docker server runtimes for $context: $dockerServers"
+        )
+    }
+    runtimes.flatMap(BenchmarkInfrastructureRuntime::containers)
+        .groupBy(DockerContainerRuntime::service)
+        .forEach { (service, containers) ->
+            val identities = containers.distinct()
+            if (identities.size != 1) {
+                throw GradleException(
+                    "Benchmark manifests mix different run-time $service container provenance for $context: " +
+                        identities.map { runtime ->
+                            "${runtime.containerId}/${runtime.imageId}/${runtime.configurationSha256}"
+                        }
+                )
+            }
+        }
+}
+
+fun validateBenchmarkInfrastructureRuntimeWindow(
+    started: BenchmarkInfrastructureRuntime,
+    completed: BenchmarkInfrastructureRuntime,
+    requiredServices: List<BenchmarkRequiredService>,
+    context: String,
+) {
+    requireManifestInfrastructureIdentity(started, requiredServices, "$context start")
+    requireManifestInfrastructureIdentity(completed, requiredServices, "$context completion")
+    val startedAt = runCatching { Instant.parse(started.capturedAt) }
+        .getOrElse {
+            throw GradleException(
+                "Benchmark infrastructure start capture has an invalid timestamp for $context: " +
+                    started.capturedAt
+            )
+        }
+    val completedAt = runCatching { Instant.parse(completed.capturedAt) }
+        .getOrElse {
+            throw GradleException(
+                "Benchmark infrastructure completion capture has an invalid timestamp for $context: " +
+                    completed.capturedAt
+            )
+        }
+    if (completedAt.isBefore(startedAt)) {
+        throw GradleException(
+            "Benchmark infrastructure completion capture precedes its start for $context: " +
+                "$completedAt < $startedAt"
+        )
+    }
+    validateBenchmarkInfrastructureRuntimeStability(
+        runtimes = listOf(started, completed),
+        context = "$context sampling window",
+    )
+}
+
+fun benchmarkExecutionEnvironmentIdentity(
+    javaVersion: String,
+    vmName: String,
+    vmVersion: String,
+    osName: String,
+    osVersion: String,
+    osArch: String,
+    availableProcessors: Int,
+    physicalMemoryBytes: Long?,
+): Map<String, Any?> {
+    return linkedMapOf(
+        "javaVersion" to javaVersion,
+        "vmName" to vmName,
+        "vmVersion" to vmVersion,
+        "osName" to osName,
+        "osVersion" to osVersion,
+        "osArch" to osArch,
+        "availableProcessors" to availableProcessors,
+        "physicalMemoryBytes" to physicalMemoryBytes,
+    )
+}
+
+fun requireBenchmarkExecutionEnvironmentCompatibility(
+    screeningIdentity: Map<String, Any?>,
+    confirmationIdentity: Map<String, Any?>,
+    context: String,
+) {
+    requireManifestValue(
+        confirmationIdentity,
+        screeningIdentity,
+        "screening/confirmation JVM, OS, and CPU identity",
+        context,
+    )
+}
+
+fun requireBenchmarkEnvironmentCompatibility(
+    screening: ParsedBenchmarkRunManifest,
+    confirmationIdentity: Map<String, Any?>,
+    confirmationRequiredServices: List<BenchmarkRequiredService>,
+    confirmationInfrastructure: List<BenchmarkInfrastructureRuntime>,
+    context: String,
+) {
+    requireBenchmarkExecutionEnvironmentCompatibility(
+        screeningIdentity = benchmarkExecutionEnvironmentIdentity(
+            javaVersion = screening.javaVersion,
+            vmName = screening.vmName,
+            vmVersion = screening.vmVersion,
+            osName = screening.osName,
+            osVersion = screening.osVersion,
+            osArch = screening.osArch,
+            availableProcessors = screening.availableProcessors,
+            physicalMemoryBytes = screening.physicalMemoryBytes,
+        ),
+        confirmationIdentity = confirmationIdentity,
+        context = context,
+    )
+    requireManifestValue(
+        confirmationRequiredServices,
+        screening.requiredServices,
+        "screening/confirmation required endpoints",
+        context,
+    )
+    validateBenchmarkInfrastructureRuntimeStability(
+        runtimes = listOf(
+            screening.infrastructureRuntime,
+            screening.completionInfrastructureRuntime,
+        ) + confirmationInfrastructure,
+        context = "$context screening/confirmation infrastructure",
+    )
+}
+
+fun requireCurrentBenchmarkEnvironmentCompatibility(
+    screening: ParsedBenchmarkRunManifest,
+    requiredServices: List<BenchmarkRequiredService>,
+    infrastructureRuntime: BenchmarkInfrastructureRuntime,
+    context: String,
+) {
+    requireBenchmarkEnvironmentCompatibility(
+        screening = screening,
+        confirmationIdentity = benchmarkExecutionEnvironmentIdentity(
+            javaVersion = System.getProperty("java.version"),
+            vmName = System.getProperty("java.vm.name"),
+            vmVersion = System.getProperty("java.vm.version"),
+            osName = System.getProperty("os.name"),
+            osVersion = System.getProperty("os.version"),
+            osArch = System.getProperty("os.arch"),
+            availableProcessors = Runtime.getRuntime().availableProcessors(),
+            physicalMemoryBytes = physicalMemoryBytes(),
+        ),
+        confirmationRequiredServices = requiredServices,
+        confirmationInfrastructure = listOf(infrastructureRuntime),
+        context = context,
+    )
+}
+
+fun requireBenchmarkManifestEnvironmentCompatibility(
+    screening: ParsedBenchmarkRunManifest,
+    confirmations: List<ParsedBenchmarkRunManifest>,
+    context: String,
+) {
+    confirmations.forEach { confirmation ->
+        requireBenchmarkEnvironmentCompatibility(
+            screening = screening,
+            confirmationIdentity = benchmarkExecutionEnvironmentIdentity(
+                javaVersion = confirmation.javaVersion,
+                vmName = confirmation.vmName,
+                vmVersion = confirmation.vmVersion,
+                osName = confirmation.osName,
+                osVersion = confirmation.osVersion,
+                osArch = confirmation.osArch,
+                availableProcessors = confirmation.availableProcessors,
+                physicalMemoryBytes = confirmation.physicalMemoryBytes,
+            ),
+            confirmationRequiredServices = confirmation.requiredServices,
+            confirmationInfrastructure = listOf(
+                confirmation.infrastructureRuntime,
+                confirmation.completionInfrastructureRuntime,
+            ),
+            context = context,
         )
     }
 }
@@ -2159,12 +3097,22 @@ fun parseBenchmarkRunManifest(
     val sourcePath = manifestFile.absolutePath
     val manifest = parser.parseText(manifestFile.readText()) as? Map<*, *>
         ?: throw GradleException("Benchmark manifest must be a JSON object: $sourcePath")
-    requireManifestValue((manifest["schemaVersion"] as? Number)?.toInt(), 1, "schemaVersion", sourcePath)
+    requireManifestValue(manifestInt(manifest, "schemaVersion", sourcePath), 2, "schemaVersion", sourcePath)
     requireManifestValue(manifest["status"], "SUCCESS", "status", sourcePath)
 
     val source = manifestMap(manifest, "source", sourcePath)
     val runSpec = manifestMap(manifest, "runSpec", sourcePath)
     val runtime = manifestMap(manifest, "runtime", sourcePath)
+    val infrastructureRuntime = manifestInfrastructureRuntime(
+        container = manifest,
+        key = "infrastructure",
+        source = sourcePath,
+    )
+    val completionInfrastructureRuntime = manifestInfrastructureRuntime(
+        container = manifest,
+        key = "infrastructureAtCompletion",
+        source = sourcePath,
+    )
     val artifacts = manifestMap(manifest, "artifacts", sourcePath)
     val resultArtifact = manifestMap(artifacts, "result", sourcePath)
     val humanArtifact = manifestMap(artifacts, "human", sourcePath)
@@ -2224,6 +3172,12 @@ fun parseBenchmarkRunManifest(
     )
     val requiredServices = manifestRequiredServices(runSpec, "requiredServices", sourcePath)
     requireManifestServiceIdentity(requiredServices, group.suite.requiredServices, sourcePath)
+    validateBenchmarkInfrastructureRuntimeWindow(
+        started = infrastructureRuntime,
+        completed = completionInfrastructureRuntime,
+        requiredServices = requiredServices,
+        context = sourcePath,
+    )
     val runMetadata = manifestOptionalStringMap(runSpec, "metadata", sourcePath)
     requireManifestValue(runMetadata, group.suite.runMetadata, "runSpec.metadata", sourcePath)
 
@@ -2232,7 +3186,7 @@ fun parseBenchmarkRunManifest(
     }
     requireManifestValue(manifestString(resultArtifact, "path", sourcePath), resultFile.name, "artifacts.result.path", sourcePath)
     requireManifestValue(
-        (resultArtifact["size"] as? Number)?.toLong(),
+        manifestLong(resultArtifact, "size", sourcePath),
         resultFile.length(),
         "artifacts.result.size",
         sourcePath,
@@ -2245,7 +3199,7 @@ fun parseBenchmarkRunManifest(
     requireManifestValue(resultRowCount, parsedResultRows.size, "artifacts.result.rowCount", sourcePath)
     requireManifestValue(manifestString(humanArtifact, "path", sourcePath), humanFile.name, "artifacts.human.path", sourcePath)
     requireManifestValue(
-        (humanArtifact["size"] as? Number)?.toLong(),
+        manifestLong(humanArtifact, "size", sourcePath),
         humanFile.length(),
         "artifacts.human.size",
         sourcePath,
@@ -2275,6 +3229,8 @@ fun parseBenchmarkRunManifest(
         resolvedProfilerArgs = manifestStringList(runSpec, "resolvedProfilerArgs", sourcePath),
         requiredServices = requiredServices,
         runMetadata = runMetadata,
+        infrastructureRuntime = infrastructureRuntime,
+        completionInfrastructureRuntime = completionInfrastructureRuntime,
         javaVersion = manifestString(runtime, "javaVersion", sourcePath),
         vmName = manifestString(runtime, "vmName", sourcePath),
         vmVersion = manifestString(runtime, "vmVersion", sourcePath),
@@ -2282,7 +3238,9 @@ fun parseBenchmarkRunManifest(
         osVersion = manifestString(runtime, "osVersion", sourcePath),
         osArch = manifestString(runtime, "osArch", sourcePath),
         availableProcessors = manifestInt(runtime, "availableProcessors", sourcePath),
-        physicalMemoryBytes = (runtime["physicalMemoryBytes"] as? Number)?.toLong(),
+        physicalMemoryBytes = runtime["physicalMemoryBytes"]?.let {
+            manifestLong(runtime, "physicalMemoryBytes", sourcePath)
+        },
         resultSha256 = resultSha256,
         resultRowCount = resultRowCount,
     )
@@ -2324,6 +3282,15 @@ fun validateBenchmarkRunManifests(
             )
         }
     }
+    validateBenchmarkInfrastructureRuntimeStability(
+        runtimes = manifests.flatMap { manifest ->
+            listOf(
+                manifest.infrastructureRuntime,
+                manifest.completionInfrastructureRuntime,
+            )
+        },
+        context = context,
+    )
 }
 
 fun parseBenchmarkGroup(
@@ -3242,6 +4209,16 @@ val MongoBatchOptionsPairedVariant.batchOptions: String
     }
 
 fun requireMongoBatchOptionsPairedProtocol() {
+    if (mongoBatchOptionsPairedConfiguredFinalist == null) {
+        throw GradleException(
+            "Mongo batch-options paired confirmation requires " +
+                "-P$mongoBatchOptionsPairedFinalistProperty=<maxSize>x<maxDelayMicros>us."
+        )
+    }
+    requireStorageBatchTuningOption(
+        mongoBatchOptionsPairedFinalist,
+        "Gradle property $mongoBatchOptionsPairedFinalistProperty",
+    )
     if (mongoBatchOptionsPairedCurrent == mongoBatchOptionsPairedFinalist) {
         throw GradleException(
             "Mongo batch-options paired confirmation requires distinct current and finalist options."
@@ -3337,13 +4314,28 @@ fun validateNonOverlappingBenchmarkEvidenceWindows(
         }
 }
 
-val mongoBatchOptionsPairedProtocolVersion = "2"
+val mongoBatchOptionsPairedProtocolVersion = "3"
 val mongoBatchOptionsPairedCurrent = "128x1000us"
-val mongoBatchOptionsPairedFinalist = "256x200us"
+val mongoBatchOptionsPairedFinalistProperty = "benchmarkMongoBatchOptionsPairedFinalist"
+val mongoBatchOptionsPairedUnconfiguredFinalist = "UNCONFIGURED"
+val mongoBatchOptionsPairedConfiguredFinalist =
+    providers.gradleProperty(mongoBatchOptionsPairedFinalistProperty)
+        .map(String::trim)
+        .orNull
+val mongoBatchOptionsPairedFinalist =
+    mongoBatchOptionsPairedConfiguredFinalist ?: mongoBatchOptionsPairedUnconfiguredFinalist
 val mongoBatchOptionsPairedBenchmarkClass =
     "me.ahoo.wow.benchmark.infrastructure.mongo.MongoEventStoreBatchTuningBenchmark"
+val mongoBatchOptionsPairedPreflight = tasks.register("preflightMongoBatchOptionsPairedConfirmation") {
+    description = "Validate Mongo batch-options frontier and INCONCLUSIVE finalist before paired JMH."
+    group = "benchmark"
+    dependsOn(tasks.named("jmhJar"))
 
-requireMongoBatchOptionsPairedProtocol()
+    doLast {
+        val jmhJarFile = tasks.named<Jar>("jmhJar").get().archiveFile.get().asFile
+        requireMongoBatchOptionsPairedPreflight(fileSha256(jmhJarFile))
+    }
+}
 
 val mongoBatchOptionsPairedTrials = buildList {
     mongoBatchOptionsPairedThreads.forEach { threads ->
@@ -3422,6 +4414,9 @@ val mongoBatchOptionsPairedTrials = buildList {
                         profile = profile,
                         threads = threads,
                     )
+                    task.configure {
+                        dependsOn(mongoBatchOptionsPairedPreflight)
+                    }
                     add(
                         MongoBatchOptionsPairedTrialSpec(
                             workload = workload,
@@ -3699,7 +4694,10 @@ val benchmarkMongoBatchOptionsPairedConfirmation =
         dependsOn(benchmarkMongoBatchOptionsPairedStrata)
 
         doLast {
-            parseMongoBatchOptionsPairedExperiment()
+            val jmhJarFile = tasks.named<Jar>("jmhJar").get().archiveFile.get().asFile
+            val screening = requireMongoBatchOptionsPairedPreflight(fileSha256(jmhJarFile))
+            val experiment = parseMongoBatchOptionsPairedExperiment()
+            validateMongoBatchOptionsPairedPostflight(screening, experiment)
         }
     }
 
@@ -4218,6 +5216,7 @@ data class StorageBatchTuningCandidateSummary(
     val batchOptions: String,
     val maxSize: Int,
     val maxDelayMicros: Long,
+    val primaryRepresentativeRatio: Double,
     val worstSaturatedRatio: Double,
     val worstGuardRatio: Double,
     val worstAllocationRatio: Double,
@@ -4300,9 +5299,15 @@ fun storageBatchTuningCandidateSummary(
     val saturatedKeys = rowsByKey.keys.filter { key -> key.method == "appendSaturated512" }
     val guardKeys = rowsByKey.keys.filter { key -> key.method != "appendSaturated512" }
     val preferredRefreshKeys = saturatedKeys.filter { key -> key.refresh == preferredRefresh }
-    if (saturatedKeys.isEmpty() || guardKeys.isEmpty() || preferredRefreshKeys.isEmpty()) {
+    val primaryRepresentativeKeys = guardKeys.filter { key ->
+        key.method == "appendRepresentative128" && key.refresh == preferredRefresh
+    }
+    if (saturatedKeys.isEmpty() || guardKeys.isEmpty() || preferredRefreshKeys.isEmpty() ||
+        primaryRepresentativeKeys.isEmpty()
+    ) {
         throw GradleException(
-            "Storage batch tuning candidate summary is missing saturated, guard, or preferred refresh rows."
+            "Storage batch tuning candidate summary is missing saturated, guard, preferred refresh, " +
+                "or primary representative rows."
         )
     }
 
@@ -4333,10 +5338,21 @@ fun storageBatchTuningCandidateSummary(
         val optionRows = key.rowsByOptions()
         optionRows.getValue(batchOptions).score / optionRows.values.maxOf(ParsedBenchmarkResult::score)
     }
+    val primaryRepresentativeRatio = primaryRepresentativeKeys.minOf { key ->
+        val optionRows = key.rowsByOptions()
+        val currentScore = optionRows.getValue(currentOptions).score
+        if (currentScore <= 0.0) {
+            throw GradleException(
+                "Storage batch tuning current representative throughput must be positive: $key"
+            )
+        }
+        optionRows.getValue(batchOptions).score / currentScore
+    }
     return StorageBatchTuningCandidateSummary(
         batchOptions = batchOptions,
         maxSize = optionMatch.groupValues[1].toInt(),
         maxDelayMicros = optionMatch.groupValues[2].toLong(),
+        primaryRepresentativeRatio = primaryRepresentativeRatio,
         worstSaturatedRatio = worstSaturatedRatio,
         worstGuardRatio = worstGuardRatio,
         worstAllocationRatio = worstAllocationRatio,
@@ -4348,6 +5364,574 @@ fun storageBatchTuningCandidateSummary(
     )
 }
 
+fun storageBatchTuningCandidateDominates(
+    candidate: StorageBatchTuningCandidateSummary,
+    other: StorageBatchTuningCandidateSummary,
+): Boolean {
+    val noWorse =
+        candidate.primaryRepresentativeRatio >= other.primaryRepresentativeRatio &&
+            candidate.preferredRefreshSaturatedRatio >= other.preferredRefreshSaturatedRatio &&
+            candidate.worstSaturatedRatio >= other.worstSaturatedRatio &&
+            candidate.worstGuardRatio >= other.worstGuardRatio &&
+            candidate.worstAllocationRatio <= other.worstAllocationRatio
+    val strictlyBetter =
+        candidate.primaryRepresentativeRatio > other.primaryRepresentativeRatio ||
+            candidate.preferredRefreshSaturatedRatio > other.preferredRefreshSaturatedRatio ||
+            candidate.worstSaturatedRatio > other.worstSaturatedRatio ||
+            candidate.worstGuardRatio > other.worstGuardRatio ||
+            candidate.worstAllocationRatio < other.worstAllocationRatio
+    return noWorse && strictlyBetter
+}
+
+val storageBatchTuningCandidateComparator =
+    compareByDescending<StorageBatchTuningCandidateSummary> { summary ->
+        summary.primaryRepresentativeRatio
+    }
+        .thenByDescending { summary -> summary.preferredRefreshSaturatedRatio }
+        .thenByDescending { summary -> summary.worstSaturatedRatio }
+        .thenByDescending { summary -> summary.worstGuardRatio }
+        .thenBy { summary -> summary.worstAllocationRatio }
+        .thenBy { summary -> summary.maxSize }
+        .thenBy { summary -> summary.maxDelayMicros }
+        .thenBy { summary -> summary.batchOptions }
+
+fun storageBatchTuningParetoCandidates(
+    summaries: List<StorageBatchTuningCandidateSummary>,
+    currentOptions: String,
+): List<StorageBatchTuningCandidateSummary> {
+    val eligibleCandidates = summaries.filter(StorageBatchTuningCandidateSummary::eligible)
+    val eligibleChallengers = eligibleCandidates.filter { summary -> summary.batchOptions != currentOptions }
+    return eligibleChallengers
+        .filter { candidate ->
+            eligibleCandidates.none { other ->
+                other !== candidate && storageBatchTuningCandidateDominates(other, candidate)
+            }
+        }
+        .sortedWith(storageBatchTuningCandidateComparator)
+}
+
+data class StorageBatchTuningFrontierEvidence(
+    val suite: String,
+    val currentOptions: String,
+    val orderedFrontier: List<String>,
+    val sourceCommit: String,
+    val jmhJarSha256: String,
+    val benchmarkHarnessSha256: String,
+    val resultSha256: String,
+    val manifestSha256: String,
+    val evidenceSha256: String,
+)
+
+fun storageBatchTuningFrontierEvidencePayload(
+    suite: String,
+    currentOptions: String,
+    orderedFrontier: List<String>,
+    sourceCommit: String,
+    jmhJarSha256: String,
+    benchmarkHarnessSha256: String,
+    resultSha256: String,
+    manifestSha256: String,
+): Map<String, Any> {
+    return linkedMapOf(
+        "schemaVersion" to 2,
+        "suite" to suite,
+        "currentOptions" to currentOptions,
+        "orderedFrontier" to orderedFrontier,
+        "sourceCommit" to sourceCommit,
+        "jmhJarSha256" to jmhJarSha256,
+        "benchmarkHarnessSha256" to benchmarkHarnessSha256,
+        "resultSha256" to resultSha256,
+        "manifestSha256" to manifestSha256,
+    )
+}
+
+fun storageBatchTuningFrontierEvidence(
+    suite: BenchmarkSuite,
+    rows: List<ParsedBenchmarkResult>,
+    expectedOptions: List<String>,
+    currentOptions: String,
+    preferredRefresh: String,
+    manifests: List<ParsedBenchmarkRunManifest>,
+    benchmarkHarnessSha256: String,
+    manifestSha256: String,
+): StorageBatchTuningFrontierEvidence {
+    val manifest = manifests.singleOrNull()
+        ?: throw GradleException(
+            "Storage batch frontier evidence requires exactly one scan manifest for ${suite.id}."
+        )
+    if (manifest.sourceDirty) {
+        throw GradleException("Storage batch frontier evidence requires sourceDirty=false for ${suite.id}.")
+    }
+    val rowsByKey = rows
+        .filter { row -> row.unit.equals("ops/s", ignoreCase = true) }
+        .groupBy { row ->
+            StorageBatchTuningKey(
+                method = benchmarkMethodName(row),
+                refresh = row.parameters["refresh"] ?: "-",
+                threads = row.threads,
+            )
+        }
+    val summaries = expectedOptions.map { batchOptions ->
+        storageBatchTuningCandidateSummary(
+            batchOptions = batchOptions,
+            rowsByKey = rowsByKey,
+            currentOptions = currentOptions,
+            preferredRefresh = preferredRefresh,
+        )
+    }
+    val orderedFrontier = storageBatchTuningParetoCandidates(summaries, currentOptions)
+        .map(StorageBatchTuningCandidateSummary::batchOptions)
+    val payload = storageBatchTuningFrontierEvidencePayload(
+        suite = suite.id,
+        currentOptions = currentOptions,
+        orderedFrontier = orderedFrontier,
+        sourceCommit = manifest.sourceCommit,
+        jmhJarSha256 = manifest.jmhJarSha256,
+        benchmarkHarnessSha256 = benchmarkHarnessSha256,
+        resultSha256 = manifest.resultSha256,
+        manifestSha256 = manifestSha256,
+    )
+    return StorageBatchTuningFrontierEvidence(
+        suite = suite.id,
+        currentOptions = currentOptions,
+        orderedFrontier = orderedFrontier,
+        sourceCommit = manifest.sourceCommit,
+        jmhJarSha256 = manifest.jmhJarSha256,
+        benchmarkHarnessSha256 = benchmarkHarnessSha256,
+        resultSha256 = manifest.resultSha256,
+        manifestSha256 = manifestSha256,
+        evidenceSha256 = sha256Text(JsonOutput.toJson(payload)),
+    )
+}
+
+fun StorageBatchTuningFrontierEvidence.toRunSpec(): Map<String, Any> {
+    val payload = storageBatchTuningFrontierEvidencePayload(
+        suite = suite,
+        currentOptions = currentOptions,
+        orderedFrontier = orderedFrontier,
+        sourceCommit = sourceCommit,
+        jmhJarSha256 = jmhJarSha256,
+        benchmarkHarnessSha256 = benchmarkHarnessSha256,
+        resultSha256 = resultSha256,
+        manifestSha256 = manifestSha256,
+    )
+    return LinkedHashMap(payload).also { evidence ->
+        evidence["evidenceSha256"] = evidenceSha256
+    }
+}
+
+fun parseStorageBatchTuningFrontierEvidence(
+    evidenceFile: File,
+): StorageBatchTuningFrontierEvidence {
+    if (!evidenceFile.isFile) {
+        throw GradleException(
+            "Storage batch frontier evidence is missing: ${evidenceFile.absolutePath}. " +
+                "Generate and commit the matching tuning report before confirmation."
+        )
+    }
+    val source = evidenceFile.absolutePath
+    val parsed = JsonSlurper().parseText(evidenceFile.readText()) as? Map<*, *>
+        ?: throw GradleException("Storage batch frontier evidence must be a JSON object: $source")
+    requireManifestValue(manifestInt(parsed, "schemaVersion", source), 2, "schemaVersion", source)
+    val orderedFrontier = manifestStringList(parsed, "orderedFrontier", source)
+    if (orderedFrontier.distinct().size != orderedFrontier.size) {
+        throw GradleException("Storage batch frontier evidence contains duplicate options: $source")
+    }
+    val evidence = StorageBatchTuningFrontierEvidence(
+        suite = manifestString(parsed, "suite", source),
+        currentOptions = manifestString(parsed, "currentOptions", source),
+        orderedFrontier = orderedFrontier,
+        sourceCommit = manifestString(parsed, "sourceCommit", source),
+        jmhJarSha256 = manifestString(parsed, "jmhJarSha256", source),
+        benchmarkHarnessSha256 = manifestString(parsed, "benchmarkHarnessSha256", source),
+        resultSha256 = manifestString(parsed, "resultSha256", source),
+        manifestSha256 = manifestString(parsed, "manifestSha256", source),
+        evidenceSha256 = manifestString(parsed, "evidenceSha256", source),
+    )
+    val expectedDigest = sha256Text(
+        JsonOutput.toJson(
+            storageBatchTuningFrontierEvidencePayload(
+                suite = evidence.suite,
+                currentOptions = evidence.currentOptions,
+                orderedFrontier = evidence.orderedFrontier,
+                sourceCommit = evidence.sourceCommit,
+                jmhJarSha256 = evidence.jmhJarSha256,
+                benchmarkHarnessSha256 = evidence.benchmarkHarnessSha256,
+                resultSha256 = evidence.resultSha256,
+                manifestSha256 = evidence.manifestSha256,
+            )
+        )
+    )
+    requireManifestValue(
+        evidence.evidenceSha256,
+        expectedDigest,
+        "evidenceSha256",
+        source,
+    )
+    return evidence
+}
+
+fun storageBatchTuningFrontierEvidenceFile(suite: BenchmarkSuite): File {
+    return when (suite.id) {
+        mongoBatchOptionsTuningSuite.id -> mongoBatchOptionsFrontierEvidenceFile.asFile
+        elasticsearchBatchOptionsTuningSuite.id -> elasticsearchBatchOptionsFrontierEvidenceFile.asFile
+        else -> throw GradleException("Unsupported storage batch tuning suite: ${suite.id}")
+    }
+}
+
+data class ValidatedStorageBatchTuningScreening(
+    val evidence: StorageBatchTuningFrontierEvidence,
+    val report: BenchmarkGroupReport,
+)
+
+fun storageBatchTuningScanTaskSpec(suite: BenchmarkSuite): BenchmarkTaskSpec {
+    return when (suite.id) {
+        mongoBatchOptionsTuningSuite.id -> mongoBatchOptionsTuningTaskSpec
+        elasticsearchBatchOptionsTuningSuite.id -> elasticsearchBatchOptionsTuningTaskSpec
+        else -> throw GradleException("Unsupported storage batch tuning suite: ${suite.id}")
+    }
+}
+
+fun storageBatchTuningPreferredRefresh(suite: BenchmarkSuite): String {
+    return when (suite.id) {
+        mongoBatchOptionsTuningSuite.id -> "-"
+        elasticsearchBatchOptionsTuningSuite.id -> "True"
+        else -> throw GradleException("Unsupported storage batch tuning suite: ${suite.id}")
+    }
+}
+
+fun storageBatchTuningRefreshValues(suite: BenchmarkSuite): List<String> {
+    return when (suite.id) {
+        mongoBatchOptionsTuningSuite.id -> listOf("-")
+        elasticsearchBatchOptionsTuningSuite.id -> listOf("False", "True")
+        else -> throw GradleException("Unsupported storage batch tuning suite: ${suite.id}")
+    }
+}
+
+fun storageBatchTuningReportFiles(suite: BenchmarkSuite): Set<String> {
+    val reportFiles = when (suite.id) {
+        mongoBatchOptionsTuningSuite.id ->
+            listOf(mongoBatchOptionsTuningReportFile.asFile, mongoBatchOptionsFrontierEvidenceFile.asFile)
+
+        elasticsearchBatchOptionsTuningSuite.id ->
+            listOf(
+                elasticsearchBatchOptionsTuningReportFile.asFile,
+                elasticsearchBatchOptionsFrontierEvidenceFile.asFile,
+            )
+
+        else -> throw GradleException("Unsupported storage batch tuning suite: ${suite.id}")
+    }
+    return reportFiles.mapTo(linkedSetOf(), ::benchmarkReportPath)
+}
+
+fun requireStorageBatchTuningSourceTransition(
+    sourceIsHeadAncestor: Boolean,
+    changedPaths: Set<String>,
+    allowedPaths: Set<String>,
+    source: String,
+) {
+    if (!sourceIsHeadAncestor) {
+        throw GradleException("Storage batch screening source commit is not an ancestor of HEAD: $source")
+    }
+    val disallowedPaths = changedPaths - allowedPaths
+    if (disallowedPaths.isNotEmpty()) {
+        throw GradleException(
+            "Only generated storage batch evidence may change after screening; disallowed paths in " +
+                "$source: ${disallowedPaths.sorted()}"
+        )
+    }
+}
+
+fun parseGitNullSeparatedPaths(output: String): Set<String> {
+    return output.split('\u0000').filter(String::isNotBlank).toSet()
+}
+
+fun requireStorageBatchTuningSourceTransition(
+    sourceCommit: String,
+    targetCommit: String,
+    allowedPaths: Set<String>,
+    context: String,
+) {
+    val commitFormat = Regex("[0-9a-fA-F]{40,64}")
+    if (!commitFormat.matches(sourceCommit) || !commitFormat.matches(targetCommit)) {
+        throw GradleException("Storage batch source transition has an invalid commit ID: $context")
+    }
+    val gitRoot = rootProject.projectDir.absolutePath
+    val ancestor = runCommand(
+        listOf(
+            "git",
+            "-C",
+            gitRoot,
+            "merge-base",
+            "--is-ancestor",
+            sourceCommit,
+            targetCommit,
+        )
+    )
+    if (ancestor.exitCode !in setOf(0, 1)) {
+        throw GradleException(
+            "Unable to verify storage batch source ancestry $sourceCommit..$targetCommit: " +
+                ancestor.output
+        )
+    }
+    val diff = runCommand(
+        listOf(
+            "git",
+            "-C",
+            gitRoot,
+            "diff",
+            "--no-renames",
+            "--name-only",
+            "-z",
+            "$sourceCommit..$targetCommit",
+            "--",
+        ),
+        trimOutput = false,
+    )
+    if (diff.exitCode != 0) {
+        throw GradleException("Unable to inspect storage batch transition paths: ${diff.output}")
+    }
+    requireStorageBatchTuningSourceTransition(
+        sourceIsHeadAncestor = ancestor.exitCode == 0,
+        changedPaths = parseGitNullSeparatedPaths(diff.output),
+        allowedPaths = allowedPaths,
+        source = context,
+    )
+}
+
+fun currentBenchmarkGitHead(): String {
+    val currentHead = runCommand(
+        listOf("git", "-C", rootProject.projectDir.absolutePath, "rev-parse", "HEAD")
+    )
+    if (currentHead.exitCode != 0 || currentHead.output.isBlank()) {
+        throw GradleException("Unable to resolve benchmark confirmation HEAD: ${currentHead.output}")
+    }
+    return currentHead.output
+}
+
+fun requireStorageBatchTuningSourceTransition(
+    evidence: StorageBatchTuningFrontierEvidence,
+    suite: BenchmarkSuite,
+    additionalAllowedPaths: Set<String> = emptySet(),
+) {
+    val currentHead = currentBenchmarkGitHead()
+    requireStorageBatchTuningSourceTransition(
+        sourceCommit = evidence.sourceCommit,
+        targetCommit = currentHead,
+        allowedPaths = storageBatchTuningReportFiles(suite) + additionalAllowedPaths,
+        context = "${evidence.sourceCommit}..$currentHead",
+    )
+}
+
+fun requireStorageBatchTuningConfirmationSourceTransition(
+    evidence: StorageBatchTuningFrontierEvidence,
+    suite: BenchmarkSuite,
+    confirmationManifests: List<ParsedBenchmarkRunManifest>,
+    allowedAfterConfirmation: Set<String> = emptySet(),
+) {
+    val confirmationSource = confirmationManifests
+        .map(ParsedBenchmarkRunManifest::sourceCommit)
+        .distinct()
+        .singleOrNull()
+        ?: throw GradleException("Storage batch confirmation manifests must bind one source commit.")
+    requireStorageBatchTuningSourceTransition(
+        sourceCommit = evidence.sourceCommit,
+        targetCommit = confirmationSource,
+        allowedPaths = storageBatchTuningReportFiles(suite),
+        context = "${evidence.sourceCommit}..$confirmationSource",
+    )
+    val currentHead = currentBenchmarkGitHead()
+    requireStorageBatchTuningSourceTransition(
+        sourceCommit = confirmationSource,
+        targetCommit = currentHead,
+        allowedPaths = allowedAfterConfirmation,
+        context = "$confirmationSource..$currentHead",
+    )
+}
+
+fun requireStorageBatchTuningArtifactHashes(
+    evidence: StorageBatchTuningFrontierEvidence,
+    resultFile: File,
+    manifestFile: File,
+    source: String,
+) {
+    if (!resultFile.isFile || !manifestFile.isFile) {
+        throw GradleException(
+            "Storage batch confirmation requires retained raw screening result and manifest: " +
+                "${resultFile.absolutePath}, ${manifestFile.absolutePath}"
+        )
+    }
+    requireManifestValue(
+        fileSha256(resultFile),
+        evidence.resultSha256,
+        "screening resultSha256",
+        source,
+    )
+    requireManifestValue(
+        fileSha256(manifestFile),
+        evidence.manifestSha256,
+        "screening manifestSha256",
+        source,
+    )
+}
+
+fun requireStorageBatchTuningScanParameters(
+    parameters: Map<String, String>,
+    source: String,
+) {
+    requireManifestValue(
+        parameters.keys,
+        setOf("batchOptions"),
+        "screening runSpec.parameters keys",
+        source,
+    )
+}
+
+fun validateStorageBatchTuningScreeningEvidence(
+    suite: BenchmarkSuite,
+    currentJmhJarSha256: String? = null,
+    additionalAllowedPaths: Set<String> = emptySet(),
+): ValidatedStorageBatchTuningScreening {
+    val evidenceFile = storageBatchTuningFrontierEvidenceFile(suite)
+    val evidence = parseStorageBatchTuningFrontierEvidence(evidenceFile)
+    val configuredTaskSpec = storageBatchTuningScanTaskSpec(suite)
+    val configuredGroup = benchmarkResultGroup(configuredTaskSpec)
+    val resultSource = configuredGroup.resultFiles.singleOrNull()
+        ?: throw GradleException(
+            "Storage batch screening preflight requires exactly one raw result and manifest for ${suite.id}."
+        )
+    val resultFile = resultSource.resultFile.get().asFile
+    val manifestFile = resultSource.manifestFile.get().asFile
+    requireStorageBatchTuningArtifactHashes(
+        evidence = evidence,
+        resultFile = resultFile,
+        manifestFile = manifestFile,
+        source = evidenceFile.absolutePath,
+    )
+    val rawManifest = JsonSlurper().parseText(manifestFile.readText()) as? Map<*, *>
+        ?: throw GradleException("Storage batch screening manifest must be a JSON object.")
+    val rawRunSpec = manifestMap(rawManifest, "runSpec", manifestFile.absolutePath)
+    val rawParameters = manifestStringMap(rawRunSpec, "parameters", manifestFile.absolutePath)
+    requireStorageBatchTuningScanParameters(rawParameters, manifestFile.absolutePath)
+    val scanTaskSpec = configuredTaskSpec.copy(
+        profile = configuredTaskSpec.profile.copy(parameters = rawParameters)
+    )
+    val resultGroup = benchmarkResultGroup(scanTaskSpec)
+    val report = parseBenchmarkGroup(JsonSlurper(), resultGroup)
+    val expectedOptions = storageBatchTuningOptions(resultGroup.profile)
+    validateStorageBatchTuningMatrix(
+        rows = report.rows,
+        expectedOptions = expectedOptions,
+        expectedRefreshValues = storageBatchTuningRefreshValues(suite),
+        expectedThreads = resultGroup.profile.threads,
+        expectedModes = resultGroup.profile.benchmarkModes,
+    )
+    val recomputedEvidence = storageBatchTuningFrontierEvidence(
+        suite = suite,
+        rows = report.rows,
+        expectedOptions = expectedOptions,
+        currentOptions = currentStorageBatchOptions(suite),
+        preferredRefresh = storageBatchTuningPreferredRefresh(suite),
+        manifests = report.manifests,
+        benchmarkHarnessSha256 = fileSha256(
+            layout.projectDirectory.file("gradle/benchmarking.gradle.kts").asFile
+        ),
+        manifestSha256 = fileSha256(manifestFile),
+    )
+    requireManifestValue(
+        recomputedEvidence,
+        evidence,
+        "recomputed screening frontier evidence",
+        evidenceFile.absolutePath,
+    )
+    currentJmhJarSha256?.let { currentSha256 ->
+        requireStorageBatchTuningEvidenceCompatibility(
+            evidence = evidence,
+            currentJmhJarSha256 = currentSha256,
+            currentBenchmarkHarnessSha256 = recomputedEvidence.benchmarkHarnessSha256,
+            source = evidenceFile.absolutePath,
+        )
+    }
+    requireStorageBatchTuningSourceTransition(
+        evidence = evidence,
+        suite = suite,
+        additionalAllowedPaths = additionalAllowedPaths,
+    )
+    return ValidatedStorageBatchTuningScreening(evidence = evidence, report = report)
+}
+
+fun requireStorageBatchTuningConfirmationOptions(
+    options: List<String>,
+    suiteId: String,
+    currentOptions: String,
+    evidence: StorageBatchTuningFrontierEvidence,
+    source: String,
+) {
+    requireManifestValue(evidence.suite, suiteId, "suite", source)
+    requireManifestValue(
+        evidence.currentOptions,
+        currentOptions,
+        "currentOptions",
+        source,
+    )
+    val expectedOptions = listOf(currentOptions) + evidence.orderedFrontier
+    if (options != expectedOptions) {
+        throw GradleException(
+            "Storage batch confirmation options must exactly match current plus the ordered frontier " +
+                "bound by $source (${evidence.evidenceSha256}). " +
+                "Expected $expectedOptions, found $options."
+        )
+    }
+}
+
+fun requireStorageBatchTuningEvidenceCompatibility(
+    evidence: StorageBatchTuningFrontierEvidence,
+    currentJmhJarSha256: String,
+    currentBenchmarkHarnessSha256: String,
+    source: String,
+) {
+    requireManifestValue(
+        currentJmhJarSha256,
+        evidence.jmhJarSha256,
+        "current jmhJarSha256",
+        source,
+    )
+    requireManifestValue(
+        currentBenchmarkHarnessSha256,
+        evidence.benchmarkHarnessSha256,
+        "current benchmarkHarnessSha256",
+        source,
+    )
+}
+
+fun requireStorageBatchTuningConfirmationManifestCompatibility(
+    evidence: StorageBatchTuningFrontierEvidence,
+    screeningManifest: ParsedBenchmarkRunManifest,
+    manifests: List<ParsedBenchmarkRunManifest>,
+    source: String,
+) {
+    val confirmationJmhJarSha256 = manifests
+        .map(ParsedBenchmarkRunManifest::jmhJarSha256)
+        .distinct()
+        .singleOrNull()
+        ?: throw GradleException(
+            "Storage batch confirmation manifests must bind one JMH jar: $source"
+        )
+    requireStorageBatchTuningEvidenceCompatibility(
+        evidence = evidence,
+        currentJmhJarSha256 = confirmationJmhJarSha256,
+        currentBenchmarkHarnessSha256 = fileSha256(
+            layout.projectDirectory.file("gradle/benchmarking.gradle.kts").asFile
+        ),
+        source = source,
+    )
+    requireBenchmarkManifestEnvironmentCompatibility(
+        screening = screeningManifest,
+        confirmations = manifests,
+        context = source,
+    )
+}
+
 fun StringBuilder.appendStorageBatchTuningSummary(
     rows: List<ParsedBenchmarkResult>,
     expectedOptions: List<String>,
@@ -4356,6 +5940,10 @@ fun StringBuilder.appendStorageBatchTuningSummary(
     expectedModes: List<String>,
     currentOptions: String,
     preferredRefresh: String,
+    confirmationTaskPath: String? = null,
+    confirmationReportTaskPath: String? = null,
+    confirmationPropertyName: String? = null,
+    boundConfirmationEvidence: StorageBatchTuningFrontierEvidence? = null,
 ) {
     validateStorageBatchTuningMatrix(
         rows = rows,
@@ -4446,12 +6034,15 @@ fun StringBuilder.appendStorageBatchTuningSummary(
         )
     }.sortedWith(
         compareByDescending<StorageBatchTuningCandidateSummary> { summary -> summary.eligible }
-            .thenByDescending { summary -> summary.preferredRefreshSaturatedRatio }
-            .thenByDescending { summary -> summary.worstSaturatedRatio }
-            .thenByDescending { summary -> summary.worstGuardRatio }
-            .thenBy { summary -> summary.maxSize }
-            .thenBy { summary -> summary.maxDelayMicros }
+            .then(storageBatchTuningCandidateComparator)
     )
+    val paretoCandidates = storageBatchTuningParetoCandidates(
+        summaries = candidateSummaries,
+        currentOptions = currentOptions,
+    )
+    val confirmationOptions = boundConfirmationEvidence?.orderedFrontier
+        ?: paretoCandidates.map(StorageBatchTuningCandidateSummary::batchOptions)
+    val paretoOptions = confirmationOptions.toSet()
     appendLine("## Cross-workload Candidate Gate")
     appendLine()
     appendLine(
@@ -4462,26 +6053,101 @@ fun StringBuilder.appendStorageBatchTuningSummary(
     )
     appendLine()
     appendLine(
-        "| Batch options | Preferred refresh saturated vs best | Worst saturated vs best | " +
+        "| Batch options | Primary representative vs current | Preferred refresh saturated vs best | Worst saturated vs best | " +
             "Worst guard vs current | Worst allocation vs current | Screening status |"
     )
     appendLine(
-        "|---------------|--------------------------------------|-------------------------|" +
+        "|---------------|-----------------------------------|--------------------------------------|-------------------------|" +
             "------------------------|-----------------------------|------------------|"
     )
     candidateSummaries.forEach { summary ->
         val status = when {
             summary.batchOptions == currentOptions -> "CURRENT"
-            summary.eligible -> "ELIGIBLE"
+            summary.batchOptions in paretoOptions -> "CONFIRM"
+            summary.eligible -> "ELIGIBLE_DOMINATED"
             else -> "REJECT"
         }
         appendLine(
             "| `${summary.batchOptions}` | " +
+                "${formatSignedPercent((summary.primaryRepresentativeRatio - 1.0) * 100.0)} | " +
                 "${formatSignedPercent((summary.preferredRefreshSaturatedRatio - 1.0) * 100.0)} | " +
                 "${formatSignedPercent((summary.worstSaturatedRatio - 1.0) * 100.0)} | " +
                 "${formatSignedPercent((summary.worstGuardRatio - 1.0) * 100.0)} | " +
                 "${formatSignedPercent((summary.worstAllocationRatio - 1.0) * 100.0)} | $status |"
         )
+    }
+    appendLine()
+    appendLine(
+        if (boundConfirmationEvidence == null) {
+            "### Deterministic Pareto Confirmation Set"
+        } else {
+            "### Manifest-bound Confirmation Set"
+        }
+    )
+    appendLine()
+    if (boundConfirmationEvidence == null) {
+        appendLine(
+            "The report removes eligible challengers only when another eligible challenger is no worse on " +
+                "primary representative throughput, preferred-refresh saturated throughput, worst saturated " +
+                "throughput, worst guard throughput, and allocation, and is strictly better on at least one. " +
+                "The full non-dominated frontier is retained. Display order is deterministic by those metrics, " +
+                "then smaller `maxSize`, shorter `maxDelay`, and encoded option."
+        )
+    } else {
+        appendLine(
+            "This confirmation set is not recomputed from the supplied rows. It is bound to screening " +
+                "evidence `${boundConfirmationEvidence.evidenceSha256}` from source commit " +
+                "`${boundConfirmationEvidence.sourceCommit}` and result " +
+                "`${boundConfirmationEvidence.resultSha256}`."
+        )
+    }
+    appendLine()
+    if (confirmationOptions.isEmpty()) {
+        appendLine(
+            "No challenger survived the gate. The scan supports retaining the current option, but it does " +
+                "not establish a global optimum."
+        )
+    } else {
+        appendLine(
+            "- **Required frontier**: " +
+                confirmationOptions.joinToString(", ") { candidate -> "`$candidate`" }
+        )
+        appendLine(
+            "- **Closure rule**: run one multiple-fork confirmation over the complete ordered frontier, then " +
+                "run paired confirmation for every `INCONCLUSIVE` challenger. Only after every challenger has " +
+                "a final `PASS` or elimination verdict may the highest-ranked `PASS` be selected; if none pass, " +
+                "retain current. Until then, the default decision remains open."
+        )
+        val confirmationCommandParts = listOf(
+            confirmationTaskPath,
+            confirmationReportTaskPath,
+            confirmationPropertyName,
+        )
+        if (confirmationCommandParts.any { it == null } && confirmationCommandParts.any { it != null }) {
+            throw GradleException(
+                "Storage batch tuning confirmation benchmark task, report task, and property name " +
+                    "must be supplied together."
+            )
+        }
+        if (boundConfirmationEvidence != null && confirmationCommandParts.any { it != null }) {
+            throw GradleException(
+                "Manifest-bound confirmation output cannot emit a screening confirmation command."
+            )
+        }
+        if (confirmationTaskPath != null &&
+            confirmationReportTaskPath != null &&
+            confirmationPropertyName != null
+        ) {
+            val commandOptions = (listOf(currentOptions) + confirmationOptions)
+                .joinToString(",")
+            appendLine()
+            appendLine("```bash")
+            appendLine(
+                "./gradlew $confirmationTaskPath $confirmationReportTaskPath " +
+                    "-P$confirmationPropertyName='batchOptions=$commandOptions' --no-parallel"
+            )
+            appendLine("```")
+        }
     }
     appendLine()
 }
@@ -4675,6 +6341,141 @@ fun storageBatchTuningConfirmationSummary(
     )
 }
 
+fun requireMongoBatchOptionsPairedFrontierCandidate(
+    finalist: String,
+    orderedFrontier: List<String>,
+) {
+    requireStorageBatchTuningOption(
+        finalist,
+        "Gradle property $mongoBatchOptionsPairedFinalistProperty",
+    )
+    if (finalist !in orderedFrontier) {
+        throw GradleException(
+            "Mongo paired finalist $finalist is not in the validated screening frontier: " +
+                orderedFrontier
+        )
+    }
+}
+
+fun requireMongoBatchOptionsPairedCandidate(
+    finalist: String,
+    orderedFrontier: List<String>,
+    multipleForkVerdict: StorageBatchTuningConfirmationVerdict,
+) {
+    requireMongoBatchOptionsPairedFrontierCandidate(finalist, orderedFrontier)
+    if (multipleForkVerdict != StorageBatchTuningConfirmationVerdict.INCONCLUSIVE) {
+        throw GradleException(
+            "Mongo paired finalist $finalist requires an INCONCLUSIVE multiple-fork verdict, found " +
+                multipleForkVerdict
+        )
+    }
+}
+
+fun requireMongoBatchOptionsPairedPreflight(
+    currentJmhJarSha256: String? = null,
+): ValidatedStorageBatchTuningScreening {
+    requireMongoBatchOptionsPairedProtocol()
+    val additionalAllowedPaths = setOf(
+        benchmarkReportPath(mongoBatchOptionsTuningConfirmationReportFile.asFile),
+        benchmarkReportPath(mongoBatchOptionsPairedConfirmationReportFile.asFile),
+    )
+    val screening = validateStorageBatchTuningScreeningEvidence(
+        suite = mongoBatchOptionsTuningSuite,
+        currentJmhJarSha256 = currentJmhJarSha256,
+        additionalAllowedPaths = additionalAllowedPaths,
+    )
+    val confirmationOptions =
+        listOf(mongoCurrentStorageBatchOptions) + screening.evidence.orderedFrontier
+    val confirmationTaskSpec = mongoBatchOptionsTuningConfirmationTaskSpec.copy(
+        profile = mongoBatchOptionsTuningConfirmationProfile.copy(
+            threads = storageBatchTuningConfirmationThreads,
+            parameters = mapOf("batchOptions" to confirmationOptions.joinToString(","))
+        )
+    )
+    val confirmationReport = parseBenchmarkGroup(
+        parser = JsonSlurper(),
+        group = benchmarkResultGroup(confirmationTaskSpec),
+    )
+    requireStorageBatchTuningConfirmationSourceTransition(
+        evidence = screening.evidence,
+        suite = mongoBatchOptionsTuningSuite,
+        confirmationManifests = confirmationReport.manifests,
+        allowedAfterConfirmation = additionalAllowedPaths,
+    )
+    validateStorageBatchTuningMatrix(
+        rows = confirmationReport.rows,
+        expectedOptions = confirmationOptions,
+        expectedRefreshValues = listOf("-"),
+        expectedThreads = confirmationTaskSpec.profile.threads,
+        expectedModes = confirmationTaskSpec.profile.benchmarkModes,
+    )
+    requireStorageBatchTuningConfirmationManifestCompatibility(
+        evidence = screening.evidence,
+        screeningManifest = screening.report.manifests.single(),
+        manifests = confirmationReport.manifests,
+        source = storageBatchTuningFrontierEvidenceFile(mongoBatchOptionsTuningSuite).absolutePath,
+    )
+    requireMongoBatchOptionsPairedFrontierCandidate(
+        finalist = mongoBatchOptionsPairedFinalist,
+        orderedFrontier = screening.evidence.orderedFrontier,
+    )
+    val finalistSummary = storageBatchTuningConfirmationSummary(
+        rows = confirmationReport.rows,
+        batchOptions = mongoBatchOptionsPairedFinalist,
+        currentOptions = mongoCurrentStorageBatchOptions,
+    )
+    requireMongoBatchOptionsPairedCandidate(
+        finalist = mongoBatchOptionsPairedFinalist,
+        orderedFrontier = screening.evidence.orderedFrontier,
+        multipleForkVerdict = finalistSummary.verdict,
+    )
+    if (currentJmhJarSha256 != null) {
+        val requiredServices = mongoBatchOptionsTuningSuite.requiredServices
+        val connectedAddresses = requiredServices.associate { requiredService ->
+            requiredService.service to requireBenchmarkService(
+                requiredService.service,
+                requiredService.host,
+                requiredService.port,
+            )
+        }
+        requireCurrentBenchmarkEnvironmentCompatibility(
+            screening = screening.report.manifests.single(),
+            requiredServices = requiredServices,
+            infrastructureRuntime = captureBenchmarkInfrastructureRuntime(
+                requiredServices = requiredServices,
+                connectedAddresses = connectedAddresses,
+            ),
+            context = "Mongo paired preflight",
+        )
+    }
+    return screening
+}
+
+fun validateMongoBatchOptionsPairedPostflight(
+    screening: ValidatedStorageBatchTuningScreening,
+    experiment: MongoBatchOptionsPairedExperiment,
+) {
+    val pairedSourceCommit = experiment.manifests
+        .map(ParsedBenchmarkRunManifest::sourceCommit)
+        .distinct()
+        .single()
+    val currentHead = currentBenchmarkGitHead()
+    requireStorageBatchTuningSourceTransition(
+        sourceCommit = pairedSourceCommit,
+        targetCommit = currentHead,
+        allowedPaths = emptySet(),
+        context = "$pairedSourceCommit..$currentHead",
+    )
+    requireStorageBatchTuningConfirmationManifestCompatibility(
+        evidence = screening.evidence,
+        screeningManifest = screening.report.manifests.single(),
+        manifests = experiment.manifests,
+        source = storageBatchTuningFrontierEvidenceFile(
+            mongoBatchOptionsTuningSuite
+        ).absolutePath,
+    )
+}
+
 fun formatStorageBatchConfirmationBound(
     ratio: Double?,
     operator: String,
@@ -4707,7 +6508,10 @@ fun StringBuilder.appendStorageBatchTuningConfirmationVerdict(
             "and allocation upper bound to meet the declared margin across every workload, refresh, and " +
             "thread stratum. REGRESSION requires an opposite conservative bound to violate a margin. " +
             "Bounds combine the independent JMH score intervals; they are not a paired ratio confidence " +
-            "interval. INCONCLUSIVE requires a paired confirmation before changing the default."
+            "interval. Every INCONCLUSIVE candidate requires its own paired confirmation. This report classifies " +
+            "only the supplied options; selection closes only when they equal the complete Pareto frontier in " +
+            "the emitted order and every challenger has a final verdict. The selected default is then the " +
+            "highest-ranked PASS, or current when none pass."
     )
     appendLine()
     appendLine(
@@ -4971,6 +6775,7 @@ fun renderMongoBatchAppendPairedE2EReport(
             "(`SHA-256` over sorted `taskPath=resultSha256` lines)"
     )
     sb.appendLine()
+    sb.appendCapturedInfrastructureRuntime(manifests)
     sb.appendLine("### Artifact Evidence")
     sb.appendLine()
     sb.appendLine("| Threads | Round | Order | Position | Variant | Task | Started | Completed | Result SHA-256 |")
@@ -4989,10 +6794,6 @@ fun renderMongoBatchAppendPairedE2EReport(
     sb.appendLine("## Limitations")
     sb.appendLine()
     sb.appendLine(
-        "- Manifests capture the benchmark JVM/OS and MongoDB endpoint. Docker container/image details above are " +
-            "report-time context, not cryptographically bound run-time provenance."
-    )
-    sb.appendLine(
         "- Throughput-only legs do not identify CPU, allocation, network, or storage bottlenecks; use profiling " +
             "and production telemetry before capacity planning."
     )
@@ -5007,7 +6808,8 @@ fun renderMongoBatchOptionsPairedConfirmationReport(
     experiment: MongoBatchOptionsPairedExperiment,
 ): String {
     val command = "./gradlew :wow-benchmarks:benchmarkMongoBatchOptionsPairedConfirmation " +
-        ":wow-benchmarks:generateMongoBatchOptionsPairedConfirmationReport --no-parallel"
+        ":wow-benchmarks:generateMongoBatchOptionsPairedConfirmationReport " +
+        "-P$mongoBatchOptionsPairedFinalistProperty=$mongoBatchOptionsPairedFinalist --no-parallel"
     val manifests = experiment.manifests
     val statistics = experiment.statistics()
     val overallVerdict = classifyMongoBatchOptionsPairedExperiment(statistics)
@@ -5034,6 +6836,12 @@ fun renderMongoBatchOptionsPairedConfirmationReport(
     sb.appendLine("- **Verdict**: **$overallVerdict**")
     sb.appendLine("- **Current**: `$mongoBatchOptionsPairedCurrent`")
     sb.appendLine("- **Finalist**: `$mongoBatchOptionsPairedFinalist`")
+    sb.appendLine(
+        "- **Selection Scope**: this verdict applies only to the configured finalist. Every frontier candidate " +
+            "left `INCONCLUSIVE` by multiple-fork confirmation needs its own paired report, including candidates " +
+            "ranked below a PASS. Select the highest-ranked PASS only after all frontier candidates have final " +
+            "verdicts; if none pass, retain current."
+    )
     sb.appendLine(
         "- **Acceptance**: every workload/thread throughput and allocation safety bound must pass, and the " +
             "paired throughput lower bound for primary `representative128` must be greater than `1.0×` " +
@@ -5247,6 +7055,7 @@ fun renderMongoBatchOptionsPairedConfirmationReport(
             "(`SHA-256` over sorted `taskPath=resultSha256` lines)"
     )
     sb.appendLine()
+    sb.appendCapturedInfrastructureRuntime(manifests)
     sb.appendLine("### Stratum Run Scopes")
     sb.appendLine()
     sb.appendLine("| Workload | Threads | Run ID | Started | Completed |")
@@ -5404,6 +7213,635 @@ val verifyBenchmarkRequiredServiceManifest = tasks.register("verifyBenchmarkRequ
     }
 }
 
+val verifyBenchmarkInfrastructureManifest = tasks.register("verifyBenchmarkInfrastructureManifest") {
+    description = "Verify benchmark run-time container provenance parsing, identity, and stability rules."
+    group = "verification"
+
+    doLast {
+        val mongoRuntime = DockerContainerRuntime(
+            service = "MongoDB",
+            label = "Mongo",
+            containerName = "wow-benchmark-mongo",
+            containerId = "container-id",
+            image = "mongo:8.3.4",
+            imageId = "sha256:image-id",
+            repoDigests = listOf("mongo@sha256:digest"),
+            startedAt = "2026-07-26T01:02:03Z",
+            running = true,
+            connectedAddress = "127.0.0.1",
+            publishedPorts = listOf(
+                DockerPublishedPortBinding(27017, "tcp", "0.0.0.0", 27017)
+            ),
+            performanceConfiguration = mapOf("wiredTiger.cacheSizeGB" to "2"),
+            composeProject = "wow-benchmarks-mongo",
+            composeService = "mongo",
+            composeConfigHash = "compose-config-hash",
+            composeConfigFiles = "/workspace/wow-benchmarks/docker/compose.mongo.yml",
+            configurationSha256 = "configuration-sha256",
+        )
+        val infrastructureRuntime = BenchmarkInfrastructureRuntime(
+            capturedAt = "2026-07-26T01:02:04Z",
+            clientLocation = "host JVM",
+            dockerServer = "Server=28.0.0 CPUs=8 Memory=16.0 GiB",
+            containers = listOf(mongoRuntime),
+        )
+        val mongoService = BenchmarkRequiredService("MongoDB", "localhost", 27017)
+        requireBenchmarkContainerEndpoint(mongoRuntime, mongoService, 27017)
+        check(
+            runCatching {
+                requireBenchmarkContainerEndpoint(
+                    mongoRuntime.copy(running = false),
+                    mongoService,
+                    27017,
+                )
+            }.exceptionOrNull() is GradleException
+        )
+        check(
+            runCatching {
+                requireBenchmarkContainerEndpoint(
+                    mongoRuntime.copy(
+                        publishedPorts = listOf(
+                            DockerPublishedPortBinding(27017, "tcp", "0.0.0.0", 27018)
+                        )
+                    ),
+                    mongoService,
+                    27017,
+                )
+            }.exceptionOrNull() is GradleException
+        )
+        requireBenchmarkContainerEndpoint(
+            mongoRuntime.copy(
+                connectedAddress = "::1",
+                publishedPorts = listOf(
+                    DockerPublishedPortBinding(27017, "tcp", "::", 27017)
+                ),
+            ),
+            mongoService,
+            27017,
+        )
+        listOf(
+            mongoRuntime.copy(
+                connectedAddress = "::1",
+                publishedPorts = listOf(
+                    DockerPublishedPortBinding(27017, "tcp", "0.0.0.0", 27017)
+                ),
+            ),
+            mongoRuntime.copy(
+                connectedAddress = "127.0.0.1",
+                publishedPorts = listOf(
+                    DockerPublishedPortBinding(27017, "tcp", "::", 27017)
+                ),
+            ),
+            mongoRuntime.copy(
+                connectedAddress = "127.0.0.1",
+                publishedPorts = listOf(
+                    DockerPublishedPortBinding(27017, "tcp", "127.0.0.2", 27017)
+                ),
+            ),
+        ).forEach { mismatchedRuntime ->
+            check(
+                runCatching {
+                    requireBenchmarkContainerEndpoint(mismatchedRuntime, mongoService, 27017)
+                }.exceptionOrNull() is GradleException
+            )
+        }
+        check(
+            dockerPerformanceConfiguration(
+                service = "Elasticsearch",
+                command = emptyList(),
+                environment = listOf(
+                    "ES_JAVA_OPTS=-Xms2g -Xmx2g -Dsecret.token=do-not-persist",
+                    "BENCHMARK_PASSWORD=do-not-persist",
+                    "cluster.routing.allocation.disk.threshold_enabled=false",
+                ),
+            ) == mapOf(
+                "cluster.routing.allocation.disk.threshold_enabled" to "false",
+                "heap.initial" to "2g",
+                "heap.maximum" to "2g",
+            )
+        )
+        check(
+            dockerPerformanceConfiguration(
+                service = "MongoDB",
+                command = listOf(
+                    "mongod",
+                    "--wiredTigerCacheSizeGB",
+                    "2",
+                    "--keyFile",
+                    "do-not-persist",
+                ),
+                environment = listOf("MONGO_INITDB_ROOT_PASSWORD=do-not-persist"),
+            ) == mapOf("wiredTiger.cacheSizeGB" to "2")
+        )
+        val untrustedMarkdown = markdownCodeOrUnavailable("name` **injection**\nnext")
+        check(!untrustedMarkdown.contains('\n'))
+        check(untrustedMarkdown.startsWith("`` "))
+        val parsed = manifestInfrastructureRuntime(
+            container = mapOf("infrastructure" to infrastructureRuntime.toRunSpec()),
+            key = "infrastructure",
+            source = "verification",
+        )
+        check(parsed == infrastructureRuntime)
+        requireManifestInfrastructureIdentity(
+            actual = parsed,
+            requiredServices = listOf(BenchmarkRequiredService("MongoDB", "localhost", 27017)),
+            source = "verification",
+        )
+        check(
+            runCatching {
+                requireManifestInfrastructureIdentity(
+                    actual = parsed.copy(
+                        containers = listOf(mongoRuntime.copy(composeConfigHash = null))
+                    ),
+                    requiredServices = listOf(
+                        BenchmarkRequiredService("MongoDB", "localhost", 27017)
+                    ),
+                    source = "verification",
+                )
+            }.exceptionOrNull() is GradleException
+        )
+        validateBenchmarkInfrastructureRuntimeStability(
+            runtimes = listOf(parsed, infrastructureRuntime),
+            context = "verification",
+        )
+        val completionInfrastructureRuntime = infrastructureRuntime.copy(
+            capturedAt = "2026-07-26T01:12:04Z"
+        )
+        validateBenchmarkInfrastructureRuntimeWindow(
+            started = infrastructureRuntime,
+            completed = completionInfrastructureRuntime,
+            requiredServices = listOf(BenchmarkRequiredService("MongoDB", "localhost", 27017)),
+            context = "verification",
+        )
+        val changedConfiguration = infrastructureRuntime.copy(
+            capturedAt = "2026-07-26T01:12:04Z",
+            containers = listOf(
+                mongoRuntime.copy(configurationSha256 = "different-configuration-sha256")
+            )
+        )
+        check(
+            runCatching {
+                validateBenchmarkInfrastructureRuntimeWindow(
+                    started = infrastructureRuntime,
+                    completed = changedConfiguration,
+                    requiredServices = listOf(
+                        BenchmarkRequiredService("MongoDB", "localhost", 27017)
+                    ),
+                    context = "verification",
+                )
+            }.exceptionOrNull() is GradleException
+        )
+        listOf(
+            mongoRuntime.copy(imageId = "sha256:different-image-id"),
+            mongoRuntime.copy(connectedAddress = "127.0.0.2"),
+            mongoRuntime.copy(
+                publishedPorts = listOf(
+                    DockerPublishedPortBinding(27017, "tcp", "127.0.0.1", 27017)
+                )
+            ),
+        ).forEach { changedRuntime ->
+            check(
+                runCatching {
+                    validateBenchmarkInfrastructureRuntimeStability(
+                        runtimes = listOf(
+                            infrastructureRuntime,
+                            infrastructureRuntime.copy(containers = listOf(changedRuntime)),
+                        ),
+                        context = "verification",
+                    )
+                }.exceptionOrNull() is GradleException
+            )
+        }
+        val executionIdentity = benchmarkExecutionEnvironmentIdentity(
+            javaVersion = "17",
+            vmName = "OpenJDK",
+            vmVersion = "17.0.1",
+            osName = "TestOS",
+            osVersion = "1",
+            osArch = "aarch64",
+            availableProcessors = 8,
+            physicalMemoryBytes = 16L * 1024 * 1024 * 1024,
+        )
+        requireBenchmarkExecutionEnvironmentCompatibility(
+            executionIdentity,
+            executionIdentity,
+            "verification",
+        )
+        check(
+            runCatching {
+                requireBenchmarkExecutionEnvironmentCompatibility(
+                    executionIdentity,
+                    executionIdentity + ("osVersion" to "2"),
+                    "verification",
+                )
+            }.exceptionOrNull() is GradleException
+        )
+        check(manifestInt(mapOf("value" to 2.0), "value", "verification") == 2)
+        check(
+            runCatching {
+                manifestInt(mapOf("value" to 2.5), "value", "verification")
+            }.exceptionOrNull() is GradleException
+        )
+        check(
+            runCatching {
+                manifestInt(mapOf("value" to Double.NaN), "value", "verification")
+            }.exceptionOrNull() is GradleException
+        )
+        check(
+            runCatching {
+                manifestInt(
+                    mapOf("value" to Int.MAX_VALUE.toLong() + 1),
+                    "value",
+                    "verification",
+                )
+            }.exceptionOrNull() is GradleException
+        )
+        check(
+            runCatching {
+                validateBenchmarkInfrastructureRuntimeWindow(
+                    started = infrastructureRuntime,
+                    completed = infrastructureRuntime.copy(
+                        capturedAt = "2026-07-26T00:52:04Z"
+                    ),
+                    requiredServices = listOf(
+                        BenchmarkRequiredService("MongoDB", "localhost", 27017)
+                    ),
+                    context = "verification",
+                )
+            }.exceptionOrNull() is GradleException
+        )
+        val redisRuntime = mongoRuntime.copy(
+            service = "Redis",
+            label = "Redis",
+            containerName = "wow-benchmark-redis",
+            image = "redis:7.4.9-alpine",
+            imageId = "sha256:redis-image-id",
+            repoDigests = listOf("redis@sha256:digest"),
+            connectedAddress = "127.0.0.1",
+            publishedPorts = listOf(
+                DockerPublishedPortBinding(6379, "tcp", "0.0.0.0", 6379)
+            ),
+            performanceConfiguration = emptyMap(),
+            composeProject = "wow-benchmarks-redis",
+            composeService = "redis",
+            composeConfigHash = "redis-compose-config-hash",
+            composeConfigFiles = "/workspace/wow-benchmarks/docker/compose.redis.yml",
+            configurationSha256 = "redis-configuration-sha256",
+        )
+        val orderedServices = listOf(
+            BenchmarkRequiredService("Redis", "localhost", 6379),
+            BenchmarkRequiredService("MongoDB", "localhost", 27017),
+        )
+        requireManifestInfrastructureIdentity(
+            actual = infrastructureRuntime.copy(containers = listOf(redisRuntime, mongoRuntime)),
+            requiredServices = orderedServices,
+            source = "verification",
+        )
+        check(
+            runCatching {
+                requireManifestInfrastructureIdentity(
+                    actual = infrastructureRuntime.copy(
+                        containers = listOf(mongoRuntime, redisRuntime)
+                    ),
+                    requiredServices = orderedServices,
+                    source = "verification",
+                )
+            }.exceptionOrNull() is GradleException
+        )
+        check(
+            runCatching {
+                requireManifestInfrastructureIdentity(
+                    actual = infrastructureRuntime.copy(containers = emptyList()),
+                    requiredServices = listOf(BenchmarkRequiredService("MongoDB", "localhost", 27017)),
+                    source = "verification",
+                )
+            }.exceptionOrNull() is GradleException
+        )
+        requireManifestInfrastructureIdentity(
+            actual = BenchmarkInfrastructureRuntime(
+                capturedAt = "2026-07-26T01:02:04Z",
+                clientLocation = "host JVM",
+                dockerServer = null,
+                containers = emptyList(),
+            ),
+            requiredServices = listOf(BenchmarkRequiredService("MongoDB", "mongo.internal", 27017)),
+            source = "verification",
+        )
+        val incomplete = infrastructureRuntime.toRunSpec().toMutableMap().also { rawInfrastructure ->
+            @Suppress("UNCHECKED_CAST")
+            val rawContainers = rawInfrastructure.getValue("containers") as List<Map<String, Any?>>
+            rawInfrastructure["containers"] = listOf(
+                rawContainers.single().toMutableMap().also { rawContainer ->
+                    rawContainer.remove("configurationSha256")
+                }
+            )
+        }
+        check(
+            runCatching {
+                manifestInfrastructureRuntime(
+                    container = mapOf("infrastructure" to incomplete),
+                    key = "infrastructure",
+                    source = "verification",
+                )
+            }.exceptionOrNull() is GradleException
+        )
+    }
+}
+
+val verifyStorageBatchTuningParetoSelection = tasks.register("verifyStorageBatchTuningParetoSelection") {
+    description = "Verify deterministic, complete Pareto selection for storage batch confirmation."
+    group = "verification"
+
+    doLast {
+        fun candidate(
+            options: String,
+            primaryRepresentativeRatio: Double,
+            preferredRefreshSaturatedRatio: Double,
+            worstSaturatedRatio: Double,
+            worstGuardRatio: Double,
+            worstAllocationRatio: Double,
+            eligible: Boolean = true,
+        ): StorageBatchTuningCandidateSummary {
+            val optionMatch = checkNotNull(storageBatchTuningOptionFormat.matchEntire(options))
+            return StorageBatchTuningCandidateSummary(
+                batchOptions = options,
+                maxSize = optionMatch.groupValues[1].toInt(),
+                maxDelayMicros = optionMatch.groupValues[2].toLong(),
+                primaryRepresentativeRatio = primaryRepresentativeRatio,
+                worstSaturatedRatio = worstSaturatedRatio,
+                worstGuardRatio = worstGuardRatio,
+                worstAllocationRatio = worstAllocationRatio,
+                preferredRefreshSaturatedRatio = preferredRefreshSaturatedRatio,
+                eligible = eligible,
+            )
+        }
+        val current = candidate("128x1000us", 1.0, 0.99, 0.99, 1.0, 1.0)
+        val primaryLeader = candidate("192x150us", 1.14, 0.95, 0.95, 1.14, 1.04)
+        val balanced = candidate("256x200us", 1.08, 0.99, 0.99, 1.08, 1.03)
+        val saturationLeader = candidate("512x375us", 0.94, 1.0, 1.0, 0.94, 1.03)
+        val dominated = candidate("192x250us", 1.02, 0.96, 0.96, 1.02, 1.04)
+        val rejected = candidate("1024x4000us", 1.50, 1.0, 1.0, 1.50, 1.50, eligible = false)
+        val summaries = listOf(
+            dominated,
+            current,
+            saturationLeader,
+            rejected,
+            balanced,
+            primaryLeader,
+        )
+        val frontier = storageBatchTuningParetoCandidates(
+            summaries = summaries,
+            currentOptions = current.batchOptions,
+        )
+        check(frontier.map(StorageBatchTuningCandidateSummary::batchOptions) == listOf(
+            "192x150us",
+            "256x200us",
+            "512x375us",
+        ))
+        check(storageBatchTuningCandidateDominates(balanced, dominated))
+        check(!storageBatchTuningCandidateDominates(primaryLeader, balanced))
+        val orderedFrontier = frontier.map(StorageBatchTuningCandidateSummary::batchOptions)
+        val payload = storageBatchTuningFrontierEvidencePayload(
+            suite = mongoBatchOptionsTuningSuite.id,
+            currentOptions = current.batchOptions,
+            orderedFrontier = orderedFrontier,
+            sourceCommit = "screening-source-commit",
+            jmhJarSha256 = "jmh-jar-sha256",
+            benchmarkHarnessSha256 = "benchmark-harness-sha256",
+            resultSha256 = "screening-result-sha256",
+            manifestSha256 = "screening-manifest-sha256",
+        )
+        val evidence = StorageBatchTuningFrontierEvidence(
+            suite = mongoBatchOptionsTuningSuite.id,
+            currentOptions = current.batchOptions,
+            orderedFrontier = orderedFrontier,
+            sourceCommit = "screening-source-commit",
+            jmhJarSha256 = "jmh-jar-sha256",
+            benchmarkHarnessSha256 = "benchmark-harness-sha256",
+            resultSha256 = "screening-result-sha256",
+            manifestSha256 = "screening-manifest-sha256",
+            evidenceSha256 = sha256Text(JsonOutput.toJson(payload)),
+        )
+        val confirmationOptions = listOf(current.batchOptions) + orderedFrontier
+        check(
+            runCatching {
+                validateStorageBatchTuningExecution(
+                    suite = mongoBatchOptionsTuningSuite,
+                    profile = storageBatchTuningConfirmationProfile.copy(
+                        threads = listOf(1),
+                        parameters = mapOf(
+                            "batchOptions" to confirmationOptions.joinToString(",")
+                        ),
+                    ),
+                )
+            }.exceptionOrNull() is GradleException
+        )
+        requireStorageBatchTuningConfirmationOptions(
+            options = confirmationOptions,
+            suiteId = mongoBatchOptionsTuningSuite.id,
+            currentOptions = current.batchOptions,
+            evidence = evidence,
+            source = "verification",
+        )
+        listOf(
+            confirmationOptions.dropLast(1),
+            confirmationOptions + "1024x1000us",
+            confirmationOptions.reversed(),
+        ).forEach { invalidOptions ->
+            check(
+                runCatching {
+                    requireStorageBatchTuningConfirmationOptions(
+                        options = invalidOptions,
+                        suiteId = mongoBatchOptionsTuningSuite.id,
+                        currentOptions = current.batchOptions,
+                        evidence = evidence,
+                        source = "verification",
+                    )
+                }.exceptionOrNull() is GradleException
+            )
+        }
+        requireStorageBatchTuningEvidenceCompatibility(
+            evidence = evidence,
+            currentJmhJarSha256 = evidence.jmhJarSha256,
+            currentBenchmarkHarnessSha256 = evidence.benchmarkHarnessSha256,
+            source = "verification",
+        )
+        check(
+            runCatching {
+                requireStorageBatchTuningEvidenceCompatibility(
+                    evidence = evidence,
+                    currentJmhJarSha256 = "different-jmh-jar",
+                    currentBenchmarkHarnessSha256 = evidence.benchmarkHarnessSha256,
+                    source = "verification",
+                )
+            }.exceptionOrNull() is GradleException
+        )
+        check(
+            runCatching {
+                requireStorageBatchTuningEvidenceCompatibility(
+                    evidence = evidence,
+                    currentJmhJarSha256 = evidence.jmhJarSha256,
+                    currentBenchmarkHarnessSha256 = "different-harness",
+                    source = "verification",
+                )
+            }.exceptionOrNull() is GradleException
+        )
+        requireStorageBatchTuningSourceTransition(
+            sourceIsHeadAncestor = true,
+            changedPaths = setOf("tuning.md", "frontier.json"),
+            allowedPaths = setOf("tuning.md", "frontier.json"),
+            source = "verification",
+        )
+        check(
+            parseGitNullSeparatedPaths("report\nname.md\u0000frontier.json\u0000") ==
+                setOf("report\nname.md", "frontier.json")
+        )
+        check(
+            parseGitNullSeparatedPaths(
+                runCommand(
+                    listOf("printf", " leading.md\\000trailing .md\\000"),
+                    trimOutput = false,
+                ).also { output ->
+                    check(output.exitCode == 0)
+                }.output
+            ) == setOf(" leading.md", "trailing .md")
+        )
+        check(parseGitNullSeparatedPaths("frontier.json") == setOf("frontier.json"))
+        requireStorageBatchTuningScanParameters(
+            mapOf("batchOptions" to confirmationOptions.joinToString(",")),
+            "verification",
+        )
+        check(
+            runCatching {
+                requireStorageBatchTuningScanParameters(
+                    mapOf(
+                        "batchOptions" to confirmationOptions.joinToString(","),
+                        "unregisteredParameter" to "value",
+                    ),
+                    "verification",
+                )
+            }.exceptionOrNull() is GradleException
+        )
+        listOf(
+            false to setOf("tuning.md"),
+            true to setOf("src/main/kotlin/Changed.kt"),
+        ).forEach { (isAncestor, changedPaths) ->
+            check(
+                runCatching {
+                    requireStorageBatchTuningSourceTransition(
+                        sourceIsHeadAncestor = isAncestor,
+                        changedPaths = changedPaths,
+                        allowedPaths = setOf("tuning.md", "frontier.json"),
+                        source = "verification",
+                    )
+                }.exceptionOrNull() is GradleException
+            )
+        }
+        val rawResultFile = File(temporaryDir, "screening-result.json").apply {
+            writeText("[{\"score\":1}]")
+        }
+        val rawManifestFile = File(temporaryDir, "screening.manifest.json").apply {
+            writeText("{\"status\":\"SUCCESS\"}")
+        }
+        val artifactPayload = storageBatchTuningFrontierEvidencePayload(
+            suite = evidence.suite,
+            currentOptions = evidence.currentOptions,
+            orderedFrontier = evidence.orderedFrontier,
+            sourceCommit = evidence.sourceCommit,
+            jmhJarSha256 = evidence.jmhJarSha256,
+            benchmarkHarnessSha256 = evidence.benchmarkHarnessSha256,
+            resultSha256 = fileSha256(rawResultFile),
+            manifestSha256 = fileSha256(rawManifestFile),
+        )
+        val artifactEvidence = evidence.copy(
+            resultSha256 = artifactPayload.getValue("resultSha256") as String,
+            manifestSha256 = artifactPayload.getValue("manifestSha256") as String,
+            evidenceSha256 = sha256Text(JsonOutput.toJson(artifactPayload)),
+        )
+        requireStorageBatchTuningArtifactHashes(
+            artifactEvidence,
+            rawResultFile,
+            rawManifestFile,
+            "verification",
+        )
+        rawResultFile.appendText(" ")
+        check(
+            runCatching {
+                requireStorageBatchTuningArtifactHashes(
+                    artifactEvidence,
+                    rawResultFile,
+                    rawManifestFile,
+                    "verification",
+                )
+            }.exceptionOrNull() is GradleException
+        )
+        rawResultFile.writeText("[{\"score\":1}]")
+        rawManifestFile.appendText(" ")
+        check(
+            runCatching {
+                requireStorageBatchTuningArtifactHashes(
+                    artifactEvidence,
+                    rawResultFile,
+                    rawManifestFile,
+                    "verification",
+                )
+            }.exceptionOrNull() is GradleException
+        )
+        rawManifestFile.delete()
+        check(
+            runCatching {
+                requireStorageBatchTuningArtifactHashes(
+                    artifactEvidence,
+                    rawResultFile,
+                    rawManifestFile,
+                    "verification",
+                )
+            }.exceptionOrNull() is GradleException
+        )
+        val evidenceFile = File(temporaryDir, "frontier.json")
+        writePrettyJson(evidenceFile, evidence.toRunSpec())
+        check(parseStorageBatchTuningFrontierEvidence(evidenceFile) == evidence)
+        writePrettyJson(
+            evidenceFile,
+            evidence.toRunSpec().toMutableMap().also { rawEvidence ->
+                rawEvidence["orderedFrontier"] = orderedFrontier.dropLast(1)
+            },
+        )
+        check(
+            runCatching {
+                parseStorageBatchTuningFrontierEvidence(evidenceFile)
+            }.exceptionOrNull() is GradleException
+        )
+        val tamperedFrontier = orderedFrontier.dropLast(1)
+        val tamperedPayload = storageBatchTuningFrontierEvidencePayload(
+            suite = evidence.suite,
+            currentOptions = evidence.currentOptions,
+            orderedFrontier = tamperedFrontier,
+            sourceCommit = evidence.sourceCommit,
+            jmhJarSha256 = evidence.jmhJarSha256,
+            benchmarkHarnessSha256 = evidence.benchmarkHarnessSha256,
+            resultSha256 = evidence.resultSha256,
+            manifestSha256 = evidence.manifestSha256,
+        )
+        val rehashedTamperedEvidence = evidence.copy(
+            orderedFrontier = tamperedFrontier,
+            evidenceSha256 = sha256Text(JsonOutput.toJson(tamperedPayload)),
+        )
+        writePrettyJson(evidenceFile, rehashedTamperedEvidence.toRunSpec())
+        check(parseStorageBatchTuningFrontierEvidence(evidenceFile) == rehashedTamperedEvidence)
+        check(
+            runCatching {
+                requireManifestValue(
+                    rehashedTamperedEvidence,
+                    evidence,
+                    "recomputed screening frontier evidence",
+                    "verification",
+                )
+            }.exceptionOrNull() is GradleException
+        )
+    }
+}
+
 fun requireApproximatelyEqual(
     actual: Double,
     expected: Double,
@@ -5547,6 +7985,42 @@ val verifyMongoBatchOptionsPairedStatistics = tasks.register("verifyMongoBatchOp
     group = "verification"
 
     doLast {
+        if (mongoBatchOptionsPairedConfiguredFinalist == null) {
+            check(
+                runCatching { requireMongoBatchOptionsPairedProtocol() }
+                    .exceptionOrNull() is GradleException
+            )
+        } else {
+            requireMongoBatchOptionsPairedProtocol()
+        }
+        val verifiedFrontier = listOf("192x150us", "256x200us")
+        requireMongoBatchOptionsPairedCandidate(
+            finalist = "192x150us",
+            orderedFrontier = verifiedFrontier,
+            multipleForkVerdict = StorageBatchTuningConfirmationVerdict.INCONCLUSIVE,
+        )
+        listOf(
+            Triple("512x250us", StorageBatchTuningConfirmationVerdict.INCONCLUSIVE, "outside frontier"),
+            Triple("192x150us", StorageBatchTuningConfirmationVerdict.PASS, "already PASS"),
+            Triple("192x150us", StorageBatchTuningConfirmationVerdict.REGRESSION, "already REGRESSION"),
+            Triple("", StorageBatchTuningConfirmationVerdict.INCONCLUSIVE, "empty"),
+            Triple("128x1000us", StorageBatchTuningConfirmationVerdict.INCONCLUSIVE, "current"),
+            Triple(
+                "999999999999999999999x150us",
+                StorageBatchTuningConfirmationVerdict.INCONCLUSIVE,
+                "integer overflow",
+            ),
+        ).forEach { (finalist, verdict, _) ->
+            check(
+                runCatching {
+                    requireMongoBatchOptionsPairedCandidate(
+                        finalist = finalist,
+                        orderedFrontier = verifiedFrontier,
+                        multipleForkVerdict = verdict,
+                    )
+                }.exceptionOrNull() is GradleException
+            )
+        }
         fun observations(
             workload: MongoBatchOptionsPairedWorkload,
             threads: Int,
@@ -5710,6 +8184,17 @@ val verifyMongoBatchOptionsPairedStatistics = tasks.register("verifyMongoBatchOp
         check(
             mongoBatchOptionsPairedTrials.all { trial ->
                 trial.taskSpec.profile.parameters["batchOptions"] == trial.variant.batchOptions
+            }
+        )
+        check(
+            mongoBatchOptionsPairedTrials.all { trial ->
+                trial.taskSpec.suite.runMetadata["protocolVersion"] ==
+                    mongoBatchOptionsPairedProtocolVersion &&
+                    trial.taskSpec.suite.runMetadata["currentBatchOptions"] ==
+                    mongoBatchOptionsPairedCurrent &&
+                    trial.taskSpec.suite.runMetadata["finalistBatchOptions"] ==
+                    mongoBatchOptionsPairedFinalist &&
+                    trial.taskSpec.suite.runMetadata["batchOptions"] == trial.variant.batchOptions
             }
         )
         check(
@@ -5938,6 +8423,8 @@ val verifyMongoBatchOptionsPairedStatistics = tasks.register("verifyMongoBatchOp
 tasks.named("check") {
     dependsOn(verifyBenchmarkReportFormatting)
     dependsOn(verifyBenchmarkRequiredServiceManifest)
+    dependsOn(verifyBenchmarkInfrastructureManifest)
+    dependsOn(verifyStorageBatchTuningParetoSelection)
     dependsOn(verifyMongoBatchPairedStatistics)
     dependsOn(verifyMongoBatchOptionsPairedStatistics)
 }
@@ -6177,7 +8664,10 @@ fun renderGroupedBenchmarkReport(
         sb.appendLine()
         group.resultFiles.forEach { resultFile ->
             val file = resultFile.resultFile.get().asFile
-            sb.appendLine("- **threads=${resultFile.threads} Result File**: `${benchmarkReportPath(file)}`")
+            sb.appendLine(
+                "- **threads=${resultFile.threads} Result File**: " +
+                    markdownCodeOrUnavailable(benchmarkReportPath(file))
+            )
             if (file.exists()) {
                 sb.appendLine("  - Last Modified: ${Instant.ofEpochMilli(file.lastModified())}")
             }
@@ -6268,7 +8758,10 @@ fun renderBottleneckBenchmarkReport(
     sb.appendLine()
     group.resultFiles.forEach { resultFile ->
         val file = resultFile.resultFile.get().asFile
-        sb.appendLine("- **threads=${resultFile.threads} Result File**: `${benchmarkReportPath(file)}`")
+        sb.appendLine(
+            "- **threads=${resultFile.threads} Result File**: " +
+                markdownCodeOrUnavailable(benchmarkReportPath(file))
+        )
         if (file.exists()) {
             sb.appendLine("  - Last Modified: ${Instant.ofEpochMilli(file.lastModified())}")
         }
@@ -6467,6 +8960,7 @@ tasks.register("generateMongoBatchOptionsTuningReport") {
     group = "benchmark"
     mustRunAfter("benchmarkTuneMongoBatchOptions")
     outputs.file(mongoBatchOptionsTuningReportFile)
+    outputs.file(mongoBatchOptionsFrontierEvidenceFile)
     outputs.upToDateWhen { false }
 
     doLast {
@@ -6493,6 +8987,10 @@ tasks.register("generateMongoBatchOptionsTuningReport") {
                     expectedModes = mongoBatchOptionsTuningProfile.benchmarkModes,
                     currentOptions = mongoCurrentStorageBatchOptions,
                     preferredRefresh = "-",
+                    confirmationTaskPath = ":wow-benchmarks:benchmarkConfirmMongoBatchOptions",
+                    confirmationReportTaskPath =
+                        ":wow-benchmarks:generateMongoBatchOptionsTuningConfirmationReport",
+                    confirmationPropertyName = "benchmarkConfirmMongoBatchOptionsParameters",
                 )
             },
         )
@@ -6500,6 +8998,31 @@ tasks.register("generateMongoBatchOptionsTuningReport") {
         val outputFile = mongoBatchOptionsTuningReportFile.asFile
         outputFile.parentFile.mkdirs()
         outputFile.writeText(report)
+        val resultGroup = benchmarkResultGroup(mongoBatchOptionsTuningTaskSpec)
+        val groupReport = parseBenchmarkGroup(
+            parser = JsonSlurper(),
+            group = resultGroup,
+        )
+        val manifestFile = resultGroup.resultFiles.singleOrNull()?.manifestFile?.get()?.asFile
+            ?: throw GradleException(
+                "Mongo batch-options frontier evidence requires exactly one screening manifest."
+            )
+        val frontierEvidence = storageBatchTuningFrontierEvidence(
+            suite = mongoBatchOptionsTuningSuite,
+            rows = groupReport.rows,
+            expectedOptions = storageBatchTuningOptions(mongoBatchOptionsTuningProfile),
+            currentOptions = mongoCurrentStorageBatchOptions,
+            preferredRefresh = "-",
+            manifests = groupReport.manifests,
+            benchmarkHarnessSha256 = fileSha256(
+                layout.projectDirectory.file("gradle/benchmarking.gradle.kts").asFile
+            ),
+            manifestSha256 = fileSha256(manifestFile),
+        )
+        publishJsonAtomically(
+            mongoBatchOptionsFrontierEvidenceFile.asFile,
+            frontierEvidence.toRunSpec(),
+        )
         logger.lifecycle("Mongo batch options tuning report generated: ${outputFile.absolutePath}")
     }
 }
@@ -6509,6 +9032,7 @@ tasks.register("generateElasticsearchBatchOptionsTuningReport") {
     group = "benchmark"
     mustRunAfter("benchmarkTuneElasticsearchBatchOptions")
     outputs.file(elasticsearchBatchOptionsTuningReportFile)
+    outputs.file(elasticsearchBatchOptionsFrontierEvidenceFile)
     outputs.upToDateWhen { false }
 
     doLast {
@@ -6535,6 +9059,10 @@ tasks.register("generateElasticsearchBatchOptionsTuningReport") {
                     expectedModes = elasticsearchBatchOptionsTuningProfile.benchmarkModes,
                     currentOptions = elasticsearchCurrentStorageBatchOptions,
                     preferredRefresh = "True",
+                    confirmationTaskPath = ":wow-benchmarks:benchmarkConfirmElasticsearchBatchOptions",
+                    confirmationReportTaskPath =
+                        ":wow-benchmarks:generateElasticsearchBatchOptionsTuningConfirmationReport",
+                    confirmationPropertyName = "benchmarkConfirmElasticsearchBatchOptionsParameters",
                 )
             },
         )
@@ -6542,6 +9070,31 @@ tasks.register("generateElasticsearchBatchOptionsTuningReport") {
         val outputFile = elasticsearchBatchOptionsTuningReportFile.asFile
         outputFile.parentFile.mkdirs()
         outputFile.writeText(report)
+        val resultGroup = benchmarkResultGroup(elasticsearchBatchOptionsTuningTaskSpec)
+        val groupReport = parseBenchmarkGroup(
+            parser = JsonSlurper(),
+            group = resultGroup,
+        )
+        val manifestFile = resultGroup.resultFiles.singleOrNull()?.manifestFile?.get()?.asFile
+            ?: throw GradleException(
+                "Elasticsearch batch-options frontier evidence requires exactly one screening manifest."
+            )
+        val frontierEvidence = storageBatchTuningFrontierEvidence(
+            suite = elasticsearchBatchOptionsTuningSuite,
+            rows = groupReport.rows,
+            expectedOptions = storageBatchTuningOptions(elasticsearchBatchOptionsTuningProfile),
+            currentOptions = elasticsearchCurrentStorageBatchOptions,
+            preferredRefresh = "True",
+            manifests = groupReport.manifests,
+            benchmarkHarnessSha256 = fileSha256(
+                layout.projectDirectory.file("gradle/benchmarking.gradle.kts").asFile
+            ),
+            manifestSha256 = fileSha256(manifestFile),
+        )
+        publishJsonAtomically(
+            elasticsearchBatchOptionsFrontierEvidenceFile.asFile,
+            frontierEvidence.toRunSpec(),
+        )
         logger.lifecycle("Elasticsearch batch options tuning report generated: ${outputFile.absolutePath}")
     }
 }
@@ -6554,14 +9107,29 @@ tasks.register("generateMongoBatchOptionsTuningConfirmationReport") {
     outputs.upToDateWhen { false }
 
     doLast {
-        validateStorageBatchTuningExecution(
+        val screening = checkNotNull(validateStorageBatchTuningExecution(
             mongoBatchOptionsTuningSuite,
             mongoBatchOptionsTuningConfirmationProfile,
+        ))
+        val frontierEvidenceFile = mongoBatchOptionsFrontierEvidenceFile.asFile
+        val frontierEvidence = screening.evidence
+        val confirmationGroup = benchmarkResultGroup(mongoBatchOptionsTuningConfirmationTaskSpec)
+        val confirmationManifests = parseBenchmarkGroup(JsonSlurper(), confirmationGroup).manifests
+        requireStorageBatchTuningConfirmationSourceTransition(
+            evidence = frontierEvidence,
+            suite = mongoBatchOptionsTuningSuite,
+            confirmationManifests = confirmationManifests,
+        )
+        requireStorageBatchTuningConfirmationManifestCompatibility(
+            evidence = frontierEvidence,
+            screeningManifest = screening.report.manifests.single(),
+            manifests = confirmationManifests,
+            source = frontierEvidenceFile.absolutePath,
         )
         val parameters = mongoBatchOptionsTuningConfirmationProfile.parameters.entries
             .joinToString(";") { (name, value) -> "$name=$value" }
         val report = renderSingleBenchmarkReport(
-            group = benchmarkResultGroup(mongoBatchOptionsTuningConfirmationTaskSpec),
+            group = confirmationGroup,
             title = "Confirmation Mongo EventStore Batch Options Report",
             command = "./gradlew :wow-benchmarks:benchmarkConfirmMongoBatchOptions " +
                 ":wow-benchmarks:generateMongoBatchOptionsTuningConfirmationReport " +
@@ -6580,6 +9148,7 @@ tasks.register("generateMongoBatchOptionsTuningConfirmationReport") {
                     expectedModes = mongoBatchOptionsTuningConfirmationProfile.benchmarkModes,
                     currentOptions = mongoCurrentStorageBatchOptions,
                     preferredRefresh = "-",
+                    boundConfirmationEvidence = frontierEvidence,
                 )
                 appendStorageBatchTuningConfirmationVerdict(
                     rows = rows,
@@ -6606,14 +9175,30 @@ tasks.register("generateElasticsearchBatchOptionsTuningConfirmationReport") {
     outputs.upToDateWhen { false }
 
     doLast {
-        validateStorageBatchTuningExecution(
+        val screening = checkNotNull(validateStorageBatchTuningExecution(
             elasticsearchBatchOptionsTuningSuite,
             elasticsearchBatchOptionsTuningConfirmationProfile,
+        ))
+        val frontierEvidenceFile = elasticsearchBatchOptionsFrontierEvidenceFile.asFile
+        val frontierEvidence = screening.evidence
+        val confirmationGroup =
+            benchmarkResultGroup(elasticsearchBatchOptionsTuningConfirmationTaskSpec)
+        val confirmationManifests = parseBenchmarkGroup(JsonSlurper(), confirmationGroup).manifests
+        requireStorageBatchTuningConfirmationSourceTransition(
+            evidence = frontierEvidence,
+            suite = elasticsearchBatchOptionsTuningSuite,
+            confirmationManifests = confirmationManifests,
+        )
+        requireStorageBatchTuningConfirmationManifestCompatibility(
+            evidence = frontierEvidence,
+            screeningManifest = screening.report.manifests.single(),
+            manifests = confirmationManifests,
+            source = frontierEvidenceFile.absolutePath,
         )
         val parameters = elasticsearchBatchOptionsTuningConfirmationProfile.parameters.entries
             .joinToString(";") { (name, value) -> "$name=$value" }
         val report = renderSingleBenchmarkReport(
-            group = benchmarkResultGroup(elasticsearchBatchOptionsTuningConfirmationTaskSpec),
+            group = confirmationGroup,
             title = "Confirmation Elasticsearch EventStore Batch Options Report",
             command = "./gradlew :wow-benchmarks:benchmarkConfirmElasticsearchBatchOptions " +
                 ":wow-benchmarks:generateElasticsearchBatchOptionsTuningConfirmationReport " +
@@ -6634,6 +9219,7 @@ tasks.register("generateElasticsearchBatchOptionsTuningConfirmationReport") {
                     expectedModes = elasticsearchBatchOptionsTuningConfirmationProfile.benchmarkModes,
                     currentOptions = elasticsearchCurrentStorageBatchOptions,
                     preferredRefresh = "True",
+                    boundConfirmationEvidence = frontierEvidence,
                 )
                 appendStorageBatchTuningConfirmationVerdict(
                     rows = rows,
@@ -6681,7 +9267,9 @@ tasks.register("generateMongoBatchOptionsPairedConfirmationReport") {
     outputs.upToDateWhen { false }
 
     doLast {
+        val screening = requireMongoBatchOptionsPairedPreflight()
         val experiment = parseMongoBatchOptionsPairedExperiment()
+        validateMongoBatchOptionsPairedPostflight(screening, experiment)
         val report = renderMongoBatchOptionsPairedConfirmationReport(experiment)
         val outputFile = mongoBatchOptionsPairedConfirmationReportFile.asFile
         outputFile.parentFile.mkdirs()
@@ -6983,7 +9571,7 @@ fun parseBaselineComparisonRows(baselineFile: File): Map<String, BenchmarkCompar
                 "Regenerate it with :wow-benchmarks:updateBenchmarkBaseline."
         )
     val source = baselineFile.absolutePath
-    val schemaVersion = (parsed["schemaVersion"] as? Number)?.toInt()
+    val schemaVersion = runCatching { manifestInt(parsed, "schemaVersion", source) }.getOrNull()
     if (schemaVersion != benchmarkBaselineSchemaVersion) {
         throw GradleException(
             "Benchmark baseline schema is incompatible: expected $benchmarkBaselineSchemaVersion, " +
