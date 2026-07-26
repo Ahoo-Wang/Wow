@@ -221,10 +221,13 @@ fun parseBenchmarkParameters(propertyName: String, value: String): Map<String, S
     return parameters
 }
 
-fun benchmarkParametersProperty(propertyName: String): Map<String, String> {
+fun benchmarkParametersProperty(
+    propertyName: String,
+    defaultParameters: Map<String, String> = emptyMap(),
+): Map<String, String> {
     return providers.gradleProperty(propertyName)
         .map { value -> parseBenchmarkParameters(propertyName, value) }
-        .getOrElse(emptyMap())
+        .getOrElse(defaultParameters)
 }
 
 fun benchmarkModesProperty(propertyName: String, defaultModes: List<String>): List<String> {
@@ -438,6 +441,83 @@ val confirmationElasticsearchBatchAppendProfile = baselineInfrastructureProfile.
     threads = benchmarkThreadsProperty("benchmarkConfirmElasticsearchBatchThreads", listOf(1, 4)),
 )
 
+val storageBatchTuningOptions = listOf(16, 32, 64, 128, 256, 512)
+    .flatMap { maxSize ->
+        listOf(250, 500, 1000, 2000, 4000).map { maxDelayMicros ->
+            "${maxSize}x${maxDelayMicros}us"
+        }
+    }
+    .joinToString(",")
+
+val mongoCurrentStorageBatchOptions = "128x1000us"
+val elasticsearchCurrentStorageBatchOptions = "128x1000us"
+val allowDirtyStorageBatchTuning = providers.gradleProperty("benchmarkAllowDirtyStorageBatchTuning")
+    .map { value ->
+        value.toBooleanStrictOrNull()
+            ?: throw GradleException(
+                "Gradle property benchmarkAllowDirtyStorageBatchTuning must be true or false: $value"
+            )
+    }
+    .getOrElse(false)
+
+val storageBatchTuningScanProfile = BenchmarkRunProfile(
+    id = "tuning-scan",
+    warmupIterations = 1,
+    warmupTime = "1s",
+    measurementIterations = 2,
+    measurementTime = "2s",
+    forks = 1,
+    threads = listOf(1),
+    benchmarkModes = listOf("thrpt"),
+    jvmArgs = quickBenchmarkJvmArgs,
+    includeGcProfiler = true,
+    includeAsyncProfiler = false,
+)
+
+val mongoBatchOptionsTuningProfile = storageBatchTuningScanProfile.copy(
+    parameters = benchmarkParametersProperty(
+        "benchmarkTuneMongoBatchOptionsParameters",
+        mapOf("batchOptions" to storageBatchTuningOptions),
+    ),
+)
+
+val elasticsearchBatchOptionsTuningProfile = storageBatchTuningScanProfile.copy(
+    parameters = benchmarkParametersProperty(
+        "benchmarkTuneElasticsearchBatchOptionsParameters",
+        mapOf("batchOptions" to storageBatchTuningOptions),
+    ),
+)
+
+val storageBatchTuningConfirmationProfile = BenchmarkRunProfile(
+    id = "tuning-confirmation",
+    warmupIterations = 2,
+    warmupTime = "3s",
+    measurementIterations = 3,
+    measurementTime = "5s",
+    forks = 2,
+    threads = listOf(1),
+    benchmarkModes = listOf("thrpt", "avgt"),
+    jvmArgs = benchmarkJvmArgs,
+    includeGcProfiler = true,
+    includeAsyncProfiler = false,
+)
+
+val mongoBatchOptionsTuningConfirmationProfile = storageBatchTuningConfirmationProfile.copy(
+    threads = benchmarkThreadsProperty("benchmarkConfirmMongoBatchOptionsThreads", listOf(1, 4)),
+    parameters = benchmarkParametersProperty(
+        "benchmarkConfirmMongoBatchOptionsParameters",
+        mapOf("batchOptions" to mongoCurrentStorageBatchOptions),
+    ),
+)
+
+val elasticsearchBatchOptionsTuningConfirmationProfile = storageBatchTuningConfirmationProfile.copy(
+    threads = benchmarkThreadsProperty("benchmarkConfirmElasticsearchBatchOptionsThreads", listOf(1, 4)),
+    parameters = benchmarkParametersProperty(
+        "benchmarkConfirmElasticsearchBatchOptionsParameters",
+        mapOf("batchOptions" to elasticsearchCurrentStorageBatchOptions),
+    ),
+)
+
 val pairedMongoBatchAppendProfile = BenchmarkRunProfile(
     id = "paired-confirmation",
     warmupIterations = 2,
@@ -576,6 +656,86 @@ val elasticsearchBatchAppendSuite = BenchmarkSuite(
         ),
     ),
 )
+
+val mongoBatchOptionsTuningSuite = BenchmarkSuite(
+    id = "mongo-batch-options-tuning",
+    displayName = "Mongo EventStore Batch Options Tuning",
+    includeClasses = listOf(
+        "me.ahoo.wow.benchmark.infrastructure.mongo.MongoEventStoreBatchTuningBenchmark",
+    ),
+    resultFileName = "mongo-batch-options-tuning.json",
+    humanFileName = "mongo-batch-options-tuning-human.txt",
+    requiredForGroupedReport = false,
+    formalRegressionSource = false,
+    requiredServices = mongoBatchAppendSuite.requiredServices,
+)
+
+val elasticsearchBatchOptionsTuningSuite = BenchmarkSuite(
+    id = "elasticsearch-batch-options-tuning",
+    displayName = "Elasticsearch EventStore Batch Options Tuning",
+    includeClasses = listOf(
+        "me.ahoo.wow.benchmark.infrastructure.elasticsearch.ElasticsearchEventStoreBatchTuningBenchmark",
+    ),
+    resultFileName = "elasticsearch-batch-options-tuning.json",
+    humanFileName = "elasticsearch-batch-options-tuning-human.txt",
+    requiredForGroupedReport = false,
+    formalRegressionSource = false,
+    requiredServices = elasticsearchBatchAppendSuite.requiredServices,
+)
+
+val storageBatchTuningOptionFormat = Regex("""([1-9]\d*)x([1-9]\d*)us""")
+
+fun storageBatchTuningOptions(profile: BenchmarkRunProfile): List<String> {
+    val encodedOptions = profile.parameters["batchOptions"]
+        ?: throw GradleException("Storage batch tuning profile must define batchOptions.")
+    val options = encodedOptions.split(",")
+        .map(String::trim)
+        .filter(String::isNotEmpty)
+    if (options.isEmpty() || options.distinct().size != options.size) {
+        throw GradleException("Storage batch tuning options must be non-empty and distinct: $encodedOptions")
+    }
+    options.forEach { option ->
+        val match = storageBatchTuningOptionFormat.matchEntire(option)
+            ?: throw GradleException(
+                "Storage batch tuning option must use '<maxSize>x<maxDelayMicros>us': $option"
+            )
+        if (match.groupValues[1].toIntOrNull() == null || match.groupValues[2].toLongOrNull() == null) {
+            throw GradleException("Storage batch tuning option is out of range: $option")
+        }
+    }
+    return options
+}
+
+fun currentStorageBatchOptions(suite: BenchmarkSuite): String {
+    return when (suite.id) {
+        mongoBatchOptionsTuningSuite.id -> mongoCurrentStorageBatchOptions
+        elasticsearchBatchOptionsTuningSuite.id -> elasticsearchCurrentStorageBatchOptions
+        else -> throw GradleException("Unsupported storage batch tuning suite: ${suite.id}")
+    }
+}
+
+fun validateStorageBatchTuningExecution(
+    suite: BenchmarkSuite,
+    profile: BenchmarkRunProfile,
+) {
+    val options = storageBatchTuningOptions(profile)
+    if (profile.id != "tuning-confirmation") {
+        return
+    }
+    if (options.size !in 2..3) {
+        throw GradleException(
+            "Storage batch tuning confirmation requires 2-3 distinct batchOptions, found ${options.size}: " +
+                options.joinToString(",")
+        )
+    }
+    val currentOptions = currentStorageBatchOptions(suite)
+    if (currentOptions !in options) {
+        throw GradleException(
+            "Storage batch tuning confirmation must include current options $currentOptions: " +
+                options.joinToString(",")
+        )
+    }
+}
 
 val componentSuite = BenchmarkSuite(
     id = "component",
@@ -790,6 +950,36 @@ val confirmationElasticsearchBatchAppendTaskSpec = BenchmarkTaskSpec(
     description = "Confirms Elasticsearch Bulk create throughput and latency with stable measurement settings.",
 )
 
+val mongoBatchOptionsTuningTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkTuneMongoBatchOptions",
+    suite = mongoBatchOptionsTuningSuite,
+    profile = mongoBatchOptionsTuningProfile,
+    description =
+        "Scans Mongo EventStore maxSize and maxDelay across isolated, burst, representative, and saturated workloads.",
+)
+
+val elasticsearchBatchOptionsTuningTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkTuneElasticsearchBatchOptions",
+    suite = elasticsearchBatchOptionsTuningSuite,
+    profile = elasticsearchBatchOptionsTuningProfile,
+    description =
+        "Scans Elasticsearch EventStore maxSize and maxDelay across isolated, burst, representative, and saturated workloads.",
+)
+
+val mongoBatchOptionsTuningConfirmationTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkConfirmMongoBatchOptions",
+    suite = mongoBatchOptionsTuningSuite,
+    profile = mongoBatchOptionsTuningConfirmationProfile,
+    description = "Confirms selected Mongo EventStore batch options with multiple forks.",
+)
+
+val elasticsearchBatchOptionsTuningConfirmationTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkConfirmElasticsearchBatchOptions",
+    suite = elasticsearchBatchOptionsTuningSuite,
+    profile = elasticsearchBatchOptionsTuningConfirmationProfile,
+    description = "Confirms selected Elasticsearch EventStore batch options with multiple forks.",
+)
+
 val baselineInfrastructureE2ETaskSpec = BenchmarkTaskSpec(
     taskName = "benchmarkBaselineInfrastructureE2E",
     suite = infrastructureE2ESuite,
@@ -865,6 +1055,10 @@ val benchmarkTaskSpecs = listOf(
     confirmationMongoBatchAppendTaskSpec,
     quickElasticsearchBatchAppendTaskSpec,
     confirmationElasticsearchBatchAppendTaskSpec,
+    mongoBatchOptionsTuningTaskSpec,
+    elasticsearchBatchOptionsTuningTaskSpec,
+    mongoBatchOptionsTuningConfirmationTaskSpec,
+    elasticsearchBatchOptionsTuningConfirmationTaskSpec,
     baselineInfrastructureE2ETaskSpec,
     quickComponentTaskSpec,
     diagnosticComponentTaskSpec,
@@ -1421,6 +1615,35 @@ fun registerBenchmarkThreadTask(
         outputs.upToDateWhen { false }
 
         doFirst {
+            val isStorageBatchTuning =
+                suite.id == mongoBatchOptionsTuningSuite.id ||
+                    suite.id == elasticsearchBatchOptionsTuningSuite.id
+            if (isStorageBatchTuning) {
+                validateStorageBatchTuningExecution(suite, profile)
+            }
+            val gitRoot = rootProject.projectDir.absolutePath
+            val commitOutput = runCommand(listOf("git", "-C", gitRoot, "rev-parse", "HEAD"))
+            if (commitOutput.exitCode != 0 || commitOutput.output.isBlank()) {
+                throw GradleException("Unable to resolve benchmark source commit: ${commitOutput.output}")
+            }
+            val statusOutput = runCommand(
+                listOf("git", "-C", gitRoot, "status", "--porcelain", "--untracked-files=normal")
+            )
+            if (statusOutput.exitCode != 0) {
+                throw GradleException("Unable to resolve benchmark source status: ${statusOutput.output}")
+            }
+            if (
+                isStorageBatchTuning &&
+                statusOutput.output.isNotBlank() &&
+                !allowDirtyStorageBatchTuning
+            ) {
+                throw GradleException(
+                    "Storage batch tuning requires a clean source tree. Commit or stash changes before " +
+                        "running $path. For implementation smoke checks only, set " +
+                        "-PbenchmarkAllowDirtyStorageBatchTuning=true; dirty results remain ineligible for " +
+                        "generated tuning reports."
+                )
+            }
             val result = resultFile.get().asFile
             val human = humanFile.get().asFile
             val manifest = manifestFile.get().asFile
@@ -1442,17 +1665,6 @@ fun registerBenchmarkThreadTask(
                 profilingDirectory.mkdirs()
             }
 
-            val gitRoot = rootProject.projectDir.absolutePath
-            val commitOutput = runCommand(listOf("git", "-C", gitRoot, "rev-parse", "HEAD"))
-            if (commitOutput.exitCode != 0 || commitOutput.output.isBlank()) {
-                throw GradleException("Unable to resolve benchmark source commit: ${commitOutput.output}")
-            }
-            val statusOutput = runCommand(
-                listOf("git", "-C", gitRoot, "status", "--porcelain", "--untracked-files=normal")
-            )
-            if (statusOutput.exitCode != 0) {
-                throw GradleException("Unable to resolve benchmark source status: ${statusOutput.output}")
-            }
             val jmhJarFile = jmhJar.get().archiveFile.get().asFile
             val startedAt = Instant.now().toString()
             val inProgress = linkedMapOf<String, Any?>(
@@ -1585,6 +1797,13 @@ val mongoBatchAppendPairedE2EReportFile = reportsDir.file("mongo-batch-append-pa
 val elasticsearchBatchAppendReportFile = reportsDir.file("quick-elasticsearch-batch-append.md")
 val elasticsearchBatchAppendConfirmationReportFile =
     reportsDir.file("confirmation-elasticsearch-batch-append.md")
+val mongoBatchOptionsTuningReportFile = reportsDir.file("tuning-mongo-batch-options.md")
+val elasticsearchBatchOptionsTuningReportFile =
+    reportsDir.file("tuning-elasticsearch-batch-options.md")
+val mongoBatchOptionsTuningConfirmationReportFile =
+    reportsDir.file("confirmation-mongo-batch-options.md")
+val elasticsearchBatchOptionsTuningConfirmationReportFile =
+    reportsDir.file("confirmation-elasticsearch-batch-options.md")
 val infrastructureBenchmarkReportFile = reportsDir.file("quick-infrastructure-e2e.md")
 val webFluxBenchmarkReportFile = reportsDir.file("quick-webflux.md")
 val baselineGroupedBenchmarkReport = reportsDir.file("baseline-grouped.md")
@@ -3103,6 +3322,547 @@ fun StringBuilder.appendElasticsearchBatchAppendComparisons(rows: List<ParsedBen
     )
 }
 
+data class StorageBatchTuningKey(
+    val method: String,
+    val refresh: String,
+    val threads: Int,
+)
+
+data class StorageBatchTuningRowKey(
+    val method: String,
+    val refresh: String,
+    val threads: Int,
+    val batchOptions: String,
+    val mode: String,
+)
+
+data class StorageBatchTuningCandidateSummary(
+    val batchOptions: String,
+    val maxSize: Int,
+    val maxDelayMicros: Long,
+    val worstSaturatedRatio: Double,
+    val worstGuardRatio: Double,
+    val worstAllocationRatio: Double,
+    val preferredRefreshSaturatedRatio: Double,
+    val eligible: Boolean,
+)
+
+val storageBatchTuningMethodOrder = listOf(
+    "appendIsolated",
+    "appendBurst32",
+    "appendRepresentative128",
+    "appendSaturated512",
+)
+val tuningReportTopCandidates = 5
+val storageBatchTuningSaturatedMinimumRatio = 0.95
+val storageBatchTuningGuardMinimumRatio = 0.90
+val storageBatchTuningAllocationMaximumRatio = 1.10
+
+fun storageBatchTuningRowKey(row: ParsedBenchmarkResult): StorageBatchTuningRowKey {
+    return StorageBatchTuningRowKey(
+        method = benchmarkMethodName(row),
+        refresh = row.parameters["refresh"] ?: "-",
+        threads = row.threads,
+        batchOptions = row.parameters["batchOptions"]
+            ?: throw GradleException("Storage batch tuning row is missing batchOptions: ${row.benchmark}"),
+        mode = row.mode,
+    )
+}
+
+fun validateStorageBatchTuningMatrix(
+    rows: List<ParsedBenchmarkResult>,
+    expectedOptions: List<String>,
+    expectedRefreshValues: List<String>,
+    expectedThreads: List<Int>,
+    expectedModes: List<String>,
+) {
+    val actualRowsByKey = rows.groupBy(::storageBatchTuningRowKey)
+    val duplicateKeys = actualRowsByKey.filterValues { keyedRows -> keyedRows.size != 1 }.keys
+    if (duplicateKeys.isNotEmpty()) {
+        throw GradleException(
+            "Storage batch tuning matrix contains duplicate rows: " +
+                duplicateKeys.take(10).joinToString(",")
+        )
+    }
+    val expectedKeys = storageBatchTuningMethodOrder.flatMap { method ->
+        expectedRefreshValues.flatMap { refresh ->
+            expectedThreads.flatMap { threads ->
+                expectedOptions.flatMap { batchOptions ->
+                    expectedModes.map { mode ->
+                        StorageBatchTuningRowKey(
+                            method = method,
+                            refresh = refresh,
+                            threads = threads,
+                            batchOptions = batchOptions,
+                            mode = mode,
+                        )
+                    }
+                }
+            }
+        }
+    }.toSet()
+    val actualKeys = actualRowsByKey.keys
+    val missingKeys = expectedKeys - actualKeys
+    val unexpectedKeys = actualKeys - expectedKeys
+    if (missingKeys.isNotEmpty() || unexpectedKeys.isNotEmpty()) {
+        throw GradleException(
+            "Storage batch tuning matrix mismatch. Expected ${expectedKeys.size} rows, found ${rows.size}. " +
+                "Missing: ${missingKeys.take(10)}. Unexpected: ${unexpectedKeys.take(10)}."
+        )
+    }
+}
+
+fun storageBatchTuningCandidateSummary(
+    batchOptions: String,
+    rowsByKey: Map<StorageBatchTuningKey, List<ParsedBenchmarkResult>>,
+    currentOptions: String,
+    preferredRefresh: String,
+): StorageBatchTuningCandidateSummary {
+    val optionMatch = checkNotNull(storageBatchTuningOptionFormat.matchEntire(batchOptions))
+    val saturatedKeys = rowsByKey.keys.filter { key -> key.method == "appendSaturated512" }
+    val guardKeys = rowsByKey.keys.filter { key -> key.method != "appendSaturated512" }
+    val preferredRefreshKeys = saturatedKeys.filter { key -> key.refresh == preferredRefresh }
+    if (saturatedKeys.isEmpty() || guardKeys.isEmpty() || preferredRefreshKeys.isEmpty()) {
+        throw GradleException(
+            "Storage batch tuning candidate summary is missing saturated, guard, or preferred refresh rows."
+        )
+    }
+
+    fun StorageBatchTuningKey.rowsByOptions(): Map<String, ParsedBenchmarkResult> {
+        return rowsByKey.getValue(this).associateBy { row -> row.parameters.getValue("batchOptions") }
+    }
+
+    val worstSaturatedRatio = saturatedKeys.minOf { key ->
+        val optionRows = key.rowsByOptions()
+        optionRows.getValue(batchOptions).score / optionRows.values.maxOf(ParsedBenchmarkResult::score)
+    }
+    val worstGuardRatio = guardKeys.minOf { key ->
+        val optionRows = key.rowsByOptions()
+        optionRows.getValue(batchOptions).score / optionRows.getValue(currentOptions).score
+    }
+    val worstAllocationRatio = rowsByKey.keys.maxOf { key ->
+        val optionRows = key.rowsByOptions()
+        val candidateAllocation = optionRows.getValue(batchOptions).allocationBytesPerOp
+            ?: throw GradleException("Storage batch tuning row is missing allocation: $key/$batchOptions")
+        val currentAllocation = optionRows.getValue(currentOptions).allocationBytesPerOp
+            ?: throw GradleException("Storage batch tuning row is missing allocation: $key/$currentOptions")
+        if (currentAllocation <= 0.0) {
+            throw GradleException("Storage batch tuning current allocation must be positive: $key")
+        }
+        candidateAllocation / currentAllocation
+    }
+    val preferredRefreshSaturatedRatio = preferredRefreshKeys.minOf { key ->
+        val optionRows = key.rowsByOptions()
+        optionRows.getValue(batchOptions).score / optionRows.values.maxOf(ParsedBenchmarkResult::score)
+    }
+    return StorageBatchTuningCandidateSummary(
+        batchOptions = batchOptions,
+        maxSize = optionMatch.groupValues[1].toInt(),
+        maxDelayMicros = optionMatch.groupValues[2].toLong(),
+        worstSaturatedRatio = worstSaturatedRatio,
+        worstGuardRatio = worstGuardRatio,
+        worstAllocationRatio = worstAllocationRatio,
+        preferredRefreshSaturatedRatio = preferredRefreshSaturatedRatio,
+        eligible =
+            worstSaturatedRatio >= storageBatchTuningSaturatedMinimumRatio &&
+                worstGuardRatio >= storageBatchTuningGuardMinimumRatio &&
+                worstAllocationRatio <= storageBatchTuningAllocationMaximumRatio,
+    )
+}
+
+fun StringBuilder.appendStorageBatchTuningSummary(
+    rows: List<ParsedBenchmarkResult>,
+    expectedOptions: List<String>,
+    expectedRefreshValues: List<String>,
+    expectedThreads: List<Int>,
+    expectedModes: List<String>,
+    currentOptions: String,
+    preferredRefresh: String,
+) {
+    validateStorageBatchTuningMatrix(
+        rows = rows,
+        expectedOptions = expectedOptions,
+        expectedRefreshValues = expectedRefreshValues,
+        expectedThreads = expectedThreads,
+        expectedModes = expectedModes,
+    )
+    if (currentOptions !in expectedOptions) {
+        throw GradleException("Storage batch tuning matrix must include current options $currentOptions.")
+    }
+    val throughputRows = rows.filter { it.unit.equals("ops/s", ignoreCase = true) }
+    val rowsByKey = throughputRows.groupBy { row ->
+        StorageBatchTuningKey(
+            method = benchmarkMethodName(row),
+            refresh = row.parameters["refresh"] ?: "-",
+            threads = row.threads,
+        )
+    }
+
+    appendLine("## Throughput Screening")
+    appendLine()
+    appendLine(
+        "The table keeps the five highest point estimates per workload plus the current " +
+            "`$currentOptions` default. Scan results select confirmation candidates; they do not by themselves " +
+            "establish a new default."
+    )
+    appendLine()
+    appendLine(
+        "| Workload | Refresh | Threads | Batch options | Throughput | Error | vs best | vs current | Allocation |"
+    )
+    appendLine("|----------|---------|---------|---------------|------------|-------|---------|------------|------------|")
+    rowsByKey.entries
+        .sortedWith(
+            compareBy(
+                { storageBatchTuningMethodOrder.indexOf(it.key.method) },
+                { it.key.refresh },
+                { it.key.threads },
+            )
+        )
+        .forEach { (key, workloadRows) ->
+            val rowsByOptions = workloadRows.groupBy { row ->
+                row.parameters["batchOptions"]
+                    ?: throw GradleException("Storage batch tuning row is missing batchOptions: ${row.benchmark}")
+            }
+            rowsByOptions.forEach { (options, optionRows) ->
+                if (optionRows.size != 1) {
+                    throw GradleException(
+                        "Storage batch tuning requires one throughput row for $key/$options, " +
+                            "found ${optionRows.size}."
+                    )
+                }
+            }
+            val ranked = workloadRows.sortedByDescending { it.score }
+            val best = ranked.first()
+            val current = rowsByOptions[currentOptions]?.single()
+                ?: throw GradleException(
+                    "Storage batch tuning is missing current options $currentOptions for $key."
+                )
+            val selected = (ranked.take(tuningReportTopCandidates) + current)
+                .distinctBy { it.parameters.getValue("batchOptions") }
+            val scale = benchmarkMetricScale(workloadRows.map { it.score }, best.unit)
+            selected.forEach { row ->
+                val formatted = formatScaledBenchmarkScore(row.score, row.scoreError, scale)
+                appendLine(
+                    "| `${key.method}` | `${key.refresh}` | ${key.threads} | " +
+                        "`${row.parameters.getValue("batchOptions")}` | " +
+                        "${formatted.scoreWithUnit} | ${formatted.errorWithUnit} | " +
+                        "${formatSignedPercent(relativeChangePercent(best.score, row.score))} | " +
+                        "${formatSignedPercent(relativeChangePercent(current.score, row.score))} | " +
+                        "${formatAllocationBytes(row.allocationBytesPerOp)} |"
+                )
+            }
+        }
+    appendLine()
+    appendLine(
+        "Higher throughput is better. `vs best` and `vs current` use point estimates; overlapping JMH " +
+            "error intervals remain inconclusive and require the multiple-fork confirmation task."
+    )
+    appendLine()
+
+    val candidateSummaries = expectedOptions.map { batchOptions ->
+        storageBatchTuningCandidateSummary(
+            batchOptions = batchOptions,
+            rowsByKey = rowsByKey,
+            currentOptions = currentOptions,
+            preferredRefresh = preferredRefresh,
+        )
+    }.sortedWith(
+        compareByDescending<StorageBatchTuningCandidateSummary> { summary -> summary.eligible }
+            .thenByDescending { summary -> summary.preferredRefreshSaturatedRatio }
+            .thenByDescending { summary -> summary.worstSaturatedRatio }
+            .thenByDescending { summary -> summary.worstGuardRatio }
+            .thenBy { summary -> summary.maxSize }
+            .thenBy { summary -> summary.maxDelayMicros }
+    )
+    appendLine("## Cross-workload Candidate Gate")
+    appendLine()
+    appendLine(
+        "A screening candidate is eligible only when every saturated stratum is within 5% of that " +
+            "stratum's best point estimate, every isolated/burst/representative stratum stays within 10% " +
+            "of current throughput, and allocation stays within 10% of current. All refresh and thread " +
+            "strata participate. These point-estimate gates shortlist candidates; confirmation remains required."
+    )
+    appendLine()
+    appendLine(
+        "| Batch options | Preferred refresh saturated vs best | Worst saturated vs best | " +
+            "Worst guard vs current | Worst allocation vs current | Screening status |"
+    )
+    appendLine(
+        "|---------------|--------------------------------------|-------------------------|" +
+            "------------------------|-----------------------------|------------------|"
+    )
+    candidateSummaries.forEach { summary ->
+        val status = when {
+            summary.batchOptions == currentOptions -> "CURRENT"
+            summary.eligible -> "ELIGIBLE"
+            else -> "REJECT"
+        }
+        appendLine(
+            "| `${summary.batchOptions}` | " +
+                "${formatSignedPercent((summary.preferredRefreshSaturatedRatio - 1.0) * 100.0)} | " +
+                "${formatSignedPercent((summary.worstSaturatedRatio - 1.0) * 100.0)} | " +
+                "${formatSignedPercent((summary.worstGuardRatio - 1.0) * 100.0)} | " +
+                "${formatSignedPercent((summary.worstAllocationRatio - 1.0) * 100.0)} | $status |"
+        )
+    }
+    appendLine()
+}
+
+enum class StorageBatchTuningConfirmationVerdict {
+    PASS,
+    INCONCLUSIVE,
+    REGRESSION,
+}
+
+data class StorageBatchTuningConfirmationSummary(
+    val batchOptions: String,
+    val worstThroughputRatio: Double?,
+    val worstThroughputRequiredRatio: Double,
+    val worstAverageTimeRatio: Double?,
+    val worstAllocationRatio: Double?,
+    val verdict: StorageBatchTuningConfirmationVerdict,
+)
+
+data class StorageBatchTuningBoundedRatio(
+    val passRatio: Double?,
+    val regressionRatio: Double?,
+    val requiredRatio: Double,
+)
+
+fun conservativeLowerRatio(
+    candidateScore: Double,
+    candidateError: Double?,
+    currentScore: Double,
+    currentError: Double?,
+): Double? {
+    if (candidateError == null || currentError == null || candidateError < 0.0 || currentError < 0.0) {
+        return null
+    }
+    val candidateLower = candidateScore - candidateError
+    val currentUpper = currentScore + currentError
+    if (candidateLower <= 0.0 || currentUpper <= 0.0) {
+        return null
+    }
+    return (candidateLower / currentUpper).takeIf(Double::isFinite)
+}
+
+fun conservativeUpperRatio(
+    candidateScore: Double,
+    candidateError: Double?,
+    currentScore: Double,
+    currentError: Double?,
+): Double? {
+    if (candidateError == null || currentError == null || candidateError < 0.0 || currentError < 0.0) {
+        return null
+    }
+    val candidateUpper = candidateScore + candidateError
+    val currentLower = currentScore - currentError
+    if (candidateUpper <= 0.0 || currentLower <= 0.0) {
+        return null
+    }
+    return (candidateUpper / currentLower).takeIf(Double::isFinite)
+}
+
+fun storageBatchTuningConfirmationSummary(
+    rows: List<ParsedBenchmarkResult>,
+    batchOptions: String,
+    currentOptions: String,
+): StorageBatchTuningConfirmationSummary {
+    val rowsByModeAndKey = rows.groupBy { row ->
+        row.mode to StorageBatchTuningKey(
+            method = benchmarkMethodName(row),
+            refresh = row.parameters["refresh"] ?: "-",
+            threads = row.threads,
+        )
+    }
+    val throughputRatios = rowsByModeAndKey
+        .filterKeys { (mode, _) -> mode == "thrpt" }
+        .map { (modeAndKey, workloadRows) ->
+            val key = modeAndKey.second
+            val rowsByOptions = workloadRows.associateBy { row -> row.parameters.getValue("batchOptions") }
+            val candidate = rowsByOptions.getValue(batchOptions)
+            val current = rowsByOptions.getValue(currentOptions)
+            val requiredRatio = if (key.method == "appendSaturated512") {
+                storageBatchTuningSaturatedMinimumRatio
+            } else {
+                storageBatchTuningGuardMinimumRatio
+            }
+            StorageBatchTuningBoundedRatio(
+                passRatio = conservativeLowerRatio(
+                    candidateScore = candidate.score,
+                    candidateError = candidate.scoreError,
+                    currentScore = current.score,
+                    currentError = current.scoreError,
+                ),
+                regressionRatio = conservativeUpperRatio(
+                    candidateScore = candidate.score,
+                    candidateError = candidate.scoreError,
+                    currentScore = current.score,
+                    currentError = current.scoreError,
+                ),
+                requiredRatio = requiredRatio,
+            )
+        }
+    val averageTimeRatios = rowsByModeAndKey
+        .filterKeys { (mode, _) -> mode == "avgt" }
+        .map { (_, workloadRows) ->
+            val rowsByOptions = workloadRows.associateBy { row -> row.parameters.getValue("batchOptions") }
+            val candidate = rowsByOptions.getValue(batchOptions)
+            val current = rowsByOptions.getValue(currentOptions)
+            StorageBatchTuningBoundedRatio(
+                passRatio = conservativeUpperRatio(
+                    candidateScore = candidate.score,
+                    candidateError = candidate.scoreError,
+                    currentScore = current.score,
+                    currentError = current.scoreError,
+                ),
+                regressionRatio = conservativeLowerRatio(
+                    candidateScore = candidate.score,
+                    candidateError = candidate.scoreError,
+                    currentScore = current.score,
+                    currentError = current.scoreError,
+                ),
+                requiredRatio = storageBatchTuningAllocationMaximumRatio,
+            )
+        }
+    val allocationRatios = rowsByModeAndKey
+        .filterKeys { (mode, _) -> mode == "thrpt" }
+        .map { (_, workloadRows) ->
+            val rowsByOptions = workloadRows.associateBy { row -> row.parameters.getValue("batchOptions") }
+            val candidate = rowsByOptions.getValue(batchOptions)
+            val current = rowsByOptions.getValue(currentOptions)
+            val candidateAllocation = candidate.allocationBytesPerOp
+                ?: throw GradleException("Storage batch confirmation is missing candidate allocation.")
+            val currentAllocation = current.allocationBytesPerOp
+                ?: throw GradleException("Storage batch confirmation is missing current allocation.")
+            StorageBatchTuningBoundedRatio(
+                passRatio = conservativeUpperRatio(
+                    candidateScore = candidateAllocation,
+                    candidateError = candidate.allocationErrorBytesPerOp,
+                    currentScore = currentAllocation,
+                    currentError = current.allocationErrorBytesPerOp,
+                ),
+                regressionRatio = conservativeLowerRatio(
+                    candidateScore = candidateAllocation,
+                    candidateError = candidate.allocationErrorBytesPerOp,
+                    currentScore = currentAllocation,
+                    currentError = current.allocationErrorBytesPerOp,
+                ),
+                requiredRatio = storageBatchTuningAllocationMaximumRatio,
+            )
+        }
+    if (throughputRatios.isEmpty() || averageTimeRatios.isEmpty() || allocationRatios.isEmpty()) {
+        throw GradleException("Storage batch confirmation requires thrpt, avgt, and allocation rows.")
+    }
+    val worstThroughput = throughputRatios.minBy { ratio ->
+        ratio.passRatio?.div(ratio.requiredRatio) ?: Double.NEGATIVE_INFINITY
+    }
+    val worstAverageTime = averageTimeRatios.maxBy { ratio ->
+        ratio.passRatio ?: Double.POSITIVE_INFINITY
+    }
+    val worstAllocation = allocationRatios.maxBy { ratio ->
+        ratio.passRatio ?: Double.POSITIVE_INFINITY
+    }
+    val conservativeRegression =
+        throughputRatios.any { ratio ->
+            ratio.regressionRatio?.let { it < ratio.requiredRatio } == true
+        } ||
+            averageTimeRatios.any { ratio ->
+                ratio.regressionRatio?.let { it > ratio.requiredRatio } == true
+            } ||
+            allocationRatios.any { ratio ->
+                ratio.regressionRatio?.let { it > ratio.requiredRatio } == true
+            }
+    val conservativePass =
+        throughputRatios.all { ratio ->
+            ratio.passRatio?.let { it >= ratio.requiredRatio } == true
+        } &&
+            averageTimeRatios.all { ratio ->
+                ratio.passRatio?.let { it <= ratio.requiredRatio } == true
+            } &&
+            allocationRatios.all { ratio ->
+                ratio.passRatio?.let { it <= ratio.requiredRatio } == true
+            }
+    return StorageBatchTuningConfirmationSummary(
+        batchOptions = batchOptions,
+        worstThroughputRatio = worstThroughput.passRatio,
+        worstThroughputRequiredRatio = worstThroughput.requiredRatio,
+        worstAverageTimeRatio = worstAverageTime.passRatio,
+        worstAllocationRatio = worstAllocation.passRatio,
+        verdict = when {
+            conservativeRegression -> StorageBatchTuningConfirmationVerdict.REGRESSION
+            conservativePass -> StorageBatchTuningConfirmationVerdict.PASS
+            else -> StorageBatchTuningConfirmationVerdict.INCONCLUSIVE
+        },
+    )
+}
+
+fun formatStorageBatchConfirmationBound(
+    ratio: Double?,
+    operator: String,
+    requiredRatio: Double,
+): String {
+    val formattedRatio = ratio?.let { value -> String.format(Locale.US, "%.3f×", value) } ?: "-"
+    return "$formattedRatio ($operator ${String.format(Locale.US, "%.2f×", requiredRatio)})"
+}
+
+fun StringBuilder.appendStorageBatchTuningConfirmationVerdict(
+    rows: List<ParsedBenchmarkResult>,
+    expectedOptions: List<String>,
+    currentOptions: String,
+) {
+    val challengerOptions = expectedOptions.filterNot { option -> option == currentOptions }
+    if (challengerOptions.isEmpty()) {
+        throw GradleException("Storage batch tuning confirmation requires at least one challenger.")
+    }
+    val summaries = challengerOptions.map { batchOptions ->
+        storageBatchTuningConfirmationSummary(
+            rows = rows,
+            batchOptions = batchOptions,
+            currentOptions = currentOptions,
+        )
+    }
+    appendLine("## Confirmation Verdict")
+    appendLine()
+    appendLine(
+        "PASS requires every candidate-vs-current throughput lower bound, average-time upper bound, " +
+            "and allocation upper bound to meet the declared margin across every workload, refresh, and " +
+            "thread stratum. REGRESSION requires an opposite conservative bound to violate a margin. " +
+            "Bounds combine the independent JMH score intervals; they are not a paired ratio confidence " +
+            "interval. INCONCLUSIVE requires a paired confirmation before changing the default."
+    )
+    appendLine()
+    appendLine(
+        "| Batch options | Worst throughput lower bound | Worst average-time upper bound | " +
+            "Worst allocation upper bound | Verdict |"
+    )
+    appendLine(
+        "|---------------|------------------------------|--------------------------------|" +
+            "-------------------------------|---------|"
+    )
+    summaries.forEach { summary ->
+        appendLine(
+            "| `${summary.batchOptions}` | " +
+                "${formatStorageBatchConfirmationBound(
+                    summary.worstThroughputRatio,
+                    ">=",
+                    summary.worstThroughputRequiredRatio
+                )} | " +
+                "${formatStorageBatchConfirmationBound(
+                    summary.worstAverageTimeRatio,
+                    "<=",
+                    storageBatchTuningAllocationMaximumRatio
+                )} | " +
+                "${formatStorageBatchConfirmationBound(
+                    summary.worstAllocationRatio,
+                    "<=",
+                    storageBatchTuningAllocationMaximumRatio
+                )} | ${summary.verdict} |"
+        )
+    }
+    appendLine()
+}
+
 fun sha256Text(value: String): String {
     return MessageDigest.getInstance("SHA-256")
         .digest(value.toByteArray(Charsets.UTF_8))
@@ -3859,13 +4619,20 @@ fun renderSingleBenchmarkReport(
     command: String,
     description: String,
     includeInfrastructureRuntime: Boolean = false,
+    requireCleanSource: Boolean = false,
     appendBeforeResults: StringBuilder.(List<ParsedBenchmarkResult>) -> Unit = {},
 ): String {
     val groupReport = parseBenchmarkGroup(JsonSlurper(), group)
     if (groupReport.rows.isEmpty()) {
         throw GradleException(
             "No benchmark rows were available for ${group.suite.displayName}. " +
-                "Run ${group.taskSpec.taskName} first."
+            "Run ${group.taskSpec.taskName} first."
+        )
+    }
+    if (requireCleanSource && groupReport.manifests.any(ParsedBenchmarkRunManifest::sourceDirty)) {
+        throw GradleException(
+            "${group.suite.displayName}/${group.profile.id} report requires sourceDirty=false. " +
+                "Rerun ${group.taskSpec.taskName} from a clean source tree."
         )
     }
     val sb = StringBuilder()
@@ -4111,6 +4878,198 @@ tasks.register("generateElasticsearchBatchAppendConfirmationReport") {
         outputFile.writeText(report)
         logger.lifecycle(
             "Elasticsearch batch append confirmation report generated: ${outputFile.absolutePath}"
+        )
+    }
+}
+
+tasks.register("generateMongoBatchOptionsTuningReport") {
+    description = "Generate the Mongo EventStore batch-options tuning report."
+    group = "benchmark"
+    mustRunAfter("benchmarkTuneMongoBatchOptions")
+    outputs.file(mongoBatchOptionsTuningReportFile)
+    outputs.upToDateWhen { false }
+
+    doLast {
+        val parameters = mongoBatchOptionsTuningProfile.parameters.entries
+            .joinToString(";") { (name, value) -> "$name=$value" }
+        val report = renderSingleBenchmarkReport(
+            group = benchmarkResultGroup(mongoBatchOptionsTuningTaskSpec),
+            title = "Mongo EventStore Batch Options Tuning Report",
+            command = "./gradlew :wow-benchmarks:benchmarkTuneMongoBatchOptions " +
+                ":wow-benchmarks:generateMongoBatchOptionsTuningReport " +
+                "-PbenchmarkTuneMongoBatchOptionsParameters='$parameters' --no-parallel",
+            description = "This screening experiment scans storage-neutral batch size/delay pairs through " +
+                "the real Mongo EventStore coordinated path at isolated (1), burst (32), representative " +
+                "(128), and saturated (512) append counts. It is candidate selection evidence, not a " +
+                "production capacity claim.",
+            includeInfrastructureRuntime = true,
+            requireCleanSource = true,
+            appendBeforeResults = { rows ->
+                appendStorageBatchTuningSummary(
+                    rows = rows,
+                    expectedOptions = storageBatchTuningOptions(mongoBatchOptionsTuningProfile),
+                    expectedRefreshValues = listOf("-"),
+                    expectedThreads = mongoBatchOptionsTuningProfile.threads,
+                    expectedModes = mongoBatchOptionsTuningProfile.benchmarkModes,
+                    currentOptions = mongoCurrentStorageBatchOptions,
+                    preferredRefresh = "-",
+                )
+            },
+        )
+
+        val outputFile = mongoBatchOptionsTuningReportFile.asFile
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(report)
+        logger.lifecycle("Mongo batch options tuning report generated: ${outputFile.absolutePath}")
+    }
+}
+
+tasks.register("generateElasticsearchBatchOptionsTuningReport") {
+    description = "Generate the Elasticsearch EventStore batch-options tuning report."
+    group = "benchmark"
+    mustRunAfter("benchmarkTuneElasticsearchBatchOptions")
+    outputs.file(elasticsearchBatchOptionsTuningReportFile)
+    outputs.upToDateWhen { false }
+
+    doLast {
+        val parameters = elasticsearchBatchOptionsTuningProfile.parameters.entries
+            .joinToString(";") { (name, value) -> "$name=$value" }
+        val report = renderSingleBenchmarkReport(
+            group = benchmarkResultGroup(elasticsearchBatchOptionsTuningTaskSpec),
+            title = "Elasticsearch EventStore Batch Options Tuning Report",
+            command = "./gradlew :wow-benchmarks:benchmarkTuneElasticsearchBatchOptions " +
+                ":wow-benchmarks:generateElasticsearchBatchOptionsTuningReport " +
+                "-PbenchmarkTuneElasticsearchBatchOptionsParameters='$parameters' --no-parallel",
+            description = "This screening experiment scans batch size/delay pairs through the real " +
+                "Elasticsearch EventStore coordinated Bulk create path at isolated (1), burst (32), " +
+                "representative (128), and saturated (512) append counts with refresh=false and " +
+                "refresh=true.",
+            includeInfrastructureRuntime = true,
+            requireCleanSource = true,
+            appendBeforeResults = { rows ->
+                appendStorageBatchTuningSummary(
+                    rows = rows,
+                    expectedOptions = storageBatchTuningOptions(elasticsearchBatchOptionsTuningProfile),
+                    expectedRefreshValues = listOf("False", "True"),
+                    expectedThreads = elasticsearchBatchOptionsTuningProfile.threads,
+                    expectedModes = elasticsearchBatchOptionsTuningProfile.benchmarkModes,
+                    currentOptions = elasticsearchCurrentStorageBatchOptions,
+                    preferredRefresh = "True",
+                )
+            },
+        )
+
+        val outputFile = elasticsearchBatchOptionsTuningReportFile.asFile
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(report)
+        logger.lifecycle("Elasticsearch batch options tuning report generated: ${outputFile.absolutePath}")
+    }
+}
+
+tasks.register("generateMongoBatchOptionsTuningConfirmationReport") {
+    description = "Generate the Mongo EventStore batch-options confirmation report."
+    group = "benchmark"
+    mustRunAfter("benchmarkConfirmMongoBatchOptions")
+    outputs.file(mongoBatchOptionsTuningConfirmationReportFile)
+    outputs.upToDateWhen { false }
+
+    doLast {
+        validateStorageBatchTuningExecution(
+            mongoBatchOptionsTuningSuite,
+            mongoBatchOptionsTuningConfirmationProfile,
+        )
+        val parameters = mongoBatchOptionsTuningConfirmationProfile.parameters.entries
+            .joinToString(";") { (name, value) -> "$name=$value" }
+        val report = renderSingleBenchmarkReport(
+            group = benchmarkResultGroup(mongoBatchOptionsTuningConfirmationTaskSpec),
+            title = "Confirmation Mongo EventStore Batch Options Report",
+            command = "./gradlew :wow-benchmarks:benchmarkConfirmMongoBatchOptions " +
+                ":wow-benchmarks:generateMongoBatchOptionsTuningConfirmationReport " +
+                "-PbenchmarkConfirmMongoBatchOptionsParameters='$parameters' --no-parallel",
+            description = "This multiple-fork experiment confirms selected Mongo EventStore batch options " +
+                "against the current default across isolated, burst, representative, and saturated " +
+                "append workloads.",
+            includeInfrastructureRuntime = true,
+            requireCleanSource = true,
+            appendBeforeResults = { rows ->
+                appendStorageBatchTuningSummary(
+                    rows = rows,
+                    expectedOptions = storageBatchTuningOptions(mongoBatchOptionsTuningConfirmationProfile),
+                    expectedRefreshValues = listOf("-"),
+                    expectedThreads = mongoBatchOptionsTuningConfirmationProfile.threads,
+                    expectedModes = mongoBatchOptionsTuningConfirmationProfile.benchmarkModes,
+                    currentOptions = mongoCurrentStorageBatchOptions,
+                    preferredRefresh = "-",
+                )
+                appendStorageBatchTuningConfirmationVerdict(
+                    rows = rows,
+                    expectedOptions = storageBatchTuningOptions(
+                        mongoBatchOptionsTuningConfirmationProfile
+                    ),
+                    currentOptions = mongoCurrentStorageBatchOptions,
+                )
+            },
+        )
+
+        val outputFile = mongoBatchOptionsTuningConfirmationReportFile.asFile
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(report)
+        logger.lifecycle("Mongo batch options confirmation report generated: ${outputFile.absolutePath}")
+    }
+}
+
+tasks.register("generateElasticsearchBatchOptionsTuningConfirmationReport") {
+    description = "Generate the Elasticsearch EventStore batch-options confirmation report."
+    group = "benchmark"
+    mustRunAfter("benchmarkConfirmElasticsearchBatchOptions")
+    outputs.file(elasticsearchBatchOptionsTuningConfirmationReportFile)
+    outputs.upToDateWhen { false }
+
+    doLast {
+        validateStorageBatchTuningExecution(
+            elasticsearchBatchOptionsTuningSuite,
+            elasticsearchBatchOptionsTuningConfirmationProfile,
+        )
+        val parameters = elasticsearchBatchOptionsTuningConfirmationProfile.parameters.entries
+            .joinToString(";") { (name, value) -> "$name=$value" }
+        val report = renderSingleBenchmarkReport(
+            group = benchmarkResultGroup(elasticsearchBatchOptionsTuningConfirmationTaskSpec),
+            title = "Confirmation Elasticsearch EventStore Batch Options Report",
+            command = "./gradlew :wow-benchmarks:benchmarkConfirmElasticsearchBatchOptions " +
+                ":wow-benchmarks:generateElasticsearchBatchOptionsTuningConfirmationReport " +
+                "-PbenchmarkConfirmElasticsearchBatchOptionsParameters='$parameters' --no-parallel",
+            description = "This multiple-fork experiment confirms selected Elasticsearch EventStore batch " +
+                "options against the current default across isolated, burst, representative, and saturated " +
+                "append workloads for refresh=false and refresh=true.",
+            includeInfrastructureRuntime = true,
+            requireCleanSource = true,
+            appendBeforeResults = { rows ->
+                appendStorageBatchTuningSummary(
+                    rows = rows,
+                    expectedOptions = storageBatchTuningOptions(
+                        elasticsearchBatchOptionsTuningConfirmationProfile
+                    ),
+                    expectedRefreshValues = listOf("False", "True"),
+                    expectedThreads = elasticsearchBatchOptionsTuningConfirmationProfile.threads,
+                    expectedModes = elasticsearchBatchOptionsTuningConfirmationProfile.benchmarkModes,
+                    currentOptions = elasticsearchCurrentStorageBatchOptions,
+                    preferredRefresh = "True",
+                )
+                appendStorageBatchTuningConfirmationVerdict(
+                    rows = rows,
+                    expectedOptions = storageBatchTuningOptions(
+                        elasticsearchBatchOptionsTuningConfirmationProfile
+                    ),
+                    currentOptions = elasticsearchCurrentStorageBatchOptions,
+                )
+            },
+        )
+
+        val outputFile = elasticsearchBatchOptionsTuningConfirmationReportFile.asFile
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(report)
+        logger.lifecycle(
+            "Elasticsearch batch options confirmation report generated: ${outputFile.absolutePath}"
         )
     }
 }

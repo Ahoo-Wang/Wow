@@ -16,6 +16,7 @@ Use it for three jobs:
 | Batch CommandWrite E2E | Paired 32-command workloads using either 32 blocking boundaries or one sequential/concurrent batch boundary. | Primary framework-cost signal without per-command blocking distortion, plus bounded-concurrency scaling diagnosis. | `benchmarkQuickBatchE2E` |
 | Mongo Batch Append | A 128-event-stream append-path workload comparing EventStore `insertOne`, native unordered `insertMany`, and coordinated batching. | Separating protocol Bulk capability from the end-to-end coordinated path with real local MongoDB I/O. | `benchmarkQuickMongoBatchAppend`, `benchmarkConfirmMongoBatchAppend`, `benchmarkMongoBatchAppendPairedE2E` |
 | Elasticsearch Batch Append | A 128-event-stream append-path workload comparing EventStore `create`, native Bulk `create`, and coordinated Bulk `create` with `refresh=false,true`. | Measuring Elasticsearch Bulk capability and the end-to-end coordinated path without changing no-overwrite semantics. | `benchmarkQuickElasticsearchBatchAppend`, `benchmarkConfirmElasticsearchBatchAppend` |
+| Storage Batch Options Tuning | Coordinated EventStore writes at isolated (1), burst (32), representative (128), and saturated (512) append counts across encoded `maxSize/maxDelay` candidates. | Screening and confirming storage-specific defaults without repeating unrelated direct/native controls for every candidate. | `benchmarkTuneMongoBatchOptions`, `benchmarkTuneElasticsearchBatchOptions`, `benchmarkConfirmMongoBatchOptions`, `benchmarkConfirmElasticsearchBatchOptions` |
 | Component | Isolated command, aggregate, event, wait, serialization, accessor, and pipeline pieces. | Quick feedback, targeted diagnosis, or rare exhaustive catalog checks. | `benchmarkQuickComponent`, `benchmarkDiagnosticComponent`, `benchmarkExhaustiveComponent` |
 | WebFlux Adapter | Spring WebFlux request, response, SSE, and aggregate tracing adapter paths without a real Netty server. | Diagnosing HTTP adapter overhead and WebFlux-specific allocation hot spots. These results are not Framework E2E conclusion data. | `benchmarkQuickWebFlux`, `benchmarkExhaustiveWebFlux` |
 | Infrastructure E2E | Command write path through Redis or Mongo persistence. | Storage-path bottleneck checks when local services are available. | `benchmarkQuickInfrastructureE2E`, `benchmarkBaselineInfrastructureE2E` |
@@ -182,6 +183,10 @@ The Gradle model keeps four responsibilities separate: `BenchmarkSuite` owns wor
 | `wow-benchmarks/results/reports/mongo-batch-append-paired-e2e.md` | Generated AB/BA paired Mongo EventStore append E2E report. | Commit intentionally collected provenance-backed evidence; prefer for the quantified local batching-gain conclusion. |
 | `wow-benchmarks/results/reports/quick-elasticsearch-batch-append.md` | Generated quick Elasticsearch EventStore append comparison. | Commit with intentionally collected, provenance-backed Elasticsearch evidence. |
 | `wow-benchmarks/results/reports/confirmation-elasticsearch-batch-append.md` | Generated multiple-fork Elasticsearch EventStore append comparison. | Commit intentionally collected provenance-backed evidence; use for independent JMH point estimates and error intervals. |
+| `wow-benchmarks/results/reports/tuning-mongo-batch-options.md` | Generated Mongo EventStore batch-options screening matrix. | Commit only with the exact candidate grid and clean-source manifest used to choose confirmation candidates. |
+| `wow-benchmarks/results/reports/tuning-elasticsearch-batch-options.md` | Generated Elasticsearch EventStore batch-options screening matrix. | Commit only with the exact candidate grid and clean-source manifest used to choose confirmation candidates. |
+| `wow-benchmarks/results/reports/confirmation-mongo-batch-options.md` | Generated multiple-fork Mongo batch-options confirmation. | Commit with the current default and selected candidate set before changing defaults. |
+| `wow-benchmarks/results/reports/confirmation-elasticsearch-batch-options.md` | Generated multiple-fork Elasticsearch batch-options confirmation. | Commit with the current default and selected candidate set before changing defaults. |
 | `wow-benchmarks/results/reports/quick-infrastructure-e2e.md` | Quick Infrastructure E2E report generated on demand; it may be absent in a fresh checkout. | Commit only with intentionally collected, provenance-backed Redis/Mongo evidence. |
 | `wow-benchmarks/results/reports/quick-grouped.md` | Generated quick E2E/component/infrastructure grouped report. | Commit when intentionally updating grouped benchmark evidence. |
 | `wow-benchmarks/results/reports/baseline-grouped.md` | Generated Baseline E2E/exhaustive Component/infrastructure grouped report. | Commit when intentionally updating formal benchmark evidence. |
@@ -259,10 +264,69 @@ client; they do not include Command Gateway ingress, aggregate execution, or dow
 Quick results remain directional until a controlled multiple-fork confirmation
 run is collected from a clean `HEAD`.
 
+### Storage Batch Options Tuning
+
+The tuning suites encode a candidate as `<maxSize>x<maxDelayMicros>us`. The
+default scan covers `maxSize=16,32,64,128,256,512` and
+`maxDelay=250µs,500µs,1ms,2ms,4ms`:
+
+```bash
+./gradlew :wow-benchmarks:benchmarkTuneMongoBatchOptions --no-parallel
+
+./gradlew :wow-benchmarks:benchmarkTuneElasticsearchBatchOptions --no-parallel
+
+./gradlew :wow-benchmarks:generateMongoBatchOptionsTuningReport \
+  :wow-benchmarks:generateElasticsearchBatchOptionsTuningReport
+```
+
+Commit the tuning harness first and run both benchmarks from the same clean
+`HEAD`; tuning tasks reject a dirty source tree. Run MongoDB and Elasticsearch
+separately, then generate both reports only after both benchmark tasks have
+finished so the first generated report cannot dirty the second run. Each candidate is measured through
+the coordinated Store path with 1, 32, 128, and 512 concurrent appends; Elasticsearch
+retains separate `refresh=false` and `refresh=true` rows. Screening point
+estimates only select candidates. Keep the current `128x1000us` candidate in
+confirmation and pass 2-3 distinct shortlisted pairs explicitly:
+
+Review and commit both screening reports (or remove them and restore a clean
+tree) before starting confirmation. Confirmation deliberately refuses to run
+while generated-but-uncommitted screening reports make the source tree dirty.
+
+```bash
+./gradlew :wow-benchmarks:benchmarkConfirmMongoBatchOptions \
+  -PbenchmarkConfirmMongoBatchOptionsParameters='batchOptions=128x1000us,256x500us' \
+  --no-parallel
+
+./gradlew :wow-benchmarks:benchmarkConfirmElasticsearchBatchOptions \
+  -PbenchmarkConfirmElasticsearchBatchOptionsParameters='batchOptions=128x1000us,256x500us' \
+  --no-parallel
+
+./gradlew :wow-benchmarks:generateMongoBatchOptionsTuningConfirmationReport \
+  :wow-benchmarks:generateElasticsearchBatchOptionsTuningConfirmationReport \
+  -PbenchmarkConfirmMongoBatchOptionsParameters='batchOptions=128x1000us,256x500us' \
+  -PbenchmarkConfirmElasticsearchBatchOptionsParameters='batchOptions=128x1000us,256x500us'
+```
+
+Select MongoDB and Elasticsearch defaults independently. A candidate must stay
+within 5% of the best saturated throughput, avoid more than 10% regression for
+isolated, burst32, representative128 workloads and allocation, and survive
+multiple-fork confirmation at both one and four JMH producer threads.
+Elasticsearch candidates must pass both refresh strata; `refresh=true`, the
+Store default, is the primary ranking stratum. When candidates are statistically
+indistinguishable, prefer the smaller batch and shorter delay. Confirmation
+reports classify a candidate as `PASS`, `REGRESSION`, or `INCONCLUSIVE` by
+conservatively combining independent JMH score intervals. An `INCONCLUSIVE`
+candidate needs paired confirmation before changing the default. The current
+average-time rows are not response-time percentiles, so do not increase the 1ms
+delay based on this experiment alone without a dedicated low-load p99 budget.
+`maxPending*` is an overload/backpressure limit, not a steady-state throughput
+tuning parameter. SnapshotStore requires its own payload/coalescing benchmark
+and must not inherit EventStore results.
+
 ## Reading The Report
 
 - `thrpt` scores are throughput. Reports use decimal prefixes (`k`, `M`, `G`) so, for example, `1.57 k ops/s` means 1,570 operations per second. Higher is better.
-- `avgt` scores are average time. Storage batch suites normalize a 128-event invocation per event, so their values are amortized time per event rather than independent single-request response latency. Reports automatically select `ns/op`, `µs/op`, `ms/op`, or `s/op`.
+- `avgt` scores are average time. Storage batch comparison suites normalize a 128-event invocation per event; tuning workloads use their declared 1/32/128/512 `@OperationsPerInvocation` counts. Values are amortized time per event rather than independently sampled response-time percentiles. Reports automatically select `ns/op`, `µs/op`, `ms/op`, or `s/op`.
 - `gc.alloc.rate.norm` is normalized allocation per operation. Reports use binary prefixes (`KiB`, `MiB`, `GiB`); lower is usually better.
 - `±` is the JMH-reported error. Compact units affect presentation only; reports retain raw precision for sorting, comparisons, and regression gates.
 - Most Quick reports contain throughput and allocation results. Storage batch reports additionally run average-time mode so they expose end-to-end batching amortized time, but the short one-fork profile still has wider variance than confirmation or Baseline evidence. The coordinated-to-native delta includes batch formation and possible partial flushes; it is not a pure coordinator CPU-overhead measurement.
