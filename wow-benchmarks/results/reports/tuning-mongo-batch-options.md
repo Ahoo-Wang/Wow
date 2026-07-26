@@ -16,39 +16,58 @@ This screening experiment scans storage-neutral batch size/delay pairs through t
 - `±` is the JMH-reported error. Scaling changes presentation only; calculations keep raw precision.
 
 ## Benchmark Run Provenance
-- **Source Commit**: `b1a17d4cd9c96a1c0d1c80bc6eccd0d14f8b883f`
+- **Source Commit**: `f6d87771d7085b63d7bbdec1579f4955d422178f`
 - **Source Dirty**: `false`
 - **Project Version**: `8.9.1`
-- **JMH Jar SHA-256**: `2c722d3e09b4857604f4effabd7687ffd9cca3f17caa88bdd03b1700a001b95e`
+- **JMH Jar SHA-256**: `70cf811dc6cebb489639cd02bf1d508b521ef65a87fd70771d3c203c3b291324`
 - **Runtime JVM**: OpenJDK 64-Bit Server VM 17.0.7+7-LTS / Java 17.0.7
 - **Runtime OS**: Mac OS X 26.5.2 aarch64
 - **CPU Cores**: 14
 - **Physical Memory**: 24.0 GiB
 - **mongo-batch-options-tuning Required Services**: `MongoDB=localhost:27017`
 
+### Manifest-bound Run-Time Infrastructure
+
+- **Captured At**: 2026-07-26T16:25:07.161180Z to 2026-07-26T16:36:10.763106Z
+- **Benchmark Client**: host JVM
+- **Docker Server**: Server=29.6.2 CPUs=4 Memory=5.8 GiB Kernel=6.12.76-linuxkit
+- **Mongo Container**: ` wow-benchmark-mongo `
+  - Running: `true`
+  - Container ID: ` 39316b50739e6e6e41b3c12f543bf6de3a35de90794cf467b08b992d01970612 `
+  - Started At: ` 2026-07-26T16:23:47.551143055Z `
+  - Image: ` mongo:8.3.4 `
+  - Image ID: ` sha256:6818b4556f741c6d220e7edf3d51730719d965f51d5c4e80ac9e0eeafcaac94d `
+  - Repo Digests: ` mongo@sha256:48a009d2d8007e92d6d7e8baa31713cd11c48c06e827e856240e5a1d319b49d9 `
+  - Configuration SHA-256: ` ef0ee26170ee9bb45f34860f4bfd8ce33c72a8655f66f4dc0b6d5587e16b9c25 `
+  - Published Ports: ` DockerPublishedPortBinding(containerPort=27017, protocol=tcp, hostIp=0.0.0.0, hostPort=27017),DockerPublishedPortBinding(containerPort=27017, protocol=tcp, hostIp=::, hostPort=27017) `
+  - Performance Configuration: ` setParameter.diagnosticDataCollectionEnabled=false,setParameter.ttlMonitorEnabled=false,wiredTiger.cacheSizeGB=2,wiredTiger.collectionBlockCompressor=none,wiredTiger.journalCompressor=none `
+  - Compose: project=` wow-benchmarks-mongo `, service=` mongo `, config hash=` ae674d3e2b1cc084396d695ed6697abbbcb47630ee5fdeb1ab8f8bddb2b0a915 `, config files=` /Users/ahoo/work/ahoo-git/Wow/wow-benchmarks/docker/compose.mongo.yml `
+
 | Suite | Profile | Threads | Run ID | Started | Completed | Profilers | Rows | Result SHA-256 |
 |-------|---------|---------|--------|---------|-----------|-----------|------|----------------|
-| mongo-batch-options-tuning | tuning-scan | 1 | `fb72c505-7234-47d3-b803-716d3d3b84d3` | 2026-07-26T09:07:39.593030Z | 2026-07-26T09:18:43.484492Z | `-prof gc` | 100 | `76b428765cc388c19fb86b4f1d20d538a0f54be05d82304d421e57ddf0159046` |
+| mongo-batch-options-tuning | tuning-scan | 1 | `9ac07d24-a14a-49a1-8315-af56008e830d` | 2026-07-26T16:25:07.161811Z | 2026-07-26T16:36:10.765624Z | `-prof gc` | 100 | `10344411da4a9e45f2d205d9642eb808d6e5deabc54ae92979c1df7040553910` |
 
 ## Report Generation Environment
 - **Version**: 8.9.1
 - **JVM**: OpenJDK 64-Bit Server VM 17.0.7+7-LTS
 - **OS**: Mac OS X 26.5.2 aarch64
-- **Generated At**: 2026-07-26T17:35:39+08:00
+- **Generated At**: 2026-07-27T00:36:30+08:00
 - **CPU Cores**: 14
 - **Physical Memory**: 24.0 GiB
 - **Benchmark JVM Args**: `-Xmx1g -Xms1g -XX:+UseG1GC`
 - **JMH Config**: warmup=1x1s, measurement=2x2s, fork=1, threads=1, modes=thrpt, profilers=gc
 
-## Report-Time Infrastructure Runtime
+## Report-Time Infrastructure Diagnostics
+This section is live diagnostic context only. Manifest-bound run-time container identity and configuration above are the evidence used for comparability checks.
+
 - **Benchmark Client**: host JVM
-- **Docker Compose Env File**: `wow-benchmarks/docker/benchmark.env`
+- **Docker Compose Env File**: ` wow-benchmarks/docker/benchmark.env `
 - **Docker Server**: Server=29.6.2 CPUs=4 Memory=5.8 GiB Kernel=6.12.76-linuxkit
 - **Docker Desktop VM**: networkType=gvisor CPUs=4 Memory=6.0 GiB
-- **Mongo Container**: `wow-benchmark-mongo`
-  - Image: `mongo:8.3.4`
-  - Image ID: `sha256:6818b4556f741c6d220e7edf3d51730719d965f51d5c4e80ac9e0eeafcaac94d`
-  - Repo Digests: `["mongo@sha256:48a009d2d8007e92d6d7e8baa31713cd11c48c06e827e856240e5a1d319b49d9"]`
+- **Mongo Container**: ` wow-benchmark-mongo `
+  - Image: ` mongo:8.3.4 `
+  - Image ID: ` sha256:6818b4556f741c6d220e7edf3d51730719d965f51d5c4e80ac9e0eeafcaac94d `
+  - Repo Digests: ` mongo@sha256:48a009d2d8007e92d6d7e8baa31713cd11c48c06e827e856240e5a1d319b49d9 `
 - **Network Note**: Host JVM infrastructure benchmarks use Docker-published localhost ports; Docker Desktop host-to-VM networking can materially affect Redis, Mongo, and Elasticsearch results.
 
 ## Throughput Screening
@@ -57,29 +76,30 @@ The table keeps the five highest point estimates per workload plus the current `
 
 | Workload | Refresh | Threads | Batch options | Throughput | Error | vs best | vs current | Allocation |
 |----------|---------|---------|---------------|------------|-------|---------|------------|------------|
-| `appendIsolated` | `-` | 1 | `128x50us` | 3.28 k ops/s | - | +0.0% | +638.8% | 26.14 KiB/op |
-| `appendIsolated` | `-` | 1 | `192x50us` | 3.18 k ops/s | - | -3.1% | +615.9% | 25.87 KiB/op |
-| `appendIsolated` | `-` | 1 | `256x50us` | 3.11 k ops/s | - | -5.2% | +600.4% | 26.12 KiB/op |
-| `appendIsolated` | `-` | 1 | `512x50us` | 3.02 k ops/s | - | -8.1% | +579.3% | 25.96 KiB/op |
-| `appendIsolated` | `-` | 1 | `192x100us` | 2.34 k ops/s | - | -28.7% | +426.8% | 26.34 KiB/op |
-| `appendIsolated` | `-` | 1 | `128x1000us` | 0.44 k ops/s | - | -86.5% | +0.0% | 27.08 KiB/op |
-| `appendBurst32` | `-` | 1 | `512x100us` | 40.88 k ops/s | - | +0.0% | +278.7% | 10.62 KiB/op |
-| `appendBurst32` | `-` | 1 | `192x100us` | 40.02 k ops/s | - | -2.1% | +270.7% | 10.64 KiB/op |
-| `appendBurst32` | `-` | 1 | `256x100us` | 38.29 k ops/s | - | -6.3% | +254.7% | 10.69 KiB/op |
-| `appendBurst32` | `-` | 1 | `256x150us` | 37.47 k ops/s | - | -8.3% | +247.1% | 10.95 KiB/op |
-| `appendBurst32` | `-` | 1 | `192x150us` | 37.28 k ops/s | - | -8.8% | +245.3% | 10.93 KiB/op |
-| `appendBurst32` | `-` | 1 | `128x1000us` | 10.8 k ops/s | - | -73.6% | +0.0% | 10.57 KiB/op |
-| `appendRepresentative128` | `-` | 1 | `128x150us` | 53.32 k ops/s | - | +0.0% | +15.6% | 10.53 KiB/op |
-| `appendRepresentative128` | `-` | 1 | `256x150us` | 53.06 k ops/s | - | -0.5% | +15.1% | 10.52 KiB/op |
-| `appendRepresentative128` | `-` | 1 | `192x150us` | 52.4 k ops/s | - | -1.7% | +13.6% | 10.89 KiB/op |
-| `appendRepresentative128` | `-` | 1 | `128x200us` | 51.94 k ops/s | - | -2.6% | +12.6% | 10.8 KiB/op |
-| `appendRepresentative128` | `-` | 1 | `512x150us` | 51.87 k ops/s | - | -2.7% | +12.5% | 10.89 KiB/op |
-| `appendRepresentative128` | `-` | 1 | `128x1000us` | 46.12 k ops/s | - | -13.5% | +0.0% | 10.52 KiB/op |
-| `appendSaturated512` | `-` | 1 | `512x375us` | 58.24 k ops/s | - | +0.0% | +0.3% | 10.43 KiB/op |
-| `appendSaturated512` | `-` | 1 | `128x1000us` | 58.06 k ops/s | - | -0.3% | +0.0% | 10.78 KiB/op |
-| `appendSaturated512` | `-` | 1 | `512x250us` | 57.76 k ops/s | - | -0.8% | -0.5% | 10.85 KiB/op |
-| `appendSaturated512` | `-` | 1 | `256x200us` | 57.64 k ops/s | - | -1.0% | -0.7% | 10.92 KiB/op |
-| `appendSaturated512` | `-` | 1 | `192x375us` | 57.63 k ops/s | - | -1.0% | -0.7% | 10.79 KiB/op |
+| `appendIsolated` | `-` | 1 | `128x50us` | 3.34 k ops/s | - | +0.0% | +732.8% | 26.19 KiB/op |
+| `appendIsolated` | `-` | 1 | `256x50us` | 3.24 k ops/s | - | -3.1% | +707.3% | 25.9 KiB/op |
+| `appendIsolated` | `-` | 1 | `512x50us` | 3.19 k ops/s | - | -4.4% | +696.3% | 25.9 KiB/op |
+| `appendIsolated` | `-` | 1 | `192x50us` | 3.12 k ops/s | - | -6.7% | +677.4% | 26.22 KiB/op |
+| `appendIsolated` | `-` | 1 | `512x100us` | 2.35 k ops/s | - | -29.7% | +485.3% | 26.35 KiB/op |
+| `appendIsolated` | `-` | 1 | `128x1000us` | 0.4 k ops/s | - | -88.0% | +0.0% | 27.22 KiB/op |
+| `appendBurst32` | `-` | 1 | `512x100us` | 42.4 k ops/s | - | +0.0% | +294.2% | 10.67 KiB/op |
+| `appendBurst32` | `-` | 1 | `128x100us` | 40.76 k ops/s | - | -3.9% | +278.9% | 10.75 KiB/op |
+| `appendBurst32` | `-` | 1 | `192x100us` | 40.7 k ops/s | - | -4.0% | +278.4% | 10.74 KiB/op |
+| `appendBurst32` | `-` | 1 | `256x100us` | 39.75 k ops/s | - | -6.2% | +269.6% | 11.13 KiB/op |
+| `appendBurst32` | `-` | 1 | `512x150us` | 36.81 k ops/s | - | -13.2% | +242.3% | 11.01 KiB/op |
+| `appendBurst32` | `-` | 1 | `128x1000us` | 10.76 k ops/s | - | -74.6% | +0.0% | 10.69 KiB/op |
+| `appendRepresentative128` | `-` | 1 | `192x150us` | 55.81 k ops/s | - | +0.0% | +24.2% | 11.02 KiB/op |
+| `appendRepresentative128` | `-` | 1 | `256x200us` | 55.44 k ops/s | - | -0.7% | +23.4% | 10.87 KiB/op |
+| `appendRepresentative128` | `-` | 1 | `512x200us` | 54.65 k ops/s | - | -2.1% | +21.6% | 10.9 KiB/op |
+| `appendRepresentative128` | `-` | 1 | `128x150us` | 54.26 k ops/s | - | -2.8% | +20.8% | 11.01 KiB/op |
+| `appendRepresentative128` | `-` | 1 | `512x150us` | 54.05 k ops/s | - | -3.2% | +20.3% | 11.03 KiB/op |
+| `appendRepresentative128` | `-` | 1 | `128x1000us` | 44.93 k ops/s | - | -19.5% | +0.0% | 10.66 KiB/op |
+| `appendSaturated512` | `-` | 1 | `192x250us` | 67.27 k ops/s | - | +0.0% | +4.7% | 10.96 KiB/op |
+| `appendSaturated512` | `-` | 1 | `512x375us` | 66.93 k ops/s | - | -0.5% | +4.2% | 10.86 KiB/op |
+| `appendSaturated512` | `-` | 1 | `256x250us` | 66.77 k ops/s | - | -0.7% | +4.0% | 10.92 KiB/op |
+| `appendSaturated512` | `-` | 1 | `256x375us` | 66.54 k ops/s | - | -1.1% | +3.6% | 10.86 KiB/op |
+| `appendSaturated512` | `-` | 1 | `128x375us` | 66.35 k ops/s | - | -1.4% | +3.3% | 10.91 KiB/op |
+| `appendSaturated512` | `-` | 1 | `128x1000us` | 64.23 k ops/s | - | -4.5% | +0.0% | 10.53 KiB/op |
 
 Higher throughput is better. `vs best` and `vs current` use point estimates; overlapping JMH error intervals remain inconclusive and require the multiple-fork confirmation task.
 
@@ -87,135 +107,146 @@ Higher throughput is better. `vs best` and `vs current` use point estimates; ove
 
 A screening candidate is eligible only when every saturated stratum is within 5% of that stratum's best point estimate, every isolated/burst/representative stratum stays within 10% of current throughput, and allocation stays within 10% of current. All refresh and thread strata participate. These point-estimate gates shortlist candidates; confirmation remains required.
 
-| Batch options | Preferred refresh saturated vs best | Worst saturated vs best | Worst guard vs current | Worst allocation vs current | Screening status |
-|---------------|--------------------------------------|-------------------------|------------------------|-----------------------------|------------------|
-| `512x375us` | +0.0% | +0.0% | -6.7% | +3.1% | ELIGIBLE |
-| `128x1000us` | -0.3% | -0.3% | +0.0% | +0.0% | CURRENT |
-| `512x250us` | -0.8% | -0.8% | +5.9% | +2.5% | ELIGIBLE |
-| `256x200us` | -1.0% | -1.0% | +8.4% | +3.0% | ELIGIBLE |
-| `192x375us` | -1.0% | -1.0% | -1.1% | +3.4% | ELIGIBLE |
-| `192x250us` | -1.5% | -1.5% | +6.2% | +3.5% | ELIGIBLE |
-| `512x200us` | -2.1% | -2.1% | +7.3% | +3.4% | ELIGIBLE |
-| `128x375us` | -2.5% | -2.5% | +3.8% | +3.1% | ELIGIBLE |
-| `128x250us` | -2.8% | -2.8% | +1.0% | +2.4% | ELIGIBLE |
-| `192x200us` | -3.1% | -3.1% | +7.8% | +3.3% | ELIGIBLE |
-| `256x375us` | -3.2% | -3.2% | +1.4% | +3.1% | ELIGIBLE |
-| `256x250us` | -3.4% | -3.4% | +4.4% | +2.3% | ELIGIBLE |
-| `192x150us` | -5.0% | -5.0% | +13.6% | +3.6% | ELIGIBLE |
-| `128x200us` | -6.1% | -6.1% | +12.6% | +3.1% | REJECT |
-| `128x150us` | -6.9% | -6.9% | +15.6% | +2.3% | REJECT |
-| `256x150us` | -7.2% | -7.2% | +15.1% | +3.6% | REJECT |
-| `512x150us` | -8.0% | -8.0% | +12.5% | +3.5% | REJECT |
-| `256x100us` | -13.7% | -13.7% | +4.8% | +5.9% | REJECT |
-| `128x100us` | -14.9% | -14.9% | -5.2% | +6.5% | REJECT |
-| `192x100us` | -15.8% | -15.8% | +0.9% | +6.2% | REJECT |
-| `512x100us` | -17.7% | -17.7% | +1.2% | +5.9% | REJECT |
-| `192x50us` | -34.2% | -34.2% | -19.4% | +12.6% | REJECT |
-| `512x50us` | -35.4% | -35.4% | -18.8% | +12.4% | REJECT |
-| `256x50us` | -37.8% | -37.8% | -15.2% | +11.8% | REJECT |
-| `128x50us` | -38.8% | -38.8% | -11.2% | +12.0% | REJECT |
+| Batch options | Primary representative vs current | Preferred refresh saturated vs best | Worst saturated vs best | Worst guard vs current | Worst allocation vs current | Screening status |
+|---------------|-----------------------------------|--------------------------------------|-------------------------|------------------------|-----------------------------|------------------|
+| `512x200us` | +21.6% | -4.6% | -4.6% | +21.6% | +4.6% | CONFIRM |
+| `128x200us` | +20.2% | -4.2% | -4.2% | +20.2% | +3.1% | CONFIRM |
+| `192x250us` | +18.6% | +0.0% | +0.0% | +18.6% | +4.1% | CONFIRM |
+| `192x200us` | +18.4% | -4.5% | -4.5% | +18.4% | +4.4% | ELIGIBLE_DOMINATED |
+| `512x250us` | +15.8% | -1.7% | -1.7% | +15.8% | +3.9% | CONFIRM |
+| `128x250us` | +14.2% | -4.9% | -4.9% | +14.2% | +4.1% | ELIGIBLE_DOMINATED |
+| `256x250us` | +13.2% | -0.7% | -0.7% | +13.2% | +3.8% | CONFIRM |
+| `128x375us` | +11.5% | -1.4% | -1.4% | +11.5% | +3.6% | CONFIRM |
+| `192x375us` | +6.9% | -3.0% | -3.0% | +6.9% | +1.0% | CONFIRM |
+| `512x375us` | +5.2% | -0.5% | -0.5% | +5.2% | +3.2% | CONFIRM |
+| `256x375us` | +4.4% | -1.1% | -1.1% | +4.4% | +3.2% | ELIGIBLE_DOMINATED |
+| `128x1000us` | +0.0% | -4.5% | -4.5% | +0.0% | +0.0% | CURRENT |
+| `192x150us` | +24.2% | -9.8% | -9.8% | +24.2% | +6.2% | REJECT |
+| `256x200us` | +23.4% | -5.6% | -5.6% | +23.4% | +4.4% | REJECT |
+| `128x150us` | +20.8% | -10.4% | -10.4% | +20.8% | +5.9% | REJECT |
+| `512x150us` | +20.3% | -9.2% | -9.2% | +20.3% | +5.5% | REJECT |
+| `256x150us` | +18.9% | -11.4% | -11.4% | +18.9% | +6.0% | REJECT |
+| `512x100us` | +18.5% | -20.7% | -20.7% | +18.5% | +8.1% | REJECT |
+| `128x100us` | +17.9% | -16.9% | -16.9% | +17.9% | +5.5% | REJECT |
+| `192x100us` | +17.5% | -17.8% | -17.8% | +17.5% | +7.2% | REJECT |
+| `256x100us` | +11.6% | -24.5% | -24.5% | +11.6% | +8.2% | REJECT |
+| `256x50us` | -4.8% | -36.5% | -36.5% | -4.8% | +12.8% | REJECT |
+| `192x50us` | -7.0% | -35.7% | -35.7% | -7.0% | +12.7% | REJECT |
+| `512x50us` | -9.6% | -35.5% | -35.5% | -9.6% | +13.1% | REJECT |
+| `128x50us` | -10.6% | -34.7% | -34.7% | -10.6% | +12.3% | REJECT |
+
+### Deterministic Pareto Confirmation Set
+
+The report removes eligible challengers only when another eligible challenger is no worse on primary representative throughput, preferred-refresh saturated throughput, worst saturated throughput, worst guard throughput, and allocation, and is strictly better on at least one. The full non-dominated frontier is retained. Display order is deterministic by those metrics, then smaller `maxSize`, shorter `maxDelay`, and encoded option.
+
+- **Required frontier**: `512x200us`, `128x200us`, `192x250us`, `512x250us`, `256x250us`, `128x375us`, `192x375us`, `512x375us`
+- **Closure rule**: run one multiple-fork confirmation over the complete ordered frontier, then run paired confirmation for every `INCONCLUSIVE` challenger. Only after every challenger has a final `PASS` or elimination verdict may the highest-ranked `PASS` be selected; if none pass, retain current. Until then, the default decision remains open.
+
+```bash
+./gradlew :wow-benchmarks:benchmarkConfirmMongoBatchOptions :wow-benchmarks:generateMongoBatchOptionsTuningConfirmationReport -PbenchmarkConfirmMongoBatchOptionsParameters='batchOptions=128x1000us,512x200us,128x200us,192x250us,512x250us,256x250us,128x375us,192x375us,512x375us' --no-parallel
+```
 
 ## Results
 
 | Suite | Benchmark | Threads | Mode | Score | Error | gc.alloc.rate.norm |
 |-------|-----------|---------|------|-------|-------|-------------------|
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=128x1000us) | 1 | thrpt | 10.8 k ops/s | - | 10.57 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=128x100us) | 1 | thrpt | 36.97 k ops/s | - | 11.06 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=128x150us) | 1 | thrpt | 34.91 k ops/s | - | 10.53 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=128x200us) | 1 | thrpt | 30.98 k ops/s | - | 10.89 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=128x250us) | 1 | thrpt | 26.86 k ops/s | - | 10.54 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=128x375us) | 1 | thrpt | 20.91 k ops/s | - | 10.9 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=128x50us) | 1 | thrpt | 32.85 k ops/s | - | 11.84 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=192x100us) | 1 | thrpt | 40.02 k ops/s | - | 10.64 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=192x150us) | 1 | thrpt | 37.28 k ops/s | - | 10.93 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=192x200us) | 1 | thrpt | 32.9 k ops/s | - | 10.92 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=192x250us) | 1 | thrpt | 24.82 k ops/s | - | 10.94 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=192x375us) | 1 | thrpt | 21.22 k ops/s | - | 10.93 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=192x50us) | 1 | thrpt | 34.71 k ops/s | - | 11.3 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=256x100us) | 1 | thrpt | 38.29 k ops/s | - | 10.69 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=256x150us) | 1 | thrpt | 37.47 k ops/s | - | 10.95 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=256x200us) | 1 | thrpt | 34.05 k ops/s | - | 10.89 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=256x250us) | 1 | thrpt | 26.06 k ops/s | - | 10.58 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=256x375us) | 1 | thrpt | 20.8 k ops/s | - | 10.9 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=256x50us) | 1 | thrpt | 34.42 k ops/s | - | 11.66 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=512x100us) | 1 | thrpt | 40.88 k ops/s | - | 10.62 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=512x150us) | 1 | thrpt | 36.52 k ops/s | - | 10.57 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=512x200us) | 1 | thrpt | 32.72 k ops/s | - | 10.93 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=512x250us) | 1 | thrpt | 27.07 k ops/s | - | 10.57 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=512x375us) | 1 | thrpt | 20.27 k ops/s | - | 10.9 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=512x50us) | 1 | thrpt | 35.15 k ops/s | - | 11.33 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=128x1000us) | 1 | thrpt | 443.87 ops/s | - | 27.08 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=128x100us) | 1 | thrpt | 2.22 k ops/s | - | 26.4 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=128x150us) | 1 | thrpt | 1.35 k ops/s | - | 26.6 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=128x200us) | 1 | thrpt | 1.26 k ops/s | - | 26.3 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=128x250us) | 1 | thrpt | 980.83 ops/s | - | 26.78 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=128x375us) | 1 | thrpt | 789.21 ops/s | - | 26.92 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=128x50us) | 1 | thrpt | 3.28 k ops/s | - | 26.14 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=192x100us) | 1 | thrpt | 2.34 k ops/s | - | 26.34 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=192x150us) | 1 | thrpt | 1.34 k ops/s | - | 26.19 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=192x200us) | 1 | thrpt | 1.06 k ops/s | - | 26.66 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=192x250us) | 1 | thrpt | 883.79 ops/s | - | 26.59 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=192x375us) | 1 | thrpt | 738.1 ops/s | - | 26.93 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=192x50us) | 1 | thrpt | 3.18 k ops/s | - | 25.87 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=256x100us) | 1 | thrpt | 2.26 k ops/s | - | 26.34 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=256x150us) | 1 | thrpt | 1.28 k ops/s | - | 26.34 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=256x200us) | 1 | thrpt | 1.11 k ops/s | - | 26.77 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=256x250us) | 1 | thrpt | 933.22 ops/s | - | 26.9 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=256x375us) | 1 | thrpt | 836.01 ops/s | - | 26.61 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=256x50us) | 1 | thrpt | 3.11 k ops/s | - | 26.12 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=512x100us) | 1 | thrpt | 2.09 k ops/s | - | 26.45 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=512x150us) | 1 | thrpt | 1.3 k ops/s | - | 26.72 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=512x200us) | 1 | thrpt | 1.17 k ops/s | - | 26.41 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=512x250us) | 1 | thrpt | 1.06 k ops/s | - | 26.77 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=512x375us) | 1 | thrpt | 851.42 ops/s | - | 26.81 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=512x50us) | 1 | thrpt | 3.02 k ops/s | - | 25.96 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=128x1000us) | 1 | thrpt | 46.12 k ops/s | - | 10.52 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=128x100us) | 1 | thrpt | 43.7 k ops/s | - | 11.2 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=128x150us) | 1 | thrpt | 53.32 k ops/s | - | 10.53 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=128x200us) | 1 | thrpt | 51.94 k ops/s | - | 10.8 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=128x250us) | 1 | thrpt | 46.56 k ops/s | - | 10.77 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=128x375us) | 1 | thrpt | 47.86 k ops/s | - | 10.62 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=128x50us) | 1 | thrpt | 40.96 k ops/s | - | 11.75 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=192x100us) | 1 | thrpt | 46.53 k ops/s | - | 11.17 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=192x150us) | 1 | thrpt | 52.4 k ops/s | - | 10.89 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=192x200us) | 1 | thrpt | 49.73 k ops/s | - | 10.44 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=192x250us) | 1 | thrpt | 48.99 k ops/s | - | 10.77 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=192x375us) | 1 | thrpt | 45.62 k ops/s | - | 10.61 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=192x50us) | 1 | thrpt | 37.15 k ops/s | - | 11.84 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=256x100us) | 1 | thrpt | 48.32 k ops/s | - | 11.14 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=256x150us) | 1 | thrpt | 53.06 k ops/s | - | 10.52 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=256x200us) | 1 | thrpt | 50.01 k ops/s | - | 10.83 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=256x250us) | 1 | thrpt | 48.13 k ops/s | - | 10.76 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=256x375us) | 1 | thrpt | 46.74 k ops/s | - | 10.64 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=256x50us) | 1 | thrpt | 39.09 k ops/s | - | 11.76 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=512x100us) | 1 | thrpt | 46.66 k ops/s | - | 11.13 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=512x150us) | 1 | thrpt | 51.87 k ops/s | - | 10.89 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=512x200us) | 1 | thrpt | 49.5 k ops/s | - | 10.81 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=512x250us) | 1 | thrpt | 48.84 k ops/s | - | 10.78 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=512x375us) | 1 | thrpt | 43.03 k ops/s | - | 10.65 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=512x50us) | 1 | thrpt | 37.45 k ops/s | - | 11.82 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=128x1000us) | 1 | thrpt | 58.06 k ops/s | - | 10.78 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=128x100us) | 1 | thrpt | 49.54 k ops/s | - | 10.87 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=128x150us) | 1 | thrpt | 54.25 k ops/s | - | 11.03 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=128x200us) | 1 | thrpt | 54.69 k ops/s | - | 10.93 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=128x250us) | 1 | thrpt | 56.64 k ops/s | - | 10.88 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=128x375us) | 1 | thrpt | 56.77 k ops/s | - | 10.46 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=128x50us) | 1 | thrpt | 35.63 k ops/s | - | 11.59 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=192x100us) | 1 | thrpt | 49.03 k ops/s | - | 11.22 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=192x150us) | 1 | thrpt | 55.35 k ops/s | - | 10.65 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=192x200us) | 1 | thrpt | 56.46 k ops/s | - | 10.93 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=192x250us) | 1 | thrpt | 57.34 k ops/s | - | 10.86 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=192x375us) | 1 | thrpt | 57.63 k ops/s | - | 10.79 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=192x50us) | 1 | thrpt | 38.32 k ops/s | - | 11.88 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=256x100us) | 1 | thrpt | 50.29 k ops/s | - | 10.86 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=256x150us) | 1 | thrpt | 54.04 k ops/s | - | 11.04 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=256x200us) | 1 | thrpt | 57.64 k ops/s | - | 10.92 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=256x250us) | 1 | thrpt | 56.28 k ops/s | - | 10.85 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=256x375us) | 1 | thrpt | 56.37 k ops/s | - | 10.77 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=256x50us) | 1 | thrpt | 36.23 k ops/s | - | 11.9 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=512x100us) | 1 | thrpt | 47.94 k ops/s | - | 11.26 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=512x150us) | 1 | thrpt | 53.59 k ops/s | - | 10.67 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=512x200us) | 1 | thrpt | 57 k ops/s | - | 10.91 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=512x250us) | 1 | thrpt | 57.76 k ops/s | - | 10.85 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=512x375us) | 1 | thrpt | 58.24 k ops/s | - | 10.43 KiB/op |
-| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=512x50us) | 1 | thrpt | 37.62 k ops/s | - | 11.86 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=128x1000us) | 1 | thrpt | 10.76 k ops/s | - | 10.69 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=128x100us) | 1 | thrpt | 40.76 k ops/s | - | 10.75 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=128x150us) | 1 | thrpt | 35.88 k ops/s | - | 10.65 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=128x200us) | 1 | thrpt | 29.66 k ops/s | - | 11.02 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=128x250us) | 1 | thrpt | 23.53 k ops/s | - | 10.68 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=128x375us) | 1 | thrpt | 20.58 k ops/s | - | 11.02 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=128x50us) | 1 | thrpt | 33.96 k ops/s | - | 11.95 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=192x100us) | 1 | thrpt | 40.7 k ops/s | - | 10.74 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=192x150us) | 1 | thrpt | 35.74 k ops/s | - | 10.71 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=192x200us) | 1 | thrpt | 29.87 k ops/s | - | 11.02 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=192x250us) | 1 | thrpt | 25.55 k ops/s | - | 11 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=192x375us) | 1 | thrpt | 18.34 k ops/s | - | 10.65 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=192x50us) | 1 | thrpt | 35.68 k ops/s | - | 11.4 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=256x100us) | 1 | thrpt | 39.75 k ops/s | - | 11.13 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=256x150us) | 1 | thrpt | 36.75 k ops/s | - | 11.01 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=256x200us) | 1 | thrpt | 32.69 k ops/s | - | 10.63 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=256x250us) | 1 | thrpt | 23.84 k ops/s | - | 11 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=256x375us) | 1 | thrpt | 19.35 k ops/s | - | 11 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=256x50us) | 1 | thrpt | 35.83 k ops/s | - | 11.43 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=512x100us) | 1 | thrpt | 42.4 k ops/s | - | 10.67 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=512x150us) | 1 | thrpt | 36.81 k ops/s | - | 11.01 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=512x200us) | 1 | thrpt | 30.42 k ops/s | - | 11 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=512x250us) | 1 | thrpt | 24.13 k ops/s | - | 10.65 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=512x375us) | 1 | thrpt | 18.8 k ops/s | - | 10.65 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendBurst32 (batchOptions=512x50us) | 1 | thrpt | 35.73 k ops/s | - | 11.42 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=128x1000us) | 1 | thrpt | 401.13 ops/s | - | 27.22 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=128x100us) | 1 | thrpt | 1.97 k ops/s | - | 26.57 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=128x150us) | 1 | thrpt | 1.17 k ops/s | - | 26.79 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=128x200us) | 1 | thrpt | 1.03 k ops/s | - | 26.54 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=128x250us) | 1 | thrpt | 900.01 ops/s | - | 26.9 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=128x375us) | 1 | thrpt | 726.1 ops/s | - | 26.99 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=128x50us) | 1 | thrpt | 3.34 k ops/s | - | 26.19 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=192x100us) | 1 | thrpt | 2.06 k ops/s | - | 26.5 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=192x150us) | 1 | thrpt | 1.23 k ops/s | - | 26.71 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=192x200us) | 1 | thrpt | 1.17 k ops/s | - | 26.74 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=192x250us) | 1 | thrpt | 924.56 ops/s | - | 26.56 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=192x375us) | 1 | thrpt | 748.26 ops/s | - | 27.05 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=192x50us) | 1 | thrpt | 3.12 k ops/s | - | 26.22 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=256x100us) | 1 | thrpt | 1.96 k ops/s | - | 26.58 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=256x150us) | 1 | thrpt | 1.13 k ops/s | - | 26.77 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=256x200us) | 1 | thrpt | 960.83 ops/s | - | 26.52 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=256x250us) | 1 | thrpt | 941.7 ops/s | - | 26.85 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=256x375us) | 1 | thrpt | 761.06 ops/s | - | 26.98 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=256x50us) | 1 | thrpt | 3.24 k ops/s | - | 25.9 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=512x100us) | 1 | thrpt | 2.35 k ops/s | - | 26.35 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=512x150us) | 1 | thrpt | 1.14 k ops/s | - | 26.69 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=512x200us) | 1 | thrpt | 1.01 k ops/s | - | 26.85 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=512x250us) | 1 | thrpt | 920.19 ops/s | - | 26.13 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=512x375us) | 1 | thrpt | 738.9 ops/s | - | 26.74 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendIsolated (batchOptions=512x50us) | 1 | thrpt | 3.19 k ops/s | - | 25.9 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=128x1000us) | 1 | thrpt | 44.93 k ops/s | - | 10.66 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=128x100us) | 1 | thrpt | 52.96 k ops/s | - | 11.24 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=128x150us) | 1 | thrpt | 54.26 k ops/s | - | 11.01 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=128x200us) | 1 | thrpt | 54.02 k ops/s | - | 10.89 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=128x250us) | 1 | thrpt | 51.3 k ops/s | - | 10.87 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=128x375us) | 1 | thrpt | 50.08 k ops/s | - | 10.41 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=128x50us) | 1 | thrpt | 40.15 k ops/s | - | 11.91 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=192x100us) | 1 | thrpt | 52.8 k ops/s | - | 11.25 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=192x150us) | 1 | thrpt | 55.81 k ops/s | - | 11.02 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=192x200us) | 1 | thrpt | 53.21 k ops/s | - | 10.93 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=192x250us) | 1 | thrpt | 53.26 k ops/s | - | 10.84 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=192x375us) | 1 | thrpt | 48.05 k ops/s | - | 10.77 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=192x50us) | 1 | thrpt | 41.8 k ops/s | - | 11.81 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=256x100us) | 1 | thrpt | 50.15 k ops/s | - | 11.25 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=256x150us) | 1 | thrpt | 53.44 k ops/s | - | 11.04 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=256x200us) | 1 | thrpt | 55.44 k ops/s | - | 10.87 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=256x250us) | 1 | thrpt | 50.85 k ops/s | - | 10.86 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=256x375us) | 1 | thrpt | 46.91 k ops/s | - | 10.76 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=256x50us) | 1 | thrpt | 42.78 k ops/s | - | 11.78 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=512x100us) | 1 | thrpt | 53.24 k ops/s | - | 10.84 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=512x150us) | 1 | thrpt | 54.05 k ops/s | - | 11.03 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=512x200us) | 1 | thrpt | 54.65 k ops/s | - | 10.9 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=512x250us) | 1 | thrpt | 52.01 k ops/s | - | 10.86 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=512x375us) | 1 | thrpt | 47.27 k ops/s | - | 10.74 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendRepresentative128 (batchOptions=512x50us) | 1 | thrpt | 40.62 k ops/s | - | 11.91 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=128x1000us) | 1 | thrpt | 64.23 k ops/s | - | 10.53 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=128x100us) | 1 | thrpt | 55.89 k ops/s | - | 10.92 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=128x150us) | 1 | thrpt | 60.27 k ops/s | - | 11.15 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=128x200us) | 1 | thrpt | 64.41 k ops/s | - | 10.68 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=128x250us) | 1 | thrpt | 64 k ops/s | - | 10.96 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=128x375us) | 1 | thrpt | 66.35 k ops/s | - | 10.91 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=128x50us) | 1 | thrpt | 43.96 k ops/s | - | 11.82 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=192x100us) | 1 | thrpt | 55.27 k ops/s | - | 11.29 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=192x150us) | 1 | thrpt | 60.66 k ops/s | - | 11.17 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=192x200us) | 1 | thrpt | 64.22 k ops/s | - | 10.99 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=192x250us) | 1 | thrpt | 67.27 k ops/s | - | 10.96 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=192x375us) | 1 | thrpt | 65.25 k ops/s | - | 10.56 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=192x50us) | 1 | thrpt | 43.26 k ops/s | - | 11.86 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=256x100us) | 1 | thrpt | 50.76 k ops/s | - | 11.39 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=256x150us) | 1 | thrpt | 59.62 k ops/s | - | 11.15 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=256x200us) | 1 | thrpt | 63.47 k ops/s | - | 10.99 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=256x250us) | 1 | thrpt | 66.77 k ops/s | - | 10.92 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=256x375us) | 1 | thrpt | 66.54 k ops/s | - | 10.86 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=256x50us) | 1 | thrpt | 42.74 k ops/s | - | 11.87 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=512x100us) | 1 | thrpt | 53.36 k ops/s | - | 11.38 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=512x150us) | 1 | thrpt | 61.05 k ops/s | - | 11.1 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=512x200us) | 1 | thrpt | 64.2 k ops/s | - | 11.01 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=512x250us) | 1 | thrpt | 66.12 k ops/s | - | 10.93 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=512x375us) | 1 | thrpt | 66.93 k ops/s | - | 10.86 KiB/op |
+| Mongo EventStore Batch Options Tuning | MongoEventStoreBatchTuningBenchmark.appendSaturated512 (batchOptions=512x50us) | 1 | thrpt | 43.36 k ops/s | - | 11.9 KiB/op |
