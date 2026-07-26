@@ -186,6 +186,7 @@ The Gradle model keeps four responsibilities separate: `BenchmarkSuite` owns wor
 | `wow-benchmarks/results/reports/tuning-mongo-batch-options.md` | Generated Mongo EventStore batch-options screening matrix. | Commit only with the exact candidate grid and clean-source manifest used to choose confirmation candidates. |
 | `wow-benchmarks/results/reports/tuning-elasticsearch-batch-options.md` | Generated Elasticsearch EventStore batch-options screening matrix. | Commit only with the exact candidate grid and clean-source manifest used to choose confirmation candidates. |
 | `wow-benchmarks/results/reports/confirmation-mongo-batch-options.md` | Generated multiple-fork Mongo batch-options confirmation. | Commit with the current default and selected candidate set before changing defaults. |
+| `wow-benchmarks/results/reports/confirmation-mongo-batch-options-paired.md` | Generated 24-pair Mongo batch-options finalist confirmation. | Commit only after the pre-registered current/finalist experiment completes from one clean source commit. |
 | `wow-benchmarks/results/reports/confirmation-elasticsearch-batch-options.md` | Generated multiple-fork Elasticsearch batch-options confirmation. | Commit with the current default and selected candidate set before changing defaults. |
 | `wow-benchmarks/results/reports/quick-infrastructure-e2e.md` | Quick Infrastructure E2E report generated on demand; it may be absent in a fresh checkout. | Commit only with intentionally collected, provenance-backed Redis/Mongo evidence. |
 | `wow-benchmarks/results/reports/quick-grouped.md` | Generated quick E2E/component/infrastructure grouped report. | Commit when intentionally updating grouped benchmark evidence. |
@@ -306,6 +307,51 @@ while generated-but-uncommitted screening reports make the source tree dirty.
   -PbenchmarkConfirmMongoBatchOptionsParameters='batchOptions=128x1000us,256x500us' \
   -PbenchmarkConfirmElasticsearchBatchOptionsParameters='batchOptions=128x1000us,256x500us'
 ```
+
+If the Mongo multiple-fork report leaves the single surviving finalist
+`INCONCLUSIVE`, commit the report and run the pre-registered paired confirmation
+from a clean `HEAD`:
+
+```bash
+./gradlew :wow-benchmarks:benchmarkMongoBatchOptionsPairedConfirmation \
+  :wow-benchmarks:generateMongoBatchOptionsPairedConfirmationReport \
+  --no-parallel
+```
+
+The paired protocol compares current `128x1000us` with finalist `256x200us`
+through the same coordinated EventStore path. It runs 24 pairs in a
+pre-registered balanced, non-periodic AB/BA order for every combination of
+isolated, burst32, representative128, saturated512 and JMH threads 1/4. This is
+192 pairs and 384 independent JVM legs in total; allow roughly 80-100 minutes
+for a full local run. Each leg includes `-prof gc`.
+Throughput and `gc.alloc.rate.norm` use per-stratum Student-t 95% intervals over
+paired log ratios. Equivalent amortized time is the inverse throughput ratio;
+it is not a per-request percentile. `PASS` requires every non-saturated
+throughput lower bound to be at least `1/1.10`, every saturated lower bound to
+be at least `0.95`, every allocation upper bound to be at most `1.10`, and both
+representative128 throughput lower bounds to exceed `1.0`. AB/BA order-effect
+and lag-one order-adjusted log-ratio residual diagnostics must also pass; an anomaly forces
+`INCONCLUSIVE` unless a safety regression is already proven. Any non-PASS
+verdict keeps the current default.
+
+The task refuses dirty sources and incomplete evidence. Run IDs are required to
+match within each workload/thread stratum, while different completed strata may
+come from separate invocations on the same commit, JMH jar, JVM, OS, and host.
+If a late leg fails, rerun only its independently runnable 48-leg stratum (about 10-13
+minutes), then generate the report without rerunning the full aggregate. For
+example:
+
+```bash
+./gradlew \
+  :wow-benchmarks:benchmarkMongoBatchOptionsPairedConfirmationT4Representative128 \
+  --no-parallel
+
+./gradlew :wow-benchmarks:generateMongoBatchOptionsPairedConfirmationReport \
+  --no-parallel
+```
+
+The eight stratum task suffixes are the Cartesian product of
+`T1,T4` and `Isolated,Burst32,Representative128,Saturated512`.
 
 Select MongoDB and Elasticsearch defaults independently. A candidate must stay
 within 5% of the best saturated throughput, avoid more than 10% regression for
