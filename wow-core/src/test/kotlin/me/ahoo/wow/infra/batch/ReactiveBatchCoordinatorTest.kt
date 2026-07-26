@@ -22,12 +22,14 @@ import reactor.kotlin.test.test
 import reactor.test.StepVerifier
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.locks.LockSupport
 
 class ReactiveBatchCoordinatorTest {
     @Test
@@ -134,6 +136,68 @@ class ReactiveBatchCoordinatorTest {
                 coordinator.close(Duration.ofSeconds(1))
             }
             .verifyComplete()
+    }
+
+    @Test
+    fun `size and timeout flushes should use one batch thread`() {
+        val writerThreads = ConcurrentHashMap.newKeySet<String>()
+        val coordinator = coordinator(
+            maxSize = 2,
+            maxDelay = Duration.ofMillis(10),
+        ) { items ->
+            writerThreads.add(Thread.currentThread().name)
+            Mono.just(items.map { BatchItemResult.Success })
+        }
+
+        try {
+            batchSignals(coordinator, 1, 2)
+                .block(Duration.ofSeconds(1))
+            coordinator.submit(3)
+                .block(Duration.ofSeconds(1))
+
+            writerThreads.assert().hasSize(1)
+            writerThreads.single()
+                .startsWith("test-batch-window")
+                .assert()
+                .isTrue()
+        } finally {
+            coordinator.close(Duration.ofSeconds(1))
+        }
+    }
+
+    @Test
+    fun `repeated timeout flushes should not strand the final item`() {
+        val burstSize = 32
+        val repetitions = 2_000
+        val writtenItems = AtomicInteger()
+        val coordinator = coordinator(
+            maxSize = 512,
+            maxDelay = Duration.ofMillis(1),
+            maxPendingItems = 512,
+        ) { items ->
+            writtenItems.addAndGet(items.size)
+            Mono.just(items.map { BatchItemResult.Success })
+        }
+
+        try {
+            repeat(repetitions) {
+                Flux.range(0, burstSize)
+                    .flatMap(
+                        { item ->
+                            coordinator.submit {
+                                LockSupport.parkNanos(30_000)
+                                item
+                            }
+                        },
+                        burstSize,
+                    )
+                    .then()
+                    .block(Duration.ofSeconds(2))
+            }
+            writtenItems.get().assert().isEqualTo(burstSize * repetitions)
+        } finally {
+            coordinator.close(Duration.ofSeconds(2))
+        }
     }
 
     @Test
@@ -403,11 +467,22 @@ class ReactiveBatchCoordinatorTest {
 
     @Test
     fun `subsequent close after timeout should throw the same terminal failure`() {
+        val writerSubscribed = CountDownLatch(1)
+        val writerCancelled = CountDownLatch(1)
+        val cancellationThread = AtomicReference<String>()
         val coordinator = coordinator(maxPendingItems = 2) {
-            Mono.never()
+            Mono.never<List<BatchItemResult>>()
+                .doOnSubscribe {
+                    writerSubscribed.countDown()
+                }
+                .doOnCancel {
+                    cancellationThread.set(Thread.currentThread().name)
+                    writerCancelled.countDown()
+                }
         }
         val first = coordinator.submit(1).materialize().toFuture()
         val second = coordinator.submit(2).materialize().toFuture()
+        writerSubscribed.await(1, TimeUnit.SECONDS).assert().isTrue()
 
         val firstCloseError = assertThrows<ReactiveBatchCloseTimeoutException> {
             coordinator.close(Duration.ofMillis(10))
@@ -419,6 +494,11 @@ class ReactiveBatchCoordinatorTest {
         secondCloseError.assert().isSameAs(firstCloseError)
         first.get(1, TimeUnit.SECONDS)!!.throwable.assert().isSameAs(firstCloseError)
         second.get(1, TimeUnit.SECONDS)!!.throwable.assert().isSameAs(firstCloseError)
+        writerCancelled.await(1, TimeUnit.SECONDS).assert().isTrue()
+        cancellationThread.get()
+            .startsWith("test-batch-window")
+            .assert()
+            .isTrue()
     }
 
     @Test
@@ -538,20 +618,30 @@ class ReactiveBatchCoordinatorTest {
     ).collectList()
 
     private fun coordinator(
+        maxSize: Int = 2,
+        maxDelay: Duration = Duration.ofHours(1),
         maxPendingItems: Int = 8,
         writer: (List<Int>) -> Mono<List<BatchItemResult>>,
     ): ReactiveBatchCoordinator<Int> {
         return ReactiveBatchCoordinator(
             name = "test",
-            options = options(maxPendingItems),
+            options = options(
+                maxSize = maxSize,
+                maxDelay = maxDelay,
+                maxPendingItems = maxPendingItems,
+            ),
             writer = ReactiveBatchWriter(writer),
         )
     }
 
-    private fun options(maxPendingItems: Int = 8): ReactiveBatchOptions {
+    private fun options(
+        maxSize: Int = 2,
+        maxDelay: Duration = Duration.ofHours(1),
+        maxPendingItems: Int = 8,
+    ): ReactiveBatchOptions {
         return ReactiveBatchOptions(
-            maxSize = 2,
-            maxDelay = Duration.ofHours(1),
+            maxSize = maxSize,
+            maxDelay = maxDelay,
             maxPendingItems = maxPendingItems,
         )
     }

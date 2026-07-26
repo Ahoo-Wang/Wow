@@ -33,6 +33,7 @@ import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.infra.Blackhole
 import reactor.core.publisher.Flux
 import reactor.kotlin.core.publisher.toMono
+import java.time.Duration
 
 @State(Scope.Benchmark)
 open class MongoEventStoreBatchTuningState {
@@ -88,10 +89,14 @@ open class MongoEventStoreBatchTuningState {
                     1,
                 )
                 .count()
-                .block()
+                .block(APPEND_TIMEOUT)
         ).also { appended ->
             check(appended == count.toLong())
         }
+    }
+
+    private companion object {
+        val APPEND_TIMEOUT: Duration = Duration.ofSeconds(10)
     }
 }
 

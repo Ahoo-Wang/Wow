@@ -18,6 +18,7 @@ import reactor.core.Disposable
 import reactor.core.Exceptions
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
+import reactor.core.scheduler.Schedulers
 import java.time.Duration
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.CompletableFuture
@@ -214,6 +215,7 @@ class ReactiveBatchCoordinator<T : Any>(
     private val processorTermination = CompletableFuture<Unit>()
     private val termination = CompletableFuture<Unit>()
     private val resultDispatchContext = ThreadLocal<Boolean>()
+    private val batchScheduler = Schedulers.newSingle("$name-batch-window", true)
     private val resultExecutor = object : ThreadPoolExecutor(
         RESULT_DISPATCHER_THREADS.coerceAtMost(options.maxPendingItems),
         RESULT_DISPATCHER_THREADS.coerceAtMost(options.maxPendingItems),
@@ -242,9 +244,19 @@ class ReactiveBatchCoordinator<T : Any>(
         processor = items.asFlux()
             // Queue-slot admission bounds cancelled placeholders independently
             // from live-item admission while bufferTimeout owns a partial window.
-            .bufferTimeout(options.maxSize, options.maxDelay)
+            //
+            // Keep source delivery and timeout flushes on the same thread. The
+            // non-fair Reactor bufferTimeout implementation updates its timer
+            // index before adding the item to the buffer; concurrent timeout
+            // execution in that window can otherwise strand the final item.
+            .publishOn(batchScheduler)
+            .bufferTimeout(options.maxSize, options.maxDelay, batchScheduler)
             .onBackpressureBuffer(options.maxPendingItems)
             .concatMap(::writeBatch)
+            .doFinally {
+                batchScheduler.dispose()
+            }
+            .cancelOn(batchScheduler)
             .subscribe(
                 {},
                 ::terminateProcessor,

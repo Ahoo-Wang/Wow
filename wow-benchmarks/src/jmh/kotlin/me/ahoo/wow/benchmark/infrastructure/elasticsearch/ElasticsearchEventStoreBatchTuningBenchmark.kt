@@ -29,6 +29,7 @@ import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.infra.Blackhole
 import reactor.core.publisher.Flux
+import java.time.Duration
 
 @State(Scope.Benchmark)
 open class ElasticsearchEventStoreBatchTuningState {
@@ -77,10 +78,14 @@ open class ElasticsearchEventStoreBatchTuningState {
                     1,
                 )
                 .count()
-                .block()
+                .block(APPEND_TIMEOUT)
         ).also { appended ->
             check(appended == count.toLong())
         }
+    }
+
+    private companion object {
+        val APPEND_TIMEOUT: Duration = Duration.ofSeconds(10)
     }
 }
 
