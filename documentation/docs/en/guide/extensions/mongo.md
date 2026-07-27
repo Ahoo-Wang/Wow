@@ -66,7 +66,8 @@ Each aggregate type gets its own collection, partitioned by aggregate name. This
 when the candidate aggregate version is greater than or equal to the stored
 version and keeps the stored document for a lower candidate. A missing or
 non-integer stored version is treated as invalid metadata and repaired by the
-candidate. This pipeline form requires MongoDB 4.2 or later.
+candidate. The MQL expression used by this pipeline requires MongoDB 5.2 or
+later; the integration suite verifies MongoDB 6.0.6.
 
 This collection layout assumes that one MongoDB database serves exactly one bounded context. During startup, the
 Starter atomically claims the current `wow.context-name` in `wow_database_metadata`. Instances of the same context

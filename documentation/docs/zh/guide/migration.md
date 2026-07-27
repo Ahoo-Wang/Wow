@@ -67,6 +67,10 @@ event 与 snapshot 数据、停止全部旧版本 writer，并仅在确认不再
 也不会执行同版本覆盖。无需重写数据。回滚会恢复旧保存行为，因此新旧 writer
 不得并行运行。
 
+`wow-mongo` 的条件更新使用了要求 MongoDB 5.2 或更高版本的 MQL 表达式；
+集成测试验证的版本为 MongoDB 6.0.6。现有服务端版本较低时，必须先升级
+MongoDB，再部署此版本运行时。
+
 ## Redis EventStore Canonical v2 布局（v8.9.0 引入）
 
 从 v8.6.x 或 v8.8.x 升级到 v8.9.0 时，必须把 Redis 持久化视为存储格式硬切换。Redis EventStore、

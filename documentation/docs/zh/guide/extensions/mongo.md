@@ -64,7 +64,8 @@ graph TB
 `MongoSnapshotStore.save()` 通过单次 aggregation-pipeline `updateOne` 配合
 `$replaceWith` 与 `$cond` 完成保存。候选聚合版本大于或等于已存版本时，服务端
 原子替换完整文档；版本较低时保留已存文档。缺失或非整数的已存版本被视为无效
-元数据，并由候选快照修复。该 pipeline 形式要求 MongoDB 4.2 或更高版本。
+元数据，并由候选快照修复。该 pipeline 使用的 MQL 表达式要求 MongoDB 5.2
+或更高版本；集成测试验证的版本为 MongoDB 6.0.6。
 
 该集合布局假设一个 MongoDB database 只服务一个 bounded context。Starter 启动时会在
 `wow_database_metadata` 中原子认领当前 `wow.context-name`；同一 context 的实例可安全重复启动，

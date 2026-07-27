@@ -72,6 +72,10 @@ snapshot, and an old Elasticsearch writer does not perform equal-version replace
 No data rewrite is required. Rollback restores the old save behavior, so do not run
 old and new writers concurrently.
 
+For `wow-mongo`, the guarded update uses MongoDB MQL expressions that require
+MongoDB 5.2 or later; the integration suite verifies MongoDB 6.0.6. Upgrade the
+MongoDB server before deploying this runtime when the existing server is older.
+
 ## Redis EventStore Canonical v2 Layout (introduced in v8.9.0)
 
 When upgrading from v8.6.x or v8.8.x to v8.9.0, treat Redis persistence as a hard storage-format cutover. Redis
