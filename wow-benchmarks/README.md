@@ -196,20 +196,20 @@ moving behavior out of the project script does not weaken evidence identity.
 |------|----------|---------------|
 | `wow-benchmarks/results/reports/quick-framework-e2e.md` | Generated quick Framework E2E report. | Commit when intentionally updating the visible benchmark report. |
 | `wow-benchmarks/results/reports/quick-batch-command-write-e2e.md` | Generated quick Batch CommandWrite E2E report. | Commit when intentionally updating the visible batch benchmark report. |
-| `wow-benchmarks/results/reports/quick-mongo-batch-append.md` | Generated quick Mongo EventStore append comparison. | Commit with intentionally collected, provenance-backed MongoDB evidence. |
+| `wow-benchmarks/results/reports/quick-mongo-batch-append.md` | Generated quick Mongo EventStore append comparison. | Generate on demand; commit only after rerunning from the final clean implementation. |
 | `wow-benchmarks/results/reports/quick-mongo-batch-append-candidate-e2e.md` | Generated quick three-layer E2E comparison for the explicit `192x250us` candidate. | Commit with its clean-source manifests; this is engineering evidence and does not change the production default. |
 | `wow-benchmarks/results/reports/quick-mongo-batch-options-paired.md` | Generated 24-leg quick `128x1000us` vs `192x250us` paired comparison. | Commit only after all 24 independent legs complete; never mix it with formal paired raw results. |
-| `wow-benchmarks/results/reports/confirmation-mongo-batch-append.md` | Generated multiple-fork Mongo EventStore append comparison. | Commit intentionally collected provenance-backed evidence; use for independent JMH point estimates and error intervals. |
-| `wow-benchmarks/results/reports/mongo-batch-append-paired-e2e.md` | Generated AB/BA paired Mongo EventStore append E2E report. | Commit intentionally collected provenance-backed evidence; prefer for the quantified local batching-gain conclusion. |
-| `wow-benchmarks/results/reports/quick-elasticsearch-batch-append.md` | Generated quick Elasticsearch EventStore append comparison. | Commit with intentionally collected, provenance-backed Elasticsearch evidence. |
-| `wow-benchmarks/results/reports/confirmation-elasticsearch-batch-append.md` | Generated multiple-fork Elasticsearch EventStore append comparison. | Commit intentionally collected provenance-backed evidence; use for independent JMH point estimates and error intervals. |
+| `wow-benchmarks/results/reports/confirmation-mongo-batch-append.md` | Generated multiple-fork Mongo EventStore append comparison. | Generate on demand; commit only after rerunning from the final clean implementation. |
+| `wow-benchmarks/results/reports/mongo-batch-append-paired-e2e.md` | Generated AB/BA paired Mongo EventStore append E2E report. | Generate on demand; commit only after rerunning from the final clean implementation. |
+| `wow-benchmarks/results/reports/quick-elasticsearch-batch-append.md` | Generated quick Elasticsearch EventStore append comparison. | Generate on demand; commit only after rerunning from the final clean implementation. |
+| `wow-benchmarks/results/reports/confirmation-elasticsearch-batch-append.md` | Generated multiple-fork Elasticsearch EventStore append comparison. | Generate on demand; commit only after rerunning from the final clean implementation. |
 | `wow-benchmarks/results/reports/tuning-mongo-batch-options.md` | Historical Mongo EventStore batch-options screening matrix from the stopped campaign. | Retain as exploratory evidence only; do not use it to schedule remaining candidates. |
 | `wow-benchmarks/results/reports/tuning-mongo-batch-options.frontier.json` | Historical machine-checked Mongo screening frontier evidence. | Retain for audit with the stopped screening report; never edit it by hand. |
-| `wow-benchmarks/results/reports/tuning-elasticsearch-batch-options.md` | Generated Elasticsearch EventStore batch-options screening matrix. | Commit only with the exact candidate grid and clean-source manifest used to choose confirmation candidates. |
+| `wow-benchmarks/results/reports/tuning-elasticsearch-batch-options.md` | Generated Elasticsearch EventStore batch-options screening matrix. | Generate on demand; commit only with a final-code clean-source manifest. |
 | `wow-benchmarks/results/reports/tuning-elasticsearch-batch-options.frontier.json` | Machine-checked Elasticsearch screening frontier evidence. | Commit with its generated screening report; never edit it by hand. |
-| `wow-benchmarks/results/reports/confirmation-mongo-batch-options.md` | Historical multiple-fork Mongo batch-options comparison from the stopped campaign. | Retain as exploratory evidence only; it does not select a production default. |
-| `wow-benchmarks/results/reports/confirmation-mongo-batch-options-paired.md` | Historical 24-pair Mongo candidate exploration from the stopped Pareto campaign. | Retain as exploratory evidence only; it does not close the default decision. |
-| `wow-benchmarks/results/reports/confirmation-elasticsearch-batch-options.md` | Generated multiple-fork Elasticsearch batch-options confirmation. | Commit with the current default and selected candidate set before changing defaults. |
+| `wow-benchmarks/results/reports/confirmation-mongo-batch-options.md` | Generated multiple-fork Mongo batch-options comparison. | Generate on demand; do not restore evidence from the stopped pre-refactor campaign. |
+| `wow-benchmarks/results/reports/confirmation-mongo-batch-options-paired.md` | Generated paired Mongo candidate confirmation. | Generate on demand; do not restore evidence from the stopped pre-refactor campaign. |
+| `wow-benchmarks/results/reports/confirmation-elasticsearch-batch-options.md` | Generated multiple-fork Elasticsearch batch-options confirmation. | Generate on demand; commit only with a final-code clean-source manifest. |
 | `wow-benchmarks/results/reports/quick-infrastructure-e2e.md` | Quick Infrastructure E2E report generated on demand; it may be absent in a fresh checkout. | Commit only with intentionally collected, provenance-backed Redis/Mongo evidence. |
 | `wow-benchmarks/results/reports/quick-grouped.md` | Generated quick E2E/component/infrastructure grouped report. | Commit when intentionally updating grouped benchmark evidence. |
 | `wow-benchmarks/results/reports/baseline-grouped.md` | Generated Baseline E2E/exhaustive Component/infrastructure grouped report. | Commit when intentionally updating formal benchmark evidence. |
@@ -217,6 +217,7 @@ moving behavior out of the project script does not weaken evidence identity.
 | `wow-benchmarks/results/baselines/framework-e2e.json` | Framework E2E comparison baseline, when present. | Commit only intentional baseline updates. |
 
 Files under `results/reports/*.md` and `*.frontier.json` are generated. Do not hand-edit benchmark rows or frontier evidence; rerun the benchmark/report task instead.
+The repository intentionally omits storage-batching reports whose latest samples predate the final coordinator implementation. The checked-in Mongo candidate E2E, paired quick-options, and coordinator-concurrency reports bind to clean commit `587604827df58276ea4232aa7e79bd8c9faf9be3`; the stopped Mongo screening matrix remains explicitly historical exploratory evidence.
 Every successful thread-level JMH run writes a neighboring schema-v2 `*.manifest.json` sidecar with the source commit and dirty state, run specification, resolved required-service endpoints, profiler arguments, runtime, and SHA-256 digests for the JSON and human output. For a local Docker-backed service, the manifest binds the TCP connection's actual remote IP to a structured container-port/protocol/host-IP/host-port mapping, plus running state, container ID/start time, image reference, image ID, available repository digests, an allowlisted structured performance configuration, required Compose identity/config hash, and a deterministic configuration SHA-256 both before sampling and after JMH completes. IPv4 and IPv6 wildcard bindings cover only their own address family. Raw container commands, entrypoints, and environment values are not persisted. The task publishes `SUCCESS` only when those captures have the same ordered service identity and stable container/configuration values; a stopped/restarted container, endpoint mismatch, or configuration change leaves only the in-progress manifest. Failed runs do not publish a success manifest. Report and comparison tasks reject raw results with missing, mixed, restarted, or differently configured containers.
 Infrastructure reports validate captured service names against the suite identity and display the captured host/port and container provenance. A separately labelled report-time diagnostics section is live context only; it cannot reinterpret historical evidence using current Redis, MongoDB, Elasticsearch, or Docker state. Schema-v1 raw results must be rerun rather than upgraded at report time.
 
@@ -287,11 +288,9 @@ client; they do not include Command Gateway ingress, aggregate execution, or dow
 Quick results remain directional until a controlled multiple-fork confirmation
 run is collected from a clean `HEAD`.
 
-After the final coordinator/Store implementation is committed, refresh the stale append-path evidence from
-that clean `HEAD`. The currently committed quick and independent confirmation reports were sampled at
-`119908c807b9f9196b36ab5d3c8b074490cce55c`; the Mongo paired report was sampled at
-`b97f56b003b3f2067c3566d12cded2202e243fe8`. They also use schema-v1 manifests, so the following are the
-exact required rerun tasks:
+Formal append-path reports are intentionally absent until they can be regenerated from the final clean
+implementation. Use the following exact rerun tasks before restoring those reports or making formal
+throughput claims:
 
 ```bash
 ./gradlew \

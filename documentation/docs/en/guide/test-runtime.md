@@ -90,7 +90,9 @@ Benchmark smoke checks that selected JMH paths still compile and execute. It is 
 ./gradlew :wow-benchmarks:benchmarkQuickInfrastructureE2E
 ./gradlew :wow-benchmarks:benchmarkQuickMongoBatchAppend
 ./gradlew :wow-benchmarks:benchmarkQuickElasticsearchBatchAppend
-./gradlew :wow-benchmarks:benchmarkTuneMongoBatchOptions
+./gradlew :wow-benchmarks:benchmarkQuickMongoBatchOptionsPaired
+./gradlew :wow-benchmarks:benchmarkQuickMongoBatchAppendCandidateE2E
+./gradlew :wow-benchmarks:benchmarkQuickMongoBatchCoordinatorConcurrency
 ./gradlew :wow-benchmarks:benchmarkTuneElasticsearchBatchOptions
 ./gradlew :wow-benchmarks:generateQuickBenchmarkReport
 ```
@@ -98,7 +100,7 @@ Benchmark smoke checks that selected JMH paths still compile and execute. It is 
 Quick benchmarks use bounded representative catalogs and short JMH settings. They are useful for local regression feedback, but Baseline E2E remains the source for formal throughput and allocation conclusions.
 Quick Component defaults to one thread; scaling behavior belongs to Framework E2E rather than isolated component measurements.
 Infrastructure benchmarks require the local service selected by each suite: Redis, MongoDB, or Elasticsearch. The storage batch suites compare single writes, native Bulk writes, and end-to-end coordinated batching; use their multiple-fork confirmation tasks from a clean `HEAD` before making formal performance claims.
-Batch-options tuning uses isolated, 32-request burst, representative 128-request, and 512-request saturated workloads. Screening selects candidates only; change a default only after its storage-specific multiple-fork confirmation. EventStore tuning results do not apply to SnapshotStore.
+Mongo batch-options quick validation uses paired representative and burst workloads, candidate E2E, and coordinator-lane diagnostics. The stopped full `benchmarkTuneMongoBatchOptions` campaign is historical and intentionally excluded from the quick recipe. Elasticsearch tuning still uses isolated, burst, representative, and saturated workloads. Screening selects candidates only; change a default only after its storage-specific multiple-fork confirmation. EventStore tuning results do not apply to SnapshotStore.
 
 ## Baseline And Diagnostic Benchmarks
 
