@@ -169,6 +169,7 @@ sequenceDiagram
 | `event-store-batch.max-size` | `Int` | `128` | 同一集合单批最多包含的事件流数量 |
 | `event-store-batch.max-delay` | `Duration` | `1ms` | 收集不足一批请求的最长等待时间 |
 | `event-store-batch.max-pending-appends` | `Int` | `4096` | 等待或正在写入的 append 最大接收数量；必须不小于 `max-size` |
+| `event-store-batch.lane-count` | `Int` | `1` | 串行写入 lane 数量；同一聚合的 append 始终进入同一 lane |
 
 **YAML 配置示例**
 
@@ -195,6 +196,7 @@ wow:
       max-size: 128
       max-delay: 1ms
       max-pending-appends: 4096
+      lane-count: 1
 ```
 
 批处理默认关闭，因为不足一批的请求最多会增加 `max-delay` 的追加延迟。启用后，EventStore 会按

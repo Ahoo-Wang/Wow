@@ -169,6 +169,7 @@ The key design insight is that **MongoDB unique indexes serve dual roles**: the 
 | `event-store-batch.max-size` | `Int` | `128` | Maximum event streams per collection batch |
 | `event-store-batch.max-delay` | `Duration` | `1ms` | Maximum wait used to collect a partial batch |
 | `event-store-batch.max-pending-appends` | `Int` | `4096` | Maximum accepted appends waiting or being written; must be at least `max-size` |
+| `event-store-batch.lane-count` | `Int` | `1` | Number of serial write lanes; appends for the same aggregate stay on one lane |
 
 **YAML Configuration Example**
 
@@ -195,6 +196,7 @@ wow:
       max-size: 128
       max-delay: 1ms
       max-pending-appends: 4096
+      lane-count: 1
 ```
 
 Batching is disabled by default because a partial batch adds up to `max-delay` to an append. When enabled,

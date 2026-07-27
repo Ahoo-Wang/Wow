@@ -101,11 +101,13 @@ wow:
       max-size: 128
       max-delay: 1ms
       max-pending-appends: 4096
+      lane-count: 1
     snapshot-store-batch:
       enabled: true
       max-size: 128
       max-delay: 1ms
       max-pending-saves: 4096
+      lane-count: 1
 ```
 
 EventStore 使用 Bulk `create`，不会覆盖已有事件文档；单项 409 只会作为
