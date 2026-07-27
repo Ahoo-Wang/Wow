@@ -173,6 +173,23 @@ Async tasks use a short single-thread throughput profile and write flamegraphs u
 
 The Gradle model keeps four responsibilities separate: `BenchmarkSuite` owns workload selection and required services; `BenchmarkRunProfile` owns JMH methodology and result namespace; `BenchmarkTaskSpec` explicitly binds a task name to one suite and profile; reports consume those task specs as their source of truth. Do not derive task names from suite/profile IDs or add historical aliases to the core model.
 
+Benchmark build behavior lives in the root `build-logic` included build. The
+`me.ahoo.wow.benchmarking` precompiled plugin owns benchmark protocol and task
+orchestration, while `me.ahoo.wow.jmh-packaging` owns JMH metadata and service
+file packaging. Pure result-matrix validation, metric formatting, and parameter
+comparison rendering live in ordinary Kotlin sources under
+`build-logic/src/main/kotlin/me/ahoo/wow/benchmark/buildlogic/` and have JUnit tests.
+Run them directly with:
+
+```bash
+./gradlew -p build-logic test
+```
+
+`:wow-benchmarks:check` also depends on these tests. Benchmark harness
+provenance fingerprints the build-logic build files, production Kotlin sources,
+and the consumer plugin application in `wow-benchmarks/build.gradle.kts`, so
+moving behavior out of the project script does not weaken evidence identity.
+
 ## Reports And Results
 
 | Path | Contents | Commit Policy |

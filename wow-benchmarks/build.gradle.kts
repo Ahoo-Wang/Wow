@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.jmh)
     kotlin("kapt")
+    id("me.ahoo.wow.jmh-packaging")
+    id("me.ahoo.wow.benchmarking")
 }
 
 dependencies {
@@ -19,5 +21,6 @@ dependencies {
     kapt(libs.jmh.generator.annprocess)
 }
 
-apply(from = "gradle/jmh-packaging.gradle.kts")
-apply(from = "gradle/benchmarking.gradle.kts")
+tasks.named("check") {
+    dependsOn(gradle.includedBuild("build-logic").task(":test"))
+}

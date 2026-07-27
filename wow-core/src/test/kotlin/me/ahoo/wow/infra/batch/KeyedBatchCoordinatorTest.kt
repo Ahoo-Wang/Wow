@@ -158,6 +158,44 @@ class KeyedBatchCoordinatorTest {
     }
 
     @Test
+    fun `key selector failure should only fail the current submission`() {
+        val selectorFailure = IllegalStateException("selector failed")
+        val coordinator = KeyedBatchCoordinator(
+            name = "selector-failure",
+            options = options(
+                maxSize = 2,
+                maxDelay = Duration.ofHours(1),
+                maxPendingItems = 2,
+            ),
+            laneCount = 2,
+            keySelector = { item: KeyedItem ->
+                if (item.id == 2) {
+                    throw selectorFailure
+                }
+                item.key
+            },
+            writer = BatchWriter { items ->
+                Mono.just(items.successResults())
+            },
+        )
+        val first = coordinator.submit(KeyedItem(key = 0, id = 1)).toFuture()
+
+        try {
+            coordinator.submit(KeyedItem(key = 1, id = 2))
+                .test()
+                .expectErrorMatches { it === selectorFailure }
+                .verify()
+
+            coordinator.submit(KeyedItem(key = 0, id = 3))
+                .test()
+                .verifyComplete()
+            first.get(1, TimeUnit.SECONDS)
+        } finally {
+            coordinator.close()
+        }
+    }
+
+    @Test
     fun `lane count should be positive`() {
         val error = assertThrows<IllegalArgumentException> {
             KeyedBatchCoordinator(

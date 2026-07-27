@@ -1,6 +1,35 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import com.sun.management.OperatingSystemMXBean as SunOperatingSystemMXBean
+import me.ahoo.wow.benchmark.buildlogic.BenchmarkMatrixSpec
+import me.ahoo.wow.benchmark.buildlogic.BenchmarkParameterComparisonSpec
+import me.ahoo.wow.benchmark.buildlogic.BenchmarkResultRow
+import me.ahoo.wow.benchmark.buildlogic.benchmarkMetricScale
+import me.ahoo.wow.benchmark.buildlogic.formatAllocationBytes
+import me.ahoo.wow.benchmark.buildlogic.formatBenchmarkMetric
+import me.ahoo.wow.benchmark.buildlogic.formatBenchmarkScore
+import me.ahoo.wow.benchmark.buildlogic.formatMetricNumber
+import me.ahoo.wow.benchmark.buildlogic.formatRatio
+import me.ahoo.wow.benchmark.buildlogic.formatScaledBenchmarkScore
+import me.ahoo.wow.benchmark.buildlogic.formatSignedPercent
+import me.ahoo.wow.benchmark.buildlogic.formatUnsignedPercent
+import me.ahoo.wow.benchmark.buildlogic.reductionPercent
+import me.ahoo.wow.benchmark.buildlogic.relativeChangePercent
+import me.ahoo.wow.benchmark.buildlogic.renderBenchmarkParameterComparison
+import me.ahoo.wow.benchmark.buildlogic.validateBenchmarkMatrix
 import org.gradle.api.GradleException
 import org.gradle.api.file.RegularFile
 import org.gradle.api.provider.Provider
@@ -2589,23 +2618,6 @@ data class ParsedBenchmarkResult(
     val unit: String,
     val allocationBytesPerOp: Double?,
     val allocationErrorBytesPerOp: Double?,
-)
-
-data class FormattedBenchmarkScore(
-    val score: String,
-    val error: String,
-    val unit: String,
-) {
-    val scoreWithUnit: String
-        get() = "$score $unit"
-
-    val errorWithUnit: String
-        get() = if (error == "-") "-" else "$error $unit"
-}
-
-data class BenchmarkMetricScale(
-    val multiplier: Double,
-    val unit: String,
 )
 
 fun benchmarkResultGroup(taskSpec: BenchmarkTaskSpec): BenchmarkResultGroup {
@@ -5232,148 +5244,6 @@ val benchmarkMongoBatchAppendPairedE2E = tasks.register("benchmarkMongoBatchAppe
     }
 }
 
-fun latencyUnitSeconds(unit: String): Double? {
-    return when (unit) {
-        "s" -> 1.0
-        "ms" -> 1.0e-3
-        "us", "µs" -> 1.0e-6
-        "ns" -> 1.0e-9
-        else -> null
-    }
-}
-
-fun latencyDisplayUnit(secondsPerOp: Double): String {
-    val absoluteSeconds = kotlin.math.abs(secondsPerOp)
-    return when {
-        absoluteSeconds == 0.0 -> "s"
-        absoluteSeconds < 1.0e-6 -> "ns"
-        absoluteSeconds < 1.0e-3 -> "µs"
-        absoluteSeconds < 1.0 -> "ms"
-        else -> "s"
-    }
-}
-
-fun benchmarkMetricScale(values: List<Double>, unit: String): BenchmarkMetricScale {
-    val magnitude = values.maxOfOrNull { kotlin.math.abs(it) } ?: 0.0
-    val latencySourceUnit = unit.removeSuffix("/op").takeIf { unit.endsWith("/op") }
-    val sourceSeconds = latencySourceUnit?.let(::latencyUnitSeconds)
-    if (sourceSeconds != null) {
-        val secondsPerOp = magnitude * sourceSeconds
-        val displayUnit = if (secondsPerOp == 0.0) {
-            latencySourceUnit.replace("us", "µs")
-        } else {
-            latencyDisplayUnit(secondsPerOp)
-        }
-        return BenchmarkMetricScale(
-            multiplier = sourceSeconds / latencyUnitSeconds(displayUnit)!!,
-            unit = "$displayUnit/op",
-        )
-    }
-    if (unit.equals("B/op", ignoreCase = true)) {
-        val (divisor, displayUnit) = when {
-            magnitude >= 1024.0 * 1024.0 * 1024.0 -> 1024.0 * 1024.0 * 1024.0 to "GiB/op"
-            magnitude >= 1024.0 * 1024.0 -> 1024.0 * 1024.0 to "MiB/op"
-            magnitude >= 1024.0 -> 1024.0 to "KiB/op"
-            else -> 1.0 to "B/op"
-        }
-        return BenchmarkMetricScale(multiplier = 1.0 / divisor, unit = displayUnit)
-    }
-    if (unit.contains("ops", ignoreCase = true)) {
-        val (divisor, prefix) = when {
-            magnitude >= 1.0e12 -> 1.0e12 to "T"
-            magnitude >= 1.0e9 -> 1.0e9 to "G"
-            magnitude >= 1.0e6 -> 1.0e6 to "M"
-            magnitude >= 1.0e3 -> 1.0e3 to "k"
-            else -> 1.0 to ""
-        }
-        val displayUnit = if (prefix.isEmpty()) unit else "$prefix $unit"
-        return BenchmarkMetricScale(multiplier = 1.0 / divisor, unit = displayUnit)
-    }
-    return BenchmarkMetricScale(multiplier = 1.0, unit = unit)
-}
-
-fun formatMetricNumber(value: Double): String {
-    if (value == 0.0) {
-        return "0"
-    }
-    val formatted = if (kotlin.math.abs(value) < 0.01) {
-        String.format(Locale.US, "%.2g", value)
-    } else {
-        String.format(Locale.US, "%.2f", value)
-    }
-    return if (formatted.contains('e', ignoreCase = true)) {
-        formatted
-    } else {
-        formatted.trimEnd('0').trimEnd('.')
-    }
-}
-
-fun formatMetricError(error: Double?, scale: BenchmarkMetricScale): String {
-    return error?.let {
-        val scaledError = kotlin.math.abs(it * scale.multiplier)
-        if (scaledError in 0.0..<0.01 && scaledError != 0.0) {
-            "±<0.01"
-        } else {
-            "±${formatMetricNumber(scaledError)}"
-        }
-    } ?: "-"
-}
-
-fun formatBenchmarkMetric(
-    score: Double,
-    scoreError: Double?,
-    unit: String,
-    scaleReferenceValues: List<Double> = listOf(score),
-): FormattedBenchmarkScore {
-    val scale = benchmarkMetricScale(scaleReferenceValues, unit)
-    return FormattedBenchmarkScore(
-        score = formatMetricNumber(score * scale.multiplier),
-        error = formatMetricError(scoreError, scale),
-        unit = scale.unit,
-    )
-}
-
-fun formatBenchmarkScore(score: Double, scoreError: Double?, unit: String): FormattedBenchmarkScore {
-    return formatBenchmarkMetric(score, scoreError, unit)
-}
-
-fun formatScaledBenchmarkScore(
-    score: Double,
-    scoreError: Double?,
-    scale: BenchmarkMetricScale,
-): FormattedBenchmarkScore {
-    return FormattedBenchmarkScore(
-        score = formatMetricNumber(score * scale.multiplier),
-        error = formatMetricError(scoreError, scale),
-        unit = scale.unit,
-    )
-}
-
-fun formatAllocationBytes(allocationBytesPerOp: Double?): String {
-    return allocationBytesPerOp?.let { allocation ->
-        val formatted = formatBenchmarkMetric(allocation, null, "B/op")
-        formatted.scoreWithUnit
-    } ?: "-"
-}
-
-fun relativeChangePercent(reference: Double, current: Double): Double {
-    require(reference > 0.0) { "Comparison reference must be greater than zero: $reference" }
-    return (current / reference - 1.0) * 100.0
-}
-
-fun reductionPercent(reference: Double, current: Double): Double {
-    return -relativeChangePercent(reference, current)
-}
-
-fun formatSignedPercent(value: Double): String = String.format(Locale.US, "%+.1f%%", value)
-
-fun formatUnsignedPercent(value: Double): String = String.format(Locale.US, "%.1f%%", value)
-
-fun formatRatio(reference: Double, current: Double): String {
-    require(reference > 0.0) { "Ratio reference must be greater than zero: $reference" }
-    return String.format(Locale.US, "%.2f×", current / reference)
-}
-
 data class BatchCommandWriteComparison(
     val scenario: String,
     val individual: ParsedBenchmarkResult,
@@ -5421,6 +5291,21 @@ val batchCommandWriteScenarioOrder = listOf(
 
 fun benchmarkMethodName(row: ParsedBenchmarkResult): String {
     return row.benchmark.substringBefore(" (").substringAfterLast('.')
+}
+
+fun ParsedBenchmarkResult.toBuildLogicRow(): BenchmarkResultRow {
+    return BenchmarkResultRow(
+        suiteId = suite.id,
+        profile = profile,
+        method = benchmarkMethodName(this),
+        threads = threads,
+        parameters = parameters,
+        mode = mode,
+        score = score,
+        scoreError = scoreError,
+        unit = unit,
+        allocationBytesPerOp = allocationBytesPerOp,
+    )
 }
 
 fun batchCommandWriteComparisons(rows: List<ParsedBenchmarkResult>): List<BatchCommandWriteComparison> {
@@ -5716,269 +5601,78 @@ fun StringBuilder.appendMongoBatchAppendComparisons(rows: List<ParsedBenchmarkRe
     )
 }
 
-data class QuickMongoBatchCandidateE2ERowKey(
-    val method: String,
-    val threads: Int,
-    val mode: String,
-)
-
 val quickMongoBatchCandidateE2EMethods = setOf(
     "appendWithInsertOne",
     "appendWithNativeInsertMany",
     "appendWithInsertManyBatch",
 )
 
-fun validateQuickMongoBatchCandidateE2ERows(rows: List<ParsedBenchmarkResult>) {
-    val expectedKeys = quickMongoBatchCandidateE2EMethods.flatMap { method ->
-        quickMongoBatchCandidateE2EProfile.threads.flatMap { threads ->
-            quickMongoBatchCandidateE2EProfile.benchmarkModes.map { mode ->
-                QuickMongoBatchCandidateE2ERowKey(method, threads, mode)
-            }
-        }
-    }.toSet()
-    val actualKeys = rows.map { row ->
-        QuickMongoBatchCandidateE2ERowKey(
-            method = benchmarkMethodName(row),
-            threads = row.threads,
-            mode = row.mode,
-        )
-    }
-    val duplicateKeys = actualKeys.groupingBy { it }.eachCount()
-        .filterValues { count -> count > 1 }
-        .keys
-    if (duplicateKeys.isNotEmpty()) {
-        throw GradleException(
-            "Quick Mongo candidate E2E results contain duplicate rows: " +
-                duplicateKeys.sortedWith(compareBy({ it.method }, { it.threads }, { it.mode }))
-        )
-    }
-    if (rows.size != expectedKeys.size || actualKeys.toSet() != expectedKeys) {
-        throw GradleException(
-            "Quick Mongo candidate E2E matrix must contain exactly " +
-                "${quickMongoBatchCandidateE2EMethods.size} methods x " +
-                "${quickMongoBatchCandidateE2EProfile.threads.size} thread counts x " +
-                "${quickMongoBatchCandidateE2EProfile.benchmarkModes.size} modes " +
-                "(${expectedKeys.size} rows). Missing=${expectedKeys - actualKeys.toSet()}, " +
-                "unexpected=${actualKeys.toSet() - expectedKeys}."
-        )
-    }
-    rows.forEach { row ->
-        if (row.suite.id != quickMongoBatchCandidateE2ESuite.id ||
-            row.profile != quickMongoBatchCandidateE2EProfile.id
-        ) {
-            throw GradleException(
-                "Quick Mongo candidate E2E row has unexpected suite/profile: " +
-                    "${row.suite.id}/${row.profile}."
-            )
-        }
-        if (row.parameters != mapOf("batchOptions" to mongoBatchQuickCandidateOptions)) {
-            throw GradleException(
-                "Quick Mongo candidate E2E row must use only " +
-                    "batchOptions=$mongoBatchQuickCandidateOptions: ${row.parameters}."
-            )
-        }
-        val validUnit = when (row.mode) {
-            "thrpt" -> row.unit.equals("ops/s", ignoreCase = true)
-            "avgt" -> row.unit.endsWith("/op") &&
-                latencyUnitSeconds(row.unit.removeSuffix("/op")) != null
-            else -> false
-        }
-        if (!validUnit) {
-            throw GradleException(
-                "Quick Mongo candidate E2E row has invalid ${row.mode} unit '${row.unit}': " +
-                    row.benchmark
-            )
-        }
-        if (!row.score.isFinite() || row.score <= 0.0) {
-            throw GradleException(
-                "Quick Mongo candidate E2E row has a non-positive or non-finite score: " +
-                    "${row.benchmark}=${row.score}."
-            )
-        }
-        val allocation = row.allocationBytesPerOp
-        if (allocation == null || !allocation.isFinite() || allocation <= 0.0) {
-            throw GradleException(
-                "Quick Mongo candidate E2E row is missing a positive finite gc.alloc.rate.norm: " +
-                    row.benchmark
-            )
-        }
-    }
-}
-
-data class QuickMongoBatchCoordinatorConcurrencyRowKey(
-    val coordinatorLanes: Int,
-    val mode: String,
+val quickMongoBatchCandidateE2EMatrix = BenchmarkMatrixSpec(
+    name = "Quick Mongo candidate E2E",
+    suiteId = quickMongoBatchCandidateE2ESuite.id,
+    profile = quickMongoBatchCandidateE2EProfile.id,
+    methods = quickMongoBatchCandidateE2EMethods,
+    threads = quickMongoBatchCandidateE2EProfile.threads.toSet(),
+    modes = quickMongoBatchCandidateE2EProfile.benchmarkModes.toSet(),
+    fixedParameters = mapOf("batchOptions" to mongoBatchQuickCandidateOptions),
 )
 
-val quickMongoBatchCoordinatorConcurrencyLanes = listOf(1, 2, 4)
-val quickMongoBatchCoordinatorConcurrencyMethod = "appendWithCoordinatorLanes"
-
-fun quickMongoBatchCoordinatorConcurrencyRowKey(
-    row: ParsedBenchmarkResult,
-): QuickMongoBatchCoordinatorConcurrencyRowKey {
-    val coordinatorLanes = row.parameters["coordinatorLanes"]?.toIntOrNull()
-        ?: throw GradleException(
-            "Quick Mongo coordinator concurrency row has invalid coordinatorLanes: ${row.parameters}."
-        )
-    return QuickMongoBatchCoordinatorConcurrencyRowKey(
-        coordinatorLanes = coordinatorLanes,
-        mode = row.mode,
+fun validateQuickMongoBatchCandidateE2ERows(rows: List<ParsedBenchmarkResult>) {
+    validateBenchmarkMatrix(
+        quickMongoBatchCandidateE2EMatrix,
+        rows.map(ParsedBenchmarkResult::toBuildLogicRow),
     )
 }
 
+val quickMongoBatchCoordinatorConcurrencyLanes = listOf(1, 2, 4)
+val quickMongoBatchCoordinatorConcurrencyMethod = "appendWithCoordinatorLanes"
+val quickMongoBatchCoordinatorConcurrencyMatrix = BenchmarkMatrixSpec(
+    name = "Quick Mongo coordinator concurrency",
+    suiteId = quickMongoBatchCoordinatorConcurrencySuite.id,
+    profile = quickMongoBatchCoordinatorConcurrencyProfile.id,
+    methods = setOf(quickMongoBatchCoordinatorConcurrencyMethod),
+    threads = quickMongoBatchCoordinatorConcurrencyProfile.threads.toSet(),
+    modes = quickMongoBatchCoordinatorConcurrencyProfile.benchmarkModes.toSet(),
+    fixedParameters = mapOf("batchOptions" to mongoBatchQuickCandidateOptions),
+    parameterDimensions = mapOf(
+        "coordinatorLanes" to quickMongoBatchCoordinatorConcurrencyLanes.map(Int::toString)
+    ),
+)
+
 fun validateQuickMongoBatchCoordinatorConcurrencyRows(rows: List<ParsedBenchmarkResult>) {
-    val expectedKeys = quickMongoBatchCoordinatorConcurrencyLanes.flatMap { coordinatorLanes ->
-        quickMongoBatchCoordinatorConcurrencyProfile.benchmarkModes.map { mode ->
-            QuickMongoBatchCoordinatorConcurrencyRowKey(coordinatorLanes, mode)
-        }
-    }.toSet()
-    val actualKeys = rows.map(::quickMongoBatchCoordinatorConcurrencyRowKey)
-    val duplicateKeys = actualKeys.groupingBy { it }.eachCount()
-        .filterValues { count -> count > 1 }
-        .keys
-    if (duplicateKeys.isNotEmpty()) {
-        throw GradleException(
-            "Quick Mongo coordinator concurrency results contain duplicate rows: $duplicateKeys."
-        )
-    }
-    if (rows.size != expectedKeys.size || actualKeys.toSet() != expectedKeys) {
-        throw GradleException(
-            "Quick Mongo coordinator concurrency matrix must contain exactly " +
-                "${quickMongoBatchCoordinatorConcurrencyLanes.size} lane counts x " +
-                "${quickMongoBatchCoordinatorConcurrencyProfile.benchmarkModes.size} modes " +
-                "(${expectedKeys.size} rows). Missing=${expectedKeys - actualKeys.toSet()}, " +
-                "unexpected=${actualKeys.toSet() - expectedKeys}."
-        )
-    }
-    rows.forEach { row ->
-        if (row.suite.id != quickMongoBatchCoordinatorConcurrencySuite.id ||
-            row.profile != quickMongoBatchCoordinatorConcurrencyProfile.id ||
-            row.threads != 4 ||
-            benchmarkMethodName(row) != quickMongoBatchCoordinatorConcurrencyMethod
-        ) {
-            throw GradleException(
-                "Quick Mongo coordinator concurrency row has unexpected identity: " +
-                    "${row.suite.id}/${row.profile}/threads=${row.threads}/${row.benchmark}."
-            )
-        }
-        val expectedParameters = mapOf(
-            "batchOptions" to mongoBatchQuickCandidateOptions,
-            "coordinatorLanes" to
-                quickMongoBatchCoordinatorConcurrencyRowKey(row).coordinatorLanes.toString(),
-        )
-        if (row.parameters != expectedParameters) {
-            throw GradleException(
-                "Quick Mongo coordinator concurrency row has unexpected parameters: ${row.parameters}."
-            )
-        }
-        val validUnit = when (row.mode) {
-            "thrpt" -> row.unit.equals("ops/s", ignoreCase = true)
-            "avgt" -> row.unit.endsWith("/op") &&
-                latencyUnitSeconds(row.unit.removeSuffix("/op")) != null
-            else -> false
-        }
-        if (!validUnit || !row.score.isFinite() || row.score <= 0.0) {
-            throw GradleException(
-                "Quick Mongo coordinator concurrency row has an invalid score/unit: " +
-                    "${row.benchmark}=${row.score} ${row.unit}."
-            )
-        }
-        val allocation = row.allocationBytesPerOp
-        if (allocation == null || !allocation.isFinite() || allocation <= 0.0) {
-            throw GradleException(
-                "Quick Mongo coordinator concurrency row is missing a positive finite " +
-                    "gc.alloc.rate.norm: ${row.benchmark}."
-            )
-        }
-    }
+    validateBenchmarkMatrix(
+        quickMongoBatchCoordinatorConcurrencyMatrix,
+        rows.map(ParsedBenchmarkResult::toBuildLogicRow),
+    )
 }
+
+val quickMongoBatchCoordinatorConcurrencyComparison = BenchmarkParameterComparisonSpec(
+    sectionTitle = "Coordinator Lane Comparison",
+    introduction =
+        "JMH uses four worker threads and 128 independent event streams per invocation. One production " +
+            "MongoEventStore routes each aggregate key through its KeyedBatchCoordinator to one serial lane. " +
+            "Different lanes may write concurrently. Because every stream has a distinct aggregate, this " +
+            "workload exercises production key routing but leaves repeated-key ordering to functional tests.",
+    parameterName = "coordinatorLanes",
+    parameterLabel = "Coordinator lanes",
+    parameterValues = quickMongoBatchCoordinatorConcurrencyLanes.map(Int::toString),
+    baselineLabel = "lane 1",
+    conclusion =
+        "Higher throughput and positive reductions are better. Average time is JMH-normalized amortized " +
+            "wall time per event, not an independent append response percentile. Additional lanes add " +
+            "grouping and buffer-window state and may form smaller native insertMany requests, so this " +
+            "experiment diagnoses the single-flight constraint but does not isolate coordinator CPU overhead.",
+)
 
 fun StringBuilder.appendQuickMongoBatchCoordinatorConcurrencyComparison(
     rows: List<ParsedBenchmarkResult>,
 ) {
-    val rowsByKey = rows.associateBy(::quickMongoBatchCoordinatorConcurrencyRowKey)
-    val throughputRows = quickMongoBatchCoordinatorConcurrencyLanes.map { coordinatorLanes ->
-        rowsByKey.getValue(
-            QuickMongoBatchCoordinatorConcurrencyRowKey(coordinatorLanes, "thrpt")
+    append(
+        renderBenchmarkParameterComparison(
+            quickMongoBatchCoordinatorConcurrencyComparison,
+            rows.map(ParsedBenchmarkResult::toBuildLogicRow),
         )
-    }
-    val averageTimeRows = quickMongoBatchCoordinatorConcurrencyLanes.map { coordinatorLanes ->
-        rowsByKey.getValue(
-            QuickMongoBatchCoordinatorConcurrencyRowKey(coordinatorLanes, "avgt")
-        )
-    }
-    val throughputScale = benchmarkMetricScale(
-        throughputRows.map(ParsedBenchmarkResult::score),
-        throughputRows.first().unit,
     )
-    val averageTimeScale = benchmarkMetricScale(
-        averageTimeRows.map(ParsedBenchmarkResult::score),
-        averageTimeRows.first().unit,
-    )
-    val baselineThroughput = throughputRows.first()
-    val baselineAverageTime = averageTimeRows.first()
-    val baselineAllocation = checkNotNull(baselineThroughput.allocationBytesPerOp)
-
-    appendLine("## Coordinator Lane Comparison")
-    appendLine()
-    appendLine(
-        "JMH uses four worker threads and 128 independent event streams per invocation. One production " +
-            "MongoEventStore routes each aggregate key through its KeyedBatchCoordinator to one serial lane. " +
-            "Different lanes may write concurrently. Because every stream has a distinct aggregate, this " +
-            "workload exercises production key routing but leaves repeated-key ordering to functional tests."
-    )
-    appendLine()
-    appendLine(
-        "| Coordinator lanes | Throughput | vs lane 1 | Amortized time per event | " +
-            "Time reduction vs lane 1 | Allocation | Allocation reduction vs lane 1 |"
-    )
-    appendLine(
-        "|-------------------|------------|-----------|---------------------------|" +
-            "--------------------------|------------|--------------------------------|"
-    )
-    quickMongoBatchCoordinatorConcurrencyLanes.forEachIndexed { index, coordinatorLanes ->
-        val throughput = throughputRows[index]
-        val averageTime = averageTimeRows[index]
-        val allocation = checkNotNull(throughput.allocationBytesPerOp)
-        val throughputDisplay = formatScaledBenchmarkScore(
-            throughput.score,
-            throughput.scoreError,
-            throughputScale,
-        )
-        val averageTimeDisplay = formatScaledBenchmarkScore(
-            averageTime.score,
-            averageTime.scoreError,
-            averageTimeScale,
-        )
-        val throughputChange = if (index == 0) {
-            "baseline"
-        } else {
-            formatSignedPercent(relativeChangePercent(baselineThroughput.score, throughput.score))
-        }
-        val averageTimeReduction = if (index == 0) {
-            "baseline"
-        } else {
-            formatSignedPercent(reductionPercent(baselineAverageTime.score, averageTime.score))
-        }
-        val allocationReduction = if (index == 0) {
-            "baseline"
-        } else {
-            formatSignedPercent(reductionPercent(baselineAllocation, allocation))
-        }
-        appendLine(
-            "| $coordinatorLanes | ${throughputDisplay.scoreWithUnit} | $throughputChange | " +
-                "${averageTimeDisplay.scoreWithUnit} | $averageTimeReduction | " +
-                "${formatAllocationBytes(allocation)} | $allocationReduction |"
-        )
-    }
-    appendLine()
-    appendLine(
-        "Higher throughput and positive reductions are better. Average time is JMH-normalized amortized " +
-            "wall time per event, not an independent append response percentile. Additional lanes add " +
-            "grouping and buffer-window state and may form smaller native insertMany requests, so this " +
-            "experiment diagnoses the single-flight constraint but does not isolate coordinator CPU overhead."
-    )
-    appendLine()
 }
 
 fun StringBuilder.appendElasticsearchBatchAppendComparisons(rows: List<ParsedBenchmarkResult>) {
@@ -6630,9 +6324,7 @@ fun validateStorageBatchTuningScreeningEvidence(
         currentOptions = currentStorageBatchOptions(suite),
         preferredRefresh = storageBatchTuningPreferredRefresh(suite),
         manifests = report.manifests,
-        benchmarkHarnessSha256 = fileSha256(
-            layout.projectDirectory.file("gradle/benchmarking.gradle.kts").asFile
-        ),
+        benchmarkHarnessSha256 = benchmarkHarnessSha256(),
         manifestSha256 = fileSha256(manifestFile),
     )
     requireManifestValue(
@@ -6717,9 +6409,7 @@ fun requireStorageBatchTuningConfirmationManifestCompatibility(
     requireStorageBatchTuningEvidenceCompatibility(
         evidence = evidence,
         currentJmhJarSha256 = confirmationJmhJarSha256,
-        currentBenchmarkHarnessSha256 = fileSha256(
-            layout.projectDirectory.file("gradle/benchmarking.gradle.kts").asFile
-        ),
+        currentBenchmarkHarnessSha256 = benchmarkHarnessSha256(),
         source = source,
     )
     requireBenchmarkManifestEnvironmentCompatibility(
@@ -7408,6 +7098,23 @@ fun sha256Text(value: String): String {
     return MessageDigest.getInstance("SHA-256")
         .digest(value.toByteArray(Charsets.UTF_8))
         .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+}
+
+fun benchmarkHarnessSha256(): String {
+    val buildLogicFiles = rootProject.fileTree("build-logic") {
+        include("build.gradle.kts")
+        include("settings.gradle.kts")
+        include("src/main/**/*.kt")
+        include("src/main/**/*.kts")
+    }.files
+    val harnessFiles = buildLogicFiles + layout.projectDirectory.file("build.gradle.kts").asFile
+    val digestInput = harnessFiles.sortedBy { file ->
+        file.relativeTo(rootProject.rootDir).invariantSeparatorsPath
+    }.joinToString(separator = "\n", postfix = "\n") { file ->
+        val relativePath = file.relativeTo(rootProject.rootDir).invariantSeparatorsPath
+        "$relativePath=${fileSha256(file)}"
+    }
+    return sha256Text(digestInput)
 }
 
 fun benchmarkCombinedResultDigest(manifests: List<ParsedBenchmarkRunManifest>): String {
@@ -8164,34 +7871,6 @@ fun renderMongoBatchOptionsQuickReport(
             "proved separately by BatchCoordinator and Mongo integration tests."
     )
     return sb.toString()
-}
-
-val verifyBenchmarkReportFormatting = tasks.register("verifyBenchmarkReportFormatting") {
-    description = "Verify human-readable benchmark metric formatting."
-    group = "verification"
-
-    doLast {
-        check(formatBenchmarkScore(1_573.91, 42.0, "ops/s") == FormattedBenchmarkScore("1.57", "±0.04", "k ops/s"))
-        check(
-            formatBenchmarkScore(668_849_367.69, 1_240_000.0, "ops/s") ==
-                FormattedBenchmarkScore("668.85", "±1.24", "M ops/s")
-        )
-        check(formatBenchmarkScore(0.000_85, 0.000_02, "ms/op") == FormattedBenchmarkScore("850", "±20", "ns/op"))
-        check(formatBenchmarkScore(1_573.91, 42.0, "ops/s").scoreWithUnit == "1.57 k ops/s")
-        check(formatBenchmarkScore(1_573.91, 42.0, "ops/s").errorWithUnit == "±0.04 k ops/s")
-        check(formatBenchmarkScore(1_573.91, null, "ops/s").errorWithUnit == "-")
-        check(formatAllocationBytes(2_982_851.6) == "2.84 MiB/op")
-        check(formatAllocationBytes(272.0) == "272 B/op")
-        check(formatAllocationBytes(0.0) == "0 B/op")
-        check(formatMetricNumber(0.004_2) == "0.0042")
-        check(formatMetricError(0.004_2, BenchmarkMetricScale(1.0, "ops/s")) == "±<0.01")
-        check(formatAllocationBytes(null) == "-")
-        check(relativeChangePercent(100.0, 125.0) == 25.0)
-        check(reductionPercent(100.0, 25.0) == 75.0)
-        check(formatSignedPercent(25.04) == "+25.0%")
-        check(formatUnsignedPercent(75.04) == "75.0%")
-        check(formatRatio(100.0, 197.0) == "1.97×")
-    }
 }
 
 val verifyBenchmarkRequiredServiceManifest = tasks.register("verifyBenchmarkRequiredServiceManifest") {
@@ -9649,76 +9328,9 @@ val verifyMongoBatchOptionsQuickProtocol = tasks.register("verifyMongoBatchOptio
             quickMongoBatchCandidateE2ESuite.runMetadata["correctnessCheck"] ==
                 "completion-count-and-iteration-document-count"
         )
-
-        fun candidateE2ERow(
-            method: String,
-            threads: Int,
-            mode: String,
-        ): ParsedBenchmarkResult {
-            return ParsedBenchmarkResult(
-                suite = quickMongoBatchCandidateE2ESuite,
-                profile = quickMongoBatchCandidateE2EProfile.id,
-                threads = threads,
-                benchmark = "me.ahoo.wow.benchmark.infrastructure.mongo." +
-                    "MongoEventStoreAppendBenchmark.$method",
-                displayName = method,
-                parameters = mapOf("batchOptions" to mongoBatchQuickCandidateOptions),
-                mode = mode,
-                score = 1_000.0,
-                scoreError = null,
-                unit = if (mode == "thrpt") "ops/s" else "us/op",
-                allocationBytesPerOp = 1_024.0,
-                allocationErrorBytesPerOp = null,
-            )
-        }
-
-        val validCandidateE2ERows = quickMongoBatchCandidateE2EMethods.flatMap { method ->
-            quickMongoBatchCandidateE2EProfile.threads.flatMap { threads ->
-                quickMongoBatchCandidateE2EProfile.benchmarkModes.map { mode ->
-                    candidateE2ERow(method, threads, mode)
-                }
-            }
-        }
-        validateQuickMongoBatchCandidateE2ERows(validCandidateE2ERows)
-
-        fun requireCandidateE2ERowsRejected(rows: List<ParsedBenchmarkResult>) {
-            check(
-                runCatching { validateQuickMongoBatchCandidateE2ERows(rows) }
-                    .exceptionOrNull() is GradleException
-            )
-        }
-        requireCandidateE2ERowsRejected(validCandidateE2ERows.dropLast(1))
-        requireCandidateE2ERowsRejected(validCandidateE2ERows + validCandidateE2ERows.first())
-        requireCandidateE2ERowsRejected(
-            validCandidateE2ERows.mapIndexed { index, row ->
-                if (index == 0) {
-                    row.copy(parameters = mapOf("batchOptions" to mongoBatchQuickCurrentOptions))
-                } else {
-                    row
-                }
-            }
-        )
-        requireCandidateE2ERowsRejected(
-            validCandidateE2ERows.mapIndexed { index, row ->
-                if (index == 0) row.copy(mode = "sample") else row
-            }
-        )
-        requireCandidateE2ERowsRejected(
-            validCandidateE2ERows.mapIndexed { index, row ->
-                if (index == 0) row.copy(unit = "ms") else row
-            }
-        )
-        requireCandidateE2ERowsRejected(
-            validCandidateE2ERows.mapIndexed { index, row ->
-                if (index == 0) {
-                    row.copy(
-                        benchmark = "me.ahoo.wow.benchmark.infrastructure.mongo." +
-                            "MongoEventStoreAppendBenchmark.unexpected"
-                    )
-                } else {
-                    row
-                }
-            }
+        check(
+            quickMongoBatchCandidateE2EMatrix.fixedParameters ==
+                quickMongoBatchCandidateE2EProfile.parameters
         )
 
         check(
@@ -9751,80 +9363,21 @@ val verifyMongoBatchOptionsQuickProtocol = tasks.register("verifyMongoBatchOptio
             quickMongoBatchCoordinatorConcurrencySuite.runMetadata["productionDefaultChanged"] ==
                 "false"
         )
-
-        fun coordinatorConcurrencyRow(
-            coordinatorLanes: Int,
-            mode: String,
-        ): ParsedBenchmarkResult {
-            return ParsedBenchmarkResult(
-                suite = quickMongoBatchCoordinatorConcurrencySuite,
-                profile = quickMongoBatchCoordinatorConcurrencyProfile.id,
-                threads = 4,
-                benchmark = "me.ahoo.wow.benchmark.infrastructure.mongo." +
-                    "MongoBatchCoordinatorConcurrencyBenchmark." +
-                    quickMongoBatchCoordinatorConcurrencyMethod,
-                displayName = quickMongoBatchCoordinatorConcurrencyMethod,
-                parameters = mapOf(
-                    "batchOptions" to mongoBatchQuickCandidateOptions,
-                    "coordinatorLanes" to coordinatorLanes.toString(),
-                ),
-                mode = mode,
-                score = if (mode == "thrpt") 1_000.0 * coordinatorLanes else 100.0 / coordinatorLanes,
-                scoreError = null,
-                unit = if (mode == "thrpt") "ops/s" else "us/op",
-                allocationBytesPerOp = 1_024.0 * coordinatorLanes,
-                allocationErrorBytesPerOp = null,
-            )
-        }
-
-        val validCoordinatorConcurrencyRows =
-            quickMongoBatchCoordinatorConcurrencyLanes.flatMap { coordinatorLanes ->
-                quickMongoBatchCoordinatorConcurrencyProfile.benchmarkModes.map { mode ->
-                    coordinatorConcurrencyRow(coordinatorLanes, mode)
-                }
-            }
-        validateQuickMongoBatchCoordinatorConcurrencyRows(validCoordinatorConcurrencyRows)
         check(
-            runCatching {
-                validateQuickMongoBatchCoordinatorConcurrencyRows(
-                    validCoordinatorConcurrencyRows.dropLast(1)
+            quickMongoBatchCoordinatorConcurrencyMatrix.parameterDimensions ==
+                mapOf(
+                    "coordinatorLanes" to
+                        quickMongoBatchCoordinatorConcurrencyLanes.map(Int::toString)
                 )
-            }.exceptionOrNull() is GradleException
         )
         check(
-            runCatching {
-                validateQuickMongoBatchCoordinatorConcurrencyRows(
-                    validCoordinatorConcurrencyRows + validCoordinatorConcurrencyRows.first()
-                )
-            }.exceptionOrNull() is GradleException
+            quickMongoBatchCoordinatorConcurrencyComparison.parameterValues ==
+                quickMongoBatchCoordinatorConcurrencyLanes.map(Int::toString)
         )
-        check(
-            runCatching {
-                validateQuickMongoBatchCoordinatorConcurrencyRows(
-                    validCoordinatorConcurrencyRows.mapIndexed { index, row ->
-                        if (index == 0) {
-                            row.copy(
-                                parameters = row.parameters +
-                                    ("coordinatorLanes" to "3")
-                            )
-                        } else {
-                            row
-                        }
-                    }
-                )
-            }.exceptionOrNull() is GradleException
-        )
-        val coordinatorConcurrencyComparison = buildString {
-            appendQuickMongoBatchCoordinatorConcurrencyComparison(
-                validCoordinatorConcurrencyRows
-            )
-        }
-        check(coordinatorConcurrencyComparison.contains("| 4 | 4 k ops/s | +300.0% |"))
     }
 }
 
 tasks.named("check") {
-    dependsOn(verifyBenchmarkReportFormatting)
     dependsOn(verifyBenchmarkRequiredServiceManifest)
     dependsOn(verifyBenchmarkInfrastructureManifest)
     dependsOn(verifyStorageBatchTuningParetoSelection)
@@ -10490,9 +10043,7 @@ tasks.register("generateMongoBatchOptionsTuningReport") {
             currentOptions = mongoCurrentStorageBatchOptions,
             preferredRefresh = "-",
             manifests = groupReport.manifests,
-            benchmarkHarnessSha256 = fileSha256(
-                layout.projectDirectory.file("gradle/benchmarking.gradle.kts").asFile
-            ),
+            benchmarkHarnessSha256 = benchmarkHarnessSha256(),
             manifestSha256 = fileSha256(manifestFile),
         )
         publishJsonAtomically(
@@ -10562,9 +10113,7 @@ tasks.register("generateElasticsearchBatchOptionsTuningReport") {
             currentOptions = elasticsearchCurrentStorageBatchOptions,
             preferredRefresh = "True",
             manifests = groupReport.manifests,
-            benchmarkHarnessSha256 = fileSha256(
-                layout.projectDirectory.file("gradle/benchmarking.gradle.kts").asFile
-            ),
+            benchmarkHarnessSha256 = benchmarkHarnessSha256(),
             manifestSha256 = fileSha256(manifestFile),
         )
         publishJsonAtomically(

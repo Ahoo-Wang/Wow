@@ -29,8 +29,10 @@ import java.time.Duration
  * type does not impose an item execution order inside a protocol-specific batch;
  * a writer that requires such an order must provide it.
  *
- * [keySelector] runs on the coordinator batch scheduler and must be deterministic
- * and non-throwing. Ordering keys must obey the usual equality/hash-code contract.
+ * When [laneCount] is greater than one, [keySelector] runs during lazy
+ * submission and must be deterministic and non-blocking. A selector failure
+ * rejects only that submission. Ordering keys must obey the usual
+ * equality/hash-code contract.
  */
 class KeyedBatchCoordinator<T : Any, K : Any>(
     val name: String,

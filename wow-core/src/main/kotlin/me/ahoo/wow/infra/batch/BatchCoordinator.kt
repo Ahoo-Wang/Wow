@@ -87,6 +87,7 @@ class BatchCoordinator<T : Any> internal constructor(
 
     private inner class PendingItem(
         val value: T,
+        val lane: Int,
     ) {
         val result: Sinks.Empty<Void> = Sinks.empty()
         private val state = AtomicReference<ItemState>(ItemState.Queued)
@@ -289,7 +290,7 @@ class BatchCoordinator<T : Any> internal constructor(
         if (laneCount == 1) {
             return processLane(source)
         }
-        return source.groupBy(::selectLane)
+        return source.groupBy { item -> item.lane }
             .flatMap(::processLane, laneCount)
     }
 
@@ -299,8 +300,11 @@ class BatchCoordinator<T : Any> internal constructor(
             .concatMap(::writeBatch)
     }
 
-    private fun selectLane(item: PendingItem): Int {
-        val lane = laneSelector(item.value)
+    private fun selectLane(item: T): Int {
+        if (laneCount == 1) {
+            return 0
+        }
+        val lane = laneSelector(item)
         check(lane in 0..<laneCount) {
             "Batch lane selector[$name] returned $lane outside [0, $laneCount)."
         }
@@ -333,15 +337,18 @@ class BatchCoordinator<T : Any> internal constructor(
                 availablePendingItems.release()
                 return@defer Mono.error(it)
             }
-            val item = try {
-                itemFactory()
+            val pendingItem = try {
+                val item = itemFactory()
+                PendingItem(
+                    value = item,
+                    lane = selectLane(item),
+                )
             } catch (error: Throwable) {
                 availableQueuedItems.release()
                 availablePendingItems.release()
                 Exceptions.throwIfFatal(error)
                 return@defer Mono.error(error)
             }
-            val pendingItem = PendingItem(item)
             pending.add(pendingItem)
             val emitResult = synchronized(emissionLock) {
                 when (lifecycle.get()) {
