@@ -67,12 +67,12 @@ class InMemorySnapshotStore : SnapshotStore {
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> =
         Mono.fromRunnable {
             val snapshotNode: ObjectNode = snapshot.toJsonNode()
-            val snapshotVersion = snapshotNode.snapshotVersion()
+            val snapshotVersion = snapshotNode.requiredSnapshotVersion()
             aggregateIdMapSnapshot.compute(snapshot.aggregateId) { _, storedSnapshotNode ->
                 if (storedSnapshotNode == null) {
                     return@compute snapshotNode
                 }
-                val storedVersion = storedSnapshotNode.snapshotVersion()
+                val storedVersion = storedSnapshotNode.requiredSnapshotVersion()
                 if (snapshotVersion >= storedVersion) {
                     snapshotNode
                 } else {
@@ -80,14 +80,14 @@ class InMemorySnapshotStore : SnapshotStore {
                 }
             }
         }
+}
 
-    private fun ObjectNode.snapshotVersion(): Int {
-        val versionNode = checkNotNull(this[MessageRecords.VERSION]) {
-            "Serialized Wow snapshot has no version."
-        }
-        check(versionNode.isInt) {
-            "Serialized Wow snapshot version must be an integer."
-        }
-        return versionNode.asInt()
+internal fun ObjectNode.requiredSnapshotVersion(): Int {
+    val versionNode = checkNotNull(this[MessageRecords.VERSION]) {
+        "Serialized Wow snapshot has no version."
     }
+    check(versionNode.isInt) {
+        "Serialized Wow snapshot version must be an integer."
+    }
+    return versionNode.asInt()
 }
