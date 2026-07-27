@@ -16,7 +16,7 @@ package me.ahoo.wow.infra.batch
 import java.time.Duration
 
 /**
- * Storage-independent limits for [BatchCoordinator].
+ * Storage-independent limits for [BatchCoordinator] and [KeyedBatchCoordinator].
  *
  * Enabling batching is deliberately not part of this type. The component that
  * owns a coordinator decides whether to compose a direct or batched writer.

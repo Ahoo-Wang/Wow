@@ -16,7 +16,7 @@ Use it for three jobs:
 | Batch CommandWrite E2E | Paired 32-command workloads using either 32 blocking boundaries or one sequential/concurrent batch boundary. | Primary framework-cost signal without per-command blocking distortion, plus bounded-concurrency scaling diagnosis. | `benchmarkQuickBatchE2E` |
 | Mongo Batch Append | A 128-event-stream append-path workload comparing EventStore `insertOne`, native unordered `insertMany`, and coordinated batching. | Separating protocol Bulk capability from the end-to-end coordinated path with real local MongoDB I/O. | `benchmarkQuickMongoBatchAppend`, `benchmarkConfirmMongoBatchAppend`, `benchmarkMongoBatchAppendPairedE2E` |
 | Elasticsearch Batch Append | A 128-event-stream append-path workload comparing EventStore `create`, native Bulk `create`, and coordinated Bulk `create` with `refresh=false,true`. | Measuring Elasticsearch Bulk capability and the end-to-end coordinated path without changing no-overwrite semantics. | `benchmarkQuickElasticsearchBatchAppend`, `benchmarkConfirmElasticsearchBatchAppend` |
-| Mongo Batch Options | Coordinated EventStore writes at representative (128) and burst (32) append counts for current `128x1000us` and candidate `192x250us`. | Bounded quick engineering evidence; the old full Pareto campaign is stopped and historical only. | `benchmarkQuickMongoBatchOptionsPaired`, `benchmarkQuickMongoBatchAppendCandidateE2E` |
+| Mongo Batch Options | Coordinated EventStore writes at representative (128) and burst (32) append counts for current `128x1000us` and candidate `192x250us`, plus keyed coordinator lane diagnosis. | Bounded quick engineering evidence; the old full Pareto campaign is stopped and historical only. | `benchmarkQuickMongoBatchOptionsPaired`, `benchmarkQuickMongoBatchAppendCandidateE2E`, `benchmarkQuickMongoBatchCoordinatorConcurrency` |
 | Elasticsearch Batch Options Tuning | Coordinated EventStore writes at isolated (1), burst (32), representative (128), and saturated (512) append counts across encoded `maxSize/maxDelay` candidates. | Screening and confirming the independent Elasticsearch default. | `benchmarkTuneElasticsearchBatchOptions`, `benchmarkConfirmElasticsearchBatchOptions` |
 | Component | Isolated command, aggregate, event, wait, serialization, accessor, and pipeline pieces. | Quick feedback, targeted diagnosis, or rare exhaustive catalog checks. | `benchmarkQuickComponent`, `benchmarkDiagnosticComponent`, `benchmarkExhaustiveComponent` |
 | WebFlux Adapter | Spring WebFlux request, response, SSE, and aggregate tracing adapter paths without a real Netty server. | Diagnosing HTTP adapter overhead and WebFlux-specific allocation hot spots. These results are not Framework E2E conclusion data. | `benchmarkQuickWebFlux`, `benchmarkExhaustiveWebFlux` |
@@ -309,6 +309,11 @@ The active bounded workflow compares current `128x1000us` with candidate
   :wow-benchmarks:benchmarkQuickMongoBatchAppendCandidateE2E \
   :wow-benchmarks:generateQuickMongoBatchAppendCandidateE2EReport \
   --no-parallel --no-daemon
+
+./gradlew \
+  :wow-benchmarks:benchmarkQuickMongoBatchCoordinatorConcurrency \
+  :wow-benchmarks:generateQuickMongoBatchCoordinatorConcurrencyReport \
+  --no-parallel --no-daemon
 ```
 
 The paired task writes only under
@@ -330,6 +335,19 @@ Both tasks require a clean source commit. Each measured iteration verifies that
 Mongo's actual document count equals the exact number of acknowledged writes.
 Partial-failure result isolation remains a unit/integration-test responsibility;
 a full-success JMH run cannot observe caller cross-talk.
+
+The coordinator concurrency diagnostic writes only under
+`results/jmh/quick-mongo-coordinator-concurrency/mongo-batch-coordinator-concurrency-quick-engineering/`.
+It runs at JMH threads `4` and compares `coordinatorLanes=1,2,4` with
+`batchOptions=192x250us` in throughput and average-time modes. One production
+`MongoEventStore` routes the 128 independent aggregate keys through its
+`KeyedBatchCoordinator`; every lane remains serial while different lanes may
+write concurrently. The JMH parameter does not change the default lane count.
+Repeated-key ordering remains a functional-test responsibility. The diagnostic
+permits a dirty source tree so
+the manifest can bind exploratory results to the exact JMH jar and dirty-state
+flag; rerun it from a clean commit before using the result as confirmation
+evidence.
 
 ### Mongo Storage Batch Options Tuning (Stopped Exploratory Campaign)
 

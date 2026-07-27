@@ -171,6 +171,67 @@ class MongoEventStoreBatchTest {
     }
 
     @Test
+    fun `configured lanes should allow concurrent insert many requests for different aggregates`() {
+        val database = mockk<MongoDatabase>()
+        val collection = mockk<MongoCollection<Document>>()
+        val writesStarted = CountDownLatch(2)
+        val releaseWrites = Sinks.one<InsertManyResult>()
+        val inFlightWrites = AtomicInteger()
+        val maxInFlightWrites = AtomicInteger()
+        every { database.getCollection(any<String>()) } returns collection
+        every {
+            collection.insertMany(any<List<Document>>(), any())
+        } answers {
+            Mono.defer {
+                val inFlight = inFlightWrites.incrementAndGet()
+                maxInFlightWrites.accumulateAndGet(inFlight, ::maxOf)
+                writesStarted.countDown()
+                releaseWrites.asMono()
+                    .doFinally {
+                        inFlightWrites.decrementAndGet()
+                    }
+            }
+        }
+        val laneRepresentatives = (1..100)
+            .map { index -> eventStream("lane-$index") }
+            .groupBy { eventStream -> Math.floorMod(eventStream.aggregateId.hashCode(), 2) }
+            .values
+            .map { eventStreams -> eventStreams.first() }
+        laneRepresentatives.assert().hasSize(2)
+        val streams = laneRepresentatives.flatMap { eventStream ->
+            listOf(
+                eventStream,
+                eventStream(eventStream.aggregateId.id, aggregateVersion = 1),
+            )
+        }
+        val eventStore = MongoEventStore(
+            database = database,
+            batchOptions = MongoEventStoreBatchOptions(
+                enabled = true,
+                maxSize = 2,
+                maxDelay = Duration.ofHours(1),
+                maxPendingAppends = 8,
+                laneCount = 2,
+            ),
+        )
+        val result = Flux.fromIterable(streams)
+            .flatMap(eventStore::append, streams.size)
+            .then()
+            .toFuture()
+
+        try {
+            writesStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
+            maxInFlightWrites.get().assert().isEqualTo(2)
+
+            releaseWrites.tryEmitValue(InsertManyResult.acknowledged(emptyMap()))
+                .isSuccess.assert().isTrue()
+            result.get(1, TimeUnit.SECONDS)
+        } finally {
+            eventStore.close()
+        }
+    }
+
+    @Test
     fun `multiple producer threads should enqueue safely`() {
         val database = mockk<MongoDatabase>()
         val collection = mockk<MongoCollection<Document>>()

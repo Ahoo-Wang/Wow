@@ -18,10 +18,10 @@ import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.infra.batch.BatchCloseTimeoutException
 import me.ahoo.wow.infra.batch.BatchClosedException
-import me.ahoo.wow.infra.batch.BatchCoordinator
 import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.infra.batch.BatchOverflowException
 import me.ahoo.wow.infra.batch.BatchWriter
+import me.ahoo.wow.infra.batch.KeyedBatchCoordinator
 import me.ahoo.wow.serialization.toLinkedHashMap
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
@@ -46,13 +46,17 @@ internal class BatchElasticsearchEventStreamAppender(
     }
 
     private val mappedCloseTimeout = AtomicReference<MappedCloseTimeout?>()
-    private val coordinator = BatchCoordinator(
+    private val coordinator = KeyedBatchCoordinator(
         name = ElasticsearchEventStore::class.simpleName!!,
         options = BatchOptions(
             maxSize = options.maxSize,
             maxDelay = options.maxDelay,
             maxPendingItems = options.maxPendingAppends,
         ),
+        laneCount = options.laneCount,
+        keySelector = { append: ElasticsearchEventStreamAppend ->
+            append.eventStream.aggregateId
+        },
         writer = BatchWriter(
             ElasticsearchEventStreamBatchWriter(
                 elasticsearchClient = elasticsearchClient,

@@ -23,6 +23,7 @@ data class ElasticsearchSnapshotStoreBatchOptions(
     val maxSize: Int = DEFAULT_MAX_SIZE,
     val maxDelay: Duration = DEFAULT_MAX_DELAY,
     val maxPendingSaves: Int = DEFAULT_MAX_PENDING_SAVES,
+    val laneCount: Int = DEFAULT_LANE_COUNT,
 ) {
     init {
         require(maxSize > 1) {
@@ -34,11 +35,15 @@ data class ElasticsearchSnapshotStoreBatchOptions(
         require(maxPendingSaves >= maxSize) {
             "maxPendingSaves must be greater than or equal to maxSize."
         }
+        require(laneCount > 0) {
+            "laneCount must be greater than zero."
+        }
     }
 
     companion object {
         const val DEFAULT_MAX_SIZE: Int = 128
         const val DEFAULT_MAX_PENDING_SAVES: Int = 4096
+        const val DEFAULT_LANE_COUNT: Int = 1
         val DEFAULT_MAX_DELAY: Duration = Duration.ofMillis(1)
     }
 }

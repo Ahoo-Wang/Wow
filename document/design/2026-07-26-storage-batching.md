@@ -21,7 +21,7 @@ flowchart LR
     Port["Appender / Saver port"]
     Direct["Direct writer"]
     Batch["Batch appender / saver"]
-    Coordinator["BatchCoordinator&lt;T&gt;"]
+    Coordinator["BatchCoordinator&lt;T&gt; / KeyedBatchCoordinator&lt;T, K&gt;"]
     Protocol["Mongo insertMany / Elasticsearch Bulk"]
 
     Domain --> Store
@@ -49,6 +49,17 @@ flowchart LR
   new caller with `BatchOverflowException`.
 - `maxSize` or `maxDelay` closes a batch window. Batches are sent serially by the
   coordinator, while a protocol writer may use one native multi-item request.
+- `BatchCoordinator` remains the single-lane primitive. `KeyedBatchCoordinator`
+  hashes an immutable ordering key into a fixed number of lanes; writer calls are
+  serial within a lane and may overlap across lanes. It shares one global
+  admission bound, lifecycle, result dispatcher, and close operation across all
+  lanes.
+- Equal keys are assigned to the same lane, but multiple equal-key items may be
+  present in one native batch. The coordinator does not add an item-order
+  guarantee inside a protocol request; that remains a writer/storage contract.
+- A writer used by `KeyedBatchCoordinator` must support concurrent calls from
+  different lanes. `laneCount=1` preserves the original globally serial path and
+  remains the default.
 - The writer must return exactly one `BatchItemResult` for every claimed input,
   in input order. Empty or wrong-cardinality results are protocol failures.
 - A writer request failure fails every claimed item in that batch, but it does
@@ -71,6 +82,9 @@ flowchart LR
 
 - Direct mode remains `insertOne`.
 - Batch mode groups items by target collection and uses unordered `insertMany`.
+- The optional lane key is the complete aggregate identity. This prevents
+  overlapping `insertMany` requests for one aggregate while allowing different
+  aggregate lanes to write concurrently.
 - MongoDB bulk-write errors are mapped back to the matching append; successful
   items in the same unordered request remain successful.
 - Collection groups inside one coordinator batch are joined before results are
@@ -83,6 +97,9 @@ flowchart LR
 
 - Direct and batch paths use `create`, never `index`, preserving the event
   stream no-overwrite invariant.
+- The optional lane key is the complete aggregate identity, matching MongoDB
+  EventStore concurrency boundaries without leaking Elasticsearch types into the
+  common coordinator.
 - A Bulk request retains each item's index, document ID, and routing.
 - The writer validates item count, operation, ID, `errors()`, and every item
   status before routing results. It deliberately does not require the response
@@ -96,6 +113,9 @@ flowchart LR
 ### Elasticsearch SnapshotStore
 
 - Snapshot persistence uses Bulk `index`.
+- The optional lane key is `(index, document ID)`, so snapshots for one stored
+  document cannot be sent by overlapping Bulk requests. External versioning
+  remains the authoritative protection across Store instances.
 - Items for the same index/document ID in one batch are coalesced to the highest
   aggregate version; equal versions preserve the first submission, matching
   external-version behavior across separate requests.
@@ -134,6 +154,12 @@ by a container.
 public infrastructure API in `wow-core`. Storage adapters must keep protocol
 types and error interpretation in their own modules so this API can evolve
 without coupling the core to MongoDB or Elasticsearch.
+
+`KeyedBatchCoordinator` is an additive public infrastructure API. Storage batch
+options add `laneCount`, and Spring Boot exposes it as `lane-count`; the default
+is `1`, so existing applications retain globally serial batch writes. Increasing
+it requires a concurrency-safe protocol writer and should be validated against
+the application's key distribution and storage capacity.
 
 Elasticsearch SnapshotStore now uses external versioning in both direct and
 batch modes. Existing indices used Elasticsearch internal `_version`, which is
@@ -225,6 +251,8 @@ Functional verification must include:
 - whole-request failure followed by a healthy batch;
 - cross-index/collection, alias-to-concrete response, and routing preservation;
 - concurrent submissions and bounded overflow;
+- same-lane serial writer calls, different-lane concurrent writer calls, and one
+  global pending bound;
 - cancellation before and after claim;
 - close flushing a partial batch, timeout, and idempotent close;
 - Elasticsearch snapshot newer-before-older ordering;

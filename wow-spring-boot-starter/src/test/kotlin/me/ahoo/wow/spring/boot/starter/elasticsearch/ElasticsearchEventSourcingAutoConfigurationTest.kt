@@ -132,10 +132,12 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
                 "${ElasticsearchProperties.PREFIX}.event-store-batch.max-size=64",
                 "${ElasticsearchProperties.PREFIX}.event-store-batch.max-delay=2ms",
                 "${ElasticsearchProperties.PREFIX}.event-store-batch.max-pending-appends=2048",
+                "${ElasticsearchProperties.PREFIX}.event-store-batch.lane-count=2",
                 "${ElasticsearchProperties.PREFIX}.snapshot-store-batch.enabled=true",
                 "${ElasticsearchProperties.PREFIX}.snapshot-store-batch.max-size=32",
                 "${ElasticsearchProperties.PREFIX}.snapshot-store-batch.max-delay=3ms",
                 "${ElasticsearchProperties.PREFIX}.snapshot-store-batch.max-pending-saves=1024",
+                "${ElasticsearchProperties.PREFIX}.snapshot-store-batch.lane-count=3",
             )
             .withBean(ReactiveElasticsearchClient::class.java, {
                 mock(ReactiveElasticsearchClient::class.java)
@@ -178,12 +180,14 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
         eventOptions.maxSize.assert().isEqualTo(64)
         eventOptions.maxDelay.assert().isEqualTo(java.time.Duration.ofMillis(2))
         eventOptions.maxPendingAppends.assert().isEqualTo(2048)
+        eventOptions.laneCount.assert().isEqualTo(2)
 
         val snapshotOptions = context.getBean(ElasticsearchSnapshotStore::class.java).batchOptions
         snapshotOptions.enabled.assert().isTrue()
         snapshotOptions.maxSize.assert().isEqualTo(32)
         snapshotOptions.maxDelay.assert().isEqualTo(java.time.Duration.ofMillis(3))
         snapshotOptions.maxPendingSaves.assert().isEqualTo(1024)
+        snapshotOptions.laneCount.assert().isEqualTo(3)
     }
 
     @Test

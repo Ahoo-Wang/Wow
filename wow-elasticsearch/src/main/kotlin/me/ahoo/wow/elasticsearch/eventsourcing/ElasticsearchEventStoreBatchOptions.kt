@@ -26,6 +26,7 @@ data class ElasticsearchEventStoreBatchOptions(
     val maxSize: Int = DEFAULT_MAX_SIZE,
     val maxDelay: Duration = DEFAULT_MAX_DELAY,
     val maxPendingAppends: Int = DEFAULT_MAX_PENDING_APPENDS,
+    val laneCount: Int = DEFAULT_LANE_COUNT,
 ) {
     init {
         require(maxSize > 1) {
@@ -37,11 +38,15 @@ data class ElasticsearchEventStoreBatchOptions(
         require(maxPendingAppends >= maxSize) {
             "maxPendingAppends must be greater than or equal to maxSize."
         }
+        require(laneCount > 0) {
+            "laneCount must be greater than zero."
+        }
     }
 
     companion object {
         const val DEFAULT_MAX_SIZE: Int = 128
         const val DEFAULT_MAX_PENDING_APPENDS: Int = 4096
+        const val DEFAULT_LANE_COUNT: Int = 1
         val DEFAULT_MAX_DELAY: Duration = Duration.ofMillis(1)
     }
 }

@@ -41,11 +41,14 @@ import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.publisher.Sinks
 import reactor.kotlin.test.test
 import java.time.Duration
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 class ElasticsearchSnapshotStoreSaveTest {
     private val client = mockk<ReactiveElasticsearchClient>()
@@ -190,6 +193,59 @@ class ElasticsearchSnapshotStoreSaveTest {
     }
 
     @Test
+    fun `configured lanes should keep the same snapshot key batches serial`() {
+        val firstRequestStarted = CountDownLatch(1)
+        val secondRequestStarted = CountDownLatch(1)
+        val releaseFirstRequest = Sinks.one<Void>()
+        val requestCount = AtomicInteger()
+        every { client.bulk(any<BulkRequest>()) } answers {
+            val request = firstArg<BulkRequest>()
+            val response = bulkResponse(request)
+            when (requestCount.getAndIncrement()) {
+                0 -> Mono.defer {
+                    firstRequestStarted.countDown()
+                    releaseFirstRequest.asMono().thenReturn(response)
+                }
+
+                else -> Mono.defer {
+                    secondRequestStarted.countDown()
+                    Mono.just(response)
+                }
+            }
+        }
+        val store = ElasticsearchSnapshotStore(
+            elasticsearchClient = client,
+            batchOptions = ElasticsearchSnapshotStoreBatchOptions(
+                enabled = true,
+                maxSize = 2,
+                maxDelay = Duration.ofHours(1),
+                maxPendingSaves = 8,
+                laneCount = 2,
+            ),
+        )
+        val result = Flux.range(1, 4)
+            .flatMap(
+                { version -> store.save(snapshot("same-order", version)) },
+                4,
+            )
+            .then()
+            .toFuture()
+
+        try {
+            firstRequestStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
+            secondRequestStarted.await(50, TimeUnit.MILLISECONDS).assert().isFalse()
+
+            releaseFirstRequest.tryEmitEmpty().isSuccess.assert().isTrue()
+            result.get(1, TimeUnit.SECONDS)
+
+            secondRequestStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
+            requestCount.get().assert().isEqualTo(2)
+        } finally {
+            store.close()
+        }
+    }
+
+    @Test
     fun `close should flush a partial snapshot batch`() {
         val snapshot = snapshot(id = "order-close", version = 4)
         every { client.bulk(any<BulkRequest>()) } returns Mono.just(
@@ -328,6 +384,20 @@ class ElasticsearchSnapshotStoreSaveTest {
                 .items(items.toList())
                 .took(1)
         }
+    }
+
+    private fun bulkResponse(request: BulkRequest): BulkResponse {
+        return bulkResponse(
+            *request.operations().map { operation ->
+                val index = operation.index<Map<String, Any?>>()
+                BulkResponseItem.of { item ->
+                    item.operationType(OperationType.Index)
+                        .index(index.index())
+                        .id(index.id())
+                        .status(200)
+                }
+            }.toTypedArray()
+        )
     }
 
     private fun responseItem(

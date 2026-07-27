@@ -25,6 +25,7 @@ class MongoEventStoreBatchProperties(
     @DefaultValue("1ms") val maxDelay: Duration = MongoEventStoreBatchOptions.DEFAULT_MAX_DELAY,
     @DefaultValue("4096")
     val maxPendingAppends: Int = MongoEventStoreBatchOptions.DEFAULT_MAX_PENDING_APPENDS,
+    @DefaultValue("1") val laneCount: Int = MongoEventStoreBatchOptions.DEFAULT_LANE_COUNT,
 ) {
     fun toOptions(): MongoEventStoreBatchOptions {
         return MongoEventStoreBatchOptions(
@@ -32,6 +33,7 @@ class MongoEventStoreBatchProperties(
             maxSize = maxSize,
             maxDelay = maxDelay,
             maxPendingAppends = maxPendingAppends,
+            laneCount = laneCount,
         )
     }
 

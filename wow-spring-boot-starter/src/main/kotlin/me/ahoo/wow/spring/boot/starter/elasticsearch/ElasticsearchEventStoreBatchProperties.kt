@@ -25,6 +25,7 @@ class ElasticsearchEventStoreBatchProperties(
     @DefaultValue("1ms") val maxDelay: Duration = ElasticsearchEventStoreBatchOptions.DEFAULT_MAX_DELAY,
     @DefaultValue("4096")
     val maxPendingAppends: Int = ElasticsearchEventStoreBatchOptions.DEFAULT_MAX_PENDING_APPENDS,
+    @DefaultValue("1") val laneCount: Int = ElasticsearchEventStoreBatchOptions.DEFAULT_LANE_COUNT,
 ) {
     fun toOptions(): ElasticsearchEventStoreBatchOptions {
         return ElasticsearchEventStoreBatchOptions(
@@ -32,6 +33,7 @@ class ElasticsearchEventStoreBatchProperties(
             maxSize = maxSize,
             maxDelay = maxDelay,
             maxPendingAppends = maxPendingAppends,
+            laneCount = laneCount,
         )
     }
 

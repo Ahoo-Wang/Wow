@@ -25,6 +25,7 @@ class ElasticsearchSnapshotStoreBatchProperties(
     @DefaultValue("1ms") val maxDelay: Duration = ElasticsearchSnapshotStoreBatchOptions.DEFAULT_MAX_DELAY,
     @DefaultValue("4096")
     val maxPendingSaves: Int = ElasticsearchSnapshotStoreBatchOptions.DEFAULT_MAX_PENDING_SAVES,
+    @DefaultValue("1") val laneCount: Int = ElasticsearchSnapshotStoreBatchOptions.DEFAULT_LANE_COUNT,
 ) {
     fun toOptions(): ElasticsearchSnapshotStoreBatchOptions {
         return ElasticsearchSnapshotStoreBatchOptions(
@@ -32,6 +33,7 @@ class ElasticsearchSnapshotStoreBatchProperties(
             maxSize = maxSize,
             maxDelay = maxDelay,
             maxPendingSaves = maxPendingSaves,
+            laneCount = laneCount,
         )
     }
 

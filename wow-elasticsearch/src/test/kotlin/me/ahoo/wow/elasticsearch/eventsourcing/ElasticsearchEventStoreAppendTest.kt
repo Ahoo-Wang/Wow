@@ -36,6 +36,7 @@ import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.publisher.Sinks
 import reactor.kotlin.test.test
 import java.time.Duration
 import java.util.concurrent.CountDownLatch
@@ -215,6 +216,52 @@ class ElasticsearchEventStoreAppendTest {
     }
 
     @Test
+    fun `configured lanes should allow concurrent bulk requests for different aggregates`() {
+        val requestsStarted = CountDownLatch(2)
+        val releaseRequests = Sinks.one<Void>()
+        val inFlightRequests = AtomicInteger()
+        val maxInFlightRequests = AtomicInteger()
+        every { client.bulk(any<BulkRequest>()) } answers {
+            val request = firstArg<BulkRequest>()
+            Mono.defer {
+                val inFlight = inFlightRequests.incrementAndGet()
+                maxInFlightRequests.accumulateAndGet(inFlight, ::maxOf)
+                requestsStarted.countDown()
+                releaseRequests.asMono()
+                    .thenReturn(bulkResponse(request))
+                    .doFinally {
+                        inFlightRequests.decrementAndGet()
+                    }
+            }
+        }
+        val streams = eventStreamsInTwoLanes()
+        val eventStore = ElasticsearchEventStore(
+            elasticsearchClient = client,
+            batchOptions = ElasticsearchEventStoreBatchOptions(
+                enabled = true,
+                maxSize = 2,
+                maxDelay = Duration.ofHours(1),
+                maxPendingAppends = 8,
+                laneCount = 2,
+            ),
+        )
+        val result = Flux.fromIterable(streams)
+            .flatMap(eventStore::append, streams.size)
+            .then()
+            .toFuture()
+
+        try {
+            requestsStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
+            maxInFlightRequests.get().assert().isEqualTo(2)
+
+            releaseRequests.tryEmitEmpty().isSuccess.assert().isTrue()
+            result.get(1, TimeUnit.SECONDS)
+        } finally {
+            eventStore.close()
+        }
+    }
+
+    @Test
     fun `batch overflow and close timeout should map to EventStore errors`() {
         val requestStarted = CountDownLatch(1)
         every { client.bulk(any<BulkRequest>()) } returns Mono.defer {
@@ -297,6 +344,35 @@ class ElasticsearchEventStoreAppendTest {
             it.errors(false)
                 .items(items.toList())
                 .took(1)
+        }
+    }
+
+    private fun bulkResponse(request: BulkRequest): BulkResponse {
+        return bulkResponse(
+            *request.operations().map { operation ->
+                val create = operation.create<Map<String, Any?>>()
+                BulkResponseItem.of { item ->
+                    item.operationType(OperationType.Create)
+                        .index(create.index())
+                        .id(create.id())
+                        .status(201)
+                }
+            }.toTypedArray()
+        )
+    }
+
+    private fun eventStreamsInTwoLanes(): List<DomainEventStream> {
+        val laneRepresentatives = (1..100)
+            .map { index -> eventStream("lane-$index") }
+            .groupBy { eventStream -> Math.floorMod(eventStream.aggregateId.hashCode(), 2) }
+            .values
+            .map { eventStreams -> eventStreams.first() }
+        laneRepresentatives.assert().hasSize(2)
+        return laneRepresentatives.flatMap { eventStream ->
+            listOf(
+                eventStream,
+                eventStream(eventStream.aggregateId.id, aggregateVersion = 1),
+            )
         }
     }
 

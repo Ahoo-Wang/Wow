@@ -17,10 +17,10 @@ import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.infra.batch.BatchCloseTimeoutException
 import me.ahoo.wow.infra.batch.BatchClosedException
-import me.ahoo.wow.infra.batch.BatchCoordinator
 import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.infra.batch.BatchOverflowException
 import me.ahoo.wow.infra.batch.BatchWriter
+import me.ahoo.wow.infra.batch.KeyedBatchCoordinator
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
 import org.bson.Document
 import reactor.core.publisher.Mono
@@ -50,13 +50,17 @@ internal class BatchMongoEventStreamAppender(
     }
 
     private val mappedCloseTimeout = AtomicReference<MappedCloseTimeout?>()
-    private val coordinator = BatchCoordinator(
+    private val coordinator = KeyedBatchCoordinator(
         name = MongoEventStore::class.simpleName!!,
         options = BatchOptions(
             maxSize = options.maxSize,
             maxDelay = options.maxDelay,
             maxPendingItems = options.maxPendingAppends,
         ),
+        laneCount = options.laneCount,
+        keySelector = { append: MongoEventStreamAppend ->
+            append.eventStream.aggregateId
+        },
         writer = BatchWriter(MongoEventStreamBatchWriter(database)::write),
     )
 

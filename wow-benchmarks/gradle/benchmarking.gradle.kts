@@ -410,6 +410,24 @@ val quickMongoBatchCandidateE2EProfile = BenchmarkRunProfile(
     parameters = mapOf("batchOptions" to mongoBatchQuickCandidateOptions),
 )
 
+val quickMongoBatchCoordinatorConcurrencyProfile = BenchmarkRunProfile(
+    id = "quick-mongo-coordinator-concurrency",
+    warmupIterations = 1,
+    warmupTime = "2s",
+    measurementIterations = 1,
+    measurementTime = "3s",
+    forks = 1,
+    threads = listOf(4),
+    benchmarkModes = listOf("thrpt", "avgt"),
+    jvmArgs = quickBenchmarkJvmArgs,
+    includeGcProfiler = true,
+    includeAsyncProfiler = false,
+    parameters = linkedMapOf(
+        "batchOptions" to mongoBatchQuickCandidateOptions,
+        "coordinatorLanes" to "1,2,4",
+    ),
+)
+
 val quickMongoBatchOptionsPairedProfile = BenchmarkRunProfile(
     id = "quick-mongo-options-paired",
     warmupIterations = 1,
@@ -771,6 +789,30 @@ val quickMongoBatchCandidateE2ESuite = mongoBatchAppendSuite.copy(
     ),
 )
 
+val quickMongoBatchCoordinatorConcurrencySuite = BenchmarkSuite(
+    id = "mongo-batch-coordinator-concurrency-quick-engineering",
+    displayName = "Quick Mongo Batch Coordinator Concurrency",
+    includeClasses = listOf(
+        "me.ahoo.wow.benchmark.infrastructure.mongo.MongoBatchCoordinatorConcurrencyBenchmark",
+    ),
+    resultFileName = "mongo-batch-coordinator-concurrency.json",
+    humanFileName = "mongo-batch-coordinator-concurrency-human.txt",
+    requiredForGroupedReport = false,
+    formalRegressionSource = false,
+    requiredServices = mongoBatchAppendSuite.requiredServices,
+    runMetadata = linkedMapOf(
+        "experiment" to "quick-mongo-batch-coordinator-concurrency",
+        "evidenceClass" to "quick-engineering",
+        "formalProtocol" to "false",
+        "implementation" to "single-production-keyed-coordinator",
+        "productionDefaultChanged" to "false",
+        "batchOptions" to mongoBatchQuickCandidateOptions,
+        "coordinatorLanes" to "1,2,4",
+        "operationsPerInvocation" to "128",
+        "correctnessCheck" to "completion-count-and-iteration-document-count",
+    ),
+)
+
 val elasticsearchBatchAppendSuite = BenchmarkSuite(
     id = "elasticsearch-batch-append",
     displayName = "Elasticsearch EventStore Batch Append",
@@ -1092,6 +1134,14 @@ val quickMongoBatchCandidateE2ETaskSpec = BenchmarkTaskSpec(
         "Compares Mongo single, native insertMany, and coordinated 192x250us batching with quick engineering settings.",
 )
 
+val quickMongoBatchCoordinatorConcurrencyTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkQuickMongoBatchCoordinatorConcurrency",
+    suite = quickMongoBatchCoordinatorConcurrencySuite,
+    profile = quickMongoBatchCoordinatorConcurrencyProfile,
+    description =
+        "Measures the production keyed coordinator with 1, 2, and 4 serial lanes at JMH threads=4.",
+)
+
 val confirmationMongoBatchAppendTaskSpec = BenchmarkTaskSpec(
     taskName = "benchmarkConfirmMongoBatchAppend",
     suite = mongoBatchAppendSuite,
@@ -1215,6 +1265,7 @@ val benchmarkTaskSpecs = listOf(
     quickInfrastructureE2ETaskSpec,
     quickMongoBatchAppendTaskSpec,
     quickMongoBatchCandidateE2ETaskSpec,
+    quickMongoBatchCoordinatorConcurrencyTaskSpec,
     confirmationMongoBatchAppendTaskSpec,
     quickElasticsearchBatchAppendTaskSpec,
     confirmationElasticsearchBatchAppendTaskSpec,
@@ -2453,6 +2504,8 @@ val quickMongoBatchOptionsPairedReportFile =
     reportsDir.file("quick-mongo-batch-options-paired.md")
 val quickMongoBatchCandidateE2EReportFile =
     reportsDir.file("quick-mongo-batch-append-candidate-e2e.md")
+val quickMongoBatchCoordinatorConcurrencyReportFile =
+    reportsDir.file("quick-mongo-batch-coordinator-concurrency.md")
 val elasticsearchBatchOptionsTuningConfirmationReportFile =
     reportsDir.file("confirmation-elasticsearch-batch-options.md")
 val infrastructureBenchmarkReportFile = reportsDir.file("quick-infrastructure-e2e.md")
@@ -5750,6 +5803,182 @@ fun validateQuickMongoBatchCandidateE2ERows(rows: List<ParsedBenchmarkResult>) {
             )
         }
     }
+}
+
+data class QuickMongoBatchCoordinatorConcurrencyRowKey(
+    val coordinatorLanes: Int,
+    val mode: String,
+)
+
+val quickMongoBatchCoordinatorConcurrencyLanes = listOf(1, 2, 4)
+val quickMongoBatchCoordinatorConcurrencyMethod = "appendWithCoordinatorLanes"
+
+fun quickMongoBatchCoordinatorConcurrencyRowKey(
+    row: ParsedBenchmarkResult,
+): QuickMongoBatchCoordinatorConcurrencyRowKey {
+    val coordinatorLanes = row.parameters["coordinatorLanes"]?.toIntOrNull()
+        ?: throw GradleException(
+            "Quick Mongo coordinator concurrency row has invalid coordinatorLanes: ${row.parameters}."
+        )
+    return QuickMongoBatchCoordinatorConcurrencyRowKey(
+        coordinatorLanes = coordinatorLanes,
+        mode = row.mode,
+    )
+}
+
+fun validateQuickMongoBatchCoordinatorConcurrencyRows(rows: List<ParsedBenchmarkResult>) {
+    val expectedKeys = quickMongoBatchCoordinatorConcurrencyLanes.flatMap { coordinatorLanes ->
+        quickMongoBatchCoordinatorConcurrencyProfile.benchmarkModes.map { mode ->
+            QuickMongoBatchCoordinatorConcurrencyRowKey(coordinatorLanes, mode)
+        }
+    }.toSet()
+    val actualKeys = rows.map(::quickMongoBatchCoordinatorConcurrencyRowKey)
+    val duplicateKeys = actualKeys.groupingBy { it }.eachCount()
+        .filterValues { count -> count > 1 }
+        .keys
+    if (duplicateKeys.isNotEmpty()) {
+        throw GradleException(
+            "Quick Mongo coordinator concurrency results contain duplicate rows: $duplicateKeys."
+        )
+    }
+    if (rows.size != expectedKeys.size || actualKeys.toSet() != expectedKeys) {
+        throw GradleException(
+            "Quick Mongo coordinator concurrency matrix must contain exactly " +
+                "${quickMongoBatchCoordinatorConcurrencyLanes.size} lane counts x " +
+                "${quickMongoBatchCoordinatorConcurrencyProfile.benchmarkModes.size} modes " +
+                "(${expectedKeys.size} rows). Missing=${expectedKeys - actualKeys.toSet()}, " +
+                "unexpected=${actualKeys.toSet() - expectedKeys}."
+        )
+    }
+    rows.forEach { row ->
+        if (row.suite.id != quickMongoBatchCoordinatorConcurrencySuite.id ||
+            row.profile != quickMongoBatchCoordinatorConcurrencyProfile.id ||
+            row.threads != 4 ||
+            benchmarkMethodName(row) != quickMongoBatchCoordinatorConcurrencyMethod
+        ) {
+            throw GradleException(
+                "Quick Mongo coordinator concurrency row has unexpected identity: " +
+                    "${row.suite.id}/${row.profile}/threads=${row.threads}/${row.benchmark}."
+            )
+        }
+        val expectedParameters = mapOf(
+            "batchOptions" to mongoBatchQuickCandidateOptions,
+            "coordinatorLanes" to
+                quickMongoBatchCoordinatorConcurrencyRowKey(row).coordinatorLanes.toString(),
+        )
+        if (row.parameters != expectedParameters) {
+            throw GradleException(
+                "Quick Mongo coordinator concurrency row has unexpected parameters: ${row.parameters}."
+            )
+        }
+        val validUnit = when (row.mode) {
+            "thrpt" -> row.unit.equals("ops/s", ignoreCase = true)
+            "avgt" -> row.unit.endsWith("/op") &&
+                latencyUnitSeconds(row.unit.removeSuffix("/op")) != null
+            else -> false
+        }
+        if (!validUnit || !row.score.isFinite() || row.score <= 0.0) {
+            throw GradleException(
+                "Quick Mongo coordinator concurrency row has an invalid score/unit: " +
+                    "${row.benchmark}=${row.score} ${row.unit}."
+            )
+        }
+        val allocation = row.allocationBytesPerOp
+        if (allocation == null || !allocation.isFinite() || allocation <= 0.0) {
+            throw GradleException(
+                "Quick Mongo coordinator concurrency row is missing a positive finite " +
+                    "gc.alloc.rate.norm: ${row.benchmark}."
+            )
+        }
+    }
+}
+
+fun StringBuilder.appendQuickMongoBatchCoordinatorConcurrencyComparison(
+    rows: List<ParsedBenchmarkResult>,
+) {
+    val rowsByKey = rows.associateBy(::quickMongoBatchCoordinatorConcurrencyRowKey)
+    val throughputRows = quickMongoBatchCoordinatorConcurrencyLanes.map { coordinatorLanes ->
+        rowsByKey.getValue(
+            QuickMongoBatchCoordinatorConcurrencyRowKey(coordinatorLanes, "thrpt")
+        )
+    }
+    val averageTimeRows = quickMongoBatchCoordinatorConcurrencyLanes.map { coordinatorLanes ->
+        rowsByKey.getValue(
+            QuickMongoBatchCoordinatorConcurrencyRowKey(coordinatorLanes, "avgt")
+        )
+    }
+    val throughputScale = benchmarkMetricScale(
+        throughputRows.map(ParsedBenchmarkResult::score),
+        throughputRows.first().unit,
+    )
+    val averageTimeScale = benchmarkMetricScale(
+        averageTimeRows.map(ParsedBenchmarkResult::score),
+        averageTimeRows.first().unit,
+    )
+    val baselineThroughput = throughputRows.first()
+    val baselineAverageTime = averageTimeRows.first()
+    val baselineAllocation = checkNotNull(baselineThroughput.allocationBytesPerOp)
+
+    appendLine("## Coordinator Lane Comparison")
+    appendLine()
+    appendLine(
+        "JMH uses four worker threads and 128 independent event streams per invocation. One production " +
+            "MongoEventStore routes each aggregate key through its KeyedBatchCoordinator to one serial lane. " +
+            "Different lanes may write concurrently. Because every stream has a distinct aggregate, this " +
+            "workload exercises production key routing but leaves repeated-key ordering to functional tests."
+    )
+    appendLine()
+    appendLine(
+        "| Coordinator lanes | Throughput | vs lane 1 | Amortized time per event | " +
+            "Time reduction vs lane 1 | Allocation | Allocation reduction vs lane 1 |"
+    )
+    appendLine(
+        "|-------------------|------------|-----------|---------------------------|" +
+            "--------------------------|------------|--------------------------------|"
+    )
+    quickMongoBatchCoordinatorConcurrencyLanes.forEachIndexed { index, coordinatorLanes ->
+        val throughput = throughputRows[index]
+        val averageTime = averageTimeRows[index]
+        val allocation = checkNotNull(throughput.allocationBytesPerOp)
+        val throughputDisplay = formatScaledBenchmarkScore(
+            throughput.score,
+            throughput.scoreError,
+            throughputScale,
+        )
+        val averageTimeDisplay = formatScaledBenchmarkScore(
+            averageTime.score,
+            averageTime.scoreError,
+            averageTimeScale,
+        )
+        val throughputChange = if (index == 0) {
+            "baseline"
+        } else {
+            formatSignedPercent(relativeChangePercent(baselineThroughput.score, throughput.score))
+        }
+        val averageTimeReduction = if (index == 0) {
+            "baseline"
+        } else {
+            formatSignedPercent(reductionPercent(baselineAverageTime.score, averageTime.score))
+        }
+        val allocationReduction = if (index == 0) {
+            "baseline"
+        } else {
+            formatSignedPercent(reductionPercent(baselineAllocation, allocation))
+        }
+        appendLine(
+            "| $coordinatorLanes | ${throughputDisplay.scoreWithUnit} | $throughputChange | " +
+                "${averageTimeDisplay.scoreWithUnit} | $averageTimeReduction | " +
+                "${formatAllocationBytes(allocation)} | $allocationReduction |"
+        )
+    }
+    appendLine()
+    appendLine(
+        "Higher throughput and positive reductions are better. Average time is JMH-normalized amortized " +
+            "wall time per event, not an independent append response percentile. Additional lanes add " +
+            "grouping and buffer-window state and may form smaller native insertMany requests, so this " +
+            "experiment diagnoses the single-flight constraint but does not isolate coordinator CPU overhead."
+    )
+    appendLine()
 }
 
 fun StringBuilder.appendElasticsearchBatchAppendComparisons(rows: List<ParsedBenchmarkResult>) {
@@ -9491,6 +9720,106 @@ val verifyMongoBatchOptionsQuickProtocol = tasks.register("verifyMongoBatchOptio
                 }
             }
         )
+
+        check(
+            quickMongoBatchCoordinatorConcurrencySuite.id ==
+                "mongo-batch-coordinator-concurrency-quick-engineering"
+        )
+        check(!quickMongoBatchCoordinatorConcurrencySuite.requiresCleanSource)
+        check(quickMongoBatchCoordinatorConcurrencyProfile.warmupIterations == 1)
+        check(quickMongoBatchCoordinatorConcurrencyProfile.warmupTime == "2s")
+        check(quickMongoBatchCoordinatorConcurrencyProfile.measurementIterations == 1)
+        check(quickMongoBatchCoordinatorConcurrencyProfile.measurementTime == "3s")
+        check(quickMongoBatchCoordinatorConcurrencyProfile.forks == 1)
+        check(quickMongoBatchCoordinatorConcurrencyProfile.threads == listOf(4))
+        check(
+            quickMongoBatchCoordinatorConcurrencyProfile.benchmarkModes ==
+                listOf("thrpt", "avgt")
+        )
+        check(quickMongoBatchCoordinatorConcurrencyProfile.includeGcProfiler)
+        check(
+            quickMongoBatchCoordinatorConcurrencyProfile.parameters == linkedMapOf(
+                "batchOptions" to mongoBatchQuickCandidateOptions,
+                "coordinatorLanes" to "1,2,4",
+            )
+        )
+        check(
+            quickMongoBatchCoordinatorConcurrencySuite.runMetadata["implementation"] ==
+                "single-production-keyed-coordinator"
+        )
+        check(
+            quickMongoBatchCoordinatorConcurrencySuite.runMetadata["productionDefaultChanged"] ==
+                "false"
+        )
+
+        fun coordinatorConcurrencyRow(
+            coordinatorLanes: Int,
+            mode: String,
+        ): ParsedBenchmarkResult {
+            return ParsedBenchmarkResult(
+                suite = quickMongoBatchCoordinatorConcurrencySuite,
+                profile = quickMongoBatchCoordinatorConcurrencyProfile.id,
+                threads = 4,
+                benchmark = "me.ahoo.wow.benchmark.infrastructure.mongo." +
+                    "MongoBatchCoordinatorConcurrencyBenchmark." +
+                    quickMongoBatchCoordinatorConcurrencyMethod,
+                displayName = quickMongoBatchCoordinatorConcurrencyMethod,
+                parameters = mapOf(
+                    "batchOptions" to mongoBatchQuickCandidateOptions,
+                    "coordinatorLanes" to coordinatorLanes.toString(),
+                ),
+                mode = mode,
+                score = if (mode == "thrpt") 1_000.0 * coordinatorLanes else 100.0 / coordinatorLanes,
+                scoreError = null,
+                unit = if (mode == "thrpt") "ops/s" else "us/op",
+                allocationBytesPerOp = 1_024.0 * coordinatorLanes,
+                allocationErrorBytesPerOp = null,
+            )
+        }
+
+        val validCoordinatorConcurrencyRows =
+            quickMongoBatchCoordinatorConcurrencyLanes.flatMap { coordinatorLanes ->
+                quickMongoBatchCoordinatorConcurrencyProfile.benchmarkModes.map { mode ->
+                    coordinatorConcurrencyRow(coordinatorLanes, mode)
+                }
+            }
+        validateQuickMongoBatchCoordinatorConcurrencyRows(validCoordinatorConcurrencyRows)
+        check(
+            runCatching {
+                validateQuickMongoBatchCoordinatorConcurrencyRows(
+                    validCoordinatorConcurrencyRows.dropLast(1)
+                )
+            }.exceptionOrNull() is GradleException
+        )
+        check(
+            runCatching {
+                validateQuickMongoBatchCoordinatorConcurrencyRows(
+                    validCoordinatorConcurrencyRows + validCoordinatorConcurrencyRows.first()
+                )
+            }.exceptionOrNull() is GradleException
+        )
+        check(
+            runCatching {
+                validateQuickMongoBatchCoordinatorConcurrencyRows(
+                    validCoordinatorConcurrencyRows.mapIndexed { index, row ->
+                        if (index == 0) {
+                            row.copy(
+                                parameters = row.parameters +
+                                    ("coordinatorLanes" to "3")
+                            )
+                        } else {
+                            row
+                        }
+                    }
+                )
+            }.exceptionOrNull() is GradleException
+        )
+        val coordinatorConcurrencyComparison = buildString {
+            appendQuickMongoBatchCoordinatorConcurrencyComparison(
+                validCoordinatorConcurrencyRows
+            )
+        }
+        check(coordinatorConcurrencyComparison.contains("| 4 | 4 k ops/s | +300.0% |"))
     }
 }
 
@@ -9972,6 +10301,41 @@ tasks.register("generateQuickMongoBatchAppendCandidateE2EReport") {
         outputFile.writeText(report)
         logger.lifecycle(
             "Quick Mongo batch candidate E2E report generated: ${outputFile.absolutePath}"
+        )
+    }
+}
+
+tasks.register("generateQuickMongoBatchCoordinatorConcurrencyReport") {
+    description = "Generate the production Mongo keyed coordinator lane concurrency report."
+    group = "benchmark"
+    mustRunAfter("benchmarkQuickMongoBatchCoordinatorConcurrency")
+    outputs.file(quickMongoBatchCoordinatorConcurrencyReportFile)
+    outputs.upToDateWhen { false }
+
+    doLast {
+        val report = renderSingleBenchmarkReport(
+            group = benchmarkResultGroup(quickMongoBatchCoordinatorConcurrencyTaskSpec),
+            title = "Quick Mongo Batch Coordinator Concurrency Benchmark Report",
+            command = "./gradlew :wow-benchmarks:benchmarkQuickMongoBatchCoordinatorConcurrency " +
+                ":wow-benchmarks:generateQuickMongoBatchCoordinatorConcurrencyReport " +
+                "--no-parallel --no-daemon",
+            description = "This bounded diagnostic estimates the performance available from partitioned " +
+                "coordinator concurrency at `batchOptions=$mongoBatchQuickCandidateOptions`. It compares " +
+                "one, two, and four serial lanes in one production KeyedBatchCoordinator with four JMH worker " +
+                "threads. The JMH parameter changes the measured Store configuration but does not change the " +
+                "production default.",
+            includeInfrastructureRuntime = true,
+            validateRows = ::validateQuickMongoBatchCoordinatorConcurrencyRows,
+            appendBeforeResults = { rows ->
+                appendQuickMongoBatchCoordinatorConcurrencyComparison(rows)
+            },
+        )
+
+        val outputFile = quickMongoBatchCoordinatorConcurrencyReportFile.asFile
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(report)
+        logger.lifecycle(
+            "Quick Mongo batch coordinator concurrency report generated: ${outputFile.absolutePath}"
         )
     }
 }

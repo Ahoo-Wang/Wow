@@ -16,6 +16,7 @@ package me.ahoo.wow.infra.batch
 import me.ahoo.wow.infra.lifecycle.GracefullyStoppable
 import reactor.core.Disposable
 import reactor.core.Exceptions
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.core.scheduler.Schedulers
@@ -41,11 +42,25 @@ import java.util.concurrent.atomic.AtomicReference
  * shutdown. A [BatchWriter] owns protocol-specific request construction,
  * execution and result mapping.
  */
-class BatchCoordinator<T : Any>(
+class BatchCoordinator<T : Any> internal constructor(
     val name: String,
     val options: BatchOptions,
     private val writer: BatchWriter<T>,
+    private val laneCount: Int,
+    private val laneSelector: (T) -> Int,
 ) : GracefullyStoppable {
+    constructor(
+        name: String,
+        options: BatchOptions,
+        writer: BatchWriter<T>,
+    ) : this(
+        name = name,
+        options = options,
+        writer = writer,
+        laneCount = 1,
+        laneSelector = { 0 },
+    )
+
     private sealed interface Lifecycle {
         data object Open : Lifecycle
 
@@ -246,7 +261,10 @@ class BatchCoordinator<T : Any>(
         require(name.isNotBlank()) {
             "name must not be blank."
         }
-        processor = items.asFlux()
+        require(laneCount > 0) {
+            "laneCount must be greater than zero."
+        }
+        val itemSource = items.asFlux()
             // Queue-slot admission bounds cancelled placeholders independently
             // from live-item admission while bufferTimeout owns a partial window.
             //
@@ -255,9 +273,7 @@ class BatchCoordinator<T : Any>(
             // index before adding the item to the buffer; concurrent timeout
             // execution in that window can otherwise strand the final item.
             .publishOn(batchScheduler)
-            .bufferTimeout(options.maxSize, options.maxDelay, batchScheduler)
-            .onBackpressureBuffer(options.maxPendingItems)
-            .concatMap(::writeBatch)
+        processor = processItems(itemSource)
             .doFinally {
                 batchScheduler.dispose()
             }
@@ -267,6 +283,28 @@ class BatchCoordinator<T : Any>(
                 ::terminateProcessor,
                 ::completeProcessor,
             )
+    }
+
+    private fun processItems(source: Flux<PendingItem>): Flux<Void> {
+        if (laneCount == 1) {
+            return processLane(source)
+        }
+        return source.groupBy(::selectLane)
+            .flatMap(::processLane, laneCount)
+    }
+
+    private fun processLane(source: Flux<PendingItem>): Flux<Void> {
+        return source.bufferTimeout(options.maxSize, options.maxDelay, batchScheduler)
+            .onBackpressureBuffer(options.maxPendingItems)
+            .concatMap(::writeBatch)
+    }
+
+    private fun selectLane(item: PendingItem): Int {
+        val lane = laneSelector(item.value)
+        check(lane in 0..<laneCount) {
+            "Batch lane selector[$name] returned $lane outside [0, $laneCount)."
+        }
+        return lane
     }
 
     fun submit(item: T): Mono<Void> = submit { item }

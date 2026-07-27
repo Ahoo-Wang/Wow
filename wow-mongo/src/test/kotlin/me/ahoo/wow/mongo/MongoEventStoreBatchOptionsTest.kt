@@ -28,6 +28,7 @@ class MongoEventStoreBatchOptionsTest {
         options.maxDelay.assert().isEqualTo(MongoEventStoreBatchOptions.DEFAULT_MAX_DELAY)
         options.maxPendingAppends.assert()
             .isEqualTo(MongoEventStoreBatchOptions.DEFAULT_MAX_PENDING_APPENDS)
+        options.laneCount.assert().isEqualTo(MongoEventStoreBatchOptions.DEFAULT_LANE_COUNT)
     }
 
     @Test
@@ -69,5 +70,14 @@ class MongoEventStoreBatchOptionsTest {
         error.message.assert().isEqualTo(
             "maxPendingAppends must be greater than or equal to maxSize."
         )
+    }
+
+    @Test
+    fun `lane count should be positive`() {
+        val error = assertThrows<IllegalArgumentException> {
+            MongoEventStoreBatchOptions(laneCount = 0)
+        }
+
+        error.message.assert().isEqualTo("laneCount must be greater than zero.")
     }
 }
