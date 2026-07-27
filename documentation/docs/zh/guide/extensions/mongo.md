@@ -176,6 +176,11 @@ sequenceDiagram
 | `event-store-batch.max-delay` | `Duration` | `1ms` | 收集不足一批请求的最长等待时间 |
 | `event-store-batch.max-pending-appends` | `Int` | `4096` | 等待或正在写入的 append 最大接收数量；必须不小于 `max-size` |
 | `event-store-batch.lane-count` | `Int` | `1` | 串行写入 lane 数量；同一聚合的 append 始终进入同一 lane |
+| `snapshot-store-batch.enabled` | `Boolean` | `false` | 使用 unordered `bulkWrite` 批量写入并发 SnapshotStore 保存请求 |
+| `snapshot-store-batch.max-size` | `Int` | `128` | 同一集合单批最多包含的快照数量 |
+| `snapshot-store-batch.max-delay` | `Duration` | `1ms` | 收集不足一批快照的最长等待时间 |
+| `snapshot-store-batch.max-pending-saves` | `Int` | `4096` | 等待或正在写入的 save 最大接收数量；必须不小于 `max-size` |
+| `snapshot-store-batch.lane-count` | `Int` | `1` | 串行写入 lane 数量；同一聚合的 save 始终进入同一 lane |
 
 **YAML 配置示例**
 
@@ -203,16 +208,24 @@ wow:
       max-delay: 1ms
       max-pending-appends: 4096
       lane-count: 1
+    snapshot-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-saves: 4096
+      lane-count: 1
 ```
 
-批处理默认关闭，因为不足一批的请求最多会增加 `max-delay` 的追加延迟。启用后，EventStore 会按
-MongoDB collection 对时间窗内的请求分组，使用 unordered `insertMany` 写入，同时仍让每个原始
-`append` 独立完成或失败。当请求数达到 `max-pending-appends` 时，新 append 会在提交 MongoDB
-之前返回可恢复的过载错误，而不是继续堆积到无界内存队列。
-带明确索引的 bulk write error 只会让对应的 append 失败；write concern error 或无法自洽的批量
-结果会保守地让所有受影响 append 失败，因为此时无法证明提交状态。批处理本身不具备原子性。
-直接构造启用批处理的 `MongoEventStore` 时，应关闭它（例如使用 Kotlin `use`），以冲刷不足一批的
-窗口并释放工作线程；Spring 会通过正常的 Bean 生命周期关闭自动配置的实例。
+批处理默认关闭，因为不足一批的请求最多会增加 `max-delay` 的追加或保存延迟。启用后，两种存储
+都会按 MongoDB collection 对时间窗内的请求分组。EventStore 使用 unordered `insertMany`；
+SnapshotStore 会将同一存储聚合的请求合并为最高版本，并通过 unordered `bulkWrite` 使用与 direct
+保存相同的原子版本保护。每个原始 `append` 或 `save` 仍会独立完成。当请求数达到对应 pending 上限
+时，新请求会在提交 MongoDB 之前返回可恢复的过载错误，而不是继续堆积到无界内存队列。
+
+带明确索引的 bulk write error 只会让对应请求失败；write concern error 或无法自洽的批量结果会
+保守地让所有受影响请求失败，因为此时无法证明提交状态。批处理本身不具备原子性。直接构造启用
+批处理的 `MongoEventStore` 或 `MongoSnapshotStore` 时，应关闭它（例如使用 Kotlin `use`），以
+冲刷不足一批的窗口并释放工作线程；Spring 会通过正常的 Bean 生命周期关闭自动配置的实例。
 
 ## 集合模式
 

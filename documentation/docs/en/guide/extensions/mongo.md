@@ -178,6 +178,11 @@ The key design insight is that **MongoDB unique indexes serve dual roles**: the 
 | `event-store-batch.max-delay` | `Duration` | `1ms` | Maximum wait used to collect a partial batch |
 | `event-store-batch.max-pending-appends` | `Int` | `4096` | Maximum accepted appends waiting or being written; must be at least `max-size` |
 | `event-store-batch.lane-count` | `Int` | `1` | Number of serial write lanes; appends for the same aggregate stay on one lane |
+| `snapshot-store-batch.enabled` | `Boolean` | `false` | Batch concurrent SnapshotStore saves with unordered `bulkWrite` |
+| `snapshot-store-batch.max-size` | `Int` | `128` | Maximum snapshots per collection batch |
+| `snapshot-store-batch.max-delay` | `Duration` | `1ms` | Maximum wait used to collect a partial snapshot batch |
+| `snapshot-store-batch.max-pending-saves` | `Int` | `4096` | Maximum accepted saves waiting or being written; must be at least `max-size` |
+| `snapshot-store-batch.lane-count` | `Int` | `1` | Number of serial write lanes; saves for the same aggregate stay on one lane |
 
 **YAML Configuration Example**
 
@@ -205,16 +210,26 @@ wow:
       max-delay: 1ms
       max-pending-appends: 4096
       lane-count: 1
+    snapshot-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-saves: 4096
+      lane-count: 1
 ```
 
-Batching is disabled by default because a partial batch adds up to `max-delay` to an append. When enabled,
-the event store groups each window by MongoDB collection, uses unordered `insertMany`, and still completes or
-fails every original `append` independently. When `max-pending-appends` is exhausted, new appends fail before
-submission with a recoverable overload error instead of accumulating in an unbounded in-memory queue.
-An indexed bulk write error fails only its matching append; a write-concern error or inconsistent bulk result
-fails every affected append conservatively because its commit status cannot be proven. The batch is not atomic.
-When constructing a batching `MongoEventStore` directly, close it (for example with Kotlin `use`) to flush a
-partial window and release its worker resources; Spring closes the configured bean through its normal lifecycle.
+Batching is disabled by default because a partial batch adds up to `max-delay` to an append or save. When
+enabled, each store groups a window by MongoDB collection. EventStore uses unordered `insertMany`; SnapshotStore
+coalesces saves for the same stored aggregate to the highest version and uses unordered `bulkWrite` with the
+same atomic source-version guard as direct saves. Every original append or save still completes independently.
+When a pending limit is exhausted, new requests fail before submission with a recoverable overload error instead
+of accumulating in an unbounded in-memory queue.
+
+An indexed bulk write error fails only its matching request; a write-concern error or inconsistent bulk result
+fails every affected request conservatively because its commit status cannot be proven. A batch is not atomic.
+When constructing a batch-enabled `MongoEventStore` or `MongoSnapshotStore` directly, close it (for example
+with Kotlin `use`) to flush a partial window and release worker resources; Spring closes configured beans through
+their normal lifecycle.
 
 ## Collection Schema
 
