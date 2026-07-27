@@ -15,6 +15,7 @@ Use it for three jobs:
 | Framework E2E | Synchronous command send/write round trips with in-memory or noop infrastructure. | Quick feedback, exact-workload regression baselines, and optional latency diagnosis; not production capacity. | `benchmarkQuickE2E`, `benchmarkBaselineE2E`, `benchmarkLatencyE2E` |
 | Batch CommandWrite E2E | Paired 32-command workloads using either 32 blocking boundaries or one sequential/concurrent batch boundary. | Primary framework-cost signal without per-command blocking distortion, plus bounded-concurrency scaling diagnosis. | `benchmarkQuickBatchE2E` |
 | Mongo Batch Append | A 128-event-stream append-path workload comparing EventStore `insertOne`, native unordered `insertMany`, and coordinated batching. | Separating protocol Bulk capability from the end-to-end coordinated path with real local MongoDB I/O. | `benchmarkQuickMongoBatchAppend`, `benchmarkConfirmMongoBatchAppend`, `benchmarkMongoBatchAppendPairedE2E` |
+| Mongo Snapshot Batch Save | A 128-snapshot save-path workload comparing SnapshotStore `updateOne`, native unordered `bulkWrite`, and coordinated batching. | Measuring the new SnapshotStore batch path with the same version-guarded replacement semantics at every layer. | `benchmarkQuickMongoSnapshotBatchSave` |
 | Elasticsearch Batch Append | A 128-event-stream append-path workload comparing EventStore `create`, native Bulk `create`, and coordinated Bulk `create` with `refresh=false,true`. | Measuring Elasticsearch Bulk capability and the end-to-end coordinated path without changing no-overwrite semantics. | `benchmarkQuickElasticsearchBatchAppend`, `benchmarkConfirmElasticsearchBatchAppend` |
 | Mongo Batch Options | Coordinated EventStore writes at representative (128) and burst (32) append counts for current `128x1000us` and candidate `192x250us`, plus keyed coordinator lane diagnosis. | Bounded quick engineering evidence; the old full Pareto campaign is stopped and historical only. | `benchmarkQuickMongoBatchOptionsPaired`, `benchmarkQuickMongoBatchAppendCandidateE2E`, `benchmarkQuickMongoBatchCoordinatorConcurrency` |
 | Elasticsearch Batch Options Tuning | Coordinated EventStore writes at isolated (1), burst (32), representative (128), and saturated (512) append counts across encoded `maxSize/maxDelay` candidates. | Screening and confirming the independent Elasticsearch default. | `benchmarkTuneElasticsearchBatchOptions`, `benchmarkConfirmElasticsearchBatchOptions` |
@@ -197,6 +198,7 @@ moving behavior out of the project script does not weaken evidence identity.
 | `wow-benchmarks/results/reports/quick-framework-e2e.md` | Generated quick Framework E2E report. | Commit when intentionally updating the visible benchmark report. |
 | `wow-benchmarks/results/reports/quick-batch-command-write-e2e.md` | Generated quick Batch CommandWrite E2E report. | Commit when intentionally updating the visible batch benchmark report. |
 | `wow-benchmarks/results/reports/quick-mongo-batch-append.md` | Generated quick Mongo EventStore append comparison. | Generate on demand; commit only after rerunning from the final clean implementation. |
+| `wow-benchmarks/results/reports/quick-mongo-snapshot-batch-save.md` | Generated quick Mongo SnapshotStore save comparison. | Commit only with a clean-source manifest from the final SnapshotStore implementation. |
 | `wow-benchmarks/results/reports/quick-mongo-batch-append-candidate-e2e.md` | Generated quick three-layer E2E comparison for the explicit `192x250us` candidate. | Commit with its clean-source manifests; this is engineering evidence and does not change the production default. |
 | `wow-benchmarks/results/reports/quick-mongo-batch-options-paired.md` | Generated 24-leg quick `128x1000us` vs `192x250us` paired comparison. | Commit only after all 24 independent legs complete; never mix it with formal paired raw results. |
 | `wow-benchmarks/results/reports/confirmation-mongo-batch-append.md` | Generated multiple-fork Mongo EventStore append comparison. | Generate on demand; commit only after rerunning from the final clean implementation. |
@@ -260,6 +262,24 @@ acknowledgement, and the final wait. It does not include Command Gateway ingress
 
 Benchmark thread-level tasks also share a Gradle execution lock so they cannot load the same MongoDB service
 concurrently when global Gradle parallel execution is enabled.
+
+### Mongo Snapshot Batch Save Report
+
+```bash
+./gradlew :wow-benchmarks:benchmarkQuickMongoSnapshotBatchSave \
+  :wow-benchmarks:generateMongoSnapshotBatchSaveBenchmarkReport \
+  --no-parallel --no-daemon
+```
+
+Each workload creates and saves 128 independent aggregate snapshots and normalizes JMH throughput and
+average time per snapshot. The three paths are version-guarded SnapshotStore `updateOne`, native unordered
+`bulkWrite` with the same guarded pipeline upsert, and `MongoSnapshotStore` coordinated batching with
+`maxSize=128` and `maxDelay=1ms`. Every measured iteration verifies that MongoDB contains exactly the
+acknowledged number of snapshots.
+
+The task requires MongoDB and a clean source commit. Its one-fork Quick profile is directional engineering
+evidence, not a production-capacity or response-latency claim. Average time is the 128-snapshot invocation
+wall time amortized per snapshot.
 
 ### Elasticsearch Batch Append Reports
 

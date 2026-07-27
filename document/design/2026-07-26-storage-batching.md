@@ -212,6 +212,13 @@ both throughput and average-time modes, and for Elasticsearch use the same
 `refresh` policy in every leg. Average-time scores are amortized wall time per
 event because JMH normalizes a 128-event invocation with
 `@OperationsPerInvocation(128)`; they are not the independent response latency
-of a single concurrent append. Quick one-fork results are directional; formal
-claims require the multiple-fork confirmation tasks documented in
-`wow-benchmarks/README.md`, run from a clean `HEAD`.
+of a single concurrent append.
+
+MongoDB SnapshotStore evidence uses the corresponding 128-snapshot workload:
+version-guarded `updateOne`, native unordered `bulkWrite` with the same guarded
+pipeline upsert, and end-to-end coordinated batching. Every measured iteration
+must reconcile the acknowledged save count with the actual snapshot document
+count. Quick one-fork results are directional. EventStore formal claims use the
+multiple-fork confirmation tasks documented in `wow-benchmarks/README.md`;
+SnapshotStore results remain engineering evidence until an equivalent
+confirmation protocol is added and run from a clean `HEAD`.
