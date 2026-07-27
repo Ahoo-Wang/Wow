@@ -53,6 +53,20 @@ MongoDB 中既有的 `*_snapshot_checkpoint` collection 不再被读取、写入
 event 与 snapshot 数据、停止全部旧版本 writer，并仅在确认不再需要后清理这些 collection。回滚必须
 恢复旧运行时并保留其 checkpoint 数据；不支持新旧版本混合部署。
 
+## SnapshotStore 原子保存
+
+`SnapshotStore.save()` 的 JVM 签名与快照格式保持不变，但存储契约得到加强：
+每个聚合必须使用一次原子 compare-and-write。候选聚合版本大于或等于已存版本时
+完整替换快照；版本较低时正常完成且不写入。同版本覆盖是有意行为，使快照重建
+路由可以修复陈旧 payload。
+
+自定义 `SnapshotStore` 必须使用后端 CAS、条件更新、事务或等价的原子原语；
+客户端先 `load()` 再无条件写入不符合契约。候选快照应只物化一次，比较版本必须
+取自同一个待写 payload。在依赖此保证前，应停止全部旧 writer 并排空在途写入：
+旧 MongoDB 或 Redis writer 仍可能使新快照版本倒退，旧 Elasticsearch writer
+也不会执行同版本覆盖。无需重写数据。回滚会恢复旧保存行为，因此新旧 writer
+不得并行运行。
+
 ## Redis EventStore Canonical v2 布局（v8.9.0 引入）
 
 从 v8.6.x 或 v8.8.x 升级到 v8.9.0 时，必须把 Redis 持久化视为存储格式硬切换。Redis EventStore、

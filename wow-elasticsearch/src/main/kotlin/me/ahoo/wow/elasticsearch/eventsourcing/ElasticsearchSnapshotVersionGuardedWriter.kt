@@ -120,7 +120,7 @@ internal class ElasticsearchSnapshotVersionGuardedWriter(
             "if (!ctx._source.containsKey('version')) { " +
                 "throw new IllegalStateException('Stored Wow snapshot has no version.'); " +
                 "} " +
-                "if (ctx._source.version < params.version) { " +
+                "if (ctx._source.version <= params.version) { " +
                 "ctx._source = params.snapshot; " +
                 "} else { " +
                 "ctx.op = 'noop'; " +

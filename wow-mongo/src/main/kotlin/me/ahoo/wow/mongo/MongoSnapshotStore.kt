@@ -13,8 +13,11 @@
 
 package me.ahoo.wow.mongo
 
+import com.mongodb.client.model.Aggregates
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.ReplaceOptions
+import com.mongodb.client.model.UpdateOptions
+import com.mongodb.client.model.mql.MqlValues
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.Version.Companion.UNINITIALIZED_VERSION
 import me.ahoo.wow.api.modeling.AggregateId
@@ -23,6 +26,7 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document
+import org.bson.conversions.Bson
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
@@ -30,6 +34,7 @@ class MongoSnapshotStore(private val database: MongoDatabase) : SnapshotStore {
     companion object {
         const val NAME = "mongo"
         val DEFAULT_REPLACE_OPTIONS: ReplaceOptions = ReplaceOptions().upsert(true)
+        private val VERSION_GUARDED_UPDATE_OPTIONS: UpdateOptions = UpdateOptions().upsert(true)
     }
 
     override val name: String
@@ -75,14 +80,31 @@ class MongoSnapshotStore(private val database: MongoDatabase) : SnapshotStore {
         val snapshotCollectionName = snapshot.aggregateId.toSnapshotCollectionName()
         val document = snapshot.toDocument()
         return database.getCollection(snapshotCollectionName)
-            .replaceOne(
+            .updateOne(
                 Filters.eq(Documents.ID_FIELD, snapshot.aggregateId.id),
-                document,
-                DEFAULT_REPLACE_OPTIONS,
+                versionGuardedSnapshotReplacement(document),
+                VERSION_GUARDED_UPDATE_OPTIONS,
             )
             .toMono()
             .doOnNext {
                 check(it.wasAcknowledged())
             }.then()
     }
+}
+
+internal fun versionGuardedSnapshotReplacement(
+    snapshotDocument: Document,
+): List<Bson> {
+    val snapshotVersion = snapshotDocument[MessageRecords.VERSION]
+    check(snapshotVersion is Int) {
+        "Serialized Wow snapshot has no integer version."
+    }
+    val candidateVersion = MqlValues.of(snapshotVersion)
+    val candidate = MqlValues.of(snapshotDocument)
+    val stored = MqlValues.current()
+    val normalizedStoredVersion = stored.getField(MessageRecords.VERSION)
+        .isIntegerOr(candidateVersion)
+    val replacement = normalizedStoredVersion.lte(candidateVersion)
+        .cond(candidate, stored)
+    return listOf(Aggregates.replaceWith(replacement))
 }

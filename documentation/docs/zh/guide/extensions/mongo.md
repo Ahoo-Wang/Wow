@@ -50,7 +50,7 @@ graph TB
     AR -->|"appendStream()"| MES
     MES -->|"insertOne"| ESColl
     AR -->|"save(Snapshot)"| MSR
-    MSR -->|"replaceOne (upsert)"| SSCol
+    MSR -->|"updateOne pipeline (upsert)"| SSCol
     CM -->|"prepare()"| MPK
     MPK -->|"replaceOne"| PKCol
     QS -->|"dynamicQuery()"| MESQ
@@ -60,6 +60,11 @@ graph TB
 ```
 
 每种聚合类型拥有自己的集合，按聚合名称分区。这种设计将热聚合彼此隔离，并支持按聚合进行分片和索引调优。
+
+`MongoSnapshotStore.save()` 通过单次 aggregation-pipeline `updateOne` 配合
+`$replaceWith` 与 `$cond` 完成保存。候选聚合版本大于或等于已存版本时，服务端
+原子替换完整文档；版本较低时保留已存文档。缺失或非整数的已存版本被视为无效
+元数据，并由候选快照修复。该 pipeline 形式要求 MongoDB 4.2 或更高版本。
 
 该集合布局假设一个 MongoDB database 只服务一个 bounded context。Starter 启动时会在
 `wow_database_metadata` 中原子认领当前 `wow.context-name`；同一 context 的实例可安全重复启动，
@@ -507,7 +512,7 @@ classDiagram
     AbstractMongoQueryService <|-- MongoSnapshotQueryService
 ```
 
-类层级揭示了两层抽象：**Wow 核心接口**（`AbstractEventStore`、`SnapshotStore`、`PrepareKey`、`QueryService`）以存储无关的方式定义了框架契约，而 **Mongo 特定实现** 将这些契约映射到 MongoDB 的响应式驱动原语（`insertOne`、`replaceOne`、`find`、`countDocuments`）。
+类层级揭示了两层抽象：**Wow 核心接口**（`AbstractEventStore`、`SnapshotStore`、`PrepareKey`、`QueryService`）以存储无关的方式定义了框架契约，而 **Mongo 特定实现** 将这些契约映射到 MongoDB 的响应式驱动原语（`insertOne`、aggregation-pipeline `updateOne`、`replaceOne`、`find`、`countDocuments`）。
 
 ## 索引优化建议
 

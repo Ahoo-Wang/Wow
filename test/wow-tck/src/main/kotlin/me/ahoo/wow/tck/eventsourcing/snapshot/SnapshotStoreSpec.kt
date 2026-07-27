@@ -29,8 +29,12 @@ import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.junit.jupiter.api.Test
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
+import reactor.core.scheduler.Schedulers
 import reactor.kotlin.test.test
 import java.time.Clock
+import kotlin.random.Random
 
 abstract class SnapshotStoreSpec {
 
@@ -162,6 +166,125 @@ abstract class SnapshotStoreSpec {
                 it.aggregateId.assert().isEqualTo(stateAggregate.aggregateId)
                 it.version.assert().isEqualTo(stateAggregate.version)
                 it.state.data.assert().isEqualTo(stateAggregate.state.data)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun saveShouldNotReplaceANewerStoredSnapshot() {
+        val snapshotStore = createSnapshotStore().metrizable()
+        val aggregateId = aggregateMetadata.aggregateId(generateGlobalId())
+        val command = GivenInitializationCommand(aggregateId)
+        val aggregateCreated = MockAggregateCreated(generateGlobalId())
+        val changed = MockAggregateChanged(generateGlobalId())
+        val initialEventStream = listOf(aggregateCreated).toDomainEventStream(
+            upstream = command,
+            aggregateVersion = Version.UNINITIALIZED_VERSION,
+        )
+
+        val olderStateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
+        olderStateAggregate.onSourcing(initialEventStream)
+        val olderSnapshot: Snapshot<MockStateAggregate> =
+            SimpleSnapshot(delegate = olderStateAggregate, snapshotTime = Clock.systemUTC().millis())
+
+        val newerStateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
+        newerStateAggregate.onSourcing(initialEventStream)
+        newerStateAggregate.onSourcing(
+            listOf(changed).toDomainEventStream(
+                upstream = command,
+                aggregateVersion = newerStateAggregate.version,
+            )
+        )
+        val newerSnapshot: Snapshot<MockStateAggregate> =
+            SimpleSnapshot(delegate = newerStateAggregate, snapshotTime = Clock.systemUTC().millis())
+
+        snapshotStore.save(newerSnapshot)
+            .then(Mono.defer { snapshotStore.save(olderSnapshot) })
+            .test()
+            .verifyComplete()
+
+        snapshotStore.load<MockStateAggregate>(aggregateId)
+            .test()
+            .consumeNextWith {
+                it.version.assert().isEqualTo(newerSnapshot.version)
+                it.state.data.assert().isEqualTo(newerSnapshot.state.data)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun saveShouldRetainTheHighestVersionUnderConcurrentWrites() {
+        val snapshotStore = createSnapshotStore().metrizable()
+        val aggregateId = aggregateMetadata.aggregateId(generateGlobalId())
+        val snapshots = (1..8).map { expectedVersion ->
+            val stateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
+            repeat(expectedVersion) { eventIndex ->
+                val event = if (eventIndex == 0) {
+                    MockAggregateCreated("version-$expectedVersion")
+                } else {
+                    MockAggregateChanged("version-$expectedVersion")
+                }
+                stateAggregate.onSourcing(
+                    event.toDomainEventStream(
+                        upstream = GivenInitializationCommand(aggregateId),
+                        aggregateVersion = stateAggregate.version,
+                    )
+                )
+            }
+            SimpleSnapshot(delegate = stateAggregate, snapshotTime = expectedVersion.toLong())
+        }
+        val expected = snapshots.maxBy { it.version }
+        val concurrentSaves = snapshots
+            .shuffled(Random(0))
+            .map { candidate ->
+                Mono.defer { snapshotStore.save(candidate) }
+                    .subscribeOn(Schedulers.parallel())
+            }
+
+        Flux.merge(concurrentSaves)
+            .then(Mono.defer { snapshotStore.load<MockStateAggregate>(aggregateId) })
+            .test()
+            .consumeNextWith {
+                it.version.assert().isEqualTo(expected.version)
+                it.state.data.assert().isEqualTo(expected.state.data)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun saveShouldReplaceTheStoredSnapshotForTheSameVersion() {
+        val snapshotStore = createSnapshotStore().metrizable()
+        val aggregateId = aggregateMetadata.aggregateId(generateGlobalId())
+        val firstStateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
+        firstStateAggregate.onSourcing(
+            listOf(MockAggregateCreated("first")).toDomainEventStream(
+                upstream = GivenInitializationCommand(aggregateId),
+                aggregateVersion = firstStateAggregate.version,
+            )
+        )
+        val replacementStateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
+        replacementStateAggregate.onSourcing(
+            listOf(MockAggregateCreated("replacement")).toDomainEventStream(
+                upstream = GivenInitializationCommand(aggregateId),
+                aggregateVersion = replacementStateAggregate.version,
+            )
+        )
+        val firstSnapshot: Snapshot<MockStateAggregate> =
+            SimpleSnapshot(delegate = firstStateAggregate, snapshotTime = 1)
+        val replacementSnapshot: Snapshot<MockStateAggregate> =
+            SimpleSnapshot(delegate = replacementStateAggregate, snapshotTime = 2)
+
+        snapshotStore.save(firstSnapshot)
+            .then(Mono.defer { snapshotStore.save(replacementSnapshot) })
+            .test()
+            .verifyComplete()
+
+        snapshotStore.load<MockStateAggregate>(aggregateId)
+            .test()
+            .consumeNextWith {
+                it.version.assert().isEqualTo(firstSnapshot.version)
+                it.state.data.assert().isEqualTo(replacementSnapshot.state.data)
+                it.snapshotTime.assert().isEqualTo(replacementSnapshot.snapshotTime)
             }
             .verifyComplete()
     }

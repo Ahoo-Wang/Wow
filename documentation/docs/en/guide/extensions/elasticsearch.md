@@ -115,9 +115,10 @@ overwritten and an individual 409 remains an event-version conflict for only
 that append. Bulk partial successes are returned to their corresponding callers.
 
 SnapshotStore batches use Bulk `update` with scripted upserts. Direct saves use
-the same atomic script: only an incoming snapshot with a higher
-`_source.version` replaces the stored source, while an equal or stale one is a
-no-op. This also keeps pre-upgrade documents safe when their Elasticsearch
+the same atomic script: an incoming snapshot whose version is greater than or
+equal to `_source.version` replaces the complete stored source, while a lower
+version is a no-op. Equal-version replacement supports snapshot regeneration.
+This also keeps pre-upgrade documents safe when their Elasticsearch
 `_version` is an internal write counter rather than the aggregate version; no
 version-metadata migration is required.
 

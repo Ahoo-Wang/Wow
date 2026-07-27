@@ -102,6 +102,9 @@ class RedisSnapshotStoreTest : SnapshotStoreSpec() {
 }
 ```
 
+The shared specification verifies lower-version no-op behavior, equal-version
+replacement, and concurrent saves retaining the highest aggregate version.
+
 ### RedisPrepareKey
 
 ```kotlin

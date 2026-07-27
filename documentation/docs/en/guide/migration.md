@@ -54,6 +54,24 @@ event and snapshot data before upgrading, stop all old-version writers, and remo
 confirming they are no longer needed. Rollback requires restoring the old runtime and retaining its checkpoint data;
 mixed-version deployment is unsupported.
 
+## Atomic SnapshotStore Saves
+
+`SnapshotStore.save()` keeps the same JVM signature and snapshot formats, but its
+storage contract is stronger: each aggregate must use one atomic compare-and-write
+operation. A candidate whose aggregate version is greater than or equal to the
+stored version replaces the complete snapshot; a lower candidate completes
+successfully without writing. Equal-version replacement is intentional so the
+snapshot-regeneration routes can repair a stale payload.
+
+Custom `SnapshotStore` implementations must use a backend CAS, conditional update,
+transaction, or equivalent atomic primitive. A client-side `load()` followed by an
+unconditional write is not conformant. Materialize the candidate once and derive the
+comparison version from that same payload. Stop and drain all old writers before
+relying on this guarantee: old MongoDB or Redis writers can still regress a newer
+snapshot, and an old Elasticsearch writer does not perform equal-version replacement.
+No data rewrite is required. Rollback restores the old save behavior, so do not run
+old and new writers concurrently.
+
 ## Redis EventStore Canonical v2 Layout (introduced in v8.9.0)
 
 When upgrading from v8.6.x or v8.8.x to v8.9.0, treat Redis persistence as a hard storage-format cutover. Redis

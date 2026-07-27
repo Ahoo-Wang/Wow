@@ -17,9 +17,12 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.event.IgnoreSourcing
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.AggregateIdScanner.Companion.FIRST_ID
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
+import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
+import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.id.generateGlobalId
@@ -33,6 +36,7 @@ import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.tck.mock.MockStateAggregate
+import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import me.ahoo.wow.test.aggregate.whenCommand
 import me.ahoo.wow.test.aggregateVerifier
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
@@ -123,6 +127,46 @@ class BatchRegenerateSnapshotHandlerFunctionTest {
         val savedSnapshot = snapshotStore.savedSnapshots.single()
         savedSnapshot.aggregateId.id.assert().isEqualTo(aggregateId)
         savedSnapshot.version.assert().isOne()
+    }
+
+    @Test
+    fun `should replace a stored snapshot when regeneration produces the same version`() {
+        val eventStore = InMemoryEventStore()
+        val aggregateIdValue = generateGlobalId()
+        aggregateVerifier<MockCommandAggregate, MockStateAggregate>(eventStore = eventStore)
+            .whenCommand(MockCreateAggregate(id = aggregateIdValue, data = "rebuilt"))
+            .expectNoError()
+            .expectEventType(MockAggregateCreated::class.java)
+            .verify()
+        val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(aggregateIdValue)
+        val staleStateAggregate =
+            ConstructorStateAggregateFactory.create(MOCK_AGGREGATE_METADATA.state, aggregateId)
+        staleStateAggregate.onSourcing(
+            listOf(MockAggregateCreated("stale")).toDomainEventStream(
+                upstream = GivenInitializationCommand(aggregateId),
+                aggregateVersion = staleStateAggregate.version,
+            )
+        )
+        val snapshotStore = InMemorySnapshotStore()
+        snapshotStore.save(SimpleSnapshot(staleStateAggregate, snapshotTime = 1))
+            .test()
+            .verifyComplete()
+        val handler = RegenerateSnapshotHandler(
+            aggregateMetadata = MOCK_AGGREGATE_METADATA,
+            stateAggregateFactory = ConstructorStateAggregateFactory,
+            eventStore = eventStore,
+            snapshotStore = snapshotStore,
+        )
+
+        handler.handle(aggregateId)
+            .then(Mono.defer { snapshotStore.load<MockStateAggregate>(aggregateId) })
+            .test()
+            .consumeNextWith {
+                it.version.assert().isEqualTo(staleStateAggregate.version)
+                it.state.data.assert().isEqualTo("rebuilt")
+                it.snapshotTime.assert().isNotEqualTo(1)
+            }
+            .verifyComplete()
     }
 
     @Test

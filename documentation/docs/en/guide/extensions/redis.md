@@ -221,6 +221,13 @@ Key: v2:snapshot:{<scope>.<identity>}
 Value: {snapshotJson}
 ```
 
+`RedisSnapshotStore.save()` executes `GET`, aggregate-version comparison, and
+conditional `SET` in one Lua script. A candidate version greater than or equal
+to the stored JSON `version` replaces the complete value; a lower version is a
+successful no-op. Existing snapshot JSON must be valid and contain a numeric
+top-level `version`; malformed stored data causes the save to fail instead of
+silently bypassing the version guard.
+
 ### Upgrade boundary
 
 The runtime reads and writes canonical v2 only. It does not dual-read, dual-write, or migrate published incompatible
@@ -304,8 +311,9 @@ spring:
 
 ### Batch Operations
 
-The event store uses Lua scripts for atomic append operations. Snapshot and message-bus operations
-are issued individually; the extension does not automatically pipeline arbitrary batch work.
+The event and snapshot stores use Lua scripts for atomic writes. Snapshot and
+message-bus operations are issued individually; the extension does not
+automatically pipeline arbitrary batch work.
 
 ### Memory Optimization
 

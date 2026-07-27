@@ -16,16 +16,23 @@ package me.ahoo.wow.redis.eventsourcing
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import me.ahoo.wow.redis.RedisScripts
+import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
+import org.springframework.data.redis.core.script.RedisScript
 import reactor.core.publisher.Mono
+import tools.jackson.databind.node.ObjectNode
 
 class RedisSnapshotStore(
     private val redisTemplate: ReactiveStringRedisTemplate
 ) : SnapshotStore {
     companion object {
         const val NAME = "redis"
+        private val SCRIPT_SAVE_SNAPSHOT: RedisScript<String> =
+            RedisScripts.load("snapshot_save.lua", String::class.java)
     }
 
     override val name: String
@@ -40,8 +47,17 @@ class RedisSnapshotStore(
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
         val snapshotKey = SnapshotKeyLayout.key(snapshot.aggregateId)
-        return redisTemplate.opsForValue()
-            .set(snapshotKey, snapshot.toJsonString())
-            .then()
+        val snapshotNode: ObjectNode = snapshot.toJsonNode()
+        val versionNode = checkNotNull(snapshotNode[MessageRecords.VERSION]) {
+            "Serialized Wow snapshot has no version."
+        }
+        check(versionNode.isInt) {
+            "Serialized Wow snapshot version must be an integer."
+        }
+        return redisTemplate.execute(
+            SCRIPT_SAVE_SNAPSHOT,
+            listOf(snapshotKey),
+            listOf(versionNode.asInt().toString(), snapshotNode.toJsonString()),
+        ).then()
     }
 }

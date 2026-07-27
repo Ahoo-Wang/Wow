@@ -50,7 +50,7 @@ graph TB
     AR -->|"appendStream()"| MES
     MES -->|"insertOne"| ESColl
     AR -->|"save(Snapshot)"| MSR
-    MSR -->|"replaceOne (upsert)"| SSCol
+    MSR -->|"updateOne pipeline (upsert)"| SSCol
     CM -->|"prepare()"| MPK
     MPK -->|"replaceOne"| PKCol
     QS -->|"dynamicQuery()"| MESQ
@@ -60,6 +60,13 @@ graph TB
 ```
 
 Each aggregate type gets its own collection, partitioned by aggregate name. This design isolates hot aggregates from each other and enables per-aggregate sharding and index tuning.
+
+`MongoSnapshotStore.save()` uses one aggregation-pipeline `updateOne` with
+`$replaceWith` and `$cond`. The server atomically replaces the complete document
+when the candidate aggregate version is greater than or equal to the stored
+version and keeps the stored document for a lower candidate. A missing or
+non-integer stored version is treated as invalid metadata and repaired by the
+candidate. This pipeline form requires MongoDB 4.2 or later.
 
 This collection layout assumes that one MongoDB database serves exactly one bounded context. During startup, the
 Starter atomically claims the current `wow.context-name` in `wow_database_metadata`. Instances of the same context
@@ -508,7 +515,7 @@ classDiagram
     AbstractMongoQueryService <|-- MongoSnapshotQueryService
 ```
 
-The class hierarchy reveals two layers of abstraction: the **Wow core interfaces** (`AbstractEventStore`, `SnapshotStore`, `PrepareKey`, `QueryService`) define the framework contract in a storage-agnostic way, while the **Mongo-specific implementations** map those contracts onto MongoDB's reactive driver primitives (`insertOne`, `replaceOne`, `find`, `countDocuments`).
+The class hierarchy reveals two layers of abstraction: the **Wow core interfaces** (`AbstractEventStore`, `SnapshotStore`, `PrepareKey`, `QueryService`) define the framework contract in a storage-agnostic way, while the **Mongo-specific implementations** map those contracts onto MongoDB's reactive driver primitives (`insertOne`, aggregation-pipeline `updateOne`, `replaceOne`, `find`, `countDocuments`).
 
 ## Index Optimization Recommendations
 

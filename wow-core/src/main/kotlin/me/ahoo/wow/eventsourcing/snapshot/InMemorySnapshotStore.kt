@@ -14,6 +14,7 @@
 package me.ahoo.wow.eventsourcing.snapshot
 
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.serialization.toObject
 import reactor.core.publisher.Mono
@@ -22,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * In-memory implementation of SnapshotStore for testing and development.
- * Stores snapshots as JSON strings in a thread-safe map.
+ * Stores snapshots as detached JSON trees in a thread-safe map.
  */
 class InMemorySnapshotStore : SnapshotStore {
     companion object {
@@ -44,7 +45,7 @@ class InMemorySnapshotStore : SnapshotStore {
     private val aggregateIdMapSnapshot = ConcurrentHashMap<AggregateId, ObjectNode>()
 
     /**
-     * Loads a snapshot from the in-memory map by deserializing the JSON string.
+     * Loads a snapshot from the in-memory map by deserializing the JSON tree.
      *
      * @param S the aggregate state type
      * @param aggregateId the ID of the aggregate
@@ -56,7 +57,8 @@ class InMemorySnapshotStore : SnapshotStore {
         }
 
     /**
-     * Saves a snapshot to the in-memory map by serializing it to JSON.
+     * Saves a snapshot to the in-memory map by serializing it to JSON. The atomic map
+     * computation ignores candidates older than the stored snapshot.
      *
      * @param S the aggregate state type
      * @param snapshot the snapshot to save
@@ -64,6 +66,28 @@ class InMemorySnapshotStore : SnapshotStore {
      */
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> =
         Mono.fromRunnable {
-            aggregateIdMapSnapshot[snapshot.aggregateId] = snapshot.toJsonNode()
+            val snapshotNode: ObjectNode = snapshot.toJsonNode()
+            val snapshotVersion = snapshotNode.snapshotVersion()
+            aggregateIdMapSnapshot.compute(snapshot.aggregateId) { _, storedSnapshotNode ->
+                if (storedSnapshotNode == null) {
+                    return@compute snapshotNode
+                }
+                val storedVersion = storedSnapshotNode.snapshotVersion()
+                if (snapshotVersion >= storedVersion) {
+                    snapshotNode
+                } else {
+                    storedSnapshotNode
+                }
+            }
         }
+
+    private fun ObjectNode.snapshotVersion(): Int {
+        val versionNode = checkNotNull(this[MessageRecords.VERSION]) {
+            "Serialized Wow snapshot has no version."
+        }
+        check(versionNode.isInt) {
+            "Serialized Wow snapshot version must be an integer."
+        }
+        return versionNode.asInt()
+    }
 }
