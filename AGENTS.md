@@ -49,10 +49,10 @@ The JVM code uses JUnit Jupiter through JUnit 6, MockK, Reactor test support, an
 
 ```bash
 ./gradlew :wow-core:test
-./gradlew :wow-core:test --tests "me.ahoo.wow.command.CommandGatewayTest"
+./gradlew :wow-core:test --tests "me.ahoo.wow.command.DefaultCommandGatewayTest"
 ./gradlew :example-domain:test --tests "me.ahoo.wow.example.domain.order.OrderSpec"
 ./gradlew :wow-compensation-domain:check
-./gradlew :wow-it:check --stacktrace
+./gradlew :wow-it:integrationTest --stacktrace
 ```
 
 Domain tests usually use the Wow test DSL:
@@ -117,8 +117,8 @@ wow-api -> wow-core -> wow-spring -> wow-spring-boot-starter
 
 ## Code Style
 
-- Kotlin 2.3.20, JVM toolchain 17, `kotlin.code.style=official`, and KSP 2 are configured in Gradle.
-- Spring Boot dependency management is centralized through `wow-dependencies`; current Spring Boot is 4.0.6.
+- Kotlin 2.4.10, JVM toolchain 17, `kotlin.code.style=official`, and KSP 2.3.10 are configured in Gradle.
+- Spring Boot dependency management is centralized through `wow-dependencies`; current Spring Boot is 4.1.0.
 - All JVM packages live under `me.ahoo.wow`; examples use `me.ahoo.wow.example`.
 - Source files use the Apache 2.0 copyright header already present in the repository.
 - Keep command/event paths reactive with Reactor `Mono`/`Flux`; do not introduce blocking calls into core dispatch, event store, projection, saga, or transport flows.
