@@ -49,24 +49,6 @@ object SnapshotStoreInstrumenter {
         ).addAttributesExtractor(AggregateIdAttributesExtractor)
             .setInstrumentationVersion(Wow.VERSION)
             .buildInstrumenter()
-
-    val CHECKPOINT_SAVE_INSTRUMENTER: Instrumenter<AggregateId, Unit> =
-        Instrumenter.builder<AggregateId, Unit>(
-            GlobalOpenTelemetry.get(),
-            INSTRUMENTATION_NAME,
-            SnapshotStoreCheckpointSaveSpanNameExtractor,
-        ).addAttributesExtractor(AggregateIdAttributesExtractor)
-            .setInstrumentationVersion(Wow.VERSION)
-            .buildInstrumenter()
-
-    val CHECKPOINT_LOAD_INSTRUMENTER: Instrumenter<AggregateId, Unit> =
-        Instrumenter.builder<AggregateId, Unit>(
-            GlobalOpenTelemetry.get(),
-            INSTRUMENTATION_NAME,
-            SnapshotStoreCheckpointLoadSpanNameExtractor,
-        ).addAttributesExtractor(AggregateIdAttributesExtractor)
-            .setInstrumentationVersion(Wow.VERSION)
-            .buildInstrumenter()
 }
 
 object SnapshotStoreSaveSpanNameExtractor : SpanNameExtractor<AggregateId> {
@@ -84,17 +66,5 @@ object SnapshotStoreLoadSpanNameExtractor : SpanNameExtractor<AggregateId> {
 object SnapshotStoreVersionSpanNameExtractor : SpanNameExtractor<AggregateId> {
     override fun extract(request: AggregateId): String {
         return "${request.aggregateName}.snapshot.version"
-    }
-}
-
-object SnapshotStoreCheckpointSaveSpanNameExtractor : SpanNameExtractor<AggregateId> {
-    override fun extract(request: AggregateId): String {
-        return "${request.aggregateName}.snapshot.checkpoint.save"
-    }
-}
-
-object SnapshotStoreCheckpointLoadSpanNameExtractor : SpanNameExtractor<AggregateId> {
-    override fun extract(request: AggregateId): String {
-        return "${request.aggregateName}.snapshot.checkpoint.load"
     }
 }

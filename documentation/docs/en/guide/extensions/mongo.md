@@ -66,9 +66,9 @@ Starter atomically claims the current `wow.context-name` in `wow_database_metada
 can restart safely; a different context pointing to that database fails before its EventStore, SnapshotStore, query
 factory, or PrepareKeyFactory is created and reports that a separate database is required. This includes a dedicated
 `prepare-database` when event and snapshot storage use another backend, and remains active when `auto-init-schema` is
-disabled. For an existing unmarked database, the first upgraded instance checks every existing `*_event_stream`,
-`*_snapshot`, and `*_snapshot_checkpoint` collection for a document owned by another context before writing the
-marker. Legacy `prepare_*` records contain no context metadata, so audit prepare database mappings before rollout;
+disabled. For an existing unmarked database, the first upgraded instance checks every existing `*_event_stream` and
+`*_snapshot` collection for a document owned by another context before writing the marker. Legacy `prepare_*` records
+contain no context metadata, so audit prepare database mappings before rollout;
 the first upgraded context claims an otherwise unmarked prepare-only database. The aggregate collection scan can be
 expensive on large legacy databases, so upgrade the database's real owner first.
 
@@ -218,7 +218,6 @@ Collection names are derived from aggregate metadata using deterministic suffixe
 |---|---|---|
 | Event Stream | `{aggregateName}_event_stream` | `order_event_stream` |
 | Snapshot | `{aggregateName}_snapshot` | `order_snapshot` |
-| Snapshot Checkpoint | `{aggregateName}_snapshot_checkpoint` | `order_snapshot_checkpoint` |
 | Prepare Key | `prepare_{name}` | `prepare_username_idx` |
 
 Event-stream, snapshot, and prepare collection names intentionally remain backward compatible and do not include
@@ -353,12 +352,6 @@ The `SnapshotSchemaInitializer.initSchema()` creates:
 | `ownerId_hashed` | `ownerId` | Hashed | Owner-based filtering |
 | `_id_hashed` | `_id` | Hashed | Fast aggregate lookup by ID |
 | `deleted_hashed` | `deleted` | Hashed | Soft-delete filtering |
-
-### SnapshotCheckpointSchemaInitializer
-
-When `wow.eventsourcing.snapshot.checkpoint.enabled=true`,
-`SnapshotCheckpointSchemaInitializer` creates the `<aggregate>_snapshot_checkpoint` sidecar and its unique
-`{tenantId: 1, aggregateId: 1, version: 1}` index. The sidecar is not created while checkpointing remains disabled.
 
 ## Query Services
 

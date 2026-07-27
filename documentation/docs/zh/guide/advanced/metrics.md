@@ -58,8 +58,6 @@ Wow 框架自动为以下组件收集指标：
 - `wow.snapshot.save`: 快照保存计数和延迟
 - `wow.snapshot.load`: 快照加载计数和延迟
 - `wow.snapshot.getVersion`
-- `wow.snapshot.checkpoint.save`
-- `wow.snapshot.checkpoint.load`
 - `wow.snapshot.event`
 - `wow.snapshot.handle`
 

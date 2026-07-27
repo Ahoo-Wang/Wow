@@ -26,7 +26,7 @@ import reactor.core.publisher.Mono
  *
  * @param delegate the underlying snapshot store implementation
  */
-open class MetricSnapshotStore(
+class MetricSnapshotStore(
     delegate: SnapshotStore
 ) : AbstractMetricDecorator<SnapshotStore>(delegate),
     SnapshotStore {

@@ -68,7 +68,7 @@ interface SnapshotStore :
  * No-operation implementation of SnapshotStore that does nothing.
  * Useful for testing or when snapshots are not needed.
  */
-object NoOpSnapshotStore : VersionedSnapshotStore {
+object NoOpSnapshotStore : SnapshotStore {
     /**
      * The name of this store.
      */
@@ -89,11 +89,4 @@ object NoOpSnapshotStore : VersionedSnapshotStore {
      * Does nothing, as this is a no-op store.
      */
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> = Mono.empty()
-
-    override fun <S : Any> loadAtOrBefore(
-        aggregateId: AggregateId,
-        maxVersion: Int,
-    ): Mono<Snapshot<S>> = Mono.empty()
-
-    override fun <S : Any> saveCheckpoint(snapshot: Snapshot<S>): Mono<Void> = Mono.empty()
 }

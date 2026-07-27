@@ -205,31 +205,6 @@ enum class Strategy {
 
 The snapshot `storage` property reuses the shared [`StorageType`](#storagetype) enum.
 
-### SnapshotCheckpointProperties
-
-Persist the latest snapshot version as an immutable checkpoint (`VersionIntervalCheckpointStrategy`)
-at a fixed aggregate-version interval. The checkpoint is available via `VersionedSnapshotStore.loadAtOrBefore`,
-which an application can use to resume from a recent version without replaying the entire
-history — but the flag only adds the checkpoint writes; it does not change projection or
-rebuild behavior on its own.
-
-- Configuration class: [SnapshotCheckpointProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotProperties.kt)
-- Prefix: `wow.eventsourcing.snapshot.checkpoint`
-
-| Name | Data Type | Description | Default Value |
-|------|-----------|-------------|---------------|
-| `enabled` | `Boolean` | Persist the snapshot version checkpoint | `false` |
-| `version-interval` | `Int` | How often (in versions) to persist the checkpoint; must be positive | `100` |
-
-```yaml
-wow:
-  eventsourcing:
-    snapshot:
-      checkpoint:
-        enabled: true
-        version-interval: 100
-```
-
 ### StorageRoutingProperties
 
 Route different aggregates to different storage backends within a single service. When a

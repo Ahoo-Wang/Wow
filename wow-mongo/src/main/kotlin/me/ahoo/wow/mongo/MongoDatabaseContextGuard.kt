@@ -128,7 +128,6 @@ class MongoDatabaseContextGuard(private val database: MongoDatabase) {
         private val AGGREGATE_COLLECTION_SUFFIXES = listOf(
             "_event_stream",
             "_snapshot",
-            "_snapshot_checkpoint",
         )
     }
 }

@@ -23,7 +23,6 @@ import me.ahoo.wow.mongo.EventStreamSchemaInitializer
 import me.ahoo.wow.mongo.MongoDatabaseContextGuard
 import me.ahoo.wow.mongo.MongoEventStore
 import me.ahoo.wow.mongo.MongoSnapshotStore
-import me.ahoo.wow.mongo.SnapshotCheckpointSchemaInitializer
 import me.ahoo.wow.mongo.SnapshotSchemaInitializer
 import me.ahoo.wow.mongo.prepare.MongoPrepareKeyFactory
 import me.ahoo.wow.mongo.query.event.MongoEventStreamQueryServiceFactory
@@ -38,7 +37,6 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStreamQuerySer
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotQueryServiceFactoryBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
-import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotCheckpointProperties
 import me.ahoo.wow.spring.boot.starter.prepare.ConditionalOnPrepareEnabled
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareProperties
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareStorage
@@ -60,25 +58,13 @@ import org.springframework.context.annotation.Bean
 @EnableConfigurationProperties(
     MongoProperties::class,
     MongoEventStoreBatchProperties::class,
-    SnapshotCheckpointProperties::class,
 )
 class MongoEventSourcingAutoConfiguration @Autowired constructor(
     private val mongoProperties: MongoProperties,
-    private val checkpointProperties: SnapshotCheckpointProperties,
     private val eventStoreBatchProperties: MongoEventStoreBatchProperties,
 ) {
-    constructor(
-        mongoProperties: MongoProperties,
-        checkpointProperties: SnapshotCheckpointProperties,
-    ) : this(
-        mongoProperties = mongoProperties,
-        checkpointProperties = checkpointProperties,
-        eventStoreBatchProperties = MongoEventStoreBatchProperties(),
-    )
-
     constructor(mongoProperties: MongoProperties) : this(
         mongoProperties = mongoProperties,
-        checkpointProperties = SnapshotCheckpointProperties(),
         eventStoreBatchProperties = MongoEventStoreBatchProperties(),
     )
 
@@ -159,9 +145,6 @@ class MongoEventSourcingAutoConfiguration @Autowired constructor(
             .ensureContext(currentBoundedContext.contextName)
         if (mongoProperties.autoInitSchema) {
             SnapshotSchemaInitializer(snapshotDatabase).initAll()
-            if (checkpointProperties.enabled) {
-                SnapshotCheckpointSchemaInitializer(snapshotDatabase).initAll()
-            }
         }
         return MongoSnapshotStore(snapshotDatabase)
     }

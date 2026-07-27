@@ -41,6 +41,18 @@ implementation("me.ahoo.wow:wow-spring-boot-starter:新版本号")
 2. **配置变更**：检查配置属性是否有变更
 3. **元数据变更**：重新生成元数据文件
 
+## 移除版本化快照检查点
+
+v8.9.0 引入的版本化快照检查点能力已被移除，且不提供兼容层。`VersionedSnapshotStore`、
+`VersionIntervalCheckpointStrategy`、`CompositeSnapshotStrategy`、对应的 metrics/tracing 装饰器及
+`SnapshotCheckpointProperties` 均不再存在。`wow.eventsourcing.snapshot.checkpoint.*` 配置将被忽略，
+不再产生 `wow.snapshot.checkpoint.*` 指标与 checkpoint span。该能力没有替代接口；应用应使用仅保存和
+加载最新快照的 `SnapshotStore`。
+
+MongoDB 中既有的 `*_snapshot_checkpoint` collection 不再被读取、写入、扫描或自动删除。升级前应备份
+event 与 snapshot 数据、停止全部旧版本 writer，并仅在确认不再需要后清理这些 collection。回滚必须
+恢复旧运行时并保留其 checkpoint 数据；不支持新旧版本混合部署。
+
 ## Redis EventStore Canonical v2 布局（v8.9.0 引入）
 
 从 v8.6.x 或 v8.8.x 升级到 v8.9.0 时，必须把 Redis 持久化视为存储格式硬切换。Redis EventStore、
@@ -105,7 +117,7 @@ Redis 布局内部 API 有意不保持源码、JVM 二进制与行为兼容。�
 现在包含 `name`，v2 会拒绝空 aggregate/prepare ID 与 unpaired UTF-16 surrogate。应用代码应使用
 `EventStore`、`SnapshotStore` 与 `PrepareKey`；单独评审的离线工具应独立实现并校验 v2 codec。
 
-## Mongo 所有权保护与 Snapshot Checkpoint
+## Mongo 所有权保护
 
 本次升级保留仅含 aggregate name 的 Mongo collection 命名，但新增持久化
 `wow_database_metadata` 所有权标记。支持的部署布局是一个 MongoDB database 只属于一个 bounded
@@ -114,7 +126,7 @@ context。
 上线前：
 
 1. 检查所有已配置的 event-stream、snapshot 与 prepare database，以及其中的 `*_event_stream`、
-   `*_snapshot`、`*_snapshot_checkpoint` 和 `prepare_*` collection。
+   `*_snapshot` 和 `prepare_*` collection。
 2. 确认每个 database 只属于一个 `wow.context-name`；历史混写数据库必须先拆分。
 3. 先升级数据库的真实所有者。第一个新版本实例会扫描存量 aggregate collection，再原子认领标记。
    存量 `prepare_*` 文档没有 context 元数据，因此 prepare-only database 会由首个升级 context 认领，
@@ -124,20 +136,6 @@ context。
 
 不要通过修改所有权标记绕过 context 冲突。应先迁移或删除旧数据；只有明确重新分配空数据库时才删除
 标记。
-
-历史 snapshot checkpoint 默认关闭：
-
-```yaml
-wow:
-  eventsourcing:
-    snapshot:
-      checkpoint:
-        enabled: false
-        version-interval: 100
-```
-
-启用后会创建 `<aggregate>_snapshot_checkpoint` sidecar，并且只保存升级后新产生的匹配版本，不会自动
-回填历史。回滚时关闭该功能；在完成验证与保留策略决策前保留 sidecar。
 
 ## 从传统架构迁移
 

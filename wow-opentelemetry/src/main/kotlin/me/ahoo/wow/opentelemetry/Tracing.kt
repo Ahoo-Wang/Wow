@@ -20,7 +20,6 @@ import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.event.LocalDomainEventBus
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
-import me.ahoo.wow.eventsourcing.snapshot.VersionedSnapshotStore
 import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
 import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
 import me.ahoo.wow.opentelemetry.eventsourcing.TracingEventStore
@@ -31,7 +30,6 @@ import me.ahoo.wow.opentelemetry.messaging.TracingLocalCommandBus
 import me.ahoo.wow.opentelemetry.messaging.TracingLocalEventBus
 import me.ahoo.wow.opentelemetry.messaging.TracingLocalStateEventBus
 import me.ahoo.wow.opentelemetry.snapshot.TracingSnapshotStore
-import me.ahoo.wow.opentelemetry.snapshot.TracingVersionedSnapshotStore
 import me.ahoo.wow.opentelemetry.wait.TracingCommandGateway
 
 object Tracing {
@@ -67,17 +65,8 @@ object Tracing {
     }
 
     fun SnapshotStore.tracing(): SnapshotStore {
-        if (this is VersionedSnapshotStore) {
-            return tracing()
-        }
         return tracing {
             TracingSnapshotStore(this)
-        }
-    }
-
-    fun VersionedSnapshotStore.tracing(): VersionedSnapshotStore {
-        return tracing {
-            TracingVersionedSnapshotStore(this)
         }
     }
 

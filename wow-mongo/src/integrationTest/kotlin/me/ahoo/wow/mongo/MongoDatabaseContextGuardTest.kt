@@ -169,8 +169,8 @@ class MongoDatabaseContextGuardTest {
     }
 
     @Test
-    fun `should scan event snapshot and checkpoint collections before claiming`() {
-        listOf(TEST_EVENT_STREAM_COLLECTION, TEST_SNAPSHOT_COLLECTION, TEST_CHECKPOINT_COLLECTION)
+    fun `should scan event and snapshot collections before claiming`() {
+        listOf(TEST_EVENT_STREAM_COLLECTION, TEST_SNAPSHOT_COLLECTION)
             .forEach { collectionName ->
                 mongo.database()
                     .getCollection(collectionName)
@@ -192,11 +192,9 @@ class MongoDatabaseContextGuardTest {
     companion object {
         private const val TEST_EVENT_STREAM_COLLECTION = "contextGuardTest_event_stream"
         private const val TEST_SNAPSHOT_COLLECTION = "contextGuardTest_snapshot"
-        private const val TEST_CHECKPOINT_COLLECTION = "contextGuardTest_snapshot_checkpoint"
         private val COLLECTIONS = listOf(
             TEST_EVENT_STREAM_COLLECTION,
             TEST_SNAPSHOT_COLLECTION,
-            TEST_CHECKPOINT_COLLECTION,
         )
     }
 }

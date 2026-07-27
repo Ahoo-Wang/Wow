@@ -132,15 +132,6 @@ wow:
 | `wow.eventsourcing.snapshot.version-offset` | Int | `5` | Version offset for VERSION_OFFSET strategy (`DEFAULT_VERSION_OFFSET`) |
 | `wow.eventsourcing.snapshot.storage` | StorageType | `mongo` | Snapshot storage backend |
 
-### Snapshot Checkpoint
-
-Persist the latest snapshot version as an immutable checkpoint at a fixed version interval. The checkpoint is written via `VersionIntervalCheckpointStrategy`; it does not change projection or rebuild behavior on its own.
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.eventsourcing.snapshot.checkpoint.enabled` | Boolean | `false` | Persist the snapshot version checkpoint |
-| `wow.eventsourcing.snapshot.checkpoint.version-interval` | Int | `100` | How often (in versions) to persist the checkpoint; must be positive |
-
 ### Storage Routing
 
 Route different aggregates to different storage backends within a single service. When a matching route is configured, Wow installs a `RoutingEventStore` / `RoutingSnapshotStore`; unlisted aggregates fall back to the default storage. A configured channel **must set exactly one** of `storage` or `binding` — an empty channel (e.g. `event: {}`) fails fast at startup.

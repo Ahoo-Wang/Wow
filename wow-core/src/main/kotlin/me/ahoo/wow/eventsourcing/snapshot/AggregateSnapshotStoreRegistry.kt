@@ -25,10 +25,6 @@ class AggregateSnapshotStoreRegistry(
             namedAggregate.materialize()
         }
 
-    internal val supportsHistoricalCheckpoints: Boolean =
-        defaultSnapshotStore is VersionedSnapshotStore &&
-            this.routes.values.all { store -> store is VersionedSnapshotStore }
-
     internal val stores: Sequence<SnapshotStore>
         get() = sequenceOf(defaultSnapshotStore) + routes.values.asSequence()
 

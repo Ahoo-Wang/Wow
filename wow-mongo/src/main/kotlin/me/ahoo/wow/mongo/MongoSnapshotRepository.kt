@@ -14,11 +14,11 @@ package me.ahoo.wow.mongo
 
 import com.mongodb.client.model.ReplaceOptions
 import com.mongodb.reactivestreams.client.MongoDatabase
-import me.ahoo.wow.eventsourcing.snapshot.VersionedSnapshotStore
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 
 @Deprecated("Use MongoSnapshotStore.", ReplaceWith("MongoSnapshotStore(database)"))
 class MongoSnapshotRepository(database: MongoDatabase) :
-    VersionedSnapshotStore by MongoSnapshotStore(database) {
+    SnapshotStore by MongoSnapshotStore(database) {
     companion object {
         const val NAME = "mongo"
         val DEFAULT_REPLACE_OPTIONS: ReplaceOptions = MongoSnapshotStore.DEFAULT_REPLACE_OPTIONS

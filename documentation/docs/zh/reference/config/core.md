@@ -205,27 +205,6 @@ enum class Strategy {
 
 快照的 `storage` 属性复用共享的 [`StorageType`](#storagetype) 枚举。
 
-### SnapshotCheckpointProperties
-
-将最新的快照版本作为不可变检查点持久化（`VersionIntervalCheckpointStrategy`），按固定的聚合版本间隔写入。检查点可通过 `VersionedSnapshotStore.loadAtOrBefore` 获取，应用可借此从较近的版本恢复，而无需重放完整历史——但该开关仅增加检查点的写入，本身并不改变投影或重建行为。
-
-- 配置类：[SnapshotCheckpointProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotProperties.kt)
-- 前缀：`wow.eventsourcing.snapshot.checkpoint`
-
-| 名称 | 数据类型 | 描述 | 默认值 |
-|------|-----------|-------------|---------------|
-| `enabled` | `Boolean` | 持久化快照版本检查点 | `false` |
-| `version-interval` | `Int` | 持久化检查点的版本间隔；必须为正数 | `100` |
-
-```yaml
-wow:
-  eventsourcing:
-    snapshot:
-      checkpoint:
-        enabled: true
-        version-interval: 100
-```
-
 ### StorageRoutingProperties
 
 将不同的聚合路由到单个服务内的不同存储后端。当配置了匹配的路由时，Wow 会安装一个

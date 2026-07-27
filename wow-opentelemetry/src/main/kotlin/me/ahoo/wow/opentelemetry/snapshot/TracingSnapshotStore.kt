@@ -22,7 +22,7 @@ import me.ahoo.wow.opentelemetry.TraceMono
 import me.ahoo.wow.opentelemetry.Traced
 import reactor.core.publisher.Mono
 
-open class TracingSnapshotStore(override val delegate: SnapshotStore) :
+class TracingSnapshotStore(override val delegate: SnapshotStore) :
     Traced,
     SnapshotStore,
     Decorator<SnapshotStore> {
