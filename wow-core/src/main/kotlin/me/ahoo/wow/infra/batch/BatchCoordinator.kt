@@ -86,7 +86,7 @@ class BatchCoordinator<T : Any> internal constructor(
                 writer = writer,
                 scheduler = batchScheduler,
                 resultDispatcher = resultDispatcher,
-                onError = ::terminateProcessor,
+                onError = { failLifecycle(it) },
                 onComplete = ::completeLane,
             )
         }
@@ -97,16 +97,18 @@ class BatchCoordinator<T : Any> internal constructor(
     @Suppress("TooGenericExceptionCaught")
     fun submit(itemFactory: () -> T): Mono<Void> {
         return Mono.defer {
-            terminalErrorOrClosed()?.let {
+            lifecycle.terminalErrorOrClosed()?.let {
                 return@defer Mono.error(it)
             }
             if (!admission.tryAcquire()) {
-                terminalErrorOrClosed()?.let {
+                lifecycle.terminalErrorOrClosed()?.let {
                     return@defer Mono.error(it)
                 }
-                return@defer Mono.error(overflowError())
+                return@defer Mono.error(
+                    BatchOverflowException(name, options.maxPendingItems)
+                )
             }
-            terminalErrorOrClosed()?.let {
+            lifecycle.terminalErrorOrClosed()?.let {
                 admission.releaseUntracked()
                 return@defer Mono.error(it)
             }
@@ -155,7 +157,7 @@ class BatchCoordinator<T : Any> internal constructor(
         try {
             closeTermination.get(timeout.toNanos(), TimeUnit.NANOSECONDS)
         } catch (error: TimeoutException) {
-            closeTimedOut(timeout)?.let {
+            failLifecycle(BatchCloseTimeoutException(name, timeout))?.let {
                 throw it
             }
         } catch (error: InterruptedException) {
@@ -193,35 +195,12 @@ class BatchCoordinator<T : Any> internal constructor(
         }
     }
 
-    private fun overflowError(): BatchOverflowException =
-        BatchOverflowException(name, options.maxPendingItems)
-
-    private fun closedError(): BatchClosedException =
-        BatchClosedException(name)
-
-    private fun terminalErrorOrClosed(): Throwable? {
-        return lifecycle.terminalErrorOrClosed()
-    }
-
-    private fun enqueueFailure(emitResult: Sinks.EmitResult): Throwable {
-        lifecycle.failureCause?.let {
-            return it
-        }
-        return when (emitResult) {
-            Sinks.EmitResult.FAIL_OVERFLOW -> overflowError()
-            Sinks.EmitResult.FAIL_CANCELLED,
-            Sinks.EmitResult.FAIL_TERMINATED,
-            -> closedError()
-
-            else -> IllegalStateException(
-                "Failed to enqueue batch item[$name]: $emitResult"
-            )
-        }
-    }
-
-    private fun terminateProcessor(error: Throwable) {
-        failLifecycle(error)
-    }
+    private fun enqueueFailure(emitResult: Sinks.EmitResult): Throwable =
+        emitResult.toBatchEnqueueError(
+            coordinatorName = name,
+            maxPendingItems = options.maxPendingItems,
+            terminalFailure = lifecycle.failureCause,
+        )
 
     private fun completeLane() {
         if (remainingLanes.decrementAndGet() == 0) {
@@ -277,10 +256,6 @@ class BatchCoordinator<T : Any> internal constructor(
                 return
             }
         }
-    }
-
-    private fun closeTimedOut(timeout: Duration): Throwable? {
-        return failLifecycle(BatchCloseTimeoutException(name, timeout))
     }
 
     private fun closeInterrupted(error: InterruptedException): Nothing {

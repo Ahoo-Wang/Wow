@@ -16,6 +16,9 @@ package me.ahoo.wow.infra.batch
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class BatchRequestTest {
@@ -107,6 +110,38 @@ class BatchRequestTest {
         fixture.admissionReleases.get().assert().isEqualTo(1)
         fixture.queueReleases.get().assert().isEqualTo(1)
         fixture.request.claim().assert().isFalse()
+        fixture.request.settle(BatchItemResult.Success)
+        fixture.request.settleFailure(IllegalStateException("late"))
+    }
+
+    @Test
+    fun `claim racing terminal failure should release each capacity once`() {
+        val executor = Executors.newFixedThreadPool(2)
+        try {
+            repeat(1_000) {
+                val fixture = fixture()
+                val start = CountDownLatch(1)
+                val failure = IllegalStateException("failed")
+                val claim = executor.submit<Boolean> {
+                    start.await()
+                    fixture.request.claim()
+                }
+                val fail = executor.submit<Boolean> {
+                    start.await()
+                    fixture.request.settleFailureIfUnsettled(failure)
+                }
+
+                start.countDown()
+                claim.get(1, TimeUnit.SECONDS)
+                fail.get(1, TimeUnit.SECONDS).assert().isTrue()
+                fixture.request.signalSettled()
+
+                fixture.admissionReleases.get().assert().isEqualTo(1)
+                fixture.queueReleases.get().assert().isEqualTo(1)
+            }
+        } finally {
+            executor.shutdownNow()
+        }
     }
 
     private fun fixture(): RequestFixture {

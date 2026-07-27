@@ -14,7 +14,6 @@
 package me.ahoo.wow.infra.batch
 
 import reactor.core.publisher.Sinks
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -44,7 +43,6 @@ internal class BatchRequest<T : Any>(
 
     val result: Sinks.Empty<Void> = Sinks.empty()
     private val state = AtomicReference<State>(State.Queued)
-    private val queueSlotHeld = AtomicBoolean(true)
 
     fun claim(): Boolean {
         while (true) {
@@ -166,13 +164,7 @@ internal class BatchRequest<T : Any>(
         }
     }
 
-    private fun releaseAdmission() {
-        onReleaseAdmission(this)
-    }
+    private fun releaseAdmission() = onReleaseAdmission(this)
 
-    private fun releaseQueueSlot() {
-        if (queueSlotHeld.compareAndSet(true, false)) {
-            onReleaseQueueSlot()
-        }
-    }
+    private fun releaseQueueSlot() = onReleaseQueueSlot()
 }
