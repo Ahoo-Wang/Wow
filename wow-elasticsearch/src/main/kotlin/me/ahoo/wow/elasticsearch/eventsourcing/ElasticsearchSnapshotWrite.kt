@@ -27,14 +27,18 @@ internal data class ElasticsearchSnapshotWrite(
 
 internal fun Snapshot<*>.toElasticsearchSnapshotWrite(): ElasticsearchSnapshotWrite {
     val document = toLinkedHashMap()
-    val version = document[MessageRecords.VERSION]
-    check(version is Int) {
-        "Serialized Wow snapshot has no integer version."
-    }
     return ElasticsearchSnapshotWrite(
         index = aggregateId.toSnapshotIndexName(),
         id = aggregateId.id,
         document = document,
-        version = version,
+        version = document.requiredSnapshotVersion(),
     )
+}
+
+internal fun Map<String, Any?>.requiredSnapshotVersion(): Int {
+    val version = this[MessageRecords.VERSION]
+    check(version is Int) {
+        "Serialized Wow snapshot has no integer version."
+    }
+    return version
 }

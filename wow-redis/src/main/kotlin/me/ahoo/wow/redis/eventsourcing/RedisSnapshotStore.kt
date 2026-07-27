@@ -48,16 +48,21 @@ class RedisSnapshotStore(
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
         val snapshotKey = SnapshotKeyLayout.key(snapshot.aggregateId)
         val snapshotNode: ObjectNode = snapshot.toJsonNode()
-        val versionNode = checkNotNull(snapshotNode[MessageRecords.VERSION]) {
-            "Serialized Wow snapshot has no version."
-        }
-        check(versionNode.isInt) {
-            "Serialized Wow snapshot version must be an integer."
-        }
+        val snapshotVersion = snapshotNode.requiredSnapshotVersion()
         return redisTemplate.execute(
             SCRIPT_SAVE_SNAPSHOT,
             listOf(snapshotKey),
-            listOf(versionNode.asInt().toString(), snapshotNode.toJsonString()),
+            listOf(snapshotVersion.toString(), snapshotNode.toJsonString()),
         ).then()
     }
+}
+
+internal fun ObjectNode.requiredSnapshotVersion(): Int {
+    val versionNode = checkNotNull(this[MessageRecords.VERSION]) {
+        "Serialized Wow snapshot has no version."
+    }
+    check(versionNode.isInt) {
+        "Serialized Wow snapshot version must be an integer."
+    }
+    return versionNode.asInt()
 }
