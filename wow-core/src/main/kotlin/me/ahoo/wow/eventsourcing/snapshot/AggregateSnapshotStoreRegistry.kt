@@ -29,6 +29,9 @@ class AggregateSnapshotStoreRegistry(
         defaultSnapshotStore is VersionedSnapshotStore &&
             this.routes.values.all { store -> store is VersionedSnapshotStore }
 
+    internal val stores: Sequence<SnapshotStore>
+        get() = sequenceOf(defaultSnapshotStore) + routes.values.asSequence()
+
     fun get(namedAggregate: NamedAggregate): SnapshotStore =
         routes[namedAggregate.materialize()] ?: defaultSnapshotStore
 }

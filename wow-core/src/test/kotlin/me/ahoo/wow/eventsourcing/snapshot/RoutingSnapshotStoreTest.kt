@@ -115,15 +115,26 @@ class RoutingSnapshotStoreTest {
     }
 
     @Test
-    fun `close should not close non-owned leaf stores`() {
+    fun `close should close leaf stores`() {
         val defaultStore = RecordingSnapshotStore()
         val orderStore = RecordingSnapshotStore()
         val routingStore = routingSnapshotStore(defaultStore, orderStore)
 
         routingStore.close()
 
-        defaultStore.closeCount.assert().isZero()
-        orderStore.closeCount.assert().isZero()
+        defaultStore.closeCount.assert().isEqualTo(1)
+        orderStore.closeCount.assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `close should be idempotent and close shared leaf once`() {
+        val sharedStore = RecordingSnapshotStore()
+        val routingStore = routingSnapshotStore(sharedStore, sharedStore)
+
+        routingStore.close()
+        routingStore.close()
+
+        sharedStore.closeCount.assert().isEqualTo(1)
     }
 
     private fun routingSnapshotStore(

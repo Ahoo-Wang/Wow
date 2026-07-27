@@ -13,21 +13,25 @@
 package me.ahoo.wow.eventsourcing.snapshot
 
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.eventsourcing.RoutingStoreLifecycle
 import reactor.core.publisher.Mono
 
+/**
+ * Routes operations to aggregate-specific stores and owns their lifecycle.
+ *
+ * Closing the router closes every distinct registered store once.
+ */
 open class RoutingSnapshotStore(
     protected val registry: AggregateSnapshotStoreRegistry
 ) : SnapshotStore {
+    private val lifecycle = RoutingStoreLifecycle(registry.stores)
+
     override val name: String
         get() = NAME
 
-    /**
-     * Routing stores do not own stores supplied through [registry].
-     *
-     * The lifecycle owner (for example, the Spring container or a manual
-     * composition root) must close each registered leaf store.
-     */
-    override fun close() = Unit
+    override fun close() {
+        lifecycle.close()
+    }
 
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> =
         registry.get(aggregateId.namedAggregate).load(aggregateId)
