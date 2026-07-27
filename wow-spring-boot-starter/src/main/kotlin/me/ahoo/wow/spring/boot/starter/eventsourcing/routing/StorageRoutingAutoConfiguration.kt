@@ -69,7 +69,7 @@ import org.springframework.core.type.AnnotatedTypeMetadata
 )
 class StorageRoutingAutoConfiguration {
 
-    @Bean
+    @Bean(destroyMethod = "")
     @Primary
     @Conditional(OnEventStorageRouteCondition::class)
     fun routingEventStore(
@@ -101,7 +101,7 @@ class StorageRoutingAutoConfiguration {
         )
     }
 
-    @Bean
+    @Bean(destroyMethod = "")
     @Primary
     @Conditional(OnSnapshotStorageRouteCondition::class)
     fun routingSnapshotStore(

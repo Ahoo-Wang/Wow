@@ -225,6 +225,20 @@ class StorageRoutingAutoConfigurationTest {
     }
 
     @Test
+    fun `spring should close a routed event store delegate once`() {
+        lateinit var stores: RecordingStores
+
+        routingContextRunner
+            .withPropertyValues("${StorageRoutingProperties.AGGREGATES}.order.event.storage=${StorageType.REDIS_NAME}")
+            .run { context: AssertableApplicationContext ->
+                stores = context.getBean(RecordingStores::class.java)
+            }
+
+        stores.mongoEventStore.closeCount.assert().isEqualTo(1)
+        stores.redisEventStore.closeCount.assert().isEqualTo(1)
+    }
+
+    @Test
     fun `event route should create primary routing event stream query service factory`() {
         routingContextRunner
             .withPropertyValues("${StorageRoutingProperties.AGGREGATES}.order.event.storage=${StorageType.REDIS_NAME}")
@@ -267,6 +281,22 @@ class StorageRoutingAutoConfigurationTest {
                     .verifyComplete()
                 stores.mongoSnapshotStore.lastAggregateId.assert().isEqualTo(orderAggregateId())
             }
+    }
+
+    @Test
+    fun `spring should close a routed snapshot store delegate once`() {
+        lateinit var stores: RecordingStores
+
+        routingContextRunner
+            .withPropertyValues(
+                "${StorageRoutingProperties.AGGREGATES}.cart.snapshot.storage=${StorageType.REDIS_NAME}"
+            )
+            .run { context: AssertableApplicationContext ->
+                stores = context.getBean(RecordingStores::class.java)
+            }
+
+        stores.mongoSnapshotStore.closeCount.assert().isEqualTo(1)
+        stores.redisSnapshotStore.closeCount.assert().isEqualTo(1)
     }
 
     @Test
@@ -373,7 +403,15 @@ class StorageRoutingAutoConfigurationTest {
         fun eventStore(stores: RecordingStores): EventStore = stores.mongoEventStore
 
         @Bean
+        fun redisEventStoreLifecycle(stores: RecordingStores): CloseDelegate =
+            CloseDelegate(stores.redisEventStore)
+
+        @Bean
         fun snapshotStore(stores: RecordingStores): SnapshotStore = stores.mongoSnapshotStore
+
+        @Bean
+        fun redisSnapshotStoreLifecycle(stores: RecordingStores): CloseDelegate =
+            CloseDelegate(stores.redisSnapshotStore)
 
         @Bean
         fun mongoEventStoreBinding(stores: RecordingStores): EventStoreBinding =
@@ -465,10 +503,23 @@ class StorageRoutingAutoConfigurationTest {
         val redisSnapshotQueryServiceFactory = RecordingSnapshotQueryServiceFactory()
     }
 
+    internal class CloseDelegate(
+        private val delegate: AutoCloseable,
+    ) : AutoCloseable {
+        override fun close() {
+            delegate.close()
+        }
+    }
+
     internal class RecordingEventStore(
         val storeName: String
     ) : EventStore {
         var lastAggregateId: AggregateId? = null
+        var closeCount: Int = 0
+
+        override fun close() {
+            closeCount++
+        }
 
         override fun append(eventStream: DomainEventStream): Mono<Void> {
             lastAggregateId = eventStream.aggregateId
@@ -503,6 +554,11 @@ class StorageRoutingAutoConfigurationTest {
         override val name: String
     ) : SnapshotStore {
         var lastAggregateId: AggregateId? = null
+        var closeCount: Int = 0
+
+        override fun close() {
+            closeCount++
+        }
 
         override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
             lastAggregateId = aggregateId

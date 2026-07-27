@@ -177,6 +177,38 @@ internal class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
     }
 
     @Test
+    fun `batch stale save should not overwrite a legacy snapshot with a higher source version`() {
+        val client = ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch)
+        client.initSnapshotTemplate()
+        val newer = snapshot(id = generateGlobalId(), version = 100)
+        writeLegacySnapshot(client, newer, writes = 5)
+        val stale = snapshot(id = newer.aggregateId.id, version = 99)
+        val independent = snapshot(id = generateGlobalId(), version = 1)
+
+        ElasticsearchSnapshotStore(
+            elasticsearchClient = client,
+            batchOptions = ElasticsearchSnapshotStoreBatchOptions(
+                enabled = true,
+                maxSize = 2,
+                maxDelay = Duration.ofSeconds(1),
+            ),
+        ).use { store ->
+            Flux.merge(store.save(stale), store.save(independent))
+                .then()
+                .test()
+                .verifyComplete()
+
+            store.load<MockStateAggregate>(newer.aggregateId)
+                .test()
+                .assertNext { loaded ->
+                    loaded.version.assert().isEqualTo(newer.version)
+                    loaded.state.data.assert().isEqualTo(newer.state.data)
+                }
+                .verifyComplete()
+        }
+    }
+
+    @Test
     fun `batch save through a write alias should accept its concrete response index`() {
         val client = ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch)
         client.initSnapshotTemplate()
@@ -206,7 +238,7 @@ internal class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
     }
 
     @Test
-    fun `direct stale save against a modern external version should remain a no-op`() {
+    fun `direct stale save against a current snapshot should remain a no-op`() {
         val client = ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch)
         client.initSnapshotTemplate()
         val newer = snapshot(id = generateGlobalId(), version = 3)
@@ -215,6 +247,29 @@ internal class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
         ElasticsearchSnapshotStore(client).use { store ->
             store.save(newer)
                 .then(store.save(older))
+                .test()
+                .verifyComplete()
+
+            store.load<MockStateAggregate>(newer.aggregateId)
+                .test()
+                .assertNext { loaded ->
+                    loaded.version.assert().isEqualTo(newer.version)
+                    loaded.state.data.assert().isEqualTo(newer.state.data)
+                }
+                .verifyComplete()
+        }
+    }
+
+    @Test
+    fun `direct stale save should not overwrite a legacy snapshot with a higher source version`() {
+        val client = ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch)
+        client.initSnapshotTemplate()
+        val newer = snapshot(id = generateGlobalId(), version = 100)
+        writeLegacySnapshot(client, newer, writes = 5)
+        val stale = snapshot(id = newer.aggregateId.id, version = 99)
+
+        ElasticsearchSnapshotStore(client).use { store ->
+            store.save(stale)
                 .test()
                 .verifyComplete()
 
@@ -288,7 +343,7 @@ internal class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
     }
 
     @Test
-    fun `batch alias conflict fallback should upgrade a legacy concrete document`() {
+    fun `batch alias guarded update should upgrade a legacy concrete document`() {
         val client = ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch)
         client.initSnapshotTemplate()
         val older = snapshot(id = generateGlobalId(), version = 2)

@@ -14,7 +14,6 @@
 package me.ahoo.wow.elasticsearch.eventsourcing
 
 import co.elastic.clients.elasticsearch._types.Refresh
-import co.elastic.clients.elasticsearch._types.VersionType
 import co.elastic.clients.elasticsearch.core.BulkRequest
 import co.elastic.clients.elasticsearch.core.BulkResponse
 import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem
@@ -33,7 +32,7 @@ class ElasticsearchSnapshotBatchWriterTest {
     private val client = mockk<ReactiveElasticsearchClient>()
 
     @Test
-    fun `should bulk index with strict external version and preserve cross index identity`() {
+    fun `should bulk update with source version guards and preserve cross index identity`() {
         val request = slot<BulkRequest>()
         every { client.bulk(capture(request)) } returns Mono.just(
             bulkResponse(
@@ -58,13 +57,15 @@ class ElasticsearchSnapshotBatchWriterTest {
 
         request.captured.refresh().assert().isEqualTo(Refresh.WaitFor)
         request.captured.operations().zip(batch).forEach { (operation, expected) ->
-            operation.isIndex.assert().isTrue()
-            operation.index<Map<String, Any?>>().let { index ->
-                index.index().assert().isEqualTo(expected.index)
-                index.id().assert().isEqualTo(expected.id)
-                index.version().assert().isEqualTo(expected.version.toLong())
-                index.versionType().assert().isEqualTo(VersionType.External)
-                index.document().assert().isEqualTo(expected.document)
+            operation.isUpdate.assert().isTrue()
+            operation.update<Map<String, Any?>, Map<String, Any?>>().let { update ->
+                update.index().assert().isEqualTo(expected.index)
+                update.id().assert().isEqualTo(expected.id)
+                update.retryOnConflict().assert().isNotNull()
+                val action = checkNotNull(update.action())
+                action.upsert().assert().isEqualTo(expected.document)
+                checkNotNull(action.script())
+                    .params().keys.assert().contains("version", "snapshot")
             }
         }
     }
@@ -123,10 +124,13 @@ class ElasticsearchSnapshotBatchWriterTest {
 
         request.captured.operations().assert().hasSize(1)
         request.captured.operations().single()
-            .index<Map<String, Any?>>()
-            .version()
+            .update<Map<String, Any?>, Map<String, Any?>>()
+            .action()
+            .let(::checkNotNull)
+            .upsert()
+            .let(::checkNotNull)["version"]
             .assert()
-            .isEqualTo(9L)
+            .isEqualTo(9)
     }
 
     @Test
@@ -151,58 +155,13 @@ class ElasticsearchSnapshotBatchWriterTest {
             .verifyComplete()
 
         request.captured.operations().single()
-            .index<Map<String, Any?>>()
-            .document()["marker"]
+            .update<Map<String, Any?>, Map<String, Any?>>()
+            .action()
+            .let(::checkNotNull)
+            .upsert()
+            .let(::checkNotNull)["marker"]
             .assert()
             .isEqualTo("first")
-    }
-
-    @Test
-    fun `external version conflict should use source version guarded update`() {
-        val requests = mutableListOf<BulkRequest>()
-        every { client.bulk(capture(requests)) } returnsMany listOf(
-            Mono.just(
-                bulkResponse(
-                    errors = true,
-                    responseItem(
-                        index = "order.snapshot",
-                        id = "order-1",
-                        status = 409,
-                        errorType = "version_conflict_engine_exception",
-                    ),
-                ),
-            ),
-            Mono.just(
-                bulkResponse(
-                    errors = false,
-                    responseItem(
-                        index = "order-000001.snapshot",
-                        id = "order-1",
-                        status = 200,
-                        operationType = OperationType.Update,
-                    ),
-                ),
-            ),
-        )
-
-        ElasticsearchSnapshotBatchWriter(client, Refresh.False)
-            .write(listOf(save(version = 5)))
-            .test()
-            .expectNext(listOf(BatchItemResult.Success))
-            .verifyComplete()
-
-        requests.assert().hasSize(2)
-        requests[1].refresh().assert().isEqualTo(Refresh.False)
-        requests[1].operations().single()
-            .update<Map<String, Any?>, Map<String, Any?>>()
-            .let { update ->
-                update.index().assert().isEqualTo("order.snapshot")
-                update.id().assert().isEqualTo("order-1")
-                update.retryOnConflict().assert().isNotNull()
-                val action = checkNotNull(update.action())
-                action.upsert().assert().isEqualTo(save(version = 5).document)
-                checkNotNull(action.script()).params().keys.assert().contains("version", "snapshot")
-            }
     }
 
     @Test
@@ -251,86 +210,13 @@ class ElasticsearchSnapshotBatchWriterTest {
             .verify()
     }
 
-    @Test
-    fun `conflict fallback request failure should not fail an already successful item`() {
-        val fallbackFailure = IllegalStateException("legacy conflict resolution unavailable")
-        every { client.bulk(any<BulkRequest>()) } returnsMany listOf(
-            Mono.just(
-                bulkResponse(
-                    errors = true,
-                    responseItem(index = "order.snapshot", id = "order-1", status = 200),
-                    responseItem(
-                        index = "order.snapshot",
-                        id = "order-2",
-                        status = 409,
-                        errorType = "version_conflict_engine_exception",
-                    ),
-                ),
-            ),
-            Mono.error(fallbackFailure),
-        )
-
-        ElasticsearchSnapshotBatchWriter(client, Refresh.False)
-            .write(
-                listOf(
-                    save(id = "order-1", version = 5),
-                    save(id = "order-2", version = 4),
-                )
-            )
-            .test()
-            .assertNext { results ->
-                results[0].assert().isSameAs(BatchItemResult.Success)
-                (results[1] as BatchItemResult.Failure).error.assert().isSameAs(fallbackFailure)
-            }
-            .verifyComplete()
-    }
-
-    @Test
-    fun `conflict fallback item failure should be returned to its caller`() {
-        every { client.bulk(any<BulkRequest>()) } returnsMany listOf(
-            Mono.just(
-                bulkResponse(
-                    errors = true,
-                    responseItem(
-                        index = "order.snapshot",
-                        id = "order-1",
-                        status = 409,
-                        errorType = "version_conflict_engine_exception",
-                    ),
-                ),
-            ),
-            Mono.just(
-                bulkResponse(
-                    errors = true,
-                    responseItem(
-                        index = "order-000001.snapshot",
-                        id = "order-1",
-                        status = 500,
-                        errorType = "script_exception",
-                        operationType = OperationType.Update,
-                    ),
-                ),
-            ),
-        )
-
-        ElasticsearchSnapshotBatchWriter(client, Refresh.False)
-            .write(listOf(save(version = 5)))
-            .test()
-            .assertNext { results ->
-                val failure = (results.single() as BatchItemResult.Failure).error
-                failure.assert().isInstanceOf(ElasticsearchBulkItemException::class.java)
-                (failure as ElasticsearchBulkItemException).status.assert().isEqualTo(500)
-            }
-            .verifyComplete()
-    }
-
     private fun save(
         index: String = "order.snapshot",
         id: String = "order-1",
         version: Int = 1,
         marker: String = version.toString(),
-    ): ElasticsearchSnapshotSave {
-        return ElasticsearchSnapshotSave(
+    ): ElasticsearchSnapshotWrite {
+        return ElasticsearchSnapshotWrite(
             index = index,
             id = id,
             document = linkedMapOf(
@@ -357,7 +243,7 @@ class ElasticsearchSnapshotBatchWriterTest {
         id: String,
         status: Int,
         errorType: String? = null,
-        operationType: OperationType = OperationType.Index,
+        operationType: OperationType = OperationType.Update,
     ): BulkResponseItem {
         return BulkResponseItem.of { item ->
             item.operationType(operationType)

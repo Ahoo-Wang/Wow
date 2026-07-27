@@ -26,22 +26,21 @@ import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchCl
 import reactor.core.publisher.Mono
 
 /**
- * Resolves an external-version conflict against the aggregate version stored in
- * `_source`.
+ * Persists snapshots with an atomic aggregate-version guard against `_source`.
  *
- * Pre-upgrade snapshot documents used Elasticsearch internal `_version`, which
- * is a write counter and cannot safely be compared with an aggregate version.
- * This atomic update fallback distinguishes those legacy conflicts from a
- * genuinely stale snapshot without a client-side get/index race.
+ * Elasticsearch internal `_version` is only a write counter for legacy
+ * documents and therefore cannot safely order aggregate snapshots. Applying
+ * the same guarded update to direct and Bulk writes protects both legacy and
+ * current documents without a client-side get/update race.
  */
-internal class ElasticsearchSnapshotVersionConflictResolver(
+internal class ElasticsearchSnapshotVersionGuardedWriter(
     private val elasticsearchClient: ReactiveElasticsearchClient,
     private val refreshPolicy: Refresh,
 ) {
     @Suppress("UNCHECKED_CAST")
     private val documentClass = Map::class.java as Class<Map<String, Any?>>
 
-    fun resolve(save: ElasticsearchSnapshotSave): Mono<Void> {
+    fun write(save: ElasticsearchSnapshotWrite): Mono<Void> {
         val request = UpdateRequest.of<Map<String, Any?>, Map<String, Any?>> { update ->
             update.index(save.index)
                 .id(save.id)
@@ -53,10 +52,7 @@ internal class ElasticsearchSnapshotVersionConflictResolver(
         return elasticsearchClient.update(request, documentClass).then()
     }
 
-    fun resolve(batch: List<ElasticsearchSnapshotSave>): Mono<List<BatchItemResult>> {
-        require(batch.isNotEmpty()) {
-            "Elasticsearch snapshot conflict resolution batch must not be empty."
-        }
+    fun write(batch: List<ElasticsearchSnapshotWrite>): Mono<List<BatchItemResult>> {
         val request = BulkRequest.of { bulk ->
             bulk.refresh(refreshPolicy)
                 .operations(batch.map(::toUpdateOperation))
@@ -93,7 +89,7 @@ internal class ElasticsearchSnapshotVersionConflictResolver(
             }
     }
 
-    private fun toUpdateOperation(save: ElasticsearchSnapshotSave): BulkOperation {
+    private fun toUpdateOperation(save: ElasticsearchSnapshotWrite): BulkOperation {
         return BulkOperation.of { operation ->
             operation.update<Map<String, Any?>, Map<String, Any?>> { update ->
                 update.index(save.index)
@@ -107,7 +103,7 @@ internal class ElasticsearchSnapshotVersionConflictResolver(
         }
     }
 
-    private fun ElasticsearchSnapshotSave.toVersionGuardedScript(): Script {
+    private fun ElasticsearchSnapshotWrite.toVersionGuardedScript(): Script {
         return Script.of { script ->
             script.lang(ScriptLanguage.Painless)
                 .source { source -> source.scriptString(VERSION_GUARDED_REPLACE_SCRIPT) }

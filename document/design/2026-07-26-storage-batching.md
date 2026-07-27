@@ -112,24 +112,21 @@ flowchart LR
 
 ### Elasticsearch SnapshotStore
 
-- Snapshot persistence uses Bulk `index`.
+- Snapshot persistence uses Bulk `update` with scripted upserts.
 - The optional lane key is `(index, document ID)`, so snapshots for one stored
-  document cannot be sent by overlapping Bulk requests. External versioning
-  remains the authoritative protection across Store instances.
+  document cannot be sent by overlapping Bulk requests.
 - Items for the same index/document ID in one batch are coalesced to the highest
   aggregate version; equal versions preserve the first submission, matching
-  external-version behavior across separate requests.
-- Writes use Elasticsearch external versioning. A lower or equal version cannot
-  overwrite a newer stored snapshot, including across different batches or
-  concurrent Store instances.
-- A Snapshot `index` 409 is not enough evidence that the stored aggregate
-  version is equal or newer. The Store atomically falls back to an `update`
-  script that compares `_source.version`, replaces the complete source only for
-  a newer incoming snapshot, and otherwise performs a no-op. Missing documents
-  are inserted with `upsert`.
-- In batch mode, only 409 items enter the fallback Bulk `update`. A fallback
-  request failure fails those callers without changing results for items that
-  already succeeded in the original Bulk `index`.
+  source-version guard behavior across separate requests.
+- Every direct and batch write uses an atomic `update` script that compares
+  `_source.version`, replaces the complete source only for a newer incoming
+  snapshot, and otherwise performs a no-op. Missing documents are inserted with
+  `upsert`.
+- The source guard remains authoritative across Store instances and also
+  protects legacy documents whose Elasticsearch internal `_version` is a write
+  counter rather than the aggregate version.
+- Bulk response items are validated and returned independently to their
+  corresponding callers; a failed item does not change successful item results.
 
 ## Compatibility And Migration
 
@@ -143,12 +140,12 @@ normally inherit the default method, but code that reflects on implemented
 interfaces or declares an incompatible/non-public `close()` may need adjustment.
 Append/save method signatures and domain data types are unchanged.
 
-Routing stores are explicitly non-owning composites: closing a
-`RoutingEventStore` or `RoutingSnapshotStore` does not close the leaf stores
-supplied through its registry. Spring closes those leaf beans; a manual
-composition root must retain and close each leaf itself. This avoids duplicate
-close calls when a leaf is registered under multiple routes or is also managed
-by a container.
+Routing stores own the lifecycle of their distinct registry leaves so manual
+composition can flush and close batch-enabled stores by closing the router.
+Spring's routing auto-configuration disables the router bean's inferred destroy
+callback because the leaf stores are independently container-owned beans; Spring
+therefore closes each leaf once without also invoking the router's ownership
+path.
 
 `BatchCoordinator` and its storage-neutral options/results are a new
 public infrastructure API in `wow-core`. Storage adapters must keep protocol
@@ -161,85 +158,16 @@ is `1`, so existing applications retain globally serial batch writes. Increasing
 it requires a concurrency-safe protocol writer and should be validated against
 the application's key distribution and storage capacity.
 
-Elasticsearch SnapshotStore now uses external versioning in both direct and
-batch modes. Existing indices used Elasticsearch internal `_version`, which is
-a write counter rather than the aggregate version. A legacy document can
-therefore reject a valid newer aggregate version. Direct and batch writers
-resolve such 409 responses with the atomic `_source.version` comparison
-described above; they never infer success from 409 alone.
-
-The compatibility fallback preserves correctness without an immediate index
-migration, but its scripted update increments Elasticsearch's existing
-`_version`; it does not realign that metadata with the aggregate version.
-Consequently, legacy documents may continue to require an initial failed
-external `index` plus a guarded `update`, increasing write traffic and latency.
-Production operators should reindex snapshot documents into a fresh index and
-seed external `_version` from each document's `_source.version`, then switch the
-write alias. Keep the old index available until the new index has been verified
-and the alias switch can be rolled back.
-
-Use an exact physical source index and stop SnapshotStore writes while reindexing;
-`_reindex` is a point-in-time copy and does not capture later writes. The target
-name must continue to match the `wow.*.snapshot` template:
-
-```http
-PUT wow.orders-000002.snapshot
-
-POST _reindex?wait_for_completion=true
-{
-  "source": {
-    "index": "wow.orders-000001.snapshot"
-  },
-  "dest": {
-    "index": "wow.orders-000002.snapshot",
-    "version_type": "external"
-  },
-  "script": {
-    "lang": "painless",
-    "source": "if (ctx._source.version == null) { throw new IllegalStateException('Wow snapshot version is missing.'); } ctx._version = ctx._source.version;"
-  }
-}
-```
-
-Before switching traffic, compare document counts and sample documents with
-`GET wow.orders-000002.snapshot/_doc/{id}?version=true`; `_version` must equal
-`_source.version`. When the logical Wow index name is already an alias, switch
-its write index atomically:
-
-```http
-POST _aliases
-{
-  "actions": [
-    {
-      "remove": {
-        "index": "wow.orders-000001.snapshot",
-        "alias": "wow.orders.snapshot"
-      }
-    },
-    {
-      "add": {
-        "index": "wow.orders-000002.snapshot",
-        "alias": "wow.orders.snapshot",
-        "is_write_index": true
-      }
-    }
-  ]
-}
-```
-
-If `wow.orders.snapshot` is currently a concrete index, Elasticsearch cannot
-create an alias with the same name. Back up that index first; converting the
-logical name requires an `_aliases` request with `remove_index` plus `add`, and
-`remove_index` deletes the old index. In that layout rollback is not a simple
-alias reversal, so retaining the compatibility fallback is safer until a
-maintenance-window migration and restore procedure have been rehearsed. When
-the old physical index is retained, rollback is an atomic reverse alias switch;
-snapshots written after the cutover may need to be rebuilt from the EventStore.
+Elasticsearch SnapshotStore now uses the same atomic `_source.version` guarded
+update in direct and batch modes. Existing internal-version documents need no
+metadata migration: their `_version` write counter is never used to order
+aggregate snapshots. Documents without a source `version` fail explicitly
+instead of being overwritten.
 
 Rollback is configuration-only while the old constructors remain: disable the
-batch option to return to direct writes. Elasticsearch snapshots retain external
-version protection in both direct and batch modes so rollback cannot reintroduce
-an older-over-newer overwrite.
+batch option to return to direct writes. The direct path retains the same source
+version protection, so rollback cannot reintroduce an older-over-newer
+overwrite.
 
 ## Verification
 

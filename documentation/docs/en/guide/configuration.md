@@ -309,7 +309,7 @@ wow:
 | `wow.elasticsearch.event-store-batch.max-delay` | Duration | `1ms` | Maximum wait used to collect a partial event batch |
 | `wow.elasticsearch.event-store-batch.max-pending-appends` | Int | `4096` | Maximum accepted appends waiting or being written; must be at least `max-size` |
 | `wow.elasticsearch.event-store-batch.lane-count` | Int | `1` | Number of serial write lanes; appends for the same aggregate stay on one lane |
-| `wow.elasticsearch.snapshot-store-batch.enabled` | Boolean | `false` | Enable transparent SnapshotStore Bulk `index` batching |
+| `wow.elasticsearch.snapshot-store-batch.enabled` | Boolean | `false` | Enable transparent SnapshotStore Bulk `update` batching |
 | `wow.elasticsearch.snapshot-store-batch.max-size` | Int | `128` | Maximum snapshots per Bulk request |
 | `wow.elasticsearch.snapshot-store-batch.max-delay` | Duration | `1ms` | Maximum wait used to collect a partial snapshot batch |
 | `wow.elasticsearch.snapshot-store-batch.max-pending-saves` | Int | `4096` | Maximum accepted saves waiting or being written; must be at least `max-size` |
@@ -334,9 +334,9 @@ wow:
 ```
 
 Batching is opt-in. Event writes use Bulk `create`, preserving no-overwrite and
-version-conflict semantics. Snapshot writes use Elasticsearch external
-versioning in both direct and batch modes, so a stale or equal version cannot
-overwrite a newer snapshot.
+version-conflict semantics. Snapshot writes use atomic `_source.version` guarded
+updates in both direct and batch modes, so a stale or equal version cannot
+overwrite a newer snapshot, including a legacy internal-version document.
 
 ## Feature Configuration
 

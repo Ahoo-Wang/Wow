@@ -114,7 +114,7 @@ wow:
 | `wow.elasticsearch.event-store-batch.max-delay` | Duration | `1ms` | Maximum wait used to collect a partial event batch |
 | `wow.elasticsearch.event-store-batch.max-pending-appends` | Int | `4096` | Maximum accepted appends waiting or being written; must be at least `max-size` |
 | `wow.elasticsearch.event-store-batch.lane-count` | Int | `1` | Number of serial write lanes; appends for the same aggregate stay on one lane |
-| `wow.elasticsearch.snapshot-store-batch.enabled` | Boolean | `false` | Enable transparent SnapshotStore Bulk `index` batching |
+| `wow.elasticsearch.snapshot-store-batch.enabled` | Boolean | `false` | Enable transparent SnapshotStore Bulk `update` batching |
 | `wow.elasticsearch.snapshot-store-batch.max-size` | Int | `128` | Maximum snapshots per Bulk request |
 | `wow.elasticsearch.snapshot-store-batch.max-delay` | Duration | `1ms` | Maximum wait used to collect a partial snapshot batch |
 | `wow.elasticsearch.snapshot-store-batch.max-pending-saves` | Int | `4096` | Maximum accepted saves waiting or being written; must be at least `max-size` |
@@ -148,8 +148,9 @@ wow:
 ```
 
 Batching is opt-in. EventStore batching uses Bulk `create`; SnapshotStore uses
-external versioning in both direct and batch modes to prevent stale snapshots
-from overwriting newer snapshots.
+an atomic `_source.version` guarded update in both direct and batch modes to
+prevent stale snapshots, including legacy documents, from overwriting newer
+snapshots.
 
 ## WebFlux
 

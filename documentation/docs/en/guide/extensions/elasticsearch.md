@@ -114,20 +114,12 @@ EventStore batches use Bulk `create`, so an existing event document is never
 overwritten and an individual 409 remains an event-version conflict for only
 that append. Bulk partial successes are returned to their corresponding callers.
 
-SnapshotStore batches use Bulk `index` with external versioning. The direct
-SnapshotStore path uses the same external-version protection. A 409 is resolved
-by an atomic scripted update that compares `_source.version`: only a newer
-incoming snapshot replaces the stored source, while an equal or stale one is a
-no-op. This fallback also keeps pre-upgrade documents safe when their existing
-Elasticsearch `_version` is an internal write counter rather than the aggregate
-version.
-
-The compatibility fallback can add a second request for legacy documents and
-does not realign their Elasticsearch `_version`. Reindex high-volume snapshot
-indices into a fresh physical index with external `_version` seeded from
-`_source.version`, then switch the write alias. Freeze snapshot writes during
-the copy and retain a verified rollback source; the detailed protocol is in
-`document/design/2026-07-26-storage-batching.md`.
+SnapshotStore batches use Bulk `update` with scripted upserts. Direct saves use
+the same atomic script: only an incoming snapshot with a higher
+`_source.version` replaces the stored source, while an equal or stale one is a
+no-op. This also keeps pre-upgrade documents safe when their Elasticsearch
+`_version` is an internal write counter rather than the aggregate version; no
+version-metadata migration is required.
 
 ## Index Naming Rules
 

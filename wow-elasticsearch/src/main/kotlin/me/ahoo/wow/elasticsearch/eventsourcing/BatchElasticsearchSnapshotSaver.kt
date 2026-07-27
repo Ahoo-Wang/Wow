@@ -14,7 +14,6 @@
 package me.ahoo.wow.elasticsearch.eventsourcing
 
 import co.elastic.clients.elasticsearch._types.Refresh
-import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.infra.batch.BatchCloseTimeoutException
 import me.ahoo.wow.infra.batch.BatchClosedException
@@ -22,7 +21,6 @@ import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.infra.batch.BatchOverflowException
 import me.ahoo.wow.infra.batch.BatchWriter
 import me.ahoo.wow.infra.batch.KeyedBatchCoordinator
-import me.ahoo.wow.serialization.toLinkedHashMap
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
 import java.time.Duration
@@ -54,8 +52,8 @@ internal class BatchElasticsearchSnapshotSaver(
             maxPendingItems = options.maxPendingSaves,
         ),
         laneCount = options.laneCount,
-        keySelector = { save: ElasticsearchSnapshotSave ->
-            save.index to save.id
+        keySelector = { write: ElasticsearchSnapshotWrite ->
+            write.index to write.id
         },
         writer = BatchWriter(
             ElasticsearchSnapshotBatchWriter(
@@ -67,12 +65,7 @@ internal class BatchElasticsearchSnapshotSaver(
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
         return coordinator.submit {
-            ElasticsearchSnapshotSave(
-                index = snapshot.aggregateId.toSnapshotIndexName(),
-                id = snapshot.aggregateId.id,
-                document = snapshot.toLinkedHashMap(),
-                version = snapshot.version,
-            )
+            snapshot.toElasticsearchSnapshotWrite()
         }.onErrorMap(::toElasticsearchBatchError)
     }
 

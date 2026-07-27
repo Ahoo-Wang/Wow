@@ -27,8 +27,7 @@ class ElasticsearchSnapshotStore private constructor(
     private val refreshPolicy: Refresh,
     val batchOptions: ElasticsearchSnapshotStoreBatchOptions,
     private val saver: ElasticsearchSnapshotSaver,
-) : SnapshotStore,
-    AutoCloseable {
+) : SnapshotStore {
     constructor(
         elasticsearchClient: ReactiveElasticsearchClient,
         refreshPolicy: Refresh = Refresh.True,

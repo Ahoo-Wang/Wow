@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.elasticsearch.eventsourcing
 
-import co.elastic.clients.elasticsearch._types.ElasticsearchException
-import co.elastic.clients.elasticsearch._types.VersionType
 import co.elastic.clients.elasticsearch.core.BulkRequest
 import co.elastic.clients.elasticsearch.core.BulkResponse
 import co.elastic.clients.elasticsearch.core.IndexRequest
@@ -54,9 +52,18 @@ class ElasticsearchSnapshotStoreSaveTest {
     private val client = mockk<ReactiveElasticsearchClient>()
 
     @Test
-    fun `disabled batching should use strict external version index`() {
-        val request = slot<IndexRequest<Map<String, Any?>>>()
-        every { client.index(capture(request)) } returns Mono.just(mockk())
+    fun `disabled batching should use source version guarded update`() {
+        val request = slot<UpdateRequest<Map<String, Any?>, Map<String, Any?>>>()
+
+        @Suppress("UNCHECKED_CAST")
+        val documentClass = Map::class.java as Class<Map<String, Any?>>
+
+        every {
+            client.update(
+                capture(request),
+                documentClass,
+            )
+        } returns Mono.just(mockk())
         val snapshot = snapshot(id = "order-direct", version = 3)
 
         ElasticsearchSnapshotStore(client)
@@ -65,99 +72,36 @@ class ElasticsearchSnapshotStoreSaveTest {
             .verifyComplete()
 
         request.captured.id().assert().isEqualTo("order-direct")
-        request.captured.version().assert().isEqualTo(3L)
-        request.captured.versionType().assert().isEqualTo(VersionType.External)
-        verify(exactly = 0) { client.bulk(any<BulkRequest>()) }
-    }
-
-    @Test
-    fun `direct external version conflict should use source version guarded update`() {
-        val conflict = mockk<ElasticsearchException> {
-            every { status() } returns 409
-        }
-        every { client.index(any<IndexRequest<Map<String, Any?>>>()) } returns Mono.error(conflict)
-        val updateRequest = slot<UpdateRequest<Map<String, Any?>, Map<String, Any?>>>()
-
-        @Suppress("UNCHECKED_CAST")
-        val documentClass = Map::class.java as Class<Map<String, Any?>>
-        every {
-            client.update(
-                capture(updateRequest),
-                documentClass,
-            )
-        } returns Mono.just(mockk())
-
-        ElasticsearchSnapshotStore(client)
-            .save(snapshot(id = "order-stale", version = 2))
-            .test()
-            .verifyComplete()
-
-        updateRequest.captured.id().assert().isEqualTo("order-stale")
-        updateRequest.captured.refresh().assert().isEqualTo(
+        request.captured.refresh().assert().isEqualTo(
             co.elastic.clients.elasticsearch._types.Refresh.True
         )
-        updateRequest.captured.retryOnConflict().assert().isNotNull()
-        checkNotNull(updateRequest.captured.upsert())["version"].assert().isEqualTo(2)
-        checkNotNull(updateRequest.captured.script())
+        request.captured.retryOnConflict().assert().isNotNull()
+        checkNotNull(request.captured.upsert())["version"].assert().isEqualTo(3)
+        checkNotNull(request.captured.script())
             .params().keys.assert().contains("version", "snapshot")
+        verify(exactly = 0) { client.bulk(any<BulkRequest>()) }
+        verify(exactly = 0) { client.index(any<IndexRequest<Map<String, Any?>>>()) }
     }
 
     @Test
-    fun `direct conflict fallback failure should not be swallowed`() {
-        val conflict = mockk<ElasticsearchException> {
-            every { status() } returns 409
-        }
-        val fallbackFailure = IllegalStateException("stored snapshot version is unavailable")
-        every { client.index(any<IndexRequest<Map<String, Any?>>>()) } returns Mono.error(conflict)
+    fun `direct version guarded update failure should not be swallowed`() {
+        val failure = IllegalStateException("stored snapshot version is unavailable")
 
         @Suppress("UNCHECKED_CAST")
         val documentClass = Map::class.java as Class<Map<String, Any?>>
+
         every {
             client.update(
                 any<UpdateRequest<Map<String, Any?>, Map<String, Any?>>>(),
                 documentClass,
             )
-        } returns Mono.error(fallbackFailure)
+        } returns Mono.error(failure)
 
         ElasticsearchSnapshotStore(client)
             .save(snapshot(id = "order-invalid-legacy", version = 2))
             .test()
-            .expectErrorMatches { it === fallbackFailure }
+            .expectErrorMatches { it === failure }
             .verify()
-    }
-
-    @Test
-    fun `direct non conflict failures should not invoke version conflict fallback`() {
-        val ordinaryFailure = IllegalStateException("index unavailable")
-        val serviceUnavailable = mockk<ElasticsearchException> {
-            every { status() } returns 503
-        }
-        every {
-            client.index(any<IndexRequest<Map<String, Any?>>>())
-        } returnsMany listOf(
-            Mono.error(ordinaryFailure),
-            Mono.error(serviceUnavailable),
-        )
-
-        ElasticsearchSnapshotStore(client).use { store ->
-            store.save(snapshot(id = "order-ordinary-failure", version = 2))
-                .test()
-                .expectErrorMatches { it === ordinaryFailure }
-                .verify()
-            store.save(snapshot(id = "order-service-unavailable", version = 2))
-                .test()
-                .expectErrorMatches { it === serviceUnavailable }
-                .verify()
-        }
-
-        @Suppress("UNCHECKED_CAST")
-        val documentClass = Map::class.java as Class<Map<String, Any?>>
-        verify(exactly = 0) {
-            client.update(
-                any<UpdateRequest<Map<String, Any?>, Map<String, Any?>>>(),
-                documentClass,
-            )
-        }
     }
 
     @Test
@@ -188,7 +132,7 @@ class ElasticsearchSnapshotStoreSaveTest {
         store.close()
 
         request.captured.operations().assert().hasSize(2)
-        request.captured.operations().all { it.isIndex }.assert().isTrue()
+        request.captured.operations().all { it.isUpdate }.assert().isTrue()
         verify(exactly = 0) { client.index(any<IndexRequest<Map<String, Any?>>>()) }
     }
 
@@ -419,11 +363,11 @@ class ElasticsearchSnapshotStoreSaveTest {
     private fun bulkResponse(request: BulkRequest): BulkResponse {
         return bulkResponse(
             *request.operations().map { operation ->
-                val index = operation.index<Map<String, Any?>>()
+                val update = operation.update<Map<String, Any?>, Map<String, Any?>>()
                 BulkResponseItem.of { item ->
-                    item.operationType(OperationType.Index)
-                        .index(index.index())
-                        .id(index.id())
+                    item.operationType(OperationType.Update)
+                        .index(update.index())
+                        .id(update.id())
                         .status(200)
                 }
             }.toTypedArray()
@@ -434,7 +378,7 @@ class ElasticsearchSnapshotStoreSaveTest {
         snapshot: SimpleSnapshot<MockStateAggregate>,
     ): BulkResponseItem {
         return BulkResponseItem.of {
-            it.operationType(OperationType.Index)
+            it.operationType(OperationType.Update)
                 .index(snapshot.aggregateId.toSnapshotIndexName())
                 .id(snapshot.aggregateId.id)
                 .status(200)

@@ -113,15 +113,10 @@ wow:
 EventStore 使用 Bulk `create`，不会覆盖已有事件文档；单项 409 只会作为
 对应 append 的事件版本冲突返回，Bulk 中其他成功项仍会返回给各自调用者。
 
-SnapshotStore 使用带 external versioning 的 Bulk `index`，direct 路径使用
-相同的外部版本保护。发生 409 后会执行原子脚本更新并比较 `_source.version`：
-只有更高版本的输入才会完整替换已存快照，相同或旧版本为 no-op。升级前文档的
-Elasticsearch `_version` 是内部写入计数器时，这条兼容路径也不会误把新快照丢弃。
-
-兼容路径可能让 legacy 文档多一次请求，而且不会把其 Elasticsearch `_version`
-重新对齐。高写入量的快照索引应迁移到新物理索引，把 external `_version` 设置为
-`_source.version` 后再切换 write alias。复制期间需要暂停快照写入并保留已验证的
-回滚源；完整步骤见 `document/design/2026-07-26-storage-batching.md`。
+SnapshotStore 使用带 scripted upsert 的 Bulk `update`，direct 路径使用相同的
+原子脚本：只有 `_source.version` 更高的输入才会完整替换已存快照，相同或旧版本
+为 no-op。升级前文档的 Elasticsearch `_version` 是内部写入计数器时同样安全，
+不需要迁移版本元数据。
 
 ## 索引命名规则
 
