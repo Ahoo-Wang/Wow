@@ -16,10 +16,10 @@ This bounded engineering experiment compares EventStore insertOne, native unorde
 - `±` is the JMH-reported error. Scaling changes presentation only; calculations keep raw precision.
 
 ## Benchmark Run Provenance
-- **Source Commit**: `ffc5c803d4f44eddbd7582682f5a3040f82c01e5`
+- **Source Commit**: `587604827df58276ea4232aa7e79bd8c9faf9be3`
 - **Source Dirty**: `false`
 - **Project Version**: `8.9.1`
-- **JMH Jar SHA-256**: `47a93db4ffe7e0921d71b7099507191bc63c6b7660c4536dcbddd6571dd77a0a`
+- **JMH Jar SHA-256**: `4d3fc4661c2e8a53c85c72124514e3ed0ff322d15bc9687df3f8b0c48b32febf`
 - **Runtime JVM**: OpenJDK 64-Bit Server VM 17.0.7+7-LTS / Java 17.0.7
 - **Runtime OS**: Mac OS X 26.5.2 aarch64
 - **CPU Cores**: 14
@@ -28,7 +28,7 @@ This bounded engineering experiment compares EventStore insertOne, native unorde
 
 ### Manifest-bound Run-Time Infrastructure
 
-- **Captured At**: 2026-07-27T01:26:56.524260Z to 2026-07-27T01:28:26.716151Z
+- **Captured At**: 2026-07-27T08:30:00.022841Z to 2026-07-27T08:31:29.572711Z
 - **Benchmark Client**: host JVM
 - **Docker Server**: Server=29.6.2 CPUs=4 Memory=5.8 GiB Kernel=6.12.76-linuxkit
 - **Mongo Container**: ` wow-benchmark-mongo `
@@ -45,14 +45,14 @@ This bounded engineering experiment compares EventStore insertOne, native unorde
 
 | Suite | Profile | Threads | Run ID | Started | Completed | Profilers | Rows | Result SHA-256 |
 |-------|---------|---------|--------|---------|-----------|-----------|------|----------------|
-| mongo-batch-append-quick-engineering | quick-mongo-candidate-e2e | 1 | `aee97b05-a3ba-4e4a-8deb-4cb18603a2a1` | 2026-07-27T01:26:56.525543Z | 2026-07-27T01:27:37.178036Z | `-prof gc` | 6 | `db50427f97a6db8b91271e99e9a44d698cab8f8b6c475b126fe35dbb8bc56224` |
-| mongo-batch-append-quick-engineering | quick-mongo-candidate-e2e | 4 | `aee97b05-a3ba-4e4a-8deb-4cb18603a2a1` | 2026-07-27T01:27:37.394557Z | 2026-07-27T01:28:26.716429Z | `-prof gc` | 6 | `a7ffd2bc185be9633e2c29893dd22813d9a9e313bb07f990abf985c840f93f03` |
+| mongo-batch-append-quick-engineering | quick-mongo-candidate-e2e | 1 | `064986b8-7918-457e-9385-eb128a96638c` | 2026-07-27T08:30:00.022869Z | 2026-07-27T08:30:40.639173Z | `-prof gc` | 6 | `12eab7d63ff89d1cca4a0866efbd333ccf759c080260fa7a26e4358eef6ff5a1` |
+| mongo-batch-append-quick-engineering | quick-mongo-candidate-e2e | 4 | `064986b8-7918-457e-9385-eb128a96638c` | 2026-07-27T08:30:40.831933Z | 2026-07-27T08:31:29.573282Z | `-prof gc` | 6 | `5cb7f47159efc3a988caec6b726af22fd435fbaad6930017603dc2094d329d0c` |
 
 ## Report Generation Environment
 - **Version**: 8.9.1
 - **JVM**: OpenJDK 64-Bit Server VM 17.0.7+7-LTS
 - **OS**: Mac OS X 26.5.2 aarch64
-- **Generated At**: 2026-07-27T09:28:26+08:00
+- **Generated At**: 2026-07-27T16:32:47+08:00
 - **CPU Cores**: 14
 - **Physical Memory**: 24.0 GiB
 - **Benchmark JVM Args**: `-Xmx1g -Xms1g -XX:+UseG1GC`
@@ -79,8 +79,8 @@ Each invocation writes 128 independent event streams and JMH normalizes scores p
 
 | JMH Threads | Parameters | EventStore insertOne | Native insertMany | Coordinated batch | Native vs single | Coordinated vs single | Coordinated vs native |
 |-------------|------------|--------|--------|--------|------------------|-----------------------|-----------------------|
-| 1 | `batchOptions=192x250us` | 26.96 k ops/s | 52.87 k ops/s | 47.09 k ops/s | +96.1% | +74.7% | -10.9% |
-| 4 | `batchOptions=192x250us` | 41.91 k ops/s | 120.75 k ops/s | 53.91 k ops/s | +188.1% | +28.6% | -55.4% |
+| 1 | `batchOptions=192x250us` | 28.02 k ops/s | 53.69 k ops/s | 47.45 k ops/s | +91.6% | +69.3% | -11.6% |
+| 4 | `batchOptions=192x250us` | 36.99 k ops/s | 119.03 k ops/s | 48.91 k ops/s | +221.8% | +32.2% | -58.9% |
 
 Higher throughput is better; positive changes are gains.
 
@@ -88,8 +88,8 @@ Higher throughput is better; positive changes are gains.
 
 | JMH Threads | Parameters | EventStore insertOne | Native insertMany | Coordinated batch | Native vs single | Coordinated vs single | Coordinated vs native |
 |-------------|------------|--------|--------|--------|------------------|-----------------------|-----------------------|
-| 1 | `batchOptions=192x250us` | 35.71 µs/op | 19.95 µs/op | 22.21 µs/op | +44.1% | +37.8% | -11.3% |
-| 4 | `batchOptions=192x250us` | 98.23 µs/op | 32.24 µs/op | 70.98 µs/op | +67.2% | +27.7% | -120.2% |
+| 1 | `batchOptions=192x250us` | 33.74 µs/op | 17.33 µs/op | 20.06 µs/op | +48.6% | +40.5% | -15.8% |
+| 4 | `batchOptions=192x250us` | 93.28 µs/op | 31.58 µs/op | 73.49 µs/op | +66.1% | +21.2% | -132.7% |
 
 Lower amortized time is better. JMH divides each 128-event invocation's wall time by 128; this is not an independent single-request response latency. The two `vs single` columns and `Coordinated vs native` all report time reduction, so positive changes are gains.
 
@@ -97,15 +97,15 @@ Lower amortized time is better. JMH divides each 128-event invocation's wall tim
 
 | Suite | Benchmark | Threads | Mode | Score | Error | gc.alloc.rate.norm |
 |-------|-----------|---------|------|-------|-------|-------------------|
-| Quick Mongo Batch Candidate E2E | MongoEventStoreAppendBenchmark.appendWithInsertManyBatch (batchOptions=192x250us) | 1 | avgt | 22.21 µs/op | - | 8.52 KiB/op |
-| Quick Mongo Batch Candidate E2E | MongoEventStoreAppendBenchmark.appendWithInsertManyBatch (batchOptions=192x250us) | 1 | thrpt | 47.09 k ops/s | - | 8.47 KiB/op |
-| Quick Mongo Batch Candidate E2E | MongoEventStoreAppendBenchmark.appendWithInsertManyBatch (batchOptions=192x250us) | 4 | avgt | 70.98 µs/op | - | 9 KiB/op |
-| Quick Mongo Batch Candidate E2E | MongoEventStoreAppendBenchmark.appendWithInsertManyBatch (batchOptions=192x250us) | 4 | thrpt | 53.91 k ops/s | - | 8.65 KiB/op |
-| Quick Mongo Batch Candidate E2E | MongoEventStoreAppendBenchmark.appendWithInsertOne (batchOptions=192x250us) | 1 | avgt | 35.71 µs/op | - | 19.34 KiB/op |
-| Quick Mongo Batch Candidate E2E | MongoEventStoreAppendBenchmark.appendWithInsertOne (batchOptions=192x250us) | 1 | thrpt | 26.96 k ops/s | - | 19.42 KiB/op |
-| Quick Mongo Batch Candidate E2E | MongoEventStoreAppendBenchmark.appendWithInsertOne (batchOptions=192x250us) | 4 | avgt | 98.23 µs/op | - | 19.29 KiB/op |
-| Quick Mongo Batch Candidate E2E | MongoEventStoreAppendBenchmark.appendWithInsertOne (batchOptions=192x250us) | 4 | thrpt | 41.91 k ops/s | - | 19.39 KiB/op |
-| Quick Mongo Batch Candidate E2E | MongoEventStoreAppendBenchmark.appendWithNativeInsertMany (batchOptions=192x250us) | 1 | avgt | 19.95 µs/op | - | 7.51 KiB/op |
-| Quick Mongo Batch Candidate E2E | MongoEventStoreAppendBenchmark.appendWithNativeInsertMany (batchOptions=192x250us) | 1 | thrpt | 52.87 k ops/s | - | 7.47 KiB/op |
-| Quick Mongo Batch Candidate E2E | MongoEventStoreAppendBenchmark.appendWithNativeInsertMany (batchOptions=192x250us) | 4 | avgt | 32.24 µs/op | - | 7.54 KiB/op |
-| Quick Mongo Batch Candidate E2E | MongoEventStoreAppendBenchmark.appendWithNativeInsertMany (batchOptions=192x250us) | 4 | thrpt | 120.75 k ops/s | - | 7.54 KiB/op |
+| Quick Mongo Batch Candidate E2E | MongoEventStoreAppendBenchmark.appendWithInsertManyBatch (batchOptions=192x250us) | 1 | avgt | 20.06 µs/op | - | 8.59 KiB/op |
+| Quick Mongo Batch Candidate E2E | MongoEventStoreAppendBenchmark.appendWithInsertManyBatch (batchOptions=192x250us) | 1 | thrpt | 47.45 k ops/s | - | 8.58 KiB/op |
+| Quick Mongo Batch Candidate E2E | MongoEventStoreAppendBenchmark.appendWithInsertManyBatch (batchOptions=192x250us) | 4 | avgt | 73.49 µs/op | - | 8.74 KiB/op |
+| Quick Mongo Batch Candidate E2E | MongoEventStoreAppendBenchmark.appendWithInsertManyBatch (batchOptions=192x250us) | 4 | thrpt | 48.91 k ops/s | - | 9.08 KiB/op |
+| Quick Mongo Batch Candidate E2E | MongoEventStoreAppendBenchmark.appendWithInsertOne (batchOptions=192x250us) | 1 | avgt | 33.74 µs/op | - | 18.98 KiB/op |
+| Quick Mongo Batch Candidate E2E | MongoEventStoreAppendBenchmark.appendWithInsertOne (batchOptions=192x250us) | 1 | thrpt | 28.02 k ops/s | - | 19.21 KiB/op |
+| Quick Mongo Batch Candidate E2E | MongoEventStoreAppendBenchmark.appendWithInsertOne (batchOptions=192x250us) | 4 | avgt | 93.28 µs/op | - | 19.31 KiB/op |
+| Quick Mongo Batch Candidate E2E | MongoEventStoreAppendBenchmark.appendWithInsertOne (batchOptions=192x250us) | 4 | thrpt | 36.99 k ops/s | - | 19.28 KiB/op |
+| Quick Mongo Batch Candidate E2E | MongoEventStoreAppendBenchmark.appendWithNativeInsertMany (batchOptions=192x250us) | 1 | avgt | 17.33 µs/op | - | 7.49 KiB/op |
+| Quick Mongo Batch Candidate E2E | MongoEventStoreAppendBenchmark.appendWithNativeInsertMany (batchOptions=192x250us) | 1 | thrpt | 53.69 k ops/s | - | 7.49 KiB/op |
+| Quick Mongo Batch Candidate E2E | MongoEventStoreAppendBenchmark.appendWithNativeInsertMany (batchOptions=192x250us) | 4 | avgt | 31.58 µs/op | - | 7.54 KiB/op |
+| Quick Mongo Batch Candidate E2E | MongoEventStoreAppendBenchmark.appendWithNativeInsertMany (batchOptions=192x250us) | 4 | thrpt | 119.03 k ops/s | - | 7.51 KiB/op |

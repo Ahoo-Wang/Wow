@@ -16,10 +16,10 @@ This bounded diagnostic estimates the performance available from partitioned coo
 - `±` is the JMH-reported error. Scaling changes presentation only; calculations keep raw precision.
 
 ## Benchmark Run Provenance
-- **Source Commit**: `833aaee9a08a5701c61a43909f92848a7141d43d`
-- **Source Dirty**: `true`
+- **Source Commit**: `587604827df58276ea4232aa7e79bd8c9faf9be3`
+- **Source Dirty**: `false`
 - **Project Version**: `8.9.1`
-- **JMH Jar SHA-256**: `508825ae6cb404fbbac35dee2d6100235e7c1538871bf891bf5b5165afc602b9`
+- **JMH Jar SHA-256**: `4d3fc4661c2e8a53c85c72124514e3ed0ff322d15bc9687df3f8b0c48b32febf`
 - **Runtime JVM**: OpenJDK 64-Bit Server VM 17.0.7+7-LTS / Java 17.0.7
 - **Runtime OS**: Mac OS X 26.5.2 aarch64
 - **CPU Cores**: 14
@@ -28,7 +28,7 @@ This bounded diagnostic estimates the performance available from partitioned coo
 
 ### Manifest-bound Run-Time Infrastructure
 
-- **Captured At**: 2026-07-27T02:16:42.389194Z to 2026-07-27T02:17:30.390823Z
+- **Captured At**: 2026-07-27T08:31:29.780797Z to 2026-07-27T08:32:18.075159Z
 - **Benchmark Client**: host JVM
 - **Docker Server**: Server=29.6.2 CPUs=4 Memory=5.8 GiB Kernel=6.12.76-linuxkit
 - **Mongo Container**: ` wow-benchmark-mongo `
@@ -45,13 +45,13 @@ This bounded diagnostic estimates the performance available from partitioned coo
 
 | Suite | Profile | Threads | Run ID | Started | Completed | Profilers | Rows | Result SHA-256 |
 |-------|---------|---------|--------|---------|-----------|-----------|------|----------------|
-| mongo-batch-coordinator-concurrency-quick-engineering | quick-mongo-coordinator-concurrency | 4 | `2ab07e40-0a83-41fe-908f-d48f02f89069` | 2026-07-27T02:16:42.389770Z | 2026-07-27T02:17:30.392891Z | `-prof gc` | 6 | `dcd928f1920ddd6b16d158ae3e7ee40ad4949caa3c1aa2aedeea902a1d5f9c96` |
+| mongo-batch-coordinator-concurrency-quick-engineering | quick-mongo-coordinator-concurrency | 4 | `064986b8-7918-457e-9385-eb128a96638c` | 2026-07-27T08:31:29.780823Z | 2026-07-27T08:32:18.075673Z | `-prof gc` | 6 | `c6ec7dc009762e331b0e8161b6f88d544475e80c9449a326ddddfd7e10b352df` |
 
 ## Report Generation Environment
 - **Version**: 8.9.1
 - **JVM**: OpenJDK 64-Bit Server VM 17.0.7+7-LTS
 - **OS**: Mac OS X 26.5.2 aarch64
-- **Generated At**: 2026-07-27T10:51:51+08:00
+- **Generated At**: 2026-07-27T16:32:47+08:00
 - **CPU Cores**: 14
 - **Physical Memory**: 24.0 GiB
 - **Benchmark JVM Args**: `-Xmx1g -Xms1g -XX:+UseG1GC`
@@ -76,9 +76,9 @@ JMH uses four worker threads and 128 independent event streams per invocation. O
 
 | Coordinator lanes | Throughput | vs lane 1 | Amortized time per event | Time reduction vs lane 1 | Allocation | Allocation reduction vs lane 1 |
 |-------------------|------------|-----------|---------------------------|--------------------------|------------|--------------------------------|
-| 1 | 44.45 k ops/s | baseline | 83.15 µs/op | baseline | 9.01 KiB/op | baseline |
-| 2 | 63.36 k ops/s | +42.5% | 60.66 µs/op | +27.0% | 9.21 KiB/op | -2.3% |
-| 4 | 70.36 k ops/s | +58.3% | 55.82 µs/op | +32.9% | 9.7 KiB/op | -7.7% |
+| 1 | 50.44 k ops/s | baseline | 72.11 µs/op | baseline | 9.14 KiB/op | baseline |
+| 2 | 68.02 k ops/s | +34.8% | 55.13 µs/op | +23.5% | 9.35 KiB/op | -2.4% |
+| 4 | 76.88 k ops/s | +52.4% | 51.15 µs/op | +29.1% | 9.89 KiB/op | -8.2% |
 
 Higher throughput and positive reductions are better. Average time is JMH-normalized amortized wall time per event, not an independent append response percentile. Additional lanes add grouping and buffer-window state and may form smaller native insertMany requests, so this experiment diagnoses the single-flight constraint but does not isolate coordinator CPU overhead.
 
@@ -86,9 +86,9 @@ Higher throughput and positive reductions are better. Average time is JMH-normal
 
 | Suite | Benchmark | Threads | Mode | Score | Error | gc.alloc.rate.norm |
 |-------|-----------|---------|------|-------|-------|-------------------|
-| Quick Mongo Batch Coordinator Concurrency | MongoBatchCoordinatorConcurrencyBenchmark.appendWithCoordinatorLanes (batchOptions=192x250us, coordinatorLanes=1) | 4 | avgt | 83.15 µs/op | - | 8.97 KiB/op |
-| Quick Mongo Batch Coordinator Concurrency | MongoBatchCoordinatorConcurrencyBenchmark.appendWithCoordinatorLanes (batchOptions=192x250us, coordinatorLanes=1) | 4 | thrpt | 44.45 k ops/s | - | 9.01 KiB/op |
-| Quick Mongo Batch Coordinator Concurrency | MongoBatchCoordinatorConcurrencyBenchmark.appendWithCoordinatorLanes (batchOptions=192x250us, coordinatorLanes=2) | 4 | avgt | 60.66 µs/op | - | 9.2 KiB/op |
-| Quick Mongo Batch Coordinator Concurrency | MongoBatchCoordinatorConcurrencyBenchmark.appendWithCoordinatorLanes (batchOptions=192x250us, coordinatorLanes=2) | 4 | thrpt | 63.36 k ops/s | - | 9.21 KiB/op |
-| Quick Mongo Batch Coordinator Concurrency | MongoBatchCoordinatorConcurrencyBenchmark.appendWithCoordinatorLanes (batchOptions=192x250us, coordinatorLanes=4) | 4 | avgt | 55.82 µs/op | - | 9.72 KiB/op |
-| Quick Mongo Batch Coordinator Concurrency | MongoBatchCoordinatorConcurrencyBenchmark.appendWithCoordinatorLanes (batchOptions=192x250us, coordinatorLanes=4) | 4 | thrpt | 70.36 k ops/s | - | 9.7 KiB/op |
+| Quick Mongo Batch Coordinator Concurrency | MongoBatchCoordinatorConcurrencyBenchmark.appendWithCoordinatorLanes (batchOptions=192x250us, coordinatorLanes=1) | 4 | avgt | 72.11 µs/op | - | 9.1 KiB/op |
+| Quick Mongo Batch Coordinator Concurrency | MongoBatchCoordinatorConcurrencyBenchmark.appendWithCoordinatorLanes (batchOptions=192x250us, coordinatorLanes=1) | 4 | thrpt | 50.44 k ops/s | - | 9.14 KiB/op |
+| Quick Mongo Batch Coordinator Concurrency | MongoBatchCoordinatorConcurrencyBenchmark.appendWithCoordinatorLanes (batchOptions=192x250us, coordinatorLanes=2) | 4 | avgt | 55.13 µs/op | - | 9.34 KiB/op |
+| Quick Mongo Batch Coordinator Concurrency | MongoBatchCoordinatorConcurrencyBenchmark.appendWithCoordinatorLanes (batchOptions=192x250us, coordinatorLanes=2) | 4 | thrpt | 68.02 k ops/s | - | 9.35 KiB/op |
+| Quick Mongo Batch Coordinator Concurrency | MongoBatchCoordinatorConcurrencyBenchmark.appendWithCoordinatorLanes (batchOptions=192x250us, coordinatorLanes=4) | 4 | avgt | 51.15 µs/op | - | 9.92 KiB/op |
+| Quick Mongo Batch Coordinator Concurrency | MongoBatchCoordinatorConcurrencyBenchmark.appendWithCoordinatorLanes (batchOptions=192x250us, coordinatorLanes=4) | 4 | thrpt | 76.88 k ops/s | - | 9.89 KiB/op |

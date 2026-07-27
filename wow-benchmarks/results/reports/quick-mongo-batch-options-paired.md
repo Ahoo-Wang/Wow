@@ -17,9 +17,9 @@ This bounded quick experiment compares candidate `192x250us` with current `128x1
 
 | Workload | Threads | Pairs | Current throughput | Candidate throughput | Throughput ratio / 95% CI | Equivalent average-time ratio / 95% CI | Allocation ratio / 95% CI |
 |----------|--------:|------:|-------------------:|---------------------:|---------------------------:|-----------------------------------------:|---------------------------:|
-| `representative128` | 1 | 4 | 45.76 k ops/s | 50.31 k ops/s | 1.099431× / [0.984865×, 1.227323×] | 0.909562× / [0.814781×, 1.015368×] | 1.044278× / [1.006999×, 1.082937×] |
-| `representative128` | 4 | 4 | 56.87 k ops/s | 59.48 k ops/s | 1.045760× / [0.998881×, 1.094838×] | 0.956242× / [0.913377×, 1.001120×] | 0.992500× / [0.958638×, 1.027558×] |
-| `burst32` | 4 | 4 | 51.23 k ops/s | 52.07 k ops/s | 1.016447× / [0.859788×, 1.201650×] | 0.983819× / [0.832189×, 1.163077×] | 1.113165× / [1.078395×, 1.149055×] |
+| `representative128` | 1 | 4 | 37.05 k ops/s | 39.33 k ops/s | 1.061462× / [0.907556×, 1.241468×] | 0.942097× / [0.805498×, 1.101860×] | 1.035835× / [1.027206×, 1.044536×] |
+| `representative128` | 4 | 4 | 49.14 k ops/s | 50.78 k ops/s | 1.033267× / [0.958259×, 1.114146×] | 0.967804× / [0.897549×, 1.043559×] | 1.024574× / [1.016304×, 1.032911×] |
+| `burst32` | 4 | 4 | 48.65 k ops/s | 45.98 k ops/s | 0.945046× / [0.666396×, 1.340212×] | 1.058149× / [0.746150×, 1.500609×] | 1.090539× / [1.072259×, 1.109131×] |
 
 A throughput ratio above `1×` favors the candidate. An equivalent average-time or allocation ratio below `1×` favors the candidate. The average-time ratio is the inverse of closed-loop throughput, not an independently sampled response-time percentile.
 
@@ -27,18 +27,18 @@ A throughput ratio above `1×` favors the candidate. An equivalent average-time 
 
 | Workload | Threads | Round | Order | Current throughput | Candidate throughput | Throughput ratio | Current allocation | Candidate allocation | Allocation ratio |
 |----------|--------:|------:|:-----:|-------------------:|---------------------:|-----------------:|-------------------:|---------------------:|-----------------:|
-| `representative128` | 1 | 1 | AB | 50.44 k ops/s | 51.48 k ops/s | 1.020472× | 8.18 KiB/op | 8.45 KiB/op | 1.032629× |
-| `representative128` | 1 | 2 | BA | 47.13 k ops/s | 50.23 k ops/s | 1.065815× | 8.22 KiB/op | 8.45 KiB/op | 1.028851× |
-| `representative128` | 1 | 3 | BA | 41.9 k ops/s | 50.23 k ops/s | 1.198614× | 8.18 KiB/op | 8.48 KiB/op | 1.036062× |
-| `representative128` | 1 | 4 | AB | 44.01 k ops/s | 49.32 k ops/s | 1.120750× | 7.86 KiB/op | 8.5 KiB/op | 1.080393× |
-| `representative128` | 4 | 1 | AB | 57.64 k ops/s | 58.31 k ops/s | 1.011666× | 8.82 KiB/op | 8.62 KiB/op | 0.977775× |
-| `representative128` | 4 | 2 | BA | 56.41 k ops/s | 60.54 k ops/s | 1.073228× | 8.81 KiB/op | 8.66 KiB/op | 0.982257× |
-| `representative128` | 4 | 3 | BA | 57.15 k ops/s | 58.87 k ops/s | 1.030153× | 8.75 KiB/op | 8.97 KiB/op | 1.025143× |
-| `representative128` | 4 | 4 | AB | 56.3 k ops/s | 60.2 k ops/s | 1.069294× | 8.75 KiB/op | 8.62 KiB/op | 0.985539× |
-| `burst32` | 4 | 1 | AB | 47.16 k ops/s | 49.09 k ops/s | 1.040937× | 7.83 KiB/op | 8.92 KiB/op | 1.138236× |
-| `burst32` | 4 | 2 | BA | 47.41 k ops/s | 52.86 k ops/s | 1.114966× | 7.85 KiB/op | 8.8 KiB/op | 1.120193× |
-| `burst32` | 4 | 3 | BA | 53.95 k ops/s | 56.78 k ops/s | 1.052505× | 7.86 KiB/op | 8.72 KiB/op | 1.109702× |
-| `burst32` | 4 | 4 | AB | 57.1 k ops/s | 49.9 k ops/s | 0.873833× | 8.18 KiB/op | 8.88 KiB/op | 1.085191× |
+| `representative128` | 1 | 1 | AB | 39.1 k ops/s | 38.46 k ops/s | 0.983691× | 8.37 KiB/op | 8.61 KiB/op | 1.029235× |
+| `representative128` | 1 | 2 | BA | 36.29 k ops/s | 40.26 k ops/s | 1.109411× | 8.37 KiB/op | 8.72 KiB/op | 1.041186× |
+| `representative128` | 1 | 3 | BA | 33.77 k ops/s | 40.33 k ops/s | 1.194393× | 8.37 KiB/op | 8.69 KiB/op | 1.039293× |
+| `representative128` | 1 | 4 | AB | 39.35 k ops/s | 38.32 k ops/s | 0.973911× | 8.39 KiB/op | 8.67 KiB/op | 1.033669× |
+| `representative128` | 4 | 1 | AB | 41.72 k ops/s | 42.74 k ops/s | 1.024520× | 8.92 KiB/op | 9.19 KiB/op | 1.030818× |
+| `representative128` | 4 | 2 | BA | 53.98 k ops/s | 56.62 k ops/s | 1.049003× | 8.93 KiB/op | 9.14 KiB/op | 1.024128× |
+| `representative128` | 4 | 3 | BA | 53.72 k ops/s | 52.28 k ops/s | 0.973186× | 8.93 KiB/op | 9.15 KiB/op | 1.025293× |
+| `representative128` | 4 | 4 | AB | 48.21 k ops/s | 52.54 k ops/s | 1.089825× | 8.95 KiB/op | 9.11 KiB/op | 1.018096× |
+| `burst32` | 4 | 1 | AB | 44.02 k ops/s | 47.39 k ops/s | 1.076608× | 8.32 KiB/op | 8.99 KiB/op | 1.080437× |
+| `burst32` | 4 | 2 | BA | 48.83 k ops/s | 47.35 k ops/s | 0.969652× | 8.33 KiB/op | 9.04 KiB/op | 1.084959× |
+| `burst32` | 4 | 3 | BA | 47.67 k ops/s | 52.95 k ops/s | 1.110735× | 8.03 KiB/op | 8.89 KiB/op | 1.107033× |
+| `burst32` | 4 | 4 | AB | 54.68 k ops/s | 37.61 k ops/s | 0.687905× | 8.34 KiB/op | 9.09 KiB/op | 1.089912× |
 
 ## Protocol
 
@@ -50,18 +50,18 @@ A throughput ratio above `1×` favors the candidate. An equivalent average-time 
 
 ## Evidence
 
-- **Source Commit**: `61a01a816197e9c32c11ed3e6235d4ad213980ce`
+- **Source Commit**: `587604827df58276ea4232aa7e79bd8c9faf9be3`
 - **Source Dirty**: `false`
-- **JMH Jar SHA-256**: `47a93db4ffe7e0921d71b7099507191bc63c6b7660c4536dcbddd6571dd77a0a`
-- **Run ID**: `ce2f2535-0de6-4274-a3ad-b3be940fcfb1`
-- **Started**: 2026-07-27T01:22:16.342886Z
-- **Completed**: 2026-07-27T01:25:31.286131Z
+- **JMH Jar SHA-256**: `4d3fc4661c2e8a53c85c72124514e3ed0ff322d15bc9687df3f8b0c48b32febf`
+- **Run ID**: `064986b8-7918-457e-9385-eb128a96638c`
+- **Started**: 2026-07-27T08:26:43.892545Z
+- **Completed**: 2026-07-27T08:29:59.765176Z
 - **Successful Leg Manifests**: 24
-- **Combined Result SHA-256**: `317e68633502a3f3416ad611380c8ba19444adc42d6882458e1bf299e8409092` (`SHA-256` over sorted `taskPath=resultSha256` lines)
+- **Combined Result SHA-256**: `f5467f0e379e29126772f601edc1a29ee4897894626a2616fb52ee81f8fcb4c3` (`SHA-256` over sorted `taskPath=resultSha256` lines)
 
 ### Manifest-bound Run-Time Infrastructure
 
-- **Captured At**: 2026-07-27T01:22:16.342335Z to 2026-07-27T01:25:31.285909Z
+- **Captured At**: 2026-07-27T08:26:43.892364Z to 2026-07-27T08:29:59.764615Z
 - **Benchmark Client**: host JVM
 - **Docker Server**: Server=29.6.2 CPUs=4 Memory=5.8 GiB Kernel=6.12.76-linuxkit
 - **Mongo Container**: ` wow-benchmark-mongo `
@@ -80,36 +80,36 @@ A throughput ratio above `1×` favors the candidate. An equivalent average-time 
 
 | Workload | Threads | Round | Order | Position | Variant | Batch options | Task | Result SHA-256 |
 |----------|--------:|------:|:-----:|---------:|---------|---------------|------|----------------|
-| `representative128` | 1 | 1 | AB | 1 | current | `128x1000us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T1R01Current` | `14d640b4aa3033fb1e36a72091cd2376961e35ddf9504a3717807c2c3e216ccd` |
-| `representative128` | 1 | 1 | AB | 2 | finalist | `192x250us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T1R01Finalist` | `54b3e798f67eed9f0ea63276aaa50199af34164aa8ba9ec8b7cd4eee9af1d5d3` |
-| `representative128` | 1 | 2 | BA | 1 | finalist | `192x250us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T1R02Finalist` | `ffe8591896b6cec4eb2562462ddb7375d659af1c7e432fc7ec5b4f96b92b469e` |
-| `representative128` | 1 | 2 | BA | 2 | current | `128x1000us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T1R02Current` | `92c0bb541b183a2039862241b12ec973a45828757dad9fdd10e6f2914074c448` |
-| `representative128` | 1 | 3 | BA | 1 | finalist | `192x250us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T1R03Finalist` | `970c4dbea0d490456c59ab05f4a1f26173b7ac05b64b4e44aff75ff76ac9ea7f` |
-| `representative128` | 1 | 3 | BA | 2 | current | `128x1000us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T1R03Current` | `5a1b0636a1a077fae7b0fd6918c1fe014bda7248dae0eba3e4ec229471e44bb9` |
-| `representative128` | 1 | 4 | AB | 1 | current | `128x1000us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T1R04Current` | `c9e0266d6808b429e7ec12cc557dafd2e97c548699acca73812201de5ef51964` |
-| `representative128` | 1 | 4 | AB | 2 | finalist | `192x250us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T1R04Finalist` | `7a7c0be95a2750f52c3c977db312e77d02975ef53aad90853bf10eac4c829734` |
-| `representative128` | 4 | 1 | AB | 1 | current | `128x1000us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T4R01Current` | `e5b92218608c8cd66c97eb1f43aff082cd79f68320a0345c908cf98285040469` |
-| `representative128` | 4 | 1 | AB | 2 | finalist | `192x250us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T4R01Finalist` | `1e730a4329dc256d82c2b8f348636feffad976b76957f40d16cb37907ef83354` |
-| `representative128` | 4 | 2 | BA | 1 | finalist | `192x250us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T4R02Finalist` | `89424882126d65c2d1179d9f60484f8d982022e9769cc76f1e1b457edb044e73` |
-| `representative128` | 4 | 2 | BA | 2 | current | `128x1000us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T4R02Current` | `f9e9e2639084ea486808ee442ab6d165708ea16a6f9c196fc43cef02ac5dcca3` |
-| `representative128` | 4 | 3 | BA | 1 | finalist | `192x250us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T4R03Finalist` | `5e431f2eb1056923c675c55f5db7e1ffe8cc6abd9b701d5a147aef236c3892f4` |
-| `representative128` | 4 | 3 | BA | 2 | current | `128x1000us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T4R03Current` | `fbd5acc561dc5bc0e2a78be3ce28a18756144466352992bbaa15f765597077f9` |
-| `representative128` | 4 | 4 | AB | 1 | current | `128x1000us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T4R04Current` | `5e1bac174a26e52a6b7684693ab215cefe2db2a83e4542bea0ec29ef60d6d2b9` |
-| `representative128` | 4 | 4 | AB | 2 | finalist | `192x250us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T4R04Finalist` | `cdae8d8804ff3203a537a849e0d7ab38bfdd70ec63d8a0162e0c7cb74a0947b6` |
-| `burst32` | 4 | 1 | AB | 1 | current | `128x1000us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedBurst32T4R01Current` | `e99138cf6fd3a0c854e3559ded122981f4fd7526da0147706a4646033451aa01` |
-| `burst32` | 4 | 1 | AB | 2 | finalist | `192x250us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedBurst32T4R01Finalist` | `e8bdb06be64ef310ac1bbe681252c75c25550194fcf9de19abdbc0ac5d375354` |
-| `burst32` | 4 | 2 | BA | 1 | finalist | `192x250us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedBurst32T4R02Finalist` | `4aa46baa3c67f4d805ff368cc3faaaedde4b0ff643adf7d95828ddd7cb4a05ff` |
-| `burst32` | 4 | 2 | BA | 2 | current | `128x1000us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedBurst32T4R02Current` | `83836d0e6463674f34d56b81c470296fab4a0709ce5b00fb8364e780c3cca2ec` |
-| `burst32` | 4 | 3 | BA | 1 | finalist | `192x250us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedBurst32T4R03Finalist` | `75429ccbc73a175eae1be07b336d56bff26336bf327406136f16d14cd0021529` |
-| `burst32` | 4 | 3 | BA | 2 | current | `128x1000us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedBurst32T4R03Current` | `e907d5e85b91eab22e918f9de44de7c33436a02fd216b5d1e5fde09c372b567d` |
-| `burst32` | 4 | 4 | AB | 1 | current | `128x1000us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedBurst32T4R04Current` | `d50d62137238351fbc0846cd1595a3350ae8e8ead7d5318f27b3f58e722e28b4` |
-| `burst32` | 4 | 4 | AB | 2 | finalist | `192x250us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedBurst32T4R04Finalist` | `0def4819be227440df5a39c4d2d4142f0a94215e2d9db12a590bf0462bdfbd11` |
+| `representative128` | 1 | 1 | AB | 1 | current | `128x1000us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T1R01Current` | `1a1e0fe5426170172d0f8dfa7b9b94db896e23cbcd4c99dfa8174187b1ef336b` |
+| `representative128` | 1 | 1 | AB | 2 | finalist | `192x250us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T1R01Finalist` | `65957838fde4ffdbd8dbb8257ce245f25edb87f10d4d10dc1e38643ccfd96ccb` |
+| `representative128` | 1 | 2 | BA | 1 | finalist | `192x250us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T1R02Finalist` | `5777d15258e7a1340c8653e7a00c1742930c6ade095260cf140bc72dd33c2198` |
+| `representative128` | 1 | 2 | BA | 2 | current | `128x1000us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T1R02Current` | `7f3e6a6bfce088dda38232030cfc61128d7f7b82fbd3db887dd6757a52d501fa` |
+| `representative128` | 1 | 3 | BA | 1 | finalist | `192x250us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T1R03Finalist` | `ac0e4ac3333df857571c365e08c96555b7684dfd89db15a1bb6ccf336f6eae26` |
+| `representative128` | 1 | 3 | BA | 2 | current | `128x1000us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T1R03Current` | `3997db1494861ed507f8f7874152895f9749c50b994e2ab2d98b1b50b72b7530` |
+| `representative128` | 1 | 4 | AB | 1 | current | `128x1000us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T1R04Current` | `5cda14a1f1dc6038d83efe340428e916ea9c23d799df665f0c850f1f3f7bef0a` |
+| `representative128` | 1 | 4 | AB | 2 | finalist | `192x250us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T1R04Finalist` | `4575698bdcd241e203124d31004ed8b3025a36a4e44f3d7915b67d2f210ac1c1` |
+| `representative128` | 4 | 1 | AB | 1 | current | `128x1000us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T4R01Current` | `6e96463b4ad6e44d5c4e2589446d84957f5801e8845e43da96ea2aa1019b0eec` |
+| `representative128` | 4 | 1 | AB | 2 | finalist | `192x250us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T4R01Finalist` | `96eed50c5c8a0fe751ed0fa4f01b7ea92df7dce03b9db6647d2c01315b4a9bf7` |
+| `representative128` | 4 | 2 | BA | 1 | finalist | `192x250us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T4R02Finalist` | `801c0fbe6e0271ac8a43f3c8200b6cf59d879304dc6e9a1ff15228f7ccfcb2be` |
+| `representative128` | 4 | 2 | BA | 2 | current | `128x1000us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T4R02Current` | `8f2eee1631dbf36d81f1642e432f8abf47c5f641aaa108e7ae590fbc34896ab7` |
+| `representative128` | 4 | 3 | BA | 1 | finalist | `192x250us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T4R03Finalist` | `79e65b11ed45d7a1a212dbec91051aef53424d9382c133a4dde59e2fd47d6190` |
+| `representative128` | 4 | 3 | BA | 2 | current | `128x1000us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T4R03Current` | `3ac410856d2b23490b5b0cb50086ff8e743aa997f012c4d498914b32f431217a` |
+| `representative128` | 4 | 4 | AB | 1 | current | `128x1000us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T4R04Current` | `75e699f75de959d8cc04026b183ab548c61dadc8b74ece5a93a2b2967a1f219f` |
+| `representative128` | 4 | 4 | AB | 2 | finalist | `192x250us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedRepresentative128T4R04Finalist` | `c4292a57b7274f0de2c60f77de469ff23faabe42fa1ed9c2ec0cb742aa5b9291` |
+| `burst32` | 4 | 1 | AB | 1 | current | `128x1000us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedBurst32T4R01Current` | `98f8afc7f0a9734a3f09cee05a25c34dab2581dbec648f2bf27ff07eea7bf4f2` |
+| `burst32` | 4 | 1 | AB | 2 | finalist | `192x250us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedBurst32T4R01Finalist` | `7c0863a8315d287529eca45b626fa7141b92f1f54c42f7c83430bd78bfa0f034` |
+| `burst32` | 4 | 2 | BA | 1 | finalist | `192x250us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedBurst32T4R02Finalist` | `349160042e20c714c86e2be7282c56cba073128b9ecaee523af647cb6f9851d0` |
+| `burst32` | 4 | 2 | BA | 2 | current | `128x1000us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedBurst32T4R02Current` | `2e3648fa149576646c57f24ff5a877ec082355055f5602c058ffa2b7eb9fc3e5` |
+| `burst32` | 4 | 3 | BA | 1 | finalist | `192x250us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedBurst32T4R03Finalist` | `7d3bbd54634d528d935fb301e5b8eea33cece5aa5387cae5e9185415dc50f2e4` |
+| `burst32` | 4 | 3 | BA | 2 | current | `128x1000us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedBurst32T4R03Current` | `d0c2ee720cdf36ef23cb3a84676e06cce3dd0bb2f87cf3a282ac706d745dac80` |
+| `burst32` | 4 | 4 | AB | 1 | current | `128x1000us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedBurst32T4R04Current` | `c641ddf9af17f09e9071bddab2572389a9c8bdf32cd8ac8fae236f93a0813275` |
+| `burst32` | 4 | 4 | AB | 2 | finalist | `192x250us` | `:wow-benchmarks:benchmarkQuickMongoBatchOptionsPairedBurst32T4R04Finalist` | `d2600d7fb85ee82ce13c703c982a6948c80c20d9649fa7eadbe78e944ee5917d` |
 
 ## Report Generation Environment
 - **Version**: 8.9.1
 - **JVM**: OpenJDK 64-Bit Server VM 17.0.7+7-LTS
 - **OS**: Mac OS X 26.5.2 aarch64
-- **Generated At**: 2026-07-27T09:25:31+08:00
+- **Generated At**: 2026-07-27T16:32:46+08:00
 - **CPU Cores**: 14
 - **Physical Memory**: 24.0 GiB
 - **Benchmark JVM Args**: `-Xmx1g -Xms1g -XX:+UseG1GC`
