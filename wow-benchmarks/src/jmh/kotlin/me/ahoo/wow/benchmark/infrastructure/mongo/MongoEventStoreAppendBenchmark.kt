@@ -17,6 +17,7 @@ import com.mongodb.client.model.InsertManyOptions
 import com.mongodb.reactivestreams.client.MongoCollection
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
+import me.ahoo.wow.benchmark.infrastructure.StorageBatchTuningOptions
 import me.ahoo.wow.infrastructure.mongo.MongoBenchmarkFixture
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
 import me.ahoo.wow.mongo.MongoEventStore
@@ -26,6 +27,7 @@ import org.bson.Document
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Level
 import org.openjdk.jmh.annotations.OperationsPerInvocation
+import org.openjdk.jmh.annotations.Param
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
@@ -34,16 +36,22 @@ import org.openjdk.jmh.infra.Blackhole
 import reactor.core.publisher.Flux
 import reactor.kotlin.core.publisher.toMono
 import java.time.Duration
+import java.util.concurrent.atomic.AtomicLong
 
 @State(Scope.Benchmark)
 open class MongoEventStoreAppendBenchmark {
+    @Param("128x1000us")
+    lateinit var batchOptions: String
+
     private lateinit var fixture: MongoBenchmarkFixture
     private lateinit var documentCollection: MongoCollection<Document>
     private lateinit var directEventStore: MongoEventStore
     private lateinit var batchEventStore: MongoEventStore
+    private val expectedWrites = AtomicLong()
 
     @Setup(Level.Trial)
     fun setupTrial() {
+        val parsedBatchOptions = StorageBatchTuningOptions.parse(batchOptions)
         fixture = MongoBenchmarkFixture()
         documentCollection = fixture.database.getCollection(
             BenchmarkAggregates.namedAggregate.toEventStreamCollectionName()
@@ -53,17 +61,28 @@ open class MongoEventStoreAppendBenchmark {
             database = fixture.database,
             batchOptions = MongoEventStoreBatchOptions(
                 enabled = true,
-                maxSize = APPENDS_PER_INVOCATION,
-                maxDelay = Duration.ofMillis(1),
+                maxSize = parsedBatchOptions.maxSize,
+                maxDelay = parsedBatchOptions.maxDelay,
             ),
         )
     }
 
     @Setup(Level.Iteration)
     fun setupIteration() {
+        expectedWrites.set(0)
         checkNotNull(
-            documentCollection.deleteMany(Document()).toMono().block()
+            documentCollection.deleteMany(Document()).toMono().block(APPEND_TIMEOUT)
         ).wasAcknowledged().let(::check)
+    }
+
+    @TearDown(Level.Iteration)
+    fun verifyIterationWrites() {
+        val actualWrites = checkNotNull(
+            documentCollection.countDocuments().toMono().block(APPEND_TIMEOUT)
+        )
+        check(actualWrites == expectedWrites.get()) {
+            "Mongo append write count mismatch: expected=${expectedWrites.get()}, actual=$actualWrites."
+        }
     }
 
     @TearDown(Level.Trial)
@@ -90,9 +109,11 @@ open class MongoEventStoreAppendBenchmark {
         val result = documentCollection
             .insertMany(documents, UNORDERED_INSERT)
             .toMono()
-            .block()
+            .block(APPEND_TIMEOUT)
         checkNotNull(result)
         check(result.wasAcknowledged())
+        check(result.insertedIds.size == APPENDS_PER_INVOCATION)
+        expectedWrites.addAndGet(result.insertedIds.size.toLong())
         blackhole.consume(result)
     }
 
@@ -112,13 +133,15 @@ open class MongoEventStoreAppendBenchmark {
                 APPENDS_PER_INVOCATION,
                 1,
             ).count()
-            .block()
+            .block(APPEND_TIMEOUT)
         check(result == APPENDS_PER_INVOCATION.toLong())
+        expectedWrites.addAndGet(checkNotNull(result))
         blackhole.consume(result)
     }
 
     companion object {
         const val APPENDS_PER_INVOCATION: Int = 128
+        private val APPEND_TIMEOUT: Duration = Duration.ofSeconds(10)
         private val UNORDERED_INSERT = InsertManyOptions().ordered(false)
     }
 }

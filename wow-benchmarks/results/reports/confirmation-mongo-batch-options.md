@@ -5,7 +5,11 @@
 
 # Confirmation Mongo EventStore Batch Options Report
 
-This multiple-fork experiment confirms selected Mongo EventStore batch options against the current default across isolated, burst, representative, and saturated append workloads.
+This completed multiple-fork Mongo EventStore comparison is retained as historical exploratory evidence. The wider full-candidate campaign was stopped before closure, so these results do not define an active protocol or select a production default.
+
+## Campaign Status
+
+This full-candidate campaign has been stopped. Its measurements and historical classifier output are retained as exploratory evidence only; the remaining frontier must not be run under the old protocol, and this report cannot establish a production default.
 
 ## Reading Values
 
@@ -73,7 +77,7 @@ This section is live diagnostic context only. Manifest-bound run-time container 
 
 ## Throughput Screening
 
-The table keeps the five highest point estimates per workload plus the current `128x1000us` default. Scan results select confirmation candidates; they do not by themselves establish a new default.
+The table keeps the five highest historical point estimates per workload plus current `128x1000us`. These stopped-campaign scan results are exploratory and do not select a production default.
 
 | Workload | Refresh | Threads | Batch options | Throughput | Error | vs best | vs current | Allocation |
 |----------|---------|---------|---------------|------------|-------|---------|------------|------------|
@@ -126,34 +130,34 @@ The table keeps the five highest point estimates per workload plus the current `
 | `appendSaturated512` | `-` | 4 | `512x250us` | 65.54 k ops/s | ±6.88 k ops/s | -5.5% | +2.7% | 11.81 KiB/op |
 | `appendSaturated512` | `-` | 4 | `128x1000us` | 63.79 k ops/s | ±12.52 k ops/s | -8.1% | +0.0% | 11.64 KiB/op |
 
-Higher throughput is better. `vs best` and `vs current` use point estimates; overlapping JMH error intervals remain inconclusive and require the multiple-fork confirmation task.
+Higher throughput is better. `vs best` and `vs current` use historical point estimates; overlapping JMH error intervals remain uncertain and do not authorize continuing the stopped protocol.
 
 ## Cross-workload Candidate Gate
 
-A screening candidate is eligible only when every saturated stratum is within 5% of that stratum's best point estimate, every isolated/burst/representative stratum stays within 10% of current throughput, and allocation stays within 10% of current. All refresh and thread strata participate. These point-estimate gates shortlist candidates; confirmation remains required.
+The historical gate marked a candidate eligible only when every saturated stratum was within 5% of that stratum's best point estimate, every isolated/burst/representative stratum stayed within 10% of current throughput, and allocation stayed within 10% of current. These labels are retained for exploration and do not schedule further confirmation.
 
 | Batch options | Primary representative vs current | Preferred refresh saturated vs best | Worst saturated vs best | Worst guard vs current | Worst allocation vs current | Screening status |
 |---------------|-----------------------------------|--------------------------------------|-------------------------|------------------------|-----------------------------|------------------|
-| `192x250us` | +10.5% | -4.5% | -4.5% | +10.5% | +7.5% | CONFIRM |
-| `192x375us` | +5.5% | +0.0% | +0.0% | +5.5% | +5.4% | CONFIRM |
-| `128x375us` | +2.6% | -2.9% | -2.9% | +2.6% | +5.7% | CONFIRM |
-| `512x375us` | -3.7% | -3.3% | -3.3% | -3.7% | +7.0% | CONFIRM |
-| `256x250us` | +8.9% | -5.9% | -5.9% | +8.9% | +6.2% | CONFIRM |
-| `512x250us` | +7.4% | -5.5% | -5.5% | +7.4% | +7.6% | CONFIRM |
-| `512x200us` | +5.9% | -11.0% | -11.0% | +5.9% | +8.5% | CONFIRM |
-| `128x200us` | +4.3% | -9.3% | -9.3% | +4.3% | +6.9% | CONFIRM |
+| `192x250us` | +10.5% | -4.5% | -4.5% | +10.5% | +7.5% | HISTORICAL_FRONTIER |
+| `192x375us` | +5.5% | +0.0% | +0.0% | +5.5% | +5.4% | HISTORICAL_FRONTIER |
+| `128x375us` | +2.6% | -2.9% | -2.9% | +2.6% | +5.7% | HISTORICAL_FRONTIER |
+| `512x375us` | -3.7% | -3.3% | -3.3% | -3.7% | +7.0% | HISTORICAL_FRONTIER |
+| `256x250us` | +8.9% | -5.9% | -5.9% | +8.9% | +6.2% | HISTORICAL_FRONTIER |
+| `512x250us` | +7.4% | -5.5% | -5.5% | +7.4% | +7.6% | HISTORICAL_FRONTIER |
+| `512x200us` | +5.9% | -11.0% | -11.0% | +5.9% | +8.5% | HISTORICAL_FRONTIER |
+| `128x200us` | +4.3% | -9.3% | -9.3% | +4.3% | +6.9% | HISTORICAL_FRONTIER |
 | `128x1000us` | +0.0% | -8.1% | -8.1% | +0.0% | +0.0% | CURRENT |
 
-### Manifest-bound Confirmation Set
+### Historical Manifest-bound Candidate Set
 
-This confirmation set is not recomputed from the supplied rows. It is bound to screening evidence `62a04175cf83936edb887bfa983863f16de00877823c66cffcfad0b3b7161c86` from source commit `f6d87771d7085b63d7bbdec1579f4955d422178f` and result `10344411da4a9e45f2d205d9642eb808d6e5deabc54ae92979c1df7040553910`.
+This historical candidate set is not recomputed from the supplied rows. It remains bound to exploratory screening evidence `62a04175cf83936edb887bfa983863f16de00877823c66cffcfad0b3b7161c86` from source commit `f6d87771d7085b63d7bbdec1579f4955d422178f` and result `10344411da4a9e45f2d205d9642eb808d6e5deabc54ae92979c1df7040553910`.
 
-- **Required frontier**: `512x200us`, `128x200us`, `192x250us`, `512x250us`, `256x250us`, `128x375us`, `192x375us`, `512x375us`
-- **Closure rule**: run one multiple-fork confirmation over the complete ordered frontier, then run paired confirmation for every `INCONCLUSIVE` challenger. Only after every challenger has a final `PASS` or elimination verdict may the highest-ranked `PASS` be selected; if none pass, retain current. Until then, the default decision remains open.
+- **Historical frontier**: `512x200us`, `128x200us`, `192x250us`, `512x250us`, `256x250us`, `128x375us`, `192x375us`, `512x375us`
+- **Campaign status**: stopped before full closure. Do not continue the remaining candidates or interpret this historical set as a pre-registered selection protocol.
 
 ## Confirmation Verdict
 
-PASS requires every candidate-vs-current throughput lower bound, average-time upper bound, and allocation upper bound to meet the declared margin across every workload, refresh, and thread stratum. REGRESSION requires an opposite conservative bound to violate a margin. Bounds combine the independent JMH score intervals; they are not a paired ratio confidence interval. Every INCONCLUSIVE candidate requires its own paired confirmation. This report classifies only the supplied options; selection closes only when they equal the complete Pareto frontier in the emitted order and every challenger has a final verdict. The selected default is then the highest-ranked PASS, or current when none pass.
+The statuses below are historical outputs from the stopped full-candidate campaign. Bounds combine the independent JMH score intervals; they are not paired ratio confidence intervals. Do not continue `INCONCLUSIVE` candidates under the old protocol or use these statuses to claim a selected production default.
 
 | Batch options | Worst throughput lower bound | Worst average-time upper bound | Worst allocation upper bound | Verdict |
 |---------------|------------------------------|--------------------------------|-------------------------------|---------|

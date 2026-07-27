@@ -5,7 +5,11 @@
 
 # Mongo EventStore Batch Options Tuning Report
 
-This screening experiment scans storage-neutral batch size/delay pairs through the real Mongo EventStore coordinated path at isolated (1), burst (32), representative (128), and saturated (512) append counts. It is candidate selection evidence, not a production capacity claim.
+This stopped full-candidate experiment scanned storage-neutral batch size/delay pairs through the real Mongo EventStore coordinated path at isolated (1), burst (32), representative (128), and saturated (512) append counts. It is retained only as exploratory evidence and does not define an active protocol or production default.
+
+## Campaign Status
+
+This full-candidate campaign has been stopped. Its measurements and historical classifier output are retained as exploratory evidence only; the remaining frontier must not be run under the old protocol, and this report cannot establish a production default.
 
 ## Reading Values
 
@@ -72,7 +76,7 @@ This section is live diagnostic context only. Manifest-bound run-time container 
 
 ## Throughput Screening
 
-The table keeps the five highest point estimates per workload plus the current `128x1000us` default. Scan results select confirmation candidates; they do not by themselves establish a new default.
+The table keeps the five highest historical point estimates per workload plus current `128x1000us`. These stopped-campaign scan results are exploratory and do not select a production default.
 
 | Workload | Refresh | Threads | Batch options | Throughput | Error | vs best | vs current | Allocation |
 |----------|---------|---------|---------------|------------|-------|---------|------------|------------|
@@ -101,24 +105,24 @@ The table keeps the five highest point estimates per workload plus the current `
 | `appendSaturated512` | `-` | 1 | `128x375us` | 66.35 k ops/s | - | -1.4% | +3.3% | 10.91 KiB/op |
 | `appendSaturated512` | `-` | 1 | `128x1000us` | 64.23 k ops/s | - | -4.5% | +0.0% | 10.53 KiB/op |
 
-Higher throughput is better. `vs best` and `vs current` use point estimates; overlapping JMH error intervals remain inconclusive and require the multiple-fork confirmation task.
+Higher throughput is better. `vs best` and `vs current` use historical point estimates; overlapping JMH error intervals remain uncertain and do not authorize continuing the stopped protocol.
 
 ## Cross-workload Candidate Gate
 
-A screening candidate is eligible only when every saturated stratum is within 5% of that stratum's best point estimate, every isolated/burst/representative stratum stays within 10% of current throughput, and allocation stays within 10% of current. All refresh and thread strata participate. These point-estimate gates shortlist candidates; confirmation remains required.
+The historical gate marked a candidate eligible only when every saturated stratum was within 5% of that stratum's best point estimate, every isolated/burst/representative stratum stayed within 10% of current throughput, and allocation stayed within 10% of current. These labels are retained for exploration and do not schedule further confirmation.
 
 | Batch options | Primary representative vs current | Preferred refresh saturated vs best | Worst saturated vs best | Worst guard vs current | Worst allocation vs current | Screening status |
 |---------------|-----------------------------------|--------------------------------------|-------------------------|------------------------|-----------------------------|------------------|
-| `512x200us` | +21.6% | -4.6% | -4.6% | +21.6% | +4.6% | CONFIRM |
-| `128x200us` | +20.2% | -4.2% | -4.2% | +20.2% | +3.1% | CONFIRM |
-| `192x250us` | +18.6% | +0.0% | +0.0% | +18.6% | +4.1% | CONFIRM |
+| `512x200us` | +21.6% | -4.6% | -4.6% | +21.6% | +4.6% | HISTORICAL_FRONTIER |
+| `128x200us` | +20.2% | -4.2% | -4.2% | +20.2% | +3.1% | HISTORICAL_FRONTIER |
+| `192x250us` | +18.6% | +0.0% | +0.0% | +18.6% | +4.1% | HISTORICAL_FRONTIER |
 | `192x200us` | +18.4% | -4.5% | -4.5% | +18.4% | +4.4% | ELIGIBLE_DOMINATED |
-| `512x250us` | +15.8% | -1.7% | -1.7% | +15.8% | +3.9% | CONFIRM |
+| `512x250us` | +15.8% | -1.7% | -1.7% | +15.8% | +3.9% | HISTORICAL_FRONTIER |
 | `128x250us` | +14.2% | -4.9% | -4.9% | +14.2% | +4.1% | ELIGIBLE_DOMINATED |
-| `256x250us` | +13.2% | -0.7% | -0.7% | +13.2% | +3.8% | CONFIRM |
-| `128x375us` | +11.5% | -1.4% | -1.4% | +11.5% | +3.6% | CONFIRM |
-| `192x375us` | +6.9% | -3.0% | -3.0% | +6.9% | +1.0% | CONFIRM |
-| `512x375us` | +5.2% | -0.5% | -0.5% | +5.2% | +3.2% | CONFIRM |
+| `256x250us` | +13.2% | -0.7% | -0.7% | +13.2% | +3.8% | HISTORICAL_FRONTIER |
+| `128x375us` | +11.5% | -1.4% | -1.4% | +11.5% | +3.6% | HISTORICAL_FRONTIER |
+| `192x375us` | +6.9% | -3.0% | -3.0% | +6.9% | +1.0% | HISTORICAL_FRONTIER |
+| `512x375us` | +5.2% | -0.5% | -0.5% | +5.2% | +3.2% | HISTORICAL_FRONTIER |
 | `256x375us` | +4.4% | -1.1% | -1.1% | +4.4% | +3.2% | ELIGIBLE_DOMINATED |
 | `128x1000us` | +0.0% | -4.5% | -4.5% | +0.0% | +0.0% | CURRENT |
 | `192x150us` | +24.2% | -9.8% | -9.8% | +24.2% | +6.2% | REJECT |
@@ -135,16 +139,12 @@ A screening candidate is eligible only when every saturated stratum is within 5%
 | `512x50us` | -9.6% | -35.5% | -35.5% | -9.6% | +13.1% | REJECT |
 | `128x50us` | -10.6% | -34.7% | -34.7% | -10.6% | +12.3% | REJECT |
 
-### Deterministic Pareto Confirmation Set
+### Historical Deterministic Pareto Set
 
 The report removes eligible challengers only when another eligible challenger is no worse on primary representative throughput, preferred-refresh saturated throughput, worst saturated throughput, worst guard throughput, and allocation, and is strictly better on at least one. The full non-dominated frontier is retained. Display order is deterministic by those metrics, then smaller `maxSize`, shorter `maxDelay`, and encoded option.
 
-- **Required frontier**: `512x200us`, `128x200us`, `192x250us`, `512x250us`, `256x250us`, `128x375us`, `192x375us`, `512x375us`
-- **Closure rule**: run one multiple-fork confirmation over the complete ordered frontier, then run paired confirmation for every `INCONCLUSIVE` challenger. Only after every challenger has a final `PASS` or elimination verdict may the highest-ranked `PASS` be selected; if none pass, retain current. Until then, the default decision remains open.
-
-```bash
-./gradlew :wow-benchmarks:benchmarkConfirmMongoBatchOptions :wow-benchmarks:generateMongoBatchOptionsTuningConfirmationReport -PbenchmarkConfirmMongoBatchOptionsParameters='batchOptions=128x1000us,512x200us,128x200us,192x250us,512x250us,256x250us,128x375us,192x375us,512x375us' --no-parallel
-```
+- **Historical frontier**: `512x200us`, `128x200us`, `192x250us`, `512x250us`, `256x250us`, `128x375us`, `192x375us`, `512x375us`
+- **Campaign status**: stopped before full closure. Do not continue the remaining candidates or interpret this historical set as a pre-registered selection protocol.
 
 ## Results
 

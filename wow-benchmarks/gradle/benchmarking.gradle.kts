@@ -343,6 +343,9 @@ val quickBenchmarkJvmArgs = listOf(
     "-XX:+UseG1GC",
 )
 
+val mongoBatchQuickCurrentOptions = "128x1000us"
+val mongoBatchQuickCandidateOptions = "192x250us"
+
 val asyncBenchmarkJvmArgs = listOf(
     "-Xmx2g",
     "-Xms2g",
@@ -390,6 +393,35 @@ val quickBatchE2EProfile = quickProfile.copy(
 val quickMongoBatchAppendProfile = quickProfile.copy(
     threads = benchmarkThreadsProperty("benchmarkQuickMongoBatchThreads", listOf(1, 4)),
     benchmarkModes = listOf("thrpt", "avgt"),
+)
+
+val quickMongoBatchCandidateE2EProfile = BenchmarkRunProfile(
+    id = "quick-mongo-candidate-e2e",
+    warmupIterations = 1,
+    warmupTime = "2s",
+    measurementIterations = 1,
+    measurementTime = "3s",
+    forks = 1,
+    threads = listOf(1, 4),
+    benchmarkModes = listOf("thrpt", "avgt"),
+    jvmArgs = quickBenchmarkJvmArgs,
+    includeGcProfiler = true,
+    includeAsyncProfiler = false,
+    parameters = mapOf("batchOptions" to mongoBatchQuickCandidateOptions),
+)
+
+val quickMongoBatchOptionsPairedProfile = BenchmarkRunProfile(
+    id = "quick-mongo-options-paired",
+    warmupIterations = 1,
+    warmupTime = "2s",
+    measurementIterations = 1,
+    measurementTime = "3s",
+    forks = 1,
+    threads = listOf(1, 4),
+    benchmarkModes = listOf("thrpt"),
+    jvmArgs = quickBenchmarkJvmArgs,
+    includeGcProfiler = true,
+    includeAsyncProfiler = false,
 )
 
 val quickElasticsearchBatchAppendProfile = quickProfile.copy(
@@ -721,6 +753,24 @@ val mongoBatchAppendSuite = BenchmarkSuite(
     ),
 )
 
+val quickMongoBatchCandidateE2ESuite = mongoBatchAppendSuite.copy(
+    id = "mongo-batch-append-quick-engineering",
+    displayName = "Quick Mongo Batch Candidate E2E",
+    resultFileName = "mongo-batch-append-candidate-e2e.json",
+    humanFileName = "mongo-batch-append-candidate-e2e-human.txt",
+    requiresCleanSource = true,
+    runMetadata = linkedMapOf(
+        "experiment" to "quick-mongo-batch-candidate-e2e",
+        "evidenceClass" to "quick-engineering",
+        "formalProtocol" to "false",
+        "currentBatchOptions" to mongoBatchQuickCurrentOptions,
+        "candidateBatchOptions" to mongoBatchQuickCandidateOptions,
+        "batchOptions" to mongoBatchQuickCandidateOptions,
+        "operationsPerInvocation" to "128",
+        "correctnessCheck" to "completion-count-and-iteration-document-count",
+    ),
+)
+
 val elasticsearchBatchAppendSuite = BenchmarkSuite(
     id = "elasticsearch-batch-append",
     displayName = "Elasticsearch EventStore Batch Append",
@@ -1034,6 +1084,14 @@ val quickMongoBatchAppendTaskSpec = BenchmarkTaskSpec(
     description = "Compares Mongo single, native insertMany, and coordinated batch throughput and latency.",
 )
 
+val quickMongoBatchCandidateE2ETaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkQuickMongoBatchAppendCandidateE2E",
+    suite = quickMongoBatchCandidateE2ESuite,
+    profile = quickMongoBatchCandidateE2EProfile,
+    description =
+        "Compares Mongo single, native insertMany, and coordinated 192x250us batching with quick engineering settings.",
+)
+
 val confirmationMongoBatchAppendTaskSpec = BenchmarkTaskSpec(
     taskName = "benchmarkConfirmMongoBatchAppend",
     suite = mongoBatchAppendSuite,
@@ -1059,8 +1117,7 @@ val mongoBatchOptionsTuningTaskSpec = BenchmarkTaskSpec(
     taskName = "benchmarkTuneMongoBatchOptions",
     suite = mongoBatchOptionsTuningSuite,
     profile = mongoBatchOptionsTuningProfile,
-    description =
-        "Scans Mongo EventStore maxSize and maxDelay across isolated, burst, representative, and saturated workloads.",
+    description = "Historical stopped Mongo full-candidate scan; retained for audit only.",
 )
 
 val elasticsearchBatchOptionsTuningTaskSpec = BenchmarkTaskSpec(
@@ -1075,7 +1132,7 @@ val mongoBatchOptionsTuningConfirmationTaskSpec = BenchmarkTaskSpec(
     taskName = "benchmarkConfirmMongoBatchOptions",
     suite = mongoBatchOptionsTuningSuite,
     profile = mongoBatchOptionsTuningConfirmationProfile,
-    description = "Confirms selected Mongo EventStore batch options with multiple forks.",
+    description = "Historical stopped Mongo multiple-fork comparison; retained for audit only.",
 )
 
 val elasticsearchBatchOptionsTuningConfirmationTaskSpec = BenchmarkTaskSpec(
@@ -1157,6 +1214,7 @@ val benchmarkTaskSpecs = listOf(
     confirmationE2ETaskSpec,
     quickInfrastructureE2ETaskSpec,
     quickMongoBatchAppendTaskSpec,
+    quickMongoBatchCandidateE2ETaskSpec,
     confirmationMongoBatchAppendTaskSpec,
     quickElasticsearchBatchAppendTaskSpec,
     confirmationElasticsearchBatchAppendTaskSpec,
@@ -2391,6 +2449,10 @@ val mongoBatchOptionsTuningConfirmationReportFile =
     reportsDir.file("confirmation-mongo-batch-options.md")
 val mongoBatchOptionsPairedConfirmationReportFile =
     reportsDir.file("confirmation-mongo-batch-options-paired.md")
+val quickMongoBatchOptionsPairedReportFile =
+    reportsDir.file("quick-mongo-batch-options-paired.md")
+val quickMongoBatchCandidateE2EReportFile =
+    reportsDir.file("quick-mongo-batch-append-candidate-e2e.md")
 val elasticsearchBatchOptionsTuningConfirmationReportFile =
     reportsDir.file("confirmation-elasticsearch-batch-options.md")
 val infrastructureBenchmarkReportFile = reportsDir.file("quick-infrastructure-e2e.md")
@@ -3444,6 +3506,7 @@ val mongoBatchPairedBenchmarkClass =
 
 fun pairedT95Critical(pairCount: Int): Double {
     return when (pairCount) {
+        4 -> 3.182446305
         8 -> 2.364624251
         24 -> 2.06865761
         else -> throw GradleException(
@@ -4231,7 +4294,7 @@ fun requireMongoBatchOptionsPairedProtocol() {
         mongoBatchOptionsPairedRounds / 2
     ) {
         throw GradleException(
-            "Mongo batch-options paired confirmation requires a pre-registered balanced order sequence " +
+            "Mongo batch-options paired confirmation requires a fixed balanced order sequence " +
                 "with $mongoBatchOptionsPairedRounds rounds."
         )
     }
@@ -4327,7 +4390,7 @@ val mongoBatchOptionsPairedFinalist =
 val mongoBatchOptionsPairedBenchmarkClass =
     "me.ahoo.wow.benchmark.infrastructure.mongo.MongoEventStoreBatchTuningBenchmark"
 val mongoBatchOptionsPairedPreflight = tasks.register("preflightMongoBatchOptionsPairedConfirmation") {
-    description = "Validate Mongo batch-options frontier and INCONCLUSIVE finalist before paired JMH."
+    description = "Historical stopped Mongo paired preflight; retained for artifact audit only."
     group = "benchmark"
     dependsOn(tasks.named("jmhJar"))
 
@@ -4404,7 +4467,7 @@ val mongoBatchOptionsPairedTrials = buildList {
                         suite = suite,
                         profile = profile,
                         description =
-                            "Runs Mongo batch-options paired confirmation for ${workload.displayName}, " +
+                            "Historical stopped Mongo paired leg for ${workload.displayName}, " +
                                 "threads=$threads, round=$round/$mongoBatchOptionsPairedRounds " +
                                 "(${order.id} position $position: ${variant.displayName} ${variant.batchOptions}).",
                     )
@@ -4676,7 +4739,7 @@ val benchmarkMongoBatchOptionsPairedStrata = mongoBatchOptionsPairedTrials
                 "T${threads}${workload.id.replaceFirstChar(Char::uppercase)}"
         tasks.register(taskName) {
             description =
-                "Runs the independently rerunnable 24-pair Mongo batch-options stratum for " +
+                "Historical stopped 24-pair Mongo batch-options stratum for " +
                     "${workload.displayName}, threads=$threads."
             group = "benchmark"
             dependsOn(stratumTrials.map(MongoBatchOptionsPairedTrialSpec::task))
@@ -4689,7 +4752,7 @@ val benchmarkMongoBatchOptionsPairedStrata = mongoBatchOptionsPairedTrials
 
 val benchmarkMongoBatchOptionsPairedConfirmation =
     tasks.register("benchmarkMongoBatchOptionsPairedConfirmation") {
-        description = "Runs the 24-pair Mongo EventStore batch-options finalist confirmation."
+        description = "Historical stopped Mongo paired campaign; retained for artifact audit only."
         group = "benchmark"
         dependsOn(benchmarkMongoBatchOptionsPairedStrata)
 
@@ -4698,6 +4761,411 @@ val benchmarkMongoBatchOptionsPairedConfirmation =
             val screening = requireMongoBatchOptionsPairedPreflight(fileSha256(jmhJarFile))
             val experiment = parseMongoBatchOptionsPairedExperiment()
             validateMongoBatchOptionsPairedPostflight(screening, experiment)
+        }
+    }
+
+data class MongoBatchOptionsQuickStratum(
+    val workload: MongoBatchOptionsPairedWorkload,
+    val threads: Int,
+)
+
+data class MongoBatchOptionsQuickTrialSpec(
+    val stratum: MongoBatchOptionsQuickStratum,
+    val round: Int,
+    val order: PairedExperimentOrder,
+    val position: Int,
+    val variant: MongoBatchOptionsPairedVariant,
+    val batchOptions: String,
+    val taskSpec: BenchmarkTaskSpec,
+    val task: TaskProvider<JavaExec>,
+)
+
+data class ParsedMongoBatchOptionsQuickLeg(
+    val trial: MongoBatchOptionsQuickTrialSpec,
+    val row: ParsedBenchmarkResult,
+    val manifest: ParsedBenchmarkRunManifest,
+)
+
+data class MongoBatchOptionsQuickExperiment(
+    val legs: List<ParsedMongoBatchOptionsQuickLeg>,
+    val observations: List<MongoBatchOptionsPairedObservation>,
+) {
+    val manifests: List<ParsedBenchmarkRunManifest>
+        get() = legs.map(ParsedMongoBatchOptionsQuickLeg::manifest)
+
+    fun statistics(): List<MongoBatchOptionsPairedStratumStatistics> {
+        return observations.groupBy { observation -> observation.workload to observation.threads }
+            .toSortedMap(
+                compareBy<Pair<MongoBatchOptionsPairedWorkload, Int>>(
+                    { key -> mongoBatchOptionsQuickStrata.indexOfFirst { it.workload == key.first && it.threads == key.second } },
+                    { it.second },
+                )
+            )
+            .map { (_, stratumObservations) ->
+                calculateMongoBatchOptionsQuickStratumStatistics(stratumObservations)
+            }
+    }
+}
+
+val mongoBatchOptionsQuickRounds = 4
+val mongoBatchOptionsQuickProtocolVersion = "1"
+val mongoBatchOptionsQuickOrderSequence = listOf(
+    PairedExperimentOrder.AB,
+    PairedExperimentOrder.BA,
+    PairedExperimentOrder.BA,
+    PairedExperimentOrder.AB,
+)
+val mongoBatchOptionsQuickStrata = listOf(
+    MongoBatchOptionsQuickStratum(
+        workload = MongoBatchOptionsPairedWorkload.REPRESENTATIVE_128,
+        threads = 1,
+    ),
+    MongoBatchOptionsQuickStratum(
+        workload = MongoBatchOptionsPairedWorkload.REPRESENTATIVE_128,
+        threads = 4,
+    ),
+    MongoBatchOptionsQuickStratum(
+        workload = MongoBatchOptionsPairedWorkload.BURST_32,
+        threads = 4,
+    ),
+)
+val mongoBatchOptionsQuickBenchmarkClass =
+    "me.ahoo.wow.benchmark.infrastructure.mongo.MongoEventStoreBatchTuningBenchmark"
+
+fun mongoBatchOptionsQuickOrder(round: Int): PairedExperimentOrder {
+    return mongoBatchOptionsQuickOrderSequence.getOrNull(round - 1)
+        ?: throw GradleException(
+            "Quick Mongo batch-options round must be in 1..$mongoBatchOptionsQuickRounds: $round."
+        )
+}
+
+fun MongoBatchOptionsPairedVariant.quickBatchOptions(): String {
+    return when (this) {
+        MongoBatchOptionsPairedVariant.CURRENT -> mongoBatchQuickCurrentOptions
+        MongoBatchOptionsPairedVariant.FINALIST -> mongoBatchQuickCandidateOptions
+    }
+}
+
+fun calculateMongoBatchOptionsQuickStratumStatistics(
+    observations: List<MongoBatchOptionsPairedObservation>,
+): MongoBatchOptionsPairedStratumStatistics {
+    if (observations.size != mongoBatchOptionsQuickRounds) {
+        throw GradleException(
+            "Quick Mongo batch-options statistics require exactly $mongoBatchOptionsQuickRounds observations, " +
+                "found ${observations.size}."
+        )
+    }
+    val workload = observations.map(MongoBatchOptionsPairedObservation::workload).distinct().singleOrNull()
+        ?: throw GradleException("Quick Mongo batch-options statistics cannot mix workloads.")
+    val threads = observations.map(MongoBatchOptionsPairedObservation::threads).distinct().singleOrNull()
+        ?: throw GradleException("Quick Mongo batch-options statistics cannot mix JMH thread counts.")
+    val expectedStratum = MongoBatchOptionsQuickStratum(workload = workload, threads = threads)
+    if (expectedStratum !in mongoBatchOptionsQuickStrata) {
+        throw GradleException("Unexpected quick Mongo batch-options stratum: $expectedStratum.")
+    }
+    val sortedObservations = observations.sortedBy(MongoBatchOptionsPairedObservation::round)
+    val expectedRounds = (1..mongoBatchOptionsQuickRounds).toList()
+    if (sortedObservations.map(MongoBatchOptionsPairedObservation::round) != expectedRounds) {
+        throw GradleException(
+            "Quick Mongo batch-options statistics require rounds $expectedRounds for " +
+                "${workload.id}/threads=$threads."
+        )
+    }
+    sortedObservations.forEach { observation ->
+        val expectedOrder = mongoBatchOptionsQuickOrder(observation.round)
+        if (observation.order != expectedOrder) {
+            throw GradleException(
+                "Quick Mongo batch-options statistics require ${expectedOrder.id} for " +
+                    "${workload.id}/threads=$threads/round=${observation.round}."
+            )
+        }
+        if (!observation.unit.equals("ops/s", ignoreCase = true)) {
+            throw GradleException(
+                "Quick Mongo batch-options statistics require ops/s, found ${observation.unit}."
+            )
+        }
+    }
+    val orders = sortedObservations.map(MongoBatchOptionsPairedObservation::order)
+    val throughput = calculatePairedMetricStatistics(
+        currentValues = sortedObservations.map(MongoBatchOptionsPairedObservation::currentScore),
+        finalistValues = sortedObservations.map(MongoBatchOptionsPairedObservation::finalistScore),
+        orders = orders,
+        context = "Quick Mongo batch-options ${workload.id}/threads=$threads throughput",
+    )
+    val allocation = calculatePairedMetricStatistics(
+        currentValues = sortedObservations.map(MongoBatchOptionsPairedObservation::currentAllocation),
+        finalistValues = sortedObservations.map(MongoBatchOptionsPairedObservation::finalistAllocation),
+        orders = orders,
+        context = "Quick Mongo batch-options ${workload.id}/threads=$threads allocation",
+    )
+    return MongoBatchOptionsPairedStratumStatistics(
+        workload = workload,
+        threads = threads,
+        pairCount = observations.size,
+        throughput = throughput,
+        allocation = allocation,
+        requiredThroughputRatio = mongoBatchOptionsPairedGuardMinimumRatio,
+    )
+}
+
+val mongoBatchOptionsQuickTrials = buildList {
+    mongoBatchOptionsQuickStrata.forEach { stratum ->
+        (1..mongoBatchOptionsQuickRounds).forEach { round ->
+            val order = mongoBatchOptionsQuickOrder(round)
+            order.variants().forEachIndexed { index, variant ->
+                val roundId = round.toString().padStart(2, '0')
+                val position = index + 1
+                val batchOptions = variant.quickBatchOptions()
+                val resultId =
+                    "${stratum.workload.id}-t${stratum.threads}-round-$roundId-" +
+                        "${order.id.lowercase()}-$position-${variant.id}"
+                val suite = BenchmarkSuite(
+                    id = "mongo-batch-options-quick-engineering",
+                    displayName = "Quick Mongo EventStore Batch Options Engineering",
+                    includeClasses = listOf(
+                        "$mongoBatchOptionsQuickBenchmarkClass.${stratum.workload.methodName}"
+                    ),
+                    resultFileName = "$resultId.json",
+                    humanFileName = "$resultId-human.txt",
+                    requiredForGroupedReport = false,
+                    formalRegressionSource = false,
+                    requiresCleanSource = true,
+                    requiredServices = mongoBatchAppendSuite.requiredServices,
+                    runMetadata = linkedMapOf(
+                        "experiment" to "quick-mongo-batch-options-engineering",
+                        "protocolVersion" to mongoBatchOptionsQuickProtocolVersion,
+                        "evidenceClass" to "quick-engineering",
+                        "formalProtocol" to "false",
+                        "currentBatchOptions" to mongoBatchQuickCurrentOptions,
+                        "candidateBatchOptions" to mongoBatchQuickCandidateOptions,
+                        "pairCountPerStratum" to mongoBatchOptionsQuickRounds.toString(),
+                        "totalLegCount" to "24",
+                        "orderSequence" to
+                            mongoBatchOptionsQuickOrderSequence.joinToString(",") { it.id },
+                        "workload" to stratum.workload.id,
+                        "threads" to stratum.threads.toString(),
+                        "round" to round.toString(),
+                        "order" to order.id,
+                        "position" to position.toString(),
+                        "variant" to variant.id,
+                        "batchOptions" to batchOptions,
+                        "method" to stratum.workload.methodName,
+                        "operationsPerInvocation" to stratum.workload.operationsPerInvocation.toString(),
+                        "warmup" to "1x2s",
+                        "measurement" to "1x3s",
+                        "forks" to "1",
+                        "mode" to "thrpt",
+                        "profiler" to "gc",
+                        "correctnessCheck" to "completion-count-and-iteration-document-count",
+                    ),
+                )
+                val taskName =
+                    "benchmarkQuickMongoBatchOptionsPaired" +
+                        stratum.workload.id.replaceFirstChar(Char::uppercase) +
+                        "T${stratum.threads}R$roundId${variant.taskSuffix}"
+                val profile = quickMongoBatchOptionsPairedProfile.copy(
+                    threads = listOf(stratum.threads),
+                    parameters = mapOf("batchOptions" to batchOptions),
+                )
+                val taskSpec = BenchmarkTaskSpec(
+                    taskName = taskName,
+                    suite = suite,
+                    profile = profile,
+                    description =
+                        "Runs quick Mongo batch-options engineering for ${stratum.workload.displayName}, " +
+                            "threads=${stratum.threads}, round=$round/$mongoBatchOptionsQuickRounds " +
+                            "(${order.id} position $position: ${variant.id} $batchOptions).",
+                )
+                val task = registerBenchmarkThreadTask(
+                    taskName = taskName,
+                    suite = suite,
+                    profile = profile,
+                    threads = stratum.threads,
+                )
+                add(
+                    MongoBatchOptionsQuickTrialSpec(
+                        stratum = stratum,
+                        round = round,
+                        order = order,
+                        position = position,
+                        variant = variant,
+                        batchOptions = batchOptions,
+                        taskSpec = taskSpec,
+                        task = task,
+                    )
+                )
+            }
+        }
+    }
+}
+
+mongoBatchOptionsQuickTrials.zipWithNext().forEach { (previous, current) ->
+    current.task.configure {
+        mustRunAfter(previous.task)
+    }
+}
+
+fun parseMongoBatchOptionsQuickExperiment(
+    parser: JsonSlurper = JsonSlurper(),
+): MongoBatchOptionsQuickExperiment {
+    val legs = mongoBatchOptionsQuickTrials.map { trial ->
+        val report = parseBenchmarkGroup(
+            parser = parser,
+            group = benchmarkResultGroup(trial.taskSpec),
+        )
+        if (report.rows.size != 1 || report.manifests.size != 1) {
+            throw GradleException(
+                "Quick Mongo batch-options leg is missing or incomplete: ${trial.taskSpec.taskName}."
+            )
+        }
+        val row = report.rows.single()
+        val manifest = report.manifests.single()
+        if (row.threads != trial.stratum.threads) {
+            throw GradleException(
+                "Quick Mongo batch-options thread mismatch for ${trial.taskSpec.taskName}: " +
+                    "expected ${trial.stratum.threads}, found ${row.threads}."
+            )
+        }
+        if (row.mode != "thrpt" || !row.unit.equals("ops/s", ignoreCase = true)) {
+            throw GradleException(
+                "Quick Mongo batch-options leg must contain one thrpt ops/s row: ${trial.taskSpec.taskName}."
+            )
+        }
+        if (!row.score.isFinite() || row.score <= 0.0) {
+            throw GradleException(
+                "Quick Mongo batch-options score must be positive and finite: ${trial.taskSpec.taskName}."
+            )
+        }
+        val allocation = row.allocationBytesPerOp
+        if (allocation == null || !allocation.isFinite() || allocation <= 0.0) {
+            throw GradleException(
+                "Quick Mongo batch-options allocation must be positive and finite: ${trial.taskSpec.taskName}."
+            )
+        }
+        val actualMethod = benchmarkMethodName(row)
+        if (actualMethod != trial.stratum.workload.methodName) {
+            throw GradleException(
+                "Quick Mongo batch-options method mismatch for ${trial.taskSpec.taskName}: " +
+                    "expected ${trial.stratum.workload.methodName}, found $actualMethod."
+            )
+        }
+        val actualBatchOptions = row.parameters["batchOptions"]
+        if (actualBatchOptions != trial.batchOptions) {
+            throw GradleException(
+                "Quick Mongo batch-options parameter mismatch for ${trial.taskSpec.taskName}: " +
+                    "expected ${trial.batchOptions}, found $actualBatchOptions."
+            )
+        }
+        val expectedTaskPath = mongoBatchPairedTaskPath(trial.taskSpec.taskName)
+        if (manifest.taskPath != expectedTaskPath) {
+            throw GradleException(
+                "Quick Mongo batch-options task path mismatch: " +
+                    "expected $expectedTaskPath, found ${manifest.taskPath}."
+            )
+        }
+        if (manifest.runMetadata["formalProtocol"] != "false" ||
+            manifest.runMetadata["batchOptions"] != trial.batchOptions
+        ) {
+            throw GradleException(
+                "Quick Mongo batch-options manifest metadata mismatch: ${trial.taskSpec.taskName}."
+            )
+        }
+        ParsedMongoBatchOptionsQuickLeg(trial = trial, row = row, manifest = manifest)
+    }
+    validateBenchmarkRunManifests(
+        manifests = legs.map(ParsedMongoBatchOptionsQuickLeg::manifest),
+        context = "Quick Mongo EventStore Batch Options Engineering",
+        requireSameRunId = true,
+    )
+    if (legs.any { leg -> leg.manifest.sourceDirty }) {
+        throw GradleException("Quick Mongo batch-options engineering requires sourceDirty=false.")
+    }
+    legs.zipWithNext().forEach { (previous, current) ->
+        val previousCompletedAt = Instant.parse(previous.manifest.completedAt)
+        val currentStartedAt = Instant.parse(current.manifest.startedAt)
+        if (currentStartedAt.isBefore(previousCompletedAt)) {
+            throw GradleException(
+                "Quick Mongo batch-options legs did not execute in protocol order: " +
+                    "${previous.trial.taskSpec.taskName} completed at $previousCompletedAt, " +
+                    "${current.trial.taskSpec.taskName} started at $currentStartedAt."
+            )
+        }
+    }
+    validateNonOverlappingBenchmarkEvidenceWindows(
+        windows = legs.map { leg ->
+            BenchmarkEvidenceWindow(
+                id = leg.trial.taskSpec.taskName,
+                startedAt = Instant.parse(leg.manifest.startedAt),
+                completedAt = Instant.parse(leg.manifest.completedAt),
+            )
+        },
+        context = "Quick Mongo EventStore Batch Options Engineering",
+    )
+    val observations = legs.groupBy { leg ->
+        Triple(leg.trial.stratum.workload, leg.trial.stratum.threads, leg.trial.round)
+    }
+        .map { (key, roundLegs) ->
+            val (workload, threads, round) = key
+            if (roundLegs.size != MongoBatchOptionsPairedVariant.entries.size) {
+                throw GradleException(
+                    "Quick Mongo batch-options round must contain current and candidate legs: " +
+                        "${workload.id}/threads=$threads/round=$round."
+                )
+            }
+            val expectedOrder = mongoBatchOptionsQuickOrder(round)
+            val orderedLegs = roundLegs.sortedBy { it.trial.position }
+            if (orderedLegs.map { it.trial.variant } != expectedOrder.variants() ||
+                roundLegs.any { it.trial.order != expectedOrder }
+            ) {
+                throw GradleException(
+                    "Quick Mongo batch-options round order mismatch for " +
+                        "${workload.id}/threads=$threads/round=$round."
+                )
+            }
+            val legsByVariant = roundLegs.associateBy { it.trial.variant }
+            if (legsByVariant.size != MongoBatchOptionsPairedVariant.entries.size) {
+                throw GradleException(
+                    "Quick Mongo batch-options round contains duplicate variants: " +
+                        "${workload.id}/threads=$threads/round=$round."
+                )
+            }
+            val current = checkNotNull(legsByVariant[MongoBatchOptionsPairedVariant.CURRENT])
+            val candidate = checkNotNull(legsByVariant[MongoBatchOptionsPairedVariant.FINALIST])
+            MongoBatchOptionsPairedObservation(
+                workload = workload,
+                threads = threads,
+                round = round,
+                order = expectedOrder,
+                currentScore = current.row.score,
+                finalistScore = candidate.row.score,
+                currentAllocation = checkNotNull(current.row.allocationBytesPerOp),
+                finalistAllocation = checkNotNull(candidate.row.allocationBytesPerOp),
+                unit = current.row.unit,
+            )
+        }
+    val expectedStrata = mongoBatchOptionsQuickStrata.map { it.workload to it.threads }.toSet()
+    val actualStrata = observations.map { it.workload to it.threads }.toSet()
+    if (observations.size != mongoBatchOptionsQuickStrata.size * mongoBatchOptionsQuickRounds ||
+        actualStrata != expectedStrata
+    ) {
+        throw GradleException(
+            "Quick Mongo batch-options observations are incomplete: " +
+                "expected strata=$expectedStrata and " +
+                "${mongoBatchOptionsQuickStrata.size * mongoBatchOptionsQuickRounds} pairs, " +
+                "found strata=$actualStrata and ${observations.size} pairs."
+        )
+    }
+    return MongoBatchOptionsQuickExperiment(legs = legs, observations = observations)
+}
+
+val benchmarkQuickMongoBatchOptionsPaired =
+    tasks.register("benchmarkQuickMongoBatchOptionsPaired") {
+        description = "Runs the fixed 24-leg quick Mongo batch-options engineering comparison."
+        group = "benchmark"
+        dependsOn(mongoBatchOptionsQuickTrials.map(MongoBatchOptionsQuickTrialSpec::task))
+
+        doLast {
+            parseMongoBatchOptionsQuickExperiment()
         }
     }
 
@@ -5062,13 +5530,20 @@ fun storageBatchRows(
     methods: StorageBatchMethods,
     key: StorageBatchComparisonKey,
 ): Triple<ParsedBenchmarkResult, ParsedBenchmarkResult, ParsedBenchmarkResult> {
-    val rowsByMethod = rows.associateBy(::benchmarkMethodName)
-    val single = rowsByMethod[methods.single]
-        ?: throw GradleException("Missing ${methods.single} row for $key.")
-    val nativeBatch = rowsByMethod[methods.nativeBatch]
-        ?: throw GradleException("Missing ${methods.nativeBatch} row for $key.")
-    val coordinatedBatch = rowsByMethod[methods.coordinatedBatch]
-        ?: throw GradleException("Missing ${methods.coordinatedBatch} row for $key.")
+    val rowsByMethod = rows.groupBy(::benchmarkMethodName)
+    fun requiredRow(method: String): ParsedBenchmarkResult {
+        val matchingRows = rowsByMethod[method].orEmpty()
+        if (matchingRows.size != 1) {
+            throw GradleException(
+                "Storage batch comparison requires exactly one $method row for $key, " +
+                    "found ${matchingRows.size}."
+            )
+        }
+        return matchingRows.single()
+    }
+    val single = requiredRow(methods.single)
+    val nativeBatch = requiredRow(methods.nativeBatch)
+    val coordinatedBatch = requiredRow(methods.coordinatedBatch)
     return Triple(single, nativeBatch, coordinatedBatch)
 }
 
@@ -5130,7 +5605,11 @@ fun StringBuilder.appendStorageBatchMetricComparison(
             } else {
                 reductionPercent(single.score, coordinatedBatch.score)
             }
-            val coordinatedVsNative = relativeChangePercent(nativeBatch.score, coordinatedBatch.score)
+            val coordinatedVsNative = if (throughput) {
+                relativeChangePercent(nativeBatch.score, coordinatedBatch.score)
+            } else {
+                reductionPercent(nativeBatch.score, coordinatedBatch.score)
+            }
             appendLine(
                 "| ${key.threads} | `${storageBatchParameters(key.parameters)}` | " +
                     "${singleScore.scoreWithUnit} | ${nativeBatchScore.scoreWithUnit} | " +
@@ -5146,7 +5625,7 @@ fun StringBuilder.appendStorageBatchMetricComparison(
         appendLine(
             "Lower amortized time is better. JMH divides each 128-event invocation's wall time by 128; " +
                 "this is not an independent single-request response latency. The two `vs single` columns " +
-                "report time reduction; `Coordinated vs native` reports the end-to-end time delta."
+                "and `Coordinated vs native` all report time reduction, so positive changes are gains."
         )
     }
     appendLine()
@@ -5182,6 +5661,95 @@ fun StringBuilder.appendMongoBatchAppendComparisons(rows: List<ParsedBenchmarkRe
             coordinatedBatchLabel = "Coordinated batch",
         ),
     )
+}
+
+data class QuickMongoBatchCandidateE2ERowKey(
+    val method: String,
+    val threads: Int,
+    val mode: String,
+)
+
+val quickMongoBatchCandidateE2EMethods = setOf(
+    "appendWithInsertOne",
+    "appendWithNativeInsertMany",
+    "appendWithInsertManyBatch",
+)
+
+fun validateQuickMongoBatchCandidateE2ERows(rows: List<ParsedBenchmarkResult>) {
+    val expectedKeys = quickMongoBatchCandidateE2EMethods.flatMap { method ->
+        quickMongoBatchCandidateE2EProfile.threads.flatMap { threads ->
+            quickMongoBatchCandidateE2EProfile.benchmarkModes.map { mode ->
+                QuickMongoBatchCandidateE2ERowKey(method, threads, mode)
+            }
+        }
+    }.toSet()
+    val actualKeys = rows.map { row ->
+        QuickMongoBatchCandidateE2ERowKey(
+            method = benchmarkMethodName(row),
+            threads = row.threads,
+            mode = row.mode,
+        )
+    }
+    val duplicateKeys = actualKeys.groupingBy { it }.eachCount()
+        .filterValues { count -> count > 1 }
+        .keys
+    if (duplicateKeys.isNotEmpty()) {
+        throw GradleException(
+            "Quick Mongo candidate E2E results contain duplicate rows: " +
+                duplicateKeys.sortedWith(compareBy({ it.method }, { it.threads }, { it.mode }))
+        )
+    }
+    if (rows.size != expectedKeys.size || actualKeys.toSet() != expectedKeys) {
+        throw GradleException(
+            "Quick Mongo candidate E2E matrix must contain exactly " +
+                "${quickMongoBatchCandidateE2EMethods.size} methods x " +
+                "${quickMongoBatchCandidateE2EProfile.threads.size} thread counts x " +
+                "${quickMongoBatchCandidateE2EProfile.benchmarkModes.size} modes " +
+                "(${expectedKeys.size} rows). Missing=${expectedKeys - actualKeys.toSet()}, " +
+                "unexpected=${actualKeys.toSet() - expectedKeys}."
+        )
+    }
+    rows.forEach { row ->
+        if (row.suite.id != quickMongoBatchCandidateE2ESuite.id ||
+            row.profile != quickMongoBatchCandidateE2EProfile.id
+        ) {
+            throw GradleException(
+                "Quick Mongo candidate E2E row has unexpected suite/profile: " +
+                    "${row.suite.id}/${row.profile}."
+            )
+        }
+        if (row.parameters != mapOf("batchOptions" to mongoBatchQuickCandidateOptions)) {
+            throw GradleException(
+                "Quick Mongo candidate E2E row must use only " +
+                    "batchOptions=$mongoBatchQuickCandidateOptions: ${row.parameters}."
+            )
+        }
+        val validUnit = when (row.mode) {
+            "thrpt" -> row.unit.equals("ops/s", ignoreCase = true)
+            "avgt" -> row.unit.endsWith("/op") &&
+                latencyUnitSeconds(row.unit.removeSuffix("/op")) != null
+            else -> false
+        }
+        if (!validUnit) {
+            throw GradleException(
+                "Quick Mongo candidate E2E row has invalid ${row.mode} unit '${row.unit}': " +
+                    row.benchmark
+            )
+        }
+        if (!row.score.isFinite() || row.score <= 0.0) {
+            throw GradleException(
+                "Quick Mongo candidate E2E row has a non-positive or non-finite score: " +
+                    "${row.benchmark}=${row.score}."
+            )
+        }
+        val allocation = row.allocationBytesPerOp
+        if (allocation == null || !allocation.isFinite() || allocation <= 0.0) {
+            throw GradleException(
+                "Quick Mongo candidate E2E row is missing a positive finite gc.alloc.rate.norm: " +
+                    row.benchmark
+            )
+        }
+    }
 }
 
 fun StringBuilder.appendElasticsearchBatchAppendComparisons(rows: List<ParsedBenchmarkResult>) {
@@ -5944,6 +6512,7 @@ fun StringBuilder.appendStorageBatchTuningSummary(
     confirmationReportTaskPath: String? = null,
     confirmationPropertyName: String? = null,
     boundConfirmationEvidence: StorageBatchTuningFrontierEvidence? = null,
+    campaignStopped: Boolean = false,
 ) {
     validateStorageBatchTuningMatrix(
         rows = rows,
@@ -5954,6 +6523,16 @@ fun StringBuilder.appendStorageBatchTuningSummary(
     )
     if (currentOptions !in expectedOptions) {
         throw GradleException("Storage batch tuning matrix must include current options $currentOptions.")
+    }
+    if (campaignStopped) {
+        appendLine("## Campaign Status")
+        appendLine()
+        appendLine(
+            "This full-candidate campaign has been stopped. Its measurements and historical classifier " +
+                "output are retained as exploratory evidence only; the remaining frontier must not be run " +
+                "under the old protocol, and this report cannot establish a production default."
+        )
+        appendLine()
     }
     val throughputRows = rows.filter { it.unit.equals("ops/s", ignoreCase = true) }
     val rowsByKey = throughputRows.groupBy { row ->
@@ -5967,9 +6546,15 @@ fun StringBuilder.appendStorageBatchTuningSummary(
     appendLine("## Throughput Screening")
     appendLine()
     appendLine(
-        "The table keeps the five highest point estimates per workload plus the current " +
-            "`$currentOptions` default. Scan results select confirmation candidates; they do not by themselves " +
-            "establish a new default."
+        if (campaignStopped) {
+            "The table keeps the five highest historical point estimates per workload plus current " +
+                "`$currentOptions`. These stopped-campaign scan results are exploratory and do not select " +
+                "a production default."
+        } else {
+            "The table keeps the five highest point estimates per workload plus the current " +
+                "`$currentOptions` default. Scan results select confirmation candidates; they do not by themselves " +
+                "establish a new default."
+        }
     )
     appendLine()
     appendLine(
@@ -6020,8 +6605,14 @@ fun StringBuilder.appendStorageBatchTuningSummary(
         }
     appendLine()
     appendLine(
-        "Higher throughput is better. `vs best` and `vs current` use point estimates; overlapping JMH " +
-            "error intervals remain inconclusive and require the multiple-fork confirmation task."
+        if (campaignStopped) {
+            "Higher throughput is better. `vs best` and `vs current` use historical point estimates; " +
+                "overlapping JMH error intervals remain uncertain and do not authorize continuing the " +
+                "stopped protocol."
+        } else {
+            "Higher throughput is better. `vs best` and `vs current` use point estimates; overlapping JMH " +
+                "error intervals remain inconclusive and require the multiple-fork confirmation task."
+        }
     )
     appendLine()
 
@@ -6046,10 +6637,17 @@ fun StringBuilder.appendStorageBatchTuningSummary(
     appendLine("## Cross-workload Candidate Gate")
     appendLine()
     appendLine(
-        "A screening candidate is eligible only when every saturated stratum is within 5% of that " +
-            "stratum's best point estimate, every isolated/burst/representative stratum stays within 10% " +
-            "of current throughput, and allocation stays within 10% of current. All refresh and thread " +
-            "strata participate. These point-estimate gates shortlist candidates; confirmation remains required."
+        if (campaignStopped) {
+            "The historical gate marked a candidate eligible only when every saturated stratum was within 5% " +
+                "of that stratum's best point estimate, every isolated/burst/representative stratum stayed " +
+                "within 10% of current throughput, and allocation stayed within 10% of current. These labels " +
+                "are retained for exploration and do not schedule further confirmation."
+        } else {
+            "A screening candidate is eligible only when every saturated stratum is within 5% of that " +
+                "stratum's best point estimate, every isolated/burst/representative stratum stays within 10% " +
+                "of current throughput, and allocation stays within 10% of current. All refresh and thread " +
+                "strata participate. These point-estimate gates shortlist candidates; confirmation remains required."
+        }
     )
     appendLine()
     appendLine(
@@ -6063,7 +6661,8 @@ fun StringBuilder.appendStorageBatchTuningSummary(
     candidateSummaries.forEach { summary ->
         val status = when {
             summary.batchOptions == currentOptions -> "CURRENT"
-            summary.batchOptions in paretoOptions -> "CONFIRM"
+            summary.batchOptions in paretoOptions ->
+                if (campaignStopped) "HISTORICAL_FRONTIER" else "CONFIRM"
             summary.eligible -> "ELIGIBLE_DOMINATED"
             else -> "REJECT"
         }
@@ -6078,7 +6677,11 @@ fun StringBuilder.appendStorageBatchTuningSummary(
     }
     appendLine()
     appendLine(
-        if (boundConfirmationEvidence == null) {
+        if (campaignStopped && boundConfirmationEvidence == null) {
+            "### Historical Deterministic Pareto Set"
+        } else if (campaignStopped) {
+            "### Historical Manifest-bound Candidate Set"
+        } else if (boundConfirmationEvidence == null) {
             "### Deterministic Pareto Confirmation Set"
         } else {
             "### Manifest-bound Confirmation Set"
@@ -6095,10 +6698,17 @@ fun StringBuilder.appendStorageBatchTuningSummary(
         )
     } else {
         appendLine(
-            "This confirmation set is not recomputed from the supplied rows. It is bound to screening " +
-                "evidence `${boundConfirmationEvidence.evidenceSha256}` from source commit " +
-                "`${boundConfirmationEvidence.sourceCommit}` and result " +
-                "`${boundConfirmationEvidence.resultSha256}`."
+            if (campaignStopped) {
+                "This historical candidate set is not recomputed from the supplied rows. It remains bound to " +
+                    "exploratory screening evidence `${boundConfirmationEvidence.evidenceSha256}` from source " +
+                    "commit `${boundConfirmationEvidence.sourceCommit}` and result " +
+                    "`${boundConfirmationEvidence.resultSha256}`."
+            } else {
+                "This confirmation set is not recomputed from the supplied rows. It is bound to screening " +
+                    "evidence `${boundConfirmationEvidence.evidenceSha256}` from source commit " +
+                    "`${boundConfirmationEvidence.sourceCommit}` and result " +
+                    "`${boundConfirmationEvidence.resultSha256}`."
+            }
         )
     }
     appendLine()
@@ -6109,15 +6719,26 @@ fun StringBuilder.appendStorageBatchTuningSummary(
         )
     } else {
         appendLine(
-            "- **Required frontier**: " +
+            if (campaignStopped) {
+                "- **Historical frontier**: "
+            } else {
+                "- **Required frontier**: "
+            } +
                 confirmationOptions.joinToString(", ") { candidate -> "`$candidate`" }
         )
-        appendLine(
-            "- **Closure rule**: run one multiple-fork confirmation over the complete ordered frontier, then " +
-                "run paired confirmation for every `INCONCLUSIVE` challenger. Only after every challenger has " +
-                "a final `PASS` or elimination verdict may the highest-ranked `PASS` be selected; if none pass, " +
-                "retain current. Until then, the default decision remains open."
-        )
+        if (campaignStopped) {
+            appendLine(
+                "- **Campaign status**: stopped before full closure. Do not continue the remaining candidates " +
+                    "or interpret this historical set as a pre-registered selection protocol."
+            )
+        } else {
+            appendLine(
+                "- **Closure rule**: run one multiple-fork confirmation over the complete ordered frontier, then " +
+                    "run paired confirmation for every `INCONCLUSIVE` challenger. Only after every challenger has " +
+                    "a final `PASS` or elimination verdict may the highest-ranked `PASS` be selected; if none pass, " +
+                    "retain current. Until then, the default decision remains open."
+            )
+        }
         val confirmationCommandParts = listOf(
             confirmationTaskPath,
             confirmationReportTaskPath,
@@ -6134,7 +6755,8 @@ fun StringBuilder.appendStorageBatchTuningSummary(
                 "Manifest-bound confirmation output cannot emit a screening confirmation command."
             )
         }
-        if (confirmationTaskPath != null &&
+        if (!campaignStopped &&
+            confirmationTaskPath != null &&
             confirmationReportTaskPath != null &&
             confirmationPropertyName != null
         ) {
@@ -6489,6 +7111,7 @@ fun StringBuilder.appendStorageBatchTuningConfirmationVerdict(
     rows: List<ParsedBenchmarkResult>,
     expectedOptions: List<String>,
     currentOptions: String,
+    campaignStopped: Boolean = false,
 ) {
     val challengerOptions = expectedOptions.filterNot { option -> option == currentOptions }
     if (challengerOptions.isEmpty()) {
@@ -6504,14 +7127,21 @@ fun StringBuilder.appendStorageBatchTuningConfirmationVerdict(
     appendLine("## Confirmation Verdict")
     appendLine()
     appendLine(
-        "PASS requires every candidate-vs-current throughput lower bound, average-time upper bound, " +
-            "and allocation upper bound to meet the declared margin across every workload, refresh, and " +
-            "thread stratum. REGRESSION requires an opposite conservative bound to violate a margin. " +
-            "Bounds combine the independent JMH score intervals; they are not a paired ratio confidence " +
-            "interval. Every INCONCLUSIVE candidate requires its own paired confirmation. This report classifies " +
-            "only the supplied options; selection closes only when they equal the complete Pareto frontier in " +
-            "the emitted order and every challenger has a final verdict. The selected default is then the " +
-            "highest-ranked PASS, or current when none pass."
+        if (campaignStopped) {
+            "The statuses below are historical outputs from the stopped full-candidate campaign. Bounds combine " +
+                "the independent JMH score intervals; they are not paired ratio confidence intervals. " +
+                "Do not continue `INCONCLUSIVE` candidates under the old protocol or use these statuses to " +
+                "claim a selected production default."
+        } else {
+            "PASS requires every candidate-vs-current throughput lower bound, average-time upper bound, " +
+                "and allocation upper bound to meet the declared margin across every workload, refresh, and " +
+                "thread stratum. REGRESSION requires an opposite conservative bound to violate a margin. " +
+                "Bounds combine the independent JMH score intervals; they are not a paired ratio confidence " +
+                "interval. Every INCONCLUSIVE candidate requires its own paired confirmation. This report classifies " +
+                "only the supplied options; selection closes only when they equal the complete Pareto frontier in " +
+                "the emitted order and every challenger has a final verdict. The selected default is then the " +
+                "highest-ranked PASS, or current when none pass."
+        }
     )
     appendLine()
     appendLine(
@@ -6826,9 +7456,10 @@ fun renderMongoBatchOptionsPairedConfirmationReport(
     sb.appendLine("# Mongo EventStore Batch Options Paired Confirmation Report")
     sb.appendLine()
     sb.appendLine(
-        "This pre-registered paired experiment compares finalist `$mongoBatchOptionsPairedFinalist` with " +
-            "current `$mongoBatchOptionsPairedCurrent` through the same coordinated Mongo EventStore path. " +
-            "It is the default-selection confirmation after screening and multiple-fork candidate reduction."
+        "This completed candidate-level experiment is retained as exploratory evidence. It compares finalist " +
+            "`$mongoBatchOptionsPairedFinalist` with current `$mongoBatchOptionsPairedCurrent` through the same " +
+            "coordinated Mongo EventStore path. The wider Pareto campaign was stopped before every candidate " +
+            "completed, so this report is not a pre-registered final decision or default-selection proof."
     )
     sb.appendLine()
     sb.appendLine("## Overall Verdict")
@@ -6837,10 +7468,8 @@ fun renderMongoBatchOptionsPairedConfirmationReport(
     sb.appendLine("- **Current**: `$mongoBatchOptionsPairedCurrent`")
     sb.appendLine("- **Finalist**: `$mongoBatchOptionsPairedFinalist`")
     sb.appendLine(
-        "- **Selection Scope**: this verdict applies only to the configured finalist. Every frontier candidate " +
-            "left `INCONCLUSIVE` by multiple-fork confirmation needs its own paired report, including candidates " +
-            "ranked below a PASS. Select the highest-ranked PASS only after all frontier candidates have final " +
-            "verdicts; if none pass, retain current."
+        "- **Selection Scope**: exploratory candidate evidence only. The stopped campaign does not resolve the " +
+            "remaining frontier and must not be used to claim an optimal or validated production default."
     )
     sb.appendLine(
         "- **Acceptance**: every workload/thread throughput and allocation safety bound must pass, and the " +
@@ -6901,7 +7530,7 @@ fun renderMongoBatchOptionsPairedConfirmationReport(
             "ratios are never pooled across strata."
     )
     sb.appendLine(
-        "- Each stratum has $mongoBatchOptionsPairedRounds adjacent run pairs using the same pre-registered, " +
+        "- Each stratum has $mongoBatchOptionsPairedRounds adjacent run pairs using the same fixed, " +
             "balanced, non-periodic sequence: " +
             "`${mongoBatchOptionsPairedOrderSequence.joinToString(" ") { order -> order.id }}`. " +
             "AB means `current → finalist`, BA means `finalist → current`; every leg is an independent JMH process."
@@ -7098,7 +7727,7 @@ fun renderMongoBatchOptionsPairedConfirmationReport(
     sb.appendLine()
     sb.appendLine(
         "- The interval assumes the $mongoBatchOptionsPairedRounds log-ratio pairs in each stratum are independent " +
-            "and approximately normal. The pre-registered balanced order and acceptance diagnostics cannot " +
+            "and approximately normal. The fixed balanced order and acceptance diagnostics cannot " +
             "eliminate longer periodic load, time trends, or higher-order autocorrelation."
     )
     sb.appendLine(
@@ -7107,11 +7736,203 @@ fun renderMongoBatchOptionsPairedConfirmationReport(
     )
     sb.appendLine(
         "- Results apply to the recorded local MongoDB, Docker, JVM, host, workload payload, and acknowledgement " +
-            "configuration; they are default-selection evidence, not production capacity."
+            "configuration; they are exploratory candidate evidence, not a production default or capacity claim."
     )
     sb.appendLine(
         "- SnapshotStore is outside this EventStore experiment and must not inherit the finalist without its own " +
             "payload, ordering, and coalescing benchmark."
+    )
+    return sb.toString()
+}
+
+fun renderMongoBatchOptionsQuickReport(
+    experiment: MongoBatchOptionsQuickExperiment,
+): String {
+    val command = "./gradlew :wow-benchmarks:benchmarkQuickMongoBatchOptionsPaired " +
+        ":wow-benchmarks:generateQuickMongoBatchOptionsPairedReport --no-parallel --no-daemon"
+    val manifests = experiment.manifests
+    val statistics = experiment.statistics()
+    val reference = manifests.first()
+    val startedAt = manifests.minOf { manifest -> Instant.parse(manifest.startedAt) }
+    val completedAt = manifests.maxOf { manifest -> Instant.parse(manifest.completedAt) }
+    val combinedResultDigest = benchmarkCombinedResultDigest(manifests)
+    val sb = StringBuilder()
+    sb.appendLine("<!--")
+    sb.appendLine("  This file is auto-generated by `$command`.")
+    sb.appendLine("  Do not manually edit benchmark results.")
+    sb.appendLine("-->")
+    sb.appendLine()
+    sb.appendLine("# Quick Mongo EventStore Batch Options Engineering Report")
+    sb.appendLine()
+    sb.appendLine(
+        "This bounded quick experiment compares candidate `$mongoBatchQuickCandidateOptions` with current " +
+            "`$mongoBatchQuickCurrentOptions`. It is independent from the stopped formal Pareto campaign, uses " +
+            "its own raw-result directory, and is directional engineering evidence rather than a production " +
+            "default-selection proof."
+    )
+    sb.appendLine()
+    sb.appendLine("## Decision Status")
+    sb.appendLine()
+    sb.appendLine("- **Status**: **ACCEPTANCE CRITERIA INCOMPLETE**")
+    sb.appendLine(
+        "- The requested acceptance text ended after `representative128 / threads=1,4`; this report preserves " +
+            "the exact measurements and does not invent a missing threshold."
+    )
+    sb.appendLine("- All ratios and 95% intervals below are descriptive quick signals based on four pairs.")
+    sb.appendLine()
+    sb.appendLine("## Stratum Results")
+    sb.appendLine()
+    sb.appendLine(
+        "| Workload | Threads | Pairs | Current throughput | Candidate throughput | Throughput ratio / 95% CI | " +
+            "Equivalent average-time ratio / 95% CI | Allocation ratio / 95% CI |"
+    )
+    sb.appendLine(
+        "|----------|--------:|------:|-------------------:|---------------------:|---------------------------:|" +
+            "-----------------------------------------:|---------------------------:|"
+    )
+    statistics.forEach { statistic ->
+        val scale = benchmarkMetricScale(
+            values = listOf(
+                statistic.throughput.currentGeometricMean,
+                statistic.throughput.finalistGeometricMean,
+            ),
+            unit = "ops/s",
+        )
+        val current = formatScaledBenchmarkScore(
+            score = statistic.throughput.currentGeometricMean,
+            scoreError = null,
+            scale = scale,
+        ).scoreWithUnit
+        val candidate = formatScaledBenchmarkScore(
+            score = statistic.throughput.finalistGeometricMean,
+            scoreError = null,
+            scale = scale,
+        ).scoreWithUnit
+        sb.appendLine(
+            "| `${statistic.workload.id}` | ${statistic.threads} | ${statistic.pairCount} | " +
+                "$current | $candidate | ${formatMongoBatchRatio(statistic.throughput.geometricRatio)} / " +
+                "[${formatMongoBatchRatio(statistic.throughput.lower95Ratio)}, " +
+                "${formatMongoBatchRatio(statistic.throughput.upper95Ratio)}] | " +
+                "${formatMongoBatchRatio(statistic.equivalentTimeRatio)} / " +
+                "[${formatMongoBatchRatio(statistic.equivalentTimeLower95Ratio)}, " +
+                "${formatMongoBatchRatio(statistic.equivalentTimeUpper95Ratio)}] | " +
+                "${formatMongoBatchRatio(statistic.allocation.geometricRatio)} / " +
+                "[${formatMongoBatchRatio(statistic.allocation.lower95Ratio)}, " +
+                "${formatMongoBatchRatio(statistic.allocation.upper95Ratio)}] |"
+        )
+    }
+    sb.appendLine()
+    sb.appendLine(
+        "A throughput ratio above `1×` favors the candidate. An equivalent average-time or allocation ratio below " +
+            "`1×` favors the candidate. The average-time ratio is the inverse of closed-loop throughput, not an " +
+            "independently sampled response-time percentile."
+    )
+    sb.appendLine()
+    sb.appendLine("## Per-Pair Results")
+    sb.appendLine()
+    sb.appendLine(
+        "| Workload | Threads | Round | Order | Current throughput | Candidate throughput | Throughput ratio | " +
+            "Current allocation | Candidate allocation | Allocation ratio |"
+    )
+    sb.appendLine(
+        "|----------|--------:|------:|:-----:|-------------------:|---------------------:|-----------------:|" +
+            "-------------------:|---------------------:|-----------------:|"
+    )
+    experiment.observations.forEach { observation ->
+        val throughputScale = benchmarkMetricScale(
+            values = listOf(observation.currentScore, observation.finalistScore),
+            unit = observation.unit,
+        )
+        val currentThroughput = formatScaledBenchmarkScore(
+            observation.currentScore,
+            null,
+            throughputScale,
+        ).scoreWithUnit
+        val candidateThroughput = formatScaledBenchmarkScore(
+            observation.finalistScore,
+            null,
+            throughputScale,
+        ).scoreWithUnit
+        sb.appendLine(
+            "| `${observation.workload.id}` | ${observation.threads} | ${observation.round} | " +
+                "${observation.order.id} | $currentThroughput | $candidateThroughput | " +
+                "${formatMongoBatchRatio(observation.finalistScore / observation.currentScore)} | " +
+                "${formatAllocationBytes(observation.currentAllocation)} | " +
+                "${formatAllocationBytes(observation.finalistAllocation)} | " +
+                "${formatMongoBatchRatio(observation.finalistAllocation / observation.currentAllocation)} |"
+        )
+    }
+    sb.appendLine()
+    sb.appendLine("## Protocol")
+    sb.appendLine()
+    sb.appendLine(
+        "- Fixed strata: `representative128 / threads=1`, `representative128 / threads=4`, and " +
+            "`burst32 / threads=4`."
+    )
+    sb.appendLine(
+        "- Each stratum runs four adjacent pairs in `${mongoBatchOptionsQuickOrderSequence.joinToString(" ") { it.id }}` " +
+            "order. AB is `current → candidate`; BA is `candidate → current`; every leg is an independent JVM."
+    )
+    sb.appendLine(
+        "- JMH configuration: `${quickMongoBatchOptionsPairedProfile.configSummary()}`; " +
+            "JVM args: `${quickMongoBatchOptionsPairedProfile.jvmArgs.joinToString(" ")}`."
+    )
+    sb.appendLine(
+        "- Ratios use paired log geometric means. The descriptive 95% interval uses Student-t with " +
+            "`df=${mongoBatchOptionsQuickRounds - 1}` and " +
+            "`t=${pairedT95Critical(mongoBatchOptionsQuickRounds)}`."
+    )
+    sb.appendLine(
+        "- Every successful invocation checks all append publishers completed. Outside the measured iteration, " +
+            "the benchmark checks Mongo document count equals the exact expected write count; a mismatch or timeout " +
+            "fails the leg and prevents a SUCCESS manifest."
+    )
+    sb.appendLine()
+    sb.appendLine("## Evidence")
+    sb.appendLine()
+    sb.appendLine("- **Source Commit**: `${reference.sourceCommit}`")
+    sb.appendLine("- **Source Dirty**: `${reference.sourceDirty}`")
+    sb.appendLine("- **JMH Jar SHA-256**: `${reference.jmhJarSha256}`")
+    sb.appendLine("- **Run ID**: `${reference.runId}`")
+    sb.appendLine("- **Started**: $startedAt")
+    sb.appendLine("- **Completed**: $completedAt")
+    sb.appendLine("- **Successful Leg Manifests**: ${manifests.size}")
+    sb.appendLine(
+        "- **Combined Result SHA-256**: `$combinedResultDigest` " +
+            "(`SHA-256` over sorted `taskPath=resultSha256` lines)"
+    )
+    sb.appendLine()
+    sb.appendCapturedInfrastructureRuntime(manifests)
+    sb.appendLine("### Artifact Evidence")
+    sb.appendLine()
+    sb.appendLine(
+        "| Workload | Threads | Round | Order | Position | Variant | Batch options | Task | Result SHA-256 |"
+    )
+    sb.appendLine(
+        "|----------|--------:|------:|:-----:|---------:|---------|---------------|------|----------------|"
+    )
+    experiment.legs.forEach { leg ->
+        sb.appendLine(
+            "| `${leg.trial.stratum.workload.id}` | ${leg.trial.stratum.threads} | ${leg.trial.round} | " +
+                "${leg.trial.order.id} | ${leg.trial.position} | ${leg.trial.variant.id} | " +
+                "`${leg.trial.batchOptions}` | `${leg.manifest.taskPath}` | `${leg.manifest.resultSha256}` |"
+        )
+    }
+    sb.appendLine()
+    sb.appendBenchmarkEnvironment(project.version.toString(), quickMongoBatchOptionsPairedProfile)
+    sb.appendInfrastructureRuntime(reference.requiredServices)
+    sb.appendLine("## Limitations")
+    sb.appendLine()
+    sb.appendLine(
+        "- Four pairs have low statistical power. The interval is descriptive and this quick run cannot establish " +
+            "an optimum or justify changing a public default by itself."
+    )
+    sb.appendLine(
+        "- Closed-loop throughput and its inverse do not expose p50/p95/p99 response latency or coordinated omission."
+    )
+    sb.appendLine(
+        "- Full-success JMH runs can detect exceptions and write-count loss, but partial-failure result isolation is " +
+            "proved separately by BatchCoordinator and Mongo integration tests."
     )
     return sb.toString()
 }
@@ -8420,6 +9241,259 @@ val verifyMongoBatchOptionsPairedStatistics = tasks.register("verifyMongoBatchOp
     }
 }
 
+val verifyMongoBatchOptionsQuickProtocol = tasks.register("verifyMongoBatchOptionsQuickProtocol") {
+    description = "Verify the fixed quick Mongo options and candidate E2E engineering protocols."
+    group = "verification"
+
+    doLast {
+        check(mongoBatchQuickCurrentOptions == "128x1000us")
+        check(mongoBatchQuickCandidateOptions == "192x250us")
+        check(mongoBatchQuickCurrentOptions == mongoCurrentStorageBatchOptions)
+        check(
+            mongoBatchOptionsQuickStrata ==
+                listOf(
+                    MongoBatchOptionsQuickStratum(
+                        MongoBatchOptionsPairedWorkload.REPRESENTATIVE_128,
+                        1,
+                    ),
+                    MongoBatchOptionsQuickStratum(
+                        MongoBatchOptionsPairedWorkload.REPRESENTATIVE_128,
+                        4,
+                    ),
+                    MongoBatchOptionsQuickStratum(
+                        MongoBatchOptionsPairedWorkload.BURST_32,
+                        4,
+                    ),
+                )
+        )
+        check(
+            mongoBatchOptionsQuickOrderSequence ==
+                listOf(
+                    PairedExperimentOrder.AB,
+                    PairedExperimentOrder.BA,
+                    PairedExperimentOrder.BA,
+                    PairedExperimentOrder.AB,
+                )
+        )
+        check(mongoBatchOptionsQuickRounds == 4)
+        check(mongoBatchOptionsQuickTrials.size == 24)
+        check(
+            mongoBatchOptionsQuickTrials.count {
+                it.variant == MongoBatchOptionsPairedVariant.CURRENT
+            } == 12
+        )
+        check(
+            mongoBatchOptionsQuickTrials.count {
+                it.variant == MongoBatchOptionsPairedVariant.FINALIST
+            } == 12
+        )
+        check(
+            mongoBatchOptionsQuickTrials.map { it.taskSpec.taskName }.distinct().size ==
+                mongoBatchOptionsQuickTrials.size
+        )
+        check(
+            mongoBatchOptionsQuickTrials.map { it.taskSpec.suite.resultFileName }.distinct().size ==
+                mongoBatchOptionsQuickTrials.size
+        )
+        check(
+            mongoBatchOptionsQuickTrials
+                .groupBy { Triple(it.stratum.workload, it.stratum.threads, it.round) }
+                .values
+                .all { roundTrials ->
+                    roundTrials.sortedBy(MongoBatchOptionsQuickTrialSpec::position)
+                        .map(MongoBatchOptionsQuickTrialSpec::variant) ==
+                        roundTrials.first().order.variants()
+                }
+        )
+        check(mongoBatchOptionsQuickTrials.all { it.taskSpec.suite.requiresCleanSource })
+        check(
+            mongoBatchOptionsQuickTrials.all {
+                it.taskSpec.suite.id == "mongo-batch-options-quick-engineering" &&
+                    it.taskSpec.profile.id == "quick-mongo-options-paired" &&
+                    it.taskSpec.profile.warmupIterations == 1 &&
+                    it.taskSpec.profile.warmupTime == "2s" &&
+                    it.taskSpec.profile.measurementIterations == 1 &&
+                    it.taskSpec.profile.measurementTime == "3s" &&
+                    it.taskSpec.profile.forks == 1 &&
+                    it.taskSpec.profile.benchmarkModes == listOf("thrpt") &&
+                    it.taskSpec.profile.includeGcProfiler &&
+                    !it.taskSpec.profile.includeAsyncProfiler &&
+                    it.taskSpec.profile.parameters["batchOptions"] == it.batchOptions &&
+                    it.taskSpec.suite.runMetadata["formalProtocol"] == "false" &&
+                    it.taskSpec.suite.runMetadata["correctnessCheck"] ==
+                    "completion-count-and-iteration-document-count"
+            }
+        )
+        check(quickMongoBatchOptionsPairedProfile.id != pairedMongoBatchOptionsProfile.id)
+        check(
+            mongoBatchOptionsQuickTrials.none {
+                it.taskSpec.suite.id == "mongo-batch-options-paired-confirmation"
+            }
+        )
+        requireApproximatelyEqual(
+            pairedT95Critical(mongoBatchOptionsQuickRounds),
+            3.182446305,
+            1.0e-9,
+            "quick paired t",
+        )
+
+        fun quickObservations(
+            workload: MongoBatchOptionsPairedWorkload,
+            threads: Int,
+        ): List<MongoBatchOptionsPairedObservation> {
+            return (1..mongoBatchOptionsQuickRounds).map { round ->
+                val current = 10_000.0 + round
+                MongoBatchOptionsPairedObservation(
+                    workload = workload,
+                    threads = threads,
+                    round = round,
+                    order = mongoBatchOptionsQuickOrder(round),
+                    currentScore = current,
+                    finalistScore = current * 1.20,
+                    currentAllocation = current,
+                    finalistAllocation = current * 1.05,
+                    unit = "ops/s",
+                )
+            }
+        }
+
+        val quickStatistics = calculateMongoBatchOptionsQuickStratumStatistics(
+            quickObservations(MongoBatchOptionsPairedWorkload.REPRESENTATIVE_128, 1)
+        )
+        check(quickStatistics.pairCount == 4)
+        requireApproximatelyEqual(
+            quickStatistics.throughput.geometricRatio,
+            1.20,
+            1.0e-12,
+            "quick paired throughput ratio",
+        )
+        requireApproximatelyEqual(
+            quickStatistics.allocation.geometricRatio,
+            1.05,
+            1.0e-12,
+            "quick paired allocation ratio",
+        )
+        check(
+            runCatching {
+                calculateMongoBatchOptionsQuickStratumStatistics(
+                    quickObservations(
+                        MongoBatchOptionsPairedWorkload.REPRESENTATIVE_128,
+                        1,
+                    ).dropLast(1)
+                )
+            }.exceptionOrNull() is GradleException
+        )
+        check(
+            runCatching {
+                calculateMongoBatchOptionsQuickStratumStatistics(
+                    quickObservations(
+                        MongoBatchOptionsPairedWorkload.REPRESENTATIVE_128,
+                        1,
+                    ).map { observation ->
+                        if (observation.round == 2) {
+                            observation.copy(order = PairedExperimentOrder.AB)
+                        } else {
+                            observation
+                        }
+                    }
+                )
+            }.exceptionOrNull() is GradleException
+        )
+
+        check(quickMongoBatchCandidateE2ESuite.id == "mongo-batch-append-quick-engineering")
+        check(quickMongoBatchCandidateE2ESuite.id != mongoBatchAppendSuite.id)
+        check(quickMongoBatchCandidateE2ESuite.requiresCleanSource)
+        check(quickMongoBatchCandidateE2EProfile.id == "quick-mongo-candidate-e2e")
+        check(quickMongoBatchCandidateE2EProfile.warmupIterations == 1)
+        check(quickMongoBatchCandidateE2EProfile.warmupTime == "2s")
+        check(quickMongoBatchCandidateE2EProfile.measurementIterations == 1)
+        check(quickMongoBatchCandidateE2EProfile.measurementTime == "3s")
+        check(quickMongoBatchCandidateE2EProfile.forks == 1)
+        check(quickMongoBatchCandidateE2EProfile.threads == listOf(1, 4))
+        check(quickMongoBatchCandidateE2EProfile.benchmarkModes == listOf("thrpt", "avgt"))
+        check(quickMongoBatchCandidateE2EProfile.includeGcProfiler)
+        check(
+            quickMongoBatchCandidateE2EProfile.parameters ==
+                mapOf("batchOptions" to mongoBatchQuickCandidateOptions)
+        )
+        check(
+            quickMongoBatchCandidateE2ESuite.runMetadata["correctnessCheck"] ==
+                "completion-count-and-iteration-document-count"
+        )
+
+        fun candidateE2ERow(
+            method: String,
+            threads: Int,
+            mode: String,
+        ): ParsedBenchmarkResult {
+            return ParsedBenchmarkResult(
+                suite = quickMongoBatchCandidateE2ESuite,
+                profile = quickMongoBatchCandidateE2EProfile.id,
+                threads = threads,
+                benchmark = "me.ahoo.wow.benchmark.infrastructure.mongo." +
+                    "MongoEventStoreAppendBenchmark.$method",
+                displayName = method,
+                parameters = mapOf("batchOptions" to mongoBatchQuickCandidateOptions),
+                mode = mode,
+                score = 1_000.0,
+                scoreError = null,
+                unit = if (mode == "thrpt") "ops/s" else "us/op",
+                allocationBytesPerOp = 1_024.0,
+                allocationErrorBytesPerOp = null,
+            )
+        }
+
+        val validCandidateE2ERows = quickMongoBatchCandidateE2EMethods.flatMap { method ->
+            quickMongoBatchCandidateE2EProfile.threads.flatMap { threads ->
+                quickMongoBatchCandidateE2EProfile.benchmarkModes.map { mode ->
+                    candidateE2ERow(method, threads, mode)
+                }
+            }
+        }
+        validateQuickMongoBatchCandidateE2ERows(validCandidateE2ERows)
+
+        fun requireCandidateE2ERowsRejected(rows: List<ParsedBenchmarkResult>) {
+            check(
+                runCatching { validateQuickMongoBatchCandidateE2ERows(rows) }
+                    .exceptionOrNull() is GradleException
+            )
+        }
+        requireCandidateE2ERowsRejected(validCandidateE2ERows.dropLast(1))
+        requireCandidateE2ERowsRejected(validCandidateE2ERows + validCandidateE2ERows.first())
+        requireCandidateE2ERowsRejected(
+            validCandidateE2ERows.mapIndexed { index, row ->
+                if (index == 0) {
+                    row.copy(parameters = mapOf("batchOptions" to mongoBatchQuickCurrentOptions))
+                } else {
+                    row
+                }
+            }
+        )
+        requireCandidateE2ERowsRejected(
+            validCandidateE2ERows.mapIndexed { index, row ->
+                if (index == 0) row.copy(mode = "sample") else row
+            }
+        )
+        requireCandidateE2ERowsRejected(
+            validCandidateE2ERows.mapIndexed { index, row ->
+                if (index == 0) row.copy(unit = "ms") else row
+            }
+        )
+        requireCandidateE2ERowsRejected(
+            validCandidateE2ERows.mapIndexed { index, row ->
+                if (index == 0) {
+                    row.copy(
+                        benchmark = "me.ahoo.wow.benchmark.infrastructure.mongo." +
+                            "MongoEventStoreAppendBenchmark.unexpected"
+                    )
+                } else {
+                    row
+                }
+            }
+        )
+    }
+}
+
 tasks.named("check") {
     dependsOn(verifyBenchmarkReportFormatting)
     dependsOn(verifyBenchmarkRequiredServiceManifest)
@@ -8427,6 +9501,7 @@ tasks.named("check") {
     dependsOn(verifyStorageBatchTuningParetoSelection)
     dependsOn(verifyMongoBatchPairedStatistics)
     dependsOn(verifyMongoBatchOptionsPairedStatistics)
+    dependsOn(verifyMongoBatchOptionsQuickProtocol)
 }
 
 fun StringBuilder.appendBenchmarkTable(rows: List<ParsedBenchmarkResult>) {
@@ -8690,6 +9765,7 @@ fun renderSingleBenchmarkReport(
     description: String,
     includeInfrastructureRuntime: Boolean = false,
     requireCleanSource: Boolean = false,
+    validateRows: (List<ParsedBenchmarkResult>) -> Unit = {},
     appendBeforeResults: StringBuilder.(List<ParsedBenchmarkResult>) -> Unit = {},
 ): String {
     val groupReport = parseBenchmarkGroup(JsonSlurper(), group)
@@ -8705,6 +9781,7 @@ fun renderSingleBenchmarkReport(
                 "Rerun ${group.taskSpec.taskName} from a clean source tree."
         )
     }
+    validateRows(groupReport.rows)
     val sb = StringBuilder()
     sb.appendLine("<!--")
     sb.appendLine("  This file is auto-generated by `$command`.")
@@ -8865,6 +9942,40 @@ tasks.register("generateMongoBatchAppendBenchmarkReport") {
     }
 }
 
+tasks.register("generateQuickMongoBatchAppendCandidateE2EReport") {
+    description = "Generate the quick Mongo 192x250us three-layer E2E comparison report."
+    group = "benchmark"
+    mustRunAfter("benchmarkQuickMongoBatchAppendCandidateE2E")
+    outputs.file(quickMongoBatchCandidateE2EReportFile)
+    outputs.upToDateWhen { false }
+
+    doLast {
+        val report = renderSingleBenchmarkReport(
+            group = benchmarkResultGroup(quickMongoBatchCandidateE2ETaskSpec),
+            title = "Quick Mongo Batch Candidate E2E Benchmark Report",
+            command = "./gradlew :wow-benchmarks:benchmarkQuickMongoBatchAppendCandidateE2E " +
+                ":wow-benchmarks:generateQuickMongoBatchAppendCandidateE2EReport " +
+                "--no-parallel --no-daemon",
+            description = "This bounded engineering experiment compares EventStore insertOne, native unordered " +
+                "insertMany, and transparent BatchCoordinator batching configured through the JMH parameter " +
+                "`batchOptions=$mongoBatchQuickCandidateOptions`. It does not change the production default. " +
+                "Each invocation writes 128 independent event streams; throughput and average time are normalized " +
+                "per event stream.",
+            includeInfrastructureRuntime = true,
+            requireCleanSource = true,
+            validateRows = ::validateQuickMongoBatchCandidateE2ERows,
+            appendBeforeResults = { rows -> appendMongoBatchAppendComparisons(rows) },
+        )
+
+        val outputFile = quickMongoBatchCandidateE2EReportFile.asFile
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(report)
+        logger.lifecycle(
+            "Quick Mongo batch candidate E2E report generated: ${outputFile.absolutePath}"
+        )
+    }
+}
+
 tasks.register("generateMongoBatchAppendConfirmationReport") {
     description = "Generate the confirmation Mongo EventStore batch append comparison report."
     group = "benchmark"
@@ -8956,7 +10067,7 @@ tasks.register("generateElasticsearchBatchAppendConfirmationReport") {
 }
 
 tasks.register("generateMongoBatchOptionsTuningReport") {
-    description = "Generate the Mongo EventStore batch-options tuning report."
+    description = "Regenerate the stopped Mongo scan as historical exploratory evidence."
     group = "benchmark"
     mustRunAfter("benchmarkTuneMongoBatchOptions")
     outputs.file(mongoBatchOptionsTuningReportFile)
@@ -8972,10 +10083,10 @@ tasks.register("generateMongoBatchOptionsTuningReport") {
             command = "./gradlew :wow-benchmarks:benchmarkTuneMongoBatchOptions " +
                 ":wow-benchmarks:generateMongoBatchOptionsTuningReport " +
                 "-PbenchmarkTuneMongoBatchOptionsParameters='$parameters' --no-parallel",
-            description = "This screening experiment scans storage-neutral batch size/delay pairs through " +
-                "the real Mongo EventStore coordinated path at isolated (1), burst (32), representative " +
-                "(128), and saturated (512) append counts. It is candidate selection evidence, not a " +
-                "production capacity claim.",
+            description = "This stopped full-candidate experiment scanned storage-neutral batch size/delay " +
+                "pairs through the real Mongo EventStore coordinated path at isolated (1), burst (32), " +
+                "representative (128), and saturated (512) append counts. It is retained only as exploratory " +
+                "evidence and does not define an active protocol or production default.",
             includeInfrastructureRuntime = true,
             requireCleanSource = true,
             appendBeforeResults = { rows ->
@@ -8991,6 +10102,7 @@ tasks.register("generateMongoBatchOptionsTuningReport") {
                     confirmationReportTaskPath =
                         ":wow-benchmarks:generateMongoBatchOptionsTuningConfirmationReport",
                     confirmationPropertyName = "benchmarkConfirmMongoBatchOptionsParameters",
+                    campaignStopped = true,
                 )
             },
         )
@@ -9100,7 +10212,7 @@ tasks.register("generateElasticsearchBatchOptionsTuningReport") {
 }
 
 tasks.register("generateMongoBatchOptionsTuningConfirmationReport") {
-    description = "Generate the Mongo EventStore batch-options confirmation report."
+    description = "Regenerate the stopped Mongo multiple-fork report as historical exploratory evidence."
     group = "benchmark"
     mustRunAfter("benchmarkConfirmMongoBatchOptions")
     outputs.file(mongoBatchOptionsTuningConfirmationReportFile)
@@ -9134,9 +10246,9 @@ tasks.register("generateMongoBatchOptionsTuningConfirmationReport") {
             command = "./gradlew :wow-benchmarks:benchmarkConfirmMongoBatchOptions " +
                 ":wow-benchmarks:generateMongoBatchOptionsTuningConfirmationReport " +
                 "-PbenchmarkConfirmMongoBatchOptionsParameters='$parameters' --no-parallel",
-            description = "This multiple-fork experiment confirms selected Mongo EventStore batch options " +
-                "against the current default across isolated, burst, representative, and saturated " +
-                "append workloads.",
+            description = "This completed multiple-fork Mongo EventStore comparison is retained as historical " +
+                "exploratory evidence. The wider full-candidate campaign was stopped before closure, so these " +
+                "results do not define an active protocol or select a production default.",
             includeInfrastructureRuntime = true,
             requireCleanSource = true,
             appendBeforeResults = { rows ->
@@ -9149,6 +10261,7 @@ tasks.register("generateMongoBatchOptionsTuningConfirmationReport") {
                     currentOptions = mongoCurrentStorageBatchOptions,
                     preferredRefresh = "-",
                     boundConfirmationEvidence = frontierEvidence,
+                    campaignStopped = true,
                 )
                 appendStorageBatchTuningConfirmationVerdict(
                     rows = rows,
@@ -9156,6 +10269,7 @@ tasks.register("generateMongoBatchOptionsTuningConfirmationReport") {
                         mongoBatchOptionsTuningConfirmationProfile
                     ),
                     currentOptions = mongoCurrentStorageBatchOptions,
+                    campaignStopped = true,
                 )
             },
         )
@@ -9259,7 +10373,7 @@ tasks.register("generateMongoBatchAppendPairedE2EReport") {
 }
 
 tasks.register("generateMongoBatchOptionsPairedConfirmationReport") {
-    description = "Generate the paired Mongo EventStore batch-options finalist confirmation report."
+    description = "Regenerate the stopped Mongo paired report as historical exploratory evidence."
     group = "benchmark"
     mustRunAfter(benchmarkMongoBatchOptionsPairedConfirmation)
     mustRunAfter(mongoBatchOptionsPairedTrials.map(MongoBatchOptionsPairedTrialSpec::task))
@@ -9276,6 +10390,26 @@ tasks.register("generateMongoBatchOptionsPairedConfirmationReport") {
         outputFile.writeText(report)
         logger.lifecycle(
             "Mongo batch-options paired confirmation report generated: ${outputFile.absolutePath}"
+        )
+    }
+}
+
+tasks.register("generateQuickMongoBatchOptionsPairedReport") {
+    description = "Generate the fixed 24-leg quick Mongo batch-options engineering report."
+    group = "benchmark"
+    mustRunAfter(benchmarkQuickMongoBatchOptionsPaired)
+    mustRunAfter(mongoBatchOptionsQuickTrials.map(MongoBatchOptionsQuickTrialSpec::task))
+    outputs.file(quickMongoBatchOptionsPairedReportFile)
+    outputs.upToDateWhen { false }
+
+    doLast {
+        val experiment = parseMongoBatchOptionsQuickExperiment()
+        val report = renderMongoBatchOptionsQuickReport(experiment)
+        val outputFile = quickMongoBatchOptionsPairedReportFile.asFile
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(report)
+        logger.lifecycle(
+            "Quick Mongo batch-options engineering report generated: ${outputFile.absolutePath}"
         )
     }
 }

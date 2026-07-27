@@ -34,6 +34,7 @@ import org.openjdk.jmh.infra.Blackhole
 import reactor.core.publisher.Flux
 import reactor.kotlin.core.publisher.toMono
 import java.time.Duration
+import java.util.concurrent.atomic.AtomicLong
 
 @State(Scope.Benchmark)
 open class MongoEventStoreBatchTuningState {
@@ -43,6 +44,7 @@ open class MongoEventStoreBatchTuningState {
     private lateinit var fixture: MongoBenchmarkFixture
     private lateinit var documentCollection: MongoCollection<Document>
     private lateinit var eventStore: MongoEventStore
+    private val expectedWrites = AtomicLong()
 
     @Setup(Level.Trial)
     fun setupTrial() {
@@ -63,9 +65,20 @@ open class MongoEventStoreBatchTuningState {
 
     @Setup(Level.Iteration)
     fun setupIteration() {
+        expectedWrites.set(0)
         checkNotNull(
-            documentCollection.deleteMany(Document()).toMono().block()
+            documentCollection.deleteMany(Document()).toMono().block(APPEND_TIMEOUT)
         ).wasAcknowledged().let(::check)
+    }
+
+    @TearDown(Level.Iteration)
+    fun verifyIterationWrites() {
+        val actualWrites = checkNotNull(
+            documentCollection.countDocuments().toMono().block(APPEND_TIMEOUT)
+        )
+        check(actualWrites == expectedWrites.get()) {
+            "Mongo batch tuning write count mismatch: expected=${expectedWrites.get()}, actual=$actualWrites."
+        }
     }
 
     @TearDown(Level.Trial)
@@ -92,6 +105,7 @@ open class MongoEventStoreBatchTuningState {
                 .block(APPEND_TIMEOUT)
         ).also { appended ->
             check(appended == count.toLong())
+            expectedWrites.addAndGet(appended)
         }
     }
 

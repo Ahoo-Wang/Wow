@@ -5,14 +5,14 @@
 
 # Mongo EventStore Batch Options Paired Confirmation Report
 
-This pre-registered paired experiment compares finalist `192x250us` with current `128x1000us` through the same coordinated Mongo EventStore path. It is the default-selection confirmation after screening and multiple-fork candidate reduction.
+This completed candidate-level experiment is retained as exploratory evidence. It compares finalist `192x250us` with current `128x1000us` through the same coordinated Mongo EventStore path. The wider Pareto campaign was stopped before every candidate completed, so this report is not a pre-registered final decision or default-selection proof.
 
 ## Overall Verdict
 
 - **Verdict**: **INCONCLUSIVE**
 - **Current**: `128x1000us`
 - **Finalist**: `192x250us`
-- **Selection Scope**: this verdict applies only to the configured finalist. Every frontier candidate left `INCONCLUSIVE` by multiple-fork confirmation needs its own paired report, including candidates ranked below a PASS. Select the highest-ranked PASS only after all frontier candidates have final verdicts; if none pass, retain current.
+- **Selection Scope**: exploratory candidate evidence only. The stopped campaign does not resolve the remaining frontier and must not be used to claim an optimal or validated production default.
 - **Acceptance**: every workload/thread throughput and allocation safety bound must pass, and the paired throughput lower bound for primary `representative128` must be greater than `1.0×` at both one and four JMH threads.
 
 ## Stratum Results
@@ -31,7 +31,7 @@ This pre-registered paired experiment compares finalist `192x250us` with current
 ## Scope And Methodology
 
 - Strata are the Cartesian product of four workloads (`isolated`, `burst32`, `representative128`, `saturated512`) and JMH threads `1,4`; ratios are never pooled across strata.
-- Each stratum has 24 adjacent run pairs using the same pre-registered, balanced, non-periodic sequence: `AB BA BA AB AB BA AB BA BA AB BA AB BA AB AB BA BA AB BA AB AB BA AB BA`. AB means `current → finalist`, BA means `finalist → current`; every leg is an independent JMH process.
+- Each stratum has 24 adjacent run pairs using the same fixed, balanced, non-periodic sequence: `AB BA BA AB AB BA AB BA BA AB BA AB BA AB AB BA BA AB BA AB AB BA AB BA`. AB means `current → finalist`, BA means `finalist → current`; every leg is an independent JMH process.
 - JMH configuration: `warmup=2x3s, measurement=1x5s, fork=1, threads=1,4, modes=thrpt, profilers=gc`; JVM args: `-Xmx4g -Xms4g -XX:+UseG1GC -XX:+AlwaysPreTouch`.
 - For pair `i`, throughput `r_i = finalist_i / current_i`. The point estimate is `exp(mean(ln(r_i)))`; the interval is a two-sided Student-t 95% CI on log ratios with `df=23` and `t=2.06865761`, exponentiated back to ratio scale.
 - Non-saturated throughput lower bounds must be at least `0.909091×` so their equivalent amortized time upper bounds stay within `1.10×`. Saturated throughput lower bounds must be at least `0.950000×`.
@@ -714,7 +714,7 @@ This section is live diagnostic context only. Manifest-bound run-time container 
 
 ## Limitations
 
-- The interval assumes the 24 log-ratio pairs in each stratum are independent and approximately normal. The pre-registered balanced order and acceptance diagnostics cannot eliminate longer periodic load, time trends, or higher-order autocorrelation.
+- The interval assumes the 24 log-ratio pairs in each stratum are independent and approximately normal. The fixed balanced order and acceptance diagnostics cannot eliminate longer periodic load, time trends, or higher-order autocorrelation.
 - Closed-loop throughput and its inverse amortized time do not expose per-request p50/p95/p99 or coordinated omission. Production latency SLOs require a separate fixed-arrival-rate experiment.
-- Results apply to the recorded local MongoDB, Docker, JVM, host, workload payload, and acknowledgement configuration; they are default-selection evidence, not production capacity.
+- Results apply to the recorded local MongoDB, Docker, JVM, host, workload payload, and acknowledgement configuration; they are exploratory candidate evidence, not a production default or capacity claim.
 - SnapshotStore is outside this EventStore experiment and must not inherit the finalist without its own payload, ordering, and coalescing benchmark.
