@@ -16,7 +16,6 @@ package me.ahoo.wow.mongo
 import com.mongodb.client.model.Aggregates
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.ReplaceOptions
-import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.mql.MqlValues
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.Version.Companion.UNINITIALIZED_VERSION
@@ -30,11 +29,36 @@ import org.bson.conversions.Bson
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
-class MongoSnapshotStore(private val database: MongoDatabase) : SnapshotStore {
+class MongoSnapshotStore private constructor(
+    private val database: MongoDatabase,
+    val batchOptions: MongoSnapshotStoreBatchOptions,
+    private val saver: MongoSnapshotSaver,
+) : SnapshotStore {
+    constructor(database: MongoDatabase) : this(
+        database = database,
+        batchOptions = MongoSnapshotStoreBatchOptions(),
+        saver = DirectMongoSnapshotSaver(database),
+    )
+
+    constructor(
+        database: MongoDatabase,
+        batchOptions: MongoSnapshotStoreBatchOptions,
+    ) : this(
+        database = database,
+        batchOptions = batchOptions,
+        saver = if (batchOptions.enabled) {
+            BatchMongoSnapshotSaver(
+                database = database,
+                options = batchOptions,
+            )
+        } else {
+            DirectMongoSnapshotSaver(database)
+        },
+    )
+
     companion object {
         const val NAME = "mongo"
         val DEFAULT_REPLACE_OPTIONS: ReplaceOptions = ReplaceOptions().upsert(true)
-        private val VERSION_GUARDED_UPDATE_OPTIONS: UpdateOptions = UpdateOptions().upsert(true)
     }
 
     override val name: String
@@ -77,18 +101,11 @@ class MongoSnapshotStore(private val database: MongoDatabase) : SnapshotStore {
     }
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
-        val snapshotCollectionName = snapshot.aggregateId.toSnapshotCollectionName()
-        val document = snapshot.toDocument()
-        return database.getCollection(snapshotCollectionName)
-            .updateOne(
-                Filters.eq(Documents.ID_FIELD, snapshot.aggregateId.id),
-                versionGuardedSnapshotReplacement(document),
-                VERSION_GUARDED_UPDATE_OPTIONS,
-            )
-            .toMono()
-            .doOnNext {
-                check(it.wasAcknowledged())
-            }.then()
+        return saver.save(snapshot)
+    }
+
+    override fun close() {
+        saver.close()
     }
 }
 

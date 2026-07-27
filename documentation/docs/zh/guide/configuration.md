@@ -268,6 +268,11 @@ wow:
 | `wow.mongo.event-store-batch.max-delay` | Duration | `1ms` | 收集不足一批请求的最长等待时间 |
 | `wow.mongo.event-store-batch.max-pending-appends` | Int | `4096` | 等待或正在写入的 append 最大接收数量；必须不小于 `max-size` |
 | `wow.mongo.event-store-batch.lane-count` | Int | `1` | 串行写入 lane 数量；同一聚合的 append 始终进入同一 lane |
+| `wow.mongo.snapshot-store-batch.enabled` | Boolean | `false` | 启用透明的 SnapshotStore 保存批处理 |
+| `wow.mongo.snapshot-store-batch.max-size` | Int | `128` | 同一集合单批最多包含的快照数量 |
+| `wow.mongo.snapshot-store-batch.max-delay` | Duration | `1ms` | 收集不足一批快照的最长等待时间 |
+| `wow.mongo.snapshot-store-batch.max-pending-saves` | Int | `4096` | 等待或正在写入的 save 最大接收数量；必须不小于 `max-size` |
+| `wow.mongo.snapshot-store-batch.lane-count` | Int | `1` | 串行写入 lane 数量；同一聚合的 save 始终进入同一 lane |
 
 ```yaml
 wow:
@@ -282,6 +287,12 @@ wow:
       max-size: 128
       max-delay: 1ms
       max-pending-appends: 4096
+      lane-count: 1
+    snapshot-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-saves: 4096
       lane-count: 1
 ```
 

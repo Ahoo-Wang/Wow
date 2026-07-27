@@ -424,6 +424,13 @@ val quickMongoBatchAppendProfile = quickProfile.copy(
     benchmarkModes = listOf("thrpt", "avgt"),
 )
 
+val quickMongoSnapshotBatchSaveProfile = quickProfile.copy(
+    id = "quick-mongo-snapshot-batch-save",
+    threads = benchmarkThreadsProperty("benchmarkQuickMongoSnapshotBatchThreads", listOf(1, 4)),
+    benchmarkModes = listOf("thrpt", "avgt"),
+    parameters = mapOf("batchOptions" to mongoBatchQuickCurrentOptions),
+)
+
 val quickMongoBatchCandidateE2EProfile = BenchmarkRunProfile(
     id = "quick-mongo-candidate-e2e",
     warmupIterations = 1,
@@ -800,6 +807,28 @@ val mongoBatchAppendSuite = BenchmarkSuite(
     ),
 )
 
+val mongoSnapshotBatchSaveSuite = BenchmarkSuite(
+    id = "mongo-snapshot-batch-save",
+    displayName = "Mongo SnapshotStore Batch Save",
+    includeClasses = listOf(
+        "me.ahoo.wow.benchmark.infrastructure.mongo.MongoSnapshotStoreSaveBenchmark",
+    ),
+    resultFileName = "mongo-snapshot-batch-save.json",
+    humanFileName = "mongo-snapshot-batch-save-human.txt",
+    requiredForGroupedReport = false,
+    formalRegressionSource = false,
+    requiresCleanSource = true,
+    requiredServices = mongoBatchAppendSuite.requiredServices,
+    runMetadata = linkedMapOf(
+        "experiment" to "quick-mongo-snapshot-batch-save",
+        "evidenceClass" to "quick-engineering",
+        "formalProtocol" to "false",
+        "batchOptions" to mongoBatchQuickCurrentOptions,
+        "operationsPerInvocation" to "128",
+        "correctnessCheck" to "completion-count-and-iteration-document-count",
+    ),
+)
+
 val quickMongoBatchCandidateE2ESuite = mongoBatchAppendSuite.copy(
     id = "mongo-batch-append-quick-engineering",
     displayName = "Quick Mongo Batch Candidate E2E",
@@ -1155,6 +1184,13 @@ val quickMongoBatchAppendTaskSpec = BenchmarkTaskSpec(
     description = "Compares Mongo single, native insertMany, and coordinated batch throughput and latency.",
 )
 
+val quickMongoSnapshotBatchSaveTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkQuickMongoSnapshotBatchSave",
+    suite = mongoSnapshotBatchSaveSuite,
+    profile = quickMongoSnapshotBatchSaveProfile,
+    description = "Compares Mongo snapshot updateOne, native bulkWrite, and coordinated batch throughput and latency.",
+)
+
 val quickMongoBatchCandidateE2ETaskSpec = BenchmarkTaskSpec(
     taskName = "benchmarkQuickMongoBatchAppendCandidateE2E",
     suite = quickMongoBatchCandidateE2ESuite,
@@ -1293,6 +1329,7 @@ val benchmarkTaskSpecs = listOf(
     confirmationE2ETaskSpec,
     quickInfrastructureE2ETaskSpec,
     quickMongoBatchAppendTaskSpec,
+    quickMongoSnapshotBatchSaveTaskSpec,
     quickMongoBatchCandidateE2ETaskSpec,
     quickMongoBatchCoordinatorConcurrencyTaskSpec,
     confirmationMongoBatchAppendTaskSpec,
@@ -2513,6 +2550,7 @@ val reportsDir = resultsDir.dir("reports")
 val benchmarkReportFile = reportsDir.file("quick-framework-e2e.md")
 val batchBenchmarkReportFile = reportsDir.file("quick-batch-command-write-e2e.md")
 val mongoBatchAppendReportFile = reportsDir.file("quick-mongo-batch-append.md")
+val mongoSnapshotBatchSaveReportFile = reportsDir.file("quick-mongo-snapshot-batch-save.md")
 val mongoBatchAppendConfirmationReportFile = reportsDir.file("confirmation-mongo-batch-append.md")
 val mongoBatchAppendPairedE2EReportFile = reportsDir.file("mongo-batch-append-paired-e2e.md")
 val elasticsearchBatchAppendReportFile = reportsDir.file("quick-elasticsearch-batch-append.md")
@@ -5489,6 +5527,7 @@ fun StringBuilder.appendStorageBatchMetricComparison(
     rows: List<ParsedBenchmarkResult>,
     methods: StorageBatchMethods,
     throughput: Boolean,
+    operationName: String,
 ) {
     val metricRows = if (throughput) {
         rows.filter { it.unit.equals("ops/s", ignoreCase = true) }
@@ -5496,7 +5535,7 @@ fun StringBuilder.appendStorageBatchMetricComparison(
         rows.filter { it.mode == "avgt" }
     }
     val rowsByKey = metricRows.groupBy(::storageBatchComparisonKey)
-    val metricName = if (throughput) "Throughput" else "Amortized time per event"
+    val metricName = if (throughput) "Throughput" else "Amortized time per $operationName"
     appendLine("### $metricName")
     appendLine()
     appendLine(
@@ -5561,7 +5600,7 @@ fun StringBuilder.appendStorageBatchMetricComparison(
         appendLine("Higher throughput is better; positive changes are gains.")
     } else {
         appendLine(
-            "Lower amortized time is better. JMH divides each 128-event invocation's wall time by 128; " +
+            "Lower amortized time is better. JMH divides each 128-$operationName invocation's wall time by 128; " +
                 "this is not an independent single-request response latency. The two `vs single` columns " +
                 "and `Coordinated vs native` all report time reduction, so positive changes are gains."
         )
@@ -5572,19 +5611,31 @@ fun StringBuilder.appendStorageBatchMetricComparison(
 fun StringBuilder.appendStorageBatchComparisons(
     rows: List<ParsedBenchmarkResult>,
     methods: StorageBatchMethods,
+    operationName: String = "event",
+    workloadDescription: String = "independent event streams",
 ) {
     appendLine("## Three-Layer JMH Comparison")
     appendLine()
     appendLine(
-        "Each invocation writes 128 independent event streams and JMH normalizes scores per event stream. " +
+        "Each invocation writes 128 $workloadDescription and JMH normalizes scores per $operationName. " +
             "The three layers distinguish single-request protocol cost, native storage bulk capability, " +
             "and the end-to-end coordinator path. The coordinated path includes batch formation and may " +
             "flush a partial batch on `maxDelay`, so its delta from native Bulk is not a pure coordinator " +
             "CPU-cost estimate."
     )
     appendLine()
-    appendStorageBatchMetricComparison(rows, methods, throughput = true)
-    appendStorageBatchMetricComparison(rows, methods, throughput = false)
+    appendStorageBatchMetricComparison(
+        rows,
+        methods,
+        throughput = true,
+        operationName = operationName,
+    )
+    appendStorageBatchMetricComparison(
+        rows,
+        methods,
+        throughput = false,
+        operationName = operationName,
+    )
 }
 
 fun StringBuilder.appendMongoBatchAppendComparisons(rows: List<ParsedBenchmarkResult>) {
@@ -5598,6 +5649,45 @@ fun StringBuilder.appendMongoBatchAppendComparisons(rows: List<ParsedBenchmarkRe
             nativeBatchLabel = "Native insertMany",
             coordinatedBatchLabel = "Coordinated batch",
         ),
+    )
+}
+
+fun StringBuilder.appendMongoSnapshotBatchSaveComparisons(rows: List<ParsedBenchmarkResult>) {
+    appendStorageBatchComparisons(
+        rows = rows,
+        methods = StorageBatchMethods(
+            single = "saveWithUpdateOne",
+            nativeBatch = "saveWithNativeBulkWrite",
+            coordinatedBatch = "saveWithCoordinatedBatch",
+            singleLabel = "SnapshotStore updateOne",
+            nativeBatchLabel = "Native bulkWrite",
+            coordinatedBatchLabel = "Coordinated batch",
+        ),
+        operationName = "snapshot",
+        workloadDescription = "independent aggregate snapshots",
+    )
+}
+
+val quickMongoSnapshotBatchSaveMethods = setOf(
+    "saveWithUpdateOne",
+    "saveWithNativeBulkWrite",
+    "saveWithCoordinatedBatch",
+)
+
+val quickMongoSnapshotBatchSaveMatrix = BenchmarkMatrixSpec(
+    name = "Quick Mongo SnapshotStore batch save",
+    suiteId = mongoSnapshotBatchSaveSuite.id,
+    profile = quickMongoSnapshotBatchSaveProfile.id,
+    methods = quickMongoSnapshotBatchSaveMethods,
+    threads = quickMongoSnapshotBatchSaveProfile.threads.toSet(),
+    modes = quickMongoSnapshotBatchSaveProfile.benchmarkModes.toSet(),
+    fixedParameters = quickMongoSnapshotBatchSaveProfile.parameters,
+)
+
+fun validateQuickMongoSnapshotBatchSaveRows(rows: List<ParsedBenchmarkResult>) {
+    validateBenchmarkMatrix(
+        quickMongoSnapshotBatchSaveMatrix,
+        rows.map(ParsedBenchmarkResult::toBuildLogicRow),
     )
 }
 
@@ -9377,6 +9467,57 @@ val verifyMongoBatchOptionsQuickProtocol = tasks.register("verifyMongoBatchOptio
     }
 }
 
+val verifyMongoSnapshotBatchProtocol = tasks.register("verifyMongoSnapshotBatchProtocol") {
+    description = "Verify the quick Mongo SnapshotStore batch-save benchmark protocol."
+    group = "verification"
+
+    doLast {
+        check(mongoSnapshotBatchSaveSuite.id == "mongo-snapshot-batch-save")
+        check(mongoSnapshotBatchSaveSuite.requiresCleanSource)
+        check(
+            mongoSnapshotBatchSaveSuite.includeClasses ==
+                listOf(
+                    "me.ahoo.wow.benchmark.infrastructure.mongo.MongoSnapshotStoreSaveBenchmark"
+                )
+        )
+        check(
+            mongoSnapshotBatchSaveSuite.runMetadata["correctnessCheck"] ==
+                "completion-count-and-iteration-document-count"
+        )
+        check(mongoSnapshotBatchSaveSuite.runMetadata["operationsPerInvocation"] == "128")
+        check(quickMongoSnapshotBatchSaveProfile.id == "quick-mongo-snapshot-batch-save")
+        check(quickMongoSnapshotBatchSaveProfile.warmupIterations == 1)
+        check(quickMongoSnapshotBatchSaveProfile.warmupTime == "2s")
+        check(quickMongoSnapshotBatchSaveProfile.measurementIterations == 2)
+        check(quickMongoSnapshotBatchSaveProfile.measurementTime == "3s")
+        check(quickMongoSnapshotBatchSaveProfile.forks == 1)
+        check(quickMongoSnapshotBatchSaveProfile.threads.isNotEmpty())
+        check(quickMongoSnapshotBatchSaveProfile.threads.all { it > 0 })
+        check(
+            quickMongoSnapshotBatchSaveProfile.benchmarkModes ==
+                listOf("thrpt", "avgt")
+        )
+        check(quickMongoSnapshotBatchSaveProfile.includeGcProfiler)
+        check(
+            quickMongoSnapshotBatchSaveProfile.parameters ==
+                mapOf("batchOptions" to mongoBatchQuickCurrentOptions)
+        )
+        check(quickMongoSnapshotBatchSaveMatrix.methods == quickMongoSnapshotBatchSaveMethods)
+        check(
+            quickMongoSnapshotBatchSaveMatrix.threads ==
+                quickMongoSnapshotBatchSaveProfile.threads.toSet()
+        )
+        check(
+            quickMongoSnapshotBatchSaveMatrix.fixedParameters ==
+                quickMongoSnapshotBatchSaveProfile.parameters
+        )
+        check(
+            quickMongoSnapshotBatchSaveTaskSpec.taskName ==
+                "benchmarkQuickMongoSnapshotBatchSave"
+        )
+    }
+}
+
 tasks.named("check") {
     dependsOn(verifyBenchmarkRequiredServiceManifest)
     dependsOn(verifyBenchmarkInfrastructureManifest)
@@ -9384,6 +9525,7 @@ tasks.named("check") {
     dependsOn(verifyMongoBatchPairedStatistics)
     dependsOn(verifyMongoBatchOptionsPairedStatistics)
     dependsOn(verifyMongoBatchOptionsQuickProtocol)
+    dependsOn(verifyMongoSnapshotBatchProtocol)
 }
 
 fun StringBuilder.appendBenchmarkTable(rows: List<ParsedBenchmarkResult>) {
@@ -9821,6 +9963,42 @@ tasks.register("generateMongoBatchAppendBenchmarkReport") {
         outputFile.parentFile.mkdirs()
         outputFile.writeText(report)
         logger.lifecycle("Mongo batch append benchmark report generated: ${outputFile.absolutePath}")
+    }
+}
+
+tasks.register("generateMongoSnapshotBatchSaveBenchmarkReport") {
+    description = "Generate the quick Mongo SnapshotStore batch-save comparison report."
+    group = "benchmark"
+    mustRunAfter("benchmarkQuickMongoSnapshotBatchSave")
+    outputs.file(mongoSnapshotBatchSaveReportFile)
+    outputs.upToDateWhen { false }
+
+    doLast {
+        val report = renderSingleBenchmarkReport(
+            group = benchmarkResultGroup(quickMongoSnapshotBatchSaveTaskSpec),
+            title = "Quick Mongo SnapshotStore Batch Save Benchmark Report",
+            command = "./gradlew :wow-benchmarks:benchmarkQuickMongoSnapshotBatchSave " +
+                ":wow-benchmarks:generateMongoSnapshotBatchSaveBenchmarkReport " +
+                "-PbenchmarkQuickMongoSnapshotBatchThreads=" +
+                "${quickMongoSnapshotBatchSaveProfile.threads.joinToString(",")} " +
+                "--no-parallel --no-daemon",
+            description = "This bounded engineering experiment compares version-guarded SnapshotStore " +
+                "updateOne, native unordered bulkWrite, and transparent coordinated batching against the " +
+                "same MongoDB service. Each invocation saves 128 independent aggregate snapshots; throughput " +
+                "and average time are normalized per snapshot. It is directional local evidence rather than " +
+                "a cross-machine capacity claim.",
+            includeInfrastructureRuntime = true,
+            requireCleanSource = true,
+            validateRows = ::validateQuickMongoSnapshotBatchSaveRows,
+            appendBeforeResults = { rows -> appendMongoSnapshotBatchSaveComparisons(rows) },
+        )
+
+        val outputFile = mongoSnapshotBatchSaveReportFile.asFile
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(report)
+        logger.lifecycle(
+            "Mongo SnapshotStore batch-save benchmark report generated: ${outputFile.absolutePath}"
+        )
     }
 }
 

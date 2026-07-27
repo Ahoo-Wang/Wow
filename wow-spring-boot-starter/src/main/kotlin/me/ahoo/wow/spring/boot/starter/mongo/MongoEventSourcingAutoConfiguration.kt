@@ -58,14 +58,26 @@ import org.springframework.context.annotation.Bean
 @EnableConfigurationProperties(
     MongoProperties::class,
     MongoEventStoreBatchProperties::class,
+    MongoSnapshotStoreBatchProperties::class,
 )
 class MongoEventSourcingAutoConfiguration @Autowired constructor(
     private val mongoProperties: MongoProperties,
     private val eventStoreBatchProperties: MongoEventStoreBatchProperties,
+    private val snapshotStoreBatchProperties: MongoSnapshotStoreBatchProperties,
 ) {
     constructor(mongoProperties: MongoProperties) : this(
         mongoProperties = mongoProperties,
         eventStoreBatchProperties = MongoEventStoreBatchProperties(),
+        snapshotStoreBatchProperties = MongoSnapshotStoreBatchProperties(),
+    )
+
+    constructor(
+        mongoProperties: MongoProperties,
+        eventStoreBatchProperties: MongoEventStoreBatchProperties,
+    ) : this(
+        mongoProperties = mongoProperties,
+        eventStoreBatchProperties = eventStoreBatchProperties,
+        snapshotStoreBatchProperties = MongoSnapshotStoreBatchProperties(),
     )
 
     @Bean
@@ -146,7 +158,10 @@ class MongoEventSourcingAutoConfiguration @Autowired constructor(
         if (mongoProperties.autoInitSchema) {
             SnapshotSchemaInitializer(snapshotDatabase).initAll()
         }
-        return MongoSnapshotStore(snapshotDatabase)
+        return MongoSnapshotStore(
+            database = snapshotDatabase,
+            batchOptions = snapshotStoreBatchProperties.toOptions(),
+        )
     }
 
     @Bean

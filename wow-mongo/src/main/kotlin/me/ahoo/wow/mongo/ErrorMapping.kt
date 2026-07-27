@@ -81,10 +81,14 @@ internal fun WriteError.toWowError(eventStream: DomainEventStream, cause: MongoE
     return cause
 }
 
-internal fun WriteConcernError.toWowError(cause: MongoBulkWriteException): Throwable {
-    val writeError = WriteError(code, message, details)
-    if (writeError.isRecoverableWriteError()) {
-        return RecoverableMongoBulkWriteException(writeError, cause)
+internal fun WriteError.toWowError(cause: MongoBulkWriteException): Throwable {
+    if (isRecoverableWriteError()) {
+        return RecoverableMongoBulkWriteException(this, cause)
     }
     return cause
+}
+
+internal fun WriteConcernError.toWowError(cause: MongoBulkWriteException): Throwable {
+    val writeError = WriteError(code, message, details)
+    return writeError.toWowError(cause)
 }

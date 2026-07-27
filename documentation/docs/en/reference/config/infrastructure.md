@@ -56,6 +56,11 @@ wow:
 | `wow.mongo.event-store-batch.max-delay` | Duration | `1ms` | Maximum time to collect a partial batch |
 | `wow.mongo.event-store-batch.max-pending-appends` | Int | `4096` | Maximum accepted appends waiting or being written; must be at least `max-size` |
 | `wow.mongo.event-store-batch.lane-count` | Int | `1` | Number of serial write lanes; appends for the same aggregate stay on one lane |
+| `wow.mongo.snapshot-store-batch.enabled` | Boolean | `false` | Batch concurrent SnapshotStore saves with MongoDB unordered `bulkWrite` |
+| `wow.mongo.snapshot-store-batch.max-size` | Int | `128` | Maximum snapshots in one collection batch |
+| `wow.mongo.snapshot-store-batch.max-delay` | Duration | `1ms` | Maximum time to collect a partial snapshot batch |
+| `wow.mongo.snapshot-store-batch.max-pending-saves` | Int | `4096` | Maximum accepted saves waiting or being written; must be at least `max-size` |
+| `wow.mongo.snapshot-store-batch.lane-count` | Int | `1` | Number of serial write lanes; saves for the same aggregate stay on one lane |
 
 ```yaml
 wow:
@@ -69,6 +74,12 @@ wow:
       max-size: 128
       max-delay: 1ms
       max-pending-appends: 4096
+      lane-count: 1
+    snapshot-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-saves: 4096
       lane-count: 1
 ```
 

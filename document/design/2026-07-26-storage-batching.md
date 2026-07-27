@@ -11,7 +11,7 @@ the base stores construct Bulk requests directly, and do not expose parallel
 `BatchMongoEventStore` or `BatchElasticsearchEventStore` public store hierarchies.
 The selected composition keeps domain operation signatures and data types
 unchanged while allowing MongoDB EventStore, Elasticsearch EventStore, and
-Elasticsearch SnapshotStore to reuse the same admission, batching,
+MongoDB/Elasticsearch SnapshotStore to reuse the same admission, batching,
 result-routing, cancellation, and shutdown machinery.
 
 ```mermaid
@@ -92,6 +92,24 @@ flowchart LR
   collection groups in that batch, although their success/error results remain
   isolated. Removing this batch-level head-of-line latency is a writer-level
   optimization and does not require changing the coordinator contract.
+
+### MongoDB SnapshotStore
+
+- Direct mode remains one version-guarded aggregation-pipeline `updateOne`.
+- Batch mode coalesces items for the same `(collection, document ID)` to the
+  highest aggregate version; equal versions keep the last submission, matching
+  the SnapshotStore replace-on-equal contract.
+- Coalesced writes are grouped by target collection and sent as unordered
+  `bulkWrite` requests containing pipeline `UpdateOneModel` upserts.
+- Direct and batch paths compare the serialized candidate `version` atomically
+  in MongoDB. An older candidate remains a successful no-op, and an invalid
+  stored version is repaired by the candidate.
+- The optional lane key is `(collection, document ID)`, preventing overlapping
+  native writes for one stored aggregate while allowing different lanes to
+  write concurrently.
+- Indexed bulk errors are routed to the matching stored aggregate. A write
+  concern error or inconsistent result fails every uncertain item
+  conservatively; successful items in an unordered request remain successful.
 
 ### Elasticsearch EventStore
 
@@ -184,6 +202,8 @@ Functional verification must include:
 - cancellation before and after claim;
 - close flushing a partial batch, timeout, and idempotent close;
 - Elasticsearch snapshot newer-before-older ordering;
+- MongoDB snapshot same-key coalescing, unordered partial-error isolation,
+  source-version guarding, and invalid stored-version repair;
 - direct and batch upgrades from legacy internal-version snapshot documents.
 
 Performance evidence must compare the same 128-event workload at three layers:
@@ -192,6 +212,13 @@ both throughput and average-time modes, and for Elasticsearch use the same
 `refresh` policy in every leg. Average-time scores are amortized wall time per
 event because JMH normalizes a 128-event invocation with
 `@OperationsPerInvocation(128)`; they are not the independent response latency
-of a single concurrent append. Quick one-fork results are directional; formal
-claims require the multiple-fork confirmation tasks documented in
-`wow-benchmarks/README.md`, run from a clean `HEAD`.
+of a single concurrent append.
+
+MongoDB SnapshotStore evidence uses the corresponding 128-snapshot workload:
+version-guarded `updateOne`, native unordered `bulkWrite` with the same guarded
+pipeline upsert, and end-to-end coordinated batching. Every measured iteration
+must reconcile the acknowledged save count with the actual snapshot document
+count. Quick one-fork results are directional. EventStore formal claims use the
+multiple-fork confirmation tasks documented in `wow-benchmarks/README.md`;
+SnapshotStore results remain engineering evidence until an equivalent
+confirmation protocol is added and run from a clean `HEAD`.
