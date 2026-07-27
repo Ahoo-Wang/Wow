@@ -25,6 +25,9 @@ class AggregateEventStoreRegistry(
             namedAggregate.materialize()
         }
 
+    internal val stores: Sequence<EventStore>
+        get() = sequenceOf(defaultEventStore) + routes.values.asSequence()
+
     fun get(namedAggregate: NamedAggregate): EventStore =
         routes[namedAggregate.materialize()] ?: defaultEventStore
 }

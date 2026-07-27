@@ -89,6 +89,35 @@ wow:
 `wow.elasticsearch.auto-init-template=false`。内置模板不会固定分片数和副本数，这些拓扑参数应由集群或更高优先级的
 运维模板管理。
 
+## 写入批处理
+
+EventStore 与 SnapshotStore 的写入批处理默认关闭，可按需启用：
+
+```yaml
+wow:
+  elasticsearch:
+    event-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-appends: 4096
+      lane-count: 1
+    snapshot-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-saves: 4096
+      lane-count: 1
+```
+
+EventStore 使用 Bulk `create`，不会覆盖已有事件文档；单项 409 只会作为
+对应 append 的事件版本冲突返回，Bulk 中其他成功项仍会返回给各自调用者。
+
+SnapshotStore 使用带 scripted upsert 的 Bulk `update`，direct 路径使用相同的
+原子脚本：只有 `_source.version` 更高的输入才会完整替换已存快照，相同或旧版本
+为 no-op。升级前文档的 Elasticsearch `_version` 是内部写入计数器时同样安全，
+不需要迁移版本元数据。
+
 ## 索引命名规则
 
 | 数据类型 | 索引命名格式 | 示例 |

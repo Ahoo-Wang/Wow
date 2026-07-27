@@ -128,30 +128,30 @@ sequenceDiagram
     ES->>Doc: eventStream.toDocument()
     Doc->>Doc: toLinkedHashMap() - replaceIdToPrimaryKey() - append("size")
 
-    ES->>Coll: insertOne(document)
+    ES->>Coll: insertOne(document) 或 unordered insertMany(batch)
     Coll->>DB: 插入文档，_id = eventStreamId
-    DB-->>Coll: InsertOneResult
+    DB-->>Coll: InsertOneResult 或 InsertManyResult
 
     alt 写入已确认
         Coll-->>ES: onNext(result)
         ES->>ES: check(wasAcknowledged())
         ES-->>AR: Mono.empty()（成功）
     else 重复版本 (aggregateId + version)
-        DB-->>Coll: MongoWriteException (DUPLICATE_KEY, u_idx_aggregate_id_version)
-        Coll->>Err: onErrorMap(MongoWriteException)
+        DB-->>Coll: MongoWriteException 或 MongoBulkWriteException
+        Coll->>Err: 映射对应的 duplicate-key write error
         Err->>Err: toWowError() - 匹配 "aggregateId_1_version_1"
         Err-->>ES: EventVersionConflictException
         ES-->>AR: EventVersionConflictException
     else 重复 requestId
-        DB-->>Coll: MongoWriteException (DUPLICATE_KEY, u_idx_request_id)
-        Coll->>Err: onErrorMap(MongoWriteException)
+        DB-->>Coll: MongoWriteException 或 MongoBulkWriteException
+        Coll->>Err: 映射对应的 duplicate-key write error
         Err->>Err: toWowError() - 匹配 "requestId_1"
         Err-->>ES: DuplicateRequestIdException
         ES-->>AR: DuplicateRequestIdException
     end
 ```
 
-关键设计洞察是 **MongoDB 唯一索引扮演双重角色**：`{aggregateId, version}` 复合唯一索引强制执行乐观并发控制（同一版本不能有两处写入），而 `{requestId}` 唯一索引提供命令幂等性（无重复处理）。在违反索引约束时，`ErrorMapping.toWowError()` 将原始的 `MongoWriteException` 转换为 Wow 框架的类型异常，以便框架无论在何种存储后端都能统一处理。
+关键设计洞察是 **MongoDB 唯一索引扮演双重角色**：`{aggregateId, version}` 复合唯一索引强制执行乐观并发控制（同一版本不能有两处写入），而 `{requestId}` 唯一索引提供命令幂等性（无重复处理）。在违反索引约束时，`ErrorMapping.toWowError()` 将原始的 MongoDB 单条或批量写入错误转换为 Wow 框架的类型异常，以便框架无论在何种存储后端都能统一处理。
 
 ## 配置
 
@@ -165,6 +165,11 @@ sequenceDiagram
 | `event-stream-database` | `String` | Spring Boot Mongo 模块配置的数据库名称 | 事件流数据库名称 |
 | `snapshot-database` | `String` | Spring Boot Mongo 模块配置的数据库名称 | 快照数据库名称 |
 | `prepare-database` | `String` | Spring Boot Mongo 模块配置的数据库名称 | `PrepareKey` 数据库名称 |
+| `event-store-batch.enabled` | `Boolean` | `false` | 使用 unordered `insertMany` 批量写入并发 EventStore 追加请求 |
+| `event-store-batch.max-size` | `Int` | `128` | 同一集合单批最多包含的事件流数量 |
+| `event-store-batch.max-delay` | `Duration` | `1ms` | 收集不足一批请求的最长等待时间 |
+| `event-store-batch.max-pending-appends` | `Int` | `4096` | 等待或正在写入的 append 最大接收数量；必须不小于 `max-size` |
+| `event-store-batch.lane-count` | `Int` | `1` | 串行写入 lane 数量；同一聚合的 append 始终进入同一 lane |
 
 **YAML 配置示例**
 
@@ -186,7 +191,22 @@ wow:
     event-stream-database: wow_event_db
     snapshot-database: wow_snapshot_db
     prepare-database: wow_prepare_db
+    event-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-appends: 4096
+      lane-count: 1
 ```
+
+批处理默认关闭，因为不足一批的请求最多会增加 `max-delay` 的追加延迟。启用后，EventStore 会按
+MongoDB collection 对时间窗内的请求分组，使用 unordered `insertMany` 写入，同时仍让每个原始
+`append` 独立完成或失败。当请求数达到 `max-pending-appends` 时，新 append 会在提交 MongoDB
+之前返回可恢复的过载错误，而不是继续堆积到无界内存队列。
+带明确索引的 bulk write error 只会让对应的 append 失败；write concern error 或无法自洽的批量
+结果会保守地让所有受影响 append 失败，因为此时无法证明提交状态。批处理本身不具备原子性。
+直接构造启用批处理的 `MongoEventStore` 时，应关闭它（例如使用 Kotlin `use`），以冲刷不足一批的
+窗口并释放工作线程；Spring 会通过正常的 Bean 生命周期关闭自动配置的实例。
 
 ## 集合模式
 

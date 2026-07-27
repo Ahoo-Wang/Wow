@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets
 data class BenchmarkInfrastructure(
     val redis: BenchmarkRedisConfig,
     val mongo: BenchmarkMongoConfig,
+    val elasticsearch: BenchmarkElasticsearchConfig,
 )
 
 data class BenchmarkServiceEndpoint(
@@ -27,6 +28,10 @@ data class BenchmarkServiceEndpoint(
 )
 
 data class BenchmarkRedisConfig(
+    val endpoint: BenchmarkServiceEndpoint,
+)
+
+data class BenchmarkElasticsearchConfig(
     val endpoint: BenchmarkServiceEndpoint,
 )
 
@@ -50,6 +55,7 @@ object BenchmarkInfrastructureConfig {
     private const val DEFAULT_HOST = "localhost"
     private const val DEFAULT_REDIS_PORT = "6379"
     private const val DEFAULT_MONGO_PORT = "27017"
+    private const val DEFAULT_ELASTICSEARCH_PORT = "9200"
     private const val DEFAULT_MONGO_USERNAME = "root"
     private const val DEFAULT_MONGO_PASSWORD = "root"
 
@@ -59,6 +65,8 @@ object BenchmarkInfrastructureConfig {
     private const val MONGO_PORT_PROPERTY = "wow.benchmark.mongo.port"
     private const val MONGO_USERNAME_PROPERTY = "wow.benchmark.mongo.username"
     private const val MONGO_PASSWORD_PROPERTY = "wow.benchmark.mongo.password"
+    private const val ELASTICSEARCH_HOST_PROPERTY = "wow.benchmark.elasticsearch.host"
+    private const val ELASTICSEARCH_PORT_PROPERTY = "wow.benchmark.elasticsearch.port"
 
     private const val REDIS_HOST_ENV = "WOW_BENCHMARK_REDIS_HOST"
     private const val REDIS_PORT_ENV = "WOW_BENCHMARK_REDIS_HOST_PORT"
@@ -66,6 +74,8 @@ object BenchmarkInfrastructureConfig {
     private const val MONGO_PORT_ENV = "WOW_BENCHMARK_MONGO_HOST_PORT"
     private const val MONGO_USERNAME_ENV = "WOW_BENCHMARK_MONGO_ROOT_USERNAME"
     private const val MONGO_PASSWORD_ENV = "WOW_BENCHMARK_MONGO_ROOT_PASSWORD"
+    private const val ELASTICSEARCH_HOST_ENV = "WOW_BENCHMARK_ELASTICSEARCH_HOST"
+    private const val ELASTICSEARCH_PORT_ENV = "WOW_BENCHMARK_ELASTICSEARCH_HOST_PORT"
 
     fun load(
         property: (String) -> String? = System::getProperty,
@@ -96,6 +106,24 @@ object BenchmarkInfrastructureConfig {
                     DEFAULT_MONGO_PASSWORD,
                     property,
                     environment,
+                ),
+            ),
+            elasticsearch = BenchmarkElasticsearchConfig(
+                endpoint = BenchmarkServiceEndpoint(
+                    host = configValue(
+                        ELASTICSEARCH_HOST_PROPERTY,
+                        ELASTICSEARCH_HOST_ENV,
+                        DEFAULT_HOST,
+                        property,
+                        environment,
+                    ),
+                    port = portValue(
+                        ELASTICSEARCH_PORT_PROPERTY,
+                        ELASTICSEARCH_PORT_ENV,
+                        DEFAULT_ELASTICSEARCH_PORT,
+                        property,
+                        environment,
+                    ),
                 ),
             ),
         )

@@ -88,12 +88,22 @@ test/code-coverage-report/build/reports/jacoco/codeCoverageReport/codeCoverageRe
 ./gradlew :wow-benchmarks:benchmarkQuickE2E
 ./gradlew :wow-benchmarks:benchmarkQuickComponent
 ./gradlew :wow-benchmarks:benchmarkQuickInfrastructureE2E
+./gradlew :wow-benchmarks:benchmarkQuickMongoBatchAppend
+./gradlew :wow-benchmarks:benchmarkQuickElasticsearchBatchAppend
+./gradlew :wow-benchmarks:benchmarkQuickMongoBatchOptionsPaired
+./gradlew :wow-benchmarks:benchmarkQuickMongoBatchAppendCandidateE2E
+./gradlew :wow-benchmarks:benchmarkQuickMongoBatchCoordinatorConcurrency
+./gradlew :wow-benchmarks:benchmarkTuneElasticsearchBatchOptions
 ./gradlew :wow-benchmarks:generateQuickBenchmarkReport
 ```
 
 快速基准测试使用有边界的代表性 catalog 和较短的 JMH 设置，适合本地快速发现回归；正式吞吐与分配结论仍以 Baseline E2E 为准。
 Quick Component 默认仅运行单线程；扩展性行为由 Framework E2E 负责，而不是由隔离组件测量承担。
-Infrastructure 基准测试需要本地 Redis 和 MongoDB 服务。
+Infrastructure 基准测试需要对应的本地 Redis、MongoDB 或 Elasticsearch 服务。
+Mongo 批处理参数的 quick 验证使用成对的代表性/突发负载、候选 E2E 和 coordinator lane 诊断；已停止的全量
+`benchmarkTuneMongoBatchOptions` 实验仅作历史记录，不再出现在 quick 执行清单中。Elasticsearch 调优仍覆盖
+单请求、突发、代表性和饱和负载。screening 仅用于筛选候选；
+只有通过各存储独立的多 fork confirmation 后才能修改默认值。EventStore 的调优结论不适用于 SnapshotStore。
 
 ## 基线与诊断基准测试
 

@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.jmh)
     kotlin("kapt")
+    id("me.ahoo.wow.jmh-packaging")
+    id("me.ahoo.wow.benchmarking")
 }
 
 dependencies {
@@ -10,6 +12,7 @@ dependencies {
     implementation(project(":wow-mock"))
     implementation(project(":wow-redis"))
     implementation(project(":wow-mongo"))
+    implementation(project(":wow-elasticsearch"))
     implementation(project(":wow-webflux"))
     implementation("org.springframework:spring-test")
     jmh(libs.jmh.core)
@@ -18,5 +21,6 @@ dependencies {
     kapt(libs.jmh.generator.annprocess)
 }
 
-apply(from = "gradle/jmh-packaging.gradle.kts")
-apply(from = "gradle/benchmarking.gradle.kts")
+tasks.named("check") {
+    dependsOn(gradle.includedBuild("build-logic").task(":test"))
+}

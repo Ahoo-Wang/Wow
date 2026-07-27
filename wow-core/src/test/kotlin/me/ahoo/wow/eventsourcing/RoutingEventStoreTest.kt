@@ -20,6 +20,7 @@ import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
@@ -166,6 +167,64 @@ class RoutingEventStoreTest {
             .verify()
     }
 
+    @Test
+    fun `close should close leaf stores`() {
+        val defaultStore = RecordingEventStore()
+        val orderStore = RecordingEventStore()
+        val routingStore = routingEventStore(defaultStore, orderStore)
+
+        routingStore.close()
+
+        defaultStore.closeCount.assert().isEqualTo(1)
+        orderStore.closeCount.assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `close should be idempotent and close shared leaf once`() {
+        val sharedStore = RecordingEventStore()
+        val routingStore = routingEventStore(sharedStore, sharedStore)
+
+        routingStore.close()
+        routingStore.close()
+
+        sharedStore.closeCount.assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `close should attempt every leaf and preserve failures`() {
+        val defaultFailure = IllegalStateException("default close failed")
+        val orderFailure = IllegalArgumentException("order close failed")
+        val defaultStore = RecordingEventStore(closeFailure = defaultFailure)
+        val orderStore = RecordingEventStore(closeFailure = orderFailure)
+        val routingStore = routingEventStore(defaultStore, orderStore)
+
+        val error = assertThrows<IllegalStateException> {
+            routingStore.close()
+        }
+
+        error.assert().isSameAs(defaultFailure)
+        error.suppressed.single().assert().isSameAs(orderFailure)
+        defaultStore.closeCount.assert().isEqualTo(1)
+        orderStore.closeCount.assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `close should not suppress a failure onto itself`() {
+        val sharedFailure = IllegalStateException("shared close failed")
+        val defaultStore = RecordingEventStore(closeFailure = sharedFailure)
+        val orderStore = RecordingEventStore(closeFailure = sharedFailure)
+        val routingStore = routingEventStore(defaultStore, orderStore)
+
+        val error = assertThrows<IllegalStateException> {
+            routingStore.close()
+        }
+
+        error.assert().isSameAs(sharedFailure)
+        error.suppressed.assert().isEmpty()
+        defaultStore.closeCount.assert().isEqualTo(1)
+        orderStore.closeCount.assert().isEqualTo(1)
+    }
+
     private fun routingEventStore(
         defaultStore: EventStore,
         orderStore: EventStore
@@ -180,13 +239,20 @@ class RoutingEventStoreTest {
     }
 
     private class RecordingEventStore(
-        private val failure: Throwable? = null
+        private val failure: Throwable? = null,
+        private val closeFailure: Throwable? = null,
     ) : EventStore {
         var lastOperation: String? = null
         var lastAggregateId: AggregateId? = null
         var lastNamedAggregate: NamedAggregate? = null
         var lastAfterId: String? = null
         var lastLimit: Int? = null
+        var closeCount: Int = 0
+
+        override fun close() {
+            closeCount++
+            closeFailure?.let { throw it }
+        }
 
         override fun append(eventStream: DomainEventStream): Mono<Void> {
             record("append", eventStream.aggregateId)

@@ -21,7 +21,17 @@ import reactor.core.publisher.Mono
  * Store for saving and loading snapshots of state aggregates.
  * Snapshots optimize aggregate loading by providing a recent state checkpoint.
  */
-interface SnapshotStore : Named {
+interface SnapshotStore :
+    Named,
+    AutoCloseable {
+    /**
+     * Closes this snapshot store and releases owned resources.
+     *
+     * Decorators should forward this call to their delegate. Stores without
+     * owned resources may rely on this no-op implementation.
+     */
+    override fun close() = Unit
+
     /**
      * Loads the latest snapshot for the specified aggregate.
      *

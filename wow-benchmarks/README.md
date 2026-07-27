@@ -14,6 +14,10 @@ Use it for three jobs:
 | Smoke | A small cross-section of component, Framework E2E, and WebFlux adapter benchmarks. | PR safety; proves the JMH jar and selected benchmark paths still run. | `benchmarkSmoke` |
 | Framework E2E | Synchronous command send/write round trips with in-memory or noop infrastructure. | Quick feedback, exact-workload regression baselines, and optional latency diagnosis; not production capacity. | `benchmarkQuickE2E`, `benchmarkBaselineE2E`, `benchmarkLatencyE2E` |
 | Batch CommandWrite E2E | Paired 32-command workloads using either 32 blocking boundaries or one sequential/concurrent batch boundary. | Primary framework-cost signal without per-command blocking distortion, plus bounded-concurrency scaling diagnosis. | `benchmarkQuickBatchE2E` |
+| Mongo Batch Append | A 128-event-stream append-path workload comparing EventStore `insertOne`, native unordered `insertMany`, and coordinated batching. | Separating protocol Bulk capability from the end-to-end coordinated path with real local MongoDB I/O. | `benchmarkQuickMongoBatchAppend`, `benchmarkConfirmMongoBatchAppend`, `benchmarkMongoBatchAppendPairedE2E` |
+| Elasticsearch Batch Append | A 128-event-stream append-path workload comparing EventStore `create`, native Bulk `create`, and coordinated Bulk `create` with `refresh=false,true`. | Measuring Elasticsearch Bulk capability and the end-to-end coordinated path without changing no-overwrite semantics. | `benchmarkQuickElasticsearchBatchAppend`, `benchmarkConfirmElasticsearchBatchAppend` |
+| Mongo Batch Options | Coordinated EventStore writes at representative (128) and burst (32) append counts for current `128x1000us` and candidate `192x250us`, plus keyed coordinator lane diagnosis. | Bounded quick engineering evidence; the old full Pareto campaign is stopped and historical only. | `benchmarkQuickMongoBatchOptionsPaired`, `benchmarkQuickMongoBatchAppendCandidateE2E`, `benchmarkQuickMongoBatchCoordinatorConcurrency` |
+| Elasticsearch Batch Options Tuning | Coordinated EventStore writes at isolated (1), burst (32), representative (128), and saturated (512) append counts across encoded `maxSize/maxDelay` candidates. | Screening and confirming the independent Elasticsearch default. | `benchmarkTuneElasticsearchBatchOptions`, `benchmarkConfirmElasticsearchBatchOptions` |
 | Component | Isolated command, aggregate, event, wait, serialization, accessor, and pipeline pieces. | Quick feedback, targeted diagnosis, or rare exhaustive catalog checks. | `benchmarkQuickComponent`, `benchmarkDiagnosticComponent`, `benchmarkExhaustiveComponent` |
 | WebFlux Adapter | Spring WebFlux request, response, SSE, and aggregate tracing adapter paths without a real Netty server. | Diagnosing HTTP adapter overhead and WebFlux-specific allocation hot spots. These results are not Framework E2E conclusion data. | `benchmarkQuickWebFlux`, `benchmarkExhaustiveWebFlux` |
 | Infrastructure E2E | Command write path through Redis or Mongo persistence. | Storage-path bottleneck checks when local services are available. | `benchmarkQuickInfrastructureE2E`, `benchmarkBaselineInfrastructureE2E` |
@@ -169,29 +173,240 @@ Async tasks use a short single-thread throughput profile and write flamegraphs u
 
 The Gradle model keeps four responsibilities separate: `BenchmarkSuite` owns workload selection and required services; `BenchmarkRunProfile` owns JMH methodology and result namespace; `BenchmarkTaskSpec` explicitly binds a task name to one suite and profile; reports consume those task specs as their source of truth. Do not derive task names from suite/profile IDs or add historical aliases to the core model.
 
+Benchmark build behavior lives in the root `build-logic` included build. The
+`me.ahoo.wow.benchmarking` precompiled plugin owns benchmark protocol and task
+orchestration, while `me.ahoo.wow.jmh-packaging` owns JMH metadata and service
+file packaging. Pure result-matrix validation, metric formatting, and parameter
+comparison rendering live in ordinary Kotlin sources under
+`build-logic/src/main/kotlin/me/ahoo/wow/benchmark/buildlogic/` and have JUnit tests.
+Run them directly with:
+
+```bash
+./gradlew -p build-logic test
+```
+
+`:wow-benchmarks:check` also depends on these tests. Benchmark harness
+provenance fingerprints the build-logic build files, production Kotlin sources,
+and the consumer plugin application in `wow-benchmarks/build.gradle.kts`, so
+moving behavior out of the project script does not weaken evidence identity.
+
 ## Reports And Results
 
 | Path | Contents | Commit Policy |
 |------|----------|---------------|
 | `wow-benchmarks/results/reports/quick-framework-e2e.md` | Generated quick Framework E2E report. | Commit when intentionally updating the visible benchmark report. |
 | `wow-benchmarks/results/reports/quick-batch-command-write-e2e.md` | Generated quick Batch CommandWrite E2E report. | Commit when intentionally updating the visible batch benchmark report. |
+| `wow-benchmarks/results/reports/quick-mongo-batch-append.md` | Generated quick Mongo EventStore append comparison. | Generate on demand; commit only after rerunning from the final clean implementation. |
+| `wow-benchmarks/results/reports/quick-mongo-batch-append-candidate-e2e.md` | Generated quick three-layer E2E comparison for the explicit `192x250us` candidate. | Commit with its clean-source manifests; this is engineering evidence and does not change the production default. |
+| `wow-benchmarks/results/reports/quick-mongo-batch-options-paired.md` | Generated 24-leg quick `128x1000us` vs `192x250us` paired comparison. | Commit only after all 24 independent legs complete; never mix it with formal paired raw results. |
+| `wow-benchmarks/results/reports/confirmation-mongo-batch-append.md` | Generated multiple-fork Mongo EventStore append comparison. | Generate on demand; commit only after rerunning from the final clean implementation. |
+| `wow-benchmarks/results/reports/mongo-batch-append-paired-e2e.md` | Generated AB/BA paired Mongo EventStore append E2E report. | Generate on demand; commit only after rerunning from the final clean implementation. |
+| `wow-benchmarks/results/reports/quick-elasticsearch-batch-append.md` | Generated quick Elasticsearch EventStore append comparison. | Generate on demand; commit only after rerunning from the final clean implementation. |
+| `wow-benchmarks/results/reports/confirmation-elasticsearch-batch-append.md` | Generated multiple-fork Elasticsearch EventStore append comparison. | Generate on demand; commit only after rerunning from the final clean implementation. |
+| `wow-benchmarks/results/reports/tuning-mongo-batch-options.md` | Historical Mongo EventStore batch-options screening matrix from the stopped campaign. | Retain as exploratory evidence only; do not use it to schedule remaining candidates. |
+| `wow-benchmarks/results/reports/tuning-mongo-batch-options.frontier.json` | Historical machine-checked Mongo screening frontier evidence. | Retain for audit with the stopped screening report; never edit it by hand. |
+| `wow-benchmarks/results/reports/tuning-elasticsearch-batch-options.md` | Generated Elasticsearch EventStore batch-options screening matrix. | Generate on demand; commit only with a final-code clean-source manifest. |
+| `wow-benchmarks/results/reports/tuning-elasticsearch-batch-options.frontier.json` | Machine-checked Elasticsearch screening frontier evidence. | Commit with its generated screening report; never edit it by hand. |
+| `wow-benchmarks/results/reports/confirmation-mongo-batch-options.md` | Generated multiple-fork Mongo batch-options comparison. | Generate on demand; do not restore evidence from the stopped pre-refactor campaign. |
+| `wow-benchmarks/results/reports/confirmation-mongo-batch-options-paired.md` | Generated paired Mongo candidate confirmation. | Generate on demand; do not restore evidence from the stopped pre-refactor campaign. |
+| `wow-benchmarks/results/reports/confirmation-elasticsearch-batch-options.md` | Generated multiple-fork Elasticsearch batch-options confirmation. | Generate on demand; commit only with a final-code clean-source manifest. |
 | `wow-benchmarks/results/reports/quick-infrastructure-e2e.md` | Quick Infrastructure E2E report generated on demand; it may be absent in a fresh checkout. | Commit only with intentionally collected, provenance-backed Redis/Mongo evidence. |
 | `wow-benchmarks/results/reports/quick-grouped.md` | Generated quick E2E/component/infrastructure grouped report. | Commit when intentionally updating grouped benchmark evidence. |
 | `wow-benchmarks/results/reports/baseline-grouped.md` | Generated Baseline E2E/exhaustive Component/infrastructure grouped report. | Commit when intentionally updating formal benchmark evidence. |
 | `wow-benchmarks/results/jmh/` | Local JMH JSON and human-readable outputs. | Do not commit generated run output. |
 | `wow-benchmarks/results/baselines/framework-e2e.json` | Framework E2E comparison baseline, when present. | Commit only intentional baseline updates. |
 
-Files under `results/reports/*.md` are generated. Do not hand-edit benchmark rows; rerun the benchmark/report task instead.
-Every successful thread-level JMH run writes a neighboring `*.manifest.json` sidecar with the source commit and dirty state, run specification, resolved required-service endpoints, profiler arguments, runtime, and SHA-256 digests for the JSON and human output. Failed runs do not publish a success manifest. Report and comparison tasks reject raw results with missing, mixed, or mismatched manifests.
-Infrastructure reports validate captured service names against the suite identity and display the captured host/port provenance. They do not reinterpret historical evidence using the report-time Redis or MongoDB environment variables.
+Files under `results/reports/*.md` and `*.frontier.json` are generated. Do not hand-edit benchmark rows or frontier evidence; rerun the benchmark/report task instead.
+The repository intentionally omits storage-batching reports whose latest samples predate the final coordinator implementation. The checked-in Mongo candidate E2E, paired quick-options, and coordinator-concurrency reports bind to clean commit `587604827df58276ea4232aa7e79bd8c9faf9be3`; the stopped Mongo screening matrix remains explicitly historical exploratory evidence.
+Every successful thread-level JMH run writes a neighboring schema-v2 `*.manifest.json` sidecar with the source commit and dirty state, run specification, resolved required-service endpoints, profiler arguments, runtime, and SHA-256 digests for the JSON and human output. For a local Docker-backed service, the manifest binds the TCP connection's actual remote IP to a structured container-port/protocol/host-IP/host-port mapping, plus running state, container ID/start time, image reference, image ID, available repository digests, an allowlisted structured performance configuration, required Compose identity/config hash, and a deterministic configuration SHA-256 both before sampling and after JMH completes. IPv4 and IPv6 wildcard bindings cover only their own address family. Raw container commands, entrypoints, and environment values are not persisted. The task publishes `SUCCESS` only when those captures have the same ordered service identity and stable container/configuration values; a stopped/restarted container, endpoint mismatch, or configuration change leaves only the in-progress manifest. Failed runs do not publish a success manifest. Report and comparison tasks reject raw results with missing, mixed, restarted, or differently configured containers.
+Infrastructure reports validate captured service names against the suite identity and display the captured host/port and container provenance. A separately labelled report-time diagnostics section is live context only; it cannot reinterpret historical evidence using current Redis, MongoDB, Elasticsearch, or Docker state. Schema-v1 raw results must be rerun rather than upgraded at report time.
+
+### Mongo Batch Append Reports
+
+```bash
+./gradlew :wow-benchmarks:benchmarkQuickMongoBatchAppend \
+  :wow-benchmarks:generateMongoBatchAppendBenchmarkReport \
+  --no-parallel
+```
+
+Each workload writes 128 independent event streams and normalizes JMH throughput and average time per event.
+The three paths are EventStore `insertOne`, native unordered `insertMany`, and `MongoEventStore` coordinated
+batching with `maxSize=128` and `maxDelay=1ms`. This separates the driver's native batch capability from
+the end-to-end coordinated path; their delta also includes batch formation and possible partial flushes.
+The task requires only MongoDB. Quick results are directional point estimates.
+
+For quantified local evidence with multiple forks and JMH error intervals:
+
+```bash
+./gradlew :wow-benchmarks:benchmarkConfirmMongoBatchAppend \
+  :wow-benchmarks:generateMongoBatchAppendConfirmationReport \
+  --no-parallel
+```
+
+For the append-path E2E gain decision, run the counterbalanced paired experiment:
+
+```bash
+./gradlew :wow-benchmarks:benchmarkMongoBatchAppendPairedE2E \
+  :wow-benchmarks:generateMongoBatchAppendPairedE2EReport \
+  --no-parallel
+```
+
+This runs eight pairs for each of one and four JMH threads, alternating AB (`insertOne → batch`) and BA
+(`batch → insertOne`). Each leg is isolated in its own JMH process. The report calculates a Student-t 95%
+confidence interval over paired `log(batch / insertOne)` ratios and passes the configured gain threshold only
+when the unrounded lower bound is greater than `1.05×`. The measured append-path workload includes per-invocation
+event-stream creation, the shared Reactor harness, `MongoEventStore.append`, Mongo driver/network/write
+acknowledgement, and the final wait. It does not include Command Gateway ingress or downstream event processing.
+
+Benchmark thread-level tasks also share a Gradle execution lock so they cannot load the same MongoDB service
+concurrently when global Gradle parallel execution is enabled.
+
+### Elasticsearch Batch Append Reports
+
+```bash
+./gradlew :wow-benchmarks:benchmarkQuickElasticsearchBatchAppend \
+  :wow-benchmarks:generateElasticsearchBatchAppendBenchmarkReport \
+  --no-parallel
+```
+
+Each workload writes 128 independent event streams and normalizes JMH throughput and average time per event.
+The three paths are EventStore single `create`, native Bulk `create`, and coordinated Bulk `create` with
+`maxSize=128` and `maxDelay=1ms`. The average-time score is the 128-event invocation wall time amortized
+per event, not an independent single-request response latency. All three use the same `refresh` parameter, and the task runs both
+`refresh=false` and `refresh=true`, so refresh cost is not hidden in only one comparison leg.
+
+For multiple forks and JMH error intervals:
+
+```bash
+./gradlew :wow-benchmarks:benchmarkConfirmElasticsearchBatchAppend \
+  :wow-benchmarks:generateElasticsearchBatchAppendConfirmationReport \
+  --no-parallel
+```
+
+Both tasks require only Elasticsearch. They measure the EventStore append path through the local reactive
+client; they do not include Command Gateway ingress, aggregate execution, or downstream event processing.
+Quick results remain directional until a controlled multiple-fork confirmation
+run is collected from a clean `HEAD`.
+
+Formal append-path reports are intentionally absent until they can be regenerated from the final clean
+implementation. Use the following exact rerun tasks before restoring those reports or making formal
+throughput claims:
+
+```bash
+./gradlew \
+  :wow-benchmarks:benchmarkQuickMongoBatchAppend \
+  :wow-benchmarks:generateMongoBatchAppendBenchmarkReport \
+  :wow-benchmarks:benchmarkConfirmMongoBatchAppend \
+  :wow-benchmarks:generateMongoBatchAppendConfirmationReport \
+  :wow-benchmarks:benchmarkMongoBatchAppendPairedE2E \
+  :wow-benchmarks:generateMongoBatchAppendPairedE2EReport \
+  --no-parallel
+
+./gradlew \
+  :wow-benchmarks:benchmarkQuickElasticsearchBatchAppend \
+  :wow-benchmarks:generateElasticsearchBatchAppendBenchmarkReport \
+  :wow-benchmarks:benchmarkConfirmElasticsearchBatchAppend \
+  :wow-benchmarks:generateElasticsearchBatchAppendConfirmationReport \
+  --no-parallel
+```
+
+### Quick Mongo Batch Engineering Validation
+
+The active bounded workflow compares current `128x1000us` with candidate
+`192x250us` without changing the production default:
+
+```bash
+./gradlew \
+  :wow-benchmarks:benchmarkQuickMongoBatchOptionsPaired \
+  :wow-benchmarks:generateQuickMongoBatchOptionsPairedReport \
+  --no-parallel --no-daemon
+
+./gradlew \
+  :wow-benchmarks:benchmarkQuickMongoBatchAppendCandidateE2E \
+  :wow-benchmarks:generateQuickMongoBatchAppendCandidateE2EReport \
+  --no-parallel --no-daemon
+
+./gradlew \
+  :wow-benchmarks:benchmarkQuickMongoBatchCoordinatorConcurrency \
+  :wow-benchmarks:generateQuickMongoBatchCoordinatorConcurrencyReport \
+  --no-parallel --no-daemon
+```
+
+The paired task writes only under
+`results/jmh/quick-mongo-options-paired/mongo-batch-options-quick-engineering/`.
+It runs `representative128/threads=1`, `representative128/threads=4`, and
+`burst32/threads=4`, with four `AB BA BA AB` pairs per stratum: 24 independent
+JMH legs in total. Every leg uses `warmup=1x2s`, `measurement=1x3s`, `fork=1`,
+`thrpt`, and `-prof gc`.
+
+The candidate E2E task writes only under
+`results/jmh/quick-mongo-candidate-e2e/mongo-batch-append-quick-engineering/`.
+It compares EventStore `insertOne`, native unordered `insertMany`, and the
+`BatchCoordinator` path at JMH threads `1,4`, in both throughput and average-time
+modes. `batchOptions=192x250us` is a JMH parameter; the production default remains
+unchanged. Average time is amortized per event stream because every invocation
+writes 128 streams; it is not a response-time percentile.
+
+Both tasks require a clean source commit. Each measured iteration verifies that
+Mongo's actual document count equals the exact number of acknowledged writes.
+Partial-failure result isolation remains a unit/integration-test responsibility;
+a full-success JMH run cannot observe caller cross-talk.
+
+The coordinator concurrency diagnostic writes only under
+`results/jmh/quick-mongo-coordinator-concurrency/mongo-batch-coordinator-concurrency-quick-engineering/`.
+It runs at JMH threads `4` and compares `coordinatorLanes=1,2,4` with
+`batchOptions=192x250us` in throughput and average-time modes. One production
+`MongoEventStore` routes the 128 independent aggregate keys through its
+`KeyedBatchCoordinator`; every lane remains serial while different lanes may
+write concurrently. The JMH parameter does not change the default lane count.
+Repeated-key ordering remains a functional-test responsibility. The diagnostic
+permits a dirty source tree so
+the manifest can bind exploratory results to the exact JMH jar and dirty-state
+flag; rerun it from a clean commit before using the result as confirmation
+evidence.
+
+### Mongo Storage Batch Options Tuning (Stopped Exploratory Campaign)
+
+The full Pareto campaign was stopped on 2026-07-27. Its screening,
+multiple-fork, and completed candidate-pair results are historical exploratory
+evidence only. Do not run the remaining candidates, regenerate a formal report
+from the partially overwritten raw directory, or describe the campaign as
+pre-registered, closed, or proof of an optimal production default.
+
+The historical harness encoded a candidate as
+`<maxSize>x<maxDelayMicros>us` and submitted 1, 32, 128, or 512 concurrent
+appends per JMH worker thread. Its raw measurements and complete generated
+reports remain available for audit. The interrupted `512x250us` candidate
+campaign retains its current leg's `.manifest.in-progress.json`; it must not be
+promoted into a report.
+
+The independent quick protocol above is the only active Mongo option comparison
+for this engineering decision. It uses separate suite/profile/result namespaces,
+does not read formal screening or frontier artifacts, and passes
+`batchOptions=192x250us` as a JMH parameter. The production default remains
+`128x1000us` until the explicit quick acceptance criteria are complete and the
+measured result supports a separate default-change decision.
+
+Average-time rows are amortized per event rather than response-time percentiles.
+Do not increase delay without a dedicated low-load latency budget.
+`maxPending*` is an overload/backpressure limit, not a steady-state throughput
+tuning parameter. SnapshotStore requires its own payload/coalescing benchmark
+and must not inherit EventStore results.
+
+### Elasticsearch Storage Batch Options Tuning
+
+Elasticsearch tuning is an independent storage campaign and is not evidence for
+the Mongo default. It retains separate `refresh=false` and `refresh=true` strata;
+`refresh=true`, the Store default, is the primary ranking stratum. Never reuse
+Mongo candidates or conclusions for Elasticsearch.
 
 ## Reading The Report
 
 - `thrpt` scores are throughput. Reports use decimal prefixes (`k`, `M`, `G`) so, for example, `1.57 k ops/s` means 1,570 operations per second. Higher is better.
-- `avgt` scores are average latency. Reports automatically select `ns/op`, `µs/op`, `ms/op`, or `s/op`.
+- `avgt` scores are average time. Storage batch comparison suites normalize a 128-event invocation per event; tuning workloads use their declared 1/32/128/512 `@OperationsPerInvocation` counts. Values are amortized time per event rather than independently sampled response-time percentiles. Reports automatically select `ns/op`, `µs/op`, `ms/op`, or `s/op`.
 - `gc.alloc.rate.norm` is normalized allocation per operation. Reports use binary prefixes (`KiB`, `MiB`, `GiB`); lower is usually better.
 - `±` is the JMH-reported error. Compact units affect presentation only; reports retain raw precision for sorting, comparisons, and regression gates.
-- Quick reports contain throughput and allocation results only. They are useful for local regression checks, but the shorter run profile has wider variance than Baseline E2E.
+- Most Quick reports contain throughput and allocation results. Storage batch reports additionally run average-time mode so they expose end-to-end batching amortized time, but the short one-fork profile still has wider variance than confirmation or Baseline evidence. The coordinated-to-native delta includes batch formation and possible partial flushes; it is not a pure coordinator CPU-overhead measurement.
 - `benchmarkCompare` first applies the configured point-estimate threshold, then uses baseline/current JMH error intervals to classify a threshold crossing. Non-overlapping intervals produce a regression or improvement candidate; overlapping or missing intervals remain inconclusive until a controlled confirmation run.
 - Framework E2E reports isolate Wow command-pipeline overhead; they are not Redis, Mongo, or production deployment capacity numbers.
 - WebFlux Adapter reports isolate functional WebFlux adapter code. They are useful for adapter bottleneck diagnosis, but they are not HTTP server capacity or Framework E2E conclusion numbers.
@@ -243,6 +458,7 @@ Infrastructure E2E benchmarks require local services:
 |---------|----------|
 | Redis | `localhost:6379` |
 | MongoDB | `localhost:27017` |
+| Elasticsearch | `localhost:9200` |
 
 For Redis, use the benchmark Docker profile:
 
@@ -269,8 +485,20 @@ WiredTiger cache at 2 GiB, disables diagnostic and TTL background work, and
 disables WiredTiger collection and journal compression to reduce local CPU
 overhead in write-heavy infrastructure benchmarks.
 
+For Elasticsearch, use the benchmark Docker profile:
+
+```bash
+docker compose \
+  --env-file wow-benchmarks/docker/benchmark.env \
+  -f wow-benchmarks/docker/compose.elasticsearch.yml up -d
+```
+
+The Elasticsearch profile disables security and persistent storage, uses tmpfs-backed
+data, and configures a fixed heap for repeatable local write-path measurements.
+
 Docker image tags, container names, host ports, tmpfs sizes, Mongo credentials,
-healthcheck intervals, Docker log retention, and the Mongo WiredTiger cache size
+healthcheck intervals, Docker log retention, the Mongo WiredTiger cache size, and the
+Elasticsearch heap
 are configured in `wow-benchmarks/docker/benchmark.env`. The benchmark Gradle
 tasks read the same file and pass those values to the JMH process. Use
 `-PbenchmarkDockerEnvFile=/path/to/env-file` when running benchmarks with a

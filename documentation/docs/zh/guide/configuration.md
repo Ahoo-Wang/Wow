@@ -263,6 +263,11 @@ wow:
 | `wow.mongo.event-stream-database` | String | Spring MongoDB 数据库 | 事件流数据库 |
 | `wow.mongo.snapshot-database` | String | Spring MongoDB 数据库 | 快照数据库 |
 | `wow.mongo.prepare-database` | String | Spring MongoDB 数据库 | 预分配键数据库 |
+| `wow.mongo.event-store-batch.enabled` | Boolean | `false` | 启用透明的 EventStore 追加批处理 |
+| `wow.mongo.event-store-batch.max-size` | Int | `128` | 同一集合单批最多包含的事件流数量 |
+| `wow.mongo.event-store-batch.max-delay` | Duration | `1ms` | 收集不足一批请求的最长等待时间 |
+| `wow.mongo.event-store-batch.max-pending-appends` | Int | `4096` | 等待或正在写入的 append 最大接收数量；必须不小于 `max-size` |
+| `wow.mongo.event-store-batch.lane-count` | Int | `1` | 串行写入 lane 数量；同一聚合的 append 始终进入同一 lane |
 
 ```yaml
 wow:
@@ -272,6 +277,12 @@ wow:
     event-stream-database: wow_event_db
     snapshot-database: wow_snapshot_db
     prepare-database: wow_prepare_db
+    event-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-appends: 4096
+      lane-count: 1
 ```
 
 ### Redis 配置
@@ -292,12 +303,38 @@ wow:
 | 属性 | 类型 | 默认值 | 描述 |
 |------|------|--------|------|
 | `wow.elasticsearch.enabled` | Boolean | `true` | 启用 Elasticsearch 支持 |
+| `wow.elasticsearch.event-store-batch.enabled` | Boolean | `false` | 启用透明的 EventStore Bulk `create` 批处理 |
+| `wow.elasticsearch.event-store-batch.max-size` | Int | `128` | 单个 Bulk 请求最多包含的事件流数量 |
+| `wow.elasticsearch.event-store-batch.max-delay` | Duration | `1ms` | 收集不足一批事件的最长等待时间 |
+| `wow.elasticsearch.event-store-batch.max-pending-appends` | Int | `4096` | 等待或正在写入的 append 最大接收数量；必须不小于 `max-size` |
+| `wow.elasticsearch.event-store-batch.lane-count` | Int | `1` | 串行写入 lane 数量；同一聚合的 append 始终进入同一 lane |
+| `wow.elasticsearch.snapshot-store-batch.enabled` | Boolean | `false` | 启用透明的 SnapshotStore Bulk `update` 批处理 |
+| `wow.elasticsearch.snapshot-store-batch.max-size` | Int | `128` | 单个 Bulk 请求最多包含的快照数量 |
+| `wow.elasticsearch.snapshot-store-batch.max-delay` | Duration | `1ms` | 收集不足一批快照的最长等待时间 |
+| `wow.elasticsearch.snapshot-store-batch.max-pending-saves` | Int | `4096` | 等待或正在写入的 save 最大接收数量；必须不小于 `max-size` |
+| `wow.elasticsearch.snapshot-store-batch.lane-count` | Int | `1` | 串行写入 lane 数量；同一聚合的 save 始终进入同一 lane |
 
 ```yaml
 wow:
   elasticsearch:
     enabled: true
+    event-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-appends: 4096
+      lane-count: 1
+    snapshot-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-saves: 4096
+      lane-count: 1
 ```
+
+批处理默认关闭。事件写入使用 Bulk `create`，保持不覆盖及版本冲突语义。
+快照在 direct 和 batch 模式下都使用基于 `_source.version` 的原子保护更新，
+因此旧版本或相同版本（包括 legacy 内部版本文档）不能覆盖已存储的新快照。
 
 ## 功能配置
 

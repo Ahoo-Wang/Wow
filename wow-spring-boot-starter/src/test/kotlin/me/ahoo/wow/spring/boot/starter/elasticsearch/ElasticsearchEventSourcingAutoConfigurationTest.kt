@@ -22,7 +22,9 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.elasticsearch.IndexTemplateInitializer
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
+import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStoreBatchOptions
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
+import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStoreBatchOptions
 import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryServiceFactory
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
@@ -49,6 +51,26 @@ import reactor.kotlin.core.publisher.toMono
 
 internal class ElasticsearchEventSourcingAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
+
+    @Test
+    fun `secondary constructor should use default batch properties`() {
+        val autoConfiguration = ElasticsearchEventSourcingAutoConfiguration(
+            ElasticsearchProperties(autoInitTemplate = false)
+        )
+        val elasticsearchClient = mock(ReactiveElasticsearchClient::class.java)
+        val indexTemplateInitializer = mockk<IndexTemplateInitializer>()
+
+        autoConfiguration.elasticsearchEventStore(elasticsearchClient, indexTemplateInitializer)
+            .use { eventStore ->
+                eventStore.batchOptions.assert()
+                    .isEqualTo(ElasticsearchEventStoreBatchOptions())
+            }
+        autoConfiguration.elasticsearchSnapshotStore(elasticsearchClient, indexTemplateInitializer)
+            .use { snapshotStore ->
+                snapshotStore.batchOptions.assert()
+                    .isEqualTo(ElasticsearchSnapshotStoreBatchOptions())
+            }
+    }
 
     @Test
     fun `should auto configure reactive elasticsearch infrastructure from feature dependencies`() {
@@ -127,6 +149,18 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
             .enableWow()
             .withPropertyValues("${SnapshotProperties.STORAGE}=${StorageType.ELASTICSEARCH_NAME}")
             .withPropertyValues("${EventStoreProperties.STORAGE}=${StorageType.ELASTICSEARCH_NAME}")
+            .withPropertyValues(
+                "${ElasticsearchProperties.PREFIX}.event-store-batch.enabled=true",
+                "${ElasticsearchProperties.PREFIX}.event-store-batch.max-size=64",
+                "${ElasticsearchProperties.PREFIX}.event-store-batch.max-delay=2ms",
+                "${ElasticsearchProperties.PREFIX}.event-store-batch.max-pending-appends=2048",
+                "${ElasticsearchProperties.PREFIX}.event-store-batch.lane-count=2",
+                "${ElasticsearchProperties.PREFIX}.snapshot-store-batch.enabled=true",
+                "${ElasticsearchProperties.PREFIX}.snapshot-store-batch.max-size=32",
+                "${ElasticsearchProperties.PREFIX}.snapshot-store-batch.max-delay=3ms",
+                "${ElasticsearchProperties.PREFIX}.snapshot-store-batch.max-pending-saves=1024",
+                "${ElasticsearchProperties.PREFIX}.snapshot-store-batch.lane-count=3",
+            )
             .withBean(ReactiveElasticsearchClient::class.java, {
                 mock(ReactiveElasticsearchClient::class.java)
             })
@@ -149,6 +183,7 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
                     .hasSingleBean(SnapshotStoreBinding::class.java)
                     .hasSingleBean(ElasticsearchSnapshotQueryServiceFactory::class.java)
                 context.containsBean("snapshotRepository").assert().isFalse()
+                assertBatchOptions(context)
                 val eventStore = context.getBean(ElasticsearchEventStore::class.java)
                 val eventBinding = context.getBean(EventStoreBinding::class.java)
                 eventBinding.storage.assert().isEqualTo(StorageType.ELASTICSEARCH)
@@ -159,6 +194,22 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
                 snapshotBinding.storage.assert().isEqualTo(StorageType.ELASTICSEARCH)
                 snapshotBinding.snapshotStore.assert().isSameAs(snapshotStore)
             }
+    }
+
+    private fun assertBatchOptions(context: AssertableApplicationContext) {
+        val eventOptions = context.getBean(ElasticsearchEventStore::class.java).batchOptions
+        eventOptions.enabled.assert().isTrue()
+        eventOptions.maxSize.assert().isEqualTo(64)
+        eventOptions.maxDelay.assert().isEqualTo(java.time.Duration.ofMillis(2))
+        eventOptions.maxPendingAppends.assert().isEqualTo(2048)
+        eventOptions.laneCount.assert().isEqualTo(2)
+
+        val snapshotOptions = context.getBean(ElasticsearchSnapshotStore::class.java).batchOptions
+        snapshotOptions.enabled.assert().isTrue()
+        snapshotOptions.maxSize.assert().isEqualTo(32)
+        snapshotOptions.maxDelay.assert().isEqualTo(java.time.Duration.ofMillis(3))
+        snapshotOptions.maxPendingSaves.assert().isEqualTo(1024)
+        snapshotOptions.laneCount.assert().isEqualTo(3)
     }
 
     @Test

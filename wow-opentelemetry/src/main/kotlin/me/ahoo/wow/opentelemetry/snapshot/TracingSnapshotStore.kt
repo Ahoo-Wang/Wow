@@ -58,4 +58,8 @@ open class TracingSnapshotStore(override val delegate: SnapshotStore) :
             TraceMono(parentContext, SnapshotStoreInstrumenter.SAVE_INSTRUMENTER, snapshot.aggregateId, source)
         }
     }
+
+    override fun close() {
+        delegate.close()
+    }
 }

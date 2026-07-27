@@ -73,4 +73,8 @@ class TracingEventStore(override val delegate: EventStore) : Traced, EventStore,
     ): Flux<AggregateId> {
         return delegate.scanAggregateId(namedAggregate, afterId, limit)
     }
+
+    override fun close() {
+        delegate.close()
+    }
 }

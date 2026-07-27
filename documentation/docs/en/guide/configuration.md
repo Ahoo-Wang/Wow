@@ -264,6 +264,11 @@ wow:
 | `wow.mongo.event-stream-database` | String | Spring MongoDB database | Event stream database |
 | `wow.mongo.snapshot-database` | String | Spring MongoDB database | Snapshot database |
 | `wow.mongo.prepare-database` | String | Spring MongoDB database | Prepare key database |
+| `wow.mongo.event-store-batch.enabled` | Boolean | `false` | Enable transparent event-store append batching |
+| `wow.mongo.event-store-batch.max-size` | Int | `128` | Maximum event streams per collection batch |
+| `wow.mongo.event-store-batch.max-delay` | Duration | `1ms` | Maximum wait used to collect a partial batch |
+| `wow.mongo.event-store-batch.max-pending-appends` | Int | `4096` | Maximum accepted appends waiting or being written; must be at least `max-size` |
+| `wow.mongo.event-store-batch.lane-count` | Int | `1` | Number of serial write lanes; appends for the same aggregate stay on one lane |
 
 ```yaml
 wow:
@@ -273,6 +278,12 @@ wow:
     event-stream-database: wow_event_db
     snapshot-database: wow_snapshot_db
     prepare-database: wow_prepare_db
+    event-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-appends: 4096
+      lane-count: 1
 ```
 
 ### Redis Configuration
@@ -293,12 +304,39 @@ wow:
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `wow.elasticsearch.enabled` | Boolean | `true` | Enable Elasticsearch support |
+| `wow.elasticsearch.event-store-batch.enabled` | Boolean | `false` | Enable transparent EventStore Bulk `create` batching |
+| `wow.elasticsearch.event-store-batch.max-size` | Int | `128` | Maximum event streams per Bulk request |
+| `wow.elasticsearch.event-store-batch.max-delay` | Duration | `1ms` | Maximum wait used to collect a partial event batch |
+| `wow.elasticsearch.event-store-batch.max-pending-appends` | Int | `4096` | Maximum accepted appends waiting or being written; must be at least `max-size` |
+| `wow.elasticsearch.event-store-batch.lane-count` | Int | `1` | Number of serial write lanes; appends for the same aggregate stay on one lane |
+| `wow.elasticsearch.snapshot-store-batch.enabled` | Boolean | `false` | Enable transparent SnapshotStore Bulk `update` batching |
+| `wow.elasticsearch.snapshot-store-batch.max-size` | Int | `128` | Maximum snapshots per Bulk request |
+| `wow.elasticsearch.snapshot-store-batch.max-delay` | Duration | `1ms` | Maximum wait used to collect a partial snapshot batch |
+| `wow.elasticsearch.snapshot-store-batch.max-pending-saves` | Int | `4096` | Maximum accepted saves waiting or being written; must be at least `max-size` |
+| `wow.elasticsearch.snapshot-store-batch.lane-count` | Int | `1` | Number of serial write lanes; saves for the same aggregate stay on one lane |
 
 ```yaml
 wow:
   elasticsearch:
     enabled: true
+    event-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-appends: 4096
+      lane-count: 1
+    snapshot-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-saves: 4096
+      lane-count: 1
 ```
+
+Batching is opt-in. Event writes use Bulk `create`, preserving no-overwrite and
+version-conflict semantics. Snapshot writes use atomic `_source.version` guarded
+updates in both direct and batch modes, so a stale or equal version cannot
+overwrite a newer snapshot, including a legacy internal-version document.
 
 ## Feature Configuration
 

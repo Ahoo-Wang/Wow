@@ -18,9 +18,20 @@ import me.ahoo.wow.event.DomainEventStream
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
+/**
+ * Routes operations to aggregate-specific stores and owns their lifecycle.
+ *
+ * Closing the router closes every distinct registered store once.
+ */
 class RoutingEventStore(
     private val registry: AggregateEventStoreRegistry
 ) : EventStore {
+    private val lifecycle = RoutingStoreLifecycle(registry.stores)
+
+    override fun close() {
+        lifecycle.close()
+    }
+
     override fun append(eventStream: DomainEventStream): Mono<Void> =
         registry.get(eventStream.aggregateId.namedAggregate).append(eventStream)
 

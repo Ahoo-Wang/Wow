@@ -128,30 +128,30 @@ sequenceDiagram
     ES->>Doc: eventStream.toDocument()
     Doc->>Doc: toLinkedHashMap() - replaceIdToPrimaryKey() - append("size")
 
-    ES->>Coll: insertOne(document)
-    Coll->>DB: insert document with _id = eventStreamId
-    DB-->>Coll: InsertOneResult
+    ES->>Coll: insertOne(document) or unordered insertMany(batch)
+    Coll->>DB: insert document(s) with _id = eventStreamId
+    DB-->>Coll: InsertOneResult or InsertManyResult
 
     alt Write acknowledged
         Coll-->>ES: onNext(result)
         ES->>ES: check(wasAcknowledged())
         ES-->>AR: Mono.empty() (success)
     else Duplicate version (aggregateId + version)
-        DB-->>Coll: MongoWriteException (DUPLICATE_KEY, u_idx_aggregate_id_version)
-        Coll->>Err: onErrorMap(MongoWriteException)
+        DB-->>Coll: MongoWriteException or MongoBulkWriteException
+        Coll->>Err: map matching duplicate-key write error
         Err->>Err: toWowError() - matches "aggregateId_1_version_1"
         Err-->>ES: EventVersionConflictException
         ES-->>AR: EventVersionConflictException
     else Duplicate requestId
-        DB-->>Coll: MongoWriteException (DUPLICATE_KEY, u_idx_request_id)
-        Coll->>Err: onErrorMap(MongoWriteException)
+        DB-->>Coll: MongoWriteException or MongoBulkWriteException
+        Coll->>Err: map matching duplicate-key write error
         Err->>Err: toWowError() - matches "requestId_1"
         Err-->>ES: DuplicateRequestIdException
         ES-->>AR: DuplicateRequestIdException
     end
 ```
 
-The key design insight is that **MongoDB unique indexes serve dual roles**: the `{aggregateId, version}` compound unique index enforces optimistic concurrency (no two writes at the same version), while the `{requestId}` unique index provides command idempotency (no duplicate processing). On violation, `ErrorMapping.toWowError()` translates the raw `MongoWriteException` into the Wow framework's typed exceptions so the framework can handle them uniformly regardless of storage backend.
+The key design insight is that **MongoDB unique indexes serve dual roles**: the `{aggregateId, version}` compound unique index enforces optimistic concurrency (no two writes at the same version), while the `{requestId}` unique index provides command idempotency (no duplicate processing). On violation, `ErrorMapping.toWowError()` translates the raw single or bulk MongoDB write error into the Wow framework's typed exceptions so the framework can handle them uniformly regardless of storage backend.
 
 ## Configuration
 
@@ -165,6 +165,11 @@ The key design insight is that **MongoDB unique indexes serve dual roles**: the 
 | `event-stream-database` | `String` | Database name configured by Spring Boot Mongo module | Event stream database name |
 | `snapshot-database` | `String` | Database name configured by Spring Boot Mongo module | Snapshot database name |
 | `prepare-database` | `String` | Database name configured by Spring Boot Mongo module | `PrepareKey` database name |
+| `event-store-batch.enabled` | `Boolean` | `false` | Batch concurrent event-store appends with unordered `insertMany` |
+| `event-store-batch.max-size` | `Int` | `128` | Maximum event streams per collection batch |
+| `event-store-batch.max-delay` | `Duration` | `1ms` | Maximum wait used to collect a partial batch |
+| `event-store-batch.max-pending-appends` | `Int` | `4096` | Maximum accepted appends waiting or being written; must be at least `max-size` |
+| `event-store-batch.lane-count` | `Int` | `1` | Number of serial write lanes; appends for the same aggregate stay on one lane |
 
 **YAML Configuration Example**
 
@@ -186,7 +191,22 @@ wow:
     event-stream-database: wow_event_db
     snapshot-database: wow_snapshot_db
     prepare-database: wow_prepare_db
+    event-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-appends: 4096
+      lane-count: 1
 ```
+
+Batching is disabled by default because a partial batch adds up to `max-delay` to an append. When enabled,
+the event store groups each window by MongoDB collection, uses unordered `insertMany`, and still completes or
+fails every original `append` independently. When `max-pending-appends` is exhausted, new appends fail before
+submission with a recoverable overload error instead of accumulating in an unbounded in-memory queue.
+An indexed bulk write error fails only its matching append; a write-concern error or inconsistent bulk result
+fails every affected append conservatively because its commit status cannot be proven. The batch is not atomic.
+When constructing a batching `MongoEventStore` directly, close it (for example with Kotlin `use`) to flush a
+partial window and release its worker resources; Spring closes the configured bean through its normal lifecycle.
 
 ## Collection Schema
 

@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.mongo
 
-import com.mongodb.MongoWriteException
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.Sorts
@@ -32,22 +31,34 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
+import java.io.Closeable
 
-class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore() {
+class MongoEventStore private constructor(
+    private val database: MongoDatabase,
+    val batchOptions: MongoEventStoreBatchOptions,
+    private val appender: MongoEventStreamAppender,
+) : AbstractEventStore(),
+    Closeable {
+    constructor(database: MongoDatabase) : this(
+        database = database,
+        batchOptions = MongoEventStoreBatchOptions(),
+    )
 
-    override fun appendStream(eventStream: DomainEventStream): Mono<Void> {
-        val eventStreamCollectionName = eventStream.toEventStreamCollectionName()
-        val document = eventStream.toDocument()
+    constructor(
+        database: MongoDatabase,
+        batchOptions: MongoEventStoreBatchOptions,
+    ) : this(
+        database = database,
+        batchOptions = batchOptions,
+        appender = if (batchOptions.enabled) {
+            BatchMongoEventStreamAppender(database, batchOptions)
+        } else {
+            DirectMongoEventStreamAppender(database)
+        },
+    )
 
-        return database.getCollection(eventStreamCollectionName)
-            .insertOne(document)
-            .toMono()
-            .doOnNext {
-                check(it.wasAcknowledged())
-            }.onErrorMap(MongoWriteException::class.java) {
-                it.toWowError(eventStream)
-            }.then()
-    }
+    override fun appendStream(eventStream: DomainEventStream): Mono<Void> =
+        appender.append(eventStream)
 
     private fun documentToDomainEventStream(aggregateId: AggregateId, document: Document): DomainEventStream {
         val domainEventStream = document.toDomainEventStream()
@@ -158,5 +169,9 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
                 val tenantId = it.getString(MessageRecords.TENANT_ID)
                 namedAggregate.aggregateId(aggregateId, tenantId)
             }
+    }
+
+    override fun close() {
+        appender.close()
     }
 }

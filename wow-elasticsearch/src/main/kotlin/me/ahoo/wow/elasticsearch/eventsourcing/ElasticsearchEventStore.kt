@@ -15,7 +15,6 @@ package me.ahoo.wow.elasticsearch.eventsourcing
 
 import co.elastic.clients.elasticsearch._types.ElasticsearchException
 import co.elastic.clients.elasticsearch._types.FieldValue
-import co.elastic.clients.elasticsearch._types.OpType
 import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.elasticsearch.core.search.Hit
 import me.ahoo.wow.api.Version
@@ -27,24 +26,61 @@ import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOptions
 import me.ahoo.wow.elasticsearch.query.event.EventStreamConditionConverter
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
-import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.sort
 import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.serialization.toLinkedHashMap
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.toMono
 
-class ElasticsearchEventStore(
+class ElasticsearchEventStore private constructor(
     private val elasticsearchClient: ReactiveElasticsearchClient,
     private val refreshPolicy: Refresh = Refresh.True,
-    private val batchSize: Int = DEFAULT_BATCH_SIZE
+    private val batchSize: Int = DEFAULT_BATCH_SIZE,
+    val batchOptions: ElasticsearchEventStoreBatchOptions,
+    private val appender: ElasticsearchEventStreamAppender,
 ) : AbstractEventStore() {
+    constructor(
+        elasticsearchClient: ReactiveElasticsearchClient,
+        refreshPolicy: Refresh = Refresh.True,
+        batchSize: Int = DEFAULT_BATCH_SIZE,
+    ) : this(
+        elasticsearchClient = elasticsearchClient,
+        refreshPolicy = refreshPolicy,
+        batchSize = batchSize,
+        batchOptions = ElasticsearchEventStoreBatchOptions(),
+        appender = DirectElasticsearchEventStreamAppender(
+            elasticsearchClient = elasticsearchClient,
+            refreshPolicy = refreshPolicy,
+        ),
+    )
+
+    constructor(
+        elasticsearchClient: ReactiveElasticsearchClient,
+        batchOptions: ElasticsearchEventStoreBatchOptions,
+        refreshPolicy: Refresh = Refresh.True,
+        batchSize: Int = DEFAULT_BATCH_SIZE,
+    ) : this(
+        elasticsearchClient = elasticsearchClient,
+        refreshPolicy = refreshPolicy,
+        batchSize = batchSize,
+        batchOptions = batchOptions,
+        appender = if (batchOptions.enabled) {
+            BatchElasticsearchEventStreamAppender(
+                elasticsearchClient = elasticsearchClient,
+                refreshPolicy = refreshPolicy,
+                options = batchOptions,
+            )
+        } else {
+            DirectElasticsearchEventStreamAppender(
+                elasticsearchClient = elasticsearchClient,
+                refreshPolicy = refreshPolicy,
+            )
+        },
+    )
+
     companion object {
-        private const val VERSION_CONFLICT_CODE = 409
         private const val NOT_FOUND_CODE = 404
         private const val DEFAULT_BATCH_SIZE = 10000
     }
@@ -58,27 +94,8 @@ class ElasticsearchEventStore(
         val nextSearchAfter: List<FieldValue>?,
     )
 
-    private fun DomainEventStream.toDocId(): String = "${this.aggregateId.id}-${this.version}"
-
     override fun appendStream(eventStream: DomainEventStream): Mono<Void> {
-        return elasticsearchClient
-            .index {
-                it
-                    .index(eventStream.aggregateId.toEventStreamIndexName())
-                    .id(eventStream.toDocId())
-                    .document(eventStream.toLinkedHashMap())
-                    .routing(eventStream.aggregateId.id)
-                    .opType(OpType.Create)
-                    .refresh(refreshPolicy)
-            }.onErrorResume {
-                if (it is ElasticsearchException && it.status() == VERSION_CONFLICT_CODE) {
-                    return@onErrorResume EventVersionConflictException(
-                        eventStream = eventStream,
-                        cause = it,
-                    ).toMono()
-                }
-                Mono.error(it)
-            }.then()
+        return appender.append(eventStream)
     }
 
     override fun loadStream(
@@ -239,5 +256,9 @@ class ElasticsearchEventStore(
             return Mono.empty()
         }
         return Mono.error(error)
+    }
+
+    override fun close() {
+        appender.close()
     }
 }

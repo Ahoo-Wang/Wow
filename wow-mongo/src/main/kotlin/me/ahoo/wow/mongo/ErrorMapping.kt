@@ -14,9 +14,11 @@
 package me.ahoo.wow.mongo
 
 import com.mongodb.ErrorCategory
+import com.mongodb.MongoBulkWriteException
 import com.mongodb.MongoException
 import com.mongodb.MongoWriteException
 import com.mongodb.WriteError
+import com.mongodb.bulk.WriteConcernError
 import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
@@ -40,27 +42,49 @@ class RecoverableMongoWriteException(writeException: MongoWriteException) :
     val error: WriteError = writeException.error
 }
 
+class RecoverableMongoBulkWriteException(
+    val error: WriteError,
+    bulkWriteException: MongoBulkWriteException,
+) : MongoException(error.code, error.message, bulkWriteException),
+    RecoverableException
+
 fun WriteError.isRecoverableWriteError(): Boolean = code in RECOVERABLE_WRITE_ERROR_CODES
 
 fun MongoWriteException.toWowError(eventStream: DomainEventStream): Throwable {
-    if (ErrorCategory.fromErrorCode(error.code) == ErrorCategory.DUPLICATE_KEY) {
-        if (error.message.contains(AggregateSchemaInitializer.AGGREGATE_ID_AND_VERSION_UNIQUE_INDEX_NAME)) {
+    return error.toWowError(eventStream, this)
+}
+
+internal fun WriteError.toWowError(eventStream: DomainEventStream, cause: MongoException): Throwable {
+    if (ErrorCategory.fromErrorCode(code) == ErrorCategory.DUPLICATE_KEY) {
+        if (message.contains(AggregateSchemaInitializer.AGGREGATE_ID_AND_VERSION_UNIQUE_INDEX_NAME)) {
             return EventVersionConflictException(
                 eventStream = eventStream,
-                cause = this,
+                cause = cause,
             )
         }
-        if (error.message.contains(AggregateSchemaInitializer.REQUEST_ID_UNIQUE_INDEX_NAME)) {
+        if (message.contains(AggregateSchemaInitializer.REQUEST_ID_UNIQUE_INDEX_NAME)) {
             return DuplicateRequestIdException(
                 aggregateId = eventStream.aggregateId,
                 requestId = eventStream.requestId,
-                cause = this,
+                cause = cause,
             )
         }
-        return this
+        return cause
     }
-    if (error.isRecoverableWriteError()) {
-        return RecoverableMongoWriteException(this)
+    if (isRecoverableWriteError()) {
+        return when (cause) {
+            is MongoWriteException -> RecoverableMongoWriteException(cause)
+            is MongoBulkWriteException -> RecoverableMongoBulkWriteException(this, cause)
+            else -> cause
+        }
     }
-    return this
+    return cause
+}
+
+internal fun WriteConcernError.toWowError(cause: MongoBulkWriteException): Throwable {
+    val writeError = WriteError(code, message, details)
+    if (writeError.isRecoverableWriteError()) {
+        return RecoverableMongoBulkWriteException(writeError, cause)
+    }
+    return cause
 }

@@ -89,6 +89,38 @@ Required index templates are installed before application startup completes. A f
 startup. Set `wow.elasticsearch.auto-init-template=false` only when templates are managed externally. The built-in
 templates intentionally leave shard and replica counts to the cluster or to a higher-priority operator template.
 
+## Write Batching
+
+EventStore and SnapshotStore write batching is opt-in:
+
+```yaml
+wow:
+  elasticsearch:
+    event-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-appends: 4096
+      lane-count: 1
+    snapshot-store-batch:
+      enabled: true
+      max-size: 128
+      max-delay: 1ms
+      max-pending-saves: 4096
+      lane-count: 1
+```
+
+EventStore batches use Bulk `create`, so an existing event document is never
+overwritten and an individual 409 remains an event-version conflict for only
+that append. Bulk partial successes are returned to their corresponding callers.
+
+SnapshotStore batches use Bulk `update` with scripted upserts. Direct saves use
+the same atomic script: only an incoming snapshot with a higher
+`_source.version` replaces the stored source, while an equal or stale one is a
+no-op. This also keeps pre-upgrade documents safe when their Elasticsearch
+`_version` is an internal write counter rather than the aggregate version; no
+version-metadata migration is required.
+
 ## Index Naming Rules
 
 | Data Type | Index Naming Format | Example |

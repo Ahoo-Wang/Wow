@@ -40,4 +40,8 @@ class DelaySnapshotStore(
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
         return delegate.save(snapshot).delaySubscription(delaySupplier())
     }
+
+    override fun close() {
+        delegate.close()
+    }
 }

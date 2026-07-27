@@ -101,6 +101,11 @@ class MongoEventSourcingAutoConfigurationTest {
                 "${MongoProperties.PREFIX}.prepare-database=testPrepare",
                 "${MongoProperties.PREFIX}.error-database=testError",
                 "${MongoProperties.PREFIX}.auto-init-schema=false",
+                "${MongoProperties.PREFIX}.event-store-batch.enabled=true",
+                "${MongoProperties.PREFIX}.event-store-batch.max-size=64",
+                "${MongoProperties.PREFIX}.event-store-batch.max-delay=2ms",
+                "${MongoProperties.PREFIX}.event-store-batch.max-pending-appends=2048",
+                "${MongoProperties.PREFIX}.event-store-batch.lane-count=2",
                 "wow.context-name=order-service",
             )
             .withBean(MongoClient::class.java, {
@@ -119,6 +124,11 @@ class MongoEventSourcingAutoConfigurationTest {
                     .hasSingleBean(SnapshotStoreBinding::class.java)
                     .hasSingleBean(MongoPrepareKeyFactory::class.java)
                 val eventStore = context.getBean(MongoEventStore::class.java)
+                eventStore.batchOptions.enabled.assert().isTrue()
+                eventStore.batchOptions.maxSize.assert().isEqualTo(64)
+                eventStore.batchOptions.maxDelay.assert().isEqualTo(java.time.Duration.ofMillis(2))
+                eventStore.batchOptions.maxPendingAppends.assert().isEqualTo(2048)
+                eventStore.batchOptions.laneCount.assert().isEqualTo(2)
                 val eventBinding = context.getBean(EventStoreBinding::class.java)
                 eventBinding.storage.assert().isEqualTo(StorageType.MONGO)
                 eventBinding.eventStore.assert().isSameAs(eventStore)
