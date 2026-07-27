@@ -66,8 +66,8 @@ graph TB
 不同 context 误连到该 database 时会在创建 EventStore、SnapshotStore、查询 factory 或
 PrepareKeyFactory 前失败，并提示配置独立数据库。即使 event 与 snapshot 使用其他后端，独立的
 `prepare-database` 也会执行该检查；该检查不受 `auto-init-schema` 影响。对于尚无所有权标记的存量
-database，首次启动会先从已有 `*_event_stream`、`*_snapshot` 和 `*_snapshot_checkpoint` 集合中
-查找属于其他 context 的文档，确认不存在历史混写后再写入标记。存量 `prepare_*` 文档没有 context
+database，首次启动会先从已有 `*_event_stream` 和 `*_snapshot` 集合中查找属于其他 context 的文档，
+确认不存在历史混写后再写入标记。存量 `prepare_*` 文档没有 context
 元数据，因此上线前必须审计 prepare database 映射；首个升级的 context 会认领尚未标记且仅含
 prepare 数据的 database。aggregate 全量校验只在首次认领时执行；大型存量数据库应优先升级其真实
 所有者服务，并预留扫描时间。
@@ -218,7 +218,6 @@ MongoDB collection 对时间窗内的请求分组，使用 unordered `insertMany
 |---|---|---|
 | 事件流 | `{aggregateName}_event_stream` | `order_event_stream` |
 | 快照 | `{aggregateName}_snapshot` | `order_snapshot` |
-| 快照 Checkpoint | `{aggregateName}_snapshot_checkpoint` | `order_snapshot_checkpoint` |
 | PrepareKey | `prepare_{name}` | `prepare_username_idx` |
 
 事件流、快照与 PrepareKey 集合名称刻意保持兼容，不会加入 `contextName`。bounded context 的数据库
@@ -352,12 +351,6 @@ context，应先迁移或清空原事件流、快照与 PrepareKey 数据，再�
 | `ownerId_hashed` | `ownerId` | 哈希 | 基于所有者的过滤 |
 | `_id_hashed` | `_id` | 哈希 | 按 ID 快速查找聚合 |
 | `deleted_hashed` | `deleted` | 哈希 | 软删除过滤 |
-
-### SnapshotCheckpointSchemaInitializer
-
-仅当 `wow.eventsourcing.snapshot.checkpoint.enabled=true` 时，
-`SnapshotCheckpointSchemaInitializer` 才会创建 `<aggregate>_snapshot_checkpoint` sidecar，以及唯一
-索引 `{tenantId: 1, aggregateId: 1, version: 1}`。checkpoint 保持关闭时不会创建该集合。
 
 ## 查询服务
 

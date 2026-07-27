@@ -41,6 +41,19 @@ Before upgrading, check the following:
 2. **Configuration Changes**: Check for configuration property changes
 3. **Metadata Changes**: Regenerate metadata files
 
+## Versioned Snapshot Checkpoint Removal
+
+The versioned snapshot checkpoint capability introduced in v8.9.0 has been removed without a compatibility layer.
+`VersionedSnapshotStore`, `VersionIntervalCheckpointStrategy`, `CompositeSnapshotStrategy`, their metrics and tracing
+decorators, and `SnapshotCheckpointProperties` no longer exist. The `wow.eventsourcing.snapshot.checkpoint.*`
+properties are ignored, and the `wow.snapshot.checkpoint.*` metrics and checkpoint spans are no longer emitted.
+There is no replacement API; applications should use `SnapshotStore`, which stores and loads only the latest snapshot.
+
+MongoDB `*_snapshot_checkpoint` collections are no longer read, written, scanned, or automatically deleted. Back up
+event and snapshot data before upgrading, stop all old-version writers, and remove those collections only after
+confirming they are no longer needed. Rollback requires restoring the old runtime and retaining its checkpoint data;
+mixed-version deployment is unsupported.
+
 ## Redis EventStore Canonical v2 Layout (introduced in v8.9.0)
 
 When upgrading from v8.6.x or v8.8.x to v8.9.0, treat Redis persistence as a hard storage-format cutover. Redis
@@ -115,7 +128,7 @@ now includes its `name`, and v2 rejects empty aggregate/prepare IDs and unpaired
 should use `EventStore`, `SnapshotStore`, and `PrepareKey`; reviewed offline tooling must independently implement and
 verify the documented v2 codec.
 
-## Mongo Ownership Guard and Snapshot Checkpoints
+## Mongo Ownership Guard
 
 This upgrade keeps aggregate-name-only Mongo collection names, but adds a durable
 `wow_database_metadata` ownership marker. The supported deployment layout is one bounded context per MongoDB
@@ -124,7 +137,7 @@ database.
 Before rollout:
 
 1. Inspect every configured event-stream, snapshot, and prepare database. Check all `*_event_stream`, `*_snapshot`,
-   `*_snapshot_checkpoint`, and `prepare_*` collections.
+   and `prepare_*` collections.
 2. Confirm that each database belongs to only one `wow.context-name`; a mixed database must be split before upgrade.
 3. Upgrade the database's real owner first. The first upgraded instance scans legacy aggregate collections before
    atomically claiming the marker. Legacy `prepare_*` records contain no context metadata, so a prepare-only database
@@ -134,21 +147,6 @@ Before rollout:
 
 Do not edit the marker to bypass a context mismatch. Move or remove the old data, then remove the marker only when
 the database is intentionally reassigned.
-
-Historical snapshot checkpoints are disabled by default:
-
-```yaml
-wow:
-  eventsourcing:
-    snapshot:
-      checkpoint:
-        enabled: false
-        version-interval: 100
-```
-
-Enabling the feature creates `<aggregate>_snapshot_checkpoint` sidecars and stores only newly produced matching
-versions; it does not backfill history. Roll back by disabling the feature, and retain the sidecars until validation
-and retention decisions are complete.
 
 ## Migrating from Traditional Architecture
 

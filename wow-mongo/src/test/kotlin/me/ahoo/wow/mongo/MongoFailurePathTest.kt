@@ -15,8 +15,6 @@ package me.ahoo.wow.mongo
 
 import com.mongodb.MongoException
 import com.mongodb.client.model.FindOneAndUpdateOptions
-import com.mongodb.client.model.UpdateOptions
-import com.mongodb.client.result.UpdateResult
 import com.mongodb.reactivestreams.client.FindPublisher
 import com.mongodb.reactivestreams.client.ListCollectionNamesPublisher
 import com.mongodb.reactivestreams.client.MongoCollection
@@ -24,13 +22,6 @@ import com.mongodb.reactivestreams.client.MongoDatabase
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
-import me.ahoo.wow.eventsourcing.snapshot.Snapshot
-import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.modeling.aggregateId
-import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
-import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.bson.Document
 import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
@@ -38,7 +29,6 @@ import org.junit.jupiter.api.assertThrows
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
 import reactor.core.publisher.Mono
-import reactor.test.StepVerifier
 
 class MongoFailurePathTest {
 
@@ -66,29 +56,6 @@ class MongoFailurePathTest {
     }
 
     @Test
-    fun `checkpoint save rejects an unacknowledged write`() {
-        val collection = mockk<MongoCollection<Document>>()
-        every {
-            collection.updateOne(
-                any<Bson>(),
-                any<Bson>(),
-                any<UpdateOptions>(),
-            )
-        } returns Mono.just(UpdateResult.unacknowledged())
-        val database = mockk<MongoDatabase>()
-        every { database.getCollection(any()) } returns collection
-        val snapshot = snapshot()
-
-        StepVerifier.create(MongoSnapshotStore(database).saveCheckpoint(snapshot))
-            .expectErrorSatisfies { error ->
-                error.assert()
-                    .isInstanceOf(IllegalStateException::class.java)
-                    .hasMessageContaining("checkpoint write was not acknowledged")
-            }
-            .verify()
-    }
-
-    @Test
     fun `collection initialization propagates non namespace-exists errors`() {
         val database = mockk<MongoDatabase>()
         every { database.listCollectionNames() } returns emptyCollectionNamesPublisher()
@@ -111,17 +78,6 @@ class MongoFailurePathTest {
             name.assert().isEqualTo("aggregateId_1_version_1")
             unique.assert().isTrue()
         }
-    }
-
-    private fun snapshot(): Snapshot<MockStateAggregate> {
-        val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId())
-        val state = MockStateAggregate(aggregateId.id)
-        val aggregate = MOCK_AGGREGATE_METADATA.state.toStateAggregate(
-            aggregateId = aggregateId,
-            state = state,
-            version = 10,
-        )
-        return SimpleSnapshot(aggregate, snapshotTime = 10)
     }
 
     private fun emptyCollectionNamesPublisher(): ListCollectionNamesPublisher =

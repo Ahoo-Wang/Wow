@@ -26,7 +26,6 @@ import me.ahoo.wow.eventsourcing.RoutingEventStore
 import me.ahoo.wow.eventsourcing.snapshot.RoutingSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStrategy
-import me.ahoo.wow.eventsourcing.snapshot.VersionedSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotHandler
 import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
 import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
@@ -240,11 +239,7 @@ object Metrics {
             return this
         }
         return metrizable {
-            if (this is VersionedSnapshotStore) {
-                MetricVersionedSnapshotStore(this)
-            } else {
-                MetricSnapshotStore(this)
-            }
+            MetricSnapshotStore(this)
         }
     }
 

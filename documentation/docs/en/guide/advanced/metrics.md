@@ -58,8 +58,6 @@ The names below are Reactor publisher base names. Reactor creates meters such as
 - `wow.snapshot.save`: Snapshot save count and latency
 - `wow.snapshot.load`: Snapshot load count and latency
 - `wow.snapshot.getVersion`
-- `wow.snapshot.checkpoint.save`
-- `wow.snapshot.checkpoint.load`
 - `wow.snapshot.event`
 - `wow.snapshot.handle`
 

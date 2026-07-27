@@ -31,7 +31,6 @@ object AggregateSchemaInitializer {
     const val REQUEST_ID_UNIQUE_INDEX_NAME = "requestId_1"
     private const val EVENT_STREAM_COLLECTION_SUFFIX = "_event_stream"
     private const val SNAPSHOT_COLLECTION_SUFFIX = "_snapshot"
-    private const val SNAPSHOT_CHECKPOINT_COLLECTION_SUFFIX = "_snapshot_checkpoint"
 
     fun NamedAggregate.toEventStreamCollectionName(): String {
         return "${this.aggregateName}$EVENT_STREAM_COLLECTION_SUFFIX"
@@ -39,10 +38,6 @@ object AggregateSchemaInitializer {
 
     fun NamedAggregate.toSnapshotCollectionName(): String {
         return "${this.aggregateName}$SNAPSHOT_COLLECTION_SUFFIX"
-    }
-
-    fun NamedAggregate.toSnapshotCheckpointCollectionName(): String {
-        return "${this.aggregateName}$SNAPSHOT_CHECKPOINT_COLLECTION_SUFFIX"
     }
 
     fun MongoDatabase.ensureCollection(collectionName: String): Boolean {

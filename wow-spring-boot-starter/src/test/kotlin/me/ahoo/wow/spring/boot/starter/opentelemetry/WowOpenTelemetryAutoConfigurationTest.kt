@@ -20,7 +20,6 @@ import me.ahoo.wow.eventsourcing.RoutingEventStore
 import me.ahoo.wow.eventsourcing.snapshot.AggregateSnapshotStoreRegistry
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.RoutingSnapshotStore
-import me.ahoo.wow.eventsourcing.snapshot.VersionedSnapshotStore
 import me.ahoo.wow.opentelemetry.aggregate.TraceAggregateFilter
 import me.ahoo.wow.opentelemetry.eventprocessor.TraceEventProcessorFilter
 import me.ahoo.wow.opentelemetry.projection.TraceProjectionFilter
@@ -86,21 +85,6 @@ internal class WowOpenTelemetryAutoConfigurationTest {
     }
 
     @Test
-    fun `should preserve versioned snapshot store capability`() {
-        val tracedStore = TracingBeanPostProcessor().postProcessAfterInitialization(
-            InMemorySnapshotStore(),
-            "snapshotStore",
-        )
-        val metricStore = MetricsBeanPostProcessor().postProcessAfterInitialization(
-            tracedStore,
-            "snapshotStore",
-        )
-
-        tracedStore.assert().isInstanceOf(VersionedSnapshotStore::class.java)
-        metricStore.assert().isInstanceOf(VersionedSnapshotStore::class.java)
-    }
-
-    @Test
     fun `metrics should keep traced routing event store transparent`() {
         val routingStore = RoutingEventStore(
             AggregateEventStoreRegistry(
@@ -123,7 +107,7 @@ internal class WowOpenTelemetryAutoConfigurationTest {
 
     @Test
     fun `metrics should keep traced routing snapshot store transparent`() {
-        val routingStore = RoutingSnapshotStore.create(
+        val routingStore = RoutingSnapshotStore(
             AggregateSnapshotStoreRegistry(
                 defaultSnapshotStore = InMemorySnapshotStore(),
                 routes = emptyMap(),
@@ -140,6 +124,5 @@ internal class WowOpenTelemetryAutoConfigurationTest {
         )
 
         metricStore.assert().isSameAs(tracedStore)
-        metricStore.assert().isInstanceOf(VersionedSnapshotStore::class.java)
     }
 }

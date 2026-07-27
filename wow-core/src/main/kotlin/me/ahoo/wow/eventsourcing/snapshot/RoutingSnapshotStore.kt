@@ -21,8 +21,8 @@ import reactor.core.publisher.Mono
  *
  * Closing the router closes every distinct registered store once.
  */
-open class RoutingSnapshotStore(
-    protected val registry: AggregateSnapshotStoreRegistry
+class RoutingSnapshotStore(
+    private val registry: AggregateSnapshotStoreRegistry
 ) : SnapshotStore {
     private val lifecycle = RoutingStoreLifecycle(registry.stores)
 
@@ -44,30 +44,5 @@ open class RoutingSnapshotStore(
 
     companion object {
         const val NAME = "routing"
-
-        fun create(registry: AggregateSnapshotStoreRegistry): RoutingSnapshotStore =
-            if (registry.supportsHistoricalCheckpoints) {
-                VersionedRoutingSnapshotStore(registry)
-            } else {
-                RoutingSnapshotStore(registry)
-            }
     }
-}
-
-private class VersionedRoutingSnapshotStore(
-    registry: AggregateSnapshotStoreRegistry,
-) : RoutingSnapshotStore(registry),
-    VersionedSnapshotStore {
-
-    override fun <S : Any> loadAtOrBefore(
-        aggregateId: AggregateId,
-        maxVersion: Int,
-    ): Mono<Snapshot<S>> =
-        versionedStore(aggregateId).loadAtOrBefore(aggregateId, maxVersion)
-
-    override fun <S : Any> saveCheckpoint(snapshot: Snapshot<S>): Mono<Void> =
-        versionedStore(snapshot.aggregateId).saveCheckpoint(snapshot)
-
-    private fun versionedStore(aggregateId: AggregateId): VersionedSnapshotStore =
-        registry.get(aggregateId.namedAggregate) as VersionedSnapshotStore
 }

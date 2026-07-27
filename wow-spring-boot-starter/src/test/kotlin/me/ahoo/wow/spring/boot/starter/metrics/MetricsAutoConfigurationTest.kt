@@ -5,11 +5,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
-import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
-import me.ahoo.wow.eventsourcing.snapshot.VersionedSnapshotStore
 import me.ahoo.wow.metrics.MetricEventStore
-import me.ahoo.wow.metrics.MetricVersionedSnapshotStore
+import me.ahoo.wow.metrics.MetricSnapshotStore
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
@@ -21,17 +18,6 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class MetricsAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
-
-    @Test
-    fun `metrics post processor should preserve snapshot checkpoint capability`() {
-        val postProcessor = MetricsBeanPostProcessor()
-
-        val legacy = postProcessor.postProcessAfterInitialization(mockk<SnapshotStore>(), "legacySnapshotStore")
-        val versioned = postProcessor.postProcessAfterInitialization(NoOpSnapshotStore, "versionedSnapshotStore")
-
-        (legacy is VersionedSnapshotStore).assert().isFalse()
-        (versioned is VersionedSnapshotStore).assert().isTrue()
-    }
 
     @Test
     fun `metrics post processor should decorate raw event store binding once`() {
@@ -74,7 +60,7 @@ class MetricsAutoConfigurationTest {
     }
 
     @Test
-    fun `metrics post processor should decorate raw versioned snapshot store binding once`() {
+    fun `metrics post processor should decorate raw snapshot store binding once`() {
         val binding = SnapshotStoreBinding(
             name = "custom-snapshot-store",
             storage = null,
@@ -87,7 +73,7 @@ class MetricsAutoConfigurationTest {
         val processedAgain = postProcessor
             .postProcessAfterInitialization(metricBinding, "customSnapshotStoreBinding")
 
-        metricBinding.snapshotStore.assert().isInstanceOf(MetricVersionedSnapshotStore::class.java)
+        metricBinding.snapshotStore.assert().isInstanceOf(MetricSnapshotStore::class.java)
         processedAgain.assert().isSameAs(metricBinding)
     }
 

@@ -60,7 +60,7 @@ class MetricStorageOwnershipTest {
     fun `routing snapshot store should preserve leaf metric ownership`() {
         withMeterRegistry { meterRegistry ->
             val leafStore = LeafSnapshotStore().metrizable()
-            val routingStore = RoutingSnapshotStore.create(
+            val routingStore = RoutingSnapshotStore(
                 AggregateSnapshotStoreRegistry(
                     defaultSnapshotStore = leafStore,
                     routes = emptyMap(),
