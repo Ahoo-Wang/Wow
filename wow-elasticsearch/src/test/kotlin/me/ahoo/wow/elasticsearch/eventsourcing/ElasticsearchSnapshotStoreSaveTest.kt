@@ -193,6 +193,36 @@ class ElasticsearchSnapshotStoreSaveTest {
     }
 
     @Test
+    fun `batch request failure should reach every caller unchanged`() {
+        val failure = IllegalStateException("bulk unavailable")
+        every { client.bulk(any<BulkRequest>()) } returns Mono.error(failure)
+        val store = ElasticsearchSnapshotStore(
+            elasticsearchClient = client,
+            batchOptions = ElasticsearchSnapshotStoreBatchOptions(
+                enabled = true,
+                maxSize = 2,
+                maxDelay = Duration.ofSeconds(1),
+                maxPendingSaves = 2,
+            ),
+        )
+
+        try {
+            Flux.merge(
+                store.save(snapshot("order-failure-1", 1)).materialize(),
+                store.save(snapshot("order-failure-2", 1)).materialize(),
+            ).collectList()
+                .test()
+                .assertNext { signals ->
+                    signals.assert().hasSize(2)
+                    signals.all { it.throwable === failure }.assert().isTrue()
+                }
+                .verifyComplete()
+        } finally {
+            store.close()
+        }
+    }
+
+    @Test
     fun `configured lanes should keep the same snapshot key batches serial`() {
         val firstRequestStarted = CountDownLatch(1)
         val secondRequestStarted = CountDownLatch(1)

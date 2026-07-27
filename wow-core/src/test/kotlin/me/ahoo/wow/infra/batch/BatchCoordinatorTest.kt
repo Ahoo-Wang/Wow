@@ -284,13 +284,63 @@ class BatchCoordinatorTest {
             )
         }
         assertThrows<IllegalArgumentException> {
-            BatchCoordinator(
+            BatchCoordinator<Int>(
                 name = " ",
                 options = options(),
                 writer = BatchWriter {
                     Mono.just(it.map { BatchItemResult.Success })
                 },
             )
+        }
+        assertThrows<IllegalArgumentException> {
+            BatchCoordinator<Int>(
+                name = "invalid-lanes",
+                options = options(),
+                writer = BatchWriter {
+                    Mono.just(it.map { BatchItemResult.Success })
+                },
+                laneCount = 0,
+                laneSelector = { 0 },
+            )
+        }.message.assert().isEqualTo("laneCount must be greater than zero.")
+    }
+
+    @Test
+    fun `invalid selected lane should fail only that submission and release capacity`() {
+        val coordinator = BatchCoordinator<Int>(
+            name = "invalid-selected-lane",
+            options = options(maxPendingItems = 2),
+            writer = BatchWriter { items ->
+                Mono.just(items.map { BatchItemResult.Success })
+            },
+            laneCount = 2,
+            laneSelector = { item ->
+                if (item == 1) {
+                    2
+                } else {
+                    0
+                }
+            },
+        )
+
+        try {
+            coordinator.submit(1)
+                .test()
+                .expectErrorMatches { error ->
+                    error is IllegalStateException &&
+                        error.message ==
+                        "Batch lane selector[invalid-selected-lane] returned 2 outside [0, 2)."
+                }
+                .verify()
+
+            batchSignals(coordinator, 2, 3)
+                .test()
+                .assertNext { signals ->
+                    signals.all { it.isOnComplete }.assert().isTrue()
+                }
+                .verifyComplete()
+        } finally {
+            coordinator.close()
         }
     }
 

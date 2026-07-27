@@ -52,11 +52,12 @@ class ElasticsearchEventStoreAppendTest {
         val request = slot<IndexRequest<Map<String, Any?>>>()
         every { client.index(capture(request)) } returns Mono.just(mockk())
         val eventStream = eventStream("order-direct", aggregateVersion = 1)
+        val eventStore = ElasticsearchEventStore(client)
 
-        ElasticsearchEventStore(client)
-            .append(eventStream)
+        eventStore.append(eventStream)
             .test()
             .verifyComplete()
+        eventStore.close()
 
         request.captured.opType().assert().isEqualTo(OpType.Create)
         request.captured.id().assert().isEqualTo(eventStream.toDocId())
@@ -81,6 +82,21 @@ class ElasticsearchEventStoreAppendTest {
                 error.cause.assert().isSameAs(failure)
             }
             .verify()
+    }
+
+    @Test
+    fun `direct non conflict failure should remain unchanged`() {
+        val failure = IllegalStateException("index unavailable")
+        every {
+            client.index(any<IndexRequest<Map<String, Any?>>>())
+        } returns Mono.error(failure)
+
+        ElasticsearchEventStore(client).use { eventStore ->
+            eventStore.append(eventStream("order-direct-failure"))
+                .test()
+                .expectErrorMatches { it === failure }
+                .verify()
+        }
     }
 
     @Test
@@ -113,6 +129,36 @@ class ElasticsearchEventStoreAppendTest {
         request.captured.operations().assert().hasSize(2)
         request.captured.operations().all { it.isCreate }.assert().isTrue()
         verify(exactly = 0) { client.index(any<IndexRequest<Map<String, Any?>>>()) }
+    }
+
+    @Test
+    fun `batch request failure should reach every caller unchanged`() {
+        val failure = IllegalStateException("bulk unavailable")
+        every { client.bulk(any<BulkRequest>()) } returns Mono.error(failure)
+        val eventStore = ElasticsearchEventStore(
+            elasticsearchClient = client,
+            batchOptions = ElasticsearchEventStoreBatchOptions(
+                enabled = true,
+                maxSize = 2,
+                maxDelay = Duration.ofSeconds(1),
+                maxPendingAppends = 2,
+            ),
+        )
+
+        try {
+            Flux.merge(
+                eventStore.append(eventStream("order-failure-1")).materialize(),
+                eventStore.append(eventStream("order-failure-2")).materialize(),
+            ).collectList()
+                .test()
+                .assertNext { signals ->
+                    signals.assert().hasSize(2)
+                    signals.all { it.throwable === failure }.assert().isTrue()
+                }
+                .verifyComplete()
+        } finally {
+            eventStore.close()
+        }
     }
 
     @Test

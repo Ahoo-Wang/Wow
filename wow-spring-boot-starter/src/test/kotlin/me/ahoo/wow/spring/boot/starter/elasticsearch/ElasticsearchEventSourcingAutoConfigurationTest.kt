@@ -22,7 +22,9 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.elasticsearch.IndexTemplateInitializer
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
+import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStoreBatchOptions
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
+import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStoreBatchOptions
 import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryServiceFactory
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
@@ -49,6 +51,26 @@ import reactor.kotlin.core.publisher.toMono
 
 internal class ElasticsearchEventSourcingAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
+
+    @Test
+    fun `secondary constructor should use default batch properties`() {
+        val autoConfiguration = ElasticsearchEventSourcingAutoConfiguration(
+            ElasticsearchProperties(autoInitTemplate = false)
+        )
+        val elasticsearchClient = mock(ReactiveElasticsearchClient::class.java)
+        val indexTemplateInitializer = mockk<IndexTemplateInitializer>()
+
+        autoConfiguration.elasticsearchEventStore(elasticsearchClient, indexTemplateInitializer)
+            .use { eventStore ->
+                eventStore.batchOptions.assert()
+                    .isEqualTo(ElasticsearchEventStoreBatchOptions())
+            }
+        autoConfiguration.elasticsearchSnapshotStore(elasticsearchClient, indexTemplateInitializer)
+            .use { snapshotStore ->
+                snapshotStore.batchOptions.assert()
+                    .isEqualTo(ElasticsearchSnapshotStoreBatchOptions())
+            }
+    }
 
     @Test
     fun `should auto configure reactive elasticsearch infrastructure from feature dependencies`() {
