@@ -111,22 +111,39 @@ interface SnapshotStore : Named {
 }
 ```
 
-`SnapshotStore.save()` maintains the latest snapshot for each aggregate.
+`SnapshotStore.save()` atomically maintains the latest snapshot for each aggregate.
+A candidate whose aggregate version is greater than or equal to the stored version
+replaces the complete stored snapshot; only a lower-version candidate is a no-op.
+Allowing equal-version replacement lets snapshot regeneration repair state without
+changing the aggregate version. Storage implementations must enforce the comparison
+in the same atomic operation as the write to prevent out-of-order state events from
+regressing the snapshot.
 
 ### In-Memory Implementation
 
 ```kotlin
 class InMemorySnapshotStore : SnapshotStore {
-    private val aggregateIdMapSnapshot = ConcurrentHashMap<AggregateId, String>()
+    private val snapshots = ConcurrentHashMap<AggregateId, ObjectNode>()
 
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> =
-        Mono.fromCallable {
-            aggregateIdMapSnapshot[aggregateId]?.toObject<Snapshot<S>>()
+        Mono.defer {
+            Mono.justOrEmpty(snapshots[aggregateId]?.toObject<Snapshot<S>>())
         }
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> =
         Mono.fromRunnable {
-            aggregateIdMapSnapshot[snapshot.aggregateId] = snapshot.toJsonString()
+            val candidate = snapshot.toJsonNode<ObjectNode>()
+            val candidateVersion = candidate[MessageRecords.VERSION].asInt()
+            snapshots.compute(snapshot.aggregateId) { _, stored ->
+                if (
+                    stored == null ||
+                    candidateVersion >= stored[MessageRecords.VERSION].asInt()
+                ) {
+                    candidate
+                } else {
+                    stored
+                }
+            }
         }
 }
 ```
@@ -135,8 +152,10 @@ class InMemorySnapshotStore : SnapshotStore {
 
 | Backend | Module | Status |
 |---------|--------|--------|
+| In-memory | `wow-core` | Development/testing |
 | MongoDB | `wow-mongo` | Production-ready |
 | Redis | `wow-redis` | Production-ready |
+| Elasticsearch | `wow-elasticsearch` | Production-ready |
 
 ## Snapshot Processing Flow
 

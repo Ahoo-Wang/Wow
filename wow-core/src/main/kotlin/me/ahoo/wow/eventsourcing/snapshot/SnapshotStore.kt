@@ -57,6 +57,13 @@ interface SnapshotStore :
     /**
      * Saves a snapshot to the store.
      *
+     * Implementations must keep the stored snapshot version monotonically non-decreasing.
+     * The save must atomically compare and write for each aggregate: a candidate whose
+     * version is greater than or equal to the stored version replaces it. A candidate
+     * with a lower version is ignored and the operation completes normally.
+     * The compared candidate version must come from the same materialized snapshot
+     * representation that is written.
+     *
      * @param S the type of the state
      * @param snapshot the snapshot to save
      * @return a Mono that completes when the save operation is done

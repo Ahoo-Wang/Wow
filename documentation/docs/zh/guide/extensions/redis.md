@@ -218,6 +218,11 @@ Key: v2:snapshot:{<scope>.<identity>}
 Value: {snapshotJson}
 ```
 
+`RedisSnapshotStore.save()` 在单个 Lua 脚本中执行 `GET`、聚合版本比较与条件
+`SET`。候选版本大于或等于已存 JSON 的顶层 `version` 时完整替换 value；版本
+较低时以成功 no-op 完成。既有快照 JSON 必须合法且包含数值型顶层 `version`；
+已存数据格式错误时保存会失败，不会静默绕过版本守卫。
+
 ### 升级边界
 
 运行时只读写 canonical v2，不会双读、双写或迁移已发布的不兼容布局。Spring Boot starter 启动时会
@@ -299,8 +304,8 @@ spring:
 
 ### 批量操作
 
-EventStore 使用 Lua 脚本保证追加操作的原子性。Snapshot 与 MessageBus 操作逐条发送，扩展不会自动
-对任意批处理启用 Pipeline。
+EventStore 与 SnapshotStore 使用 Lua 脚本保证写入原子性。Snapshot 与 MessageBus
+操作逐条发送，扩展不会自动对任意批处理启用 Pipeline。
 
 ### 内存优化
 

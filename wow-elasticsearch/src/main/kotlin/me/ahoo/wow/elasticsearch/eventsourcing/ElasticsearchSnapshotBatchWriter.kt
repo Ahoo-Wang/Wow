@@ -55,7 +55,7 @@ internal class ElasticsearchSnapshotBatchWriter(
             .values
             .map { sameAggregate ->
                 sameAggregate.reduce { selected, candidate ->
-                    if (candidate.version > selected.version) {
+                    if (candidate.version >= selected.version) {
                         candidate
                     } else {
                         selected

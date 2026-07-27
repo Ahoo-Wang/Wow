@@ -111,22 +111,36 @@ interface SnapshotStore : Named {
 }
 ```
 
-`SnapshotStore.save()` 为每个聚合维护最新快照。
+`SnapshotStore.save()` 以原子方式为每个聚合维护最新快照。聚合版本大于或等于
+已存版本的候选快照会完整替换已存快照；只有较低版本为 no-op。同版本覆盖使快照
+重建可以在聚合版本不变时修复状态。存储实现必须在同一个原子操作中完成版本比较
+与写入，避免乱序状态事件导致快照版本倒退。
 
 ### 内存实现
 
 ```kotlin
 class InMemorySnapshotStore : SnapshotStore {
-    private val aggregateIdMapSnapshot = ConcurrentHashMap<AggregateId, String>()
+    private val snapshots = ConcurrentHashMap<AggregateId, ObjectNode>()
 
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> =
-        Mono.fromCallable {
-            aggregateIdMapSnapshot[aggregateId]?.toObject<Snapshot<S>>()
+        Mono.defer {
+            Mono.justOrEmpty(snapshots[aggregateId]?.toObject<Snapshot<S>>())
         }
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> =
         Mono.fromRunnable {
-            aggregateIdMapSnapshot[snapshot.aggregateId] = snapshot.toJsonString()
+            val candidate = snapshot.toJsonNode<ObjectNode>()
+            val candidateVersion = candidate[MessageRecords.VERSION].asInt()
+            snapshots.compute(snapshot.aggregateId) { _, stored ->
+                if (
+                    stored == null ||
+                    candidateVersion >= stored[MessageRecords.VERSION].asInt()
+                ) {
+                    candidate
+                } else {
+                    stored
+                }
+            }
         }
 }
 ```
@@ -135,8 +149,10 @@ class InMemorySnapshotStore : SnapshotStore {
 
 | 后端 | 模块 | 状态 |
 |---------|--------|--------|
+| 内存 | `wow-core` | 开发/测试 |
 | MongoDB | `wow-mongo` | 生产就绪 |
 | Redis | `wow-redis` | 生产就绪 |
+| Elasticsearch | `wow-elasticsearch` | 生产就绪 |
 
 ## 快照处理流程
 

@@ -15,6 +15,7 @@ package me.ahoo.wow.elasticsearch.eventsourcing
 
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
+import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.toLinkedHashMap
 
 internal data class ElasticsearchSnapshotWrite(
@@ -25,10 +26,19 @@ internal data class ElasticsearchSnapshotWrite(
 )
 
 internal fun Snapshot<*>.toElasticsearchSnapshotWrite(): ElasticsearchSnapshotWrite {
+    val document = toLinkedHashMap()
     return ElasticsearchSnapshotWrite(
         index = aggregateId.toSnapshotIndexName(),
         id = aggregateId.id,
-        document = toLinkedHashMap(),
-        version = version,
+        document = document,
+        version = document.requiredSnapshotVersion(),
     )
+}
+
+internal fun Map<String, Any?>.requiredSnapshotVersion(): Int {
+    val version = this[MessageRecords.VERSION]
+    check(version is Int) {
+        "Serialized Wow snapshot has no integer version."
+    }
+    return version
 }

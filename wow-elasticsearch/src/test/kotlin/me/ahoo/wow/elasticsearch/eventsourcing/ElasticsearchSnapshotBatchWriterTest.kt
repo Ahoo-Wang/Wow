@@ -134,7 +134,7 @@ class ElasticsearchSnapshotBatchWriterTest {
     }
 
     @Test
-    fun `same aggregate and version should preserve the first submitted snapshot`() {
+    fun `same aggregate and version should preserve the last submitted snapshot`() {
         val request = slot<BulkRequest>()
         every { client.bulk(capture(request)) } returns Mono.just(
             bulkResponse(
@@ -161,7 +161,7 @@ class ElasticsearchSnapshotBatchWriterTest {
             .upsert()
             .let(::checkNotNull)["marker"]
             .assert()
-            .isEqualTo("first")
+            .isEqualTo("second")
     }
 
     @Test

@@ -102,6 +102,8 @@ class RedisSnapshotStoreTest : SnapshotStoreSpec() {
 }
 ```
 
+共享规范会验证低版本 no-op、同版本替换，以及并发保存后保留最高聚合版本。
+
 ### RedisPrepareKey
 
 ```kotlin
