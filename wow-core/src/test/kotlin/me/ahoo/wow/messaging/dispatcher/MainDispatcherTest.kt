@@ -21,7 +21,7 @@ import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.RuntimeContext
-import me.ahoo.wow.runtime.RuntimeOwnershipClaim
+import me.ahoo.wow.runtime.RuntimeOwnership
 import me.ahoo.wow.runtime.internal.DefaultRuntimeContext
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -298,12 +298,11 @@ class MainDispatcherTest {
                 RuntimeComponent {
                 override val name: String = "child-${namedAggregate.aggregateName}"
 
-                override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-                    RuntimeOwnershipClaim.shared(this)
+                override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
 
                 override fun prepare(runtimeContext: RuntimeContext) {
                     childRuntimeContext = runtimeContext
-                    runtimeContext.onClose {
+                    runtimeContext.onAdmissionClose {
                         childIntakeCloseCalls += name
                     }
                 }

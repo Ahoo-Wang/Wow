@@ -68,15 +68,17 @@ implementation("me.ahoo.wow:wow-spring-boot-starter:新版本号")
    扩展组件应通过 `WowRuntimeComponent` 注册。
 3. 自定义 `MessageDispatcher` 应实现 `RuntimeComponent`。旧 Dispatcher 只有在实现
    真实且快速的 `ForceStoppable` 取消路径时才能被适配。其他需要加入 Spring 运行时的
-   非 Dispatcher 组件必须实现 `WowRuntimeComponent`。自定义组件默认按实例由一个
-   runtime 独占，不应 override `claimRuntimeOwnership`。只有生命周期与资源确实能被
-   多个 runtime 并发驱动的可重入组件，才应显式返回
-   `RuntimeOwnershipClaim.shared(this)`。
+   非 Dispatcher 组件必须实现 `WowRuntimeComponent`。自定义组件按实例由一个
+   runtime 独占，必须创建一个 `RuntimeOwnership` handle 并在组件完整生命周期内稳定
+   持有。ownership claim 及其 commit/rollback 事务属于 runtime internal API；不再
+   提供 public shared ownership。
 
    ```kotlin
    class CustomRuntimeComponent : WowRuntimeComponent {
+       override val runtimeOwnership = RuntimeOwnership()
+
        override fun prepare(runtimeContext: RuntimeContext) {
-           runtimeContext.onClose(::closeIntake)
+           runtimeContext.onAdmissionClose(::closeIntake)
        }
 
        override fun start() = openIntake()
@@ -86,8 +88,9 @@ implementation("me.ahoo.wow:wow-spring-boot-starter:新版本号")
    ```
 
    每次接受异步操作前应通过 `RuntimeContext.tryAcquire()` 获取
-   `RuntimeActivity`，并仅在完整异步链终止时关闭。使用 `onClose` 注册 intake barrier，
-   使用 `reportFailure` 上报致命 pipeline error。
+   `RuntimeActivity`，并仅在完整异步链终止时关闭。使用 `onAdmissionClose` 注册优雅停机的
+   intake barrier，使用 `reportFailure` 上报致命 pipeline error。强制停机可能取消排队中的
+   intake callback，因此 `forceStop` 必须同步关闭 intake。
 4. 运行时拥有的 Spring Bean 必须是 singleton，且 Bean 声明返回类型必须暴露
    `MessageDispatcher`、`WowRuntimeComponent` 或具体实现类型。应从这些 Bean 移除
    Spring `Lifecycle`/`SmartLifecycle`、`DisposableBean`、`@PreDestroy` 与显式

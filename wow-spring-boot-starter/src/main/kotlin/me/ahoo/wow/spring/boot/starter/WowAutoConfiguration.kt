@@ -113,6 +113,7 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
     @Bean(WOW_RUNTIME_BEAN_NAME, destroyMethod = "")
     internal fun wowRuntime(
         runtimeComponentRegistry: RuntimeComponentRegistry,
+        ownershipValidator: WowRuntimeOwnershipValidator,
     ): WowRuntime {
         val runtime = WowRuntime(
             components = runtimeComponentRegistry.snapshot()
@@ -121,7 +122,7 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
             shutdownQuietPeriod = wowProperties.shutdownQuietPeriod,
         )
         runtimeComponentRegistry.attachRuntime(runtime)
-        return runtime
+        return ownershipValidator.recordCanonicalRuntime(runtime)
     }
 
     @Bean(AbstractApplicationContext.LIFECYCLE_PROCESSOR_BEAN_NAME)
@@ -137,12 +138,16 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
     }
 
     @Bean(WOW_RUNTIME_LIFECYCLE_BEAN_NAME)
-    fun wowRuntimeLifecycle(
+    internal fun wowRuntimeLifecycle(
         wowRuntime: WowRuntime,
         applicationContext: ConfigurableApplicationContext,
+        ownershipValidator: WowRuntimeOwnershipValidator,
     ): WowRuntimeLifecycle {
-        return WowRuntimeLifecycle(wowRuntime) {
-            applicationContext.close()
-        }
+        ownershipValidator.requireCanonicalRuntime(wowRuntime)
+        return ownershipValidator.recordCanonicalRuntimeLifecycle(
+            WowRuntimeLifecycle(wowRuntime) {
+                applicationContext.close()
+            },
+        )
     }
 }

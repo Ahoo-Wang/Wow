@@ -16,7 +16,7 @@ package me.ahoo.wow.runtime.internal
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.RuntimeContext
-import me.ahoo.wow.runtime.RuntimeOwnershipClaim
+import me.ahoo.wow.runtime.RuntimeOwnership
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Mono
@@ -29,13 +29,27 @@ import java.util.concurrent.atomic.AtomicInteger
 class RuntimeComponentGroupTest {
 
     @Test
+    fun `runtime component public surface exposes only the stable ownership handle`() {
+        val publicMethodNames = RuntimeComponent::class.java.methods.map { it.name }
+
+        publicMethodNames.assert().contains("getRuntimeOwnership")
+        publicMethodNames
+            .filter { methodName ->
+                listOf("claim", "commit", "rollback", "shared").any {
+                    methodName.contains(it, ignoreCase = true)
+                }
+            }
+            .assert()
+            .isEmpty()
+    }
+
+    @Test
     fun `default component ownership is exclusive and rolls back transactionally`() {
         val component = DefaultOwnershipComponent()
         val claimFailure = IllegalStateException("claim")
         val failing = object : DefaultOwnershipComponent() {
-            override fun claimRuntimeOwnership(): RuntimeOwnershipClaim {
-                throw claimFailure
-            }
+            override val runtimeOwnership: RuntimeOwnership =
+                RuntimeOwnership.managed { throw claimFailure }
         }
 
         assertThrows<IllegalStateException> {
@@ -54,6 +68,60 @@ class RuntimeComponentGroupTest {
     }
 
     @Test
+    fun `computed ownership handle is rejected before it can bypass exclusivity`() {
+        val stableOwnership = RuntimeOwnership()
+        var useStableOwnership = false
+        val component = object : DefaultOwnershipComponent() {
+            override val runtimeOwnership: RuntimeOwnership
+                get() =
+                    if (useStableOwnership) {
+                        stableOwnership
+                    } else {
+                        RuntimeOwnership()
+                    }
+        }
+
+        val error = assertThrows<IllegalStateException> {
+            RuntimeComponentGroup.claim(listOf(component), reportFailure = {})
+        }
+
+        error.message.assert()
+            .contains("runtimeOwnership")
+            .contains("stable")
+
+        useStableOwnership = true
+        RuntimeComponentGroup.claim(listOf(component), reportFailure = {})
+    }
+
+    @Test
+    fun `stable ownership handle remains bound to one component after rollback`() {
+        val ownership = RuntimeOwnership()
+        val first = object : DefaultOwnershipComponent() {
+            override val runtimeOwnership: RuntimeOwnership = ownership
+        }
+        val second = object : DefaultOwnershipComponent() {
+            override val runtimeOwnership: RuntimeOwnership = ownership
+        }
+        val failing = object : DefaultOwnershipComponent() {
+            override val runtimeOwnership: RuntimeOwnership =
+                RuntimeOwnership.managed { error("claim") }
+        }
+
+        assertThrows<IllegalStateException> {
+            RuntimeComponentGroup.claim(listOf(first, failing), reportFailure = {})
+        }
+
+        assertThrows<IllegalStateException> {
+            RuntimeComponentGroup.claim(listOf(second), reportFailure = {})
+        }
+            .message
+            .assert()
+            .contains("exactly one RuntimeComponent")
+
+        RuntimeComponentGroup.claim(listOf(first), reportFailure = {})
+    }
+
+    @Test
     fun `duplicate owner-bound component rolls back the complete claim transaction`() {
         val commits = AtomicInteger()
         val rollbacks = AtomicInteger()
@@ -61,16 +129,18 @@ class RuntimeComponentGroupTest {
 
         fun claimant(name: String): RuntimeComponent =
             object : RuntimeComponent {
-                override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-                    object : RuntimeOwnershipClaim {
-                        override val component: RuntimeComponent = ownerView
+                override val runtimeOwnership: RuntimeOwnership =
+                    RuntimeOwnership.managed {
+                        object : RuntimeOwnershipClaim {
+                            override val component: RuntimeComponent = ownerView
 
-                        override fun commit() {
-                            commits.incrementAndGet()
-                        }
+                            override fun commit() {
+                                commits.incrementAndGet()
+                            }
 
-                        override fun rollback() {
-                            rollbacks.incrementAndGet()
+                            override fun rollback() {
+                                rollbacks.incrementAndGet()
+                            }
                         }
                     }
 
@@ -251,8 +321,7 @@ class RuntimeComponentGroupTest {
         private val calls: MutableList<String>,
         private val stopAction: () -> Mono<Void> = { Mono.empty() },
     ) : RuntimeComponent {
-        override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-            RuntimeOwnershipClaim.shared(this)
+        override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
 
         override fun prepare(runtimeContext: RuntimeContext) {
             calls += "prepare:$name"
@@ -274,6 +343,8 @@ class RuntimeComponentGroupTest {
     }
 
     private open class DefaultOwnershipComponent : RuntimeComponent {
+        override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
+
         override fun prepare(runtimeContext: RuntimeContext) = Unit
 
         override fun start() = Unit
@@ -292,12 +363,12 @@ class RuntimeComponentGroupTest {
         var isClaimed: Boolean = false
             private set
 
-        override fun claimRuntimeOwnership(): RuntimeOwnershipClaim {
+        override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership.managed {
             check(!isClaimed)
             isClaimed = true
             calls += "claim:$name"
             val ownerComponent = this
-            return object : RuntimeOwnershipClaim {
+            object : RuntimeOwnershipClaim {
                 override val component: RuntimeComponent
                     get() {
                         calls += "resolve:$name"

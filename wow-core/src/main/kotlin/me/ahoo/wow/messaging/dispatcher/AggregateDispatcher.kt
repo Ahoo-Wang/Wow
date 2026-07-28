@@ -17,17 +17,17 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.infra.lifecycle.TerminatedSignalCapable
+import me.ahoo.wow.infra.lifecycle.publishTerminalSignal
 import me.ahoo.wow.infra.sink.terminated
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.metrics.Metrics
 import me.ahoo.wow.runtime.RuntimeActivity
 import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.RuntimeContext
-import me.ahoo.wow.runtime.RuntimeOwnershipClaim
+import me.ahoo.wow.runtime.RuntimeOwnership
 import me.ahoo.wow.runtime.internal.RuntimeCleanupExecutor
 import me.ahoo.wow.runtime.internal.compat.StandaloneRuntimeOwner
 import me.ahoo.wow.runtime.internal.forceAllReporting
-import me.ahoo.wow.runtime.internal.publishRuntimeTermination
 import me.ahoo.wow.runtime.internal.stopAllReporting
 import reactor.core.Exceptions
 import reactor.core.publisher.Flux
@@ -150,7 +150,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
     private var demandGate: DemandGateFlux<T>? = null
 
     override val terminatedSignal: Mono<Void> =
-        rawTerminatedSignal.publishRuntimeTermination()
+        rawTerminatedSignal.publishTerminalSignal()
 
     @Volatile
     private var runtimeContext: RuntimeContext? = null
@@ -215,8 +215,8 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
      * @see stopGracefully for graceful shutdown
      * @see toGroupKey for grouping logic
      */
-    final override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-        lifecycleOwner.claimExternalOwnership()
+    final override val runtimeOwnership: RuntimeOwnership
+        get() = lifecycleOwner.runtimeOwnership
 
     final override fun prepare(runtimeContext: RuntimeContext) {
         lifecycleOwner.prepare(runtimeContext)
@@ -234,7 +234,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
             demandGate = preparedDemandGate
             state = State.PREPARED
         }
-        runtimeContext.onClose(::requestStop)
+        runtimeContext.onAdmissionClose(::requestStop)
         log.info {
             "[$name] Prepare subscription to $namedAggregate."
         }

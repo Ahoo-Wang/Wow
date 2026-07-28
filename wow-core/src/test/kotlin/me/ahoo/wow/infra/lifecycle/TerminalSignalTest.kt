@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.runtime.internal
+package me.ahoo.wow.infra.lifecycle
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
@@ -22,16 +22,41 @@ import reactor.core.publisher.Sinks
 import reactor.test.StepVerifier
 import java.time.Duration
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
-class RuntimeTerminationTest {
+class TerminalSignalTest {
+
+    @Test
+    fun `different terminal signals share bounded dispatcher admission`() {
+        val dispatcher = newTerminalSignalDispatcher(
+            threadNamePrefix = "wow-terminal-signal-test-shared-capacity",
+            threadCap = 1,
+            queuedTaskCapacity = 0,
+        )
+        val firstSignal = Sinks.empty<Void>()
+        val firstSubscription = firstSignal.asMono()
+            .publishTerminalSignal(dispatcher)
+            .subscribe()
+
+        try {
+            StepVerifier.create(
+                Sinks.empty<Void>().asMono().publishTerminalSignal(dispatcher),
+            )
+                .expectError(RejectedExecutionException::class.java)
+                .verify(Duration.ofSeconds(1))
+        } finally {
+            firstSubscription.dispose()
+            dispatcher.dispose()
+        }
+    }
 
     @Test
     fun `dispatcher disposal invalidates and releases active permits`() {
-        val dispatcher = newRuntimeTerminationDispatcher(
-            threadNamePrefix = "wow-runtime-test-termination-dispose",
+        val dispatcher = newTerminalSignalDispatcher(
+            threadNamePrefix = "wow-terminal-signal-test-dispose",
             threadCap = 1,
             queuedTaskCapacity = 0,
         )
@@ -50,8 +75,8 @@ class RuntimeTerminationTest {
 
     @Test
     fun `cancel releases its permit when upstream cancellation throws`() {
-        val dispatcher = newRuntimeTerminationDispatcher(
-            threadNamePrefix = "wow-runtime-test-termination-cancel-failure",
+        val dispatcher = newTerminalSignalDispatcher(
+            threadNamePrefix = "wow-terminal-signal-test-cancel-failure",
             threadCap = 1,
             queuedTaskCapacity = 0,
         )
@@ -69,7 +94,7 @@ class RuntimeTerminationTest {
                 )
             }
         }
-        val subscription = source.publishRuntimeTermination(dispatcher).subscribe()
+        val subscription = source.publishTerminalSignal(dispatcher).subscribe()
 
         try {
             runCatching(subscription::dispose).exceptionOrNull().assert()
@@ -82,8 +107,8 @@ class RuntimeTerminationTest {
 
     @Test
     fun `dispatcher disposal continues after a disposal hook fails`() {
-        val dispatcher = newRuntimeTerminationDispatcher(
-            threadNamePrefix = "wow-runtime-test-termination-hook-failure",
+        val dispatcher = newTerminalSignalDispatcher(
+            threadNamePrefix = "wow-terminal-signal-test-hook-failure",
             threadCap = 2,
             queuedTaskCapacity = 0,
         )
@@ -107,8 +132,8 @@ class RuntimeTerminationTest {
 
     @Test
     fun `cancelling a running observer retains admission until its callback returns`() {
-        val dispatcher = newRuntimeTerminationDispatcher(
-            threadNamePrefix = "wow-runtime-test-termination-running-cancel",
+        val dispatcher = newTerminalSignalDispatcher(
+            threadNamePrefix = "wow-terminal-signal-test-running-cancel",
             threadCap = 1,
             queuedTaskCapacity = 0,
         )
@@ -141,13 +166,13 @@ class RuntimeTerminationTest {
 
     @Test
     fun `cancelling a queued observer releases admission for terminal replay`() {
-        val dispatcher = newRuntimeTerminationDispatcher(
-            threadNamePrefix = "wow-runtime-test-termination-cancel",
+        val dispatcher = newTerminalSignalDispatcher(
+            threadNamePrefix = "wow-terminal-signal-test-cancel",
             threadCap = 1,
             queuedTaskCapacity = 1,
         )
         val terminalSink = Sinks.empty<Void>()
-        val termination = terminalSink.asMono().publishRuntimeTermination(dispatcher)
+        val termination = terminalSink.asMono().publishTerminalSignal(dispatcher)
         val runningObserverEntered = CountDownLatch(1)
         val releaseRunningObserver = CountDownLatch(1)
         val cancelledObserverInvoked = AtomicBoolean()
@@ -190,8 +215,8 @@ class RuntimeTerminationTest {
 
     @Test
     fun `admitted terminal replay preserves the original failure`() {
-        val dispatcher = newRuntimeTerminationDispatcher(
-            threadNamePrefix = "wow-runtime-test-termination-error",
+        val dispatcher = newTerminalSignalDispatcher(
+            threadNamePrefix = "wow-terminal-signal-test-error",
             threadCap = 1,
             queuedTaskCapacity = 0,
         )
@@ -201,7 +226,7 @@ class RuntimeTerminationTest {
 
         try {
             StepVerifier.create(
-                terminalSink.asMono().publishRuntimeTermination(dispatcher),
+                terminalSink.asMono().publishTerminalSignal(dispatcher),
             )
                 .expectErrorSatisfies { error ->
                     error.assert().isSameAs(terminalFailure)
@@ -212,12 +237,12 @@ class RuntimeTerminationTest {
         }
     }
 
-    private fun RuntimeTerminationDispatcher.awaitPermit(): RuntimeTerminationPermit {
+    private fun TerminalSignalDispatcher.awaitPermit(): TerminalSignalPermit {
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1)
         while (System.nanoTime() < deadline) {
             tryAcquire()?.let { return it }
             Thread.onSpinWait()
         }
-        error("Runtime termination permit was not released.")
+        error("Terminal signal permit was not released.")
     }
 }

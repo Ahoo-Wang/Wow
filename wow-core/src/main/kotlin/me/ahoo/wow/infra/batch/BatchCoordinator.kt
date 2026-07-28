@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.infra.lifecycle.ForceStoppable
 import me.ahoo.wow.infra.lifecycle.GracefullyStoppable
 import me.ahoo.wow.infra.lifecycle.forceStopAll
+import me.ahoo.wow.infra.lifecycle.publishTerminalSignal
 import reactor.core.Disposable
 import reactor.core.Exceptions
 import reactor.core.publisher.Mono
@@ -86,6 +87,9 @@ class BatchCoordinator<T : Any> internal constructor(
     private val processorTermination = CompletableFuture<Unit>()
     private val resultDispatcherTermination = CompletableFuture<Unit>()
     private val termination = CompletableFuture<Unit>()
+    private val terminationSignal = Mono.fromFuture(termination, true)
+        .then()
+        .publishTerminalSignal()
     private val remainingLanes = AtomicInteger(laneCount)
     private val lanesDisposed = AtomicBoolean()
     private val processorDisposalStarted = AtomicBoolean()
@@ -178,9 +182,15 @@ class BatchCoordinator<T : Any> internal constructor(
         }
     }
 
+    /**
+     * Stops intake and returns an asynchronously isolated terminal signal.
+     *
+     * Terminal observers share a process-wide bounded dispatcher. A subscription
+     * beyond that capacity fails fast with [RejectedExecutionException].
+     */
     override fun stopGracefully(): Mono<Void> {
         initiateClose()
-        return Mono.fromFuture(termination, true).then()
+        return terminationSignal
     }
 
     override fun forceStop() {

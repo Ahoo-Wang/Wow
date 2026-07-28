@@ -21,7 +21,7 @@ import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
 import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.RuntimeContext
 import me.ahoo.wow.runtime.RuntimeLifecycleAdapter
-import me.ahoo.wow.runtime.RuntimeOwnershipClaim
+import me.ahoo.wow.runtime.RuntimeOwnership
 import me.ahoo.wow.runtime.RuntimePreparable
 import me.ahoo.wow.runtime.internal.RuntimeComponentGroup
 import me.ahoo.wow.runtime.internal.compat.StandaloneRuntimeOwner
@@ -169,8 +169,8 @@ abstract class MainDispatcher<T : Any> :
      *
      * @throws RuntimeException if starting any aggregate dispatcher fails.
      */
-    final override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-        lifecycleOwner.claimExternalOwnership()
+    final override val runtimeOwnership: RuntimeOwnership
+        get() = lifecycleOwner.runtimeOwnership
 
     final override fun prepare(runtimeContext: RuntimeContext) {
         lifecycleOwner.prepare(runtimeContext)

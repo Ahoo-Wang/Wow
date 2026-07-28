@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.runtime.WowRuntime
 import org.springframework.context.SmartLifecycle
 import org.springframework.context.SmartLifecycle.DEFAULT_PHASE
+import reactor.core.Disposable
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
@@ -30,6 +31,9 @@ import java.util.concurrent.atomic.AtomicInteger
  * ready before ingress opens and is stopped only after ingress has drained.
  * Unexpected runtime termination is reported through [onUnexpectedTermination];
  * the Starter uses that callback to close the application context.
+ *
+ * Construction is inert. The exclusive termination-control subscription is
+ * installed on the first lifecycle start or stop operation.
  */
 const val WOW_RUNTIME_PHASE = DEFAULT_PHASE - 3072
 
@@ -64,16 +68,14 @@ class WowRuntimeLifecycle(
     private val unexpectedTerminationDispatched = AtomicBoolean()
     private val unexpectedTerminationCallbackStarted = AtomicBoolean()
     private val terminationFuture = CompletableFuture<Void>()
+    private var terminationControl: Disposable? = null
 
     @Volatile
     private var state = State.NEW
 
-    init {
-        wowRuntime.claimTerminationControl(::completeTermination)
-    }
-
     @Suppress("TooGenericExceptionCaught")
     override fun start() {
+        ensureTerminationControl()
         val shouldStart = synchronized(lifecycleMonitor) {
             when (state) {
                 State.RUNNING -> {
@@ -207,6 +209,7 @@ class WowRuntimeLifecycle(
     }
 
     override fun stop() {
+        ensureTerminationControl()
         if (!beginStopping()) {
             return
         }
@@ -221,6 +224,7 @@ class WowRuntimeLifecycle(
     }
 
     override fun stop(callback: Runnable) {
+        ensureTerminationControl()
         if (!beginStopping()) {
             callback.run()
             return
@@ -242,6 +246,15 @@ class WowRuntimeLifecycle(
             )
         }
         wowRuntime.stopGracefully()
+    }
+
+    private fun ensureTerminationControl() {
+        synchronized(lifecycleMonitor) {
+            if (terminationControl != null) {
+                return
+            }
+            terminationControl = wowRuntime.claimTerminationControl(::completeTermination)
+        }
     }
 
     private fun beginStopping(): Boolean =

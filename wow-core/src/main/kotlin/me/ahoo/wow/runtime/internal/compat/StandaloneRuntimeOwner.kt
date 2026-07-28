@@ -15,9 +15,10 @@ package me.ahoo.wow.runtime.internal.compat
 
 import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.RuntimeContext
-import me.ahoo.wow.runtime.RuntimeOwnershipClaim
+import me.ahoo.wow.runtime.RuntimeOwnership
 import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.runtime.internal.RuntimeComponentGroup
+import me.ahoo.wow.runtime.internal.RuntimeOwnershipClaim
 import reactor.core.publisher.Mono
 import java.time.Duration
 
@@ -48,9 +49,12 @@ internal class StandaloneRuntimeOwner(
 
     private val ownershipMonitor = Any()
     private var ownership: Ownership = Ownership.Unclaimed
+    val runtimeOwnership: RuntimeOwnership =
+        RuntimeOwnership.managed {
+            claimExternalOwnership()
+        }
     private val actionComponent = object : RuntimeComponent {
-        override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-            RuntimeOwnershipClaim.shared(this)
+        override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
 
         override fun prepare(runtimeContext: RuntimeContext) {
             prepareAction(runtimeContext)
@@ -89,7 +93,7 @@ internal class StandaloneRuntimeOwner(
             }
         }
 
-    fun claimExternalOwnership(): RuntimeOwnershipClaim {
+    private fun claimExternalOwnership(): RuntimeOwnershipClaim {
         val token = Any()
         synchronized(ownershipMonitor) {
             check(ownership === Ownership.Unclaimed) {
@@ -210,8 +214,8 @@ internal class StandaloneRuntimeOwner(
     private inner class ExternalOwnershipComponent(
         private val token: Any,
     ) : RuntimeComponent {
-        override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-            error("An owner-bound runtime component cannot be claimed again.")
+        override val runtimeOwnership: RuntimeOwnership =
+            RuntimeOwnership.unclaimable()
 
         override fun prepare(runtimeContext: RuntimeContext) {
             requireExternalOwnership(token)

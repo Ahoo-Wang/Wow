@@ -16,6 +16,7 @@ package me.ahoo.wow.infra.batch
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import reactor.core.Disposable
 import reactor.core.publisher.Mono
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
@@ -315,6 +316,57 @@ class BatchCoordinatorForceLifecycleTest {
         } finally {
             allowCancellationReturn.countDown()
             cancellationFinished.await(1, TimeUnit.SECONDS).assert().isTrue()
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `force stop should return while a graceful stop observer is blocked`() {
+        val writerSubscribed = CountDownLatch(1)
+        val observerEntered = CountDownLatch(1)
+        val observerFinished = CountDownLatch(1)
+        val releaseObserver = CountDownLatch(1)
+        val executor = Executors.newSingleThreadExecutor()
+        val coordinator = coordinator {
+            Mono.never<List<BatchItemResult>>()
+                .doOnSubscribe { writerSubscribed.countDown() }
+        }
+        val results = listOf(
+            coordinator.submit(1).materialize().toFuture(),
+            coordinator.submit(2).materialize().toFuture(),
+        )
+        writerSubscribed.await(1, TimeUnit.SECONDS).assert().isTrue()
+        var observer: Disposable? = null
+
+        try {
+            observer = coordinator.stopGracefully()
+                .doOnError { error ->
+                    if (error is BatchClosedException) {
+                        observerEntered.countDown()
+                        while (releaseObserver.count > 0) {
+                            try {
+                                releaseObserver.await()
+                            } catch (_: InterruptedException) {
+                                // Model an uncooperative termination observer.
+                            }
+                        }
+                    }
+                }.doFinally {
+                    observerFinished.countDown()
+                }.subscribe({}, {})
+            val forceStop = CompletableFuture.runAsync(coordinator::forceStop, executor)
+
+            observerEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
+            forceStop.get(1, TimeUnit.SECONDS)
+            results.forEach { result ->
+                result.get(1, TimeUnit.SECONDS)!!.throwable
+                    .assert()
+                    .isInstanceOf(BatchClosedException::class.java)
+            }
+        } finally {
+            releaseObserver.countDown()
+            observerFinished.await(1, TimeUnit.SECONDS).assert().isTrue()
+            observer?.dispose()
             executor.shutdownNow()
         }
     }

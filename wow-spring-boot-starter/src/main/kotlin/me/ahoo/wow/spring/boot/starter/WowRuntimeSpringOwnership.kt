@@ -37,6 +37,8 @@ internal class WowRuntimeOwnershipValidator :
     SmartInitializingSingleton,
     Ordered {
     private lateinit var beanFactory: ConfigurableListableBeanFactory
+    private var canonicalRuntime: WowRuntime? = null
+    private var canonicalRuntimeLifecycle: WowRuntimeLifecycle? = null
 
     override fun postProcessBeanFactory(beanFactory: ConfigurableListableBeanFactory) {
         this.beanFactory = beanFactory
@@ -45,9 +47,65 @@ internal class WowRuntimeOwnershipValidator :
 
     override fun afterSingletonsInstantiated() {
         validateOwners(beanFactory)
+        requireRecordedCanonicalOwner(
+            recordedOwner = canonicalRuntime,
+            ownerType = WowRuntime::class.java,
+            canonicalBeanName = WOW_RUNTIME_BEAN_NAME,
+            exposedOwner = beanFactory.getBean(WOW_RUNTIME_BEAN_NAME),
+        )
+        requireRecordedCanonicalOwner(
+            recordedOwner = canonicalRuntimeLifecycle,
+            ownerType = WowRuntimeLifecycle::class.java,
+            canonicalBeanName = WOW_RUNTIME_LIFECYCLE_BEAN_NAME,
+            exposedOwner = beanFactory.getBean(WOW_RUNTIME_LIFECYCLE_BEAN_NAME),
+        )
+    }
+
+    internal fun recordCanonicalRuntime(runtime: WowRuntime): WowRuntime {
+        check(canonicalRuntime == null) {
+            "The canonical WowRuntime has already been recorded."
+        }
+        canonicalRuntime = runtime
+        return runtime
+    }
+
+    internal fun recordCanonicalRuntimeLifecycle(
+        lifecycle: WowRuntimeLifecycle,
+    ): WowRuntimeLifecycle {
+        check(canonicalRuntimeLifecycle == null) {
+            "The canonical WowRuntimeLifecycle has already been recorded."
+        }
+        canonicalRuntimeLifecycle = lifecycle
+        return lifecycle
+    }
+
+    internal fun requireCanonicalRuntime(runtime: WowRuntime) {
+        requireRecordedCanonicalOwner(
+            recordedOwner = canonicalRuntime,
+            ownerType = WowRuntime::class.java,
+            canonicalBeanName = WOW_RUNTIME_BEAN_NAME,
+            exposedOwner = runtime,
+        )
     }
 
     override fun postProcessAfterInitialization(bean: Any, beanName: String): Any {
+        when (beanName) {
+            WOW_RUNTIME_BEAN_NAME ->
+                requireRecordedCanonicalOwner(
+                    recordedOwner = canonicalRuntime,
+                    ownerType = WowRuntime::class.java,
+                    canonicalBeanName = beanName,
+                    exposedOwner = bean,
+                )
+
+            WOW_RUNTIME_LIFECYCLE_BEAN_NAME ->
+                requireRecordedCanonicalOwner(
+                    recordedOwner = canonicalRuntimeLifecycle,
+                    ownerType = WowRuntimeLifecycle::class.java,
+                    canonicalBeanName = beanName,
+                    exposedOwner = bean,
+                )
+        }
         val targetType = AopUtils.getTargetClass(bean)
         when {
             MessageDispatcherLauncher::class.java.isAssignableFrom(targetType) ->
@@ -110,6 +168,22 @@ internal class WowRuntimeOwnershipValidator :
         check(ownerNames.size == 1 && ownerNames.single() == canonicalBeanName) {
             "Wow requires exactly one canonical ${ownerType.simpleName} bean named " +
                 "'$canonicalBeanName', but found: $ownerNames."
+        }
+    }
+
+    private fun requireRecordedCanonicalOwner(
+        recordedOwner: Any?,
+        ownerType: Class<*>,
+        canonicalBeanName: String,
+        exposedOwner: Any,
+    ) {
+        check(recordedOwner != null) {
+            "The canonical ${ownerType.simpleName} bean '$canonicalBeanName' was replaced before " +
+                "Wow auto-configuration could establish lifecycle ownership."
+        }
+        check(exposedOwner === recordedOwner) {
+            "The canonical ${ownerType.simpleName} bean '$canonicalBeanName' was replaced after " +
+                "Wow auto-configuration established lifecycle ownership."
         }
     }
 

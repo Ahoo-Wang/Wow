@@ -164,7 +164,11 @@ internal class RuntimeComponentRegistry :
         beanType: Class<*>,
         beanName: String,
     ) {
-        if (!isMember(beanName) || FactoryBean::class.java.isAssignableFrom(beanType)) {
+        if (
+            !isMember(beanName) ||
+            FactoryBean::class.java.isAssignableFrom(beanType) ||
+            !beanType.isRuntimeOwnershipEligible()
+        ) {
             return
         }
         configureRuntimeOwnership(beanName, beanType, beanDefinition)
@@ -175,20 +179,25 @@ internal class RuntimeComponentRegistry :
         if (!isMember(beanName) || bean is FactoryBean<*>) {
             return bean
         }
-        if (bean.javaClass.isSpringRuntimeCandidate()) {
-            registerMaterializedFallback(beanName, bean)
-            validateRuntimeOwnership(beanName, bean.javaClass)
-            configureBeanDefinitionOwnership(beanName, bean.javaClass)
-        }
+        val descriptor = resolveMaterializedDescriptor(beanName, bean)
+            ?: return bean
+        registerMaterializedFallback(descriptor)
+        validateRuntimeOwnership(beanName, bean.javaClass)
+        validateRuntimeOwnership(beanName, descriptor.lifecycleTarget.javaClass)
+        configureBeanDefinitionOwnership(beanName, descriptor.lifecycleTarget.javaClass)
         return bean
     }
 
     override fun postProcessAfterInitialization(bean: Any, beanName: String): Any {
         validateMaterializedMembership(bean, beanName)
-        if (isMember(beanName) && bean.javaClass.isSpringRuntimeCandidate()) {
-            registerMaterializedFallback(beanName, bean)
-            validateRuntimeOwnership(beanName, bean.javaClass)
+        if (!isMember(beanName) || bean is FactoryBean<*>) {
+            return bean
         }
+        val descriptor = resolveMaterializedDescriptor(beanName, bean)
+            ?: return bean
+        registerMaterializedFallback(descriptor)
+        validateRuntimeOwnership(beanName, bean.javaClass)
+        validateRuntimeOwnership(beanName, descriptor.lifecycleTarget.javaClass)
         return bean
     }
 
@@ -198,15 +207,16 @@ internal class RuntimeComponentRegistry :
             if (!beanFactory.containsBeanDefinition(beanName) || beanFactory.isFactoryDefinition(beanName)) {
                 return@forEach
             }
-            val beanDefinition = beanFactory.getBeanDefinition(beanName)
-            val destroyMethods = beanDefinition.destroyMethods().filter(String::isNotEmpty)
-            check(
-                beanDefinition.getAttribute(OWNERSHIP_PROCESSED_ATTRIBUTE) == true &&
-                    destroyMethods.isEmpty(),
-            ) {
-                "Runtime-owned bean '$beanName' restored destroy methods $destroyMethods after " +
-                    "the canonical runtime membership was frozen. WowRuntime must remain the " +
-                    "only component shutdown owner."
+            beanFactory.ownershipBeanDefinitions(beanName).forEach { beanDefinition ->
+                val destroyMethods = beanDefinition.destroyMethods().filter(String::isNotEmpty)
+                check(
+                    beanDefinition.getAttribute(OWNERSHIP_PROCESSED_ATTRIBUTE) == true &&
+                        destroyMethods.isEmpty(),
+                ) {
+                    "Runtime-owned bean '$beanName' restored destroy methods $destroyMethods after " +
+                        "the canonical runtime membership was frozen. WowRuntime must remain the " +
+                        "only component shutdown owner."
+                }
             }
         }
     }
@@ -290,7 +300,6 @@ internal class RuntimeComponentRegistry :
             val runtimeComponent = lifecycleTarget.toRuntimeComponent(beanName)
             RuntimeComponentDescriptor(
                 beanName = beanName,
-                exposedBean = exposedBean,
                 lifecycleTarget = lifecycleTarget,
                 runtimeComponent = runtimeComponent,
                 order = beanFactory.getOrder(beanName, exposedBean),
@@ -315,27 +324,31 @@ internal class RuntimeComponentRegistry :
         }
     }
 
-    private fun registerMaterializedFallback(beanName: String, bean: Any) {
-        val lifecycle = bean as? Lifecycle ?: return
-        val runtimeComponent = when {
-            lifecycle is RuntimeComponent -> lifecycle
-            lifecycle is MessageDispatcher && lifecycle is ForceStoppable ->
-                lifecycle.toRuntimeComponent(beanName)
-
-            else -> return
-        }
+    private fun registerMaterializedFallback(descriptor: RuntimeComponentDescriptor) {
         synchronized(monitor) {
-            if (fallbackDescriptors.containsKey(beanName)) {
+            if (fallbackDescriptors.containsKey(descriptor.beanName)) {
                 return
             }
-            fallbackDescriptors[beanName] = RuntimeComponentDescriptor(
-                beanName = beanName,
-                exposedBean = lifecycle,
-                lifecycleTarget = lifecycle,
-                runtimeComponent = runtimeComponent,
-                order = fallbackDescriptors.size,
-            )
+            fallbackDescriptors[descriptor.beanName] =
+                descriptor.copy(order = fallbackDescriptors.size)
         }
+    }
+
+    private fun resolveMaterializedDescriptor(
+        beanName: String,
+        bean: Any,
+    ): RuntimeComponentDescriptor? {
+        val exposedBean = bean as? Lifecycle ?: return null
+        val lifecycleTarget = resolveStableRuntimeTarget(beanName, exposedBean)
+        if (!lifecycleTarget.javaClass.isRuntimeOwnershipEligible()) {
+            return null
+        }
+        return RuntimeComponentDescriptor(
+            beanName = beanName,
+            lifecycleTarget = lifecycleTarget,
+            runtimeComponent = lifecycleTarget.toRuntimeComponent(beanName),
+            order = 0,
+        )
     }
 
     private fun configureDeclaredOwnership(beanName: String) {
@@ -354,11 +367,13 @@ internal class RuntimeComponentRegistry :
         if (!beanFactory.containsBeanDefinition(beanName) || beanFactory.isFactoryDefinition(beanName)) {
             return
         }
-        configureRuntimeOwnership(
-            beanName = beanName,
-            beanType = beanType,
-            beanDefinition = beanFactory.getMergedBeanDefinition(beanName),
-        )
+        beanFactory.ownershipBeanDefinitions(beanName).forEach { beanDefinition ->
+            configureRuntimeOwnership(
+                beanName = beanName,
+                beanType = beanType,
+                beanDefinition = beanDefinition,
+            )
+        }
     }
 
     private fun configureRuntimeOwnership(
@@ -366,6 +381,9 @@ internal class RuntimeComponentRegistry :
         beanType: Class<*>,
         beanDefinition: BeanDefinition,
     ) {
+        if (!beanType.isRuntimeOwnershipEligible()) {
+            return
+        }
         validateRuntimeOwnership(beanName, beanType)
         val explicitDestroyMethods = beanDefinition.destroyMethods()
             .filter { destroyMethod ->
@@ -530,6 +548,18 @@ internal class RuntimeComponentRegistry :
             ?.let(FactoryBean::class.java::isAssignableFrom)
             ?: false
 
+    private fun DefaultListableBeanFactory.ownershipBeanDefinitions(
+        beanName: String,
+    ): List<BeanDefinition> {
+        val original = getBeanDefinition(beanName)
+        val merged = getMergedBeanDefinition(beanName)
+        return if (merged === original) {
+            listOf(original)
+        } else {
+            listOf(original, merged)
+        }
+    }
+
     private fun DefaultListableBeanFactory.declaredBeanTypeName(beanName: String): String {
         if (!containsBeanDefinition(beanName)) {
             return "<manually registered singleton>"
@@ -557,6 +587,13 @@ internal class RuntimeComponentRegistry :
             MessageDispatcher::class.java.isAssignableFrom(this) ||
                 WowRuntimeComponent::class.java.isAssignableFrom(this)
 
+        fun Class<*>.isRuntimeOwnershipEligible(): Boolean =
+            RuntimeComponent::class.java.isAssignableFrom(this) ||
+                (
+                    MessageDispatcher::class.java.isAssignableFrom(this) &&
+                        ForceStoppable::class.java.isAssignableFrom(this)
+                    )
+
         fun Class<*>.findPreDestroyMethods(): List<String> {
             val preDestroyMethods = linkedSetOf<String>()
             ReflectionUtils.doWithMethods(this) { method ->
@@ -583,7 +620,6 @@ internal class RuntimeComponentRegistry :
 
 internal data class RuntimeComponentDescriptor(
     val beanName: String,
-    val exposedBean: Lifecycle,
     val lifecycleTarget: Lifecycle,
     val runtimeComponent: RuntimeComponent,
     val order: Int,

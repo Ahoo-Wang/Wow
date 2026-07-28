@@ -20,7 +20,7 @@ import me.ahoo.wow.messaging.dispatcher.MainDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageDispatcher
 import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.RuntimeContext
-import me.ahoo.wow.runtime.RuntimeOwnershipClaim
+import me.ahoo.wow.runtime.RuntimeOwnership
 import me.ahoo.wow.spring.WowRuntimeComponent
 import org.junit.jupiter.api.Test
 import org.springframework.aop.TargetSource
@@ -174,8 +174,7 @@ class WowRuntimeProxyOwnershipTest {
     }
 
     private class ProxyableRuntimeComponent : WowRuntimeComponent {
-        override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-            RuntimeOwnershipClaim.shared(this)
+        override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
 
         override fun prepare(runtimeContext: RuntimeContext) = Unit
 

@@ -82,11 +82,11 @@ class DefaultRuntimeContextTest {
         StepVerifier.create(context.quiesce())
             .expectSubscription()
             .then { scheduler.advanceTimeBy(Duration.ofMillis(999)) }
-            .then { context.isClosed.assert().isFalse() }
+            .then { context.isAdmissionClosed.assert().isFalse() }
             .then { scheduler.advanceTimeBy(Duration.ofMillis(1)) }
             .verifyComplete()
 
-        context.isClosed.assert().isTrue()
+        context.isAdmissionClosed.assert().isTrue()
     }
 
     @Test
@@ -104,11 +104,11 @@ class DefaultRuntimeContextTest {
                 activity!!.close()
             }
             .then { scheduler.advanceTimeBy(Duration.ofMillis(500)) }
-            .then { context.isClosed.assert().isFalse() }
+            .then { context.isAdmissionClosed.assert().isFalse() }
             .then { scheduler.advanceTimeBy(Duration.ofMillis(500)) }
             .verifyComplete()
 
-        context.isClosed.assert().isTrue()
+        context.isAdmissionClosed.assert().isTrue()
         context.tryAcquire().assert().isNull()
     }
 
@@ -133,7 +133,7 @@ class DefaultRuntimeContextTest {
 
             activity.get(1, TimeUnit.SECONDS)
             virtualTimeScheduler.advanceTimeBy(Duration.ofMillis(999))
-            context.isClosed.assert().isFalse()
+            context.isAdmissionClosed.assert().isFalse()
 
             scheduler.allowFirstScheduleReturn.countDown()
             val quiescentSignal = quiescence.get(1, TimeUnit.SECONDS)
@@ -150,7 +150,7 @@ class DefaultRuntimeContextTest {
     fun `quiescence closes every registered intake`() {
         val context = DefaultRuntimeContext()
         var closedIntakeCount = 0
-        context.onClose {
+        context.onAdmissionClose {
             closedIntakeCount++
         }
 
@@ -165,7 +165,7 @@ class DefaultRuntimeContextTest {
         val closeActionStarted = CountDownLatch(1)
         val allowCloseAction = CountDownLatch(1)
         val executor = Executors.newSingleThreadExecutor()
-        context.onClose {
+        context.onAdmissionClose {
             closeActionStarted.countDown()
             allowCloseAction.await()
         }
@@ -177,7 +177,7 @@ class DefaultRuntimeContextTest {
             )
             closeActionStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
 
-            context.isClosed.assert().isTrue()
+            context.isAdmissionClosed.assert().isTrue()
             context.tryAcquire().assert().isNull()
 
             allowCloseAction.countDown()
@@ -196,7 +196,7 @@ class DefaultRuntimeContextTest {
         val secondActionInvocations = AtomicInteger()
         val secondActionInvoked = CountDownLatch(1)
         val executor = Executors.newSingleThreadExecutor()
-        context.onClose {
+        context.onAdmissionClose {
             firstActionStarted.countDown()
             allowFirstAction.await()
         }
@@ -208,7 +208,7 @@ class DefaultRuntimeContextTest {
             )
             firstActionStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
 
-            context.onClose {
+            context.onAdmissionClose {
                 secondActionInvocations.incrementAndGet()
                 secondActionInvoked.countDown()
             }
@@ -237,7 +237,7 @@ class DefaultRuntimeContextTest {
 
             val registration = CompletableFuture.runAsync(
                 {
-                    context.onClose {
+                    context.onAdmissionClose {
                         closeActionStarted.countDown()
                         allowCloseAction.await()
                     }
@@ -261,7 +261,7 @@ class DefaultRuntimeContextTest {
         val releaseBlockedActions = CountDownLatch(1)
         val blockedContexts = List(blockedContextCount) {
             DefaultRuntimeContext().also { context ->
-                context.onClose {
+                context.onAdmissionClose {
                     blockedActionsEntered.countDown()
                     awaitIgnoringInterrupt(releaseBlockedActions)
                 }
@@ -270,7 +270,7 @@ class DefaultRuntimeContextTest {
         }
         val healthyActionInvoked = CountDownLatch(1)
         val healthyContext = DefaultRuntimeContext().also { context ->
-            context.onClose(healthyActionInvoked::countDown)
+            context.onAdmissionClose(healthyActionInvoked::countDown)
         }
 
         try {
@@ -296,7 +296,7 @@ class DefaultRuntimeContextTest {
         val initialQueueSize = RuntimeCleanupExecutor.queuedTaskCount
         val contexts = List(contextCount) {
             DefaultRuntimeContext().also { context ->
-                context.onClose {
+                context.onAdmissionClose {
                     blockedActionsEntered.countDown()
                     awaitIgnoringInterrupt(releaseBlockedActions)
                 }
@@ -336,7 +336,7 @@ class DefaultRuntimeContextTest {
         val releaseFirstAction = CountDownLatch(1)
         val lateActionInvocations = AtomicInteger()
         val context = DefaultRuntimeContext(closeExecutor = closeExecutor)
-        context.onClose {
+        context.onAdmissionClose {
             firstActionEntered.countDown()
             awaitIgnoringInterrupt(releaseFirstAction)
         }
@@ -344,7 +344,7 @@ class DefaultRuntimeContextTest {
         try {
             val termination = context.quiesce().toFuture()
             firstActionEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
-            context.onClose(lateActionInvocations::incrementAndGet)
+            context.onAdmissionClose(lateActionInvocations::incrementAndGet)
 
             context.forceClose()
             releaseFirstAction.countDown()
@@ -362,12 +362,12 @@ class DefaultRuntimeContextTest {
         val scheduler = VirtualTimeScheduler.create()
         val context = DefaultRuntimeContext(Duration.ofSeconds(1), scheduler)
         val closeActionInvocations = AtomicInteger()
-        context.onClose(closeActionInvocations::incrementAndGet)
+        context.onAdmissionClose(closeActionInvocations::incrementAndGet)
         val quiescence = context.quiesce()
 
         context.forceClose()
 
-        context.isClosed.assert().isTrue()
+        context.isAdmissionClosed.assert().isTrue()
         context.tryAcquire().assert().isNull()
         StepVerifier.create(quiescence)
             .then { scheduler.advanceTimeBy(Duration.ofNanos(1)) }

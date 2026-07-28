@@ -75,7 +75,7 @@ internal class DefaultRuntimeContext(
     override val isQuiescing: Boolean
         get() = state.get() and QUIESCING_MASK != 0L
 
-    override val isClosed: Boolean
+    override val isAdmissionClosed: Boolean
         get() = state.get() and CLOSED_MASK != 0L
 
     internal val failureSignal: Mono<Void> = failureSink.asMono()
@@ -91,13 +91,15 @@ internal class DefaultRuntimeContext(
     }
 
     /**
-     * Registers an idempotent action that closes component intake at the global
-     * quiet boundary. An action registered after admission closed runs immediately.
+     * Registers an asynchronously dispatched graceful intake-close action.
+     *
+     * Force-close may cancel actions accepted before force was requested;
+     * component force-stop remains responsible for synchronous intake closure.
      */
-    override fun onClose(action: () -> Unit) {
+    override fun onAdmissionClose(action: () -> Unit) {
         val closeAction = CloseAction(action)
         closeActions += closeAction
-        if (isClosed) {
+        if (isAdmissionClosed) {
             dispatchCloseAction(closeAction)
         }
     }

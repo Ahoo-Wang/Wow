@@ -16,7 +16,6 @@ package me.ahoo.wow.runtime.internal
 import me.ahoo.wow.infra.lifecycle.addSuppressedIfAbsent
 import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.RuntimeContext
-import me.ahoo.wow.runtime.RuntimeOwnershipClaim
 import reactor.core.Exceptions
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -211,7 +210,12 @@ internal class RuntimeComponentGroup private constructor(
                 Collections.newSetFromMap(IdentityHashMap<RuntimeComponent, Boolean>())
             try {
                 components.forEach { component ->
-                    val ownershipClaim = component.claimRuntimeOwnership()
+                    val runtimeOwnership = component.runtimeOwnership
+                    check(component.runtimeOwnership === runtimeOwnership) {
+                        "RuntimeComponent[${component.identityDescription()}] must retain one stable " +
+                            "runtimeOwnership handle for its complete lifetime."
+                    }
+                    val ownershipClaim = runtimeOwnership.claim(component)
                     pendingClaims += ownershipClaim
                     val ownerBoundComponent = ownershipClaim.component
                     require(claimedComponentIdentities.add(ownerBoundComponent)) {

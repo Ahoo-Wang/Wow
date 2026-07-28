@@ -12,14 +12,16 @@ type under `runtime`:
 
 - `me.ahoo.wow.runtime` contains the public high-level orchestrator and component
   collaboration SPI: `WowRuntime`, `RuntimeComponent`, `RuntimeContext`,
-  `RuntimeActivity`, ownership claims, and the explicit legacy adapter.
+  `RuntimeActivity`, the stable `RuntimeOwnership` handle, and the explicit
+  legacy adapter.
 - `me.ahoo.wow.runtime.internal` contains orchestration mechanics and policy:
-  component grouping, the concrete runtime context state machine, termination
-  delivery, cleanup execution, and deadlines. Legacy/direct-use policy is
-  isolated further under `me.ahoo.wow.runtime.internal.compat`.
+  component grouping, the concrete runtime context state machine, cleanup
+  execution, and deadlines. Legacy/direct-use policy is isolated further under
+  `me.ahoo.wow.runtime.internal.compat`.
 - `me.ahoo.wow.infra.lifecycle` remains the low-level, runtime-independent
   capability package for `Lifecycle`, `GracefullyStoppable`,
-  `ForceStoppable`, `TerminatedSignalCapable`, and pure lifecycle composition.
+  `ForceStoppable`, `TerminatedSignalCapable`, bounded terminal-signal delivery,
+  and pure lifecycle composition.
 
 This keeps the dependency direction one-way: runtime builds on generic
 lifecycle capabilities; generic lifecycle code never depends back on runtime.
@@ -67,8 +69,8 @@ period should be configured above the expected publish-to-consume handoff delay.
 
 `RuntimeContext` is also the public extension SPI for custom runtime components.
 `tryAcquire()` returns an idempotent `RuntimeActivity` lease that must remain
-open for the complete asynchronous operation chain. `onClose()` registers the
-component intake barrier, and `reportFailure()` propagates a terminal pipeline
+open for the complete asynchronous operation chain. `onAdmissionClose()` registers
+the component intake barrier, and `reportFailure()` propagates a terminal pipeline
 failure to the complete runtime. The lease API deliberately avoids exposing a
 separate public decrement operation that could underflow the global activity
 counter. Intake-close callbacks are dispatched off the shutdown owner thread.
@@ -136,13 +138,13 @@ applications offload blocking notification work to their own bounded executor.
   graceful path is not a valid force fallback.
 - `RuntimePreparable` is the readiness-barrier capability.
   `RuntimeComponent` combines `Lifecycle`, `RuntimePreparable`, and
-  `ForceStoppable`. Its non-null `RuntimeOwnershipClaim` returns the
-  owner-bound component view that the claiming runtime alone may invoke, plus
-  non-throwing `commit()`/`rollback()` operations for the all-component claim
-  transaction. A genuinely shared component must opt in explicitly with
-  `RuntimeOwnershipClaim.shared(this)`; sharing is never the unsafe default.
-  `RuntimeLifecycleAdapter` explicitly upgrades a legacy `Lifecycle`, but
-  cannot wrap another `RuntimeComponent` and bypass its ownership.
+  `ForceStoppable`, and exposes one stable `RuntimeOwnership` handle. Every
+  component creates that handle once and retains it for its complete lifetime.
+  `WowRuntime` uses the handle to create an owner-bound component view and
+  complete the all-component claim transaction internally; claim,
+  commit, and rollback are not extension APIs. `RuntimeLifecycleAdapter`
+  explicitly upgrades a legacy `Lifecycle`, but cannot wrap another
+  `RuntimeComponent` and bypass its ownership.
 - One internal `RuntimeComponentGroup` is used by `WowRuntime`,
   `MainDispatcher`, and `CompositeEventDispatcher`. It owns transactional
   claims, the all-component prepare barrier, ordered start, reverse cleanup,
@@ -272,12 +274,13 @@ an asynchronous control-plane executor. It never calls `ApplicationContext.close
 from inside the runtime start/termination callback stack. Component registrars
 are one-shot as well: a hard context restart is rejected before rescanning or
 registering handlers, avoiding partial second-start side effects.
-`WowRuntimeLifecycle` claims the runtime's single termination controller during
-construction and reuses it for synchronous and callback-based Spring stop
-paths. That controller has a dedicated bounded dispatcher, so blocked public
+`WowRuntimeLifecycle` is inert during construction. It claims the runtime's
+single termination controller before the first lifecycle `start` or `stop`
+operation and reuses it for synchronous and callback-based Spring stop paths.
+That controller has a dedicated bounded dispatcher, so blocked public
 termination observers cannot delay Spring stop completion or unexpected
-termination handling. Exhausted control-plane capacity fails context
-construction explicitly instead of starting without a reliable termination
+termination handling. Exhausted control-plane capacity fails that lifecycle
+operation explicitly instead of proceeding without a reliable termination
 control signal.
 
 `WowRuntime` is intentionally one-shot. Spring `start()` is idempotent while it
@@ -293,12 +296,12 @@ resource-acquisition phase.
 The built-in `MainDispatcher`, `AggregateDispatcher`, and
 `CompositeEventDispatcher` base classes expose protected additive lifecycle
 hooks: `prepareManaged`, `startManaged`, `stopManagedGracefully`, and
-`forceStopManaged`. Their public `claimRuntimeOwnership`, `prepare`, `start`,
-`stopGracefully`, and `forceStop` methods are final templates. Subclasses cannot
-replace the ownership checks, readiness barrier, child cleanup, or force-stop
-invariants. `claimRuntimeOwnership` returns an owner-bound component view; the
-canonical runtime invokes that view rather than the dispatcher's public direct
-lifecycle.
+`forceStopManaged`. Their public `runtimeOwnership`, `prepare`, `start`,
+`stopGracefully`, and `forceStop` accessors and methods are final templates.
+Subclasses cannot replace the ownership checks, readiness barrier, child
+cleanup, or force-stop invariants. The canonical runtime obtains an internal
+owner-bound view through the stable ownership handle rather than invoking the
+dispatcher's public direct lifecycle.
 
 This intentionally drops source and binary compatibility for subclasses that
 overrode those public lifecycle methods. It also removes the intermediate
@@ -316,11 +319,12 @@ This ownership boundary intentionally tightens lifecycle extension contracts:
   contract or explicitly wrap a `Lifecycle` plus a real prompt force action in
   `RuntimeLifecycleAdapter`.
 - Every custom `RuntimeComponent` implements `RuntimePreparable` and
-  `ForceStoppable`. Identity-based, transactional exclusive ownership is the
-  default; extension code does not implement the ownership transaction.
-  Only a genuinely reentrant component that can tolerate concurrent lifecycle
-  calls from multiple runtimes opts into `RuntimeOwnershipClaim.shared(this)`.
-  Owner-bound views and commit/rollback mechanics remain runtime-internal.
+  `ForceStoppable` and retains one
+  `override val runtimeOwnership = RuntimeOwnership()` for its full lifetime.
+  Identity-based, transactional exclusive ownership is the only public model;
+  extension code does not implement the ownership transaction, and an unstable
+  ownership handle fails fast. Owner-bound views and claim/commit/rollback
+  mechanics remain runtime-internal.
 - New `MainDispatcher`, `AggregateDispatcher`, and
   `CompositeEventDispatcher` subclasses customize lifecycle through
   `prepareManaged`, `startManaged`, `stopManagedGracefully`, and

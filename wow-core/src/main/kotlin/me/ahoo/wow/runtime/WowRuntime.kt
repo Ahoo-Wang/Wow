@@ -15,6 +15,8 @@ package me.ahoo.wow.runtime
 
 import me.ahoo.wow.infra.lifecycle.ForceStoppable
 import me.ahoo.wow.infra.lifecycle.GracefullyStoppable
+import me.ahoo.wow.infra.lifecycle.publishTerminalSignal
+import me.ahoo.wow.infra.lifecycle.subscribeTerminalSignal
 import me.ahoo.wow.runtime.internal.DefaultRuntimeContext
 import me.ahoo.wow.runtime.internal.DefaultRuntimeExecutionResources
 import me.ahoo.wow.runtime.internal.RuntimeCleanupDispatcher
@@ -22,8 +24,6 @@ import me.ahoo.wow.runtime.internal.RuntimeComponentGroup
 import me.ahoo.wow.runtime.internal.RuntimeExecutionResources
 import me.ahoo.wow.runtime.internal.SealableFailureAccumulator
 import me.ahoo.wow.runtime.internal.ShutdownSubscriptionBoundary
-import me.ahoo.wow.runtime.internal.publishRuntimeTermination
-import me.ahoo.wow.runtime.internal.subscribeRuntimeTermination
 import me.ahoo.wow.runtime.internal.toNanosExact
 import reactor.core.Disposable
 import reactor.core.Exceptions
@@ -32,6 +32,7 @@ import reactor.core.publisher.Sinks
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import java.time.Duration
+import java.util.Collections
 import java.util.concurrent.CompletionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
@@ -111,7 +112,16 @@ class WowRuntime private constructor(
     }
 
     private val shutdownTimeoutNanos = shutdownTimeout.toNanosExact("shutdownTimeout")
-    val components: List<RuntimeComponent> = components.toList()
+
+    /**
+     * Unmodifiable snapshot of the registered component topology.
+     *
+     * Lifecycle operations remain exclusively owned by this runtime; this
+     * snapshot is exposed only for topology inspection.
+     */
+    val components: List<RuntimeComponent> =
+        Collections.unmodifiableList(components.toList())
+
     private val lifecycleMonitor = Any()
     private val firstFailure = SealableFailureAccumulator()
     private val runtimeContext = DefaultRuntimeContext(
@@ -135,7 +145,7 @@ class WowRuntime private constructor(
      * cancelled, so an arbitrary observer cannot block [forceStop].
      */
     val terminationSignal: Mono<Void> =
-        rawTerminationSignal.publishRuntimeTermination(executionResources.terminationDispatcher)
+        rawTerminationSignal.publishTerminalSignal(executionResources.terminationDispatcher)
     private val terminationControlClaimed = AtomicBoolean()
     private var runtimeFailureSubscription: Disposable? = null
     private var forceCleanupStarted = false
@@ -167,9 +177,11 @@ class WowRuntime private constructor(
             "WowRuntime termination control has already been claimed."
         }
         return try {
-            rawTerminationSignal.subscribeRuntimeTermination(
+            rawTerminationSignal.subscribeTerminalSignal(
                 dispatcher = executionResources.terminationControlDispatcher,
                 onTermination = onTermination,
+                rejectionMessage =
+                "The process-wide Wow runtime termination control dispatcher is saturated.",
             )
         } catch (error: Throwable) {
             terminationControlClaimed.compareAndSet(true, false)
@@ -326,11 +338,11 @@ class WowRuntime private constructor(
                 }
             }
         }
+        runtimeContext.forceClose()
         if (forceOwner == null) {
             return
         }
         gracefulOwner?.dispatchCancellation()
-        runtimeContext.forceClose()
         val forceFailure = componentGroup.forceStop()
         forceFailure?.let(::recordFailure)
         completeShutdown(forceOwner, forceFailure)
@@ -485,10 +497,10 @@ class WowRuntime private constructor(
                     true
                 }
             }
+            runtimeContext.forceClose()
             if (!forceCleanupClaimed) {
                 return@defer rawTerminationSignal
             }
-            runtimeContext.forceClose()
             val forceFailure = componentGroup.forceStop()
             forceFailure?.let(::recordFailure)
             Mono.error(currentFailure() ?: forceFailure ?: primaryFailure)

@@ -36,7 +36,10 @@ interface RuntimeContext {
 
     val isQuiescing: Boolean
 
-    val isClosed: Boolean
+    /**
+     * Whether this runtime has permanently stopped admitting new operations.
+     */
+    val isAdmissionClosed: Boolean
 
     /**
      * Reports a terminal component failure to the owning runtime.
@@ -44,10 +47,15 @@ interface RuntimeContext {
     fun reportFailure(error: Throwable)
 
     /**
-     * Registers an idempotent action that closes component intake at the global
-     * quiet boundary. An action registered after admission closed runs immediately.
+     * Registers, during component preparation, an idempotent action that closes
+     * component intake at the global quiet boundary.
+     *
+     * The action is dispatched asynchronously. A registration that races with
+     * admission closure is also dispatched. Hard force-stop may cancel queued or
+     * running actions, so [RuntimeComponent.forceStop] remains the authoritative
+     * synchronous intake-closure path.
      */
-    fun onClose(action: () -> Unit)
+    fun onAdmissionClose(action: () -> Unit)
 
     /**
      * Attempts to admit one complete asynchronous operation.

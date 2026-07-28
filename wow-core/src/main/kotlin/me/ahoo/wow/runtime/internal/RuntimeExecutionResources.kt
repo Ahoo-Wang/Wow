@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.runtime.internal
 
+import me.ahoo.wow.infra.lifecycle.TerminalSignal
+import me.ahoo.wow.infra.lifecycle.TerminalSignalDispatcher
+import me.ahoo.wow.infra.lifecycle.newTerminalSignalDispatcher
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 
@@ -24,9 +27,9 @@ import reactor.core.scheduler.Schedulers
  * best-effort and is strictly bounded by [RuntimeCleanupExecutor].
  */
 internal interface RuntimeExecutionResources {
-    val terminationDispatcher: RuntimeTerminationDispatcher
+    val terminationDispatcher: TerminalSignalDispatcher
 
-    val terminationControlDispatcher: RuntimeTerminationDispatcher
+    val terminationControlDispatcher: TerminalSignalDispatcher
 
     val shutdownScheduler: Scheduler
 
@@ -36,14 +39,20 @@ internal interface RuntimeExecutionResources {
 }
 
 internal object DefaultRuntimeExecutionResources : RuntimeExecutionResources {
+    private const val TERMINATION_CONTROL_THREAD_CAP: Int = 4
+    private const val TERMINATION_CONTROL_QUEUE_CAPACITY: Int = 256
     private const val SHUTDOWN_THREAD_CAP: Int = 4
     private const val SHUTDOWN_QUEUE_CAPACITY: Int = 256
     private const val SHUTDOWN_THREAD_TTL_SECONDS: Int = 60
 
-    override val terminationDispatcher: RuntimeTerminationDispatcher =
-        RuntimeTerminationSignal.dispatcher
-    override val terminationControlDispatcher: RuntimeTerminationDispatcher =
-        RuntimeTerminationSignal.controlDispatcher
+    override val terminationDispatcher: TerminalSignalDispatcher =
+        TerminalSignal.dispatcher
+    override val terminationControlDispatcher: TerminalSignalDispatcher =
+        newTerminalSignalDispatcher(
+            threadNamePrefix = "wow-runtime-termination-control",
+            threadCap = TERMINATION_CONTROL_THREAD_CAP,
+            queuedTaskCapacity = TERMINATION_CONTROL_QUEUE_CAPACITY,
+        )
     override val shutdownScheduler: Scheduler = Schedulers.newBoundedElastic(
         SHUTDOWN_THREAD_CAP,
         SHUTDOWN_QUEUE_CAPACITY,

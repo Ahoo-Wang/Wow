@@ -29,7 +29,7 @@ import me.ahoo.wow.messaging.dispatcher.MessageDispatcher
 import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.RuntimeContext
 import me.ahoo.wow.runtime.RuntimeLifecycleAdapter
-import me.ahoo.wow.runtime.RuntimeOwnershipClaim
+import me.ahoo.wow.runtime.RuntimeOwnership
 import me.ahoo.wow.runtime.RuntimePreparable
 import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.spring.AUTO_REGISTRAR_PHASE
@@ -52,6 +52,9 @@ import org.springframework.beans.factory.config.BeanFactoryPostProcessor
 import org.springframework.beans.factory.config.ConfigurableBeanFactory
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.beans.factory.support.AbstractBeanDefinition
+import org.springframework.beans.factory.support.BeanDefinitionRegistry
+import org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor
+import org.springframework.beans.factory.support.RootBeanDefinition
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.boot.web.server.context.WebServerApplicationContext
@@ -254,6 +257,32 @@ internal class WowAutoConfigurationTest {
     }
 
     @Test
+    fun `replacing the canonical runtime definition fails context refresh`() {
+        val replacement = WowRuntime(emptyList(), Duration.ofSeconds(1), Duration.ZERO)
+
+        try {
+            assertCanonicalOwnerReplacementRejected(
+                beanName = WOW_RUNTIME_BEAN_NAME,
+                replacement = replacement,
+            )
+            replacement.claimTerminationControl {}
+                .dispose()
+        } finally {
+            replacement.forceStop()
+        }
+    }
+
+    @Test
+    fun `replacing the canonical runtime lifecycle definition fails context refresh`() {
+        val replacementRuntime = WowRuntime(emptyList(), Duration.ofSeconds(1), Duration.ZERO)
+
+        assertCanonicalOwnerReplacementRejected(
+            beanName = WOW_RUNTIME_LIFECYCLE_BEAN_NAME,
+            replacement = WowRuntimeLifecycle(replacementRuntime),
+        )
+    }
+
+    @Test
     fun `hard context restart fails before higher phase ingress restarts`() {
         val ingress = RecordingIngressLifecycle()
 
@@ -295,12 +324,14 @@ internal class WowAutoConfigurationTest {
 
     @Test
     fun `legacy dispatcher without force stop cannot enter WowRuntime`() {
+        val dispatcher = WeakLegacyMessageDispatcher()
+
         contextRunner
             .enableWow()
             .withBean(
                 "weakLegacyDispatcher",
                 WeakLegacyMessageDispatcher::class.java,
-                { WeakLegacyMessageDispatcher() },
+                { dispatcher },
             )
             .run { context: AssertableApplicationContext ->
                 context.startupFailure.assert().isNotNull()
@@ -309,6 +340,8 @@ internal class WowAutoConfigurationTest {
                     .contains("ForceStoppable")
                     .contains("RuntimeComponent")
             }
+
+        dispatcher.closeCount.get().assert().isEqualTo(1)
     }
 
     @Test
@@ -343,7 +376,7 @@ internal class WowAutoConfigurationTest {
 
         target.stopCount.get().assert().isEqualTo(1)
         interceptedMethods.assert().doesNotContain(
-            "claimRuntimeOwnership",
+            "getRuntimeOwnership",
             "prepare",
             "start",
             "stopGracefully",
@@ -384,7 +417,7 @@ internal class WowAutoConfigurationTest {
 
         target.stopCount.get().assert().isEqualTo(1)
         interceptedMethods.assert().doesNotContain(
-            "claimRuntimeOwnership",
+            "getRuntimeOwnership",
             "prepare",
             "start",
             "stopGracefully",
@@ -397,11 +430,7 @@ internal class WowAutoConfigurationTest {
         val target = ProxyableMainDispatcher()
         val proxyFactory = ProxyFactory().apply {
             setTarget(target)
-            setInterfaces(
-                MessageDispatcher::class.java,
-                RuntimePreparable::class.java,
-                ForceStoppable::class.java,
-            )
+            setInterfaces(MessageDispatcher::class.java)
         }
         val dispatcher = proxyFactory.proxy as MessageDispatcher
 
@@ -413,6 +442,14 @@ internal class WowAutoConfigurationTest {
                 context.getBean(WowRuntime::class.java).components
                     .assert()
                     .containsExactly(target)
+                context.beanFactory.getBeanDefinition("narrowedProxyDispatcher")
+                    .destroyMethodName
+                    .assert()
+                    .isEmpty()
+                context.beanFactory.getMergedBeanDefinition("narrowedProxyDispatcher")
+                    .destroyMethodName
+                    .assert()
+                    .isEmpty()
                 target.prepareCount.get().assert().isEqualTo(1)
                 target.startCount.get().assert().isEqualTo(1)
             }
@@ -958,12 +995,62 @@ internal class WowAutoConfigurationTest {
         override fun getOrder(): Int = order
     }
 
-    private class WeakLegacyMessageDispatcher : MessageDispatcher {
+    private fun assertCanonicalOwnerReplacementRejected(
+        beanName: String,
+        replacement: Any,
+    ) {
+        contextRunner
+            .enableWow()
+            .withBean(
+                "canonicalOwnerReplacement",
+                CanonicalOwnerReplacement::class.java,
+                { CanonicalOwnerReplacement(beanName, replacement) },
+            )
+            .run { context: AssertableApplicationContext ->
+                context.startupFailure.assert().isNotNull()
+                context.startupFailure!!.causeMessages().joinToString().assert()
+                    .contains(beanName)
+                    .contains("canonical")
+                    .contains("replaced")
+            }
+    }
+
+    private class WeakLegacyMessageDispatcher :
+        MessageDispatcher,
+        AutoCloseable {
         override val name: String = "weak-legacy"
+        val closeCount = AtomicInteger()
 
         override fun start() = Unit
 
         override fun stopGracefully(): Mono<Void> = Mono.empty()
+
+        override fun close() {
+            closeCount.incrementAndGet()
+        }
+    }
+
+    private class CanonicalOwnerReplacement(
+        private val beanName: String,
+        private val replacement: Any,
+    ) : BeanDefinitionRegistryPostProcessor,
+        Ordered {
+        override fun postProcessBeanDefinitionRegistry(registry: BeanDefinitionRegistry) {
+            check(registry.containsBeanDefinition(beanName)) {
+                "Expected canonical bean definition '$beanName' to exist."
+            }
+            registry.removeBeanDefinition(beanName)
+            registry.registerBeanDefinition(
+                beanName,
+                RootBeanDefinition(replacement.javaClass).apply {
+                    instanceSupplier = { replacement }
+                },
+            )
+        }
+
+        override fun postProcessBeanFactory(beanFactory: ConfigurableListableBeanFactory) = Unit
+
+        override fun getOrder(): Int = Ordered.LOWEST_PRECEDENCE
     }
 
     private open class ProxyableMainDispatcher : MainDispatcher<String>() {
@@ -1024,8 +1111,7 @@ internal class WowAutoConfigurationTest {
         val startCount = AtomicInteger()
         val stopCount = AtomicInteger()
 
-        override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-            RuntimeOwnershipClaim.shared(this)
+        override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
 
         override fun prepare(runtimeContext: RuntimeContext) = Unit
 
@@ -1184,8 +1270,7 @@ internal class WowAutoConfigurationTest {
 }
 
 private class LazyRecordingRuntimeComponent : WowRuntimeComponent {
-    override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-        RuntimeOwnershipClaim.shared(this)
+    override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
 
     override fun prepare(runtimeContext: RuntimeContext) = Unit
 
@@ -1203,8 +1288,7 @@ private class FactoryProductRuntimeComponent :
     val stopCount = AtomicInteger()
     val closeCount = AtomicInteger()
 
-    override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-        RuntimeOwnershipClaim.shared(this)
+    override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
 
     override fun prepare(runtimeContext: RuntimeContext) = Unit
 
@@ -1227,8 +1311,7 @@ private class FactoryProductRuntimeComponent :
 }
 
 private open class ScopedRecordingRuntimeComponent : WowRuntimeComponent {
-    override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-        RuntimeOwnershipClaim.shared(this)
+    override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
 
     override fun prepare(runtimeContext: RuntimeContext) = Unit
 

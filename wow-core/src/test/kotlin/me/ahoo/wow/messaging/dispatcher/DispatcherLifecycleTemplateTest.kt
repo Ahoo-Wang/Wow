@@ -21,7 +21,7 @@ import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.RuntimeContext
-import me.ahoo.wow.runtime.RuntimeOwnershipClaim
+import me.ahoo.wow.runtime.RuntimeOwnership
 import me.ahoo.wow.runtime.WowRuntime
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -47,7 +47,7 @@ class DispatcherLifecycleTemplateTest {
 
     private fun assertFinalLifecycleTemplate(dispatcherType: Class<*>) {
         listOf(
-            dispatcherType.getMethod("claimRuntimeOwnership"),
+            dispatcherType.getMethod("getRuntimeOwnership"),
             dispatcherType.getMethod("prepare", RuntimeContext::class.java),
             dispatcherType.getMethod("start"),
             dispatcherType.getMethod("stopGracefully"),
@@ -275,8 +275,7 @@ class DispatcherLifecycleTemplateTest {
         private val prepareFailure: RuntimeException? = null,
     ) : MessageDispatcher,
         RuntimeComponent {
-        override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-            RuntimeOwnershipClaim.shared(this)
+        override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
 
         override fun prepare(runtimeContext: RuntimeContext) {
             calls += "prepare:$name"

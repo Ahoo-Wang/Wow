@@ -14,13 +14,14 @@
 package me.ahoo.wow.runtime
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.infra.lifecycle.ImmediateTerminalSignalDispatcher
 import me.ahoo.wow.infra.lifecycle.Lifecycle
+import me.ahoo.wow.infra.lifecycle.TerminalSignal
+import me.ahoo.wow.infra.lifecycle.TerminalSignalDispatcher
+import me.ahoo.wow.infra.lifecycle.newTerminalSignalDispatcher
 import me.ahoo.wow.runtime.internal.DefaultRuntimeExecutionResources
-import me.ahoo.wow.runtime.internal.ImmediateRuntimeTerminationDispatcher
 import me.ahoo.wow.runtime.internal.RuntimeExecutionResources
-import me.ahoo.wow.runtime.internal.RuntimeTerminationDispatcher
-import me.ahoo.wow.runtime.internal.RuntimeTerminationSignal
-import me.ahoo.wow.runtime.internal.newRuntimeTerminationDispatcher
+import me.ahoo.wow.runtime.internal.RuntimeOwnershipClaim
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.assertTimeoutPreemptively
@@ -49,9 +50,9 @@ class WowRuntimeTest {
     fun `duration overflow fails before component ownership is claimed`() {
         val claims = AtomicInteger()
         val component = object : RuntimeComponent {
-            override fun claimRuntimeOwnership(): RuntimeOwnershipClaim {
+            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership.managed {
                 claims.incrementAndGet()
-                return RuntimeOwnershipClaim.shared(this)
+                error("ownership must not be claimed")
             }
 
             override fun prepare(runtimeContext: RuntimeContext) = Unit
@@ -81,10 +82,10 @@ class WowRuntimeTest {
         val claimed = AtomicBoolean()
         val committed = AtomicBoolean()
         val first = object : RuntimeComponent {
-            override fun claimRuntimeOwnership(): RuntimeOwnershipClaim {
+            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership.managed {
                 check(claimed.compareAndSet(false, true))
                 val ownerComponent = this
-                return object : RuntimeOwnershipClaim {
+                object : RuntimeOwnershipClaim {
                     override val component: RuntimeComponent = ownerComponent
 
                     override fun commit() {
@@ -109,9 +110,8 @@ class WowRuntimeTest {
         }
         val claimFailure = IllegalStateException("claim")
         val failing = object : RuntimeComponent {
-            override fun claimRuntimeOwnership(): RuntimeOwnershipClaim {
-                throw claimFailure
-            }
+            override val runtimeOwnership: RuntimeOwnership =
+                RuntimeOwnership.managed { throw claimFailure }
 
             override fun prepare(runtimeContext: RuntimeContext) = Unit
 
@@ -138,8 +138,8 @@ class WowRuntimeTest {
     @Test
     fun `owner bound runtime component cannot be claimed by another runtime`() {
         val ownerBoundComponent = object : RuntimeComponent {
-            override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-                error("An owner-bound runtime component cannot be claimed again.")
+            override val runtimeOwnership: RuntimeOwnership =
+                RuntimeOwnership.unclaimable()
 
             override fun prepare(runtimeContext: RuntimeContext) = Unit
 
@@ -169,15 +169,14 @@ class WowRuntimeTest {
         val releaseObserver = CountDownLatch(1)
         val healthyObserver = CountDownLatch(1)
         val replayObserver = CountDownLatch(1)
-        val terminationDispatcher = newRuntimeTerminationDispatcher(
+        val terminationDispatcher = newTerminalSignalDispatcher(
             "wow-runtime-test-termination",
             threadCap = blockedObserverCount,
             queuedTaskCapacity = 16,
         )
         val executionResources = immediateExecutionResources(terminationDispatcher)
         val component = object : RuntimeComponent {
-            override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-                RuntimeOwnershipClaim.shared(this)
+            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
 
             override fun prepare(runtimeContext: RuntimeContext) = Unit
 
@@ -236,7 +235,7 @@ class WowRuntimeTest {
         val queuedObserverCompleted = CountDownLatch(1)
         val rejectedFailure = AtomicReference<Throwable?>()
         val rejectionThread = AtomicReference<Thread?>()
-        val terminationDispatcher = newRuntimeTerminationDispatcher(
+        val terminationDispatcher = newTerminalSignalDispatcher(
             threadNamePrefix = "wow-runtime-test-saturated-termination",
             threadCap = 1,
             queuedTaskCapacity = 1,
@@ -258,7 +257,7 @@ class WowRuntimeTest {
             },
         )
         runtime.terminationSignal.subscribe({}, {}, queuedObserverCompleted::countDown)
-        val rejectedBefore = RuntimeTerminationSignal.rejectedSubscriberCount.get()
+        val rejectedBefore = TerminalSignal.rejectedSubscriberCount.get()
         val subscribingThread = Thread.currentThread()
         runtime.terminationSignal.subscribe(
             {},
@@ -269,7 +268,7 @@ class WowRuntimeTest {
         )
         rejectedFailure.get().assert().isInstanceOf(RejectedExecutionException::class.java)
         rejectionThread.get().assert().isSameAs(subscribingThread)
-        RuntimeTerminationSignal.rejectedSubscriberCount.get()
+        TerminalSignal.rejectedSubscriberCount.get()
             .assert()
             .isEqualTo(rejectedBefore + 1)
         val executor = Executors.newSingleThreadExecutor()
@@ -291,7 +290,7 @@ class WowRuntimeTest {
 
     @Test
     fun `termination control replays the sealed failure and remains exclusively claimed`() {
-        val controlDispatcher = newRuntimeTerminationDispatcher(
+        val controlDispatcher = newTerminalSignalDispatcher(
             threadNamePrefix = "wow-runtime-test-control-replay",
             threadCap = 1,
             queuedTaskCapacity = 0,
@@ -300,6 +299,8 @@ class WowRuntimeTest {
         val terminalFailure = AtomicReference<Throwable?>()
         val terminated = CountDownLatch(1)
         val component = object : RuntimeComponent {
+            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
+
             override fun prepare(runtimeContext: RuntimeContext) = Unit
 
             override fun start() = Unit
@@ -315,7 +316,7 @@ class WowRuntimeTest {
             shutdownTimeout = Duration.ofSeconds(1),
             shutdownQuietPeriod = Duration.ZERO,
             executionResources = immediateExecutionResources(
-                dispatcher = ImmediateRuntimeTerminationDispatcher,
+                dispatcher = ImmediateTerminalSignalDispatcher,
                 controlDispatcher = controlDispatcher,
             ),
         )
@@ -344,7 +345,7 @@ class WowRuntimeTest {
 
     @Test
     fun `failed termination control admission rolls back the exclusive claim`() {
-        val controlDispatcher = newRuntimeTerminationDispatcher(
+        val controlDispatcher = newTerminalSignalDispatcher(
             threadNamePrefix = "wow-runtime-test-control-admission",
             threadCap = 1,
             queuedTaskCapacity = 0,
@@ -355,7 +356,7 @@ class WowRuntimeTest {
             shutdownTimeout = Duration.ofSeconds(1),
             shutdownQuietPeriod = Duration.ZERO,
             executionResources = immediateExecutionResources(
-                dispatcher = ImmediateRuntimeTerminationDispatcher,
+                dispatcher = ImmediateTerminalSignalDispatcher,
                 controlDispatcher = controlDispatcher,
             ),
         )
@@ -388,10 +389,10 @@ class WowRuntimeTest {
         val lateFailure = IllegalArgumentException("late")
         val executionResources =
             object : RuntimeExecutionResources {
-                override val terminationDispatcher: RuntimeTerminationDispatcher =
-                    ImmediateRuntimeTerminationDispatcher
-                override val terminationControlDispatcher: RuntimeTerminationDispatcher =
-                    ImmediateRuntimeTerminationDispatcher
+                override val terminationDispatcher: TerminalSignalDispatcher =
+                    ImmediateTerminalSignalDispatcher
+                override val terminationControlDispatcher: TerminalSignalDispatcher =
+                    ImmediateTerminalSignalDispatcher
                 override val shutdownScheduler: Scheduler = Schedulers.immediate()
                 override val quiescenceScheduler: Scheduler = Schedulers.parallel()
 
@@ -401,8 +402,7 @@ class WowRuntimeTest {
                 }
             }
         val component = object : RuntimeComponent {
-            override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-                RuntimeOwnershipClaim.shared(this)
+            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
 
             override fun prepare(runtimeContext: RuntimeContext) = Unit
 
@@ -459,10 +459,10 @@ class WowRuntimeTest {
         val lateFailure = IllegalArgumentException("late-stop")
         val executionResources =
             object : RuntimeExecutionResources {
-                override val terminationDispatcher: RuntimeTerminationDispatcher =
-                    ImmediateRuntimeTerminationDispatcher
-                override val terminationControlDispatcher: RuntimeTerminationDispatcher =
-                    ImmediateRuntimeTerminationDispatcher
+                override val terminationDispatcher: TerminalSignalDispatcher =
+                    ImmediateTerminalSignalDispatcher
+                override val terminationControlDispatcher: TerminalSignalDispatcher =
+                    ImmediateTerminalSignalDispatcher
                 override val shutdownScheduler: Scheduler = Schedulers.immediate()
                 override val quiescenceScheduler: Scheduler = Schedulers.parallel()
 
@@ -470,8 +470,7 @@ class WowRuntimeTest {
             }
         var capturedRuntimeContext: RuntimeContext? = null
         val component = object : RuntimeComponent {
-            override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-                RuntimeOwnershipClaim.shared(this)
+            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
 
             override fun prepare(runtimeContext: RuntimeContext) {
                 capturedRuntimeContext = runtimeContext
@@ -520,10 +519,10 @@ class WowRuntimeTest {
         val physicalCancellations = AtomicInteger()
         val executionResources =
             object : RuntimeExecutionResources {
-                override val terminationDispatcher: RuntimeTerminationDispatcher =
-                    ImmediateRuntimeTerminationDispatcher
-                override val terminationControlDispatcher: RuntimeTerminationDispatcher =
-                    ImmediateRuntimeTerminationDispatcher
+                override val terminationDispatcher: TerminalSignalDispatcher =
+                    ImmediateTerminalSignalDispatcher
+                override val terminationControlDispatcher: TerminalSignalDispatcher =
+                    ImmediateTerminalSignalDispatcher
                 override val shutdownScheduler: Scheduler = Schedulers.immediate()
                 override val quiescenceScheduler: Scheduler = Schedulers.parallel()
 
@@ -534,8 +533,7 @@ class WowRuntimeTest {
                 }
             }
         val component = object : RuntimeComponent {
-            override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-                RuntimeOwnershipClaim.shared(this)
+            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
 
             override fun prepare(runtimeContext: RuntimeContext) = Unit
 
@@ -860,8 +858,7 @@ class WowRuntimeTest {
         val runtimeFailure = IllegalStateException("runtime")
         val lateCompensationFailure = IllegalArgumentException("late-compensation")
         val component = object : RuntimeComponent {
-            override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-                RuntimeOwnershipClaim.shared(this)
+            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
 
             override fun prepare(runtimeContext: RuntimeContext) {
                 this.runtimeContext = runtimeContext
@@ -1122,7 +1119,7 @@ class WowRuntimeTest {
             name = "component",
             calls = calls,
             onPrepare = { runtimeContext ->
-                runtimeContext.onClose {
+                runtimeContext.onAdmissionClose {
                     closeActionStarted.countDown()
                     allowCloseAction.await()
                 }
@@ -1159,7 +1156,7 @@ class WowRuntimeTest {
             calls = calls,
             beforeForceFailure = forceStopInvoked::countDown,
             onPrepare = { runtimeContext ->
-                runtimeContext.onClose {
+                runtimeContext.onAdmissionClose {
                     closeActionStarted.countDown()
                     allowCloseAction.await()
                 }
@@ -1167,9 +1164,9 @@ class WowRuntimeTest {
         )
         val executionResources =
             object : RuntimeExecutionResources {
-                override val terminationDispatcher: RuntimeTerminationDispatcher =
+                override val terminationDispatcher: TerminalSignalDispatcher =
                     DefaultRuntimeExecutionResources.terminationDispatcher
-                override val terminationControlDispatcher: RuntimeTerminationDispatcher =
+                override val terminationControlDispatcher: TerminalSignalDispatcher =
                     DefaultRuntimeExecutionResources.terminationControlDispatcher
                 override val shutdownScheduler: Scheduler = Schedulers.immediate()
                 override val quiescenceScheduler: Scheduler =
@@ -1208,11 +1205,10 @@ class WowRuntimeTest {
         val closeFailure = IllegalStateException("close")
         val forceObservedInterrupted = AtomicBoolean(true)
         val component = object : RuntimeComponent {
-            override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-                RuntimeOwnershipClaim.shared(this)
+            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
 
             override fun prepare(runtimeContext: RuntimeContext) {
-                runtimeContext.onClose {
+                runtimeContext.onAdmissionClose {
                     throw closeFailure
                 }
             }
@@ -1253,9 +1249,9 @@ class WowRuntimeTest {
         )
         val executionResources =
             object : RuntimeExecutionResources {
-                override val terminationDispatcher: RuntimeTerminationDispatcher =
+                override val terminationDispatcher: TerminalSignalDispatcher =
                     DefaultRuntimeExecutionResources.terminationDispatcher
-                override val terminationControlDispatcher: RuntimeTerminationDispatcher =
+                override val terminationControlDispatcher: TerminalSignalDispatcher =
                     DefaultRuntimeExecutionResources.terminationControlDispatcher
                 override val shutdownScheduler: Scheduler =
                     DefaultRuntimeExecutionResources.shutdownScheduler
@@ -1298,7 +1294,7 @@ class WowRuntimeTest {
             name = "component",
             calls = calls,
             onPrepare = { runtimeContext ->
-                runtimeContext.onClose {
+                runtimeContext.onAdmissionClose {
                     closeActionInvocations.incrementAndGet()
                     closeActionInvoked.countDown()
                 }
@@ -1312,12 +1308,86 @@ class WowRuntimeTest {
 
         runtime.forceStop()
 
-        runtimeContext.isClosed.assert().isTrue()
+        runtimeContext.isAdmissionClosed.assert().isTrue()
         runtimeContext.tryAcquire().assert().isNull()
         closeActionInvoked.await(1, TimeUnit.SECONDS).assert().isTrue()
         activeOperation.close()
         StepVerifier.create(termination).verifyComplete()
         closeActionInvocations.get().assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `every concurrent force caller closes admission before returning`() {
+        val cleanupDispatchEntered = CountDownLatch(1)
+        val releaseCleanupDispatch = CountDownLatch(1)
+        var capturedRuntimeContext: RuntimeContext? = null
+        val component = object : RuntimeComponent {
+            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
+
+            override fun prepare(runtimeContext: RuntimeContext) {
+                capturedRuntimeContext = runtimeContext
+            }
+
+            override fun start() = Unit
+
+            override fun stopGracefully(): Mono<Void> = Mono.never()
+
+            override fun forceStop() = Unit
+        }
+        val executionResources =
+            object : RuntimeExecutionResources {
+                override val terminationDispatcher: TerminalSignalDispatcher =
+                    ImmediateTerminalSignalDispatcher
+                override val terminationControlDispatcher: TerminalSignalDispatcher =
+                    ImmediateTerminalSignalDispatcher
+                override val shutdownScheduler: Scheduler = Schedulers.immediate()
+                override val quiescenceScheduler: Scheduler =
+                    DefaultRuntimeExecutionResources.quiescenceScheduler
+
+                override fun dispatchCleanup(action: Runnable): Boolean {
+                    cleanupDispatchEntered.countDown()
+                    releaseCleanupDispatch.await()
+                    action.run()
+                    return true
+                }
+            }
+        val runtime = WowRuntime(
+            components = listOf(component),
+            shutdownTimeout = Duration.ofSeconds(1),
+            shutdownQuietPeriod = Duration.ZERO,
+            executionResources = executionResources,
+        )
+        val executor = Executors.newSingleThreadExecutor()
+        var firstForce: CompletableFuture<Void>? = null
+        runtime.start()
+        val activeOperation = checkNotNull(capturedRuntimeContext).tryAcquire()
+        checkNotNull(activeOperation)
+
+        try {
+            runtime.stopGracefully()
+            firstForce = CompletableFuture.runAsync(runtime::forceStop, executor)
+            cleanupDispatchEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
+
+            runtime.forceStop()
+
+            val admittedAfterForce = checkNotNull(capturedRuntimeContext).tryAcquire()
+            try {
+                admittedAfterForce.assert().isNull()
+            } finally {
+                admittedAfterForce?.close()
+            }
+        } finally {
+            try {
+                activeOperation.close()
+            } finally {
+                releaseCleanupDispatch.countDown()
+                try {
+                    firstForce?.get(1, TimeUnit.SECONDS)
+                } finally {
+                    executor.shutdownNow()
+                }
+            }
+        }
     }
 
     @Test
@@ -1329,7 +1399,7 @@ class WowRuntimeTest {
             name = "component",
             calls = calls,
             onPrepare = { runtimeContext ->
-                runtimeContext.onClose {
+                runtimeContext.onAdmissionClose {
                     closeActionInvocations.incrementAndGet()
                     closeActionInvoked.countDown()
                 }
@@ -1344,7 +1414,7 @@ class WowRuntimeTest {
             .expectError(TimeoutException::class.java)
             .verify()
 
-        runtimeContext.isClosed.assert().isTrue()
+        runtimeContext.isAdmissionClosed.assert().isTrue()
         runtimeContext.tryAcquire().assert().isNull()
         closeActionInvoked.await(1, TimeUnit.SECONDS).assert().isTrue()
         activeOperation.close()
@@ -1730,8 +1800,7 @@ class WowRuntimeTest {
         val resourceOpen = AtomicBoolean()
         val forceInvocations = AtomicInteger()
         val component = object : RuntimeComponent {
-            override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-                RuntimeOwnershipClaim.shared(this)
+            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
 
             override fun prepare(runtimeContext: RuntimeContext) {
                 prepareStarted.countDown()
@@ -1783,8 +1852,7 @@ class WowRuntimeTest {
         val releasePrepare = CountDownLatch(1)
         val forceInvoked = CountDownLatch(1)
         val component = object : RuntimeComponent {
-            override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-                RuntimeOwnershipClaim.shared(this)
+            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
 
             override fun prepare(runtimeContext: RuntimeContext) {
                 prepareEntered.countDown()
@@ -1838,8 +1906,7 @@ class WowRuntimeTest {
         val releaseCancellation = CountDownLatch(1)
         val forceInvocations = AtomicInteger()
         val component = object : RuntimeComponent {
-            override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-                RuntimeOwnershipClaim.shared(this)
+            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
 
             override fun prepare(runtimeContext: RuntimeContext) = Unit
 
@@ -1896,8 +1963,7 @@ class WowRuntimeTest {
     ) : RuntimeComponent {
         var runtimeContext: RuntimeContext? = null
 
-        override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-            RuntimeOwnershipClaim.shared(this)
+        override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
 
         override fun prepare(runtimeContext: RuntimeContext) {
             this.runtimeContext = runtimeContext
@@ -1929,12 +1995,12 @@ class WowRuntimeTest {
     }
 
     private fun immediateExecutionResources(
-        dispatcher: RuntimeTerminationDispatcher,
-        controlDispatcher: RuntimeTerminationDispatcher = dispatcher,
+        dispatcher: TerminalSignalDispatcher,
+        controlDispatcher: TerminalSignalDispatcher = dispatcher,
     ): RuntimeExecutionResources =
         object : RuntimeExecutionResources {
-            override val terminationDispatcher: RuntimeTerminationDispatcher = dispatcher
-            override val terminationControlDispatcher: RuntimeTerminationDispatcher =
+            override val terminationDispatcher: TerminalSignalDispatcher = dispatcher
+            override val terminationControlDispatcher: TerminalSignalDispatcher =
                 controlDispatcher
             override val shutdownScheduler: Scheduler = Schedulers.immediate()
             override val quiescenceScheduler: Scheduler = Schedulers.immediate()

@@ -19,7 +19,7 @@ import me.ahoo.wow.infra.lifecycle.ForceStoppable
 import me.ahoo.wow.messaging.dispatcher.MessageDispatcher
 import me.ahoo.wow.runtime.RuntimeContext
 import me.ahoo.wow.runtime.RuntimeLifecycleAdapter
-import me.ahoo.wow.runtime.RuntimeOwnershipClaim
+import me.ahoo.wow.runtime.RuntimeOwnership
 import me.ahoo.wow.spring.WowRuntimeComponent
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -133,6 +133,27 @@ class RuntimeComponentRegistryTest {
     }
 
     @Test
+    fun `destroy method restored only on merged definition is rejected`() {
+        val beanFactory = dispatcherBeanFactory(AbstractBeanDefinition.INFER_METHOD)
+        val registry = RuntimeComponentRegistry()
+        registry.postProcessBeanFactory(beanFactory)
+        registry.snapshot()
+        val originalDefinition = beanFactory.getBeanDefinition(DISPATCHER_BEAN_NAME)
+        val mergedDefinition = beanFactory.getMergedBeanDefinition(DISPATCHER_BEAN_NAME)
+        check(mergedDefinition !== originalDefinition)
+        mergedDefinition.destroyMethodName = AbstractBeanDefinition.INFER_METHOD
+
+        val error = assertThrows<IllegalStateException> {
+            registry.afterSingletonsInstantiated()
+        }
+
+        originalDefinition.destroyMethodName.assert().isEmpty()
+        error.message.assert()
+            .contains(DISPATCHER_BEAN_NAME)
+            .contains("destroy")
+    }
+
+    @Test
     fun `legacy dispatcher descriptor retains identity and exposes an explicit runtime adapter`() {
         val beanFactory = dispatcherBeanFactory()
         val registry = RuntimeComponentRegistry()
@@ -144,7 +165,6 @@ class RuntimeComponentRegistryTest {
 
         val descriptor = registry.snapshot().single()
 
-        descriptor.exposedBean.assert().isSameAs(dispatcher)
         descriptor.lifecycleTarget.assert().isSameAs(dispatcher)
         descriptor.runtimeComponent.assert()
             .isInstanceOf(RuntimeLifecycleAdapter::class.java)
@@ -314,8 +334,7 @@ class RuntimeComponentRegistryTest {
     private class RecordingRuntimeComponent : WowRuntimeComponent {
         val forceStopCount = AtomicInteger()
 
-        override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-            RuntimeOwnershipClaim.shared(this)
+        override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
 
         override fun prepare(runtimeContext: RuntimeContext) = Unit
 
@@ -333,8 +352,7 @@ class RuntimeComponentRegistryTest {
         Ordered {
         val forceStopCount = AtomicInteger()
 
-        override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-            RuntimeOwnershipClaim.shared(this)
+        override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
 
         override fun prepare(runtimeContext: RuntimeContext) = Unit
 
@@ -350,8 +368,7 @@ class RuntimeComponentRegistryTest {
     }
 
     private class RecursiveRuntimeComponent : WowRuntimeComponent {
-        override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-            RuntimeOwnershipClaim.shared(this)
+        override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
 
         override fun prepare(runtimeContext: RuntimeContext) = Unit
 

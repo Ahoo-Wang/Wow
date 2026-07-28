@@ -15,10 +15,21 @@ package me.ahoo.wow.runtime.internal
 
 import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.RuntimeContext
-import me.ahoo.wow.runtime.RuntimeOwnershipClaim
+import me.ahoo.wow.runtime.RuntimeOwnership
 import reactor.core.publisher.Mono
 import java.lang.ref.ReferenceQueue
 import java.lang.ref.WeakReference
+
+/**
+ * Internal transactional ownership claim.
+ */
+internal interface RuntimeOwnershipClaim {
+    val component: RuntimeComponent
+
+    fun commit()
+
+    fun rollback()
+}
 
 /**
  * Transactional ownership state for a lifecycle that has exactly one driver.
@@ -152,12 +163,6 @@ internal object RuntimeExclusiveOwnershipRegistry {
                 }
         }
 
-    private fun buildOwnerDescription(
-        ownerKind: String,
-        owner: Any,
-    ): String =
-        "$ownerKind[${owner.javaClass.name}@${System.identityHashCode(owner).toString(16)}]"
-
     private fun removeStaleOwners() {
         while (true) {
             val stale = staleOwners.poll() as? IdentityWeakReference ?: return
@@ -166,15 +171,41 @@ internal object RuntimeExclusiveOwnershipRegistry {
     }
 }
 
+/**
+ * Component-local default ownership state. Keeping this state in the stable
+ * public handle avoids a process-wide registry for normal runtime components.
+ */
+internal class StableExclusiveRuntimeOwnership {
+    private val monitor = Any()
+    private var owner: RuntimeComponent? = null
+    private var ownership: TransactionalExclusiveRuntimeOwnership? = null
+
+    fun claim(component: RuntimeComponent): RuntimeOwnershipClaim {
+        val componentOwnership = synchronized(monitor) {
+            val currentOwner = owner
+            check(currentOwner == null || currentOwner === component) {
+                "RuntimeOwnership must be retained by exactly one RuntimeComponent."
+            }
+            if (currentOwner == null) {
+                owner = component
+            }
+            ownership
+                ?: TransactionalExclusiveRuntimeOwnership(
+                    ownerDescription = buildOwnerDescription(
+                        ownerKind = "RuntimeComponent",
+                        owner = component,
+                    ),
+                ).also { ownership = it }
+        }
+        return claimExclusiveRuntimeOwnership(component, componentOwnership)
+    }
+}
+
 internal fun claimExclusiveRuntimeOwnership(
     component: RuntimeComponent,
+    ownership: TransactionalExclusiveRuntimeOwnership,
 ): RuntimeOwnershipClaim {
-    val claim = RuntimeExclusiveOwnershipRegistry
-        .ownershipFor(
-            owner = component,
-            ownerKind = "RuntimeComponent",
-        )
-        .claim()
+    val claim = ownership.claim()
     return object : RuntimeOwnershipClaim {
         override val component: RuntimeComponent =
             ExclusiveOwnerBoundRuntimeComponent(component, claim)
@@ -193,8 +224,8 @@ private class ExclusiveOwnerBoundRuntimeComponent(
     private val delegate: RuntimeComponent,
     private val claim: TransactionalExclusiveRuntimeOwnership.Claim,
 ) : RuntimeComponent {
-    override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-        error("An owner-bound runtime component cannot be claimed again.")
+    override val runtimeOwnership: RuntimeOwnership =
+        RuntimeOwnership.unclaimable()
 
     override fun prepare(runtimeContext: RuntimeContext) {
         claim.requireActive()
@@ -244,3 +275,9 @@ private class IdentityWeakReference : WeakReference<Any> {
         return referent === other.get()
     }
 }
+
+private fun buildOwnerDescription(
+    ownerKind: String,
+    owner: Any,
+): String =
+    "$ownerKind[${owner.javaClass.name}@${System.identityHashCode(owner).toString(16)}]"

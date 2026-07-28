@@ -76,15 +76,17 @@ Apply the following source migrations:
    dispatcher may be adapted only when it implements a real, prompt
    `ForceStoppable` cancellation path. Other non-dispatcher Spring participants
    must implement `WowRuntimeComponent`. Custom components are exclusively
-   owned by one runtime instance by default; do not override
-   `claimRuntimeOwnership`. Use `RuntimeOwnershipClaim.shared(this)` only for a
-   genuinely reentrant component whose lifecycle and resources are safe under
-   multiple concurrent runtime owners.
+   owned by one runtime instance. Create one `RuntimeOwnership` handle and retain
+   it for the component's complete lifetime. Ownership claims and their
+   commit/rollback transaction are runtime-internal; public shared ownership is
+   no longer supported.
 
    ```kotlin
    class CustomRuntimeComponent : WowRuntimeComponent {
+       override val runtimeOwnership = RuntimeOwnership()
+
        override fun prepare(runtimeContext: RuntimeContext) {
-           runtimeContext.onClose(::closeIntake)
+           runtimeContext.onAdmissionClose(::closeIntake)
        }
 
        override fun start() = openIntake()
@@ -95,8 +97,9 @@ Apply the following source migrations:
 
    Acquire a `RuntimeActivity` with `RuntimeContext.tryAcquire()` before
    accepting each asynchronous operation and close it only when the complete
-   chain terminates. Use `onClose` for the intake barrier and `reportFailure`
-   for fatal pipeline errors.
+   chain terminates. Use `onAdmissionClose` for the graceful intake barrier and
+   `reportFailure` for fatal pipeline errors. Hard force-stop may cancel a queued
+   intake callback, so `forceStop` must close intake synchronously.
 4. Runtime-owned Spring beans must be singletons, and their declared bean return
    type must expose `MessageDispatcher`, `WowRuntimeComponent`, or the concrete
    implementation. Remove Spring `Lifecycle`/`SmartLifecycle`,

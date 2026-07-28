@@ -27,8 +27,9 @@ import me.ahoo.wow.runtime.RuntimeContext
  * Implementations must keep construction inert: acquire resources and subscribe
  * to message sources from `prepare`/`start`, after the canonical runtime owns the
  * dispatcher. Long-lived asynchronous work must acquire a [RuntimeActivity] from
- * the provided [RuntimeContext], register intake closure with `onClose`, and
- * report terminal pipeline failures with `reportFailure`.
+ * the provided [RuntimeContext], register intake closure with
+ * `onAdmissionClose`, and report terminal pipeline failures with
+ * `reportFailure`.
  */
 interface MessageDispatcher :
     Lifecycle,

@@ -90,7 +90,8 @@ class RuntimeLifecycleAdapterTest {
         val adapter = newAdapter()
         val claimFailure = IllegalStateException("claim")
         val failingComponent = object : RuntimeComponent {
-            override fun claimRuntimeOwnership(): RuntimeOwnershipClaim = throw claimFailure
+            override val runtimeOwnership: RuntimeOwnership =
+                RuntimeOwnership.managed { throw claimFailure }
 
             override fun prepare(runtimeContext: RuntimeContext) = Unit
 

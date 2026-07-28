@@ -16,7 +16,7 @@ package me.ahoo.wow.spring
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.RuntimeContext
-import me.ahoo.wow.runtime.RuntimeOwnershipClaim
+import me.ahoo.wow.runtime.RuntimeOwnership
 import me.ahoo.wow.runtime.WowRuntime
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -36,25 +36,52 @@ import java.util.concurrent.atomic.AtomicReference
 class WowRuntimeLifecycleTest {
 
     @Test
+    fun `construction is inert and does not claim termination control`() {
+        val runtime = WowRuntime(emptyList(), Duration.ofSeconds(1), Duration.ZERO)
+        val terminated = CountDownLatch(1)
+        WowRuntimeLifecycle(runtime)
+
+        val control = runtime.claimTerminationControl {
+            terminated.countDown()
+        }
+        runtime.forceStop()
+
+        terminated.await(1, TimeUnit.SECONDS).assert().isTrue()
+        control.dispose()
+    }
+
+    @Test
+    fun `synchronous stop before start terminates the one shot lifecycle`() {
+        val lifecycle = WowRuntimeLifecycle(
+            WowRuntime(emptyList(), Duration.ofSeconds(1), Duration.ZERO),
+        )
+
+        lifecycle.stop()
+
+        lifecycle.isRunning.assert().isFalse()
+        assertThrows<IllegalStateException>(lifecycle::start)
+    }
+
+    @Test
+    fun `callback stop before start completes through lazy termination control`() {
+        val lifecycle = WowRuntimeLifecycle(
+            WowRuntime(emptyList(), Duration.ofSeconds(1), Duration.ZERO),
+        )
+        val stopped = CountDownLatch(1)
+
+        lifecycle.stop(stopped::countDown)
+
+        stopped.await(1, TimeUnit.SECONDS).assert().isTrue()
+        lifecycle.isRunning.assert().isFalse()
+    }
+
+    @Test
     fun `public termination observers cannot starve lifecycle control plane`() {
         val observerWorkers = 8
         val observersEntered = CountDownLatch(observerWorkers)
         val releaseObservers = CountDownLatch(1)
         val blockerRuntime = WowRuntime(emptyList(), Duration.ofSeconds(1), Duration.ZERO)
         blockerRuntime.start()
-        repeat(observerWorkers) {
-            blockerRuntime.terminationSignal.subscribe(
-                {},
-                {},
-                {
-                    observersEntered.countDown()
-                    releaseObservers.await()
-                },
-            )
-        }
-        blockerRuntime.forceStop()
-        observersEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
-
         val stopGate = Sinks.empty<Void>()
         val controlledRuntime = WowRuntime(
             listOf(RecordingLifecycle(stopGate)),
@@ -64,6 +91,19 @@ class WowRuntimeLifecycleTest {
         val lifecycle = WowRuntimeLifecycle(controlledRuntime)
         val stopped = CountDownLatch(1)
         try {
+            repeat(observerWorkers) {
+                blockerRuntime.terminationSignal.subscribe(
+                    {},
+                    {},
+                    {
+                        observersEntered.countDown()
+                        releaseObservers.await()
+                    },
+                )
+            }
+            blockerRuntime.forceStop()
+            observersEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
+
             lifecycle.start()
             lifecycle.stop(stopped::countDown)
             stopGate.tryEmitEmpty().orThrow()
@@ -71,6 +111,7 @@ class WowRuntimeLifecycleTest {
             stopped.await(1, TimeUnit.SECONDS).assert().isTrue()
         } finally {
             releaseObservers.countDown()
+            blockerRuntime.forceStop()
             controlledRuntime.forceStop()
         }
     }
@@ -122,8 +163,7 @@ class WowRuntimeLifecycleTest {
         val releaseStart = CountDownLatch(1)
         val stopped = CountDownLatch(1)
         val component = object : RuntimeComponent {
-            override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-                RuntimeOwnershipClaim.shared(this)
+            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
 
             override fun prepare(runtimeContext: RuntimeContext) = Unit
 
@@ -221,8 +261,7 @@ class WowRuntimeLifecycleTest {
     ) : RuntimeComponent {
         val startCount = AtomicInteger()
 
-        override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-            RuntimeOwnershipClaim.shared(this)
+        override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
 
         override fun prepare(runtimeContext: RuntimeContext) = Unit
 

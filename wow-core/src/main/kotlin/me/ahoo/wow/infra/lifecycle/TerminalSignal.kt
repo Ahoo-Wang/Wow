@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.runtime.internal
+package me.ahoo.wow.infra.lifecycle
 
 import org.reactivestreams.Subscription
 import reactor.core.CoreSubscriber
@@ -32,17 +32,11 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * Process-wide bounded delivery boundary for runtime terminal subscribers.
+ * Process-wide bounded delivery boundary for lifecycle terminal subscribers.
  */
-internal object RuntimeTerminationSignal {
-    val dispatcher: RuntimeTerminationDispatcher =
-        newRuntimeTerminationDispatcher("wow-runtime-termination")
-    val controlDispatcher: RuntimeTerminationDispatcher =
-        newRuntimeTerminationDispatcher(
-            threadNamePrefix = "wow-runtime-termination-control",
-            threadCap = TERMINATION_CONTROL_THREAD_CAP,
-            queuedTaskCapacity = TERMINATION_CONTROL_QUEUE_CAPACITY,
-        )
+internal object TerminalSignal {
+    val dispatcher: TerminalSignalDispatcher =
+        newTerminalSignalDispatcher("wow-terminal-signal")
     val rejectedSubscriberCount = AtomicLong()
     val droppedNotificationCount = AtomicLong()
 }
@@ -52,13 +46,13 @@ internal object RuntimeTerminationSignal {
  *
  * The underlying task queue is used exclusively by this dispatcher. Therefore
  * an acquired permit guarantees one terminal task can be accepted later,
- * without executing user code on the runtime completion thread.
+ * without executing user code on the source completion thread.
  */
-internal interface RuntimeTerminationDispatcher : Disposable {
-    fun tryAcquire(): RuntimeTerminationPermit?
+internal interface TerminalSignalDispatcher : Disposable {
+    fun tryAcquire(): TerminalSignalPermit?
 }
 
-internal interface RuntimeTerminationPermit : Disposable {
+internal interface TerminalSignalPermit : Disposable {
     fun dispatch(action: Runnable): Boolean
 
     fun onDispatcherDisposed(action: Runnable)
@@ -73,26 +67,25 @@ internal interface RuntimeTerminationPermit : Disposable {
  * subscription thread; an admitted subscriber either receives the original
  * terminal signal or explicitly cancels.
  */
-internal fun Mono<Void>.publishRuntimeTermination(
-    dispatcher: RuntimeTerminationDispatcher = RuntimeTerminationSignal.dispatcher,
+internal fun Mono<Void>.publishTerminalSignal(
+    dispatcher: TerminalSignalDispatcher = TerminalSignal.dispatcher,
 ): Mono<Void> =
-    RuntimeTerminationMono(this, dispatcher)
+    TerminalSignalMono(this, dispatcher)
 
 /**
  * Installs one trusted control-plane callback on an already isolated
  * dispatcher. Admission failure is reported to the claimant synchronously.
  */
 @Suppress("TooGenericExceptionCaught")
-internal fun Mono<Void>.subscribeRuntimeTermination(
-    dispatcher: RuntimeTerminationDispatcher,
+internal fun Mono<Void>.subscribeTerminalSignal(
+    dispatcher: TerminalSignalDispatcher,
     onTermination: (Throwable?) -> Unit,
+    rejectionMessage: String = "The process-wide Wow terminal signal dispatcher is saturated.",
 ): Disposable {
     val permit = dispatcher.tryAcquire()
-        ?: throw RejectedExecutionException(
-            "The process-wide Wow runtime termination control dispatcher is saturated.",
-        )
-    val subscriber = RuntimeTerminationSubscriber(
-        actual = RuntimeTerminationCallbackSubscriber(onTermination),
+        ?: throw RejectedExecutionException(rejectionMessage)
+    val subscriber = TerminalSignalSubscriber(
+        actual = TerminalSignalCallbackSubscriber(onTermination),
         permit = permit,
     )
     try {
@@ -104,24 +97,24 @@ internal fun Mono<Void>.subscribeRuntimeTermination(
     return subscriber
 }
 
-private class RuntimeTerminationMono(
+private class TerminalSignalMono(
     private val source: Mono<Void>,
-    private val dispatcher: RuntimeTerminationDispatcher,
+    private val dispatcher: TerminalSignalDispatcher,
 ) : Mono<Void>() {
     @Suppress("TooGenericExceptionCaught")
     override fun subscribe(actual: CoreSubscriber<in Void>) {
         val permit = dispatcher.tryAcquire()
         if (permit == null) {
-            RuntimeTerminationSignal.rejectedSubscriberCount.incrementAndGet()
+            TerminalSignal.rejectedSubscriberCount.incrementAndGet()
             Operators.error(
                 actual,
                 RejectedExecutionException(
-                    "The process-wide Wow runtime termination dispatcher is saturated.",
+                    "The process-wide Wow terminal signal dispatcher is saturated.",
                 ),
             )
             return
         }
-        val subscriber = RuntimeTerminationSubscriber(actual, permit)
+        val subscriber = TerminalSignalSubscriber(actual, permit)
         try {
             source.subscribe(subscriber)
         } catch (error: Throwable) {
@@ -131,9 +124,9 @@ private class RuntimeTerminationMono(
     }
 }
 
-private class RuntimeTerminationSubscriber(
+private class TerminalSignalSubscriber(
     actual: CoreSubscriber<in Void>,
-    private val permit: RuntimeTerminationPermit,
+    private val permit: TerminalSignalPermit,
 ) : CoreSubscriber<Void>,
     Subscription,
     Disposable {
@@ -207,7 +200,7 @@ private class RuntimeTerminationSubscriber(
         if (accepted) {
             return
         }
-        RuntimeTerminationSignal.droppedNotificationCount.incrementAndGet()
+        TerminalSignal.droppedNotificationCount.incrementAndGet()
         actual.set(null)
         cancelUpstreamAndReleasePermit()
     }
@@ -221,7 +214,7 @@ private class RuntimeTerminationSubscriber(
     }
 }
 
-private class RuntimeTerminationCallbackSubscriber(
+private class TerminalSignalCallbackSubscriber(
     private val onTermination: (Throwable?) -> Unit,
 ) : CoreSubscriber<Void> {
     override fun currentContext(): Context = Context.empty()
@@ -245,20 +238,20 @@ private class RuntimeTerminationCallbackSubscriber(
  * Creates a bounded daemon dispatcher whose logical queue is limited by
  * admission permits rather than by terminal-time rejection.
  */
-internal fun newRuntimeTerminationDispatcher(
+internal fun newTerminalSignalDispatcher(
     threadNamePrefix: String,
-    threadCap: Int = TERMINATION_THREAD_CAP,
-    queuedTaskCapacity: Int = TERMINATION_QUEUE_CAPACITY,
-): RuntimeTerminationDispatcher =
-    BoundedRuntimeTerminationDispatcher(
+    threadCap: Int = TERMINAL_SIGNAL_THREAD_CAP,
+    queuedTaskCapacity: Int = TERMINAL_SIGNAL_QUEUE_CAPACITY,
+): TerminalSignalDispatcher =
+    BoundedTerminalSignalDispatcher(
         threadNamePrefix = threadNamePrefix,
         threadCap = threadCap,
         queuedTaskCapacity = queuedTaskCapacity,
     )
 
-internal object ImmediateRuntimeTerminationDispatcher : RuntimeTerminationDispatcher {
-    override fun tryAcquire(): RuntimeTerminationPermit =
-        object : RuntimeTerminationPermit {
+internal object ImmediateTerminalSignalDispatcher : TerminalSignalDispatcher {
+    override fun tryAcquire(): TerminalSignalPermit =
+        object : TerminalSignalPermit {
             private val disposed = AtomicBoolean()
 
             override fun dispatch(action: Runnable): Boolean {
@@ -287,11 +280,11 @@ internal object ImmediateRuntimeTerminationDispatcher : RuntimeTerminationDispat
     override fun isDisposed(): Boolean = false
 }
 
-private class BoundedRuntimeTerminationDispatcher(
+private class BoundedTerminalSignalDispatcher(
     threadNamePrefix: String,
     threadCap: Int,
     queuedTaskCapacity: Int,
-) : RuntimeTerminationDispatcher {
+) : TerminalSignalDispatcher {
     private val lifecycleMonitor = Any()
     private val disposed = AtomicBoolean()
     private val permits: Semaphore
@@ -309,17 +302,17 @@ private class BoundedRuntimeTerminationDispatcher(
         permits = Semaphore(capacity, true)
         executor = ScheduledThreadPoolExecutor(
             threadCap,
-            RuntimeTerminationThreadFactory(threadNamePrefix),
+            TerminalSignalThreadFactory(threadNamePrefix),
         ).apply {
             removeOnCancelPolicy = true
-            setKeepAliveTime(TERMINATION_THREAD_TTL_SECONDS, TimeUnit.SECONDS)
+            setKeepAliveTime(TERMINAL_SIGNAL_THREAD_TTL_SECONDS, TimeUnit.SECONDS)
             allowCoreThreadTimeOut(true)
             setExecuteExistingDelayedTasksAfterShutdownPolicy(false)
             setContinueExistingPeriodicTasksAfterShutdownPolicy(false)
         }
     }
 
-    override fun tryAcquire(): RuntimeTerminationPermit? =
+    override fun tryAcquire(): TerminalSignalPermit? =
         synchronized(lifecycleMonitor) {
             if (disposed.get() || !permits.tryAcquire()) {
                 return@synchronized null
@@ -350,9 +343,9 @@ private class BoundedRuntimeTerminationDispatcher(
 
     override fun isDisposed(): Boolean = disposed.get()
 
-    private inner class Permit : RuntimeTerminationPermit {
+    private inner class Permit : TerminalSignalPermit {
         private val monitor = Any()
-        private var state = RuntimeTerminationPermitState.ACTIVE
+        private var state = TerminalSignalPermitState.ACTIVE
         private var future: ScheduledFuture<*>? = null
         private var dispatcherDisposed = false
         private var dispatcherDisposalAction: Runnable? = null
@@ -360,10 +353,10 @@ private class BoundedRuntimeTerminationDispatcher(
         @Suppress("TooGenericExceptionCaught")
         override fun dispatch(action: Runnable): Boolean {
             val schedulingFailure = synchronized(monitor) {
-                if (state != RuntimeTerminationPermitState.ACTIVE) {
+                if (state != TerminalSignalPermitState.ACTIVE) {
                     return false
                 }
-                state = RuntimeTerminationPermitState.DISPATCHED
+                state = TerminalSignalPermitState.DISPATCHED
                 try {
                     future = executor.schedule(
                         { runDispatched(action) },
@@ -372,7 +365,7 @@ private class BoundedRuntimeTerminationDispatcher(
                     )
                     return true
                 } catch (error: Throwable) {
-                    state = RuntimeTerminationPermitState.RELEASED
+                    state = TerminalSignalPermitState.RELEASED
                     future = null
                     dispatcherDisposalAction = null
                     error
@@ -403,23 +396,23 @@ private class BoundedRuntimeTerminationDispatcher(
             synchronized(monitor) {
                 dispatcherDisposalAction = null
                 when (state) {
-                    RuntimeTerminationPermitState.ACTIVE -> {
-                        state = RuntimeTerminationPermitState.RELEASED
+                    TerminalSignalPermitState.ACTIVE -> {
+                        state = TerminalSignalPermitState.RELEASED
                         shouldReleasePermit = true
                     }
 
-                    RuntimeTerminationPermitState.DISPATCHED -> {
-                        state = RuntimeTerminationPermitState.RELEASED
+                    TerminalSignalPermitState.DISPATCHED -> {
+                        state = TerminalSignalPermitState.RELEASED
                         cancelledFuture = future
                         future = null
                         shouldReleasePermit = true
                     }
 
-                    RuntimeTerminationPermitState.RUNNING ->
-                        state = RuntimeTerminationPermitState.CANCELLED_RUNNING
+                    TerminalSignalPermitState.RUNNING ->
+                        state = TerminalSignalPermitState.CANCELLED_RUNNING
 
-                    RuntimeTerminationPermitState.CANCELLED_RUNNING,
-                    RuntimeTerminationPermitState.RELEASED,
+                    TerminalSignalPermitState.CANCELLED_RUNNING,
+                    TerminalSignalPermitState.RELEASED,
                     -> Unit
                 }
             }
@@ -431,14 +424,14 @@ private class BoundedRuntimeTerminationDispatcher(
 
         override fun isDisposed(): Boolean =
             synchronized(monitor) {
-                state == RuntimeTerminationPermitState.CANCELLED_RUNNING ||
-                    state == RuntimeTerminationPermitState.RELEASED
+                state == TerminalSignalPermitState.CANCELLED_RUNNING ||
+                    state == TerminalSignalPermitState.RELEASED
             }
 
         private fun runDispatched(action: Runnable) {
             val shouldRun = synchronized(monitor) {
-                if (state == RuntimeTerminationPermitState.DISPATCHED) {
-                    state = RuntimeTerminationPermitState.RUNNING
+                if (state == TerminalSignalPermitState.DISPATCHED) {
+                    state = TerminalSignalPermitState.RUNNING
                     true
                 } else {
                     false
@@ -451,7 +444,7 @@ private class BoundedRuntimeTerminationDispatcher(
                 action.run()
             } finally {
                 synchronized(monitor) {
-                    state = RuntimeTerminationPermitState.RELEASED
+                    state = TerminalSignalPermitState.RELEASED
                     future = null
                     dispatcherDisposalAction = null
                 }
@@ -467,23 +460,23 @@ private class BoundedRuntimeTerminationDispatcher(
                 val action = dispatcherDisposalAction
                 dispatcherDisposalAction = null
                 when (state) {
-                    RuntimeTerminationPermitState.ACTIVE -> {
-                        state = RuntimeTerminationPermitState.RELEASED
+                    TerminalSignalPermitState.ACTIVE -> {
+                        state = TerminalSignalPermitState.RELEASED
                         shouldReleasePermit = true
                     }
 
-                    RuntimeTerminationPermitState.DISPATCHED -> {
-                        state = RuntimeTerminationPermitState.RELEASED
+                    TerminalSignalPermitState.DISPATCHED -> {
+                        state = TerminalSignalPermitState.RELEASED
                         cancelledFuture = future
                         future = null
                         shouldReleasePermit = true
                     }
 
-                    RuntimeTerminationPermitState.RUNNING ->
-                        state = RuntimeTerminationPermitState.CANCELLED_RUNNING
+                    TerminalSignalPermitState.RUNNING ->
+                        state = TerminalSignalPermitState.CANCELLED_RUNNING
 
-                    RuntimeTerminationPermitState.CANCELLED_RUNNING,
-                    RuntimeTerminationPermitState.RELEASED,
+                    TerminalSignalPermitState.CANCELLED_RUNNING,
+                    TerminalSignalPermitState.RELEASED,
                     -> Unit
                 }
                 action
@@ -506,7 +499,7 @@ private class BoundedRuntimeTerminationDispatcher(
     }
 }
 
-private enum class RuntimeTerminationPermitState {
+private enum class TerminalSignalPermitState {
     ACTIVE,
     DISPATCHED,
     RUNNING,
@@ -514,7 +507,7 @@ private enum class RuntimeTerminationPermitState {
     RELEASED,
 }
 
-private class RuntimeTerminationThreadFactory(
+private class TerminalSignalThreadFactory(
     private val threadNamePrefix: String,
 ) : ThreadFactory {
     private val threadId = AtomicInteger()
@@ -528,8 +521,6 @@ private class RuntimeTerminationThreadFactory(
         }
 }
 
-private const val TERMINATION_THREAD_CAP: Int = 8
-private const val TERMINATION_QUEUE_CAPACITY: Int = 256
-private const val TERMINATION_CONTROL_THREAD_CAP: Int = 4
-private const val TERMINATION_CONTROL_QUEUE_CAPACITY: Int = 256
-private const val TERMINATION_THREAD_TTL_SECONDS: Long = 60
+private const val TERMINAL_SIGNAL_THREAD_CAP: Int = 8
+private const val TERMINAL_SIGNAL_QUEUE_CAPACITY: Int = 256
+private const val TERMINAL_SIGNAL_THREAD_TTL_SECONDS: Long = 60

@@ -23,7 +23,7 @@ import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
 import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.RuntimeContext
-import me.ahoo.wow.runtime.RuntimeOwnershipClaim
+import me.ahoo.wow.runtime.RuntimeOwnership
 import me.ahoo.wow.runtime.internal.RuntimeComponentGroup
 import me.ahoo.wow.runtime.internal.compat.StandaloneRuntimeOwner
 import me.ahoo.wow.runtime.internal.compat.forceStopOrScheduleGracefulCleanup
@@ -150,8 +150,8 @@ open class CompositeEventDispatcher(
      *
      * This method ensures that both underlying dispatchers are started and ready to process events.
      */
-    final override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
-        lifecycleOwner.claimExternalOwnership()
+    final override val runtimeOwnership: RuntimeOwnership
+        get() = lifecycleOwner.runtimeOwnership
 
     final override fun prepare(runtimeContext: RuntimeContext) {
         lifecycleOwner.prepare(runtimeContext)
