@@ -41,6 +41,110 @@ Before upgrading, check the following:
 2. **Configuration Changes**: Check for configuration property changes
 3. **Metadata Changes**: Regenerate metadata files
 
+## Unified Runtime Orchestration
+
+This release replaces independent dispatcher launchers with one one-shot
+`WowRuntime`. The runtime prepares every component before opening message
+processing, tracks global activity, and stops components in reverse order under
+one shared deadline. This is an intentional lifecycle extension break; event,
+snapshot, and message formats are unchanged.
+
+Apply the following source migrations:
+
+1. Subclasses of `MainDispatcher`, `AggregateDispatcher`, or
+   `CompositeEventDispatcher` must move lifecycle customization from the public
+   methods to the corresponding protected hooks:
+
+   | Previous override | Replacement hook |
+   | --- | --- |
+   | `prepare(RuntimeContext)` | `prepareManaged(RuntimeContext)` |
+   | `start()` | `startManaged()` |
+   | `stopGracefully()` | `stopManagedGracefully()` |
+   | `forceStop()` | `forceStopManaged()` |
+
+   The public lifecycle methods are now final templates. Recompile every
+   dispatcher subclass; previously compiled subclasses that override those
+   methods are not binary compatible.
+2. Remove `MessageDispatcherLauncher` beans and launcher injections from
+   Starter applications. The deprecated launcher classes remain available only
+   for direct `wow-spring` compatibility; registering one beside the Starter's
+   canonical `WowRuntimeLifecycle` fails application-context refresh. Do not
+   replace, rename, or duplicate the canonical `wowRuntime` and
+   `wowRuntimeLifecycle` beans; add participants through
+   `WowRuntimeComponent`.
+3. A custom `MessageDispatcher` should implement `RuntimeComponent`. A legacy
+   dispatcher may be adapted only when it implements a real, prompt
+   `ForceStoppable` cancellation path. Other non-dispatcher Spring participants
+   must implement `WowRuntimeComponent`. Custom components are exclusively
+   owned by one runtime instance by default; do not override
+   `claimRuntimeOwnership`. Use `RuntimeOwnershipClaim.shared(this)` only for a
+   genuinely reentrant component whose lifecycle and resources are safe under
+   multiple concurrent runtime owners.
+
+   ```kotlin
+   class CustomRuntimeComponent : WowRuntimeComponent {
+       override fun prepare(runtimeContext: RuntimeContext) {
+           runtimeContext.onClose(::closeIntake)
+       }
+
+       override fun start() = openIntake()
+       override fun stopGracefully(): Mono<Void> = drainAndClose()
+       override fun forceStop() = closeIntake()
+   }
+   ```
+
+   Acquire a `RuntimeActivity` with `RuntimeContext.tryAcquire()` before
+   accepting each asynchronous operation and close it only when the complete
+   chain terminates. Use `onClose` for the intake barrier and `reportFailure`
+   for fatal pipeline errors.
+4. Runtime-owned Spring beans must be singletons, and their declared bean return
+   type must expose `MessageDispatcher`, `WowRuntimeComponent`, or the concrete
+   implementation. Remove Spring `Lifecycle`/`SmartLifecycle`,
+   `DisposableBean`, `@PreDestroy`, and explicit destroy methods from these
+   beans: `WowRuntime` is their only lifecycle owner. Scoped proxies and
+   non-static AOP target sources are unsupported. Static proxies are resolved to
+   their stable target, so lifecycle advice on the proxy is not invoked. Bean
+   constructors, factory methods, and `@PostConstruct` must remain inert;
+   acquire runtime-owned resources only from `prepare` or `start`.
+5. If the application replaces Spring's bean named `lifecycleProcessor`, it
+   must remain a `DefaultLifecycleProcessor`; Wow configures the runtime phase
+   timeout on that processor. Runtime components share one Spring ordering
+   sequence: startup follows `@Order`, and shutdown reverses it. A custom
+   ingress `SmartLifecycle` must use a phase greater than
+   `WOW_RUNTIME_PHASE`, so ingress starts after runtime readiness and stops
+   before the runtime.
+6. For a `FactoryBean`, Spring still destroys the factory itself. Its runtime
+   product is stopped only by `WowRuntime`; product `close` or `@PreDestroy`
+   must not be a second cleanup path. Starter registry, ownership validator, and
+   lifecycle-processor customizer types are infrastructure, not extension SPIs.
+
+Review the shutdown configuration and behavior:
+
+- `wow.shutdown-timeout` is now the deadline for quiescing and stopping the
+  complete runtime, rather than a separate allowance for each dispatcher.
+- `wow.shutdown-quiet-period` is new and defaults to `1s`. It must be
+  non-negative and strictly shorter than `wow.shutdown-timeout`; both durations
+  must fit in signed 64-bit nanoseconds.
+- The runtime, `AutoRegistrar`, dispatcher resources, and batch coordinators
+  that reach terminal shutdown are one-shot. Recreate the Spring
+  `ApplicationContext` instead of stopping and restarting it.
+- Runtime termination signals may complete with the original pipeline error.
+  Each subscriber reserves bounded asynchronous-delivery capacity when it
+  subscribes; an over-capacity subscriber receives
+  `RejectedExecutionException` immediately on that subscription thread.
+  Admitted callbacks never run on the runtime completion thread, but must still
+  return promptly or offload blocking work. In Starter applications,
+  `WowRuntimeLifecycle` exclusively claims a separate bounded control lane
+  before startup. Public observer saturation cannot starve Spring stop
+  completion; an unexpected fatal runtime termination closes the application
+  context.
+
+Before deployment, compile all custom dispatcher subclasses and run
+application-context startup and graceful-shutdown tests with the production
+timeout values. No data migration is required. To roll back, stop the new
+application context completely and deploy the previous binaries and launcher
+configuration; do not try to restart a context whose runtime has terminated.
+
 ## Versioned Snapshot Checkpoint Removal
 
 The versioned snapshot checkpoint capability introduced in v8.9.0 has been removed without a compatibility layer.

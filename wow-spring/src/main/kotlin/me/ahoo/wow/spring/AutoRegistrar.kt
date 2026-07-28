@@ -16,54 +16,108 @@ package me.ahoo.wow.spring
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.context.ApplicationContext
 import org.springframework.context.SmartLifecycle
-import org.springframework.context.SmartLifecycle.DEFAULT_PHASE
-import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * must before Launcher
- * @see MessageDispatcherLauncher
+ * Must complete before the Wow runtime readiness barrier opens.
+ * @see WowRuntimeLifecycle
  */
-const val AUTO_REGISTRAR_PHASE = DEFAULT_PHASE - 100
+const val AUTO_REGISTRAR_PHASE = WOW_RUNTIME_PHASE - 1024
 
 abstract class AutoRegistrar<CM : Annotation>(
     private val componentType: Class<CM>,
     private val applicationContext: ApplicationContext
 ) : SmartLifecycle {
+    private enum class State {
+        NEW,
+        STARTING,
+        RUNNING,
+        TERMINATED,
+    }
+
     companion object {
         private val log = KotlinLogging.logger {}
     }
 
-    private val running = AtomicBoolean(false)
+    private val lifecycleMonitor = Any()
 
+    @Volatile
+    private var state = State.NEW
+
+    @Suppress("TooGenericExceptionCaught")
     override fun start() {
+        val shouldStart = synchronized(lifecycleMonitor) {
+            when (state) {
+                State.NEW -> {
+                    state = State.STARTING
+                    true
+                }
+
+                State.RUNNING -> false
+                State.STARTING -> error("Lifecycle monitor must serialize component registration.")
+                State.TERMINATED -> restartNotSupported()
+            }
+        }
+        if (!shouldStart) {
+            return
+        }
         log.info {
             "Start registering component:${componentType.simpleName}."
         }
-        if (!running.compareAndSet(false, true)) {
-            return
-        }
-        val components = applicationContext.getBeansWithAnnotation(componentType)
-        components.forEach { entry ->
-            val component = entry.value
-            log.debug {
-                "Registering Component [$component]."
+        try {
+            val components = applicationContext.getBeansWithAnnotation(componentType)
+            components.forEach { entry ->
+                val component = entry.value
+                log.debug {
+                    "Registering Component [$component]."
+                }
+                register(component)
             }
-            register(component)
+            synchronized(lifecycleMonitor) {
+                check(state == State.STARTING) {
+                    "Lifecycle state changed while components were being registered: $state."
+                }
+                state = State.RUNNING
+            }
+        } catch (error: Throwable) {
+            synchronized(lifecycleMonitor) {
+                state = State.TERMINATED
+            }
+            throw error
         }
     }
 
     abstract fun register(component: Any)
 
     override fun stop() {
-        log.info {
-            "Stop ${componentType.simpleName}."
+        val stopped = synchronized(lifecycleMonitor) {
+            when (state) {
+                State.NEW,
+                State.RUNNING,
+                -> {
+                    state = State.TERMINATED
+                    true
+                }
+
+                State.TERMINATED -> false
+                State.STARTING -> error("Lifecycle monitor must serialize component registration and shutdown.")
+            }
         }
-        running.compareAndSet(true, false)
+        if (stopped) {
+            log.info {
+                "Stop ${componentType.simpleName}."
+            }
+        }
     }
 
-    override fun isRunning(): Boolean {
-        return running.get()
-    }
+    private fun restartNotSupported(): Nothing =
+        error(
+            "${componentType.simpleName} auto registrar is one-shot and cannot restart after shutdown. " +
+                "Create a new ApplicationContext instead.",
+        )
+
+    override fun isRunning(): Boolean = state == State.RUNNING
+
+    override fun isPauseable(): Boolean = false
 
     override fun getPhase(): Int {
         return AUTO_REGISTRAR_PHASE

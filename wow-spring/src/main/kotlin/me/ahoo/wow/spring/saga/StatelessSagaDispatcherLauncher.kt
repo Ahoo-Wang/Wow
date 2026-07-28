@@ -17,5 +17,11 @@ import me.ahoo.wow.saga.stateless.StatelessSagaDispatcher
 import me.ahoo.wow.spring.MessageDispatcherLauncher
 import java.time.Duration
 
-class StatelessSagaDispatcherLauncher(statelessSagaDispatcher: StatelessSagaDispatcher, shutdownTimeout: Duration) :
-    MessageDispatcherLauncher(statelessSagaDispatcher, shutdownTimeout)
+@Deprecated(
+    message = "Use WowRuntimeLifecycle as the single high-level runtime owner.",
+)
+@Suppress("DEPRECATION")
+class StatelessSagaDispatcherLauncher(
+    statelessSagaDispatcher: StatelessSagaDispatcher,
+    shutdownTimeout: Duration,
+) : MessageDispatcherLauncher(statelessSagaDispatcher, shutdownTimeout)

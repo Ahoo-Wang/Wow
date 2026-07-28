@@ -41,6 +41,91 @@ implementation("me.ahoo.wow:wow-spring-boot-starter:新版本号")
 2. **配置变更**：检查配置属性是否有变更
 3. **元数据变更**：重新生成元数据文件
 
+## 统一运行时编排
+
+此版本以一个 one-shot `WowRuntime` 取代各 Dispatcher 独立 launcher。运行时会先完成
+全部组件的准备再开放消息处理，统一跟踪全局活动，并在一个共享截止时间内按逆序停止
+组件。这是有意的生命周期扩展契约破坏；event、snapshot 与 message 格式没有变化。
+
+需要完成以下源码迁移：
+
+1. `MainDispatcher`、`AggregateDispatcher` 或 `CompositeEventDispatcher` 的子类必须将
+   生命周期定制从 public 方法迁移到对应的 protected hook：
+
+   | 原 override | 替代 hook |
+   | --- | --- |
+   | `prepare(RuntimeContext)` | `prepareManaged(RuntimeContext)` |
+   | `start()` | `startManaged()` |
+   | `stopGracefully()` | `stopManagedGracefully()` |
+   | `forceStop()` | `forceStopManaged()` |
+
+   public 生命周期方法现在是 final template。必须重新编译全部 Dispatcher 子类；已经
+   编译且 override 这些方法的子类不具备二进制兼容性。
+2. Starter 应用应移除 `MessageDispatcherLauncher` Bean 及对 launcher 的注入。弃用的
+   launcher 类仅为直接使用 `wow-spring` 的兼容场景保留；在 Starter 的 canonical
+   `WowRuntimeLifecycle` 之外再注册 launcher，会使 ApplicationContext refresh 失败。
+   不得替换、重命名或重复 canonical `wowRuntime` 与 `wowRuntimeLifecycle` Bean；
+   扩展组件应通过 `WowRuntimeComponent` 注册。
+3. 自定义 `MessageDispatcher` 应实现 `RuntimeComponent`。旧 Dispatcher 只有在实现
+   真实且快速的 `ForceStoppable` 取消路径时才能被适配。其他需要加入 Spring 运行时的
+   非 Dispatcher 组件必须实现 `WowRuntimeComponent`。自定义组件默认按实例由一个
+   runtime 独占，不应 override `claimRuntimeOwnership`。只有生命周期与资源确实能被
+   多个 runtime 并发驱动的可重入组件，才应显式返回
+   `RuntimeOwnershipClaim.shared(this)`。
+
+   ```kotlin
+   class CustomRuntimeComponent : WowRuntimeComponent {
+       override fun prepare(runtimeContext: RuntimeContext) {
+           runtimeContext.onClose(::closeIntake)
+       }
+
+       override fun start() = openIntake()
+       override fun stopGracefully(): Mono<Void> = drainAndClose()
+       override fun forceStop() = closeIntake()
+   }
+   ```
+
+   每次接受异步操作前应通过 `RuntimeContext.tryAcquire()` 获取
+   `RuntimeActivity`，并仅在完整异步链终止时关闭。使用 `onClose` 注册 intake barrier，
+   使用 `reportFailure` 上报致命 pipeline error。
+4. 运行时拥有的 Spring Bean 必须是 singleton，且 Bean 声明返回类型必须暴露
+   `MessageDispatcher`、`WowRuntimeComponent` 或具体实现类型。应从这些 Bean 移除
+   Spring `Lifecycle`/`SmartLifecycle`、`DisposableBean`、`@PreDestroy` 与显式
+   destroy method，由 `WowRuntime` 作为唯一生命周期所有者。不支持 scoped proxy 与
+   non-static AOP target source；static proxy 会解析到稳定 target，因此不会调用 proxy
+   上的生命周期 advice。Bean constructor、factory method 与 `@PostConstruct` 必须
+   保持 inert；只允许在 `prepare` 或 `start` 中获取由 runtime 管理的资源。
+5. 如果应用替换了 Spring 中名为 `lifecycleProcessor` 的 Bean，它必须仍是
+   `DefaultLifecycleProcessor`，Wow 会在该 processor 上配置运行时 phase timeout。
+   运行时组件共享一条 Spring 排序序列：启动遵循 `@Order`，停机采用逆序。自定义
+   ingress `SmartLifecycle` 的 phase 必须大于 `WOW_RUNTIME_PHASE`，以确保入口在
+   runtime ready 后启动、在 runtime 停机前关闭。
+6. 对于 `FactoryBean`，Spring 仍负责销毁 factory 自身；其 runtime product 只由
+   `WowRuntime` 停止，product 的 `close` 或 `@PreDestroy` 不得成为第二条清理路径。
+   Starter registry、ownership validator 与 lifecycle-processor customizer 都属于
+   infrastructure，不是扩展 SPI。
+
+还需检查停机配置与行为：
+
+- `wow.shutdown-timeout` 现在是整个运行时完成静默与停止的截止时间，不再为每个
+  Dispatcher 分别提供一段等待时间。
+- 新增 `wow.shutdown-quiet-period`，默认值为 `1s`。该值必须大于等于零且严格小于
+  `wow.shutdown-timeout`；两个 Duration 都必须能表示为 64 位有符号纳秒值。
+- runtime、`AutoRegistrar`、Dispatcher 资源，以及进入终止状态的 batch coordinator
+  都是 one-shot。停止后应重建 Spring `ApplicationContext`，而不是重新启动原 context。
+- runtime termination signal 可能携带原始 pipeline error。每个 subscriber 会在订阅时
+  预留有界异步交付容量；容量耗尽时，超额 subscriber 会立即在自己的订阅线程收到
+  `RejectedExecutionException`。已准入 callback 不会运行在 runtime completion 线程，
+  但仍必须快速返回，阻塞工作应转移到应用自有的有界 executor。在 Starter 应用中，
+  `WowRuntimeLifecycle` 会在启动前独占认领一条独立的有界控制通道；公共 observer
+  饱和不会饿死 Spring 停机完成信号。运行时意外致命终止会关闭
+  `ApplicationContext`。
+
+部署前应重新编译全部自定义 Dispatcher 子类，并用生产 timeout 配置执行
+ApplicationContext 启动与优雅停机测试。无需迁移数据。需要回滚时，应完整停止新的
+ApplicationContext，再部署旧二进制与 launcher 配置；不要尝试重启 runtime 已终止的
+context。
+
 ## 移除版本化快照检查点
 
 v8.9.0 引入的版本化快照检查点能力已被移除，且不提供兼容层。`VersionedSnapshotStore`、

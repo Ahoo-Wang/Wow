@@ -17,5 +17,11 @@ import me.ahoo.wow.projection.ProjectionDispatcher
 import me.ahoo.wow.spring.MessageDispatcherLauncher
 import java.time.Duration
 
-class ProjectionDispatcherLauncher(projectionDispatcher: ProjectionDispatcher, shutdownTimeout: Duration) :
-    MessageDispatcherLauncher(projectionDispatcher, shutdownTimeout)
+@Deprecated(
+    message = "Use WowRuntimeLifecycle as the single high-level runtime owner.",
+)
+@Suppress("DEPRECATION")
+class ProjectionDispatcherLauncher(
+    projectionDispatcher: ProjectionDispatcher,
+    shutdownTimeout: Duration,
+) : MessageDispatcherLauncher(projectionDispatcher, shutdownTimeout)

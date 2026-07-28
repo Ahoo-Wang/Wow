@@ -32,6 +32,7 @@ import me.ahoo.wow.messaging.handler.RetryableFilter
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.WowProperties
+import me.ahoo.wow.spring.boot.starter.WowRuntimeComponentOrder
 import me.ahoo.wow.spring.event.DomainEventDispatcherLauncher
 import me.ahoo.wow.spring.event.EventProcessorAutoRegistrar
 import org.springframework.beans.factory.annotation.Qualifier
@@ -39,10 +40,13 @@ import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Bean
+import org.springframework.core.annotation.Order
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
-class EventDispatcherAutoConfiguration(private val wowProperties: WowProperties) {
+class EventDispatcherAutoConfiguration(
+    private val wowProperties: WowProperties,
+) {
 
     @Bean
     fun domainEventHandlerRegistrar(): DomainEventFunctionRegistrar {
@@ -95,6 +99,7 @@ class EventDispatcherAutoConfiguration(private val wowProperties: WowProperties)
 
     @Bean
     @ConditionalOnMissingBean
+    @Order(WowRuntimeComponentOrder.EVENT)
     fun domainEventDispatcher(
         @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         namedBoundedContext: NamedBoundedContext,
@@ -112,9 +117,13 @@ class EventDispatcherAutoConfiguration(private val wowProperties: WowProperties)
         )
     }
 
-    @Bean
-    @ConditionalOnMissingBean
-    fun domainEventDispatcherLauncher(domainEventDispatcher: DomainEventDispatcher): DomainEventDispatcherLauncher {
+    @Deprecated(
+        message = "Dispatchers are owned by the canonical WowRuntimeLifecycle.",
+    )
+    @Suppress("DEPRECATION")
+    fun domainEventDispatcherLauncher(
+        domainEventDispatcher: DomainEventDispatcher,
+    ): DomainEventDispatcherLauncher {
         return DomainEventDispatcherLauncher(domainEventDispatcher, wowProperties.shutdownTimeout)
     }
 }

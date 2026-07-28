@@ -31,6 +31,7 @@ import me.ahoo.wow.projection.ProjectionHandler
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.WowProperties
+import me.ahoo.wow.spring.boot.starter.WowRuntimeComponentOrder
 import me.ahoo.wow.spring.projection.ProjectionDispatcherLauncher
 import me.ahoo.wow.spring.projection.ProjectionProcessorAutoRegistrar
 import org.springframework.beans.factory.annotation.Qualifier
@@ -38,10 +39,13 @@ import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Bean
+import org.springframework.core.annotation.Order
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
-class ProjectionDispatcherAutoConfiguration(private val wowProperties: WowProperties) {
+class ProjectionDispatcherAutoConfiguration(
+    private val wowProperties: WowProperties,
+) {
 
     @Bean
     @ConditionalOnMissingBean
@@ -92,6 +96,7 @@ class ProjectionDispatcherAutoConfiguration(private val wowProperties: WowProper
 
     @Bean
     @ConditionalOnMissingBean
+    @Order(WowRuntimeComponentOrder.PROJECTION)
     fun projectionDispatcher(
         @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         namedBoundedContext: NamedBoundedContext,
@@ -109,9 +114,13 @@ class ProjectionDispatcherAutoConfiguration(private val wowProperties: WowProper
         )
     }
 
-    @Bean
-    @ConditionalOnMissingBean
-    fun projectionDispatcherLauncher(projectionDispatcher: ProjectionDispatcher): ProjectionDispatcherLauncher {
+    @Deprecated(
+        message = "Dispatchers are owned by the canonical WowRuntimeLifecycle.",
+    )
+    @Suppress("DEPRECATION")
+    fun projectionDispatcherLauncher(
+        projectionDispatcher: ProjectionDispatcher,
+    ): ProjectionDispatcherLauncher {
         return ProjectionDispatcherLauncher(projectionDispatcher, wowProperties.shutdownTimeout)
     }
 }

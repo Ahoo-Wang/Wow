@@ -159,6 +159,29 @@ class BatchCoordinatorLifecycleTest {
     }
 
     @Test
+    fun `synchronous stop from an item result callback should not self wait`() {
+        val coordinator = coordinator { items ->
+            Mono.just(items.map { BatchItemResult.Success })
+        }
+        val callbackInvocations = AtomicInteger()
+
+        Flux.merge(
+            coordinator.submit(1)
+                .doOnSuccess {
+                    coordinator.stop(Duration.ofSeconds(1))
+                    callbackInvocations.incrementAndGet()
+                },
+            coordinator.submit(2),
+        )
+            .then()
+            .test()
+            .verifyComplete()
+
+        callbackInvocations.get().assert().isEqualTo(1)
+        coordinator.close()
+    }
+
+    @Test
     fun `blocking callback should not delay another item in the same successful batch`() {
         val blockingCallbackEntered = CountDownLatch(1)
         val releaseBlockingCallback = CountDownLatch(1)
@@ -224,14 +247,12 @@ class BatchCoordinatorLifecycleTest {
     fun `subsequent close after timeout should throw the same terminal failure`() {
         val writerSubscribed = CountDownLatch(1)
         val writerCancelled = CountDownLatch(1)
-        val cancellationThread = AtomicReference<String>()
         val coordinator = coordinator(maxPendingItems = 2) {
             Mono.never<List<BatchItemResult>>()
                 .doOnSubscribe {
                     writerSubscribed.countDown()
                 }
                 .doOnCancel {
-                    cancellationThread.set(Thread.currentThread().name)
                     writerCancelled.countDown()
                 }
         }
@@ -250,10 +271,6 @@ class BatchCoordinatorLifecycleTest {
         first.get(1, TimeUnit.SECONDS)!!.throwable.assert().isSameAs(firstCloseError)
         second.get(1, TimeUnit.SECONDS)!!.throwable.assert().isSameAs(firstCloseError)
         writerCancelled.await(1, TimeUnit.SECONDS).assert().isTrue()
-        cancellationThread.get()
-            .startsWith("test-batch-window")
-            .assert()
-            .isTrue()
     }
 
     @Test
@@ -287,6 +304,7 @@ class BatchCoordinatorLifecycleTest {
     fun `close timeout should isolate a blocking item error callback`() {
         val writerSubscribed = CountDownLatch(1)
         val blockingCallbackEntered = CountDownLatch(1)
+        val blockingCallbackInterrupted = CountDownLatch(1)
         val releaseBlockingCallback = CountDownLatch(1)
         val closeFinished = CountDownLatch(1)
         val closeError = AtomicReference<Throwable>()
@@ -297,7 +315,11 @@ class BatchCoordinatorLifecycleTest {
         val blockedResult = coordinator.submit(1)
             .doOnError {
                 blockingCallbackEntered.countDown()
-                releaseBlockingCallback.await()
+                try {
+                    releaseBlockingCallback.await()
+                } catch (_: InterruptedException) {
+                    blockingCallbackInterrupted.countDown()
+                }
             }.materialize()
             .toFuture()
         val independentResult = coordinator.submit(2).materialize().toFuture()
@@ -326,6 +348,13 @@ class BatchCoordinatorLifecycleTest {
             independentResult.get(1, TimeUnit.SECONDS)!!.throwable
                 .assert()
                 .isSameAs(terminalError)
+            val terminationError = coordinator.stopGracefully().materialize()
+                .block(Duration.ofSeconds(1))!!.throwable
+            terminationError.assert().isSameAs(terminalError)
+
+            coordinator.forceStop()
+
+            blockingCallbackInterrupted.await(1, TimeUnit.SECONDS).assert().isTrue()
         } finally {
             releaseBlockingCallback.countDown()
             closeThread.join(TimeUnit.SECONDS.toMillis(1))
@@ -356,18 +385,61 @@ class BatchCoordinatorLifecycleTest {
                 executor,
             )
             factoryEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
+            coordinator.reservedItemCount.assert().isEqualTo(1)
 
             val closeResult = coordinator.stopGracefully().toFuture()
+            coordinator.reservedItemCount.assert().isZero()
+            closeResult.get(1, TimeUnit.SECONDS)
             releaseFactory.countDown()
 
             submission.get(1, TimeUnit.SECONDS)!!.throwable
                 .assert()
                 .isInstanceOf(BatchClosedException::class.java)
-            closeResult.get(1, TimeUnit.SECONDS)
+            coordinator.reservedItemCount.assert().isZero()
         } finally {
             releaseFactory.countDown()
             executor.shutdownNow()
             coordinator.close()
+        }
+    }
+
+    @Test
+    fun `force stop reclaims an item construction reservation without waiting`() {
+        val factoryEntered = CountDownLatch(1)
+        val releaseFactory = CountDownLatch(1)
+        val executor = Executors.newSingleThreadExecutor()
+        val coordinator = coordinator(maxPendingItems = 2) { items ->
+            Mono.just(items.map { BatchItemResult.Success })
+        }
+
+        try {
+            val submission = CompletableFuture.supplyAsync(
+                {
+                    coordinator.submit {
+                        factoryEntered.countDown()
+                        releaseFactory.await()
+                        1
+                    }.materialize().block()
+                },
+                executor,
+            )
+            factoryEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
+            coordinator.reservedItemCount.assert().isEqualTo(1)
+
+            coordinator.forceStop()
+
+            coordinator.reservedItemCount.assert().isZero()
+            coordinator.pendingItemCount.assert().isZero()
+            coordinator.queuedItemCount.assert().isZero()
+            releaseFactory.countDown()
+            submission.get(1, TimeUnit.SECONDS)!!.throwable
+                .assert()
+                .isInstanceOf(BatchClosedException::class.java)
+            coordinator.reservedItemCount.assert().isZero()
+        } finally {
+            releaseFactory.countDown()
+            executor.shutdownNow()
+            runCatching(coordinator::close)
         }
     }
 

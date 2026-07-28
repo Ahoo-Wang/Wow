@@ -30,6 +30,7 @@ internal fun coordinator(
     maxSize: Int = 2,
     maxDelay: Duration = Duration.ofHours(1),
     maxPendingItems: Int = 8,
+    beforeResultDispatch: () -> Unit = {},
     writer: (List<Int>) -> Mono<List<BatchItemResult>>,
 ): BatchCoordinator<Int> {
     return BatchCoordinator(
@@ -40,6 +41,9 @@ internal fun coordinator(
             maxPendingItems = maxPendingItems,
         ),
         writer = BatchWriter(writer),
+        laneCount = 1,
+        laneSelector = { 0 },
+        beforeResultDispatch = beforeResultDispatch,
     )
 }
 

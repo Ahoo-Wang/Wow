@@ -21,8 +21,18 @@ import me.ahoo.wow.messaging.dispatcher.MessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
+import me.ahoo.wow.runtime.RuntimeComponent
+import me.ahoo.wow.runtime.RuntimeContext
+import me.ahoo.wow.runtime.RuntimeOwnershipClaim
+import me.ahoo.wow.runtime.internal.RuntimeComponentGroup
+import me.ahoo.wow.runtime.internal.compat.StandaloneRuntimeOwner
+import me.ahoo.wow.runtime.internal.compat.forceStopOrScheduleGracefulCleanup
+import me.ahoo.wow.runtime.internal.forceAllReporting
+import me.ahoo.wow.runtime.internal.stopAllReporting
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
+import me.ahoo.wow.scheduler.BorrowedAggregateSchedulerSupplier
 import reactor.core.publisher.Mono
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * A composite event dispatcher that combines event stream and state event dispatchers to handle domain events and state events efficiently.
@@ -92,38 +102,112 @@ open class CompositeEventDispatcher(
      * @default DefaultAggregateSchedulerSupplier("EventDispatcher")
      */
     private val schedulerSupplier: AggregateSchedulerSupplier
-) : MessageDispatcher {
-    private val eventStreamDispatcher by lazy {
+) : MessageDispatcher,
+    RuntimeComponent {
+    private val childSchedulerSupplier =
+        BorrowedAggregateSchedulerSupplier(schedulerSupplier)
+
+    private val eventStreamDispatcherLazy = lazy {
         EventStreamDispatcher(
             name = name,
             parallelism = parallelism,
             messageBus = domainEventBus,
             functionRegistrar = functionRegistrar.filter { it.functionKind == FunctionKind.EVENT },
             eventHandler = eventHandler,
-            schedulerSupplier = schedulerSupplier,
+            schedulerSupplier = childSchedulerSupplier,
         )
     }
+    private val eventStreamDispatcher by eventStreamDispatcherLazy
 
-    private val stateEventDispatcher by lazy {
+    private val stateEventDispatcherLazy = lazy {
         StateEventDispatcher(
             name = name,
             parallelism = parallelism,
             messageBus = stateEventBus,
             functionRegistrar = functionRegistrar.filter { it.functionKind == FunctionKind.STATE_EVENT },
             eventHandler = eventHandler,
-            schedulerSupplier = schedulerSupplier,
+            schedulerSupplier = childSchedulerSupplier,
         )
     }
+    private val stateEventDispatcher by stateEventDispatcherLazy
+
+    private val childLifecycleMonitor = Any()
+    private var eventComponentGroup: RuntimeComponentGroup? = null
+    private val forceStopRequested = AtomicBoolean()
+
+    @Volatile
+    private var runtimeContext: RuntimeContext? = null
+
+    private val lifecycleOwner = StandaloneRuntimeOwner(
+        prepareAction = ::prepareOwned,
+        startAction = ::startOwned,
+        gracefulStopAction = ::stopOwnedGracefully,
+        forceStopAction = ::forceStopOwned,
+    )
 
     /**
      * Starts the composite event dispatcher by initializing and starting both the event stream dispatcher and state event dispatcher.
      *
      * This method ensures that both underlying dispatchers are started and ready to process events.
      */
-    override fun start() {
-        eventStreamDispatcher.start()
-        stateEventDispatcher.start()
+    final override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
+        lifecycleOwner.claimExternalOwnership()
+
+    final override fun prepare(runtimeContext: RuntimeContext) {
+        lifecycleOwner.prepare(runtimeContext)
     }
+
+    private fun prepareOwned(runtimeContext: RuntimeContext) {
+        if (forceStopRequested.get()) {
+            return
+        }
+        this.runtimeContext = runtimeContext
+        val group = RuntimeComponentGroup.claim(
+            listOf(eventStreamDispatcher, stateEventDispatcher),
+            runtimeContext::reportFailure,
+        )
+        val accepted = synchronized(childLifecycleMonitor) {
+            if (forceStopRequested.get()) {
+                false
+            } else {
+                check(eventComponentGroup == null) {
+                    "[$name] Event dispatcher group can only be installed once."
+                }
+                eventComponentGroup = group
+                true
+            }
+        }
+        if (!accepted) {
+            group.forceStop()?.let { throw it }
+            return
+        }
+        group.prepare(runtimeContext)
+        if (!forceStopRequested.get()) {
+            prepareManaged(runtimeContext)
+        }
+    }
+
+    /**
+     * Adds component-specific preparation after both guarded child dispatchers.
+     */
+    protected open fun prepareManaged(@Suppress("UNUSED_PARAMETER") runtimeContext: RuntimeContext) = Unit
+
+    final override fun start() = lifecycleOwner.start()
+
+    private fun startOwned() {
+        if (forceStopRequested.get()) {
+            return
+        }
+        if (eventComponentGroupSnapshot()?.start() == false || forceStopRequested.get()) {
+            return
+        }
+        startManaged()
+    }
+
+    /**
+     * Adds component-specific work after both child dispatchers start.
+     */
+    protected open fun startManaged() = Unit
 
     /**
      * Stops the composite event dispatcher gracefully by stopping both the event stream dispatcher and state event dispatcher.
@@ -132,10 +216,72 @@ open class CompositeEventDispatcher(
      *
      * @return A [Mono] that completes when both dispatchers have stopped gracefully.
      */
-    override fun stopGracefully(): Mono<Void> {
-        return Mono.`when`(
-            eventStreamDispatcher.stopAggregateDispatchersGracefully(),
-            stateEventDispatcher.stopAggregateDispatchersGracefully()
-        ).then(schedulerSupplier.stopGracefully())
+    final override fun stopGracefully(): Mono<Void> = lifecycleOwner.stopGracefully()
+
+    private fun stopOwnedGracefully(): Mono<Void> =
+        stopAllReporting(
+            buildList {
+                eventComponentGroupSnapshot()?.let { group ->
+                    add {
+                        group.stopGracefully(
+                            shouldStop = { !forceStopRequested.get() },
+                        )
+                    }
+                }
+                add(::stopManagedGracefullyIfAllowed)
+                add(::stopSchedulerGracefullyIfAllowed)
+            },
+            ::reportRuntimeFailure,
+        )
+
+    private fun stopManagedGracefullyIfAllowed(): Mono<Void> =
+        if (forceStopRequested.get()) {
+            Mono.empty()
+        } else {
+            stopManagedGracefully()
+        }
+
+    private fun stopSchedulerGracefullyIfAllowed(): Mono<Void> =
+        if (forceStopRequested.get()) {
+            Mono.empty()
+        } else {
+            schedulerSupplier.stopGracefully()
+        }
+
+    /**
+     * Adds component-specific graceful cleanup before the shared scheduler stops.
+     */
+    protected open fun stopManagedGracefully(): Mono<Void> = Mono.empty()
+
+    final override fun forceStop() = lifecycleOwner.forceStop()
+
+    private fun forceStopOwned() {
+        forceStopRequested.set(true)
+        forceAllReporting(
+            buildList {
+                eventComponentGroupSnapshot()?.let { group ->
+                    add {
+                        group.forceStop()?.let { throw it }
+                    }
+                }
+                add(::forceStopManaged)
+                add(schedulerSupplier::forceStopOrScheduleGracefulCleanup)
+            },
+            ::reportRuntimeFailure,
+        )?.let { throw it }
     }
+
+    /**
+     * Adds component-specific prompt cleanup before the shared scheduler stops.
+     */
+    protected open fun forceStopManaged() = Unit
+
+    private fun reportRuntimeFailure(error: Throwable) {
+        runtimeContext?.reportFailure(error)
+    }
+
+    private fun eventComponentGroupSnapshot(): RuntimeComponentGroup? =
+        synchronized(childLifecycleMonitor) {
+            eventComponentGroup
+        }
 }

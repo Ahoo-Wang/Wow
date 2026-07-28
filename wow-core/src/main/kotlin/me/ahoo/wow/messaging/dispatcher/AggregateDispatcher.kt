@@ -20,12 +20,24 @@ import me.ahoo.wow.infra.lifecycle.TerminatedSignalCapable
 import me.ahoo.wow.infra.sink.terminated
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.metrics.Metrics
+import me.ahoo.wow.runtime.RuntimeActivity
+import me.ahoo.wow.runtime.RuntimeComponent
+import me.ahoo.wow.runtime.RuntimeContext
+import me.ahoo.wow.runtime.RuntimeOwnershipClaim
+import me.ahoo.wow.runtime.internal.RuntimeCleanupExecutor
+import me.ahoo.wow.runtime.internal.compat.StandaloneRuntimeOwner
+import me.ahoo.wow.runtime.internal.forceAllReporting
+import me.ahoo.wow.runtime.internal.publishRuntimeTermination
+import me.ahoo.wow.runtime.internal.stopAllReporting
+import reactor.core.Exceptions
 import reactor.core.publisher.Flux
 import reactor.core.publisher.GroupedFlux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.core.scheduler.Scheduler
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Abstract dispatcher for handling message exchanges for a specific aggregate with graceful shutdown support.
@@ -69,14 +81,21 @@ import java.util.concurrent.atomic.AtomicInteger
  * ```
  *
  * @param T The type of message exchange being handled, must implement MessageExchange
+ * @param forceCleanupDispatcher Bounded dispatcher used for detached physical
+ * cancellation during force-stop.
  *
  * @see MessageDispatcher for the interface this class implements
  * @see SafeSubscriber for error handling capabilities
  * @see MessageExchange for the exchange type contract
  */
-abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
+abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected constructor(
+    private val forceCleanupDispatcher: (Runnable) -> Boolean = { action ->
+        RuntimeCleanupExecutor.execute(action)
+    },
+) :
     SafeSubscriber<Void>(),
     MessageDispatcher,
+    RuntimeComponent,
     ParallelismCapable,
     NamedAggregateDecorator,
     TerminatedSignalCapable<Void> {
@@ -124,18 +143,58 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
     abstract val messageFlux: Flux<T>
 
     private val terminatedSink = Sinks.empty<Void>()
+    private val stopRequestedSink = Sinks.empty<Void>()
+    private val rawTerminatedSignal = terminatedSink.asMono()
 
-    override val terminatedSignal: Mono<Void> = terminatedSink.asMono()
-    private val activeTaskCounter = AtomicInteger(0)
+    @Volatile
+    private var demandGate: DemandGateFlux<T>? = null
 
-    private fun tryEmitTerminated() {
+    override val terminatedSignal: Mono<Void> =
+        rawTerminatedSignal.publishRuntimeTermination()
+
+    @Volatile
+    private var runtimeContext: RuntimeContext? = null
+
+    private val lifecycleMonitor = Any()
+
+    private enum class State {
+        NEW,
+        PREPARED,
+        RUNNING,
+        STOPPING,
+        STOPPED,
+    }
+
+    private enum class StopSignal {
+        NONE,
+        REQUEST_STOP,
+        TERMINATE,
+    }
+
+    @Volatile
+    private var state = State.NEW
+
+    private val forceStopRequested = AtomicBoolean()
+
+    private val lifecycleOwner = StandaloneRuntimeOwner(
+        prepareAction = ::prepareOwned,
+        startAction = ::startOwned,
+        gracefulStopAction = ::stopOwnedGracefully,
+        forceStopAction = ::forceStopOwned,
+    )
+
+    private fun tryEmitTerminated(error: Throwable? = null) {
         if (terminatedSink.terminated) {
             return
         }
         log.info {
             "[$name] Emitting terminated signal."
         }
-        val result = terminatedSink.tryEmitEmpty()
+        val result = if (error == null) {
+            terminatedSink.tryEmitEmpty()
+        } else {
+            terminatedSink.tryEmitError(error)
+        }
         if (result != Sinks.EmitResult.OK) {
             log.warn {
                 "[$name] Failed to emit terminated signal: $result."
@@ -144,30 +203,128 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
     }
 
     /**
-     * Starts the dispatcher by subscribing to the message flux.
+     * Prepares the dispatcher by subscribing without requesting messages.
      *
-     * This method initiates message processing by subscribing to the messageFlux.
-     * Messages are grouped by their grouping key for parallel processing, with
-     * each group being handled on the configured scheduler. The dispatcher
-     * subscribes to the processing pipeline for error handling.
+     * The shared runtime prepares every dispatcher before opening demand. This
+     * readiness barrier prevents message loss across cyclic command/event/saga
+     * pipelines during startup.
      *
-     * The subscription can be cancelled gracefully using stopGracefully().
+     * [start] opens this dispatcher's demand gate.
      *
      * @throws Exception if subscription fails or initial setup encounters errors
      * @see stopGracefully for graceful shutdown
      * @see toGroupKey for grouping logic
      */
-    override fun start() {
-        log.info {
-            "[$name] Start subscribe to $namedAggregate."
+    final override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
+        lifecycleOwner.claimExternalOwnership()
+
+    final override fun prepare(runtimeContext: RuntimeContext) {
+        lifecycleOwner.prepare(runtimeContext)
+    }
+
+    private fun prepareOwned(runtimeContext: RuntimeContext) {
+        val preparedDemandGate = DemandGateFlux(messageFlux) { cancellation ->
+            scheduleForceCleanup("late source cancellation", cancellation)
         }
-        messageFlux
-            .groupBy { it.toGroupKey() }
+        synchronized(lifecycleMonitor) {
+            check(state == State.NEW) {
+                "[$name] Dispatcher can only be prepared once. Current state: $state."
+            }
+            this.runtimeContext = runtimeContext
+            demandGate = preparedDemandGate
+            state = State.PREPARED
+        }
+        runtimeContext.onClose(::requestStop)
+        log.info {
+            "[$name] Prepare subscription to $namedAggregate."
+        }
+        subscribeMessagePipeline(runtimeContext, preparedDemandGate)
+        prepareManaged(runtimeContext)
+    }
+
+    /**
+     * Adds component-specific preparation after the guarded source subscription
+     * has been established.
+     */
+    protected open fun prepareManaged(@Suppress("UNUSED_PARAMETER") runtimeContext: RuntimeContext) = Unit
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun subscribeMessagePipeline(
+        runtimeContext: RuntimeContext,
+        demandGate: DemandGateFlux<T>,
+    ) {
+        val terminalFailure = AtomicReference<Throwable?>()
+        demandGate
+            .takeUntilOther(stopRequestedSink.asMono())
+            .handle<TrackedExchange<T>> { exchange, sink ->
+                val activity = runtimeContext.tryAcquire()
+                if (activity != null) {
+                    try {
+                        sink.next(
+                            TrackedExchange(
+                                exchange = exchange,
+                                groupKey = exchange.toGroupKey(),
+                                activity = activity,
+                            ),
+                        )
+                    } catch (error: Throwable) {
+                        activity.close()
+                        Exceptions.throwIfFatal(error)
+                        sink.error(error)
+                    }
+                } else {
+                    log.warn {
+                        "[$name] Reject an exchange received after runtime admission closed; " +
+                            "the exchange remains unacknowledged."
+                    }
+                }
+            }
+            .groupBy { trackedExchange -> trackedExchange.groupKey }
             .flatMap({ grouped ->
                 handleGroupedExchange(grouped)
             }, parallelism, parallelism)
+            .doOnDiscard(TrackedExchange::class.java) {
+                it.complete()
+            }
+            .doOnError { error ->
+                terminalFailure.compareAndSet(null, error)
+                runtimeContext.reportFailure(error)
+            }
+            .doFinally {
+                synchronized(lifecycleMonitor) {
+                    state = State.STOPPED
+                }
+                tryEmitTerminated(terminalFailure.get())
+            }
             .subscribe(this)
+        terminalFailure.get()?.let { error ->
+            throw error
+        }
     }
+
+    final override fun start() = lifecycleOwner.start()
+
+    private fun startOwned() {
+        synchronized(lifecycleMonitor) {
+            if (state == State.RUNNING || state == State.STOPPED) {
+                return
+            }
+            check(state == State.PREPARED) {
+                "[$name] Dispatcher cannot start from state: $state."
+            }
+            state = State.RUNNING
+        }
+        checkNotNull(demandGate).open()
+        log.info {
+            "[$name] Start processing $namedAggregate."
+        }
+        startManaged()
+    }
+
+    /**
+     * Adds component-specific work after guarded source demand is open.
+     */
+    protected open fun startManaged() = Unit
 
     /**
      * Converts a message exchange to a grouping key for parallel processing.
@@ -202,25 +359,18 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
      * @param grouped The grouped flux of message exchanges to process
      * @return A Mono that completes when all exchanges in the group are handled
      */
-    private fun handleGroupedExchange(grouped: GroupedFlux<Int, T>): Mono<Void> =
+    private fun handleGroupedExchange(grouped: GroupedFlux<Int, TrackedExchange<T>>): Mono<Void> =
         grouped
             .publishOn(scheduler)
             .name(Wow.WOW_PREFIX + "dispatcher")
             .tag("dispatcher", name)
             .tag(Metrics.AGGREGATE_KEY, namedAggregate.aggregateName)
             .metrics()
-            .concatMap { exchange ->
-                activeTaskCounter.incrementAndGet()
+            .concatMap { trackedExchange ->
                 Mono.defer {
-                    handleExchange(exchange)
+                    handleExchange(trackedExchange.exchange)
                 }.doFinally {
-                    val remaining = activeTaskCounter.decrementAndGet()
-                    if (isDisposed && remaining <= 0) {
-                        log.info {
-                            "[$name] All active tasks completed after disposal."
-                        }
-                        tryEmitTerminated()
-                    }
+                    trackedExchange.complete()
                 }
             }.then()
 
@@ -242,8 +392,8 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
     /**
      * Performs a graceful shutdown of the dispatcher.
      *
-     * This method initiates shutdown by first cancelling the subscription to stop
-     * accepting new messages, then waits for all currently active tasks to complete.
+     * This method completes the source side to stop accepting new messages while
+     * allowing every already accepted exchange to complete naturally.
      *
      * The method returns a Mono that completes when shutdown is fully finished,
      * allowing for reactive shutdown coordination. This ensures no message
@@ -251,22 +401,151 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
      *
      * @return A Mono that completes when all active tasks have finished and shutdown is complete
      * @see stop for the blocking version
-     * @see cancel for subscription cancellation
+     * @see forceStop for deadline-expiry cancellation
      */
-    override fun stopGracefully(): Mono<Void> {
+    final override fun stopGracefully(): Mono<Void> = lifecycleOwner.stopGracefully()
+
+    private fun stopOwnedGracefully(): Mono<Void> {
         log.info {
-            "[$name] Stop gracefully. Active task count: ${activeTaskCounter.get()}."
+            "[$name] Stop gracefully. Active runtime operations: ${runtimeContext?.activeOperationCount ?: 0}."
         }
-        cancel()
-        if (activeTaskCounter.get() <= 0) {
-            log.info {
-                "[$name] No active tasks. Stop complete."
+        requestStop()
+        return stopAllReporting(
+            listOf(
+                {
+                    rawTerminatedSignal.doFinally {
+                        log.info {
+                            "[$name] [$it] Graceful shutdown complete."
+                        }
+                    }
+                },
+                ::stopManagedGracefullyIfAllowed,
+            ),
+            ::reportRuntimeFailure,
+        )
+    }
+
+    private fun stopManagedGracefullyIfAllowed(): Mono<Void> =
+        if (forceStopRequested.get()) {
+            Mono.empty()
+        } else {
+            stopManagedGracefully()
+        }
+
+    /**
+     * Adds component-specific graceful cleanup after message processing drains.
+     */
+    protected open fun stopManagedGracefully(): Mono<Void> = Mono.empty()
+
+    private fun requestStop() {
+        val stopSignal = synchronized(lifecycleMonitor) {
+            when (state) {
+                State.NEW -> {
+                    state = State.STOPPED
+                    StopSignal.TERMINATE
+                }
+
+                State.PREPARED,
+                State.RUNNING,
+                -> {
+                    state = State.STOPPING
+                    StopSignal.REQUEST_STOP
+                }
+
+                State.STOPPING,
+                State.STOPPED,
+                -> StopSignal.NONE
             }
+        }
+        when (stopSignal) {
+            StopSignal.NONE -> Unit
+            StopSignal.REQUEST_STOP -> stopRequestedSink.tryEmitEmpty()
+            StopSignal.TERMINATE -> tryEmitTerminated()
+        }
+    }
+
+    final override fun forceStop() = lifecycleOwner.forceStop()
+
+    private fun forceStopOwned() {
+        forceStopRequested.set(true)
+        forceAllReporting(
+            listOf(
+                ::forceStopDispatcher,
+                ::forceStopManaged,
+            ),
+            ::reportRuntimeFailure,
+        )?.let { throw it }
+    }
+
+    private fun forceStopDispatcher() {
+        val (newlyStopped, sourceCancellation) = synchronized(lifecycleMonitor) {
+            val changed = state != State.STOPPED
+            state = State.STOPPED
+            changed to demandGate?.detachCancellation()
+        }
+        if (newlyStopped) {
             tryEmitTerminated()
         }
-        return terminatedSignal.doFinally {
-            log.info {
-                "[$name] [$it] Graceful shutdown complete."
+        sourceCancellation?.let { cancellation ->
+            scheduleForceCleanup("source cancellation", cancellation)
+        }
+        if (newlyStopped) {
+            scheduleForceCleanup("processing pipeline cancellation", ::cancel)
+        }
+    }
+
+    /**
+     * Adds component-specific prompt cleanup after the dispatcher is detached.
+     */
+    protected open fun forceStopManaged() = Unit
+
+    private fun reportRuntimeFailure(error: Throwable) {
+        runtimeContext?.reportFailure(error)
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun scheduleForceCleanup(
+        cleanupName: String,
+        cleanup: () -> Unit,
+    ) {
+        val accepted = forceCleanupDispatcher(
+            Runnable {
+                Thread.currentThread().interrupt()
+                try {
+                    cleanup()
+                } catch (error: Throwable) {
+                    Exceptions.throwIfFatal(error)
+                    runtimeContext?.reportFailure(error)
+                    log.warn(error) {
+                        "[$name] Failed to execute detached $cleanupName."
+                    }
+                } finally {
+                    Thread.interrupted()
+                }
+            },
+        )
+        if (!accepted) {
+            val rejection = RejectedExecutionException(
+                "[$name] Cannot schedule detached $cleanupName because the bounded " +
+                    "runtime cleanup executor is saturated.",
+            )
+            runtimeContext?.reportFailure(rejection)
+            log.warn(rejection) {
+                "[$name] Skip detached $cleanupName."
+            }
+        }
+    }
+
+    private class TrackedExchange<T : Any>(
+        val exchange: T,
+        val groupKey: Int,
+        private val activity: RuntimeActivity,
+    ) {
+        private val completed = AtomicBoolean()
+
+        fun complete() {
+            if (completed.compareAndSet(false, true)) {
+                activity.close()
             }
         }
     }

@@ -15,11 +15,22 @@ package me.ahoo.wow.messaging.dispatcher
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.infra.lifecycle.ForceStoppable
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
+import me.ahoo.wow.runtime.RuntimeComponent
+import me.ahoo.wow.runtime.RuntimeContext
+import me.ahoo.wow.runtime.RuntimeLifecycleAdapter
+import me.ahoo.wow.runtime.RuntimeOwnershipClaim
+import me.ahoo.wow.runtime.RuntimePreparable
+import me.ahoo.wow.runtime.internal.RuntimeComponentGroup
+import me.ahoo.wow.runtime.internal.compat.StandaloneRuntimeOwner
+import me.ahoo.wow.runtime.internal.forceAllReporting
+import me.ahoo.wow.runtime.internal.stopAllReporting
 import me.ahoo.wow.serialization.toJsonString
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Abstract base class for message dispatchers that manage multiple aggregate dispatchers.
@@ -61,7 +72,9 @@ import reactor.core.publisher.Mono
  *
  * @see MessageDispatcher
  */
-abstract class MainDispatcher<T : Any> : MessageDispatcher {
+abstract class MainDispatcher<T : Any> :
+    MessageDispatcher,
+    RuntimeComponent {
     companion object {
         private val log = KotlinLogging.logger {}
     }
@@ -131,6 +144,20 @@ abstract class MainDispatcher<T : Any> : MessageDispatcher {
     protected val aggregateDispatchers: List<MessageDispatcher>
         get() = aggregateDispatchersLazy.value
 
+    @Volatile
+    private var runtimeContext: RuntimeContext? = null
+
+    private val childLifecycleMonitor = Any()
+    private var aggregateComponentGroup: RuntimeComponentGroup? = null
+    private val forceStopRequested = AtomicBoolean()
+
+    private val lifecycleOwner = StandaloneRuntimeOwner(
+        prepareAction = ::prepareOwned,
+        startAction = ::startOwned,
+        gracefulStopAction = ::stopOwnedGracefully,
+        forceStopAction = ::forceStopOwned,
+    )
+
     private fun String.withNamePrefix(): String = "[$name][${this@MainDispatcher.javaClass.simpleName}] $this"
 
     /**
@@ -142,18 +169,89 @@ abstract class MainDispatcher<T : Any> : MessageDispatcher {
      *
      * @throws RuntimeException if starting any aggregate dispatcher fails.
      */
-    override fun start() {
+    final override fun claimRuntimeOwnership(): RuntimeOwnershipClaim =
+        lifecycleOwner.claimExternalOwnership()
+
+    final override fun prepare(runtimeContext: RuntimeContext) {
+        lifecycleOwner.prepare(runtimeContext)
+    }
+
+    private fun prepareOwned(runtimeContext: RuntimeContext) {
+        check(this.runtimeContext == null) {
+            "[$name] Dispatcher can only be prepared once."
+        }
+        this.runtimeContext = runtimeContext
+        if (prepareAggregateDispatchers(runtimeContext) && !forceStopRequested.get()) {
+            prepareManaged(runtimeContext)
+        }
+    }
+
+    private fun prepareAggregateDispatchers(runtimeContext: RuntimeContext): Boolean {
+        if (namedAggregates.isEmpty()) {
+            return !forceStopRequested.get()
+        }
+        val dispatchers = aggregateDispatchers
+        dispatchers.forEach { dispatcher ->
+            dispatcher.warnLegacyRuntimeCapabilities()
+        }
+        val group = RuntimeComponentGroup.claim(
+            dispatchers.map { dispatcher ->
+                dispatcher.asRuntimeComponent()
+            },
+            runtimeContext::reportFailure,
+        )
+        val accepted = synchronized(childLifecycleMonitor) {
+            if (forceStopRequested.get()) {
+                false
+            } else {
+                check(aggregateComponentGroup == null) {
+                    "[$name] Aggregate dispatcher group can only be installed once."
+                }
+                aggregateComponentGroup = group
+                true
+            }
+        }
+        if (!accepted) {
+            group.forceStop()?.let { throw it }
+            return false
+        }
+        return group.prepare(runtimeContext)
+    }
+
+    /**
+     * Adds component-specific preparation after every child dispatcher is owned
+     * and prepared. Base lifecycle invariants cannot be replaced by subclasses.
+     */
+    protected open fun prepareManaged(@Suppress("UNUSED_PARAMETER") runtimeContext: RuntimeContext) = Unit
+
+    final override fun start() = lifecycleOwner.start()
+
+    private fun startOwned() {
+        if (forceStopRequested.get()) {
+            return
+        }
         log.info {
             "Start subscribe to namedAggregates:${namedAggregates.toJsonString()}.".withNamePrefix()
         }
         if (namedAggregates.isEmpty()) {
             log.warn {
-                "Ignore start because namedAggregates is empty.".withNamePrefix()
+                "No aggregate dispatchers to start because namedAggregates is empty.".withNamePrefix()
             }
+        } else {
+            if (aggregateComponentGroupSnapshot()?.start() == false) {
+                return
+            }
+        }
+        if (forceStopRequested.get()) {
             return
         }
-        aggregateDispatchers.forEach { it.start() }
+        startManaged()
     }
+
+    /**
+     * Adds component-specific work after every child dispatcher has started.
+     */
+    protected open fun startManaged() = Unit
 
     /**
      * Stops the dispatcher gracefully by shutting down all aggregate dispatchers.
@@ -165,16 +263,103 @@ abstract class MainDispatcher<T : Any> : MessageDispatcher {
      * @return A [Mono] that completes when all aggregate dispatchers have stopped gracefully.
      *         Completes with an error if any dispatcher fails to stop.
      */
-    override fun stopGracefully(): Mono<Void> {
+    final override fun stopGracefully(): Mono<Void> = lifecycleOwner.stopGracefully()
+
+    private fun stopOwnedGracefully(): Mono<Void> {
         log.info {
             "Stop Gracefully.".withNamePrefix()
         }
-        if (!aggregateDispatchersLazy.isInitialized()) {
-            return Mono.empty()
+        return stopAllReporting(
+            listOf(
+                ::stopAggregateDispatchersGracefully,
+                ::stopManagedGracefullyIfAllowed,
+            ),
+            ::reportRuntimeFailure,
+        )
+    }
+
+    /**
+     * Stops only owned aggregate dispatchers, leaving subclass resources intact.
+     */
+    protected fun stopAggregateDispatchersGracefully(): Mono<Void> =
+        aggregateComponentGroupSnapshot()
+            ?.stopGracefully(shouldStop = { !forceStopRequested.get() })
+            ?: Mono.empty()
+
+    private fun stopManagedGracefullyIfAllowed(): Mono<Void> =
+        if (forceStopRequested.get()) {
+            Mono.empty()
+        } else {
+            stopManagedGracefully()
         }
-        return Flux
-            .fromIterable(aggregateDispatchers)
-            .flatMap { it.stopGracefully() }
-            .then()
+
+    /**
+     * Adds component-specific graceful cleanup after all child dispatchers stop.
+     */
+    protected open fun stopManagedGracefully(): Mono<Void> = Mono.empty()
+
+    final override fun forceStop() = lifecycleOwner.forceStop()
+
+    private fun forceStopOwned() {
+        forceStopRequested.set(true)
+        forceAllReporting(
+            listOf(
+                ::forceStopAggregateDispatchers,
+                ::forceStopManaged,
+            ),
+            ::reportRuntimeFailure,
+        )?.let { throw it }
+    }
+
+    /**
+     * Force-stops only owned aggregate dispatchers, leaving subclass resources intact.
+     */
+    protected fun forceStopAggregateDispatchers() {
+        aggregateComponentGroupSnapshot()?.forceStop()?.let { throw it }
+    }
+
+    /**
+     * Adds component-specific prompt cleanup after child dispatcher force-stop.
+     */
+    protected open fun forceStopManaged() = Unit
+
+    private fun reportRuntimeFailure(error: Throwable) {
+        runtimeContext?.reportFailure(error)
+    }
+
+    private fun aggregateComponentGroupSnapshot(): RuntimeComponentGroup? =
+        synchronized(childLifecycleMonitor) {
+            aggregateComponentGroup
+        }
+
+    private fun MessageDispatcher.warnLegacyRuntimeCapabilities() {
+        if (this is RuntimeComponent) {
+            return
+        }
+        if (this !is RuntimePreparable || this !is ForceStoppable) {
+            log.warn {
+                "Message dispatcher[$this] uses the legacy lifecycle compatibility path. " +
+                    "Implement RuntimeComponent to participate fully in readiness " +
+                    "and hard shutdown."
+            }
+        }
+    }
+
+    private fun MessageDispatcher.asRuntimeComponent(): RuntimeComponent {
+        if (this is RuntimeComponent) {
+            return this
+        }
+        val dispatcher = this
+        require(dispatcher is ForceStoppable) {
+            "Legacy message dispatcher[$dispatcher] must implement ForceStoppable before it can " +
+                "participate in runtime hard shutdown."
+        }
+        return RuntimeLifecycleAdapter(
+            delegate = dispatcher,
+            prepareAction = { context ->
+                (dispatcher as? RuntimePreparable)?.prepare(context)
+            },
+            forceStopAction = dispatcher::forceStop,
+        )
     }
 }

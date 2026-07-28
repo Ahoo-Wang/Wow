@@ -13,19 +13,27 @@
 
 package me.ahoo.wow.infra.batch
 
+import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.infra.lifecycle.ForceStoppable
 import me.ahoo.wow.infra.lifecycle.GracefullyStoppable
+import me.ahoo.wow.infra.lifecycle.forceStopAll
+import reactor.core.Disposable
 import reactor.core.Exceptions
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.core.scheduler.Schedulers
 import java.time.Duration
+import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
+import java.util.concurrent.Executor
 import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Coordinates bounded, non-blocking admission and graceful shutdown for
@@ -41,7 +49,17 @@ class BatchCoordinator<T : Any> internal constructor(
     private val writer: BatchWriter<T>,
     private val laneCount: Int,
     private val laneSelector: (T) -> Int,
-) : GracefullyStoppable {
+    private val beforeResultDispatch: () -> Unit = {},
+    private val forceLaneCleanupExecutor: Executor = FORCE_LANE_CLEANUP_EXECUTOR,
+    private val detachedProcessorDisposer: (List<Disposable>) -> Throwable? =
+        ::disposeDetachedProcessors,
+    private val forceLaneCleanupFailureHandler: (Throwable) -> Unit = { failure ->
+        log.warn(failure) {
+            "Best-effort physical batch lane cancellation failed."
+        }
+    },
+) : GracefullyStoppable,
+    ForceStoppable {
     constructor(
         name: String,
         options: BatchOptions,
@@ -66,12 +84,35 @@ class BatchCoordinator<T : Any> internal constructor(
     private val admission = BatchAdmission<T>(options.maxPendingItems)
     private val lifecycle = BatchLifecycle(name)
     private val processorTermination = CompletableFuture<Unit>()
+    private val resultDispatcherTermination = CompletableFuture<Unit>()
     private val termination = CompletableFuture<Unit>()
     private val remainingLanes = AtomicInteger(laneCount)
     private val lanesDisposed = AtomicBoolean()
+    private val processorDisposalStarted = AtomicBoolean()
+    private val forceResourceCleanupStarted = AtomicBoolean()
+    private val terminalFailure = AtomicReference<Throwable?>()
+    private val terminalMonitor = Any()
+    private val forceCleanupMonitor = Any()
+    private var sealedOutcome: TerminalOutcome? = null
+    private var terminalPublicationClaimed = false
     private val batchScheduler = Schedulers.newSingle("$name-batch-window", true)
     private val resultDispatcher: BatchResultDispatcher
     private val lanes: Array<BatchLane<T>>
+
+    internal val pendingItemCount: Int
+        get() = admission.pendingCount
+
+    internal val queuedItemCount: Int
+        get() = admission.queuedCount
+
+    internal val reservedItemCount: Int
+        get() = admission.reservationCount
+
+    internal val areLanesDetached: Boolean
+        get() = lanesDisposed.get()
+
+    internal val areResultCallbacksDetached: Boolean
+        get() = lanes.all(BatchLane<T>::isResultCallbackDetached)
 
     init {
         resultDispatcher = BatchResultDispatcher(
@@ -85,7 +126,7 @@ class BatchCoordinator<T : Any> internal constructor(
                 options = options,
                 writer = writer,
                 scheduler = batchScheduler,
-                resultDispatcher = resultDispatcher,
+                settleResults = ::settleResults,
                 onError = { failLifecycle(it) },
                 onComplete = ::completeLane,
             )
@@ -100,7 +141,8 @@ class BatchCoordinator<T : Any> internal constructor(
             lifecycle.terminalErrorOrClosed()?.let {
                 return@defer Mono.error(it)
             }
-            if (!admission.tryAcquire()) {
+            val reservation = admission.tryReserve()
+            if (reservation == null) {
                 lifecycle.terminalErrorOrClosed()?.let {
                     return@defer Mono.error(it)
                 }
@@ -109,17 +151,21 @@ class BatchCoordinator<T : Any> internal constructor(
                 )
             }
             lifecycle.terminalErrorOrClosed()?.let {
-                admission.releaseUntracked()
+                reservation.release()
                 return@defer Mono.error(it)
             }
-            val (lane, request) = try {
+            val (lane, item) = try {
                 val item = itemFactory()
-                selectLane(item) to admission.track(item)
+                selectLane(item) to item
             } catch (error: Throwable) {
-                admission.releaseUntracked()
+                reservation.release()
                 Exceptions.throwIfFatal(error)
                 return@defer Mono.error(error)
             }
+            val request = reservation.track(item)
+                ?: return@defer Mono.error(
+                    lifecycle.terminalErrorOrClosed() ?: BatchClosedException(name)
+                )
             val emitResult = lifecycle.emitIfOpen {
                 lanes[lane].emit(request)
             }
@@ -137,8 +183,22 @@ class BatchCoordinator<T : Any> internal constructor(
         return Mono.fromFuture(termination, true).then()
     }
 
+    override fun forceStop() {
+        if (failLifecycle(BatchClosedException(name), force = true) == null) {
+            resultDispatcher.forceShutdown()
+        }
+    }
+
+    internal fun reportFailure(error: Throwable) {
+        failLifecycle(error)
+    }
+
     override fun close() {
         close(DEFAULT_CLOSE_TIMEOUT)
+    }
+
+    override fun stop(timeout: Duration) {
+        close(timeout)
     }
 
     fun close(timeout: Duration) {
@@ -146,10 +206,7 @@ class BatchCoordinator<T : Any> internal constructor(
             "timeout must be positive."
         }
         initiateClose()
-        val closeTermination = if (
-            resultDispatcher.isDispatchingResult &&
-            !lifecycle.isFailed
-        ) {
+        val closeTermination = if (resultDispatcher.isDispatchingResult) {
             processorTermination
         } else {
             termination
@@ -157,7 +214,11 @@ class BatchCoordinator<T : Any> internal constructor(
         try {
             closeTermination.get(timeout.toNanos(), TimeUnit.NANOSECONDS)
         } catch (error: TimeoutException) {
-            failLifecycle(BatchCloseTimeoutException(name, timeout))?.let {
+            failLifecycle(
+                BatchCloseTimeoutException(name, timeout),
+                force = true,
+                interruptResultCallbacks = false,
+            )?.let {
                 throw it
             }
         } catch (error: InterruptedException) {
@@ -178,20 +239,45 @@ class BatchCoordinator<T : Any> internal constructor(
         return lane
     }
 
-    private fun dispatchPendingFailures(error: Throwable) {
-        admission.pendingSnapshot()
-            .filter {
-                it.settleFailureIfUnsettled(error)
-            }.forEach { item ->
-                resultDispatcher.dispatch(item::signalSettled)
+    private fun preparePendingFailures(
+        error: Throwable,
+    ): List<BatchResultDispatcher.PreparedSignal> {
+        val preparedSignals = admission.pendingSnapshot()
+            .mapNotNull { request ->
+                if (request.settleFailureIfUnsettled(error)) {
+                    resultDispatcher.prepareDispatch(request::signalSettled)
+                } else {
+                    null
+                }
             }
+        admission.discardCancelledQueued()
+        return preparedSignals
     }
 
-    private fun failPendingAfterResultDispatcherTermination(error: Throwable) {
-        admission.pendingSnapshot().forEach { item ->
-            if (item.settleFailureIfUnsettled(error)) {
-                item.signalSettled()
+    private fun settleResults(
+        requests: List<BatchRequest<T>>,
+        outcomes: List<BatchItemResult>,
+    ) {
+        val preparedSignals = synchronized(terminalMonitor) {
+            if (terminalFailure.get() != null || sealedOutcome != null) {
+                return
             }
+            val settledRequests = requests.zip(outcomes)
+                .mapNotNull { (request, outcome) ->
+                    if (request.settle(outcome)) request else null
+                }
+            if (settledRequests.isNotEmpty()) {
+                beforeResultDispatch()
+            }
+            settledRequests.map { request ->
+                resultDispatcher.prepareDispatch(request::signalSettled)
+            }
+        }
+        preparedSignals.forEach { preparedSignal ->
+            check(preparedSignal.accepted) {
+                "Batch result dispatcher[$name] closed during a protected result handoff."
+            }
+            preparedSignal.startFallbackIfNeeded()
         }
     }
 
@@ -209,34 +295,33 @@ class BatchCoordinator<T : Any> internal constructor(
     }
 
     private fun completeProcessor() {
-        batchScheduler.dispose()
         when (val completion = lifecycle.processorCompleted()) {
-            BatchLifecycle.ProcessorCompletion.DrainResults ->
-                processorTermination.complete(Unit)
+            BatchLifecycle.ProcessorCompletion.DrainResults -> {
+                disposeProcessor()
+            }
 
             BatchLifecycle.ProcessorCompletion.Closed -> {
-                processorTermination.complete(Unit)
-                termination.complete(Unit)
+                disposeProcessor()
             }
 
             is BatchLifecycle.ProcessorCompletion.Failed -> {
-                processorTermination.completeExceptionally(completion.cause)
-                termination.completeExceptionally(completion.cause)
+                disposeProcessor(completion.cause)
             }
         }
-        resultDispatcher.shutdown()
+        shutdownResultDispatcher()
     }
 
     private fun completeResultDrain() {
         when (val completion = lifecycle.resultDispatcherTerminated()) {
-            BatchLifecycle.ResultDrainCompletion.Closed ->
-                termination.complete(Unit)
+            BatchLifecycle.ResultDrainCompletion.Closed -> {
+                resultDispatcherTermination.complete(Unit)
+                tryCompleteTermination()
+            }
 
             is BatchLifecycle.ResultDrainCompletion.Failed -> {
-                disposeLanes()
-                processorTermination.completeExceptionally(completion.cause)
-                termination.completeExceptionally(completion.cause)
-                failPendingAfterResultDispatcherTermination(completion.cause)
+                disposeProcessor(completion.cause)
+                resultDispatcherTermination.complete(Unit)
+                tryCompleteTermination()
             }
         }
     }
@@ -245,6 +330,7 @@ class BatchCoordinator<T : Any> internal constructor(
         if (!lifecycle.initiateClose()) {
             return
         }
+        admission.releaseReservations()
         for (lane in lanes) {
             val emitResult = lane.complete()
             if (emitResult.isFailure && emitResult != Sinks.EmitResult.FAIL_TERMINATED) {
@@ -264,43 +350,275 @@ class BatchCoordinator<T : Any> internal constructor(
             "Interrupted while closing batch coordinator[$name].",
             error,
         )
-        throw failLifecycle(interruption) ?: interruption
+        throw failLifecycle(
+            interruption,
+            force = true,
+            interruptResultCallbacks = false,
+        ) ?: interruption
     }
 
-    private fun failLifecycle(error: Throwable): Throwable? {
-        return when (val transition = lifecycle.fail(error)) {
-            BatchLifecycle.FailureTransition.Closed -> {
-                termination.complete(Unit)
-                null
+    private fun failLifecycle(
+        error: Throwable,
+        force: Boolean = false,
+        interruptResultCallbacks: Boolean = force,
+    ): Throwable? {
+        val plan = synchronized(terminalMonitor) {
+            if (sealedOutcome != null) {
+                return null
             }
+            val transition = lifecycle.fail(error)
+            admission.releaseReservations()
+            val primaryFailure = when (transition) {
+                BatchLifecycle.FailureTransition.Closed -> error
+                is BatchLifecycle.FailureTransition.Existing -> transition.cause
+                is BatchLifecycle.FailureTransition.Installed -> transition.cause
+            }
+            val primaryInstalled = terminalFailure.compareAndSet(null, primaryFailure)
+            val preparedSignals =
+                if (primaryInstalled && !force) {
+                    preparePendingFailures(primaryFailure)
+                } else {
+                    emptyList()
+                }
+            FailurePlan(
+                primaryFailure = checkNotNull(terminalFailure.get()),
+                primaryInstalled = primaryInstalled,
+                preparedSignals = preparedSignals,
+            )
+        }
+        plan.preparedSignals.forEach { preparedSignal ->
+            check(preparedSignal.accepted) {
+                "Batch result dispatcher[$name] closed during a protected failure handoff."
+            }
+            preparedSignal.startFallbackIfNeeded()
+        }
+        if (force) {
+            forceCleanup(plan.primaryFailure, interruptResultCallbacks)
+        } else if (plan.primaryInstalled) {
+            disposeProcessor(plan.primaryFailure)
+            shutdownResultDispatcher()
+        }
+        return plan.primaryFailure
+    }
 
-            is BatchLifecycle.FailureTransition.Existing -> transition.cause
-            is BatchLifecycle.FailureTransition.Installed -> {
-                disposeLanes()
-                dispatchPendingFailures(transition.cause)
-                resultDispatcher.shutdown()
-                processorTermination.completeExceptionally(transition.cause)
-                termination.completeExceptionally(transition.cause)
-                transition.cause
+    @Suppress("TooGenericExceptionCaught")
+    private fun forceCleanup(
+        error: Throwable,
+        interruptResultCallbacks: Boolean,
+    ) {
+        synchronized(forceCleanupMonitor) {
+            val forcedSignals = detachPending(
+                error = error,
+                preserveSettledResults = !interruptResultCallbacks,
+            )
+            if (forceResourceCleanupStarted.compareAndSet(false, true)) {
+                processorDisposalStarted.set(true)
+                val detachedProcessors = detachLanes(detachResultDispatcher = true)
+                try {
+                    batchScheduler.dispose()
+                } catch (cleanupFailure: Throwable) {
+                    Exceptions.throwIfFatal(cleanupFailure)
+                    reportCleanupFailure(cleanupFailure)
+                }
+                processorTermination.completeExceptionally(error)
+                tryCompleteTermination()
+                dispatchForceLaneCleanup(detachedProcessors)
+            }
+            if (interruptResultCallbacks) {
+                resultDispatcher.forceShutdown(forcedSignals)
+            } else {
+                resultDispatcher.shutdown(forcedSignals)
             }
         }
     }
 
-    private fun disposeLanes() {
-        if (!lanesDisposed.compareAndSet(false, true)) {
+    private fun detachPending(
+        error: Throwable,
+        preserveSettledResults: Boolean,
+    ): List<() -> Unit> =
+        admission.ownedSnapshot().mapNotNull { request ->
+            if (preserveSettledResults) {
+                request.forceDetachIfUnsettled(error)
+            } else {
+                request.forceDetach(error)
+            }
+        }
+
+    private fun disposeProcessor(error: Throwable? = null) {
+        if (!processorDisposalStarted.compareAndSet(false, true)) {
             return
         }
-        lanes.forEach(BatchLane<T>::dispose)
-        // BatchLane.cancelOn schedules writer cancellation on this scheduler.
-        // Dispose only after every preceding cancellation task has run.
+        disposeLanes()
+        batchScheduler.disposeGracefully().subscribe(
+            {},
+            { disposalFailure ->
+                completeProcessorDisposal(error, disposalFailure)
+            },
+            {
+                completeProcessorDisposal(error)
+            },
+        )
+    }
+
+    private fun completeProcessorDisposal(
+        primaryFailure: Throwable?,
+        disposalFailure: Throwable? = null,
+    ) {
+        val recordedFailure = primaryFailure ?: terminalFailure.get() ?: lifecycle.failureCause
+        val terminalFailure = when {
+            recordedFailure == null && disposalFailure == null -> null
+            recordedFailure == null -> installCleanupFailure(disposalFailure!!)
+            disposalFailure == null || disposalFailure === recordedFailure -> recordedFailure
+            else -> recordedFailure.also {
+                reportCleanupFailure(disposalFailure)
+            }
+        }
+        if (terminalFailure == null) {
+            processorTermination.complete(Unit)
+        } else {
+            processorTermination.completeExceptionally(terminalFailure)
+        }
+        tryCompleteTermination()
+    }
+
+    private fun installCleanupFailure(cleanupFailure: Throwable): Throwable =
+        synchronized(terminalMonitor) {
+            val failure = when (val transition = lifecycle.fail(cleanupFailure)) {
+                BatchLifecycle.FailureTransition.Closed -> cleanupFailure
+                is BatchLifecycle.FailureTransition.Existing -> transition.cause
+                is BatchLifecycle.FailureTransition.Installed -> transition.cause
+            }
+            terminalFailure.compareAndSet(null, failure)
+            checkNotNull(terminalFailure.get())
+        }
+
+    private fun disposeLanes() {
+        detachLanes(detachResultDispatcher = false).forEach(Disposable::dispose)
+    }
+
+    private fun detachLanes(detachResultDispatcher: Boolean): List<Disposable> {
+        lanes.forEach { lane ->
+            lane.detachCallbacks(detachResultDispatcher)
+        }
+        if (!lanesDisposed.compareAndSet(false, true)) {
+            return emptyList()
+        }
+        return lanes.mapNotNull { lane ->
+            lane.detachProcessor()
+        }
+    }
+
+    private fun tryCompleteTermination() {
+        if (!processorTermination.isDone || !resultDispatcherTermination.isDone) {
+            return
+        }
+        val outcome = synchronized(terminalMonitor) {
+            if (
+                !processorTermination.isDone ||
+                !resultDispatcherTermination.isDone ||
+                terminalPublicationClaimed
+            ) {
+                return
+            }
+            val terminalOutcome = sealedOutcome
+                ?: (
+                    terminalFailure.get()
+                        ?.let(TerminalOutcome::Failure)
+                        ?: lifecycle.failureCause
+                            ?.let(TerminalOutcome::Failure)
+                        ?: TerminalOutcome.Success
+                    ).also { outcome ->
+                    sealedOutcome = outcome
+                }
+            terminalPublicationClaimed = true
+            terminalOutcome
+        }
+        when (outcome) {
+            TerminalOutcome.Success -> termination.complete(Unit)
+            is TerminalOutcome.Failure -> termination.completeExceptionally(outcome.cause)
+        }
+    }
+
+    private fun shutdownResultDispatcher() {
+        resultDispatcher.shutdown()
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun reportCleanupFailure(cleanupFailure: Throwable) {
         try {
-            batchScheduler.schedule(batchScheduler::dispose)
+            forceLaneCleanupFailureHandler(cleanupFailure)
+        } catch (reportingFailure: Throwable) {
+            Exceptions.throwIfFatal(reportingFailure)
+            log.warn(reportingFailure) {
+                "Failed to report batch cleanup failure for coordinator[$name]."
+            }
+        }
+    }
+
+    private fun dispatchForceLaneCleanup(
+        detachedProcessors: List<Disposable>,
+    ) {
+        if (detachedProcessors.isEmpty()) {
+            return
+        }
+        try {
+            forceLaneCleanupExecutor.execute {
+                detachedProcessorDisposer(detachedProcessors)
+                    ?.let(::reportCleanupFailure)
+            }
         } catch (_: RejectedExecutionException) {
-            batchScheduler.dispose()
+            log.warn {
+                "Dropped best-effort physical lane cancellation for batch " +
+                    "coordinator[$name] because the bounded force-cleanup " +
+                    "executor is saturated. Logical ownership was already detached."
+            }
         }
     }
 
     private companion object {
+        const val FORCE_LANE_CLEANUP_THREADS: Int = 4
+        const val FORCE_LANE_CLEANUP_QUEUE_CAPACITY: Int = 16
+        val log = KotlinLogging.logger {}
         val DEFAULT_CLOSE_TIMEOUT: Duration = Duration.ofSeconds(30)
+        val FORCE_LANE_CLEANUP_THREAD_SEQUENCE = AtomicInteger()
+        val FORCE_LANE_CLEANUP_EXECUTOR = ThreadPoolExecutor(
+            FORCE_LANE_CLEANUP_THREADS,
+            FORCE_LANE_CLEANUP_THREADS,
+            0,
+            TimeUnit.MILLISECONDS,
+            ArrayBlockingQueue(FORCE_LANE_CLEANUP_QUEUE_CAPACITY),
+            { runnable ->
+                Thread(
+                    runnable,
+                    "wow-batch-force-cleanup-" +
+                        FORCE_LANE_CLEANUP_THREAD_SEQUENCE.incrementAndGet(),
+                ).apply {
+                    isDaemon = true
+                }
+            },
+            ThreadPoolExecutor.AbortPolicy(),
+        )
+
+        fun disposeDetachedProcessors(
+            detachedProcessors: List<Disposable>,
+        ): Throwable? =
+            forceStopAll(
+                forceActions = detachedProcessors.map { processor ->
+                    processor::dispose
+                },
+                initialFailure = null,
+            )
     }
+
+    private sealed interface TerminalOutcome {
+        data object Success : TerminalOutcome
+
+        data class Failure(val cause: Throwable) : TerminalOutcome
+    }
+
+    private data class FailurePlan(
+        val primaryFailure: Throwable,
+        val primaryInstalled: Boolean,
+        val preparedSignals: List<BatchResultDispatcher.PreparedSignal>,
+    )
 }

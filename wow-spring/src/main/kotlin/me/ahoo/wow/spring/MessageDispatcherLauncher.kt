@@ -17,6 +17,16 @@ import me.ahoo.wow.messaging.dispatcher.MessageDispatcher
 import org.springframework.context.SmartLifecycle
 import java.time.Duration
 
+/**
+ * Legacy per-dispatcher Spring lifecycle owner.
+ *
+ * Kept for binary and source compatibility outside the Starter. Applications
+ * using the canonical [WowRuntimeLifecycle] must not register this type as a
+ * Spring bean because that would create a second owner for the dispatcher.
+ */
+@Deprecated(
+    message = "Use WowRuntimeLifecycle as the single high-level runtime owner.",
+)
 open class MessageDispatcherLauncher(
     private val messageDispatcher: MessageDispatcher,
     private val shutdownTimeout: Duration

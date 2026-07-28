@@ -13,6 +13,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
+@Suppress("DEPRECATION")
 class MessageDispatcherLauncherTest {
 
     @Test

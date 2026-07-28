@@ -21,8 +21,8 @@ import java.time.Duration
  *
  * Implementations of this interface provide both synchronous and asynchronous
  * graceful stop operations. The synchronous [stop] method has a default timeout
- * of 30 seconds; if shutdown does not complete within that window, the call returns
- * without guaranteeing all in-flight operations have finished. Use [stop] with a
+ * of 30 seconds; if shutdown does not complete within that window, the call fails
+ * with a timeout. Use [stop] with a
  * custom [Duration] to adjust the timeout, or call [stopGracefully] directly for
  * fully asynchronous shutdown.
  *
@@ -49,10 +49,9 @@ interface GracefullyStoppable : AutoCloseable {
      * Synchronously stops this resource with a 30-second timeout.
      *
      * Blocks the calling thread until all ongoing operations complete or the
-     * 30-second timeout expires — whichever comes first. If the timeout expires,
-     * this method returns without guaranteeing that all operations have finished.
+     * 30-second timeout expires — whichever comes first.
      *
-     * @throws IllegalStateException if the underlying reactive stream fails
+     * @throws IllegalStateException if the underlying reactive stream fails or the timeout expires
      * @see stopGracefully for the asynchronous version
      */
     fun stop() {
@@ -63,11 +62,10 @@ interface GracefullyStoppable : AutoCloseable {
      * Synchronously stops this resource within the specified [timeout].
      *
      * Blocks the calling thread until all ongoing operations complete or the
-     * timeout expires. If the timeout expires, this method returns without
-     * guaranteeing that all operations have finished.
+     * timeout expires.
      *
      * @param timeout The maximum duration to wait for graceful shutdown to complete
-     * @throws IllegalStateException if the underlying reactive stream fails
+     * @throws IllegalStateException if the underlying reactive stream fails or the timeout expires
      * @see stopGracefully for the asynchronous version
      * @see stop for the version with the default 30-second timeout
      */

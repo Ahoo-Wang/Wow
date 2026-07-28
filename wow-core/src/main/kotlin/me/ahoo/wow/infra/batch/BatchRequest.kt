@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicReference
 internal class BatchRequest<T : Any>(
     val value: T,
     private val onReleaseAdmission: (BatchRequest<T>) -> Unit,
-    private val onReleaseQueueSlot: () -> Unit,
+    private val onReleaseQueueSlot: (BatchRequest<T>) -> Unit,
 ) {
     private sealed interface State {
         data object Queued : State
@@ -73,47 +73,52 @@ internal class BatchRequest<T : Any>(
         }
     }
 
+    fun discardIfCancelled(): Boolean {
+        val discarded = state.compareAndSet(State.Cancelled, State.Terminated)
+        if (discarded || state.get() == State.Terminated) {
+            releaseAllOwnership()
+        }
+        return discarded
+    }
+
     fun discardAdmission() {
         if (state.compareAndSet(State.Queued, State.Terminated)) {
-            releaseQueueSlot()
-            releaseAdmission()
+            releaseAllOwnership()
         }
     }
 
-    fun settle(outcome: BatchItemResult) {
+    fun settle(outcome: BatchItemResult): Boolean {
         while (true) {
             when (val current = state.get()) {
                 State.InFlight -> {
                     if (state.compareAndSet(current, State.Settled(outcome))) {
-                        return
+                        return true
                     }
                 }
 
                 State.Cancelled -> {
                     discardCancelled()
-                    return
+                    return false
                 }
 
                 State.Queued,
                 is State.Settled,
                 State.Terminated,
-                -> return
+                -> return false
             }
         }
     }
 
-    fun settleFailure(error: Throwable) = settle(BatchItemResult.Failure(error))
+    fun settleFailure(error: Throwable): Boolean =
+        settle(BatchItemResult.Failure(error))
 
     fun signalSettled() {
         while (true) {
             when (val current = state.get()) {
                 is State.Settled -> {
                     if (state.compareAndSet(current, State.Terminated)) {
-                        releaseAdmission()
-                        when (val outcome = current.outcome) {
-                            BatchItemResult.Success -> result.tryEmitEmpty()
-                            is BatchItemResult.Failure -> result.tryEmitError(outcome.error)
-                        }
+                        releaseAllOwnership()
+                        signal(result, current.outcome)
                         return
                     }
                 }
@@ -123,6 +128,95 @@ internal class BatchRequest<T : Any>(
                 State.Cancelled,
                 State.Terminated,
                 -> return
+            }
+        }
+    }
+
+    /**
+     * Atomically releases every coordinator-owned resource without invoking
+     * subscriber code. The returned signal only retains the result sink and
+     * outcome, so a blocking callback cannot retain this request or admission.
+     */
+    fun forceDetach(error: Throwable): (() -> Unit)? {
+        try {
+            while (true) {
+                when (val current = state.get()) {
+                    State.Queued,
+                    State.InFlight,
+                    is State.Settled,
+                    -> {
+                        if (state.compareAndSet(current, State.Terminated)) {
+                            val resultSink = result
+                            val outcome = when (current) {
+                                is State.Settled -> current.outcome
+                                else -> BatchItemResult.Failure(error)
+                            }
+                            return {
+                                signal(resultSink, outcome)
+                            }
+                        }
+                    }
+
+                    State.Cancelled -> {
+                        state.compareAndSet(State.Cancelled, State.Terminated)
+                        return null
+                    }
+
+                    State.Terminated -> return null
+                }
+            }
+        } finally {
+            // BatchAdmission removes ownership from identity sets, so these
+            // callbacks are deliberately safe to retry. Retrying lets force
+            // cleanup help a transition that paused after its state CAS.
+            releaseAllOwnership()
+        }
+    }
+
+    /**
+     * Detaches queued or in-flight ownership while leaving an already settled
+     * request on its accepted result-dispatch path.
+     *
+     * A synchronous close timeout uses this weaker boundary so successful
+     * results queued behind a blocking subscriber are neither reordered nor
+     * re-dispatched. A hard force-stop uses [forceDetach] instead so subscriber
+     * callbacks cannot hold logical termination.
+     */
+    fun forceDetachIfUnsettled(error: Throwable): (() -> Unit)? {
+        var preserveSettledResult = false
+        try {
+            while (true) {
+                when (val current = state.get()) {
+                    State.Queued,
+                    State.InFlight,
+                    -> {
+                        if (state.compareAndSet(current, State.Terminated)) {
+                            val resultSink = result
+                            return {
+                                signal(
+                                    resultSink,
+                                    BatchItemResult.Failure(error),
+                                )
+                            }
+                        }
+                    }
+
+                    is State.Settled -> {
+                        preserveSettledResult = true
+                        return null
+                    }
+
+                    State.Cancelled -> {
+                        state.compareAndSet(State.Cancelled, State.Terminated)
+                        return null
+                    }
+
+                    State.Terminated -> return null
+                }
+            }
+        } finally {
+            if (!preserveSettledResult) {
+                releaseAllOwnership()
             }
         }
     }
@@ -159,12 +253,27 @@ internal class BatchRequest<T : Any>(
     }
 
     private fun discardCancelled() {
-        if (state.compareAndSet(State.Cancelled, State.Terminated)) {
-            releaseQueueSlot()
-        }
+        discardIfCancelled()
     }
 
     private fun releaseAdmission() = onReleaseAdmission(this)
 
-    private fun releaseQueueSlot() = onReleaseQueueSlot()
+    private fun releaseQueueSlot() = onReleaseQueueSlot(this)
+
+    private fun releaseAllOwnership() {
+        releaseQueueSlot()
+        releaseAdmission()
+    }
+
+    private companion object {
+        fun signal(
+            result: Sinks.Empty<Void>,
+            outcome: BatchItemResult,
+        ) {
+            when (outcome) {
+                BatchItemResult.Success -> result.tryEmitEmpty()
+                is BatchItemResult.Failure -> result.tryEmitError(outcome.error)
+            }
+        }
+    }
 }

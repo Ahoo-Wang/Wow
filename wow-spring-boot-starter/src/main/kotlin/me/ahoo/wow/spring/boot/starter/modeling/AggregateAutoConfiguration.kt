@@ -41,15 +41,19 @@ import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.WowProperties
+import me.ahoo.wow.spring.boot.starter.WowRuntimeComponentOrder
 import me.ahoo.wow.spring.command.CommandDispatcherLauncher
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean
+import org.springframework.core.annotation.Order
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
-class AggregateAutoConfiguration(private val wowProperties: WowProperties) {
+class AggregateAutoConfiguration(
+    private val wowProperties: WowProperties,
+) {
     @Bean
     @ConditionalOnMissingBean
     fun stateAggregateFactory(): StateAggregateFactory {
@@ -135,6 +139,7 @@ class AggregateAutoConfiguration(private val wowProperties: WowProperties) {
 
     @Bean
     @ConditionalOnMissingBean
+    @Order(WowRuntimeComponentOrder.COMMAND)
     fun aggregateDispatcher(
         @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         namedBoundedContext: NamedBoundedContext,
@@ -148,9 +153,13 @@ class AggregateAutoConfiguration(private val wowProperties: WowProperties) {
         )
     }
 
-    @Bean
-    @ConditionalOnMissingBean
-    fun aggregateDispatcherLauncher(commandDispatcher: CommandDispatcher): CommandDispatcherLauncher {
+    @Deprecated(
+        message = "Dispatchers are owned by the canonical WowRuntimeLifecycle.",
+    )
+    @Suppress("DEPRECATION")
+    fun aggregateDispatcherLauncher(
+        commandDispatcher: CommandDispatcher,
+    ): CommandDispatcherLauncher {
         return CommandDispatcherLauncher(commandDispatcher, wowProperties.shutdownTimeout)
     }
 }

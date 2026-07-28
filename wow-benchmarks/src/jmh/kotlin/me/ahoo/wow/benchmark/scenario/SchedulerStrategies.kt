@@ -15,6 +15,7 @@ package me.ahoo.wow.benchmark.scenario
 
 import me.ahoo.wow.BenchmarkAggregateSchedulerSupplier
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.infra.lifecycle.ForceStoppable
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
@@ -57,9 +58,13 @@ fun SchedulerStrategy.toSchedulerSupplier(
  * thread. Comparing this against [BenchmarkAggregateSchedulerSupplier] isolates the
  * cross-thread handoff cost from the dispatch-structure cost.
  */
-object ImmediateAggregateSchedulerSupplier : AggregateSchedulerSupplier {
+object ImmediateAggregateSchedulerSupplier :
+    AggregateSchedulerSupplier,
+    ForceStoppable {
     override fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler = Schedulers.immediate()
 
     @Suppress("ForbiddenVoid")
     override fun stopGracefully(): Mono<Void> = Mono.empty()
+
+    override fun forceStop() = Unit
 }

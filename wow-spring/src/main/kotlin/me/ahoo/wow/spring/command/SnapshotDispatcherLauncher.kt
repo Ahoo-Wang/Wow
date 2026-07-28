@@ -17,5 +17,11 @@ import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotDispatcher
 import me.ahoo.wow.spring.MessageDispatcherLauncher
 import java.time.Duration
 
-class SnapshotDispatcherLauncher(snapshotDispatcher: SnapshotDispatcher, shutdownTimeout: Duration) :
-    MessageDispatcherLauncher(snapshotDispatcher, shutdownTimeout)
+@Deprecated(
+    message = "Use WowRuntimeLifecycle as the single high-level runtime owner.",
+)
+@Suppress("DEPRECATION")
+class SnapshotDispatcherLauncher(
+    snapshotDispatcher: SnapshotDispatcher,
+    shutdownTimeout: Duration,
+) : MessageDispatcherLauncher(snapshotDispatcher, shutdownTimeout)

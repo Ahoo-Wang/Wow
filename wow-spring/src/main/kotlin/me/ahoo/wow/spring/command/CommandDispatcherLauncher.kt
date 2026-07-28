@@ -17,7 +17,11 @@ import me.ahoo.wow.modeling.command.dispatcher.CommandDispatcher
 import me.ahoo.wow.spring.MessageDispatcherLauncher
 import java.time.Duration
 
-class CommandDispatcherLauncher(commandDispatcher: CommandDispatcher, shutdownTimeout: Duration) : MessageDispatcherLauncher(
-    commandDispatcher,
-    shutdownTimeout
+@Deprecated(
+    message = "Use WowRuntimeLifecycle as the single high-level runtime owner.",
 )
+@Suppress("DEPRECATION")
+class CommandDispatcherLauncher(
+    commandDispatcher: CommandDispatcher,
+    shutdownTimeout: Duration,
+) : MessageDispatcherLauncher(commandDispatcher, shutdownTimeout)

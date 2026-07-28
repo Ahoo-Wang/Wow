@@ -18,6 +18,7 @@ import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.InMemoryDomainEventBus
+import me.ahoo.wow.infra.lifecycle.ForceStoppable
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
@@ -70,7 +71,9 @@ class EventStreamDispatcherLifecycleTest {
         override fun invoke(exchange: DomainEventExchange<*>): Mono<*> = Mono.empty<Void>()
     }
 
-    private class RecordingAggregateSchedulerSupplier : AggregateSchedulerSupplier {
+    private class RecordingAggregateSchedulerSupplier :
+        AggregateSchedulerSupplier,
+        ForceStoppable {
         val stopped = AtomicBoolean()
         private val scheduler = Schedulers.newSingle("recording-event-stream-dispatcher")
 
@@ -81,5 +84,10 @@ class EventStreamDispatcherLifecycleTest {
                 stopped.set(true)
                 scheduler.dispose()
             }
+
+        override fun forceStop() {
+            stopped.set(true)
+            scheduler.dispose()
+        }
     }
 }

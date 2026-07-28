@@ -17,5 +17,11 @@ import me.ahoo.wow.event.dispatcher.DomainEventDispatcher
 import me.ahoo.wow.spring.MessageDispatcherLauncher
 import java.time.Duration
 
-class DomainEventDispatcherLauncher(domainEventDispatcher: DomainEventDispatcher, shutdownTimeout: Duration) :
-    MessageDispatcherLauncher(domainEventDispatcher, shutdownTimeout)
+@Deprecated(
+    message = "Use WowRuntimeLifecycle as the single high-level runtime owner.",
+)
+@Suppress("DEPRECATION")
+class DomainEventDispatcherLauncher(
+    domainEventDispatcher: DomainEventDispatcher,
+    shutdownTimeout: Duration,
+) : MessageDispatcherLauncher(domainEventDispatcher, shutdownTimeout)
