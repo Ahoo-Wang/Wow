@@ -14,6 +14,13 @@ In production, you must configure the machine ID distributor to avoid collisions
 
 ### Manual Machine ID (single instance / development)
 
+You need `cosid-spring-boot-starter` (and `cosid-mongo` for MongoDB distribution) in addition to the Wow dependencies:
+
+```kotlin
+implementation("me.ahoo.cosid:cosid-spring-boot-starter")
+implementation("me.ahoo.cosid:cosid-mongo") // only for MongoDB machine ID distribution
+```
+
 ```yaml
 cosid:
   machine:

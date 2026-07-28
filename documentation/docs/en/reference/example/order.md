@@ -72,8 +72,8 @@ class Order(private val state: OrderState) {
     }
 }
 
-// State Aggregate Root - Maintains state (also extracts ABAC tags for query filtering)
-class OrderState(val id: String) : StatusCapable<OrderStatus>, StateAggregateTagsExtractor<OrderState> {
+// State Aggregate Root - Maintains state
+class OrderState(val id: String) : StatusCapable<OrderStatus> {
     var items: List<OrderItem> = listOf()
         private set
     var totalAmount: BigDecimal = BigDecimal.ZERO

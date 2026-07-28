@@ -89,11 +89,14 @@ class SimpleSnapshotStrategy(
 
 ### No Operation Strategy (NoOp)
 
-Does not create any snapshots.
+Does not create any snapshots. `NoOp` is nested inside the `SnapshotStrategy` interface as a companion object:
 
 ```kotlin
-companion object NoOp : SnapshotStrategy {
-    override fun onEvent(stateEventExchange: StateEventExchange<*>): Mono<Void> = Mono.empty()
+interface SnapshotStrategy {
+    // ...
+    companion object NoOp : SnapshotStrategy {
+        override fun onEvent(stateEventExchange: StateEventExchange<*>): Mono<Void> = Mono.empty()
+    }
 }
 ```
 

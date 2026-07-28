@@ -54,9 +54,10 @@ interface EventStore :
 }
 ```
 
-Storage-backed implementations override `scanAggregateId` and `existsRequestId`
-with indexed lookups; the defaults exist only for source compatibility with
-custom event stores.
+MongoDB and Redis override both `scanAggregateId` and `existsRequestId` with indexed lookups.
+The Elasticsearch backend overrides `scanAggregateId` but **not** `existsRequestId` — it
+inherits the default stream-scanning implementation. The defaults exist for source compatibility
+with custom event stores.
 
 ### Domain Event Stream
 

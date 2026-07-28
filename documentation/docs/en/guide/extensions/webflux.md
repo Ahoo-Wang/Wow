@@ -130,7 +130,7 @@ The response HTTP status is derived from the error: Wow `ErrorInfoCapable` /
 `ErrorInfo` exceptions and Spring `ErrorResponse` carry their own status; binding
 and validation errors map to `400`; `IllegalArgumentException`/`IllegalStateException`
 map to `400`; `TimeoutException` maps to `504`; `FileNotFoundException` to `404`;
-otherwise the framework falls back to `500`. The `Wow-Error-Code` response header
+`TimeoutException` maps to `400` (via `ErrorCodes.REQUEST_TIMEOUT` → `HttpStatus.REQUEST_TIMEOUT` / 408). Only specialized errors such as `BiDeploymentInspectionException.Timeout` map to gateway timeout (504). Otherwise the framework falls back to `500`. The `Wow-Error-Code` response header
 carries the Wow `errorCode` for machine-readable handling.
 
 ## OpenAPI Integration

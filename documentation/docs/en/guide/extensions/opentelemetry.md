@@ -80,10 +80,10 @@ Initialize `GlobalOpenTelemetry` before the Wow application context creates trac
 | Bean | Filter stage | Span name pattern |
 |---|---|---|
 | `TraceAggregateFilter` | Aggregate command processing | `{aggregateName}.{commandName}` |
-| `TraceProjectionFilter` | Projection event handling | `{aggregateName}.projection.{eventName}` |
-| `TraceStatelessSagaFilter` | Saga event handling | `{aggregateName}.saga.{eventName}` |
+| `TraceProjectionFilter` | Projection event handling | `{processorName}.{functionName}({eventType})` (via `EventProcessorSpanNameExtractor`) |
+| `TraceStatelessSagaFilter` | Saga event handling | `{processorName}.{functionName}({eventType})` (same extractor) |
 | `TraceSnapshotFilter` | Snapshot creation | `{aggregateName}.snapshot` |
-| `TraceEventProcessorFilter` | General event-processor handling | `{aggregateName}.event-processor.{eventName}` |
+| `TraceEventProcessorFilter` | General event-processor handling | `{processorName}.{functionName}({eventType})` (same extractor) |
 
 Every span carries the `wow.aggregate.*` and `wow.message.*` attributes listed above, plus the OpenTelemetry propagation context, so a single command's full path (command bus → aggregate → event store → projection → saga) appears as one distributed trace.
 

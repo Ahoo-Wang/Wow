@@ -102,9 +102,10 @@ entry, forcing a cache miss on the next read:
 
 ```kotlin
 class OrderCacheRefresher(
+    namedAggregate: NamedAggregate, // e.g. injected or resolved from metadata
     cache: Cache<String, OrderCacheData>
 ) : EvictStateCacheRefresher<String, Any, OrderCacheData>(
-    namedAggregate = OrderState::class /* NamedAggregate */,
+    namedAggregate = namedAggregate,
     cache = cache,
 )
 ```
@@ -121,10 +122,11 @@ instead of setting:
 
 ```kotlin
 class OrderCacheRefresher(
+    namedAggregate: NamedAggregate, // e.g. injected or resolved from metadata
     converter: StateToCacheDataConverter<ReadOnlyStateAggregate<OrderState>, OrderCacheData>,
     cache: Cache<String, OrderCacheData>
 ) : SetStateCacheRefresher<String, OrderState, OrderCacheData>(
-    namedAggregate = OrderState::class /* NamedAggregate */,
+    namedAggregate = namedAggregate,
     stateToCacheDataConverter = converter,
     cache = cache,
 )

@@ -14,6 +14,13 @@ CosId 使用基于 Snowflake 的算法，要求每个服务实例拥有唯一的
 
 ### 手动 Machine ID（单实例 / 开发环境）
 
+除 Wow 依赖外，还需要 `cosid-spring-boot-starter`（以及 MongoDB 分配所需的 `cosid-mongo`）：
+
+```kotlin
+implementation("me.ahoo.cosid:cosid-spring-boot-starter")
+implementation("me.ahoo.cosid:cosid-mongo") // 仅用于 MongoDB machine ID 分配
+```
+
 ```yaml
 cosid:
   machine:

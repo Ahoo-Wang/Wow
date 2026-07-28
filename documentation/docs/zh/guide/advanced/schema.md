@@ -38,10 +38,8 @@ implementation("me.ahoo.wow:wow-schema")
 val generator = SchemaGeneratorBuilder()
     .build()
 
-// victools 的 JsonSchema；toJsonNode() 返回 JSON Schema 文档
-val schema: com.github.victools.jsonschema.generator.JsonSchema =
-    generator.generateSchema(CreateOrder::class.java)
-val jsonNode: ObjectNode = schema.toJsonNode()
+// victools SchemaGenerator.generateSchema 直接返回 JsonNode
+val jsonNode: JsonNode = generator.generateSchema(CreateOrder::class.java)
 ```
 
 builder 已预配置 Wow 模块（Jackson、Jakarta Validation、Swagger2、Kotlin、Joda Money、Wow 命名）

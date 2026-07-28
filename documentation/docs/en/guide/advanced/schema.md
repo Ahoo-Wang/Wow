@@ -38,10 +38,8 @@ no `standard()` factory). Each builder builds one `com.github.victools.jsonschem
 val generator = SchemaGeneratorBuilder()
     .build()
 
-// victools JsonSchema; toJsonNode() yields the JSON Schema document
-val schema: com.github.victools.jsonschema.generator.JsonSchema =
-    generator.generateSchema(CreateOrder::class.java)
-val jsonNode: ObjectNode = schema.toJsonNode()
+// victools SchemaGenerator.generateSchema returns JsonNode directly
+val jsonNode: JsonNode = generator.generateSchema(CreateOrder::class.java)
 ```
 
 The builder is pre-configured with the Wow modules (Jackson, Jakarta Validation,

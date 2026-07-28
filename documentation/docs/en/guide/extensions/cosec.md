@@ -80,7 +80,7 @@ sequenceDiagram
 | `CoSec-App-Id` | `CoSecCommandRequestHeaderAppender` | command `header.app_id`, propagated to downstream messages |
 | `CoSec-Device-Id` | `CoSecCommandRequestHeaderAppender` | command `header.device_id`, propagated to downstream messages |
 | `CoSec-Request-Id` | `CoSecCommandBuilderExtractor` | `CommandBuilder.requestId` (idempotency) |
-| `CoSec-Space-Id` | `CoSecCommandBuilderExtractor` + `CoSecRewriteRequestCondition` | `CommandBuilder.spaceId` and the read-side query `spaceId` scope |
+| `CoSec-Space-Id` | `CoSecCommandBuilderExtractor` + `CoSecRewriteRequestCondition` | `CommandBuilder.spaceId`; for read-side queries, `CoSecRewriteRequestCondition` resolves the `Wow-Space-Id` header first and falls back to `CoSec-Space-Id` only when it is blank |
 
 To access the propagated context inside a handler, read it from the message header:
 

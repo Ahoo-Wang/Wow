@@ -81,10 +81,10 @@ wow:
 | Bean | 过滤阶段 | Span 名称模式 |
 |---|---|---|
 | `TraceAggregateFilter` | 聚合命令处理 | `{aggregateName}.{commandName}` |
-| `TraceProjectionFilter` | 投影事件处理 | `{aggregateName}.projection.{eventName}` |
-| `TraceStatelessSagaFilter` | Saga 事件处理 | `{aggregateName}.saga.{eventName}` |
+| `TraceProjectionFilter` | 投影事件处理 | `{processorName}.{functionName}({eventType})`（通过 `EventProcessorSpanNameExtractor`） |
+| `TraceStatelessSagaFilter` | Saga 事件处理 | `{processorName}.{functionName}({eventType})`（同一提取器） |
 | `TraceSnapshotFilter` | 快照创建 | `{aggregateName}.snapshot` |
-| `TraceEventProcessorFilter` | 通用事件处理器 | `{aggregateName}.event-processor.{eventName}` |
+| `TraceEventProcessorFilter` | 通用事件处理器 | `{processorName}.{functionName}({eventType})`（同一提取器） |
 
 每个 span 都携带上文列出的 `wow.aggregate.*` 与 `wow.message.*` 属性，以及 OpenTelemetry 传播上下文，
 因此一条命令的完整路径（命令总线 → 聚合 → 事件存储 → 投影 → Saga）会呈现为一条分布式链路。

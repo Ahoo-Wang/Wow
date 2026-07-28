@@ -16,10 +16,19 @@ The API Client module provides a declarative RESTful client for Wow services bas
 
 ## Installation
 
-Add the `wow-apiclient` dependency:
+Add the `wow-apiclient` dependency and the CoApi Spring Boot starter (required for auto-registration):
 
 ```kotlin [Gradle(Kotlin)]
 implementation("me.ahoo.wow:wow-apiclient")
+implementation("me.ahoo.coapi:coapi-spring-boot-starter")
+```
+
+You must also enable CoApi client scanning on your application class:
+
+```kotlin
+@EnableCoApi(clients = [ReactiveRestCommandGateway::class, CartQueryClient::class])
+@SpringBootApplication
+class ExampleServer
 ```
 
 ## Getting Started
@@ -87,7 +96,12 @@ so you can use a service-registry URL instead of a fixed host:
 interface OrderCommandClient : ReactiveRestCommandGateway
 ```
 
-For a fixed target (e.g. local development), use `baseUrl = "http://localhost:8080"`.
+::: tip CommandRequest serviceUri
+For `send(CommandRequest)`, the command gateway constructs the send URI from
+`CommandRequest.serviceUri` or the command metadata's context name — it does **not** use the
+`@CoApi(baseUrl)` for command sends. To target a fixed host for commands, set
+`CommandRequest(serviceUri = "http://localhost:8080", ...)`.
+:::
 
 ## Command Gateway
 

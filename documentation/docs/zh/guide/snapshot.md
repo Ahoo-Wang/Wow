@@ -87,11 +87,14 @@ class SimpleSnapshotStrategy(
 
 ### 无操作策略 (NoOp)
 
-不创建任何快照。
+不创建任何快照。`NoOp` 嵌套在 `SnapshotStrategy` 接口内部作为伴生对象：
 
 ```kotlin
-companion object NoOp : SnapshotStrategy {
-    override fun onEvent(stateEventExchange: StateEventExchange<*>): Mono<Void> = Mono.empty()
+interface SnapshotStrategy {
+    // ...
+    companion object NoOp : SnapshotStrategy {
+        override fun onEvent(stateEventExchange: StateEventExchange<*>): Mono<Void> = Mono.empty()
+    }
 }
 ```
 

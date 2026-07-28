@@ -98,9 +98,10 @@ class OrderCacheRefresher(
 
 ```kotlin
 class OrderCacheRefresher(
+    namedAggregate: NamedAggregate, // 例如注入或从元数据解析
     cache: Cache<String, OrderCacheData>
 ) : EvictStateCacheRefresher<String, Any, OrderCacheData>(
-    namedAggregate = OrderState::class /* NamedAggregate */,
+    namedAggregate = namedAggregate,
     cache = cache,
 )
 ```
@@ -115,10 +116,11 @@ class OrderCacheRefresher(
 
 ```kotlin
 class OrderCacheRefresher(
+    namedAggregate: NamedAggregate, // 例如注入或从元数据解析
     converter: StateToCacheDataConverter<ReadOnlyStateAggregate<OrderState>, OrderCacheData>,
     cache: Cache<String, OrderCacheData>
 ) : SetStateCacheRefresher<String, OrderState, OrderCacheData>(
-    namedAggregate = OrderState::class /* NamedAggregate */,
+    namedAggregate = namedAggregate,
     stateToCacheDataConverter = converter,
     cache = cache,
 )

@@ -16,10 +16,19 @@ API 客户端模块基于 [CoApi](https://github.com/Ahoo-Wang/CoApi) 提供声�
 
 ## 安装
 
-添加 `wow-apiclient` 依赖：
+添加 `wow-apiclient` 依赖和 CoApi Spring Boot Starter（自动注册所需）：
 
 ```kotlin [Gradle(Kotlin)]
 implementation("me.ahoo.wow:wow-apiclient")
+implementation("me.ahoo.coapi:coapi-spring-boot-starter")
+```
+
+还需在应用类上启用 CoApi 客户端扫描：
+
+```kotlin
+@EnableCoApi(clients = [ReactiveRestCommandGateway::class, CartQueryClient::class])
+@SpringBootApplication
+class ExampleServer
 ```
 
 ## 快速开始
@@ -86,7 +95,10 @@ class CartService(
 interface OrderCommandClient : ReactiveRestCommandGateway
 ```
 
-对于固定目标（例如本地开发），使用 `baseUrl = "http://localhost:8080"`。
+::: tip CommandRequest serviceUri
+对于 `send(CommandRequest)`，命令网关从 `CommandRequest.serviceUri` 或命令元数据的上下文名称构建发送 URI —— 它**不会**使用 `@CoApi(baseUrl)` 发送命令。要将命令发送到固定主机，设置
+`CommandRequest(serviceUri = "http://localhost:8080", ...)`。
+:::
 
 ## 命令网关
 

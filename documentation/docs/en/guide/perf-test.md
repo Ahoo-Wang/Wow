@@ -35,16 +35,11 @@ PrepareKey + message bus recovery. Alternative configs (`in-memory.yaml`, `redis
 
 ### Running the Load Test
 
-The `.http` files in the [`example/transfer/Transfer.http`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/Transfer.http)
-and [`example/Example.http`](https://github.com/Ahoo-Wang/Wow/blob/main/example/Example.http)
-directories contain ready-to-use request templates. Use a load testing tool (e.g. k6, Gatling,
+The `.http` request templates are in the
+[`deploy/example/request/`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/example/request)
+directory (`AddCartItem.http`, `CreateOrder.http`). Use a load testing tool (e.g. k6, Gatling,
 or JMeter) pointed at the same endpoints with the `Command-Wait-Stage` header set to `SENT`
-or `PROCESSED`:
-
-```bash
-# Example: k6 load test for Add to Cart with SENT wait stage
-k6 run --vus 100 --duration 2m -e HOST=http://localhost:8080 -e WAIT_STAGE=SENT script.js
-```
+or `PROCESSED`.
 
 Adjust `--vus` (virtual users) and `--duration` based on your infrastructure capacity.
 

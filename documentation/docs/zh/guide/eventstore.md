@@ -53,8 +53,9 @@ interface EventStore :
 }
 ```
 
-存储后端实现会用索引查找覆盖 `scanAggregateId` 与 `existsRequestId`；默认实现仅为
-自定义事件存储保留源码兼容性。
+MongoDB 和 Redis 会用索引查找覆盖 `scanAggregateId` 和 `existsRequestId`。
+Elasticsearch 后端覆盖了 `scanAggregateId` 但**未覆盖** `existsRequestId` —— 它继承了默认的流扫描实现。
+默认实现仅为自定义事件存储保留源码兼容性。
 
 ### 领域事件流
 

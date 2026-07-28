@@ -36,15 +36,9 @@ PrepareKey + 消息总线恢复。还提供了替代配置（`in-memory.yaml`、
 
 ### 运行压测
 
-[`example/transfer/Transfer.http`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/Transfer.http)
-和 [`example/Example.http`](https://github.com/Ahoo-Wang/Wow/blob/main/example/Example.http)
-目录中的 `.http` 文件包含现成的请求模板。使用压测工具（如 k6、Gatling 或 JMeter）
-指向相同的端点，并将 `Command-Wait-Stage` 头设置为 `SENT` 或 `PROCESSED`：
-
-```bash
-# 示例：使用 k6 对加入购物车进行 SENT 等待阶段的压测
-k6 run --vus 100 --duration 2m -e HOST=http://localhost:8080 -e WAIT_STAGE=SENT script.js
-```
+[`deploy/example/request/`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/example/request)
+目录中的 `.http` 请求模板（`AddCartItem.http`、`CreateOrder.http`）包含现成的请求。使用压测工具
+（如 k6、Gatling 或 JMeter）指向相同的端点，并将 `Command-Wait-Stage` 头设置为 `SENT` 或 `PROCESSED`。
 
 根据你的基础设施容量调整 `--vus`（虚拟用户数）和 `--duration`。
 

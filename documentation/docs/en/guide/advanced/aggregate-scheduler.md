@@ -88,8 +88,8 @@ run on different threads simultaneously, while different aggregates run in paral
 
 | Concern | How the per-aggregate scheduler addresses it |
 |---|---|
-| **Ordering** | All events for aggregate `order-001` are processed on the same scheduler, preserving publish order. |
-| **Isolation** | A slow aggregate (e.g. a huge event replay) does not block a shared thread pool for other aggregates. |
-| **Backpressure** | Each aggregate's scheduler has its own queue; contention is bounded per aggregate, not global. |
-| **Resource control** | `parallelism` caps the worker count per aggregate, preventing one hot aggregate from consuming all CPU. |
+| **Ordering** | All events for one aggregate type (e.g. `order`) share a scheduler, preserving publish order within that type. Individual aggregate instances are further ordered by `AggregateDispatcher`'s `concatMap` within `parallelism` lanes. |
+| **Isolation** | Different aggregate types (e.g. `order` vs `cart`) get separate schedulers, so a slow one does not block another. |
+| **Backpressure** | Each named aggregate's scheduler has its own queue; contention is bounded per aggregate type, not global. |
+| **Resource control** | `parallelism` caps the worker count per named aggregate type, preventing one hot type from consuming all CPU. |
 | **Graceful shutdown** | `stopGracefully()` disposes every cached scheduler during application shutdown. |

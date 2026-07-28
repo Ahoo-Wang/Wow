@@ -72,8 +72,8 @@ class Order(private val state: OrderState) {
     }
 }
 
-// 状态聚合根 - 维护状态（同时为查询过滤提取 ABAC 标签）
-class OrderState(val id: String) : StatusCapable<OrderStatus>, StateAggregateTagsExtractor<OrderState> {
+// 状态聚合根 - 维护状态
+class OrderState(val id: String) : StatusCapable<OrderStatus> {
     var items: List<OrderItem> = listOf()
         private set
     var totalAmount: BigDecimal = BigDecimal.ZERO

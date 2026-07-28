@@ -81,7 +81,7 @@ sequenceDiagram
 | `CoSec-App-Id` | `CoSecCommandRequestHeaderAppender` | 命令 `header.app_id`，并传播到下游消息 |
 | `CoSec-Device-Id` | `CoSecCommandRequestHeaderAppender` | 命令 `header.device_id`，并传播到下游消息 |
 | `CoSec-Request-Id` | `CoSecCommandBuilderExtractor` | `CommandBuilder.requestId`（幂等性） |
-| `CoSec-Space-Id` | `CoSecCommandBuilderExtractor` + `CoSecRewriteRequestCondition` | `CommandBuilder.spaceId` 以及读侧查询的 `spaceId` 范围 |
+| `CoSec-Space-Id` | `CoSecCommandBuilderExtractor` + `CoSecRewriteRequestCondition` | `CommandBuilder.spaceId`；对于读侧查询，`CoSecRewriteRequestCondition` 先解析 `Wow-Space-Id` 头，仅在其为空时才回退到 `CoSec-Space-Id` |
 
 要在处理器内访问传播的上下文，从消息头读取即可：
 
