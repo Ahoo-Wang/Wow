@@ -227,7 +227,7 @@ DomainEventStreamFactory.kt: wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEv
 |---|---|---|---|
 | `id` | `String` | 全局唯一的流 ID（通过 `generateGlobalId()` 生成） | [DomainEventStream.kt:91](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L91) |
 | `requestId` | `String` | 关联 ID，将流与原始 HTTP 请求关联 | [DomainEventStream.kt:92](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L92) |
-| `header` | `Header` | 消息头，包含元数据和传播标志 | [DomainEventStream.kt:93](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L93) |
+| `header` | `Header` | 消息头，包含元数据和传播标志 | [DomainEventStream.kt:79](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L79) |
 | `body` | `List<DomainEvent<*>>` | 有序的领域事件列表（不可为空） | [DomainEventStream.kt:94](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L94) |
 | `aggregateId` | `AggregateId` | 从第一个事件的聚合 ID 派生 | [DomainEventStream.kt:97](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L97) |
 | `version` | `Int` | 应用此流后的聚合版本（来自第一个事件） | [DomainEventStream.kt:106](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L106) |
@@ -437,7 +437,7 @@ wow.{contextName}.{aggregateName}.event
 
 | 属性 | 类型 | 默认值 | 描述 | 源码 |
 |---|---|---|---|---|
-| `wow.kafka.enabled` | `Boolean` | `true` | 启用 Kafka 集成 | [KafkaProperties.kt:29](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/kafka/KafkaProperties.kt#L29) |
+| `wow.kafka.enabled` | `Boolean` | `true` | 启用 Kafka 集成 | [KafkaProperties.kt:30](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/kafka/KafkaProperties.kt#L30) |
 | `wow.kafka.bootstrap-servers` | `List<String>` | **必填** | Kafka broker 地址 | [KafkaProperties.kt:30](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/kafka/KafkaProperties.kt#L30) |
 | `wow.kafka.topic-prefix` | `String` | `wow.` | 所有主题名称的前缀 | [KafkaProperties.kt:31](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/kafka/KafkaProperties.kt#L31) |
 | `wow.kafka.properties` | `Map<String,String>` | `{}` | 通用 Kafka 客户端属性 | [KafkaProperties.kt:35](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/kafka/KafkaProperties.kt#L35) |

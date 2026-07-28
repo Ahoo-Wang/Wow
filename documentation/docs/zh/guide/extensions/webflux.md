@@ -60,6 +60,31 @@ class Order(private val state: OrderState)
 | `@CommandRoute(method = PUT)`    | PUT     | `/{resource}/{command}` |
 | `@CommandRoute(method = DELETE)` | DELETE  | `/{resource}/{command}` |
 
+## 配置
+
+- 配置类：[WebFluxProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties.kt)
+- 前缀：`wow.webflux.`
+
+| 名称 | 数据类型 | 默认值 | 描述 |
+|---|---|---|---|
+| `enabled` | `Boolean` | `true` | 是否启用 WebFlux 扩展（路由注册） |
+| `global-error.enabled` | `Boolean` | `true` | 是否安装全局异常处理器，将错误映射为统一的 `ErrorInfo` 响应 |
+| `batch.concurrency` | `Int` | `1` | 单次批量执行中并发处理的最大请求数 |
+| `batch.prefetch` | `Int` | `1` | 批量请求处理的预取窗口 |
+
+```yaml
+wow:
+  webflux:
+    enabled: true
+    global-error:
+      enabled: true
+    batch:
+      concurrency: 4
+      prefetch: 4
+```
+
+使用 `wow-spring-boot-starter` 时，WebFlux 作为 `webflux-support` 特性能力包含在内。全局异常处理器默认启用；仅当你提供自己的 `WebExceptionHandler` 时才需关闭。
+
 ## 等待计划集成
 
 WebFlux 扩展支持通过 HTTP 头指定等待计划：
@@ -78,10 +103,16 @@ Command-Wait-Timeout: 30000
 
 ### 支持的等待计划
 
-- `SENT`: 命令发送完成
-- `PROCESSED`: 命令处理完成
-- `PROJECTED`: 事件投影完成
-- `SNAPSHOT`: 快照创建完成
+全部六个命令阶段都可作为等待计划（前置条件与语义参见 [命令网关](../command-gateway.md#wait-plans)）：
+
+- `SENT`：命令已被总线接受
+- `PROCESSED`：聚合已执行命令
+- `SNAPSHOT`：聚合快照已持久化
+- `PROJECTED`：读模型投影已更新（按函数匹配）
+- `EVENT_HANDLED`：外部事件处理器已完成（按函数匹配）
+- `SAGA_HANDLED`：Saga 已完成事件处理（按函数匹配）
+
+当请求头包含 `Accept: text/event-stream` 时，处理器通过 SSE 按阶段流式返回 `CommandResult` 事件，而不是返回单个 JSON 响应。
 
 ## 错误处理
 
@@ -94,6 +125,8 @@ WebFlux 扩展提供统一的错误响应格式：
   "requestId": "req-123"
 }
 ```
+
+响应的 HTTP 状态码由错误推导：Wow 的 `ErrorInfoCapable` / `ErrorInfo` 异常以及 Spring 的 `ErrorResponse` 自带状态码；绑定与校验错误映射为 `400`；`IllegalArgumentException`/`IllegalStateException` 映射为 `400`；`TimeoutException` 映射为 `504`；`FileNotFoundException` 映射为 `404`；否则回退为 `500`。响应头 `Wow-Error-Code` 携带 Wow 的 `errorCode`，便于程序化处理。
 
 ## OpenAPI 集成
 

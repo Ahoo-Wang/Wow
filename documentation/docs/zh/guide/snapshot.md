@@ -47,26 +47,37 @@ sequenceDiagram
     AG-->>CB: 聚合就绪
 ```
 
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/event/snapshot/, wow-api/src/main/kotlin/me/ahoo/wow/api/event/snapshot/ -->
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/, wow-api/src/main/kotlin/me/ahoo/wow/api/modeling/ -->
 
 ## 快照策略
 
-快照策略决定何时创建快照。Wow 框架提供多种内置策略：
+快照策略对每个状态事件作出响应，并决定是否持久化新的快照。策略契约是响应式的，
+逐个处理 `StateEventExchange`，而不是返回布尔谓词：
+
+```kotlin
+interface SnapshotStrategy {
+    fun onEvent(stateEventExchange: StateEventExchange<*>): Mono<Void>
+}
+```
+
+Wow 框架提供以下内置策略：
 
 ### 版本偏移策略 (VersionOffset)
 
-当聚合根版本与上次快照版本的差值达到指定阈值时创建快照。
+当聚合根版本与上次快照版本的差值达到指定阈值时创建快照。策略通过
+`SnapshotStore.getVersion()` 读取已存储的版本，仅在达到偏移量时才保存，
+因此快照频率与并发状态事件无关。
 
 ```kotlin
 class VersionOffsetSnapshotStrategy(
-    private val snapshotStore: SnapshotStore,
-    private val versionOffset: Int = 5
+    private val versionOffset: Int = DEFAULT_VERSION_OFFSET, // 5
+    private val snapshotStore: SnapshotStore
 ) : SnapshotStrategy
 ```
 
 ### 全量策略 (All)
 
-为每个状态事件创建快照。
+为每个状态事件保存快照。
 
 ```kotlin
 class SimpleSnapshotStrategy(
@@ -79,8 +90,8 @@ class SimpleSnapshotStrategy(
 不创建任何快照。
 
 ```kotlin
-object NoOp : SnapshotStrategy {
-    override fun <S : Any> shouldSnapshot(stateEvent: StateEvent<S>): Boolean = false
+companion object NoOp : SnapshotStrategy {
+    override fun onEvent(stateEventExchange: StateEventExchange<*>): Mono<Void> = Mono.empty()
 }
 ```
 
@@ -97,19 +108,23 @@ stateDiagram-v2
     Delete --> [*]
 ```
 
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/event/snapshot/SnapshotHandler.kt -->
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotMaterializer.kt, dispatcher/SnapshotHandler.kt -->
 
 ## 快照存储
 
 快照存储负责存储和检索快照。批量扫描聚合 ID 属于 `EventStore.scanAggregateId(...)`，而不是快照存储职责。
 
 ```kotlin
-interface SnapshotStore : Named {
+interface SnapshotStore : Named, AutoCloseable {
     fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>>
     fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void>
     fun getVersion(aggregateId: AggregateId): Mono<Int>
 }
 ```
+
+`SnapshotStore` 继承自 `AutoCloseable`。默认的 `close()` 为空操作，但存储后端
+实现（以及批处理包装器）会在关闭时释放工作线程并刷新未完成的窗口；Spring 通过
+正常生命周期关闭已配置的 Bean。
 
 `SnapshotStore.save()` 以原子方式为每个聚合维护最新快照。聚合版本大于或等于
 已存版本的候选快照会完整替换已存快照；只有较低版本为 no-op。同版本覆盖使快照
@@ -170,11 +185,15 @@ wow:
       enabled: true  # 是否启用快照
       strategy: all  # 快照策略 (all, version_offset)
       version-offset: 5  # 版本偏移（仅对 version_offset 策略有效）
+      storage: mongo  # 快照存储后端 (mongo、redis、elasticsearch、in_memory)
 ```
 
 | 属性 | 默认值 | 描述 |
 |----------|---------|-------------|
 | `wow.eventsourcing.snapshot.enabled` | `true` | 启用最新快照 |
+| `wow.eventsourcing.snapshot.strategy` | `all` | 快照策略（`all` 或 `version_offset`） |
+| `wow.eventsourcing.snapshot.version-offset` | `5` | 版本偏移阈值（仅 `version_offset` 使用） |
+| `wow.eventsourcing.snapshot.storage` | `mongo` | 快照存储后端（共享 `StorageType` 枚举） |
 
 
 ## 聚合加载优化

@@ -5,6 +5,71 @@ description: CQRS、微服务和响应式编程相关的精选资源，以及 Wo
 
 # 生态
 
+## Wow 生态架构
+
+Wow 生态由同一作者的开源项目组成，设计为无缝协同工作：
+
+```mermaid
+graph TB
+    subgraph Core["Wow 框架"]
+        WOW["Wow<br>CQRS + DDD + EventSourcing"]
+    end
+
+    subgraph ID["标识"]
+        COSID["CosId<br>分布式 ID 生成"]
+    end
+
+    subgraph Infra["基础设施"]
+        COSKY["CoSky<br>服务治理"]
+        SIMBA["Simba<br>分布式锁"]
+    end
+
+    subgraph Security["安全"]
+        COSEC["CoSec<br>RBAC + ABAC 授权"]
+    end
+
+    subgraph Cache["缓存"]
+        COCACHE["CoCache<br>分布式二级缓存"]
+    end
+
+    subgraph Client["HTTP 客户端"]
+        COAPI["CoApi<br>声明式 REST 客户端"]
+        FETCHER["Fetcher<br>HTTP 客户端 + LLM 流式"]
+    end
+
+    subgraph Test["测试"]
+        FLUENT["FluentAssert<br>Kotlin 流式断言"]
+    end
+
+    COSID -->|"全局 ID + Machine ID"| WOW
+    COSKY -->|"服务发现 + 配置"| WOW
+    SIMBA -->|"分布式锁"| WOW
+    COSEC -->|"wow-cosec 模块"| WOW
+    COCACHE -->|"wow-cocache 模块"| WOW
+    COAPI -->|"wow-apiclient 模块"| WOW
+    FETCHER -->|"TypeScript 客户端生成"| WOW
+    FLUENT -->|"测试断言"| WOW
+
+    style Core fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
+    style ID fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
+    style Infra fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
+    style Security fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
+    style Cache fill:#3a2e4a,stroke:#9d7edb,color:#e0e0e0
+    style Client fill:#2e4a4a,stroke:#4ad4d4,color:#e0e0e0
+    style Test fill:#4a4a2e,stroke:#d4d45b,color:#e0e0e0
+```
+
+| 项目 | 在 Wow 中的角色 | Wow 模块 |
+|---|---|---|
+| **CosId** | 全局 ID、聚合 ID、machine ID 生成 | 内置依赖 |
+| **CoSec** | 多租户响应式安全（RBAC + ABAC） | `wow-cosec` |
+| **CoCache** | 分布式一致性二级缓存 | `wow-cocache` |
+| **Simba** | 分布式锁服务 | 构建时依赖 |
+| **CoSky** | 服务发现 + 配置管理 | 可选部署 |
+| **CoApi** | Spring 6 声明式 HTTP 客户端 | `wow-apiclient` |
+| **Fetcher** | HTTP 客户端生态 + TypeScript 客户端生成 | `wow-project-template` |
+| **FluentAssert** | Kotlin 流式断言库 | `wow-test` |
+
 ## CQRS 资源
 
 ### 项目模板

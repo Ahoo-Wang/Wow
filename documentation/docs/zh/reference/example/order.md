@@ -47,7 +47,7 @@ example/
 ```kotlin
 // 命令聚合根 - 处理命令
 @AggregateRoot
-@AggregateRoute(resourceName = "sales-order", owner = AggregateRoute.Owner.ALWAYS)
+@AggregateRoute(resourceName = "sales-order", spaced = true, owner = AggregateRoute.Owner.ALWAYS)
 class Order(private val state: OrderState) {
 
     fun onCommand(createOrder: CreateOrder): OrderCreated {
@@ -72,8 +72,8 @@ class Order(private val state: OrderState) {
     }
 }
 
-// 状态聚合根 - 维护状态
-class OrderState(val id: String) : StatusCapable<OrderStatus> {
+// 状态聚合根 - 维护状态（同时为查询过滤提取 ABAC 标签）
+class OrderState(val id: String) : StatusCapable<OrderStatus>, StateAggregateTagsExtractor<OrderState> {
     var items: List<OrderItem> = listOf()
         private set
     var totalAmount: BigDecimal = BigDecimal.ZERO

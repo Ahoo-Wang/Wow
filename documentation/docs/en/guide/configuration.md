@@ -178,7 +178,7 @@ wow:
 |----------|------|---------|-------------|
 | `wow.eventsourcing.snapshot.enabled` | Boolean | `true` | Enable snapshot functionality |
 | `wow.eventsourcing.snapshot.strategy` | Strategy | `all` | Snapshot strategy |
-| `wow.eventsourcing.snapshot.version-offset` | Int | `10` | Version offset for VERSION_OFFSET strategy |
+| `wow.eventsourcing.snapshot.version-offset` | Int | `5` | Version offset for VERSION_OFFSET strategy |
 | `wow.eventsourcing.snapshot.storage` | StorageType | `mongo` | Snapshot storage backend |
 
 ```yaml
@@ -565,6 +565,8 @@ For event stores and snapshots:
 | `mongo` | MongoDB (recommended for event store) |
 | `redis` | Redis for high-performance scenarios |
 | `elasticsearch` | Elasticsearch for full-text search |
+| `in_memory` | In-memory store (development/testing) |
+| `delay` | Delay store (testing/special cases) |
 
 ## Complete Example
 

@@ -9,6 +9,45 @@ description: Wow 框架在不同场景下的性能基准测试和结果。
 - 测试场景：加入购物车、下单
 - 命令发送等待模式（`WaitPlan`）：`SENT`、`PROCESSED`
 
+## 复现基准测试
+
+### 基础设施（Kubernetes）
+
+基准测试环境使用
+[`deploy/example/perf/`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/example/perf)
+下的 Kubernetes 清单：
+
+```bash
+# 部署 MongoDB、Redis、Kafka 和 Zookeeper
+kubectl apply -f deploy/example/perf/mongo.yaml
+kubectl apply -f deploy/example/perf/redis.yaml
+kubectl apply -f deploy/example/perf/kafka.yaml
+kubectl apply -f deploy/example/perf/zookeeper.yaml
+
+# 部署 Wow 示例服务
+kubectl apply -f deploy/example/perf/deployment.yaml
+```
+
+基准测试的应用配置使用
+[`mongo_kafka_redis.yaml`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/example/perf/config/mongo_kafka_redis.yaml)
+—— Kafka 用于命令/事件总线，MongoDB 用于事件存储 + 快照存储，Redis 用于
+PrepareKey + 消息总线恢复。还提供了替代配置（`in-memory.yaml`、`redis.yaml`、
+`kafka_redis.yaml`）用于测试不同的存储拓扑。
+
+### 运行压测
+
+[`example/transfer/Transfer.http`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/Transfer.http)
+和 [`example/Example.http`](https://github.com/Ahoo-Wang/Wow/blob/main/example/Example.http)
+目录中的 `.http` 文件包含现成的请求模板。使用压测工具（如 k6、Gatling 或 JMeter）
+指向相同的端点，并将 `Command-Wait-Stage` 头设置为 `SENT` 或 `PROCESSED`：
+
+```bash
+# 示例：使用 k6 对加入购物车进行 SENT 等待阶段的压测
+k6 run --vus 100 --duration 2m -e HOST=http://localhost:8080 -e WAIT_STAGE=SENT script.js
+```
+
+根据你的基础设施容量调整 `--vus`（虚拟用户数）和 `--duration`。
+
 ## 部署环境
 
 - [Redis](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/example/perf/redis.yaml)

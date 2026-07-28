@@ -22,6 +22,33 @@ wow:
     enabled: true
 ```
 
+启用后，`EventCompensationFilter` 会自动注册到每个事件分发器
+（`DomainEventDispatcher`、`StatelessSagaDispatcher`、`ProjectionDispatcher`、`SnapshotDispatcher`）。
+任何抛出异常的处理器都会被捕获，并发送 `CreateExecutionFailed` 命令记录失败。每个处理器上的
+`@Retry` 注解控制逐函数的重试行为：
+
+```kotlin
+@ProjectionProcessor
+class OrderProjection {
+    // 此处理器使用默认重试规格（maxRetries=10, minBackoff=180s, executionTimeout=120s）
+    @OnEvent
+    fun onOrderCreated(event: OrderCreated): Mono<Void> { ... }
+
+    // 为调用不稳定外部 API 的处理器自定义重试
+    @Retry(maxRetries = 3, minBackoff = 60, executionTimeout = 10)
+    @OnEvent
+    fun onOrderPaid(event: OrderPaid): Mono<Void> { ... }
+
+    // 完全退出此处理器的补偿
+    @Retry(enabled = false)
+    @OnEvent
+    fun onOrderShipped(event: OrderShipped): Mono<Void> { ... }
+}
+```
+
+设置 `wow.compensation.enabled=false` 可全局禁用本服务所有处理器的补偿过滤器。
+即使全局启用了补偿，个别处理器仍可通过 `@Retry(enabled = false)` 退出。
+
 ## 服务端级
 
 以下属性用于配置独立的补偿服务端（`wow-compensation-server`）。

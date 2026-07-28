@@ -346,24 +346,40 @@ class AsyncProjection(
 
 ## 测试投影
 
+与聚合和 Saga 不同，Wow 框架并未为投影提供专用的 `ProjectionSpec` /
+`ProjectionVerifier` 测试 DSL。投影处理器是普通的 Spring Bean，因此请使用标准单元测试：
+以 MockK 模拟仓储依赖，直接用构造的事件调用处理器方法，并验证仓储的交互。
+
 ```kotlin
-class OrderProjectionSpec : ProjectionSpec<OrderProjection>({
-    on {
-        val event = mockk<OrderCreated> {
-            every { orderId } returns "order-001"
-            every { customerId } returns "customer-001"
-            every { totalAmount } returns BigDecimal(100)
-        }
-        whenEvent(event) {
-            expectNoError()
-            expectSaved<OrderSummary> {
-                orderId.assert().isEqualTo("order-001")
-                totalAmount.assert().isEqualTo(BigDecimal(100))
-            }
+@ExtendWith(MockKExtension::class)
+class OrderSummaryProjectionTest {
+    @MockK
+    private lateinit var orderSummaryRepository: OrderSummaryRepository
+
+    @Test
+    fun `onOrderCreated saves summary`() {
+        val projection = OrderSummaryProjection(orderSummaryRepository)
+        val event = OrderCreated(
+            orderId = "order-001",
+            customerId = "customer-001",
+            totalAmount = BigDecimal(100),
+        )
+        every { orderSummaryRepository.save(any()) } returns Mono.empty()
+
+        val result = projection.onOrderCreated(event)
+
+        StepVerifier.create(result).verifyComplete()
+        verify(exactly = 1) {
+            orderSummaryRepository.save(match {
+                it.orderId == "order-001" && it.totalAmount == BigDecimal(100)
+            })
         }
     }
-})
+}
 ```
+
+若要对 事件 → 投影 → 查询 的完整链路进行端到端覆盖，可使用 `wow-it` 配合内存事件总线进行集成测试，
+再通过 `QueryService` 断言读模型。
 
 ## 配置
 

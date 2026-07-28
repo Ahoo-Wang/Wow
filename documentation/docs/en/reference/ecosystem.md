@@ -5,6 +5,71 @@ description: Curated resources for CQRS, microservices, and reactive programming
 
 # Ecosystem
 
+## Wow Ecosystem Architecture
+
+The Wow ecosystem consists of open-source projects by the same author, designed to work together seamlessly:
+
+```mermaid
+graph TB
+    subgraph Core["Wow Framework"]
+        WOW["Wow<br>CQRS + DDD + EventSourcing"]
+    end
+
+    subgraph ID["Identity"]
+        COSID["CosId<br>Distributed ID Generation"]
+    end
+
+    subgraph Infra["Infrastructure"]
+        COSKY["CoSky<br>Service Governance"]
+        SIMBA["Simba<br>Distributed Lock"]
+    end
+
+    subgraph Security["Security"]
+        COSEC["CoSec<br>RBAC + ABAC Authorization"]
+    end
+
+    subgraph Cache["Caching"]
+        COCACHE["CoCache<br>Distributed Secondary Cache"]
+    end
+
+    subgraph Client["HTTP Client"]
+        COAPI["CoApi<br>Declarative REST Client"]
+        FETCHER["Fetcher<br>HTTP Client + LLM Streaming"]
+    end
+
+    subgraph Test["Testing"]
+        FLUENT["FluentAssert<br>Kotlin Fluent Assertions"]
+    end
+
+    COSID -->|"Global ID + Machine ID"| WOW
+    COSKY -->|"Service Discovery + Config"| WOW
+    SIMBA -->|"Distributed Lock"| WOW
+    COSEC -->|"wow-cosec module"| WOW
+    COCACHE -->|"wow-cocache module"| WOW
+    COAPI -->|"wow-apiclient module"| WOW
+    FETCHER -->|"TypeScript client generation"| WOW
+    FLUENT -->|"Test assertions"| WOW
+
+    style Core fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
+    style ID fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
+    style Infra fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
+    style Security fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
+    style Cache fill:#3a2e4a,stroke:#9d7edb,color:#e0e0e0
+    style Client fill:#2e4a4a,stroke:#4ad4d4,color:#e0e0e0
+    style Test fill:#4a4a2e,stroke:#d4d45b,color:#e0e0e0
+```
+
+| Project | Role in Wow | Wow Module |
+|---|---|---|
+| **CosId** | Global ID, aggregate ID, machine ID generation | Built-in dependency |
+| **CoSec** | Multi-tenant reactive security (RBAC + ABAC) | `wow-cosec` |
+| **CoCache** | Distributed consistent secondary cache | `wow-cocache` |
+| **Simba** | Distributed lock service | Build-time dependency |
+| **CoSky** | Service discovery + configuration management | Optional deployment |
+| **CoApi** | Declarative HTTP client for Spring 6 | `wow-apiclient` |
+| **Fetcher** | HTTP client ecosystem + TypeScript client generation | `wow-project-template` |
+| **FluentAssert** | Kotlin fluent assertion library | `wow-test` |
+
 ## CQRS Resources
 
 ### Project Templates

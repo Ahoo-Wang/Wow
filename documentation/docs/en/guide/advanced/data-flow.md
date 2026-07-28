@@ -224,7 +224,7 @@ Events are persisted to the `EventStore` via `append()`. This operation is atomi
 - **Aggregate ID uniqueness** — the first event for a new aggregate must use a unique aggregate ID
 - **Request ID deduplication** — prevents the same command from producing events twice
 
-[[wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt:38](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L38)]
+[[wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt:54](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L54)]
 
 ## Phase 4: Event Publishing
 
@@ -385,14 +385,16 @@ sequenceDiagram
 
 ### Wait Stages
 
-The `WaitPlan` supports waiting at different processing stages:
+The `WaitPlan` supports waiting at different processing stages (see [Command Gateway](../command-gateway#wait-plans) for the full prerequisites matrix):
 
 | Stage | Meaning |
 |-------|---------|
 | `SENT` | Command accepted by the `CommandBus` |
 | `PROCESSED` | Command executed by the aggregate, events persisted |
-| `PROJECTED` | Projections have processed the events |
 | `SNAPSHOT` | Snapshot has been created |
+| `PROJECTED` | Projections have processed the events (function-aware) |
+| `EVENT_HANDLED` | External event processors finished (function-aware) |
+| `SAGA_HANDLED` | Saga finished processing the events (function-aware) |
 
 The `CommandWait` factory creates `WaitPlan` instances for each stage:
 

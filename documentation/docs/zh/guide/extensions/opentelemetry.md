@@ -27,7 +27,9 @@ Wow 框架的 _OpenTelemetry_ 模块通过提供一系列仪表器（_Instrument
 - `ProjectionInstrumenter`: 投影仪表器，用于记录投影的操作。
 - `StatelessSagaInstrumenter`: 无状态Saga仪表器，用于记录无状态Saga的操作。
 - `SnapshotInstrumenter`: 快照仪表器，用于记录快照的操作。
+- `SnapshotRepositoryInstrumenter`: 快照仓储仪表器，用于记录快照仓储的操作。
 - `SnapshotStoreInstrumenter`: 快照存储仪表器，用于记录快照存储的操作。
+- `WaitPlanInstrumenter`: 命令等待计划仪表器，用于记录命令等待/通知的操作。
 
 支持以下属性标签：
 
@@ -37,6 +39,7 @@ Wow 框架的 _OpenTelemetry_ 模块通过提供一系列仪表器（_Instrument
 - `wow.aggregate.id`: 聚合根的ID。
 - `wow.message.id`: 消息ID
 - `wow.message.request_id`: 命令消息的请求ID。
+- `wow.message.trace_id`: 通过消息头传播的 Trace ID。
 
 ![可观测性](../../../public/images/observability/observability.png)
 
@@ -69,3 +72,35 @@ wow:
 ```
 
 请在 Wow 应用上下文创建 tracing filters 和 decorators 前初始化 `GlobalOpenTelemetry`。可以使用 OpenTelemetry Java Agent，或在应用启动阶段注册 SDK；若在 Wow tracing instrumenters 初始化后才注册 SDK，则时机过晚。
+
+## 链路追踪如何装配
+
+`WowOpenTelemetryAutoConfiguration` 注册了五个 `ExchangeFilter` Bean（均为 `@ConditionalOnMissingBean`，可逐一覆盖），
+以及一个 `TracingBeanPostProcessor`，用于装饰命令/事件/状态事件总线、事件存储和快照存储：
+
+| Bean | 过滤阶段 | Span 名称模式 |
+|---|---|---|
+| `TraceAggregateFilter` | 聚合命令处理 | `{aggregateName}.{commandName}` |
+| `TraceProjectionFilter` | 投影事件处理 | `{aggregateName}.projection.{eventName}` |
+| `TraceStatelessSagaFilter` | Saga 事件处理 | `{aggregateName}.saga.{eventName}` |
+| `TraceSnapshotFilter` | 快照创建 | `{aggregateName}.snapshot` |
+| `TraceEventProcessorFilter` | 通用事件处理器 | `{aggregateName}.event-processor.{eventName}` |
+
+每个 span 都携带上文列出的 `wow.aggregate.*` 与 `wow.message.*` 属性，以及 OpenTelemetry 传播上下文，
+因此一条命令的完整路径（命令总线 → 聚合 → 事件存储 → 投影 → Saga）会呈现为一条分布式链路。
+
+## 链路追踪示例
+
+对于 `order` 聚合上的 `CreateOrder` 命令（触发一个 Saga 和一个投影），链路层级如下：
+
+```text
+order.create_order              (TraceAggregateFilter —— 聚合命令)
+├── wow-mongo append            (TracingEventStore —— 事件持久化)
+├── order.event-store.send      (TracingCommandBus/EventBus —— 消息发布)
+├── order.snapshot.save         (TraceSnapshotFilter —— 快照创建)
+├── order.saga.OrderCreated     (TraceStatelessSagaFilter —— Saga onOrderCreated)
+└── order.projection.OrderCreated (TraceProjectionFilter —— 投影 onOrderCreated)
+```
+
+确切的 span 名称取决于仪表器的 `SpanNameExtractor`；关键在于一条命令的所有 span 通过上下文传播共享同一个 trace ID，
+从而让你从 HTTP 请求到读模型更新获得端到端可观测性。

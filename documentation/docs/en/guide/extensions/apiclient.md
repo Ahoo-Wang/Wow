@@ -22,16 +22,87 @@ Add the `wow-apiclient` dependency:
 implementation("me.ahoo.wow:wow-apiclient")
 ```
 
+## Getting Started
+
+### 1. Declare a Query Client
+
+Create a `@CoApi` interface that extends `ReactiveSnapshotQueryApi<S>` (or
+`SynchronousSnapshotQueryApi<S>` for blocking calls). The `@HttpExchange` annotation
+binds the client to a specific aggregate's snapshot endpoint:
+
+```kotlin
+import me.ahoo.coapi.api.CoApi
+import me.ahoo.wow.apiclient.query.ReactiveSnapshotQueryApi
+import me.ahoo.wow.example.api.cart.CartData
+import org.springframework.web.service.annotation.HttpExchange
+
+@CoApi(baseUrl = "http://order-service:8080")
+@HttpExchange("cart") // aggregate name = the snapshot endpoint base path
+interface CartQueryClient : ReactiveSnapshotQueryApi<CartData>
+```
+
+You can override individual methods to customize `@RequestBody` annotations, or simply
+inherit all default implementations (single, list, paged, count, and their state/dynamic variants).
+
+### 2. Declare a Command Client
+
+Command clients extend `ReactiveRestCommandGateway` or `SyncRestCommandGateway` directly:
+
+```kotlin
+@CoApi(baseUrl = "http://order-service:8080")
+interface OrderCommandClient : ReactiveRestCommandGateway
+```
+
+### 3. Inject and Use
+
+CoApi auto-configures the client as a Spring bean — inject it directly:
+
+```kotlin
+@Service
+class CartService(
+    private val queryClient: CartQueryClient,
+    private val commandClient: OrderCommandClient,
+) {
+    fun getCart(cartId: String): Mono<CartData> {
+        return queryClient.getStateById(cartId) // Mono<CartData>
+    }
+
+    fun placeOrder(orderId: String, items: List<OrderItem>): Mono<CommandResult> {
+        val request = CommandRequest(
+            body = CreateOrder(items = items),
+            waitPlan = CommandRequest.WaitPlan(waitStage = CommandStage.PROCESSED),
+        )
+        return commandClient.send(request) // Mono<CommandResult>
+    }
+}
+```
+
+### Service Discovery
+
+`ReactiveRestCommandGateway` and `SyncRestCommandGateway` are annotated with `@LoadBalanced`,
+so you can use a service-registry URL instead of a fixed host:
+
+```kotlin
+@CoApi(baseUrl = "http://order-service") // resolved by Spring Cloud LoadBalancer / Nacos / etc.
+interface OrderCommandClient : ReactiveRestCommandGateway
+```
+
+For a fixed target (e.g. local development), use `baseUrl = "http://localhost:8080"`.
+
 ## Command Gateway
+
+`ReactiveRestCommandGateway` and `SyncRestCommandGateway` are concrete `@CoApi`
+interfaces (no extra type parameters). Declare your own `@CoApi` interface that
+extends one of them to inherit the `send(CommandRequest)` method.
 
 ### Reactive Command Gateway
 
 ```kotlin
 @CoApi
-interface OrderCommandGateway : ReactiveRestCommandGateway<Mono<CommandResult>, CommandResult>
+interface OrderCommandGateway : ReactiveRestCommandGateway
 ```
 
-Send a command:
+`send(request)` returns `Mono<CommandResult>`:
 
 ```kotlin
 val request = CommandRequest(
@@ -40,17 +111,21 @@ val request = CommandRequest(
         waitStage = CommandStage.PROJECTED,
         waitContext = "order",
         waitProcessor = "OrderProjector",
-    )
+    ),
 )
-val result = orderCommandGateway.send(request).block()
+val result: CommandResult = orderCommandGateway.send(request).block()
 ```
 
 ### Synchronous Command Gateway
 
 ```kotlin
 @CoApi
-interface OrderCommandGateway : SyncRestCommandGateway<CommandResult, CommandResult>
+interface OrderCommandGateway : SyncRestCommandGateway
 ```
+
+`send(request)` returns `CommandResult` directly (blocking). A
+`WebClientResponseException` is unwrapped into a `RestCommandGatewayException`
+carrying the `CommandResult` / `ErrorInfo` body.
 
 ## Snapshot Query
 
@@ -61,12 +136,25 @@ interface OrderCommandGateway : SyncRestCommandGateway<CommandResult, CommandRes
 interface OrderQueryApi : ReactiveSnapshotQueryApi<OrderState>
 ```
 
-Provides single, list, paged, and count query methods:
+`ReactiveSnapshotQueryApi<S>` composes single, list, paged, and count operations,
+all returning `Mono`/`Flux`:
 
 ```kotlin
-val order = queryApi.getById("order-001").block()
-val paged = queryApi.paged(PagedQuery(pageIndex = 0, pageSize = 10)).block()
-val count = queryApi.count().block()
+// Single: returns Mono<MaterializedSnapshot<OrderState>> (empty if not found)
+val snapshot = queryApi.getById("order-001").block()
+// Use getStateById to obtain the state directly: Mono<OrderState>
+val state = queryApi.getStateById("order-001").block()
+
+// Paged: takes an IPagedQuery (1-indexed Pagination); returns Mono<PagedList<...>>
+val paged = queryApi.paged(
+    PagedQuery(
+        condition = Condition.all(),
+        pagination = Pagination(index = 1, size = 10),
+    ),
+).block()
+
+// Count: takes a Condition; returns Mono<Long>
+val total = queryApi.count(Condition.all()).block()
 ```
 
 ### Synchronous Query API
@@ -75,6 +163,9 @@ val count = queryApi.count().block()
 @CoApi
 interface OrderQueryApi : SynchronousSnapshotQueryApi<OrderState>
 ```
+
+The synchronous variant mirrors the reactive API but returns values directly
+(blocking).
 
 ## Error Handling
 

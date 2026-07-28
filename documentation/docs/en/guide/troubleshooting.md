@@ -229,7 +229,7 @@ spring:
 
 #### Q: Metadata Not Loaded
 
-**Symptom**: `AggregateMetadataException: Aggregate metadata not found`
+**Symptom**: Aggregate metadata is missing at runtime (for example `MetadataSearcher` resolves no context/aggregate, or the framework reports that the aggregate is not registered).
 
 **Possible Causes**:
 1. wow-compiler not used
@@ -249,7 +249,7 @@ dependencies {
 }
 ```
 
-Check generated metadata file: `build/generated/ksp/main/resources/META-INF/wow/wow-metadata.json`
+Check generated metadata file: `build/generated/ksp/main/resources/META-INF/wow-metadata.json`
 
 #### Q: Bean Wiring Failure
 

@@ -177,7 +177,7 @@ wow:
 |------|------|--------|------|
 | `wow.eventsourcing.snapshot.enabled` | Boolean | `true` | 启用快照功能 |
 | `wow.eventsourcing.snapshot.strategy` | Strategy | `all` | 快照策略 |
-| `wow.eventsourcing.snapshot.version-offset` | Int | `10` | VERSION_OFFSET 策略的版本偏移量 |
+| `wow.eventsourcing.snapshot.version-offset` | Int | `5` | VERSION_OFFSET 策略的版本偏移量 |
 | `wow.eventsourcing.snapshot.storage` | StorageType | `mongo` | 快照存储后端 |
 
 ```yaml
@@ -563,6 +563,8 @@ curl -X POST 'http://localhost:8080/wow/bi/script' \
 | `mongo` | MongoDB（推荐用于事件存储） |
 | `redis` | 用于高性能场景 |
 | `elasticsearch` | 用于全文搜索 |
+| `in_memory` | 内存存储（开发/测试） |
+| `delay` | 延迟存储（测试/特殊场景） |
 
 ## 完整示例
 

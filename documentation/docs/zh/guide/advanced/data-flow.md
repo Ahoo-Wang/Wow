@@ -224,7 +224,7 @@ stateDiagram-v2
 - **聚合 ID 唯一性** — 新聚合根的第一个事件必须使用唯一的聚合 ID
 - **请求 ID 去重** — 防止同一命令产生两次事件
 
-[[wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt:38](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L38)]
+[[wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt:54](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L54)]
 
 ## 阶段四：事件发布
 
@@ -385,14 +385,16 @@ sequenceDiagram
 
 ### 等待阶段
 
-`WaitPlan` 支持在不同处理阶段等待：
+`WaitPlan` 支持在不同处理阶段等待（完整前置条件矩阵参见 [命令网关](../command-gateway#wait-plans)）：
 
 | 阶段 | 含义 |
 |-------|---------|
 | `SENT` | 命令已被 `CommandBus` 接受 |
 | `PROCESSED` | 命令已被聚合根执行，事件已持久化 |
-| `PROJECTED` | 投影已处理事件 |
 | `SNAPSHOT` | 快照已创建 |
+| `PROJECTED` | 投影已处理事件（按函数匹配） |
+| `EVENT_HANDLED` | 外部事件处理器已完成（按函数匹配） |
+| `SAGA_HANDLED` | Saga 已完成事件处理（按函数匹配） |
 
 `CommandWait` 工厂为每个阶段创建 `WaitPlan`：
 

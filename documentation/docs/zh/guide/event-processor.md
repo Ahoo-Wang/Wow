@@ -232,18 +232,24 @@ class InventoryEventProcessor(
 
 ### 错误传播
 
-处理失败的事件可以触发错误事件：
+::: warning
+与 `@StatelessSaga` 不同，`@EventProcessor` 处理器的返回值仅作为副作用——它**不会**被捕获到命令流中，也**不会**作为领域事件重新发布。从事件处理器返回一个领域事件体没有任何作用。若想在失败时做出反应（发送另一个命令），应显式发送补偿命令（例如注入 `CommandGateway`），或将该流程建模为 Saga。
+:::
+
+对于预期的业务结果，应通过显式网关发布或发送命令，或使用事件补偿：
 
 ```kotlin
 @EventProcessor
-class OrderEventProcessor {
+class OrderEventProcessor(
+    private val commandGateway: CommandGateway
+) {
 
     @OnEvent
-    fun onOrderCreated(event: OrderCreated): Mono<ReserveInventoryFailed> {
+    fun onOrderCreated(event: OrderCreated): Mono<Void> {
         return inventoryService.reserveItems(event.items)
-            .switchIfEmpty {
-                Mono.error(InventoryUnavailableException(event.items))
-            }
+            .onErrorResume { InventoryUnavailableException(event.items).toMono<Void>() }
+            // 框架通过 @Retry 对此处理器进行重试/失败；它**不会**重新发布返回值。
+            // 如需触发后续动作，请显式发送命令。
     }
 }
 ```

@@ -270,7 +270,7 @@ sequenceDiagram
     end
 
     Gateway->>Notifier: commandSentSignal(waitCommandId)
-    Note over Gateway,Notifier: CommandStage.SENT signal
+    Note over Gateway,Notifier: CommandStage.SENT signal (see Post-Send Signal note)
 
     Kafka->>Dispatcher: receive(subscription)
     Dispatcher->>Dispatcher: Group by key, publishOn(scheduler)
@@ -321,9 +321,12 @@ Both checks are implemented in the `check()` method at [DefaultCommandGateway.kt
 
 ### DefaultCommandGateway: Post-Send Signal
 
-After the command is accepted by the command bus, the gateway publishes a `CommandStage.SENT` wait signal via the `CommandWaitNotifier`. This signal is published regardless of success or failure -- if an error occurs during sending, the signal carries the error information.
+After the command is accepted by the command bus, the gateway publishes a `CommandStage.SENT` wait signal via the `CommandWaitNotifier`. The behavior depends on the handle kind:
 
-For the overloaded `send(message)` (without explicit `WaitPlan`), the gateway extracts a wait plan from the message header (if one was propagated) and publishes the SENT signal. See [DefaultCommandGateway.kt:114-126](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L114).
+- **Error / failure**: the SENT signal is *always* published and carries the error, so waiters fail fast.
+- **Success**: the SENT signal is published for streaming handles (`sendAndWaitStream`) and whenever the wait target stage *is* `SENT` (`CommandWait.sent`). For a single-result wait targeting a later stage (`PROCESSED`, `SNAPSHOT`, ...) the successful SENT signal is skipped, because the single-result handle only needs the later stage to complete and the SENT event is otherwise unobservable to it.
+
+This optimization (`SkipsSuccessfulSentSignal`) removes a redundant signal from the hot command path without changing the externally observable result of any wait plan. For the overloaded `send(message)` (without explicit `WaitPlan`), the gateway extracts a wait plan from the message header (if one was propagated) and publishes the SENT signal. See [DefaultCommandGateway.kt:114-126](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L114).
 
 ## Error Handling
 
@@ -842,13 +845,13 @@ The `CommandHandlerFunction` is a Spring WebFlux `HandlerFunction` that bridges 
 | Header | Purpose | Default | Source |
 |---|---|---|---|
 | `Command-Wait-Stage` | The `CommandStage` to wait for | `PROCESSED` | [AggregateRequest.kt:112](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L112) |
-| `Command-Wait-Context` | Bounded context name for function filtering | current context | [AggregateRequest.kt:117](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L117) |
-| `Command-Wait-Processor` | Processor name for function filtering | (empty) | [AggregateRequest.kt:121](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L121) |
-| `Command-Wait-Function` | Function name for function filtering | (empty) | [AggregateRequest.kt:125](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L125) |
-| `Command-Wait-Tail-Stage` | Tail stage for `SimpleWaitingChain` | `null` | [AggregateRequest.kt:131](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L131) |
-| `Command-Wait-Tail-Context` | Tail context for chain | current context | [AggregateRequest.kt:137](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L137) |
-| `Command-Wait-Tail-Processor` | Tail processor for chain | (empty) | [AggregateRequest.kt:141](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L141) |
-| `Command-Wait-Tail-Function` | Tail function for chain | (empty) | [AggregateRequest.kt:145](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L145) |
+| `Command-Wait-Context` | Bounded context name for function filtering | current context | [AggregateRequest.kt:118](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L118) |
+| `Command-Wait-Processor` | Processor name for function filtering | (empty) | [AggregateRequest.kt:122](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L122) |
+| `Command-Wait-Function` | Function name for function filtering | (empty) | [AggregateRequest.kt:126](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L126) |
+| `Command-Wait-Tail-Stage` | Tail stage for `SimpleWaitingChain` | `null` | [AggregateRequest.kt:132](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L132) |
+| `Command-Wait-Tail-Context` | Tail context for chain | current context | [AggregateRequest.kt:138](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L138) |
+| `Command-Wait-Tail-Processor` | Tail processor for chain | (empty) | [AggregateRequest.kt:142](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L142) |
+| `Command-Wait-Tail-Function` | Tail function for chain | (empty) | [AggregateRequest.kt:146](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L146) |
 | `Command-Wait-Timeout` | Timeout in milliseconds | `30000` (30s) | [AggregateRequest.kt:104](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L104) |
 | `Command-Request-Id` | Request ID for idempotency | (generated) | [AggregateRequest.kt:48](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L48) |
 | `Command-Aggregate-Id` | Target aggregate instance ID | (from command body or path) | [AggregateRequest.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L69) |

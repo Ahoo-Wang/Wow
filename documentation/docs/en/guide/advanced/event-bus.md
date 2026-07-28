@@ -227,7 +227,7 @@ DomainEventStreamFactory.kt: wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEv
 |---|---|---|---|
 | `id` | `String` | Globally unique stream ID (generated via `generateGlobalId()`) | [DomainEventStream.kt:91](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L91) |
 | `requestId` | `String` | Correlation ID linking stream to originating HTTP request | [DomainEventStream.kt:92](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L92) |
-| `header` | `Header` | Message header containing metadata and propagation flags | [DomainEventStream.kt:93](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L93) |
+| `header` | `Header` | Message header containing metadata and propagation flags | [DomainEventStream.kt:79](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L79) |
 | `body` | `List<DomainEvent<*>>` | Ordered list of domain events (must not be empty) | [DomainEventStream.kt:94](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L94) |
 | `aggregateId` | `AggregateId` | Derived from the first event's aggregate ID | [DomainEventStream.kt:97](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L97) |
 | `version` | `Int` | Aggregate version after applying this stream (from first event) | [DomainEventStream.kt:106](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L106) |
@@ -437,7 +437,7 @@ Configuration is managed by `KafkaProperties` ([KafkaProperties.kt:27-68](https:
 
 | Property | Type | Default | Description | Source |
 |---|---|---|---|---|
-| `wow.kafka.enabled` | `Boolean` | `true` | Enable Kafka integration | [KafkaProperties.kt:29](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/kafka/KafkaProperties.kt#L29) |
+| `wow.kafka.enabled` | `Boolean` | `true` | Enable Kafka integration | [KafkaProperties.kt:30](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/kafka/KafkaProperties.kt#L30) |
 | `wow.kafka.bootstrap-servers` | `List<String>` | **Required** | Kafka broker addresses | [KafkaProperties.kt:30](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/kafka/KafkaProperties.kt#L30) |
 | `wow.kafka.topic-prefix` | `String` | `wow.` | Prefix for all topic names | [KafkaProperties.kt:31](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/kafka/KafkaProperties.kt#L31) |
 | `wow.kafka.properties` | `Map<String,String>` | `{}` | Common Kafka client properties | [KafkaProperties.kt:35](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/kafka/KafkaProperties.kt#L35) |

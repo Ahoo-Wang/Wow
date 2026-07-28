@@ -60,6 +60,31 @@ class Order(private val state: OrderState)
 | `@CommandRoute(method = PUT)`    | PUT         | `/{resource}/{command}`   |
 | `@CommandRoute(method = DELETE)` | DELETE      | `/{resource}/{command}`   |
 
+## Configuration
+
+- Configuration class: [WebFluxProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties.kt)
+- Prefix: `wow.webflux.`
+
+| Name | Data Type | Default Value | Description |
+|---|---|---|---|
+| `enabled` | `Boolean` | `true` | Whether to enable the WebFlux extension (route registration) |
+| `global-error.enabled` | `Boolean` | `true` | Whether to install the global exception handler that maps errors to the unified `ErrorInfo` response |
+| `batch.concurrency` | `Int` | `1` | Maximum concurrent requests processed in a single batch execution |
+| `batch.prefetch` | `Int` | `1` | Prefetch window for batch request processing |
+
+```yaml
+wow:
+  webflux:
+    enabled: true
+    global-error:
+      enabled: true
+    batch:
+      concurrency: 4
+      prefetch: 4
+```
+
+When `wow-spring-boot-starter` is used, WebFlux is included as the `webflux-support` feature capability. The global error handler is enabled by default; disable it only if you provide your own `WebExceptionHandler`.
+
 ## Wait Plan Integration
 
 The WebFlux extension supports specifying wait plans through HTTP headers:
@@ -78,10 +103,16 @@ Command-Wait-Timeout: 30000
 
 ### Supported Wait Plans
 
-- `SENT`: Command sent
-- `PROCESSED`: Command processed
-- `PROJECTED`: Event projected
-- `SNAPSHOT`: Snapshot created
+All six command stages are selectable as wait plans (see [Command Gateway](../command-gateway.md#wait-plans) for prerequisites and semantics):
+
+- `SENT`: Command accepted by the bus
+- `PROCESSED`: Aggregate has executed the command
+- `SNAPSHOT`: Aggregate snapshot persisted
+- `PROJECTED`: Read-model projections updated (function-aware)
+- `EVENT_HANDLED`: External event processors finished (function-aware)
+- `SAGA_HANDLED`: Saga finished processing the events (function-aware)
+
+When `Accept: text/event-stream` is sent, the handler streams `CommandResult` events (one per stage) over SSE instead of returning a single JSON response.
 
 ## Error Handling
 
@@ -94,6 +125,13 @@ The WebFlux extension provides unified error response format:
   "requestId": "req-123"
 }
 ```
+
+The response HTTP status is derived from the error: Wow `ErrorInfoCapable` /
+`ErrorInfo` exceptions and Spring `ErrorResponse` carry their own status; binding
+and validation errors map to `400`; `IllegalArgumentException`/`IllegalStateException`
+map to `400`; `TimeoutException` maps to `504`; `FileNotFoundException` to `404`;
+otherwise the framework falls back to `500`. The `Wow-Error-Code` response header
+carries the Wow `errorCode` for machine-readable handling.
 
 ## OpenAPI Integration
 

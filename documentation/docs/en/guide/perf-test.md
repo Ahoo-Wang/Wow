@@ -9,6 +9,45 @@ description: Performance benchmarks and test results for the Wow framework under
 - Test Scenarios: Add to cart, place order
 - Command send wait mode (`WaitPlan`): `SENT`, `PROCESSED`
 
+## Reproducing These Benchmarks
+
+### Infrastructure (Kubernetes)
+
+The benchmark environment uses Kubernetes manifests under
+[`deploy/example/perf/`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/example/perf):
+
+```bash
+# Deploy MongoDB, Redis, Kafka, and Zookeeper
+kubectl apply -f deploy/example/perf/mongo.yaml
+kubectl apply -f deploy/example/perf/redis.yaml
+kubectl apply -f deploy/example/perf/kafka.yaml
+kubectl apply -f deploy/example/perf/zookeeper.yaml
+
+# Deploy the Wow example service
+kubectl apply -f deploy/example/perf/deployment.yaml
+```
+
+The application configuration for the benchmark uses
+[`mongo_kafka_redis.yaml`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/example/perf/config/mongo_kafka_redis.yaml)
+— Kafka for the command/event bus, MongoDB for event store + snapshot store, and Redis for
+PrepareKey + message bus recovery. Alternative configs (`in-memory.yaml`, `redis.yaml`,
+`kafka_redis.yaml`) are available for testing different storage topologies.
+
+### Running the Load Test
+
+The `.http` files in the [`example/transfer/Transfer.http`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/Transfer.http)
+and [`example/Example.http`](https://github.com/Ahoo-Wang/Wow/blob/main/example/Example.http)
+directories contain ready-to-use request templates. Use a load testing tool (e.g. k6, Gatling,
+or JMeter) pointed at the same endpoints with the `Command-Wait-Stage` header set to `SENT`
+or `PROCESSED`:
+
+```bash
+# Example: k6 load test for Add to Cart with SENT wait stage
+k6 run --vus 100 --duration 2m -e HOST=http://localhost:8080 -e WAIT_STAGE=SENT script.js
+```
+
+Adjust `--vus` (virtual users) and `--duration` based on your infrastructure capacity.
+
 ## Deployment Environment
 
 - [Redis](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/example/perf/redis.yaml)
