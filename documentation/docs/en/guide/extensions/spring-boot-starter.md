@@ -33,6 +33,24 @@ implementation 'me.ahoo.wow:wow-spring-boot-starter'
 
 Spring Boot Starter uses Spring Boot's auto-configuration mechanism to automatically wire Wow framework components based on the classpath and configuration properties.
 
+### Gradle Feature Variants
+
+`wow-spring-boot-starter` declares optional Gradle feature capabilities so application modules only pull the infrastructure they need. Request a capability with `capabilities { requireCapability("<group>:<capability>") }`:
+
+| Capability | Pulls in |
+|---|---|
+| `mongo-support` | `wow-mongo` (MongoDB EventStore / SnapshotStore / PrepareKey / query services) |
+| `redis-support` | `wow-redis` (Redis EventStore / SnapshotStore / PrepareKey / message bus) |
+| `elasticsearch-support` | `wow-elasticsearch` (Elasticsearch EventStore / SnapshotStore / query services) |
+| `kafka-support` | `wow-kafka` (distributed CommandBus / DomainEventBus / StateEventBus) |
+| `webflux-support` | `wow-webflux` (WebFlux command/query route handlers, global error handling) |
+| `opentelemetry-support` | `wow-opentelemetry` (tracing instrumenters) |
+| `openapi-support` | `wow-openapi` (OpenAPI schema/route generation) |
+| `cosec-support` | `wow-cosec` (CoSec authorization integration) |
+| `mock-support` | `wow-mock` (in-process test doubles) |
+
+The capabilities are optional; you can instead declare the individual `wow-*` dependencies directly, as shown in the extension-specific guides.
+
 ```mermaid
 flowchart TB
     subgraph AutoConfig["Auto Configuration"]
@@ -250,7 +268,7 @@ class MetadataConfiguration {
 }
 ```
 
-Metadata file location: `META-INF/wow/wow-metadata.json`
+Metadata file location: `META-INF/wow-metadata.json`
 
 ## Processor Registration
 

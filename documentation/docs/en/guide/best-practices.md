@@ -156,20 +156,19 @@ class OrderCancellationSaga {
 #### Unit Test Coverage
 
 ```kotlin
-// Aggregate test: Verify business logic
-class OrderSpec : AggregateSpec<Order, OrderState> {
-    // Given-When-Expect pattern
-}
+// Aggregate test: Verify business logic (AggregateSpec — Given-When-Expect DSL)
+class OrderSpec : AggregateSpec<Order, OrderState>({
+    // expectEventType / expectState / expectNoError assertions
+})
 
-// Saga test: Verify orchestration
-class OrderSagaSpec : SagaSpec<OrderProcessingSaga> {
-    // Verify event-command mapping
-}
+// Saga test: Verify orchestration (SagaSpec — Given-When-Expect DSL)
+class OrderSagaSpec : SagaSpec<OrderProcessingSaga>({
+    // expectCommandType / expectCommandBody / expectNoCommand assertions
+})
 
 // Projection test: Verify query model updates
-class OrderProjectionSpec : ProjectionSpec<OrderProjection> {
-    // Verify event processing results
-}
+// No dedicated ProjectionSpec DSL exists — test the processor as a plain bean
+// with mocked repositories (MockK) and verify repository interactions.
 ```
 
 #### Test Coverage Targets

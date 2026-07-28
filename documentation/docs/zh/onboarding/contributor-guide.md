@@ -861,7 +861,7 @@ class CartSagaSpec : SagaSpec<CartSaga>({
 })
 ```
 
-> [来自 README.md:221-272 的 CartSagaSpec](https://github.com/Ahoo-Wang/Wow/blob/main/README.md#L221-L272)
+> [来自 README.md:222-272 的 CartSagaSpec](https://github.com/Ahoo-Wang/Wow/blob/main/README.md#L222-L272)
 
 #### 集成测试
 

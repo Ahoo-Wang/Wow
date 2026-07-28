@@ -47,26 +47,39 @@ sequenceDiagram
     AG-->>CB: Aggregate Ready
 ```
 
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/event/snapshot/, wow-api/src/main/kotlin/me/ahoo/wow/api/event/snapshot/ -->
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/, wow-api/src/main/kotlin/me/ahoo/wow/api/modeling/ -->
 
 ## Snapshot Strategies
 
-Snapshot strategies determine when to create snapshots. The Wow framework provides multiple built-in strategies:
+Snapshot strategies react to each state event and decide whether to persist a new
+snapshot. The strategy contract is reactive and processes one `StateEventExchange`
+at a time instead of returning a boolean predicate:
+
+```kotlin
+interface SnapshotStrategy {
+    fun onEvent(stateEventExchange: StateEventExchange<*>): Mono<Void>
+}
+```
+
+The Wow framework provides the following built-in strategies:
 
 ### Version Offset Strategy (VersionOffset)
 
-Creates a snapshot when the difference between the aggregate root version and the last snapshot version reaches a specified threshold.
+Creates a snapshot when the difference between the aggregate root version and the
+last snapshot version reaches the configured threshold. The strategy reads the
+stored version via `SnapshotStore.getVersion()` and only saves when the offset is
+met, so snapshot frequency is independent of concurrent state events.
 
 ```kotlin
 class VersionOffsetSnapshotStrategy(
-    private val snapshotStore: SnapshotStore,
-    private val versionOffset: Int = 5
+    private val versionOffset: Int = DEFAULT_VERSION_OFFSET, // 5
+    private val snapshotStore: SnapshotStore
 ) : SnapshotStrategy
 ```
 
 ### All Strategy (All)
 
-Creates a snapshot for every state event.
+Saves a snapshot for every state event.
 
 ```kotlin
 class SimpleSnapshotStrategy(
@@ -76,11 +89,14 @@ class SimpleSnapshotStrategy(
 
 ### No Operation Strategy (NoOp)
 
-Does not create any snapshots.
+Does not create any snapshots. `NoOp` is nested inside the `SnapshotStrategy` interface as a companion object:
 
 ```kotlin
-object NoOp : SnapshotStrategy {
-    override fun <S : Any> shouldSnapshot(stateEvent: StateEvent<S>): Boolean = false
+interface SnapshotStrategy {
+    // ...
+    companion object NoOp : SnapshotStrategy {
+        override fun onEvent(stateEventExchange: StateEventExchange<*>): Mono<Void> = Mono.empty()
+    }
 }
 ```
 
@@ -97,19 +113,24 @@ stateDiagram-v2
     Delete --> [*]
 ```
 
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/event/snapshot/SnapshotHandler.kt -->
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotMaterializer.kt, dispatcher/SnapshotHandler.kt -->
 
 ## Snapshot Store
 
 The snapshot store is responsible for storing and retrieving snapshots. Batch aggregate ID scanning belongs to `EventStore.scanAggregateId(...)`, not to the snapshot store.
 
 ```kotlin
-interface SnapshotStore : Named {
+interface SnapshotStore : Named, AutoCloseable {
     fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>>
     fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void>
     fun getVersion(aggregateId: AggregateId): Mono<Int>
 }
 ```
+
+`SnapshotStore` extends `AutoCloseable`. The default `close()` is a no-op, but
+storage-backed implementations (and batching wrappers) release workers and flush
+partial windows on close; Spring closes configured beans through their normal
+lifecycle.
 
 `SnapshotStore.save()` atomically maintains the latest snapshot for each aggregate.
 A candidate whose aggregate version is greater than or equal to the stored version
@@ -173,11 +194,15 @@ wow:
       enabled: true  # Whether to enable snapshots
       strategy: all  # Snapshot strategy (all, version_offset)
       version-offset: 5  # Version offset (only valid for version_offset strategy)
+      storage: mongo  # Snapshot storage backend (mongo, redis, elasticsearch, in_memory)
 ```
 
 | Property | Default | Description |
 |----------|---------|-------------|
 | `wow.eventsourcing.snapshot.enabled` | `true` | Enable latest snapshots |
+| `wow.eventsourcing.snapshot.strategy` | `all` | Snapshot strategy (`all` or `version_offset`) |
+| `wow.eventsourcing.snapshot.version-offset` | `5` | Version offset threshold (only used by `version_offset`) |
+| `wow.eventsourcing.snapshot.storage` | `mongo` | Snapshot storage backend (shared `StorageType` enum) |
 
 
 ## Aggregate Loading Optimization

@@ -23,31 +23,41 @@ In traditional architectures, databases only store the current state, and histor
 
 ## Core Interface
 
-The `EventStore` interface defines the core operations for event storage and owns paginated aggregate ID scanning by named aggregate:
+The `EventStore` interface defines the core operations for event storage. It extends
+`RequestIdExistenceChecker` (command idempotency lookup), `AggregateIdScanner`
+(paginated aggregate-ID scanning), and `AutoCloseable` (storage-backed implementations
+release resources on close):
 
 ```kotlin
 interface EventStore :
     RequestIdExistenceChecker,
-    AggregateIdScanner {
+    AggregateIdScanner,
+    AutoCloseable {
     fun append(eventStream: DomainEventStream): Mono<Void>
     fun load(
         aggregateId: AggregateId,
-        headVersion: Int = 1,
-        tailVersion: Int = Int.MAX_VALUE - 1
+        headVersion: Int = DEFAULT_HEAD_VERSION,        // 1
+        tailVersion: Int = DEFAULT_TAIL_VERSION         // Int.MAX_VALUE - 1
     ): Flux<DomainEventStream>
     fun load(
         aggregateId: AggregateId,
         headEventTime: Long,
         tailEventTime: Long
     ): Flux<DomainEventStream>
+    fun single(aggregateId: AggregateId, version: Int): Mono<DomainEventStream> // default
     fun last(aggregateId: AggregateId): Mono<DomainEventStream>
-    fun scanAggregateId(
-        namedAggregate: NamedAggregate,
-        afterId: String = AggregateIdScanner.FIRST_ID,
-        limit: Int = 10
-    ): Flux<AggregateId>
+
+    // Inherited from AggregateIdScanner (default returns UnsupportedOperationException):
+    // fun scanAggregateId(namedAggregate, afterId = "(0)", limit = 10): Flux<AggregateId>
+    // Inherited from RequestIdExistenceChecker; default scans the event stream.
+    // override fun existsRequestId(aggregateId, requestId): Mono<Boolean>
 }
 ```
+
+MongoDB and Redis override both `scanAggregateId` and `existsRequestId` with indexed lookups.
+The Elasticsearch backend overrides `scanAggregateId` but **not** `existsRequestId` — it
+inherits the default stream-scanning implementation. The defaults exist for source compatibility
+with custom event stores.
 
 ### Domain Event Stream
 

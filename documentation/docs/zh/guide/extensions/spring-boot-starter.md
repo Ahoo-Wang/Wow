@@ -33,6 +33,24 @@ implementation 'me.ahoo.wow:wow-spring-boot-starter'
 
 Spring Boot Starter 使用 Spring Boot 的自动配置机制，根据类路径和配置属性自动装配 Wow 框架组件。
 
+### Gradle 特性能力（Feature Variants）
+
+`wow-spring-boot-starter` 声明了可选的 Gradle 特性能力（feature capabilities），应用模块只引入所需的基础设施。通过 `capabilities { requireCapability("<group>:<capability>") }` 请求某个能力：
+
+| 能力 | 引入 |
+|---|---|
+| `mongo-support` | `wow-mongo`（MongoDB EventStore / SnapshotStore / PrepareKey / 查询服务） |
+| `redis-support` | `wow-redis`（Redis EventStore / SnapshotStore / PrepareKey / 消息总线） |
+| `elasticsearch-support` | `wow-elasticsearch`（Elasticsearch EventStore / SnapshotStore / 查询服务） |
+| `kafka-support` | `wow-kafka`（分布式 CommandBus / DomainEventBus / StateEventBus） |
+| `webflux-support` | `wow-webflux`（WebFlux 命令/查询路由处理器、全局错误处理） |
+| `opentelemetry-support` | `wow-opentelemetry`（链路追踪仪表器） |
+| `openapi-support` | `wow-openapi`（OpenAPI schema/路由生成） |
+| `cosec-support` | `wow-cosec`（CoSec 授权集成） |
+| `mock-support` | `wow-mock`（进程内测试替身） |
+
+这些能力是可选的；你也可以按各扩展文档所述，直接声明单个 `wow-*` 依赖。
+
 ```mermaid
 flowchart TB
     subgraph AutoConfig["自动配置"]
@@ -250,7 +268,7 @@ class MetadataConfiguration {
 }
 ```
 
-元数据文件位置：`META-INF/wow/wow-metadata.json`
+元数据文件位置：`META-INF/wow-metadata.json`
 
 ## 处理器注册
 

@@ -270,7 +270,7 @@ sequenceDiagram
     end
 
     Gateway->>Notifier: commandSentSignal(waitCommandId)
-    Note over Gateway,Notifier: CommandStage.SENT 信号
+    Note over Gateway,Notifier: CommandStage.SENT 信号（见“发送后信号”说明）
 
     Kafka->>Dispatcher: receive(subscription)
     Dispatcher->>Dispatcher: 按键分组, publishOn(scheduler)
@@ -321,9 +321,12 @@ sequenceDiagram
 
 ### DefaultCommandGateway：发送后信号
 
-命令被命令总线接受后，网关通过 `CommandWaitNotifier` 发布 `CommandStage.SENT` 等待信号。无论成功或失败，此信号都会被发布——如果发送过程中发生错误，信号会携带错误信息。
+命令被命令总线接受后，网关通过 `CommandWaitNotifier` 发布 `CommandStage.SENT` 等待信号。其行为取决于等待句柄类型：
 
-对于重载的 `send(message)`（没有显式 `WaitPlan`），网关从消息头中提取等待计划（如果有传播的话）并发布 SENT 信号。参见 [DefaultCommandGateway.kt:114-126](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L114)。
+- **失败/出错**：SENT 信号*总是*发布并携带错误信息，等待方可快速失败。
+- **成功**：对流式句柄（`sendAndWaitStream`）以及等待目标阶段*就是* `SENT`（`CommandWait.sent`）时会发布 SENT 信号。对于等待后续阶段（`PROCESSED`、`SNAPSHOT` …）的单结果等待，成功的 SENT 信号会被跳过，因为单结果句柄只需后续阶段完成，对该信号而言 SENT 本身不可观测。
+
+该优化（`SkipsSuccessfulSentSignal`）在不改变任何等待计划对外可观测结果的前提下，移除了命令热路径上的冗余信号。对于重载的 `send(message)`（没有显式 `WaitPlan`），网关从消息头中提取等待计划（如果有传播的话）并发布 SENT 信号。参见 [DefaultCommandGateway.kt:114-126](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L114)。
 
 ## 错误处理
 
@@ -842,13 +845,13 @@ class KafkaCommandBus(
 | 请求头 | 用途 | 默认值 | Source |
 |---|---|---|---|
 | `Command-Wait-Stage` | 要等待的 `CommandStage` | `PROCESSED` | [AggregateRequest.kt:112](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L112) |
-| `Command-Wait-Context` | 用于函数过滤的限界上下文名称 | 当前上下文 | [AggregateRequest.kt:117](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L117) |
-| `Command-Wait-Processor` | 用于函数过滤的处理器名称 | （空） | [AggregateRequest.kt:121](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L121) |
-| `Command-Wait-Function` | 用于函数过滤的函数名称 | （空） | [AggregateRequest.kt:125](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L125) |
-| `Command-Wait-Tail-Stage` | `SimpleWaitingChain` 的尾阶段 | `null` | [AggregateRequest.kt:131](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L131) |
-| `Command-Wait-Tail-Context` | 链的尾上下文 | 当前上下文 | [AggregateRequest.kt:137](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L137) |
-| `Command-Wait-Tail-Processor` | 链的尾处理器 | （空） | [AggregateRequest.kt:141](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L141) |
-| `Command-Wait-Tail-Function` | 链的尾函数 | （空） | [AggregateRequest.kt:145](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L145) |
+| `Command-Wait-Context` | 用于函数过滤的限界上下文名称 | 当前上下文 | [AggregateRequest.kt:118](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L118) |
+| `Command-Wait-Processor` | 用于函数过滤的处理器名称 | （空） | [AggregateRequest.kt:122](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L122) |
+| `Command-Wait-Function` | 用于函数过滤的函数名称 | （空） | [AggregateRequest.kt:126](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L126) |
+| `Command-Wait-Tail-Stage` | `SimpleWaitingChain` 的尾阶段 | `null` | [AggregateRequest.kt:132](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L132) |
+| `Command-Wait-Tail-Context` | 链的尾上下文 | 当前上下文 | [AggregateRequest.kt:138](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L138) |
+| `Command-Wait-Tail-Processor` | 链的尾处理器 | （空） | [AggregateRequest.kt:142](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L142) |
+| `Command-Wait-Tail-Function` | 链的尾函数 | （空） | [AggregateRequest.kt:146](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L146) |
 | `Command-Wait-Timeout` | 超时时间（毫秒） | `30000`（30秒） | [AggregateRequest.kt:104](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L104) |
 | `Command-Request-Id` | 用于幂等性的请求 ID | （自动生成） | [AggregateRequest.kt:48](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L48) |
 | `Command-Aggregate-Id` | 目标聚合实例 ID | （来自命令体或路径） | [AggregateRequest.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L69) |

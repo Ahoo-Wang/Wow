@@ -332,7 +332,7 @@ graph TB
 | Module | Responsibility | Layer | Source |
 |---|---|---|---|
 | `wow-api` | Pure API contracts: `CommandMessage`, `DomainEvent`, `AggregateId`, all annotations | Foundation | [settings.gradle.kts:21](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L21) |
-| `wow-core` | Framework engine: command/event bus, event store abstractions, projections, sagas, wait plans | Engine | [settings.gradle.kts:22](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L22) |
+| `wow-core` | Framework engine: command/event bus, event store abstractions, projections, sagas, wait plans | Engine | [settings.gradle.kts:23](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L23) |
 | `wow-compiler` | KSP processor: generates command routing, event metadata, OpenAPI specs at compile time | Dev-time | [settings.gradle.kts:26](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L26) |
 | `wow-spring` | Spring IoC integration: `SpringServiceProvider` bridge | Integration | [settings.gradle.kts:31](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L31) |
 | `wow-spring-boot-starter` | Auto-configuration with feature variants (`mongo-support`, `kafka-support`, etc.) | Integration | [settings.gradle.kts:33](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L33) |
@@ -534,7 +534,7 @@ flowchart TB
 
 | Dimension | Mechanism | Limitation | Source |
 |---|---|---|---|
-| **Per-aggregate write throughput** | Single aggregate is serialized by optimistic concurrency; no parallel writes to same aggregate | Hot aggregates will bottleneck | [EventStore.kt:38-43](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L38-L43) |
+| **Per-aggregate write throughput** | Single aggregate is serialized by optimistic concurrency; no parallel writes to same aggregate | Hot aggregates will bottleneck | [EventStore.kt:40-54](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L40-L54) |
 | **Read scaling (long aggregates)** | `SnapshotStore` stores periodic state snapshots; replay only events since last snapshot | Snapshot strategy must be tuned per aggregate type | [VersionOffsetSnapshotStrategy.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/VersionOffsetSnapshotStrategy.kt) |
 | **Event bus fan-out** | `LocalFirst` routes to local consumers first (zero network hop), then distributes via Kafka/Redis | Kafka partition ordering must align with aggregate ID to preserve per-aggregate order | [LocalFirstMessageBus.kt:129-170](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalFirstMessageBus.kt#L129-L170) |
 
@@ -617,7 +617,7 @@ flowchart TB
 
 ### Benchmark Results (from `example/` performance tests)
 
-All benchmarks run with MongoDB + Redis + Kafka on Kubernetes ([README.md:56-98](https://github.com/Ahoo-Wang/Wow/blob/main/README.md#L56-L98)).
+All benchmarks run with MongoDB + Redis + Kafka on Kubernetes ([README.md:55-98](https://github.com/Ahoo-Wang/Wow/blob/main/README.md#L55-L98)).
 
 | Operation | Wait Mode | Avg TPS | Peak TPS | Avg Latency | Source |
 |---|---|---|---|---|---|

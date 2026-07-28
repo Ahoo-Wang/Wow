@@ -156,20 +156,19 @@ class OrderCancellationSaga {
 #### 单元测试覆盖
 
 ```kotlin
-// 聚合测试：验证业务逻辑
-class OrderSpec : AggregateSpec<Order, OrderState> {
-    // Given-When-Expect 模式
-}
+// 聚合测试：验证业务逻辑（AggregateSpec —— Given-When-Expect DSL）
+class OrderSpec : AggregateSpec<Order, OrderState>({
+    // expectEventType / expectState / expectNoError 断言
+})
 
-// Saga 测试：验证流程编排
-class OrderSagaSpec : SagaSpec<OrderProcessingSaga> {
-    // 验证事件-命令映射
-}
+// Saga 测试：验证流程编排（SagaSpec —— Given-When-Expect DSL）
+class OrderSagaSpec : SagaSpec<OrderProcessingSaga>({
+    // expectCommandType / expectCommandBody / expectNoCommand 断言
+})
 
 // 投影测试：验证查询模型更新
-class OrderProjectionSpec : ProjectionSpec<OrderProjection> {
-    // 验证事件处理结果
-}
+// 不存在专用的 ProjectionSpec DSL —— 将处理器作为普通 Bean 测试，
+// 使用 MockK 模拟仓储，并验证仓储交互。
 ```
 
 #### 测试覆盖率目标

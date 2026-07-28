@@ -111,7 +111,7 @@ sequenceDiagram
 
 4. **Command Generation** (`StatelessSagaFunction`): The saga logic runs and returns a result. If the result is a command body, a `CommandBuilder`, or a `CommandMessage`, the framework constructs a proper command message — propagating tenant ID, request ID, and tracing context from the originating event. The command is sent via `CommandGateway`. See [StatelessSagaFunction.kt:57-68](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunction.kt#L57-L68).
 
-5. **Command Stream** (`CommandStream`): Each domain event can produce 0..N commands. The commands are collected into a `DefaultCommandStream`, stored in the event exchange attributes under the key `__COMMAND_STREAM__`. See [CommandStream.kt:22-31](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/CommandStream.kt#L22-L31) and [ExchangeCommandStream.kt:17-38](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/ExchangeCommandStream.kt#L17-L38).
+5. **Command Stream** (`CommandStream`): Each domain event can produce 0..N commands. The commands are collected into a `DefaultCommandStream`, stored in the event exchange attributes under the key `__COMMAND_STREAM__`. See [CommandStream.kt:22-31](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/CommandStream.kt#L22-L31) and [ExchangeCommandStream.kt:21-38](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/ExchangeCommandStream.kt#L21-L38).
 
 ## Defining a Saga
 

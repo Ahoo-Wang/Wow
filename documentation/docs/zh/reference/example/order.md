@@ -47,7 +47,7 @@ example/
 ```kotlin
 // 命令聚合根 - 处理命令
 @AggregateRoot
-@AggregateRoute(resourceName = "sales-order", owner = AggregateRoute.Owner.ALWAYS)
+@AggregateRoute(resourceName = "sales-order", spaced = true, owner = AggregateRoute.Owner.ALWAYS)
 class Order(private val state: OrderState) {
 
     fun onCommand(createOrder: CreateOrder): OrderCreated {

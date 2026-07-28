@@ -346,24 +346,43 @@ class AsyncProjection(
 
 ## Testing Projections
 
+Unlike aggregates and sagas, the Wow framework does not ship a dedicated
+`ProjectionSpec` / `ProjectionVerifier` test DSL for projections. Projection
+processors are plain Spring beans, so test them with standard unit tests:
+instantiate the processor with mocked repositories (MockK), invoke the handler
+method directly with a constructed event, and verify the repository interaction.
+
 ```kotlin
-class OrderProjectionSpec : ProjectionSpec<OrderProjection>({
-    on {
-        val event = mockk<OrderCreated> {
-            every { orderId } returns "order-001"
-            every { customerId } returns "customer-001"
-            every { totalAmount } returns BigDecimal(100)
-        }
-        whenEvent(event) {
-            expectNoError()
-            expectSaved<OrderSummary> {
-                orderId.assert().isEqualTo("order-001")
-                totalAmount.assert().isEqualTo(BigDecimal(100))
-            }
+@ExtendWith(MockKExtension::class)
+class OrderSummaryProjectionTest {
+    @MockK
+    private lateinit var orderSummaryRepository: OrderSummaryRepository
+
+    @Test
+    fun `onOrderCreated saves summary`() {
+        val projection = OrderSummaryProjection(orderSummaryRepository)
+        val event = OrderCreated(
+            orderId = "order-001",
+            customerId = "customer-001",
+            totalAmount = BigDecimal(100),
+        )
+        every { orderSummaryRepository.save(any()) } returns Mono.empty()
+
+        val result = projection.onOrderCreated(event)
+
+        StepVerifier.create(result).verifyComplete()
+        verify(exactly = 1) {
+            orderSummaryRepository.save(match {
+                it.orderId == "order-001" && it.totalAmount == BigDecimal(100)
+            })
         }
     }
-})
+}
 ```
+
+For end-to-end coverage of the event → projection → query path, use an
+integration test with `wow-it` and the in-memory event bus, then assert the read
+model through the `QueryService`.
 
 ## Configuration
 

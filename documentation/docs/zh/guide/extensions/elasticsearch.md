@@ -85,6 +85,24 @@ wow:
       storage: elasticsearch
 ```
 
+- 配置类：[ElasticsearchProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchProperties.kt)
+- 前缀：`wow.elasticsearch.`
+
+| 名称 | 数据类型 | 默认值 | 描述 |
+|---|---|---|---|
+| `enabled` | `Boolean` | `true` | 是否启用 Elasticsearch 扩展 |
+| `auto-init-template` | `Boolean` | `true` | 在应用启动完成前安装所需的索引模板 |
+| `event-store-batch.enabled` | `Boolean` | `false` | 使用 Bulk `create` 批量处理并发的事件流追加 |
+| `event-store-batch.max-size` | `Int` | `128` | 每个批量批次的最大事件流数 |
+| `event-store-batch.max-delay` | `Duration` | `1ms` | 收集部分批次的等待时长上限 |
+| `event-store-batch.max-pending-appends` | `Int` | `4096` | 等待或正在写入的追加请求上限；必须不小于 `max-size` |
+| `event-store-batch.lane-count` | `Int` | `1` | 串行写入通道数；同一聚合的追加保持在同一通道 |
+| `snapshot-store-batch.enabled` | `Boolean` | `false` | 使用 Bulk 脚本 upsert 批量处理并发快照保存 |
+| `snapshot-store-batch.max-size` | `Int` | `128` | 每个批量批次的最大快照数 |
+| `snapshot-store-batch.max-delay` | `Duration` | `1ms` | 收集部分快照批次的等待时长上限 |
+| `snapshot-store-batch.max-pending-saves` | `Int` | `4096` | 等待或正在写入的保存请求上限；必须不小于 `max-size` |
+| `snapshot-store-batch.lane-count` | `Int` | `1` | 串行写入通道数；同一聚合的保存保持在同一通道 |
+
 应用启动完成前会安装所需索引模板；请求失败或未确认会导致启动失败。仅当索引模板由外部系统管理时，才应设置
 `wow.elasticsearch.auto-init-template=false`。内置模板不会固定分片数和副本数，这些拓扑参数应由集群或更高优先级的
 运维模板管理。

@@ -47,7 +47,7 @@ The Order example uses the **Aggregate Pattern** to separate command handling fr
 ```kotlin
 // Command Aggregate Root - Handles commands
 @AggregateRoot
-@AggregateRoute(resourceName = "sales-order", owner = AggregateRoute.Owner.ALWAYS)
+@AggregateRoute(resourceName = "sales-order", spaced = true, owner = AggregateRoute.Owner.ALWAYS)
 class Order(private val state: OrderState) {
 
     fun onCommand(createOrder: CreateOrder): OrderCreated {

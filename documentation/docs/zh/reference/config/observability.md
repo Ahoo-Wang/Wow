@@ -55,3 +55,63 @@ wow:
 
 `wow.bi.script.*` 配置树（ClickHouse/BI 脚本部署）请参阅
 [BI 部署与恢复](/zh/guide/bi-operations) 页面。
+
+## 集成设置
+
+### 启用指标导出（Prometheus）
+
+Wow 指标写入 Micrometer 的全局注册表。要通过 Prometheus 暴露指标，添加 Spring Boot Actuator + Prometheus 注册表依赖并暴露端点：
+
+```yaml
+management:
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - prometheus    # Micrometer/Prometheus 抓取端点
+          - threaddump
+  metrics:
+    tags:
+      application: ${spring.application.name}   # 所有 meter 的公共标签
+
+springdoc:
+  show-actuator: true   # 在 OpenAPI 中包含 actuator 端点
+```
+
+```kotlin
+implementation("org.springframework.boot:spring-boot-starter-actuator")
+implementation("io.micrometer:micrometer-registry-prometheus")
+```
+
+从 Prometheus 抓取 `/actuator/prometheus` 端点。Wow 特有的 meter
+（`wow.command.*`、`wow.eventstore.*`、`wow.snapshot.*`、`wow.projection.*` 等）将与标准
+JVM/Reactor meter 一起出现。完整目录参见 [Metrics](/zh/guide/advanced/metrics)。
+
+### 启用分布式链路追踪（OpenTelemetry）
+
+启用链路追踪的推荐方式是使用 OpenTelemetry Java Agent，它会在 Spring 上下文启动前引导初始化
+`GlobalOpenTelemetry`：
+
+```bash
+java -javaagent:opentelemetry-javaagent.jar \
+     -Dotel.service.name=${spring.application.name} \
+     -Dotel.exporter.otlp.endpoint=http://otel-collector:4317 \
+     -jar your-app.jar
+```
+
+在依赖中添加 `wow-opentelemetry`。自动配置会检测 Agent 已初始化的 `GlobalOpenTelemetry`，
+并自动注册 Wow 追踪过滤器与装饰器。仅当需要禁用 Wow 的 span 但保留 Agent 的其他仪表时，
+才设置 `wow.opentelemetry.enabled=false`。
+
+```kotlin
+implementation("me.ahoo.wow:wow-opentelemetry")
+```
+
+仪表覆盖范围参见 [可观测性](/zh/guide/advanced/observability)，
+仪表器列表参见 [OpenTelemetry 扩展](/zh/guide/extensions/opentelemetry)。

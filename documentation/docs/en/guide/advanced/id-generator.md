@@ -7,6 +7,76 @@ description: Message ID and aggregate root ID generation powered by CosId.
 
 The Wow framework's *message ID* and *aggregate root ID* generation relies on the powerful support provided by [CosId](https://github.com/Ahoo-Wang/CosId).
 
+## Production Configuration
+
+CosId uses a Snowflake-based algorithm that requires a unique **machine ID** per service instance.
+In production, you must configure the machine ID distributor to avoid collisions across instances.
+
+### Manual Machine ID (single instance / development)
+
+You need `cosid-spring-boot-starter` (and `cosid-mongo` for MongoDB distribution) in addition to the Wow dependencies:
+
+```kotlin
+implementation("me.ahoo.cosid:cosid-spring-boot-starter")
+implementation("me.ahoo.cosid:cosid-mongo") // only for MongoDB machine ID distribution
+```
+
+```yaml
+cosid:
+  machine:
+    enabled: true
+    distributor:
+      type: manual
+      manual:
+        machine-id: 1
+  generator:
+    enabled: true
+```
+
+### MongoDB Machine ID (production, multi-instance)
+
+For multi-instance production deployments, use MongoDB as the machine ID distributor so each
+instance automatically receives a unique machine ID:
+
+```yaml
+cosid:
+  machine:
+    enabled: true
+    distributor:
+      type: mongo
+  generator:
+    enabled: true
+```
+
+### Custom Per-Aggregate ID Generator
+
+To assign a specific CosId generator (e.g. a different Snowflake provider) to a particular
+aggregate, define the generator name in the `@BoundedContext` metadata, then configure that
+generator in CosId:
+
+```yaml
+cosid:
+  snowflake:
+    enabled: true
+    provider:
+      order:               # matches the aggregate's `id` field below
+        converter:
+          type: radix      # Radix62 URL-safe encoding
+```
+
+```kotlin
+@BoundedContext(
+    name = "order-service",
+    aggregates = [
+        Aggregate(name = "order", id = "order"),  // ← uses the "order" CosId generator
+    ],
+)
+object OrderService
+```
+
+If the named generator is not found in CosId's `IdGeneratorProvider`, Wow falls back to a
+`Radix62CosIdGenerator` using the global generator's `machineId`.
+
 ## Global ID Generator
 
 The *global ID generator* is mainly used to generate message IDs (`Command`, `DomainEvent`, `DomainEventStream`).

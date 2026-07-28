@@ -27,7 +27,9 @@ The _OpenTelemetry_ module of the Wow framework provides a series of instrumente
 - `ProjectionInstrumenter`: Projection instrumenter, used to record projection operations.
 - `StatelessSagaInstrumenter`: Stateless Saga instrumenter, used to record stateless Saga operations.
 - `SnapshotInstrumenter`: Snapshot instrumenter, used to record snapshot operations.
+- `SnapshotRepositoryInstrumenter`: Snapshot repository instrumenter, used to record snapshot repository operations.
 - `SnapshotStoreInstrumenter`: Snapshot store instrumenter, used to record snapshot store operations.
+- `WaitPlanInstrumenter`: Command wait-plan instrumenter, used to record command wait/notify operations.
 
 Supports the following attribute tags:
 
@@ -37,6 +39,7 @@ Supports the following attribute tags:
 - `wow.aggregate.id`: Aggregate root ID.
 - `wow.message.id`: Message ID
 - `wow.message.request_id`: Command message request ID.
+- `wow.message.trace_id`: Trace ID propagated through the message header.
 
 ![Observability](../../../public/images/observability/observability.png)
 
@@ -69,3 +72,35 @@ wow:
 ```
 
 Initialize `GlobalOpenTelemetry` before the Wow application context creates tracing filters and decorators. Use the OpenTelemetry Java agent or register an SDK during application bootstrap; registering the SDK after Wow tracing instrumenters have initialized is too late.
+
+## How Tracing Is Wired
+
+`WowOpenTelemetryAutoConfiguration` registers five `ExchangeFilter` beans (each `@ConditionalOnMissingBean`, so you can override any one) plus a `TracingBeanPostProcessor` that decorates the command/event/state-event buses, the event store, and the snapshot store:
+
+| Bean | Filter stage | Span name pattern |
+|---|---|---|
+| `TraceAggregateFilter` | Aggregate command processing | `{aggregateName}.{commandName}` |
+| `TraceProjectionFilter` | Projection event handling | `{processorName}.{functionName}({eventType})` (via `EventProcessorSpanNameExtractor`) |
+| `TraceStatelessSagaFilter` | Saga event handling | `{processorName}.{functionName}({eventType})` (same extractor) |
+| `TraceSnapshotFilter` | Snapshot creation | `{aggregateName}.snapshot` |
+| `TraceEventProcessorFilter` | General event-processor handling | `{processorName}.{functionName}({eventType})` (same extractor) |
+
+Every span carries the `wow.aggregate.*` and `wow.message.*` attributes listed above, plus the OpenTelemetry propagation context, so a single command's full path (command bus → aggregate → event store → projection → saga) appears as one distributed trace.
+
+## What a Trace Looks Like
+
+For a `CreateOrder` command on the `order` aggregate that triggers a saga and a projection, the trace hierarchy is:
+
+```text
+order.create_order                    (TraceAggregateFilter — aggregate command)
+├── order.OrderCreated.event.append   (TracingEventStore — event persistence)
+├── order.OrderCreated.event send     (TracingEventBus — message publish)
+├── order.snapshot                    (TraceSnapshotFilter — snapshot creation)
+├── OrderSaga.onEvent(OrderCreated)   (TraceStatelessSagaFilter — saga handler)
+└── OrderProjection.onEvent(OrderCreated) (TraceProjectionFilter — projection handler)
+```
+
+Span names for projection/saga/event-processor use the function's `qualifiedName` format
+(`{processorName}.{functionName}({eventType})`). Producer instrumenters inject their context
+into the message, so consumer spans are **children** of the producer span — not siblings.
+The key point is that all spans for one command share the same trace ID via context propagation.

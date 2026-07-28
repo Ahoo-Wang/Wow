@@ -59,3 +59,67 @@ suppress Wow-specific meters.
 
 The `wow.bi.script.*` property tree (ClickHouse/BI script deployment) is documented on the
 [BI Operations](/guide/bi-operations) page.
+
+## Integration Setup
+
+### Enabling Metrics Export (Prometheus)
+
+Wow metrics are written to Micrometer's global registry. To expose them via Prometheus, add the
+Spring Boot Actuator + Prometheus registry dependencies and expose the endpoint:
+
+```yaml
+management:
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - prometheus    # Micrometer/Prometheus scrape endpoint
+          - threaddump
+  metrics:
+    tags:
+      application: ${spring.application.name}   # common tag on all meters
+
+springdoc:
+  show-actuator: true   # include actuator endpoints in OpenAPI
+```
+
+```kotlin
+implementation("org.springframework.boot:spring-boot-starter-actuator")
+implementation("io.micrometer:micrometer-registry-prometheus")
+```
+
+Scrape the `/actuator/prometheus` endpoint from Prometheus. The Wow-specific meters
+(`wow.command.*`, `wow.eventstore.*`, `wow.snapshot.*`, `wow.projection.*`, etc.) appear
+alongside standard JVM/Reactor meters. See [Metrics](/guide/advanced/metrics) for the full
+catalogue.
+
+### Enabling Distributed Tracing (OpenTelemetry)
+
+The recommended way to enable tracing is the OpenTelemetry Java Agent, which bootstraps
+`GlobalOpenTelemetry` before the Spring context starts:
+
+```bash
+java -javaagent:opentelemetry-javaagent.jar \
+     -Dotel.service.name=${spring.application.name} \
+     -Dotel.exporter.otlp.endpoint=http://otel-collector:4317 \
+     -jar your-app.jar
+```
+
+Add `wow-opentelemetry` to your dependencies. You also need `wow-spring-boot-starter` (with the
+`opentelemetry-support` capability) — `WowOpenTelemetryAutoConfiguration` lives in the starter,
+not the module. The auto-configuration detects the agent's initialized `GlobalOpenTelemetry` and
+registers the Wow tracing filters and decorators automatically. Set `wow.opentelemetry.enabled=false` only to disable Wow's spans while
+keeping the agent's other instrumentation.
+
+```kotlin
+implementation("me.ahoo.wow:wow-opentelemetry")
+```
+
+See [Observability](/guide/advanced/observability) for the instrumentation coverage and
+[OpenTelemetry Extension](/guide/extensions/opentelemetry) for the instrumenter list.

@@ -85,6 +85,24 @@ wow:
       storage: elasticsearch
 ```
 
+- Configuration class: [ElasticsearchProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchProperties.kt)
+- Prefix: `wow.elasticsearch.`
+
+| Name | Data Type | Default Value | Description |
+|---|---|---|---|
+| `enabled` | `Boolean` | `true` | Whether to enable the Elasticsearch extension |
+| `auto-init-template` | `Boolean` | `true` | Install required index templates before startup completes |
+| `event-store-batch.enabled` | `Boolean` | `false` | Batch concurrent EventStore appends with Bulk `create` |
+| `event-store-batch.max-size` | `Int` | `128` | Maximum event streams per bulk batch |
+| `event-store-batch.max-delay` | `Duration` | `1ms` | Maximum wait used to collect a partial batch |
+| `event-store-batch.max-pending-appends` | `Int` | `4096` | Maximum accepted appends waiting or being written; must be at least `max-size` |
+| `event-store-batch.lane-count` | `Int` | `1` | Number of serial write lanes; appends for the same aggregate stay on one lane |
+| `snapshot-store-batch.enabled` | `Boolean` | `false` | Batch concurrent SnapshotStore saves with Bulk scripted upserts |
+| `snapshot-store-batch.max-size` | `Int` | `128` | Maximum snapshots per bulk batch |
+| `snapshot-store-batch.max-delay` | `Duration` | `1ms` | Maximum wait used to collect a partial snapshot batch |
+| `snapshot-store-batch.max-pending-saves` | `Int` | `4096` | Maximum accepted saves waiting or being written; must be at least `max-size` |
+| `snapshot-store-batch.lane-count` | `Int` | `1` | Number of serial write lanes; saves for the same aggregate stay on one lane |
+
 Required index templates are installed before application startup completes. A failed or unacknowledged request fails
 startup. Set `wow.elasticsearch.auto-init-template=false` only when templates are managed externally. The built-in
 templates intentionally leave shard and replica counts to the cluster or to a higher-priority operator template.

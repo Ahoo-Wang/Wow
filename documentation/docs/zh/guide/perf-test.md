@@ -9,6 +9,42 @@ description: Wow 框架在不同场景下的性能基准测试和结果。
 - 测试场景：加入购物车、下单
 - 命令发送等待模式（`WaitPlan`）：`SENT`、`PROCESSED`
 
+## 复现基准测试
+
+### 基础设施（Kubernetes + Helm）
+
+基准测试环境使用
+[`deploy/example/perf/`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/example/perf)
+下的 Helm values 文件：
+
+```bash
+# 通过 Helm 安装基础设施（具体命令见每个文件的头部注释）
+helm install mongodb-test bitnami/mongodb-sharded -n test -f deploy/example/perf/mongo.yaml
+helm install redis-test bitnami/redis-cluster -n test -f deploy/example/perf/redis.yaml
+helm install kafka-test bitnami/kafka -n test -f deploy/example/perf/kafka.yaml --set kraft.enabled=false --version 23.0.5
+helm install zookeeper-test bitnami/zookeeper -n test --set global.storageClass="alicloud-disk-essd" --set replicaCount=3 --set persistence.size=20Gi
+
+# 在 Deployment 之前应用应用 ConfigMap（deployment.yaml 挂载了它）
+kubectl apply -f deploy/example/perf/config/mongo_kafka_redis.yaml
+
+# 部署 Wow 示例服务
+kubectl apply -f deploy/example/perf/deployment.yaml
+```
+
+基准测试的应用配置使用
+[`mongo_kafka_redis.yaml`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/example/perf/config/mongo_kafka_redis.yaml)
+—— Kafka 用于命令/事件总线，MongoDB 用于事件存储，Redis 用于快照存储
++ PrepareKey + 消息总线恢复。还提供了替代配置（`in-memory.yaml`、`redis.yaml`、
+`kafka_redis.yaml`）用于测试不同的存储拓扑。
+
+### 运行压测
+
+[`deploy/example/request/`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/example/request)
+目录中的 `.http` 请求模板（`AddCartItem.http`、`CreateOrder.http`）包含现成的请求。使用压测工具
+（如 k6、Gatling 或 JMeter）指向相同的端点，并将 `Command-Wait-Stage` 头设置为 `SENT` 或 `PROCESSED`。
+
+根据你的基础设施容量调整 `--vus`（虚拟用户数）和 `--duration`。
+
 ## 部署环境
 
 - [Redis](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/example/perf/redis.yaml)

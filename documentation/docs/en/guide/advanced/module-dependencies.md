@@ -284,6 +284,7 @@ graph TB
         K["wow-kafka<br>KafkaCommandBus<br>KafkaDomainEventBus"]
         M["wow-mongo<br>MongoEventStore<br>MongoSnapshotStore"]
         R["wow-redis<br>RedisEventStore<br>RedisSnapshotStore"]
+        ES_IMPL["wow-elasticsearch<br>ElasticsearchEventStore<br>ElasticsearchSnapshotStore"]
     end
 
     K --> CB
@@ -292,7 +293,7 @@ graph TB
     M --> SR
     R --> ES
     R --> SR
-    R2 --> ES
+    ES_IMPL --> ES
 
 
 

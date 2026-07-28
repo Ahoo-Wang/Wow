@@ -185,7 +185,7 @@ sequenceDiagram
 | 4 | **AggregateProcessorFilter** | 为目标聚合构造 `AggregateProcessor`，处理分片和重试逻辑 | [AggregateAutoConfiguration.kt:91-96](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt#L91-L96) |
 | 5 | **快照 + 事件加载** | 加载最新快照，然后从 `EventStore` 重放增量事件以重建当前状态 | [EventSourcingStateAggregateRepository.kt:41-60](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventSourcingStateAggregateRepository.kt#L41-L60) |
 | 6 | **业务规则执行** | 聚合根（`CommandAggregate`）验证不变量并执行命令处理函数 | [SimpleCommandAggregate.kt:68-79](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt#L68-L79) |
-| 7 | **事件持久化** | `EventStore.append()` 原子写入事件流，通过版本检查强制执行乐观并发控制 | [EventStore.kt:38-43](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L38-L43) |
+| 7 | **事件持久化** | `EventStore.append()` 原子写入事件流，通过版本检查强制执行乐观并发控制 | [EventStore.kt:40-54](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L40-L54) |
 | 8 | **快照 + 发布** | 持久化后，保存快照并将领域事件发布到 `EventBus` 供下游处理 | [AggregateAutoConfiguration.kt:100-106](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt#L100-L106) |
 
 ### 等待计划与命令阶段

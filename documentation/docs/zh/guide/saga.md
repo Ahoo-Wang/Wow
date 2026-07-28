@@ -111,7 +111,7 @@ sequenceDiagram
 
 4. **命令生成**（`StatelessSagaFunction`）：Saga 逻辑运行并返回结果。如果结果是命令体、`CommandBuilder` 或 `CommandMessage`，框架构建适当的命令消息——从源事件传播租户 ID、请求 ID 和追踪上下文。命令通过 `CommandGateway` 发送。参见 [StatelessSagaFunction.kt:57-68](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunction.kt#L57-L68)。
 
-5. **命令流**（`CommandStream`）：每个领域事件可以产生 0..N 个命令。命令被收集到一个 `DefaultCommandStream` 中，存储在事件交换属性中，键为 `__COMMAND_STREAM__`。参见 [CommandStream.kt:22-31](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/CommandStream.kt#L22-L31) 和 [ExchangeCommandStream.kt:17-38](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/ExchangeCommandStream.kt#L17-L38)。
+5. **命令流**（`CommandStream`）：每个领域事件可以产生 0..N 个命令。命令被收集到一个 `DefaultCommandStream` 中，存储在事件交换属性中，键为 `__COMMAND_STREAM__`。参见 [CommandStream.kt:22-31](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/CommandStream.kt#L22-L31) 和 [ExchangeCommandStream.kt:21-38](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/ExchangeCommandStream.kt#L21-L38)。
 
 ## 定义 Saga
 

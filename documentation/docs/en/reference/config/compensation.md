@@ -22,6 +22,34 @@ wow:
     enabled: true
 ```
 
+When enabled, the `EventCompensationFilter` automatically registers on every event dispatcher
+(`DomainEventDispatcher`, `StatelessSagaDispatcher`, `ProjectionDispatcher`, `SnapshotDispatcher`).
+Any handler that throws is caught, and a `CreateExecutionFailed` command is sent to record the
+failure. The `@Retry` annotation on each handler controls per-function retry behavior:
+
+```kotlin
+@ProjectionProcessor
+class OrderProjection {
+    // This handler gets the default retry spec (maxRetries=10, minBackoff=180s, executionTimeout=120s)
+    @OnEvent
+    fun onOrderCreated(event: OrderCreated): Mono<Void> { ... }
+
+    // Custom retry for a handler that calls a flaky external API
+    @Retry(maxRetries = 3, minBackoff = 60, executionTimeout = 10)
+    @OnEvent
+    fun onOrderPaid(event: OrderPaid): Mono<Void> { ... }
+
+    // Opt out of compensation entirely for this handler
+    @Retry(enabled = false)
+    @OnEvent
+    fun onOrderShipped(event: OrderShipped): Mono<Void> { ... }
+}
+```
+
+Set `wow.compensation.enabled=false` to globally disable the compensation filter on all handlers
+in this service. Individual handlers can still opt out via `@Retry(enabled = false)` even when
+compensation is globally enabled.
+
 ## Server Level
 
 These properties configure the standalone compensation server (`wow-compensation-server`).

@@ -232,18 +232,30 @@ class InventoryEventProcessor(
 
 ### Error Propagation
 
-Events that fail processing can trigger error events:
+::: warning
+Unlike `@StatelessSaga`, an `@EventProcessor` handler's return value is a
+side-effect only — it is **not** captured into a command stream and **not**
+republished as a domain event. Returning a domain-event body from an event
+processor does nothing. To react to a failure by sending another command, raise
+a compensating command explicitly (e.g. via an injected `CommandGateway`), or
+model the workflow as a saga instead.
+:::
+
+For expected business outcomes, publish or send commands through the explicit
+gateway, or use event compensation:
 
 ```kotlin
 @EventProcessor
-class OrderEventProcessor {
+class OrderEventProcessor(
+    private val commandGateway: CommandGateway
+) {
 
     @OnEvent
-    fun onOrderCreated(event: OrderCreated): Mono<ReserveInventoryFailed> {
+    fun onOrderCreated(event: OrderCreated): Mono<Void> {
         return inventoryService.reserveItems(event.items)
-            .switchIfEmpty {
-                Mono.error(InventoryUnavailableException(event.items))
-            }
+            .onErrorResume { InventoryUnavailableException(event.items).toMono<Void>() }
+            // The framework retries/fails this handler via @Retry; it does NOT
+            // republish the returned value. Send a command explicitly if needed.
     }
 }
 ```

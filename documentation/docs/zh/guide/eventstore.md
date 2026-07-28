@@ -23,31 +23,39 @@ description: 事件存储是事件溯源架构的核心持久化引擎 -- 不可
 
 ## 核心接口
 
-`EventStore` 接口定义了事件存储的核心操作，并承担按命名聚合分页扫描聚合 ID 的职责：
+`EventStore` 接口定义了事件存储的核心操作。它继承自 `RequestIdExistenceChecker`
+（命令幂等性查找）、`AggregateIdScanner`（按命名聚合分页扫描聚合 ID）以及
+`AutoCloseable`（存储后端实现会在关闭时释放资源）：
 
 ```kotlin
 interface EventStore :
     RequestIdExistenceChecker,
-    AggregateIdScanner {
+    AggregateIdScanner,
+    AutoCloseable {
     fun append(eventStream: DomainEventStream): Mono<Void>
     fun load(
         aggregateId: AggregateId,
-        headVersion: Int = 1,
-        tailVersion: Int = Int.MAX_VALUE - 1
+        headVersion: Int = DEFAULT_HEAD_VERSION,        // 1
+        tailVersion: Int = DEFAULT_TAIL_VERSION         // Int.MAX_VALUE - 1
     ): Flux<DomainEventStream>
     fun load(
         aggregateId: AggregateId,
         headEventTime: Long,
         tailEventTime: Long
     ): Flux<DomainEventStream>
+    fun single(aggregateId: AggregateId, version: Int): Mono<DomainEventStream> // 默认实现
     fun last(aggregateId: AggregateId): Mono<DomainEventStream>
-    fun scanAggregateId(
-        namedAggregate: NamedAggregate,
-        afterId: String = AggregateIdScanner.FIRST_ID,
-        limit: Int = 10
-    ): Flux<AggregateId>
+
+    // 继承自 AggregateIdScanner（默认返回 UnsupportedOperationException）：
+    // fun scanAggregateId(namedAggregate, afterId = "(0)", limit = 10): Flux<AggregateId>
+    // 继承自 RequestIdExistenceChecker；默认实现扫描事件流。
+    // override fun existsRequestId(aggregateId, requestId): Mono<Boolean>
 }
 ```
+
+MongoDB 和 Redis 会用索引查找覆盖 `scanAggregateId` 和 `existsRequestId`。
+Elasticsearch 后端覆盖了 `scanAggregateId` 但**未覆盖** `existsRequestId` —— 它继承了默认的流扫描实现。
+默认实现仅为自定义事件存储保留源码兼容性。
 
 ### 领域事件流
 

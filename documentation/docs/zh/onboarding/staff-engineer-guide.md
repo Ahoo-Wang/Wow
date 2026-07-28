@@ -332,7 +332,7 @@ graph TB
 | 模块 | 职责 | 层级 | 来源 |
 |---|---|---|---|
 | `wow-api` | 纯 API 契约：`CommandMessage`、`DomainEvent`、`AggregateId`、所有注解 | 基础层 | [settings.gradle.kts:21](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L21) |
-| `wow-core` | 框架引擎：命令/事件总线、事件存储抽象、投影、Saga、等待计划 | 引擎层 | [settings.gradle.kts:22](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L22) |
+| `wow-core` | 框架引擎：命令/事件总线、事件存储抽象、投影、Saga、等待计划 | 引擎层 | [settings.gradle.kts:23](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L23) |
 | `wow-compiler` | KSP 处理器：在编译时生成命令路由、事件元数据、OpenAPI 规范 | 开发时 | [settings.gradle.kts:26](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L26) |
 | `wow-spring` | Spring IoC 集成：`SpringServiceProvider` 桥接 | 集成层 | [settings.gradle.kts:31](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L31) |
 | `wow-spring-boot-starter` | 带功能变体的自动配置（`mongo-support`、`kafka-support` 等） | 集成层 | [settings.gradle.kts:33](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L33) |
@@ -534,7 +534,7 @@ flowchart TB
 
 | 维度 | 机制 | 限制 | 来源 |
 |---|---|---|---|
-| **单聚合写吞吐量** | 单个聚合由乐观并发序列化；无法并行写入同一聚合 | 热点聚合会成为瓶颈 | [EventStore.kt:38-43](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L38-L43) |
+| **单聚合写吞吐量** | 单个聚合由乐观并发序列化；无法并行写入同一聚合 | 热点聚合会成为瓶颈 | [EventStore.kt:40-54](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L40-L54) |
 | **读扩展（长聚合）** | `SnapshotStore` 存储定期状态快照；仅重放自上次快照以来的事件 | 快照策略必须根据聚合类型调优 | [VersionOffsetSnapshotStrategy.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/VersionOffsetSnapshotStrategy.kt) |
 | **事件总线扇出** | `LocalFirst` 首先路由到本地消费者（零网络跳转），然后通过 Kafka/Redis 分发 | Kafka 分区排序必须与聚合 ID 对齐以保持按聚合排序 | [LocalFirstMessageBus.kt:129-170](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalFirstMessageBus.kt#L129-L170) |
 
@@ -617,7 +617,7 @@ flowchart TB
 
 ### 基准测试结果（来自 `example/` 性能测试）
 
-所有基准测试在 Kubernetes 上使用 MongoDB + Redis + Kafka 运行（[README.md:56-98](https://github.com/Ahoo-Wang/Wow/blob/main/README.md#L56-L98)）。
+所有基准测试在 Kubernetes 上使用 MongoDB + Redis + Kafka 运行（[README.md:55-98](https://github.com/Ahoo-Wang/Wow/blob/main/README.md#L55-L98)）。
 
 | 操作 | 等待模式 | 平均 TPS | 峰值 TPS | 平均延迟 | 来源 |
 |---|---|---|---|---|---|

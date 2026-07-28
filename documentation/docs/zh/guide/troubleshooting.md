@@ -229,7 +229,7 @@ spring:
 
 #### Q: 元数据未加载
 
-**现象**：`AggregateMetadataException: Aggregate metadata not found`
+**现象**：运行时聚合元数据缺失（例如 `MetadataSearcher` 解析不到 context/aggregate，或框架报告该聚合未注册）。
 
 **可能原因**：
 1. 未使用 wow-compiler
@@ -249,7 +249,7 @@ dependencies {
 }
 ```
 
-检查生成的元数据文件：`build/generated/ksp/main/resources/META-INF/wow/wow-metadata.json`
+检查生成的元数据文件：`build/generated/ksp/main/resources/META-INF/wow-metadata.json`
 
 #### Q: Bean 装配失败
 
