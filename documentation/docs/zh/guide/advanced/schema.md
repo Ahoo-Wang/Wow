@@ -71,8 +71,9 @@ Wow 提供了专门的 `TypedCustomDefinitionProvider` 实现与模块，为框�
 |------|------------|
 | `AggregateId`、`DomainEventStream`、`AggregatedFields`、查询模型 | 通过 `WowSchemaLoader` 从内置 JSON Schema 资源加载（复杂对象，非展平的基础类型） |
 | `Map<K, V>`（`MapDefinitionProvider`） | 带附加属性的对象 |
-| `CharRange` / `IntRange` / `LongRange`（`KotlinModule`） | 基于 `min`/`max` 的数值/字符串范围约束 |
-| `CurrencyUnit` / `Money`（`JodaMoneyModule`） | Joda Money 类型作为结构化对象 |
+| `CharRange` / `IntRange` / `LongRange`（`KotlinModule`） | 带 `start` 和 `end` 属性的对象 |
+| `CurrencyUnit`（`JodaMoneyModule`） | 带 `format: currency` 的字符串 |
+| `Money`（`JodaMoneyModule`） | 包含 `currency` 和 `amount` 的结构化对象 |
 | 枚举（Jackson） | 字符串枚举定义（`FLATTENED_ENUMS_FROM_JSONVALUE`/`JSONPROPERTY`） |
 | 可空的 Kotlin 类型（`KotlinNullableCheck`） | 在类型联合中加入 `null` |
 | `@Summary` / `@Description` | 解析为 Schema 的 `title` / `description` 元数据 |

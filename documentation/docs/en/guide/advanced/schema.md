@@ -74,8 +74,9 @@ that supply schemas for framework and Kotlin/Joda types:
 |------|----------------|
 | `AggregateId`, `DomainEventStream`, `AggregatedFields`, query models | Loaded from bundled JSON Schema resources via `WowSchemaLoader` (complex objects, not flattened primitives) |
 | `Map<K, V>` (`MapDefinitionProvider`) | Object with additional properties |
-| `CharRange` / `IntRange` / `LongRange` (`KotlinModule`) | Range-based numeric/string constraints with `min`/`max` |
-| `CurrencyUnit` / `Money` (`JodaMoneyModule`) | Joda Money types as structured objects |
+| `CharRange` / `IntRange` / `LongRange` (`KotlinModule`) | Object with `start` and `end` properties |
+| `CurrencyUnit` (`JodaMoneyModule`) | String with `format: currency` |
+| `Money` (`JodaMoneyModule`) | Structured object with `currency` and `amount` |
 | Enums (Jackson) | String enum definitions (`FLATTENED_ENUMS_FROM_JSONVALUE`/`JSONPROPERTY`) |
 | Nullable Kotlin types (`KotlinNullableCheck`) | `null` added to the type union |
 | `@Summary` / `@Description` | Resolved into schema `title` / `description` metadata |
@@ -87,8 +88,8 @@ The `wow-openapi` module wires schema generation into the OpenAPI spec via
 backed by a `SchemaGeneratorBuilder` and calls `generateSchema(type)` for every
 command body, event payload, and snapshot state registered in the bounded context.
 The resulting `io.swagger.v3.oas.models.media.Schema` instances populate the
-OpenAPI `components/schemas` section, which the Swagger UI renders and which
-`wow-apiclient` consumes to build type-safe REST clients.
+OpenAPI `components/schemas` section, which the Swagger UI renders. TypeScript clients
+can be generated from the spec using the [Fetcher](https://github.com/Ahoo-Wang/Fetcher) toolchain.
 
 ```kotlin
 // Simplified wiring inside wow-openapi (OpenAPIComponentContext.of)
@@ -102,7 +103,9 @@ val commandSchema: Schema<*> = schemaBuilder.generateSchema(CreateOrder::class.j
 ```
 
 You normally never call this directly — applying `wow-compiler` (KSP) and adding
-`wow-openapi` to the server is enough. Schema generation is automatic at runtime.
+`wow-spring-boot-starter` (with the `openapi-support` capability) plus `wow-openapi` to the
+server is enough. Schema generation is automatic at runtime via `OpenAPIAutoConfiguration` in
+the starter.
 
 ## Customizing the Generator
 

@@ -11,17 +11,20 @@ description: Performance benchmarks and test results for the Wow framework under
 
 ## Reproducing These Benchmarks
 
-### Infrastructure (Kubernetes)
+### Infrastructure (Kubernetes + Helm)
 
-The benchmark environment uses Kubernetes manifests under
+The benchmark environment uses Helm values files under
 [`deploy/example/perf/`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/example/perf):
 
 ```bash
-# Deploy MongoDB, Redis, Kafka, and Zookeeper
-kubectl apply -f deploy/example/perf/mongo.yaml
-kubectl apply -f deploy/example/perf/redis.yaml
-kubectl apply -f deploy/example/perf/kafka.yaml
-kubectl apply -f deploy/example/perf/zookeeper.yaml
+# Install infrastructure via Helm (see each file's header comment for the exact command)
+helm install mongodb-test bitnami/mongodb-sharded -n test -f deploy/example/perf/mongo.yaml
+helm install redis-test bitnami/redis-cluster -n test -f deploy/example/perf/redis.yaml
+helm install kafka-test bitnami/kafka -n test -f deploy/example/perf/kafka.yaml --set kraft.enabled=false --version 23.0.5
+helm install zookeeper-test bitnami/zookeeper -n test --set global.storageClass="alicloud-disk-essd" --set replicaCount=3 --set persistence.size=20Gi
+
+# Apply the application ConfigMap BEFORE the Deployment (deployment.yaml mounts it)
+kubectl apply -f deploy/example/perf/config/mongo_kafka_redis.yaml
 
 # Deploy the Wow example service
 kubectl apply -f deploy/example/perf/deployment.yaml
@@ -29,8 +32,8 @@ kubectl apply -f deploy/example/perf/deployment.yaml
 
 The application configuration for the benchmark uses
 [`mongo_kafka_redis.yaml`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/example/perf/config/mongo_kafka_redis.yaml)
-— Kafka for the command/event bus, MongoDB for event store + snapshot store, and Redis for
-PrepareKey + message bus recovery. Alternative configs (`in-memory.yaml`, `redis.yaml`,
+— Kafka for the command/event bus, MongoDB for the event store, Redis for the snapshot store
++ PrepareKey + message bus recovery. Alternative configs (`in-memory.yaml`, `redis.yaml`,
 `kafka_redis.yaml`) are available for testing different storage topologies.
 
 ### Running the Load Test
@@ -40,8 +43,6 @@ The `.http` request templates are in the
 directory (`AddCartItem.http`, `CreateOrder.http`). Use a load testing tool (e.g. k6, Gatling,
 or JMeter) pointed at the same endpoints with the `Command-Wait-Stage` header set to `SENT`
 or `PROCESSED`.
-
-Adjust `--vus` (virtual users) and `--duration` based on your infrastructure capacity.
 
 ## Deployment Environment
 

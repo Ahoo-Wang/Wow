@@ -62,6 +62,12 @@ class Order(private val state: OrderState)
 
 ## Configuration
 
+::: tip Prerequisite
+`WebFluxProperties` and `WebFluxAutoConfiguration` live in `wow-spring-boot-starter`, not
+`wow-webflux`. You need `wow-spring-boot-starter` (with the `webflux-support` capability)
+plus `wow-webflux` for these properties to be bound.
+:::
+
 - Configuration class: [WebFluxProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties.kt)
 - Prefix: `wow.webflux.`
 
@@ -130,8 +136,7 @@ The response HTTP status is derived from the error: Wow `ErrorInfoCapable` /
 `ErrorInfo` exceptions and Spring `ErrorResponse` carry their own status; binding
 and validation errors map to `400`; `IllegalArgumentException`/`IllegalStateException`
 map to `400`; `TimeoutException` maps to `504`; `FileNotFoundException` to `404`;
-`TimeoutException` maps to `400` (via `ErrorCodes.REQUEST_TIMEOUT` → `HttpStatus.REQUEST_TIMEOUT` / 408). Only specialized errors such as `BiDeploymentInspectionException.Timeout` map to gateway timeout (504). Otherwise the framework falls back to `500`. The `Wow-Error-Code` response header
-carries the Wow `errorCode` for machine-readable handling.
+`TimeoutException` maps to **408** (`REQUEST_TIMEOUT`). Only specialized errors such as `BiDeploymentInspectionException.Timeout` map to **504** (gateway timeout). Otherwise the framework falls back to **500**. The `Wow-Error-Code` response header carries the Wow `errorCode` for machine-readable handling.
 
 ## OpenAPI Integration
 

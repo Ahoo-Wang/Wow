@@ -88,7 +88,7 @@ run on different threads simultaneously, while different aggregates run in paral
 
 | Concern | How the per-aggregate scheduler addresses it |
 |---|---|
-| **Ordering** | All events for one aggregate type (e.g. `order`) share a scheduler, preserving publish order within that type. Individual aggregate instances are further ordered by `AggregateDispatcher`'s `concatMap` within `parallelism` lanes. |
+| **Ordering** | Events for one aggregate type share a scheduler. Within that scheduler, `AggregateDispatcher` hashes aggregate IDs into `parallelism` lanes; events in the **same lane** are serialized via `concatMap`, but events for **different aggregate IDs** may be processed concurrently across lanes. Order is guaranteed per aggregate instance, not across instances. |
 | **Isolation** | Different aggregate types (e.g. `order` vs `cart`) get separate schedulers, so a slow one does not block another. |
 | **Backpressure** | Each named aggregate's scheduler has its own queue; contention is bounded per aggregate type, not global. |
 | **Resource control** | `parallelism` caps the worker count per named aggregate type, preventing one hot type from consuming all CPU. |

@@ -111,9 +111,10 @@ java -javaagent:opentelemetry-javaagent.jar \
      -jar your-app.jar
 ```
 
-Add `wow-opentelemetry` to your dependencies. The auto-configuration detects the agent's
-initialized `GlobalOpenTelemetry` and registers the Wow tracing filters and decorators
-automatically. Set `wow.opentelemetry.enabled=false` only to disable Wow's spans while
+Add `wow-opentelemetry` to your dependencies. You also need `wow-spring-boot-starter` (with the
+`opentelemetry-support` capability) — `WowOpenTelemetryAutoConfiguration` lives in the starter,
+not the module. The auto-configuration detects the agent's initialized `GlobalOpenTelemetry` and
+registers the Wow tracing filters and decorators automatically. Set `wow.opentelemetry.enabled=false` only to disable Wow's spans while
 keeping the agent's other instrumentation.
 
 ```kotlin

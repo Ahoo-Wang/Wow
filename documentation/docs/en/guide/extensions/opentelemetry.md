@@ -92,12 +92,15 @@ Every span carries the `wow.aggregate.*` and `wow.message.*` attributes listed a
 For a `CreateOrder` command on the `order` aggregate that triggers a saga and a projection, the trace hierarchy is:
 
 ```text
-order.create_order              (TraceAggregateFilter — aggregate command)
-├── wow-mongo append            (TracingEventStore — event persistence)
-├── order.event-store.send      (TracingCommandBus/EventBus — message publish)
-├── order.snapshot.save         (TraceSnapshotFilter — snapshot creation)
-├── order.saga.OrderCreated     (TraceStatelessSagaFilter — saga onOrderCreated)
-└── order.projection.OrderCreated (TraceProjectionFilter — projection onOrderCreated)
+order.create_order                    (TraceAggregateFilter — aggregate command)
+├── order.OrderCreated.event.append   (TracingEventStore — event persistence)
+├── order.OrderCreated.event send     (TracingEventBus — message publish)
+├── order.snapshot                    (TraceSnapshotFilter — snapshot creation)
+├── OrderSaga.onEvent(OrderCreated)   (TraceStatelessSagaFilter — saga handler)
+└── OrderProjection.onEvent(OrderCreated) (TraceProjectionFilter — projection handler)
 ```
 
-The exact span names depend on the instrumenter's `SpanNameExtractor`; the key point is that all spans for one command share the same trace ID via context propagation, giving you end-to-end visibility from HTTP request to read-model update.
+Span names for projection/saga/event-processor use the function's `qualifiedName` format
+(`{processorName}.{functionName}({eventType})`). Producer instrumenters inject their context
+into the message, so consumer spans are **children** of the producer span — not siblings.
+The key point is that all spans for one command share the same trace ID via context propagation.

@@ -11,18 +11,21 @@ description: Wow 框架在不同场景下的性能基准测试和结果。
 
 ## 复现基准测试
 
-### 基础设施（Kubernetes）
+### 基础设施（Kubernetes + Helm）
 
 基准测试环境使用
 [`deploy/example/perf/`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/example/perf)
-下的 Kubernetes 清单：
+下的 Helm values 文件：
 
 ```bash
-# 部署 MongoDB、Redis、Kafka 和 Zookeeper
-kubectl apply -f deploy/example/perf/mongo.yaml
-kubectl apply -f deploy/example/perf/redis.yaml
-kubectl apply -f deploy/example/perf/kafka.yaml
-kubectl apply -f deploy/example/perf/zookeeper.yaml
+# 通过 Helm 安装基础设施（具体命令见每个文件的头部注释）
+helm install mongodb-test bitnami/mongodb-sharded -n test -f deploy/example/perf/mongo.yaml
+helm install redis-test bitnami/redis-cluster -n test -f deploy/example/perf/redis.yaml
+helm install kafka-test bitnami/kafka -n test -f deploy/example/perf/kafka.yaml --set kraft.enabled=false --version 23.0.5
+helm install zookeeper-test bitnami/zookeeper -n test --set global.storageClass="alicloud-disk-essd" --set replicaCount=3 --set persistence.size=20Gi
+
+# 在 Deployment 之前应用应用 ConfigMap（deployment.yaml 挂载了它）
+kubectl apply -f deploy/example/perf/config/mongo_kafka_redis.yaml
 
 # 部署 Wow 示例服务
 kubectl apply -f deploy/example/perf/deployment.yaml
@@ -30,8 +33,8 @@ kubectl apply -f deploy/example/perf/deployment.yaml
 
 基准测试的应用配置使用
 [`mongo_kafka_redis.yaml`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/example/perf/config/mongo_kafka_redis.yaml)
-—— Kafka 用于命令/事件总线，MongoDB 用于事件存储 + 快照存储，Redis 用于
-PrepareKey + 消息总线恢复。还提供了替代配置（`in-memory.yaml`、`redis.yaml`、
+—— Kafka 用于命令/事件总线，MongoDB 用于事件存储，Redis 用于快照存储
++ PrepareKey + 消息总线恢复。还提供了替代配置（`in-memory.yaml`、`redis.yaml`、
 `kafka_redis.yaml`）用于测试不同的存储拓扑。
 
 ### 运行压测
