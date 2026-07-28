@@ -26,7 +26,7 @@ implementation("me.ahoo.coapi:coapi-spring-boot-starter")
 You must also enable CoApi client scanning on your application class:
 
 ```kotlin
-@EnableCoApi(clients = [ReactiveRestCommandGateway::class, CartQueryClient::class])
+@EnableCoApi(clients = [OrderCommandClient::class, CartQueryClient::class])
 @SpringBootApplication
 class ExampleServer
 ```

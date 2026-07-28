@@ -26,7 +26,7 @@ implementation("me.ahoo.coapi:coapi-spring-boot-starter")
 还需在应用类上启用 CoApi 客户端扫描：
 
 ```kotlin
-@EnableCoApi(clients = [ReactiveRestCommandGateway::class, CartQueryClient::class])
+@EnableCoApi(clients = [OrderCommandClient::class, CartQueryClient::class])
 @SpringBootApplication
 class ExampleServer
 ```
@@ -75,9 +75,10 @@ class CartService(
         return queryClient.getStateById(cartId) // Mono<CartData>
     }
 
-    fun placeOrder(orderId: String, items: List<OrderItem>): Mono<CommandResult> {
+    fun placeOrder(orderId: String, items: List<CreateOrder.Item>, address: ShippingAddress): Mono<CommandResult> {
         val request = CommandRequest(
-            body = CreateOrder(items = items),
+            body = CreateOrder(items = items, address = address, fromCart = false),
+            aggregateId = orderId,
             waitPlan = CommandRequest.WaitPlan(waitStage = CommandStage.PROCESSED),
         )
         return commandClient.send(request) // Mono<CommandResult>

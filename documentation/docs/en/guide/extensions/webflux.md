@@ -135,8 +135,11 @@ The WebFlux extension provides unified error response format:
 The response HTTP status is derived from the error: Wow `ErrorInfoCapable` /
 `ErrorInfo` exceptions and Spring `ErrorResponse` carry their own status; binding
 and validation errors map to `400`; `IllegalArgumentException`/`IllegalStateException`
-map to `400`; `TimeoutException` maps to `504`; `FileNotFoundException` to `404`;
-`TimeoutException` maps to **408** (`REQUEST_TIMEOUT`). Only specialized errors such as `BiDeploymentInspectionException.Timeout` map to **504** (gateway timeout). Otherwise the framework falls back to **500**. The `Wow-Error-Code` response header carries the Wow `errorCode` for machine-readable handling.
+map to `400`; `TimeoutException` maps to **408** (`REQUEST_TIMEOUT`);
+`FileNotFoundException` to `404`;
+otherwise the framework falls back to **500**. Only specialized errors such as
+`BiDeploymentInspectionException.Timeout` map to **504** (gateway timeout).
+The `Wow-Error-Code` response header carries the Wow `errorCode` for machine-readable handling.
 
 ## OpenAPI Integration
 

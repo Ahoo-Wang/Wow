@@ -55,10 +55,10 @@ for the same aggregate return the cached instance.
 ## How Dispatchers Use the Scheduler
 
 Every Wow dispatcher (command, domain-event, state-event, projection, saga, snapshot)
-obtains its per-aggregate scheduler from the supplier and uses `publishOn(scheduler)` to
-guarantee that all messages for one aggregate instance are processed on the same scheduler
-(in turn, serially per aggregate). The wiring is centralized in the per-aggregate
-dispatcher factory:
+obtains its per-aggregate-type scheduler from the supplier and uses `publishOn(scheduler)`.
+Within that scheduler, `AggregateDispatcher` groups messages by aggregate ID hash into
+`parallelism` lanes; events in the same lane are serialized via `concatMap`, but different
+aggregate IDs within the same type may be processed concurrently across lanes.
 
 ```kotlin
 // EventStreamDispatcher — one dispatcher is created per NamedAggregate
@@ -77,12 +77,13 @@ Inside `AbstractAggregateEventDispatcher`, the grouped flux is published onto th
 ```kotlin
 messageFlux
     .groupBy { it.toGroupKey(parallelism) }   // spread across parallelism lanes
-    .flatMap { grouped -> grouped.publishOn(scheduler) ... } // same aggregate -> same scheduler
+    .flatMap { grouped -> grouped.publishOn(scheduler) ... } // same aggregate type -> same scheduler
 ```
 
-This is the foundation of Wow's **serial-per-aggregate** processing guarantee: because one
-aggregate always maps to one cached scheduler, two commands for the same aggregate cannot
-run on different threads simultaneously, while different aggregates run in parallel.
+This is the foundation of Wow's **serial-per-aggregate-instance** processing guarantee:
+within the scheduler for one aggregate type, `AggregateDispatcher` hashes aggregate IDs into
+`parallelism` lanes; events in the same lane are serialized via `concatMap`, but different
+aggregate IDs within the same type may be processed concurrently across lanes.
 
 ## Why a Dedicated Scheduler Per Aggregate?
 

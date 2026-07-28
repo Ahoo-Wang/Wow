@@ -126,7 +126,7 @@ WebFlux 扩展提供统一的错误响应格式：
 }
 ```
 
-响应的 HTTP 状态码由错误推导：Wow 的 `ErrorInfoCapable` / `ErrorInfo` 异常以及 Spring 的 `ErrorResponse` 自带状态码；绑定与校验错误映射为 `400`；`IllegalArgumentException`/`IllegalStateException` 映射为 `400`；`TimeoutException` 映射为 `504`；`FileNotFoundException` 映射为 `404`；`TimeoutException` 映射为 **408**（`REQUEST_TIMEOUT`）。仅特殊错误如 `BiDeploymentInspectionException.Timeout` 映射为 **504**（网关超时）。否则回退为 **500**。响应头 `Wow-Error-Code` 携带 Wow 的 `errorCode`，便于程序化处理。
+响应的 HTTP 状态码由错误推导：Wow 的 `ErrorInfoCapable` / `ErrorInfo` 异常以及 Spring 的 `ErrorResponse` 自带状态码；绑定与校验错误映射为 `400`；`IllegalArgumentException`/`IllegalStateException` 映射为 `400`；`TimeoutException` 映射为 **408**（`REQUEST_TIMEOUT`）；`FileNotFoundException` 映射为 `404`；否则回退为 **500**。仅特殊错误如 `BiDeploymentInspectionException.Timeout` 映射为 **504**（网关超时）。响应头 `Wow-Error-Code` 携带 Wow 的 `errorCode`，便于程序化处理。
 
 ## OpenAPI 集成
 

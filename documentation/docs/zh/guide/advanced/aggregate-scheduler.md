@@ -51,9 +51,9 @@ class DefaultAggregateSchedulerSupplier(
 
 ## 分发器如何使用调度器
 
-每个 Wow 分发器（命令、领域事件、状态事件、投影、Saga、快照）都从供应器获取其按聚合的调度器，
-并通过 `publishOn(scheduler)` 保证同一聚合实例的所有消息都在同一调度器上处理
-（进而实现按聚合串行处理）。该装配集中在按聚合的分发器工厂中：
+每个 Wow 分发器（命令、领域事件、状态事件、投影、Saga、快照）都从供应器获取其按聚合类型的调度器，
+并通过 `publishOn(scheduler)` 处理。在该调度器内，`AggregateDispatcher` 按聚合 ID 哈希将消息分组到
+`parallelism` 通道；同一通道内的事件通过 `concatMap` 串行化，但同一聚合类型内的不同聚合 ID 可能跨通道并发处理。
 
 ```kotlin
 // EventStreamDispatcher —— 每个命名聚合创建一个分发器
@@ -72,11 +72,12 @@ override fun newAggregateDispatcher(namedAggregate: NamedAggregate): AggregateEv
 ```kotlin
 messageFlux
     .groupBy { it.toGroupKey(parallelism) }   // 按 parallelism 通道分散
-    .flatMap { grouped -> grouped.publishOn(scheduler) ... } // 同一聚合 -> 同一调度器
+    .flatMap { grouped -> grouped.publishOn(scheduler) ... } // 同一聚合类型 -> 同一调度器
 ```
 
-这是 Wow **按聚合串行处理** 保证的基础：由于一个聚合始终映射到一个缓存的调度器，
-针对同一聚合的两个命令不会同时在不同线程上运行，而不同聚合则并行运行。
+这是 Wow **按聚合实例串行处理** 保证的基础：同一聚合类型的调度器内，`AggregateDispatcher`
+将聚合 ID 哈希到 `parallelism` 通道，同一通道内的事件通过 `concatMap` 串行化，
+但同一聚合类型内的不同聚合 ID 可能跨通道并发处理。
 
 ## 为什么需要按聚合的专用调度器？
 
