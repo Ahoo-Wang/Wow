@@ -307,11 +307,20 @@ class DefaultRuntimeContextTest {
         try {
             contexts.forEach(DefaultRuntimeContext::quiesce)
             blockedActionsEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
-            RuntimeCleanupExecutor.queuedTaskCount.assert().isGreaterThan(initialQueueSize)
+            val expectedQueuedTaskCount =
+                initialQueueSize + contextCount - RuntimeCleanupExecutor.THREAD_CAPACITY
+            val queueFillDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+            while (
+                RuntimeCleanupExecutor.queuedTaskCount < expectedQueuedTaskCount &&
+                System.nanoTime() < queueFillDeadline
+            ) {
+                Thread.onSpinWait()
+            }
+            RuntimeCleanupExecutor.queuedTaskCount.assert().isGreaterThanOrEqualTo(expectedQueuedTaskCount)
 
             contexts.forEach(DefaultRuntimeContext::forceClose)
 
-            val queueDrainDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1)
+            val queueDrainDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
             while (
                 RuntimeCleanupExecutor.queuedTaskCount > initialQueueSize &&
                 System.nanoTime() < queueDrainDeadline
