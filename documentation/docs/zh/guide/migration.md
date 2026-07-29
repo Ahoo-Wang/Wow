@@ -47,6 +47,9 @@ implementation("me.ahoo.wow:wow-spring-boot-starter:新版本号")
 全部组件的准备再开放消息处理，统一跟踪全局活动，并在一个共享截止时间内按逆序停止
 组件。这是有意的生命周期扩展契约破坏；event、snapshot 与 message 格式没有变化。
 
+迁移完成后的稳定模型参见
+[运行时生命周期](./advanced/runtime-lifecycle.md)。
+
 需要完成以下源码迁移：
 
 1. Dispatcher 生命周期方法现在是 final template。必须重新编译全部子类；已经编译且
@@ -63,7 +66,7 @@ implementation("me.ahoo.wow:wow-spring-boot-starter:新版本号")
    val runtime = WowRuntime(components, shutdownTimeout, shutdownQuietPeriod)
    runtime.start().block()
    // 应用工作
-   runtime.stopGracefully().block()
+   runtime.stop()
    ```
 3. 自定义 Dispatcher 或其他运行时参与者直接实现 `RuntimeComponent`。兼容 adapter
    与 runtime ownership handle 均已删除，原 `WowRuntimeComponent` marker 也不再存在。
@@ -77,7 +80,10 @@ implementation("me.ahoo.wow:wow-spring-boot-starter:新版本号")
        override fun start() = openIntake()
        override fun quiesce() = closeIntake()
        override fun stopGracefully(): Mono<Void> = drainAndClose()
-       override fun forceStop() = closeIntake()
+       override fun forceStop() {
+           closeIntake()
+           disposeOwnedResources()
+       }
    }
    ```
 

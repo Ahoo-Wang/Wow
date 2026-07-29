@@ -49,6 +49,9 @@ processing, tracks global activity, and stops components in reverse order under
 one shared deadline. This is an intentional lifecycle extension break; event,
 snapshot, and message formats are unchanged.
 
+For the stable post-migration model, see
+[Runtime Lifecycle](./advanced/runtime-lifecycle.md).
+
 Apply the following source migrations:
 
 1. Dispatcher lifecycle methods are now final templates. Recompile every
@@ -69,7 +72,7 @@ Apply the following source migrations:
    val runtime = WowRuntime(components, shutdownTimeout, shutdownQuietPeriod)
    runtime.start().block()
    // application work
-   runtime.stopGracefully().block()
+   runtime.stop()
    ```
 3. A custom dispatcher or non-dispatcher participant implements
    `RuntimeComponent` directly. Compatibility adapters and runtime ownership
@@ -85,7 +88,10 @@ Apply the following source migrations:
        override fun start() = openIntake()
        override fun quiesce() = closeIntake()
        override fun stopGracefully(): Mono<Void> = drainAndClose()
-       override fun forceStop() = closeIntake()
+       override fun forceStop() {
+           closeIntake()
+           disposeOwnedResources()
+       }
    }
    ```
 

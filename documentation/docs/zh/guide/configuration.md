@@ -99,6 +99,9 @@ wow:
 `wow.shutdown-timeout` 必须大于零；`wow.shutdown-quiet-period` 必须大于等于零，
 并且严格小于 `wow.shutdown-timeout`；二者都必须能表示为 64 位有符号纳秒值。
 
+共享截止时间、静默边界与强制停机语义参见
+[运行时生命周期](./advanced/runtime-lifecycle.md#配置与运维)。
+
 ```yaml
 wow:
   enabled: true

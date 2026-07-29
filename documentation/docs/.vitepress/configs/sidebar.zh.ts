@@ -112,6 +112,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             collapsed: true,
             items: [
                 {text: '架构', link: 'architecture'},
+                {text: '运行时生命周期', link: 'runtime-lifecycle'},
                 {text: '聚合生命周期', link: 'aggregate-lifecycle'},
                 {text: '事件总线', link: 'event-bus'},
                 {text: '数据流', link: 'data-flow'},

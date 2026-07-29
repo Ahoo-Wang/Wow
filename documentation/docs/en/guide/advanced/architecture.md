@@ -428,6 +428,7 @@ The architectural choices of the Wow Framework directly enable its performance p
 | Page | Description |
 |---|---|
 | [Introduction](../introduction) | Overview of Wow framework features and value proposition |
+| [Runtime Lifecycle](runtime-lifecycle.md) | Unified readiness, activity tracking, graceful shutdown, and Spring ownership |
 | [Domain Modeling](../modeling) | How to design aggregate roots, commands, and events |
 | [Command Gateway](../command-gateway) | Deep-dive into command sending and wait plans |
 | [Event Sourcing](../eventstore) | Event store, snapshots, and state rebuild mechanics |

@@ -112,6 +112,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             collapsed: true,
             items: [
                 {text: 'Architecture', link: 'architecture'},
+                {text: 'Runtime Lifecycle', link: 'runtime-lifecycle'},
                 {text: 'Aggregate Lifecycle', link: 'aggregate-lifecycle'},
                 {text: 'Event Bus', link: 'event-bus'},
                 {text: 'Data Flow', link: 'data-flow'},

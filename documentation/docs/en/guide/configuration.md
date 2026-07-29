@@ -101,6 +101,9 @@ wow:
 non-negative and strictly shorter than `wow.shutdown-timeout`. Both durations
 must fit in a signed 64-bit nanosecond value.
 
+See [Runtime Lifecycle](./advanced/runtime-lifecycle.md#configuration-and-operations)
+for the shared deadline, quiet-boundary, and force-stop semantics.
+
 ```yaml
 wow:
   enabled: true
