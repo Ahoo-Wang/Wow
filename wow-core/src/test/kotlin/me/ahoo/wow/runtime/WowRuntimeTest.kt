@@ -72,6 +72,49 @@ class WowRuntimeTest {
     }
 
     @Test
+    fun `prepare failure force stops the failing component and gracefully rolls back prepared components`() {
+        val calls = CopyOnWriteArrayList<String>()
+        val prepareFailure = IllegalStateException("prepare failed")
+        val first = RecordingComponent("first", calls)
+        val failing = object : RuntimeComponent {
+            override fun prepare(runtimeContext: RuntimeContext) {
+                calls += "prepare:failing"
+                throw prepareFailure
+            }
+
+            override fun start() = error("A component that failed preparation must not start.")
+
+            override fun stopGracefully(): Mono<Void> =
+                Mono.defer {
+                    calls += "stop:failing"
+                    Mono.never()
+                }
+
+            override fun forceStop() {
+                calls += "force:failing"
+            }
+        }
+        val runtime = WowRuntime(
+            components = listOf(first, failing),
+            shutdownTimeout = Duration.ofMillis(100),
+            shutdownQuietPeriod = Duration.ZERO,
+        )
+
+        StepVerifier.create(runtime.start())
+            .expectErrorSatisfies { error ->
+                error.assert().isSameAs(prepareFailure)
+            }
+            .verify(Duration.ofSeconds(1))
+
+        calls.assert().containsExactly(
+            "prepare:first",
+            "prepare:failing",
+            "force:failing",
+            "stop:first",
+        )
+    }
+
+    @Test
     fun `graceful stop requested during preparation waits for preparation to return`() {
         val prepareEntered = CountDownLatch(1)
         val releasePrepare = CountDownLatch(1)

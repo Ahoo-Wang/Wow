@@ -24,9 +24,12 @@ import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.spring.SpringServiceProvider
 import me.ahoo.wow.spring.WowRuntimeLifecycle
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.SmartInitializingSingleton
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.config.ConfigurableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.boot.autoconfigure.context.LifecycleAutoConfiguration
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.ApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
@@ -40,7 +43,7 @@ import org.springframework.context.support.DefaultLifecycleProcessor
  *
  * @author ahoo wang
  */
-@AutoConfiguration
+@AutoConfiguration(after = [LifecycleAutoConfiguration::class])
 @ConditionalOnWowEnabled
 @EnableConfigurationProperties(WowProperties::class)
 class WowAutoConfiguration(private val wowProperties: WowProperties) {
@@ -99,10 +102,13 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
         }
     }
 
-    @Bean(AbstractApplicationContext.LIFECYCLE_PROCESSOR_BEAN_NAME)
-    @ConditionalOnMissingBean(name = [AbstractApplicationContext.LIFECYCLE_PROCESSOR_BEAN_NAME])
-    fun lifecycleProcessor(): DefaultLifecycleProcessor =
-        DefaultLifecycleProcessor().apply {
-            configureWowRuntimePhaseTimeout(wowProperties.shutdownTimeout)
-        }
+    @Bean
+    fun wowRuntimeLifecycleProcessorConfigurer(
+        @Qualifier(AbstractApplicationContext.LIFECYCLE_PROCESSOR_BEAN_NAME)
+        lifecycleProcessorProvider: ObjectProvider<DefaultLifecycleProcessor>,
+    ): SmartInitializingSingleton =
+        WowRuntimeLifecycleProcessorConfigurer(
+            lifecycleProcessorProvider = lifecycleProcessorProvider,
+            shutdownTimeout = wowProperties.shutdownTimeout,
+        )
 }

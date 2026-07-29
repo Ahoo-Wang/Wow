@@ -21,15 +21,20 @@ import me.ahoo.wow.exception.ErrorInfoConverterFactory
 import me.ahoo.wow.exception.ErrorInfoConverterRegistrar
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.runtime.WowRuntime
+import me.ahoo.wow.spring.WOW_RUNTIME_PHASE
 import me.ahoo.wow.spring.WowRuntimeLifecycle
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration.Companion.SPRING_APPLICATION_NAME
 import org.junit.jupiter.api.Test
+import org.springframework.boot.autoconfigure.AutoConfigurations
+import org.springframework.boot.autoconfigure.context.LifecycleAutoConfiguration
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.support.DefaultLifecycleProcessor
+import org.springframework.test.util.ReflectionTestUtils
 
 internal class WowAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(LifecycleAutoConfiguration::class.java))
 
     @Test
     fun `should load context with default configuration`() {
@@ -54,6 +59,31 @@ internal class WowAutoConfigurationTest {
                     .hasSingleBean(WowRuntime::class.java)
                     .hasSingleBean(WowRuntimeLifecycle::class.java)
                     .hasSingleBean(DefaultLifecycleProcessor::class.java)
+            }
+    }
+
+    @Test
+    fun `should preserve Spring Boot lifecycle timeout and add runtime phase timeout`() {
+        contextRunner
+            .enableWow()
+            .withPropertyValues(
+                "spring.lifecycle.timeout-per-shutdown-phase=47s",
+                "wow.shutdown-timeout=12s",
+            )
+            .run { context: AssertableApplicationContext ->
+                val lifecycleProcessor = context.getBean(DefaultLifecycleProcessor::class.java)
+                val defaultPhaseTimeout =
+                    ReflectionTestUtils.getField(lifecycleProcessor, "timeoutPerShutdownPhase")
+                val phaseTimeouts =
+                    ReflectionTestUtils.getField(
+                        lifecycleProcessor,
+                        "timeoutsForShutdownPhases",
+                    ) as Map<*, *>
+
+                defaultPhaseTimeout.assert().isEqualTo(47_000L)
+                phaseTimeouts[WOW_RUNTIME_PHASE]
+                    .assert()
+                    .isEqualTo(13_000L)
             }
     }
 

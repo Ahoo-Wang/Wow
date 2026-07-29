@@ -14,6 +14,8 @@
 package me.ahoo.wow.spring.boot.starter
 
 import me.ahoo.wow.spring.WOW_RUNTIME_PHASE
+import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.SmartInitializingSingleton
 import org.springframework.context.support.DefaultLifecycleProcessor
 import java.time.Duration
 
@@ -26,4 +28,14 @@ internal fun DefaultLifecycleProcessor.configureWowRuntimePhaseTimeout(
         WOW_RUNTIME_PHASE,
         shutdownTimeout.plus(SHUTDOWN_PHASE_TIMEOUT_MARGIN).toMillis(),
     )
+}
+
+internal class WowRuntimeLifecycleProcessorConfigurer(
+    private val lifecycleProcessorProvider: ObjectProvider<DefaultLifecycleProcessor>,
+    private val shutdownTimeout: Duration,
+) : SmartInitializingSingleton {
+    override fun afterSingletonsInstantiated() {
+        lifecycleProcessorProvider.getIfAvailable()
+            ?.configureWowRuntimePhaseTimeout(shutdownTimeout)
+    }
 }

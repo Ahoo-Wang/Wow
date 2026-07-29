@@ -23,10 +23,24 @@ internal class RuntimeComponentGroup(
 ) {
     private val prepared = mutableListOf<RuntimeComponent>()
 
+    @Suppress("TooGenericExceptionCaught")
     fun prepare(runtimeContext: RuntimeContext, afterEach: () -> Unit = {}) {
         components.forEach { component ->
+            try {
+                component.prepare(runtimeContext)
+            } catch (error: Throwable) {
+                Exceptions.throwIfFatal(error)
+                try {
+                    component.forceStop()
+                } catch (forceStopError: Throwable) {
+                    Exceptions.throwIfFatal(forceStopError)
+                    if (forceStopError !== error) {
+                        error.addSuppressed(forceStopError)
+                    }
+                }
+                throw error
+            }
             prepared += component
-            component.prepare(runtimeContext)
             afterEach()
         }
     }
