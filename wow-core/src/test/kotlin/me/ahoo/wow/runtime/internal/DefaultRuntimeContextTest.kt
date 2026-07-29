@@ -23,6 +23,7 @@ import reactor.test.scheduler.VirtualTimeScheduler
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
@@ -407,6 +408,43 @@ class DefaultRuntimeContextTest {
                 error.assert().isSameAs(schedulingFailure)
             }
             .verify()
+    }
+
+    @Test
+    fun `close executor rejection fails quiescence`() {
+        val closeFailure = RejectedExecutionException("close-rejected")
+        val context = DefaultRuntimeContext(
+            closeExecutor = Executor {
+                throw closeFailure
+            },
+        )
+        context.onAdmissionClose {}
+
+        StepVerifier.create(context.quiesce())
+            .expectErrorSatisfies { error ->
+                error.assert().isSameAs(closeFailure)
+            }
+            .verify(Duration.ofSeconds(1))
+    }
+
+    @Test
+    fun `late close action failure is reported after quiescence`() {
+        val closeFailure = IllegalStateException("late-close")
+        val context = DefaultRuntimeContext(
+            closeExecutor = Executor(Runnable::run),
+        )
+        context.quiesce().block(Duration.ofSeconds(1))
+
+        StepVerifier.create(context.failureSignal)
+            .then {
+                context.onAdmissionClose {
+                    throw closeFailure
+                }
+            }
+            .expectErrorSatisfies { error ->
+                error.assert().isSameAs(closeFailure)
+            }
+            .verify(Duration.ofSeconds(1))
     }
 
     @Test

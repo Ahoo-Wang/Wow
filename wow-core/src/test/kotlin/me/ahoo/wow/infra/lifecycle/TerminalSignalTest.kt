@@ -15,8 +15,10 @@ package me.ahoo.wow.infra.lifecycle
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.reactivestreams.Subscription
 import reactor.core.CoreSubscriber
+import reactor.core.publisher.BaseSubscriber
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.test.StepVerifier
@@ -25,9 +27,182 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 class TerminalSignalTest {
+
+    @Test
+    fun `trusted terminal callback preserves completion and failure`() {
+        val completedWith = AtomicReference<Throwable?>(IllegalStateException("not-completed"))
+        val terminalFailure = IllegalStateException("terminal")
+        val failedWith = AtomicReference<Throwable?>()
+
+        val completionSubscription = Mono.empty<Void>().subscribeTerminalSignal(
+            ImmediateTerminalSignalDispatcher,
+            completedWith::set,
+        )
+        val failureSubscription = Mono.error<Void>(terminalFailure).subscribeTerminalSignal(
+            ImmediateTerminalSignalDispatcher,
+            failedWith::set,
+        )
+
+        completedWith.get().assert().isNull()
+        failedWith.get().assert().isSameAs(terminalFailure)
+        completionSubscription.isDisposed.assert().isTrue()
+        failureSubscription.isDisposed.assert().isTrue()
+    }
+
+    @Test
+    fun `trusted terminal callback rejects when admission is saturated`() {
+        val dispatcher = newTerminalSignalDispatcher(
+            threadNamePrefix = "wow-terminal-signal-test-trusted-rejection",
+            threadCap = 1,
+            queuedTaskCapacity = 0,
+        )
+        val heldPermit = checkNotNull(dispatcher.tryAcquire())
+
+        try {
+            val error = assertThrows<RejectedExecutionException> {
+                Mono.never<Void>().subscribeTerminalSignal(
+                    dispatcher = dispatcher,
+                    onTermination = {},
+                )
+            }
+
+            error.message.assert().contains("dispatcher is saturated")
+        } finally {
+            heldPermit.dispose()
+            dispatcher.dispose()
+        }
+    }
+
+    @Test
+    fun `terminal subscription failure releases reserved admission`() {
+        val dispatcher = newTerminalSignalDispatcher(
+            threadNamePrefix = "wow-terminal-signal-test-subscribe-failure",
+            threadCap = 1,
+            queuedTaskCapacity = 0,
+        )
+        val subscriptionFailure = IllegalStateException("subscribe")
+        val source = object : Mono<Void>() {
+            override fun subscribe(actual: CoreSubscriber<in Void>) {
+                throw subscriptionFailure
+            }
+        }
+
+        try {
+            assertThrows<IllegalStateException> {
+                source.subscribeTerminalSignal(
+                    dispatcher = dispatcher,
+                    onTermination = {},
+                )
+            }.assert().isSameAs(subscriptionFailure)
+            checkNotNull(dispatcher.tryAcquire()).dispose()
+
+            assertThrows<IllegalStateException> {
+                source.publishTerminalSignal(dispatcher)
+                    .subscribe(object : BaseSubscriber<Void>() {})
+            }.assert().isSameAs(subscriptionFailure)
+            checkNotNull(dispatcher.tryAcquire()).dispose()
+        } finally {
+            dispatcher.dispose()
+        }
+    }
+
+    @Test
+    fun `dispatcher disposal before upstream subscription cancels upstream`() {
+        val dispatcher = newTerminalSignalDispatcher(
+            threadNamePrefix = "wow-terminal-signal-test-dispose-before-upstream",
+            threadCap = 1,
+            queuedTaskCapacity = 0,
+        )
+        val upstreamCancelled = AtomicBoolean()
+        val source = object : Mono<Void>() {
+            override fun subscribe(actual: CoreSubscriber<in Void>) {
+                dispatcher.dispose()
+                actual.onSubscribe(recordingSubscription(upstreamCancelled))
+            }
+        }
+
+        try {
+            source.publishTerminalSignal(dispatcher).subscribe()
+            upstreamCancelled.get().assert().isTrue()
+        } finally {
+            dispatcher.dispose()
+        }
+    }
+
+    @Test
+    fun `refused terminal dispatch cancels upstream without notifying downstream`() {
+        val dispatchCount = AtomicInteger()
+        val downstreamInvocationCount = AtomicInteger()
+        val permitDisposed = AtomicBoolean()
+        val upstreamCancelled = AtomicBoolean()
+        val dispatcher = object : TerminalSignalDispatcher {
+            override fun tryAcquire(): TerminalSignalPermit =
+                object : TerminalSignalPermit {
+                    override fun dispatch(action: Runnable): Boolean {
+                        dispatchCount.incrementAndGet()
+                        return false
+                    }
+
+                    override fun onDispatcherDisposed(action: Runnable) = Unit
+
+                    override fun dispose() {
+                        permitDisposed.set(true)
+                    }
+
+                    override fun isDisposed(): Boolean = permitDisposed.get()
+                }
+
+            override fun dispose() = Unit
+
+            override fun isDisposed(): Boolean = false
+        }
+        val source = object : Mono<Void>() {
+            override fun subscribe(actual: CoreSubscriber<in Void>) {
+                actual.onSubscribe(recordingSubscription(upstreamCancelled))
+                actual.onComplete()
+            }
+        }
+
+        val subscription = source.publishTerminalSignal(dispatcher).subscribe(
+            { downstreamInvocationCount.incrementAndGet() },
+            { downstreamInvocationCount.incrementAndGet() },
+            { downstreamInvocationCount.incrementAndGet() },
+        )
+        try {
+            dispatchCount.get().assert().isOne()
+            downstreamInvocationCount.get().assert().isZero()
+            permitDisposed.get().assert().isTrue()
+            upstreamCancelled.get().assert().isTrue()
+        } finally {
+            subscription.dispose()
+        }
+    }
+
+    @Test
+    fun `dispatcher disposal is idempotent and late disposal hooks run immediately`() {
+        val dispatcher = newTerminalSignalDispatcher(
+            threadNamePrefix = "wow-terminal-signal-test-late-hook",
+            threadCap = 1,
+            queuedTaskCapacity = 0,
+        )
+        val permit = checkNotNull(dispatcher.tryAcquire())
+        val lateHookInvoked = AtomicBoolean()
+
+        dispatcher.dispose()
+        dispatcher.dispose()
+        permit.onDispatcherDisposed {
+            lateHookInvoked.set(true)
+        }
+
+        lateHookInvoked.get().assert().isTrue()
+        permit.dispatch {}.assert().isFalse()
+        permit.dispose()
+        permit.isDisposed.assert().isTrue()
+    }
 
     @Test
     fun `different terminal signals share bounded dispatcher admission`() {
@@ -245,4 +420,13 @@ class TerminalSignalTest {
         }
         error("Terminal signal permit was not released.")
     }
+
+    private fun recordingSubscription(cancelled: AtomicBoolean): Subscription =
+        object : Subscription {
+            override fun request(n: Long) = Unit
+
+            override fun cancel() {
+                cancelled.set(true)
+            }
+        }
 }

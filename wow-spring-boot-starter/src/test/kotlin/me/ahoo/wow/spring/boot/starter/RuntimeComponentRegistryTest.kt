@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot.starter
 
+import io.mockk.mockk
 import jakarta.annotation.PreDestroy
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.infra.lifecycle.ForceStoppable
@@ -20,6 +21,8 @@ import me.ahoo.wow.messaging.dispatcher.MessageDispatcher
 import me.ahoo.wow.runtime.RuntimeContext
 import me.ahoo.wow.runtime.RuntimeLifecycleAdapter
 import me.ahoo.wow.runtime.RuntimeOwnership
+import me.ahoo.wow.runtime.RuntimePreparable
+import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.spring.WowRuntimeComponent
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -31,7 +34,9 @@ import org.springframework.beans.factory.support.RootBeanDefinition
 import org.springframework.context.SmartLifecycle
 import org.springframework.core.Ordered
 import reactor.core.publisher.Mono
+import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import java.util.function.Supplier
 
 class RuntimeComponentRegistryTest {
@@ -171,6 +176,24 @@ class RuntimeComponentRegistryTest {
     }
 
     @Test
+    fun `legacy preparable dispatcher receives the runtime context through its adapter`() {
+        val beanFactory = dispatcherBeanFactory(
+            dispatcherType = PreparableMessageDispatcher::class.java,
+        )
+        val registry = RuntimeComponentRegistry()
+        registry.postProcessBeanFactory(beanFactory)
+        val dispatcher = beanFactory.getBean(
+            DISPATCHER_BEAN_NAME,
+            PreparableMessageDispatcher::class.java,
+        )
+        val runtimeContext = mockk<RuntimeContext>()
+
+        registry.snapshot().single().runtimeComponent.prepare(runtimeContext)
+
+        dispatcher.preparedWith.get().assert().isSameAs(runtimeContext)
+    }
+
+    @Test
     fun `native runtime component descriptor uses the target directly`() {
         val beanFactory = runtimeOwnedBeanFactory(RecordingRuntimeComponent::class.java)
         val registry = RuntimeComponentRegistry()
@@ -214,10 +237,38 @@ class RuntimeComponentRegistryTest {
             FailingOrderRuntimeComponent::class.java,
         )
 
-        assertThrows<IllegalStateException>(registry::snapshot)
+        val resolutionFailure = assertThrows<IllegalStateException>(registry::snapshot)
+        val repeatedFailure = assertThrows<IllegalStateException>(registry::snapshot)
         registry.destroy()
 
+        repeatedFailure.message.assert().contains("previously failed")
+        repeatedFailure.cause.assert().isSameAs(resolutionFailure)
         component.forceStopCount.get().assert().isOne()
+    }
+
+    @Test
+    fun `runtime ownership transfer rejects duplicates and transfer after destruction`() {
+        val runtime = WowRuntime(emptyList(), Duration.ofSeconds(1), Duration.ZERO)
+        val registry = RuntimeComponentRegistry()
+        registry.attachRuntime(runtime)
+
+        val duplicateTransfer = assertThrows<IllegalStateException> {
+            registry.attachRuntime(runtime)
+        }
+        duplicateTransfer.message.assert().contains("already been transferred")
+        registry.destroy()
+
+        val destroyedRegistry = RuntimeComponentRegistry()
+        destroyedRegistry.destroy()
+        val detachedRuntime = WowRuntime(emptyList(), Duration.ofSeconds(1), Duration.ZERO)
+        try {
+            val transferAfterDestruction = assertThrows<IllegalStateException> {
+                destroyedRegistry.attachRuntime(detachedRuntime)
+            }
+            transferAfterDestruction.message.assert().contains("destroyed before runtime ownership transfer")
+        } finally {
+            detachedRuntime.forceStop()
+        }
     }
 
     @Test
@@ -285,6 +336,25 @@ class RuntimeComponentRegistryTest {
         override fun forceStop() = Unit
 
         override fun destroy() = Unit
+    }
+
+    private class PreparableMessageDispatcher :
+        MessageDispatcher,
+        ForceStoppable,
+        RuntimePreparable {
+        val preparedWith = AtomicReference<RuntimeContext?>()
+
+        override val name: String = "preparable"
+
+        override fun prepare(runtimeContext: RuntimeContext) {
+            preparedWith.set(runtimeContext)
+        }
+
+        override fun start() = Unit
+
+        override fun stopGracefully(): Mono<Void> = Mono.empty()
+
+        override fun forceStop() = Unit
     }
 
     private class SpringLifecycleMessageDispatcher :
