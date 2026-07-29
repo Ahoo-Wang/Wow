@@ -20,7 +20,8 @@ import reactor.core.publisher.Mono
  *
  * Construction must be inert. [prepare] establishes subscriptions and resources
  * without opening processing; [start] opens processing only after every runtime
- * component has completed preparation.
+ * component has completed preparation. Both callbacks must return promptly and
+ * must not perform unbounded blocking waits.
  *
  * [forceStop] must be prompt, non-blocking, idempotent, thread-safe, and safe
  * before or during preparation and graceful cleanup. The runtime may invoke it

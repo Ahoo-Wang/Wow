@@ -56,8 +56,9 @@ This is an intentional source and behavior breaking change:
 - `MessageDispatcherLauncher` and the command, event, projection, saga, and snapshot
   launcher classes are removed. Spring Boot creates one `WowRuntimeLifecycle` instead.
 - Custom `RuntimeComponent` construction must be inert. Put subscription/resource setup
-  in `prepare(RuntimeContext)`, open processing in `start()`, return asynchronous cleanup
-  from `stopGracefully()`, and make `forceStop()` prompt, idempotent, and thread-safe.
+  in `prepare(RuntimeContext)` and open processing in `start()`; both callbacks must
+  return promptly without unbounded blocking waits. Return asynchronous cleanup from
+  `stopGracefully()`, and make `forceStop()` prompt, idempotent, and thread-safe.
   Forced cleanup may race an in-progress lifecycle callback and is replayed after an
   interrupted startup callback exits.
 - Dispatcher subclasses that previously overrode public lifecycle methods must migrate
