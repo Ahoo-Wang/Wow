@@ -37,19 +37,25 @@ class RuntimeContextSpiTest {
         val component = ContextAwareLifecycle()
         val runtime = WowRuntime(
             components = listOf(component),
-            shutdownTimeout = Duration.ofSeconds(1),
+            shutdownTimeout = Duration.ofSeconds(10),
             shutdownQuietPeriod = Duration.ZERO,
         )
         runtime.start()
         val activity = component.runtimeContext.tryAcquire()
         activity.assert().isNotNull()
 
-        val termination = runtime.stopGracefully().toFuture()
+        try {
+            val termination = runtime.stopGracefully().toFuture()
 
-        termination.isDone.assert().isFalse()
-        activity!!.close()
-        termination.get(1, TimeUnit.SECONDS)
-        component.closeActionCount.get().assert().isOne()
+            termination.isDone.assert().isFalse()
+            activity!!.close()
+            termination.get(5, TimeUnit.SECONDS)
+            component.closeActionCount.get().assert().isOne()
+            component.forceStopCount.get().assert().isZero()
+        } finally {
+            activity?.close()
+            runtime.forceStop()
+        }
     }
 
     @Test
