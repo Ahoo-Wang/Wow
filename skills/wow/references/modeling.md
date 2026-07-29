@@ -283,10 +283,13 @@ Each aggregate gets a dedicated Reactor Scheduler to control concurrent executio
 ```kotlin
 interface AggregateSchedulerSupplier : GracefullyStoppable {
     fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler
+    fun forceStop()
 }
 ```
 
 Default implementation creates a parallel scheduler per aggregate: `Schedulers.newParallel("$name-${namedAggregate.aggregateName}")`.
+Custom implementations must gracefully dispose owned schedulers in `stopGracefully()`
+and promptly dispose them synchronously in `forceStop()`.
 
 ## Event Naming Convention
 
