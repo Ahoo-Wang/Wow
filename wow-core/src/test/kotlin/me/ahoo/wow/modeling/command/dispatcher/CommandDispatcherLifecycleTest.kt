@@ -19,6 +19,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.messaging.MessageSubscription
+import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -27,6 +28,7 @@ import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
+import java.time.Duration
 import java.util.concurrent.atomic.AtomicBoolean
 
 class CommandDispatcherLifecycleTest {
@@ -41,8 +43,13 @@ class CommandDispatcherLifecycleTest {
             schedulerSupplier = schedulerSupplier,
         )
 
-        commandDispatcher.start()
-        StepVerifier.create(commandDispatcher.stopGracefully())
+        val runtime = WowRuntime(
+            components = listOf(commandDispatcher),
+            shutdownTimeout = Duration.ofSeconds(1),
+            shutdownQuietPeriod = Duration.ZERO,
+        )
+        StepVerifier.create(runtime.start()).verifyComplete()
+        StepVerifier.create(runtime.stopGracefully())
             .verifyComplete()
 
         schedulerSupplier.stopped.get().assert().isTrue()
@@ -69,5 +76,10 @@ class CommandDispatcherLifecycleTest {
                 stopped.set(true)
                 scheduler.dispose()
             }
+
+        override fun forceStop() {
+            stopped.set(true)
+            scheduler.dispose()
+        }
     }
 }

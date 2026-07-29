@@ -397,12 +397,12 @@ EventProcessorParser.kt: wow-core/src/main/kotlin/me/ahoo/wow/event/annotation/E
 |---|---|---|---|
 | **发现** | `DomainEventFunctionRegistrar.resolveProcessor()` | 扫描 `@EventProcessor` 类，提取 `@OnEvent` 方法，创建 `MessageFunction` 实例 | Spring 上下文刷新 |
 | **注册** | `registerProcessor(processor)` | 按事件类型 + 聚合名称注册每个 `MessageFunction` | 发现之后 |
-| **订阅** | `MessageBus.receive(subscription)` | 使用显式的聚合集合与消费组语义订阅事件流 | `MessageDispatcher.start()` |
+| **订阅** | `MessageBus.receive(subscription)` | 使用显式的聚合集合与消费组语义准备订阅；全部组件就绪后才开放接入 | `WowRuntime.start()` |
 | **分组** | `EventStreamDispatcher` 按 `NamedAggregate` 分组 | 将事件路由到每个聚合的调度器 | 每次收到批量事件时 |
 | **匹配** | `supportedFunctions(event)` + `event.match()` | 找到处理给定事件类型的已注册函数 | 每个事件 |
 | **调用** | `DomainEventFunctionFilter.filter()` | 设置服务提供者，通过过滤链调用处理器 | 每次事件与函数匹配时 |
 | **确认** | `finallyAck(exchange)` | 提交偏移量（Kafka）或标记已处理（内存） | 流中所有事件处理完成后 |
-| **关闭** | `MessageDispatcher.stopGracefully()` | 等待正在进行的处理完成，关闭订阅 | 应用关闭时 |
+| **关闭** | `WowRuntime.stopGracefully()` | 应用统一静默期和期限，关闭接入并排空已接纳任务 | 应用关闭时 |
 
 ## Kafka 集成
 

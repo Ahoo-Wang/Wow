@@ -11,13 +11,19 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.command
+package me.ahoo.wow.spring.boot.starter
 
-import me.ahoo.wow.modeling.command.dispatcher.CommandDispatcher
-import me.ahoo.wow.spring.MessageDispatcherLauncher
+import me.ahoo.wow.spring.WOW_RUNTIME_PHASE
+import org.springframework.context.support.DefaultLifecycleProcessor
 import java.time.Duration
 
-class CommandDispatcherLauncher(commandDispatcher: CommandDispatcher, shutdownTimeout: Duration) : MessageDispatcherLauncher(
-    commandDispatcher,
-    shutdownTimeout
-)
+private val SHUTDOWN_PHASE_TIMEOUT_MARGIN: Duration = Duration.ofSeconds(1)
+
+internal fun DefaultLifecycleProcessor.configureWowRuntimePhaseTimeout(
+    shutdownTimeout: Duration,
+) {
+    setTimeoutForShutdownPhase(
+        WOW_RUNTIME_PHASE,
+        shutdownTimeout.plus(SHUTDOWN_PHASE_TIMEOUT_MARGIN).toMillis(),
+    )
+}

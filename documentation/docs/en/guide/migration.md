@@ -41,6 +41,51 @@ Before upgrading, check the following:
 2. **Configuration Changes**: Check for configuration property changes
 3. **Metadata Changes**: Regenerate metadata files
 
+## Unified Runtime Orchestration
+
+Wow processing components now have one lifecycle owner: `WowRuntime`. It prepares all
+components before opening any intake, starts them in configured order, and stops them in
+reverse order under one global deadline. During graceful shutdown it waits for a shared
+quiet period, closes intake, drains admitted asynchronous work, and force-stops remaining
+components when the deadline expires.
+
+This is an intentional source and behavior breaking change:
+
+- `MessageDispatcher` now implements `RuntimeComponent`; direct lifecycle methods and
+  `AutoCloseable` ownership are removed.
+- `MessageDispatcherLauncher` and the command, event, projection, saga, and snapshot
+  launcher classes are removed. Spring Boot creates one `WowRuntimeLifecycle` instead.
+- Custom `RuntimeComponent` construction must be inert. Put subscription/resource setup
+  in `prepare(RuntimeContext)`, open processing in `start()`, return asynchronous cleanup
+  from `stopGracefully()`, and make `forceStop()` prompt and idempotent.
+- Dispatcher subclasses that previously overrode public lifecycle methods must migrate
+  owned-resource work to the protected `prepareManaged`, `startManaged`,
+  `stopManagedGracefully`, and `forceStopManaged` hooks.
+- Runtime components and their owned resources are one-shot. Do not also close them from
+  `@PreDestroy`, a bean destroy method, or another lifecycle manager.
+- `wow.shutdown-timeout` is now the deadline for the complete runtime, not a timeout per
+  dispatcher. `wow.shutdown-quiet-period` is new and defaults to `1s`; it must be
+  non-negative and shorter than the shutdown timeout.
+- The starter configures Spring's runtime shutdown phase to outlive that deadline. If the
+  application supplies its own `lifecycleProcessor`, configure the same phase with a
+  timeout greater than `wow.shutdown-timeout`; otherwise Spring may destroy dependencies
+  before runtime draining finishes.
+
+For non-Spring applications, construct one runtime and let it own every component:
+
+```kotlin
+val runtime = WowRuntime(
+    components = listOf(commandDispatcher, eventDispatcher),
+    shutdownTimeout = Duration.ofSeconds(60),
+    shutdownQuietPeriod = Duration.ofSeconds(1),
+)
+runtime.start().block()
+runtime.stopGracefully().block()
+```
+
+No data migration is required. Rollback requires reverting the application binaries and
+the runtime wiring together; mixed old launcher and new runtime ownership is unsupported.
+
 ## Versioned Snapshot Checkpoint Removal
 
 The versioned snapshot checkpoint capability introduced in v8.9.0 has been removed without a compatibility layer.

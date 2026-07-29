@@ -11,11 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.saga
+package me.ahoo.wow.infra.lifecycle
 
-import me.ahoo.wow.saga.stateless.StatelessSagaDispatcher
-import me.ahoo.wow.spring.MessageDispatcherLauncher
-import java.time.Duration
-
-class StatelessSagaDispatcherLauncher(statelessSagaDispatcher: StatelessSagaDispatcher, shutdownTimeout: Duration) :
-    MessageDispatcherLauncher(statelessSagaDispatcher, shutdownTimeout)
+/**
+ * Prompt, non-blocking and idempotent forced cleanup capability.
+ */
+fun interface ForceStoppable {
+    fun forceStop()
+}

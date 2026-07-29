@@ -304,7 +304,7 @@ sequenceDiagram
 - LocalFirstCommandBus.send(): wow-core/src/main/kotlin/me/ahoo/wow/command/LocalFirstCommandBus.kt:41-46
 - LocalFirstMessageBus.send(): wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalFirstMessageBus.kt:130-149
 - AbstractKafkaBus.receive(): wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt:78-95
-- AggregateDispatcher.start(): wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt:163-173
+- WowRuntime.start(): wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt
 -->
 
 ### DefaultCommandGateway：发送前管道

@@ -18,11 +18,14 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.toNamedAggregate
+import me.ahoo.wow.runtime.RuntimeContext
+import me.ahoo.wow.runtime.WowRuntime
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.test.StepVerifier
+import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 
 class MainDispatcherTest {
@@ -42,16 +45,23 @@ class MainDispatcherTest {
     @Test
     fun `start creates one child per aggregate with receiver group subscription`() {
         val dispatcher = RecordingMainDispatcher()
+        val runtime = WowRuntime(
+            components = listOf(dispatcher),
+            shutdownTimeout = Duration.ofSeconds(1),
+            shutdownQuietPeriod = Duration.ZERO,
+        )
 
         StepVerifier.create(dispatcher.receiverGroups.asFlux().take(2))
-            .then { dispatcher.start() }
+            .then {
+                StepVerifier.create(runtime.start()).verifyComplete()
+            }
             .expectNext("recording-main", "recording-main")
             .verifyComplete()
 
         dispatcher.receiveCount.get().assert().isEqualTo(2)
         dispatcher.createCount.get().assert().isEqualTo(2)
 
-        StepVerifier.create(dispatcher.stopGracefully())
+        StepVerifier.create(runtime.stopGracefully())
             .verifyComplete()
         dispatcher.childStopCount.get().assert().isEqualTo(2)
     }
@@ -81,6 +91,8 @@ class MainDispatcherTest {
             return object : MessageDispatcher {
                 override val name: String = "child-${namedAggregate.aggregateName}"
 
+                override fun prepare(runtimeContext: RuntimeContext) = Unit
+
                 override fun start() {
                     messageFlux.subscribe {
                         receiverGroups.tryEmitNext(it).orThrow()
@@ -91,6 +103,8 @@ class MainDispatcherTest {
                     Mono.fromRunnable {
                         childStopCount.incrementAndGet()
                     }
+
+                override fun forceStop() = Unit
             }
         }
     }

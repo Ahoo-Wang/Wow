@@ -20,12 +20,15 @@ import me.ahoo.wow.infra.lifecycle.TerminatedSignalCapable
 import me.ahoo.wow.infra.sink.terminated
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.metrics.Metrics
+import me.ahoo.wow.runtime.RuntimeActivity
+import me.ahoo.wow.runtime.RuntimeContext
+import reactor.core.Exceptions
 import reactor.core.publisher.Flux
 import reactor.core.publisher.GroupedFlux
 import reactor.core.publisher.Mono
+import reactor.core.publisher.SignalType
 import reactor.core.publisher.Sinks
 import reactor.core.scheduler.Scheduler
-import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Abstract dispatcher for handling message exchanges for a specific aggregate with graceful shutdown support.
@@ -62,10 +65,15 @@ import java.util.concurrent.atomic.AtomicInteger
  *
  * // Usage
  * val dispatcher = CustomAggregateDispatcher()
- * dispatcher.start()
+ * val runtime = WowRuntime(
+ *     components = listOf(dispatcher),
+ *     shutdownTimeout = Duration.ofSeconds(60),
+ *     shutdownQuietPeriod = Duration.ofSeconds(1),
+ * )
+ * runtime.start().block()
  *
  * // Graceful shutdown
- * dispatcher.stopGracefully().block()
+ * runtime.stopGracefully().block()
  * ```
  *
  * @param T The type of message exchange being handled, must implement MessageExchange
@@ -126,7 +134,8 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
     private val terminatedSink = Sinks.empty<Void>()
 
     override val terminatedSignal: Mono<Void> = terminatedSink.asMono()
-    private val activeTaskCounter = AtomicInteger(0)
+    private lateinit var runtimeContext: RuntimeContext
+    private lateinit var demandGate: DemandGateFlux<T>
 
     private fun tryEmitTerminated() {
         if (terminatedSink.terminated) {
@@ -144,7 +153,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
     }
 
     /**
-     * Starts the dispatcher by subscribing to the message flux.
+     * Prepares the dispatcher by subscribing to the message flux while demand is held.
      *
      * This method initiates message processing by subscribing to the messageFlux.
      * Messages are grouped by their grouping key for parallel processing, with
@@ -157,16 +166,58 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
      * @see stopGracefully for graceful shutdown
      * @see toGroupKey for grouping logic
      */
-    override fun start() {
+    @Suppress("TooGenericExceptionCaught")
+    final override fun prepare(runtimeContext: RuntimeContext) {
         log.info {
-            "[$name] Start subscribe to $namedAggregate."
+            "[$name] Prepare subscription to $namedAggregate."
         }
-        messageFlux
-            .groupBy { it.toGroupKey() }
+        check(!this::demandGate.isInitialized) {
+            "[$name] Dispatcher can only be prepared once."
+        }
+        this.runtimeContext = runtimeContext
+        demandGate = DemandGateFlux(messageFlux)
+        runtimeContext.onAdmissionClose(demandGate::close)
+        demandGate
+            .handle<LeasedExchange<T>> { exchange, sink ->
+                val activity = runtimeContext.tryAcquire()
+                if (activity != null) {
+                    try {
+                        sink.next(
+                            LeasedExchange(
+                                groupKey = exchange.toGroupKey(),
+                                exchange = exchange,
+                                activity = activity,
+                            )
+                        )
+                    } catch (error: Throwable) {
+                        Exceptions.throwIfFatal(error)
+                        activity.close()
+                        sink.error(error)
+                    }
+                }
+            }
+            .groupBy(LeasedExchange<T>::groupKey)
             .flatMap({ grouped ->
                 handleGroupedExchange(grouped)
             }, parallelism, parallelism)
+            .doOnDiscard(LeasedExchange::class.java) { discarded ->
+                discarded.activity.close()
+            }
+            .doOnError(runtimeContext::reportFailure)
             .subscribe(this)
+    }
+
+    /**
+     * Opens source demand after every runtime component has been prepared.
+     */
+    final override fun start() {
+        log.info {
+            "[$name] Start processing $namedAggregate."
+        }
+        check(this::demandGate.isInitialized) {
+            "[$name] Dispatcher must be prepared before it is started."
+        }
+        demandGate.open()
     }
 
     /**
@@ -202,25 +253,18 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
      * @param grouped The grouped flux of message exchanges to process
      * @return A Mono that completes when all exchanges in the group are handled
      */
-    private fun handleGroupedExchange(grouped: GroupedFlux<Int, T>): Mono<Void> =
+    private fun handleGroupedExchange(grouped: GroupedFlux<Int, LeasedExchange<T>>): Mono<Void> =
         grouped
             .publishOn(scheduler)
             .name(Wow.WOW_PREFIX + "dispatcher")
             .tag("dispatcher", name)
             .tag(Metrics.AGGREGATE_KEY, namedAggregate.aggregateName)
             .metrics()
-            .concatMap { exchange ->
-                activeTaskCounter.incrementAndGet()
+            .concatMap { leased ->
                 Mono.defer {
-                    handleExchange(exchange)
+                    handleExchange(leased.exchange)
                 }.doFinally {
-                    val remaining = activeTaskCounter.decrementAndGet()
-                    if (isDisposed && remaining <= 0) {
-                        log.info {
-                            "[$name] All active tasks completed after disposal."
-                        }
-                        tryEmitTerminated()
-                    }
+                    leased.activity.close()
                 }
             }.then()
 
@@ -250,24 +294,39 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
      * processing is interrupted mid-flight.
      *
      * @return A Mono that completes when all active tasks have finished and shutdown is complete
-     * @see stop for the blocking version
      * @see cancel for subscription cancellation
      */
     override fun stopGracefully(): Mono<Void> {
         log.info {
-            "[$name] Stop gracefully. Active task count: ${activeTaskCounter.get()}."
+            "[$name] Stop gracefully."
         }
-        cancel()
-        if (activeTaskCounter.get() <= 0) {
-            log.info {
-                "[$name] No active tasks. Stop complete."
-            }
-            tryEmitTerminated()
+        if (!this::demandGate.isInitialized) {
+            return Mono.empty()
         }
+        demandGate.close()
         return terminatedSignal.doFinally {
             log.info {
                 "[$name] [$it] Graceful shutdown complete."
             }
         }
     }
+
+    final override fun forceStop() {
+        if (this::demandGate.isInitialized) {
+            demandGate.close()
+        }
+        cancel()
+        tryEmitTerminated()
+    }
+
+    override fun hookFinally(type: SignalType) {
+        super.hookFinally(type)
+        tryEmitTerminated()
+    }
+
+    private data class LeasedExchange<T : Any>(
+        val groupKey: Int,
+        val exchange: T,
+        val activity: RuntimeActivity,
+    )
 }

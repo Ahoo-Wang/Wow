@@ -15,7 +15,8 @@ Wow configuration is organized under the `wow` prefix in your `application.yaml`
 wow:
   enabled: true                    # Enable/disable Wow framework
   context-name: my-service         # Bounded context name
-  shutdown-timeout: 60s           # Graceful shutdown timeout
+  shutdown-timeout: 60s           # Complete runtime shutdown deadline
+  shutdown-quiet-period: 1s       # Idle period before intake closes
 
   # Command Bus Configuration
   command:
@@ -93,13 +94,15 @@ wow:
 |----------|------|---------|-------------|
 | `wow.enabled` | Boolean | `true` | Enable/disable the Wow framework |
 | `wow.context-name` | String | `${spring.application.name}` | Bounded context name for the service |
-| `wow.shutdown-timeout` | Duration | `60s` | Graceful shutdown timeout duration |
+| `wow.shutdown-timeout` | Duration | `60s` | Global deadline for stopping the complete Wow runtime |
+| `wow.shutdown-quiet-period` | Duration | `1s` | Idle period required before intake closes and draining begins |
 
 ```yaml
 wow:
   enabled: true
   context-name: order-service
   shutdown-timeout: 120s
+  shutdown-quiet-period: 1s
 ```
 
 ## Command Bus Configuration

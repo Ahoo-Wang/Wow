@@ -14,6 +14,7 @@
 package me.ahoo.wow.reactor
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
 import org.junit.jupiter.api.Test
@@ -39,7 +40,7 @@ class SchedulerTest {
     }
 
     @Test
-    fun `stopGracefully disposes cached schedulers and clears the cache`() {
+    fun `stopGracefully disposes cached schedulers and rejects reinitialization`() {
         val supplier = DefaultAggregateSchedulerSupplier(name = "test-scheduler", parallelism = 1)
         val aggregate = "wow-core-test.messaging_aggregate".toNamedAggregate()
         val scheduler = supplier.getOrInitialize(aggregate)
@@ -48,7 +49,9 @@ class SchedulerTest {
             .verifyComplete()
 
         scheduler.isDisposed.assert().isTrue()
-        supplier.getOrInitialize(aggregate).assert().isNotSameAs(scheduler)
+        assertThrownBy<IllegalStateException> {
+            supplier.getOrInitialize(aggregate)
+        }
 
         StepVerifier.create(supplier.stopGracefully())
             .verifyComplete()

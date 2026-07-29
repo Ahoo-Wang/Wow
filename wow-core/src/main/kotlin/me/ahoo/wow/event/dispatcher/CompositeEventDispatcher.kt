@@ -21,7 +21,12 @@ import me.ahoo.wow.messaging.dispatcher.MessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
+import me.ahoo.wow.runtime.RuntimeContext
+import me.ahoo.wow.runtime.internal.FailureAccumulator
+import me.ahoo.wow.runtime.internal.RuntimeComponentGroup
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
+import me.ahoo.wow.scheduler.BorrowedAggregateSchedulerSupplier
+import reactor.core.Exceptions
 import reactor.core.publisher.Mono
 
 /**
@@ -44,9 +49,14 @@ import reactor.core.publisher.Mono
  *     eventHandler = myEventHandler,
  *     schedulerSupplier = mySchedulerSupplier
  * )
- * dispatcher.start()
+ * val runtime = WowRuntime(
+ *     components = listOf(dispatcher),
+ *     shutdownTimeout = Duration.ofSeconds(60),
+ *     shutdownQuietPeriod = Duration.ofSeconds(1),
+ * )
+ * runtime.start().block()
  * // ... application logic ...
- * dispatcher.stopGracefully().block()
+ * runtime.stopGracefully().block()
  * ```
  *
  * @param name The name of this dispatcher, typically formatted as `applicationName.DomainEventDispatcher`.
@@ -93,6 +103,8 @@ open class CompositeEventDispatcher(
      */
     private val schedulerSupplier: AggregateSchedulerSupplier
 ) : MessageDispatcher {
+    private val childSchedulerSupplier = BorrowedAggregateSchedulerSupplier(schedulerSupplier)
+
     private val eventStreamDispatcher by lazy {
         EventStreamDispatcher(
             name = name,
@@ -100,7 +112,7 @@ open class CompositeEventDispatcher(
             messageBus = domainEventBus,
             functionRegistrar = functionRegistrar.filter { it.functionKind == FunctionKind.EVENT },
             eventHandler = eventHandler,
-            schedulerSupplier = schedulerSupplier,
+            schedulerSupplier = childSchedulerSupplier,
         )
     }
 
@@ -111,19 +123,37 @@ open class CompositeEventDispatcher(
             messageBus = stateEventBus,
             functionRegistrar = functionRegistrar.filter { it.functionKind == FunctionKind.STATE_EVENT },
             eventHandler = eventHandler,
-            schedulerSupplier = schedulerSupplier,
+            schedulerSupplier = childSchedulerSupplier,
         )
     }
+    private var componentGroup: RuntimeComponentGroup? = null
 
     /**
      * Starts the composite event dispatcher by initializing and starting both the event stream dispatcher and state event dispatcher.
      *
      * This method ensures that both underlying dispatchers are started and ready to process events.
      */
-    override fun start() {
-        eventStreamDispatcher.start()
-        stateEventDispatcher.start()
+    final override fun prepare(runtimeContext: RuntimeContext) {
+        check(componentGroup == null) {
+            "[$name] Dispatcher can only be prepared once."
+        }
+        RuntimeComponentGroup(
+            listOf(eventStreamDispatcher, stateEventDispatcher)
+        ).also { group ->
+            componentGroup = group
+            group.prepare(runtimeContext)
+        }
+        prepareManaged(runtimeContext)
     }
+
+    protected open fun prepareManaged(@Suppress("UNUSED_PARAMETER") runtimeContext: RuntimeContext) = Unit
+
+    final override fun start() {
+        componentGroup?.start()
+        startManaged()
+    }
+
+    protected open fun startManaged() = Unit
 
     /**
      * Stops the composite event dispatcher gracefully by stopping both the event stream dispatcher and state event dispatcher.
@@ -132,10 +162,50 @@ open class CompositeEventDispatcher(
      *
      * @return A [Mono] that completes when both dispatchers have stopped gracefully.
      */
-    override fun stopGracefully(): Mono<Void> {
-        return Mono.`when`(
-            eventStreamDispatcher.stopAggregateDispatchersGracefully(),
-            stateEventDispatcher.stopAggregateDispatchersGracefully()
-        ).then(schedulerSupplier.stopGracefully())
+    final override fun stopGracefully(): Mono<Void> {
+        val failures = FailureAccumulator()
+        return (componentGroup?.stopGracefully() ?: Mono.empty())
+            .onErrorResume { error ->
+                failures.record(error)
+                Mono.empty()
+            }
+            .then(Mono.defer(::stopManagedGracefully))
+            .onErrorResume { error ->
+                failures.record(error)
+                Mono.empty()
+            }
+            .then(Mono.defer(schedulerSupplier::stopGracefully))
+            .onErrorResume { error ->
+                failures.record(error)
+                Mono.empty()
+            }
+            .then(
+                Mono.defer {
+                    failures.current()?.let { Mono.error<Void>(it) } ?: Mono.empty()
+                }
+            )
     }
+
+    protected open fun stopManagedGracefully(): Mono<Void> = Mono.empty()
+
+    @Suppress("TooGenericExceptionCaught")
+    final override fun forceStop() {
+        val failures = FailureAccumulator()
+        componentGroup?.forceStop()?.let(failures::record)
+        try {
+            forceStopManaged()
+        } catch (error: Throwable) {
+            Exceptions.throwIfFatal(error)
+            failures.record(error)
+        }
+        try {
+            schedulerSupplier.forceStop()
+        } catch (error: Throwable) {
+            Exceptions.throwIfFatal(error)
+            failures.record(error)
+        }
+        failures.current()?.let { throw it }
+    }
+
+    protected open fun forceStopManaged() = Unit
 }

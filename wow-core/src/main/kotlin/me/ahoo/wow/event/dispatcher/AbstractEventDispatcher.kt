@@ -60,8 +60,10 @@ abstract class AbstractEventDispatcher<E : MessageExchange<*, *>, BUS : MessageB
         return messageBus.receive(subscription)
     }
 
-    internal fun stopAggregateDispatchersGracefully(): Mono<Void> = super.stopGracefully()
+    override fun stopManagedGracefully(): Mono<Void> =
+        schedulerSupplier.stopGracefully()
 
-    override fun stopGracefully(): Mono<Void> =
-        stopAggregateDispatchersGracefully().then(schedulerSupplier.stopGracefully())
+    override fun forceStopManaged() {
+        schedulerSupplier.forceStop()
+    }
 }

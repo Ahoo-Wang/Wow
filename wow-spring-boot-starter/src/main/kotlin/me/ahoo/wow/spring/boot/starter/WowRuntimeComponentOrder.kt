@@ -11,11 +11,15 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.event
+package me.ahoo.wow.spring.boot.starter
 
-import me.ahoo.wow.event.dispatcher.DomainEventDispatcher
-import me.ahoo.wow.spring.MessageDispatcherLauncher
-import java.time.Duration
-
-class DomainEventDispatcherLauncher(domainEventDispatcher: DomainEventDispatcher, shutdownTimeout: Duration) :
-    MessageDispatcherLauncher(domainEventDispatcher, shutdownTimeout)
+/**
+ * Built-in component order. Lower values prepare and start first; shutdown is reversed.
+ */
+object WowRuntimeComponentOrder {
+    const val COMMAND: Int = 100
+    const val EVENT: Int = 200
+    const val PROJECTION: Int = 300
+    const val SAGA: Int = 400
+    const val SNAPSHOT: Int = 500
+}

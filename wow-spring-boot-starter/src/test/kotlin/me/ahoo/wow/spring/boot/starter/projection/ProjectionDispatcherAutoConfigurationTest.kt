@@ -24,7 +24,6 @@ import me.ahoo.wow.projection.ProjectionFunctionRegistrar
 import me.ahoo.wow.projection.ProjectionHandler
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.opentelemetry.WowOpenTelemetryAutoConfiguration
-import me.ahoo.wow.spring.projection.ProjectionDispatcherLauncher
 import me.ahoo.wow.spring.projection.ProjectionProcessorAutoRegistrar
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -51,7 +50,6 @@ internal class ProjectionDispatcherAutoConfigurationTest {
                     .hasBean("projectionFilterChain")
                     .hasSingleBean(ProjectionHandler::class.java)
                     .hasSingleBean(ProjectionDispatcher::class.java)
-                    .hasSingleBean(ProjectionDispatcherLauncher::class.java)
             }
     }
 }

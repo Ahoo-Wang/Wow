@@ -74,6 +74,10 @@ class SnapshotDispatcher(
         )
     }
 
-    override fun stopGracefully(): Mono<Void> =
-        super.stopGracefully().then(schedulerSupplier.stopGracefully())
+    override fun stopManagedGracefully(): Mono<Void> =
+        schedulerSupplier.stopGracefully()
+
+    override fun forceStopManaged() {
+        schedulerSupplier.forceStop()
+    }
 }

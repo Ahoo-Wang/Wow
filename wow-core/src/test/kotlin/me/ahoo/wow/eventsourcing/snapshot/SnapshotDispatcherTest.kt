@@ -24,6 +24,7 @@ import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockStateAggregate
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.test.StepVerifier
+import java.time.Duration
 
 class SnapshotDispatcherTest {
 
@@ -55,7 +57,12 @@ class SnapshotDispatcherTest {
             aggregateVersion = 0,
         )
         val stateEvent = eventStream.toStateEvent(MockStateAggregate(aggregateId.id))
-        dispatcher.start()
+        val runtime = WowRuntime(
+            components = listOf(dispatcher),
+            shutdownTimeout = Duration.ofSeconds(2),
+            shutdownQuietPeriod = Duration.ZERO,
+        )
+        StepVerifier.create(runtime.start()).verifyComplete()
 
         StepVerifier.create(repository.saved.asMono())
             .then {
@@ -71,7 +78,7 @@ class SnapshotDispatcherTest {
                 it.state.id.assert().isEqualTo("snapshot-dispatcher")
             }
             .verifyComplete()
-        StepVerifier.create(dispatcher.stopGracefully())
+        StepVerifier.create(runtime.stopGracefully())
             .verifyComplete()
     }
 

@@ -19,15 +19,21 @@ import me.ahoo.wow.exception.ErrorInfoConverterRegistrar
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.naming.CurrentBoundedContext
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
+import me.ahoo.wow.runtime.RuntimeComponent
+import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.spring.SpringServiceProvider
+import me.ahoo.wow.spring.WowRuntimeLifecycle
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.ConfigurableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.ApplicationContext
+import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Primary
+import org.springframework.context.support.AbstractApplicationContext
+import org.springframework.context.support.DefaultLifecycleProcessor
 
 /**
  * Wow AutoConfiguration .
@@ -42,6 +48,8 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
     companion object {
         const val SPRING_APPLICATION_NAME = "spring.application.name"
         const val WOW_CURRENT_BOUNDED_CONTEXT = "wow.CurrentBoundedContext"
+        const val WOW_RUNTIME_BEAN_NAME = "wowRuntime"
+        const val WOW_RUNTIME_LIFECYCLE_BEAN_NAME = "wowRuntimeLifecycle"
     }
 
     @Bean
@@ -69,4 +77,32 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
         }
         return ErrorInfoConverterRegistrar
     }
+
+    @Bean(WOW_RUNTIME_BEAN_NAME, destroyMethod = "")
+    @ConditionalOnMissingBean
+    fun wowRuntime(runtimeComponents: ObjectProvider<RuntimeComponent>): WowRuntime {
+        return WowRuntime(
+            components = runtimeComponents.orderedStream().toList(),
+            shutdownTimeout = wowProperties.shutdownTimeout,
+            shutdownQuietPeriod = wowProperties.shutdownQuietPeriod,
+        )
+    }
+
+    @Bean(WOW_RUNTIME_LIFECYCLE_BEAN_NAME)
+    @ConditionalOnMissingBean
+    fun wowRuntimeLifecycle(
+        wowRuntime: WowRuntime,
+        applicationContext: ConfigurableApplicationContext,
+    ): WowRuntimeLifecycle {
+        return WowRuntimeLifecycle(wowRuntime) {
+            applicationContext.close()
+        }
+    }
+
+    @Bean(AbstractApplicationContext.LIFECYCLE_PROCESSOR_BEAN_NAME)
+    @ConditionalOnMissingBean(name = [AbstractApplicationContext.LIFECYCLE_PROCESSOR_BEAN_NAME])
+    fun lifecycleProcessor(): DefaultLifecycleProcessor =
+        DefaultLifecycleProcessor().apply {
+            configureWowRuntimePhaseTimeout(wowProperties.shutdownTimeout)
+        }
 }

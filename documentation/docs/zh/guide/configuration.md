@@ -15,7 +15,8 @@ Wow 配置在 `application.yaml` 或 `application.yml` 文件中的 `wow` 前缀
 wow:
   enabled: true                    # 启用/禁用 Wow 框架
   context-name: my-service         # 有界上下文名称
-  shutdown-timeout: 60s           # 优雅关闭超时时间
+  shutdown-timeout: 60s           # 完整运行时的全局停机期限
+  shutdown-quiet-period: 1s       # 关闭接入前要求持续空闲的时间
 
   # 命令总线配置
   command:
@@ -92,13 +93,15 @@ wow:
 |------|------|--------|------|
 | `wow.enabled` | Boolean | `true` | 启用/禁用 Wow 框架 |
 | `wow.context-name` | String | `${spring.application.name}` | 服务的有界上下文名称 |
-| `wow.shutdown-timeout` | Duration | `60s` | 优雅关闭超时时间 |
+| `wow.shutdown-timeout` | Duration | `60s` | 完整 Wow 运行时的全局停机期限 |
+| `wow.shutdown-quiet-period` | Duration | `1s` | 关闭接入并开始排空前要求持续空闲的时间 |
 
 ```yaml
 wow:
   enabled: true
   context-name: order-service
   shutdown-timeout: 120s
+  shutdown-quiet-period: 1s
 ```
 
 ## 命令总线配置

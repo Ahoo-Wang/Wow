@@ -14,13 +14,15 @@ description: Fundamental configuration options for the Wow framework, including 
 |------|-----------|-------------|---------------|
 | `enabled` | Boolean | Enable/disable the Wow framework | `true` |
 | `context-name` | String | Bounded context name for the service | Falls back to (required) `spring.application.name` |
-| `shutdown-timeout` | Duration | Graceful shutdown timeout | `60s` |
+| `shutdown-timeout` | Duration | Global deadline for stopping the complete Wow runtime | `60s` |
+| `shutdown-quiet-period` | Duration | Idle period required before intake closes and draining begins | `1s` |
 
 ```yaml
 wow:
   enabled: true
   context-name: order-service
   shutdown-timeout: 120s
+  shutdown-quiet-period: 1s
 ```
 
 ## BusProperties

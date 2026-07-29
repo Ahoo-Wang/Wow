@@ -41,6 +41,44 @@ implementation("me.ahoo.wow:wow-spring-boot-starter:新版本号")
 2. **配置变更**：检查配置属性是否有变更
 3. **元数据变更**：重新生成元数据文件
 
+## 统一运行时编排
+
+所有 Wow 处理组件现在只有一个生命周期所有者：`WowRuntime`。它先完成全部组件的准备再开放接入，
+按配置顺序启动，并在同一个全局期限内逆序停机。优雅停机时，运行时先等待全局静默期，再关闭接入、
+排空已接纳的异步任务；超过期限后强制停止剩余组件。
+
+这是有意的源码与行为破坏性变更：
+
+- `MessageDispatcher` 现在实现 `RuntimeComponent`；不再提供独立生命周期和 `AutoCloseable` 所有权。
+- 已删除 `MessageDispatcherLauncher` 以及命令、事件、投影、Saga、快照 Launcher。Spring Boot
+  改为只创建一个 `WowRuntimeLifecycle`。
+- 自定义 `RuntimeComponent` 的构造过程必须无副作用。在 `prepare(RuntimeContext)` 中建立订阅和资源，
+  在 `start()` 中开放处理，从 `stopGracefully()` 返回异步清理过程，并保证 `forceStop()` 快速且幂等。
+- 过去覆盖公开生命周期方法的 Dispatcher 子类，应将自有资源逻辑迁移到受保护的
+  `prepareManaged`、`startManaged`、`stopManagedGracefully`、`forceStopManaged` 钩子。
+- RuntimeComponent 及其拥有的资源是一次性的。不要再通过 `@PreDestroy`、Bean destroy method
+  或另一个生命周期管理器重复关闭。
+- `wow.shutdown-timeout` 现在是完整运行时的全局期限，不再是每个 Dispatcher 各自的超时。
+  新增 `wow.shutdown-quiet-period`，默认 `1s`；它必须非负且短于停机期限。
+- Starter 会自动保证 Spring 的运行时停机 phase 超时晚于该全局期限。如果应用自定义
+  `lifecycleProcessor`，必须为同一 phase 配置大于 `wow.shutdown-timeout` 的超时；否则 Spring
+  可能在运行时排空结束前销毁其依赖。
+
+非 Spring 应用应创建一个运行时并让它拥有所有组件：
+
+```kotlin
+val runtime = WowRuntime(
+    components = listOf(commandDispatcher, eventDispatcher),
+    shutdownTimeout = Duration.ofSeconds(60),
+    shutdownQuietPeriod = Duration.ofSeconds(1),
+)
+runtime.start().block()
+runtime.stopGracefully().block()
+```
+
+本次变更不需要数据迁移。回滚时必须同时回退应用二进制与运行时装配；不支持旧 Launcher 和新运行时
+混合管理。
+
 ## 移除版本化快照检查点
 
 v8.9.0 引入的版本化快照检查点能力已被移除，且不提供兼容层。`VersionedSnapshotStore`、

@@ -14,13 +14,15 @@ description: Wow 框架的基础配置选项，包括命令总线、事件总线
 |------|-----------|-------------|---------------|
 | `enabled` | Boolean | 启用/禁用 Wow 框架 | `true` |
 | `context-name` | String | 服务的限界上下文名称 | 回退为（必需的）`spring.application.name` |
-| `shutdown-timeout` | Duration | 优雅停机超时时间 | `60s` |
+| `shutdown-timeout` | Duration | 完整 Wow 运行时的全局停机期限 | `60s` |
+| `shutdown-quiet-period` | Duration | 关闭接入并开始排空前要求持续空闲的时间 | `1s` |
 
 ```yaml
 wow:
   enabled: true
   context-name: order-service
   shutdown-timeout: 120s
+  shutdown-quiet-period: 1s
 ```
 
 ## BusProperties

@@ -44,4 +44,9 @@ class BenchmarkAggregateSchedulerSupplier(
             schedulers.values.forEach(Scheduler::dispose)
             schedulers.clear()
         }
+
+    override fun forceStop() {
+        schedulers.values.forEach(Scheduler::dispose)
+        schedulers.clear()
+    }
 }

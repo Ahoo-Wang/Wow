@@ -27,7 +27,6 @@ import me.ahoo.wow.saga.stateless.StatelessSagaFunctionFilter
 import me.ahoo.wow.saga.stateless.StatelessSagaFunctionRegistrar
 import me.ahoo.wow.saga.stateless.StatelessSagaHandler
 import me.ahoo.wow.spring.boot.starter.enableWow
-import me.ahoo.wow.spring.saga.StatelessSagaDispatcherLauncher
 import me.ahoo.wow.spring.saga.StatelessSagaProcessorAutoRegistrar
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -56,11 +55,6 @@ internal class StatelessSagaAutoConfigurationTest {
                     .hasBean("statelessSagaFilterChain")
                     .hasSingleBean(StatelessSagaHandler::class.java)
                     .hasSingleBean(StatelessSagaDispatcher::class.java)
-                    .hasSingleBean(StatelessSagaDispatcherLauncher::class.java)
-
-                val processorAutoRegistrar = context.getBean(StatelessSagaProcessorAutoRegistrar::class.java)
-                processorAutoRegistrar.start()
-                processorAutoRegistrar.stop()
             }
     }
 }

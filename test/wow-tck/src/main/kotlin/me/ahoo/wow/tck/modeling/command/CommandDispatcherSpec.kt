@@ -55,6 +55,7 @@ import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
+import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.tck.metrics.LoggingMeterRegistryInitializer
 import me.ahoo.wow.tck.mock.MockChangeAggregate
 import me.ahoo.wow.tck.mock.MockCommandAggregate
@@ -160,13 +161,19 @@ abstract class CommandDispatcherSpec {
             commandHandler = DefaultCommandHandler(chain).metrizable(),
         )
 
-        commandDispatcher.use {
-            it.start()
+        val runtime = WowRuntime(
+            components = listOf(commandDispatcher),
+            shutdownTimeout = Duration.ofSeconds(30),
+            shutdownQuietPeriod = Duration.ZERO,
+        )
+        try {
+            runtime.start().block()
             onCommandSeek().block()
             warmUp()
             orchestra()
             commandBus.close()
-            it.stop()
+        } finally {
+            runtime.stopGracefully().block()
         }
     }
 

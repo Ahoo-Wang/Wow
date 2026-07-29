@@ -14,14 +14,14 @@
 package me.ahoo.wow.messaging.dispatcher
 
 import me.ahoo.wow.api.naming.Named
-import me.ahoo.wow.infra.lifecycle.Lifecycle
+import me.ahoo.wow.runtime.RuntimeComponent
 
 /**
  * Represents a message dispatcher that can run and dispatch messages.
  *
- * This interface combines the capabilities of running a dispatch process,
- * being closable for resource management, and having a name for identification.
+ * A dispatcher is a one-shot [RuntimeComponent] whose lifecycle is exclusively
+ * owned by the enclosing runtime, plus a name for diagnostics.
  */
 interface MessageDispatcher :
-    Lifecycle,
+    RuntimeComponent,
     Named

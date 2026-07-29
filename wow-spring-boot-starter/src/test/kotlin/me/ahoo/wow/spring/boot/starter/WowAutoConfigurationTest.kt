@@ -20,10 +20,13 @@ import me.ahoo.wow.exception.ErrorInfoConverter
 import me.ahoo.wow.exception.ErrorInfoConverterFactory
 import me.ahoo.wow.exception.ErrorInfoConverterRegistrar
 import me.ahoo.wow.ioc.ServiceProvider
+import me.ahoo.wow.runtime.WowRuntime
+import me.ahoo.wow.spring.WowRuntimeLifecycle
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration.Companion.SPRING_APPLICATION_NAME
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.context.support.DefaultLifecycleProcessor
 
 internal class WowAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
@@ -48,6 +51,9 @@ internal class WowAutoConfigurationTest {
                     .hasSingleBean(ServiceProvider::class.java)
                     .hasSingleBean(NamedBoundedContext::class.java)
                     .hasSingleBean(ErrorInfoConverterRegistrar::class.java)
+                    .hasSingleBean(WowRuntime::class.java)
+                    .hasSingleBean(WowRuntimeLifecycle::class.java)
+                    .hasSingleBean(DefaultLifecycleProcessor::class.java)
             }
     }
 
@@ -61,6 +67,8 @@ internal class WowAutoConfigurationTest {
                     .hasSingleBean(WowProperties::class.java)
                     .hasSingleBean(ServiceProvider::class.java)
                     .hasSingleBean(NamedBoundedContext::class.java)
+                    .hasSingleBean(WowRuntime::class.java)
+                    .hasSingleBean(WowRuntimeLifecycle::class.java)
             }
     }
 }

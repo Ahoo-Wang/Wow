@@ -15,6 +15,7 @@ package me.ahoo.wow.scheduler
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.Named
+import me.ahoo.wow.infra.lifecycle.ForceStoppable
 import me.ahoo.wow.infra.lifecycle.GracefullyStoppable
 import me.ahoo.wow.messaging.dispatcher.ParallelismCapable
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
@@ -24,6 +25,7 @@ import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Functional interface for supplying Reactor schedulers for aggregate operations.
@@ -38,7 +40,9 @@ import java.util.concurrent.ConcurrentHashMap
  * @see Scheduler
  * @see NamedAggregate
  */
-interface AggregateSchedulerSupplier : GracefullyStoppable {
+interface AggregateSchedulerSupplier :
+    GracefullyStoppable,
+    ForceStoppable {
     /**
      * Gets an existing scheduler for the named aggregate or creates a new one if none exists.
      *
@@ -109,6 +113,8 @@ class DefaultAggregateSchedulerSupplier(
      * request schedulers for the same or different aggregates simultaneously.
      */
     private val schedulers: MutableMap<MaterializedNamedAggregate, Scheduler> = ConcurrentHashMap()
+    private val stopping = AtomicBoolean()
+    private val terminated = reactor.core.publisher.Sinks.empty<Void>()
 
     /**
      * Gets the cached scheduler for the aggregate or creates a new parallel scheduler.
@@ -120,21 +126,45 @@ class DefaultAggregateSchedulerSupplier(
      * @param namedAggregate the aggregate for which to get or create a scheduler
      * @return the dedicated scheduler for this aggregate
      */
-    override fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler =
-        schedulers.computeIfAbsent(namedAggregate.materialize()) { _ ->
+    override fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler {
+        check(!stopping.get()) {
+            "AggregateSchedulerSupplier[$name] is stopping."
+        }
+        val scheduler = schedulers.computeIfAbsent(namedAggregate.materialize()) { _ ->
             Schedulers.newParallel("$name-${namedAggregate.aggregateName}", parallelism)
         }
+        if (stopping.get()) {
+            scheduler.dispose()
+            error("AggregateSchedulerSupplier[$name] is stopping.")
+        }
+        return scheduler
+    }
 
     /**
      * Stops all schedulers gracefully.
      */
     override fun stopGracefully(): Mono<Void> {
-        return Flux.defer {
-            val cachedSchedulers = schedulers.values.toList()
-            schedulers.clear()
-            Flux.fromIterable(cachedSchedulers)
-        }.flatMap {
-            it.disposeGracefully()
-        }.then()
+        if (!stopping.compareAndSet(false, true)) {
+            return terminated.asMono()
+        }
+        val cachedSchedulers = schedulers.values.toList()
+        return Flux.fromIterable(cachedSchedulers)
+            .flatMapDelayError({ it.disposeGracefully() }, cachedSchedulers.size.coerceAtLeast(1), 1)
+            .then()
+            .doOnSuccess {
+                schedulers.clear()
+                terminated.tryEmitEmpty()
+            }
+            .doOnError { error ->
+                schedulers.clear()
+                terminated.tryEmitError(error)
+            }
+    }
+
+    override fun forceStop() {
+        stopping.set(true)
+        schedulers.values.forEach(Scheduler::dispose)
+        schedulers.clear()
+        terminated.tryEmitEmpty()
     }
 }

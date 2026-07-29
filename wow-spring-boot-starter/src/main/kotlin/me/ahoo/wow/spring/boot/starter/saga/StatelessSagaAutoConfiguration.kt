@@ -32,18 +32,18 @@ import me.ahoo.wow.saga.stateless.StatelessSagaFunctionRegistrar
 import me.ahoo.wow.saga.stateless.StatelessSagaHandler
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
-import me.ahoo.wow.spring.boot.starter.WowProperties
-import me.ahoo.wow.spring.saga.StatelessSagaDispatcherLauncher
+import me.ahoo.wow.spring.boot.starter.WowRuntimeComponentOrder
 import me.ahoo.wow.spring.saga.StatelessSagaProcessorAutoRegistrar
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Bean
+import org.springframework.core.annotation.Order
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
-class StatelessSagaAutoConfiguration(private val wowProperties: WowProperties) {
+class StatelessSagaAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
@@ -94,8 +94,9 @@ class StatelessSagaAutoConfiguration(private val wowProperties: WowProperties) {
         return DefaultStatelessSagaHandler(chain, statelessSagaErrorHandler)
     }
 
-    @Bean
+    @Bean(destroyMethod = "")
     @ConditionalOnMissingBean
+    @Order(WowRuntimeComponentOrder.SAGA)
     fun statelessSagaDispatcher(
         @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         namedBoundedContext: NamedBoundedContext,
@@ -111,13 +112,5 @@ class StatelessSagaAutoConfiguration(private val wowProperties: WowProperties) {
             functionRegistrar = handlerRegistrar,
             eventHandler = statelessSagaHandler,
         )
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    fun statelessSagaDispatcherLauncher(
-        statelessSagaDispatcher: StatelessSagaDispatcher
-    ): StatelessSagaDispatcherLauncher {
-        return StatelessSagaDispatcherLauncher(statelessSagaDispatcher, wowProperties.shutdownTimeout)
     }
 }

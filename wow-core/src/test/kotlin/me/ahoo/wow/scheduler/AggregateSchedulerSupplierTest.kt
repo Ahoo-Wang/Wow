@@ -14,6 +14,7 @@
 package me.ahoo.wow.scheduler
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.modeling.toNamedAggregate
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
@@ -82,7 +83,7 @@ internal class AggregateSchedulerSupplierTest {
     }
 
     @Test
-    fun `stop gracefully should dispose cached schedulers and allow reinitialization`() {
+    fun `stop gracefully should dispose cached schedulers and reject reinitialization`() {
         val supplier = DefaultAggregateSchedulerSupplier("worker", parallelism = 1)
         val aggregate = "sales.Order".toNamedAggregate()
         val scheduler = supplier.getOrInitialize(aggregate)
@@ -90,7 +91,9 @@ internal class AggregateSchedulerSupplierTest {
         StepVerifier.create(supplier.stopGracefully()).verifyComplete()
 
         scheduler.isDisposed.assert().isTrue()
-        supplier.getOrInitialize(aggregate).assert().isNotSameAs(scheduler)
+        assertThrownBy<IllegalStateException> {
+            supplier.getOrInitialize(aggregate)
+        }
         StepVerifier.create(supplier.stopGracefully()).verifyComplete()
     }
 }

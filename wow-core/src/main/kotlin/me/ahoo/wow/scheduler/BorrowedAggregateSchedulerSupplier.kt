@@ -11,11 +11,22 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.command
+package me.ahoo.wow.scheduler
 
-import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotDispatcher
-import me.ahoo.wow.spring.MessageDispatcherLauncher
-import java.time.Duration
+import me.ahoo.wow.api.modeling.NamedAggregate
+import reactor.core.publisher.Mono
+import reactor.core.scheduler.Scheduler
 
-class SnapshotDispatcherLauncher(snapshotDispatcher: SnapshotDispatcher, shutdownTimeout: Duration) :
-    MessageDispatcherLauncher(snapshotDispatcher, shutdownTimeout)
+/**
+ * Non-owning view used by child dispatchers that share a parent scheduler supplier.
+ */
+internal class BorrowedAggregateSchedulerSupplier(
+    private val delegate: AggregateSchedulerSupplier,
+) : AggregateSchedulerSupplier {
+    override fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler =
+        delegate.getOrInitialize(namedAggregate)
+
+    override fun stopGracefully(): Mono<Void> = Mono.empty()
+
+    override fun forceStop() = Unit
+}

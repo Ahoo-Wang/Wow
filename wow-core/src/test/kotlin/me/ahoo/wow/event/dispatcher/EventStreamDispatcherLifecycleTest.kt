@@ -20,6 +20,7 @@ import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -27,6 +28,7 @@ import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
+import java.time.Duration
 import java.util.concurrent.atomic.AtomicBoolean
 
 class EventStreamDispatcherLifecycleTest {
@@ -47,9 +49,14 @@ class EventStreamDispatcherLifecycleTest {
             },
             schedulerSupplier = schedulerSupplier,
         )
-        dispatcher.start()
+        val runtime = WowRuntime(
+            components = listOf(dispatcher),
+            shutdownTimeout = Duration.ofSeconds(1),
+            shutdownQuietPeriod = Duration.ZERO,
+        )
+        StepVerifier.create(runtime.start()).verifyComplete()
 
-        StepVerifier.create(dispatcher.stopGracefully())
+        StepVerifier.create(runtime.stopGracefully())
             .verifyComplete()
 
         schedulerSupplier.stopped.get().assert().isTrue()
@@ -81,5 +88,10 @@ class EventStreamDispatcherLifecycleTest {
                 stopped.set(true)
                 scheduler.dispose()
             }
+
+        override fun forceStop() {
+            stopped.set(true)
+            scheduler.dispose()
+        }
     }
 }

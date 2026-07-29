@@ -26,5 +26,7 @@ class WowProperties(
     @DefaultValue("true") override var enabled: Boolean = true,
     var contextName: String?,
     @DefaultValue("60s")
-    var shutdownTimeout: Duration = Duration.ofSeconds(60)
+    var shutdownTimeout: Duration = Duration.ofSeconds(60),
+    @DefaultValue("1s")
+    var shutdownQuietPeriod: Duration = Duration.ofSeconds(1),
 ) : EnabledCapable

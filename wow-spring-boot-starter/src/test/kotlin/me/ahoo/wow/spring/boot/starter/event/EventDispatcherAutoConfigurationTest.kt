@@ -27,7 +27,6 @@ import me.ahoo.wow.messaging.handler.RetryableFilter
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.opentelemetry.WowOpenTelemetryAutoConfiguration
-import me.ahoo.wow.spring.event.DomainEventDispatcherLauncher
 import me.ahoo.wow.spring.event.EventProcessorAutoRegistrar
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -59,7 +58,6 @@ internal class EventDispatcherAutoConfigurationTest {
                     .hasSingleBean(RetryableFilter::class.java)
                     .hasSingleBean(DomainEventFunctionFilter::class.java)
                     .hasSingleBean(DomainEventDispatcher::class.java)
-                    .hasSingleBean(DomainEventDispatcherLauncher::class.java)
             }
     }
 }

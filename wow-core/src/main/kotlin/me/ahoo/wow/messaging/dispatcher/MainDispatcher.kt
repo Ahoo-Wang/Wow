@@ -17,7 +17,11 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
+import me.ahoo.wow.runtime.RuntimeContext
+import me.ahoo.wow.runtime.internal.FailureAccumulator
+import me.ahoo.wow.runtime.internal.RuntimeComponentGroup
 import me.ahoo.wow.serialization.toJsonString
+import reactor.core.Exceptions
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -52,9 +56,14 @@ import reactor.core.publisher.Mono
  * }
  *
  * val dispatcher = MyMainDispatcher()
- * dispatcher.start()
+ * val runtime = WowRuntime(
+ *     components = listOf(dispatcher),
+ *     shutdownTimeout = Duration.ofSeconds(60),
+ *     shutdownQuietPeriod = Duration.ofSeconds(1),
+ * )
+ * runtime.start().block()
  * // ... application logic ...
- * dispatcher.stopGracefully().block()
+ * runtime.stopGracefully().block()
  * ```
  *
  * @param T The type of message being dispatched, must be a non-null type.
@@ -131,6 +140,8 @@ abstract class MainDispatcher<T : Any> : MessageDispatcher {
     protected val aggregateDispatchers: List<MessageDispatcher>
         get() = aggregateDispatchersLazy.value
 
+    private var aggregateComponentGroup: RuntimeComponentGroup? = null
+
     private fun String.withNamePrefix(): String = "[$name][${this@MainDispatcher.javaClass.simpleName}] $this"
 
     /**
@@ -142,39 +153,94 @@ abstract class MainDispatcher<T : Any> : MessageDispatcher {
      *
      * @throws RuntimeException if starting any aggregate dispatcher fails.
      */
-    override fun start() {
+    final override fun prepare(runtimeContext: RuntimeContext) {
+        check(aggregateComponentGroup == null) {
+            "[$name] Dispatcher can only be prepared once."
+        }
         log.info {
-            "Start subscribe to namedAggregates:${namedAggregates.toJsonString()}.".withNamePrefix()
+            "Prepare namedAggregates:${namedAggregates.toJsonString()}.".withNamePrefix()
         }
         if (namedAggregates.isEmpty()) {
             log.warn {
-                "Ignore start because namedAggregates is empty.".withNamePrefix()
+                "Ignore prepare because namedAggregates is empty.".withNamePrefix()
             }
+            prepareManaged(runtimeContext)
             return
         }
-        aggregateDispatchers.forEach { it.start() }
+        RuntimeComponentGroup(aggregateDispatchers).also { group ->
+            aggregateComponentGroup = group
+            group.prepare(runtimeContext)
+        }
+        prepareManaged(runtimeContext)
     }
+
+    /**
+     * Adds component-specific preparation after all child subscriptions exist.
+     */
+    protected open fun prepareManaged(@Suppress("UNUSED_PARAMETER") runtimeContext: RuntimeContext) = Unit
+
+    final override fun start() {
+        aggregateComponentGroup?.start()
+        startManaged()
+    }
+
+    /**
+     * Adds component-specific activation after all child dispatchers start.
+     */
+    protected open fun startManaged() = Unit
 
     /**
      * Stops the dispatcher gracefully by shutting down all aggregate dispatchers.
      *
-     * Logs the closure and calls [MessageDispatcher.stopGracefully] on each aggregate dispatcher.
+     * Logs the closure and stops each aggregate dispatcher in reverse order.
      * This method waits for all dispatchers to complete their current operations before shutting down.
      * It should be called during the application's shutdown phase.
      *
      * @return A [Mono] that completes when all aggregate dispatchers have stopped gracefully.
      *         Completes with an error if any dispatcher fails to stop.
      */
-    override fun stopGracefully(): Mono<Void> {
+    final override fun stopGracefully(): Mono<Void> {
         log.info {
             "Stop Gracefully.".withNamePrefix()
         }
-        if (!aggregateDispatchersLazy.isInitialized()) {
-            return Mono.empty()
-        }
-        return Flux
-            .fromIterable(aggregateDispatchers)
-            .flatMap { it.stopGracefully() }
-            .then()
+        val failures = FailureAccumulator()
+        return (aggregateComponentGroup?.stopGracefully() ?: Mono.empty())
+            .onErrorResume { error ->
+                failures.record(error)
+                Mono.empty()
+            }
+            .then(Mono.defer(::stopManagedGracefully))
+            .onErrorResume { error ->
+                failures.record(error)
+                Mono.empty()
+            }
+            .then(
+                Mono.defer {
+                    failures.current()?.let { Mono.error<Void>(it) } ?: Mono.empty()
+                }
+            )
     }
+
+    /**
+     * Releases resources owned directly by this dispatcher after children drain.
+     */
+    protected open fun stopManagedGracefully(): Mono<Void> = Mono.empty()
+
+    @Suppress("TooGenericExceptionCaught")
+    final override fun forceStop() {
+        val failures = FailureAccumulator()
+        aggregateComponentGroup?.forceStop()?.let(failures::record)
+        try {
+            forceStopManaged()
+        } catch (error: Throwable) {
+            Exceptions.throwIfFatal(error)
+            failures.record(error)
+        }
+        failures.current()?.let { throw it }
+    }
+
+    /**
+     * Promptly releases resources owned directly by this dispatcher.
+     */
+    protected open fun forceStopManaged() = Unit
 }

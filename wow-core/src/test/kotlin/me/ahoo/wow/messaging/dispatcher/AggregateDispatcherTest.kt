@@ -20,6 +20,7 @@ import me.ahoo.wow.messaging.TestNamedMessage
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.toNamedAggregate
+import me.ahoo.wow.runtime.WowRuntime
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -38,7 +39,7 @@ class AggregateDispatcherTest {
         val source = Sinks.many().unicast().onBackpressureBuffer<TestExchange>()
         val dispatcher = RecordingAggregateDispatcher(messageFlux = source.asFlux())
         val exchange = TestExchange(group = 1)
-        dispatcher.start()
+        val runtime = start(dispatcher)
 
         StepVerifier.create(dispatcher.handled.asFlux().take(1))
             .then { source.tryEmitNext(exchange).orThrow() }
@@ -46,43 +47,49 @@ class AggregateDispatcherTest {
             .verifyComplete()
 
         dispatcher.groups.assert().isEqualTo(listOf(1))
-        StepVerifier.create(dispatcher.stopGracefully()).verifyComplete()
+        StepVerifier.create(runtime.stopGracefully()).verifyComplete()
     }
 
     @Test
     fun `stopGracefully completes immediately when no task is active`() {
         val dispatcher = RecordingAggregateDispatcher(messageFlux = Flux.never())
-        dispatcher.start()
+        val runtime = start(dispatcher)
 
-        StepVerifier.create(dispatcher.stopGracefully())
+        StepVerifier.create(runtime.stopGracefully())
             .verifyComplete()
     }
 
     @Test
-    fun `stopGracefully cancels active exchange handling before completing`() {
+    fun `stopGracefully drains active exchange handling before completing`() {
         val source = Sinks.many().unicast().onBackpressureBuffer<TestExchange>()
         val invoked = Sinks.empty<Void>()
         val cancelled = Sinks.empty<Void>()
+        val release = Sinks.empty<Void>()
         val dispatcher = RecordingAggregateDispatcher(
             messageFlux = source.asFlux(),
             handle = {
                 invoked.tryEmitEmpty().orThrow()
-                Mono.never<Void>()
+                release.asMono()
                     .doOnCancel { cancelled.tryEmitEmpty().orThrow() }
             },
         )
-        dispatcher.start()
+        val runtime = start(dispatcher)
 
         StepVerifier.create(invoked.asMono())
             .then { source.tryEmitNext(TestExchange(group = 2)).orThrow() }
             .verifyComplete()
 
-        StepVerifier.create(dispatcher.stopGracefully())
-            .verifyComplete()
+        val stopFuture = runtime.stopGracefully().toFuture()
+        stopFuture.isDone.assert().isFalse()
 
         StepVerifier.create(cancelled.asMono())
-            .expectComplete()
-            .verify(Duration.ofSeconds(1))
+            .expectSubscription()
+            .expectNoEvent(Duration.ofMillis(100))
+            .thenCancel()
+            .verify()
+
+        release.tryEmitEmpty().orThrow()
+        stopFuture.get(1, java.util.concurrent.TimeUnit.SECONDS)
     }
 
     @Test
@@ -90,7 +97,7 @@ class AggregateDispatcherTest {
         val source = Sinks.many().unicast().onBackpressureBuffer<TestExchange>()
         val error = IllegalStateException("handler failed")
         val dispatcher = ErrorRecordingAggregateDispatcher(source.asFlux(), error)
-        dispatcher.start()
+        start(dispatcher)
 
         StepVerifier.create(dispatcher.errors.asMono())
             .then { source.tryEmitNext(TestExchange(group = 3)).orThrow() }
@@ -109,7 +116,7 @@ class AggregateDispatcherTest {
                 name = dispatcherName,
             )
 
-            dispatcher.start()
+            val runtime = start(dispatcher)
 
             val dispatcherMeterIds = meterRegistry.meters
                 .map { it.id }
@@ -119,11 +126,21 @@ class AggregateDispatcherTest {
             dispatcherMeterIds
                 .mapNotNull { it.getTag("group.key") }
                 .assert().isEmpty()
+            StepVerifier.create(runtime.stopGracefully()).verifyComplete()
         } finally {
             MicrometerMetrics.removeRegistry(meterRegistry)
             meterRegistry.close()
         }
     }
+
+    private fun start(dispatcher: MessageDispatcher): WowRuntime =
+        WowRuntime(
+            components = listOf(dispatcher),
+            shutdownTimeout = Duration.ofSeconds(1),
+            shutdownQuietPeriod = Duration.ZERO,
+        ).also {
+            StepVerifier.create(it.start()).verifyComplete()
+        }
 
     private open class RecordingAggregateDispatcher(
         override val messageFlux: Flux<TestExchange>,

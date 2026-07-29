@@ -18,6 +18,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner
 fun ApplicationContextRunner.enableWowProperties(): ApplicationContextRunner = withPropertyValues(
     "wow.enabled=true",
     "wow.context-name=wow-spring-boot-starter-test",
+    "wow.shutdown-quiet-period=0s",
 )
 
 fun ApplicationContextRunner.enableWow(): ApplicationContextRunner = enableWowProperties()
