@@ -661,6 +661,53 @@ class WowRuntimeTest {
     }
 
     @Test
+    fun `startup rollback does not block its Reactor worker`() {
+        val startFailure = IllegalStateException("start")
+        val forceInvocations = AtomicInteger()
+        val startupScheduler = Schedulers.newSingle("wow-runtime-startup-test")
+        val component = object : RuntimeComponent {
+            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
+
+            override fun prepare(runtimeContext: RuntimeContext) = Unit
+
+            override fun start() {
+                throw startFailure
+            }
+
+            override fun stopGracefully(): Mono<Void> =
+                Mono.delay(Duration.ZERO, startupScheduler).then()
+
+            override fun forceStop() {
+                forceInvocations.incrementAndGet()
+            }
+        }
+        val runtime = WowRuntime(
+            components = listOf(component),
+            shutdownTimeout = Duration.ofSeconds(1),
+            shutdownQuietPeriod = Duration.ZERO,
+        )
+        val startupResult = CompletableFuture<Throwable>()
+
+        try {
+            startupScheduler.schedule {
+                startupResult.complete(
+                    runCatching(runtime::start).exceptionOrNull(),
+                )
+            }
+
+            startupResult.get(250, TimeUnit.MILLISECONDS).assert().isSameAs(startFailure)
+            StepVerifier.create(runtime.terminationSignal)
+                .expectErrorSatisfies { error ->
+                    error.assert().isSameAs(startFailure)
+                }
+                .verify(Duration.ofSeconds(1))
+            forceInvocations.get().assert().isZero()
+        } finally {
+            startupScheduler.dispose()
+        }
+    }
+
+    @Test
     fun `prepare failure gracefully rolls back prepared and force stops all claimed components`() {
         val calls = mutableListOf<String>()
         val prepareFailure = IllegalStateException("prepare")

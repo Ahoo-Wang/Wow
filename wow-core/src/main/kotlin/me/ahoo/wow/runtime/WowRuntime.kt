@@ -322,11 +322,27 @@ class WowRuntime private constructor(
     }
 
     override fun forceStop() {
+        forceStop(
+            expectedOwner = null,
+            triggeringFailure = null,
+        )
+    }
+
+    private fun forceStop(
+        expectedOwner: ShutdownOwner?,
+        triggeringFailure: Throwable?,
+    ) {
         var gracefulOwner: ShutdownOwner? = null
         val forceOwner = synchronized(lifecycleMonitor) {
-            if (state == State.STOPPED || forceCleanupStarted) {
+            if (
+                expectedOwner != null &&
+                (shutdownOwner !== expectedOwner || state != State.STOPPING)
+            ) {
+                null
+            } else if (state == State.STOPPED || forceCleanupStarted) {
                 null
             } else {
+                triggeringFailure?.let(::recordFailure)
                 forceCleanupStarted = true
                 state = State.FORCE_STOPPING
                 gracefulOwner = shutdownOwner
@@ -338,10 +354,13 @@ class WowRuntime private constructor(
                 }
             }
         }
-        runtimeContext.forceClose()
         if (forceOwner == null) {
+            if (expectedOwner == null) {
+                runtimeContext.forceClose()
+            }
             return
         }
+        runtimeContext.forceClose()
         gracefulOwner?.dispatchCancellation()
         val forceFailure = componentGroup.forceStop()
         forceFailure?.let(::recordFailure)
@@ -385,21 +404,12 @@ class WowRuntime private constructor(
             return
         }
         val deadlineAction = {
-            val deadlineReached = synchronized(lifecycleMonitor) {
-                if (shutdownOwner !== owner || state != State.STOPPING) {
-                    false
-                } else {
-                    recordFailure(
-                        TimeoutException(
-                            "WowRuntime shutdown timed out after $shutdownTimeout."
-                        )
-                    )
-                    true
-                }
-            }
-            if (deadlineReached) {
-                forceStop()
-            }
+            forceStop(
+                expectedOwner = owner,
+                triggeringFailure = TimeoutException(
+                    "WowRuntime shutdown timed out after $shutdownTimeout."
+                ),
+            )
         }
         val deadlineTask = try {
             shutdownDeadlineScheduler.schedule(
@@ -409,17 +419,10 @@ class WowRuntime private constructor(
             )
         } catch (schedulingFailure: Throwable) {
             Exceptions.throwIfFatal(schedulingFailure)
-            val forceRequired = synchronized(lifecycleMonitor) {
-                if (shutdownOwner !== owner || state != State.STOPPING) {
-                    false
-                } else {
-                    recordFailure(schedulingFailure)
-                    true
-                }
-            }
-            if (forceRequired) {
-                forceStop()
-            }
+            forceStop(
+                expectedOwner = owner,
+                triggeringFailure = schedulingFailure,
+            )
             return
         }
         owner.attachDeadline(deadlineTask)
@@ -510,6 +513,9 @@ class WowRuntime private constructor(
     private fun cleanupAfterStartFailure(owner: ShutdownOwner): Throwable? {
         scheduleShutdownDeadline(owner)
         subscribeShutdown(owner)
+        if (Schedulers.isInNonBlockingThread()) {
+            return null
+        }
         return try {
             rawTerminationSignal.toFuture().join()
             null
