@@ -49,6 +49,10 @@ reverse order under one global deadline. During graceful shutdown it waits for a
 quiet period, closes intake, drains admitted asynchronous work, and force-stops remaining
 components when the deadline expires.
 
+Fatal component failures bypass the quiet-period admission window: the runtime closes
+intake immediately, drains only work that was already admitted, and then starts component
+cleanup.
+
 This is an intentional source and behavior breaking change:
 
 - `MessageDispatcher` now implements `RuntimeComponent`; direct lifecycle methods and

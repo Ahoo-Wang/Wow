@@ -31,6 +31,7 @@ internal class DefaultRuntimeContext(
     private enum class AdmissionState {
         OPEN,
         QUIESCING,
+        DRAINING,
         CLOSED,
     }
 
@@ -58,12 +59,16 @@ internal class DefaultRuntimeContext(
 
     override val isAdmissionClosed: Boolean
         get() = synchronized(monitor) {
-            admissionState == AdmissionState.CLOSED
+            admissionState == AdmissionState.DRAINING ||
+                admissionState == AdmissionState.CLOSED
         }
 
     override fun tryAcquire(): RuntimeActivity? {
         synchronized(monitor) {
-            if (admissionState == AdmissionState.CLOSED) {
+            if (
+                admissionState == AdmissionState.DRAINING ||
+                admissionState == AdmissionState.CLOSED
+            ) {
                 return null
             }
             activeOperations++
@@ -76,7 +81,10 @@ internal class DefaultRuntimeContext(
 
     override fun onAdmissionClose(action: () -> Unit) {
         val runImmediately = synchronized(monitor) {
-            if (admissionState == AdmissionState.CLOSED) {
+            if (
+                admissionState == AdmissionState.DRAINING ||
+                admissionState == AdmissionState.CLOSED
+            ) {
                 true
             } else {
                 admissionCloseActions += action
@@ -95,18 +103,48 @@ internal class DefaultRuntimeContext(
     }
 
     fun beginQuiescence(onQuiet: () -> Unit) {
-        val schedule = synchronized(monitor) {
-            if (admissionState != AdmissionState.OPEN) {
-                false
-            } else {
-                admissionState = AdmissionState.QUIESCING
-                this.onQuiet = onQuiet
-                activeOperations == 0L
+        val transition = synchronized(monitor) {
+            when (admissionState) {
+                AdmissionState.OPEN -> {
+                    admissionState = AdmissionState.QUIESCING
+                    this.onQuiet = onQuiet
+                    QuiescenceTransition(scheduleQuietBoundary = activeOperations == 0L)
+                }
+
+                AdmissionState.DRAINING -> {
+                    this.onQuiet = onQuiet
+                    QuiescenceTransition(completion = completeDrainIfReady())
+                }
+
+                AdmissionState.QUIESCING,
+                AdmissionState.CLOSED,
+                -> QuiescenceTransition()
             }
         }
-        if (schedule) {
+        if (transition.scheduleQuietBoundary) {
             scheduleQuietBoundary()
         }
+        transition.completion?.invoke()
+    }
+
+    fun closeAdmissionAndDrain() {
+        val close = synchronized(monitor) {
+            if (
+                admissionState == AdmissionState.DRAINING ||
+                admissionState == AdmissionState.CLOSED
+            ) {
+                return
+            }
+            admissionState = AdmissionState.DRAINING
+            quietGeneration++
+            quietTask?.dispose()
+            quietTask = null
+            val actions = admissionCloseActions.toList()
+            admissionCloseActions.clear()
+            AdmissionClose(actions, completeDrainIfReady())
+        }
+        close.actions.forEach(::runAdmissionCloseAction)
+        close.onQuiet?.invoke()
     }
 
     fun forceClose() {
@@ -118,6 +156,7 @@ internal class DefaultRuntimeContext(
             quietGeneration++
             quietTask?.dispose()
             quietTask = null
+            onQuiet = null
             admissionCloseActions.toList().also {
                 admissionCloseActions.clear()
             }
@@ -126,16 +165,25 @@ internal class DefaultRuntimeContext(
     }
 
     private fun release() {
-        val schedule = synchronized(monitor) {
+        val transition = synchronized(monitor) {
             check(activeOperations > 0) {
                 "Runtime activity counter underflow."
             }
             activeOperations--
-            admissionState == AdmissionState.QUIESCING && activeOperations == 0L
+            when {
+                admissionState == AdmissionState.QUIESCING && activeOperations == 0L ->
+                    QuiescenceTransition(scheduleQuietBoundary = true)
+
+                admissionState == AdmissionState.DRAINING ->
+                    QuiescenceTransition(completion = completeDrainIfReady())
+
+                else -> QuiescenceTransition()
+            }
         }
-        if (schedule) {
+        if (transition.scheduleQuietBoundary) {
             scheduleQuietBoundary()
         }
+        transition.completion?.invoke()
     }
 
     private fun scheduleQuietBoundary() {
@@ -177,10 +225,25 @@ internal class DefaultRuntimeContext(
             quietTask = null
             val actions = admissionCloseActions.toList()
             admissionCloseActions.clear()
-            AdmissionClose(actions, onQuiet)
+            val completion = onQuiet
+            onQuiet = null
+            AdmissionClose(actions, completion)
         }
         close.actions.forEach(::runAdmissionCloseAction)
         close.onQuiet?.invoke()
+    }
+
+    private fun completeDrainIfReady(): (() -> Unit)? {
+        if (
+            admissionState != AdmissionState.DRAINING ||
+            activeOperations != 0L
+        ) {
+            return null
+        }
+        val completion = onQuiet ?: return null
+        admissionState = AdmissionState.CLOSED
+        onQuiet = null
+        return completion
     }
 
     @Suppress("TooGenericExceptionCaught")
@@ -196,6 +259,11 @@ internal class DefaultRuntimeContext(
     private data class AdmissionClose(
         val actions: List<() -> Unit>,
         val onQuiet: (() -> Unit)?,
+    )
+
+    private data class QuiescenceTransition(
+        val scheduleQuietBoundary: Boolean = false,
+        val completion: (() -> Unit)? = null,
     )
 
     private class ActivityLease(

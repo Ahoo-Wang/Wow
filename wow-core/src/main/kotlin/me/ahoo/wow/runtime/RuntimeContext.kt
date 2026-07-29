@@ -45,6 +45,9 @@ interface RuntimeContext {
 
     /**
      * Reports a fatal component failure to the complete runtime.
+     *
+     * Reporting a failure closes global admission immediately. Operations that
+     * were already admitted are allowed to drain before component cleanup starts.
      */
     fun reportFailure(error: Throwable)
 }

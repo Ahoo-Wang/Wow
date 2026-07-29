@@ -379,6 +379,74 @@ class WowRuntimeTest {
     }
 
     @Test
+    fun `reported component failure closes admission immediately and drains admitted activity`() {
+        val calls = CopyOnWriteArrayList<String>()
+        val component = RecordingComponent("component", calls)
+        val runtime = WowRuntime(
+            components = listOf(component),
+            shutdownTimeout = Duration.ofSeconds(2),
+            shutdownQuietPeriod = Duration.ofSeconds(1),
+        )
+        val failure = IllegalStateException("pipeline failed")
+        val admissionClosed = AtomicBoolean()
+        StepVerifier.create(runtime.start()).verifyComplete()
+        val admittedActivity = checkNotNull(component.runtimeContext.tryAcquire())
+        component.runtimeContext.onAdmissionClose {
+            admissionClosed.set(true)
+        }
+
+        component.runtimeContext.reportFailure(failure)
+
+        component.runtimeContext.isAdmissionClosed.assert().isTrue()
+        admissionClosed.get().assert().isTrue()
+        component.runtimeContext.tryAcquire().assert().isNull()
+        val lateAdmissionClose = AtomicBoolean()
+        component.runtimeContext.onAdmissionClose {
+            lateAdmissionClose.set(true)
+        }
+        lateAdmissionClose.get().assert().isTrue()
+        calls.assert().doesNotContain("stop:component")
+
+        admittedActivity.close()
+
+        StepVerifier.create(runtime.terminationSignal)
+            .expectErrorSatisfies { error ->
+                error.assert().isSameAs(failure)
+            }
+            .verify(Duration.ofSeconds(1))
+        calls.assert().contains("stop:component")
+    }
+
+    @Test
+    fun `reported component failure escalates graceful quiescence without waiting for quiet period`() {
+        val calls = CopyOnWriteArrayList<String>()
+        val component = RecordingComponent("component", calls)
+        val runtime = WowRuntime(
+            components = listOf(component),
+            shutdownTimeout = Duration.ofSeconds(10),
+            shutdownQuietPeriod = Duration.ofSeconds(5),
+        )
+        val failure = IllegalStateException("pipeline failed")
+        StepVerifier.create(runtime.start()).verifyComplete()
+        val admittedActivity = checkNotNull(component.runtimeContext.tryAcquire())
+        val stopFuture = runtime.stopGracefully().toFuture()
+
+        component.runtimeContext.reportFailure(failure)
+
+        component.runtimeContext.isAdmissionClosed.assert().isTrue()
+        component.runtimeContext.tryAcquire().assert().isNull()
+        stopFuture.isDone.assert().isFalse()
+        admittedActivity.close()
+
+        StepVerifier.create(runtime.terminationSignal)
+            .expectErrorSatisfies { error ->
+                error.assert().isSameAs(failure)
+            }
+            .verify(Duration.ofSeconds(1))
+        calls.assert().contains("stop:component")
+    }
+
+    @Test
     fun `reported component failures preserve the first and suppress the rest`() {
         val calls = CopyOnWriteArrayList<String>()
         val component = RecordingComponent("component", calls)

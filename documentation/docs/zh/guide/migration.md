@@ -47,6 +47,9 @@ implementation("me.ahoo.wow:wow-spring-boot-starter:新版本号")
 按配置顺序启动，并在同一个全局期限内逆序停机。优雅停机时，运行时先等待全局静默期，再关闭接入、
 排空已接纳的异步任务；超过期限后强制停止剩余组件。
 
+组件发生致命故障时不再等待静默期接入窗口：运行时会立即关闭接入，仅排空已经接纳的任务，
+然后开始清理组件。
+
 这是有意的源码与行为破坏性变更：
 
 - `MessageDispatcher` 现在实现 `RuntimeComponent`；不再提供独立生命周期和 `AutoCloseable` 所有权。

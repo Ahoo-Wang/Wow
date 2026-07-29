@@ -368,6 +368,7 @@ class WowRuntime internal constructor(
 
     private fun handleRuntimeFailure(error: Throwable) {
         failures.record(error)
+        runtimeContext.closeAdmissionAndDrain()
         requestStop()
     }
 
