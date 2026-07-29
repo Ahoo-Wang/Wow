@@ -13,9 +13,6 @@
 
 package me.ahoo.wow.runtime.internal
 
-import me.ahoo.wow.infra.lifecycle.TerminalSignal
-import me.ahoo.wow.infra.lifecycle.TerminalSignalDispatcher
-import me.ahoo.wow.infra.lifecycle.newTerminalSignalDispatcher
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 

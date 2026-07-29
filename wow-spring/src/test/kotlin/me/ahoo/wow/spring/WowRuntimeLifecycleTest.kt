@@ -24,6 +24,7 @@ import reactor.core.publisher.Sinks
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
@@ -132,6 +133,10 @@ class WowRuntimeLifecycleTest {
         lifecycle.stop(stopped::countDown)
         lifecycle.stop(duplicateStop::countDown)
         lifecycle.isRunning.assert().isTrue()
+        component.stopEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
+        component.calls.assert().containsExactly("quiesce", "stop")
+        component.quiesceCount.get().assert().isOne()
+        component.stopCount.get().assert().isOne()
         stopped.await(100, TimeUnit.MILLISECONDS).assert().isFalse()
         duplicateStop.await(100, TimeUnit.MILLISECONDS).assert().isFalse()
 
@@ -148,6 +153,8 @@ class WowRuntimeLifecycleTest {
             stoppedAfterTermination.set(true)
         }
         stoppedAfterTermination.get().assert().isTrue()
+        component.quiesceCount.get().assert().isOne()
+        component.stopCount.get().assert().isOne()
     }
 
     @Test
@@ -350,14 +357,28 @@ class WowRuntimeLifecycleTest {
     private class RecordingLifecycle(
         private val stopGate: Sinks.Empty<Void>,
     ) : RuntimeComponent {
+        val calls = CopyOnWriteArrayList<String>()
         val startCount = AtomicInteger()
+        val quiesceCount = AtomicInteger()
+        val stopCount = AtomicInteger()
+        val stopEntered = CountDownLatch(1)
         override fun prepare(runtimeContext: RuntimeContext) = Unit
 
         override fun start() {
             startCount.incrementAndGet()
         }
 
-        override fun stopGracefully(): Mono<Void> = stopGate.asMono()
+        override fun quiesce() {
+            quiesceCount.incrementAndGet()
+            calls += "quiesce"
+        }
+
+        override fun stopGracefully(): Mono<Void> {
+            stopCount.incrementAndGet()
+            calls += "stop"
+            stopEntered.countDown()
+            return stopGate.asMono()
+        }
 
         override fun forceStop() {
             stopGate.tryEmitEmpty().orThrow()

@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.runtime.internal
 
-import me.ahoo.wow.infra.lifecycle.addSuppressedIfAbsent
 import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.RuntimeContext
 import reactor.core.Exceptions
@@ -51,19 +50,28 @@ internal class RuntimeComponentGroup(
         afterEach: () -> Unit = {},
     ): Boolean {
         slots.forEach { slot ->
-            var preparationAdmitted = false
-            val admitted = admissionGate {
-                preparationAdmitted = beginPreparation(slot)
-                preparationAdmitted
-            }
-            if (!admitted) {
+            if (!admissionGate { beginPreparation(slot) }) {
                 return false
             }
-            check(preparationAdmitted)
             invokeLifecycleAction(slot) {
                 slot.component.prepare(runtimeContext)
             }
             afterEach()
+        }
+        return true
+    }
+
+    /**
+     * Closes component intake in registration order after global admission closes.
+     */
+    fun quiesce(
+        shouldQuiesce: () -> Boolean = { true },
+    ): Boolean {
+        preparedSnapshot().forEach { slot ->
+            if (!shouldQuiesce() || !beginLifecycleAction(slot)) {
+                return false
+            }
+            invokeLifecycleAction(slot, slot.component::quiesce)
         }
         return true
     }
@@ -200,13 +208,12 @@ internal class RuntimeComponentGroup(
         }
 
     @Suppress("TooGenericExceptionCaught")
-    private fun <T> invokeLifecycleAction(
+    private fun invokeLifecycleAction(
         slot: RuntimeComponentSlot,
-        action: () -> T,
-    ): T {
-        var result: T? = null
+        action: () -> Unit,
+    ) {
         val actionFailure = try {
-            result = action()
+            action()
             null
         } catch (error: Throwable) {
             Exceptions.throwIfFatal(error)
@@ -220,8 +227,6 @@ internal class RuntimeComponentGroup(
         if (compensationFailure != null) {
             throw compensationFailure
         }
-        @Suppress("UNCHECKED_CAST")
-        return result as T
     }
 
     private companion object {

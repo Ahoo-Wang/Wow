@@ -19,89 +19,9 @@ import reactor.kotlin.test.test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 class BatchRequestTest {
-
-    @Test
-    fun `force detach helps admission release after cancel transition`() {
-        val admission = BlockingRelease()
-        val queue = ImmediateRelease()
-        val request = request(admission::release, queue::release)
-        val executor = Executors.newSingleThreadExecutor()
-
-        try {
-            val cancellation = executor.submit(request::cancel)
-            admission.firstInvocationEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
-
-            request.forceDetach(IllegalStateException("forced")).assert().isNull()
-
-            admission.owned.get().assert().isFalse()
-            queue.owned.get().assert().isFalse()
-            admission.actualReleases.get().assert().isOne()
-            queue.actualReleases.get().assert().isOne()
-            admission.releaseFirstInvocation.countDown()
-            cancellation.get(1, TimeUnit.SECONDS)
-        } finally {
-            admission.releaseFirstInvocation.countDown()
-            executor.shutdownNow()
-        }
-    }
-
-    @Test
-    fun `force detach helps queue release after claim transition`() {
-        val admission = ImmediateRelease()
-        val queue = BlockingRelease()
-        val request = request(admission::release, queue::release)
-        val executor = Executors.newSingleThreadExecutor()
-
-        try {
-            val claim = executor.submit<Boolean>(request::claim)
-            queue.firstInvocationEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
-
-            val forcedSignal = request.forceDetach(IllegalStateException("forced"))
-
-            forcedSignal.assert().isNotNull()
-            admission.owned.get().assert().isFalse()
-            queue.owned.get().assert().isFalse()
-            admission.actualReleases.get().assert().isOne()
-            queue.actualReleases.get().assert().isOne()
-            queue.releaseFirstInvocation.countDown()
-            claim.get(1, TimeUnit.SECONDS).assert().isTrue()
-        } finally {
-            queue.releaseFirstInvocation.countDown()
-            executor.shutdownNow()
-        }
-    }
-
-    @Test
-    fun `force detach helps ownership release after settled signal transition`() {
-        val admission = BlockingRelease()
-        val queue = ImmediateRelease()
-        val request = request(admission::release, queue::release)
-        request.claim().assert().isTrue()
-        request.settle(BatchItemResult.Success)
-        val executor = Executors.newSingleThreadExecutor()
-
-        try {
-            val signal = executor.submit(request::signalSettled)
-            admission.firstInvocationEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
-
-            request.forceDetach(IllegalStateException("forced")).assert().isNull()
-
-            admission.owned.get().assert().isFalse()
-            queue.owned.get().assert().isFalse()
-            admission.actualReleases.get().assert().isOne()
-            queue.actualReleases.get().assert().isOne()
-            admission.releaseFirstInvocation.countDown()
-            signal.get(1, TimeUnit.SECONDS)
-        } finally {
-            admission.releaseFirstInvocation.countDown()
-            executor.shutdownNow()
-        }
-    }
-
     @Test
     fun `successful request transitions should be idempotent`() {
         val fixture = fixture()
@@ -195,77 +115,6 @@ class BatchRequestTest {
     }
 
     @Test
-    fun `force detach should release capacity before notifying a subscriber`() {
-        val fixture = fixture()
-        val failure = IllegalStateException("forced")
-
-        fixture.request.claim().assert().isTrue()
-        val signal = fixture.request.forceDetach(failure)
-        signal.assert().isNotNull()
-
-        fixture.admissionReleases.get().assert().isEqualTo(1)
-        fixture.queueReleases.get().assert().isEqualTo(1)
-        fixture.request.claim().assert().isFalse()
-        fixture.request.result.asMono()
-            .test()
-            .then { signal!!.invoke() }
-            .expectErrorMatches { it === failure }
-            .verify()
-        fixture.admissionReleases.get().assert().isEqualTo(1)
-    }
-
-    @Test
-    fun `force detach should preserve an already settled outcome`() {
-        val fixture = fixture()
-
-        fixture.request.claim().assert().isTrue()
-        fixture.request.settle(BatchItemResult.Success)
-        val signal = fixture.request.forceDetach(IllegalStateException("late"))
-
-        fixture.request.result.asMono()
-            .test()
-            .then { signal!!.invoke() }
-            .verifyComplete()
-        fixture.admissionReleases.get().assert().isEqualTo(1)
-        fixture.queueReleases.get().assert().isEqualTo(1)
-    }
-
-    @Test
-    fun `close timeout detach should leave settled result on its accepted dispatch path`() {
-        val fixture = fixture()
-
-        fixture.request.claim().assert().isTrue()
-        fixture.request.settle(BatchItemResult.Success)
-
-        fixture.request.forceDetachIfUnsettled(IllegalStateException("late"))
-            .assert()
-            .isNull()
-        fixture.admissionReleases.get().assert().isZero()
-        fixture.queueReleases.get().assert().isEqualTo(1)
-
-        fixture.request.signalSettled()
-
-        fixture.request.result.asMono()
-            .test()
-            .verifyComplete()
-        fixture.admissionReleases.get().assert().isEqualTo(1)
-        fixture.queueReleases.get().assert().isEqualTo(1)
-    }
-
-    @Test
-    fun `force detach should discard a cancelled queued request`() {
-        val fixture = fixture()
-
-        fixture.request.cancel()
-        fixture.request.forceDetach(IllegalStateException("ignored"))
-            .assert()
-            .isNull()
-
-        fixture.admissionReleases.get().assert().isEqualTo(1)
-        fixture.queueReleases.get().assert().isEqualTo(1)
-    }
-
-    @Test
     fun `claim racing terminal failure should release each capacity once`() {
         val executor = Executors.newFixedThreadPool(2)
         try {
@@ -298,65 +147,22 @@ class BatchRequestTest {
     private fun fixture(): RequestFixture {
         val admissionReleases = AtomicInteger()
         val queueReleases = AtomicInteger()
-        val admissionOwned = AtomicBoolean(true)
-        val queueOwned = AtomicBoolean(true)
         return RequestFixture(
             request = BatchRequest(
                 value = 1,
                 onReleaseAdmission = {
-                    if (admissionOwned.compareAndSet(true, false)) {
-                        admissionReleases.incrementAndGet()
-                    }
+                    admissionReleases.incrementAndGet()
                 },
-                onReleaseQueueSlot = {
-                    if (queueOwned.compareAndSet(true, false)) {
-                        queueReleases.incrementAndGet()
-                    }
-                },
+                onReleaseQueueSlot = queueReleases::incrementAndGet,
             ),
             admissionReleases = admissionReleases,
             queueReleases = queueReleases,
         )
     }
 
-    private fun request(
-        releaseAdmission: () -> Unit,
-        releaseQueue: () -> Unit,
-    ): BatchRequest<Int> =
-        BatchRequest(
-            value = 1,
-            onReleaseAdmission = { releaseAdmission() },
-            onReleaseQueueSlot = { releaseQueue() },
-        )
-
     private data class RequestFixture(
         val request: BatchRequest<Int>,
         val admissionReleases: AtomicInteger,
         val queueReleases: AtomicInteger,
     )
-
-    private open class ImmediateRelease {
-        val owned = AtomicBoolean(true)
-        val actualReleases = AtomicInteger()
-
-        open fun release() {
-            if (owned.compareAndSet(true, false)) {
-                actualReleases.incrementAndGet()
-            }
-        }
-    }
-
-    private class BlockingRelease : ImmediateRelease() {
-        val firstInvocationEntered = CountDownLatch(1)
-        val releaseFirstInvocation = CountDownLatch(1)
-        private val invocations = AtomicInteger()
-
-        override fun release() {
-            if (invocations.incrementAndGet() == 1) {
-                firstInvocationEntered.countDown()
-                releaseFirstInvocation.await()
-            }
-            super.release()
-        }
-    }
 }

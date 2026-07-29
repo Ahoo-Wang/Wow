@@ -168,30 +168,23 @@ open class CompositeEventDispatcher(
             return
         }
         group.prepare(runtimeContext)
-        if (!forceStopRequested.get()) {
-            prepareManaged(runtimeContext)
-        }
     }
-
-    /**
-     * Adds component-specific preparation after both guarded child dispatchers.
-     */
-    protected open fun prepareManaged(@Suppress("UNUSED_PARAMETER") runtimeContext: RuntimeContext) = Unit
 
     final override fun start() {
         if (forceStopRequested.get()) {
             return
         }
-        if (eventComponentGroupSnapshot()?.start() == false || forceStopRequested.get()) {
-            return
-        }
-        startManaged()
+        eventComponentGroupSnapshot()?.start()
     }
 
-    /**
-     * Adds component-specific work after both child dispatchers start.
-     */
-    protected open fun startManaged() = Unit
+    final override fun quiesce() {
+        if (forceStopRequested.get()) {
+            return
+        }
+        eventComponentGroupSnapshot()?.quiesce {
+            !forceStopRequested.get()
+        }
+    }
 
     /**
      * Stops the composite event dispatcher gracefully by stopping both the event stream dispatcher and state event dispatcher.
@@ -210,18 +203,10 @@ open class CompositeEventDispatcher(
                         )
                     }
                 }
-                add(::stopManagedGracefullyIfAllowed)
                 add(::stopSchedulerGracefullyIfAllowed)
             },
             ::reportRuntimeFailure,
         )
-
-    private fun stopManagedGracefullyIfAllowed(): Mono<Void> =
-        if (forceStopRequested.get()) {
-            Mono.empty()
-        } else {
-            stopManagedGracefully()
-        }
 
     private fun stopSchedulerGracefullyIfAllowed(): Mono<Void> =
         if (forceStopRequested.get()) {
@@ -229,11 +214,6 @@ open class CompositeEventDispatcher(
         } else {
             schedulerSupplier.stopGracefully()
         }
-
-    /**
-     * Adds component-specific graceful cleanup before the shared scheduler stops.
-     */
-    protected open fun stopManagedGracefully(): Mono<Void> = Mono.empty()
 
     final override fun forceStop() {
         forceStopRequested.set(true)
@@ -244,17 +224,11 @@ open class CompositeEventDispatcher(
                         group.forceStop()?.let { throw it }
                     }
                 }
-                add(::forceStopManaged)
                 add(schedulerSupplier::forceStop)
             },
             ::reportRuntimeFailure,
         )?.let { throw it }
     }
-
-    /**
-     * Adds component-specific prompt cleanup before the shared scheduler stops.
-     */
-    protected open fun forceStopManaged() = Unit
 
     private fun reportRuntimeFailure(error: Throwable) {
         runtimeContext?.reportFailure(error)

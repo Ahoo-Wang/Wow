@@ -36,45 +36,6 @@ import java.util.concurrent.atomic.AtomicInteger
 class MainDispatcherTest {
 
     @Test
-    fun `empty dispatcher still runs managed start hook`() {
-        val startCount = AtomicInteger()
-        val dispatcher = object : MainDispatcher<String>() {
-            override val name: String = "empty-main"
-            override val namedAggregates: Set<NamedAggregate> = emptySet()
-
-            override fun receiveMessage(subscription: MessageSubscription): Flux<String> =
-                Flux.empty()
-
-            override fun newAggregateDispatcher(
-                namedAggregate: NamedAggregate,
-                messageFlux: Flux<String>,
-            ): MessageDispatcher = error("No aggregate dispatcher is expected.")
-
-            override fun startManaged() {
-                startCount.incrementAndGet()
-            }
-        }
-
-        prepareAndStart(dispatcher)
-
-        startCount.get().assert().isOne()
-        StepVerifier.create(dispatcher.stopGracefully()).verifyComplete()
-    }
-
-    @Test
-    fun `stopGracefully before start does not initialize aggregate dispatchers`() {
-        val dispatcher = RecordingMainDispatcher()
-
-        StepVerifier.create(dispatcher.stopGracefully())
-            .verifyComplete()
-        tryStartAfterTerminalStop(dispatcher)
-
-        dispatcher.receiveCount.get().assert().isEqualTo(0)
-        dispatcher.createCount.get().assert().isEqualTo(0)
-        dispatcher.childStopCount.get().assert().isEqualTo(0)
-    }
-
-    @Test
     fun `forceStop before start remains terminal`() {
         val dispatcher = RecordingMainDispatcher()
 
@@ -98,6 +59,7 @@ class MainDispatcherTest {
         dispatcher.receiveCount.get().assert().isEqualTo(2)
         dispatcher.createCount.get().assert().isEqualTo(2)
 
+        dispatcher.quiesce()
         StepVerifier.create(dispatcher.stopGracefully())
             .verifyComplete()
         dispatcher.childStopCount.get().assert().isEqualTo(2)
@@ -114,6 +76,8 @@ class MainDispatcherTest {
 
         dispatcher.childIntakeCloseCalls.assert().hasSize(2)
         dispatcher.closedIntakeCountsObservedByStop.assert().containsExactly(2, 2)
+        dispatcher.managedStopCount.get().assert().isOne()
+        dispatcher.closedIntakeCountObservedByManagedStop.get().assert().isEqualTo(2)
     }
 
     @Test
@@ -191,6 +155,7 @@ class MainDispatcherTest {
         )
         dispatcher.prepare(DefaultRuntimeContext())
         dispatcher.start()
+        dispatcher.quiesce()
         val gracefulStop = dispatcher.stopGracefully().toFuture()
 
         stopEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
@@ -237,6 +202,7 @@ class MainDispatcherTest {
         val childForceCalls = mutableListOf<String>()
         val childIntakeCloseCalls = mutableListOf<String>()
         val closedIntakeCountsObservedByStop = mutableListOf<Int>()
+        val closedIntakeCountObservedByManagedStop = AtomicInteger(-1)
         val receiverGroups: Sinks.Many<String> = Sinks.many().replay().all()
         private var childRuntimeContext: RuntimeContext? = null
 
@@ -260,9 +226,6 @@ class MainDispatcherTest {
                 override val name: String = "child-${namedAggregate.aggregateName}"
                 override fun prepare(runtimeContext: RuntimeContext) {
                     childRuntimeContext = runtimeContext
-                    runtimeContext.onAdmissionClose {
-                        childIntakeCloseCalls += name
-                    }
                 }
 
                 override fun start() {
@@ -270,6 +233,10 @@ class MainDispatcherTest {
                     messageFlux.subscribe {
                         receiverGroups.tryEmitNext(it).orThrow()
                     }
+                }
+
+                override fun quiesce() {
+                    childIntakeCloseCalls += name
                 }
 
                 override fun stopGracefully(): Mono<Void> =
@@ -290,7 +257,10 @@ class MainDispatcherTest {
         }
 
         override fun stopManagedGracefully(): Mono<Void> =
-            Mono.fromRunnable(managedStopCount::incrementAndGet)
+            Mono.fromRunnable {
+                closedIntakeCountObservedByManagedStop.set(childIntakeCloseCalls.size)
+                managedStopCount.incrementAndGet()
+            }
 
         fun reportFailure(error: Throwable) {
             checkNotNull(childRuntimeContext).reportFailure(error)

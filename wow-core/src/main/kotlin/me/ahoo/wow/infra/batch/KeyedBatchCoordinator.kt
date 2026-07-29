@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.infra.batch
 
-import me.ahoo.wow.infra.lifecycle.ForceStoppable
 import me.ahoo.wow.infra.lifecycle.GracefullyStoppable
 import reactor.core.publisher.Mono
 import java.time.Duration
@@ -41,8 +40,7 @@ class KeyedBatchCoordinator<T : Any, K : Any>(
     val laneCount: Int,
     private val keySelector: (T) -> K,
     writer: BatchWriter<T>,
-) : GracefullyStoppable,
-    ForceStoppable {
+) : GracefullyStoppable {
     init {
         require(laneCount > 0) {
             "laneCount must be greater than zero."
@@ -68,11 +66,7 @@ class KeyedBatchCoordinator<T : Any, K : Any>(
 
     override fun stopGracefully(): Mono<Void> = delegate.stopGracefully()
 
-    override fun forceStop() = delegate.forceStop()
-
     override fun close() = delegate.close()
-
-    override fun stop(timeout: Duration) = delegate.stop(timeout)
 
     fun close(timeout: Duration) = delegate.close(timeout)
 }

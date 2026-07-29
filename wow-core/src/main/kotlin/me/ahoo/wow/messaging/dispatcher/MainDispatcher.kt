@@ -165,14 +165,12 @@ abstract class MainDispatcher<T : Any> :
             "[$name] Dispatcher can only be prepared once."
         }
         this.runtimeContext = runtimeContext
-        if (prepareAggregateDispatchers(runtimeContext) && !forceStopRequested.get()) {
-            prepareManaged(runtimeContext)
-        }
+        prepareAggregateDispatchers(runtimeContext)
     }
 
-    private fun prepareAggregateDispatchers(runtimeContext: RuntimeContext): Boolean {
+    private fun prepareAggregateDispatchers(runtimeContext: RuntimeContext) {
         if (namedAggregates.isEmpty()) {
-            return !forceStopRequested.get()
+            return
         }
         val dispatchers = aggregateDispatchers
         val group = RuntimeComponentGroup(
@@ -192,15 +190,10 @@ abstract class MainDispatcher<T : Any> :
         }
         if (!accepted) {
             group.forceStop()?.let { throw it }
-            return false
+            return
         }
-        return group.prepare(runtimeContext)
+        group.prepare(runtimeContext)
     }
-
-    /**
-     * Adds component-specific preparation after every child dispatcher is prepared.
-     */
-    protected open fun prepareManaged(@Suppress("UNUSED_PARAMETER") runtimeContext: RuntimeContext) = Unit
 
     final override fun start() {
         if (forceStopRequested.get()) {
@@ -214,20 +207,18 @@ abstract class MainDispatcher<T : Any> :
                 "No aggregate dispatchers to start because namedAggregates is empty.".withNamePrefix()
             }
         } else {
-            if (aggregateComponentGroupSnapshot()?.start() == false) {
-                return
-            }
+            aggregateComponentGroupSnapshot()?.start()
         }
+    }
+
+    final override fun quiesce() {
         if (forceStopRequested.get()) {
             return
         }
-        startManaged()
+        aggregateComponentGroupSnapshot()?.quiesce {
+            !forceStopRequested.get()
+        }
     }
-
-    /**
-     * Adds component-specific work after every child dispatcher has started.
-     */
-    protected open fun startManaged() = Unit
 
     /**
      * Stops the dispatcher gracefully by shutting down all aggregate dispatchers.

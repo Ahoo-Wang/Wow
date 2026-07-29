@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.infra.lifecycle
+package me.ahoo.wow.runtime.internal
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test

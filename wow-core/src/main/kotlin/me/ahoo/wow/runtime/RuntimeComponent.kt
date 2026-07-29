@@ -23,10 +23,10 @@ import reactor.core.publisher.Mono
  * failed container refresh can release any accidentally pre-existing resources.
  *
  * [forceStop] may be invoked again when force-stop overlaps a lifecycle action.
- * For [prepare] and [start], compensation follows method return. For
- * [stopGracefully], it follows publisher termination or the return of upstream
- * cancellation. If force-stop wins before that publisher is subscribed, the
- * runtime does not subscribe it.
+ * For [prepare], [start], and [quiesce], compensation follows method return.
+ * For [stopGracefully], it follows publisher termination or the return of
+ * upstream cancellation. If force-stop wins before that publisher is
+ * subscribed, the runtime does not subscribe it.
  *
  * This contract deliberately does not extend [AutoCloseable]. Container
  * integrations must delegate lifecycle exclusively to [WowRuntime] instead of
@@ -36,13 +36,22 @@ interface RuntimeComponent {
     /**
      * Prepares this component without opening message processing.
      *
-     * Components should register intake closure through [RuntimeContext.onAdmissionClose],
-     * track complete asynchronous work with [RuntimeContext.tryAcquire], and report
-     * terminal pipeline errors with [RuntimeContext.reportFailure].
+     * Components should track complete asynchronous work with
+     * [RuntimeContext.tryAcquire] and report terminal pipeline errors with
+     * [RuntimeContext.reportFailure].
      */
     fun prepare(runtimeContext: RuntimeContext)
 
     fun start()
+
+    /**
+     * Stops admitting new work after the runtime has atomically closed global
+     * admission.
+     *
+     * This method must be prompt, non-blocking, and idempotent. Components
+     * without an intake boundary may implement it as a no-op.
+     */
+    fun quiesce() = Unit
 
     fun stopGracefully(): Mono<Void>
 

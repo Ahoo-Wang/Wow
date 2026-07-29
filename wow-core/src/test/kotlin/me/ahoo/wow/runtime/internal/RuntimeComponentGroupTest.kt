@@ -58,7 +58,7 @@ class RuntimeComponentGroupTest {
     }
 
     @Test
-    fun `group provides a readiness barrier and reverse cleanup`() {
+    fun `group provides readiness and quiescence barriers before reverse cleanup`() {
         val calls = mutableListOf<String>()
         val group = RuntimeComponentGroup(
             listOf(
@@ -70,6 +70,7 @@ class RuntimeComponentGroupTest {
 
         group.prepare(DefaultRuntimeContext()).assert().isTrue()
         group.start().assert().isTrue()
+        group.quiesce().assert().isTrue()
         StepVerifier.create(group.stopGracefully()).verifyComplete()
 
         calls.assert().containsExactly(
@@ -77,6 +78,8 @@ class RuntimeComponentGroupTest {
             "prepare:second",
             "start:first",
             "start:second",
+            "quiesce:first",
+            "quiesce:second",
             "stop:second",
             "stop:first",
         )
@@ -97,6 +100,147 @@ class RuntimeComponentGroupTest {
 
         calls.assert().containsExactly("force:second", "force:first")
         group.prepare(DefaultRuntimeContext()).assert().isFalse()
+    }
+
+    @Test
+    fun `force stop prevents a quiesce chain from advancing and compensates overlap`() {
+        val calls = CopyOnWriteArrayList<String>()
+        val quiesceEntered = CountDownLatch(1)
+        val releaseQuiesce = CountDownLatch(1)
+        val first = object : RuntimeComponent {
+            override fun prepare(runtimeContext: RuntimeContext) = Unit
+
+            override fun start() = Unit
+
+            override fun quiesce() {
+                calls += "quiesce:first"
+                quiesceEntered.countDown()
+                releaseQuiesce.await()
+            }
+
+            override fun stopGracefully(): Mono<Void> = Mono.empty()
+
+            override fun forceStop() {
+                calls += "force:first"
+            }
+        }
+        val second = object : RuntimeComponent {
+            override fun prepare(runtimeContext: RuntimeContext) = Unit
+
+            override fun start() = Unit
+
+            override fun quiesce() {
+                calls += "quiesce:second"
+            }
+
+            override fun stopGracefully(): Mono<Void> = Mono.empty()
+
+            override fun forceStop() {
+                calls += "force:second"
+            }
+        }
+        val group = RuntimeComponentGroup(listOf(first, second), reportFailure = {})
+        group.prepare(DefaultRuntimeContext()).assert().isTrue()
+        val executor = Executors.newSingleThreadExecutor()
+        val quiescence = CompletableFuture.supplyAsync({ group.quiesce() }, executor)
+
+        try {
+            quiesceEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
+            group.forceStop()
+            releaseQuiesce.countDown()
+
+            quiescence.get(1, TimeUnit.SECONDS).assert().isFalse()
+            calls.count { it == "force:first" }.assert().isEqualTo(2)
+            calls.count { it == "force:second" }.assert().isEqualTo(1)
+            calls.assert().contains("quiesce:first")
+            calls.assert().doesNotContain("quiesce:second")
+        } finally {
+            releaseQuiesce.countDown()
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `quiesce failure is reported and propagated`() {
+        val failure = IllegalStateException("quiesce")
+        val reportedFailures = mutableListOf<Throwable>()
+        val component = object : RuntimeComponent {
+            override fun prepare(runtimeContext: RuntimeContext) = Unit
+
+            override fun start() = Unit
+
+            override fun quiesce() {
+                throw failure
+            }
+
+            override fun stopGracefully(): Mono<Void> = Mono.empty()
+
+            override fun forceStop() = Unit
+        }
+        val group = RuntimeComponentGroup(listOf(component), reportedFailures::add)
+        group.prepare(DefaultRuntimeContext()).assert().isTrue()
+
+        assertThrows<IllegalStateException> {
+            group.quiesce()
+        }.assert().isSameAs(failure)
+        reportedFailures.assert().containsExactly(failure)
+    }
+
+    @Test
+    fun `quiesce failure remains primary when force compensation fails`() {
+        val quiesceFailure = IllegalStateException("quiesce")
+        val compensationFailure = IllegalArgumentException("compensation")
+        val quiesceEntered = CountDownLatch(1)
+        val releaseQuiesce = CountDownLatch(1)
+        val forceCount = AtomicInteger()
+        val reportedFailures = CopyOnWriteArrayList<Throwable>()
+        val failures = SealableFailureAccumulator()
+        val component = object : RuntimeComponent {
+            override fun prepare(runtimeContext: RuntimeContext) = Unit
+
+            override fun start() = Unit
+
+            override fun quiesce() {
+                quiesceEntered.countDown()
+                releaseQuiesce.await()
+                throw quiesceFailure
+            }
+
+            override fun stopGracefully(): Mono<Void> = Mono.empty()
+
+            override fun forceStop() {
+                if (forceCount.incrementAndGet() == 2) {
+                    throw compensationFailure
+                }
+            }
+        }
+        val group = RuntimeComponentGroup(listOf(component)) { error ->
+            reportedFailures += error
+            failures.record(error)
+        }
+        group.prepare(DefaultRuntimeContext()).assert().isTrue()
+        val executor = Executors.newSingleThreadExecutor()
+        val quiescence = CompletableFuture.supplyAsync(
+            {
+                runCatching(group::quiesce).exceptionOrNull()
+            },
+            executor,
+        )
+
+        try {
+            quiesceEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
+            group.forceStop()
+            releaseQuiesce.countDown()
+
+            val failure = quiescence.get(1, TimeUnit.SECONDS)
+            failure.assert().isSameAs(quiesceFailure)
+            failure!!.suppressedExceptions.assert().containsExactly(compensationFailure)
+            forceCount.get().assert().isEqualTo(2)
+            reportedFailures.assert().containsExactly(quiesceFailure, compensationFailure)
+        } finally {
+            releaseQuiesce.countDown()
+            executor.shutdownNow()
+        }
     }
 
     @Test
@@ -466,6 +610,10 @@ class RuntimeComponentGroupTest {
 
         override fun start() {
             calls += "start:$name"
+        }
+
+        override fun quiesce() {
+            calls += "quiesce:$name"
         }
 
         override fun stopGracefully(): Mono<Void> =

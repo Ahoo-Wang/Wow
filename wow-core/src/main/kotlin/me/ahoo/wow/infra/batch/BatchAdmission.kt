@@ -13,145 +13,53 @@
 
 package me.ahoo.wow.infra.batch
 
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Semaphore
 
 /**
- * Maintains the global bounds and explicit ownership shared by every batch lane.
+ * Maintains the global bounds shared by every batch lane.
  */
 internal class BatchAdmission<T : Any>(
     capacity: Int,
 ) {
     private val availableItems = Semaphore(capacity)
     private val availableQueueSlots = Semaphore(capacity)
-    private val ownershipMonitor = Any()
-    private val reservations = mutableSetOf<Reservation>()
-    private val pending = mutableSetOf<BatchRequest<T>>()
-    private val queued = mutableSetOf<BatchRequest<T>>()
+    private val pending = ConcurrentHashMap.newKeySet<BatchRequest<T>>()
 
     /**
-     * A tracked lease held while user item construction is in progress.
-     *
-     * Failure and shutdown may release the lease before the factory returns.
-     * A later [track] or [release] then becomes an idempotent no-op.
+     * Atomically reserves one live item and one physical queue slot from the
+     * caller's perspective. The semaphores themselves remain independent
+     * because their release times differ after cancellation.
      */
-    inner class Reservation internal constructor() {
-        fun track(value: T): BatchRequest<T>? =
-            this@BatchAdmission.track(this, value)
-
-        fun release() {
-            this@BatchAdmission.release(this)
+    fun tryAcquire(): Boolean {
+        if (!availableItems.tryAcquire()) {
+            return false
         }
+        if (!availableQueueSlots.tryAcquire()) {
+            availableItems.release()
+            return false
+        }
+        return true
     }
 
-    /**
-     * Atomically reserves one live item and one physical queue slot.
-     */
-    fun tryReserve(): Reservation? =
-        synchronized(ownershipMonitor) {
-            if (!availableItems.tryAcquire()) {
-                return@synchronized null
-            }
-            if (!availableQueueSlots.tryAcquire()) {
-                availableItems.release()
-                return@synchronized null
-            }
-            Reservation().also(reservations::add)
-        }
-
-    /**
-     * Transfers a reservation to a queue-owned request. Returns `null` when
-     * shutdown already reclaimed the reservation.
-     */
-    private fun track(
-        reservation: Reservation,
-        value: T,
-    ): BatchRequest<T>? =
-        synchronized(ownershipMonitor) {
-            if (!reservations.remove(reservation)) {
-                return@synchronized null
-            }
-            BatchRequest(
-                value = value,
-                onReleaseAdmission = ::releaseAdmission,
-                onReleaseQueueSlot = ::releaseQueueSlot,
-            ).also { request ->
-                pending += request
-                queued += request
-            }
-        }
-
-    private fun release(reservation: Reservation) {
-        synchronized(ownershipMonitor) {
-            if (reservations.remove(reservation)) {
-                availableQueueSlots.release()
-                availableItems.release()
-            }
-        }
+    fun track(value: T): BatchRequest<T> {
+        return BatchRequest(
+            value = value,
+            onReleaseAdmission = ::releaseAdmission,
+            onReleaseQueueSlot = availableQueueSlots::release,
+        ).also(pending::add)
     }
 
-    /**
-     * Reclaims every factory-stage reservation without waiting for user code.
-     */
-    fun releaseReservations() {
-        synchronized(ownershipMonitor) {
-            if (reservations.isEmpty()) {
-                return
-            }
-            val reservationCount = reservations.size
-            reservations.clear()
-            availableQueueSlots.release(reservationCount)
-            availableItems.release(reservationCount)
-        }
+    fun releaseUntracked() {
+        availableQueueSlots.release()
+        availableItems.release()
     }
 
-    fun pendingSnapshot(): List<BatchRequest<T>> =
-        synchronized(ownershipMonitor) {
-            pending.toList()
-        }
-
-    fun ownedSnapshot(): List<BatchRequest<T>> =
-        synchronized(ownershipMonitor) {
-            buildSet {
-                addAll(pending)
-                addAll(queued)
-            }.toList()
-        }
-
-    fun discardCancelledQueued() {
-        val queuedSnapshot = synchronized(ownershipMonitor) {
-            queued.toList()
-        }
-        queuedSnapshot.forEach(BatchRequest<T>::discardIfCancelled)
-    }
-
-    val pendingCount: Int
-        get() = synchronized(ownershipMonitor) {
-            pending.size
-        }
-
-    val queuedCount: Int
-        get() = synchronized(ownershipMonitor) {
-            queued.size
-        }
-
-    val reservationCount: Int
-        get() = synchronized(ownershipMonitor) {
-            reservations.size
-        }
+    fun pendingSnapshot(): List<BatchRequest<T>> = pending.toList()
 
     private fun releaseAdmission(request: BatchRequest<T>) {
-        synchronized(ownershipMonitor) {
-            if (pending.remove(request)) {
-                availableItems.release()
-            }
-        }
-    }
-
-    private fun releaseQueueSlot(request: BatchRequest<T>) {
-        synchronized(ownershipMonitor) {
-            if (queued.remove(request)) {
-                availableQueueSlots.release()
-            }
+        if (pending.remove(request)) {
+            availableItems.release()
         }
     }
 }

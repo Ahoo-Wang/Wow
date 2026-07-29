@@ -26,10 +26,11 @@ private runtimes.
 - `me.ahoo.wow.runtime` contains the public orchestration model:
   `WowRuntime`, `RuntimeComponent`, `RuntimeContext`, and `RuntimeActivity`.
 - `me.ahoo.wow.runtime.internal` contains state machines, component grouping,
-  deadlines, bounded cleanup execution, and failure accumulation.
+  deadlines, bounded cleanup and terminal-signal delivery, and failure
+  accumulation.
 - `me.ahoo.wow.infra.lifecycle` remains the runtime-independent capability
-  package. Generic `Lifecycle`, `GracefullyStoppable`, `ForceStoppable`, and
-  terminal-signal utilities do not depend on Wow runtime policy.
+  package. Generic `Lifecycle`, `GracefullyStoppable`, and
+  `TerminatedSignalCapable` contracts do not depend on Wow runtime policy.
 - `me.ahoo.wow.spring` contains only Spring integration and component discovery
   helpers. It does not own core runtime state.
 
@@ -52,6 +53,7 @@ The generic lifecycle package is therefore not moved under `runtime`.
 interface RuntimeComponent {
     fun prepare(runtimeContext: RuntimeContext)
     fun start()
+    fun quiesce() = Unit
     fun stopGracefully(): Mono<Void>
     fun forceStop()
 }
@@ -62,10 +64,11 @@ The rules are:
 - Construction is inert.
 - `prepare` acquires subscriptions or resources without opening processing.
 - `start` opens processing only after every component is prepared.
+- `quiesce` promptly and synchronously closes component intake after global
+  admission closes.
 - `stopGracefully` drains accepted work and releases resources.
 - `forceStop` is prompt, non-blocking, idempotent, and safe before `prepare`.
 - Long-lived asynchronous work holds a `RuntimeActivity`.
-- Intake closure is registered through `RuntimeContext.onAdmissionClose`.
 - Fatal component errors are reported through `RuntimeContext.reportFailure`.
 
 `RuntimeComponent` intentionally does not extend `AutoCloseable`. A container
@@ -106,14 +109,16 @@ flowchart LR
   Q --> A["Admit tail work while active"]
   A --> W["Observe one quiet period"]
   W --> C["Atomically close admission"]
-  C --> D["Stop components in reverse order"]
+  C --> X["Quiesce components in registration order"]
+  X --> D["Stop components in reverse order"]
   D --> T["Publish termination"]
   Q -. "shared deadline" .-> F["Force-stop all components"]
 ```
 
 Each new activity restarts `wow.shutdown-quiet-period`. At the quiet boundary,
-admission closes before component cleanup begins. This covers broker handoff
-gaps where upstream publication completes before downstream consumption begins.
+global admission closes before component intake, then cleanup begins. This
+covers broker handoff gaps where upstream publication completes before
+downstream consumption begins.
 
 One `wow.shutdown-timeout` bounds the entire shutdown, including startup
 rollback. Deadline expiry atomically replaces the graceful owner and force-stops
@@ -131,14 +136,15 @@ the trusted termination control channel through
 
 - Component identities must be distinct within one group.
 - Preparation and start follow registration order.
+- Quiescence follows registration order.
 - Graceful and force cleanup follow reverse order.
 - Force-stop covers every registered component, including components not yet
   prepared.
 - Complete lifecycle actions are linearized with force-stop.
-- If force-stop overlaps `prepare` or `start`, the group invokes `forceStop`
-  again after the method returns. If it overlaps `stopGracefully`, the slot
-  remains in flight until the returned publisher terminates or upstream
-  cancellation returns, and compensation runs afterward.
+- If force-stop overlaps `prepare`, `start`, or `quiesce`, the group invokes
+  `forceStop` again after the method returns. If it overlaps
+  `stopGracefully`, the slot remains in flight until the returned publisher
+  terminates or upstream cancellation returns, and compensation runs afterward.
 - If force-stop wins while `stopGracefully` is returning its cold publisher,
   the group does not subscribe that publisher.
 - Once force-stop wins, a detached graceful chain cannot enter a later component
@@ -205,8 +211,10 @@ context instead of stopping and restarting the same runtime.
   prepare their runtime context.
 - `WowRuntime.start()` is cold and must be subscribed; a blocking standalone
   boundary may use `runtime.start().block()`.
-- Customize dispatcher lifecycle through `prepareManaged`, `startManaged`,
-  `stopManagedGracefully`, and `forceStopManaged`.
+- Compose custom lifecycle ownership as a separate `RuntimeComponent` instead
+  of subclassing a dispatcher lifecycle template. `MainDispatcher` retains only
+  the narrow cleanup hooks required by scheduler-owning framework
+  implementations.
 - Keep generic lifecycle-only types under `me.ahoo.wow.infra.lifecycle`; only
   components participating in readiness, global quiescence, and shared failure
   policy belong to `me.ahoo.wow.runtime`.

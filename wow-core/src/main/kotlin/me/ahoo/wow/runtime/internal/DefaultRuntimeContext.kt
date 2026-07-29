@@ -22,9 +22,6 @@ import reactor.core.publisher.Sinks
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import java.time.Duration
-import java.util.concurrent.CopyOnWriteArrayList
-import java.util.concurrent.Executor
-import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
@@ -35,14 +32,13 @@ import java.util.concurrent.atomic.AtomicReference
  *
  * Quiescing continues to admit work while activity is present or while the
  * configured quiet period is still open. Each new operation resets that period.
- * Once the runtime remains idle for the complete period, admission closes and
- * every registered dispatcher intake is stopped before quiescence completes.
+ * Once the runtime remains idle for the complete period, admission closes before
+ * quiescence completes. The owning runtime then quiesces every component.
  */
 internal class DefaultRuntimeContext(
     private val shutdownQuietPeriod: Duration = Duration.ZERO,
     private val scheduler: Scheduler = Schedulers.parallel(),
-    private val closeExecutor: Executor? = null,
-    private val failures: SealableFailureAccumulator = SealableFailureAccumulator(),
+    private val failureHandler: (Throwable) -> Unit = {},
 ) : RuntimeContext {
     companion object {
         private const val QUIESCING_MASK = Long.MIN_VALUE
@@ -62,47 +58,18 @@ internal class DefaultRuntimeContext(
     private val activityVersion = AtomicLong()
     private val quietPeriodTask = AtomicReference<Disposable?>()
     private val quiescentSink = Sinks.empty<Void>()
-    private val failureSink = Sinks.empty<Void>()
-    private val closeActions = CopyOnWriteArrayList<CloseAction>()
-    private val closeMonitor = Any()
-    private val closeActionsStarted = AtomicBoolean()
-    private val forceCloseRequested = AtomicBoolean()
-    private val closeExecutions = mutableSetOf<CloseExecution>()
+    private val quiescenceMonitor = Any()
 
-    override val activeOperationCount: Long
+    internal val activeOperationCount: Long
         get() = state.get() and ACTIVE_MASK
 
-    override val isQuiescing: Boolean
-        get() = state.get() and QUIESCING_MASK != 0L
-
-    override val isAdmissionClosed: Boolean
+    internal val isAdmissionClosed: Boolean
         get() = state.get() and CLOSED_MASK != 0L
-
-    internal val failureSignal: Mono<Void> = failureSink.asMono()
 
     /**
      * Reports a terminal component failure to the owning runtime.
      */
-    override fun reportFailure(error: Throwable) {
-        val recorded = failures.record(error)
-        if (recorded.installed) {
-            failureSink.tryEmitError(error)
-        }
-    }
-
-    /**
-     * Registers an asynchronously dispatched graceful intake-close action.
-     *
-     * Force-close may cancel actions accepted before force was requested;
-     * component force-stop remains responsible for synchronous intake closure.
-     */
-    override fun onAdmissionClose(action: () -> Unit) {
-        val closeAction = CloseAction(action)
-        closeActions += closeAction
-        if (isAdmissionClosed) {
-            dispatchCloseAction(closeAction)
-        }
-    }
+    override fun reportFailure(error: Throwable) = failureHandler(error)
 
     /**
      * Attempts to admit one complete asynchronous operation.
@@ -116,7 +83,7 @@ internal class DefaultRuntimeContext(
                 return null
             }
             if (current and QUIESCING_MASK != 0L) {
-                val acquired = synchronized(closeMonitor) {
+                val acquired = synchronized(quiescenceMonitor) {
                     val observed = state.get()
                     if (observed and CLOSED_MASK != 0L) {
                         false
@@ -186,14 +153,9 @@ internal class DefaultRuntimeContext(
 
     /**
      * Closes admission without waiting for active work or the quiet period.
-     *
-     * The close actions are dispatched exactly once. They deliberately run outside
-     * the caller so a broken intake close action cannot defeat the outer runtime's
-     * force-stop deadline.
      */
     internal fun forceClose() {
-        val executionsToCancel = synchronized(closeMonitor) {
-            forceCloseRequested.set(true)
+        synchronized(quiescenceMonitor) {
             while (true) {
                 val current = state.get()
                 val closed = current or QUIESCING_MASK or CLOSED_MASK
@@ -202,17 +164,13 @@ internal class DefaultRuntimeContext(
                 }
             }
             quietPeriodTask.getAndSet(null)?.dispose()
-            closeExecutions.filterNot(CloseExecution::runWhenForced)
         }
-        executionsToCancel.forEach { execution ->
-            execution.cancel(Thread.currentThread())
-        }
-        dispatchCloseActions()
+        quiescentSink.tryEmitEmpty()
     }
 
     @Suppress("TooGenericExceptionCaught")
     private fun scheduleCloseAfterQuietPeriod() {
-        val expectedActivityVersion = synchronized(closeMonitor) {
+        val expectedActivityVersion = synchronized(quiescenceMonitor) {
             if (state.get() != QUIESCING_MASK) {
                 return
             }
@@ -226,7 +184,7 @@ internal class DefaultRuntimeContext(
             )
         } catch (error: Throwable) {
             Exceptions.throwIfFatal(error)
-            val schedulingAttemptStillCurrent = synchronized(closeMonitor) {
+            val schedulingAttemptStillCurrent = synchronized(quiescenceMonitor) {
                 state.get() == QUIESCING_MASK &&
                     activityVersion.get() == expectedActivityVersion
             }
@@ -236,7 +194,7 @@ internal class DefaultRuntimeContext(
             }
             return
         }
-        val replacedTask = synchronized(closeMonitor) {
+        val replacedTask = synchronized(quiescenceMonitor) {
             if (
                 state.get() == QUIESCING_MASK &&
                 activityVersion.get() == expectedActivityVersion
@@ -254,7 +212,7 @@ internal class DefaultRuntimeContext(
     }
 
     private fun closeIfStillIdle(expectedActivityVersion: Long) {
-        val admissionClosed = synchronized(closeMonitor) {
+        val admissionClosed = synchronized(quiescenceMonitor) {
             if (activityVersion.get() != expectedActivityVersion) {
                 false
             } else {
@@ -265,140 +223,7 @@ internal class DefaultRuntimeContext(
             return
         }
         quietPeriodTask.getAndSet(null)?.dispose()
-        dispatchCloseActions()
-    }
-
-    @Suppress("TooGenericExceptionCaught")
-    private fun dispatchCloseActions() {
-        if (!closeActionsStarted.compareAndSet(false, true)) {
-            return
-        }
-        try {
-            executeCloseAction(::runCloseActions)
-        } catch (error: Throwable) {
-            Exceptions.throwIfFatal(error)
-            reportCloseFailure(error)
-        }
-    }
-
-    @Suppress("TooGenericExceptionCaught")
-    private fun dispatchCloseAction(closeAction: CloseAction) {
-        try {
-            executeCloseAction {
-                forceAllReporting(
-                    forceActions = listOf(closeAction::run),
-                    reportFailure = ::reportFailure,
-                )?.let { closeFailure ->
-                    quiescentSink.tryEmitError(closeFailure)
-                }
-            }
-        } catch (error: Throwable) {
-            Exceptions.throwIfFatal(error)
-            reportCloseFailure(error)
-        }
-    }
-
-    @Suppress("TooGenericExceptionCaught")
-    private fun executeCloseAction(action: () -> Unit) {
-        val closeExecution = synchronized(closeMonitor) {
-            CloseExecution(
-                action = action,
-                runWhenForced = forceCloseRequested.get(),
-            ).also(closeExecutions::add)
-        }
-        val accepted = if (closeExecutor == null) {
-            RuntimeCleanupExecutor.execute(closeExecution)
-        } else {
-            try {
-                closeExecutor.execute(closeExecution)
-                true
-            } catch (error: Throwable) {
-                synchronized(closeMonitor) {
-                    closeExecutions -= closeExecution
-                }
-                throw error
-            }
-        }
-        if (!accepted) {
-            synchronized(closeMonitor) {
-                closeExecutions -= closeExecution
-            }
-            throw RejectedExecutionException(
-                "The process-wide Wow runtime cleanup executor is saturated.",
-            )
-        }
-    }
-
-    private fun runCloseActions() {
-        val closeFailure = forceAllReporting(
-            forceActions = closeActions.map { closeAction -> closeAction::run },
-            reportFailure = ::reportFailure,
-        )
-        if (closeFailure == null) {
-            quiescentSink.tryEmitEmpty()
-        } else {
-            quiescentSink.tryEmitError(closeFailure)
-        }
-    }
-
-    private fun reportCloseFailure(error: Throwable) {
-        reportFailure(error)
-        quiescentSink.tryEmitError(error)
-    }
-
-    private class CloseAction(
-        private val action: () -> Unit,
-    ) {
-        private val invoked = AtomicBoolean()
-
-        fun run() {
-            if (invoked.compareAndSet(false, true)) {
-                action()
-            }
-        }
-    }
-
-    private inner class CloseExecution(
-        private val action: () -> Unit,
-        val runWhenForced: Boolean,
-    ) : Runnable {
-        private val cancelled = AtomicBoolean()
-        private val runningThread = AtomicReference<Thread?>()
-
-        override fun run() {
-            if (cancelled.get()) {
-                remove()
-                return
-            }
-            val currentThread = Thread.currentThread()
-            runningThread.set(currentThread)
-            try {
-                if (!cancelled.get()) {
-                    action()
-                }
-            } finally {
-                runningThread.set(null)
-                Thread.interrupted()
-                remove()
-            }
-        }
-
-        fun cancel(caller: Thread) {
-            cancelled.set(true)
-            if (closeExecutor == null && RuntimeCleanupExecutor.remove(this)) {
-                remove()
-                return
-            }
-            runningThread.get()
-                ?.takeUnless { running -> running === caller }
-                ?.interrupt()
-        }
-
-        private fun remove() {
-            synchronized(closeMonitor) {
-                closeExecutions -= this
-            }
-        }
+        quiescentSink.tryEmitEmpty()
     }
 
     private class ActivityLease(

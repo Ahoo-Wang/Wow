@@ -15,7 +15,6 @@ package me.ahoo.wow.scheduler
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.Named
-import me.ahoo.wow.infra.lifecycle.ForceStoppable
 import me.ahoo.wow.infra.lifecycle.GracefullyStoppable
 import me.ahoo.wow.messaging.dispatcher.ParallelismCapable
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
@@ -38,9 +37,7 @@ import reactor.core.scheduler.Schedulers
  * @see Scheduler
  * @see NamedAggregate
  */
-interface AggregateSchedulerSupplier :
-    GracefullyStoppable,
-    ForceStoppable {
+interface AggregateSchedulerSupplier : GracefullyStoppable {
     /**
      * Gets an existing scheduler for the named aggregate or creates a new one if none exists.
      *
@@ -64,6 +61,8 @@ interface AggregateSchedulerSupplier :
      * @see DefaultAggregateSchedulerSupplier
      */
     fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler
+
+    fun forceStop()
 }
 
 /**

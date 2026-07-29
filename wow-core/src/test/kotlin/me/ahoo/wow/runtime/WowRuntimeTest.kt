@@ -14,12 +14,12 @@
 package me.ahoo.wow.runtime
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.infra.lifecycle.ImmediateTerminalSignalDispatcher
-import me.ahoo.wow.infra.lifecycle.TerminalSignal
-import me.ahoo.wow.infra.lifecycle.TerminalSignalDispatcher
-import me.ahoo.wow.infra.lifecycle.newTerminalSignalDispatcher
 import me.ahoo.wow.runtime.internal.DefaultRuntimeExecutionResources
+import me.ahoo.wow.runtime.internal.ImmediateTerminalSignalDispatcher
 import me.ahoo.wow.runtime.internal.RuntimeExecutionResources
+import me.ahoo.wow.runtime.internal.TerminalSignal
+import me.ahoo.wow.runtime.internal.TerminalSignalDispatcher
+import me.ahoo.wow.runtime.internal.newTerminalSignalDispatcher
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.assertTimeoutPreemptively
@@ -898,6 +898,93 @@ class WowRuntimeTest {
     }
 
     @Test
+    fun `shutdown closes admission before quiescing components in registration order`() {
+        val calls = mutableListOf<String>()
+        lateinit var first: RecordingLifecycle
+        lateinit var second: RecordingLifecycle
+        first = RecordingLifecycle(
+            name = "first",
+            calls = calls,
+            onQuiesce = {
+                first.runtimeContext!!.tryAcquire().assert().isNull()
+                calls += "quiesce:first"
+            },
+        )
+        second = RecordingLifecycle(
+            name = "second",
+            calls = calls,
+            onQuiesce = {
+                second.runtimeContext!!.tryAcquire().assert().isNull()
+                calls += "quiesce:second"
+            },
+        )
+        val runtime = WowRuntime(
+            components = listOf(first, second),
+            shutdownTimeout = Duration.ofSeconds(1),
+            shutdownQuietPeriod = Duration.ZERO,
+        )
+        runtime.start().block()
+
+        StepVerifier.create(runtime.stopGracefully()).verifyComplete()
+
+        calls.takeLast(4).assert().containsExactly(
+            "quiesce:first",
+            "quiesce:second",
+            "stop:second",
+            "stop:first",
+        )
+    }
+
+    @Test
+    fun `component quiesce resumes on the shutdown scheduler after the quiet boundary`() {
+        val shutdownScheduler = Schedulers.newSingle("runtime-quiesce-test-shutdown")
+        val quiescenceScheduler = Schedulers.newSingle("runtime-quiesce-test-boundary")
+        val quiesceThread = AtomicReference<String?>()
+        val component = object : RuntimeComponent {
+            override fun prepare(runtimeContext: RuntimeContext) = Unit
+
+            override fun start() = Unit
+
+            override fun quiesce() {
+                quiesceThread.set(Thread.currentThread().name)
+            }
+
+            override fun stopGracefully(): Mono<Void> = Mono.empty()
+
+            override fun forceStop() = Unit
+        }
+        val executionResources = object : RuntimeExecutionResources {
+            override val terminationDispatcher: TerminalSignalDispatcher =
+                ImmediateTerminalSignalDispatcher
+            override val terminationControlDispatcher: TerminalSignalDispatcher =
+                ImmediateTerminalSignalDispatcher
+            override val shutdownScheduler: Scheduler = shutdownScheduler
+            override val quiescenceScheduler: Scheduler = quiescenceScheduler
+
+            override fun dispatchCleanup(action: Runnable): Boolean {
+                action.run()
+                return true
+            }
+        }
+        val runtime = WowRuntime(
+            components = listOf(component),
+            shutdownTimeout = Duration.ofSeconds(1),
+            shutdownQuietPeriod = Duration.ofMillis(10),
+            executionResources = executionResources,
+        )
+
+        try {
+            runtime.start().block()
+            StepVerifier.create(runtime.stopGracefully()).verifyComplete()
+
+            quiesceThread.get().assert().startsWith("runtime-quiesce-test-shutdown")
+        } finally {
+            shutdownScheduler.dispose()
+            quiescenceScheduler.dispose()
+        }
+    }
+
+    @Test
     fun `shutdown continues after failures and suppresses later failures`() {
         val calls = mutableListOf<String>()
         val firstFailure = IllegalStateException("first")
@@ -1019,57 +1106,69 @@ class WowRuntimeTest {
     }
 
     @Test
-    fun `shutdown deadline covers a blocking intake close action`() {
+    fun `shutdown deadline covers a blocking component quiesce`() {
         val calls = CopyOnWriteArrayList<String>()
-        val closeActionStarted = CountDownLatch(1)
-        val allowCloseAction = CountDownLatch(1)
+        val quiesceStarted = CountDownLatch(1)
+        val allowQuiesce = CountDownLatch(1)
+        val compensationCompleted = CountDownLatch(1)
+        val firstForceCount = AtomicInteger()
         val executor = Executors.newSingleThreadExecutor()
-        val component = RecordingLifecycle(
-            name = "component",
+        val first = RecordingLifecycle(
+            name = "first",
             calls = calls,
-            onPrepare = { runtimeContext ->
-                runtimeContext.onAdmissionClose {
-                    closeActionStarted.countDown()
-                    allowCloseAction.await()
+            onQuiesce = {
+                calls += "quiesce:first"
+                quiesceStarted.countDown()
+                allowQuiesce.await()
+            },
+            beforeForceFailure = {
+                if (firstForceCount.incrementAndGet() == 2) {
+                    compensationCompleted.countDown()
                 }
             },
         )
-        val runtime = WowRuntime(listOf(component), Duration.ofMillis(100), Duration.ZERO)
+        val second = RecordingLifecycle(
+            name = "second",
+            calls = calls,
+            onQuiesce = {
+                calls += "quiesce:second"
+            },
+        )
+        val runtime = WowRuntime(listOf(first, second), Duration.ofMillis(100), Duration.ZERO)
         runtime.start().block()
 
         try {
             val stopCall = CompletableFuture.supplyAsync(runtime::stopGracefully, executor)
-            closeActionStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
+            quiesceStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
             val termination = stopCall.get(50, TimeUnit.MILLISECONDS)
 
             StepVerifier.create(termination)
                 .expectError(TimeoutException::class.java)
                 .verify()
-            calls.assert().contains("force:component")
+            calls.assert().contains("force:first", "force:second")
+            calls.assert().doesNotContain("quiesce:second")
+
+            allowQuiesce.countDown()
+            compensationCompleted.await(1, TimeUnit.SECONDS).assert().isTrue()
+            firstForceCount.get().assert().isEqualTo(2)
+            calls.count { it == "force:second" }.assert().isOne()
         } finally {
-            allowCloseAction.countDown()
+            allowQuiesce.countDown()
             executor.shutdownNow()
         }
     }
 
     @Test
-    fun `scheduler rejection cannot let a blocking intake close defeat the shutdown deadline`() {
+    fun `quiescence scheduler rejection force stops without entering component quiesce`() {
         val calls = CopyOnWriteArrayList<String>()
-        val closeActionStarted = CountDownLatch(1)
-        val allowCloseAction = CountDownLatch(1)
         val forceStopInvoked = CountDownLatch(1)
         val schedulingFailure = RejectedExecutionException("rejected")
-        val executor = Executors.newSingleThreadExecutor()
+        val quiesceInvocations = AtomicInteger()
         val component = RecordingLifecycle(
             name = "component",
             calls = calls,
             beforeForceFailure = forceStopInvoked::countDown,
-            onPrepare = { runtimeContext ->
-                runtimeContext.onAdmissionClose {
-                    closeActionStarted.countDown()
-                    allowCloseAction.await()
-                }
-            },
+            onQuiesce = quiesceInvocations::incrementAndGet,
         )
         val executionResources =
             object : RuntimeExecutionResources {
@@ -1092,35 +1191,28 @@ class WowRuntimeTest {
         )
         runtime.start().block()
 
-        val stopCall = CompletableFuture.supplyAsync(runtime::stopGracefully, executor)
-        try {
-            closeActionStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
-            val termination = stopCall.get(500, TimeUnit.MILLISECONDS)
+        StepVerifier.create(runtime.stopGracefully())
+            .expectErrorSatisfies { error ->
+                error.assert().isSameAs(schedulingFailure)
+            }
+            .verify()
 
-            forceStopInvoked.await(1, TimeUnit.SECONDS).assert().isTrue()
-            StepVerifier.create(termination)
-                .expectErrorSatisfies { error ->
-                    error.assert().isSameAs(schedulingFailure)
-                }
-                .verify()
-        } finally {
-            allowCloseAction.countDown()
-            executor.shutdownNow()
-        }
+        forceStopInvoked.await(1, TimeUnit.SECONDS).assert().isTrue()
+        quiesceInvocations.get().assert().isZero()
     }
 
     @Test
-    fun `close action failure does not interrupt force cleanup on the same control thread`() {
-        val closeFailure = IllegalStateException("close")
+    fun `quiesce failure does not interrupt force cleanup on the same control thread`() {
+        val quiesceFailure = IllegalStateException("quiesce")
         val forceObservedInterrupted = AtomicBoolean(true)
         val component = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) {
-                runtimeContext.onAdmissionClose {
-                    throw closeFailure
-                }
-            }
+            override fun prepare(runtimeContext: RuntimeContext) = Unit
 
             override fun start() = Unit
+
+            override fun quiesce() {
+                throw quiesceFailure
+            }
 
             override fun stopGracefully(): Mono<Void> = Mono.empty()
 
@@ -1137,7 +1229,7 @@ class WowRuntimeTest {
 
         StepVerifier.create(runtime.stopGracefully())
             .expectErrorSatisfies { error ->
-                error.assert().isSameAs(closeFailure)
+                error.assert().isSameAs(quiesceFailure)
             }
             .verify()
 
@@ -1193,19 +1285,13 @@ class WowRuntimeTest {
     }
 
     @Test
-    fun `explicit force closes admission and runs intake close exactly once`() {
+    fun `explicit force closes admission without entering graceful quiesce`() {
         val calls = CopyOnWriteArrayList<String>()
-        val closeActionInvocations = AtomicInteger()
-        val closeActionInvoked = CountDownLatch(1)
+        val quiesceInvocations = AtomicInteger()
         val component = RecordingLifecycle(
             name = "component",
             calls = calls,
-            onPrepare = { runtimeContext ->
-                runtimeContext.onAdmissionClose {
-                    closeActionInvocations.incrementAndGet()
-                    closeActionInvoked.countDown()
-                }
-            },
+            onQuiesce = quiesceInvocations::incrementAndGet,
         )
         val runtime = WowRuntime(listOf(component), Duration.ofSeconds(1), Duration.ZERO)
         runtime.start().block()
@@ -1215,18 +1301,17 @@ class WowRuntimeTest {
 
         runtime.forceStop()
 
-        runtimeContext.isAdmissionClosed.assert().isTrue()
         runtimeContext.tryAcquire().assert().isNull()
-        closeActionInvoked.await(1, TimeUnit.SECONDS).assert().isTrue()
         activeOperation.close()
         StepVerifier.create(termination).verifyComplete()
-        closeActionInvocations.get().assert().isEqualTo(1)
+        quiesceInvocations.get().assert().isZero()
+        calls.assert().contains("force:component")
     }
 
     @Test
     fun `every concurrent force caller closes admission before returning`() {
-        val cleanupDispatchEntered = CountDownLatch(1)
-        val releaseCleanupDispatch = CountDownLatch(1)
+        val forceEntered = CountDownLatch(1)
+        val releaseForce = CountDownLatch(1)
         var capturedRuntimeContext: RuntimeContext? = null
         val component = object : RuntimeComponent {
             override fun prepare(runtimeContext: RuntimeContext) {
@@ -1237,31 +1322,12 @@ class WowRuntimeTest {
 
             override fun stopGracefully(): Mono<Void> = Mono.never()
 
-            override fun forceStop() = Unit
-        }
-        val executionResources =
-            object : RuntimeExecutionResources {
-                override val terminationDispatcher: TerminalSignalDispatcher =
-                    ImmediateTerminalSignalDispatcher
-                override val terminationControlDispatcher: TerminalSignalDispatcher =
-                    ImmediateTerminalSignalDispatcher
-                override val shutdownScheduler: Scheduler = Schedulers.immediate()
-                override val quiescenceScheduler: Scheduler =
-                    DefaultRuntimeExecutionResources.quiescenceScheduler
-
-                override fun dispatchCleanup(action: Runnable): Boolean {
-                    cleanupDispatchEntered.countDown()
-                    releaseCleanupDispatch.await()
-                    action.run()
-                    return true
-                }
+            override fun forceStop() {
+                forceEntered.countDown()
+                releaseForce.await()
             }
-        val runtime = WowRuntime(
-            components = listOf(component),
-            shutdownTimeout = Duration.ofSeconds(1),
-            shutdownQuietPeriod = Duration.ZERO,
-            executionResources = executionResources,
-        )
+        }
+        val runtime = WowRuntime(listOf(component), Duration.ofSeconds(1), Duration.ZERO)
         val executor = Executors.newSingleThreadExecutor()
         var firstForce: CompletableFuture<Void>? = null
         runtime.start().block()
@@ -1271,7 +1337,7 @@ class WowRuntimeTest {
         try {
             runtime.stopGracefully()
             firstForce = CompletableFuture.runAsync(runtime::forceStop, executor)
-            cleanupDispatchEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
+            forceEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
 
             runtime.forceStop()
 
@@ -1285,7 +1351,7 @@ class WowRuntimeTest {
             try {
                 activeOperation.close()
             } finally {
-                releaseCleanupDispatch.countDown()
+                releaseForce.countDown()
                 try {
                     firstForce?.get(1, TimeUnit.SECONDS)
                 } finally {
@@ -1296,19 +1362,13 @@ class WowRuntimeTest {
     }
 
     @Test
-    fun `deadline force closes admission and runs intake close exactly once`() {
+    fun `deadline force closes admission without entering graceful quiesce`() {
         val calls = CopyOnWriteArrayList<String>()
-        val closeActionInvocations = AtomicInteger()
-        val closeActionInvoked = CountDownLatch(1)
+        val quiesceInvocations = AtomicInteger()
         val component = RecordingLifecycle(
             name = "component",
             calls = calls,
-            onPrepare = { runtimeContext ->
-                runtimeContext.onAdmissionClose {
-                    closeActionInvocations.incrementAndGet()
-                    closeActionInvoked.countDown()
-                }
-            },
+            onQuiesce = quiesceInvocations::incrementAndGet,
         )
         val runtime = WowRuntime(listOf(component), Duration.ofMillis(50), Duration.ZERO)
         runtime.start().block()
@@ -1319,11 +1379,10 @@ class WowRuntimeTest {
             .expectError(TimeoutException::class.java)
             .verify()
 
-        runtimeContext.isAdmissionClosed.assert().isTrue()
         runtimeContext.tryAcquire().assert().isNull()
-        closeActionInvoked.await(1, TimeUnit.SECONDS).assert().isTrue()
         activeOperation.close()
-        closeActionInvocations.get().assert().isEqualTo(1)
+        quiesceInvocations.get().assert().isZero()
+        calls.assert().contains("force:component")
     }
 
     @Test
@@ -1842,6 +1901,7 @@ class WowRuntimeTest {
         private val beforeForceFailure: (() -> Unit)? = null,
         private val onPrepare: ((RuntimeContext) -> Unit)? = null,
         private val onStart: ((RuntimeContext) -> Unit)? = null,
+        private val onQuiesce: (() -> Unit)? = null,
         private val onStop: (() -> Unit)? = null,
     ) : RuntimeComponent {
         var runtimeContext: RuntimeContext? = null
@@ -1856,6 +1916,10 @@ class WowRuntimeTest {
             calls += "start:$name"
             onStart?.invoke(checkNotNull(runtimeContext))
             startFailure?.let { throw it }
+        }
+
+        override fun quiesce() {
+            onQuiesce?.invoke()
         }
 
         override fun stopGracefully(): Mono<Void> =

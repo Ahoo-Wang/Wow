@@ -49,18 +49,10 @@ implementation("me.ahoo.wow:wow-spring-boot-starter:新版本号")
 
 需要完成以下源码迁移：
 
-1. `MainDispatcher`、`AggregateDispatcher` 或 `CompositeEventDispatcher` 的子类必须将
-   生命周期定制从 public 方法迁移到对应的 protected hook：
-
-   | 原 override | 替代 hook |
-   | --- | --- |
-   | `prepare(RuntimeContext)` | `prepareManaged(RuntimeContext)` |
-   | `start()` | `startManaged()` |
-   | `stopGracefully()` | `stopManagedGracefully()` |
-   | `forceStop()` | `forceStopManaged()` |
-
-   public 生命周期方法现在是 final template。必须重新编译全部 Dispatcher 子类；已经
-   编译且 override 这些方法的子类不具备二进制兼容性。
+1. Dispatcher 生命周期方法现在是 final template。必须重新编译全部子类；已经编译且
+   override 这些方法的子类不具备二进制兼容性。额外的生命周期所有权应建模为独立的
+   `RuntimeComponent`，而不是扩展 Dispatcher template。`MainDispatcher` 只保留框架内
+   拥有 Scheduler 的实现所需的窄化优雅/强制清理 hook；它们不是通用 readiness 扩展面。
 2. 移除 `MessageDispatcherLauncher` Bean、launcher 注入以及直接调用 Dispatcher
    生命周期的代码。launcher 类与 factory 已删除。Starter 应用统一使用一个
    `WowRuntimeLifecycle`；非 Spring 应用应显式构造一个 `WowRuntime`。
@@ -79,19 +71,20 @@ implementation("me.ahoo.wow:wow-spring-boot-starter:新版本号")
    ```kotlin
    class CustomRuntimeComponent : RuntimeComponent {
        override fun prepare(runtimeContext: RuntimeContext) {
-           runtimeContext.onAdmissionClose(::closeIntake)
+           // 工作需要 tryAcquire() 或 reportFailure() 时保存 context。
        }
 
        override fun start() = openIntake()
+       override fun quiesce() = closeIntake()
        override fun stopGracefully(): Mono<Void> = drainAndClose()
        override fun forceStop() = closeIntake()
    }
    ```
 
    每次接受异步操作前应通过 `RuntimeContext.tryAcquire()` 获取
-   `RuntimeActivity`，并仅在完整异步链终止时关闭。使用 `onAdmissionClose` 注册优雅停机的
-   intake barrier，使用 `reportFailure` 上报致命 pipeline error。强制停机可能取消排队中的
-   intake callback，因此 `forceStop` 必须同步关闭 intake。
+   `RuntimeActivity`，并仅在完整异步链终止时关闭。使用 `quiesce` 实现优雅停机的
+   intake barrier，使用 `reportFailure` 上报致命 pipeline error。`quiesce` 与
+   `forceStop` 都必须及时、同步关闭 intake。
 4. 运行时拥有的 Spring Bean 必须是 singleton，且 Bean 声明返回类型必须暴露
    `RuntimeComponent` 或其子类型（如 `MessageDispatcher`）。应从这些 Bean 移除
    Spring `Lifecycle`/`SmartLifecycle`、`DisposableBean`、`@PreDestroy` 与显式

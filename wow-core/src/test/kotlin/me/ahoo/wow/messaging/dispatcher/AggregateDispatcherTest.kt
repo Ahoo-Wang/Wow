@@ -36,6 +36,7 @@ import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
@@ -59,6 +60,7 @@ class AggregateDispatcherTest {
             .verifyComplete()
 
         dispatcher.groups.assert().isEqualTo(listOf(1))
+        dispatcher.quiesce()
         StepVerifier.create(dispatcher.stopGracefully()).verifyComplete()
     }
 
@@ -67,6 +69,7 @@ class AggregateDispatcherTest {
         val dispatcher = RecordingAggregateDispatcher(messageFlux = Flux.never())
         prepareAndStart(dispatcher)
 
+        dispatcher.quiesce()
         StepVerifier.create(dispatcher.stopGracefully())
             .verifyComplete()
     }
@@ -76,6 +79,7 @@ class AggregateDispatcherTest {
         val source = Sinks.many().unicast().onBackpressureBuffer<TestExchange>()
         val dispatcher = RecordingAggregateDispatcher(messageFlux = source.asFlux())
 
+        dispatcher.quiesce()
         StepVerifier.create(dispatcher.stopGracefully()).verifyComplete()
         tryStartAfterTerminalStop(dispatcher)
 
@@ -131,54 +135,53 @@ class AggregateDispatcherTest {
     }
 
     @Test
-    fun `force stop prevents managed graceful cleanup after processing drain was entered`() {
-        val source = Sinks.many().unicast().onBackpressureBuffer<TestExchange>()
-        val handlingEntered = CountDownLatch(1)
-        val managedStopCount = AtomicInteger()
-        val dispatcher = object : RecordingAggregateDispatcher(
-            messageFlux = source.asFlux(),
-            handle = {
-                handlingEntered.countDown()
-                Mono.never()
-            },
-            forceCleanupDispatcher = { action ->
-                action.run()
-                true
-            },
-        ) {
-            override fun stopManagedGracefully(): Mono<Void> =
-                Mono.fromRunnable(managedStopCount::incrementAndGet)
+    fun `quiesce remains bounded when a source cancellation hook blocks`() {
+        val cancellationEntered = CountDownLatch(1)
+        val releaseCancellation = CountDownLatch(1)
+        val source = Flux.never<TestExchange>()
+            .doOnCancel {
+                cancellationEntered.countDown()
+                while (releaseCancellation.count > 0) {
+                    try {
+                        releaseCancellation.await()
+                    } catch (_: InterruptedException) {
+                        // Deliberately model uncooperative user cleanup.
+                    }
+                }
+            }
+        val dispatcher = RecordingAggregateDispatcher(messageFlux = source)
+        val executor = Executors.newSingleThreadExecutor()
+
+        try {
+            prepareAndStart(dispatcher)
+
+            val quiescence = executor.submit(dispatcher::quiesce)
+
+            quiescence.get(1, TimeUnit.SECONDS)
+            cancellationEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
+            StepVerifier.create(dispatcher.stopGracefully()).verifyComplete()
+        } finally {
+            releaseCancellation.countDown()
+            executor.shutdownNow()
         }
-        dispatcher.prepare(DefaultRuntimeContext())
-        dispatcher.start()
-        source.tryEmitNext(TestExchange(group = 1)).orThrow()
-        handlingEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
-        val gracefulStop = dispatcher.stopGracefully().toFuture()
-
-        dispatcher.forceStop()
-        gracefulStop.get(1, TimeUnit.SECONDS)
-
-        managedStopCount.get().assert().isZero()
     }
 
     @Test
-    fun `rejected force cleanup reports failure without inline fallback`() {
+    fun `rejected detached cleanup reports every failure without inline fallback`() {
         val cancellationThread = AtomicReference<String?>()
-        val failure = AtomicReference<Throwable?>()
-        val failureReported = CountDownLatch(1)
+        val failures = CopyOnWriteArrayList<Throwable>()
+        val failuresReported = CountDownLatch(2)
         val dispatcher = RecordingAggregateDispatcher(
             messageFlux = Flux.never<TestExchange>()
                 .doOnCancel {
                     cancellationThread.set(Thread.currentThread().name)
                 },
-            forceCleanupDispatcher = { false },
+            cleanupDispatcher = { false },
         )
-        val runtimeContext = DefaultRuntimeContext()
-        runtimeContext.failureSignal.subscribe(
-            {},
-            { error ->
-                failure.set(error)
-                failureReported.countDown()
+        val runtimeContext = DefaultRuntimeContext(
+            failureHandler = { error ->
+                failures += error
+                failuresReported.countDown()
             },
         )
         dispatcher.prepare(runtimeContext)
@@ -188,12 +191,14 @@ class AggregateDispatcherTest {
             dispatcher.forceStop()
         }
 
-        failureReported.await(1, TimeUnit.SECONDS).assert().isTrue()
+        failuresReported.await(1, TimeUnit.SECONDS).assert().isTrue()
         cancellationThread.get().assert().isNull()
-        failure.get().assert()
-            .isInstanceOf(RejectedExecutionException::class.java)
-            .hasMessageContaining("bounded runtime cleanup executor is saturated")
-        checkNotNull(failure.get()).suppressedExceptions.assert().hasSize(1)
+        failures.assert().hasSize(2)
+        failures.forEach { failure ->
+            failure.assert()
+                .isInstanceOf(RejectedExecutionException::class.java)
+                .hasMessageContaining("bounded runtime cleanup executor is saturated")
+        }
     }
 
     @Test
@@ -375,15 +380,10 @@ class AggregateDispatcherTest {
     fun `fatal pipeline failure terminates its owning runtime`() {
         val source = Sinks.many().unicast().onBackpressureBuffer<TestExchange>()
         val failure = IllegalStateException("fatal")
-        val forceStopCount = AtomicInteger()
-        val dispatcher = object : RecordingAggregateDispatcher(
+        val dispatcher = RecordingAggregateDispatcher(
             messageFlux = source.asFlux(),
             handle = { Mono.error(failure) },
-        ) {
-            override fun forceStopManaged() {
-                forceStopCount.incrementAndGet()
-            }
-        }
+        )
         val runtime = WowRuntime(
             components = listOf(dispatcher),
             shutdownTimeout = Duration.ofSeconds(1),
@@ -398,7 +398,6 @@ class AggregateDispatcherTest {
                 error.assert().isSameAs(failure)
             }
             .verify()
-        forceStopCount.get().assert().isEqualTo(1)
     }
 
     @Test
@@ -434,6 +433,7 @@ class AggregateDispatcherTest {
             .expectNext(exchange)
             .verifyComplete()
 
+        dispatcher.quiesce()
         StepVerifier.create(dispatcher.stopGracefully()).verifyComplete()
     }
 
@@ -477,6 +477,7 @@ class AggregateDispatcherTest {
         dispatcher.prepare(DefaultRuntimeContext())
         dispatcher.start()
 
+        dispatcher.quiesce()
         StepVerifier.create(dispatcher.stopGracefully()).verifyComplete()
     }
 
@@ -495,6 +496,7 @@ class AggregateDispatcherTest {
         }
 
         thrown.assert().isSameAs(prepareFailure)
+        dispatcher.quiesce()
         StepVerifier.create(dispatcher.stopGracefully())
             .expectErrorSatisfies { error ->
                 error.assert().isSameAs(prepareFailure)
@@ -543,6 +545,7 @@ class AggregateDispatcherTest {
             .then { source.tryEmitNext(TestExchange(group = 2)).orThrow() }
             .verifyComplete()
 
+        dispatcher.quiesce()
         StepVerifier.create(dispatcher.stopGracefully())
             .expectSubscription()
             .expectNoEvent(Duration.ofMillis(100))
@@ -583,6 +586,7 @@ class AggregateDispatcherTest {
             }
             .verifyComplete()
 
+        dispatcher.quiesce()
         StepVerifier.create(dispatcher.stopGracefully())
             .expectSubscription()
             .expectNoEvent(Duration.ofMillis(100))
@@ -653,6 +657,7 @@ class AggregateDispatcherTest {
             .expectNext(error)
             .verifyComplete()
 
+        dispatcher.quiesce()
         StepVerifier.create(dispatcher.stopGracefully())
             .expectErrorSatisfies { terminalError ->
                 terminalError.assert().isSameAs(error)
@@ -742,10 +747,10 @@ class AggregateDispatcherTest {
         private val handle: ((TestExchange) -> Mono<Void>)? = null,
         override val scheduler: Scheduler = Schedulers.immediate(),
         override val name: String = "recording-dispatcher",
-        forceCleanupDispatcher: (Runnable) -> Boolean = { action ->
+        cleanupDispatcher: (Runnable) -> Boolean = { action ->
             RuntimeCleanupExecutor.execute(action)
         },
-    ) : AggregateDispatcher<TestExchange>(forceCleanupDispatcher) {
+    ) : AggregateDispatcher<TestExchange>(cleanupDispatcher) {
         override val parallelism: Int = 2
         override val namedAggregate: NamedAggregate = "wow-core-test.messaging_aggregate".toNamedAggregate().materialize()
         val handled: Sinks.Many<TestExchange> = Sinks.many().replay().all()

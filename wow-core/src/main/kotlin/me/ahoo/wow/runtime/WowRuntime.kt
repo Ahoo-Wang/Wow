@@ -13,10 +13,7 @@
 
 package me.ahoo.wow.runtime
 
-import me.ahoo.wow.infra.lifecycle.ForceStoppable
 import me.ahoo.wow.infra.lifecycle.GracefullyStoppable
-import me.ahoo.wow.infra.lifecycle.publishTerminalSignal
-import me.ahoo.wow.infra.lifecycle.subscribeTerminalSignal
 import me.ahoo.wow.runtime.internal.DefaultRuntimeContext
 import me.ahoo.wow.runtime.internal.DefaultRuntimeExecutionResources
 import me.ahoo.wow.runtime.internal.RuntimeCleanupDispatcher
@@ -24,6 +21,8 @@ import me.ahoo.wow.runtime.internal.RuntimeComponentGroup
 import me.ahoo.wow.runtime.internal.RuntimeExecutionResources
 import me.ahoo.wow.runtime.internal.SealableFailureAccumulator
 import me.ahoo.wow.runtime.internal.ShutdownSubscriptionBoundary
+import me.ahoo.wow.runtime.internal.publishTerminalSignal
+import me.ahoo.wow.runtime.internal.subscribeTerminalSignal
 import me.ahoo.wow.runtime.internal.toNanosExact
 import reactor.core.Disposable
 import reactor.core.Exceptions
@@ -53,8 +52,7 @@ class WowRuntime private constructor(
     private val executionResources: RuntimeExecutionResources,
     @Suppress("UNUSED_PARAMETER")
     constructorMarker: Unit,
-) : GracefullyStoppable,
-    ForceStoppable {
+) : GracefullyStoppable {
     constructor(
         components: List<RuntimeComponent>,
         shutdownTimeout: Duration,
@@ -126,7 +124,7 @@ class WowRuntime private constructor(
     private val runtimeContext = DefaultRuntimeContext(
         shutdownQuietPeriod = shutdownQuietPeriod,
         scheduler = executionResources.quiescenceScheduler,
-        failures = firstFailure,
+        failureHandler = ::handleRuntimeFailure,
     )
     private val componentGroup = RuntimeComponentGroup(this.components) { error ->
         firstFailure.record(error)
@@ -146,7 +144,6 @@ class WowRuntime private constructor(
     val terminationSignal: Mono<Void> =
         rawTerminationSignal.publishTerminalSignal(executionResources.terminationDispatcher)
     private val terminationControlClaimed = AtomicBoolean()
-    private var runtimeFailureSubscription: Disposable? = null
     private var forceCleanupStarted = false
     private var shutdownOwner: ShutdownOwner? = null
     internal var shutdownDeadlineScheduler: Scheduler = SHUTDOWN_DEADLINE_SCHEDULER
@@ -212,10 +209,6 @@ class WowRuntime private constructor(
                 "WowRuntime can only be started once. Current state: $state."
             }
             state = State.STARTING
-            runtimeFailureSubscription = runtimeContext.failureSignal.subscribe(
-                {},
-                ::handleRuntimeFailure,
-            )
         }
         val prepared = componentGroup.prepare(
             runtimeContext = runtimeContext,
@@ -339,7 +332,7 @@ class WowRuntime private constructor(
         return terminationSignal
     }
 
-    override fun forceStop() {
+    fun forceStop() {
         forceStop(
             expectedOwner = null,
             triggeringFailure = null,
@@ -483,9 +476,14 @@ class WowRuntime private constructor(
 
     private fun shutdownPipeline(owner: ShutdownOwner): Mono<Void> {
         return Mono.defer(runtimeContext::quiesce)
-            .doOnError { error ->
-                recordFailure(error)
-            }
+            .publishOn(executionResources.shutdownScheduler)
+            .then(
+                Mono.fromRunnable {
+                    componentGroup.quiesce {
+                        !owner.isCancelled
+                    }
+                },
+            )
             .then(
                 componentGroup.stopGracefully(
                     shouldStop = { !owner.isCancelled },
@@ -551,7 +549,7 @@ class WowRuntime private constructor(
         owner: ShutdownOwner,
         error: Throwable? = null,
     ) {
-        val (failureSubscription, completionError) = synchronized(lifecycleMonitor) {
+        val completionError = synchronized(lifecycleMonitor) {
             if (shutdownOwner !== owner || state == State.STOPPED) {
                 return
             }
@@ -559,11 +557,8 @@ class WowRuntime private constructor(
             state = State.STOPPED
             val terminalError = firstFailure.seal()
             shutdownOwner = null
-            runtimeFailureSubscription.also {
-                runtimeFailureSubscription = null
-            } to terminalError
+            terminalError
         }
-        failureSubscription?.dispose()
         owner.complete()
         if (completionError == null) {
             terminationSink.tryEmitEmpty()

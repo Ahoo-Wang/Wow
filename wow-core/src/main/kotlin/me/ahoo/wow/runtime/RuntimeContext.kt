@@ -27,35 +27,15 @@ fun interface RuntimeActivity : AutoCloseable {
 /**
  * Public collaboration boundary for components managed by a Wow runtime.
  *
- * Components use this context to track complete asynchronous operations,
- * register their intake-close barrier, and report terminal failures. Runtime
- * orchestration operations such as quiescing and force-close remain internal.
+ * Components use this context to track complete asynchronous operations and
+ * report terminal failures. Runtime orchestration operations such as quiescing
+ * and force-close remain internal.
  */
 interface RuntimeContext {
-    val activeOperationCount: Long
-
-    val isQuiescing: Boolean
-
-    /**
-     * Whether this runtime has permanently stopped admitting new operations.
-     */
-    val isAdmissionClosed: Boolean
-
     /**
      * Reports a terminal component failure to the owning runtime.
      */
     fun reportFailure(error: Throwable)
-
-    /**
-     * Registers, during component preparation, an idempotent action that closes
-     * component intake at the global quiet boundary.
-     *
-     * The action is dispatched asynchronously. A registration that races with
-     * admission closure is also dispatched. Hard force-stop may cancel queued or
-     * running actions, so [RuntimeComponent.forceStop] remains the authoritative
-     * synchronous intake-closure path.
-     */
-    fun onAdmissionClose(action: () -> Unit)
 
     /**
      * Attempts to admit one complete asynchronous operation.

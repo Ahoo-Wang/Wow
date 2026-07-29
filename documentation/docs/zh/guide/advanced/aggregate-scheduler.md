@@ -13,10 +13,10 @@ description: 为每个聚合提供专用 Reactor 调度器，控制并发执行�
 使运行时能在任一停机路径释放所有缓存的调度器。
 
 ```kotlin
-interface AggregateSchedulerSupplier : GracefullyStoppable, ForceStoppable {
+interface AggregateSchedulerSupplier : GracefullyStoppable {
     fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler
     // 继承方法：stopGracefully(): Mono<Void>
-    // 继承方法：forceStop()
+    fun forceStop()
 }
 ```
 

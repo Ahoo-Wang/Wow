@@ -51,20 +51,13 @@ snapshot, and message formats are unchanged.
 
 Apply the following source migrations:
 
-1. Subclasses of `MainDispatcher`, `AggregateDispatcher`, or
-   `CompositeEventDispatcher` must move lifecycle customization from the public
-   methods to the corresponding protected hooks:
-
-   | Previous override | Replacement hook |
-   | --- | --- |
-   | `prepare(RuntimeContext)` | `prepareManaged(RuntimeContext)` |
-   | `start()` | `startManaged()` |
-   | `stopGracefully()` | `stopManagedGracefully()` |
-   | `forceStop()` | `forceStopManaged()` |
-
-   The public lifecycle methods are now final templates. Recompile every
-   dispatcher subclass; previously compiled subclasses that override those
-   methods are not binary compatible.
+1. Dispatcher lifecycle methods are now final templates. Recompile every
+   subclass; previously compiled subclasses that override those methods are not
+   binary compatible. Model additional lifecycle ownership as a separate
+   `RuntimeComponent` instead of extending a dispatcher template.
+   `MainDispatcher` retains only narrow graceful and force cleanup hooks for
+   framework implementations that own schedulers; they are not a general
+   readiness extension surface.
 2. Remove `MessageDispatcherLauncher` beans, launcher injections, and direct
    dispatcher lifecycle calls. Launcher classes and factories have been
    removed. Starter applications use one `WowRuntimeLifecycle`; non-Spring
@@ -86,10 +79,11 @@ Apply the following source migrations:
    ```kotlin
    class CustomRuntimeComponent : RuntimeComponent {
        override fun prepare(runtimeContext: RuntimeContext) {
-           runtimeContext.onAdmissionClose(::closeIntake)
+           // Store the context if work needs tryAcquire() or reportFailure().
        }
 
        override fun start() = openIntake()
+       override fun quiesce() = closeIntake()
        override fun stopGracefully(): Mono<Void> = drainAndClose()
        override fun forceStop() = closeIntake()
    }
@@ -97,9 +91,9 @@ Apply the following source migrations:
 
    Acquire a `RuntimeActivity` with `RuntimeContext.tryAcquire()` before
    accepting each asynchronous operation and close it only when the complete
-   chain terminates. Use `onAdmissionClose` for the graceful intake barrier and
-   `reportFailure` for fatal pipeline errors. Hard force-stop may cancel a queued
-   intake callback, so `forceStop` must close intake synchronously.
+   chain terminates. Use `quiesce` for the graceful intake barrier and
+   `reportFailure` for fatal pipeline errors. Both `quiesce` and `forceStop`
+   must close intake promptly and synchronously.
 4. Runtime-owned Spring beans must be singletons, and their declared bean return
    type must expose `RuntimeComponent` or a subtype such as
    `MessageDispatcher`. Remove Spring `Lifecycle`/`SmartLifecycle`,

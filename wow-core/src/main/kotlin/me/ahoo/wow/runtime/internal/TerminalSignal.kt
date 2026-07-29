@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.infra.lifecycle
+package me.ahoo.wow.runtime.internal
 
 import org.reactivestreams.Subscription
 import reactor.core.CoreSubscriber

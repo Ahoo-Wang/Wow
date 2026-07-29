@@ -83,10 +83,13 @@ class RuntimeContextSpiTest {
         val forceStopCount = AtomicInteger()
         override fun prepare(runtimeContext: RuntimeContext) {
             this.runtimeContext = runtimeContext
-            runtimeContext.onAdmissionClose(closeActionCount::incrementAndGet)
         }
 
         override fun start() = Unit
+
+        override fun quiesce() {
+            closeActionCount.incrementAndGet()
+        }
 
         override fun stopGracefully(): Mono<Void> = Mono.empty()
 

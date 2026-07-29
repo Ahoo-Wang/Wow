@@ -26,21 +26,19 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.test.StepVerifier
 import java.lang.reflect.Modifier
 import java.time.Duration
 
 class DispatcherLifecycleTemplateTest {
 
     @Test
-    fun `dispatcher lifecycle templates are final and managed hooks remain protected`() {
+    fun `dispatcher lifecycle templates are final`() {
         listOf(
             MainDispatcher::class.java,
             AggregateDispatcher::class.java,
             CompositeEventDispatcher::class.java,
         ).forEach { dispatcherType ->
             assertFinalLifecycleTemplate(dispatcherType)
-            assertProtectedManagedHooks(dispatcherType)
         }
     }
 
@@ -48,6 +46,7 @@ class DispatcherLifecycleTemplateTest {
         listOf(
             dispatcherType.getMethod("prepare", RuntimeContext::class.java),
             dispatcherType.getMethod("start"),
+            dispatcherType.getMethod("quiesce"),
             dispatcherType.getMethod("stopGracefully"),
             dispatcherType.getMethod("forceStop"),
         ).forEach { method ->
@@ -55,60 +54,10 @@ class DispatcherLifecycleTemplateTest {
         }
     }
 
-    private fun assertProtectedManagedHooks(dispatcherType: Class<*>) {
-        listOf(
-            dispatcherType.getDeclaredMethod("prepareManaged", RuntimeContext::class.java),
-            dispatcherType.getDeclaredMethod("startManaged"),
-            dispatcherType.getDeclaredMethod("stopManagedGracefully"),
-            dispatcherType.getDeclaredMethod("forceStopManaged"),
-        ).forEach { method ->
-            Modifier.isProtected(method.modifiers).assert().isTrue()
-            Modifier.isFinal(method.modifiers).assert().isFalse()
-        }
-    }
-
-    @Test
-    fun `managed hooks cannot replace parent dispatcher lifecycle invariants`() {
-        val calls = mutableListOf<String>()
-        val child = RecordingChild("child", calls)
-        val dispatcher = HookedParentDispatcher(child, calls)
-        val runtime = newRuntime(dispatcher)
-
-        runtime.start().block()
-        StepVerifier.create(runtime.stopGracefully()).verifyComplete()
-
-        calls.assert().containsExactly(
-            "prepare:child",
-            "hook:prepare",
-            "start:child",
-            "hook:start",
-            "stop:child",
-            "hook:stop",
-        )
-    }
-
-    @Test
-    fun `managed force hook cannot replace child force stop`() {
-        val calls = mutableListOf<String>()
-        val child = RecordingChild("child", calls)
-        val dispatcher = HookedParentDispatcher(child, calls)
-        val runtime = newRuntime(dispatcher)
-        runtime.start().block()
-        calls.clear()
-
-        runtime.forceStop()
-
-        calls.assert().containsExactly(
-            "force:child",
-            "hook:force",
-        )
-    }
-
     @Test
     fun `duplicate component identity fails before dispatcher initialization`() {
-        val dispatcher = HookedParentDispatcher(
+        val dispatcher = SingleChildParentDispatcher(
             child = RecordingChild("child", mutableListOf()),
-            calls = mutableListOf(),
         )
 
         assertThrows<IllegalArgumentException> {
@@ -143,6 +92,8 @@ class DispatcherLifecycleTemplateTest {
         calls.assert().containsExactly(
             "prepare:first",
             "prepare:second",
+            "quiesce:first",
+            "quiesce:second",
             "stop:second",
             "stop:first",
         )
@@ -155,9 +106,8 @@ class DispatcherLifecycleTemplateTest {
             shutdownQuietPeriod = Duration.ZERO,
         )
 
-    private class HookedParentDispatcher(
+    private class SingleChildParentDispatcher(
         private val child: MessageDispatcher,
-        private val calls: MutableList<String>,
     ) : MainDispatcher<String>() {
         override val name: String = "hooked-parent"
         override val namedAggregates: Set<NamedAggregate> =
@@ -170,23 +120,6 @@ class DispatcherLifecycleTemplateTest {
             namedAggregate: NamedAggregate,
             messageFlux: Flux<String>,
         ): MessageDispatcher = child
-
-        override fun prepareManaged(runtimeContext: RuntimeContext) {
-            calls += "hook:prepare"
-        }
-
-        override fun startManaged() {
-            calls += "hook:start"
-        }
-
-        override fun stopManagedGracefully(): Mono<Void> =
-            Mono.fromRunnable {
-                calls += "hook:stop"
-            }
-
-        override fun forceStopManaged() {
-            calls += "hook:force"
-        }
     }
 
     private class MultiChildParentDispatcher(
@@ -220,6 +153,10 @@ class DispatcherLifecycleTemplateTest {
 
         override fun start() {
             calls += "start:$name"
+        }
+
+        override fun quiesce() {
+            calls += "quiesce:$name"
         }
 
         override fun stopGracefully(): Mono<Void> =

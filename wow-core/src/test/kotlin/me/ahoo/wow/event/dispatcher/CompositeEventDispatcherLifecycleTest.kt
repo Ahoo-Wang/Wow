@@ -29,7 +29,6 @@ import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
 import me.ahoo.wow.messaging.function.SimpleMessageFunctionRegistrar
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.toNamedAggregate
-import me.ahoo.wow.runtime.RuntimeContext
 import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.runtime.internal.DefaultRuntimeContext
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
@@ -37,7 +36,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.core.publisher.Sinks
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
@@ -60,14 +58,11 @@ class CompositeEventDispatcherLifecycleTest {
                 RecordingFunction(FunctionKind.STATE_EVENT),
             ),
             schedulerSupplier = RecordingSchedulerSupplier(calls),
-            prepareCalls = calls,
         )
         val runtime = runtime(dispatcher)
 
         runtime.start().block()
 
-        dispatcher.prepareCount.get().assert().isEqualTo(1)
-        dispatcher.preparedRuntimeContext.assert().isNotNull()
         calls.assert().contains(
             "subscribe:domain",
             "subscribe:state",
@@ -154,7 +149,6 @@ class CompositeEventDispatcherLifecycleTest {
                 RecordingFunction(FunctionKind.STATE_EVENT),
             ),
             schedulerSupplier = schedulerSupplier,
-            prepareCalls = forceCalls,
         )
         val runtime = runtime(forceDispatcher)
         runtime.start().block()
@@ -176,40 +170,6 @@ class CompositeEventDispatcherLifecycleTest {
         }
     }
 
-    @Test
-    fun `force stop prevents graceful scheduler cleanup after a managed stop already entered`() {
-        val calls = CopyOnWriteArrayList<String>()
-        val managedStopEntered = CountDownLatch(1)
-        val managedStopGate = Sinks.empty<Void>()
-        val schedulerSupplier = RecordingSchedulerSupplier(calls)
-        val dispatcher = RecordingCompositeEventDispatcher(
-            domainEventBus = RecordingDomainEventBus(calls),
-            stateEventBus = RecordingStateEventBus(calls),
-            functionRegistrar = registrar(
-                RecordingFunction(FunctionKind.EVENT),
-                RecordingFunction(FunctionKind.STATE_EVENT),
-            ),
-            schedulerSupplier = schedulerSupplier,
-            prepareCalls = calls,
-            managedStopAction = {
-                managedStopEntered.countDown()
-                managedStopGate.asMono()
-            },
-        )
-        dispatcher.prepare(DefaultRuntimeContext())
-        dispatcher.start()
-        val gracefulStop = dispatcher.stopGracefully().toFuture()
-
-        managedStopEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
-        dispatcher.forceStop()
-        managedStopGate.tryEmitEmpty().orThrow()
-        gracefulStop.get(1, TimeUnit.SECONDS)
-
-        dispatcher.managedStopCount.get().assert().isOne()
-        schedulerSupplier.gracefulStopCount.get().assert().isZero()
-        schedulerSupplier.forceStopCount.get().assert().isOne()
-    }
-
     private fun newRecordingDispatcher(calls: MutableList<String>): RecordingCompositeEventDispatcher =
         RecordingCompositeEventDispatcher(
             domainEventBus = RecordingDomainEventBus(calls),
@@ -219,7 +179,6 @@ class CompositeEventDispatcherLifecycleTest {
                 RecordingFunction(FunctionKind.STATE_EVENT),
             ),
             schedulerSupplier = RecordingSchedulerSupplier(calls),
-            prepareCalls = calls,
         )
 
     private fun runtime(dispatcher: RecordingCompositeEventDispatcher): WowRuntime =
@@ -250,7 +209,6 @@ class CompositeEventDispatcherLifecycleTest {
             stateEventBus = RecordingStateEventBus(mutableListOf()),
             functionRegistrar = functionRegistrar,
             schedulerSupplier = schedulerSupplier,
-            prepareCalls = mutableListOf(),
         )
     }
 
@@ -259,8 +217,6 @@ class CompositeEventDispatcherLifecycleTest {
         stateEventBus: StateEventBus,
         functionRegistrar: MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>,
         schedulerSupplier: AggregateSchedulerSupplier,
-        private val prepareCalls: MutableList<String>,
-        private val managedStopAction: () -> Mono<Void> = { Mono.empty() },
     ) : CompositeEventDispatcher(
         name = "recording-composite",
         parallelism = 1,
@@ -271,23 +227,7 @@ class CompositeEventDispatcherLifecycleTest {
             override fun handle(context: DomainEventExchange<*>): Mono<Void> = Mono.empty()
         },
         schedulerSupplier = schedulerSupplier,
-    ) {
-        val prepareCount = AtomicInteger()
-        val managedStopCount = AtomicInteger()
-        var preparedRuntimeContext: RuntimeContext? = null
-
-        override fun prepareManaged(runtimeContext: RuntimeContext) {
-            prepareCalls += "prepare:composite"
-            prepareCount.incrementAndGet()
-            preparedRuntimeContext = runtimeContext
-        }
-
-        override fun stopManagedGracefully(): Mono<Void> =
-            Mono.defer {
-                managedStopCount.incrementAndGet()
-                managedStopAction()
-            }
-    }
+    )
 
     private class RecordingDomainEventBus(
         private val calls: MutableList<String>,

@@ -17,15 +17,13 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.infra.lifecycle.TerminatedSignalCapable
-import me.ahoo.wow.infra.lifecycle.publishTerminalSignal
 import me.ahoo.wow.infra.sink.terminated
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.metrics.Metrics
 import me.ahoo.wow.runtime.RuntimeActivity
 import me.ahoo.wow.runtime.RuntimeContext
 import me.ahoo.wow.runtime.internal.RuntimeCleanupExecutor
-import me.ahoo.wow.runtime.internal.forceAllReporting
-import me.ahoo.wow.runtime.internal.stopAllReporting
+import me.ahoo.wow.runtime.internal.publishTerminalSignal
 import reactor.core.Exceptions
 import reactor.core.publisher.Flux
 import reactor.core.publisher.GroupedFlux
@@ -81,15 +79,15 @@ import java.util.concurrent.atomic.AtomicReference
  * ```
  *
  * @param T The type of message exchange being handled, must implement MessageExchange
- * @param forceCleanupDispatcher Bounded dispatcher used for detached physical
- * cancellation during force-stop.
+ * @param cleanupDispatcher Bounded dispatcher used for detached physical
+ * cancellation.
  *
  * @see MessageDispatcher for the interface this class implements
  * @see SafeSubscriber for error handling capabilities
  * @see MessageExchange for the exchange type contract
  */
 abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected constructor(
-    private val forceCleanupDispatcher: (Runnable) -> Boolean = { action ->
+    private val cleanupDispatcher: (Runnable) -> Boolean = { action ->
         RuntimeCleanupExecutor.execute(action)
     },
 ) :
@@ -173,8 +171,6 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
     @Volatile
     private var state = State.NEW
 
-    private val forceStopRequested = AtomicBoolean()
-
     private fun tryEmitTerminated(error: Throwable? = null) {
         if (terminatedSink.terminated) {
             return
@@ -209,7 +205,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
      */
     final override fun prepare(runtimeContext: RuntimeContext) {
         val preparedDemandGate = DemandGateFlux(messageFlux) { cancellation ->
-            scheduleForceCleanup("late source cancellation", cancellation)
+            scheduleDetachedCleanup("late source cancellation", cancellation)
         }
         synchronized(lifecycleMonitor) {
             check(state == State.NEW) {
@@ -219,19 +215,11 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
             demandGate = preparedDemandGate
             state = State.PREPARED
         }
-        runtimeContext.onAdmissionClose(::requestStop)
         log.info {
             "[$name] Prepare subscription to $namedAggregate."
         }
         subscribeMessagePipeline(runtimeContext, preparedDemandGate)
-        prepareManaged(runtimeContext)
     }
-
-    /**
-     * Adds component-specific preparation after the guarded source subscription
-     * has been established.
-     */
-    protected open fun prepareManaged(@Suppress("UNUSED_PARAMETER") runtimeContext: RuntimeContext) = Unit
 
     @Suppress("TooGenericExceptionCaught")
     private fun subscribeMessagePipeline(
@@ -301,13 +289,11 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
         log.info {
             "[$name] Start processing $namedAggregate."
         }
-        startManaged()
     }
 
-    /**
-     * Adds component-specific work after guarded source demand is open.
-     */
-    protected open fun startManaged() = Unit
+    final override fun quiesce() {
+        requestStop()
+    }
 
     /**
      * Converts a message exchange to a grouping key for parallel processing.
@@ -375,8 +361,8 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
     /**
      * Performs a graceful shutdown of the dispatcher.
      *
-     * This method completes the source side to stop accepting new messages while
-     * allowing every already accepted exchange to complete naturally.
+     * After [quiesce] closes the source side, this method waits for every
+     * already accepted exchange to complete naturally.
      *
      * The method returns a Mono that completes when shutdown is fully finished,
      * allowing for reactive shutdown coordination. This ensures no message
@@ -387,39 +373,18 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
      */
     final override fun stopGracefully(): Mono<Void> {
         log.info {
-            "[$name] Stop gracefully. Active runtime operations: ${runtimeContext?.activeOperationCount ?: 0}."
+            "[$name] Stop gracefully."
         }
-        requestStop()
-        return stopAllReporting(
-            listOf(
-                {
-                    rawTerminatedSignal.doFinally {
-                        log.info {
-                            "[$name] [$it] Graceful shutdown complete."
-                        }
-                    }
-                },
-                ::stopManagedGracefullyIfAllowed,
-            ),
-            ::reportRuntimeFailure,
-        )
+        return rawTerminatedSignal.doFinally {
+            log.info {
+                "[$name] [$it] Graceful shutdown complete."
+            }
+        }
     }
 
-    private fun stopManagedGracefullyIfAllowed(): Mono<Void> =
-        if (forceStopRequested.get()) {
-            Mono.empty()
-        } else {
-            stopManagedGracefully()
-        }
-
-    /**
-     * Adds component-specific graceful cleanup after message processing drains.
-     */
-    protected open fun stopManagedGracefully(): Mono<Void> = Mono.empty()
-
     private fun requestStop() {
-        val stopSignal = synchronized(lifecycleMonitor) {
-            when (state) {
+        val (stopSignal, sourceCancellation) = synchronized(lifecycleMonitor) {
+            val signal = when (state) {
                 State.NEW -> {
                     state = State.STOPPED
                     StopSignal.TERMINATE
@@ -436,6 +401,14 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
                 State.STOPPED,
                 -> StopSignal.NONE
             }
+            signal to if (signal == StopSignal.REQUEST_STOP) {
+                demandGate?.detachCancellation()
+            } else {
+                null
+            }
+        }
+        sourceCancellation?.let { cancellation ->
+            scheduleDetachedCleanup("source cancellation", cancellation)
         }
         when (stopSignal) {
             StopSignal.NONE -> Unit
@@ -445,14 +418,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
     }
 
     final override fun forceStop() {
-        forceStopRequested.set(true)
-        forceAllReporting(
-            listOf(
-                ::forceStopDispatcher,
-                ::forceStopManaged,
-            ),
-            ::reportRuntimeFailure,
-        )?.let { throw it }
+        forceStopDispatcher()
     }
 
     private fun forceStopDispatcher() {
@@ -465,28 +431,19 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
             tryEmitTerminated()
         }
         sourceCancellation?.let { cancellation ->
-            scheduleForceCleanup("source cancellation", cancellation)
+            scheduleDetachedCleanup("source cancellation", cancellation)
         }
         if (newlyStopped) {
-            scheduleForceCleanup("processing pipeline cancellation", ::cancel)
+            scheduleDetachedCleanup("processing pipeline cancellation", ::cancel)
         }
-    }
-
-    /**
-     * Adds component-specific prompt cleanup after the dispatcher is detached.
-     */
-    protected open fun forceStopManaged() = Unit
-
-    private fun reportRuntimeFailure(error: Throwable) {
-        runtimeContext?.reportFailure(error)
     }
 
     @Suppress("TooGenericExceptionCaught")
-    private fun scheduleForceCleanup(
+    private fun scheduleDetachedCleanup(
         cleanupName: String,
         cleanup: () -> Unit,
     ) {
-        val accepted = forceCleanupDispatcher(
+        val accepted = cleanupDispatcher(
             Runnable {
                 Thread.currentThread().interrupt()
                 try {

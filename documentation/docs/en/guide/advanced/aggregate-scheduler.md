@@ -14,10 +14,10 @@ It exposes both graceful and force-stop capabilities so the runtime can dispose 
 scheduler on either shutdown path.
 
 ```kotlin
-interface AggregateSchedulerSupplier : GracefullyStoppable, ForceStoppable {
+interface AggregateSchedulerSupplier : GracefullyStoppable {
     fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler
     // inherited: stopGracefully(): Mono<Void>
-    // inherited: forceStop()
+    fun forceStop()
 }
 ```
 
