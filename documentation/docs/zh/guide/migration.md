@@ -53,7 +53,8 @@ implementation("me.ahoo.wow:wow-spring-boot-starter:新版本号")
 - 已删除 `MessageDispatcherLauncher` 以及命令、事件、投影、Saga、快照 Launcher。Spring Boot
   改为只创建一个 `WowRuntimeLifecycle`。
 - 自定义 `RuntimeComponent` 的构造过程必须无副作用。在 `prepare(RuntimeContext)` 中建立订阅和资源，
-  在 `start()` 中开放处理，从 `stopGracefully()` 返回异步清理过程，并保证 `forceStop()` 快速且幂等。
+  在 `start()` 中开放处理，从 `stopGracefully()` 返回异步清理过程，并保证 `forceStop()` 快速、幂等且
+  线程安全。强制清理可能与正在执行的生命周期回调并发，并会在被中断的启动回调退出后再次执行。
 - 过去覆盖公开生命周期方法的 Dispatcher 子类，应将自有资源逻辑迁移到受保护的
   `prepareManaged`、`startManaged`、`stopManagedGracefully`、`forceStopManaged` 钩子。
 - RuntimeComponent 及其拥有的资源是一次性的。不要再通过 `@PreDestroy`、Bean destroy method

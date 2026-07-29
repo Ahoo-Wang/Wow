@@ -21,6 +21,7 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
+import java.time.Duration
 
 internal class AggregateSchedulerSupplierTest {
 
@@ -95,5 +96,22 @@ internal class AggregateSchedulerSupplierTest {
             supplier.getOrInitialize(aggregate)
         }
         StepVerifier.create(supplier.stopGracefully()).verifyComplete()
+    }
+
+    @Test
+    fun `stop gracefully owns cleanup when the first signal is not observed`() {
+        val supplier = DefaultAggregateSchedulerSupplier("worker", parallelism = 1)
+        val scheduler = supplier.getOrInitialize("sales.Order".toNamedAggregate())
+
+        supplier.stopGracefully()
+
+        try {
+            StepVerifier.create(supplier.stopGracefully())
+                .expectComplete()
+                .verify(Duration.ofSeconds(1))
+            scheduler.isDisposed.assert().isTrue()
+        } finally {
+            supplier.forceStop()
+        }
     }
 }

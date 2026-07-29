@@ -22,9 +22,10 @@ import reactor.core.publisher.Mono
  * without opening processing; [start] opens processing only after every runtime
  * component has completed preparation.
  *
- * [forceStop] must be prompt, non-blocking, idempotent, and safe before
- * preparation. The runtime invokes it only when graceful shutdown cannot
- * complete within the shared deadline.
+ * [forceStop] must be prompt, non-blocking, idempotent, thread-safe, and safe
+ * before or during preparation and graceful cleanup. The runtime may invoke it
+ * concurrently to enforce the shared deadline and replay it after interrupted
+ * startup exits so resources created by an in-progress callback are released.
  */
 interface RuntimeComponent {
     fun prepare(runtimeContext: RuntimeContext)

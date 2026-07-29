@@ -15,17 +15,23 @@ package me.ahoo.wow.runtime
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
+import reactor.core.Disposable
+import reactor.core.Disposables
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
+import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
 import reactor.test.scheduler.VirtualTimeScheduler
 import java.time.Duration
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 class WowRuntimeTest {
 
@@ -154,6 +160,131 @@ class WowRuntimeTest {
         stopFuture.get(1, TimeUnit.SECONDS)
         startFuture.get(1, TimeUnit.SECONDS)
         stoppedDuringPrepare.get().assert().isFalse()
+    }
+
+    @Test
+    fun `shutdown deadline force stops cleanup that blocks its subscription thread`() {
+        val forceStopCount = AtomicInteger()
+        val component = object : RuntimeComponent {
+            override fun prepare(runtimeContext: RuntimeContext) = Unit
+
+            override fun start() = Unit
+
+            override fun stopGracefully(): Mono<Void> =
+                Mono.fromRunnable {
+                    Thread.sleep(300)
+                }
+
+            override fun forceStop() {
+                forceStopCount.incrementAndGet()
+            }
+        }
+        val runtime = WowRuntime(
+            components = listOf(component),
+            shutdownTimeout = Duration.ofMillis(50),
+            shutdownQuietPeriod = Duration.ZERO,
+        )
+        StepVerifier.create(runtime.start()).verifyComplete()
+
+        StepVerifier.create(runtime.stopGracefully())
+            .expectError(TimeoutException::class.java)
+            .verify(Duration.ofSeconds(1))
+
+        forceStopCount.get().assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `shutdown timeout during preparation replays force cleanup after preparation exits`() {
+        val prepareEntered = CountDownLatch(1)
+        val releasePrepare = CountDownLatch(1)
+        val firstForceStop = CountDownLatch(1)
+        val resourceOpen = AtomicBoolean()
+        val forceStopCount = AtomicInteger()
+        val component = object : RuntimeComponent {
+            override fun prepare(runtimeContext: RuntimeContext) {
+                prepareEntered.countDown()
+                releasePrepare.await()
+                resourceOpen.set(true)
+            }
+
+            override fun start() = error("Component must not start after stop is requested.")
+
+            override fun stopGracefully(): Mono<Void> = Mono.empty()
+
+            override fun forceStop() {
+                forceStopCount.incrementAndGet()
+                resourceOpen.set(false)
+                firstForceStop.countDown()
+            }
+        }
+        val runtime = WowRuntime(
+            components = listOf(component),
+            shutdownTimeout = Duration.ofMillis(50),
+            shutdownQuietPeriod = Duration.ZERO,
+        )
+        val startFuture = runtime.start()
+            .subscribeOn(Schedulers.boundedElastic())
+            .toFuture()
+        prepareEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
+        val stopFuture = runtime.stopGracefully().toFuture()
+
+        try {
+            firstForceStop.await(1, TimeUnit.SECONDS).assert().isTrue()
+            stopFuture.isDone.assert().isFalse()
+        } finally {
+            releasePrepare.countDown()
+        }
+
+        assertTimeoutFailure(stopFuture::get)
+        assertTimeoutFailure(startFuture::get)
+        forceStopCount.get().assert().isEqualTo(2)
+        resourceOpen.get().assert().isFalse()
+    }
+
+    @Test
+    fun `force stop wins while graceful cleanup is queued but not started`() {
+        val quiescenceScheduler = QueuedScheduler()
+        val deadlineScheduler = VirtualTimeScheduler.create()
+        val stopCount = AtomicInteger()
+        val forceStopCount = AtomicInteger()
+        val component = object : RuntimeComponent {
+            override fun prepare(runtimeContext: RuntimeContext) = Unit
+
+            override fun start() = Unit
+
+            override fun stopGracefully(): Mono<Void> =
+                Mono.fromRunnable {
+                    stopCount.incrementAndGet()
+                }
+
+            override fun forceStop() {
+                forceStopCount.incrementAndGet()
+            }
+        }
+        val runtime = WowRuntime(
+            components = listOf(component),
+            shutdownTimeout = Duration.ofSeconds(10),
+            shutdownQuietPeriod = Duration.ZERO,
+            quiescenceScheduler = quiescenceScheduler,
+            deadlineScheduler = deadlineScheduler,
+        )
+        try {
+            StepVerifier.create(runtime.start()).verifyComplete()
+            val stopFuture = runtime.stopGracefully().toFuture()
+            quiescenceScheduler.runNext()
+
+            stopCount.get().assert().isEqualTo(0)
+            runtime.forceStop()
+            quiescenceScheduler.runAll()
+
+            stopFuture.get(1, TimeUnit.SECONDS)
+            stopCount.get().assert().isEqualTo(0)
+            forceStopCount.get().assert().isEqualTo(1)
+        } finally {
+            runtime.forceStop()
+            quiescenceScheduler.dispose()
+            deadlineScheduler.dispose()
+        }
     }
 
     @Test
@@ -331,6 +462,15 @@ class WowRuntimeTest {
             shutdownQuietPeriod = Duration.ZERO,
         )
 
+    private fun assertTimeoutFailure(await: () -> Unit) {
+        try {
+            await()
+            error("Expected shutdown timeout.")
+        } catch (error: ExecutionException) {
+            error.cause.assert().isInstanceOf(TimeoutException::class.java)
+        }
+    }
+
     private class RecordingComponent(
         private val name: String,
         private val calls: MutableList<String>,
@@ -358,5 +498,69 @@ class WowRuntimeTest {
         override fun forceStop() {
             calls += "force:$name"
         }
+    }
+
+    private class QueuedScheduler : Scheduler {
+        private val tasks = ConcurrentLinkedQueue<Runnable>()
+        private val disposed = AtomicBoolean()
+
+        override fun schedule(task: Runnable): Disposable {
+            if (disposed.get()) {
+                return Disposables.disposed()
+            }
+            val registration = Disposables.single()
+            tasks += Runnable {
+                if (!disposed.get() && !registration.isDisposed) {
+                    task.run()
+                }
+            }
+            return registration
+        }
+
+        override fun schedule(task: Runnable, delay: Long, unit: TimeUnit): Disposable =
+            schedule(task)
+
+        override fun createWorker(): Scheduler.Worker =
+            object : Scheduler.Worker {
+                private val workerDisposed = AtomicBoolean()
+
+                override fun schedule(task: Runnable): Disposable {
+                    if (workerDisposed.get()) {
+                        return Disposables.disposed()
+                    }
+                    return this@QueuedScheduler.schedule {
+                        if (!workerDisposed.get()) {
+                            task.run()
+                        }
+                    }
+                }
+
+                override fun schedule(task: Runnable, delay: Long, unit: TimeUnit): Disposable =
+                    schedule(task)
+
+                override fun dispose() {
+                    workerDisposed.set(true)
+                }
+
+                override fun isDisposed(): Boolean = workerDisposed.get()
+            }
+
+        fun runNext() {
+            checkNotNull(tasks.poll()).run()
+        }
+
+        fun runAll() {
+            while (true) {
+                val task = tasks.poll() ?: return
+                task.run()
+            }
+        }
+
+        override fun dispose() {
+            disposed.set(true)
+            tasks.clear()
+        }
+
+        override fun isDisposed(): Boolean = disposed.get()
     }
 }

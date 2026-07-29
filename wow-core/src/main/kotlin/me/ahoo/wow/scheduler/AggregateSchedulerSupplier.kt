@@ -20,8 +20,11 @@ import me.ahoo.wow.infra.lifecycle.GracefullyStoppable
 import me.ahoo.wow.messaging.dispatcher.ParallelismCapable
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.materialize
+import reactor.core.Disposables
+import reactor.core.Exceptions
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.publisher.Sinks
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import java.util.concurrent.ConcurrentHashMap
@@ -112,9 +115,10 @@ class DefaultAggregateSchedulerSupplier(
      * Uses ConcurrentHashMap to ensure safe concurrent access when multiple threads
      * request schedulers for the same or different aggregates simultaneously.
      */
-    private val schedulers: MutableMap<MaterializedNamedAggregate, Scheduler> = ConcurrentHashMap()
+    private val schedulers = ConcurrentHashMap<MaterializedNamedAggregate, Scheduler>()
     private val stopping = AtomicBoolean()
-    private val terminated = reactor.core.publisher.Sinks.empty<Void>()
+    private val terminated = Sinks.empty<Void>()
+    private val cleanup = Disposables.composite()
 
     /**
      * Gets the cached scheduler for the aggregate or creates a new parallel scheduler.
@@ -130,10 +134,12 @@ class DefaultAggregateSchedulerSupplier(
         check(!stopping.get()) {
             "AggregateSchedulerSupplier[$name] is stopping."
         }
-        val scheduler = schedulers.computeIfAbsent(namedAggregate.materialize()) { _ ->
+        val materialized = namedAggregate.materialize()
+        val scheduler = schedulers.computeIfAbsent(materialized) { _ ->
             Schedulers.newParallel("$name-${namedAggregate.aggregateName}", parallelism)
         }
         if (stopping.get()) {
+            schedulers.remove(materialized, scheduler)
             scheduler.dispose()
             error("AggregateSchedulerSupplier[$name] is stopping.")
         }
@@ -144,25 +150,42 @@ class DefaultAggregateSchedulerSupplier(
      * Stops all schedulers gracefully.
      */
     override fun stopGracefully(): Mono<Void> {
+        initiateGracefulStop()
+        return terminated.asMono()
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun initiateGracefulStop() {
         if (!stopping.compareAndSet(false, true)) {
-            return terminated.asMono()
+            return
         }
-        val cachedSchedulers = schedulers.values.toList()
-        return Flux.fromIterable(cachedSchedulers)
-            .flatMapDelayError({ it.disposeGracefully() }, cachedSchedulers.size.coerceAtLeast(1), 1)
-            .then()
-            .doOnSuccess {
-                schedulers.clear()
-                terminated.tryEmitEmpty()
-            }
-            .doOnError { error ->
-                schedulers.clear()
-                terminated.tryEmitError(error)
-            }
+        try {
+            val cachedSchedulers = schedulers.values.toList()
+            val cleanupSubscription = Flux.fromIterable(cachedSchedulers)
+                .flatMapDelayError({ it.disposeGracefully() }, cachedSchedulers.size.coerceAtLeast(1), 1)
+                .then()
+                .subscribe(
+                    {},
+                    { error ->
+                        schedulers.clear()
+                        terminated.tryEmitError(error)
+                    },
+                    {
+                        schedulers.clear()
+                        terminated.tryEmitEmpty()
+                    },
+                )
+            cleanup.add(cleanupSubscription)
+        } catch (error: Throwable) {
+            Exceptions.throwIfFatal(error)
+            schedulers.clear()
+            terminated.tryEmitError(error)
+        }
     }
 
     override fun forceStop() {
         stopping.set(true)
+        cleanup.dispose()
         schedulers.values.forEach(Scheduler::dispose)
         schedulers.clear()
         terminated.tryEmitEmpty()
