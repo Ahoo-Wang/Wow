@@ -30,12 +30,10 @@ import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
-import me.ahoo.wow.spring.boot.starter.WowProperties
 import me.ahoo.wow.spring.boot.starter.WowRuntimeComponentOrder
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnSnapshotStoreStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
-import me.ahoo.wow.spring.command.SnapshotDispatcherLauncher
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -49,7 +47,6 @@ import org.springframework.core.annotation.Order
 @ConditionalOnSnapshotEnabled
 @EnableConfigurationProperties(SnapshotProperties::class)
 class SnapshotAutoConfiguration(
-    private val wowProperties: WowProperties,
     private val snapshotProperties: SnapshotProperties,
 ) {
     @Bean(name = ["inMemorySnapshotStore", "inMemorySnapshotRepository"])
@@ -132,15 +129,5 @@ class SnapshotAutoConfiguration(
             snapshotHandler = snapshotHandler,
             stateEventBus = stateEventBus,
         )
-    }
-
-    @Deprecated(
-        message = "Dispatchers are owned by the canonical WowRuntimeLifecycle.",
-    )
-    @Suppress("DEPRECATION")
-    fun snapshotDispatcherLauncher(
-        snapshotDispatcher: SnapshotDispatcher,
-    ): SnapshotDispatcherLauncher {
-        return SnapshotDispatcherLauncher(snapshotDispatcher, wowProperties.shutdownTimeout)
     }
 }

@@ -21,12 +21,8 @@ import me.ahoo.wow.messaging.dispatcher.MessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
-import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.RuntimeContext
-import me.ahoo.wow.runtime.RuntimeOwnership
 import me.ahoo.wow.runtime.internal.RuntimeComponentGroup
-import me.ahoo.wow.runtime.internal.compat.StandaloneRuntimeOwner
-import me.ahoo.wow.runtime.internal.compat.forceStopOrScheduleGracefulCleanup
 import me.ahoo.wow.runtime.internal.forceAllReporting
 import me.ahoo.wow.runtime.internal.stopAllReporting
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
@@ -54,9 +50,14 @@ import java.util.concurrent.atomic.AtomicBoolean
  *     eventHandler = myEventHandler,
  *     schedulerSupplier = mySchedulerSupplier
  * )
- * dispatcher.start()
+ * val runtime = WowRuntime(
+ *     components = listOf(dispatcher),
+ *     shutdownTimeout = Duration.ofSeconds(30),
+ *     shutdownQuietPeriod = Duration.ZERO,
+ * )
+ * runtime.start().block()
  * // ... application logic ...
- * dispatcher.stopGracefully().block()
+ * runtime.stopGracefully().block()
  * ```
  *
  * @param name The name of this dispatcher, typically formatted as `applicationName.DomainEventDispatcher`.
@@ -102,8 +103,7 @@ open class CompositeEventDispatcher(
      * @default DefaultAggregateSchedulerSupplier("EventDispatcher")
      */
     private val schedulerSupplier: AggregateSchedulerSupplier
-) : MessageDispatcher,
-    RuntimeComponent {
+) : MessageDispatcher {
     private val childSchedulerSupplier =
         BorrowedAggregateSchedulerSupplier(schedulerSupplier)
 
@@ -138,31 +138,17 @@ open class CompositeEventDispatcher(
     @Volatile
     private var runtimeContext: RuntimeContext? = null
 
-    private val lifecycleOwner = StandaloneRuntimeOwner(
-        prepareAction = ::prepareOwned,
-        startAction = ::startOwned,
-        gracefulStopAction = ::stopOwnedGracefully,
-        forceStopAction = ::forceStopOwned,
-    )
-
     /**
      * Starts the composite event dispatcher by initializing and starting both the event stream dispatcher and state event dispatcher.
      *
      * This method ensures that both underlying dispatchers are started and ready to process events.
      */
-    final override val runtimeOwnership: RuntimeOwnership
-        get() = lifecycleOwner.runtimeOwnership
-
     final override fun prepare(runtimeContext: RuntimeContext) {
-        lifecycleOwner.prepare(runtimeContext)
-    }
-
-    private fun prepareOwned(runtimeContext: RuntimeContext) {
         if (forceStopRequested.get()) {
             return
         }
         this.runtimeContext = runtimeContext
-        val group = RuntimeComponentGroup.claim(
+        val group = RuntimeComponentGroup(
             listOf(eventStreamDispatcher, stateEventDispatcher),
             runtimeContext::reportFailure,
         )
@@ -192,9 +178,7 @@ open class CompositeEventDispatcher(
      */
     protected open fun prepareManaged(@Suppress("UNUSED_PARAMETER") runtimeContext: RuntimeContext) = Unit
 
-    final override fun start() = lifecycleOwner.start()
-
-    private fun startOwned() {
+    final override fun start() {
         if (forceStopRequested.get()) {
             return
         }
@@ -216,9 +200,7 @@ open class CompositeEventDispatcher(
      *
      * @return A [Mono] that completes when both dispatchers have stopped gracefully.
      */
-    final override fun stopGracefully(): Mono<Void> = lifecycleOwner.stopGracefully()
-
-    private fun stopOwnedGracefully(): Mono<Void> =
+    final override fun stopGracefully(): Mono<Void> =
         stopAllReporting(
             buildList {
                 eventComponentGroupSnapshot()?.let { group ->
@@ -253,9 +235,7 @@ open class CompositeEventDispatcher(
      */
     protected open fun stopManagedGracefully(): Mono<Void> = Mono.empty()
 
-    final override fun forceStop() = lifecycleOwner.forceStop()
-
-    private fun forceStopOwned() {
+    final override fun forceStop() {
         forceStopRequested.set(true)
         forceAllReporting(
             buildList {
@@ -265,7 +245,7 @@ open class CompositeEventDispatcher(
                     }
                 }
                 add(::forceStopManaged)
-                add(schedulerSupplier::forceStopOrScheduleGracefulCleanup)
+                add(schedulerSupplier::forceStop)
             },
             ::reportRuntimeFailure,
         )?.let { throw it }

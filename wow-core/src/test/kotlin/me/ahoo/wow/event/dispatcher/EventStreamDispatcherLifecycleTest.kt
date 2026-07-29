@@ -18,9 +18,9 @@ import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.InMemoryDomainEventBus
-import me.ahoo.wow.infra.lifecycle.ForceStoppable
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -28,6 +28,7 @@ import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
+import java.time.Duration
 import java.util.concurrent.atomic.AtomicBoolean
 
 class EventStreamDispatcherLifecycleTest {
@@ -48,9 +49,14 @@ class EventStreamDispatcherLifecycleTest {
             },
             schedulerSupplier = schedulerSupplier,
         )
-        dispatcher.start()
+        val runtime = WowRuntime(
+            components = listOf(dispatcher),
+            shutdownTimeout = Duration.ofSeconds(1),
+            shutdownQuietPeriod = Duration.ZERO,
+        )
+        runtime.start().block()
 
-        StepVerifier.create(dispatcher.stopGracefully())
+        StepVerifier.create(runtime.stopGracefully())
             .verifyComplete()
 
         schedulerSupplier.stopped.get().assert().isTrue()
@@ -71,9 +77,7 @@ class EventStreamDispatcherLifecycleTest {
         override fun invoke(exchange: DomainEventExchange<*>): Mono<*> = Mono.empty<Void>()
     }
 
-    private class RecordingAggregateSchedulerSupplier :
-        AggregateSchedulerSupplier,
-        ForceStoppable {
+    private class RecordingAggregateSchedulerSupplier : AggregateSchedulerSupplier {
         val stopped = AtomicBoolean()
         private val scheduler = Schedulers.newSingle("recording-event-stream-dispatcher")
 

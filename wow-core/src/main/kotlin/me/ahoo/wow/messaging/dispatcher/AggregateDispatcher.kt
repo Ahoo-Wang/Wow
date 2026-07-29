@@ -22,11 +22,8 @@ import me.ahoo.wow.infra.sink.terminated
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.metrics.Metrics
 import me.ahoo.wow.runtime.RuntimeActivity
-import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.RuntimeContext
-import me.ahoo.wow.runtime.RuntimeOwnership
 import me.ahoo.wow.runtime.internal.RuntimeCleanupExecutor
-import me.ahoo.wow.runtime.internal.compat.StandaloneRuntimeOwner
 import me.ahoo.wow.runtime.internal.forceAllReporting
 import me.ahoo.wow.runtime.internal.stopAllReporting
 import reactor.core.Exceptions
@@ -74,10 +71,13 @@ import java.util.concurrent.atomic.AtomicReference
  *
  * // Usage
  * val dispatcher = CustomAggregateDispatcher()
- * dispatcher.start()
- *
- * // Graceful shutdown
- * dispatcher.stopGracefully().block()
+ * val runtime = WowRuntime(
+ *     components = listOf(dispatcher),
+ *     shutdownTimeout = Duration.ofSeconds(30),
+ *     shutdownQuietPeriod = Duration.ZERO,
+ * )
+ * runtime.start().block()
+ * runtime.stopGracefully().block()
  * ```
  *
  * @param T The type of message exchange being handled, must implement MessageExchange
@@ -95,7 +95,6 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
 ) :
     SafeSubscriber<Void>(),
     MessageDispatcher,
-    RuntimeComponent,
     ParallelismCapable,
     NamedAggregateDecorator,
     TerminatedSignalCapable<Void> {
@@ -176,13 +175,6 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
 
     private val forceStopRequested = AtomicBoolean()
 
-    private val lifecycleOwner = StandaloneRuntimeOwner(
-        prepareAction = ::prepareOwned,
-        startAction = ::startOwned,
-        gracefulStopAction = ::stopOwnedGracefully,
-        forceStopAction = ::forceStopOwned,
-    )
-
     private fun tryEmitTerminated(error: Throwable? = null) {
         if (terminatedSink.terminated) {
             return
@@ -215,14 +207,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
      * @see stopGracefully for graceful shutdown
      * @see toGroupKey for grouping logic
      */
-    final override val runtimeOwnership: RuntimeOwnership
-        get() = lifecycleOwner.runtimeOwnership
-
     final override fun prepare(runtimeContext: RuntimeContext) {
-        lifecycleOwner.prepare(runtimeContext)
-    }
-
-    private fun prepareOwned(runtimeContext: RuntimeContext) {
         val preparedDemandGate = DemandGateFlux(messageFlux) { cancellation ->
             scheduleForceCleanup("late source cancellation", cancellation)
         }
@@ -302,9 +287,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
         }
     }
 
-    final override fun start() = lifecycleOwner.start()
-
-    private fun startOwned() {
+    final override fun start() {
         synchronized(lifecycleMonitor) {
             if (state == State.RUNNING || state == State.STOPPED) {
                 return
@@ -400,12 +383,9 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
      * processing is interrupted mid-flight.
      *
      * @return A Mono that completes when all active tasks have finished and shutdown is complete
-     * @see stop for the blocking version
      * @see forceStop for deadline-expiry cancellation
      */
-    final override fun stopGracefully(): Mono<Void> = lifecycleOwner.stopGracefully()
-
-    private fun stopOwnedGracefully(): Mono<Void> {
+    final override fun stopGracefully(): Mono<Void> {
         log.info {
             "[$name] Stop gracefully. Active runtime operations: ${runtimeContext?.activeOperationCount ?: 0}."
         }
@@ -464,9 +444,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
         }
     }
 
-    final override fun forceStop() = lifecycleOwner.forceStop()
-
-    private fun forceStopOwned() {
+    final override fun forceStop() {
         forceStopRequested.set(true)
         forceAllReporting(
             listOf(

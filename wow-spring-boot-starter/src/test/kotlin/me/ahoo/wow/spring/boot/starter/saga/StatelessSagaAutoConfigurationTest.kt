@@ -57,10 +57,6 @@ internal class StatelessSagaAutoConfigurationTest {
                     .hasSingleBean(StatelessSagaHandler::class.java)
                     .hasSingleBean(StatelessSagaDispatcher::class.java)
                     .hasSingleBean(WowRuntimeLifecycle::class.java)
-
-                val processorAutoRegistrar = context.getBean(StatelessSagaProcessorAutoRegistrar::class.java)
-                processorAutoRegistrar.start()
-                processorAutoRegistrar.stop()
             }
     }
 }

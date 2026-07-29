@@ -24,11 +24,13 @@ import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.modeling.command.dispatcher.AggregateCommandDispatcher
 import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
+import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import org.openjdk.jmh.infra.Blackhole
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.core.scheduler.Scheduler
+import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -74,6 +76,7 @@ class CommandDispatcherChainScenario private constructor(
     private val handlerCost: HandlerCost,
     private val schedulerSupplier: AggregateSchedulerSupplier,
     private val commandMessages: List<CommandMessage<*>>,
+    private val runtime: WowRuntime,
 ) : AutoCloseable {
 
     private val aggregateIdCycle = AtomicInteger(0)
@@ -95,7 +98,7 @@ class CommandDispatcherChainScenario private constructor(
     }
 
     override fun close() {
-        dispatcher.stopGracefully().block()
+        runtime.stopGracefully().block()
         schedulerSupplier.stopGracefully().block()
     }
 
@@ -136,7 +139,12 @@ class CommandDispatcherChainScenario private constructor(
                 commandHandler = handler,
                 scheduler = schedulerSupplier.getOrInitialize(BenchmarkAggregates.namedAggregate),
             )
-            dispatcher.start()
+            val runtime = WowRuntime(
+                components = listOf(dispatcher),
+                shutdownTimeout = Duration.ofSeconds(30),
+                shutdownQuietPeriod = Duration.ZERO,
+            )
+            runtime.start().block()
             return CommandDispatcherChainScenario(
                 dispatcher = dispatcher,
                 messageSink = messageSink,
@@ -145,6 +153,7 @@ class CommandDispatcherChainScenario private constructor(
                 handlerCost = handlerCost,
                 schedulerSupplier = schedulerSupplier,
                 commandMessages = commandMessages,
+                runtime = runtime,
             )
         }
     }

@@ -24,43 +24,26 @@ import java.util.IdentityHashMap
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * One owner-bound runtime component and its transactional ownership claim.
- */
-private class RuntimeComponentBinding(
-    val original: RuntimeComponent,
-    val component: RuntimeComponent,
-    private val ownershipClaim: RuntimeOwnershipClaim,
-) {
-    fun commitOwnership() {
-        ownershipClaim.commit()
-    }
-
-    override fun toString(): String = original.identityDescription()
-}
-
-/**
  * Ordered runtime component group.
  *
- * Ownership is claimed transactionally before any lifecycle work. Preparation
- * is a group-wide barrier: [start] only visits components that completed the
- * preparation pass. Cleanup always visits entered components in reverse order.
+ * Preparation is a group-wide barrier: [start] only visits components that
+ * completed preparation. Cleanup visits entered components in reverse order.
  */
-internal class RuntimeComponentGroup private constructor(
-    private val bindings: List<RuntimeComponentBinding>,
+internal class RuntimeComponentGroup(
+    components: List<RuntimeComponent>,
     private val reportFailure: (Throwable) -> Unit,
 ) {
     private val monitor = Any()
-    private val slots = bindings.map { binding ->
-        RuntimeComponentSlot(binding, reportFailure)
-    }
+    private val slots = components
+        .also(::requireDistinctIdentities)
+        .map { component -> RuntimeComponentSlot(component, reportFailure) }
     private val preparedSlots = mutableListOf<RuntimeComponentSlot>()
     private var forceStarted = false
 
     /**
      * Prepares every component without opening processing.
      *
-     * Returns `false` when force-stop won the race before another component
-     * could enter preparation.
+     * Returns `false` when force-stop wins before another component can enter.
      */
     fun prepare(
         runtimeContext: RuntimeContext,
@@ -78,7 +61,7 @@ internal class RuntimeComponentGroup private constructor(
             }
             check(preparationAdmitted)
             invokeLifecycleAction(slot) {
-                slot.binding.component.prepare(runtimeContext)
+                slot.component.prepare(runtimeContext)
             }
             afterEach()
         }
@@ -87,9 +70,6 @@ internal class RuntimeComponentGroup private constructor(
 
     /**
      * Opens processing only after the complete preparation pass.
-     *
-     * Returns `false` when force-stop won the race before another component
-     * could enter start.
      */
     fun start(
         admissionGate: ((() -> Boolean) -> Boolean) = { admission -> admission() },
@@ -99,7 +79,7 @@ internal class RuntimeComponentGroup private constructor(
             if (!admissionGate { beginLifecycleAction(slot) }) {
                 return false
             }
-            invokeLifecycleAction(slot, slot.binding.component::start)
+            invokeLifecycleAction(slot, slot.component::start)
             afterEach()
         }
         return true
@@ -112,13 +92,7 @@ internal class RuntimeComponentGroup private constructor(
             val firstStopFailure = AtomicReference<Throwable?>()
             Flux.fromIterable(preparedSnapshot().asReversed())
                 .concatMap { slot ->
-                    Mono.defer {
-                        if (shouldStop() && !forceStartedSnapshot()) {
-                            slot.binding.component.stopGracefully()
-                        } else {
-                            Mono.empty()
-                        }
-                    }.onErrorResume { error ->
+                    stopGracefully(slot, shouldStop).onErrorResume { error ->
                         Exceptions.throwIfFatal(error)
                         reportFailure(error)
                         firstStopFailure.compareAndSet(null, error)
@@ -132,6 +106,59 @@ internal class RuntimeComponentGroup private constructor(
                 )
         }
 
+    private fun stopGracefully(
+        slot: RuntimeComponentSlot,
+        shouldStop: () -> Boolean,
+    ): Mono<Void> =
+        Mono.defer {
+            val compensationFailure = AtomicReference<Throwable?>()
+            Mono.using(
+                { shouldStop() && beginLifecycleAction(slot) },
+                { lifecycleEntered ->
+                    if (lifecycleEntered) {
+                        gracefulStopPublisher(slot)
+                    } else {
+                        Mono.empty()
+                    }
+                },
+                { lifecycleEntered ->
+                    if (lifecycleEntered) {
+                        compensationFailure.set(slot.completeLifecycleAction())
+                    }
+                },
+                true,
+            )
+                .onErrorMap { actionFailure ->
+                    compensationFailure.get()?.let(actionFailure::addSuppressedIfAbsent)
+                    actionFailure
+                }
+                .then(
+                    Mono.defer {
+                        compensationFailure.get()?.let { Mono.error(it) } ?: Mono.empty()
+                    },
+                )
+        }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun gracefulStopPublisher(
+        slot: RuntimeComponentSlot,
+    ): Mono<Void> {
+        val publisher = try {
+            slot.component.stopGracefully()
+        } catch (error: Throwable) {
+            Exceptions.throwIfFatal(error)
+            reportFailure(error)
+            return Mono.error(error)
+        }
+        if (slot.isForceStarted) {
+            return Mono.empty()
+        }
+        return publisher.doOnError { error ->
+            Exceptions.throwIfFatal(error)
+            reportFailure(error)
+        }
+    }
+
     fun forceStop(): Throwable? {
         val slots = synchronized(monitor) {
             if (forceStarted) {
@@ -140,13 +167,15 @@ internal class RuntimeComponentGroup private constructor(
             forceStarted = true
             slots.toList()
         }
-        val firstForceFailure = AtomicReference<Throwable?>()
+        var firstForceFailure: Throwable? = null
         slots.asReversed().forEach { slot ->
             slot.forceStop()?.let { failure ->
-                firstForceFailure.compareAndSet(null, failure)
+                if (firstForceFailure == null) {
+                    firstForceFailure = failure
+                }
             }
         }
-        return firstForceFailure.get()
+        return firstForceFailure
     }
 
     private fun beginPreparation(slot: RuntimeComponentSlot): Boolean =
@@ -170,18 +199,14 @@ internal class RuntimeComponentGroup private constructor(
             preparedSlots.toList()
         }
 
-    private fun forceStartedSnapshot(): Boolean =
-        synchronized(monitor) {
-            forceStarted
-        }
-
     @Suppress("TooGenericExceptionCaught")
-    private fun invokeLifecycleAction(
+    private fun <T> invokeLifecycleAction(
         slot: RuntimeComponentSlot,
-        action: () -> Unit,
-    ) {
+        action: () -> T,
+    ): T {
+        var result: T? = null
         val actionFailure = try {
-            action()
+            result = action()
             null
         } catch (error: Throwable) {
             Exceptions.throwIfFatal(error)
@@ -195,63 +220,12 @@ internal class RuntimeComponentGroup private constructor(
         if (compensationFailure != null) {
             throw compensationFailure
         }
+        @Suppress("UNCHECKED_CAST")
+        return result as T
     }
 
-    companion object {
-        @Suppress("TooGenericExceptionCaught")
-        fun claim(
-            components: List<RuntimeComponent>,
-            reportFailure: (Throwable) -> Unit,
-        ): RuntimeComponentGroup {
-            requireDistinctIdentities(components)
-            val pendingClaims = mutableListOf<RuntimeOwnershipClaim>()
-            val bindings = mutableListOf<RuntimeComponentBinding>()
-            val claimedComponentIdentities =
-                Collections.newSetFromMap(IdentityHashMap<RuntimeComponent, Boolean>())
-            try {
-                components.forEach { component ->
-                    val runtimeOwnership = component.runtimeOwnership
-                    check(component.runtimeOwnership === runtimeOwnership) {
-                        "RuntimeComponent[${component.identityDescription()}] must retain one stable " +
-                            "runtimeOwnership handle for its complete lifetime."
-                    }
-                    val ownershipClaim = runtimeOwnership.claim(component)
-                    pendingClaims += ownershipClaim
-                    val ownerBoundComponent = ownershipClaim.component
-                    require(claimedComponentIdentities.add(ownerBoundComponent)) {
-                        "Runtime components resolve to the same owner-bound component" +
-                            "[${ownerBoundComponent.identityDescription()}]."
-                    }
-                    bindings += RuntimeComponentBinding(
-                        original = component,
-                        component = ownerBoundComponent,
-                        ownershipClaim = ownershipClaim,
-                    )
-                }
-                bindings.forEach(RuntimeComponentBinding::commitOwnership)
-            } catch (claimFailure: Throwable) {
-                rollbackClaims(pendingClaims, claimFailure)
-                throw claimFailure
-            }
-            return RuntimeComponentGroup(bindings, reportFailure)
-        }
-
-        @Suppress("TooGenericExceptionCaught")
-        private fun rollbackClaims(
-            pendingClaims: List<RuntimeOwnershipClaim>,
-            claimFailure: Throwable,
-        ) {
-            pendingClaims.asReversed().forEach { pendingClaim ->
-                try {
-                    pendingClaim.rollback()
-                } catch (rollbackFailure: Throwable) {
-                    Exceptions.throwIfFatal(rollbackFailure)
-                    claimFailure.addSuppressedIfAbsent(rollbackFailure)
-                }
-            }
-        }
-
-        private fun requireDistinctIdentities(components: List<RuntimeComponent>) {
+    private companion object {
+        fun requireDistinctIdentities(components: List<RuntimeComponent>) {
             val identities =
                 Collections.newSetFromMap(IdentityHashMap<RuntimeComponent, Boolean>())
             components.forEach { component ->
@@ -260,21 +234,22 @@ internal class RuntimeComponentGroup private constructor(
                 }
             }
         }
+
+        fun RuntimeComponent.identityDescription(): String =
+            "${javaClass.name}@${System.identityHashCode(this).toString(16)}"
     }
 }
 
-private fun RuntimeComponent.identityDescription(): String =
-    "${javaClass.name}@${System.identityHashCode(this).toString(16)}"
-
 /**
- * Linearizes prepare/start actions with force-stop.
+ * Linearizes lifecycle method entry with force-stop.
  *
- * When force-stop overlaps a lifecycle action, it first invokes force-stop to
- * unblock the action and invokes it once more after the action returns. This
- * compensates resources acquired after the first cancellation pass.
+ * When force-stop overlaps a lifecycle action, it invokes force-stop once to
+ * unblock that action and once more after the action returns or its graceful
+ * publisher terminates or is cancelled. The second pass compensates resources
+ * acquired after the first cancellation pass.
  */
 private class RuntimeComponentSlot(
-    val binding: RuntimeComponentBinding,
+    val component: RuntimeComponent,
     private val reportFailure: (Throwable) -> Unit,
 ) {
     private val monitor = Any()
@@ -284,13 +259,18 @@ private class RuntimeComponentSlot(
     private var forceOverlappedLifecycleAction = false
     private var compensationClaimed = false
 
+    val isForceStarted: Boolean
+        get() = synchronized(monitor) {
+            forceStarted
+        }
+
     fun beginLifecycleAction(): Boolean =
         synchronized(monitor) {
             if (forceStarted) {
                 false
             } else {
                 check(!lifecycleActionInFlight) {
-                    "Component lifecycle actions must not overlap: $binding."
+                    "Component lifecycle actions must not overlap: ${component.identityDescription()}."
                 }
                 lifecycleActionInFlight = true
                 true
@@ -300,7 +280,7 @@ private class RuntimeComponentSlot(
     fun completeLifecycleAction(): Throwable? {
         val compensate = synchronized(monitor) {
             check(lifecycleActionInFlight) {
-                "No component lifecycle action is in flight: $binding."
+                "No component lifecycle action is in flight: ${component.identityDescription()}."
             }
             lifecycleActionInFlight = false
             claimCompensationIfReady()
@@ -344,7 +324,7 @@ private class RuntimeComponentSlot(
     @Suppress("TooGenericExceptionCaught")
     private fun invokeForceStop(): Throwable? =
         try {
-            binding.component.forceStop()
+            component.forceStop()
             null
         } catch (error: Throwable) {
             Exceptions.throwIfFatal(error)
@@ -352,7 +332,8 @@ private class RuntimeComponentSlot(
         }
 
     private fun invokeAndReportForceStop(): Throwable? =
-        invokeForceStop()?.also { failure ->
-            reportFailure(failure)
-        }
+        invokeForceStop()?.also(reportFailure)
+
+    private fun RuntimeComponent.identityDescription(): String =
+        "${javaClass.name}@${System.identityHashCode(this).toString(16)}"
 }

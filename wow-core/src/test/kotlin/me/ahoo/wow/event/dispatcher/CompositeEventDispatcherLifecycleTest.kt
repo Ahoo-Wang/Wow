@@ -23,7 +23,6 @@ import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
-import me.ahoo.wow.infra.lifecycle.ForceStoppable
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
@@ -31,6 +30,7 @@ import me.ahoo.wow.messaging.function.SimpleMessageFunctionRegistrar
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.runtime.RuntimeContext
+import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.runtime.internal.DefaultRuntimeContext
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import org.junit.jupiter.api.Test
@@ -41,6 +41,7 @@ import reactor.core.publisher.Sinks
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
+import java.time.Duration
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -49,7 +50,7 @@ import java.util.concurrent.atomic.AtomicInteger
 class CompositeEventDispatcherLifecycleTest {
 
     @Test
-    fun `direct start prepares both child subscriptions before opening demand`() {
+    fun `runtime prepares both child subscriptions before opening demand`() {
         val calls = mutableListOf<String>()
         val dispatcher = RecordingCompositeEventDispatcher(
             domainEventBus = RecordingDomainEventBus(calls),
@@ -61,8 +62,9 @@ class CompositeEventDispatcherLifecycleTest {
             schedulerSupplier = RecordingSchedulerSupplier(calls),
             prepareCalls = calls,
         )
+        val runtime = runtime(dispatcher)
 
-        dispatcher.start()
+        runtime.start().block()
 
         dispatcher.prepareCount.get().assert().isEqualTo(1)
         dispatcher.preparedRuntimeContext.assert().isNotNull()
@@ -81,39 +83,7 @@ class CompositeEventDispatcherLifecycleTest {
         calls.indexOf("subscribe:state").assert()
             .isLessThan(calls.indexOf("request:state"))
 
-        StepVerifier.create(dispatcher.stopGracefully()).verifyComplete()
-    }
-
-    @Test
-    fun `graceful stop before direct start remains terminal`() {
-        val calls = mutableListOf<String>()
-        val dispatcher = newRecordingDispatcher(calls)
-
-        StepVerifier.create(dispatcher.stopGracefully()).verifyComplete()
-        calls.clear()
-
-        try {
-            tryStartAfterTerminalStop(dispatcher)
-            calls.assert().isEmpty()
-        } finally {
-            dispatcher.forceStop()
-        }
-    }
-
-    @Test
-    fun `force stop before direct start remains terminal`() {
-        val calls = mutableListOf<String>()
-        val dispatcher = newRecordingDispatcher(calls)
-
-        dispatcher.forceStop()
-        calls.clear()
-
-        try {
-            tryStartAfterTerminalStop(dispatcher)
-            calls.assert().isEmpty()
-        } finally {
-            dispatcher.forceStop()
-        }
+        StepVerifier.create(runtime.stopGracefully()).verifyComplete()
     }
 
     @Test
@@ -149,13 +119,14 @@ class CompositeEventDispatcherLifecycleTest {
     }
 
     @Test
-    fun `direct graceful runtime closes every intake before scheduler cleanup`() {
+    fun `runtime graceful stop closes every intake before scheduler cleanup`() {
         val gracefulCalls = mutableListOf<String>()
         val gracefulDispatcher = newRecordingDispatcher(gracefulCalls)
-        gracefulDispatcher.start()
+        val runtime = runtime(gracefulDispatcher)
+        runtime.start().block()
         gracefulCalls.clear()
 
-        StepVerifier.create(gracefulDispatcher.stopGracefully()).verifyComplete()
+        StepVerifier.create(runtime.stopGracefully()).verifyComplete()
 
         gracefulCalls.assert().containsExactly(
             "stop:domain",
@@ -165,7 +136,7 @@ class CompositeEventDispatcherLifecycleTest {
     }
 
     @Test
-    fun `direct force runtime does not wait for physical intake cleanup`() {
+    fun `runtime force stop does not wait for physical intake cleanup`() {
         val forceCalls = CopyOnWriteArrayList<String>()
         val releaseCancellation = CountDownLatch(1)
         val domainEventBus = RecordingDomainEventBus(forceCalls) {
@@ -185,11 +156,12 @@ class CompositeEventDispatcherLifecycleTest {
             schedulerSupplier = schedulerSupplier,
             prepareCalls = forceCalls,
         )
-        forceDispatcher.start()
+        val runtime = runtime(forceDispatcher)
+        runtime.start().block()
         forceCalls.clear()
 
         try {
-            forceDispatcher.forceStop()
+            runtime.forceStop()
 
             schedulerSupplier.forceStopCount.get().assert().isEqualTo(1)
             domainEventBus.awaitCancellation()
@@ -250,13 +222,12 @@ class CompositeEventDispatcherLifecycleTest {
             prepareCalls = calls,
         )
 
-    private fun tryStartAfterTerminalStop(dispatcher: RecordingCompositeEventDispatcher) {
-        try {
-            dispatcher.start()
-        } catch (_: IllegalStateException) {
-            // A terminal lifecycle may reject restart instead of treating it as a no-op.
-        }
-    }
+    private fun runtime(dispatcher: RecordingCompositeEventDispatcher): WowRuntime =
+        WowRuntime(
+            components = listOf(dispatcher),
+            shutdownTimeout = Duration.ofSeconds(1),
+            shutdownQuietPeriod = Duration.ZERO,
+        )
 
     private fun registrar(
         vararg functions: MessageFunction<Any, DomainEventExchange<*>, Mono<*>>,
@@ -374,8 +345,7 @@ class CompositeEventDispatcherLifecycleTest {
 
     private class RecordingSchedulerSupplier(
         private val calls: MutableList<String>,
-    ) : AggregateSchedulerSupplier,
-        ForceStoppable {
+    ) : AggregateSchedulerSupplier {
         val gracefulStopCount = AtomicInteger()
         val forceStopCount = AtomicInteger()
 

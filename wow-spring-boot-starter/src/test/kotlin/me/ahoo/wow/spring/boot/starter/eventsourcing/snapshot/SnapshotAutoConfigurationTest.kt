@@ -29,7 +29,6 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.spring.WowRuntimeLifecycle
 import me.ahoo.wow.spring.boot.starter.BusType
-import me.ahoo.wow.spring.boot.starter.WowProperties
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.event.EventAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.event.EventProperties
@@ -52,7 +51,6 @@ internal class SnapshotAutoConfigurationTest {
     @Test
     fun `constructor creates simple snapshot strategy`() {
         val configuration = SnapshotAutoConfiguration(
-            wowProperties = WowProperties(contextName = "test"),
             snapshotProperties = SnapshotProperties(),
         )
         val snapshotStore = configuration.inMemorySnapshotStore()

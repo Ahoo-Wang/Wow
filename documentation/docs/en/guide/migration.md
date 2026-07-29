@@ -65,26 +65,26 @@ Apply the following source migrations:
    The public lifecycle methods are now final templates. Recompile every
    dispatcher subclass; previously compiled subclasses that override those
    methods are not binary compatible.
-2. Remove `MessageDispatcherLauncher` beans and launcher injections from
-   Starter applications. The deprecated launcher classes remain available only
-   for direct `wow-spring` compatibility; registering one beside the Starter's
-   canonical `WowRuntimeLifecycle` fails application-context refresh. Do not
-   replace, rename, or duplicate the canonical `wowRuntime` and
-   `wowRuntimeLifecycle` beans; add participants through
-   `WowRuntimeComponent`.
-3. A custom `MessageDispatcher` should implement `RuntimeComponent`. A legacy
-   dispatcher may be adapted only when it implements a real, prompt
-   `ForceStoppable` cancellation path. Other non-dispatcher Spring participants
-   must implement `WowRuntimeComponent`. Custom components are exclusively
-   owned by one runtime instance. Create one `RuntimeOwnership` handle and retain
-   it for the component's complete lifetime. Ownership claims and their
-   commit/rollback transaction are runtime-internal; public shared ownership is
-   no longer supported.
+2. Remove `MessageDispatcherLauncher` beans, launcher injections, and direct
+   dispatcher lifecycle calls. Launcher classes and factories have been
+   removed. Starter applications use one `WowRuntimeLifecycle`; non-Spring
+   applications construct one `WowRuntime` explicitly. `WowRuntime.start()` is
+   a cold `Mono<Void>` and must be subscribed; merely calling `runtime.start()`
+   compiles but does not start anything.
 
    ```kotlin
-   class CustomRuntimeComponent : WowRuntimeComponent {
-       override val runtimeOwnership = RuntimeOwnership()
+   val runtime = WowRuntime(components, shutdownTimeout, shutdownQuietPeriod)
+   runtime.start().block()
+   // application work
+   runtime.stopGracefully().block()
+   ```
+3. A custom dispatcher or non-dispatcher participant implements
+   `RuntimeComponent` directly. Compatibility adapters and runtime ownership
+   handles, including the former `WowRuntimeComponent` marker, have been
+   removed.
 
+   ```kotlin
+   class CustomRuntimeComponent : RuntimeComponent {
        override fun prepare(runtimeContext: RuntimeContext) {
            runtimeContext.onAdmissionClose(::closeIntake)
        }
@@ -101,25 +101,32 @@ Apply the following source migrations:
    `reportFailure` for fatal pipeline errors. Hard force-stop may cancel a queued
    intake callback, so `forceStop` must close intake synchronously.
 4. Runtime-owned Spring beans must be singletons, and their declared bean return
-   type must expose `MessageDispatcher`, `WowRuntimeComponent`, or the concrete
-   implementation. Remove Spring `Lifecycle`/`SmartLifecycle`,
+   type must expose `RuntimeComponent` or a subtype such as
+   `MessageDispatcher`. Remove Spring `Lifecycle`/`SmartLifecycle`,
    `DisposableBean`, `@PreDestroy`, and explicit destroy methods from these
-   beans: `WowRuntime` is their only lifecycle owner. Scoped proxies and
-   non-static AOP target sources are unsupported. Static proxies are resolved to
-   their stable target, so lifecycle advice on the proxy is not invoked. Bean
-   constructors, factory methods, and `@PostConstruct` must remain inert;
-   acquire runtime-owned resources only from `prepare` or `start`.
-5. If the application replaces Spring's bean named `lifecycleProcessor`, it
-   must remain a `DefaultLifecycleProcessor`; Wow configures the runtime phase
-   timeout on that processor. Runtime components share one Spring ordering
-   sequence: startup follows `@Order`, and shutdown reverses it. A custom
-   ingress `SmartLifecycle` must use a phase greater than
-   `WOW_RUNTIME_PHASE`, so ingress starts after runtime readiness and stops
-   before the runtime.
-6. For a `FactoryBean`, Spring still destroys the factory itself. Its runtime
-   product is stopped only by `WowRuntime`; product `close` or `@PreDestroy`
-   must not be a second cleanup path. Starter registry, ownership validator, and
-   lifecycle-processor customizer types are infrastructure, not extension SPIs.
+   beans: `WowRuntime` is their only lifecycle owner. The runtime invokes the
+   Spring-exposed proxy and does not unwrap its target, so lifecycle advice runs
+   exactly once. A JDK proxy must expose `RuntimeComponent`. Bean constructors,
+   factory methods, and `@PostConstruct` must remain inert; acquire
+   runtime-owned resources only from `prepare` or `start`.
+5. If the application replaces Spring's bean named `lifecycleProcessor`, Wow
+   configures its runtime phase timeout when it is a
+   `DefaultLifecycleProcessor`. Other lifecycle processor implementations own
+   their timeout policy. Runtime components share one Spring ordering sequence: startup
+   follows Spring order, and shutdown reverses it. A custom ingress
+   `SmartLifecycle` must use a phase greater than `WOW_RUNTIME_PHASE`, so
+   ingress starts after runtime readiness and stops before the runtime.
+6. A child application context owns only components declared in that child.
+   Parent components remain owned by the parent runtime. Spring proxies and
+   `FactoryBean` products participate only when their exposed type includes
+   `RuntimeComponent`.
+7. A custom `AggregateSchedulerSupplier` must now implement both
+   `stopGracefully()` and `forceStop()`. Force-stop must synchronously dispose
+   every scheduler that graceful shutdown could own.
+8. `AutoRegistrar` is initialization work and now implements
+   `SmartInitializingSingleton`, not `SmartLifecycle`. Remove lifecycle calls
+   and references to the deleted `AUTO_REGISTRAR_PHASE`; Spring invokes
+   registration before runtime readiness.
 
 Review the shutdown configuration and behavior:
 
@@ -128,8 +135,8 @@ Review the shutdown configuration and behavior:
 - `wow.shutdown-quiet-period` is new and defaults to `1s`. It must be
   non-negative and strictly shorter than `wow.shutdown-timeout`; both durations
   must fit in signed 64-bit nanoseconds.
-- The runtime, `AutoRegistrar`, dispatcher resources, and batch coordinators
-  that reach terminal shutdown are one-shot. Recreate the Spring
+- The runtime, dispatcher resources, and batch coordinators that reach terminal
+  shutdown are one-shot. Recreate the Spring
   `ApplicationContext` instead of stopping and restarting it.
 - Runtime termination signals may complete with the original pipeline error.
   Each subscriber reserves bounded asynchronous-delivery capacity when it

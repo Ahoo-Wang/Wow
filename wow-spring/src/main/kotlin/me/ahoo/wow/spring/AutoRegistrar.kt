@@ -14,112 +14,32 @@
 package me.ahoo.wow.spring
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.springframework.beans.factory.SmartInitializingSingleton
 import org.springframework.context.ApplicationContext
-import org.springframework.context.SmartLifecycle
 
 /**
  * Must complete before the Wow runtime readiness barrier opens.
  * @see WowRuntimeLifecycle
  */
-const val AUTO_REGISTRAR_PHASE = WOW_RUNTIME_PHASE - 1024
-
 abstract class AutoRegistrar<CM : Annotation>(
     private val componentType: Class<CM>,
     private val applicationContext: ApplicationContext
-) : SmartLifecycle {
-    private enum class State {
-        NEW,
-        STARTING,
-        RUNNING,
-        TERMINATED,
-    }
-
+) : SmartInitializingSingleton {
     companion object {
         private val log = KotlinLogging.logger {}
     }
 
-    private val lifecycleMonitor = Any()
-
-    @Volatile
-    private var state = State.NEW
-
-    @Suppress("TooGenericExceptionCaught")
-    override fun start() {
-        val shouldStart = synchronized(lifecycleMonitor) {
-            when (state) {
-                State.NEW -> {
-                    state = State.STARTING
-                    true
-                }
-
-                State.RUNNING -> false
-                State.STARTING -> error("Lifecycle monitor must serialize component registration.")
-                State.TERMINATED -> restartNotSupported()
-            }
-        }
-        if (!shouldStart) {
-            return
-        }
+    final override fun afterSingletonsInstantiated() {
         log.info {
-            "Start registering component:${componentType.simpleName}."
+            "Register component:${componentType.simpleName}."
         }
-        try {
-            val components = applicationContext.getBeansWithAnnotation(componentType)
-            components.forEach { entry ->
-                val component = entry.value
-                log.debug {
-                    "Registering Component [$component]."
-                }
-                register(component)
+        applicationContext.getBeansWithAnnotation(componentType).forEach { (_, component) ->
+            log.debug {
+                "Registering Component [$component]."
             }
-            synchronized(lifecycleMonitor) {
-                check(state == State.STARTING) {
-                    "Lifecycle state changed while components were being registered: $state."
-                }
-                state = State.RUNNING
-            }
-        } catch (error: Throwable) {
-            synchronized(lifecycleMonitor) {
-                state = State.TERMINATED
-            }
-            throw error
+            register(component)
         }
     }
 
     abstract fun register(component: Any)
-
-    override fun stop() {
-        val stopped = synchronized(lifecycleMonitor) {
-            when (state) {
-                State.NEW,
-                State.RUNNING,
-                -> {
-                    state = State.TERMINATED
-                    true
-                }
-
-                State.TERMINATED -> false
-                State.STARTING -> error("Lifecycle monitor must serialize component registration and shutdown.")
-            }
-        }
-        if (stopped) {
-            log.info {
-                "Stop ${componentType.simpleName}."
-            }
-        }
-    }
-
-    private fun restartNotSupported(): Nothing =
-        error(
-            "${componentType.simpleName} auto registrar is one-shot and cannot restart after shutdown. " +
-                "Create a new ApplicationContext instead.",
-        )
-
-    override fun isRunning(): Boolean = state == State.RUNNING
-
-    override fun isPauseable(): Boolean = false
-
-    override fun getPhase(): Int {
-        return AUTO_REGISTRAR_PHASE
-    }
 }

@@ -51,7 +51,7 @@ class AggregateDispatcherTest {
         val source = Sinks.many().unicast().onBackpressureBuffer<TestExchange>()
         val dispatcher = RecordingAggregateDispatcher(messageFlux = source.asFlux())
         val exchange = TestExchange(group = 1)
-        dispatcher.start()
+        prepareAndStart(dispatcher)
 
         StepVerifier.create(dispatcher.handled.asFlux().take(1))
             .then { source.tryEmitNext(exchange).orThrow() }
@@ -65,14 +65,14 @@ class AggregateDispatcherTest {
     @Test
     fun `stopGracefully completes immediately when no task is active`() {
         val dispatcher = RecordingAggregateDispatcher(messageFlux = Flux.never())
-        dispatcher.start()
+        prepareAndStart(dispatcher)
 
         StepVerifier.create(dispatcher.stopGracefully())
             .verifyComplete()
     }
 
     @Test
-    fun `graceful stop before direct start remains terminal`() {
+    fun `graceful stop before preparation remains terminal`() {
         val source = Sinks.many().unicast().onBackpressureBuffer<TestExchange>()
         val dispatcher = RecordingAggregateDispatcher(messageFlux = source.asFlux())
 
@@ -83,7 +83,7 @@ class AggregateDispatcherTest {
     }
 
     @Test
-    fun `force stop before direct start remains terminal`() {
+    fun `force stop before preparation remains terminal`() {
         val source = Sinks.many().unicast().onBackpressureBuffer<TestExchange>()
         val dispatcher = RecordingAggregateDispatcher(messageFlux = source.asFlux())
 
@@ -117,7 +117,7 @@ class AggregateDispatcherTest {
         val executor = Executors.newSingleThreadExecutor()
 
         try {
-            runtime.start()
+            runtime.start().block()
 
             val forceStop = executor.submit(runtime::forceStop)
 
@@ -208,7 +208,7 @@ class AggregateDispatcherTest {
             shutdownTimeout = Duration.ofSeconds(1),
             shutdownQuietPeriod = Duration.ZERO,
         )
-        runtime.start()
+        runtime.start().block()
         dispatcher.terminatedSignal.subscribe(
             {},
             {},
@@ -301,7 +301,7 @@ class AggregateDispatcherTest {
         )
         val executor = Executors.newFixedThreadPool(2)
         val startup = executor.submit<Throwable?> {
-            runCatching(runtime::start).exceptionOrNull()
+            runCatching { runtime.start().block() }.exceptionOrNull()
         }
 
         try {
@@ -352,7 +352,7 @@ class AggregateDispatcherTest {
 
         try {
             val startup = executor.submit<Throwable?> {
-                runCatching(runtime::start).exceptionOrNull()
+                runCatching { runtime.start().block() }.exceptionOrNull()
             }
             sourceSubscriptionEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
 
@@ -372,7 +372,7 @@ class AggregateDispatcherTest {
     }
 
     @Test
-    fun `direct fatal pipeline failure is owned and triggers force cleanup`() {
+    fun `fatal pipeline failure terminates its owning runtime`() {
         val source = Sinks.many().unicast().onBackpressureBuffer<TestExchange>()
         val failure = IllegalStateException("fatal")
         val forceStopCount = AtomicInteger()
@@ -384,11 +384,16 @@ class AggregateDispatcherTest {
                 forceStopCount.incrementAndGet()
             }
         }
-        dispatcher.start()
+        val runtime = WowRuntime(
+            components = listOf(dispatcher),
+            shutdownTimeout = Duration.ofSeconds(1),
+            shutdownQuietPeriod = Duration.ZERO,
+        )
+        runtime.start().block()
 
         source.tryEmitNext(TestExchange(group = 1)).orThrow()
 
-        StepVerifier.create(dispatcher.stopGracefully())
+        StepVerifier.create(runtime.terminationSignal)
             .expectErrorSatisfies { error ->
                 error.assert().isSameAs(failure)
             }
@@ -405,7 +410,7 @@ class AggregateDispatcherTest {
             shutdownTimeout = Duration.ofSeconds(1),
             shutdownQuietPeriod = Duration.ofMillis(100),
         )
-        runtime.start()
+        runtime.start().block()
 
         StepVerifier.create(runtime.stopGracefully()).verifyComplete()
 
@@ -459,7 +464,7 @@ class AggregateDispatcherTest {
             shutdownQuietPeriod = Duration.ZERO,
         )
 
-        runtime.start()
+        runtime.start().block()
 
         StepVerifier.create(downstreamHandled.asMono()).verifyComplete()
         StepVerifier.create(runtime.stopGracefully()).verifyComplete()
@@ -512,7 +517,7 @@ class AggregateDispatcherTest {
             shutdownQuietPeriod = Duration.ZERO,
         )
 
-        val thrown = assertThrows<IllegalStateException>(runtime::start)
+        val thrown = assertThrows<IllegalStateException> { runtime.start().block() }
 
         thrown.assert().isSameAs(startFailure)
         runtime.isRunning.assert().isFalse()
@@ -532,7 +537,7 @@ class AggregateDispatcherTest {
                     .doOnCancel { cancelled.tryEmitEmpty().orThrow() }
             },
         )
-        dispatcher.start()
+        prepareAndStart(dispatcher)
 
         StepVerifier.create(invoked.asMono())
             .then { source.tryEmitNext(TestExchange(group = 2)).orThrow() }
@@ -569,7 +574,7 @@ class AggregateDispatcherTest {
                 }
             },
         )
-        dispatcher.start()
+        prepareAndStart(dispatcher)
 
         StepVerifier.create(firstInvoked.asMono())
             .then {
@@ -618,7 +623,7 @@ class AggregateDispatcherTest {
             shutdownTimeout = Duration.ofSeconds(1),
             shutdownQuietPeriod = Duration.ofMillis(100),
         )
-        runtime.start()
+        runtime.start().block()
 
         StepVerifier.create(firstInvoked.asMono())
             .then { firstSource.tryEmitNext(TestExchange(group = 1)).orThrow() }
@@ -641,7 +646,7 @@ class AggregateDispatcherTest {
         val source = Sinks.many().unicast().onBackpressureBuffer<TestExchange>()
         val error = IllegalStateException("handler failed")
         val dispatcher = ErrorRecordingAggregateDispatcher(source.asFlux(), error)
-        dispatcher.start()
+        prepareAndStart(dispatcher)
 
         StepVerifier.create(dispatcher.errors.asMono())
             .then { source.tryEmitNext(TestExchange(group = 3)).orThrow() }
@@ -669,7 +674,7 @@ class AggregateDispatcherTest {
             shutdownTimeout = Duration.ofSeconds(1),
             shutdownQuietPeriod = Duration.ZERO,
         )
-        runtime.start()
+        runtime.start().block()
 
         source.tryEmitNext(TestExchange(group = 1)).orThrow()
 
@@ -692,7 +697,7 @@ class AggregateDispatcherTest {
                 name = dispatcherName,
             )
 
-            dispatcher.start()
+            prepareAndStart(dispatcher)
 
             val dispatcherMeterIds = meterRegistry.meters
                 .map { it.id }
@@ -714,6 +719,11 @@ class AggregateDispatcherTest {
         } catch (_: IllegalStateException) {
             // A terminal lifecycle may reject restart instead of treating it as a no-op.
         }
+    }
+
+    private fun prepareAndStart(dispatcher: AggregateDispatcher<TestExchange>) {
+        dispatcher.prepare(DefaultRuntimeContext())
+        dispatcher.start()
     }
 
     private fun awaitIgnoringInterrupt(latch: CountDownLatch) {

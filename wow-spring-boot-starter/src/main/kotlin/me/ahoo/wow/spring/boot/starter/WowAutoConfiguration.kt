@@ -20,11 +20,14 @@ import me.ahoo.wow.exception.ErrorInfoConverterRegistrar
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.naming.CurrentBoundedContext
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
+import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.spring.SpringServiceProvider
 import me.ahoo.wow.spring.WowRuntimeLifecycle
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.ConfigurableBeanFactory
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
+import org.springframework.beans.factory.support.DefaultListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.SearchStrategy
@@ -34,11 +37,14 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.context.ApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
+import org.springframework.context.Lifecycle
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Primary
 import org.springframework.context.annotation.Role
 import org.springframework.context.support.AbstractApplicationContext
 import org.springframework.context.support.DefaultLifecycleProcessor
+import org.springframework.core.Ordered
+import org.springframework.core.PriorityOrdered
 import org.springframework.core.env.Environment
 import java.time.Duration
 
@@ -55,20 +61,6 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
     companion object {
         const val SPRING_APPLICATION_NAME = "spring.application.name"
         const val WOW_CURRENT_BOUNDED_CONTEXT = "wow.CurrentBoundedContext"
-
-        @JvmStatic
-        @Bean(RUNTIME_COMPONENT_REGISTRY_BEAN_NAME)
-        @Role(org.springframework.beans.factory.config.BeanDefinition.ROLE_INFRASTRUCTURE)
-        internal fun runtimeComponentRegistry(): RuntimeComponentRegistry {
-            return RuntimeComponentRegistry()
-        }
-
-        @JvmStatic
-        @Bean(WOW_RUNTIME_OWNERSHIP_VALIDATOR_BEAN_NAME)
-        @Role(org.springframework.beans.factory.config.BeanDefinition.ROLE_INFRASTRUCTURE)
-        internal fun wowRuntimeOwnershipValidator(): WowRuntimeOwnershipValidator {
-            return WowRuntimeOwnershipValidator()
-        }
 
         @JvmStatic
         @Bean(WOW_RUNTIME_LIFECYCLE_PROCESSOR_CUSTOMIZER_BEAN_NAME)
@@ -111,18 +103,15 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
     }
 
     @Bean(WOW_RUNTIME_BEAN_NAME, destroyMethod = "")
+    @ConditionalOnMissingBean(WowRuntime::class, search = SearchStrategy.CURRENT)
     internal fun wowRuntime(
-        runtimeComponentRegistry: RuntimeComponentRegistry,
-        ownershipValidator: WowRuntimeOwnershipValidator,
+        beanFactory: ConfigurableListableBeanFactory,
     ): WowRuntime {
-        val runtime = WowRuntime(
-            components = runtimeComponentRegistry.snapshot()
-                .map(RuntimeComponentDescriptor::runtimeComponent),
+        return WowRuntime(
+            components = beanFactory.localRuntimeComponents(),
             shutdownTimeout = wowProperties.shutdownTimeout,
             shutdownQuietPeriod = wowProperties.shutdownQuietPeriod,
         )
-        runtimeComponentRegistry.attachRuntime(runtime)
-        return ownershipValidator.recordCanonicalRuntime(runtime)
     }
 
     @Bean(AbstractApplicationContext.LIFECYCLE_PROCESSOR_BEAN_NAME)
@@ -138,16 +127,42 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
     }
 
     @Bean(WOW_RUNTIME_LIFECYCLE_BEAN_NAME)
+    @ConditionalOnMissingBean(WowRuntimeLifecycle::class, search = SearchStrategy.CURRENT)
     internal fun wowRuntimeLifecycle(
         wowRuntime: WowRuntime,
         applicationContext: ConfigurableApplicationContext,
-        ownershipValidator: WowRuntimeOwnershipValidator,
     ): WowRuntimeLifecycle {
-        ownershipValidator.requireCanonicalRuntime(wowRuntime)
-        return ownershipValidator.recordCanonicalRuntimeLifecycle(
-            WowRuntimeLifecycle(wowRuntime) {
-                applicationContext.close()
-            },
-        )
+        return WowRuntimeLifecycle(wowRuntime) {
+            applicationContext.close()
+        }
     }
+
+    private fun ConfigurableListableBeanFactory.localRuntimeComponents(): List<RuntimeComponent> =
+        getBeanNamesForType(RuntimeComponent::class.java, true, true)
+            .map { beanName ->
+                require(isSingleton(beanName)) {
+                    "RuntimeComponent bean '$beanName' must be a singleton."
+                }
+                val component = getBean(beanName, RuntimeComponent::class.java)
+                require(component !is Lifecycle) {
+                    "RuntimeComponent bean '$beanName' must not implement Spring Lifecycle; " +
+                        "WowRuntime is its exclusive lifecycle owner."
+                }
+                beanName to component
+            }
+            .sortedWith { (leftName, left), (rightName, right) ->
+                when {
+                    left is PriorityOrdered && right !is PriorityOrdered -> -1
+                    right is PriorityOrdered && left !is PriorityOrdered -> 1
+                    else -> {
+                        val beanFactory = this as? DefaultListableBeanFactory
+                        val leftOrder = beanFactory?.getOrder(leftName, left)
+                            ?: Ordered.LOWEST_PRECEDENCE
+                        val rightOrder = beanFactory?.getOrder(rightName, right)
+                            ?: Ordered.LOWEST_PRECEDENCE
+                        leftOrder.compareTo(rightOrder)
+                    }
+                }
+            }
+            .map { it.second }
 }

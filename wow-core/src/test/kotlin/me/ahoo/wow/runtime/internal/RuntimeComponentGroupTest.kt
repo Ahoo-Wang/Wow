@@ -16,224 +16,34 @@ package me.ahoo.wow.runtime.internal
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.RuntimeContext
-import me.ahoo.wow.runtime.RuntimeOwnership
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.test.StepVerifier
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 class RuntimeComponentGroupTest {
 
     @Test
-    fun `runtime component public surface exposes only the stable ownership handle`() {
-        val publicMethodNames = RuntimeComponent::class.java.methods.map { it.name }
-
-        publicMethodNames.assert().contains("getRuntimeOwnership")
-        publicMethodNames
-            .filter { methodName ->
-                listOf("claim", "commit", "rollback", "shared").any {
-                    methodName.contains(it, ignoreCase = true)
-                }
-            }
-            .assert()
-            .isEmpty()
-    }
-
-    @Test
-    fun `default component ownership is exclusive and rolls back transactionally`() {
-        val component = DefaultOwnershipComponent()
-        val claimFailure = IllegalStateException("claim")
-        val failing = object : DefaultOwnershipComponent() {
-            override val runtimeOwnership: RuntimeOwnership =
-                RuntimeOwnership.managed { throw claimFailure }
-        }
-
-        assertThrows<IllegalStateException> {
-            RuntimeComponentGroup.claim(listOf(component, failing), reportFailure = {})
-        }
-            .assert()
-            .isSameAs(claimFailure)
-
-        RuntimeComponentGroup.claim(listOf(component), reportFailure = {})
-        assertThrows<IllegalStateException> {
-            RuntimeComponentGroup.claim(listOf(component), reportFailure = {})
-        }
-            .message
-            .assert()
-            .contains("runtime ownership is already EXTERNAL")
-    }
-
-    @Test
-    fun `computed ownership handle is rejected before it can bypass exclusivity`() {
-        val stableOwnership = RuntimeOwnership()
-        var useStableOwnership = false
-        val component = object : DefaultOwnershipComponent() {
-            override val runtimeOwnership: RuntimeOwnership
-                get() =
-                    if (useStableOwnership) {
-                        stableOwnership
-                    } else {
-                        RuntimeOwnership()
-                    }
-        }
-
-        val error = assertThrows<IllegalStateException> {
-            RuntimeComponentGroup.claim(listOf(component), reportFailure = {})
-        }
-
-        error.message.assert()
-            .contains("runtimeOwnership")
-            .contains("stable")
-
-        useStableOwnership = true
-        RuntimeComponentGroup.claim(listOf(component), reportFailure = {})
-    }
-
-    @Test
-    fun `stable ownership handle remains bound to one component after rollback`() {
-        val ownership = RuntimeOwnership()
-        val first = object : DefaultOwnershipComponent() {
-            override val runtimeOwnership: RuntimeOwnership = ownership
-        }
-        val second = object : DefaultOwnershipComponent() {
-            override val runtimeOwnership: RuntimeOwnership = ownership
-        }
-        val failing = object : DefaultOwnershipComponent() {
-            override val runtimeOwnership: RuntimeOwnership =
-                RuntimeOwnership.managed { error("claim") }
-        }
-
-        assertThrows<IllegalStateException> {
-            RuntimeComponentGroup.claim(listOf(first, failing), reportFailure = {})
-        }
-
-        assertThrows<IllegalStateException> {
-            RuntimeComponentGroup.claim(listOf(second), reportFailure = {})
-        }
-            .message
-            .assert()
-            .contains("exactly one RuntimeComponent")
-
-        RuntimeComponentGroup.claim(listOf(first), reportFailure = {})
-    }
-
-    @Test
-    fun `duplicate owner-bound component rolls back the complete claim transaction`() {
-        val commits = AtomicInteger()
-        val rollbacks = AtomicInteger()
-        val ownerView = RecordingComponent("owner", mutableListOf())
-
-        fun claimant(name: String): RuntimeComponent =
-            object : RuntimeComponent {
-                override val runtimeOwnership: RuntimeOwnership =
-                    RuntimeOwnership.managed {
-                        object : RuntimeOwnershipClaim {
-                            override val component: RuntimeComponent = ownerView
-
-                            override fun commit() {
-                                commits.incrementAndGet()
-                            }
-
-                            override fun rollback() {
-                                rollbacks.incrementAndGet()
-                            }
-                        }
-                    }
-
-                override fun prepare(runtimeContext: RuntimeContext) = Unit
-
-                override fun start() = Unit
-
-                override fun stopGracefully(): Mono<Void> = Mono.empty()
-
-                override fun forceStop() = Unit
-
-                override fun toString(): String = name
-            }
+    fun `duplicate component identity is rejected`() {
+        val component = RecordingComponent("component", mutableListOf())
 
         assertThrows<IllegalArgumentException> {
-            RuntimeComponentGroup.claim(
-                listOf(claimant("first"), claimant("second")),
-                reportFailure = {},
-            )
+            RuntimeComponentGroup(listOf(component, component), reportFailure = {})
         }
-
-        commits.get().assert().isZero()
-        rollbacks.get().assert().isEqualTo(2)
     }
 
     @Test
-    fun `component resolution failure rolls back every acquired claim in reverse order`() {
-        val claimFailure = IllegalStateException("component")
+    fun `admission gate can reject lifecycle entry atomically`() {
         val calls = mutableListOf<String>()
-        val first = ClaimRecordingComponent("first", calls)
-        val second = ClaimRecordingComponent(
-            name = "second",
-            calls = calls,
-            componentFailure = claimFailure,
-        )
-
-        val thrown = assertThrows<IllegalStateException> {
-            RuntimeComponentGroup.claim(listOf(first, second), reportFailure = {})
-        }
-
-        thrown.assert().isSameAs(claimFailure)
-        calls.assert().containsExactly(
-            "claim:first",
-            "resolve:first",
-            "claim:second",
-            "resolve:second",
-            "rollback:second",
-            "rollback:first",
-        )
-        first.isClaimed.assert().isFalse()
-        second.isClaimed.assert().isFalse()
-
-        RuntimeComponentGroup.claim(listOf(first), reportFailure = {})
-        first.isClaimed.assert().isTrue()
-    }
-
-    @Test
-    fun `rollback failure cannot mask claim failure or skip earlier claims`() {
-        val claimFailure = IllegalStateException("component")
-        val rollbackFailure = IllegalArgumentException("rollback")
-        val calls = mutableListOf<String>()
-        val first = ClaimRecordingComponent("first", calls)
-        val second = ClaimRecordingComponent(
-            name = "second",
-            calls = calls,
-            rollbackFailure = rollbackFailure,
-        )
-        val third = ClaimRecordingComponent(
-            name = "third",
-            calls = calls,
-            componentFailure = claimFailure,
-        )
-
-        val thrown = assertThrows<IllegalStateException> {
-            RuntimeComponentGroup.claim(listOf(first, second, third), reportFailure = {})
-        }
-
-        thrown.assert().isSameAs(claimFailure)
-        thrown.suppressedExceptions.assert().containsExactly(rollbackFailure)
-        calls.takeLast(3).assert().containsExactly(
-            "rollback:third",
-            "rollback:second",
-            "rollback:first",
-        )
-        first.isClaimed.assert().isFalse()
-        second.isClaimed.assert().isFalse()
-        third.isClaimed.assert().isFalse()
-    }
-
-    @Test
-    fun `owner admission gate can reject lifecycle entry atomically`() {
-        val calls = mutableListOf<String>()
-        val group = RuntimeComponentGroup.claim(
+        val group = RuntimeComponentGroup(
             listOf(RecordingComponent("component", calls)),
             reportFailure = {},
         )
@@ -250,7 +60,7 @@ class RuntimeComponentGroupTest {
     @Test
     fun `group provides a readiness barrier and reverse cleanup`() {
         val calls = mutableListOf<String>()
-        val group = RuntimeComponentGroup.claim(
+        val group = RuntimeComponentGroup(
             listOf(
                 RecordingComponent("first", calls),
                 RecordingComponent("second", calls),
@@ -273,9 +83,9 @@ class RuntimeComponentGroupTest {
     }
 
     @Test
-    fun `force stop covers every claimed component before preparation`() {
+    fun `force stop covers every registered component before preparation`() {
         val calls = mutableListOf<String>()
-        val group = RuntimeComponentGroup.claim(
+        val group = RuntimeComponentGroup(
             listOf(
                 RecordingComponent("first", calls),
                 RecordingComponent("second", calls),
@@ -303,7 +113,7 @@ class RuntimeComponentGroupTest {
                 stopGate.asMono()
             },
         )
-        val group = RuntimeComponentGroup.claim(listOf(first, second), reportFailure = {})
+        val group = RuntimeComponentGroup(listOf(first, second), reportFailure = {})
         group.prepare(DefaultRuntimeContext()).assert().isTrue()
         val gracefulStop = group.stopGracefully().toFuture()
 
@@ -316,13 +126,340 @@ class RuntimeComponentGroupTest {
         calls.assert().doesNotContain("stop:first")
     }
 
+    @Test
+    fun `force stop compensates resources acquired by overlapping graceful method entry`() {
+        val stopEntered = CountDownLatch(1)
+        val releaseStop = CountDownLatch(1)
+        val forceCount = AtomicInteger()
+        val gracefulSubscriptionCount = AtomicInteger()
+        val component = object : RuntimeComponent {
+            override fun prepare(runtimeContext: RuntimeContext) = Unit
+
+            override fun start() = Unit
+
+            override fun stopGracefully(): Mono<Void> {
+                stopEntered.countDown()
+                releaseStop.await()
+                return Mono.defer {
+                    gracefulSubscriptionCount.incrementAndGet()
+                    Mono.empty()
+                }
+            }
+
+            override fun forceStop() {
+                forceCount.incrementAndGet()
+            }
+        }
+        val group = RuntimeComponentGroup(listOf(component), reportFailure = {})
+        group.prepare(DefaultRuntimeContext()).assert().isTrue()
+        val executor = Executors.newSingleThreadExecutor()
+        val gracefulStop = CompletableFuture.runAsync(
+            { group.stopGracefully().block() },
+            executor,
+        )
+
+        try {
+            stopEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
+
+            group.forceStop()
+            forceCount.get().assert().isOne()
+            releaseStop.countDown()
+            gracefulStop.get(1, TimeUnit.SECONDS)
+
+            forceCount.get().assert().isEqualTo(2)
+            gracefulSubscriptionCount.get().assert().isZero()
+        } finally {
+            releaseStop.countDown()
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `synchronous graceful failure remains primary when compensation fails`() {
+        val gracefulFailure = IllegalStateException("graceful")
+        val compensationFailure = IllegalArgumentException("compensation")
+        val stopEntered = CountDownLatch(1)
+        val releaseStop = CountDownLatch(1)
+        val forceCount = AtomicInteger()
+        val reportedFailures = CopyOnWriteArrayList<Throwable>()
+        val component = object : RuntimeComponent {
+            override fun prepare(runtimeContext: RuntimeContext) = Unit
+
+            override fun start() = Unit
+
+            override fun stopGracefully(): Mono<Void> {
+                stopEntered.countDown()
+                releaseStop.await()
+                throw gracefulFailure
+            }
+
+            override fun forceStop() {
+                if (forceCount.incrementAndGet() == 2) {
+                    throw compensationFailure
+                }
+            }
+        }
+        val group = RuntimeComponentGroup(listOf(component), reportedFailures::add)
+        group.prepare(DefaultRuntimeContext()).assert().isTrue()
+        val executor = Executors.newSingleThreadExecutor()
+        val gracefulStop = CompletableFuture.supplyAsync(
+            {
+                group.stopGracefully().materialize().block()!!.throwable
+            },
+            executor,
+        )
+
+        try {
+            stopEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
+            group.forceStop()
+            releaseStop.countDown()
+
+            val failure = gracefulStop.get(1, TimeUnit.SECONDS)
+            failure.assert().isSameAs(gracefulFailure)
+            failure!!.suppressedExceptions.assert().containsExactly(compensationFailure)
+            forceCount.get().assert().isEqualTo(2)
+            reportedFailures.take(2).assert()
+                .containsExactly(gracefulFailure, compensationFailure)
+        } finally {
+            releaseStop.countDown()
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `force stop compensates a cold graceful subscription race`() {
+        val subscriptionEntered = CountDownLatch(1)
+        val releaseSubscription = CountDownLatch(1)
+        val resourceOwned = AtomicInteger()
+        val forceCount = AtomicInteger()
+        val component = object : RuntimeComponent {
+            override fun prepare(runtimeContext: RuntimeContext) = Unit
+
+            override fun start() = Unit
+
+            override fun stopGracefully(): Mono<Void> =
+                Mono.defer {
+                    subscriptionEntered.countDown()
+                    releaseSubscription.await()
+                    resourceOwned.incrementAndGet()
+                    Mono.empty()
+                }
+
+            override fun forceStop() {
+                forceCount.incrementAndGet()
+                resourceOwned.set(0)
+            }
+        }
+        val group = RuntimeComponentGroup(listOf(component), reportFailure = {})
+        group.prepare(DefaultRuntimeContext()).assert().isTrue()
+        val executor = Executors.newSingleThreadExecutor()
+        val gracefulStop = CompletableFuture.runAsync(
+            { group.stopGracefully().block() },
+            executor,
+        )
+
+        try {
+            subscriptionEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
+
+            group.forceStop()
+            forceCount.get().assert().isOne()
+            releaseSubscription.countDown()
+            gracefulStop.get(1, TimeUnit.SECONDS)
+
+            forceCount.get().assert().isEqualTo(2)
+            resourceOwned.get().assert().isZero()
+        } finally {
+            releaseSubscription.countDown()
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `force stop compensates a resource acquired after subscription`() {
+        val executionEntered = CountDownLatch(1)
+        val releaseExecution = CountDownLatch(1)
+        val resourceOwned = AtomicInteger()
+        val forceCount = AtomicInteger()
+        val component = object : RuntimeComponent {
+            override fun prepare(runtimeContext: RuntimeContext) = Unit
+
+            override fun start() = Unit
+
+            override fun stopGracefully(): Mono<Void> =
+                Mono.fromRunnable {
+                    executionEntered.countDown()
+                    releaseExecution.await()
+                    resourceOwned.incrementAndGet()
+                }
+
+            override fun forceStop() {
+                forceCount.incrementAndGet()
+                resourceOwned.set(0)
+            }
+        }
+        val group = RuntimeComponentGroup(listOf(component), reportFailure = {})
+        group.prepare(DefaultRuntimeContext()).assert().isTrue()
+        val executor = Executors.newSingleThreadExecutor()
+        val gracefulStop = CompletableFuture.runAsync(
+            { group.stopGracefully().block() },
+            executor,
+        )
+
+        try {
+            executionEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
+
+            group.forceStop()
+            forceCount.get().assert().isOne()
+            releaseExecution.countDown()
+            gracefulStop.get(1, TimeUnit.SECONDS)
+
+            forceCount.get().assert().isEqualTo(2)
+            resourceOwned.get().assert().isZero()
+        } finally {
+            releaseExecution.countDown()
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `graceful failure remains primary when force compensation fails`() {
+        val gracefulFailure = IllegalStateException("graceful")
+        val compensationFailure = IllegalArgumentException("compensation")
+        val stopSubscribed = CountDownLatch(1)
+        val stopSignal = Sinks.empty<Void>()
+        val forceCount = AtomicInteger()
+        val reportedFailures = CopyOnWriteArrayList<Throwable>()
+        val component = object : RuntimeComponent {
+            override fun prepare(runtimeContext: RuntimeContext) = Unit
+
+            override fun start() = Unit
+
+            override fun stopGracefully(): Mono<Void> =
+                stopSignal.asMono().doOnSubscribe {
+                    stopSubscribed.countDown()
+                }
+
+            override fun forceStop() {
+                if (forceCount.incrementAndGet() == 2) {
+                    throw compensationFailure
+                }
+            }
+        }
+        val group = RuntimeComponentGroup(listOf(component), reportedFailures::add)
+        group.prepare(DefaultRuntimeContext()).assert().isTrue()
+        val result = group.stopGracefully().materialize().toFuture()
+
+        stopSubscribed.await(1, TimeUnit.SECONDS).assert().isTrue()
+        group.forceStop()
+        stopSignal.tryEmitError(gracefulFailure).orThrow()
+
+        val failure = result.get(1, TimeUnit.SECONDS)!!.throwable!!
+        failure.assert().isSameAs(gracefulFailure)
+        failure.suppressedExceptions.assert().containsExactly(compensationFailure)
+        reportedFailures.take(2).assert()
+            .containsExactly(gracefulFailure, compensationFailure)
+    }
+
+    @Test
+    fun `force compensation failure terminates an otherwise graceful stop`() {
+        val compensationFailure = IllegalArgumentException("compensation")
+        val stopSubscribed = CountDownLatch(1)
+        val stopSignal = Sinks.empty<Void>()
+        val forceCount = AtomicInteger()
+        val component = object : RuntimeComponent {
+            override fun prepare(runtimeContext: RuntimeContext) = Unit
+
+            override fun start() = Unit
+
+            override fun stopGracefully(): Mono<Void> =
+                stopSignal.asMono().doOnSubscribe {
+                    stopSubscribed.countDown()
+                }
+
+            override fun forceStop() {
+                if (forceCount.incrementAndGet() == 2) {
+                    throw compensationFailure
+                }
+            }
+        }
+        val group = RuntimeComponentGroup(listOf(component), reportFailure = {})
+        group.prepare(DefaultRuntimeContext()).assert().isTrue()
+        val result = group.stopGracefully().materialize().toFuture()
+
+        stopSubscribed.await(1, TimeUnit.SECONDS).assert().isTrue()
+        group.forceStop()
+        stopSignal.tryEmitEmpty().orThrow()
+
+        result.get(1, TimeUnit.SECONDS)!!.throwable.assert().isSameAs(compensationFailure)
+    }
+
+    @Test
+    fun `cancellation reports force compensation failure without downstream signaling`() {
+        val compensationFailure = IllegalArgumentException("compensation")
+        val stopSubscribed = CountDownLatch(1)
+        val forceCount = AtomicInteger()
+        val reportedFailures = CopyOnWriteArrayList<Throwable>()
+        val downstreamFailure = AtomicReference<Throwable?>()
+        val component = object : RuntimeComponent {
+            override fun prepare(runtimeContext: RuntimeContext) = Unit
+
+            override fun start() = Unit
+
+            override fun stopGracefully(): Mono<Void> =
+                Mono.never<Void>().doOnSubscribe {
+                    stopSubscribed.countDown()
+                }
+
+            override fun forceStop() {
+                if (forceCount.incrementAndGet() == 2) {
+                    throw compensationFailure
+                }
+            }
+        }
+        val group = RuntimeComponentGroup(listOf(component), reportedFailures::add)
+        group.prepare(DefaultRuntimeContext()).assert().isTrue()
+        val gracefulStop = group.stopGracefully().subscribe({}, downstreamFailure::set)
+
+        stopSubscribed.await(1, TimeUnit.SECONDS).assert().isTrue()
+        group.forceStop()
+        gracefulStop.dispose()
+
+        forceCount.get().assert().isEqualTo(2)
+        reportedFailures.assert().containsExactly(compensationFailure)
+        downstreamFailure.get().assert().isNull()
+    }
+
+    @Test
+    fun `cancelling graceful stop releases the component lifecycle slot`() {
+        val subscriptionCount = AtomicInteger()
+        val component = object : RuntimeComponent {
+            override fun prepare(runtimeContext: RuntimeContext) = Unit
+
+            override fun start() = Unit
+
+            override fun stopGracefully(): Mono<Void> =
+                if (subscriptionCount.getAndIncrement() == 0) {
+                    Mono.never()
+                } else {
+                    Mono.empty()
+                }
+
+            override fun forceStop() = Unit
+        }
+        val group = RuntimeComponentGroup(listOf(component), reportFailure = {})
+        group.prepare(DefaultRuntimeContext()).assert().isTrue()
+
+        group.stopGracefully().subscribe().dispose()
+
+        StepVerifier.create(group.stopGracefully()).verifyComplete()
+        subscriptionCount.get().assert().isEqualTo(2)
+    }
+
     private class RecordingComponent(
         private val name: String,
         private val calls: MutableList<String>,
         private val stopAction: () -> Mono<Void> = { Mono.empty() },
     ) : RuntimeComponent {
-        override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
-
         override fun prepare(runtimeContext: RuntimeContext) {
             calls += "prepare:$name"
         }
@@ -340,60 +477,5 @@ class RuntimeComponentGroupTest {
         override fun forceStop() {
             calls += "force:$name"
         }
-    }
-
-    private open class DefaultOwnershipComponent : RuntimeComponent {
-        override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
-
-        override fun prepare(runtimeContext: RuntimeContext) = Unit
-
-        override fun start() = Unit
-
-        override fun stopGracefully(): Mono<Void> = Mono.empty()
-
-        override fun forceStop() = Unit
-    }
-
-    private class ClaimRecordingComponent(
-        private val name: String,
-        private val calls: MutableList<String>,
-        private val componentFailure: RuntimeException? = null,
-        private val rollbackFailure: RuntimeException? = null,
-    ) : RuntimeComponent {
-        var isClaimed: Boolean = false
-            private set
-
-        override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership.managed {
-            check(!isClaimed)
-            isClaimed = true
-            calls += "claim:$name"
-            val ownerComponent = this
-            object : RuntimeOwnershipClaim {
-                override val component: RuntimeComponent
-                    get() {
-                        calls += "resolve:$name"
-                        componentFailure?.let { throw it }
-                        return ownerComponent
-                    }
-
-                override fun commit() {
-                    calls += "commit:$name"
-                }
-
-                override fun rollback() {
-                    calls += "rollback:$name"
-                    isClaimed = false
-                    rollbackFailure?.let { throw it }
-                }
-            }
-        }
-
-        override fun prepare(runtimeContext: RuntimeContext) = Unit
-
-        override fun start() = Unit
-
-        override fun stopGracefully(): Mono<Void> = Mono.empty()
-
-        override fun forceStop() = Unit
     }
 }

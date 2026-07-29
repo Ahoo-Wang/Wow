@@ -18,8 +18,8 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.infra.lifecycle.ForceStoppable
 import me.ahoo.wow.messaging.MessageSubscription
+import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -28,8 +28,7 @@ import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
+import java.time.Duration
 import java.util.concurrent.atomic.AtomicBoolean
 
 class CommandDispatcherLifecycleTest {
@@ -43,29 +42,17 @@ class CommandDispatcherLifecycleTest {
             commandHandler = NoOpCommandHandler,
             schedulerSupplier = schedulerSupplier,
         )
+        val runtime = WowRuntime(
+            components = listOf(commandDispatcher),
+            shutdownTimeout = Duration.ofSeconds(1),
+            shutdownQuietPeriod = Duration.ZERO,
+        )
 
-        commandDispatcher.start()
-        StepVerifier.create(commandDispatcher.stopGracefully())
+        runtime.start().block()
+        StepVerifier.create(runtime.stopGracefully())
             .verifyComplete()
 
         schedulerSupplier.stopped.get().assert().isTrue()
-    }
-
-    @Test
-    fun `legacy graceful-only scheduler supplier remains force compatible`() {
-        val schedulerSupplier = LegacyAggregateSchedulerSupplier()
-        val commandDispatcher = CommandDispatcher(
-            namedAggregates = setOf(MOCK_AGGREGATE_METADATA),
-            commandBus = NoOpCommandBus,
-            commandHandler = NoOpCommandHandler,
-            schedulerSupplier = schedulerSupplier,
-        )
-        commandDispatcher.start()
-
-        commandDispatcher.forceStop()
-
-        schedulerSupplier.stopInvoked.await(1, TimeUnit.SECONDS).assert().isTrue()
-        StepVerifier.create(commandDispatcher.stopGracefully()).verifyComplete()
     }
 
     private object NoOpCommandBus : CommandBus {
@@ -78,9 +65,7 @@ class CommandDispatcherLifecycleTest {
         override fun handle(context: ServerCommandExchange<*>): Mono<Void> = Mono.empty()
     }
 
-    private class RecordingAggregateSchedulerSupplier :
-        AggregateSchedulerSupplier,
-        ForceStoppable {
+    private class RecordingAggregateSchedulerSupplier : AggregateSchedulerSupplier {
         val stopped = AtomicBoolean()
         private val scheduler = Schedulers.newSingle("recording-command-dispatcher")
 
@@ -96,18 +81,5 @@ class CommandDispatcherLifecycleTest {
             stopped.set(true)
             scheduler.dispose()
         }
-    }
-
-    private class LegacyAggregateSchedulerSupplier : AggregateSchedulerSupplier {
-        val stopInvoked = CountDownLatch(1)
-        private val scheduler = Schedulers.newSingle("legacy-command-dispatcher")
-
-        override fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler = scheduler
-
-        override fun stopGracefully(): Mono<Void> =
-            Mono.fromRunnable {
-                scheduler.dispose()
-                stopInvoked.countDown()
-            }
     }
 }

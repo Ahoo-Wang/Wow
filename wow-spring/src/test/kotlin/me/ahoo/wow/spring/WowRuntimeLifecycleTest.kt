@@ -16,7 +16,6 @@ package me.ahoo.wow.spring
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.RuntimeContext
-import me.ahoo.wow.runtime.RuntimeOwnership
 import me.ahoo.wow.runtime.WowRuntime
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -82,7 +81,7 @@ class WowRuntimeLifecycleTest {
         val observersEntered = CountDownLatch(observerWorkers)
         val releaseObservers = CountDownLatch(1)
         val blockerRuntime = WowRuntime(emptyList(), Duration.ofSeconds(1), Duration.ZERO)
-        blockerRuntime.start()
+        blockerRuntime.start().block()
         val stopGate = Sinks.empty<Void>()
         val controlledRuntime = WowRuntime(
             listOf(RecordingLifecycle(stopGate)),
@@ -175,8 +174,6 @@ class WowRuntimeLifecycleTest {
         val releaseStart = CountDownLatch(1)
         val stopped = CountDownLatch(1)
         val component = object : RuntimeComponent {
-            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
-
             override fun prepare(runtimeContext: RuntimeContext) = Unit
 
             override fun start() {
@@ -354,9 +351,6 @@ class WowRuntimeLifecycleTest {
         private val stopGate: Sinks.Empty<Void>,
     ) : RuntimeComponent {
         val startCount = AtomicInteger()
-
-        override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
-
         override fun prepare(runtimeContext: RuntimeContext) = Unit
 
         override fun start() {
@@ -373,8 +367,6 @@ class WowRuntimeLifecycleTest {
     private class FailingStopLifecycle(
         private val failure: Throwable,
     ) : RuntimeComponent {
-        override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
-
         override fun prepare(runtimeContext: RuntimeContext) = Unit
 
         override fun start() = Unit
@@ -386,9 +378,6 @@ class WowRuntimeLifecycleTest {
 
     private class ReportingLifecycle : RuntimeComponent {
         val runtimeContext = AtomicReference<RuntimeContext>()
-
-        override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
-
         override fun prepare(runtimeContext: RuntimeContext) {
             this.runtimeContext.set(runtimeContext)
         }

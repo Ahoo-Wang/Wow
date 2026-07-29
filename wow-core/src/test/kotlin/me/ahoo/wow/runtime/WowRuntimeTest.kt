@@ -15,13 +15,11 @@ package me.ahoo.wow.runtime
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.infra.lifecycle.ImmediateTerminalSignalDispatcher
-import me.ahoo.wow.infra.lifecycle.Lifecycle
 import me.ahoo.wow.infra.lifecycle.TerminalSignal
 import me.ahoo.wow.infra.lifecycle.TerminalSignalDispatcher
 import me.ahoo.wow.infra.lifecycle.newTerminalSignalDispatcher
 import me.ahoo.wow.runtime.internal.DefaultRuntimeExecutionResources
 import me.ahoo.wow.runtime.internal.RuntimeExecutionResources
-import me.ahoo.wow.runtime.internal.RuntimeOwnershipClaim
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.assertTimeoutPreemptively
@@ -35,6 +33,7 @@ import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
@@ -47,14 +46,8 @@ import java.util.concurrent.atomic.AtomicReference
 class WowRuntimeTest {
 
     @Test
-    fun `duration overflow fails before component ownership is claimed`() {
-        val claims = AtomicInteger()
+    fun `duration overflow fails before runtime construction`() {
         val component = object : RuntimeComponent {
-            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership.managed {
-                claims.incrementAndGet()
-                error("ownership must not be claimed")
-            }
-
             override fun prepare(runtimeContext: RuntimeContext) = Unit
 
             override fun start() = Unit
@@ -74,91 +67,6 @@ class WowRuntimeTest {
             .message
             .assert()
             .contains("shutdownTimeout must fit in nanoseconds")
-        claims.get().assert().isZero()
-    }
-
-    @Test
-    fun `failed component claim rolls back a custom ownership lease`() {
-        val claimed = AtomicBoolean()
-        val committed = AtomicBoolean()
-        val first = object : RuntimeComponent {
-            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership.managed {
-                check(claimed.compareAndSet(false, true))
-                val ownerComponent = this
-                object : RuntimeOwnershipClaim {
-                    override val component: RuntimeComponent = ownerComponent
-
-                    override fun commit() {
-                        committed.set(true)
-                    }
-
-                    override fun rollback() {
-                        if (!committed.get()) {
-                            claimed.set(false)
-                        }
-                    }
-                }
-            }
-
-            override fun prepare(runtimeContext: RuntimeContext) = Unit
-
-            override fun start() = Unit
-
-            override fun stopGracefully(): Mono<Void> = Mono.empty()
-
-            override fun forceStop() = Unit
-        }
-        val claimFailure = IllegalStateException("claim")
-        val failing = object : RuntimeComponent {
-            override val runtimeOwnership: RuntimeOwnership =
-                RuntimeOwnership.managed { throw claimFailure }
-
-            override fun prepare(runtimeContext: RuntimeContext) = Unit
-
-            override fun start() = Unit
-
-            override fun stopGracefully(): Mono<Void> = Mono.empty()
-
-            override fun forceStop() = Unit
-        }
-
-        val thrown = assertThrows<IllegalStateException> {
-            WowRuntime(
-                components = listOf(first, failing),
-                shutdownTimeout = Duration.ofSeconds(1),
-                shutdownQuietPeriod = Duration.ZERO,
-            )
-        }
-
-        thrown.assert().isSameAs(claimFailure)
-        claimed.get().assert().isFalse()
-        committed.get().assert().isFalse()
-    }
-
-    @Test
-    fun `owner bound runtime component cannot be claimed by another runtime`() {
-        val ownerBoundComponent = object : RuntimeComponent {
-            override val runtimeOwnership: RuntimeOwnership =
-                RuntimeOwnership.unclaimable()
-
-            override fun prepare(runtimeContext: RuntimeContext) = Unit
-
-            override fun start() = Unit
-
-            override fun stopGracefully(): Mono<Void> = Mono.empty()
-
-            override fun forceStop() = Unit
-        }
-
-        val thrown = assertThrows<IllegalStateException> {
-            WowRuntime(
-                components = listOf(ownerBoundComponent),
-                shutdownTimeout = Duration.ofSeconds(1),
-                shutdownQuietPeriod = Duration.ZERO,
-            )
-        }
-
-        thrown.message.assert().contains("cannot be claimed again")
     }
 
     @Test
@@ -176,8 +84,6 @@ class WowRuntimeTest {
         )
         val executionResources = immediateExecutionResources(terminationDispatcher)
         val component = object : RuntimeComponent {
-            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
-
             override fun prepare(runtimeContext: RuntimeContext) = Unit
 
             override fun start() = Unit
@@ -194,7 +100,7 @@ class WowRuntimeTest {
             shutdownQuietPeriod = Duration.ZERO,
             executionResources = executionResources,
         )
-        runtime.start()
+        runtime.start().block()
         repeat(blockedObserverCount) {
             runtime.terminationSignal.subscribe(
                 {},
@@ -247,7 +153,7 @@ class WowRuntimeTest {
             shutdownQuietPeriod = Duration.ZERO,
             executionResources = executionResources,
         )
-        runtime.start()
+        runtime.start().block()
         runtime.terminationSignal.subscribe(
             {},
             {},
@@ -299,8 +205,6 @@ class WowRuntimeTest {
         val terminalFailure = AtomicReference<Throwable?>()
         val terminated = CountDownLatch(1)
         val component = object : RuntimeComponent {
-            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
-
             override fun prepare(runtimeContext: RuntimeContext) = Unit
 
             override fun start() = Unit
@@ -320,7 +224,7 @@ class WowRuntimeTest {
                 controlDispatcher = controlDispatcher,
             ),
         )
-        runtime.start()
+        runtime.start().block()
         runtime.forceStop()
 
         try {
@@ -402,8 +306,6 @@ class WowRuntimeTest {
                 }
             }
         val component = object : RuntimeComponent {
-            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
-
             override fun prepare(runtimeContext: RuntimeContext) = Unit
 
             override fun start() = Unit
@@ -425,7 +327,7 @@ class WowRuntimeTest {
             shutdownQuietPeriod = Duration.ZERO,
             executionResources = executionResources,
         )
-        runtime.start()
+        runtime.start().block()
 
         val termination = runtime.stopGracefully()
         stopSubscribed.await(1, TimeUnit.SECONDS).assert().isTrue()
@@ -470,8 +372,6 @@ class WowRuntimeTest {
             }
         var capturedRuntimeContext: RuntimeContext? = null
         val component = object : RuntimeComponent {
-            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
-
             override fun prepare(runtimeContext: RuntimeContext) {
                 capturedRuntimeContext = runtimeContext
             }
@@ -493,7 +393,7 @@ class WowRuntimeTest {
             shutdownQuietPeriod = Duration.ZERO,
             executionResources = executionResources,
         )
-        runtime.start()
+        runtime.start().block()
 
         checkNotNull(capturedRuntimeContext).reportFailure(runtimeFailure)
         stopSubscribed.await(1, TimeUnit.SECONDS).assert().isTrue()
@@ -534,8 +434,6 @@ class WowRuntimeTest {
                 }
             }
         val component = object : RuntimeComponent {
-            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
-
             override fun prepare(runtimeContext: RuntimeContext) = Unit
 
             override fun start() = Unit
@@ -558,7 +456,7 @@ class WowRuntimeTest {
             it.shutdownDeadlineScheduler = deadlineScheduler
         }
         val executor = Executors.newSingleThreadExecutor()
-        runtime.start()
+        runtime.start().block()
 
         try {
             val gracefulStop = executor.submit<Mono<Void>>(runtime::stopGracefully)
@@ -581,47 +479,13 @@ class WowRuntimeTest {
     }
 
     @Test
-    fun `explicit lifecycle adapter supplies readiness and force capabilities`() {
-        val calls = mutableListOf<String>()
-        val legacyLifecycle = object : Lifecycle {
-            override fun start() {
-                calls += "start"
-            }
-
-            override fun stopGracefully(): Mono<Void> =
-                Mono.fromRunnable {
-                    calls += "stop"
-                }
-        }
-        val adapted = RuntimeLifecycleAdapter(
-            delegate = legacyLifecycle,
-            forceStopAction = {
-                calls += "force"
-            },
-            prepareAction = {
-                calls += "prepare"
-            },
-        )
-        val runtime = WowRuntime(
-            components = listOf(adapted),
-            shutdownTimeout = Duration.ofSeconds(1),
-            shutdownQuietPeriod = Duration.ZERO,
-        )
-
-        runtime.start()
-        runtime.forceStop()
-
-        calls.assert().containsExactly("prepare", "start", "force")
-    }
-
-    @Test
     fun `start prepares every component before opening processing`() {
         val calls = mutableListOf<String>()
         val first = RecordingLifecycle("first", calls)
         val second = RecordingLifecycle("second", calls)
         val runtime = WowRuntime(listOf(first, second), Duration.ofSeconds(1), Duration.ZERO)
 
-        runtime.start()
+        runtime.start().block()
 
         calls.assert().containsExactly(
             "prepare:first",
@@ -643,7 +507,7 @@ class WowRuntimeTest {
         val second = RecordingLifecycle("second", calls, startFailure = startFailure)
         val runtime = WowRuntime(listOf(first, second), Duration.ofSeconds(1), Duration.ZERO)
 
-        val thrown = assertThrows<IllegalStateException>(runtime::start)
+        val thrown = runtime.awaitStartFailure()
 
         thrown.assert().isSameAs(startFailure)
         thrown.suppressedExceptions.assert().containsExactly(cleanupFailure)
@@ -666,8 +530,6 @@ class WowRuntimeTest {
         val forceInvocations = AtomicInteger()
         val startupScheduler = Schedulers.newSingle("wow-runtime-startup-test")
         val component = object : RuntimeComponent {
-            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
-
             override fun prepare(runtimeContext: RuntimeContext) = Unit
 
             override fun start() {
@@ -690,8 +552,14 @@ class WowRuntimeTest {
 
         try {
             startupScheduler.schedule {
-                startupResult.complete(
-                    runCatching(runtime::start).exceptionOrNull(),
+                runtime.start().subscribe(
+                    {},
+                    startupResult::complete,
+                    {
+                        startupResult.complete(
+                            AssertionError("Startup unexpectedly completed."),
+                        )
+                    },
                 )
             }
 
@@ -708,7 +576,7 @@ class WowRuntimeTest {
     }
 
     @Test
-    fun `prepare failure gracefully rolls back prepared and force stops all claimed components`() {
+    fun `prepare failure gracefully rolls back prepared and force stops all components`() {
         val calls = mutableListOf<String>()
         val prepareFailure = IllegalStateException("prepare")
         val cleanupFailure = IllegalArgumentException("cleanup")
@@ -721,7 +589,7 @@ class WowRuntimeTest {
             shutdownQuietPeriod = Duration.ZERO,
         )
 
-        val thrown = assertThrows<IllegalStateException>(runtime::start)
+        val thrown = runtime.awaitStartFailure()
 
         thrown.assert().isSameAs(prepareFailure)
         thrown.suppressedExceptions.assert().containsExactly(cleanupFailure)
@@ -749,7 +617,7 @@ class WowRuntimeTest {
         val second = RecordingLifecycle("second", calls)
         val runtime = WowRuntime(listOf(first, second), Duration.ofSeconds(1), Duration.ZERO)
 
-        val thrown = assertThrows<IllegalStateException>(runtime::start)
+        val thrown = runtime.awaitStartFailure()
 
         thrown.assert().isSameAs(prepareFailure)
         calls.assert().containsExactly(
@@ -770,7 +638,7 @@ class WowRuntimeTest {
         val second = RecordingLifecycle("second", calls)
         val runtime = WowRuntime(listOf(first, second), Duration.ofSeconds(1), Duration.ZERO)
 
-        val thrown = assertThrows<IllegalStateException>(runtime::start)
+        val thrown = runtime.awaitStartFailure()
 
         thrown.assert().isSameAs(startFailure)
         calls.assert().containsExactly(
@@ -799,7 +667,7 @@ class WowRuntimeTest {
             shutdownQuietPeriod = Duration.ZERO,
         )
 
-        val thrown = assertThrows<IllegalStateException>(runtime::start)
+        val thrown = runtime.awaitStartFailure()
 
         thrown.assert().isSameAs(reportedFailure)
         thrown.suppressedExceptions.assert().containsExactly(thrownFailure)
@@ -831,10 +699,7 @@ class WowRuntimeTest {
         val executor = Executors.newSingleThreadExecutor()
 
         try {
-            val startup = CompletableFuture.supplyAsync(
-                { runCatching(runtime::start).exceptionOrNull() },
-                executor,
-            )
+            val startup = runtime.startAsync(executor)
             startEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
 
             StepVerifier.create(runtime.terminationSignal)
@@ -880,10 +745,7 @@ class WowRuntimeTest {
         val executor = Executors.newSingleThreadExecutor()
 
         try {
-            val startup = CompletableFuture.supplyAsync(
-                { runCatching(runtime::start).exceptionOrNull() },
-                executor,
-            )
+            val startup = runtime.startAsync(executor)
             startEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
 
             runtime.forceStop()
@@ -910,8 +772,6 @@ class WowRuntimeTest {
         val runtimeFailure = IllegalStateException("runtime")
         val lateCompensationFailure = IllegalArgumentException("late-compensation")
         val component = object : RuntimeComponent {
-            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
-
             override fun prepare(runtimeContext: RuntimeContext) {
                 this.runtimeContext = runtimeContext
             }
@@ -941,10 +801,7 @@ class WowRuntimeTest {
         val executor = Executors.newSingleThreadExecutor()
 
         try {
-            val startup = CompletableFuture.supplyAsync(
-                { runCatching(runtime::start).exceptionOrNull() },
-                executor,
-            )
+            val startup = runtime.startAsync(executor)
             startEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
 
             runtime.forceStop()
@@ -977,7 +834,7 @@ class WowRuntimeTest {
             shutdownQuietPeriod = Duration.ZERO,
         )
 
-        val thrown = assertThrows<IllegalStateException>(runtime::start)
+        val thrown = runtime.awaitStartFailure()
 
         thrown.assert().isSameAs(startFailure)
         thrown.suppressedExceptions.assert().isEmpty()
@@ -1009,7 +866,7 @@ class WowRuntimeTest {
         )
 
         val thrown = assertTimeoutPreemptively(Duration.ofSeconds(1)) {
-            assertThrows<IllegalStateException>(runtime::start)
+            runtime.awaitStartFailure()
         }
 
         thrown.assert().isSameAs(startFailure)
@@ -1025,7 +882,7 @@ class WowRuntimeTest {
         val calls = mutableListOf<String>()
         val component = RecordingLifecycle("component", calls)
         val runtime = WowRuntime(listOf(component), Duration.ofSeconds(1), Duration.ZERO)
-        runtime.start()
+        runtime.start().block()
         val activity = checkNotNull(component.runtimeContext!!.tryAcquire())
 
         StepVerifier.create(runtime.stopGracefully())
@@ -1048,7 +905,7 @@ class WowRuntimeTest {
         val first = RecordingLifecycle("first", calls, stopFailure = firstFailure)
         val second = RecordingLifecycle("second", calls, stopFailure = secondFailure)
         val runtime = WowRuntime(listOf(first, second), Duration.ofSeconds(1), Duration.ZERO)
-        runtime.start()
+        runtime.start().block()
 
         StepVerifier.create(runtime.stopGracefully())
             .expectErrorSatisfies { error ->
@@ -1071,7 +928,7 @@ class WowRuntimeTest {
         val stopGate = Sinks.empty<Void>()
         val component = RecordingLifecycle("component", calls, stopGate = stopGate)
         val runtime = WowRuntime(listOf(component), Duration.ofSeconds(1), Duration.ZERO)
-        runtime.start()
+        runtime.start().block()
 
         val cancelledObserver = runtime.stopGracefully().subscribe()
         cancelledObserver.dispose()
@@ -1094,7 +951,7 @@ class WowRuntimeTest {
         val ready = CountDownLatch(observerCount)
         val start = CountDownLatch(1)
         val executor = Executors.newFixedThreadPool(observerCount)
-        runtime.start()
+        runtime.start().block()
 
         try {
             val observers = (1..observerCount).map {
@@ -1144,7 +1001,7 @@ class WowRuntimeTest {
         val runtime = WowRuntime(listOf(first, second), Duration.ofSeconds(1), Duration.ZERO).also {
             it.shutdownDeadlineScheduler = deadlineScheduler
         }
-        runtime.start()
+        runtime.start().block()
         val termination = runtime.stopGracefully()
         stopStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
         deadlineScheduler.runScheduled()
@@ -1178,7 +1035,7 @@ class WowRuntimeTest {
             },
         )
         val runtime = WowRuntime(listOf(component), Duration.ofMillis(100), Duration.ZERO)
-        runtime.start()
+        runtime.start().block()
 
         try {
             val stopCall = CompletableFuture.supplyAsync(runtime::stopGracefully, executor)
@@ -1233,7 +1090,7 @@ class WowRuntimeTest {
             shutdownQuietPeriod = Duration.ZERO,
             executionResources = executionResources,
         )
-        runtime.start()
+        runtime.start().block()
 
         val stopCall = CompletableFuture.supplyAsync(runtime::stopGracefully, executor)
         try {
@@ -1257,8 +1114,6 @@ class WowRuntimeTest {
         val closeFailure = IllegalStateException("close")
         val forceObservedInterrupted = AtomicBoolean(true)
         val component = object : RuntimeComponent {
-            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
-
             override fun prepare(runtimeContext: RuntimeContext) {
                 runtimeContext.onAdmissionClose {
                     throw closeFailure
@@ -1278,7 +1133,7 @@ class WowRuntimeTest {
             shutdownTimeout = Duration.ofSeconds(1),
             shutdownQuietPeriod = Duration.ZERO,
         )
-        runtime.start()
+        runtime.start().block()
 
         StepVerifier.create(runtime.stopGracefully())
             .expectErrorSatisfies { error ->
@@ -1318,7 +1173,7 @@ class WowRuntimeTest {
             shutdownQuietPeriod = Duration.ofMillis(10),
             executionResources = executionResources,
         )
-        runtime.start()
+        runtime.start().block()
 
         try {
             val termination = assertTimeoutPreemptively(Duration.ofMillis(100)) {
@@ -1353,7 +1208,7 @@ class WowRuntimeTest {
             },
         )
         val runtime = WowRuntime(listOf(component), Duration.ofSeconds(1), Duration.ZERO)
-        runtime.start()
+        runtime.start().block()
         val runtimeContext = component.runtimeContext!!
         val activeOperation = runtimeContext.tryAcquire()!!
         val termination = runtime.stopGracefully()
@@ -1374,8 +1229,6 @@ class WowRuntimeTest {
         val releaseCleanupDispatch = CountDownLatch(1)
         var capturedRuntimeContext: RuntimeContext? = null
         val component = object : RuntimeComponent {
-            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
-
             override fun prepare(runtimeContext: RuntimeContext) {
                 capturedRuntimeContext = runtimeContext
             }
@@ -1411,7 +1264,7 @@ class WowRuntimeTest {
         )
         val executor = Executors.newSingleThreadExecutor()
         var firstForce: CompletableFuture<Void>? = null
-        runtime.start()
+        runtime.start().block()
         val activeOperation = checkNotNull(capturedRuntimeContext).tryAcquire()
         checkNotNull(activeOperation)
 
@@ -1458,7 +1311,7 @@ class WowRuntimeTest {
             },
         )
         val runtime = WowRuntime(listOf(component), Duration.ofMillis(50), Duration.ZERO)
-        runtime.start()
+        runtime.start().block()
         val runtimeContext = component.runtimeContext!!
         val activeOperation = runtimeContext.tryAcquire()!!
 
@@ -1484,7 +1337,7 @@ class WowRuntimeTest {
             Duration.ofMillis(50),
             Duration.ZERO,
         )
-        runtime.start()
+        runtime.start().block()
 
         StepVerifier.create(runtime.stopGracefully())
             .expectErrorSatisfies { error ->
@@ -1500,7 +1353,7 @@ class WowRuntimeTest {
     }
 
     @Test
-    fun `explicit force stop cancels graceful cleanup and force stops components exactly once`() {
+    fun `explicit force stop cancels graceful cleanup with at most one compensation pass`() {
         val calls = CopyOnWriteArrayList<String>()
         val stopGate = Sinks.empty<Void>()
         val stopStarted = CountDownLatch(1)
@@ -1511,7 +1364,7 @@ class WowRuntimeTest {
             onStop = stopStarted::countDown,
         )
         val runtime = WowRuntime(listOf(component), Duration.ofSeconds(1), Duration.ZERO)
-        runtime.start()
+        runtime.start().block()
         val termination = runtime.stopGracefully()
         stopStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
         calls.assert().contains("stop:component")
@@ -1521,7 +1374,9 @@ class WowRuntimeTest {
 
         StepVerifier.create(termination).verifyComplete()
         calls.count { it == "stop:component" }.assert().isEqualTo(1)
-        calls.count { it == "force:component" }.assert().isEqualTo(1)
+        val forceCalls = calls.count { it == "force:component" }
+        forceCalls.assert().isGreaterThanOrEqualTo(1)
+        forceCalls.assert().isLessThanOrEqualTo(2)
         runtime.isRunning.assert().isFalse()
     }
 
@@ -1532,7 +1387,7 @@ class WowRuntimeTest {
         val runtimeFailure = IllegalStateException("runtime-while-stopping")
         val component = RecordingLifecycle("component", calls, stopGate = stopGate)
         val runtime = WowRuntime(listOf(component), Duration.ofSeconds(1), Duration.ZERO)
-        runtime.start()
+        runtime.start().block()
         val termination = runtime.stopGracefully()
         calls.awaitContains("stop:component")
         calls.assert().contains("stop:component")
@@ -1559,7 +1414,7 @@ class WowRuntimeTest {
             shutdownTimeout = Duration.ofSeconds(1),
             shutdownQuietPeriod = Duration.ZERO,
         )
-        runtime.start()
+        runtime.start().block()
         val termination = runtime.stopGracefully()
         calls.awaitContains("stop:hanging")
         calls.assert().containsSubsequence("stop:failing", "stop:hanging")
@@ -1592,7 +1447,7 @@ class WowRuntimeTest {
         )
         val runtime = WowRuntime(listOf(component), Duration.ofSeconds(1), Duration.ZERO)
         val executor = Executors.newSingleThreadExecutor()
-        runtime.start()
+        runtime.start().block()
         val termination = runtime.stopGracefully()
         calls.awaitContains("stop:component")
 
@@ -1617,7 +1472,9 @@ class WowRuntimeTest {
         }
 
         calls.count { it == "stop:component" }.assert().isEqualTo(1)
-        calls.count { it == "force:component" }.assert().isEqualTo(1)
+        val forceCalls = calls.count { it == "force:component" }
+        forceCalls.assert().isGreaterThanOrEqualTo(1)
+        forceCalls.assert().isLessThanOrEqualTo(2)
         runtime.isRunning.assert().isFalse()
     }
 
@@ -1633,7 +1490,7 @@ class WowRuntimeTest {
             forceFailure = forceFailure,
         )
         val runtime = WowRuntime(listOf(component), Duration.ofSeconds(1), Duration.ZERO)
-        runtime.start()
+        runtime.start().block()
 
         StepVerifier.create(runtime.stopGracefully())
             .expectErrorSatisfies { error ->
@@ -1651,7 +1508,7 @@ class WowRuntimeTest {
         val runtimeFailure = IllegalStateException("runtime")
         val component = RecordingLifecycle("component", calls)
         val runtime = WowRuntime(listOf(component), Duration.ofSeconds(1), Duration.ZERO)
-        runtime.start()
+        runtime.start().block()
 
         component.runtimeContext!!.reportFailure(runtimeFailure)
 
@@ -1681,10 +1538,7 @@ class WowRuntimeTest {
         val executor = Executors.newSingleThreadExecutor()
 
         try {
-            val startup = CompletableFuture.supplyAsync(
-                { runCatching(runtime::start).exceptionOrNull() },
-                executor,
-            )
+            val startup = runtime.startAsync(executor)
             prepareStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
 
             val termination = runtime.stopGracefully().toFuture()
@@ -1729,10 +1583,7 @@ class WowRuntimeTest {
         val executor = Executors.newSingleThreadExecutor()
 
         try {
-            val startup = CompletableFuture.supplyAsync(
-                { runCatching(runtime::start).exceptionOrNull() },
-                executor,
-            )
+            val startup = runtime.startAsync(executor)
             prepareStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
 
             val termination = runtime.stopGracefully()
@@ -1772,10 +1623,7 @@ class WowRuntimeTest {
         val executor = Executors.newSingleThreadExecutor()
 
         try {
-            val startup = CompletableFuture.supplyAsync(
-                { runCatching(runtime::start).exceptionOrNull() },
-                executor,
-            )
+            val startup = runtime.startAsync(executor)
             startEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
 
             StepVerifier.create(runtime.stopGracefully())
@@ -1812,12 +1660,7 @@ class WowRuntimeTest {
         )
         val runtime = WowRuntime(listOf(component), Duration.ofSeconds(1), Duration.ZERO)
 
-        val startCall = CompletableFuture.supplyAsync(
-            {
-                runCatching(runtime::start).exceptionOrNull()
-            },
-            executor,
-        )
+        val startCall = runtime.startAsync(executor)
         try {
             startInvoked.await(1, TimeUnit.SECONDS).assert().isTrue()
             val forceCall = CompletableFuture.supplyAsync(
@@ -1852,8 +1695,6 @@ class WowRuntimeTest {
         val resourceOpen = AtomicBoolean()
         val forceInvocations = AtomicInteger()
         val component = object : RuntimeComponent {
-            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
-
             override fun prepare(runtimeContext: RuntimeContext) {
                 prepareStarted.countDown()
                 allowResourceAcquisition.await()
@@ -1877,10 +1718,7 @@ class WowRuntimeTest {
         val executor = Executors.newSingleThreadExecutor()
 
         try {
-            val startup = CompletableFuture.supplyAsync(
-                { runCatching(runtime::start).exceptionOrNull() },
-                executor,
-            )
+            val startup = runtime.startAsync(executor)
             prepareStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
 
             runtime.forceStop()
@@ -1904,8 +1742,6 @@ class WowRuntimeTest {
         val releasePrepare = CountDownLatch(1)
         val forceInvoked = CountDownLatch(1)
         val component = object : RuntimeComponent {
-            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
-
             override fun prepare(runtimeContext: RuntimeContext) {
                 prepareEntered.countDown()
                 releasePrepare.await()
@@ -1930,10 +1766,7 @@ class WowRuntimeTest {
         val executor = Executors.newSingleThreadExecutor()
 
         try {
-            val startup = CompletableFuture.supplyAsync(
-                { runCatching(runtime::start).exceptionOrNull() },
-                executor,
-            )
+            val startup = runtime.startAsync(executor)
             prepareEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
 
             val termination = runtime.stopGracefully()
@@ -1958,8 +1791,6 @@ class WowRuntimeTest {
         val releaseCancellation = CountDownLatch(1)
         val forceInvocations = AtomicInteger()
         val component = object : RuntimeComponent {
-            override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
-
             override fun prepare(runtimeContext: RuntimeContext) = Unit
 
             override fun start() = Unit
@@ -1983,7 +1814,7 @@ class WowRuntimeTest {
             shutdownTimeout = Duration.ofMillis(50),
             shutdownQuietPeriod = Duration.ZERO,
         )
-        runtime.start()
+        runtime.start().block()
 
         try {
             val termination = runtime.stopGracefully()
@@ -2014,9 +1845,6 @@ class WowRuntimeTest {
         private val onStop: (() -> Unit)? = null,
     ) : RuntimeComponent {
         var runtimeContext: RuntimeContext? = null
-
-        override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
-
         override fun prepare(runtimeContext: RuntimeContext) {
             this.runtimeContext = runtimeContext
             calls += "prepare:$name"
@@ -2062,6 +1890,34 @@ class WowRuntimeTest {
                 return true
             }
         }
+
+    private fun WowRuntime.awaitStartFailure(): Throwable {
+        val signal = checkNotNull(start().materialize().block())
+        check(signal.isOnError) {
+            "Runtime startup unexpectedly completed."
+        }
+        return checkNotNull(signal.throwable)
+    }
+
+    private fun WowRuntime.startAsync(executor: Executor): CompletableFuture<Throwable> {
+        val result = CompletableFuture<Throwable>()
+        executor.execute {
+            try {
+                start().subscribe(
+                    {},
+                    result::complete,
+                    {
+                        result.complete(
+                            AssertionError("Runtime startup unexpectedly completed."),
+                        )
+                    },
+                )
+            } catch (error: Throwable) {
+                result.complete(error)
+            }
+        }
+        return result
+    }
 
     private fun List<String>.awaitContains(expected: String) {
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1)

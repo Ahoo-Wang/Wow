@@ -14,7 +14,6 @@
 package me.ahoo.wow.scheduler
 
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.infra.lifecycle.ForceStoppable
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 
@@ -26,8 +25,7 @@ import reactor.core.scheduler.Scheduler
  */
 internal class BorrowedAggregateSchedulerSupplier(
     private val delegate: AggregateSchedulerSupplier,
-) : AggregateSchedulerSupplier,
-    ForceStoppable {
+) : AggregateSchedulerSupplier {
     override fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler =
         delegate.getOrInitialize(namedAggregate)
 

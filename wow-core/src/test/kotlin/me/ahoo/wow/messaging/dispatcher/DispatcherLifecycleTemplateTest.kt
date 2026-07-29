@@ -21,7 +21,6 @@ import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.RuntimeContext
-import me.ahoo.wow.runtime.RuntimeOwnership
 import me.ahoo.wow.runtime.WowRuntime
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -47,7 +46,6 @@ class DispatcherLifecycleTemplateTest {
 
     private fun assertFinalLifecycleTemplate(dispatcherType: Class<*>) {
         listOf(
-            dispatcherType.getMethod("getRuntimeOwnership"),
             dispatcherType.getMethod("prepare", RuntimeContext::class.java),
             dispatcherType.getMethod("start"),
             dispatcherType.getMethod("stopGracefully"),
@@ -76,7 +74,7 @@ class DispatcherLifecycleTemplateTest {
         val dispatcher = HookedParentDispatcher(child, calls)
         val runtime = newRuntime(dispatcher)
 
-        runtime.start()
+        runtime.start().block()
         StepVerifier.create(runtime.stopGracefully()).verifyComplete()
 
         calls.assert().containsExactly(
@@ -95,7 +93,7 @@ class DispatcherLifecycleTemplateTest {
         val child = RecordingChild("child", calls)
         val dispatcher = HookedParentDispatcher(child, calls)
         val runtime = newRuntime(dispatcher)
-        runtime.start()
+        runtime.start().block()
         calls.clear()
 
         runtime.forceStop()
@@ -107,68 +105,7 @@ class DispatcherLifecycleTemplateTest {
     }
 
     @Test
-    fun `a second outer runtime cannot claim dispatcher ownership`() {
-        val dispatcher = HookedParentDispatcher(
-            child = RecordingChild("child", mutableListOf()),
-            calls = mutableListOf(),
-        )
-        val runtime = newRuntime(dispatcher)
-
-        assertThrows<IllegalStateException> {
-            newRuntime(dispatcher)
-        }
-            .message
-            .assert()
-            .contains("already EXTERNAL")
-
-        runtime.forceStop()
-    }
-
-    @Test
-    fun `public dispatcher lifecycle cannot bypass an outer runtime owner`() {
-        val dispatcher = HookedParentDispatcher(
-            child = RecordingChild("child", mutableListOf()),
-            calls = mutableListOf(),
-        )
-        val runtime = newRuntime(dispatcher)
-
-        assertThrows<IllegalStateException>(dispatcher::start)
-            .message
-            .assert()
-            .contains("owned by an external WowRuntime")
-
-        runtime.start()
-        runtime.forceStop()
-    }
-
-    @Test
-    fun `failed multi-component claim rolls earlier dispatcher ownership back`() {
-        val first = HookedParentDispatcher(
-            child = RecordingChild("first-child", mutableListOf()),
-            calls = mutableListOf(),
-        )
-        val second = HookedParentDispatcher(
-            child = RecordingChild("second-child", mutableListOf()),
-            calls = mutableListOf(),
-        )
-        val secondOwner = newRuntime(second)
-
-        assertThrows<IllegalStateException> {
-            WowRuntime(
-                components = listOf(first, second),
-                shutdownTimeout = Duration.ofSeconds(1),
-                shutdownQuietPeriod = Duration.ZERO,
-            )
-        }
-
-        val firstOwner = newRuntime(first)
-        firstOwner.start()
-        firstOwner.forceStop()
-        secondOwner.forceStop()
-    }
-
-    @Test
-    fun `duplicate component identity fails before dispatcher ownership is claimed`() {
+    fun `duplicate component identity fails before dispatcher initialization`() {
         val dispatcher = HookedParentDispatcher(
             child = RecordingChild("child", mutableListOf()),
             calls = mutableListOf(),
@@ -183,7 +120,7 @@ class DispatcherLifecycleTemplateTest {
         }
 
         val owner = newRuntime(dispatcher)
-        owner.start()
+        owner.start().block()
         owner.forceStop()
     }
 
@@ -198,7 +135,9 @@ class DispatcherLifecycleTemplateTest {
         )
         val runtime = newRuntime(MultiChildParentDispatcher(children))
 
-        assertThrows<IllegalStateException>(runtime::start)
+        assertThrows<IllegalStateException> {
+            runtime.start().block()
+        }
             .assert()
             .isSameAs(prepareFailure)
         calls.assert().containsExactly(
@@ -273,10 +212,7 @@ class DispatcherLifecycleTemplateTest {
         override val name: String,
         private val calls: MutableList<String>,
         private val prepareFailure: RuntimeException? = null,
-    ) : MessageDispatcher,
-        RuntimeComponent {
-        override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
-
+    ) : MessageDispatcher {
         override fun prepare(runtimeContext: RuntimeContext) {
             calls += "prepare:$name"
             prepareFailure?.let { throw it }

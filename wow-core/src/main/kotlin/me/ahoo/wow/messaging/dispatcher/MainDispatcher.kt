@@ -15,16 +15,10 @@ package me.ahoo.wow.messaging.dispatcher
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.infra.lifecycle.ForceStoppable
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
-import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.RuntimeContext
-import me.ahoo.wow.runtime.RuntimeLifecycleAdapter
-import me.ahoo.wow.runtime.RuntimeOwnership
-import me.ahoo.wow.runtime.RuntimePreparable
 import me.ahoo.wow.runtime.internal.RuntimeComponentGroup
-import me.ahoo.wow.runtime.internal.compat.StandaloneRuntimeOwner
 import me.ahoo.wow.runtime.internal.forceAllReporting
 import me.ahoo.wow.runtime.internal.stopAllReporting
 import me.ahoo.wow.serialization.toJsonString
@@ -63,9 +57,14 @@ import java.util.concurrent.atomic.AtomicBoolean
  * }
  *
  * val dispatcher = MyMainDispatcher()
- * dispatcher.start()
+ * val runtime = WowRuntime(
+ *     components = listOf(dispatcher),
+ *     shutdownTimeout = Duration.ofSeconds(30),
+ *     shutdownQuietPeriod = Duration.ZERO,
+ * )
+ * runtime.start().block()
  * // ... application logic ...
- * dispatcher.stopGracefully().block()
+ * runtime.stopGracefully().block()
  * ```
  *
  * @param T The type of message being dispatched, must be a non-null type.
@@ -73,8 +72,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * @see MessageDispatcher
  */
 abstract class MainDispatcher<T : Any> :
-    MessageDispatcher,
-    RuntimeComponent {
+    MessageDispatcher {
     companion object {
         private val log = KotlinLogging.logger {}
     }
@@ -151,13 +149,6 @@ abstract class MainDispatcher<T : Any> :
     private var aggregateComponentGroup: RuntimeComponentGroup? = null
     private val forceStopRequested = AtomicBoolean()
 
-    private val lifecycleOwner = StandaloneRuntimeOwner(
-        prepareAction = ::prepareOwned,
-        startAction = ::startOwned,
-        gracefulStopAction = ::stopOwnedGracefully,
-        forceStopAction = ::forceStopOwned,
-    )
-
     private fun String.withNamePrefix(): String = "[$name][${this@MainDispatcher.javaClass.simpleName}] $this"
 
     /**
@@ -169,14 +160,7 @@ abstract class MainDispatcher<T : Any> :
      *
      * @throws RuntimeException if starting any aggregate dispatcher fails.
      */
-    final override val runtimeOwnership: RuntimeOwnership
-        get() = lifecycleOwner.runtimeOwnership
-
     final override fun prepare(runtimeContext: RuntimeContext) {
-        lifecycleOwner.prepare(runtimeContext)
-    }
-
-    private fun prepareOwned(runtimeContext: RuntimeContext) {
         check(this.runtimeContext == null) {
             "[$name] Dispatcher can only be prepared once."
         }
@@ -191,13 +175,8 @@ abstract class MainDispatcher<T : Any> :
             return !forceStopRequested.get()
         }
         val dispatchers = aggregateDispatchers
-        dispatchers.forEach { dispatcher ->
-            dispatcher.warnLegacyRuntimeCapabilities()
-        }
-        val group = RuntimeComponentGroup.claim(
-            dispatchers.map { dispatcher ->
-                dispatcher.asRuntimeComponent()
-            },
+        val group = RuntimeComponentGroup(
+            dispatchers,
             runtimeContext::reportFailure,
         )
         val accepted = synchronized(childLifecycleMonitor) {
@@ -219,14 +198,11 @@ abstract class MainDispatcher<T : Any> :
     }
 
     /**
-     * Adds component-specific preparation after every child dispatcher is owned
-     * and prepared. Base lifecycle invariants cannot be replaced by subclasses.
+     * Adds component-specific preparation after every child dispatcher is prepared.
      */
     protected open fun prepareManaged(@Suppress("UNUSED_PARAMETER") runtimeContext: RuntimeContext) = Unit
 
-    final override fun start() = lifecycleOwner.start()
-
-    private fun startOwned() {
+    final override fun start() {
         if (forceStopRequested.get()) {
             return
         }
@@ -263,9 +239,7 @@ abstract class MainDispatcher<T : Any> :
      * @return A [Mono] that completes when all aggregate dispatchers have stopped gracefully.
      *         Completes with an error if any dispatcher fails to stop.
      */
-    final override fun stopGracefully(): Mono<Void> = lifecycleOwner.stopGracefully()
-
-    private fun stopOwnedGracefully(): Mono<Void> {
+    final override fun stopGracefully(): Mono<Void> {
         log.info {
             "Stop Gracefully.".withNamePrefix()
         }
@@ -298,9 +272,7 @@ abstract class MainDispatcher<T : Any> :
      */
     protected open fun stopManagedGracefully(): Mono<Void> = Mono.empty()
 
-    final override fun forceStop() = lifecycleOwner.forceStop()
-
-    private fun forceStopOwned() {
+    final override fun forceStop() {
         forceStopRequested.set(true)
         forceAllReporting(
             listOf(
@@ -331,35 +303,4 @@ abstract class MainDispatcher<T : Any> :
         synchronized(childLifecycleMonitor) {
             aggregateComponentGroup
         }
-
-    private fun MessageDispatcher.warnLegacyRuntimeCapabilities() {
-        if (this is RuntimeComponent) {
-            return
-        }
-        if (this !is RuntimePreparable || this !is ForceStoppable) {
-            log.warn {
-                "Message dispatcher[$this] uses the legacy lifecycle compatibility path. " +
-                    "Implement RuntimeComponent to participate fully in readiness " +
-                    "and hard shutdown."
-            }
-        }
-    }
-
-    private fun MessageDispatcher.asRuntimeComponent(): RuntimeComponent {
-        if (this is RuntimeComponent) {
-            return this
-        }
-        val dispatcher = this
-        require(dispatcher is ForceStoppable) {
-            "Legacy message dispatcher[$dispatcher] must implement ForceStoppable before it can " +
-                "participate in runtime hard shutdown."
-        }
-        return RuntimeLifecycleAdapter(
-            delegate = dispatcher,
-            prepareAction = { context ->
-                (dispatcher as? RuntimePreparable)?.prepare(context)
-            },
-            forceStopAction = dispatcher::forceStop,
-        )
-    }
 }

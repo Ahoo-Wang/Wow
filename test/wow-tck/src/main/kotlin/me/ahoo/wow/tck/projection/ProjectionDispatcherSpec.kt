@@ -29,11 +29,13 @@ import me.ahoo.wow.projection.DefaultProjectionHandler
 import me.ahoo.wow.projection.ProjectionDispatcher
 import me.ahoo.wow.projection.ProjectionFunctionFilter
 import me.ahoo.wow.projection.ProjectionFunctionRegistrar
+import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.junit.jupiter.api.Test
+import java.time.Duration
 
 abstract class ProjectionDispatcherSpec {
     private val handlerRegistrar = ProjectionFunctionRegistrar()
@@ -68,14 +70,16 @@ abstract class ProjectionDispatcherSpec {
                 functionRegistrar = handlerRegistrar,
                 eventHandler = DefaultProjectionHandler(chain).metrizable(),
             )
-        projectionDispatcher.start()
-
-        val eventStream = MockAggregateCreated(generateGlobalId()).toDomainEventStream(
-            upstream = GivenInitializationCommand(aggregateMetadata.aggregateId(generateGlobalId())),
-            aggregateVersion = 1,
-        )
-        domainEventBus.send(eventStream).block()
-
-        projectionDispatcher.close()
+        val runtime = WowRuntime(listOf(projectionDispatcher), Duration.ofSeconds(30), Duration.ZERO)
+        try {
+            runtime.start().block()
+            val eventStream = MockAggregateCreated(generateGlobalId()).toDomainEventStream(
+                upstream = GivenInitializationCommand(aggregateMetadata.aggregateId(generateGlobalId())),
+                aggregateVersion = 1,
+            )
+            domainEventBus.send(eventStream).block()
+        } finally {
+            runtime.stopGracefully().block()
+        }
     }
 }

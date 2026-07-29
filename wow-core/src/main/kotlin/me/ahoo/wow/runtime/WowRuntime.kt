@@ -33,7 +33,6 @@ import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import java.time.Duration
 import java.util.Collections
-import java.util.concurrent.CompletionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
@@ -129,7 +128,7 @@ class WowRuntime private constructor(
         scheduler = executionResources.quiescenceScheduler,
         failures = firstFailure,
     )
-    private val componentGroup = RuntimeComponentGroup.claim(this.components) { error ->
+    private val componentGroup = RuntimeComponentGroup(this.components) { error ->
         firstFailure.record(error)
     }
     private val terminationSink = Sinks.empty<Void>()
@@ -189,8 +188,25 @@ class WowRuntime private constructor(
         }
     }
 
+    /**
+     * Starts the runtime and completes only after the readiness barrier opens.
+     *
+     * Startup failure is composed with its asynchronous rollback, so callers
+     * observe one consistent terminal result without blocking a Reactor worker.
+     */
     @Suppress("TooGenericExceptionCaught")
-    fun start() {
+    fun start(): Mono<Void> =
+        Mono.defer {
+            try {
+                startComponents()
+                Mono.empty()
+            } catch (startFailure: Throwable) {
+                Exceptions.throwIfFatal(startFailure)
+                rollbackAfterStartFailure(startFailure)
+            }
+        }
+
+    private fun startComponents() {
         synchronized(lifecycleMonitor) {
             check(state == State.NEW) {
                 "WowRuntime can only be started once. Current state: $state."
@@ -201,36 +217,38 @@ class WowRuntime private constructor(
                 ::handleRuntimeFailure,
             )
         }
-        try {
-            val prepared = componentGroup.prepare(
-                runtimeContext = runtimeContext,
-                admissionGate = ::admitComponentLifecycleAction,
-                afterEach = ::ensureStartupContinues,
-            )
-            if (!prepared) {
-                ensureStartupContinues()
-            }
-            val started = componentGroup.start(
-                admissionGate = ::admitComponentLifecycleAction,
-                afterEach = ::ensureStartupContinues,
-            )
-            if (!started) {
-                ensureStartupContinues()
-            }
-            synchronized(lifecycleMonitor) {
-                throwIfStartupFailed()
-                ensureStarting()
-                state = State.RUNNING
-            }
-        } catch (startFailure: Throwable) {
-            Exceptions.throwIfFatal(startFailure)
-            val cleanup = claimStartFailureCleanup(startFailure)
-            if (cleanup == null) {
-                throw resolveStartFailureAfterConcurrentShutdown(startFailure)
-            }
-            val cleanupFailure = cleanupAfterStartFailure(cleanup.owner)
-            throw cleanup.primaryFailure.withCleanupFailure(cleanupFailure)
+        val prepared = componentGroup.prepare(
+            runtimeContext = runtimeContext,
+            admissionGate = ::admitComponentLifecycleAction,
+            afterEach = ::ensureStartupContinues,
+        )
+        if (!prepared) {
+            ensureStartupContinues()
         }
+        val started = componentGroup.start(
+            admissionGate = ::admitComponentLifecycleAction,
+            afterEach = ::ensureStartupContinues,
+        )
+        if (!started) {
+            ensureStartupContinues()
+        }
+        synchronized(lifecycleMonitor) {
+            throwIfStartupFailed()
+            ensureStarting()
+            state = State.RUNNING
+        }
+    }
+
+    private fun rollbackAfterStartFailure(startFailure: Throwable): Mono<Void> {
+        val cleanup = claimStartFailureCleanup(startFailure)
+            ?: return Mono.error(resolveStartFailureAfterConcurrentShutdown(startFailure))
+        scheduleShutdownDeadline(cleanup.owner)
+        subscribeShutdown(cleanup.owner)
+        return rawTerminationSignal
+            .onErrorMap { cleanupFailure ->
+                cleanup.primaryFailure.withCleanupFailure(cleanupFailure)
+            }
+            .then(Mono.error(cleanup.primaryFailure))
     }
 
     /**
@@ -508,23 +526,6 @@ class WowRuntime private constructor(
             forceFailure?.let(::recordFailure)
             Mono.error(currentFailure() ?: forceFailure ?: primaryFailure)
         }
-
-    @Suppress("TooGenericExceptionCaught")
-    private fun cleanupAfterStartFailure(owner: ShutdownOwner): Throwable? {
-        scheduleShutdownDeadline(owner)
-        subscribeShutdown(owner)
-        if (Schedulers.isInNonBlockingThread()) {
-            return null
-        }
-        return try {
-            rawTerminationSignal.toFuture().join()
-            null
-        } catch (completionFailure: CompletionException) {
-            val cleanupFailure = completionFailure.cause ?: completionFailure
-            Exceptions.throwIfFatal(cleanupFailure)
-            cleanupFailure
-        }
-    }
 
     private fun ensureStartupContinues() {
         synchronized(lifecycleMonitor) {

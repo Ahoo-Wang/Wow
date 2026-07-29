@@ -15,22 +15,19 @@ package me.ahoo.wow.messaging.dispatcher
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.infra.lifecycle.ForceStoppable
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.toNamedAggregate
-import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.RuntimeContext
-import me.ahoo.wow.runtime.RuntimeOwnership
+import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.runtime.internal.DefaultRuntimeContext
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.test.StepVerifier
+import java.time.Duration
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -58,7 +55,7 @@ class MainDispatcherTest {
             }
         }
 
-        dispatcher.start()
+        prepareAndStart(dispatcher)
 
         startCount.get().assert().isOne()
         StepVerifier.create(dispatcher.stopGracefully()).verifyComplete()
@@ -94,7 +91,7 @@ class MainDispatcherTest {
         val dispatcher = RecordingMainDispatcher()
 
         StepVerifier.create(dispatcher.receiverGroups.asFlux().take(2))
-            .then { dispatcher.start() }
+            .then { prepareAndStart(dispatcher) }
             .expectNext("recording-main", "recording-main")
             .verifyComplete()
 
@@ -107,11 +104,12 @@ class MainDispatcherTest {
     }
 
     @Test
-    fun `direct stop closes every child intake before managed cleanup`() {
+    fun `runtime stop closes every child intake before managed cleanup`() {
         val dispatcher = RecordingMainDispatcher()
-        dispatcher.start()
+        val runtime = runtime(dispatcher)
+        runtime.start().block()
 
-        StepVerifier.create(dispatcher.stopGracefully())
+        StepVerifier.create(runtime.stopGracefully())
             .verifyComplete()
 
         dispatcher.childIntakeCloseCalls.assert().hasSize(2)
@@ -119,14 +117,15 @@ class MainDispatcherTest {
     }
 
     @Test
-    fun `direct runtime failure stops every child and remains terminal`() {
+    fun `runtime failure stops every child and remains terminal`() {
         val failure = IllegalStateException("runtime")
         val dispatcher = RecordingMainDispatcher()
-        dispatcher.start()
+        val runtime = runtime(dispatcher)
+        runtime.start().block()
 
         dispatcher.reportFailure(failure)
 
-        StepVerifier.create(dispatcher.stopGracefully())
+        StepVerifier.create(runtime.terminationSignal)
             .expectErrorSatisfies { error ->
                 error.assert().isSameAs(failure)
             }.verify()
@@ -134,25 +133,15 @@ class MainDispatcherTest {
     }
 
     @Test
-    fun `direct runtime remains one shot after shutdown`() {
-        val dispatcher = RecordingMainDispatcher()
-        dispatcher.start()
-        dispatcher.stopGracefully().block()
-
-        assertThrows<IllegalStateException> {
-            dispatcher.start()
-        }
-    }
-
-    @Test
     fun `forceStop continues after a child failure`() {
         val failure = IllegalStateException("force")
         val dispatcher = RecordingMainDispatcher(forceFailure = failure)
-        dispatcher.start()
+        val runtime = runtime(dispatcher)
+        runtime.start().block()
 
-        dispatcher.forceStop()
+        runtime.forceStop()
 
-        StepVerifier.create(dispatcher.stopGracefully())
+        StepVerifier.create(runtime.terminationSignal)
             .expectErrorSatisfies { error ->
                 error.assert().isSameAs(failure)
             }.verify()
@@ -171,6 +160,7 @@ class MainDispatcherTest {
             childForceAction = releaseStart::countDown,
         )
         val executor = Executors.newFixedThreadPool(2)
+        dispatcher.prepare(DefaultRuntimeContext())
         val start = CompletableFuture.runAsync(dispatcher::start, executor)
         var force: CompletableFuture<Void>? = null
 
@@ -212,45 +202,6 @@ class MainDispatcherTest {
         dispatcher.managedStopCount.get().assert().isZero()
     }
 
-    @Test
-    fun `legacy child dispatcher remains compatible with direct graceful lifecycle`() {
-        val child = LegacyChildDispatcher()
-        val dispatcher = LegacyChildMainDispatcher(child)
-
-        dispatcher.start()
-        StepVerifier.create(dispatcher.stopGracefully()).verifyComplete()
-
-        child.calls.assert().containsExactly("start", "stop")
-    }
-
-    @Test
-    fun `legacy child dispatcher uses its explicit hard stop`() {
-        val child = LegacyChildDispatcher()
-        val dispatcher = LegacyChildMainDispatcher(child)
-        dispatcher.start()
-
-        dispatcher.forceStop()
-
-        child.calls.assert().containsExactly("start", "force")
-        StepVerifier.create(dispatcher.stopGracefully()).verifyComplete()
-    }
-
-    @Test
-    fun `legacy child without hard stop fails before lifecycle preparation`() {
-        val child = object : MessageDispatcher {
-            override val name: String = "graceful-only"
-
-            override fun start() = Unit
-
-            override fun stopGracefully(): Mono<Void> = Mono.empty()
-        }
-        val dispatcher = LegacyChildMainDispatcher(child)
-
-        val thrown = assertThrows<IllegalArgumentException>(dispatcher::start)
-
-        thrown.message.assert().contains("ForceStoppable")
-    }
-
     private fun tryStartAfterTerminalStop(dispatcher: RecordingMainDispatcher) {
         try {
             dispatcher.start()
@@ -260,6 +211,18 @@ class MainDispatcherTest {
             dispatcher.forceStop()
         }
     }
+
+    private fun prepareAndStart(dispatcher: MainDispatcher<String>) {
+        dispatcher.prepare(DefaultRuntimeContext())
+        dispatcher.start()
+    }
+
+    private fun runtime(dispatcher: MainDispatcher<String>): WowRuntime =
+        WowRuntime(
+            components = listOf(dispatcher),
+            shutdownTimeout = Duration.ofSeconds(1),
+            shutdownQuietPeriod = Duration.ZERO,
+        )
 
     private class RecordingMainDispatcher(
         private val forceFailure: RuntimeException? = null,
@@ -293,13 +256,8 @@ class MainDispatcherTest {
             messageFlux: Flux<String>
         ): MessageDispatcher {
             createCount.incrementAndGet()
-            return object :
-                MessageDispatcher,
-                RuntimeComponent {
+            return object : MessageDispatcher {
                 override val name: String = "child-${namedAggregate.aggregateName}"
-
-                override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
-
                 override fun prepare(runtimeContext: RuntimeContext) {
                     childRuntimeContext = runtimeContext
                     runtimeContext.onAdmissionClose {
@@ -336,41 +294,6 @@ class MainDispatcherTest {
 
         fun reportFailure(error: Throwable) {
             checkNotNull(childRuntimeContext).reportFailure(error)
-        }
-    }
-
-    private class LegacyChildMainDispatcher(
-        private val child: MessageDispatcher,
-    ) : MainDispatcher<String>() {
-        override val name: String = "legacy-child-main"
-        override val namedAggregates: Set<NamedAggregate> =
-            setOf("wow-core-test.legacy_child".toNamedAggregate().materialize())
-
-        override fun receiveMessage(subscription: MessageSubscription): Flux<String> = Flux.empty()
-
-        override fun newAggregateDispatcher(
-            namedAggregate: NamedAggregate,
-            messageFlux: Flux<String>,
-        ): MessageDispatcher = child
-    }
-
-    private class LegacyChildDispatcher :
-        MessageDispatcher,
-        ForceStoppable {
-        override val name: String = "legacy-child"
-        val calls = CopyOnWriteArrayList<String>()
-
-        override fun start() {
-            calls += "start"
-        }
-
-        override fun stopGracefully(): Mono<Void> =
-            Mono.fromRunnable {
-                calls += "stop"
-            }
-
-        override fun forceStop() {
-            calls += "force"
         }
     }
 }

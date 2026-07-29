@@ -26,7 +26,6 @@ import me.ahoo.wow.messaging.dispatcher.MainDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.handler.ExchangeAck.filterThenAck
-import me.ahoo.wow.runtime.internal.compat.forceStopOrScheduleGracefulCleanup
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
 import reactor.core.publisher.Flux
@@ -78,6 +77,6 @@ class SnapshotDispatcher(
         schedulerSupplier.stopGracefully()
 
     override fun forceStopManaged() {
-        schedulerSupplier.forceStopOrScheduleGracefulCleanup()
+        schedulerSupplier.forceStop()
     }
 }

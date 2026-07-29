@@ -16,7 +16,6 @@ package me.ahoo.wow.spring
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.RuntimeContext
-import me.ahoo.wow.runtime.RuntimeOwnership
 import me.ahoo.wow.runtime.WowRuntime
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -40,7 +39,7 @@ class RuntimeContextSpiTest {
             shutdownTimeout = Duration.ofSeconds(10),
             shutdownQuietPeriod = Duration.ZERO,
         )
-        runtime.start()
+        runtime.start().block()
         val activity = component.runtimeContext.tryAcquire()
         activity.assert().isNotNull()
 
@@ -67,7 +66,7 @@ class RuntimeContextSpiTest {
             shutdownTimeout = Duration.ofSeconds(1),
             shutdownQuietPeriod = Duration.ZERO,
         )
-        runtime.start()
+        runtime.start().block()
 
         component.runtimeContext.reportFailure(runtimeFailure)
 
@@ -82,9 +81,6 @@ class RuntimeContextSpiTest {
         lateinit var runtimeContext: RuntimeContext
         val closeActionCount = AtomicInteger()
         val forceStopCount = AtomicInteger()
-
-        override val runtimeOwnership: RuntimeOwnership = RuntimeOwnership()
-
         override fun prepare(runtimeContext: RuntimeContext) {
             this.runtimeContext = runtimeContext
             runtimeContext.onAdmissionClose(closeActionCount::incrementAndGet)

@@ -32,9 +32,7 @@ import me.ahoo.wow.saga.stateless.StatelessSagaFunctionRegistrar
 import me.ahoo.wow.saga.stateless.StatelessSagaHandler
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
-import me.ahoo.wow.spring.boot.starter.WowProperties
 import me.ahoo.wow.spring.boot.starter.WowRuntimeComponentOrder
-import me.ahoo.wow.spring.saga.StatelessSagaDispatcherLauncher
 import me.ahoo.wow.spring.saga.StatelessSagaProcessorAutoRegistrar
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -45,9 +43,7 @@ import org.springframework.core.annotation.Order
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
-class StatelessSagaAutoConfiguration(
-    private val wowProperties: WowProperties,
-) {
+class StatelessSagaAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
@@ -116,15 +112,5 @@ class StatelessSagaAutoConfiguration(
             functionRegistrar = handlerRegistrar,
             eventHandler = statelessSagaHandler,
         )
-    }
-
-    @Deprecated(
-        message = "Dispatchers are owned by the canonical WowRuntimeLifecycle.",
-    )
-    @Suppress("DEPRECATION")
-    fun statelessSagaDispatcherLauncher(
-        statelessSagaDispatcher: StatelessSagaDispatcher,
-    ): StatelessSagaDispatcherLauncher {
-        return StatelessSagaDispatcherLauncher(statelessSagaDispatcher, wowProperties.shutdownTimeout)
     }
 }

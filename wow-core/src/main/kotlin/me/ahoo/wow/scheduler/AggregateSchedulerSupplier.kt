@@ -38,7 +38,9 @@ import reactor.core.scheduler.Schedulers
  * @see Scheduler
  * @see NamedAggregate
  */
-interface AggregateSchedulerSupplier : GracefullyStoppable {
+interface AggregateSchedulerSupplier :
+    GracefullyStoppable,
+    ForceStoppable {
     /**
      * Gets an existing scheduler for the named aggregate or creates a new one if none exists.
      *
@@ -100,7 +102,6 @@ class DefaultAggregateSchedulerSupplier(
     override val name: String,
     override val parallelism: Int = Schedulers.DEFAULT_POOL_SIZE
 ) : AggregateSchedulerSupplier,
-    ForceStoppable,
     ParallelismCapable,
     Named {
     /**

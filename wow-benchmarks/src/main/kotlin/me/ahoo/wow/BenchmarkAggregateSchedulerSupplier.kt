@@ -14,7 +14,6 @@
 package me.ahoo.wow
 
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.infra.lifecycle.ForceStoppable
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
@@ -25,8 +24,7 @@ import reactor.core.scheduler.Schedulers
 
 class BenchmarkAggregateSchedulerSupplier(
     private val schedulerPoolSize: Int = Schedulers.DEFAULT_POOL_SIZE,
-) : AggregateSchedulerSupplier,
-    ForceStoppable {
+) : AggregateSchedulerSupplier {
     init {
         require(schedulerPoolSize > 0) {
             "schedulerPoolSize must be greater than 0."

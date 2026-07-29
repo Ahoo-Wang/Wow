@@ -14,39 +14,88 @@
 package me.ahoo.wow.spring
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.runtime.RuntimeComponent
+import me.ahoo.wow.runtime.RuntimeContext
+import me.ahoo.wow.runtime.WowRuntime
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import org.springframework.context.ApplicationContext
 import org.springframework.context.support.GenericApplicationContext
+import reactor.core.publisher.Mono
+import java.time.Duration
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.function.Supplier
 
 class AutoRegistrarTest {
 
     @Test
-    fun `start is idempotent while running and restart fails before registration`() {
+    fun `registers annotated components after singleton initialization`() {
         val applicationContext = GenericApplicationContext()
-        applicationContext.beanFactory.registerSingleton(
+        applicationContext.registerBean(
             "annotatedComponent",
-            AnnotatedComponent(),
+            AnnotatedComponent::class.java,
+            Supplier(::AnnotatedComponent),
         )
-        applicationContext.refresh()
+        val registrar = RecordingAutoRegistrar(applicationContext)
+        applicationContext.registerBean(
+            "autoRegistrar",
+            RecordingAutoRegistrar::class.java,
+            Supplier { registrar },
+        )
         try {
-            val registrar = RecordingAutoRegistrar(applicationContext)
-
-            registrar.start()
-            registrar.start()
+            applicationContext.refresh()
 
             registrar.registerCount.get().assert().isEqualTo(1)
-            registrar.isRunning.assert().isTrue()
-            registrar.isPauseable.assert().isFalse()
-            registrar.phase.assert().isEqualTo(AUTO_REGISTRAR_PHASE)
+        } finally {
+            applicationContext.close()
+        }
+    }
 
-            registrar.stop()
-            val error = assertThrows<IllegalStateException>(registrar::start)
+    @Test
+    fun `registration completes before runtime readiness`() {
+        val calls = CopyOnWriteArrayList<String>()
+        val applicationContext = GenericApplicationContext()
+        applicationContext.registerBean(
+            "annotatedComponent",
+            AnnotatedComponent::class.java,
+            Supplier(::AnnotatedComponent),
+        )
+        val registrar = RecordingAutoRegistrar(applicationContext) {
+            calls += "register"
+        }
+        applicationContext.registerBean(
+            "autoRegistrar",
+            RecordingAutoRegistrar::class.java,
+            Supplier { registrar },
+        )
+        val runtimeComponent = object : RuntimeComponent {
+            override fun prepare(runtimeContext: RuntimeContext) {
+                calls += "prepare"
+            }
 
-            error.message.assert().contains("Create a new ApplicationContext")
-            registrar.registerCount.get().assert().isEqualTo(1)
-            registrar.isRunning.assert().isFalse()
+            override fun start() {
+                calls += "start"
+            }
+
+            override fun stopGracefully(): Mono<Void> = Mono.empty()
+
+            override fun forceStop() = Unit
+        }
+        val runtime = WowRuntime(
+            components = listOf(runtimeComponent),
+            shutdownTimeout = Duration.ofSeconds(1),
+            shutdownQuietPeriod = Duration.ZERO,
+        )
+        applicationContext.registerBean(
+            "wowRuntimeLifecycle",
+            WowRuntimeLifecycle::class.java,
+            Supplier { WowRuntimeLifecycle(runtime) },
+        )
+
+        try {
+            applicationContext.refresh()
+
+            calls.assert().containsExactly("register", "prepare", "start")
         } finally {
             applicationContext.close()
         }
@@ -61,11 +110,13 @@ class AutoRegistrarTest {
 
     private class RecordingAutoRegistrar(
         applicationContext: ApplicationContext,
+        private val onRegister: () -> Unit = {},
     ) : AutoRegistrar<TestComponent>(TestComponent::class.java, applicationContext) {
         val registerCount = AtomicInteger()
 
         override fun register(component: Any) {
             registerCount.incrementAndGet()
+            onRegister()
         }
     }
 }

@@ -9,13 +9,14 @@ description: 为每个聚合提供专用 Reactor 调度器，控制并发执行�
 
 ## 调度器供应器
 
-聚合调度器供应器为每个聚合提供或创建专用的调度器。它继承自 `GracefullyStoppable`，
-以便运行时在关闭时释放所有缓存的调度器。
+聚合调度器供应器为每个聚合提供或创建专用的调度器。它同时提供优雅与强制停机能力，
+使运行时能在任一停机路径释放所有缓存的调度器。
 
 ```kotlin
-interface AggregateSchedulerSupplier : GracefullyStoppable {
+interface AggregateSchedulerSupplier : GracefullyStoppable, ForceStoppable {
     fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler
     // 继承方法：stopGracefully(): Mono<Void>
+    // 继承方法：forceStop()
 }
 ```
 
@@ -42,6 +43,10 @@ class DefaultAggregateSchedulerSupplier(
 
     override fun stopGracefully(): Mono<Void> {
         // 在优雅关闭时释放所有缓存的调度器
+    }
+
+    override fun forceStop() {
+        // 同步释放所有缓存的调度器
     }
 }
 ```
@@ -87,4 +92,4 @@ messageFlux
 | **隔离性** | 不同聚合类型（例如 `order` 与 `cart`）获得各自的调度器，慢速类型不会阻塞另一类型。 |
 | **背压** | 每个命名聚合的调度器有自己的队列；竞争以聚合类型为单位受限，而非全局。 |
 | **资源控制** | `parallelism` 限制每个命名聚合类型的工作线程数，防止某个热点类型耗尽所有 CPU。 |
-| **优雅关闭** | `stopGracefully()` 在应用关闭时释放所有缓存的调度器。 |
+| **关闭** | `stopGracefully()` 排空缓存的调度器；截止时间到达时，`forceStop()` 同步释放它们。 |

@@ -102,7 +102,8 @@ class WowRuntimeLifecycle(
             return
         }
         try {
-            wowRuntime.start()
+            val startupSignal = checkNotNull(wowRuntime.start().materialize().block())
+            startupSignal.throwable?.let { throw it }
             synchronized(lifecycleMonitor) {
                 check(state == State.STARTING) {
                     "Lifecycle state changed while the Wow runtime was starting: $state."
@@ -110,7 +111,6 @@ class WowRuntimeLifecycle(
                 state = State.RUNNING
             }
         } catch (error: Throwable) {
-            wowRuntime.forceStop()
             synchronized(lifecycleMonitor) {
                 state = State.TERMINATED
             }

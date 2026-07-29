@@ -30,9 +30,7 @@ import me.ahoo.wow.projection.ProjectionFunctionRegistrar
 import me.ahoo.wow.projection.ProjectionHandler
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
-import me.ahoo.wow.spring.boot.starter.WowProperties
 import me.ahoo.wow.spring.boot.starter.WowRuntimeComponentOrder
-import me.ahoo.wow.spring.projection.ProjectionDispatcherLauncher
 import me.ahoo.wow.spring.projection.ProjectionProcessorAutoRegistrar
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -43,9 +41,7 @@ import org.springframework.core.annotation.Order
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
-class ProjectionDispatcherAutoConfiguration(
-    private val wowProperties: WowProperties,
-) {
+class ProjectionDispatcherAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
@@ -112,15 +108,5 @@ class ProjectionDispatcherAutoConfiguration(
             functionRegistrar = handlerRegistrar,
             eventHandler = projectionHandler,
         )
-    }
-
-    @Deprecated(
-        message = "Dispatchers are owned by the canonical WowRuntimeLifecycle.",
-    )
-    @Suppress("DEPRECATION")
-    fun projectionDispatcherLauncher(
-        projectionDispatcher: ProjectionDispatcher,
-    ): ProjectionDispatcherLauncher {
-        return ProjectionDispatcherLauncher(projectionDispatcher, wowProperties.shutdownTimeout)
     }
 }
