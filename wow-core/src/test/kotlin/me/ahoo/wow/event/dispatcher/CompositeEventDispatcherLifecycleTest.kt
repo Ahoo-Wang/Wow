@@ -114,6 +114,18 @@ class CompositeEventDispatcherLifecycleTest {
     }
 
     @Test
+    fun `force stop before graceful subscription skips scheduler graceful cleanup`() {
+        val fixture = PartialConstructionFailureFixture()
+        val gracefulStop = fixture.dispatcher.stopGracefully()
+
+        fixture.dispatcher.forceStop()
+
+        StepVerifier.create(gracefulStop).verifyComplete()
+        fixture.schedulerSupplier.gracefulStopCount.get().assert().isZero()
+        fixture.schedulerSupplier.forceStopCount.get().assert().isEqualTo(1)
+    }
+
+    @Test
     fun `runtime graceful stop closes every intake before scheduler cleanup`() {
         val gracefulCalls = mutableListOf<String>()
         val gracefulDispatcher = newRecordingDispatcher(gracefulCalls)

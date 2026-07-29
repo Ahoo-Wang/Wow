@@ -28,8 +28,8 @@ import java.util.concurrent.atomic.AtomicInteger
  * logical force-stop path.
  */
 internal object RuntimeCleanupExecutor {
-    internal const val THREAD_CAPACITY: Int = 8
-    internal const val QUEUE_CAPACITY: Int = 256
+    private const val THREAD_CAPACITY: Int = 8
+    private const val QUEUE_CAPACITY: Int = 256
     private const val THREAD_KEEP_ALIVE_SECONDS: Long = 30
     private val threadId = AtomicInteger()
 
@@ -52,8 +52,6 @@ internal object RuntimeCleanupExecutor {
         allowCoreThreadTimeOut(true)
     }
 
-    fun execute(action: () -> Unit): Boolean = execute(Runnable(action))
-
     internal fun execute(action: Runnable): Boolean =
         try {
             executor.execute(action)
@@ -61,9 +59,4 @@ internal object RuntimeCleanupExecutor {
         } catch (_: RejectedExecutionException) {
             false
         }
-
-    internal fun remove(action: Runnable): Boolean = executor.remove(action)
-
-    internal val queuedTaskCount: Int
-        get() = executor.queue.size
 }

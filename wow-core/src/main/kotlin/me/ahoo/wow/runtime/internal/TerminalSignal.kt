@@ -28,7 +28,6 @@ import java.util.concurrent.ThreadFactory
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -37,8 +36,6 @@ import java.util.concurrent.atomic.AtomicReference
 internal object TerminalSignal {
     val dispatcher: TerminalSignalDispatcher =
         newTerminalSignalDispatcher("wow-terminal-signal")
-    val rejectedSubscriberCount = AtomicLong()
-    val droppedNotificationCount = AtomicLong()
 }
 
 /**
@@ -105,7 +102,6 @@ private class TerminalSignalMono(
     override fun subscribe(actual: CoreSubscriber<in Void>) {
         val permit = dispatcher.tryAcquire()
         if (permit == null) {
-            TerminalSignal.rejectedSubscriberCount.incrementAndGet()
             Operators.error(
                 actual,
                 RejectedExecutionException(
@@ -200,7 +196,6 @@ private class TerminalSignalSubscriber(
         if (accepted) {
             return
         }
-        TerminalSignal.droppedNotificationCount.incrementAndGet()
         actual.set(null)
         cancelUpstreamAndReleasePermit()
     }

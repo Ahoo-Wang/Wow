@@ -21,6 +21,35 @@ import java.util.concurrent.atomic.AtomicLong
 
 class ShutdownSubscriptionBoundaryTest {
     @Test
+    fun `detach before upstream subscription cancels late upstream and isolates signals`() {
+        val cleanupDispatches = AtomicInteger()
+        val completions = AtomicInteger()
+        val errors = AtomicInteger()
+        val subscription = RecordingSubscription()
+        val boundary = ShutdownSubscriptionBoundary(
+            cleanupDispatcher = RuntimeCleanupDispatcher { cancellation ->
+                cleanupDispatches.incrementAndGet()
+                cancellation.run()
+                true
+            },
+            onComplete = completions::incrementAndGet,
+            onError = { errors.incrementAndGet() },
+        )
+
+        boundary.detach().assert()
+            .isEqualTo(CleanupDispatchResult.NO_UPSTREAM)
+        boundary.onSubscribe(subscription)
+        boundary.onComplete()
+        boundary.onError(IllegalStateException("late"))
+
+        cleanupDispatches.get().assert().isEqualTo(1)
+        subscription.requested.get().assert().isZero()
+        subscription.cancellations.get().assert().isOne()
+        completions.get().assert().isZero()
+        errors.get().assert().isZero()
+    }
+
+    @Test
     fun `rejected cleanup clears callbacks and isolates late signals`() {
         val cleanupDispatches = AtomicInteger()
         val completions = AtomicInteger()

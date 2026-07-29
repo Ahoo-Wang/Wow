@@ -23,12 +23,6 @@ import reactor.core.Exceptions
  * pipeline change an error that has already been published to observers.
  */
 internal class SealableFailureAccumulator {
-    data class RecordResult(
-        val primary: Throwable,
-        val installed: Boolean,
-        val accepted: Boolean,
-    )
-
     private val monitor = Any()
     private var primaryFailure: Throwable? = null
     private var sealed = false
@@ -38,33 +32,21 @@ internal class SealableFailureAccumulator {
             primaryFailure
         }
 
-    fun record(error: Throwable): RecordResult {
+    fun record(error: Throwable): Throwable {
         Exceptions.throwIfFatal(error)
         return synchronized(monitor) {
             val current = primaryFailure
             when {
-                sealed -> RecordResult(
-                    primary = current ?: error,
-                    installed = false,
-                    accepted = false,
-                )
+                sealed -> current ?: error
 
                 current == null -> {
                     primaryFailure = error
-                    RecordResult(
-                        primary = error,
-                        installed = true,
-                        accepted = true,
-                    )
+                    error
                 }
 
                 else -> {
                     current.addSuppressedIfAbsent(error)
-                    RecordResult(
-                        primary = current,
-                        installed = false,
-                        accepted = true,
-                    )
+                    current
                 }
             }
         }

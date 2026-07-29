@@ -55,5 +55,9 @@ interface RuntimeComponent {
 
     fun stopGracefully(): Mono<Void>
 
+    /**
+     * Releases resources promptly without blocking, and remains safe before
+     * [prepare] and across repeated or overlapping calls.
+     */
     fun forceStop()
 }

@@ -17,13 +17,13 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.runtime.internal.DefaultRuntimeExecutionResources
 import me.ahoo.wow.runtime.internal.ImmediateTerminalSignalDispatcher
 import me.ahoo.wow.runtime.internal.RuntimeExecutionResources
-import me.ahoo.wow.runtime.internal.TerminalSignal
 import me.ahoo.wow.runtime.internal.TerminalSignalDispatcher
 import me.ahoo.wow.runtime.internal.newTerminalSignalDispatcher
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.assertTimeoutPreemptively
 import reactor.core.Disposable
+import reactor.core.Exceptions
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.core.scheduler.Scheduler
@@ -44,6 +44,112 @@ import java.util.concurrent.atomic.AtomicReference
 
 @Suppress("LargeClass")
 class WowRuntimeTest {
+
+    @Test
+    fun `close uses the runtime-owned terminal boundary`() {
+        val terminationDispatcher = newTerminalSignalDispatcher(
+            "wow-runtime-test-rejected-public-terminal",
+        ).also(TerminalSignalDispatcher::dispose)
+        val runtime = WowRuntime(
+            components = emptyList(),
+            shutdownTimeout = Duration.ofSeconds(60),
+            shutdownQuietPeriod = Duration.ZERO,
+            executionResources = immediateExecutionResources(terminationDispatcher),
+        )
+
+        assertTimeoutPreemptively(Duration.ofSeconds(1)) {
+            runtime.close()
+        }
+        StepVerifier.create(runtime.terminationSignal)
+            .expectError(RejectedExecutionException::class.java)
+            .verify()
+    }
+
+    @Test
+    fun `timed stop uses the runtime-owned terminal boundary`() {
+        val terminationDispatcher = newTerminalSignalDispatcher(
+            "wow-runtime-test-rejected-timed-stop-terminal",
+        ).also(TerminalSignalDispatcher::dispose)
+        val runtime = WowRuntime(
+            components = emptyList(),
+            shutdownTimeout = Duration.ofSeconds(60),
+            shutdownQuietPeriod = Duration.ZERO,
+            executionResources = immediateExecutionResources(terminationDispatcher),
+        )
+
+        assertTimeoutPreemptively(Duration.ofSeconds(1)) {
+            runtime.stop(Duration.ofSeconds(1))
+        }
+        StepVerifier.create(runtime.terminationSignal)
+            .expectError(RejectedExecutionException::class.java)
+            .verify()
+    }
+
+    @Test
+    fun `synchronous stop waits for the runtime deadline owner`() {
+        val stopSubscribed = CountDownLatch(1)
+        val component = RecordingLifecycle(
+            name = "component",
+            calls = mutableListOf(),
+            stopGate = Sinks.empty(),
+            onStop = stopSubscribed::countDown,
+        )
+        val deadlineScheduler = ControllableDeadlineScheduler()
+        val runtime = WowRuntime(
+            components = listOf(component),
+            shutdownTimeout = Duration.ofMillis(20),
+            shutdownQuietPeriod = Duration.ZERO,
+        ).also {
+            it.shutdownDeadlineScheduler = deadlineScheduler
+        }
+        runtime.start().block()
+        val executor = Executors.newSingleThreadExecutor()
+
+        try {
+            val stopFailure = executor.submit<Throwable?> {
+                runCatching { runtime.stop() }.exceptionOrNull()
+            }
+            stopSubscribed.await(1, TimeUnit.SECONDS).assert().isTrue()
+
+            assertThrows<TimeoutException> {
+                stopFailure.get(100, TimeUnit.MILLISECONDS)
+            }
+
+            deadlineScheduler.runScheduled()
+            Exceptions.unwrap(checkNotNull(stopFailure.get(1, TimeUnit.SECONDS)))
+                .assert()
+                .isInstanceOf(TimeoutException::class.java)
+        } finally {
+            runtime.forceStop()
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `inline deadline force wins before graceful subscription attachment`() {
+        val calls = mutableListOf<String>()
+        val component = RecordingLifecycle("component", calls)
+        val deadlineScheduler = InlineDeadlineScheduler()
+        val runtime = WowRuntime(
+            components = listOf(component),
+            shutdownTimeout = Duration.ofSeconds(1),
+            shutdownQuietPeriod = Duration.ZERO,
+        ).also {
+            it.shutdownDeadlineScheduler = deadlineScheduler
+        }
+        runtime.start().block()
+
+        StepVerifier.create(runtime.stopGracefully())
+            .expectError(TimeoutException::class.java)
+            .verify()
+
+        calls.assert().containsExactly(
+            "prepare:component",
+            "start:component",
+            "force:component",
+        )
+        deadlineScheduler.deadlineTaskDisposed.get().assert().isTrue()
+    }
 
     @Test
     fun `duration overflow fails before runtime construction`() {
@@ -163,7 +269,6 @@ class WowRuntimeTest {
             },
         )
         runtime.terminationSignal.subscribe({}, {}, queuedObserverCompleted::countDown)
-        val rejectedBefore = TerminalSignal.rejectedSubscriberCount.get()
         val subscribingThread = Thread.currentThread()
         runtime.terminationSignal.subscribe(
             {},
@@ -174,9 +279,6 @@ class WowRuntimeTest {
         )
         rejectedFailure.get().assert().isInstanceOf(RejectedExecutionException::class.java)
         rejectionThread.get().assert().isSameAs(subscribingThread)
-        TerminalSignal.rejectedSubscriberCount.get()
-            .assert()
-            .isEqualTo(rejectedBefore + 1)
         val executor = Executors.newSingleThreadExecutor()
         try {
             val forceStop = executor.submit(runtime::forceStop)
@@ -1113,6 +1215,7 @@ class WowRuntimeTest {
         val compensationCompleted = CountDownLatch(1)
         val firstForceCount = AtomicInteger()
         val executor = Executors.newSingleThreadExecutor()
+        val deadlineScheduler = ControllableDeadlineScheduler()
         val first = RecordingLifecycle(
             name = "first",
             calls = calls,
@@ -1134,13 +1237,16 @@ class WowRuntimeTest {
                 calls += "quiesce:second"
             },
         )
-        val runtime = WowRuntime(listOf(first, second), Duration.ofMillis(100), Duration.ZERO)
+        val runtime = WowRuntime(listOf(first, second), Duration.ofSeconds(1), Duration.ZERO).also {
+            it.shutdownDeadlineScheduler = deadlineScheduler
+        }
         runtime.start().block()
 
         try {
             val stopCall = CompletableFuture.supplyAsync(runtime::stopGracefully, executor)
             quiesceStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
-            val termination = stopCall.get(50, TimeUnit.MILLISECONDS)
+            val termination = stopCall.get(1, TimeUnit.SECONDS)
+            deadlineScheduler.runScheduled()
 
             StepVerifier.create(termination)
                 .expectError(TimeoutException::class.java)
@@ -2035,6 +2141,21 @@ private class ControllableDeadlineScheduler : Scheduler by Schedulers.immediate(
 
     fun runScheduled() {
         checkNotNull(scheduledTask.getAndSet(null)).run()
+    }
+}
+
+private class InlineDeadlineScheduler : Scheduler by Schedulers.immediate() {
+    val deadlineTaskDisposed = AtomicBoolean()
+
+    override fun schedule(
+        task: Runnable,
+        delay: Long,
+        unit: TimeUnit,
+    ): Disposable {
+        task.run()
+        return Disposable {
+            deadlineTaskDisposed.set(true)
+        }
     }
 }
 

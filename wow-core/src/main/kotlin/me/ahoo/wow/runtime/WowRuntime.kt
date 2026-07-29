@@ -294,6 +294,25 @@ class WowRuntime private constructor(
             }
         }
 
+    /**
+     * Uses this runtime's global deadline instead of the generic 30-second wait.
+     * The raw terminal result keeps this trusted boundary independent of public
+     * observer delivery capacity.
+     */
+    override fun stop() {
+        stopGracefully()
+        rawTerminationSignal.block()
+    }
+
+    /**
+     * Applies [timeout] only to the caller's wait. Runtime shutdown remains
+     * governed by its single configured global deadline.
+     */
+    override fun stop(timeout: Duration) {
+        stopGracefully()
+        rawTerminationSignal.block(timeout)
+    }
+
     override fun stopGracefully(): Mono<Void> {
         var startupShutdown = false
         var completeWithoutStarting = false
@@ -574,7 +593,7 @@ class WowRuntime private constructor(
     private fun currentFailure(): Throwable? = firstFailure.failure
 
     private fun recordFailure(error: Throwable): Throwable =
-        firstFailure.record(error).primary
+        firstFailure.record(error)
 
     private class ShutdownOwner(
         val failOnRecordedFailure: Boolean = true,

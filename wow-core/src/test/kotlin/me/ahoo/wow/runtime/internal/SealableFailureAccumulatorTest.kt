@@ -28,11 +28,11 @@ class SealableFailureAccumulatorTest {
         val beforeSeal = IllegalArgumentException("before-seal")
         val afterSeal = UnsupportedOperationException("after-seal")
 
-        failures.record(primary).installed.assert().isTrue()
-        failures.record(beforeSeal).accepted.assert().isTrue()
+        failures.record(primary).assert().isSameAs(primary)
+        failures.record(beforeSeal).assert().isSameAs(primary)
         failures.seal().assert().isSameAs(primary)
 
-        failures.record(afterSeal).accepted.assert().isFalse()
+        failures.record(afterSeal).assert().isSameAs(primary)
 
         failures.failure.assert().isSameAs(primary)
         primary.suppressedExceptions.assert().containsExactly(beforeSeal)
@@ -60,7 +60,7 @@ class SealableFailureAccumulatorTest {
                     .get(1, TimeUnit.SECONDS)
                 val sealedSuppressed = primary.suppressedExceptions.toList()
 
-                failures.record(late).accepted.assert().isFalse()
+                failures.record(late)
                 primary.suppressedExceptions.toList().assert().isEqualTo(sealedSuppressed)
                 sealedSuppressed.count { it === concurrent }.assert().isLessThanOrEqualTo(1)
             }
