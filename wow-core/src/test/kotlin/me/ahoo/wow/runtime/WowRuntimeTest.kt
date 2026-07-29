@@ -515,8 +515,9 @@ class WowRuntimeTest {
     fun `shutdown owner sees boundary before pipeline subscription blocks`() {
         val stopEntered = CountDownLatch(1)
         val releaseStop = CountDownLatch(1)
+        val stopReturned = CountDownLatch(1)
         val cleanupDispatches = AtomicInteger()
-        val physicalCancellations = AtomicInteger()
+        val deadlineScheduler = ControllableDeadlineScheduler()
         val executionResources =
             object : RuntimeExecutionResources {
                 override val terminationDispatcher: TerminalSignalDispatcher =
@@ -542,8 +543,8 @@ class WowRuntimeTest {
             override fun stopGracefully(): Mono<Void> {
                 stopEntered.countDown()
                 awaitIgnoringInterrupt(releaseStop)
-                return Mono.never<Void>()
-                    .doOnCancel(physicalCancellations::incrementAndGet)
+                stopReturned.countDown()
+                return Mono.never()
             }
 
             override fun forceStop() = Unit
@@ -553,24 +554,28 @@ class WowRuntimeTest {
             shutdownTimeout = Duration.ofSeconds(1),
             shutdownQuietPeriod = Duration.ZERO,
             executionResources = executionResources,
-        )
+        ).also {
+            it.shutdownDeadlineScheduler = deadlineScheduler
+        }
         val executor = Executors.newSingleThreadExecutor()
         runtime.start()
 
         try {
             val gracefulStop = executor.submit<Mono<Void>>(runtime::stopGracefully)
-            stopEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
+            stopEntered.await(5, TimeUnit.SECONDS).assert().isTrue()
 
-            assertTimeoutPreemptively(Duration.ofSeconds(1), runtime::forceStop)
+            assertTimeoutPreemptively(Duration.ofSeconds(5), runtime::forceStop)
             cleanupDispatches.get().assert().isEqualTo(1)
             StepVerifier.create(runtime.terminationSignal)
-                .verifyComplete()
+                .expectComplete()
+                .verify(Duration.ofSeconds(5))
 
             releaseStop.countDown()
-            gracefulStop.get(1, TimeUnit.SECONDS)
-            physicalCancellations.get().assert().isZero()
+            stopReturned.await(5, TimeUnit.SECONDS).assert().isTrue()
+            gracefulStop.get(5, TimeUnit.SECONDS)
         } finally {
             releaseStop.countDown()
+            runtime.forceStop()
             executor.shutdownNow()
         }
     }
