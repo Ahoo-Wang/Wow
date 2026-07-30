@@ -20,6 +20,7 @@ import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.metrics.Metrics.tagMetricsSubscriber
 import me.ahoo.wow.metrics.Metrics.toMetricsAggregateTag
@@ -69,6 +70,17 @@ open class MetricCommandBus<T : CommandBus>(
             .tagSource()
             .tag(Metrics.AGGREGATE_KEY, subscription.namedAggregates.toMetricsAggregateTag())
             .tagMetricsSubscriber(subscription.receiverGroup)
+
+    override fun receiver(
+        subscription: MessageSubscription,
+    ): MessageReceiver<ServerCommandExchange<*>> =
+        delegate.receiver(subscription).mapMessages { messages ->
+            messages
+                .name(Wow.WOW_PREFIX + "command.receive")
+                .tagSource()
+                .tag(Metrics.AGGREGATE_KEY, subscription.namedAggregates.toMetricsAggregateTag())
+                .tagMetricsSubscriber(subscription.receiverGroup)
+        }
 
     /**
      * Closes the command bus and releases any resources.

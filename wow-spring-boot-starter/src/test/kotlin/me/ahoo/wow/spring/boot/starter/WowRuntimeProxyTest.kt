@@ -66,9 +66,8 @@ class WowRuntimeProxyTest {
         val startCount = AtomicInteger()
         val stopCount = AtomicInteger()
 
-        override fun prepare(runtimeContext: RuntimeContext) {
-            prepareCount.incrementAndGet()
-        }
+        override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+            Mono.fromRunnable(prepareCount::incrementAndGet)
 
         override fun start() {
             startCount.incrementAndGet()

@@ -2,17 +2,22 @@ package me.ahoo.wow.redis.bus
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.CommandBus
+import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.MessageSubscription
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.tck.command.CommandBusSpec
 import me.ahoo.wow.tck.container.RedisTestFixture
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
+import org.reactivestreams.Subscription
 import org.springframework.data.redis.connection.stream.ReadOffset
+import reactor.core.publisher.BaseSubscriber
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.time.Duration
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -23,6 +28,120 @@ class RedisCommandBusTest : CommandBusSpec() {
 
     override fun createMessageBus(): CommandBus {
         return RedisCommandBus(redis.redisTemplate)
+    }
+
+    @Test
+    fun `receiver readiness creates the latest group before demand`() {
+        val receiverGroup = generateGlobalId()
+        val subscription = MessageSubscription(namedAggregate, receiverGroup)
+        val topic = DefaultCommandTopicConverter.convert(namedAggregate)
+        val streamOps = redis.redisTemplate.opsForStream<String, String>()
+        val bus = RedisCommandBus(
+            redisTemplate = redis.redisTemplate,
+            recoveryOptions = RedisStreamRecoveryOptions.DISABLED,
+            pollTimeout = Duration.ofMillis(20),
+        )
+        val oldMessage = createMessage()
+        bus.send(oldMessage).block(Duration.ofSeconds(5))
+
+        val firstReceiver = bus.receiver(subscription)
+        val firstSubscription = object : BaseSubscriber<ServerCommandExchange<*>>() {
+            override fun hookOnSubscribe(subscription: Subscription) = Unit
+        }
+        firstReceiver.messages.subscribe(firstSubscription)
+        firstReceiver.readiness.block(Duration.ofSeconds(5))
+        firstSubscription.dispose()
+
+        val receivedMessageId = CompletableFuture<String>()
+        val secondReceiver = bus.receiver(subscription)
+        val secondSubscription = object : BaseSubscriber<ServerCommandExchange<*>>() {
+            override fun hookOnSubscribe(subscription: Subscription) = Unit
+
+            override fun hookOnNext(value: ServerCommandExchange<*>) {
+                receivedMessageId.complete(value.message.id)
+            }
+        }
+        secondReceiver.messages.subscribe(secondSubscription)
+
+        try {
+            secondReceiver.readiness.block(Duration.ofSeconds(5))
+            val newMessage = createMessage()
+            bus.send(newMessage).block(Duration.ofSeconds(5))
+            Mono.delay(Duration.ofMillis(100)).block()
+            receivedMessageId.isDone.assert().isFalse()
+            streamOps.pending(topic, receiverGroup)
+                .block(Duration.ofSeconds(5))!!
+                .totalPendingMessages
+                .assert()
+                .isZero()
+            secondSubscription.dispose()
+
+            val thirdReceiver = bus.receiver(subscription)
+            val thirdSubscription = object : BaseSubscriber<ServerCommandExchange<*>>() {
+                fun requestOne() = request(1)
+
+                override fun hookOnSubscribe(subscription: Subscription) = Unit
+
+                override fun hookOnNext(value: ServerCommandExchange<*>) {
+                    receivedMessageId.complete(value.message.id)
+                }
+            }
+            thirdReceiver.messages.subscribe(thirdSubscription)
+            try {
+                thirdReceiver.readiness.block(Duration.ofSeconds(5))
+                thirdSubscription.requestOne()
+                receivedMessageId.get(5, TimeUnit.SECONDS)
+                    .assert()
+                    .isEqualTo(newMessage.id)
+            } finally {
+                thirdSubscription.dispose()
+            }
+        } finally {
+            secondSubscription.dispose()
+        }
+    }
+
+    @Test
+    fun `receiver readiness creates every group when an earlier group exists`() {
+        val receiverGroup = generateGlobalId()
+        val firstAggregate = namedAggregate
+        val secondAggregate = MaterializedNamedAggregate(
+            firstAggregate.contextName,
+            "${firstAggregate.aggregateName}-${generateGlobalId()}",
+        )
+        val firstTopic = DefaultCommandTopicConverter.convert(firstAggregate)
+        val secondTopic = DefaultCommandTopicConverter.convert(secondAggregate)
+        val streamOps = redis.redisTemplate.opsForStream<String, String>()
+        streamOps.add(firstTopic, mapOf("bootstrap" to "group-anchor"))
+            .then(streamOps.createGroup(firstTopic, ReadOffset.latest(), receiverGroup))
+            .block(Duration.ofSeconds(5))
+        val bus = RedisCommandBus(
+            redisTemplate = redis.redisTemplate,
+            recoveryOptions = RedisStreamRecoveryOptions.DISABLED,
+            pollTimeout = Duration.ofMillis(20),
+        )
+        val receiver = bus.receiver(
+            MessageSubscription(
+                namedAggregates = linkedSetOf(firstAggregate, secondAggregate),
+                receiverGroup = receiverGroup,
+            ),
+        )
+        val subscription = object : BaseSubscriber<ServerCommandExchange<*>>() {
+            override fun hookOnSubscribe(subscription: Subscription) = Unit
+        }
+        receiver.messages.subscribe(subscription)
+
+        try {
+            receiver.readiness.block(Duration.ofSeconds(5))
+            streamOps.groups(secondTopic)
+                .map { group -> group.groupName() }
+                .collectList()
+                .block(Duration.ofSeconds(5))
+                .assert()
+                .contains(receiverGroup)
+        } finally {
+            subscription.dispose()
+        }
     }
 
     @Test

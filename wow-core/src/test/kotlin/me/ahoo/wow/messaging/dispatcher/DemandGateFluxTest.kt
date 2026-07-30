@@ -19,6 +19,7 @@ import org.reactivestreams.Subscription
 import reactor.core.CoreSubscriber
 import reactor.core.publisher.BaseSubscriber
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Sinks
 import reactor.util.context.Context
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
@@ -75,17 +76,23 @@ class DemandGateFluxTest {
     @Test
     fun `detaching cancellation closes intake before invoking upstream cleanup`() {
         val cancelled = AtomicBoolean()
+        val source = Sinks.many().unicast().onBackpressureBuffer<Int>()
+        val values = mutableListOf<Int>()
         val gate = DemandGateFlux(
-            Flux.never<Int>()
+            source.asFlux()
                 .doOnCancel { cancelled.set(true) },
         )
-        val subscriber = RecordingSubscriber(mutableListOf())
+        val subscriber = RecordingSubscriber(values)
         gate.subscribe(subscriber)
+        subscriber.requestItems(1)
+        gate.open()
 
         val cancellation = gate.detachCancellation()
 
         cancellation.assert().isNotNull()
         cancelled.get().assert().isFalse()
+        source.tryEmitNext(1).orThrow()
+        values.assert().isEmpty()
         cancellation!!.invoke()
         cancelled.get().assert().isTrue()
     }

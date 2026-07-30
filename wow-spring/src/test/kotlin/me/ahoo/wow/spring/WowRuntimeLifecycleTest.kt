@@ -181,7 +181,7 @@ class WowRuntimeLifecycleTest {
         val releaseStart = CountDownLatch(1)
         val stopped = CountDownLatch(1)
         val component = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) = Unit
+            override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
             override fun start() {
                 startEntered.countDown()
@@ -362,7 +362,7 @@ class WowRuntimeLifecycleTest {
         val quiesceCount = AtomicInteger()
         val stopCount = AtomicInteger()
         val stopEntered = CountDownLatch(1)
-        override fun prepare(runtimeContext: RuntimeContext) = Unit
+        override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
         override fun start() {
             startCount.incrementAndGet()
@@ -388,7 +388,7 @@ class WowRuntimeLifecycleTest {
     private class FailingStopLifecycle(
         private val failure: Throwable,
     ) : RuntimeComponent {
-        override fun prepare(runtimeContext: RuntimeContext) = Unit
+        override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
         override fun start() = Unit
 
@@ -399,9 +399,10 @@ class WowRuntimeLifecycleTest {
 
     private class ReportingLifecycle : RuntimeComponent {
         val runtimeContext = AtomicReference<RuntimeContext>()
-        override fun prepare(runtimeContext: RuntimeContext) {
-            this.runtimeContext.set(runtimeContext)
-        }
+        override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+            Mono.fromRunnable {
+                this.runtimeContext.set(runtimeContext)
+            }
 
         override fun start() = Unit
 

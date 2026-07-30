@@ -14,11 +14,7 @@
 package me.ahoo.wow.spring.boot.starter
 
 import me.ahoo.wow.spring.WOW_RUNTIME_PHASE
-import org.springframework.beans.factory.config.BeanPostProcessor
-import org.springframework.context.support.AbstractApplicationContext
 import org.springframework.context.support.DefaultLifecycleProcessor
-import org.springframework.core.Ordered
-import org.springframework.core.PriorityOrdered
 import java.time.Duration
 
 internal fun DefaultLifecycleProcessor.configureWowRuntimePhaseTimeout(
@@ -30,31 +26,8 @@ internal fun DefaultLifecycleProcessor.configureWowRuntimePhaseTimeout(
     )
 }
 
-/**
- * Aligns a user-provided Spring lifecycle processor with the runtime deadline.
- *
- * Custom lifecycle processor implementations retain responsibility for their
- * own phase timeout policy.
- */
-internal class WowRuntimeLifecycleProcessorCustomizer(
-    private val shutdownTimeout: Duration,
-) : BeanPostProcessor,
-    PriorityOrdered {
-    override fun postProcessBeforeInitialization(bean: Any, beanName: String): Any {
-        if (
-            beanName == AbstractApplicationContext.LIFECYCLE_PROCESSOR_BEAN_NAME &&
-            bean is DefaultLifecycleProcessor
-        ) {
-            bean.configureWowRuntimePhaseTimeout(shutdownTimeout)
-        }
-        return bean
-    }
-
-    override fun getOrder(): Int = Ordered.HIGHEST_PRECEDENCE
-}
-
 const val WOW_RUNTIME_BEAN_NAME = "wowRuntime"
 const val WOW_RUNTIME_LIFECYCLE_BEAN_NAME = "wowRuntimeLifecycle"
-internal const val WOW_RUNTIME_LIFECYCLE_PROCESSOR_CUSTOMIZER_BEAN_NAME =
-    "wowRuntimeLifecycleProcessorCustomizer"
+internal const val WOW_RUNTIME_LIFECYCLE_PROCESSOR_CONFIGURER_BEAN_NAME =
+    "wowRuntimeLifecycleProcessorConfigurer"
 private val SHUTDOWN_PHASE_TIMEOUT_MARGIN: Duration = Duration.ofSeconds(1)

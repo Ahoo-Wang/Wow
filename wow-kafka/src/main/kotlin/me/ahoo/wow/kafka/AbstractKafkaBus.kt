@@ -18,22 +18,49 @@ import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.DistributedMessageBus
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
+import org.apache.kafka.clients.consumer.Consumer
 import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.common.TopicPartition
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.kafka.receiver.KafkaReceiver
 import reactor.kafka.receiver.ReceiverOffset
 import reactor.kafka.receiver.ReceiverOptions
+import reactor.kafka.receiver.ReceiverOptions.ConsumerListener
+import reactor.kafka.receiver.ReceiverPartition
 import reactor.kafka.receiver.ReceiverRecord
 import reactor.kafka.sender.KafkaSender
 import reactor.kafka.sender.SenderOptions
 import reactor.kafka.sender.SenderRecord
+import java.util.concurrent.CancellationException
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
+
+private typealias KafkaAssignmentListener =
+    (Consumer<*, *>, Collection<ReceiverPartition>) -> Unit
+
+internal fun Consumer<*, *>.anchorUncommittedPositions(
+    positions: Map<TopicPartition, Long>,
+) {
+    if (positions.isEmpty()) {
+        return
+    }
+    val committedOffsets = committed(positions.keys)
+    val initialOffsets = positions
+        .filterKeys { partition -> committedOffsets[partition] == null }
+        .mapValues { (_, position) -> OffsetAndMetadata(position) }
+    if (initialOffsets.isNotEmpty()) {
+        commitSync(initialOffsets)
+    }
+}
 
 abstract class AbstractKafkaBus<M, E>(
     private val topicConverter: AggregateTopicConverter,
@@ -96,7 +123,52 @@ abstract class AbstractKafkaBus<M, E>(
         return KafkaReceiver.create(receiverOptions)
     }
 
-    override fun receive(subscription: MessageSubscription): Flux<E> {
+    override fun receive(subscription: MessageSubscription): Flux<E> =
+        receive(subscription, onAssigned = null)
+
+    override fun receiver(subscription: MessageSubscription): MessageReceiver<E> {
+        val readiness = Sinks.empty<Void>()
+        val readinessTerminated = AtomicBoolean()
+        fun completeReadiness() {
+            if (readinessTerminated.compareAndSet(false, true)) {
+                readiness.tryEmitEmpty()
+            }
+        }
+        fun failReadiness(error: Throwable) {
+            if (readinessTerminated.compareAndSet(false, true)) {
+                readiness.tryEmitError(error)
+            }
+        }
+        val messages = receive(subscription) { consumer, partitions ->
+            val positions = partitions.associate { partition ->
+                partition.topicPartition() to partition.position()
+            }
+            anchorAssignedPartitions(consumer, positions)
+            completeReadiness()
+        }
+            .doOnError(::failReadiness)
+            .doOnComplete {
+                failReadiness(
+                    IllegalStateException(
+                        "Kafka receiver completed before partition assignment.",
+                    ),
+                )
+            }
+            .doOnCancel {
+                failReadiness(
+                    CancellationException("Kafka receiver initialization was cancelled."),
+                )
+            }
+        return MessageReceiver(
+            messages = messages,
+            readiness = readiness.asMono(),
+        )
+    }
+
+    private fun receive(
+        subscription: MessageSubscription,
+        onAssigned: KafkaAssignmentListener?,
+    ): Flux<E> {
         return Flux.deferContextual { contextView ->
             val options = receiverOptionsCustomizer.customize(
                 receiverOptions.maxDeferredCommits(receiverPolicy.maxDeferredCommits),
@@ -107,12 +179,64 @@ abstract class AbstractKafkaBus<M, E>(
                 )
                 .subscription(subscription.namedAggregates.map { topicConverter.convert(it) }.toSet())
             val customizedOptions = contextView.getReceiverOptionsCustomizer()?.customize(options) ?: options
-            createReceiver(customizedOptions)
+            val readyOptions = if (onAssigned == null) {
+                customizedOptions
+            } else {
+                val consumer = AtomicReference<Consumer<*, *>?>()
+                val existingConsumerListener = customizedOptions.consumerListener()
+                customizedOptions
+                    .consumerListener(
+                        readinessConsumerListener(
+                            delegate = existingConsumerListener,
+                            consumer = consumer,
+                        ),
+                    )
+                    .addAssignListener { partitions ->
+                        onAssigned(
+                            checkNotNull(consumer.get()) {
+                                "Kafka consumer is unavailable during partition assignment."
+                            },
+                            partitions,
+                        )
+                    }
+            }
+            createReceiver(readyOptions)
                 .receive(receiverPolicy.prefetchBatches)
                 .retryWhen(receiverPolicy.retrySpec)
                 .concatMap(::decodeRecord)
         }
     }
+
+    /**
+     * Persists the resolved initial position only for partitions without a
+     * committed group offset. This turns `latest` into a durable retention
+     * boundary before readiness is published without advancing existing groups.
+     */
+    protected open fun anchorAssignedPartitions(
+        consumer: Consumer<*, *>,
+        positions: Map<TopicPartition, Long>,
+    ) {
+        consumer.anchorUncommittedPositions(positions)
+    }
+
+    private fun readinessConsumerListener(
+        delegate: ConsumerListener?,
+        consumer: AtomicReference<Consumer<*, *>?>,
+    ): ConsumerListener =
+        object : ConsumerListener {
+            override fun consumerAdded(id: String, addedConsumer: Consumer<*, *>) {
+                delegate?.consumerAdded(id, addedConsumer)
+                consumer.set(addedConsumer)
+            }
+
+            override fun consumerRemoved(id: String, removedConsumer: Consumer<*, *>) {
+                try {
+                    delegate?.consumerRemoved(id, removedConsumer)
+                } finally {
+                    consumer.compareAndSet(removedConsumer, null)
+                }
+            }
+        }
 
     protected fun encode(message: M): SenderRecord<String, String, Sinks.Empty<Void>> {
         val producerRecord = ProducerRecord(

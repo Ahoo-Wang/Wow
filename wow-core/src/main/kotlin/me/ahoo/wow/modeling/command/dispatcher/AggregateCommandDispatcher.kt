@@ -42,6 +42,8 @@ import reactor.core.scheduler.Scheduler
  * @param parallelism The level of parallelism for message processing.
  * @param commandHandler The command handler for processing commands.
  * @param scheduler The scheduler for handling messages.
+ * @param messageReadiness Completion of asynchronous message-source setup when
+ * this dispatcher is registered directly with a runtime.
  */
 class AggregateCommandDispatcher<C : Any, S : Any>(
     override val name: String =
@@ -51,7 +53,10 @@ class AggregateCommandDispatcher<C : Any, S : Any>(
     override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     private val commandHandler: CommandHandler,
     override val scheduler: Scheduler,
-) : AggregateDispatcher<ServerCommandExchange<*>>() {
+    messageReadiness: Mono<Void> = Mono.empty(),
+) : AggregateDispatcher<ServerCommandExchange<*>>(
+    messageReadiness = messageReadiness,
+) {
     override val namedAggregate: NamedAggregate
         get() = aggregateMetadata.namedAggregate
 

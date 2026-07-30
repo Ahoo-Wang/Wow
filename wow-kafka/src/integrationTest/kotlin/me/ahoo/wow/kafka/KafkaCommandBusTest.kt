@@ -27,12 +27,16 @@ import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
+import org.reactivestreams.Subscription
+import reactor.core.publisher.BaseSubscriber
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.kafka.sender.KafkaSender
 import reactor.kotlin.test.test
 import java.time.Duration
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 
 internal class KafkaCommandBusTest : CommandBusSpec() {
 
@@ -57,6 +61,60 @@ internal class KafkaCommandBusTest : CommandBusSpec() {
                     onReady.tryEmitEmpty()
                 }
             }
+        }
+    }
+
+    @Test
+    fun `receiver becomes ready without downstream demand`() {
+        val topicConverter = DefaultCommandTopicConverter("test-${generateGlobalId()}.")
+        val bus = KafkaCommandBus(
+            topicConverter = topicConverter,
+            senderOptions = kafka.senderOptions(),
+            receiverOptions = kafka.receiverOptions(),
+        )
+        val subscription = MessageSubscription(namedAggregate, generateGlobalId())
+        bus.send(createMessage()).block(Duration.ofSeconds(10))
+        val firstReceiver = bus.receiver(subscription)
+        val receivedMessageId = CompletableFuture<String>()
+        val firstSubscription = object : BaseSubscriber<ServerCommandExchange<*>>() {
+            override fun hookOnSubscribe(subscription: Subscription) = Unit
+
+            override fun hookOnNext(value: ServerCommandExchange<*>) {
+                receivedMessageId.complete(value.message.id)
+            }
+        }
+        firstReceiver.messages.subscribe(firstSubscription)
+
+        try {
+            firstReceiver.readiness.block(Duration.ofSeconds(30))
+            val newMessage = createMessage()
+            bus.send(newMessage).block(Duration.ofSeconds(10))
+            receivedMessageId.isDone.assert().isFalse()
+            firstSubscription.dispose()
+
+            val secondReceiver = bus.receiver(subscription)
+            val secondSubscription = object : BaseSubscriber<ServerCommandExchange<*>>() {
+                fun requestOne() = request(1)
+
+                override fun hookOnSubscribe(subscription: Subscription) = Unit
+
+                override fun hookOnNext(value: ServerCommandExchange<*>) {
+                    receivedMessageId.complete(value.message.id)
+                }
+            }
+            secondReceiver.messages.subscribe(secondSubscription)
+            try {
+                secondReceiver.readiness.block(Duration.ofSeconds(30))
+                secondSubscription.requestOne()
+                receivedMessageId.get(30, TimeUnit.SECONDS)
+                    .assert()
+                    .isEqualTo(newMessage.id)
+            } finally {
+                secondSubscription.dispose()
+            }
+        } finally {
+            firstSubscription.dispose()
+            bus.close()
         }
     }
 

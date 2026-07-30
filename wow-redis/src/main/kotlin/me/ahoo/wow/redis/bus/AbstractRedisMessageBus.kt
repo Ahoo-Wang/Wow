@@ -20,6 +20,7 @@ import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.DistributedMessageBus
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.serialization.toJsonString
@@ -33,11 +34,23 @@ import org.springframework.data.redis.stream.StreamReceiver
 import org.springframework.data.redis.stream.StreamReceiver.StreamReceiverOptions
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.publisher.Sinks
 import reactor.core.publisher.SynchronousSink
 import tools.jackson.core.JacksonException
 import java.time.Duration
+import java.util.concurrent.CancellationException
+import java.util.concurrent.atomic.AtomicBoolean
 
 const val MESSAGE_FIELD = "msg"
+
+internal fun Throwable.isBusyGroup(): Boolean =
+    generateSequence(this) { error -> error.cause }
+        .filterIsInstance<RedisBusyException>()
+        .any { error ->
+            error.message
+                ?.trimStart()
+                ?.takeWhile { character -> !character.isWhitespace() } == "BUSYGROUP"
+        }
 
 abstract class AbstractRedisMessageBus<M, E>(
     private val redisTemplate: ReactiveStringRedisTemplate,
@@ -57,7 +70,39 @@ abstract class AbstractRedisMessageBus<M, E>(
         }
     }
 
-    override fun receive(subscription: MessageSubscription): Flux<E> {
+    override fun receive(subscription: MessageSubscription): Flux<E> =
+        receive(subscription, onReady = {})
+
+    override fun receiver(subscription: MessageSubscription): MessageReceiver<E> {
+        val readiness = Sinks.empty<Void>()
+        val readinessTerminated = AtomicBoolean()
+        fun completeReadiness() {
+            if (readinessTerminated.compareAndSet(false, true)) {
+                readiness.tryEmitEmpty()
+            }
+        }
+        fun failReadiness(error: Throwable) {
+            if (readinessTerminated.compareAndSet(false, true)) {
+                readiness.tryEmitError(error)
+            }
+        }
+        val messages = receive(subscription, ::completeReadiness)
+            .doOnError(::failReadiness)
+            .doOnCancel {
+                failReadiness(
+                    CancellationException("Redis receiver initialization was cancelled."),
+                )
+            }
+        return MessageReceiver(
+            messages = messages,
+            readiness = readiness.asMono(),
+        )
+    }
+
+    private fun receive(
+        subscription: MessageSubscription,
+        onReady: () -> Unit,
+    ): Flux<E> {
         val options = StreamReceiverOptions.builder().pollTimeout(pollTimeout)
             .build()
 
@@ -67,22 +112,31 @@ abstract class AbstractRedisMessageBus<M, E>(
             val createGroupPublisher = topics.map { topic ->
                 createGroup(topic, group)
             }.let { publishers ->
-                Mono.zip(publishers) {
-                    it
-                }.then()
+                Flux.concat(publishers).then()
             }
             val consumer = Consumer.from(group, GlobalIdGenerator.generateAsString())
             val streamOffsets = topics.map { topic ->
                 receive(topic, options, consumer, group)
             }
             val readPublisher = Flux.merge(streamOffsets)
-            createGroupPublisher.thenMany(readPublisher)
+            val readAdmission = Sinks.empty<Void>()
+            createGroupPublisher
+                .doOnSuccess {
+                    onReady()
+                }
+                .thenMany(
+                    readAdmission.asMono()
+                        .thenMany(readPublisher),
+                )
+                .doOnRequest {
+                    readAdmission.tryEmitEmpty()
+                }
         }
     }
 
     private fun createGroup(topic: String, group: String) = streamOps.createGroup(topic, ReadOffset.latest(), group)
         .onErrorResume {
-            if (it.cause is RedisBusyException) {
+            if (it.isBusyGroup()) {
                 Mono.empty()
             } else {
                 Mono.error(it)

@@ -65,6 +65,31 @@ class AggregateDispatcherTest {
     }
 
     @Test
+    fun `top-level runtime waits for aggregate dispatcher message readiness`() {
+        val source = Sinks.many().unicast().onBackpressureBuffer<TestExchange>()
+        val readiness = Sinks.empty<Void>()
+        val dispatcher = RecordingAggregateDispatcher(
+            messageFlux = source.asFlux(),
+            messageReadiness = readiness.asMono(),
+        )
+        val runtime = WowRuntime(
+            components = listOf(dispatcher),
+            shutdownTimeout = Duration.ofSeconds(1),
+            shutdownQuietPeriod = Duration.ZERO,
+        )
+
+        val startup = runtime.start().toFuture()
+        source.currentSubscriberCount().assert().isOne()
+        startup.isDone.assert().isFalse()
+        runtime.isRunning.assert().isFalse()
+
+        readiness.tryEmitEmpty().orThrow()
+        startup.get(1, TimeUnit.SECONDS)
+        runtime.isRunning.assert().isTrue()
+        StepVerifier.create(runtime.stopGracefully()).verifyComplete()
+    }
+
+    @Test
     fun `stopGracefully completes immediately when no task is active`() {
         val dispatcher = RecordingAggregateDispatcher(messageFlux = Flux.never())
         prepareAndStart(dispatcher)
@@ -184,7 +209,7 @@ class AggregateDispatcherTest {
                 failuresReported.countDown()
             },
         )
-        dispatcher.prepare(runtimeContext)
+        dispatcher.prepare(runtimeContext).block()
         dispatcher.start()
 
         assertTimeoutPreemptively(Duration.ofSeconds(1)) {
@@ -265,7 +290,7 @@ class AggregateDispatcherTest {
             }
         }
         val dispatcher = RecordingAggregateDispatcher(messageFlux = source)
-        dispatcher.prepare(DefaultRuntimeContext())
+        dispatcher.prepare(DefaultRuntimeContext()).block()
         val executor = Executors.newFixedThreadPool(2)
         val startup = executor.submit(dispatcher::start)
         var forceStop: java.util.concurrent.Future<*>? = null
@@ -401,20 +426,36 @@ class AggregateDispatcherTest {
     }
 
     @Test
-    fun `runtime closes dispatcher intake at the idle boundary`() {
+    fun `runtime closes dispatcher intake before detached source cancellation`() {
         val source = Sinks.many().unicast().onBackpressureBuffer<TestExchange>()
-        val dispatcher = RecordingAggregateDispatcher(messageFlux = source.asFlux())
+        val detachedCancellation = AtomicReference<Runnable?>()
+        val handled = AtomicInteger()
+        val dispatcher = RecordingAggregateDispatcher(
+            messageFlux = source.asFlux(),
+            handle = {
+                handled.incrementAndGet()
+                Mono.empty()
+            },
+            cleanupDispatcher = { action ->
+                detachedCancellation.compareAndSet(null, action)
+            },
+        )
         val runtime = WowRuntime(
             components = listOf(dispatcher),
             shutdownTimeout = Duration.ofSeconds(1),
-            shutdownQuietPeriod = Duration.ofMillis(100),
+            shutdownQuietPeriod = Duration.ZERO,
         )
         runtime.start().block()
 
         StepVerifier.create(runtime.stopGracefully()).verifyComplete()
 
-        source.currentSubscriberCount().assert().isZero()
-        source.tryEmitNext(TestExchange(group = 1)).isFailure.assert().isTrue()
+        val cancellation = checkNotNull(detachedCancellation.get())
+        try {
+            source.tryEmitNext(TestExchange(group = 1)).orThrow()
+            handled.get().assert().isZero()
+        } finally {
+            cancellation.run()
+        }
     }
 
     @Test
@@ -423,7 +464,7 @@ class AggregateDispatcherTest {
         val dispatcher = RecordingAggregateDispatcher(messageFlux = source.asFlux())
         val exchange = TestExchange(group = 1)
 
-        dispatcher.prepare(DefaultRuntimeContext())
+        dispatcher.prepare(DefaultRuntimeContext()).block()
         source.currentSubscriberCount().assert().isEqualTo(1)
         source.tryEmitNext(exchange).orThrow()
         dispatcher.handled.currentSubscriberCount().assert().isZero()
@@ -474,7 +515,7 @@ class AggregateDispatcherTest {
     fun `source may complete during prepare before start opens demand`() {
         val dispatcher = RecordingAggregateDispatcher(messageFlux = Flux.empty())
 
-        dispatcher.prepare(DefaultRuntimeContext())
+        dispatcher.prepare(DefaultRuntimeContext()).block()
         dispatcher.start()
 
         dispatcher.quiesce()
@@ -492,7 +533,7 @@ class AggregateDispatcherTest {
         val dispatcher = RecordingAggregateDispatcher(messageFlux = source)
 
         val thrown = assertThrows<IllegalStateException> {
-            dispatcher.prepare(DefaultRuntimeContext())
+            dispatcher.prepare(DefaultRuntimeContext()).block()
         }
 
         thrown.assert().isSameAs(prepareFailure)
@@ -727,7 +768,7 @@ class AggregateDispatcherTest {
     }
 
     private fun prepareAndStart(dispatcher: AggregateDispatcher<TestExchange>) {
-        dispatcher.prepare(DefaultRuntimeContext())
+        dispatcher.prepare(DefaultRuntimeContext()).block()
         dispatcher.start()
     }
 
@@ -750,7 +791,8 @@ class AggregateDispatcherTest {
         cleanupDispatcher: (Runnable) -> Boolean = { action ->
             RuntimeCleanupExecutor.execute(action)
         },
-    ) : AggregateDispatcher<TestExchange>(cleanupDispatcher) {
+        messageReadiness: Mono<Void> = Mono.empty(),
+    ) : AggregateDispatcher<TestExchange>(cleanupDispatcher, messageReadiness) {
         override val parallelism: Int = 2
         override val namedAggregate: NamedAggregate = "wow-core-test.messaging_aggregate".toNamedAggregate().materialize()
         val handled: Sinks.Many<TestExchange> = Sinks.many().replay().all()

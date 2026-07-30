@@ -17,6 +17,7 @@ import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.MessageBus
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.opentelemetry.ReactorTraceContext
@@ -48,6 +49,9 @@ interface TracingMessageBus<M : Message<*, *>, E : MessageExchange<*, M>, B : Me
     override fun receive(subscription: MessageSubscription): Flux<E> {
         return delegate.receive(subscription)
     }
+
+    override fun receiver(subscription: MessageSubscription): MessageReceiver<E> =
+        delegate.receiver(subscription)
 
     override fun close() {
         delegate.close()

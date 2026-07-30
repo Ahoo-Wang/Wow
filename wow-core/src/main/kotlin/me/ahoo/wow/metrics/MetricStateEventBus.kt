@@ -20,6 +20,7 @@ import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.metrics.Metrics.tagMetricsSubscriber
 import me.ahoo.wow.metrics.Metrics.toMetricsAggregateTag
@@ -68,6 +69,17 @@ open class MetricStateEventBus<T : StateEventBus>(
             .tagSource()
             .tag(Metrics.AGGREGATE_KEY, subscription.namedAggregates.toMetricsAggregateTag())
             .tagMetricsSubscriber(subscription.receiverGroup)
+
+    override fun receiver(
+        subscription: MessageSubscription,
+    ): MessageReceiver<StateEventExchange<*>> =
+        delegate.receiver(subscription).mapMessages { messages ->
+            messages
+                .name(Wow.WOW_PREFIX + "state.receive")
+                .tagSource()
+                .tag(Metrics.AGGREGATE_KEY, subscription.namedAggregates.toMetricsAggregateTag())
+                .tagMetricsSubscriber(subscription.receiverGroup)
+        }
 
     /**
      * Closes the state event bus and releases any resources.

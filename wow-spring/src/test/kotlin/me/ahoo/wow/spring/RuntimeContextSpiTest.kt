@@ -81,9 +81,10 @@ class RuntimeContextSpiTest {
         lateinit var runtimeContext: RuntimeContext
         val closeActionCount = AtomicInteger()
         val forceStopCount = AtomicInteger()
-        override fun prepare(runtimeContext: RuntimeContext) {
-            this.runtimeContext = runtimeContext
-        }
+        override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+            Mono.fromRunnable {
+                this.runtimeContext = runtimeContext
+            }
 
         override fun start() = Unit
 

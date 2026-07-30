@@ -23,9 +23,9 @@ import reactor.core.publisher.Mono
  * failed container refresh can release any accidentally pre-existing resources.
  *
  * [forceStop] may be invoked again when force-stop overlaps a lifecycle action.
- * For [prepare], [start], and [quiesce], compensation follows method return.
- * For [stopGracefully], it follows publisher termination or the return of
- * upstream cancellation. If force-stop wins before that publisher is
+ * For [prepare] and [stopGracefully], compensation follows publisher
+ * termination or the return of upstream cancellation. For [start] and
+ * [quiesce], it follows method return. If force-stop wins before a publisher is
  * subscribed, the runtime does not subscribe it.
  *
  * This contract deliberately does not extend [AutoCloseable]. Container
@@ -36,11 +36,11 @@ interface RuntimeComponent {
     /**
      * Prepares this component without opening message processing.
      *
-     * Components should track complete asynchronous work with
-     * [RuntimeContext.tryAcquire] and report terminal pipeline errors with
-     * [RuntimeContext.reportFailure].
+     * The returned publisher completes only after the component can retain
+     * admitted work without loss, while processing remains closed until
+     * [start]. It must terminate promptly when [forceStop] cancels preparation.
      */
-    fun prepare(runtimeContext: RuntimeContext)
+    fun prepare(runtimeContext: RuntimeContext): Mono<Void>
 
     fun start()
 

@@ -20,6 +20,7 @@ import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.event.LocalDomainEventBus
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.metrics.Metrics.tagMetricsSubscriber
 import me.ahoo.wow.metrics.Metrics.toMetricsAggregateTag
@@ -68,6 +69,15 @@ open class MetricDomainEventBus<T : DomainEventBus>(
             .tagSource()
             .tag(Metrics.AGGREGATE_KEY, subscription.namedAggregates.toMetricsAggregateTag())
             .tagMetricsSubscriber(subscription.receiverGroup)
+
+    override fun receiver(subscription: MessageSubscription): MessageReceiver<EventStreamExchange> =
+        delegate.receiver(subscription).mapMessages { messages ->
+            messages
+                .name(Wow.WOW_PREFIX + "event.receive")
+                .tagSource()
+                .tag(Metrics.AGGREGATE_KEY, subscription.namedAggregates.toMetricsAggregateTag())
+                .tagMetricsSubscriber(subscription.receiverGroup)
+        }
 
     /**
      * Closes the domain event bus and releases any resources.

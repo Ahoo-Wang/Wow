@@ -124,7 +124,7 @@ class MainDispatcherTest {
             childForceAction = releaseStart::countDown,
         )
         val executor = Executors.newFixedThreadPool(2)
-        dispatcher.prepare(DefaultRuntimeContext())
+        dispatcher.prepare(DefaultRuntimeContext()).block()
         val start = CompletableFuture.runAsync(dispatcher::start, executor)
         var force: CompletableFuture<Void>? = null
 
@@ -153,7 +153,7 @@ class MainDispatcherTest {
                 stopGate.asMono()
             },
         )
-        dispatcher.prepare(DefaultRuntimeContext())
+        dispatcher.prepare(DefaultRuntimeContext()).block()
         dispatcher.start()
         dispatcher.quiesce()
         val gracefulStop = dispatcher.stopGracefully().toFuture()
@@ -178,7 +178,7 @@ class MainDispatcherTest {
     }
 
     private fun prepareAndStart(dispatcher: MainDispatcher<String>) {
-        dispatcher.prepare(DefaultRuntimeContext())
+        dispatcher.prepare(DefaultRuntimeContext()).block()
         dispatcher.start()
     }
 
@@ -224,9 +224,10 @@ class MainDispatcherTest {
             createCount.incrementAndGet()
             return object : MessageDispatcher {
                 override val name: String = "child-${namedAggregate.aggregateName}"
-                override fun prepare(runtimeContext: RuntimeContext) {
-                    childRuntimeContext = runtimeContext
-                }
+                override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+                    Mono.fromRunnable {
+                        childRuntimeContext = runtimeContext
+                    }
 
                 override fun start() {
                     childStartAction?.invoke()

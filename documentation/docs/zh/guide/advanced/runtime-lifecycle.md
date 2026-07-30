@@ -29,12 +29,15 @@ Wow 应用不是一组可以各自独立停止的 Dispatcher。命令、事件�
 
 ### 单一所有者与窄化边界
 
-公开编排 API 位于 `me.ahoo.wow.runtime`；并发状态机与清理机制封装在
-`me.ahoo.wow.runtime.internal`。通用生命周期能力继续留在
+公开编排 API 与 `WowRuntime` 私有持有的完整运行时状态和策略位于
+`me.ahoo.wow.runtime`；可复用的准入、组件组合、执行资源与终止交付机制封装在
+`me.ahoo.wow.runtime.internal`。通用的优雅关闭与终止观察能力继续留在
 `me.ahoo.wow.infra.lifecycle`，Spring 只提供组合根与生命周期桥接。这样既把策略
-集中在 Runtime，又不会让通用生命周期契约耦合 Wow 的编排语义。
+集中在 Runtime，也不会把低层资源能力扩张为第二套生命周期模型。
 [`RuntimeComponent.kt:14-35`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeComponent.kt#L14-L35)
-[`GracefullyStoppable.kt:14-34`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/infra/lifecycle/GracefullyStoppable.kt#L14-L34)
+[`WowRuntime.kt:93-149`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L93-L149)
+[`GracefullyStoppable.kt:14-37`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/infra/lifecycle/GracefullyStoppable.kt#L14-L37)
+[`TerminatedSignalCapable.kt:14-26`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/infra/lifecycle/TerminatedSignalCapable.kt#L14-L26)
 
 ```mermaid
 %%{init: {"theme":"base","themeVariables":{"primaryColor":"#2d333b","primaryBorderColor":"#6d5dfc","primaryTextColor":"#e6edf3","lineColor":"#8b949e","secondaryColor":"#161b22","tertiaryColor":"#161b22"}}}%%
@@ -50,7 +53,7 @@ flowchart LR
         INTERNAL["runtime.internal"]
     end
     subgraph GENERIC["通用能力"]
-        LIFECYCLE["infra.lifecycle"]
+        LIFECYCLE["infra.lifecycle 能力"]
     end
 
     APP --> BRIDGE
@@ -68,15 +71,15 @@ flowchart LR
     style GENERIC fill:#161b22,stroke:#30363d,color:#e6edf3
 ```
 
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeComponent.kt:14-62, wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:40-55, wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt:27-44, wow-core/src/main/kotlin/me/ahoo/wow/infra/lifecycle/GracefullyStoppable.kt:14-34 -->
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeComponent.kt:14-62, wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:40-55, wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:93-149, wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt:27-44, wow-core/src/main/kotlin/me/ahoo/wow/infra/lifecycle/GracefullyStoppable.kt:14-37, wow-core/src/main/kotlin/me/ahoo/wow/infra/lifecycle/TerminatedSignalCapable.kt:14-26 -->
 
 | 边界 | 职责 | 不应拥有 | 源码 |
 |---|---|---|---|
-| `me.ahoo.wow.runtime` | 公开运行时契约与高层编排 | Spring 容器策略或存储、传输细节 | [`WowRuntime.kt:40-55`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L40-L55) |
-| `me.ahoo.wow.runtime.internal` | 有序组合、准入状态、截止时间、清理与终止交付 | 公开扩展 API | [`RuntimeComponentGroup.kt:25-40`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L25-L40) |
-| `me.ahoo.wow.infra.lifecycle` | 可复用的启停能力契约 | 完整运行时就绪或故障策略 | [`Lifecycle.kt:14-57`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/infra/lifecycle/Lifecycle.kt#L14-L57) |
+| `me.ahoo.wow.runtime` | 公开运行时契约，以及私有的完整运行时状态与编排策略 | Spring 容器策略或存储、传输细节 | [`WowRuntime.kt:93-149`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L93-L149) [`WowRuntime.kt:316-458`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L316-L458) |
+| `me.ahoo.wow.runtime.internal` | 可复用的准入、组件组合、执行资源、终止交付与故障机制 | 公开扩展 API 或完整运行时策略 | [`DefaultRuntimeContext.kt:30-61`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/DefaultRuntimeContext.kt#L30-L61) [`RuntimeComponentGroup.kt:25-40`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L25-L40) |
+| `me.ahoo.wow.infra.lifecycle` | 可复用的优雅关闭与终止观察能力 | 启动、就绪、排序或编排所有权 | [`GracefullyStoppable.kt:19-37`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/infra/lifecycle/GracefullyStoppable.kt#L19-L37) [`TerminatedSignalCapable.kt:18-26`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/infra/lifecycle/TerminatedSignalCapable.kt#L18-L26) |
 | `me.ahoo.wow.spring` | Spring `SmartLifecycle` 适配 | 组件发现或核心运行时状态 | [`WowRuntimeLifecycle.kt:27-44`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt#L27-L44) |
-| Starter 自动配置 | 发现、校验、排序并组合当前 Context 的组件 Bean | 每个组件的第二套生命周期 | [`WowAutoConfiguration.kt:105-168`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L105-L168) |
+| Starter 自动配置 | 发现、校验、排序并组合当前 Context 的组件 Bean | 每个组件的第二套生命周期 | [`WowAutoConfiguration.kt:105-221`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L105-L221) |
 
 ## 组件
 
@@ -89,7 +92,7 @@ flowchart LR
 
 ```kotlin
 interface RuntimeComponent {
-    fun prepare(runtimeContext: RuntimeContext)
+    fun prepare(runtimeContext: RuntimeContext): Mono<Void>
     fun start()
     fun quiesce() = Unit
     fun stopGracefully(): Mono<Void>
@@ -99,7 +102,7 @@ interface RuntimeComponent {
 
 | 方法 | 职责 | 行为要求 | 源码 |
 |---|---|---|---|
-| `prepare` | 获取订阅或资源，但不开放处理 | 需要跟踪活动或上报致命错误时保存 `RuntimeContext` | [`RuntimeComponent.kt:36-43`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeComponent.kt#L36-L43) |
+| `prepare` | 获取订阅或资源，但不开放处理 | 返回一个只在组件能够无损保留新准入工作后才完成的 `Mono`；`forceStop` 后及时终止 | [`RuntimeComponent.kt:34-43`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeComponent.kt#L34-L43) |
 | `start` | 在全组就绪屏障之后开放处理 | 不依赖某个尚未准备的后续组件 | [`RuntimeComponentGroup.kt:79-94`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L79-L94) |
 | `quiesce` | 在全局准入关闭后关闭组件 intake | 及时、非阻塞、幂等 | [`RuntimeComponent.kt:47-54`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeComponent.kt#L47-L54) |
 | `stopGracefully` | 排空已准入工作并释放资源 | 以 `Mono<Void>` 返回完成信号 | [`RuntimeComponent.kt:56`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeComponent.kt#L56) |
@@ -122,7 +125,7 @@ stateDiagram-v2
     NEW --> FORCE_STOPPING: forceStop
     STARTING --> STOPPING: 停止、启动失败或致命错误
     RUNNING --> STOPPING: 优雅停机或致命错误
-    STARTING --> FORCE_STOPPING: forceStop
+    STARTING --> FORCE_STOPPING: forceStop 或取消 start
     RUNNING --> FORCE_STOPPING: forceStop
     STOPPING --> FORCE_STOPPING: 超时或清理失败
     STOPPING --> STOPPED: 优雅停机完成
@@ -140,8 +143,9 @@ stateDiagram-v2
 ### 启动就绪屏障
 
 `WowRuntime.start()` 返回 cold `Mono<Void>`，调用方必须订阅或阻塞等待。订阅后，
-Runtime 先按注册顺序准备全部组件，再按相同顺序启动它们。启动失败时，已经进入
-生命周期的组件会在运行时截止时间内按逆序清理。
+Runtime 会按注册顺序逐个等待每个组件的异步 `prepare` 完成，再按相同顺序启动。
+启动失败时，已经进入生命周期的组件会在运行时截止时间内按逆序清理。取消启动订阅
+会先中止并强制停止该 one-shot Runtime，再向正在执行的 prepare publisher 传播取消。
 [`WowRuntime.kt:188-245`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L188-L245)
 [`RuntimeComponentGroup.kt:42-115`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L42-L115)
 
@@ -159,7 +163,7 @@ sequenceDiagram
     Runtime->>Group: prepare(RuntimeContext)
     loop 注册顺序
         Group->>Components: prepare(context)
-        Note over Components: 可获取资源或安装订阅<br>处理仍保持关闭
+        Note over Components: 等待资源或订阅就绪<br>处理仍保持关闭
     end
     Runtime->>Group: start()
     loop 注册顺序
@@ -171,8 +175,21 @@ sequenceDiagram
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:188-233, wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt:42-94, wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt:206-221, wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt:278-290 -->
 
-这个两阶段屏障对内存传输与响应式传输尤其重要：Dispatcher 可以在 `prepare` 阶段
-安装订阅但保持 demand 关闭，直到 `start` 才开放 demand。
+`MessageReceiver` 显式表达 transport readiness，但不引入第二套生命周期：它包含一条
+single-use 消息流与一个 hot、可重放的就绪信号。Dispatcher 先订阅消息流并保持下游
+处理关闭，再由 `prepare` 等待 readiness；只有全局 `start` pass 才开放处理。
+
+| Transport | 就绪边界 |
+|---|---|
+| 同步/内存 | 消息订阅已安装在 Dispatcher demand gate 之后 |
+| Redis Streams | 全部 `XGROUP CREATE ... $ MKSTREAM` 已成功或返回 `BUSYGROUP`；处理 demand 开放前不启动 stream read，因此仅就绪不会产生 PEL 记录 |
+| Kafka | 用户 assignment customizer 已执行，每个已分配分区的 fetch position 已解析，且没有既有 group offset 的 position 已同步提交；就绪不会推进既有 offset |
+
+该模型把“transport 已能保留新工作”和“Dispatcher 可以开始处理”明确分开。Kafka
+为了完成 assignment 和持久化初始保留边界，可以在 Dispatcher gate 关闭时进行内部
+poll；契约不要求所有 transport 的内部 demand 都保持为零。Kafka topic 应在 Runtime
+启动前完成预配置；readiness 负责协调 consumer，不负责部署期创建 topic。
+[`MessageReceiver.kt:20-49`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageReceiver.kt#L20-L49)
 [`AggregateDispatcher.kt:206-221`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L206-L221)
 [`AggregateDispatcher.kt:278-290`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L278-L290)
 [`2026-07-28-runtime-orchestration.md:81-100`](https://github.com/Ahoo-Wang/Wow/blob/main/document/design/2026-07-28-runtime-orchestration.md#L81-L100)
@@ -214,52 +231,78 @@ flowchart TD
 
 ### 优雅与强制停机
 
-Runtime 只创建一个停机 owner 与一个绝对截止时间。优雅停机先等待全局静默边界，
-再按注册顺序调用组件 `quiesce`，最后按逆序调用 `stopGracefully`。截止时间到达后，
-Runtime 会取消优雅停机 owner、立即关闭准入，并按逆序强制停止全部已注册组件。
+在正常 Spring 停机路径中，较晚的入口 phase 会先停止并排空，然后
+`WowRuntimeLifecycle` 才请求 Runtime 停机。生命周期桥接器会在首次 start 或 stop 操作
+中认领可信终止控制通道并调用 `stopGracefully`；只有 Runtime 发布封存后的最终结果，
+Spring callback 才会执行。非 Spring 应用从 `WowRuntime.stopGracefully()` 或 `stop()`
+直接进入同一条时序。
+[`WowRuntimeLifecycle.kt:27-44`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt#L27-L44)
+[`WowRuntimeLifecycle.kt:211-258`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt#L211-L258)
+
+运行中的 Runtime 首次收到停机请求时只创建一个停机 owner 与一个绝对截止时间。
+优雅停机先等待全局静默边界，再按注册顺序调用组件 `quiesce`，最后按逆序订阅
+`stopGracefully`。截止时间到达会立即取得所有权、关闭准入并取消优雅停机 owner，
+然后进入强制清理。只要停机 owner 仍有效，单个组件优雅停止失败会被记录，同时继续
+尝试其余已进入生命周期的组件；只有该轮最佳努力清理完成后，失败才传播并触发强制
+清理。
 [`WowRuntime.kt:400-458`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L400-L458)
 [`WowRuntime.kt:496-545`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L496-L545)
 [`RuntimeComponentGroup.kt:64-115`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L64-L115)
+
+| 阶段 | 顺序与完成边界 | 源码 |
+|---|---|---|
+| Spring 入口 | 较高 lifecycle phase 先于 Runtime phase 停止并排空 | [`WowRuntimeLifecycle.kt:27-38`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt#L27-L38) |
+| 全局静默边界 | 尾部工作仍可准入；每次新活动都会使旧的静默期观测失效 | [`DefaultRuntimeContext.kt:74-151`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/DefaultRuntimeContext.kt#L74-L151) |
+| 组件静默 | 全局准入关闭后，按注册顺序同步调用 `quiesce` 关闭组件 intake | [`RuntimeComponentGroup.kt:64-76`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L64-L76) |
+| 优雅清理 | 已进入生命周期的组件按逆注册顺序串行停止；停机 owner 有效时，单个组件失败会被保留，其余清理仍继续 | [`RuntimeComponentGroup.kt:96-168`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L96-L168) |
+| 强制清理 | 截止时间会立即取得所有权；其他停机管道失败在传播后进入强制清理。强停按逆序访问已注册组件 | [`WowRuntime.kt:431-458`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L431-L458) [`WowRuntime.kt:496-545`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L496-L545) [`RuntimeComponentGroup.kt:170-186`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L170-L186) |
 
 ```mermaid
 %%{init: {"theme":"base","themeVariables":{"actorBkg":"#2d333b","actorBorder":"#6d5dfc","actorTextColor":"#e6edf3","signalColor":"#8b949e","signalTextColor":"#e6edf3","noteBkgColor":"#161b22","noteBorderColor":"#30363d","noteTextColor":"#e6edf3","labelBoxBkgColor":"#2d333b","labelBoxBorderColor":"#6d5dfc","labelTextColor":"#e6edf3"}}}%%
 sequenceDiagram
     autonumber
-    participant Owner as 应用或 Spring
+    participant Spring as Spring LifecycleProcessor
+    participant Ingress as Web 或应用入口
+    participant Lifecycle as WowRuntimeLifecycle
     participant Runtime as WowRuntime
-    participant Context as RuntimeContext
     participant Group as RuntimeComponentGroup
-    participant Components as RuntimeComponent
 
-    Owner->>Runtime: stopGracefully()
-    Runtime->>Runtime: 创建一个停机 owner 与截止时间
-    Runtime->>Context: quiesce()
-    Context-->>Runtime: 连续空闲后关闭准入
-    Runtime->>Group: quiesce()
-    loop 注册顺序
-        Group->>Components: quiesce()
+    Spring->>Ingress: 停止并排空较高 phase
+    Ingress-->>Spring: 入口排空后 callback
+    Spring->>Lifecycle: stop(callback)
+    Lifecycle->>Runtime: 确保可信终止控制已认领
+    Note over Lifecycle,Runtime: 正常在 lifecycle start 时认领，stop-first 则在此认领
+    Lifecycle->>Lifecycle: 进入 STOPPING 并注册终止处理器
+    Lifecycle->>Runtime: stopGracefully()
+    Runtime->>Runtime: 创建 owner 与 deadline<br/>等待静默边界并关闭准入
+    Runtime->>Group: 按注册顺序 quiesce
+    Runtime->>Group: 按逆序 stopGracefully
+    alt 优雅停机管道完成
+        Runtime-->>Lifecycle: 可信终止成功
+    else deadline 胜出或停机管道失败传播
+        Note over Runtime,Group: deadline 未胜出时，组件停止错误在其余最佳努力清理后传播
+        Runtime->>Group: 按逆序 forceStop
+        Runtime-->>Lifecycle: 可信终止失败
     end
-    Runtime->>Group: stopGracefully()
-    loop 逆注册顺序
-        Group->>Components: stopGracefully()
-    end
-    alt 优雅路径完成
-        Runtime-->>Owner: 终止完成
-    else 截止时间或清理失败胜出
-        Runtime->>Context: forceClose()
-        Runtime->>Group: forceStop()
-        Group->>Components: 按逆序 forceStop
-        Runtime-->>Owner: 终止失败
-    end
+    Lifecycle->>Lifecycle: 进入 TERMINATED，有失败时记录日志
+    Lifecycle-->>Spring: dispatch callback()
 ```
 
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:316-458, wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:496-545, wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt:64-187 -->
+<!-- Sources: wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt:27-44, wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt:211-258, wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:316-458, wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:496-586, wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt:64-187 -->
+
+正常 Spring 停机无论成功还是失败，最终都会调度 stop callback。由于桥接器在请求
+Runtime 停机前已经进入 `STOPPING`，该完成不会被判定为意外终止；只有桥接器仍处于
+`RUNNING` 时观察到的终止才会调用 `onUnexpectedTermination`。Spring 完成控制由可信
+控制通道驱动，不依赖公共 `terminationSignal` observer。
+[`WowRuntimeLifecycle.kt:121-165`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt#L121-L165)
+[`WowRuntimeLifecycle.kt:226-258`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt#L226-L258)
+[`WowRuntime.kt:135-185`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L135-L185)
 
 ## 故障与并发语义
 
 | 场景 | 结果 | 源码 |
 |---|---|---|
-| 启动动作失败 | Runtime 回滚已准备组件并发布启动错误 | [`WowRuntime.kt:235-295`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L235-L295) |
+| 启动动作失败 | Runtime 回滚已进入生命周期的组件并发布启动错误 | [`WowRuntime.kt:235-295`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L235-L295) |
 | 组件上报致命 pipeline error | 完整运行时进入停机，而不是只隔离一个 Dispatcher | [`WowRuntime.kt:461-494`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L461-L494) |
 | 截止时间到达 | `TimeoutException` 成为错误证据，强制停机取得所有权 | [`WowRuntime.kt:431-458`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L431-L458) |
 | force-stop 与生命周期动作重叠 | Runtime 先执行一次强制清理，动作退出后再补偿一次 | [`RuntimeComponentGroup.kt:248-340`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L248-L340) |
@@ -275,21 +318,22 @@ sequenceDiagram
 ## Spring 集成
 
 Starter 从当前 BeanFactory 发现 `RuntimeComponent` Bean，要求它们是 singleton，
-获取 Spring 暴露的实例，拒绝同时实现 Spring `Lifecycle` 的组件，按 Spring order
-排序，最后将一个不可变列表交给 `WowRuntime`。
-[`WowAutoConfiguration.kt:105-168`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L105-L168)
+获取 Spring 暴露的实例，并拒绝竞争性的 Spring `Lifecycle` 或标准销毁所有权；之后按
+Spring order 排序，最后将一个不可变列表交给 `WowRuntime`。
+[`WowAutoConfiguration.kt:105-221`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L105-L221)
 
 | Spring 规则 | 作用 | 源码 |
 |---|---|---|
-| `WowRuntime` 是组件唯一所有者 | 运行时组件不能同时实现 Spring `Lifecycle`；运行时资源清理应放入组件 hook | [`WowAutoConfiguration.kt:105-150`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L105-L150) |
+| `WowRuntime` 是组件唯一所有者 | 直接注册的运行时组件 Bean 不能同时使用 Spring `Lifecycle`、`DisposableBean`、销毁回调或已启用的 destroy method；运行时资源清理应放入组件 hook | [`WowAutoConfiguration.kt:140-221`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L140-L221) |
 | Runtime phase 为 `DEFAULT_PHASE - 3072` | Runtime 先于较晚的 ingress phase 启动，并在入口排空后停止 | [`WowRuntimeLifecycle.kt:27-40`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt#L27-L40) |
 | Runtime 意外终止会关闭 Context | 致命数据面错误不会留下仍在接收请求的应用入口 | [`WowAutoConfiguration.kt:129-137`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L129-L137) |
-| `DefaultLifecycleProcessor` 为 Runtime phase 使用 Runtime timeout 加一秒 | Spring 为 Runtime 截止时间留出完成余量；其他自定义 processor 保留自己的 timeout 策略 | [`WowRuntimeSpringLifecycle.kt:24-53`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowRuntimeSpringLifecycle.kt#L24-L53) |
+| `DefaultLifecycleProcessor` 为 Runtime phase 使用实际选中的 `WowRuntime.shutdownTimeout` 加一秒 | Spring 为真实 Runtime 截止时间留出完成余量；其他自定义 processor 保留自己的 timeout 策略 | [`WowRuntimeSpringLifecycle.kt:20-27`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowRuntimeSpringLifecycle.kt#L20-L27) [`WowAutoConfiguration.kt:66-80`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L66-L80) |
 | 生命周期是 one-shot | 停止后重建 `ApplicationContext`，不要尝试重启 | [`WowRuntimeLifecycle.kt:77-137`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt#L77-L137) |
 
 内置组件使用确定性的 Spring order。准备与启动遵循该顺序，优雅与强制清理按逆序执行。
 [`WowRuntimeComponentOrder.kt:16-29`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowRuntimeComponentOrder.kt#L16-L29)
 [`RuntimeComponentGroup.kt:96-115`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L96-L115)
+[`RuntimeComponentGroup.kt:170-186`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L170-L186)
 
 | 顺序 | 内置组件 | 源码 |
 |---:|---|---|
@@ -315,6 +359,10 @@ wow:
 两个值都必须能表示为 64 位有符号纳秒值。
 [`DurationValidation.kt:18-25`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/DurationValidation.kt#L18-L25)
 
+当应用提供自定义 `WowRuntime` 时，即使它的 timeout 与绑定的
+`wow.shutdown-timeout` 属性不同，Spring Runtime phase timeout 仍以实际选中的
+Runtime Bean 的 `shutdownTimeout` 为准。
+
 `WowRuntime.stop(timeout)` 只改变当前调用方等待的最长时间，不会替换或延长
 `wow.shutdown-timeout`；运行时停机仍然只有一个配置的截止时间。
 [`WowRuntime.kt:297-314`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L297-L314)
@@ -333,16 +381,17 @@ wow:
 ## 实现自定义组件
 
 当扩展需要参与 Runtime readiness、全局活动、致命故障传播与共享停机策略时，应将其
-建模为独立的 `RuntimeComponent`。如果一个通用资源只需要启停能力，则继续放在
-`infra.lifecycle` 边界。
+建模为独立的 `RuntimeComponent`。独立资源继续留在其职责所属模块，只在需要时实现
+窄化的 `GracefullyStoppable` 或 `TerminatedSignalCapable` 能力。
 
 ```kotlin
 class CustomRuntimeComponent : RuntimeComponent {
     private lateinit var runtimeContext: RuntimeContext
 
-    override fun prepare(runtimeContext: RuntimeContext) {
+    override fun prepare(runtimeContext: RuntimeContext): Mono<Void> {
         this.runtimeContext = runtimeContext
-        // 获取资源或安装订阅，但保持处理关闭。
+        // 仅在真正就绪后完成；start 前仍保持处理关闭。
+        return subscribeAndAwaitReadiness()
     }
 
     override fun start() {
@@ -387,11 +436,11 @@ else:
 | 扩展检查项 | 原因 | 源码 |
 |---|---|---|
 | 构造与 Bean 初始化保持 inert | Runtime 必须先建立所有权，资源才能出现 | [`RuntimeComponent.kt:18-23`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeComponent.kt#L18-L23) |
-| `prepare` 不开放 demand | readiness barrier 必须覆盖完整组件图 | [`RuntimeComponent.kt:36-43`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeComponent.kt#L36-L43) |
+| `prepare` 在 readiness 时完成且不开放处理 | barrier 必须覆盖完整组件图与异步 transport setup | [`RuntimeComponent.kt:34-43`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeComponent.kt#L34-L43) |
 | `quiesce` 及时关闭 intake | 调用该方法时全局准入已经关闭 | [`RuntimeComponent.kt:47-54`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeComponent.kt#L47-L54) |
 | 每项已准入异步操作持有一个租约 | 静默检测必须表示完整工作，而不只是源发布 | [`RuntimeContext.kt:16-45`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeContext.kt#L16-L45) |
 | `forceStop` 允许安全重复 | force 可能与任意生命周期动作重叠并触发补偿 | [`RuntimeComponent.kt:18-29`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeComponent.kt#L18-L29) |
-| Spring Bean 是 singleton 且不实现 Spring `Lifecycle` | 两个生命周期所有者可能竞争或重复清理同一资源 | [`WowAutoConfiguration.kt:140-150`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L140-L150) |
+| 直接注册的 Spring Bean 是 singleton，且不存在竞争性的 Spring lifecycle 或销毁所有者 | 两个生命周期所有者可能竞争或重复清理同一资源 | [`WowAutoConfiguration.kt:140-221`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L140-L221) |
 
 ## 源码参考
 

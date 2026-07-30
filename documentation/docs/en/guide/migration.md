@@ -77,13 +77,21 @@ Apply the following source migrations:
 3. A custom dispatcher or non-dispatcher participant implements
    `RuntimeComponent` directly. Compatibility adapters and runtime ownership
    handles, including the former `WowRuntimeComponent` marker, have been
-   removed.
+   removed. The redundant generic `me.ahoo.wow.infra.lifecycle.Lifecycle`
+   contract is also removed: runtime-managed participants use
+   `RuntimeComponent`, while independently owned resources may use the narrower
+   `GracefullyStoppable` shutdown capability. Startup of an independently owned
+   resource remains that resource owner's explicit responsibility; there is no
+   replacement generic Wow startup contract. This removal is source- and
+   binary-incompatible for external implementations; migrate and recompile them.
+   `RuntimeComponent.prepare` also now returns `Mono<Void>`. Its completion is
+   the component's readiness signal: processing must remain closed, but the
+   component must already be able to retain newly admitted work without loss.
 
    ```kotlin
    class CustomRuntimeComponent : RuntimeComponent {
-       override fun prepare(runtimeContext: RuntimeContext) {
-           // Store the context if work needs tryAcquire() or reportFailure().
-       }
+       override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+           prepareResourcesWithoutOpeningProcessing(runtimeContext)
 
        override fun start() = openIntake()
        override fun quiesce() = closeIntake()
@@ -99,7 +107,18 @@ Apply the following source migrations:
    accepting each asynchronous operation and close it only when the complete
    chain terminates. Use `quiesce` for the graceful intake barrier and
    `reportFailure` for fatal pipeline errors. Both `quiesce` and `forceStop`
-   must close intake promptly and synchronously.
+   must close intake promptly and synchronously. Cancelling the
+   `WowRuntime.start()` subscription aborts and force-stops that one-shot
+   runtime, so preparation publishers must release or terminate promptly when
+   `forceStop` runs.
+
+   A custom `MessageBus` whose subscription is not immediately able to retain
+   new work must override `receiver` and return a hot, replayable readiness
+   signal with its single-use message stream. Redis readiness creates every
+   consumer group but does not start stream reads before processing demand.
+   Kafka readiness persists the resolved initial position only for assigned
+   partitions that do not already have a committed group offset. Provision
+   Kafka topics before starting the runtime.
 4. Runtime-owned Spring beans must be singletons, and their declared bean return
    type must expose `RuntimeComponent` or a subtype such as
    `MessageDispatcher`. Remove Spring `Lifecycle`/`SmartLifecycle`,
@@ -111,9 +130,12 @@ Apply the following source migrations:
    runtime-owned resources only from `prepare` or `start`.
 5. If the application replaces Spring's bean named `lifecycleProcessor`, Wow
    configures its runtime phase timeout when it is a
-   `DefaultLifecycleProcessor`. Other lifecycle processor implementations own
-   their timeout policy. Runtime components share one Spring ordering sequence: startup
-   follows Spring order, and shutdown reverses it. A custom ingress
+   `DefaultLifecycleProcessor`. The phase timeout is derived from the selected
+   `WowRuntime.shutdownTimeout`, not separately from `wow.shutdown-timeout`, and
+   receives a one-second completion margin. Other lifecycle processor
+   implementations own their timeout policy. Runtime components share one
+   Spring ordering sequence: startup follows Spring order, and shutdown
+   reverses it. A custom ingress
    `SmartLifecycle` must use a phase greater than `WOW_RUNTIME_PHASE`, so
    ingress starts after runtime readiness and stops before the runtime.
 6. A child application context owns only components declared in that child.

@@ -16,6 +16,7 @@ package me.ahoo.wow.event.dispatcher
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.messaging.MessageBus
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.dispatcher.MainDispatcher
 import me.ahoo.wow.messaging.function.MessageFunction
@@ -59,6 +60,9 @@ abstract class AbstractEventDispatcher<E : MessageExchange<*, *>, BUS : MessageB
     override fun receiveMessage(subscription: MessageSubscription): Flux<E> {
         return messageBus.receive(subscription)
     }
+
+    override fun createMessageReceiver(subscription: MessageSubscription): MessageReceiver<E> =
+        messageBus.receiver(subscription)
 
     override fun stopManagedGracefully(): Mono<Void> =
         schedulerSupplier.stopGracefully()

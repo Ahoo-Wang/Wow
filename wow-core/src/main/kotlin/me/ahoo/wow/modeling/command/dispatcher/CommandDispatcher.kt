@@ -17,6 +17,7 @@ import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.configuration.requiredAggregateType
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.dispatcher.MainDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageDispatcher
@@ -43,12 +44,20 @@ class CommandDispatcher(
         DefaultAggregateSchedulerSupplier("CommandDispatcher")
 ) : MainDispatcher<ServerCommandExchange<*>>() {
     override fun receiveMessage(subscription: MessageSubscription): Flux<ServerCommandExchange<*>> {
-        return commandBus
-            .receive(subscription)
-            .filterThenAck {
-                !it.message.isVoid
-            }
+        return filterMessages(commandBus.receive(subscription))
     }
+
+    override fun createMessageReceiver(
+        subscription: MessageSubscription,
+    ): MessageReceiver<ServerCommandExchange<*>> =
+        commandBus.receiver(subscription).mapMessages(::filterMessages)
+
+    private fun filterMessages(
+        messages: Flux<ServerCommandExchange<*>>,
+    ): Flux<ServerCommandExchange<*>> =
+        messages.filterThenAck {
+            !it.message.isVoid
+        }
 
     override fun newAggregateDispatcher(
         namedAggregate: NamedAggregate,

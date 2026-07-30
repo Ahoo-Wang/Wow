@@ -51,7 +51,7 @@ class RuntimeComponentGroupTest {
         val prepared = group.prepare(
             runtimeContext = DefaultRuntimeContext(),
             admissionGate = { false },
-        )
+        ).block()
 
         prepared.assert().isFalse()
         calls.assert().isEmpty()
@@ -68,7 +68,7 @@ class RuntimeComponentGroupTest {
             reportFailure = {},
         )
 
-        group.prepare(DefaultRuntimeContext()).assert().isTrue()
+        group.prepare(DefaultRuntimeContext()).block().assert().isTrue()
         group.start().assert().isTrue()
         group.quiesce().assert().isTrue()
         StepVerifier.create(group.stopGracefully()).verifyComplete()
@@ -99,7 +99,56 @@ class RuntimeComponentGroupTest {
         group.forceStop()
 
         calls.assert().containsExactly("force:second", "force:first")
-        group.prepare(DefaultRuntimeContext()).assert().isFalse()
+        group.prepare(DefaultRuntimeContext()).block().assert().isFalse()
+    }
+
+    @Test
+    fun `force stop prevents subscription to a late prepare publisher`() {
+        val prepareInvoked = CountDownLatch(1)
+        val releasePrepare = CountDownLatch(1)
+        val subscriptionCount = AtomicInteger()
+        val resourceOwned = AtomicInteger()
+        val forceCount = AtomicInteger()
+        val component = object : RuntimeComponent {
+            override fun prepare(runtimeContext: RuntimeContext): Mono<Void> {
+                prepareInvoked.countDown()
+                releasePrepare.await()
+                return Mono.fromRunnable {
+                    subscriptionCount.incrementAndGet()
+                    resourceOwned.incrementAndGet()
+                }
+            }
+
+            override fun start() = Unit
+
+            override fun stopGracefully(): Mono<Void> = Mono.empty()
+
+            override fun forceStop() {
+                forceCount.incrementAndGet()
+                resourceOwned.set(0)
+            }
+        }
+        val group = RuntimeComponentGroup(listOf(component), reportFailure = {})
+        val executor = Executors.newSingleThreadExecutor()
+        val preparation = CompletableFuture.supplyAsync(
+            { group.prepare(DefaultRuntimeContext()).block() },
+            executor,
+        )
+
+        try {
+            prepareInvoked.await(1, TimeUnit.SECONDS).assert().isTrue()
+            group.forceStop()
+            releasePrepare.countDown()
+
+            preparation.get(1, TimeUnit.SECONDS).assert().isTrue()
+            subscriptionCount.get().assert().isZero()
+            resourceOwned.get().assert().isZero()
+            forceCount.get().assert().isEqualTo(2)
+            group.start().assert().isFalse()
+        } finally {
+            releasePrepare.countDown()
+            executor.shutdownNow()
+        }
     }
 
     @Test
@@ -108,7 +157,7 @@ class RuntimeComponentGroupTest {
         val quiesceEntered = CountDownLatch(1)
         val releaseQuiesce = CountDownLatch(1)
         val first = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) = Unit
+            override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
             override fun start() = Unit
 
@@ -125,7 +174,7 @@ class RuntimeComponentGroupTest {
             }
         }
         val second = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) = Unit
+            override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
             override fun start() = Unit
 
@@ -140,7 +189,7 @@ class RuntimeComponentGroupTest {
             }
         }
         val group = RuntimeComponentGroup(listOf(first, second), reportFailure = {})
-        group.prepare(DefaultRuntimeContext()).assert().isTrue()
+        group.prepare(DefaultRuntimeContext()).block().assert().isTrue()
         val executor = Executors.newSingleThreadExecutor()
         val quiescence = CompletableFuture.supplyAsync({ group.quiesce() }, executor)
 
@@ -165,7 +214,7 @@ class RuntimeComponentGroupTest {
         val failure = IllegalStateException("quiesce")
         val reportedFailures = mutableListOf<Throwable>()
         val component = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) = Unit
+            override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
             override fun start() = Unit
 
@@ -178,7 +227,7 @@ class RuntimeComponentGroupTest {
             override fun forceStop() = Unit
         }
         val group = RuntimeComponentGroup(listOf(component), reportedFailures::add)
-        group.prepare(DefaultRuntimeContext()).assert().isTrue()
+        group.prepare(DefaultRuntimeContext()).block().assert().isTrue()
 
         assertThrows<IllegalStateException> {
             group.quiesce()
@@ -196,7 +245,7 @@ class RuntimeComponentGroupTest {
         val reportedFailures = CopyOnWriteArrayList<Throwable>()
         val failures = SealableFailureAccumulator()
         val component = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) = Unit
+            override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
             override fun start() = Unit
 
@@ -218,7 +267,7 @@ class RuntimeComponentGroupTest {
             reportedFailures += error
             failures.record(error)
         }
-        group.prepare(DefaultRuntimeContext()).assert().isTrue()
+        group.prepare(DefaultRuntimeContext()).block().assert().isTrue()
         val executor = Executors.newSingleThreadExecutor()
         val quiescence = CompletableFuture.supplyAsync(
             {
@@ -258,7 +307,7 @@ class RuntimeComponentGroupTest {
             },
         )
         val group = RuntimeComponentGroup(listOf(first, second), reportFailure = {})
-        group.prepare(DefaultRuntimeContext()).assert().isTrue()
+        group.prepare(DefaultRuntimeContext()).block().assert().isTrue()
         val gracefulStop = group.stopGracefully().toFuture()
 
         stopEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
@@ -277,7 +326,7 @@ class RuntimeComponentGroupTest {
         val forceCount = AtomicInteger()
         val gracefulSubscriptionCount = AtomicInteger()
         val component = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) = Unit
+            override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
             override fun start() = Unit
 
@@ -295,7 +344,7 @@ class RuntimeComponentGroupTest {
             }
         }
         val group = RuntimeComponentGroup(listOf(component), reportFailure = {})
-        group.prepare(DefaultRuntimeContext()).assert().isTrue()
+        group.prepare(DefaultRuntimeContext()).block().assert().isTrue()
         val executor = Executors.newSingleThreadExecutor()
         val gracefulStop = CompletableFuture.runAsync(
             { group.stopGracefully().block() },
@@ -327,7 +376,7 @@ class RuntimeComponentGroupTest {
         val forceCount = AtomicInteger()
         val reportedFailures = CopyOnWriteArrayList<Throwable>()
         val component = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) = Unit
+            override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
             override fun start() = Unit
 
@@ -344,7 +393,7 @@ class RuntimeComponentGroupTest {
             }
         }
         val group = RuntimeComponentGroup(listOf(component), reportedFailures::add)
-        group.prepare(DefaultRuntimeContext()).assert().isTrue()
+        group.prepare(DefaultRuntimeContext()).block().assert().isTrue()
         val executor = Executors.newSingleThreadExecutor()
         val gracefulStop = CompletableFuture.supplyAsync(
             {
@@ -377,7 +426,7 @@ class RuntimeComponentGroupTest {
         val resourceOwned = AtomicInteger()
         val forceCount = AtomicInteger()
         val component = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) = Unit
+            override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
             override fun start() = Unit
 
@@ -395,7 +444,7 @@ class RuntimeComponentGroupTest {
             }
         }
         val group = RuntimeComponentGroup(listOf(component), reportFailure = {})
-        group.prepare(DefaultRuntimeContext()).assert().isTrue()
+        group.prepare(DefaultRuntimeContext()).block().assert().isTrue()
         val executor = Executors.newSingleThreadExecutor()
         val gracefulStop = CompletableFuture.runAsync(
             { group.stopGracefully().block() },
@@ -425,7 +474,7 @@ class RuntimeComponentGroupTest {
         val resourceOwned = AtomicInteger()
         val forceCount = AtomicInteger()
         val component = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) = Unit
+            override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
             override fun start() = Unit
 
@@ -442,7 +491,7 @@ class RuntimeComponentGroupTest {
             }
         }
         val group = RuntimeComponentGroup(listOf(component), reportFailure = {})
-        group.prepare(DefaultRuntimeContext()).assert().isTrue()
+        group.prepare(DefaultRuntimeContext()).block().assert().isTrue()
         val executor = Executors.newSingleThreadExecutor()
         val gracefulStop = CompletableFuture.runAsync(
             { group.stopGracefully().block() },
@@ -474,7 +523,7 @@ class RuntimeComponentGroupTest {
         val forceCount = AtomicInteger()
         val reportedFailures = CopyOnWriteArrayList<Throwable>()
         val component = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) = Unit
+            override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
             override fun start() = Unit
 
@@ -490,7 +539,7 @@ class RuntimeComponentGroupTest {
             }
         }
         val group = RuntimeComponentGroup(listOf(component), reportedFailures::add)
-        group.prepare(DefaultRuntimeContext()).assert().isTrue()
+        group.prepare(DefaultRuntimeContext()).block().assert().isTrue()
         val result = group.stopGracefully().materialize().toFuture()
 
         stopSubscribed.await(1, TimeUnit.SECONDS).assert().isTrue()
@@ -511,7 +560,7 @@ class RuntimeComponentGroupTest {
         val stopSignal = Sinks.empty<Void>()
         val forceCount = AtomicInteger()
         val component = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) = Unit
+            override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
             override fun start() = Unit
 
@@ -527,7 +576,7 @@ class RuntimeComponentGroupTest {
             }
         }
         val group = RuntimeComponentGroup(listOf(component), reportFailure = {})
-        group.prepare(DefaultRuntimeContext()).assert().isTrue()
+        group.prepare(DefaultRuntimeContext()).block().assert().isTrue()
         val result = group.stopGracefully().materialize().toFuture()
 
         stopSubscribed.await(1, TimeUnit.SECONDS).assert().isTrue()
@@ -545,7 +594,7 @@ class RuntimeComponentGroupTest {
         val reportedFailures = CopyOnWriteArrayList<Throwable>()
         val downstreamFailure = AtomicReference<Throwable?>()
         val component = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) = Unit
+            override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
             override fun start() = Unit
 
@@ -561,7 +610,7 @@ class RuntimeComponentGroupTest {
             }
         }
         val group = RuntimeComponentGroup(listOf(component), reportedFailures::add)
-        group.prepare(DefaultRuntimeContext()).assert().isTrue()
+        group.prepare(DefaultRuntimeContext()).block().assert().isTrue()
         val gracefulStop = group.stopGracefully().subscribe({}, downstreamFailure::set)
 
         stopSubscribed.await(1, TimeUnit.SECONDS).assert().isTrue()
@@ -577,7 +626,7 @@ class RuntimeComponentGroupTest {
     fun `cancelling graceful stop releases the component lifecycle slot`() {
         val subscriptionCount = AtomicInteger()
         val component = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) = Unit
+            override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
             override fun start() = Unit
 
@@ -591,7 +640,7 @@ class RuntimeComponentGroupTest {
             override fun forceStop() = Unit
         }
         val group = RuntimeComponentGroup(listOf(component), reportFailure = {})
-        group.prepare(DefaultRuntimeContext()).assert().isTrue()
+        group.prepare(DefaultRuntimeContext()).block().assert().isTrue()
 
         group.stopGracefully().subscribe().dispose()
 
@@ -604,9 +653,10 @@ class RuntimeComponentGroupTest {
         private val calls: MutableList<String>,
         private val stopAction: () -> Mono<Void> = { Mono.empty() },
     ) : RuntimeComponent {
-        override fun prepare(runtimeContext: RuntimeContext) {
-            calls += "prepare:$name"
-        }
+        override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+            Mono.fromRunnable {
+                calls += "prepare:$name"
+            }
 
         override fun start() {
             calls += "start:$name"

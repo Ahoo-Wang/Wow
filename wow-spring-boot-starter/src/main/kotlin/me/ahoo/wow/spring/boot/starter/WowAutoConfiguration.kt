@@ -13,7 +13,6 @@
 package me.ahoo.wow.spring.boot.starter
 
 import me.ahoo.wow.annotation.sortedByOrder
-import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.exception.ErrorInfoConverterFactory
 import me.ahoo.wow.exception.ErrorInfoConverterRegistrar
@@ -24,17 +23,19 @@ import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.spring.SpringServiceProvider
 import me.ahoo.wow.spring.WowRuntimeLifecycle
+import org.springframework.beans.factory.DisposableBean
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.SmartInitializingSingleton
 import org.springframework.beans.factory.config.ConfigurableBeanFactory
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.beans.factory.support.DefaultListableBeanFactory
+import org.springframework.beans.factory.support.RootBeanDefinition
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.SearchStrategy
 import org.springframework.boot.autoconfigure.context.LifecycleAutoConfiguration
 import org.springframework.boot.autoconfigure.context.LifecycleProperties
 import org.springframework.boot.context.properties.EnableConfigurationProperties
-import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.context.ApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.context.Lifecycle
@@ -45,8 +46,6 @@ import org.springframework.context.support.AbstractApplicationContext
 import org.springframework.context.support.DefaultLifecycleProcessor
 import org.springframework.core.Ordered
 import org.springframework.core.PriorityOrdered
-import org.springframework.core.env.Environment
-import java.time.Duration
 
 /**
  * Wow AutoConfiguration .
@@ -61,20 +60,23 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
     companion object {
         const val SPRING_APPLICATION_NAME = "spring.application.name"
         const val WOW_CURRENT_BOUNDED_CONTEXT = "wow.CurrentBoundedContext"
-
-        @JvmStatic
-        @Bean(WOW_RUNTIME_LIFECYCLE_PROCESSOR_CUSTOMIZER_BEAN_NAME)
-        @Role(org.springframework.beans.factory.config.BeanDefinition.ROLE_INFRASTRUCTURE)
-        internal fun wowRuntimeLifecycleProcessorCustomizer(
-            environment: Environment,
-        ): WowRuntimeLifecycleProcessorCustomizer {
-            val shutdownTimeout = Binder.get(environment)
-                .bind("${Wow.WOW}.shutdown-timeout", Duration::class.java)
-                .orElse(DEFAULT_SHUTDOWN_TIMEOUT)
-                ?: DEFAULT_SHUTDOWN_TIMEOUT
-            return WowRuntimeLifecycleProcessorCustomizer(shutdownTimeout)
-        }
     }
+
+    @Bean(WOW_RUNTIME_LIFECYCLE_PROCESSOR_CONFIGURER_BEAN_NAME)
+    @Role(org.springframework.beans.factory.config.BeanDefinition.ROLE_INFRASTRUCTURE)
+    internal fun wowRuntimeLifecycleProcessorConfigurer(
+        beanFactory: ConfigurableListableBeanFactory,
+    ): SmartInitializingSingleton =
+        SmartInitializingSingleton {
+            val lifecycleProcessor = beanFactory.getBean(
+                AbstractApplicationContext.LIFECYCLE_PROCESSOR_BEAN_NAME,
+            )
+            if (lifecycleProcessor is DefaultLifecycleProcessor) {
+                lifecycleProcessor.configureWowRuntimePhaseTimeout(
+                    beanFactory.getBean(WowRuntime::class.java).shutdownTimeout,
+                )
+            }
+        }
 
     @Bean
     @ConditionalOnMissingBean
@@ -122,7 +124,6 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
     fun wowLifecycleProcessor(lifecycleProperties: LifecycleProperties): DefaultLifecycleProcessor {
         return DefaultLifecycleProcessor().apply {
             setTimeoutPerShutdownPhase(lifecycleProperties.timeoutPerShutdownPhase.toMillis())
-            configureWowRuntimePhaseTimeout(wowProperties.shutdownTimeout)
         }
     }
 
@@ -144,9 +145,10 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
                     "RuntimeComponent bean '$beanName' must be a singleton."
                 }
                 val component = getBean(beanName, RuntimeComponent::class.java)
-                require(component !is Lifecycle) {
-                    "RuntimeComponent bean '$beanName' must not implement Spring Lifecycle; " +
-                        "WowRuntime is its exclusive lifecycle owner."
+                val competingOwner = findCompetingLifecycleOwner(beanName, component)
+                require(competingOwner == null) {
+                    "RuntimeComponent bean '$beanName' has a competing lifecycle owner: " +
+                        "$competingOwner. WowRuntime must be its exclusive lifecycle owner."
                 }
                 beanName to component
             }
@@ -165,4 +167,55 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
                 }
             }
             .map { it.second }
+
+    private fun ConfigurableListableBeanFactory.findCompetingLifecycleOwner(
+        beanName: String,
+        component: RuntimeComponent,
+    ): String? {
+        if (component is Lifecycle) {
+            return "Spring Lifecycle"
+        }
+        if (isFactoryBean(beanName)) {
+            return null
+        }
+        if (!containsBeanDefinition(beanName)) {
+            return null
+        }
+
+        val rootBeanDefinition = getMergedBeanDefinition(beanName) as? RootBeanDefinition
+            ?: return null
+        val destructionTypes = listOfNotNull(
+            rootBeanDefinition.targetType,
+            component.javaClass,
+        ).distinct()
+        if (destructionTypes.any(DisposableBean::class.java::isAssignableFrom)) {
+            return "Spring DisposableBean"
+        }
+
+        val destructionCallbacks = rootBeanDefinition
+            .externallyManagedDestroyMethods
+        if (destructionCallbacks.isNotEmpty()) {
+            return "Spring destruction callback '${destructionCallbacks.joinToString()}'"
+        }
+
+        val destroyMethodNames = destructionTypes
+            .flatMap { type ->
+                RootBeanDefinition(rootBeanDefinition).apply {
+                    setTargetType(type)
+                    resolveDestroyMethodIfNecessary()
+                }.destroyMethodNames.orEmpty().asIterable()
+            }
+            .filter(String::isNotBlank)
+            .distinct()
+        if (destroyMethodNames.isEmpty()) {
+            return null
+        }
+        if (
+            "close" in destroyMethodNames &&
+            destructionTypes.any(AutoCloseable::class.java::isAssignableFrom)
+        ) {
+            return "AutoCloseable"
+        }
+        return "Spring destroy method '${destroyMethodNames.joinToString()}'"
+    }
 }

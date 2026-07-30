@@ -184,10 +184,33 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> :
             it.isLocal()
         }.toSet()
         val localFlux = localBus.receive(subscription.copy(namedAggregates = localTopics))
-        val distributedFlux = distributedBus.receive(subscription)
-            .filterThenAck {
-                !it.message.isLocalHandled()
-            }
+        val distributedFlux =
+            distributedBus.receive(subscription)
+                .filterThenAck {
+                    !it.message.isLocalHandled()
+                }
         return Flux.merge(localFlux, distributedFlux)
+    }
+
+    override fun receiver(subscription: MessageSubscription): MessageReceiver<E> {
+        val localTopics = subscription.namedAggregates.filter {
+            it.isLocal()
+        }.toSet()
+        val localReceiver = localBus.receiver(
+            subscription.copy(namedAggregates = localTopics),
+        )
+        val distributedReceiver = distributedBus.receiver(subscription)
+        return MessageReceiver(
+            messages = Flux.merge(
+                localReceiver.messages,
+                distributedReceiver.messages.filterThenAck {
+                    !it.message.isLocalHandled()
+                },
+            ),
+            readiness = Mono.`when`(
+                localReceiver.readiness,
+                distributedReceiver.readiness,
+            ),
+        )
     }
 }

@@ -50,6 +50,18 @@ interface MessageBus<M : Message<*, *>, E : MessageExchange<*, M>> : AutoCloseab
      * @return A [Flux] of message exchanges for the specified subscription
      */
     fun receive(subscription: MessageSubscription): Flux<E>
+
+    /**
+     * Creates a single message source with an explicit transport readiness
+     * boundary.
+     *
+     * Synchronous transports may use this default. Cold transports whose
+     * subscription requires asynchronous initialization must override it and
+     * complete [MessageReceiver.readiness] only when new messages can no longer
+     * be missed.
+     */
+    fun receiver(subscription: MessageSubscription): MessageReceiver<E> =
+        MessageReceiver(receive(subscription))
 }
 
 /**

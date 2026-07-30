@@ -146,10 +146,11 @@ class DispatcherLifecycleTemplateTest {
         private val calls: MutableList<String>,
         private val prepareFailure: RuntimeException? = null,
     ) : MessageDispatcher {
-        override fun prepare(runtimeContext: RuntimeContext) {
-            calls += "prepare:$name"
-            prepareFailure?.let { throw it }
-        }
+        override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+            Mono.fromRunnable {
+                calls += "prepare:$name"
+                prepareFailure?.let { throw it }
+            }
 
         override fun start() {
             calls += "start:$name"

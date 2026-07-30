@@ -36,6 +36,7 @@ import reactor.core.publisher.Mono
  * filtering events through registered functions, and coordinating with event handlers.
  *
  * @param E The type of message exchange being handled
+ * @param messageReadiness Completes when the message transport can retain new work
  *
  * @see AggregateDispatcher
  * @see MessageExchange
@@ -43,7 +44,11 @@ import reactor.core.publisher.Mono
  * @see MessageFunctionRegistrar
  * @see EventHandler
  */
-abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEventStream>> : AggregateDispatcher<E>() {
+abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEventStream>>(
+    messageReadiness: Mono<Void> = Mono.empty(),
+) : AggregateDispatcher<E>(
+    messageReadiness = messageReadiness,
+) {
     companion object {
         private val log = KotlinLogging.logger {}
     }

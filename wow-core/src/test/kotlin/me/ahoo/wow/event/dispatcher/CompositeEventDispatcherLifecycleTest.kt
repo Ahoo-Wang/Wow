@@ -86,7 +86,7 @@ class CompositeEventDispatcherLifecycleTest {
         val fixture = PartialConstructionFailureFixture()
 
         val thrown = assertThrows<IllegalStateException> {
-            fixture.dispatcher.prepare(DefaultRuntimeContext())
+            fixture.dispatcher.prepare(DefaultRuntimeContext()).block()
         }
 
         thrown.assert().isSameAs(fixture.constructionFailure)
@@ -102,7 +102,7 @@ class CompositeEventDispatcherLifecycleTest {
         val fixture = PartialConstructionFailureFixture()
 
         val thrown = assertThrows<IllegalStateException> {
-            fixture.dispatcher.prepare(DefaultRuntimeContext())
+            fixture.dispatcher.prepare(DefaultRuntimeContext()).block()
         }
 
         thrown.assert().isSameAs(fixture.constructionFailure)

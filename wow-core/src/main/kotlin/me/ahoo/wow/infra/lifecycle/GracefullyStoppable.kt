@@ -17,7 +17,7 @@ import reactor.core.publisher.Mono
 import java.time.Duration
 
 /**
- * Interface for components that support graceful shutdown.
+ * Graceful-shutdown capability for independently owned resources.
  *
  * Implementations of this interface provide both synchronous and asynchronous
  * graceful stop operations. The synchronous [stop] method has a default timeout
@@ -26,8 +26,11 @@ import java.time.Duration
  * custom [Duration] to adjust the timeout, or call [stopGracefully] directly for
  * fully asynchronous shutdown.
  *
- * This is particularly useful for message dispatchers, connection pools, and
- * other resources that need to complete in-flight operations before terminating.
+ * This contract defines shutdown and blocking [AutoCloseable] adapters only. It
+ * does not define startup, readiness, ordering, force-stop, or orchestration
+ * ownership. It is useful for batch coordinators, scheduler suppliers, connection
+ * pools, and other independently owned resources that must complete in-flight
+ * operations before terminating.
  *
  * @see AutoCloseable for the standard close contract
  */

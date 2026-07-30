@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot.starter
 
+import jakarta.annotation.PreDestroy
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.exception.ErrorInfoConverterRegistrar
@@ -24,7 +25,10 @@ import me.ahoo.wow.spring.WOW_RUNTIME_PHASE
 import me.ahoo.wow.spring.WowRuntimeLifecycle
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration.Companion.SPRING_APPLICATION_NAME
 import org.junit.jupiter.api.Test
+import org.springframework.aop.framework.ProxyFactory
+import org.springframework.beans.factory.DisposableBean
 import org.springframework.beans.factory.FactoryBean
+import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.boot.web.server.context.WebServerApplicationContext
@@ -111,6 +115,19 @@ internal class WowAutoConfigurationTest {
     }
 
     @Test
+    fun `runtime phase timeout uses the selected runtime deadline`() {
+        contextRunner
+            .withUserConfiguration(CustomWowRuntimeConfiguration::class.java)
+            .enableWow()
+            .withPropertyValues("wow.shutdown-timeout=2s")
+            .run { context ->
+                context.lifecycleProcessor().phaseTimeouts()[WOW_RUNTIME_PHASE]
+                    .assert()
+                    .isEqualTo(Duration.ofMinutes(5).plusSeconds(1).toMillis())
+            }
+    }
+
+    @Test
     fun `custom default lifecycle processor receives the runtime phase timeout`() {
         contextRunner
             .withBean(
@@ -118,12 +135,13 @@ internal class WowAutoConfigurationTest {
                 DefaultLifecycleProcessor::class.java,
                 { DefaultLifecycleProcessor() },
             )
+            .withUserConfiguration(CustomWowRuntimeConfiguration::class.java)
             .enableWow()
             .withPropertyValues("wow.shutdown-timeout=2s")
             .run { context ->
                 context.lifecycleProcessor().phaseTimeouts()[WOW_RUNTIME_PHASE]
                     .assert()
-                    .isEqualTo(Duration.ofSeconds(3).toMillis())
+                    .isEqualTo(Duration.ofMinutes(5).plusSeconds(1).toMillis())
             }
     }
 
@@ -214,15 +232,39 @@ internal class WowAutoConfigurationTest {
 
     @Test
     fun `runtime discovers a singleton FactoryBean product by its exposed type`() {
+        lateinit var component: CloseableRuntimeComponent
+
         contextRunner
             .withUserConfiguration(RuntimeComponentFactoryConfiguration::class.java)
             .enableWow()
             .run { context ->
-                val component = context.getBean(
+                component = context.getBean(
                     "factoryRuntimeComponent",
                     RuntimeComponent::class.java,
-                )
+                ) as CloseableRuntimeComponent
 
+                context.getBean(WowRuntime::class.java).components
+                    .assert()
+                    .containsExactly(component)
+            }
+
+        component.closeCount.get().assert().isZero()
+    }
+
+    @Test
+    fun `runtime discovers a manually registered singleton without a bean definition`() {
+        val component = PlainRuntimeComponent()
+
+        contextRunner
+            .withInitializer { context ->
+                context.beanFactory.registerSingleton(
+                    "manuallyRegisteredRuntimeComponent",
+                    component,
+                )
+            }
+            .enableWow()
+            .run { context ->
+                context.startupFailure.assert().isNull()
                 context.getBean(WowRuntime::class.java).components
                     .assert()
                     .containsExactly(component)
@@ -253,12 +295,123 @@ internal class WowAutoConfigurationTest {
             )
             .enableWow()
             .run { context ->
-                context.startupFailure.assert().isNotNull()
-                context.startupFailure!!.causeMessages().joinToString()
-                    .assert()
-                    .contains("springManagedRuntimeComponent")
-                    .contains("must not implement Spring Lifecycle")
+                context.assertCompetingOwnerRejected(
+                    "springManagedRuntimeComponent",
+                    "Spring Lifecycle",
+                )
             }
+    }
+
+    @Test
+    fun `runtime components must not have a competing Spring disposable owner`() {
+        contextRunner
+            .withBean(
+                "disposableRuntimeComponent",
+                RuntimeComponent::class.java,
+                ::DisposableRuntimeComponent,
+            )
+            .enableWow()
+            .run { context ->
+                context.assertCompetingOwnerRejected(
+                    "disposableRuntimeComponent",
+                    "Spring DisposableBean",
+                )
+            }
+    }
+
+    @Test
+    fun `runtime components must not have a competing close owner`() {
+        contextRunner
+            .withBean(
+                "closeableRuntimeComponent",
+                RuntimeComponent::class.java,
+                ::CloseableRuntimeComponent,
+            )
+            .enableWow()
+            .run { context ->
+                context.assertCompetingOwnerRejected(
+                    "closeableRuntimeComponent",
+                    "AutoCloseable",
+                )
+            }
+    }
+
+    @Test
+    fun `runtime components must not have a competing pre destroy owner`() {
+        contextRunner
+            .withBean(
+                "preDestroyRuntimeComponent",
+                PreDestroyRuntimeComponent::class.java,
+                ::PreDestroyRuntimeComponent,
+            )
+            .enableWow()
+            .run { context ->
+                context.assertCompetingOwnerRejected(
+                    "preDestroyRuntimeComponent",
+                    "destruction callback",
+                )
+            }
+    }
+
+    @Test
+    fun `runtime components must not have an explicit destroy method`() {
+        contextRunner
+            .withUserConfiguration(ExplicitDestroyRuntimeComponentConfiguration::class.java)
+            .enableWow()
+            .run { context ->
+                context.assertCompetingOwnerRejected(
+                    "explicitDestroyRuntimeComponent",
+                    "destroy method",
+                )
+            }
+    }
+
+    @Test
+    fun `runtime components allow explicitly disabled destroy inference`() {
+        lateinit var component: CloseableRuntimeComponent
+
+        contextRunner
+            .withUserConfiguration(DisabledDestroyRuntimeComponentConfiguration::class.java)
+            .enableWow()
+            .run { context ->
+                context.startupFailure.assert().isNull()
+                component = context.getBean(
+                    "disabledDestroyRuntimeComponent",
+                    CloseableRuntimeComponent::class.java,
+                )
+            }
+
+        component.closeCount.get().assert().isZero()
+    }
+
+    @Test
+    fun `runtime rejects a proxied component whose raw target has a destroy owner`() {
+        contextRunner
+            .withBean(
+                "runtimeComponentProxyBeanPostProcessor",
+                BeanPostProcessor::class.java,
+                ::RuntimeComponentProxyBeanPostProcessor,
+            )
+            .withUserConfiguration(ProxiedDisposableRuntimeComponentConfiguration::class.java)
+            .enableWow()
+            .run { context ->
+                context.assertCompetingOwnerRejected(
+                    "proxiedDisposableRuntimeComponent",
+                    "Spring DisposableBean",
+                )
+            }
+    }
+
+    private fun AssertableApplicationContext.assertCompetingOwnerRejected(
+        beanName: String,
+        owner: String,
+    ) {
+        startupFailure.assert().isNotNull()
+        startupFailure!!.causeMessages().joinToString()
+            .assert()
+            .contains(beanName)
+            .contains(owner)
+            .contains("exclusive lifecycle owner")
     }
 
     private fun AssertableApplicationContext.lifecycleProcessor(): DefaultLifecycleProcessor =
@@ -276,9 +429,10 @@ internal class WowAutoConfigurationTest {
         val startCount = AtomicInteger()
         val stopCount = AtomicInteger()
 
-        override fun prepare(runtimeContext: RuntimeContext) {
-            calls?.add("prepare:$componentName")
-        }
+        override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+            Mono.fromRunnable {
+                calls?.add("prepare:$componentName")
+            }
 
         override fun start() {
             startCount.incrementAndGet()
@@ -300,7 +454,7 @@ internal class WowAutoConfigurationTest {
     }
 
     private open class PlainRuntimeComponent : RuntimeComponent {
-        override fun prepare(runtimeContext: RuntimeContext) = Unit
+        override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
         override fun start() = Unit
 
@@ -336,8 +490,65 @@ internal class WowAutoConfigurationTest {
         override fun isRunning(): Boolean = false
     }
 
+    private class DisposableRuntimeComponent :
+        PlainRuntimeComponent(),
+        DisposableBean {
+        override fun destroy() = Unit
+    }
+
+    private class CloseableRuntimeComponent :
+        PlainRuntimeComponent(),
+        AutoCloseable {
+        val closeCount = AtomicInteger()
+
+        override fun close() {
+            closeCount.incrementAndGet()
+        }
+    }
+
+    private class PreDestroyRuntimeComponent : PlainRuntimeComponent() {
+        @PreDestroy
+        fun destroy() = Unit
+    }
+
+    private class ExplicitDestroyRuntimeComponent : PlainRuntimeComponent() {
+        fun release() = Unit
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    private class ExplicitDestroyRuntimeComponentConfiguration {
+        @Bean(destroyMethod = "release")
+        fun explicitDestroyRuntimeComponent(): RuntimeComponent =
+            ExplicitDestroyRuntimeComponent()
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    private class DisabledDestroyRuntimeComponentConfiguration {
+        @Bean(destroyMethod = "")
+        fun disabledDestroyRuntimeComponent(): CloseableRuntimeComponent =
+            CloseableRuntimeComponent()
+    }
+
+    private class RuntimeComponentProxyBeanPostProcessor : BeanPostProcessor {
+        override fun postProcessAfterInitialization(bean: Any, beanName: String): Any {
+            if (beanName != "proxiedDisposableRuntimeComponent") {
+                return bean
+            }
+            return ProxyFactory(bean).apply {
+                setInterfaces(RuntimeComponent::class.java)
+            }.proxy
+        }
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    private class ProxiedDisposableRuntimeComponentConfiguration {
+        @Bean
+        fun proxiedDisposableRuntimeComponent(): RuntimeComponent =
+            DisposableRuntimeComponent()
+    }
+
     private class RuntimeComponentFactoryBean : FactoryBean<RuntimeComponent> {
-        private val component = PlainRuntimeComponent()
+        private val component = CloseableRuntimeComponent()
 
         override fun getObject(): RuntimeComponent = component
 
@@ -351,6 +562,17 @@ internal class WowAutoConfigurationTest {
         @Bean
         fun factoryRuntimeComponent(): RuntimeComponentFactoryBean =
             RuntimeComponentFactoryBean()
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    private class CustomWowRuntimeConfiguration {
+        @Bean(WOW_RUNTIME_BEAN_NAME, destroyMethod = "")
+        fun customWowRuntime(): WowRuntime =
+            WowRuntime(
+                components = emptyList(),
+                shutdownTimeout = Duration.ofMinutes(5),
+                shutdownQuietPeriod = Duration.ZERO,
+            )
     }
 
     @Configuration(proxyBeanMethods = false)

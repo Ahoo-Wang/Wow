@@ -40,6 +40,8 @@ import java.util.concurrent.ConcurrentHashMap
  * @property functionRegistrar The registrar containing event processing functions
  * @property eventHandler The handler for processing individual events
  * @property scheduler The scheduler for managing event processing concurrency
+ * @param messageReadiness Completion of asynchronous message-source setup when
+ * this dispatcher is registered directly with a runtime
  *
  * @constructor Creates a new AggregateEventDispatcher with the specified parameters
  *
@@ -58,8 +60,11 @@ class AggregateEventDispatcher(
     override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     override val functionRegistrar: MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>,
     override val eventHandler: EventHandler,
-    override val scheduler: Scheduler
-) : AbstractAggregateEventDispatcher<EventStreamExchange>() {
+    override val scheduler: Scheduler,
+    messageReadiness: Mono<Void> = Mono.empty(),
+) : AbstractAggregateEventDispatcher<EventStreamExchange>(
+    messageReadiness = messageReadiness,
+) {
     /**
      * Creates a domain event exchange from an event stream exchange and domain event.
      *

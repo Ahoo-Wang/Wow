@@ -52,10 +52,13 @@ import java.util.concurrent.atomic.AtomicReference
  * Example usage:
  * ```kotlin
  * class CustomAggregateDispatcher(
+ *     private val receiver: MessageReceiver<CommandExchange>,
  *     override val parallelism: Int = 4,
  *     override val scheduler: Scheduler = Schedulers.boundedElastic(),
- *     override val messageFlux: Flux<CommandExchange> = commandBus.receive(subscription)
- * ) : AggregateDispatcher<CommandExchange>() {
+ * ) : AggregateDispatcher<CommandExchange>(
+ *     messageReadiness = receiver.readiness,
+ * ) {
+ *     override val messageFlux: Flux<CommandExchange> = receiver.messages
  *
  *     override fun CommandExchange.toGroupKey(): Int {
  *         return command.aggregateId.hashCode() % parallelism
@@ -68,7 +71,7 @@ import java.util.concurrent.atomic.AtomicReference
  * }
  *
  * // Usage
- * val dispatcher = CustomAggregateDispatcher()
+ * val dispatcher = CustomAggregateDispatcher(commandBus.receiver(subscription))
  * val runtime = WowRuntime(
  *     components = listOf(dispatcher),
  *     shutdownTimeout = Duration.ofSeconds(30),
@@ -81,6 +84,9 @@ import java.util.concurrent.atomic.AtomicReference
  * @param T The type of message exchange being handled, must implement MessageExchange
  * @param cleanupDispatcher Bounded dispatcher used for detached physical
  * cancellation.
+ * @param messageReadiness Completion signal for asynchronous message-source
+ * initialization. The message flux is subscribed before this signal is
+ * awaited.
  *
  * @see MessageDispatcher for the interface this class implements
  * @see SafeSubscriber for error handling capabilities
@@ -90,6 +96,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
     private val cleanupDispatcher: (Runnable) -> Boolean = { action ->
         RuntimeCleanupExecutor.execute(action)
     },
+    private val messageReadiness: Mono<Void> = Mono.empty(),
 ) :
     SafeSubscriber<Void>(),
     MessageDispatcher,
@@ -203,23 +210,25 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
      * @see stopGracefully for graceful shutdown
      * @see toGroupKey for grouping logic
      */
-    final override fun prepare(runtimeContext: RuntimeContext) {
-        val preparedDemandGate = DemandGateFlux(messageFlux) { cancellation ->
-            scheduleDetachedCleanup("late source cancellation", cancellation)
-        }
-        synchronized(lifecycleMonitor) {
-            check(state == State.NEW) {
-                "[$name] Dispatcher can only be prepared once. Current state: $state."
+    final override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+        Mono.fromRunnable<Void> {
+            val preparedDemandGate = DemandGateFlux(messageFlux) { cancellation ->
+                scheduleDetachedCleanup("late source cancellation", cancellation)
             }
-            this.runtimeContext = runtimeContext
-            demandGate = preparedDemandGate
-            state = State.PREPARED
+            synchronized(lifecycleMonitor) {
+                check(state == State.NEW) {
+                    "[$name] Dispatcher can only be prepared once. Current state: $state."
+                }
+                this.runtimeContext = runtimeContext
+                demandGate = preparedDemandGate
+                state = State.PREPARED
+            }
+            log.info {
+                "[$name] Prepare subscription to $namedAggregate."
+            }
+            subscribeMessagePipeline(runtimeContext, preparedDemandGate)
         }
-        log.info {
-            "[$name] Prepare subscription to $namedAggregate."
-        }
-        subscribeMessagePipeline(runtimeContext, preparedDemandGate)
-    }
+            .then(messageReadiness)
 
     @Suppress("TooGenericExceptionCaught")
     private fun subscribeMessagePipeline(

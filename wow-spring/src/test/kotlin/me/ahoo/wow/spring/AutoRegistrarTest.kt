@@ -69,9 +69,10 @@ class AutoRegistrarTest {
             Supplier { registrar },
         )
         val runtimeComponent = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) {
-                calls += "prepare"
-            }
+            override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+                Mono.fromRunnable {
+                    calls += "prepare"
+                }
 
             override fun start() {
                 calls += "start"

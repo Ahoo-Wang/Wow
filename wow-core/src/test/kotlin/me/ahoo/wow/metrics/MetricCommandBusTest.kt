@@ -21,6 +21,7 @@ import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.wait.TestCommandMessage
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
@@ -28,10 +29,28 @@ import org.junit.jupiter.api.Test
 import reactor.core.Scannable
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.publisher.Sinks
 import reactor.test.StepVerifier
+import java.util.concurrent.TimeUnit
 import io.micrometer.core.instrument.Metrics as MicrometerMetrics
 
 class MetricCommandBusTest {
+
+    @Test
+    fun `receiver preserves delegate readiness`() {
+        val readiness = Sinks.empty<Void>()
+        val command = TestCommandMessage(id = "command-id")
+        val receiver = MetricCommandBus(
+            RecordingLocalCommandBus(readiness = readiness.asMono()),
+        ).receiver(
+            MessageSubscription(command.aggregateId.namedAggregate),
+        )
+        val ready = receiver.readiness.toFuture()
+
+        ready.isDone.assert().isFalse()
+        readiness.tryEmitEmpty().orThrow()
+        ready.get(1, TimeUnit.SECONDS)
+    }
 
     @Test
     fun `send should name publisher and delegate command`() {
@@ -153,6 +172,7 @@ class MetricCommandBusTest {
 private class RecordingLocalCommandBus(
     private val subscribers: Int = 0,
     private val receiveFlux: Flux<ServerCommandExchange<*>> = Flux.empty(),
+    private val readiness: Mono<Void> = Mono.empty(),
 ) : LocalCommandBus {
     val sent: MutableList<CommandMessage<*>> = mutableListOf()
     val received: MutableList<MessageSubscription> = mutableListOf()
@@ -168,6 +188,14 @@ private class RecordingLocalCommandBus(
         received += subscription
         return receiveFlux
     }
+
+    override fun receiver(
+        subscription: MessageSubscription,
+    ): MessageReceiver<ServerCommandExchange<*>> =
+        MessageReceiver(
+            messages = receive(subscription),
+            readiness = readiness,
+        )
 
     override fun subscriberCount(namedAggregate: NamedAggregate): Int = subscribers
 

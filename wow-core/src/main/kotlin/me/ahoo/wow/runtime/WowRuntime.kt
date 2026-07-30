@@ -190,45 +190,46 @@ class WowRuntime private constructor(
      *
      * Startup failure is composed with its asynchronous rollback, so callers
      * observe one consistent terminal result without blocking a Reactor worker.
+     * Cancelling the startup subscription aborts and force-stops this one-shot
+     * runtime.
      */
     @Suppress("TooGenericExceptionCaught")
     fun start(): Mono<Void> =
-        Mono.defer {
-            try {
-                startComponents()
-                Mono.empty()
-            } catch (startFailure: Throwable) {
+        Mono.defer(::startComponents)
+            .onErrorResume { startFailure ->
                 Exceptions.throwIfFatal(startFailure)
                 rollbackAfterStartFailure(startFailure)
             }
-        }
+            .doOnCancel(::forceStop)
 
-    private fun startComponents() {
+    private fun startComponents(): Mono<Void> {
         synchronized(lifecycleMonitor) {
             check(state == State.NEW) {
                 "WowRuntime can only be started once. Current state: $state."
             }
             state = State.STARTING
         }
-        val prepared = componentGroup.prepare(
+        return componentGroup.prepare(
             runtimeContext = runtimeContext,
             admissionGate = ::admitComponentLifecycleAction,
             afterEach = ::ensureStartupContinues,
-        )
-        if (!prepared) {
-            ensureStartupContinues()
-        }
-        val started = componentGroup.start(
-            admissionGate = ::admitComponentLifecycleAction,
-            afterEach = ::ensureStartupContinues,
-        )
-        if (!started) {
-            ensureStartupContinues()
-        }
-        synchronized(lifecycleMonitor) {
-            throwIfStartupFailed()
-            ensureStarting()
-            state = State.RUNNING
+        ).flatMap { prepared ->
+            if (!prepared) {
+                ensureStartupContinues()
+            }
+            val started = componentGroup.start(
+                admissionGate = ::admitComponentLifecycleAction,
+                afterEach = ::ensureStartupContinues,
+            )
+            if (!started) {
+                ensureStartupContinues()
+            }
+            synchronized(lifecycleMonitor) {
+                throwIfStartupFailed()
+                ensureStarting()
+                state = State.RUNNING
+            }
+            Mono.empty()
         }
     }
 

@@ -23,14 +23,17 @@ private runtimes.
 
 ## Package and responsibility boundaries
 
-- `me.ahoo.wow.runtime` contains the public orchestration model:
-  `WowRuntime`, `RuntimeComponent`, `RuntimeContext`, and `RuntimeActivity`.
-- `me.ahoo.wow.runtime.internal` contains state machines, component grouping,
-  deadlines, bounded cleanup and terminal-signal delivery, and failure
-  accumulation.
-- `me.ahoo.wow.infra.lifecycle` remains the runtime-independent capability
-  package. Generic `Lifecycle`, `GracefullyStoppable`, and
-  `TerminatedSignalCapable` contracts do not depend on Wow runtime policy.
+- `me.ahoo.wow.runtime` contains the public orchestration model and
+  `WowRuntime`'s private whole-runtime state and policy: lifecycle state,
+  shutdown ownership, deadline scheduling, force cleanup, and terminal sealing.
+- `me.ahoo.wow.runtime.internal` contains reusable concurrency mechanisms:
+  admission and activity tracking, ordered component grouping, execution-resource
+  isolation, bounded terminal delivery, and failure accumulation.
+- `me.ahoo.wow.infra.lifecycle` contains runtime-independent shutdown and
+  terminal-observation capabilities. `GracefullyStoppable` and
+  `TerminatedSignalCapable` do not define startup, readiness, ordering, or Wow
+  runtime policy. The redundant generic `Lifecycle` start/stop contract is
+  removed.
 - `me.ahoo.wow.spring` contains only Spring integration and component discovery
   helpers. It does not own core runtime state.
 
@@ -43,7 +46,7 @@ flowchart LR
   R --> I["infra.lifecycle"]
 ```
 
-The generic lifecycle package is therefore not moved under `runtime`.
+The generic capability package is therefore not moved under `runtime`.
 
 ## Component contract
 
@@ -51,7 +54,7 @@ The generic lifecycle package is therefore not moved under `runtime`.
 
 ```kotlin
 interface RuntimeComponent {
-    fun prepare(runtimeContext: RuntimeContext)
+    fun prepare(runtimeContext: RuntimeContext): Mono<Void>
     fun start()
     fun quiesce() = Unit
     fun stopGracefully(): Mono<Void>
@@ -62,7 +65,8 @@ interface RuntimeComponent {
 The rules are:
 
 - Construction is inert.
-- `prepare` acquires subscriptions or resources without opening processing.
+- `prepare` acquires subscriptions or resources without opening processing and
+  completes only when the component can retain admitted work without loss.
 - `start` opens processing only after every component is prepared.
 - `quiesce` promptly and synchronously closes component intake after global
   admission closes.
@@ -85,19 +89,28 @@ Startup is a two-pass operation:
 ```mermaid
 flowchart LR
   A["Register handlers"] --> P["Prepare all components"]
-  P --> S["Subscribe all sources<br/>without demand"]
-  S --> O["Start all components<br/>open demand"]
+  P --> S["Subscribe sources and<br/>await transport readiness"]
+  S --> O["Start all components<br/>open processing"]
   O --> I["Open application ingress"]
 ```
 
-Preparing all downstream subscriptions before opening any source demand avoids
-losing messages on in-memory transports. Command, event, projection, and saga
-flows form a dependency cycle, so startup cannot be represented as a simple
-publisher-first DAG.
+Preparing all downstream subscriptions and transport retention points before
+opening any dispatcher processing avoids startup loss. In-memory transports are
+ready once the subscription is installed behind its demand gate. Redis is ready
+after all consumer groups exist at `latest`; stream reads remain closed until
+dispatcher demand opens, so readiness alone cannot move entries into the PEL.
+Kafka is ready after assignment and fetch-position resolution, and after the
+resolved position has been synchronously committed for every assigned partition
+that has no existing group offset. Existing committed offsets are never
+advanced by readiness. Command, event, projection, and saga flows form a
+dependency cycle, so startup cannot be represented as a simple publisher-first
+DAG.
 
 `WowRuntime.start()` returns `Mono<Void>`. A startup failure is composed with
 its asynchronous rollback; it does not block a Reactor non-blocking worker.
-Prepared components roll back in reverse order.
+Lifecycle-entered components roll back in reverse order. Cancelling the startup
+subscription aborts and force-stops the one-shot runtime before cancellation is
+propagated to an in-flight preparation publisher.
 
 ## Graceful shutdown
 
@@ -165,8 +178,8 @@ boundary:
 
 1. Find local `RuntimeComponent` bean names.
 2. Require each component bean to be a singleton.
-3. Obtain the exposed bean instance and reject a competing Spring
-   `Lifecycle` owner.
+3. Obtain the exposed bean instance and reject a competing Spring `Lifecycle`
+   or standard Spring destruction owner.
 4. Sort using Spring's `PriorityOrdered`, `Ordered`, and factory-method
    `@Order` semantics.
 5. Pass the immutable list to `WowRuntime`.
@@ -175,6 +188,8 @@ Only local bean names are collected; a child context never takes ownership of a
 parent component. The runtime invokes the exposed proxy itself, so AOP advice
 runs exactly once. It does not unwrap `TargetSource` objects or bypass advice.
 A JDK proxy that participates in the runtime must expose `RuntimeComponent`.
+For a `FactoryBean` product, Spring owns destruction of the factory rather than
+the product, so factory destruction metadata is not attributed to the component.
 
 The resulting boundary is:
 
@@ -189,7 +204,9 @@ local singleton RuntimeComponent beans
 `WowRuntimeLifecycle` is the only `SmartLifecycle` owner. Its phase precedes
 Spring Boot web ingress on startup and follows ingress shutdown on stop. The
 default Spring lifecycle processor receives a per-phase timeout of
-`wow.shutdown-timeout + 1s`. A user-provided `DefaultLifecycleProcessor` is
+the selected `WowRuntime.shutdownTimeout + 1s`. This remains correct when an
+application supplies a custom `WowRuntime` whose timeout differs from
+`wow.shutdown-timeout`. A user-provided `DefaultLifecycleProcessor` is
 configured the same way; other lifecycle processor implementations own their
 timeout policy.
 
@@ -215,10 +232,13 @@ context instead of stopping and restarting the same runtime.
   of subclassing a dispatcher lifecycle template. `MainDispatcher` retains only
   the narrow cleanup hooks required by scheduler-owning framework
   implementations.
-- Keep generic lifecycle-only types under `me.ahoo.wow.infra.lifecycle`; only
-  components participating in readiness, global quiescence, and shared failure
-  policy belong to `me.ahoo.wow.runtime`.
+- Keep standalone resources in their responsibility-owning module and package;
+  they may implement the narrow capabilities declared in
+  `me.ahoo.wow.infra.lifecycle`. Only components participating in readiness,
+  global quiescence, and shared failure policy implement
+  `me.ahoo.wow.runtime.RuntimeComponent`.
 
 This intentionally breaks the earlier internal runtime API. The removed
 ownership handles, compatibility adapters, launcher factories, marker
-interfaces, and registry validation are not migration targets.
+interfaces, synchronous `RuntimeComponent.prepare` signature, and registry
+validation are not migration targets.

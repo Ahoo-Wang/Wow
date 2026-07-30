@@ -154,7 +154,7 @@ class WowRuntimeTest {
     @Test
     fun `duration overflow fails before runtime construction`() {
         val component = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) = Unit
+            override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
             override fun start() = Unit
 
@@ -176,6 +176,160 @@ class WowRuntimeTest {
     }
 
     @Test
+    fun `runtime starts no component until every asynchronous preparation completes`() {
+        val calls = CopyOnWriteArrayList<String>()
+        val firstReady = Sinks.empty<Void>()
+        val secondReady = Sinks.empty<Void>()
+        val firstPrepared = CountDownLatch(1)
+        val secondPrepared = CountDownLatch(1)
+
+        fun component(
+            name: String,
+            readiness: Sinks.Empty<Void>,
+            prepared: CountDownLatch,
+        ): RuntimeComponent =
+            object : RuntimeComponent {
+                override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+                    Mono.defer {
+                        calls += "prepare:$name"
+                        prepared.countDown()
+                        readiness.asMono()
+                    }
+
+                override fun start() {
+                    calls += "start:$name"
+                }
+
+                override fun stopGracefully(): Mono<Void> = Mono.empty()
+
+                override fun forceStop() {
+                    readiness.tryEmitError(IllegalStateException("cancelled"))
+                }
+            }
+
+        val runtime = WowRuntime(
+            components = listOf(
+                component("first", firstReady, firstPrepared),
+                component("second", secondReady, secondPrepared),
+            ),
+            shutdownTimeout = Duration.ofSeconds(1),
+            shutdownQuietPeriod = Duration.ZERO,
+        )
+        val startup = runtime.start().toFuture()
+
+        firstPrepared.await(1, TimeUnit.SECONDS).assert().isTrue()
+        calls.assert().doesNotContain("start:first", "start:second")
+        firstReady.tryEmitEmpty().orThrow()
+        secondPrepared.await(1, TimeUnit.SECONDS).assert().isTrue()
+        calls.assert().doesNotContain("start:first", "start:second")
+
+        secondReady.tryEmitEmpty().orThrow()
+        startup.get(1, TimeUnit.SECONDS)
+        calls.assert().containsExactly(
+            "prepare:first",
+            "prepare:second",
+            "start:first",
+            "start:second",
+        )
+        StepVerifier.create(runtime.stopGracefully()).verifyComplete()
+    }
+
+    @Test
+    fun `asynchronous preparation failure rolls back prepared components in reverse order`() {
+        val calls = mutableListOf<String>()
+        val failure = IllegalStateException("readiness")
+
+        fun component(name: String, preparation: Mono<Void>): RuntimeComponent =
+            object : RuntimeComponent {
+                override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+                    Mono.defer {
+                        calls += "prepare:$name"
+                        preparation
+                    }
+
+                override fun start() {
+                    calls += "start:$name"
+                }
+
+                override fun stopGracefully(): Mono<Void> =
+                    Mono.fromRunnable {
+                        calls += "stop:$name"
+                    }
+
+                override fun forceStop() {
+                    calls += "force:$name"
+                }
+            }
+
+        val runtime = WowRuntime(
+            components = listOf(
+                component("first", Mono.empty()),
+                component("failing", Mono.error(failure)),
+            ),
+            shutdownTimeout = Duration.ofSeconds(1),
+            shutdownQuietPeriod = Duration.ZERO,
+        )
+
+        runtime.awaitStartFailure().assert().isSameAs(failure)
+        calls.assert().containsExactly(
+            "prepare:first",
+            "prepare:failing",
+            "stop:failing",
+            "stop:first",
+        )
+    }
+
+    @Test
+    fun `cancelling startup force stops before propagating cancellation`() {
+        val calls = CopyOnWriteArrayList<String>()
+        val prepareSubscribed = CountDownLatch(1)
+        val forceInvoked = CountDownLatch(1)
+        val cancellationObserved = CountDownLatch(1)
+        val component = object : RuntimeComponent {
+            override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+                Mono.never<Void>()
+                    .doOnSubscribe {
+                        calls += "prepare"
+                        prepareSubscribed.countDown()
+                    }
+                    .doOnCancel {
+                        forceInvoked.await(1, TimeUnit.SECONDS).assert().isTrue()
+                        cancellationObserved.countDown()
+                    }
+
+            override fun start() {
+                calls += "start"
+            }
+
+            override fun stopGracefully(): Mono<Void> =
+                Mono.fromRunnable {
+                    calls += "stop"
+                }
+
+            override fun forceStop() {
+                calls += "force"
+                forceInvoked.countDown()
+            }
+        }
+        val runtime = WowRuntime(
+            components = listOf(component),
+            shutdownTimeout = Duration.ofSeconds(1),
+            shutdownQuietPeriod = Duration.ZERO,
+        )
+
+        val startup = runtime.start().subscribe()
+        prepareSubscribed.await(1, TimeUnit.SECONDS).assert().isTrue()
+        startup.dispose()
+
+        cancellationObserved.await(1, TimeUnit.SECONDS).assert().isTrue()
+        StepVerifier.create(runtime.terminationSignal)
+            .expectComplete()
+            .verify(Duration.ofSeconds(1))
+        calls.assert().containsExactly("prepare", "force", "force")
+        runtime.isRunning.assert().isFalse()
+    }
+
+    @Test
     fun `termination observers use bounded workers without blocking runtime completion`() {
         val componentForced = AtomicBoolean()
         val blockedObserverCount = 4
@@ -190,7 +344,7 @@ class WowRuntimeTest {
         )
         val executionResources = immediateExecutionResources(terminationDispatcher)
         val component = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) = Unit
+            override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
             override fun start() = Unit
 
@@ -307,7 +461,7 @@ class WowRuntimeTest {
         val terminalFailure = AtomicReference<Throwable?>()
         val terminated = CountDownLatch(1)
         val component = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) = Unit
+            override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
             override fun start() = Unit
 
@@ -408,7 +562,7 @@ class WowRuntimeTest {
                 }
             }
         val component = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) = Unit
+            override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
             override fun start() = Unit
 
@@ -474,9 +628,10 @@ class WowRuntimeTest {
             }
         var capturedRuntimeContext: RuntimeContext? = null
         val component = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) {
-                capturedRuntimeContext = runtimeContext
-            }
+            override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+                Mono.fromRunnable {
+                    capturedRuntimeContext = runtimeContext
+                }
 
             override fun start() = Unit
 
@@ -536,7 +691,7 @@ class WowRuntimeTest {
                 }
             }
         val component = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) = Unit
+            override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
             override fun start() = Unit
 
@@ -632,7 +787,7 @@ class WowRuntimeTest {
         val forceInvocations = AtomicInteger()
         val startupScheduler = Schedulers.newSingle("wow-runtime-startup-test")
         val component = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) = Unit
+            override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
             override fun start() {
                 throw startFailure
@@ -874,9 +1029,10 @@ class WowRuntimeTest {
         val runtimeFailure = IllegalStateException("runtime")
         val lateCompensationFailure = IllegalArgumentException("late-compensation")
         val component = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) {
-                this.runtimeContext = runtimeContext
-            }
+            override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+                Mono.fromRunnable {
+                    this.runtimeContext = runtimeContext
+                }
 
             private lateinit var runtimeContext: RuntimeContext
 
@@ -1043,7 +1199,7 @@ class WowRuntimeTest {
         val quiescenceScheduler = Schedulers.newSingle("runtime-quiesce-test-boundary")
         val quiesceThread = AtomicReference<String?>()
         val component = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) = Unit
+            override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
             override fun start() = Unit
 
@@ -1312,7 +1468,7 @@ class WowRuntimeTest {
         val quiesceFailure = IllegalStateException("quiesce")
         val forceObservedInterrupted = AtomicBoolean(true)
         val component = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) = Unit
+            override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
             override fun start() = Unit
 
@@ -1420,9 +1576,10 @@ class WowRuntimeTest {
         val releaseForce = CountDownLatch(1)
         var capturedRuntimeContext: RuntimeContext? = null
         val component = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) {
-                capturedRuntimeContext = runtimeContext
-            }
+            override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+                Mono.fromRunnable {
+                    capturedRuntimeContext = runtimeContext
+                }
 
             override fun start() = Unit
 
@@ -1860,11 +2017,12 @@ class WowRuntimeTest {
         val resourceOpen = AtomicBoolean()
         val forceInvocations = AtomicInteger()
         val component = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) {
-                prepareStarted.countDown()
-                allowResourceAcquisition.await()
-                resourceOpen.set(true)
-            }
+            override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+                Mono.fromRunnable {
+                    prepareStarted.countDown()
+                    allowResourceAcquisition.await()
+                    resourceOpen.set(true)
+                }
 
             override fun start() = Unit
 
@@ -1907,10 +2065,11 @@ class WowRuntimeTest {
         val releasePrepare = CountDownLatch(1)
         val forceInvoked = CountDownLatch(1)
         val component = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) {
-                prepareEntered.countDown()
-                releasePrepare.await()
-            }
+            override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+                Mono.fromRunnable {
+                    prepareEntered.countDown()
+                    releasePrepare.await()
+                }
 
             override fun start() = Unit
 
@@ -1956,7 +2115,7 @@ class WowRuntimeTest {
         val releaseCancellation = CountDownLatch(1)
         val forceInvocations = AtomicInteger()
         val component = object : RuntimeComponent {
-            override fun prepare(runtimeContext: RuntimeContext) = Unit
+            override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
             override fun start() = Unit
 
@@ -2011,12 +2170,13 @@ class WowRuntimeTest {
         private val onStop: (() -> Unit)? = null,
     ) : RuntimeComponent {
         var runtimeContext: RuntimeContext? = null
-        override fun prepare(runtimeContext: RuntimeContext) {
-            this.runtimeContext = runtimeContext
-            calls += "prepare:$name"
-            onPrepare?.invoke(runtimeContext)
-            prepareFailure?.let { throw it }
-        }
+        override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+            Mono.fromRunnable {
+                this.runtimeContext = runtimeContext
+                calls += "prepare:$name"
+                onPrepare?.invoke(runtimeContext)
+                prepareFailure?.let { throw it }
+            }
 
         override fun start() {
             calls += "start:$name"

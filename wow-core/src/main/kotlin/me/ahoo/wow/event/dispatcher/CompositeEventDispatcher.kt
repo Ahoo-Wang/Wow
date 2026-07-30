@@ -143,32 +143,32 @@ open class CompositeEventDispatcher(
      *
      * This method ensures that both underlying dispatchers are started and ready to process events.
      */
-    final override fun prepare(runtimeContext: RuntimeContext) {
-        if (forceStopRequested.get()) {
-            return
-        }
-        this.runtimeContext = runtimeContext
-        val group = RuntimeComponentGroup(
-            listOf(eventStreamDispatcher, stateEventDispatcher),
-            runtimeContext::reportFailure,
-        )
-        val accepted = synchronized(childLifecycleMonitor) {
+    final override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+        Mono.defer {
             if (forceStopRequested.get()) {
-                false
-            } else {
-                check(eventComponentGroup == null) {
-                    "[$name] Event dispatcher group can only be installed once."
-                }
-                eventComponentGroup = group
-                true
+                return@defer Mono.empty()
             }
+            this.runtimeContext = runtimeContext
+            val group = RuntimeComponentGroup(
+                listOf(eventStreamDispatcher, stateEventDispatcher),
+                runtimeContext::reportFailure,
+            )
+            val accepted = synchronized(childLifecycleMonitor) {
+                if (forceStopRequested.get()) {
+                    false
+                } else {
+                    check(eventComponentGroup == null) {
+                        "[$name] Event dispatcher group can only be installed once."
+                    }
+                    eventComponentGroup = group
+                    true
+                }
+            }
+            if (!accepted) {
+                return@defer group.forceStop()?.let { Mono.error(it) } ?: Mono.empty()
+            }
+            group.prepare(runtimeContext).then()
         }
-        if (!accepted) {
-            group.forceStop()?.let { throw it }
-            return
-        }
-        group.prepare(runtimeContext)
-    }
 
     final override fun start() {
         if (forceStopRequested.get()) {

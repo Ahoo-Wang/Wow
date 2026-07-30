@@ -15,6 +15,7 @@ package me.ahoo.wow.messaging.dispatcher
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
 import me.ahoo.wow.runtime.RuntimeContext
@@ -100,6 +101,18 @@ abstract class MainDispatcher<T : Any> :
     abstract fun receiveMessage(subscription: MessageSubscription): Flux<T>
 
     /**
+     * Creates the message source together with its transport readiness signal.
+     *
+     * Existing synchronous sources may rely on this default. Dispatchers backed
+     * by an asynchronous transport should preserve the receiver returned by
+     * their message bus.
+     */
+    protected open fun createMessageReceiver(
+        subscription: MessageSubscription,
+    ): MessageReceiver<T> =
+        MessageReceiver(receiveMessage(subscription))
+
+    /**
      * Creates a new message dispatcher for a specific named aggregate.
      *
      * This method is responsible for instantiating a dispatcher that will handle messages
@@ -125,22 +138,31 @@ abstract class MainDispatcher<T : Any> :
      * and metrics context. This property is initialized on first access to avoid
      * unnecessary resource allocation.
      */
-    private val aggregateDispatchersLazy = lazy {
+    private data class AggregateDispatcherBinding(
+        val dispatcher: MessageDispatcher,
+        val readiness: Mono<Void>,
+    )
+
+    private val aggregateDispatcherBindingsLazy = lazy {
         namedAggregates
             .map {
                 val subscription = MessageSubscription(
                     namedAggregate = it,
                     receiverGroup = name,
                 )
-                val messageFlux =
-                    receiveMessage(subscription)
-                        .writeMetricsSubscriber(name)
-                newAggregateDispatcher(it, messageFlux)
+                val receiver = createMessageReceiver(subscription)
+                AggregateDispatcherBinding(
+                    dispatcher = newAggregateDispatcher(
+                        it,
+                        receiver.messages.writeMetricsSubscriber(name),
+                    ),
+                    readiness = receiver.readiness,
+                )
             }
     }
 
     protected val aggregateDispatchers: List<MessageDispatcher>
-        get() = aggregateDispatchersLazy.value
+        get() = aggregateDispatcherBindingsLazy.value.map { it.dispatcher }
 
     @Volatile
     private var runtimeContext: RuntimeContext? = null
@@ -160,21 +182,22 @@ abstract class MainDispatcher<T : Any> :
      *
      * @throws RuntimeException if starting any aggregate dispatcher fails.
      */
-    final override fun prepare(runtimeContext: RuntimeContext) {
-        check(this.runtimeContext == null) {
-            "[$name] Dispatcher can only be prepared once."
+    final override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+        Mono.defer {
+            check(this.runtimeContext == null) {
+                "[$name] Dispatcher can only be prepared once."
+            }
+            this.runtimeContext = runtimeContext
+            prepareAggregateDispatchers(runtimeContext)
         }
-        this.runtimeContext = runtimeContext
-        prepareAggregateDispatchers(runtimeContext)
-    }
 
-    private fun prepareAggregateDispatchers(runtimeContext: RuntimeContext) {
+    private fun prepareAggregateDispatchers(runtimeContext: RuntimeContext): Mono<Void> {
         if (namedAggregates.isEmpty()) {
-            return
+            return Mono.empty()
         }
-        val dispatchers = aggregateDispatchers
+        val bindings = aggregateDispatcherBindingsLazy.value
         val group = RuntimeComponentGroup(
-            dispatchers,
+            bindings.map { it.dispatcher },
             runtimeContext::reportFailure,
         )
         val accepted = synchronized(childLifecycleMonitor) {
@@ -189,10 +212,16 @@ abstract class MainDispatcher<T : Any> :
             }
         }
         if (!accepted) {
-            group.forceStop()?.let { throw it }
-            return
+            return group.forceStop()?.let { Mono.error(it) } ?: Mono.empty()
         }
-        group.prepare(runtimeContext)
+        return group.prepare(runtimeContext)
+            .flatMap { prepared ->
+                if (!prepared || forceStopRequested.get()) {
+                    Mono.empty()
+                } else {
+                    Flux.merge(bindings.map { it.readiness }).then()
+                }
+            }
     }
 
     final override fun start() {

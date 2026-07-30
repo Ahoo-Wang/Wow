@@ -48,18 +48,24 @@ internal class RuntimeComponentGroup(
         runtimeContext: RuntimeContext,
         admissionGate: ((() -> Boolean) -> Boolean) = { admission -> admission() },
         afterEach: () -> Unit = {},
-    ): Boolean {
-        slots.forEach { slot ->
-            if (!admissionGate { beginPreparation(slot) }) {
-                return false
+    ): Mono<Boolean> =
+        Flux.fromIterable(slots)
+            .concatMap { slot ->
+                Mono.defer {
+                    if (!admissionGate { beginPreparation(slot) }) {
+                        return@defer Mono.just(false)
+                    }
+                    invokeLifecyclePublisher(slot) {
+                        slot.component.prepare(runtimeContext)
+                    }
+                        .doOnSuccess {
+                            afterEach()
+                        }
+                        .thenReturn(true)
+                }
             }
-            invokeLifecycleAction(slot) {
-                slot.component.prepare(runtimeContext)
-            }
-            afterEach()
-        }
-        return true
-    }
+            .takeUntil { prepared -> !prepared }
+            .last(true)
 
     /**
      * Closes component intake in registration order after global admission closes.
@@ -228,6 +234,47 @@ internal class RuntimeComponentGroup(
             throw compensationFailure
         }
     }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun invokeLifecyclePublisher(
+        slot: RuntimeComponentSlot,
+        action: () -> Mono<Void>,
+    ): Mono<Void> =
+        Mono.defer {
+            val compensationFailure = AtomicReference<Throwable?>()
+            Mono.using(
+                { true },
+                {
+                    val publisher = try {
+                        action()
+                    } catch (error: Throwable) {
+                        Exceptions.throwIfFatal(error)
+                        reportFailure(error)
+                        return@using Mono.error(error)
+                    }
+                    if (slot.isForceStarted) {
+                        return@using Mono.empty()
+                    }
+                    publisher.doOnError { error ->
+                        Exceptions.throwIfFatal(error)
+                        reportFailure(error)
+                    }
+                },
+                {
+                    compensationFailure.set(slot.completeLifecycleAction())
+                },
+                true,
+            )
+                .onErrorMap { actionFailure ->
+                    compensationFailure.get()?.let(actionFailure::addSuppressedIfAbsent)
+                    actionFailure
+                }
+                .then(
+                    Mono.defer {
+                        compensationFailure.get()?.let { Mono.error(it) } ?: Mono.empty()
+                    },
+                )
+        }
 
     private companion object {
         fun requireDistinctIdentities(components: List<RuntimeComponent>) {
