@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.messaging.handler
 
+import me.ahoo.wow.messaging.rejectLocalDelivery
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -74,7 +75,9 @@ object ExchangeAck {
             if (matched) {
                 Mono.just(true)
             } else {
-                it.acknowledge().thenReturn(false)
+                it.acknowledge()
+                    .thenReturn(false)
+                    .doFinally { _ -> it.rejectLocalDelivery() }
             }
         }
 }

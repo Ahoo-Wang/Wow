@@ -62,7 +62,7 @@ abstract class AbstractEventDispatcher<E : MessageExchange<*, *>, BUS : MessageB
     }
 
     override fun createMessageReceiver(subscription: MessageSubscription): MessageReceiver<E> =
-        messageBus.receiver(subscription)
+        messageBus.runtimeReceiver(subscription)
 
     override fun stopManagedGracefully(): Mono<Void> =
         schedulerSupplier.stopGracefully()

@@ -39,13 +39,15 @@ class MessageReceiverTest {
     }
 
     @Test
-    fun `mapping messages preserves readiness and processing admission`() {
+    fun `mapping messages preserves readiness and processing lifecycle`() {
         val readiness = Sinks.empty<Void>()
         val processingAdmissions = AtomicInteger()
+        val processingQuiescences = AtomicInteger()
         val receiver = MessageReceiver(
             messages = Flux.just(1),
             readiness = readiness.asMono(),
             processingAdmission = processingAdmissions::incrementAndGet,
+            processingQuiescence = processingQuiescences::incrementAndGet,
         ).mapMessages { messages ->
             messages.map(Int::toString)
         }
@@ -59,6 +61,26 @@ class MessageReceiverTest {
 
         receiver.openProcessing()
         receiver.openProcessing()
+        receiver.closeProcessing()
+        receiver.closeProcessing()
         processingAdmissions.get().assert().isOne()
+        processingQuiescences.get().assert().isOne()
+    }
+
+    @Test
+    fun `closing processing before open remains terminal`() {
+        val processingAdmissions = AtomicInteger()
+        val processingQuiescences = AtomicInteger()
+        val receiver = MessageReceiver(
+            messages = Flux.never<Int>(),
+            processingAdmission = processingAdmissions::incrementAndGet,
+            processingQuiescence = processingQuiescences::incrementAndGet,
+        )
+
+        receiver.closeProcessing()
+        receiver.openProcessing()
+
+        processingAdmissions.get().assert().isZero()
+        processingQuiescences.get().assert().isOne()
     }
 }

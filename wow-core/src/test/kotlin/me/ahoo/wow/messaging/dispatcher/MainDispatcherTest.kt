@@ -95,7 +95,9 @@ class MainDispatcherTest {
         StepVerifier.create(runtime.stopGracefully())
             .verifyComplete()
 
+        dispatcher.processingCloseCount.get().assert().isEqualTo(2)
         dispatcher.childIntakeCloseCalls.assert().hasSize(2)
+        dispatcher.closedProcessingCountsObservedByQuiesce.assert().containsExactly(2, 2)
         dispatcher.closedIntakeCountsObservedByStop.assert().containsExactly(2, 2)
         dispatcher.managedStopCount.get().assert().isOne()
         dispatcher.closedIntakeCountObservedByManagedStop.get().assert().isEqualTo(2)
@@ -221,10 +223,12 @@ class MainDispatcherTest {
         val createCount = AtomicInteger()
         val childStartCount = AtomicInteger()
         val processingOpenCount = AtomicInteger()
+        val processingCloseCount = AtomicInteger()
         val childStopCount = AtomicInteger()
         val managedStopCount = AtomicInteger()
         val childForceCalls = mutableListOf<String>()
         val childIntakeCloseCalls = mutableListOf<String>()
+        val closedProcessingCountsObservedByQuiesce = mutableListOf<Int>()
         val closedIntakeCountsObservedByStop = mutableListOf<Int>()
         val closedIntakeCountObservedByManagedStop = AtomicInteger(-1)
         val receiverGroups: Sinks.Many<String> = Sinks.many().replay().all()
@@ -247,6 +251,7 @@ class MainDispatcherTest {
             MessageReceiver(
                 messages = receiveMessage(subscription),
                 processingAdmission = processingOpenCount::incrementAndGet,
+                processingQuiescence = processingCloseCount::incrementAndGet,
             )
 
         override fun newAggregateDispatcher(
@@ -277,6 +282,7 @@ class MainDispatcherTest {
                 }
 
                 override fun quiesce() {
+                    closedProcessingCountsObservedByQuiesce += processingCloseCount.get()
                     childIntakeCloseCalls += name
                 }
 

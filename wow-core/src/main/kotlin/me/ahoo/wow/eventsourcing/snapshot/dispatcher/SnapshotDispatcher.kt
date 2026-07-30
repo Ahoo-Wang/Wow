@@ -60,7 +60,7 @@ class SnapshotDispatcher(
     override fun createMessageReceiver(
         subscription: MessageSubscription,
     ): MessageReceiver<StateEventExchange<*>> =
-        stateEventBus.receiver(subscription).mapMessages(::filterMessages)
+        stateEventBus.runtimeReceiver(subscription).mapMessages(::filterMessages)
 
     private fun filterMessages(
         messages: Flux<StateEventExchange<*>>,

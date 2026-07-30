@@ -62,6 +62,18 @@ interface MessageBus<M : Message<*, *>, E : MessageExchange<*, M>> : AutoCloseab
      */
     fun receiver(subscription: MessageSubscription): MessageReceiver<E> =
         MessageReceiver(receive(subscription))
+
+    /**
+     * Creates the message source owned by a [me.ahoo.wow.runtime.WowRuntime]
+     * dispatcher.
+     *
+     * The default preserves the ordinary receiver contract. Local buses may
+     * override this capability to participate in runtime-admission delivery
+     * receipts; custom consumers should use [receiver] unless they implement
+     * the same admission protocol.
+     */
+    fun runtimeReceiver(subscription: MessageSubscription): MessageReceiver<E> =
+        receiver(subscription)
 }
 
 /**
@@ -81,6 +93,18 @@ interface LocalMessageBus<M : Message<*, *>, E : MessageExchange<*, M>> : Messag
      * @return The number of subscribers for the aggregate
      */
     fun subscriberCount(namedAggregate: NamedAggregate): Int
+
+    /**
+     * Attempts local delivery only while a processing subscriber is routable.
+     *
+     * The conservative default disables local suppression. Implementations may
+     * return `true` only after every targeted local receiver has acquired its
+     * processing admission; sink acceptance or subscriber count alone is not
+     * sufficient.
+     *
+     * @return `true` only when local delivery remains valid after emission.
+     */
+    fun sendIfSubscribed(message: M): Mono<Boolean> = Mono.just(false)
 }
 
 /**

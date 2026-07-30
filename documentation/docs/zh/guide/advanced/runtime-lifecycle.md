@@ -176,21 +176,32 @@ sequenceDiagram
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:188-241, wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt:42-100, wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt:204-235, wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt:291-306 -->
 
 `MessageReceiver` 显式表达 transport readiness，但不引入第二个生命周期 owner：它包含
-一条 single-use 消息流、一个 hot 且可重放的就绪信号，以及一个幂等的
-processing-admission callback。Dispatcher 先订阅消息流并保持下游 demand 关闭，再由
-`prepare` 等待 readiness；全局 `start` pass 会开放 Dispatcher demand，并显式调用
-`openProcessing()`。Reactive prefetch 不能被当作生命周期准入。
+一条 single-use 消息流、一个 hot 且可重放的就绪信号，以及幂等的 processing 开启与
+关闭 callback。Dispatcher 先订阅消息流并保持下游 demand 关闭，再由 `prepare` 等待
+readiness；全局 `start` pass 会开放 Dispatcher demand，并显式调用
+`openProcessing()`；quiescence 会在 detached physical cancellation 之前调用
+`closeProcessing()`。Reactive prefetch 与仍然存在的物理订阅都不能被当作生命周期准入。
 
 | Transport | 就绪边界 |
 |---|---|
 | 同步/内存 | 消息订阅已安装在 Dispatcher demand gate 之后 |
 | Redis Streams | 全部 `XGROUP CREATE ... $ MKSTREAM` 已成功或返回 `BUSYGROUP`；`openProcessing()` 前不启动 stream read，因此 readiness 或下游 prefetch 都不会产生 PEL 记录 |
-| Kafka | 用户 assignment customizer 执行前先捕获 broker 分配的 position，再异步提交原始 position 与 customizer 后 position 中较早的一个；就绪不会推进既有 offset，也不会持久化 forward seek |
+| Kafka | 用户 assignment customizer 执行前先捕获 broker 分配的 position，再异步提交原始 position 与 customizer 后 position 中较早的一个；全部在途 assignment anchor 结算后才能就绪，cooperative retained partition 不会被重新分配或重新 anchor |
 
 该模型把“transport 已能保留新工作”和“Dispatcher 可以开始处理”明确分开。Kafka
 为了完成 assignment 和持久化初始保留边界，可以在 Dispatcher gate 关闭时进行内部
 poll；契约不要求所有 transport 的内部 demand 都保持为零。Kafka topic 应在 Runtime
 启动前完成预配置；readiness 负责协调 consumer，不负责部署期创建 topic。
+内置 in-memory bus 只向 local-first routing 暴露 processing-open 的订阅。如果本地发送
+成功，必须先由全部目标 Dispatcher 取得 runtime activity lease，并将 tracked exchange
+交接给处理 pipeline；sink 接受、进入缓冲区或仍存在物理订阅都不等于 delivery receipt。
+Runtime admission 拒绝、消息被过滤或路由发生变化时，distributed copy 会移除
+local-handled 标记并继续发送，同时 physical cancellation 仍保持 detached。该 receipt
+只证明准入成功，不证明 handler 已成功完成；后续 fatal pipeline failure 不会把已准入消息
+追溯改为 distributed fallback。普通 `receiver()` consumer 不参与 local suppression，
+因此不需要 receipt 协议。由 Runtime 管理的自定义 consumer 应通过 `runtimeReceiver()`
+显式加入该协议，并在完成等价的准入与交接后调用 `confirmLocalDelivery()`，无法接收时
+调用 `rejectLocalDelivery()`；内置 Dispatcher 会自动完成这些操作。
 [`MessageReceiver.kt:20-59`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageReceiver.kt#L20-L59)
 [`AggregateDispatcher.kt:204-235`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L204-L235)
 [`AggregateDispatcher.kt:291-306`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L291-L306)

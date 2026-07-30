@@ -74,7 +74,18 @@ open class MetricCommandBus<T : CommandBus>(
     override fun receiver(
         subscription: MessageSubscription,
     ): MessageReceiver<ServerCommandExchange<*>> =
-        delegate.receiver(subscription).mapMessages { messages ->
+        metricReceiver(delegate.receiver(subscription), subscription)
+
+    override fun runtimeReceiver(
+        subscription: MessageSubscription,
+    ): MessageReceiver<ServerCommandExchange<*>> =
+        metricReceiver(delegate.runtimeReceiver(subscription), subscription)
+
+    private fun metricReceiver(
+        receiver: MessageReceiver<ServerCommandExchange<*>>,
+        subscription: MessageSubscription,
+    ): MessageReceiver<ServerCommandExchange<*>> =
+        receiver.mapMessages { messages ->
             messages
                 .name(Wow.WOW_PREFIX + "command.receive")
                 .tagSource()
@@ -102,6 +113,15 @@ class MetricLocalCommandBus(
     delegate: LocalCommandBus
 ) : MetricCommandBus<LocalCommandBus>(delegate),
     LocalCommandBus {
+    override fun sendIfSubscribed(message: CommandMessage<*>): Mono<Boolean> =
+        delegate
+            .sendIfSubscribed(message)
+            .name(Wow.WOW_PREFIX + "command.send")
+            .tagSource()
+            .tag(Metrics.AGGREGATE_KEY, message.aggregateName)
+            .tag(Metrics.COMMAND_KEY, message.name)
+            .metrics()
+
     /**
      * Returns the number of subscribers for the specified named aggregate.
      * This delegates to the underlying local command bus implementation.

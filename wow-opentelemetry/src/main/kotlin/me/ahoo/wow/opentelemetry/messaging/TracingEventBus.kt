@@ -19,6 +19,7 @@ import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.event.LocalDomainEventBus
+import reactor.core.publisher.Mono
 
 class TracingLocalEventBus(
     override val delegate: LocalDomainEventBus,
@@ -26,6 +27,11 @@ class TracingLocalEventBus(
 ) :
     TracingMessageBus<DomainEventStream, EventStreamExchange, LocalDomainEventBus>,
     LocalDomainEventBus {
+    override fun sendIfSubscribed(message: DomainEventStream): Mono<Boolean> =
+        traceMessageSend(message, producerInstrumenter) {
+            delegate.sendIfSubscribed(message)
+        }
+
     override fun subscriberCount(namedAggregate: NamedAggregate): Int {
         return delegate.subscriberCount(namedAggregate)
     }

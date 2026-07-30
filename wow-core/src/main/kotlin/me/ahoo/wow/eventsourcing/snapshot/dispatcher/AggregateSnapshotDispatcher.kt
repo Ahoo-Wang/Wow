@@ -37,6 +37,7 @@ import reactor.core.scheduler.Scheduler
  * this dispatcher is registered directly with a runtime
  * @param processingAdmission explicit transport-processing gate opened by
  * [start]
+ * @param processingQuiescence logical transport gate closed by [quiesce]
  */
 class AggregateSnapshotDispatcher(
     override val name: String =
@@ -48,9 +49,11 @@ class AggregateSnapshotDispatcher(
     override val scheduler: Scheduler,
     messageReadiness: Mono<Void> = Mono.empty(),
     processingAdmission: () -> Unit = {},
+    processingQuiescence: () -> Unit = {},
 ) : AggregateDispatcher<StateEventExchange<*>>(
     messageReadiness = messageReadiness,
     processingAdmission = processingAdmission,
+    processingQuiescence = processingQuiescence,
 ),
     ProcessorInfo {
     /**

@@ -183,22 +183,36 @@ sequenceDiagram
 
 `MessageReceiver` makes transport readiness explicit without introducing a second
 lifecycle owner. It carries one single-use message stream, a hot replayable readiness
-signal, and one idempotent processing-admission callback. A dispatcher subscribes the
-message stream first, keeps downstream demand closed, and then awaits readiness from
+signal, and idempotent callbacks that open and close processing. A dispatcher subscribes
+the message stream first, keeps downstream demand closed, and then awaits readiness from
 `prepare`. The global `start` pass opens dispatcher demand and explicitly calls
-`openProcessing()`; reactive prefetch is never treated as lifecycle admission.
+`openProcessing()`; quiescence calls `closeProcessing()` before physical source
+cancellation is detached. Reactive prefetch and a still-physical subscription are never
+treated as lifecycle admission.
 
 | Transport | Readiness boundary |
 |---|---|
 | Synchronous/in-memory | The message subscription is installed behind the dispatcher demand gate |
 | Redis Streams | Every `XGROUP CREATE ... $ MKSTREAM` has succeeded or returned `BUSYGROUP`; stream reads remain closed until `openProcessing()`, so readiness or downstream prefetch cannot create PEL entries |
-| Kafka | The broker-assigned position is captured before user customizers, then the earlier of the original and customized positions is committed asynchronously; readiness never advances an existing offset or persists a forward seek |
+| Kafka | The broker-assigned position is captured before user customizers, then the earlier of the original and customized positions is committed asynchronously; all in-flight assignment anchors must settle before readiness, and cooperative retained partitions are not reassigned or re-anchored |
 
 This separates “the transport can retain new work” from “the dispatcher may process
 work.” Kafka may poll internally to establish assignment and persist the initial
 retention boundary even while the dispatcher gate is closed; the contract does not
 require every transport's internal demand to remain zero. Provision Kafka topics before
 runtime startup; readiness coordinates consumers, not deployment-time topic creation.
+Built-in in-memory buses advertise only processing-open subscriptions to local-first
+routing. Local delivery is confirmed only after every targeted dispatcher acquires a
+runtime activity lease and hands the tracked exchange to its processing pipeline; sink
+acceptance, buffering, and physical subscriber count are not delivery receipts.
+Admission rejection, filtering, or a route change sends the distributed copy without
+the local-handled flag while physical cancellation remains detached. This receipt proves
+admission, not handler success; a later fatal pipeline failure does not retroactively
+reroute an admitted message. Ordinary `receiver()` consumers do not participate in
+local suppression and need no receipt protocol. Runtime-owned custom consumers opt in
+through `runtimeReceiver()` and must call `confirmLocalDelivery()` after their
+equivalent admission/handoff, or `rejectLocalDelivery()` when they cannot accept the
+exchange. Built-in dispatchers do this automatically.
 [`MessageReceiver.kt:20-59`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageReceiver.kt#L20-L59)
 [`AggregateDispatcher.kt:204-235`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L204-L235)
 [`AggregateDispatcher.kt:291-306`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L291-L306)

@@ -102,13 +102,22 @@ implementation("me.ahoo.wow:wow-spring-boot-starter:新版本号")
 
    如果自定义 `MessageBus` 在订阅建立后仍不能立即无损保留新工作，必须 override
    `receiver`，返回 single-use 消息流、hot 且可重放的 readiness signal，以及幂等的
-   processing-admission callback；映射 receiver 时必须同时保留三者。Runtime 会先订阅、
-   等待 readiness，再在全局 start pass 调用 `openProcessing()`。Redis readiness 会
-   创建全部 consumer group，但无论下游是否 prefetch，都不会在该显式准入前启动
-   stream read。Kafka readiness 会异步持久化保守边界，即 broker 分配的原始
-   position 与用户 assignment customizer 执行后 position 中较早的一个；它不会推进
-   既有 group offset，forward seek 仅在正常处理提交后才会持久化。Kafka topic 必须
-   在 Runtime 启动前完成预配置。
+   processing 开启/关闭 callback；映射 receiver 时必须同时保留四者。Runtime 会先订阅、
+   等待 readiness，再在全局 start pass 调用 `openProcessing()`，并在 detached physical
+   cancellation 前调用 `closeProcessing()`。Redis readiness 会创建全部 consumer group，
+   但无论下游是否 prefetch，都不会在该显式准入前启动 stream read。Kafka readiness 会
+   异步持久化保守边界，即 broker 分配的原始 position 与用户 assignment customizer
+   执行后 position 中较早的一个；全部在途 assignment anchor 结算后才能就绪，
+   cooperative retained partition 不会重新 anchor。forward seek 仅在正常处理提交后
+   才会持久化。Kafka topic 必须在 Runtime 启动前完成预配置。
+   自定义 `LocalMessageBus` 会继承保守的 `sendIfSubscribed` fallback，并关闭 local
+   suppression。只有当 `true` 能证明全部目标本地 receiver 已取得 processing admission
+   时才应 override；`subscriberCount()` 与 `send()` 的组合不是原子操作，也不能作为
+   delivery receipt。普通 `receiver()` consumer 不参与 local suppression，也不需要
+   receipt 协议。由 Runtime 管理的自定义 consumer 应通过内置 in-memory bus 的
+   `runtimeReceiver()` 显式加入，并在完成 runtime admission 与进程内交接后调用
+   `confirmLocalDelivery()`；消息被过滤或无法准入时调用 `rejectLocalDelivery()`。
+   内置 Dispatcher 会自动完成该协议。
 4. 运行时拥有的 Spring Bean 必须是 singleton，且 Bean 声明返回类型必须暴露
    `RuntimeComponent` 或其子类型（如 `MessageDispatcher`）。应从这些 Bean 移除
    Spring `Lifecycle`/`SmartLifecycle`、`DisposableBean`、`@PreDestroy` 与显式

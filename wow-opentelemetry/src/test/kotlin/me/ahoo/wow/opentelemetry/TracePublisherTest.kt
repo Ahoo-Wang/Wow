@@ -123,6 +123,35 @@ class TracePublisherTest {
     }
 
     @Test
+    fun `local delivery receipt preserves producer tracing`() {
+        val traceContext = Context.root()
+        val message = mockk<CommandMessage<*>>()
+        val delegate = mockk<LocalCommandBus> {
+            every { sendIfSubscribed(message) } returns Mono.just(false)
+        }
+        val instrumenter = mockk<Instrumenter<CommandMessage<*>, Unit>> {
+            every { shouldStart(traceContext, message) } returns true
+            every { start(traceContext, message) } returns traceContext
+            every { end(traceContext, message, null, null) } just runs
+        }
+
+        TracingLocalCommandBus(delegate, instrumenter)
+            .sendIfSubscribed(message)
+            .test()
+            .expectNext(false)
+            .verifyComplete()
+
+        verify(exactly = 1) {
+            delegate.sendIfSubscribed(message)
+            instrumenter.shouldStart(traceContext, message)
+            instrumenter.end(traceContext, message, null, null)
+        }
+        verify(exactly = 0) {
+            delegate.send(message)
+        }
+    }
+
+    @Test
     fun `should propagate trace context to nested publisher across thread boundary`() {
         val contextKey = ContextKey.named<String>("nested-publisher-context")
         val parentTraceContext = Context.root().with(contextKey, "parent")

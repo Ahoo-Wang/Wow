@@ -53,6 +53,17 @@ class MetricCommandBusTest {
     }
 
     @Test
+    fun `runtime receiver preserves delegate runtime admission protocol`() {
+        val command = TestCommandMessage(id = "command-id")
+        val delegate = RecordingLocalCommandBus()
+        val subscription = MessageSubscription(command.aggregateId.namedAggregate)
+
+        MetricCommandBus(delegate).runtimeReceiver(subscription)
+
+        delegate.runtimeSubscriptions.assert().containsExactly(subscription)
+    }
+
+    @Test
     fun `send should name publisher and delegate command`() {
         val delegate = RecordingLocalCommandBus()
         val command = TestCommandMessage(id = "command-id")
@@ -153,6 +164,20 @@ class MetricCommandBusTest {
         delegate.closed.assert().isTrue()
     }
 
+    @Test
+    fun `local command bus preserves atomic delivery receipt`() {
+        val command = TestCommandMessage(id = "command-id")
+        val delegate = RecordingLocalCommandBus(localDelivery = false)
+        val commandBus = MetricLocalCommandBus(delegate)
+
+        StepVerifier.create(commandBus.sendIfSubscribed(command))
+            .expectNext(false)
+            .verifyComplete()
+
+        delegate.localDeliveryAttempts.single().assert().isSameAs(command)
+        delegate.sent.assert().isEmpty()
+    }
+
     private fun withMeterRegistry(block: (SimpleMeterRegistry) -> Unit) {
         val meterRegistry = SimpleMeterRegistry()
         MicrometerMetrics.addRegistry(meterRegistry)
@@ -173,15 +198,24 @@ private class RecordingLocalCommandBus(
     private val subscribers: Int = 0,
     private val receiveFlux: Flux<ServerCommandExchange<*>> = Flux.empty(),
     private val readiness: Mono<Void> = Mono.empty(),
+    private val localDelivery: Boolean = false,
 ) : LocalCommandBus {
     val sent: MutableList<CommandMessage<*>> = mutableListOf()
+    val localDeliveryAttempts: MutableList<CommandMessage<*>> = mutableListOf()
     val received: MutableList<MessageSubscription> = mutableListOf()
+    val runtimeSubscriptions: MutableList<MessageSubscription> = mutableListOf()
     var closed: Boolean = false
         private set
 
     override fun send(message: CommandMessage<*>): Mono<Void> =
         Mono.fromRunnable {
             sent += message
+        }
+
+    override fun sendIfSubscribed(message: CommandMessage<*>): Mono<Boolean> =
+        Mono.fromSupplier {
+            localDeliveryAttempts += message
+            localDelivery
         }
 
     override fun receive(subscription: MessageSubscription): Flux<ServerCommandExchange<*>> {
@@ -196,6 +230,13 @@ private class RecordingLocalCommandBus(
             messages = receive(subscription),
             readiness = readiness,
         )
+
+    override fun runtimeReceiver(
+        subscription: MessageSubscription,
+    ): MessageReceiver<ServerCommandExchange<*>> =
+        receiver(subscription).also {
+            runtimeSubscriptions += subscription
+        }
 
     override fun subscriberCount(namedAggregate: NamedAggregate): Int = subscribers
 

@@ -19,12 +19,18 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
+import reactor.core.publisher.Mono
 
 class TracingLocalCommandBus(
     override val delegate: LocalCommandBus,
     override val producerInstrumenter: Instrumenter<CommandMessage<*>, Unit> = CommandProducerInstrumenter.INSTRUMENTER
 ) : TracingMessageBus<CommandMessage<*>, ServerCommandExchange<*>, LocalCommandBus>,
     LocalCommandBus {
+    override fun sendIfSubscribed(message: CommandMessage<*>): Mono<Boolean> =
+        traceMessageSend(message, producerInstrumenter) {
+            delegate.sendIfSubscribed(message)
+        }
+
     override fun subscriberCount(namedAggregate: NamedAggregate): Int {
         return delegate.subscriberCount(namedAggregate)
     }

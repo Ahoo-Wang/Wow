@@ -124,11 +124,12 @@ abstract class AbstractKafkaBus<M, E>(
     override fun receive(subscription: MessageSubscription): Flux<E> =
         receive(subscription, onAssigned = null)
 
+    @Suppress("TooGenericExceptionCaught")
     override fun receiver(subscription: MessageSubscription): MessageReceiver<E> {
         val readiness = Sinks.empty<Void>()
         val readinessTerminated = AtomicBoolean()
         val assignmentFailure = Sinks.empty<Void>()
-        val assignmentGeneration = AtomicLong()
+        val pendingAnchors = AtomicLong()
         fun completeReadiness() {
             if (readinessTerminated.compareAndSet(false, true)) {
                 readiness.tryEmitEmpty()
@@ -140,16 +141,28 @@ abstract class AbstractKafkaBus<M, E>(
             }
         }
         val messages = receive(subscription) { consumer, positions ->
-            val generation = assignmentGeneration.incrementAndGet()
-            anchorAssignedPartitions(consumer, positions) { error ->
-                if (generation != assignmentGeneration.get()) {
-                    return@anchorAssignedPartitions
-                }
-                if (error == null) {
+            if (positions.isEmpty()) {
+                if (pendingAnchors.get() == 0L) {
                     completeReadiness()
-                } else {
-                    assignmentFailure.tryEmitError(error)
                 }
+                return@receive
+            }
+            pendingAnchors.incrementAndGet()
+            try {
+                anchorAssignedPartitions(consumer, positions) { error ->
+                    val remaining = pendingAnchors.decrementAndGet()
+                    if (error == null) {
+                        if (remaining == 0L) {
+                            completeReadiness()
+                        }
+                    } else {
+                        failReadiness(error)
+                        assignmentFailure.tryEmitError(error)
+                    }
+                }
+            } catch (error: Throwable) {
+                pendingAnchors.decrementAndGet()
+                throw error
             }
         }
             .takeUntilOther(assignmentFailure.asMono())
@@ -247,6 +260,10 @@ abstract class AbstractKafkaBus<M, E>(
      * Persists a conservative assignment boundary before readiness is published.
      * Forward seeks remain session-local until normal processing commits them,
      * so readiness never advances an existing group offset or skips retained data.
+     *
+     * Overrides must invoke [completion] exactly once. Assignment callbacks and
+     * their completions must preserve the consumer event-loop serialization used
+     * by Reactor Kafka.
      */
     protected open fun anchorAssignedPartitions(
         consumer: Consumer<*, *>,

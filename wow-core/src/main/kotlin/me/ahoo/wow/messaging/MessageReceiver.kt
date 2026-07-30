@@ -24,15 +24,26 @@ import java.util.concurrent.atomic.AtomicBoolean
  * hot and replayable: it completes only after the subscribed source can retain
  * messages without loss, or fails when that setup cannot complete. Once every
  * runtime component is ready, [openProcessing] explicitly opens transport
- * consumption without inferring lifecycle state from reactive demand.
+ * consumption. [closeProcessing] revokes that logical admission before
+ * physical cancellation, without inferring lifecycle state from reactive
+ * demand or subscription count.
  */
 class MessageReceiver<E : Any>(
     messages: Flux<E>,
     val readiness: Mono<Void> = Mono.empty(),
     private val processingAdmission: () -> Unit = {},
+    private val processingQuiescence: () -> Unit = {},
 ) {
     private val subscribed = AtomicBoolean()
-    private val processingOpened = AtomicBoolean()
+    private val processingMonitor = Any()
+
+    private enum class ProcessingState {
+        PENDING,
+        OPEN,
+        CLOSED,
+    }
+
+    private var processingState = ProcessingState.PENDING
 
     val messages: Flux<E> =
         Flux.defer {
@@ -46,8 +57,26 @@ class MessageReceiver<E : Any>(
         }
 
     fun openProcessing() {
-        if (processingOpened.compareAndSet(false, true)) {
+        synchronized(processingMonitor) {
+            if (processingState != ProcessingState.PENDING) {
+                return
+            }
+            processingState = ProcessingState.OPEN
             processingAdmission()
+        }
+    }
+
+    /**
+     * Revokes processing admission synchronously without waiting for physical
+     * source cancellation. The callback must be prompt and idempotent.
+     */
+    fun closeProcessing() {
+        synchronized(processingMonitor) {
+            if (processingState == ProcessingState.CLOSED) {
+                return
+            }
+            processingState = ProcessingState.CLOSED
+            processingQuiescence()
         }
     }
 
@@ -56,5 +85,6 @@ class MessageReceiver<E : Any>(
             messages = transform(messages),
             readiness = readiness,
             processingAdmission = ::openProcessing,
+            processingQuiescence = ::closeProcessing,
         )
 }

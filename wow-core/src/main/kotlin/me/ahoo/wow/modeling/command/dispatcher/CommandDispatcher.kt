@@ -50,7 +50,7 @@ class CommandDispatcher(
     override fun createMessageReceiver(
         subscription: MessageSubscription,
     ): MessageReceiver<ServerCommandExchange<*>> =
-        commandBus.receiver(subscription).mapMessages(::filterMessages)
+        commandBus.runtimeReceiver(subscription).mapMessages(::filterMessages)
 
     private fun filterMessages(
         messages: Flux<ServerCommandExchange<*>>,

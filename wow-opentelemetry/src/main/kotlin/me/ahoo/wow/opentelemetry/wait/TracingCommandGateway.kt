@@ -75,4 +75,9 @@ class TracingCommandGateway(override val delegate: CommandGateway) : Traced, Com
         subscription: MessageSubscription,
     ): MessageReceiver<ServerCommandExchange<*>> =
         delegate.receiver(subscription)
+
+    override fun runtimeReceiver(
+        subscription: MessageSubscription,
+    ): MessageReceiver<ServerCommandExchange<*>> =
+        delegate.runtimeReceiver(subscription)
 }

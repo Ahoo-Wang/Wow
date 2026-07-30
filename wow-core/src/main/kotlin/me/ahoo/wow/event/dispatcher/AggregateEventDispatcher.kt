@@ -44,6 +44,7 @@ import java.util.concurrent.ConcurrentHashMap
  * this dispatcher is registered directly with a runtime
  * @param processingAdmission Explicit transport-processing gate opened by
  * [start]
+ * @param processingQuiescence Logical transport gate closed by [quiesce]
  *
  * @constructor Creates a new AggregateEventDispatcher with the specified parameters
  *
@@ -65,9 +66,11 @@ class AggregateEventDispatcher(
     override val scheduler: Scheduler,
     messageReadiness: Mono<Void> = Mono.empty(),
     processingAdmission: () -> Unit = {},
+    processingQuiescence: () -> Unit = {},
 ) : AbstractAggregateEventDispatcher<EventStreamExchange>(
     messageReadiness = messageReadiness,
     processingAdmission = processingAdmission,
+    processingQuiescence = processingQuiescence,
 ) {
     /**
      * Creates a domain event exchange from an event stream exchange and domain event.

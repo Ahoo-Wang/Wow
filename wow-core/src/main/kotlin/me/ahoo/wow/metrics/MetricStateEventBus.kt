@@ -73,7 +73,18 @@ open class MetricStateEventBus<T : StateEventBus>(
     override fun receiver(
         subscription: MessageSubscription,
     ): MessageReceiver<StateEventExchange<*>> =
-        delegate.receiver(subscription).mapMessages { messages ->
+        metricReceiver(delegate.receiver(subscription), subscription)
+
+    override fun runtimeReceiver(
+        subscription: MessageSubscription,
+    ): MessageReceiver<StateEventExchange<*>> =
+        metricReceiver(delegate.runtimeReceiver(subscription), subscription)
+
+    private fun metricReceiver(
+        receiver: MessageReceiver<StateEventExchange<*>>,
+        subscription: MessageSubscription,
+    ): MessageReceiver<StateEventExchange<*>> =
+        receiver.mapMessages { messages ->
             messages
                 .name(Wow.WOW_PREFIX + "state.receive")
                 .tagSource()
@@ -101,6 +112,14 @@ class MetricLocalStateEventBus(
     delegate: LocalStateEventBus
 ) : MetricStateEventBus<LocalStateEventBus>(delegate),
     LocalStateEventBus {
+    override fun sendIfSubscribed(message: StateEvent<*>): Mono<Boolean> =
+        delegate
+            .sendIfSubscribed(message)
+            .name(Wow.WOW_PREFIX + "state.send")
+            .tagSource()
+            .tag(Metrics.AGGREGATE_KEY, message.aggregateName)
+            .metrics()
+
     /**
      * Returns the number of subscribers for the specified named aggregate.
      * This delegates to the underlying local state event bus implementation.

@@ -38,6 +38,7 @@ import reactor.core.publisher.Mono
  * @param E The type of message exchange being handled
  * @param messageReadiness Completes when the message transport can retain new work
  * @param processingAdmission Opens transport processing after dispatcher demand
+ * @param processingQuiescence Revokes transport processing before source cancellation
  *
  * @see AggregateDispatcher
  * @see MessageExchange
@@ -48,9 +49,11 @@ import reactor.core.publisher.Mono
 abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEventStream>>(
     messageReadiness: Mono<Void> = Mono.empty(),
     processingAdmission: () -> Unit = {},
+    processingQuiescence: () -> Unit = {},
 ) : AggregateDispatcher<E>(
     messageReadiness = messageReadiness,
     processingAdmission = processingAdmission,
+    processingQuiescence = processingQuiescence,
 ) {
     companion object {
         private val log = KotlinLogging.logger {}

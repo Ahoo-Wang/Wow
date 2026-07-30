@@ -56,6 +56,7 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
      * Map of sinks keyed by materialized named aggregates.
      */
     private val sinks: MutableMap<NamedAggregate, Sinks.Many<M>> = ConcurrentHashMap()
+    private val routingStates: MutableMap<NamedAggregate, LocalDeliveryRoute<M>> = ConcurrentHashMap()
     private val lifecycleLock = Any()
 
     @Volatile
@@ -96,12 +97,66 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
         if (closing) {
             return 0
         }
-        val sink = sinks[namedAggregate.materialize()] ?: return 0
+        val materialized = namedAggregate.materialize()
+        val sink = sinks[materialized] ?: return 0
         if (closing) {
             return 0
         }
-        return sink.currentSubscriberCount()
+        val unavailable = routingStates[materialized]?.unavailableSubscriptions() ?: 0
+        return (sink.currentSubscriberCount() - unavailable).coerceAtLeast(0)
     }
+
+    @Suppress("TooGenericExceptionCaught")
+    override fun sendIfSubscribed(message: M): Mono<Boolean> =
+        Mono.defer {
+            val materialized = message.materialize()
+            val messageWritable = !message.header.isReadOnly
+            val route = routingStates.computeIfAbsent(materialized) { LocalDeliveryRoute() }
+            val delivery = synchronized(lifecycleLock) {
+                if (closing) {
+                    null
+                } else {
+                    val sink = sinks[materialized]
+                    if (sink == null) {
+                        null
+                    } else {
+                        route.tryCreateDelivery(
+                            message = message,
+                            physicalSubscribers = sink.currentSubscriberCount(),
+                            messageWritable = messageWritable,
+                        )?.let { receipt ->
+                            sink to receipt
+                        }
+                    }
+                }
+            }
+            if (delivery == null) {
+                return@defer Mono.just(false)
+            }
+            val (sink, pendingDelivery) = delivery
+            val emitResult = try {
+                message.withReadOnly()
+                sink.tryEmitNext(message)
+            } catch (error: Throwable) {
+                route.reject(pendingDelivery)
+                throw error
+            }
+            when {
+                emitResult == Sinks.EmitResult.FAIL_ZERO_SUBSCRIBER -> {
+                    route.reject(pendingDelivery)
+                }
+
+                emitResult.isSuccess -> Unit
+                else -> {
+                    route.reject(pendingDelivery)
+                    emitResult.orThrow()
+                }
+            }
+            pendingDelivery.receipt.signal()
+                .doFinally {
+                    route.remove(pendingDelivery)
+                }
+        }
 
     /**
      * Sends a message through the in-memory bus.
@@ -150,24 +205,173 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
      * @param subscription The message subscription
      * @return A flux of message exchanges
      */
-    override fun receive(subscription: MessageSubscription): Flux<E> {
-        val sources = subscription.namedAggregates.mapNotNull {
-            computeSink(it)?.asFlux()
+    override fun receive(subscription: MessageSubscription): Flux<E> =
+        receiveMessages(subscription)
+
+    private fun receiveMessages(
+        subscription: MessageSubscription,
+        routingSubscription: RoutingSubscription? = null,
+    ): Flux<E> {
+        val sources = subscription.namedAggregates
+            .map { it.materialize() }
+            .toSet()
+            .mapNotNull { namedAggregate ->
+                computeSink(namedAggregate)?.asFlux()?.let { source ->
+                    if (routingSubscription == null) {
+                        source
+                    } else {
+                        source
+                            .doOnSubscribe {
+                                routingSubscription.connect(namedAggregate)
+                            }
+                            .doFinally {
+                                routingSubscription.disconnect(namedAggregate)
+                            }
+                    }
+                }
+            }
+
+        return Flux.merge(sources).map { message ->
+            message.createExchange().also { exchange ->
+                if (routingSubscription != null) {
+                    routingStates[message.materialize()]
+                        ?.ticket(message, routingSubscription.target)
+                        ?.let(exchange::attachLocalDeliveryTicket)
+                }
+            }
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    override fun runtimeReceiver(subscription: MessageSubscription): MessageReceiver<E> {
+        val routingSubscription = RoutingSubscription(
+            subscription.namedAggregates.map { it.materialize() }.toSet(),
+        )
+        val messages = Flux.defer {
+            routingSubscription.begin()
+            try {
+                receiveMessages(subscription, routingSubscription)
+                    .doFinally {
+                        routingSubscription.terminate()
+                    }
+            } catch (error: Throwable) {
+                routingSubscription.terminate()
+                Flux.error(error)
+            }
+        }
+        return MessageReceiver(
+            messages = messages,
+            processingAdmission = routingSubscription::open,
+            processingQuiescence = routingSubscription::close,
+        )
+    }
+
+    private inner class RoutingSubscription(
+        private val namedAggregates: Set<NamedAggregate>,
+    ) {
+        val target = LocalDeliveryRouteTarget()
+        private val monitor = Any()
+        private var subscribed = false
+        private var processingOpen = false
+        private var terminated = false
+        private val connectedAggregates = mutableSetOf<NamedAggregate>()
+
+        fun begin() {
+            synchronized(monitor) {
+                check(!subscribed) {
+                    "In-memory routing subscription supports exactly one subscriber."
+                }
+                subscribed = true
+            }
         }
 
-        return Flux.merge(sources).map {
-            it.createExchange()
+        fun connect(namedAggregate: NamedAggregate) {
+            val rejected = synchronized(monitor) {
+                check(namedAggregate in namedAggregates) {
+                    "Unexpected local routing aggregate: ${namedAggregate.aggregateName}."
+                }
+                if (terminated) {
+                    return@synchronized emptyList()
+                }
+                check(connectedAggregates.add(namedAggregate)) {
+                    "Local routing aggregate is already connected: ${namedAggregate.aggregateName}."
+                }
+                routingStates.computeIfAbsent(namedAggregate) { LocalDeliveryRoute() }
+                    .addSubscription(target, processingOpen)
+            }
+            rejected.rejectAll()
+        }
+
+        fun disconnect(namedAggregate: NamedAggregate) {
+            val rejected = synchronized(monitor) {
+                if (!connectedAggregates.remove(namedAggregate)) {
+                    return@synchronized emptyList()
+                }
+                checkNotNull(routingStates[namedAggregate]) {
+                    "Missing local routing state for ${namedAggregate.aggregateName}."
+                }.removeSubscription(target)
+            }
+            rejected.rejectAll()
+        }
+
+        fun open() {
+            val rejected = synchronized(monitor) {
+                if (terminated || processingOpen) {
+                    return@synchronized emptyList()
+                }
+                processingOpen = true
+                connectedAggregates.flatMap {
+                    checkNotNull(routingStates[it]) {
+                        "Missing local routing state for ${it.aggregateName}."
+                    }.openSubscription(target)
+                }
+            }
+            rejected.rejectAll()
+        }
+
+        fun close() {
+            val rejected = synchronized(monitor) {
+                if (terminated || !processingOpen) {
+                    return@synchronized emptyList()
+                }
+                processingOpen = false
+                connectedAggregates.flatMap {
+                    checkNotNull(routingStates[it]) {
+                        "Missing local routing state for ${it.aggregateName}."
+                    }.closeSubscription(target)
+                }
+            }
+            rejected.rejectAll()
+        }
+
+        fun terminate() {
+            val rejected = synchronized(monitor) {
+                if (terminated) {
+                    return@synchronized emptyList()
+                }
+                terminated = true
+                connectedAggregates.toList().flatMap {
+                    checkNotNull(routingStates[it]) {
+                        "Missing local routing state for ${it.aggregateName}."
+                    }.removeSubscription(target)
+                }.also {
+                    connectedAggregates.clear()
+                }
+            }
+            rejected.rejectAll()
         }
     }
 
     override fun close() {
-        val detachedSinks = synchronized(lifecycleLock) {
+        val (detachedSinks, rejectedDeliveries) = synchronized(lifecycleLock) {
             if (closing) {
                 return
             }
             closing = true
-            sinks.entries.map { entry -> entry.key to entry.value }
+            sinks.entries.map { entry -> entry.key to entry.value } to
+                routingStates.values.flatMap { it.drain() }
         }
+        rejectedDeliveries.rejectAll()
         val settledSinks = mutableListOf<Pair<NamedAggregate, Sinks.Many<M>>>()
         val pendingSettlements = mutableListOf<PendingCloseSettlement<M>>()
         var closeFailure: Throwable? = null

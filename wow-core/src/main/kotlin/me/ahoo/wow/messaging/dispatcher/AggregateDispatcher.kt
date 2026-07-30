@@ -18,7 +18,10 @@ import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.infra.lifecycle.TerminatedSignalCapable
 import me.ahoo.wow.infra.sink.terminated
+import me.ahoo.wow.messaging.LocalDeliveryTicket
 import me.ahoo.wow.messaging.handler.MessageExchange
+import me.ahoo.wow.messaging.rejectLocalDelivery
+import me.ahoo.wow.messaging.takeLocalDeliveryTicket
 import me.ahoo.wow.metrics.Metrics
 import me.ahoo.wow.runtime.RuntimeActivity
 import me.ahoo.wow.runtime.RuntimeContext
@@ -29,6 +32,7 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.GroupedFlux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
+import reactor.core.publisher.SynchronousSink
 import reactor.core.scheduler.Scheduler
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
@@ -58,6 +62,7 @@ import java.util.concurrent.atomic.AtomicReference
  * ) : AggregateDispatcher<CommandExchange>(
  *     messageReadiness = receiver.readiness,
  *     processingAdmission = receiver::openProcessing,
+ *     processingQuiescence = receiver::closeProcessing,
  * ) {
  *     override val messageFlux: Flux<CommandExchange> = receiver.messages
  *
@@ -72,7 +77,7 @@ import java.util.concurrent.atomic.AtomicReference
  * }
  *
  * // Usage
- * val dispatcher = CustomAggregateDispatcher(commandBus.receiver(subscription))
+ * val dispatcher = CustomAggregateDispatcher(commandBus.runtimeReceiver(subscription))
  * val runtime = WowRuntime(
  *     components = listOf(dispatcher),
  *     shutdownTimeout = Duration.ofSeconds(30),
@@ -90,6 +95,8 @@ import java.util.concurrent.atomic.AtomicReference
  * awaited.
  * @param processingAdmission Explicit transport-processing gate opened by
  * [start] after dispatcher demand opens.
+ * @param processingQuiescence Prompt logical transport gate closed before
+ * physical source cancellation is detached.
  *
  * @see MessageDispatcher for the interface this class implements
  * @see SafeSubscriber for error handling capabilities
@@ -101,6 +108,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
     },
     private val messageReadiness: Mono<Void> = Mono.empty(),
     private val processingAdmission: () -> Unit = {},
+    private val processingQuiescence: () -> Unit = {},
 ) :
     SafeSubscriber<Void>(),
     MessageDispatcher,
@@ -164,6 +172,9 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
     private var runtimeContext: RuntimeContext? = null
 
     private val lifecycleMonitor = Any()
+    private val processingMonitor = Any()
+    private var processingOpened = false
+    private var processingClosed = false
 
     private enum class State {
         NEW,
@@ -243,33 +254,15 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
         demandGate
             .takeUntilOther(stopRequestedSink.asMono())
             .handle<TrackedExchange<T>> { exchange, sink ->
-                val activity = runtimeContext.tryAcquire()
-                if (activity != null) {
-                    try {
-                        sink.next(
-                            TrackedExchange(
-                                exchange = exchange,
-                                groupKey = exchange.toGroupKey(),
-                                activity = activity,
-                            ),
-                        )
-                    } catch (error: Throwable) {
-                        activity.close()
-                        Exceptions.throwIfFatal(error)
-                        sink.error(error)
-                    }
-                } else {
-                    log.warn {
-                        "[$name] Reject an exchange received after runtime admission closed; " +
-                            "the exchange remains unacknowledged."
-                    }
-                }
+                admitExchange(runtimeContext, exchange, sink)
             }
+            .doOnNext(TrackedExchange<T>::confirmLocalDelivery)
             .groupBy { trackedExchange -> trackedExchange.groupKey }
             .flatMap({ grouped ->
                 handleGroupedExchange(grouped)
             }, parallelism, parallelism)
             .doOnDiscard(TrackedExchange::class.java) {
+                it.rejectLocalDelivery()
                 it.complete()
             }
             .doOnError { error ->
@@ -277,14 +270,56 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
                 runtimeContext.reportFailure(error)
             }
             .doFinally {
-                synchronized(lifecycleMonitor) {
+                val processingFailure = synchronized(lifecycleMonitor) {
                     state = State.STOPPED
+                    revokeProcessing()
+                }
+                if (processingFailure != null) {
+                    terminalFailure.compareAndSet(null, processingFailure)
+                    runtimeContext.reportFailure(processingFailure)
                 }
                 tryEmitTerminated(terminalFailure.get())
             }
             .subscribe(this)
         terminalFailure.get()?.let { error ->
             throw error
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun admitExchange(
+        runtimeContext: RuntimeContext,
+        exchange: T,
+        sink: SynchronousSink<TrackedExchange<T>>,
+    ) {
+        val activity = try {
+            runtimeContext.tryAcquire()
+        } catch (error: Throwable) {
+            exchange.rejectLocalDelivery()
+            throw error
+        }
+        if (activity == null) {
+            exchange.rejectLocalDelivery()
+            log.warn {
+                "[$name] Reject an exchange received after runtime admission closed; " +
+                    "the exchange remains unacknowledged."
+            }
+            return
+        }
+        var trackedExchange: TrackedExchange<T>? = null
+        try {
+            trackedExchange = TrackedExchange(
+                exchange = exchange,
+                groupKey = exchange.toGroupKey(),
+                activity = activity,
+                localDeliveryTicket = exchange.takeLocalDeliveryTicket(),
+            )
+            sink.next(trackedExchange)
+        } catch (error: Throwable) {
+            activity.close()
+            trackedExchange?.rejectLocalDelivery() ?: exchange.rejectLocalDelivery()
+            Exceptions.throwIfFatal(error)
+            sink.error(error)
         }
     }
 
@@ -299,7 +334,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
             state = State.RUNNING
         }
         checkNotNull(demandGate).open()
-        processingAdmission()
+        openProcessing()
         log.info {
             "[$name] Start processing $namedAggregate."
         }
@@ -397,7 +432,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
     }
 
     private fun requestStop() {
-        val (stopSignal, sourceCancellation) = synchronized(lifecycleMonitor) {
+        val (stopSignal, sourceCancellation, processingFailure) = synchronized(lifecycleMonitor) {
             val signal = when (state) {
                 State.NEW -> {
                     state = State.STOPPED
@@ -415,11 +450,13 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
                 State.STOPPED,
                 -> StopSignal.NONE
             }
-            signal to if (signal == StopSignal.REQUEST_STOP) {
+            val failure = revokeProcessing()
+            val cancellation = if (signal == StopSignal.REQUEST_STOP) {
                 demandGate?.detachCancellation()
             } else {
                 null
             }
+            Triple(signal, cancellation, failure)
         }
         sourceCancellation?.let { cancellation ->
             scheduleDetachedCleanup("source cancellation", cancellation)
@@ -429,6 +466,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
             StopSignal.REQUEST_STOP -> stopRequestedSink.tryEmitEmpty()
             StopSignal.TERMINATE -> tryEmitTerminated()
         }
+        processingFailure?.let { throw it }
     }
 
     final override fun forceStop() {
@@ -436,10 +474,11 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
     }
 
     private fun forceStopDispatcher() {
-        val (newlyStopped, sourceCancellation) = synchronized(lifecycleMonitor) {
+        val (newlyStopped, sourceCancellation, processingFailure) = synchronized(lifecycleMonitor) {
             val changed = state != State.STOPPED
             state = State.STOPPED
-            changed to demandGate?.detachCancellation()
+            val failure = revokeProcessing()
+            Triple(changed, demandGate?.detachCancellation(), failure)
         }
         if (newlyStopped) {
             tryEmitTerminated()
@@ -450,7 +489,34 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
         if (newlyStopped) {
             scheduleDetachedCleanup("processing pipeline cancellation", ::cancel)
         }
+        processingFailure?.let { throw it }
     }
+
+    private fun openProcessing() {
+        synchronized(processingMonitor) {
+            if (processingOpened || processingClosed) {
+                return
+            }
+            processingOpened = true
+            processingAdmission()
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun revokeProcessing(): Throwable? =
+        synchronized(processingMonitor) {
+            if (processingClosed) {
+                return@synchronized null
+            }
+            processingClosed = true
+            try {
+                processingQuiescence()
+                null
+            } catch (error: Throwable) {
+                Exceptions.throwIfFatal(error)
+                error
+            }
+        }
 
     @Suppress("TooGenericExceptionCaught")
     private fun scheduleDetachedCleanup(
@@ -485,10 +551,11 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
         }
     }
 
-    private class TrackedExchange<T : Any>(
+    private class TrackedExchange<T : MessageExchange<*, *>>(
         val exchange: T,
         val groupKey: Int,
         private val activity: RuntimeActivity,
+        private val localDeliveryTicket: LocalDeliveryTicket?,
     ) {
         private val completed = AtomicBoolean()
 
@@ -496,6 +563,14 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
             if (completed.compareAndSet(false, true)) {
                 activity.close()
             }
+        }
+
+        fun confirmLocalDelivery() {
+            localDeliveryTicket?.confirm()
+        }
+
+        fun rejectLocalDelivery() {
+            localDeliveryTicket?.reject()
         }
     }
 }

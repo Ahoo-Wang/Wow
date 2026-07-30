@@ -44,6 +44,7 @@ import reactor.kafka.receiver.ReceiverRecord
 import reactor.kafka.sender.SenderOptions
 import reactor.kotlin.test.test
 import reactor.util.retry.Retry
+import java.time.Duration
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 
@@ -200,18 +201,24 @@ class AbstractKafkaBusTest {
     }
 
     @Test
-    fun `latest assignment controls readiness and rebalance failure terminates messages`() {
+    fun `cooperative assignments cannot overtake an in-flight anchor`() {
         val receiver = mockk<KafkaReceiver<String, String>>()
         every { receiver.receive(1) } returns Flux.never()
-        val partition = mockk<ReceiverPartition>()
+        val firstPartition = mockk<ReceiverPartition>()
+        val secondPartition = mockk<ReceiverPartition>()
+        val firstTopicPartition = TopicPartition("topic", 0)
+        val secondTopicPartition = TopicPartition("topic", 1)
         val consumer = mockk<Consumer<String, String>>()
-        every { partition.topicPartition() } returns TopicPartition("topic", 0)
-        every { partition.position() } returns 0L
-        val anchorCompletions = mutableListOf<(Throwable?) -> Unit>()
+        every { firstPartition.topicPartition() } returns firstTopicPartition
+        every { firstPartition.position() } returns 0L
+        every { secondPartition.topicPartition() } returns secondTopicPartition
+        every { secondPartition.position() } returns 0L
+        val anchorCompletions =
+            mutableMapOf<Set<TopicPartition>, (Throwable?) -> Unit>()
         val bus = TestKafkaBus(
             receiver = receiver,
-            anchorAction = { _, _, completion ->
-                anchorCompletions += completion
+            anchorAction = { _, positions, completion ->
+                anchorCompletions[positions.keys] = completion
             },
         )
         val messageReceiver = bus.receiver(
@@ -223,22 +230,118 @@ class AbstractKafkaBusTest {
         try {
             bus.capturedOptions!!.consumerListener()!!.consumerAdded("test", consumer)
             val assignListeners = bus.capturedOptions!!.assignListeners()
-            repeat(2) {
-                assignListeners.forEach { listener ->
-                    listener.accept(listOf(partition))
-                }
+            assignListeners.forEach { listener ->
+                listener.accept(listOf(firstPartition))
+            }
+            assignListeners.forEach { listener ->
+                listener.accept(emptyList())
+            }
+            assignListeners.forEach { listener ->
+                listener.accept(listOf(secondPartition))
             }
 
-            anchorCompletions[0](null)
+            checkNotNull(anchorCompletions[setOf(secondTopicPartition)])(null)
             readiness.isDone.assert().isFalse()
-            anchorCompletions[1](null)
+
+            val failure = IllegalStateException("first-anchor")
+            checkNotNull(anchorCompletions[setOf(firstTopicPartition)])(failure)
+
+            assertThrows<ExecutionException> {
+                readiness.get(1, TimeUnit.SECONDS)
+            }.cause.assert().isSameAs(failure)
+            assertThrows<ExecutionException> {
+                messages.get(1, TimeUnit.SECONDS)
+            }.cause.assert().isSameAs(failure)
+        } finally {
+            messages.cancel(true)
+            bus.close()
+        }
+    }
+
+    @Test
+    fun `readiness waits for every in-flight cooperative anchor`() {
+        val receiver = mockk<KafkaReceiver<String, String>>()
+        every { receiver.receive(1) } returns Flux.never()
+        val firstPartition = mockk<ReceiverPartition>()
+        val secondPartition = mockk<ReceiverPartition>()
+        val firstTopicPartition = TopicPartition("topic", 0)
+        val secondTopicPartition = TopicPartition("topic", 1)
+        val consumer = mockk<Consumer<String, String>>()
+        every { firstPartition.topicPartition() } returns firstTopicPartition
+        every { firstPartition.position() } returns 0L
+        every { secondPartition.topicPartition() } returns secondTopicPartition
+        every { secondPartition.position() } returns 0L
+        val anchorCompletions =
+            mutableMapOf<Set<TopicPartition>, (Throwable?) -> Unit>()
+        val bus = TestKafkaBus(
+            receiver = receiver,
+            anchorAction = { _, positions, completion ->
+                anchorCompletions[positions.keys] = completion
+            },
+        )
+        val messageReceiver = bus.receiver(
+            MessageSubscription(message(), generateGlobalId()),
+        )
+        val readiness = messageReceiver.readiness.toFuture()
+        val messages = messageReceiver.messages.then().toFuture()
+
+        try {
+            bus.capturedOptions!!.consumerListener()!!.consumerAdded("test", consumer)
+            val assignListeners = bus.capturedOptions!!.assignListeners()
+            assignListeners.forEach { listener ->
+                listener.accept(listOf(firstPartition))
+            }
+            assignListeners.forEach { listener ->
+                listener.accept(listOf(secondPartition))
+            }
+
+            checkNotNull(anchorCompletions[setOf(secondTopicPartition)])(null)
+            readiness.isDone.assert().isFalse()
+            checkNotNull(anchorCompletions[setOf(firstTopicPartition)])(null)
             readiness.get(1, TimeUnit.SECONDS)
+        } finally {
+            messages.cancel(true)
+            bus.close()
+        }
+    }
+
+    @Test
+    fun `rebalance anchor failure terminates messages after readiness`() {
+        val receiver = mockk<KafkaReceiver<String, String>>()
+        every { receiver.receive(1) } returns Flux.never()
+        val firstPartition = mockk<ReceiverPartition>()
+        val secondPartition = mockk<ReceiverPartition>()
+        val consumer = mockk<Consumer<String, String>>()
+        every { firstPartition.topicPartition() } returns TopicPartition("topic", 0)
+        every { firstPartition.position() } returns 0L
+        every { secondPartition.topicPartition() } returns TopicPartition("topic", 1)
+        every { secondPartition.position() } returns 0L
+        val anchorCompletions = mutableListOf<(Throwable?) -> Unit>()
+        val bus = TestKafkaBus(
+            receiver = receiver,
+            anchorAction = { _, _, completion ->
+                anchorCompletions += completion
+            },
+        )
+        val messageReceiver = bus.receiver(
+            MessageSubscription(message(), generateGlobalId()),
+        )
+        val messages = messageReceiver.messages.then().toFuture()
+
+        try {
+            bus.capturedOptions!!.consumerListener()!!.consumerAdded("test", consumer)
+            val assignListeners = bus.capturedOptions!!.assignListeners()
+            assignListeners.forEach { listener ->
+                listener.accept(listOf(firstPartition))
+            }
+            anchorCompletions.single()(null)
+            messageReceiver.readiness.block(Duration.ofSeconds(1))
 
             assignListeners.forEach { listener ->
-                listener.accept(listOf(partition))
+                listener.accept(listOf(secondPartition))
             }
             val failure = IllegalStateException("rebalance-anchor")
-            anchorCompletions[2](failure)
+            anchorCompletions.last()(failure)
 
             assertThrows<ExecutionException> {
                 messages.get(1, TimeUnit.SECONDS)

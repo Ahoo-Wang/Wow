@@ -115,16 +115,28 @@ Apply the following source migrations:
 
    A custom `MessageBus` whose subscription is not immediately able to retain
    new work must override `receiver`. Return a single-use message stream, a hot
-   replayable readiness signal, and an idempotent processing-admission callback.
-   Preserve all three when mapping a receiver. The runtime subscribes first,
-   awaits readiness, and invokes `openProcessing()` only in the global start
-   pass. Redis readiness creates every consumer group but does not start stream
-   reads before that explicit admission, regardless of downstream prefetch.
+   replayable readiness signal, and idempotent processing open/close callbacks.
+   Preserve all four when mapping a receiver. The runtime subscribes first,
+   awaits readiness, invokes `openProcessing()` only in the global start pass,
+   and invokes `closeProcessing()` before detached physical cancellation. Redis
+   readiness creates every consumer group but does not start stream reads before
+   that explicit admission, regardless of downstream prefetch.
    Kafka readiness asynchronously persists a conservative boundary: the earlier
    of the broker-assigned position and the position after user assignment
-   customizers. It never advances an existing group offset; forward seeks remain
+   customizers. All in-flight assignment anchors must settle before readiness;
+   cooperative retained partitions are not re-anchored. Forward seeks remain
    session-local until normal processing commits them. Provision Kafka topics
    before starting the runtime.
+   A custom `LocalMessageBus` inherits a conservative `sendIfSubscribed`
+   fallback that disables local suppression. Override it only when `true` means
+   every targeted local receiver acquired processing admission; composing
+   `subscriberCount()` with `send()` is not atomic and is not a valid receipt.
+   Ordinary `receiver()` consumers do not participate in local suppression and
+   need no receipt protocol. A runtime-owned custom consumer of the built-in
+   in-memory bus opts in through `runtimeReceiver()` and must call
+   `confirmLocalDelivery()` after its runtime admission and in-process handoff,
+   or `rejectLocalDelivery()` when it filters or cannot admit the exchange.
+   Built-in dispatchers do this automatically.
 4. Runtime-owned Spring beans must be singletons, and their declared bean return
    type must expose `RuntimeComponent` or a subtype such as
    `MessageDispatcher`. Remove Spring `Lifecycle`/`SmartLifecycle`,

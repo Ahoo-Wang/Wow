@@ -104,11 +104,13 @@ the runtime explicitly opens `MessageReceiver` processing, so readiness and
 reactive prefetch cannot move entries into the PEL.
 Kafka is ready after capturing each broker-assigned position, running user
 assignment customizers, and asynchronously committing the earlier of the
-original and customized positions. Readiness therefore never advances an
-existing group offset or commits past the position that the session intends to
-consume; forward seeks remain session-local until normal processing commits
-them. Command, event, projection, and saga flows form a dependency cycle, so
-startup cannot be represented as a simple publisher-first DAG.
+original and customized positions. Every in-flight assignment anchor must
+settle before readiness; cooperative retained partitions are not included in
+incremental assignment callbacks and are not re-anchored. Readiness therefore
+never commits past the position that the session intends to consume; forward
+seeks remain session-local until normal processing commits them. Command,
+event, projection, and saga flows form a dependency cycle, so startup cannot be
+represented as a simple publisher-first DAG.
 
 `WowRuntime.start()` returns `Mono<Void>`. A startup failure is composed with
 its asynchronous rollback; it does not block a Reactor non-blocking worker.
@@ -136,6 +138,21 @@ Each new activity restarts `wow.shutdown-quiet-period`. At the quiet boundary,
 global admission closes before component intake, then cleanup begins. This
 covers broker handoff gaps where upstream publication completes before
 downstream consumption begins.
+
+`MessageReceiver.closeProcessing()` synchronously revokes logical transport
+admission before physical source cancellation is detached. Built-in in-memory
+local-first delivery returns success only after every targeted dispatcher has
+acquired a runtime activity lease and handed the tracked exchange to its
+processing pipeline. Sink acceptance, buffering, and physical subscriber count
+are not delivery receipts. Admission rejection, filtering, or a route change
+completes the attempt as undelivered, so the distributed fallback is sent
+without the local-handled flag. The receipt proves admission, not successful
+handler completion; a later fatal pipeline failure follows runtime failure
+semantics and does not retroactively reroute an admitted message.
+Ordinary `receiver()` consumers do not participate in local suppression.
+Runtime-owned custom consumers opt in explicitly through `runtimeReceiver()`
+and then confirm or reject the receipt after their equivalent admission step;
+built-in dispatchers perform this protocol automatically.
 
 One `wow.shutdown-timeout` bounds the entire shutdown, including startup
 rollback. Deadline expiry atomically replaces the graceful owner and force-stops
@@ -212,8 +229,9 @@ Normalized allocation remained within 0.6% for both scenarios. The targeted
 run therefore does not confirm either reported regression. Confirmation output
 remains diagnostic and does not replace the accepted baseline, as required by
 `wow-benchmarks/README.md`. These numbers prove only the two named clean commits;
-the later lifecycle-control review fixes are outside the command-send steady-state
-path but are not represented as a new performance run.
+the later receipt and admission fixes add per-exchange dispatcher work and are not
+represented by this run. No current-HEAD performance conclusion should be drawn
+from these results; rerun the targeted comparison before making one.
 
 ## Spring integration
 

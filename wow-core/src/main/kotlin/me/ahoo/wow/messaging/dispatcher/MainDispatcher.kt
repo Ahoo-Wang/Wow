@@ -20,9 +20,11 @@ import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
 import me.ahoo.wow.runtime.RuntimeContext
 import me.ahoo.wow.runtime.internal.RuntimeComponentGroup
+import me.ahoo.wow.runtime.internal.addSuppressedIfAbsent
 import me.ahoo.wow.runtime.internal.forceAllReporting
 import me.ahoo.wow.runtime.internal.stopAllReporting
 import me.ahoo.wow.serialization.toJsonString
+import reactor.core.Exceptions
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.util.concurrent.atomic.AtomicBoolean
@@ -143,6 +145,7 @@ abstract class MainDispatcher<T : Any> :
         val dispatcher: MessageDispatcher,
         val readiness: Mono<Void>,
         val openProcessing: () -> Unit,
+        val closeProcessing: () -> Unit,
     )
 
     private val aggregateDispatcherBindingsLazy = lazy {
@@ -160,6 +163,7 @@ abstract class MainDispatcher<T : Any> :
                     ),
                     readiness = receiver.readiness,
                     openProcessing = receiver::openProcessing,
+                    closeProcessing = receiver::closeProcessing,
                 )
             }
     }
@@ -266,13 +270,22 @@ abstract class MainDispatcher<T : Any> :
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     final override fun quiesce() {
         if (forceStopRequested.get()) {
             return
         }
-        aggregateComponentGroupSnapshot()?.quiesce {
-            !forceStopRequested.get()
+        val processingFailure = closeAggregateProcessing()
+        val quiescenceFailure = try {
+            aggregateComponentGroupSnapshot()?.quiesce {
+                !forceStopRequested.get()
+            }
+            null
+        } catch (error: Throwable) {
+            Exceptions.throwIfFatal(error)
+            error
         }
+        throwIfFailed(processingFailure, quiescenceFailure)
     }
 
     /**
@@ -320,13 +333,15 @@ abstract class MainDispatcher<T : Any> :
 
     final override fun forceStop() {
         forceStopRequested.set(true)
-        forceAllReporting(
+        val processingFailure = closeAggregateProcessing()
+        val forceFailure = forceAllReporting(
             listOf(
                 ::forceStopAggregateDispatchers,
                 ::forceStopManaged,
             ),
             ::reportRuntimeFailure,
-        )?.let { throw it }
+        )
+        throwIfFailed(processingFailure, forceFailure)
     }
 
     /**
@@ -343,6 +358,27 @@ abstract class MainDispatcher<T : Any> :
 
     private fun reportRuntimeFailure(error: Throwable) {
         runtimeContext?.reportFailure(error)
+    }
+
+    private fun closeAggregateProcessing(): Throwable? {
+        if (!aggregateDispatcherBindingsLazy.isInitialized()) {
+            return null
+        }
+        return forceAllReporting(
+            aggregateDispatcherBindingsLazy.value.map { it.closeProcessing },
+            ::reportRuntimeFailure,
+        )
+    }
+
+    private fun throwIfFailed(
+        first: Throwable?,
+        second: Throwable?,
+    ) {
+        if (first != null) {
+            second?.let(first::addSuppressedIfAbsent)
+            throw first
+        }
+        second?.let { throw it }
     }
 
     private fun admitChildLifecycleAction(admission: () -> Boolean): Boolean =
