@@ -244,6 +244,9 @@ class WowRuntime private constructor(
     private fun rollbackAfterStartFailure(startFailure: Throwable): Mono<Void> {
         val cleanup = claimStartFailureCleanup(startFailure)
             ?: return Mono.error(resolveStartFailureAfterConcurrentShutdown(startFailure))
+        if (startFailure !is StartupCancelledException) {
+            runtimeContext.closeAdmissionAndDrain()
+        }
         scheduleShutdownDeadline(cleanup.owner)
         subscribeShutdown(cleanup.owner)
         return rawTerminationSignal
