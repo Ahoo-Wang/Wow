@@ -230,7 +230,9 @@ internal class KafkaCommandBusTest : CommandBusSpec() {
         val bus = KafkaCommandBus(
             topicConverter = topicConverter,
             senderOptions = kafka.senderOptions(),
-            receiverOptions = kafka.receiverOptions(),
+            receiverOptions = kafka.receiverOptions()
+                .consumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+                .consumerProperty(ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, false),
             receiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
             receiverPolicy = KafkaReceiverPolicy(),
             recordDecodeFailureHandler = AcknowledgeKafkaRecordDecodeFailureHandler,
@@ -239,35 +241,21 @@ internal class KafkaCommandBusTest : CommandBusSpec() {
         val receiverGroup = generateGlobalId()
         val aggregateId = generateGlobalId()
         val validMessage = MockCreateAggregate(id = aggregateId, data = "valid").toCommandMessage()
-        val ready = Sinks.empty<Void>()
 
         try {
-            bus.receive(MessageSubscription(namedAggregate, receiverGroup))
-                .contextWrite {
-                    it.writeReceiverOptionsCustomizer { options ->
-                        options.addAssignListener {
-                            ready.tryEmitEmpty()
-                        }
-                    }
-                }
-                .doOnSubscribe {
-                    ready.asMono()
-                        .then(
-                            rawSender.createOutbound()
-                                .send(
-                                    Mono.just(
-                                        ProducerRecord(
-                                            topicConverter.convert(namedAggregate),
-                                            aggregateId,
-                                            "not-json",
-                                        ),
-                                    ),
-                                ).then(),
-                        )
-                        .then(bus.send(validMessage))
-                        .subscribe()
-                }
-                .take(1)
+            rawSender.createOutbound()
+                .send(
+                    Mono.just(
+                        ProducerRecord(
+                            topicConverter.convert(namedAggregate),
+                            aggregateId,
+                            "not-json",
+                        ),
+                    ),
+                )
+                .then()
+                .then(bus.send(validMessage))
+                .thenMany(bus.receive(MessageSubscription(namedAggregate, receiverGroup)).take(1))
                 .test()
                 .consumeNextWith {
                     it.message.id.assert().isEqualTo(validMessage.id)
