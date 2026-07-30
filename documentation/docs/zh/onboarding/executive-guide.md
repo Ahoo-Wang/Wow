@@ -22,7 +22,7 @@ onMounted(() => {
 
 **受众**：VP/总监级工程领导者，评估 Wow 框架是否适合组织采用。
 
-**更新日期**：2026年7月 | **版本**：8.9.2 | **许可证**：Apache 2.0
+**更新日期**：2026年7月 | **版本**：8.9.3 | **许可证**：Apache 2.0
 
 ---
 
@@ -32,7 +32,7 @@ onMounted(() => {
 
 该框架的核心理念是**"领域模型即服务"** -- 开发团队只需编写其领域模型（命令、事件、聚合状态），框架会自动生成命令路由、事件持久化、投影管线、OpenAPI 端点以及分布式 Saga 编排。在编译时，KSP 处理器生成路由表和 API 规范，消除运行时反射开销。来自[示例工作负载](https://github.com/Ahoo-Wang/Wow/blob/main/example)的性能基准显示，在即发即忘模式下实现约 60,000 每秒事务数，平均延迟 29 毫秒；在完全处理保证下实现约 19,000 TPS，延迟 239 毫秒 -- 这些性能特征适用于电商、物流、金融服务和游戏等高吞吐量事务系统。
 
-对于评估是否投资事件溯源架构的领导团队，Wow 代表了 JVM 生态系统上风险最低的入场途径：Apache 2.0 许可（无供应商锁定）、Maven Central 发布、Spring Boot 4.x 原生支持，并由活跃的开源社区提供 CI/CD、集成测试和代码覆盖率强制执行支持。该框架已在多个 8.x 版本中持续投入生产开发（当前版本 8.9.2），展现出适合企业采用的成熟度。
+对于评估是否投资事件溯源架构的领导团队，Wow 代表了 JVM 生态系统上风险最低的入场途径：Apache 2.0 许可（无供应商锁定）、Maven Central 发布、Spring Boot 4.x 原生支持，并由活跃的开源社区提供 CI/CD、集成测试和代码覆盖率强制执行支持。该框架已在多个 8.x 版本中持续投入生产开发（当前版本 8.9.3），展现出适合企业采用的成熟度。
 
 <!-- Sources: README.md:1-16, gradle.properties:23, index.md (home), README.md:70-98 -->
 
@@ -350,7 +350,7 @@ graph TB
 | **授权** | CoSec（基于策略） | AxonIQ Console / Spring Security | Spring Security（自定义集成） | 自定义 |
 | **API 暴露** | 自动生成的 WebFlux 端点 + Swagger UI | Axon Server HTTP API 或自定义 Spring MVC | Spring MVC / WebFlux（手动控制器） | Akka HTTP（手动路由） |
 | **社区规模** | 成长中（约 1.6K GitHub Stars） | 大型（约 3K+ GitHub Stars） | N/A | 大型（Akka 遗产 + Pekko 分支） |
-| **生态系统成熟度** | v8.9.2 稳定 | 自 2010 年生产使用；v4.x 稳定 | N/A | 自 2009 年生产使用（Akka） |
+| **生态系统成熟度** | v8.9.3 稳定 | 自 2010 年生产使用；v4.x 稳定 | N/A | 自 2009 年生产使用（Akka） |
 | **供应商锁定风险** | 无（Apache 2.0，Maven Central） | 中（Axon Server 商业功能；AxonIQ 作为主要维护者） | 无（但你拥有所有代码） | 无（Apache 2.0） |
 | **上手时间** | 2-4 周（如果 DDD/CQRS/ES 概念已知） | 2-4 周（如果 DDD/CQRS/ES 概念已知） | 6-12 个月（构建基础设施） | 3-6 个月（在 Actor 之上构建 CQRS/ES） |
 
@@ -489,7 +489,7 @@ flowchart TB
 
 | 指标 | 值 | 来源 |
 |---|---|---|
-| **版本** | 8.9.2 | [gradle.properties:23](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties#L23) |
+| **版本** | 8.9.3 | [gradle.properties:23](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties#L23) |
 | **许可证** | Apache 2.0 | [gradle.properties:28-29](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties#L28-L29) |
 | **语言** | Kotlin 2.3 / JVM 17+ | [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) |
 | **框架** | Spring Boot 4.x | [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) |

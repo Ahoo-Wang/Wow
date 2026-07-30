@@ -636,7 +636,7 @@ Source: [gradle.properties:1-29](https://github.com/Ahoo-Wang/Wow/blob/main/grad
 | `org.gradle.jvmargs` | `-Xmx2g` | Gradle 守护进程最大堆内存 |
 | `ksp.useKSP2` | `true` | 使用 KSP2 加速编译 |
 | `ksp.incremental` | `true` | 增量 KSP 处理 |
-| `version` | `8.9.2` | 当前发布版本 |
+| `version` | `8.9.3` | 当前发布版本 |
 
 Source: [gradle.properties:13-21](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties#L13-L21)
 
@@ -674,7 +674,7 @@ plugins {
     id("com.google.devtools.ksp")
 }
 dependencies {
-    ksp(project(":wow-compiler"))  // 或 ksp("me.ahoo.wow:wow-compiler:8.9.2")
+    ksp(project(":wow-compiler"))  // 或 ksp("me.ahoo.wow:wow-compiler:8.9.3")
 }
 ```
 
@@ -1119,7 +1119,7 @@ Wow 遵循约定优于配置。许多注解是可选的。当注解缺失时，�
 | [`README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/README.md) | 项目概述、功能、性能基准、测试示例 |
 | [`settings.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts) | 模块注册 -- 所有子项目在此列出 |
 | [`build.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/main/build.gradle.kts) | 根构建：detekt、发布、测试、工具链、依赖管理 |
-| [`gradle.properties`](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties) | 版本（`8.9.2`）、Gradle/KSP 设置、group/description |
+| [`gradle.properties`](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties) | 版本（`8.9.3`）、Gradle/KSP 设置、group/description |
 | [`config/detekt/detekt.yml`](https://github.com/Ahoo-Wang/Wow/blob/main/config/detekt/detekt.yml) | 静态分析规则配置 |
 | [`wow-api/src/main/kotlin/me/ahoo/wow/api/`](https://github.com/Ahoo-Wang/Wow/tree/main/wow-api/src/main/kotlin/me/ahoo/wow/api) | 所有 API 契约：`CommandMessage`、`DomainEvent`、`AggregateId`、`Named`、注解 |
 | [`wow-api/.../annotation/`](https://github.com/Ahoo-Wang/Wow/tree/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation) | 注解：`@AggregateRoot`、`@OnCommand`、`@OnSourcing`、`@StatelessSaga`、`@Retry` 等 |
