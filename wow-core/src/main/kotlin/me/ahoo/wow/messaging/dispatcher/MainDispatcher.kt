@@ -141,6 +141,7 @@ abstract class MainDispatcher<T : Any> :
     private data class AggregateDispatcherBinding(
         val dispatcher: MessageDispatcher,
         val readiness: Mono<Void>,
+        val openProcessing: () -> Unit,
     )
 
     private val aggregateDispatcherBindingsLazy = lazy {
@@ -157,6 +158,7 @@ abstract class MainDispatcher<T : Any> :
                         receiver.messages.writeMetricsSubscriber(name),
                     ),
                     readiness = receiver.readiness,
+                    openProcessing = receiver::openProcessing,
                 )
             }
     }
@@ -236,7 +238,15 @@ abstract class MainDispatcher<T : Any> :
                 "No aggregate dispatchers to start because namedAggregates is empty.".withNamePrefix()
             }
         } else {
-            aggregateComponentGroupSnapshot()?.start()
+            val started = aggregateComponentGroupSnapshot()?.start() == true
+            if (started) {
+                aggregateDispatcherBindingsLazy.value.forEach { binding ->
+                    if (forceStopRequested.get()) {
+                        return
+                    }
+                    binding.openProcessing()
+                }
+            }
         }
     }
 

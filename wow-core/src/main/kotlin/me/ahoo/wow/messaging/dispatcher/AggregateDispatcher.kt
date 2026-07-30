@@ -57,6 +57,7 @@ import java.util.concurrent.atomic.AtomicReference
  *     override val scheduler: Scheduler = Schedulers.boundedElastic(),
  * ) : AggregateDispatcher<CommandExchange>(
  *     messageReadiness = receiver.readiness,
+ *     processingAdmission = receiver::openProcessing,
  * ) {
  *     override val messageFlux: Flux<CommandExchange> = receiver.messages
  *
@@ -87,6 +88,8 @@ import java.util.concurrent.atomic.AtomicReference
  * @param messageReadiness Completion signal for asynchronous message-source
  * initialization. The message flux is subscribed before this signal is
  * awaited.
+ * @param processingAdmission Explicit transport-processing gate opened by
+ * [start] after dispatcher demand opens.
  *
  * @see MessageDispatcher for the interface this class implements
  * @see SafeSubscriber for error handling capabilities
@@ -97,6 +100,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
         RuntimeCleanupExecutor.execute(action)
     },
     private val messageReadiness: Mono<Void> = Mono.empty(),
+    private val processingAdmission: () -> Unit = {},
 ) :
     SafeSubscriber<Void>(),
     MessageDispatcher,
@@ -295,6 +299,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
             state = State.RUNNING
         }
         checkNotNull(demandGate).open()
+        processingAdmission()
         log.info {
             "[$name] Start processing $namedAggregate."
         }

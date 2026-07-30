@@ -152,6 +152,49 @@ class RuntimeComponentGroupTest {
     }
 
     @Test
+    fun `late prepare compensation cannot mutate a sealed failure`() {
+        val prepareFailure = IllegalStateException("prepare")
+        val compensationFailure = IllegalArgumentException("compensation")
+        val prepareSubscribed = CountDownLatch(1)
+        val prepareSignal = Sinks.empty<Void>()
+        val forceCount = AtomicInteger()
+        val reportedFailures = CopyOnWriteArrayList<Throwable>()
+        val failures = SealableFailureAccumulator()
+        val component = object : RuntimeComponent {
+            override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+                prepareSignal.asMono().doOnSubscribe {
+                    prepareSubscribed.countDown()
+                }
+
+            override fun start() = Unit
+
+            override fun stopGracefully(): Mono<Void> = Mono.empty()
+
+            override fun forceStop() {
+                if (forceCount.incrementAndGet() == 2) {
+                    throw compensationFailure
+                }
+            }
+        }
+        val group = RuntimeComponentGroup(listOf(component)) { error ->
+            reportedFailures += error
+            failures.record(error)
+        }
+        val preparation = group.prepare(DefaultRuntimeContext()).materialize().toFuture()
+
+        prepareSubscribed.await(1, TimeUnit.SECONDS).assert().isTrue()
+        group.forceStop()
+        failures.record(prepareFailure)
+        failures.seal()
+        prepareSignal.tryEmitError(prepareFailure).orThrow()
+
+        preparation.get(1, TimeUnit.SECONDS)!!.throwable.assert().isSameAs(prepareFailure)
+        prepareFailure.suppressedExceptions.assert().isEmpty()
+        forceCount.get().assert().isEqualTo(2)
+        reportedFailures.assert().contains(prepareFailure, compensationFailure)
+    }
+
+    @Test
     fun `force stop prevents a quiesce chain from advancing and compensates overlap`() {
         val calls = CopyOnWriteArrayList<String>()
         val quiesceEntered = CountDownLatch(1)
@@ -375,6 +418,7 @@ class RuntimeComponentGroupTest {
         val releaseStop = CountDownLatch(1)
         val forceCount = AtomicInteger()
         val reportedFailures = CopyOnWriteArrayList<Throwable>()
+        val failures = SealableFailureAccumulator()
         val component = object : RuntimeComponent {
             override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
@@ -392,7 +436,10 @@ class RuntimeComponentGroupTest {
                 }
             }
         }
-        val group = RuntimeComponentGroup(listOf(component), reportedFailures::add)
+        val group = RuntimeComponentGroup(listOf(component)) { error ->
+            reportedFailures += error
+            failures.record(error)
+        }
         group.prepare(DefaultRuntimeContext()).block().assert().isTrue()
         val executor = Executors.newSingleThreadExecutor()
         val gracefulStop = CompletableFuture.supplyAsync(
@@ -522,6 +569,7 @@ class RuntimeComponentGroupTest {
         val stopSignal = Sinks.empty<Void>()
         val forceCount = AtomicInteger()
         val reportedFailures = CopyOnWriteArrayList<Throwable>()
+        val failures = SealableFailureAccumulator()
         val component = object : RuntimeComponent {
             override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
@@ -538,7 +586,10 @@ class RuntimeComponentGroupTest {
                 }
             }
         }
-        val group = RuntimeComponentGroup(listOf(component), reportedFailures::add)
+        val group = RuntimeComponentGroup(listOf(component)) { error ->
+            reportedFailures += error
+            failures.record(error)
+        }
         group.prepare(DefaultRuntimeContext()).block().assert().isTrue()
         val result = group.stopGracefully().materialize().toFuture()
 
@@ -551,6 +602,50 @@ class RuntimeComponentGroupTest {
         failure.suppressedExceptions.assert().containsExactly(compensationFailure)
         reportedFailures.take(2).assert()
             .containsExactly(gracefulFailure, compensationFailure)
+    }
+
+    @Test
+    fun `late graceful compensation cannot mutate a sealed failure`() {
+        val gracefulFailure = IllegalStateException("graceful")
+        val compensationFailure = IllegalArgumentException("compensation")
+        val stopSubscribed = CountDownLatch(1)
+        val stopSignal = Sinks.empty<Void>()
+        val forceCount = AtomicInteger()
+        val reportedFailures = CopyOnWriteArrayList<Throwable>()
+        val failures = SealableFailureAccumulator()
+        val component = object : RuntimeComponent {
+            override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
+
+            override fun start() = Unit
+
+            override fun stopGracefully(): Mono<Void> =
+                stopSignal.asMono().doOnSubscribe {
+                    stopSubscribed.countDown()
+                }
+
+            override fun forceStop() {
+                if (forceCount.incrementAndGet() == 2) {
+                    throw compensationFailure
+                }
+            }
+        }
+        val group = RuntimeComponentGroup(listOf(component)) { error ->
+            reportedFailures += error
+            failures.record(error)
+        }
+        group.prepare(DefaultRuntimeContext()).block().assert().isTrue()
+        val gracefulStop = group.stopGracefully().materialize().toFuture()
+
+        stopSubscribed.await(1, TimeUnit.SECONDS).assert().isTrue()
+        group.forceStop()
+        failures.record(gracefulFailure)
+        failures.seal()
+        stopSignal.tryEmitError(gracefulFailure).orThrow()
+
+        gracefulStop.get(1, TimeUnit.SECONDS)!!.throwable.assert().isSameAs(gracefulFailure)
+        gracefulFailure.suppressedExceptions.assert().isEmpty()
+        forceCount.get().assert().isEqualTo(2)
+        reportedFailures.assert().contains(gracefulFailure, compensationFailure)
     }
 
     @Test

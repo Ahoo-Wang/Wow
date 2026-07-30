@@ -211,6 +211,10 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> :
                 localReceiver.readiness,
                 distributedReceiver.readiness,
             ),
+            processingAdmission = {
+                localReceiver.openProcessing()
+                distributedReceiver.openProcessing()
+            },
         )
     }
 }

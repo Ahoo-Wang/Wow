@@ -71,10 +71,11 @@ abstract class AbstractRedisMessageBus<M, E>(
     }
 
     override fun receive(subscription: MessageSubscription): Flux<E> =
-        receive(subscription, onReady = {})
+        receive(subscription, onReady = {}, readAdmission = null)
 
     override fun receiver(subscription: MessageSubscription): MessageReceiver<E> {
         val readiness = Sinks.empty<Void>()
+        val readAdmission = Sinks.empty<Void>()
         val readinessTerminated = AtomicBoolean()
         fun completeReadiness() {
             if (readinessTerminated.compareAndSet(false, true)) {
@@ -86,7 +87,7 @@ abstract class AbstractRedisMessageBus<M, E>(
                 readiness.tryEmitError(error)
             }
         }
-        val messages = receive(subscription, ::completeReadiness)
+        val messages = receive(subscription, ::completeReadiness, readAdmission)
             .doOnError(::failReadiness)
             .doOnCancel {
                 failReadiness(
@@ -96,12 +97,16 @@ abstract class AbstractRedisMessageBus<M, E>(
         return MessageReceiver(
             messages = messages,
             readiness = readiness.asMono(),
+            processingAdmission = {
+                readAdmission.tryEmitEmpty()
+            },
         )
     }
 
     private fun receive(
         subscription: MessageSubscription,
         onReady: () -> Unit,
+        readAdmission: Sinks.Empty<Void>?,
     ): Flux<E> {
         val options = StreamReceiverOptions.builder().pollTimeout(pollTimeout)
             .build()
@@ -119,18 +124,22 @@ abstract class AbstractRedisMessageBus<M, E>(
                 receive(topic, options, consumer, group)
             }
             val readPublisher = Flux.merge(streamOffsets)
-            val readAdmission = Sinks.empty<Void>()
-            createGroupPublisher
+            val effectiveReadAdmission = readAdmission ?: Sinks.empty()
+            val messages = createGroupPublisher
                 .doOnSuccess {
                     onReady()
                 }
                 .thenMany(
-                    readAdmission.asMono()
+                    effectiveReadAdmission.asMono()
                         .thenMany(readPublisher),
                 )
-                .doOnRequest {
-                    readAdmission.tryEmitEmpty()
+            if (readAdmission == null) {
+                messages.doOnRequest {
+                    effectiveReadAdmission.tryEmitEmpty()
                 }
+            } else {
+                messages
+            }
         }
     }
 

@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Sinks
 import reactor.test.StepVerifier
+import java.util.concurrent.atomic.AtomicInteger
 
 class MessageReceiverTest {
 
@@ -38,11 +39,13 @@ class MessageReceiverTest {
     }
 
     @Test
-    fun `mapping messages preserves readiness`() {
+    fun `mapping messages preserves readiness and processing admission`() {
         val readiness = Sinks.empty<Void>()
+        val processingAdmissions = AtomicInteger()
         val receiver = MessageReceiver(
             messages = Flux.just(1),
             readiness = readiness.asMono(),
+            processingAdmission = processingAdmissions::incrementAndGet,
         ).mapMessages { messages ->
             messages.map(Int::toString)
         }
@@ -53,5 +56,9 @@ class MessageReceiverTest {
         StepVerifier.create(receiver.readiness)
             .then { readiness.tryEmitEmpty().orThrow() }
             .verifyComplete()
+
+        receiver.openProcessing()
+        receiver.openProcessing()
+        processingAdmissions.get().assert().isOne()
     }
 }

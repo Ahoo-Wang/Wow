@@ -18,17 +18,21 @@ import reactor.core.publisher.Mono
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * A single message source and its transport readiness signal.
+ * A single message source with separate readiness and processing admission.
  *
  * [messages] must be subscribed before [readiness]. The readiness signal is
  * hot and replayable: it completes only after the subscribed source can retain
- * messages without loss, or fails when that setup cannot complete.
+ * messages without loss, or fails when that setup cannot complete. Once every
+ * runtime component is ready, [openProcessing] explicitly opens transport
+ * consumption without inferring lifecycle state from reactive demand.
  */
 class MessageReceiver<E : Any>(
     messages: Flux<E>,
     val readiness: Mono<Void> = Mono.empty(),
+    private val processingAdmission: () -> Unit = {},
 ) {
     private val subscribed = AtomicBoolean()
+    private val processingOpened = AtomicBoolean()
 
     val messages: Flux<E> =
         Flux.defer {
@@ -41,9 +45,16 @@ class MessageReceiver<E : Any>(
             }
         }
 
+    fun openProcessing() {
+        if (processingOpened.compareAndSet(false, true)) {
+            processingAdmission()
+        }
+    }
+
     fun <R : Any> mapMessages(transform: (Flux<E>) -> Flux<R>): MessageReceiver<R> =
         MessageReceiver(
             messages = transform(messages),
             readiness = readiness,
+            processingAdmission = ::openProcessing,
         )
 }

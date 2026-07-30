@@ -57,8 +57,10 @@ implementation("me.ahoo.wow:wow-spring-boot-starter:新版本号")
    `RuntimeComponent`，而不是扩展 Dispatcher template。`MainDispatcher` 只保留框架内
    拥有 Scheduler 的实现所需的窄化优雅/强制清理 hook；它们不是通用 readiness 扩展面。
 2. 移除 `MessageDispatcherLauncher` Bean、launcher 注入以及直接调用 Dispatcher
-   生命周期的代码。launcher 类与 factory 已删除。Starter 应用统一使用一个
-   `WowRuntimeLifecycle`；非 Spring 应用应显式构造一个 `WowRuntime`。
+   生命周期的代码。launcher 类与 factory 已删除。Starter 应用统一使用 Starter
+   拥有的 canonical Bean `wowRuntimeLifecycle`；应移除应用自行声明的
+   `WowRuntimeLifecycle`，因为 Starter 会拒绝额外或替换性的生命周期 owner。
+   非 Spring 应用应显式构造一个 `WowRuntime`。
    `WowRuntime.start()` 返回 cold `Mono<Void>`，必须订阅；仅调用
    `runtime.start()` 虽然可以编译，但不会启动任何组件。
 
@@ -68,14 +70,13 @@ implementation("me.ahoo.wow:wow-spring-boot-starter:新版本号")
    // 应用工作
    runtime.stop()
    ```
-3. 自定义 Dispatcher 或其他运行时参与者直接实现 `RuntimeComponent`。兼容 adapter
-   与 runtime ownership handle 均已删除，原 `WowRuntimeComponent` marker 也不再存在。
-   同时删除冗余的通用 `me.ahoo.wow.infra.lifecycle.Lifecycle` 契约：由 Runtime
-   管理的参与者实现 `RuntimeComponent`，独立拥有的资源可使用更窄的
+3. 自定义 Dispatcher 或其他运行时参与者直接实现 `RuntimeComponent`。同时删除冗余的
+   通用 `me.ahoo.wow.infra.lifecycle.Lifecycle` 契约：由 Runtime 管理的参与者实现
+   `RuntimeComponent`，独立拥有的资源可使用更窄的
    `GracefullyStoppable` 关闭能力。独立资源的启动仍由资源所有者显式负责，Wow
    不再提供替代性的通用启动契约。该删除对外部实现存在源码与二进制不兼容；迁移后
-   必须重新编译。`RuntimeComponent.prepare` 也改为返回 `Mono<Void>`；其完成信号
-   表示组件已经能够无损保留新准入的工作，但在 `start` 前仍不能开放处理。
+   必须重新编译。`RuntimeComponent.prepare` 返回 `Mono<Void>`；其完成信号表示组件
+   已经能够无损保留新准入的工作，但在 `start` 前仍不能开放处理。
 
    ```kotlin
    class CustomRuntimeComponent : RuntimeComponent {
@@ -100,10 +101,12 @@ implementation("me.ahoo.wow:wow-spring-boot-starter:新版本号")
    及时释放资源或终止。
 
    如果自定义 `MessageBus` 在订阅建立后仍不能立即无损保留新工作，必须 override
-   `receiver`，并随 single-use 消息流返回 hot、可重放的 readiness signal。Redis
-   readiness 会创建全部 consumer group，但在处理 demand 开放前不会启动 stream
-   read。Kafka readiness 只为尚无 committed group offset 的已分配分区持久化解析后的
-   初始 position。Kafka topic 必须在 Runtime 启动前完成预配置。
+   `receiver`，返回 single-use 消息流、hot 且可重放的 readiness signal，以及幂等的
+   processing-admission callback；映射 receiver 时必须同时保留三者。Runtime 会先订阅、
+   等待 readiness，再在全局 start pass 调用 `openProcessing()`。Redis readiness 会
+   创建全部 consumer group，但无论下游是否 prefetch，都不会在该显式准入前启动
+   stream read。Kafka readiness 只为尚无 committed group offset 的已分配分区持久化
+   解析后的初始 position。Kafka topic 必须在 Runtime 启动前完成预配置。
 4. 运行时拥有的 Spring Bean 必须是 singleton，且 Bean 声明返回类型必须暴露
    `RuntimeComponent` 或其子类型（如 `MessageDispatcher`）。应从这些 Bean 移除
    Spring `Lifecycle`/`SmartLifecycle`、`DisposableBean`、`@PreDestroy` 与显式
@@ -112,6 +115,21 @@ implementation("me.ahoo.wow:wow-spring-boot-starter:新版本号")
    proxy 必须暴露 `RuntimeComponent`。Bean constructor、factory method 与
    `@PostConstruct` 必须保持 inert；只允许在 `prepare` 或 `start` 中获取由 runtime
    管理的资源。
+   自定义 `WowRuntime` Bean 同样必须禁用 Spring 推断的
+   `AutoCloseable.close()` owner：
+
+   ```kotlin
+   @Bean(WOW_RUNTIME_BEAN_NAME, destroyMethod = "")
+   fun customWowRuntime(): WowRuntime =
+       WowRuntime(components, shutdownTimeout, shutdownQuietPeriod)
+   ```
+
+   自定义 Runtime 必须是名为 `wowRuntime` 的直接 singleton Bean，并且是当前
+   `ApplicationContext` 中唯一的 `WowRuntime`。Starter 会拒绝 `FactoryBean`
+   product，因为它无法证明 Factory 不会成为第二个销毁所有者。自定义 Runtime
+   自行拥有组件拓扑；只有 Starter 创建默认 Runtime 时才会自动发现组件。父
+   Context 的 Runtime 不会替代这个本地 canonical boundary。即使应用提供 canonical
+   Runtime，canonical 生命周期桥接器仍由 Starter 拥有。
 5. 如果应用替换了 Spring 中名为 `lifecycleProcessor` 的 Bean，且该 Bean 是
    `DefaultLifecycleProcessor`，Wow 会根据实际选中的
    `WowRuntime.shutdownTimeout`（而不是独立读取 `wow.shutdown-timeout`）配置运行时

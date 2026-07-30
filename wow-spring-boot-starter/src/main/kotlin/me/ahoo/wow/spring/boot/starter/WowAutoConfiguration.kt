@@ -68,12 +68,23 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
         beanFactory: ConfigurableListableBeanFactory,
     ): SmartInitializingSingleton =
         SmartInitializingSingleton {
+            val wowRuntime = beanFactory.canonicalWowRuntime()
+            beanFactory.requireCanonicalWowRuntimeLifecycle()
+            val competingOwner = beanFactory.findCompetingLifecycleOwner(
+                WOW_RUNTIME_BEAN_NAME,
+                wowRuntime,
+            )
+            require(competingOwner == null) {
+                "WowRuntime bean '$WOW_RUNTIME_BEAN_NAME' has a competing lifecycle owner: " +
+                    "$competingOwner. WowRuntimeLifecycle must be its exclusive lifecycle owner. " +
+                    "Declare the bean with @Bean(destroyMethod = \"\")."
+            }
             val lifecycleProcessor = beanFactory.getBean(
                 AbstractApplicationContext.LIFECYCLE_PROCESSOR_BEAN_NAME,
             )
             if (lifecycleProcessor is DefaultLifecycleProcessor) {
                 lifecycleProcessor.configureWowRuntimePhaseTimeout(
-                    beanFactory.getBean(WowRuntime::class.java).shutdownTimeout,
+                    wowRuntime.shutdownTimeout,
                 )
             }
         }
@@ -105,7 +116,10 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
     }
 
     @Bean(WOW_RUNTIME_BEAN_NAME, destroyMethod = "")
-    @ConditionalOnMissingBean(WowRuntime::class, search = SearchStrategy.CURRENT)
+    @ConditionalOnMissingBean(
+        name = [WOW_RUNTIME_BEAN_NAME],
+        search = SearchStrategy.CURRENT,
+    )
     internal fun wowRuntime(
         beanFactory: ConfigurableListableBeanFactory,
     ): WowRuntime {
@@ -128,13 +142,43 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
     }
 
     @Bean(WOW_RUNTIME_LIFECYCLE_BEAN_NAME)
-    @ConditionalOnMissingBean(WowRuntimeLifecycle::class, search = SearchStrategy.CURRENT)
     internal fun wowRuntimeLifecycle(
-        wowRuntime: WowRuntime,
+        beanFactory: ConfigurableListableBeanFactory,
         applicationContext: ConfigurableApplicationContext,
     ): WowRuntimeLifecycle {
-        return WowRuntimeLifecycle(wowRuntime) {
+        return WowRuntimeLifecycle(beanFactory.canonicalWowRuntime()) {
             applicationContext.close()
+        }
+    }
+
+    private fun ConfigurableListableBeanFactory.canonicalWowRuntime(): WowRuntime {
+        require(containsLocalBean(WOW_RUNTIME_BEAN_NAME)) {
+            "The current ApplicationContext must declare a WowRuntime bean named " +
+                "'$WOW_RUNTIME_BEAN_NAME'."
+        }
+        require(!isFactoryBean(WOW_RUNTIME_BEAN_NAME)) {
+            "WowRuntime bean '$WOW_RUNTIME_BEAN_NAME' must be declared directly, not through " +
+                "a FactoryBean, so WowRuntimeLifecycle can prove exclusive lifecycle ownership. " +
+                "Declare the bean with @Bean(destroyMethod = \"\")."
+        }
+        require(isSingleton(WOW_RUNTIME_BEAN_NAME)) {
+            "WowRuntime bean '$WOW_RUNTIME_BEAN_NAME' must be a singleton."
+        }
+        val runtimeBeanNames =
+            getBeanNamesForType(WowRuntime::class.java, true, true).toSet()
+        require(runtimeBeanNames == setOf(WOW_RUNTIME_BEAN_NAME)) {
+            "'$WOW_RUNTIME_BEAN_NAME' must be the only WowRuntime bean in the current " +
+                "ApplicationContext; found ${runtimeBeanNames.sorted()}."
+        }
+        return getBean(WOW_RUNTIME_BEAN_NAME, WowRuntime::class.java)
+    }
+
+    private fun ConfigurableListableBeanFactory.requireCanonicalWowRuntimeLifecycle() {
+        val lifecycleBeanNames =
+            getBeanNamesForType(WowRuntimeLifecycle::class.java, true, true).toSet()
+        require(lifecycleBeanNames == setOf(WOW_RUNTIME_LIFECYCLE_BEAN_NAME)) {
+            "'$WOW_RUNTIME_LIFECYCLE_BEAN_NAME' must be the only WowRuntimeLifecycle bean " +
+                "in the current ApplicationContext; found ${lifecycleBeanNames.sorted()}."
         }
     }
 
@@ -170,7 +214,7 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
 
     private fun ConfigurableListableBeanFactory.findCompetingLifecycleOwner(
         beanName: String,
-        component: RuntimeComponent,
+        component: Any,
     ): String? {
         if (component is Lifecycle) {
             return "Spring Lifecycle"

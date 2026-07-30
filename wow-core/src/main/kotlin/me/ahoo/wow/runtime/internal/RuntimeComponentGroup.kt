@@ -142,10 +142,6 @@ internal class RuntimeComponentGroup(
                 },
                 true,
             )
-                .onErrorMap { actionFailure ->
-                    compensationFailure.get()?.let(actionFailure::addSuppressedIfAbsent)
-                    actionFailure
-                }
                 .then(
                     Mono.defer {
                         compensationFailure.get()?.let { Mono.error(it) } ?: Mono.empty()
@@ -265,10 +261,6 @@ internal class RuntimeComponentGroup(
                 },
                 true,
             )
-                .onErrorMap { actionFailure ->
-                    compensationFailure.get()?.let(actionFailure::addSuppressedIfAbsent)
-                    actionFailure
-                }
                 .then(
                     Mono.defer {
                         compensationFailure.get()?.let { Mono.error(it) } ?: Mono.empty()

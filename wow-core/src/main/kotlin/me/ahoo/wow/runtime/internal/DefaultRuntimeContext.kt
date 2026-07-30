@@ -33,7 +33,9 @@ import java.util.concurrent.atomic.AtomicReference
  * Quiescing continues to admit work while activity is present or while the
  * configured quiet period is still open. Each new operation resets that period.
  * Once the runtime remains idle for the complete period, admission closes before
- * quiescence completes. The owning runtime then quiesces every component.
+ * quiescence completes. A fatal failure closes admission immediately, skips the
+ * quiet period, and still waits for admitted work to drain. The owning runtime
+ * quiesces every component after either admission boundary closes.
  */
 internal class DefaultRuntimeContext(
     private val shutdownQuietPeriod: Duration = Duration.ZERO,
@@ -57,6 +59,7 @@ internal class DefaultRuntimeContext(
     private val state = AtomicLong()
     private val activityVersion = AtomicLong()
     private val quietPeriodTask = AtomicReference<Disposable?>()
+    private val admissionClosedSink = Sinks.empty<Void>()
     private val quiescentSink = Sinks.empty<Void>()
     private val quiescenceMonitor = Any()
 
@@ -126,8 +129,10 @@ internal class DefaultRuntimeContext(
             }
             val updated = current - 1
             if (state.compareAndSet(current, updated)) {
-                if (updated == QUIESCING_MASK) {
-                    scheduleCloseAfterQuietPeriod()
+                when {
+                    updated == QUIESCING_MASK -> scheduleCloseAfterQuietPeriod()
+                    updated and CLOSED_MASK != 0L &&
+                        updated and ACTIVE_MASK == 0L -> quiescentSink.tryEmitEmpty()
                 }
                 return
             }
@@ -151,6 +156,29 @@ internal class DefaultRuntimeContext(
         return quiescentSink.asMono()
     }
 
+    internal fun admissionClosed(): Mono<Void> = admissionClosedSink.asMono()
+
+    /**
+     * Immediately closes admission but lets already admitted work drain.
+     */
+    internal fun closeAdmissionAndDrain() {
+        val drained = synchronized(quiescenceMonitor) {
+            while (true) {
+                val current = state.get()
+                val closed = current or QUIESCING_MASK or CLOSED_MASK
+                if (current == closed || state.compareAndSet(current, closed)) {
+                    break
+                }
+            }
+            quietPeriodTask.getAndSet(null)?.dispose()
+            state.get() and ACTIVE_MASK == 0L
+        }
+        admissionClosedSink.tryEmitEmpty()
+        if (drained) {
+            quiescentSink.tryEmitEmpty()
+        }
+    }
+
     /**
      * Closes admission without waiting for active work or the quiet period.
      */
@@ -165,6 +193,7 @@ internal class DefaultRuntimeContext(
             }
             quietPeriodTask.getAndSet(null)?.dispose()
         }
+        admissionClosedSink.tryEmitEmpty()
         quiescentSink.tryEmitEmpty()
     }
 
@@ -190,6 +219,7 @@ internal class DefaultRuntimeContext(
             }
             if (schedulingAttemptStillCurrent) {
                 reportFailure(error)
+                admissionClosedSink.tryEmitError(error)
                 quiescentSink.tryEmitError(error)
             }
             return
@@ -223,6 +253,7 @@ internal class DefaultRuntimeContext(
             return
         }
         quietPeriodTask.getAndSet(null)?.dispose()
+        admissionClosedSink.tryEmitEmpty()
         quiescentSink.tryEmitEmpty()
     }
 

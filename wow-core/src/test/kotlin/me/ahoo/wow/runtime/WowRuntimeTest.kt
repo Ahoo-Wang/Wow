@@ -22,8 +22,10 @@ import me.ahoo.wow.runtime.internal.newTerminalSignalDispatcher
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.assertTimeoutPreemptively
+import org.reactivestreams.Subscription
 import reactor.core.Disposable
 import reactor.core.Exceptions
+import reactor.core.publisher.BaseSubscriber
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.core.scheduler.Scheduler
@@ -232,6 +234,106 @@ class WowRuntimeTest {
             "start:second",
         )
         StepVerifier.create(runtime.stopGracefully()).verifyComplete()
+    }
+
+    @Test
+    fun `a concurrent second start cannot stop the startup owner`() {
+        val prepareSubscribed = CountDownLatch(1)
+        val readiness = Sinks.empty<Void>()
+        val forceCount = AtomicInteger()
+        val component = object : RuntimeComponent {
+            override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+                readiness.asMono().doOnSubscribe {
+                    prepareSubscribed.countDown()
+                }
+
+            override fun start() = Unit
+
+            override fun stopGracefully(): Mono<Void> = Mono.empty()
+
+            override fun forceStop() {
+                forceCount.incrementAndGet()
+                readiness.tryEmitError(IllegalStateException("force-stopped"))
+            }
+        }
+        val runtime = WowRuntime(
+            components = listOf(component),
+            shutdownTimeout = Duration.ofSeconds(1),
+            shutdownQuietPeriod = Duration.ZERO,
+        )
+        val firstStartup = runtime.start().toFuture()
+
+        try {
+            prepareSubscribed.await(1, TimeUnit.SECONDS).assert().isTrue()
+
+            val secondStartup = checkNotNull(
+                runtime.start().materialize().block(Duration.ofSeconds(1)),
+            )
+            secondStartup.throwable.assert()
+                .isInstanceOf(IllegalStateException::class.java)
+                .hasMessageContaining("Current state: STARTING")
+            forceCount.get().assert().isZero()
+            firstStartup.isDone.assert().isFalse()
+
+            readiness.tryEmitEmpty().orThrow()
+            firstStartup.get(1, TimeUnit.SECONDS)
+            runtime.isRunning.assert().isTrue()
+            StepVerifier.create(runtime.stopGracefully()).verifyComplete()
+        } finally {
+            readiness.tryEmitEmpty()
+            runtime.forceStop()
+        }
+    }
+
+    @Test
+    fun `cancelling a rejected second start cannot stop the startup owner`() {
+        val prepareSubscribed = CountDownLatch(1)
+        val readiness = Sinks.empty<Void>()
+        val forceCount = AtomicInteger()
+        val component = object : RuntimeComponent {
+            override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+                readiness.asMono().doOnSubscribe {
+                    prepareSubscribed.countDown()
+                }
+
+            override fun start() = Unit
+
+            override fun stopGracefully(): Mono<Void> = Mono.empty()
+
+            override fun forceStop() {
+                forceCount.incrementAndGet()
+                readiness.tryEmitError(IllegalStateException("force-stopped"))
+            }
+        }
+        val runtime = WowRuntime(
+            components = listOf(component),
+            shutdownTimeout = Duration.ofSeconds(1),
+            shutdownQuietPeriod = Duration.ZERO,
+        )
+        val firstStartup = runtime.start().toFuture()
+
+        try {
+            prepareSubscribed.await(1, TimeUnit.SECONDS).assert().isTrue()
+
+            runtime.start().subscribe(
+                object : BaseSubscriber<Void>() {
+                    override fun hookOnSubscribe(subscription: Subscription) {
+                        subscription.cancel()
+                    }
+                },
+            )
+
+            forceCount.get().assert().isZero()
+            firstStartup.isDone.assert().isFalse()
+
+            readiness.tryEmitEmpty().orThrow()
+            firstStartup.get(1, TimeUnit.SECONDS)
+            runtime.isRunning.assert().isTrue()
+            StepVerifier.create(runtime.stopGracefully()).verifyComplete()
+        } finally {
+            readiness.tryEmitEmpty()
+            runtime.forceStop()
+        }
     }
 
     @Test
@@ -869,7 +971,10 @@ class WowRuntimeTest {
         val first = RecordingLifecycle(
             name = "first",
             calls = calls,
-            onPrepare = { it.reportFailure(prepareFailure) },
+            onPrepare = {
+                it.reportFailure(prepareFailure)
+                it.tryAcquire().assert().isNull()
+            },
         )
         val second = RecordingLifecycle("second", calls)
         val runtime = WowRuntime(listOf(first, second), Duration.ofSeconds(1), Duration.ZERO)
@@ -1421,7 +1526,7 @@ class WowRuntimeTest {
     }
 
     @Test
-    fun `quiescence scheduler rejection force stops without entering component quiesce`() {
+    fun `quiescence scheduler rejection closes intake before force stop`() {
         val calls = CopyOnWriteArrayList<String>()
         val forceStopInvoked = CountDownLatch(1)
         val schedulingFailure = RejectedExecutionException("rejected")
@@ -1460,7 +1565,7 @@ class WowRuntimeTest {
             .verify()
 
         forceStopInvoked.await(1, TimeUnit.SECONDS).assert().isTrue()
-        quiesceInvocations.get().assert().isZero()
+        quiesceInvocations.get().assert().isOne()
     }
 
     @Test
@@ -1841,6 +1946,74 @@ class WowRuntimeTest {
             .verify()
         calls.takeLast(2).assert().containsExactly("stop:component", "force:component")
         runtime.isRunning.assert().isFalse()
+    }
+
+    @Test
+    fun `fatal failure closes intake before admitted work drains`() {
+        val calls = CopyOnWriteArrayList<String>()
+        val quiesced = CountDownLatch(1)
+        val runtimeFailure = IllegalStateException("runtime")
+        val component = RecordingLifecycle(
+            name = "component",
+            calls = calls,
+            onQuiesce = quiesced::countDown,
+        )
+        val runtime = WowRuntime(
+            components = listOf(component),
+            shutdownTimeout = Duration.ofSeconds(1),
+            shutdownQuietPeriod = Duration.ofMillis(500),
+        )
+        runtime.start().block()
+        val runtimeContext = checkNotNull(component.runtimeContext)
+        val activity = checkNotNull(runtimeContext.tryAcquire())
+
+        runtimeContext.reportFailure(runtimeFailure)
+
+        quiesced.await(1, TimeUnit.SECONDS).assert().isTrue()
+        runtimeContext.tryAcquire().assert().isNull()
+        calls.assert().doesNotContain("stop:component")
+
+        activity.close()
+        StepVerifier.create(runtime.terminationSignal)
+            .expectErrorSatisfies { error ->
+                error.assert().isSameAs(runtimeFailure)
+            }
+            .verify(Duration.ofSeconds(1))
+        calls.assert().containsSubsequence("stop:component", "force:component")
+    }
+
+    @Test
+    fun `fatal failure escalates an ordinary quiet shutdown immediately`() {
+        val calls = CopyOnWriteArrayList<String>()
+        val quiesced = CountDownLatch(1)
+        val runtimeFailure = IllegalStateException("runtime-while-stopping")
+        val component = RecordingLifecycle(
+            name = "component",
+            calls = calls,
+            onQuiesce = quiesced::countDown,
+        )
+        val runtime = WowRuntime(
+            components = listOf(component),
+            shutdownTimeout = Duration.ofSeconds(1),
+            shutdownQuietPeriod = Duration.ofMillis(500),
+        )
+        runtime.start().block()
+        val runtimeContext = checkNotNull(component.runtimeContext)
+        val activity = checkNotNull(runtimeContext.tryAcquire())
+        val termination = runtime.stopGracefully()
+
+        runtimeContext.reportFailure(runtimeFailure)
+
+        quiesced.await(1, TimeUnit.SECONDS).assert().isTrue()
+        runtimeContext.tryAcquire().assert().isNull()
+        calls.assert().doesNotContain("stop:component")
+
+        activity.close()
+        StepVerifier.create(termination)
+            .expectErrorSatisfies { error ->
+                error.assert().isSameAs(runtimeFailure)
+            }
+            .verify(Duration.ofSeconds(1))
     }
 
     @Test

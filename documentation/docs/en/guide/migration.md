@@ -63,8 +63,10 @@ Apply the following source migrations:
    readiness extension surface.
 2. Remove `MessageDispatcherLauncher` beans, launcher injections, and direct
    dispatcher lifecycle calls. Launcher classes and factories have been
-   removed. Starter applications use one `WowRuntimeLifecycle`; non-Spring
-   applications construct one `WowRuntime` explicitly. `WowRuntime.start()` is
+   removed. Starter applications use the Starter-owned canonical bean
+   `wowRuntimeLifecycle`; remove application-defined `WowRuntimeLifecycle`
+   beans because an additional or replacement lifecycle owner is rejected.
+   Non-Spring applications construct one `WowRuntime` explicitly. `WowRuntime.start()` is
    a cold `Mono<Void>` and must be subscribed; merely calling `runtime.start()`
    compiles but does not start anything.
 
@@ -75,18 +77,17 @@ Apply the following source migrations:
    runtime.stop()
    ```
 3. A custom dispatcher or non-dispatcher participant implements
-   `RuntimeComponent` directly. Compatibility adapters and runtime ownership
-   handles, including the former `WowRuntimeComponent` marker, have been
-   removed. The redundant generic `me.ahoo.wow.infra.lifecycle.Lifecycle`
-   contract is also removed: runtime-managed participants use
+   `RuntimeComponent` directly. The redundant generic
+   `me.ahoo.wow.infra.lifecycle.Lifecycle` contract is removed:
+   runtime-managed participants use
    `RuntimeComponent`, while independently owned resources may use the narrower
    `GracefullyStoppable` shutdown capability. Startup of an independently owned
    resource remains that resource owner's explicit responsibility; there is no
    replacement generic Wow startup contract. This removal is source- and
    binary-incompatible for external implementations; migrate and recompile them.
-   `RuntimeComponent.prepare` also now returns `Mono<Void>`. Its completion is
-   the component's readiness signal: processing must remain closed, but the
-   component must already be able to retain newly admitted work without loss.
+   `RuntimeComponent.prepare` returns `Mono<Void>`; its completion is the
+   component's readiness signal. Processing must remain closed, but the component
+   must already be able to retain newly admitted work without loss.
 
    ```kotlin
    class CustomRuntimeComponent : RuntimeComponent {
@@ -113,9 +114,12 @@ Apply the following source migrations:
    `forceStop` runs.
 
    A custom `MessageBus` whose subscription is not immediately able to retain
-   new work must override `receiver` and return a hot, replayable readiness
-   signal with its single-use message stream. Redis readiness creates every
-   consumer group but does not start stream reads before processing demand.
+   new work must override `receiver`. Return a single-use message stream, a hot
+   replayable readiness signal, and an idempotent processing-admission callback.
+   Preserve all three when mapping a receiver. The runtime subscribes first,
+   awaits readiness, and invokes `openProcessing()` only in the global start
+   pass. Redis readiness creates every consumer group but does not start stream
+   reads before that explicit admission, regardless of downstream prefetch.
    Kafka readiness persists the resolved initial position only for assigned
    partitions that do not already have a committed group offset. Provision
    Kafka topics before starting the runtime.
@@ -128,6 +132,23 @@ Apply the following source migrations:
    exactly once. A JDK proxy must expose `RuntimeComponent`. Bean constructors,
    factory methods, and `@PostConstruct` must remain inert; acquire
    runtime-owned resources only from `prepare` or `start`.
+   A custom `WowRuntime` bean must likewise disable Spring's inferred
+   `AutoCloseable.close()` owner:
+
+   ```kotlin
+   @Bean(WOW_RUNTIME_BEAN_NAME, destroyMethod = "")
+   fun customWowRuntime(): WowRuntime =
+       WowRuntime(components, shutdownTimeout, shutdownQuietPeriod)
+   ```
+
+   The custom runtime must be a direct singleton bean named `wowRuntime`; it must
+   be the only `WowRuntime` in that `ApplicationContext`. A `FactoryBean` product
+   is rejected because the Starter cannot prove that the factory will not become
+   a second destruction owner. The custom runtime owns its component topology;
+   automatic component discovery applies only when the Starter creates the
+   default runtime. Parent-context runtimes do not replace this local canonical
+   boundary. The canonical lifecycle bridge remains Starter-owned even when the
+   application supplies the canonical runtime.
 5. If the application replaces Spring's bean named `lifecycleProcessor`, Wow
    configures its runtime phase timeout when it is a
    `DefaultLifecycleProcessor`. The phase timeout is derived from the selected

@@ -35,6 +35,8 @@ import reactor.core.scheduler.Scheduler
  * @param scheduler the scheduler for processing messages
  * @param messageReadiness completion of asynchronous message-source setup when
  * this dispatcher is registered directly with a runtime
+ * @param processingAdmission explicit transport-processing gate opened by
+ * [start]
  */
 class AggregateSnapshotDispatcher(
     override val name: String =
@@ -45,8 +47,10 @@ class AggregateSnapshotDispatcher(
     private val snapshotHandler: SnapshotHandler,
     override val scheduler: Scheduler,
     messageReadiness: Mono<Void> = Mono.empty(),
+    processingAdmission: () -> Unit = {},
 ) : AggregateDispatcher<StateEventExchange<*>>(
     messageReadiness = messageReadiness,
+    processingAdmission = processingAdmission,
 ),
     ProcessorInfo {
     /**

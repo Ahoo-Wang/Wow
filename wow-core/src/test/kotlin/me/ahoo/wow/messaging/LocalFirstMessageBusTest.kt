@@ -30,6 +30,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 class LocalFirstMessageBusTest {
 
@@ -53,6 +54,29 @@ class LocalFirstMessageBusTest {
         ready.isDone.assert().isFalse()
         distributedReadiness.tryEmitEmpty().orThrow()
         ready.get(1, TimeUnit.SECONDS)
+    }
+
+    @Test
+    fun `receiver opens local and distributed processing exactly once`() {
+        val localAdmissions = AtomicInteger()
+        val distributedAdmissions = AtomicInteger()
+        val bus = RecordingLocalFirstMessageBus(
+            localBus = RecordingLocalBus(
+                processingAdmission = localAdmissions::incrementAndGet,
+            ),
+            distributedBus = RecordingDistributedBus(
+                processingAdmission = distributedAdmissions::incrementAndGet,
+            ),
+        )
+        val receiver = bus.receiver(
+            MessageSubscription(LocalFirstTestMessage(), receiverGroup = "receiver-group"),
+        )
+
+        receiver.openProcessing()
+        receiver.openProcessing()
+
+        localAdmissions.get().assert().isOne()
+        distributedAdmissions.get().assert().isOne()
     }
 
     @Test
@@ -220,6 +244,7 @@ private class RecordingLocalBus(
     private val subscribers: Int = 0,
     private val receiveFlux: Flux<LocalFirstTestExchange> = Flux.empty(),
     private val readiness: Mono<Void> = Mono.empty(),
+    private val processingAdmission: () -> Unit = {},
 ) : LocalMessageBus<LocalFirstTestMessage, LocalFirstTestExchange> {
     val sent: MutableList<LocalFirstTestMessage> = mutableListOf()
     val received: MutableList<MessageSubscription> = mutableListOf()
@@ -242,6 +267,7 @@ private class RecordingLocalBus(
         MessageReceiver(
             messages = receive(subscription),
             readiness = readiness,
+            processingAdmission = processingAdmission,
         )
 
     override fun subscriberCount(namedAggregate: NamedAggregate): Int = subscribers
@@ -250,6 +276,7 @@ private class RecordingLocalBus(
 private class RecordingDistributedBus(
     private val receiveFlux: Flux<LocalFirstTestExchange> = Flux.empty(),
     private val readiness: Mono<Void> = Mono.empty(),
+    private val processingAdmission: () -> Unit = {},
 ) : DistributedMessageBus<LocalFirstTestMessage, LocalFirstTestExchange> {
     val sent: MutableList<LocalFirstTestMessage> = mutableListOf()
     val received: MutableList<MessageSubscription> = mutableListOf()
@@ -270,6 +297,7 @@ private class RecordingDistributedBus(
         MessageReceiver(
             messages = receive(subscription),
             readiness = readiness,
+            processingAdmission = processingAdmission,
         )
 }
 

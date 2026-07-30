@@ -42,6 +42,8 @@ import java.util.concurrent.ConcurrentHashMap
  * @property scheduler The scheduler for managing event processing concurrency
  * @param messageReadiness Completion of asynchronous message-source setup when
  * this dispatcher is registered directly with a runtime
+ * @param processingAdmission Explicit transport-processing gate opened by
+ * [start]
  *
  * @constructor Creates a new AggregateEventDispatcher with the specified parameters
  *
@@ -62,8 +64,10 @@ class AggregateEventDispatcher(
     override val eventHandler: EventHandler,
     override val scheduler: Scheduler,
     messageReadiness: Mono<Void> = Mono.empty(),
+    processingAdmission: () -> Unit = {},
 ) : AbstractAggregateEventDispatcher<EventStreamExchange>(
     messageReadiness = messageReadiness,
+    processingAdmission = processingAdmission,
 ) {
     /**
      * Creates a domain event exchange from an event stream exchange and domain event.

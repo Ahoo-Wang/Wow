@@ -162,6 +162,26 @@ class DefaultRuntimeContextTest {
     }
 
     @Test
+    fun `fatal close rejects new activity and drains admitted work without a quiet period`() {
+        val scheduler = VirtualTimeScheduler.create()
+        val context = DefaultRuntimeContext(Duration.ofSeconds(1), scheduler)
+        val activity = context.tryAcquire()!!
+        val quiescence = context.quiesce()
+        val admissionClosed = context.admissionClosed().toFuture()
+
+        context.closeAdmissionAndDrain()
+
+        admissionClosed.get(1, TimeUnit.SECONDS)
+        context.isAdmissionClosed.assert().isTrue()
+        context.tryAcquire().assert().isNull()
+        StepVerifier.create(quiescence)
+            .expectSubscription()
+            .expectNoEvent(Duration.ofMillis(100))
+            .then(activity::close)
+            .verifyComplete()
+    }
+
+    @Test
     fun `activity lease closes exactly once`() {
         val context = DefaultRuntimeContext()
         val activity = context.tryAcquire()!!

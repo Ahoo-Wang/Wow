@@ -68,9 +68,11 @@ class AggregateDispatcherTest {
     fun `top-level runtime waits for aggregate dispatcher message readiness`() {
         val source = Sinks.many().unicast().onBackpressureBuffer<TestExchange>()
         val readiness = Sinks.empty<Void>()
+        val processingAdmissions = AtomicInteger()
         val dispatcher = RecordingAggregateDispatcher(
             messageFlux = source.asFlux(),
             messageReadiness = readiness.asMono(),
+            processingAdmission = processingAdmissions::incrementAndGet,
         )
         val runtime = WowRuntime(
             components = listOf(dispatcher),
@@ -82,10 +84,12 @@ class AggregateDispatcherTest {
         source.currentSubscriberCount().assert().isOne()
         startup.isDone.assert().isFalse()
         runtime.isRunning.assert().isFalse()
+        processingAdmissions.get().assert().isZero()
 
         readiness.tryEmitEmpty().orThrow()
         startup.get(1, TimeUnit.SECONDS)
         runtime.isRunning.assert().isTrue()
+        processingAdmissions.get().assert().isOne()
         StepVerifier.create(runtime.stopGracefully()).verifyComplete()
     }
 
@@ -792,7 +796,12 @@ class AggregateDispatcherTest {
             RuntimeCleanupExecutor.execute(action)
         },
         messageReadiness: Mono<Void> = Mono.empty(),
-    ) : AggregateDispatcher<TestExchange>(cleanupDispatcher, messageReadiness) {
+        processingAdmission: () -> Unit = {},
+    ) : AggregateDispatcher<TestExchange>(
+        cleanupDispatcher = cleanupDispatcher,
+        messageReadiness = messageReadiness,
+        processingAdmission = processingAdmission,
+    ) {
         override val parallelism: Int = 2
         override val namedAggregate: NamedAggregate = "wow-core-test.messaging_aggregate".toNamedAggregate().materialize()
         val handled: Sinks.Many<TestExchange> = Sinks.many().replay().all()

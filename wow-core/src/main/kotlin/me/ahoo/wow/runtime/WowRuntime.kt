@@ -195,20 +195,28 @@ class WowRuntime private constructor(
      */
     @Suppress("TooGenericExceptionCaught")
     fun start(): Mono<Void> =
-        Mono.defer(::startComponents)
-            .onErrorResume { startFailure ->
-                Exceptions.throwIfFatal(startFailure)
-                rollbackAfterStartFailure(startFailure)
-            }
-            .doOnCancel(::forceStop)
+        Mono.defer {
+            claimStartOwnership()
+            startOwned().doOnCancel(::forceStop)
+        }
 
-    private fun startComponents(): Mono<Void> {
+    private fun claimStartOwnership() {
         synchronized(lifecycleMonitor) {
             check(state == State.NEW) {
                 "WowRuntime can only be started once. Current state: $state."
             }
             state = State.STARTING
         }
+    }
+
+    private fun startOwned(): Mono<Void> =
+        Mono.defer(::startComponents)
+            .onErrorResume { startFailure ->
+                Exceptions.throwIfFatal(startFailure)
+                rollbackAfterStartFailure(startFailure)
+            }
+
+    private fun startComponents(): Mono<Void> {
         return componentGroup.prepare(
             runtimeContext = runtimeContext,
             admissionGate = ::admitComponentLifecycleAction,
@@ -461,15 +469,18 @@ class WowRuntime private constructor(
 
     private fun handleRuntimeFailure(failure: Throwable) {
         var startupFailure = false
+        var closeAdmission = false
         val owner = synchronized(lifecycleMonitor) {
             when (state) {
                 State.STARTING -> {
                     startupFailure = true
+                    closeAdmission = true
                     recordFailure(failure)
                     newShutdownOwner(failOnRecordedFailure = false)
                 }
 
                 State.RUNNING -> {
+                    closeAdmission = true
                     recordFailure(failure)
                     newShutdownOwner()
                 }
@@ -477,6 +488,7 @@ class WowRuntime private constructor(
                 State.STOPPING,
                 State.FORCE_STOPPING,
                 -> {
+                    closeAdmission = true
                     recordFailure(failure)
                     null
                 }
@@ -485,6 +497,9 @@ class WowRuntime private constructor(
                 State.STOPPED,
                 -> null
             }
+        }
+        if (closeAdmission) {
+            runtimeContext.closeAdmissionAndDrain()
         }
         owner?.let {
             scheduleShutdownDeadline(it)
@@ -495,15 +510,19 @@ class WowRuntime private constructor(
     }
 
     private fun shutdownPipeline(owner: ShutdownOwner): Mono<Void> {
-        return Mono.defer(runtimeContext::quiesce)
-            .publishOn(executionResources.shutdownScheduler)
-            .then(
-                Mono.fromRunnable {
-                    componentGroup.quiesce {
-                        !owner.isCancelled
-                    }
-                },
-            )
+        return Mono.defer {
+            val drained = runtimeContext.quiesce()
+            runtimeContext.admissionClosed()
+                .publishOn(executionResources.shutdownScheduler)
+                .then(
+                    Mono.fromRunnable {
+                        componentGroup.quiesce {
+                            !owner.isCancelled
+                        }
+                    },
+                )
+                .then(drained.publishOn(executionResources.shutdownScheduler))
+        }
             .then(
                 componentGroup.stopGracefully(
                     shouldStop = { !owner.isCancelled },

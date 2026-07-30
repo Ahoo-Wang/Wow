@@ -5,10 +5,12 @@
 Wow has one high-level runtime owner:
 `me.ahoo.wow.runtime.WowRuntime`.
 
-Applications register `RuntimeComponent` instances with that runtime. Spring
-contributes components from the current application context and exposes one
-`WowRuntimeLifecycle` adapter. Dispatchers are components; they are not
-independent Spring lifecycles or bean-destroy owners.
+Applications register `RuntimeComponent` instances with that runtime. When
+Spring creates the default runtime, it contributes components from the current
+application context and exposes one canonical `WowRuntimeLifecycle` adapter. A custom
+runtime owns its component topology explicitly, while the lifecycle adapter remains
+Starter-owned. Dispatchers are components;
+they are not independent Spring lifecycles or bean-destroy owners.
 
 ```mermaid
 flowchart LR
@@ -98,7 +100,8 @@ Preparing all downstream subscriptions and transport retention points before
 opening any dispatcher processing avoids startup loss. In-memory transports are
 ready once the subscription is installed behind its demand gate. Redis is ready
 after all consumer groups exist at `latest`; stream reads remain closed until
-dispatcher demand opens, so readiness alone cannot move entries into the PEL.
+the runtime explicitly opens `MessageReceiver` processing, so readiness and
+reactive prefetch cannot move entries into the PEL.
 Kafka is ready after assignment and fetch-position resolution, and after the
 resolved position has been synchronously committed for every assigned partition
 that has no existing group offset. Existing committed offsets are never
@@ -167,14 +170,62 @@ The first non-fatal failure remains primary and later failures are suppressed.
 Failure mutation and terminal publication share one seal: a published terminal
 failure is never mutated by late cleanup.
 
-A fatal dispatcher pipeline error fails the complete runtime. In Spring, the
-runtime lifecycle asynchronously closes the application context so ingress
-cannot remain available over a terminated data plane.
+A fatal dispatcher pipeline error immediately closes global admission and
+component intake, skips the ordinary quiet period, drains already admitted
+work, and fails the complete runtime. In Spring, the runtime lifecycle
+asynchronously closes the application context so ingress cannot remain
+available over a terminated data plane.
+
+## Targeted performance confirmation
+
+The two four-thread `CommandSendE2EBenchmark.sendAndWaitSent` regression
+candidates in the broad baseline comparison were rerun on 2026-07-30 with the
+same host, JDK, JVM arguments, GC profiler, warmup, measurement, forks, and
+parameters. Both source manifests were clean and successful.
+
+```bash
+./gradlew :wow-benchmarks:benchmarkConfirmE2E \
+  -PbenchmarkConfirmE2EThreads=4 \
+  -PbenchmarkConfirmE2EIncludes=me.ahoo.wow.benchmark.e2e.CommandSendE2EBenchmark.sendAndWaitSent \
+  '-PbenchmarkConfirmE2EParameters=gatewayScenario=ceiling,validated' \
+  --no-parallel
+```
+
+- Base run `b70b3a0c-ec1d-4973-a3af-48cee0e53c7d`:
+  commit `7f5e44aeee642ec9f2e977dbbc9a634fedee4a59`, JMH jar
+  `2ca6cf2de3cbcac1e4421efc857199be34da335977b44a88976f7a35c0d2d1d1`,
+  manifest SHA-256
+  `9078d5eddb1968388ab19f166c0c367ecbeab50234a5c3bd8e2ad24fce8c4116`.
+- Candidate run `c2755cce-1203-490c-bfbf-920784120994`:
+  commit `a27d79cd72698891358f9f3efe43cda373061b87`, JMH jar
+  `8d86e3e94d70b5ca642816c5fbb3b9cad9b3d27cdb4fe82a73229d0d96c2c4c3`,
+  manifest SHA-256
+  `2ade0a917ac6db0395ad0634c746e1373475736e7b95f88e4ed1dd7c08eb3c51`.
+
+| Scenario | Base `7f5e44a` | Candidate `a27d79c` | Delta | Result |
+|---|---:|---:|---:|---|
+| `ceiling` | 802,429 ± 387,896 ops/s | 860,692 ± 463,583 ops/s | +7.26% | Stable; intervals overlap |
+| `validated` | 780,005 ± 392,646 ops/s | 881,363 ± 174,267 ops/s | +12.99% | Inconclusive improvement; intervals overlap |
+
+Normalized allocation remained within 0.6% for both scenarios. The targeted
+run therefore does not confirm either reported regression. Confirmation output
+remains diagnostic and does not replace the accepted baseline, as required by
+`wow-benchmarks/README.md`. These numbers prove only the two named clean commits;
+the later lifecycle-control review fixes are outside the command-send steady-state
+path but are not represented as a new performance run.
 
 ## Spring integration
 
-The Starter uses the current `ConfigurableListableBeanFactory` as the composition
-boundary:
+The Starter uses one direct local singleton named `wowRuntime` as the canonical
+composition boundary. It must be the current `ApplicationContext`'s only
+`WowRuntime`; a `FactoryBean` product is rejected because the Starter cannot prove
+that the factory will not become a second destruction owner. A parent runtime
+cannot replace this local boundary. The Starter also owns the canonical bean
+`wowRuntimeLifecycle` and rejects any additional local `WowRuntimeLifecycle`;
+applications may replace the runtime topology, but not its Spring lifecycle owner.
+
+When the Starter creates that default runtime, it uses the current
+`ConfigurableListableBeanFactory` to:
 
 1. Find local `RuntimeComponent` bean names.
 2. Require each component bean to be a singleton.
@@ -188,20 +239,22 @@ Only local bean names are collected; a child context never takes ownership of a
 parent component. The runtime invokes the exposed proxy itself, so AOP advice
 runs exactly once. It does not unwrap `TargetSource` objects or bypass advice.
 A JDK proxy that participates in the runtime must expose `RuntimeComponent`.
-For a `FactoryBean` product, Spring owns destruction of the factory rather than
-the product, so factory destruction metadata is not attributed to the component.
+For a `RuntimeComponent` exposed as a `FactoryBean` product, Spring owns
+destruction of the factory rather than the product, so factory destruction
+metadata is not attributed to the component. This does not relax the stricter
+rule that the canonical `WowRuntime` itself cannot be a `FactoryBean` product.
 
 The resulting boundary is:
 
 ```text
 local singleton RuntimeComponent beans
                 ↓
-            WowRuntime
+ canonical singleton bean "wowRuntime"
                 ↓
-       WowRuntimeLifecycle
+ canonical bean "wowRuntimeLifecycle"
 ```
 
-`WowRuntimeLifecycle` is the only `SmartLifecycle` owner. Its phase precedes
+The canonical `WowRuntimeLifecycle` is the only `SmartLifecycle` owner. Its phase precedes
 Spring Boot web ingress on startup and follows ingress shutdown on stop. The
 default Spring lifecycle processor receives a per-phase timeout of
 the selected `WowRuntime.shutdownTimeout + 1s`. This remains correct when an
@@ -237,8 +290,3 @@ context instead of stopping and restarting the same runtime.
   `me.ahoo.wow.infra.lifecycle`. Only components participating in readiness,
   global quiescence, and shared failure policy implement
   `me.ahoo.wow.runtime.RuntimeComponent`.
-
-This intentionally breaks the earlier internal runtime API. The removed
-ownership handles, compatibility adapters, launcher factories, marker
-interfaces, synchronous `RuntimeComponent.prepare` signature, and registry
-validation are not migration targets.

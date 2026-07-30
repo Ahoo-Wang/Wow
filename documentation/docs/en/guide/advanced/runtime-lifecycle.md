@@ -19,12 +19,12 @@ deadline, and one terminal result.
 | Concern | Runtime guarantee | Source |
 |---|---|---|
 | Ownership | One `WowRuntime` owns all registered `RuntimeComponent` instances | [`WowRuntime.kt:113-131`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L113-L131) |
-| Readiness | Every component completes `prepare` before any component enters `start` | [`WowRuntime.kt:206-233`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L206-L233) |
+| Readiness | Every component completes `prepare` before any component enters `start` | [`WowRuntime.kt:219-241`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L219-L241) |
 | In-flight work | A `RuntimeActivity` lease represents one complete asynchronous operation | [`RuntimeContext.kt:16-45`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeContext.kt#L16-L45) |
-| Graceful shutdown | Global admission closes after a stable idle period; components then quiesce and stop | [`WowRuntime.kt:496-524`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L496-L524) |
-| Deadline | One timeout bounds the complete runtime shutdown and triggers force-stop | [`WowRuntime.kt:400-458`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L400-L458) |
-| Failure | A fatal component error enters the same complete-runtime shutdown path | [`WowRuntime.kt:461-494`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L461-L494) |
-| Spring | One `WowRuntimeLifecycle` bridges the runtime to Spring `SmartLifecycle` | [`WowRuntimeLifecycle.kt:27-44`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt#L27-L44) |
+| Graceful shutdown | Global admission closes after a stable idle period; components then quiesce and stop | [`WowRuntime.kt:512-530`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L512-L530) |
+| Deadline | One timeout bounds the complete runtime shutdown and triggers force-stop | [`WowRuntime.kt:409-468`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L409-L468) |
+| Failure | A fatal component error closes admission immediately and enters complete-runtime shutdown | [`WowRuntime.kt:470-510`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L470-L510) |
+| Spring | One canonical `WowRuntimeLifecycle` bridges the runtime to Spring `SmartLifecycle` | [`WowAutoConfiguration.kt:144-183`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L144-L183) |
 
 ## Architecture
 
@@ -78,11 +78,11 @@ flowchart LR
 
 | Boundary | Responsibility | Must not own | Source |
 |---|---|---|---|
-| `me.ahoo.wow.runtime` | Public runtime contracts plus private whole-runtime state and orchestration policy | Spring container policy or storage/transport details | [`WowRuntime.kt:93-149`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L93-L149) [`WowRuntime.kt:316-458`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L316-L458) |
-| `me.ahoo.wow.runtime.internal` | Reusable admission, component-composition, execution-resource, terminal-delivery, and failure mechanisms | Public extension APIs or whole-runtime policy | [`DefaultRuntimeContext.kt:30-61`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/DefaultRuntimeContext.kt#L30-L61) [`RuntimeComponentGroup.kt:25-40`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L25-L40) |
+| `me.ahoo.wow.runtime` | Public runtime contracts plus private whole-runtime state and orchestration policy | Spring container policy or storage/transport details | [`WowRuntime.kt:93-149`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L93-L149) [`WowRuntime.kt:325-468`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L325-L468) |
+| `me.ahoo.wow.runtime.internal` | Reusable admission, component-composition, execution-resource, terminal-delivery, and failure mechanisms | Public extension APIs or whole-runtime policy | [`DefaultRuntimeContext.kt:30-64`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/DefaultRuntimeContext.kt#L30-L64) [`RuntimeComponentGroup.kt:25-40`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L25-L40) |
 | `me.ahoo.wow.infra.lifecycle` | Reusable graceful-shutdown and terminal-observation capabilities | Startup, readiness, ordering, or orchestration ownership | [`GracefullyStoppable.kt:19-37`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/infra/lifecycle/GracefullyStoppable.kt#L19-L37) [`TerminatedSignalCapable.kt:18-26`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/infra/lifecycle/TerminatedSignalCapable.kt#L18-L26) |
 | `me.ahoo.wow.spring` | Spring `SmartLifecycle` adapter | Component discovery or core runtime state | [`WowRuntimeLifecycle.kt:27-44`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt#L27-L44) |
-| Starter auto-configuration | Discover, validate, order, and compose local component beans | A second lifecycle for each component | [`WowAutoConfiguration.kt:105-221`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L105-L221) |
+| Starter auto-configuration | Enforce the local canonical runtime and lifecycle boundaries; discover, validate, order, and compose local component beans for the default runtime | A second runtime, lifecycle bridge, or component lifecycle | [`WowAutoConfiguration.kt:118-264`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L118-L264) |
 
 ## Components
 
@@ -106,7 +106,7 @@ interface RuntimeComponent {
 | Method | Responsibility | Required behavior | Source |
 |---|---|---|---|
 | `prepare` | Acquire subscriptions/resources without opening processing | Return a `Mono` that completes only when admitted work can be retained without loss; terminate promptly after `forceStop` | [`RuntimeComponent.kt:34-43`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeComponent.kt#L34-L43) |
-| `start` | Open processing after the group-wide readiness barrier | Do not depend on a later component still being unprepared | [`RuntimeComponentGroup.kt:79-94`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L79-L94) |
+| `start` | Open processing after the group-wide readiness barrier | Do not depend on a later component still being unprepared | [`RuntimeComponentGroup.kt:85-100`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L85-L100) |
 | `quiesce` | Close component intake after global admission closes | Prompt, non-blocking, and idempotent | [`RuntimeComponent.kt:47-54`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeComponent.kt#L47-L54) |
 | `stopGracefully` | Drain admitted work and release resources | Return completion as `Mono<Void>` | [`RuntimeComponent.kt:56`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeComponent.kt#L56) |
 | `forceStop` | Promptly release resources when graceful shutdown loses | Non-blocking, idempotent, safe before `prepare`, and safe when repeated | [`RuntimeComponent.kt:18-29`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeComponent.kt#L18-L29) |
@@ -117,7 +117,7 @@ The runtime is one-shot. `start()` can enter the lifecycle only from `NEW`; once
 begins, the application must create a new runtime (or a new Spring
 `ApplicationContext`) instead of restarting the old one.
 [`WowRuntime.kt:93-100`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L93-L100)
-[`WowRuntime.kt:206-212`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L206-L212)
+[`WowRuntime.kt:197-217`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L197-L217)
 
 ```mermaid
 %%{init: {"theme":"base","themeVariables":{"primaryColor":"#2d333b","primaryBorderColor":"#6d5dfc","primaryTextColor":"#e6edf3","lineColor":"#8b949e","secondaryColor":"#161b22","tertiaryColor":"#161b22"}}}%%
@@ -140,7 +140,7 @@ stateDiagram-v2
     class NEW,STARTING,RUNNING,STOPPING,FORCE_STOPPING,STOPPED runtime
 ```
 
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:93-109, wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:188-245, wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:316-398, wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:461-494 -->
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:93-109, wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:188-254, wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:325-407, wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:470-510 -->
 
 ## Data Flow
 
@@ -152,7 +152,7 @@ completion and only then starts them in registration order. If startup fails, en
 components are cleaned up in reverse order under the runtime deadline. Cancelling the
 startup subscription aborts and force-stops the one-shot runtime before propagating
 cancellation to the in-flight preparation publisher.
-[`WowRuntime.kt:188-245`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L188-L245)
+[`WowRuntime.kt:188-254`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L188-L254)
 [`RuntimeComponentGroup.kt:42-115`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L42-L115)
 
 ```mermaid
@@ -179,18 +179,19 @@ sequenceDiagram
     Runtime-->>Owner: readiness complete
 ```
 
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:188-233, wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt:42-94, wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt:206-221, wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt:278-290 -->
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:188-241, wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt:42-100, wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt:204-235, wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt:291-306 -->
 
 `MessageReceiver` makes transport readiness explicit without introducing a second
-lifecycle: it carries one single-use message stream plus a hot, replayable readiness
-signal. A dispatcher subscribes the message stream first, keeps downstream processing
-closed, and then awaits readiness from `prepare`. Only the global `start` pass opens
-processing.
+lifecycle owner. It carries one single-use message stream, a hot replayable readiness
+signal, and one idempotent processing-admission callback. A dispatcher subscribes the
+message stream first, keeps downstream demand closed, and then awaits readiness from
+`prepare`. The global `start` pass opens dispatcher demand and explicitly calls
+`openProcessing()`; reactive prefetch is never treated as lifecycle admission.
 
 | Transport | Readiness boundary |
 |---|---|
 | Synchronous/in-memory | The message subscription is installed behind the dispatcher demand gate |
-| Redis Streams | Every `XGROUP CREATE ... $ MKSTREAM` has succeeded or returned `BUSYGROUP`; stream reads remain closed until processing demand opens, so readiness does not create PEL entries |
+| Redis Streams | Every `XGROUP CREATE ... $ MKSTREAM` has succeeded or returned `BUSYGROUP`; stream reads remain closed until `openProcessing()`, so readiness or downstream prefetch cannot create PEL entries |
 | Kafka | Assignment has run after user customizers, every assigned fetch position is resolved, and each position without an existing group offset is synchronously committed; existing offsets are not advanced |
 
 This separates “the transport can retain new work” from “the dispatcher may process
@@ -198,9 +199,11 @@ work.” Kafka may poll internally to establish assignment and persist the initi
 retention boundary even while the dispatcher gate is closed; the contract does not
 require every transport's internal demand to remain zero. Provision Kafka topics before
 runtime startup; readiness coordinates consumers, not deployment-time topic creation.
-[`MessageReceiver.kt:20-49`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageReceiver.kt#L20-L49)
-[`AggregateDispatcher.kt:206-221`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L206-L221)
-[`AggregateDispatcher.kt:278-290`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L278-L290)
+[`MessageReceiver.kt:20-59`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageReceiver.kt#L20-L59)
+[`AggregateDispatcher.kt:204-235`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L204-L235)
+[`AggregateDispatcher.kt:291-306`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L291-L306)
+[`MainDispatcher.kt:141-162`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/MainDispatcher.kt#L141-L162)
+[`MainDispatcher.kt:229-250`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/MainDispatcher.kt#L229-L250)
 [`2026-07-28-runtime-orchestration.md:81-100`](https://github.com/Ahoo-Wang/Wow/blob/main/document/design/2026-07-28-runtime-orchestration.md#L81-L100)
 
 ### Activity leases and the quiet boundary
@@ -210,7 +213,7 @@ Before accepting a complete asynchronous operation, a component calls
 terminates; downstream tail work is represented by its own leases. Once admission
 closes, `tryAcquire()` returns `null`.
 [`RuntimeContext.kt:16-45`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeContext.kt#L16-L45)
-[`AggregateDispatcher.kt:229-271`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L229-L271)
+[`AggregateDispatcher.kt:237-285`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L237-L285)
 
 ```mermaid
 %%{init: {"theme":"base","themeVariables":{"primaryColor":"#2d333b","primaryBorderColor":"#6d5dfc","primaryTextColor":"#e6edf3","lineColor":"#8b949e","secondaryColor":"#161b22","tertiaryColor":"#161b22"}}}%%
@@ -230,14 +233,14 @@ flowchart TD
     class REQUEST,QUIESCING,ACTIVE,DRAIN,TIMER,NEW,RESET,CLOSE,COMPONENTS runtime
 ```
 
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/DefaultRuntimeContext.kt:30-37, wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/DefaultRuntimeContext.kt:74-151, wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/DefaultRuntimeContext.kt:171-227 -->
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/DefaultRuntimeContext.kt:30-40, wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/DefaultRuntimeContext.kt:77-180, wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/DefaultRuntimeContext.kt:200-258 -->
 
 During the quiet window the runtime still admits tail work. Each admitted operation
 changes an activity version, so an older timer cannot close admission after newer work
 arrives. Admission is closed atomically only after the runtime remains idle for the
 complete `shutdown-quiet-period`.
-[`DefaultRuntimeContext.kt:74-118`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/DefaultRuntimeContext.kt#L74-L118)
-[`DefaultRuntimeContext.kt:171-227`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/DefaultRuntimeContext.kt#L171-L227)
+[`DefaultRuntimeContext.kt:77-180`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/DefaultRuntimeContext.kt#L77-L180)
+[`DefaultRuntimeContext.kt:200-258`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/DefaultRuntimeContext.kt#L200-L258)
 [`2026-07-28-runtime-orchestration.md:102-125`](https://github.com/Ahoo-Wang/Wow/blob/main/document/design/2026-07-28-runtime-orchestration.md#L102-L125)
 
 ### Graceful and forced shutdown
@@ -258,17 +261,17 @@ Deadline expiry immediately takes ownership, closes admission, and cancels the g
 owner before force cleanup. A component graceful-stop failure is recorded while the
 shutdown owner remains active, and the remaining lifecycle-entered components are still
 attempted; only after that best-effort pass does the failure propagate to force cleanup.
-[`WowRuntime.kt:400-458`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L400-L458)
-[`WowRuntime.kt:496-545`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L496-L545)
-[`RuntimeComponentGroup.kt:64-115`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L64-L115)
+[`WowRuntime.kt:409-468`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L409-L468)
+[`WowRuntime.kt:512-565`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L512-L565)
+[`RuntimeComponentGroup.kt:70-170`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L70-L170)
 
 | Stage | Ordering and completion boundary | Source |
 |---|---|---|
 | Spring ingress | Higher lifecycle phases stop and drain before the runtime phase | [`WowRuntimeLifecycle.kt:27-38`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt#L27-L38) |
-| Global quiet boundary | Tail work remains admissible; every new activity invalidates the older quiet-period observation | [`DefaultRuntimeContext.kt:74-151`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/DefaultRuntimeContext.kt#L74-L151) |
-| Component quiescence | `quiesce` closes component intake synchronously in registration order after global admission closes | [`RuntimeComponentGroup.kt:64-76`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L64-L76) |
-| Graceful cleanup | Lifecycle-entered components stop sequentially in reverse registration order; while the shutdown owner remains active, a component error is retained and the remaining pass continues | [`RuntimeComponentGroup.kt:96-168`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L96-L168) |
-| Forced cleanup | A deadline immediately takes ownership; another pipeline failure enters force cleanup when it propagates. The force pass visits registered components in reverse order | [`WowRuntime.kt:431-458`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L431-L458) [`WowRuntime.kt:496-545`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L496-L545) [`RuntimeComponentGroup.kt:170-186`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L170-L186) |
+| Global quiet boundary | Tail work remains admissible; every new activity invalidates the older quiet-period observation | [`DefaultRuntimeContext.kt:77-180`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/DefaultRuntimeContext.kt#L77-L180) |
+| Component quiescence | `quiesce` closes component intake synchronously in registration order after global admission closes | [`RuntimeComponentGroup.kt:70-83`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L70-L83) |
+| Graceful cleanup | Lifecycle-entered components stop sequentially in reverse registration order; while the shutdown owner remains active, a component error is retained and the remaining pass continues | [`RuntimeComponentGroup.kt:102-170`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L102-L170) |
+| Forced cleanup | A deadline immediately takes ownership; another pipeline failure enters force cleanup when it propagates. The force pass visits registered components in reverse order | [`WowRuntime.kt:440-468`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L440-L468) [`WowRuntime.kt:512-565`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L512-L565) [`RuntimeComponentGroup.kt:172-188`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L172-L188) |
 
 ```mermaid
 %%{init: {"theme":"base","themeVariables":{"actorBkg":"#2d333b","actorBorder":"#6d5dfc","actorTextColor":"#e6edf3","signalColor":"#8b949e","signalTextColor":"#e6edf3","noteBkgColor":"#161b22","noteBorderColor":"#30363d","noteTextColor":"#e6edf3","labelBoxBkgColor":"#2d333b","labelBoxBorderColor":"#6d5dfc","labelTextColor":"#e6edf3"}}}%%
@@ -301,7 +304,7 @@ sequenceDiagram
     Lifecycle-->>Spring: dispatch callback()
 ```
 
-<!-- Sources: wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt:27-44, wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt:211-258, wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:316-458, wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:496-586, wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt:64-187 -->
+<!-- Sources: wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt:27-44, wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt:211-258, wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:325-468, wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:512-565, wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt:70-188 -->
 
 Both successful and failed normal Spring shutdowns eventually dispatch the stop
 callback. Because the bridge enters `STOPPING` before requesting runtime shutdown, that
@@ -316,10 +319,10 @@ driven by the trusted control channel, not by public `terminationSignal` observe
 
 | Scenario | Result | Source |
 |---|---|---|
-| Startup action fails | Runtime rolls back lifecycle-entered components and publishes the startup failure | [`WowRuntime.kt:235-295`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L235-L295) |
-| Component reports a fatal pipeline error | The complete runtime enters shutdown; it is not isolated to one dispatcher | [`WowRuntime.kt:461-494`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L461-L494) |
-| Deadline expires | A `TimeoutException` becomes failure evidence and force-stop takes ownership | [`WowRuntime.kt:431-458`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L431-L458) |
-| Force-stop overlaps a lifecycle action | Runtime performs an initial force pass and one compensation pass after the action leaves | [`RuntimeComponentGroup.kt:248-340`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L248-L340) |
+| Startup action fails | Runtime rolls back lifecycle-entered components and publishes the startup failure | [`WowRuntime.kt:244-304`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L244-L304) |
+| Component reports a fatal pipeline error | The runtime immediately closes global admission and component intake, skips the quiet period, drains admitted work, and terminates the complete runtime | [`WowRuntime.kt:470-524`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L470-L524) |
+| Deadline expires | A `TimeoutException` becomes failure evidence and force-stop takes ownership | [`WowRuntime.kt:440-468`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L440-L468) |
+| Force-stop overlaps a lifecycle action | Runtime performs an initial force pass and one compensation pass after the action leaves | [`RuntimeComponentGroup.kt:287-355`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L287-L355) |
 | Multiple cleanup failures occur | First failure remains primary; later failures are suppressed until terminal publication seals it | [`SealableFailureAccumulator.kt:18-59`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/SealableFailureAccumulator.kt#L18-L59) |
 | Public termination observers are slow or saturated | Observer delivery is bounded and isolated from runtime completion | [`TerminalSignal.kt:33-70`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/TerminalSignal.kt#L33-L70) |
 
@@ -328,29 +331,50 @@ That is why a component's force cleanup must be safe before preparation and acro
 repeated calls. The runtime's second compensation pass covers resources acquired after
 the first force call returned.
 [`RuntimeComponent.kt:18-29`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeComponent.kt#L18-L29)
-[`RuntimeComponentGroup.kt:248-255`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L248-L255)
+[`RuntimeComponentGroup.kt:311-355`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L311-L355)
 
 ## Spring Integration
 
-The Starter discovers `RuntimeComponent` beans from the current bean factory, requires
-them to be singletons, obtains the Spring-exposed instance, and rejects competing Spring
-`Lifecycle` or standard destruction ownership. It then sorts the result using Spring
-ordering and passes one immutable list to `WowRuntime`.
-[`WowAutoConfiguration.kt:105-221`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L105-L221)
+When the Starter creates the default `WowRuntime`, it discovers `RuntimeComponent` beans
+from the current bean factory, requires them to be singletons, obtains the Spring-exposed
+instance, and rejects competing Spring `Lifecycle` or standard destruction ownership. It
+then sorts the result using Spring ordering and passes one immutable list to the runtime.
+An application-supplied `WowRuntime` owns its component topology explicitly; the Starter
+does not discover and append a second component list.
+[`WowAutoConfiguration.kt:118-264`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L118-L264)
+
+Because `WowRuntime` implements `AutoCloseable`, a custom runtime bean must disable
+Spring's inferred `close()` destroy method. `WowRuntimeLifecycle` remains its sole owner:
+
+```kotlin
+@Bean(WOW_RUNTIME_BEAN_NAME, destroyMethod = "")
+fun customWowRuntime(): WowRuntime =
+    WowRuntime(components, shutdownTimeout, shutdownQuietPeriod)
+```
+
+The custom runtime must be the current context's direct singleton bean named
+`wowRuntime`, and it must be that context's only `WowRuntime`. `FactoryBean` products
+are rejected because the Starter cannot prove that the factory is not a second
+destruction owner. Parent-context runtimes cannot replace this local canonical boundary.
+Startup fails fast with the bean name and remediation when any boundary is violated.
+The Starter itself owns the canonical bean named `wowRuntimeLifecycle`; applications
+must neither replace it nor declare another local `WowRuntimeLifecycle`.
 
 | Spring rule | Effect | Source |
 |---|---|---|
-| `WowRuntime` is the exclusive component owner | A direct runtime component bean must not also use Spring `Lifecycle`, `DisposableBean`, destruction callbacks, or an enabled destroy method; put runtime-owned cleanup in its component hooks | [`WowAutoConfiguration.kt:140-221`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L140-L221) |
+| The current context has one canonical runtime | A custom runtime is the direct singleton bean `wowRuntime`, is not a `FactoryBean` product, and no second local `WowRuntime` exists | [`WowAutoConfiguration.kt:118-174`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L118-L174) |
+| The current context has one canonical lifecycle bridge | The Starter-owned bean `wowRuntimeLifecycle` is the only local `WowRuntimeLifecycle`; application code does not replace or add another owner | [`WowAutoConfiguration.kt:65-90`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L65-L90) [`WowAutoConfiguration.kt:144-183`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L144-L183) |
+| `WowRuntime` is the exclusive component owner | A direct runtime component bean must not also use Spring `Lifecycle`, `DisposableBean`, destruction callbacks, or an enabled destroy method; put runtime-owned cleanup in its component hooks | [`WowAutoConfiguration.kt:185-264`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L185-L264) |
 | Runtime phase is `DEFAULT_PHASE - 3072` | Runtime starts before later ingress phases and stops after they drain | [`WowRuntimeLifecycle.kt:27-40`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt#L27-L40) |
-| Unexpected runtime termination closes the context | Fatal data-plane failure cannot leave application ingress running | [`WowAutoConfiguration.kt:129-137`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L129-L137) |
-| A `DefaultLifecycleProcessor` uses the selected `WowRuntime.shutdownTimeout` plus one second for the runtime phase | Spring gives the actual runtime deadline a completion margin; another custom processor retains its own timeout policy | [`WowRuntimeSpringLifecycle.kt:20-27`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowRuntimeSpringLifecycle.kt#L20-L27) [`WowAutoConfiguration.kt:66-80`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L66-L80) |
+| Unexpected runtime termination closes the context | Fatal data-plane failure cannot leave application ingress running | [`WowAutoConfiguration.kt:143-152`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L143-L152) |
+| A `DefaultLifecycleProcessor` uses the selected `WowRuntime.shutdownTimeout` plus one second for the runtime phase | Spring gives the actual runtime deadline a completion margin; another custom processor retains its own timeout policy | [`WowRuntimeSpringLifecycle.kt:20-27`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowRuntimeSpringLifecycle.kt#L20-L27) [`WowAutoConfiguration.kt:65-90`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L65-L90) |
 | Lifecycle is one-shot | Recreate `ApplicationContext` after shutdown instead of restarting | [`WowRuntimeLifecycle.kt:77-137`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt#L77-L137) |
 
 Built-in components use deterministic Spring order values. Preparation and startup use
 this order; graceful and forced cleanup reverse it.
 [`WowRuntimeComponentOrder.kt:16-29`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowRuntimeComponentOrder.kt#L16-L29)
-[`RuntimeComponentGroup.kt:96-115`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L96-L115)
-[`RuntimeComponentGroup.kt:170-186`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L170-L186)
+[`RuntimeComponentGroup.kt:102-121`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L102-L121)
+[`RuntimeComponentGroup.kt:172-188`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt#L172-L188)
 
 | Order | Built-in component | Source |
 |---:|---|---|
@@ -382,12 +406,12 @@ derived from that selected bean's `shutdownTimeout`, even if it differs from the
 
 `WowRuntime.stop(timeout)` changes only how long that caller waits. It does not replace
 or extend `wow.shutdown-timeout`; runtime shutdown still has one configured deadline.
-[`WowRuntime.kt:297-314`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L297-L314)
+[`WowRuntime.kt:306-323`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L306-L323)
 
 Unlike cold `start()`, calling `stopGracefully()` immediately initiates or joins shutdown.
 The first call from `STARTING` or `RUNNING` claims the single shutdown owner and deadline;
 `NEW` completes without starting, while later calls observe the existing terminal result.
-[`WowRuntime.kt:316-352`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L316-L352)
+[`WowRuntime.kt:325-360`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L325-L360)
 
 ::: tip Operational tuning
 Choose the quiet period from observed handoff jitter between connected processing stages,
@@ -452,8 +476,8 @@ on fatal pipeline termination:
 The framework's dispatcher follows this same structure: it acquires before emitting a
 tracked exchange, rejects work after admission closes, reports terminal pipeline errors,
 and closes the lease exactly once when processing completes.
-[`AggregateDispatcher.kt:229-271`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L229-L271)
-[`AggregateDispatcher.kt:474-485`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L474-L485)
+[`AggregateDispatcher.kt:237-285`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L237-L285)
+[`AggregateDispatcher.kt:488-499`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L488-L499)
 
 | Extension check | Why | Source |
 |---|---|---|
@@ -462,7 +486,7 @@ and closes the lease exactly once when processing completes.
 | `quiesce` closes intake promptly | Global admission is already closed when the method is invoked | [`RuntimeComponent.kt:47-54`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeComponent.kt#L47-L54) |
 | Every admitted asynchronous operation owns one lease | Quiet detection must represent complete work, not only source publication | [`RuntimeContext.kt:16-45`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeContext.kt#L16-L45) |
 | `forceStop` is repeat-safe | Force can overlap any lifecycle action and trigger compensation | [`RuntimeComponent.kt:18-29`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeComponent.kt#L18-L29) |
-| Direct Spring bean is a singleton and has no competing Spring lifecycle or destruction owner | Two lifecycle owners can race or clean the same resource twice | [`WowAutoConfiguration.kt:140-221`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L140-L221) |
+| Direct Spring bean is a singleton and has no competing Spring lifecycle or destruction owner | Two lifecycle owners can race or clean the same resource twice | [`WowAutoConfiguration.kt:185-264`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L185-L264) |
 
 ## References
 

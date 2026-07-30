@@ -31,6 +31,58 @@ class RedisCommandBusTest : CommandBusSpec() {
     }
 
     @Test
+    fun `receiver does not consume through operator prefetch before processing opens`() {
+        val receiverGroup = generateGlobalId()
+        val subscription = MessageSubscription(namedAggregate, receiverGroup)
+        val topic = DefaultCommandTopicConverter.convert(namedAggregate)
+        val streamOps = redis.redisTemplate.opsForStream<String, String>()
+        val bus = RedisCommandBus(
+            redisTemplate = redis.redisTemplate,
+            recoveryOptions = RedisStreamRecoveryOptions.DISABLED,
+            pollTimeout = Duration.ofMillis(20),
+        )
+        val receivedMessageId = CompletableFuture<String>()
+        val receiver = bus.receiver(subscription).mapMessages { messages ->
+            Flux.merge(
+                Flux.never(),
+                messages.filterWhen { Mono.just(true) },
+            )
+        }
+        val receiverSubscription = object : BaseSubscriber<ServerCommandExchange<*>>() {
+            fun requestOne() = request(1)
+
+            override fun hookOnSubscribe(subscription: Subscription) = Unit
+
+            override fun hookOnNext(value: ServerCommandExchange<*>) {
+                receivedMessageId.complete(value.message.id)
+            }
+        }
+        receiver.messages.subscribe(receiverSubscription)
+
+        try {
+            receiver.readiness.block(Duration.ofSeconds(5))
+            receiverSubscription.requestOne()
+            val message = createMessage()
+            bus.send(message).block(Duration.ofSeconds(5))
+            Mono.delay(Duration.ofMillis(100)).block()
+
+            receivedMessageId.isDone.assert().isFalse()
+            streamOps.pending(topic, receiverGroup)
+                .block(Duration.ofSeconds(5))!!
+                .totalPendingMessages
+                .assert()
+                .isZero()
+
+            receiver.openProcessing()
+            receivedMessageId.get(5, TimeUnit.SECONDS)
+                .assert()
+                .isEqualTo(message.id)
+        } finally {
+            receiverSubscription.dispose()
+        }
+    }
+
+    @Test
     fun `receiver readiness creates the latest group before demand`() {
         val receiverGroup = generateGlobalId()
         val subscription = MessageSubscription(namedAggregate, receiverGroup)
@@ -89,6 +141,7 @@ class RedisCommandBusTest : CommandBusSpec() {
             thirdReceiver.messages.subscribe(thirdSubscription)
             try {
                 thirdReceiver.readiness.block(Duration.ofSeconds(5))
+                thirdReceiver.openProcessing()
                 thirdSubscription.requestOne()
                 receivedMessageId.get(5, TimeUnit.SECONDS)
                     .assert()

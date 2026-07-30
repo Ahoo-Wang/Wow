@@ -25,6 +25,7 @@ import me.ahoo.wow.spring.WOW_RUNTIME_PHASE
 import me.ahoo.wow.spring.WowRuntimeLifecycle
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration.Companion.SPRING_APPLICATION_NAME
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertTimeoutPreemptively
 import org.springframework.aop.framework.ProxyFactory
 import org.springframework.beans.factory.DisposableBean
 import org.springframework.beans.factory.FactoryBean
@@ -32,10 +33,13 @@ import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.boot.web.server.context.WebServerApplicationContext
+import org.springframework.context.ApplicationListener
 import org.springframework.context.Lifecycle
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Primary
 import org.springframework.context.annotation.Scope
+import org.springframework.context.event.ContextClosedEvent
 import org.springframework.context.support.AbstractApplicationContext
 import org.springframework.context.support.DefaultLifecycleProcessor
 import org.springframework.core.Ordered
@@ -45,6 +49,8 @@ import org.springframework.test.util.ReflectionTestUtils
 import reactor.core.publisher.Mono
 import java.time.Duration
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 internal class WowAutoConfigurationTest {
@@ -128,6 +134,86 @@ internal class WowAutoConfigurationTest {
     }
 
     @Test
+    fun `custom runtime must disable inferred Spring destruction`() {
+        contextRunner
+            .withUserConfiguration(InferredDestroyCustomWowRuntimeConfiguration::class.java)
+            .enableWow()
+            .run { context ->
+                context.startupFailure.assert().isNotNull()
+                context.startupFailure!!.causeMessages().joinToString()
+                    .assert()
+                    .contains(WOW_RUNTIME_BEAN_NAME)
+                    .contains("AutoCloseable")
+                    .contains("""@Bean(destroyMethod = "")""")
+            }
+    }
+
+    @Test
+    fun `parent primary runtime cannot replace the child canonical runtime`() {
+        contextRunner
+            .withUserConfiguration(PrimaryCustomWowRuntimeConfiguration::class.java)
+            .enableWow()
+            .run { parent ->
+                val parentRuntime = parent.getBean(WOW_RUNTIME_BEAN_NAME, WowRuntime::class.java)
+
+                contextRunner
+                    .withParent(parent)
+                    .enableWow()
+                    .run { child ->
+                        child.startupFailure.assert().isNull()
+                        child.getBean(WOW_RUNTIME_BEAN_NAME, WowRuntime::class.java)
+                            .assert()
+                            .isNotSameAs(parentRuntime)
+                    }
+            }
+    }
+
+    @Test
+    fun `current context requires the canonical runtime to be its only runtime`() {
+        contextRunner
+            .withUserConfiguration(AdditionalWowRuntimeConfiguration::class.java)
+            .enableWow()
+            .run { context ->
+                context.startupFailure.assert().isNotNull()
+                context.startupFailure!!.causeMessages().joinToString()
+                    .assert()
+                    .contains(WOW_RUNTIME_BEAN_NAME)
+                    .contains("additionalWowRuntime")
+                    .contains("only WowRuntime bean")
+            }
+    }
+
+    @Test
+    fun `canonical runtime must not be exposed by a FactoryBean`() {
+        contextRunner
+            .withUserConfiguration(WowRuntimeFactoryConfiguration::class.java)
+            .enableWow()
+            .run { context ->
+                context.startupFailure.assert().isNotNull()
+                context.startupFailure!!.causeMessages().joinToString()
+                    .assert()
+                    .contains(WOW_RUNTIME_BEAN_NAME)
+                    .contains("FactoryBean")
+                    .contains("""@Bean(destroyMethod = "")""")
+            }
+    }
+
+    @Test
+    fun `current context rejects an additional runtime lifecycle owner`() {
+        contextRunner
+            .withUserConfiguration(AdditionalWowRuntimeLifecycleConfiguration::class.java)
+            .enableWow()
+            .run { context ->
+                context.startupFailure.assert().isNotNull()
+                context.startupFailure!!.causeMessages().joinToString()
+                    .assert()
+                    .contains(WOW_RUNTIME_LIFECYCLE_BEAN_NAME)
+                    .contains("additionalWowRuntimeLifecycle")
+                    .contains("only WowRuntimeLifecycle bean")
+            }
+    }
+
+    @Test
     fun `custom default lifecycle processor receives the runtime phase timeout`() {
         contextRunner
             .withBean(
@@ -175,6 +261,52 @@ internal class WowAutoConfigurationTest {
             "stop:later",
             "stop:first",
         )
+    }
+
+    @Test
+    fun `safe custom runtime stops its component exactly once`() {
+        contextRunner
+            .withUserConfiguration(CustomWowRuntimeWithComponentConfiguration::class.java)
+            .enableWow()
+            .run { context ->
+                val component = context.getBean(
+                    CustomWowRuntimeWithComponentConfiguration.COMPONENT_BEAN_NAME,
+                    RecordingRuntimeComponent::class.java,
+                )
+                component.startCount.get().assert().isOne()
+                component.stopCount.get().assert().isZero()
+
+                context.close()
+
+                component.stopCount.get().assert().isOne()
+            }
+    }
+
+    @Test
+    fun `fatal runtime failure closes the application context`() {
+        val component = ReportingRuntimeComponent()
+        val contextClosed = CountDownLatch(1)
+
+        contextRunner
+            .withBean("reportingRuntimeComponent", RuntimeComponent::class.java, { component })
+            .enableWow()
+            .run { context ->
+                context.addApplicationListener(
+                    ApplicationListener<ContextClosedEvent> {
+                        contextClosed.countDown()
+                    },
+                )
+
+                component.reportFailure(IllegalStateException("fatal"))
+
+                contextClosed.await(1, TimeUnit.SECONDS).assert().isTrue()
+                assertTimeoutPreemptively(Duration.ofSeconds(5)) {
+                    while (context.isActive) {
+                        Thread.onSpinWait()
+                    }
+                }
+                context.isActive.assert().isFalse()
+            }
     }
 
     @Test
@@ -453,6 +585,19 @@ internal class WowAutoConfigurationTest {
         override fun getOrder(): Int = componentOrder
     }
 
+    private class ReportingRuntimeComponent : PlainRuntimeComponent() {
+        private lateinit var runtimeContext: RuntimeContext
+
+        override fun prepare(runtimeContext: RuntimeContext): Mono<Void> {
+            this.runtimeContext = runtimeContext
+            return Mono.empty()
+        }
+
+        fun reportFailure(error: Throwable) {
+            runtimeContext.reportFailure(error)
+        }
+    }
+
     private open class PlainRuntimeComponent : RuntimeComponent {
         override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
 
@@ -567,6 +712,89 @@ internal class WowAutoConfigurationTest {
     @Configuration(proxyBeanMethods = false)
     private class CustomWowRuntimeConfiguration {
         @Bean(WOW_RUNTIME_BEAN_NAME, destroyMethod = "")
+        fun customWowRuntime(): WowRuntime =
+            WowRuntime(
+                components = emptyList(),
+                shutdownTimeout = Duration.ofMinutes(5),
+                shutdownQuietPeriod = Duration.ZERO,
+            )
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    private class PrimaryCustomWowRuntimeConfiguration {
+        @Primary
+        @Bean(WOW_RUNTIME_BEAN_NAME, destroyMethod = "")
+        fun customWowRuntime(): WowRuntime =
+            WowRuntime(
+                components = emptyList(),
+                shutdownTimeout = Duration.ofMinutes(5),
+                shutdownQuietPeriod = Duration.ZERO,
+            )
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    private class AdditionalWowRuntimeConfiguration {
+        @Bean(destroyMethod = "")
+        fun additionalWowRuntime(): WowRuntime =
+            WowRuntime(
+                components = emptyList(),
+                shutdownTimeout = Duration.ofMinutes(5),
+                shutdownQuietPeriod = Duration.ZERO,
+            )
+    }
+
+    private class WowRuntimeFactoryBean : FactoryBean<WowRuntime> {
+        private val runtime = WowRuntime(
+            components = emptyList(),
+            shutdownTimeout = Duration.ofMinutes(5),
+            shutdownQuietPeriod = Duration.ZERO,
+        )
+
+        override fun getObject(): WowRuntime = runtime
+
+        override fun getObjectType(): Class<*> = WowRuntime::class.java
+
+        override fun isSingleton(): Boolean = true
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    private class WowRuntimeFactoryConfiguration {
+        @Bean(WOW_RUNTIME_BEAN_NAME)
+        fun wowRuntimeFactory(): WowRuntimeFactoryBean = WowRuntimeFactoryBean()
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    private class AdditionalWowRuntimeLifecycleConfiguration {
+        @Bean
+        fun additionalWowRuntimeLifecycle(
+            wowRuntime: WowRuntime,
+        ): WowRuntimeLifecycle = WowRuntimeLifecycle(wowRuntime)
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    private class CustomWowRuntimeWithComponentConfiguration {
+        companion object {
+            const val COMPONENT_BEAN_NAME = "customRuntimeComponent"
+        }
+
+        @Bean(COMPONENT_BEAN_NAME)
+        fun customRuntimeComponent(): RecordingRuntimeComponent =
+            RecordingRuntimeComponent(COMPONENT_BEAN_NAME)
+
+        @Bean(WOW_RUNTIME_BEAN_NAME, destroyMethod = "")
+        fun customWowRuntime(
+            customRuntimeComponent: RecordingRuntimeComponent,
+        ): WowRuntime =
+            WowRuntime(
+                components = listOf(customRuntimeComponent),
+                shutdownTimeout = Duration.ofSeconds(1),
+                shutdownQuietPeriod = Duration.ZERO,
+            )
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    private class InferredDestroyCustomWowRuntimeConfiguration {
+        @Bean(WOW_RUNTIME_BEAN_NAME)
         fun customWowRuntime(): WowRuntime =
             WowRuntime(
                 components = emptyList(),
