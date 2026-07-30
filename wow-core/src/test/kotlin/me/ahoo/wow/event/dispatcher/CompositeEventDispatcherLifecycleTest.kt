@@ -23,6 +23,7 @@ import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
@@ -36,6 +37,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.publisher.Sinks
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
@@ -46,6 +48,53 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class CompositeEventDispatcherLifecycleTest {
+
+    @Test
+    fun `reported event child start failure prevents state child admission`() {
+        val failure = IllegalStateException("event-child-start")
+        val calls = mutableListOf<String>()
+        val dispatcher = RecordingCompositeEventDispatcher(
+            domainEventBus = FailureDomainEventBus(failure),
+            stateEventBus = RecordingStateEventBus(calls),
+            functionRegistrar = registrar(
+                RecordingFunction(FunctionKind.EVENT),
+                RecordingFunction(FunctionKind.STATE_EVENT),
+            ),
+            schedulerSupplier = RecordingSchedulerSupplier(calls),
+        )
+
+        val thrown = assertThrows<IllegalStateException> {
+            runtime(dispatcher).start().block()
+        }
+
+        thrown.assert().isSameAs(failure)
+        calls.assert().doesNotContain("request:state")
+    }
+
+    @Test
+    fun `reported event child prepare failure prevents state child preparation`() {
+        val failure = IllegalStateException("event-child-prepare")
+        val calls = mutableListOf<String>()
+        val dispatcher = RecordingCompositeEventDispatcher(
+            domainEventBus = FailureDomainEventBus(
+                failure = failure,
+                failDuringReadiness = true,
+            ),
+            stateEventBus = RecordingStateEventBus(calls),
+            functionRegistrar = registrar(
+                RecordingFunction(FunctionKind.EVENT),
+                RecordingFunction(FunctionKind.STATE_EVENT),
+            ),
+            schedulerSupplier = RecordingSchedulerSupplier(calls),
+        )
+
+        val thrown = assertThrows<IllegalStateException> {
+            runtime(dispatcher).start().block()
+        }
+
+        thrown.assert().isSameAs(failure)
+        calls.assert().doesNotContain("subscribe:state")
+    }
 
     @Test
     fun `runtime prepares both child subscriptions before opening demand`() {
@@ -267,6 +316,37 @@ class CompositeEventDispatcherLifecycleTest {
 
         fun awaitCancellation() {
             cancellationEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
+        }
+    }
+
+    private class FailureDomainEventBus(
+        private val failure: Throwable,
+        private val failDuringReadiness: Boolean = false,
+    ) : DomainEventBus {
+        private val messages = Sinks.many().unicast().onBackpressureBuffer<EventStreamExchange>()
+
+        override fun send(message: DomainEventStream): Mono<Void> = Mono.empty()
+
+        override fun receive(subscription: MessageSubscription): Flux<EventStreamExchange> =
+            messages.asFlux()
+
+        override fun receiver(subscription: MessageSubscription): MessageReceiver<EventStreamExchange> =
+            MessageReceiver(
+                messages = receive(subscription),
+                readiness = Mono.fromRunnable {
+                    if (failDuringReadiness) {
+                        emitFailure()
+                    }
+                },
+                processingAdmission = {
+                    if (!failDuringReadiness) {
+                        emitFailure()
+                    }
+                },
+            )
+
+        private fun emitFailure() {
+            check(messages.tryEmitError(failure) == Sinks.EmitResult.OK)
         }
     }
 

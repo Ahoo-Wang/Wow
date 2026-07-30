@@ -29,6 +29,7 @@ import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.scheduler.BorrowedAggregateSchedulerSupplier
 import reactor.core.publisher.Mono
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * A composite event dispatcher that combines event stream and state event dispatchers to handle domain events and state events efficiently.
@@ -134,6 +135,7 @@ open class CompositeEventDispatcher(
     private val childLifecycleMonitor = Any()
     private var eventComponentGroup: RuntimeComponentGroup? = null
     private val forceStopRequested = AtomicBoolean()
+    private val childFailure = AtomicReference<Throwable?>()
 
     @Volatile
     private var runtimeContext: RuntimeContext? = null
@@ -149,9 +151,15 @@ open class CompositeEventDispatcher(
                 return@defer Mono.empty()
             }
             this.runtimeContext = runtimeContext
+            val childRuntimeContext = object : RuntimeContext by runtimeContext {
+                override fun reportFailure(error: Throwable) {
+                    childFailure.compareAndSet(null, error)
+                    runtimeContext.reportFailure(error)
+                }
+            }
             val group = RuntimeComponentGroup(
                 listOf(eventStreamDispatcher, stateEventDispatcher),
-                runtimeContext::reportFailure,
+                childRuntimeContext::reportFailure,
             )
             val accepted = synchronized(childLifecycleMonitor) {
                 if (forceStopRequested.get()) {
@@ -167,14 +175,27 @@ open class CompositeEventDispatcher(
             if (!accepted) {
                 return@defer group.forceStop()?.let { Mono.error(it) } ?: Mono.empty()
             }
-            group.prepare(runtimeContext).then()
+            group.prepare(
+                runtimeContext = childRuntimeContext,
+                admissionGate = ::admitChildLifecycleAction,
+                afterEach = ::throwIfChildFailed,
+            ).then(
+                Mono.defer {
+                    childFailure.get()
+                        ?.let { Mono.error<Void>(it) }
+                        ?: Mono.empty()
+                },
+            )
         }
 
     final override fun start() {
         if (forceStopRequested.get()) {
             return
         }
-        eventComponentGroupSnapshot()?.start()
+        eventComponentGroupSnapshot()?.start(
+            admissionGate = ::admitChildLifecycleAction,
+            afterEach = ::throwIfChildFailed,
+        )
     }
 
     final override fun quiesce() {
@@ -232,6 +253,15 @@ open class CompositeEventDispatcher(
 
     private fun reportRuntimeFailure(error: Throwable) {
         runtimeContext?.reportFailure(error)
+    }
+
+    private fun admitChildLifecycleAction(admission: () -> Boolean): Boolean =
+        !forceStopRequested.get() &&
+            childFailure.get() == null &&
+            admission()
+
+    private fun throwIfChildFailed() {
+        childFailure.get()?.let { throw it }
     }
 
     private fun eventComponentGroupSnapshot(): RuntimeComponentGroup? =
