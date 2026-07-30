@@ -884,6 +884,40 @@ class WowRuntimeTest {
     }
 
     @Test
+    fun `startup failure closes intake before rollback`() {
+        val calls = CopyOnWriteArrayList<String>()
+        val quiesced = CountDownLatch(1)
+        val startFailure = IllegalStateException("start")
+        val first = RecordingLifecycle(
+            name = "first",
+            calls = calls,
+            onQuiesce = quiesced::countDown,
+        )
+        val failing = RecordingLifecycle(
+            name = "failing",
+            calls = calls,
+            startFailure = startFailure,
+        )
+        val runtime = WowRuntime(
+            components = listOf(first, failing),
+            shutdownTimeout = Duration.ofSeconds(60),
+            shutdownQuietPeriod = Duration.ofSeconds(30),
+        )
+        val executor = Executors.newSingleThreadExecutor()
+
+        try {
+            val startup = runtime.startAsync(executor)
+
+            quiesced.await(1, TimeUnit.SECONDS).assert().isTrue()
+            first.runtimeContext!!.tryAcquire().assert().isNull()
+            startup.get(1, TimeUnit.SECONDS).assert().isSameAs(startFailure)
+        } finally {
+            runtime.forceStop()
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
     fun `startup rollback does not block its Reactor worker`() {
         val startFailure = IllegalStateException("start")
         val forceInvocations = AtomicInteger()
