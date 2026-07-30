@@ -500,7 +500,7 @@ else:
 |---|---|
 | [架构](architecture.md) | 将 Runtime 所有权放回完整的 Wow 模块与处理架构中理解 |
 | [配置](../configuration.md) | 完整 Spring Boot 配置参考 |
-| [迁移指南](../migration.md#统一运行时编排) | 生命周期破坏性变更与扩展迁移 |
+| [运行时编排迁移](../migration/runtime-orchestration.md) | 生命周期破坏性变更与扩展迁移 |
 | [聚合调度器](aggregate-scheduler.md) | 按聚合 Scheduler 的优雅与强制释放 |
 | [事件总线](event-bus.md) | 参与 Runtime 活动跟踪的消息传输 |
 | [Spring Boot Starter](../extensions/spring-boot-starter.md) | 自动配置与应用集成 |

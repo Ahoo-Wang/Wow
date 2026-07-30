@@ -86,6 +86,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Performance Testing', link: 'perf-test'},
                 {text: 'Troubleshooting', link: 'troubleshooting'},
                 {text: 'Migration Guide', link: 'migration'},
+                {text: 'Runtime Orchestration Migration', link: 'migration/runtime-orchestration'},
             ],
         },
         {

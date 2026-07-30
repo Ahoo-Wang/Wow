@@ -86,6 +86,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '性能评测', link: 'perf-test'},
                 {text: '故障排查', link: 'troubleshooting'},
                 {text: '迁移指南', link: 'migration'},
+                {text: '运行时编排迁移', link: 'migration/runtime-orchestration'},
             ],
         },
         {
