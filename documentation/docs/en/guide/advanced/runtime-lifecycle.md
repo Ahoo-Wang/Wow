@@ -192,7 +192,7 @@ message stream first, keeps downstream demand closed, and then awaits readiness 
 |---|---|
 | Synchronous/in-memory | The message subscription is installed behind the dispatcher demand gate |
 | Redis Streams | Every `XGROUP CREATE ... $ MKSTREAM` has succeeded or returned `BUSYGROUP`; stream reads remain closed until `openProcessing()`, so readiness or downstream prefetch cannot create PEL entries |
-| Kafka | Assignment has run after user customizers, every assigned fetch position is resolved, and each position without an existing group offset is synchronously committed; existing offsets are not advanced |
+| Kafka | The broker-assigned position is captured before user customizers, then the earlier of the original and customized positions is committed asynchronously; readiness never advances an existing offset or persists a forward seek |
 
 This separates “the transport can retain new work” from “the dispatcher may process
 work.” Kafka may poll internally to establish assignment and persist the initial

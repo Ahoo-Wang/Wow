@@ -26,6 +26,7 @@ import me.ahoo.wow.serialization.toJsonString
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Abstract base class for message dispatchers that manage multiple aggregate dispatchers.
@@ -172,6 +173,7 @@ abstract class MainDispatcher<T : Any> :
     private val childLifecycleMonitor = Any()
     private var aggregateComponentGroup: RuntimeComponentGroup? = null
     private val forceStopRequested = AtomicBoolean()
+    private val childFailure = AtomicReference<Throwable?>()
 
     private fun String.withNamePrefix(): String = "[$name][${this@MainDispatcher.javaClass.simpleName}] $this"
 
@@ -198,9 +200,15 @@ abstract class MainDispatcher<T : Any> :
             return Mono.empty()
         }
         val bindings = aggregateDispatcherBindingsLazy.value
+        val childRuntimeContext = object : RuntimeContext by runtimeContext {
+            override fun reportFailure(error: Throwable) {
+                childFailure.compareAndSet(null, error)
+                runtimeContext.reportFailure(error)
+            }
+        }
         val group = RuntimeComponentGroup(
             bindings.map { it.dispatcher },
-            runtimeContext::reportFailure,
+            childRuntimeContext::reportFailure,
         )
         val accepted = synchronized(childLifecycleMonitor) {
             if (forceStopRequested.get()) {
@@ -216,8 +224,13 @@ abstract class MainDispatcher<T : Any> :
         if (!accepted) {
             return group.forceStop()?.let { Mono.error(it) } ?: Mono.empty()
         }
-        return group.prepare(runtimeContext)
+        return group.prepare(
+            runtimeContext = childRuntimeContext,
+            admissionGate = ::admitChildLifecycleAction,
+            afterEach = ::throwIfChildFailed,
+        )
             .flatMap { prepared ->
+                childFailure.get()?.let { return@flatMap Mono.error(it) }
                 if (!prepared || forceStopRequested.get()) {
                     Mono.empty()
                 } else {
@@ -238,10 +251,13 @@ abstract class MainDispatcher<T : Any> :
                 "No aggregate dispatchers to start because namedAggregates is empty.".withNamePrefix()
             }
         } else {
-            val started = aggregateComponentGroupSnapshot()?.start() == true
+            val started = aggregateComponentGroupSnapshot()?.start(
+                admissionGate = ::admitChildLifecycleAction,
+                afterEach = ::throwIfChildFailed,
+            ) == true
             if (started) {
                 aggregateDispatcherBindingsLazy.value.forEach { binding ->
-                    if (forceStopRequested.get()) {
+                    if (forceStopRequested.get() || childFailure.get() != null) {
                         return
                     }
                     binding.openProcessing()
@@ -327,6 +343,15 @@ abstract class MainDispatcher<T : Any> :
 
     private fun reportRuntimeFailure(error: Throwable) {
         runtimeContext?.reportFailure(error)
+    }
+
+    private fun admitChildLifecycleAction(admission: () -> Boolean): Boolean =
+        !forceStopRequested.get() &&
+            childFailure.get() == null &&
+            admission()
+
+    private fun throwIfChildFailed() {
+        childFailure.get()?.let { throw it }
     }
 
     private fun aggregateComponentGroupSnapshot(): RuntimeComponentGroup? =

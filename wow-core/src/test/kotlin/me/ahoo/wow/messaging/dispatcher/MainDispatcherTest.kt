@@ -15,6 +15,7 @@ package me.ahoo.wow.messaging.dispatcher
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.toNamedAggregate
@@ -22,6 +23,7 @@ import me.ahoo.wow.runtime.RuntimeContext
 import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.runtime.internal.DefaultRuntimeContext
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
@@ -63,6 +65,25 @@ class MainDispatcherTest {
         StepVerifier.create(dispatcher.stopGracefully())
             .verifyComplete()
         dispatcher.childStopCount.get().assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `reported child start failure prevents later child start and receiver admission`() {
+        val failure = IllegalStateException("child-start")
+        val dispatcher = RecordingMainDispatcher(
+            firstChildReportedFailure = failure,
+        )
+        val runtime = runtime(dispatcher)
+
+        val thrown = assertThrows<IllegalStateException> {
+            runtime.start().block()
+        }
+
+        thrown.assert().isSameAs(failure)
+        dispatcher.childStartCount.get().assert().isOne()
+        dispatcher.processingOpenCount.get().assert().isZero()
+        dispatcher.childStopCount.get().assert().isEqualTo(2)
+        dispatcher.managedStopCount.get().assert().isOne()
     }
 
     @Test
@@ -194,9 +215,12 @@ class MainDispatcherTest {
         private val childStartAction: (() -> Unit)? = null,
         private val childForceAction: (() -> Unit)? = null,
         private val childStopAction: (() -> Mono<Void>)? = null,
+        private val firstChildReportedFailure: Throwable? = null,
     ) : MainDispatcher<String>() {
         val receiveCount = AtomicInteger()
         val createCount = AtomicInteger()
+        val childStartCount = AtomicInteger()
+        val processingOpenCount = AtomicInteger()
         val childStopCount = AtomicInteger()
         val managedStopCount = AtomicInteger()
         val childForceCalls = mutableListOf<String>()
@@ -217,19 +241,35 @@ class MainDispatcherTest {
             return Flux.just(subscription.receiverGroup)
         }
 
+        override fun createMessageReceiver(
+            subscription: MessageSubscription,
+        ): MessageReceiver<String> =
+            MessageReceiver(
+                messages = receiveMessage(subscription),
+                processingAdmission = processingOpenCount::incrementAndGet,
+            )
+
         override fun newAggregateDispatcher(
             namedAggregate: NamedAggregate,
             messageFlux: Flux<String>
         ): MessageDispatcher {
             createCount.incrementAndGet()
             return object : MessageDispatcher {
+                private var runtimeContext: RuntimeContext? = null
+
                 override val name: String = "child-${namedAggregate.aggregateName}"
                 override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
                     Mono.fromRunnable {
+                        this.runtimeContext = runtimeContext
                         childRuntimeContext = runtimeContext
                     }
 
                 override fun start() {
+                    if (childStartCount.incrementAndGet() == 1) {
+                        firstChildReportedFailure?.let {
+                            checkNotNull(runtimeContext).reportFailure(it)
+                        }
+                    }
                     childStartAction?.invoke()
                     messageFlux.subscribe {
                         receiverGroups.tryEmitNext(it).orThrow()

@@ -185,7 +185,7 @@ processing-admission callback。Dispatcher 先订阅消息流并保持下游 dem
 |---|---|
 | 同步/内存 | 消息订阅已安装在 Dispatcher demand gate 之后 |
 | Redis Streams | 全部 `XGROUP CREATE ... $ MKSTREAM` 已成功或返回 `BUSYGROUP`；`openProcessing()` 前不启动 stream read，因此 readiness 或下游 prefetch 都不会产生 PEL 记录 |
-| Kafka | 用户 assignment customizer 已执行，每个已分配分区的 fetch position 已解析，且没有既有 group offset 的 position 已同步提交；就绪不会推进既有 offset |
+| Kafka | 用户 assignment customizer 执行前先捕获 broker 分配的 position，再异步提交原始 position 与 customizer 后 position 中较早的一个；就绪不会推进既有 offset，也不会持久化 forward seek |
 
 该模型把“transport 已能保留新工作”和“Dispatcher 可以开始处理”明确分开。Kafka
 为了完成 assignment 和持久化初始保留边界，可以在 Dispatcher gate 关闭时进行内部

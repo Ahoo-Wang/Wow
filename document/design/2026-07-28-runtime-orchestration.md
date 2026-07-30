@@ -102,12 +102,13 @@ ready once the subscription is installed behind its demand gate. Redis is ready
 after all consumer groups exist at `latest`; stream reads remain closed until
 the runtime explicitly opens `MessageReceiver` processing, so readiness and
 reactive prefetch cannot move entries into the PEL.
-Kafka is ready after assignment and fetch-position resolution, and after the
-resolved position has been synchronously committed for every assigned partition
-that has no existing group offset. Existing committed offsets are never
-advanced by readiness. Command, event, projection, and saga flows form a
-dependency cycle, so startup cannot be represented as a simple publisher-first
-DAG.
+Kafka is ready after capturing each broker-assigned position, running user
+assignment customizers, and asynchronously committing the earlier of the
+original and customized positions. Readiness therefore never advances an
+existing group offset or commits past the position that the session intends to
+consume; forward seeks remain session-local until normal processing commits
+them. Command, event, projection, and saga flows form a dependency cycle, so
+startup cannot be represented as a simple publisher-first DAG.
 
 `WowRuntime.start()` returns `Mono<Void>`. A startup failure is composed with
 its asynchronous rollback; it does not block a Reactor non-blocking worker.

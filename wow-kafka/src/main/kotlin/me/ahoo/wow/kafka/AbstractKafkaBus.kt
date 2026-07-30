@@ -35,31 +35,29 @@ import reactor.kafka.receiver.KafkaReceiver
 import reactor.kafka.receiver.ReceiverOffset
 import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.receiver.ReceiverOptions.ConsumerListener
-import reactor.kafka.receiver.ReceiverPartition
 import reactor.kafka.receiver.ReceiverRecord
 import reactor.kafka.sender.KafkaSender
 import reactor.kafka.sender.SenderOptions
 import reactor.kafka.sender.SenderRecord
 import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
 private typealias KafkaAssignmentListener =
-    (Consumer<*, *>, Collection<ReceiverPartition>) -> Unit
+    (Consumer<*, *>, Map<TopicPartition, Long>) -> Unit
 
-internal fun Consumer<*, *>.anchorUncommittedPositions(
+internal fun Consumer<*, *>.anchorAssignedPositions(
     positions: Map<TopicPartition, Long>,
+    completion: (Throwable?) -> Unit,
 ) {
     if (positions.isEmpty()) {
+        completion(null)
         return
     }
-    val committedOffsets = committed(positions.keys)
     val initialOffsets = positions
-        .filterKeys { partition -> committedOffsets[partition] == null }
         .mapValues { (_, position) -> OffsetAndMetadata(position) }
-    if (initialOffsets.isNotEmpty()) {
-        commitSync(initialOffsets)
-    }
+    commitAsync(initialOffsets) { _, error -> completion(error) }
 }
 
 abstract class AbstractKafkaBus<M, E>(
@@ -129,6 +127,8 @@ abstract class AbstractKafkaBus<M, E>(
     override fun receiver(subscription: MessageSubscription): MessageReceiver<E> {
         val readiness = Sinks.empty<Void>()
         val readinessTerminated = AtomicBoolean()
+        val assignmentFailure = Sinks.empty<Void>()
+        val assignmentGeneration = AtomicLong()
         fun completeReadiness() {
             if (readinessTerminated.compareAndSet(false, true)) {
                 readiness.tryEmitEmpty()
@@ -139,13 +139,20 @@ abstract class AbstractKafkaBus<M, E>(
                 readiness.tryEmitError(error)
             }
         }
-        val messages = receive(subscription) { consumer, partitions ->
-            val positions = partitions.associate { partition ->
-                partition.topicPartition() to partition.position()
+        val messages = receive(subscription) { consumer, positions ->
+            val generation = assignmentGeneration.incrementAndGet()
+            anchorAssignedPartitions(consumer, positions) { error ->
+                if (generation != assignmentGeneration.get()) {
+                    return@anchorAssignedPartitions
+                }
+                if (error == null) {
+                    completeReadiness()
+                } else {
+                    assignmentFailure.tryEmitError(error)
+                }
             }
-            anchorAssignedPartitions(consumer, positions)
-            completeReadiness()
         }
+            .takeUntilOther(assignmentFailure.asMono())
             .doOnError(::failReadiness)
             .doOnComplete {
                 failReadiness(
@@ -182,23 +189,7 @@ abstract class AbstractKafkaBus<M, E>(
             val readyOptions = if (onAssigned == null) {
                 customizedOptions
             } else {
-                val consumer = AtomicReference<Consumer<*, *>?>()
-                val existingConsumerListener = customizedOptions.consumerListener()
-                customizedOptions
-                    .consumerListener(
-                        readinessConsumerListener(
-                            delegate = existingConsumerListener,
-                            consumer = consumer,
-                        ),
-                    )
-                    .addAssignListener { partitions ->
-                        onAssigned(
-                            checkNotNull(consumer.get()) {
-                                "Kafka consumer is unavailable during partition assignment."
-                            },
-                            partitions,
-                        )
-                    }
+                readinessReceiverOptions(customizedOptions, onAssigned)
             }
             createReceiver(readyOptions)
                 .receive(receiverPolicy.prefetchBatches)
@@ -207,16 +198,62 @@ abstract class AbstractKafkaBus<M, E>(
         }
     }
 
+    private fun readinessReceiverOptions(
+        options: ReceiverOptions<String, String>,
+        onAssigned: KafkaAssignmentListener,
+    ): ReceiverOptions<String, String> {
+        val consumer = AtomicReference<Consumer<*, *>?>()
+        val initialPositions = AtomicReference<Map<TopicPartition, Long>?>()
+        val captureInitialPositions = options
+            .consumerListener(
+                readinessConsumerListener(
+                    delegate = options.consumerListener(),
+                    consumer = consumer,
+                ),
+            )
+            .clearAssignListeners()
+            .addAssignListener { partitions ->
+                initialPositions.set(
+                    partitions.associate { partition ->
+                        partition.topicPartition() to partition.position()
+                    },
+                )
+            }
+        val customizedAssignments =
+            options.assignListeners().fold(captureInitialPositions) { currentOptions, listener ->
+                currentOptions.addAssignListener(listener)
+            }
+        return customizedAssignments.addAssignListener { partitions ->
+            val initial = checkNotNull(initialPositions.getAndSet(null)) {
+                "Kafka initial positions are unavailable during partition assignment."
+            }
+            val safePositions = partitions.associate { partition ->
+                val topicPartition = partition.topicPartition()
+                topicPartition to minOf(
+                    initial.getValue(topicPartition),
+                    partition.position(),
+                )
+            }
+            onAssigned(
+                checkNotNull(consumer.get()) {
+                    "Kafka consumer is unavailable during partition assignment."
+                },
+                safePositions,
+            )
+        }
+    }
+
     /**
-     * Persists the resolved initial position only for partitions without a
-     * committed group offset. This turns `latest` into a durable retention
-     * boundary before readiness is published without advancing existing groups.
+     * Persists a conservative assignment boundary before readiness is published.
+     * Forward seeks remain session-local until normal processing commits them,
+     * so readiness never advances an existing group offset or skips retained data.
      */
     protected open fun anchorAssignedPartitions(
         consumer: Consumer<*, *>,
         positions: Map<TopicPartition, Long>,
+        completion: (Throwable?) -> Unit,
     ) {
-        consumer.anchorUncommittedPositions(positions)
+        consumer.anchorAssignedPositions(positions, completion)
     }
 
     private fun readinessConsumerListener(

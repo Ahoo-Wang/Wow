@@ -30,24 +30,25 @@ import me.ahoo.wow.spring.WowRuntimeLifecycle
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.saga.StatelessSagaProcessorAutoRegistrar
 import org.junit.jupiter.api.Test
+import org.springframework.boot.LazyInitializationBeanFactoryPostProcessor
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 
 internal class StatelessSagaAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
+        .enableWow()
+        .withBean(CommandGateway::class.java, { mockk() })
+        .withBean(CommandMessageFactory::class.java, { mockk() })
+        .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
+        .withBean(StateEventBus::class.java, { InMemoryStateEventBus() })
+        .withBean(CartSaga::class.java, { CartSaga() })
+        .withUserConfiguration(
+            StatelessSagaAutoConfiguration::class.java,
+        )
 
     @Test
     fun `should load context with stateless saga dispatcher beans`() {
         contextRunner
-            .enableWow()
-            .withBean(CommandGateway::class.java, { mockk() })
-            .withBean(CommandMessageFactory::class.java, { mockk() })
-            .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
-            .withBean(StateEventBus::class.java, { InMemoryStateEventBus() })
-            .withBean(CartSaga::class.java, { CartSaga() })
-            .withUserConfiguration(
-                StatelessSagaAutoConfiguration::class.java,
-            )
             .run { context: AssertableApplicationContext ->
                 context.assert()
                     .hasSingleBean(StatelessSagaFunctionRegistrar::class.java)
@@ -57,6 +58,23 @@ internal class StatelessSagaAutoConfigurationTest {
                     .hasSingleBean(StatelessSagaHandler::class.java)
                     .hasSingleBean(StatelessSagaDispatcher::class.java)
                     .hasSingleBean(WowRuntimeLifecycle::class.java)
+            }
+    }
+
+    @Test
+    fun `should register stateless saga with lazy initialization`() {
+        contextRunner
+            .withInitializer { context ->
+                context.addBeanFactoryPostProcessor(
+                    LazyInitializationBeanFactoryPostProcessor(),
+                )
+            }
+            .run { context ->
+                context.startupFailure.assert().isNull()
+                context.getBean(StatelessSagaFunctionRegistrar::class.java)
+                    .functions
+                    .assert()
+                    .isNotEmpty()
             }
     }
 }

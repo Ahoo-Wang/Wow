@@ -120,9 +120,11 @@ Apply the following source migrations:
    awaits readiness, and invokes `openProcessing()` only in the global start
    pass. Redis readiness creates every consumer group but does not start stream
    reads before that explicit admission, regardless of downstream prefetch.
-   Kafka readiness persists the resolved initial position only for assigned
-   partitions that do not already have a committed group offset. Provision
-   Kafka topics before starting the runtime.
+   Kafka readiness asynchronously persists a conservative boundary: the earlier
+   of the broker-assigned position and the position after user assignment
+   customizers. It never advances an existing group offset; forward seeks remain
+   session-local until normal processing commits them. Provision Kafka topics
+   before starting the runtime.
 4. Runtime-owned Spring beans must be singletons, and their declared bean return
    type must expose `RuntimeComponent` or a subtype such as
    `MessageDispatcher`. Remove Spring `Lifecycle`/`SmartLifecycle`,

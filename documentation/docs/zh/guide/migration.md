@@ -105,8 +105,10 @@ implementation("me.ahoo.wow:wow-spring-boot-starter:新版本号")
    processing-admission callback；映射 receiver 时必须同时保留三者。Runtime 会先订阅、
    等待 readiness，再在全局 start pass 调用 `openProcessing()`。Redis readiness 会
    创建全部 consumer group，但无论下游是否 prefetch，都不会在该显式准入前启动
-   stream read。Kafka readiness 只为尚无 committed group offset 的已分配分区持久化
-   解析后的初始 position。Kafka topic 必须在 Runtime 启动前完成预配置。
+   stream read。Kafka readiness 会异步持久化保守边界，即 broker 分配的原始
+   position 与用户 assignment customizer 执行后 position 中较早的一个；它不会推进
+   既有 group offset，forward seek 仅在正常处理提交后才会持久化。Kafka topic 必须
+   在 Runtime 启动前完成预配置。
 4. 运行时拥有的 Spring Bean 必须是 singleton，且 Bean 声明返回类型必须暴露
    `RuntimeComponent` 或其子类型（如 `MessageDispatcher`）。应从这些 Bean 移除
    Spring `Lifecycle`/`SmartLifecycle`、`DisposableBean`、`@PreDestroy` 与显式

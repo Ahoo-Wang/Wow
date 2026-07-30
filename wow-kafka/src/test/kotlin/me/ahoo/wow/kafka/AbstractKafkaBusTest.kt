@@ -14,6 +14,7 @@ package me.ahoo.wow.kafka
 
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
@@ -26,11 +27,13 @@ import me.ahoo.wow.tck.mock.MockCreateAggregate
 import org.apache.kafka.clients.consumer.Consumer
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
+import org.apache.kafka.clients.consumer.OffsetCommitCallback
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kafka.receiver.KafkaReceiver
@@ -41,43 +44,105 @@ import reactor.kafka.receiver.ReceiverRecord
 import reactor.kafka.sender.SenderOptions
 import reactor.kotlin.test.test
 import reactor.util.retry.Retry
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.TimeUnit
 
 class AbstractKafkaBusTest {
 
     @Test
-    fun `initial position anchor does not advance committed partitions`() {
-        val existing = TopicPartition("topic", 0)
-        val missing = TopicPartition("topic", 1)
+    fun `assignment positions are anchored asynchronously`() {
+        val first = TopicPartition("topic", 0)
+        val second = TopicPartition("topic", 1)
         val consumer = mockk<Consumer<String, String>>()
+        val callback = slot<OffsetCommitCallback>()
         every {
-            consumer.committed(setOf(existing, missing))
-        } returns mapOf(
-            existing to OffsetAndMetadata(7),
-            missing to null,
-        )
-        every {
-            consumer.commitSync(any<Map<TopicPartition, OffsetAndMetadata>>())
+            consumer.commitAsync(
+                any<Map<TopicPartition, OffsetAndMetadata>>(),
+                capture(callback),
+            )
         } returns Unit
+        var completed = false
+        var completionFailure: Throwable? = null
 
-        consumer.anchorUncommittedPositions(
+        consumer.anchorAssignedPositions(
             mapOf(
-                existing to 10,
-                missing to 20,
+                first to 10,
+                second to 20,
             ),
-        )
+        ) { failure ->
+            completed = true
+            completionFailure = failure
+        }
 
+        completed.assert().isFalse()
         verify(exactly = 1) {
-            consumer.commitSync(
+            consumer.commitAsync(
                 match<Map<TopicPartition, OffsetAndMetadata>> { offsets ->
-                    offsets.keys == setOf(missing) &&
-                        offsets.getValue(missing).offset() == 20L
+                    offsets.getValue(first).offset() == 10L &&
+                        offsets.getValue(second).offset() == 20L
                 },
+                callback.captured,
             )
         }
+        callback.captured.onComplete(emptyMap(), null)
+        completed.assert().isTrue()
+        completionFailure.assert().isNull()
     }
 
     @Test
-    fun `receiver becomes ready after context assignment and position resolution`() {
+    fun `assignment anchor reports asynchronous failure`() {
+        val partition = TopicPartition("topic", 0)
+        val consumer = mockk<Consumer<String, String>>()
+        val callback = slot<OffsetCommitCallback>()
+        every {
+            consumer.commitAsync(
+                any<Map<TopicPartition, OffsetAndMetadata>>(),
+                capture(callback),
+            )
+        } returns Unit
+        val failure = IllegalStateException("commit")
+        var completionFailure: Throwable? = null
+
+        consumer.anchorAssignedPositions(mapOf(partition to 10)) {
+            completionFailure = it
+        }
+        callback.captured.onComplete(emptyMap(), failure)
+
+        completionFailure.assert().isSameAs(failure)
+    }
+
+    @Test
+    fun `empty assignment anchor completes immediately`() {
+        val consumer = mockk<Consumer<String, String>>()
+        var completed = false
+
+        consumer.anchorAssignedPositions(emptyMap()) {
+            it.assert().isNull()
+            completed = true
+        }
+
+        completed.assert().isTrue()
+    }
+
+    @Test
+    fun `assignment anchor propagates submission failure`() {
+        val partition = TopicPartition("topic", 0)
+        val consumer = mockk<Consumer<String, String>>()
+        val failure = IllegalStateException("commit-submission")
+        every {
+            consumer.commitAsync(
+                any<Map<TopicPartition, OffsetAndMetadata>>(),
+                any<OffsetCommitCallback>(),
+            )
+        } throws failure
+
+        assertThrows<IllegalStateException> {
+            consumer.anchorAssignedPositions(mapOf(partition to 10)) {}
+        }.assert().isSameAs(failure)
+    }
+
+    @Test
+    fun `receiver anchors a safe boundary after a forward seek`() {
         val receiver = mockk<KafkaReceiver<String, String>>()
         every { receiver.receive(1) } returns Flux.never()
         val calls = mutableListOf<String>()
@@ -85,16 +150,20 @@ class AbstractKafkaBusTest {
         val topicPartition = TopicPartition("topic", 0)
         val consumer = mockk<Consumer<String, String>>()
         every { partition.topicPartition() } returns topicPartition
+        var positionCall = 0
         every { partition.position() } answers {
             calls += "position"
-            0L
+            listOf(7L, 20L)[positionCall++]
         }
+        every { partition.seek(20) } returns Unit
+        var anchorCompletion: ((Throwable?) -> Unit)? = null
         val bus = TestKafkaBus(
             receiver = receiver,
-            anchorAction = { anchoredConsumer, positions ->
+            anchorAction = { anchoredConsumer, positions, completion ->
                 anchoredConsumer.assert().isSameAs(consumer)
-                positions.assert().isEqualTo(mapOf(topicPartition to 0L))
+                positions.assert().isEqualTo(mapOf(topicPartition to 7L))
                 calls += "anchor"
+                anchorCompletion = completion
             },
         )
         val messageReceiver = bus.receiver(
@@ -105,8 +174,9 @@ class AbstractKafkaBusTest {
                 it.writeReceiverOptionsCustomizer { options ->
                     options
                         .clearAssignListeners()
-                        .addAssignListener {
+                        .addAssignListener { partitions ->
                             calls += "context"
+                            partitions.single().seek(20)
                         }
                 }
             }
@@ -118,10 +188,105 @@ class AbstractKafkaBusTest {
                 listener.accept(listOf(partition))
             }
 
-            messageReceiver.readiness.test().verifyComplete()
-            calls.assert().containsExactly("context", "position", "anchor")
+            val readiness = messageReceiver.readiness.toFuture()
+            readiness.isDone.assert().isFalse()
+            calls.assert().containsExactly("position", "context", "position", "anchor")
+            checkNotNull(anchorCompletion)(null)
+            readiness.get(1, TimeUnit.SECONDS)
         } finally {
             messages.dispose()
+            bus.close()
+        }
+    }
+
+    @Test
+    fun `latest assignment controls readiness and rebalance failure terminates messages`() {
+        val receiver = mockk<KafkaReceiver<String, String>>()
+        every { receiver.receive(1) } returns Flux.never()
+        val partition = mockk<ReceiverPartition>()
+        val consumer = mockk<Consumer<String, String>>()
+        every { partition.topicPartition() } returns TopicPartition("topic", 0)
+        every { partition.position() } returns 0L
+        val anchorCompletions = mutableListOf<(Throwable?) -> Unit>()
+        val bus = TestKafkaBus(
+            receiver = receiver,
+            anchorAction = { _, _, completion ->
+                anchorCompletions += completion
+            },
+        )
+        val messageReceiver = bus.receiver(
+            MessageSubscription(message(), generateGlobalId()),
+        )
+        val messages = messageReceiver.messages.then().toFuture()
+        val readiness = messageReceiver.readiness.toFuture()
+
+        try {
+            bus.capturedOptions!!.consumerListener()!!.consumerAdded("test", consumer)
+            val assignListeners = bus.capturedOptions!!.assignListeners()
+            repeat(2) {
+                assignListeners.forEach { listener ->
+                    listener.accept(listOf(partition))
+                }
+            }
+
+            anchorCompletions[0](null)
+            readiness.isDone.assert().isFalse()
+            anchorCompletions[1](null)
+            readiness.get(1, TimeUnit.SECONDS)
+
+            assignListeners.forEach { listener ->
+                listener.accept(listOf(partition))
+            }
+            val failure = IllegalStateException("rebalance-anchor")
+            anchorCompletions[2](failure)
+
+            assertThrows<ExecutionException> {
+                messages.get(1, TimeUnit.SECONDS)
+            }.cause.assert().isSameAs(failure)
+        } finally {
+            messages.cancel(true)
+            bus.close()
+        }
+    }
+
+    @Test
+    fun `Kafka asynchronous anchor failure fails readiness`() {
+        val receiver = mockk<KafkaReceiver<String, String>>()
+        every { receiver.receive(1) } returns Flux.never()
+        val failure = IllegalStateException("async-anchor")
+        val partition = mockk<ReceiverPartition>()
+        val consumer = mockk<Consumer<String, String>>()
+        every { partition.topicPartition() } returns TopicPartition("topic", 0)
+        every { partition.position() } returns 0L
+        var anchorCompletion: ((Throwable?) -> Unit)? = null
+        val bus = TestKafkaBus(
+            receiver = receiver,
+            anchorAction = { _, _, completion ->
+                anchorCompletion = completion
+            },
+        )
+        val messageReceiver = bus.receiver(
+            MessageSubscription(message(), generateGlobalId()),
+        )
+        val messages = messageReceiver.messages.then().toFuture()
+
+        try {
+            bus.capturedOptions!!.consumerListener()!!.consumerAdded("test", consumer)
+            bus.capturedOptions!!.assignListeners().forEach { listener ->
+                listener.accept(listOf(partition))
+            }
+            checkNotNull(anchorCompletion)(failure)
+
+            messageReceiver.readiness.test()
+                .expectErrorSatisfies { error ->
+                    error.assert().isSameAs(failure)
+                }
+                .verify()
+            assertThrows<ExecutionException> {
+                messages.get(1, TimeUnit.SECONDS)
+            }.cause.assert().isSameAs(failure)
+        } finally {
+            messages.cancel(true)
             bus.close()
         }
     }
@@ -150,7 +315,7 @@ class AbstractKafkaBusTest {
                 retrySpec = Retry.max(0)
                     .onRetryExhaustedThrow { _, signal -> signal.failure() },
             ),
-            anchorAction = { _, _ -> throw failure },
+            anchorAction = { _, _, _ -> throw failure },
         )
         val messageReceiver = bus.receiver(
             MessageSubscription(message(), generateGlobalId()),
@@ -423,8 +588,11 @@ class AbstractKafkaBusTest {
         receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
         receiverPolicy: KafkaReceiverPolicy = KafkaReceiverPolicy(retrySpec = Retry.max(0)),
         recordDecodeFailureHandler: KafkaRecordDecodeFailureHandler = FailKafkaRecordDecodeFailureHandler,
-        private val anchorAction: (Consumer<*, *>, Map<TopicPartition, Long>) -> Unit =
-            { _, _ -> },
+        private val anchorAction: (
+            Consumer<*, *>,
+            Map<TopicPartition, Long>,
+            (Throwable?) -> Unit,
+        ) -> Unit = { _, _, completion -> completion(null) },
     ) : AbstractKafkaBus<CommandMessage<*>, ServerCommandExchange<*>>(
         topicConverter = DefaultCommandTopicConverter(),
         senderOptions = senderOptions(),
@@ -452,8 +620,9 @@ class AbstractKafkaBusTest {
         override fun anchorAssignedPartitions(
             consumer: Consumer<*, *>,
             positions: Map<TopicPartition, Long>,
+            completion: (Throwable?) -> Unit,
         ) {
-            anchorAction(consumer, positions)
+            anchorAction(consumer, positions, completion)
         }
     }
 
