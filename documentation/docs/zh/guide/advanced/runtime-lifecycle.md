@@ -173,7 +173,7 @@ sequenceDiagram
     Runtime-->>Owner: 就绪完成
 ```
 
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:188-241, wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt:42-100, wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt:204-235, wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt:291-306 -->
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:188-241, wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt:42-100, wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt:215-246, wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt:326-341 -->
 
 `MessageReceiver` 显式表达 transport readiness，但不引入第二个生命周期 owner：它包含
 一条 single-use 消息流、一个 hot 且可重放的就绪信号，以及幂等的 processing 开启与
@@ -182,11 +182,11 @@ readiness；全局 `start` pass 会开放 Dispatcher demand，并显式调用
 `openProcessing()`；quiescence 会在 detached physical cancellation 之前调用
 `closeProcessing()`。Reactive prefetch 与仍然存在的物理订阅都不能被当作生命周期准入。
 
-| Transport | 就绪边界 |
-|---|---|
-| 同步/内存 | 消息订阅已安装在 Dispatcher demand gate 之后 |
-| Redis Streams | 全部 `XGROUP CREATE ... $ MKSTREAM` 已成功或返回 `BUSYGROUP`；`openProcessing()` 前不启动 stream read，因此 readiness 或下游 prefetch 都不会产生 PEL 记录 |
-| Kafka | 用户 assignment customizer 执行前先捕获 broker 分配的 position，再异步提交原始 position 与 customizer 后 position 中较早的一个；全部在途 assignment anchor 结算后才能就绪，cooperative retained partition 不会被重新分配或重新 anchor |
+| Transport | 就绪边界 | 源码 |
+|---|---|---|
+| 同步/内存 | 消息订阅已安装在 Dispatcher demand gate 之后 | [`MessageReceiver.kt:20-89`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageReceiver.kt#L20-L89) [`AggregateDispatcher.kt:228-246`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L228-L246) |
+| Redis Streams | 全部 `XGROUP CREATE ... $ MKSTREAM` 已成功或返回 `BUSYGROUP`；`openProcessing()` 前不启动 stream read，因此 readiness 或下游 prefetch 都不会产生 PEL 记录 | [`AbstractRedisMessageBus.kt:76-146`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-redis/src/main/kotlin/me/ahoo/wow/redis/bus/AbstractRedisMessageBus.kt#L76-L146) |
+| Kafka | 用户 assignment customizer 执行前先捕获 broker 分配的 position，再异步提交原始 position 与 customizer 后 position 中较早的一个；每次 assignment callback 只 anchor 本次提供的 partition，readiness 会等待全部在途 anchor | [`AbstractKafkaBus.kt:128-185`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt#L128-L185) [`AbstractKafkaBus.kt:214-274`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt#L214-L274) [`AbstractKafkaBusTest.kt:204-305`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/test/kotlin/me/ahoo/wow/kafka/AbstractKafkaBusTest.kt#L204-L305) |
 
 该模型把“transport 已能保留新工作”和“Dispatcher 可以开始处理”明确分开。Kafka
 为了完成 assignment 和持久化初始保留边界，可以在 Dispatcher gate 关闭时进行内部
@@ -199,15 +199,17 @@ Runtime admission 拒绝、消息被过滤或路由发生变化时，distributed
 local-handled 标记并继续发送，同时 physical cancellation 仍保持 detached。该 receipt
 只证明准入成功，不证明 handler 已成功完成；后续 fatal pipeline failure 不会把已准入消息
 追溯改为 distributed fallback。普通 `receiver()` consumer 不参与 local suppression，
-因此不需要 receipt 协议。由 Runtime 管理的自定义 consumer 应通过 `runtimeReceiver()`
-显式加入该协议，并在完成等价的准入与交接后调用 `confirmLocalDelivery()`，无法接收时
-调用 `rejectLocalDelivery()`；内置 Dispatcher 会自动完成这些操作。
-[`MessageReceiver.kt:20-59`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageReceiver.kt#L20-L59)
-[`AggregateDispatcher.kt:204-235`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L204-L235)
-[`AggregateDispatcher.kt:291-306`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L291-L306)
-[`MainDispatcher.kt:141-162`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/MainDispatcher.kt#L141-L162)
-[`MainDispatcher.kt:229-250`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/MainDispatcher.kt#L229-L250)
-[`2026-07-28-runtime-orchestration.md:81-100`](https://github.com/Ahoo-Wang/Wow/blob/main/document/design/2026-07-28-runtime-orchestration.md#L81-L100)
+因此不需要 receipt 协议。使用内置 in-memory bus 且由 Runtime 管理的自定义 consumer
+应通过 `runtimeReceiver()` 显式加入该协议，并在完成等价的准入与交接后调用
+`confirmLocalDelivery()`，无法接收时调用 `rejectLocalDelivery()`；内置 Dispatcher
+会自动完成这些操作。
+[`MessageBus.kt:54-76`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageBus.kt#L54-L76)
+[`InMemoryMessageBus.kt:110-159`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/InMemoryMessageBus.kt#L110-L159)
+[`InMemoryMessageBus.kt:208-267`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/InMemoryMessageBus.kt#L208-L267)
+[`LocalDeliveryReceipt.kt:26-90`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalDeliveryReceipt.kt#L26-L90)
+[`LocalDeliveryReceipt.kt:252-273`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalDeliveryReceipt.kt#L252-L273)
+[`LocalFirstMessageBus.kt:141-244`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalFirstMessageBus.kt#L141-L244)
+[`AggregateDispatcher.kt:249-323`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L249-L323)
 
 ### 活动租约与静默边界
 
@@ -215,7 +217,7 @@ local-handled 标记并继续发送，同时 physical cancellation 仍保持 det
 整条操作链终止；下游尾部工作由其各自的租约继续表示。全局准入关闭后，
 `tryAcquire()` 返回 `null`。
 [`RuntimeContext.kt:16-45`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeContext.kt#L16-L45)
-[`AggregateDispatcher.kt:237-285`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L237-L285)
+[`AggregateDispatcher.kt:249-323`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L249-L323)
 
 ```mermaid
 %%{init: {"theme":"base","themeVariables":{"primaryColor":"#2d333b","primaryBorderColor":"#6d5dfc","primaryTextColor":"#e6edf3","lineColor":"#8b949e","secondaryColor":"#161b22","tertiaryColor":"#161b22"}}}%%
@@ -242,7 +244,7 @@ flowchart TD
 `shutdown-quiet-period` 后，准入才会被原子关闭。
 [`DefaultRuntimeContext.kt:77-180`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/DefaultRuntimeContext.kt#L77-L180)
 [`DefaultRuntimeContext.kt:200-258`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/DefaultRuntimeContext.kt#L200-L258)
-[`2026-07-28-runtime-orchestration.md:102-125`](https://github.com/Ahoo-Wang/Wow/blob/main/document/design/2026-07-28-runtime-orchestration.md#L102-L125)
+[`2026-07-28-runtime-orchestration.md:121-159`](https://github.com/Ahoo-Wang/Wow/blob/main/document/design/2026-07-28-runtime-orchestration.md#L121-L159)
 
 ### 优雅与强制停机
 
@@ -465,8 +467,8 @@ else:
 
 框架 Dispatcher 遵循相同结构：在发出 tracked exchange 前获取租约，在准入关闭后
 拒绝工作，上报 terminal pipeline error，并在处理完成时恰好一次关闭租约。
-[`AggregateDispatcher.kt:237-285`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L237-L285)
-[`AggregateDispatcher.kt:488-499`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L488-L499)
+[`AggregateDispatcher.kt:249-323`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L249-L323)
+[`AggregateDispatcher.kt:380-393`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L380-L393)
 
 | 扩展检查项 | 原因 | 源码 |
 |---|---|---|
@@ -486,6 +488,9 @@ else:
 | [`RuntimeContext.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeContext.kt) | 活动租约与致命故障上报 |
 | [`DefaultRuntimeContext.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/DefaultRuntimeContext.kt) | 准入与连续空闲算法 |
 | [`RuntimeComponentGroup.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt) | 有序生命周期组合与强制补偿 |
+| [`MessageReceiver.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageReceiver.kt) | 单次消息源的就绪与 processing admission 边界 |
+| [`LocalDeliveryReceipt.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalDeliveryReceipt.kt) | 内部原子化本地路由准入确认与 fallback 决策 |
+| [`AggregateDispatcher.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt) | exchange 活动准入、本地投递确认与租约完成 |
 | [`WowRuntimeLifecycle.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt) | Spring 生命周期桥接 |
 | [`WowAutoConfiguration.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt) | Starter 组合根 |
 

@@ -179,7 +179,7 @@ sequenceDiagram
     Runtime-->>Owner: readiness complete
 ```
 
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:188-241, wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt:42-100, wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt:204-235, wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt:291-306 -->
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt:188-241, wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt:42-100, wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt:215-246, wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt:326-341 -->
 
 `MessageReceiver` makes transport readiness explicit without introducing a second
 lifecycle owner. It carries one single-use message stream, a hot replayable readiness
@@ -190,11 +190,11 @@ the message stream first, keeps downstream demand closed, and then awaits readin
 cancellation is detached. Reactive prefetch and a still-physical subscription are never
 treated as lifecycle admission.
 
-| Transport | Readiness boundary |
-|---|---|
-| Synchronous/in-memory | The message subscription is installed behind the dispatcher demand gate |
-| Redis Streams | Every `XGROUP CREATE ... $ MKSTREAM` has succeeded or returned `BUSYGROUP`; stream reads remain closed until `openProcessing()`, so readiness or downstream prefetch cannot create PEL entries |
-| Kafka | The broker-assigned position is captured before user customizers, then the earlier of the original and customized positions is committed asynchronously; all in-flight assignment anchors must settle before readiness, and cooperative retained partitions are not reassigned or re-anchored |
+| Transport | Readiness boundary | Source |
+|---|---|---|
+| Synchronous/in-memory | The message subscription is installed behind the dispatcher demand gate | [`MessageReceiver.kt:20-89`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageReceiver.kt#L20-L89) [`AggregateDispatcher.kt:228-246`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L228-L246) |
+| Redis Streams | Every `XGROUP CREATE ... $ MKSTREAM` has succeeded or returned `BUSYGROUP`; stream reads remain closed until `openProcessing()`, so readiness or downstream prefetch cannot create PEL entries | [`AbstractRedisMessageBus.kt:76-146`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-redis/src/main/kotlin/me/ahoo/wow/redis/bus/AbstractRedisMessageBus.kt#L76-L146) |
+| Kafka | The broker-assigned position is captured before user customizers, then the earlier of the original and customized positions is committed asynchronously; each assignment callback anchors only its supplied partitions, and readiness waits for every in-flight anchor | [`AbstractKafkaBus.kt:128-185`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt#L128-L185) [`AbstractKafkaBus.kt:214-274`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt#L214-L274) [`AbstractKafkaBusTest.kt:204-305`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/test/kotlin/me/ahoo/wow/kafka/AbstractKafkaBusTest.kt#L204-L305) |
 
 This separates “the transport can retain new work” from “the dispatcher may process
 work.” Kafka may poll internally to establish assignment and persist the initial
@@ -209,16 +209,18 @@ Admission rejection, filtering, or a route change sends the distributed copy wit
 the local-handled flag while physical cancellation remains detached. This receipt proves
 admission, not handler success; a later fatal pipeline failure does not retroactively
 reroute an admitted message. Ordinary `receiver()` consumers do not participate in
-local suppression and need no receipt protocol. Runtime-owned custom consumers opt in
-through `runtimeReceiver()` and must call `confirmLocalDelivery()` after their
-equivalent admission/handoff, or `rejectLocalDelivery()` when they cannot accept the
-exchange. Built-in dispatchers do this automatically.
-[`MessageReceiver.kt:20-59`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageReceiver.kt#L20-L59)
-[`AggregateDispatcher.kt:204-235`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L204-L235)
-[`AggregateDispatcher.kt:291-306`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L291-L306)
-[`MainDispatcher.kt:141-162`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/MainDispatcher.kt#L141-L162)
-[`MainDispatcher.kt:229-250`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/MainDispatcher.kt#L229-L250)
-[`2026-07-28-runtime-orchestration.md:81-100`](https://github.com/Ahoo-Wang/Wow/blob/main/document/design/2026-07-28-runtime-orchestration.md#L81-L100)
+local suppression and need no receipt protocol. Runtime-owned custom consumers of the
+built-in in-memory bus opt in through `runtimeReceiver()` and must call
+`confirmLocalDelivery()` after their equivalent admission/handoff, or
+`rejectLocalDelivery()` when they cannot accept the exchange. Built-in dispatchers do
+this automatically.
+[`MessageBus.kt:54-76`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageBus.kt#L54-L76)
+[`InMemoryMessageBus.kt:110-159`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/InMemoryMessageBus.kt#L110-L159)
+[`InMemoryMessageBus.kt:208-267`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/InMemoryMessageBus.kt#L208-L267)
+[`LocalDeliveryReceipt.kt:26-90`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalDeliveryReceipt.kt#L26-L90)
+[`LocalDeliveryReceipt.kt:252-273`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalDeliveryReceipt.kt#L252-L273)
+[`LocalFirstMessageBus.kt:141-244`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalFirstMessageBus.kt#L141-L244)
+[`AggregateDispatcher.kt:249-323`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L249-L323)
 
 ### Activity leases and the quiet boundary
 
@@ -227,7 +229,7 @@ Before accepting a complete asynchronous operation, a component calls
 terminates; downstream tail work is represented by its own leases. Once admission
 closes, `tryAcquire()` returns `null`.
 [`RuntimeContext.kt:16-45`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeContext.kt#L16-L45)
-[`AggregateDispatcher.kt:237-285`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L237-L285)
+[`AggregateDispatcher.kt:249-323`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L249-L323)
 
 ```mermaid
 %%{init: {"theme":"base","themeVariables":{"primaryColor":"#2d333b","primaryBorderColor":"#6d5dfc","primaryTextColor":"#e6edf3","lineColor":"#8b949e","secondaryColor":"#161b22","tertiaryColor":"#161b22"}}}%%
@@ -255,7 +257,7 @@ arrives. Admission is closed atomically only after the runtime remains idle for 
 complete `shutdown-quiet-period`.
 [`DefaultRuntimeContext.kt:77-180`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/DefaultRuntimeContext.kt#L77-L180)
 [`DefaultRuntimeContext.kt:200-258`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/DefaultRuntimeContext.kt#L200-L258)
-[`2026-07-28-runtime-orchestration.md:102-125`](https://github.com/Ahoo-Wang/Wow/blob/main/document/design/2026-07-28-runtime-orchestration.md#L102-L125)
+[`2026-07-28-runtime-orchestration.md:121-159`](https://github.com/Ahoo-Wang/Wow/blob/main/document/design/2026-07-28-runtime-orchestration.md#L121-L159)
 
 ### Graceful and forced shutdown
 
@@ -490,8 +492,8 @@ on fatal pipeline termination:
 The framework's dispatcher follows this same structure: it acquires before emitting a
 tracked exchange, rejects work after admission closes, reports terminal pipeline errors,
 and closes the lease exactly once when processing completes.
-[`AggregateDispatcher.kt:237-285`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L237-L285)
-[`AggregateDispatcher.kt:488-499`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L488-L499)
+[`AggregateDispatcher.kt:249-323`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L249-L323)
+[`AggregateDispatcher.kt:380-393`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L380-L393)
 
 | Extension check | Why | Source |
 |---|---|---|
@@ -511,6 +513,9 @@ and closes the lease exactly once when processing completes.
 | [`RuntimeContext.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeContext.kt) | Activity leases and fatal-error reporting |
 | [`DefaultRuntimeContext.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/DefaultRuntimeContext.kt) | Admission and stable-idle algorithm |
 | [`RuntimeComponentGroup.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt) | Ordered lifecycle composition and force compensation |
+| [`MessageReceiver.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageReceiver.kt) | Single-use source readiness and processing admission boundary |
+| [`LocalDeliveryReceipt.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalDeliveryReceipt.kt) | Internal atomic local-route admission confirmation and fallback decision |
+| [`AggregateDispatcher.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt) | Per-exchange activity admission, local delivery confirmation, and lease completion |
 | [`WowRuntimeLifecycle.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt) | Spring lifecycle bridge |
 | [`WowAutoConfiguration.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt) | Starter composition root |
 
