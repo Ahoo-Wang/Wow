@@ -33,6 +33,11 @@ import reactor.core.scheduler.Scheduler
  * @param parallelism the number of parallel processing groups (default: MessageParallelism.DEFAULT_PARALLELISM)
  * @param snapshotHandler the handler responsible for creating and storing snapshots
  * @param scheduler the scheduler for processing messages
+ * @param messageReadiness completion of asynchronous message-source setup when
+ * this dispatcher is registered directly with a runtime
+ * @param processingAdmission explicit transport-processing gate opened by
+ * [start]
+ * @param processingQuiescence logical transport gate closed by [quiesce]
  */
 class AggregateSnapshotDispatcher(
     override val name: String =
@@ -41,8 +46,15 @@ class AggregateSnapshotDispatcher(
     override val messageFlux: Flux<StateEventExchange<*>>,
     override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     private val snapshotHandler: SnapshotHandler,
-    override val scheduler: Scheduler
-) : AggregateDispatcher<StateEventExchange<*>>(),
+    override val scheduler: Scheduler,
+    messageReadiness: Mono<Void> = Mono.empty(),
+    processingAdmission: () -> Unit = {},
+    processingQuiescence: () -> Unit = {},
+) : AggregateDispatcher<StateEventExchange<*>>(
+    messageReadiness = messageReadiness,
+    processingAdmission = processingAdmission,
+    processingQuiescence = processingQuiescence,
+),
     ProcessorInfo {
     /**
      * The context name of the aggregate.

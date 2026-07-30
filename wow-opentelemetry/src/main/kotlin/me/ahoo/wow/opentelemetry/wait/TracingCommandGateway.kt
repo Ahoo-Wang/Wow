@@ -19,6 +19,7 @@ import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.wait.WaitPlan
 import me.ahoo.wow.infra.Decorator
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.opentelemetry.ReactorTraceContext
 import me.ahoo.wow.opentelemetry.TraceFlux
@@ -69,4 +70,14 @@ class TracingCommandGateway(override val delegate: CommandGateway) : Traced, Com
     override fun receive(subscription: MessageSubscription): Flux<ServerCommandExchange<*>> {
         return delegate.receive(subscription)
     }
+
+    override fun receiver(
+        subscription: MessageSubscription,
+    ): MessageReceiver<ServerCommandExchange<*>> =
+        delegate.receiver(subscription)
+
+    override fun runtimeReceiver(
+        subscription: MessageSubscription,
+    ): MessageReceiver<ServerCommandExchange<*>> =
+        delegate.runtimeReceiver(subscription)
 }

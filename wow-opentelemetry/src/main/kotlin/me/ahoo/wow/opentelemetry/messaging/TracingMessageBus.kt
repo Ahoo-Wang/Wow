@@ -17,6 +17,7 @@ import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.MessageBus
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.opentelemetry.ReactorTraceContext
@@ -30,26 +31,36 @@ interface TracingMessageBus<M : Message<*, *>, E : MessageExchange<*, M>, B : Me
     MessageBus<M, E>,
     Decorator<B> {
     val producerInstrumenter: Instrumenter<M, Unit>
-    override fun send(message: M): Mono<Void> {
-        return Mono.deferContextual {
-            val parentContext = ReactorTraceContext.get(it)
-            val source = Mono.defer {
-                delegate.send(message)
-            }
-            TraceMono(
-                parentContext = parentContext,
-                instrumenter = producerInstrumenter,
-                request = message,
-                source = source,
-            )
+    override fun send(message: M): Mono<Void> =
+        traceMessageSend(message, producerInstrumenter) {
+            delegate.send(message)
         }
-    }
 
     override fun receive(subscription: MessageSubscription): Flux<E> {
         return delegate.receive(subscription)
     }
 
+    override fun receiver(subscription: MessageSubscription): MessageReceiver<E> =
+        delegate.receiver(subscription)
+
+    override fun runtimeReceiver(subscription: MessageSubscription): MessageReceiver<E> =
+        delegate.runtimeReceiver(subscription)
+
     override fun close() {
         delegate.close()
     }
 }
+
+internal fun <M : Message<*, *>, O : Any> traceMessageSend(
+    message: M,
+    instrumenter: Instrumenter<M, Unit>,
+    source: () -> Mono<O>,
+): Mono<O> =
+    Mono.deferContextual {
+        TraceMono(
+            parentContext = ReactorTraceContext.get(it),
+            instrumenter = instrumenter,
+            request = message,
+            source = Mono.defer(source),
+        )
+    }

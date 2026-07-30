@@ -16,10 +16,13 @@ package me.ahoo.wow.scheduler
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.modeling.toNamedAggregate
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 internal class AggregateSchedulerSupplierTest {
 
@@ -82,7 +85,7 @@ internal class AggregateSchedulerSupplierTest {
     }
 
     @Test
-    fun `stop gracefully should dispose cached schedulers and allow reinitialization`() {
+    fun `stop gracefully should dispose cached schedulers and reject reinitialization`() {
         val supplier = DefaultAggregateSchedulerSupplier("worker", parallelism = 1)
         val aggregate = "sales.Order".toNamedAggregate()
         val scheduler = supplier.getOrInitialize(aggregate)
@@ -90,7 +93,61 @@ internal class AggregateSchedulerSupplierTest {
         StepVerifier.create(supplier.stopGracefully()).verifyComplete()
 
         scheduler.isDisposed.assert().isTrue()
-        supplier.getOrInitialize(aggregate).assert().isNotSameAs(scheduler)
-        StepVerifier.create(supplier.stopGracefully()).verifyComplete()
+        assertThrows<IllegalStateException> {
+            supplier.getOrInitialize(aggregate)
+        }
+    }
+
+    @Test
+    fun `force stop should dispose every cached scheduler immediately`() {
+        val supplier = DefaultAggregateSchedulerSupplier("worker", parallelism = 1)
+        val first = supplier.getOrInitialize("sales.Order".toNamedAggregate())
+        val second = supplier.getOrInitialize("sales.Invoice".toNamedAggregate())
+
+        supplier.forceStop()
+
+        first.isDisposed.assert().isTrue()
+        second.isDisposed.assert().isTrue()
+        assertThrows<IllegalStateException> {
+            supplier.getOrInitialize("sales.Payment".toNamedAggregate())
+        }
+    }
+
+    @Test
+    fun `force stop should take over in progress graceful disposal for every observer`() {
+        val supplier = DefaultAggregateSchedulerSupplier("worker", parallelism = 1)
+        val scheduler = supplier.getOrInitialize("sales.Order".toNamedAggregate())
+        val taskStarted = CountDownLatch(1)
+        val taskInterrupted = CountDownLatch(1)
+        val releaseTask = CountDownLatch(1)
+        scheduler.schedule {
+            taskStarted.countDown()
+            try {
+                releaseTask.await()
+            } catch (_: InterruptedException) {
+                taskInterrupted.countDown()
+                Thread.currentThread().interrupt()
+            }
+        }
+        taskStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
+
+        val cancelledObserver = supplier.stopGracefully().subscribe()
+        cancelledObserver.dispose()
+        val firstObserver = supplier.stopGracefully().toFuture()
+        val secondObserver = supplier.stopGracefully().toFuture()
+
+        try {
+            firstObserver.isDone.assert().isFalse()
+            secondObserver.isDone.assert().isFalse()
+
+            supplier.forceStop()
+
+            taskInterrupted.await(1, TimeUnit.SECONDS).assert().isTrue()
+            firstObserver.get(1, TimeUnit.SECONDS)
+            secondObserver.get(1, TimeUnit.SECONDS)
+        } finally {
+            releaseTask.countDown()
+            supplier.forceStop()
+        }
     }
 }

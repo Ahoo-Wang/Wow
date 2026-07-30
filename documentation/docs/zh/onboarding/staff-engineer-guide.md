@@ -728,7 +728,7 @@ flowchart TB
 |---|---|---|
 | **事件存储迁移 / 版本控制** | `EventUpgrader` | 事件具有 `@Revision` 注解；`EventUpgrader` 可将旧事件形状转换为新形状。参见 [EventUpgrader.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/upgrader/EventUpgrader.kt)。 |
 | **水平扩展** | 通过 Kafka 消费者组 | 每个 Wow 实例订阅 Kafka 主题以获取分布式命令/事件。`LocalFirst` 确保共置聚合在进程内处理。 |
-| **优雅关闭** | 可配置 | `wow.shutdown-timeout`（默认：60s）-- [WowProperties.kt:29](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowProperties.kt#L29)。在停止前排空进行中的命令。 |
+| **优雅关闭** | 可配置 | `wow.shutdown-timeout`（默认：60s）是整个运行时的停机截止时间；`wow.shutdown-quiet-period`（默认：1s）要求在统一关闭所有 Dispatcher 接收前出现一个连续空闲窗口。已接收的命令、事件、投影、快照和 Saga 工作会在资源停止前排空。参见 [WowProperties.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowProperties.kt)。 |
 | **健康检查** | Spring Boot Actuator | 标准 Spring Boot 健康端点。后端特定的健康指示器用于 MongoDB、Redis、Kafka。 |
 | **指标导出** | OpenTelemetry | 所有总线、处理器、事件存储和投影分发器都包裹在指标装饰器中。参见 [Metrics.kt 目录](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/metrics)。 |
 | **分布式追踪** | OpenTelemetry | 追踪上下文通过 `CommandRequestHeaderPropagator` 和 local-first 头部传播。参见 [propagation 包](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/propagation)。 |

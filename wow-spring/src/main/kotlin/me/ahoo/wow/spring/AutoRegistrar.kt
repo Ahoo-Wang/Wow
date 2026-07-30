@@ -14,37 +14,26 @@
 package me.ahoo.wow.spring
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.springframework.beans.factory.SmartInitializingSingleton
 import org.springframework.context.ApplicationContext
-import org.springframework.context.SmartLifecycle
-import org.springframework.context.SmartLifecycle.DEFAULT_PHASE
-import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * must before Launcher
- * @see MessageDispatcherLauncher
+ * Must complete before the Wow runtime readiness barrier opens.
+ * @see WowRuntimeLifecycle
  */
-const val AUTO_REGISTRAR_PHASE = DEFAULT_PHASE - 100
-
 abstract class AutoRegistrar<CM : Annotation>(
     private val componentType: Class<CM>,
     private val applicationContext: ApplicationContext
-) : SmartLifecycle {
+) : SmartInitializingSingleton {
     companion object {
         private val log = KotlinLogging.logger {}
     }
 
-    private val running = AtomicBoolean(false)
-
-    override fun start() {
+    final override fun afterSingletonsInstantiated() {
         log.info {
-            "Start registering component:${componentType.simpleName}."
+            "Register component:${componentType.simpleName}."
         }
-        if (!running.compareAndSet(false, true)) {
-            return
-        }
-        val components = applicationContext.getBeansWithAnnotation(componentType)
-        components.forEach { entry ->
-            val component = entry.value
+        applicationContext.getBeansWithAnnotation(componentType).forEach { (_, component) ->
             log.debug {
                 "Registering Component [$component]."
             }
@@ -53,19 +42,4 @@ abstract class AutoRegistrar<CM : Annotation>(
     }
 
     abstract fun register(component: Any)
-
-    override fun stop() {
-        log.info {
-            "Stop ${componentType.simpleName}."
-        }
-        running.compareAndSet(true, false)
-    }
-
-    override fun isRunning(): Boolean {
-        return running.get()
-    }
-
-    override fun getPhase(): Int {
-        return AUTO_REGISTRAR_PHASE
-    }
 }

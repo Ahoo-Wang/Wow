@@ -15,7 +15,8 @@ Wow 配置在 `application.yaml` 或 `application.yml` 文件中的 `wow` 前缀
 wow:
   enabled: true                    # 启用/禁用 Wow 框架
   context-name: my-service         # 有界上下文名称
-  shutdown-timeout: 60s           # 优雅关闭超时时间
+  shutdown-timeout: 60s           # 整个运行时的停机截止时间
+  shutdown-quiet-period: 1s       # 关闭接收前的连续空闲时间
 
   # 命令总线配置
   command:
@@ -92,13 +93,21 @@ wow:
 |------|------|--------|------|
 | `wow.enabled` | Boolean | `true` | 启用/禁用 Wow 框架 |
 | `wow.context-name` | String | `${spring.application.name}` | 服务的有界上下文名称 |
-| `wow.shutdown-timeout` | Duration | `60s` | 优雅关闭超时时间 |
+| `wow.shutdown-timeout` | Duration | `60s` | 整个 Wow 运行时静默与停止的全局截止时间 |
+| `wow.shutdown-quiet-period` | Duration | `1s` | 关闭 Dispatcher 接收前必须连续空闲的时间；新活动会重新计时 |
+
+`wow.shutdown-timeout` 必须大于零；`wow.shutdown-quiet-period` 必须大于等于零，
+并且严格小于 `wow.shutdown-timeout`；二者都必须能表示为 64 位有符号纳秒值。
+
+共享截止时间、静默边界与强制停机语义参见
+[运行时生命周期](./advanced/runtime-lifecycle.md#配置与运维)。
 
 ```yaml
 wow:
   enabled: true
   context-name: order-service
   shutdown-timeout: 120s
+  shutdown-quiet-period: 2s
 ```
 
 ## 命令总线配置
@@ -589,6 +598,7 @@ wow:
   enabled: true
   context-name: order-service
   shutdown-timeout: 120s
+  shutdown-quiet-period: 2s
 
   command:
     bus:

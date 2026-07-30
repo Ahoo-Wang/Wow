@@ -20,6 +20,7 @@ import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.metrics.Metrics.tagMetricsSubscriber
 import me.ahoo.wow.metrics.Metrics.toMetricsAggregateTag
@@ -69,6 +70,28 @@ open class MetricStateEventBus<T : StateEventBus>(
             .tag(Metrics.AGGREGATE_KEY, subscription.namedAggregates.toMetricsAggregateTag())
             .tagMetricsSubscriber(subscription.receiverGroup)
 
+    override fun receiver(
+        subscription: MessageSubscription,
+    ): MessageReceiver<StateEventExchange<*>> =
+        metricReceiver(delegate.receiver(subscription), subscription)
+
+    override fun runtimeReceiver(
+        subscription: MessageSubscription,
+    ): MessageReceiver<StateEventExchange<*>> =
+        metricReceiver(delegate.runtimeReceiver(subscription), subscription)
+
+    private fun metricReceiver(
+        receiver: MessageReceiver<StateEventExchange<*>>,
+        subscription: MessageSubscription,
+    ): MessageReceiver<StateEventExchange<*>> =
+        receiver.mapMessages { messages ->
+            messages
+                .name(Wow.WOW_PREFIX + "state.receive")
+                .tagSource()
+                .tag(Metrics.AGGREGATE_KEY, subscription.namedAggregates.toMetricsAggregateTag())
+                .tagMetricsSubscriber(subscription.receiverGroup)
+        }
+
     /**
      * Closes the state event bus and releases any resources.
      * This delegates to the underlying state event bus implementation.
@@ -89,6 +112,14 @@ class MetricLocalStateEventBus(
     delegate: LocalStateEventBus
 ) : MetricStateEventBus<LocalStateEventBus>(delegate),
     LocalStateEventBus {
+    override fun sendIfSubscribed(message: StateEvent<*>): Mono<Boolean> =
+        delegate
+            .sendIfSubscribed(message)
+            .name(Wow.WOW_PREFIX + "state.send")
+            .tagSource()
+            .tag(Metrics.AGGREGATE_KEY, message.aggregateName)
+            .metrics()
+
     /**
      * Returns the number of subscribers for the specified named aggregate.
      * This delegates to the underlying local state event bus implementation.

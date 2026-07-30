@@ -15,11 +15,20 @@ package me.ahoo.wow.messaging.dispatcher
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
+import me.ahoo.wow.runtime.RuntimeContext
+import me.ahoo.wow.runtime.internal.RuntimeComponentGroup
+import me.ahoo.wow.runtime.internal.addSuppressedIfAbsent
+import me.ahoo.wow.runtime.internal.forceAllReporting
+import me.ahoo.wow.runtime.internal.stopAllReporting
 import me.ahoo.wow.serialization.toJsonString
+import reactor.core.Exceptions
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Abstract base class for message dispatchers that manage multiple aggregate dispatchers.
@@ -52,16 +61,22 @@ import reactor.core.publisher.Mono
  * }
  *
  * val dispatcher = MyMainDispatcher()
- * dispatcher.start()
+ * val runtime = WowRuntime(
+ *     components = listOf(dispatcher),
+ *     shutdownTimeout = Duration.ofSeconds(30),
+ *     shutdownQuietPeriod = Duration.ZERO,
+ * )
+ * runtime.start().block()
  * // ... application logic ...
- * dispatcher.stopGracefully().block()
+ * runtime.stopGracefully().block()
  * ```
  *
  * @param T The type of message being dispatched, must be a non-null type.
  *
  * @see MessageDispatcher
  */
-abstract class MainDispatcher<T : Any> : MessageDispatcher {
+abstract class MainDispatcher<T : Any> :
+    MessageDispatcher {
     companion object {
         private val log = KotlinLogging.logger {}
     }
@@ -89,6 +104,18 @@ abstract class MainDispatcher<T : Any> : MessageDispatcher {
     abstract fun receiveMessage(subscription: MessageSubscription): Flux<T>
 
     /**
+     * Creates the message source together with its transport readiness signal.
+     *
+     * Existing synchronous sources may rely on this default. Dispatchers backed
+     * by an asynchronous transport should preserve the receiver returned by
+     * their message bus.
+     */
+    protected open fun createMessageReceiver(
+        subscription: MessageSubscription,
+    ): MessageReceiver<T> =
+        MessageReceiver(receiveMessage(subscription))
+
+    /**
      * Creates a new message dispatcher for a specific named aggregate.
      *
      * This method is responsible for instantiating a dispatcher that will handle messages
@@ -114,22 +141,43 @@ abstract class MainDispatcher<T : Any> : MessageDispatcher {
      * and metrics context. This property is initialized on first access to avoid
      * unnecessary resource allocation.
      */
-    private val aggregateDispatchersLazy = lazy {
+    private data class AggregateDispatcherBinding(
+        val dispatcher: MessageDispatcher,
+        val readiness: Mono<Void>,
+        val openProcessing: () -> Unit,
+        val closeProcessing: () -> Unit,
+    )
+
+    private val aggregateDispatcherBindingsLazy = lazy {
         namedAggregates
             .map {
                 val subscription = MessageSubscription(
                     namedAggregate = it,
                     receiverGroup = name,
                 )
-                val messageFlux =
-                    receiveMessage(subscription)
-                        .writeMetricsSubscriber(name)
-                newAggregateDispatcher(it, messageFlux)
+                val receiver = createMessageReceiver(subscription)
+                AggregateDispatcherBinding(
+                    dispatcher = newAggregateDispatcher(
+                        it,
+                        receiver.messages.writeMetricsSubscriber(name),
+                    ),
+                    readiness = receiver.readiness,
+                    openProcessing = receiver::openProcessing,
+                    closeProcessing = receiver::closeProcessing,
+                )
             }
     }
 
     protected val aggregateDispatchers: List<MessageDispatcher>
-        get() = aggregateDispatchersLazy.value
+        get() = aggregateDispatcherBindingsLazy.value.map { it.dispatcher }
+
+    @Volatile
+    private var runtimeContext: RuntimeContext? = null
+
+    private val childLifecycleMonitor = Any()
+    private var aggregateComponentGroup: RuntimeComponentGroup? = null
+    private val forceStopRequested = AtomicBoolean()
+    private val childFailure = AtomicReference<Throwable?>()
 
     private fun String.withNamePrefix(): String = "[$name][${this@MainDispatcher.javaClass.simpleName}] $this"
 
@@ -142,17 +190,102 @@ abstract class MainDispatcher<T : Any> : MessageDispatcher {
      *
      * @throws RuntimeException if starting any aggregate dispatcher fails.
      */
-    override fun start() {
+    final override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+        Mono.defer {
+            check(this.runtimeContext == null) {
+                "[$name] Dispatcher can only be prepared once."
+            }
+            this.runtimeContext = runtimeContext
+            prepareAggregateDispatchers(runtimeContext)
+        }
+
+    private fun prepareAggregateDispatchers(runtimeContext: RuntimeContext): Mono<Void> {
+        if (namedAggregates.isEmpty()) {
+            return Mono.empty()
+        }
+        val bindings = aggregateDispatcherBindingsLazy.value
+        val childRuntimeContext = object : RuntimeContext by runtimeContext {
+            override fun reportFailure(error: Throwable) {
+                childFailure.compareAndSet(null, error)
+                runtimeContext.reportFailure(error)
+            }
+        }
+        val group = RuntimeComponentGroup(
+            bindings.map { it.dispatcher },
+            childRuntimeContext::reportFailure,
+        )
+        val accepted = synchronized(childLifecycleMonitor) {
+            if (forceStopRequested.get()) {
+                false
+            } else {
+                check(aggregateComponentGroup == null) {
+                    "[$name] Aggregate dispatcher group can only be installed once."
+                }
+                aggregateComponentGroup = group
+                true
+            }
+        }
+        if (!accepted) {
+            return group.forceStop()?.let { Mono.error(it) } ?: Mono.empty()
+        }
+        return group.prepare(
+            runtimeContext = childRuntimeContext,
+            admissionGate = ::admitChildLifecycleAction,
+            afterEach = ::throwIfChildFailed,
+        )
+            .flatMap { prepared ->
+                childFailure.get()?.let { return@flatMap Mono.error(it) }
+                if (!prepared || forceStopRequested.get()) {
+                    Mono.empty()
+                } else {
+                    Flux.merge(bindings.map { it.readiness }).then()
+                }
+            }
+    }
+
+    final override fun start() {
+        if (forceStopRequested.get()) {
+            return
+        }
         log.info {
             "Start subscribe to namedAggregates:${namedAggregates.toJsonString()}.".withNamePrefix()
         }
         if (namedAggregates.isEmpty()) {
             log.warn {
-                "Ignore start because namedAggregates is empty.".withNamePrefix()
+                "No aggregate dispatchers to start because namedAggregates is empty.".withNamePrefix()
             }
+        } else {
+            val started = aggregateComponentGroupSnapshot()?.start(
+                admissionGate = ::admitChildLifecycleAction,
+                afterEach = ::throwIfChildFailed,
+            ) == true
+            if (started) {
+                aggregateDispatcherBindingsLazy.value.forEach { binding ->
+                    if (forceStopRequested.get() || childFailure.get() != null) {
+                        return
+                    }
+                    binding.openProcessing()
+                }
+            }
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    final override fun quiesce() {
+        if (forceStopRequested.get()) {
             return
         }
-        aggregateDispatchers.forEach { it.start() }
+        val processingFailure = closeAggregateProcessing()
+        val quiescenceFailure = try {
+            aggregateComponentGroupSnapshot()?.quiesce {
+                !forceStopRequested.get()
+            }
+            null
+        } catch (error: Throwable) {
+            Exceptions.throwIfFatal(error)
+            error
+        }
+        throwIfFailed(processingFailure, quiescenceFailure)
     }
 
     /**
@@ -165,16 +298,100 @@ abstract class MainDispatcher<T : Any> : MessageDispatcher {
      * @return A [Mono] that completes when all aggregate dispatchers have stopped gracefully.
      *         Completes with an error if any dispatcher fails to stop.
      */
-    override fun stopGracefully(): Mono<Void> {
+    final override fun stopGracefully(): Mono<Void> {
         log.info {
             "Stop Gracefully.".withNamePrefix()
         }
-        if (!aggregateDispatchersLazy.isInitialized()) {
-            return Mono.empty()
-        }
-        return Flux
-            .fromIterable(aggregateDispatchers)
-            .flatMap { it.stopGracefully() }
-            .then()
+        return stopAllReporting(
+            listOf(
+                ::stopAggregateDispatchersGracefully,
+                ::stopManagedGracefullyIfAllowed,
+            ),
+            ::reportRuntimeFailure,
+        )
     }
+
+    /**
+     * Stops only owned aggregate dispatchers, leaving subclass resources intact.
+     */
+    protected fun stopAggregateDispatchersGracefully(): Mono<Void> =
+        aggregateComponentGroupSnapshot()
+            ?.stopGracefully(shouldStop = { !forceStopRequested.get() })
+            ?: Mono.empty()
+
+    private fun stopManagedGracefullyIfAllowed(): Mono<Void> =
+        if (forceStopRequested.get()) {
+            Mono.empty()
+        } else {
+            stopManagedGracefully()
+        }
+
+    /**
+     * Adds component-specific graceful cleanup after all child dispatchers stop.
+     */
+    protected open fun stopManagedGracefully(): Mono<Void> = Mono.empty()
+
+    final override fun forceStop() {
+        forceStopRequested.set(true)
+        val processingFailure = closeAggregateProcessing()
+        val forceFailure = forceAllReporting(
+            listOf(
+                ::forceStopAggregateDispatchers,
+                ::forceStopManaged,
+            ),
+            ::reportRuntimeFailure,
+        )
+        throwIfFailed(processingFailure, forceFailure)
+    }
+
+    /**
+     * Force-stops only owned aggregate dispatchers, leaving subclass resources intact.
+     */
+    protected fun forceStopAggregateDispatchers() {
+        aggregateComponentGroupSnapshot()?.forceStop()?.let { throw it }
+    }
+
+    /**
+     * Adds component-specific prompt cleanup after child dispatcher force-stop.
+     */
+    protected open fun forceStopManaged() = Unit
+
+    private fun reportRuntimeFailure(error: Throwable) {
+        runtimeContext?.reportFailure(error)
+    }
+
+    private fun closeAggregateProcessing(): Throwable? {
+        if (!aggregateDispatcherBindingsLazy.isInitialized()) {
+            return null
+        }
+        return forceAllReporting(
+            aggregateDispatcherBindingsLazy.value.map { it.closeProcessing },
+            ::reportRuntimeFailure,
+        )
+    }
+
+    private fun throwIfFailed(
+        first: Throwable?,
+        second: Throwable?,
+    ) {
+        if (first != null) {
+            second?.let(first::addSuppressedIfAbsent)
+            throw first
+        }
+        second?.let { throw it }
+    }
+
+    private fun admitChildLifecycleAction(admission: () -> Boolean): Boolean =
+        !forceStopRequested.get() &&
+            childFailure.get() == null &&
+            admission()
+
+    private fun throwIfChildFailed() {
+        childFailure.get()?.let { throw it }
+    }
+
+    private fun aggregateComponentGroupSnapshot(): RuntimeComponentGroup? =
+        synchronized(childLifecycleMonitor) {
+            aggregateComponentGroup
+        }
 }

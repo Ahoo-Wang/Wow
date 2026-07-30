@@ -50,6 +50,30 @@ interface MessageBus<M : Message<*, *>, E : MessageExchange<*, M>> : AutoCloseab
      * @return A [Flux] of message exchanges for the specified subscription
      */
     fun receive(subscription: MessageSubscription): Flux<E>
+
+    /**
+     * Creates a single message source with an explicit transport readiness
+     * boundary.
+     *
+     * Synchronous transports may use this default. Cold transports whose
+     * subscription requires asynchronous initialization must override it and
+     * complete [MessageReceiver.readiness] only when new messages can no longer
+     * be missed.
+     */
+    fun receiver(subscription: MessageSubscription): MessageReceiver<E> =
+        MessageReceiver(receive(subscription))
+
+    /**
+     * Creates the message source owned by a [me.ahoo.wow.runtime.WowRuntime]
+     * dispatcher.
+     *
+     * The default preserves the ordinary receiver contract. Local buses may
+     * override this capability to participate in runtime-admission delivery
+     * receipts; custom consumers should use [receiver] unless they implement
+     * the same admission protocol.
+     */
+    fun runtimeReceiver(subscription: MessageSubscription): MessageReceiver<E> =
+        receiver(subscription)
 }
 
 /**
@@ -69,6 +93,18 @@ interface LocalMessageBus<M : Message<*, *>, E : MessageExchange<*, M>> : Messag
      * @return The number of subscribers for the aggregate
      */
     fun subscriberCount(namedAggregate: NamedAggregate): Int
+
+    /**
+     * Attempts local delivery only while a processing subscriber is routable.
+     *
+     * The conservative default disables local suppression. Implementations may
+     * return `true` only after every targeted local receiver has acquired its
+     * processing admission; sink acceptance or subscriber count alone is not
+     * sufficient.
+     *
+     * @return `true` only when local delivery remains valid after emission.
+     */
+    fun sendIfSubscribed(message: M): Mono<Boolean> = Mono.just(false)
 }
 
 /**

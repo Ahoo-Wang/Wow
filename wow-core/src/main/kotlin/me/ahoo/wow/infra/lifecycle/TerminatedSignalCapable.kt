@@ -15,6 +15,12 @@ package me.ahoo.wow.infra.lifecycle
 
 import reactor.core.publisher.Mono
 
+/**
+ * Observation-only capability for an object's terminal signal.
+ *
+ * Exposing this signal does not confer startup, shutdown, or orchestration
+ * ownership on the observer.
+ */
 interface TerminatedSignalCapable<V : Any> {
     val terminatedSignal: Mono<V>
 }

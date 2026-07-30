@@ -21,6 +21,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.MetadataSearcher.isLocal
 import me.ahoo.wow.messaging.handler.ExchangeAck.filterThenAck
 import me.ahoo.wow.messaging.handler.MessageExchange
+import reactor.core.Exceptions
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -140,33 +141,39 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> :
     /**
      * Sends a message using local-first routing strategy.
      *
-     * If local-first routing is enabled and there are local subscribers, the message
-     * is first sent locally. Regardless of local success/failure, a copy is also sent
-     * to the distributed bus. If local-first is disabled or no local subscribers exist,
-     * only the distributed bus is used.
+     * If local-first routing is enabled, the bus attempts local delivery to
+     * processing-open receivers. The distributed copy is marked locally
+     * handled only after every targeted receiver confirms runtime admission;
+     * otherwise it remains eligible for distributed processing.
      *
      * @param message The message to send
      * @return A Mono that completes when sending is done
      */
     @Suppress("ReturnCount")
     override fun send(message: M): Mono<Void> {
-        if (!message.shouldLocalFirst() || localBus.subscriberCount(message) == 0) {
+        if (!message.shouldLocalFirst()) {
             return distributedBus.send(message)
         }
 
-        message.withLocalFirst()
-        val localSend = localBus.send(message)
-        return localSend.materialize().flatMap {
+        // A local delivery attempt owns a fresh immutable message identity.
+        return Mono.defer {
             @Suppress("UNCHECKED_CAST")
-            val distributedMessage = message.copy() as M
-            if (it.hasError()) {
-                val error = it.throwable!!
-                log.error(error) {
-                    "[$localBusName] Failed to send local message[${message.id}], LocalFirst mode temporarily disabled."
+            val localMessage = message.copy() as M
+            localMessage.withLocalFirst()
+            localBus.sendIfSubscribed(localMessage).materialize().flatMap {
+                val locallyDelivered = it.hasValue() && it.get() == true
+                if (it.hasError()) {
+                    val error = it.throwable!!
+                    log.error(error) {
+                        "[$localBusName] Failed to send local message[${message.id}], " +
+                            "LocalFirst mode temporarily disabled."
+                    }
                 }
-                distributedMessage.withLocalFirst(false)
+                @Suppress("UNCHECKED_CAST")
+                val distributedMessage = message.copy() as M
+                distributedMessage.withLocalFirst(locallyDelivered)
+                distributedBus.send(distributedMessage)
             }
-            distributedBus.send(distributedMessage)
         }
     }
 
@@ -184,10 +191,81 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> :
             it.isLocal()
         }.toSet()
         val localFlux = localBus.receive(subscription.copy(namedAggregates = localTopics))
-        val distributedFlux = distributedBus.receive(subscription)
-            .filterThenAck {
-                !it.message.isLocalHandled()
-            }
+        val distributedFlux =
+            distributedBus.receive(subscription)
+                .filterThenAck {
+                    !it.message.isLocalHandled()
+                }
         return Flux.merge(localFlux, distributedFlux)
+    }
+
+    override fun receiver(subscription: MessageSubscription): MessageReceiver<E> =
+        combinedReceiver(subscription, runtimeOwned = false)
+
+    override fun runtimeReceiver(subscription: MessageSubscription): MessageReceiver<E> =
+        combinedReceiver(subscription, runtimeOwned = true)
+
+    private fun combinedReceiver(
+        subscription: MessageSubscription,
+        runtimeOwned: Boolean,
+    ): MessageReceiver<E> {
+        val localTopics = subscription.namedAggregates.filter {
+            it.isLocal()
+        }.toSet()
+        val localSubscription = subscription.copy(namedAggregates = localTopics)
+        val localReceiver = if (runtimeOwned) {
+            localBus.runtimeReceiver(localSubscription)
+        } else {
+            localBus.receiver(localSubscription)
+        }
+        val distributedReceiver = if (runtimeOwned) {
+            distributedBus.runtimeReceiver(subscription)
+        } else {
+            distributedBus.receiver(subscription)
+        }
+        return MessageReceiver(
+            messages = Flux.merge(
+                localReceiver.messages,
+                distributedReceiver.messages.filterThenAck {
+                    !it.message.isLocalHandled()
+                },
+            ),
+            readiness = Mono.`when`(
+                localReceiver.readiness,
+                distributedReceiver.readiness,
+            ),
+            processingAdmission = {
+                localReceiver.openProcessing()
+                distributedReceiver.openProcessing()
+            },
+            processingQuiescence = {
+                closeReceivers(localReceiver, distributedReceiver)
+            },
+        )
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun closeReceivers(
+        localReceiver: MessageReceiver<E>,
+        distributedReceiver: MessageReceiver<E>,
+    ) {
+        var failure: Throwable? = null
+        try {
+            localReceiver.closeProcessing()
+        } catch (error: Throwable) {
+            Exceptions.throwIfFatal(error)
+            failure = error
+        }
+        try {
+            distributedReceiver.closeProcessing()
+        } catch (error: Throwable) {
+            Exceptions.throwIfFatal(error)
+            if (failure == null) {
+                failure = error
+            } else if (failure !== error) {
+                failure.addSuppressed(error)
+            }
+        }
+        failure?.let { throw it }
     }
 }

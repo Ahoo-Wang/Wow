@@ -20,6 +20,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.match
 import me.ahoo.wow.messaging.dispatcher.MainDispatcher
@@ -52,14 +53,21 @@ class SnapshotDispatcher(
     private val schedulerSupplier: AggregateSchedulerSupplier =
         DefaultAggregateSchedulerSupplier(SNAPSHOT_PROCESSOR_NAME)
 ) : MainDispatcher<StateEventExchange<*>>() {
-
     override fun receiveMessage(subscription: MessageSubscription): Flux<StateEventExchange<*>> {
-        return stateEventBus
-            .receive(subscription)
-            .filterThenAck {
-                it.message.match(SNAPSHOT_FUNCTION)
-            }
+        return filterMessages(stateEventBus.receive(subscription))
     }
+
+    override fun createMessageReceiver(
+        subscription: MessageSubscription,
+    ): MessageReceiver<StateEventExchange<*>> =
+        stateEventBus.runtimeReceiver(subscription).mapMessages(::filterMessages)
+
+    private fun filterMessages(
+        messages: Flux<StateEventExchange<*>>,
+    ): Flux<StateEventExchange<*>> =
+        messages.filterThenAck {
+            it.message.match(SNAPSHOT_FUNCTION)
+        }
 
     override fun newAggregateDispatcher(
         namedAggregate: NamedAggregate,
@@ -74,6 +82,10 @@ class SnapshotDispatcher(
         )
     }
 
-    override fun stopGracefully(): Mono<Void> =
-        super.stopGracefully().then(schedulerSupplier.stopGracefully())
+    override fun stopManagedGracefully(): Mono<Void> =
+        schedulerSupplier.stopGracefully()
+
+    override fun forceStopManaged() {
+        schedulerSupplier.forceStop()
+    }
 }

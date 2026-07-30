@@ -15,7 +15,8 @@ Wow configuration is organized under the `wow` prefix in your `application.yaml`
 wow:
   enabled: true                    # Enable/disable Wow framework
   context-name: my-service         # Bounded context name
-  shutdown-timeout: 60s           # Graceful shutdown timeout
+  shutdown-timeout: 60s           # Complete-runtime shutdown deadline
+  shutdown-quiet-period: 1s       # Stable idle period before intake closes
 
   # Command Bus Configuration
   command:
@@ -93,13 +94,22 @@ wow:
 |----------|------|---------|-------------|
 | `wow.enabled` | Boolean | `true` | Enable/disable the Wow framework |
 | `wow.context-name` | String | `${spring.application.name}` | Bounded context name for the service |
-| `wow.shutdown-timeout` | Duration | `60s` | Graceful shutdown timeout duration |
+| `wow.shutdown-timeout` | Duration | `60s` | Global deadline for quiescing and stopping the complete Wow runtime |
+| `wow.shutdown-quiet-period` | Duration | `1s` | Stable idle period required before dispatcher intake closes; new activity resets it |
+
+`wow.shutdown-timeout` must be positive. `wow.shutdown-quiet-period` must be
+non-negative and strictly shorter than `wow.shutdown-timeout`. Both durations
+must fit in a signed 64-bit nanosecond value.
+
+See [Runtime Lifecycle](./advanced/runtime-lifecycle.md#configuration-and-operations)
+for the shared deadline, quiet-boundary, and force-stop semantics.
 
 ```yaml
 wow:
   enabled: true
   context-name: order-service
   shutdown-timeout: 120s
+  shutdown-quiet-period: 2s
 ```
 
 ## Command Bus Configuration
@@ -591,6 +601,7 @@ wow:
   enabled: true
   context-name: order-service
   shutdown-timeout: 120s
+  shutdown-quiet-period: 2s
 
   command:
     bus:

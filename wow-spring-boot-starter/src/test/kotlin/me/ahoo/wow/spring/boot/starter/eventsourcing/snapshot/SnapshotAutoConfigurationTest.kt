@@ -27,8 +27,8 @@ import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
+import me.ahoo.wow.spring.WowRuntimeLifecycle
 import me.ahoo.wow.spring.boot.starter.BusType
-import me.ahoo.wow.spring.boot.starter.WowProperties
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.event.EventAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.event.EventProperties
@@ -36,7 +36,6 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
-import me.ahoo.wow.spring.command.SnapshotDispatcherLauncher
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -52,7 +51,6 @@ internal class SnapshotAutoConfigurationTest {
     @Test
     fun `constructor creates simple snapshot strategy`() {
         val configuration = SnapshotAutoConfiguration(
-            wowProperties = WowProperties(contextName = "test"),
             snapshotProperties = SnapshotProperties(),
         )
         val snapshotStore = configuration.inMemorySnapshotStore()
@@ -87,7 +85,7 @@ internal class SnapshotAutoConfigurationTest {
                     .hasBean("snapshotFilterChain")
                     .hasSingleBean(SnapshotHandler::class.java)
                     .hasSingleBean(SnapshotDispatcher::class.java)
-                    .hasSingleBean(SnapshotDispatcherLauncher::class.java)
+                    .hasSingleBean(WowRuntimeLifecycle::class.java)
                     .hasSingleBean(SnapshotStoreBinding::class.java)
                 val snapshotStore = context.getBean(InMemorySnapshotStore::class.java)
                 val binding = context.getBean(SnapshotStoreBinding::class.java)
@@ -148,7 +146,7 @@ internal class SnapshotAutoConfigurationTest {
                     .hasBean("snapshotFilterChain")
                     .hasSingleBean(SnapshotHandler::class.java)
                     .hasSingleBean(SnapshotDispatcher::class.java)
-                    .hasSingleBean(SnapshotDispatcherLauncher::class.java)
+                    .hasSingleBean(WowRuntimeLifecycle::class.java)
                     .hasSingleBean(SnapshotStoreBinding::class.java)
                 val snapshotStore = context.getBean(InMemorySnapshotStore::class.java)
                 val binding = context.getBean(SnapshotStoreBinding::class.java)

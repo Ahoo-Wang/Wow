@@ -30,16 +30,16 @@ import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
-import me.ahoo.wow.spring.boot.starter.WowProperties
+import me.ahoo.wow.spring.boot.starter.WowRuntimeComponentOrder
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnSnapshotStoreStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
-import me.ahoo.wow.spring.command.SnapshotDispatcherLauncher
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
+import org.springframework.core.annotation.Order
 
 @Suppress("TooManyFunctions")
 @AutoConfiguration
@@ -47,7 +47,6 @@ import org.springframework.context.annotation.Bean
 @ConditionalOnSnapshotEnabled
 @EnableConfigurationProperties(SnapshotProperties::class)
 class SnapshotAutoConfiguration(
-    private val wowProperties: WowProperties,
     private val snapshotProperties: SnapshotProperties,
 ) {
     @Bean(name = ["inMemorySnapshotStore", "inMemorySnapshotRepository"])
@@ -118,6 +117,7 @@ class SnapshotAutoConfiguration(
     }
 
     @Bean
+    @Order(WowRuntimeComponentOrder.SNAPSHOT)
     fun snapshotDispatcher(
         @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         namedBoundedContext: NamedBoundedContext,
@@ -129,10 +129,5 @@ class SnapshotAutoConfiguration(
             snapshotHandler = snapshotHandler,
             stateEventBus = stateEventBus,
         )
-    }
-
-    @Bean
-    fun snapshotDispatcherLauncher(snapshotDispatcher: SnapshotDispatcher): SnapshotDispatcherLauncher {
-        return SnapshotDispatcherLauncher(snapshotDispatcher, wowProperties.shutdownTimeout)
     }
 }

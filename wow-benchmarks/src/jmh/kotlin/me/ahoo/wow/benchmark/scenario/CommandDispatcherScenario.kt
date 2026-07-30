@@ -51,18 +51,21 @@ import me.ahoo.wow.modeling.command.dispatcher.DefaultCommandHandler
 import me.ahoo.wow.modeling.command.dispatcher.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
+import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.test.validation.TestValidator
+import java.time.Duration
 
 class CommandDispatcherScenario private constructor(
     val gatewayScenario: CommandGatewayScenario,
     val commandDispatcher: CommandDispatcher,
+    private val runtime: WowRuntime,
 ) : AutoCloseable {
     val commandGateway: CommandGateway
         get() = gatewayScenario.commandGateway
 
     override fun close() {
-        commandDispatcher.stop()
+        runtime.stopGracefully().block()
         gatewayScenario.close()
     }
 
@@ -116,10 +119,16 @@ class CommandDispatcherScenario private constructor(
                 commandHandler = DefaultCommandHandler(chain),
                 schedulerSupplier = schedulerSupplier,
             )
-            commandDispatcher.start()
+            val runtime = WowRuntime(
+                components = listOf(commandDispatcher),
+                shutdownTimeout = Duration.ofSeconds(30),
+                shutdownQuietPeriod = Duration.ZERO,
+            )
+            runtime.start().block()
             return CommandDispatcherScenario(
                 gatewayScenario = gatewayScenario,
                 commandDispatcher = commandDispatcher,
+                runtime = runtime,
             )
         }
     }

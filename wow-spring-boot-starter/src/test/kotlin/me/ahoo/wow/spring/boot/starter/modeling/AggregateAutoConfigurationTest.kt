@@ -25,14 +25,16 @@ import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.modeling.command.AggregateProcessorFactory
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
 import me.ahoo.wow.modeling.command.dispatcher.AggregateProcessorFilter
+import me.ahoo.wow.modeling.command.dispatcher.CommandDispatcher
 import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
 import me.ahoo.wow.modeling.command.dispatcher.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
+import me.ahoo.wow.runtime.WowRuntime
+import me.ahoo.wow.spring.WowRuntimeLifecycle
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.opentelemetry.WowOpenTelemetryAutoConfiguration
-import me.ahoo.wow.spring.command.CommandDispatcherLauncher
 import me.ahoo.wow.test.SagaVerifier
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -65,7 +67,9 @@ internal class AggregateAutoConfigurationTest {
                     .hasSingleBean(SendDomainEventStreamFilter::class.java)
                     .hasSingleBean(FilterChain::class.java)
                     .hasSingleBean(CommandHandler::class.java)
-                    .hasSingleBean(CommandDispatcherLauncher::class.java)
+                    .hasSingleBean(WowRuntimeLifecycle::class.java)
+                context.getBean(WowRuntime::class.java).components.single().assert()
+                    .isInstanceOf(CommandDispatcher::class.java)
             }
     }
 }

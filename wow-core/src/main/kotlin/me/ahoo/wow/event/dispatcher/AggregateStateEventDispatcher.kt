@@ -40,6 +40,11 @@ import java.util.concurrent.ConcurrentHashMap
  * @property functionRegistrar The registrar containing event processing functions
  * @property eventHandler The handler for processing individual events
  * @property scheduler The scheduler for managing event processing concurrency
+ * @param messageReadiness Completion of asynchronous message-source setup when
+ * this dispatcher is registered directly with a runtime
+ * @param processingAdmission Explicit transport-processing gate opened by
+ * [start]
+ * @param processingQuiescence Logical transport gate closed by [quiesce]
  *
  * @constructor Creates a new AggregateStateEventDispatcher with the specified parameters
  *
@@ -58,8 +63,15 @@ class AggregateStateEventDispatcher(
     override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     override val functionRegistrar: MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>,
     override val eventHandler: EventHandler,
-    override val scheduler: Scheduler
-) : AbstractAggregateEventDispatcher<StateEventExchange<*>>() {
+    override val scheduler: Scheduler,
+    messageReadiness: Mono<Void> = Mono.empty(),
+    processingAdmission: () -> Unit = {},
+    processingQuiescence: () -> Unit = {},
+) : AbstractAggregateEventDispatcher<StateEventExchange<*>>(
+    messageReadiness = messageReadiness,
+    processingAdmission = processingAdmission,
+    processingQuiescence = processingQuiescence,
+) {
     /**
      * Creates a state domain event exchange from a state event exchange and domain event.
      *

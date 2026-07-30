@@ -11,11 +11,19 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.event
+package me.ahoo.wow.spring.boot.starter
 
-import me.ahoo.wow.event.dispatcher.DomainEventDispatcher
-import me.ahoo.wow.spring.MessageDispatcherLauncher
-import java.time.Duration
-
-class DomainEventDispatcherLauncher(domainEventDispatcher: DomainEventDispatcher, shutdownTimeout: Duration) :
-    MessageDispatcherLauncher(domainEventDispatcher, shutdownTimeout)
+/**
+ * Deterministic ordering for the built-in runtime components.
+ *
+ * Every component is prepared before any component starts, so these values do
+ * not encode a dependency DAG. They define stable startup and reverse-cleanup
+ * order for diagnostics and failure handling.
+ */
+object WowRuntimeComponentOrder {
+    const val COMMAND = 100
+    const val EVENT = 200
+    const val PROJECTION = 300
+    const val STATELESS_SAGA = 400
+    const val SNAPSHOT = 500
+}

@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.opentelemetry.wait
 
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.sdk.OpenTelemetrySdk
 import io.opentelemetry.sdk.common.CompletableResultCode
@@ -22,9 +25,11 @@ import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor
 import io.opentelemetry.sdk.trace.export.SpanExporter
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.CommandBus
+import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.DefaultRequestIdChecker
 import me.ahoo.wow.command.InMemoryCommandBus
+import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandWait
@@ -34,10 +39,13 @@ import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
+import me.ahoo.wow.messaging.MessageReceiver
+import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.opentelemetry.Tracing.tracing
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import reactor.core.publisher.Flux
 import reactor.kotlin.test.test
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -45,6 +53,25 @@ class TracingCommandGatewayWaitTest {
     @AfterEach
     fun resetOpenTelemetry() {
         GlobalOpenTelemetry.resetForTest()
+    }
+
+    @Test
+    fun `runtime receiver preserves delegate runtime admission protocol`() {
+        val subscription = MessageSubscription(emptySet(), receiverGroup = "runtime")
+        val expected = MessageReceiver<ServerCommandExchange<*>>(Flux.empty())
+        val delegate = mockk<CommandGateway> {
+            every { runtimeReceiver(subscription) } returns expected
+        }
+
+        val actual = TracingCommandGateway(delegate).runtimeReceiver(subscription)
+
+        actual.assert().isSameAs(expected)
+        verify(exactly = 1) {
+            delegate.runtimeReceiver(subscription)
+        }
+        verify(exactly = 0) {
+            delegate.receiver(subscription)
+        }
     }
 
     @Test

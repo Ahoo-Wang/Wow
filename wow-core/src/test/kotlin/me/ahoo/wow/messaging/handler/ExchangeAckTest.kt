@@ -14,7 +14,10 @@
 package me.ahoo.wow.messaging.handler
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.messaging.LocalDeliveryReceipt
+import me.ahoo.wow.messaging.LocalDeliveryRouteTarget
 import me.ahoo.wow.messaging.TestNamedMessage
+import me.ahoo.wow.messaging.attachLocalDeliveryTicket
 import me.ahoo.wow.messaging.handler.ExchangeAck.filterThenAck
 import me.ahoo.wow.messaging.handler.ExchangeAck.finallyAck
 import org.junit.jupiter.api.Test
@@ -22,6 +25,7 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class ExchangeAckTest {
@@ -69,6 +73,21 @@ class ExchangeAckTest {
             .verifyComplete()
 
         kept.ackCount.get().assert().isEqualTo(0)
+        discarded.ackCount.get().assert().isOne()
+    }
+
+    @Test
+    fun `filterThenAck rejects local delivery suppression`() {
+        val target = LocalDeliveryRouteTarget()
+        val receipt = LocalDeliveryReceipt(setOf(target))
+        val receiptResult = receipt.signal().toFuture()
+        val discarded = AckExchange()
+        discarded.attachLocalDeliveryTicket(checkNotNull(receipt.claim(target)))
+
+        StepVerifier.create(Flux.just(discarded).filterThenAck { false })
+            .verifyComplete()
+
+        receiptResult.get(1, TimeUnit.SECONDS).assert().isFalse()
         discarded.ackCount.get().assert().isOne()
     }
 }

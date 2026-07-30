@@ -8,8 +8,12 @@ All configuration is under the `wow` prefix in `application.yaml`.
 wow:
   enabled: true                    # Enable/disable Wow framework
   context-name: my-service         # Bounded context name (default: spring.application.name)
-  shutdown-timeout: 60s            # Graceful shutdown timeout
+  shutdown-timeout: 60s            # Complete-runtime shutdown deadline
+  shutdown-quiet-period: 1s        # Stable idle period before dispatcher intake closes
 ```
+
+`shutdown-timeout` must be positive. `shutdown-quiet-period` must be non-negative
+and strictly shorter than `shutdown-timeout`.
 
 ## Complete Configuration Template
 
@@ -18,6 +22,7 @@ wow:
   enabled: true
   context-name: order-service
   shutdown-timeout: 120s
+  shutdown-quiet-period: 2s
 
   # Command Bus
   command:

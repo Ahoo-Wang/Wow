@@ -19,6 +19,7 @@ import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
 import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
+import reactor.core.publisher.Mono
 
 class TracingLocalStateEventBus(
     override val delegate: LocalStateEventBus,
@@ -26,6 +27,11 @@ class TracingLocalStateEventBus(
 ) :
     TracingMessageBus<StateEvent<*>, StateEventExchange<*>, LocalStateEventBus>,
     LocalStateEventBus {
+    override fun sendIfSubscribed(message: StateEvent<*>): Mono<Boolean> =
+        traceMessageSend(message, producerInstrumenter) {
+            delegate.sendIfSubscribed(message)
+        }
+
     override fun subscriberCount(namedAggregate: NamedAggregate): Int {
         return delegate.subscriberCount(namedAggregate)
     }

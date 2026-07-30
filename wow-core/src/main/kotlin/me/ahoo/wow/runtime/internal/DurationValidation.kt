@@ -11,11 +11,16 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.command
+package me.ahoo.wow.runtime.internal
 
-import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotDispatcher
-import me.ahoo.wow.spring.MessageDispatcherLauncher
 import java.time.Duration
 
-class SnapshotDispatcherLauncher(snapshotDispatcher: SnapshotDispatcher, shutdownTimeout: Duration) :
-    MessageDispatcherLauncher(snapshotDispatcher, shutdownTimeout)
+internal fun Duration.toNanosExact(parameterName: String): Long =
+    try {
+        toNanos()
+    } catch (overflow: ArithmeticException) {
+        throw IllegalArgumentException(
+            "$parameterName must fit in nanoseconds.",
+            overflow,
+        )
+    }

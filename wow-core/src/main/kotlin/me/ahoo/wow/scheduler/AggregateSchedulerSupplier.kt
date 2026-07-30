@@ -23,7 +23,6 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Functional interface for supplying Reactor schedulers for aggregate operations.
@@ -62,6 +61,8 @@ interface AggregateSchedulerSupplier : GracefullyStoppable {
      * @see DefaultAggregateSchedulerSupplier
      */
     fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler
+
+    fun forceStop()
 }
 
 /**
@@ -105,10 +106,20 @@ class DefaultAggregateSchedulerSupplier(
     /**
      * Thread-safe cache of schedulers keyed by materialized aggregate.
      *
-     * Uses ConcurrentHashMap to ensure safe concurrent access when multiple threads
-     * request schedulers for the same or different aggregates simultaneously.
+     * Cache access and the terminal drain share one lifecycle monitor. A concurrent
+     * lookup is therefore either admitted before shutdown and included in the drain,
+     * or rejected after shutdown; no scheduler can be removed without disposal.
      */
-    private val schedulers: MutableMap<MaterializedNamedAggregate, Scheduler> = ConcurrentHashMap()
+    private val lifecycleMonitor = Any()
+    private val schedulers: MutableMap<MaterializedNamedAggregate, Scheduler> = mutableMapOf()
+    private var terminalSchedulers: List<Scheduler>? = null
+    private var stopped = false
+    private val gracefulTermination: Mono<Void> =
+        Flux.defer {
+            Flux.fromIterable(closeAndSnapshot())
+        }.flatMap(Scheduler::disposeGracefully)
+            .then()
+            .cache()
 
     /**
      * Gets the cached scheduler for the aggregate or creates a new parallel scheduler.
@@ -121,20 +132,32 @@ class DefaultAggregateSchedulerSupplier(
      * @return the dedicated scheduler for this aggregate
      */
     override fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler =
-        schedulers.computeIfAbsent(namedAggregate.materialize()) { _ ->
-            Schedulers.newParallel("$name-${namedAggregate.aggregateName}", parallelism)
+        synchronized(lifecycleMonitor) {
+            check(!stopped) {
+                "Aggregate scheduler supplier[$name] has stopped."
+            }
+            schedulers.getOrPut(namedAggregate.materialize()) {
+                Schedulers.newParallel("$name-${namedAggregate.aggregateName}", parallelism)
+            }
         }
 
     /**
      * Stops all schedulers gracefully.
      */
     override fun stopGracefully(): Mono<Void> {
-        return Flux.defer {
-            val cachedSchedulers = schedulers.values.toList()
-            schedulers.clear()
-            Flux.fromIterable(cachedSchedulers)
-        }.flatMap {
-            it.disposeGracefully()
-        }.then()
+        return gracefulTermination
     }
+
+    override fun forceStop() {
+        closeAndSnapshot().forEach(Scheduler::dispose)
+    }
+
+    private fun closeAndSnapshot(): List<Scheduler> =
+        synchronized(lifecycleMonitor) {
+            stopped = true
+            terminalSchedulers ?: schedulers.values.toList().also { cachedSchedulers ->
+                schedulers.clear()
+                terminalSchedulers = cachedSchedulers
+            }
+        }
 }

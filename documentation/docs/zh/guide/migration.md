@@ -41,6 +41,144 @@ implementation("me.ahoo.wow:wow-spring-boot-starter:新版本号")
 2. **配置变更**：检查配置属性是否有变更
 3. **元数据变更**：重新生成元数据文件
 
+## 统一运行时编排
+
+此版本以一个 one-shot `WowRuntime` 取代各 Dispatcher 独立 launcher。运行时会先完成
+全部组件的准备再开放消息处理，统一跟踪全局活动，并在一个共享截止时间内按逆序停止
+组件。这是有意的生命周期扩展契约破坏；event、snapshot 与 message 格式没有变化。
+
+迁移完成后的稳定模型参见
+[运行时生命周期](./advanced/runtime-lifecycle.md)。
+
+需要完成以下源码迁移：
+
+1. Dispatcher 生命周期方法现在是 final template。必须重新编译全部子类；已经编译且
+   override 这些方法的子类不具备二进制兼容性。额外的生命周期所有权应建模为独立的
+   `RuntimeComponent`，而不是扩展 Dispatcher template。`MainDispatcher` 只保留框架内
+   拥有 Scheduler 的实现所需的窄化优雅/强制清理 hook；它们不是通用 readiness 扩展面。
+2. 移除 `MessageDispatcherLauncher` Bean、launcher 注入以及直接调用 Dispatcher
+   生命周期的代码。launcher 类与 factory 已删除。Starter 应用统一使用 Starter
+   拥有的 canonical Bean `wowRuntimeLifecycle`；应移除应用自行声明的
+   `WowRuntimeLifecycle`，因为 Starter 会拒绝额外或替换性的生命周期 owner。
+   非 Spring 应用应显式构造一个 `WowRuntime`。
+   `WowRuntime.start()` 返回 cold `Mono<Void>`，必须订阅；仅调用
+   `runtime.start()` 虽然可以编译，但不会启动任何组件。
+
+   ```kotlin
+   val runtime = WowRuntime(components, shutdownTimeout, shutdownQuietPeriod)
+   runtime.start().block()
+   // 应用工作
+   runtime.stop()
+   ```
+3. 自定义 Dispatcher 或其他运行时参与者直接实现 `RuntimeComponent`。同时删除冗余的
+   通用 `me.ahoo.wow.infra.lifecycle.Lifecycle` 契约：由 Runtime 管理的参与者实现
+   `RuntimeComponent`，独立拥有的资源可使用更窄的
+   `GracefullyStoppable` 关闭能力。独立资源的启动仍由资源所有者显式负责，Wow
+   不再提供替代性的通用启动契约。该删除对外部实现存在源码与二进制不兼容；迁移后
+   必须重新编译。`RuntimeComponent.prepare` 返回 `Mono<Void>`；其完成信号表示组件
+   已经能够无损保留新准入的工作，但在 `start` 前仍不能开放处理。
+
+   ```kotlin
+   class CustomRuntimeComponent : RuntimeComponent {
+       override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+           prepareResourcesWithoutOpeningProcessing(runtimeContext)
+
+       override fun start() = openIntake()
+       override fun quiesce() = closeIntake()
+       override fun stopGracefully(): Mono<Void> = drainAndClose()
+       override fun forceStop() {
+           closeIntake()
+           disposeOwnedResources()
+       }
+   }
+   ```
+
+   每次接受异步操作前应通过 `RuntimeContext.tryAcquire()` 获取
+   `RuntimeActivity`，并仅在完整异步链终止时关闭。使用 `quiesce` 实现优雅停机的
+   intake barrier，使用 `reportFailure` 上报致命 pipeline error。`quiesce` 与
+   `forceStop` 都必须及时、同步关闭 intake。取消 `WowRuntime.start()` 订阅会中止并
+   强制停止该 one-shot Runtime，因此 `forceStop` 执行后，prepare publisher 必须
+   及时释放资源或终止。
+
+   如果自定义 `MessageBus` 在订阅建立后仍不能立即无损保留新工作，必须 override
+   `receiver`，返回 single-use 消息流、hot 且可重放的 readiness signal，以及幂等的
+   processing 开启/关闭 callback；映射 receiver 时必须同时保留四者。Runtime 会先订阅、
+   等待 readiness，再在全局 start pass 调用 `openProcessing()`，并在 detached physical
+   cancellation 前调用 `closeProcessing()`。Redis readiness 会创建全部 consumer group，
+   但无论下游是否 prefetch，都不会在该显式准入前启动 stream read。Kafka readiness 会
+   异步持久化保守边界，即 broker 分配的原始 position 与用户 assignment customizer
+   执行后 position 中较早的一个；全部在途 assignment anchor 结算后才能就绪，
+   cooperative retained partition 不会重新 anchor。forward seek 仅在正常处理提交后
+   才会持久化。Kafka topic 必须在 Runtime 启动前完成预配置。
+   自定义 `LocalMessageBus` 会继承保守的 `sendIfSubscribed` fallback，并关闭 local
+   suppression。只有当 `true` 能证明全部目标本地 receiver 已取得 processing admission
+   时才应 override；`subscriberCount()` 与 `send()` 的组合不是原子操作，也不能作为
+   delivery receipt。普通 `receiver()` consumer 不参与 local suppression，也不需要
+   receipt 协议。由 Runtime 管理的自定义 consumer 应通过内置 in-memory bus 的
+   `runtimeReceiver()` 显式加入，并在完成 runtime admission 与进程内交接后调用
+   `confirmLocalDelivery()`；消息被过滤或无法准入时调用 `rejectLocalDelivery()`。
+   内置 Dispatcher 会自动完成该协议。
+4. 运行时拥有的 Spring Bean 必须是 singleton，且 Bean 声明返回类型必须暴露
+   `RuntimeComponent` 或其子类型（如 `MessageDispatcher`）。应从这些 Bean 移除
+   Spring `Lifecycle`/`SmartLifecycle`、`DisposableBean`、`@PreDestroy` 与显式
+   destroy method，由 `WowRuntime` 作为唯一生命周期所有者。Runtime 会直接调用
+   Spring 暴露的 proxy，不再解包 target，因此 lifecycle advice 恰好执行一次；JDK
+   proxy 必须暴露 `RuntimeComponent`。Bean constructor、factory method 与
+   `@PostConstruct` 必须保持 inert；只允许在 `prepare` 或 `start` 中获取由 runtime
+   管理的资源。
+   自定义 `WowRuntime` Bean 同样必须禁用 Spring 推断的
+   `AutoCloseable.close()` owner：
+
+   ```kotlin
+   @Bean(WOW_RUNTIME_BEAN_NAME, destroyMethod = "")
+   fun customWowRuntime(): WowRuntime =
+       WowRuntime(components, shutdownTimeout, shutdownQuietPeriod)
+   ```
+
+   自定义 Runtime 必须是名为 `wowRuntime` 的直接 singleton Bean，并且是当前
+   `ApplicationContext` 中唯一的 `WowRuntime`。Starter 会拒绝 `FactoryBean`
+   product，因为它无法证明 Factory 不会成为第二个销毁所有者。自定义 Runtime
+   自行拥有组件拓扑；只有 Starter 创建默认 Runtime 时才会自动发现组件。父
+   Context 的 Runtime 不会替代这个本地 canonical boundary。即使应用提供 canonical
+   Runtime，canonical 生命周期桥接器仍由 Starter 拥有。
+5. 如果应用替换了 Spring 中名为 `lifecycleProcessor` 的 Bean，且该 Bean 是
+   `DefaultLifecycleProcessor`，Wow 会根据实际选中的
+   `WowRuntime.shutdownTimeout`（而不是独立读取 `wow.shutdown-timeout`）配置运行时
+   phase timeout，并额外留出一秒完成余量；其他自定义 lifecycle processor 实现自行
+   负责 timeout 策略。运行时组件共享一条 Spring 排序序列：启动遵循 Spring order，
+   停机采用逆序。自定义 ingress `SmartLifecycle` 的
+   phase 必须大于 `WOW_RUNTIME_PHASE`，以确保入口在 runtime ready 后启动、在
+   runtime 停机前关闭。
+6. 子 ApplicationContext 只拥有在子 Context 中声明的组件，父组件仍由父 Runtime
+   管理。Spring proxy 与 `FactoryBean` product 只有在暴露类型包含
+   `RuntimeComponent` 时才参与运行时。
+7. 自定义 `AggregateSchedulerSupplier` 现在必须同时实现 `stopGracefully()` 与
+   `forceStop()`；强制停机必须同步释放优雅停机可能拥有的全部 Scheduler。
+8. `AutoRegistrar` 属于初始化工作，现在实现 `SmartInitializingSingleton`，不再是
+   `SmartLifecycle`。应移除手工生命周期调用以及对已删除 `AUTO_REGISTRAR_PHASE` 的
+   引用；Spring 会在 runtime readiness 之前完成注册。
+
+还需检查停机配置与行为：
+
+- `wow.shutdown-timeout` 现在是整个运行时完成静默与停止的截止时间，不再为每个
+  Dispatcher 分别提供一段等待时间。
+- 新增 `wow.shutdown-quiet-period`，默认值为 `1s`。该值必须大于等于零且严格小于
+  `wow.shutdown-timeout`；两个 Duration 都必须能表示为 64 位有符号纳秒值。
+- runtime、Dispatcher 资源，以及进入终止状态的 batch coordinator 都是 one-shot。
+  停止后应重建 Spring `ApplicationContext`，而不是重新启动原 context。
+- runtime termination signal 可能携带原始 pipeline error。每个 subscriber 会在订阅时
+  预留有界异步交付容量；容量耗尽时，超额 subscriber 会立即在自己的订阅线程收到
+  `RejectedExecutionException`。已准入 callback 不会运行在 runtime completion 线程，
+  但仍必须快速返回，阻塞工作应转移到应用自有的有界 executor。在 Starter 应用中，
+  `WowRuntimeLifecycle` 会在启动前独占认领一条独立的有界控制通道；公共 observer
+  饱和不会饿死 Spring 停机完成信号。运行时意外致命终止会关闭
+  `ApplicationContext`。
+
+部署前应重新编译全部自定义 Dispatcher 子类，并用生产 timeout 配置执行
+ApplicationContext 启动与优雅停机测试。无需迁移数据。需要回滚时，应完整停止新的
+ApplicationContext，再部署旧二进制与 launcher 配置；不要尝试重启 runtime 已终止的
+context。
+
 ## 移除版本化快照检查点
 
 v8.9.0 引入的版本化快照检查点能力已被移除，且不提供兼容层。`VersionedSnapshotStore`、

@@ -21,8 +21,15 @@ import me.ahoo.wow.messaging.dispatcher.MessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
+import me.ahoo.wow.runtime.RuntimeContext
+import me.ahoo.wow.runtime.internal.RuntimeComponentGroup
+import me.ahoo.wow.runtime.internal.forceAllReporting
+import me.ahoo.wow.runtime.internal.stopAllReporting
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
+import me.ahoo.wow.scheduler.BorrowedAggregateSchedulerSupplier
 import reactor.core.publisher.Mono
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * A composite event dispatcher that combines event stream and state event dispatchers to handle domain events and state events efficiently.
@@ -44,9 +51,14 @@ import reactor.core.publisher.Mono
  *     eventHandler = myEventHandler,
  *     schedulerSupplier = mySchedulerSupplier
  * )
- * dispatcher.start()
+ * val runtime = WowRuntime(
+ *     components = listOf(dispatcher),
+ *     shutdownTimeout = Duration.ofSeconds(30),
+ *     shutdownQuietPeriod = Duration.ZERO,
+ * )
+ * runtime.start().block()
  * // ... application logic ...
- * dispatcher.stopGracefully().block()
+ * runtime.stopGracefully().block()
  * ```
  *
  * @param name The name of this dispatcher, typically formatted as `applicationName.DomainEventDispatcher`.
@@ -93,36 +105,106 @@ open class CompositeEventDispatcher(
      */
     private val schedulerSupplier: AggregateSchedulerSupplier
 ) : MessageDispatcher {
-    private val eventStreamDispatcher by lazy {
+    private val childSchedulerSupplier =
+        BorrowedAggregateSchedulerSupplier(schedulerSupplier)
+
+    private val eventStreamDispatcherLazy = lazy {
         EventStreamDispatcher(
             name = name,
             parallelism = parallelism,
             messageBus = domainEventBus,
             functionRegistrar = functionRegistrar.filter { it.functionKind == FunctionKind.EVENT },
             eventHandler = eventHandler,
-            schedulerSupplier = schedulerSupplier,
+            schedulerSupplier = childSchedulerSupplier,
         )
     }
+    private val eventStreamDispatcher by eventStreamDispatcherLazy
 
-    private val stateEventDispatcher by lazy {
+    private val stateEventDispatcherLazy = lazy {
         StateEventDispatcher(
             name = name,
             parallelism = parallelism,
             messageBus = stateEventBus,
             functionRegistrar = functionRegistrar.filter { it.functionKind == FunctionKind.STATE_EVENT },
             eventHandler = eventHandler,
-            schedulerSupplier = schedulerSupplier,
+            schedulerSupplier = childSchedulerSupplier,
         )
     }
+    private val stateEventDispatcher by stateEventDispatcherLazy
+
+    private val childLifecycleMonitor = Any()
+    private var eventComponentGroup: RuntimeComponentGroup? = null
+    private val forceStopRequested = AtomicBoolean()
+    private val childFailure = AtomicReference<Throwable?>()
+
+    @Volatile
+    private var runtimeContext: RuntimeContext? = null
 
     /**
      * Starts the composite event dispatcher by initializing and starting both the event stream dispatcher and state event dispatcher.
      *
      * This method ensures that both underlying dispatchers are started and ready to process events.
      */
-    override fun start() {
-        eventStreamDispatcher.start()
-        stateEventDispatcher.start()
+    final override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+        Mono.defer {
+            if (forceStopRequested.get()) {
+                return@defer Mono.empty()
+            }
+            this.runtimeContext = runtimeContext
+            val childRuntimeContext = object : RuntimeContext by runtimeContext {
+                override fun reportFailure(error: Throwable) {
+                    childFailure.compareAndSet(null, error)
+                    runtimeContext.reportFailure(error)
+                }
+            }
+            val group = RuntimeComponentGroup(
+                listOf(eventStreamDispatcher, stateEventDispatcher),
+                childRuntimeContext::reportFailure,
+            )
+            val accepted = synchronized(childLifecycleMonitor) {
+                if (forceStopRequested.get()) {
+                    false
+                } else {
+                    check(eventComponentGroup == null) {
+                        "[$name] Event dispatcher group can only be installed once."
+                    }
+                    eventComponentGroup = group
+                    true
+                }
+            }
+            if (!accepted) {
+                return@defer group.forceStop()?.let { Mono.error(it) } ?: Mono.empty()
+            }
+            group.prepare(
+                runtimeContext = childRuntimeContext,
+                admissionGate = ::admitChildLifecycleAction,
+                afterEach = ::throwIfChildFailed,
+            ).then(
+                Mono.defer {
+                    childFailure.get()
+                        ?.let { Mono.error<Void>(it) }
+                        ?: Mono.empty()
+                },
+            )
+        }
+
+    final override fun start() {
+        if (forceStopRequested.get()) {
+            return
+        }
+        eventComponentGroupSnapshot()?.start(
+            admissionGate = ::admitChildLifecycleAction,
+            afterEach = ::throwIfChildFailed,
+        )
+    }
+
+    final override fun quiesce() {
+        if (forceStopRequested.get()) {
+            return
+        }
+        eventComponentGroupSnapshot()?.quiesce {
+            !forceStopRequested.get()
+        }
     }
 
     /**
@@ -132,10 +214,58 @@ open class CompositeEventDispatcher(
      *
      * @return A [Mono] that completes when both dispatchers have stopped gracefully.
      */
-    override fun stopGracefully(): Mono<Void> {
-        return Mono.`when`(
-            eventStreamDispatcher.stopAggregateDispatchersGracefully(),
-            stateEventDispatcher.stopAggregateDispatchersGracefully()
-        ).then(schedulerSupplier.stopGracefully())
+    final override fun stopGracefully(): Mono<Void> =
+        stopAllReporting(
+            buildList {
+                eventComponentGroupSnapshot()?.let { group ->
+                    add {
+                        group.stopGracefully(
+                            shouldStop = { !forceStopRequested.get() },
+                        )
+                    }
+                }
+                add(::stopSchedulerGracefullyIfAllowed)
+            },
+            ::reportRuntimeFailure,
+        )
+
+    private fun stopSchedulerGracefullyIfAllowed(): Mono<Void> =
+        if (forceStopRequested.get()) {
+            Mono.empty()
+        } else {
+            schedulerSupplier.stopGracefully()
+        }
+
+    final override fun forceStop() {
+        forceStopRequested.set(true)
+        forceAllReporting(
+            buildList {
+                eventComponentGroupSnapshot()?.let { group ->
+                    add {
+                        group.forceStop()?.let { throw it }
+                    }
+                }
+                add(schedulerSupplier::forceStop)
+            },
+            ::reportRuntimeFailure,
+        )?.let { throw it }
     }
+
+    private fun reportRuntimeFailure(error: Throwable) {
+        runtimeContext?.reportFailure(error)
+    }
+
+    private fun admitChildLifecycleAction(admission: () -> Boolean): Boolean =
+        !forceStopRequested.get() &&
+            childFailure.get() == null &&
+            admission()
+
+    private fun throwIfChildFailed() {
+        childFailure.get()?.let { throw it }
+    }
+
+    private fun eventComponentGroupSnapshot(): RuntimeComponentGroup? =
+        synchronized(childLifecycleMonitor) {
+            eventComponentGroup
+        }
 }

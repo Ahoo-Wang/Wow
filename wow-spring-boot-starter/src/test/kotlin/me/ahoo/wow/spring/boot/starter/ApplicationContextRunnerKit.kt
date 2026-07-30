@@ -21,4 +21,5 @@ fun ApplicationContextRunner.enableWowProperties(): ApplicationContextRunner = w
 )
 
 fun ApplicationContextRunner.enableWow(): ApplicationContextRunner = enableWowProperties()
+    .withPropertyValues("wow.shutdown-quiet-period=0s")
     .withUserConfiguration(WowAutoConfiguration::class.java)

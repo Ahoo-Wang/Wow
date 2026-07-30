@@ -24,6 +24,7 @@ import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockStateAggregate
@@ -67,7 +68,12 @@ class DomainEventDispatcherTest {
             aggregateVersion = 0,
         )
         val stateEvent = eventStream.toStateEvent(MockStateAggregate(aggregateId.id))
-        dispatcher.start()
+        val runtime = WowRuntime(
+            components = listOf(dispatcher),
+            shutdownTimeout = Duration.ofSeconds(2),
+            shutdownQuietPeriod = Duration.ZERO,
+        )
+        runtime.start().block()
 
         domainEventBus.subscriberCount(namedAggregate).assert().isEqualTo(1)
         stateEventBus.subscriberCount(namedAggregate).assert().isEqualTo(1)
@@ -92,7 +98,7 @@ class DomainEventDispatcherTest {
             .expectComplete()
             .verify(Duration.ofSeconds(2))
 
-        StepVerifier.create(dispatcher.stopGracefully())
+        StepVerifier.create(runtime.stopGracefully())
             .expectComplete()
             .verify(Duration.ofSeconds(2))
     }

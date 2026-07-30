@@ -10,13 +10,14 @@ The aggregate scheduler provides a dedicated Reactor Scheduler for each aggregat
 ## Scheduler Supplier
 
 The aggregate scheduler supplier provides or creates a dedicated scheduler for each aggregate.
-It extends `GracefullyStoppable` so the runtime can dispose every cached scheduler during
-shutdown.
+It exposes both graceful and force-stop capabilities so the runtime can dispose every cached
+scheduler on either shutdown path.
 
 ```kotlin
 interface AggregateSchedulerSupplier : GracefullyStoppable {
     fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler
     // inherited: stopGracefully(): Mono<Void>
+    fun forceStop()
 }
 ```
 
@@ -44,6 +45,10 @@ class DefaultAggregateSchedulerSupplier(
 
     override fun stopGracefully(): Mono<Void> {
         // disposes every cached scheduler during graceful shutdown
+    }
+
+    override fun forceStop() {
+        // synchronously disposes every cached scheduler
     }
 }
 ```
@@ -93,4 +98,4 @@ aggregate IDs within the same type may be processed concurrently across lanes.
 | **Isolation** | Different aggregate types (e.g. `order` vs `cart`) get separate schedulers, so a slow one does not block another. |
 | **Backpressure** | Each named aggregate's scheduler has its own queue; contention is bounded per aggregate type, not global. |
 | **Resource control** | `parallelism` caps the worker count per named aggregate type, preventing one hot type from consuming all CPU. |
-| **Graceful shutdown** | `stopGracefully()` disposes every cached scheduler during application shutdown. |
+| **Shutdown** | `stopGracefully()` drains cached schedulers; `forceStop()` disposes them synchronously when the deadline wins. |

@@ -12,29 +12,36 @@ Quick Framework E2E results are directional local feedback. Use Baseline E2E run
 - Throughput uses decimal prefixes: `k` = 1,000, `M` = 1,000,000, `G` = 1,000,000,000.
 - Allocation uses binary prefixes: `KiB` = 1,024 bytes, `MiB` = 1,048,576 bytes.
 - Every displayed score and error keeps its scaled unit attached, for example `1.57 k ops/s`.
-- Average latency is automatically scaled to `ns/op`, `µs/op`, `ms/op`, or `s/op`.
+- Average-time results are automatically scaled to `ns/op`, `µs/op`, `ms/op`, or `s/op`.
 - `±` is the JMH-reported error. Scaling changes presentation only; calculations keep raw precision.
 
 ## Benchmark Run Provenance
-- **Source Commit**: `07fcba8b412f7250b547425289ad0ef218ba8bde`
+- **Source Commit**: `049f9cf152ee10d94a03d0d02923771c7972b214`
 - **Source Dirty**: `false`
-- **Project Version**: `8.9.0`
-- **JMH Jar SHA-256**: `1d5902b9f334f5f771736a2933ad577f157440513808ff2bd5a15179acf3332e`
+- **Project Version**: `8.9.2`
+- **JMH Jar SHA-256**: `583582e30d50d9ce2f40baf59c8507402767736f68078754372047209c4ca08b`
 - **Runtime JVM**: OpenJDK 64-Bit Server VM 17.0.7+7-LTS / Java 17.0.7
 - **Runtime OS**: Mac OS X 26.5.2 aarch64
 - **CPU Cores**: 14
 - **Physical Memory**: 24.0 GiB
 
+### Manifest-bound Run-Time Infrastructure
+
+- **Captured At**: 2026-07-29T04:05:32.304785Z to 2026-07-29T04:08:57.047313Z
+- **Benchmark Client**: host JVM
+- **Docker Server**: not required by these suites
+- **Local Docker Containers**: none required; service endpoints remain bound in each run manifest.
+
 | Suite | Profile | Threads | Run ID | Started | Completed | Profilers | Rows | Result SHA-256 |
 |-------|---------|---------|--------|---------|-----------|-----------|------|----------------|
-| framework-e2e | quick | 1 | `b1bd4033-0cc9-4f9c-9d2a-404d7f7596c9` | 2026-07-22T10:14:00.699165Z | 2026-07-22T10:15:10.471937Z | `-prof gc` | 8 | `fc45780e80d034f074c8d48f2f0cd9128631f8dabe252cc1e616545066348c54` |
-| framework-e2e | quick | 4 | `b1bd4033-0cc9-4f9c-9d2a-404d7f7596c9` | 2026-07-22T10:15:10.513408Z | 2026-07-22T10:16:20.101418Z | `-prof gc` | 8 | `eb1d170249cfa308d4b4ad780ccb4b68402ef70e9f95be8571cee1e610a1753f` |
+| framework-e2e | quick | 1 | `2e366058-1ce0-475c-8e86-39c95a4b9718` | 2026-07-29T04:05:32.305492Z | 2026-07-29T04:07:16.650165Z | `-prof gc` | 8 | `637cf4b4bc0acc93c03f2e46e4b99d273d324e813a2d98f8247adefd44741710` |
+| framework-e2e | quick | 4 | `2e366058-1ce0-475c-8e86-39c95a4b9718` | 2026-07-29T04:07:16.730675Z | 2026-07-29T04:08:57.047878Z | `-prof gc` | 8 | `80b101ad4b0fb5a5b5e0fa6feaad37e5723311974d9613bdcb5f22f7deeacfc2` |
 
 ## Report Generation Environment
-- **Version**: 8.9.0
+- **Version**: 8.9.2
 - **JVM**: OpenJDK 64-Bit Server VM 17.0.7+7-LTS
 - **OS**: Mac OS X 26.5.2 aarch64
-- **Generated At**: 2026-07-22T21:36:47+08:00
+- **Generated At**: 2026-07-29T12:08:57+08:00
 - **CPU Cores**: 14
 - **Physical Memory**: 24.0 GiB
 - **Benchmark JVM Args**: `-Xmx1g -Xms1g -XX:+UseG1GC`
@@ -44,19 +51,19 @@ Quick Framework E2E results are directional local feedback. Use Baseline E2E run
 
 | Suite | Benchmark | Threads | Mode | Score | Error | gc.alloc.rate.norm |
 |-------|-----------|---------|------|-------|-------|-------------------|
-| Primary Framework E2E | CommandSendE2EBenchmark.sendAndWaitSent (gatewayScenario=ceiling) | 1 | thrpt | 686.87 k ops/s | - | 2.21 KiB/op |
-| Primary Framework E2E | CommandSendE2EBenchmark.sendAndWaitSent (gatewayScenario=ceiling) | 4 | thrpt | 675.93 k ops/s | - | 2.21 KiB/op |
-| Primary Framework E2E | CommandSendE2EBenchmark.sendAndWaitSent (gatewayScenario=validated) | 1 | thrpt | 663.67 k ops/s | - | 2.61 KiB/op |
-| Primary Framework E2E | CommandSendE2EBenchmark.sendAndWaitSent (gatewayScenario=validated) | 4 | thrpt | 679.13 k ops/s | - | 2.65 KiB/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling, schedulerStrategy=IMMEDIATE) | 1 | thrpt | 302.78 k ops/s | - | 12.08 KiB/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling, schedulerStrategy=IMMEDIATE) | 4 | thrpt | 224.32 k ops/s | - | 12.09 KiB/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling, schedulerStrategy=PARALLEL) | 1 | thrpt | 91.3 k ops/s | - | 3.86 KiB/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling, schedulerStrategy=PARALLEL) | 4 | thrpt | 158.98 k ops/s | - | 3.86 KiB/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate, schedulerStrategy=IMMEDIATE) | 1 | thrpt | 208.21 k ops/s | - | 13.18 KiB/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate, schedulerStrategy=IMMEDIATE) | 4 | thrpt | 143 k ops/s | - | 13.22 KiB/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate, schedulerStrategy=PARALLEL) | 1 | thrpt | 81.13 k ops/s | - | 4.58 KiB/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate, schedulerStrategy=PARALLEL) | 4 | thrpt | 133.95 k ops/s | - | 4.51 KiB/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store, schedulerStrategy=IMMEDIATE) | 1 | thrpt | 249.84 k ops/s | - | 13 KiB/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store, schedulerStrategy=IMMEDIATE) | 4 | thrpt | 167.47 k ops/s | - | 13.03 KiB/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store, schedulerStrategy=PARALLEL) | 1 | thrpt | 91.97 k ops/s | - | 4.8 KiB/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store, schedulerStrategy=PARALLEL) | 4 | thrpt | 147.17 k ops/s | - | 4.79 KiB/op |
+| Primary Framework E2E | CommandSendE2EBenchmark.sendAndWaitSent (gatewayScenario=ceiling) | 1 | thrpt | 636.54 k ops/s | - | 2.18 KiB/op |
+| Primary Framework E2E | CommandSendE2EBenchmark.sendAndWaitSent (gatewayScenario=ceiling) | 4 | thrpt | 650.24 k ops/s | - | 2.2 KiB/op |
+| Primary Framework E2E | CommandSendE2EBenchmark.sendAndWaitSent (gatewayScenario=validated) | 1 | thrpt | 630.01 k ops/s | - | 2.57 KiB/op |
+| Primary Framework E2E | CommandSendE2EBenchmark.sendAndWaitSent (gatewayScenario=validated) | 4 | thrpt | 619.79 k ops/s | - | 2.59 KiB/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling, schedulerStrategy=IMMEDIATE) | 1 | thrpt | 93.14 k ops/s | - | 11.85 KiB/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling, schedulerStrategy=IMMEDIATE) | 4 | thrpt | 227.85 k ops/s | - | 11.9 KiB/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling, schedulerStrategy=PARALLEL) | 1 | thrpt | 96.67 k ops/s | - | 3.62 KiB/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling, schedulerStrategy=PARALLEL) | 4 | thrpt | 186.29 k ops/s | - | 3.61 KiB/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate, schedulerStrategy=IMMEDIATE) | 1 | thrpt | 199.64 k ops/s | - | 12.96 KiB/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate, schedulerStrategy=IMMEDIATE) | 4 | thrpt | 167.03 k ops/s | - | 13.04 KiB/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate, schedulerStrategy=PARALLEL) | 1 | thrpt | 74.05 k ops/s | - | 4.32 KiB/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate, schedulerStrategy=PARALLEL) | 4 | thrpt | 151.15 k ops/s | - | 4.29 KiB/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store, schedulerStrategy=IMMEDIATE) | 1 | thrpt | 199.61 k ops/s | - | 12.77 KiB/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store, schedulerStrategy=IMMEDIATE) | 4 | thrpt | 193.37 k ops/s | - | 12.9 KiB/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store, schedulerStrategy=PARALLEL) | 1 | thrpt | 10.55 k ops/s | - | 5.69 KiB/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store, schedulerStrategy=PARALLEL) | 4 | thrpt | 170.92 k ops/s | - | 4.47 KiB/op |

@@ -20,6 +20,7 @@ import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.metrics.Metrics.tagMetricsSubscriber
 import me.ahoo.wow.metrics.Metrics.toMetricsAggregateTag
@@ -70,6 +71,28 @@ open class MetricCommandBus<T : CommandBus>(
             .tag(Metrics.AGGREGATE_KEY, subscription.namedAggregates.toMetricsAggregateTag())
             .tagMetricsSubscriber(subscription.receiverGroup)
 
+    override fun receiver(
+        subscription: MessageSubscription,
+    ): MessageReceiver<ServerCommandExchange<*>> =
+        metricReceiver(delegate.receiver(subscription), subscription)
+
+    override fun runtimeReceiver(
+        subscription: MessageSubscription,
+    ): MessageReceiver<ServerCommandExchange<*>> =
+        metricReceiver(delegate.runtimeReceiver(subscription), subscription)
+
+    private fun metricReceiver(
+        receiver: MessageReceiver<ServerCommandExchange<*>>,
+        subscription: MessageSubscription,
+    ): MessageReceiver<ServerCommandExchange<*>> =
+        receiver.mapMessages { messages ->
+            messages
+                .name(Wow.WOW_PREFIX + "command.receive")
+                .tagSource()
+                .tag(Metrics.AGGREGATE_KEY, subscription.namedAggregates.toMetricsAggregateTag())
+                .tagMetricsSubscriber(subscription.receiverGroup)
+        }
+
     /**
      * Closes the command bus and releases any resources.
      * This delegates to the underlying command bus implementation.
@@ -90,6 +113,15 @@ class MetricLocalCommandBus(
     delegate: LocalCommandBus
 ) : MetricCommandBus<LocalCommandBus>(delegate),
     LocalCommandBus {
+    override fun sendIfSubscribed(message: CommandMessage<*>): Mono<Boolean> =
+        delegate
+            .sendIfSubscribed(message)
+            .name(Wow.WOW_PREFIX + "command.send")
+            .tagSource()
+            .tag(Metrics.AGGREGATE_KEY, message.aggregateName)
+            .tag(Metrics.COMMAND_KEY, message.name)
+            .metrics()
+
     /**
      * Returns the number of subscribers for the specified named aggregate.
      * This delegates to the underlying local command bus implementation.

@@ -62,4 +62,6 @@ object ImmediateAggregateSchedulerSupplier : AggregateSchedulerSupplier {
 
     @Suppress("ForbiddenVoid")
     override fun stopGracefully(): Mono<Void> = Mono.empty()
+
+    override fun forceStop() = Unit
 }

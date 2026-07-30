@@ -27,6 +27,8 @@ import me.ahoo.wow.command.wait.WaitPlan
 import me.ahoo.wow.command.wait.extractWaitPlan
 import me.ahoo.wow.command.wait.notifyAndForget
 import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.messaging.MessageReceiver
+import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.reactor.thenDefer
 import me.ahoo.wow.reactor.thenRunnable
 import reactor.core.publisher.Flux
@@ -53,6 +55,11 @@ class DefaultCommandGateway(
     private val commandWaitNotifier: CommandWaitNotifier,
 ) : CommandGateway,
     CommandBus by commandBus {
+    override fun receiver(
+        subscription: MessageSubscription,
+    ): MessageReceiver<ServerCommandExchange<*>> =
+        commandBus.receiver(subscription)
+
     /**
      * Validates the command body using both self-validation (if implements CommandValidator)
      * and external validation through the configured validator.

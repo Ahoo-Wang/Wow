@@ -11,55 +11,46 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.reactor
+package me.ahoo.wow.infra.lifecycle
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.infra.lifecycle.Lifecycle
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
-import reactor.test.StepVerifier
 import java.time.Duration
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
-class LifecycleTest {
+class GracefullyStoppableTest {
 
     @Test
-    fun `start can transition a lifecycle implementation to started`() {
-        val lifecycle = RecordingLifecycle()
+    fun `stop delegates to stopGracefully`() {
+        val stoppable = RecordingGracefullyStoppable()
 
-        lifecycle.start()
+        stoppable.stop()
 
-        lifecycle.started.get().assert().isTrue()
+        stoppable.stopCount.get().assert().isOne()
     }
 
     @Test
-    fun `stop delegates to stopGracefully and blocks until completion`() {
-        val lifecycle = RecordingLifecycle()
+    fun `stop with timeout delegates to stopGracefully`() {
+        val stoppable = RecordingGracefullyStoppable()
 
-        lifecycle.stop(Duration.ofSeconds(1))
+        stoppable.stop(Duration.ofSeconds(1))
 
-        lifecycle.stopCount.get().assert().isOne()
+        stoppable.stopCount.get().assert().isOne()
     }
 
     @Test
-    fun `stopGracefully exposes deterministic completion`() {
-        val lifecycle = RecordingLifecycle()
+    fun `close delegates to the default stop operation`() {
+        val stoppable = RecordingGracefullyStoppable()
 
-        StepVerifier.create(lifecycle.stopGracefully())
-            .verifyComplete()
+        stoppable.close()
 
-        lifecycle.stopCount.get().assert().isOne()
+        stoppable.stopCount.get().assert().isOne()
     }
 }
 
-private class RecordingLifecycle : Lifecycle {
-    val started = AtomicBoolean(false)
+private class RecordingGracefullyStoppable : GracefullyStoppable {
     val stopCount = AtomicInteger()
-
-    override fun start() {
-        started.set(true)
-    }
 
     override fun stopGracefully(): Mono<Void> =
         Mono.fromRunnable {

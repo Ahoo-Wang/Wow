@@ -17,10 +17,10 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
-import java.util.concurrent.ConcurrentHashMap
 
 class BenchmarkAggregateSchedulerSupplier(
     private val schedulerPoolSize: Int = Schedulers.DEFAULT_POOL_SIZE,
@@ -31,17 +31,40 @@ class BenchmarkAggregateSchedulerSupplier(
         }
     }
 
-    private val schedulers: MutableMap<MaterializedNamedAggregate, Scheduler> = ConcurrentHashMap()
+    private val lifecycleMonitor = Any()
+    private val schedulers: MutableMap<MaterializedNamedAggregate, Scheduler> = mutableMapOf()
+    private var terminalSchedulers: List<Scheduler>? = null
+    private var stopped = false
+    private val gracefulTermination: Mono<Void> =
+        Flux.defer {
+            Flux.fromIterable(closeAndSnapshot())
+        }.flatMap(Scheduler::disposeGracefully)
+            .then()
+            .cache()
 
     override fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler =
-        schedulers.computeIfAbsent(namedAggregate.materialize()) {
-            Schedulers.newParallel("BenchmarkAggregate-${it.aggregateName}", schedulerPoolSize)
+        synchronized(lifecycleMonitor) {
+            check(!stopped) {
+                "Benchmark aggregate scheduler supplier has stopped."
+            }
+            schedulers.getOrPut(namedAggregate.materialize()) {
+                Schedulers.newParallel("BenchmarkAggregate-${namedAggregate.aggregateName}", schedulerPoolSize)
+            }
         }
 
     @Suppress("ForbiddenVoid")
-    override fun stopGracefully(): Mono<Void> =
-        Mono.fromRunnable {
-            schedulers.values.forEach(Scheduler::dispose)
-            schedulers.clear()
+    override fun stopGracefully(): Mono<Void> = gracefulTermination
+
+    override fun forceStop() {
+        closeAndSnapshot().forEach(Scheduler::dispose)
+    }
+
+    private fun closeAndSnapshot(): List<Scheduler> =
+        synchronized(lifecycleMonitor) {
+            stopped = true
+            terminalSchedulers ?: schedulers.values.toList().also { cachedSchedulers ->
+                schedulers.clear()
+                terminalSchedulers = cachedSchedulers
+            }
         }
 }
