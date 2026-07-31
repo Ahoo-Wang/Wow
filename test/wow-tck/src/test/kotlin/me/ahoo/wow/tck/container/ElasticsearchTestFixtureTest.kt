@@ -25,6 +25,11 @@ class ElasticsearchTestFixtureTest {
     }
 
     @Test
+    fun `should expose a valid Elasticsearch password`() {
+        ElasticsearchTestFixture().password.length.assert().isGreaterThanOrEqualTo(6)
+    }
+
+    @Test
     fun `should reuse and close managed resource`() {
         val fixture = ElasticsearchTestFixture()
         val resource = TestResource("client")
