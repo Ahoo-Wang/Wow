@@ -1057,12 +1057,31 @@ def is_markdown_paragraph_continuation(
         paragraph_container,
     )
     if container_content is None and paragraph_container.explicit_prefixes:
+        if markdown_line_starts_list_item_outside_container(
+            line,
+            paragraph_container,
+        ):
+            return False
         container_content = strip_available_markdown_paragraph_prefixes(
             line,
             paragraph_container,
         )
     content = line if container_content is None else container_content
     return not markdown_line_interrupts_paragraph(content)
+
+
+def markdown_line_starts_list_item_outside_container(
+    line: str,
+    paragraph_container: MarkdownContainer,
+) -> bool:
+    content = strip_available_markdown_paragraph_prefixes(
+        line,
+        paragraph_container,
+    )
+    list_match = MARKDOWN_LIST_ITEM_PATTERN.match(content)
+    if list_match is None:
+        return False
+    return parse_markdown_list_item(list_match).item_indent <= 3
 
 
 def is_markdown_setext_heading_underline(
@@ -1440,7 +1459,12 @@ def match_markdown_link_reference_definition(
             lines[destination_index].expandtabs(tabsize=4),
             container,
         )
-        if destination_content is None:
+        if (
+            destination_content is None
+            or markdown_line_interrupts_paragraph(
+                destination_content
+            )
+        ):
             return None
         destination = parse_markdown_link_reference_destination(
             destination_content

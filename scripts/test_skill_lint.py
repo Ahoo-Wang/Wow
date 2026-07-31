@@ -1302,6 +1302,7 @@ class SkillLintTest(unittest.TestCase):
     def test_multiline_link_reference_definition_ends_paragraph_state(self):
         definitions = [
             "[label]:\n  /url\n",
+            "[label]:\n/url\n",
             "[label]:\n    /url\n",
             "[label]:\n\t/url\n",
             "[label]: /url\n  \"title\"\n",
@@ -1331,6 +1332,21 @@ class SkillLintTest(unittest.TestCase):
                         "Unclosed Markdown code fence.",
                         findings[0].message,
                     )
+
+    def test_reference_destination_does_not_consume_fence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "[label]:\n"
+                "```java\n"
+                "assertThat(result).isEqualTo(expected);\n"
+                "```\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], skill_lint.lint(root))
 
     def test_link_reference_uses_active_and_lazy_containers(self):
         cases = [
@@ -1403,6 +1419,41 @@ class SkillLintTest(unittest.TestCase):
             self.assertEqual(1, len(findings))
             self.assertEqual(2, findings[0].line)
             self.assertEqual("Unclosed Markdown code fence.", findings[0].message)
+
+    def test_sibling_ordered_item_ends_previous_paragraph(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "1. Note\n"
+                "2. ```java\n"
+                "   assertThat(result).isEqualTo(expected);\n"
+                "   ```\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], skill_lint.lint(root))
+
+    def test_ordered_list_starts_after_blockquote_paragraph(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "> Paragraph\n"
+                "2. ~~~java\n",
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(2, findings[0].line)
+            self.assertEqual(
+                "Unclosed Markdown code fence.",
+                findings[0].message,
+            )
 
     def test_indented_ordered_marker_preserves_paragraph_continuation(self):
         with tempfile.TemporaryDirectory() as tmp:
