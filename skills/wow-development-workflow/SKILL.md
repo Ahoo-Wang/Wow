@@ -108,6 +108,7 @@ Run focused source searches such as:
 ```bash
 git status --short
 git diff --stat
+git diff --cached --stat
 rg -n "@AggregateRoot|@OnCommand|@OnSourcing|@StatelessSaga|@OnEvent|@Retry" . -g "*.kt" -g "*.java"
 rg -n "AggregateSpec<|SagaSpec<|AggregateVerifier|SagaVerifier|aggregateVerifier|sagaVerifier|expectCommand|expectNoCommand" . -g "*.kt" -g "*.java"
 rg -n "include\\(" . -g "settings.gradle.kts"

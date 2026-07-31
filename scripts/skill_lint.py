@@ -37,7 +37,20 @@ class MarkdownFence:
 
 
 ASSERT_THAT_PATTERN = re.compile(r"\bassertThat\s*\(")
-NEGATIVE_ASSERT_THAT_GUIDANCE = re.compile(r"\b(?:not|NOT|never|avoid)\b|不要|不使用")
+ASSERT_THAT_GUIDANCE_TARGET = r"(?:AssertJ(?:'s|\s*的)?\s+)?`?\s*assertThat\s*\("
+ENGLISH_NEGATIVE_ASSERT_THAT_ACTION = (
+    r"(?:use|using|call|calling|prefer|write|writing|rely(?:ing)?\s+on)"
+)
+NEGATIVE_ASSERT_THAT_GUIDANCE = re.compile(
+    r"(?:"
+    rf"\bnot\s+(?:{ENGLISH_NEGATIVE_ASSERT_THAT_ACTION}\s+)?{ASSERT_THAT_GUIDANCE_TARGET}"
+    rf"|\bnever\s+(?:{ENGLISH_NEGATIVE_ASSERT_THAT_ACTION}\s+)?{ASSERT_THAT_GUIDANCE_TARGET}"
+    rf"|\bavoid\s+(?:{ENGLISH_NEGATIVE_ASSERT_THAT_ACTION}\s+)?{ASSERT_THAT_GUIDANCE_TARGET}"
+    rf"|(?:不要|不应|请勿)[^,，;；:：.!！?？。\n]{{0,80}}(?:使用|调用)\s*{ASSERT_THAT_GUIDANCE_TARGET}"
+    rf"|不使用\s*{ASSERT_THAT_GUIDANCE_TARGET}"
+    r")",
+    re.IGNORECASE,
+)
 LEGACY_WAIT_TIMEOUT_PATTERN = re.compile(r"\bCommand-Wait-Timout\b")
 LEGACY_WAIT_TIMEOUT_GUIDANCE = re.compile(r"\blegacy\b.*\bcompatibility\b|\bcompatibility\b.*\blegacy\b")
 MARKDOWN_FENCE_PATTERN = re.compile(r"^ {0,3}(?P<fence>`{3,}|~{3,})(?P<info>.*)$")
@@ -179,6 +192,12 @@ def strip_active_list_container_prefix(
     return remaining, blockquote_depth_before + blockquote_depth_after
 
 
+def is_valid_markdown_fence_opening(match: re.Match[str]) -> bool:
+    fence = match.group("fence")
+    info = match.group("info")
+    return fence[0] != "`" or "`" not in info
+
+
 def match_markdown_fence(
     line: str,
     list_containers: tuple[MarkdownListContainer, ...] = (),
@@ -194,7 +213,7 @@ def match_markdown_fence(
                 list_match.group("content")
             )
             match = MARKDOWN_FENCE_PATTERN.match(list_content)
-            if match:
+            if match and is_valid_markdown_fence_opening(match):
                 return MarkdownFence(
                     marker=match.group("fence"),
                     info=match.group("info"),
@@ -209,7 +228,7 @@ def match_markdown_fence(
         if list_content:
             remaining, blockquote_depth = list_content
             match = MARKDOWN_FENCE_PATTERN.match(remaining)
-            if match:
+            if match and is_valid_markdown_fence_opening(match):
                 return MarkdownFence(
                     marker=match.group("fence"),
                     info=match.group("info"),
@@ -221,7 +240,7 @@ def match_markdown_fence(
 
     remaining, blockquote_depth = split_markdown_blockquote_prefixes(line)
     match = MARKDOWN_FENCE_PATTERN.match(remaining)
-    if match:
+    if match and is_valid_markdown_fence_opening(match):
         return MarkdownFence(
             marker=match.group("fence"),
             info=match.group("info"),

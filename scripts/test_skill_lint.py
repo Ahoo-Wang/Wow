@@ -88,6 +88,59 @@ class SkillLintTest(unittest.TestCase):
             self.assertEqual(1, len(findings))
             self.assertEqual("Resolve placeholders before shipping skill content.", findings[0].message)
 
+    def test_negative_assert_that_guidance_does_not_match_unrelated_not(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            skill = root / "skills" / "wow" / "SKILL.md"
+            skill.parent.mkdir(parents=True)
+            skill.write_text(
+                "assertThat(result).isNotNull() // result must not be null",
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(
+                "Use FluentAssert `.assert()` instead of AssertJ `assertThat()`.",
+                findings[0].message,
+            )
+
+    def test_allows_natural_negative_assert_that_guidance(self):
+        guidance_lines = [
+            "不要在 Kotlin 测试中使用 `assertThat(result)`。",
+            "不要在 Kotlin 测试中使用 AssertJ 的 `assertThat(result)`。",
+            "Avoid calling `assertThat(result)` in Kotlin tests.",
+            "Never rely on AssertJ `assertThat(result)` in Kotlin tests.",
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            skill = root / "skills" / "wow" / "SKILL.md"
+            skill.parent.mkdir(parents=True)
+            for guidance in guidance_lines:
+                with self.subTest(guidance=guidance):
+                    skill.write_text(guidance, encoding="utf-8")
+                    self.assertEqual([], skill_lint.lint(root))
+
+    def test_negative_assert_that_guidance_does_not_cross_clause_boundaries(self):
+        lines = [
+            "不要修改状态，调用 assertThat(result) 验证结果。",
+            "不要使用 MockK；然后调用 assertThat(result) 验证结果。",
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            skill = root / "skills" / "wow" / "SKILL.md"
+            skill.parent.mkdir(parents=True)
+            for line in lines:
+                with self.subTest(line=line):
+                    skill.write_text(line, encoding="utf-8")
+                    findings = skill_lint.lint(root)
+                    self.assertEqual(1, len(findings))
+                    self.assertEqual(
+                        "Use FluentAssert `.assert()` instead of AssertJ `assertThat()`.",
+                        findings[0].message,
+                    )
+
     def test_allows_assert_that_in_java_fence(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -283,6 +336,28 @@ class SkillLintTest(unittest.TestCase):
 
             self.assertEqual(1, len(findings))
             self.assertEqual(6, findings[0].line)
+            self.assertEqual("Unclosed Markdown code fence.", findings[0].message)
+
+    def test_allows_backtick_in_backtick_fence_info_as_plain_text(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text("```java`example\n", encoding="utf-8")
+
+            self.assertEqual([], skill_lint.lint(root))
+
+    def test_allows_backtick_in_tilde_fence_info(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text("~~~java`example\n", encoding="utf-8")
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(1, findings[0].line)
             self.assertEqual("Unclosed Markdown code fence.", findings[0].message)
 
     def test_reports_unclosed_markdown_fence_in_blockquote(self):
