@@ -42,6 +42,11 @@ val waitPlan = CommandWait.snapshot(command.commandId)
 commandGateway.sendAndWait(command, waitPlan)
     .doOnSuccess { result -> ... }
 
+// The default wait timeout is 30 seconds; override it per call when needed
+val longRunningPlan = CommandWait.snapshot(command.commandId)
+    .withTimeout(Duration.ofMinutes(2))
+commandGateway.sendAndWait(command, longRunningPlan)
+
 // Streaming updates as command progresses through stages
 commandGateway.sendAndWaitStream(command, CommandWait.processed(command.commandId))
     .doOnNext { result ->

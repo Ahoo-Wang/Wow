@@ -29,6 +29,9 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 class TracingCommandGateway(override val delegate: CommandGateway) : Traced, CommandGateway, Decorator<CommandGateway> {
+    override val enforcesCommandWaitTimeout: Boolean
+        get() = delegate.enforcesCommandWaitTimeout
+
     override fun <C : Any> sendAndWaitStream(
         command: CommandMessage<C>,
         waitPlan: WaitPlan

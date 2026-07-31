@@ -14,6 +14,7 @@
 package me.ahoo.wow.webflux.route.command
 
 import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.wait.DEFAULT_WAIT_TIMEOUT
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
@@ -32,7 +33,7 @@ import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.switchIfEmpty
 import java.time.Duration
 
-val DEFAULT_TIME_OUT: Duration = Duration.ofSeconds(30)
+val DEFAULT_TIME_OUT: Duration = DEFAULT_WAIT_TIMEOUT
 
 /**
  * [org.springframework.web.reactive.result.method.annotation.RequestMappingHandlerMapping]

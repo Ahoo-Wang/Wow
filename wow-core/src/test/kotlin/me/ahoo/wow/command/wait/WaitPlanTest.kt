@@ -19,6 +19,8 @@ import me.ahoo.wow.command.wait.chain.WaitingChainTail.Companion.toWaitingChainT
 import me.ahoo.wow.command.wait.stage.StageWaitState
 import me.ahoo.wow.messaging.DefaultHeader
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import java.time.Duration
 
 class WaitPlanTest {
     @Test
@@ -89,6 +91,43 @@ class WaitPlanTest {
         header[COMMAND_WAIT_ENDPOINT].assert().isEqualTo(TEST_ENDPOINT)
         header[COMMAND_WAIT_STAGE].assert().isEqualTo(CommandStage.PROJECTED.name)
         header.extractWaitFunction().assert().isEqualTo(testNamedFunction())
+    }
+
+    @Test
+    fun waitPlanShouldHaveDefaultAndCustomTimeouts() {
+        val plan = CommandWait.processed("wait-id")
+
+        plan.timeout.assert().isEqualTo(DEFAULT_WAIT_TIMEOUT)
+
+        val timedPlan = plan.withTimeout(Duration.ofMinutes(2))
+        timedPlan.timeout.assert().isEqualTo(Duration.ofMinutes(2))
+        timedPlan.waitCommandId.assert().isEqualTo(plan.waitCommandId)
+        timedPlan.target.assert().isEqualTo(plan.target)
+        timedPlan.supportVoidCommand.assert().isEqualTo(plan.supportVoidCommand)
+    }
+
+    @Test
+    fun waitPlanTimeoutShouldRemainLocalWhenHeadersArePropagated() {
+        val header = DefaultHeader.empty()
+        val endpoint = SimpleCommandWaitEndpoint(TEST_ENDPOINT)
+        val timedPlan = CommandWait.processed("wait-id")
+            .withTimeout(Duration.ofMinutes(2))
+
+        timedPlan.propagate(endpoint, header)
+
+        header.extractWaitPlan()!!.plan.timeout.assert().isEqualTo(DEFAULT_WAIT_TIMEOUT)
+    }
+
+    @Test
+    fun waitPlanTimeoutShouldBePositive() {
+        val plan = CommandWait.processed("wait-id")
+
+        assertThrows<IllegalArgumentException> {
+            plan.withTimeout(Duration.ZERO)
+        }
+        assertThrows<IllegalArgumentException> {
+            plan.withTimeout(Duration.ofMillis(-1))
+        }
     }
 
     @Test

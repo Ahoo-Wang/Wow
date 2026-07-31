@@ -54,6 +54,20 @@ commandGateway.sendAndWaitStream(command, waitPlan)
     .subscribe()
 ```
 
+#### Wait Timeout
+
+`sendAndWait` and `sendAndWaitStream` have a default maximum duration of 30 seconds. The deadline starts on subscription and covers command checks, sending, and target-stage waiting. A timeout cancels the wait and releases its registered `WaitHandle`. Override the default for one call with `withTimeout`:
+
+```kotlin
+val waitPlan = CommandWait.processed(command.commandId)
+    .withTimeout(Duration.ofMinutes(2))
+
+commandGateway.sendAndWait(command, waitPlan)
+```
+
+`withTimeout` controls caller-side resource lifetime only; it is not propagated in remote message headers.
+The `sendAndWaitForSent` fast path has no `WaitPlan` parameter and always uses the 30-second default.
+
 ### Convenience Methods
 
 The `CommandGateway` provides convenience methods that pre-configure common wait plans:

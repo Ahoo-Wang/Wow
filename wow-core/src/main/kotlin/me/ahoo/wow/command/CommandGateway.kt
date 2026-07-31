@@ -66,6 +66,8 @@ fun CommandMessage<*>.commandSentSignal(
  * The Command Gateway provides a high-level API for sending commands to aggregates
  * and optionally waiting for their processing results. It supports various waiting
  * plans to control how long to wait and what stage of processing to wait for.
+ * Implementations that report [enforcesCommandWaitTimeout] must enforce `WaitPlan.timeout`
+ * as an end-to-end deadline for [sendAndWait] and [sendAndWaitStream].
  *
  * @author ahoo wang
  * @see CommandBus
@@ -74,10 +76,20 @@ fun CommandMessage<*>.commandSentSignal(
  */
 interface CommandGateway : CommandBus {
     /**
+     * Whether this gateway enforces `WaitPlan.timeout` itself.
+     *
+     * The default remains false so existing third-party implementations retain the
+     * WebFlux boundary timeout used before gateway-level deadlines were introduced.
+     */
+    val enforcesCommandWaitTimeout: Boolean
+        get() = false
+
+    /**
      * Sends a command and returns a stream of command results as processing progresses.
      *
      * This method provides real-time updates on the command's processing status,
-     * emitting CommandResult objects at various stages of the command lifecycle.
+     * emitting CommandResult objects at various stages of the command lifecycle. The wait
+     * uses the default timeout unless [waitPlan] is decorated with `WaitPlan.withTimeout`.
      *
      * @param C the type of the command
      * @param command the command message to send
@@ -96,6 +108,7 @@ interface CommandGateway : CommandBus {
      *
      * This method blocks until the command processing is complete or fails.
      * If the command fails, it throws a CommandResultException containing the error details.
+     * The wait uses the default timeout unless [waitPlan] is decorated with `WaitPlan.withTimeout`.
      *
      * @param C the type of the command
      * @param command the command message to send
@@ -116,7 +129,8 @@ interface CommandGateway : CommandBus {
      * Sends a command and waits until it is successfully sent to the command bus.
      *
      * This convenience method waits for the command to be accepted by the command bus
-     * but does not wait for actual processing by the aggregate.
+     * but does not wait for actual processing by the aggregate. It is bounded by the
+     * default command wait timeout.
      *
      * @param C the type of the command
      * @param command the command message to send
