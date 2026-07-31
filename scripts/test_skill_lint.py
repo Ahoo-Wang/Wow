@@ -6,12 +6,18 @@ import skill_lint
 
 
 class SkillLintTest(unittest.TestCase):
+    @staticmethod
+    def write_skill(skill: Path, body: str, frontmatter: str | None = None) -> None:
+        skill.parent.mkdir(parents=True)
+        if frontmatter is None:
+            frontmatter = f"name: {skill.parent.name}\ndescription: Test skill."
+        skill.write_text(f"---\n{frontmatter}\n---\n{body}", encoding="utf-8")
+
     def test_reports_forbidden_patterns(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             skill = root / "skills" / "wow" / "SKILL.md"
-            skill.parent.mkdir(parents=True)
-            skill.write_text("Use Grep and ./gradlew domain:test with where { }", encoding="utf-8")
+            self.write_skill(skill, "Use Grep and ./gradlew domain:test with where { }")
 
             findings = skill_lint.lint(root)
 
@@ -25,8 +31,7 @@ class SkillLintTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             skill = root / "skills" / "wow" / "SKILL.md"
-            skill.parent.mkdir(parents=True)
-            skill.write_text("Run ./gradlew :api:test\nRun ./gradlew :domain:check", encoding="utf-8")
+            self.write_skill(skill, "Run ./gradlew :api:test\nRun ./gradlew :domain:check")
 
             findings = skill_lint.lint(root)
 
@@ -57,8 +62,7 @@ class SkillLintTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             skill = root / "skills" / "wow" / "SKILL.md"
-            skill.parent.mkdir(parents=True)
-            skill.write_text("See `references/missing.md` for details.", encoding="utf-8")
+            self.write_skill(skill, "See `references/missing.md` for details.")
 
             findings = skill_lint.lint(root)
 
@@ -69,8 +73,7 @@ class SkillLintTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             skill = root / "skills" / "wow" / "SKILL.md"
-            skill.parent.mkdir(parents=True)
-            skill.write_text("Use `.assert()` for assertions, not AssertJ's `assertThat()`.", encoding="utf-8")
+            self.write_skill(skill, "Use `.assert()` for assertions, not AssertJ's `assertThat()`.")
 
             findings = skill_lint.lint(root)
 
@@ -80,8 +83,7 @@ class SkillLintTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             skill = root / "skills" / "wow" / "SKILL.md"
-            skill.parent.mkdir(parents=True)
-            skill.write_text("Use `.assert()`, not `assertThat()`. TODO remove placeholder.", encoding="utf-8")
+            self.write_skill(skill, "Use `.assert()`, not `assertThat()`. TODO remove placeholder.")
 
             findings = skill_lint.lint(root)
 
@@ -141,6 +143,141 @@ class SkillLintTest(unittest.TestCase):
             self.assertIn(
                 'Use rg-native `-g "settings.gradle.kts"` filtering instead of shell globstar.',
                 messages,
+            )
+
+    def test_reports_missing_skill_frontmatter(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            skill = root / "skills" / "wow" / "SKILL.md"
+            skill.parent.mkdir(parents=True)
+            skill.write_text("# Wow", encoding="utf-8")
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual("SKILL.md must start with YAML frontmatter.", findings[0].message)
+
+    def test_reports_unexpected_skill_frontmatter_key(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            skill = root / "skills" / "wow" / "SKILL.md"
+            self.write_skill(
+                skill,
+                "# Wow",
+                frontmatter="name: wow\ndescription: Wow guidance.\ncompatibility: Kotlin 2.3+",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(
+                "SKILL.md frontmatter contains unsupported key: compatibility",
+                findings[0].message,
+            )
+
+    def test_reports_skill_name_directory_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            skill = root / "skills" / "wow" / "SKILL.md"
+            self.write_skill(
+                skill,
+                "# Wow",
+                frontmatter="name: other-skill\ndescription: Wow guidance.",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(
+                "SKILL.md name must match its parent directory: wow",
+                findings[0].message,
+            )
+
+    def test_reports_long_reference_without_contents(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            reference = root / "skills" / "wow" / "references" / "long.md"
+            reference.parent.mkdir(parents=True)
+            reference.write_text("\n".join(["# Long Reference", *["content"] * 100]), encoding="utf-8")
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(
+                "Reference files longer than 100 lines must include `## Contents` near the top.",
+                findings[0].message,
+            )
+
+    def test_reports_malformed_skill_frontmatter_value(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            skill = root / "skills" / "wow" / "SKILL.md"
+            self.write_skill(
+                skill,
+                "# Wow",
+                frontmatter="name: wow\ndescription: [unterminated",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(
+                "SKILL.md frontmatter field must be a YAML string: description",
+                findings[0].message,
+            )
+
+    def test_reports_non_string_skill_frontmatter_field(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            skill = root / "skills" / "wow" / "SKILL.md"
+            self.write_skill(
+                skill,
+                "# Wow",
+                frontmatter="name: wow\ndescription: true",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(
+                "SKILL.md frontmatter field must be a YAML string: description",
+                findings[0].message,
+            )
+
+    def test_reports_reserved_plain_scalar_indicator(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            skill = root / "skills" / "wow" / "SKILL.md"
+            self.write_skill(
+                skill,
+                "# Wow",
+                frontmatter="name: wow\ndescription: @invalid",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(
+                "SKILL.md frontmatter field must be a YAML string: description",
+                findings[0].message,
+            )
+
+    def test_reports_tab_indentation_in_block_scalar(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            skill = root / "skills" / "wow" / "SKILL.md"
+            self.write_skill(
+                skill,
+                "# Wow",
+                frontmatter="name: wow\ndescription: |\n\tinvalid yaml indentation",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(
+                "SKILL.md frontmatter must use spaces, not tabs, for indentation.",
+                findings[0].message,
             )
 
 

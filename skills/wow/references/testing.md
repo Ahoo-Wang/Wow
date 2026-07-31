@@ -1,5 +1,19 @@
 # Wow Testing Patterns Reference
 
+## Contents
+
+- [Test Suite Overview](#test-suite-overview)
+- [AggregateSpec](#aggregatespec)
+- [SagaSpec](#sagaspec)
+- [SagaVerifier (Fluent API)](#sagaverifier-fluent-api)
+- [Projection Testing](#projection-testing)
+- [AggregateVerifier (Fluent API)](#aggregateverifier-fluent-api)
+- [FluentAssert Assertions](#fluentassert-assertions)
+- [Test Fixtures](#test-fixtures)
+- [Default Test Commands/Events](#default-test-commandsevents)
+- [Running Tests](#running-tests)
+- [Best Practices](#best-practices)
+
 ## Test Suite Overview
 
 Wow provides a Given→When→Expect test pattern:
@@ -55,8 +69,7 @@ class CartSpec : AggregateSpec<Cart, CartState>(
 
 | Method | Description |
 |--------|-------------|
-| `whenCommand(cmd)` | Execute a command |
-| `whenCommand(cmd) { }` | Execute with expectations |
+| `whenCommand(cmd) { }` | Execute a command with the required expectation block |
 
 ### ExpectDsl Methods
 
@@ -305,7 +318,7 @@ CartSaga::class.java.sagaVerifier()
     .verify()
 ```
 
-The verifier pre-configures an in-memory command bus, test validator, and no-op idempotency checker for isolated testing.
+The verifier pre-configures an in-memory command bus, test validator, and no-op idempotency checker for isolated testing. It invokes the saga handler path directly, so it proves command generation but does not prove duplicate-delivery handling or `CompensationFilter` retry behavior. Add focused runtime or integration coverage when idempotency or `@Retry` is part of the contract.
 
 ## Projection Testing
 

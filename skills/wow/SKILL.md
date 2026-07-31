@@ -12,7 +12,6 @@ description: |
   - Wow annotations such as @AggregateRoot, @OnCommand, @OnSourcing, @OnEvent, @StatelessSaga, @ProjectionProcessor, @EventProcessor, @AfterCommand, @OnError, @Retry, @BoundedContext, @CreateAggregate, @CommandRoute
 
   Do not trigger for unrelated Kotlin, Gradle, frontend, or documentation tasks unless Wow framework behavior or APIs are directly relevant.
-compatibility: Kotlin 2.3, JVM 17+, Spring Boot 4.x, Gradle, MongoDB, Kafka, Reactor
 ---
 
 # Wow Framework Skill
@@ -26,8 +25,8 @@ Before writing or changing Wow code, verify the current implementation with `rg`
 Useful first searches:
 
 ```bash
-rg -n "@AggregateRoot|@OnCommand|@OnSourcing|@StatelessSaga|@ProjectionProcessor" . -g "*.kt"
-rg -n "AggregateSpec<|SagaSpec<|aggregateVerifier|sagaVerifier" . -g "*.kt"
+rg -n "@AggregateRoot|@OnCommand|@OnSourcing|@StatelessSaga|@ProjectionProcessor" . -g "*.kt" -g "*.java"
+rg -n "AggregateSpec<|SagaSpec<|aggregateVerifier|sagaVerifier|AggregateVerifier|SagaVerifier" . -g "*.kt" -g "*.java"
 rg -n "@ConfigurationProperties|class .*Properties" wow-spring-boot-starter -g "*.kt"
 ```
 

@@ -1,5 +1,14 @@
 # Code Comment Standards
 
+## Contents
+
+- [Core Principles](#core-principles)
+- [Comment Forms](#comment-forms)
+- [Automated Checks](#automated-checks)
+- [API Layer](#api-layer)
+- [Domain Layer](#domain-layer)
+- [Common Patterns](#common-patterns)
+
 ## Core Principles
 
 - Write source-code comments and API documentation in English. User-facing documentation follows the language of the page.

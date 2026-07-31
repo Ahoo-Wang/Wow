@@ -40,9 +40,9 @@ id = <components>
 
 ## Event Design
 
-| Event | Summary | Description | Payload | Trigger |
-|-------|---------|-------------|---------|---------|
-| `EventA` | <summary> | <description> | <fields> | <command accepted> |
+| Event | Summary | Description | Payload | Compatibility | Trigger |
+|-------|---------|-------------|---------|---------------|---------|
+| `EventA` | <summary> | <description> | <fields> | <revision/schema impact> | <command accepted> |
 
 ## Field Capability Interfaces
 
@@ -60,9 +60,9 @@ State is maintained through event sourcing. All field changes are driven by `@On
 
 ## Aggregate Behavior Tests
 
-| Scenario | Given | When | Expected | Status |
-|----------|-------|------|----------|--------|
-| <scenario> | <events or state> | <command> | <event, state, or error> | Done |
+| Scenario | Given | When | Expected | Test/Evidence | Status |
+|----------|-------|------|----------|---------------|--------|
+| <scenario> | <events or state> | <command> | <event, state, or error> | <test name or command/result> | Pending |
 
 ## Saga Orchestration
 
@@ -72,15 +72,15 @@ Include this section only when the design has a saga.
 <Trigger event> -> <condition> -> <generated command or no command>
 ```
 
-| Trigger | Condition | Target Aggregate | Command | Retry Policy |
-|---------|-----------|------------------|---------|-----------------------|
-| `EventA` | <condition> | <target id rule> | `CommandB` | <policy> |
+| Trigger | Condition | Target Aggregate | Command | Idempotency/Duplicate Delivery | Retry Policy |
+|---------|-----------|------------------|---------|--------------------------------|--------------|
+| `EventA` | <condition> | <target id rule> | `CommandB` | <request identity and repeated-delivery behavior> | <policy> |
 
 ## Saga Orchestration Tests
 
-| Scenario | Given Event | Expected Command | Status |
-|----------|-------------|------------------|--------|
-| <scenario> | <event> | <command or no command> | Done |
+| Scenario | Given Event | Expected Command | Runtime Concern | Test/Evidence | Status |
+|----------|-------------|------------------|-----------------|---------------|--------|
+| <scenario> | <event> | <command or no command> | <none, duplicate delivery, retry, or stale input> | <test name or command/result> | Pending |
 
 ## Appendix: File Index
 
