@@ -88,6 +88,37 @@ class SkillLintTest(unittest.TestCase):
             self.assertEqual(1, len(findings))
             self.assertEqual("Resolve placeholders before shipping skill content.", findings[0].message)
 
+    def test_allows_assert_that_in_java_fence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            reference = root / "skills" / "wow" / "references" / "testing.md"
+            reference.parent.mkdir(parents=True)
+            reference.write_text(
+                "```java\nassertThat(result).isEqualTo(expected);\n```\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], skill_lint.lint(root))
+
+    def test_reports_assert_that_in_kotlin_fence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            reference = root / "skills" / "wow" / "references" / "testing.md"
+            reference.parent.mkdir(parents=True)
+            reference.write_text(
+                "```kotlin\nassertThat(result).isEqualTo(expected)\n```\n",
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(2, findings[0].line)
+            self.assertEqual(
+                "Use FluentAssert `.assert()` instead of AssertJ `assertThat()`.",
+                findings[0].message,
+            )
+
     def test_reports_invalid_json(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -99,6 +130,57 @@ class SkillLintTest(unittest.TestCase):
 
             self.assertEqual(1, len(findings))
             self.assertEqual("Invalid JSON file.", findings[0].message)
+
+    def test_reports_violation_after_multiline_eval_exemption(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            evals = root / "skills" / "wow" / "evals" / "evals.json"
+            evals.parent.mkdir(parents=True)
+            evals.write_text(
+                '{"expected_output": "The legacy spelling is retained for compatibility.\\n'
+                'Send Command-Wait-Timout"}',
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(
+                "Use the documented `Command-Wait-Timeout` header; the misspelled form is legacy compatibility only.",
+                findings[0].message,
+            )
+
+    def test_applies_assert_that_exemption_per_multiline_eval_line(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            evals = root / "skills" / "wow" / "evals" / "evals.json"
+            evals.parent.mkdir(parents=True)
+            evals.write_text(
+                '{"expected_output": "Use `.assert()`, not `assertThat()`.\\n'
+                'assertThat(result).isEqualTo(expected)"}',
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(
+                "Use FluentAssert `.assert()` instead of AssertJ `assertThat()`.",
+                findings[0].message,
+            )
+
+    def test_allows_java_assert_that_in_eval_markdown_fence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            evals = root / "skills" / "wow" / "evals" / "evals.json"
+            evals.parent.mkdir(parents=True)
+            evals.write_text(
+                '{"expected_output": "```java\\n'
+                'assertThat(result).isEqualTo(expected);\\n```"}',
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], skill_lint.lint(root))
 
     def test_reports_source_drift_patterns(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -203,6 +285,144 @@ class SkillLintTest(unittest.TestCase):
             self.assertEqual(6, findings[0].line)
             self.assertEqual("Unclosed Markdown code fence.", findings[0].message)
 
+    def test_reports_unclosed_markdown_fence_in_blockquote(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "> ```kotlin\n> val value = 1\n",
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(1, findings[0].line)
+            self.assertEqual("Unclosed Markdown code fence.", findings[0].message)
+
+    def test_reports_unclosed_markdown_fence_in_list_item(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "- ```kotlin\n  val value = 1\n",
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(1, findings[0].line)
+            self.assertEqual("Unclosed Markdown code fence.", findings[0].message)
+
+    def test_reports_unclosed_indented_fence_in_list_item(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "- Example:\n\n    ```kotlin\n    val value = 1\n",
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(3, findings[0].line)
+            self.assertEqual("Unclosed Markdown code fence.", findings[0].message)
+
+    def test_allows_closed_markdown_fences_in_containers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "> ```kotlin\n> val quoted = 1\n> ```\n\n"
+                "- ```kotlin\n  val listed = 1\n  ```\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], skill_lint.lint(root))
+
+    def test_allows_container_fence_markers_as_top_level_fence_content(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "```java\n> ```\n- ```\nassertThat(result).isEqualTo(expected);\n```\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], skill_lint.lint(root))
+
+    def test_reports_fences_closed_outside_blockquote_container(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "> ```kotlin\n> val value = 1\n```\n",
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual([1, 3], [finding.line for finding in findings])
+            self.assertTrue(
+                all(finding.message == "Unclosed Markdown code fence." for finding in findings)
+            )
+
+    def test_reports_fences_closed_outside_list_container(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "- ```kotlin\n  val value = 1\n```\n",
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual([1, 3], [finding.line for finding in findings])
+            self.assertTrue(
+                all(finding.message == "Unclosed Markdown code fence." for finding in findings)
+            )
+
+    def test_reports_misindented_close_after_blockquote_list(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "> - ```kotlin\n>   val value = 1\n  > ```\n",
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual([1, 3], [finding.line for finding in findings])
+            self.assertTrue(
+                all(finding.message == "Unclosed Markdown code fence." for finding in findings)
+            )
+
+    def test_allows_list_before_blockquote_fence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "- > ```java\n"
+                "  > assertThat(result).isEqualTo(expected);\n"
+                "  > ```\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], skill_lint.lint(root))
+
     def test_allows_adversarial_patterns_in_eval_prompt(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -224,7 +444,7 @@ class SkillLintTest(unittest.TestCase):
             template = root / "skills" / "wow" / "references" / "template.md"
             template.parent.mkdir(parents=True)
             template.write_text(
-                "````markdown\n# Template\n```text\nvalue\n```\n````\n",
+                "````markdown\n# Template\n- Example\n    ````\n```text\nvalue\n```\n````\n",
                 encoding="utf-8",
             )
 

@@ -7,7 +7,7 @@
 ## 兼容性目标
 
 - 每个 skill 目录以 `SKILL.md` 作为入口。
-- `SKILL.md` 使用标准 YAML frontmatter，且只包含 `name` 和 `description`。
+- `SKILL.md` 使用标准 YAML frontmatter，必须包含 `name` 和 `description`；可选字段以标准 validator 与目标客户端的支持范围为准。
 - 大段参考资料放入 `references/`，由 agent 按需加载。
 - 验证脚本放在仓库级 `scripts/`，不依赖特定客户端运行时。
 - 文档避免使用只属于某个 agent 产品的术语，除非是在说明兼容范围。
@@ -134,4 +134,4 @@ jq empty skills/wow/evals/evals.json
 git diff --check
 ```
 
-在支持 `skill-creator` 的 Codex 运行时中，还应使用该运行时附带的 `scripts/quick_validate.py` 逐个验证四个 skill 目录。
+`skill_lint.py` 只检查 Wow-specific 内容漂移；frontmatter 等通用结构必须交由目标运行时的标准 validator 和 YAML parser 校验，避免在仓库内重复实现不完整的解析器。在支持 `skill-creator` 的 Codex 运行时中，使用该运行时附带的 `scripts/quick_validate.py` 逐个验证四个 skill 目录。

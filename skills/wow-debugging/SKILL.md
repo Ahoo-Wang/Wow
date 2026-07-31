@@ -39,7 +39,7 @@ Use source-first searches before edits:
 ```bash
 rg -n "@AggregateRoot|@OnCommand|@OnSourcing|@StatelessSaga|@EventProcessor|@ProjectionProcessor|@OnEvent|@OnStateEvent" . -g "*.kt" -g "*.java"
 rg -n "CommandWait|CommandWait.chain|Command-Wait" . -g "*.kt" -g "*.java"
-rg -n "@ConfigurationProperties|ConditionalOn.*Enabled|class .*Properties" . -g "*.kt"
+rg -n "@ConfigurationProperties|ConditionalOn.*Enabled|class .*Properties" . -g "*.kt" -g "*.java"
 rg -n "AggregateSpec<|SagaSpec<|AggregateVerifier|SagaVerifier|aggregateVerifier|sagaVerifier|expectEventType|expectCommand|expectNoCommand" . -g "*.kt" -g "*.java"
 ```
 
