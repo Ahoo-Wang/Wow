@@ -153,7 +153,7 @@ wow:
 
 ### Storage Routing
 
-Route different aggregates to different storage backends within a single service. Use the aggregate metadata name as the map key: by default Wow converts a class such as `HotAggregate` to `hot_aggregate`; an explicit `@Name` overrides it. Resolution is exact, so a class name such as `HotAggregate` does not match the default metadata name. When a matching route is configured, Wow installs a `RoutingEventStore` / `RoutingSnapshotStore`; unlisted aggregates fall back to the default storage. A configured channel **must set exactly one** of `storage` or `binding` — an empty channel (e.g. `event: {}`) fails fast at startup.
+Route different aggregates to different storage backends within a single service. Use the aggregate metadata name as the map key: by default Wow converts a class such as `HotAggregate` to `hot_aggregate`; an explicit `@Name` overrides it. Resolution is exact, and every configured key must identify a discovered aggregate; a class name such as `HotAggregate`, a blank segment, or an unknown aggregate fails fast at startup. When a matching route is configured, Wow installs a `RoutingEventStore` / `RoutingSnapshotStore`; unlisted aggregates fall back to the default storage. A configured channel **must set exactly one** of `storage` or `binding` — an empty channel (e.g. `event: {}`) fails fast at startup. Snapshot routes are invalid when `wow.eventsourcing.snapshot.enabled=false`.
 
 ```yaml
 wow:

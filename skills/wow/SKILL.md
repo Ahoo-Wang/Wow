@@ -8,6 +8,7 @@ description: |
   - CQRS, Event Sourcing, event stores, snapshots, projections, read models
   - Saga orchestration, event processors, retry policy, PrepareKey
   - Command gateway, wait plans, command bus, WebFlux command endpoints
+  - WowRuntime, RuntimeComponent, readiness, fatal shutdown, graceful shutdown, Spring lifecycle ownership
   - Wow tests: AggregateSpec, SagaSpec, AggregateVerifier, SagaVerifier
   - Wow annotations such as @AggregateRoot, @OnCommand, @OnSourcing, @OnEvent, @StatelessSaga, @ProjectionProcessor, @EventProcessor, @AfterCommand, @OnError, @Retry, @BoundedContext, @CreateAggregate, @CommandRoute
 
@@ -27,6 +28,7 @@ Useful first searches:
 ```bash
 rg -n "@AggregateRoot|@OnCommand|@OnSourcing|@StatelessSaga|@ProjectionProcessor" . -g "*.kt" -g "*.java"
 rg -n "AggregateSpec<|SagaSpec<|aggregateVerifier|sagaVerifier|AggregateVerifier|SagaVerifier" . -g "*.kt" -g "*.java"
+rg -n "WowRuntime|RuntimeComponent|WowRuntimeLifecycle|GracefullyStoppable" . -g "*.kt" -g "*.java"
 rg -n "@ConfigurationProperties|class .*Properties" wow-spring-boot-starter -g "*.kt"
 ```
 
@@ -41,6 +43,7 @@ rg -n "@ConfigurationProperties|class .*Properties" wow-spring-boot-starter -g "
 | Build saga orchestration or cross-aggregate process behavior | `../wow-development-workflow/SKILL.md`, then `references/annotations.md` and `references/testing.md` |
 | Build projection or event processor behavior | `references/annotations.md`, then `references/testing.md` |
 | Use command gateway, wait plan, wait chain, idempotency, HTTP wait headers | `references/command-gateway.md` |
+| Change runtime ownership, readiness, fatal handling, or graceful shutdown | Verify `wow-core/src/main/kotlin/me/ahoo/wow/runtime/`, `wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt`, and `documentation/docs/zh/guide/advanced/runtime-lifecycle.md` before editing |
 | Write Query DSL, pagination, projection, sort, query service calls | `references/dsl.md` |
 | Configure Spring Boot starter, storage, buses, feature switches | `references/configuration.md` |
 | Implement uniqueness or reservation with PrepareKey | `references/prepare-key.md` |

@@ -18,12 +18,6 @@ class Finding:
 
 
 @dataclass(frozen=True)
-class MarkdownListContainer:
-    content_indent: int
-    blockquote_depth_before: int
-
-
-@dataclass(frozen=True)
 class MarkdownListItem:
     item_indent: int
     content_indent: int
@@ -31,9 +25,21 @@ class MarkdownListItem:
 
 
 @dataclass(frozen=True)
+class MarkdownBlockquotePrefix:
+    pass
+
+
+@dataclass(frozen=True)
+class MarkdownListPrefix:
+    content_indent: int
+
+
+@dataclass(frozen=True)
 class MarkdownContainer:
-    blockquote_depth: int
-    list_containers: tuple[MarkdownListContainer, ...]
+    explicit_prefixes: tuple[
+        MarkdownBlockquotePrefix | MarkdownListPrefix,
+        ...,
+    ] = ()
 
 
 @dataclass(frozen=True)
@@ -54,6 +60,22 @@ ASSERT_THAT_GUIDANCE_TARGET = r"(?:AssertJ(?:'s|\s*的)?\s+)?`?\s*assertThat\s*\
 ENGLISH_NEGATIVE_ASSERT_THAT_ACTION = (
     r"(?:use|using|call|calling|prefer|write|writing|rely(?:ing)?\s+on)"
 )
+PASSIVE_NEGATIVE_ASSERT_THAT_ACTION = re.compile(
+    r"(?:(?:should|must)\s+not\s+be\s+(?:used|called)"
+    r"|is\s+not\s+(?:allowed|permitted))\b"
+    r"(?!\s+(?:as|to)\b)",
+    re.IGNORECASE,
+)
+PASSIVE_ASSERT_THAT_DIRECT_LABEL_SUFFIX = re.compile(
+    r"(?:(?:the\s+)?AssertJ(?:'s|\s*的)?|the)\s*$",
+    re.IGNORECASE,
+)
+PASSIVE_ASSERT_THAT_SUBJECT_NOUN = re.compile(
+    r"(?:method|api|call)\b",
+    re.IGNORECASE,
+)
+MARKDOWN_TASK_CHECKBOX_PREFIX = re.compile(r"^\[[ xX]\][ \t]+")
+MARKDOWN_INLINE_MARKER_SUFFIX = re.compile(r"[`*_~]+\s*$")
 NEGATIVE_ASSERT_THAT_GUIDANCE = re.compile(
     r"(?:"
     rf"\bnot\s+(?:{ENGLISH_NEGATIVE_ASSERT_THAT_ACTION}\s+)?{ASSERT_THAT_GUIDANCE_TARGET}"
@@ -69,7 +91,8 @@ LEGACY_WAIT_TIMEOUT_GUIDANCE = re.compile(r"\blegacy\b.*\bcompatibility\b|\bcomp
 MARKDOWN_FENCE_PATTERN = re.compile(r"^ {0,3}(?P<fence>`{3,}|~{3,})(?P<info>.*)$")
 MARKDOWN_BLOCKQUOTE_PREFIX = re.compile(r"^ {0,3}>[ \t]?")
 MARKDOWN_LIST_ITEM_PATTERN = re.compile(
-    r"^(?P<indent> *)(?P<marker>[-+*]|\d{1,9}[.)])(?P<spacing>[ \t]+)(?P<content>.*)$"
+    r"^(?P<indent> *)(?P<marker>[-+*]|\d{1,9}[.)])"
+    r"(?:(?P<spacing>[ \t]+)(?P<content>.*)|$)"
 )
 MARKDOWN_HTML_RAW_TAG_START = re.compile(
     r"^ {0,3}<(?P<tag>script|pre|style|textarea)(?:[ \t]|>|$)",
@@ -203,6 +226,109 @@ PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
 LOCAL_MARKDOWN_REF = re.compile(r"`((?:references/|\.\.?/)[^`]+\.md)`|\]\(((?:references/|\.\.?/)[^)]+\.md)\)")
 
 
+def find_matching_parenthesis(text: str, opening_index: int) -> int | None:
+    depth = 0
+    quote: str | None = None
+    escaped = False
+    for index in range(opening_index, len(text)):
+        character = text[index]
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == quote:
+                quote = None
+            continue
+        if character in {"'", '"'}:
+            quote = character
+        elif character == "(":
+            depth += 1
+        elif character == ")":
+            depth -= 1
+            if depth == 0:
+                return index
+    return None
+
+
+def is_direct_passive_assert_that_subject(
+    line: str,
+    occurrence_start: int,
+) -> bool:
+    prefix, _ = parse_explicit_markdown_container(
+        line[:occurrence_start]
+    )
+    heading_match = MARKDOWN_ATX_HEADING_PATTERN.match(prefix)
+    if heading_match is not None:
+        prefix = prefix[heading_match.end():]
+    task_checkbox_match = MARKDOWN_TASK_CHECKBOX_PREFIX.match(prefix)
+    if task_checkbox_match is not None:
+        prefix = prefix[task_checkbox_match.end():]
+    prefix = MARKDOWN_INLINE_MARKER_SUFFIX.sub("", prefix).rstrip()
+    prefix = PASSIVE_ASSERT_THAT_DIRECT_LABEL_SUFFIX.sub("", prefix).rstrip()
+    prefix = MARKDOWN_INLINE_MARKER_SUFFIX.sub("", prefix).rstrip()
+    if not prefix:
+        return True
+    if prefix[-1] in ",;:.!?，；：。！？":
+        return True
+    return False
+
+
+def skip_markdown_inline_subject_presentation(
+    line: str,
+    start: int,
+) -> int:
+    index = start
+    while (
+        index < len(line)
+        and (line[index].isspace() or line[index] in "`*_~")
+    ):
+        index += 1
+    return index
+
+
+def iter_passive_negative_assert_that_guidance_spans(
+    line: str,
+) -> Iterator[tuple[int, int]]:
+    for occurrence in ASSERT_THAT_PATTERN.finditer(line):
+        if not is_direct_passive_assert_that_subject(
+            line,
+            occurrence.start(),
+        ):
+            continue
+        closing_index = find_matching_parenthesis(line, occurrence.end() - 1)
+        if closing_index is None:
+            continue
+        suffix_index = skip_markdown_inline_subject_presentation(
+            line,
+            closing_index + 1,
+        )
+        subject_noun = PASSIVE_ASSERT_THAT_SUBJECT_NOUN.match(
+            line,
+            suffix_index,
+        )
+        if subject_noun is not None:
+            suffix_index = skip_markdown_inline_subject_presentation(
+                line,
+                subject_noun.end(),
+            )
+        action = PASSIVE_NEGATIVE_ASSERT_THAT_ACTION.match(line, suffix_index)
+        if action is not None:
+            yield occurrence.start(), action.end()
+
+
+def all_assert_that_occurrences_are_negative_guidance(line: str) -> bool:
+    guidance_spans = [
+        match.span()
+        for match in NEGATIVE_ASSERT_THAT_GUIDANCE.finditer(line)
+    ]
+    guidance_spans.extend(iter_passive_negative_assert_that_guidance_spans(line))
+    return bool(guidance_spans) and all(
+        any(start <= match.start() < end for start, end in guidance_spans)
+        for match in ASSERT_THAT_PATTERN.finditer(line)
+    )
+
+
 def iter_skill_files(root: Path) -> list[Path]:
     skills_dir = root / "skills"
     if not skills_dir.exists():
@@ -231,80 +357,49 @@ def parse_markdown_list_item(match: re.Match[str]) -> MarkdownListItem:
     item_indent = len(match.group("indent"))
     marker_width = len(match.group("marker"))
     spacing = match.group("spacing")
+    if spacing is None:
+        return MarkdownListItem(
+            item_indent=item_indent,
+            content_indent=item_indent + marker_width + 1,
+            content="",
+        )
     padding = len(spacing) if len(spacing) <= 4 else 1
     return MarkdownListItem(
         item_indent=item_indent,
         content_indent=item_indent + marker_width + padding,
-        content=spacing[padding:] + match.group("content"),
-    )
-
-
-def is_markdown_list_item_in_container(
-    list_item: MarkdownListItem,
-    list_containers: tuple[MarkdownListContainer, ...],
-) -> bool:
-    return list_item.item_indent <= 3 or any(
-        list_item.item_indent >= container.content_indent
-        for container in list_containers
+        content=spacing[padding:] + (match.group("content") or ""),
     )
 
 
 def iter_markdown_container_contents(
     line: str,
-    list_containers: tuple[MarkdownListContainer, ...],
+    active_prefixes: tuple[MarkdownBlockquotePrefix | MarkdownListPrefix, ...],
 ) -> Iterator[tuple[str, MarkdownContainer]]:
-    remaining, blockquote_depth = split_markdown_blockquote_prefixes(line)
-    list_match = MARKDOWN_LIST_ITEM_PATTERN.match(remaining)
-    if list_match:
-        list_item = parse_markdown_list_item(list_match)
-        if is_markdown_list_item_in_container(list_item, list_containers):
-            list_content, nested_blockquote_depth = split_markdown_blockquote_prefixes(
-                list_item.content
-            )
-            yield list_content, MarkdownContainer(
-                blockquote_depth=blockquote_depth + nested_blockquote_depth,
-                list_containers=list_containers,
-            )
-            return
+    for prefix_count in range(len(active_prefixes), 0, -1):
+        inherited_prefixes = active_prefixes[:prefix_count]
+        inherited_container = MarkdownContainer(
+            explicit_prefixes=inherited_prefixes,
+        )
+        remaining = strip_markdown_container_prefix(
+            line,
+            inherited_container,
+        )
+        if remaining is None:
+            continue
+        content, nested_prefixes = parse_explicit_markdown_container(remaining)
+        yield content, MarkdownContainer(
+            explicit_prefixes=(*inherited_prefixes, *nested_prefixes),
+        )
+        return
 
-    if list_containers:
-        list_content = strip_active_list_container_prefix(line, list_containers)
-        if list_content:
-            remaining, blockquote_depth = list_content
-            yield remaining, MarkdownContainer(
-                blockquote_depth=blockquote_depth,
-                list_containers=list_containers,
-            )
-            return
+    remaining, explicit_prefixes = parse_explicit_markdown_container(line)
+    if explicit_prefixes:
+        yield remaining, MarkdownContainer(
+            explicit_prefixes=explicit_prefixes,
+        )
+        return
 
-    remaining, blockquote_depth = split_markdown_blockquote_prefixes(line)
-    yield remaining, MarkdownContainer(
-        blockquote_depth=blockquote_depth,
-        list_containers=(),
-    )
-
-
-def strip_active_list_container_prefix(
-    line: str,
-    list_containers: tuple[MarkdownListContainer, ...],
-) -> tuple[str, int] | None:
-    if not list_containers:
-        return None
-    deepest_list = list_containers[-1]
-    remaining, blockquote_depth_before = split_markdown_blockquote_prefixes(
-        line,
-        deepest_list.blockquote_depth_before,
-    )
-    if blockquote_depth_before != deepest_list.blockquote_depth_before:
-        return None
-    if not remaining.strip():
-        return "", blockquote_depth_before
-    leading_spaces = len(remaining) - len(remaining.lstrip(" "))
-    if leading_spaces < deepest_list.content_indent:
-        return None
-    remaining = remaining[deepest_list.content_indent :]
-    remaining, blockquote_depth_after = split_markdown_blockquote_prefixes(remaining)
-    return remaining, blockquote_depth_before + blockquote_depth_after
+    yield line, MarkdownContainer()
 
 
 def is_valid_markdown_fence_opening(match: re.Match[str]) -> bool:
@@ -313,13 +408,60 @@ def is_valid_markdown_fence_opening(match: re.Match[str]) -> bool:
     return fence[0] != "`" or "`" not in info
 
 
+def parse_explicit_markdown_container(
+    line: str,
+) -> tuple[
+    str,
+    tuple[MarkdownBlockquotePrefix | MarkdownListPrefix, ...],
+]:
+    remaining = line
+    prefixes: list[MarkdownBlockquotePrefix | MarkdownListPrefix] = []
+    while True:
+        blockquote_match = MARKDOWN_BLOCKQUOTE_PREFIX.match(remaining)
+        if blockquote_match:
+            prefixes.append(MarkdownBlockquotePrefix())
+            remaining = remaining[blockquote_match.end() :]
+            continue
+
+        if MARKDOWN_THEMATIC_BREAK_PATTERN.match(remaining):
+            break
+        list_match = MARKDOWN_LIST_ITEM_PATTERN.match(remaining)
+        if not list_match:
+            break
+        list_item = parse_markdown_list_item(list_match)
+        if list_item.item_indent > 3:
+            break
+        prefixes.append(MarkdownListPrefix(content_indent=list_item.content_indent))
+        remaining = list_item.content
+
+    return remaining, tuple(prefixes)
+
+
 def match_markdown_fence(
     line: str,
-    list_containers: tuple[MarkdownListContainer, ...] = (),
+    active_prefixes: tuple[
+        MarkdownBlockquotePrefix | MarkdownListPrefix,
+        ...,
+    ] = (),
+    paragraph_container: MarkdownContainer | None = None,
 ) -> MarkdownFence | None:
+    if paragraph_container is not None:
+        paragraph_content = strip_markdown_container_prefix(
+            line,
+            paragraph_container,
+        )
+        if paragraph_content is not None:
+            match = MARKDOWN_FENCE_PATTERN.match(paragraph_content)
+            if match and is_valid_markdown_fence_opening(match):
+                return MarkdownFence(
+                    marker=match.group("fence"),
+                    info=match.group("info"),
+                    container=paragraph_container,
+                )
+
     for content, container in iter_markdown_container_contents(
         line,
-        list_containers,
+        active_prefixes,
     ):
         match = MARKDOWN_FENCE_PATTERN.match(content)
         if match and is_valid_markdown_fence_opening(match):
@@ -331,59 +473,71 @@ def match_markdown_fence(
     return None
 
 
-def update_list_containers(
-    line: str,
-    list_containers: list[MarkdownListContainer],
-) -> None:
-    remaining, blockquote_depth = split_markdown_blockquote_prefixes(line)
-    list_match = MARKDOWN_LIST_ITEM_PATTERN.match(remaining)
-    if list_match:
-        list_item = parse_markdown_list_item(list_match)
-        if is_markdown_list_item_in_container(
-            list_item,
-            tuple(list_containers),
-        ):
-            list_containers[:] = [
-                container
-                for container in list_containers
-                if container.content_indent <= list_item.item_indent
-            ]
-            list_containers.append(
-                MarkdownListContainer(
-                    content_indent=list_item.content_indent,
-                    blockquote_depth_before=blockquote_depth,
-                )
-            )
-            return
-
-    if not remaining.strip() or not list_containers:
-        return
-    for container_count in range(len(list_containers), 0, -1):
-        active_containers = tuple(list_containers[:container_count])
-        if strip_active_list_container_prefix(line, active_containers):
-            list_containers[:] = list(active_containers)
-            return
-    list_containers.clear()
-
-
 def strip_markdown_container_prefix(
     line: str,
     container: MarkdownContainer,
 ) -> str | None:
-    if container.list_containers:
-        list_content = strip_active_list_container_prefix(line, container.list_containers)
-        if not list_content:
-            return None
-        remaining, blockquote_depth = list_content
-    else:
-        remaining, blockquote_depth = split_markdown_blockquote_prefixes(line)
-    if blockquote_depth != container.blockquote_depth:
+    if container.explicit_prefixes:
+        remaining = line
+        for index, prefix in enumerate(container.explicit_prefixes):
+            if isinstance(prefix, MarkdownBlockquotePrefix):
+                blockquote_match = MARKDOWN_BLOCKQUOTE_PREFIX.match(remaining)
+                if not blockquote_match:
+                    return None
+                remaining = remaining[blockquote_match.end() :]
+                continue
+
+            if not remaining.strip():
+                remaining_prefixes = container.explicit_prefixes[index:]
+                if all(
+                    isinstance(candidate, MarkdownListPrefix)
+                    for candidate in remaining_prefixes
+                ):
+                    return ""
+                return None
+            leading_spaces = len(remaining) - len(remaining.lstrip(" "))
+            if leading_spaces < prefix.content_indent:
+                return None
+            remaining = remaining[prefix.content_indent :]
+        return remaining
+
+    remaining, blockquote_depth = split_markdown_blockquote_prefixes(line)
+    if blockquote_depth:
         return None
     return remaining
 
 
+def strip_available_markdown_paragraph_prefixes(
+    line: str,
+    container: MarkdownContainer,
+) -> str:
+    remaining = line
+    for prefix in container.explicit_prefixes:
+        if isinstance(prefix, MarkdownBlockquotePrefix):
+            blockquote_match = MARKDOWN_BLOCKQUOTE_PREFIX.match(remaining)
+            if not blockquote_match:
+                break
+            remaining = remaining[blockquote_match.end() :]
+            continue
+
+        leading_spaces = len(remaining) - len(remaining.lstrip(" "))
+        if leading_spaces < prefix.content_indent:
+            break
+        remaining = remaining[prefix.content_indent :]
+    return remaining
+
+
+def get_active_markdown_list_prefixes(
+    container: MarkdownContainer,
+) -> tuple[MarkdownBlockquotePrefix | MarkdownListPrefix, ...]:
+    for index in range(len(container.explicit_prefixes) - 1, -1, -1):
+        if isinstance(container.explicit_prefixes[index], MarkdownListPrefix):
+            return container.explicit_prefixes[: index + 1]
+    return ()
+
+
 def is_line_in_markdown_container(line: str, container: MarkdownContainer) -> bool:
-    if container == MarkdownContainer(blockquote_depth=0, list_containers=()):
+    if container == MarkdownContainer():
         return True
     return strip_markdown_container_prefix(line, container) is not None
 
@@ -426,14 +580,105 @@ def match_markdown_html_block_start(
     return False, None
 
 
+def markdown_line_interrupts_paragraph(content: str) -> bool:
+    if not content.strip():
+        return True
+
+    fence_match = MARKDOWN_FENCE_PATTERN.match(content)
+    if fence_match and is_valid_markdown_fence_opening(fence_match):
+        return True
+
+    is_html_block, _ = match_markdown_html_block_start(
+        content,
+        paragraph_open=True,
+    )
+    if is_html_block:
+        return True
+
+    if (
+        MARKDOWN_ATX_HEADING_PATTERN.match(content)
+        or MARKDOWN_SETEXT_HEADING_PATTERN.match(content)
+        or MARKDOWN_THEMATIC_BREAK_PATTERN.match(content)
+        or MARKDOWN_BLOCKQUOTE_PREFIX.match(content)
+    ):
+        return True
+
+    list_match = MARKDOWN_LIST_ITEM_PATTERN.match(content)
+    if not list_match:
+        return False
+    list_item = parse_markdown_list_item(list_match)
+    if list_item.item_indent > 3:
+        return False
+    if not list_item.content.strip():
+        return False
+    marker = list_match.group("marker")
+    if marker[0].isdigit():
+        return int(marker[:-1]) == 1
+    return True
+
+
+def is_markdown_paragraph_continuation(
+    line: str,
+    paragraph_container: MarkdownContainer | None,
+) -> bool:
+    if paragraph_container is None or not line.strip():
+        return False
+    container_content = strip_markdown_container_prefix(
+        line,
+        paragraph_container,
+    )
+    if container_content is None and paragraph_container.explicit_prefixes:
+        container_content = strip_available_markdown_paragraph_prefixes(
+            line,
+            paragraph_container,
+        )
+    content = line if container_content is None else container_content
+    return not markdown_line_interrupts_paragraph(content)
+
+
+def is_markdown_setext_heading_underline(
+    line: str,
+    paragraph_container: MarkdownContainer | None,
+) -> bool:
+    if paragraph_container is None:
+        return False
+    paragraph_content = strip_markdown_container_prefix(
+        line,
+        paragraph_container,
+    )
+    return (
+        paragraph_content is not None
+        and MARKDOWN_SETEXT_HEADING_PATTERN.match(paragraph_content) is not None
+    )
+
+
 def match_markdown_html_block(
     line: str,
-    list_containers: tuple[MarkdownListContainer, ...],
+    active_prefixes: tuple[
+        MarkdownBlockquotePrefix | MarkdownListPrefix,
+        ...,
+    ],
     paragraph_container: MarkdownContainer | None,
 ) -> tuple[str, MarkdownHtmlBlock] | None:
+    if paragraph_container is not None:
+        paragraph_content = strip_markdown_container_prefix(
+            line,
+            paragraph_container,
+        )
+        if paragraph_content is not None:
+            is_html_block, end_pattern = match_markdown_html_block_start(
+                paragraph_content,
+                paragraph_open=True,
+            )
+            if is_html_block:
+                return paragraph_content, MarkdownHtmlBlock(
+                    end_pattern=end_pattern,
+                    container=paragraph_container,
+                )
+
     for content, container in iter_markdown_container_contents(
         line,
-        list_containers,
+        active_prefixes,
     ):
         is_html_block, end_pattern = match_markdown_html_block_start(
             content,
@@ -449,16 +694,18 @@ def match_markdown_html_block(
 
 def find_markdown_paragraph_container(
     line: str,
-    list_containers: tuple[MarkdownListContainer, ...],
+    active_prefixes: tuple[
+        MarkdownBlockquotePrefix | MarkdownListPrefix,
+        ...,
+    ],
 ) -> MarkdownContainer | None:
     content, container = next(
-        iter_markdown_container_contents(line, list_containers)
+        iter_markdown_container_contents(line, active_prefixes)
     )
     if not content.strip():
         return None
     if (
         MARKDOWN_ATX_HEADING_PATTERN.match(content)
-        or MARKDOWN_SETEXT_HEADING_PATTERN.match(content)
         or MARKDOWN_THEMATIC_BREAK_PATTERN.match(content)
         or MARKDOWN_INDENTED_CODE_PATTERN.match(content)
         or MARKDOWN_LIST_ITEM_PATTERN.match(content)
@@ -473,7 +720,10 @@ def analyze_markdown(text: str) -> tuple[list[tuple[int, str, str | None]], list
     html_block: MarkdownHtmlBlock | None = None
     paragraph_container: MarkdownContainer | None = None
     unclosed_fence_lines: list[int] = []
-    list_containers: list[MarkdownListContainer] = []
+    active_list_prefixes: tuple[
+        MarkdownBlockquotePrefix | MarkdownListPrefix,
+        ...,
+    ] = ()
     for line_no, source_line in enumerate(text.splitlines(), start=1):
         line = source_line.expandtabs(tabsize=4)
         while True:
@@ -515,15 +765,35 @@ def analyze_markdown(text: str) -> tuple[list[tuple[int, str, str | None]], list
                     html_block = None
                 break
 
-            update_list_containers(line, list_containers)
+            if is_markdown_setext_heading_underline(
+                line,
+                paragraph_container,
+            ):
+                lines_to_lint.append((line_no, source_line, None))
+                active_list_prefixes = get_active_markdown_list_prefixes(
+                    paragraph_container
+                )
+                paragraph_container = None
+                break
+
+            if is_markdown_paragraph_continuation(
+                line,
+                paragraph_container,
+            ):
+                lines_to_lint.append((line_no, source_line, None))
+                break
+
             html_match = match_markdown_html_block(
                 line,
-                tuple(list_containers),
+                active_list_prefixes,
                 paragraph_container,
             )
             if html_match:
                 html_content, candidate_html_block = html_match
                 paragraph_container = None
+                active_list_prefixes = get_active_markdown_list_prefixes(
+                    candidate_html_block.container
+                )
                 lines_to_lint.append((line_no, source_line, None))
                 if (
                     candidate_html_block.end_pattern is None
@@ -532,15 +802,31 @@ def analyze_markdown(text: str) -> tuple[list[tuple[int, str, str | None]], list
                     html_block = candidate_html_block
                 break
 
-            opening_fence = match_markdown_fence(line, tuple(list_containers))
+            opening_fence = match_markdown_fence(
+                line,
+                active_list_prefixes,
+                paragraph_container,
+            )
             lines_to_lint.append((line_no, source_line, None))
             if not opening_fence:
+                _, line_container = next(
+                    iter_markdown_container_contents(
+                        line,
+                        active_list_prefixes,
+                    )
+                )
                 paragraph_container = find_markdown_paragraph_container(
                     line,
-                    tuple(list_containers),
+                    active_list_prefixes,
+                )
+                active_list_prefixes = get_active_markdown_list_prefixes(
+                    line_container
                 )
                 break
             paragraph_container = None
+            active_list_prefixes = get_active_markdown_list_prefixes(
+                opening_fence.container
+            )
             info_parts = opening_fence.info.strip().split(maxsplit=1)
             language = info_parts[0].lower() if info_parts else ""
             opened = (
@@ -561,16 +847,50 @@ def find_unclosed_markdown_fence(text: str) -> int | None:
     return unclosed_fence_lines[0] if unclosed_fence_lines else None
 
 
-def iter_expected_outputs(value: object) -> Iterator[str]:
-    if isinstance(value, dict):
-        for key, child in value.items():
-            if key == "expected_output" and isinstance(child, str):
-                yield child
-            else:
-                yield from iter_expected_outputs(child)
-    elif isinstance(value, list):
-        for child in value:
-            yield from iter_expected_outputs(child)
+def iter_json_object_key_values(
+    text: str,
+    key: str,
+) -> Iterator[tuple[int, object]]:
+    decoder = json.JSONDecoder()
+    index = 0
+    while index < len(text):
+        if text[index] != '"':
+            index += 1
+            continue
+        start = index
+        index += 1
+        while index < len(text):
+            if text[index] == "\\":
+                index += 2
+                continue
+            if text[index] == '"':
+                break
+            index += 1
+        if index >= len(text):
+            break
+        end = index
+        suffix_index = end + 1
+        while suffix_index < len(text) and text[suffix_index].isspace():
+            suffix_index += 1
+        if suffix_index < len(text) and text[suffix_index] == ":":
+            try:
+                decoded_key = json.loads(text[start:end + 1])
+            except json.JSONDecodeError:
+                decoded_key = None
+            if decoded_key == key:
+                value_index = suffix_index + 1
+                while (
+                    value_index < len(text)
+                    and text[value_index].isspace()
+                ):
+                    value_index += 1
+                try:
+                    value, _ = decoder.raw_decode(text, value_index)
+                except json.JSONDecodeError:
+                    pass
+                else:
+                    yield text.count("\n", 0, start) + 1, value
+        index = end + 1
 
 
 def lint(root: Path) -> list[Finding]:
@@ -580,18 +900,17 @@ def lint(root: Path) -> list[Finding]:
         unclosed_fence_lines: list[int] = []
         if path.suffix == ".json":
             try:
-                document = json.loads(text)
+                json.loads(text)
             except json.JSONDecodeError:
                 findings.append(Finding(path.relative_to(root), 1, "Invalid JSON file."))
                 continue
-            expected_output_lines = [
-                line_no
-                for line_no, line in enumerate(text.splitlines(), start=1)
-                if '"expected_output"' in line
-            ]
             lines_to_lint = []
-            for index, expected_output in enumerate(iter_expected_outputs(document)):
-                line_no = expected_output_lines[index] if index < len(expected_output_lines) else 1
+            for line_no, expected_output in iter_json_object_key_values(
+                text,
+                "expected_output",
+            ):
+                if not isinstance(expected_output, str):
+                    continue
                 expected_output_lines_to_lint, expected_output_unclosed_fence_lines = (
                     analyze_markdown(expected_output)
                 )
@@ -611,7 +930,7 @@ def lint(root: Path) -> list[Finding]:
                 if (
                     pattern is ASSERT_THAT_PATTERN
                     and ASSERT_THAT_PATTERN.search(line)
-                    and NEGATIVE_ASSERT_THAT_GUIDANCE.search(line)
+                    and all_assert_that_occurrences_are_negative_guidance(line)
                 ):
                     continue
                 if (

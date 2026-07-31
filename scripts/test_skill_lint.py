@@ -76,6 +76,111 @@ class SkillLintTest(unittest.TestCase):
 
             self.assertEqual([], findings)
 
+    def test_allows_passive_negative_assert_that_guidance(self):
+        guidance_lines = [
+            "`assertThat()` should not be used in Kotlin tests.",
+            "`assertThat(result)` should not be used in Kotlin tests.",
+            "`assertThat(actual.orElse(null))` should not be used in Kotlin tests.",
+            "AssertJ's `assertThat()` must not be called in Kotlin tests.",
+            "`assertThat()` is not allowed in Kotlin tests.",
+            "AssertJ `assertThat(value)` is not allowed in Kotlin tests.",
+            "`assertThat()` is not permitted in Kotlin tests.",
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            skill = root / "skills" / "wow" / "SKILL.md"
+            skill.parent.mkdir(parents=True)
+            for guidance in guidance_lines:
+                with self.subTest(guidance=guidance):
+                    skill.write_text(guidance, encoding="utf-8")
+                    self.assertEqual([], skill_lint.lint(root))
+
+    def test_passive_guidance_does_not_exempt_other_assert_that_occurrences(self):
+        lines = [
+            (
+                "`assertThat(first)` should not be used; "
+                "call `assertThat(second)` instead."
+            ),
+            (
+                "`assertThat(first)` should not be used while "
+                "`assertThat(second)` remains recommended."
+            ),
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            skill = root / "skills" / "wow" / "SKILL.md"
+            skill.parent.mkdir(parents=True)
+            for line in lines:
+                with self.subTest(line=line):
+                    skill.write_text(line, encoding="utf-8")
+                    findings = skill_lint.lint(root)
+
+                    self.assertEqual(1, len(findings))
+                    self.assertEqual(
+                        "Use FluentAssert `.assert()` instead of AssertJ `assertThat()`.",
+                        findings[0].message,
+                    )
+
+    def test_passive_guidance_requires_assert_that_api_prohibition(self):
+        lines = [
+            "`assertThat()` is not allowed to fail.",
+            "The result of `assertThat()` should not be used as a boolean.",
+            "The result of `assertThat()` must not be used to make decisions.",
+            "The result of `assertThat()` should not be used in boolean contexts.",
+            "The return value of `assertThat()` should not be used.",
+            "The value returned by `assertThat()` is not allowed in this context.",
+            "The output of `assertThat()` should not be used.",
+            "The value of `assertThat()` should not be used.",
+            "The result from `assertThat()` should not be used.",
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            skill = root / "skills" / "wow" / "SKILL.md"
+            skill.parent.mkdir(parents=True)
+            for line in lines:
+                with self.subTest(line=line):
+                    skill.write_text(line, encoding="utf-8")
+                    findings = skill_lint.lint(root)
+
+                    self.assertEqual(1, len(findings))
+                    self.assertEqual(
+                        "Use FluentAssert `.assert()` instead of AssertJ `assertThat()`.",
+                        findings[0].message,
+                    )
+
+    def test_allows_multiple_negative_assert_that_occurrences(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            skill = root / "skills" / "wow" / "SKILL.md"
+            skill.parent.mkdir(parents=True)
+            skill.write_text(
+                "Avoid `assertThat(first)`; `assertThat(second)` should not be used.",
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], skill_lint.lint(root))
+
+    def test_allows_direct_passive_subject_after_context_or_list_prefix(self):
+        guidance_lines = [
+            "In Kotlin tests, `assertThat()` should not be used.",
+            "- `assertThat()` should not be used in Kotlin tests.",
+            "> AssertJ's `assertThat()` must not be called in Kotlin tests.",
+            "# `assertThat()` should not be used in Kotlin tests.",
+            "### AssertJ `assertThat()` must not be called in Kotlin tests.",
+            "**`assertThat()`** should not be used in Kotlin tests.",
+            "- [ ] `assertThat()` should not be used in Kotlin tests.",
+            "The `assertThat()` method should not be used in Kotlin tests.",
+            "**The `assertThat()` method** should not be used in Kotlin tests.",
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            skill = root / "skills" / "wow" / "SKILL.md"
+            skill.parent.mkdir(parents=True)
+            for guidance in guidance_lines:
+                with self.subTest(guidance=guidance):
+                    skill.write_text(guidance, encoding="utf-8")
+                    self.assertEqual([], skill_lint.lint(root))
+
     def test_negative_assert_that_guidance_does_not_skip_other_patterns(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -89,22 +194,24 @@ class SkillLintTest(unittest.TestCase):
             self.assertEqual("Resolve placeholders before shipping skill content.", findings[0].message)
 
     def test_negative_assert_that_guidance_does_not_match_unrelated_not(self):
+        lines = [
+            "assertThat(result).isNotNull() // result must not be null",
+            "assertThat(result) should not be null",
+        ]
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             skill = root / "skills" / "wow" / "SKILL.md"
             skill.parent.mkdir(parents=True)
-            skill.write_text(
-                "assertThat(result).isNotNull() // result must not be null",
-                encoding="utf-8",
-            )
+            for line in lines:
+                with self.subTest(line=line):
+                    skill.write_text(line, encoding="utf-8")
+                    findings = skill_lint.lint(root)
 
-            findings = skill_lint.lint(root)
-
-            self.assertEqual(1, len(findings))
-            self.assertEqual(
-                "Use FluentAssert `.assert()` instead of AssertJ `assertThat()`.",
-                findings[0].message,
-            )
+                    self.assertEqual(1, len(findings))
+                    self.assertEqual(
+                        "Use FluentAssert `.assert()` instead of AssertJ `assertThat()`.",
+                        findings[0].message,
+                    )
 
     def test_allows_natural_negative_assert_that_guidance(self):
         guidance_lines = [
@@ -200,6 +307,86 @@ class SkillLintTest(unittest.TestCase):
             self.assertEqual(1, len(findings))
             self.assertEqual(
                 "Use the documented `Command-Wait-Timeout` header; the misspelled form is legacy compatibility only.",
+                findings[0].message,
+            )
+
+    def test_maps_multiple_expected_outputs_on_same_line(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            evals = root / "skills" / "wow" / "evals" / "evals.json"
+            evals.parent.mkdir(parents=True)
+            evals.write_text(
+                '{\n  "evals": [{"expected_output": "safe"}, '
+                '{"expected_output": "Use countQuery"}]\n}',
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(2, findings[0].line)
+            self.assertEqual(
+                "Use `Condition.count(queryService)` wording; Wow does not expose a countQuery DSL function.",
+                findings[0].message,
+            )
+
+    def test_ignores_expected_output_text_inside_json_string_for_line_mapping(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            evals = root / "skills" / "wow" / "evals" / "evals.json"
+            evals.parent.mkdir(parents=True)
+            evals.write_text(
+                '{\n  "note": "\\"expected_output\\": fake",\n'
+                '  "evals": [{"expected_output": "Use countQuery"}]\n}',
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(3, findings[0].line)
+            self.assertEqual(
+                "Use `Condition.count(queryService)` wording; Wow does not expose a countQuery DSL function.",
+                findings[0].message,
+            )
+
+    def test_non_string_expected_output_does_not_shift_line_mapping(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            evals = root / "skills" / "wow" / "evals" / "evals.json"
+            evals.parent.mkdir(parents=True)
+            evals.write_text(
+                '{\n  "expected_output": null,\n'
+                '  "nested": {"expected_output": "Use countQuery"}\n}',
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(3, findings[0].line)
+            self.assertEqual(
+                "Use `Condition.count(queryService)` wording; Wow does not expose a countQuery DSL function.",
+                findings[0].message,
+            )
+
+    def test_duplicate_expected_output_keys_keep_source_line_mapping(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            evals = root / "skills" / "wow" / "evals" / "evals.json"
+            evals.parent.mkdir(parents=True)
+            evals.write_text(
+                '{\n  "expected_output": "safe",\n'
+                '  "expected_output": "Use countQuery"\n}',
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(3, findings[0].line)
+            self.assertEqual(
+                "Use `Condition.count(queryService)` wording; Wow does not expose a countQuery DSL function.",
                 findings[0].message,
             )
 
@@ -527,7 +714,7 @@ class SkillLintTest(unittest.TestCase):
 
     def test_type_7_html_block_tracks_paragraph_container(self):
         raw_html_blocks = [
-            "> Paragraph\n<x-widget>\n```\n\n```\n",
+            "> Paragraph\n\n<x-widget>\n```\n\n```\n",
             "Paragraph\n> <x-widget>\n> ```\n>\n> ```\n",
             "# Heading\n<x-widget>\n```\n\n```\n",
         ]
@@ -592,6 +779,155 @@ class SkillLintTest(unittest.TestCase):
                 all(finding.message == "Unclosed Markdown code fence." for finding in findings)
             )
 
+    def test_reports_fence_closed_outside_active_list_blockquote(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "- item\n"
+                "  > ```kotlin\n"
+                "> ```\n",
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual([2, 3], [finding.line for finding in findings])
+            self.assertTrue(
+                all(finding.message == "Unclosed Markdown code fence." for finding in findings)
+            )
+
+    def test_reports_alternating_fence_closed_outside_active_list(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "- item\n"
+                "  > - ~~~java\n"
+                "  >   code\n"
+                ">   ~~~\n",
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual([2, 4], [finding.line for finding in findings])
+            self.assertTrue(
+                all(finding.message == "Unclosed Markdown code fence." for finding in findings)
+            )
+
+    def test_preserves_inner_list_container_after_paragraph(self):
+        cases = [
+            (
+                "- > - Paragraph\n"
+                "  >   ```kotlin\n"
+                "  > ```\n",
+                "- > - Paragraph\n"
+                "  >   ```kotlin\n"
+                "  >   ```\n",
+            ),
+            (
+                "- - Paragraph\n"
+                "    ```kotlin\n"
+                "  ```\n",
+                "- - Paragraph\n"
+                "    ```kotlin\n"
+                "    ```\n",
+            ),
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            for invalid_close, valid_close in cases:
+                with self.subTest(invalid_close=invalid_close):
+                    template.write_text(invalid_close, encoding="utf-8")
+                    findings = skill_lint.lint(root)
+
+                    self.assertEqual([2, 3], [finding.line for finding in findings])
+                    self.assertTrue(
+                        all(
+                            finding.message == "Unclosed Markdown code fence."
+                            for finding in findings
+                        )
+                    )
+
+                    template.write_text(valid_close, encoding="utf-8")
+                    self.assertEqual([], skill_lint.lint(root))
+
+    def test_preserves_inner_list_container_for_html_after_paragraph(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "- - Paragraph\n"
+                "    <div>\n"
+                "  ```\n"
+                "\n"
+                "  ```\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], skill_lint.lint(root))
+
+    def test_persists_recursive_list_container_across_non_paragraph_lines(self):
+        cases = [
+            (
+                "- - # Heading\n"
+                "    ```kotlin\n"
+                "  ```\n",
+                [2, 3],
+                "- - # Heading\n"
+                "    ```kotlin\n"
+                "    ```\n",
+            ),
+            (
+                "- > - # Heading\n"
+                "  >   ```kotlin\n"
+                "  > ```\n",
+                [2, 3],
+                "- > - # Heading\n"
+                "  >   ```kotlin\n"
+                "  >   ```\n",
+            ),
+            (
+                "- - Paragraph\n"
+                "\n"
+                "    ```kotlin\n"
+                "  ```\n",
+                [3, 4],
+                "- - Paragraph\n"
+                "\n"
+                "    ```kotlin\n"
+                "    ```\n",
+            ),
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            for source, expected_lines, valid_source in cases:
+                with self.subTest(source=source):
+                    template.write_text(source, encoding="utf-8")
+                    findings = skill_lint.lint(root)
+
+                    self.assertEqual(
+                        expected_lines,
+                        [finding.line for finding in findings],
+                    )
+                    self.assertTrue(
+                        all(
+                            finding.message == "Unclosed Markdown code fence."
+                            for finding in findings
+                        )
+                    )
+
+                    template.write_text(valid_source, encoding="utf-8")
+                    self.assertEqual([], skill_lint.lint(root))
+
     def test_reports_misindented_close_after_blockquote_list(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -622,6 +958,221 @@ class SkillLintTest(unittest.TestCase):
             )
 
             self.assertEqual([], skill_lint.lint(root))
+
+    def test_allows_fence_in_alternating_nested_containers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "- > - ~~~java\n"
+                "  >   assertThat(result).isEqualTo(expected);\n"
+                "  >   ~~~\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], skill_lint.lint(root))
+
+    def test_allows_blank_line_in_alternating_nested_containers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "- > - ~~~java\n"
+                "  >   assertThat(first).isEqualTo(expected);\n"
+                "  >\n"
+                "  >   assertThat(second).isEqualTo(expected);\n"
+                "  >   ~~~\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], skill_lint.lint(root))
+
+    def test_preserves_lazy_blockquote_paragraph_continuation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "> Paragraph\n"
+                "<x-widget>\n"
+                "```\n"
+                "\n"
+                "```\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], skill_lint.lint(root))
+
+    def test_preserves_partial_lazy_blockquote_paragraph_prefix(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "> > Paragraph\n"
+                "> <x-widget>\n"
+                "> ```\n"
+                ">\n"
+                "> ```\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], skill_lint.lint(root))
+
+    def test_lazy_paragraph_does_not_skip_unmatched_outer_list_prefix(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "- > Paragraph\n"
+                "> <x-widget>\n"
+                "> ```\n"
+                ">\n"
+                "> ```\n",
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual([5], [finding.line for finding in findings])
+            self.assertEqual("Unclosed Markdown code fence.", findings[0].message)
+
+    def test_preserves_paragraph_in_alternating_nested_containers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "- > - Paragraph\n"
+                "  >   <x-widget>\n"
+                "  >   ```\n"
+                "  >\n"
+                "  >   ```\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], skill_lint.lint(root))
+
+    def test_non_one_ordered_marker_does_not_interrupt_paragraph(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "Paragraph\n"
+                "2. ~~~java\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], skill_lint.lint(root))
+
+    def test_one_ordered_marker_can_interrupt_paragraph(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "Paragraph\n"
+                "1. ~~~java\n",
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(2, findings[0].line)
+            self.assertEqual("Unclosed Markdown code fence.", findings[0].message)
+
+    def test_indented_ordered_marker_preserves_paragraph_continuation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "Paragraph\n"
+                "    1. text\n"
+                "<x-widget>\n"
+                "```\n"
+                "\n"
+                "```\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], skill_lint.lint(root))
+
+    def test_setext_underline_does_not_start_list_container(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "Paragraph\n"
+                "- \n"
+                "  ```java\n"
+                "assertThat(result).isEqualTo(expected);\n"
+                "```\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], skill_lint.lint(root))
+
+    def test_standalone_setext_like_text_starts_paragraph(self):
+        sources = [
+            "===\n<x-widget>\n```\n\n```\n",
+            "--\n<x-widget>\n```\n\n```\n",
+            "- ===\n  <x-widget>\n  ```\n\n  ```\n",
+            "- item\n\n  --\n  <x-widget>\n  ```\n\n  ```\n",
+            "> ===\n> <x-widget>\n> ```\n>\n> ```\n",
+            "> --\n> <x-widget>\n> ```\n>\n> ```\n",
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            for source in sources:
+                with self.subTest(source=source):
+                    template.write_text(source, encoding="utf-8")
+                    self.assertEqual([], skill_lint.lint(root))
+
+    def test_empty_list_marker_starts_list_container(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "-\n"
+                "  ```kotlin\n"
+                "```\n",
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual([2, 3], [finding.line for finding in findings])
+            self.assertTrue(
+                all(finding.message == "Unclosed Markdown code fence." for finding in findings)
+            )
+
+    def test_thematic_break_does_not_start_list_container(self):
+        sources = [
+            "Paragraph\n- - -\n    ```\n",
+            "Paragraph\n* * *\n    ```\n",
+            "- Paragraph\n  - - -\n      ```\n",
+            "- Paragraph\n  * * *\n      ```\n",
+            "> Paragraph\n> - - -\n>     ```\n",
+            "> Paragraph\n> * * *\n>     ```\n",
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            for source in sources:
+                with self.subTest(source=source):
+                    template.write_text(source, encoding="utf-8")
+                    self.assertEqual([], skill_lint.lint(root))
 
     def test_allows_adversarial_patterns_in_eval_prompt(self):
         with tempfile.TemporaryDirectory() as tmp:
