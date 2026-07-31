@@ -90,6 +90,30 @@ YAML_NON_STRING_SCALAR = re.compile(
     r"(?:true|false|yes|no|on|off|null|~|[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)",
     re.IGNORECASE,
 )
+FrontmatterField = tuple[str, int, bool]
+
+
+def parse_double_quoted_yaml_string(value: str) -> tuple[str, bool]:
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return "", False
+    return (parsed, True) if isinstance(parsed, str) else ("", False)
+
+
+def parse_single_quoted_yaml_string(value: str) -> tuple[str, bool]:
+    if len(value) < 2 or not value.endswith("'"):
+        return "", False
+    return value[1:-1].replace("''", "'"), True
+
+
+def is_invalid_plain_yaml_string(value: str) -> bool:
+    return bool(
+        value[0] in "[{&*!>|,]}%@`"
+        or value.startswith(("- ", "? ", "#"))
+        or ": " in value
+        or YAML_NON_STRING_SCALAR.fullmatch(value)
+    )
 
 
 def parse_yaml_string(value: str) -> tuple[str, bool]:
@@ -98,23 +122,152 @@ def parse_yaml_string(value: str) -> tuple[str, bool]:
     if not value:
         return "", False
     if value.startswith('"'):
-        try:
-            parsed = json.loads(value)
-        except json.JSONDecodeError:
-            return "", False
-        return (parsed, True) if isinstance(parsed, str) else ("", False)
+        return parse_double_quoted_yaml_string(value)
     if value.startswith("'"):
-        if len(value) < 2 or not value.endswith("'"):
-            return "", False
-        return value[1:-1].replace("''", "'"), True
-    if (
-        value[0] in "[{&*!>|,]}%@`"
-        or value.startswith(("- ", "? ", "#"))
-        or ": " in value
-        or YAML_NON_STRING_SCALAR.fullmatch(value)
-    ):
+        return parse_single_quoted_yaml_string(value)
+    if is_invalid_plain_yaml_string(value):
         return "", False
     return value, True
+
+
+def lint_frontmatter_indentation(
+    relative_path: Path,
+    line_no: int,
+    line: str,
+    active_block_key: str | None,
+) -> Finding | None:
+    indent = line[: len(line) - len(line.lstrip())]
+    if "\t" in indent:
+        return Finding(
+            relative_path,
+            line_no,
+            "SKILL.md frontmatter must use spaces, not tabs, for indentation.",
+        )
+    if active_block_key is None:
+        return Finding(
+            relative_path,
+            line_no,
+            "SKILL.md frontmatter contains unexpected indented content.",
+        )
+    return None
+
+
+def parse_frontmatter_mapping(
+    relative_path: Path,
+    line_no: int,
+    line: str,
+    keys: dict[str, FrontmatterField],
+    findings: list[Finding],
+) -> str | None:
+    match = FRONTMATTER_KEY.match(line)
+    if match is None:
+        return parse_invalid_frontmatter_mapping(relative_path, line_no, line, keys, findings)
+
+    key = match.group(1)
+    raw_value = (match.group(2) or "").strip()
+    value, is_string = parse_yaml_string(raw_value)
+    keys[key] = (value, line_no, is_string)
+    if not is_string:
+        findings.append(
+            Finding(
+                relative_path,
+                line_no,
+                f"SKILL.md frontmatter field must be a YAML string: {key}",
+            )
+        )
+    if key not in ALLOWED_SKILL_FRONTMATTER_KEYS:
+        findings.append(
+            Finding(
+                relative_path,
+                line_no,
+                f"SKILL.md frontmatter contains unsupported key: {key}",
+            )
+        )
+    return key if raw_value in YAML_BLOCK_SCALARS else None
+
+
+def parse_invalid_frontmatter_mapping(
+    relative_path: Path,
+    line_no: int,
+    line: str,
+    keys: dict[str, FrontmatterField],
+    findings: list[Finding],
+) -> None:
+    missing_separator_match = FRONTMATTER_KEY_WITHOUT_SEPARATOR.match(line)
+    if missing_separator_match is not None:
+        key = missing_separator_match.group(1)
+        keys[key] = ("", line_no, False)
+        findings.append(
+            Finding(
+                relative_path,
+                line_no,
+                "SKILL.md frontmatter mapping values require whitespace after `:`.",
+            )
+        )
+        return None
+    findings.append(
+        Finding(
+            relative_path,
+            line_no,
+            "SKILL.md frontmatter contains invalid YAML syntax.",
+        )
+    )
+    return None
+
+
+def lint_frontmatter_lines(
+    relative_path: Path,
+    lines: list[str],
+) -> tuple[dict[str, FrontmatterField], list[Finding]]:
+    keys: dict[str, FrontmatterField] = {}
+    findings: list[Finding] = []
+    active_block_key: str | None = None
+    for line_no, line in enumerate(lines, start=2):
+        if not line.strip():
+            continue
+        if line[0].isspace():
+            finding = lint_frontmatter_indentation(relative_path, line_no, line, active_block_key)
+            if finding is not None:
+                findings.append(finding)
+            continue
+        active_block_key = parse_frontmatter_mapping(relative_path, line_no, line, keys, findings)
+    return keys, findings
+
+
+def lint_required_frontmatter_keys(relative_path: Path, keys: dict[str, FrontmatterField]) -> list[Finding]:
+    return [
+        Finding(
+            relative_path,
+            1,
+            f"SKILL.md frontmatter is missing required key: {required_key}",
+        )
+        for required_key in sorted(ALLOWED_SKILL_FRONTMATTER_KEYS - keys.keys())
+    ]
+
+
+def lint_skill_name(path: Path, relative_path: Path, keys: dict[str, FrontmatterField]) -> list[Finding]:
+    if "name" not in keys:
+        return []
+    name, line_no, is_string = keys["name"]
+    if not is_string:
+        return []
+    if not SKILL_NAME.fullmatch(name) or len(name) > 64:
+        return [
+            Finding(
+                relative_path,
+                line_no,
+                "SKILL.md name must use 1-64 lowercase letters, digits, or hyphens.",
+            )
+        ]
+    if name != path.parent.name:
+        return [
+            Finding(
+                relative_path,
+                line_no,
+                f"SKILL.md name must match its parent directory: {path.parent.name}",
+            )
+        ]
+    return []
 
 
 def lint_skill_frontmatter(root: Path, path: Path, text: str) -> list[Finding]:
@@ -128,108 +281,9 @@ def lint_skill_frontmatter(root: Path, path: Path, text: str) -> list[Finding]:
     except ValueError:
         return [Finding(relative_path, 1, "SKILL.md frontmatter is missing its closing delimiter.")]
 
-    keys: dict[str, tuple[str, int, bool]] = {}
-    findings: list[Finding] = []
-    active_block_key: str | None = None
-    for line_no, line in enumerate(lines[1:closing_line], start=2):
-        if not line.strip():
-            continue
-        if line[0].isspace():
-            indent = line[: len(line) - len(line.lstrip())]
-            if "\t" in indent:
-                findings.append(
-                    Finding(
-                        relative_path,
-                        line_no,
-                        "SKILL.md frontmatter must use spaces, not tabs, for indentation.",
-                    )
-                )
-                continue
-            if active_block_key is None:
-                findings.append(
-                    Finding(
-                        relative_path,
-                        line_no,
-                        "SKILL.md frontmatter contains unexpected indented content.",
-                    )
-                )
-            continue
-        active_block_key = None
-        match = FRONTMATTER_KEY.match(line)
-        if match is None:
-            missing_separator_match = FRONTMATTER_KEY_WITHOUT_SEPARATOR.match(line)
-            if missing_separator_match is not None:
-                key = missing_separator_match.group(1)
-                keys[key] = ("", line_no, False)
-                findings.append(
-                    Finding(
-                        relative_path,
-                        line_no,
-                        "SKILL.md frontmatter mapping values require whitespace after `:`.",
-                    )
-                )
-                continue
-            findings.append(
-                Finding(
-                    relative_path,
-                    line_no,
-                    "SKILL.md frontmatter contains invalid YAML syntax.",
-                )
-            )
-            continue
-        key = match.group(1)
-        raw_value = (match.group(2) or "").strip()
-        value, is_string = parse_yaml_string(raw_value)
-        keys[key] = (value, line_no, is_string)
-        if raw_value in YAML_BLOCK_SCALARS:
-            active_block_key = key
-        if not is_string:
-            findings.append(
-                Finding(
-                    relative_path,
-                    line_no,
-                    f"SKILL.md frontmatter field must be a YAML string: {key}",
-                )
-            )
-        if key not in ALLOWED_SKILL_FRONTMATTER_KEYS:
-            findings.append(
-                Finding(
-                    relative_path,
-                    line_no,
-                    f"SKILL.md frontmatter contains unsupported key: {key}",
-                )
-            )
-
-    for required_key in sorted(ALLOWED_SKILL_FRONTMATTER_KEYS - keys.keys()):
-        findings.append(
-            Finding(
-                relative_path,
-                1,
-                f"SKILL.md frontmatter is missing required key: {required_key}",
-            )
-        )
-
-    if "name" in keys:
-        name, line_no, is_string = keys["name"]
-        if not is_string:
-            pass
-        elif not SKILL_NAME.fullmatch(name) or len(name) > 64:
-            findings.append(
-                Finding(
-                    relative_path,
-                    line_no,
-                    "SKILL.md name must use 1-64 lowercase letters, digits, or hyphens.",
-                )
-            )
-        elif name != path.parent.name:
-            findings.append(
-                Finding(
-                    relative_path,
-                    line_no,
-                    f"SKILL.md name must match its parent directory: {path.parent.name}",
-                )
-            )
-
+    keys, findings = lint_frontmatter_lines(relative_path, lines[1:closing_line])
+    findings.extend(lint_required_frontmatter_keys(relative_path, keys))
+    findings.extend(lint_skill_name(path, relative_path, keys))
     return findings
 
 
