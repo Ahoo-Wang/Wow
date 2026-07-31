@@ -75,7 +75,8 @@ ENGLISH_NEGATIVE_ASSERT_THAT_ACTION = (
 )
 PASSIVE_NEGATIVE_ASSERT_THAT_ACTION = re.compile(
     r"(?:(?:should|must)\s+not\s+be\s+(?:used|called)"
-    r"|is\s+not\s+(?:allowed|permitted))\b",
+    r"|is\s+not\s+(?:allowed|permitted)"
+    r"|is\s+(?:discouraged|forbidden|prohibited))\b",
     re.IGNORECASE,
 )
 PASSIVE_ASSERT_THAT_AS_API_COMPLEMENT = re.compile(
@@ -87,6 +88,10 @@ PASSIVE_ASSERT_THAT_AS_API_COMPLEMENT = re.compile(
 PASSIVE_ASSERT_THAT_TO_ASSERT_COMPLEMENT = re.compile(
     r"\s+to\s+(?:write|make|perform|express)\s+"
     r"(?:(?:Kotlin|test)\s+)?assertions?\b",
+    re.IGNORECASE,
+)
+PASSIVE_ASSERT_THAT_FROM_USE_COMPLEMENT = re.compile(
+    r"\s+from\s+being\s+(?:used|called)\b",
     re.IGNORECASE,
 )
 PASSIVE_ASSERT_THAT_ALLOWED_COMPLEMENT_TAIL = re.compile(
@@ -421,7 +426,7 @@ def passive_assert_that_action_prohibits_api(
         line[action_end:]
     )
     complement_kind = re.match(
-        r"\s+(?:as|to)\b",
+        r"\s+(?:as|to|from)\b",
         complement,
         re.IGNORECASE,
     )
@@ -432,6 +437,9 @@ def passive_assert_that_action_prohibits_api(
     allowed_complement = (
         PASSIVE_ASSERT_THAT_AS_API_COMPLEMENT.match(complement)
         or PASSIVE_ASSERT_THAT_TO_ASSERT_COMPLEMENT.match(
+            complement
+        )
+        or PASSIVE_ASSERT_THAT_FROM_USE_COMPLEMENT.match(
             complement
         )
     )

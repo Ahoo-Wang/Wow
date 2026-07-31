@@ -86,6 +86,16 @@ class SkillLintTest(unittest.TestCase):
             "AssertJ `assertThat(value)` is not allowed in Kotlin tests.",
             "`assertThat()` is not permitted in Kotlin tests.",
             (
+                "`assertThat()` is discouraged in Kotlin tests; "
+                "prefer `.assert()`."
+            ),
+            "`assertThat()` is forbidden in Kotlin tests.",
+            "`assertThat()` is prohibited in Kotlin tests.",
+            (
+                "`assertThat()` is prohibited from being "
+                "used in Kotlin tests."
+            ),
+            (
                 "`assertThat()` should not be used as the "
                 "assertion API in Kotlin tests."
             ),
@@ -226,6 +236,9 @@ class SkillLintTest(unittest.TestCase):
     def test_passive_guidance_requires_assert_that_api_prohibition(self):
         lines = [
             "`assertThat()` is not allowed to fail.",
+            "`assertThat()` is prohibited from returning null.",
+            "`assertThat()` is forbidden from throwing exceptions.",
+            "`assertThat()` is discouraged from allocating objects.",
             "`assertThat()` should not be used as a boolean.",
             "`assertThat()` should not be used to make decisions.",
             "`assertThat()` should not be used **as a boolean**.",
