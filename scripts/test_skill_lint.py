@@ -235,6 +235,23 @@ class SkillLintTest(unittest.TestCase):
 
             self.assertEqual([], skill_lint.lint(root))
 
+    def test_reports_unclosed_markdown_fence_in_eval_expected_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            evals = root / "skills" / "wow" / "evals" / "evals.json"
+            evals.parent.mkdir(parents=True)
+            evals.write_text(
+                '{"expected_output": "```java\\n'
+                'assertThat(result).isEqualTo(expected);"}',
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(1, findings[0].line)
+            self.assertEqual("Unclosed Markdown code fence.", findings[0].message)
+
     def test_reports_source_drift_patterns(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -420,6 +437,114 @@ class SkillLintTest(unittest.TestCase):
             )
 
             self.assertEqual([], skill_lint.lint(root))
+
+    def test_allows_tab_indented_fence_in_list_item(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "-\t```kotlin\n\tval value = 1\n\t```\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], skill_lint.lint(root))
+
+    def test_does_not_open_fence_after_excess_list_marker_padding(self):
+        padded_fences = [
+            "-     ```kotlin\n",
+            "-\t\t```kotlin\n",
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            for padded_fence in padded_fences:
+                with self.subTest(padded_fence=padded_fence):
+                    template.write_text(padded_fence, encoding="utf-8")
+                    self.assertEqual([], skill_lint.lint(root))
+
+    def test_ignores_fence_markers_inside_raw_html_blocks(self):
+        raw_html_blocks = [
+            "<!--\n```\n-->\n",
+            "<script>\n```\n</script>\n",
+            "<pre>\n```\n</pre>\n",
+            "<?php\n```\n?>\n",
+            "<!DOCTYPE\n```\n>\n",
+            "<![CDATA[\n```\n]]>\n",
+            "<div>\n```\n</div>\n",
+            "<x-widget>\n```\n",
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            for raw_html in raw_html_blocks:
+                with self.subTest(raw_html=raw_html):
+                    template.write_text(raw_html, encoding="utf-8")
+                    self.assertEqual([], skill_lint.lint(root))
+
+    def test_resumes_fence_detection_after_raw_html_block(self):
+        raw_html_blocks = [
+            "<!--\n```\n-->\n```\n",
+            "<script>\n```\n</script>\n```\n",
+            "<script>\n```\n</pre>\n```\n",
+            "<pre>\n```\n</pre>\n```\n",
+            "<div>\n```\n</div>\n\n```\n",
+            "<x-widget data-id=\"1\">\n```\n\n```\n",
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            for raw_html in raw_html_blocks:
+                with self.subTest(raw_html=raw_html):
+                    template.write_text(raw_html, encoding="utf-8")
+                    findings = skill_lint.lint(root)
+                    self.assertEqual(1, len(findings))
+                    self.assertEqual(
+                        raw_html.count("\n"),
+                        findings[0].line,
+                    )
+                    self.assertEqual("Unclosed Markdown code fence.", findings[0].message)
+
+    def test_type_7_html_block_does_not_interrupt_paragraph(self):
+        paragraphs = [
+            "Paragraph\n<x-widget>\n```\n",
+            "- Paragraph\n  <x-widget>\n  ```\n",
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            for paragraph in paragraphs:
+                with self.subTest(paragraph=paragraph):
+                    template.write_text(paragraph, encoding="utf-8")
+                    findings = skill_lint.lint(root)
+                    self.assertEqual(1, len(findings))
+                    self.assertEqual(3, findings[0].line)
+                    self.assertEqual("Unclosed Markdown code fence.", findings[0].message)
+
+    def test_type_7_html_block_tracks_paragraph_container(self):
+        raw_html_blocks = [
+            "> Paragraph\n<x-widget>\n```\n\n```\n",
+            "Paragraph\n> <x-widget>\n> ```\n>\n> ```\n",
+            "# Heading\n<x-widget>\n```\n\n```\n",
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            for raw_html in raw_html_blocks:
+                with self.subTest(raw_html=raw_html):
+                    template.write_text(raw_html, encoding="utf-8")
+                    findings = skill_lint.lint(root)
+                    self.assertEqual(1, len(findings))
+                    self.assertEqual(
+                        raw_html.count("\n"),
+                        findings[0].line,
+                    )
+                    self.assertEqual("Unclosed Markdown code fence.", findings[0].message)
 
     def test_allows_container_fence_markers_as_top_level_fence_content(self):
         with tempfile.TemporaryDirectory() as tmp:
