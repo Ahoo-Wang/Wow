@@ -54,6 +54,20 @@ commandGateway.sendAndWaitStream(command, waitPlan)
     .subscribe()
 ```
 
+#### 等待超时
+
+`sendAndWait` 和 `sendAndWaitStream` 默认最多等待 30 秒。该期限从订阅开始计算，覆盖命令检查、发送以及目标阶段等待；超时会取消等待并释放已注册的 `WaitHandle`。可通过 `withTimeout` 为单次调用覆盖默认值：
+
+```kotlin
+val waitPlan = CommandWait.processed(command.commandId)
+    .withTimeout(Duration.ofMinutes(2))
+
+commandGateway.sendAndWait(command, waitPlan)
+```
+
+`withTimeout` 只控制调用方本地资源生命周期，不会传播到远端消息头。
+`sendAndWaitForSent` 快路径没有 `WaitPlan` 参数，因此始终使用 30 秒默认期限。
+
 ### 便捷方法
 
 `CommandGateway` 提供了预配置常用等待计划的便捷方法：

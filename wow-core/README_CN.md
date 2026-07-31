@@ -63,8 +63,10 @@ gateway.send(command)
     .doOnSuccess { println("命令发送成功") }
     .subscribe()
 
-// 发送并等待完成，使用不同的等待计划
-gateway.sendAndWait(command, CommandWait.processed(command.commandId))
+// 发送并等待完成。默认期限为 30 秒，可按调用覆盖
+val waitPlan = CommandWait.processed(command.commandId)
+    .withTimeout(Duration.ofMinutes(2))
+gateway.sendAndWait(command, waitPlan)
     .doOnNext { result ->
         if (result.succeeded) {
             println("购物车商品添加成功: ${result.commandId}")

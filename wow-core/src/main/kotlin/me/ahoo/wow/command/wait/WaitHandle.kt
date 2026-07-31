@@ -19,6 +19,13 @@ import reactor.core.publisher.SignalType
 import reactor.core.publisher.Sinks
 import reactor.util.concurrent.Queues
 
+/**
+ * A low-level, single-subscriber command wait resource.
+ *
+ * Callers that create a handle through [WaitCoordinator] own its lifetime and must eventually
+ * terminate it through a final signal, [error], or [cancel]. [cancel] must be idempotent and safe
+ * to invoke after another terminal signal.
+ */
 interface WaitHandle : WaitCommandIdCapable {
     val plan: WaitPlan
     fun next(signal: WaitSignal): Boolean
@@ -31,7 +38,8 @@ interface WaitLastHandle : WaitHandle {
      * Awaits the final wait signal.
      *
      * A wait handle is designed for a single subscriber. Signals may arrive
-     * before subscription, and the final result is retained for awaiting.
+     * before subscription, and the final result is retained for awaiting. This low-level
+     * publisher does not apply `WaitPlan.timeout`; gateway APIs own end-to-end deadlines.
      */
     fun await(): Mono<WaitSignal>
 }
@@ -41,7 +49,8 @@ interface WaitStreamHandle : WaitHandle {
      * Streams accepted wait signals.
      *
      * A wait handle is single-subscriber. Signals may arrive before subscription
-     * and are buffered for the first subscriber only.
+     * and are buffered for the first subscriber only. This low-level publisher does not
+     * apply `WaitPlan.timeout`; gateway APIs own end-to-end deadlines.
      */
     fun stream(): Flux<WaitSignal>
 }

@@ -16,8 +16,14 @@ package me.ahoo.wow.command.wait
 import java.util.concurrent.ConcurrentHashMap
 
 interface WaitCoordinator {
+    /**
+     * Creates and registers a low-level handle whose lifetime is owned by the caller.
+     */
     fun createLast(plan: WaitPlan): WaitLastHandle
 
+    /**
+     * Creates and registers a low-level handle whose lifetime is owned by the caller.
+     */
     fun createStream(plan: WaitPlan): WaitStreamHandle
 
     fun signal(signal: WaitSignal): Boolean

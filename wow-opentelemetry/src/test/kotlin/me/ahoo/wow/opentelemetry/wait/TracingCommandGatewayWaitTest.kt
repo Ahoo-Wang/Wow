@@ -97,6 +97,7 @@ class TracingCommandGatewayWaitTest {
             waitCoordinator = waitCoordinator,
             commandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator),
         ).tracing()
+        commandGateway.enforcesCommandWaitTimeout.assert().isTrue()
         val command = MockCreateAggregate(
             id = generateGlobalId(),
             data = generateGlobalId(),

@@ -16,6 +16,7 @@ package me.ahoo.wow.webflux.route.command
 import com.sun.security.auth.UserPrincipal
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.CommandGateway
@@ -24,6 +25,7 @@ import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
 import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitPlan
+import me.ahoo.wow.command.wait.timeout
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
@@ -41,6 +43,7 @@ import org.springframework.http.MediaType
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import reactor.test.StepVerifier
 import java.time.Duration
 import java.util.concurrent.TimeoutException
 
@@ -114,15 +117,17 @@ class CommandHandlerTest {
     }
 
     @Test
-    fun `should use command wait policy timeout`() {
+    fun `should pass command wait policy timeout to gateway without adding a handler timer`() {
         val request = MockServerRequest.builder().build()
+        val waitPlanSlot = slot<WaitPlan>()
         val commandMessage = mockk<CommandMessage<Any>> {
             every { commandId } returns generateGlobalId()
             every { contextName } returns "contextName"
         }
         val commandGateway = mockk<CommandGateway> {
+            every { enforcesCommandWaitTimeout } returns true
             every {
-                sendAndWait(commandMessage, any<WaitPlan>())
+                sendAndWait(commandMessage, capture(waitPlanSlot))
             } returns Mono.never()
         }
         val commandMessageExtractor = mockk<CommandMessageExtractor> {
@@ -136,13 +141,30 @@ class CommandHandlerTest {
             commandWaitPolicy = CommandWaitPolicy(Duration.ofMillis(20))
         )
 
-        commandHandler.handle(
-            request,
-            MockCreateAggregate(generateGlobalId(), generateGlobalId()),
-            MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
-        ).test()
+        StepVerifier.withVirtualTime {
+            commandHandler.handle(
+                request,
+                MockCreateAggregate(generateGlobalId(), generateGlobalId()),
+                MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
+            )
+        }
+            .thenAwait(Duration.ofMillis(20))
+            .thenCancel()
+            .verify()
+
+        waitPlanSlot.captured.timeout.assert().isEqualTo(Duration.ofMillis(20))
+
+        every { commandGateway.enforcesCommandWaitTimeout } returns false
+        StepVerifier.withVirtualTime {
+            commandHandler.handle(
+                request,
+                MockCreateAggregate(generateGlobalId(), generateGlobalId()),
+                MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
+            )
+        }
+            .thenAwait(Duration.ofMillis(20))
             .expectError(TimeoutException::class.java)
-            .verify(Duration.ofMillis(500))
+            .verify()
     }
 
     @Test

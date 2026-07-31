@@ -20,12 +20,14 @@ import me.ahoo.wow.command.validation.validateCommand
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.CommandWaitNotifier
+import me.ahoo.wow.command.wait.DEFAULT_WAIT_TIMEOUT
 import me.ahoo.wow.command.wait.SkipsSuccessfulSentSignal
 import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.command.wait.WaitHandle
 import me.ahoo.wow.command.wait.WaitPlan
 import me.ahoo.wow.command.wait.extractWaitPlan
 import me.ahoo.wow.command.wait.notifyAndForget
+import me.ahoo.wow.command.wait.timeout
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
@@ -33,6 +35,10 @@ import me.ahoo.wow.reactor.thenDefer
 import me.ahoo.wow.reactor.thenRunnable
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.scheduler.Scheduler
+import reactor.core.scheduler.Schedulers
+import java.time.Duration
+import java.util.concurrent.TimeUnit
 
 /**
  * Default implementation of the CommandGateway interface.
@@ -55,6 +61,8 @@ class DefaultCommandGateway(
     private val commandWaitNotifier: CommandWaitNotifier,
 ) : CommandGateway,
     CommandBus by commandBus {
+    override val enforcesCommandWaitTimeout: Boolean = true
+
     override fun receiver(
         subscription: MessageSubscription,
     ): MessageReceiver<ServerCommandExchange<*>> =
@@ -146,6 +154,7 @@ class DefaultCommandGateway(
      * @param command The command message to send.
      * @return A Mono emitting the SENT stage CommandResult.
      * @throws CommandResultException if the pre-send checks fail or the command bus rejects the command.
+     * @throws java.util.concurrent.TimeoutException if the default command wait deadline expires.
      */
     override fun <C : Any> sendAndWaitForSent(command: CommandMessage<C>): Mono<CommandResult> =
         check(command)
@@ -175,7 +184,7 @@ class DefaultCommandGateway(
                     ),
                     it,
                 )
-            }
+            }.withDeadline(DEFAULT_WAIT_TIMEOUT)
 
     /**
      * Sends a command and returns a stream of command results as they become available.
@@ -198,19 +207,20 @@ class DefaultCommandGateway(
             check(command)
                 .mapToCommandResultException(command, waitPlan)
                 .thenMany(
-                    Flux.defer {
-                        val handle = waitCoordinator.createStream(waitPlan)
-                        sendWithRegisteredWaitHandle(command, waitPlan, handle)
-                            .thenMany(
-                                handle.stream().map { waitSignal ->
-                                    waitSignal.toResult(command)
-                                }
-                            ).doOnCancel {
-                                handle.cancel()
-                            }
-                    }
+                    Flux.using(
+                        { waitCoordinator.createStream(waitPlan) },
+                        { handle ->
+                            sendWithRegisteredWaitHandle(command, waitPlan, handle)
+                                .thenMany(
+                                    handle.stream().map { waitSignal ->
+                                        waitSignal.toResult(command)
+                                    }
+                                )
+                        },
+                        { handle -> handle.cancel() },
+                    )
                 )
-        }
+        }.withDeadline(waitPlan.timeout)
 
     /**
      * Sends a command and waits for the final result.
@@ -234,25 +244,26 @@ class DefaultCommandGateway(
             check(command)
                 .mapToCommandResultException(command, waitPlan)
                 .then(
-                    Mono.defer {
-                        val handle = waitCoordinator.createLast(waitPlan)
-                        sendWithRegisteredWaitHandle(command, waitPlan, handle)
-                            .then(
-                                handle.await()
-                                    .map { waitSignal ->
-                                        waitSignal.toResult(command)
-                                            .apply {
-                                                if (!succeeded) {
-                                                    throw CommandResultException(this)
+                    Mono.using(
+                        { waitCoordinator.createLast(waitPlan) },
+                        { handle ->
+                            sendWithRegisteredWaitHandle(command, waitPlan, handle)
+                                .then(
+                                    handle.await()
+                                        .map { waitSignal ->
+                                            waitSignal.toResult(command)
+                                                .apply {
+                                                    if (!succeeded) {
+                                                        throw CommandResultException(this)
+                                                    }
                                                 }
-                                            }
-                                    }
-                            ).doOnCancel {
-                                handle.cancel()
-                            }
-                    }
+                                        }
+                                )
+                        },
+                        { handle -> handle.cancel() },
+                    )
                 )
-        }
+        }.withDeadline(waitPlan.timeout)
 
     /**
      * Sends a command with a specific wait plan.
@@ -287,8 +298,6 @@ class DefaultCommandGateway(
             val waitSignal = command.commandSentSignal(waitPlan.waitCommandId, it)
             waitHandle.next(waitSignal)
             waitHandle.error(it)
-        }.doOnCancel {
-            waitHandle.cancel()
         }.mapToCommandResultException(command, waitPlan)
     }
 
@@ -319,3 +328,28 @@ class DefaultCommandGateway(
             )
         }
 }
+
+private fun <T : Any> Mono<T>.withDeadline(timeout: Duration): Mono<T> =
+    timeout(timeout)
+
+private fun <T : Any> Flux<T>.withDeadline(timeout: Duration): Flux<T> =
+    Flux.defer {
+        val scheduler = Schedulers.parallel()
+        val startedAt = scheduler.now(TimeUnit.NANOSECONDS)
+        this.timeout(
+            deadlineSignal(timeout, startedAt, scheduler),
+            { deadlineSignal(timeout, startedAt, scheduler) },
+        )
+    }
+
+private fun deadlineSignal(
+    timeout: Duration,
+    startedAt: Long,
+    scheduler: Scheduler,
+): Mono<Long> =
+    Mono.delay(
+        timeout
+            .minusNanos(scheduler.now(TimeUnit.NANOSECONDS) - startedAt)
+            .coerceAtLeast(Duration.ZERO),
+        scheduler,
+    )

@@ -63,8 +63,10 @@ gateway.send(command)
     .doOnSuccess { println("Command sent successfully") }
     .subscribe()
 
-// Send and wait for completion with different plans
-gateway.sendAndWait(command, CommandWait.processed(command.commandId))
+// Send and wait for completion. The 30-second default can be overridden per call
+val waitPlan = CommandWait.processed(command.commandId)
+    .withTimeout(Duration.ofMinutes(2))
+gateway.sendAndWait(command, waitPlan)
     .doOnNext { result ->
         if (result.succeeded) {
             println("Cart item added: ${result.commandId}")
