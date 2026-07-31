@@ -129,7 +129,7 @@ graph TD
 
 ```bash
 for skill_file in skills/*/SKILL.md; do
-  python3 /Users/ahoo/.codex/skills/.system/skill-creator/scripts/quick_validate.py "$(dirname "$skill_file")"
+  python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-creator/scripts/quick_validate.py" "$(dirname "$skill_file")"
 done
 jq empty skills/wow/evals/evals.json
 ```
