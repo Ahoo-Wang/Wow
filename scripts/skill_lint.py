@@ -83,6 +83,8 @@ PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
 LOCAL_MARKDOWN_REF = re.compile(r"`((?:references/|\.\.?/)[^`]+\.md)`|\]\(((?:references/|\.\.?/)[^)]+\.md)\)")
 FRONTMATTER_KEY = re.compile(r"^([A-Za-z0-9_-]+):(?: +(.*))?$")
 FRONTMATTER_KEY_WITHOUT_SEPARATOR = re.compile(r"^([A-Za-z0-9_-]+):(\S.*)$")
+MARKDOWN_FENCE = re.compile(r"^[ ]{0,3}(`{3,}|~{3,})(.*)$")
+CONTENTS_HEADING = re.compile(r"^[ ]{0,3}## Contents[ \t]*$")
 SKILL_NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 ALLOWED_SKILL_FRONTMATTER_KEYS = frozenset({"name", "description"})
 YAML_BLOCK_SCALARS = frozenset({"|", "|-", "|+", ">", ">-", ">+"})
@@ -104,7 +106,10 @@ def parse_double_quoted_yaml_string(value: str) -> tuple[str, bool]:
 def parse_single_quoted_yaml_string(value: str) -> tuple[str, bool]:
     if len(value) < 2 or not value.endswith("'"):
         return "", False
-    return value[1:-1].replace("''", "'"), True
+    inner_value = value[1:-1]
+    if "'" in inner_value.replace("''", ""):
+        return "", False
+    return inner_value.replace("''", "'"), True
 
 
 def is_invalid_plain_yaml_string(value: str) -> bool:
@@ -294,6 +299,22 @@ def iter_skill_files(root: Path) -> list[Path]:
     return sorted(path for path in skills_dir.rglob("*") if path.suffix in {".md", ".json"})
 
 
+def has_contents_heading_outside_fences(lines: list[str]) -> bool:
+    active_fence: str | None = None
+    for line in lines:
+        fence_match = MARKDOWN_FENCE.match(line)
+        if fence_match is not None:
+            marker, suffix = fence_match.groups()
+            if active_fence is None:
+                active_fence = marker
+            elif marker[0] == active_fence[0] and len(marker) >= len(active_fence) and not suffix.strip():
+                active_fence = None
+            continue
+        if active_fence is None and CONTENTS_HEADING.fullmatch(line):
+            return True
+    return False
+
+
 def lint(root: Path) -> list[Finding]:
     findings: list[Finding] = []
     for path in iter_skill_files(root):
@@ -307,7 +328,11 @@ def lint(root: Path) -> list[Finding]:
         lines = text.splitlines()
         if path.name == "SKILL.md":
             findings.extend(lint_skill_frontmatter(root, path, text))
-        if path.parent.name == "references" and len(lines) > 100 and "## Contents" not in lines[:40]:
+        if (
+            path.parent.name == "references"
+            and len(lines) > 100
+            and not has_contents_heading_outside_fences(lines[:40])
+        ):
             findings.append(
                 Finding(
                     path.relative_to(root),

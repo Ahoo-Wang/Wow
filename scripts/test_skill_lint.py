@@ -208,6 +208,32 @@ class SkillLintTest(unittest.TestCase):
                 findings[0].message,
             )
 
+    def test_ignores_contents_heading_inside_fence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            reference = root / "skills" / "wow" / "references" / "long.md"
+            reference.parent.mkdir(parents=True)
+            reference.write_text(
+                "\n".join(
+                    [
+                        "# Long Reference",
+                        "```markdown",
+                        "## Contents",
+                        "```",
+                        *["content"] * 97,
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(
+                "Reference files longer than 100 lines must include `## Contents` near the top.",
+                findings[0].message,
+            )
+
     def test_reports_malformed_skill_frontmatter_value(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -298,6 +324,26 @@ class SkillLintTest(unittest.TestCase):
                     "SKILL.md frontmatter mapping values require whitespace after `:`.",
                     findings[0].message,
                 )
+
+    def test_validates_single_quoted_frontmatter_apostrophes(self):
+        cases = (
+            ("name: wow\ndescription: 'it's broken'", 1),
+            ("name: wow\ndescription: 'it''s valid'", 0),
+        )
+        for frontmatter, expected_count in cases:
+            with self.subTest(frontmatter=frontmatter), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                skill = root / "skills" / "wow" / "SKILL.md"
+                self.write_skill(skill, "# Wow", frontmatter=frontmatter)
+
+                findings = skill_lint.lint(root)
+
+                self.assertEqual(expected_count, len(findings))
+                if findings:
+                    self.assertEqual(
+                        "SKILL.md frontmatter field must be a YAML string: description",
+                        findings[0].message,
+                    )
 
 
 if __name__ == "__main__":
