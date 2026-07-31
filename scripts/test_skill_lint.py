@@ -280,6 +280,25 @@ class SkillLintTest(unittest.TestCase):
                 findings[0].message,
             )
 
+    def test_reports_missing_frontmatter_mapping_separator_whitespace(self):
+        frontmatters = (
+            "name:wow\ndescription: Test skill.",
+            "name: wow\ndescription:test",
+        )
+        for frontmatter in frontmatters:
+            with self.subTest(frontmatter=frontmatter), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                skill = root / "skills" / "wow" / "SKILL.md"
+                self.write_skill(skill, "# Wow", frontmatter=frontmatter)
+
+                findings = skill_lint.lint(root)
+
+                self.assertEqual(1, len(findings))
+                self.assertEqual(
+                    "SKILL.md frontmatter mapping values require whitespace after `:`.",
+                    findings[0].message,
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

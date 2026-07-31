@@ -81,7 +81,8 @@ PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
 )
 
 LOCAL_MARKDOWN_REF = re.compile(r"`((?:references/|\.\.?/)[^`]+\.md)`|\]\(((?:references/|\.\.?/)[^)]+\.md)\)")
-FRONTMATTER_KEY = re.compile(r"^([A-Za-z0-9_-]+):(?:\s*(.*))?$")
+FRONTMATTER_KEY = re.compile(r"^([A-Za-z0-9_-]+):(?: +(.*))?$")
+FRONTMATTER_KEY_WITHOUT_SEPARATOR = re.compile(r"^([A-Za-z0-9_-]+):(\S.*)$")
 SKILL_NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 ALLOWED_SKILL_FRONTMATTER_KEYS = frozenset({"name", "description"})
 YAML_BLOCK_SCALARS = frozenset({"|", "|-", "|+", ">", ">-", ">+"})
@@ -156,6 +157,18 @@ def lint_skill_frontmatter(root: Path, path: Path, text: str) -> list[Finding]:
         active_block_key = None
         match = FRONTMATTER_KEY.match(line)
         if match is None:
+            missing_separator_match = FRONTMATTER_KEY_WITHOUT_SEPARATOR.match(line)
+            if missing_separator_match is not None:
+                key = missing_separator_match.group(1)
+                keys[key] = ("", line_no, False)
+                findings.append(
+                    Finding(
+                        relative_path,
+                        line_no,
+                        "SKILL.md frontmatter mapping values require whitespace after `:`.",
+                    )
+                )
+                continue
             findings.append(
                 Finding(
                     relative_path,
