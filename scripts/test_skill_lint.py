@@ -85,6 +85,108 @@ class SkillLintTest(unittest.TestCase):
             "`assertThat()` is not allowed in Kotlin tests.",
             "AssertJ `assertThat(value)` is not allowed in Kotlin tests.",
             "`assertThat()` is not permitted in Kotlin tests.",
+            (
+                "`assertThat()` should not be used as the "
+                "assertion API in Kotlin tests."
+            ),
+            (
+                "`assertThat()` should not be used to write "
+                "Kotlin assertions."
+            ),
+            (
+                "`assertThat()` must not be called as an "
+                "assertion helper."
+            ),
+            (
+                "`assertThat()` should not be used as the "
+                "**assertion API** in Kotlin tests."
+            ),
+            (
+                "`assertThat()` should not be used as "
+                "[the assertion API](https://example.com) "
+                "in Kotlin tests."
+            ),
+            (
+                "`assertThat()` should not be used as "
+                "[the assertion API].\n\n"
+                "[the assertion API]: https://example.com"
+            ),
+            (
+                "`assertThat()` should not be used as "
+                "<em>the assertion API</em> in Kotlin tests."
+            ),
+            (
+                "`assertThat()` should not be used as "
+                '<em title="a > b">the assertion API</em> '
+                "in Kotlin tests."
+            ),
+            (
+                "`assertThat()` should not be used as "
+                "<!-- note -->the assertion API in Kotlin tests."
+            ),
+            (
+                "`assertThat()` should not be used as "
+                "<?note?>the assertion API in Kotlin tests."
+            ),
+            (
+                "`assertThat()` should not be used as the "
+                "assertion API in Kotlin tests but should "
+                "also be avoided in Java tests."
+            ),
+            (
+                "`assertThat()` should not be used as the "
+                "assertion API and should also be avoided "
+                "in examples."
+            ),
+            (
+                "`assertThat()` should not be used as the "
+                "assertion API in Kotlin and Java tests."
+            ),
+            (
+                "`assertThat()` should not be used as the "
+                "assertion API in unit or integration tests."
+            ),
+            (
+                "`assertThat()` should not be used as the "
+                "assertion API but cannot be used in Java "
+                "tests either."
+            ),
+            (
+                "`assertThat()` should not be used as the "
+                "assertion API but is also not permitted "
+                "in Java tests."
+            ),
+            (
+                "`assertThat()` should not be used\n"
+                "to write Kotlin assertions."
+            ),
+            (
+                "`assertThat()` should not be used\n"
+                "to write\n"
+                "Kotlin assertions."
+            ),
+            (
+                "# `assertThat()` should not be used\n"
+                "to make decisions."
+            ),
+            (
+                "`assertThat()` should not be used\n"
+                "> to make decisions."
+            ),
+            (
+                "- > `assertThat()` should not be used\n"
+                "> to make decisions."
+            ),
+            (
+                "`assertThat()` should not be used as the "
+                "assertion API because claims that it may "
+                "be used are incorrect."
+            ),
+            (
+                "`assertThat()` should not be used as the "
+                "assertion API, because claims that it may "
+                "be used are incorrect."
+            ),
         ]
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -124,6 +226,140 @@ class SkillLintTest(unittest.TestCase):
     def test_passive_guidance_requires_assert_that_api_prohibition(self):
         lines = [
             "`assertThat()` is not allowed to fail.",
+            "`assertThat()` should not be used as a boolean.",
+            "`assertThat()` should not be used to make decisions.",
+            "`assertThat()` should not be used **as a boolean**.",
+            (
+                "`assertThat()` should not be used "
+                "[as a boolean](https://example.com)."
+            ),
+            (
+                "`assertThat()` should not be used "
+                "[as a boolean].\n\n"
+                "[as a boolean]: https://example.com"
+            ),
+            (
+                "`assertThat()` should not be used "
+                "<em>as a boolean</em>."
+            ),
+            (
+                "`assertThat()` should not be used "
+                '<em title="a > b">as a boolean</em>.'
+            ),
+            (
+                "`assertThat()` should not be used "
+                "<!-- note -->as a boolean."
+            ),
+            (
+                "`assertThat()` should not be used "
+                "<?note?>as a boolean."
+            ),
+            (
+                "`assertThat()` should not be used\n"
+                "to make decisions."
+            ),
+            (
+                "`assertThat()` should not be used\n"
+                "as the assertion API\n"
+                "but it may be used to make decisions."
+            ),
+            (
+                "`assertThat()` should not be used\n"
+                "as the assertion API;\n"
+                "but it may be used to make decisions."
+            ),
+            (
+                "`assertThat()` should not be used as an "
+                "assertion result."
+            ),
+            "`assertThat()` should not be used to assert false.",
+            (
+                "`assertThat()` should not be used as an "
+                "assertion API, but it may be used to make "
+                "decisions."
+            ),
+            (
+                "> > `assertThat()` should not be used\n"
+                "> to make decisions."
+            ),
+            (
+                "- > `assertThat()` should not be used\n"
+                "  > to make decisions."
+            ),
+            (
+                "`assertThat()` should not be used as the "
+                "assertion API in Kotlin tests but may be "
+                "used to make decisions."
+            ),
+            (
+                "`assertThat()` should not be used as the "
+                "assertion API in Kotlin tests: it may be "
+                "used to make decisions."
+            ),
+            (
+                "`assertThat()` should not be used as the "
+                "assertion API in Kotlin tests or may be "
+                "used to make decisions."
+            ),
+            (
+                "`assertThat()` should not be used as the "
+                "assertion API in Kotlin tests where it "
+                "remains permitted for boolean decisions."
+            ),
+            (
+                "`assertThat()` should not be used as the "
+                "assertion API in Kotlin tests where "
+                "developers should continue using it."
+            ),
+            (
+                "`assertThat()` should not be used as the "
+                "assertion API, but in Java it may be used."
+            ),
+            (
+                "`assertThat()` should not be used as the "
+                "assertion API, but prefer using it for "
+                "boolean checks."
+            ),
+            (
+                "`assertThat()` should not be used as the "
+                "assertion API, but it should be used for "
+                "boolean checks."
+            ),
+            (
+                "`assertThat()` should not be used as the "
+                "assertion API, but it should also be used "
+                "for boolean checks."
+            ),
+            (
+                "`assertThat()` should not be used as the "
+                "assertion API, but using it is allowed for "
+                "boolean checks."
+            ),
+            (
+                "`assertThat()` should not be used as the "
+                "assertion API, but the method is allowed "
+                "for legacy tests."
+            ),
+            (
+                "`assertThat()` should not be used as the "
+                "assertion API, but its use is allowed for "
+                "legacy tests."
+            ),
+            (
+                "`assertThat()` should not be used as the "
+                "assertion API, but keep using it for "
+                "boolean checks."
+            ),
+            (
+                "`assertThat()` should not be used as the "
+                "assertion API; use it for boolean checks "
+                "instead."
+            ),
+            (
+                "`assertThat()` should not be used as the "
+                "assertion API: call it for boolean checks "
+                "instead."
+            ),
             "The result of `assertThat()` should not be used as a boolean.",
             "The result of `assertThat()` must not be used to make decisions.",
             "The result of `assertThat()` should not be used in boolean contexts.",
@@ -147,6 +383,27 @@ class SkillLintTest(unittest.TestCase):
                         "Use FluentAssert `.assert()` instead of AssertJ `assertThat()`.",
                         findings[0].message,
                     )
+
+    def test_multiline_guidance_stops_before_next_assert_that(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            skill = root / "skills" / "wow" / "SKILL.md"
+            skill.parent.mkdir(parents=True)
+            skill.write_text(
+                "`assertThat(first)` should not be used\n"
+                "as the assertion API in tests\n"
+                "Call `assertThat(second)` instead.\n",
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(3, findings[0].line)
+            self.assertEqual(
+                "Use FluentAssert `.assert()` instead of AssertJ `assertThat()`.",
+                findings[0].message,
+            )
 
     def test_allows_multiple_negative_assert_that_occurrences(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -329,6 +586,21 @@ class SkillLintTest(unittest.TestCase):
                 "Use `Condition.count(queryService)` wording; Wow does not expose a countQuery DSL function.",
                 findings[0].message,
             )
+
+    def test_keeps_expected_output_guidance_contexts_separate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            evals = root / "skills" / "wow" / "evals" / "evals.json"
+            evals.parent.mkdir(parents=True)
+            evals.write_text(
+                '{"evals":['
+                '{"expected_output":"`assertThat()` should not be used"},'
+                '{"expected_output":"to make decisions."}'
+                "]}",
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], skill_lint.lint(root))
 
     def test_ignores_expected_output_text_inside_json_string_for_line_mapping(self):
         with tempfile.TemporaryDirectory() as tmp:

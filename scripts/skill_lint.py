@@ -7,6 +7,7 @@ import re
 import sys
 from collections.abc import Iterator
 from dataclasses import dataclass
+from html import unescape
 from pathlib import Path
 
 
@@ -74,14 +75,84 @@ ENGLISH_NEGATIVE_ASSERT_THAT_ACTION = (
 )
 PASSIVE_NEGATIVE_ASSERT_THAT_ACTION = re.compile(
     r"(?:(?:should|must)\s+not\s+be\s+(?:used|called)"
-    r"|is\s+not\s+(?:allowed|permitted))\b"
-    r"(?!\s+(?:as|to)\b)",
+    r"|is\s+not\s+(?:allowed|permitted))\b",
+    re.IGNORECASE,
+)
+PASSIVE_ASSERT_THAT_AS_API_COMPLEMENT = re.compile(
+    r"\s+as\s+(?:(?:an?|the)\s+)?"
+    r"(?:(?:Kotlin|test)\s+)?"
+    r"assertions?(?:\s+(?:API|method|library|style|helper))?\b",
+    re.IGNORECASE,
+)
+PASSIVE_ASSERT_THAT_TO_ASSERT_COMPLEMENT = re.compile(
+    r"\s+to\s+(?:write|make|perform|express)\s+"
+    r"(?:(?:Kotlin|test)\s+)?assertions?\b",
+    re.IGNORECASE,
+)
+PASSIVE_ASSERT_THAT_ALLOWED_COMPLEMENT_TAIL = re.compile(
+    r"\s*(?:$|[.,;:!?，；：。！？]"
+    r"|(?:in|for|within|when|with|without|instead|because|since|so|which|that"
+    r"|and|but|or|however|yet|except|unless|where|while|although|though)\b)",
+    re.IGNORECASE,
+)
+PASSIVE_ASSERT_THAT_EXCEPTION_INTRO = re.compile(
+    r"[,;:]|\b(?:and|but|or|however|yet|except|unless|where|while|although|though)\b",
+    re.IGNORECASE,
+)
+PASSIVE_ASSERT_THAT_WORD_EXCEPTION_INTRO = frozenset(
+    {
+        "although",
+        "and",
+        "but",
+        "however",
+        "or",
+        "though",
+        "where",
+        "while",
+        "yet",
+    }
+)
+PASSIVE_ASSERT_THAT_POSITIVE_EXCEPTION = re.compile(
+    r"\s*(?:(?:in|for|within)\b[^,;:.!?，；：。！？]{0,80}\s+)?"
+    r"(?:"
+    r"(?:(?:it|developers?|users?|callers?)\s+)?"
+    r"(?:may|can|could|might|should)\s+"
+    r"(?:(?:also|still)\s+)*"
+    r"(?:be\s+(?:used|called|allowed|permitted)|(?:use|call))\b"
+    r"|\b(?:it\s+)?(?:remains?|is|are)\s+(?:still\s+)?"
+    r"(?:allowed|permitted)\b"
+    r"|(?:(?:the\s+)?(?:method|call|API)|its\s+use)\s+"
+    r"(?:remains?|is|are)\s+(?:still\s+)?(?:allowed|permitted)\b"
+    r"|(?:(?:developers?|users?|callers?)\s+(?:should\s+)?)?"
+    r"continue\s+(?:using|calling|to\s+(?:use|call))\b"
+    r"|(?:prefer|keep)\s+(?:using|calling|to\s+(?:use|call))\b"
+    r"|(?:using|calling)\s+it\s+(?:is|remains)\s+(?:still\s+)?"
+    r"(?:allowed|permitted)\b"
+    r"|(?:use|call)\s+it\b"
+    r")",
+    re.IGNORECASE,
+)
+PASSIVE_ASSERT_THAT_NEGATIVE_EXCEPTION = re.compile(
+    r"\s*(?:(?:it|(?:the\s+)?(?:method|call|API)|its\s+use)\s+)?"
+    r"(?:"
+    r"(?:should|must|may|can)\s+(?:(?:also|still)\s+)*"
+    r"(?:not|never)\s+(?:be\s+)?(?:used|called)\b"
+    r"|(?:cannot|can't)\s+(?:be\s+)?(?:used|called)\b"
+    r"|(?:should|must)\s+(?:(?:also|still)\s+)*"
+    r"be\s+(?:avoided|forbidden|prohibited|discouraged)\b"
+    r"|(?:is|remains)\s+(?:(?:also|still)\s+)*"
+    r"(?:not\s+(?:allowed|permitted)"
+    r"|forbidden|prohibited|discouraged)\b"
+    r"|(?:do\s+not|never)\s+(?:use|call)\b"
+    r"|avoid\s+(?:using|calling)\b"
+    r")",
     re.IGNORECASE,
 )
 PASSIVE_ASSERT_THAT_DIRECT_LABEL_SUFFIX = re.compile(
     r"(?:(?:the\s+)?AssertJ(?:'s|\s*的)?|the)\s*$",
     re.IGNORECASE,
 )
+MARKDOWN_GUIDANCE_SENTENCE_TERMINATORS = ".!?。！？"
 PASSIVE_ASSERT_THAT_SUBJECT_NOUN = re.compile(
     r"(?:method|api|call)\b",
     re.IGNORECASE,
@@ -332,8 +403,309 @@ def iter_passive_negative_assert_that_guidance_spans(
                 subject_noun.end(),
             )
         action = PASSIVE_NEGATIVE_ASSERT_THAT_ACTION.match(line, suffix_index)
-        if action is not None:
+        if (
+            action is not None
+            and passive_assert_that_action_prohibits_api(
+                line,
+                action.end(),
+            )
+        ):
             yield occurrence.start(), action.end()
+
+
+def passive_assert_that_action_prohibits_api(
+    line: str,
+    action_end: int,
+) -> bool:
+    complement = normalize_markdown_inline_presentation(
+        line[action_end:]
+    )
+    complement_kind = re.match(
+        r"\s+(?:as|to)\b",
+        complement,
+        re.IGNORECASE,
+    )
+    if complement_kind is None:
+        return not passive_assert_that_has_positive_exception(
+            complement
+        )
+    allowed_complement = (
+        PASSIVE_ASSERT_THAT_AS_API_COMPLEMENT.match(complement)
+        or PASSIVE_ASSERT_THAT_TO_ASSERT_COMPLEMENT.match(
+            complement
+        )
+    )
+    if allowed_complement is None:
+        return False
+    tail = complement[allowed_complement.end():]
+    if PASSIVE_ASSERT_THAT_ALLOWED_COMPLEMENT_TAIL.match(tail) is None:
+        return False
+    return not passive_assert_that_has_positive_exception(
+        tail
+    )
+
+
+def passive_assert_that_has_positive_exception(text: str) -> bool:
+    for intro in PASSIVE_ASSERT_THAT_EXCEPTION_INTRO.finditer(text):
+        normalized_intro = intro.group(0).lower()
+        if normalized_intro in {"except", "unless"}:
+            return True
+        clause = text[intro.end():]
+        if PASSIVE_ASSERT_THAT_POSITIVE_EXCEPTION.match(
+            clause
+        ):
+            return True
+        if (
+            normalized_intro
+            in PASSIVE_ASSERT_THAT_WORD_EXCEPTION_INTRO
+            and PASSIVE_ASSERT_THAT_NEGATIVE_EXCEPTION.match(
+                clause
+            )
+            is None
+            and normalized_intro not in {"and", "or"}
+        ):
+            return True
+    return False
+
+
+def find_matching_square_bracket(
+    text: str,
+    opening_index: int,
+) -> int | None:
+    depth = 0
+    escaped = False
+    for index in range(opening_index, len(text)):
+        character = text[index]
+        if escaped:
+            escaped = False
+            continue
+        if character == "\\":
+            escaped = True
+        elif character == "[":
+            depth += 1
+        elif character == "]":
+            depth -= 1
+            if depth == 0:
+                return index
+    return None
+
+
+def strip_markdown_inline_link_destinations(text: str) -> str:
+    visible: list[str] = []
+    index = 0
+    while index < len(text):
+        if text[index] != "[":
+            visible.append(text[index])
+            index += 1
+            continue
+        label_end = find_matching_square_bracket(text, index)
+        if label_end is None:
+            visible.append(text[index])
+            index += 1
+            continue
+        destination_start = label_end + 1
+        destination_end: int | None = None
+        if (
+            destination_start < len(text)
+            and text[destination_start] == "("
+        ):
+            destination_end = find_matching_parenthesis(
+                text,
+                destination_start,
+            )
+        elif (
+            destination_start < len(text)
+            and text[destination_start] == "["
+        ):
+            destination_end = find_matching_square_bracket(
+                text,
+                destination_start,
+            )
+        if destination_end is None:
+            visible.append(text[index + 1:label_end])
+            index = label_end + 1
+            continue
+        visible.append(text[index + 1:label_end])
+        index = destination_end + 1
+    return "".join(visible)
+
+
+def strip_markdown_inline_html_tags(text: str) -> str:
+    visible: list[str] = []
+    index = 0
+    while index < len(text):
+        inline_token_end: int | None = None
+        for opening, closing in (
+            ("<!--", "-->"),
+            ("<?", "?>"),
+            ("<![CDATA[", "]]>"),
+        ):
+            if not text.startswith(opening, index):
+                continue
+            closing_index = text.find(
+                closing,
+                index + len(opening),
+            )
+            if closing_index >= 0:
+                inline_token_end = closing_index + len(closing)
+            break
+        if inline_token_end is not None:
+            index = inline_token_end
+            continue
+        if (
+            text.startswith("<!", index)
+            and index + 2 < len(text)
+            and text[index + 2].isupper()
+        ):
+            declaration_end = text.find(">", index + 3)
+            if declaration_end >= 0:
+                index = declaration_end + 1
+                continue
+        tag_match = MARKDOWN_HTML_TAG_START.match(text, index)
+        if tag_match is None:
+            visible.append(text[index])
+            index += 1
+            continue
+        tag_end = find_markdown_html_tag_end(text, index)
+        if tag_end is None:
+            visible.append(text[index])
+            index += 1
+            continue
+        index = tag_end
+    return "".join(visible)
+
+
+def normalize_markdown_inline_presentation(text: str) -> str:
+    visible_text = strip_markdown_inline_link_destinations(text)
+    visible_text = strip_markdown_inline_html_tags(visible_text)
+    return unescape(re.sub(r"[`*_~]+", "", visible_text))
+
+
+def strip_active_markdown_guidance_prefixes(
+    line: str,
+    current_prefixes: tuple[
+        MarkdownBlockquotePrefix | MarkdownListPrefix,
+        ...,
+    ],
+) -> str:
+    remaining = line
+    for prefix in current_prefixes:
+        if isinstance(prefix, MarkdownBlockquotePrefix):
+            blockquote_match = MARKDOWN_BLOCKQUOTE_PREFIX.match(
+                remaining
+            )
+            if blockquote_match is None:
+                break
+            remaining = remaining[blockquote_match.end():]
+            continue
+        leading_spaces = len(remaining) - len(
+            remaining.lstrip(" ")
+        )
+        if leading_spaces < prefix.content_indent:
+            break
+        remaining = remaining[prefix.content_indent:]
+    return remaining
+
+
+def markdown_guidance_continuation_content(
+    line: str,
+    current_prefixes: tuple[
+        MarkdownBlockquotePrefix | MarkdownListPrefix,
+        ...,
+    ],
+) -> str | None:
+    remaining = strip_active_markdown_guidance_prefixes(
+        line.expandtabs(tabsize=4),
+        current_prefixes,
+    )
+    content, prefixes = parse_explicit_markdown_container(
+        remaining
+    )
+    if prefixes:
+        return None
+    content = content.lstrip()
+    if (
+        not content
+        or markdown_line_interrupts_paragraph(content)
+    ):
+        return None
+    return content
+
+
+def assert_that_guidance_context(
+    lines_to_lint: list[tuple[int, str, str | None]],
+    context_groups: list[int],
+    index: int,
+) -> str:
+    line_no, line, language = lines_to_lint[index]
+    current_content, current_prefixes = (
+        parse_explicit_markdown_container(
+            line.expandtabs(tabsize=4)
+        )
+    )
+    normalized_line = normalize_markdown_inline_presentation(
+        line
+    ).rstrip()
+    if (
+        not ASSERT_THAT_PATTERN.search(line)
+        or not normalized_line
+        or normalized_line[-1]
+        in MARKDOWN_GUIDANCE_SENTENCE_TERMINATORS
+        or MARKDOWN_ATX_HEADING_PATTERN.match(
+            current_content
+        )
+    ):
+        return line
+
+    context_lines = [line]
+    previous_line_no = line_no
+    current_context_group = context_groups[index]
+    for next_index in range(index + 1, len(lines_to_lint)):
+        (
+            next_line_no,
+            next_line,
+            next_language,
+        ) = lines_to_lint[next_index]
+        if (
+            context_groups[next_index] != current_context_group
+            or next_language != language
+            or next_line_no not in {
+                previous_line_no,
+                previous_line_no + 1,
+            }
+        ):
+            break
+        content = markdown_guidance_continuation_content(
+            next_line,
+            current_prefixes,
+        )
+        if content is None:
+            break
+        normalized_content = (
+            normalize_markdown_inline_presentation(content)
+            .lstrip()
+        )
+        if (
+            len(context_lines) == 1
+            and re.match(
+                r"(?:as|to)\b",
+                normalized_content,
+                re.IGNORECASE,
+            )
+            is None
+        ):
+            break
+        if ASSERT_THAT_PATTERN.search(content):
+            break
+        context_lines.append(content)
+        previous_line_no = next_line_no
+        if (
+            normalized_content
+            and normalized_content[-1]
+            in MARKDOWN_GUIDANCE_SENTENCE_TERMINATORS
+        ):
+            break
+    return " ".join(context_lines)
 
 
 def all_assert_that_occurrences_are_negative_guidance(line: str) -> bool:
@@ -1998,6 +2370,7 @@ def lint(root: Path) -> list[Finding]:
     for path in iter_skill_files(root):
         text = path.read_text(encoding="utf-8")
         unclosed_fence_lines: list[int] = []
+        context_groups: list[int] = []
         if path.suffix == ".json":
             try:
                 json.loads(text)
@@ -2005,9 +2378,14 @@ def lint(root: Path) -> list[Finding]:
                 findings.append(Finding(path.relative_to(root), 1, "Invalid JSON file."))
                 continue
             lines_to_lint = []
-            for line_no, expected_output in iter_json_object_key_values(
-                text,
-                "expected_output",
+            for context_group, (
+                line_no,
+                expected_output,
+            ) in enumerate(
+                iter_json_object_key_values(
+                    text,
+                    "expected_output",
+                )
             ):
                 if not isinstance(expected_output, str):
                     continue
@@ -2018,6 +2396,10 @@ def lint(root: Path) -> list[Finding]:
                     (line_no, logical_line, fence_language)
                     for _, logical_line, fence_language in expected_output_lines_to_lint
                 )
+                context_groups.extend(
+                    [context_group]
+                    * len(expected_output_lines_to_lint)
+                )
                 unclosed_fence_lines.extend(
                     line_no for _ in expected_output_unclosed_fence_lines
                 )
@@ -2025,14 +2407,25 @@ def lint(root: Path) -> list[Finding]:
             lines_to_lint, unclosed_fence_lines = analyze_skill_markdown(
                 text
             )
-        for line_no, line, fence_language in lines_to_lint:
+            context_groups = [0] * len(lines_to_lint)
+        for line_index, (
+            line_no,
+            line,
+            fence_language,
+        ) in enumerate(lines_to_lint):
             for pattern, message in PATTERNS:
                 if pattern is ASSERT_THAT_PATTERN and fence_language == "java":
                     continue
                 if (
                     pattern is ASSERT_THAT_PATTERN
                     and ASSERT_THAT_PATTERN.search(line)
-                    and all_assert_that_occurrences_are_negative_guidance(line)
+                    and all_assert_that_occurrences_are_negative_guidance(
+                        assert_that_guidance_context(
+                            lines_to_lint,
+                            context_groups,
+                            line_index,
+                        )
+                    )
                 ):
                     continue
                 if (
