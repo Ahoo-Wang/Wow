@@ -114,5 +114,5 @@ and must not be introduced while the scope is in `PENDING_UPDATE` or `RESETTING`
 4. Emergency isolation may set `wow.bi.script.enabled=false`, but that only removes the HTTP route, OpenAPI
    operation, and inspector; it does not roll back ClickHouse data.
 
-See the [Migration Guide](./migration) for the cross-module upgrade order and
+See [Migrate Wow v6 to v8](./migration/v6-to-v8) for the cross-module upgrade order and
 [BI Script Configuration](./configuration#bi-script-configuration) for properties.

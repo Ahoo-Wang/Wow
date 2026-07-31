@@ -85,8 +85,16 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Best Practices', link: 'best-practices'},
                 {text: 'Performance Testing', link: 'perf-test'},
                 {text: 'Troubleshooting', link: 'troubleshooting'},
-                {text: 'Migration Guide', link: 'migration'},
-                {text: 'Runtime Orchestration Migration', link: 'migration/runtime-orchestration'},
+                {
+                    text: 'Migration Guide',
+                    link: 'migration',
+                    collapsed: false,
+                    items: [
+                        {text: 'Traditional Architecture', link: 'migration/traditional-architecture'},
+                        {text: 'Migrate Wow v6 to v8', link: 'migration/v6-to-v8'},
+                        {text: 'Runtime Orchestration', link: 'migration/runtime-orchestration'},
+                    ],
+                },
             ],
         },
         {

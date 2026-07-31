@@ -85,8 +85,16 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '最佳实践', link: 'best-practices'},
                 {text: '性能评测', link: 'perf-test'},
                 {text: '故障排查', link: 'troubleshooting'},
-                {text: '迁移指南', link: 'migration'},
-                {text: '运行时编排迁移', link: 'migration/runtime-orchestration'},
+                {
+                    text: '迁移指南',
+                    link: 'migration',
+                    collapsed: false,
+                    items: [
+                        {text: '传统架构迁移', link: 'migration/traditional-architecture'},
+                        {text: 'Wow v6 迁移到 v8', link: 'migration/v6-to-v8'},
+                        {text: '运行时编排迁移', link: 'migration/runtime-orchestration'},
+                    ],
+                },
             ],
         },
         {

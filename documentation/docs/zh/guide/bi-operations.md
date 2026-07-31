@@ -105,4 +105,5 @@ BI 没有原地向后兼容回滚。旧版本可能无法识别当前 registry �
 4. 紧急隔离可设置 `wow.bi.script.enabled=false`，但这只移除 HTTP 路由、OpenAPI operation 和
    inspector，不会回滚 ClickHouse 数据。
 
-版本升级的跨模块顺序参见[迁移指南](./migration)，配置项参见[BI 脚本配置](./configuration#bi-脚本配置)。
+版本升级的跨模块顺序参见 [Wow v6 迁移到 v8](./migration/v6-to-v8)，配置项参见
+[BI 脚本配置](./configuration#bi-脚本配置)。
