@@ -236,7 +236,8 @@ index keys for local aggregates resolved to the auto-configured `RedisEventStore
 aggregate and Redis key. The check fails closed when Redis is unavailable and cannot be disabled. Direct-library,
 independently constructed custom-store, retired-aggregate, and snapshot-only Redis usages require an offline audit.
 
-Do not perform a mixed-version rolling deployment. See the [migration guide](../migration.md#redis-eventstore-canonical-v2-layout)
+Do not perform a mixed-version rolling deployment. See
+[Migrate Wow v6 to v8](../migration/v6-to-v8.md#redis-eventstore-canonical-v2-layout-introduced-in-v8-9-0)
 for the required offline cutover and rollback boundary.
 
 ## Prepare Key

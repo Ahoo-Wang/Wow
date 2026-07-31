@@ -1,427 +1,194 @@
 ---
 title: 迁移指南
-description: 从传统架构迁移到 Wow 框架以及版本间升级的指南。
+description: 根据系统现状选择传统架构迁移或 Wow v6 到 v8 升级路径。
 ---
 
 # 迁移指南
 
-本指南帮助您从传统架构迁移到 Wow 框架，以及在不同版本之间升级。
+迁移有两条主路径：**首次采用 Wow** 解决的是领域边界、数据建模和流量切换；
+**Wow v6 → v8** 解决的是 Spring Boot 4、源码兼容和存储格式切换。已经使用 Wow v8
+且自定义运行时生命周期的系统，还需执行其中的**运行时编排专项迁移**；它不是第三种
+业务或数据迁移。请先选择主路径，不要把两套步骤混在同一次发布中。
 
-## 版本升级指南
+## 选择迁移路径
 
-### 升级步骤
-
-1. **备份数据**：在升级前备份事件存储和快照数据
-2. **阅读更新日志**：查看 [Release Notes](https://github.com/Ahoo-Wang/Wow/releases)
-3. **更新依赖版本**：修改 build.gradle.kts 或 pom.xml
-4. **运行测试**：确保所有测试通过
-5. **灰度发布**：逐步升级生产环境
-
-### 依赖版本更新
-
-::: code-group
-```kotlin [Gradle(Kotlin)]
-// 更新 wow 版本
-implementation("me.ahoo.wow:wow-spring-boot-starter:新版本号")
-```
-```xml [Maven]
-<dependency>
-    <groupId>me.ahoo.wow</groupId>
-    <artifactId>wow-spring-boot-starter</artifactId>
-    <version>新版本号</version>
-</dependency>
-```
-:::
-
-### 破坏性变更检查
-
-升级前请检查以下内容：
-
-1. **API 变更**：检查是否有接口签名变更
-2. **配置变更**：检查配置属性是否有变更
-3. **元数据变更**：重新生成元数据文件
-
-## 统一运行时编排
-
-运行时生命周期迁移已经拆分为独立专题，使本页保持升级索引职责：
-
-- [运行时编排迁移](./migration/runtime-orchestration.md) 说明源码破坏性变更、
-  自定义组件与消息总线、Spring 所有权、验证和回滚；
-- [运行时生命周期](./advanced/runtime-lifecycle.md) 说明迁移后的稳定架构与停机语义。
-
-该迁移会改变生命周期扩展契约，但不改变 event、snapshot 与 message 格式，无需迁移
-数据。
-
-## 移除版本化快照检查点
-
-v8.9.0 引入的版本化快照检查点能力已被移除，且不提供兼容层。`VersionedSnapshotStore`、
-`VersionIntervalCheckpointStrategy`、`CompositeSnapshotStrategy`、对应的 metrics/tracing 装饰器及
-`SnapshotCheckpointProperties` 均不再存在。`wow.eventsourcing.snapshot.checkpoint.*` 配置将被忽略，
-不再产生 `wow.snapshot.checkpoint.*` 指标与 checkpoint span。该能力没有替代接口；应用应使用仅保存和
-加载最新快照的 `SnapshotStore`。
-
-MongoDB 中既有的 `*_snapshot_checkpoint` collection 不再被读取、写入、扫描或自动删除。升级前应备份
-event 与 snapshot 数据、停止全部旧版本 writer，并仅在确认不再需要后清理这些 collection。回滚必须
-恢复旧运行时并保留其 checkpoint 数据；不支持新旧版本混合部署。
-
-## SnapshotStore 原子保存
-
-`SnapshotStore.save()` 的 JVM 签名与快照格式保持不变，但存储契约得到加强：
-每个聚合必须使用一次原子 compare-and-write。候选聚合版本大于或等于已存版本时
-完整替换快照；版本较低时正常完成且不写入。同版本覆盖是有意行为，使快照重建
-路由可以修复陈旧 payload。
-
-自定义 `SnapshotStore` 必须使用后端 CAS、条件更新、事务或等价的原子原语；
-客户端先 `load()` 再无条件写入不符合契约。候选快照应只物化一次，比较版本必须
-取自同一个待写 payload。在依赖此保证前，应停止全部旧 writer 并排空在途写入：
-旧 MongoDB 或 Redis writer 仍可能使新快照版本倒退，旧 Elasticsearch writer
-也不会执行同版本覆盖。无需重写数据。回滚会恢复旧保存行为，因此新旧 writer
-不得并行运行。
-
-`wow-mongo` 的条件更新使用了要求 MongoDB 5.2 或更高版本的 MQL 表达式；
-集成测试验证的版本为 MongoDB 6.0.6。现有服务端版本较低时，必须先升级
-MongoDB，再部署此版本运行时。
-
-## Redis EventStore Canonical v2 布局（v8.9.0 引入）
-
-从 v8.6.x 或 v8.8.x 升级到 v8.9.0 时，必须把 Redis 持久化视为存储格式硬切换。Redis EventStore、
-Redis SnapshotStore 与 Redis PrepareKey 只读写 canonical v2 Key，不提供旧布局回退、双写或内置迁移器；
-旧运行时也无法读取新的 v2 写入。新 EventStore 还会强制同一个 named aggregate 下的 `AggregateId.id`
-在所有租户之间唯一。
-
-Spring Boot starter 会精确检查已发布 v8.6 与 v8.8 EventStore 成功写入时必然创建的哨兵 Key。检查范围
-仅包括解析到自动配置 `RedisEventStore` 的本地聚合，不在运行时使用 `SCAN`，因此支持 Redis Cluster；
-发现不兼容数据会阻止启动。该守卫不覆盖直接使用库、独立构造的自定义 store、已从元数据移除的聚合或
-仅将 snapshot 路由到 Redis 的场景。旧 snapshot 没有与 aggregate 无关的精确哨兵。canonical v2 会
-忽略旧 snapshot Key；缺少 v2 snapshot 时，聚合加载会回放事件，但普通加载不会自动持久化重建后的
-snapshot。
-
-精确 Key 守卫不能替代离线数据审计。历史 alias 变更、Key eviction、手工删除或破坏旧索引，都可能让
-哨兵消失但留下孤立事件流。解析后的 context alias（已配置 alias 时使用 alias，否则使用 `contextName`）
-与 aggregate name 共同构成 v2 持久化 Key scope。迁移 manifest 必须固定每个历史 source alias 到目标
-resolved alias 的映射；写入后变更 resolved alias 或 aggregate name 必须另做离线 Key 迁移。
-
-必须采用离线切换：
-
-1. 停止入口流量和全部旧版本 writer，将 in-flight append 排空为零，再创建一致的 Redis 备份并记录
-   事件数量与版本基线。禁止新旧版本混合滚动发布。
-2. 在每个 Cluster primary 的每个 logical database 中盘点全部旧 event ZSET、v8.6 shared request SET、
-   v8.8 per-stream request SET、v8.8 bucket ids ZSET、旧 snapshot 与 PrepareKey Hash；记录 source Key、
-   Redis type、cardinality、checksum 与 target mapping。历史 Key 中的 identity 只用于定位，最终身份以
-   event/snapshot JSON 为准。
-3. 按 named aggregate 审计不同租户之间是否存在重复 `AggregateId.id`。迁移前必须解决所有冲突；
-   canonical v2 有意不允许同一个 ID 存在两个所有者。
-4. 首次运行必须要求 v2 目标 scope 为空。可丢弃数据只能清除 inventory 中的旧 Key，或使用空的专用
-   database；与 message bus 或应用数据共库时禁止 `FLUSHDB`。完整源数据集保持不可变以供回滚。
-5. 使用单独评审的离线迁移器。持久化 manifest 必须记录 source Key、target Keys、源/目标 checksum、
-   状态和最后完成批次。恢复执行时只有 manifest 与 checksum 一致才能复用 target，否则失败且不得覆盖。
-   复制必须幂等；缺少 manifest 复核的半成品 target 不得被接受。
-6. 保持每个 event ZSET member 与 score，校验 identity 一致且 score/version 连续。v2 request-ID SET 以
-   已提交事件 JSON 为唯一权威来源。对 v8.6，必须双向比较 shared SET 与 `union(event.requestId)`，分别
-   报告 shared-only 与 event-only 差异，禁止 fan-out。对 v8.8，逐流计算 source SET 与该流事件 requestId
-   的 symmetric difference。差集非空时必须失败，除非记录了明确且已评审的处置策略。
-7. 在 128 个 bucket 空间中重建所有非空聚合 ID 索引。bucket 公式是
-   `aggregateId.id.hashCode().mod(128)`，使用 Java/Kotlin UTF-16 `String.hashCode`；Key 与 member 必须
-   严格使用 canonical v2 codec。运行时不会执行该转换。
-8. 校验有序 member+score checksum、首尾版本、request-ID 集合、完整 ID 索引、aggregate-ID scan 结果
-   和代表性状态回放。失败时必须保留 manifest 和最后验证 cursor，随后清理半成品或从该 cursor 恢复；
-   此期间不得启动应用。
-9. 全部验证通过后，原地迁移必须移除或迁出 inventory 中的每个旧 Key；哨兵 Key 最后删除，随后重新
-   inventory 并要求旧 Key 为零。使用独立 target database 时，完整源数据集在回滚观察期内保持只读。
-10. 先让一个新实例连接 target 并完成隔离 ID 的读写 smoke test。显式执行 snapshot regeneration，校验
-    snapshot 数量与版本后再切流量和扩容。应依据完整 inventory 调用单 ID regenerate 路由；只有审计
-    证明全部 ID 严格大于 `AggregateIdScanner.FIRST_ID` 时，batch 路由才能视为不会漏项。
-
-回滚必须同时切换应用与数据。尚无生产 v2 写入时，可以重新连接未改动的旧数据集并启动旧运行时；一旦
-已有生产 v2 写入，必须先停止流量和全部 v2 writer，再反向迁移或重放这些写入，之后才能启动旧运行时。
-仅恢复切换时备份会丢失此后的所有 v2 写入。推荐使用独立 target database/namespace。
-
-强制精确 Key 检查属于启动期内部不变量，不提供关闭开关，也不作为兼容或迁移配置暴露。
-
-Redis 布局内部 API 有意不保持源码、JVM 二进制与行为兼容。已移除 `AggregateKeyConverter`、
-`RedisWrappedKey`、`RedisSnapshotRepository`、`EventStreamKeyConverter`、`DefaultSnapshotKeyConverter`、
-`PrepareKeyConverter` 与 `RedisEventStore.SCRIPT_EVENT_STEAM_APPEND`；同时移除
-`redisSnapshotRepository` Bean alias 和自定义 snapshot-key converter 构造参数。新的
-`SCRIPT_EVENT_STREAM_APPEND` 为 internal，不提供公开替代。canonical converter 输出已改变，PrepareKey
-现在包含 `name`，v2 会拒绝空 aggregate/prepare ID 与 unpaired UTF-16 surrogate。应用代码应使用
-`EventStore`、`SnapshotStore` 与 `PrepareKey`；单独评审的离线工具应独立实现并校验 v2 codec。
-
-## Mongo 所有权保护
-
-本次升级保留仅含 aggregate name 的 Mongo collection 命名，但新增持久化
-`wow_database_metadata` 所有权标记。支持的部署布局是一个 MongoDB database 只属于一个 bounded
-context。
-
-上线前：
-
-1. 检查所有已配置的 event-stream、snapshot 与 prepare database，以及其中的 `*_event_stream`、
-   `*_snapshot` 和 `prepare_*` collection。
-2. 确认每个 database 只属于一个 `wow.context-name`；历史混写数据库必须先拆分。
-3. 先升级数据库的真实所有者。第一个新版本实例会扫描存量 aggregate collection，再原子认领标记。
-   存量 `prepare_*` 文档没有 context 元数据，因此 prepare-only database 会由首个升级 context 认领，
-   上线前必须先审计其映射关系。
-4. 审计现有受管索引。缺失索引会创建；key 顺序、unique、TTL、partial filter、collation、sparse 或
-   hidden 选项不兼容时会阻止启动，必须执行受控迁移。
-
-不要通过修改所有权标记绕过 context 冲突。应先迁移或删除旧数据；只有明确重新分配空数据库时才删除
-标记。
-
-## 从传统架构迁移
-
-### 迁移策略
-
-#### 渐进式迁移
-
-推荐使用渐进式迁移策略，逐步将功能模块迁移到事件溯源架构：
+| 当前状态 | 目标 | 应阅读 | 不应混入 |
+|---|---|---|---|
+| 传统 CRUD / 事务脚本 / 直接操作数据库 | 渐进采用 Wow CQRS + Event Sourcing | [传统架构迁移](./migration/traditional-architecture.md) | Wow v6 的版本兼容假设 |
+| Wow v6 + Spring Boot 3 | Wow v8 + Spring Boot 4 | [Wow v6 迁移到 v8](./migration/v6-to-v8.md) | 重新设计全部业务边界 |
+| 已在 Wow v8 上自定义 Dispatcher、MessageBus 或 Spring 生命周期 | 当前统一 `WowRuntime` | [运行时编排迁移](./migration/runtime-orchestration.md) | 业务数据重写 |
 
 ```mermaid
-flowchart LR
-    subgraph Legacy["传统架构"]
-        LDB[(关系数据库)]
-        LS[传统服务]
-    end
-    
-    subgraph Wow["Wow 框架"]
-        ES[(事件存储)]
-        WS[Wow 服务]
-    end
-    
-    LS -->|发布事件| WS
-    WS -->|同步数据| LDB
-
+%%{init: {"theme": "dark"}}%%
+flowchart TD
+    Start{"当前系统是否已经使用 Wow？"}
+    Start -->|"否"| Traditional["传统架构迁移"]
+    Start -->|"是，Wow v6"| V6["Wow v6 迁移到 v8"]
+    Start -->|"是，Wow v8"| Custom{"是否有自定义运行时生命周期？"}
+    Custom -->|"是"| Runtime["运行时编排迁移"]
+    Custom -->|"否"| Release["按 Release Notes<br>处理当前小版本升级"]
+    classDef route fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
+    class Start,Traditional,V6,Custom,Runtime,Release route
 ```
 
-#### 迁移步骤
+<!-- Sources:
+- README.zh-CN.md:47-49
+- documentation/docs/zh/guide/migration/traditional-architecture.md
+- documentation/docs/zh/guide/migration/v6-to-v8.md
+- documentation/docs/zh/guide/migration/runtime-orchestration.md
+-->
 
-1. **识别边界上下文**：确定要迁移的业务模块
-2. **设计领域模型**：定义聚合根、命令和事件
-3. **实现双写**：同时写入旧系统和新系统
-4. **验证一致性**：确保数据一致性
-5. **切换读写**：逐步切换到新系统
+## 文档边界
+
+```mermaid
+%%{init: {"theme": "dark"}}%%
+graph TD
+    Index["迁移指南<br>只负责路径选择"]
+    Traditional["传统架构迁移<br>领域与流量切换"]
+    V6["v6 → v8<br>平台与数据切换"]
+    Runtime["运行时编排迁移<br>生命周期源码适配"]
+    Lifecycle["运行时生命周期<br>迁移后稳定模型"]
+    Index --> Traditional
+    Index --> V6
+    V6 --> Runtime
+    Runtime --> Lifecycle
+    classDef doc fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
+    class Index,Traditional,V6,Runtime,Lifecycle doc
+```
+
+<!-- Sources:
+- documentation/docs/zh/guide/migration/traditional-architecture.md
+- documentation/docs/zh/guide/migration/v6-to-v8.md
+- documentation/docs/zh/guide/migration/runtime-orchestration.md
+- documentation/docs/zh/guide/advanced/runtime-lifecycle.md
+-->
+
+| 文档 | 负责回答 | 核心源码依据 |
+|---|---|---|
+| 传统架构迁移 | 如何从 CRUD 建立 command、aggregate、event、state，并安全切流？ | [CreateOrder.kt:31-64](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/order/CreateOrder.kt#L31-L64)、[Order.kt:55-137](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt#L55-L137) |
+| v6 → v8 | 如何跨越 Spring Boot 3 → 4，并处理 v8 的存储与 API 破坏？ | [v8.0.0 Release](https://github.com/Ahoo-Wang/Wow/releases/tag/v8.0.0)、[gradle/libs.versions.toml:3-18](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L3-L18) |
+| 运行时编排迁移 | 如何把多个生命周期 owner 收敛到一个 `WowRuntime`？ | [WowAutoConfiguration.kt:118-152](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L118-L152) |
+
+## 共同完成门禁
+
+无论选择主路径还是运行时编排专项，都应按证据推进，而不是以“应用能启动”作为完成标准。
+
+```mermaid
+%%{init: {"theme": "dark"}}%%
+stateDiagram-v2
+    [*] --> Baseline: 固化基线与范围
+    Baseline --> Rehearsal: 隔离环境迁移演练
+    Rehearsal --> Verify: 测试、对账、回放
+    Verify --> Rehearsal: 门禁失败
+    Verify --> Canary: 门禁通过
+    Canary --> Rollback: 线上验证失败
+    Rollback --> Baseline
+    Canary --> Complete: 观察窗通过
+    Complete --> [*]
+```
+
+<!-- Sources:
+- wow-core/src/main/kotlin/me/ahoo/wow/command/CommandFactory.kt:60-103
+- wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt:75-159
+- wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotStore.kt:57-71
+- wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt:118-152
+-->
+
+- **范围**：固定 bounded context、数据集、版本起点、目标版本与明确不迁移的内容。
+- **基线**：记录测试结果、事件/快照数量、关键业务指标和可回滚备份。
+- **验证**：执行单元测试、集成测试、逐聚合对账、代表性事件回放和真实启动/停机。
+- **发布**：先单实例或小流量验证，明确新写入出现后的回滚数据处理方式。
+- **关闭**：观察窗结束后再清理旧数据、旧 writer、兼容代码和临时同步链路。
+
+## 旧链接导航
+
+原迁移页中的主题已分别移动到 [传统架构迁移](./migration/traditional-architecture.md)、
+[Wow v6 迁移到 v8](./migration/v6-to-v8.md) 和
+[运行时编排迁移](./migration/runtime-orchestration.md)。以下标题和别名完整保留原页面
+的深链接；到达后请继续进入对应的新页面。
+
+### 版本升级指南
+
+<span id="升级步骤"></span>
+<span id="依赖版本更新"></span>
+<span id="破坏性变更检查"></span>
+
+参见 [v6 → v8：通用升级步骤](./migration/v6-to-v8.md#通用升级步骤)。
+
+### 从传统架构迁移
+
+<span id="迁移策略"></span>
+<span id="渐进式迁移"></span>
+<span id="迁移步骤"></span>
+
+参见 [传统架构迁移：迁移总览](./migration/traditional-architecture.md#迁移总览)。
 
 ### 数据迁移
 
-#### 历史数据导入
+<span id="历史数据导入"></span>
 
-对于需要保留历史数据的场景，建议定义迁移命令：
-
-```kotlin
-// 1. 定义迁移命令
-@CreateAggregate
-data class MigrateOrder(
-    val orderId: String,
-    val customerId: String,
-    val items: List<OrderItem>,
-    val createdAt: Long
-)
-
-// 2. 在聚合根中处理迁移命令
-@AggregateRoot
-class Order(private val state: OrderState) {
-    @OnCommand
-    fun onMigrate(command: MigrateOrder): OrderCreated {
-        return OrderCreated(
-            orderId = command.orderId,
-            customerId = command.customerId,
-            items = command.items,
-            createdAt = command.createdAt
-        )
-    }
-}
-
-// 3. 发送迁移命令
-fun migrateHistoricalData(legacyOrders: List<LegacyOrder>) {
-    legacyOrders.forEach { order ->
-        val command = MigrateOrder(
-            orderId = order.id,
-            customerId = order.customerId,
-            items = order.items.map { /* 转换 */ },
-            createdAt = order.createdAt
-        )
-        commandGateway.send(command).block()
-    }
-}
-```
+参见 [传统架构迁移：用单写者完成历史导入与增量追平](./migration/traditional-architecture.md#_2-用单写者完成历史导入与增量追平)。
 
 ### 代码迁移
 
-#### 从 CRUD 到命令模式
+<span id="从-crud-到命令模式"></span>
+<span id="从直接查询到查询快照"></span>
 
-**传统 CRUD 代码**：
+参见 [传统架构迁移：先迁移边界，不先迁移表](./migration/traditional-architecture.md#_1-先迁移边界-不先迁移表)
+和 [对账后分别切换读与写](./migration/traditional-architecture.md#_3-对账后分别切换读与写)。
 
-```kotlin
-// 传统服务
-@Service
-class OrderService(private val orderRepository: OrderRepository) {
-    
-    fun createOrder(request: CreateOrderRequest): Order {
-        val order = Order(
-            id = UUID.randomUUID().toString(),
-            customerId = request.customerId,
-            items = request.items,
-            status = OrderStatus.CREATED
-        )
-        return orderRepository.save(order)
-    }
-    
-    fun updateOrderStatus(orderId: String, status: OrderStatus) {
-        val order = orderRepository.findById(orderId)
-        order.status = status
-        orderRepository.save(order)
-    }
-}
-```
+### 兼容性说明
 
-**迁移后的 Wow 代码**：
+<span id="数据格式兼容性"></span>
+<span id="事件升级"></span>
+<span id="消息格式兼容性"></span>
 
-```kotlin
-// 命令定义
-@CreateAggregate
-data class CreateOrder(
-    val customerId: String,
-    val items: List<OrderItem>
-)
+参见 [传统架构迁移：领域模型继续演进](./migration/traditional-architecture.md#_4-领域模型继续演进)
+和 [v6 → v8：破坏性变更检查](./migration/v6-to-v8.md#破坏性变更检查)。
 
-@CommandRoute
-data class UpdateOrderStatus(
-    @AggregateId val id: String,
-    val status: OrderStatus
-)
+### 已知问题
 
-// 聚合根
-@AggregateRoot
-class Order(private val state: OrderState) {
-    
-    @OnCommand
-    fun onCreate(command: CreateOrder): OrderCreated {
-        return OrderCreated(
-            customerId = command.customerId,
-            items = command.items
-        )
-    }
-    
-    @OnCommand
-    fun onUpdateStatus(command: UpdateOrderStatus): OrderStatusUpdated {
-        return OrderStatusUpdated(command.status)
-    }
-}
+<span id="版本特定问题"></span>
+<span id="常见迁移问题"></span>
 
-// 状态聚合根
-class OrderState : Identifier {
-    lateinit var id: String
-    lateinit var customerId: String
-    var items: List<OrderItem> = emptyList()
-    var status: OrderStatus = OrderStatus.CREATED
-    
-    fun onSourcing(event: OrderCreated) {
-        this.customerId = event.customerId
-        this.items = event.items
-    }
-    
-    fun onSourcing(event: OrderStatusUpdated) {
-        this.status = event.status
-    }
-}
-```
+参见 [Release Notes](https://github.com/Ahoo-Wang/Wow/releases) 和
+[故障排查](./troubleshooting.md)。
 
-#### 从直接查询到查询快照
+### 迁移检查清单
 
-**传统查询代码**：
+参见 [传统架构迁移检查清单](./migration/traditional-architecture.md#完成检查清单)
+或 [v6 → v8 验证清单](./migration/v6-to-v8.md#验证清单)。
 
-```kotlin
-@Repository
-interface OrderRepository : JpaRepository<Order, String> {
-    fun findByCustomerId(customerId: String): List<Order>
-    fun findByStatus(status: OrderStatus): List<Order>
-}
-```
+### 回滚计划
 
-**迁移后的查询代码**：
+参见本页[共同完成门禁](#共同完成门禁)，以及所选迁移页面的切换和回滚步骤。
 
-参考 [查询服务](query.md)
+### 统一运行时编排
 
-```kotlin
-class OrderService(
-    private val queryService: SnapshotQueryService<OrderState>
-) {
-    fun getById(id: String): Mono<OrderState> {
-        return singleQuery {
-            condition {
-                id(id)
-            }
-        }.query(queryService).toState().throwNotFoundIfEmpty()
-    }
-}
-```
+参见 [运行时编排迁移](./migration/runtime-orchestration.md)。
 
-## 兼容性说明
+### 移除版本化快照检查点
 
-### 数据格式兼容性
+参见 [v6 → v8：移除版本化快照检查点](./migration/v6-to-v8.md#移除版本化快照检查点)。
 
-Wow 框架使用 JSON 序列化事件和快照数据，确保了良好的前向兼容性：
+### SnapshotStore 原子保存
 
-- **新增字段**：新字段会被忽略（向后兼容）
-- **删除字段**：使用默认值（需要处理）
-- **修改字段类型**：需要事件升级器
+参见 [v6 → v8：SnapshotStore 原子保存](./migration/v6-to-v8.md#snapshotstore-原子保存)。
 
-### 事件升级
+### Redis EventStore Canonical v2 布局（v8.9.0 引入）
 
-使用 `@Event` 注解的 `revision` 属性进行事件版本控制：
+参见 [v6 → v8：Redis EventStore Canonical v2 布局](./migration/v6-to-v8.md#redis-eventstore-canonical-v2-布局-v8-9-0-引入)。
 
-```kotlin
-@Event(revision = "1.0")
-data class OrderCreatedV1(
-    val orderId: String,
-    val items: List<OrderItem>
-)
+### Mongo 所有权保护
 
-@Event(revision = "2.0")
-data class OrderCreated(
-    val orderId: String,
-    val items: List<OrderItem>,
-    val customerId: String // 新增字段
-)
-```
+参见 [v6 → v8：Mongo 所有权保护](./migration/v6-to-v8.md#mongo-所有权保护)。
 
-### 消息格式兼容性
+## 相关页面
 
-确保消息格式的兼容性：
-
-1. **添加字段**：安全，使用默认值
-2. **删除字段**：需要确保消费者可以处理
-3. **修改字段名**：不兼容，需要版本控制
-
-## 已知问题
-
-### 版本特定问题
-
-请查阅 [GitHub Issues](https://github.com/Ahoo-Wang/Wow/issues) 获取最新的已知问题列表。
-
-### 常见迁移问题
-
-1. **事件重放顺序**：确保事件按版本顺序追加
-2. **时间戳处理**：保留原始时间戳
-3. **ID 生成**：保持 ID 格式一致
-
-## 迁移检查清单
-
-- [ ] 备份现有数据
-- [ ] 更新依赖版本
-- [ ] 检查破坏性变更
-- [ ] 更新配置文件
-- [ ] 重新生成元数据
-- [ ] 运行单元测试
-- [ ] 运行集成测试
-- [ ] 灰度发布验证
-- [ ] 全量发布
-- [ ] 监控验证
-
-## 回滚计划
-
-如果迁移失败，请按照以下步骤回滚：
-
-1. 停止新服务
-2. 恢复旧服务
-3. 验证数据一致性
-4. 分析失败原因
-5. 修复问题后重试
+| 页面 | 关系 |
+|---|---|
+| [传统架构迁移](./migration/traditional-architecture.md) | 首次采用 Wow |
+| [Wow v6 迁移到 v8](./migration/v6-to-v8.md) | 已使用 Wow 的平台升级 |
+| [运行时编排迁移](./migration/runtime-orchestration.md) | v8 生命周期扩展迁移 |
+| [最佳实践](./best-practices.md) | 迁移后的工程约束 |
+| [故障排查](./troubleshooting.md) | 验证失败时的定位入口 |

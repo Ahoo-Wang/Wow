@@ -231,7 +231,8 @@ Value: {snapshotJson}
 同样失败关闭，且不能禁用。直接使用库、独立构造的自定义 store、已退役聚合以及仅使用 Redis snapshot
 的场景必须离线审计。
 
-禁止新旧版本混合滚动发布。离线切换步骤与回滚边界见[迁移指南](../migration.md#redis-eventstore-canonical-v2-布局)。
+禁止新旧版本混合滚动发布。离线切换步骤与回滚边界见
+[Wow v6 迁移到 v8](../migration/v6-to-v8.md#redis-eventstore-canonical-v2-布局-v8-9-0-引入)。
 
 ## 预分配 Key
 

@@ -1,445 +1,200 @@
 ---
 title: Migration Guide
-description: Guide for migrating from traditional architecture to the Wow framework and upgrading between versions.
+description: Choose between traditional-architecture adoption and the Wow v6-to-v8 upgrade path.
 ---
 
 # Migration Guide
 
-This guide helps you migrate from traditional architecture to the Wow framework, as well as upgrade between different versions.
+There are two primary migration paths. **First-time Wow adoption** is about domain boundaries,
+data modeling, and traffic cutover. **Wow v6 → v8** is about Spring Boot 4, source compatibility,
+and storage-format cutovers. A system already on Wow v8 with custom runtime lifecycle ownership
+also needs the **runtime-orchestration migration track** inside the v8 path; it is not a third
+business or data migration. Choose the primary path first; do not combine both into one release.
 
-## Version Upgrade Guide
+## Choose a Migration Path
 
-### Upgrade Steps
-
-1. **Backup Data**: Backup event store and snapshot data before upgrading
-2. **Read Changelog**: Check [Release Notes](https://github.com/Ahoo-Wang/Wow/releases)
-3. **Update Dependency Version**: Modify build.gradle.kts or pom.xml
-4. **Run Tests**: Ensure all tests pass
-5. **Gradual Rollout**: Gradually upgrade production environment
-
-### Dependency Version Update
-
-::: code-group
-```kotlin [Gradle(Kotlin)]
-// Update wow version
-implementation("me.ahoo.wow:wow-spring-boot-starter:new-version")
-```
-```xml [Maven]
-<dependency>
-    <groupId>me.ahoo.wow</groupId>
-    <artifactId>wow-spring-boot-starter</artifactId>
-    <version>new-version</version>
-</dependency>
-```
-:::
-
-### Breaking Changes Check
-
-Before upgrading, check the following:
-
-1. **API Changes**: Check for interface signature changes
-2. **Configuration Changes**: Check for configuration property changes
-3. **Metadata Changes**: Regenerate metadata files
-
-## Unified Runtime Orchestration
-
-The runtime lifecycle migration is now documented separately so this page can
-remain an upgrade index:
-
-- [Runtime Orchestration Migration](./migration/runtime-orchestration.md) covers
-  source-breaking changes, custom components and message buses, Spring ownership,
-  verification, and rollback.
-- [Runtime Lifecycle](./advanced/runtime-lifecycle.md) describes the stable
-  post-migration architecture and shutdown semantics.
-
-This migration changes lifecycle extension contracts but does not change event,
-snapshot, or message formats. No data migration is required.
-
-## Versioned Snapshot Checkpoint Removal
-
-The versioned snapshot checkpoint capability introduced in v8.9.0 has been removed without a compatibility layer.
-`VersionedSnapshotStore`, `VersionIntervalCheckpointStrategy`, `CompositeSnapshotStrategy`, their metrics and tracing
-decorators, and `SnapshotCheckpointProperties` no longer exist. The `wow.eventsourcing.snapshot.checkpoint.*`
-properties are ignored, and the `wow.snapshot.checkpoint.*` metrics and checkpoint spans are no longer emitted.
-There is no replacement API; applications should use `SnapshotStore`, which stores and loads only the latest snapshot.
-
-MongoDB `*_snapshot_checkpoint` collections are no longer read, written, scanned, or automatically deleted. Back up
-event and snapshot data before upgrading, stop all old-version writers, and remove those collections only after
-confirming they are no longer needed. Rollback requires restoring the old runtime and retaining its checkpoint data;
-mixed-version deployment is unsupported.
-
-## Atomic SnapshotStore Saves
-
-`SnapshotStore.save()` keeps the same JVM signature and snapshot formats, but its
-storage contract is stronger: each aggregate must use one atomic compare-and-write
-operation. A candidate whose aggregate version is greater than or equal to the
-stored version replaces the complete snapshot; a lower candidate completes
-successfully without writing. Equal-version replacement is intentional so the
-snapshot-regeneration routes can repair a stale payload.
-
-Custom `SnapshotStore` implementations must use a backend CAS, conditional update,
-transaction, or equivalent atomic primitive. A client-side `load()` followed by an
-unconditional write is not conformant. Materialize the candidate once and derive the
-comparison version from that same payload. Stop and drain all old writers before
-relying on this guarantee: old MongoDB or Redis writers can still regress a newer
-snapshot, and an old Elasticsearch writer does not perform equal-version replacement.
-No data rewrite is required. Rollback restores the old save behavior, so do not run
-old and new writers concurrently.
-
-For `wow-mongo`, the guarded update uses MongoDB MQL expressions that require
-MongoDB 5.2 or later; the integration suite verifies MongoDB 6.0.6. Upgrade the
-MongoDB server before deploying this runtime when the existing server is older.
-
-## Redis EventStore Canonical v2 Layout (introduced in v8.9.0)
-
-When upgrading from v8.6.x or v8.8.x to v8.9.0, treat Redis persistence as a hard storage-format cutover. Redis
-EventStore, Redis SnapshotStore, and Redis PrepareKey read and write canonical v2 keys only. There is no legacy
-fallback, dual write, or built-in migrator, and old runtimes cannot read new v2 writes. The new EventStore also
-enforces that `AggregateId.id` is unique within a named aggregate across all tenants.
-
-The Spring Boot starter checks the exact sentinel keys created by successful writes in the published v8.6 and v8.8
-EventStore layouts. It checks local aggregates resolved to the auto-configured `RedisEventStore`, supports Redis
-Cluster without runtime `SCAN`, and blocks startup when incompatible data is found. It does not cover direct-library
-usage, independently constructed custom stores, retired aggregate metadata, or snapshot-only Redis routes. A legacy
-snapshot has no aggregate-independent exact sentinel. Canonical v2 ignores legacy snapshot keys. A missing v2
-snapshot causes aggregate loading to replay events, but normal loading does not persist a rebuilt snapshot
-automatically.
-
-The exact-key guard is not a substitute for an offline data audit. A historical alias change, key eviction, or a
-manually deleted or corrupted legacy index can hide the sentinel while orphaned streams remain. The resolved context
-alias (the configured alias, or `contextName` when no alias is configured) and aggregate name form the persistent v2
-key scope. The migration manifest must pin every historical source alias to the target resolved alias. Changing the
-resolved alias or aggregate name after a write requires a separate offline key migration.
-
-Use an offline cutover:
-
-1. Stop traffic and every old-version writer, drain in-flight appends to zero, and create a consistent Redis backup
-   together with event-count and version baselines. Do not use a mixed-version rolling deployment.
-2. Inventory all legacy event ZSETs, v8.6 shared request SETs, v8.8 per-stream request SETs, v8.8 bucketed ID ZSETs,
-   and legacy snapshot and PrepareKey hashes in every logical database on every Cluster primary. Record source key,
-   Redis type, cardinality, checksum, and target mapping. Use identity embedded in event or snapshot JSON as the
-   authority; an ambiguous historical key is only a locator.
-3. Audit each named aggregate for duplicate `AggregateId.id` values across tenants. Resolve every collision before
-   migration; canonical v2 intentionally cannot represent two owners of one ID.
-4. Use an empty v2 target scope on the first run. For disposable data, remove only the inventoried legacy keys from
-   the target or use an empty dedicated database. Never use `FLUSHDB` on a database shared with message-bus or
-   application data. Keep the complete source dataset immutable for rollback.
-5. Run a separately reviewed offline migrator. Its durable manifest must record source key, target keys, source and
-   target checksums, status, and last completed batch. Resume may reuse a target only when manifest and checksum
-   match; otherwise fail without overwriting. Copy operations must be idempotent, and partial target data must not be
-   accepted without manifest-backed re-verification.
-6. Preserve every event ZSET member and score, and verify identity consistency plus contiguous score/version order.
-   Treat committed event JSON as authoritative for v2 request-ID SETs. For v8.6, compare the shared SET with
-   `union(event.requestId)` in both directions and report shared-only and event-only differences separately; never fan
-   it out to streams. For v8.8, compute the symmetric difference between each source per-stream SET and that stream's
-   event request IDs. A non-empty difference fails migration unless an explicit reviewed disposition is recorded.
-7. Rebuild every non-empty aggregate-ID index in the 128-bucket space. The bucket is
-   `aggregateId.id.hashCode().mod(128)` using Java/Kotlin UTF-16 `String.hashCode`; keys and members must use the exact
-   canonical v2 codec. The runtime does not perform this conversion.
-8. Verify ordered member-and-score checksums, first/last versions, request-ID equality, the complete ID index,
-   aggregate-ID scan results, and representative state replay. A failed run must retain its manifest and last verified
-   cursor, then either clean the partial target or resume from that cursor; the application must not start meanwhile.
-9. After full verification, an in-place migration must remove or move every legacy key in the recorded inventory.
-   Delete sentinel keys last, rerun inventory, and require zero legacy keys. With a separate target database, keep the
-   complete source dataset read-only through the rollback window.
-10. Start one new instance against the target and run isolated-ID read/write smoke tests. Explicitly regenerate
-    snapshots, then verify snapshot counts and versions before switching traffic and scaling out. Use the single-ID
-    regenerate route from the complete inventory. The batch route may be treated as exhaustive only when the audited
-    ID domain is strictly above `AggregateIdScanner.FIRST_ID`; otherwise it can omit lower IDs.
-
-Rollback is a coordinated application-and-data operation. Before production v2 writes, reconnect the untouched
-legacy dataset and old runtime. After any production v2 write, first stop traffic and v2 writers, then reverse-migrate
-or replay those writes before restarting the old runtime; restoring only the cutover backup loses every later v2
-write. Prefer a separate target database or namespace.
-
-The mandatory exact-key check is an internal startup invariant. It is intentionally neither optional nor exposed as
-a compatibility or migration setting.
-
-Source, JVM binary, and behavioral compatibility are intentionally broken for Redis layout internals. Removed APIs
-include `AggregateKeyConverter`, `RedisWrappedKey`, `RedisSnapshotRepository`, `EventStreamKeyConverter`,
-`DefaultSnapshotKeyConverter`, `PrepareKeyConverter`, and `RedisEventStore.SCRIPT_EVENT_STEAM_APPEND`; the
-`redisSnapshotRepository` bean alias and custom snapshot-key converter constructor are also removed. The new
-`SCRIPT_EVENT_STREAM_APPEND` is internal, with no public replacement. Canonical converter outputs changed, PrepareKey
-now includes its `name`, and v2 rejects empty aggregate/prepare IDs and unpaired UTF-16 surrogates. Application code
-should use `EventStore`, `SnapshotStore`, and `PrepareKey`; reviewed offline tooling must independently implement and
-verify the documented v2 codec.
-
-## Mongo Ownership Guard
-
-This upgrade keeps aggregate-name-only Mongo collection names, but adds a durable
-`wow_database_metadata` ownership marker. The supported deployment layout is one bounded context per MongoDB
-database.
-
-Before rollout:
-
-1. Inspect every configured event-stream, snapshot, and prepare database. Check all `*_event_stream`, `*_snapshot`,
-   and `prepare_*` collections.
-2. Confirm that each database belongs to only one `wow.context-name`; a mixed database must be split before upgrade.
-3. Upgrade the database's real owner first. The first upgraded instance scans legacy aggregate collections before
-   atomically claiming the marker. Legacy `prepare_*` records contain no context metadata, so a prepare-only database
-   is claimed by the first upgraded context and must be audited before rollout.
-4. Audit existing managed indexes. Missing indexes are created, but incompatible key order, uniqueness, TTL,
-   partial-filter, collation, sparse, or hidden options block startup and require a controlled migration.
-
-Do not edit the marker to bypass a context mismatch. Move or remove the old data, then remove the marker only when
-the database is intentionally reassigned.
-
-## Migrating from Traditional Architecture
-
-### Migration Strategy
-
-#### Gradual Migration
-
-We recommend a gradual migration strategy, progressively migrating functional modules to event sourcing architecture:
+| Current state | Goal | Read | Keep out of scope |
+|---|---|---|---|
+| Traditional CRUD, transaction scripts, or direct database writes | Adopt Wow CQRS and event sourcing incrementally | [Migrating from Traditional Architecture](./migration/traditional-architecture.md) | Wow v6 version-compatibility assumptions |
+| Wow v6 and Spring Boot 3 | Wow v8 and Spring Boot 4 | [Migrate Wow v6 to v8](./migration/v6-to-v8.md) | Redesigning every business boundary |
+| Wow v8 with custom Dispatcher, MessageBus, or Spring lifecycle integration | Current unified `WowRuntime` | [Runtime Orchestration Migration](./migration/runtime-orchestration.md) | Rewriting business data |
 
 ```mermaid
-flowchart LR
-    subgraph Legacy["Traditional Architecture"]
-        LDB[(Relational Database)]
-        LS[Legacy Service]
-    end
-    
-    subgraph Wow["Wow Framework"]
-        ES[(Event Store)]
-        WS[Wow Service]
-    end
-    
-    LS -->|Publish Events| WS
-    WS -->|Sync Data| LDB
-
+%%{init: {"theme": "dark"}}%%
+flowchart TD
+    Start{"Does the system already use Wow?"}
+    Start -->|"No"| Traditional["Traditional architecture migration"]
+    Start -->|"Yes, Wow v6"| V6["Migrate Wow v6 to v8"]
+    Start -->|"Yes, Wow v8"| Custom{"Custom runtime lifecycle?"}
+    Custom -->|"Yes"| Runtime["Runtime orchestration migration"]
+    Custom -->|"No"| Release["Follow Release Notes<br>for the current minor"]
+    classDef route fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
+    class Start,Traditional,V6,Custom,Runtime,Release route
 ```
 
-#### Migration Steps
+<!-- Sources:
+- README.md:47-49
+- documentation/docs/en/guide/migration/traditional-architecture.md
+- documentation/docs/en/guide/migration/v6-to-v8.md
+- documentation/docs/en/guide/migration/runtime-orchestration.md
+-->
 
-1. **Identify Bounded Contexts**: Determine business modules to migrate
-2. **Design Domain Model**: Define aggregate roots, commands, and events
-3. **Implement Dual Writing**: Write to both old and new systems
-4. **Verify Consistency**: Ensure data consistency
-5. **Switch Read/Write**: Gradually switch to new system
+## Documentation Boundaries
+
+```mermaid
+%%{init: {"theme": "dark"}}%%
+graph TD
+    Index["Migration guide<br>path selection only"]
+    Traditional["Traditional architecture<br>domain and traffic cutover"]
+    V6["v6 → v8<br>platform and data cutover"]
+    Runtime["Runtime orchestration<br>lifecycle source migration"]
+    Lifecycle["Runtime lifecycle<br>stable post-migration model"]
+    Index --> Traditional
+    Index --> V6
+    V6 --> Runtime
+    Runtime --> Lifecycle
+    classDef doc fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
+    class Index,Traditional,V6,Runtime,Lifecycle doc
+```
+
+<!-- Sources:
+- documentation/docs/en/guide/migration/traditional-architecture.md
+- documentation/docs/en/guide/migration/v6-to-v8.md
+- documentation/docs/en/guide/migration/runtime-orchestration.md
+- documentation/docs/en/guide/advanced/runtime-lifecycle.md
+-->
+
+| Page | Answers | Primary source |
+|---|---|---|
+| Traditional architecture | How do we establish commands, aggregates, events, and state from CRUD, then move traffic safely? | [CreateOrder.kt:31-64](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/order/CreateOrder.kt#L31-L64), [Order.kt:55-137](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt#L55-L137) |
+| v6 → v8 | How do we cross Spring Boot 3 → 4 and handle v8 storage and API breaks? | [v8.0.0 Release](https://github.com/Ahoo-Wang/Wow/releases/tag/v8.0.0), [gradle/libs.versions.toml:3-18](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L3-L18) |
+| Runtime orchestration | How do we converge multiple lifecycle owners on one `WowRuntime`? | [WowAutoConfiguration.kt:118-152](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L118-L152) |
+
+## Shared Completion Gates
+
+Both primary paths and the runtime-orchestration track must advance on evidence. A process that
+merely starts is not yet migrated.
+
+```mermaid
+%%{init: {"theme": "dark"}}%%
+stateDiagram-v2
+    [*] --> Baseline: Fix scope and baseline
+    Baseline --> Rehearsal: Rehearse in isolation
+    Rehearsal --> Verify: Test, reconcile, replay
+    Verify --> Rehearsal: Gate fails
+    Verify --> Canary: Gate passes
+    Canary --> Rollback: Production check fails
+    Rollback --> Baseline
+    Canary --> Complete: Observation window passes
+    Complete --> [*]
+```
+
+<!-- Sources:
+- wow-core/src/main/kotlin/me/ahoo/wow/command/CommandFactory.kt:60-103
+- wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt:75-159
+- wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotStore.kt:57-71
+- wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt:118-152
+-->
+
+- **Scope**: Fix the bounded context, dataset, source version, target version, and explicit exclusions.
+- **Baseline**: Record tests, event/snapshot counts, critical business metrics, and a restorable backup.
+- **Verification**: Run unit and integration tests, per-aggregate reconciliation, representative replay, and real startup/shutdown.
+- **Rollout**: Validate one instance or a small traffic slice first, including rollback after new writes.
+- **Closure**: Remove old data, writers, compatibility code, and temporary synchronization only after the observation window.
+
+## Legacy Link Navigation
+
+The topics formerly on this page moved to
+[Migrating from Traditional Architecture](./migration/traditional-architecture.md),
+[Migrate Wow v6 to v8](./migration/v6-to-v8.md), and
+[Runtime Orchestration Migration](./migration/runtime-orchestration.md). The headings and aliases
+below retain every deep link from the original page; continue to the linked page after arrival.
+
+### Version Upgrade Guide
+
+<span id="upgrade-steps"></span>
+<span id="dependency-version-update"></span>
+<span id="breaking-changes-check"></span>
+
+See [v6 → v8: General Upgrade Steps](./migration/v6-to-v8.md#general-upgrade-steps).
+
+### Migrating from Traditional Architecture
+
+<span id="migration-strategy"></span>
+<span id="gradual-migration"></span>
+<span id="migration-steps"></span>
+
+See [Traditional Architecture: Migration Overview](./migration/traditional-architecture.md#migration-overview).
 
 ### Data Migration
 
-#### Historical Data Import
+<span id="historical-data-import"></span>
 
-For scenarios requiring historical data preservation, it is recommended to define migration commands:
-
-```kotlin
-// 1. Define Migration Command
-@CreateAggregate
-data class MigrateOrder(
-    val orderId: String,
-    val customerId: String,
-    val items: List<OrderItem>,
-    val createdAt: Long
-)
-
-// 2. Handle Migration Command in Aggregate
-@AggregateRoot
-class Order(private val state: OrderState) {
-    @OnCommand
-    fun onMigrate(command: MigrateOrder): OrderCreated {
-        return OrderCreated(
-            orderId = command.orderId,
-            customerId = command.customerId,
-            items = command.items,
-            createdAt = command.createdAt
-        )
-    }
-}
-
-// 3. Send Migration Command
-fun migrateHistoricalData(legacyOrders: List<LegacyOrder>) {
-    legacyOrders.forEach { order ->
-        val command = MigrateOrder(
-            orderId = order.id,
-            customerId = order.customerId,
-            items = order.items.map { /* convert */ },
-            createdAt = order.createdAt
-        )
-        commandGateway.send(command).block()
-    }
-}
-```
+See [Traditional Architecture: Import and Catch Up with One Writer](./migration/traditional-architecture.md#_2-import-and-catch-up-with-one-writer).
 
 ### Code Migration
 
-#### From CRUD to Command Pattern
+<span id="from-crud-to-command-pattern"></span>
+<span id="from-direct-queries-to-query-snapshots"></span>
 
-**Traditional CRUD Code**:
+See [Traditional Architecture: Migrate the Boundary Before the Tables](./migration/traditional-architecture.md#_1-migrate-the-boundary-before-the-tables)
+and [Reconcile, Then Move Reads and Writes Separately](./migration/traditional-architecture.md#_3-reconcile-then-move-reads-and-writes-separately).
 
-```kotlin
-// Traditional service
-@Service
-class OrderService(private val orderRepository: OrderRepository) {
-    
-    fun createOrder(request: CreateOrderRequest): Order {
-        val order = Order(
-            id = UUID.randomUUID().toString(),
-            customerId = request.customerId,
-            items = request.items,
-            status = OrderStatus.CREATED
-        )
-        return orderRepository.save(order)
-    }
-    
-    fun updateOrderStatus(orderId: String, status: OrderStatus) {
-        val order = orderRepository.findById(orderId)
-        order.status = status
-        orderRepository.save(order)
-    }
-}
-```
+### Compatibility Notes
 
-**Migrated Wow Code**:
+<span id="data-format-compatibility"></span>
+<span id="event-upgrades"></span>
+<span id="message-format-compatibility"></span>
 
-```kotlin
-// Command definitions
-@CreateAggregate
-data class CreateOrder(
-    val customerId: String,
-    val items: List<OrderItem>
-)
+See [Traditional Architecture: Continue Evolving the Domain Model](./migration/traditional-architecture.md#_4-continue-evolving-the-domain-model)
+and [v6 → v8: Breaking Changes Check](./migration/v6-to-v8.md#breaking-changes-check).
 
-@CommandRoute
-data class UpdateOrderStatus(
-    @AggregateId val id: String,
-    val status: OrderStatus
-)
+### Known Issues
 
-// Aggregate root
-@AggregateRoot
-class Order(private val state: OrderState) {
-    
-    @OnCommand
-    fun onCreate(command: CreateOrder): OrderCreated {
-        return OrderCreated(
-            customerId = command.customerId,
-            items = command.items
-        )
-    }
-    
-    @OnCommand
-    fun onUpdateStatus(command: UpdateOrderStatus): OrderStatusUpdated {
-        return OrderStatusUpdated(command.status)
-    }
-}
+<span id="version-specific-issues"></span>
+<span id="common-migration-issues"></span>
 
-// State aggregate root
-class OrderState : Identifier {
-    lateinit var id: String
-    lateinit var customerId: String
-    var items: List<OrderItem> = emptyList()
-    var status: OrderStatus = OrderStatus.CREATED
-    
-    fun onSourcing(event: OrderCreated) {
-        this.customerId = event.customerId
-        this.items = event.items
-    }
-    
-    fun onSourcing(event: OrderStatusUpdated) {
-        this.status = event.status
-    }
-}
-```
+See the [Release Notes](https://github.com/Ahoo-Wang/Wow/releases) and
+[Troubleshooting](./troubleshooting.md).
 
-#### From Direct Queries to Query Snapshots
+### Migration Checklist
 
-**Traditional Query Code**:
+See the [Traditional Architecture Completion Checklist](./migration/traditional-architecture.md#completion-checklist)
+or the [v6 → v8 Verification Checklist](./migration/v6-to-v8.md#verification-checklist).
 
-```kotlin
-@Repository
-interface OrderRepository : JpaRepository<Order, String> {
-    fun findByCustomerId(customerId: String): List<Order>
-    fun findByStatus(status: OrderStatus): List<Order>
-}
-```
+### Rollback Plan
 
-**Migrated Query Code**:
+See the [Shared Completion Gates](#shared-completion-gates) on this page and the cutover and
+rollback steps on the selected migration page.
 
-Refer to [Query Service](query.md)
+### Unified Runtime Orchestration
 
-```kotlin
-class OrderService(
-    private val queryService: SnapshotQueryService<OrderState>
-) {
-    fun getById(id: String): Mono<OrderState> {
-        return singleQuery {
-            condition {
-                id(id)
-            }
-        }.query(queryService).toState().throwNotFoundIfEmpty()
-    }
-}
-```
+See [Runtime Orchestration Migration](./migration/runtime-orchestration.md).
 
-## Compatibility Notes
+<span id="versioned-snapshot-checkpoint-removal"></span>
 
-### Data Format Compatibility
+### Removal of Versioned Snapshot Checkpoints
 
-The Wow framework uses JSON serialization for events and snapshot data, ensuring good forward compatibility:
+See [v6 → v8: Versioned Snapshot Checkpoint Removal](./migration/v6-to-v8.md#versioned-snapshot-checkpoint-removal).
 
-- **Adding Fields**: New fields will be ignored (backward compatible)
-- **Removing Fields**: Uses default values (needs handling)
-- **Changing Field Types**: Requires event upgrader
+### Atomic SnapshotStore Saves
 
-### Event Upgrades
+See [v6 → v8: Atomic SnapshotStore Saves](./migration/v6-to-v8.md#atomic-snapshotstore-saves).
 
-Use the `revision` attribute of the `@Event` annotation for event version control:
+### Redis EventStore Canonical v2 Layout (introduced in v8.9.0)
 
-```kotlin
-@Event(revision = "1.0")
-data class OrderCreatedV1(
-    val orderId: String,
-    val items: List<OrderItem>
-)
+See [v6 → v8: Redis EventStore Canonical v2 Layout](./migration/v6-to-v8.md#redis-eventstore-canonical-v2-layout-introduced-in-v8-9-0).
 
-@Event(revision = "2.0")
-data class OrderCreated(
-    val orderId: String,
-    val items: List<OrderItem>,
-    val customerId: String // New field
-)
-```
+### Mongo Ownership Guard
 
-### Message Format Compatibility
+See [v6 → v8: Mongo Ownership Guard](./migration/v6-to-v8.md#mongo-ownership-guard).
 
-Ensure message format compatibility:
+## Related Pages
 
-1. **Adding Fields**: Safe, uses default values
-2. **Removing Fields**: Need to ensure consumers can handle
-3. **Renaming Fields**: Not compatible, requires version control
-
-## Known Issues
-
-### Version-Specific Issues
-
-Please check [GitHub Issues](https://github.com/Ahoo-Wang/Wow/issues) for the latest known issues list.
-
-### Common Migration Issues
-
-1. **Event Replay Order**: Ensure events are appended in version order
-2. **Timestamp Handling**: Preserve original timestamps
-3. **ID Generation**: Maintain consistent ID format
-
-## Migration Checklist
-
-- [ ] Backup existing data
-- [ ] Update dependency version
-- [ ] Check breaking changes
-- [ ] Update configuration files
-- [ ] Regenerate metadata
-- [ ] Run unit tests
-- [ ] Run integration tests
-- [ ] Gradual rollout verification
-- [ ] Full rollout
-- [ ] Monitoring verification
-
-## Rollback Plan
-
-If migration fails, follow these rollback steps:
-
-1. Stop new service
-2. Restore old service
-3. Verify data consistency
-4. Analyze failure cause
-5. Fix issues and retry
+| Page | Relationship |
+|---|---|
+| [Migrating from Traditional Architecture](./migration/traditional-architecture.md) | First-time Wow adoption |
+| [Migrate Wow v6 to v8](./migration/v6-to-v8.md) | Platform upgrade for existing Wow systems |
+| [Runtime Orchestration Migration](./migration/runtime-orchestration.md) | v8 lifecycle extension migration |
+| [Best Practices](./best-practices.md) | Engineering constraints after migration |
+| [Troubleshooting](./troubleshooting.md) | Investigation entry point when verification fails |
