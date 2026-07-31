@@ -1050,10 +1050,14 @@ def parse_markdown_html_attributes(
 def find_markdown_html_code_language(
     attributes: str,
 ) -> str | None:
-    classes = parse_markdown_html_attributes(
-        attributes
-    ).get("class", "")
-    for class_name in classes.split():
+    classes = unescape(
+        parse_markdown_html_attributes(
+            attributes
+        ).get("class", "")
+    )
+    for class_name in re.split(r"[\t\n\f\r ]+", classes):
+        if not class_name:
+            continue
         normalized = class_name.lower()
         if normalized.startswith("language-"):
             return normalized.removeprefix("language-")
@@ -1381,7 +1385,10 @@ def split_markdown_html_code_segments(
     return markdown_html_code_state_result(state)
 
 
-def markdown_line_interrupts_paragraph(content: str) -> bool:
+def markdown_line_interrupts_paragraph(
+    content: str,
+    paragraph_has_visible_content: bool = True,
+) -> bool:
     if not content.strip():
         return True
 
@@ -1398,9 +1405,13 @@ def markdown_line_interrupts_paragraph(content: str) -> bool:
 
     if (
         MARKDOWN_ATX_HEADING_PATTERN.match(content)
-        or MARKDOWN_SETEXT_HEADING_PATTERN.match(content)
         or MARKDOWN_THEMATIC_BREAK_PATTERN.match(content)
         or MARKDOWN_BLOCKQUOTE_PREFIX.match(content)
+    ):
+        return True
+    if (
+        paragraph_has_visible_content
+        and MARKDOWN_SETEXT_HEADING_PATTERN.match(content)
     ):
         return True
 
@@ -1421,6 +1432,7 @@ def markdown_line_interrupts_paragraph(content: str) -> bool:
 def is_markdown_paragraph_continuation(
     line: str,
     paragraph_container: MarkdownContainer | None,
+    paragraph_has_visible_content: bool = True,
 ) -> bool:
     if paragraph_container is None or not line.strip():
         return False
@@ -1439,7 +1451,10 @@ def is_markdown_paragraph_continuation(
             paragraph_container,
         )
     content = line if container_content is None else container_content
-    return not markdown_line_interrupts_paragraph(content)
+    return not markdown_line_interrupts_paragraph(
+        content,
+        paragraph_has_visible_content,
+    )
 
 
 def markdown_line_starts_list_item_outside_container(
@@ -1802,13 +1817,23 @@ def match_markdown_link_reference_definition(
         MarkdownBlockquotePrefix | MarkdownListPrefix,
         ...,
     ],
+    reference_container: MarkdownContainer | None = None,
 ) -> tuple[int, MarkdownContainer] | None:
-    content, container = next(
-        iter_markdown_container_contents(
-            lines[start_index].expandtabs(tabsize=4),
-            active_prefixes,
+    if reference_container is None:
+        content, container = next(
+            iter_markdown_container_contents(
+                lines[start_index].expandtabs(tabsize=4),
+                active_prefixes,
+            )
         )
-    )
+    else:
+        content = strip_markdown_reference_container(
+            lines[start_index].expandtabs(tabsize=4),
+            reference_container,
+        )
+        if content is None:
+            return None
+        container = reference_container
     remainder = parse_markdown_link_reference_label(content)
     if remainder is None:
         return None
@@ -1905,6 +1930,7 @@ class MarkdownAnalysisState:
     ] | None = None
     html_block: MarkdownHtmlBlock | None = None
     paragraph_container: MarkdownContainer | None = None
+    paragraph_has_visible_content: bool = False
     link_reference_definition_end: int = -1
     active_list_prefixes: tuple[
         MarkdownBlockquotePrefix | MarkdownListPrefix,
@@ -1991,6 +2017,7 @@ def analyze_open_markdown_fence_line(
         return "retry"
 
     state.paragraph_container = None
+    state.paragraph_has_visible_content = False
     closing_fence = match_markdown_closing_fence(line, container)
     if (
         closing_fence
@@ -2023,6 +2050,7 @@ def analyze_open_markdown_html_line(
         return "retry"
 
     state.paragraph_container = None
+    state.paragraph_has_visible_content = False
     html_segments, next_html_block = (
         analyze_markdown_html_content(
             html_content,
@@ -2073,18 +2101,29 @@ def analyze_markdown_link_reference_line(
     line_no = line_index + 1
     if line_index <= state.link_reference_definition_end:
         state.lines_to_lint.append((line_no, source_line, None))
-        state.paragraph_container = None
         return True
-    if state.paragraph_container is not None:
+    if (
+        state.paragraph_container is not None
+        and state.paragraph_has_visible_content
+    ):
         return False
 
-    link_reference_match = (
-        match_markdown_link_reference_definition(
+    link_reference_match = None
+    if state.paragraph_container is not None:
+        link_reference_match = match_markdown_link_reference_definition(
             source_lines,
             line_index,
             state.active_list_prefixes,
+            state.paragraph_container,
         )
-    )
+    if link_reference_match is None:
+        link_reference_match = (
+            match_markdown_link_reference_definition(
+                source_lines,
+                line_index,
+                state.active_list_prefixes,
+            )
+        )
     if link_reference_match is None:
         return False
     (
@@ -2097,7 +2136,8 @@ def analyze_markdown_link_reference_line(
             link_reference_container
         )
     )
-    state.paragraph_container = None
+    state.paragraph_container = link_reference_container
+    state.paragraph_has_visible_content = False
     return True
 
 
@@ -2107,9 +2147,12 @@ def analyze_existing_markdown_paragraph_line(
     source_line: str,
     line: str,
 ) -> bool:
-    if is_markdown_setext_heading_underline(
-        line,
-        state.paragraph_container,
+    if (
+        state.paragraph_has_visible_content
+        and is_markdown_setext_heading_underline(
+            line,
+            state.paragraph_container,
+        )
     ):
         state.lines_to_lint.append((line_no, source_line, None))
         state.active_list_prefixes = (
@@ -2118,12 +2161,15 @@ def analyze_existing_markdown_paragraph_line(
             )
         )
         state.paragraph_container = None
+        state.paragraph_has_visible_content = False
         return True
     if is_markdown_paragraph_continuation(
         line,
         state.paragraph_container,
+        state.paragraph_has_visible_content,
     ):
         state.lines_to_lint.append((line_no, source_line, None))
+        state.paragraph_has_visible_content = True
         return True
     return False
 
@@ -2142,6 +2188,7 @@ def analyze_new_markdown_html_block_line(
         return False
     html_content, html_block = html_match
     state.paragraph_container = None
+    state.paragraph_has_visible_content = False
     state.active_list_prefixes = (
         get_active_markdown_list_prefixes(
             html_block.container
@@ -2191,6 +2238,9 @@ def analyze_markdown_fence_or_text_line(
                 state.active_list_prefixes,
             )
         )
+        state.paragraph_has_visible_content = (
+            state.paragraph_container is not None
+        )
         state.active_list_prefixes = (
             get_active_markdown_list_prefixes(
                 line_container
@@ -2199,6 +2249,7 @@ def analyze_markdown_fence_or_text_line(
         return
 
     state.paragraph_container = None
+    state.paragraph_has_visible_content = False
     state.active_list_prefixes = (
         get_active_markdown_list_prefixes(
             opening_fence.container

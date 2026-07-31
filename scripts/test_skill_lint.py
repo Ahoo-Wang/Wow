@@ -988,6 +988,21 @@ class SkillLintTest(unittest.TestCase):
                 "</code></pre>\n"
             ),
             (
+                '<pre><code class="language&#45;java">\n'
+                "assertThat(result).isEqualTo(expected);\n"
+                "</code></pre>\n"
+            ),
+            (
+                '<pre><code class="language&#x2D;java">\n'
+                "assertThat(result).isEqualTo(expected);\n"
+                "</code></pre>\n"
+            ),
+            (
+                '<pre><code class="example&#32;language-java">\n'
+                "assertThat(result).isEqualTo(expected);\n"
+                "</code></pre>\n"
+            ),
+            (
                 "<pre>\n"
                 "<code\n"
                 ' class="language-java">\n'
@@ -1006,25 +1021,31 @@ class SkillLintTest(unittest.TestCase):
                     self.assertEqual([], skill_lint.lint(root))
 
     def test_raw_html_kotlin_code_still_uses_kotlin_assertion_rule(self):
+        kotlin_classes = [
+            "language-kotlin",
+            "language&#45;kotlin",
+        ]
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             template = root / "skills" / "wow" / "references" / "template.md"
             template.parent.mkdir(parents=True)
-            template.write_text(
-                '<pre><code class="language-kotlin">\n'
-                "assertThat(result).isEqualTo(expected)\n"
-                "</code></pre>\n",
-                encoding="utf-8",
-            )
+            for kotlin_class in kotlin_classes:
+                with self.subTest(kotlin_class=kotlin_class):
+                    template.write_text(
+                        f'<pre><code class="{kotlin_class}">\n'
+                        "assertThat(result).isEqualTo(expected)\n"
+                        "</code></pre>\n",
+                        encoding="utf-8",
+                    )
 
-            findings = skill_lint.lint(root)
+                    findings = skill_lint.lint(root)
 
-            self.assertEqual(1, len(findings))
-            self.assertEqual(2, findings[0].line)
-            self.assertEqual(
-                "Use FluentAssert `.assert()` instead of AssertJ `assertThat()`.",
-                findings[0].message,
-            )
+                    self.assertEqual(1, len(findings))
+                    self.assertEqual(2, findings[0].line)
+                    self.assertEqual(
+                        "Use FluentAssert `.assert()` instead of AssertJ `assertThat()`.",
+                        findings[0].message,
+                    )
 
     def test_raw_html_java_language_ends_with_code_element(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1054,6 +1075,30 @@ class SkillLintTest(unittest.TestCase):
         sources = [
             (
                 '<pre><code data-class="language-java">\n'
+                "assertThat(result).isEqualTo(expected)\n"
+                "</code></pre>\n",
+                2,
+            ),
+            (
+                '<pre><code data-class="language&#45;java">\n'
+                "assertThat(result).isEqualTo(expected)\n"
+                "</code></pre>\n",
+                2,
+            ),
+            (
+                '<pre><code class="language&amp;#45;java">\n'
+                "assertThat(result).isEqualTo(expected)\n"
+                "</code></pre>\n",
+                2,
+            ),
+            (
+                '<pre><code class="example&#160;language-java">\n'
+                "assertThat(result).isEqualTo(expected)\n"
+                "</code></pre>\n",
+                2,
+            ),
+            (
+                '<pre><code class="example&#xA0;language-java">\n'
                 "assertThat(result).isEqualTo(expected)\n"
                 "</code></pre>\n",
                 2,
@@ -1207,6 +1252,43 @@ class SkillLintTest(unittest.TestCase):
                         findings[0].line,
                     )
                     self.assertEqual("Unclosed Markdown code fence.", findings[0].message)
+
+    def test_type_7_html_respects_lazy_list_paragraph(self):
+        cases = [
+            (
+                "- Note\n"
+                "<x>\n"
+                "<span>\n"
+                "```java\n"
+                "assertThat(result)\n"
+                "```\n",
+                [],
+            ),
+            (
+                "- Note\n"
+                "\n"
+                "<x>\n"
+                "<span>\n"
+                "```java\n"
+                "assertThat(result)\n"
+                "```\n",
+                [6],
+            ),
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            for source, expected_lines in cases:
+                with self.subTest(source=source):
+                    template.write_text(source, encoding="utf-8")
+
+                    findings = skill_lint.lint(root)
+
+                    self.assertEqual(
+                        expected_lines,
+                        [finding.line for finding in findings],
+                    )
 
     def test_allows_container_fence_markers_as_top_level_fence_content(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1544,7 +1626,7 @@ class SkillLintTest(unittest.TestCase):
 
             self.assertEqual([], skill_lint.lint(root))
 
-    def test_link_reference_definition_ends_paragraph_state(self):
+    def test_link_reference_definition_keeps_paragraph_state(self):
         definitions = [
             "[label]: /url\n",
             "[label]:/url\n",
@@ -1562,16 +1644,9 @@ class SkillLintTest(unittest.TestCase):
                         encoding="utf-8",
                     )
 
-                    findings = skill_lint.lint(root)
+                    self.assertEqual([], skill_lint.lint(root))
 
-                    self.assertEqual(1, len(findings))
-                    self.assertEqual(2, findings[0].line)
-                    self.assertEqual(
-                        "Unclosed Markdown code fence.",
-                        findings[0].message,
-                    )
-
-    def test_multiline_link_reference_definition_ends_paragraph_state(self):
+    def test_multiline_link_reference_definition_keeps_paragraph_state(self):
         definitions = [
             "[label]:\n  /url\n",
             "[label]:\n/url\n",
@@ -1579,7 +1654,6 @@ class SkillLintTest(unittest.TestCase):
             "[label]:\n\t/url\n",
             "[label]: /url\n  \"title\"\n",
             "[label]:\n  /url\n  'title'\n",
-            "> [label]:\n> /url\n",
             "[label]: /url \"first\nsecond\"\n",
         ]
         with tempfile.TemporaryDirectory() as tmp:
@@ -1593,17 +1667,7 @@ class SkillLintTest(unittest.TestCase):
                         encoding="utf-8",
                     )
 
-                    findings = skill_lint.lint(root)
-
-                    self.assertEqual(1, len(findings))
-                    self.assertEqual(
-                        definition.count("\n") + 1,
-                        findings[0].line,
-                    )
-                    self.assertEqual(
-                        "Unclosed Markdown code fence.",
-                        findings[0].message,
-                    )
+                    self.assertEqual([], skill_lint.lint(root))
 
     def test_reference_destination_does_not_consume_fence(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1620,6 +1684,83 @@ class SkillLintTest(unittest.TestCase):
 
             self.assertEqual([], skill_lint.lint(root))
 
+    def test_type_7_line_continues_link_definition_paragraph(self):
+        cases = [
+            ("", []),
+            ("    prose\n", []),
+            ("- \n", []),
+            ("\n", [5]),
+            ("<div>\n", [5]),
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            for prefix, expected_lines in cases:
+                with self.subTest(prefix=prefix):
+                    template.write_text(
+                        "[a]: /x\n"
+                        f"{prefix}"
+                        "<x>\n"
+                        "```java\n"
+                        "assertThat(result)\n"
+                        "```\n",
+                        encoding="utf-8",
+                    )
+
+                    self.assertEqual(
+                        expected_lines,
+                        [
+                            finding.line
+                            for finding in skill_lint.lint(root)
+                        ],
+                    )
+
+    def test_non_one_list_marker_after_reference_is_paragraph_text(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "[a]: /x\n"
+                "2. ~~~java\n"
+                "assertThat(result)\n",
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual([3], [finding.line for finding in findings])
+
+    def test_consecutive_link_definitions_keep_lazy_container(self):
+        sources = [
+            (
+                "> [a]: /x\n"
+                "[b]: /y\n"
+                "> <x>\n"
+                "> ```java\n"
+                "> assertThat(result)\n"
+                "> ```\n"
+            ),
+            (
+                "- [a]: /x\n"
+                "[b]: /y\n"
+                "    <x>\n"
+                "    ```java\n"
+                "    assertThat(result)\n"
+                "    ```\n"
+            ),
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            for source in sources:
+                with self.subTest(source=source):
+                    template.write_text(source, encoding="utf-8")
+
+                    self.assertEqual([], skill_lint.lint(root))
+
     def test_link_reference_uses_active_and_lazy_containers(self):
         cases = [
             (
@@ -1628,7 +1769,7 @@ class SkillLintTest(unittest.TestCase):
                 "    [label]:\n"
                 "      /url\n"
                 "    2. ~~~java\n",
-                5,
+                None,
             ),
             (
                 '> [label]: /url "first\n'
@@ -1647,6 +1788,9 @@ class SkillLintTest(unittest.TestCase):
 
                     findings = skill_lint.lint(root)
 
+                    if expected_line is None:
+                        self.assertEqual([], findings)
+                        continue
                     self.assertEqual(1, len(findings))
                     self.assertEqual(expected_line, findings[0].line)
                     self.assertEqual(
