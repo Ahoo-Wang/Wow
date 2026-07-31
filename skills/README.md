@@ -9,7 +9,7 @@
 - 每个 skill 目录以 `SKILL.md` 作为入口。
 - `SKILL.md` 使用标准 YAML frontmatter，必须包含 `name` 和 `description`；可选字段以标准 validator 与目标客户端的支持范围为准。
 - 大段参考资料放入 `references/`，由 agent 按需加载。
-- 验证脚本放在仓库级 `scripts/`，不依赖特定客户端运行时。
+- 使用 `skill-creator` 提供的标准 validator 校验目录结构和 frontmatter；仓库内不重复维护通用 Markdown、HTML 或自然语言 parser。
 - 文档避免使用只属于某个 agent 产品的术语，除非是在说明兼容范围。
 
 ## 总体结构
@@ -106,7 +106,7 @@ graph TD
 - 不把长篇框架知识塞回 `wow/SKILL.md`，保持它是 Router。
 - 重复、细节性材料放入 `references/`，由 workflow 按需加载。
 - 不恢复旧的 `wow-aggregate-enhance` 顶层入口；聚合增强已经并入 `wow-development-workflow` 的 `Enhance` 阶段。
-- 新增规则后，优先补充 lint 或 eval，避免知识继续漂移。
+- 新增 Wow 专属规则时，优先写成清晰的 `SKILL.md` 指令或 eval case；不要创建通用 Markdown/NLP linter。
 
 ## 事实依据
 
@@ -128,10 +128,10 @@ graph TD
 修改本目录后运行：
 
 ```bash
-python3 scripts/skill_lint.py
-python3 scripts/test_skill_lint.py
+for skill_file in skills/*/SKILL.md; do
+  python3 /Users/ahoo/.codex/skills/.system/skill-creator/scripts/quick_validate.py "$(dirname "$skill_file")"
+done
 jq empty skills/wow/evals/evals.json
-git diff --check
 ```
 
-`skill_lint.py` 只检查 Wow-specific 内容漂移；frontmatter 等通用结构必须交由目标运行时的标准 validator 和 YAML parser 校验，避免在仓库内重复实现不完整的解析器。在支持 `skill-creator` 的 Codex 运行时中，使用该运行时附带的 `scripts/quick_validate.py` 逐个验证四个 skill 目录。
+根据变更范围，使用真实的 Wow 开发、审查或诊断任务执行必要的 forward-testing，确认 skill 能正确路由、读取当前源码并给出可执行结果。

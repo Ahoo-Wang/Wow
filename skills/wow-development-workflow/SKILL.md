@@ -226,6 +226,6 @@ Resolve module names from `settings.gradle.kts`, then run the narrowest commands
 git diff --check
 ```
 
-Select verification from the affected producer and consumer modules, including generated metadata/schema contracts when changed. Run `python3 scripts/skill_lint.py` only when project-local skills changed. Finish by checking `git status --short`.
+Select verification from the affected producer and consumer modules, including generated metadata/schema contracts when changed. When project-local skills change, follow `skills/README.md` for standard validation and relevant forward tests. Finish by checking `git status --short`.
 
 Final output must include phases completed, files changed, verification commands and results, and remaining risks or uncovered scenarios. Never mark an artifact or scenario done without fresh passing evidence.

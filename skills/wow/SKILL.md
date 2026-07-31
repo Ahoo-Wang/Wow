@@ -92,8 +92,11 @@ Before finishing Wow code changes, check:
 
 ## Skill Maintenance
 
-Run the skill lint before finishing changes to this skill set:
+When this skill set changes, validate every project-local skill with the standard `skill-creator` validator, validate `evals/evals.json` with `jq`, and run forward tests that exercise the affected guidance:
 
 ```bash
-python3 scripts/skill_lint.py
+for skill_file in skills/*/SKILL.md; do
+  python3 /Users/ahoo/.codex/skills/.system/skill-creator/scripts/quick_validate.py "$(dirname "$skill_file")"
+done
+jq empty skills/wow/evals/evals.json
 ```
