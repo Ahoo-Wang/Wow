@@ -720,6 +720,258 @@ def append_markdown_html_segment(
     segments.append((content, language))
 
 
+@dataclass
+class MarkdownHtmlCodeState:
+    line: str
+    segments: list[tuple[str, str | None]]
+    language: str | None
+    in_comment: bool
+    pending_tag: str | None
+    raw_text_tag: str | None
+    index: int = 0
+
+
+def markdown_html_code_state_result(
+    state: MarkdownHtmlCodeState,
+) -> tuple[
+    list[tuple[str, str | None]],
+    str | None,
+    bool,
+    str | None,
+    str | None,
+]:
+    return (
+        state.segments,
+        state.language,
+        state.in_comment,
+        state.pending_tag,
+        state.raw_text_tag,
+    )
+
+
+def update_markdown_html_tag_state(
+    state: MarkdownHtmlCodeState,
+    tag: str,
+    tag_name: str,
+    is_closing: bool,
+    attributes: str,
+    visible_content: str,
+) -> None:
+    is_self_closing = tag.rstrip().endswith("/>")
+    if tag_name == "code" and is_closing:
+        append_markdown_html_segment(
+            state.segments,
+            visible_content,
+            state.language,
+        )
+        state.language = None
+    elif tag_name == "code":
+        state.language = (
+            find_markdown_html_code_language(attributes)
+            or ""
+        )
+        append_markdown_html_segment(
+            state.segments,
+            visible_content,
+            state.language,
+        )
+        if is_self_closing:
+            state.language = None
+    else:
+        append_markdown_html_segment(
+            state.segments,
+            visible_content,
+            state.language,
+        )
+
+    if (
+        tag_name in MARKDOWN_HTML_RAW_TEXT_TAGS
+        and not is_closing
+        and not is_self_closing
+    ):
+        state.raw_text_tag = tag_name
+    elif is_closing and tag_name == state.raw_text_tag:
+        state.raw_text_tag = None
+
+
+def consume_pending_markdown_html_tag(
+    state: MarkdownHtmlCodeState,
+) -> bool:
+    pending_tag = state.pending_tag
+    if pending_tag is None:
+        return True
+    combined_tag = f"{pending_tag}\n{state.line}"
+    tag_match = MARKDOWN_HTML_TAG_START.match(combined_tag)
+    if tag_match is None:
+        append_markdown_html_segment(
+            state.segments,
+            state.line,
+            state.language,
+        )
+        state.pending_tag = None
+        state.index = len(state.line)
+        return False
+
+    tag_end = find_markdown_html_tag_end(
+        combined_tag,
+        tag_match.end(),
+    )
+    if tag_end is None:
+        append_markdown_html_segment(
+            state.segments,
+            state.line,
+            state.language,
+        )
+        state.pending_tag = combined_tag
+        state.index = len(state.line)
+        return False
+
+    consumed = max(0, tag_end - len(pending_tag) - 1)
+    tag = combined_tag[:tag_end]
+    update_markdown_html_tag_state(
+        state=state,
+        tag=tag,
+        tag_name=tag_match.group("name").lower(),
+        is_closing=tag.startswith("</"),
+        attributes=combined_tag[tag_match.end():tag_end - 1],
+        visible_content=state.line[:consumed],
+    )
+    state.index = consumed
+    state.pending_tag = None
+    return True
+
+
+def consume_markdown_html_raw_text(
+    state: MarkdownHtmlCodeState,
+) -> bool:
+    raw_text_tag = state.raw_text_tag
+    if raw_text_tag is None:
+        return True
+    raw_text_end = re.search(
+        rf"</{re.escape(raw_text_tag)}(?=[ \t/>]|$)",
+        state.line[state.index:],
+        re.IGNORECASE,
+    )
+    if raw_text_end is None:
+        append_markdown_html_segment(
+            state.segments,
+            state.line[state.index:],
+            state.language,
+        )
+        state.index = len(state.line)
+        return False
+
+    closing_end = find_markdown_html_tag_end(
+        state.line,
+        state.index + raw_text_end.end(),
+    )
+    if closing_end is None:
+        append_markdown_html_segment(
+            state.segments,
+            state.line[state.index:],
+            state.language,
+        )
+        state.pending_tag = state.line[
+            state.index + raw_text_end.start():
+        ]
+        state.index = len(state.line)
+        return False
+
+    append_markdown_html_segment(
+        state.segments,
+        state.line[state.index:closing_end],
+        state.language,
+    )
+    state.index = closing_end
+    state.raw_text_tag = None
+    return True
+
+
+def consume_markdown_html_comment(
+    state: MarkdownHtmlCodeState,
+) -> bool:
+    comment_end = state.line.find("-->", state.index)
+    if comment_end < 0:
+        append_markdown_html_segment(
+            state.segments,
+            state.line[state.index:],
+            state.language,
+        )
+        state.index = len(state.line)
+        return False
+    append_markdown_html_segment(
+        state.segments,
+        state.line[state.index:comment_end + 3],
+        state.language,
+    )
+    state.index = comment_end + 3
+    state.in_comment = False
+    return True
+
+
+def consume_next_markdown_html_tag(
+    state: MarkdownHtmlCodeState,
+) -> bool:
+    tag_start = state.line.find("<", state.index)
+    if tag_start < 0:
+        append_markdown_html_segment(
+            state.segments,
+            state.line[state.index:],
+            state.language,
+        )
+        state.index = len(state.line)
+        return False
+
+    append_markdown_html_segment(
+        state.segments,
+        state.line[state.index:tag_start],
+        state.language,
+    )
+    if state.line.startswith("<!--", tag_start):
+        state.index = tag_start
+        state.in_comment = True
+        return True
+
+    tag_match = MARKDOWN_HTML_TAG_START.match(
+        state.line,
+        tag_start,
+    )
+    if tag_match is None:
+        append_markdown_html_segment(
+            state.segments,
+            state.line[tag_start],
+            state.language,
+        )
+        state.index = tag_start + 1
+        return True
+
+    tag_end = find_markdown_html_tag_end(
+        state.line,
+        tag_match.end(),
+    )
+    if tag_end is None:
+        append_markdown_html_segment(
+            state.segments,
+            state.line[tag_start:],
+            state.language,
+        )
+        state.pending_tag = state.line[tag_start:]
+        state.index = len(state.line)
+        return False
+
+    tag = state.line[tag_start:tag_end]
+    update_markdown_html_tag_state(
+        state=state,
+        tag=tag,
+        tag_name=tag_match.group("name").lower(),
+        is_closing=state.line.startswith("</", tag_start),
+        attributes=state.line[tag_match.end():tag_end - 1],
+        visible_content=tag,
+    )
+    state.index = tag_end
+    return True
+
+
 def split_markdown_html_code_segments(
     line: str,
     current_language: str | None,
@@ -733,260 +985,28 @@ def split_markdown_html_code_segments(
     str | None,
     str | None,
 ]:
-    segments: list[tuple[str, str | None]] = []
-    index = 0
-    language = current_language
-    in_comment = current_in_comment
-    pending_tag = current_pending_tag
-    raw_text_tag = current_raw_text_tag
-
-    if pending_tag is not None:
-        combined_tag = f"{pending_tag}\n{line}"
-        tag_match = MARKDOWN_HTML_TAG_START.match(combined_tag)
-        if tag_match is None:
-            append_markdown_html_segment(
-                segments,
-                line,
-                language,
-            )
-            return (
-                segments,
-                language,
-                in_comment,
-                None,
-                raw_text_tag,
-            )
-        tag_end = find_markdown_html_tag_end(
-            combined_tag,
-            tag_match.end(),
-        )
-        if tag_end is None:
-            append_markdown_html_segment(
-                segments,
-                line,
-                language,
-            )
-            return (
-                segments,
-                language,
-                in_comment,
-                combined_tag,
-                raw_text_tag,
-            )
-
-        consumed = max(
-            0,
-            tag_end - len(pending_tag) - 1,
-        )
-        tag = combined_tag[:tag_end]
-        tag_name = tag_match.group("name").lower()
-        is_closing = tag.startswith("</")
-        if tag_name == "code" and is_closing:
-            append_markdown_html_segment(
-                segments,
-                line[:consumed],
-                language,
-            )
-            language = None
-        elif tag_name == "code":
-            attributes = combined_tag[
-                tag_match.end():tag_end - 1
-            ]
-            language = (
-                find_markdown_html_code_language(attributes)
-                or ""
-            )
-            append_markdown_html_segment(
-                segments,
-                line[:consumed],
-                language,
-            )
-            if tag.rstrip().endswith("/>"):
-                language = None
-        else:
-            append_markdown_html_segment(
-                segments,
-                line[:consumed],
-                language,
-            )
-        if (
-            tag_name in MARKDOWN_HTML_RAW_TEXT_TAGS
-            and not is_closing
-            and not tag.rstrip().endswith("/>")
-        ):
-            raw_text_tag = tag_name
-        elif is_closing and tag_name == raw_text_tag:
-            raw_text_tag = None
-        index = consumed
-        pending_tag = None
-
-    while index < len(line):
-        if raw_text_tag is not None:
-            raw_text_end = re.search(
-                rf"</{re.escape(raw_text_tag)}(?=[ \t/>]|$)",
-                line[index:],
-                re.IGNORECASE,
-            )
-            if raw_text_end is None:
-                append_markdown_html_segment(
-                    segments,
-                    line[index:],
-                    language,
-                )
-                return (
-                    segments,
-                    language,
-                    in_comment,
-                    pending_tag,
-                    raw_text_tag,
-                )
-            closing_end = find_markdown_html_tag_end(
-                line,
-                index + raw_text_end.end(),
-            )
-            if closing_end is None:
-                append_markdown_html_segment(
-                    segments,
-                    line[index:],
-                    language,
-                )
-                return (
-                    segments,
-                    language,
-                    in_comment,
-                    line[
-                        index + raw_text_end.start():
-                    ],
-                    raw_text_tag,
-                )
-            append_markdown_html_segment(
-                segments,
-                line[index:closing_end],
-                language,
-            )
-            index = closing_end
-            raw_text_tag = None
-            continue
-
-        if in_comment:
-            comment_end = line.find("-->", index)
-            if comment_end < 0:
-                append_markdown_html_segment(
-                    segments,
-                    line[index:],
-                    language,
-                )
-                return (
-                    segments,
-                    language,
-                    True,
-                    pending_tag,
-                    raw_text_tag,
-                )
-            append_markdown_html_segment(
-                segments,
-                line[index:comment_end + 3],
-                language,
-            )
-            index = comment_end + 3
-            in_comment = False
-            continue
-
-        tag_start = line.find("<", index)
-        if tag_start < 0:
-            append_markdown_html_segment(
-                segments,
-                line[index:],
-                language,
-            )
-            return (
-                segments,
-                language,
-                False,
-                pending_tag,
-                raw_text_tag,
-            )
-        append_markdown_html_segment(
-            segments,
-            line[index:tag_start],
-            language,
-        )
-        if line.startswith("<!--", tag_start):
-            index = tag_start
-            in_comment = True
-            continue
-
-        tag_match = MARKDOWN_HTML_TAG_START.match(line, tag_start)
-        if tag_match is None:
-            append_markdown_html_segment(
-                segments,
-                line[tag_start],
-                language,
-            )
-            index = tag_start + 1
-            continue
-        tag_end = find_markdown_html_tag_end(
-            line,
-            tag_match.end(),
-        )
-        if tag_end is None:
-            append_markdown_html_segment(
-                segments,
-                line[tag_start:],
-                language,
-            )
-            return (
-                segments,
-                language,
-                False,
-                line[tag_start:],
-                raw_text_tag,
-            )
-
-        tag = line[tag_start:tag_end]
-        tag_name = tag_match.group("name").lower()
-        is_closing = line.startswith("</", tag_start)
-        if tag_name == "code" and is_closing:
-            append_markdown_html_segment(
-                segments,
-                tag,
-                language,
-            )
-            language = None
-        elif tag_name == "code":
-            attributes = line[tag_match.end():tag_end - 1]
-            language = (
-                find_markdown_html_code_language(attributes)
-                or ""
-            )
-            append_markdown_html_segment(
-                segments,
-                tag,
-                language,
-            )
-            if tag.rstrip().endswith("/>"):
-                language = None
-        else:
-            append_markdown_html_segment(
-                segments,
-                tag,
-                language,
-            )
-        if (
-            tag_name in MARKDOWN_HTML_RAW_TEXT_TAGS
-            and not is_closing
-            and not tag.rstrip().endswith("/>")
-        ):
-            raw_text_tag = tag_name
-        index = tag_end
-
-    return (
-        segments,
-        language,
-        in_comment,
-        pending_tag,
-        raw_text_tag,
+    state = MarkdownHtmlCodeState(
+        line=line,
+        segments=[],
+        language=current_language,
+        in_comment=current_in_comment,
+        pending_tag=current_pending_tag,
+        raw_text_tag=current_raw_text_tag,
     )
+    if not consume_pending_markdown_html_tag(state):
+        return markdown_html_code_state_result(state)
+    while state.index < len(line):
+        if state.raw_text_tag is not None:
+            if not consume_markdown_html_raw_text(state):
+                break
+            continue
+        if state.in_comment:
+            if not consume_markdown_html_comment(state):
+                break
+            continue
+        if not consume_next_markdown_html_tag(state):
+            break
+    return markdown_html_code_state_result(state)
 
 
 def markdown_line_interrupts_paragraph(content: str) -> bool:
@@ -1199,51 +1219,62 @@ def parse_markdown_link_reference_title(
     return "pending", closer
 
 
-def parse_markdown_link_reference_destination(
+def skip_markdown_link_reference_spaces(
     text: str,
+    index: int,
+) -> int:
+    while index < len(text) and text[index] in " \t":
+        index += 1
+    return index
+
+
+def find_markdown_angle_destination_end(
+    text: str,
+    index: int,
+) -> int | None:
+    index += 1
+    while index < len(text):
+        character = text[index]
+        if character == "\\" and index + 1 < len(text):
+            index += 2
+            continue
+        if character == "<":
+            return None
+        if character == ">":
+            return index + 1
+        index += 1
+    return None
+
+
+def find_markdown_bare_destination_end(
+    text: str,
+    index: int,
+) -> int | None:
+    destination_start = index
+    parenthesis_depth = 0
+    while index < len(text) and text[index] not in " \t":
+        character = text[index]
+        if character == "\\" and index + 1 < len(text):
+            index += 2
+            continue
+        if character == "(":
+            parenthesis_depth += 1
+        elif character == ")":
+            if parenthesis_depth == 0:
+                return None
+            parenthesis_depth -= 1
+        index += 1
+    if index == destination_start or parenthesis_depth:
+        return None
+    return index
+
+
+def parse_markdown_link_reference_title_suffix(
+    text: str,
+    index: int,
 ) -> MarkdownLinkReferenceDestination:
-    index = 0
-    while index < len(text) and text[index] in " \t":
-        index += 1
-    if index >= len(text):
-        return MarkdownLinkReferenceDestination(valid=False)
-
-    if text[index] == "<":
-        index += 1
-        while index < len(text):
-            character = text[index]
-            if character == "\\" and index + 1 < len(text):
-                index += 2
-                continue
-            if character == "<":
-                return MarkdownLinkReferenceDestination(valid=False)
-            if character == ">":
-                index += 1
-                break
-            index += 1
-        else:
-            return MarkdownLinkReferenceDestination(valid=False)
-    else:
-        destination_start = index
-        parenthesis_depth = 0
-        while index < len(text) and text[index] not in " \t":
-            character = text[index]
-            if character == "\\" and index + 1 < len(text):
-                index += 2
-                continue
-            if character == "(":
-                parenthesis_depth += 1
-            elif character == ")":
-                if parenthesis_depth == 0:
-                    return MarkdownLinkReferenceDestination(valid=False)
-                parenthesis_depth -= 1
-            index += 1
-        if index == destination_start or parenthesis_depth:
-            return MarkdownLinkReferenceDestination(valid=False)
-
     separator_start = index
-    while index < len(text) and text[index] in " \t":
-        index += 1
+    index = skip_markdown_link_reference_spaces(text, index)
     had_separator = index > separator_start
     if index == len(text):
         return MarkdownLinkReferenceDestination(valid=True)
@@ -1263,6 +1294,30 @@ def parse_markdown_link_reference_destination(
             pending_title_closer=pending_closer,
         )
     return MarkdownLinkReferenceDestination(valid=False)
+
+
+def parse_markdown_link_reference_destination(
+    text: str,
+) -> MarkdownLinkReferenceDestination:
+    index = skip_markdown_link_reference_spaces(text, 0)
+    if index >= len(text):
+        return MarkdownLinkReferenceDestination(valid=False)
+    if text[index] == "<":
+        destination_end = find_markdown_angle_destination_end(
+            text,
+            index,
+        )
+    else:
+        destination_end = find_markdown_bare_destination_end(
+            text,
+            index,
+        )
+    if destination_end is None:
+        return MarkdownLinkReferenceDestination(valid=False)
+    return parse_markdown_link_reference_title_suffix(
+        text,
+        destination_end,
+    )
 
 
 def is_markdown_link_reference_definition(line: str) -> bool:
@@ -1441,234 +1496,379 @@ def find_markdown_paragraph_container(
     return container
 
 
-def analyze_markdown(text: str) -> tuple[list[tuple[int, str, str | None]], list[int]]:
-    source_lines = text.splitlines()
-    lines_to_lint: list[tuple[int, str, str | None]] = []
-    opened: tuple[str, int, int, str, MarkdownContainer] | None = None
+@dataclass
+class MarkdownAnalysisState:
+    lines_to_lint: list[tuple[int, str, str | None]]
+    unclosed_fence_lines: list[int]
+    opened: tuple[
+        str,
+        int,
+        int,
+        str,
+        MarkdownContainer,
+    ] | None = None
     html_block: MarkdownHtmlBlock | None = None
     paragraph_container: MarkdownContainer | None = None
-    link_reference_definition_end = -1
-    unclosed_fence_lines: list[int] = []
+    link_reference_definition_end: int = -1
     active_list_prefixes: tuple[
         MarkdownBlockquotePrefix | MarkdownListPrefix,
         ...,
     ] = ()
+
+
+def markdown_html_block_ends(
+    html_block: MarkdownHtmlBlock,
+    content: str,
+) -> bool:
+    if html_block.end_pattern is None:
+        return not content.strip()
+    return html_block.end_pattern.search(content) is not None
+
+
+def analyze_markdown_html_content(
+    content: str,
+    html_block: MarkdownHtmlBlock,
+) -> tuple[
+    list[tuple[str, str | None]],
+    MarkdownHtmlBlock,
+]:
+    if html_block.parse_code_tags:
+        (
+            html_segments,
+            next_language,
+            next_in_comment,
+            next_pending_tag,
+            next_raw_text_tag,
+        ) = split_markdown_html_code_segments(
+            content,
+            html_block.language,
+            html_block.in_comment,
+            html_block.pending_tag,
+            html_block.raw_text_tag,
+        )
+    else:
+        html_segments = [(content, None)]
+        next_language = None
+        next_in_comment = False
+        next_pending_tag = None
+        next_raw_text_tag = None
+    return html_segments, MarkdownHtmlBlock(
+        end_pattern=html_block.end_pattern,
+        container=html_block.container,
+        language=next_language,
+        in_comment=next_in_comment,
+        parse_code_tags=html_block.parse_code_tags,
+        pending_tag=next_pending_tag,
+        raw_text_tag=next_raw_text_tag,
+    )
+
+
+def append_markdown_html_segments(
+    state: MarkdownAnalysisState,
+    line_no: int,
+    segments: list[tuple[str, str | None]],
+) -> None:
+    state.lines_to_lint.extend(
+        (line_no, segment, language)
+        for segment, language in segments
+    )
+
+
+def analyze_open_markdown_fence_line(
+    state: MarkdownAnalysisState,
+    line_no: int,
+    source_line: str,
+    line: str,
+) -> str:
+    opened = state.opened
+    assert opened is not None
+    (
+        fence_char,
+        fence_length,
+        opened_line,
+        language,
+        container,
+    ) = opened
+    if not is_line_in_markdown_container(line, container):
+        state.unclosed_fence_lines.append(opened_line)
+        state.opened = None
+        return "retry"
+
+    state.paragraph_container = None
+    closing_fence = match_markdown_closing_fence(line, container)
+    if (
+        closing_fence
+        and closing_fence.marker[0] == fence_char
+        and len(closing_fence.marker) >= fence_length
+        and not closing_fence.info.strip()
+    ):
+        state.lines_to_lint.append((line_no, source_line, None))
+        state.opened = None
+    else:
+        state.lines_to_lint.append(
+            (line_no, source_line, language)
+        )
+    return "handled"
+
+
+def analyze_open_markdown_html_line(
+    state: MarkdownAnalysisState,
+    line_no: int,
+    line: str,
+) -> str:
+    html_block = state.html_block
+    assert html_block is not None
+    html_content = strip_markdown_html_container_prefix(
+        line,
+        html_block.container,
+    )
+    if html_content is None:
+        state.html_block = None
+        return "retry"
+
+    state.paragraph_container = None
+    html_segments, next_html_block = (
+        analyze_markdown_html_content(
+            html_content,
+            html_block,
+        )
+    )
+    append_markdown_html_segments(
+        state,
+        line_no,
+        html_segments,
+    )
+    state.html_block = (
+        None
+        if markdown_html_block_ends(html_block, html_content)
+        else next_html_block
+    )
+    return "handled"
+
+
+def analyze_active_markdown_block_line(
+    state: MarkdownAnalysisState,
+    line_no: int,
+    source_line: str,
+    line: str,
+) -> str | None:
+    if state.opened is not None:
+        return analyze_open_markdown_fence_line(
+            state,
+            line_no,
+            source_line,
+            line,
+        )
+    if state.html_block is not None:
+        return analyze_open_markdown_html_line(
+            state,
+            line_no,
+            line,
+        )
+    return None
+
+
+def analyze_markdown_link_reference_line(
+    state: MarkdownAnalysisState,
+    source_lines: list[str],
+    line_index: int,
+    source_line: str,
+) -> bool:
+    line_no = line_index + 1
+    if line_index <= state.link_reference_definition_end:
+        state.lines_to_lint.append((line_no, source_line, None))
+        state.paragraph_container = None
+        return True
+    if state.paragraph_container is not None:
+        return False
+
+    link_reference_match = (
+        match_markdown_link_reference_definition(
+            source_lines,
+            line_index,
+            state.active_list_prefixes,
+        )
+    )
+    if link_reference_match is None:
+        return False
+    (
+        state.link_reference_definition_end,
+        link_reference_container,
+    ) = link_reference_match
+    state.lines_to_lint.append((line_no, source_line, None))
+    state.active_list_prefixes = (
+        get_active_markdown_list_prefixes(
+            link_reference_container
+        )
+    )
+    state.paragraph_container = None
+    return True
+
+
+def analyze_existing_markdown_paragraph_line(
+    state: MarkdownAnalysisState,
+    line_no: int,
+    source_line: str,
+    line: str,
+) -> bool:
+    if is_markdown_setext_heading_underline(
+        line,
+        state.paragraph_container,
+    ):
+        state.lines_to_lint.append((line_no, source_line, None))
+        state.active_list_prefixes = (
+            get_active_markdown_list_prefixes(
+                state.paragraph_container
+            )
+        )
+        state.paragraph_container = None
+        return True
+    if is_markdown_paragraph_continuation(
+        line,
+        state.paragraph_container,
+    ):
+        state.lines_to_lint.append((line_no, source_line, None))
+        return True
+    return False
+
+
+def analyze_new_markdown_html_block_line(
+    state: MarkdownAnalysisState,
+    line_no: int,
+    line: str,
+) -> bool:
+    html_match = match_markdown_html_block(
+        line,
+        state.active_list_prefixes,
+        state.paragraph_container,
+    )
+    if html_match is None:
+        return False
+    html_content, html_block = html_match
+    state.paragraph_container = None
+    state.active_list_prefixes = (
+        get_active_markdown_list_prefixes(
+            html_block.container
+        )
+    )
+    html_segments, next_html_block = (
+        analyze_markdown_html_content(
+            html_content,
+            html_block,
+        )
+    )
+    append_markdown_html_segments(
+        state,
+        line_no,
+        html_segments,
+    )
+    if not markdown_html_block_ends(
+        html_block,
+        html_content,
+    ):
+        state.html_block = next_html_block
+    return True
+
+
+def analyze_markdown_fence_or_text_line(
+    state: MarkdownAnalysisState,
+    line_no: int,
+    source_line: str,
+    line: str,
+) -> None:
+    opening_fence = match_markdown_fence(
+        line,
+        state.active_list_prefixes,
+        state.paragraph_container,
+    )
+    state.lines_to_lint.append((line_no, source_line, None))
+    if opening_fence is None:
+        _, line_container = next(
+            iter_markdown_container_contents(
+                line,
+                state.active_list_prefixes,
+            )
+        )
+        state.paragraph_container = (
+            find_markdown_paragraph_container(
+                line,
+                state.active_list_prefixes,
+            )
+        )
+        state.active_list_prefixes = (
+            get_active_markdown_list_prefixes(
+                line_container
+            )
+        )
+        return
+
+    state.paragraph_container = None
+    state.active_list_prefixes = (
+        get_active_markdown_list_prefixes(
+            opening_fence.container
+        )
+    )
+    info_parts = opening_fence.info.strip().split(maxsplit=1)
+    language = info_parts[0].lower() if info_parts else ""
+    state.opened = (
+        opening_fence.marker[0],
+        len(opening_fence.marker),
+        line_no,
+        language,
+        opening_fence.container,
+    )
+
+
+def analyze_markdown(text: str) -> tuple[list[tuple[int, str, str | None]], list[int]]:
+    source_lines = text.splitlines()
+    state = MarkdownAnalysisState(
+        lines_to_lint=[],
+        unclosed_fence_lines=[],
+    )
     for line_index, source_line in enumerate(source_lines):
         line_no = line_index + 1
         line = source_line.expandtabs(tabsize=4)
         while True:
-            if opened is not None:
-                fence_char, fence_length, opened_line, language, container = opened
-                if not is_line_in_markdown_container(line, container):
-                    unclosed_fence_lines.append(opened_line)
-                    opened = None
-                    continue
-
-                paragraph_container = None
-                closing_fence = match_markdown_closing_fence(line, container)
-                if (
-                    closing_fence
-                    and closing_fence.marker[0] == fence_char
-                    and len(closing_fence.marker) >= fence_length
-                    and not closing_fence.info.strip()
-                ):
-                    lines_to_lint.append((line_no, source_line, None))
-                    opened = None
-                else:
-                    lines_to_lint.append((line_no, source_line, language))
-                break
-
-            if html_block is not None:
-                html_content = strip_markdown_html_container_prefix(
-                    line,
-                    html_block.container,
-                )
-                if html_content is None:
-                    html_block = None
-                    continue
-                paragraph_container = None
-                if html_block.parse_code_tags:
-                    (
-                        html_segments,
-                        next_language,
-                        next_in_comment,
-                        next_pending_tag,
-                        next_raw_text_tag,
-                    ) = split_markdown_html_code_segments(
-                        html_content,
-                        html_block.language,
-                        html_block.in_comment,
-                        html_block.pending_tag,
-                        html_block.raw_text_tag,
-                    )
-                else:
-                    html_segments = [(html_content, None)]
-                    next_language = None
-                    next_in_comment = False
-                    next_pending_tag = None
-                    next_raw_text_tag = None
-                lines_to_lint.extend(
-                    (line_no, segment, language)
-                    for segment, language in html_segments
-                )
-                if (
-                    html_block.end_pattern is None
-                    and not html_content.strip()
-                ) or (
-                    html_block.end_pattern is not None
-                    and html_block.end_pattern.search(html_content)
-                ):
-                    html_block = None
-                else:
-                    html_block = MarkdownHtmlBlock(
-                        end_pattern=html_block.end_pattern,
-                        container=html_block.container,
-                        language=next_language,
-                        in_comment=next_in_comment,
-                        parse_code_tags=html_block.parse_code_tags,
-                        pending_tag=next_pending_tag,
-                        raw_text_tag=next_raw_text_tag,
-                    )
-                break
-
-            if line_index <= link_reference_definition_end:
-                lines_to_lint.append((line_no, source_line, None))
-                paragraph_container = None
-                break
-
-            if paragraph_container is None:
-                link_reference_match = (
-                    match_markdown_link_reference_definition(
-                        source_lines,
-                        line_index,
-                        active_list_prefixes,
-                    )
-                )
-                if link_reference_match is not None:
-                    (
-                        link_reference_definition_end,
-                        link_reference_container,
-                    ) = link_reference_match
-                    lines_to_lint.append(
-                        (line_no, source_line, None)
-                    )
-                    active_list_prefixes = (
-                        get_active_markdown_list_prefixes(
-                            link_reference_container
-                        )
-                    )
-                    paragraph_container = None
-                    break
-
-            if is_markdown_setext_heading_underline(
-                line,
-                paragraph_container,
-            ):
-                lines_to_lint.append((line_no, source_line, None))
-                active_list_prefixes = get_active_markdown_list_prefixes(
-                    paragraph_container
-                )
-                paragraph_container = None
-                break
-
-            if is_markdown_paragraph_continuation(
-                line,
-                paragraph_container,
-            ):
-                lines_to_lint.append((line_no, source_line, None))
-                break
-
-            html_match = match_markdown_html_block(
-                line,
-                active_list_prefixes,
-                paragraph_container,
-            )
-            if html_match:
-                html_content, candidate_html_block = html_match
-                paragraph_container = None
-                active_list_prefixes = get_active_markdown_list_prefixes(
-                    candidate_html_block.container
-                )
-                if candidate_html_block.parse_code_tags:
-                    (
-                        html_segments,
-                        next_language,
-                        next_in_comment,
-                        next_pending_tag,
-                        next_raw_text_tag,
-                    ) = split_markdown_html_code_segments(
-                        html_content,
-                        None,
-                        False,
-                        None,
-                        None,
-                    )
-                else:
-                    html_segments = [(html_content, None)]
-                    next_language = None
-                    next_in_comment = False
-                    next_pending_tag = None
-                    next_raw_text_tag = None
-                lines_to_lint.extend(
-                    (line_no, segment, language)
-                    for segment, language in html_segments
-                )
-                candidate_html_block = MarkdownHtmlBlock(
-                    end_pattern=candidate_html_block.end_pattern,
-                    container=candidate_html_block.container,
-                    language=next_language,
-                    in_comment=next_in_comment,
-                    parse_code_tags=(
-                        candidate_html_block.parse_code_tags
-                    ),
-                    pending_tag=next_pending_tag,
-                    raw_text_tag=next_raw_text_tag,
-                )
-                if (
-                    candidate_html_block.end_pattern is None
-                    or not candidate_html_block.end_pattern.search(html_content)
-                ):
-                    html_block = candidate_html_block
-                break
-
-            opening_fence = match_markdown_fence(
-                line,
-                active_list_prefixes,
-                paragraph_container,
-            )
-            lines_to_lint.append((line_no, source_line, None))
-            if not opening_fence:
-                _, line_container = next(
-                    iter_markdown_container_contents(
-                        line,
-                        active_list_prefixes,
-                    )
-                )
-                paragraph_container = find_markdown_paragraph_container(
-                    line,
-                    active_list_prefixes,
-                )
-                active_list_prefixes = get_active_markdown_list_prefixes(
-                    line_container
-                )
-                break
-            paragraph_container = None
-            active_list_prefixes = get_active_markdown_list_prefixes(
-                opening_fence.container
-            )
-            info_parts = opening_fence.info.strip().split(maxsplit=1)
-            language = info_parts[0].lower() if info_parts else ""
-            opened = (
-                opening_fence.marker[0],
-                len(opening_fence.marker),
+            active_action = analyze_active_markdown_block_line(
+                state,
                 line_no,
-                language,
-                opening_fence.container,
+                source_line,
+                line,
+            )
+            if active_action == "retry":
+                continue
+            if active_action == "handled":
+                break
+            if analyze_markdown_link_reference_line(
+                state,
+                source_lines,
+                line_index,
+                source_line,
+            ):
+                break
+            if analyze_existing_markdown_paragraph_line(
+                state,
+                line_no,
+                source_line,
+                line,
+            ):
+                break
+            if analyze_new_markdown_html_block_line(
+                state,
+                line_no,
+                line,
+            ):
+                break
+            analyze_markdown_fence_or_text_line(
+                state,
+                line_no,
+                source_line,
+                line,
             )
             break
-    if opened:
-        unclosed_fence_lines.append(opened[2])
-    return lines_to_lint, unclosed_fence_lines
+    if state.opened:
+        state.unclosed_fence_lines.append(state.opened[2])
+    return state.lines_to_lint, state.unclosed_fence_lines
 
 
 def analyze_skill_markdown(
