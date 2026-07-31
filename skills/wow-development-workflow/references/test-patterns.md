@@ -6,16 +6,16 @@ Use `../../wow/references/testing.md` as the authoritative Wow testing reference
 
 | Workflow Element | Preferred Test | What It Proves |
 |------------------|----------------|----------------|
-| Aggregate command handler | `AggregateSpec` | command behavior, emitted events, sourced state, errors |
-| Aggregate lifecycle | `AggregateSpec` with `fork` or `ref` | delete, recover, terminal-state, branch behavior |
-| Stateless saga handler | `SagaSpec` | event-triggered command generation or no-command behavior |
-| Saga with dependency | `SagaSpec` plus injected mock | process decision while keeping external dependency narrow |
+| Aggregate command handler | `AggregateSpec` or `AggregateVerifier` | command behavior, emitted events, sourced state, errors |
+| Aggregate lifecycle | `AggregateSpec` with `fork`/`ref`, or `AggregateVerifier` scenarios | delete, recover, terminal-state, branch behavior |
+| Stateless saga handler | `SagaSpec` or `SagaVerifier` | event-triggered command generation or no-command behavior |
+| Saga with dependency | `SagaSpec` plus injected mock, or configured `SagaVerifier` | process decision while keeping external dependency narrow |
 
 Before using a DSL method, confirm it exists in the current checkout:
 
 ```bash
-rg -n "class .* : AggregateSpec|AggregateSpec<|expectEventType|expectState|fork\\(" . -g "*.kt"
-rg -n "class .* : SagaSpec|SagaSpec<|expectCommand|expectNoCommand|inject \\{" . -g "*.kt"
+rg -n "class .* : AggregateSpec|AggregateSpec<|AggregateVerifier|aggregateVerifier|expectEventType|expectState|fork\\(" . -g "*.kt" -g "*.java"
+rg -n "class .* : SagaSpec|SagaSpec<|SagaVerifier|sagaVerifier|expectCommand|expectNoCommand|inject \\{" . -g "*.kt" -g "*.java"
 ```
 
 ## Aggregate Scenario Mapping
@@ -35,6 +35,8 @@ Convert each saga scenario into one orchestration expectation:
 - No-command branch: `expectNoCommand()` when the trigger condition is not met.
 - Routing branch: assert target aggregate id, owner, tenant, or command metadata when exposed by the DSL.
 - Multi-command branch: assert command count and each command body.
+
+`SagaSpec` and `SagaVerifier` use isolated saga handling with a no-op idempotency checker. They do not pass through `EventCompensationFilter`. Use focused unit or integration tests at the runtime boundary to prove duplicate-delivery protection, `@Retry` classification, exhaustion, and recovery behavior.
 
 ## Mocking Guidance
 

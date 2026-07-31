@@ -14,7 +14,7 @@
     {
       "id": 3,
       "prompt": "Write unit tests for a Cart aggregate using AggregateSpec. Test the following scenarios:\n1. Adding an item to empty cart - should emit CartItemAdded\n2. Adding same product twice - should emit CartQuantityChanged\n3. Removing an item - should emit CartItemRemoved\n4. Adding more than 10 items - should throw error\n\nUse fork() for branching test scenarios, and verify state changes with expectState {}.",
-      "expected_output": "CartSpec.kt extending AggregateSpec<Cart, CartState> with Given-When-Expect tests using fork() for branching scenarios, expectState {} for state verification, and expectEventType {} for event assertions."
+      "expected_output": "CartSpec.kt extending AggregateSpec<Cart, CartState> with Given-When-Expect tests using fork() for branching scenarios, expectState {} for state verification, and expectEventType(EventType::class) for event assertions."
     },
     {
       "id": 4,
@@ -25,6 +25,21 @@
       "id": 5,
       "prompt": "Write a query using Wow Query DSL to find all active orders for a specific tenant. The query should:\n1. Use pagedQuery with pagination\n2. Filter by tenantId and status=ACTIVE\n3. Sort by createdAt descending\n4. Project only id, status, and totalAmount fields",
       "expected_output": "Kotlin code using pagedQuery { condition { tenantId(tenantId); \"status\" eq \"ACTIVE\" } pagination { index(...); size(...) } sort { \"createdAt\".desc() } projection { include(\"id\", \"status\", \"totalAmount\") } } DSL to query orders by tenant and status."
+    },
+    {
+      "id": 6,
+      "prompt": "Define a @PreparableKey username uniqueness index. The string key is the username, and the stored value must contain userId and password. Show the PrepareKey interface and one usingPrepare call.",
+      "expected_output": "Kotlin code where UsernamePrepare extends PrepareKey<UsernameIndexValue>, the username remains the String key argument, and usingPrepare passes a UsernameIndexValue. It must not declare PrepareKey<String> while storing UsernameIndexValue."
+    },
+    {
+      "id": 7,
+      "prompt": "Configure storage routing so an aggregate class named HotAggregate uses Redis for both events and snapshots. The aggregate has no explicit @Name annotation. Explain the routing key.",
+      "expected_output": "YAML under wow.eventsourcing.storage-routing.aggregates.hot_aggregate with Redis event and snapshot storage. The explanation states that the default aggregate metadata name is Pascal-to-snake and matching is exact."
+    },
+    {
+      "id": 8,
+      "prompt": "A Wow saga handler is not invoked. Diagnose the problem only; do not modify files. The repository contains both Kotlin and Java domain modules. Describe the evidence-gathering steps and what retry behavior can and cannot explain.",
+      "expected_output": "A read-only diagnosis plan that searches Kotlin and Java sources for saga/event-processor metadata, checks event type, filters, generated metadata, and bus subscription, and does not treat @Retry as a cause of a handler never being selected. It distinguishes handler discovery from failures after invocation."
     }
   ]
 }

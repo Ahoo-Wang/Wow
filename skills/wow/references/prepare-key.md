@@ -3,20 +3,29 @@
 Compared to traditional databases, developers can add uniqueness constraints by setting `UNIQUE KEY` for fields.
 But in the *EventSourcing* architecture, we need to ensure `Key` uniqueness at the application level, and the `PrepareKey` specification was born for this purpose.
 
+## Contents
+
+- [Define PrepareKey](#define-preparekey)
+- [PrepareKey Interface Methods](#preparekey-interface-methods)
+- [PreparedValue and TTL Support](#preparedvalue-and-ttl-support)
+- [Value Type](#value-type)
+- [User Registration Scenario](#user-registration-scenario)
+- [User Change Username Scenario](#user-change-username-scenario)
+
 ## Define PrepareKey
 
-To use `PrepareKey`, you need to define an interface annotated with `@PreparableKey`, which must extend `PrepareKey<T>`, where `T` is the type of the key.
+To use `PrepareKey`, define an interface annotated with `@PreparableKey` and extend `PrepareKey<V>`, where `V` is the type stored alongside the string key.
 
 ```kotlin
 import me.ahoo.wow.api.annotation.PreparableKey
 import me.ahoo.wow.infra.prepare.PrepareKey
 
 @PreparableKey(name = "username_idx")
-interface UsernamePrepare : PrepareKey<String>
+interface UsernamePrepare : PrepareKey<UsernameIndexValue>
 ```
 
 * `@PreparableKey(name = "username_idx")`: Specifies the name of the prepared key, used to identify the key's index in storage.
-* `PrepareKey<String>`: The generic parameter `String` indicates the key type is string.
+* `PrepareKey<UsernameIndexValue>`: The generic parameter is the associated prepared value type. The key passed to `prepare`, `rollback`, and `reprepare` is always a `String`.
 
 The Spring Boot starter scans application base packages plus `wow.prepare.base-packages` for interfaces annotated with `@PreparableKey`, creates proxy instances through `PrepareKeyProxyFactory`, and registers them as Spring Beans with the interface's simple name as the bean name. This allows dependency injection to obtain `PrepareKey` instances in aggregates.
 

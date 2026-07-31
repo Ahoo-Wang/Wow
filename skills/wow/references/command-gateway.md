@@ -2,6 +2,19 @@
 
 The command gateway is the core component for receiving and sending commands. It extends the command bus with idempotency, command wait plans, and command validation.
 
+## Contents
+
+- [API Usage](#api-usage)
+- [Wait Plans](#wait-plans)
+- [CommandGateway vs CommandBus](#commandgateway-vs-commandbus)
+- [CommandResult Properties](#commandresult-properties)
+- [Error Handling](#error-handling)
+- [Idempotency](#idempotency)
+- [LocalFirst Mode](#localfirst-mode)
+- [Command Rewriter](#command-rewriter)
+- [HTTP Headers](#http-headers)
+- [Troubleshooting](#troubleshooting)
+
 ## API Usage
 
 ### Convenience Methods
@@ -157,38 +170,31 @@ When command processing fails, `sendAndWait` throws `CommandResultException`:
 
 ```kotlin
 commandGateway.sendAndWaitForProcessed(command)
-    .doOnError { error ->
-        when (error) {
-            is CommandResultException -> {
-                val result = error.commandResult
-                println("Error: ${result.errorCode} - ${result.errorMsg}")
-                result.bindingErrors.forEach {
-                    println("Field ${it.name}: ${it.msg}")
-                }
-            }
-            is CommandValidationException -> { /* validation failed */ }
-            is DuplicateRequestIdException -> { /* duplicate request */ }
+    .doOnError(CommandResultException::class.java) { error ->
+        val result = error.commandResult
+        println("Error: ${result.errorCode} - ${result.errorMsg}")
+        result.bindingErrors.forEach {
+            println("Field ${it.name}: ${it.msg}")
+        }
+        when (error.cause) {
+            is CommandValidationException -> { /* validation failed before sending */ }
+            is DuplicateRequestIdException -> { /* duplicate request before sending */ }
         }
     }
 ```
 
-### Retry Logic
+### Retry And Ambiguous Outcomes
 
-```kotlin
-commandGateway.sendAndWaitForProcessed(command)
-    .retryWhen(Retry.backoff(3, Duration.ofSeconds(1))
-        .filter { error -> isTransientError(error) })
-    .subscribe()
+`DefaultCommandGateway` maps failed wait signals and transport errors to `CommandResultException`. Do not classify retryability only by the outer exception type, and do not blindly resubscribe the same command: the first attempt may already have been accepted, and a second gateway submission can produce `DuplicateRequestIdException` or duplicate business intent.
 
-fun isTransientError(error: Throwable): Boolean {
-    return when (error) {
-        is CommandValidationException -> false
-        is DuplicateRequestIdException -> false
-        is CommandResultException -> false
-        else -> true  // Network/infrastructure errors
-    }
-}
-```
+Handle failures by evidence:
+
+1. Inspect `CommandResultException.commandResult`, its error code, and the cause.
+2. Treat validation, domain rejection, and a returned failed processing result as terminal for that request.
+3. Treat send errors and timeouts after possible acceptance as ambiguous. Reconcile using the aggregate state, durable result, or business operation status before deciding what to do.
+4. Preserve the logical request identity while reconciling. Generate a new `requestId` only for a genuinely new business request, not to bypass deduplication.
+
+Put automatic infrastructure retries at a boundary that can prove the command was not accepted, or make the business operation independently idempotent and test duplicate delivery explicitly.
 
 ## Idempotency
 
@@ -289,7 +295,7 @@ The legacy misspelled `Command-Wait-Timout` header remains accepted for compatib
 
 **Command times out**: Check aggregate dead-letter state, verify the command wait plan, increase timeout.
 
-**DuplicateRequestIdException**: Use unique `requestId` per command, wait for TTL expiration.
+**DuplicateRequestIdException**: Do not retry by changing `requestId` or waiting for a local bloom-filter TTL. The request may already be durably recorded. Query the aggregate or business-operation state and reconcile the original outcome; use a new `requestId` only for a new business request.
 
 **Aggregate state not rebuilding**: Verify `@OnSourcing` handlers, check event revision compatibility.
 

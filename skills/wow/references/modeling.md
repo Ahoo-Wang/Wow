@@ -1,5 +1,16 @@
 # Aggregate Root Modeling
 
+## Contents
+
+- [Patterns](#patterns)
+- [Conventions](#conventions)
+- [Bounded Context](#bounded-context)
+- [Aggregate Lifecycle](#aggregate-lifecycle)
+- [Multi-Tenancy](#multi-tenancy)
+- [Aggregate Routing](#aggregate-routing)
+- [Aggregate Scheduler](#aggregate-scheduler)
+- [Event Naming Convention](#event-naming-convention)
+
 ## Patterns
 
 ### Aggregate Pattern (Recommended)
@@ -36,7 +47,7 @@ Command aggregate inherits from state aggregate with `private set` on setters.
 
 ### Command and Event API Metadata
 
-Commands and domain events should include Wow API metadata annotations:
+Commands and domain events that are part of the API/domain contract should include Wow API metadata annotations:
 
 - `@Summary` for a concise title.
 - `@Description` for REST/API schema detail.

@@ -9,7 +9,7 @@ Find the broken link in the Wow pipeline before fixing code. Guessing at event-s
 
 ## Iron Law
 
-No fix before root cause. Reproduce, locate the failing stage, compare with a working example, then make one minimal change.
+Keep diagnosis read-only by default. Reproduce, locate the failing stage, and compare with a working example. Modify code only when the user explicitly asks for a fix; then make one minimal, test-backed change.
 
 ## Phase 1: Reproduce
 
@@ -24,7 +24,8 @@ No fix before root cause. Reproduce, locate the failing stage, compare with a wo
 |---------|--------------|
 | Command not handled | Command route, aggregate metadata, `@AggregateRoot`, `@OnCommand`, KSP output, command bus. |
 | Aggregate state wrong | Event payload, `@OnSourcing`, missing sourcing handler, snapshot/replay path. |
-| Saga not triggered | Event type, `@StatelessSaga`, `@OnEvent`, filter condition, bus subscription, `@Retry` policy. |
+| Saga not triggered | Event type, `@StatelessSaga`, `@OnEvent`, filter condition, processor metadata, bus subscription. |
+| Handler runs but fails or retries incorrectly | Original exception, `@Retry`, retry predicate, `EventCompensationFilter`, retry exhaustion, duplicate delivery. |
 | Projection not updated | Processor annotation, event/state-event type, repository call, retry policy. |
 | Wait plan hangs | Wait command id, stage, context name, processor/function names, propagated headers. |
 | Query returns wrong data | Query DSL condition, deletion guard, tenant/owner filters, projection fields, backend converter. |
@@ -36,19 +37,19 @@ No fix before root cause. Reproduce, locate the failing stage, compare with a wo
 Use source-first searches before edits:
 
 ```bash
-rg -n "@AggregateRoot|@OnCommand|@OnSourcing|@StatelessSaga|@ProjectionProcessor" . -g "*.kt"
-rg -n "CommandWait|CommandWait.chain|Command-Wait" . -g "*.kt"
-rg -n "@ConfigurationProperties|ConditionalOn.*Enabled|class .*Properties" . -g "*.kt"
-rg -n "AggregateSpec<|SagaSpec<|expectEventType|expectCommand|expectNoCommand" . -g "*.kt"
+rg -n "@AggregateRoot|@OnCommand|@OnSourcing|@StatelessSaga|@EventProcessor|@ProjectionProcessor|@OnEvent|@OnStateEvent" . -g "*.kt" -g "*.java"
+rg -n "CommandWait|CommandWait.chain|Command-Wait" . -g "*.kt" -g "*.java"
+rg -n "@ConfigurationProperties|ConditionalOn.*Enabled|class .*Properties" . -g "*.kt" -g "*.java"
+rg -n "AggregateSpec<|SagaSpec<|AggregateVerifier|SagaVerifier|aggregateVerifier|sagaVerifier|expectEventType|expectCommand|expectNoCommand" . -g "*.kt" -g "*.java"
 ```
 
 Find a similar working path in the same repository and list meaningful differences. Do not assume a difference is irrelevant until checked.
 
 ## Phase 4: Test the Hypothesis
 
-State one hypothesis: "stage X fails because Y." Test it with the smallest change or diagnostic. If it fails, discard the hypothesis and return to evidence gathering.
+State one hypothesis: "stage X fails because Y." Test it first with the smallest non-mutating diagnostic, focused reproducer, or existing test. If it fails, discard the hypothesis and return to evidence gathering.
 
-For code fixes, prefer adding or tightening:
+When the user has authorized a code fix, prefer adding or tightening:
 
 - `AggregateSpec` for aggregate behavior and sourcing.
 - `SagaSpec` for trigger/no-command/multi-command behavior.
@@ -66,4 +67,4 @@ For code fixes, prefer adding or tightening:
 
 ## Completion Evidence
 
-Finish with the exact reproducer and verification command. If the issue is not fully fixed, report the current failing stage and the remaining unknowns.
+For diagnosis-only work, finish with the exact reproducer, confirmed failing stage, evidence, and remaining unknowns; do not claim a fix. For an authorized fix, also include the new failing test or equivalent pre-fix evidence, the verification command, and its result.

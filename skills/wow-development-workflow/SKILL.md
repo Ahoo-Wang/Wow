@@ -13,12 +13,13 @@ These principles guide every phase:
 
 - **Source first, docs second, memory last**: inspect the current checkout before deciding API names, module names, annotations, or test DSL methods. Use docs as supporting context, not as the final authority.
 - **Domain truth before code shape**: model commands as intent, events as committed facts, and state as sourced memory.
-- **API metadata is part of the contract**: commands and domain events should carry `@Summary` and `@Description` so generated REST/API schema has useful title and description metadata.
+- **API metadata is part of the contract**: commands and domain events exposed through the API/domain contract should carry `@Summary` and `@Description` so generated schema has useful title and description metadata.
 - **Shared fields deserve names**: important repeated domain fields should be modeled as `<FieldName>Capable` interfaces instead of being copied across commands, events, and state types.
 - **Aggregate owns invariants**: a command aggregate decides whether a command is valid and emits events; it must not rely on sagas to protect its internal rules.
 - **Saga coordinates, not owns**: a saga reacts to events, evaluates process conditions, and emits commands. It should not become a second aggregate or hidden state owner.
 - **Make the flow explicit**: draw or list command, event, state, and saga paths before editing behavior.
-- **Tests are contracts**: use `AggregateSpec` for aggregate behavior and `SagaSpec` for orchestration behavior. Do not substitute one for the other.
+- **Tests are contracts**: use `AggregateSpec`/`AggregateVerifier` for aggregate behavior and `SagaSpec`/`SagaVerifier` for orchestration behavior. Do not substitute one for the other.
+- **Behavior changes use RED→GREEN→REFACTOR**: first demonstrate the missing or broken behavior with a focused failing test, implement the smallest correct change, then refactor and rerun the proof.
 - **Enhancement is evidence**: comments, scenario documents, and design reports should explain decisions and coverage, not decorate code.
 - **Verification closes the loop**: finish with exact commands, results, and remaining risk.
 
@@ -30,7 +31,7 @@ Use this sequence as the mental model for all non-trivial Wow work:
 2. **Read**: inspect source, tests, module names, and nearby working examples.
 3. **Model**: express the domain as command intent, event fact, sourced state, reusable field capability, and process policy.
 4. **Split**: decide whether the behavior belongs to the aggregate, a saga, or both.
-5. **Prove**: lock aggregate behavior with `AggregateSpec` and saga orchestration with `SagaSpec`.
+5. **Prove**: lock aggregate behavior with `AggregateSpec`/`AggregateVerifier` and saga orchestration with `SagaSpec`/`SagaVerifier`, using RED→GREEN→REFACTOR for behavior changes.
 6. **Preserve**: write comments, scenarios, and design notes only where they carry decision knowledge.
 7. **Close**: review semantics, run verification, and report evidence plus residual risk.
 
@@ -58,9 +59,9 @@ graph TD
     A1 --> A2[Command Contract]
     A2 --> A3[Event Contract]
     A3 --> A4[State Sourcing]
-    A4 --> A5[Command Handler]
-    A5 --> AT[Aggregate Behavior Test]
-    AT --> ATS[AggregateSpec]
+    A4 --> AT[Failing Aggregate Behavior Test]
+    AT --> A5[Command Handler]
+    A5 --> ATS[AggregateSpec or AggregateVerifier]
 
     S1 --> S2[Trigger Event]
     S2 --> S3[Process Condition]
@@ -68,8 +69,9 @@ graph TD
     S4 --> S5[Derived Command]
     S5 --> S6[Routing and Idempotency]
     S6 --> S7[Retry Policy]
-    S7 --> ST[Saga Orchestration Test]
-    ST --> STS[SagaSpec]
+    S7 --> ST[Failing Saga Orchestration Test]
+    ST --> S8[Saga Handler]
+    S8 --> STS[SagaSpec or SagaVerifier]
 
     ATS --> E[Enhance]
     STS --> E
@@ -104,8 +106,11 @@ Goal: learn the current code before designing changes.
 Run focused source searches such as:
 
 ```bash
-rg -n "@AggregateRoot|@OnCommand|@OnSourcing|@StatelessSaga|@OnEvent|@Retry" . -g "*.kt"
-rg -n "AggregateSpec<|SagaSpec<|aggregateVerifier|sagaVerifier|expectCommand|expectNoCommand" . -g "*.kt"
+git status --short
+git diff --stat
+git diff --cached --stat
+rg -n "@AggregateRoot|@OnCommand|@OnSourcing|@StatelessSaga|@OnEvent|@Retry" . -g "*.kt" -g "*.java"
+rg -n "AggregateSpec<|SagaSpec<|AggregateVerifier|SagaVerifier|aggregateVerifier|sagaVerifier|expectCommand|expectNoCommand" . -g "*.kt" -g "*.java"
 rg -n "include\\(" . -g "settings.gradle.kts"
 ```
 
@@ -116,7 +121,7 @@ Load the smallest references needed:
 - `../wow/references/testing.md` for `AggregateSpec`, `SagaSpec`, verifier APIs, and FluentAssert.
 - `../wow/references/command-gateway.md` when command routing, wait behavior, or idempotency affects the design.
 
-Exit with a source inventory: modules, files, command handlers, sourcing handlers, saga handlers, existing tests, and missing coverage.
+Exit with a source inventory: current worktree changes, modules, files, command handlers, sourcing handlers, saga handlers, existing Kotlin/Java tests, and missing coverage.
 
 ## Phase 2: Model
 
@@ -127,7 +132,7 @@ Decide:
 - Aggregate identity and owner or tenant routing.
 - Commands as user or system intent.
 - Events as durable facts with enough payload to rebuild state.
-- `@Summary` and `@Description` metadata for each command and domain event.
+- `@Summary` and `@Description` metadata for commands and domain events that are part of the API/domain contract.
 - Important repeated fields that should become `<FieldName>Capable` interfaces.
 - State fields and the sourcing event that owns each mutation.
 - Invariants enforced inside aggregate command handlers.
@@ -144,14 +149,14 @@ Use this when behavior stays inside one aggregate.
 
 | Node | What to Decide | Exit Evidence |
 |------|----------------|---------------|
-| Command Contract | command name, `@Summary`, `@Description`, aggregate id, owner or tenant, validation, idempotency input | command type, route, and API metadata are explicit |
-| Event Contract | fact name, `@Summary`, `@Description`, payload, compatibility, event count | emitted event can rebuild state and has schema metadata |
+| Command Contract | command name, contract metadata when exposed, aggregate id, owner or tenant, validation, idempotency input | command type, route, and applicable API metadata are explicit |
+| Event Contract | fact name, contract metadata when exposed, payload, compatibility, event count | emitted event can rebuild state and applicable schema metadata is explicit |
 | Field Capability | important repeated fields and validation contracts | reusable `<FieldName>Capable` interfaces exist where useful |
 | State Sourcing | mutable fields, defaults, sourcing handler, lifecycle handling | state changes only in sourcing |
 | Command Handler | invariant checks, returned events, error paths | handler emits events and does not mutate state |
-| Aggregate Behavior Test | happy path, error path, edge state, lifecycle | `AggregateSpec` or verifier proves command behavior |
+| Aggregate Behavior Test | happy path, error path, edge state, lifecycle | a focused test fails before implementation and `AggregateSpec` or `AggregateVerifier` passes after it |
 
-Use `AggregateSpec` for this path:
+Use `AggregateSpec` for Kotlin DSL tests or `AggregateVerifier` where the fluent API fits the current Kotlin/Java test style:
 
 ```text
 Given events or state
@@ -169,17 +174,19 @@ Use this when an event from one aggregate should coordinate another aggregate.
 | Process Condition | branch conditions, no-command branch, external lookup if any | each branch has expected output |
 | Target Aggregate | target aggregate id, owner, tenant, route source | command route is deterministic |
 | Derived Command | command body, headers, correlation, request semantics | generated command is complete |
-| Routing and Idempotency | duplicate event handling, command id or natural id, stale input handling | repeated delivery is intentional |
+| Routing and Idempotency | duplicate event handling, command id or natural id, stale input handling | repeated delivery is intentional and covered at the runtime boundary that enforces it |
 | Retry Policy | `@Retry`, recoverable errors, unrecoverable errors, timeout | Saga handler failure behavior is explicit |
-| Saga Orchestration Test | trigger, no-command, branch, multi-command cases | `SagaSpec` proves orchestration |
+| Saga Orchestration Test | trigger, no-command, branch, multi-command cases | a focused test fails before implementation and `SagaSpec` or `SagaVerifier` passes after it |
 
-Use `SagaSpec` for this path:
+Use `SagaSpec` for Kotlin DSL tests or `SagaVerifier` where the fluent API fits the current Kotlin/Java test style:
 
 ```text
 Given event
 When saga reacts
 Expect command or no command
 ```
+
+`SagaSpec` and `SagaVerifier` invoke isolated saga handling with a no-op idempotency checker. They prove command generation, not production duplicate-delivery or `EventCompensationFilter` retry semantics. Add focused runtime or integration tests when idempotency or `@Retry` is part of the contract.
 
 ## Enhance
 
@@ -192,7 +199,7 @@ Run only the artifacts the user requested, but always start from the Discover in
 - For design reports, use `references/design-report-template.md`.
 - For aggregate and saga test notes, use `references/test-patterns.md`.
 
-Enhancement may add missing `AggregateSpec` or `SagaSpec` coverage when the scenario document exposes gaps. It must not silently change business behavior.
+If a documentation-only task exposes missing tests, report the gap and request or confirm implementation scope before adding code. Never silently expand a documentation request into behavior changes.
 
 ## Review
 
@@ -216,7 +223,9 @@ Resolve module names from `settings.gradle.kts`, then run the narrowest commands
 ```bash
 ./gradlew <module>:test --tests "fully.qualified.SpecName"
 ./gradlew <module>:check
-python3 scripts/skill_lint.py
+git diff --check
 ```
 
-Final output must include phases completed, files changed, verification commands and results, and remaining risks or uncovered scenarios.
+Select verification from the affected producer and consumer modules, including generated metadata/schema contracts when changed. When project-local skills change, follow `skills/README.md` for standard validation and relevant forward tests. Finish by checking `git status --short`.
+
+Final output must include phases completed, files changed, verification commands and results, and remaining risks or uncovered scenarios. Never mark an artifact or scenario done without fresh passing evidence.
