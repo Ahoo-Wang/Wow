@@ -542,6 +542,31 @@ class SkillLintTest(unittest.TestCase):
             self.assertEqual(6, findings[0].line)
             self.assertEqual("Unclosed Markdown code fence.", findings[0].message)
 
+    def test_frontmatter_literal_fence_is_not_scanned_as_markdown(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            skill = root / "skills" / "wow" / "SKILL.md"
+            skill.parent.mkdir(parents=True)
+            skill.write_text(
+                "---\n"
+                "name: wow\n"
+                "description: |\n"
+                "  ```\n"
+                "  Use countQuery\n"
+                "---\n"
+                "# Wow\n",
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(5, findings[0].line)
+            self.assertEqual(
+                "Use `Condition.count(queryService)` wording; Wow does not expose a countQuery DSL function.",
+                findings[0].message,
+            )
+
     def test_allows_backtick_in_backtick_fence_info_as_plain_text(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -670,6 +695,184 @@ class SkillLintTest(unittest.TestCase):
                 with self.subTest(raw_html=raw_html):
                     template.write_text(raw_html, encoding="utf-8")
                     self.assertEqual([], skill_lint.lint(root))
+
+    def test_preserves_java_language_in_raw_html_code_blocks(self):
+        java_blocks = [
+            (
+                '<pre><code class="language-java">\n'
+                "assertThat(result).isEqualTo(expected);\n"
+                "</code></pre>\n"
+            ),
+            (
+                "<pre>\n"
+                "<code class='example language-java'>\n"
+                "assertThat(result).isEqualTo(expected);\n"
+                "</code>\n"
+                "</pre>\n"
+            ),
+            (
+                '<pre><code title="1 > 0" class="language-java">\n'
+                "assertThat(result).isEqualTo(expected);\n"
+                "</code></pre>\n"
+            ),
+            (
+                "<pre>\n"
+                "<code\n"
+                ' class="language-java">\n'
+                "assertThat(result).isEqualTo(expected);\n"
+                "</code>\n"
+                "</pre>\n"
+            ),
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            for java_block in java_blocks:
+                with self.subTest(java_block=java_block):
+                    template.write_text(java_block, encoding="utf-8")
+                    self.assertEqual([], skill_lint.lint(root))
+
+    def test_raw_html_kotlin_code_still_uses_kotlin_assertion_rule(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                '<pre><code class="language-kotlin">\n'
+                "assertThat(result).isEqualTo(expected)\n"
+                "</code></pre>\n",
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(2, findings[0].line)
+            self.assertEqual(
+                "Use FluentAssert `.assert()` instead of AssertJ `assertThat()`.",
+                findings[0].message,
+            )
+
+    def test_raw_html_java_language_ends_with_code_element(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "<pre>\n"
+                '<code class="language-java">\n'
+                "assertThat(javaResult).isEqualTo(expected);\n"
+                "</code>\n"
+                "assertThat(kotlinResult).isEqualTo(expected)\n"
+                "</pre>\n",
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(5, findings[0].line)
+            self.assertEqual(
+                "Use FluentAssert `.assert()` instead of AssertJ `assertThat()`.",
+                findings[0].message,
+            )
+
+    def test_raw_html_data_class_does_not_declare_java(self):
+        sources = [
+            (
+                '<pre><code data-class="language-java">\n'
+                "assertThat(result).isEqualTo(expected)\n"
+                "</code></pre>\n",
+                2,
+            ),
+            (
+                "<pre>\n"
+                '<!-- <code class="language-java"> -->\n'
+                "assertThat(result).isEqualTo(expected)\n"
+                "</pre>\n",
+                3,
+            ),
+            (
+                "<pre>\n"
+                "<!--\n"
+                '<code class="language-java">\n'
+                "-->\n"
+                "assertThat(result).isEqualTo(expected)\n"
+                "</pre>\n",
+                5,
+            ),
+            (
+                "<pre>\n"
+                '<code title=" class=\'language-java\' ">\n'
+                "assertThat(result).isEqualTo(expected)\n"
+                "</code>\n"
+                "</pre>\n",
+                3,
+            ),
+            (
+                "<textarea>\n"
+                '<code class="language-java">\n'
+                "assertThat(result).isEqualTo(expected)\n"
+                "</textarea>\n",
+                3,
+            ),
+        ]
+        sources.extend(
+            (
+                (
+                    "<div>\n"
+                    f"<{raw_text_tag}>\n"
+                    'const template = \'<code class="language-java">\';\n'
+                    "assertThat(result).isEqualTo(expected)\n"
+                    f"</{raw_text_tag}>\n"
+                ),
+                4,
+            )
+            for raw_text_tag in ("script", "style", "textarea")
+        )
+        sources.append(
+            (
+                "<div>\n"
+                "<script\n"
+                ">\n"
+                '<code class="language-java">\n'
+                "assertThat(result).isEqualTo(expected)\n"
+                "</script\n"
+                ">\n",
+                5,
+            )
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            for source, expected_line in sources:
+                with self.subTest(source=source):
+                    template.write_text(source, encoding="utf-8")
+
+                    findings = skill_lint.lint(root)
+
+                    self.assertEqual(1, len(findings))
+                    self.assertEqual(expected_line, findings[0].line)
+
+    def test_raw_html_language_ends_with_inline_code_close(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                '<pre><code class="language-java">\n'
+                "javaCall();\n"
+                "</code> assertThat(result).isEqualTo(expected)\n"
+                "</pre>\n",
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(3, findings[0].line)
 
     def test_resumes_fence_detection_after_raw_html_block(self):
         raw_html_blocks = [
@@ -1068,6 +1271,121 @@ class SkillLintTest(unittest.TestCase):
             )
 
             self.assertEqual([], skill_lint.lint(root))
+
+    def test_link_reference_definition_ends_paragraph_state(self):
+        definitions = [
+            "[label]: /url\n",
+            "[label]:/url\n",
+            "[label\\]]: /url\n",
+            "[label]: foo<bar\n",
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            for definition in definitions:
+                with self.subTest(definition=definition):
+                    template.write_text(
+                        definition + "2. ~~~java\n",
+                        encoding="utf-8",
+                    )
+
+                    findings = skill_lint.lint(root)
+
+                    self.assertEqual(1, len(findings))
+                    self.assertEqual(2, findings[0].line)
+                    self.assertEqual(
+                        "Unclosed Markdown code fence.",
+                        findings[0].message,
+                    )
+
+    def test_multiline_link_reference_definition_ends_paragraph_state(self):
+        definitions = [
+            "[label]:\n  /url\n",
+            "[label]:\n    /url\n",
+            "[label]:\n\t/url\n",
+            "[label]: /url\n  \"title\"\n",
+            "[label]:\n  /url\n  'title'\n",
+            "> [label]:\n> /url\n",
+            "[label]: /url \"first\nsecond\"\n",
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            for definition in definitions:
+                with self.subTest(definition=definition):
+                    template.write_text(
+                        definition + "2. ~~~java\n",
+                        encoding="utf-8",
+                    )
+
+                    findings = skill_lint.lint(root)
+
+                    self.assertEqual(1, len(findings))
+                    self.assertEqual(
+                        definition.count("\n") + 1,
+                        findings[0].line,
+                    )
+                    self.assertEqual(
+                        "Unclosed Markdown code fence.",
+                        findings[0].message,
+                    )
+
+    def test_link_reference_uses_active_and_lazy_containers(self):
+        cases = [
+            (
+                "- - item\n"
+                "\n"
+                "    [label]:\n"
+                "      /url\n"
+                "    2. ~~~java\n",
+                5,
+            ),
+            (
+                '> [label]: /url "first\n'
+                'outside"\n'
+                "2. ~~~java\n",
+                3,
+            ),
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            for source, expected_line in cases:
+                with self.subTest(source=source):
+                    template.write_text(source, encoding="utf-8")
+
+                    findings = skill_lint.lint(root)
+
+                    self.assertEqual(1, len(findings))
+                    self.assertEqual(expected_line, findings[0].line)
+                    self.assertEqual(
+                        "Unclosed Markdown code fence.",
+                        findings[0].message,
+                    )
+
+    def test_invalid_link_reference_remains_paragraph_text(self):
+        invalid_definitions = [
+            "[label] /url\n",
+            "[ ]: /url\n",
+            "[label]: <foo\n",
+            "[label]: /foo(bar\n",
+            "[label]:\n",
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            for definition in invalid_definitions:
+                with self.subTest(definition=definition):
+                    template.write_text(
+                        definition + "2. ~~~java\n",
+                        encoding="utf-8",
+                    )
+
+                    self.assertEqual([], skill_lint.lint(root))
 
     def test_one_ordered_marker_can_interrupt_paragraph(self):
         with tempfile.TemporaryDirectory() as tmp:
