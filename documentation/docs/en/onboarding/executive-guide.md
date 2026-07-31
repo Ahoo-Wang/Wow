@@ -22,7 +22,7 @@ onMounted(() => {
 
 **Audience**: VP/Director-level engineering leaders evaluating the Wow Framework for organizational adoption.
 
-**Updated**: July 2026 | **Version**: 8.9.3 | **License**: Apache 2.0
+**Updated**: July 2026 | **Version**: 8.9.5 | **License**: Apache 2.0
 
 ---
 
@@ -32,7 +32,7 @@ The **Wow Framework** is a production-grade, open-source microservice framework 
 
 The framework's core philosophy is **"Domain Model as a Service"** -- development teams write only their domain model (commands, events, aggregate state), and the framework automatically generates command routing, event persistence, projection pipelines, OpenAPI endpoints, and distributed saga orchestration. At compile time, a KSP processor generates routing tables and API specifications, eliminating runtime reflection overhead. Performance benchmarks from the [example workload](https://github.com/Ahoo-Wang/Wow/blob/main/example) demonstrate ~60,000 transactions per second in fire-and-forget mode with 29 ms average latency, and ~19,000 TPS with full processing guarantees at 239 ms latency -- performance characteristics suitable for high-throughput transactional systems in e-commerce, logistics, financial services, and gaming.
 
-For leadership teams evaluating whether to invest in event-sourced architecture, Wow represents the lowest-risk on-ramp available on the JVM ecosystem: Apache 2.0 licensed (no vendor lock-in), Maven Central published, Spring Boot 4.x native, and backed by an active open-source community with CI/CD, integration testing, and code coverage enforcement. The framework has been in active production development across multiple 8.x releases (current version 8.9.3), demonstrating maturity for enterprise adoption.
+For leadership teams evaluating whether to invest in event-sourced architecture, Wow represents the lowest-risk on-ramp available on the JVM ecosystem: Apache 2.0 licensed (no vendor lock-in), Maven Central published, Spring Boot 4.x native, and backed by an active open-source community with CI/CD, integration testing, and code coverage enforcement. The framework has been in active production development across multiple 8.x releases (current version 8.9.5), demonstrating maturity for enterprise adoption.
 
 <!-- Sources: README.md:1-16, gradle.properties:23, index.md (home), README.md:70-98 -->
 
@@ -350,7 +350,7 @@ The [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) an
 | **Authorization** | CoSec (policy-based) | AxonIQ Console / Spring Security | Spring Security (custom integration) | Custom |
 | **API Exposure** | Auto-generated WebFlux endpoints + Swagger UI | Axon Server HTTP API or custom Spring MVC | Spring MVC / WebFlux (manual controllers) | Akka HTTP (manual routes) |
 | **Community Size** | Growing (~1.6K GitHub stars) | Large (~3K+ GitHub stars) | N/A | Large (Akka legacy + Pekko fork) |
-| **Ecosystem Maturity** | v8.9.3 stable | Production since 2010; v4.x stable | N/A | Production since 2009 (Akka) |
+| **Ecosystem Maturity** | v8.9.5 stable | Production since 2010; v4.x stable | N/A | Production since 2009 (Akka) |
 | **Vendor Lock-In Risk** | None (Apache 2.0, Maven Central) | Medium (Axon Server commercial features; AxonIQ as primary maintainer) | None (but you own all code) | None (Apache 2.0) |
 | **Ramp-Up Time** | 2-4 weeks (if DDD/CQRS/ES concepts known) | 2-4 weeks (if DDD/CQRS/ES concepts known) | 6-12 months (build infrastructure) | 3-6 months (build CQRS/ES on top of actors) |
 
@@ -489,7 +489,7 @@ Choose the first bounded context carefully. The ideal pilot:
 
 | Metric | Value | Source |
 |---|---|---|
-| **Version** | 8.9.3 | [gradle.properties:23](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties#L23) |
+| **Version** | 8.9.5 | [gradle.properties:23](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties#L23) |
 | **License** | Apache 2.0 | [gradle.properties:28-29](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties#L28-L29) |
 | **Language** | Kotlin 2.3 / JVM 17+ | [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) |
 | **Framework** | Spring Boot 4.x | [AGENTS.md](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) |
