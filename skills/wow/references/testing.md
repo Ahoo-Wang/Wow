@@ -21,7 +21,7 @@ Wow provides a Given→When→Expect test pattern:
 - **When**: Current command or event to trigger changes
 - **Expect**: Verify results meet expectations
 
-Use `me.ahoo.test.asserts.assert` for assertions — NOT AssertJ's `assertThat()`.
+In Kotlin tests, prefer `me.ahoo.test.asserts.assert` and `.assert()`. In Java tests, follow the assertion library already used by the module; the current Java verifier examples use AssertJ.
 
 ```kotlin
 import me.ahoo.test.asserts.assert
@@ -77,9 +77,9 @@ class CartSpec : AggregateSpec<Cart, CartState>(
 |--------|-------------|
 | `expectNoError()` | Assert no error occurred |
 | `expectError()` | Assert an error occurred |
-| `expectErrorType<T>()` | Assert specific error type |
+| `expectErrorType(ErrorType::class)` | Assert specific error type |
 | `expectError(expected: E.() -> Unit)` | Assert error content |
-| `expectEventType<T>()` | Assert specific event type was emitted |
+| `expectEventType(EventType::class)` | Assert specific event type was emitted |
 | `expectEventBody<T> { }` | Assert event body content |
 | `expectEventCount(n)` | Assert number of events |
 | `expectEventStream { }` | Assert complete event stream |
@@ -234,7 +234,7 @@ class TransferSagaSpec : SagaSpec<TransferSaga>({
 |--------|-------------|
 | `expectNoError()` | Assert no error occurred |
 | `expectNoCommand()` | Assert no command was sent |
-| `expectCommandType<T>()` | Assert specific command type was sent |
+| `expectCommandType(CommandType::class)` | Assert specific command type was sent |
 | `expectCommand<T> { }` | Assert full `CommandMessage<T>` (includes `aggregateId`, headers) |
 | `expectCommandBody<T> { }` | Assert command body content (`T.() -> Unit`) |
 
@@ -318,7 +318,7 @@ CartSaga::class.java.sagaVerifier()
     .verify()
 ```
 
-The verifier pre-configures an in-memory command bus, test validator, and no-op idempotency checker for isolated testing. It invokes the saga handler path directly, so it proves command generation but does not prove duplicate-delivery handling or `CompensationFilter` retry behavior. Add focused runtime or integration coverage when idempotency or `@Retry` is part of the contract.
+The verifier pre-configures an in-memory command bus, test validator, and no-op idempotency checker for isolated testing. It invokes the saga handler path directly, so it proves command generation but does not prove duplicate-delivery handling or `EventCompensationFilter` retry behavior. Add focused runtime or integration coverage when idempotency or `@Retry` is part of the contract.
 
 ## Projection Testing
 
@@ -374,7 +374,7 @@ aggregateVerifier<Cart, CartState>(aggregateId = "cart-123")
 
 ## FluentAssert Assertions
 
-Use `me.ahoo.test.asserts.assert` and `.assert()` from `me.ahoo.test:fluent-assert-core` for Wow tests. This section is the minimal Wow testing contract; the complete assertion API belongs to the external `fluent-assert` skill, distributed through [Ahoo-Wang/skills](https://github.com/Ahoo-Wang/skills) and maintained in [Ahoo-Wang/FluentAssert](https://github.com/Ahoo-Wang/FluentAssert/tree/main/skills/fluent-assert). If that external skill is not installed, follow the library contract shown here.
+Use `me.ahoo.test.asserts.assert` and `.assert()` from `me.ahoo.test:fluent-assert-core` for Kotlin Wow tests. Java tests should follow the assertion library already established by the target module. This section is the minimal Kotlin Wow testing contract; the complete assertion API belongs to the external `fluent-assert` skill, distributed through [Ahoo-Wang/skills](https://github.com/Ahoo-Wang/skills) and maintained in [Ahoo-Wang/FluentAssert](https://github.com/Ahoo-Wang/FluentAssert/tree/main/skills/fluent-assert). If that external skill is not installed, follow the library contract shown here.
 
 ```kotlin
 import me.ahoo.test.asserts.assert
@@ -464,4 +464,4 @@ expectErrorType(DomainEventException::class)
 5. **Use descriptive names** for fork scenarios: `fork("Pay Order")`
 6. **Test error cases** — verify behavior in invalid states
 7. **Test deletion/recovery** — verify aggregate lifecycle behavior
-8. **Use FluentAssert** — `me.ahoo.test.asserts.assert`, not AssertJ's `assertThat()`
+8. **Use the module's assertion style** — Kotlin tests prefer `me.ahoo.test.asserts.assert`; Java tests follow neighboring tests

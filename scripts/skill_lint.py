@@ -5,6 +5,7 @@ import argparse
 import json
 import re
 import sys
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -20,6 +21,7 @@ ASSERT_THAT_PATTERN = re.compile(r"\bassertThat\s*\(")
 NEGATIVE_ASSERT_THAT_GUIDANCE = re.compile(r"\b(?:not|NOT|never|avoid)\b|不要|不使用")
 LEGACY_WAIT_TIMEOUT_PATTERN = re.compile(r"\bCommand-Wait-Timout\b")
 LEGACY_WAIT_TIMEOUT_GUIDANCE = re.compile(r"\blegacy\b.*\bcompatibility\b|\bcompatibility\b.*\blegacy\b")
+MARKDOWN_FENCE_PATTERN = re.compile(r"^ {0,3}(?P<fence>`{3,}|~{3,})(?P<info>.*)$")
 
 PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (
@@ -78,6 +80,30 @@ PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
         re.compile(r"\bProductCostTestCases\b"),
         "Do not reference non-existent project-specific examples.",
     ),
+    (
+        re.compile(r"\bexpect(?:Error|Event|Command)Type<[^>]+>\(\)|\bexpectEventType\s*\{"),
+        "Use the actual type assertion APIs with a KClass/Class argument.",
+    ),
+    (
+        re.compile(r"All DSL functions are in package `me\.ahoo\.wow\.query\.dsl`"),
+        "Distinguish query-builder DSL packages from backend-specific query execution extensions.",
+    ),
+    (
+        re.compile(r"falls back to lowercased class name|Space-separate the resource name"),
+        "Describe AggregateRoute defaults and spaced behavior from the current OpenAPI implementation.",
+    ),
+    (
+        re.compile(r"(?<![A-Za-z0-9_])CompensationFilter\b"),
+        "Use the concrete `EventCompensationFilter` type or describe the runtime boundary generically.",
+    ),
+    (
+        re.compile(r"Commands and domain events should include Wow API metadata annotations"),
+        "Require API metadata only when commands or events are part of the API/domain contract.",
+    ),
+    (
+        re.compile(r"Use Wow `@Summary` and `@Description` on commands and domain events\."),
+        "Require API metadata only when commands or events are part of the API/domain contract.",
+    ),
 )
 
 LOCAL_MARKDOWN_REF = re.compile(r"`((?:references/|\.\.?/)[^`]+\.md)`|\]\(((?:references/|\.\.?/)[^)]+\.md)\)")
@@ -90,17 +116,60 @@ def iter_skill_files(root: Path) -> list[Path]:
     return sorted(path for path in skills_dir.rglob("*") if path.suffix in {".md", ".json"})
 
 
+def find_unclosed_markdown_fence(text: str) -> int | None:
+    opened: tuple[str, int, int] | None = None
+    for line_no, line in enumerate(text.splitlines(), start=1):
+        match = MARKDOWN_FENCE_PATTERN.match(line)
+        if not match:
+            continue
+        fence = match.group("fence")
+        info = match.group("info")
+        if opened is None:
+            opened = (fence[0], len(fence), line_no)
+            continue
+        fence_char, fence_length, _ = opened
+        if fence[0] == fence_char and len(fence) >= fence_length and not info.strip():
+            opened = None
+    return opened[2] if opened else None
+
+
+def iter_expected_outputs(value: object) -> Iterator[str]:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if key == "expected_output" and isinstance(child, str):
+                yield child
+            else:
+                yield from iter_expected_outputs(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from iter_expected_outputs(child)
+
+
 def lint(root: Path) -> list[Finding]:
     findings: list[Finding] = []
     for path in iter_skill_files(root):
+        text = path.read_text(encoding="utf-8")
         if path.suffix == ".json":
             try:
-                json.loads(path.read_text(encoding="utf-8"))
+                document = json.loads(text)
             except json.JSONDecodeError:
                 findings.append(Finding(path.relative_to(root), 1, "Invalid JSON file."))
-            continue
-        text = path.read_text(encoding="utf-8")
-        for line_no, line in enumerate(text.splitlines(), start=1):
+                continue
+            expected_output_lines = [
+                line_no
+                for line_no, line in enumerate(text.splitlines(), start=1)
+                if '"expected_output"' in line
+            ]
+            lines_to_lint = [
+                (
+                    expected_output_lines[index] if index < len(expected_output_lines) else 1,
+                    expected_output,
+                )
+                for index, expected_output in enumerate(iter_expected_outputs(document))
+            ]
+        else:
+            lines_to_lint = list(enumerate(text.splitlines(), start=1))
+        for line_no, line in lines_to_lint:
             for pattern, message in PATTERNS:
                 if (
                     pattern is ASSERT_THAT_PATTERN
@@ -116,6 +185,8 @@ def lint(root: Path) -> list[Finding]:
                     continue
                 if pattern.search(line):
                     findings.append(Finding(path.relative_to(root), line_no, message))
+            if path.suffix != ".md":
+                continue
             for match in LOCAL_MARKDOWN_REF.finditer(line):
                 raw_ref = match.group(1) or match.group(2)
                 ref_path = (path.parent / raw_ref).resolve()
@@ -127,6 +198,12 @@ def lint(root: Path) -> list[Finding]:
                             f"Referenced local markdown file does not exist: {raw_ref}",
                         )
                     )
+        if path.suffix == ".md":
+            unclosed_fence_line = find_unclosed_markdown_fence(text)
+            if unclosed_fence_line is not None:
+                findings.append(
+                    Finding(path.relative_to(root), unclosed_fence_line, "Unclosed Markdown code fence.")
+                )
     return findings
 
 

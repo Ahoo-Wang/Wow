@@ -143,6 +143,93 @@ class SkillLintTest(unittest.TestCase):
                 messages,
             )
 
+    def test_reports_wow_api_drift_patterns_in_markdown_and_json(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            reference = root / "skills" / "wow" / "references" / "testing.md"
+            reference.parent.mkdir(parents=True)
+            reference.write_text(
+                "\n".join(
+                    [
+                        "`expectEventType<T>()`",
+                        "`expectCommandType<T>()`",
+                        "All DSL functions are in package `me.ahoo.wow.query.dsl`.",
+                        "The value falls back to lowercased class name at runtime.",
+                        "Check `CompensationFilter`.",
+                        "Commands and domain events should include Wow API metadata annotations:",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            evals = root / "skills" / "wow" / "evals" / "evals.json"
+            evals.parent.mkdir(parents=True)
+            evals.write_text('{"expected_output": "use expectEventType {}"}', encoding="utf-8")
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(7, len(findings))
+            messages = [finding.message for finding in findings]
+            self.assertEqual(3, messages.count("Use the actual type assertion APIs with a KClass/Class argument."))
+            self.assertIn(
+                "Distinguish query-builder DSL packages from backend-specific query execution extensions.",
+                messages,
+            )
+            self.assertIn(
+                "Describe AggregateRoute defaults and spaced behavior from the current OpenAPI implementation.",
+                messages,
+            )
+            self.assertIn(
+                "Use the concrete `EventCompensationFilter` type or describe the runtime boundary generically.",
+                messages,
+            )
+            self.assertIn(
+                "Require API metadata only when commands or events are part of the API/domain contract.",
+                messages,
+            )
+
+    def test_reports_unclosed_markdown_fence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "```markdown\n# Template\n```text\nvalue\n```\n```\n",
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual(6, findings[0].line)
+            self.assertEqual("Unclosed Markdown code fence.", findings[0].message)
+
+    def test_allows_adversarial_patterns_in_eval_prompt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            evals = root / "skills" / "wow" / "evals" / "evals.json"
+            evals.parent.mkdir(parents=True)
+            evals.write_text(
+                '{"evals": ['
+                '{"prompt": "Migrate where { } and countQuery", "expected_output": "Use current APIs."},'
+                '{"expected_output": "Use current APIs.", "prompt": "Migrate where { } and countQuery"}'
+                "]}",
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], skill_lint.lint(root))
+
+    def test_allows_longer_outer_markdown_fence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            template = root / "skills" / "wow" / "references" / "template.md"
+            template.parent.mkdir(parents=True)
+            template.write_text(
+                "````markdown\n# Template\n```text\nvalue\n```\n````\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], skill_lint.lint(root))
+
 
 if __name__ == "__main__":
     unittest.main()

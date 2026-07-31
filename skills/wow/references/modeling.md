@@ -47,7 +47,7 @@ Command aggregate inherits from state aggregate with `private set` on setters.
 
 ### Command and Event API Metadata
 
-Commands and domain events should include Wow API metadata annotations:
+Commands and domain events that are part of the API/domain contract should include Wow API metadata annotations:
 
 - `@Summary` for a concise title.
 - `@Description` for REST/API schema detail.

@@ -1,6 +1,7 @@
 # Wow Query DSL Reference
 
-All DSL functions are in package `me.ahoo.wow.query.dsl`.
+Query builders, conditions, projections, sorting, and pagination are in `me.ahoo.wow.query.dsl`.
+Execution extensions are backend-specific: snapshot queries use `me.ahoo.wow.query.snapshot`, while event-stream queries use `me.ahoo.wow.query.event`.
 
 ## Contents
 

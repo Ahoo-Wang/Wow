@@ -8,7 +8,7 @@ If the repository already has a design document convention, use the existing loc
 
 ## Template
 
-```markdown
+````markdown
 # <AggregateName> Design Report
 
 ## Overview
@@ -66,7 +66,7 @@ State is maintained through event sourcing. All field changes are driven by `@On
 
 ## Saga Orchestration
 
-Include this section only when the design has a saga.
+Include this section and `Saga Orchestration Tests` only when the design has a saga.
 
 ```text
 <Trigger event> -> <condition> -> <generated command or no command>
@@ -90,4 +90,4 @@ Include this section only when the design has a saga.
 | Domain | `path/to/domain/File.kt` | <aggregate, state, saga> |
 | Test | `path/to/test/File.kt` | <behavior or orchestration tests> |
 | Doc | `path/to/doc.md` | <scenario or design document> |
-```
+````

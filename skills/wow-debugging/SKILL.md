@@ -25,7 +25,7 @@ Keep diagnosis read-only by default. Reproduce, locate the failing stage, and co
 | Command not handled | Command route, aggregate metadata, `@AggregateRoot`, `@OnCommand`, KSP output, command bus. |
 | Aggregate state wrong | Event payload, `@OnSourcing`, missing sourcing handler, snapshot/replay path. |
 | Saga not triggered | Event type, `@StatelessSaga`, `@OnEvent`, filter condition, processor metadata, bus subscription. |
-| Handler runs but fails or retries incorrectly | Original exception, `@Retry`, retry predicate, `CompensationFilter`, retry exhaustion, duplicate delivery. |
+| Handler runs but fails or retries incorrectly | Original exception, `@Retry`, retry predicate, `EventCompensationFilter`, retry exhaustion, duplicate delivery. |
 | Projection not updated | Processor annotation, event/state-event type, repository call, retry policy. |
 | Wait plan hangs | Wait command id, stage, context name, processor/function names, propagated headers. |
 | Query returns wrong data | Query DSL condition, deletion guard, tenant/owner filters, projection fields, backend converter. |

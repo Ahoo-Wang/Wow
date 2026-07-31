@@ -37,7 +37,7 @@ data class OrderCreated(...)
 
 `me.ahoo.wow.api.annotation.Description` provides longer description metadata for classes and properties. In the current source, `wow-schema` resolves it into schema description metadata.
 
-Use it together with `@Summary` on commands and domain events:
+Use it together with `@Summary` on commands and domain events that are part of the API/domain contract:
 
 ```kotlin
 import me.ahoo.wow.api.annotation.Description
@@ -326,9 +326,9 @@ class Order(private val state: OrderState) { ... }
 **Parameters:**
 | Attribute | Default | Description |
 |---|---|---|
-| `resourceName` | `""` (empty; falls back to lowercased class name at runtime) | Custom API path segment |
+| `resourceName` | `""` (empty; falls back to the aggregate metadata name, normally Pascal-to-snake unless overridden by `@Name`) | Custom API path segment |
 | `enabled` | `true` | Set `false` to disable automatic route generation |
-| `spaced` | `false` | Space-separate the resource name in URL paths |
+| `spaced` | `false` | Include the `Wow-Space-Id` header parameter in generated aggregate routes |
 | `owner` | `NEVER` | Ownership policy: `NEVER`, `ALWAYS`, or `AGGREGATE_ID` |
 
 Disable route generation entirely:

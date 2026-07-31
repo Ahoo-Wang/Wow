@@ -16,7 +16,7 @@
 - Treat comments as maintained code: update or remove them whenever the behavior changes.
 - Do not comment trivial getters, setters, or obvious field assignments.
 - Do not keep disabled code in comments; rely on version control.
-- Use Wow `@Summary` and `@Description` on commands and domain events. These annotations feed schema/API metadata and are not a replacement for KDoc.
+- Use Wow `@Summary` and `@Description` on commands and domain events that are part of the API/domain contract. These annotations feed schema/API metadata and are not a replacement for KDoc.
 
 ## Comment Forms
 

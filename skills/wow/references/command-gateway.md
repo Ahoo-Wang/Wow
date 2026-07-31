@@ -165,17 +165,15 @@ When command processing fails, `sendAndWait` throws `CommandResultException`:
 
 ```kotlin
 commandGateway.sendAndWaitForProcessed(command)
-    .doOnError { error ->
-        when (error) {
-            is CommandResultException -> {
-                val result = error.commandResult
-                println("Error: ${result.errorCode} - ${result.errorMsg}")
-                result.bindingErrors.forEach {
-                    println("Field ${it.name}: ${it.msg}")
-                }
-            }
-            is CommandValidationException -> { /* validation failed */ }
-            is DuplicateRequestIdException -> { /* duplicate request */ }
+    .doOnError(CommandResultException::class.java) { error ->
+        val result = error.commandResult
+        println("Error: ${result.errorCode} - ${result.errorMsg}")
+        result.bindingErrors.forEach {
+            println("Field ${it.name}: ${it.msg}")
+        }
+        when (error.cause) {
+            is CommandValidationException -> { /* validation failed before sending */ }
+            is DuplicateRequestIdException -> { /* duplicate request before sending */ }
         }
     }
 ```

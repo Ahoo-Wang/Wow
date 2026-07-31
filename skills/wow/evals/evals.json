@@ -14,7 +14,7 @@
     {
       "id": 3,
       "prompt": "Write unit tests for a Cart aggregate using AggregateSpec. Test the following scenarios:\n1. Adding an item to empty cart - should emit CartItemAdded\n2. Adding same product twice - should emit CartQuantityChanged\n3. Removing an item - should emit CartItemRemoved\n4. Adding more than 10 items - should throw error\n\nUse fork() for branching test scenarios, and verify state changes with expectState {}.",
-      "expected_output": "CartSpec.kt extending AggregateSpec<Cart, CartState> with Given-When-Expect tests using fork() for branching scenarios, expectState {} for state verification, and expectEventType {} for event assertions."
+      "expected_output": "CartSpec.kt extending AggregateSpec<Cart, CartState> with Given-When-Expect tests using fork() for branching scenarios, expectState {} for state verification, and expectEventType(EventType::class) for event assertions."
     },
     {
       "id": 4,

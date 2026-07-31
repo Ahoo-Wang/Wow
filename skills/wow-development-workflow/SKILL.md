@@ -185,7 +185,7 @@ When saga reacts
 Expect command or no command
 ```
 
-`SagaSpec` and `SagaVerifier` invoke isolated saga handling with a no-op idempotency checker. They prove command generation, not production duplicate-delivery or `CompensationFilter` retry semantics. Add focused runtime or integration tests when idempotency or `@Retry` is part of the contract.
+`SagaSpec` and `SagaVerifier` invoke isolated saga handling with a no-op idempotency checker. They prove command generation, not production duplicate-delivery or `EventCompensationFilter` retry semantics. Add focused runtime or integration tests when idempotency or `@Retry` is part of the contract.
 
 ## Enhance
 

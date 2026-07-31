@@ -36,7 +36,7 @@ Convert each saga scenario into one orchestration expectation:
 - Routing branch: assert target aggregate id, owner, tenant, or command metadata when exposed by the DSL.
 - Multi-command branch: assert command count and each command body.
 
-`SagaSpec` and `SagaVerifier` use isolated saga handling with a no-op idempotency checker. They do not pass through `CompensationFilter`. Use focused unit or integration tests at the runtime boundary to prove duplicate-delivery protection, `@Retry` classification, exhaustion, and recovery behavior.
+`SagaSpec` and `SagaVerifier` use isolated saga handling with a no-op idempotency checker. They do not pass through `EventCompensationFilter`. Use focused unit or integration tests at the runtime boundary to prove duplicate-delivery protection, `@Retry` classification, exhaustion, and recovery behavior.
 
 ## Mocking Guidance
 

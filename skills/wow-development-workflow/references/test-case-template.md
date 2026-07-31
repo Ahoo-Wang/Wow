@@ -46,7 +46,7 @@ If the repository already has test-case documents, mirror the nearest existing e
 | Multi-command | One event generates multiple commands when the process requires it. |
 | Duplicate delivery | Repeated events do not create unintended business effects; verify at the runtime boundary that enforces idempotency. |
 | Stale input | Older or out-of-order input follows an explicit reject, ignore, or reconcile policy. |
-| Retry policy | Recoverable, terminal, and exhausted failures are covered at the `CompensationFilter` or integration boundary when the saga uses `@Retry`. |
+| Retry policy | Recoverable, terminal, and exhausted failures are covered at the `EventCompensationFilter` or integration boundary when the saga uses `@Retry`. |
 
 ## Status Markers
 

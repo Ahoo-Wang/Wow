@@ -14,7 +14,8 @@ Review Wow code for framework semantics first, style second. The goal is to catc
 - No command handler may mutate aggregate state directly.
 - No sourcing handler may perform side effects or non-deterministic work.
 - No configuration claim without checking current `@ConfigurationProperties`.
-- No approval without exact verification evidence.
+- Keep review requests read-only by default. Do not modify files, post or resolve comments, approve, or merge unless the user explicitly requests that action.
+- When approval is explicitly requested, require exact verification evidence.
 
 ## Review Flow
 
@@ -42,7 +43,7 @@ Review Wow code for framework semantics first, style second. The goal is to catc
 | Gradle variants | Dependencies and starter capabilities preserve module boundaries and feature-variant selection. |
 | Query DSL | Uses current `condition`, `pagination`, `projection`, and `sort` APIs. |
 | Configuration | Examples match current `@ConfigurationProperties` classes. |
-| Tests | Use `.assert()`, cover error paths, lifecycle paths, and branch conditions. |
+| Tests | Kotlin tests use `.assert()`; Java tests follow the current module convention. Cover error paths, lifecycle paths, and branch conditions. |
 
 ## Red Flags
 
