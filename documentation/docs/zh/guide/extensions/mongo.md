@@ -186,9 +186,8 @@ sequenceDiagram
 
 ```yaml
 spring:
-  data:
-    mongodb:
-      uri: mongodb://localhost:27017/wow_db
+  mongodb:
+    uri: mongodb://localhost:27017/wow_db
 
 wow:
   eventsourcing:
@@ -566,9 +565,8 @@ db.order_snapshot.createIndex(
 
 ```yaml
 spring:
-  data:
-    mongodb:
-      uri: mongodb://localhost:27017/wow_db?minPoolSize=10&maxPoolSize=100&maxIdleTimeMS=60000
+  mongodb:
+    uri: mongodb://localhost:27017/wow_db?minPoolSize=10&maxPoolSize=100&maxIdleTimeMS=60000
 ```
 
 | 参数 | 描述 | 推荐值 |
@@ -583,9 +581,8 @@ spring:
 
 ```yaml
 spring:
-  data:
-    mongodb:
-      uri: mongodb://localhost:27017/wow_db?w=majority&wtimeoutMS=5000
+  mongodb:
+    uri: mongodb://localhost:27017/wow_db?w=majority&wtimeoutMS=5000
 ```
 
 ### 读取偏好配置
@@ -594,9 +591,8 @@ spring:
 
 ```yaml
 spring:
-  data:
-    mongodb:
-      uri: mongodb://localhost:27017/wow_db?readPreference=secondaryPreferred
+  mongodb:
+    uri: mongodb://localhost:27017/wow_db?readPreference=secondaryPreferred
 ```
 
 ### 数据库分离
@@ -666,9 +662,8 @@ com.mongodb.MongoTimeoutException
 
 ```yaml
 spring:
-  data:
-    mongodb:
-      uri: mongodb://user:password@mongo1:27017,mongo2:27017,mongo3:27017/wow_db?replicaSet=rs0&w=majority&readPreference=secondaryPreferred&minPoolSize=10&maxPoolSize=100
+  mongodb:
+    uri: mongodb://user:password@mongo1:27017,mongo2:27017,mongo3:27017/wow_db?replicaSet=rs0&w=majority&readPreference=secondaryPreferred&minPoolSize=10&maxPoolSize=100
 
 wow:
   eventsourcing:

@@ -77,7 +77,7 @@ interface DomainEventStream : EventMessage<DomainEventStream, List<DomainEvent<*
 
 | 概念 | 描述 | 源码 |
 |---|---|---|
-| `DomainEvent` | 关于聚合内过去业务行为的不可变事实 | [DomainEvent.kt:52-95](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L52-L95) |
+| `DomainEvent` | 关于聚合内过去业务行为的不可变事实 | [DomainEvent.kt:52-91](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L52-L91) |
 | `DomainEventStream` | 单个命令产生的有序领域事件批次 | [DomainEventStream.kt:51-125](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L51-L125) |
 | `EventStore` | 追加、加载事件流并扫描聚合 ID 的核心接口 | [EventStore.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt) |
 | `SnapshotStore` | 通过带版本的快照检查点优化聚合加载 | [SnapshotStore.kt:27-58](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotStore.kt#L27-L58) |
@@ -116,7 +116,10 @@ sequenceDiagram
     autonumber
     participant Client as 客户端
     participant CommandGateway
+    participant CommandBus as 命令总线
+    participant Dispatcher as 命令分发器
     participant Aggregate as 聚合
+    participant Repository as 状态聚合仓储
     participant EventStore as 事件存储
     participant SnapshotStore as 快照存储
     participant DomainEventBus as 领域事件总线
@@ -124,16 +127,19 @@ sequenceDiagram
     participant Saga
 
     Client->>CommandGateway: 发送命令
-    CommandGateway->>EventStore: 加载聚合事件（直到 tailVersion）
-    EventStore-->>CommandGateway: Flux of DomainEventStream（按版本排序）
-    CommandGateway->>SnapshotStore: 加载最新快照
-    SnapshotStore-->>CommandGateway: 快照（或空）
-    CommandGateway->>Aggregate: 应用事件重建状态
-    CommandGateway->>Aggregate: 处理命令 -> 产生新的 DomainEventStream
-    Aggregate-->>CommandGateway: DomainEventStream（新事件）
-    CommandGateway->>EventStore: 追加事件流
-    EventStore-->>CommandGateway: Void（或 VersionConflict / DuplicateRequestId）
-    CommandGateway->>DomainEventBus: 发布事件流（按 aggregateId 排序）
+    CommandGateway->>CommandBus: 校验后发送 CommandMessage
+    CommandBus->>Dispatcher: 投递 ServerCommandExchange
+    Dispatcher->>Aggregate: 创建 AggregateProcessor 并处理命令
+    Aggregate->>Repository: 加载当前状态
+    Repository->>SnapshotStore: 尝试加载最新快照
+    SnapshotStore-->>Repository: 快照（或空）
+    Repository->>EventStore: 加载快照之后的事件
+    EventStore-->>Repository: DomainEventStream（按版本排序）
+    Repository-->>Aggregate: 重建后的 StateAggregate
+    Aggregate->>Aggregate: 调用命令处理器并产生 DomainEventStream
+    Aggregate->>EventStore: 原子追加事件流
+    EventStore-->>Aggregate: 完成或抛出存储异常
+    Dispatcher->>DomainEventBus: 通过 SendDomainEventStreamFilter 发布
     DomainEventBus-->>Projection: 接收事件流
     DomainEventBus-->>Saga: 接收事件流
     Projection->>Projection: 更新读模型
@@ -185,7 +191,7 @@ classDiagram
 |---|---|---|
 | `EventVersionConflictException` | 并发写入导致的版本冲突 | 实现 `RecoverableException` -- 可安全重试 |
 | `DuplicateAggregateIdException` | 尝试创建已存在的聚合 | 致命 -- 表示 ID 冲突 |
-| `DuplicateRequestIdException` | 相同命令已被处理 | 幂等 -- 成功情况，不是错误 |
+| `DuplicateRequestIdException` | 相同 request ID 已被处理 | 框架拒绝重复请求并返回错误；调用方可按业务语义将其解释为幂等结果 |
 
 ```mermaid
 stateDiagram-v2

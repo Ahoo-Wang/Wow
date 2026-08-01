@@ -38,7 +38,7 @@ implementation("me.ahoo.wow:wow-spring-boot-starter") {
 ### 发送 CoSec 头
 
 ```http
-POST /order/owner/{ownerId}/create_order
+POST /tenant/{tenantId}/owner/{ownerId}/sales-order
 Content-Type: application/json
 Command-Wait-Stage: PROCESSED
 CoSec-App-Id: wow-shop

@@ -39,9 +39,9 @@ flowchart TB
 | Aspect | Event Processor | Projection Processor |
 |--------|----------------|---------------------|
 | Primary Purpose | Handle events, execute business logic | Update read models |
-| Return Type | `Mono<Void>` or domain events | `Mono<Void>` |
+| Return Type | Completion signal such as `Mono<Void>`; returned values are discarded | `Mono<Void>` |
 | Ordering | Preserved within processor | Preserved within processor |
-| Side Effects | Can publish new commands/events | Typically read-only updates |
+| Side Effects | May explicitly send commands or call external systems | Typically read-model updates |
 | Use Cases | Notifications, external integrations | Query model updates |
 
 ## Creating an Event Processor

@@ -16,7 +16,7 @@ A traditional real-time ETL pipeline usually follows `DB -> CDC -> Process -> DB
 
 - Aggregate command (`Command`): a command submitted by a user.
 - State event (`StateEvent`): the complete aggregate-state change history and its related events.
-- Latest state event (`LastStateEvent`): the latest state for each aggregate root.
+- Latest-state view (`*_state_last`): the latest state for each tenant and aggregate root.
 - Snapshot expansion view: a relational view expanded from one-to-one and one-to-many structures inside an aggregate.
 
 ![Business Intelligence](../../public/images/bi/bi.svg)

@@ -325,13 +325,13 @@ sequenceDiagram
 
 The `DefaultCommandGateway` enforces a strict pre-send pipeline before the command reaches the bus:
 
-1. **Idempotency check** -- Retrieves an `IdempotencyChecker` for the aggregate type and quickly prechecks the `requestId`. When the precheck reports a duplicate, the gateway confirms it through `EventStore.existsRequestId(aggregateId, requestId)`. A `DuplicateRequestIdException` is thrown only when the event store also confirms the request exists, avoiding false-positive blocks from precheck structures such as BloomFilter.
+1. **Idempotency check** -- Delegates to `RequestIdChecker`. `DefaultRequestIdChecker` first performs the aggregate's fast idempotency precheck; when that rejects the `requestId`, it asks the configured `RequestIdExistenceChecker` for authoritative confirmation. `EventStore` implements that interface. A confirmed duplicate becomes `DuplicateRequestIdException`, while a false-positive precheck can continue.
 
 2. **Validation** -- Two-phase validation:
    - **Self-validation**: If the command body implements `CommandValidator`, its `validate()` method is called first. This allows domain-specific, programmatic validation.
    - **Jakarta Bean Validation**: The command body is validated against `@NotBlank`, `@Min`, `@Max`, and other Jakarta annotations via the configured `jakarta.validation.Validator`.
 
-Both checks are implemented in the `check()` method at [DefaultCommandGateway.kt:99](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L99).
+Both checks are composed in the [`check()` method](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L114).
 
 ### DefaultCommandGateway: Post-Send Signal
 

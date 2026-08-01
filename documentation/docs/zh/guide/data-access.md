@@ -48,7 +48,7 @@ graph TB
 | 拥有者 | `owner/{ownerId}` 路径前缀 | `@AggregateRoute(owner ≠ NEVER)` |
 | 命名空间 | `Wow-Space-Id` 请求头 | `@AggregateRoute(spaced = true)` |
 
-框架为每个聚合生成**多套路由变体** — 默认路由（无前缀）、仅租户路由、仅拥有者路由 — 调用方可以根据需要选择最小作用域。
+框架根据 `@AggregateRoute` 和可选的 `@CommandRoute` 覆盖，为每个命令生成一条确定的路由。命令级 `ALWAYS` 或 `NEVER` 会覆盖聚合默认值；同一个命令不会同时暴露多种作用域路由。
 
 ## 租户（Tenant）
 

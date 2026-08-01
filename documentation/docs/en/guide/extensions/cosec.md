@@ -37,7 +37,7 @@ The integration is transparent: clients send the CoSec headers on each command H
 ### Sending CoSec Headers
 
 ```http
-POST /order/owner/{ownerId}/create_order
+POST /tenant/{tenantId}/owner/{ownerId}/sales-order
 Content-Type: application/json
 Command-Wait-Stage: PROCESSED
 CoSec-App-Id: wow-shop

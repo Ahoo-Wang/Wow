@@ -280,23 +280,16 @@ class CriticalProjection(
 ```kotlin
 @ProjectionProcessor
 class IdempotentProjection(
-    private val eventStore: EventStore
+    private val repository: OrderProjectionRepository
 ) {
 
     @OnEvent
-    fun onOrderUpdated(event: OrderUpdated): Mono<Void> {
-        // 使用事件 ID 检查是否已处理
-        return eventStore.exists(event.eventId)
-            .filter { !it }
-            .flatMap { processUpdate(event) }
-            .then()
-    }
-
-    private fun processUpdate(event: OrderUpdated): Mono<Void> {
-        // 处理更新
-    }
+    fun onOrderUpdated(event: DomainEvent<OrderUpdated>): Mono<Void> =
+        repository.upsertByEventId(event.id, event.body)
 }
 ```
+
+应在读模型存储中将事件 ID 设为唯一键，或使用原子 upsert。`EventStore` 用于持久化聚合事件流，并不提供投影处理记录查询 API。
 
 ## 性能考虑
 

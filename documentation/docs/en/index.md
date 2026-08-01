@@ -31,10 +31,10 @@ features:
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6l3 7-6 11-6-11 3-7Z"/><path d="M9 3 3 10h18L15 3"/></svg>'
   details: Test suite based on Given->When->Expect pattern, helping developers easily achieve over 80% test coverage and ensure high-quality application delivery
   link: /guide/test-suite
-- title: High Performance
+- title: Reproducible Performance Baselines
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>'
-  details: Aggregate+EventSourcing, CQRS architecture, write operations only require AppendOnly operations, read operations utilize query-oriented search engines
-  link: /guide/perf-test
+  details: Purpose-specific JMH tasks keep performance claims tied to the current code, runtime environment, and result manifest instead of context-free historical numbers
+  link: /guide/test-runtime#benchmark-smoke
 - title: Scalability
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/></svg>'
   details: No need to consider database relationship patterns, sharding rules, etc., code unchanged, easy horizontal scaling

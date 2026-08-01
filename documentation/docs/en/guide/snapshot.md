@@ -109,8 +109,6 @@ stateDiagram-v2
     Store --> Active: Available for Loading
     Active --> Stale: New Events Added
     Stale --> Create: Interval Reached
-    Active --> Delete: Aggregate Deleted
-    Delete --> [*]
 ```
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotMaterializer.kt, dispatcher/SnapshotHandler.kt -->
@@ -207,49 +205,19 @@ wow:
 
 ## Aggregate Loading Optimization
 
-Snapshots greatly optimize aggregate root loading performance:
+Aggregate loading should reuse the framework's `StateAggregateRepository` instead of
+manually composing `SnapshotStore`, `EventStore`, and event replay in application code:
 
 ```kotlin
-class EventSourcingOrderRepository(
-    private val eventStore: EventStore,
-    private val snapshotStore: SnapshotStore
-) : OrderRepository {
-
-    override fun load(orderId: String): Mono<OrderState> {
-        val aggregateId = AggregateId("order", orderId)
-
-        return snapshotStore.load<OrderState>(aggregateId)
-            .flatMap { snapshot ->
-                // Only replay events after the snapshot version
-                eventStore.load(aggregateId, snapshot.version + 1)
-                    .collectList()
-                    .map { eventStreams ->
-                        val state = snapshot.state
-                        eventStreams.forEach { stream ->
-                            stream.events.forEach { event ->
-                                state.apply(event)
-                            }
-                        }
-                        state
-                    }
-            }
-            .switchIfEmpty(
-                // No snapshot, load all events
-                eventStore.load(aggregateId)
-                    .collectList()
-                    .map { eventStreams ->
-                        val state = OrderState(orderId)
-                        eventStreams.forEach { stream ->
-                            stream.events.forEach { event ->
-                                state.apply(event)
-                            }
-                        }
-                        state
-                    }
-            )
-    }
-}
+val aggregateId = namedAggregate.aggregateId(id = orderId, tenantId = tenantId)
+val aggregate: Mono<StateAggregate<OrderState>> =
+    stateAggregateRepository.load(aggregateId)
 ```
+
+When the latest version is requested, `EventSourcingStateAggregateRepository` first tries the
+snapshot. It then reads `EventStore` from `stateAggregate.expectedNextVersion` and applies each
+incremental stream through `stateAggregate.onSourcing(eventStream)`. Historical-version queries
+do not use the latest snapshot.
 
 ## Performance Impact
 
@@ -263,5 +231,7 @@ With a snapshot interval of 50, an aggregate with 1000 events replays at most 49
 
 1. **Choose Appropriate Snapshot Strategy**: Select appropriate snapshot frequency based on business scenarios
 2. **Monitor Snapshot Effectiveness**: Regularly check if snapshots significantly improve loading performance
-3. **Snapshot Cleanup**: Regularly clean up expired snapshots to save storage space
-4. **Snapshot Consistency**: Ensure snapshot version consistency with event streams
+3. **Snapshot Consistency**: Ensure snapshot version consistency with event streams
+
+`SnapshotStore` currently has no generic deletion API. Physical cleanup, when required, must be
+designed and verified for the selected backend rather than treated as a Wow lifecycle capability.

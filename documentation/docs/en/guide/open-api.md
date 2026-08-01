@@ -30,6 +30,14 @@ implementation 'me.ahoo.wow:wow-openapi'
 
 :::
 
+The dependency above provides Wow's OpenAPI model and route specifications. To publish those specifications from a Spring Boot WebFlux application, also use `wow-spring-boot-starter` with the WebFlux module. Swagger UI itself is supplied by Springdoc:
+
+```kotlin
+implementation("me.ahoo.wow:wow-spring-boot-starter")
+implementation("me.ahoo.wow:wow-webflux")
+implementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
+```
+
 ## Swagger-UI
 
 > Swagger-UI is an API documentation tool based on the OpenAPI specification, which can be used to view and test API interfaces through Swagger-UI.

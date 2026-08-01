@@ -15,7 +15,7 @@ Wow 的架构围绕一个核心原则构建：**"领域模型即服务"**。编�
 | 组件 | 职责 | 关键构件 | 源码 |
 |---|---|---|---|
 | **wow-api** | 纯 API 契约：`CommandMessage`、`DomainEvent`、`AggregateId`、`NamedBoundedContext` | `wow-api` 模块 | [Wow.kt:26-45](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/Wow.kt#L26-L45) |
-| **wow-core** | 框架引擎：聚合、命令总线、事件存储、投影、Saga、序列化 | `wow-core` 模块 | [CommandGateway.kt:75-178](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L75-L178) |
+| **wow-core** | 框架引擎：聚合、命令总线、事件存储、投影、Saga、序列化 | `wow-core` 模块 | [CommandGateway.kt:63-174](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L63-L174) |
 | **wow-spring** | Spring 框架集成层 | `wow-spring` 模块 | [settings.gradle.kts:32](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L32) |
 | **wow-compiler** | KSP 处理器：在编译时生成命令路由、事件元数据、OpenAPI 规范 | `wow-compiler` 模块 | [settings.gradle.kts:26](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L26) |
 | **wow-test** | 单元测试 DSL：`AggregateSpec` / `SagaSpec` 配合 Given-When-Expect 模式 | `test/wow-test` | [settings.gradle.kts:44-45](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L44-L45) |
@@ -173,7 +173,7 @@ sequenceDiagram
     CG-->>Client: CommandResult (当 waitPlan 满足时)
 ```
 
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt:75-178, wow-core/src/main/kotlin/me/ahoo/wow/command/CommandBus.kt:36-41, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/AggregateProcessor.kt:32-49, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt:43-80, wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt:50-156 -->
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt:63-174, wow-core/src/main/kotlin/me/ahoo/wow/command/CommandBus.kt:36-41, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/AggregateProcessor.kt:32-49, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt:43-80, wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt:50-151 -->
 
 ### 逐步流程描述
 
@@ -327,7 +327,7 @@ Wow 框架自始至终遵循**策略模式**：每个基础设施关注点在 `w
 | 扩展点 | 接口 | 用途 | 实现 | 源码 |
 |---|---|---|---|---|
 | **命令总线** | `CommandBus` / `DistributedCommandBus` | 将命令路由到聚合处理器 | `InMemoryCommandBus`、`LocalFirstCommandBus`、Kafka 支持 | [CommandBus.kt:36-69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandBus.kt#L36-L69) |
-| **事件总线** | `EventBus` / `DomainEventBus` | 将领域事件分发给投影、Saga 和处理器 | `InMemoryEventBus`、Kafka 支持、Redis 支持 | [settings.gradle.kts:27](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L27) |
+| **事件总线** | `DomainEventBus` / `StateEventBus` | 将领域事件与状态事件分发给投影、Saga 和处理器 | `InMemoryDomainEventBus`、`InMemoryStateEventBus`、Kafka 支持、Redis 支持 | [InMemoryDomainEventBus.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/InMemoryDomainEventBus.kt) |
 | **等待计划** | `WaitPlan` | 控制命令响应时机 | `StageWaitTarget`、`ChainWaitTarget`、`CommandWait` 工厂方法 | [WaitPlan.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt) |
 | **ID 生成器** | `IdGenerator` (via CosId) | 生成全局唯一的聚合 ID | 雪花、号段等（通过 CosId 集成） | `me.ahoo.cosid` |
 | **序列化** | `MessageSerializer` | 带类型元数据的 JSON 序列化 | 基于 Jackson 的 `JsonSerializer` | [wow-core 序列化](https://github.com/Ahoo-Wang/Wow/tree/main/wow-core/src/main/kotlin/me/ahoo/wow/serialization) |
@@ -338,8 +338,8 @@ Wow 框架自始至终遵循**策略模式**：每个基础设施关注点在 `w
 
 | 自动配置类 | 条件 | 装配内容 | 源码 |
 |---|---|---|---|
-| `WowAutoConfiguration` | `@ConditionalOnWowEnabled` | `ServiceProvider`、`NamedBoundedContext`、`ErrorConverterRegistrar` | [WowAutoConfiguration.kt:37-72](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L37-L72) |
-| `AggregateAutoConfiguration` | `@ConditionalOnWowEnabled` | `StateAggregateFactory`、`StateAggregateRepository`、`CommandAggregateFactory`、`AggregateProcessorFactory`、`CommandDispatcher`、过滤链 | [AggregateAutoConfiguration.kt:50-156](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt#L50-L156) |
+| `WowAutoConfiguration` | `@ConditionalOnWowEnabled` | `ServiceProvider`、`NamedBoundedContext`、`ErrorInfoConverterRegistrar`、`WowRuntime` | [WowAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt) |
+| `AggregateAutoConfiguration` | `@ConditionalOnWowEnabled` | `StateAggregateFactory`、`StateAggregateRepository`、`CommandAggregateFactory`、`AggregateProcessorFactory`、`CommandDispatcher`、过滤链 | [AggregateAutoConfiguration.kt:50-151](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt#L50-L151) |
 | `EventAutoConfiguration` | `@ConditionalOnWowEnabled` | 事件总线、事件分发器、事件处理器注册表 | [EventAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/event/EventAutoConfiguration.kt) |
 | `KafkaAutoConfiguration` | `@ConditionalOnKafkaEnabled` | Kafka 命令总线、Kafka 事件总线 | [KafkaAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/kafka/KafkaAutoConfiguration.kt) |
 | `MongoEventSourcingAutoConfiguration` | `@ConditionalOnMongoEnabled` | MongoDB 事件存储、MongoDB 快照存储 | [MongoEventSourcingAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/mongo/MongoEventSourcingAutoConfiguration.kt) |

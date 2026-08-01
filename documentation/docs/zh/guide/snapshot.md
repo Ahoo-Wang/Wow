@@ -107,8 +107,6 @@ stateDiagram-v2
     Store --> Active: 可用于加载
     Active --> Stale: 新事件已添加
     Stale --> Create: 达到间隔
-    Active --> Delete: 聚合已删除
-    Delete --> [*]
 ```
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotMaterializer.kt, dispatcher/SnapshotHandler.kt -->
@@ -201,49 +199,18 @@ wow:
 
 ## 聚合加载优化
 
-快照极大地优化了聚合根的加载性能：
+聚合加载应复用框架的 `StateAggregateRepository`，不要在业务代码中自行组合
+`SnapshotStore`、`EventStore` 和事件重放：
 
 ```kotlin
-class EventSourcingOrderRepository(
-    private val eventStore: EventStore,
-    private val snapshotStore: SnapshotStore
-) : OrderRepository {
-
-    override fun load(orderId: String): Mono<OrderState> {
-        val aggregateId = AggregateId("order", orderId)
-
-        return snapshotStore.load<OrderState>(aggregateId)
-            .flatMap { snapshot ->
-                // 只重放快照版本之后的事件
-                eventStore.load(aggregateId, snapshot.version + 1)
-                    .collectList()
-                    .map { eventStreams ->
-                        val state = snapshot.state
-                        eventStreams.forEach { stream ->
-                            stream.events.forEach { event ->
-                                state.apply(event)
-                            }
-                        }
-                        state
-                    }
-            }
-            .switchIfEmpty(
-                // 无快照，加载所有事件
-                eventStore.load(aggregateId)
-                    .collectList()
-                    .map { eventStreams ->
-                        val state = OrderState(orderId)
-                        eventStreams.forEach { stream ->
-                            stream.events.forEach { event ->
-                                state.apply(event)
-                            }
-                        }
-                        state
-                    }
-            )
-    }
-}
+val aggregateId = namedAggregate.aggregateId(id = orderId, tenantId = tenantId)
+val aggregate: Mono<StateAggregate<OrderState>> =
+    stateAggregateRepository.load(aggregateId)
 ```
+
+`EventSourcingStateAggregateRepository` 在加载最新版本时先尝试快照；随后从
+`stateAggregate.expectedNextVersion` 开始读取 `EventStore`，并通过
+`stateAggregate.onSourcing(eventStream)` 应用增量事件。查询历史版本时不会使用最新快照。
 
 ## 性能影响
 
@@ -257,5 +224,7 @@ class EventSourcingOrderRepository(
 
 1. **选择合适的快照策略**：根据业务场景选择合适的快照频率
 2. **监控快照效果**：定期检查快照是否显著改善了加载性能
-3. **快照清理**：定期清理过期的快照以节省存储空间
-4. **快照一致性**：确保快照版本与事件流的一致性
+3. **快照一致性**：确保快照版本与事件流的一致性
+
+`SnapshotStore` 当前没有通用删除 API；如需物理清理，必须按具体存储后端设计并验证，
+不能把它当作 Wow 的框架级生命周期能力。

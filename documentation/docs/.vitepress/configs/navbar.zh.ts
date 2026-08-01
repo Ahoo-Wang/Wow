@@ -23,7 +23,6 @@ export const navbarZh: DefaultTheme.NavItem[] = [
                 text: '示例',
                 items: [
                     {text: '银行转账(JAVA)', link: '/zh/reference/example/transfer'},
-                    {text: '订单系统', link: '/zh/reference/example/order'},
                     {text: '事件补偿', link: '/zh/reference/example/compensation'},
                 ],
             },

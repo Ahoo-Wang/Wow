@@ -63,7 +63,7 @@ flowchart TB
     subgraph Components["组件"]
         CG[CommandGateway]
         CB[CommandBus]
-        EB[EventBus]
+        EB[DomainEventBus / StateEventBus]
         ES[EventStore]
         SR[SnapshotStore]
     end
@@ -87,8 +87,8 @@ flowchart TB
 | `EventAutoConfiguration` | 事件总线配置 | `wow.enabled=true` |
 | `EventSourcingAutoConfiguration` | 事件溯源配置 | `wow.enabled=true` |
 | `KafkaAutoConfiguration` | Kafka 配置 | classpath 包含 Kafka |
-| `MongoAutoConfiguration` | MongoDB 配置 | classpath 包含 MongoDB |
-| `RedisAutoConfiguration` | Redis 配置 | classpath 包含 Redis |
+| `MongoEventSourcingAutoConfiguration` | MongoDB 事件/快照存储配置 | classpath 包含 Mongo 支持 |
+| `RedisEventSourcingAutoConfiguration` / `RedisMessageBusAutoConfiguration` | Redis 事件溯源/消息总线配置 | classpath 包含 Redis 支持 |
 | `WebFluxAutoConfiguration` | WebFlux 配置 | classpath 包含 WebFlux |
 
 ## 配置属性完整列表
@@ -122,86 +122,18 @@ flowchart TB
 
 | 属性 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `wow.eventsourcing.store.storage` | EventStoreStorage | mongo | 事件存储类型 |
+| `wow.eventsourcing.store.storage` | `StorageType` | mongo | 事件存储类型 |
 | `wow.eventsourcing.snapshot.enabled` | Boolean | true | 启用快照 |
 | `wow.eventsourcing.snapshot.strategy` | Strategy | all | 快照策略 |
 | `wow.eventsourcing.snapshot.version-offset` | Int | 5 | 版本偏移量 |
-| `wow.eventsourcing.snapshot.storage` | SnapshotStorage | mongo | 快照存储类型 |
+| `wow.eventsourcing.snapshot.storage` | `StorageType` | mongo | 快照存储类型 |
 | `wow.eventsourcing.state.bus.type` | BusType | kafka | 状态事件总线类型 |
 
-## Bean 装配说明
+## Bean 装配与覆盖
 
-### 核心 Bean
+自动配置按命令、事件、事件溯源、存储、传输、查询、可观测性和集成能力拆分。基础设施配置由对应的 classpath capability 与配置条件激活。大多数扩展点使用 `@ConditionalOnMissingBean`；应用可以提供 `CommandGateway`、`EventStore` 或 `SnapshotStore` 等接口的自定义 Bean，无需直接构造 Wow 的内部默认实现。
 
-```kotlin
-@Bean
-@ConditionalOnMissingBean
-fun commandGateway(
-    commandBus: CommandBus,
-    waitPlanRegistrar: WaitCoordinator
-): CommandGateway {
-    return DefaultCommandGateway(commandBus, waitPlanRegistrar)
-}
-
-@Bean
-@ConditionalOnMissingBean
-fun stateAggregateRepository(
-    stateAggregateFactory: StateAggregateFactory,
-    snapshotStore: SnapshotStore,
-    eventStore: EventStore
-): StateAggregateRepository {
-    return EventSourcingStateAggregateRepository(
-        stateAggregateFactory,
-        snapshotStore,
-        eventStore
-    )
-}
-```
-
-### 条件装配
-
-Wow 框架使用多种条件注解控制 Bean 的装配：
-
-| 注解 | 说明 |
-|------|------|
-| `@ConditionalOnMissingBean` | 仅在缺少该 Bean 时创建 |
-| `@ConditionalOnProperty` | 根据配置属性决定是否创建 |
-| `@ConditionalOnClass` | 根据类路径决定是否创建 |
-| `@ConditionalOnBean` | 根据其他 Bean 存在与否决定是否创建 |
-
-## 自定义配置
-
-### 覆盖默认 Bean
-
-```kotlin
-@Configuration
-class CustomWowConfiguration {
-    
-    @Bean
-    fun customCommandGateway(
-        commandBus: CommandBus,
-        waitPlanRegistrar: WaitCoordinator
-    ): CommandGateway {
-        // 自定义实现
-        return CustomCommandGateway(commandBus, waitPlanRegistrar)
-    }
-}
-```
-
-### 自定义事件处理器
-
-```kotlin
-@Configuration
-class EventProcessorConfiguration {
-    
-    @Bean
-    fun customEventProcessor(
-        eventBus: EventBus
-    ): EventProcessor {
-        return CustomEventProcessor(eventBus)
-    }
-}
-```
+准确的依赖、属性和覆盖边界请以各扩展文档及[配置参考](../../reference/config/core)为准。内部实现类的构造函数不是配置 API，可能独立演进。
 
 ## 多模块项目配置
 
@@ -255,20 +187,7 @@ dependencies {
 
 ## 元数据加载
 
-Spring Boot Starter 自动加载编译器生成的元数据：
-
-```kotlin
-@Configuration
-class MetadataConfiguration {
-    
-    init {
-        // 自动扫描并加载 wow-metadata.json
-        MetadataSearcher.search()
-    }
-}
-```
-
-元数据文件位置：`META-INF/wow-metadata.json`
+编译器将聚合元数据写入 `META-INF/wow-metadata.json`。运行时，`MetadataSearcher` 会惰性合并应用 classpath 中所有同名资源；应用无需调用 `MetadataSearcher.search()`，也无需注册额外的元数据配置 Bean。
 
 ## 处理器注册
 
@@ -305,9 +224,8 @@ class OrderProjection {
 spring:
   application:
     name: order-service
-  data:
-    mongodb:
-      uri: mongodb://localhost:27017/order_db
+  mongodb:
+    uri: mongodb://localhost:27017/order_db
 
 wow:
   enabled: true
@@ -354,4 +272,4 @@ wow:
 2. **使用编译器**：启用 wow-compiler 生成元数据和查询属性导航
 3. **配置外化**：使用 Spring Boot 配置文件外化配置
 4. **条件装配**：利用 `@ConditionalOnMissingBean` 允许自定义覆盖
-5. **启用本地优先**：启用 LocalFirst 模式提升性能
+5. **审慎选择 Local-First**：仅在本地投递语义符合部署拓扑时保留默认值，并验证分布式回退与重复处理

@@ -465,9 +465,8 @@ The Elasticsearch extension supports bulk operations for optimized indexing perf
 ```yaml
 spring:
   elasticsearch:
-    rest:
-      connection-timeout: 5s
-      read-timeout: 30s
+    connection-timeout: 5s
+    socket-timeout: 30s
 ```
 
 ### Query Optimization

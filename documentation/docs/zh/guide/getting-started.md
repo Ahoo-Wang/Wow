@@ -121,9 +121,8 @@ springdoc:
 spring:
   application:
     name: <your-service-name>
-  data:
-    mongodb:
-      uri: <mongodb-uri>
+  mongodb:
+    uri: <mongodb-uri>
 
 cosid:
   machine:
@@ -236,139 +235,14 @@ class DemoSpec : AggregateSpec<Demo, DemoState>({
 })
 ```
 
-## CI/CD 流水线
+## CI 验证
 
-![Wow-CI-Flow](../../public/images/getting-started/ci-flow.png)
+Wow 仓库使用 GitHub Actions 与 JDK 17。提交变更前，建议在本地运行与 CI 对齐的核心检查：
 
-### 测试阶段
-
-![test-coverage](../../public/images/getting-started/test-coverage.png)
-
-::: code-group
-```shell [代码风格检查]
+```shell
+./gradlew allLocalTest
+./gradlew allContractTest
 ./gradlew detekt
 ```
-```shell [领域模型单元测试]
-./gradlew domain:check
-```
-```shell [测试覆盖率验证]
-./gradlew domain:jacocoTestCoverageVerification
-```
-:::
 
-### 构建阶段
-
-::: code-group
-```shell [生成部署包]
-./gradlew server:installDist
-```
-```shell [发布 Docker 镜像]
-docker login --username=<username> --password=<******> <registry>
-docker build -t <registry>/<image>:<tag> server
-docker push <registry>/<image>:<tag>
-```
-:::
-
-### 部署阶段
-
-```shell [部署到 Kubernetes]
-kubectl apply -f deploy
-```
-
-### 流水线配置（阿里云效）
-
-```yaml
-sources:
-  wow_project_template_repo:
-    type: codeup
-    name: Wow 项目模板代码源
-    endpoint: <your-project-repo>
-    branch: main
-    certificate:
-      type: serviceConnection
-      serviceConnection: <your-service-connection-id>
-stages:
-  test:
-    name: "测试"
-    jobs:
-      code_style:
-        name: "Check CodeStyle"
-        runsOn: public/cn-hongkong
-        steps:
-          code_style:
-            name: "代码风格检查"
-            step: "JavaBuild"
-            runsOn: public/
-            with:
-              jdkVersion: "17"
-              run: ./gradlew detekt
-
-      test:
-        name: "Check Domain"
-        runsOn: public/cn-hongkong
-        steps:
-          test:
-            name: "Check Domain"
-            step: "GradleUnitTest"
-            with:
-              jdkVersion: "17"
-              run: ./gradlew domain:check
-              reportDir: "domain/build/reports/tests/test"
-              reportIndex: "index.html"
-          coverage:
-            name: "Check CodeCoverage"
-            step: "JaCoCo"
-            with:
-              jdkVersion: "17"
-              run: ./gradlew domain:jacocoTestCoverageVerification
-              reportDir: "domain/build/reports/jacoco/test/html"
-  build:
-    name: "构建"
-    jobs:
-      build:
-        name: "Build Server And Push Image"
-        runsOn: public/cn-hongkong
-        steps:
-          build:
-            name: "Build Server"
-            step: "JavaBuild"
-            with:
-              jdkVersion: "17"
-              run: ./gradlew server:installDist
-          publish_image:
-            name: "Push Image"
-            step: "ACRDockerBuild"
-            with:
-              artifact: "image"
-              dockerfilePath: "server/Dockerfile"
-              dockerRegistry: "<your-docker-registry—url>"
-              dockerTag: ${DATETIME}
-              region: "cn-hangzhou"
-              serviceConnection: "<your-service-connection-id>"
-  deploy:
-    name: "部署"
-    jobs:
-      deploy:
-        name: "Deploy"
-        runsOn: public/cn-hongkong
-        steps:
-          deploy:
-            name: "Deploy"
-            step: "KubectlApply"
-            with:
-              skipTlsVerify: false
-              kubernetesCluster: "<your-kubernetes-id>"
-              useReplace: false
-              namespace: "dev"
-              kubectlVersion: "1.22.9"
-              yamlPath: "deploy"
-              skipVariableVerify: false
-              variables:
-                - key: IMAGE
-                  value: $[stages.build.build.publish_image.artifacts.image]
-                - key: REPLICAS
-                  value: 2
-                - key: SERVICE_NAME
-                  value: demo-service
-```
-
+权威配置以 [Local Test](https://github.com/Ahoo-Wang/Wow/blob/main/.github/workflows/local-test.yml)、[Contract Test](https://github.com/Ahoo-Wang/Wow/blob/main/.github/workflows/contract-test.yml) 和 [Static Analysis](https://github.com/Ahoo-Wang/Wow/blob/main/.github/workflows/static-analysis.yml) 为准。应用项目应根据目标镜像仓库和运行环境单独设计发布、部署阶段，不应直接复制绑定特定云厂商或凭据的流水线模板。

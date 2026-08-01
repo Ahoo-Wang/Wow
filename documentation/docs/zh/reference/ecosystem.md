@@ -64,7 +64,7 @@ graph TB
 | **CosId** | 全局 ID、聚合 ID、machine ID 生成 | 内置依赖 |
 | **CoSec** | 多租户响应式安全（RBAC + ABAC） | `wow-cosec` |
 | **CoCache** | 分布式一致性二级缓存 | `wow-cocache` |
-| **Simba** | 分布式锁服务 | 构建时依赖 |
+| **Simba** | 补偿服务器的分布式调度与互斥 | `wow-compensation-server` 运行时依赖 |
 | **CoSky** | 服务发现 + 配置管理 | 可选部署 |
 | **CoApi** | Spring 6 声明式 HTTP 客户端 | `wow-apiclient` |
 | **Fetcher** | HTTP 客户端生态 + TypeScript 客户端生成 | `wow-project-template` |

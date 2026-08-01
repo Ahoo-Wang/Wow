@@ -345,119 +345,15 @@ This means developers usually only need to focus on writing domain models to com
 
 ```json [Response]
 {
-  "total": 2,
+  "total": 1,
   "list": [
     {
-      "contextName": "compensation-service",
-      "aggregateName": "execution_failed",
-      "aggregateId": "0TyzQ3jc003Z001",
-      "tenantId": "(0)",
-      "version": 45,
-      "eventId": "0U18eEJG004B009",
-      "firstOperator": "",
-      "operator": "",
-      "firstEventTime": 1703082369272,
-      "eventTime": 1705050999170,
+      "aggregateId": "order-1",
+      "tenantId": "tenant-1",
+      "version": 3,
       "state": {
-        "id": "0TyzQ3jc003Z001",
-        "eventId": {
-          "id": "0TyzQ3jH003v027",
-          "aggregateId": {
-            "contextName": "order-service",
-            "aggregateName": "order",
-            "aggregateId": "0TyzQ2xS003v004",
-            "tenantId": "0TfcXPA5003V00A"
-          },
-          "version": 6,
-          "initialized": true,
-          "isInitialVersion": false
-        },
-        "processor": {
-          "contextName": "notice-service",
-          "processorName": "OrderSendMessageSaga"
-        },
-        "functionKind": "EVENT",
-        "error": {
-          "errorCode": "BadRequest",
-          "errorMsg": "Collection contains no element matching the predicate.",
-          "stackTrace": "java.util.NoSuchElementException: Collection contains no element matching the predicate.\n\tat com.linyeah.notice.domains.sendmessage.saga.OrderSendMessageSaga.onOrderPackageReceived(OrderSendMessageSaga.kt:485)\n\tSuppressed: The stacktrace has been enhanced by Reactor, refer to additional information below: \nError has been observed at the following site(s):\n\t*__checkpoint ⇢ Invoke OrderSendMessageSaga.onOrderPackageReceived(OrderPackageReceived) [DomainEventFunctionFilter]\nOriginal Stack Trace:\n\t\tat com.linyeah.notice.domains.sendmessage.saga.OrderSendMessageSaga.onOrderPackageReceived(OrderSendMessageSaga.kt:485)\n\t\tat java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)\n\t\tat java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)\n\t\tat java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)\n\t\tat java.base/java.lang.reflect.Method.invoke(Method.java:568)\n\t\tat me.ahoo.wow.infra.invoker.MethodHandleInstanceFunctionInvoker.invoke(MethodHandleInstanceFunctionInvoker.java:40)\n\t\tat me.ahoo.wow.infra.accessor.method.MethodAccessor$Companion.invoke(MethodAccessor.kt:40)\n\t\tat me.ahoo.wow.infra.accessor.method.MethodAccessor.invoke(MethodAccessor.kt:30)\n\t\tat me.ahoo.wow.infra.accessor.method.reactive.SimpleMonoMethodAccessor.invoke$lambda$0(SimpleMonoMethodAccessor.kt:27)\n\t\tat reactor.core.publisher.MonoDefer.subscribe(MonoDefer.java:45)\n\t\tat reactor.core.publisher.Mono.subscribe(Mono.java:4495)\n\t\tat reactor.core.publisher.MonoIgnoreThen$ThenIgnoreMain.subscribeNext(MonoIgnoreThen.java:263)\n\t\tat reactor.core.publisher.MonoIgnoreThen.subscribe(MonoIgnoreThen.java:51)\n\t\tat reactor.core.publisher.InternalMonoOperator.subscribe(InternalMonoOperator.java:64)\n\t\tat me.ahoo.wow.opentelemetry.ExchangeTraceMono.subscribe(ExchangeTraceMono.kt:35)\n\t\tat reactor.core.publisher.FluxRetryWhen.subscribe(FluxRetryWhen.java:77)\n\t\tat reactor.c...
-          "succeeded": false
-        },
-        "executeAt": 1705050998891,
-        "retrySpec": {
-          "maxRetries": 10,
-          "minBackoff": 180,
-          "executionTimeout": 120
-        },
-        "retryState": {
-          "retries": 16,
-          "retryAt": 1705050998728,
-          "timeoutAt": 1705051118728,
-          "nextRetryAt": 1716847478728
-        },
-        "status": "FAILED",
-        "recoverable": "UNKNOWN",
-        "isRetryable": false,
-        "isBelowRetryThreshold": false
-      },
-      "snapshotTime": 1705050999195,
-      "deleted": false
-    },
-    {
-      "contextName": "compensation-service",
-      "aggregateName": "execution_failed",
-      "aggregateId": "0TyzPzLb0049001",
-      "tenantId": "(0)",
-      "version": 29,
-      "eventId": "0U18mMQY004B00E",
-      "firstOperator": "",
-      "operator": "",
-      "firstEventTime": 1703082352417,
-      "eventTime": 1705052936998,
-      "state": {
-        "id": "0TyzPzLb0049001",
-        "eventId": {
-          "id": "0TyzPzL8003v00l",
-          "aggregateId": {
-            "contextName": "order-service",
-            "aggregateName": "order",
-            "aggregateId": "0TyzPwpv003v002",
-            "tenantId": "0TfcXPA5003V00A"
-          },
-          "version": 8,
-          "initialized": true,
-          "isInitialVersion": false
-        },
-        "processor": {
-          "contextName": "notice-service",
-          "processorName": "OrderSendMessageSaga"
-        },
-        "functionKind": "EVENT",
-        "error": {
-          "errorCode": "BadRequest",
-          "errorMsg": "Collection contains no element matching the predicate.",
-          "stackTrace": "java.util.NoSuchElementException: Collection contains no element matching the predicate.\n\tat com.linyeah.notice.domains.sendmessage.saga.OrderSendMessageSaga.onOrderPackageReceived(OrderSendMessageSaga.kt:485)\n\tSuppressed: The stacktrace has been enhanced by Reactor, refer to additional information below: \nError has been observed at the following site(s):\n\t*__checkpoint ⇢ Invoke OrderSendMessageSaga.onOrderPackageReceived(OrderPackageReceived) [DomainEventFunctionFilter]\nOriginal Stack Trace:\n\t\tat com.linyeah.notice.domains.sendmessage.saga.OrderSendMessageSaga.onOrderPackageReceived(OrderSendMessageSaga.kt:485)\n\t\tat java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)\n\t\tat java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)\n\t\tat java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)\n\t\tat java.base/java.lang.reflect.Method.invoke(Method.java:568)\n\t\tat me.ahoo.wow.infra.invoker.MethodHandleInstanceFunctionInvoker.invoke(MethodHandleInstanceFunctionInvoker.java:40)\n\t\tat me.ahoo.wow.infra.accessor.method.MethodAccessor$Companion.invoke(MethodAccessor.kt:40)\n\t\tat me.ahoo.wow.infra.accessor.method.MethodAccessor.invoke(MethodAccessor.kt:30)\n\t\tat me.ahoo.wow.infra.accessor.method.reactive.SimpleMonoMethodAccessor.invoke$lambda$0(SimpleMonoMethodAccessor.kt:27)\n\t\tat reactor.core.publisher.MonoDefer.subscribe(MonoDefer.java:45)\n\t\tat reactor.core.publisher.Mono.subscribe(Mono.java:4495)\n\t\tat reactor.core.publisher.MonoIgnoreThen$ThenIgnoreMain.subscribeNext(MonoIgnoreThen.java:263)\n\t\tat reactor.core.publisher.MonoIgnoreThen.subscribe(MonoIgnoreThen.java:51)\n\t\tat reactor.core.publisher.InternalMonoOperator.subscribe(InternalMonoOperator.java:64)\n\t\tat me.ahoo.wow.opentelemetry.ExchangeTraceMono.subscribe(ExchangeTraceMono.kt:35)\n\t\tat reactor.core.publisher.FluxRetryWhen.subscribe(FluxRetryWhen.java:77)\n\t\tat reactor.c...
-          "succeeded": false
-        },
-        "executeAt": 1705052936969,
-        "retrySpec": {
-          "maxRetries": 10,
-          "minBackoff": 180,
-          "executionTimeout": 120
-        },
-        "retryState": {
-          "retries": 13,
-          "retryAt": 1705052936815,
-          "timeoutAt": 1705053056815,
-          "nextRetryAt": 1706527496815
-        },
-        "status": "FAILED",
-        "recoverable": "UNKNOWN",
-        "isRetryable": false,
-        "isBelowRetryThreshold": false
-      },
-      "snapshotTime": 1705052937019,
-      "deleted": false
+        "status": "CREATED"
+      }
     }
   ]
 }
@@ -523,60 +419,12 @@ Conditions.and(
 ```json [Response]
 [
   {
-    "contextName": "compensation-service",
-    "aggregateName": "execution_failed",
-    "aggregateId": "0TyzQ3jc003Z001",
-    "tenantId": "(0)",
-    "version": 45,
-    "eventId": "0U18eEJG004B009",
-    "firstOperator": "",
-    "operator": "",
-    "firstEventTime": 1703082369272,
-    "eventTime": 1705050999170,
+    "aggregateId": "order-1",
+    "tenantId": "tenant-1",
+    "version": 3,
     "state": {
-      "id": "0TyzQ3jc003Z001",
-      "eventId": {
-        "id": "0TyzQ3jH003v027",
-        "aggregateId": {
-          "contextName": "order-service",
-          "aggregateName": "order",
-          "aggregateId": "0TyzQ2xS003v004",
-          "tenantId": "0TfcXPA5003V00A"
-        },
-        "version": 6,
-        "initialized": true,
-        "isInitialVersion": false
-      },
-      "processor": {
-        "contextName": "notice-service",
-        "processorName": "OrderSendMessageSaga"
-      },
-      "functionKind": "EVENT",
-      "error": {
-        "errorCode": "BadRequest",
-        "errorMsg": "Collection contains no element matching the predicate.",
-        "stackTrace": "java.util.NoSuchElementException: Collection contains no element matching the predicate.\n\tat com.linyeah.notice.domains.sendmessage.saga.OrderSendMessageSaga.onOrderPackageReceived(OrderSendMessageSaga.kt:485)\n\tSuppressed: The stacktrace has been enhanced by Reactor, refer to additional information below: \nError has been observed at the following site(s):\n\t*__checkpoint ⇢ Invoke OrderSendMessageSaga.onOrderPackageReceived(OrderPackageReceived) [DomainEventFunctionFilter]\nOriginal Stack Trace:\n\t\tat com.linyeah.notice.domains.sendmessage.saga.OrderSendMessageSaga.onOrderPackageReceived(OrderSendMessageSaga.kt:485)\n\t\tat java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)\n\t\tat java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)\n\t\tat java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)\n\t\tat java.base/java.lang.reflect.Method.invoke(Method.java:568)\n\t\tat me.ahoo.wow.infra.invoker.MethodHandleInstanceFunctionInvoker.invoke(MethodHandleInstanceFunctionInvoker.java:40)\n\t\tat me.ahoo.wow.infra.accessor.method.MethodAccessor$Companion.invoke(MethodAccessor.kt:40)\n\t\tat me.ahoo.wow.infra.accessor.method.MethodAccessor.invoke(MethodAccessor.kt:30)\n\t\tat me.ahoo.wow.infra.accessor.method.reactive.SimpleMonoMethodAccessor.invoke$lambda$0(SimpleMonoMethodAccessor.kt:27)\n\t\tat reactor.core.publisher.MonoDefer.subscribe(MonoDefer.java:45)\n\t\tat reactor.core.publisher.Mono.subscribe(Mono.java:4495)\n\t\tat reactor.core.publisher.MonoIgnoreThen$ThenIgnoreMain.subscribeNext(MonoIgnoreThen.java:263)\n\t\tat reactor.core.publisher.MonoIgnoreThen.subscribe(MonoIgnoreThen.java:51)\n\t\tat reactor.core.publisher.InternalMonoOperator.subscribe(InternalMonoOperator.java:64)\n\t\tat me.ahoo.wow.opentelemetry.ExchangeTraceMono.subscribe(ExchangeTraceMono.kt:35)\n\t\tat reactor.core.publisher.FluxRetryWhen.subscribe(FluxRetryWhen.java:77)\n\t\tat reactor.cor...
-        "succeeded": false
-      },
-      "executeAt": 1705050998891,
-      "retrySpec": {
-        "maxRetries": 10,
-        "minBackoff": 180,
-        "executionTimeout": 120
-      },
-      "retryState": {
-        "retries": 16,
-        "retryAt": 1705050998728,
-        "timeoutAt": 1705051118728,
-        "nextRetryAt": 1716847478728
-      },
-      "status": "FAILED",
-      "recoverable": "UNKNOWN",
-      "isRetryable": false,
-      "isBelowRetryThreshold": false
-    },
-    "snapshotTime": 1705050999195,
-    "deleted": false
+      "status": "CREATED"
+    }
   }
 ]
 ```
@@ -647,60 +495,12 @@ Conditions.and(
 
 ```json [Response]
 {
-  "contextName": "compensation-service",
-  "aggregateName": "execution_failed",
-  "aggregateId": "0TyzQ3jc003Z001",
-  "tenantId": "(0)",
-  "version": 45,
-  "eventId": "0U18eEJG004B009",
-  "firstOperator": "",
-  "operator": "",
-  "firstEventTime": 1703082369272,
-  "eventTime": 1705050999170,
+  "aggregateId": "order-1",
+  "tenantId": "tenant-1",
+  "version": 3,
   "state": {
-    "id": "0TyzQ3jc003Z001",
-    "eventId": {
-      "id": "0TyzQ3jH003v027",
-      "aggregateId": {
-        "contextName": "order-service",
-        "aggregateName": "order",
-        "aggregateId": "0TyzQ2xS003v004",
-        "tenantId": "0TfcXPA5003V00A"
-      },
-      "version": 6,
-      "initialized": true,
-      "isInitialVersion": false
-    },
-    "processor": {
-      "contextName": "notice-service",
-      "processorName": "OrderSendMessageSaga"
-    },
-    "functionKind": "EVENT",
-    "error": {
-      "errorCode": "BadRequest",
-      "errorMsg": "Collection contains no element matching the predicate.",
-      "stackTrace": "java.util.NoSuchElementException: Collection contains no element matching the predicate.\n\tat com.linyeah.notice.domains.sendmessage.saga.OrderSendMessageSaga.onOrderPackageReceived(OrderSendMessageSaga.kt:485)\n\tSuppressed: The stacktrace has been enhanced by Reactor, refer to additional information below: \nError has been observed at the following site(s):\n\t*__checkpoint ⇢ Invoke OrderSendMessageSaga.onOrderPackageReceived(OrderPackageReceived) [DomainEventFunctionFilter]\nOriginal Stack Trace:\n\t\tat com.linyeah.notice.domains.sendmessage.saga.OrderSendMessageSaga.onOrderPackageReceived(OrderSendMessageSaga.kt:485)\n\t\tat java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)\n\t\tat java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)\n\t\tat java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)\n\t\tat java.base/java.lang.reflect.Method.invoke(Method.java:568)\n\t\tat me.ahoo.wow.infra.invoker.MethodHandleInstanceFunctionInvoker.invoke(MethodHandleInstanceFunctionInvoker.java:40)\n\t\tat me.ahoo.wow.infra.accessor.method.MethodAccessor$Companion.invoke(MethodAccessor.kt:40)\n\t\tat me.ahoo.wow.infra.accessor.method.MethodAccessor.invoke(MethodAccessor.kt:30)\n\t\tat me.ahoo.wow.infra.accessor.method.reactive.SimpleMonoMethodAccessor.invoke$lambda$0(SimpleMonoMethodAccessor.kt:27)\n\t\tat reactor.core.publisher.MonoDefer.subscribe(MonoDefer.java:45)\n\t\tat reactor.core.publisher.Mono.subscribe(Mono.java:4495)\n\t\tat reactor.core.publisher.MonoIgnoreThen$ThenIgnoreMain.subscribeNext(MonoIgnoreThen.java:263)\n\t\tat reactor.core.publisher.MonoIgnoreThen.subscribe(MonoIgnoreThen.java:51)\n\t\tat reactor.core.publisher.InternalMonoOperator.subscribe(InternalMonoOperator.java:64)\n\t\tat me.ahoo.wow.opentelemetry.ExchangeTraceMono.subscribe(ExchangeTraceMono.kt:35)\n\t\tat reactor.core.publisher.FluxRetryWhen.subscribe(FluxRetryWhen.java:77)\n\t\tat reactor.core....
-      "succeeded": false
-    },
-    "executeAt": 1705050998891,
-    "retrySpec": {
-      "maxRetries": 10,
-      "minBackoff": 180,
-      "executionTimeout": 120
-    },
-    "retryState": {
-      "retries": 16,
-      "retryAt": 1705050998728,
-      "timeoutAt": 1705051118728,
-      "nextRetryAt": 1716847478728
-    },
-    "status": "FAILED",
-    "recoverable": "UNKNOWN",
-    "isRetryable": false,
-    "isBelowRetryThreshold": false
-  },
-  "snapshotTime": 1705050999195,
-  "deleted": false
+    "status": "CREATED"
+  }
 }
 ```
 

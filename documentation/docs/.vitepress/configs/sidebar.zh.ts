@@ -14,29 +14,7 @@
 import {DefaultTheme} from "vitepress/types/default-theme";
 
 export const sidebarZh: DefaultTheme.Sidebar = {
-    '/zh/onboarding/': [
-        {
-            text: '入门指南',
-            collapsed: false,
-            items: [
-                {text: '贡献者指南', link: '/zh/onboarding/contributor-guide'},
-                {text: '架构师指南', link: '/zh/onboarding/staff-engineer-guide'},
-                {text: '管理层指南', link: '/zh/onboarding/executive-guide'},
-                {text: '产品经理指南', link: '/zh/onboarding/product-manager-guide'},
-            ],
-        },
-    ],
     '/zh/guide/': [
-        {
-            text: '入门指南',
-            collapsed: false,
-            items: [
-                {text: '贡献者指南', link: '/zh/onboarding/contributor-guide'},
-                {text: '架构师指南', link: '/zh/onboarding/staff-engineer-guide'},
-                {text: '管理层指南', link: '/zh/onboarding/executive-guide'},
-                {text: '产品经理指南', link: '/zh/onboarding/product-manager-guide'},
-            ],
-        },
         {
             base: '/zh/guide/',
             text: '基础',
@@ -82,8 +60,6 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             text: '最佳实践',
             collapsed: false,
             items: [
-                {text: '最佳实践', link: 'best-practices'},
-                {text: '性能评测', link: 'perf-test'},
                 {text: '故障排查', link: 'troubleshooting'},
                 {
                     text: '迁移指南',
@@ -154,7 +130,6 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             collapsed: false,
             items: [
                 {text: '银行转账（JAVA）', link: 'transfer'},
-                {text: '订单系统', link: 'order'},
                 {text: '事件补偿', link: 'compensation'},
             ],
         },

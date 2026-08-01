@@ -14,29 +14,7 @@
 import {DefaultTheme} from "vitepress/types/default-theme";
 
 export const sidebarEn: DefaultTheme.Sidebar = {
-    '/onboarding/': [
-        {
-            text: 'Onboarding',
-            collapsed: false,
-            items: [
-                {text: 'Contributor Guide', link: '/onboarding/contributor-guide'},
-                {text: 'Staff Engineer Guide', link: '/onboarding/staff-engineer-guide'},
-                {text: 'Executive Guide', link: '/onboarding/executive-guide'},
-                {text: 'Product Manager Guide', link: '/onboarding/product-manager-guide'},
-            ],
-        },
-    ],
     '/guide/': [
-        {
-            text: 'Onboarding',
-            collapsed: false,
-            items: [
-                {text: 'Contributor Guide', link: '/onboarding/contributor-guide'},
-                {text: 'Staff Engineer Guide', link: '/onboarding/staff-engineer-guide'},
-                {text: 'Executive Guide', link: '/onboarding/executive-guide'},
-                {text: 'Product Manager Guide', link: '/onboarding/product-manager-guide'},
-            ],
-        },
         {
             base: '/guide/',
             text: 'Basics',
@@ -82,8 +60,6 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             text: 'Best Practices',
             collapsed: false,
             items: [
-                {text: 'Best Practices', link: 'best-practices'},
-                {text: 'Performance Testing', link: 'perf-test'},
                 {text: 'Troubleshooting', link: 'troubleshooting'},
                 {
                     text: 'Migration Guide',
@@ -154,7 +130,6 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             collapsed: false,
             items: [
                 {text: 'Bank Transfer (JAVA)', link: 'transfer'},
-                {text: 'Order System', link: 'order'},
                 {text: 'Event Compensation', link: 'compensation'},
             ],
         },

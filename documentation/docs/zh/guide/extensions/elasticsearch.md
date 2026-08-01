@@ -464,9 +464,8 @@ Elasticsearch 扩展支持批量操作，优化索引性能：
 ```yaml
 spring:
   elasticsearch:
-    rest:
-      connection-timeout: 5s
-      read-timeout: 30s
+    connection-timeout: 5s
+    socket-timeout: 30s
 ```
 
 ### 查询优化

@@ -190,5 +190,4 @@ stateDiagram-v2
 | [传统架构迁移](./migration/traditional-architecture.md) | 首次采用 Wow |
 | [Wow v6 迁移到 v8](./migration/v6-to-v8.md) | 已使用 Wow 的平台升级 |
 | [运行时编排迁移](./migration/runtime-orchestration.md) | v8 生命周期扩展迁移 |
-| [最佳实践](./best-practices.md) | 迁移后的工程约束 |
 | [故障排查](./troubleshooting.md) | 验证失败时的定位入口 |

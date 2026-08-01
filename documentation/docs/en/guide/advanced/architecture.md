@@ -15,7 +15,7 @@ Wow's architecture is built around a single core principle: **"Domain Model as a
 | Component | Responsibility | Key Artifact | Source |
 |---|---|---|---|
 | **wow-api** | Pure API contracts: `CommandMessage`, `DomainEvent`, `AggregateId`, `NamedBoundedContext` | `wow-api` module | [Wow.kt:26-45](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/Wow.kt#L26-L45) |
-| **wow-core** | Framework engine: aggregates, command bus, event store, projections, sagas, serialization | `wow-core` module | [CommandGateway.kt:75-178](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L75-L178) |
+| **wow-core** | Framework engine: aggregates, command bus, event store, projections, sagas, serialization | `wow-core` module | [CommandGateway.kt:63-174](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L63-L174) |
 | **wow-spring** | Spring Framework integration layer | `wow-spring` module | [settings.gradle.kts:32](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L32) |
 | **wow-compiler** | KSP processor: generates command routing, event metadata, OpenAPI specs at compile time | `wow-compiler` module | [settings.gradle.kts:26](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L26) |
 | **wow-test** | Unit testing DSL: `AggregateSpec` / `SagaSpec` with Given-When-Expect pattern | `test/wow-test` | [settings.gradle.kts:44-45](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L44-L45) |
@@ -173,7 +173,7 @@ sequenceDiagram
     CG-->>Client: CommandResult (when waitPlan satisfied)
 ```
 
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt:75-178, wow-core/src/main/kotlin/me/ahoo/wow/command/CommandBus.kt:36-41, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/AggregateProcessor.kt:32-49, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt:43-80, wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt:50-156 -->
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt:63-174, wow-core/src/main/kotlin/me/ahoo/wow/command/CommandBus.kt:36-41, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/AggregateProcessor.kt:32-49, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt:43-80, wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt:50-151 -->
 
 ### Step-by-Step Flow Description
 
@@ -327,7 +327,7 @@ The Wow Framework follows the **Strategy Pattern** throughout: every infrastruct
 | Extension Point | Interface | Purpose | Implementations | Source |
 |---|---|---|---|---|
 | **Command Bus** | `CommandBus` / `DistributedCommandBus` | Routes commands to aggregate processors | `InMemoryCommandBus`, `LocalFirstCommandBus`, Kafka-backed | [CommandBus.kt:36-69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandBus.kt#L36-L69) |
-| **Event Bus** | `EventBus` / `DomainEventBus` | Distributes domain events to projections, sagas, and handlers | `InMemoryEventBus`, Kafka-backed, Redis-backed | [settings.gradle.kts:27](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L27) |
+| **Event Bus** | `DomainEventBus` / `StateEventBus` | Distributes domain and state events to projections, sagas, and handlers | `InMemoryDomainEventBus`, `InMemoryStateEventBus`, Kafka-backed, Redis-backed | [InMemoryDomainEventBus.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/InMemoryDomainEventBus.kt) |
 | **Wait Plan** | `WaitPlan` | Controls command response timing | `StageWaitTarget`, `ChainWaitTarget`, `CommandWait` factories | [WaitPlan.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt) |
 | **ID Generator** | `IdGenerator` (via CosId) | Generates globally unique aggregate IDs | Snowflake, segment, etc. (via CosId integration) | `me.ahoo.cosid` |
 | **Serialization** | `MessageSerializer` | JSON serialization with type metadata | Jackson-based `JsonSerializer` | [wow-core serialization](https://github.com/Ahoo-Wang/Wow/tree/main/wow-core/src/main/kotlin/me/ahoo/wow/serialization) |
@@ -338,8 +338,8 @@ The `wow-spring-boot-starter` module uses Gradle feature variants to declare opt
 
 | Auto-Configuration Class | Condition | Wires | Source |
 |---|---|---|---|
-| `WowAutoConfiguration` | `@ConditionalOnWowEnabled` | `ServiceProvider`, `NamedBoundedContext`, `ErrorConverterRegistrar` | [WowAutoConfiguration.kt:37-72](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L37-L72) |
-| `AggregateAutoConfiguration` | `@ConditionalOnWowEnabled` | `StateAggregateFactory`, `StateAggregateRepository`, `CommandAggregateFactory`, `AggregateProcessorFactory`, `CommandDispatcher`, filter chain | [AggregateAutoConfiguration.kt:50-156](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt#L50-L156) |
+| `WowAutoConfiguration` | `@ConditionalOnWowEnabled` | `ServiceProvider`, `NamedBoundedContext`, `ErrorInfoConverterRegistrar`, `WowRuntime` | [WowAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt) |
+| `AggregateAutoConfiguration` | `@ConditionalOnWowEnabled` | `StateAggregateFactory`, `StateAggregateRepository`, `CommandAggregateFactory`, `AggregateProcessorFactory`, `CommandDispatcher`, filter chain | [AggregateAutoConfiguration.kt:50-151](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt#L50-L151) |
 | `EventAutoConfiguration` | `@ConditionalOnWowEnabled` | Event bus, event dispatcher, event processor registry | [EventAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/event/EventAutoConfiguration.kt) |
 | `KafkaAutoConfiguration` | `@ConditionalOnKafkaEnabled` | Kafka command bus, Kafka event bus | [KafkaAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/kafka/KafkaAutoConfiguration.kt) |
 | `MongoEventSourcingAutoConfiguration` | `@ConditionalOnMongoEnabled` | MongoDB event store, MongoDB snapshot store | [MongoEventSourcingAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/mongo/MongoEventSourcingAutoConfiguration.kt) |

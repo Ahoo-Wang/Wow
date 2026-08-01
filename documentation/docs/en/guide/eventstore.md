@@ -79,7 +79,7 @@ Key characteristics:
 
 | Concept | Description | Source |
 |---|---|---|
-| `DomainEvent` | Immutable fact about a past business action within an aggregate | [DomainEvent.kt:52-95](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L52-L95) |
+| `DomainEvent` | Immutable fact about a past business action within an aggregate | [DomainEvent.kt:52-91](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L52-L91) |
 | `DomainEventStream` | Ordered batch of domain events produced by a single command | [DomainEventStream.kt:51-125](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L51-L125) |
 | `EventStore` | Core interface for appending, loading event streams, and scanning aggregate IDs | [EventStore.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt) |
 | `SnapshotStore` | Optimizes aggregate loading with versioned state checkpoints | [SnapshotStore.kt:27-58](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotStore.kt#L27-L58) |
@@ -118,7 +118,10 @@ sequenceDiagram
     autonumber
     participant Client
     participant CommandGateway
+    participant CommandBus
+    participant Dispatcher as Command Dispatcher
     participant Aggregate
+    participant Repository as State Aggregate Repository
     participant EventStore
     participant SnapshotStore
     participant DomainEventBus
@@ -126,16 +129,19 @@ sequenceDiagram
     participant Saga
 
     Client->>CommandGateway: Send Command
-    CommandGateway->>EventStore: Load aggregate events (up to tailVersion)
-    EventStore-->>CommandGateway: Flux of DomainEventStream (sorted by version)
-    CommandGateway->>SnapshotStore: Load latest snapshot
-    SnapshotStore-->>CommandGateway: Snapshot (or empty)
-    CommandGateway->>Aggregate: Apply events to reconstruct state
-    CommandGateway->>Aggregate: Handle command -> produce new DomainEventStream
-    Aggregate-->>CommandGateway: DomainEventStream (new events)
-    CommandGateway->>EventStore: Append event stream
-    EventStore-->>CommandGateway: Void (or VersionConflict / DuplicateRequestId)
-    CommandGateway->>DomainEventBus: Publish event stream (ordered per aggregateId)
+    CommandGateway->>CommandBus: Validate and send CommandMessage
+    CommandBus->>Dispatcher: Deliver ServerCommandExchange
+    Dispatcher->>Aggregate: Create AggregateProcessor and process command
+    Aggregate->>Repository: Load current state
+    Repository->>SnapshotStore: Try latest snapshot
+    SnapshotStore-->>Repository: Snapshot (or empty)
+    Repository->>EventStore: Load events after snapshot
+    EventStore-->>Repository: DomainEventStream (version order)
+    Repository-->>Aggregate: Reconstructed StateAggregate
+    Aggregate->>Aggregate: Invoke handler and produce DomainEventStream
+    Aggregate->>EventStore: Atomically append event stream
+    EventStore-->>Aggregate: Complete or raise storage error
+    Dispatcher->>DomainEventBus: Publish via SendDomainEventStreamFilter
     DomainEventBus-->>Projection: Receive event stream
     DomainEventBus-->>Saga: Receive event stream
     Projection->>Projection: Update read model
@@ -187,7 +193,7 @@ The event store defines a hierarchy of typed exceptions:
 |---|---|---|
 | `EventVersionConflictException` | Version conflict from concurrent writes | Implements `RecoverableException` — safe to retry |
 | `DuplicateAggregateIdException` | Attempt to create an already-existing aggregate | Fatal — indicates ID collision |
-| `DuplicateRequestIdException` | Same command was already processed | Idempotent — success case, not an error |
+| `DuplicateRequestIdException` | The same request ID was already processed | The framework rejects the duplicate; a caller may interpret it as an idempotent outcome when its business contract allows that |
 
 ```mermaid
 stateDiagram-v2

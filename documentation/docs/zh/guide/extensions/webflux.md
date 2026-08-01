@@ -39,7 +39,7 @@ WebFlux 扩展自动为所有命令生成 REST API 端点：
 @AggregateRoute(owner = AggregateRoute.Owner.AGGREGATE_ID)
 class Cart(private val state: CartState)
 
-// 生成路由: POST /cart/{cartId}/add_cart_item
+// 生成路由: POST /owner/{ownerId}/cart/add_cart_item
 ```
 
 #### 拥有者路由模式
@@ -48,7 +48,7 @@ class Cart(private val state: CartState)
 @AggregateRoute(owner = AggregateRoute.Owner.ALWAYS)
 class Order(private val state: OrderState)
 
-// 生成路由: POST /order/owner/{ownerId}/create_order
+// 生成路由: POST /tenant/{tenantId}/owner/{ownerId}/sales-order
 ```
 
 ### HTTP 方法映射
@@ -61,6 +61,10 @@ class Order(private val state: OrderState)
 | `@CommandRoute(method = DELETE)` | DELETE  | `/{resource}/{command}` |
 
 ## 配置
+
+::: tip 前置条件
+`WebFluxProperties` 与 `WebFluxAutoConfiguration` 位于 `wow-spring-boot-starter`，不在 `wow-webflux` 中。需要同时引入 `wow-spring-boot-starter`（或请求 `webflux-support` capability）与 `wow-webflux`，这些属性才会绑定并启用自动配置。
+:::
 
 - 配置类：[WebFluxProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties.kt)
 - 前缀：`wow.webflux.`
@@ -90,7 +94,7 @@ wow:
 WebFlux 扩展支持通过 HTTP 头指定等待计划：
 
 ```http
-POST /cart/123/add_cart_item
+POST /owner/cart-123/cart/add_cart_item
 Content-Type: application/json
 Command-Wait-Stage: PROCESSED
 Command-Wait-Timeout: 30000
@@ -134,11 +138,11 @@ WebFlux 扩展提供统一的错误响应格式：
 
 ```yaml
 paths:
-  /cart/{cartId}/add_cart_item:
+  /owner/{ownerId}/cart/add_cart_item:
     post:
       summary: "Add item to cart"
       parameters:
-        - name: cartId
+        - name: ownerId
           in: path
           required: true
           schema:
@@ -173,16 +177,7 @@ class CustomController(
 }
 ```
 
-### 连接池配置
-
-```yaml
-spring:
-  codec:
-    max-in-memory-size: 10MB
-  webflux:
-    session:
-      timeout: 30m
-```
+Wow 的处理器保持非阻塞。编解码、Reactor Netty 资源和服务端超时应通过对应的 Spring Boot 能力配置；Wow WebFlux 扩展自身不定义连接池或会话超时属性。
 
 ## 监控和调试
 
@@ -194,17 +189,12 @@ logging:
     me.ahoo.wow.webflux: DEBUG
 ```
 
-### 性能指标
-
-自动收集以下指标：
-- 请求延迟和吞吐量
-- 错误率统计
-- 等待计划使用情况
+Wow 运行时的专用指标由可观测性集成提供，而不是由 `wow-webflux` 自动采集。支持的埋点参见 [OpenTelemetry](./opentelemetry)。
 
 ## 最佳实践
 
 1. **使用等待计划**: 根据业务需求选择合适的等待计划
 2. **错误处理**: 实现全局异常处理器
 3. **安全**: 启用认证和授权检查
-4. **监控**: 配置适当的日志级别和指标收集
-5. **性能**: 合理配置连接池和超时时间
+4. **可观测性**: 需要 Wow 运行时链路和指标时引入 OpenTelemetry capability
+5. **运行时调优**: 在应用边界配置 Reactor Netty 与 Spring Boot 服务端限制
