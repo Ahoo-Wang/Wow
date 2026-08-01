@@ -51,6 +51,8 @@ CoSec-Space-Id: production
 }
 ```
 
+启用 CoSec 后，对于命令请求，如果标准的 `Wow-Space-Id` 请求头缺失或为空，`CoSec-Space-Id` 会提供命令的 `spaceId`。若两个请求头均为非空值，`Wow-Space-Id` 优先，因为默认提取器会先设置该值，而 `CoSecCommandBuilderExtractor` 仅在尚未设置 `spaceId` 时补充该值。因此，尽管生成的 OpenAPI 仍会列出可选的 `Wow-Space-Id` 请求头，本示例有意只发送 `CoSec-Space-Id`。
+
 ### 上下文如何流转
 
 ```mermaid
