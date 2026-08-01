@@ -57,7 +57,7 @@ class Order(private val state: OrderState)
 data class CreateOrder(/* ... */)
 
 // 生成路由: POST /tenant/{tenantId}/owner/{ownerId}/sales-order
-// 因为 spaced = true，请求还必须包含 Wow-Space-Id 请求头。
+// Wow-Space-Id 是可选请求头；省略时使用默认 space。
 ```
 
 ### HTTP 方法映射

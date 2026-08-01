@@ -94,9 +94,9 @@ For a `CreateOrder` command on the `order` aggregate that triggers a saga and a 
 order.create_order                    (TraceAggregateFilter — aggregate command)
 ├── order.OrderCreated.event.append   (TracingEventStore — event persistence)
 ├── order.OrderCreated.event send     (TracingEventBus — message publish)
-├── order.snapshot                    (TraceSnapshotFilter — snapshot creation)
-├── OrderSaga.onEvent(OrderCreated)   (TraceStatelessSagaFilter — saga handler)
-└── OrderProjection.onEvent(OrderCreated) (TraceProjectionFilter — projection handler)
+│   ├── OrderSaga.onEvent(OrderCreated) (TraceStatelessSagaFilter — saga handler)
+│   └── OrderProjection.onEvent(OrderCreated) (TraceProjectionFilter — projection handler)
+└── order.snapshot                    (TraceSnapshotFilter — snapshot creation)
 ```
 
 Span names for projection/saga/event-processor use the function's `qualifiedName` format

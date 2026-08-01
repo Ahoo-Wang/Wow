@@ -57,7 +57,7 @@ class Order(private val state: OrderState)
 data class CreateOrder(/* ... */)
 
 // Generated route: POST /tenant/{tenantId}/owner/{ownerId}/sales-order
-// Required headers include Wow-Space-Id because spaced = true.
+// Wow-Space-Id is optional; omit it to use the default space.
 ```
 
 ### HTTP Method Mapping

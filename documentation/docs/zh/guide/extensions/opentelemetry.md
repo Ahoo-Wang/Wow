@@ -96,9 +96,9 @@ wow:
 order.create_order                         (TraceAggregateFilter —— 聚合命令)
 ├── order.OrderCreated.event.append        (TracingEventStore —— 事件持久化)
 ├── order.OrderCreated.event send          (TracingEventBus —— 消息发布)
-├── order.snapshot                         (TraceSnapshotFilter —— 快照创建)
-├── OrderSaga.onEvent(OrderCreated)         (TraceStatelessSagaFilter —— Saga 处理器)
-└── OrderProjection.onEvent(OrderCreated)  (TraceProjectionFilter —— 投影处理器)
+│   ├── OrderSaga.onEvent(OrderCreated)         (TraceStatelessSagaFilter —— Saga 处理器)
+│   └── OrderProjection.onEvent(OrderCreated)  (TraceProjectionFilter —— 投影处理器)
+└── order.snapshot                         (TraceSnapshotFilter —— 快照创建)
 ```
 
 投影、Saga 和事件处理器的 span 名称使用函数的 `qualifiedName` 格式（`{processorName}.{functionName}({eventType})`）。生产者仪表器把上下文注入消息，因此消费者 span 是生产者 span 的子节点，而不是同级节点；同一命令的 span 通过上下文传播共享 trace ID。
