@@ -17,8 +17,8 @@ import {
   type Condition,
   eq,
   gt,
+  isIn,
   lte,
-  ne,
   or,
   RecoverableType,
 } from "@ahoo-wang/fetcher-wow";
@@ -37,12 +37,22 @@ export enum FindCategory {
   Unrecoverable = "Unrecoverable",
 }
 
+const RETRYABLE_RECOVERABILITY = [
+  RecoverableType.RECOVERABLE,
+  RecoverableType.UNKNOWN,
+];
+
+const ACTIVE_STATUSES = [
+  ExecutionFailedStatus.FAILED,
+  ExecutionFailedStatus.PREPARED,
+];
+
 export class RetryConditions {
   static toRetryCondition(): Condition {
     return and(
-      ne(
+      isIn(
         ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
-        RecoverableType.UNRECOVERABLE,
+        ...RETRYABLE_RECOVERABILITY,
       ),
       eq(ExecutionFailedAggregatedFields.STATE_IS_RETRYABLE, true),
       or(
@@ -80,9 +90,9 @@ export class RetryConditions {
   static nextRetryCondition(): Condition {
     const currentTime = new Date().getTime();
     return and(
-      ne(
+      isIn(
         ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
-        RecoverableType.UNRECOVERABLE,
+        ...RETRYABLE_RECOVERABILITY,
       ),
       eq(ExecutionFailedAggregatedFields.STATE_IS_RETRYABLE, true),
       lte(
@@ -109,13 +119,13 @@ export class RetryConditions {
   }
 
   static nonRetryableCondition = and(
-    ne(
+    isIn(
       ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
-      RecoverableType.UNRECOVERABLE,
+      ...RETRYABLE_RECOVERABILITY,
     ),
-    ne(
+    isIn(
       ExecutionFailedAggregatedFields.STATE_STATUS,
-      ExecutionFailedStatus.SUCCEEDED,
+      ...ACTIVE_STATUSES,
     ),
     eq(ExecutionFailedAggregatedFields.STATE_IS_BELOW_RETRY_THRESHOLD, false),
   );
@@ -129,9 +139,9 @@ export class RetryConditions {
       ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
       RecoverableType.UNRECOVERABLE,
     ),
-    ne(
+    isIn(
       ExecutionFailedAggregatedFields.STATE_STATUS,
-      ExecutionFailedStatus.SUCCEEDED,
+      ...ACTIVE_STATUSES,
     ),
   );
 
