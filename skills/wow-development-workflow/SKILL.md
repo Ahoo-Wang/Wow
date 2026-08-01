@@ -173,7 +173,7 @@ Use this when an event from one aggregate should coordinate another aggregate.
 | Target Aggregate | target aggregate id, owner, tenant, route source | command route is deterministic |
 | Derived Command | command body, headers, correlation, request semantics | generated command is complete |
 | Routing and Idempotency | duplicate event handling, command id or natural id, stale input handling | repeated delivery is intentional and covered at the runtime boundary that enforces it |
-| Retry Policy | `@Retry`, recoverable errors, unrecoverable errors, timeout | Saga handler failure behavior is explicit |
+| Retry Policy | `@Retry`, recoverable errors, unrecoverable errors, retry count/backoff, execution-lease expiry | Saga handler failure behavior is explicit |
 | Saga Orchestration Test | trigger, no-command, branch, multi-command cases | a focused test fails before implementation and `SagaSpec` or `SagaVerifier` passes after it |
 
 Use `SagaSpec` for Kotlin DSL tests or `SagaVerifier` where the fluent API fits the current Kotlin/Java test style:

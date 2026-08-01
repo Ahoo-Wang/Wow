@@ -17,7 +17,12 @@ Review Wow code for framework semantics first, style second. The goal is to catc
 - Keep review requests read-only by default. Do not modify files, post or resolve comments, approve, or merge unless the user explicitly requests that action.
 - When approval is explicitly requested, require exact verification evidence.
 
-For a combined review-and-fix request, finish the evidence-backed findings first. Then use `../wow-development-workflow/SKILL.md` for the implementation phase when an Aggregate or Saga behavior change is approved; keep the review and implementation evidence separate.
+For a combined review-and-fix request, finish the evidence-backed findings first and keep review evidence separate from implementation evidence. Then:
+
+- Use `../wow-development-workflow/SKILL.md` for approved Aggregate or Saga behavior changes.
+- Use `../wow/SKILL.md` once per implementation pass for other approved scopes.
+
+After each implementation pass, return here for a post-fix review of the new diff. Stop when no actionable findings remain. Start another implementation pass only for newly identified, explicitly authorized changes.
 
 ## Review Flow
 

@@ -101,6 +101,7 @@ graph TD
 | 编写或补强聚合测试 | `wow-development-workflow` -> `Aggregate Flow` |
 | 编写或补强 Saga 测试 | `wow-development-workflow` -> `Saga Flow` |
 | 审查 PR 或 diff | `wow-code-review` |
+| 审查并修复 PR 或 diff | `wow-code-review` ->（Aggregate/Saga：`wow-development-workflow`；其他：`wow`）-> `wow-code-review` post-fix review；仅对新发现且已授权的问题重复 |
 | 定位失败或异常行为 | `wow-debugging` |
 | 混合任务 | `wow` -> 对应 specialist |
 | 查询单点 API 或注解规则 | `wow` -> `wow/references/*` |

@@ -40,7 +40,12 @@ Convert each saga scenario into one orchestration expectation:
 
 `SagaSpec` and `SagaVerifier` use isolated saga handling with a no-op idempotency checker. They prove command generation, not production retry or duplicate-delivery behavior.
 
-For an application-side Saga, keep framework internals out of scope. When retry or idempotency is part of the acceptance contract, add the narrowest integration test that observes the public result: a replayed event reaches the intended handler and produces the expected command or side effect exactly as required.
+For an application-side Saga, keep framework internals out of scope:
+
+- When retry is part of the acceptance contract, cover every configured public outcome: recoverable replay succeeds, an explicitly unrecoverable failure is not replayed, retry exhaustion reaches the documented terminal outcome, and an expired `PREPARED` execution lease can be recovered when that behavior matters. `executionTimeout` does not cancel or apply a Reactor timeout to the handler.
+- When idempotency is part of the contract, replay the same event and assert the intended command or side-effect outcome.
+
+Use the narrowest integration boundary that proves those outcomes. Do not require branches that the application does not configure.
 
 Only changes to the compensation runtime itself need its layered internal matrix: `EventCompensationFilter` failure capture, `ExecutionFailed` state transitions, query/scheduler eligibility, and replay. An end-to-end replay claim must cross `compensator -> bus -> dispatcher -> selected function`; a test stopping at `CompensationEventProcessor` or `EventCompensateSupporter` does not prove delivery or invocation. Prove duplicate-delivery protection at the runtime boundary that owns idempotency.
 

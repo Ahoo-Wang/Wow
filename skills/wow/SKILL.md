@@ -12,7 +12,11 @@ description: |
 
 # Wow Framework Skill
 
-Use this for three roles: route mixed or ambiguous Wow work, answer focused framework questions, and implement clearly scoped Kotlin framework behavior outside the Aggregate/Saga workflow. Use direct specialists for Aggregate/Saga implementation, review, and diagnosis; specialists select package-shared references without routing back here. Always verify exact APIs in the current checkout before editing code.
+Use this to route mixed or ambiguous Wow work, answer focused framework questions, and implement clearly scoped Kotlin framework behavior outside the Aggregate/Saga workflow.
+
+Use direct specialists for initial Aggregate/Saga implementation, review, and diagnosis. During those specialist phases, select package-shared references without routing back here. For each explicitly authorized non-Aggregate/Saga implementation pass in a combined review-and-fix task, enter this skill once, then return to `wow-code-review` for post-fix review.
+
+Always verify exact APIs in the current checkout before editing code.
 
 ## Source-First Rule
 

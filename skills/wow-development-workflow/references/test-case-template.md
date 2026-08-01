@@ -46,7 +46,7 @@ If the repository already has test-case documents, mirror the nearest existing e
 | Multi-command | One event generates multiple commands when the process requires it. |
 | Duplicate delivery | Repeated events do not create unintended business effects; verify at the runtime boundary that enforces idempotency. |
 | Stale input | Older or out-of-order input follows an explicit reject, ignore, or reconcile policy. |
-| Retry policy | For an application Saga, prove the required public replay outcome without expanding into framework internals. Compensation-runtime changes use the layered matrix in [Retry and Idempotency Boundaries](test-patterns.md#retry-and-idempotency-boundaries). |
+| Retry policy | For an application Saga, prove configured public outcomes: recoverable replay, explicitly unrecoverable no-replay, retry exhaustion, and expired execution-lease recovery. `executionTimeout` does not cancel the handler. Do not assert compensation internals. For runtime changes, use the [layered matrix](test-patterns.md#retry-and-idempotency-boundaries). |
 
 ## Status Markers
 

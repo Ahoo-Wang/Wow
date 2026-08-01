@@ -268,7 +268,7 @@ fun onEvent(event: DomainEvent<OrderCreated>): CommandBuilder? { ... }
 | `enabled` | Boolean | `true` | Set `false` to disable this retry policy |
 | `maxRetries` | Int | `10` | Maximum retry attempts |
 | `minBackoff` | Int | `180` | Initial backoff in seconds (grows exponentially: `minBackoff * 2^retries`) |
-| `executionTimeout` | Int | `120` | Max time per execution in seconds |
+| `executionTimeout` | Int | `120` | Lease timeout in seconds for a `PREPARED` compensation attempt. After expiry, the scheduler may recover an attempt that never reported success or failure. It does not apply a Reactor timeout or cancel the handler. |
 | `recoverable` | Array | `[]` | Exception types that trigger retries |
 | `unrecoverable` | Array | `[]` | Exception types that fail immediately |
 
@@ -303,7 +303,7 @@ Marks a command as fire-and-forget (no response expected).
 
 ### @CommandRoute
 
-Configures REST route for a command. Used by `wow-compiler` to generate API endpoints.
+Configures the REST route contract for a command. `wow-openapi` parses this metadata and builds the endpoint contract consumed by `wow-webflux`.
 
 ```kotlin
 @CommandRoute(action = "", method = CommandRoute.Method.DELETE, appendIdPath = CommandRoute.AppendPath.ALWAYS)
