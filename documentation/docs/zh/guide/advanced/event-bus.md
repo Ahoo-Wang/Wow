@@ -270,9 +270,9 @@ Wow 提供了四种具体的总线实现，涵盖了从简单测试到生产分�
 | 实现 | 类 | 类型 | 使用场景 | 源码 |
 |---|---|---|---|---|
 | NoOp | `NoOpDomainEventBus` | 单例 | 测试，禁用事件发布 | [DomainEventBus.kt:81-97](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventBus.kt#L81-L97) |
-| 内存 | `InMemoryDomainEventBus` | `LocalDomainEventBus` | 单进程应用，单元测试 | [InMemoryDomainEventBus.kt:38-53](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/InMemoryDomainEventBus.kt#L38-L53) |
+| 内存 | `InMemoryDomainEventBus` | `LocalDomainEventBus` | 单进程应用，单元测试 | [InMemoryDomainEventBus.kt:38-52](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/InMemoryDomainEventBus.kt#L38-L52) |
 | Kafka | `KafkaDomainEventBus` | `DistributedDomainEventBus` | 多节点生产环境 | [KafkaDomainEventBus.kt:22-41](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/KafkaDomainEventBus.kt#L22-L41) |
-| 本地优先 | `LocalFirstDomainEventBus` | `DomainEventBus` (混合) | 默认生产环境（组合内存 + Kafka） | [LocalFirstDomainEventBus.kt:38-40](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/LocalFirstDomainEventBus.kt#L38-L40) |
+| 本地优先 | `LocalFirstDomainEventBus` | `DomainEventBus` (混合) | 默认生产环境（组合内存 + Kafka） | [LocalFirstDomainEventBus.kt:38-39](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/LocalFirstDomainEventBus.kt#L38-L39) |
 
 ### 本地优先路由策略
 

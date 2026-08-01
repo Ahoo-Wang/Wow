@@ -590,25 +590,21 @@ spring:
     uri: mongodb://localhost:27017/wow_db?w=majority&wtimeoutMS=5000
 ```
 
-### Read Preference Configuration
+### Read Preference Safety
 
-Setting `readPreference=secondaryPreferred` offloads snapshot read queries to secondary nodes, reducing load on the primary. Event stream writes always go to the primary.
+Wow's Mongo event store, snapshot store, query services, and idempotency checks share the Spring-managed `MongoClient` by default. Keep that shared client on primary reads. Setting `readPreference=secondaryPreferred` on `spring.mongodb.uri` also affects `EventStore.load()` and `existsRequestId()`, so replication lag can cause stale aggregate reconstruction or idempotency decisions.
 
-```yaml
-spring:
-  mongodb:
-    uri: mongodb://localhost:27017/wow_db?readPreference=secondaryPreferred
-```
+The database-name separation below does not create independent clients. If snapshot or query traffic must read from secondaries, provide a separately configured client and storage integration, route it explicitly with storage bindings, and validate its consistency guarantees before production rollout.
 
 ### Database Separation
 
-The three configurable databases (`event-stream-database`, `snapshot-database`, `prepare-database`) enable **physical isolation** of workloads:
+The three configurable databases (`event-stream-database`, `snapshot-database`, `prepare-database`) separate workloads logically within the configured MongoDB deployment:
 
 - **Event streams**: Write-heavy (append-only), benefits from fast storage
-- **Snapshots**: Read-heavy (materialized views), benefits from caching and read replicas
+- **Snapshots**: Read-heavy (materialized views), benefits from dedicated indexes and caching
 - **Prepare keys**: Low volume, short-lived documents, benefits from TTL index cleanup
 
-When all three default to `null`, they share the Spring-configured MongoDB database, which is sufficient for development and moderate loads. For production, separating them allows independent scaling, backup schedules, and read-preference tuning.
+When all three default to `null`, they share the Spring-configured MongoDB database, which is sufficient for development and moderate loads. Separate database names can support different schema management, backup and retention policies, and operational ownership, but they still use the same `MongoClient` unless a custom integration is provided.
 
 ## Sharding Strategy
 
@@ -668,7 +664,7 @@ com.mongodb.MongoTimeoutException
 ```yaml
 spring:
   mongodb:
-    uri: mongodb://user:password@mongo1:27017,mongo2:27017,mongo3:27017/wow_db?replicaSet=rs0&w=majority&readPreference=secondaryPreferred&minPoolSize=10&maxPoolSize=100
+    uri: mongodb://user:password@mongo1:27017,mongo2:27017,mongo3:27017/wow_db?replicaSet=rs0&w=majority&minPoolSize=10&maxPoolSize=100
 
 wow:
   eventsourcing:
@@ -688,7 +684,7 @@ wow:
 
 ## Best Practices
 
-1. **Database Separation**: Store event streams, snapshots, and prepare keys in different databases for independent scaling and management
+1. **Database Separation**: Use separate database names when event streams, snapshots, and prepare keys need distinct schema, backup, retention, or ownership policies
 2. **Enable Snapshots**: For aggregates with many events, enabling snapshots can significantly improve loading performance
 3. **Use Replica Sets**: Use replica sets in production for high availability
 4. **Index Optimization**: Create appropriate compound indexes based on query patterns

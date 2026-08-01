@@ -45,10 +45,19 @@ class Cart(private val state: CartState)
 #### 拥有者路由模式
 ```kotlin
 @AggregateRoot
-@AggregateRoute(owner = AggregateRoute.Owner.ALWAYS)
+@AggregateRoute(
+    resourceName = "sales-order",
+    spaced = true,
+    owner = AggregateRoute.Owner.ALWAYS,
+)
 class Order(private val state: OrderState)
 
+@CommandRoute(action = "")
+@CreateAggregate
+data class CreateOrder(/* ... */)
+
 // 生成路由: POST /tenant/{tenantId}/owner/{ownerId}/sales-order
+// 因为 spaced = true，请求还必须包含 Wow-Space-Id 请求头。
 ```
 
 ### HTTP 方法映射

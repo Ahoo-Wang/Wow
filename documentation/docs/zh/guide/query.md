@@ -293,6 +293,8 @@ class DataFilterSnapshotQueryFilter : SnapshotQueryFilter {
 **Wow** 除了为命令(`Command`)自动生成了 _OpenAPI_ 端点，另外还提供了查询(`Query`) _OpenAPI_ 端点。
 这意味着开发人员通常只需专注于编写领域模型，即可完成服务开发，而无需费心处理查询逻辑的实现，极大提升了开发效率。
 
+以下示例查询 `tenant-1` 的 `sales-order` 聚合。四个请求都描述同一条模拟快照，因此查询条件与响应数量保持一致。
+
 ![Query Service](../../public/images/query/open-api-query.png)
 
 ### 分页查询
@@ -301,9 +303,10 @@ class DataFilterSnapshotQueryFilter : SnapshotQueryFilter {
 
 ```shell [OpenAPI]
   curl -X 'POST' \
-  'http://localhost:8080/execution_failed/snapshot/paged' \
+  'http://localhost:8080/tenant/tenant-1/sales-order/snapshot/paged' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
+  -H 'Wow-Space-Id: space-1' \
   -d '{
   "sort": [
     {
@@ -316,34 +319,15 @@ class DataFilterSnapshotQueryFilter : SnapshotQueryFilter {
     "size": 10
   },
   "condition": {
-    "field": "",
-    "operator": "AND",
-    "value": "",
-    "children": [
-      {
-        "field": "state.recoverable",
-        "operator": "NE",
-        "value": "UNRECOVERABLE",
-        "children": []
-      },
-      {
-        "field": "state.status",
-        "operator": "NE",
-        "value": "SUCCEEDED",
-        "children": []
-      },
-      {
-        "field": "state.isBelowRetryThreshold",
-        "operator": "EQ",
-        "value": false,
-        "children": []
-      }
-    ]
+    "field": "state.status",
+    "operator": "EQ",
+    "value": "CREATED",
+    "children": []
   }
 }'
 ```
 
-```json [响应]
+```json [响应（已省略部分字段）]
 {
   "total": 1,
   "list": [
@@ -352,6 +336,7 @@ class DataFilterSnapshotQueryFilter : SnapshotQueryFilter {
       "tenantId": "tenant-1",
       "version": 3,
       "state": {
+        "id": "order-1",
         "status": "CREATED"
       }
     }
@@ -360,13 +345,9 @@ class DataFilterSnapshotQueryFilter : SnapshotQueryFilter {
 ```
 
 ```typescript [Typescript]
-Conditions.and(
-    [
-        Conditions.ne(RECOVERABLE, UNRECOVERABLE),
-        Conditions.ne(STATUS, SUCCEEDED),
-        Conditions.eq(IS_BELOW_RETRY_THRESHOLD, false)
-    ]
-)
+import { eq } from "@ahoo-wang/fetcher-wow";
+
+eq("state.status", "CREATED")
 ```
 
 :::
@@ -377,9 +358,10 @@ Conditions.and(
 
 ```shell [OpenAPI]
   curl -X 'POST' \
-  'http://localhost:8080/execution_failed/snapshot/list' \
+  'http://localhost:8080/tenant/tenant-1/sales-order/snapshot/list' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
+  -H 'Wow-Space-Id: space-1' \
   -d '{
   "sort": [
     {
@@ -389,40 +371,22 @@ Conditions.and(
   ],
   "limit": 1,
   "condition": {
-    "field": "",
-    "operator": "AND",
-    "value": "",
-    "children": [
-      {
-        "field": "state.recoverable",
-        "operator": "NE",
-        "value": "UNRECOVERABLE",
-        "children": []
-      },
-      {
-        "field": "state.status",
-        "operator": "NE",
-        "value": "SUCCEEDED",
-        "children": []
-      },
-      {
-        "field": "state.isBelowRetryThreshold",
-        "operator": "EQ",
-        "value": false,
-        "children": []
-      }
-    ]
+    "field": "state.status",
+    "operator": "EQ",
+    "value": "CREATED",
+    "children": []
   }
 }'
 ```
 
-```json [响应]
+```json [响应（已省略部分字段）]
 [
   {
     "aggregateId": "order-1",
     "tenantId": "tenant-1",
     "version": 3,
     "state": {
+      "id": "order-1",
       "status": "CREATED"
     }
   }
@@ -437,38 +401,20 @@ Conditions.and(
 
 ```shell [OpenAPI]
   curl -X 'POST' \
-  'http://localhost:8080/execution_failed/snapshot/count' \
+  'http://localhost:8080/tenant/tenant-1/sales-order/snapshot/count' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
+  -H 'Wow-Space-Id: space-1' \
   -d '{
-    "field": "",
-    "operator": "AND",
-    "value": "",
-    "children": [
-      {
-        "field": "state.recoverable",
-        "operator": "NE",
-        "value": "UNRECOVERABLE",
-        "children": []
-      },
-      {
-        "field": "state.status",
-        "operator": "NE",
-        "value": "SUCCEEDED",
-        "children": []
-      },
-      {
-        "field": "state.isBelowRetryThreshold",
-        "operator": "EQ",
-        "value": false,
-        "children": []
-      }
-    ]
+    "field": "state.status",
+    "operator": "EQ",
+    "value": "CREATED",
+    "children": []
   }'
 ```
 
 ```json [响应]
-2
+1
 ```
 
 :::
@@ -479,26 +425,28 @@ Conditions.and(
 
 ```shell [OpenAPI]
   curl -X 'POST' \
-  'http://localhost:8080/execution_failed/snapshot/single' \
+  'http://localhost:8080/tenant/tenant-1/sales-order/snapshot/single' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
+  -H 'Wow-Space-Id: space-1' \
   -d '{
   "sort": [],
   "condition": {
     "field": "_id",
     "operator": "EQ",
-    "value": "0TyzQ3jc003Z001",
+    "value": "order-1",
     "children": []
   }
 }'
 ```
 
-```json [响应]
+```json [响应（已省略部分字段）]
 {
   "aggregateId": "order-1",
   "tenantId": "tenant-1",
   "version": 3,
   "state": {
+    "id": "order-1",
     "status": "CREATED"
   }
 }
@@ -541,5 +489,3 @@ val queryService = applicationContext.getBean("example.order.SnapshotQueryServic
 ```
 
 :::
-
-

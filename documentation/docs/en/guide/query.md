@@ -293,6 +293,8 @@ class DataFilterSnapshotQueryFilter : SnapshotQueryFilter {
 **Wow** not only automatically generates _OpenAPI_ endpoints for commands (`Command`), but also provides query (`Query`) _OpenAPI_ endpoints.
 This means developers usually only need to focus on writing domain models to complete service development, without worrying about implementing query logic, greatly improving development efficiency.
 
+The examples below query the `sales-order` aggregate for `tenant-1`. All four requests describe the same synthetic snapshot, so their conditions and response counts stay consistent.
+
 ![Query Service](../../public/images/query/open-api-query.png)
 
 ### Paged Query
@@ -301,9 +303,10 @@ This means developers usually only need to focus on writing domain models to com
 
 ```shell [OpenAPI]
   curl -X 'POST' \
-  'http://localhost:8080/execution_failed/snapshot/paged' \
+  'http://localhost:8080/tenant/tenant-1/sales-order/snapshot/paged' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
+  -H 'Wow-Space-Id: space-1' \
   -d '{
   "sort": [
     {
@@ -316,34 +319,15 @@ This means developers usually only need to focus on writing domain models to com
     "size": 10
   },
   "condition": {
-    "field": "",
-    "operator": "AND",
-    "value": "",
-    "children": [
-      {
-        "field": "state.recoverable",
-        "operator": "NE",
-        "value": "UNRECOVERABLE",
-        "children": []
-      },
-      {
-        "field": "state.status",
-        "operator": "NE",
-        "value": "SUCCEEDED",
-        "children": []
-      },
-      {
-        "field": "state.isBelowRetryThreshold",
-        "operator": "EQ",
-        "value": false,
-        "children": []
-      }
-    ]
+    "field": "state.status",
+    "operator": "EQ",
+    "value": "CREATED",
+    "children": []
   }
 }'
 ```
 
-```json [Response]
+```json [Response (abridged)]
 {
   "total": 1,
   "list": [
@@ -352,6 +336,7 @@ This means developers usually only need to focus on writing domain models to com
       "tenantId": "tenant-1",
       "version": 3,
       "state": {
+        "id": "order-1",
         "status": "CREATED"
       }
     }
@@ -360,13 +345,9 @@ This means developers usually only need to focus on writing domain models to com
 ```
 
 ```typescript [Typescript]
-Conditions.and(
-    [
-        Conditions.ne(RECOVERABLE, UNRECOVERABLE),
-        Conditions.ne(STATUS, SUCCEEDED),
-        Conditions.eq(IS_BELOW_RETRY_THRESHOLD, false)
-    ]
-)
+import { eq } from "@ahoo-wang/fetcher-wow";
+
+eq("state.status", "CREATED")
 ```
 
 :::
@@ -377,9 +358,10 @@ Conditions.and(
 
 ```shell [OpenAPI]
   curl -X 'POST' \
-  'http://localhost:8080/execution_failed/snapshot/list' \
+  'http://localhost:8080/tenant/tenant-1/sales-order/snapshot/list' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
+  -H 'Wow-Space-Id: space-1' \
   -d '{
   "sort": [
     {
@@ -389,40 +371,22 @@ Conditions.and(
   ],
   "limit": 1,
   "condition": {
-    "field": "",
-    "operator": "AND",
-    "value": "",
-    "children": [
-      {
-        "field": "state.recoverable",
-        "operator": "NE",
-        "value": "UNRECOVERABLE",
-        "children": []
-      },
-      {
-        "field": "state.status",
-        "operator": "NE",
-        "value": "SUCCEEDED",
-        "children": []
-      },
-      {
-        "field": "state.isBelowRetryThreshold",
-        "operator": "EQ",
-        "value": false,
-        "children": []
-      }
-    ]
+    "field": "state.status",
+    "operator": "EQ",
+    "value": "CREATED",
+    "children": []
   }
 }'
 ```
 
-```json [Response]
+```json [Response (abridged)]
 [
   {
     "aggregateId": "order-1",
     "tenantId": "tenant-1",
     "version": 3,
     "state": {
+      "id": "order-1",
       "status": "CREATED"
     }
   }
@@ -437,38 +401,20 @@ Conditions.and(
 
 ```shell [OpenAPI]
   curl -X 'POST' \
-  'http://localhost:8080/execution_failed/snapshot/count' \
+  'http://localhost:8080/tenant/tenant-1/sales-order/snapshot/count' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
+  -H 'Wow-Space-Id: space-1' \
   -d '{
-    "field": "",
-    "operator": "AND",
-    "value": "",
-    "children": [
-      {
-        "field": "state.recoverable",
-        "operator": "NE",
-        "value": "UNRECOVERABLE",
-        "children": []
-      },
-      {
-        "field": "state.status",
-        "operator": "NE",
-        "value": "SUCCEEDED",
-        "children": []
-      },
-      {
-        "field": "state.isBelowRetryThreshold",
-        "operator": "EQ",
-        "value": false,
-        "children": []
-      }
-    ]
+    "field": "state.status",
+    "operator": "EQ",
+    "value": "CREATED",
+    "children": []
   }'
 ```
 
 ```json [Response]
-2
+1
 ```
 
 :::
@@ -479,26 +425,28 @@ Conditions.and(
 
 ```shell [OpenAPI]
   curl -X 'POST' \
-  'http://localhost:8080/execution_failed/snapshot/single' \
+  'http://localhost:8080/tenant/tenant-1/sales-order/snapshot/single' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
+  -H 'Wow-Space-Id: space-1' \
   -d '{
   "sort": [],
   "condition": {
     "field": "_id",
     "operator": "EQ",
-    "value": "0TyzQ3jc003Z001",
+    "value": "order-1",
     "children": []
   }
 }'
 ```
 
-```json [Response]
+```json [Response (abridged)]
 {
   "aggregateId": "order-1",
   "tenantId": "tenant-1",
   "version": 3,
   "state": {
+    "id": "order-1",
     "status": "CREATED"
   }
 }
@@ -543,5 +491,3 @@ val queryService = applicationContext.getBean("example.order.SnapshotQueryServic
 ```
 
 :::
-
-

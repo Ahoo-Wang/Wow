@@ -117,7 +117,7 @@ Wow provides annotations to declare intent at the command level:
 
 A **Domain Event** is an immutable fact that something happened in the domain. Business event payloads are ordinary data classes or objects; at runtime Wow wraps each payload in a `DomainEvent<T>` envelope that carries aggregate and message metadata.
 
-Key characteristics of `DomainEvent` as defined in [DomainEvent.kt:52-91](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L52-L91):
+Key characteristics of `DomainEvent` as defined in [DomainEvent.kt:52-90](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L52-L90):
 
 | Property | Default | Purpose |
 |---|---|---|

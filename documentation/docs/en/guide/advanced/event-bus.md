@@ -270,9 +270,9 @@ Wow provides four concrete bus implementations covering the full spectrum from s
 | Implementation | Class | Type | Use Case | Source |
 |---|---|---|---|---|
 | NoOp | `NoOpDomainEventBus` | Singleton | Testing, event publishing disabled | [DomainEventBus.kt:81-97](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventBus.kt#L81-L97) |
-| InMemory | `InMemoryDomainEventBus` | `LocalDomainEventBus` | Single-process apps, unit tests | [InMemoryDomainEventBus.kt:38-53](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/InMemoryDomainEventBus.kt#L38-L53) |
+| InMemory | `InMemoryDomainEventBus` | `LocalDomainEventBus` | Single-process apps, unit tests | [InMemoryDomainEventBus.kt:38-52](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/InMemoryDomainEventBus.kt#L38-L52) |
 | Kafka | `KafkaDomainEventBus` | `DistributedDomainEventBus` | Multi-node production | [KafkaDomainEventBus.kt:22-41](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/KafkaDomainEventBus.kt#L22-L41) |
-| LocalFirst | `LocalFirstDomainEventBus` | `DomainEventBus` (hybrid) | Default production (combines InMemory + Kafka) | [LocalFirstDomainEventBus.kt:38-40](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/LocalFirstDomainEventBus.kt#L38-L40) |
+| LocalFirst | `LocalFirstDomainEventBus` | `DomainEventBus` (hybrid) | Default production (combines InMemory + Kafka) | [LocalFirstDomainEventBus.kt:38-39](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/LocalFirstDomainEventBus.kt#L38-L39) |
 
 ### Local-First Routing Strategy
 

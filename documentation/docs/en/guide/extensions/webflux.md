@@ -45,10 +45,19 @@ class Cart(private val state: CartState)
 #### Owner Route Pattern
 ```kotlin
 @AggregateRoot
-@AggregateRoute(owner = AggregateRoute.Owner.ALWAYS)
+@AggregateRoute(
+    resourceName = "sales-order",
+    spaced = true,
+    owner = AggregateRoute.Owner.ALWAYS,
+)
 class Order(private val state: OrderState)
 
+@CommandRoute(action = "")
+@CreateAggregate
+data class CreateOrder(/* ... */)
+
 // Generated route: POST /tenant/{tenantId}/owner/{ownerId}/sales-order
+// Required headers include Wow-Space-Id because spaced = true.
 ```
 
 ### HTTP Method Mapping

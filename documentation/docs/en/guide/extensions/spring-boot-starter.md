@@ -131,7 +131,9 @@ flowchart TB
 
 ## Bean Wiring and Overrides
 
-Auto-configuration is split by responsibility: command, event, event sourcing, storage, transport, query, observability, and integrations. Infrastructure configurations are activated by their classpath capability and configuration conditions. Most extension points use `@ConditionalOnMissingBean`; applications can replace an interface such as `CommandGateway`, `EventStore`, or `SnapshotStore` with a custom bean without constructing Wow's internal default implementations.
+Auto-configuration is split by responsibility: command, event, event sourcing, storage, transport, query, observability, and integrations. Infrastructure configurations are activated by their classpath capability and configuration conditions. Many non-storage extension points use `@ConditionalOnMissingBean`; for example, a custom `CommandGateway` can replace the default when its declaring auto-configuration permits it. Check the specific `@Bean` declaration instead of assuming every interface is replaceable.
+
+`EventStore` and `SnapshotStore` use a different model. Storage capabilities publish `EventStoreBinding` and `SnapshotStoreBinding`, and `StorageRoutingAutoConfiguration` builds the `@Primary` routing stores from those bindings. To integrate a custom backend, register named bindings and select them through `wow.eventsourcing.storage-routing`; when it also serves query routes, provide the matching `EventStreamQueryServiceFactoryBinding` and `SnapshotQueryServiceFactoryBinding`. If replacing a built-in storage capability wholesale, exclude or disable that storage auto-configuration first. A plain `EventStore` or `SnapshotStore` bean does not automatically override an enabled storage capability.
 
 Use the extension-specific guide and [configuration reference](../../reference/config/core) for the exact dependency, properties, and override boundary. Internal constructors are not configuration APIs and may change independently.
 

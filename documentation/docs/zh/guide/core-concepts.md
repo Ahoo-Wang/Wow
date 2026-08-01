@@ -130,7 +130,7 @@ Wow 提供了在命令级别声明意图的注解：
 
 **领域事件** 是领域中已发生事件的不可变事实。业务事件载荷是普通 data class 或 object；运行时 Wow 会将载荷包装为携带聚合与消息元数据的 `DomainEvent<T>` 信封。
 
-`DomainEvent` 的关键特性定义在 [DomainEvent.kt:52-91](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L52-L91)：
+`DomainEvent` 的关键特性定义在 [DomainEvent.kt:52-90](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L52-L90)：
 
 | 属性 | 默认值 | 用途 |
 |---|---|---|

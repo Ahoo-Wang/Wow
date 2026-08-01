@@ -131,7 +131,9 @@ flowchart TB
 
 ## Bean 装配与覆盖
 
-自动配置按命令、事件、事件溯源、存储、传输、查询、可观测性和集成能力拆分。基础设施配置由对应的 classpath capability 与配置条件激活。大多数扩展点使用 `@ConditionalOnMissingBean`；应用可以提供 `CommandGateway`、`EventStore` 或 `SnapshotStore` 等接口的自定义 Bean，无需直接构造 Wow 的内部默认实现。
+自动配置按命令、事件、事件溯源、存储、传输、查询、可观测性和集成能力拆分。基础设施配置由对应的 classpath capability 与配置条件激活。许多非存储扩展点使用 `@ConditionalOnMissingBean`；例如，在声明它的自动配置条件允许时，自定义 `CommandGateway` 可以替换默认实现。应检查具体的 `@Bean` 声明，不能假定所有接口都可直接覆盖。
+
+`EventStore` 与 `SnapshotStore` 使用不同的装配模型。存储 capability 发布 `EventStoreBinding` 和 `SnapshotStoreBinding`，`StorageRoutingAutoConfiguration` 再基于这些 binding 构建 `@Primary` 路由存储。接入自定义后端时，应注册具名 binding，并通过 `wow.eventsourcing.storage-routing` 选择它们；如果该后端还提供查询路由，则需要对应的 `EventStreamQueryServiceFactoryBinding` 与 `SnapshotQueryServiceFactoryBinding`。若要整体替换内置存储 capability，应先排除或关闭对应的存储自动配置。仅声明普通的 `EventStore` 或 `SnapshotStore` Bean，不会自动覆盖已启用的存储 capability。
 
 准确的依赖、属性和覆盖边界请以各扩展文档及[配置参考](../../reference/config/core)为准。内部实现类的构造函数不是配置 API，可能独立演进。
 
