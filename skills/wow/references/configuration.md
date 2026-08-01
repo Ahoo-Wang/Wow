@@ -258,7 +258,7 @@ All four groups share `enabled=false`, `max-size=128`, `max-delay=1ms`, and `lan
 | `max-size` | Greater than `1` | Flushes a full batch at this size |
 | `max-delay` | Positive duration | Flushes a partial batch after this delay; low traffic may therefore add up to this wait |
 | `max-pending-appends` / `max-pending-saves` | At least `max-size` | Bounds queued work before overload handling |
-| `lane-count` | Greater than `0` and no greater than the pending limit | Hash-partitions equal keys into the same lane and allows different lanes to write concurrently. Batch-writer invocations are serialized within each lane, but item execution order inside one backend bulk request is not guaranteed; snapshot writers may coalesce repeated saves for the same key. |
+| `lane-count` | Greater than `0`; when batching is enabled, no greater than the pending limit | Hash-partitions equal keys into the same lane and allows different lanes to write concurrently. Batch-writer invocations are serialized within each lane, but item execution order inside one backend bulk request is not guaranteed; snapshot writers may coalesce repeated saves for the same key. |
 
 Do not enable batching as a generic performance toggle. Select backend-specific values from measured traffic, latency, and overload behavior, then verify shutdown/drain behavior for the affected store.
 

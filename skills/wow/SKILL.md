@@ -3,7 +3,7 @@ name: wow
 description: |
   Router, focused implementation guide, and reference entry for Wow framework semantics in reactive DDD + Event Sourcing + CQRS services on JVM 17+ with Spring Boot.
 
-  Use for mixed or ambiguous Wow tasks; focused framework lookup; or clearly scoped Kotlin implementation involving projections, event processors, command gateways, waits, Query DSL, starter configuration, storage routing, buses, feature switches, PrepareKey, or runtime lifecycle.
+  Use for mixed or ambiguous Wow tasks; focused framework lookup; or clearly scoped Kotlin implementation involving @CommandRoute or other Wow annotations, WebFlux/OpenAPI command routes, projections, event processors, command gateways, waits, Query DSL, starter configuration, storage routing, buses, feature switches, PrepareKey, or runtime lifecycle.
 
   Use wow-development-workflow directly for clearly scoped end-to-end aggregate or saga implementation. Use wow-code-review or wow-debugging directly for review or diagnosis.
 
@@ -37,6 +37,8 @@ rg -n "@ConfigurationProperties|class .*Properties" wow-spring-boot-starter -g "
 |-----------|------|
 | Implement or change aggregate or saga domain behavior, model, lifecycle, or tests | `../wow-development-workflow/SKILL.md` |
 | Look up aggregate modeling or annotation semantics without changing behavior | `references/modeling.md`, then `references/annotations.md` |
+| Implement or change `@CommandRoute`, command route metadata, or WebFlux/OpenAPI command routing | `references/annotations.md`, then verify the current definitions and tests across `wow-api`, `wow-openapi`, and `wow-webflux` |
+| Implement or change any other Wow annotation or its behavior | `references/annotations.md`, then locate the current annotation definition and every runtime or compiler consumer with `rg` before editing |
 | Implement, add, or strengthen AggregateSpec or SagaSpec behavior tests | `../wow-development-workflow/SKILL.md`, then `references/testing.md` |
 | Look up isolated testing DSL, verifier, fork/ref, lifecycle-test, or FluentAssert APIs | `references/testing.md` |
 | Build saga orchestration or cross-aggregate process behavior | `../wow-development-workflow/SKILL.md`, then `references/annotations.md` and `references/testing.md` |
