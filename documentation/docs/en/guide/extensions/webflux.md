@@ -35,20 +35,30 @@ Supports multiple route patterns:
 
 #### Aggregate Route Pattern
 ```kotlin
+@StaticTenantId
 @AggregateRoot
 @AggregateRoute(owner = AggregateRoute.Owner.AGGREGATE_ID)
 class Cart(private val state: CartState)
 
-// Generated route: POST /cart/{cartId}/add_cart_item
+// Generated route: POST /owner/{ownerId}/cart/add_cart_item
 ```
 
 #### Owner Route Pattern
 ```kotlin
 @AggregateRoot
-@AggregateRoute(owner = AggregateRoute.Owner.ALWAYS)
+@AggregateRoute(
+    resourceName = "sales-order",
+    spaced = true,
+    owner = AggregateRoute.Owner.ALWAYS,
+)
 class Order(private val state: OrderState)
 
-// Generated route: POST /order/owner/{ownerId}/create_order
+@CommandRoute(action = "")
+@CreateAggregate
+data class CreateOrder(/* ... */)
+
+// Generated route: POST /tenant/{tenantId}/owner/{ownerId}/sales-order
+// Wow-Space-Id is optional; omit it to use the default space.
 ```
 
 ### HTTP Method Mapping
@@ -96,7 +106,7 @@ When `wow-spring-boot-starter` is used, WebFlux is included as the `webflux-supp
 The WebFlux extension supports specifying wait plans through HTTP headers:
 
 ```http
-POST /cart/123/add_cart_item
+POST /owner/cart-123/cart/add_cart_item
 Content-Type: application/json
 Command-Wait-Stage: PROCESSED
 Command-Wait-Timeout: 30000
@@ -147,11 +157,11 @@ Automatically generates OpenAPI documentation:
 
 ```yaml
 paths:
-  /cart/{cartId}/add_cart_item:
+  /owner/{ownerId}/cart/add_cart_item:
     post:
       summary: "Add item to cart"
       parameters:
-        - name: cartId
+        - name: ownerId
           in: path
           required: true
           schema:
@@ -186,16 +196,7 @@ class CustomController(
 }
 ```
 
-### Connection Pool Configuration
-
-```yaml
-spring:
-  codec:
-    max-in-memory-size: 10MB
-  webflux:
-    session:
-      timeout: 30m
-```
+Wow's handlers remain non-blocking. Configure codecs, Reactor Netty resources, and server timeouts through the corresponding Spring Boot facilities; the Wow WebFlux extension does not define its own connection-pool or session-timeout properties.
 
 ## Monitoring and Debugging
 
@@ -207,17 +208,12 @@ logging:
     me.ahoo.wow.webflux: DEBUG
 ```
 
-### Performance Metrics
-
-Automatically collects the following metrics:
-- Request latency and throughput
-- Error rate statistics
-- Wait plan usage
+Wow-specific runtime metrics are provided by the observability integration, not automatically by `wow-webflux`. See [OpenTelemetry](./opentelemetry) for the supported instrumentation.
 
 ## Best Practices
 
 1. **Use Wait Plans**: Choose appropriate wait plans based on business requirements
 2. **Error Handling**: Implement global exception handlers
 3. **Security**: Enable authentication and authorization checks
-4. **Monitoring**: Configure appropriate log levels and metrics collection
-5. **Performance**: Configure connection pools and timeouts appropriately
+4. **Observability**: Add the OpenTelemetry capability when Wow runtime traces and metrics are required
+5. **Runtime tuning**: Configure Reactor Netty and Spring Boot server limits at the application boundary

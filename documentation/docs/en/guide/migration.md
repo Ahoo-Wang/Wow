@@ -196,5 +196,4 @@ See [v6 → v8: Mongo Ownership Guard](./migration/v6-to-v8.md#mongo-ownership-g
 | [Migrating from Traditional Architecture](./migration/traditional-architecture.md) | First-time Wow adoption |
 | [Migrate Wow v6 to v8](./migration/v6-to-v8.md) | Platform upgrade for existing Wow systems |
 | [Runtime Orchestration Migration](./migration/runtime-orchestration.md) | v8 lifecycle extension migration |
-| [Best Practices](./best-practices.md) | Engineering constraints after migration |
 | [Troubleshooting](./troubleshooting.md) | Investigation entry point when verification fails |

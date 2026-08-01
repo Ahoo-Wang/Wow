@@ -48,7 +48,7 @@ The data isolation layers are reflected in the automatically generated RESTful A
 | Owner | `owner/{ownerId}` path prefix | `@AggregateRoute(owner ≠ NEVER)` |
 | Space | `Wow-Space-Id` request header | `@AggregateRoute(spaced = true)` |
 
-The framework generates **multiple route variants** for each aggregate — a default route without prefixes, a tenant-only route, and an owner-only route — so callers can use the minimal scope they need.
+The framework generates one deterministic route for each command from `@AggregateRoute` and any `@CommandRoute` override. Command-level `ALWAYS` or `NEVER` values override the aggregate defaults; the same command is not exposed through several scope variants.
 
 ## Tenant
 

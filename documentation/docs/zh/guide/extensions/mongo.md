@@ -186,9 +186,8 @@ sequenceDiagram
 
 ```yaml
 spring:
-  data:
-    mongodb:
-      uri: mongodb://localhost:27017/wow_db
+  mongodb:
+    uri: mongodb://localhost:27017/wow_db
 
 wow:
   eventsourcing:
@@ -566,9 +565,8 @@ db.order_snapshot.createIndex(
 
 ```yaml
 spring:
-  data:
-    mongodb:
-      uri: mongodb://localhost:27017/wow_db?minPoolSize=10&maxPoolSize=100&maxIdleTimeMS=60000
+  mongodb:
+    uri: mongodb://localhost:27017/wow_db?minPoolSize=10&maxPoolSize=100&maxIdleTimeMS=60000
 ```
 
 | 参数 | 描述 | 推荐值 |
@@ -583,31 +581,25 @@ spring:
 
 ```yaml
 spring:
-  data:
-    mongodb:
-      uri: mongodb://localhost:27017/wow_db?w=majority&wtimeoutMS=5000
+  mongodb:
+    uri: mongodb://localhost:27017/wow_db?w=majority&wtimeoutMS=5000
 ```
 
-### 读取偏好配置
+### 读取偏好安全性
 
-设置 `readPreference=secondaryPreferred` 将快照读取查询卸载到从节点，减少主节点的负载。事件流写入始终发往主节点。
+Wow 的 Mongo 事件存储、快照存储、查询服务和幂等性检查默认共享 Spring 管理的 `MongoClient`。该共享客户端应保持主节点读取语义。在 `spring.mongodb.uri` 中设置 `readPreference=secondaryPreferred` 还会影响 `EventStore.load()` 与 `existsRequestId()`；复制延迟可能导致聚合重建或幂等性判断读取到旧数据。
 
-```yaml
-spring:
-  data:
-    mongodb:
-      uri: mongodb://localhost:27017/wow_db?readPreference=secondaryPreferred
-```
+下文的数据库名称分离不会创建独立客户端。若快照或查询流量必须从从节点读取，应提供单独配置的客户端与存储集成，通过存储 binding 显式路由，并在生产上线前验证一致性保证。
 
 ### 数据库分离
 
-三个可配置的数据库（`event-stream-database`、`snapshot-database`、`prepare-database`）实现了工作负载的 **物理隔离**：
+三个可配置的数据库（`event-stream-database`、`snapshot-database`、`prepare-database`）可在已配置的 MongoDB 部署内对工作负载进行逻辑分离：
 
 - **事件流**：写入密集（仅追加），受益于快速存储
-- **快照**：读取密集（物化视图），受益于缓存和读取副本
+- **快照**：读取密集（物化视图），受益于专用索引和缓存
 - **PrepareKey**：低容量、短生命周期文档，受益于 TTL 索引清理
 
-当三者都为默认值 `null` 时，它们共享 Spring 配置的 MongoDB 数据库，这对开发和中度负载已经足够。对于生产环境，将它们分开可以实现独立的扩展、备份计划和读取偏好调优。
+当三者都为默认值 `null` 时，它们共享 Spring 配置的 MongoDB 数据库，这对开发和中度负载已经足够。不同的数据库名称可以支持差异化的 schema 管理、备份与保留策略以及运维归属；除非提供自定义集成，否则它们仍共享同一个 `MongoClient`。
 
 ## 分片策略
 
@@ -666,9 +658,8 @@ com.mongodb.MongoTimeoutException
 
 ```yaml
 spring:
-  data:
-    mongodb:
-      uri: mongodb://user:password@mongo1:27017,mongo2:27017,mongo3:27017/wow_db?replicaSet=rs0&w=majority&readPreference=secondaryPreferred&minPoolSize=10&maxPoolSize=100
+  mongodb:
+    uri: mongodb://user:password@mongo1:27017,mongo2:27017,mongo3:27017/wow_db?replicaSet=rs0&w=majority&minPoolSize=10&maxPoolSize=100
 
 wow:
   eventsourcing:
@@ -688,7 +679,7 @@ wow:
 
 ## 最佳实践
 
-1. **数据库分离**：将事件流、快照和 PrepareKey 存储在不同的数据库中，以实现独立扩展和管理
+1. **数据库分离**：当事件流、快照和 PrepareKey 需要不同的 schema、备份、保留或归属策略时，使用不同的数据库名称
 2. **启用快照**：对于拥有大量事件的聚合，启用快照可以显著提高加载性能
 3. **使用副本集**：在生产环境中使用副本集以实现高可用性
 4. **索引优化**：根据查询模式创建适当的复合索引

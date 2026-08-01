@@ -63,7 +63,9 @@ At this time, you have to modify your business code to adapt to the horizontally
 
 However, if you choose to use the _Wow_ framework, you no longer need to pay too much attention to database relationship patterns, sharding rules, etc. Your business code does not need to change, and the system can easily achieve horizontal scaling.
 
-You can learn more about [Wow framework performance](./perf-test) here.
+To evaluate the current version, use the reproducible JMH tasks in
+[Test Runtime](./test-runtime.md#benchmark-smoke). Historical throughput numbers without the
+matching code revision, hardware, and run parameters are not current performance guarantees.
 
 ### Read-Write Separation and Sync Delay
 

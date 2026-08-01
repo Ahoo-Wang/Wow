@@ -121,9 +121,8 @@ springdoc:
 spring:
   application:
     name: <your-service-name>
-  data:
-    mongodb:
-      uri: <mongodb-uri>
+  mongodb:
+    uri: <mongodb-uri>
 
 cosid:
   machine:
@@ -236,138 +235,14 @@ class DemoSpec : AggregateSpec<Demo, DemoState>({
 })
 ```
 
-## CI/CD Pipeline
+## CI Verification
 
-![Wow-CI-Flow](../../public/images/getting-started/ci-flow.png)
+The Wow repository uses GitHub Actions and JDK 17. Before submitting changes, run the same core checks locally:
 
-### Test Stage
-
-![test-coverage](../../public/images/getting-started/test-coverage.png)
-
-::: code-group
-```shell [Code Style Check]
+```shell
+./gradlew allLocalTest
+./gradlew allContractTest
 ./gradlew detekt
 ```
-```shell [Domain Model Unit Tests]
-./gradlew domain:check
-```
-```shell [Test Coverage Verification]
-./gradlew domain:jacocoTestCoverageVerification
-```
-:::
 
-### Build Stage
-
-::: code-group
-```shell [Generate Deployment Package]
-./gradlew server:installDist
-```
-```shell [Publish Docker Image]
-docker login --username=<username> --password=<******> <registry>
-docker build -t <registry>/<image>:<tag> server
-docker push <registry>/<image>:<tag>
-```
-:::
-
-### Deploy Stage
-
-```shell [Deploy to Kubernetes]
-kubectl apply -f deploy
-```
-
-### Pipeline Configuration (Alibaba Cloud Flow)
-
-```yaml
-sources:
-  wow_project_template_repo:
-    type: codeup
-    name: Wow Project Template Source
-    endpoint: <your-project-repo>
-    branch: main
-    certificate:
-      type: serviceConnection
-      serviceConnection: <your-service-connection-id>
-stages:
-  test:
-    name: "Test"
-    jobs:
-      code_style:
-        name: "Check CodeStyle"
-        runsOn: public/cn-hongkong
-        steps:
-          code_style:
-            name: "Code Style Check"
-            step: "JavaBuild"
-            runsOn: public/
-            with:
-              jdkVersion: "17"
-              run: ./gradlew detekt
-
-      test:
-        name: "Check Domain"
-        runsOn: public/cn-hongkong
-        steps:
-          test:
-            name: "Check Domain"
-            step: "GradleUnitTest"
-            with:
-              jdkVersion: "17"
-              run: ./gradlew domain:check
-              reportDir: "domain/build/reports/tests/test"
-              reportIndex: "index.html"
-          coverage:
-            name: "Check CodeCoverage"
-            step: "JaCoCo"
-            with:
-              jdkVersion: "17"
-              run: ./gradlew domain:jacocoTestCoverageVerification
-              reportDir: "domain/build/reports/jacoco/test/html"
-  build:
-    name: "Build"
-    jobs:
-      build:
-        name: "Build Server And Push Image"
-        runsOn: public/cn-hongkong
-        steps:
-          build:
-            name: "Build Server"
-            step: "JavaBuild"
-            with:
-              jdkVersion: "17"
-              run: ./gradlew server:installDist
-          publish_image:
-            name: "Push Image"
-            step: "ACRDockerBuild"
-            with:
-              artifact: "image"
-              dockerfilePath: "server/Dockerfile"
-              dockerRegistry: "<your-docker-registry—url>"
-              dockerTag: ${DATETIME}
-              region: "cn-hangzhou"
-              serviceConnection: "<your-service-connection-id>"
-  deploy:
-    name: "Deploy"
-    jobs:
-      deploy:
-        name: "Deploy"
-        runsOn: public/cn-hongkong
-        steps:
-          deploy:
-            name: "Deploy"
-            step: "KubectlApply"
-            with:
-              skipTlsVerify: false
-              kubernetesCluster: "<your-kubernetes-id>"
-              useReplace: false
-              namespace: "dev"
-              kubectlVersion: "1.22.9"
-              yamlPath: "deploy"
-              skipVariableVerify: false
-              variables:
-                - key: IMAGE
-                  value: $[stages.build.build.publish_image.artifacts.image]
-                - key: REPLICAS
-                  value: 2
-                - key: SERVICE_NAME
-                  value: demo-service
-```
+The authoritative workflow definitions are [Local Test](https://github.com/Ahoo-Wang/Wow/blob/main/.github/workflows/local-test.yml), [Contract Test](https://github.com/Ahoo-Wang/Wow/blob/main/.github/workflows/contract-test.yml), and [Static Analysis](https://github.com/Ahoo-Wang/Wow/blob/main/.github/workflows/static-analysis.yml). Application projects should add their own image publishing and deployment stages for the target registry and runtime instead of copying provider-specific credentials or pipeline templates.

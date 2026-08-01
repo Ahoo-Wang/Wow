@@ -46,7 +46,7 @@ graph LR
 
 ```
 
-<!-- Sources: wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt:53-126, wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt:52-95, wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt:27-98 -->
+<!-- Sources: wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt:53-126, wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt:52-90, wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt:27-98 -->
 
 ## Aggregate Root
 
@@ -115,9 +115,9 @@ Wow provides annotations to declare intent at the command level:
 
 ## Domain Events
 
-A **Domain Event** is an immutable fact that something happened in the domain. In Wow, events implement the `DomainEvent<T>` interface.
+A **Domain Event** is an immutable fact that something happened in the domain. Business event payloads are ordinary data classes or objects; at runtime Wow wraps each payload in a `DomainEvent<T>` envelope that carries aggregate and message metadata.
 
-Key characteristics of `DomainEvent` as defined in [DomainEvent.kt:52-95](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L52-L95):
+Key characteristics of `DomainEvent` as defined in [DomainEvent.kt:52-90](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L52-L90):
 
 | Property | Default | Purpose |
 |---|---|---|
@@ -379,7 +379,7 @@ classDiagram
     EventMessage <|-- DomainEvent
 ```
 
-<!-- Sources: wow-api/src/main/kotlin/me/ahoo/wow/api/messaging/function/FunctionKind.kt:27-71, wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt:53-126, wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt:52-95 -->
+<!-- Sources: wow-api/src/main/kotlin/me/ahoo/wow/api/messaging/function/FunctionKind.kt:27-71, wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt:53-126, wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt:52-90 -->
 
 ### FunctionKind to TopicKind Mapping
 
@@ -414,7 +414,7 @@ The following table summarizes how each concept maps to a Wow artifact:
 | Aggregate Root | Command root class | `@AggregateRoot` |
 | Entity State | State class | Convention: `*State` |
 | Command | Data class | `CommandMessage<C>`, `@OnCommand` |
-| Domain Event | Data class/object | `DomainEvent<T>`, `@Event` |
+| Domain Event | Payload data class/object plus runtime envelope | `DomainEvent<T>`, `@Event` |
 | Event Sourcing | State rebuild methods | `@OnSourcing` |
 | Read Model | Projection processor | `@ProjectionProcessor`, `@OnEvent` |
 | Saga | Stateless saga class | `@StatelessSaga`, `@OnEvent` |

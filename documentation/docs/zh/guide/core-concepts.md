@@ -59,7 +59,7 @@ graph LR
     style EVENTS fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
 ```
 
-<!-- Sources: wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt:53-126, wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt:52-95, wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt:27-98 -->
+<!-- Sources: wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt:53-126, wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt:52-90, wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt:27-98 -->
 
 ## 聚合根
 
@@ -128,9 +128,9 @@ Wow 提供了在命令级别声明意图的注解：
 
 ## 领域事件
 
-**领域事件** 是领域中已发生事件的不可变事实。在 Wow 中，事件实现 `DomainEvent<T>` 接口。
+**领域事件** 是领域中已发生事件的不可变事实。业务事件载荷是普通 data class 或 object；运行时 Wow 会将载荷包装为携带聚合与消息元数据的 `DomainEvent<T>` 信封。
 
-`DomainEvent` 的关键特性定义在 [DomainEvent.kt:52-95](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L52-L95)：
+`DomainEvent` 的关键特性定义在 [DomainEvent.kt:52-90](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L52-L90)：
 
 | 属性 | 默认值 | 用途 |
 |---|---|---|
@@ -392,7 +392,7 @@ classDiagram
     EventMessage <|-- DomainEvent
 ```
 
-<!-- Sources: wow-api/src/main/kotlin/me/ahoo/wow/api/messaging/function/FunctionKind.kt:27-71, wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt:53-126, wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt:52-95 -->
+<!-- Sources: wow-api/src/main/kotlin/me/ahoo/wow/api/messaging/function/FunctionKind.kt:27-71, wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt:53-126, wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt:52-90 -->
 
 ### FunctionKind 到 TopicKind 的映射
 
@@ -427,7 +427,7 @@ Wow 在聚合级别支持多租户。每个 `AggregateId` 都包含一个 `tenan
 | 聚合根 | 命令根类 | `@AggregateRoot` |
 | 实体状态 | 状态类 | 约定：`*State` |
 | 命令 | 数据类 | `CommandMessage<C>`、`@OnCommand` |
-| 领域事件 | 数据类/object | `DomainEvent<T>`、`@Event` |
+| 领域事件 | 载荷 data class/object + 运行时信封 | `DomainEvent<T>`、`@Event` |
 | 事件溯源 | 状态重建方法 | `@OnSourcing` |
 | 读模型 | 投影处理器 | `@ProjectionProcessor`、`@OnEvent` |
 | Saga | 无状态 Saga 类 | `@StatelessSaga`、`@OnEvent` |

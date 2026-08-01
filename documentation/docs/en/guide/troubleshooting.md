@@ -211,9 +211,8 @@ wow:
 
 ```yaml
 spring:
-  data:
-    mongodb:
-      uri: mongodb://localhost:27017/wow_db?connectTimeoutMS=5000&socketTimeoutMS=5000
+  mongodb:
+    uri: mongodb://localhost:27017/wow_db?connectTimeoutMS=5000&socketTimeoutMS=5000
 ```
 
 #### Q: Redis Connection Failure
@@ -311,9 +310,8 @@ wow:
 3. **Adjust Connection Pool**
 ```yaml
 spring:
-  data:
-    mongodb:
-      uri: mongodb://localhost:27017/wow_db?minPoolSize=10&maxPoolSize=100
+  mongodb:
+    uri: mongodb://localhost:27017/wow_db?minPoolSize=10&maxPoolSize=100
 ```
 
 ## Log Analysis

@@ -23,7 +23,6 @@ export const navbarEn: DefaultTheme.NavItem[] = [
                 text: 'Examples',
                 items: [
                     {text: 'Bank Transfer (JAVA)', link: '/reference/example/transfer'},
-                    {text: 'Order System', link: '/reference/example/order'},
                     {text: 'Event Compensation', link: '/reference/example/compensation'},
                 ],
             },

@@ -280,23 +280,16 @@ Ensure projections are idempotent:
 ```kotlin
 @ProjectionProcessor
 class IdempotentProjection(
-    private val eventStore: EventStore
+    private val repository: OrderProjectionRepository
 ) {
 
     @OnEvent
-    fun onOrderUpdated(event: OrderUpdated): Mono<Void> {
-        // Check if already processed using event ID
-        return eventStore.exists(event.eventId)
-            .filter { !it }
-            .flatMap { processUpdate(event) }
-            .then()
-    }
-
-    private fun processUpdate(event: OrderUpdated): Mono<Void> {
-        // Process the update
-    }
+    fun onOrderUpdated(event: DomainEvent<OrderUpdated>): Mono<Void> =
+        repository.upsertByEventId(event.id, event.body)
 }
 ```
+
+Enforce the event ID as a unique key, or use an atomic upsert, in the read-model store. `EventStore` persists aggregate event streams; it does not expose a processed-event lookup API for projections.
 
 ## Performance Considerations
 

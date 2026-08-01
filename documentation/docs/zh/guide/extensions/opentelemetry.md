@@ -27,7 +27,6 @@ Wow 框架的 _OpenTelemetry_ 模块通过提供一系列仪表器（_Instrument
 - `ProjectionInstrumenter`: 投影仪表器，用于记录投影的操作。
 - `StatelessSagaInstrumenter`: 无状态Saga仪表器，用于记录无状态Saga的操作。
 - `SnapshotInstrumenter`: 快照仪表器，用于记录快照的操作。
-- `SnapshotRepositoryInstrumenter`: 快照仓储仪表器，用于记录快照仓储的操作。
 - `SnapshotStoreInstrumenter`: 快照存储仪表器，用于记录快照存储的操作。
 - `WaitPlanInstrumenter`: 命令等待计划仪表器，用于记录命令等待/通知的操作。
 
@@ -94,13 +93,12 @@ wow:
 对于 `order` 聚合上的 `CreateOrder` 命令（触发一个 Saga 和一个投影），链路层级如下：
 
 ```text
-order.create_order              (TraceAggregateFilter —— 聚合命令)
-├── wow-mongo append            (TracingEventStore —— 事件持久化)
-├── order.event-store.send      (TracingCommandBus/EventBus —— 消息发布)
-├── order.snapshot.save         (TraceSnapshotFilter —— 快照创建)
-├── order.saga.OrderCreated     (TraceStatelessSagaFilter —— Saga onOrderCreated)
-└── order.projection.OrderCreated (TraceProjectionFilter —— 投影 onOrderCreated)
+order.create_order                         (TraceAggregateFilter —— 聚合命令)
+├── order.OrderCreated.event.append        (TracingEventStore —— 事件持久化)
+├── order.OrderCreated.event send          (TracingEventBus —— 消息发布)
+│   ├── OrderSaga.onEvent(OrderCreated)         (TraceStatelessSagaFilter —— Saga 处理器)
+│   └── OrderProjection.onEvent(OrderCreated)  (TraceProjectionFilter —— 投影处理器)
+└── order.snapshot                         (TraceSnapshotFilter —— 快照创建)
 ```
 
-确切的 span 名称取决于仪表器的 `SpanNameExtractor`；关键在于一条命令的所有 span 通过上下文传播共享同一个 trace ID，
-从而让你从 HTTP 请求到读模型更新获得端到端可观测性。
+投影、Saga 和事件处理器的 span 名称使用函数的 `qualifiedName` 格式（`{processorName}.{functionName}({eventType})`）。生产者仪表器把上下文注入消息，因此消费者 span 是生产者 span 的子节点，而不是同级节点；同一命令的 span 通过上下文传播共享 trace ID。

@@ -37,13 +37,11 @@ implementation("me.ahoo.wow:wow-cocache")
 @Configuration
 class CacheConfiguration {
     @Bean
-    fun orderCache(): Cache<String, OrderCacheData> {
-        return CoCache.builder<String, OrderCacheData>()
-            .name("order")
-            .build()
-    }
+    fun orderCache(): Cache<String, OrderCacheData> = MapClientSideCache()
 }
 ```
+
+`MapClientSideCache` 适用于本地示例；生产环境的缓存实现与后端配置请以 CoCache 文档为准。
 
 ### 2. 注册缓存源（缓存未命中时加载）
 

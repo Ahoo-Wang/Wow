@@ -64,7 +64,7 @@ graph TB
 | **CosId** | Global ID, aggregate ID, machine ID generation | Built-in dependency |
 | **CoSec** | Multi-tenant reactive security (RBAC + ABAC) | `wow-cosec` |
 | **CoCache** | Distributed consistent secondary cache | `wow-cocache` |
-| **Simba** | Distributed lock service | Build-time dependency |
+| **Simba** | Distributed scheduling and mutual exclusion for the compensation server | `wow-compensation-server` runtime dependency |
 | **CoSky** | Service discovery + configuration management | Optional deployment |
 | **CoApi** | Declarative HTTP client for Spring 6 | `wow-apiclient` |
 | **Fetcher** | HTTP client ecosystem + TypeScript client generation | `wow-project-template` |

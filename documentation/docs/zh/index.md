@@ -31,10 +31,10 @@ features:
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6l3 7-6 11-6-11 3-7Z"/><path d="M9 3 3 10h18L15 3"/></svg>'
   details: 基于 Given->When->Expect 模式的测试套件，助力开发者轻松实现 80% 以上的测试覆盖率，确保高质量应用交付
   link: /zh/guide/test-suite
-- title: 高性能
+- title: 可复现的性能基线
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>'
-  details: Aggregate+EventSourcing、CQRS 架构，写操作仅需进行 AppendOnly 操作，读操作则利用面向查询的搜索引擎
-  link: /zh/guide/perf-test
+  details: 提供按用途分层的 JMH 基准任务；性能结论必须绑定当前代码、运行环境与结果清单，避免复用失去上下文的历史数据
+  link: /zh/guide/test-runtime#基准-smoke
 - title: 可伸缩性
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/></svg>'
   details: 无需考虑数据库关系模式、分片规则等问题，代码无需变更，即可轻松实现水平伸缩

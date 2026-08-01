@@ -38,13 +38,11 @@ Create a CoCache `Cache<String, YourCacheData>` bean (see the
 @Configuration
 class CacheConfiguration {
     @Bean
-    fun orderCache(): Cache<String, OrderCacheData> {
-        return CoCache.builder<String, OrderCacheData>()
-            .name("order")
-            .build()
-    }
+    fun orderCache(): Cache<String, OrderCacheData> = MapClientSideCache()
 }
 ```
+
+`MapClientSideCache` is suitable for a local example. Select and configure a production cache implementation using the CoCache documentation.
 
 ### 2. Register a Cache Source (cache miss loader)
 

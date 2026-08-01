@@ -37,7 +37,7 @@ The integration is transparent: clients send the CoSec headers on each command H
 ### Sending CoSec Headers
 
 ```http
-POST /order/owner/{ownerId}/create_order
+POST /tenant/{tenantId}/owner/{ownerId}/sales-order
 Content-Type: application/json
 Command-Wait-Stage: PROCESSED
 CoSec-App-Id: wow-shop
@@ -49,6 +49,8 @@ CoSec-Space-Id: production
   "items": [...]
 }
 ```
+
+With CoSec enabled, `CoSec-Space-Id` supplies the command `spaceId` when the standard `Wow-Space-Id` header is absent or blank. If both headers contain non-blank values, `Wow-Space-Id` takes precedence because the default extractor sets it first and `CoSecCommandBuilderExtractor` only fills an unset `spaceId`. The generated OpenAPI may still list the optional `Wow-Space-Id` header, so this example intentionally sends only `CoSec-Space-Id`.
 
 ### How the Context Flows
 

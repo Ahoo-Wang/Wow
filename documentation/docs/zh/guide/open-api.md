@@ -30,6 +30,14 @@ implementation 'me.ahoo.wow:wow-openapi'
 
 :::
 
+以上依赖提供 Wow 的 OpenAPI 模型与路由规范。若要在 Spring Boot WebFlux 应用中发布这些规范，还需引入 `wow-spring-boot-starter` 和 WebFlux 模块；Swagger UI 本身由 Springdoc 提供：
+
+```kotlin
+implementation("me.ahoo.wow:wow-spring-boot-starter")
+implementation("me.ahoo.wow:wow-webflux")
+implementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
+```
+
 ## Swagger-UI
 
 > Swagger-UI 是一个基于 OpenAPI 规范的 API 文档工具，可以通过 Swagger-UI 来查看和测试 API 接口。

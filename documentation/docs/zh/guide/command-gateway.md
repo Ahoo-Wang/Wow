@@ -325,13 +325,13 @@ sequenceDiagram
 
 `DefaultCommandGateway` 在命令到达总线之前强制执行严格的发送前管道：
 
-1. **幂等性检查** -- 获取聚合类型的 `IdempotencyChecker`，先快速预检 `requestId`。当预检命中重复时，网关会通过 `EventStore.existsRequestId(aggregateId, requestId)` 进行确认，只有事件存储也确认存在时才抛出 `DuplicateRequestIdException`，避免 BloomFilter 等预检结构的误判阻断合法命令。
+1. **幂等性检查** -- 委托给 `RequestIdChecker`。`DefaultRequestIdChecker` 先执行聚合的快速幂等预检；当预检拒绝 `requestId` 时，再通过配置的 `RequestIdExistenceChecker` 做权威确认，`EventStore` 实现了该接口。确认重复后抛出 `DuplicateRequestIdException`，预检误判则可继续执行。
 
 2. **验证** -- 两阶段验证：
    - **自验证**：如果命令体实现了 `CommandValidator`，则首先调用其 `validate()` 方法。这允许进行特定于领域的编程验证。
    - **Jakarta Bean Validation**：通过配置的 `jakarta.validation.Validator`，根据 `@NotBlank`、`@Min`、`@Max` 等 Jakarta 注解验证命令体。
 
-两项检查都在 `check()` 方法中实现，位于 [DefaultCommandGateway.kt:99](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L99)。
+两项检查在 [`check()` 方法](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L114)中组合执行。
 
 ### DefaultCommandGateway：发送后信号
 

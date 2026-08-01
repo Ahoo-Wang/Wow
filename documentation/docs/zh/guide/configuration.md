@@ -582,9 +582,9 @@ spring:
   application:
     name: order-service
 
+  mongodb:
+    uri: mongodb://localhost:27017/wow_db
   data:
-    mongodb:
-      uri: mongodb://localhost:27017/wow_db
     redis:
       host: localhost
       port: 6379

@@ -63,7 +63,7 @@ flowchart TB
     subgraph Components["Components"]
         CG[CommandGateway]
         CB[CommandBus]
-        EB[EventBus]
+        EB[DomainEventBus / StateEventBus]
         ES[EventStore]
         SR[SnapshotStore]
     end
@@ -87,8 +87,8 @@ flowchart TB
 | `EventAutoConfiguration` | Event bus configuration | `wow.enabled=true` |
 | `EventSourcingAutoConfiguration` | Event sourcing configuration | `wow.enabled=true` |
 | `KafkaAutoConfiguration` | Kafka configuration | Classpath contains Kafka |
-| `MongoAutoConfiguration` | MongoDB configuration | Classpath contains MongoDB |
-| `RedisAutoConfiguration` | Redis configuration | Classpath contains Redis |
+| `MongoEventSourcingAutoConfiguration` | MongoDB event/snapshot store configuration | Mongo support is on the classpath |
+| `RedisEventSourcingAutoConfiguration` / `RedisMessageBusAutoConfiguration` | Redis event sourcing / message bus configuration | Redis support is on the classpath |
 | `WebFluxAutoConfiguration` | WebFlux configuration | Classpath contains WebFlux |
 
 ## Complete Configuration Properties
@@ -122,86 +122,20 @@ flowchart TB
 
 | Property | Type | Default | Description |
 |------|------|--------|------|
-| `wow.eventsourcing.store.storage` | EventStoreStorage | mongo | Event store type |
+| `wow.eventsourcing.store.storage` | `StorageType` | mongo | Event store type |
 | `wow.eventsourcing.snapshot.enabled` | Boolean | true | Enable snapshots |
 | `wow.eventsourcing.snapshot.strategy` | Strategy | all | Snapshot strategy |
 | `wow.eventsourcing.snapshot.version-offset` | Int | 5 | Version offset |
-| `wow.eventsourcing.snapshot.storage` | SnapshotStorage | mongo | Snapshot storage type |
+| `wow.eventsourcing.snapshot.storage` | `StorageType` | mongo | Snapshot storage type |
 | `wow.eventsourcing.state.bus.type` | BusType | kafka | State event bus type |
 
-## Bean Wiring
+## Bean Wiring and Overrides
 
-### Core Beans
+Auto-configuration is split by responsibility: command, event, event sourcing, storage, transport, query, observability, and integrations. Infrastructure configurations are activated by their classpath capability and configuration conditions. Many non-storage extension points use `@ConditionalOnMissingBean`; for example, a custom `CommandGateway` can replace the default when its declaring auto-configuration permits it. Check the specific `@Bean` declaration instead of assuming every interface is replaceable.
 
-```kotlin
-@Bean
-@ConditionalOnMissingBean
-fun commandGateway(
-    commandBus: CommandBus,
-    waitPlanRegistrar: WaitCoordinator
-): CommandGateway {
-    return DefaultCommandGateway(commandBus, waitPlanRegistrar)
-}
+`EventStore` and `SnapshotStore` use a different model. Storage capabilities publish `EventStoreBinding` and `SnapshotStoreBinding`, and `StorageRoutingAutoConfiguration` builds the `@Primary` routing stores from those bindings. To integrate a custom backend, register named bindings and select them through `wow.eventsourcing.storage-routing`; when it also serves query routes, provide the matching `EventStreamQueryServiceFactoryBinding` and `SnapshotQueryServiceFactoryBinding`. If replacing a built-in storage capability wholesale, exclude or disable that storage auto-configuration first. A plain `EventStore` or `SnapshotStore` bean does not automatically override an enabled storage capability.
 
-@Bean
-@ConditionalOnMissingBean
-fun stateAggregateRepository(
-    stateAggregateFactory: StateAggregateFactory,
-    snapshotStore: SnapshotStore,
-    eventStore: EventStore
-): StateAggregateRepository {
-    return EventSourcingStateAggregateRepository(
-        stateAggregateFactory,
-        snapshotStore,
-        eventStore
-    )
-}
-```
-
-### Conditional Wiring
-
-Wow framework uses various conditional annotations to control Bean wiring:
-
-| Annotation | Description |
-|------|------|
-| `@ConditionalOnMissingBean` | Create only if Bean is missing |
-| `@ConditionalOnProperty` | Create based on configuration property |
-| `@ConditionalOnClass` | Create based on classpath |
-| `@ConditionalOnBean` | Create based on other Bean existence |
-
-## Custom Configuration
-
-### Override Default Beans
-
-```kotlin
-@Configuration
-class CustomWowConfiguration {
-    
-    @Bean
-    fun customCommandGateway(
-        commandBus: CommandBus,
-        waitPlanRegistrar: WaitCoordinator
-    ): CommandGateway {
-        // Custom implementation
-        return CustomCommandGateway(commandBus, waitPlanRegistrar)
-    }
-}
-```
-
-### Custom Event Processor
-
-```kotlin
-@Configuration
-class EventProcessorConfiguration {
-    
-    @Bean
-    fun customEventProcessor(
-        eventBus: EventBus
-    ): EventProcessor {
-        return CustomEventProcessor(eventBus)
-    }
-}
-```
+Use the extension-specific guide and [configuration reference](../../reference/config/core) for the exact dependency, properties, and override boundary. Internal constructors are not configuration APIs and may change independently.
 
 ## Multi-Module Project Configuration
 
@@ -255,20 +189,7 @@ dependencies {
 
 ## Metadata Loading
 
-Spring Boot Starter automatically loads metadata generated by the compiler:
-
-```kotlin
-@Configuration
-class MetadataConfiguration {
-    
-    init {
-        // Automatically scan and load wow-metadata.json
-        MetadataSearcher.search()
-    }
-}
-```
-
-Metadata file location: `META-INF/wow-metadata.json`
+The compiler writes aggregate metadata to `META-INF/wow-metadata.json`. At runtime, `MetadataSearcher` lazily merges all resources with that name from the application classpath. Applications do not need to call `MetadataSearcher.search()` or register a metadata configuration bean.
 
 ## Processor Registration
 
@@ -305,9 +226,8 @@ class OrderProjection {
 spring:
   application:
     name: order-service
-  data:
-    mongodb:
-      uri: mongodb://localhost:27017/order_db
+  mongodb:
+    uri: mongodb://localhost:27017/order_db
 
 wow:
   enabled: true
@@ -354,4 +274,4 @@ wow:
 2. **Use Compiler**: Enable wow-compiler to generate metadata and query property navigation
 3. **Externalize Configuration**: Use Spring Boot configuration files to externalize configuration
 4. **Conditional Wiring**: Use `@ConditionalOnMissingBean` to allow custom overrides
-5. **Enable Local-First**: Enable LocalFirst mode to improve performance
+5. **Choose Local-First Deliberately**: Keep the default only when local delivery semantics match the deployment topology; validate distributed fallback and duplicate handling

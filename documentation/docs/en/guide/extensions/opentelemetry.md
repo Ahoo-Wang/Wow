@@ -27,7 +27,6 @@ The _OpenTelemetry_ module of the Wow framework provides a series of instrumente
 - `ProjectionInstrumenter`: Projection instrumenter, used to record projection operations.
 - `StatelessSagaInstrumenter`: Stateless Saga instrumenter, used to record stateless Saga operations.
 - `SnapshotInstrumenter`: Snapshot instrumenter, used to record snapshot operations.
-- `SnapshotRepositoryInstrumenter`: Snapshot repository instrumenter, used to record snapshot repository operations.
 - `SnapshotStoreInstrumenter`: Snapshot store instrumenter, used to record snapshot store operations.
 - `WaitPlanInstrumenter`: Command wait-plan instrumenter, used to record command wait/notify operations.
 
@@ -95,9 +94,9 @@ For a `CreateOrder` command on the `order` aggregate that triggers a saga and a 
 order.create_order                    (TraceAggregateFilter — aggregate command)
 ├── order.OrderCreated.event.append   (TracingEventStore — event persistence)
 ├── order.OrderCreated.event send     (TracingEventBus — message publish)
-├── order.snapshot                    (TraceSnapshotFilter — snapshot creation)
-├── OrderSaga.onEvent(OrderCreated)   (TraceStatelessSagaFilter — saga handler)
-└── OrderProjection.onEvent(OrderCreated) (TraceProjectionFilter — projection handler)
+│   ├── OrderSaga.onEvent(OrderCreated) (TraceStatelessSagaFilter — saga handler)
+│   └── OrderProjection.onEvent(OrderCreated) (TraceProjectionFilter — projection handler)
+└── order.snapshot                    (TraceSnapshotFilter — snapshot creation)
 ```
 
 Span names for projection/saga/event-processor use the function's `qualifiedName` format

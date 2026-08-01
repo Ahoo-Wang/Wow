@@ -45,7 +45,7 @@ pnpm install
 pnpm docs:build
 ```
 
-See the [contributor onboarding guide](https://wow.ahoo.me/onboarding/contributor-guide.html) for architecture, module boundaries, testing patterns, and additional commands.
+For more context, see the [architecture guide](https://wow.ahoo.me/guide/advanced/architecture.html), [testing guide](https://wow.ahoo.me/guide/test-suite.html), and [getting-started guide](https://wow.ahoo.me/guide/getting-started.html).
 
 ## Change Guidelines
 
