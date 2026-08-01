@@ -3,7 +3,7 @@
   "plugins": [
     {
       "name": "ahoo-wow-skills",
-      "description": "Agent skills for building, testing, reviewing, and debugging Wow reactive DDD, Event Sourcing, and CQRS microservices.",
+      "description": "Agent skills for building, testing, reviewing, debugging, and migrating Wow reactive DDD, Event Sourcing, and CQRS microservices.",
       "skills": {
         "include": [
           "*"
@@ -22,7 +22,8 @@
         "kotlin",
         "spring-boot",
         "reactor",
-        "microservices"
+        "microservices",
+        "migration"
       ],
       "category": "development",
       "interface": {
@@ -30,7 +31,7 @@
         "capabilities": [
           "Skills"
         ],
-        "defaultPrompt": "Help me design, test, review, and debug Wow DDD, Event Sourcing, and CQRS services."
+        "defaultPrompt": "Help me design, test, review, debug, and migrate Wow DDD, Event Sourcing, and CQRS services."
       },
       "policy": {
         "installation": "AVAILABLE",

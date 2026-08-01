@@ -20,6 +20,7 @@ graph TD
     A[用户任务] --> C{任务意图}
     C -->|明确审查| E[wow-code-review]
     C -->|明确诊断| F[wow-debugging]
+    C -->|Wow v6 到 v8 迁移| H[wow-v6-to-v8-migration]
     C -->|Aggregate/Saga 端到端实现| D[wow-development-workflow]
     C -->|混合、单点查询或其他聚焦实现| B[wow Router]
     B --> D
@@ -51,6 +52,7 @@ graph TD
 | `wow-development-workflow` | 端到端开发工作流。覆盖需求确认、源码发现、领域建模、Aggregate Flow、Saga Flow、测试、增强、审查和验证。 |
 | `wow-code-review` | Wow 语义优先的代码审查。重点检查事件溯源、聚合边界、Saga 编排、测试覆盖和 API metadata。 |
 | `wow-debugging` | Wow 管线问题定位。按命令、事件、溯源、Saga、等待计划、Query DSL、配置和测试阶段定位根因。 |
+| `wow-v6-to-v8-migration` | 将已有 Wow v6 应用按平台、源码、数据、运行时与发布门禁迁移到固定的 Wow v8 版本。 |
 
 ## 工作流哲学
 
@@ -103,6 +105,7 @@ graph TD
 | 审查 PR 或 diff | `wow-code-review` |
 | 审查并修复 PR 或 diff | `wow-code-review` ->（Aggregate/Saga：`wow-development-workflow`；其他：`wow`）-> `wow-code-review` post-fix review；仅对新发现且已授权的问题重复 |
 | 定位失败或异常行为 | `wow-debugging` |
+| 审计、规划、实施或验证 Wow v6 到 v8 迁移 | `wow-v6-to-v8-migration` |
 | 混合任务 | `wow` -> 对应 specialist |
 | 查询单点 API 或注解规则 | `wow` -> `wow/references/*` |
 | 实现 Projection 或 EventProcessor | `wow` -> `annotations.md`、`testing.md` |
@@ -130,6 +133,7 @@ graph TD
 | Configuration | `wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/**/*Properties.kt` |
 | Saga retry policy | `wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/Retry.kt` |
 | PrepareKey | `wow-core/src/main/kotlin/me/ahoo/wow/infra/prepare/PrepareKey.kt`, `PreparedValue.kt`; `wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/prepare/PrepareKeyAutoRegistrar.kt` |
+| v6 到 v8 迁移 | `documentation/docs/zh/guide/migration/v6-to-v8.md`, `documentation/docs/zh/guide/migration/runtime-orchestration.md` |
 
 ## 验证
 

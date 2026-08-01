@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wow v6 to v8 Migration"
+  short_description: "Plan and execute evidence-gated Wow v6 to v8 upgrades"
+  default_prompt: "Use $wow-v6-to-v8-migration to audit this Wow v6 service and produce an evidence-gated migration to Wow v8."
