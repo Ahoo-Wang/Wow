@@ -85,7 +85,7 @@ wow:
       max-deferred-commits: 1
       retry-attempts: 3
       retry-backoff: 10s
-      decode-failure-strategy: fail
+      decode-failure-strategy: FAIL
 
   mongo:
     enabled: true

@@ -100,7 +100,7 @@ fun onCommand(cmd: CreateOrder): OrderCreated { ... }
 
 ### @OnSourcing
 
-Marks a method as an event sourcing handler used to rebuild aggregate state. The annotation may be omitted only when the function is named exactly `onSourcing` and declares exactly one value parameter: the event, `DomainEvent`, or exchange parameter. A descriptive name such as `onCartItemAdded`, or an `onSourcing` function with additional exchange-derived parameters, must declare `@OnSourcing` to be discovered by the runtime parser.
+Marks a method as an event sourcing handler used to rebuild aggregate state. The annotation may be omitted only when the function is named exactly `onSourcing` and declares exactly one value parameter. The runtime derives the supported event body type from that first parameter: either the direct body type or the generic body type carried by `DomainEvent<T>` / `DomainEventExchange<T>`. A descriptive name such as `onCartItemAdded`, or an `onSourcing` function with additional exchange-derived parameters, must declare `@OnSourcing` to be discovered by the runtime parser.
 
 Aggregate sourcing invokes the function with a fresh `SimpleDomainEventExchange`; that exchange does not carry a `ServiceProvider`. Additional parameters must be extractable from the exchange itself. Sourcing must not depend on IOC services or external side effects.
 
@@ -120,6 +120,7 @@ fun onSourcing(event: DomainEvent<OrderPaid>) {  // Generic form
 **Handler parameter types:**
 - Specific event: `CartItemAdded`
 - Domain event: `DomainEvent<CartItemAdded>`
+- Domain event exchange: `DomainEventExchange<CartItemAdded>`
 
 **Rules:**
 - Must be deterministic — same events always produce same state
