@@ -45,7 +45,10 @@ class SnapshotFindNextRetry(
             limit(limit)
             condition {
                 nestedState()
-                RECOVERABLE ne RecoverableType.UNRECOVERABLE.name
+                RECOVERABLE isIn listOf(
+                    RecoverableType.RECOVERABLE.name,
+                    RecoverableType.UNKNOWN.name,
+                )
                 IS_RETRYABLE eq true
                 RETRY_STATE__NEXT_RETRY_AT lte currentTime
                 or {

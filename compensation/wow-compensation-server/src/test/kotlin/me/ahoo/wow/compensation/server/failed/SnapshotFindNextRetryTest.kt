@@ -1,12 +1,17 @@
 package me.ahoo.wow.compensation.server.failed
 
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.slot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.exception.RecoverableType
+import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
-import me.ahoo.wow.compensation.domain.ExecutionFailedStateProperties
+import me.ahoo.wow.compensation.domain.ExecutionFailedState
 import me.ahoo.wow.query.dsl.condition
-import me.ahoo.wow.query.snapshot.nestedState
+import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import org.junit.jupiter.api.Test
+import reactor.core.publisher.Flux
 
 class SnapshotFindNextRetryTest {
     companion object {
@@ -22,9 +27,23 @@ class SnapshotFindNextRetryTest {
 
     @Test
     fun `should build correct find next retry condition`() {
-        val currentTime = System.currentTimeMillis()
+        val querySlot = slot<IListQuery>()
+        val queryService = mockk<SnapshotQueryService<ExecutionFailedState>> {
+            every { list(capture(querySlot)) } returns Flux.empty()
+        }
+        val before = System.currentTimeMillis()
+        SnapshotFindNextRetry(queryService).findNextRetry(10).collectList().block()
+        val after = System.currentTimeMillis()
+        val nextQuery = querySlot.captured
+        val currentTime = nextQuery.condition.children
+            .first { it.field == NEXT_RETRY_AT_FIELD }
+            .value as Long
+
         val originalCondition = condition {
-            RECOVERABLE_FIELD ne RecoverableType.UNRECOVERABLE.name
+            RECOVERABLE_FIELD isIn listOf(
+                RecoverableType.RECOVERABLE.name,
+                RecoverableType.UNKNOWN.name,
+            )
             IS_RETRYABLE_FIELD eq true
             NEXT_RETRY_AT_FIELD lte currentTime
             or {
@@ -36,19 +55,9 @@ class SnapshotFindNextRetryTest {
             }
         }
 
-        val nextCondition = condition {
-            nestedState()
-            ExecutionFailedStateProperties.RECOVERABLE ne RecoverableType.UNRECOVERABLE.name
-            ExecutionFailedStateProperties.IS_RETRYABLE eq true
-            ExecutionFailedStateProperties.RETRY_STATE__NEXT_RETRY_AT lte currentTime
-            or {
-                ExecutionFailedStateProperties.STATUS eq ExecutionFailedStatus.FAILED.name
-                and {
-                    ExecutionFailedStateProperties.STATUS eq ExecutionFailedStatus.PREPARED.name
-                    ExecutionFailedStateProperties.RETRY_STATE__TIMEOUT_AT lte currentTime
-                }
-            }
-        }
-        nextCondition.assert().isEqualTo(originalCondition)
+        currentTime.assert().isGreaterThanOrEqualTo(before)
+        currentTime.assert().isLessThanOrEqualTo(after)
+        nextQuery.limit.assert().isEqualTo(10)
+        nextQuery.condition.assert().isEqualTo(originalCondition)
     }
 }
