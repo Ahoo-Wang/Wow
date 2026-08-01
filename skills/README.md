@@ -113,7 +113,7 @@ graph TD
 - 不把长篇框架知识塞回 `wow/SKILL.md`，保持它是 Router。
 - 重复、细节性材料放入 `references/`，由 workflow 按需加载。
 - 不恢复旧的 `wow-aggregate-enhance` 顶层入口；聚合增强已经并入 `wow-development-workflow` 的 `Enhance` 阶段。
-- 新增 Wow 专属规则时，优先写成清晰的 `SKILL.md` 指令或 eval case；不要创建通用 Markdown/NLP linter。
+- 新增 Wow 专属规则时，优先落实到对应 `SKILL.md` 或按需加载的 reference；不要创建通用 Markdown/NLP linter。
 
 ## 事实依据
 
@@ -138,20 +138,10 @@ graph TD
 for skill_file in skills/*/SKILL.md; do
   python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-creator/scripts/quick_validate.py" "$(dirname "$skill_file")"
 done
-python3 scripts/skills/test_validate_skill_package.py
-python3 scripts/skills/validate_skill_package.py
 ```
 
-`scripts/skills/evals.json` 是 Kotlin 主路径的仓库维护评估合同，不随运行时 skill 发布。每个 output eval 都声明目标 skill、真实源码依据、人工 rubric 和确定性预检查；`routing_cases` 另外声明 direct、mixed 和 negative 原始入口场景。direct case 只声明初始 `eval_target`，mixed case 还必须声明至少两步的 `skill_sequence`，negative case 必须严格声明布尔值 `none: true`。保存一次独立 forward-test 输出后，可运行单 case 预检查：
+`quick_validate.py` 只校验单个 skill 的基础结构和 frontmatter，不覆盖 `agents/openai.yaml`、`plugins.json` 或 reference 链接。
 
-```bash
-python3 scripts/skills/validate_skill_package.py precheck \
-  --eval simple-aggregation-sourcing \
-  --input <saved-output-file>
-```
+如果要发布到 Codex plugin registry，再运行该 registry 自带的生成器和聚合验证器，确认 `plugins.json`、生成后的插件清单以及运行时文件布局一致。
 
-确定性预检查只负责捕获关键缺失或已知反模式；代码合同可限定为只检查 fenced code block。全部命中时命令输出 `REVIEW_REQUIRED` 并以状态码 `3` 结束；只有对应 `rubric` 经过人工审查后，才能判定该 output eval 通过。
-
-路由验证与答案预检查是两个不同层次。运行 `routing_cases` 时，向全新任务只发送 `prompt`，不得显式指定 skill、提供 `target_skill`、预期答案、已知缺陷或本轮修复结论。只有客户端 activation trace 能证明实际选择；没有可靠 trace 时记录 `ROUTING_UNVERIFIED`，不得用“回答看起来正确”冒充路由通过。包校验输出 `routing_execution=NOT_RUN` 正是为了保留这个边界。
-
-根据变更范围，再以明确指定目标 skill 的真实开发、审查或诊断任务做 output forward-testing，确认 skill 能读取当前源码并给出可执行结果。
+根据变更范围，以明确指定目标 skill 的真实开发、审查或诊断任务做 output forward-testing，确认 skill 能读取当前源码并给出可执行结果。验证路由时，向全新任务只发送原始用户请求，不得显式指定 skill、预期答案、已知缺陷或本轮修复结论；只有客户端 activation trace 能证明实际选择，不得用“回答看起来正确”冒充路由通过。
