@@ -23,8 +23,10 @@ import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryServic
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import me.ahoo.wow.infra.batch.BatchObserver
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
+import me.ahoo.wow.spring.boot.starter.eventsourcing.batch.toBatchObserver
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnEventStoreStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnSnapshotStoreStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
@@ -32,6 +34,7 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStreamQuerySer
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotQueryServiceFactoryBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -74,11 +77,31 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
         return WowJsonpMapper
     }
 
+    fun elasticsearchEventStore(
+        elasticsearchClient: ReactiveElasticsearchClient,
+        indexTemplateInitializer: IndexTemplateInitializer,
+    ): ElasticsearchEventStore = createElasticsearchEventStore(
+        elasticsearchClient = elasticsearchClient,
+        indexTemplateInitializer = indexTemplateInitializer,
+        observer = BatchObserver.NOOP,
+    )
+
     @Bean
     @ConditionalOnEventStoreStorage(StorageType.ELASTICSEARCH)
     fun elasticsearchEventStore(
         elasticsearchClient: ReactiveElasticsearchClient,
         indexTemplateInitializer: IndexTemplateInitializer,
+        batchObservers: ObjectProvider<BatchObserver>,
+    ): ElasticsearchEventStore = createElasticsearchEventStore(
+        elasticsearchClient = elasticsearchClient,
+        indexTemplateInitializer = indexTemplateInitializer,
+        observer = batchObservers.toBatchObserver(),
+    )
+
+    private fun createElasticsearchEventStore(
+        elasticsearchClient: ReactiveElasticsearchClient,
+        indexTemplateInitializer: IndexTemplateInitializer,
+        observer: BatchObserver,
     ): ElasticsearchEventStore {
         if (elasticsearchProperties.autoInitTemplate) {
             indexTemplateInitializer.ensureEventStreamTemplate().block()
@@ -86,6 +109,7 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
         return ElasticsearchEventStore(
             elasticsearchClient = elasticsearchClient,
             batchOptions = eventStoreBatchProperties.toOptions(),
+            observer = observer,
         )
     }
 
@@ -122,12 +146,32 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
         )
     }
 
+    fun elasticsearchSnapshotStore(
+        elasticsearchClient: ReactiveElasticsearchClient,
+        indexTemplateInitializer: IndexTemplateInitializer,
+    ): ElasticsearchSnapshotStore = createElasticsearchSnapshotStore(
+        elasticsearchClient = elasticsearchClient,
+        indexTemplateInitializer = indexTemplateInitializer,
+        observer = BatchObserver.NOOP,
+    )
+
     @Bean(name = ["elasticsearchSnapshotStore", "elasticsearchSnapshotRepository"])
     @ConditionalOnSnapshotEnabled
     @ConditionalOnSnapshotStoreStorage(StorageType.ELASTICSEARCH)
     fun elasticsearchSnapshotStore(
         elasticsearchClient: ReactiveElasticsearchClient,
         indexTemplateInitializer: IndexTemplateInitializer,
+        batchObservers: ObjectProvider<BatchObserver>,
+    ): ElasticsearchSnapshotStore = createElasticsearchSnapshotStore(
+        elasticsearchClient = elasticsearchClient,
+        indexTemplateInitializer = indexTemplateInitializer,
+        observer = batchObservers.toBatchObserver(),
+    )
+
+    private fun createElasticsearchSnapshotStore(
+        elasticsearchClient: ReactiveElasticsearchClient,
+        indexTemplateInitializer: IndexTemplateInitializer,
+        observer: BatchObserver,
     ): ElasticsearchSnapshotStore {
         if (elasticsearchProperties.autoInitTemplate) {
             indexTemplateInitializer.ensureSnapshotTemplate().block()
@@ -135,6 +179,7 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
         return ElasticsearchSnapshotStore(
             elasticsearchClient = elasticsearchClient,
             batchOptions = snapshotStoreBatchProperties.toOptions(),
+            observer = observer,
         )
     }
 

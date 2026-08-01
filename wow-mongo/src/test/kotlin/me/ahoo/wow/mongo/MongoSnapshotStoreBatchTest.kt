@@ -29,6 +29,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.infra.batch.BatchObservation
+import me.ahoo.wow.infra.batch.BatchObserver
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregate
@@ -45,6 +47,7 @@ import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.kotlin.test.test
 import java.time.Duration
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -80,6 +83,40 @@ class MongoSnapshotStoreBatchTest {
         } finally {
             store.close()
         }
+    }
+
+    @Test
+    fun `enabled batching should publish physical batch observations`() {
+        val observations = CopyOnWriteArrayList<BatchObservation>()
+        every { database.getCollection(any<String>()) } returns collection
+        every {
+            collection.bulkWrite(any<List<WriteModel<Document>>>(), any<BulkWriteOptions>())
+        } returns Mono.just(acknowledgedUpdateResult(2))
+        val store = MongoSnapshotStore(
+            database = database,
+            batchOptions = MongoSnapshotStoreBatchOptions(
+                enabled = true,
+                maxSize = 2,
+                maxDelay = Duration.ofSeconds(1),
+                maxPendingSaves = 2,
+            ),
+            observer = BatchObserver(observations::add),
+        )
+
+        try {
+            Flux.merge(
+                store.save(snapshot(id = "observed-order-1", version = 1)),
+                store.save(snapshot(id = "observed-order-2", version = 1)),
+            ).then()
+                .test()
+                .verifyComplete()
+        } finally {
+            store.close()
+        }
+
+        observations.filterIsInstance<BatchObservation.BatchWriteCompleted>()
+            .single()
+            .writtenItems.assert().isEqualTo(2)
     }
 
     @Test

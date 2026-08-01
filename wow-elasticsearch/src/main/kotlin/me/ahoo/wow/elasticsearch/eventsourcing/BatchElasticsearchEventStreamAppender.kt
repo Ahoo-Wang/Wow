@@ -18,6 +18,7 @@ import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.infra.batch.BatchCloseTimeoutException
 import me.ahoo.wow.infra.batch.BatchClosedException
+import me.ahoo.wow.infra.batch.BatchObserver
 import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.infra.batch.BatchOverflowException
 import me.ahoo.wow.infra.batch.BatchWriter
@@ -32,6 +33,7 @@ internal class BatchElasticsearchEventStreamAppender(
     elasticsearchClient: ReactiveElasticsearchClient,
     refreshPolicy: Refresh,
     private val options: ElasticsearchEventStoreBatchOptions,
+    observer: BatchObserver = BatchObserver.NOOP,
     private val closeTimeout: Duration = DEFAULT_CLOSE_TIMEOUT,
 ) : ElasticsearchEventStreamAppender {
     private data class MappedCloseTimeout(
@@ -54,6 +56,7 @@ internal class BatchElasticsearchEventStreamAppender(
             maxPendingItems = options.maxPendingAppends,
         ),
         laneCount = options.laneCount,
+        observer = observer,
         keySelector = { append: ElasticsearchEventStreamAppend ->
             append.eventStream.aggregateId
         },

@@ -17,6 +17,7 @@ import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.infra.batch.BatchCloseTimeoutException
 import me.ahoo.wow.infra.batch.BatchClosedException
+import me.ahoo.wow.infra.batch.BatchObserver
 import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.infra.batch.BatchOverflowException
 import me.ahoo.wow.infra.batch.BatchWriter
@@ -36,6 +37,7 @@ internal data class MongoEventStreamAppend(
 internal class BatchMongoEventStreamAppender(
     database: MongoDatabase,
     private val options: MongoEventStoreBatchOptions,
+    observer: BatchObserver = BatchObserver.NOOP,
     private val closeTimeout: Duration = DEFAULT_CLOSE_TIMEOUT,
 ) : MongoEventStreamAppender {
     private data class MappedCloseTimeout(
@@ -58,6 +60,7 @@ internal class BatchMongoEventStreamAppender(
             maxPendingItems = options.maxPendingAppends,
         ),
         laneCount = options.laneCount,
+        observer = observer,
         keySelector = { append: MongoEventStreamAppend ->
             append.eventStream.aggregateId
         },

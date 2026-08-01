@@ -17,6 +17,7 @@ import co.elastic.clients.elasticsearch._types.Refresh
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.infra.batch.BatchCloseTimeoutException
 import me.ahoo.wow.infra.batch.BatchClosedException
+import me.ahoo.wow.infra.batch.BatchObserver
 import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.infra.batch.BatchOverflowException
 import me.ahoo.wow.infra.batch.BatchWriter
@@ -30,6 +31,7 @@ internal class BatchElasticsearchSnapshotSaver(
     elasticsearchClient: ReactiveElasticsearchClient,
     refreshPolicy: Refresh,
     private val options: ElasticsearchSnapshotStoreBatchOptions,
+    observer: BatchObserver = BatchObserver.NOOP,
     private val closeTimeout: Duration = DEFAULT_CLOSE_TIMEOUT,
 ) : ElasticsearchSnapshotSaver {
     private data class MappedCloseTimeout(
@@ -52,6 +54,7 @@ internal class BatchElasticsearchSnapshotSaver(
             maxPendingItems = options.maxPendingSaves,
         ),
         laneCount = options.laneCount,
+        observer = observer,
         keySelector = { write: ElasticsearchSnapshotWrite ->
             write.index to write.id
         },

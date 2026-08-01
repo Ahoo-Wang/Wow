@@ -21,6 +21,7 @@ import java.util.concurrent.Semaphore
  */
 internal class BatchAdmission<T : Any>(
     capacity: Int,
+    private val observations: BatchObservationEmitter?,
 ) {
     private val availableItems = Semaphore(capacity)
     private val availableQueueSlots = Semaphore(capacity)
@@ -31,26 +32,40 @@ internal class BatchAdmission<T : Any>(
      * caller's perspective. The semaphores themselves remain independent
      * because their release times differ after cancellation.
      */
-    fun tryAcquire(): Boolean {
+    fun tryAcquire(): BatchAdmissionRejectionReason? {
         if (!availableItems.tryAcquire()) {
-            return false
+            return BatchAdmissionRejectionReason.LIVE_ITEMS_EXHAUSTED
         }
         if (!availableQueueSlots.tryAcquire()) {
             availableItems.release()
-            return false
+            return BatchAdmissionRejectionReason.QUEUE_SLOTS_EXHAUSTED
         }
-        return true
+        observations?.capacityChanged(liveDelta = 1, queueDelta = 1)
+        return null
     }
 
     fun track(value: T): BatchRequest<T> {
-        return BatchRequest(
-            value = value,
-            onReleaseAdmission = ::releaseAdmission,
-            onReleaseQueueSlot = availableQueueSlots::release,
-        ).also(pending::add)
+        val currentObservations = observations
+        val request = if (currentObservations == null) {
+            BatchRequest(
+                value = value,
+                onReleaseAdmission = ::releaseAdmission,
+                onReleaseQueueSlot = ::releaseQueueSlot,
+            )
+        } else {
+            ObservedBatchRequest(
+                value = value,
+                onReleaseAdmission = ::releaseAdmission,
+                onReleaseQueueSlot = ::releaseQueueSlot,
+                enqueuedAtNanos = currentObservations.markEnqueued(),
+                observations = currentObservations,
+            )
+        }
+        return request.also(pending::add)
     }
 
     fun releaseUntracked() {
+        observations?.capacityChanged(liveDelta = -1, queueDelta = -1)
         availableQueueSlots.release()
         availableItems.release()
     }
@@ -59,7 +74,13 @@ internal class BatchAdmission<T : Any>(
 
     private fun releaseAdmission(request: BatchRequest<T>) {
         if (pending.remove(request)) {
+            observations?.capacityChanged(liveDelta = -1, queueDelta = 0)
             availableItems.release()
         }
+    }
+
+    private fun releaseQueueSlot() {
+        observations?.capacityChanged(liveDelta = 0, queueDelta = -1)
+        availableQueueSlots.release()
     }
 }

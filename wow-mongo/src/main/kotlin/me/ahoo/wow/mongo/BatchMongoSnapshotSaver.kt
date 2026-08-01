@@ -17,6 +17,7 @@ import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.infra.batch.BatchCloseTimeoutException
 import me.ahoo.wow.infra.batch.BatchClosedException
+import me.ahoo.wow.infra.batch.BatchObserver
 import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.infra.batch.BatchOverflowException
 import me.ahoo.wow.infra.batch.BatchWriter
@@ -28,6 +29,7 @@ import java.util.concurrent.atomic.AtomicReference
 internal class BatchMongoSnapshotSaver(
     database: MongoDatabase,
     private val options: MongoSnapshotStoreBatchOptions,
+    observer: BatchObserver = BatchObserver.NOOP,
     private val closeTimeout: Duration = DEFAULT_CLOSE_TIMEOUT,
 ) : MongoSnapshotSaver {
     private data class MappedCloseTimeout(
@@ -50,6 +52,7 @@ internal class BatchMongoSnapshotSaver(
             maxPendingItems = options.maxPendingSaves,
         ),
         laneCount = options.laneCount,
+        observer = observer,
         keySelector = { write: MongoSnapshotWrite ->
             write.collectionName to write.id
         },

@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicReference
  * immediately, while the queue slot remains held until the lane observes the
  * cancelled placeholder.
  */
-internal class BatchRequest<T : Any>(
+internal open class BatchRequest<T : Any>(
     val value: T,
     private val onReleaseAdmission: (BatchRequest<T>) -> Unit,
     private val onReleaseQueueSlot: () -> Unit,
@@ -44,11 +44,12 @@ internal class BatchRequest<T : Any>(
     val result: Sinks.Empty<Void> = Sinks.empty()
     private val state = AtomicReference<State>(State.Queued)
 
-    fun claim(): Boolean {
+    fun claim(lane: Int = 0): Boolean {
         while (true) {
             when (state.get()) {
                 State.Queued -> {
                     if (state.compareAndSet(State.Queued, State.InFlight)) {
+                        onClaimed(lane)
                         releaseQueueSlot()
                         return true
                     }
@@ -70,6 +71,7 @@ internal class BatchRequest<T : Any>(
     fun cancel() {
         if (state.compareAndSet(State.Queued, State.Cancelled)) {
             releaseAdmission()
+            onCancelled()
         }
     }
 
@@ -167,4 +169,24 @@ internal class BatchRequest<T : Any>(
     private fun releaseAdmission() = onReleaseAdmission(this)
 
     private fun releaseQueueSlot() = onReleaseQueueSlot()
+
+    protected open fun onClaimed(lane: Int) = Unit
+
+    protected open fun onCancelled() = Unit
+}
+
+internal class ObservedBatchRequest<T : Any>(
+    value: T,
+    onReleaseAdmission: (BatchRequest<T>) -> Unit,
+    onReleaseQueueSlot: () -> Unit,
+    private val enqueuedAtNanos: Long,
+    private val observations: BatchObservationEmitter,
+) : BatchRequest<T>(value, onReleaseAdmission, onReleaseQueueSlot) {
+    override fun onClaimed(lane: Int) {
+        observations.requestDequeued(lane, enqueuedAtNanos)
+    }
+
+    override fun onCancelled() {
+        observations.requestCancelled()
+    }
 }
