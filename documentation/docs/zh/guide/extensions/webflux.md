@@ -35,6 +35,7 @@ WebFlux 扩展自动为所有命令生成 REST API 端点：
 
 #### 聚合路由模式
 ```kotlin
+@StaticTenantId
 @AggregateRoot
 @AggregateRoute(owner = AggregateRoute.Owner.AGGREGATE_ID)
 class Cart(private val state: CartState)

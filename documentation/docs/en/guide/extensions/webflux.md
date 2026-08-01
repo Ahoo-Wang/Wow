@@ -35,6 +35,7 @@ Supports multiple route patterns:
 
 #### Aggregate Route Pattern
 ```kotlin
+@StaticTenantId
 @AggregateRoot
 @AggregateRoute(owner = AggregateRoute.Owner.AGGREGATE_ID)
 class Cart(private val state: CartState)
