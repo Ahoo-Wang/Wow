@@ -100,7 +100,9 @@ fun onCommand(cmd: CreateOrder): OrderCreated { ... }
 
 ### @OnSourcing
 
-Marks a method as an event sourcing handler. Used in State Aggregates to rebuild state from events. Optional if method is named `onSourcing`.
+Marks a method as an event sourcing handler used to rebuild aggregate state. The annotation may be omitted only when the function is named exactly `onSourcing` and declares exactly one value parameter: the event, `DomainEvent`, or exchange parameter. A descriptive name such as `onCartItemAdded`, or an `onSourcing` function with additional exchange-derived parameters, must declare `@OnSourcing` to be discovered by the runtime parser.
+
+Aggregate sourcing invokes the function with a fresh `SimpleDomainEventExchange`; that exchange does not carry a `ServiceProvider`. Additional parameters must be extractable from the exchange itself. Sourcing must not depend on IOC services or external side effects.
 
 ```kotlin
 @OnSourcing
@@ -241,7 +243,7 @@ class OrderEventProcessor(
 
 ### @Blocking
 
-Marks a method as a blocking operation in projections/event processors.
+Marks a function for blocking-aware scheduling. Functions invoked through `MonoMethodAccessorFactory` are wrapped by `BlockingMonoFunctionAccessor`: when subscription starts on a Reactor non-blocking thread, Wow applies `subscribeOn(Schedulers.boundedElastic())`; on a blockable thread, the publisher is left unchanged. `CommandBuilderRewriter` uses a separate registration path: an `@Blocking` `rewrite` method is wrapped by `BlockingCommandBuilderRewriter`, which always applies `subscribeOn` to its configured scheduler. The annotation does not convert a reactive return type into a synchronous function.
 
 ```kotlin
 @Blocking
@@ -306,6 +308,19 @@ Configures REST route for a command. Used by `wow-compiler` to generate API endp
 @CommandRoute(action = "", method = CommandRoute.Method.DELETE, appendIdPath = CommandRoute.AppendPath.ALWAYS)
 object DefaultDeleteAggregate : DeleteAggregate
 ```
+
+**Parameters:**
+| Parameter | Default | Description |
+|---|---|---|
+| `action` | `__{command_name}__` | Action/sub-resource segment; the default is derived from command metadata |
+| `enabled` | `true` | Whether route generation is enabled |
+| `method` | `DEFAULT` | Resolves to `POST` for create commands, `DELETE` for delete commands, otherwise `PUT` |
+| `prefix` | `""` | Path prefix |
+| `appendIdPath` | `DEFAULT` | Aggregate ID path policy |
+| `appendTenantPath` | `DEFAULT` | Tenant ID path policy |
+| `appendOwnerPath` | `DEFAULT` | Owner ID path policy |
+
+`@CommandRoute.PathVariable` and `@CommandRoute.HeaderVariable` both default to `name = ""`, `nestedPath = []`, and `required = true`.
 
 ## Aggregate Route & Routing
 
@@ -387,7 +402,10 @@ object ExampleBoundedContext
 | `alias` | Shorter reference name |
 | `description` | Human-readable purpose |
 | `scopes` | Boundary scope identifiers |
+| `packageScopes` | Package marker classes used to discover context members |
 | `aggregates` | Array of `@Aggregate` definitions within the context |
+
+Each nested `BoundedContext.Aggregate` declares `name`, with optional `tenantId`, `id`, `scopes`, and `packageScopes`.
 
 ## Multi-Tenancy Annotations
 
@@ -409,6 +427,8 @@ Separate Command Aggregate and State Aggregate classes:
 class CartState(val id: String) {
     var items: List<CartItem> = listOf()
         private set
+
+    @OnSourcing
     fun onCartItemAdded(event: CartItemAdded) {
         items = items + event.added
     }

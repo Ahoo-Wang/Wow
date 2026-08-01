@@ -7,7 +7,8 @@
 ## 兼容性目标
 
 - 每个 skill 目录以 `SKILL.md` 作为入口。
-- `SKILL.md` 使用标准 YAML frontmatter，必须包含 `name` 和 `description`；可选字段以标准 validator 与目标客户端的支持范围为准。
+- `SKILL.md` 使用标准 YAML frontmatter，并且只包含 `name` 和 `description`。
+- `agents/openai.yaml` 保持为生成器当前输出的单层 `interface` 映射和带引号单行字符串；包验证器会严格拒绝未识别或未解析的内容。
 - 大段参考资料放入 `references/`，由 agent 按需加载。
 - 使用 `skill-creator` 提供的标准 validator 校验目录结构和 frontmatter；仓库内不重复维护通用 Markdown、HTML 或自然语言 parser。
 - 文档避免使用只属于某个 agent 产品的术语，除非是在说明兼容范围。
@@ -16,12 +17,15 @@
 
 ```mermaid
 graph TD
-    A[用户任务] --> B[wow Router]
-    B --> C{任务类型}
-    C --> D[wow-development-workflow]
-    C --> E[wow-code-review]
-    C --> F[wow-debugging]
-    C --> G[wow references]
+    A[用户任务] --> C{任务意图}
+    C -->|明确审查| E[wow-code-review]
+    C -->|明确诊断| F[wow-debugging]
+    C -->|Aggregate/Saga 端到端实现| D[wow-development-workflow]
+    C -->|混合、单点查询或其他聚焦实现| B[wow Router]
+    B --> D
+    B --> E
+    B --> F
+    B --> G[wow references]
 
     D --> D1[Align]
     D1 --> D2[Discover]
@@ -43,7 +47,7 @@ graph TD
 
 | Skill | 职责 |
 |-------|------|
-| `wow` | 总入口和路由器。识别 Wow 任务，按场景加载 workflow、review、debugging 或 reference。 |
+| `wow` | 混合任务路由器、单点 API/规则查询入口，以及非 Aggregate/Saga 聚焦实现指南。 |
 | `wow-development-workflow` | 端到端开发工作流。覆盖需求确认、源码发现、领域建模、Aggregate Flow、Saga Flow、测试、增强、审查和验证。 |
 | `wow-code-review` | Wow 语义优先的代码审查。重点检查事件溯源、聚合边界、Saga 编排、测试覆盖和 API metadata。 |
 | `wow-debugging` | Wow 管线问题定位。按命令、事件、溯源、Saga、等待计划、Query DSL、配置和测试阶段定位根因。 |
@@ -89,16 +93,19 @@ graph TD
 
 ## 使用路径
 
-常见任务应从 `wow` 开始：
+审查、诊断和 Aggregate/Saga 端到端实现直接调用 specialist；混合任务、单点查询和其他聚焦实现使用 `wow`：
 
 | 任务 | 路径 |
 |------|------|
-| 新增或完善聚合/Saga 能力 | `wow` -> `wow-development-workflow` |
-| 编写或补强聚合测试 | `wow` -> `wow-development-workflow` -> `Aggregate Flow` |
-| 编写或补强 Saga 测试 | `wow` -> `wow-development-workflow` -> `Saga Flow` |
-| 审查 PR 或 diff | `wow` -> `wow-code-review` |
-| 定位失败或异常行为 | `wow` -> `wow-debugging` |
+| 新增或完善聚合/Saga 能力 | `wow-development-workflow` |
+| 编写或补强聚合测试 | `wow-development-workflow` -> `Aggregate Flow` |
+| 编写或补强 Saga 测试 | `wow-development-workflow` -> `Saga Flow` |
+| 审查 PR 或 diff | `wow-code-review` |
+| 定位失败或异常行为 | `wow-debugging` |
+| 混合任务 | `wow` -> 对应 specialist |
 | 查询单点 API 或注解规则 | `wow` -> `wow/references/*` |
+| 实现 Projection 或 EventProcessor | `wow` -> `annotations.md`、`testing.md` |
+| 实现 Gateway、Query DSL、配置或 PrepareKey | `wow` -> 对应 reference |
 
 ## 维护规则
 
@@ -131,7 +138,20 @@ graph TD
 for skill_file in skills/*/SKILL.md; do
   python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-creator/scripts/quick_validate.py" "$(dirname "$skill_file")"
 done
-jq empty skills/wow/evals/evals.json
+python3 scripts/skills/test_validate_skill_package.py
+python3 scripts/skills/validate_skill_package.py
 ```
 
-根据变更范围，使用真实的 Wow 开发、审查或诊断任务执行必要的 forward-testing，确认 skill 能正确路由、读取当前源码并给出可执行结果。
+`scripts/skills/evals.json` 是 Kotlin 主路径的仓库维护评估合同，不随运行时 skill 发布。每个 output eval 都声明目标 skill、真实源码依据、人工 rubric 和确定性预检查；`routing_cases` 另外声明 direct、mixed 和 negative 原始入口场景。direct case 只声明初始 `eval_target`，mixed case 还必须声明至少两步的 `skill_sequence`，negative case 必须严格声明布尔值 `none: true`。保存一次独立 forward-test 输出后，可运行单 case 预检查：
+
+```bash
+python3 scripts/skills/validate_skill_package.py precheck \
+  --eval simple-aggregation-sourcing \
+  --input <saved-output-file>
+```
+
+确定性预检查只负责捕获关键缺失或已知反模式；代码合同可限定为只检查 fenced code block。全部命中时命令输出 `REVIEW_REQUIRED` 并以状态码 `3` 结束；只有对应 `rubric` 经过人工审查后，才能判定该 output eval 通过。
+
+路由验证与答案预检查是两个不同层次。运行 `routing_cases` 时，向全新任务只发送 `prompt`，不得显式指定 skill、提供 `target_skill`、预期答案、已知缺陷或本轮修复结论。只有客户端 activation trace 能证明实际选择；没有可靠 trace 时记录 `ROUTING_UNVERIFIED`，不得用“回答看起来正确”冒充路由通过。包校验输出 `routing_execution=NOT_RUN` 正是为了保留这个边界。
+
+根据变更范围，再以明确指定目标 skill 的真实开发、审查或诊断任务做 output forward-testing，确认 skill 能读取当前源码并给出可执行结果。
