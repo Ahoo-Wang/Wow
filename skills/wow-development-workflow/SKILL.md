@@ -5,7 +5,7 @@ description: Use when developing, completing, restructuring, or enhancing Wow fr
 
 # Wow Development Workflow
 
-Use this skill after `../wow/SKILL.md` routes an end-to-end Wow development task here. This workflow covers aggregate behavior and saga orchestration. Projection work is intentionally outside this workflow for now.
+Use this skill directly for a clearly scoped end-to-end Wow development task, or after `../wow/SKILL.md` routes a mixed task here. This direct-entry specialist does not route back through `wow`; select only the relevant package-shared references under `../wow/references/`. It covers aggregate behavior and saga orchestration. Projection work is intentionally outside this workflow for now.
 
 ## Design Philosophy
 
@@ -41,12 +41,9 @@ If a later phase exposes unclear requirements, return to Align or Model instead 
 
 ```mermaid
 graph TD
-    A[User Task] --> B[wow Router]
-    B --> C{Task Type}
-    C --> D[Development Workflow]
-    C --> R[wow code review]
-    C --> G[wow debugging]
-    C --> K[wow references]
+    A[Scoped Development Task] --> D[Development Workflow]
+    M[Mixed Wow Task] --> B[wow Router]
+    B --> D
 
     D --> D0[Align]
     D0 --> D1[Discover]
@@ -78,7 +75,7 @@ graph TD
     E --> RV[Review]
     RV --> Q{Issue Found}
     Q --> D2
-    Q --> G
+    Q --> G[wow debugging]
     Q --> V[Verify]
     V --> DONE[Completion Output]
 ```
@@ -120,6 +117,7 @@ Load the smallest references needed:
 - `../wow/references/annotations.md` for command, sourcing, saga, retry, and handler annotations.
 - `../wow/references/testing.md` for `AggregateSpec`, `SagaSpec`, verifier APIs, and FluentAssert.
 - `../wow/references/command-gateway.md` when command routing, wait behavior, or idempotency affects the design.
+- `../wow/references/prepare-key.md` when aggregate behavior includes uniqueness or reservation.
 
 Exit with a source inventory: current worktree changes, modules, files, command handlers, sourcing handlers, saga handlers, existing Kotlin/Java tests, and missing coverage.
 
@@ -175,7 +173,7 @@ Use this when an event from one aggregate should coordinate another aggregate.
 | Target Aggregate | target aggregate id, owner, tenant, route source | command route is deterministic |
 | Derived Command | command body, headers, correlation, request semantics | generated command is complete |
 | Routing and Idempotency | duplicate event handling, command id or natural id, stale input handling | repeated delivery is intentional and covered at the runtime boundary that enforces it |
-| Retry Policy | `@Retry`, recoverable errors, unrecoverable errors, timeout | Saga handler failure behavior is explicit |
+| Retry Policy | `@Retry`, recoverable errors, unrecoverable errors, retry count/backoff, execution-lease expiry | Saga handler failure behavior is explicit |
 | Saga Orchestration Test | trigger, no-command, branch, multi-command cases | a focused test fails before implementation and `SagaSpec` or `SagaVerifier` passes after it |
 
 Use `SagaSpec` for Kotlin DSL tests or `SagaVerifier` where the fluent API fits the current Kotlin/Java test style:

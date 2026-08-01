@@ -5,7 +5,7 @@ All configuration is under the `wow` prefix in `application.yaml`.
 ## Contents
 
 - [Core Configuration](#core-configuration)
-- [Complete Configuration Template](#complete-configuration-template)
+- [Common Configuration Template](#common-configuration-template)
 - [Command Bus](#command-bus)
 - [Event Bus](#event-bus)
 - [State Event Bus](#state-event-bus)
@@ -29,7 +29,9 @@ wow:
 `shutdown-timeout` must be positive. `shutdown-quiet-period` must be non-negative
 and strictly shorter than `shutdown-timeout`.
 
-## Complete Configuration Template
+## Common Configuration Template
+
+This template shows frequently used settings, not every supported property. Verify task-specific keys against the current `@ConfigurationProperties` classes before changing production configuration.
 
 ```yaml
 wow:
@@ -78,6 +80,12 @@ wow:
     bootstrap-servers:
       - localhost:9092
     topic-prefix: 'wow.'
+    receiver:
+      prefetch-batches: 1
+      max-deferred-commits: 1
+      retry-attempts: 3
+      retry-backoff: 10s
+      decode-failure-strategy: FAIL
 
   mongo:
     enabled: true
@@ -85,6 +93,18 @@ wow:
     event-stream-database: wow_event_db
     snapshot-database: wow_snapshot_db
     prepare-database: wow_prepare_db
+    event-store-batch:
+      enabled: false
+      max-size: 128
+      max-delay: 1ms
+      max-pending-appends: 4096
+      lane-count: 1
+    snapshot-store-batch:
+      enabled: false
+      max-size: 128
+      max-delay: 1ms
+      max-pending-saves: 4096
+      lane-count: 1
 
   prepare:
     enabled: true
@@ -183,6 +203,11 @@ wow:
 | `wow.kafka.enabled` | Boolean | `true` | Enable Kafka support |
 | `wow.kafka.bootstrap-servers` | List\<String\> | | Kafka broker addresses |
 | `wow.kafka.topic-prefix` | String | `wow.` | Topic name prefix |
+| `wow.kafka.receiver.prefetch-batches` | Int | `1` | Number of receive batches prefetched; must be greater than zero |
+| `wow.kafka.receiver.max-deferred-commits` | Int | `1` | Maximum deferred commits used for out-of-order acknowledgements; must be greater than zero |
+| `wow.kafka.receiver.retry-attempts` | Long | `3` | Transient receiver retry attempts; must not be negative |
+| `wow.kafka.receiver.retry-backoff` | Duration | `10s` | Minimum retry backoff; must not be negative |
+| `wow.kafka.receiver.decode-failure-strategy` | Enum | `FAIL` | `FAIL` stops/fails processing; `ACKNOWLEDGE` acknowledges a record that cannot be decoded |
 
 ### MongoDB
 
@@ -215,6 +240,27 @@ wow:
 |----------|------|---------|-------------|
 | `wow.elasticsearch.enabled` | Boolean | `true` | Enable Elasticsearch support |
 | `wow.elasticsearch.auto-init-template` | Boolean | `true` | Auto-create Elasticsearch templates |
+
+### MongoDB and Elasticsearch Storage Batching
+
+Batching is opt-in for both event stores and snapshot stores. The supported prefixes are:
+
+- `wow.mongo.event-store-batch`
+- `wow.mongo.snapshot-store-batch`
+- `wow.elasticsearch.event-store-batch`
+- `wow.elasticsearch.snapshot-store-batch`
+
+All four groups share `enabled=false`, `max-size=128`, `max-delay=1ms`, and `lane-count=1`. Event-store groups use `max-pending-appends=4096`; snapshot-store groups use `max-pending-saves=4096`.
+
+| Property suffix | Constraint | Effect |
+|---|---|---|
+| `enabled` | Boolean | Enables batching for that exact backend/channel only |
+| `max-size` | Greater than `1` | Flushes a full batch at this size |
+| `max-delay` | Positive duration | Flushes a partial batch after this delay; low traffic may therefore add up to this wait |
+| `max-pending-appends` / `max-pending-saves` | At least `max-size` | Bounds queued work before overload handling |
+| `lane-count` | Greater than `0`; when batching is enabled, no greater than the pending limit | Hash-partitions equal keys into the same lane and allows different lanes to write concurrently. Batch-writer invocations are serialized within each lane, but item execution order inside one backend bulk request is not guaranteed; snapshot writers may coalesce repeated saves for the same key. |
+
+Do not enable batching as a generic performance toggle. Select backend-specific values from measured traffic, latency, and overload behavior, then verify shutdown/drain behavior for the affected store.
 
 ## Features
 

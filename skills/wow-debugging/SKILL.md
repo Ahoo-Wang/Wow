@@ -1,6 +1,6 @@
 ---
 name: wow-debugging
-description: Use when Wow commands, events, sourcing, sagas, projections, wait plans, Query DSL, retry policies, starter configuration, or tests fail, hang, skip handlers, produce unexpected state, or behave inconsistently
+description: Use when Wow commands, events, sourcing, sagas, projections, event processors, command gateways, wait plans, Query DSL, retry policies, starter configuration, PrepareKey, WowRuntime lifecycle, or tests fail, hang, skip handlers, produce unexpected state, or behave inconsistently
 ---
 
 # Wow Debugging
@@ -10,6 +10,21 @@ Find the broken link in the Wow pipeline before fixing code. Guessing at event-s
 ## Iron Law
 
 Keep diagnosis read-only by default. Reproduce, locate the failing stage, and compare with a working example. Modify code only when the user explicitly asks for a fix; then make one minimal, test-backed change.
+
+## Reference Routing
+
+Do not route through `../wow/SKILL.md`; select only the package-shared references needed for the failing scope.
+
+| Failure scope | Load |
+|---|---|
+| Aggregate, command, event, state, Saga | `../wow/references/modeling.md`, `../wow/references/annotations.md`, `../wow/references/testing.md` as needed |
+| Projection or EventProcessor | `../wow/references/annotations.md`, `../wow/references/testing.md` |
+| Gateway, wait, idempotency | `../wow/references/command-gateway.md` |
+| Query DSL | `../wow/references/dsl.md` |
+| Starter, storage, bus, feature configuration | `../wow/references/configuration.md` |
+| PrepareKey | `../wow/references/prepare-key.md` |
+| WowRuntime ownership, readiness, fatal handling, graceful shutdown | Inspect `wow-core/src/main/kotlin/me/ahoo/wow/runtime/`, `wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt`, and `documentation/docs/zh/guide/advanced/runtime-lifecycle.md` |
+| Handler missing, unregistered, or not selected | Load `references/handler-discovery.md`, then the domain reference above only as needed |
 
 ## Phase 1: Reproduce
 
@@ -30,6 +45,7 @@ Keep diagnosis read-only by default. Reproduce, locate the failing stage, and co
 | Wait plan hangs | Wait command id, stage, context name, processor/function names, propagated headers. |
 | Query returns wrong data | Query DSL condition, deletion guard, tenant/owner filters, projection fields, backend converter. |
 | Configuration ignored | `@ConfigurationProperties` prefix, feature capability, conditional annotations, active profile. |
+| Runtime never becomes ready or shutdown hangs | `WowRuntime` state, lifecycle owner, admission/drain transition, fatal cause, quiet period, deadline, and Spring lifecycle phase. |
 | Test fails unexpectedly | Test fixture state, owner/tenant id, fork/ref checkpoint, expected event order. |
 
 ## Phase 3: Gather Evidence
@@ -41,9 +57,10 @@ rg -n "@AggregateRoot|@OnCommand|@OnSourcing|@StatelessSaga|@EventProcessor|@Pro
 rg -n "CommandWait|CommandWait.chain|Command-Wait" . -g "*.kt" -g "*.java"
 rg -n "@ConfigurationProperties|ConditionalOn.*Enabled|class .*Properties" . -g "*.kt" -g "*.java"
 rg -n "AggregateSpec<|SagaSpec<|AggregateVerifier|SagaVerifier|aggregateVerifier|sagaVerifier|expectEventType|expectCommand|expectNoCommand" . -g "*.kt" -g "*.java"
+rg -n "WowRuntime|RuntimeComponent|WowRuntimeLifecycle|GracefullyStoppable" . -g "*.kt" -g "*.java"
 ```
 
-Find a similar working path in the same repository and list meaningful differences. Do not assume a difference is irrelevant until checked.
+Find a similar working path in the same repository and list meaningful differences. Do not assume a difference is irrelevant until checked. Load `references/handler-discovery.md` only when a handler is missing, unregistered, unmatched, or unselected; do not run its KSP/JAR chain for unrelated configuration, Query DSL, runtime lifecycle, or ordinary test failures.
 
 ## Phase 4: Test the Hypothesis
 
