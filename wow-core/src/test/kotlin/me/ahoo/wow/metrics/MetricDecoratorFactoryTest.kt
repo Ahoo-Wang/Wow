@@ -17,7 +17,16 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.command.CommandBus
+import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.DistributedCommandBus
+import me.ahoo.wow.command.LocalCommandBus
+import me.ahoo.wow.command.LocalFirstCommandBus
+import me.ahoo.wow.event.DistributedDomainEventBus
+import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.event.LocalDomainEventBus
+import me.ahoo.wow.event.dispatcher.DomainEventHandler
 import me.ahoo.wow.eventsourcing.AggregateEventStoreRegistry
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.RoutingEventStore
@@ -25,10 +34,17 @@ import me.ahoo.wow.eventsourcing.snapshot.AggregateSnapshotStoreRegistry
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.RoutingSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStrategy
+import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotHandler
+import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
+import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
+import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
+import me.ahoo.wow.projection.ProjectionHandler
+import me.ahoo.wow.saga.stateless.StatelessSagaHandler
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
@@ -54,6 +70,60 @@ internal class MetricDecoratorFactoryTest {
         val once = factory.decorate(component, "commandHandler")
 
         factory.decorate(once, "anotherSource").assert().isSameAs(once)
+    }
+
+    @Test
+    fun `factory should reject blank source`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            MetricDecoratorFactory(WowMetrics(SimpleMeterRegistry()))
+                .decorate(mockk<CommandHandler>(), " ")
+        }
+    }
+
+    @Test
+    fun `factory should preserve composite command boundaries and unsupported components`() {
+        val factory = MetricDecoratorFactory(WowMetrics(SimpleMeterRegistry()))
+        val localFirst = mockk<LocalFirstCommandBus>()
+        val gateway = mockk<CommandGateway>()
+        val unsupported = Any()
+
+        factory.decorate(localFirst, "local-first").assert().isSameAs(localFirst)
+        factory.decorate(gateway, "gateway").assert().isSameAs(gateway)
+        factory.decorate(unsupported, "unsupported").assert().isSameAs(unsupported)
+    }
+
+    @Test
+    fun `metered extensions should select every supported decorator`() {
+        val metrics = WowMetrics(SimpleMeterRegistry())
+
+        (mockk<LocalCommandBus>() as CommandBus).metered(metrics, "local-command-bus")
+            .assert().isInstanceOf(MetricLocalCommandBus::class.java)
+        (mockk<DistributedCommandBus>() as CommandBus).metered(metrics, "distributed-command-bus")
+            .assert().isInstanceOf(MetricDistributedCommandBus::class.java)
+        (mockk<LocalDomainEventBus>() as DomainEventBus).metered(metrics, "local-domain-event-bus")
+            .assert().isInstanceOf(MetricLocalDomainEventBus::class.java)
+        (mockk<DistributedDomainEventBus>() as DomainEventBus).metered(metrics, "distributed-domain-event-bus")
+            .assert().isInstanceOf(MetricDistributedDomainEventBus::class.java)
+        (mockk<LocalStateEventBus>() as StateEventBus).metered(metrics, "local-state-event-bus")
+            .assert().isInstanceOf(MetricLocalStateEventBus::class.java)
+        (mockk<DistributedStateEventBus>() as StateEventBus).metered(metrics, "distributed-state-event-bus")
+            .assert().isInstanceOf(MetricDistributedStateEventBus::class.java)
+        mockk<EventStore>().metered(metrics, "event-store")
+            .assert().isInstanceOf(MetricEventStore::class.java)
+        mockk<SnapshotStore>().metered(metrics, "snapshot-store")
+            .assert().isInstanceOf(MetricSnapshotStore::class.java)
+        mockk<SnapshotStrategy>().metered(metrics, "snapshot-strategy")
+            .assert().isInstanceOf(MetricSnapshotStrategy::class.java)
+        mockk<CommandHandler>().metered(metrics, "command-handler")
+            .assert().isInstanceOf(MetricCommandHandler::class.java)
+        mockk<SnapshotHandler>().metered(metrics, "snapshot-handler")
+            .assert().isInstanceOf(MetricSnapshotHandler::class.java)
+        mockk<DomainEventHandler>().metered(metrics, "domain-event-handler")
+            .assert().isInstanceOf(MetricDomainEventHandler::class.java)
+        mockk<StatelessSagaHandler>().metered(metrics, "stateless-saga-handler")
+            .assert().isInstanceOf(MetricStatelessSagaHandler::class.java)
+        mockk<ProjectionHandler>().metered(metrics, "projection-handler")
+            .assert().isInstanceOf(MetricProjectionHandler::class.java)
     }
 
     @Test

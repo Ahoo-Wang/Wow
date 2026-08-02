@@ -144,6 +144,53 @@ class WowMetricsTest {
     }
 
     @Test
+    fun `stream should distinguish error and cancellation`() {
+        val registry = SimpleMeterRegistry()
+        val metrics = WowMetrics(registry)
+
+        StepVerifier.create(metrics.stream(Flux.error<String>(IllegalArgumentException("failed")), descriptor))
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+        StepVerifier.create(metrics.stream(Flux.never<String>(), descriptor))
+            .thenCancel()
+            .verify()
+
+        registry.find(WowMetricNames.STREAM_TERMINATIONS)
+            .tags(descriptor.terminalTags(MetricOutcome.ERROR, IllegalArgumentException::class.simpleName!!))
+            .counter()
+            .assert()
+            .isNotNull()
+        registry.find(WowMetricNames.STREAM_TERMINATIONS)
+            .tags(descriptor.terminalTags(MetricOutcome.CANCELLED, MetricDescriptor.NONE))
+            .counter()
+            .assert()
+            .isNotNull()
+    }
+
+    @Test
+    fun `stream meter failures should not affect the publisher`() {
+        val registry = SimpleMeterRegistry()
+        val metrics = WowMetrics(registry)
+        registry.counter(WowMetricNames.STREAM_ACTIVE, descriptor.baseTags())
+        registry.timer(WowMetricNames.STREAM_MESSAGES, descriptor.baseTags())
+        registry.timer(
+            WowMetricNames.STREAM_TERMINATIONS,
+            descriptor.terminalTags(MetricOutcome.SUCCESS, MetricDescriptor.NONE),
+        )
+
+        StepVerifier.create(metrics.stream(Flux.just("one", "two"), descriptor))
+            .expectNext("one", "two")
+            .verifyComplete()
+    }
+
+    @Test
+    fun `metrics subscriber should reject blank values`() {
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException::class.java) {
+            Flux.empty<String>().writeMetricsSubscriber(" ")
+        }
+    }
+
+    @Test
     fun `registries should remain isolated`() {
         val firstRegistry = SimpleMeterRegistry()
         val secondRegistry = SimpleMeterRegistry()
