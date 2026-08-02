@@ -363,5 +363,5 @@ Event processors are automatically discovered and registered via Spring componen
 
 - [Projection Processor](./projection) - For read model updates
 - [Saga](./saga) - For distributed transaction coordination
-- [Event Bus](./eventstore#event-bus) - For event publishing and routing
+- [Event Bus](./advanced/event-bus) - For event publishing and routing
 - [Event Compensation](./event-compensation) - For error handling and recovery

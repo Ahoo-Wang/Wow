@@ -1,3 +1,8 @@
+---
+title: Contributor Guide
+description: End-to-end guide to the Wow codebase, development workflow, testing strategy, and first contribution
+---
+
 # Contributor Guide
 
 This guide takes you from a clean checkout to a small, tested Wow contribution.
@@ -38,9 +43,9 @@ The README also states that Wow 8 targets Spring Boot 4 and Java 17 or later.
 Treat the build files above as the more precise source when versions move.
 [See the compatibility statement.](https://github.com/Ahoo-Wang/Wow/blob/main/README.md#L41-L49)
 
-# Part I — Foundations
+## Part I — Foundations
 
-## 1. Kotlin for contributors coming from Python or JavaScript
+### 1. Kotlin for contributors coming from Python or JavaScript
 
 Kotlin is statically typed, null-aware, expression-oriented, and compiled for the JVM in this repository.
 
@@ -63,7 +68,7 @@ Use this concrete translation table when arriving from Python or JavaScript:
 
 The Kotlin examples below expand the rightmost column. The Python and JavaScript cells are migration cues, not source files to add to this repository.
 
-### 1.1 Values, variables, and inferred types
+#### 1.1 Values, variables, and inferred types
 
 Prefer `val` for immutable references.
 
@@ -82,7 +87,7 @@ Kotlin usually infers them at compile time.
 
 That distinction means refactoring tools and the compiler can catch many mismatches before a test runs.
 
-### 1.2 Data classes model value-shaped messages
+#### 1.2 Data classes model value-shaped messages
 
 Wow commands and events are commonly Kotlin data classes.
 
@@ -105,7 +110,7 @@ The simplified snippet shows the shape.
 
 The repository source remains authoritative for annotations and validation constraints.
 
-### 1.3 Null is part of the type
+#### 1.3 Null is part of the type
 
 `String` does not accept `null`.
 
@@ -119,7 +124,7 @@ Use safe calls, Elvis expressions, and explicit branching.
 
 Avoid `!!` unless an invariant is both local and already proven.
 
-### 1.4 Functions can return expressions
+#### 1.4 Functions can return expressions
 
 ```kotlin
 fun nextQuantity(current: Int, delta: Int): Int = current + delta
@@ -130,7 +135,7 @@ Aggregate command handlers often return domain events rather than mutating store
 The cart aggregate follows that pattern: handlers evaluate state and return `CartItemAdded`, `CartQuantityChanged`, or `CartItemRemoved`.
 [Read the aggregate handlers.](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt#L32-L76)
 
-### 1.5 Classes expose intent through constructors
+#### 1.5 Classes expose intent through constructors
 
 Constructor injection makes dependencies visible.
 
@@ -150,7 +155,7 @@ Keep domain dependencies focused.
 
 Do not inject a database client into an aggregate merely because Spring can provide it.
 
-### 1.6 Extension functions keep domain tests readable
+#### 1.6 Extension functions keep domain tests readable
 
 Kotlin lets a function appear as though it belongs to a receiver type.
 
@@ -167,7 +172,7 @@ Extensions do not actually add members to the target class.
 
 Use them to improve a local vocabulary, not to hide surprising control flow.
 
-### 1.7 Sealed types and exhaustive branches
+#### 1.7 Sealed types and exhaustive branches
 
 Use sealed hierarchies when a domain result has a closed set of cases.
 
@@ -186,7 +191,7 @@ fun describe(decision: CartDecision): String = when (decision) {
 
 The compiler verifies that the `when` expression covers every known subtype.
 
-### 1.8 Collections and immutability
+#### 1.8 Collections and immutability
 
 Use read-only collection interfaces at boundaries when mutation is not part of the contract.
 
@@ -200,7 +205,7 @@ The type being read-only does not prove the underlying object is deeply immutabl
 
 Keep ownership clear and avoid exposing a mutable internal collection.
 
-### 1.9 Reactor is the default asynchronous vocabulary
+#### 1.9 Reactor is the default asynchronous vocabulary
 
 Wow runtime paths use Reactor `Mono` and `Flux`.
 
@@ -221,7 +226,7 @@ The types in this conceptual snippet are illustrative.
 The real command gateway exposes both `Mono` and `Flux` wait forms and delegates to the command bus.
 [Read the gateway contract.](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L63-L173)
 
-### 1.10 Think in transformations, not subscriptions
+#### 1.10 Think in transformations, not subscriptions
 
 Framework code should usually compose operators and return the pipeline.
 
@@ -253,7 +258,7 @@ flowchart LR
 - [wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:79-143](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L79-L143)
 -->
 
-## 2. Spring essentials in Wow
+### 2. Spring essentials in Wow
 
 Spring is the assembly mechanism around the runtime.
 
@@ -272,7 +277,7 @@ For contributors coming from FastAPI or Express, map the responsibilities like t
 
 Unlike a hand-written Express route, a Wow command route is derived from aggregate and command metadata, converted into route contracts, and only then materialized by WebFlux. Keep domain decisions outside that transport pipeline.
 
-### 2.1 Application bootstrap
+#### 2.1 Application bootstrap
 
 The sample server uses `@SpringBootApplication` and starts through `runApplication`.
 
@@ -292,7 +297,7 @@ This snippet teaches the Spring shape.
 
 Copy the real annotations and scan configuration from the source when creating a runnable module.
 
-### 2.2 Auto-configuration is capability-based
+#### 2.2 Auto-configuration is capability-based
 
 `wow-spring-boot-starter` exposes feature variants for MongoDB, Redis, mocks, Kafka, WebFlux, Elasticsearch, OpenTelemetry, OpenAPI, and CoSec.
 [See the declared capabilities.](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/build.gradle.kts#L5-L44)
@@ -304,7 +309,7 @@ Choose the smallest feature set that owns the needed integration.
 
 Adding an infrastructure dependency to the domain module is usually a boundary smell.
 
-### 2.3 Conditional beans preserve replaceable boundaries
+#### 2.3 Conditional beans preserve replaceable boundaries
 
 Auto-configuration creates defaults only when properties and classpath capabilities select them.
 
@@ -323,7 +328,7 @@ Before creating another bean:
 5. check the auto-configuration imports file;
 6. add a replacement only at the owning integration boundary.
 
-### 2.4 Configuration is executable behavior
+#### 2.4 Configuration is executable behavior
 
 The example server currently selects MongoDB event and snapshot storage while using in-memory buses.
 [Read the active example configuration.](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-server/src/main/resources/application.yaml#L73-L99)
@@ -332,7 +337,7 @@ Do not infer a production topology from that example.
 
 The file is evidence of the sample's local wiring, not a universal deployment recommendation.
 
-### 2.5 WebFlux adapts HTTP to the command model
+#### 2.5 WebFlux adapts HTTP to the command model
 
 The WebFlux handler reads the request body, rejects an empty body, delegates to the command handler, and writes the response.
 [Read `CommandHandlerFunction`.](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/CommandHandlerFunction.kt#L43-L66)
@@ -362,9 +367,9 @@ flowchart LR
 - [wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/CommandHandler.kt:30-62](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/CommandHandler.kt#L30-L62)
 -->
 
-# Part II — Understand the codebase
+## Part II — Understand the codebase
 
-## 3. What Wow is
+### 3. What Wow is
 
 Wow provides framework contracts and runtime components for domain-driven design, CQRS, and event sourcing.
 
@@ -381,13 +386,13 @@ The central contributor idea is separation of responsibility:
 - test modules provide DSLs, TCKs, and integration support;
 - example modules demonstrate complete vertical slices.
 
-## 4. Repository structure
+### 4. Repository structure
 
 The authoritative project list lives in [`settings.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L23-L85).
 
 There are four useful groups.
 
-### 4.1 Framework and integration modules
+#### 4.1 Framework and integration modules
 
 | Area | Representative modules | Responsibility |
 | --- | --- | --- |
@@ -409,7 +414,7 @@ The table summarizes module intent.
 
 Verify exact inclusion and directory mapping in the settings file before editing build logic.
 
-### 4.2 Test modules
+#### 4.2 Test modules
 
 The settings file includes test DSLs, test support, storage and bus TCKs, mocks, benchmarks, integration tests, and aggregate coverage reporting.
 [See the test-module declarations.](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L46-L56)
@@ -418,7 +423,7 @@ Use a TCK when several implementations must satisfy the same contract.
 
 Use an integration test when the behavior depends on a real external engine or container.
 
-### 4.3 Compensation modules
+#### 4.3 Compensation modules
 
 The compensation area has API, domain, core, server, and dashboard projects.
 [See the compensation declarations.](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L58-L66)
@@ -427,7 +432,7 @@ Treat it as a product-shaped subsystem with its own boundaries.
 
 Do not use compensation implementation detail as a default core contract without an explicit architecture decision.
 
-### 4.4 Example modules
+#### 4.4 Example modules
 
 The examples include a Kotlin domain/server and a Java transfer domain/server.
 [See the example declarations.](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L68-L85)
@@ -456,9 +461,9 @@ graph TB
 - [example/example-domain/build.gradle.kts:1-20](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/build.gradle.kts#L1-L20)
 -->
 
-## 5. Core concepts
+### 5. Core concepts
 
-### 5.1 Bounded context and named aggregate
+#### 5.1 Bounded context and named aggregate
 
 A bounded context gives names a domain boundary.
 
@@ -472,7 +477,7 @@ The example declares a service context in its API and a bounded-context marker i
 [See `ExampleService`.](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/ExampleService.kt#L22-L40)
 [See `ExampleBoundedContext`.](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/ExampleBoundedContext.kt#L19-L21)
 
-### 5.2 Aggregate identity
+#### 5.2 Aggregate identity
 
 `AggregateId` combines the named aggregate, the aggregate `id`, and `tenantId`.
 
@@ -483,7 +488,7 @@ The contract states that an aggregate ID is unique across tenants for the same n
 
 Do not treat `tenantId` as a namespace that permits the same `id` to be reused inside one named aggregate.
 
-### 5.3 Command and command message
+#### 5.3 Command and command message
 
 A command expresses requested intent.
 
@@ -495,7 +500,7 @@ The message can indicate creation, expected aggregate version, and void behavior
 
 Those fields participate in correctness and should not be dropped by adapters.
 
-### 5.4 Domain event and event stream
+#### 5.4 Domain event and event stream
 
 A domain event records a business fact that has happened.
 
@@ -508,7 +513,7 @@ A domain event records a business fact that has happened.
 Its implementation enforces stream-level invariants, including command identity and aggregate context.
 [Read the stream contract and invariants.](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L31-L115)
 
-### 5.5 Event store
+#### 5.5 Event store
 
 `EventStore` appends a domain event stream and loads streams for an aggregate.
 [Read the storage contract.](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L22-L82)
@@ -517,7 +522,7 @@ Optimistic concurrency and duplicate-stream failures belong to this boundary.
 
 Do not convert them into successful writes at an adapter edge.
 
-### 5.6 State sourcing and snapshots
+#### 5.6 State sourcing and snapshots
 
 The state aggregate applies domain events to rebuild state.
 
@@ -530,7 +535,7 @@ The repository can load a snapshot and replay later events.
 A snapshot captures aggregate state at a version.
 [Read the snapshot contract.](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/Snapshot.kt#L20-L41)
 
-### 5.7 State events
+#### 5.7 State events
 
 A state event is derived after domain event sourcing and can represent the resulting state transition for downstream consumers.
 [Read `StateEvent`.](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/state/StateEvent.kt#L23-L100)
@@ -538,7 +543,7 @@ A state event is derived after domain event sourcing and can represent the resul
 The state-event filter creates and publishes state events after processing the event stream.
 [Read the filter.](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/state/SendStateEventFilter.kt#L29-L76)
 
-### 5.8 Projection, event processor, and saga
+#### 5.8 Projection, event processor, and saga
 
 An event processor reacts to domain events.
 [Read the `@EventProcessor` annotation.](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/EventProcessor.kt#L19-L58)
@@ -576,11 +581,11 @@ erDiagram
 - [wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/StatelessSaga.kt:19-62](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/StatelessSaga.kt#L19-L62)
 -->
 
-## 6. The command lifecycle
+### 6. The command lifecycle
 
 The following trace is the most useful runtime map for a contributor.
 
-### 6.1 HTTP adaptation
+#### 6.1 HTTP adaptation
 
 `CommandHandlerFunction` reads and validates the presence of a body.
 
@@ -588,7 +593,7 @@ The following trace is the most useful runtime map for a contributor.
 
 `CommandHandler` selects a wait plan and response form.
 
-### 6.2 Gateway validation and idempotency
+#### 6.2 Gateway validation and idempotency
 
 `DefaultCommandGateway` validates the command and runs idempotency coordination before sending it.
 [Read validation, idempotency, and bus dispatch.](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L79-L143)
@@ -598,7 +603,7 @@ Duplicate request identity is a correctness condition, not merely a logging conc
 The gateway rejects a duplicate request ID for the same aggregate.
 [Read the duplicate request exception contract.](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandExceptions.kt#L25-L35)
 
-### 6.3 Dispatch and aggregate affinity
+#### 6.3 Dispatch and aggregate affinity
 
 `CommandDispatcher` receives commands from the bus and selects the named aggregate dispatcher.
 [Read the dispatcher.](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/CommandDispatcher.kt#L37-L75)
@@ -609,7 +614,7 @@ The gateway rejects a duplicate request ID for the same aggregate.
 Spring assembly creates the processor, filter chain, handler, and dispatcher.
 [Read aggregate auto-configuration.](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt#L70-L145)
 
-### 6.4 Decision, sourcing, and append
+#### 6.4 Decision, sourcing, and append
 
 The processor filter obtains a command aggregate processor and executes the exchange.
 [Read the processor filter.](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/AggregateProcessorFilter.kt#L26-L49)
@@ -624,7 +629,7 @@ The processor filter obtains a command aggregate processor and executes the exch
 The command aggregate records processing states such as stored, sourced, and expired.
 [Read the aggregate command-state transitions.](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt#L55-L84)
 
-### 6.5 Publication and wait completion
+#### 6.5 Publication and wait completion
 
 After append, the domain-event filter publishes the stream to the domain event bus.
 [Read the publication filter.](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/SendDomainEventStreamFilter.kt#L25-L46)
@@ -638,7 +643,7 @@ The stage model declares dependencies between `SENT`, `PROCESSED`, `SNAPSHOT`, `
 
 A wait plan can complete directly at `SENT` or `PROCESSED`. `SNAPSHOT`, `PROJECTED`, `EVENT_HANDLED`, and `SAGA_HANDLED` are sibling targets that share the first two prerequisites; they are not a mandatory sequence traversed by every command.
 
-### 6.6 Deadline and cancellation ownership
+#### 6.6 Deadline and cancellation ownership
 
 Streaming waits use `Flux.using` and single-result waits use `Mono.using` so coordinator resources are released.
 [Read streaming wait ownership.](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L201-L223)
@@ -728,9 +733,9 @@ stateDiagram-v2
 - [wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:282-301](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L282-L301)
 -->
 
-## 7. Key implementation patterns
+### 7. Key implementation patterns
 
-### 7.1 API → aggregate → state → specification
+#### 7.1 API → aggregate → state → specification
 
 This is the default domain-feature path.
 
@@ -747,7 +752,7 @@ The cart slice provides all four pieces:
 - [example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/CartState.kt:23-46](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/CartState.kt#L23-L46)
 - [example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSpec.kt:28-87](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSpec.kt#L28-L87)
 
-### 7.2 Annotations declare discovery boundaries
+#### 7.2 Annotations declare discovery boundaries
 
 `@AggregateRoot` identifies an aggregate root. Its `commands` property mounts additional command types, including void or rewritten commands, onto that aggregate.
 [Read the annotation contract.](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoot.kt#L18-L77)
@@ -772,7 +777,7 @@ The remaining responsibilities are separate layers:
 [See command route contribution.](https://github.com/Ahoo-Wang/Wow/blob/main/wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/contributor/aggregate/command/CommandRouteContributor.kt#L52-L91)
 [See runtime route materialization.](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/RouterFunctionBuilder.kt#L24-L42)
 
-### 7.3 Filter chains extend processing without collapsing boundaries
+#### 7.3 Filter chains extend processing without collapsing boundaries
 
 Aggregate auto-configuration collects ordered exchange filters and builds a processing chain.
 [Read filter assembly.](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt#L108-L133)
@@ -781,7 +786,7 @@ Use a filter for cross-cutting exchange behavior that truly belongs at that stag
 
 Do not use a filter to hide domain rules that should be visible in the aggregate.
 
-### 7.4 TCKs protect replaceable implementations
+#### 7.4 TCKs protect replaceable implementations
 
 Storage and bus integrations have contract-test modules declared in the build.
 [See the TCK modules.](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L46-L56)
@@ -794,7 +799,7 @@ When adding an implementation:
 4. register capability and conditional configuration in the starter if needed;
 5. avoid changing the public contract to accommodate one engine unless the model requires it.
 
-### 7.5 Capability and auto-configuration form one extension unit
+#### 7.5 Capability and auto-configuration form one extension unit
 
 The starter's feature variants declare optional integrations.
 
@@ -826,9 +831,9 @@ flowchart TB
 - [wow-compiler/src/main/kotlin/me/ahoo/wow/compiler/metadata/MetadataSymbolProcessor.kt:61-104](https://github.com/Ahoo-Wang/Wow/blob/main/wow-compiler/src/main/kotlin/me/ahoo/wow/compiler/metadata/MetadataSymbolProcessor.kt#L61-L104)
 -->
 
-# Part III — Make your first contribution
+## Part III — Make your first contribution
 
-## 8. Prerequisites
+### 8. Prerequisites
 
 The install commands below are macOS/Homebrew examples. On Linux or Windows, use the equivalent official installer while preserving the required version. Every install command should exit with status `0`; then run the verification command and compare the evidence column.
 
@@ -854,11 +859,11 @@ Documentation and dashboard CI use Node `24.18.1` and pnpm `10.34.5`; their pack
 The root build separates local, contract, and container-backed integration source sets and tasks. A passing local test does not prove that an external storage adapter works.
 [Read the test-layer definitions.](https://github.com/Ahoo-Wang/Wow/blob/main/build.gradle.kts#L54-L142)
 
-## 9. Verify the checkout
+### 9. Verify the checkout
 
 Run commands from the repository root.
 
-### 9.1 Confirm the wrapper and JVM
+#### 9.1 Confirm the wrapper and JVM
 
 ```bash
 ./gradlew --version
@@ -875,7 +880,7 @@ Patch versions and vendor text can differ.
 
 The repository requires the Java 17 toolchain and pins the wrapper version in source.
 
-### 9.2 Inspect your worktree
+#### 9.2 Inspect your worktree
 
 ```bash
 git status --short
@@ -888,7 +893,7 @@ Do not discard changes you did not create.
 
 Keep your contribution narrow even when the worktree is already dirty.
 
-### 9.3 Run the cart specification
+#### 9.3 Run the cart specification
 
 ```bash
 ./gradlew :example-domain:test \
@@ -907,11 +912,11 @@ The exact duration and task-cache status are machine-dependent.
 The specification covers adding and removing items plus deleting and recovering the cart aggregate.
 [Read the scenarios.](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSpec.kt#L28-L87)
 
-## 10. Read one complete vertical slice
+### 10. Read one complete vertical slice
 
 Before editing, open these files in order.
 
-### Step 1 — Command and event
+#### Step 1 — Command and event
 
 Open [`AddCartItem.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/cart/AddCartItem.kt#L1-L26).
 
@@ -922,7 +927,7 @@ Observe:
 - the event names a completed fact;
 - API types do not import MongoDB, Kafka, or Spring runtime adapters.
 
-### Step 2 — Aggregate decision
+#### Step 2 — Aggregate decision
 
 Open [`Cart.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt#L32-L76).
 
@@ -934,7 +939,7 @@ Observe:
 - handlers return events;
 - the aggregate does not persist itself directly.
 
-### Step 3 — State transition
+#### Step 3 — State transition
 
 Open [`CartState.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/CartState.kt#L23-L46).
 
@@ -944,7 +949,7 @@ Observe:
 - state changes follow event facts;
 - replay uses the same transition logic as live processing.
 
-### Step 4 — Specification
+#### Step 4 — Specification
 
 Open [`CartSpec.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSpec.kt#L28-L87).
 
@@ -955,7 +960,7 @@ Observe:
 - expected events and state are the primary output;
 - deleted and recovered states are explicit behavior.
 
-### Step 5 — Build boundary
+#### Step 5 — Build boundary
 
 Open [`example-domain/build.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/build.gradle.kts#L1-L20).
 
@@ -966,13 +971,13 @@ Observe:
 - tests use Wow test support;
 - line coverage has an `0.8` verification rule.
 
-## 11. A safe first task
+### 11. A safe first task
 
 The walkthrough below is a **teaching proposal**, not behavior currently checked into the repository. It deliberately introduces the new names `SetCartNote` and `CartNoteChanged`; all existing types, DSL calls, module paths, and commands come from the current cart slice.
 
 The proposed feature lets the owner attach a short delivery note to an initialized cart. It is small enough to exercise the complete API → decision → event → sourcing → specification path without changing storage or module boundaries.
 
-### 11.1 Define the contract and affected files
+#### 11.1 Define the contract and affected files
 
 Behavior statement:
 
@@ -989,7 +994,7 @@ The complete change owns exactly four files:
 
 Do not add persistence code: the event store persists the new event through the existing runtime path.
 
-### 11.2 Add the API contract
+#### 11.2 Add the API contract
 
 Create `SetCartNote.kt` with the repository's Apache header and this body:
 
@@ -1020,7 +1025,7 @@ data class CartNoteChanged(
 The command shape follows the existing routed cart commands; validation stays at the API boundary.
 [Compare the real `ChangeQuantity` contract.](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/cart/ChangeQuantity.kt#L1-L21)
 
-### 11.3 Add a failing specification
+#### 11.3 Add a failing specification
 
 Import the two proposed types into `CartSpec`. Inside the existing successful `AddCartItem` branch, add this fork so the cart is already initialized:
 
@@ -1049,7 +1054,7 @@ Run only that specification:
 
 Expected red result: Gradle ends with `BUILD FAILED` because `compileTestKotlin` cannot resolve `CartState.note`. At this red step the test task may not run, so no fresh HTML test report is guaranteed; use the compiler output as the authoritative failure evidence.
 
-### 11.4 Implement decision and sourcing
+#### 11.4 Implement decision and sourcing
 
 Add imports for the proposed types to `Cart.kt`, then add the decision:
 
@@ -1076,7 +1081,7 @@ The aggregate returns a fact; only the state sourcing function mutates reconstru
 [Compare the current decision.](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt#L69-L76)
 [Compare the current sourcing handler.](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/CartState.kt#L37-L46)
 
-### 11.5 Reach green, inspect scope, and verify coverage
+#### 11.5 Reach green, inspect scope, and verify coverage
 
 Re-run the narrow test:
 
@@ -1114,12 +1119,12 @@ git diff -- \
 Expected result: status lists the new API file plus the three modified tracked files; the diff contains only the three tracked files, with no generated output or unrelated formatting. The following staging step includes and reviews the new file. CI retries remain CI-only; never add local retries to conceal a deterministic failure.
 [Read the retry configuration.](https://github.com/Ahoo-Wang/Wow/blob/main/build.gradle.kts#L175-L229)
 
-## 12. Contributor workflow
+### 12. Contributor workflow
 
 The repository requires a focused branch from `main`, conventional commit messages, narrow verification, and a completed pull-request template.
 [Read the maintained contribution rules.](https://github.com/Ahoo-Wang/Wow/blob/main/CONTRIBUTING.md#L50-L86)
 
-### 12.1 Create a focused branch
+#### 12.1 Create a focused branch
 
 Start only after preserving or handing off unrelated local changes:
 
@@ -1140,7 +1145,7 @@ git status --short
 
 Expected result: the first command prints `feature/cart-note`; the second is empty before editing, or lists only changes you intentionally preserved.
 
-### 12.2 Reproduce, test first, and implement
+#### 12.2 Reproduce, test first, and implement
 
 Read the issue, owning contracts, implementation, tests, build wiring, and completion criteria. Run the narrowest existing test and record the exact behavior before editing.
 
@@ -1152,13 +1157,13 @@ For behavior changes:
 4. preserve reactive composition and module ownership;
 5. avoid public API breaks unless explicitly approved.
 
-### 12.3 Verify from narrow to broad
+#### 12.3 Verify from narrow to broad
 
 Run the narrow test, then the owning module's `check`. Add contract or integration tests when the changed boundary requires them; run Detekt for Kotlin changes and the VitePress build for documentation changes.
 
 Expected result for every green Gradle verification is `BUILD SUCCESSFUL`. For documentation, expect VitePress to finish without dead-link or Mermaid errors and write `documentation/docs/.vitepress/dist/`.
 
-### 12.4 Stage and commit only the intended files
+#### 12.4 Stage and commit only the intended files
 
 For the teaching feature above:
 
@@ -1182,7 +1187,7 @@ git commit -m 'feat(example): add cart note'
 
 Expected result: Git prints a commit summary beginning with `[feature/cart-note`, followed by the new commit ID and changed-file counts. Do not commit generated output, credentials, IDE state, `.gradle/`, or `node_modules/`.
 
-### 12.5 Push and open the pull request
+#### 12.5 Push and open the pull request
 
 ```bash
 git push -u origin feature/cart-note
@@ -1216,9 +1221,9 @@ flowchart LR
 - [.github/PULL_REQUEST_TEMPLATE:1-23](https://github.com/Ahoo-Wang/Wow/blob/main/.github/PULL_REQUEST_TEMPLATE#L1-L23)
 -->
 
-## 13. Test and verification layers
+### 13. Test and verification layers
 
-### 13.1 Narrow unit or specification test
+#### 13.1 Narrow unit or specification test
 
 Use for one class, aggregate, or scenario.
 
@@ -1241,7 +1246,7 @@ To run one test method rather than the whole class:
 Expected outcome is `BUILD SUCCESSFUL`, with the HTML report containing only the selected method from `CommandGatewayApiTest`.
 [Read the executable test method.](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/test/kotlin/me/ahoo/wow/command/CommandGatewayApiTest.kt#L21-L35)
 
-### 13.2 Owning-module check
+#### 13.2 Owning-module check
 
 ```bash
 ./gradlew :wow-core:check --stacktrace
@@ -1252,7 +1257,7 @@ Expected result: `BUILD SUCCESSFUL`; standard test reports are under `wow-core/b
 The root build wires standard tests and contract tests into module checks where configured.
 [Read source-set and task wiring.](https://github.com/Ahoo-Wang/Wow/blob/main/build.gradle.kts#L94-L142)
 
-### 13.3 All local tests
+#### 13.3 All local tests
 
 ```bash
 ./gradlew allLocalTest --stacktrace
@@ -1263,7 +1268,7 @@ Expected result: `BUILD SUCCESSFUL`; each participating module writes its standa
 This task aggregates the standard local-safe test layer.
 [Read aggregate task registration.](https://github.com/Ahoo-Wang/Wow/blob/main/build.gradle.kts#L232-L261)
 
-### 13.4 All contract tests
+#### 13.4 All contract tests
 
 ```bash
 ./gradlew allContractTest --stacktrace
@@ -1273,7 +1278,7 @@ Expected result: `BUILD SUCCESSFUL`; participating modules write reports under `
 
 Use this layer to validate shared behavior across implementations.
 
-### 13.5 All integration tests
+#### 13.5 All integration tests
 
 ```bash
 ./gradlew allIntegrationTest --stacktrace
@@ -1288,7 +1293,7 @@ Expect external-engine setup to take longer than local tests.
 The integration workflow runs the dedicated aggregate task in CI.
 [Read the workflow.](https://github.com/Ahoo-Wang/Wow/blob/main/.github/workflows/integration-test.yml#L14-L77)
 
-### 13.6 Static analysis
+#### 13.6 Static analysis
 
 ```bash
 ./gradlew detekt --stacktrace
@@ -1304,7 +1309,7 @@ The root build enables Detekt auto-correction.
 
 Inspect `git diff` after running it because formatting changes may be written.
 
-### 13.7 Coverage reports
+#### 13.7 Coverage reports
 
 Start with the local-only coverage report; it does not schedule container-backed integration tests:
 
@@ -1323,7 +1328,7 @@ For the complete aggregate report, first start a Docker-compatible runtime. This
 Expected result with the required engines available: `BUILD SUCCESSFUL`; the aggregate report is written under `test/code-coverage-report/build/reports/jacoco/codeCoverageReport/`.
 [Read report registration, task dependencies, and output paths.](https://github.com/Ahoo-Wang/Wow/blob/main/test/code-coverage-report/build.gradle.kts#L42-L114)
 
-### 13.8 Benchmark smoke
+#### 13.8 Benchmark smoke
 
 ```bash
 ./gradlew :wow-benchmarks:benchmarkSmoke
@@ -1338,7 +1343,7 @@ A smoke result is not a product latency or throughput guarantee.
 
 Use a controlled benchmark design before making performance claims.
 
-### 13.9 Documentation build
+#### 13.9 Documentation build
 
 ```bash
 cd documentation
@@ -1353,7 +1358,7 @@ The CI workflow runs Dokka first and then builds VitePress.
 
 The static site output is `documentation/docs/.vitepress/dist/`.
 
-### 13.10 Dashboard verification
+#### 13.10 Dashboard verification
 
 ```bash
 cd compensation/dashboard
@@ -1368,7 +1373,7 @@ Expected result: ESLint exits without errors, Vite finishes the production build
 These commands align with dashboard CI.
 [Read the workflow.](https://github.com/Ahoo-Wang/Wow/blob/main/.github/workflows/dashboard-test.yml#L35-L63)
 
-### 13.11 Final diff checks
+#### 13.11 Final diff checks
 
 ```bash
 git diff --check
@@ -1402,7 +1407,7 @@ graph TB
 - [.github/workflows/documentation-deploy.yml:44-86](https://github.com/Ahoo-Wang/Wow/blob/main/.github/workflows/documentation-deploy.yml#L44-L86)
 -->
 
-## 14. Debugging playbook
+### 14. Debugging playbook
 
 Use this table to choose the first owned boundary, then follow the detailed evidence and actions below.
 
@@ -1420,7 +1425,7 @@ Use this table to choose the first owned boundary, then follow the detailed evid
 | VitePress reports a dead link | Locale, rewrite, or repository-relative path resolution is incorrect. | Correct the link against the active locale and rerun the full documentation build. |
 | Detekt leaves source changes | Root Detekt configuration enables auto-correction. | Inspect the diff, keep only intended formatting, and rerun the narrow check. |
 
-### 14.1 Start with the first owned boundary
+#### 14.1 Start with the first owned boundary
 
 For an HTTP command failure, inspect in this order:
 
@@ -1438,7 +1443,7 @@ For an HTTP command failure, inspect in this order:
 
 This order follows the real processing chain rather than guessing from the final HTTP status.
 
-### 14.2 Empty request body
+#### 14.2 Empty request body
 
 Symptom: the WebFlux endpoint rejects the request before the aggregate runs.
 
@@ -1452,7 +1457,7 @@ Action:
 - confirm the route points to the expected command endpoint;
 - do not debug event storage yet.
 
-### 14.3 Command validation failure
+#### 14.3 Command validation failure
 
 Symptom: command execution stops before bus dispatch.
 
@@ -1466,7 +1471,7 @@ Action:
 - reproduce with a narrow gateway or aggregate test;
 - distinguish input validation from domain-state rejection.
 
-### 14.4 Duplicate request ID
+#### 14.4 Duplicate request ID
 
 Symptom: a `DuplicateRequestIdException` identifies a request ID previously seen for the same aggregate.
 
@@ -1481,7 +1486,7 @@ Action:
 - inspect the prior processing associated with that aggregate and request ID;
 - do not disable idempotency globally to hide incorrect identifiers.
 
-### 14.5 Undefined command handler
+#### 14.5 Undefined command handler
 
 Symptom: the aggregate cannot resolve a handler for the command type.
 
@@ -1495,7 +1500,7 @@ Action:
 - rebuild the domain module;
 - inspect metadata discovery before changing WebFlux routes.
 
-### 14.6 Aggregate lifecycle rejection
+#### 14.6 Aggregate lifecycle rejection
 
 Symptom: a command is rejected because the aggregate is not initialized, is deleted, or violates ownership or space rules.
 
@@ -1509,7 +1514,7 @@ Action:
 - reproduce from a known event history;
 - do not create missing state as a transport workaround.
 
-### 14.7 Event append conflict
+#### 14.7 Event append conflict
 
 Symptom: the event store rejects a stream due to duplicate or version conflict behavior.
 
@@ -1524,7 +1529,7 @@ Action:
 - reproduce against the relevant storage TCK;
 - preserve atomic append semantics.
 
-### 14.8 Wait timeout
+#### 14.8 Wait timeout
 
 Symptom: the command was sent but the requested stage was not observed before the deadline.
 
@@ -1540,7 +1545,7 @@ Action:
 - verify cancellation releases the wait handle;
 - do not replace the bounded deadline with an unbounded wait.
 
-### 14.9 Missing MongoDB database configuration
+#### 14.9 Missing MongoDB database configuration
 
 Symptom: MongoDB event sourcing cannot build its storage bean.
 
@@ -1556,7 +1561,7 @@ Action:
 - compare with the example server YAML;
 - verify connectivity only after binding is correct.
 
-### 14.10 Integration test cannot start an engine
+#### 14.10 Integration test cannot start an engine
 
 Symptom: local tests pass but integration tests fail during container or service startup.
 
@@ -1571,7 +1576,7 @@ Action:
 The build intentionally separates integration tests from local and contract layers.
 [Read the separation.](https://github.com/Ahoo-Wang/Wow/blob/main/build.gradle.kts#L54-L142)
 
-### 14.11 Documentation dead link
+#### 14.11 Documentation dead link
 
 Symptom: VitePress build reports an unresolved internal link.
 
@@ -1586,7 +1591,7 @@ Action:
 The VitePress config rewrites English locale paths.
 [Read the rewrite configuration.](https://github.com/Ahoo-Wang/Wow/blob/main/documentation/docs/.vitepress/config.mts#L24-L26)
 
-### 14.12 Detekt changed files
+#### 14.12 Detekt changed files
 
 Symptom: static analysis leaves formatting changes in the worktree.
 
@@ -1624,45 +1629,45 @@ flowchart TD
 - [wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt:25-123](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L25-L123)
 -->
 
-## 15. Common pitfalls
+### 15. Common pitfalls
 
-### Pitfall 1 — Editing the wrong module
+#### Pitfall 1 — Editing the wrong module
 
 Putting an API contract in an infrastructure module couples users to an adapter.
 
 Start from the dependency direction and choose the lowest stable owning boundary.
 
-### Pitfall 2 — Mutating state in the command handler
+#### Pitfall 2 — Mutating state in the command handler
 
 Event-sourced state must be reproducible from events.
 
 Return an event from the decision and apply it in `@OnSourcing`.
 
-### Pitfall 3 — Adding a new event without sourcing behavior
+#### Pitfall 3 — Adding a new event without sourcing behavior
 
 The live command might emit the event while replay produces stale state.
 
 Add the sourcing handler and a state assertion in the same change.
 
-### Pitfall 4 — Treating validation and domain rejection as identical
+#### Pitfall 4 — Treating validation and domain rejection as identical
 
 Input-shape validation belongs at the command boundary.
 
 Rules depending on current aggregate state belong in the aggregate.
 
-### Pitfall 5 — Blocking a reactive path
+#### Pitfall 5 — Blocking a reactive path
 
 `block()` can consume event-loop capacity and break cancellation semantics.
 
 Return the composed `Mono` or `Flux`.
 
-### Pitfall 6 — Calling `subscribe()` inside a library function
+#### Pitfall 6 — Calling `subscribe()` inside a library function
 
 Hidden subscriptions separate work from the caller's cancellation and error handling.
 
 Let the application edge own subscription.
 
-### Pitfall 7 — Confusing KSP metadata with runtime routing
+#### Pitfall 7 — Confusing KSP metadata with runtime routing
 
 KSP participates in compilation and metadata generation.
 
@@ -1670,55 +1675,55 @@ WebFlux endpoints are runtime integration behavior.
 
 Debug each boundary separately.
 
-### Pitfall 8 — Running only happy-path tests
+#### Pitfall 8 — Running only happy-path tests
 
 Aggregate creation, deletion, recovery, duplication, version mismatch, and timeout paths are part of correctness.
 
 Use existing tests as an edge-case inventory.
 
-### Pitfall 9 — Calling a smoke benchmark a performance guarantee
+#### Pitfall 9 — Calling a smoke benchmark a performance guarantee
 
 A JMH smoke task proves that selected benchmarks execute.
 
 It does not establish end-to-end capacity, tail latency, or a production SLA.
 
-### Pitfall 10 — Assuming example configuration is production policy
+#### Pitfall 10 — Assuming example configuration is production policy
 
 The example uses a particular mix of MongoDB storage and in-memory buses.
 
 Treat it as executable sample wiring, not a universal deployment design.
 
-### Pitfall 11 — Broadening a public API for one adapter
+#### Pitfall 11 — Broadening a public API for one adapter
 
 First determine whether the need is general or engine-specific.
 
 Prefer an adapter option over contract pollution when the concern is local.
 
-### Pitfall 12 — Skipping the TCK
+#### Pitfall 12 — Skipping the TCK
 
 Adapter-specific tests can pass while violating the common contract.
 
 Run the shared TCK and the engine integration test.
 
-### Pitfall 13 — Ignoring generated metadata drift
+#### Pitfall 13 — Ignoring generated metadata drift
 
 Change source annotations and processor inputs first.
 
 Do not hand-edit generated output as the primary fix.
 
-### Pitfall 14 — Hiding a deterministic failure with retry
+#### Pitfall 14 — Hiding a deterministic failure with retry
 
 CI retry is a bounded resilience mechanism for CI instability.
 
 It is not permission to leave deterministic tests flaky.
 
-### Pitfall 15 — Reporting unrun checks as passed
+#### Pitfall 15 — Reporting unrun checks as passed
 
 List exact commands and outcomes.
 
 State clearly when Docker, Node, credentials, or time prevented a broader check.
 
-# Appendix A — Glossary
+## Appendix A — Glossary
 
 The definitions below are contributor-oriented summaries.
 
@@ -1825,9 +1830,9 @@ Core identity, command, event, and storage definitions are anchored in the follo
 - [wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt:22-82](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L22-L82)
 - [wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/StorageType.kt:16-30](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/StorageType.kt#L16-L30)
 
-# Appendix B — Key file reference
+## Appendix B — Key file reference
 
-## Build and versions
+### Build and versions
 
 | Path | Purpose | Why It Matters | Source |
 | --- | --- | --- | --- |
@@ -1838,7 +1843,7 @@ Core identity, command, event, and storage definitions are anchored in the follo
 | `build.gradle.kts` | Assembles test layers, Detekt, toolchains, retries, and aggregate tasks. | Most repository-wide verification behavior is defined here. | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/build.gradle.kts#L54-L261) |
 | `wow-spring-boot-starter/build.gradle.kts` | Declares optional Spring feature capabilities. | Adapter additions can change dependency resolution and must align with these variants. | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/build.gradle.kts#L5-L79) |
 
-## Domain example
+### Domain example
 
 | Path | Purpose | Why It Matters | Source |
 | --- | --- | --- | --- |
@@ -1854,7 +1859,7 @@ Core identity, command, event, and storage definitions are anchored in the follo
 | `example/example-domain/build.gradle.kts` | Configures KSP, test support, and coverage verification. | It defines the build and quality boundary for the domain slice. | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/build.gradle.kts#L1-L20) |
 | `example/example-server/src/main/resources/application.yaml` | Selects executable sample storage and bus configuration. | It shows actual sample wiring while remaining distinct from production policy. | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-server/src/main/resources/application.yaml#L22-L99) |
 
-## Runtime contracts
+### Runtime contracts
 
 | Path | Purpose | Why It Matters | Source |
 | --- | --- | --- | --- |
@@ -1875,7 +1880,7 @@ Core identity, command, event, and storage definitions are anchored in the follo
 | `wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/SendDomainEventStreamFilter.kt` | Publishes stored domain-event streams. | Downstream processing must remain ordered after durable append. | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/SendDomainEventStreamFilter.kt#L25-L46) |
 | `wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/state/SendStateEventFilter.kt` | Builds and publishes state events. | Its error boundary determines how downstream state-event lag is exposed. | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/state/SendStateEventFilter.kt#L29-L76) |
 
-## Spring and transport
+### Spring and transport
 
 | Path | Purpose | Why It Matters | Source |
 | --- | --- | --- | --- |
@@ -1889,7 +1894,7 @@ Core identity, command, event, and storage definitions are anchored in the follo
 | `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/CommandHandler.kt` | Chooses wait policy and response mode. | It separates single-result and SSE transport semantics. | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/CommandHandler.kt#L30-L62) |
 | `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/exception/WebFluxErrorStrategy.kt` | Maps runtime failures to transport responses. | Error compatibility and client-visible status behavior converge here. | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/exception/WebFluxErrorStrategy.kt#L55-L83) |
 
-## Verification and CI
+### Verification and CI
 
 | Path | Purpose | Why It Matters | Source |
 | --- | --- | --- | --- |
@@ -1902,9 +1907,9 @@ Core identity, command, event, and storage definitions are anchored in the follo
 | `.github/workflows/dashboard-test.yml` | Runs dashboard lint, build, and coverage. | Frontend verification commands should stay aligned with this workflow. | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/.github/workflows/dashboard-test.yml#L35-L63) |
 | `.github/PULL_REQUEST_TEMPLATE` | Defines required change, verification, and risk evidence. | Completing it makes review scope and unrun checks explicit. | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/.github/PULL_REQUEST_TEMPLATE#L1-L23) |
 
-# Appendix C — Quick reference
+## Appendix C — Quick reference
 
-## Choose a command by change type
+### Choose a command by change type
 
 | Change | First command | Broader command | Expected result |
 | --- | --- | --- | --- |
@@ -1919,7 +1924,7 @@ Core identity, command, event, and storage definitions are anchored in the follo
 | Dashboard | `cd compensation/dashboard && pnpm exec vitest run src/features/Failed/__tests__/ApplyRetrySpec.test.tsx` | `cd compensation/dashboard && pnpm lint && pnpm build && pnpm coverage` | Vitest passes; `dist/` and `coverage/` exist |
 | Benchmark code | `./gradlew :wow-benchmarks:test --tests 'me.ahoo.wow.benchmark.infrastructure.StorageBatchTuningOptionsTest'` | `./gradlew :wow-benchmarks:benchmarkSmoke` | Unit test and JMH smoke end with `BUILD SUCCESSFUL` |
 
-## Fast repository map
+### Fast repository map
 
 ```text
 wow-api                    contracts and annotations
@@ -1946,7 +1951,7 @@ example                    Kotlin and Java vertical examples
 documentation              VitePress site
 ```
 
-## Before opening a pull request
+### Before opening a pull request
 
 - [ ] The requested outcome is explicit.
 - [ ] The owning module and public boundary are identified.
@@ -1964,7 +1969,7 @@ documentation              VitePress site
 - [ ] Unrun checks and environment constraints are disclosed.
 - [ ] No unsupported performance, SLA, retention, or compliance claim was added.
 
-## Final mental model
+### Final mental model
 
 A command is intent.
 

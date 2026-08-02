@@ -14,13 +14,24 @@
 import {DefaultTheme} from "vitepress/types/default-theme";
 
 export const sidebarEn: DefaultTheme.Sidebar = {
+    '/articles/': [
+        {
+            text: 'Articles',
+            base: '/articles/',
+            collapsed: false,
+            items: [
+                {text: 'Articles Home', link: ''},
+                {text: 'Why DDD Matters More in the AI Era', link: 'why-ddd-fits-ai-era'},
+            ],
+        },
+    ],
     '/onboarding/': [
         {
             base: '/onboarding/',
             text: 'Onboarding',
             collapsed: false,
             items: [
-                {text: 'Choose Your Path', link: '/onboarding/'},
+                {text: 'Choose Your Path', link: ''},
                 {text: 'Contributor Guide', link: 'contributor-guide'},
                 {text: 'Staff Engineer Guide', link: 'staff-engineer-guide'},
                 {text: 'Executive Guide', link: 'executive-guide'},

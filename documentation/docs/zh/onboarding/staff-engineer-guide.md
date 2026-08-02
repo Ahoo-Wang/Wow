@@ -336,7 +336,7 @@ erDiagram
     }
     COMMAND {
       string requestId
-      int expectedVersion
+      int aggregateVersion
     }
     DOMAIN_EVENT_STREAM {
       string commandId
@@ -344,11 +344,13 @@ erDiagram
     }
     DOMAIN_EVENT {
       int sequence
-      int revision
+      string revision
     }
 ```
 
-<!-- Sources: [Order state fields](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/OrderState.kt#L40-L67), [create payload and event](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/order/CreateOrder.kt#L36-L65), [event stream](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L31-L115) -->
+`aggregateVersion` 可以为空；省略时不启用乐观版本前置条件。事件 `revision` 是语义化版本字符串，默认值为 `0.0.1`。
+
+<!-- Sources: [Order state fields](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/OrderState.kt#L40-L67), [create payload and event](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/order/CreateOrder.kt#L36-L65), [command message](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt#L85-L96), [event revision](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/Revision.kt#L40-L55), [event stream](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L31-L115) -->
 
 ## 命令生命周期
 
@@ -369,7 +371,7 @@ erDiagram
 
 ### 调度
 
-`CommandDispatcher` 接收本地命令并解析聚合元数据。
+`CommandDispatcher` 从配置的 `CommandBus` 接收命令交换——来源可以是本地、分布式或两者合并后的本地优先视图——并解析聚合元数据。
 
 它创建聚合专属调度器和 scheduler。
 调度器按组处理，使一个聚合通道保持串行。
@@ -501,11 +503,11 @@ tenant、space 与 upstream Header 传播到新命令。
 
 快照是从状态事件派生的检查点。
 
-`VersionOffsetSnapshotStrategy` 的默认偏移是五个版本。
+Starter 的默认快照策略是 `ALL`。仅当选择 `VERSION_OFFSET` 时，`VersionOffsetSnapshotStrategy` 才使用默认的五个版本偏移。
 
 它比较已保存版本，并在需要时保存更新的 `SimpleSnapshot`。
 快照保存不属于事件存储追加事务。
-来源：[策略契约](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotStrategy.kt#L20-L51)、[版本偏移策略](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/VersionOffsetSnapshotStrategy.kt#L24-L63)、[快照过滤器](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotFunctionFilter.kt#L27-L35)。
+来源：[Starter 快照默认值](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotProperties.kt#L24-L40)、[策略契约](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotStrategy.kt#L20-L51)、[版本偏移策略](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/VersionOffsetSnapshotStrategy.kt#L24-L63)、[快照过滤器](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotFunctionFilter.kt#L27-L35)。
 
 ### 生命周期对比
 

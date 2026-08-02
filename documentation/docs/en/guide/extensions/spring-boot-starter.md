@@ -274,4 +274,4 @@ wow:
 2. **Use Compiler**: Enable wow-compiler to generate metadata and query property navigation
 3. **Externalize Configuration**: Use Spring Boot configuration files to externalize configuration
 4. **Conditional Wiring**: Use `@ConditionalOnMissingBean` to allow custom overrides
-5. **Choose Local-First Deliberately**: Keep the default only when local delivery semantics match the deployment topology; validate distributed fallback and duplicate handling
+5. **Choose Local-First Deliberately**: Keep the default only when local delivery semantics match the deployment topology; validate admission fallback, marked-copy filtering, and duplicate handling

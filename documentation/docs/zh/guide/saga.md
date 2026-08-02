@@ -78,7 +78,7 @@ sequenceDiagram
     participant EventBus as 领域事件总线
     participant Dispatcher as StatelessSagaDispatcher
     participant SagaFn as StatelessSagaFunction
-    participant TargetAgg as 目标聚合
+    participant CommandBus as 命令总线
 
     Client->>Gateway: 发送命令
     Gateway->>Aggregate: 路由命令
@@ -89,17 +89,18 @@ sequenceDiagram
     SagaFn->>SagaFn: 执行 Saga 逻辑
     alt Saga 返回命令
         SagaFn->>Gateway: 发送生成的 CommandMessage
-        Gateway->>TargetAgg: 路由生成的命令
-        TargetAgg->>TargetAgg: 处理命令<br>（@OnCommand）
-        TargetAgg-->>Gateway: 命令结果
-        Gateway-->>SagaFn: 命令已处理
+        Gateway->>CommandBus: 发送生成命令
+        CommandBus-->>Gateway: 命令已被接受 / 发送
+        Gateway-->>SagaFn: 发送完成
     else Saga 返回 null / Mono.empty
         SagaFn-->>Dispatcher: 未生成命令
     end
-    Dispatcher-->>EventBus: 处理完成
+    Dispatcher-->>EventBus: Saga 处理完成
 ```
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunction.kt:42-109 (saga function wraps delegate, sends commands via gateway), wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaDispatcher.kt:36-56 (dispatcher routes events to saga functions), wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaHandler.kt:36-43 (handler applies filter chain with error handling) -->
+
+Saga 完成只表示处理器执行结束，且所有生成命令都已被命令总线接受。目标命令处理位于该等待边界之外，可能并发或稍后进行；该信号不表示这些命令已经执行，也不表示分布式事务已经完成。
 
 ### 内部管道
 

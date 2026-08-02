@@ -78,7 +78,7 @@ sequenceDiagram
     participant EventBus as Domain Event Bus
     participant Dispatcher as StatelessSagaDispatcher
     participant SagaFn as StatelessSagaFunction
-    participant TargetAgg as Target Aggregate
+    participant CommandBus
 
     Client->>Gateway: Send Command
     Gateway->>Aggregate: Route Command
@@ -89,17 +89,18 @@ sequenceDiagram
     SagaFn->>SagaFn: Execute saga logic
     alt Saga returns command(s)
         SagaFn->>Gateway: Send generated CommandMessage
-        Gateway->>TargetAgg: Route generated Command
-        TargetAgg->>TargetAgg: Process Command<br>(@OnCommand)
-        TargetAgg-->>Gateway: Command Result
-        Gateway-->>SagaFn: Command Processed
+        Gateway->>CommandBus: Send generated command
+        CommandBus-->>Gateway: Command accepted / sent
+        Gateway-->>SagaFn: Send completed
     else Saga returns null / Mono.empty
         SagaFn-->>Dispatcher: No commands generated
     end
-    Dispatcher-->>EventBus: Processing complete
+    Dispatcher-->>EventBus: Saga handling complete
 ```
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunction.kt:42-109 (saga function wraps delegate, sends commands via gateway), wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaDispatcher.kt:36-56 (dispatcher routes events to saga functions), wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaHandler.kt:36-43 (handler applies filter chain with error handling) -->
+
+Saga completion means the handler finished and every generated command was accepted by its command bus. Target-command processing is outside this wait boundary and may run concurrently or later; this signal does not mean those commands were processed or that a distributed transaction completed.
 
 ### The Internal Pipeline
 

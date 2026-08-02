@@ -385,7 +385,7 @@ sequenceDiagram
 
 ### 等待阶段
 
-`WaitPlan` 支持在不同处理阶段等待（完整前置条件矩阵参见 [命令网关](../command-gateway#wait-plans)）：
+`WaitPlan` 支持在不同处理阶段等待（完整前置条件矩阵参见 [命令网关](../command-gateway#等待计划)）：
 
 | 阶段 | 含义 |
 |-------|---------|

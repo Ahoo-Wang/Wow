@@ -53,7 +53,7 @@ enum class BusType {
 
 ### LocalFirst Mode
 
-LocalFirst mode optimizes command and event processing by prioritizing local message consumption over distributed message bus:
+LocalFirst mode first attempts local runtime admission while always sending a distributed copy. The copy is marked locally handled only after every targeted local receiver accepts admission; otherwise it remains eligible for distributed processing.
 
 ```mermaid
 flowchart TB
@@ -68,17 +68,19 @@ flowchart TB
     end
 
     Client --> CG
-    CG --> LocalBus
-    CG --> Kafka
+    CG -->|Local admission attempt| LocalBus
+    CG -->|Distributed copy| Kafka
     LocalBus --> Processor
-    Kafka --> Processor
+    Kafka -->|Unless locally handled| Processor
 ```
 
-#### Benefits
+#### Behavior and failure boundary
 
-1. **Reduced Latency**: Local message processing avoids network round trips
-2. **Better Resource Utilization**: Maximizes local processing before distributed
-3. **Fault Tolerance**: Failed local messages are retried via distributed bus
+1. **Reduced latency**: locally admitted messages avoid a broker round trip before processing.
+2. **Admission-aware fallback**: no subscriber, closed processing, or local-send failure leaves the distributed copy eligible for processing.
+3. **No retroactive reroute**: after local admission succeeds, a later handler failure follows the normal handler retry and acknowledgement policy; it does not re-enable the distributed copy.
+
+Source: [LocalFirstMessageBus](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalFirstMessageBus.kt#L142-L199).
 
 | Name | Data Type | Description | Default Value |
 |------|-----------|-------------|---------------|

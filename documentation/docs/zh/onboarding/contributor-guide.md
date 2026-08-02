@@ -1,3 +1,8 @@
+---
+title: 贡献者指南
+description: 面向 Wow 代码库、开发流程、测试策略与首次贡献的端到端指南
+---
+
 # 贡献者指南
 
 本指南带你从一个干净的检出开始，完成一次范围清晰、经过验证的 Wow 代码贡献。
@@ -39,9 +44,9 @@ README 也说明 Wow 8 面向 Spring Boot 4 与 Java 17 及以上版本。
 版本变化时，应优先相信上表中的构建文件。
 [查看兼容性说明。](https://github.com/Ahoo-Wang/Wow/blob/main/README.md#L41-L49)
 
-# 第一部分：必要基础
+## 第一部分：必要基础
 
-## 1. 面向 Python 或 JavaScript 开发者的 Kotlin
+### 1. 面向 Python 或 JavaScript 开发者的 Kotlin
 
 Kotlin 是静态类型、空安全、偏表达式风格的语言。
 
@@ -66,7 +71,7 @@ Kotlin 是静态类型、空安全、偏表达式风格的语言。
 
 后文 Kotlin 示例会展开最右列；Python 与 JavaScript 单元格只是迁移提示，不是要加入本仓库的源码。
 
-### 1.1 值、变量与类型推断
+#### 1.1 值、变量与类型推断
 
 默认使用 `val` 表示不可重新赋值的引用。
 
@@ -85,7 +90,7 @@ Kotlin 通常在编译期完成类型推断。
 
 因此编译器与重构工具可以在测试运行前发现大量不匹配。
 
-### 1.2 用 data class 表达值形消息
+#### 1.2 用 data class 表达值形消息
 
 Wow 的命令与事件经常使用 Kotlin data class。
 
@@ -108,7 +113,7 @@ data class CartItemAdded(
 
 复制代码时，注解和校验约束应以仓库源码为准。
 
-### 1.3 可空性属于类型系统
+#### 1.3 可空性属于类型系统
 
 `String` 不接受 `null`。
 
@@ -122,7 +127,7 @@ fun normalizeOwnerId(ownerId: String?): String? = ownerId?.trim()?.takeIf { it.i
 
 除非不变量已经在局部得到证明，否则避免使用 `!!`。
 
-### 1.4 函数可以直接返回表达式
+#### 1.4 函数可以直接返回表达式
 
 ```kotlin
 fun nextQuantity(current: Int, delta: Int): Int = current + delta
@@ -133,7 +138,7 @@ fun nextQuantity(current: Int, delta: Int): Int = current + delta
 购物车聚合正是这样做的：处理器检查状态，再返回 `CartItemAdded`、`CartQuantityChanged` 或 `CartItemRemoved`。
 [阅读聚合处理器。](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt#L32-L76)
 
-### 1.5 构造函数应暴露依赖意图
+#### 1.5 构造函数应暴露依赖意图
 
 构造函数注入让依赖一目了然。
 
@@ -153,7 +158,7 @@ class ProductPolicy(
 
 不要仅仅因为 Spring 能提供数据库客户端，就把它注入聚合。
 
-### 1.6 扩展函数让测试语言更自然
+#### 1.6 扩展函数让测试语言更自然
 
 Kotlin 扩展函数让一个函数看起来像接收者类型的成员。
 
@@ -170,7 +175,7 @@ fun Int.requirePositive(): Int {
 
 可以用它改善局部语言，但不要用它隐藏令人意外的控制流。
 
-### 1.7 密封类型与穷尽分支
+#### 1.7 密封类型与穷尽分支
 
 当领域结果只有封闭的几种情况时，可以使用密封层次。
 
@@ -189,7 +194,7 @@ fun describe(decision: CartDecision): String = when (decision) {
 
 编译器会验证 `when` 表达式覆盖所有已知子类型。
 
-### 1.8 集合与不可变边界
+#### 1.8 集合与不可变边界
 
 当修改不属于契约时，在边界上使用只读集合接口。
 
@@ -203,7 +208,7 @@ fun productIds(items: List<CartItem>): Set<String> = items.mapTo(mutableSetOf())
 
 请明确所有权，不要暴露内部可变集合。
 
-### 1.9 Reactor 是默认异步词汇
+#### 1.9 Reactor 是默认异步词汇
 
 Wow 的运行时路径使用 Reactor `Mono` 与 `Flux`。
 
@@ -224,7 +229,7 @@ fun streamEvents(cartId: String): Flux<CartEvent> = eventStore.load(cartId)
 真实 `CommandGateway` 契约同时提供基于 `Mono` 与 `Flux` 的等待形式，并委托命令总线发送。
 [阅读网关契约。](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L63-L173)
 
-### 1.10 组合变换，而不是偷偷订阅
+#### 1.10 组合变换，而不是偷偷订阅
 
 框架代码通常应组合操作符并返回流水线。
 
@@ -256,7 +261,7 @@ flowchart LR
 - [wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:79-143](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L79-L143)
 -->
 
-## 2. Wow 中的 Spring 基础
+### 2. Wow 中的 Spring 基础
 
 Spring 是运行时外围的装配机制。
 
@@ -275,7 +280,7 @@ Spring 是运行时外围的装配机制。
 
 与手写 Express Route 不同，Wow Command Route 先由聚合与命令元数据派生，再转换成 Route Contract，最后由 WebFlux 物化。领域决策应留在该传输流水线之外。
 
-### 2.1 应用启动
+#### 2.1 应用启动
 
 示例服务使用 `@SpringBootApplication`，并通过 `runApplication` 启动。
 
@@ -295,7 +300,7 @@ fun main(args: Array<String>) {
 
 创建可运行模块时，应从真实源码复制完整注解与扫描配置。
 
-### 2.2 自动配置按能力拆分
+#### 2.2 自动配置按能力拆分
 
 `wow-spring-boot-starter` 为 MongoDB、Redis、Mock、Kafka、WebFlux、Elasticsearch、OpenTelemetry、OpenAPI 与 CoSec 声明 Feature Variants。
 [查看能力声明。](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/build.gradle.kts#L5-L44)
@@ -307,7 +312,7 @@ Starter 通过 Spring Boot imports 文件注册自动配置。
 
 把基础设施依赖加到领域模块，通常说明边界放错了位置。
 
-### 2.3 条件 Bean 保持边界可替换
+#### 2.3 条件 Bean 保持边界可替换
 
 自动配置只在属性与类路径能力满足条件时创建默认实现。
 
@@ -326,7 +331,7 @@ Starter 通过 Spring Boot imports 文件注册自动配置。
 5. 检查自动配置 imports；
 6. 只在所属集成边界提供替换实现。
 
-### 2.4 配置也是可执行行为
+#### 2.4 配置也是可执行行为
 
 示例服务当前选择 MongoDB 作为事件与快照存储，同时使用内存总线。
 [阅读示例配置。](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-server/src/main/resources/application.yaml#L73-L99)
@@ -335,7 +340,7 @@ Starter 通过 Spring Boot imports 文件注册自动配置。
 
 它只证明示例当前的本地装配，不代表通用部署建议。
 
-### 2.5 WebFlux 把 HTTP 适配为命令模型
+#### 2.5 WebFlux 把 HTTP 适配为命令模型
 
 WebFlux Handler 读取请求体、拒绝空请求体、委托命令处理器并写回响应。
 [阅读 `CommandHandlerFunction`。](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/CommandHandlerFunction.kt#L43-L66)
@@ -365,9 +370,9 @@ flowchart LR
 - [wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/CommandHandler.kt:30-62](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/CommandHandler.kt#L30-L62)
 -->
 
-# 第二部分：理解代码库
+## 第二部分：理解代码库
 
-## 3. Wow 是什么
+### 3. Wow 是什么
 
 Wow 为领域驱动设计、CQRS 与事件溯源提供框架契约和运行时组件。
 
@@ -384,13 +389,13 @@ Wow 为领域驱动设计、CQRS 与事件溯源提供框架契约和运行时�
 - Test 模块提供 DSL、TCK 与集成测试支持；
 - Example 模块展示完整垂直切片。
 
-## 4. 仓库结构
+### 4. 仓库结构
 
 权威项目清单位于 [`settings.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L23-L85)。
 
 可以先按四组理解。
 
-### 4.1 框架与集成模块
+#### 4.1 框架与集成模块
 
 | 区域 | 代表模块 | 职责 |
 | --- | --- | --- |
@@ -412,7 +417,7 @@ Wow 为领域驱动设计、CQRS 与事件溯源提供框架契约和运行时�
 
 修改构建逻辑前，应回到 settings 文件核对精确的项目包含关系与目录映射。
 
-### 4.2 测试模块
+#### 4.2 测试模块
 
 Settings 文件包含测试 DSL、测试支持、存储与总线 TCK、Mock、Benchmark、集成测试与聚合覆盖率报告。
 [查看测试模块声明。](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L46-L56)
@@ -421,7 +426,7 @@ Settings 文件包含测试 DSL、测试支持、存储与总线 TCK、Mock、Be
 
 行为依赖真实外部引擎或容器时，应写集成测试。
 
-### 4.3 补偿模块
+#### 4.3 补偿模块
 
 补偿区域包含 API、Domain、Core、Server 与 Dashboard 项目。
 [查看补偿模块声明。](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L58-L66)
@@ -430,7 +435,7 @@ Settings 文件包含测试 DSL、测试支持、存储与总线 TCK、Mock、Be
 
 未经显式架构决策，不应把补偿实现细节提升为 Core 默认契约。
 
-### 4.4 示例模块
+#### 4.4 示例模块
 
 示例包含 Kotlin Domain/Server 与 Java Transfer Domain/Server。
 [查看示例声明。](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L68-L85)
@@ -459,9 +464,9 @@ graph TB
 - [example/example-domain/build.gradle.kts:1-20](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/build.gradle.kts#L1-L20)
 -->
 
-## 5. 核心概念
+### 5. 核心概念
 
-### 5.1 限界上下文与命名聚合
+#### 5.1 限界上下文与命名聚合
 
 限界上下文为领域名称提供边界。
 
@@ -475,7 +480,7 @@ graph TB
 [查看 `ExampleService`。](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/ExampleService.kt#L22-L40)
 [查看 `ExampleBoundedContext`。](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/ExampleBoundedContext.kt#L19-L21)
 
-### 5.2 聚合标识
+#### 5.2 聚合标识
 
 `AggregateId` 由命名聚合、聚合 `id` 和 `tenantId` 组成。
 
@@ -486,7 +491,7 @@ Owner 与 Space 是相关的消息和聚合状态上下文，但不是 `Aggregat
 
 不要把 `tenantId` 当成同一命名聚合内可重复使用相同 `id` 的命名空间。
 
-### 5.3 命令与命令消息
+#### 5.3 命令与命令消息
 
 命令表达请求执行的意图。
 
@@ -498,7 +503,7 @@ Owner 与 Space 是相关的消息和聚合状态上下文，但不是 `Aggregat
 
 这些字段参与正确性，适配器不能随意丢弃。
 
-### 5.4 领域事件与事件流
+#### 5.4 领域事件与事件流
 
 领域事件记录已经发生的业务事实。
 
@@ -511,7 +516,7 @@ Owner 与 Space 是相关的消息和聚合状态上下文，但不是 `Aggregat
 实现会约束命令标识与聚合上下文等流级不变量。
 [阅读事件流契约与不变量。](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L31-L115)
 
-### 5.5 事件存储
+#### 5.5 事件存储
 
 `EventStore` 负责追加领域事件流并按聚合加载事件流。
 [阅读存储契约。](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L22-L82)
@@ -520,7 +525,7 @@ Owner 与 Space 是相关的消息和聚合状态上下文，但不是 `Aggregat
 
 适配器不能把它们转换成“成功写入”。
 
-### 5.6 状态溯源与快照
+#### 5.6 状态溯源与快照
 
 状态聚合通过应用领域事件重建状态。
 
@@ -533,7 +538,7 @@ Repository 可以加载快照并重放后续事件。
 快照保存某一版本的聚合状态。
 [阅读快照契约。](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/Snapshot.kt#L20-L41)
 
-### 5.7 状态事件
+#### 5.7 状态事件
 
 状态事件在领域事件完成 sourcing 后派生，可向下游表达结果状态迁移。
 [阅读 `StateEvent`。](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/state/StateEvent.kt#L23-L100)
@@ -541,7 +546,7 @@ Repository 可以加载快照并重放后续事件。
 状态事件 Filter 在事件流处理后创建并发布 State Event。
 [阅读 Filter。](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/state/SendStateEventFilter.kt#L29-L76)
 
-### 5.8 投影、事件处理器与 Saga
+#### 5.8 投影、事件处理器与 Saga
 
 Event Processor 响应领域事件。
 [阅读 `@EventProcessor`。](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/EventProcessor.kt#L19-L58)
@@ -579,11 +584,11 @@ erDiagram
 - [wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/StatelessSaga.kt:19-62](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/StatelessSaga.kt#L19-L62)
 -->
 
-## 6. 命令生命周期
+### 6. 命令生命周期
 
 下面这条链路是贡献者最有用的运行时地图。
 
-### 6.1 HTTP 适配
+#### 6.1 HTTP 适配
 
 `CommandHandlerFunction` 读取请求体并检查是否为空。
 
@@ -591,7 +596,7 @@ erDiagram
 
 `CommandHandler` 选择 WaitPlan 与响应形式。
 
-### 6.2 网关校验与幂等
+#### 6.2 网关校验与幂等
 
 `DefaultCommandGateway` 先校验命令并协调幂等，再发送命令。
 [阅读校验、幂等与总线分发。](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L79-L143)
@@ -601,7 +606,7 @@ erDiagram
 网关会拒绝同一聚合上重复的 Request ID。
 [阅读重复请求异常契约。](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandExceptions.kt#L25-L35)
 
-### 6.3 分发与聚合亲和性
+#### 6.3 分发与聚合亲和性
 
 `CommandDispatcher` 从总线接收命令，并选择命名聚合 Dispatcher。
 [阅读 Dispatcher。](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/CommandDispatcher.kt#L37-L75)
@@ -612,7 +617,7 @@ erDiagram
 Spring 装配创建 Processor、Filter Chain、Handler 与 Dispatcher。
 [阅读聚合自动配置。](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt#L70-L145)
 
-### 6.4 决策、Sourcing 与追加
+#### 6.4 决策、Sourcing 与追加
 
 Processor Filter 获取命令聚合处理器并执行 Exchange。
 [阅读 Processor Filter。](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/AggregateProcessorFilter.kt#L26-L49)
@@ -627,7 +632,7 @@ Processor Filter 获取命令聚合处理器并执行 Exchange。
 命令聚合记录 stored、sourced、expired 等处理状态。
 [阅读命令状态迁移。](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt#L55-L84)
 
-### 6.5 发布与等待完成
+#### 6.5 发布与等待完成
 
 追加完成后，领域事件 Filter 把事件流发布到 Domain Event Bus。
 [阅读发布 Filter。](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/SendDomainEventStreamFilter.kt#L25-L46)
@@ -641,7 +646,7 @@ WaitCoordinator 观察请求的阶段，并完成面向传输层的结果。
 
 WaitPlan 可以直接在 `SENT` 或 `PROCESSED` 完成。`SNAPSHOT`、`PROJECTED`、`EVENT_HANDLED` 与 `SAGA_HANDLED` 是共享前两个前置条件的并列目标，不是每条命令都必须依次经过的序列。
 
-### 6.6 Deadline 与取消所有权
+#### 6.6 Deadline 与取消所有权
 
 流式等待使用 `Flux.using`，单结果等待使用 `Mono.using`，以释放协调器资源。
 [阅读流式等待所有权。](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L201-L223)
@@ -731,9 +736,9 @@ stateDiagram-v2
 - [wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:282-301](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L282-L301)
 -->
 
-## 7. 关键实现模式
+### 7. 关键实现模式
 
-### 7.1 API → Aggregate → State → Spec
+#### 7.1 API → Aggregate → State → Spec
 
 这是默认的领域功能路径。
 
@@ -750,7 +755,7 @@ Cart 切片包含全部四部分：
 - [example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/CartState.kt:23-46](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/CartState.kt#L23-L46)
 - [example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSpec.kt:28-87](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSpec.kt#L28-L87)
 
-### 7.2 注解声明发现边界
+#### 7.2 注解声明发现边界
 
 `@AggregateRoot` 标识聚合根；其 `commands` 属性把额外命令类型（包括 Void 或重写命令）挂载到该聚合。
 [阅读注解契约。](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoot.kt#L18-L77)
@@ -775,7 +780,7 @@ Cart 切片包含全部四部分：
 [查看 Command Route 贡献。](https://github.com/Ahoo-Wang/Wow/blob/main/wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/contributor/aggregate/command/CommandRouteContributor.kt#L52-L91)
 [查看运行时 Route 物化。](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/RouterFunctionBuilder.kt#L24-L42)
 
-### 7.3 Filter Chain 扩展处理但不混淆边界
+#### 7.3 Filter Chain 扩展处理但不混淆边界
 
 聚合自动配置收集有序 Exchange Filter，并构建处理链。
 [阅读 Filter 装配。](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt#L108-L133)
@@ -784,7 +789,7 @@ Cart 切片包含全部四部分：
 
 不要用 Filter 隐藏本应出现在聚合中的领域规则。
 
-### 7.4 TCK 保护可替换实现
+#### 7.4 TCK 保护可替换实现
 
 构建中声明了存储与总线的契约测试模块。
 [查看 TCK 模块。](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L46-L56)
@@ -797,7 +802,7 @@ Cart 切片包含全部四部分：
 4. 需要时在 Starter 注册 Capability 与条件配置；
 5. 除非模型确实需要，不要为了一个引擎修改公共契约。
 
-### 7.5 Capability 与 Auto-configuration 是一个扩展单元
+#### 7.5 Capability 与 Auto-configuration 是一个扩展单元
 
 Starter 的 Feature Variants 声明可选集成。
 
@@ -829,9 +834,9 @@ flowchart TB
 - [wow-compiler/src/main/kotlin/me/ahoo/wow/compiler/metadata/MetadataSymbolProcessor.kt:61-104](https://github.com/Ahoo-Wang/Wow/blob/main/wow-compiler/src/main/kotlin/me/ahoo/wow/compiler/metadata/MetadataSymbolProcessor.kt#L61-L104)
 -->
 
-# 第三部分：完成第一次贡献
+## 第三部分：完成第一次贡献
 
-## 8. 环境要求
+### 8. 环境要求
 
 下列安装命令以 macOS/Homebrew 为例；Linux 或 Windows 请使用等价的官方安装方式，并保持所需版本。每条安装命令都应以状态码 `0` 结束，然后运行验证命令并核对“预期证据”列。
 
@@ -857,11 +862,11 @@ flowchart TB
 根构建把 Local、Contract 与容器支持的 Integration Source Set 和任务分开；本地测试通过不能证明外部存储适配器工作正常。
 [阅读测试分层定义。](https://github.com/Ahoo-Wang/Wow/blob/main/build.gradle.kts#L54-L142)
 
-## 9. 验证检出
+### 9. 验证检出
 
 以下命令从仓库根目录执行。
 
-### 9.1 确认 Wrapper 与 JVM
+#### 9.1 确认 Wrapper 与 JVM
 
 ```bash
 ./gradlew --version
@@ -878,7 +883,7 @@ Launcher JVM: 17...
 
 仓库源码要求 Java 17 Toolchain，并固定 Wrapper 版本。
 
-### 9.2 检查 Worktree
+#### 9.2 检查 Worktree
 
 ```bash
 git status --short
@@ -891,7 +896,7 @@ git branch --show-current
 
 即使工作树已有其他修改，也要保持自己的贡献范围狭窄。
 
-### 9.3 运行 Cart 规格测试
+#### 9.3 运行 Cart 规格测试
 
 ```bash
 ./gradlew :example-domain:test \
@@ -910,11 +915,11 @@ BUILD SUCCESSFUL
 该规格覆盖添加和移除商品，以及删除与恢复 Cart 聚合。
 [阅读测试场景。](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSpec.kt#L28-L87)
 
-## 10. 阅读一个完整垂直切片
+### 10. 阅读一个完整垂直切片
 
 修改前，按以下顺序打开文件。
 
-### 第 1 步：命令与事件
+#### 第 1 步：命令与事件
 
 打开 [`AddCartItem.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/cart/AddCartItem.kt#L1-L26)。
 
@@ -925,7 +930,7 @@ BUILD SUCCESSFUL
 - 事件名称表达已完成事实；
 - API 类型不导入 MongoDB、Kafka 或 Spring Runtime Adapter。
 
-### 第 2 步：聚合决策
+#### 第 2 步：聚合决策
 
 打开 [`Cart.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt#L32-L76)。
 
@@ -937,7 +942,7 @@ BUILD SUCCESSFUL
 - 处理器返回事件；
 - 聚合不直接持久化自己。
 
-### 第 3 步：状态迁移
+#### 第 3 步：状态迁移
 
 打开 [`CartState.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/CartState.kt#L23-L46)。
 
@@ -947,7 +952,7 @@ BUILD SUCCESSFUL
 - 状态变化跟随事件事实；
 - 重放与实时处理使用同一套迁移逻辑。
 
-### 第 4 步：规格测试
+#### 第 4 步：规格测试
 
 打开 [`CartSpec.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSpec.kt#L28-L87)。
 
@@ -958,7 +963,7 @@ BUILD SUCCESSFUL
 - 预期事件与状态是主要输出；
 - 删除与恢复是显式行为。
 
-### 第 5 步：构建边界
+#### 第 5 步：构建边界
 
 打开 [`example-domain/build.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/build.gradle.kts#L1-L20)。
 
@@ -969,13 +974,13 @@ BUILD SUCCESSFUL
 - 测试使用 Wow Test Support；
 - 行覆盖率设置 `0.8` 校验规则。
 
-## 11. 适合作为第一次贡献的任务
+### 11. 适合作为第一次贡献的任务
 
 下面是一个**教学提案**，不是仓库当前已经提交的行为。它会有意引入 `SetCartNote` 和 `CartNoteChanged` 两个新名称；其余现有类型、DSL、模块路径和命令都来自当前 Cart 垂直切片。
 
 提议的功能允许 Owner 为已初始化的购物车添加简短配送备注。它足够小，但能走完 API → 决策 → 事件 → Sourcing → Specification 全路径，不需要修改存储或模块边界。
 
-### 11.1 定义契约与影响文件
+#### 11.1 定义契约与影响文件
 
 行为陈述：
 
@@ -992,7 +997,7 @@ BUILD SUCCESSFUL
 
 不要增加持久化代码；Event Store 会通过现有运行时路径保存新事件。
 
-### 11.2 增加 API 契约
+#### 11.2 增加 API 契约
 
 创建 `SetCartNote.kt`，保留仓库 Apache Header，并使用以下正文：
 
@@ -1023,7 +1028,7 @@ data class CartNoteChanged(
 该命令形状沿用现有带路由的 Cart Command，输入校验保持在 API 边界。
 [对照真实 `ChangeQuantity` 契约。](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/cart/ChangeQuantity.kt#L1-L21)
 
-### 11.3 增加失败的 Specification
+#### 11.3 增加失败的 Specification
 
 在 `CartSpec` 中导入两个提议类型，并把以下 Fork 放入现有成功 `AddCartItem` 分支，确保购物车已经初始化：
 
@@ -1052,7 +1057,7 @@ fork(name = "Set cart note") {
 
 预期 Red 结果：Gradle 以 `BUILD FAILED` 结束，因为 `compileTestKotlin` 无法解析 `CartState.note`。此 Red 阶段可能尚未运行 Test Task，因此不保证生成新的 HTML Test Report；应以编译器输出作为权威失败证据。
 
-### 11.4 实现决策与 Sourcing
+#### 11.4 实现决策与 Sourcing
 
 在 `Cart.kt` 导入提议类型，并加入决策：
 
@@ -1079,7 +1084,7 @@ Aggregate 返回事实；只有 State Sourcing Function 修改重建后的状态
 [对照当前决策。](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt#L69-L76)
 [对照当前 Sourcing Handler。](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/CartState.kt#L37-L46)
 
-### 11.5 达到 Green、检查范围并验证覆盖率
+#### 11.5 达到 Green、检查范围并验证覆盖率
 
 重新运行窄测试：
 
@@ -1117,12 +1122,12 @@ git diff -- \
 预期结果：Status 列出一个新增 API 文件与三个已修改跟踪文件；Diff 只包含三个跟踪文件，没有生成输出或无关格式化。下一步 Staging 会纳入并复核新文件。CI Retry 仍只在 CI 启用；不要用本地 Retry 隐藏确定性失败。
 [阅读 Retry 配置。](https://github.com/Ahoo-Wang/Wow/blob/main/build.gradle.kts#L175-L229)
 
-## 12. 贡献工作流
+### 12. 贡献工作流
 
 仓库要求从 `main` 创建聚焦分支、使用 Conventional Commit、执行窄范围验证，并完整填写 Pull Request 模板。
 [阅读维护中的贡献规则。](https://github.com/Ahoo-Wang/Wow/blob/main/CONTRIBUTING.md#L50-L86)
 
-### 12.1 创建聚焦分支
+#### 12.1 创建聚焦分支
 
 先妥善保存或移交无关本地改动，再执行：
 
@@ -1143,7 +1148,7 @@ git status --short
 
 预期结果：第一条命令输出 `feature/cart-note`；编辑前第二条命令为空，或只列出你明确保留的改动。
 
-### 12.2 复现、测试先行与实现
+#### 12.2 复现、测试先行与实现
 
 阅读 Issue、所属契约、实现、测试、构建装配与完成标准。修改前运行最窄现有测试并记录精确行为。
 
@@ -1155,13 +1160,13 @@ git status --short
 4. 保持响应式组合与模块所有权；
 5. 未明确批准时不要破坏公共 API。
 
-### 12.3 从窄到宽验证
+#### 12.3 从窄到宽验证
 
 先运行窄测试，再运行所属模块 `check`。边界需要时增加 Contract 或 Integration Test；Kotlin 变更运行 Detekt，文档变更运行 VitePress Build。
 
 所有通过的 Gradle 验证都应以 `BUILD SUCCESSFUL` 结束。文档构建应无 Dead Link 或 Mermaid 错误，并写入 `documentation/docs/.vitepress/dist/`。
 
-### 12.4 只暂存并提交目标文件
+#### 12.4 只暂存并提交目标文件
 
 对于前述教学功能：
 
@@ -1185,7 +1190,7 @@ git commit -m 'feat(example): add cart note'
 
 预期结果：Git 输出以 `[feature/cart-note` 开头的提交摘要，随后是新 Commit ID 与文件统计。不要提交生成输出、凭据、IDE 状态、`.gradle/` 或 `node_modules/`。
 
-### 12.5 Push 并创建 Pull Request
+#### 12.5 Push 并创建 Pull Request
 
 ```bash
 git push -u origin feature/cart-note
@@ -1219,9 +1224,9 @@ flowchart LR
 - [.github/PULL_REQUEST_TEMPLATE:1-23](https://github.com/Ahoo-Wang/Wow/blob/main/.github/PULL_REQUEST_TEMPLATE#L1-L23)
 -->
 
-## 13. 测试与验证分层
+### 13. 测试与验证分层
 
-### 13.1 窄范围单元或规格测试
+#### 13.1 窄范围单元或规格测试
 
 用于一个类、聚合或场景。
 
@@ -1244,7 +1249,7 @@ flowchart LR
 预期结果为 `BUILD SUCCESSFUL`，HTML Report 中只包含 `CommandGatewayApiTest` 的选定方法。
 [阅读这个可执行测试方法。](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/test/kotlin/me/ahoo/wow/command/CommandGatewayApiTest.kt#L21-L35)
 
-### 13.2 所属模块 Check
+#### 13.2 所属模块 Check
 
 ```bash
 ./gradlew :wow-core:check --stacktrace
@@ -1255,7 +1260,7 @@ flowchart LR
 根构建按配置把标准测试与契约测试接入模块 Check。
 [阅读 Source Set 与任务编排。](https://github.com/Ahoo-Wang/Wow/blob/main/build.gradle.kts#L94-L142)
 
-### 13.3 全部本地测试
+#### 13.3 全部本地测试
 
 ```bash
 ./gradlew allLocalTest --stacktrace
@@ -1266,7 +1271,7 @@ flowchart LR
 该任务聚合标准的本地安全测试层。
 [阅读聚合任务注册。](https://github.com/Ahoo-Wang/Wow/blob/main/build.gradle.kts#L232-L261)
 
-### 13.4 全部契约测试
+#### 13.4 全部契约测试
 
 ```bash
 ./gradlew allContractTest --stacktrace
@@ -1276,7 +1281,7 @@ flowchart LR
 
 用该层验证多个实现共享的行为。
 
-### 13.5 全部集成测试
+#### 13.5 全部集成测试
 
 ```bash
 ./gradlew allIntegrationTest --stacktrace
@@ -1291,7 +1296,7 @@ flowchart LR
 Integration 工作流在 CI 运行专用聚合任务。
 [阅读工作流。](https://github.com/Ahoo-Wang/Wow/blob/main/.github/workflows/integration-test.yml#L14-L77)
 
-### 13.6 静态分析
+#### 13.6 静态分析
 
 ```bash
 ./gradlew detekt --stacktrace
@@ -1307,7 +1312,7 @@ CI 单独运行 Detekt 工作流。
 
 运行后检查 `git diff`，因为格式修改可能会写入工作树。
 
-### 13.7 覆盖率报告
+#### 13.7 覆盖率报告
 
 先运行仅本地测试的覆盖率报告；它不会调度容器支持的 Integration Test：
 
@@ -1326,7 +1331,7 @@ CI 单独运行 Detekt 工作流。
 所需引擎可用时，预期结果为 `BUILD SUCCESSFUL`；聚合报告写入 `test/code-coverage-report/build/reports/jacoco/codeCoverageReport/`。
 [阅读报告注册、任务依赖与输出路径。](https://github.com/Ahoo-Wang/Wow/blob/main/test/code-coverage-report/build.gradle.kts#L42-L114)
 
-### 13.8 Benchmark Smoke
+#### 13.8 Benchmark Smoke
 
 ```bash
 ./gradlew :wow-benchmarks:benchmarkSmoke
@@ -1341,7 +1346,7 @@ Smoke 结果不是产品延迟或吞吐保证。
 
 提出性能结论前，必须使用受控 Benchmark 设计。
 
-### 13.9 文档构建
+#### 13.9 文档构建
 
 ```bash
 cd documentation
@@ -1356,7 +1361,7 @@ CI 先运行 Dokka，再构建 VitePress。
 
 静态站点输出位于 `documentation/docs/.vitepress/dist/`。
 
-### 13.10 Dashboard 验证
+#### 13.10 Dashboard 验证
 
 ```bash
 cd compensation/dashboard
@@ -1371,7 +1376,7 @@ pnpm coverage
 这些命令与 Dashboard CI 对齐。
 [阅读工作流。](https://github.com/Ahoo-Wang/Wow/blob/main/.github/workflows/dashboard-test.yml#L35-L63)
 
-### 13.11 最终 Diff 检查
+#### 13.11 最终 Diff 检查
 
 ```bash
 git diff --check
@@ -1405,7 +1410,7 @@ graph TB
 - [.github/workflows/documentation-deploy.yml:44-86](https://github.com/Ahoo-Wang/Wow/blob/main/.github/workflows/documentation-deploy.yml#L44-L86)
 -->
 
-## 14. 调试手册
+### 14. 调试手册
 
 先用下表选择第一个所属边界，再继续阅读后面的详细证据与操作。
 
@@ -1423,7 +1428,7 @@ graph TB
 | VitePress 报告死链接 | Locale、Rewrite 或仓库相对路径解析不正确。 | 按当前 Locale 修正链接，再运行完整文档构建。 |
 | Detekt 留下源码修改 | 根 Detekt 配置启用了 Auto-correction。 | 检查 Diff，只保留预期格式化，再运行窄范围检查。 |
 
-### 14.1 从第一个所属边界开始
+#### 14.1 从第一个所属边界开始
 
 HTTP 命令失败时，按以下顺序检查：
 
@@ -1441,7 +1446,7 @@ HTTP 命令失败时，按以下顺序检查：
 
 这个顺序沿真实处理链定位，而不是从最终 HTTP 状态猜测。
 
-### 14.2 请求体为空
+#### 14.2 请求体为空
 
 现象：WebFlux 端点在聚合运行前拒绝请求。
 
@@ -1455,7 +1460,7 @@ HTTP 命令失败时，按以下顺序检查：
 - 确认 Route 指向预期命令端点；
 - 此时不要先调试事件存储。
 
-### 14.3 命令校验失败
+#### 14.3 命令校验失败
 
 现象：命令在 Bus Dispatch 前停止。
 
@@ -1469,7 +1474,7 @@ HTTP 命令失败时，按以下顺序检查：
 - 用窄范围网关或聚合测试复现；
 - 区分输入校验与领域状态拒绝。
 
-### 14.4 重复 Request ID
+#### 14.4 重复 Request ID
 
 现象：`DuplicateRequestIdException` 指出同一聚合上的 Request ID 已经出现。
 
@@ -1484,7 +1489,7 @@ HTTP 命令失败时，按以下顺序检查：
 - 检查该 Aggregate ID 与 Request ID 对应的此前处理；
 - 不要全局关闭幂等来隐藏错误标识。
 
-### 14.5 找不到 Command Handler
+#### 14.5 找不到 Command Handler
 
 现象：聚合无法为命令类型解析 Handler。
 
@@ -1498,7 +1503,7 @@ HTTP 命令失败时，按以下顺序检查：
 - 重新构建 Domain 模块；
 - 修改 WebFlux Route 前先检查元数据发现。
 
-### 14.6 聚合生命周期拒绝
+#### 14.6 聚合生命周期拒绝
 
 现象：命令因聚合未初始化、已删除、所有者或空间规则而被拒绝。
 
@@ -1512,7 +1517,7 @@ HTTP 命令失败时，按以下顺序检查：
 - 从已知事件历史复现；
 - 不要在传输层变通创建缺失状态。
 
-### 14.7 事件追加冲突
+#### 14.7 事件追加冲突
 
 现象：EventStore 因重复或版本冲突拒绝事件流。
 
@@ -1527,7 +1532,7 @@ HTTP 命令失败时，按以下顺序检查：
 - 用相关 Storage TCK 复现；
 - 保持原子追加语义。
 
-### 14.8 等待超时
+#### 14.8 等待超时
 
 现象：命令已发送，但 Deadline 前未观察到请求阶段。
 
@@ -1543,7 +1548,7 @@ HTTP 命令失败时，按以下顺序检查：
 - 验证取消会释放 Wait Handle；
 - 不要把有界 Deadline 改成无限等待。
 
-### 14.9 缺少 MongoDB Database 配置
+#### 14.9 缺少 MongoDB Database 配置
 
 现象：MongoDB Event Sourcing 无法创建 Storage Bean。
 
@@ -1559,7 +1564,7 @@ HTTP 命令失败时，按以下顺序检查：
 - 与 Example Server YAML 对比；
 - 属性绑定正确后再验证连接。
 
-### 14.10 集成测试无法启动引擎
+#### 14.10 集成测试无法启动引擎
 
 现象：本地测试通过，但 Integration Test 在容器或服务启动时失败。
 
@@ -1574,7 +1579,7 @@ HTTP 命令失败时，按以下顺序检查：
 构建刻意分离 Integration、Local 与 Contract 测试层。
 [阅读分层。](https://github.com/Ahoo-Wang/Wow/blob/main/build.gradle.kts#L54-L142)
 
-### 14.11 文档死链接
+#### 14.11 文档死链接
 
 现象：VitePress Build 报告内部链接无法解析。
 
@@ -1589,7 +1594,7 @@ HTTP 命令失败时，按以下顺序检查：
 VitePress 配置会重写英文 Locale 路径。
 [阅读 Rewrite 配置。](https://github.com/Ahoo-Wang/Wow/blob/main/documentation/docs/.vitepress/config.mts#L24-L26)
 
-### 14.12 Detekt 修改了文件
+#### 14.12 Detekt 修改了文件
 
 现象：静态分析后工作树出现格式修改。
 
@@ -1627,45 +1632,45 @@ flowchart TD
 - [wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt:25-123](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L25-L123)
 -->
 
-## 15. 常见陷阱
+### 15. 常见陷阱
 
-### 陷阱 1：修改了错误模块
+#### 陷阱 1：修改了错误模块
 
 把 API 契约放进基础设施模块，会让使用方耦合到 Adapter。
 
 从依赖方向出发，选择最低且稳定的所属边界。
 
-### 陷阱 2：在 Command Handler 中直接修改持久化状态
+#### 陷阱 2：在 Command Handler 中直接修改持久化状态
 
 事件溯源状态必须能从事件重现。
 
 在决策中返回事件，在 `@OnSourcing` 中应用事件。
 
-### 陷阱 3：增加事件却没有 Sourcing 行为
+#### 陷阱 3：增加事件却没有 Sourcing 行为
 
 实时命令可能发出事件，但重放会产生过期状态。
 
 同一个变更应包含 Sourcing Handler 与状态断言。
 
-### 陷阱 4：把输入校验与领域拒绝混为一谈
+#### 陷阱 4：把输入校验与领域拒绝混为一谈
 
 输入形状校验属于命令边界。
 
 依赖当前聚合状态的规则属于聚合。
 
-### 陷阱 5：阻塞响应式路径
+#### 陷阱 5：阻塞响应式路径
 
 `block()` 会占用事件循环能力并破坏取消语义。
 
 返回组合后的 `Mono` 或 `Flux`。
 
-### 陷阱 6：在库函数中调用 `subscribe()`
+#### 陷阱 6：在库函数中调用 `subscribe()`
 
 隐藏订阅会让工作脱离调用方的取消与错误处理。
 
 让应用边缘拥有订阅。
 
-### 陷阱 7：混淆 KSP 元数据与运行时路由
+#### 陷阱 7：混淆 KSP 元数据与运行时路由
 
 KSP 参与编译和元数据生成。
 
@@ -1673,55 +1678,55 @@ WebFlux Endpoint 属于运行时集成行为。
 
 分别调试这两个边界。
 
-### 陷阱 8：只运行 Happy Path
+#### 陷阱 8：只运行 Happy Path
 
 聚合创建、删除、恢复、重复、版本不匹配与超时路径都属于正确性。
 
 把现有测试作为边界清单。
 
-### 陷阱 9：把 Smoke Benchmark 当作性能保证
+#### 陷阱 9：把 Smoke Benchmark 当作性能保证
 
 JMH Smoke Task 证明选定 Benchmark 能执行。
 
 它不能建立端到端容量、尾延迟或生产 SLA。
 
-### 陷阱 10：把示例配置当作生产策略
+#### 陷阱 10：把示例配置当作生产策略
 
 示例使用 MongoDB 存储与内存总线的特定组合。
 
 它是可执行示例装配，不是通用部署设计。
 
-### 陷阱 11：为了一个 Adapter 扩大公共 API
+#### 陷阱 11：为了一个 Adapter 扩大公共 API
 
 先判断需求是通用还是引擎专属。
 
 如果关注点是局部的，优先使用 Adapter Option，避免污染契约。
 
-### 陷阱 12：跳过 TCK
+#### 陷阱 12：跳过 TCK
 
 Adapter 专属测试可能通过，但仍违反共同契约。
 
 同时运行共享 TCK 与引擎 Integration Test。
 
-### 陷阱 13：忽略生成元数据漂移
+#### 陷阱 13：忽略生成元数据漂移
 
 先修改源注解和 Processor Input。
 
 不要把手工编辑生成输出作为主要修复。
 
-### 陷阱 14：用 Retry 隐藏确定性失败
+#### 陷阱 14：用 Retry 隐藏确定性失败
 
 CI Retry 是针对 CI 不稳定性的有界机制。
 
 它不允许保留确定性 Flaky Test。
 
-### 陷阱 15：把未运行的检查报告为通过
+#### 陷阱 15：把未运行的检查报告为通过
 
 列出准确命令与结果。
 
 如果 Docker、Node、凭据或时间阻止了广范围检查，应明确说明。
 
-# 附录 A：术语表
+## 附录 A：术语表
 
 以下定义面向贡献者，用于快速理解。
 
@@ -1828,9 +1833,9 @@ CI Retry 是针对 CI 不稳定性的有界机制。
 - [wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt:22-82](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L22-L82)
 - [wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/StorageType.kt:16-30](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/StorageType.kt#L16-L30)
 
-# 附录 B：关键文件索引
+## 附录 B：关键文件索引
 
-## 构建与版本
+### 构建与版本
 
 | 路径 | 用途 | 为什么重要 | 来源 |
 | --- | --- | --- | --- |
@@ -1841,7 +1846,7 @@ CI Retry 是针对 CI 不稳定性的有界机制。
 | `build.gradle.kts` | 编排测试层、Detekt、Toolchain、Retry 与聚合任务。 | 大多数仓库级验证行为都在这里定义。 | [源码](https://github.com/Ahoo-Wang/Wow/blob/main/build.gradle.kts#L54-L261) |
 | `wow-spring-boot-starter/build.gradle.kts` | 声明可选 Spring Feature Capability。 | 增加 Adapter 可能改变依赖解析，必须与这些 Variant 对齐。 | [源码](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/build.gradle.kts#L5-L79) |
 
-## 领域示例
+### 领域示例
 
 | 路径 | 用途 | 为什么重要 | 来源 |
 | --- | --- | --- | --- |
@@ -1857,7 +1862,7 @@ CI Retry 是针对 CI 不稳定性的有界机制。
 | `example/example-domain/build.gradle.kts` | 配置 KSP、测试支持与覆盖率校验。 | 它定义该领域切片的构建与质量边界。 | [源码](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/build.gradle.kts#L1-L20) |
 | `example/example-server/src/main/resources/application.yaml` | 选择可执行示例的存储与 Bus 配置。 | 它展示真实示例装配，同时不代表生产政策。 | [源码](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-server/src/main/resources/application.yaml#L22-L99) |
 
-## 运行时契约
+### 运行时契约
 
 | 路径 | 用途 | 为什么重要 | 来源 |
 | --- | --- | --- | --- |
@@ -1878,7 +1883,7 @@ CI Retry 是针对 CI 不稳定性的有界机制。
 | `wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/SendDomainEventStreamFilter.kt` | 发布已存储的 DomainEventStream。 | 下游处理必须保持在持久追加之后。 | [源码](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/SendDomainEventStreamFilter.kt#L25-L46) |
 | `wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/state/SendStateEventFilter.kt` | 创建并发布 State Event。 | 它的错误边界决定如何暴露下游 State Event 延迟。 | [源码](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/state/SendStateEventFilter.kt#L29-L76) |
 
-## Spring 与传输
+### Spring 与传输
 
 | 路径 | 用途 | 为什么重要 | 来源 |
 | --- | --- | --- | --- |
@@ -1892,7 +1897,7 @@ CI Retry 是针对 CI 不稳定性的有界机制。
 | `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/CommandHandler.kt` | 选择 Wait Policy 与响应模式。 | 它分离单结果与 SSE Transport 语义。 | [源码](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/CommandHandler.kt#L30-L62) |
 | `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/exception/WebFluxErrorStrategy.kt` | 把运行时失败映射为 Transport Response。 | Error Compatibility 与客户端可见状态在这里汇合。 | [源码](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/exception/WebFluxErrorStrategy.kt#L55-L83) |
 
-## 验证与 CI
+### 验证与 CI
 
 | 路径 | 用途 | 为什么重要 | 来源 |
 | --- | --- | --- | --- |
@@ -1905,9 +1910,9 @@ CI Retry 是针对 CI 不稳定性的有界机制。
 | `.github/workflows/dashboard-test.yml` | 运行 Dashboard Lint、Build 与 Coverage。 | 前端验证命令应始终与该 Workflow 对齐。 | [源码](https://github.com/Ahoo-Wang/Wow/blob/main/.github/workflows/dashboard-test.yml#L35-L63) |
 | `.github/PULL_REQUEST_TEMPLATE` | 规定变更、验证与风险证据。 | 完整填写可让 Review Scope 与未运行检查保持显式。 | [源码](https://github.com/Ahoo-Wang/Wow/blob/main/.github/PULL_REQUEST_TEMPLATE#L1-L23) |
 
-# 附录 C：快速参考
+## 附录 C：快速参考
 
-## 按变更类型选择命令
+### 按变更类型选择命令
 
 | 变更 | 第一条命令 | 更广验证 | 预期结果 |
 | --- | --- | --- | --- |
@@ -1922,7 +1927,7 @@ CI Retry 是针对 CI 不稳定性的有界机制。
 | Dashboard | `cd compensation/dashboard && pnpm exec vitest run src/features/Failed/__tests__/ApplyRetrySpec.test.tsx` | `cd compensation/dashboard && pnpm lint && pnpm build && pnpm coverage` | Vitest 通过；生成 `dist/` 与 `coverage/` |
 | Benchmark Code | `./gradlew :wow-benchmarks:test --tests 'me.ahoo.wow.benchmark.infrastructure.StorageBatchTuningOptionsTest'` | `./gradlew :wow-benchmarks:benchmarkSmoke` | Unit Test 与 JMH Smoke 均以 `BUILD SUCCESSFUL` 结束 |
 
-## 快速仓库地图
+### 快速仓库地图
 
 ```text
 wow-api                    契约与注解
@@ -1949,7 +1954,7 @@ example                    Kotlin 与 Java 垂直示例
 documentation              VitePress 站点
 ```
 
-## 发起 Pull Request 前
+### 发起 Pull Request 前
 
 - [ ] 请求结果已经明确。
 - [ ] 所属模块与公共边界已经识别。
@@ -1967,7 +1972,7 @@ documentation              VitePress 站点
 - [ ] 未运行检查与环境限制已披露。
 - [ ] 没有新增无证据的性能、SLA、数据保留或合规承诺。
 
-## 最终心智模型
+### 最终心智模型
 
 命令是意图。
 

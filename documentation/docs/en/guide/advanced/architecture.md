@@ -418,10 +418,10 @@ The compiler integrates with `wow-openapi` to automatically generate OpenAPI spe
 
 The architectural choices of the Wow Framework directly enable its performance profile. Key design decisions that impact performance:
 
-1. **Reactive (non-blocking) pipelines**: `Mono` and `Flux` throughout ensure no thread blocking, enabling high concurrency under load.
+1. **Reactive pipelines**: framework hot paths compose `Mono` and `Flux` without introducing blocking calls, while application handlers must preserve that boundary.
 2. **Snapshot optimization**: `SnapshotStore` avoids replaying the full event history on every aggregate load.
-3. **Local-first routing**: `LocalFirstCommandBus` routes commands to local aggregate processors first, falling back to distributed routing only when necessary.
-4. **Wait plan flexibility**: `SENT` wait mode achieves 59,000+ TPS for fire-and-forget scenarios, while `PROCESSED` mode trades throughput for stronger consistency guarantees at 18,000+ TPS.
+3. **Local-first routing**: `LocalFirstCommandBus` attempts local runtime admission while sending a marked distributed copy, avoiding broker latency when local admission succeeds.
+4. **Historical stress sample**: one linked two-minute example run reported average Add To Cart throughput of 59,625 TPS with `SENT` and 18,696 TPS with `PROCESSED`. These deployment-specific historical measurements illustrate the cost of stronger wait stages; they are not current framework guarantees, an SLA, or a capacity plan. See the [README test conditions and deployment links](https://github.com/Ahoo-Wang/Wow/blob/main/README.md#L94-L109).
 
 ## Related Pages
 
