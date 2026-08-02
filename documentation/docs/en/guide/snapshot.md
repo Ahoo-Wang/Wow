@@ -1,11 +1,11 @@
 ---
 title: Snapshot
-description: Snapshot is an important optimization mechanism in event sourcing architecture that improves performance by saving checkpoints of aggregate root state.
+description: Use snapshots as aggregate loading checkpoints and the default current-state query store with Wow's built-in query service and routes.
 ---
 
 # Snapshot
 
-Snapshot is an important optimization mechanism in event sourcing architecture that improves performance by saving checkpoints of aggregate root state to reduce the number of event replays.
+Snapshots save aggregate-state checkpoints to reduce event replay. With the recommended `all` strategy, the same data also serves as the default materialized current-state query store through `SnapshotQueryService` and Wow's built-in query routes.
 
 ## Snapshot Mechanism
 
@@ -111,7 +111,7 @@ stateDiagram-v2
     Stale --> Create: Interval Reached
 ```
 
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotMaterializer.kt, dispatcher/SnapshotHandler.kt -->
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotMaterializer.kt, wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler.kt -->
 
 ## Snapshot Store
 
@@ -169,12 +169,12 @@ class InMemorySnapshotStore : SnapshotStore {
 
 ### Supported Backends
 
-| Backend | Module | Status |
-|---------|--------|--------|
-| In-memory | `wow-core` | Development/testing |
-| MongoDB | `wow-mongo` | Production-ready |
-| Redis | `wow-redis` | Production-ready |
-| Elasticsearch | `wow-elasticsearch` | Production-ready |
+| Backend | Module | Snapshot storage | Dynamic snapshot query |
+|---------|--------|------------------|------------------------|
+| In-memory | `wow-core` | Development/testing | No built-in query factory |
+| MongoDB | `wow-mongo` | Production-ready | Yes |
+| Redis | `wow-redis` | Production-ready | No built-in query factory |
+| Elasticsearch | `wow-elasticsearch` | Production-ready | Yes |
 
 ## Snapshot Processing Flow
 
@@ -191,7 +191,6 @@ wow:
     snapshot:
       enabled: true  # Whether to enable snapshots
       strategy: all  # Snapshot strategy (all, version_offset)
-      version-offset: 5  # Version offset (only valid for version_offset strategy)
       storage: mongo  # Snapshot storage backend (mongo, redis, elasticsearch, in_memory)
 ```
 
@@ -202,6 +201,50 @@ wow:
 | `wow.eventsourcing.snapshot.version-offset` | `5` | Version offset threshold (only used by `version_offset`) |
 | `wow.eventsourcing.snapshot.storage` | `mongo` | Snapshot storage backend (shared `StorageType` enum) |
 
+## Snapshots as the Default Read Model
+
+Use `strategy: all` by default. `SimpleSnapshotStrategy` materializes the state produced by every state event, making the snapshot store a real-time current-state query store after the `SNAPSHOT` stage completes, as well as an aggregate-loading checkpoint. For standard queries over one aggregate type, this removes the need to write a projection that duplicates aggregate state.
+
+| Strategy | Stored state | Query consequence | Recommendation |
+|---|---|---|---|
+| `all` | Every processed state event updates the latest snapshot | Queries read the latest materialized aggregate state after snapshot processing completes | Recommended |
+| `version_offset` | A snapshot is written only after the version gap reaches `version-offset` | Snapshot queries can lag behind the aggregate | Use only when staleness is accepted or another read model serves current queries |
+
+```mermaid
+flowchart LR
+    Command[Command] --> Aggregate[Aggregate]
+    Aggregate --> Event[State event]
+    Event --> Strategy[SimpleSnapshotStrategy all]
+    Strategy --> Store[Query-capable snapshot store]
+    Store --> Service[SnapshotQueryService]
+    Service --> Routes[Built-in WebFlux routes]
+    Routes --> Client[Client]
+    Event -. cross-aggregate or custom view .-> Projection[Projection]
+
+    classDef primary fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
+    classDef secondary fill:#161b22,stroke:#30363d,color:#e6edf3
+    class Command,Aggregate,Event,Strategy primary
+    class Store,Service,Routes,Client,Projection secondary
+```
+
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SimpleSnapshotStrategy.kt:19-38, wow-query/src/main/kotlin/me/ahoo/wow/query/snapshot/SnapshotQueryService.kt:30-61, wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/contributor/aggregate/snapshot/SnapshotRouteContributor.kt:59-281, wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/webflux/route/QueryRouteModule.kt:34-79 -->
+
+When WebFlux support is enabled, Wow generates standard snapshot query endpoints for each aggregate:
+
+| Query shape | Route suffix | Result |
+|---|---|---|
+| Count | `/snapshot/count` | Number of matching snapshots |
+| List | `/snapshot/list` and `/snapshot/list/state` | Bounded snapshot or state list |
+| Paged | `/snapshot/paged` and `/snapshot/paged/state` | Paged snapshots or states |
+| Single | `/snapshot/single` and `/snapshot/single/state` | One snapshot or state |
+
+These routes are backed by the same `SnapshotQueryService` contract used by the Query DSL, and Spring registers a typed `<aggregate>.SnapshotQueryService` bean for each aggregate. Applications therefore do not need to hand-write query API endpoints for these standard shapes ([SnapshotQueryService.kt:30-61](https://github.com/Ahoo-Wang/Wow/blob/main/wow-query/src/main/kotlin/me/ahoo/wow/query/snapshot/SnapshotQueryService.kt#L30-L61), [SnapshotQueryServiceRegistrar.kt:28-61](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/query/SnapshotQueryServiceRegistrar.kt#L28-L61), [SnapshotRouteContributor.kt:59-281](https://github.com/Ahoo-Wang/Wow/blob/main/wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/contributor/aggregate/snapshot/SnapshotRouteContributor.kt#L59-L281)).
+
+:::warning Query capability and consistency boundaries
+A query-capable backend is required. MongoDB and Elasticsearch provide `SnapshotQueryServiceFactory`; a custom backend must provide the matching binding. Redis and in-memory snapshot stores support persistence and loading but do not by themselves provide dynamic snapshot queries. Keep tenant/owner filtering, authorization, and indexes explicit. Snapshot processing consumes state events asynchronously. With `strategy: all` and the query service bound to the same backend, a caller that requires read-after-write visibility must wait for the `SNAPSHOT` command stage. The stage only proves snapshot processing completed; `version_offset` can complete without writing when its threshold is not met. The event stream remains the source of truth.
+:::
+
+Continue to use a projection when the read model joins multiple aggregates, needs a denormalized schema that differs from aggregate state, feeds analytics, or synchronizes an external system.
 
 ## Aggregate Loading Optimization
 
@@ -221,17 +264,27 @@ do not use the latest snapshot.
 
 ## Performance Impact
 
-- **Snapshots Enabled**: Aggregate loading time is proportional to snapshot interval, not total event count
+- **`all` Strategy**: Once snapshot processing completes, the latest snapshot already contains the state produced by the latest state event
+- **`version_offset` Strategy**: Aggregate loading replays only events after the last snapshot, bounded by the configured offset
 - **Snapshots Disabled**: Every load requires replaying all historical events
 - **Storage Cost**: Requires additional storage space to save snapshot data
 
-With a snapshot interval of 50, an aggregate with 1000 events replays at most 49 events instead of all 1000 -- a ~95% reduction.
+For example, explicitly choosing `strategy: version_offset` with `version-offset: 50` limits aggregate loading to at most 49 replayed events, but the same lag also applies to direct snapshot queries. The recommended `all` strategy favors a current query store over reducing snapshot writes.
 
 ## Best Practices
 
-1. **Choose Appropriate Snapshot Strategy**: Select appropriate snapshot frequency based on business scenarios
-2. **Monitor Snapshot Effectiveness**: Regularly check if snapshots significantly improve loading performance
-3. **Snapshot Consistency**: Ensure snapshot version consistency with event streams
+1. **Prefer `all`**: Use the latest snapshot as the default current-state read model.
+2. **Reuse the query service and routes**: Do not duplicate aggregate state in a projection or write a controller for standard single/list/paged/count queries.
+3. **Select a query-capable backend**: Use MongoDB, Elasticsearch, or a custom `SnapshotQueryServiceFactory` when dynamic queries are required.
+4. **Design query safety and performance**: Verify authorization, tenant/owner filters, indexes, and query plans with production-like data.
+5. **Define read-after-write behavior**: With `all` and the same query-capable backend, wait for `SNAPSHOT` when the response must be visible through snapshot queries.
+6. **Treat `version_offset` as an explicit trade-off**: Use it only after accepting query staleness or providing another current-state read model.
 
 `SnapshotStore` currently has no generic deletion API. Physical cleanup, when required, must be
 designed and verified for the selected backend rather than treated as a Wow lifecycle capability.
+
+## Related Topics
+
+- [Production Best Practices](./best-practices.md) — Apply snapshots as the default query store in a complete production checklist
+- [Query Service](./query.md) — Build filters and use the generated snapshot query endpoints
+- [Projection](./projection.md) — Build cross-aggregate or purpose-specific read models

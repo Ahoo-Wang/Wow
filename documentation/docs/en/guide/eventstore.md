@@ -235,8 +235,7 @@ wow:
       storage: mongo
     snapshot:
       enabled: true
-      strategy: version_offset  # all, version_offset
-      version-offset: 10
+      strategy: all  # Recommended: persist the state produced by every state event
       storage: mongo
 ```
 
@@ -250,7 +249,7 @@ wow:
 
 ## Best Practices
 
-1. **Enable snapshots for long-lived aggregates**: Set `strategy` to `version_offset` with offset 5-20 to avoid linear degradation for aggregates with many events.
+1. **Use snapshots as the default current-state query store**: Keep the recommended `strategy: all` so every processed state event updates the latest snapshot. With a query-capable backend and WebFlux support, `SnapshotQueryService` and the built-in single/list/paged/count routes replace duplicate projection code and hand-written query endpoints for standard single-aggregate queries. Use `version_offset` only when stale snapshot queries are acceptable or another read model serves current queries.
 
 2. **Monitor version conflicts**: Occasional `EventVersionConflictException`s are normal. High frequency indicates contention — consider redesigning aggregate boundaries.
 
@@ -262,7 +261,8 @@ wow:
 
 ## Related Topics
 
-- [Snapshot](./snapshot) — Optimize aggregate loading with snapshots
+- [Snapshot](./snapshot) — Use snapshots for aggregate loading and current-state queries
+- [Query Service](./query) — Query snapshots through the DSL and built-in endpoints
 - [Command Gateway](./command-gateway) — How commands are routed to aggregates
 - [Saga](./saga) — Distributed transactions across aggregates
 - [Projection](./projection) — How projections consume event streams

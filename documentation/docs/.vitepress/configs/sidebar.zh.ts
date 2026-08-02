@@ -85,6 +85,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             text: '最佳实践',
             collapsed: false,
             items: [
+                {text: '生产最佳实践', link: 'best-practices'},
                 {text: '故障排查', link: 'troubleshooting'},
                 {
                     text: '迁移指南',

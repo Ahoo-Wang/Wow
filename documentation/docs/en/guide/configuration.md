@@ -43,9 +43,8 @@ wow:
       storage: mongo               # Event store type: mongo, redis, elasticsearch, in_memory, delay
     snapshot:
       enabled: true
-      strategy: all                # all, version_offset
+      strategy: all                # recommended for current-state queries
       storage: mongo
-      version-offset: 10
 
   # Infrastructure-specific configurations
   kafka:
@@ -196,8 +195,7 @@ wow:
   eventsourcing:
     snapshot:
       enabled: true
-      strategy: version_offset      # all, version_offset
-      version-offset: 10
+      strategy: all                 # recommended for current-state queries
       storage: mongo
 ```
 
@@ -623,8 +621,7 @@ wow:
       storage: mongo
     snapshot:
       enabled: true
-      strategy: version_offset
-      version-offset: 10
+      strategy: all
       storage: mongo
   kafka:
     bootstrap-servers:
@@ -701,8 +698,7 @@ wow:
       storage: mongo
     snapshot:
       enabled: true
-      strategy: version_offset
-      version-offset: 10
+      strategy: all
       storage: mongo
   kafka:
     bootstrap-servers:

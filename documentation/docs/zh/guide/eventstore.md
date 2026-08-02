@@ -233,8 +233,7 @@ wow:
       storage: mongo
     snapshot:
       enabled: true
-      strategy: version_offset  # all, version_offset
-      version-offset: 10
+      strategy: all  # 推荐：保存每个状态事件产生的状态
       storage: mongo
 ```
 
@@ -248,7 +247,7 @@ wow:
 
 ## 最佳实践
 
-1. **为长期聚合启用快照**：将 `strategy` 设置为 `version_offset`，偏移量设为 5-20，以避免拥有大量事件的聚合出现线性性能下降。
+1. **将快照作为默认当前状态查询存储**：保持推荐的 `strategy: all`，让每个已处理状态事件都更新最新快照。在支持查询的后端并启用 WebFlux 后，`SnapshotQueryService` 与内置 single/list/paged/count 路由可以替代单聚合标准查询中重复的投影代码和手写查询端点。仅在允许快照查询陈旧，或另有读模型承载实时查询时使用 `version_offset`。
 
 2. **监控版本冲突**：偶尔出现 `EventVersionConflictException` 是正常的。高频出现则表明存在竞争 -- 考虑重新设计聚合边界。
 
@@ -260,7 +259,8 @@ wow:
 
 ## 相关主题
 
-- [快照](./snapshot) -- 通过快照优化聚合加载
+- [快照](./snapshot) -- 使用快照优化聚合加载并支持当前状态查询
+- [查询服务](./query) -- 通过 DSL 与内置端点查询快照
 - [命令网关](./command-gateway) -- 命令如何路由到聚合
 - [Saga](./saga) -- 跨聚合的分布式事务
 - [投影](./projection) -- 投影如何消费事件流

@@ -1,11 +1,11 @@
 ---
 title: 快照
-description: 快照是事件溯源架构中的重要优化机制，通过保存聚合根状态检查点来提升性能，减少事件重放次数。
+description: 将快照作为聚合加载检查点与默认当前状态查询存储，并使用 Wow 内置查询服务和路由。
 ---
 
 # 快照
 
-快照是事件溯源架构中的重要优化机制，通过保存聚合根状态检查点来提升性能，减少事件重放次数。
+快照通过保存聚合状态检查点来减少事件重放。采用推荐的 `all` 策略后，同一份数据还可通过 `SnapshotQueryService` 与 Wow 内置查询路由，直接作为默认的当前状态物化查询存储。
 
 ## 快照机制
 
@@ -109,7 +109,7 @@ stateDiagram-v2
     Stale --> Create: 达到间隔
 ```
 
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotMaterializer.kt, dispatcher/SnapshotHandler.kt -->
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotMaterializer.kt, wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler.kt -->
 
 ## 快照存储
 
@@ -163,12 +163,12 @@ class InMemorySnapshotStore : SnapshotStore {
 
 ### 支持的后端
 
-| 后端 | 模块 | 状态 |
-|---------|--------|--------|
-| 内存 | `wow-core` | 开发/测试 |
-| MongoDB | `wow-mongo` | 生产就绪 |
-| Redis | `wow-redis` | 生产就绪 |
-| Elasticsearch | `wow-elasticsearch` | 生产就绪 |
+| 后端 | 模块 | 快照存储 | 动态快照查询 |
+|---------|--------|----------|--------------|
+| 内存 | `wow-core` | 开发/测试 | 无内置查询工厂 |
+| MongoDB | `wow-mongo` | 生产就绪 | 支持 |
+| Redis | `wow-redis` | 生产就绪 | 无内置查询工厂 |
+| Elasticsearch | `wow-elasticsearch` | 生产就绪 | 支持 |
 
 ## 快照处理流程
 
@@ -185,7 +185,6 @@ wow:
     snapshot:
       enabled: true  # 是否启用快照
       strategy: all  # 快照策略 (all, version_offset)
-      version-offset: 5  # 版本偏移（仅对 version_offset 策略有效）
       storage: mongo  # 快照存储后端 (mongo、redis、elasticsearch、in_memory)
 ```
 
@@ -196,6 +195,50 @@ wow:
 | `wow.eventsourcing.snapshot.version-offset` | `5` | 版本偏移阈值（仅 `version_offset` 使用） |
 | `wow.eventsourcing.snapshot.storage` | `mongo` | 快照存储后端（共享 `StorageType` 枚举） |
 
+## 将快照作为默认读模型
+
+默认使用 `strategy: all`。`SimpleSnapshotStrategy` 会物化每个状态事件产生的状态，使快照存储在 `SNAPSHOT` 阶段完成后直接成为当前状态的实时查询存储，同时也作为聚合加载检查点。对于单一聚合类型的标准查询，这意味着无需再编写投影来复制聚合状态。
+
+| 策略 | 存储状态 | 查询影响 | 建议 |
+|---|---|---|---|
+| `all` | 每个已处理状态事件都会更新最新快照 | 快照处理完成后，查询可读取最新物化聚合状态 | 推荐 |
+| `version_offset` | 仅当版本差达到 `version-offset` 时写入快照 | 快照查询可能落后于聚合 | 仅在允许陈旧数据，或另有读模型承载实时查询时使用 |
+
+```mermaid
+flowchart LR
+    Command[命令] --> Aggregate[聚合]
+    Aggregate --> Event[状态事件]
+    Event --> Strategy[SimpleSnapshotStrategy all]
+    Strategy --> Store[支持查询的快照存储]
+    Store --> Service[SnapshotQueryService]
+    Service --> Routes[内置 WebFlux 路由]
+    Routes --> Client[客户端]
+    Event -. 跨聚合或自定义视图 .-> Projection[投影]
+
+    classDef primary fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
+    classDef secondary fill:#161b22,stroke:#30363d,color:#e6edf3
+    class Command,Aggregate,Event,Strategy primary
+    class Store,Service,Routes,Client,Projection secondary
+```
+
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SimpleSnapshotStrategy.kt:19-38, wow-query/src/main/kotlin/me/ahoo/wow/query/snapshot/SnapshotQueryService.kt:30-61, wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/contributor/aggregate/snapshot/SnapshotRouteContributor.kt:59-281, wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/webflux/route/QueryRouteModule.kt:34-79 -->
+
+启用 WebFlux 支持后，Wow 会为每个聚合生成标准快照查询端点：
+
+| 查询形态 | 路由后缀 | 结果 |
+|---|---|---|
+| 计数 | `/snapshot/count` | 匹配的快照数量 |
+| 列表 | `/snapshot/list` 与 `/snapshot/list/state` | 有上限的快照或状态列表 |
+| 分页 | `/snapshot/paged` 与 `/snapshot/paged/state` | 分页快照或状态 |
+| 单条 | `/snapshot/single` 与 `/snapshot/single/state` | 单个快照或状态 |
+
+这些路由由 Query DSL 使用的同一个 `SnapshotQueryService` 契约提供能力；Spring 还会为每个聚合注册类型化的 `<aggregate>.SnapshotQueryService` Bean。因此，应用无需再为这些标准形态手写查询 API 端点（[SnapshotQueryService.kt:30-61](https://github.com/Ahoo-Wang/Wow/blob/main/wow-query/src/main/kotlin/me/ahoo/wow/query/snapshot/SnapshotQueryService.kt#L30-L61)、[SnapshotQueryServiceRegistrar.kt:28-61](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/query/SnapshotQueryServiceRegistrar.kt#L28-L61)、[SnapshotRouteContributor.kt:59-281](https://github.com/Ahoo-Wang/Wow/blob/main/wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/contributor/aggregate/snapshot/SnapshotRouteContributor.kt#L59-L281)）。
+
+:::warning 查询能力与一致性边界
+这条路径需要支持查询的后端。MongoDB 与 Elasticsearch 提供 `SnapshotQueryServiceFactory`；自定义后端必须提供对应的 binding。Redis 与内存快照存储支持持久化和加载，但自身不提供动态快照查询。租户/所有者过滤、授权与索引仍需显式设计。快照通过状态事件异步处理。使用 `strategy: all` 且查询服务绑定同一后端时，要求写后读可见性的调用方必须等待 `SNAPSHOT` 命令阶段。该阶段本身只证明快照处理完成；`version_offset` 未达到阈值时可能完成但不写入。事件流仍是真相来源。
+:::
+
+当读模型需要关联多个聚合、采用不同于聚合状态的反范式结构、服务分析场景或同步外部系统时，仍应使用投影。
 
 ## 聚合加载优化
 
@@ -214,17 +257,27 @@ val aggregate: Mono<StateAggregate<OrderState>> =
 
 ## 性能影响
 
-- **启用快照**：聚合加载时间与快照间隔成正比，而非总事件数
+- **`all` 策略**：快照处理完成后，最新快照已包含最新状态事件产生的状态
+- **`version_offset` 策略**：聚合加载只需重放上次快照之后的事件，数量受配置偏移量限制
 - **禁用快照**：每次加载都需要重放所有历史事件
 - **存储成本**：需要额外的存储空间来保存快照数据
 
-当快照间隔为 50 时，拥有 1000 个事件的聚合最多重放 49 个事件，而非全部 1000 个 -- 减少约 95%。
+例如，显式选择 `strategy: version_offset` 并设置 `version-offset: 50`，可把聚合加载限制为最多重放 49 个事件，但直接快照查询也会承受同样的状态滞后。推荐的 `all` 策略优先保证当前状态查询存储，而不是减少快照写入。
 
 ## 最佳实践
 
-1. **选择合适的快照策略**：根据业务场景选择合适的快照频率
-2. **监控快照效果**：定期检查快照是否显著改善了加载性能
-3. **快照一致性**：确保快照版本与事件流的一致性
+1. **优先使用 `all`**：将最新快照作为默认当前状态读模型。
+2. **复用查询服务与路由**：单聚合的标准 single/list/paged/count 查询无需复制状态到投影，也无需手写 Controller。
+3. **选择支持查询的后端**：动态查询使用 MongoDB、Elasticsearch 或自定义 `SnapshotQueryServiceFactory`。
+4. **设计查询安全与性能**：使用类生产数据验证授权、租户/所有者过滤、索引与查询计划。
+5. **定义写后读行为**：使用 `all` 且查询同一可查询后端时，结果必须通过快照查询可见则等待 `SNAPSHOT`。
+6. **把 `version_offset` 视为显式权衡**：仅在接受查询陈旧或已有其他当前状态读模型时使用。
 
 `SnapshotStore` 当前没有通用删除 API；如需物理清理，必须按具体存储后端设计并验证，
 不能把它当作 Wow 的框架级生命周期能力。
+
+## 相关主题
+
+- [生产最佳实践](./best-practices.md) -- 在完整生产检查清单中应用快照查询模式
+- [查询服务](./query.md) -- 构建过滤条件并使用生成的快照查询端点
+- [投影](./projection.md) -- 构建跨聚合或特定用途读模型

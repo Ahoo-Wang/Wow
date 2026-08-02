@@ -195,8 +195,7 @@ wow:
   eventsourcing:
     snapshot:
       enabled: true
-      strategy: version_offset
-      version-offset: 10
+      strategy: all
       storage: mongo
 ```
 
@@ -330,8 +329,7 @@ wow:
       storage: mongo
     snapshot:
       enabled: true
-      strategy: version_offset
-      version-offset: 10
+      strategy: all
       storage: mongo
 ```
 
@@ -365,8 +363,7 @@ wow:
       storage: mongo
     snapshot:
       enabled: true
-      strategy: version_offset
-      version-offset: 10
+      strategy: all
       storage: mongo
     state:
       bus:

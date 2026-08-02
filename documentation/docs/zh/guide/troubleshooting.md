@@ -152,8 +152,7 @@ wow:
   eventsourcing:
     snapshot:
       enabled: true
-      strategy: VERSION_OFFSET
-      version-offset: 10
+      strategy: all
 ```
 
 #### Q: 快照不一致
@@ -303,8 +302,7 @@ wow:
 wow:
   eventsourcing:
     snapshot:
-      strategy: VERSION_OFFSET
-      version-offset: 10
+      strategy: all
 ```
 
 3. **调整连接池**
