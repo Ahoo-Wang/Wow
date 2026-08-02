@@ -19,7 +19,7 @@ Wow identifies itself as a reactive CQRS and Event Sourcing framework for
 modern applications. It is a framework and set of integration modules, not a
 complete business product or a managed service.
 
-The current project version is `8.9.5`, the JVM toolchain is 17, and the build
+The current project version is `8.9.6`, the JVM toolchain is 17, and the build
 uses Kotlin `2.4.10`.
 
 Sources:
@@ -377,7 +377,7 @@ production recommendation.
 The README includes a two-minute stress-test sample. Its reported numbers must
 not be used as a current version guarantee, an end-to-end SLA, or a sizing
 substitute. The linked performance deployment references version `6.11.3` and
-specific resource settings, while the current project version is `8.9.5`.
+specific resource settings, while the current project version is `8.9.6`.
 
 Sources:
 
@@ -493,7 +493,7 @@ maintainers' roadmap.
 | --- | --- | --- | --- |
 | Retry editor shows milliseconds while the API model uses seconds | Operators may configure recovery with the wrong timing assumptions | Small to medium: UI copy plus contract coverage | P0 before dashboard use |
 | Compensation history view is a stub | A complete operator audit trail cannot be claimed from the dashboard | Medium to large: define audit source, retention, and UI | P1 when auditability is a launch criterion |
-| Example deployment and dashboard versions drift from root `8.9.5` | Adopters may test or deploy artifacts that do not match current source | Small to medium: align or label versions and add release checks | P1 |
+| Example deployment and dashboard versions drift from root `8.9.6` | Adopters may test or deploy artifacts that do not match current source | Small to medium: align or label versions and add release checks | P1 |
 | Example compensation config contains inline credentials | Copying the example can expose reusable secrets | Small: replace with placeholders or secret references and scan manifests | P0 |
 | Compensation deployment requests one replica while its HPA minimum is two | Capacity and cost expectations differ between deployment files | Small: align the example and document intent | P2 |
 
