@@ -22,7 +22,6 @@ common_globs=(
   --glob '!**/build/**'
   --glob '!**/.gradle/**'
   --glob '!**/node_modules/**'
-  --glob '!**/dist/**'
   --glob '!**/target/**'
   --glob '!**/*lock*.json'
   --glob '!**/*lock*.yaml'
@@ -68,7 +67,7 @@ match_section \
 
 match_section \
   'Spring Boot configuration and auto-configuration exposure' \
-  '^[[:space:]]*(wow|spring|r2dbc):[[:space:]]*(#.*)?$|spring\.(jackson|data\.mongodb|mongodb|data\.elasticsearch|elasticsearch|autoconfigure\.exclude)|org\.springframework\.boot\.autoconfigure\.(mongo|data\.mongo|elasticsearch|jackson)|JacksonAutoConfiguration|Mongo[A-Za-z]*AutoConfiguration|Elasticsearch[A-Za-z]*AutoConfiguration' \
+  '^[[:space:]]*(wow|spring|r2dbc):[[:space:]]*(#.*)?$|spring\.(jackson|data\.mongodb|mongodb|data\.elasticsearch|elasticsearch|autoconfigure\.exclude)|org\.springframework\.boot\.autoconfigure\.|JacksonAutoConfiguration|Mongo[A-Za-z]*AutoConfiguration|Elasticsearch[A-Za-z]*AutoConfiguration' \
   --glob '*.kt' --glob '*.java' --glob '*.yml' --glob '*.yaml' --glob '*.properties'
 
 match_section \
@@ -86,7 +85,7 @@ match_section \
 
 match_section \
   'Custom messaging or lifecycle ownership' \
-  '\b[A-Za-z]*DispatcherLauncher\b|MessageSubscription|MessageBus<|override\s+fun\s+receive\s*\([^)]*(Set<NamedAggregate>|namedAggregates)|\.receive\s*\(\s*(setOf(?:\s*<[^>]+>)?\s*\(|Set\.of\s*\(|namedAggregates\b)|getReceiverGroup|setReceiverGroup|writeReceiverGroup|SmartLifecycle|DisposableBean|GracefullyStoppable|WowRuntime|WowRuntimeLifecycle|RuntimeComponent|me\.ahoo\.wow\.infra\.lifecycle\.Lifecycle|@PostConstruct|@PreDestroy|destroyMethod' \
+  '\b([A-Za-z]*DispatcherLauncher|MainDispatcher|AggregateDispatcher|AggregateSchedulerSupplier|AUTO_REGISTRAR_PHASE)\b|MessageSubscription|MessageBus<|override\s+fun\s+receive\s*\([^)]*(Set<NamedAggregate>|namedAggregates)|\.receive\s*\(\s*(setOf(?:\s*<[^>]+>)?\s*\(|Set\.of\s*\(|namedAggregates\b)|getReceiverGroup|setReceiverGroup|writeReceiverGroup|SmartLifecycle|DisposableBean|GracefullyStoppable|WowRuntime|WowRuntimeLifecycle|RuntimeComponent|me\.ahoo\.wow\.infra\.lifecycle\.Lifecycle|@PostConstruct|@PreDestroy|destroyMethod' \
   --glob '*.kt' --glob '*.java'
 
 match_section \
@@ -113,8 +112,9 @@ match_section \
 
 match_section \
   'Redis and Mongo configuration' \
-  'wow\..*(event-store|snapshot-store|prepare|redis|mongo)|spring\.(data\.)?(redis|mongodb)|^[[:space:]]*storage:[[:space:]]*(redis|mongo)\b|^[[:space:]]*(redis|mongodb):[[:space:]]*(#.*)?$|Redis(EventStore|SnapshotStore|PrepareKey)|Mongo(EventStore|SnapshotStore)|MongoDatabaseContext' \
-  --glob '*.yml' --glob '*.yaml' --glob '*.properties' --glob '*.kt' --glob '*.java'
+  'wow\..*(event-store|snapshot-store|prepare|redis|mongo)|spring\.(data\.)?(redis|mongodb)|WOW_[A-Z0-9_]*(STORAGE|REDIS|MONGO)[A-Z0-9_]*|SPRING_(DATA_)?(REDIS|MONGODB)(_[A-Z0-9_]+)?|[=:][[:space:]]*(REDIS|MONGO(DB)?)([[:space:]#]|$)|^[[:space:]]*storage:[[:space:]]*(redis|mongo)\b|^[[:space:]]*(redis|mongodb):[[:space:]]*(#.*)?$|Redis(EventStore|SnapshotStore|PrepareKey)|Mongo(EventStore|SnapshotStore)|MongoDatabaseContext' \
+  --glob '*.yml' --glob '*.yaml' --glob '*.properties' --glob '*.env' --glob '.env*' \
+  --glob '*.kt' --glob '*.java'
 
 match_section \
   'Generated metadata and API contracts' \
