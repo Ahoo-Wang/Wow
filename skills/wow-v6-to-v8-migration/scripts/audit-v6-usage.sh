@@ -23,10 +23,34 @@ common_globs=(
   --glob '!**/.gradle/**'
   --glob '!**/node_modules/**'
   --glob '!**/target/**'
-  --glob '!**/*lock*.json'
-  --glob '!**/*lock*.yaml'
-  --glob '!**/*lock*.yml'
+  --glob '!**/package-lock.json'
+  --glob '!**/npm-shrinkwrap.json'
+  --glob '!**/pnpm-lock.yaml'
 )
+
+redact_sensitive_values() {
+  awk '
+    {
+      prefix = ""
+      content = $0
+      if (match($0, /^[^:]+:[0-9]+:/)) {
+        prefix = substr($0, 1, RLENGTH)
+        content = substr($0, RLENGTH + 1)
+      }
+      lower = tolower(content)
+      if (match(lower, /(^|[^[:alnum:]])(password|passphrase|secret|token|credential|private[_-]?key|access[_-]?key|username|uri|url)/)) {
+        sensitive_end = RSTART + RLENGTH
+        suffix = substr(content, sensitive_end)
+        if (match(suffix, /[=:]/)) {
+          delimiter_end = sensitive_end + RSTART - 1
+          print prefix substr(content, 1, delimiter_end) "<redacted>"
+          next
+        }
+      }
+      print $0
+    }
+  '
+}
 
 match_section() {
   local title="$1"
@@ -46,6 +70,7 @@ match_section() {
     return "$rg_status"
   fi
   if [[ -n "$output" ]]; then
+    output="$(printf '%s\n' "$output" | redact_sensitive_values)"
     printf '\n## %s\n%s\n' "$title" "$output"
   fi
 }
@@ -57,12 +82,12 @@ printf 'note: matches are review leads, not proof of incompatibility or complete
 match_section \
   'Declared platform and Wow versions' \
   '^[[:space:]]*(wow|kotlin|ksp|spring-boot)[[:space:]]*=|me\.ahoo\.wow|wow-(bom|dependencies|spring-boot-starter)|wow[._-]?version|org\.springframework\.boot|springBoot|spring-boot|kotlin\("jvm"\)|org\.jetbrains\.kotlin\.jvm|\bksp\b|<java\.version>|<kotlin\.version>|jvmToolchain|distributionUrl' \
-  --glob '*.gradle' --glob '*.gradle.kts' --glob 'libs.versions.toml' \
+  --glob '*.gradle' --glob '*.gradle.kts' --glob '*.versions.toml' \
   --glob 'gradle.properties' --glob 'gradle-wrapper.properties' --glob 'pom.xml'
 
 match_section \
   'Jackson 2 or Jackson 3 direct usage' \
-  'com\.fasterxml\.jackson\.(core|databind|module|datatype)|tools\.jackson|ObjectMapper|JsonNode|JsonSerializer|JsonDeserializer|JacksonAutoConfiguration' \
+  'com\.fasterxml\.jackson\.(core|databind|module|datatype|dataformat)|tools\.jackson|ObjectMapper|JsonNode|JsonSerializer|JsonDeserializer|JacksonAutoConfiguration' \
   --glob '*.kt' --glob '*.java' --glob '*.gradle' --glob '*.gradle.kts' --glob 'pom.xml'
 
 match_section \
@@ -85,14 +110,14 @@ match_section \
 
 match_section \
   'Custom messaging or lifecycle ownership' \
-  '\b([A-Za-z]*DispatcherLauncher|MainDispatcher|AggregateDispatcher|AggregateSchedulerSupplier|AUTO_REGISTRAR_PHASE)\b|MessageSubscription|MessageBus<|override\s+fun\s+receive\s*\([^)]*(Set<NamedAggregate>|namedAggregates)|\.receive\s*\(\s*(setOf(?:\s*<[^>]+>)?\s*\(|Set\.of\s*\(|namedAggregates\b)|getReceiverGroup|setReceiverGroup|writeReceiverGroup|SmartLifecycle|DisposableBean|GracefullyStoppable|WowRuntime|WowRuntimeLifecycle|RuntimeComponent|me\.ahoo\.wow\.infra\.lifecycle\.Lifecycle|@PostConstruct|@PreDestroy|destroyMethod' \
+  '\b([A-Za-z]*DispatcherLauncher|MainDispatcher|AggregateDispatcher|AggregateSchedulerSupplier|AUTO_REGISTRAR_PHASE)\b|MessageSubscription|MessageBus<|override\s+fun\s+receive\s*\([^)]*(Set<NamedAggregate>|namedAggregates)|\.receive\s*\(\s*(setOf(?:\s*<[^>]+>)?\s*\(|Set\.of\s*\(|namedAggregates\b)|getReceiverGroup|setReceiverGroup|writeReceiverGroup|\bLifecycle\b|SmartLifecycle|DisposableBean|GracefullyStoppable|WowRuntime|WowRuntimeLifecycle|RuntimeComponent|me\.ahoo\.wow\.infra\.lifecycle\.Lifecycle|@PostConstruct|@PreDestroy|destroyMethod' \
   --glob '*.kt' --glob '*.java'
 
 match_section \
   'Removed R2DBC and sharding support' \
   'wow-r2dbc|r2dbc-support|wow\.r2dbc|me\.ahoo\.wow\.r2dbc|me\.ahoo\.wow\.sharding' \
   --glob '*.kt' --glob '*.java' --glob '*.gradle' --glob '*.gradle.kts' \
-  --glob 'libs.versions.toml' --glob 'pom.xml' --glob '*.yml' --glob '*.yaml' --glob '*.properties'
+  --glob '*.versions.toml' --glob 'pom.xml' --glob '*.yml' --glob '*.yaml' --glob '*.properties'
 
 match_section \
   'Changed OpenAPI and WebFlux extension APIs' \
