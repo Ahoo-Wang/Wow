@@ -15,6 +15,7 @@ package me.ahoo.wow.infra.batch
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import reactor.kotlin.test.test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -112,6 +113,33 @@ class BatchRequestTest {
         fixture.request.claim().assert().isFalse()
         fixture.request.settle(BatchItemResult.Success)
         fixture.request.settleFailure(IllegalStateException("late"))
+    }
+
+    @Test
+    fun `claim should release queue slot before claimed callback failure`() {
+        val admissionReleases = AtomicInteger()
+        val queueReleases = AtomicInteger()
+        val failure = LinkageError("failed")
+        val request = object : BatchRequest<Int>(
+            value = 1,
+            onReleaseAdmission = {
+                admissionReleases.incrementAndGet()
+            },
+            onReleaseQueueSlot = queueReleases::incrementAndGet,
+        ) {
+            override fun onClaimed(lane: Int) {
+                throw failure
+            }
+        }
+
+        assertThrows<LinkageError> {
+            request.claim(lane = 1)
+        }.assert().isSameAs(failure)
+        queueReleases.get().assert().isEqualTo(1)
+
+        request.settleFailureIfUnsettled(failure).assert().isTrue()
+        request.signalSettled()
+        admissionReleases.get().assert().isEqualTo(1)
     }
 
     @Test

@@ -49,8 +49,8 @@ internal open class BatchRequest<T : Any>(
             when (state.get()) {
                 State.Queued -> {
                     if (state.compareAndSet(State.Queued, State.InFlight)) {
-                        onClaimed(lane)
                         releaseQueueSlot()
+                        onClaimed(lane)
                         return true
                     }
                 }
