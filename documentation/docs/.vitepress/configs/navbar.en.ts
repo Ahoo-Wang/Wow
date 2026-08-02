@@ -7,6 +7,11 @@ export const navbarEn: DefaultTheme.NavItem[] = [
         activeMatch: '^/guide/'
     },
     {
+        text: 'Onboarding',
+        link: '/onboarding/',
+        activeMatch: '^/onboarding/'
+    },
+    {
         text: 'Reference',
         activeMatch: '^/reference/',
         items: [

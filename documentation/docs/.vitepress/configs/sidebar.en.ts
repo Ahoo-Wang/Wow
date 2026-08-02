@@ -14,6 +14,20 @@
 import {DefaultTheme} from "vitepress/types/default-theme";
 
 export const sidebarEn: DefaultTheme.Sidebar = {
+    '/onboarding/': [
+        {
+            base: '/onboarding/',
+            text: 'Onboarding',
+            collapsed: false,
+            items: [
+                {text: 'Choose Your Path', link: '/onboarding/'},
+                {text: 'Contributor Guide', link: 'contributor-guide'},
+                {text: 'Staff Engineer Guide', link: 'staff-engineer-guide'},
+                {text: 'Executive Guide', link: 'executive-guide'},
+                {text: 'Product Manager Guide', link: 'product-manager-guide'},
+            ],
+        },
+    ],
     '/guide/': [
         {
             base: '/guide/',
