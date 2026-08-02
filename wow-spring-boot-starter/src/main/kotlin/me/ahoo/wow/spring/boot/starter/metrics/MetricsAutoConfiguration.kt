@@ -31,12 +31,7 @@ class MetricsAutoConfiguration {
         meterRegistry: ObjectProvider<MeterRegistry>,
         environment: Environment,
     ): WowMetrics {
-        val enabled = environment.getProperty(
-            ConditionalOnMetricsEnabled.ENABLED_KEY,
-            Boolean::class.java,
-            true,
-        )
-        if (!enabled) {
+        if (!environment.isMetricsEnabled()) {
             return WowMetrics.NONE
         }
         return meterRegistry.getIfAvailable()?.let(::WowMetrics) ?: WowMetrics.NONE

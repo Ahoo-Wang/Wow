@@ -107,7 +107,7 @@ class MetricsAutoConfigurationTest {
     }
 
     @Test
-    fun `disabled metrics should expose NONE and omit post processor`() {
+    fun `disabled metrics should expose NONE and consistently omit post processor`() {
         contextRunner
             .enableWow()
             .withBean(SimpleMeterRegistry::class.java, ::SimpleMeterRegistry)
@@ -117,6 +117,21 @@ class MetricsAutoConfigurationTest {
                 context.getBean(WowMetrics::class.java).assert().isSameAs(WowMetrics.NONE)
                 context.assert().doesNotHaveBean(MetricsBeanPostProcessor::class.java)
             }
+    }
+
+    @Test
+    fun `Spring Boolean aliases should enable metrics consistently`() {
+        listOf("true", "on", "yes", "1").forEach { enabled ->
+            contextRunner
+                .enableWow()
+                .withBean(SimpleMeterRegistry::class.java, ::SimpleMeterRegistry)
+                .withPropertyValues("${ConditionalOnMetricsEnabled.ENABLED_KEY}=$enabled")
+                .withUserConfiguration(MetricsAutoConfiguration::class.java)
+                .run { context ->
+                    context.getBean(WowMetrics::class.java).enabled.assert().isTrue()
+                    context.assert().hasSingleBean(MetricsBeanPostProcessor::class.java)
+                }
+        }
     }
 
     @Test

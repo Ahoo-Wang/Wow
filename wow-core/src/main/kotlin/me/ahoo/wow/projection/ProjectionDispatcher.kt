@@ -17,6 +17,7 @@ import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.dispatcher.CompositeEventDispatcher
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
 
@@ -32,6 +33,7 @@ import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
  * @param functionRegistrar The registrar for projection functions.
  * @param eventHandler The handler for processing domain events.
  * @param schedulerSupplier The supplier for aggregate schedulers (default: [DefaultAggregateSchedulerSupplier] with "ProjectionDispatcher" prefix).
+ * @param metrics Instance-scoped metrics recorder propagated to child dispatchers.
  */
 class ProjectionDispatcher(
     /**
@@ -44,7 +46,8 @@ class ProjectionDispatcher(
     functionRegistrar: ProjectionFunctionRegistrar,
     eventHandler: ProjectionHandler,
     schedulerSupplier: AggregateSchedulerSupplier =
-        DefaultAggregateSchedulerSupplier("ProjectionDispatcher")
+        DefaultAggregateSchedulerSupplier("ProjectionDispatcher"),
+    metrics: WowMetrics = WowMetrics.NONE,
 ) : CompositeEventDispatcher(
     name = name,
     parallelism = parallelism,
@@ -52,5 +55,6 @@ class ProjectionDispatcher(
     stateEventBus = stateEventBus,
     functionRegistrar = functionRegistrar,
     eventHandler = eventHandler,
-    schedulerSupplier = schedulerSupplier
+    schedulerSupplier = schedulerSupplier,
+    metrics = metrics,
 )

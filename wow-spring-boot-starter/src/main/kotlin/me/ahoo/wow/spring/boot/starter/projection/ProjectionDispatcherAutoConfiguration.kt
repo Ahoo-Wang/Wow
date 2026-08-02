@@ -23,6 +23,7 @@ import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogResumeErrorHandler
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.handler.ExchangeFilter
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.projection.DefaultProjectionHandler
 import me.ahoo.wow.projection.ProjectionDispatcher
 import me.ahoo.wow.projection.ProjectionFunctionFilter
@@ -32,6 +33,7 @@ import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.WowRuntimeComponentOrder
 import me.ahoo.wow.spring.projection.ProjectionProcessorAutoRegistrar
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -99,7 +101,8 @@ class ProjectionDispatcherAutoConfiguration {
         handlerRegistrar: ProjectionFunctionRegistrar,
         domainEventBus: DomainEventBus,
         stateEventBus: StateEventBus,
-        projectionHandler: ProjectionHandler
+        projectionHandler: ProjectionHandler,
+        metrics: ObjectProvider<WowMetrics>,
     ): ProjectionDispatcher {
         return ProjectionDispatcher(
             name = "${namedBoundedContext.contextName}.${ProjectionDispatcher::class.simpleName}",
@@ -107,6 +110,7 @@ class ProjectionDispatcherAutoConfiguration {
             stateEventBus = stateEventBus,
             functionRegistrar = handlerRegistrar,
             eventHandler = projectionHandler,
+            metrics = metrics.getIfAvailable { WowMetrics.NONE },
         )
     }
 }
