@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type * as React from "react";
+import type { ComponentType } from "react";
 import { FindCategory } from "../features/Failed/FindCategory.ts";
 import LazyFailedView from "./LazyFailedView.tsx";
 
@@ -22,17 +22,16 @@ export const NavItemPaths = {
   NonRetryable: "/non-retryable",
   Succeeded: "/succeeded",
   Unrecoverable: "/unrecoverable",
-};
+} as const;
 
 export interface NavItem {
-  label: string;
-  path: string;
-  category: FindCategory;
-  component: React.ComponentType<{ category: FindCategory }>;
-  icon?: React.ReactNode;
+  readonly label: string;
+  readonly path: string;
+  readonly category: FindCategory;
+  readonly component: ComponentType<{ category: FindCategory }>;
 }
 
-export const NavItems: NavItem[] = [
+export const NavItems: readonly NavItem[] = [
   {
     label: "To Retry",
     path: NavItemPaths.ToRetry,
@@ -46,13 +45,13 @@ export const NavItems: NavItem[] = [
     component: LazyFailedView,
   },
   {
-    label: "NextRetry",
+    label: "Next Retry",
     path: NavItemPaths.NextRetry,
     category: FindCategory.NextRetry,
     component: LazyFailedView,
   },
   {
-    label: "NonRetryable",
+    label: "Non Retryable",
     path: NavItemPaths.NonRetryable,
     category: FindCategory.NonRetryable,
     component: LazyFailedView,

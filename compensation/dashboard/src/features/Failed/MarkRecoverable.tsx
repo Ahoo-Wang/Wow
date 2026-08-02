@@ -11,47 +11,57 @@
  * limitations under the License.
  */
 
-import { App, Select } from "antd";
-import type {
-  CommandResult} from "@ahoo-wang/fetcher-wow";
-import {
-  type Identifier,
-  RecoverableType,
-} from "@ahoo-wang/fetcher-wow";
+import type { CommandResult } from "@ahoo-wang/fetcher-wow";
+import { type Identifier, RecoverableType } from "@ahoo-wang/fetcher-wow";
 import { executionFailedCommandClient } from "../../services";
-import type { OnChangedCapable } from "./Actions.tsx";
+import type { OnChangedCapable } from "./types.ts";
 import type { MarkRecoverable } from "../../generated";
 import { useExecutePromise } from "@ahoo-wang/fetcher-react";
-import type { FetcherError } from "@ahoo-wang/fetcher";
+import type { ExchangeError } from "@ahoo-wang/fetcher";
+import { ShieldAlert } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { commandErrorMessage } from "./commandErrors.ts";
 
 export interface MarkRecoverableProps
-  extends Identifier,
-    MarkRecoverable,
-    OnChangedCapable {}
+  extends Identifier, MarkRecoverable, OnChangedCapable {}
 
 export function MarkRecoverable({
   id,
   recoverable,
   onChanged,
 }: MarkRecoverableProps) {
-  const { notification } = App.useApp();
-  const promiseState = useExecutePromise<CommandResult, FetcherError>({
+  const [pending, setPending] = useState<RecoverableType>();
+  const promiseState = useExecutePromise<CommandResult, ExchangeError>({
     onSuccess: () => {
-      notification.success({ title: "Mark recoverable success." });
+      toast.success("Recoverability updated");
+      setPending(undefined);
       onChanged?.();
     },
-    onError: (error) => {
-      notification.error({
-        title: "Mark recoverable failed.",
-        description: error.message,
+    onError: async (error) => {
+      toast.error("Failed to update recoverability", {
+        description: await commandErrorMessage(error),
       });
     },
   });
-  const recoverableOptions = Object.values(RecoverableType).map(
-    (recoverable) => ({
-      value: recoverable,
-    }),
-  );
   const change = (recoverable: RecoverableType) => {
     promiseState.execute(async (abortController) => {
       return executionFailedCommandClient.markRecoverable(id, {
@@ -64,12 +74,56 @@ export function MarkRecoverable({
   return (
     <>
       <Select
-        defaultValue={recoverable}
-        options={recoverableOptions}
-        onChange={change}
-        size="small"
-        loading={promiseState.loading}
-      ></Select>
+        value={recoverable}
+        onValueChange={(value) => setPending(value as RecoverableType)}
+        disabled={promiseState.loading}
+      >
+        <SelectTrigger size="sm" className="min-w-28" aria-label="Recoverable">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {Object.values(RecoverableType).map((value) => (
+            <SelectItem key={value} value={value}>
+              {value.charAt(0) + value.slice(1).toLowerCase()}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <AlertDialog
+        open={pending !== undefined}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPending(undefined);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-amber-50 text-amber-700">
+              <ShieldAlert />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Change recoverability?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This changes execution eligibility from{" "}
+              {recoverable.toLowerCase()} to {pending?.toLowerCase()}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                if (pending) {
+                  change(pending);
+                }
+              }}
+              disabled={!pending || promiseState.loading}
+            >
+              Confirm change
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

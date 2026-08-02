@@ -12,12 +12,12 @@ import {
   ExecutionFailedAggregatedFields,
   ExecutionFailedStatus,
 } from "../../../generated";
-import { RetryConditions, FindCategory } from "../FindCategory.ts";
+import { FindCategory } from "../FindCategory.ts";
+import { RetryConditions } from "../RetryConditions.ts";
 
 describe("FindCategory", () => {
   describe("enum values", () => {
     it("has correct enum values", () => {
-      expect(FindCategory.All).toBe("All");
       expect(FindCategory.ToRetry).toBe("ToRetry");
       expect(FindCategory.Executing).toBe("Executing");
       expect(FindCategory.NextRetry).toBe("NextRetry");
@@ -129,10 +129,7 @@ describe("FindCategory", () => {
             ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
             ...retryableRecoverability,
           ),
-          isIn(
-            ExecutionFailedAggregatedFields.STATE_STATUS,
-            ...activeStatuses,
-          ),
+          isIn(ExecutionFailedAggregatedFields.STATE_STATUS, ...activeStatuses),
           eq(
             ExecutionFailedAggregatedFields.STATE_IS_BELOW_RETRY_THRESHOLD,
             false,
@@ -152,10 +149,7 @@ describe("FindCategory", () => {
             ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
             RecoverableType.UNRECOVERABLE,
           ),
-          isIn(
-            ExecutionFailedAggregatedFields.STATE_STATUS,
-            ...activeStatuses,
-          ),
+          isIn(ExecutionFailedAggregatedFields.STATE_STATUS, ...activeStatuses),
         ),
       );
     });

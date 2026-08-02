@@ -11,6 +11,6 @@
  * limitations under the License.
  */
 
-export function FailedHistory() {
-  return <>FailedHistory</>;
+export interface OnChangedCapable {
+  onChanged?: () => void;
 }

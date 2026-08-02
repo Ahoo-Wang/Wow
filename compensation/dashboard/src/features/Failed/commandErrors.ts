@@ -11,10 +11,16 @@
  * limitations under the License.
  */
 
-import { useLocation } from "react-router";
+import type { ExchangeError } from "@ahoo-wang/fetcher";
+import type { CommandResult } from "@ahoo-wang/fetcher-wow";
 
-export function useQueryParams(name?: string): URLSearchParams | string | null {
-  const location = useLocation();
-  const queryParams = new URLSearchParams(location.search);
-  return name ? queryParams.get(name) : queryParams;
+export async function commandErrorMessage(
+  error: ExchangeError,
+): Promise<string> {
+  try {
+    const result = await error.exchange.extractResult<CommandResult>();
+    return result.errorMsg || error.message;
+  } catch {
+    return error.message;
+  }
 }

@@ -11,19 +11,33 @@
  * limitations under the License.
  */
 
-import { App, Button, Form, Input, InputNumber } from "antd";
-import type { RetrySpec } from "../../generated";
+import type {
+  ApplyRetrySpec as ApplyRetrySpecCommand,
+  RetrySpec,
+} from "../../generated";
 import { executionFailedCommandClient } from "../../services";
 import { useGlobalDrawer } from "../../components/GlobalDrawer";
-import type { OnChangedCapable } from "./Actions.tsx";
+import type { OnChangedCapable } from "./types.ts";
 import { useExecutePromise } from "@ahoo-wang/fetcher-react";
 import type { CommandResult } from "@ahoo-wang/fetcher-wow";
 import type { ExchangeError } from "@ahoo-wang/fetcher";
-import { useEffect } from "react";
+import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { commandErrorMessage } from "./commandErrors.ts";
+import { CopyButton } from "@/components/CopyButton";
 
 export interface ApplyRetrySpecProps extends OnChangedCapable {
   id: string;
   retrySpec: RetrySpec;
+}
+
+interface RetrySpecDraft {
+  executionTimeout: string;
+  maxRetries: string;
+  minBackoff: string;
 }
 
 export function ApplyRetrySpec({
@@ -31,84 +45,141 @@ export function ApplyRetrySpec({
   retrySpec,
   onChanged,
 }: ApplyRetrySpecProps) {
-  const [form] = Form.useForm();
-  const { notification } = App.useApp();
+  const [draft, setDraft] = useState<RetrySpecDraft>({
+    maxRetries: String(retrySpec.maxRetries),
+    minBackoff: String(retrySpec.minBackoff),
+    executionTimeout: String(retrySpec.executionTimeout),
+  });
   const { closeDrawer } = useGlobalDrawer();
   const promiseState = useExecutePromise<CommandResult, ExchangeError>({
     onSuccess: () => {
-      notification.info({ title: "Apply Retry Spec Successfully" });
+      toast.success("Retry specification updated");
       onChanged?.();
       closeDrawer();
     },
     onError: async (error) => {
-      const commandResult = await error.exchange.extractResult<CommandResult>();
-      notification.error({
-        title: "Failed to Apply Retry Spec",
-        description: commandResult.errorMsg,
+      toast.error("Failed to apply retry specification", {
+        description: await commandErrorMessage(error),
       });
     },
   });
-  useEffect(() => {
-    form.setFieldsValue({
-      id: id,
-      maxRetries: retrySpec.maxRetries,
-      minBackoff: retrySpec.minBackoff,
-      executionTimeout: retrySpec.executionTimeout,
-    });
-  }, [
-    form,
-    id,
-    retrySpec.executionTimeout,
-    retrySpec.maxRetries,
-    retrySpec.minBackoff,
-  ]);
 
-  const handleOk = () => {
-    form.validateFields().then((values) => {
-      promiseState.execute((abortController) =>
-        executionFailedCommandClient.applyRetrySpec(values, {
-          abortController,
-        }),
-      );
-    });
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const values: ApplyRetrySpecCommand = {
+      maxRetries: Number(draft.maxRetries),
+      minBackoff: Number(draft.minBackoff),
+      executionTimeout: Number(draft.executionTimeout),
+    };
+    promiseState.execute((abortController) =>
+      executionFailedCommandClient.applyRetrySpec(id, {
+        body: values,
+        abortController,
+      }),
+    );
+  };
+  const dirty =
+    Number(draft.maxRetries) !== retrySpec.maxRetries ||
+    Number(draft.minBackoff) !== retrySpec.minBackoff ||
+    Number(draft.executionTimeout) !== retrySpec.executionTimeout;
+  const valid = Object.values(draft).every(
+    (value) =>
+      value !== "" && Number.isInteger(Number(value)) && Number(value) >= 0,
+  );
+  const formatDuration = (milliseconds: number) => {
+    if (milliseconds < 1000) {
+      return `${milliseconds.toLocaleString()} milliseconds`;
+    }
+    const seconds = milliseconds / 1000;
+    return `${seconds.toLocaleString()} ${seconds === 1 ? "second" : "seconds"}`;
   };
 
   return (
-    <Form form={form} layout="vertical" onFinish={handleOk} size="middle">
-      <Form.Item name="id" label="Id">
-        <Input readOnly disabled />
-      </Form.Item>
-      <Form.Item
-        name="maxRetries"
-        label="Max Retries"
-        rules={[{ required: true, message: "Please enter max retries" }]}
+    <form className="space-y-5" onSubmit={submit}>
+      <div className="space-y-2">
+        <Label htmlFor="retry-id">Execution ID</Label>
+        <div className="relative">
+          <Input
+            id="retry-id"
+            value={id}
+            readOnly
+            className="pr-10 font-mono text-xs"
+          />
+          <div className="absolute top-1/2 right-2 -translate-y-1/2">
+            <CopyButton value={id} label="execution ID" />
+          </div>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="max-retries">Max retries</Label>
+        <Input
+          id="max-retries"
+          name="maxRetries"
+          type="number"
+          min={0}
+          required
+          value={draft.maxRetries}
+          onChange={(event) =>
+            setDraft((current) => ({
+              ...current,
+              maxRetries: event.target.value,
+            }))
+          }
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="min-backoff">Min backoff (ms)</Label>
+        <Input
+          id="min-backoff"
+          name="minBackoff"
+          type="number"
+          min={0}
+          required
+          aria-describedby="min-backoff-preview"
+          value={draft.minBackoff}
+          onChange={(event) =>
+            setDraft((current) => ({
+              ...current,
+              minBackoff: event.target.value,
+            }))
+          }
+        />
+        <p id="min-backoff-preview" className="text-xs text-slate-500">
+          {draft.minBackoff
+            ? formatDuration(Number(draft.minBackoff))
+            : "Enter a duration"}
+        </p>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="execution-timeout">Execution timeout (ms)</Label>
+        <Input
+          id="execution-timeout"
+          name="executionTimeout"
+          type="number"
+          min={0}
+          required
+          aria-describedby="execution-timeout-preview"
+          value={draft.executionTimeout}
+          onChange={(event) =>
+            setDraft((current) => ({
+              ...current,
+              executionTimeout: event.target.value,
+            }))
+          }
+        />
+        <p id="execution-timeout-preview" className="text-xs text-slate-500">
+          {draft.executionTimeout
+            ? formatDuration(Number(draft.executionTimeout))
+            : "Enter a duration"}
+        </p>
+      </div>
+      <Button
+        type="submit"
+        className="w-full"
+        disabled={promiseState.loading || !dirty || !valid}
       >
-        <InputNumber min={0} style={{ width: "100%" }} />
-      </Form.Item>
-      <Form.Item
-        name="minBackoff"
-        label="Min Backoff (milliseconds)"
-        rules={[{ required: true, message: "Please enter min backoff" }]}
-      >
-        <InputNumber min={0} style={{ width: "100%" }} />
-      </Form.Item>
-      <Form.Item
-        name="executionTimeout"
-        label="Execution Timeout (milliseconds)"
-        rules={[{ required: true, message: "Please enter execution timeout" }]}
-      >
-        <InputNumber min={0} style={{ width: "100%" }} />
-      </Form.Item>
-      <Form.Item>
-        <Button
-          type={"primary"}
-          htmlType={"submit"}
-          block
-          loading={promiseState.loading}
-        >
-          Submit
-        </Button>
-      </Form.Item>
-    </Form>
+        {promiseState.loading ? "Applying…" : "Apply retry spec"}
+      </Button>
+    </form>
   );
 }

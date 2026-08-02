@@ -1,141 +1,161 @@
-import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { FailedDetails } from "../FailedDetails.tsx";
-import type {
-  ExecutionFailedState} from "../../../../generated";
+import { describe, expect, it, vi } from "vitest";
+import { FunctionKind, RecoverableType } from "@ahoo-wang/fetcher-wow";
 import {
   ExecutionFailedStatus,
+  type ExecutionFailedState,
 } from "../../../../generated";
-import type {
-  ErrorInfo} from "@ahoo-wang/fetcher-wow";
-import {
-  FunctionKind,
-  RecoverableType,
-} from "@ahoo-wang/fetcher-wow";
+import { FailedDetails } from "../FailedDetails.tsx";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
-// Mock ErrorDetails component
-vi.mock("../ErrorDetails.tsx", () => ({
-  ErrorDetails: ({ error }: { error: ErrorInfo }) => (
-    <div data-testid="error-details">Error: {error.errorCode}</div>
+vi.mock("@/components/GlobalDrawer", () => ({
+  useGlobalDrawer: () => ({ openDrawer: vi.fn() }),
+}));
+
+vi.mock("../../Actions.tsx", () => ({
+  Actions: () => <div>Actions</div>,
+}));
+
+vi.mock("../../MarkRecoverable.tsx", () => ({
+  MarkRecoverable: ({ recoverable }: { recoverable: string }) => (
+    <span>{recoverable.charAt(0) + recoverable.slice(1).toLowerCase()}</span>
   ),
 }));
 
-// Mock formatDate utility
-vi.mock("../../../../utils/dates.ts", () => ({
-  formatDate: vi.fn((timestamp: number) => `formatted-${timestamp}`),
+vi.mock("../ErrorDetails.tsx", () => ({
+  ErrorDetails: ({
+    error,
+    historical,
+  }: {
+    error: { errorCode: string };
+    historical?: boolean;
+  }) => (
+    <div>
+      Error: {error.errorCode}
+      {historical ? " (historical)" : ""}
+    </div>
+  ),
 }));
 
-describe("FailedDetails", () => {
-  const mockState: ExecutionFailedState = {
-    id: "test-id",
-    status: ExecutionFailedStatus.FAILED,
-    recoverable: RecoverableType.RECOVERABLE,
-    error: {
-      errorCode: "TEST_ERROR",
-      errorMsg: "Test error",
-      stackTrace: "stack trace",
-      succeeded: false,
-      bindingErrors: [],
-    },
-    eventId: {
-      id: "event-id",
-      version: 1,
-      aggregateId: {
-        aggregateName: "agg-name",
-        contextName: "context",
-        aggregateId: "agg-id",
-        tenantId: "tenant",
-      },
-    },
-    executeAt: Date.now(),
-    function: {
+const state: ExecutionFailedState = {
+  id: "test-id",
+  status: ExecutionFailedStatus.FAILED,
+  recoverable: RecoverableType.RECOVERABLE,
+  error: {
+    errorCode: "TEST_ERROR",
+    errorMsg: "Test error",
+    stackTrace: "stack trace",
+    succeeded: false,
+    bindingErrors: [],
+  },
+  eventId: {
+    id: "event-id",
+    version: 1,
+    aggregateId: {
+      aggregateName: "agg-name",
       contextName: "context",
-      processorName: "processor",
-      name: "function",
-      functionKind: FunctionKind.EVENT,
+      aggregateId: "agg-id",
+      tenantId: "tenant",
     },
-    retrySpec: {
-      maxRetries: 3,
-      minBackoff: 1000,
-      executionTimeout: 30000,
-    },
-    retryState: {
-      nextRetryAt: Date.now(),
-      retries: 0,
-      retryAt: Date.now(),
-      timeoutAt: Date.now(),
-    },
-    isBelowRetryThreshold: false,
-    isRetryable: true,
-  };
+  },
+  executeAt: Date.now(),
+  function: {
+    contextName: "context",
+    processorName: "processor",
+    name: "function",
+    functionKind: FunctionKind.EVENT,
+  },
+  retrySpec: { maxRetries: 3, minBackoff: 1000, executionTimeout: 30000 },
+  retryState: {
+    nextRetryAt: Date.now(),
+    retries: 0,
+    retryAt: Date.now(),
+    timeoutAt: Date.now(),
+  },
+  isBelowRetryThreshold: false,
+  isRetryable: true,
+};
 
-  it("renders basic information correctly", () => {
-    render(<FailedDetails state={mockState} />);
+function renderDetails(currentState: ExecutionFailedState = state) {
+  return render(
+    <TooltipProvider>
+      <FailedDetails state={currentState} />
+    </TooltipProvider>,
+  );
+}
 
-    // Check ID is displayed with copyable text
-    expect(screen.getByText(mockState.id)).toBeInTheDocument();
+describe("FailedDetails", () => {
+  it("renders execution timestamps in the browser local time", () => {
+    renderDetails({
+      ...state,
+      executeAt: new Date(2026, 7, 2, 20, 30, 40).getTime(),
+      retryState: {
+        ...state.retryState,
+        retryAt: new Date(2026, 7, 2, 19, 20, 30).getTime(),
+        nextRetryAt: new Date(2026, 7, 2, 21, 40, 50).getTime(),
+      },
+    });
 
-    // Check recoverable status - look for the tag specifically
-    const recoverableTags = screen.getAllByText("Recoverable");
-    expect(recoverableTags.length).toBeGreaterThan(0);
+    expect(screen.getByText("2026-08-02 20:30:40")).toBeInTheDocument();
+    expect(screen.getByText("Last: 2026-08-02 19:20:30")).toBeInTheDocument();
+    expect(screen.getByText("2026-08-02 21:40:50")).toBeInTheDocument();
+    expect(screen.queryByText(/ UTC$/)).not.toBeInTheDocument();
+  });
 
-    // Check isRetryable
+  it("renders the selected execution context", () => {
+    renderDetails();
+
+    expect(
+      screen.getByRole("heading", { name: "function" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Failed")).toBeInTheDocument();
+    expect(screen.getByText("processor")).toBeInTheDocument();
+    expect(screen.getByText("context / EVENT")).toBeInTheDocument();
+    expect(screen.getByText("context / agg-name")).toBeInTheDocument();
+    const eventVersionLabel = screen.getByText("Event version");
+    expect(eventVersionLabel.nextElementSibling).toHaveTextContent(/^1$/);
+    expect(screen.queryByText("v1")).not.toBeInTheDocument();
+    expect(screen.getByText(/Last:/)).toBeInTheDocument();
     expect(screen.getByText("Yes")).toBeInTheDocument();
+    expect(screen.getByText("Error: TEST_ERROR")).toBeInTheDocument();
   });
 
-  it("renders error details component", () => {
-    render(<FailedDetails state={mockState} />);
+  it("renders tenant as read-only identity information", () => {
+    renderDetails();
 
-    expect(screen.getByTestId("error-details")).toHaveTextContent(
-      "Error: TEST_ERROR",
-    );
+    expect(screen.getByText("tenant")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /tenant/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("textbox", { name: /tenant/i }),
+    ).not.toBeInTheDocument();
   });
 
-  it("handles different status values", () => {
-    const preparedState = {
-      ...mockState,
+  it("renders the other status and recoverability labels", () => {
+    const { rerender } = renderDetails({
+      ...state,
       status: ExecutionFailedStatus.PREPARED,
-    };
-    const { rerender } = render(<FailedDetails state={preparedState} />);
-
+      recoverable: RecoverableType.UNKNOWN,
+    });
     expect(screen.getByText("Prepared")).toBeInTheDocument();
-
-    const succeededState = {
-      ...mockState,
-      status: ExecutionFailedStatus.SUCCEEDED,
-    };
-    rerender(<FailedDetails state={succeededState} />);
-
-    expect(screen.getByText("Succeeded")).toBeInTheDocument();
-  });
-
-  it("handles different recoverable values", () => {
-    const unrecoverableState = {
-      ...mockState,
-      recoverable: RecoverableType.UNRECOVERABLE,
-    };
-    const { rerender } = render(<FailedDetails state={unrecoverableState} />);
-
-    expect(screen.getByText("Unrecoverable")).toBeInTheDocument();
-
-    const unknownState = { ...mockState, recoverable: RecoverableType.UNKNOWN };
-    rerender(<FailedDetails state={unknownState} />);
-
     expect(screen.getByText("Unknown")).toBeInTheDocument();
-  });
 
-  it("handles isRetryable false", () => {
-    const nonRetryableState = { ...mockState, isRetryable: false };
-    render(<FailedDetails state={nonRetryableState} />);
-
-    expect(screen.getByText("No")).toBeInTheDocument();
-  });
-
-  it("renders all description sections", () => {
-    render(<FailedDetails state={mockState} />);
-
-    // Should have multiple Descriptions components (basic, function, eventId, retry)
-    const descriptions = screen.getAllByRole("table"); // antd Descriptions renders as tables
-    expect(descriptions.length).toBeGreaterThanOrEqual(4);
+    rerender(
+      <TooltipProvider>
+        <FailedDetails
+          state={{
+            ...state,
+            status: ExecutionFailedStatus.SUCCEEDED,
+            recoverable: RecoverableType.UNRECOVERABLE,
+          }}
+        />
+      </TooltipProvider>,
+    );
+    expect(screen.getByText("Succeeded")).toBeInTheDocument();
+    expect(screen.getByText("Unrecoverable")).toBeInTheDocument();
+    expect(
+      screen.getByText("Error: TEST_ERROR (historical)"),
+    ).toBeInTheDocument();
   });
 });
