@@ -166,11 +166,21 @@ match_section \
   'AggregateKeyConverter|RedisWrappedKey|RedisSnapshotRepository|EventStreamKeyConverter|DefaultSnapshotKeyConverter|PrepareKeyConverter|SCRIPT_EVENT_STEAM_APPEND|SCRIPT_EVENT_STREAM_APPEND|redisSnapshotRepository' \
   --glob '*.kt' --glob '*.java' --glob '*.yml' --glob '*.yaml' --glob '*.properties'
 
+storage_globs=(
+  --glob '*.yml'
+  --glob '*.yaml'
+  --glob '*.properties'
+  --glob '*.kt'
+  --glob '*.java'
+)
+if [[ "$include_dotenv" == true ]]; then
+  storage_globs+=(--glob '.env*' --glob '*.env')
+fi
+
 match_section \
   'Redis and Mongo configuration' \
   'wow\.[[:alnum:]_.-]*(event-store|snapshot-store|prepare|redis|mongo)[[:alnum:]_.-]*|spring\.(data\.)?(redis|mongodb)|WOW_[A-Z0-9_]*(STORAGE|REDIS|MONGO)[A-Z0-9_]*|SPRING_(DATA_)?(REDIS|MONGODB)(_[A-Z0-9_]+)?|[=:][[:space:]]*(REDIS|MONGO(DB)?)([[:space:]#]|$)|^[[:space:]]*storage:[[:space:]]*(redis|mongo)\b|^[[:space:]]*(redis|mongodb):|Redis(EventStore|SnapshotStore|PrepareKey)|Mongo(EventStore|SnapshotStore)|MongoDatabaseContext' \
-  --glob '*.yml' --glob '*.yaml' --glob '*.properties' --glob '.env*' --glob '*.env' \
-  --glob '*.kt' --glob '*.java'
+  "${storage_globs[@]}"
 
 match_section \
   'Generated metadata and API contracts' \
