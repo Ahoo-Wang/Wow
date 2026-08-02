@@ -57,7 +57,7 @@ printf 'note: matches are review leads, not proof of incompatibility or complete
 
 match_section \
   'Declared platform and Wow versions' \
-  '^[[:space:]]*(wow|kotlin|ksp|spring-boot)[[:space:]]*=|me\.ahoo\.wow|wow-(bom|dependencies|spring-boot-starter)|wow[._-]?version|org\.springframework\.boot|springBoot|spring-boot|kotlin\("jvm"\)|\bksp\b|<java\.version>|jvmToolchain|distributionUrl' \
+  '^[[:space:]]*(wow|kotlin|ksp|spring-boot)[[:space:]]*=|me\.ahoo\.wow|wow-(bom|dependencies|spring-boot-starter)|wow[._-]?version|org\.springframework\.boot|springBoot|spring-boot|kotlin\("jvm"\)|org\.jetbrains\.kotlin\.jvm|\bksp\b|<java\.version>|<kotlin\.version>|jvmToolchain|distributionUrl' \
   --glob '*.gradle' --glob '*.gradle.kts' --glob 'libs.versions.toml' \
   --glob 'gradle.properties' --glob 'gradle-wrapper.properties' --glob 'pom.xml'
 
@@ -81,11 +81,12 @@ match_section \
 match_section \
   'Legacy test DSL usage' \
   '\.\s*`when`\s*\(|\.when\s*[({]|inject\s*\(\s*[^[:space:]{]' \
-  --glob '*Test.kt' --glob '*Spec.kt' --glob '*Test.java'
+  --glob '*Test.kt' --glob '*Tests.kt' --glob '*Spec.kt' --glob '*IT.kt' \
+  --glob '*Test.java' --glob '*Tests.java' --glob '*Spec.java' --glob '*IT.java'
 
 match_section \
   'Custom messaging or lifecycle ownership' \
-  '\b[A-Za-z]*DispatcherLauncher\b|MessageSubscription|MessageBus<|override\s+fun\s+receive\s*\([^)]*(Set<NamedAggregate>|namedAggregates)|getReceiverGroup|setReceiverGroup|writeReceiverGroup|SmartLifecycle|DisposableBean|GracefullyStoppable|WowRuntime|WowRuntimeLifecycle|RuntimeComponent|me\.ahoo\.wow\.infra\.lifecycle\.Lifecycle|@PostConstruct|@PreDestroy|destroyMethod' \
+  '\b[A-Za-z]*DispatcherLauncher\b|MessageSubscription|MessageBus<|override\s+fun\s+receive\s*\([^)]*(Set<NamedAggregate>|namedAggregates)|\.receive\s*\(\s*(setOf(?:\s*<[^>]+>)?\s*\(|Set\.of\s*\(|namedAggregates\b)|getReceiverGroup|setReceiverGroup|writeReceiverGroup|SmartLifecycle|DisposableBean|GracefullyStoppable|WowRuntime|WowRuntimeLifecycle|RuntimeComponent|me\.ahoo\.wow\.infra\.lifecycle\.Lifecycle|@PostConstruct|@PreDestroy|destroyMethod' \
   --glob '*.kt' --glob '*.java'
 
 match_section \
