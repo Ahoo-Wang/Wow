@@ -67,6 +67,21 @@ The names below are Reactor publisher base names. Reactor creates meters such as
 - `wow.saga.handle`
 - `wow.dispatcher`
 
+### Storage Batch Metrics
+
+| Meter | Type | Main tags | Meaning |
+|-------|------|-----------|---------|
+| `wow.batch.admission.rejected` | Counter | `coordinator`, `reason` | Requests rejected before entering a batch lane |
+| `wow.batch.queue.wait` | Timer | `coordinator`, `lane` | Time spent waiting in a batch lane |
+| `wow.batch.write` | Timer | `coordinator`, `lane`, `window`, `outcome` | Storage batch-write duration and outcome |
+| `wow.batch.write.items` | Distribution summary | `coordinator`, `lane`, `window`, `outcome`, `kind` | Buffered, written, and failed item counts |
+| `wow.batch.coordinator.failed` | Counter | `coordinator` | Terminal coordinator failures |
+| `wow.batch.close` | Timer | `coordinator`, `outcome` | Coordinator close duration and outcome |
+
+Batch meters are emitted only when a batching-enabled storage path performs the corresponding
+operation. They are registered through Micrometer like the other Wow meters, so the application's
+configured registry determines their export format and destination.
+
 ## Metrics Tags
 
 Tags depend on the operation. Wow-defined tags are:
@@ -164,6 +179,27 @@ wow:
 ```
 
 Wow's current Reactor decorators write to Micrometer's global registry. Keep Spring Boot's global-registry bridge enabled so application registries receive these meters. Explicit application-registry injection is planned for a future metrics integration revision.
+
+### OpenTelemetry Collector via OTLP
+
+Metrics and tracing use separate instrumentation paths: Wow metrics are Micrometer meters, while
+`wow-opentelemetry` creates OpenTelemetry spans. Both can still be sent to the same Collector.
+
+```mermaid
+flowchart LR
+    Meters["Wow Micrometer meters"] --> Registry["OtlpMeterRegistry"]
+    Registry -->|"OTLP/HTTP metrics"| Collector["OpenTelemetry Collector"]
+    Spans["Wow OpenTelemetry spans"] -->|"OTLP traces"| Collector
+
+    classDef telemetry fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
+    class Meters,Registry,Collector,Spans telemetry
+```
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/metrics/Metrics.kt, wow-core/src/main/kotlin/me/ahoo/wow/infra/batch/BatchMetrics.kt, wow-opentelemetry/build.gradle.kts -->
+
+Add `io.micrometer:micrometer-registry-otlp` to the application's runtime dependencies and configure
+`management.otlp.metrics.export.url`. Keep `management.metrics.use-global-registry=true`. See
+[Observability Configuration](/reference/config/observability#exporting-metrics-via-otlp-opentelemetry-collector)
+for the complete dependency, configuration, and verification example.
 
 ## Monitoring Dashboard
 

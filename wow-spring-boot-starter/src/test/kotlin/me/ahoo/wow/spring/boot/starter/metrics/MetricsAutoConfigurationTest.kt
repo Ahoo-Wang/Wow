@@ -7,6 +7,7 @@ import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
 import me.ahoo.wow.metrics.MetricEventStore
 import me.ahoo.wow.metrics.MetricSnapshotStore
+import me.ahoo.wow.metrics.Metrics
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
@@ -92,10 +93,17 @@ class MetricsAutoConfigurationTest {
 
     @Test
     fun `should not load metrics bean when disabled`() {
+        val previousEnabled = Metrics.enabled
+
         contextRunner
             .enableWow()
             .withPropertyValues(
                 "${ConditionalOnMetricsEnabled.ENABLED_KEY}=false",
+            )
+            .withBean(
+                "metricsEnabledAtBeanCreation",
+                Boolean::class.javaObjectType,
+                { Metrics.enabled },
             )
             .withUserConfiguration(
                 MetricsAutoConfiguration::class.java,
@@ -103,7 +111,95 @@ class MetricsAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 context.assert()
                     .doesNotHaveBean(MetricsBeanPostProcessor::class.java)
+                context.getBean("metricsEnabledAtBeanCreation", Boolean::class.java)
+                    .assert()
+                    .isFalse()
             }
+
+        Metrics.enabled.assert().isEqualTo(previousEnabled)
+    }
+
+    @Test
+    fun `metrics switch should use the same strict truth parsing as its condition`() {
+        val previousEnabled = Metrics.enabled
+
+        contextRunner
+            .enableWow()
+            .withPropertyValues(
+                "${ConditionalOnMetricsEnabled.ENABLED_KEY}=on",
+            ).withBean(
+                "metricsEnabledAtBeanCreation",
+                Boolean::class.javaObjectType,
+                { Metrics.enabled },
+            ).withUserConfiguration(
+                MetricsAutoConfiguration::class.java,
+            ).run { context: AssertableApplicationContext ->
+                context.assert()
+                    .doesNotHaveBean(MetricsBeanPostProcessor::class.java)
+                context.getBean("metricsEnabledAtBeanCreation", Boolean::class.java)
+                    .assert()
+                    .isFalse()
+            }
+
+        Metrics.enabled.assert().isEqualTo(previousEnabled)
+    }
+
+    @Test
+    fun `metrics should remain disabled until every disabling context closes`() {
+        val previousEnabled = Metrics.enabled
+        val disabledContextRunner = contextRunner
+            .enableWow()
+            .withPropertyValues(
+                "${ConditionalOnMetricsEnabled.ENABLED_KEY}=false",
+            ).withUserConfiguration(
+                MetricsAutoConfiguration::class.java,
+            )
+
+        disabledContextRunner.run { firstContext ->
+            disabledContextRunner.run {
+                firstContext.close()
+
+                Metrics.enabled.assert().isFalse()
+            }
+        }
+
+        Metrics.enabled.assert().isEqualTo(previousEnabled)
+    }
+
+    @Test
+    fun `metrics synchronizer destruction should be idempotent`() {
+        val previousEnabled = Metrics.enabled
+        val synchronizer = MetricsEnabledSynchronizer(enabled = false)
+
+        try {
+            Metrics.enabled.assert().isFalse()
+        } finally {
+            synchronizer.destroy()
+            synchronizer.destroy()
+        }
+
+        Metrics.enabled.assert().isEqualTo(previousEnabled)
+    }
+
+    @Test
+    fun `conflicting metrics contexts should fail instead of partially instrumenting`() {
+        val previousEnabled = Metrics.enabled
+
+        metricsContextRunner(enabled = false).run {
+            metricsContextRunner(enabled = true).run { conflictingContext ->
+                conflictingContext.assert().hasFailed()
+                Metrics.enabled.assert().isFalse()
+            }
+        }
+        Metrics.enabled.assert().isEqualTo(previousEnabled)
+
+        metricsContextRunner(enabled = true).run {
+            metricsContextRunner(enabled = false).run { conflictingContext ->
+                conflictingContext.assert().hasFailed()
+                Metrics.enabled.assert().isTrue()
+            }
+        }
+        Metrics.enabled.assert().isEqualTo(previousEnabled)
     }
 
     @Test
@@ -120,6 +216,15 @@ class MetricsAutoConfigurationTest {
                 context.assert().hasSingleBean(MetricsBeanPostProcessor::class.java)
             }
     }
+
+    private fun metricsContextRunner(enabled: Boolean): ApplicationContextRunner =
+        contextRunner
+            .enableWow()
+            .withPropertyValues(
+                "${ConditionalOnMetricsEnabled.ENABLED_KEY}=$enabled",
+            ).withUserConfiguration(
+                MetricsAutoConfiguration::class.java,
+            )
 }
 
 private class CloseableEventStore(

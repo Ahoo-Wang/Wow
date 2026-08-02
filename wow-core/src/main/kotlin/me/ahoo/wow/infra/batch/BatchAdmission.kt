@@ -21,6 +21,7 @@ import java.util.concurrent.Semaphore
  */
 internal class BatchAdmission<T : Any>(
     capacity: Int,
+    private val metrics: BatchMetrics?,
 ) {
     private val availableItems = Semaphore(capacity)
     private val availableQueueSlots = Semaphore(capacity)
@@ -31,23 +32,35 @@ internal class BatchAdmission<T : Any>(
      * caller's perspective. The semaphores themselves remain independent
      * because their release times differ after cancellation.
      */
-    fun tryAcquire(): Boolean {
+    fun tryAcquire(): BatchAdmissionRejectionReason? {
         if (!availableItems.tryAcquire()) {
-            return false
+            return BatchAdmissionRejectionReason.LIVE_ITEMS_EXHAUSTED
         }
         if (!availableQueueSlots.tryAcquire()) {
             availableItems.release()
-            return false
+            return BatchAdmissionRejectionReason.QUEUE_SLOTS_EXHAUSTED
         }
-        return true
+        return null
     }
 
     fun track(value: T): BatchRequest<T> {
-        return BatchRequest(
-            value = value,
-            onReleaseAdmission = ::releaseAdmission,
-            onReleaseQueueSlot = availableQueueSlots::release,
-        ).also(pending::add)
+        val currentMetrics = metrics
+        val request = if (currentMetrics == null) {
+            BatchRequest(
+                value = value,
+                onReleaseAdmission = ::releaseAdmission,
+                onReleaseQueueSlot = ::releaseQueueSlot,
+            )
+        } else {
+            MeasuredBatchRequest(
+                value = value,
+                onReleaseAdmission = ::releaseAdmission,
+                onReleaseQueueSlot = ::releaseQueueSlot,
+                enqueuedAtNanos = currentMetrics.markEnqueued(),
+                metrics = currentMetrics,
+            )
+        }
+        return request.also(pending::add)
     }
 
     fun releaseUntracked() {
@@ -61,5 +74,9 @@ internal class BatchAdmission<T : Any>(
         if (pending.remove(request)) {
             availableItems.release()
         }
+    }
+
+    private fun releaseQueueSlot() {
+        availableQueueSlots.release()
     }
 }

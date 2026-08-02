@@ -67,6 +67,20 @@ Wow 框架自动为以下组件收集指标：
 - `wow.saga.handle`
 - `wow.dispatcher`
 
+### 存储批处理指标
+
+| Meter | 类型 | 主要标签 | 含义 |
+|-------|------|----------|------|
+| `wow.batch.admission.rejected` | Counter | `coordinator`、`reason` | 请求进入批处理 lane 前被拒绝 |
+| `wow.batch.queue.wait` | Timer | `coordinator`、`lane` | 请求在批处理 lane 中的等待时间 |
+| `wow.batch.write` | Timer | `coordinator`、`lane`、`window`、`outcome` | 存储批写耗时与结果 |
+| `wow.batch.write.items` | Distribution summary | `coordinator`、`lane`、`window`、`outcome`、`kind` | buffered、written 与 failed item 数量 |
+| `wow.batch.coordinator.failed` | Counter | `coordinator` | Coordinator 终止性失败次数 |
+| `wow.batch.close` | Timer | `coordinator`、`outcome` | Coordinator 关闭耗时与结果 |
+
+只有启用 batching 的存储路径执行相应操作后，才会产生批处理 meter。它们与其他 Wow meter
+一样注册到 Micrometer，具体导出格式和目标由应用配置的 Registry 决定。
+
 ## 指标标签
 
 标签随操作类型而变化。Wow 定义的标签包括：
@@ -164,6 +178,27 @@ wow:
 ```
 
 Wow 当前的 Reactor 装饰器写入 Micrometer global registry。请保持 Spring Boot 的 global-registry bridge 开启，使应用 MeterRegistry 能接收这些指标。显式注入应用 Registry 将在后续 Metrics 集成重构中完成。
+
+### 通过 OTLP 接入 OpenTelemetry Collector
+
+指标和链路追踪使用不同的埋点链路：Wow 指标是 Micrometer meter，`wow-opentelemetry` 创建
+OpenTelemetry span；两者仍可发送到同一个 Collector。
+
+```mermaid
+flowchart LR
+    Meters["Wow Micrometer meter"] --> Registry["OtlpMeterRegistry"]
+    Registry -->|"OTLP/HTTP metrics"| Collector["OpenTelemetry Collector"]
+    Spans["Wow OpenTelemetry span"] -->|"OTLP traces"| Collector
+
+    classDef telemetry fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
+    class Meters,Registry,Collector,Spans telemetry
+```
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/metrics/Metrics.kt, wow-core/src/main/kotlin/me/ahoo/wow/infra/batch/BatchMetrics.kt, wow-opentelemetry/build.gradle.kts -->
+
+在应用运行时依赖中加入 `io.micrometer:micrometer-registry-otlp`，配置
+`management.otlp.metrics.export.url`，并保持 `management.metrics.use-global-registry=true`。
+完整依赖、配置和验证示例参见
+[可观测性配置](/zh/reference/config/observability)。
 
 ## 监控仪表板
 

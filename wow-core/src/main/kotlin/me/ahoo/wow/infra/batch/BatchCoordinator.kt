@@ -63,7 +63,9 @@ class BatchCoordinator<T : Any> internal constructor(
         }
     }
 
-    private val admission = BatchAdmission<T>(options.maxPendingItems)
+    private val metrics = BatchMetrics(name)
+    private val enabledMetrics = metrics.takeIf(BatchMetrics::isEnabled)
+    private val admission = BatchAdmission<T>(options.maxPendingItems, enabledMetrics)
     private val lifecycle = BatchLifecycle(name)
     private val processorTermination = CompletableFuture<Unit>()
     private val termination = CompletableFuture<Unit>()
@@ -79,13 +81,15 @@ class BatchCoordinator<T : Any> internal constructor(
             maxPendingItems = options.maxPendingItems,
             onTerminated = ::completeResultDrain,
         )
-        lanes = Array(laneCount) {
+        lanes = Array(laneCount) { lane ->
             BatchLane(
                 name = name,
+                lane = lane,
                 options = options,
                 writer = writer,
                 scheduler = batchScheduler,
                 resultDispatcher = resultDispatcher,
+                metrics = enabledMetrics,
                 onError = { failLifecycle(it) },
                 onComplete = ::completeLane,
             )
@@ -100,10 +104,12 @@ class BatchCoordinator<T : Any> internal constructor(
             lifecycle.terminalErrorOrClosed()?.let {
                 return@defer Mono.error(it)
             }
-            if (!admission.tryAcquire()) {
+            val admissionRejection = admission.tryAcquire()
+            if (admissionRejection != null) {
                 lifecycle.terminalErrorOrClosed()?.let {
                     return@defer Mono.error(it)
                 }
+                metrics.admissionRejected(admissionRejection)
                 return@defer Mono.error(
                     BatchOverflowException(name, options.maxPendingItems)
                 )
@@ -211,15 +217,18 @@ class BatchCoordinator<T : Any> internal constructor(
     private fun completeProcessor() {
         batchScheduler.dispose()
         when (val completion = lifecycle.processorCompleted()) {
-            BatchLifecycle.ProcessorCompletion.DrainResults ->
+            BatchLifecycle.ProcessorCompletion.DrainResults -> {
                 processorTermination.complete(Unit)
+            }
 
             BatchLifecycle.ProcessorCompletion.Closed -> {
+                metrics.closeCompleted(failed = false)
                 processorTermination.complete(Unit)
                 termination.complete(Unit)
             }
 
             is BatchLifecycle.ProcessorCompletion.Failed -> {
+                metrics.closeCompleted(failed = true)
                 processorTermination.completeExceptionally(completion.cause)
                 termination.completeExceptionally(completion.cause)
             }
@@ -229,10 +238,13 @@ class BatchCoordinator<T : Any> internal constructor(
 
     private fun completeResultDrain() {
         when (val completion = lifecycle.resultDispatcherTerminated()) {
-            BatchLifecycle.ResultDrainCompletion.Closed ->
+            BatchLifecycle.ResultDrainCompletion.Closed -> {
+                metrics.closeCompleted(failed = false)
                 termination.complete(Unit)
+            }
 
             is BatchLifecycle.ResultDrainCompletion.Failed -> {
+                metrics.closeCompleted(failed = true)
                 disposeLanes()
                 processorTermination.completeExceptionally(completion.cause)
                 termination.completeExceptionally(completion.cause)
@@ -245,6 +257,7 @@ class BatchCoordinator<T : Any> internal constructor(
         if (!lifecycle.initiateClose()) {
             return
         }
+        metrics.markCloseStarted()
         for (lane in lanes) {
             val emitResult = lane.complete()
             if (emitResult.isFailure && emitResult != Sinks.EmitResult.FAIL_TERMINATED) {
@@ -276,10 +289,12 @@ class BatchCoordinator<T : Any> internal constructor(
 
             is BatchLifecycle.FailureTransition.Existing -> transition.cause
             is BatchLifecycle.FailureTransition.Installed -> {
+                metrics.coordinatorFailed()
                 disposeLanes()
                 dispatchPendingFailures(transition.cause)
                 resultDispatcher.shutdown()
                 processorTermination.completeExceptionally(transition.cause)
+                metrics.closeCompleted(failed = true)
                 termination.completeExceptionally(transition.cause)
                 transition.cause
             }

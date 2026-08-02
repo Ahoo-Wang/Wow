@@ -40,7 +40,7 @@ wow:
 
 | 属性 | 类型 | 默认值 | 描述 |
 |----------|------|---------|-------------|
-| `wow.metrics.enabled` | Boolean | `true` | 启用 Micrometer/Prometheus 指标采集 |
+| `wow.metrics.enabled` | Boolean | `true` | 启用 Wow 特有的 Micrometer 指标采集 |
 
 ```yaml
 wow:
@@ -48,8 +48,11 @@ wow:
     enabled: true
 ```
 
-默认启用（`matchIfMissing = true`）。控制框架指标的导出（命令处理延迟、事件存储追加计数、
-投影延迟等）。禁用可抑制 Wow 特有的指标。
+默认启用（`matchIfMissing = true`）。Spring 集成会在应用组件创建前，将此属性同时应用于
+框架指标装饰器和 `wow.batch.*` 等核心指标；具体如何导出由选用的 Micrometer Registry 单独决定。
+
+指标启用状态是进程级的。因此，同一 JVM 中同时存活的 Spring ApplicationContext 必须使用相同的
+`wow.metrics.enabled` 值；配置冲突的 Context 会在启动阶段失败，避免以部分插桩状态运行。
 
 ## 商业智能脚本
 
@@ -92,6 +95,62 @@ implementation("io.micrometer:micrometer-registry-prometheus")
 从 Prometheus 抓取 `/actuator/prometheus` 端点。Wow 特有的 meter
 （`wow.command.*`、`wow.eventstore.*`、`wow.snapshot.*`、`wow.projection.*` 等）将与标准
 JVM/Reactor meter 一起出现。完整目录参见 [Metrics](/zh/guide/advanced/metrics)。
+
+### 通过 OTLP 导出指标（OpenTelemetry Collector）
+
+Wow 使用 Micrometer 记录指标；`wow-opentelemetry` 负责链路追踪埋点，并不导出 Micrometer
+meter。要把 Wow 指标和应用标准指标发送到 OpenTelemetry Collector，请在应用中加入
+Spring Boot Actuator 和 Micrometer OTLP Registry：
+
+```kotlin
+implementation("org.springframework.boot:spring-boot-starter-actuator")
+runtimeOnly("io.micrometer:micrometer-registry-otlp")
+```
+
+配置 OTLP/HTTP Metrics 端点。Wow 当前通过 Micrometer global registry 记录框架指标，因此需要
+保持 Spring Boot 的 global-registry bridge 开启：
+
+```yaml
+wow:
+  metrics:
+    enabled: true
+
+management:
+  metrics:
+    use-global-registry: true
+  otlp:
+    metrics:
+      export:
+        enabled: ${OTEL_METRICS_ENABLED:true}
+        url: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:http://otel-collector:4318/v1/metrics}
+        step: 30s
+  opentelemetry:
+    resource-attributes:
+      service.name: ${spring.application.name}
+```
+
+```mermaid
+flowchart LR
+    Wow["Wow 指标"] --> Global["Micrometer global registry"]
+    Global --> Otlp["OtlpMeterRegistry"]
+    Otlp -->|"OTLP/HTTP"| Collector["OpenTelemetry Collector"]
+    Tracing["wow-opentelemetry 链路追踪"] --> Collector
+
+    classDef telemetry fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
+    class Wow,Global,Otlp,Collector,Tracing telemetry
+```
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/metrics/Metrics.kt, wow-core/src/main/kotlin/me/ahoo/wow/infra/batch/BatchMetrics.kt, wow-opentelemetry/build.gradle.kts -->
+
+Registry 实现位于运行时类路径时，Spring Boot 会自动配置 `OtlpMeterRegistry`，并默认把它加入
+Micrometer 的全局组合 Registry。不要设置 `management.metrics.use-global-registry=false`，否则通过
+global registry 记录的 meter 无法进入 OTLP Registry。参见
+[Spring Boot OTLP Metrics 文档](https://docs.spring.io/spring-boot/reference/actuator/metrics.html#actuator.metrics.export.otlp)
+和 [Micrometer OTLP Registry 文档](https://docs.micrometer.io/micrometer/reference/implementations/otlp.html)。
+
+验证接入时，可临时暴露 Actuator `metrics` 端点，产生真实流量后检查
+`/actuator/metrics/wow.batch.write` 或其他 `wow.*` meter；随后等待一个配置的 `step`，再确认
+Collector 或下游后端已经收到指标。Actuator 中可见只证明指标已采集，Collector 收到数据才证明
+导出链路完整。批处理 meter 仅在存储启用 batching 并执行相应操作后出现。
 
 ### 启用分布式链路追踪（OpenTelemetry）
 
