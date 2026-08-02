@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.metrics
 
-import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
 import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
@@ -22,62 +21,31 @@ import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
-import me.ahoo.wow.metrics.Metrics.tagMetricsSubscriber
-import me.ahoo.wow.metrics.Metrics.toMetricsAggregateTag
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-/**
- * Metric decorator for state event buses that collects metrics on state event sending and receiving operations.
- * This class wraps any StateEventBus implementation and adds metrics collection with tags for
- * aggregate name and source identification.
- *
- * @param T the specific type of StateEventBus being decorated
- * @param delegate the underlying state event bus implementation
- */
-open class MetricStateEventBus<T : StateEventBus>(
-    delegate: T
-) : AbstractMetricDecorator<T>(delegate),
-    StateEventBus,
-    Metrizable {
-    /**
-     * Sends a state event and collects metrics on the operation.
-     * Metrics collected include timing, success/failure rates, and tags for aggregate identification.
-     *
-     * @param message the state event to send
-     * @return a Mono that completes when the state event is sent
-     */
+internal open class MetricStateEventBus<T : StateEventBus>(
+    delegate: T,
+    metrics: WowMetrics,
+    source: String,
+) : MetricComponentDecorator<T>(delegate, metrics, source),
+    StateEventBus {
     override fun send(message: StateEvent<*>): Mono<Void> =
-        delegate
-            .send(message)
-            .name(Wow.WOW_PREFIX + "state.send")
-            .tagSource()
-            .tag(Metrics.AGGREGATE_KEY, message.aggregateName)
-            .metrics()
+        metrics.operation(
+            delegate.send(message),
+            messageDescriptor(message, "send"),
+        )
 
-    /**
-     * Receives state event exchanges for the specified named aggregates and collects metrics on the operation.
-     * Metrics collected include timing and tags for aggregate identification and subscriber information.
-     *
-     * @param subscription the message subscription
-     * @return a Flux of state event exchanges
-     */
     override fun receive(subscription: MessageSubscription): Flux<StateEventExchange<*>> =
-        delegate
-            .receive(subscription)
-            .name(Wow.WOW_PREFIX + "state.receive")
-            .tagSource()
-            .tag(Metrics.AGGREGATE_KEY, subscription.namedAggregates.toMetricsAggregateTag())
-            .tagMetricsSubscriber(subscription.receiverGroup)
+        metrics.stream(
+            delegate.receive(subscription),
+            receiveDescriptor(subscription),
+        )
 
-    override fun receiver(
-        subscription: MessageSubscription,
-    ): MessageReceiver<StateEventExchange<*>> =
+    override fun receiver(subscription: MessageSubscription): MessageReceiver<StateEventExchange<*>> =
         metricReceiver(delegate.receiver(subscription), subscription)
 
-    override fun runtimeReceiver(
-        subscription: MessageSubscription,
-    ): MessageReceiver<StateEventExchange<*>> =
+    override fun runtimeReceiver(subscription: MessageSubscription): MessageReceiver<StateEventExchange<*>> =
         metricReceiver(delegate.runtimeReceiver(subscription), subscription)
 
     private fun metricReceiver(
@@ -85,59 +53,52 @@ open class MetricStateEventBus<T : StateEventBus>(
         subscription: MessageSubscription,
     ): MessageReceiver<StateEventExchange<*>> =
         receiver.mapMessages { messages ->
-            messages
-                .name(Wow.WOW_PREFIX + "state.receive")
-                .tagSource()
-                .tag(Metrics.AGGREGATE_KEY, subscription.namedAggregates.toMetricsAggregateTag())
-                .tagMetricsSubscriber(subscription.receiverGroup)
+            metrics.stream(messages, receiveDescriptor(subscription))
         }
 
-    /**
-     * Closes the state event bus and releases any resources.
-     * This delegates to the underlying state event bus implementation.
-     */
-    override fun close() {
-        delegate.close()
+    protected fun messageDescriptor(
+        message: StateEvent<*>,
+        operation: String,
+    ): MetricDescriptor = descriptor(
+        component = COMPONENT,
+        operation = operation,
+        context = message.contextName,
+        aggregate = message.aggregateName,
+    )
+
+    private fun receiveDescriptor(subscription: MessageSubscription): MetricDescriptor = descriptor(
+        component = COMPONENT,
+        operation = "receive",
+        context = subscription.metricContext(),
+        aggregate = subscription.metricAggregate(),
+        subscriber = subscription.receiverGroup,
+    )
+
+    override fun close() = delegate.close()
+
+    private companion object {
+        const val COMPONENT = "state_event_bus"
     }
 }
 
-/**
- * Metric decorator specifically for local state event buses.
- * Extends MetricStateEventBus to provide metrics collection for local state event bus operations
- * while maintaining the LocalStateEventBus interface.
- *
- * @param delegate the underlying local state event bus implementation
- */
-class MetricLocalStateEventBus(
-    delegate: LocalStateEventBus
-) : MetricStateEventBus<LocalStateEventBus>(delegate),
+internal class MetricLocalStateEventBus(
+    delegate: LocalStateEventBus,
+    metrics: WowMetrics,
+    source: String,
+) : MetricStateEventBus<LocalStateEventBus>(delegate, metrics, source),
     LocalStateEventBus {
     override fun sendIfSubscribed(message: StateEvent<*>): Mono<Boolean> =
-        delegate
-            .sendIfSubscribed(message)
-            .name(Wow.WOW_PREFIX + "state.send")
-            .tagSource()
-            .tag(Metrics.AGGREGATE_KEY, message.aggregateName)
-            .metrics()
+        metrics.operation(
+            delegate.sendIfSubscribed(message),
+            messageDescriptor(message, "send_if_subscribed"),
+        )
 
-    /**
-     * Returns the number of subscribers for the specified named aggregate.
-     * This delegates to the underlying local state event bus implementation.
-     *
-     * @param namedAggregate the named aggregate to check subscriber count for
-     * @return the number of subscribers
-     */
     override fun subscriberCount(namedAggregate: NamedAggregate): Int = delegate.subscriberCount(namedAggregate)
 }
 
-/**
- * Metric decorator specifically for distributed state event buses.
- * Extends MetricStateEventBus to provide metrics collection for distributed state event bus operations
- * while maintaining the DistributedStateEventBus interface.
- *
- * @param delegate the underlying distributed state event bus implementation
- */
-class MetricDistributedStateEventBus(
-    delegate: DistributedStateEventBus
-) : MetricStateEventBus<DistributedStateEventBus>(delegate),
+internal class MetricDistributedStateEventBus(
+    delegate: DistributedStateEventBus,
+    metrics: WowMetrics,
+    source: String,
+) : MetricStateEventBus<DistributedStateEventBus>(delegate, metrics, source),
     DistributedStateEventBus

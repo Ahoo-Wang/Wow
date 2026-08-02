@@ -23,7 +23,7 @@ import me.ahoo.wow.messaging.LocalMessageBus
 import me.ahoo.wow.messaging.MessageBus
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.handler.MessageExchange
-import me.ahoo.wow.metrics.Metrics.metrizable
+import me.ahoo.wow.tck.metrics.meteredForTck
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable
 import reactor.core.publisher.Flux
@@ -51,7 +51,7 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
 
     open fun verify(block: BUS.() -> Unit) {
         val messageBus = createMessageBus()
-        messageBus.metrizable().use { bus ->
+        messageBus.meteredForTck().use { bus ->
             if (bus.getOriginalDelegate() is TopicKindCapable) {
                 (bus.getOriginalDelegate() as TopicKindCapable).topicKind.assert().isEqualTo(topicKind)
             }
@@ -62,7 +62,7 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
 
     @Test
     fun localSubscriberCount() {
-        val messageBus = createMessageBus().metrizable()
+        val messageBus = createMessageBus().meteredForTck()
         if (messageBus !is LocalMessageBus<*, *>) {
             return
         }

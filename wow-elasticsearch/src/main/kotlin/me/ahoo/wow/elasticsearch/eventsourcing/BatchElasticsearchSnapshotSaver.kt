@@ -21,6 +21,7 @@ import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.infra.batch.BatchOverflowException
 import me.ahoo.wow.infra.batch.BatchWriter
 import me.ahoo.wow.infra.batch.KeyedBatchCoordinator
+import me.ahoo.wow.metrics.WowMetrics
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
 import java.time.Duration
@@ -31,6 +32,7 @@ internal class BatchElasticsearchSnapshotSaver(
     refreshPolicy: Refresh,
     private val options: ElasticsearchSnapshotStoreBatchOptions,
     private val closeTimeout: Duration = DEFAULT_CLOSE_TIMEOUT,
+    metrics: WowMetrics = WowMetrics.NONE,
 ) : ElasticsearchSnapshotSaver {
     private data class MappedCloseTimeout(
         val source: BatchCloseTimeoutException,
@@ -61,6 +63,7 @@ internal class BatchElasticsearchSnapshotSaver(
                 refreshPolicy = refreshPolicy,
             )::write
         ),
+        metrics = metrics,
     )
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {

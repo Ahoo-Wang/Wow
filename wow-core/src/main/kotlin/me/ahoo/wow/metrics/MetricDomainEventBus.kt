@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.metrics
 
-import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.event.DomainEventBus
@@ -22,53 +21,26 @@ import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.event.LocalDomainEventBus
 import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
-import me.ahoo.wow.metrics.Metrics.tagMetricsSubscriber
-import me.ahoo.wow.metrics.Metrics.toMetricsAggregateTag
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-/**
- * Metric decorator for domain event buses that collects metrics on domain event sending and receiving operations.
- * This class wraps any DomainEventBus implementation and adds metrics collection with tags for
- * aggregate name and source identification.
- *
- * @param T the specific type of DomainEventBus being decorated
- * @param delegate the underlying domain event bus implementation
- */
-open class MetricDomainEventBus<T : DomainEventBus>(
-    delegate: T
-) : AbstractMetricDecorator<T>(delegate),
-    DomainEventBus,
-    Metrizable {
-    /**
-     * Sends a domain event stream and collects metrics on the operation.
-     * Metrics collected include timing, success/failure rates, and tags for aggregate identification.
-     *
-     * @param message the domain event stream to send
-     * @return a Mono that completes when the event stream is sent
-     */
+internal open class MetricDomainEventBus<T : DomainEventBus>(
+    delegate: T,
+    metrics: WowMetrics,
+    source: String,
+) : MetricComponentDecorator<T>(delegate, metrics, source),
+    DomainEventBus {
     override fun send(message: DomainEventStream): Mono<Void> =
-        delegate
-            .send(message)
-            .name(Wow.WOW_PREFIX + "event.send")
-            .tagSource()
-            .tag(Metrics.AGGREGATE_KEY, message.aggregateName)
-            .metrics()
+        metrics.operation(
+            delegate.send(message),
+            messageDescriptor(message, "send"),
+        )
 
-    /**
-     * Receives event stream exchanges for the specified named aggregates and collects metrics on the operation.
-     * Metrics collected include timing and tags for aggregate identification and subscriber information.
-     *
-     * @param subscription the message subscription
-     * @return a Flux of event stream exchanges
-     */
     override fun receive(subscription: MessageSubscription): Flux<EventStreamExchange> =
-        delegate
-            .receive(subscription)
-            .name(Wow.WOW_PREFIX + "event.receive")
-            .tagSource()
-            .tag(Metrics.AGGREGATE_KEY, subscription.namedAggregates.toMetricsAggregateTag())
-            .tagMetricsSubscriber(subscription.receiverGroup)
+        metrics.stream(
+            delegate.receive(subscription),
+            receiveDescriptor(subscription),
+        )
 
     override fun receiver(subscription: MessageSubscription): MessageReceiver<EventStreamExchange> =
         metricReceiver(delegate.receiver(subscription), subscription)
@@ -81,59 +53,52 @@ open class MetricDomainEventBus<T : DomainEventBus>(
         subscription: MessageSubscription,
     ): MessageReceiver<EventStreamExchange> =
         receiver.mapMessages { messages ->
-            messages
-                .name(Wow.WOW_PREFIX + "event.receive")
-                .tagSource()
-                .tag(Metrics.AGGREGATE_KEY, subscription.namedAggregates.toMetricsAggregateTag())
-                .tagMetricsSubscriber(subscription.receiverGroup)
+            metrics.stream(messages, receiveDescriptor(subscription))
         }
 
-    /**
-     * Closes the domain event bus and releases any resources.
-     * This delegates to the underlying domain event bus implementation.
-     */
-    override fun close() {
-        delegate.close()
+    protected fun messageDescriptor(
+        message: DomainEventStream,
+        operation: String,
+    ): MetricDescriptor = descriptor(
+        component = COMPONENT,
+        operation = operation,
+        context = message.contextName,
+        aggregate = message.aggregateName,
+    )
+
+    private fun receiveDescriptor(subscription: MessageSubscription): MetricDescriptor = descriptor(
+        component = COMPONENT,
+        operation = "receive",
+        context = subscription.metricContext(),
+        aggregate = subscription.metricAggregate(),
+        subscriber = subscription.receiverGroup,
+    )
+
+    override fun close() = delegate.close()
+
+    private companion object {
+        const val COMPONENT = "domain_event_bus"
     }
 }
 
-/**
- * Metric decorator specifically for local domain event buses.
- * Extends MetricDomainEventBus to provide metrics collection for local domain event bus operations
- * while maintaining the LocalDomainEventBus interface.
- *
- * @param delegate the underlying local domain event bus implementation
- */
-class MetricLocalDomainEventBus(
-    delegate: LocalDomainEventBus
-) : MetricDomainEventBus<LocalDomainEventBus>(delegate),
+internal class MetricLocalDomainEventBus(
+    delegate: LocalDomainEventBus,
+    metrics: WowMetrics,
+    source: String,
+) : MetricDomainEventBus<LocalDomainEventBus>(delegate, metrics, source),
     LocalDomainEventBus {
     override fun sendIfSubscribed(message: DomainEventStream): Mono<Boolean> =
-        delegate
-            .sendIfSubscribed(message)
-            .name(Wow.WOW_PREFIX + "event.send")
-            .tagSource()
-            .tag(Metrics.AGGREGATE_KEY, message.aggregateName)
-            .metrics()
+        metrics.operation(
+            delegate.sendIfSubscribed(message),
+            messageDescriptor(message, "send_if_subscribed"),
+        )
 
-    /**
-     * Returns the number of subscribers for the specified named aggregate.
-     * This delegates to the underlying local domain event bus implementation.
-     *
-     * @param namedAggregate the named aggregate to check subscriber count for
-     * @return the number of subscribers
-     */
     override fun subscriberCount(namedAggregate: NamedAggregate): Int = delegate.subscriberCount(namedAggregate)
 }
 
-/**
- * Metric decorator specifically for distributed domain event buses.
- * Extends MetricDomainEventBus to provide metrics collection for distributed domain event bus operations
- * while maintaining the DistributedDomainEventBus interface.
- *
- * @param delegate the underlying distributed domain event bus implementation
- */
-class MetricDistributedDomainEventBus(
-    delegate: DistributedDomainEventBus
-) : MetricDomainEventBus<DistributedDomainEventBus>(delegate),
+internal class MetricDistributedDomainEventBus(
+    delegate: DistributedDomainEventBus,
+    metrics: WowMetrics,
+    source: String,
+) : MetricDomainEventBus<DistributedDomainEventBus>(delegate, metrics, source),
     DistributedDomainEventBus

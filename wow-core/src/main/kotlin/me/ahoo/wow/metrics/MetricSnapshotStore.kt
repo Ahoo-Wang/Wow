@@ -13,78 +13,47 @@
 
 package me.ahoo.wow.metrics
 
-import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import reactor.core.publisher.Mono
 
-/**
- * Metric decorator for snapshot stores that collects metrics on snapshot storage and retrieval operations.
- * This class wraps a SnapshotStore implementation and adds metrics collection with tags for
- * aggregate name and source identification to track snapshot store performance.
- *
- * @param delegate the underlying snapshot store implementation
- */
-class MetricSnapshotStore(
-    delegate: SnapshotStore
-) : AbstractMetricDecorator<SnapshotStore>(delegate),
+internal class MetricSnapshotStore(
+    delegate: SnapshotStore,
+    metrics: WowMetrics,
+    source: String,
+) : MetricComponentDecorator<SnapshotStore>(delegate, metrics, source),
     SnapshotStore {
-    /**
-     * The name of the snapshot store.
-     * This delegates to the underlying snapshot store implementation.
-     */
     override val name: String
         get() = delegate.name
 
-    /**
-     * Loads a snapshot for the specified aggregate ID and collects metrics on the operation.
-     * Metrics collected include timing, success/failure rates, and tags for aggregate identification.
-     *
-     * @param S the type of the snapshot state
-     * @param aggregateId the aggregate ID to load the snapshot for
-     * @return a Mono containing the snapshot, or empty if no snapshot exists
-     */
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> =
-        delegate
-            .load<S>(aggregateId)
-            .name(Wow.WOW_PREFIX + "snapshot.load")
-            .tagSource()
-            .tag(Metrics.AGGREGATE_KEY, aggregateId.aggregateName)
-            .metrics()
+        metrics.operation(
+            delegate.load<S>(aggregateId),
+            descriptor("load", aggregateId),
+        )
 
-    /**
-     * Gets the version of the latest snapshot for the specified aggregate ID and collects metrics on the operation.
-     * Metrics collected include timing and tags for aggregate identification.
-     *
-     * @param aggregateId the aggregate ID to get the version for
-     * @return a Mono containing the snapshot version, or empty if no snapshot exists
-     */
     override fun getVersion(aggregateId: AggregateId): Mono<Int> =
-        delegate
-            .getVersion(aggregateId)
-            .name(Wow.WOW_PREFIX + "snapshot.getVersion")
-            .tagSource()
-            .tag(Metrics.AGGREGATE_KEY, aggregateId.aggregateName)
-            .metrics()
+        metrics.operation(
+            delegate.getVersion(aggregateId),
+            descriptor("get_version", aggregateId),
+        )
 
-    /**
-     * Saves a snapshot and collects metrics on the operation.
-     * Metrics collected include timing, success/failure rates, and tags for aggregate identification.
-     *
-     * @param S the type of the snapshot state
-     * @param snapshot the snapshot to save
-     * @return a Mono that completes when the snapshot is saved
-     */
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> =
-        delegate
-            .save(snapshot)
-            .name(Wow.WOW_PREFIX + "snapshot.save")
-            .tagSource()
-            .tag(Metrics.AGGREGATE_KEY, snapshot.aggregateId.aggregateName)
-            .metrics()
+        metrics.operation(
+            delegate.save(snapshot),
+            descriptor("save", snapshot.aggregateId),
+        )
 
-    override fun close() {
-        delegate.close()
-    }
+    private fun descriptor(
+        operation: String,
+        aggregateId: AggregateId,
+    ): MetricDescriptor = descriptor(
+        component = "snapshot_store",
+        operation = operation,
+        context = aggregateId.contextName,
+        aggregate = aggregateId.aggregateName,
+    )
+
+    override fun close() = delegate.close()
 }

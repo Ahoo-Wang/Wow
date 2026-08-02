@@ -51,13 +51,13 @@ wow:
     enabled: true
 ```
 
-Enabled by default (`matchIfMissing = true`). Before application components are created, the
-Spring integration applies this property to both framework metric decorators and core metrics,
-including `wow.batch.*`. The selected Micrometer registry controls export separately.
+Enabled by default (`matchIfMissing = true`). Spring binds the `MeterRegistry` from the current
+ApplicationContext to a context-scoped `WowMetrics` bean. That bean drives component decorators,
+dispatchers, and `wow.batch.*`. Wow uses `WowMetrics.NONE` when no registry exists or metrics are
+explicitly disabled.
 
-Metrics enablement is process-wide. Overlapping Spring application contexts in the same JVM must
-therefore use the same `wow.metrics.enabled` value. A context with a conflicting value fails during
-startup instead of running with partial instrumentation.
+Wow does not use Micrometer's global registry. Multiple Spring application contexts can select
+their own registries and `wow.metrics.enabled` values without mutating process-wide state.
 
 ## Business Intelligence Scripts
 
@@ -68,7 +68,7 @@ The `wow.bi.script.*` property tree (ClickHouse/BI script deployment) is documen
 
 ### Enabling Metrics Export (Prometheus)
 
-Wow metrics are written to Micrometer's global registry. To expose them via Prometheus, add the
+Wow metrics are written to Spring Boot's application `MeterRegistry`. To expose them via Prometheus, add the
 Spring Boot Actuator + Prometheus registry dependencies and expose the endpoint:
 
 ```yaml
@@ -99,7 +99,7 @@ implementation("io.micrometer:micrometer-registry-prometheus")
 ```
 
 Scrape the `/actuator/prometheus` endpoint from Prometheus. The Wow-specific meters
-(`wow.command.*`, `wow.eventstore.*`, `wow.snapshot.*`, `wow.projection.*`, etc.) appear
+(`wow.operation`, `wow.stream.*`, and `wow.batch.*`) appear
 alongside standard JVM/Reactor meters. See [Metrics](/guide/advanced/metrics) for the full
 catalogue.
 
@@ -114,8 +114,8 @@ implementation("org.springframework.boot:spring-boot-starter-actuator")
 runtimeOnly("io.micrometer:micrometer-registry-otlp")
 ```
 
-Configure the OTLP/HTTP metrics endpoint. Keep Spring Boot's global-registry bridge enabled because
-Wow currently records framework meters through Micrometer's global registry:
+Configure the OTLP/HTTP metrics endpoint. Wow directly uses Spring Boot's `OtlpMeterRegistry` bean;
+Micrometer's global-registry bridge is not required:
 
 ```yaml
 wow:
@@ -123,8 +123,6 @@ wow:
     enabled: true
 
 management:
-  metrics:
-    use-global-registry: true
   otlp:
     metrics:
       export:
@@ -138,25 +136,23 @@ management:
 
 ```mermaid
 flowchart LR
-    Wow["Wow metrics"] --> Global["Micrometer global registry"]
-    Global --> Otlp["OtlpMeterRegistry"]
+    Wow["WowMetrics"] --> Otlp["Application OtlpMeterRegistry"]
     Otlp -->|"OTLP/HTTP"| Collector["OpenTelemetry Collector"]
     Tracing["wow-opentelemetry tracing"] --> Collector
 
     classDef telemetry fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    class Wow,Global,Otlp,Collector,Tracing telemetry
+    class Wow,Otlp,Collector,Tracing telemetry
 ```
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/metrics/Metrics.kt, wow-core/src/main/kotlin/me/ahoo/wow/infra/batch/BatchMetrics.kt, wow-opentelemetry/build.gradle.kts -->
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/metrics/WowMetrics.kt, wow-core/src/main/kotlin/me/ahoo/wow/infra/batch/BatchMetrics.kt, wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/metrics/MetricsAutoConfiguration.kt -->
 
 Spring Boot auto-configures `OtlpMeterRegistry` when the registry implementation is on the runtime
-classpath and, by default, adds it to Micrometer's global composite registry. Do not set
-`management.metrics.use-global-registry=false`, or meters recorded through the global registry will
-not reach the OTLP registry. See the
+classpath. Wow injects that application registry directly, so Wow meters still reach OTLP when
+`management.metrics.use-global-registry=false`. See the
 [Spring Boot OTLP metrics documentation](https://docs.spring.io/spring-boot/reference/actuator/metrics.html#actuator.metrics.export.otlp)
 and [Micrometer OTLP registry documentation](https://docs.micrometer.io/micrometer/reference/implementations/otlp.html).
 
 To verify the integration, temporarily expose the `metrics` actuator endpoint, generate real
-traffic, and inspect `/actuator/metrics/wow.batch.write` or another `wow.*` meter. Then verify that
+traffic, and inspect `/actuator/metrics/wow.operation`, `/actuator/metrics/wow.batch.write`, or another `wow.*` meter. Then verify that
 the Collector or downstream backend receives it after the configured `step`. An actuator result
 proves collection only; receipt by the Collector proves export. Batch meters appear only after a
 batching-enabled store performs the corresponding operation.

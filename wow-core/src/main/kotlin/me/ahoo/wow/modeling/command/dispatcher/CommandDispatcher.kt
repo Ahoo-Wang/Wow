@@ -23,6 +23,7 @@ import me.ahoo.wow.messaging.dispatcher.MainDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.handler.ExchangeAck.filterThenAck
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
@@ -41,8 +42,9 @@ class CommandDispatcher(
     private val commandBus: CommandBus,
     private val commandHandler: CommandHandler,
     private val schedulerSupplier: AggregateSchedulerSupplier =
-        DefaultAggregateSchedulerSupplier("CommandDispatcher")
-) : MainDispatcher<ServerCommandExchange<*>>() {
+        DefaultAggregateSchedulerSupplier("CommandDispatcher"),
+    metrics: WowMetrics = WowMetrics.NONE,
+) : MainDispatcher<ServerCommandExchange<*>>(metrics) {
     override fun receiveMessage(subscription: MessageSubscription): Flux<ServerCommandExchange<*>> {
         return filterMessages(commandBus.receive(subscription))
     }
@@ -72,6 +74,7 @@ class CommandDispatcher(
             parallelism = parallelism,
             commandHandler = commandHandler,
             scheduler = schedulerSupplier.getOrInitialize(namedAggregate),
+            metrics = metrics,
         )
     }
 

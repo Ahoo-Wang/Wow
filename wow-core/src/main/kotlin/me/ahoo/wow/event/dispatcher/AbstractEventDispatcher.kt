@@ -22,11 +22,14 @@ import me.ahoo.wow.messaging.dispatcher.MainDispatcher
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
 import me.ahoo.wow.messaging.handler.MessageExchange
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-abstract class AbstractEventDispatcher<E : MessageExchange<*, *>, BUS : MessageBus<*, E>> : MainDispatcher<E>() {
+abstract class AbstractEventDispatcher<E : MessageExchange<*, *>, BUS : MessageBus<*, E>>(
+    metrics: WowMetrics = WowMetrics.NONE,
+) : MainDispatcher<E>(metrics) {
 
     /**
      * The level of parallelism for processing events.

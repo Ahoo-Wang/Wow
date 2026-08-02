@@ -17,7 +17,8 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
-import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
+import me.ahoo.wow.metrics.WowMetrics
+import me.ahoo.wow.metrics.writeMetricsSubscriber
 import me.ahoo.wow.runtime.RuntimeContext
 import me.ahoo.wow.runtime.internal.RuntimeComponentGroup
 import me.ahoo.wow.runtime.internal.addSuppressedIfAbsent
@@ -72,10 +73,13 @@ import java.util.concurrent.atomic.AtomicReference
  * ```
  *
  * @param T The type of message being dispatched, must be a non-null type.
+ * @param metrics Instance-scoped metrics recorder propagated to child dispatchers.
  *
  * @see MessageDispatcher
  */
-abstract class MainDispatcher<T : Any> :
+abstract class MainDispatcher<T : Any>(
+    protected val metrics: WowMetrics = WowMetrics.NONE,
+) :
     MessageDispatcher {
     companion object {
         private val log = KotlinLogging.logger {}

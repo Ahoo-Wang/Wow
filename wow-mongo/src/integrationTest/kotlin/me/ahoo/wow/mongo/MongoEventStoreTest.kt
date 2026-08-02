@@ -20,13 +20,13 @@ import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.event.MockDomainEventStreams
 import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
 import me.ahoo.wow.tck.mock.MockAggregateCreated
+import me.ahoo.wow.tck.metrics.meteredForTck
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -43,7 +43,7 @@ class MongoEventStoreTest : EventStoreSpec() {
     override fun createEventStore(): EventStore {
         val database = mongo.database()
         EventStreamSchemaInitializer(database).initSchema(namedAggregate)
-        return MongoEventStore(database).metrizable()
+        return MongoEventStore(database).meteredForTck()
     }
 
     @Test

@@ -13,9 +13,24 @@
 
 package me.ahoo.wow.tck.metrics
 
-import io.micrometer.core.instrument.Metrics
 import io.micrometer.core.instrument.logging.LoggingMeterRegistry
 import io.micrometer.core.instrument.logging.LoggingRegistryConfig
+import me.ahoo.wow.api.messaging.Message
+import me.ahoo.wow.command.CommandBus
+import me.ahoo.wow.event.DomainEventBus
+import me.ahoo.wow.event.dispatcher.DomainEventHandler
+import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStrategy
+import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotHandler
+import me.ahoo.wow.eventsourcing.state.StateEventBus
+import me.ahoo.wow.messaging.MessageBus
+import me.ahoo.wow.messaging.handler.MessageExchange
+import me.ahoo.wow.metrics.WowMetrics
+import me.ahoo.wow.metrics.metered
+import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
+import me.ahoo.wow.projection.ProjectionHandler
+import me.ahoo.wow.saga.stateless.StatelessSagaHandler
 import org.junit.jupiter.api.extension.BeforeAllCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 import java.time.Duration
@@ -35,7 +50,6 @@ object LoggingMeterRegistryInitializer : BeforeAllCallback {
             }
         }
         loggingMeterRegistry = LoggingMeterRegistry.builder(loggingRegistryConfig).build()
-        Metrics.addRegistry(loggingMeterRegistry)
     }
 
     fun publishMeters() {
@@ -46,3 +60,37 @@ object LoggingMeterRegistryInitializer : BeforeAllCallback {
         //
     }
 }
+
+private val TCK_METRICS = WowMetrics(LoggingMeterRegistryInitializer.loggingMeterRegistry)
+
+private fun source(component: Any): String =
+    component::class.qualifiedName ?: component::class.simpleName ?: "tck"
+
+fun CommandBus.meteredForTck(): CommandBus = metered(TCK_METRICS, source(this))
+
+fun DomainEventBus.meteredForTck(): DomainEventBus = metered(TCK_METRICS, source(this))
+
+fun StateEventBus.meteredForTck(): StateEventBus = metered(TCK_METRICS, source(this))
+
+fun EventStore.meteredForTck(): EventStore = metered(TCK_METRICS, source(this))
+
+fun SnapshotStore.meteredForTck(): SnapshotStore = metered(TCK_METRICS, source(this))
+
+fun SnapshotStrategy.meteredForTck(): SnapshotStrategy = metered(TCK_METRICS, source(this))
+
+fun CommandHandler.meteredForTck(): CommandHandler = metered(TCK_METRICS, source(this))
+
+fun SnapshotHandler.meteredForTck(): SnapshotHandler = metered(TCK_METRICS, source(this))
+
+fun DomainEventHandler.meteredForTck(): DomainEventHandler = metered(TCK_METRICS, source(this))
+
+fun StatelessSagaHandler.meteredForTck(): StatelessSagaHandler = metered(TCK_METRICS, source(this))
+
+fun ProjectionHandler.meteredForTck(): ProjectionHandler = metered(TCK_METRICS, source(this))
+
+@Suppress("UNCHECKED_CAST")
+fun <M : Message<*, *>, E : MessageExchange<*, M>, BUS : MessageBus<M, E>> BUS.meteredForTck(): BUS =
+    me.ahoo.wow.metrics.MetricDecoratorFactory(TCK_METRICS).decorate(
+        component = this,
+        source = source(this),
+    ) as BUS

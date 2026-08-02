@@ -14,14 +14,12 @@
 package me.ahoo.wow.infra.batch
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tags
-import me.ahoo.wow.metrics.Metrics
+import me.ahoo.wow.metrics.WowMetrics
 import reactor.core.Exceptions
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
-import io.micrometer.core.instrument.Metrics as MicrometerMetrics
 
 internal enum class BatchAdmissionRejectionReason(
     val metricValue: String,
@@ -49,10 +47,11 @@ internal enum class BatchWriteOutcome(
 /** Records bounded, storage-independent batch metrics through Micrometer. */
 internal class BatchMetrics(
     coordinatorName: String,
-    private val registry: MeterRegistry = MicrometerMetrics.globalRegistry,
+    metrics: WowMetrics,
     private val nanoTime: () -> Long = System::nanoTime,
 ) {
-    val isEnabled: Boolean = Metrics.enabled
+    private val registry = metrics.meterRegistry
+    val isEnabled: Boolean = registry != null
     private val coordinatorTags = Tags.of(COORDINATOR_TAG, coordinatorName)
     private val closeStartedAt = AtomicLong(NOT_STARTED)
     private val closeCompleted = AtomicBoolean()
@@ -62,7 +61,7 @@ internal class BatchMetrics(
             return
         }
         recordSafely {
-            registry.counter(
+            requireNotNull(registry).counter(
                 ADMISSION_REJECTED,
                 coordinatorTags.and(REASON_TAG, reason.metricValue),
             ).increment()
@@ -79,7 +78,7 @@ internal class BatchMetrics(
             return
         }
         recordSafely {
-            registry.timer(
+            requireNotNull(registry).timer(
                 QUEUE_WAIT,
                 coordinatorTags.and(LANE_TAG, lane.toString()),
             ).record(elapsedSince(enqueuedAt), TimeUnit.NANOSECONDS)
@@ -122,7 +121,7 @@ internal class BatchMetrics(
             return
         }
         recordSafely {
-            registry.counter(COORDINATOR_FAILED, coordinatorTags).increment()
+            requireNotNull(registry).counter(COORDINATOR_FAILED, coordinatorTags).increment()
         }
     }
 
@@ -136,7 +135,7 @@ internal class BatchMetrics(
             return
         }
         recordSafely {
-            registry.timer(
+            requireNotNull(registry).timer(
                 CLOSE,
                 coordinatorTags.and(
                     OUTCOME_TAG,
@@ -160,13 +159,14 @@ internal class BatchMetrics(
                 .and(LANE_TAG, lane.toString())
                 .and(WINDOW_TAG, windowType.metricValue)
                 .and(OUTCOME_TAG, outcome.metricValue)
-            registry.timer(BATCH_WRITE, tags)
+            val currentRegistry = requireNotNull(registry)
+            currentRegistry.timer(BATCH_WRITE, tags)
                 .record(durationNanos, TimeUnit.NANOSECONDS)
-            registry.summary(BATCH_WRITE_ITEMS, tags.and(ITEM_KIND_TAG, BUFFERED_VALUE))
+            currentRegistry.summary(BATCH_WRITE_ITEMS, tags.and(ITEM_KIND_TAG, BUFFERED_VALUE))
                 .record(bufferedItems.toDouble())
-            registry.summary(BATCH_WRITE_ITEMS, tags.and(ITEM_KIND_TAG, WRITTEN_VALUE))
+            currentRegistry.summary(BATCH_WRITE_ITEMS, tags.and(ITEM_KIND_TAG, WRITTEN_VALUE))
                 .record(writtenItems.toDouble())
-            registry.summary(BATCH_WRITE_ITEMS, tags.and(ITEM_KIND_TAG, FAILED_VALUE))
+            currentRegistry.summary(BATCH_WRITE_ITEMS, tags.and(ITEM_KIND_TAG, FAILED_VALUE))
                 .record(failedItems.toDouble())
         }
     }

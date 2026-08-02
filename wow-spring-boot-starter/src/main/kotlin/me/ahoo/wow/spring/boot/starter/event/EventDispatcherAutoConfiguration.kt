@@ -29,10 +29,12 @@ import me.ahoo.wow.filter.LogResumeErrorHandler
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.messaging.handler.RetryableFilter
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.WowRuntimeComponentOrder
 import me.ahoo.wow.spring.event.EventProcessorAutoRegistrar
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -102,7 +104,8 @@ class EventDispatcherAutoConfiguration {
         domainEventBus: DomainEventBus,
         stateEventBus: StateEventBus,
         handlerRegistrar: DomainEventFunctionRegistrar,
-        eventDispatcherHandler: DomainEventHandler
+        eventDispatcherHandler: DomainEventHandler,
+        metrics: ObjectProvider<WowMetrics>,
     ): DomainEventDispatcher {
         return DomainEventDispatcher(
             name = "${namedBoundedContext.contextName}.${DomainEventDispatcher::class.simpleName}",
@@ -110,6 +113,7 @@ class EventDispatcherAutoConfiguration {
             stateEventBus = stateEventBus,
             functionRegistrar = handlerRegistrar,
             eventHandler = eventDispatcherHandler,
+            metrics = metrics.getIfAvailable { WowMetrics.NONE },
         )
     }
 }

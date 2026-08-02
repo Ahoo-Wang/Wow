@@ -16,6 +16,7 @@ package me.ahoo.wow.mongo
 import com.mongodb.client.result.InsertManyResult
 import com.mongodb.reactivestreams.client.MongoCollection
 import com.mongodb.reactivestreams.client.MongoDatabase
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -24,7 +25,8 @@ import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.metrics.MetricEventStore
+import me.ahoo.wow.metrics.WowMetrics
+import me.ahoo.wow.metrics.metered
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.event.MockDomainEventStreams
@@ -65,6 +67,7 @@ class MongoEventStoreBatchCloseTest {
     fun `close should flush a partial batch`() {
         val database = mockk<MongoDatabase>()
         val collection = mockk<MongoCollection<Document>>()
+        val registry = SimpleMeterRegistry()
         every { database.getCollection(any<String>()) } returns collection
         every {
             collection.insertMany(any<List<Document>>(), any())
@@ -75,7 +78,8 @@ class MongoEventStoreBatchCloseTest {
                 enabled = true,
                 maxSize = 8,
                 maxDelay = Duration.ofHours(1),
-            )
+            ),
+            metrics = WowMetrics(registry),
         )
 
         val appendResult = eventStore.append(eventStream("order-1")).toFuture()
@@ -83,6 +87,12 @@ class MongoEventStoreBatchCloseTest {
 
         appendResult.join()
         verify(exactly = 1) { collection.insertMany(any<List<Document>>(), any()) }
+        registry.get("wow.batch.write")
+            .tag("coordinator", "MongoEventStore")
+            .timer()
+            .count()
+            .assert()
+            .isEqualTo(1)
     }
 
     @Test
@@ -93,16 +103,14 @@ class MongoEventStoreBatchCloseTest {
         every {
             collection.insertMany(any<List<Document>>(), any())
         } returns Mono.just(InsertManyResult.acknowledged(emptyMap()))
-        val eventStore: EventStore = MetricEventStore(
-            MongoEventStore(
-                database,
-                MongoEventStoreBatchOptions(
-                    enabled = true,
-                    maxSize = 8,
-                    maxDelay = Duration.ofHours(1),
-                )
+        val eventStore: EventStore = MongoEventStore(
+            database,
+            MongoEventStoreBatchOptions(
+                enabled = true,
+                maxSize = 8,
+                maxDelay = Duration.ofHours(1),
             )
-        )
+        ).metered(WowMetrics(SimpleMeterRegistry()), "mongoEventStore")
 
         val appendResult = eventStore.append(eventStream("order-decorated")).toFuture()
         eventStore.close()

@@ -26,6 +26,7 @@ import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogResumeErrorHandler
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.handler.ExchangeFilter
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.modeling.command.AggregateProcessorFactory
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
 import me.ahoo.wow.modeling.command.RetryableAggregateProcessorFactory
@@ -41,6 +42,7 @@ import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.WowRuntimeComponentOrder
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -141,11 +143,13 @@ class AggregateAutoConfiguration {
         namedBoundedContext: NamedBoundedContext,
         commandBus: CommandGateway,
         commandHandler: CommandHandler,
+        metrics: ObjectProvider<WowMetrics>,
     ): CommandDispatcher {
         return CommandDispatcher(
             name = "${namedBoundedContext.contextName}.${CommandDispatcher::class.simpleName}",
             commandBus = commandBus,
             commandHandler = commandHandler,
+            metrics = metrics.getIfAvailable { WowMetrics.NONE },
         )
     }
 }

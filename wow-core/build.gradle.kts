@@ -14,6 +14,6 @@ dependencies {
     compileOnly("io.swagger.core.v3:swagger-annotations-jakarta")
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core")
     api("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
-    implementation("io.micrometer:micrometer-core")
+    api("io.micrometer:micrometer-core")
     testImplementation(project(":wow-tck"))
 }
