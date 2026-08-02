@@ -179,7 +179,7 @@ fi
 
 match_section \
   'Redis and Mongo configuration' \
-  'wow\.[[:alnum:]_.-]*(event-store|snapshot-store|prepare|redis|mongo)[[:alnum:]_.-]*|spring\.(data\.)?(redis|mongodb)|WOW_[A-Z0-9_]*(STORAGE|REDIS|MONGO)[A-Z0-9_]*|SPRING_(DATA_)?(REDIS|MONGODB)(_[A-Z0-9_]+)?|[=:][[:space:]]*(REDIS|MONGO(DB)?)([[:space:]#]|$)|^[[:space:]]*storage:[[:space:]]*(redis|mongo)\b|^[[:space:]]*(redis|mongodb):|Redis(EventStore|SnapshotStore|PrepareKey)|Mongo(EventStore|SnapshotStore)|MongoDatabaseContext' \
+  'wow\.[[:alnum:]_.-]*(event-store|snapshot-store|prepare|redis|mongo)[[:alnum:]_.-]*|spring\.(data\.)?(redis|mongodb)|WOW_[A-Z0-9_]*(STORAGE|REDIS|MONGO)[A-Z0-9_]*|SPRING_(DATA_)?(REDIS|MONGODB)(_[A-Z0-9_]+)?|^[[:space:]]*storage[[:space:]]*[=:][[:space:]]*([Rr][Ee][Dd][Ii][Ss]|[Mm][Oo][Nn][Gg][Oo]([Dd][Bb])?)\b|^[[:space:]]*(redis|mongodb):|Redis(EventStore|SnapshotStore|PrepareKey)|Mongo(EventStore|SnapshotStore)|MongoDatabaseContext' \
   "${storage_globs[@]}"
 
 match_section \
