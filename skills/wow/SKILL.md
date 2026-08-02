@@ -7,6 +7,8 @@ description: |
 
   Use wow-development-workflow directly for clearly scoped end-to-end aggregate or saga implementation. Use wow-code-review or wow-debugging directly for review or diagnosis.
 
+  Use wow-v6-to-v8-migration directly for auditing, planning, implementing, or verifying an existing Wow v6 application's upgrade to Wow v8.
+
   Do not trigger for unrelated Kotlin, Gradle, frontend, or documentation tasks unless Wow framework behavior or APIs are directly relevant.
 ---
 
@@ -48,6 +50,7 @@ rg -n "@ConfigurationProperties|class .*Properties" wow-spring-boot-starter -g "
 | Implement or change Query DSL, pagination, projection, sort, query service calls | `references/dsl.md` |
 | Implement or change Spring Boot starter, storage, buses, feature switches | `references/configuration.md` |
 | Implement or change uniqueness or reservation with PrepareKey | `references/prepare-key.md` |
+| Audit, plan, implement, or verify an existing application's Wow v6 to v8 upgrade | `../wow-v6-to-v8-migration/SKILL.md` |
 | Review Wow code, PR diffs, framework semantics, or test coverage | `../wow-code-review/SKILL.md` |
 | Debug failing commands, events, sourcing, sagas, projections, waits, queries, config, or tests | `../wow-debugging/SKILL.md` |
 
