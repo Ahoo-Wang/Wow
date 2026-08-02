@@ -28,6 +28,7 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBindin
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.core.Ordered
 import reactor.core.publisher.Mono
 import java.io.Closeable
 import java.util.concurrent.atomic.AtomicInteger
@@ -38,6 +39,7 @@ class MetricsAutoConfigurationTest {
     @Test
     fun `post processor should decorate storage bindings once with their explicit names`() {
         val postProcessor = MetricsBeanPostProcessor(WowMetrics(SimpleMeterRegistry()))
+        postProcessor.order.assert().isEqualTo(Ordered.LOWEST_PRECEDENCE)
         val eventBinding = EventStoreBinding(
             name = "custom-event-store",
             storage = null,

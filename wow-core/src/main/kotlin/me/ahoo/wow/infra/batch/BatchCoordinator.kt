@@ -226,13 +226,11 @@ class BatchCoordinator<T : Any> internal constructor(
             }
 
             BatchLifecycle.ProcessorCompletion.Closed -> {
-                batchMetrics.closeCompleted(failed = false)
                 processorTermination.complete(Unit)
                 termination.complete(Unit)
             }
 
             is BatchLifecycle.ProcessorCompletion.Failed -> {
-                batchMetrics.closeCompleted(failed = true)
                 processorTermination.completeExceptionally(completion.cause)
                 termination.completeExceptionally(completion.cause)
             }

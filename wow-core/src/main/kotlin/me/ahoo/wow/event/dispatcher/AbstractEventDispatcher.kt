@@ -28,7 +28,7 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 abstract class AbstractEventDispatcher<E : MessageExchange<*, *>, BUS : MessageBus<*, E>>(
-    metrics: WowMetrics = WowMetrics.NONE,
+    metrics: WowMetrics,
 ) : MainDispatcher<E>(metrics) {
 
     /**

@@ -52,7 +52,7 @@ abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEve
     messageReadiness: Mono<Void> = Mono.empty(),
     processingAdmission: () -> Unit = {},
     processingQuiescence: () -> Unit = {},
-    metrics: WowMetrics = WowMetrics.NONE,
+    metrics: WowMetrics,
 ) : AggregateDispatcher<E>(
     messageReadiness = messageReadiness,
     processingAdmission = processingAdmission,

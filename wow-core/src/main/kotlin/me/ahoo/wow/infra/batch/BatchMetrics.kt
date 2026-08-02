@@ -14,6 +14,7 @@
 package me.ahoo.wow.infra.batch
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tags
 import me.ahoo.wow.metrics.WowMetrics
 import reactor.core.Exceptions
@@ -57,11 +58,9 @@ internal class BatchMetrics(
     private val closeCompleted = AtomicBoolean()
 
     fun admissionRejected(reason: BatchAdmissionRejectionReason) {
-        if (!isEnabled) {
-            return
-        }
+        val registry = registry ?: return
         recordSafely {
-            requireNotNull(registry).counter(
+            registry.counter(
                 ADMISSION_REJECTED,
                 coordinatorTags.and(REASON_TAG, reason.metricValue),
             ).increment()
@@ -74,11 +73,9 @@ internal class BatchMetrics(
         lane: Int,
         enqueuedAt: Long,
     ) {
-        if (!isEnabled) {
-            return
-        }
+        val registry = registry ?: return
         recordSafely {
-            requireNotNull(registry).timer(
+            registry.timer(
                 QUEUE_WAIT,
                 coordinatorTags.and(LANE_TAG, lane.toString()),
             ).record(elapsedSince(enqueuedAt), TimeUnit.NANOSECONDS)
@@ -91,7 +88,7 @@ internal class BatchMetrics(
         writtenItems: Int,
         windowType: BatchWindowType,
     ): BatchWriteMetrics {
-        check(isEnabled) { "Batch metrics are disabled." }
+        val registry = registry ?: error("Batch metrics are disabled.")
         val startedAt = nanoTime()
         val completed = AtomicBoolean()
         return BatchWriteMetrics { outcome, failedItems ->
@@ -99,6 +96,7 @@ internal class BatchMetrics(
                 return@BatchWriteMetrics
             }
             recordBatchWrite(
+                registry = registry,
                 lane = lane,
                 bufferedItems = bufferedItems,
                 writtenItems = writtenItems,
@@ -117,25 +115,23 @@ internal class BatchMetrics(
     }
 
     fun coordinatorFailed() {
-        if (!isEnabled) {
-            return
-        }
+        val registry = registry ?: return
         recordSafely {
-            requireNotNull(registry).counter(COORDINATOR_FAILED, coordinatorTags).increment()
+            registry.counter(COORDINATOR_FAILED, coordinatorTags).increment()
         }
     }
 
     fun closeCompleted(failed: Boolean) {
+        val registry = registry ?: return
         val startedAt = closeStartedAt.get()
         if (
-            !isEnabled ||
             startedAt == NOT_STARTED ||
             !closeCompleted.compareAndSet(false, true)
         ) {
             return
         }
         recordSafely {
-            requireNotNull(registry).timer(
+            registry.timer(
                 CLOSE,
                 coordinatorTags.and(
                     OUTCOME_TAG,
@@ -146,6 +142,7 @@ internal class BatchMetrics(
     }
 
     private fun recordBatchWrite(
+        registry: MeterRegistry,
         lane: Int,
         bufferedItems: Int,
         writtenItems: Int,
@@ -159,14 +156,13 @@ internal class BatchMetrics(
                 .and(LANE_TAG, lane.toString())
                 .and(WINDOW_TAG, windowType.metricValue)
                 .and(OUTCOME_TAG, outcome.metricValue)
-            val currentRegistry = requireNotNull(registry)
-            currentRegistry.timer(BATCH_WRITE, tags)
+            registry.timer(BATCH_WRITE, tags)
                 .record(durationNanos, TimeUnit.NANOSECONDS)
-            currentRegistry.summary(BATCH_WRITE_ITEMS, tags.and(ITEM_KIND_TAG, BUFFERED_VALUE))
+            registry.summary(BATCH_WRITE_ITEMS, tags.and(ITEM_KIND_TAG, BUFFERED_VALUE))
                 .record(bufferedItems.toDouble())
-            currentRegistry.summary(BATCH_WRITE_ITEMS, tags.and(ITEM_KIND_TAG, WRITTEN_VALUE))
+            registry.summary(BATCH_WRITE_ITEMS, tags.and(ITEM_KIND_TAG, WRITTEN_VALUE))
                 .record(writtenItems.toDouble())
-            currentRegistry.summary(BATCH_WRITE_ITEMS, tags.and(ITEM_KIND_TAG, FAILED_VALUE))
+            registry.summary(BATCH_WRITE_ITEMS, tags.and(ITEM_KIND_TAG, FAILED_VALUE))
                 .record(failedItems.toDouble())
         }
     }

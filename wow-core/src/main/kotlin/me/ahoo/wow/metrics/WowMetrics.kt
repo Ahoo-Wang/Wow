@@ -25,7 +25,6 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.SignalType
 import reactor.util.context.ContextView
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -98,7 +97,6 @@ private class OperationMetricsListener<T : Any>(
 ) : DefaultSignalListener<T>() {
     private val sample = Timer.start(registry)
     private val items = AtomicLong()
-    private val completed = AtomicBoolean()
     private var error: Throwable? = null
 
     override fun doOnNext(value: T) {
@@ -110,9 +108,6 @@ private class OperationMetricsListener<T : Any>(
     }
 
     override fun doFinally(terminationType: SignalType) {
-        if (!completed.compareAndSet(false, true)) {
-            return
-        }
         val outcome = terminationType.toMetricOutcome()
         val exception = error.metricException()
         val terminalTags = descriptor.terminalTags(outcome, exception)
@@ -125,10 +120,6 @@ private class OperationMetricsListener<T : Any>(
                     .record(items.get().toDouble())
             }
         }
-    }
-
-    override fun handleListenerError(listenerError: Throwable) {
-        logMetricFailure(listenerError)
     }
 }
 
@@ -149,7 +140,6 @@ private class StreamMetricsListener<T : Any>(
     private val registry: MeterRegistry,
     private val descriptor: MetricDescriptor,
 ) : DefaultSignalListener<T>() {
-    private val completed = AtomicBoolean()
     private val activeSample = createSafely {
         registry.more()
             .longTaskTimer(WowMetricNames.STREAM_ACTIVE, descriptor.baseTags())
@@ -169,9 +159,6 @@ private class StreamMetricsListener<T : Any>(
     }
 
     override fun doFinally(terminationType: SignalType) {
-        if (!completed.compareAndSet(false, true)) {
-            return
-        }
         recordSafely { activeSample?.stop() }
         val outcome = terminationType.toMetricOutcome()
         val exception = error.metricException()
@@ -181,10 +168,6 @@ private class StreamMetricsListener<T : Any>(
                 descriptor.terminalTags(outcome, exception),
             ).increment()
         }
-    }
-
-    override fun handleListenerError(listenerError: Throwable) {
-        logMetricFailure(listenerError)
     }
 }
 

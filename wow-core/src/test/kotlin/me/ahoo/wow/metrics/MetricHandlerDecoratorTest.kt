@@ -31,6 +31,7 @@ import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
 import me.ahoo.wow.projection.ProjectionHandler
 import me.ahoo.wow.saga.stateless.StatelessSagaHandler
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
@@ -38,6 +39,11 @@ import reactor.test.StepVerifier
 class MetricHandlerDecoratorTest {
     private val registry = SimpleMeterRegistry()
     private val metrics = WowMetrics(registry)
+
+    @BeforeEach
+    fun clearRegistry() {
+        registry.clear()
+    }
 
     @Test
     fun `command handler should delegate and record message identity`() {
@@ -88,18 +94,30 @@ class MetricHandlerDecoratorTest {
     }
 
     @Test
-    fun `event handler should use bounded fallback without selected function`() {
+    fun `event handlers should use bounded fallback without selected function`() {
         val exchange = domainEventExchange(processor = null)
-        val delegate = mockk<ProjectionHandler> {
+        val domainHandler = mockk<DomainEventHandler> {
+            every { handle(exchange) } returns Mono.empty()
+        }
+        val projectionHandler = mockk<ProjectionHandler> {
+            every { handle(exchange) } returns Mono.empty()
+        }
+        val sagaHandler = mockk<StatelessSagaHandler> {
             every { handle(exchange) } returns Mono.empty()
         }
 
-        StepVerifier.create(MetricProjectionHandler(delegate, metrics, "projection-handler").handle(exchange))
+        StepVerifier.create(MetricDomainEventHandler(domainHandler, metrics, "domain-handler").handle(exchange))
+            .verifyComplete()
+        StepVerifier.create(MetricProjectionHandler(projectionHandler, metrics, "projection-handler").handle(exchange))
+            .verifyComplete()
+        StepVerifier.create(MetricStatelessSagaHandler(sagaHandler, metrics, "saga-handler").handle(exchange))
             .verifyComplete()
 
-        registry.operationTags("projection_handler")[MetricDescriptor.PROCESSOR_TAG]
-            .assert()
-            .isEqualTo(MetricDescriptor.NONE)
+        listOf("domain_event_handler", "projection_handler", "stateless_saga_handler").forEach { component ->
+            registry.operationTags(component)[MetricDescriptor.PROCESSOR_TAG]
+                .assert()
+                .isEqualTo(MetricDescriptor.NONE)
+        }
     }
 
     @Test

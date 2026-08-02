@@ -13,9 +13,12 @@
 
 package me.ahoo.wow.metrics
 
+import io.micrometer.core.instrument.Meter
+import io.micrometer.core.instrument.config.MeterFilter
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
@@ -107,6 +110,27 @@ class WowMetricsTest {
             .summary()
             .assert()
             .isNotNull()
+    }
+
+    @Test
+    fun `fatal metric initialization failures should propagate`() {
+        val failure = LinkageError("fatal")
+        val registry = SimpleMeterRegistry().apply {
+            config().meterFilter(
+                object : MeterFilter {
+                    override fun map(id: Meter.Id): Meter.Id {
+                        if (id.name == WowMetricNames.STREAM_ACTIVE) {
+                            throw failure
+                        }
+                        return id
+                    }
+                }
+            )
+        }
+
+        assertThrows<LinkageError> {
+            WowMetrics(registry).stream(Flux.just("value"), descriptor).blockLast()
+        }.assert().isSameAs(failure)
     }
 
     @Test
