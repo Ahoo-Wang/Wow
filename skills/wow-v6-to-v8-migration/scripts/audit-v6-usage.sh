@@ -90,7 +90,7 @@ match_section() {
 
   local output
   local rg_status
-  if output="$(rg -n --color never "$@" "${common_globs[@]}" -- "$pattern" "$scan_root")"; then
+  if output="$(rg -n --only-matching --color never "$@" "${common_globs[@]}" -- "$pattern" "$scan_root")"; then
     :
   else
     rg_status=$?
@@ -112,7 +112,7 @@ printf 'note: matches are review leads, not proof of incompatibility or complete
 
 match_section \
   'Declared platform and Wow versions' \
-  '^[[:space:]]*(wow|kotlin|ksp|spring-boot)[[:space:]]*=|me\.ahoo\.wow|wow-(bom|dependencies|spring-boot-starter)|wow[._-]?version|org\.springframework\.boot|springBoot|spring-boot|kotlin\("jvm"\)|org\.jetbrains\.kotlin\.jvm|\bksp\b|<java\.version>|<kotlin\.version>|jvmToolchain|distributionUrl' \
+  '^[[:space:]]*(wow|kotlin|ksp|spring-boot)[[:space:]]*=[[:space:]]*"?[0-9][[:alnum:].+_-]*"?|me\.ahoo\.wow:[[:alnum:]_.-]+:[0-9][[:alnum:].+_-]*|wow[._-]?[Vv]ersion[[:space:]]*[=:][[:space:]]*"?[0-9][[:alnum:].+_-]*"?|<(java|kotlin)\.version>[0-9][[:alnum:].+_-]*</(java|kotlin)\.version>|(?:org\.springframework\.boot|org\.jetbrains\.kotlin\.jvm)[" )]*version[[:space:]]*"?[0-9][[:alnum:].+_-]*"?|kotlin\("jvm"\)[[:space:]]*version[[:space:]]*"?[0-9][[:alnum:].+_-]*"?|me\.ahoo\.wow|wow-(bom|dependencies|spring-boot-starter)|wow[._-]?[Vv]ersion|org\.springframework\.boot|springBoot|spring-boot|kotlin\("jvm"\)|org\.jetbrains\.kotlin\.jvm|\bksp\b|<java\.version>|<kotlin\.version>|jvmToolchain|distributionUrl' \
   --glob '*.gradle' --glob '*.gradle.kts' --glob '*.versions.toml' \
   --glob 'gradle.properties' --glob 'gradle-wrapper.properties' --glob 'pom.xml'
 
@@ -168,7 +168,7 @@ match_section \
 
 match_section \
   'Redis and Mongo configuration' \
-  'wow\..*(?:event-store|snapshot-store|prepare|redis|mongo)|spring\.(?:data\.)?(?:redis|mongodb)|WOW_[A-Z0-9_]*(?:STORAGE|REDIS|MONGO)[A-Z0-9_]*|SPRING_(?:DATA_)?(?:REDIS|MONGODB)(?:_[A-Z0-9_]+)?|[=:][[:space:]]*(?:REDIS|MONGO(?:DB)?)(?:[[:space:]#]|$)|^[[:space:]]*storage:[[:space:]]*(?:redis|mongo)\b|^[[:space:]]*(?:redis|mongodb):[[:space:]]*(?:#.*)?$|Redis(?:EventStore|SnapshotStore|PrepareKey)|Mongo(?:EventStore|SnapshotStore)|MongoDatabaseContext' \
+  'wow\.[[:alnum:]_.-]*(?:event-store|snapshot-store|prepare|redis|mongo)[[:alnum:]_.-]*|spring\.(?:data\.)?(?:redis|mongodb)|WOW_[A-Z0-9_]*(?:STORAGE|REDIS|MONGO)[A-Z0-9_]*|SPRING_(?:DATA_)?(?:REDIS|MONGODB)(?:_[A-Z0-9_]+)?|[=:][[:space:]]*(?:REDIS|MONGO(?:DB)?)(?:[[:space:]#]|$)|^[[:space:]]*storage:[[:space:]]*(?:redis|mongo)\b|^[[:space:]]*(?:redis|mongodb):[[:space:]]*(?:#.*)?$|Redis(?:EventStore|SnapshotStore|PrepareKey)|Mongo(?:EventStore|SnapshotStore)|MongoDatabaseContext' \
   --glob '*.yml' --glob '*.yaml' --glob '*.properties' --glob '.env*' --glob '*.env' \
   --glob '*.kt' --glob '*.java'
 

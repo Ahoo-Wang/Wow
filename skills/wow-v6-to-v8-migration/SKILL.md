@@ -55,7 +55,7 @@ flowchart LR
    bash <skill-dir>/scripts/audit-v6-usage.sh <target-repository>
    ```
 
-   默认排除可能包含凭据的 `.env*` 与 `*.env`。仅在用户明确要求、确认输出渠道安全且必须审计仅由环境变量声明的存储配置时，把 `--include-dotenv` 放在目标仓库参数前；输出仍会脱敏，但不能把该过滤器当作完整的 secret scanner。把命中项当作待审查线索，不把“未命中”解释为兼容性证明。
+   默认仅输出 `path:line:matched-token`，并排除可能包含凭据的 `.env*` 与 `*.env`。仅在用户明确要求、确认输出渠道安全且必须审计仅由环境变量声明的存储配置时，把 `--include-dotenv` 放在目标仓库参数前；敏感关键词仍会脱敏，但不能把该过滤器当作完整的 secret scanner。把命中项当作待审查线索，不把“未命中”解释为兼容性证明。
 5. 运行现有 v6 的窄测试、模块 `check` 与必要集成测试，保存失败基线。
 6. 记录 event、snapshot、request ID、PrepareKey、aggregate ID、消息 backlog 与关键查询结果的可复核基线。
 7. 若项目未在最新维护版 v6，先评估升级到维护线末版并清除弃用 API；不要直接跨越已知的 v6 基线失败。
