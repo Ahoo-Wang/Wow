@@ -51,6 +51,9 @@ wow:
 默认启用（`matchIfMissing = true`）。Spring 集成会在应用组件创建前，将此属性同时应用于
 框架指标装饰器和 `wow.batch.*` 等核心指标；具体如何导出由选用的 Micrometer Registry 单独决定。
 
+指标启用状态是进程级的。因此，同一 JVM 中同时存活的 Spring ApplicationContext 必须使用相同的
+`wow.metrics.enabled` 值；配置冲突的 Context 会在启动阶段失败，避免以部分插桩状态运行。
+
 ## 商业智能脚本
 
 `wow.bi.script.*` 配置树（ClickHouse/BI 脚本部署）请参阅

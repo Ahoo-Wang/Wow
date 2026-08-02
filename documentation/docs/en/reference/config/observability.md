@@ -55,6 +55,10 @@ Enabled by default (`matchIfMissing = true`). Before application components are 
 Spring integration applies this property to both framework metric decorators and core metrics,
 including `wow.batch.*`. The selected Micrometer registry controls export separately.
 
+Metrics enablement is process-wide. Overlapping Spring application contexts in the same JVM must
+therefore use the same `wow.metrics.enabled` value. A context with a conflicting value fails during
+startup instead of running with partial instrumentation.
+
 ## Business Intelligence Scripts
 
 The `wow.bi.script.*` property tree (ClickHouse/BI script deployment) is documented on the

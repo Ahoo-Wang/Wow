@@ -32,11 +32,9 @@ class MetricsAutoConfiguration {
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
     internal fun metricsEnabledSynchronizer(environment: Environment): MetricsEnabledSynchronizer {
         return MetricsEnabledSynchronizer(
-            environment.getProperty(
-                ConditionalOnMetricsEnabled.ENABLED_KEY,
-                Boolean::class.java,
-                true,
-            ),
+            environment.getProperty(ConditionalOnMetricsEnabled.ENABLED_KEY)
+                ?.toBoolean()
+                ?: true,
         )
     }
 
@@ -60,7 +58,7 @@ internal class MetricsEnabledSynchronizer(
 
     override fun destroy() {
         if (active.compareAndSet(true, false)) {
-            MetricsEnabledContexts.unregister(enabled)
+            MetricsEnabledContexts.unregister()
         }
     }
 }
@@ -68,34 +66,34 @@ internal class MetricsEnabledSynchronizer(
 private object MetricsEnabledContexts {
     private val monitor = Any()
     private var initialEnabled = Metrics.enabled
+    private var activeEnabled = Metrics.enabled
     private var activeContextCount = 0
-    private var disabledContextCount = 0
 
     fun register(enabled: Boolean) = synchronized(monitor) {
         if (activeContextCount == 0) {
             initialEnabled = Metrics.enabled
+            activeEnabled = enabled
+        } else {
+            require(activeEnabled == enabled) {
+                "Conflicting [${ConditionalOnMetricsEnabled.ENABLED_KEY}] values across active " +
+                    "Spring application contexts: expected [$activeEnabled], but found [$enabled]. " +
+                    "Wow metrics enablement is process-wide."
+            }
         }
         activeContextCount++
-        if (!enabled) {
-            disabledContextCount++
-        }
-        applyEnabled()
+        Metrics.configureEnabled(activeEnabled)
     }
 
-    fun unregister(enabled: Boolean) = synchronized(monitor) {
+    fun unregister() = synchronized(monitor) {
+        check(activeContextCount > 0) {
+            "No active Spring application context is registered for Wow metrics."
+        }
         activeContextCount--
-        if (!enabled) {
-            disabledContextCount--
-        }
-        applyEnabled()
-    }
-
-    private fun applyEnabled() {
         Metrics.configureEnabled(
             if (activeContextCount == 0) {
                 initialEnabled
             } else {
-                disabledContextCount == 0
+                activeEnabled
             },
         )
     }
