@@ -38,7 +38,7 @@ redact_sensitive_values() {
         content = substr($0, RLENGTH + 1)
       }
       lower = tolower(content)
-      if (match(lower, /(^|[^[:alnum:]])(password|passphrase|secret|token|credential|private[_-]?key|access[_-]?key|username|uri|url)/)) {
+      if (match(lower, /(^|[^[:alnum:]])(password|passphrase|secret|client[_-]?secret|token|credential|api[_-]?key|private[_-]?key|access[_-]?key|authorization|bearer|username|uri|url)/)) {
         sensitive_end = RSTART + RLENGTH
         suffix = substr(content, sensitive_end)
         if (match(suffix, /[=:]/)) {
