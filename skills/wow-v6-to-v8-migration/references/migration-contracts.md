@@ -24,7 +24,7 @@
 | Kotlin/KSP | 取自应用实际解析结果 | 取自目标 Wow BOM/源码 | 对齐 Kotlin metadata 与 KSP 后再解释编译错误 |
 | 相关平台 | v6 的 CosId/CoAPI/CoCache 等 | 取自目标 v8 BOM | 不单独强压旧主版本；检查公开类型和 starter 兼容性 |
 
-当前仓库 v8.9.5 的基线位于 `gradle/libs.versions.toml`；迁移到其他 v8 小版本时读取对应 tag，禁止拿 current `main` 代替。
+当前仓库 v8.9.6 的基线位于 `gradle/libs.versions.toml`；迁移到其他 v8 小版本时读取对应 tag，禁止拿 current `main` 代替。
 
 不要全局替换 Jackson import。当前 v8 框架的 core/databind/module 使用 `tools.jackson`，但注解仍使用 `com.fasterxml.jackson.annotation`；应用还可能在 Spring 或第三方库边界保留 `com.fasterxml` 类型。逐个核对目标 API、wire format 与 module 注册点。
 
@@ -34,7 +34,7 @@
 
 1. **公开 Wow API**：定位旧符号的目标定义、调用者、实现与测试；使用 compiler error 驱动迁移。
 2. **内部 API**：Redis key converter、Lua script 常量、repository bean alias 等不承诺源码/JVM/行为兼容；迁回应使用 `EventStore`、`SnapshotStore` 与 `PrepareKey` 公开边界。
-3. **测试 DSL**：只迁移实际旧调用，不要全量重写 DSL。Aggregate 使用 `whenCommand`，Saga 使用 `whenEvent`，`inject(service)` 使用 `inject { register(service) }`。当前 v8.9.5 仍支持 query `deleted(Boolean)`；除非精确目标 tag 已移除该重载，否则不要改写有效调用。
+3. **测试 DSL**：只迁移实际旧调用，不要全量重写 DSL。Aggregate 使用 `whenCommand`，Saga 使用 `whenEvent`，`inject(service)` 使用 `inject { register(service) }`。当前 v8.9.6 仍支持 query `deleted(Boolean)`；除非精确目标 tag 已移除该重载，否则不要改写有效调用。
 4. **Command wait**：检查旧 `ClientCommandExchange`、`WaitStrategy`、`WaitingFor*`、自定义 notifier/registrar 与 `sendAndWait` 调用；对照目标 tag 的 `WaitPlan`、`CommandWait` 和 HTTP wait header 行为。当前 v8 gateway 还拥有绝对等待 deadline，不能只做类型替换。
 5. **Message subscription**：检查旧 `MessageBus.receive(Set<NamedAggregate>)`、dispatcher launcher、Reactor Context receiver-group helpers 和自定义 bus；迁到目标版本显式 `MessageSubscription` 后，重新验证 aggregate scope 与 consumer group 隔离。
 6. **OpenAPI/WebFlux 扩展**：检查自定义 `RouteSpec`、`RouteSpecFactory`、`GlobalRouteSpecFactory`、`AggregateRouteSpecFactory` 与 `RouteHandlerFunctionFactory`；当前 v8 使用 `RouteContributor`、`HttpRouteContract` 与 `HttpRouteHandlerFunctionFactory`，必须重新生成和 golden-diff 路由契约。
@@ -74,7 +74,7 @@
 
 ## SnapshotStore
 
-目标为当前 v8.9.5 时应用以下原子保存约束，并在其他目标 tag 上重新确认引入版本。版本化 checkpoint 是 v8.9.0 引入后又移除的能力；直接从纯 v6 升级通常不会命中，只有应用或中间迁移分支曾试用该能力时才执行对应清理：
+目标为当前 v8.9.6 时应用以下原子保存约束，并在其他目标 tag 上重新确认引入版本。版本化 checkpoint 是 v8.9.0 引入后又移除的能力；直接从纯 v6 升级通常不会命中，只有应用或中间迁移分支曾试用该能力时才执行对应清理：
 
 - 版本化 snapshot checkpoint 已移除，且没有兼容层。仅在实际命中时删除 `VersionedSnapshotStore`、`VersionIntervalCheckpointStrategy`、`CompositeSnapshotStrategy`、相关 metrics/tracing decorator 与 `SnapshotCheckpointProperties` 的应用侧依赖。
 - `wow.eventsourcing.snapshot.checkpoint.*` 不再生效；中间环境既有的 `*_snapshot_checkpoint` collection 不会被读取、写入、扫描或自动删除。
@@ -110,7 +110,7 @@
 
 ## MongoDB
 
-目标为当前 v8.9.5 时应用以下约束，并在其他目标 tag 上确认：
+目标为当前 v8.9.6 时应用以下约束，并在其他目标 tag 上确认：
 
 - collection 名仍以 aggregate name 为核心，但 database 新增 `wow_database_metadata` bounded-context ownership marker。
 - 支持的布局是一个 Mongo database 只属于一个 bounded context。历史混写 database 必须先拆分，不能改 marker 绕过冲突。

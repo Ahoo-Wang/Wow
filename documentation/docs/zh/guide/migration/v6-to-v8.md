@@ -119,13 +119,13 @@ auto-configuration 类或自建 starter，必须单独完成源码迁移；不�
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
 // 更新 wow 版本
-implementation("me.ahoo.wow:wow-spring-boot-starter:8.9.5")
+implementation("me.ahoo.wow:wow-spring-boot-starter:8.9.6")
 ```
 ```xml [Maven]
 <dependency>
     <groupId>me.ahoo.wow</groupId>
     <artifactId>wow-spring-boot-starter</artifactId>
-    <version>8.9.5</version>
+    <version>8.9.6</version>
 </dependency>
 ```
 :::
