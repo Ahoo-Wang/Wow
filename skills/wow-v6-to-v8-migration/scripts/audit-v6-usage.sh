@@ -137,7 +137,7 @@ match_section \
 
 match_section \
   'Redis and Mongo configuration' \
-  'wow\..*(event-store|snapshot-store|prepare|redis|mongo)|spring\.(data\.)?(redis|mongodb)|WOW_[A-Z0-9_]*(STORAGE|REDIS|MONGO)[A-Z0-9_]*|SPRING_(DATA_)?(REDIS|MONGODB)(_[A-Z0-9_]+)?|[=:][[:space:]]*(REDIS|MONGO(DB)?)([[:space:]#]|$)|^[[:space:]]*storage:[[:space:]]*(redis|mongo)\b|^[[:space:]]*(redis|mongodb):[[:space:]]*(#.*)?$|Redis(EventStore|SnapshotStore|PrepareKey)|Mongo(EventStore|SnapshotStore)|MongoDatabaseContext' \
+  'wow\..*(?:event-store|snapshot-store|prepare|redis|mongo)|spring\.(?:data\.)?(?:redis|mongodb)|WOW_[A-Z0-9_]*(?:STORAGE|REDIS|MONGO)[A-Z0-9_]*|SPRING_(?:DATA_)?(?:REDIS|MONGODB)(?:_[A-Z0-9_]+)?|[=:][[:space:]]*(?:REDIS|MONGO(?:DB)?)(?:[[:space:]#]|$)|^[[:space:]]*storage:[[:space:]]*(?:redis|mongo)\b|^[[:space:]]*(?:redis|mongodb):[[:space:]]*(?:#.*)?$|Redis(?:EventStore|SnapshotStore|PrepareKey)|Mongo(?:EventStore|SnapshotStore)|MongoDatabaseContext' \
   --glob '*.yml' --glob '*.yaml' --glob '*.properties' --glob '*.env' --glob '.env*' \
   --glob '*.kt' --glob '*.java'
 
