@@ -99,7 +99,7 @@ flowchart LR
 1. 根据精确目标版本判断 [迁移契约](references/migration-contracts.md) 中的 Snapshot、Redis 和 Mongo 条目是否生效。
 2. 对每个 store 输出 source→target 映射、数据类型、cardinality、版本范围、checksum、owner 和处置方式。
 3. 对自定义 `SnapshotStore` 验证原子 compare-and-write；禁止客户端 `load()` 后无条件保存。
-4. 目标为 v8.9.0+ 且使用 Redis EventStore 时，设计并单独评审离线 canonical v2 迁移器；运行时没有内置迁移器、双读或双写兜底。
+4. 目标为 v8.9.0+ 且使用 Redis EventStore、Redis SnapshotStore 或 Redis PrepareKey 时，分别设计并单独评审 canonical v2 离线迁移或受控重建方案；运行时没有内置迁移器、双读或双写兜底。
 5. 使用 Mongo 时，验证 database 与 bounded context 一对一、存量 collection、PrepareKey 归属、服务端版本和索引兼容性。
 6. 用 manifest、checksum、cursor 和幂等批次保存迁移证据。任何差集、重复 aggregate ID、孤立 Key 或所有权冲突都必须先处置。
 

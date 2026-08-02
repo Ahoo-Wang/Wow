@@ -34,7 +34,7 @@
 
 1. **公开 Wow API**：定位旧符号的目标定义、调用者、实现与测试；使用 compiler error 驱动迁移。
 2. **内部 API**：Redis key converter、Lua script 常量、repository bean alias 等不承诺源码/JVM/行为兼容；迁回应使用 `EventStore`、`SnapshotStore` 与 `PrepareKey` 公开边界。
-3. **测试 DSL**：只迁移实际旧调用，不要全量重写 DSL。Aggregate 使用 `whenCommand`，Saga 使用 `whenEvent`，`inject(service)` 使用 `inject { register(service) }`，query `deleted(true|false)` 迁到目标 tag 的 `DeletionState`。
+3. **测试 DSL**：只迁移实际旧调用，不要全量重写 DSL。Aggregate 使用 `whenCommand`，Saga 使用 `whenEvent`，`inject(service)` 使用 `inject { register(service) }`。当前 v8.9.5 仍支持 query `deleted(Boolean)`；除非精确目标 tag 已移除该重载，否则不要改写有效调用。
 4. **Command wait**：检查旧 `ClientCommandExchange`、`WaitStrategy`、`WaitingFor*`、自定义 notifier/registrar 与 `sendAndWait` 调用；对照目标 tag 的 `WaitPlan`、`CommandWait` 和 HTTP wait header 行为。当前 v8 gateway 还拥有绝对等待 deadline，不能只做类型替换。
 5. **Message subscription**：检查旧 `MessageBus.receive(Set<NamedAggregate>)`、dispatcher launcher、Reactor Context receiver-group helpers 和自定义 bus；迁到目标版本显式 `MessageSubscription` 后，重新验证 aggregate scope 与 consumer group 隔离。
 6. **OpenAPI/WebFlux 扩展**：检查自定义 `RouteSpec`、`RouteSpecFactory`、`GlobalRouteSpecFactory`、`AggregateRouteSpecFactory` 与 `RouteHandlerFunctionFactory`；当前 v8 使用 `RouteContributor`、`HttpRouteContract` 与 `HttpRouteHandlerFunctionFactory`，必须重新生成和 golden-diff 路由契约。

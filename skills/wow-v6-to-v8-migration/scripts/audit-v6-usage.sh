@@ -66,9 +66,11 @@ match_section \
   '\bClientCommandExchange\b|\bWaitStrategy\b|\bWaitStrategyRegistrar\b|\bExtractedWaitStrategy\b|\bWaitingFors\b|\bWaitingFor[A-Za-z]*\b|sendAndWait|CommandWaitNotifier' \
   --glob '*.kt' --glob '*.java'
 
+# The backticks below are literal ripgrep tokens, not shell command substitutions.
+# shellcheck disable=SC2016
 match_section \
   'Legacy test DSL usage' \
-  '\.\s*`when`\s*\(|\.when\s*\{|inject\s*\([^\{]|deleted\s*\(\s*(true|false)\s*\)' \
+  '\.\s*`when`\s*\(|\.when\s*\{|inject\s*\([^\{]' \
   --glob '*Test.kt' --glob '*Spec.kt' --glob '*Test.java'
 
 match_section \
@@ -99,7 +101,7 @@ match_section \
 
 match_section \
   'Redis and Mongo configuration' \
-  'wow\..*(event-store|snapshot-store|prepare|redis|mongo)|spring\.(data\.)?(redis|mongodb)|Redis(EventStore|SnapshotStore|PrepareKey)|Mongo(EventStore|SnapshotStore)|MongoDatabaseContext' \
+  'wow\..*(event-store|snapshot-store|prepare|redis|mongo)|spring\.(data\.)?(redis|mongodb)|^[[:space:]]*storage:[[:space:]]*(redis|mongo)\b|^[[:space:]]*(redis|mongodb):[[:space:]]*(#.*)?$|Redis(EventStore|SnapshotStore|PrepareKey)|Mongo(EventStore|SnapshotStore)|MongoDatabaseContext' \
   --glob '*.yml' --glob '*.yaml' --glob '*.properties' --glob '*.kt' --glob '*.java'
 
 match_section \
