@@ -14,6 +14,17 @@
 import {DefaultTheme} from "vitepress/types/default-theme";
 
 export const sidebarZh: DefaultTheme.Sidebar = {
+    '/zh/articles/': [
+        {
+            text: '文章',
+            base: '/zh/articles/',
+            collapsed: false,
+            items: [
+                {text: '文章首页', link: ''},
+                {text: 'AI 越强，业务模型越值钱', link: 'why-ddd-fits-ai-era'},
+            ],
+        },
+    ],
     '/zh/guide/': [
         {
             base: '/zh/guide/',

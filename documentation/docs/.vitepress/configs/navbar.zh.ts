@@ -7,6 +7,11 @@ export const navbarZh: DefaultTheme.NavItem[] = [
         activeMatch: '^/zh/guide/'
     },
     {
+        text: '文章',
+        link: '/zh/articles/',
+        activeMatch: '^/zh/articles/'
+    },
+    {
         text: '参考',
         activeMatch: '^/zh/reference/',
         items: [
