@@ -25,6 +25,20 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             ],
         },
     ],
+    '/zh/onboarding/': [
+        {
+            base: '/zh/onboarding/',
+            text: '入门导航',
+            collapsed: false,
+            items: [
+                {text: '选择阅读路径', link: ''},
+                {text: '贡献者指南', link: 'contributor-guide'},
+                {text: '资深工程师指南', link: 'staff-engineer-guide'},
+                {text: '管理者指南', link: 'executive-guide'},
+                {text: '产品经理指南', link: 'product-manager-guide'},
+            ],
+        },
+    ],
     '/zh/guide/': [
         {
             base: '/zh/guide/',

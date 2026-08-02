@@ -45,7 +45,7 @@ pnpm install
 pnpm docs:build
 ```
 
-For more context, see the [architecture guide](https://wow.ahoo.me/guide/advanced/architecture.html), [testing guide](https://wow.ahoo.me/guide/test-suite.html), and [getting-started guide](https://wow.ahoo.me/guide/getting-started.html).
+For an end-to-end repository introduction, start with the [contributor onboarding guide](https://wow.ahoo.me/onboarding/contributor-guide.html). The [architecture guide](https://wow.ahoo.me/guide/advanced/architecture.html), [testing guide](https://wow.ahoo.me/guide/test-suite.html), and [getting-started guide](https://wow.ahoo.me/guide/getting-started.html) remain the canonical topic references.
 
 ## Change Guidelines
 
