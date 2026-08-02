@@ -23,6 +23,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Role
 import org.springframework.core.env.Environment
+import java.util.concurrent.atomic.AtomicBoolean
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
@@ -48,16 +49,54 @@ class MetricsAutoConfiguration {
 }
 
 internal class MetricsEnabledSynchronizer(
-    enabled: Boolean,
+    private val enabled: Boolean,
 ) : BeanPostProcessor,
     DisposableBean {
-    private val previousEnabled = Metrics.enabled
+    private val active = AtomicBoolean(true)
 
     init {
-        Metrics.configureEnabled(enabled)
+        MetricsEnabledContexts.register(enabled)
     }
 
     override fun destroy() {
-        Metrics.configureEnabled(previousEnabled)
+        if (active.compareAndSet(true, false)) {
+            MetricsEnabledContexts.unregister(enabled)
+        }
+    }
+}
+
+private object MetricsEnabledContexts {
+    private val monitor = Any()
+    private var initialEnabled = Metrics.enabled
+    private var activeContextCount = 0
+    private var disabledContextCount = 0
+
+    fun register(enabled: Boolean) = synchronized(monitor) {
+        if (activeContextCount == 0) {
+            initialEnabled = Metrics.enabled
+        }
+        activeContextCount++
+        if (!enabled) {
+            disabledContextCount++
+        }
+        applyEnabled()
+    }
+
+    fun unregister(enabled: Boolean) = synchronized(monitor) {
+        activeContextCount--
+        if (!enabled) {
+            disabledContextCount--
+        }
+        applyEnabled()
+    }
+
+    private fun applyEnabled() {
+        Metrics.configureEnabled(
+            if (activeContextCount == 0) {
+                initialEnabled
+            } else {
+                disabledContextCount == 0
+            },
+        )
     }
 }

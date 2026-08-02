@@ -120,6 +120,43 @@ class MetricsAutoConfigurationTest {
     }
 
     @Test
+    fun `metrics should remain disabled until every disabling context closes`() {
+        val previousEnabled = Metrics.enabled
+        val disabledContextRunner = contextRunner
+            .enableWow()
+            .withPropertyValues(
+                "${ConditionalOnMetricsEnabled.ENABLED_KEY}=false",
+            ).withUserConfiguration(
+                MetricsAutoConfiguration::class.java,
+            )
+
+        disabledContextRunner.run { firstContext ->
+            disabledContextRunner.run {
+                firstContext.close()
+
+                Metrics.enabled.assert().isFalse()
+            }
+        }
+
+        Metrics.enabled.assert().isEqualTo(previousEnabled)
+    }
+
+    @Test
+    fun `metrics synchronizer destruction should be idempotent`() {
+        val previousEnabled = Metrics.enabled
+        val synchronizer = MetricsEnabledSynchronizer(enabled = false)
+
+        try {
+            Metrics.enabled.assert().isFalse()
+        } finally {
+            synchronizer.destroy()
+            synchronizer.destroy()
+        }
+
+        Metrics.enabled.assert().isEqualTo(previousEnabled)
+    }
+
+    @Test
     fun `should back off when custom metrics post processor exists`() {
         contextRunner
             .enableWow()

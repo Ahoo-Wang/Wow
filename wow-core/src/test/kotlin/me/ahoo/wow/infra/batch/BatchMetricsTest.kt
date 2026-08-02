@@ -24,40 +24,107 @@ import org.junit.jupiter.api.assertThrows
 
 class BatchMetricsTest {
     @Test
-    fun `disabled metrics should not register batch meters`() {
-        val previousEnabled = Metrics.enabled
-        val registry = SimpleMeterRegistry()
-
-        try {
-            Metrics.configureEnabled(false)
+    fun `disabled metrics should keep every operation as a no-op`() =
+        withMetricsEnabled(false) {
+            val registry = SimpleMeterRegistry()
             val metrics = BatchMetrics("disabled", registry)
+            val enqueuedAt = metrics.markEnqueued()
 
             metrics.admissionRejected(BatchAdmissionRejectionReason.LIVE_ITEMS_EXHAUSTED)
+            metrics.requestDequeued(lane = 0, enqueuedAt = enqueuedAt)
+            assertThrows<IllegalStateException> {
+                metrics.batchWriteStarted(
+                    lane = 0,
+                    bufferedItems = 2,
+                    writtenItems = 2,
+                    windowType = BatchWindowType.FULL,
+                )
+            }
+            metrics.markCloseStarted()
+            metrics.coordinatorFailed()
+            metrics.closeCompleted(failed = false)
 
             registry.meters.assert().isEmpty()
-        } finally {
-            Metrics.configureEnabled(previousEnabled)
         }
-    }
 
     @Test
-    fun `non-fatal registry failures should be isolated`() {
-        val metrics = BatchMetrics("non-fatal", throwingRegistry(AssertionError("failed")))
+    fun `batch write completion should be idempotent`() =
+        withMetricsEnabled(true) {
+            val registry = SimpleMeterRegistry()
+            val metrics = BatchMetrics("write-idempotent", registry)
+            val batchWrite = metrics.batchWriteStarted(
+                lane = 0,
+                bufferedItems = 2,
+                writtenItems = 2,
+                windowType = BatchWindowType.FULL,
+            )
 
-        assertDoesNotThrow {
-            metrics.admissionRejected(BatchAdmissionRejectionReason.LIVE_ITEMS_EXHAUSTED)
+            batchWrite.complete(BatchWriteOutcome.SUCCESS, failedItems = 0)
+            batchWrite.complete(BatchWriteOutcome.FAILED, failedItems = 2)
+
+            registry.get("wow.batch.write")
+                .tag("coordinator", "write-idempotent")
+                .tag("outcome", "success")
+                .timer()
+                .count()
+                .assert()
+                .isEqualTo(1)
+            registry.find("wow.batch.write")
+                .tag("coordinator", "write-idempotent")
+                .tag("outcome", "failed")
+                .timer()
+                .assert()
+                .isNull()
         }
-    }
 
     @Test
-    fun `fatal registry failures should propagate`() {
-        val failure = LinkageError("failed")
-        val metrics = BatchMetrics("fatal", throwingRegistry(failure))
+    fun `close completion should require a start and remain idempotent`() =
+        withMetricsEnabled(true) {
+            val registry = SimpleMeterRegistry()
+            val metrics = BatchMetrics("close-idempotent", registry)
 
-        assertThrows<LinkageError> {
-            metrics.admissionRejected(BatchAdmissionRejectionReason.LIVE_ITEMS_EXHAUSTED)
-        }.assert().isSameAs(failure)
-    }
+            metrics.closeCompleted(failed = false)
+            registry.meters.assert().isEmpty()
+
+            metrics.markCloseStarted()
+            metrics.closeCompleted(failed = false)
+            metrics.closeCompleted(failed = true)
+
+            registry.get("wow.batch.close")
+                .tag("coordinator", "close-idempotent")
+                .tag("outcome", "success")
+                .timer()
+                .count()
+                .assert()
+                .isEqualTo(1)
+            registry.find("wow.batch.close")
+                .tag("coordinator", "close-idempotent")
+                .tag("outcome", "failed")
+                .timer()
+                .assert()
+                .isNull()
+        }
+
+    @Test
+    fun `non-fatal registry failures should be isolated`() =
+        withMetricsEnabled(true) {
+            val metrics = BatchMetrics("non-fatal", throwingRegistry(AssertionError("failed")))
+
+            assertDoesNotThrow {
+                metrics.admissionRejected(BatchAdmissionRejectionReason.LIVE_ITEMS_EXHAUSTED)
+            }
+        }
+
+    @Test
+    fun `fatal registry failures should propagate`() =
+        withMetricsEnabled(true) {
+            val failure = LinkageError("failed")
+            val metrics = BatchMetrics("fatal", throwingRegistry(failure))
+
+            assertThrows<LinkageError> {
+                metrics.admissionRejected(BatchAdmissionRejectionReason.LIVE_ITEMS_EXHAUSTED)
+            }.assert().isSameAs(failure)
+        }
 
     private fun throwingRegistry(failure: Throwable): SimpleMeterRegistry =
         SimpleMeterRegistry().apply {
@@ -67,4 +134,17 @@ class BatchMetricsTest {
                 }
             )
         }
+
+    private fun <T> withMetricsEnabled(
+        enabled: Boolean,
+        block: () -> T,
+    ): T {
+        val previousEnabled = Metrics.enabled
+        Metrics.configureEnabled(enabled)
+        return try {
+            block()
+        } finally {
+            Metrics.configureEnabled(previousEnabled)
+        }
+    }
 }

@@ -15,6 +15,7 @@ package me.ahoo.wow.infra.batch
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.metrics.Metrics
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
@@ -26,6 +27,33 @@ import java.util.concurrent.TimeUnit
 import io.micrometer.core.instrument.Metrics as MicrometerMetrics
 
 class BatchCoordinatorMetricsTest {
+    @Test
+    fun `disabled metrics should preserve the compact batch path`() =
+        withMeterRegistry { registry ->
+            withMetricsEnabled(false) {
+                val name = "metrics-disabled"
+                val coordinator = metricsCoordinator(name) { items ->
+                    Mono.just(items.map { BatchItemResult.Success })
+                }
+
+                try {
+                    Flux.merge(coordinator.submit(1), coordinator.submit(2))
+                        .then()
+                        .block(Duration.ofSeconds(1))
+                } finally {
+                    coordinator.close(Duration.ofSeconds(1))
+                }
+
+                registry.meters
+                    .filter {
+                        it.id.name.startsWith("wow.batch.") &&
+                            it.id.getTag("coordinator") == name
+                    }
+                    .assert()
+                    .isEmpty()
+            }
+        }
+
     @Test
     fun `successful full batch should record queue write item and close metrics`() =
         withMeterRegistry { registry ->
@@ -380,6 +408,19 @@ class BatchCoordinatorMetricsTest {
         } finally {
             MicrometerMetrics.removeRegistry(registry)
             registry.close()
+        }
+    }
+
+    private fun <T> withMetricsEnabled(
+        enabled: Boolean,
+        block: () -> T,
+    ): T {
+        val previousEnabled = Metrics.enabled
+        Metrics.configureEnabled(enabled)
+        return try {
+            block()
+        } finally {
+            Metrics.configureEnabled(previousEnabled)
         }
     }
 
