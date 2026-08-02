@@ -21,7 +21,7 @@ import java.util.concurrent.Semaphore
  */
 internal class BatchAdmission<T : Any>(
     capacity: Int,
-    private val observations: BatchObservationEmitter?,
+    private val metrics: BatchMetrics?,
 ) {
     private val availableItems = Semaphore(capacity)
     private val availableQueueSlots = Semaphore(capacity)
@@ -40,32 +40,30 @@ internal class BatchAdmission<T : Any>(
             availableItems.release()
             return BatchAdmissionRejectionReason.QUEUE_SLOTS_EXHAUSTED
         }
-        observations?.capacityChanged(liveDelta = 1, queueDelta = 1)
         return null
     }
 
     fun track(value: T): BatchRequest<T> {
-        val currentObservations = observations
-        val request = if (currentObservations == null) {
+        val currentMetrics = metrics
+        val request = if (currentMetrics == null) {
             BatchRequest(
                 value = value,
                 onReleaseAdmission = ::releaseAdmission,
                 onReleaseQueueSlot = ::releaseQueueSlot,
             )
         } else {
-            ObservedBatchRequest(
+            MeasuredBatchRequest(
                 value = value,
                 onReleaseAdmission = ::releaseAdmission,
                 onReleaseQueueSlot = ::releaseQueueSlot,
-                enqueuedAtNanos = currentObservations.markEnqueued(),
-                observations = currentObservations,
+                enqueuedAtNanos = currentMetrics.markEnqueued(),
+                metrics = currentMetrics,
             )
         }
         return request.also(pending::add)
     }
 
     fun releaseUntracked() {
-        observations?.capacityChanged(liveDelta = -1, queueDelta = -1)
         availableQueueSlots.release()
         availableItems.release()
     }
@@ -74,13 +72,11 @@ internal class BatchAdmission<T : Any>(
 
     private fun releaseAdmission(request: BatchRequest<T>) {
         if (pending.remove(request)) {
-            observations?.capacityChanged(liveDelta = -1, queueDelta = 0)
             availableItems.release()
         }
     }
 
     private fun releaseQueueSlot() {
-        observations?.capacityChanged(liveDelta = 0, queueDelta = -1)
         availableQueueSlots.release()
     }
 }

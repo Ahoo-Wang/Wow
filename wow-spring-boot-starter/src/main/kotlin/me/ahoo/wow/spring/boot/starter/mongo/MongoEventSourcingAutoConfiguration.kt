@@ -18,7 +18,6 @@ import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
-import me.ahoo.wow.infra.batch.BatchObserver
 import me.ahoo.wow.infra.prepare.PrepareKeyFactory
 import me.ahoo.wow.mongo.EventStreamSchemaInitializer
 import me.ahoo.wow.mongo.MongoDatabaseContextGuard
@@ -31,7 +30,6 @@ import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
-import me.ahoo.wow.spring.boot.starter.eventsourcing.batch.toBatchObserver
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnEventStoreStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnSnapshotStoreStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
@@ -42,7 +40,6 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnaps
 import me.ahoo.wow.spring.boot.starter.prepare.ConditionalOnPrepareEnabled
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareProperties
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareStorage
-import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -83,18 +80,6 @@ class MongoEventSourcingAutoConfiguration @Autowired constructor(
         snapshotStoreBatchProperties = MongoSnapshotStoreBatchProperties(),
     )
 
-    fun mongoEventStore(
-        mongoClient: MongoClient,
-        dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?,
-        @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
-        currentBoundedContext: NamedBoundedContext,
-    ): MongoEventStore = createMongoEventStore(
-        mongoClient = mongoClient,
-        dataMongoProperties = dataMongoProperties,
-        currentBoundedContext = currentBoundedContext,
-        observer = BatchObserver.NOOP,
-    )
-
     @Bean
     @ConditionalOnEventStoreStorage(StorageType.MONGO)
     fun mongoEventStore(
@@ -102,19 +87,6 @@ class MongoEventSourcingAutoConfiguration @Autowired constructor(
         dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?,
         @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         currentBoundedContext: NamedBoundedContext,
-        batchObservers: ObjectProvider<BatchObserver>,
-    ): MongoEventStore = createMongoEventStore(
-        mongoClient = mongoClient,
-        dataMongoProperties = dataMongoProperties,
-        currentBoundedContext = currentBoundedContext,
-        observer = batchObservers.toBatchObserver(),
-    )
-
-    private fun createMongoEventStore(
-        mongoClient: MongoClient,
-        dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?,
-        currentBoundedContext: NamedBoundedContext,
-        observer: BatchObserver,
     ): MongoEventStore {
         val eventStoreDatabase = getEventStreamDatabase(dataMongoProperties, mongoClient)
         MongoDatabaseContextGuard(eventStoreDatabase)
@@ -125,7 +97,6 @@ class MongoEventSourcingAutoConfiguration @Autowired constructor(
         return MongoEventStore(
             database = eventStoreDatabase,
             batchOptions = eventStoreBatchProperties.toOptions(),
-            observer = observer,
         )
     }
 
@@ -172,18 +143,6 @@ class MongoEventSourcingAutoConfiguration @Autowired constructor(
         return eventStoreDatabase
     }
 
-    fun mongoSnapshotStore(
-        mongoClient: MongoClient,
-        dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?,
-        @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
-        currentBoundedContext: NamedBoundedContext,
-    ): MongoSnapshotStore = createMongoSnapshotStore(
-        mongoClient = mongoClient,
-        dataMongoProperties = dataMongoProperties,
-        currentBoundedContext = currentBoundedContext,
-        observer = BatchObserver.NOOP,
-    )
-
     @Bean(name = ["mongoSnapshotStore", "mongoSnapshotRepository"])
     @ConditionalOnSnapshotEnabled
     @ConditionalOnSnapshotStoreStorage(StorageType.MONGO)
@@ -192,19 +151,6 @@ class MongoEventSourcingAutoConfiguration @Autowired constructor(
         dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?,
         @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         currentBoundedContext: NamedBoundedContext,
-        batchObservers: ObjectProvider<BatchObserver>,
-    ): MongoSnapshotStore = createMongoSnapshotStore(
-        mongoClient = mongoClient,
-        dataMongoProperties = dataMongoProperties,
-        currentBoundedContext = currentBoundedContext,
-        observer = batchObservers.toBatchObserver(),
-    )
-
-    private fun createMongoSnapshotStore(
-        mongoClient: MongoClient,
-        dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?,
-        currentBoundedContext: NamedBoundedContext,
-        observer: BatchObserver,
     ): MongoSnapshotStore {
         val snapshotDatabase = getMongoSnapshotDatabase(dataMongoProperties, mongoClient)
         MongoDatabaseContextGuard(snapshotDatabase)
@@ -215,7 +161,6 @@ class MongoEventSourcingAutoConfiguration @Autowired constructor(
         return MongoSnapshotStore(
             database = snapshotDatabase,
             batchOptions = snapshotStoreBatchProperties.toOptions(),
-            observer = observer,
         )
     }
 

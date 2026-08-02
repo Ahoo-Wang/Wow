@@ -41,24 +41,7 @@ class BatchCoordinator<T : Any> internal constructor(
     private val writer: BatchWriter<T>,
     private val laneCount: Int,
     private val laneSelector: (T) -> Int,
-    observer: BatchObserver = BatchObserver.NOOP,
-    nanoTime: () -> Long = System::nanoTime,
 ) : GracefullyStoppable {
-    internal constructor(
-        name: String,
-        options: BatchOptions,
-        writer: BatchWriter<T>,
-        laneCount: Int,
-        laneSelector: (T) -> Int,
-    ) : this(
-        name = name,
-        options = options,
-        writer = writer,
-        laneCount = laneCount,
-        laneSelector = laneSelector,
-        observer = BatchObserver.NOOP,
-    )
-
     constructor(
         name: String,
         options: BatchOptions,
@@ -69,20 +52,6 @@ class BatchCoordinator<T : Any> internal constructor(
         writer = writer,
         laneCount = 1,
         laneSelector = { 0 },
-    )
-
-    constructor(
-        name: String,
-        options: BatchOptions,
-        observer: BatchObserver,
-        writer: BatchWriter<T>,
-    ) : this(
-        name = name,
-        options = options,
-        writer = writer,
-        laneCount = 1,
-        laneSelector = { 0 },
-        observer = observer,
     )
 
     init {
@@ -94,9 +63,9 @@ class BatchCoordinator<T : Any> internal constructor(
         }
     }
 
-    private val observations = BatchObservationEmitter(name, observer, nanoTime)
-    private val enabledObservations = observations.takeIf(BatchObservationEmitter::isEnabled)
-    private val admission = BatchAdmission<T>(options.maxPendingItems, enabledObservations)
+    private val metrics = BatchMetrics(name)
+    private val enabledMetrics = metrics.takeIf(BatchMetrics::isEnabled)
+    private val admission = BatchAdmission<T>(options.maxPendingItems, enabledMetrics)
     private val lifecycle = BatchLifecycle(name)
     private val processorTermination = CompletableFuture<Unit>()
     private val termination = CompletableFuture<Unit>()
@@ -120,7 +89,7 @@ class BatchCoordinator<T : Any> internal constructor(
                 writer = writer,
                 scheduler = batchScheduler,
                 resultDispatcher = resultDispatcher,
-                observations = enabledObservations,
+                metrics = enabledMetrics,
                 onError = { failLifecycle(it) },
                 onComplete = ::completeLane,
             )
@@ -140,7 +109,7 @@ class BatchCoordinator<T : Any> internal constructor(
                 lifecycle.terminalErrorOrClosed()?.let {
                     return@defer Mono.error(it)
                 }
-                observations.admissionRejected(admissionRejection)
+                metrics.admissionRejected(admissionRejection)
                 return@defer Mono.error(
                     BatchOverflowException(name, options.maxPendingItems)
                 )
@@ -249,19 +218,17 @@ class BatchCoordinator<T : Any> internal constructor(
         batchScheduler.dispose()
         when (val completion = lifecycle.processorCompleted()) {
             BatchLifecycle.ProcessorCompletion.DrainResults -> {
-                observations.processorDrained()
                 processorTermination.complete(Unit)
             }
 
             BatchLifecycle.ProcessorCompletion.Closed -> {
-                observations.processorDrained()
-                observations.closeCompleted(null)
+                metrics.closeCompleted(failed = false)
                 processorTermination.complete(Unit)
                 termination.complete(Unit)
             }
 
             is BatchLifecycle.ProcessorCompletion.Failed -> {
-                observations.closeCompleted(completion.cause)
+                metrics.closeCompleted(failed = true)
                 processorTermination.completeExceptionally(completion.cause)
                 termination.completeExceptionally(completion.cause)
             }
@@ -272,12 +239,12 @@ class BatchCoordinator<T : Any> internal constructor(
     private fun completeResultDrain() {
         when (val completion = lifecycle.resultDispatcherTerminated()) {
             BatchLifecycle.ResultDrainCompletion.Closed -> {
-                observations.closeCompleted(null)
+                metrics.closeCompleted(failed = false)
                 termination.complete(Unit)
             }
 
             is BatchLifecycle.ResultDrainCompletion.Failed -> {
-                observations.closeCompleted(completion.cause)
+                metrics.closeCompleted(failed = true)
                 disposeLanes()
                 processorTermination.completeExceptionally(completion.cause)
                 termination.completeExceptionally(completion.cause)
@@ -290,7 +257,7 @@ class BatchCoordinator<T : Any> internal constructor(
         if (!lifecycle.initiateClose()) {
             return
         }
-        observations.closeStarted()
+        metrics.markCloseStarted()
         for (lane in lanes) {
             val emitResult = lane.complete()
             if (emitResult.isFailure && emitResult != Sinks.EmitResult.FAIL_TERMINATED) {
@@ -322,12 +289,12 @@ class BatchCoordinator<T : Any> internal constructor(
 
             is BatchLifecycle.FailureTransition.Existing -> transition.cause
             is BatchLifecycle.FailureTransition.Installed -> {
-                observations.coordinatorFailed(transition.cause)
+                metrics.coordinatorFailed()
                 disposeLanes()
                 dispatchPendingFailures(transition.cause)
                 resultDispatcher.shutdown()
                 processorTermination.completeExceptionally(transition.cause)
-                observations.closeCompleted(transition.cause)
+                metrics.closeCompleted(failed = true)
                 termination.completeExceptionally(transition.cause)
                 transition.cause
             }

@@ -32,7 +32,7 @@ internal class BatchLane<T : Any>(
     private val writer: BatchWriter<T>,
     scheduler: Scheduler,
     private val resultDispatcher: BatchResultDispatcher,
-    private val observations: BatchObservationEmitter?,
+    private val metrics: BatchMetrics?,
     onError: (Throwable) -> Unit,
     onComplete: () -> Unit,
 ) {
@@ -69,9 +69,7 @@ internal class BatchLane<T : Any>(
         if (claimedBatch.isEmpty()) {
             return Mono.empty()
         }
-        val currentObservations = observations
-            ?: return writeUnobservedBatch(claimedBatch)
-        val batchWrite = currentObservations.batchWriteStarted(
+        val batchWrite = metrics?.batchWriteStarted(
             lane = lane,
             bufferedItems = batch.size,
             writtenItems = claimedBatch.size,
@@ -81,45 +79,6 @@ internal class BatchLane<T : Any>(
                 BatchWindowType.PARTIAL
             },
         )
-        return writeObservedBatch(claimedBatch, batchWrite)
-    }
-
-    private fun writeUnobservedBatch(
-        claimedBatch: List<BatchRequest<T>>,
-    ): Mono<Void> {
-        return Mono.defer {
-            writer.write(claimedBatch.map { it.value })
-        }.switchIfEmpty(
-            Mono.error(
-                BatchProtocolException(
-                    "Batch writer[$name] completed without item results."
-                )
-            )
-        ).flatMap { outcomes ->
-            if (outcomes.size != claimedBatch.size) {
-                return@flatMap Mono.error<Void>(
-                    BatchProtocolException(
-                        "Batch writer[$name] returned ${outcomes.size} item results " +
-                            "for ${claimedBatch.size} inputs."
-                    )
-                )
-            }
-            claimedBatch.zip(outcomes).forEach { (item, outcome) ->
-                item.settle(outcome)
-            }
-            dispatchResults(claimedBatch)
-            Mono.empty()
-        }.onErrorResume { error ->
-            claimedBatch.forEach { it.settleFailure(error) }
-            dispatchResults(claimedBatch)
-            Mono.empty()
-        }
-    }
-
-    private fun writeObservedBatch(
-        claimedBatch: List<BatchRequest<T>>,
-        batchWrite: BatchWriteObservation,
-    ): Mono<Void> {
         return Mono.defer {
             writer.write(claimedBatch.map { it.value })
         }.switchIfEmpty(
@@ -133,10 +92,9 @@ internal class BatchLane<T : Any>(
         }.onErrorResume { error ->
             failBatch(claimedBatch, error, batchWrite)
         }.doOnCancel {
-            batchWrite.complete(
+            batchWrite?.complete(
                 outcome = BatchWriteOutcome.CANCELLED,
                 failedItems = claimedBatch.size,
-                failure = null,
             )
         }
     }
@@ -144,7 +102,7 @@ internal class BatchLane<T : Any>(
     private fun completeBatch(
         claimedBatch: List<BatchRequest<T>>,
         outcomes: List<BatchItemResult>,
-        batchWrite: BatchWriteObservation,
+        batchWrite: BatchWriteMetrics?,
     ): Mono<Void> {
         if (outcomes.size != claimedBatch.size) {
             return Mono.error(
@@ -155,14 +113,13 @@ internal class BatchLane<T : Any>(
             )
         }
         val failedItems = outcomes.count { it is BatchItemResult.Failure }
-        batchWrite.complete(
+        batchWrite?.complete(
             outcome = if (failedItems == 0) {
                 BatchWriteOutcome.SUCCESS
             } else {
                 BatchWriteOutcome.ITEM_FAILURE
             },
             failedItems = failedItems,
-            failure = null,
         )
         claimedBatch.zip(outcomes).forEach { (item, outcome) ->
             item.settle(outcome)
@@ -174,12 +131,11 @@ internal class BatchLane<T : Any>(
     private fun failBatch(
         claimedBatch: List<BatchRequest<T>>,
         error: Throwable,
-        batchWrite: BatchWriteObservation,
+        batchWrite: BatchWriteMetrics?,
     ): Mono<Void> {
-        batchWrite.complete(
+        batchWrite?.complete(
             outcome = BatchWriteOutcome.FAILED,
             failedItems = claimedBatch.size,
-            failure = error,
         )
         claimedBatch.forEach { it.settleFailure(error) }
         dispatchResults(claimedBatch)

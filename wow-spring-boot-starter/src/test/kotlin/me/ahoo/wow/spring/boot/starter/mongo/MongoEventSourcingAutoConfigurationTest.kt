@@ -35,8 +35,6 @@ import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
-import me.ahoo.wow.spring.boot.starter.eventsourcing.batch.RecordingBatchObservers
-import me.ahoo.wow.spring.boot.starter.eventsourcing.batch.withBatchObservers
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
@@ -77,7 +75,6 @@ class MongoEventSourcingAutoConfigurationTest {
 
     @Test
     fun `should load context with mongo event sourcing beans`() {
-        val batchObservers = RecordingBatchObservers()
         contextRunner
             .enableWow()
             .withPropertyValues(
@@ -101,7 +98,6 @@ class MongoEventSourcingAutoConfigurationTest {
             .withBean(MongoClient::class.java, {
                 mongoClient("order-service")
             })
-            .withBatchObservers(batchObservers)
             .withUserConfiguration(
                 MongoEventSourcingAutoConfiguration::class.java,
             )
@@ -133,8 +129,6 @@ class MongoEventSourcingAutoConfigurationTest {
                 val snapshotBinding = context.getBean(SnapshotStoreBinding::class.java)
                 snapshotBinding.storage.assert().isEqualTo(StorageType.MONGO)
                 snapshotBinding.snapshotStore.assert().isSameAs(snapshotStore)
-
-                batchObservers.verifyClose(MongoEventStore::class.simpleName!!, eventStore::close)
             }
     }
 

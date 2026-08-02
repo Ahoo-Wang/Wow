@@ -26,7 +26,6 @@ import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOptions
 import me.ahoo.wow.elasticsearch.query.event.EventStreamConditionConverter
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
-import me.ahoo.wow.infra.batch.BatchObserver
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.sort
@@ -64,20 +63,6 @@ class ElasticsearchEventStore private constructor(
         batchSize: Int = DEFAULT_BATCH_SIZE,
     ) : this(
         elasticsearchClient = elasticsearchClient,
-        batchOptions = batchOptions,
-        observer = BatchObserver.NOOP,
-        refreshPolicy = refreshPolicy,
-        batchSize = batchSize,
-    )
-
-    constructor(
-        elasticsearchClient: ReactiveElasticsearchClient,
-        batchOptions: ElasticsearchEventStoreBatchOptions,
-        observer: BatchObserver,
-        refreshPolicy: Refresh = Refresh.True,
-        batchSize: Int = DEFAULT_BATCH_SIZE,
-    ) : this(
-        elasticsearchClient = elasticsearchClient,
         refreshPolicy = refreshPolicy,
         batchSize = batchSize,
         batchOptions = batchOptions,
@@ -86,7 +71,6 @@ class ElasticsearchEventStore private constructor(
                 elasticsearchClient = elasticsearchClient,
                 refreshPolicy = refreshPolicy,
                 options = batchOptions,
-                observer = observer,
             )
         } else {
             DirectElasticsearchEventStreamAppender(

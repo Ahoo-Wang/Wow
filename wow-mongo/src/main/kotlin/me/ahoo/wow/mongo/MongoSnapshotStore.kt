@@ -22,7 +22,6 @@ import me.ahoo.wow.api.Version.Companion.UNINITIALIZED_VERSION
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
-import me.ahoo.wow.infra.batch.BatchObserver
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document
@@ -47,21 +46,10 @@ class MongoSnapshotStore private constructor(
     ) : this(
         database = database,
         batchOptions = batchOptions,
-        observer = BatchObserver.NOOP,
-    )
-
-    constructor(
-        database: MongoDatabase,
-        batchOptions: MongoSnapshotStoreBatchOptions,
-        observer: BatchObserver,
-    ) : this(
-        database = database,
-        batchOptions = batchOptions,
         saver = if (batchOptions.enabled) {
             BatchMongoSnapshotSaver(
                 database = database,
                 options = batchOptions,
-                observer = observer,
             )
         } else {
             DirectMongoSnapshotSaver(database)

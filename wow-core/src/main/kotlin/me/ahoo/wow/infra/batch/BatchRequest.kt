@@ -71,7 +71,6 @@ internal open class BatchRequest<T : Any>(
     fun cancel() {
         if (state.compareAndSet(State.Queued, State.Cancelled)) {
             releaseAdmission()
-            onCancelled()
         }
     }
 
@@ -171,22 +170,16 @@ internal open class BatchRequest<T : Any>(
     private fun releaseQueueSlot() = onReleaseQueueSlot()
 
     protected open fun onClaimed(lane: Int) = Unit
-
-    protected open fun onCancelled() = Unit
 }
 
-internal class ObservedBatchRequest<T : Any>(
+internal class MeasuredBatchRequest<T : Any>(
     value: T,
     onReleaseAdmission: (BatchRequest<T>) -> Unit,
     onReleaseQueueSlot: () -> Unit,
     private val enqueuedAtNanos: Long,
-    private val observations: BatchObservationEmitter,
+    private val metrics: BatchMetrics,
 ) : BatchRequest<T>(value, onReleaseAdmission, onReleaseQueueSlot) {
     override fun onClaimed(lane: Int) {
-        observations.requestDequeued(lane, enqueuedAtNanos)
-    }
-
-    override fun onCancelled() {
-        observations.requestCancelled()
+        metrics.requestDequeued(lane, enqueuedAtNanos)
     }
 }

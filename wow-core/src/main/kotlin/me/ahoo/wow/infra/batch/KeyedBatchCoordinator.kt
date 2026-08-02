@@ -34,45 +34,13 @@ import java.time.Duration
  * rejects only that submission. Ordering keys must obey the usual
  * equality/hash-code contract.
  */
-class KeyedBatchCoordinator<T : Any, K : Any> private constructor(
+class KeyedBatchCoordinator<T : Any, K : Any>(
     val name: String,
     val options: BatchOptions,
     val laneCount: Int,
     private val keySelector: (T) -> K,
     writer: BatchWriter<T>,
-    observer: BatchObserver,
 ) : GracefullyStoppable {
-    constructor(
-        name: String,
-        options: BatchOptions,
-        laneCount: Int,
-        keySelector: (T) -> K,
-        writer: BatchWriter<T>,
-    ) : this(
-        name,
-        options,
-        laneCount,
-        keySelector,
-        writer,
-        BatchObserver.NOOP,
-    )
-
-    constructor(
-        name: String,
-        options: BatchOptions,
-        laneCount: Int,
-        observer: BatchObserver,
-        keySelector: (T) -> K,
-        writer: BatchWriter<T>,
-    ) : this(
-        name,
-        options,
-        laneCount,
-        keySelector,
-        writer,
-        observer,
-    )
-
     init {
         require(laneCount > 0) {
             "laneCount must be greater than zero."
@@ -90,7 +58,6 @@ class KeyedBatchCoordinator<T : Any, K : Any> private constructor(
         laneSelector = { item ->
             Math.floorMod(keySelector(item).hashCode(), laneCount)
         },
-        observer = observer,
     )
 
     fun submit(item: T): Mono<Void> = delegate.submit(item)

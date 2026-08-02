@@ -28,8 +28,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
-import me.ahoo.wow.infra.batch.BatchObservation
-import me.ahoo.wow.infra.batch.BatchObserver
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.event.MockDomainEventStreams
@@ -41,7 +39,6 @@ import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.kotlin.test.test
 import java.time.Duration
-import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -132,37 +129,6 @@ class ElasticsearchEventStoreAppendTest {
         request.captured.operations().assert().hasSize(2)
         request.captured.operations().all { it.isCreate }.assert().isTrue()
         verify(exactly = 0) { client.index(any<IndexRequest<Map<String, Any?>>>()) }
-    }
-
-    @Test
-    fun `enabled batching should publish physical batch observations`() {
-        val first = eventStream("observed-order-1", aggregateVersion = 1)
-        val second = eventStream("observed-order-2", aggregateVersion = 1)
-        val observations = CopyOnWriteArrayList<BatchObservation>()
-        every { client.bulk(any<BulkRequest>()) } returns Mono.just(
-            bulkResponse(responseItem(first), responseItem(second))
-        )
-        val eventStore = ElasticsearchEventStore(
-            elasticsearchClient = client,
-            batchOptions = ElasticsearchEventStoreBatchOptions(
-                enabled = true,
-                maxSize = 2,
-                maxDelay = Duration.ofSeconds(1),
-                maxPendingAppends = 2,
-            ),
-            observer = BatchObserver(observations::add),
-        )
-
-        eventStore.use {
-            Flux.merge(it.append(first), it.append(second))
-                .then()
-                .test()
-                .verifyComplete()
-        }
-
-        observations.filterIsInstance<BatchObservation.BatchWriteCompleted>()
-            .single()
-            .writtenItems.assert().isEqualTo(2)
     }
 
     @Test

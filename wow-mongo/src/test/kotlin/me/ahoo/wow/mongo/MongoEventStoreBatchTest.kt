@@ -27,8 +27,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.exception.recoverable
-import me.ahoo.wow.infra.batch.BatchObservation
-import me.ahoo.wow.infra.batch.BatchObserver
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
@@ -44,7 +42,6 @@ import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
 import java.time.Duration
 import java.util.concurrent.CompletionException
-import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -77,35 +74,6 @@ class MongoEventStoreBatchTest {
         insertOptions.captured.isOrdered.assert().isFalse()
         verify(exactly = 1) { collection.insertMany(any<List<Document>>(), any()) }
         verify(exactly = 0) { collection.insertOne(any<Document>()) }
-    }
-
-    @Test
-    fun `enabled batching should publish physical batch observations`() {
-        val database = mockk<MongoDatabase>()
-        val collection = mockk<MongoCollection<Document>>()
-        val observations = CopyOnWriteArrayList<BatchObservation>()
-        every { database.getCollection(any<String>()) } returns collection
-        every {
-            collection.insertMany(any<List<Document>>(), any())
-        } returns Mono.just(InsertManyResult.acknowledged(emptyMap()))
-
-        MongoEventStore(
-            database = database,
-            batchOptions = batchOptions(maxSize = 2),
-            observer = BatchObserver(observations::add),
-        ).use { eventStore ->
-            StepVerifier.create(
-                Flux.merge(
-                    eventStore.append(eventStream("observed-order-1")),
-                    eventStore.append(eventStream("observed-order-2")),
-                ).then()
-            )
-                .verifyComplete()
-        }
-
-        observations.filterIsInstance<BatchObservation.BatchWriteCompleted>()
-            .single()
-            .writtenItems.assert().isEqualTo(2)
     }
 
     @Test

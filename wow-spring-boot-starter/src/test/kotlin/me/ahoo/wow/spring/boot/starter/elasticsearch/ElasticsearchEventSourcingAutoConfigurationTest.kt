@@ -29,8 +29,6 @@ import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryServic
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
-import me.ahoo.wow.spring.boot.starter.eventsourcing.batch.RecordingBatchObservers
-import me.ahoo.wow.spring.boot.starter.eventsourcing.batch.withBatchObservers
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.StorageRoutingProperties
@@ -142,7 +140,6 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
 
     @Test
     fun `should load context with elasticsearch event sourcing beans`() {
-        val batchObservers = RecordingBatchObservers()
         val elasticsearchTemplate = mockk<ReactiveElasticsearchOperations> {
             every { indexOps(any<IndexCoordinates>()) } returns mockk<ReactiveIndexOperations> {
                 every { putIndexTemplate(any()) } returns true.toMono()
@@ -170,7 +167,6 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
             .withBean(ReactiveElasticsearchOperations::class.java, {
                 elasticsearchTemplate
             })
-            .withBatchObservers(batchObservers)
             .withUserConfiguration(
                 ElasticsearchEventSourcingAutoConfiguration::class.java,
             )
@@ -197,8 +193,6 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
                 val snapshotBinding = context.getBean(SnapshotStoreBinding::class.java)
                 snapshotBinding.storage.assert().isEqualTo(StorageType.ELASTICSEARCH)
                 snapshotBinding.snapshotStore.assert().isSameAs(snapshotStore)
-
-                batchObservers.verifyClose(ElasticsearchEventStore::class.simpleName!!, eventStore::close)
             }
     }
 
