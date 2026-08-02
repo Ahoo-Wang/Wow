@@ -112,7 +112,7 @@ printf 'note: matches are review leads, not proof of incompatibility or complete
 
 match_section \
   'Declared platform and Wow versions' \
-  '^[[:space:]]*(wow|kotlin|ksp|spring-boot)[[:space:]]*=[[:space:]]*"?[0-9][[:alnum:].+_-]*"?|me\.ahoo\.wow:[[:alnum:]_.-]+:[0-9][[:alnum:].+_-]*|wow[._-]?[Vv]ersion[[:space:]]*[=:][[:space:]]*"?[0-9][[:alnum:].+_-]*"?|<(java|kotlin)\.version>[0-9][[:alnum:].+_-]*</(java|kotlin)\.version>|(?:org\.springframework\.boot|org\.jetbrains\.kotlin\.jvm)[" )]*version[[:space:]]*"?[0-9][[:alnum:].+_-]*"?|kotlin\("jvm"\)[[:space:]]*version[[:space:]]*"?[0-9][[:alnum:].+_-]*"?|me\.ahoo\.wow|wow-(bom|dependencies|spring-boot-starter)|wow[._-]?[Vv]ersion|org\.springframework\.boot|springBoot|spring-boot|kotlin\("jvm"\)|org\.jetbrains\.kotlin\.jvm|\bksp\b|<java\.version>|<kotlin\.version>|jvmToolchain|distributionUrl' \
+  '^[[:space:]]*(wow|kotlin|ksp|spring-boot)[[:space:]]*=[[:space:]]*"?[0-9][[:alnum:].+_-]*"?|me\.ahoo\.wow:[[:alnum:]_.-]+:[0-9][[:alnum:].+_-]*|wow[._-]?[Vv]ersion[[:space:]]*[=:][[:space:]]*"?[0-9][[:alnum:].+_-]*"?|<(java|kotlin)\.version>[0-9][[:alnum:].+_-]*</(java|kotlin)\.version>|(org\.springframework\.boot|org\.jetbrains\.kotlin\.jvm)[" )]*version[[:space:]]*"?[0-9][[:alnum:].+_-]*"?|kotlin\("jvm"\)[[:space:]]*version[[:space:]]*"?[0-9][[:alnum:].+_-]*"?|me\.ahoo\.wow|wow-(bom|dependencies|spring-boot-starter)|wow[._-]?[Vv]ersion|org\.springframework\.boot|springBoot|spring-boot|kotlin\("jvm"\)|org\.jetbrains\.kotlin\.jvm|\bksp\b|<java\.version>|<kotlin\.version>|jvmToolchain|distributionUrl' \
   --glob '*.gradle' --glob '*.gradle.kts' --glob '*.versions.toml' \
   --glob 'gradle.properties' --glob 'gradle-wrapper.properties' --glob 'pom.xml'
 
@@ -123,7 +123,7 @@ match_section \
 
 match_section \
   'Spring Boot configuration and auto-configuration exposure' \
-  '^[[:space:]]*(wow|spring|r2dbc):[[:space:]]*(#.*)?$|spring\.(jackson|data\.mongodb|mongodb|data\.elasticsearch|elasticsearch|autoconfigure\.exclude)|org\.springframework\.boot\.autoconfigure\.|JacksonAutoConfiguration|Mongo[A-Za-z]*AutoConfiguration|Elasticsearch[A-Za-z]*AutoConfiguration' \
+  '^[[:space:]]*(wow|spring|r2dbc):|spring\.(jackson|data\.mongodb|mongodb|data\.elasticsearch|elasticsearch|autoconfigure\.exclude)|org\.springframework\.boot\.autoconfigure\.|JacksonAutoConfiguration|Mongo[A-Za-z]*AutoConfiguration|Elasticsearch[A-Za-z]*AutoConfiguration' \
   --glob '*.kt' --glob '*.java' --glob '*.yml' --glob '*.yaml' --glob '*.properties'
 
 match_section \
@@ -141,7 +141,7 @@ match_section \
 
 match_section \
   'Custom messaging or lifecycle ownership' \
-  '\b([A-Za-z]*DispatcherLauncher|MainDispatcher|AggregateDispatcher|AggregateSchedulerSupplier|AUTO_REGISTRAR_PHASE)\b|MessageSubscription|MessageBus<|override\s+fun\s+receive\s*\([^)]*(Set<NamedAggregate>|namedAggregates)|\.receive\s*\(\s*(setOf(?:\s*<[^>]+>)?\s*\(|Set\.of\s*\(|namedAggregates\b)|getReceiverGroup|setReceiverGroup|writeReceiverGroup|\bLifecycle\b|SmartLifecycle|DisposableBean|GracefullyStoppable|WowRuntime|WowRuntimeLifecycle|RuntimeComponent|me\.ahoo\.wow\.infra\.lifecycle\.Lifecycle|@PostConstruct|@PreDestroy|destroyMethod' \
+  '\b([A-Za-z]*DispatcherLauncher|MainDispatcher|AggregateDispatcher|AggregateSchedulerSupplier|AUTO_REGISTRAR_PHASE)\b|MessageSubscription|MessageBus<|override\s+fun\s+receive\s*\([^)]*(Set<NamedAggregate>|namedAggregates)|\.receive\s*\(\s*(setOf(\s*<[^>]+>)?\s*\(|Set\.of\s*\(|namedAggregates\b)|getReceiverGroup|setReceiverGroup|writeReceiverGroup|\bLifecycle\b|SmartLifecycle|DisposableBean|GracefullyStoppable|WowRuntime|WowRuntimeLifecycle|RuntimeComponent|me\.ahoo\.wow\.infra\.lifecycle\.Lifecycle|@PostConstruct|@PreDestroy|destroyMethod' \
   --glob '*.kt' --glob '*.java'
 
 match_section \
@@ -168,7 +168,7 @@ match_section \
 
 match_section \
   'Redis and Mongo configuration' \
-  'wow\.[[:alnum:]_.-]*(?:event-store|snapshot-store|prepare|redis|mongo)[[:alnum:]_.-]*|spring\.(?:data\.)?(?:redis|mongodb)|WOW_[A-Z0-9_]*(?:STORAGE|REDIS|MONGO)[A-Z0-9_]*|SPRING_(?:DATA_)?(?:REDIS|MONGODB)(?:_[A-Z0-9_]+)?|[=:][[:space:]]*(?:REDIS|MONGO(?:DB)?)(?:[[:space:]#]|$)|^[[:space:]]*storage:[[:space:]]*(?:redis|mongo)\b|^[[:space:]]*(?:redis|mongodb):[[:space:]]*(?:#.*)?$|Redis(?:EventStore|SnapshotStore|PrepareKey)|Mongo(?:EventStore|SnapshotStore)|MongoDatabaseContext' \
+  'wow\.[[:alnum:]_.-]*(event-store|snapshot-store|prepare|redis|mongo)[[:alnum:]_.-]*|spring\.(data\.)?(redis|mongodb)|WOW_[A-Z0-9_]*(STORAGE|REDIS|MONGO)[A-Z0-9_]*|SPRING_(DATA_)?(REDIS|MONGODB)(_[A-Z0-9_]+)?|[=:][[:space:]]*(REDIS|MONGO(DB)?)([[:space:]#]|$)|^[[:space:]]*storage:[[:space:]]*(redis|mongo)\b|^[[:space:]]*(redis|mongodb):|Redis(EventStore|SnapshotStore|PrepareKey)|Mongo(EventStore|SnapshotStore)|MongoDatabaseContext' \
   --glob '*.yml' --glob '*.yaml' --glob '*.properties' --glob '.env*' --glob '*.env' \
   --glob '*.kt' --glob '*.java'
 
