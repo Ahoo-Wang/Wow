@@ -96,8 +96,7 @@
 - resolved context alias 与 aggregate name 构成持久化 scope；alias 或 aggregate rename 需要显式 Key 迁移。
 - canonical v2 request-ID SET 必须从已提交 event JSON 重建；禁止把 legacy shared SET 直接 fan-out 到所有 stream。
 - 128 bucket 公式使用 `aggregateId.id.hashCode().mod(128)` 与 Java/Kotlin UTF-16 `String.hashCode`；迁移器必须独立校验 codec。
-- 旧 snapshot 不会自动转成 v2 snapshot。迁移后显式执行 snapshot regeneration 并验证数量与版本。
-- snapshot regeneration 默认从完整 inventory 使用单 ID 路由。只有审计证明全部 ID 严格大于 `AggregateIdScanner.FIRST_ID`（`"(0)"`）时，batch 路由才可视为穷尽；否则它会漏掉小于或等于该 sentinel 的 ID。
+- 旧 snapshot 不会自动转成 v2 snapshot。迁移后显式执行 snapshot regeneration 并验证数量与版本，默认从完整 inventory 使用单 ID 路由。只有审计证明全部 ID 严格大于 `AggregateIdScanner.FIRST_ID`（`"(0)"`）时，batch 路由才可视为穷尽；否则它会漏掉小于或等于该 sentinel 的 ID。
 
 迁移 manifest 至少记录 source Key、type、cardinality、target Key、source/target checksum、批次、cursor、状态与处置策略。第一次写入前要求 target scope 为空；恢复执行时 checksum 不一致必须失败关闭。
 
