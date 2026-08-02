@@ -17,14 +17,23 @@ import io.micrometer.core.instrument.MeterRegistry
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean
+import org.springframework.core.Ordered
+import org.springframework.core.PriorityOrdered
 import org.springframework.core.env.Environment
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
 class MetricsAutoConfiguration {
+    @Bean
+    fun wowMetricsEnablementBeanPostProcessor(
+        environment: Environment,
+    ): WowMetricsEnablementBeanPostProcessor =
+        WowMetricsEnablementBeanPostProcessor(environment.isMetricsEnabled())
+
     @Bean
     @ConditionalOnMissingBean
     fun wowMetrics(
@@ -42,4 +51,17 @@ class MetricsAutoConfiguration {
     @ConditionalOnMissingBean
     fun metricsBeanPostProcessor(metrics: WowMetrics): MetricsBeanPostProcessor =
         MetricsBeanPostProcessor(metrics)
+}
+
+/** Enforces `wow.metrics.enabled` as a global kill switch for auto-configured and custom metrics. */
+class WowMetricsEnablementBeanPostProcessor(
+    private val enabled: Boolean,
+) : BeanPostProcessor,
+    PriorityOrdered {
+    override fun getOrder(): Int = Ordered.HIGHEST_PRECEDENCE
+
+    override fun postProcessAfterInitialization(
+        bean: Any,
+        beanName: String,
+    ): Any = if (!enabled && bean is WowMetrics) WowMetrics.NONE else bean
 }

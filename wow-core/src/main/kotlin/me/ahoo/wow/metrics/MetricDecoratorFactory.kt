@@ -30,6 +30,7 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotStrategy
 import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotHandler
 import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
 import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
+import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.infra.Decorator.Companion.getOriginalDelegate
 import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
@@ -58,10 +59,13 @@ class MetricDecoratorFactory(
             is CommandGateway -> component
             is LocalCommandBus -> MetricLocalCommandBus(component, metrics, source)
             is DistributedCommandBus -> MetricDistributedCommandBus(component, metrics, source)
+            is CommandBus -> MetricCommandBus(component, metrics, source)
             is LocalDomainEventBus -> MetricLocalDomainEventBus(component, metrics, source)
             is DistributedDomainEventBus -> MetricDistributedDomainEventBus(component, metrics, source)
+            is DomainEventBus -> MetricDomainEventBus(component, metrics, source)
             is LocalStateEventBus -> MetricLocalStateEventBus(component, metrics, source)
             is DistributedStateEventBus -> MetricDistributedStateEventBus(component, metrics, source)
+            is StateEventBus -> MetricStateEventBus(component, metrics, source)
             is EventStore -> MetricEventStore(component, metrics, source)
             is SnapshotStrategy -> MetricSnapshotStrategy(component, metrics, source)
             is SnapshotStore -> MetricSnapshotStore(component, metrics, source)

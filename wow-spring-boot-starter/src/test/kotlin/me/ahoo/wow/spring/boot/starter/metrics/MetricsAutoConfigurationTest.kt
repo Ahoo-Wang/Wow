@@ -122,6 +122,21 @@ class MetricsAutoConfigurationTest {
     }
 
     @Test
+    fun `disabled metrics should override a custom metrics bean`() {
+        val customMetrics = WowMetrics(SimpleMeterRegistry())
+
+        contextRunner
+            .enableWow()
+            .withBean(WowMetrics::class.java, { customMetrics })
+            .withPropertyValues("${ConditionalOnMetricsEnabled.ENABLED_KEY}=false")
+            .withUserConfiguration(MetricsAutoConfiguration::class.java)
+            .run { context ->
+                context.getBean(WowMetrics::class.java).assert().isSameAs(WowMetrics.NONE)
+                context.assert().doesNotHaveBean(MetricsBeanPostProcessor::class.java)
+            }
+    }
+
+    @Test
     fun `Spring Boolean aliases should enable metrics consistently`() {
         listOf("true", "on", "yes", "1").forEach { enabled ->
             contextRunner
