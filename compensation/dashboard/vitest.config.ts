@@ -18,6 +18,7 @@ export default mergeConfig(
   viteConfig,
   defineConfig({
     test: {
+      exclude: [...configDefaults.exclude, "e2e/**"],
       reporters: ["verbose"],
       environment: "jsdom",
       setupFiles: ["./src/setupTests.ts"],
@@ -29,6 +30,12 @@ export default mergeConfig(
           ...(configDefaults.coverage.exclude ?? []),
           "src/generated/**",
         ],
+        thresholds: {
+          branches: 60,
+          functions: 75,
+          lines: 80,
+          statements: 70,
+        },
       },
     },
   }),

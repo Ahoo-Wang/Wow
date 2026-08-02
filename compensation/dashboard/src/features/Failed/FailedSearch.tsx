@@ -23,6 +23,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { ExecutionFailedAggregatedFields } from "@/generated";
 
 interface FailedSearchProps {
   onSearch?: (condition: Condition, hasFilters: boolean) => void;
@@ -44,40 +45,55 @@ const searchFields: SearchField[] = [
     condition: id,
   },
   {
-    key: "state.eventId.id",
+    key: ExecutionFailedAggregatedFields.STATE_EVENT_ID_ID,
     label: "Event ID",
     placeholder: "Filter by event ID…",
-    condition: (value) => eq("state.eventId.id", value),
+    condition: (value) =>
+      eq(ExecutionFailedAggregatedFields.STATE_EVENT_ID_ID, value),
   },
   {
-    key: "state.eventId.aggregateId.aggregateId",
+    key: ExecutionFailedAggregatedFields.STATE_EVENT_ID_AGGREGATE_ID_AGGREGATE_ID,
     label: "Aggregate ID",
     placeholder: "Filter by aggregate ID…",
-    condition: (value) => eq("state.eventId.aggregateId.aggregateId", value),
+    condition: (value) =>
+      eq(
+        ExecutionFailedAggregatedFields.STATE_EVENT_ID_AGGREGATE_ID_AGGREGATE_ID,
+        value,
+      ),
   },
   {
-    key: "state.eventId.aggregateId.contextName",
+    key: ExecutionFailedAggregatedFields.STATE_EVENT_ID_AGGREGATE_ID_CONTEXT_NAME,
     label: "Aggregate context",
     placeholder: "Filter by aggregate context…",
-    condition: (value) => eq("state.eventId.aggregateId.contextName", value),
+    condition: (value) =>
+      eq(
+        ExecutionFailedAggregatedFields.STATE_EVENT_ID_AGGREGATE_ID_CONTEXT_NAME,
+        value,
+      ),
   },
   {
-    key: "state.eventId.aggregateId.aggregateName",
+    key: ExecutionFailedAggregatedFields.STATE_EVENT_ID_AGGREGATE_ID_AGGREGATE_NAME,
     label: "Aggregate name",
     placeholder: "Filter by aggregate name…",
-    condition: (value) => eq("state.eventId.aggregateId.aggregateName", value),
+    condition: (value) =>
+      eq(
+        ExecutionFailedAggregatedFields.STATE_EVENT_ID_AGGREGATE_ID_AGGREGATE_NAME,
+        value,
+      ),
   },
   {
-    key: "state.function.contextName",
+    key: ExecutionFailedAggregatedFields.STATE_FUNCTION_CONTEXT_NAME,
     label: "Processor context",
     placeholder: "Filter by processor context…",
-    condition: (value) => eq("state.function.contextName", value),
+    condition: (value) =>
+      eq(ExecutionFailedAggregatedFields.STATE_FUNCTION_CONTEXT_NAME, value),
   },
   {
-    key: "state.function.processorName",
+    key: ExecutionFailedAggregatedFields.STATE_FUNCTION_PROCESSOR_NAME,
     label: "Processor name",
     placeholder: "Filter by processor name…",
-    condition: (value) => eq("state.function.processorName", value),
+    condition: (value) =>
+      eq(ExecutionFailedAggregatedFields.STATE_FUNCTION_PROCESSOR_NAME, value),
   },
 ];
 

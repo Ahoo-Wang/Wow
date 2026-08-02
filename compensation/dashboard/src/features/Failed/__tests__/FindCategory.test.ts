@@ -7,7 +7,7 @@ import {
   or,
   RecoverableType,
 } from "@ahoo-wang/fetcher-wow";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   ExecutionFailedAggregatedFields,
   ExecutionFailedStatus,
@@ -38,17 +38,8 @@ describe("FindCategory", () => {
       ExecutionFailedStatus.PREPARED,
     ];
 
-    beforeEach(() => {
-      vi.useFakeTimers();
-      vi.setSystemTime(currentTime);
-    });
-
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
     it("uses index-friendly recoverability values for to-retry", () => {
-      expect(RetryConditions.toRetryCondition()).toEqual(
+      expect(RetryConditions.toRetryCondition(currentTime)).toEqual(
         and(
           isIn(
             ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
@@ -76,7 +67,7 @@ describe("FindCategory", () => {
     });
 
     it("keeps the executing range condition", () => {
-      expect(RetryConditions.executingCondition()).toEqual(
+      expect(RetryConditions.executingCondition(currentTime)).toEqual(
         and(
           eq(
             ExecutionFailedAggregatedFields.STATE_STATUS,
@@ -91,7 +82,7 @@ describe("FindCategory", () => {
     });
 
     it("uses index-friendly recoverability values for next-retry", () => {
-      expect(RetryConditions.nextRetryCondition()).toEqual(
+      expect(RetryConditions.nextRetryCondition(currentTime)).toEqual(
         and(
           isIn(
             ExecutionFailedAggregatedFields.STATE_RECOVERABLE,

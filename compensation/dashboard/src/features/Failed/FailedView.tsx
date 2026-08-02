@@ -16,13 +16,17 @@ import type { PagedList, PagedQuery } from "@ahoo-wang/fetcher-wow";
 import {
   all,
   and,
+  desc,
   pagedList,
   pagedQuery,
   type Condition,
 } from "@ahoo-wang/fetcher-wow";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
-import type { ExecutionFailedState } from "../../generated";
+import {
+  ExecutionFailedAggregatedFields,
+  type ExecutionFailedState,
+} from "../../generated";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import {
   ResizableHandle,
@@ -43,6 +47,8 @@ import { RetryConditions } from "./RetryConditions.ts";
 import { clearExecutionSelection, selectExecution } from "./selection.ts";
 import { FailedDetails } from "./details/FailedDetails.tsx";
 import { FetchingFailedDetails } from "./details/FetchingFailedDetails.tsx";
+import { useServerClock } from "@/components/ServerClockContext.ts";
+import { useGlobalDrawer } from "@/components/GlobalDrawer";
 
 interface FailedViewProps {
   category: FindCategory;
@@ -54,6 +60,10 @@ const DEFAULT_SPLIT_LAYOUT = {
   "execution-details": 60,
 };
 type QueryTransition = "replace" | "pagination" | "refresh";
+
+const executionFailedSort = () => [
+  desc(ExecutionFailedAggregatedFields.AGGREGATE_ID),
+];
 
 function loadSplitLayout(): Record<string, number> {
   try {
@@ -128,6 +138,8 @@ function LoadingPageDetails() {
 
 export default function FailedView({ category }: FailedViewProps) {
   const desktop = useMediaQuery("(min-width: 960px)");
+  const { now } = useServerClock();
+  const { isOpen: isDrawerOpen } = useGlobalDrawer();
   const mobileDetailsFocusRef = useRef<HTMLDivElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedId = searchParams.get("id");
@@ -143,10 +155,12 @@ export default function FailedView({ category }: FailedViewProps) {
     index: 1,
     size: 10,
   });
+  const [lastSuccessfulPage, setLastSuccessfulPage] =
+    useState<PagedList<ExecutionFailedState>>();
   const [query, setCurrentQuery] = useState(() =>
     pagedQuery({
-      condition: RetryConditions.categoryToCondition(category),
-      sort: [],
+      condition: RetryConditions.categoryToCondition(category, now()),
+      sort: executionFailedSort(),
     }),
   );
 
@@ -166,6 +180,7 @@ export default function FailedView({ category }: FailedViewProps) {
     autoExecute: true,
     onSuccess: (nextResult) => {
       const pagination = query.pagination ?? { index: 1, size: 10 };
+      setLastSuccessfulPage(nextResult);
       setSettledPagination(pagination);
       setQueryTransition("replace");
       const lastPage = Math.max(
@@ -175,7 +190,7 @@ export default function FailedView({ category }: FailedViewProps) {
       if (pagination.index > lastPage) {
         updateQuery({
           ...query,
-          sort: [],
+          sort: executionFailedSort(),
           pagination: { ...pagination, index: lastPage },
         });
       }
@@ -192,13 +207,24 @@ export default function FailedView({ category }: FailedViewProps) {
   );
 
   const preservingSettledPage =
-    transitioning && queryTransition !== "replace" && result !== undefined;
+    queryTransition !== "replace" &&
+    lastSuccessfulPage !== undefined &&
+    (transitioning || error !== undefined || result === undefined);
   const suspendingSelection =
-    transitioning && queryTransition === "pagination" && result !== undefined;
+    transitioning &&
+    queryTransition === "pagination" &&
+    lastSuccessfulPage !== undefined;
   const page =
-    transitioning && !preservingSettledPage
-      ? pagedList<ExecutionFailedState>()
-      : (result ?? pagedList<ExecutionFailedState>());
+    preservingSettledPage && lastSuccessfulPage
+      ? lastSuccessfulPage
+      : transitioning
+        ? pagedList<ExecutionFailedState>()
+        : (result ?? pagedList<ExecutionFailedState>());
+  const staleError = preservingSettledPage ? visibleError : undefined;
+  const blockingError = staleError ? undefined : visibleError;
+  const mutationsDisabled =
+    queryTransition !== "replace" &&
+    (transitioning || visibleError !== undefined);
   const selectedState = useMemo(() => {
     if (suspendingSelection) {
       return undefined;
@@ -245,20 +271,21 @@ export default function FailedView({ category }: FailedViewProps) {
   const onSearch = useCallback(
     (searchCondition: Condition, hasFilters: boolean) => {
       setQueryTransition("replace");
+      setLastSuccessfulPage(undefined);
       setSearchCondition(searchCondition);
       setHasSearchFilters(hasFilters);
       clearSelection();
       updateQuery(
         pagedQuery({
           condition: and(
-            RetryConditions.categoryToCondition(category),
+            RetryConditions.categoryToCondition(category, now()),
             searchCondition,
           ),
-          sort: [],
+          sort: executionFailedSort(),
         }),
       );
     },
-    [category, clearSelection, updateQuery],
+    [category, clearSelection, now, updateQuery],
   );
 
   const clearFilters = useCallback(() => {
@@ -273,14 +300,14 @@ export default function FailedView({ category }: FailedViewProps) {
       updateQuery({
         ...query,
         condition: and(
-          RetryConditions.categoryToCondition(category),
+          RetryConditions.categoryToCondition(category, now()),
           searchCondition,
         ),
-        sort: [],
+        sort: executionFailedSort(),
         pagination: { index: nextPage, size: nextPageSize },
       });
     },
-    [category, clearSelection, query, searchCondition, updateQuery],
+    [category, clearSelection, now, query, searchCondition, updateQuery],
   );
 
   const select = useCallback(
@@ -295,12 +322,12 @@ export default function FailedView({ category }: FailedViewProps) {
     updateQuery({
       ...query,
       condition: and(
-        RetryConditions.categoryToCondition(category),
+        RetryConditions.categoryToCondition(category, now()),
         searchCondition,
       ),
-      sort: [],
+      sort: executionFailedSort(),
     });
-  }, [category, query, searchCondition, updateQuery]);
+  }, [category, now, query, searchCondition, updateQuery]);
 
   useEffect(() => {
     const timeSensitive = [
@@ -313,19 +340,21 @@ export default function FailedView({ category }: FailedViewProps) {
     }
 
     const refreshVisibleQueue = () => {
-      if (document.visibilityState === "visible") {
+      if (
+        document.visibilityState === "visible" &&
+        !isDrawerOpen &&
+        !transitioning
+      ) {
         refresh();
       }
     };
     const timer = window.setInterval(refreshVisibleQueue, 30_000);
-    window.addEventListener("focus", refreshVisibleQueue);
     document.addEventListener("visibilitychange", refreshVisibleQueue);
     return () => {
       window.clearInterval(timer);
-      window.removeEventListener("focus", refreshVisibleQueue);
       document.removeEventListener("visibilitychange", refreshVisibleQueue);
     };
-  }, [category, refresh]);
+  }, [category, isDrawerOpen, refresh, transitioning]);
 
   const master = (
     <section
@@ -338,13 +367,14 @@ export default function FailedView({ category }: FailedViewProps) {
         loading={transitioning}
       />
       <FailedTable
-        error={visibleError}
+        error={blockingError}
         hasActiveFilters={hasSearchFilters}
         loading={transitioning}
         pagedList={page}
         pageIndex={displayedPageIndex}
         pageSize={displayedPageSize}
         selectedId={activeId}
+        staleError={staleError}
         onPaginationChange={onPaginationChange}
         onClearFilters={clearFilters}
         onRetry={refresh}
@@ -356,11 +386,16 @@ export default function FailedView({ category }: FailedViewProps) {
   const details = suspendingSelection ? (
     <LoadingPageDetails />
   ) : selectedState ? (
-    <FailedDetails state={selectedState} onChanged={refresh} />
+    <FailedDetails
+      state={selectedState}
+      mutationsDisabled={mutationsDisabled}
+      onChanged={refresh}
+    />
   ) : selectedId ? (
     <FetchingFailedDetails
       key={selectedId}
       id={selectedId}
+      mutationsDisabled={mutationsDisabled}
       onChanged={refresh}
     />
   ) : (

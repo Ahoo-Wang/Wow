@@ -24,7 +24,7 @@ export interface CompensationCapabilities {
 
 export function getCompensationCapabilities(
   state: ExecutionFailedState,
-  now = Date.now(),
+  now?: number,
 ): CompensationCapabilities {
   if (state.status === ExecutionFailedStatus.SUCCEEDED) {
     return {
@@ -36,12 +36,15 @@ export function getCompensationCapabilities(
 
   if (
     state.status === ExecutionFailedStatus.PREPARED &&
-    now <= state.retryState.timeoutAt
+    (now === undefined || now <= state.retryState.timeoutAt)
   ) {
     return {
       canForcePrepare: false,
       canPrepare: false,
-      unavailableReason: "Compensation is currently executing.",
+      unavailableReason:
+        now === undefined
+          ? "Waiting for server time synchronization."
+          : "Compensation is currently executing.",
     };
   }
 

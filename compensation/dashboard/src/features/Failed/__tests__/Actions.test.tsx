@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FunctionKind, RecoverableType } from "@ahoo-wang/fetcher-wow";
 import {
@@ -8,12 +14,8 @@ import {
 import { Actions } from "../Actions.tsx";
 
 const mocks = vi.hoisted(() => ({
-  abortController: new AbortController(),
   forcePrepareCompensation: vi.fn().mockResolvedValue({}),
-  forceLoading: false,
-  hookCall: 0,
   prepareCompensation: vi.fn().mockResolvedValue({}),
-  prepareLoading: false,
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
   writeText: vi.fn(),
@@ -23,17 +25,6 @@ vi.mock("../../../services", () => ({
   executionFailedCommandClient: {
     forcePrepareCompensation: mocks.forcePrepareCompensation,
     prepareCompensation: mocks.prepareCompensation,
-  },
-}));
-
-vi.mock("@ahoo-wang/fetcher-react", () => ({
-  useExecutePromise: () => {
-    const prepareState = mocks.hookCall++ % 2 === 0;
-    return {
-      execute: (factory: (controller: AbortController) => Promise<unknown>) =>
-        factory(mocks.abortController),
-      loading: prepareState ? mocks.prepareLoading : mocks.forceLoading,
-    };
   },
 }));
 
@@ -69,7 +60,7 @@ const state: ExecutionFailedState = {
     name: "onPaymentAuthorized",
     functionKind: FunctionKind.EVENT,
   },
-  retrySpec: { maxRetries: 10, minBackoff: 1000, executionTimeout: 120000 },
+  retrySpec: { maxRetries: 10, minBackoff: 180, executionTimeout: 120 },
   retryState: {
     nextRetryAt: Date.now() + 60_000,
     retries: 3,
@@ -83,9 +74,8 @@ const state: ExecutionFailedState = {
 describe("Actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.forceLoading = false;
-    mocks.hookCall = 0;
-    mocks.prepareLoading = false;
+    mocks.forcePrepareCompensation.mockResolvedValue({});
+    mocks.prepareCompensation.mockResolvedValue({});
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
       value: { writeText: mocks.writeText },
@@ -93,7 +83,8 @@ describe("Actions", () => {
   });
 
   it("requires confirmation before force prepare", async () => {
-    render(<Actions state={state} />);
+    const onChanged = vi.fn();
+    render(<Actions state={state} onChanged={onChanged} />);
 
     fireEvent.pointerDown(
       screen.getByRole("button", { name: "More actions" }),
@@ -117,9 +108,13 @@ describe("Actions", () => {
 
     await waitFor(() => {
       expect(mocks.forcePrepareCompensation).toHaveBeenCalledWith("failed-1", {
-        abortController: mocks.abortController,
+        abortController: expect.any(AbortController),
       });
     });
+    expect(mocks.toastSuccess).toHaveBeenCalledWith(
+      "Compensation force prepared",
+    );
+    expect(onChanged).toHaveBeenCalledOnce();
   });
 
   it("does not force prepare when confirmation is cancelled", async () => {
@@ -140,14 +135,28 @@ describe("Actions", () => {
     expect(mocks.forcePrepareCompensation).not.toHaveBeenCalled();
   });
 
-  it("prevents concurrent prepare and force-prepare commands", () => {
-    mocks.prepareLoading = true;
+  it("prevents concurrent prepare and force-prepare commands", async () => {
+    let resolvePrepare: ((value: unknown) => void) | undefined;
+    mocks.prepareCompensation.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePrepare = resolve;
+      }),
+    );
     render(<Actions state={state} />);
 
-    expect(
+    fireEvent.click(
       screen.getByRole("button", { name: "Prepare compensation" }),
-    ).toBeDisabled();
-    expect(screen.getByRole("button", { name: "More actions" })).toBeDisabled();
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Prepare compensation" }),
+      ).toBeDisabled();
+      expect(
+        screen.getByRole("button", { name: "More actions" }),
+      ).toBeDisabled();
+    });
+    await act(async () => resolvePrepare?.({}));
   });
 
   it("explains and disables compensation actions after success", async () => {
@@ -217,5 +226,66 @@ describe("Actions", () => {
       );
     });
     expect(mocks.toastSuccess).not.toHaveBeenCalledWith("Execution ID copied");
+  });
+
+  it("refreshes the execution after prepare succeeds", async () => {
+    const onChanged = vi.fn();
+    render(<Actions state={state} onChanged={onChanged} />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Prepare compensation" }),
+    );
+
+    await waitFor(() => {
+      expect(mocks.prepareCompensation).toHaveBeenCalledWith("failed-1", {
+        abortController: expect.any(AbortController),
+      });
+      expect(mocks.toastSuccess).toHaveBeenCalledWith("Compensation prepared");
+      expect(onChanged).toHaveBeenCalledOnce();
+    });
+  });
+
+  it("reports prepare command failures without refreshing stale state", async () => {
+    mocks.prepareCompensation.mockRejectedValueOnce({
+      message: "transport failed",
+      exchange: {
+        extractResult: vi
+          .fn()
+          .mockResolvedValue({ errorMsg: "prepare rejected" }),
+      },
+    });
+    const onChanged = vi.fn();
+    render(<Actions state={state} onChanged={onChanged} />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Prepare compensation" }),
+    );
+
+    await waitFor(() => {
+      expect(mocks.toastError).toHaveBeenCalledWith("Prepare failed", {
+        description: "prepare rejected",
+      });
+    });
+    expect(onChanged).not.toHaveBeenCalled();
+  });
+
+  it("keeps mutations disabled while a stale execution is displayed", async () => {
+    render(<Actions state={state} disabled />);
+
+    expect(
+      screen.getByRole("button", { name: "Refreshing state" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByText("Refreshing current execution state."),
+    ).toBeInTheDocument();
+    fireEvent.pointerDown(
+      screen.getByRole("button", { name: "More actions" }),
+      {
+        button: 0,
+        ctrlKey: false,
+      },
+    );
+    expect(
+      await screen.findByRole("menuitem", { name: "Force prepare" }),
+    ).toHaveAttribute("data-disabled");
   });
 });

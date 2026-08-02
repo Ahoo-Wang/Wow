@@ -28,9 +28,18 @@ const mocks = vi.hoisted(() => ({
   error: undefined as Error | undefined,
   hookOptions: undefined as unknown,
   desktop: true,
+  drawerOpen: false,
   loading: false,
   pending: false,
   result: { list: [], total: 0 } as PagedList<ExecutionFailedState>,
+}));
+
+vi.mock("@/components/ServerClockContext.ts", () => ({
+  useServerClock: () => ({ now: () => 1_785_501_209_222 }),
+}));
+
+vi.mock("@/components/GlobalDrawer", () => ({
+  useGlobalDrawer: () => ({ isOpen: mocks.drawerOpen }),
 }));
 
 vi.mock("react-router", () => ({
@@ -108,6 +117,7 @@ vi.mock("../FailedTable.tsx", () => ({
     selectedId,
     loading,
     error,
+    staleError,
     onSelect,
     onPaginationChange,
   }: {
@@ -116,6 +126,7 @@ vi.mock("../FailedTable.tsx", () => ({
     selectedId?: string | null;
     loading?: boolean;
     error?: Error;
+    staleError?: Error;
     onSelect: (state: ExecutionFailedState) => void;
     onPaginationChange: (page: number, size: number) => void;
   }) => (
@@ -125,6 +136,7 @@ vi.mock("../FailedTable.tsx", () => ({
       <span>Active selection: {selectedId ?? "none"}</span>
       <span>Transitioning: {loading ? "yes" : "no"}</span>
       <span>List error: {error?.message ?? "none"}</span>
+      <span>Stale error: {staleError?.message ?? "none"}</span>
       <button onClick={() => onSelect(secondState)}>Select failed-2</button>
       <button onClick={() => onPaginationChange(pageIndex + 1, 10)}>
         Next page
@@ -137,12 +149,15 @@ vi.mock("../details/FailedDetails.tsx", () => ({
   FailedDetails: ({
     state,
     onChanged,
+    mutationsDisabled,
   }: {
     state: ExecutionFailedState;
     onChanged: () => void;
+    mutationsDisabled?: boolean;
   }) => (
     <div>
       Selected: {state.id}
+      <span>Mutations: {mutationsDisabled ? "disabled" : "enabled"}</span>
       <button onClick={onChanged}>Refresh</button>
     </div>
   ),
@@ -194,6 +209,7 @@ describe("FailedView", () => {
     vi.clearAllMocks();
     mocks.search = "";
     mocks.desktop = true;
+    mocks.drawerOpen = false;
     mocks.loading = false;
     mocks.pending = false;
     mocks.error = undefined;
@@ -284,18 +300,20 @@ describe("FailedView", () => {
     );
   });
 
-  it("keeps all paged queries explicitly unsorted", () => {
+  it("keeps all paged queries deterministically sorted by execution id", () => {
     render(<FailedView category={FindCategory.ToRetry} />);
 
     const initialQuery = (mocks.hookOptions as { query: { sort?: unknown[] } })
       .query;
-    expect(initialQuery.sort).toEqual([]);
+    expect(initialQuery.sort).toEqual([
+      { field: "aggregateId", direction: "DESC" },
+    ]);
 
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
     fireEvent.click(screen.getByRole("button", { name: "Next page" }));
 
     for (const [query] of mocks.setQuery.mock.calls) {
-      expect(query.sort).toEqual([]);
+      expect(query.sort).toEqual([{ field: "aggregateId", direction: "DESC" }]);
     }
   });
 
@@ -312,6 +330,14 @@ describe("FailedView", () => {
     mocks.result = { list: [firstState, secondState], total: 15 };
     const view = render(<FailedView category={FindCategory.ToRetry} />);
 
+    act(() => {
+      (
+        mocks.hookOptions as {
+          onSuccess: (result: PagedList<ExecutionFailedState>) => void;
+        }
+      ).onSuccess(mocks.result);
+    });
+
     fireEvent.click(screen.getByRole("button", { name: "Next page" }));
     mocks.loading = true;
     view.rerender(<FailedView category={FindCategory.ToRetry} />);
@@ -323,6 +349,14 @@ describe("FailedView", () => {
   it("locks the settled page while a debounced page request is pending", () => {
     mocks.result = { list: [firstState, secondState], total: 15 };
     const view = render(<FailedView category={FindCategory.ToRetry} />);
+
+    act(() => {
+      (
+        mocks.hookOptions as {
+          onSuccess: (result: PagedList<ExecutionFailedState>) => void;
+        }
+      ).onSuccess(mocks.result);
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "Next page" }));
     mocks.pending = true;
@@ -343,12 +377,20 @@ describe("FailedView", () => {
       condition: expect.anything(),
       pagination: expect.anything(),
       projection: undefined,
-      sort: [],
+      sort: [{ field: "aggregateId", direction: "DESC" }],
     });
   });
 
   it("preserves the selected detail while a background refresh is pending", () => {
     const view = render(<FailedView category={FindCategory.ToRetry} />);
+
+    act(() => {
+      (
+        mocks.hookOptions as {
+          onSuccess: (result: PagedList<ExecutionFailedState>) => void;
+        }
+      ).onSuccess(mocks.result);
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
     mocks.pending = true;
@@ -356,6 +398,31 @@ describe("FailedView", () => {
 
     expect(screen.getByText("Selected: failed-1")).toBeInTheDocument();
     expect(screen.getByText("Transitioning: yes")).toBeInTheDocument();
+    expect(screen.getByText("Mutations: disabled")).toBeInTheDocument();
+  });
+
+  it("keeps last-known-good data read-only after a background refresh fails", () => {
+    const view = render(<FailedView category={FindCategory.ToRetry} />);
+    act(() => {
+      (
+        mocks.hookOptions as {
+          onSuccess: (result: PagedList<ExecutionFailedState>) => void;
+        }
+      ).onSuccess(mocks.result);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    mocks.result = undefined as unknown as PagedList<ExecutionFailedState>;
+    mocks.error = new Error("network unavailable");
+    view.rerender(<FailedView category={FindCategory.ToRetry} />);
+
+    expect(screen.getByText("Rows: 2")).toBeInTheDocument();
+    expect(
+      screen.getByText("Stale error: network unavailable"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("List error: none")).toBeInTheDocument();
+    expect(screen.getByText("Selected: failed-1")).toBeInTheDocument();
+    expect(screen.getByText("Mutations: disabled")).toBeInTheDocument();
   });
 
   it("refreshes time-sensitive queues as their time window advances", () => {
@@ -385,6 +452,31 @@ describe("FailedView", () => {
     ).toBeInTheDocument();
   });
 
+  it("keeps last-known-good data usable when a background refresh is aborted", () => {
+    const view = render(<FailedView category={FindCategory.ToRetry} />);
+    act(() => {
+      (
+        mocks.hookOptions as {
+          onSuccess: (result: PagedList<ExecutionFailedState>) => void;
+        }
+      ).onSuccess(mocks.result);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    mocks.result = undefined as unknown as PagedList<ExecutionFailedState>;
+    mocks.error = new DOMException(
+      "signal is aborted without reason",
+      "AbortError",
+    );
+    view.rerender(<FailedView category={FindCategory.ToRetry} />);
+
+    expect(screen.getByText("Rows: 2")).toBeInTheDocument();
+    expect(screen.getByText("List error: none")).toBeInTheDocument();
+    expect(screen.getByText("Stale error: none")).toBeInTheDocument();
+    expect(screen.getByText("Selected: failed-1")).toBeInTheDocument();
+    expect(screen.getByText("Mutations: enabled")).toBeInTheDocument();
+  });
+
   it("clamps an empty trailing page after the result total shrinks", () => {
     mocks.result = { list: [], total: 15 };
 
@@ -405,7 +497,7 @@ describe("FailedView", () => {
       condition: expect.anything(),
       pagination: { index: 2, size: 10 },
       projection: undefined,
-      sort: [],
+      sort: [{ field: "aggregateId", direction: "DESC" }],
     });
   });
 });

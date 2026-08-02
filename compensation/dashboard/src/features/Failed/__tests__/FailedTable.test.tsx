@@ -36,7 +36,7 @@ function failedState(id: string): ExecutionFailedState {
       name: "onPaymentAuthorized",
       functionKind: FunctionKind.EVENT,
     },
-    retrySpec: { maxRetries: 10, minBackoff: 1000, executionTimeout: 120000 },
+    retrySpec: { maxRetries: 10, minBackoff: 180, executionTimeout: 120 },
     retryState: {
       nextRetryAt: Date.now() + 60_000,
       retries: 3,
@@ -211,6 +211,26 @@ describe("FailedTable", () => {
       screen.queryByText("No failed executions found"),
     ).not.toBeInTheDocument();
 
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(onRetry).toHaveBeenCalledOnce();
+  });
+
+  it("keeps last-known-good rows visible for a stale refresh error", () => {
+    const onRetry = vi.fn();
+    render(
+      <FailedTable
+        staleError={new Error("network unavailable")}
+        pagedList={{ total: 1, list: [failedState("failed-1")] }}
+        pageIndex={1}
+        pageSize={10}
+        onRetry={onRetry}
+      />,
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Showing the last loaded page",
+    );
+    expect(screen.getByRole("row", { name: /failed-1/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(onRetry).toHaveBeenCalledOnce();
   });

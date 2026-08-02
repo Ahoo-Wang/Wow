@@ -20,6 +20,7 @@ import { useGlobalDrawer } from "@/components/GlobalDrawer";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/utils/dates";
+import { formatSeconds } from "@/utils/durations.ts";
 import { Actions } from "../Actions.tsx";
 import { ApplyRetrySpec } from "../ApplyRetrySpec.tsx";
 import { ChangeFunction } from "../ChangeFunction.tsx";
@@ -30,6 +31,7 @@ import type { OnChangedCapable } from "../types.ts";
 
 export interface FailedDetailsProps extends OnChangedCapable {
   state: ExecutionFailedState;
+  mutationsDisabled?: boolean;
 }
 
 interface DetailRowProps {
@@ -54,7 +56,11 @@ function DetailRow({ label, children, action, className }: DetailRowProps) {
   );
 }
 
-export function FailedDetails({ state, onChanged }: FailedDetailsProps) {
+export function FailedDetails({
+  state,
+  onChanged,
+  mutationsDisabled,
+}: FailedDetailsProps) {
   const { openDrawer } = useGlobalDrawer();
   const aggregate = state.eventId.aggregateId;
 
@@ -107,7 +113,11 @@ export function FailedDetails({ state, onChanged }: FailedDetailsProps) {
             </div>
           </div>
         </div>
-        <Actions state={state} onChanged={onChanged} />
+        <Actions
+          state={state}
+          disabled={mutationsDisabled}
+          onChanged={onChanged}
+        />
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
@@ -128,6 +138,7 @@ export function FailedDetails({ state, onChanged }: FailedDetailsProps) {
                     variant="ghost"
                     size="icon-xs"
                     aria-label="Edit function"
+                    disabled={mutationsDisabled}
                     onClick={editFunction}
                   >
                     <Pencil />
@@ -187,6 +198,7 @@ export function FailedDetails({ state, onChanged }: FailedDetailsProps) {
                     variant="ghost"
                     size="icon-xs"
                     aria-label="Edit retry specification"
+                    disabled={mutationsDisabled}
                     onClick={editRetry}
                   >
                     <Pencil />
@@ -209,6 +221,7 @@ export function FailedDetails({ state, onChanged }: FailedDetailsProps) {
                 <MarkRecoverable
                   id={state.id}
                   recoverable={state.recoverable}
+                  disabled={mutationsDisabled}
                   onChanged={onChanged}
                 />
               </DetailRow>
@@ -217,12 +230,14 @@ export function FailedDetails({ state, onChanged }: FailedDetailsProps) {
               </DetailRow>
               <DetailRow label="Min backoff">
                 <span className="tabular-nums">
-                  {state.retrySpec.minBackoff.toLocaleString()} ms
+                  {formatSeconds(state.retrySpec.minBackoff)} (
+                  {state.retrySpec.minBackoff.toLocaleString()} s)
                 </span>
               </DetailRow>
               <DetailRow label="Timeout">
                 <span className="tabular-nums">
-                  {state.retrySpec.executionTimeout.toLocaleString()} ms
+                  {formatSeconds(state.retrySpec.executionTimeout)} (
+                  {state.retrySpec.executionTimeout.toLocaleString()} s)
                 </span>
               </DetailRow>
             </div>

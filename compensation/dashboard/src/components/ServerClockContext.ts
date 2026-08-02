@@ -11,30 +11,20 @@
  * limitations under the License.
  */
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext } from "react";
 
-export interface GlobalDrawerOptions {
-  title: ReactNode;
-  description?: ReactNode;
-  children: ReactNode;
-  width?: string | number;
+export interface ServerClockContextValue {
+  now: () => number;
 }
 
-interface GlobalDrawerContextProps {
-  openDrawer: (config: GlobalDrawerOptions) => void;
-  closeDrawer: () => void;
-  isOpen: boolean;
-}
+export const ServerClockContext = createContext<ServerClockContextValue | null>(
+  null,
+);
 
-export const GlobalDrawerContext =
-  createContext<GlobalDrawerContextProps | null>(null);
-
-export function useGlobalDrawer() {
-  const context = useContext(GlobalDrawerContext);
+export function useServerClock(): ServerClockContextValue {
+  const context = useContext(ServerClockContext);
   if (!context) {
-    throw new Error(
-      "useGlobalDrawer must be used within a GlobalDrawerProvider",
-    );
+    throw new Error("useServerClock must be used within a ServerClockProvider");
   }
   return context;
 }

@@ -15,17 +15,30 @@ package me.ahoo.wow.compensation.domain
 
 import me.ahoo.wow.compensation.api.IRetrySpec
 import me.ahoo.wow.compensation.api.RetryState
-import kotlin.math.pow
 
 interface NextRetryAtCalculator {
+    fun validate(retrySpec: IRetrySpec) {
+        require(retrySpec.maxRetries >= 0) { "maxRetries must be greater than or equal to 0." }
+        nextRetryState(retrySpec, retrySpec.maxRetries, retryAt = 0)
+    }
+
     fun nextRetryAt(
         minBackoff: Int,
         retries: Int,
         currentRetryAt: Long = System.currentTimeMillis()
     ): Long {
-        val multiple = 2.0.pow(retries.toDouble()).toLong()
-        val nextRetryDuration = minBackoff * multiple * 1000
-        return currentRetryAt + nextRetryDuration
+        require(minBackoff >= 0) { "minBackoff must be greater than or equal to 0." }
+        require(retries >= 0) { "retries must be greater than or equal to 0." }
+        if (minBackoff == 0) {
+            return currentRetryAt
+        }
+        if (retries >= Long.SIZE_BITS - 1) {
+            throw ArithmeticException("Retry backoff exceeds the supported millisecond range.")
+        }
+        val multiplier = 1L shl retries
+        val backoffSeconds = Math.multiplyExact(minBackoff.toLong(), multiplier)
+        val backoffMillis = Math.multiplyExact(backoffSeconds, 1000L)
+        return Math.addExact(currentRetryAt, backoffMillis)
     }
 
     fun nextRetryState(
@@ -33,8 +46,12 @@ interface NextRetryAtCalculator {
         retries: Int,
         retryAt: Long = System.currentTimeMillis()
     ): RetryState {
+        require(retrySpec.executionTimeout >= 0) {
+            "executionTimeout must be greater than or equal to 0."
+        }
         val nextRetryAt = nextRetryAt(retrySpec.minBackoff, retries, retryAt)
-        val timeoutAt = retryAt + retrySpec.executionTimeout * 1000
+        val timeoutDuration = Math.multiplyExact(retrySpec.executionTimeout.toLong(), 1000L)
+        val timeoutAt = Math.addExact(retryAt, timeoutDuration)
         return RetryState(
             retries = retries,
             retryAt = retryAt,

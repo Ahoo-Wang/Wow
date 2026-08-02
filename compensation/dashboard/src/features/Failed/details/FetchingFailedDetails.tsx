@@ -26,11 +26,13 @@ import type { OnChangedCapable } from "../types.ts";
 
 export interface FetchingFailedDetailsProps extends OnChangedCapable {
   id: string;
+  mutationsDisabled?: boolean;
 }
 
 export function FetchingFailedDetails({
   id,
   onChanged,
+  mutationsDisabled,
 }: FetchingFailedDetailsProps) {
   const query = useMemo(
     () =>
@@ -127,5 +129,11 @@ export function FetchingFailedDetails({
     );
   }
 
-  return <FailedDetails state={result} onChanged={refreshDetailsAndList} />;
+  return (
+    <FailedDetails
+      state={result}
+      mutationsDisabled={mutationsDisabled}
+      onChanged={refreshDetailsAndList}
+    />
+  );
 }

@@ -51,14 +51,24 @@ import { copyTextToClipboard } from "@/utils/clipboard.ts";
 import type { OnChangedCapable } from "./types.ts";
 import { commandErrorMessage } from "./commandErrors.ts";
 import { getCompensationCapabilities } from "./compensationCapabilities.ts";
+import { serverNow } from "@/services/serverClock.ts";
 
 export interface ActionsProps
-  extends StateCapable<ExecutionFailedState>, OnChangedCapable {}
+  extends StateCapable<ExecutionFailedState>, OnChangedCapable {
+  disabled?: boolean;
+}
 
-export function Actions({ state, onChanged }: ActionsProps) {
+export function Actions({ state, onChanged, disabled }: ActionsProps) {
   const [forceDialogOpen, setForceDialogOpen] = useState(false);
   const unavailableReasonId = useId();
-  const capabilities = getCompensationCapabilities(state);
+  const stateCapabilities = getCompensationCapabilities(state, serverNow());
+  const capabilities = disabled
+    ? {
+        canForcePrepare: false,
+        canPrepare: false,
+        unavailableReason: "Refreshing current execution state.",
+      }
+    : stateCapabilities;
 
   const prepareState = useExecutePromise<CommandResult, ExchangeError>({
     onSuccess: () => {
@@ -108,8 +118,9 @@ export function Actions({ state, onChanged }: ActionsProps) {
     toast.success("Execution ID copied");
   };
   const busy = prepareState.loading || forcePrepareState.loading;
-  const unavailableAction =
-    state.status === ExecutionFailedStatus.SUCCEEDED
+  const unavailableAction = disabled
+    ? { label: "Refreshing state", icon: <LoaderCircle /> }
+    : state.status === ExecutionFailedStatus.SUCCEEDED
       ? { label: "Already succeeded", icon: <CircleCheck /> }
       : !capabilities.canForcePrepare
         ? { label: "Compensation executing", icon: <LoaderCircle /> }
@@ -161,7 +172,7 @@ export function Actions({ state, onChanged }: ActionsProps) {
               <DropdownMenuItem
                 variant="destructive"
                 className="py-2"
-                disabled={!capabilities.canForcePrepare}
+                disabled={disabled || !capabilities.canForcePrepare}
                 onSelect={() => setForceDialogOpen(true)}
               >
                 <ShieldAlert />

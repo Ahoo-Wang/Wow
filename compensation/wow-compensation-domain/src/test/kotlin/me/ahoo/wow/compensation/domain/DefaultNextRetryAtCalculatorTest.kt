@@ -3,6 +3,7 @@ package me.ahoo.wow.compensation.domain
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.compensation.api.RetrySpec
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class DefaultNextRetryAtCalculatorTest {
     companion object {
@@ -38,5 +39,62 @@ class DefaultNextRetryAtCalculatorTest {
         retryState.retryAt.assert().isEqualTo(0)
         retryState.timeoutAt.assert().isEqualTo(testRetrySpec.executionTimeout * 1000L)
         retryState.nextRetryAt.assert().isEqualTo(testRetrySpec.minBackoff * 1000L * 2)
+    }
+
+    @Test
+    fun `should calculate int max execution timeout without overflowing`() {
+        val retryState = DefaultNextRetryAtCalculator.nextRetryState(
+            retrySpec = RetrySpec(
+                maxRetries = 1,
+                minBackoff = 0,
+                executionTimeout = Int.MAX_VALUE
+            ),
+            retries = 0,
+            retryAt = 0
+        )
+
+        retryState.timeoutAt.assert().isEqualTo(Int.MAX_VALUE.toLong() * 1000L)
+    }
+
+    @Test
+    fun `should reject a backoff that cannot be represented as epoch milliseconds`() {
+        assertThrows<ArithmeticException> {
+            DefaultNextRetryAtCalculator.nextRetryAt(
+                minBackoff = Int.MAX_VALUE,
+                retries = 32,
+                currentRetryAt = 0
+            )
+        }
+    }
+
+    @Test
+    fun `should reject negative retry values`() {
+        assertThrows<IllegalArgumentException> {
+            DefaultNextRetryAtCalculator.nextRetryAt(minBackoff = -1, retries = 0, currentRetryAt = 0)
+        }
+        assertThrows<IllegalArgumentException> {
+            DefaultNextRetryAtCalculator.nextRetryAt(minBackoff = 1, retries = -1, currentRetryAt = 0)
+        }
+        assertThrows<IllegalArgumentException> {
+            DefaultNextRetryAtCalculator.nextRetryState(
+                retrySpec = RetrySpec(maxRetries = 1, minBackoff = 0, executionTimeout = -1),
+                retries = 0,
+                retryAt = 0
+            )
+        }
+    }
+
+    @Test
+    fun `should validate the complete retry specification range`() {
+        assertThrows<IllegalArgumentException> {
+            DefaultNextRetryAtCalculator.validate(
+                RetrySpec(maxRetries = -1, minBackoff = 0, executionTimeout = 0)
+            )
+        }
+        assertThrows<ArithmeticException> {
+            DefaultNextRetryAtCalculator.validate(
+                RetrySpec(maxRetries = 32, minBackoff = Int.MAX_VALUE, executionTimeout = 0)
+            )
+        }
     }
 }

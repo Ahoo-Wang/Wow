@@ -46,6 +46,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { useNow } from "@/hooks/useNow.ts";
 import { StatusBadge } from "./StatusBadge.tsx";
 
 const columnHelper = createColumnHelper<ExecutionFailedState>();
@@ -62,6 +63,7 @@ interface FailedTableProps {
   pageIndex: number;
   pageSize: number;
   selectedId?: string | null;
+  staleError?: Error;
 }
 
 export function FailedTable({
@@ -76,8 +78,10 @@ export function FailedTable({
   pageIndex,
   pageSize,
   selectedId,
+  staleError,
 }: FailedTableProps) {
   const [jumpPage, setJumpPage] = useState("");
+  const now = useNow();
   const columns = useMemo(
     () => [
       columnHelper.accessor("status", {
@@ -142,12 +146,12 @@ export function FailedTable({
             className="text-xs tabular-nums text-slate-700"
             title={formatDate(info.getValue())}
           >
-            {formatAge(info.getValue())}
+            {formatAge(info.getValue(), now)}
           </span>
         ),
       }),
     ],
-    [loading, onSelect],
+    [loading, now, onSelect],
   );
 
   // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table keeps its headless state local to this component.
@@ -191,6 +195,21 @@ export function FailedTable({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-white" aria-busy={loading}>
+      {staleError ? (
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900"
+        >
+          <span>
+            Refresh failed: {staleError.message}. Showing the last loaded page;
+            changes are disabled until refresh succeeds.
+          </span>
+          <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+            <RefreshCw />
+            Retry
+          </Button>
+        </div>
+      ) : null}
       <div className="failed-table-container relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-3 pb-7">
         {loading && pagedList.list.length > 0 ? (
           <div

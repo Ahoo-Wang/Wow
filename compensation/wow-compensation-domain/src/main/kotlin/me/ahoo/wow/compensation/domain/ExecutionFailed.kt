@@ -43,8 +43,9 @@ class ExecutionFailed(private val state: ExecutionFailedState) {
         retrySpec: IRetrySpec,
         nextRetryAtCalculator: NextRetryAtCalculator
     ): ExecutionFailedCreated {
-        val retryState = nextRetryAtCalculator.nextRetryState(retrySpec, 0, command.executeAt)
         val commandRetrySpec = command.retrySpec ?: retrySpec.materialize()
+        nextRetryAtCalculator.validate(commandRetrySpec)
+        val retryState = nextRetryAtCalculator.nextRetryState(commandRetrySpec, 0, command.executeAt)
         return ExecutionFailedCreated(
             eventId = command.eventId,
             function = command.function,
@@ -106,7 +107,11 @@ class ExecutionFailed(private val state: ExecutionFailedState) {
     }
 
     @OnCommand
-    fun onApplyRetrySpec(applyRetrySpec: ApplyRetrySpec): RetrySpecApplied {
+    fun onApplyRetrySpec(
+        applyRetrySpec: ApplyRetrySpec,
+        nextRetryAtCalculator: NextRetryAtCalculator
+    ): RetrySpecApplied {
+        nextRetryAtCalculator.validate(applyRetrySpec)
         return RetrySpecApplied(
             maxRetries = applyRetrySpec.maxRetries,
             minBackoff = applyRetrySpec.minBackoff,

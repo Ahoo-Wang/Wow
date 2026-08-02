@@ -45,8 +45,9 @@ export function GlobalDrawerProvider({ children }: GlobalDrawerProviderProps) {
     () => ({
       openDrawer,
       closeDrawer,
+      isOpen: open,
     }),
-    [openDrawer, closeDrawer],
+    [open, openDrawer, closeDrawer],
   );
   const requestedWidth =
     typeof drawer?.width === "number" ? `${drawer.width}px` : drawer?.width;

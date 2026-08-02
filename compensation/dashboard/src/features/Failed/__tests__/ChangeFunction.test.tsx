@@ -5,9 +5,10 @@ import { ChangeFunction } from "../ChangeFunction.tsx";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const mocks = vi.hoisted(() => ({
-  abortController: new AbortController(),
   changeFunction: vi.fn().mockResolvedValue({}),
   closeDrawer: vi.fn(),
+  toastError: vi.fn(),
+  toastSuccess: vi.fn(),
   writeText: vi.fn(),
 }));
 
@@ -21,17 +22,11 @@ vi.mock("../../../services", () => ({
   },
 }));
 
-vi.mock("@ahoo-wang/fetcher-react", () => ({
-  useExecutePromise: () => ({
-    execute: (factory: (controller: AbortController) => Promise<unknown>) =>
-      factory(mocks.abortController),
-    loading: false,
-  }),
+vi.mock("sonner", () => ({
+  toast: { success: mocks.toastSuccess, error: mocks.toastError },
 }));
 
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
-
-function renderForm() {
+function renderForm(onChanged = vi.fn()) {
   return render(
     <TooltipProvider>
       <ChangeFunction
@@ -42,6 +37,7 @@ function renderForm() {
           name: "handler",
           functionKind: FunctionKind.EVENT,
         }}
+        onChanged={onChanged}
       />
     </TooltipProvider>,
   );
@@ -50,6 +46,7 @@ function renderForm() {
 describe("ChangeFunction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.changeFunction.mockResolvedValue({});
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
       value: { writeText: mocks.writeText },
@@ -77,7 +74,8 @@ describe("ChangeFunction", () => {
   });
 
   it("trims and submits only a changed, valid function contract", async () => {
-    renderForm();
+    const onChanged = vi.fn();
+    renderForm(onChanged);
 
     fireEvent.change(screen.getByLabelText("Context name"), {
       target: { value: "  new-context  " },
@@ -95,9 +93,12 @@ describe("ChangeFunction", () => {
           name: "handler",
           functionKind: FunctionKind.EVENT,
         },
-        abortController: mocks.abortController,
+        abortController: expect.any(AbortController),
       });
     });
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("Function updated");
+    expect(mocks.closeDrawer).toHaveBeenCalledOnce();
+    expect(onChanged).toHaveBeenCalledOnce();
   });
 
   it("keeps the action disabled when a required value is blank", () => {
@@ -110,5 +111,32 @@ describe("ChangeFunction", () => {
     expect(
       screen.getByRole("button", { name: "Save function" }),
     ).toBeDisabled();
+  });
+
+  it("keeps the draft open and reports a rejected command", async () => {
+    mocks.changeFunction.mockRejectedValueOnce({
+      message: "transport failed",
+      exchange: {
+        extractResult: vi
+          .fn()
+          .mockResolvedValue({ errorMsg: "function rejected" }),
+      },
+    });
+    const onChanged = vi.fn();
+    renderForm(onChanged);
+    fireEvent.change(screen.getByLabelText("Function name"), {
+      target: { value: "new-handler" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save function" }));
+
+    await waitFor(() => {
+      expect(mocks.toastError).toHaveBeenCalledWith(
+        "Failed to change function",
+        { description: "function rejected" },
+      );
+    });
+    expect(mocks.closeDrawer).not.toHaveBeenCalled();
+    expect(onChanged).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Function name")).toHaveValue("new-handler");
   });
 });

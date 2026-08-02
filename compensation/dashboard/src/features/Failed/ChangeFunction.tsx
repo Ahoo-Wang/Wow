@@ -56,8 +56,8 @@ export function ChangeFunction({
   const promiseState = useExecutePromise<CommandResult, ExchangeError>({
     onSuccess: () => {
       toast.success("Function updated");
-      onChanged?.();
       closeDrawer();
+      onChanged?.();
     },
     onError: async (error) => {
       toast.error("Failed to change function", {

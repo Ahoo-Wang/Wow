@@ -28,6 +28,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { commandErrorMessage } from "./commandErrors.ts";
 import { CopyButton } from "@/components/CopyButton";
+import { formatSeconds } from "@/utils/durations.ts";
+
+const INT32_MAX = 2_147_483_647;
 
 export interface ApplyRetrySpecProps extends OnChangedCapable {
   id: string;
@@ -54,8 +57,8 @@ export function ApplyRetrySpec({
   const promiseState = useExecutePromise<CommandResult, ExchangeError>({
     onSuccess: () => {
       toast.success("Retry specification updated");
-      onChanged?.();
       closeDrawer();
+      onChanged?.();
     },
     onError: async (error) => {
       toast.error("Failed to apply retry specification", {
@@ -66,6 +69,9 @@ export function ApplyRetrySpec({
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!valid) {
+      return;
+    }
     const values: ApplyRetrySpecCommand = {
       maxRetries: Number(draft.maxRetries),
       minBackoff: Number(draft.minBackoff),
@@ -84,15 +90,11 @@ export function ApplyRetrySpec({
     Number(draft.executionTimeout) !== retrySpec.executionTimeout;
   const valid = Object.values(draft).every(
     (value) =>
-      value !== "" && Number.isInteger(Number(value)) && Number(value) >= 0,
+      value !== "" &&
+      Number.isSafeInteger(Number(value)) &&
+      Number(value) >= 0 &&
+      Number(value) <= INT32_MAX,
   );
-  const formatDuration = (milliseconds: number) => {
-    if (milliseconds < 1000) {
-      return `${milliseconds.toLocaleString()} milliseconds`;
-    }
-    const seconds = milliseconds / 1000;
-    return `${seconds.toLocaleString()} ${seconds === 1 ? "second" : "seconds"}`;
-  };
 
   return (
     <form className="space-y-5" onSubmit={submit}>
@@ -117,6 +119,8 @@ export function ApplyRetrySpec({
           name="maxRetries"
           type="number"
           min={0}
+          max={INT32_MAX}
+          step={1}
           required
           value={draft.maxRetries}
           onChange={(event) =>
@@ -128,12 +132,14 @@ export function ApplyRetrySpec({
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="min-backoff">Min backoff (ms)</Label>
+        <Label htmlFor="min-backoff">Min backoff (s)</Label>
         <Input
           id="min-backoff"
           name="minBackoff"
           type="number"
           min={0}
+          max={INT32_MAX}
+          step={1}
           required
           aria-describedby="min-backoff-preview"
           value={draft.minBackoff}
@@ -146,17 +152,19 @@ export function ApplyRetrySpec({
         />
         <p id="min-backoff-preview" className="text-xs text-slate-500">
           {draft.minBackoff
-            ? formatDuration(Number(draft.minBackoff))
+            ? formatSeconds(Number(draft.minBackoff))
             : "Enter a duration"}
         </p>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="execution-timeout">Execution timeout (ms)</Label>
+        <Label htmlFor="execution-timeout">Execution timeout (s)</Label>
         <Input
           id="execution-timeout"
           name="executionTimeout"
           type="number"
           min={0}
+          max={INT32_MAX}
+          step={1}
           required
           aria-describedby="execution-timeout-preview"
           value={draft.executionTimeout}
@@ -169,7 +177,7 @@ export function ApplyRetrySpec({
         />
         <p id="execution-timeout-preview" className="text-xs text-slate-500">
           {draft.executionTimeout
-            ? formatDuration(Number(draft.executionTimeout))
+            ? formatSeconds(Number(draft.executionTimeout))
             : "Enter a duration"}
         </p>
       </div>

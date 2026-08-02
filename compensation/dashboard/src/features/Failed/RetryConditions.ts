@@ -38,7 +38,7 @@ const ACTIVE_STATUSES = [
 ];
 
 export class RetryConditions {
-  static toRetryCondition(): Condition {
+  static toRetryCondition(now: number): Condition {
     return and(
       isIn(
         ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
@@ -57,38 +57,31 @@ export class RetryConditions {
           ),
           lte(
             ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT,
-            new Date().getTime(),
+            now,
           ),
         ),
       ),
     );
   }
 
-  static executingCondition(): Condition {
+  static executingCondition(now: number): Condition {
     return and(
       eq(
         ExecutionFailedAggregatedFields.STATE_STATUS,
         ExecutionFailedStatus.PREPARED,
       ),
-      gt(
-        ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT,
-        new Date().getTime(),
-      ),
+      gt(ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT, now),
     );
   }
 
-  static nextRetryCondition(): Condition {
-    const currentTime = new Date().getTime();
+  static nextRetryCondition(now: number): Condition {
     return and(
       isIn(
         ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
         ...RETRYABLE_RECOVERABILITY,
       ),
       eq(ExecutionFailedAggregatedFields.STATE_IS_RETRYABLE, true),
-      lte(
-        ExecutionFailedAggregatedFields.STATE_RETRY_STATE_NEXT_RETRY_AT,
-        currentTime,
-      ),
+      lte(ExecutionFailedAggregatedFields.STATE_RETRY_STATE_NEXT_RETRY_AT, now),
       or(
         eq(
           ExecutionFailedAggregatedFields.STATE_STATUS,
@@ -101,7 +94,7 @@ export class RetryConditions {
           ),
           lte(
             ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT,
-            currentTime,
+            now,
           ),
         ),
       ),
@@ -130,14 +123,14 @@ export class RetryConditions {
     isIn(ExecutionFailedAggregatedFields.STATE_STATUS, ...ACTIVE_STATUSES),
   );
 
-  static categoryToCondition(category: FindCategory): Condition {
+  static categoryToCondition(category: FindCategory, now: number): Condition {
     switch (category) {
       case FindCategory.ToRetry:
-        return this.toRetryCondition();
+        return this.toRetryCondition(now);
       case FindCategory.Executing:
-        return this.executingCondition();
+        return this.executingCondition(now);
       case FindCategory.NextRetry:
-        return this.nextRetryCondition();
+        return this.nextRetryCondition(now);
       case FindCategory.NonRetryable:
         return this.nonRetryableCondition;
       case FindCategory.Succeeded:

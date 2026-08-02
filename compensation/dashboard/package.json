@@ -1,7 +1,7 @@
 {
   "name": "wow-compensation-dashboard",
   "private": true,
-  "version": "8.9.5",
+  "version": "8.9.8",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,6 +10,7 @@
     "lint:fix": "eslint . --fix",
     "preview": "vite preview",
     "test": "vitest",
+    "test:browser": "playwright test",
     "coverage": "vitest run --coverage",
     "analyze": "analyze -m json -f bundle-stats -o false",
     "generate": "fetcher-generator generate -i http://compensation-service.dev.svc.cluster.local/v3/api-docs -o src/generated"
@@ -42,6 +43,7 @@
     "@babel/core": "7.29.7",
     "@babel/plugin-syntax-decorators": "7.29.7",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.62.1",
     "@rolldown/plugin-babel": "^0.2.3",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/jest-dom": "6.9.1",

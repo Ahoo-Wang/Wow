@@ -65,7 +65,7 @@ const state: ExecutionFailedState = {
     name: "function",
     functionKind: FunctionKind.EVENT,
   },
-  retrySpec: { maxRetries: 3, minBackoff: 1000, executionTimeout: 30000 },
+  retrySpec: { maxRetries: 3, minBackoff: 180, executionTimeout: 120 },
   retryState: {
     nextRetryAt: Date.now(),
     retries: 0,

@@ -16,6 +16,7 @@ package me.ahoo.wow.schema
 import com.fasterxml.jackson.annotation.JsonIgnore
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Identifier
+import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
@@ -38,6 +39,28 @@ class AggregatedFieldPathsTest {
             .contains("state.name")
             .contains("state.status")
             .doesNotContain("state.class")
+    }
+
+    @Test
+    fun `should follow aggregate id serialized field paths`() {
+        val paths = AggregateIdFixture::class.allFieldPaths(parentName = "state")
+
+        paths.assert()
+            .contains("state.aggregateId.contextName")
+            .contains("state.aggregateId.aggregateName")
+            .contains("state.aggregateId.aggregateId")
+            .contains("state.aggregateId.tenantId")
+            .contains("state.aggregateId.namedAggregate")
+            .contains("state.aggregateId.id")
+    }
+
+    @Test
+    fun `should respect the requested maximum depth`() {
+        val paths = TestState::class.allFieldPaths(parentName = "state", maxDepth = 1)
+
+        paths.assert()
+            .contains("state.address")
+            .doesNotContain("state.address.city")
     }
 
     @Test
@@ -64,4 +87,6 @@ class AggregatedFieldPathsTest {
         var pagedQuery: PagedQuery = PagedQuery(Condition.all())
         var pagedList: PagedList<FieldPathDemoState> = PagedList.empty()
     }
+
+    data class AggregateIdFixture(val aggregateId: AggregateId)
 }

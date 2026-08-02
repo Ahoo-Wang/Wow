@@ -42,12 +42,15 @@ import {
 import { commandErrorMessage } from "./commandErrors.ts";
 
 export interface MarkRecoverableProps
-  extends Identifier, MarkRecoverable, OnChangedCapable {}
+  extends Identifier, MarkRecoverable, OnChangedCapable {
+  disabled?: boolean;
+}
 
 export function MarkRecoverable({
   id,
   recoverable,
   onChanged,
+  disabled,
 }: MarkRecoverableProps) {
   const [pending, setPending] = useState<RecoverableType>();
   const promiseState = useExecutePromise<CommandResult, ExchangeError>({
@@ -76,7 +79,7 @@ export function MarkRecoverable({
       <Select
         value={recoverable}
         onValueChange={(value) => setPending(value as RecoverableType)}
-        disabled={promiseState.loading}
+        disabled={disabled || promiseState.loading}
       >
         <SelectTrigger size="sm" className="min-w-28" aria-label="Recoverable">
           <SelectValue />
@@ -117,7 +120,7 @@ export function MarkRecoverable({
                   change(pending);
                 }
               }}
-              disabled={!pending || promiseState.loading}
+              disabled={disabled || !pending || promiseState.loading}
             >
               Confirm change
             </AlertDialogAction>
