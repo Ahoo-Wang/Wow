@@ -16,7 +16,7 @@ fi
 
 common_globs=(
   --hidden
-  --glob '!.git/**'
+  --glob '!**/.git/**'
   --glob '!**/.idea/**'
   --glob '!**/.vscode/**'
   --glob '!**/build/**'
@@ -35,7 +35,17 @@ match_section() {
   shift 2
 
   local output
-  output="$(rg -n --color never "$@" "${common_globs[@]}" -- "$pattern" "$scan_root" 2>/dev/null || true)"
+  local rg_status
+  if output="$(rg -n --color never "$@" "${common_globs[@]}" -- "$pattern" "$scan_root")"; then
+    :
+  else
+    rg_status=$?
+    if [[ "$rg_status" -eq 1 ]]; then
+      return 0
+    fi
+    printf 'ERROR: ripgrep failed while scanning section [%s] (exit %s).\n' "$title" "$rg_status" >&2
+    return "$rg_status"
+  fi
   if [[ -n "$output" ]]; then
     printf '\n## %s\n%s\n' "$title" "$output"
   fi
@@ -70,7 +80,7 @@ match_section \
 # shellcheck disable=SC2016
 match_section \
   'Legacy test DSL usage' \
-  '\.\s*`when`\s*\(|\.when\s*\{|inject\s*\([^\{]' \
+  '\.\s*`when`\s*\(|\.when\s*[({]|inject\s*\(\s*[^[:space:]{]' \
   --glob '*Test.kt' --glob '*Spec.kt' --glob '*Test.java'
 
 match_section \
