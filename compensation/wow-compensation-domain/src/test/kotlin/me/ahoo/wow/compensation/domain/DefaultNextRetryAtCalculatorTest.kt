@@ -68,6 +68,17 @@ class DefaultNextRetryAtCalculatorTest {
     }
 
     @Test
+    fun `should reject retry counts that cannot be shifted safely`() {
+        assertThrows<ArithmeticException> {
+            DefaultNextRetryAtCalculator.nextRetryAt(
+                minBackoff = 1,
+                retries = Long.SIZE_BITS - 1,
+                currentRetryAt = 0
+            )
+        }
+    }
+
+    @Test
     fun `should reject negative retry values`() {
         assertThrows<IllegalArgumentException> {
             DefaultNextRetryAtCalculator.nextRetryAt(minBackoff = -1, retries = 0, currentRetryAt = 0)
