@@ -141,7 +141,7 @@ match_section \
 
 match_section \
   'Custom messaging or lifecycle ownership' \
-  '\b([A-Za-z]*DispatcherLauncher|MainDispatcher|AggregateDispatcher|AggregateSchedulerSupplier|AUTO_REGISTRAR_PHASE)\b|MessageSubscription|MessageBus<|override\s+fun\s+receive\s*\([^)]*(Set<NamedAggregate>|namedAggregates)|\.receive\s*\(\s*(setOf(\s*<[^>]+>)?\s*\(|Set\.of\s*\(|namedAggregates\b)|getReceiverGroup|setReceiverGroup|writeReceiverGroup|\bLifecycle\b|SmartLifecycle|DisposableBean|GracefullyStoppable|WowRuntime|WowRuntimeLifecycle|RuntimeComponent|me\.ahoo\.wow\.infra\.lifecycle\.Lifecycle|@PostConstruct|@PreDestroy|destroyMethod' \
+  '\b([A-Za-z]*DispatcherLauncher|MainDispatcher|AggregateDispatcher|AggregateSchedulerSupplier|AUTO_REGISTRAR_PHASE)\b|MessageSubscription|MessageBus<|override\s+fun\s+receive\s*\([^)]*(Set<NamedAggregate>|namedAggregates)|\.receive\s*\(\s*(setOf(\s*<[^>]+>)?\s*\(|Set\.of\s*\(|namedAggregates\b)|\b([A-Za-z_][A-Za-z0-9_]*)?[Bb]us\.receive\s*\(\s*[A-Za-z_][A-Za-z0-9_]*\s*\)|getReceiverGroup|setReceiverGroup|writeReceiverGroup|\bLifecycle\b|SmartLifecycle|DisposableBean|GracefullyStoppable|WowRuntime|WowRuntimeLifecycle|RuntimeComponent|me\.ahoo\.wow\.infra\.lifecycle\.Lifecycle|@PostConstruct|@PreDestroy|destroyMethod' \
   --glob '*.kt' --glob '*.java'
 
 match_section \
