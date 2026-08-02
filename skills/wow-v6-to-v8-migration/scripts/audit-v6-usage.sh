@@ -105,6 +105,7 @@ match_section \
   'VersionedSnapshotStore|VersionIntervalCheckpointStrategy|CompositeSnapshotStrategy|SnapshotCheckpointProperties|wow\.eventsourcing\.snapshot\.checkpoint|SnapshotStore|SnapshotRepository|EventStore' \
   --glob '*.kt' --glob '*.java' --glob '*.yml' --glob '*.yaml' --glob '*.properties'
 
+# v6 exposed the misspelled public STEAM constant; v8 replaced it with internal STREAM.
 match_section \
   'Removed Redis persistence internals' \
   'AggregateKeyConverter|RedisWrappedKey|RedisSnapshotRepository|EventStreamKeyConverter|DefaultSnapshotKeyConverter|PrepareKeyConverter|SCRIPT_EVENT_STEAM_APPEND|SCRIPT_EVENT_STREAM_APPEND|redisSnapshotRepository' \
