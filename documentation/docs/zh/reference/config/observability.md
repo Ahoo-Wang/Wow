@@ -48,8 +48,8 @@ wow:
     enabled: true
 ```
 
-默认启用（`matchIfMissing = true`）。Spring 集成使用此属性决定是否安装框架指标装饰器；
-具体如何导出由选用的 Micrometer Registry 单独决定。
+默认启用（`matchIfMissing = true`）。Spring 集成会在应用组件创建前，将此属性同时应用于
+框架指标装饰器和 `wow.batch.*` 等核心指标；具体如何导出由选用的 Micrometer Registry 单独决定。
 
 ## 商业智能脚本
 

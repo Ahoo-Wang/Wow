@@ -74,9 +74,23 @@ object Metrics {
 
     /**
      * Flag indicating whether metrics collection is enabled.
-     * Can be controlled via the system property "wow.metrics.enabled" (defaults to true).
+     * Initialized from the system property "wow.metrics.enabled" (defaults to true) and may be
+     * overridden by framework integrations through [configureEnabled].
      */
-    val enabled = System.getProperty("wow.metrics.enabled", "true").toBoolean()
+    val enabled: Boolean
+        get() = enabledValue
+
+    @Volatile
+    private var enabledValue = System.getProperty("wow.metrics.enabled", "true").toBoolean()
+
+    /**
+     * Configures process-wide Wow metrics collection.
+     *
+     * Framework integrations should invoke this before constructing metrized components.
+     */
+    fun configureEnabled(enabled: Boolean) {
+        enabledValue = enabled
+    }
 
     /**
      * Retrieves the metrics subscriber identifier from the reactive context.

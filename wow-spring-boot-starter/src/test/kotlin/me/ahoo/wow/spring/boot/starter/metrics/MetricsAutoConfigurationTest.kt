@@ -7,6 +7,7 @@ import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
 import me.ahoo.wow.metrics.MetricEventStore
 import me.ahoo.wow.metrics.MetricSnapshotStore
+import me.ahoo.wow.metrics.Metrics
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
@@ -92,10 +93,17 @@ class MetricsAutoConfigurationTest {
 
     @Test
     fun `should not load metrics bean when disabled`() {
+        val previousEnabled = Metrics.enabled
+
         contextRunner
             .enableWow()
             .withPropertyValues(
                 "${ConditionalOnMetricsEnabled.ENABLED_KEY}=false",
+            )
+            .withBean(
+                "metricsEnabledAtBeanCreation",
+                Boolean::class.javaObjectType,
+                { Metrics.enabled },
             )
             .withUserConfiguration(
                 MetricsAutoConfiguration::class.java,
@@ -103,7 +111,12 @@ class MetricsAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 context.assert()
                     .doesNotHaveBean(MetricsBeanPostProcessor::class.java)
+                context.getBean("metricsEnabledAtBeanCreation", Boolean::class.java)
+                    .assert()
+                    .isFalse()
             }
+
+        Metrics.enabled.assert().isEqualTo(previousEnabled)
     }
 
     @Test

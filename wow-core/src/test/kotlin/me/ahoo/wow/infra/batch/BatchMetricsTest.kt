@@ -17,11 +17,29 @@ import io.micrometer.core.instrument.Meter
 import io.micrometer.core.instrument.config.MeterFilter
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.metrics.Metrics
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 
 class BatchMetricsTest {
+    @Test
+    fun `disabled metrics should not register batch meters`() {
+        val previousEnabled = Metrics.enabled
+        val registry = SimpleMeterRegistry()
+
+        try {
+            Metrics.configureEnabled(false)
+            val metrics = BatchMetrics("disabled", registry)
+
+            metrics.admissionRejected(BatchAdmissionRejectionReason.LIVE_ITEMS_EXHAUSTED)
+
+            registry.meters.assert().isEmpty()
+        } finally {
+            Metrics.configureEnabled(previousEnabled)
+        }
+    }
+
     @Test
     fun `non-fatal registry failures should be isolated`() {
         val metrics = BatchMetrics("non-fatal", throwingRegistry(AssertionError("failed")))

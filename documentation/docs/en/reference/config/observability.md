@@ -51,9 +51,9 @@ wow:
     enabled: true
 ```
 
-Enabled by default (`matchIfMissing = true`). The Spring integration uses this property when
-installing framework metric decorators. The selected Micrometer registry controls export
-separately.
+Enabled by default (`matchIfMissing = true`). Before application components are created, the
+Spring integration applies this property to both framework metric decorators and core metrics,
+including `wow.batch.*`. The selected Micrometer registry controls export separately.
 
 ## Business Intelligence Scripts
 

@@ -13,19 +13,51 @@
 
 package me.ahoo.wow.spring.boot.starter.metrics
 
+import me.ahoo.wow.metrics.Metrics
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import org.springframework.beans.factory.DisposableBean
+import org.springframework.beans.factory.config.BeanDefinition
+import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Role
+import org.springframework.core.env.Environment
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
-@ConditionalOnMetricsEnabled
 class MetricsAutoConfiguration {
+    @Bean
+    @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+    internal fun metricsEnabledSynchronizer(environment: Environment): MetricsEnabledSynchronizer {
+        return MetricsEnabledSynchronizer(
+            environment.getProperty(
+                ConditionalOnMetricsEnabled.ENABLED_KEY,
+                Boolean::class.java,
+                true,
+            ),
+        )
+    }
 
     @Bean
+    @ConditionalOnMetricsEnabled
     @ConditionalOnMissingBean
     fun metricsBeanPostProcessor(): MetricsBeanPostProcessor {
         return MetricsBeanPostProcessor()
+    }
+}
+
+internal class MetricsEnabledSynchronizer(
+    enabled: Boolean,
+) : BeanPostProcessor,
+    DisposableBean {
+    private val previousEnabled = Metrics.enabled
+
+    init {
+        Metrics.configureEnabled(enabled)
+    }
+
+    override fun destroy() {
+        Metrics.configureEnabled(previousEnabled)
     }
 }
