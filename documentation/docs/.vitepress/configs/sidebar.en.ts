@@ -75,6 +75,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Open API', link: 'open-api'},
                 {text: 'Test Suite', link: 'test-suite'},
                 {text: 'Test Runtime', link: 'test-runtime'},
+                {text: 'Agent Skills', link: 'skills'},
                 {text: 'Business Intelligence', link: 'bi'},
                 {text: 'BI Deployment and Recovery', link: 'bi-operations'},
                 {text: 'Event Compensation', link: 'event-compensation'},
