@@ -2,6 +2,33 @@
 
 set -euo pipefail
 
+usage() {
+  printf 'Usage: %s [--include-dotenv] [target-repository]\n' "${0##*/}"
+}
+
+include_dotenv=false
+case "${1:-}" in
+  --include-dotenv)
+    include_dotenv=true
+    shift
+    ;;
+  -h|--help)
+    usage
+    exit 0
+    ;;
+  -*)
+    printf 'ERROR: unknown option: %s\n' "$1" >&2
+    usage >&2
+    exit 2
+    ;;
+esac
+
+if [[ "$#" -gt 1 ]]; then
+  printf 'ERROR: expected at most one target repository.\n' >&2
+  usage >&2
+  exit 2
+fi
+
 scan_root="${1:-.}"
 
 if ! command -v rg >/dev/null 2>&1; then
@@ -27,6 +54,10 @@ common_globs=(
   --glob '!**/npm-shrinkwrap.json'
   --glob '!**/pnpm-lock.yaml'
 )
+
+if [[ "$include_dotenv" == false ]]; then
+  common_globs+=(--glob '!**/.env*' --glob '!**/*.env')
+fi
 
 redact_sensitive_values() {
   awk '
@@ -138,7 +169,7 @@ match_section \
 match_section \
   'Redis and Mongo configuration' \
   'wow\..*(?:event-store|snapshot-store|prepare|redis|mongo)|spring\.(?:data\.)?(?:redis|mongodb)|WOW_[A-Z0-9_]*(?:STORAGE|REDIS|MONGO)[A-Z0-9_]*|SPRING_(?:DATA_)?(?:REDIS|MONGODB)(?:_[A-Z0-9_]+)?|[=:][[:space:]]*(?:REDIS|MONGO(?:DB)?)(?:[[:space:]#]|$)|^[[:space:]]*storage:[[:space:]]*(?:redis|mongo)\b|^[[:space:]]*(?:redis|mongodb):[[:space:]]*(?:#.*)?$|Redis(?:EventStore|SnapshotStore|PrepareKey)|Mongo(?:EventStore|SnapshotStore)|MongoDatabaseContext' \
-  --glob '*.yml' --glob '*.yaml' --glob '*.properties' --glob '*.env' --glob '.env*' \
+  --glob '*.yml' --glob '*.yaml' --glob '*.properties' --glob '.env*' --glob '*.env' \
   --glob '*.kt' --glob '*.java'
 
 match_section \
