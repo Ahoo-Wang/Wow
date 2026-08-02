@@ -1050,7 +1050,7 @@ fork(name = "Set cart note") {
   --stacktrace
 ```
 
-预期 Red 结果：Gradle 以 `BUILD FAILED` 结束，第一条所属原因报告未定义 `SetCartNote` Command 或缺少 `CartState.note` 实现；HTML Report 写入 `example/example-domain/build/reports/tests/test/`。
+预期 Red 结果：Gradle 以 `BUILD FAILED` 结束，因为 `compileTestKotlin` 无法解析 `CartState.note`。此 Red 阶段可能尚未运行 Test Task，因此不保证生成新的 HTML Test Report；应以编译器输出作为权威失败证据。
 
 ### 11.4 实现决策与 Sourcing
 

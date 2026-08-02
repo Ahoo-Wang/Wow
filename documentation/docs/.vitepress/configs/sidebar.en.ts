@@ -20,7 +20,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             text: 'Onboarding',
             collapsed: false,
             items: [
-                {text: 'Choose Your Path', link: ''},
+                {text: 'Choose Your Path', link: '/onboarding/'},
                 {text: 'Contributor Guide', link: 'contributor-guide'},
                 {text: 'Staff Engineer Guide', link: 'staff-engineer-guide'},
                 {text: 'Executive Guide', link: 'executive-guide'},

@@ -233,7 +233,9 @@ flowchart LR
 ## 领域模型与不变量
 
 框架分离业务载荷、框架信封、命令行为与事件溯源状态。
-这种分离防止命令处理器直接修改持久状态。
+这种分离支持事件溯源设计，但框架不会阻止命令处理器直接修改状态对象。
+应在领域模型中落实该约定：保持 State Setter 私有，让 Command Handler 返回事件，再由 Sourcing Handler 应用事件。
+来源：[Command Root 构造](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregateFactory.kt#L42-L55)、[封装状态的 Cart 示例](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/CartState.kt#L24-L46)。
 
 ```mermaid
 %%{init: {'theme': 'dark', 'themeVariables': {'primaryColor': '#2d333b', 'primaryBorderColor': '#6d5dfc', 'primaryTextColor': '#e6edf3', 'lineColor': '#8b949e', 'clusterBkg': '#161b22', 'clusterBorder': '#30363d'}}}%%

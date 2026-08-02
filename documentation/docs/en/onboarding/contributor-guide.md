@@ -1047,7 +1047,7 @@ Run only that specification:
   --stacktrace
 ```
 
-Expected red result: Gradle ends with `BUILD FAILED`, and the first owned cause reports an undefined `SetCartNote` command or the missing `CartState.note` implementation. The HTML report is written under `example/example-domain/build/reports/tests/test/`.
+Expected red result: Gradle ends with `BUILD FAILED` because `compileTestKotlin` cannot resolve `CartState.note`. At this red step the test task may not run, so no fresh HTML test report is guaranteed; use the compiler output as the authoritative failure evidence.
 
 ### 11.4 Implement decision and sourcing
 

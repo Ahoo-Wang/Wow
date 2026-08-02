@@ -230,7 +230,9 @@ Source: [RuntimeComponent](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/s
 ## Domain model and invariants
 
 The framework separates payload classes, framework envelopes, command behavior, and event-sourced state.
-That separation prevents command handlers from directly mutating persisted state.
+That separation supports event-sourced design, but the framework does not prevent a command handler from mutating the state object directly.
+Enforce the convention in the domain model: keep state setters private and have command handlers return events that sourcing handlers apply.
+Source: [command-root construction](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregateFactory.kt#L42-L55), [encapsulated cart state](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/CartState.kt#L24-L46).
 
 ```mermaid
 %%{init: {'theme': 'dark', 'themeVariables': {'primaryColor': '#2d333b', 'primaryBorderColor': '#6d5dfc', 'primaryTextColor': '#e6edf3', 'lineColor': '#8b949e', 'clusterBkg': '#161b22', 'clusterBorder': '#30363d'}}}%%
