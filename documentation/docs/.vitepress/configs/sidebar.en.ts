@@ -85,6 +85,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             text: 'Best Practices',
             collapsed: false,
             items: [
+                {text: 'Production Best Practices', link: 'best-practices'},
                 {text: 'Troubleshooting', link: 'troubleshooting'},
                 {
                     text: 'Migration Guide',

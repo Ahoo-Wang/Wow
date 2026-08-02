@@ -43,9 +43,8 @@ wow:
       storage: mongo               # 事件存储类型: mongo, redis, elasticsearch, in_memory, delay
     snapshot:
       enabled: true
-      strategy: all                # all, version_offset
+      strategy: all                # 推荐用于当前状态查询
       storage: mongo
-      version-offset: 10
 
   # 基础设施特定配置
   kafka:
@@ -194,8 +193,7 @@ wow:
   eventsourcing:
     snapshot:
       enabled: true
-      strategy: version_offset      # all, version_offset
-      version-offset: 10
+      strategy: all                 # 推荐用于当前状态查询
       storage: mongo
 ```
 
@@ -620,8 +618,7 @@ wow:
       storage: mongo
     snapshot:
       enabled: true
-      strategy: version_offset
-      version-offset: 10
+      strategy: all
       storage: mongo
   kafka:
     bootstrap-servers:
@@ -698,8 +695,7 @@ wow:
       storage: mongo
     snapshot:
       enabled: true
-      strategy: version_offset
-      version-offset: 10
+      strategy: all
       storage: mongo
   kafka:
     bootstrap-servers:
