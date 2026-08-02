@@ -185,7 +185,7 @@ graph TB
     Gateway -->|3. 注册| Registrar
     Gateway -->|4. 发送消息| LFBus
     LFBus -->|本地优先| InMem
-    LFBus -->|分布式回退| Kafka
+    LFBus -->|分布式副本| Kafka
     InMem -->|接收| Dispatcher
     Kafka -->|接收| Dispatcher
     Dispatcher -->|处理Exchange| Aggregate
@@ -214,7 +214,7 @@ graph TB
 |---|---|---|---|
 | **本地** | `LocalMessageBus` | 单 JVM、通过 Reactor `Sinks` 进行内存消息传递 | [MessageBus.kt:64](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageBus.kt#L64) |
 | **分布式** | `DistributedMessageBus` | 跨实例消息传递（Kafka） | [MessageBus.kt:83](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageBus.kt#L83) |
-| **本地优先** | `LocalFirstMessageBus` | 混合：本地总线优先，分布式回退 | [LocalFirstMessageBus.kt:99](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalFirstMessageBus.kt#L99) |
+| **本地优先** | `LocalFirstMessageBus` | 混合：本地运行时准入与带标记的分布式副本 | [LocalFirstMessageBus.kt:99](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalFirstMessageBus.kt#L99) |
 
 对于命令领域，`CommandBus` 扩展了 `MessageBus`，并固定 `TopicKind.COMMAND` 并缩小了泛型类型：
 
@@ -613,7 +613,7 @@ event:SNAPSHOT
 data:{"id":"0V3oCwdB0001003","waitCommandId":"0V3oCwbn0001001","stage":"SNAPSHOT","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"targetId","aggregateVersion":1,"requestId":"0V3oCwbn0001001","commandId":"0V3oCwbn0001001","function":{"functionKind":"STATE_EVENT","contextName":"wow","processorName":"SnapshotDispatcher","name":"save"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297603754,"succeeded":true}
 ```
 ```kotlin {1}
-commamdGateway.sendAndWaitForProcessed(message)
+commandGateway.sendAndWaitForProcessed(message)
 ```
 :::
 
@@ -626,7 +626,7 @@ commamdGateway.sendAndWaitForProcessed(message)
 | `SNAPSHOT` | `[SENT, PROCESSED]` | 快照已持久化 | 否 | 否 | 冷启动性能；写后读 | [CommandStage.kt:53](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L53) |
 | `PROJECTED` | `[SENT, PROCESSED]` | 投影（读模型）已更新 | 否 | 是 | 读模型一致性；UI 刷新 | [CommandStage.kt:62](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L62) |
 | `EVENT_HANDLED` | `[SENT, PROCESSED]` | 外部事件处理器完成 | 否 | 是 | 副作用处理；通知 | [CommandStage.kt:72](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L72) |
-| `SAGA_HANDLED` | `[SENT, PROCESSED]` | Saga 完成事件处理 | 否 | 是 | 分布式事务完成 | [CommandStage.kt:83](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L83) |
+| `SAGA_HANDLED` | `[SENT, PROCESSED]` | 指定 Saga 函数已完成处理；若生成了命令，则已被接受/发送 | 否 | 是 | 观察源事件编排；不代表下游命令完成 | [CommandStage.kt:83](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L83) |
 
 具有 `shouldWaitFunction = true` 的阶段（`PROJECTED`、`EVENT_HANDLED`、`SAGA_HANDLED`）会应用额外的过滤：`WaitTarget.shouldNotify(signal)` 方法检查信号的函数元数据是否与预期的函数名、上下文名称和处理器名称匹配。这在多个投影处理器或事件处理器对同一聚合操作时至关重要——等待计划只有在 *特定* 函数完成时才完成，而不是任意一个函数。
 
@@ -789,12 +789,12 @@ commandGateway.sendAndWait(message, waitPlan)
 
 `LocalFirstCommandBus` 包装了一个 `LocalCommandBus`（通常是 `InMemoryCommandBus`）和一个 `DistributedCommandBus`（通常是 `KafkaCommandBus`），采用 **本地优先路由策略**：
 
-1. 如果聚合是本地 **且** 有本地订阅者，命令首先发送到本地总线，同时始终将副本转发到分布式总线。
-2. 如果本地发送失败，分布式副本上的本地优先标志将被清除，以便远程实例处理它。
+1. 如果聚合是本地 **且** 有本地订阅者，命令首先提交给本地运行时，同时始终向分布式总线发送副本。
+2. 只有所有目标本地 Receiver 都确认运行时准入后，分布式副本才会标记为已在本地处理；准入或本地发送未确认时，该副本仍可由分布式消费者处理。
 3. 如果聚合不是本地或没有本地订阅者，命令仅发送到分布式总线。
 4. 空命令自动跳过本地优先路由，因为它们不需要响应。
 
-此设计确保在本地 JVM 内最多处理一次，跨集群精确处理一次——这是 CQRS 系统中的核心关注点，丢失命令意味着丢失状态转换。
+本地运行时准入成功后，后续 Handler 失败不会追溯性地重新启用分布式副本；此时遵循普通 Handler 的重试与确认策略。过滤已标记副本可以避免同一条已准入本地的消息又被该分布式 Receiver 处理；端到端投递保证仍取决于具体 Adapter 与 Handler 策略。
 
 ### 配置
 
@@ -811,7 +811,7 @@ wow:
 
 ### InMemoryCommandBus
 
-最简单的总线——使用 Reactor `Sinks.Many`（单播，背压缓冲）在单个 JVM 内传递命令。每个命名聚合获得自己的 sink，确保精确一次消费者语义。
+最简单的总线——使用 Reactor `Sinks.Many`（单播，背压缓冲）在单个 JVM 内传递命令。每个命名聚合获得自己的 sink，提供单消费者语义，但不表示端到端投递保证。
 
 ```kotlin
 // Source: wow-core/src/main/kotlin/me/ahoo/wow/command/InMemoryCommandBus.kt:31-50
@@ -954,7 +954,7 @@ wow:
 | 配置路径 | 类型 | 默认值 | 描述 | Source Module |
 |---|---|---|---|---|
 | `wow.command.bus.type` | `String` | `kafka` | 命令总线实现：`in_memory` 或 `kafka` | `wow-spring-boot-starter` |
-| `wow.command.bus.local-first.enabled` | `Boolean` | `true` | 是否使用 `LocalFirstCommandBus` 进行本地回退 | `wow-spring-boot-starter` |
+| `wow.command.bus.local-first.enabled` | `Boolean` | `true` | 是否使用 `LocalFirstCommandBus` 进行准入感知的本地优先路由 | `wow-spring-boot-starter` |
 | `wow.command.idempotency.enabled` | `Boolean` | `true` | 是否在发送前检查 `requestId` 是否重复 | `wow-spring-boot-starter` |
 | `wow.command.idempotency.bloom-filter.expected-insertions` | `Long` | `1000000` | 用于幂等性检查的 Bloom 过滤器的容量规划 | `wow-spring-boot-starter` |
 | `wow.command.idempotency.bloom-filter.ttl` | `Duration` | `PT60S` | 幂等性检查器记住 `requestId` 的时长 | `wow-spring-boot-starter` |

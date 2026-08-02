@@ -357,5 +357,5 @@ class OrderEventProcessorTest {
 
 - [投影处理器](./projection) - 用于读模型更新
 - [Saga](./saga) - 用于分布式事务协调
-- [事件总线](./eventstore#事件总线) - 用于事件发布和路由
+- [事件总线](./advanced/event-bus) - 用于事件发布和路由
 - [事件补偿](./event-compensation) - 用于错误处理和恢复

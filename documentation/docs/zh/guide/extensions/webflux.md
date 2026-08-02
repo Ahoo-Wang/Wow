@@ -117,7 +117,7 @@ Command-Wait-Timeout: 30000
 
 ### 支持的等待计划
 
-全部六个命令阶段都可作为等待计划（前置条件与语义参见 [命令网关](../command-gateway.md#wait-plans)）：
+全部六个命令阶段都可作为等待计划（前置条件与语义参见 [命令网关](../command-gateway.md#等待计划)）：
 
 - `SENT`：命令已被总线接受
 - `PROCESSED`：聚合已执行命令

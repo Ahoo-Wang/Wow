@@ -1,3 +1,8 @@
+---
+title: Wow Onboarding
+description: Choose an audience-specific path for contributing to, evaluating, or adopting Wow
+---
+
 # Wow onboarding
 
 Welcome to Wow.
@@ -12,10 +17,10 @@ Those versions are defined by the repository rather than by this page: [project 
 
 | Audience | Start here | What you will learn | Suggested time |
 | --- | --- | --- | --- |
-| Contributor | [Contributor Guide](./contributor-guide.md) | Set up the repository, understand the runtime, implement a vertical slice, test it, and prepare a reviewable change. | About 30 minutes |
+| Contributor | [Contributor Guide](./contributor-guide.md) | Set up the repository, understand the runtime, implement a vertical slice, test it, and prepare a reviewable change. | About 60 minutes |
 | Staff engineer | [Staff Engineer Guide](./staff-engineer-guide.md) | Reason about module boundaries, extension contracts, runtime invariants, migrations, and architecture decisions. | About 45 minutes |
-| Executive | [Executive Guide](./executive-guide.md) | Understand the product shape, engineering model, strategic strengths, dependencies, and delivery risks. | About 20 minutes |
-| Product manager | [Product Manager Guide](./product-manager-guide.md) | Translate domain behavior into commands, events, acceptance criteria, observability, and release scope. | About 20 minutes |
+| Executive | [Executive Guide](./executive-guide.md) | Understand the product shape, engineering model, strategic strengths, dependencies, and delivery risks. | About 30 minutes |
+| Product manager | [Product Manager Guide](./product-manager-guide.md) | Translate domain behavior into commands, events, acceptance criteria, observability, and release scope. | About 30 minutes |
 
 ## Recommended reading order
 

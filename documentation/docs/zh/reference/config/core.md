@@ -52,7 +52,7 @@ enum class BusType {
 
 ### LocalFirst 模式
 
-LocalFirst 模式通过优先在本地消费消息而非通过分布式消息总线来优化命令和事件处理：
+LocalFirst 模式先尝试本地运行时准入，同时始终发送分布式副本。只有所有目标本地 Receiver 都确认准入后，副本才会标记为已在本地处理；否则仍可由分布式消费者处理。
 
 ```mermaid
 flowchart TB
@@ -67,17 +67,19 @@ flowchart TB
     end
 
     Client --> CG
-    CG --> LocalBus
-    CG --> Kafka
+    CG -->|尝试本地准入| LocalBus
+    CG -->|分布式副本| Kafka
     LocalBus --> Processor
-    Kafka --> Processor
+    Kafka -->|未标记本地处理时| Processor
 ```
 
-#### 优势
+#### 行为与失败边界
 
-1. **降低延迟**：本地消息处理避免了网络往返
-2. **更好的资源利用率**：在分发到分布式总线之前最大化本地处理
-3. **容错能力**：失败的本地消息通过分布式总线重试
+1. **降低延迟**：已在本地准入的消息无需等待 Broker 往返即可处理。
+2. **准入感知回退**：没有订阅者、处理入口已关闭或本地发送失败时，分布式副本仍可被处理。
+3. **不会追溯重路由**：本地准入成功后的 Handler 失败遵循普通 Handler 的重试与确认策略，不会重新启用分布式副本。
+
+来源：[LocalFirstMessageBus](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalFirstMessageBus.kt#L142-L199)。
 
 | 名称 | 数据类型 | 描述 | 默认值 |
 |------|-----------|-------------|---------------|

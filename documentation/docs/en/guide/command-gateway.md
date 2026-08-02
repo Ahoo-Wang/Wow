@@ -185,7 +185,7 @@ graph TB
     Gateway -->|3. register| Registrar
     Gateway -->|4. send message| LFBus
     LFBus -->|local-first| InMem
-    LFBus -->|distributed fallback| Kafka
+    LFBus -->|distributed copy| Kafka
     InMem -->|receive| Dispatcher
     Kafka -->|receive| Dispatcher
     Dispatcher -->|handleExchange| Aggregate
@@ -214,7 +214,7 @@ The `MessageBus` interface defines the fundamental contract: `send` a message an
 |---|---|---|---|
 | **Local** | `LocalMessageBus` | Single-JVM, in-memory message passing via Reactor `Sinks` | [MessageBus.kt:64](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageBus.kt#L64) |
 | **Distributed** | `DistributedMessageBus` | Cross-instance message passing (Kafka) | [MessageBus.kt:83](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageBus.kt#L83) |
-| **Local-First** | `LocalFirstMessageBus` | Hybrid: local bus first, distributed fallback | [LocalFirstMessageBus.kt:99](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalFirstMessageBus.kt#L99) |
+| **Local-First** | `LocalFirstMessageBus` | Hybrid: local runtime admission plus a marked distributed copy | [LocalFirstMessageBus.kt:99](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalFirstMessageBus.kt#L99) |
 
 For the command domain specifically, `CommandBus` extends `MessageBus` with a fixed `TopicKind.COMMAND` and narrows the generic types:
 
@@ -613,7 +613,7 @@ event:SNAPSHOT
 data:{"id":"0V3oCwdB0001003","waitCommandId":"0V3oCwbn0001001","stage":"SNAPSHOT","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"targetId","aggregateVersion":1,"requestId":"0V3oCwbn0001001","commandId":"0V3oCwbn0001001","function":{"functionKind":"STATE_EVENT","contextName":"wow","processorName":"SnapshotDispatcher","name":"save"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297603754,"succeeded":true}
 ```
 ```kotlin {1}
-commamdGateway.sendAndWaitForProcessed(message)
+commandGateway.sendAndWaitForProcessed(message)
 ```
 :::
 
@@ -626,7 +626,7 @@ commamdGateway.sendAndWaitForProcessed(message)
 | `SNAPSHOT` | `[SENT, PROCESSED]` | Snapshot persisted | No | No | Cold-start performance; read-after-write | [CommandStage.kt:53](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L53) |
 | `PROJECTED` | `[SENT, PROCESSED]` | Projection (read model) updated | No | Yes | Read-model consistency; UI refresh | [CommandStage.kt:62](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L62) |
 | `EVENT_HANDLED` | `[SENT, PROCESSED]` | External event handlers complete | No | Yes | Side-effect processing; notifications | [CommandStage.kt:72](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L72) |
-| `SAGA_HANDLED` | `[SENT, PROCESSED]` | Saga finished processing events | No | Yes | Distributed transaction completion | [CommandStage.kt:83](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L83) |
+| `SAGA_HANDLED` | `[SENT, PROCESSED]` | Selected Saga function completed handling; any generated commands were accepted/sent | No | Yes | Observe source-event orchestration; not downstream command completion | [CommandStage.kt:83](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L83) |
 
 Stages with `shouldWaitFunction = true` (`PROJECTED`, `EVENT_HANDLED`, `SAGA_HANDLED`) apply additional filtering: the `WaitTarget.shouldNotify(signal)` method checks that the signal's function metadata matches the expected function name, context name, and processor name. This is critical when multiple projectors or event handlers operate on the same aggregate -- the wait plan only completes when the _specific_ function has finished, not any arbitrary one.
 
@@ -789,12 +789,12 @@ Through _LocalFirst mode_, sending commands to the local bus and completion sign
 
 The `LocalFirstCommandBus` wraps a `LocalCommandBus` (typically `InMemoryCommandBus`) and a `DistributedCommandBus` (typically `KafkaCommandBus`) with a **local-first routing strategy**:
 
-1. If the aggregate is local **and** there are local subscribers, the command is first sent to the local bus, and a copy is always forwarded to the distributed bus.
-2. If the local send fails, the local-first flag is cleared on the distributed copy so remote instances will process it.
+1. If the aggregate is local **and** there are local subscribers, the command is first offered to the local runtime, and a copy is always sent to the distributed bus.
+2. The distributed copy is marked locally handled only after every targeted local receiver confirms runtime admission. If admission or local send is not confirmed, the copy remains eligible for distributed processing.
 3. If the aggregate is not local or has no local subscribers, the command goes only to the distributed bus.
 4. Void commands automatically skip local-first routing since they require no response.
 
-This design ensures at-most-once processing within the local JVM and exactly-once processing across the cluster -- a core concern in CQRS systems where losing a command means losing a state transition.
+After local runtime admission succeeds, a later handler failure does not retroactively re-enable the distributed copy; normal handler retry and acknowledgement policies apply. Filtering the marked copy prevents the same locally admitted message from also being processed by this distributed receiver, while end-to-end delivery guarantees remain specific to the configured adapter and handler policy.
 
 ### Configuration
 
@@ -811,7 +811,7 @@ wow:
 
 ### InMemoryCommandBus
 
-The simplest bus -- uses Reactor `Sinks.Many` (unicast, backpressure-buffered) to deliver commands within a single JVM. Each named aggregate gets its own sink, ensuring exactly-one consumer semantics.
+The simplest bus -- uses Reactor `Sinks.Many` (unicast, backpressure-buffered) to deliver commands within a single JVM. Each named aggregate gets its own sink, providing single-consumer semantics without implying an end-to-end delivery guarantee.
 
 ```kotlin
 // Source: wow-core/src/main/kotlin/me/ahoo/wow/command/InMemoryCommandBus.kt:31-50
@@ -954,7 +954,7 @@ wow:
 | Config Path | Type | Default | Description | Source Module |
 |---|---|---|---|---|
 | `wow.command.bus.type` | `String` | `kafka` | Command bus implementation: `in_memory` or `kafka` | `wow-spring-boot-starter` |
-| `wow.command.bus.local-first.enabled` | `Boolean` | `true` | Whether to use `LocalFirstCommandBus` for local fallback | `wow-spring-boot-starter` |
+| `wow.command.bus.local-first.enabled` | `Boolean` | `true` | Whether to use `LocalFirstCommandBus` for admission-aware local-first routing | `wow-spring-boot-starter` |
 | `wow.command.idempotency.enabled` | `Boolean` | `true` | Whether to check `requestId` for duplicates before sending | `wow-spring-boot-starter` |
 | `wow.command.idempotency.bloom-filter.expected-insertions` | `Long` | `1000000` | Capacity planning for the Bloom filter used in idempotency checking | `wow-spring-boot-starter` |
 | `wow.command.idempotency.bloom-filter.ttl` | `Duration` | `PT60S` | How long a `requestId` is remembered by the idempotency checker | `wow-spring-boot-starter` |

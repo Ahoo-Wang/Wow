@@ -333,7 +333,7 @@ erDiagram
     }
     COMMAND {
       string requestId
-      int expectedVersion
+      int aggregateVersion
     }
     DOMAIN_EVENT_STREAM {
       string commandId
@@ -341,11 +341,13 @@ erDiagram
     }
     DOMAIN_EVENT {
       int sequence
-      int revision
+      string revision
     }
 ```
 
-<!-- Sources: [Order state fields](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/OrderState.kt#L40-L67), [create payload and event](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/order/CreateOrder.kt#L36-L65), [event stream](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L31-L115) -->
+`aggregateVersion` is nullable; omitting it disables the optimistic-version precondition. Event `revision` is a semantic-version string and defaults to `0.0.1`.
+
+<!-- Sources: [Order state fields](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/OrderState.kt#L40-L67), [create payload and event](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/order/CreateOrder.kt#L36-L65), [command message](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt#L85-L96), [event revision](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/Revision.kt#L40-L55), [event stream](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L31-L115) -->
 
 ## Command lifecycle
 
@@ -366,7 +368,7 @@ Sources: [validation and request check](https://github.com/Ahoo-Wang/Wow/blob/ma
 
 ### Dispatch
 
-`CommandDispatcher` receives local commands and resolves aggregate metadata.
+`CommandDispatcher` receives command exchanges from the configured `CommandBus`—local, distributed, or their merged local-first view—and resolves aggregate metadata.
 
 It creates an aggregate-specific dispatcher and scheduler.
 The dispatcher groups work so one aggregate lane remains sequential.
@@ -498,11 +500,11 @@ Source: [StatelessSagaFunction](https://github.com/Ahoo-Wang/Wow/blob/main/wow-c
 
 Snapshots are derived checkpoints consumed from state events.
 
-`VersionOffsetSnapshotStrategy` defaults to an offset of five versions.
+The Starter defaults to the `ALL` snapshot strategy. When `VERSION_OFFSET` is selected, `VersionOffsetSnapshotStrategy` defaults to an offset of five versions.
 
 It compares the stored snapshot version and saves a newer `SimpleSnapshot` when required.
 Snapshot saving is outside the event-store append transaction.
-Sources: [strategy contract](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotStrategy.kt#L20-L51), [version-offset strategy](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/VersionOffsetSnapshotStrategy.kt#L24-L63), [snapshot filter](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotFunctionFilter.kt#L27-L35).
+Sources: [Starter snapshot defaults](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotProperties.kt#L24-L40), [strategy contract](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotStrategy.kt#L20-L51), [version-offset strategy](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/VersionOffsetSnapshotStrategy.kt#L24-L63), [snapshot filter](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotFunctionFilter.kt#L27-L35).
 
 ### Lifecycle comparison
 

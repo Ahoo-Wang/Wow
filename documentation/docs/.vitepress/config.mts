@@ -24,6 +24,21 @@ let userConfig = defineConfig({
     rewrites: {
         'en/:rest*': ':rest*'
     },
+    transformHead({page, title, description}) {
+        const isChinese = page.startsWith('zh/')
+        const isArticle = (page.startsWith('articles/') || page.startsWith('zh/articles/')) &&
+            !page.endsWith('articles/index.md')
+        return [
+            ['meta', {property: 'og:site_name', content: 'Wow'}],
+            ['meta', {property: 'og:type', content: isArticle ? 'article' : 'website'}],
+            ['meta', {property: 'og:title', content: title}],
+            ['meta', {property: 'og:description', content: description}],
+            ['meta', {property: 'og:locale', content: isChinese ? 'zh_CN' : 'en_US'}],
+            ['meta', {name: 'twitter:card', content: 'summary'}],
+            ['meta', {name: 'twitter:title', content: title}],
+            ['meta', {name: 'twitter:description', content: description}],
+        ]
+    },
     sitemap: {
         hostname: hostname,
         transformItems: (items) => {
@@ -105,6 +120,20 @@ let userConfig = defineConfig({
                     label: '本页目录',
                     level: [2, 3]
                 },
+                editLink: {
+                    text: '在 GitHub 上编辑此页面'
+                },
+                docFooter: {
+                    prev: '上一页',
+                    next: '下一页'
+                },
+                langMenuLabel: '切换语言',
+                darkModeSwitchLabel: '外观',
+                lightModeSwitchTitle: '切换到浅色主题',
+                darkModeSwitchTitle: '切换到深色主题',
+                sidebarMenuLabel: '菜单',
+                returnToTopLabel: '返回顶部',
+                skipToContentLabel: '跳到正文',
                 nav: navbarZh,
                 sidebar: sidebarZh,
                 notFound: {
