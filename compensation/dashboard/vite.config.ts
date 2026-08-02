@@ -8,9 +8,18 @@ import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import babel from "@rolldown/plugin-babel";
 
 const dashboardRoot = fileURLToPath(new URL(".", import.meta.url));
-const dashboardPackage = JSON.parse(
-  readFileSync(new URL("./package.json", import.meta.url), "utf8"),
-) as { version: string };
+
+function resolveProjectVersion(): string {
+  const gradleProperties = readFileSync(
+    new URL("../../gradle.properties", import.meta.url),
+    "utf8",
+  );
+  const version = gradleProperties.match(/^version=(.+)$/m)?.[1]?.trim();
+  if (!version) {
+    throw new Error("Unable to resolve version from root gradle.properties.");
+  }
+  return version;
+}
 
 function resolveCommitSha(): string {
   const environmentSha =
@@ -35,9 +44,7 @@ function resolveCommitSha(): string {
 export default defineConfig({
   define: {
     "import.meta.env.VITE_APP_COMMIT_SHA": JSON.stringify(resolveCommitSha()),
-    "import.meta.env.VITE_APP_VERSION": JSON.stringify(
-      dashboardPackage.version,
-    ),
+    "import.meta.env.VITE_APP_VERSION": JSON.stringify(resolveProjectVersion()),
   },
   build: {
     rolldownOptions: {
