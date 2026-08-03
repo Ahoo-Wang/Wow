@@ -21,7 +21,7 @@ Wow 的架构围绕一个核心原则构建：**"领域模型即服务"**。编�
 | **wow-test** | 单元测试 DSL：`AggregateSpec` / `SagaSpec` 配合 Given-When-Expect 模式 | `test/wow-test` | [settings.gradle.kts:44-45](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L44-L45) |
 | **wow-kafka** | 通过 Apache Kafka 实现的命令/事件总线 | `wow-kafka` 模块 | [settings.gradle.kts:27](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L27) |
 | **wow-elasticsearch** | 通过 Elasticsearch 进行投影（读模型）存储 | `wow-elasticsearch` 模块 | [settings.gradle.kts:31](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L31) |
-| **wow-opentelemetry** | 端到端追踪和可观测性 | `wow-opentelemetry` 模块 | [settings.gradle.kts:35](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L35) |
+| **wow-opentelemetry** | Wow 操作的分布式链路追踪 | `wow-opentelemetry` 模块 | [settings.gradle.kts:35](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L35) |
 | **wow-cosec** | 授权和访问控制 | `wow-cosec` 模块 | [settings.gradle.kts:40](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L40) |
 | **wow-webflux** | Spring WebFlux 集成：自动注册命令路由处理函数 | `wow-webflux` 模块 | [settings.gradle.kts:33](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L33) |
 
@@ -50,7 +50,7 @@ flowchart TB
         E5["wow-elasticsearch<br>Elasticsearch 投影"]
         E6["wow-webflux<br>WebFlux 命令端点"]
         E7["wow-cosec<br>授权"]
-        E8["wow-opentelemetry<br>追踪与指标"]
+        E8["wow-opentelemetry<br>分布式链路追踪"]
     end
 
     subgraph SPRING["Spring 集成"]
@@ -101,7 +101,7 @@ flowchart TB
 | **核心引擎** | `wow-core` | 聚合处理、命令总线、事件存储抽象、Saga 处理、投影分发、序列化。全部响应式（Project Reactor）。 | [wow-core](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt) |
 | **编译时** | `wow-compiler` | KSP 处理器。在编译时从注解生成命令路由表、事件处理器元数据和 OpenAPI 规范。 | [settings.gradle.kts:26](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L26) |
 | **Spring 集成** | `wow-spring`、`wow-spring-boot-starter` | 将核心引擎桥接到 Spring 的 `ApplicationContext`。starter 通过 Gradle 功能变体提供自动配置和可选能力。 | [WowAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt) |
-| **可观测性** | `wow-opentelemetry` | 通过 OpenTelemetry 进行端到端追踪、指标和日志集成。 | [settings.gradle.kts:35](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L35) |
+| **可观测性** | `wow-opentelemetry` | 通过 OpenTelemetry 提供端到端链路追踪；指标由 Micrometer 独立提供。 | [settings.gradle.kts:35](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L35) |
 | **安全** | `wow-cosec` | 基于策略的访问控制的命令/查询授权。 | [settings.gradle.kts:40](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L40) |
 | **测试** | `wow-test`、`wow-tck`、`wow-mock` | 聚合和 Saga 测试 DSL；集成测试技术兼容性工具包；内存模拟实现。 | [settings.gradle.kts:44-49](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L44-L49) |
 | **补偿** | `wow-compensation-api`、`wow-compensation-core`、`wow-compensation-domain`、`wow-compensation-server` | 事件补偿子系统，带有用于监控和重试失败事件的仪表板。 | [settings.gradle.kts:56-63](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L56-L63) |
@@ -437,4 +437,4 @@ Wow 框架的架构选择直接支撑了其性能表现。影响性能的关键�
 | [测试](../test-suite) | AggregateSpec 和 SagaSpec 测试 DSL |
 | [Spring Boot 集成](../extensions/spring-boot-starter) | 自动配置详情和属性参考 |
 | [CoCache](../extensions/cocache) | 用于查询性能的投影缓存 |
-| [可观测性](../../reference/config/observability) | OpenTelemetry 追踪和指标 |
+| [可观测性](../../reference/config/observability) | OpenTelemetry 链路追踪与 Micrometer 指标 |

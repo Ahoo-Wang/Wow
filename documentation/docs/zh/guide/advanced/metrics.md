@@ -19,11 +19,8 @@ implementation("org.springframework.boot:spring-boot-starter-actuator")
 runtimeOnly("io.micrometer:micrometer-registry-prometheus") // 或 micrometer-registry-otlp
 ```
 
-```yaml
-wow:
-  metrics:
-    enabled: true # 默认值
-```
+指标默认启用，不需要额外配置 Wow；`wow.metrics.enabled` 的默认值是 `true`。使用 OTLP Registry
+时，默认导出路径只需设置 `OTEL_SERVICE_NAME` 和 `OTEL_EXPORTER_OTLP_ENDPOINT`。
 
 如果 `wow.metrics.enabled=false`，或者上下文中没有 `MeterRegistry`，Wow 使用
 `WowMetrics.NONE`，响应式链保持无指标的紧凑路径。
@@ -164,9 +161,11 @@ flowchart LR
     Tracing["wow-opentelemetry spans"] --> Collector
 ```
 
-通过 OTLP 导出时加入 `micrometer-registry-otlp` 并配置
-`management.otlp.metrics.export.url`。`wow-opentelemetry` 负责 tracing；它不会自动把
-Micrometer meter 转换为 span，但 metrics 与 traces 可以发送到同一个 Collector。
+通过 OTLP 导出时加入 `micrometer-registry-otlp`，再设置 `OTEL_SERVICE_NAME` 和统一的
+`OTEL_EXPORTER_OTLP_ENDPOINT`；通常指向 Collector 的 OTLP/HTTP `4318` 端口。Spring Boot 会把
+该端点映射到 `OtlpMeterRegistry`，无需手动创建 Registry Bean 或配置 Metrics YAML。
+`wow-opentelemetry` 负责 tracing，不会把 Micrometer meter 转换为 span，但 metrics 与 traces
+可以复用相同的环境变量和 Collector。
 
 完整配置和验证步骤参见[可观测性配置](/zh/reference/config/observability)。
 

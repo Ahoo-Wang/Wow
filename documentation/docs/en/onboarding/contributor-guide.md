@@ -1938,7 +1938,7 @@ wow-mongo                  MongoDB storage
 wow-redis                  Redis storage
 wow-elasticsearch          Elasticsearch event/snapshot storage and queries
 wow-webflux                reactive HTTP command integration
-wow-opentelemetry          tracing and metrics
+wow-opentelemetry          distributed tracing
 wow-cosec                  authorization integration
 wow-cocache                projection caching
 wow-apiclient              REST client support

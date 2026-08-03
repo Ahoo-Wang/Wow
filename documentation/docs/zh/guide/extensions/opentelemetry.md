@@ -11,12 +11,14 @@ OpenTelemetry 是一个厂商中立的开源项目，旨在为跟踪和监控分
 其主要目标是为开发人员提供一致的跟踪解决方案，帮助他们收集、生成和导出分布式系统的跟踪数据，以更好地理解应用程序的性能、行为和异常。
 OpenTelemetry 支持多种编程语言和框架，如 Java、Python、Go、Node.js，使得开发人员可以轻松集成跟踪功能。
 
-OpenTelemetry 提供以下核心功能：
+OpenTelemetry 项目提供以下核心功能：
 - 分布式追踪：捕获请求在不同服务和组件之间的传递，形成调用链，以追踪整个分布式请求的路径和执行时间。
 - 指标收集：收集和导出性能指标，如请求速率、响应时间、错误率等，助力开发人员监控和优化性能。
 - 日志记录：收集应用程序的日志数据，与跟踪和指标数据相关联，提供深入了解应用程序行为和问题的视角。
 
-Wow 框架的 _OpenTelemetry_ 模块通过提供一系列仪表器（_Instrumenter_）来记录框架的核心组件的操作，以帮助开发人员更好地理解应用程序的性能、行为和异常。
+Wow 的 `wow-opentelemetry` 模块刻意只负责**分布式链路追踪**：它为框架核心操作提供
+instrumenter；Wow 指标仍是 Micrometer meter，由 Micrometer Registry 负责导出。该模块本身
+不会初始化 OpenTelemetry SDK 或 exporter。
 
 - `AggregateInstrumenter`: 聚合根仪表器，用于记录聚合根的操作。
 - `EventProcessorInstrumenter`: 事件处理器仪表器，用于记录事件处理器的操作。
@@ -44,14 +46,27 @@ Wow 框架的 _OpenTelemetry_ 模块通过提供一系列仪表器（_Instrument
 
 ## 安装
 
+Gradle 构建的 Spring Boot 应用推荐请求 starter 的 `opentelemetry-support` capability。这是单一的
+依赖入口：它会引入 `wow-opentelemetry`，并启用对应的 Wow 自动配置。
+
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
-implementation("me.ahoo.wow:wow-opentelemetry")
+implementation("me.ahoo.wow:wow-spring-boot-starter") {
+    capabilities {
+        requireCapability("me.ahoo.wow:opentelemetry-support")
+    }
+}
 ```
 ```groovy [Gradle(Groovy)]
-implementation 'me.ahoo.wow:wow-opentelemetry'
+implementation('me.ahoo.wow:wow-spring-boot-starter') {
+    capabilities {
+        requireCapability('me.ahoo.wow:opentelemetry-support')
+    }
+}
 ```
 ```xml [Maven]
+<!-- Maven 不解析 Gradle feature capability。应用保留 wow-spring-boot-starter，
+     并显式加入链路追踪模块。 -->
 <dependency>
     <groupId>me.ahoo.wow</groupId>
     <artifactId>wow-opentelemetry</artifactId>
@@ -60,9 +75,33 @@ implementation 'me.ahoo.wow:wow-opentelemetry'
 ```
 :::
 
+不使用 Spring Boot 自动配置时，可以直接依赖 `wow-opentelemetry`，并自行注册 tracing filters
+和 decorators。
+
+## OTLP 快速接入
+
+推荐使用 OpenTelemetry Java Agent 作为运行时。它会在 Wow 创建 tracing instrumenters 前初始化
+`GlobalOpenTelemetry`：
+
+```bash
+export JAVA_TOOL_OPTIONS="-javaagent:/opt/otel/opentelemetry-javaagent.jar"
+export OTEL_SERVICE_NAME=order-service
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+java -jar your-app.jar
+```
+
+统一端点使用 OTLP/HTTP，Agent 自动追加 `/v1/traces`。如果应用同时引入 Spring Boot Actuator
+和 `micrometer-registry-otlp`，Micrometer 会复用相同的服务名与端点，并自动追加 `/v1/metrics`；
+不需要配置 Wow 专用 exporter。
+
+存在 `micrometer-registry-otlp` 时，不要再开启 Java Agent 的 Micrometer bridge，否则两条路径会
+重复导出应用指标。依赖、鉴权、验证方法和 signal-specific endpoint 覆盖方式参见
+[可观测性配置](/zh/reference/config/observability)。
+
 ## 配置
 
-当 `wow-opentelemetry` 位于 classpath 时，Wow 默认开启链路追踪自动配置。无需移除依赖即可关闭：
+当 starter 自动配置生效且 `wow-opentelemetry` 位于 classpath 时，Wow 默认开启链路追踪。无需
+移除依赖即可关闭：
 
 ```yaml
 wow:
@@ -70,7 +109,8 @@ wow:
     enabled: false
 ```
 
-请在 Wow 应用上下文创建 tracing filters 和 decorators 前初始化 `GlobalOpenTelemetry`。可以使用 OpenTelemetry Java Agent，或在应用启动阶段注册 SDK；若在 Wow tracing instrumenters 初始化后才注册 SDK，则时机过晚。
+如果不使用 Agent 而是自行创建 SDK，请在 Wow 应用上下文创建 tracing filters 和 decorators 前
+初始化 `GlobalOpenTelemetry`；若在 Wow tracing instrumenters 初始化后才注册 SDK，则时机过晚。
 
 ## 链路追踪如何装配
 
