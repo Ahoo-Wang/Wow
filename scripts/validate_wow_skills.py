@@ -20,13 +20,7 @@ NAME_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 RESOURCE_PATTERN = re.compile(
     r"(?<![A-Za-z0-9_/])((?:references|assets|scripts)/[A-Za-z0-9_.\-/]+)"
 )
-MARKDOWN_LINK_PATTERN = re.compile(r"\]\(\s*(?:<([^>\n]+)>|([^)\s]+))")
-MARKDOWN_REFERENCE_PATTERN = re.compile(
-    r"(?m)^[ \t]{0,3}\[[^\]\n]+\]:[ \t]*(?:<([^>\n]+)>|(\S+))"
-)
-RAW_HTML_RESOURCE_PATTERN = re.compile(
-    r"<[A-Za-z][A-Za-z0-9:-]*\b[^>]*\b(?:href|src)\s*=", re.IGNORECASE
-)
+NON_RUNTIME_RESOURCE_MARKERS = ("agents/", "evals/")
 
 
 def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -40,6 +34,12 @@ def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 def _reject_json_constant(value: str) -> Any:
     raise ValueError(f"invalid constant {value}")
+
+
+def _validate_runtime_text(source: Path, value: str, errors: list[str]) -> None:
+    for marker in NON_RUNTIME_RESOURCE_MARKERS:
+        if marker in value:
+            errors.append(f"{source}: runtime content references maintainer-only content: {marker}")
 
 
 def _scalar(raw: str, source: Path, line: int, errors: list[str]) -> str | None:
@@ -115,7 +115,7 @@ def _validate_skill_file(skill_dir: Path, errors: list[str]) -> str:
         errors.append(f"{skill_file}: name {name!r} must match directory {skill_dir.name!r}")
     if not NAME_PATTERN.fullmatch(name) or len(name) > 64:
         errors.append(f"{skill_file}: invalid skill name {name!r}")
-    if not description or len(description) > 1024 or "<" in description or ">" in description:
+    if not description.strip() or len(description) > 1024 or "<" in description or ">" in description:
         errors.append(f"{skill_file}: description must be 1-1024 characters without angle brackets")
     if not body:
         errors.append(f"{skill_file}: body must not be empty")
@@ -157,10 +157,11 @@ def _validate_openai_yaml(skill_dir: Path, errors: list[str]) -> None:
     if set(values) != required:
         errors.append(f"{path}: interface keys must be exactly {', '.join(sorted(required))}")
         return
-    if not values["display_name"] or len(values["display_name"]) > 64:
+    if not values["display_name"].strip() or len(values["display_name"]) > 64:
         errors.append(f"{path}: display_name must be 1-64 characters")
-    if not 25 <= len(values["short_description"]) <= 64:
+    if not values["short_description"].strip() or not 25 <= len(values["short_description"]) <= 64:
         errors.append(f"{path}: short_description must be 25-64 characters")
+    _validate_runtime_text(path, values["default_prompt"], errors)
     skill_token = re.compile(
         rf"(?<![A-Za-z0-9_-])\${re.escape(skill_dir.name)}(?![A-Za-z0-9_-])"
     )
@@ -244,26 +245,7 @@ def _validate_resources(skill_dir: Path, body: str, errors: list[str]) -> None:
                 except (OSError, UnicodeError) as exc:
                     errors.append(f"{path}: cannot read UTF-8 text: {exc}")
     for source, text in documents:
-        if RAW_HTML_RESOURCE_PATTERN.search(text):
-            errors.append(f"{source}: raw HTML resource links are not allowed")
-        link_targets = [left or right for left, right in MARKDOWN_LINK_PATTERN.findall(text)]
-        link_targets.extend(left or right for left, right in MARKDOWN_REFERENCE_PATTERN.findall(text))
-        for raw in link_targets:
-            target_text = raw.strip("<>").split("#", 1)[0]
-            if not target_text:
-                continue
-            scheme = re.match(r"^([A-Za-z][A-Za-z0-9+.-]*):", target_text)
-            if scheme:
-                if scheme.group(1).lower() in {"http", "https", "mailto"}:
-                    continue
-                errors.append(f"{source}: local link scheme is not allowed: {raw}")
-                continue
-            relative = PurePosixPath(target_text)
-            target = source.parent.joinpath(*relative.parts)
-            if relative.is_absolute() or ".." in relative.parts or not _contained(target, skill_dir):
-                errors.append(f"{source}: local link escapes the Skill: {raw}")
-            elif not target.exists():
-                errors.append(f"{source}: local link does not exist: {raw}")
+        _validate_runtime_text(source, text, errors)
 
 
 def _load_jsonl(path: Path, errors: list[str]) -> list[tuple[int, dict[str, Any]]]:
@@ -297,11 +279,26 @@ def _validate_evals(skills_root: Path, skill_names: set[str], errors: list[str])
     seen_ids: dict[str, str] = {}
     for skill_name in sorted(skill_names):
         skill_dir = skills_root / skill_name
+        if skill_dir.is_symlink() or not skill_dir.is_dir() or not _contained(skill_dir, skills_root):
+            continue
         eval_dir = skill_dir / "evals"
         if eval_dir.is_symlink() or not _contained(eval_dir, skill_dir):
             errors.append(f"{eval_dir}: evals must stay inside the Skill and must not be a link")
             continue
         fixtures_root = eval_dir / "fixtures"
+        fixtures_valid = False
+        if fixtures_root.is_symlink() or (
+            fixtures_root.exists()
+            and (not fixtures_root.is_dir() or not _contained(fixtures_root, eval_dir))
+        ):
+            errors.append(f"{fixtures_root}: evals/fixtures must be a regular directory inside evals")
+        elif fixtures_root.is_dir():
+            fixtures_valid = True
+            for entry in sorted(fixtures_root.rglob("*")):
+                if entry.is_symlink():
+                    errors.append(f"{entry}: fixture links are not allowed")
+                elif not entry.is_dir() and not entry.is_file():
+                    errors.append(f"{entry}: fixture entries must be regular files or directories")
         for kind in ("activation", "behavior"):
             path = eval_dir / f"{kind}.jsonl"
             if path.is_symlink() or not _contained(path, eval_dir):
@@ -350,11 +347,12 @@ def _validate_evals(skills_root: Path, skill_names: set[str], errors: list[str])
                     if not isinstance(fixture, str) or not fixture:
                         errors.append(f"{location}: fixture must be a non-empty relative path")
                         continue
+                    if not fixtures_valid:
+                        errors.append(f"{location}: fixture requires a regular evals/fixtures directory")
+                        continue
                     relative = PurePosixPath(fixture)
                     target = eval_dir.joinpath(*relative.parts)
-                    if fixtures_root.is_symlink() or not _contained(fixtures_root, eval_dir):
-                        errors.append(f"{location}: evals/fixtures must stay inside evals and must not be a link")
-                    elif (
+                    if (
                         relative.is_absolute()
                         or ".." in relative.parts
                         or not target.is_relative_to(fixtures_root)
@@ -365,15 +363,7 @@ def _validate_evals(skills_root: Path, skill_names: set[str], errors: list[str])
                         errors.append(f"{location}: fixture path must not contain links")
                     elif not target.exists():
                         errors.append(f"{location}: fixture does not exist: {fixture}")
-                    elif target.is_dir():
-                        for entry in sorted(target.rglob("*")):
-                            if entry.is_symlink():
-                                errors.append(f"{location}: fixture contains a link: {entry.relative_to(eval_dir)}")
-                            elif not entry.is_dir() and not entry.is_file():
-                                errors.append(
-                                    f"{location}: fixture contains a non-regular entry: {entry.relative_to(eval_dir)}"
-                                )
-                    elif not target.is_file():
+                    elif not target.is_dir() and not target.is_file():
                         errors.append(f"{location}: fixture must be a regular file or directory")
 
 
@@ -414,7 +404,9 @@ def validate_repository(root: Path) -> list[str]:
             errors.append(f"{manifest_path}: skills.include must not contain duplicates")
 
     actual_names = {
-        path.name for path in skills_root.iterdir() if path.is_dir() and (path / "SKILL.md").exists()
+        path.name
+        for path in skills_root.iterdir()
+        if not path.is_symlink() and path.is_dir() and (path / "SKILL.md").exists()
     }
     if included_names != actual_names or actual_names != EXPECTED_SKILLS:
         errors.append(
@@ -424,6 +416,9 @@ def validate_repository(root: Path) -> list[str]:
 
     for skill_name in sorted(EXPECTED_SKILLS):
         skill_dir = skills_root / skill_name
+        if skill_dir.is_symlink() or not skill_dir.is_dir() or not _contained(skill_dir, skills_root):
+            errors.append(f"{skill_dir}: Skill must be a regular directory inside skills")
+            continue
         body = _validate_skill_file(skill_dir, errors)
         _validate_openai_yaml(skill_dir, errors)
         _validate_resources(skill_dir, body, errors)

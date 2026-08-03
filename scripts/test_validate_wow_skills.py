@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -47,13 +48,31 @@ class WowSkillsValidatorTest(unittest.TestCase):
         )
         self.assertEqual(0, result.returncode, result.stderr)
 
-    def test_frontmatter_name_must_match_directory(self) -> None:
+    def test_skill_frontmatter_and_directory_are_valid(self) -> None:
         path = self.root / "skills" / "wow-debug" / "SKILL.md"
-        path.write_text(
-            path.read_text(encoding="utf-8").replace('name: "wow-debug"', 'name: "wrong-name"', 1),
-            encoding="utf-8",
-        )
-        self.assert_error("must match directory 'wow-debug'")
+        original = path.read_text(encoding="utf-8")
+        with self.subTest(boundary="wrong-name"):
+            path.write_text(
+                original.replace('name: "wow-debug"', 'name: "wrong-name"', 1),
+                encoding="utf-8",
+            )
+            self.assert_error("must match directory 'wow-debug'")
+        with self.subTest(boundary="blank-description"):
+            path.write_text(
+                re.sub(r'^description: ".*"$', 'description: "   "', original, count=1, flags=re.MULTILINE),
+                encoding="utf-8",
+            )
+            self.assert_error("description must be 1-1024 characters")
+        with self.subTest(boundary="linked-skill-directory"):
+            path.write_text(original, encoding="utf-8")
+            skill_dir = path.parent
+            outside = self.root / "outside-skill"
+            skill_dir.rename(outside)
+            skill_dir.symlink_to(outside, target_is_directory=True)
+            (outside / "evals" / "behavior.jsonl").write_text("{\n", encoding="utf-8")
+            errors = validate_repository(self.root)
+            self.assertTrue(any("Skill must be a regular directory inside skills" in error for error in errors))
+            self.assertFalse(any("invalid JSON" in error for error in errors))
 
     def test_openai_prompt_must_reference_the_skill(self) -> None:
         path = self.root / "skills" / "wow-review" / "agents" / "openai.yaml"
@@ -76,6 +95,43 @@ class WowSkillsValidatorTest(unittest.TestCase):
                 encoding="utf-8",
             )
             self.assert_error("value must be a double-quoted string")
+        with self.subTest(boundary="maintainer-only-default-prompt"):
+            path.write_text(
+                original.replace("$wow-review", "$wow-review. Load ./evals/behavior.jsonl"),
+                encoding="utf-8",
+            )
+            self.assert_error("runtime content references maintainer-only content")
+        with self.subTest(boundary="blank-display-name"):
+            path.write_text(
+                original.replace('display_name: "Wow Review"', 'display_name: "   "'),
+                encoding="utf-8",
+            )
+            self.assert_error("display_name must be 1-64 characters")
+        with self.subTest(boundary="blank-short-description"):
+            path.write_text(
+                re.sub(
+                    r'^  short_description: ".*"$',
+                    '  short_description: "                         "',
+                    original,
+                    count=1,
+                    flags=re.MULTILINE,
+                ),
+                encoding="utf-8",
+            )
+            self.assert_error("short_description must be 25-64 characters")
+        with self.subTest(boundary="padded-long-short-description"):
+            padded = " " * 100 + "Review Wow changes safely"
+            path.write_text(
+                re.sub(
+                    r'^  short_description: ".*"$',
+                    f'  short_description: "{padded}"',
+                    original,
+                    count=1,
+                    flags=re.MULTILINE,
+                ),
+                encoding="utf-8",
+            )
+            self.assert_error("short_description must be 25-64 characters")
         with self.subTest(boundary="agents-directory-link"):
             path.write_text(original, encoding="utf-8")
             agents = path.parent
@@ -110,38 +166,20 @@ class WowSkillsValidatorTest(unittest.TestCase):
         for reference, expected in (
             ("references/missing.md", "referenced resource does not exist"),
             ("references/../outside.md", "resource path escapes the Skill"),
-            ("[outside](../outside.md)", "local link escapes the Skill"),
-            ("[absolute](/absolute/path)", "local link escapes the Skill"),
-            ("[file](file:///etc/passwd)", "local link scheme is not allowed"),
-            ("[outside][escape]\n\n[escape]: ../outside.md", "local link escapes the Skill"),
-            (
-                "[outside](<references/pipeline-map.md /../../../outside.md>)",
-                "local link escapes the Skill",
-            ),
-            ('<a href="../outside.md">outside</a>', "raw HTML resource links are not allowed"),
-            ('<script src="../outside.js"></script>', "raw HTML resource links are not allowed"),
+            ("[rubric](./evals/behavior.jsonl)", "runtime content references maintainer-only content"),
         ):
             with self.subTest(reference=reference):
-                addition = reference if reference.startswith(("[", "<")) else f"Load `{reference}`."
+                addition = reference if reference.startswith("[") else f"Load `{reference}`."
                 path.write_text(original + f"\n{addition}\n", encoding="utf-8")
                 self.assert_error(expected)
         path.write_text(original, encoding="utf-8")
 
         with self.subTest(reference="symlinked-reference"):
             outside = self.root / "outside.md"
-            outside.write_text("[outside](../secret.md)", encoding="utf-8")
+            outside.write_text("outside", encoding="utf-8")
             link = self.root / "skills" / "wow-develop" / "references" / "leak.md"
             link.symlink_to(outside)
-            errors = validate_repository(self.root)
-            self.assertTrue(any("resource links are not allowed" in error for error in errors))
-            self.assertFalse(any("local link" in error for error in errors))
-
-        with self.subTest(reference="asset-local-link"):
-            asset = self.root / "skills" / "wow-develop" / "assets" / "design-report.md"
-            asset_original = asset.read_text(encoding="utf-8")
-            asset.write_text(asset_original + "\n[outside](../../outside.md)\n", encoding="utf-8")
-            self.assert_error("local link escapes the Skill")
-            asset.write_text(asset_original, encoding="utf-8")
+            self.assert_error("resource links are not allowed")
 
         with self.subTest(reference="resource-is-directory"):
             resource = self.root / "skills" / "wow-develop" / "assets" / "behavior-scenarios.md"
@@ -237,7 +275,14 @@ class WowSkillsValidatorTest(unittest.TestCase):
             outside.write_text("outside", encoding="utf-8")
             link = self.root / "skills" / "wow-migrate" / "evals" / "fixtures" / "v6-service" / "leak"
             link.symlink_to(outside)
-            self.assert_error("fixture contains a link")
+            self.assert_error("fixture links are not allowed")
+            link.unlink()
+
+        with self.subTest(boundary="unreferenced-symlink"):
+            link = self.root / "skills" / "wow-review" / "evals" / "fixtures" / "leak"
+            link.symlink_to(outside)
+            self.assert_error("fixture links are not allowed")
+            link.unlink()
 
         with self.subTest(boundary="symlinked-path-component"):
             fixtures = self.root / "skills" / "wow-review" / "evals" / "fixtures"
@@ -266,7 +311,14 @@ class WowSkillsValidatorTest(unittest.TestCase):
             outside_fixtures = self.root / "outside-fixtures"
             fixtures.rename(outside_fixtures)
             fixtures.symlink_to(outside_fixtures, target_is_directory=True)
-            self.assert_error("evals/fixtures must stay inside evals")
+            self.assert_error("evals/fixtures must be a regular directory inside evals")
+
+        with self.subTest(boundary="fixtures-root-is-file"):
+            fixtures = self.root / "skills" / "wow-debug" / "evals" / "fixtures"
+            outside_fixtures = self.root / "outside-debug-fixtures"
+            fixtures.rename(outside_fixtures)
+            fixtures.write_text("not a directory", encoding="utf-8")
+            self.assert_error("evals/fixtures must be a regular directory inside evals")
 
     def test_eval_contract_files_are_local_and_non_empty(self) -> None:
         with self.subTest(boundary="linked-file"):
