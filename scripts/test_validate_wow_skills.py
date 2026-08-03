@@ -61,6 +61,9 @@ class WowSkillsValidatorTest(unittest.TestCase):
         with self.subTest(boundary="missing-skill-reference"):
             path.write_text(original.replace("$wow-review", "$other"), encoding="utf-8")
             self.assert_error("default_prompt must reference $wow-review")
+        with self.subTest(boundary="longer-skill-name"):
+            path.write_text(original.replace("$wow-review", "$wow-reviewer"), encoding="utf-8")
+            self.assert_error("default_prompt must reference $wow-review")
         with self.subTest(boundary="plain-scalar-comment"):
             path.write_text(
                 "\n".join(
@@ -140,14 +143,24 @@ class WowSkillsValidatorTest(unittest.TestCase):
 
     def test_eval_fixture_must_exist_inside_its_eval_directory(self) -> None:
         path = self.root / "skills" / "wow-review" / "evals" / "behavior.jsonl"
+        original = path.read_text(encoding="utf-8")
         record = {
             "id": "B99-escape",
             "skill": "wow-review",
             "prompt": "review a fixture",
             "fixture": "../outside.patch",
         }
-        path.write_text(path.read_text(encoding="utf-8") + json.dumps(record) + "\n", encoding="utf-8")
-        self.assert_error("fixture path escapes the eval directory")
+        with self.subTest(boundary="escape"):
+            path.write_text(original + json.dumps(record) + "\n", encoding="utf-8")
+            self.assert_error("fixture path escapes the eval directory")
+
+        with self.subTest(boundary="nested-symlink"):
+            path.write_text(original, encoding="utf-8")
+            outside = self.root / "outside.txt"
+            outside.write_text("outside", encoding="utf-8")
+            link = self.root / "skills" / "wow-migrate" / "evals" / "fixtures" / "v6-service" / "leak"
+            link.symlink_to(outside)
+            self.assert_error("fixture contains a link")
 
 
 if __name__ == "__main__":

@@ -144,7 +144,10 @@ def _validate_openai_yaml(skill_dir: Path, errors: list[str]) -> None:
         errors.append(f"{path}: display_name must be 1-64 characters")
     if not 25 <= len(values["short_description"]) <= 64:
         errors.append(f"{path}: short_description must be 25-64 characters")
-    if f"${skill_dir.name}" not in values["default_prompt"]:
+    skill_token = re.compile(
+        rf"(?<![A-Za-z0-9_-])\${re.escape(skill_dir.name)}(?![A-Za-z0-9_-])"
+    )
+    if skill_token.search(values["default_prompt"]) is None:
         errors.append(f"{path}: default_prompt must reference ${skill_dir.name}")
 
 
@@ -291,6 +294,16 @@ def _validate_evals(skills_root: Path, skill_names: set[str], errors: list[str])
                         errors.append(f"{location}: fixture must not be a link")
                     elif not target.exists():
                         errors.append(f"{location}: fixture does not exist: {fixture}")
+                    elif target.is_dir():
+                        for entry in sorted(target.rglob("*")):
+                            if entry.is_symlink():
+                                errors.append(f"{location}: fixture contains a link: {entry.relative_to(eval_dir)}")
+                            elif not entry.is_dir() and not entry.is_file():
+                                errors.append(
+                                    f"{location}: fixture contains a non-regular entry: {entry.relative_to(eval_dir)}"
+                                )
+                    elif not target.is_file():
+                        errors.append(f"{location}: fixture must be a regular file or directory")
 
 
 def validate_repository(root: Path) -> list[str]:
