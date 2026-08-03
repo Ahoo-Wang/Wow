@@ -98,10 +98,20 @@ implementation("org.springframework.boot:spring-boot-starter-actuator")
 implementation("io.micrometer:micrometer-registry-prometheus")
 ```
 
-Scrape the `/actuator/prometheus` endpoint from Prometheus. The Wow-specific meters
-(`wow.operation`, `wow.stream.*`, and `wow.batch.*`) appear
-alongside standard JVM/Reactor meters. See [Metrics](/guide/advanced/metrics) for the full
-catalogue.
+Scrape the `/actuator/prometheus` endpoint from Prometheus. The Wow-specific Micrometer meter IDs
+are `wow.operation`, `wow.stream.*`, and `wow.batch.*`; these dotted IDs are used with the Actuator
+`metrics` endpoint. Prometheus applies its naming convention at export time, for example:
+
+| Micrometer meter ID | Prometheus series example |
+|---|---|
+| `wow.operation` (Timer) | `wow_operation_seconds_count`, `wow_operation_seconds_sum` |
+| `wow.stream.messages` (Counter) | `wow_stream_messages_total` |
+
+The Wow series appear alongside standard JVM and other instrumented application meters. Generic
+Reactor Core sequence or scheduler meters appear only when the application explicitly configures
+`reactor-core-micrometer` instrumentation. See [Metrics](/guide/advanced/metrics) for the full Wow
+catalogue and the [Spring Boot metrics documentation](https://docs.spring.io/spring-boot/reference/actuator/metrics.html#actuator.metrics.endpoint)
+for the distinction between logical meter IDs and exported names.
 
 ### Exporting Metrics via OTLP (OpenTelemetry Collector)
 
@@ -151,11 +161,26 @@ classpath. Wow injects that application registry directly, so Wow meters still r
 [Spring Boot OTLP metrics documentation](https://docs.spring.io/spring-boot/reference/actuator/metrics.html#actuator.metrics.export.otlp)
 and [Micrometer OTLP registry documentation](https://docs.micrometer.io/micrometer/reference/implementations/otlp.html).
 
-To verify the integration, temporarily expose the `metrics` actuator endpoint, generate real
-traffic, and inspect `/actuator/metrics/wow.operation`, `/actuator/metrics/wow.batch.write`, or another `wow.*` meter. Then verify that
-the Collector or downstream backend receives it after the configured `step`. An actuator result
-proves collection only; receipt by the Collector proves export. Batch meters appear only after a
-batching-enabled store performs the corresponding operation.
+To verify the integration, temporarily add `metrics` to the existing Actuator exposure list:
+
+```yaml
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - prometheus
+          - threaddump
+          - metrics       # temporary diagnostic endpoint
+```
+
+Generate real traffic, then inspect `/actuator/metrics/wow.operation`,
+`/actuator/metrics/wow.batch.write`, or another `wow.*` meter. Verify that the Collector or
+downstream backend receives it after the configured `step`. An Actuator result proves collection
+only; receipt by the Collector proves export. Batch meters appear only after a batching-enabled
+store performs the corresponding operation. Remove or restrict the diagnostic endpoint after
+verification.
 
 ### Enabling Distributed Tracing (OpenTelemetry)
 

@@ -85,11 +85,22 @@ MongoDB 和 Elasticsearch 的 batching 路径复用同一个 `WowMetrics` Regist
 
 ## 非 Spring 接入
 
-`wow-core` 直接公开 Micrometer 契约。手动创建一个实例，并把同一实例交给需要插桩的组件：
+`wow-core` 直接公开 Micrometer 契约。手动创建一个实例，并用它分别装饰需要记录语义组件指标的
+总线、存储和处理器。构造函数中的 `metrics` 参数只为该组件自身负责的行为插桩，不会递归装饰
+它依赖的其他组件：
 
 ```kotlin
 val registry: MeterRegistry = SimpleMeterRegistry()
 val metrics = WowMetrics(registry)
+
+val meteredCommandBus = commandBus.metered(
+    metrics = metrics,
+    source = "command-bus",
+)
+val meteredCommandHandler = commandHandler.metered(
+    metrics = metrics,
+    source = "command-handler",
+)
 
 val eventStore: EventStore = MongoEventStore(
     database = database,
@@ -98,8 +109,8 @@ val eventStore: EventStore = MongoEventStore(
 ).metered(metrics, source = "primary-event-store")
 
 val dispatcher = CommandDispatcher(
-    commandBus = commandBus,
-    commandHandler = commandHandler,
+    commandBus = meteredCommandBus,
+    commandHandler = meteredCommandHandler,
     metrics = metrics,
 )
 ```
@@ -159,7 +170,8 @@ Micrometer meter 转换为 span，但 metrics 与 traces 可以发送到同一�
 1. `wow.metrics.enabled` 未被关闭；
 2. ApplicationContext 中存在期望的 `MeterRegistry` Bean；
 3. 产生过对应组件的真实流量；
-4. `/actuator/metrics/wow.operation` 可见；
+4. 已临时暴露 Actuator `metrics` endpoint，且
+   `/actuator/metrics/wow.operation` 可见；
 5. 对于批处理指标，存储已启用 batching；
 6. 对于 OTLP，等待一个 export `step` 后确认 Collector 实际收到数据。
 
