@@ -84,12 +84,9 @@ describe("Actions", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.useRealTimers();
   });
 
-  it("recomputes prepared actions after the execution timeout expires", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(1_000_000);
+  it("leaves prepared action eligibility to the authoritative server state", () => {
     render(
       <Actions
         state={{
@@ -97,17 +94,11 @@ describe("Actions", () => {
           status: ExecutionFailedStatus.PREPARED,
           retryState: {
             ...state.retryState,
-            timeoutAt: 1_000_500,
+            timeoutAt: Date.now() + 86_400_000,
           },
         }}
       />,
     );
-
-    expect(
-      screen.getByRole("button", { name: "Compensation executing" }),
-    ).toBeDisabled();
-
-    act(() => vi.advanceTimersByTime(1_000));
 
     expect(
       screen.getByRole("button", { name: "Prepare compensation" }),

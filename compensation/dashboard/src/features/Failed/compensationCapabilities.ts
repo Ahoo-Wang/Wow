@@ -24,24 +24,12 @@ export interface CompensationCapabilities {
 
 export function getCompensationCapabilities(
   state: ExecutionFailedState,
-  now: number,
 ): CompensationCapabilities {
   if (state.status === ExecutionFailedStatus.SUCCEEDED) {
     return {
       canForcePrepare: false,
       canPrepare: false,
       unavailableReason: "This execution has already succeeded.",
-    };
-  }
-
-  if (
-    state.status === ExecutionFailedStatus.PREPARED &&
-    now <= state.retryState.timeoutAt
-  ) {
-    return {
-      canForcePrepare: false,
-      canPrepare: false,
-      unavailableReason: "Compensation is currently executing.",
     };
   }
 

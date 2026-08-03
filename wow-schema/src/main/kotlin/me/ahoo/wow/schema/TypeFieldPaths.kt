@@ -95,7 +95,7 @@ object TypeFieldPaths {
                 subType.allFieldPathsInternal(
                     fieldPaths = fieldPaths,
                     parentName = parentName,
-                    depth = depth + 1,
+                    depth = depth,
                     maxDepth = maxDepth
                 )
             }

@@ -46,18 +46,36 @@ const preparedState: ExecutionFailedState = {
 };
 
 describe("getCompensationCapabilities", () => {
-  it("disables preparation while the execution timeout is active", () => {
-    expect(getCompensationCapabilities(preparedState, 1_999)).toEqual({
-      canForcePrepare: false,
-      canPrepare: false,
-      unavailableReason: "Compensation is currently executing.",
+  it("leaves prepared timeout validation to the authoritative server", () => {
+    expect(getCompensationCapabilities(preparedState)).toEqual({
+      canForcePrepare: true,
+      canPrepare: true,
     });
   });
 
-  it("enables preparation after the browser clock passes the timeout", () => {
-    expect(getCompensationCapabilities(preparedState, 2_001)).toEqual({
+  it("disables commands that the succeeded state can never accept", () => {
+    expect(
+      getCompensationCapabilities({
+        ...preparedState,
+        status: ExecutionFailedStatus.SUCCEEDED,
+      }),
+    ).toEqual({
+      canForcePrepare: false,
+      canPrepare: false,
+      unavailableReason: "This execution has already succeeded.",
+    });
+  });
+
+  it("keeps only the server-side force path after the retry limit", () => {
+    expect(
+      getCompensationCapabilities({
+        ...preparedState,
+        isBelowRetryThreshold: false,
+      }),
+    ).toEqual({
       canForcePrepare: true,
-      canPrepare: true,
+      canPrepare: false,
+      unavailableReason: "Retry limit reached; force prepare remains available.",
     });
   });
 });

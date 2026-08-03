@@ -92,6 +92,37 @@ test("loads the deterministic queue and responsive execution details", async ({
     .toEqual([{ field: "aggregateId", direction: "DESC" }]);
 });
 
+test("keeps prepared actions independent of the browser clock", async ({
+  page,
+}, testInfo) => {
+  await page.route(
+    "**/execution_failed/snapshot/paged/state",
+    (route) =>
+      route.fulfill({
+        json: {
+          total: 1,
+          list: [
+            {
+              ...execution,
+              status: "PREPARED",
+              retryState: {
+                ...execution.retryState,
+                timeoutAt: Date.now() + 86_400_000,
+              },
+            },
+          ],
+        },
+      }),
+  );
+
+  await page.goto("/to-retry");
+  await openDetails(page, testInfo.project.name);
+
+  await expect(
+    page.getByRole("button", { name: "Prepare compensation" }),
+  ).toBeEnabled();
+});
+
 test("preserves and freezes last-known-good data after refresh fails", async ({
   page,
 }, testInfo) => {

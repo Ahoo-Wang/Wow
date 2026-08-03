@@ -298,8 +298,8 @@ which user-visible states can change when operators change these values.
 | WebFlux batch concurrency | 1 | Processes batch items with configured concurrency | Deployment operator |
 | Compensation | Enabled | Makes compensation integration available; safe retry policy is separate | Application or deployment operator |
 | Compensation max retries | 10 | Limits automatic retry attempts | Compensation service operator |
-| Compensation min backoff | 180 seconds | Delays retries; UI currently labels this as milliseconds | Compensation service operator |
-| Compensation execution timeout | 120 seconds | Bounds an attempt; UI currently labels this as milliseconds | Compensation service operator |
+| Compensation min backoff | 180 seconds | Delays retries | Compensation service operator |
+| Compensation execution timeout | 120 seconds | Bounds an attempt | Compensation service operator |
 | Compensation scheduler batch | 100 | Limits records considered in one scheduler batch | Compensation service operator |
 | Compensation scheduler period | 60 seconds | Sets scheduler cadence; no recovery SLA is implied | Compensation service operator |
 | Metrics | Enabled when supported | Produces runtime measurements | Platform or deployment operator |
@@ -417,7 +417,6 @@ These answers are application requirements, not defaults supplied by Wow.
 | --- | --- | --- | --- |
 | Compensation covers eligible event-handler paths, not universal rollback | A retry cannot be presented as undoing the original business action | Require a business safety decision before retry | Not declared |
 | Dashboard history view is a stub | Operators cannot rely on it as a complete audit trail | Use an approved external audit process | Not declared |
-| Retry UI labels seconds-based values as milliseconds | Operators may enter or interpret unsafe timing values | Correct and verify values outside the current form before use | Not declared |
 | Example images and package versions differ from root `8.9.8` | Example behavior may not match current source | Build reviewed artifacts from the selected release | Not declared |
 | Example compensation configuration includes inline credentials | Copying the example can expose reusable secrets | Replace values with the adopter's secret mechanism | Not declared |
 | Default aggregate deletion is not a general event-erasure mechanism | A delete action may not satisfy data-erasure obligations | Minimize regulated event data and design a store-specific lifecycle process | Not declared |
@@ -441,17 +440,6 @@ The current compensation dashboard history component is a stub. Product and
 operations teams should not assume a complete audit-history experience exists.
 
 Source: [FailedHistory.tsx:14-16](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/FailedHistory.tsx#L14-L16)
-
-### Retry units are presented inconsistently
-
-The dashboard labels minimum backoff and execution timeout as milliseconds.
-The backend API model documents both values in seconds. Correct this mismatch
-before operators rely on the form.
-
-Sources:
-
-- [ApplyRetrySpec.tsx:77-100](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/ApplyRetrySpec.tsx#L77-L100)
-- [Retry.kt:57-99](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/Retry.kt#L57-L99)
 
 ### Examples are not production commitments
 
@@ -648,8 +636,9 @@ audit policy is not declared.
 ### 8. What are the default retry values?
 
 The backend defaults are ten retries, a minimum backoff of 180 seconds, and an
-execution timeout of 120 seconds. The current UI labels two values with the
-wrong unit, so operator-facing behavior must be corrected and tested.
+execution timeout of 120 seconds. The dashboard presents and submits both
+timing values in seconds, with contract tests covering their unit and int32
+bounds.
 
 ### 9. Does Wow guarantee a throughput or latency number?
 

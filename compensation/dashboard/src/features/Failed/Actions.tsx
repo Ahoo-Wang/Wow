@@ -48,7 +48,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { copyTextToClipboard } from "@/utils/clipboard.ts";
-import { useNow } from "@/hooks/useNow.ts";
 import type { OnChangedCapable } from "./types.ts";
 import { commandErrorMessage } from "./commandErrors.ts";
 import { getCompensationCapabilities } from "./compensationCapabilities.ts";
@@ -61,8 +60,7 @@ export interface ActionsProps
 export function Actions({ state, onChanged, disabled }: ActionsProps) {
   const [forceDialogOpen, setForceDialogOpen] = useState(false);
   const unavailableReasonId = useId();
-  const now = useNow();
-  const stateCapabilities = getCompensationCapabilities(state, now);
+  const stateCapabilities = getCompensationCapabilities(state);
   const capabilities = disabled
     ? {
         canForcePrepare: false,
@@ -123,9 +121,7 @@ export function Actions({ state, onChanged, disabled }: ActionsProps) {
     ? { label: "Refreshing state", icon: <LoaderCircle /> }
     : state.status === ExecutionFailedStatus.SUCCEEDED
       ? { label: "Already succeeded", icon: <CircleCheck /> }
-      : !capabilities.canForcePrepare
-        ? { label: "Compensation executing", icon: <LoaderCircle /> }
-        : { label: "Retry limit reached", icon: <ShieldAlert /> };
+      : { label: "Retry limit reached", icon: <ShieldAlert /> };
 
   return (
     <>
@@ -204,8 +200,9 @@ export function Actions({ state, onChanged, disabled }: ActionsProps) {
             </AlertDialogMedia>
             <AlertDialogTitle>Force prepare this execution?</AlertDialogTitle>
             <AlertDialogDescription>
-              This bypasses the normal retry guard for {state.id}. Use it only
-              after verifying the failure context.
+              This bypasses the retry limit for {state.id}. The server still
+              validates the current execution state. Use it only after
+              verifying the failure context.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -70,6 +70,13 @@ class AggregatedFieldPathsTest {
     }
 
     @Test
+    fun `should not count polymorphic subtype dispatch as nested depth`() {
+        val paths = PolymorphicFixture::class.allFieldPaths(maxDepth = 1)
+
+        paths.assert().contains("value")
+    }
+
+    @Test
     fun `should list command aggregated field paths`() {
         val paths = TestAggregate::class.commandAggregatedFieldPaths()
         paths.assert().isNotEmpty()
