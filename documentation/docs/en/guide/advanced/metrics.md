@@ -85,12 +85,23 @@ These meters appear only after a batching-enabled store performs the correspondi
 
 ## Non-Spring setup
 
-`wow-core` exposes the Micrometer contract directly. Create one instance and pass it to every
-component that should share the registry:
+`wow-core` exposes the Micrometer contract directly. Create one instance and use it to decorate
+every bus, store, or handler that should record semantic component metrics. A constructor-level
+`metrics` argument instruments only the behavior owned by that component; it does not recursively
+decorate its collaborators:
 
 ```kotlin
 val registry: MeterRegistry = SimpleMeterRegistry()
 val metrics = WowMetrics(registry)
+
+val meteredCommandBus = commandBus.metered(
+    metrics = metrics,
+    source = "command-bus",
+)
+val meteredCommandHandler = commandHandler.metered(
+    metrics = metrics,
+    source = "command-handler",
+)
 
 val eventStore: EventStore = MongoEventStore(
     database = database,
@@ -99,8 +110,8 @@ val eventStore: EventStore = MongoEventStore(
 ).metered(metrics, source = "primary-event-store")
 
 val dispatcher = CommandDispatcher(
-    commandBus = commandBus,
-    commandHandler = commandHandler,
+    commandBus = meteredCommandBus,
+    commandHandler = meteredCommandHandler,
     metrics = metrics,
 )
 ```
@@ -163,7 +174,8 @@ When metrics are missing, verify in order:
 1. `wow.metrics.enabled` is not disabled;
 2. the expected `MeterRegistry` bean exists in the ApplicationContext;
 3. real traffic exercised the relevant component;
-4. `/actuator/metrics/wow.operation` is visible;
+4. the Actuator `metrics` endpoint is temporarily exposed and
+   `/actuator/metrics/wow.operation` is visible;
 5. batching is enabled when checking `wow.batch.*`;
 6. for OTLP, wait one export `step` and confirm that the Collector actually received data.
 
