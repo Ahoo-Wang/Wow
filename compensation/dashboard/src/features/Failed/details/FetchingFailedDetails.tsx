@@ -15,7 +15,7 @@ import type { ExecutionFailedAggregatedFields } from "../../../generated";
 import { type ExecutionFailedState } from "../../../generated";
 import { aggregateId, singleQuery } from "@ahoo-wang/fetcher-wow";
 import { FailedDetails } from "./FailedDetails.tsx";
-import { executionFailedSnapshotQueryClient } from "../../../services";
+import { queryExecutionFailedState } from "../../../services";
 import { useSingleQuery } from "@ahoo-wang/fetcher-react";
 import type { FetcherError } from "@ahoo-wang/fetcher";
 import { useCallback, useMemo } from "react";
@@ -52,9 +52,7 @@ export function FetchingFailedDetails({
     FetcherError
   >({
     query,
-    execute: executionFailedSnapshotQueryClient.singleState.bind(
-      executionFailedSnapshotQueryClient,
-    ),
+    execute: queryExecutionFailedState,
   });
   const refreshDetailsAndList = useCallback(() => {
     onChanged?.();

@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   execute: vi.fn(),
   hookOptions: undefined as unknown,
   loading: false,
+  queryExecutionFailedState: vi.fn(),
   result: { id: "remote-A" } as ExecutionFailedState | null | undefined,
 }));
 
@@ -25,9 +26,7 @@ vi.mock("@ahoo-wang/fetcher-react", () => ({
 }));
 
 vi.mock("../../../../services", () => ({
-  executionFailedSnapshotQueryClient: {
-    singleState: vi.fn(),
-  },
+  queryExecutionFailedState: mocks.queryExecutionFailedState,
 }));
 
 vi.mock("../FailedDetails.tsx", () => ({
@@ -58,6 +57,9 @@ describe("FetchingFailedDetails", () => {
 
     expect((mocks.hookOptions as { query?: unknown }).query).toEqual(
       singleQuery({ condition: aggregateId("remote-A") }),
+    );
+    expect((mocks.hookOptions as { execute?: unknown }).execute).toBe(
+      mocks.queryExecutionFailedState,
     );
 
     mocks.result = { id: "remote-B" } as ExecutionFailedState;

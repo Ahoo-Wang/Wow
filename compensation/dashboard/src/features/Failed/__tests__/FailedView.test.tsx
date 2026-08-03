@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   search: "",
   setSearchParams: vi.fn(),
   setQuery: vi.fn(),
+  queryExecutionFailedPage: vi.fn().mockResolvedValue({ list: [], total: 0 }),
   run: vi.fn(),
   error: undefined as Error | undefined,
   hookOptions: undefined as unknown,
@@ -49,8 +50,12 @@ vi.mock("../../../hooks/useMediaQuery", () => ({
   useMediaQuery: () => mocks.desktop,
 }));
 
+vi.mock("../../../services", () => ({
+  queryExecutionFailedPage: mocks.queryExecutionFailedPage,
+}));
+
 vi.mock("@ahoo-wang/fetcher-react", () => ({
-  useDebouncedFetcherQuery: (options: unknown) => {
+  useDebouncedQuery: (options: unknown) => {
     mocks.hookOptions = options;
     return {
       loading: mocks.loading,
@@ -311,6 +316,31 @@ describe("FailedView", () => {
     for (const [query] of mocks.setQuery.mock.calls) {
       expect(query.sort).toEqual([{ field: "aggregateId", direction: "DESC" }]);
     }
+  });
+
+  it("queries through the service boundary without binding the view to an API URL", async () => {
+    render(<FailedView category={FindCategory.ToRetry} />);
+
+    const options = mocks.hookOptions as {
+      execute: (
+        query: unknown,
+        attributes?: Record<string, unknown>,
+        abortController?: AbortController,
+      ) => Promise<unknown>;
+      query: unknown;
+      url?: string;
+    };
+    const abortController = new AbortController();
+    const attributes = { source: "test" };
+
+    await options.execute(options.query, attributes, abortController);
+
+    expect(options.url).toBeUndefined();
+    expect(mocks.queryExecutionFailedPage).toHaveBeenCalledWith(
+      options.query,
+      attributes,
+      abortController,
+    );
   });
 
   it("rerenders pagination controls with the current page", () => {

@@ -87,7 +87,7 @@ describe("Actions", () => {
     vi.useRealTimers();
   });
 
-  it("recomputes prepared actions after the server timeout expires", () => {
+  it("recomputes prepared actions after the execution timeout expires", () => {
     vi.useFakeTimers();
     vi.setSystemTime(1_000_000);
     render(
