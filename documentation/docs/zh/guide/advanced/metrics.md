@@ -104,9 +104,12 @@ val meteredCommandHandler = commandHandler.metered(
 
 val eventStore: EventStore = MongoEventStore(
     database = database,
-    batchOptions = batchOptions,
-    metrics = metrics,
-).metered(metrics, source = "primary-event-store")
+    batchOptions = MongoEventStoreBatchOptions(enabled = true),
+    metrics = metrics, // 批处理生命周期指标。
+).metered(
+    metrics = metrics, // EventStore 操作指标。
+    source = "primary-event-store",
+)
 
 val dispatcher = CommandDispatcher(
     commandBus = meteredCommandBus,
@@ -114,6 +117,10 @@ val dispatcher = CommandDispatcher(
     metrics = metrics,
 )
 ```
+
+`MongoEventStore` 构造函数接收的 `WowMetrics` 用于内部批处理生命周期；`metered` 装饰器记录
+上文列出的 `EventStore` 操作。两层传入同一个实例，可以让所有 meter 写入同一 Registry，
+同时不会重复计算同一次操作。
 
 有限操作和长生命周期流也可以直接复用统一模型：
 
