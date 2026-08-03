@@ -119,6 +119,11 @@ match_section \
   --glob 'gradle.properties' --glob 'gradle-wrapper.properties' --glob 'pom.xml'
 
 match_section \
+  'Maven platform coordinates and version values' \
+  '<(wow|spring[-.]?boot|kotlin|ksp)[._-]?[Vv]ersion>[0-9][[:alnum:].+_-]*</[[:alnum:]_.-]+>|<groupId>(me\.ahoo\.wow|org\.springframework\.boot)</groupId>|<artifactId>(wow-[[:alnum:]_.-]+|spring-boot-[[:alnum:]_.-]+)</artifactId>|<version>[0-9][[:alnum:].+_-]*</version>' \
+  --glob 'pom.xml'
+
+match_section \
   'Jackson 2 or Jackson 3 direct usage' \
   'com\.fasterxml\.jackson\.(core|databind|module|datatype|dataformat)|tools\.jackson|ObjectMapper|JsonNode|JsonSerializer|JsonDeserializer|JacksonAutoConfiguration' \
   --glob '*.kt' --glob '*.java' --glob '*.gradle' --glob '*.gradle.kts' --glob 'pom.xml'

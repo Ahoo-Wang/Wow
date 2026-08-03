@@ -76,6 +76,13 @@ class WowSkillsValidatorTest(unittest.TestCase):
                 encoding="utf-8",
             )
             self.assert_error("value must be a double-quoted string")
+        with self.subTest(boundary="agents-directory-link"):
+            path.write_text(original, encoding="utf-8")
+            agents = path.parent
+            outside = self.root / "outside-agents"
+            agents.rename(outside)
+            agents.symlink_to(outside, target_is_directory=True)
+            self.assert_error("agents and openai.yaml must stay inside the Skill")
 
     def test_plugin_include_must_match_the_four_skill_directories(self) -> None:
         path = self.root / "skills" / "plugins.json"
@@ -94,9 +101,11 @@ class WowSkillsValidatorTest(unittest.TestCase):
             ("[absolute](/absolute/path)", "local link escapes the Skill"),
             ("[file](file:///etc/passwd)", "local link scheme is not allowed"),
             ("[outside][escape]\n\n[escape]: ../outside.md", "local link escapes the Skill"),
+            ('<a href="../outside.md">outside</a>', "raw HTML resource links are not allowed"),
+            ('<script src="../outside.js"></script>', "raw HTML resource links are not allowed"),
         ):
             with self.subTest(reference=reference):
-                addition = reference if reference.startswith("[") else f"Load `{reference}`."
+                addition = reference if reference.startswith(("[", "<")) else f"Load `{reference}`."
                 path.write_text(original + f"\n{addition}\n", encoding="utf-8")
                 self.assert_error(expected)
         path.write_text(original, encoding="utf-8")
@@ -161,6 +170,44 @@ class WowSkillsValidatorTest(unittest.TestCase):
             link = self.root / "skills" / "wow-migrate" / "evals" / "fixtures" / "v6-service" / "leak"
             link.symlink_to(outside)
             self.assert_error("fixture contains a link")
+
+    def test_v6_audit_reports_maven_property_versions(self) -> None:
+        if shutil.which("rg") is None:
+            self.skipTest("rg is required by audit-v6-usage.sh")
+        repository = self.root / "maven-service"
+        repository.mkdir()
+        (repository / "pom.xml").write_text(
+            """<project>
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.4.0</version>
+  </parent>
+  <properties>
+    <wow.version>6.21.5</wow.version>
+    <spring-boot.version>3.4.0</spring-boot.version>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>me.ahoo.wow</groupId>
+      <artifactId>wow-spring-boot-starter</artifactId>
+      <version>${wow.version}</version>
+    </dependency>
+  </dependencies>
+</project>
+""",
+            encoding="utf-8",
+        )
+        result = subprocess.run(
+            [str(ROOT / "skills" / "wow-migrate" / "scripts" / "audit-v6-usage.sh"), str(repository)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("<wow.version>6.21.5</wow.version>", result.stdout)
+        self.assertIn("<spring-boot.version>3.4.0</spring-boot.version>", result.stdout)
+        self.assertIn("<version>3.4.0</version>", result.stdout)
 
 
 if __name__ == "__main__":

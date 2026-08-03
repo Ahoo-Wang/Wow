@@ -25,7 +25,7 @@ The client selects one Primary Skill from the user's **primary outcome**, not fr
 | `wow-develop` | Designing, implementing, testing, refactoring, or explaining Wow behavior/APIs | Read-only: Frame → Discover → Model → Prove facts → Verify → Report; authorized change: Frame → Discover → Model → Prove RED → Change → Verify → Report |
 | `wow-review` | Producing findings, readiness evidence, or completing review-and-fix | Scope → Context → Findings → Authorized fix → Post-fix review |
 | `wow-debug` | Reproducing and locating an observed failure, or completing diagnose-and-fix | Capture → Reproduce → Locate → Hypothesize → Test → Fix/Conclude |
-| `wow-migrate` | Cross-major migration, or storage/data-format cutover from any starting version | Baseline → Target → Matrix, then only explicitly authorized adapt/data/validate/cutover stages |
+| `wow-migrate` | Breaking release migration, or storage/data-format cutover from any starting version | Baseline → Target → Matrix, then only explicitly authorized adapt/data/validate/cutover stages |
 
 Source entries: [`wow-develop`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-develop/SKILL.md#develop-wow-applications), [`wow-review`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-review/SKILL.md#review-wow-changes), [`wow-debug`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-debug/SKILL.md#debug-wow-failures), and [`wow-migrate`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-migrate/SKILL.md#migrate-wow-across-breaking-boundaries).
 
@@ -35,7 +35,7 @@ flowchart TD
     Intent -->|Design, implement, test, explain| Develop["wow-develop"]
     Intent -->|Findings or merge readiness| Review["wow-review"]
     Intent -->|Reproducer or root cause| Debug["wow-debug"]
-    Intent -->|Cross-major or data/storage cutover| Migrate["wow-migrate"]
+    Intent -->|Breaking release or data/storage cutover| Migrate["wow-migrate"]
     Intent -->|No Wow behavior involved| None["Do not activate"]
 
     classDef default fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
@@ -45,7 +45,7 @@ flowchart TD
 
 ### Selection order
 
-1. If v6→v8 compatibility, or storage/data cutover and rollback from any version, is primary, use `wow-migrate`.
+1. If a cross-major or same-major source/config breaking change, or storage/data cutover and rollback from any version, is primary, use `wow-migrate`.
 2. If there is an observed failure, hang, incorrect state, or reproducer and the goal is root cause, use `wow-debug`.
 3. If the goal is findings, approval evidence, or merge readiness, use `wow-review`.
 4. If the goal is designing, changing, testing, or explaining Wow, use `wow-develop`.

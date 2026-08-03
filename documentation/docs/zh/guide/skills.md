@@ -25,7 +25,7 @@ Wow 仓库拥有 Skill 内容；Ahoo Skills Hub 定期同步、校验并生成 `
 | `wow-develop` | 设计、实现、测试、重构或解释 Wow 行为/API | 只读：Frame → Discover → Model → Prove facts → Verify → Report；授权变更：Frame → Discover → Model → Prove RED → Change → Verify → Report |
 | `wow-review` | 输出 findings、质量判断、合并准备度，或执行 review-and-fix | Scope → Context → Findings → 授权修复 → Post-fix review |
 | `wow-debug` | 复现和定位已有失败，或执行 diagnose-and-fix | Capture → Reproduce → Locate → Hypothesize → Test → Fix/Conclude |
-| `wow-migrate` | 跨主版本迁移，或任意起始版本的存储/数据格式切换 | Baseline → Target → Matrix，之后仅执行已明确授权的适配、数据、验证与切换阶段 |
+| `wow-migrate` | 破坏性版本迁移，或任意起始版本的存储/数据格式切换 | Baseline → Target → Matrix，之后仅执行已明确授权的适配、数据、验证与切换阶段 |
 
 对应源文件：[`wow-develop`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-develop/SKILL.md#develop-wow-applications)、[`wow-review`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-review/SKILL.md#review-wow-changes)、[`wow-debug`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-debug/SKILL.md#debug-wow-failures)、[`wow-migrate`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-migrate/SKILL.md#migrate-wow-across-breaking-boundaries)。
 
@@ -35,7 +35,7 @@ flowchart TD
     Intent -->|设计、实现、测试、解释| Develop["wow-develop"]
     Intent -->|findings 或合并判断| Review["wow-review"]
     Intent -->|复现或根因| Debug["wow-debug"]
-    Intent -->|跨主版本或存储/数据切换| Migrate["wow-migrate"]
+    Intent -->|破坏性版本迁移或存储/数据切换| Migrate["wow-migrate"]
     Intent -->|与 Wow 行为无关| None["不激活"]
 
     classDef default fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
@@ -45,7 +45,7 @@ flowchart TD
 
 ### 选择顺序
 
-1. v6→v8 兼容，或任意版本起点的存储/数据切换与回滚是主问题：`wow-migrate`。
+1. 跨主版本、同主版本 source/config 破坏性变化，或任意版本起点的存储/数据切换与回滚是主问题：`wow-migrate`。
 2. 已有失败、hang、错误状态或 reproducer，目标是根因：`wow-debug`。
 3. 目标是 findings、批准或合并准备度：`wow-review`。
 4. 目标是设计、修改、测试或解释 Wow：`wow-develop`。

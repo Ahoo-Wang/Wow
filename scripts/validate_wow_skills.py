@@ -24,6 +24,9 @@ MARKDOWN_LINK_PATTERN = re.compile(r"\]\(([^)\s]+)")
 MARKDOWN_REFERENCE_PATTERN = re.compile(
     r"(?m)^[ \t]{0,3}\[[^\]\n]+\]:[ \t]*(?:<([^>\n]+)>|(\S+))"
 )
+RAW_HTML_RESOURCE_PATTERN = re.compile(
+    r"<[A-Za-z][A-Za-z0-9:-]*\b[^>]*\b(?:href|src)\s*=", re.IGNORECASE
+)
 
 
 def _scalar(raw: str, source: Path, line: int, errors: list[str]) -> str | None:
@@ -107,9 +110,10 @@ def _validate_skill_file(skill_dir: Path, errors: list[str]) -> str:
 
 
 def _validate_openai_yaml(skill_dir: Path, errors: list[str]) -> None:
-    path = skill_dir / "agents" / "openai.yaml"
-    if path.is_symlink():
-        errors.append(f"{path}: openai.yaml must not be a link")
+    agents_dir = skill_dir / "agents"
+    path = agents_dir / "openai.yaml"
+    if agents_dir.is_symlink() or path.is_symlink() or not _contained(path, skill_dir):
+        errors.append(f"{path}: agents and openai.yaml must stay inside the Skill and must not be links")
         return
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
@@ -198,6 +202,8 @@ def _validate_resources(skill_dir: Path, body: str, errors: list[str]) -> None:
             except (OSError, UnicodeError) as exc:
                 errors.append(f"{path}: cannot read UTF-8 text: {exc}")
     for source, text in documents:
+        if RAW_HTML_RESOURCE_PATTERN.search(text):
+            errors.append(f"{source}: raw HTML resource links are not allowed")
         link_targets = list(MARKDOWN_LINK_PATTERN.findall(text))
         link_targets.extend(left or right for left, right in MARKDOWN_REFERENCE_PATTERN.findall(text))
         for raw in link_targets:

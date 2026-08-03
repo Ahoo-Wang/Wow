@@ -11,13 +11,13 @@
 | `wow-develop` | 设计、实现、测试、重构或解释 Wow 行为 | 不用于已有 diff 审查、已有故障诊断或数据切换迁移 |
 | `wow-review` | 输出 findings、合并准备度，或完成 review-and-fix | 不用于症状驱动诊断或迁移专项审查 |
 | `wow-debug` | 复现、定位已有故障，或完成 diagnose-and-fix | 不用于主动功能开发或普通 diff review |
-| `wow-migrate` | 跨主版本或存储/数据格式迁移 | 不用于首次采用 Wow、无数据迁移的常规 v8 升级或普通故障 |
+| `wow-migrate` | 破坏性版本迁移，或存储/数据格式迁移 | 不用于首次采用 Wow、无 source/config 破坏且无数据迁移的常规 v8 升级或普通故障 |
 
 ## Selection order
 
 按主要交付结果选择，不按涉及的组件名选择：
 
-1. v6→v8 兼容，或任意版本起点的存储格式、数据切换、对账、回滚是主问题：`wow-migrate`。
+1. 跨主版本、同主版本 source/config 破坏性变化，或任意版本起点的存储格式、数据切换、对账、回滚是主问题：`wow-migrate`。
 2. 存在失败、hang、错误状态或可复现症状，目标是根因：`wow-debug`。
 3. 目标是 findings、批准或合并准备度：`wow-review`。
 4. 目标是设计、修改、测试或解释 Wow：`wow-develop`。
