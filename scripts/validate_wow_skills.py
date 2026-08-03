@@ -178,7 +178,13 @@ def _validate_resources(skill_dir: Path, body: str, errors: list[str]) -> None:
 
     for directory in ("references", "assets", "scripts"):
         root = skill_dir / directory
+        if root.is_symlink():
+            errors.append(f"{root}: resource directories must stay inside the Skill and must not be links")
+            continue
         if not root.exists():
+            continue
+        if not _contained(root, skill_dir):
+            errors.append(f"{root}: resource directories must stay inside the Skill and must not be links")
             continue
         for path in sorted(root.rglob("*")):
             if path.is_symlink():
@@ -195,8 +201,10 @@ def _validate_resources(skill_dir: Path, body: str, errors: list[str]) -> None:
 
     documents = [(skill_dir / "SKILL.md", body)]
     reference_root = skill_dir / "references"
-    if reference_root.is_dir():
+    if reference_root.is_dir() and not reference_root.is_symlink() and _contained(reference_root, skill_dir):
         for path in sorted(reference_root.rglob("*.md")):
+            if path.is_symlink() or not _contained(path, skill_dir):
+                continue
             try:
                 documents.append((path, path.read_text(encoding="utf-8")))
             except (OSError, UnicodeError) as exc:
@@ -251,6 +259,7 @@ def _validate_evals(skills_root: Path, skill_names: set[str], errors: list[str])
     seen_ids: dict[str, str] = {}
     for skill_name in sorted(skill_names):
         eval_dir = skills_root / skill_name / "evals"
+        fixtures_root = eval_dir / "fixtures"
         for kind in ("activation", "behavior"):
             path = eval_dir / f"{kind}.jsonl"
             if not path.is_file():
@@ -294,8 +303,10 @@ def _validate_evals(skills_root: Path, skill_names: set[str], errors: list[str])
                         continue
                     relative = PurePosixPath(fixture)
                     target = eval_dir.joinpath(*relative.parts)
-                    if relative.is_absolute() or ".." in relative.parts or not _contained(target, eval_dir):
-                        errors.append(f"{location}: fixture path escapes the eval directory")
+                    if fixtures_root.is_symlink() or not _contained(fixtures_root, eval_dir):
+                        errors.append(f"{location}: evals/fixtures must stay inside evals and must not be a link")
+                    elif relative.is_absolute() or ".." in relative.parts or not _contained(target, fixtures_root):
+                        errors.append(f"{location}: fixture path must stay under evals/fixtures")
                     elif target.is_symlink():
                         errors.append(f"{location}: fixture must not be a link")
                     elif not target.exists():

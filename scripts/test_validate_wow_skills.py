@@ -110,6 +110,15 @@ class WowSkillsValidatorTest(unittest.TestCase):
                 self.assert_error(expected)
         path.write_text(original, encoding="utf-8")
 
+        with self.subTest(reference="symlinked-reference"):
+            outside = self.root / "outside.md"
+            outside.write_text("[outside](../secret.md)", encoding="utf-8")
+            link = self.root / "skills" / "wow-develop" / "references" / "leak.md"
+            link.symlink_to(outside)
+            errors = validate_repository(self.root)
+            self.assertTrue(any("resource links are not allowed" in error for error in errors))
+            self.assertFalse(any("local link" in error for error in errors))
+
     def test_eval_jsonl_rejects_invalid_json_duplicate_ids_and_unknown_skills(self) -> None:
         behavior = self.root / "skills" / "wow-debug" / "evals" / "behavior.jsonl"
         with self.subTest(boundary="invalid-json"):
@@ -161,7 +170,13 @@ class WowSkillsValidatorTest(unittest.TestCase):
         }
         with self.subTest(boundary="escape"):
             path.write_text(original + json.dumps(record) + "\n", encoding="utf-8")
-            self.assert_error("fixture path escapes the eval directory")
+            self.assert_error("fixture path must stay under evals/fixtures")
+
+        with self.subTest(boundary="hidden-eval-data"):
+            record["fixture"] = "behavior.jsonl"
+            record["expectedBehavior"] = ["review the fixture"]
+            path.write_text(original + json.dumps(record) + "\n", encoding="utf-8")
+            self.assert_error("fixture path must stay under evals/fixtures")
 
         with self.subTest(boundary="nested-symlink"):
             path.write_text(original, encoding="utf-8")
@@ -170,6 +185,13 @@ class WowSkillsValidatorTest(unittest.TestCase):
             link = self.root / "skills" / "wow-migrate" / "evals" / "fixtures" / "v6-service" / "leak"
             link.symlink_to(outside)
             self.assert_error("fixture contains a link")
+
+        with self.subTest(boundary="fixtures-directory-link"):
+            fixtures = self.root / "skills" / "wow-review" / "evals" / "fixtures"
+            outside_fixtures = self.root / "outside-fixtures"
+            fixtures.rename(outside_fixtures)
+            fixtures.symlink_to(outside_fixtures, target_is_directory=True)
+            self.assert_error("evals/fixtures must stay inside evals")
 
     def test_v6_audit_reports_maven_property_versions(self) -> None:
         if shutil.which("rg") is None:
