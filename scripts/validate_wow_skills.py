@@ -21,6 +21,9 @@ RESOURCE_PATTERN = re.compile(
     r"(?<![A-Za-z0-9_/])((?:references|assets|scripts)/[A-Za-z0-9_.\-/]+)"
 )
 MARKDOWN_LINK_PATTERN = re.compile(r"\]\(([^)\s]+)")
+MARKDOWN_REFERENCE_PATTERN = re.compile(
+    r"(?m)^[ \t]{0,3}\[[^\]\n]+\]:[ \t]*(?:<([^>\n]+)>|(\S+))"
+)
 
 
 def _scalar(raw: str, source: Path, line: int, errors: list[str]) -> str | None:
@@ -28,20 +31,18 @@ def _scalar(raw: str, source: Path, line: int, errors: list[str]) -> str | None:
     if not value:
         errors.append(f"{source}:{line}: missing scalar value")
         return None
-    if value[0] == '\"':
-        try:
-            parsed = json.loads(value)
-        except (ValueError, RecursionError):
-            errors.append(f"{source}:{line}: invalid quoted scalar")
-            return None
-        if not isinstance(parsed, str):
-            errors.append(f"{source}:{line}: scalar must be a string")
-            return None
-        return parsed
-    if value[0] in "'[{|>" or value.lower() in {"true", "false", "null", "~"}:
-        errors.append(f"{source}:{line}: value must be a plain or double-quoted string")
+    if value[0] != '\"':
+        errors.append(f"{source}:{line}: value must be a double-quoted string")
         return None
-    return value
+    try:
+        parsed = json.loads(value)
+    except (ValueError, RecursionError):
+        errors.append(f"{source}:{line}: invalid quoted scalar")
+        return None
+    if not isinstance(parsed, str):
+        errors.append(f"{source}:{line}: scalar must be a string")
+        return None
+    return parsed
 
 
 def _frontmatter(path: Path, errors: list[str]) -> tuple[dict[str, str], str]:
@@ -194,7 +195,9 @@ def _validate_resources(skill_dir: Path, body: str, errors: list[str]) -> None:
             except (OSError, UnicodeError) as exc:
                 errors.append(f"{path}: cannot read UTF-8 text: {exc}")
     for source, text in documents:
-        for raw in MARKDOWN_LINK_PATTERN.findall(text):
+        link_targets = list(MARKDOWN_LINK_PATTERN.findall(text))
+        link_targets.extend(left or right for left, right in MARKDOWN_REFERENCE_PATTERN.findall(text))
+        for raw in link_targets:
             target_text = raw.strip("<>").split("#", 1)[0]
             if not target_text:
                 continue
@@ -265,7 +268,7 @@ def _validate_evals(skills_root: Path, skill_names: set[str], errors: list[str])
                         errors.append(f"{location}: expectedSkills must contain zero or one known Primary Skill")
                 else:
                     referenced_skill = record.get("skill")
-                    if referenced_skill not in skill_names:
+                    if not isinstance(referenced_skill, str) or referenced_skill not in skill_names:
                         errors.append(f"{location}: behavior case references unknown Skill {referenced_skill!r}")
                     rubric = record.get("expectedBehavior")
                     if (

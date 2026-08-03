@@ -57,8 +57,22 @@ class WowSkillsValidatorTest(unittest.TestCase):
 
     def test_openai_prompt_must_reference_the_skill(self) -> None:
         path = self.root / "skills" / "wow-review" / "agents" / "openai.yaml"
-        path.write_text(path.read_text(encoding="utf-8").replace("$wow-review", "$other"), encoding="utf-8")
-        self.assert_error("default_prompt must reference $wow-review")
+        original = path.read_text(encoding="utf-8")
+        with self.subTest(boundary="missing-skill-reference"):
+            path.write_text(original.replace("$wow-review", "$other"), encoding="utf-8")
+            self.assert_error("default_prompt must reference $wow-review")
+        with self.subTest(boundary="plain-scalar-comment"):
+            path.write_text(
+                "\n".join(
+                    "  default_prompt: Review this change. # invoke $wow-review"
+                    if line.strip().startswith("default_prompt:")
+                    else line
+                    for line in original.splitlines()
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            self.assert_error("value must be a double-quoted string")
 
     def test_plugin_include_must_match_the_four_skill_directories(self) -> None:
         path = self.root / "skills" / "plugins.json"
@@ -76,6 +90,7 @@ class WowSkillsValidatorTest(unittest.TestCase):
             ("[outside](../outside.md)", "local link escapes the Skill"),
             ("[absolute](/absolute/path)", "local link escapes the Skill"),
             ("[file](file:///etc/passwd)", "local link scheme is not allowed"),
+            ("[outside][escape]\n\n[escape]: ../outside.md", "local link escapes the Skill"),
         ):
             with self.subTest(reference=reference):
                 addition = reference if reference.startswith("[") else f"Load `{reference}`."
@@ -102,6 +117,16 @@ class WowSkillsValidatorTest(unittest.TestCase):
             self.assertTrue(any("duplicate id" in error for error in errors))
             self.assertTrue(any("unknown Skill" in error for error in errors))
             self.assertTrue(any("expectedBehavior" in error for error in errors))
+
+        with self.subTest(boundary="unhashable-skill"):
+            record = {
+                "id": "B99-invalid-skill",
+                "skill": [],
+                "prompt": "forward eval",
+                "expectedBehavior": ["report evidence"],
+            }
+            behavior.write_text(original + json.dumps(record) + "\n", encoding="utf-8")
+            self.assert_error("behavior case references unknown Skill []")
 
         with self.subTest(boundary="multiple-primary-skills"):
             activation = self.root / "skills" / "wow-debug" / "evals" / "activation.jsonl"
