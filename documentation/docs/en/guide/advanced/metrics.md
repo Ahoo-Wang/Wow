@@ -16,12 +16,14 @@ typical setup adds Actuator and one registry implementation:
 
 ```kotlin
 implementation("org.springframework.boot:spring-boot-starter-actuator")
-runtimeOnly("io.micrometer:micrometer-registry-prometheus") // or micrometer-registry-otlp
+runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 ```
 
 No Wow configuration is required to enable metrics; `wow.metrics.enabled` defaults to `true`.
-When using the OTLP registry, `OTEL_SERVICE_NAME` and `OTEL_EXPORTER_OTLP_ENDPOINT` are sufficient
-for the default exporter path.
+For OTLP with the current Spring Boot 4.1.0 baseline, replace the Prometheus registry with
+`spring-boot-opentelemetry` and `micrometer-registry-otlp`; then `OTEL_SERVICE_NAME` and
+`OTEL_EXPORTER_OTLP_ENDPOINT` are sufficient for the default exporter path. See the complete
+[Observability Configuration](/reference/config/observability#exporting-metrics-via-otlp-opentelemetry-collector).
 
 If `wow.metrics.enabled=false`, or no `MeterRegistry` exists in the context, Wow uses
 `WowMetrics.NONE` and keeps the compact, uninstrumented reactive path.
@@ -165,7 +167,9 @@ flowchart LR
     Tracing["wow-opentelemetry spans"] --> Collector
 ```
 
-For OTLP, add `micrometer-registry-otlp`, then set `OTEL_SERVICE_NAME` and the shared
+For OTLP with the current Spring Boot 4.1.0 baseline, add `spring-boot-opentelemetry` and
+`micrometer-registry-otlp`, then set
+`OTEL_SERVICE_NAME` and the shared
 `OTEL_EXPORTER_OTLP_ENDPOINT`, normally an OTLP/HTTP Collector endpoint on port `4318`. Spring Boot
 maps the endpoint to its `OtlpMeterRegistry`; no manual registry bean or metrics YAML is required.
 `wow-opentelemetry` instruments tracing and does not turn Micrometer meters into spans, although

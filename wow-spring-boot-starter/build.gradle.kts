@@ -74,9 +74,13 @@ dependencies {
     testImplementation(project(":example-domain"))
     testImplementation(project(":example-transfer-domain"))
     testImplementation(project(":wow-compensation-domain"))
+    testImplementation("io.micrometer:micrometer-registry-otlp")
+    testImplementation("org.springframework.boot:spring-boot-starter-actuator")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webflux")
     testImplementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
+    testCompileOnly(libs.opentelemetry.proto)
+    testRuntimeOnly("org.springframework.boot:spring-boot-opentelemetry")
 }
 
 configurations.named("testImplementation") {
