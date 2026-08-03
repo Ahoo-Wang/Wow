@@ -105,9 +105,12 @@ val meteredCommandHandler = commandHandler.metered(
 
 val eventStore: EventStore = MongoEventStore(
     database = database,
-    batchOptions = batchOptions,
-    metrics = metrics,
-).metered(metrics, source = "primary-event-store")
+    batchOptions = MongoEventStoreBatchOptions(enabled = true),
+    metrics = metrics, // Batch lifecycle metrics.
+).metered(
+    metrics = metrics, // EventStore operation metrics.
+    source = "primary-event-store",
+)
 
 val dispatcher = CommandDispatcher(
     commandBus = meteredCommandBus,
@@ -115,6 +118,10 @@ val dispatcher = CommandDispatcher(
     metrics = metrics,
 )
 ```
+
+The `MongoEventStore` constructor receives `WowMetrics` for its internal batch lifecycle. The
+`metered` decorator records the `EventStore` operations listed above. Passing the same instance to
+both layers keeps all meters in one registry without double-counting an operation.
 
 Finite operations and long-lived streams can use the unified model directly:
 
