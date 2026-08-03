@@ -20,7 +20,7 @@ NAME_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 RESOURCE_PATTERN = re.compile(
     r"(?<![A-Za-z0-9_/])((?:references|assets|scripts)/[A-Za-z0-9_.\-/]+)"
 )
-MARKDOWN_LINK_PATTERN = re.compile(r"\]\(([^)\s]+)")
+MARKDOWN_LINK_PATTERN = re.compile(r"\]\(\s*(?:<([^>\n]+)>|([^)\s]+))")
 MARKDOWN_REFERENCE_PATTERN = re.compile(
     r"(?m)^[ \t]{0,3}\[[^\]\n]+\]:[ \t]*(?:<([^>\n]+)>|(\S+))"
 )
@@ -36,6 +36,10 @@ def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
             raise ValueError(f"duplicate key {key!r}")
         result[key] = value
     return result
+
+
+def _reject_json_constant(value: str) -> Any:
+    raise ValueError(f"invalid constant {value}")
 
 
 def _scalar(raw: str, source: Path, line: int, errors: list[str]) -> str | None:
@@ -242,7 +246,7 @@ def _validate_resources(skill_dir: Path, body: str, errors: list[str]) -> None:
     for source, text in documents:
         if RAW_HTML_RESOURCE_PATTERN.search(text):
             errors.append(f"{source}: raw HTML resource links are not allowed")
-        link_targets = list(MARKDOWN_LINK_PATTERN.findall(text))
+        link_targets = [left or right for left, right in MARKDOWN_LINK_PATTERN.findall(text)]
         link_targets.extend(left or right for left, right in MARKDOWN_REFERENCE_PATTERN.findall(text))
         for raw in link_targets:
             target_text = raw.strip("<>").split("#", 1)[0]
@@ -273,7 +277,11 @@ def _load_jsonl(path: Path, errors: list[str]) -> list[tuple[int, dict[str, Any]
         if not line.strip():
             continue
         try:
-            record = json.loads(line, object_pairs_hook=_unique_json_object)
+            record = json.loads(
+                line,
+                object_pairs_hook=_unique_json_object,
+                parse_constant=_reject_json_constant,
+            )
         except (ValueError, RecursionError) as exc:
             message = exc.msg if isinstance(exc, json.JSONDecodeError) else str(exc)
             errors.append(f"{path}:{number}: invalid JSON: {message}")
@@ -381,6 +389,7 @@ def validate_repository(root: Path) -> list[str]:
         manifest = json.loads(
             manifest_path.read_text(encoding="utf-8"),
             object_pairs_hook=_unique_json_object,
+            parse_constant=_reject_json_constant,
         )
         plugins = manifest["plugins"]
         included = plugins[0]["skills"]["include"]

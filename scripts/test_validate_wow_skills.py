@@ -114,6 +114,10 @@ class WowSkillsValidatorTest(unittest.TestCase):
             ("[absolute](/absolute/path)", "local link escapes the Skill"),
             ("[file](file:///etc/passwd)", "local link scheme is not allowed"),
             ("[outside][escape]\n\n[escape]: ../outside.md", "local link escapes the Skill"),
+            (
+                "[outside](<references/pipeline-map.md /../../../outside.md>)",
+                "local link escapes the Skill",
+            ),
             ('<a href="../outside.md">outside</a>', "raw HTML resource links are not allowed"),
             ('<script src="../outside.js"></script>', "raw HTML resource links are not allowed"),
         ):
@@ -165,6 +169,15 @@ class WowSkillsValidatorTest(unittest.TestCase):
             )
             behavior.write_text(original + duplicate + "\n", encoding="utf-8")
             self.assert_error("duplicate key 'id'")
+            behavior.write_text(original, encoding="utf-8")
+
+        with self.subTest(boundary="non-json-number"):
+            invalid_number = (
+                '{"id":"B99-nan","skill":"wow-debug","prompt":"forward eval",'
+                '"expectedBehavior":["report evidence"],"extra":NaN}'
+            )
+            behavior.write_text(original + invalid_number + "\n", encoding="utf-8")
+            self.assert_error("invalid constant NaN")
             behavior.write_text(original, encoding="utf-8")
 
         with self.subTest(boundary="duplicate-and-unknown"):
