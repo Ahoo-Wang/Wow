@@ -29,6 +29,15 @@ RAW_HTML_RESOURCE_PATTERN = re.compile(
 )
 
 
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate key {key!r}")
+        result[key] = value
+    return result
+
+
 def _scalar(raw: str, source: Path, line: int, errors: list[str]) -> str | None:
     value = raw.strip()
     if not value:
@@ -264,7 +273,7 @@ def _load_jsonl(path: Path, errors: list[str]) -> list[tuple[int, dict[str, Any]
         if not line.strip():
             continue
         try:
-            record = json.loads(line)
+            record = json.loads(line, object_pairs_hook=_unique_json_object)
         except (ValueError, RecursionError) as exc:
             message = exc.msg if isinstance(exc, json.JSONDecodeError) else str(exc)
             errors.append(f"{path}:{number}: invalid JSON: {message}")
@@ -369,7 +378,10 @@ def validate_repository(root: Path) -> list[str]:
     if manifest_path.is_symlink() or not manifest_path.is_file() or not _contained(manifest_path, skills_root):
         return [f"{manifest_path}: plugin manifest must be a regular file inside skills"]
     try:
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest = json.loads(
+            manifest_path.read_text(encoding="utf-8"),
+            object_pairs_hook=_unique_json_object,
+        )
         plugins = manifest["plugins"]
         included = plugins[0]["skills"]["include"]
     except (OSError, UnicodeError, ValueError, RecursionError, KeyError, IndexError, TypeError) as exc:

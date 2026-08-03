@@ -152,10 +152,19 @@ class WowSkillsValidatorTest(unittest.TestCase):
 
     def test_eval_jsonl_rejects_invalid_json_duplicate_ids_and_unknown_skills(self) -> None:
         behavior = self.root / "skills" / "wow-debug" / "evals" / "behavior.jsonl"
+        original = behavior.read_text(encoding="utf-8")
         with self.subTest(boundary="invalid-json"):
-            original = behavior.read_text(encoding="utf-8")
             behavior.write_text(original + "{\n", encoding="utf-8")
             self.assert_error("invalid JSON")
+            behavior.write_text(original, encoding="utf-8")
+
+        with self.subTest(boundary="duplicate-json-key"):
+            duplicate = (
+                '{"id":"B99-first","id":"B99-second","skill":"wow-debug",'
+                '"prompt":"forward eval","expectedBehavior":["report evidence"]}'
+            )
+            behavior.write_text(original + duplicate + "\n", encoding="utf-8")
+            self.assert_error("duplicate key 'id'")
             behavior.write_text(original, encoding="utf-8")
 
         with self.subTest(boundary="duplicate-and-unknown"):
@@ -266,7 +275,7 @@ class WowSkillsValidatorTest(unittest.TestCase):
             path.write_text("\n", encoding="utf-8")
             self.assert_error("eval data must contain at least one valid record")
 
-    def test_v6_audit_reports_maven_property_versions(self) -> None:
+    def test_v6_audit_reports_versions_and_quoted_storage_values(self) -> None:
         if shutil.which("rg") is None:
             self.skipTest("rg is required by audit-v6-usage.sh")
         repository = self.root / "maven-service"
@@ -293,6 +302,15 @@ class WowSkillsValidatorTest(unittest.TestCase):
 """,
             encoding="utf-8",
         )
+        (repository / "application.yml").write_text(
+            """wow:
+  event-store:
+    storage: "mongo"
+  snapshot-store:
+    'storage': 'redis'
+""",
+            encoding="utf-8",
+        )
         result = subprocess.run(
             [str(ROOT / "skills" / "wow-migrate" / "scripts" / "audit-v6-usage.sh"), str(repository)],
             check=False,
@@ -303,6 +321,8 @@ class WowSkillsValidatorTest(unittest.TestCase):
         self.assertIn("<wow.version>6.21.5</wow.version>", result.stdout)
         self.assertIn("<spring-boot.version>3.4.0</spring-boot.version>", result.stdout)
         self.assertIn("<version>3.4.0</version>", result.stdout)
+        self.assertIn('storage: "mongo"', result.stdout)
+        self.assertIn("'storage': 'redis'", result.stdout)
 
 
 if __name__ == "__main__":
