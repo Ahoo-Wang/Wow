@@ -175,8 +175,8 @@ class CompositeEventDispatcherLifecycleTest {
     }
 
     @Test
-    fun `runtime graceful stop closes every intake before scheduler cleanup`() {
-        val gracefulCalls = mutableListOf<String>()
+    fun `runtime graceful stop closes every logical intake before scheduler cleanup`() {
+        val gracefulCalls = CopyOnWriteArrayList<String>()
         val gracefulDispatcher = newRecordingDispatcher(gracefulCalls)
         val runtime = runtime(gracefulDispatcher)
         runtime.start().block()
@@ -184,11 +184,13 @@ class CompositeEventDispatcherLifecycleTest {
 
         StepVerifier.create(runtime.stopGracefully()).verifyComplete()
 
-        gracefulCalls.assert().containsExactly(
-            "stop:domain",
-            "stop:state",
-            "stop:scheduler",
-        )
+        gracefulCalls
+            .filter { it.startsWith("close:") || it == "stop:scheduler" }
+            .assert().containsExactly(
+                "close:domain",
+                "close:state",
+                "stop:scheduler",
+            )
     }
 
     @Test
@@ -233,8 +235,14 @@ class CompositeEventDispatcherLifecycleTest {
 
     private fun newRecordingDispatcher(calls: MutableList<String>): RecordingCompositeEventDispatcher =
         RecordingCompositeEventDispatcher(
-            domainEventBus = RecordingDomainEventBus(calls),
-            stateEventBus = RecordingStateEventBus(calls),
+            domainEventBus = RecordingDomainEventBus(
+                calls = calls,
+                onCloseProcessing = { calls += "close:domain" },
+            ),
+            stateEventBus = RecordingStateEventBus(
+                calls = calls,
+                onCloseProcessing = { calls += "close:state" },
+            ),
             functionRegistrar = registrar(
                 RecordingFunction(FunctionKind.EVENT),
                 RecordingFunction(FunctionKind.STATE_EVENT),
@@ -292,6 +300,7 @@ class CompositeEventDispatcherLifecycleTest {
 
     private class RecordingDomainEventBus(
         private val calls: MutableList<String>,
+        private val onCloseProcessing: () -> Unit = {},
         private val onCancel: () -> Unit = {},
     ) : DomainEventBus {
         val subscriptionCount = AtomicInteger()
@@ -313,6 +322,12 @@ class CompositeEventDispatcherLifecycleTest {
                     cancellationEntered.countDown()
                     onCancel()
                 }
+
+        override fun runtimeReceiver(subscription: MessageSubscription): MessageReceiver<EventStreamExchange> =
+            MessageReceiver(
+                messages = receive(subscription),
+                processingQuiescence = onCloseProcessing,
+            )
 
         fun awaitCancellation() {
             cancellationEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
@@ -352,6 +367,7 @@ class CompositeEventDispatcherLifecycleTest {
 
     private class RecordingStateEventBus(
         private val calls: MutableList<String>,
+        private val onCloseProcessing: () -> Unit = {},
         private val onCancel: () -> Unit = {},
     ) : StateEventBus {
         private val cancellationEntered = CountDownLatch(1)
@@ -369,6 +385,12 @@ class CompositeEventDispatcherLifecycleTest {
                     cancellationEntered.countDown()
                     onCancel()
                 }
+
+        override fun runtimeReceiver(subscription: MessageSubscription): MessageReceiver<StateEventExchange<*>> =
+            MessageReceiver(
+                messages = receive(subscription),
+                processingQuiescence = onCloseProcessing,
+            )
 
         fun awaitCancellation() {
             cancellationEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
