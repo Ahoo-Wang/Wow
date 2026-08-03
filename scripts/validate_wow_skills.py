@@ -258,14 +258,25 @@ def _load_jsonl(path: Path, errors: list[str]) -> list[tuple[int, dict[str, Any]
 def _validate_evals(skills_root: Path, skill_names: set[str], errors: list[str]) -> None:
     seen_ids: dict[str, str] = {}
     for skill_name in sorted(skill_names):
-        eval_dir = skills_root / skill_name / "evals"
+        skill_dir = skills_root / skill_name
+        eval_dir = skill_dir / "evals"
+        if eval_dir.is_symlink() or not _contained(eval_dir, skill_dir):
+            errors.append(f"{eval_dir}: evals must stay inside the Skill and must not be a link")
+            continue
         fixtures_root = eval_dir / "fixtures"
         for kind in ("activation", "behavior"):
             path = eval_dir / f"{kind}.jsonl"
+            if path.is_symlink() or not _contained(path, eval_dir):
+                errors.append(f"{path}: eval data files must stay inside evals and must not be links")
+                continue
             if not path.is_file():
                 errors.append(f"{path}: missing eval data")
                 continue
-            for number, record in _load_jsonl(path, errors):
+            records = _load_jsonl(path, errors)
+            if not records:
+                errors.append(f"{path}: eval data must contain at least one valid record")
+                continue
+            for number, record in records:
                 location = f"{path}:{number}"
                 case_id = record.get("id")
                 prompt = record.get("prompt")
@@ -334,7 +345,13 @@ def validate_repository(root: Path) -> list[str]:
     except (OSError, UnicodeError, ValueError, RecursionError, KeyError, IndexError, TypeError) as exc:
         return [f"{manifest_path}: invalid plugin manifest: {exc}"]
 
-    if manifest.get("schemaVersion") != 1 or not isinstance(plugins, list) or len(plugins) != 1:
+    schema_version = manifest.get("schemaVersion")
+    if (
+        type(schema_version) is not int
+        or schema_version != 1
+        or not isinstance(plugins, list)
+        or len(plugins) != 1
+    ):
         errors.append(f"{manifest_path}: expected schemaVersion 1 and exactly one plugin")
         included = []
     if not isinstance(included, list) or any(not isinstance(item, str) for item in included):

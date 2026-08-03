@@ -86,10 +86,17 @@ class WowSkillsValidatorTest(unittest.TestCase):
 
     def test_plugin_include_must_match_the_four_skill_directories(self) -> None:
         path = self.root / "skills" / "plugins.json"
-        manifest = json.loads(path.read_text(encoding="utf-8"))
-        manifest["plugins"][0]["skills"]["include"].remove("wow-debug")
-        path.write_text(json.dumps(manifest), encoding="utf-8")
-        self.assert_error("included, installed, and expected Skills must match")
+        original = path.read_text(encoding="utf-8")
+        with self.subTest(boundary="include-mismatch"):
+            manifest = json.loads(original)
+            manifest["plugins"][0]["skills"]["include"].remove("wow-debug")
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            self.assert_error("included, installed, and expected Skills must match")
+        with self.subTest(boundary="boolean-schema-version"):
+            manifest = json.loads(original)
+            manifest["schemaVersion"] = True
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            self.assert_error("expected schemaVersion 1")
 
     def test_resource_references_must_exist_and_stay_inside_the_skill(self) -> None:
         path = self.root / "skills" / "wow-develop" / "SKILL.md"
@@ -192,6 +199,26 @@ class WowSkillsValidatorTest(unittest.TestCase):
             fixtures.rename(outside_fixtures)
             fixtures.symlink_to(outside_fixtures, target_is_directory=True)
             self.assert_error("evals/fixtures must stay inside evals")
+
+    def test_eval_contract_files_are_local_and_non_empty(self) -> None:
+        with self.subTest(boundary="linked-file"):
+            path = self.root / "skills" / "wow-review" / "evals" / "behavior.jsonl"
+            outside = self.root / "outside-behavior.jsonl"
+            path.rename(outside)
+            path.symlink_to(outside)
+            self.assert_error("eval data files must stay inside evals")
+
+        with self.subTest(boundary="linked-directory"):
+            evals = self.root / "skills" / "wow-debug" / "evals"
+            outside_evals = self.root / "outside-evals"
+            evals.rename(outside_evals)
+            evals.symlink_to(outside_evals, target_is_directory=True)
+            self.assert_error("evals must stay inside the Skill")
+
+        with self.subTest(boundary="empty-data"):
+            path = self.root / "skills" / "wow-develop" / "evals" / "activation.jsonl"
+            path.write_text("\n", encoding="utf-8")
+            self.assert_error("eval data must contain at least one valid record")
 
     def test_v6_audit_reports_maven_property_versions(self) -> None:
         if shutil.which("rg") is None:
