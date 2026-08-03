@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wow Migrate"
+  short_description: "Migrate Wow releases with evidence-gated cutovers"
+  default_prompt: "Use $wow-migrate to audit this breaking Wow migration and produce a pinned, evidence-gated source, data, cutover, and rollback plan."

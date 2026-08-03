@@ -1,4 +1,0 @@
-interface:
-  display_name: "Wow Framework Router"
-  short_description: "Route Wow tasks and implement focused framework APIs"
-  default_prompt: "Use $wow to route this Wow task or implement a focused Kotlin projection, event processor, gateway, query, configuration, or PrepareKey change."

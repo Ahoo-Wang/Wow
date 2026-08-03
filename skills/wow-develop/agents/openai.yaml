@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wow Develop"
+  short_description: "Build and explain verified Wow framework behavior"
+  default_prompt: "Use $wow-develop to verify this Wow request against current source; keep guidance read-only, or test-drive and implement only when I request changes."

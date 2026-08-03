@@ -1,6 +1,6 @@
 ---
 title: Wow v6 迁移到 v8
-description: 从 Spring Boot 3 / Wow v6 迁移到 Spring Boot 4 / Wow v8 的分阶段升级、数据切换与回滚指南。
+description: 从精确 Wow v6 基线迁移到 Wow v8 的分阶段升级、条件性平台适配、数据切换与回滚指南。
 ---
 
 # Wow v6 迁移到 v8
@@ -8,10 +8,12 @@ description: 从 Spring Boot 3 / Wow v6 迁移到 Spring Boot 4 / Wow v8 的分�
 本文只处理已经使用 Wow v6 的系统升级到 Wow v8。传统 CRUD 系统首次采用 Wow，请改读
 [传统架构迁移](./traditional-architecture.md)。
 
-Wow v6 与 v8 都要求 Java 17+，但 v6 对应 Spring Boot 3.x，v8 对应 Spring Boot 4.x；
-这是一轮平台迁移，不是只修改一个依赖版本。当前 v8 依赖基线还包括 Spring Boot 4.1、
+Wow v6 与 v8 都要求 Java 17+，但平台差异取决于精确 v6 tag。较早的 `v6.8.0` 使用
+Spring Boot 3.5 与 Kotlin 2.2，最新 `v6.21.5` 已使用 Spring Boot 4.0 与 Kotlin 2.3；
+必须固定并检查源 tag，不能把“v6”视为单一平台。当前 v8 依赖基线包括 Spring Boot 4.1、
 Kotlin 2.4、CosId 3.2、CoAPI 2.1 与 CoCache 4.2。
-[`README.zh-CN.md:47-49`](https://github.com/Ahoo-Wang/Wow/blob/main/README.zh-CN.md#L47-L49)
+[`v6.8.0 版本基线`](https://github.com/Ahoo-Wang/Wow/blob/v6.8.0/gradle/libs.versions.toml)
+[`v6.21.5 版本基线`](https://github.com/Ahoo-Wang/Wow/blob/v6.21.5/gradle/libs.versions.toml)
 [`gradle/libs.versions.toml:3-18`](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L3-L18)
 [`gradle/libs.versions.toml:32-33`](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L32-L33)
 
@@ -20,7 +22,7 @@ Kotlin 2.4、CosId 3.2、CoAPI 2.1 与 CoCache 4.2。
 | 阶段 | 目标 | 完成门禁 | 主要风险 | 来源 |
 |---|---|---|---|---|
 | 0. 固化 v6 基线 | 先升级到最新 v6，清除弃用 API | v6 全量测试通过，事件/快照/消息数量有基线 | 带着旧缺陷跨平台定位困难 | [v6.21.5 Release](https://github.com/Ahoo-Wang/Wow/releases/tag/v6.21.5) |
-| 1. 平台适配 | Spring Boot 4、Jackson 3、依赖主版本同步升级 | 编译、单测、集成测试通过 | Boot 模块化、`tools.jackson` 包名与第三方 starter 不兼容 | [v8.0.0 Release](https://github.com/Ahoo-Wang/Wow/releases/tag/v8.0.0)、[SerializationAutoConfiguration.kt:14-30](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/serialization/SerializationAutoConfiguration.kt#L14-L30) |
+| 1. 平台对齐 | 对精确源 tag 与目标做差异矩阵；只升级确有差异的 Boot、Jackson、Kotlin 与相关依赖 | 编译、单测、集成测试通过 | 误以为所有 v6 都是 Boot 3、Boot 模块化、`tools.jackson` 包名与第三方 starter 不兼容 | [v6.21.5 versions](https://github.com/Ahoo-Wang/Wow/blob/v6.21.5/gradle/libs.versions.toml)、[v8.0.0 Release](https://github.com/Ahoo-Wang/Wow/releases/tag/v8.0.0) |
 | 2. Wow API 适配 | 修复 v8 各小版本的源码破坏 | 领域、消息、查询、测试 DSL 全部重新编译 | `CommandGateway`、生命周期扩展与内部存储 API 已变化 | [CommandGateway.kt:75-159](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L75-L159) |
 | 3. 数据预迁移 | 在停流条件下完成 Redis/Mongo 审计与转换 | checksum、版本、ID 索引、回放一致 | v8.9 Redis canonical v2 不兼容旧布局 | [RedisEventSourcingAutoConfiguration.kt:200-243](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/redis/RedisEventSourcingAutoConfiguration.kt#L200-L243) |
 | 4. 隔离验证与切流 | 单实例 smoke test 后再灰度扩容 | 读写、回放、快照、查询与停机验证通过 | 新旧 writer 混跑会破坏快照和 Redis 回滚边界 | [SnapshotStore.kt:57-71](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotStore.kt#L57-L71) |
@@ -28,7 +30,7 @@ Kotlin 2.4、CosId 3.2、CoAPI 2.1 与 CoCache 4.2。
 ```mermaid
 %%{init: {"theme": "dark"}}%%
 flowchart LR
-    V6["最新 Wow v6<br>基线绿色"] --> Platform["Spring Boot 4<br>Jackson 3"]
+    V6["精确 Wow v6 tag<br>基线绿色"] --> Platform["固定并对齐<br>平台矩阵"]
     Platform --> Compile["修复源码与测试<br>重新生成元数据"]
     Compile --> Data["离线数据审计<br>与硬切换"]
     Data --> Canary["单实例验证"]
@@ -93,14 +95,17 @@ stateDiagram-v2
 
 ## Spring Boot 4 与 Jackson 3
 
-v8.0.0 的核心变化是支持 Spring Boot 4，同时把框架序列化实现迁移到 Jackson 3 的
-`tools.jackson` 命名空间。应用若直接引用 Jackson `ObjectMapper`、`JsonNode`、Spring Boot
-auto-configuration 类或自建 starter，必须单独完成源码迁移；不要通过强制回退 Spring Boot 3
-或 Jackson 2 来维持旧组合。Spring Boot 官方建议先使用 classic starter 作为短期编译过渡，
-再收敛到按功能拆分的 starter。
+如果固定的 v6 源 tag 仍使用 Spring Boot 3 与 Jackson 2，则 v8 迁移必须包含 Spring Boot 4
+与 Jackson 3 的源码适配；直接引用 Jackson `ObjectMapper`、`JsonNode`、Spring Boot
+auto-configuration 类或自建 starter 的应用都要显式处理。`v6.21.5` 已使用 Spring Boot 4.0
+与 `tools.jackson` 命名空间，从该基线出发只审计精确 source/target delta，不要重复已经完成的
+平台主版本迁移。无论源 tag 如何，都不要在固定的 v8 目标下强制回退 Spring Boot 3 或
+Jackson 2。Spring Boot 官方建议先使用 classic starter 作为短期编译过渡，再收敛到按功能拆分的 starter。
 
 - [Wow v8.0.0 Release](https://github.com/Ahoo-Wang/Wow/releases/tag/v8.0.0)
 - [Spring Boot 4.0 Migration Guide](https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-4.0-Migration-Guide)
+- [`v6.21.5 JsonSerializer.kt`](https://github.com/Ahoo-Wang/Wow/blob/v6.21.5/wow-core/src/main/kotlin/me/ahoo/wow/serialization/JsonSerializer.kt)
+- [`v6.21.5 SerializationAutoConfiguration.kt`](https://github.com/Ahoo-Wang/Wow/blob/v6.21.5/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/serialization/SerializationAutoConfiguration.kt)
 - [`JsonSerializer.kt:14-51`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/serialization/JsonSerializer.kt#L14-L51)
 - [`SerializationAutoConfiguration.kt:14-30`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/serialization/SerializationAutoConfiguration.kt#L14-L30)
 

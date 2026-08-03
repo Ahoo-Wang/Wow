@@ -1,0 +1,9 @@
+{"id":"A01-develop-aggregate","prompt":"为 Cart 聚合增加最多 10 件商品的不变量，补齐 command、event、sourcing 和行为测试。","expectedSkills":["wow-develop"],"tags":["positive","aggregate"]}
+{"id":"A02-develop-mixed","prompt":"同时新增支付 Saga 和订单 Projection，并分别补齐测试与验证结果。","expectedSkills":["wow-develop"],"tags":["positive","mixed","conflict"]}
+{"id":"A03-develop-lookup","prompt":"核对当前 Wow Query DSL 如何按 tenant 和 status 分页查询，并只投影指定字段。","expectedSkills":["wow-develop"],"tags":["positive","lookup"]}
+{"id":"A04-develop-adoption","prompt":"新服务第一次采用 Wow v8，请设计订单 aggregate、存储入口和测试策略。","expectedSkills":["wow-develop"],"tags":["boundary","conflict"]}
+{"id":"A15-none-kotlin","prompt":"修复这个纯 Kotlin 协程工具库的 flaky test，它没有使用 Wow。","expectedSkills":[],"tags":["negative"]}
+{"id":"A16-none-docs","prompt":"把 documentation 下的介绍页翻译成中文，不改变示例和框架语义。","expectedSkills":[],"tags":["negative"]}
+{"id":"A17-none-dashboard","prompt":"升级 compensation dashboard 的 React 依赖并修复 ESLint。","expectedSkills":[],"tags":["negative"]}
+{"id":"A19-develop-english","prompt":"Explain how to page Wow Query DSL results by tenant and status while projecting only selected fields; do not change files.","expectedSkills":["wow-develop"],"tags":["positive","lookup","language-en"]}
+{"id":"A23-develop-adoption-english","prompt":"Design the aggregate, storage entry point, and test strategy for a new service adopting Wow 8 for the first time.","expectedSkills":["wow-develop"],"tags":["boundary","adoption","conflict","language-en"]}

@@ -1,6 +1,6 @@
 ---
 title: Migrate Wow v6 to v8
-description: A staged guide for moving from Spring Boot 3 and Wow v6 to Spring Boot 4 and Wow v8, including data cutover and rollback.
+description: A staged guide for moving from an exact Wow v6 baseline to Wow v8, including conditional platform upgrades, data cutover, and rollback.
 ---
 
 # Migrate Wow v6 to v8
@@ -8,10 +8,13 @@ description: A staged guide for moving from Spring Boot 3 and Wow v6 to Spring B
 This page is only for systems already running Wow v6 and moving to Wow v8. For a first
 adoption from CRUD, use [Migrating from Traditional Architecture](./traditional-architecture.md).
 
-Wow v6 and v8 both require Java 17+, but v6 targets Spring Boot 3.x while v8 targets
-Spring Boot 4.x. This is a platform migration, not a one-line dependency bump. The current
-v8 baseline also includes Spring Boot 4.1, Kotlin 2.4, CosId 3.2, CoAPI 2.1, and CoCache 4.2.
-[`README.md:47-49`](https://github.com/Ahoo-Wang/Wow/blob/main/README.md#L47-L49)
+Wow v6 and v8 both require Java 17+, but the platform delta depends on the exact v6 tag.
+Earlier v6 lines such as `v6.8.0` use Spring Boot 3.5 and Kotlin 2.2, while the latest
+`v6.21.5` already uses Spring Boot 4.0 and Kotlin 2.3. Pin and inspect the source tag rather
+than treating “v6” as one platform. The current v8 baseline includes Spring Boot 4.1,
+Kotlin 2.4, CosId 3.2, CoAPI 2.1, and CoCache 4.2.
+[`v6.8.0 versions`](https://github.com/Ahoo-Wang/Wow/blob/v6.8.0/gradle/libs.versions.toml)
+[`v6.21.5 versions`](https://github.com/Ahoo-Wang/Wow/blob/v6.21.5/gradle/libs.versions.toml)
 [`gradle/libs.versions.toml:3-18`](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L3-L18)
 [`gradle/libs.versions.toml:32-33`](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L32-L33)
 
@@ -20,7 +23,7 @@ v8 baseline also includes Spring Boot 4.1, Kotlin 2.4, CosId 3.2, CoAPI 2.1, and
 | Stage | Goal | Exit gate | Main risk | Source |
 |---|---|---|---|---|
 | 0. Stabilize v6 | Move to the latest v6 and remove deprecated API use | Full v6 test suite passes; event, snapshot, and message counts are baselined | Carrying old failures across the platform boundary | [v6.21.5 Release](https://github.com/Ahoo-Wang/Wow/releases/tag/v6.21.5) |
-| 1. Adapt the platform | Upgrade Spring Boot 4, Jackson 3, and related major dependencies together | Compilation, unit tests, and integration tests pass | Boot modularization, `tools.jackson`, and incompatible third-party starters | [v8.0.0 Release](https://github.com/Ahoo-Wang/Wow/releases/tag/v8.0.0), [SerializationAutoConfiguration.kt:14-30](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/serialization/SerializationAutoConfiguration.kt#L14-L30) |
+| 1. Align the platform | Diff the exact source tag against the target; upgrade Boot, Jackson, Kotlin, and related dependencies only where required | Compilation, unit tests, and integration tests pass | Assuming every v6 tag is Boot 3, Boot modularization, `tools.jackson`, and incompatible third-party starters | [v6.21.5 versions](https://github.com/Ahoo-Wang/Wow/blob/v6.21.5/gradle/libs.versions.toml), [v8.0.0 Release](https://github.com/Ahoo-Wang/Wow/releases/tag/v8.0.0) |
 | 2. Adapt Wow APIs | Resolve source breaks accumulated across v8 minors | Domain, messaging, query, and test DSL code all recompiles | `CommandGateway`, lifecycle extensions, and storage internals changed | [CommandGateway.kt:75-159](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L75-L159) |
 | 3. Prepare data | Audit and convert Redis/Mongo data while traffic is stopped | Checksums, versions, ID indexes, and representative replay match | v8.9 Redis canonical v2 is incompatible with legacy layouts | [RedisEventSourcingAutoConfiguration.kt:200-243](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/redis/RedisEventSourcingAutoConfiguration.kt#L200-L243) |
 | 4. Isolated cutover | Validate one v8 instance before scaling | Read/write, replay, snapshot, query, and shutdown checks pass | Mixed old/new writers break snapshot and Redis rollback guarantees | [SnapshotStore.kt:57-71](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotStore.kt#L57-L71) |
@@ -28,7 +31,7 @@ v8 baseline also includes Spring Boot 4.1, Kotlin 2.4, CosId 3.2, CoAPI 2.1, and
 ```mermaid
 %%{init: {"theme": "dark"}}%%
 flowchart LR
-    V6["Latest Wow v6<br>green baseline"] --> Platform["Spring Boot 4<br>Jackson 3"]
+    V6["Exact Wow v6 tag<br>green baseline"] --> Platform["Pin and align<br>platform matrix"]
     Platform --> Compile["Fix source and tests<br>regenerate metadata"]
     Compile --> Data["Offline data audit<br>and hard cutover"]
     Data --> Canary["Single-instance validation"]
@@ -94,15 +97,19 @@ stateDiagram-v2
 
 ## Spring Boot 4 and Jackson 3
 
-The defining v8.0.0 change is Spring Boot 4 support, accompanied by migration of Wow's
-serialization implementation to Jackson 3 under the `tools.jackson` namespace. Applications
-that directly reference Jackson `ObjectMapper` or `JsonNode`, Spring Boot auto-configuration
-types, or custom starters need an explicit source migration. Do not force Spring Boot 3 or
-Jackson 2 back under Wow v8. Spring Boot's official guidance permits classic starters as a
-temporary compilation bridge, followed by convergence on focused starters.
+If the pinned v6 source tag still uses Spring Boot 3 and Jackson 2, the v8 migration must include
+the Spring Boot 4 and Jackson 3 source transition. Applications on those tags that directly
+reference Jackson `ObjectMapper` or `JsonNode`, Spring Boot auto-configuration types, or custom
+starters need explicit source migration. `v6.21.5` already uses Spring Boot 4.0 and the
+`tools.jackson` namespace, so from that baseline audit only the exact source/target delta; do not
+repeat a platform-major migration that already happened. In either case, do not force Spring Boot
+3 or Jackson 2 under the pinned v8 target. Spring Boot's official guidance permits classic
+starters as a temporary compilation bridge, followed by convergence on focused starters.
 
 - [Wow v8.0.0 Release](https://github.com/Ahoo-Wang/Wow/releases/tag/v8.0.0)
 - [Spring Boot 4.0 Migration Guide](https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-4.0-Migration-Guide)
+- [`v6.21.5 JsonSerializer.kt`](https://github.com/Ahoo-Wang/Wow/blob/v6.21.5/wow-core/src/main/kotlin/me/ahoo/wow/serialization/JsonSerializer.kt)
+- [`v6.21.5 SerializationAutoConfiguration.kt`](https://github.com/Ahoo-Wang/Wow/blob/v6.21.5/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/serialization/SerializationAutoConfiguration.kt)
 - [`JsonSerializer.kt:14-51`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/serialization/JsonSerializer.kt#L14-L51)
 - [`SerializationAutoConfiguration.kt:14-30`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/serialization/SerializationAutoConfiguration.kt#L14-L30)
 

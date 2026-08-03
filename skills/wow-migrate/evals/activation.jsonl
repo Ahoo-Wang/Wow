@@ -1,0 +1,6 @@
+{"id":"A12-migrate-audit","prompt":"审计一个 Wow 6.21.5 应用升级到固定 Wow 8 release 的风险和实施门禁。","expectedSkills":["wow-migrate"],"tags":["positive","migration"]}
+{"id":"A13-migrate-failure","prompt":"升级 Wow v6 应用到 v8 后 Saga 不再触发，按迁移契约定位兼容性根因。","expectedSkills":["wow-migrate"],"tags":["positive","migration","conflict"]}
+{"id":"A14-migrate-v8-routine","prompt":"将现有 Wow 8.8 服务常规升级到 8.9，核对 API 和配置变化。","expectedSkills":["wow-develop"],"tags":["boundary","develop","conflict"]}
+{"id":"A18-migrate-v8-data-cutover","prompt":"将 Wow 8.8.1 服务升级到 Wow 8.9.6，同时切换 Redis EventStore 的 canonical key 格式；需要数据迁移、全量对账、灰度切流和回滚方案。","expectedSkills":["wow-migrate"],"tags":["positive","migration","data-cutover","conflict"]}
+{"id":"A22-migrate-english","prompt":"Audit and plan a production service migration from Wow 6.21.5 to the pinned 8.9.6 release, including data reconciliation and separate rollback paths.","expectedSkills":["wow-migrate"],"tags":["positive","migration","language-en"]}
+{"id":"A26-migrate-v8-breaking-no-data","prompt":"将 Wow 8.7 服务升级到 8.9.6：目标版本删除了正在使用的 API 并改变 starter 配置契约，但已确认存储格式无需数据转换；制定 source/config 破坏性迁移和回滚计划。","expectedSkills":["wow-migrate"],"tags":["boundary","breaking-no-data","migration","conflict"]}

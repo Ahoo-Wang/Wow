@@ -59,7 +59,7 @@ For an end-to-end repository introduction, start with the [contributor onboardin
 
 ## Commenting Guidelines
 
-Comments are part of the maintained code. Keep them concise, accurate, and focused on information that the code cannot express clearly on its own. The detailed examples and domain-specific rules live in the canonical [code comment standards](skills/wow-development-workflow/references/comment-standards.md).
+Comments are part of the maintained code. Keep them concise, accurate, and focused on information that the code cannot express clearly on its own. Follow neighboring source, the rules below, and the repository's current lint configuration rather than a separate comment-style document.
 
 - Write source-code comments and API documentation in English. User-facing documentation follows the language of the page.
 - Use KDoc or Javadoc for public contracts whose behavior, constraints, failure modes, or usage are not obvious from the declaration. Do not add documentation that merely repeats a symbol name or type.

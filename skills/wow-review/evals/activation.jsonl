@@ -1,0 +1,7 @@
+{"id":"A05-review-diff","prompt":"审查当前分支相对 origin/main 的 Wow aggregate 改动，按严重度报告 findings，不要修改文件。","expectedSkills":["wow-review"],"tags":["positive","review"]}
+{"id":"A06-review-fix","prompt":"审查并修复当前 Wow PR；先完成 findings，再处理已授权问题并复审。","expectedSkills":["wow-review"],"tags":["positive","review-fix","conflict"]}
+{"id":"A07-review-migration","prompt":"审查这个从 Wow 6.21.5 升级到 Wow 8 的 PR，重点检查数据和回滚风险。","expectedSkills":["wow-migrate"],"tags":["boundary","migration","conflict"]}
+{"id":"A08-review-vs-debug","prompt":"这个 Saga 测试为什么失败？先复现并定位根因，不要修改代码。","expectedSkills":["wow-debug"],"tags":["boundary","debug","conflict"]}
+{"id":"A20-review-english","prompt":"Review the current Wow CommandGateway pull request against origin/main, report findings by severity, and do not edit files.","expectedSkills":["wow-review"],"tags":["positive","review","language-en"]}
+{"id":"A24-review-v8-data-cutover","prompt":"审查这个 Wow 8.8.1 到 8.9.6 的 Redis EventStore 数据切换 PR，重点核对 canonical v2 对账、切流和回滚，不要修改。","expectedSkills":["wow-migrate"],"tags":["boundary","review-data-cutover","migration","conflict"]}
+{"id":"A27-none-dashboard-review","prompt":"审查 compensation dashboard 的 React 表格组件 PR，只检查前端可访问性、状态管理和 Vitest 覆盖。","expectedSkills":[],"tags":["negative","wow-repository","dashboard"]}
