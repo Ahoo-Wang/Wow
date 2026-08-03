@@ -92,6 +92,62 @@ test("loads the deterministic queue and responsive execution details", async ({
     .toEqual([{ field: "aggregateId", direction: "DESC" }]);
 });
 
+test("copies identifiers when the Clipboard API is unavailable", async ({
+  page,
+}, testInfo) => {
+  await page.route("**/execution_failed/snapshot/paged/state", (route) =>
+    route.fulfill({ json: { total: 1, list: [execution] } }),
+  );
+
+  await page.goto("/to-retry");
+  await openDetails(page, testInfo.project.name);
+  await page.evaluate(() => {
+    const execCommand = document.execCommand.bind(document);
+    Object.defineProperty(document, "execCommand", {
+      configurable: true,
+      value: (commandId: string, showUI?: boolean, valueArgument?: string) => {
+        const textarea = [...document.querySelectorAll("textarea")].find(
+          ({ selectionStart, selectionEnd }) => selectionEnd > selectionStart,
+        );
+        if (commandId === "copy" && textarea) {
+          const { selectionStart, selectionEnd, value } = textarea;
+          Object.defineProperty(window, "__copiedText", {
+            configurable: true,
+            value: value.slice(selectionStart, selectionEnd),
+          });
+        }
+        return execCommand(commandId, showUI, valueArgument);
+      },
+    });
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: undefined,
+    });
+  });
+  expect(await page.evaluate(() => navigator.clipboard)).toBeUndefined();
+  expect(
+    await page.evaluate(() => Object.hasOwn(document, "execCommand")),
+  ).toBe(true);
+
+  for (const [label, value] of [
+    ["Copy execution ID", execution.id],
+    ["Copy event ID", execution.eventId.id],
+    ["Copy aggregate ID", execution.eventId.aggregateId.aggregateId],
+  ]) {
+    const copyButton = page.getByRole("button", { name: label });
+    await copyButton.click();
+    await expect(copyButton.locator("svg")).toHaveClass(/lucide-check/);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => (window as Window & { __copiedText?: string }).__copiedText,
+        ),
+      )
+      .toBe(value);
+  }
+  await expect(page.getByText(/^Unable to copy/)).toHaveCount(0);
+});
+
 test("keeps prepared actions independent of the browser clock", async ({
   page,
 }, testInfo) => {
