@@ -1,4 +1,0 @@
-interface:
-  display_name: "Wow Debugging"
-  short_description: "Debug Wow command and event pipelines"
-  default_prompt: "Use $wow-debugging to diagnose the failing stage in this Wow flow without changing code unless I ask for a fix."

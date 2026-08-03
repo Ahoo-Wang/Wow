@@ -3,13 +3,13 @@
   "plugins": [
     {
       "name": "ahoo-wow-skills",
-      "description": "Agent skills for building, testing, reviewing, debugging, and migrating Wow reactive DDD, Event Sourcing, and CQRS microservices.",
+      "description": "Intent-focused Agent Skills for developing, reviewing, debugging, and migrating Wow reactive DDD, Event Sourcing, and CQRS services.",
       "skills": {
         "include": [
-          "*"
-        ],
-        "exclude": [
-          "*-workspace"
+          "wow-develop",
+          "wow-review",
+          "wow-debug",
+          "wow-migrate"
         ]
       },
       "keywords": [
@@ -20,9 +20,9 @@
         "saga",
         "aggregate",
         "kotlin",
+        "java",
         "spring-boot",
         "reactor",
-        "microservices",
         "migration"
       ],
       "category": "development",
@@ -31,7 +31,7 @@
         "capabilities": [
           "Skills"
         ],
-        "defaultPrompt": "Help me design, test, review, debug, and migrate Wow DDD, Event Sourcing, and CQRS services."
+        "defaultPrompt": "Help me develop, review, debug, or migrate this Wow service using current source and verifiable evidence."
       },
       "policy": {
         "installation": "AVAILABLE",

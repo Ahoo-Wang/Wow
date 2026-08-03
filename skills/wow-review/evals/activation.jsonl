@@ -1,0 +1,4 @@
+{"schemaVersion":1,"id":"A05-review-diff","prompt":"审查当前分支相对 origin/main 的 Wow aggregate 改动，按严重度报告 findings，不要修改文件。","expectedSkills":["wow-review"],"tags":["positive","review"]}
+{"schemaVersion":1,"id":"A06-review-fix","prompt":"审查并修复当前 Wow PR；先完成 findings，再处理已授权问题并复审。","expectedSkills":["wow-review"],"tags":["positive","review-fix","conflict"]}
+{"schemaVersion":1,"id":"A07-review-migration","prompt":"审查这个从 Wow 6.7 升级到 Wow 8 的 PR，重点检查数据和回滚风险。","expectedSkills":["wow-migrate"],"tags":["boundary","migration","conflict"]}
+{"schemaVersion":1,"id":"A08-review-vs-debug","prompt":"这个 Saga 测试为什么失败？先复现并定位根因，不要修改代码。","expectedSkills":["wow-debug"],"tags":["boundary","debug","conflict"]}

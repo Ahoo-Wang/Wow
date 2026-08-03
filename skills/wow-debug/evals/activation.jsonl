@@ -1,0 +1,3 @@
+{"schemaVersion":1,"id":"A09-debug-projection","prompt":"OrderCreated 已发布，但 OrderProjection 没有更新。定位根因并给出证据，不要修改文件。","expectedSkills":["wow-debug"],"tags":["positive","projection","debug"]}
+{"schemaVersion":1,"id":"A10-debug-wait","prompt":"CommandGateway 的等待请求一直挂起，请复现并找到第一个失败阶段。","expectedSkills":["wow-debug"],"tags":["positive","wait","debug"]}
+{"schemaVersion":1,"id":"A11-debug-vs-develop","prompt":"新增一个订单 EventProcessor，并补齐正常、失败和重复投递测试。","expectedSkills":["wow-develop"],"tags":["boundary","develop","conflict"]}
