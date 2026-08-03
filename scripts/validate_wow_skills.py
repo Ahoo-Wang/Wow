@@ -163,6 +163,21 @@ def _contained(candidate: Path, parent: Path) -> bool:
         return False
 
 
+def _has_link_component(candidate: Path, parent: Path) -> bool:
+    try:
+        relative = candidate.relative_to(parent)
+    except ValueError:
+        return False
+    current = parent
+    if current.is_symlink():
+        return True
+    for part in relative.parts:
+        current /= part
+        if current.is_symlink():
+            return True
+    return False
+
+
 def _validate_resources(skill_dir: Path, body: str, errors: list[str]) -> None:
     referenced = set(RESOURCE_PATTERN.findall(body))
     for raw in sorted(referenced):
@@ -187,6 +202,9 @@ def _validate_resources(skill_dir: Path, body: str, errors: list[str]) -> None:
             continue
         if not _contained(root, skill_dir):
             errors.append(f"{root}: resource directories must stay inside the Skill and must not be links")
+            continue
+        if not root.is_dir():
+            errors.append(f"{root}: resource root must be a regular directory")
             continue
         for path in sorted(root.rglob("*")):
             if path.is_symlink():
@@ -319,10 +337,15 @@ def _validate_evals(skills_root: Path, skill_names: set[str], errors: list[str])
                     target = eval_dir.joinpath(*relative.parts)
                     if fixtures_root.is_symlink() or not _contained(fixtures_root, eval_dir):
                         errors.append(f"{location}: evals/fixtures must stay inside evals and must not be a link")
-                    elif relative.is_absolute() or ".." in relative.parts or not _contained(target, fixtures_root):
+                    elif (
+                        relative.is_absolute()
+                        or ".." in relative.parts
+                        or not target.is_relative_to(fixtures_root)
+                        or not _contained(target, fixtures_root)
+                    ):
                         errors.append(f"{location}: fixture path must stay under evals/fixtures")
-                    elif target.is_symlink():
-                        errors.append(f"{location}: fixture must not be a link")
+                    elif _has_link_component(target, fixtures_root):
+                        errors.append(f"{location}: fixture path must not contain links")
                     elif not target.exists():
                         errors.append(f"{location}: fixture does not exist: {fixture}")
                     elif target.is_dir():

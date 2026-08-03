@@ -145,6 +145,11 @@ class WowSkillsValidatorTest(unittest.TestCase):
             resource.mkdir()
             self.assert_error("referenced resource must be a regular file")
 
+        with self.subTest(reference="resource-root-is-file"):
+            resource_root = self.root / "skills" / "wow-debug" / "assets"
+            resource_root.write_text("not a directory", encoding="utf-8")
+            self.assert_error("resource root must be a regular directory")
+
     def test_eval_jsonl_rejects_invalid_json_duplicate_ids_and_unknown_skills(self) -> None:
         behavior = self.root / "skills" / "wow-debug" / "evals" / "behavior.jsonl"
         with self.subTest(boundary="invalid-json"):
@@ -211,6 +216,28 @@ class WowSkillsValidatorTest(unittest.TestCase):
             link = self.root / "skills" / "wow-migrate" / "evals" / "fixtures" / "v6-service" / "leak"
             link.symlink_to(outside)
             self.assert_error("fixture contains a link")
+
+        with self.subTest(boundary="symlinked-path-component"):
+            fixtures = self.root / "skills" / "wow-review" / "evals" / "fixtures"
+            alias = fixtures / "alias"
+            alias.symlink_to(".", target_is_directory=True)
+            record["id"] = "B99-linked-path"
+            record["fixture"] = "fixtures/alias/B05.patch"
+            path.write_text(original + json.dumps(record) + "\n", encoding="utf-8")
+            self.assert_error("fixture path must not contain links")
+            alias.unlink()
+            path.write_text(original, encoding="utf-8")
+
+        with self.subTest(boundary="symlinked-path-into-fixtures"):
+            evals = self.root / "skills" / "wow-review" / "evals"
+            alias = evals / "alias"
+            alias.symlink_to("fixtures", target_is_directory=True)
+            record["id"] = "B99-linked-root"
+            record["fixture"] = "alias/B05.patch"
+            path.write_text(original + json.dumps(record) + "\n", encoding="utf-8")
+            self.assert_error("fixture path must stay under evals/fixtures")
+            alias.unlink()
+            path.write_text(original, encoding="utf-8")
 
         with self.subTest(boundary="fixtures-directory-link"):
             fixtures = self.root / "skills" / "wow-review" / "evals" / "fixtures"
