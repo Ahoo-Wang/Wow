@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import io
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -62,6 +63,72 @@ class ValidateWowSkillsTest(unittest.TestCase):
 
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertIn("Validated 4 skills", result.stdout)
+
+    def test_validator_module_cli_runs_without_site_packages(self) -> None:
+        environment = dict(os.environ)
+        environment["PYTHONDONTWRITEBYTECODE"] = "1"
+
+        result = subprocess.run(
+            [
+                os.sys.executable,
+                "-S",
+                "-m",
+                "scripts.validate_wow_skills",
+                "--repo-root",
+                str(REPO_ROOT),
+            ],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+            env=environment,
+            timeout=30,
+        )
+
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn("Validated 4 skills", result.stdout)
+
+    def test_repository_validation_rejects_duplicate_ids_across_suites(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            repo_root = Path(temporary_directory) / "repo"
+            shutil.copytree(REPO_ROOT / "skills", repo_root / "skills")
+            schema_source = REPO_ROOT / validator.TRACE_SCHEMA_RELATIVE_PATH
+            schema_target = repo_root / validator.TRACE_SCHEMA_RELATIVE_PATH
+            schema_target.parent.mkdir(parents=True)
+            shutil.copy2(schema_source, schema_target)
+            activation_path = (
+                repo_root / "skills/wow-develop/evals/activation.jsonl"
+            )
+            activation_path.write_text(
+                activation_path.read_text(encoding="utf-8").replace(
+                    '"id":"A01-develop-aggregate"',
+                    '"id":"B01-develop-source-lookup"',
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            migrate_skill = repo_root / "skills/wow-migrate/SKILL.md"
+            migrate_skill.write_text(
+                migrate_skill.read_text(encoding="utf-8").replace(
+                    'description: "', 'description: "<invalid> ', 1
+                ),
+                encoding="utf-8",
+            )
+            validation = validator.Validation()
+
+            validator.validate_repository(repo_root, validation)
+
+            package_error = next(
+                index
+                for index, error in enumerate(validation.errors)
+                if "angle brackets" in error
+            )
+            duplicate_error = next(
+                index
+                for index, error in enumerate(validation.errors)
+                if "duplicate eval id" in error
+            )
+            self.assertLess(package_error, duplicate_error, validation.errors)
 
     def test_skill_metadata_rejects_non_standard_name_and_description(self) -> None:
         validation = validator.Validation()

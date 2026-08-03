@@ -10,6 +10,7 @@ import runpy
 import shutil
 import subprocess
 import tempfile
+import typing
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -20,6 +21,10 @@ REPO_ROOT = SCRIPT_DIR.parent
 os.sys.path.insert(0, str(SCRIPT_DIR))
 
 import run_wow_skill_evals as runner  # noqa: E402
+import wow_skill_runner.cleanup as cleanup_module  # noqa: E402
+import wow_skill_runner.oracles as oracles_module  # noqa: E402
+import wow_skill_runner.prepare as prepare_module  # noqa: E402
+import wow_skill_runner.state as state_module  # noqa: E402
 
 
 class RunWowSkillEvalsTest(unittest.TestCase):
@@ -35,6 +40,37 @@ class RunWowSkillEvalsTest(unittest.TestCase):
     def test_loads_all_current_cases(self) -> None:
         self.assertEqual(38, len(self.cases))
         self.assertEqual("behavior", self.cases["B09-migrate-local-platform"]["__suite__"])
+
+    def test_cli_annotations_are_resolvable(self) -> None:
+        typing.get_type_hints(runner.list_cases)
+        typing.get_type_hints(runner.print_result)
+
+    def test_runner_module_cli_runs_without_site_packages(self) -> None:
+        environment = dict(os.environ)
+        environment["PYTHONDONTWRITEBYTECODE"] = "1"
+
+        result = subprocess.run(
+            [
+                os.sys.executable,
+                "-S",
+                "-m",
+                "scripts.run_wow_skill_evals",
+                "--repo-root",
+                str(REPO_ROOT),
+                "list",
+                "--suite",
+                "behavior",
+            ],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+            env=environment,
+            timeout=30,
+        )
+
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn("B10-migrate-data-rehearsal", result.stdout)
 
     def test_load_cases_rejects_invalid_skill_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -131,6 +167,31 @@ class RunWowSkillEvalsTest(unittest.TestCase):
                 ):
                     with self.assertRaises(runner.EvalError):
                         operation()
+
+    def test_hidden_evaluation_implementation_is_not_readable(self) -> None:
+        hidden_paths = (
+            "skills/wow-develop/evals",
+            "skills/wow-develop/evals/behavior.jsonl",
+            "scripts/run_wow_skill_evals.py",
+            "scripts/validate_wow_skills.py",
+            "scripts/wow_skill_eval_contract.py",
+            "scripts/wow_skill_runner",
+            "scripts/wow_skill_runner/oracles.py",
+            "scripts/wow_skill_runner/assertions.py",
+            "scripts/wow_skill_validator",
+            "scripts/wow_skill_validator/evals.py",
+            "scripts/test_run_wow_skill_evals.py",
+            "scripts/test_validate_wow_skills.py",
+        )
+        for relative_path in hidden_paths:
+            with self.subTest(relative_path=relative_path):
+                with self.assertRaisesRegex(runner.EvalError, "hidden eval content"):
+                    runner.normalize_access_path(
+                        REPO_ROOT / relative_path,
+                        "read",
+                        REPO_ROOT,
+                        REPO_ROOT / "staged-plugin",
+                    )
 
     def test_prepare_and_cleanup_copied_fixture_and_sanitized_plugin(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -595,7 +656,7 @@ class RunWowSkillEvalsTest(unittest.TestCase):
             workspace = Path(marker["workspace"])
 
             with mock.patch.object(
-                runner,
+                cleanup_module,
                 "registered_worktree_paths",
                 side_effect=AssertionError("copied fixtures must not query source Git"),
             ):
@@ -1260,7 +1321,7 @@ Path(args.reconciliation).write_text(
                 self.assertIn("next distinct product is rejected", content)
                 return subprocess.CompletedProcess([], 0, "", "")
 
-            with mock.patch.object(runner.subprocess, "run", side_effect=completed):
+            with mock.patch.object(oracles_module.subprocess, "run", side_effect=completed):
                 self.assertTrue(
                     runner.cart_capacity_oracle(
                         workspace, 10, root / runner.ORACLE_RUNTIME_DIR
@@ -1377,7 +1438,7 @@ grep -q 'assertEquals(10, MAX_CART_ITEM_SIZE)' example/example-domain/src/test/k
             output = runner.ensure_output_directory(root / "run", source_repo)
 
             with mock.patch.object(
-                runner,
+                prepare_module,
                 "prepare_activation",
                 side_effect=runner.EvalError("simulated activation prepare failure"),
             ):
@@ -1724,7 +1785,7 @@ grep -q 'assertEquals(10, MAX_CART_ITEM_SIZE)' example/example-domain/src/test/k
             evidence_path = self.write_evidence(run_dir, evidence)
 
             with mock.patch.object(
-                runner,
+                state_module,
                 "load_cases",
                 side_effect=AssertionError("live source package must not be read"),
             ):

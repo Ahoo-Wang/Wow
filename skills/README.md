@@ -32,7 +32,7 @@
 - `assets/` 保存可复制到输出中的模板，不作为推理资料默认加载。
 - `scripts/` 只保存重复、确定且容易手写出错的操作；当前仅迁移静态审计适合脚本化。
 - 每个 Skill 的 `evals/` 保存黑盒 activation/behavior 用例；它们不由运行时 Skill 主动加载。
-- 仓库根目录的 `scripts/validate_wow_skills.py` 与 `scripts/run_wow_skill_evals.py` 是维护工具，不进入插件运行时资源。
+- 仓库根目录的 `scripts/validate_wow_skills.py` 与 `scripts/run_wow_skill_evals.py` 是稳定的维护 CLI，不进入插件运行时资源；实现分别位于 `scripts/wow_skill_validator/` 和 `scripts/wow_skill_runner/`，新增规则应进入职责对应的内部模块。
 - 不维护通用 Markdown、HTML、自然语言或代码风格 parser。
 
 ## Validation
