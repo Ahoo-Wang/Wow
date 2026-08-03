@@ -23,10 +23,10 @@ import me.ahoo.wow.eventsourcing.DuplicateAggregateIdException
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.tck.metrics.LoggingMeterRegistryInitializer
+import me.ahoo.wow.tck.metrics.meteredForTck
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.junit.jupiter.api.Assertions
@@ -52,7 +52,7 @@ abstract class EventStoreSpec {
 
     @BeforeEach
     open fun setup() {
-        eventStore = createEventStore().metrizable()
+        eventStore = createEventStore().meteredForTck()
     }
 
     protected abstract fun createEventStore(): EventStore
@@ -85,7 +85,7 @@ abstract class EventStoreSpec {
 
     @Test
     fun appendEventStreamWhenDuplicateAggregateId() {
-        val eventStore = createEventStore().metrizable()
+        val eventStore = createEventStore().meteredForTck()
         val aggregateId = namedAggregate.aggregateId()
         val eventStream = generateEventStream(aggregateId)
         eventStore.append(eventStream)
@@ -184,7 +184,7 @@ abstract class EventStoreSpec {
 
     @Test
     fun existsRequestId() {
-        val eventStore = createEventStore().metrizable()
+        val eventStore = createEventStore().meteredForTck()
         val aggregateId = namedAggregate.aggregateId()
         val eventStream =
             MockAggregateCreated(generateGlobalId()).toDomainEventStream(
@@ -244,7 +244,7 @@ abstract class EventStoreSpec {
 
     @Test
     fun appendEventStreamWhenParallel() {
-        val eventStore = createEventStore().metrizable()
+        val eventStore = createEventStore().meteredForTck()
         Flux.range(0, concurrencyTestIterations)
             .flatMap(
                 {
@@ -261,7 +261,7 @@ abstract class EventStoreSpec {
 
     @Test
     fun loadEventStreamWhenParallel() {
-        val eventStore = createEventStore().metrizable()
+        val eventStore = createEventStore().meteredForTck()
         val eventStream = generateEventStream()
         eventStore.append(eventStream)
             .test()
@@ -282,7 +282,7 @@ abstract class EventStoreSpec {
 
     @Test
     fun loadEventStreamWhenNotFound() {
-        val eventStore = createEventStore().metrizable()
+        val eventStore = createEventStore().meteredForTck()
         eventStore.load(namedAggregate.aggregateId())
             .test()
             .expectNextCount(0)
@@ -291,7 +291,7 @@ abstract class EventStoreSpec {
 
     @Test
     fun loadEventStreamGivenHeadVersion() {
-        val eventStore = createEventStore().metrizable()
+        val eventStore = createEventStore().meteredForTck()
         val eventStream = generateEventStream()
         eventStore.append(eventStream)
             .test()
@@ -310,7 +310,7 @@ abstract class EventStoreSpec {
 
     @Test
     fun singleEventStream() {
-        val eventStore = createEventStore().metrizable()
+        val eventStore = createEventStore().meteredForTck()
         val eventStream = generateEventStream()
         eventStore.append(eventStream)
             .test()
@@ -329,7 +329,7 @@ abstract class EventStoreSpec {
 
     @Test
     open fun lastEventStream() {
-        val eventStore = createEventStore().metrizable()
+        val eventStore = createEventStore().meteredForTck()
         val eventStream = generateEventStream()
         eventStore.append(eventStream)
             .test()
@@ -345,7 +345,7 @@ abstract class EventStoreSpec {
 
     @Test
     open fun loadEventStreamByEventTime() {
-        val eventStore = createEventStore().metrizable()
+        val eventStore = createEventStore().meteredForTck()
         val eventStream = generateEventStream()
         eventStore.append(eventStream)
             .test()
@@ -363,7 +363,7 @@ abstract class EventStoreSpec {
 
     @Test
     open fun loadEventStreamGivenWrongVersion() {
-        val eventStore = createEventStore().metrizable()
+        val eventStore = createEventStore().meteredForTck()
         val eventStream = generateEventStream()
         Assertions.assertThrows(IllegalArgumentException::class.java) {
             eventStore.load(
@@ -382,7 +382,7 @@ abstract class EventStoreSpec {
 
     @Test
     open fun scanAggregateId() {
-        val eventStore = createEventStore().metrizable()
+        val eventStore = createEventStore().meteredForTck()
         val cursorId = generateGlobalId()
         val aggregateId = namedAggregate.aggregateId(generateGlobalId())
         eventStore.append(generateEventStream(aggregateId))
@@ -401,7 +401,7 @@ abstract class EventStoreSpec {
 
     @Test
     open fun scanAggregateIdShouldFilterNamedAggregate() {
-        val eventStore = createEventStore().metrizable()
+        val eventStore = createEventStore().meteredForTck()
         val cursorId = generateGlobalId()
         val targetAggregateId = namedAggregate.aggregateId(generateGlobalId())
         val otherAggregateId = "other_aggregate"
@@ -425,7 +425,7 @@ abstract class EventStoreSpec {
 
     @Test
     open fun scanAggregateIdShouldFilterBoundedContext() {
-        val eventStore = createEventStore().metrizable()
+        val eventStore = createEventStore().meteredForTck()
         val cursorId = generateGlobalId()
         val targetAggregateId = namedAggregate.aggregateId(generateGlobalId())
         val otherAggregateId = namedAggregate.aggregateName
@@ -449,7 +449,7 @@ abstract class EventStoreSpec {
 
     @Test
     open fun scanAggregateIdShouldPreserveTenantId() {
-        val eventStore = createEventStore().metrizable()
+        val eventStore = createEventStore().meteredForTck()
         val cursorId = generateGlobalId()
         val aggregateId = namedAggregate.aggregateId(generateGlobalId(), tenantId = "tenant-1")
         eventStore.append(generateEventStream(aggregateId))
@@ -467,7 +467,7 @@ abstract class EventStoreSpec {
 
     @Test
     open fun scanAggregateIdShouldLimitResult() {
-        val eventStore = createEventStore().metrizable()
+        val eventStore = createEventStore().meteredForTck()
         val cursorId = generateGlobalId()
         val aggregateIds = (1..20).map {
             namedAggregate.aggregateId(generateGlobalId())
@@ -489,7 +489,7 @@ abstract class EventStoreSpec {
 
     @Test
     open fun scanAggregateIdShouldReturnLexicographicalOrder() {
-        val eventStore = createEventStore().metrizable()
+        val eventStore = createEventStore().meteredForTck()
         val idPrefix = generateGlobalId()
         val aggregateIds = listOf("003", "001", "004", "002").map {
             namedAggregate.aggregateId("$idPrefix-$it")
@@ -514,7 +514,7 @@ abstract class EventStoreSpec {
 
     @Test
     open fun scanAggregateIdShouldReturnEachAggregateOnce() {
-        val eventStore = createEventStore().metrizable()
+        val eventStore = createEventStore().meteredForTck()
         val cursorId = generateGlobalId()
         val aggregateId = namedAggregate.aggregateId(generateGlobalId())
         eventStore.append(generateEventStream(aggregateId))

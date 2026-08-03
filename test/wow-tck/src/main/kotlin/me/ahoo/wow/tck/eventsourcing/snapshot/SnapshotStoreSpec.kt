@@ -19,10 +19,10 @@ import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
+import me.ahoo.wow.tck.metrics.meteredForTck
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateChanged
 import me.ahoo.wow.tck.mock.MockAggregateCreated
@@ -51,13 +51,13 @@ abstract class SnapshotStoreSpec {
 
     @Test
     fun name() {
-        val snapshotStore = createSnapshotStore().metrizable()
+        val snapshotStore = createSnapshotStore().meteredForTck()
         snapshotStore.name.assert().isNotBlank()
     }
 
     @Test
     fun load() {
-        val snapshotStore = createSnapshotStore().metrizable()
+        val snapshotStore = createSnapshotStore().meteredForTck()
         val stateAggregate =
             stateAggregateFactory.create(
                 aggregateMetadata.state,
@@ -95,7 +95,7 @@ abstract class SnapshotStoreSpec {
 
     @Test
     fun getVersion() {
-        val snapshotStore = createSnapshotStore().metrizable()
+        val snapshotStore = createSnapshotStore().meteredForTck()
         val aggregateId = aggregateMetadata.aggregateId(generateGlobalId())
         snapshotStore.getVersion(aggregateId)
             .test()
@@ -105,7 +105,7 @@ abstract class SnapshotStoreSpec {
 
     @Test
     fun loadWhenNotFound() {
-        val snapshotStore = createSnapshotStore().metrizable()
+        val snapshotStore = createSnapshotStore().meteredForTck()
 
         val aggregateId = aggregateMetadata.aggregateId(generateGlobalId())
         snapshotStore.load<MockStateAggregate>(aggregateId)
@@ -116,7 +116,7 @@ abstract class SnapshotStoreSpec {
 
     @Test
     fun save() {
-        val snapshotStore = createSnapshotStore().metrizable()
+        val snapshotStore = createSnapshotStore().meteredForTck()
         val aggregateId = aggregateMetadata.aggregateId(generateGlobalId())
         val stateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
         val snapshot: Snapshot<MockStateAggregate> =
@@ -128,7 +128,7 @@ abstract class SnapshotStoreSpec {
 
     @Test
     open fun saveTwice() {
-        val snapshotStore = createSnapshotStore().metrizable()
+        val snapshotStore = createSnapshotStore().meteredForTck()
         val stateAggregate =
             stateAggregateFactory.create(
                 aggregateMetadata.state,
@@ -172,7 +172,7 @@ abstract class SnapshotStoreSpec {
 
     @Test
     fun saveShouldNotReplaceANewerStoredSnapshot() {
-        val snapshotStore = createSnapshotStore().metrizable()
+        val snapshotStore = createSnapshotStore().meteredForTck()
         val aggregateId = aggregateMetadata.aggregateId(generateGlobalId())
         val command = GivenInitializationCommand(aggregateId)
         val aggregateCreated = MockAggregateCreated(generateGlobalId())
@@ -214,7 +214,7 @@ abstract class SnapshotStoreSpec {
 
     @Test
     fun saveShouldRetainTheHighestVersionUnderConcurrentWrites() {
-        val snapshotStore = createSnapshotStore().metrizable()
+        val snapshotStore = createSnapshotStore().meteredForTck()
         val aggregateId = aggregateMetadata.aggregateId(generateGlobalId())
         val snapshots = (1..8).map { expectedVersion ->
             val stateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
@@ -253,7 +253,7 @@ abstract class SnapshotStoreSpec {
 
     @Test
     fun saveShouldReplaceTheStoredSnapshotForTheSameVersion() {
-        val snapshotStore = createSnapshotStore().metrizable()
+        val snapshotStore = createSnapshotStore().meteredForTck()
         val aggregateId = aggregateMetadata.aggregateId(generateGlobalId())
         val firstStateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
         firstStateAggregate.onSourcing(

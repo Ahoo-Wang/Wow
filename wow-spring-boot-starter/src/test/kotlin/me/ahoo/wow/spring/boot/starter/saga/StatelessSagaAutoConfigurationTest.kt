@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot.starter.saga
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.CommandGateway
@@ -22,6 +23,7 @@ import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.example.domain.cart.CartSaga
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.saga.stateless.StatelessSagaDispatcher
 import me.ahoo.wow.saga.stateless.StatelessSagaFunctionFilter
 import me.ahoo.wow.saga.stateless.StatelessSagaFunctionRegistrar
@@ -33,6 +35,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.boot.LazyInitializationBeanFactoryPostProcessor
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.test.util.ReflectionTestUtils
 
 internal class StatelessSagaAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
@@ -48,7 +51,9 @@ internal class StatelessSagaAutoConfigurationTest {
 
     @Test
     fun `should load context with stateless saga dispatcher beans`() {
+        val metrics = WowMetrics(SimpleMeterRegistry())
         contextRunner
+            .withBean(WowMetrics::class.java, { metrics })
             .run { context: AssertableApplicationContext ->
                 context.assert()
                     .hasSingleBean(StatelessSagaFunctionRegistrar::class.java)
@@ -58,6 +63,10 @@ internal class StatelessSagaAutoConfigurationTest {
                     .hasSingleBean(StatelessSagaHandler::class.java)
                     .hasSingleBean(StatelessSagaDispatcher::class.java)
                     .hasSingleBean(WowRuntimeLifecycle::class.java)
+                ReflectionTestUtils.getField(
+                    context.getBean(StatelessSagaDispatcher::class.java),
+                    "metrics",
+                ).assert().isSameAs(metrics)
             }
     }
 

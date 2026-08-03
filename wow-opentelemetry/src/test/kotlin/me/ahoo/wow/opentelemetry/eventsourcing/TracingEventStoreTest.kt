@@ -13,14 +13,15 @@
 
 package me.ahoo.wow.opentelemetry.eventsourcing
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
-import me.ahoo.wow.metrics.MetricEventStore
-import me.ahoo.wow.metrics.MetricSnapshotStore
+import me.ahoo.wow.metrics.WowMetrics
+import me.ahoo.wow.metrics.metered
 import me.ahoo.wow.opentelemetry.snapshot.TracingSnapshotStore
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
@@ -31,7 +32,9 @@ class TracingEventStoreTest {
     @Test
     fun `decorator chain should close the original EventStore exactly once`() {
         val delegate = CloseCountingEventStore()
-        val eventStore: EventStore = TracingEventStore(MetricEventStore(delegate))
+        val eventStore: EventStore = TracingEventStore(
+            delegate.metered(WowMetrics(SimpleMeterRegistry()), "eventStore")
+        )
 
         eventStore.close()
 
@@ -41,7 +44,9 @@ class TracingEventStoreTest {
     @Test
     fun `decorator chain should close the original SnapshotStore exactly once`() {
         val delegate = CloseCountingSnapshotStore()
-        val snapshotStore: SnapshotStore = TracingSnapshotStore(MetricSnapshotStore(delegate))
+        val snapshotStore: SnapshotStore = TracingSnapshotStore(
+            delegate.metered(WowMetrics(SimpleMeterRegistry()), "snapshotStore")
+        )
 
         snapshotStore.close()
 

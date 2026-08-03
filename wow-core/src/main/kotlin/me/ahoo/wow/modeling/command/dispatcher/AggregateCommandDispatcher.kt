@@ -17,6 +17,7 @@ import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.messaging.dispatcher.AggregateDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism.toGroupKey
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -47,6 +48,7 @@ import reactor.core.scheduler.Scheduler
  * @param processingAdmission Explicit transport-processing gate opened by
  * [start].
  * @param processingQuiescence Logical transport gate closed by [quiesce].
+ * @param metrics Instance-scoped metrics recorder for dispatcher operations.
  */
 class AggregateCommandDispatcher<C : Any, S : Any>(
     override val name: String =
@@ -59,10 +61,12 @@ class AggregateCommandDispatcher<C : Any, S : Any>(
     messageReadiness: Mono<Void> = Mono.empty(),
     processingAdmission: () -> Unit = {},
     processingQuiescence: () -> Unit = {},
+    metrics: WowMetrics = WowMetrics.NONE,
 ) : AggregateDispatcher<ServerCommandExchange<*>>(
     messageReadiness = messageReadiness,
     processingAdmission = processingAdmission,
     processingQuiescence = processingQuiescence,
+    metrics = metrics,
 ) {
     override val namedAggregate: NamedAggregate
         get() = aggregateMetadata.namedAggregate

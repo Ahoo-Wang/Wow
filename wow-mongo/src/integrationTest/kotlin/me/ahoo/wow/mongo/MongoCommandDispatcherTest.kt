@@ -15,10 +15,9 @@ package me.ahoo.wow.mongo
 
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
-import me.ahoo.wow.metrics.MetricEventStore
-import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.modeling.command.CommandDispatcherSpec
+import me.ahoo.wow.tck.metrics.meteredForTck
 import org.junit.jupiter.api.extension.RegisterExtension
 
 class MongoCommandDispatcherTest : CommandDispatcherSpec() {
@@ -35,6 +34,6 @@ class MongoCommandDispatcherTest : CommandDispatcherSpec() {
     override fun createEventStore(): EventStore {
         val database = mongo.database()
         EventStreamSchemaInitializer(database).initSchema(aggregateMetadata.namedAggregate)
-        return MetricEventStore(MongoEventStore(database)).metrizable()
+        return MongoEventStore(database).meteredForTck()
     }
 }

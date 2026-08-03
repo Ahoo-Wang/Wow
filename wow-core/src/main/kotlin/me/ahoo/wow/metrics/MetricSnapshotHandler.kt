@@ -13,35 +13,24 @@
 
 package me.ahoo.wow.metrics
 
-import me.ahoo.wow.api.Wow
 import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotHandler
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
-import me.ahoo.wow.infra.Decorator
 import reactor.core.publisher.Mono
 
-/**
- * Metric decorator for snapshot handlers that collects metrics on snapshot processing operations.
- * This class wraps a SnapshotHandler and adds metrics collection with tags for aggregate name
- * to track snapshot handling performance and success rates.
- *
- * @property delegate the underlying snapshot handler implementation
- */
-class MetricSnapshotHandler(
-    override val delegate: SnapshotHandler
-) : SnapshotHandler,
-    Decorator<SnapshotHandler>,
-    Metrizable {
-    /**
-     * Handles a state event exchange for snapshot creation and collects metrics on the operation.
-     * Metrics collected include timing, success/failure rates, and tags for aggregate identification.
-     *
-     * @param exchange the state event exchange containing the event to snapshot
-     * @return a Mono that completes when the snapshot is handled
-     */
-    override fun handle(exchange: StateEventExchange<*>): Mono<Void> =
-        delegate
-            .handle(exchange)
-            .name(Wow.WOW_PREFIX + "snapshot.handle")
-            .tag(Metrics.AGGREGATE_KEY, exchange.message.aggregateName)
-            .metrics()
+internal class MetricSnapshotHandler(
+    delegate: SnapshotHandler,
+    metrics: WowMetrics,
+    source: String,
+) : MetricComponentDecorator<SnapshotHandler>(delegate, metrics, source),
+    SnapshotHandler {
+    override fun handle(context: StateEventExchange<*>): Mono<Void> =
+        metrics.operation(
+            delegate.handle(context),
+            descriptor(
+                component = "snapshot_handler",
+                operation = "handle",
+                context = context.message.contextName,
+                aggregate = context.message.aggregateName,
+            ),
+        )
 }

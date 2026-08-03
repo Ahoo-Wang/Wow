@@ -16,7 +16,6 @@ package me.ahoo.wow.tck.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.dsl.condition
@@ -29,6 +28,7 @@ import me.ahoo.wow.query.event.count
 import me.ahoo.wow.query.event.dynamicQuery
 import me.ahoo.wow.query.event.query
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
+import me.ahoo.wow.tck.metrics.meteredForTck
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
@@ -41,7 +41,7 @@ abstract class EventStreamQueryServiceSpec {
 
     @BeforeEach
     open fun setup() {
-        eventStore = createEventStore().metrizable()
+        eventStore = createEventStore().meteredForTck()
         eventStreamQueryServiceFactory = createEventStreamQueryServiceFactory()
         eventStreamQueryService = eventStreamQueryServiceFactory.create(namedAggregate)
     }

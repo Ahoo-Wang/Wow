@@ -17,6 +17,7 @@ import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.dispatcher.CompositeEventDispatcher
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
 
@@ -32,6 +33,7 @@ import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
  * @param functionRegistrar The registrar for stateless saga functions.
  * @param eventHandler The handler for processing domain events.
  * @param schedulerSupplier The supplier for aggregate schedulers (default: [DefaultAggregateSchedulerSupplier] with "SagaDispatcher" prefix).
+ * @param metrics Instance-scoped metrics recorder propagated to child dispatchers.
  */
 class StatelessSagaDispatcher(
     /**
@@ -44,7 +46,8 @@ class StatelessSagaDispatcher(
     functionRegistrar: StatelessSagaFunctionRegistrar,
     eventHandler: StatelessSagaHandler,
     schedulerSupplier: AggregateSchedulerSupplier =
-        DefaultAggregateSchedulerSupplier("SagaDispatcher")
+        DefaultAggregateSchedulerSupplier("SagaDispatcher"),
+    metrics: WowMetrics = WowMetrics.NONE,
 ) : CompositeEventDispatcher(
     name = name,
     parallelism = parallelism,
@@ -52,5 +55,6 @@ class StatelessSagaDispatcher(
     stateEventBus = stateEventBus,
     functionRegistrar = functionRegistrar,
     eventHandler = eventHandler,
-    schedulerSupplier = schedulerSupplier
+    schedulerSupplier = schedulerSupplier,
+    metrics = metrics,
 )

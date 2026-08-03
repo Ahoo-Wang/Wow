@@ -41,7 +41,6 @@ import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.ioc.SimpleServiceProvider
-import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.command.AggregateProcessorFactory
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
@@ -57,6 +56,7 @@ import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.tck.metrics.LoggingMeterRegistryInitializer
+import me.ahoo.wow.tck.metrics.meteredForTck
 import me.ahoo.wow.tck.mock.MockChangeAggregate
 import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockCreateAggregate
@@ -95,7 +95,7 @@ abstract class CommandDispatcherSpec {
 
     @BeforeEach
     open fun setup() {
-        commandBus = createCommandBus().metrizable()
+        commandBus = createCommandBus().meteredForTck()
         commandGateway = DefaultCommandGateway(
             commandWaitEndpoint = SimpleCommandWaitEndpoint(""),
             commandBus = commandBus,
@@ -106,14 +106,14 @@ abstract class CommandDispatcherSpec {
             waitCoordinator = waitCoordinator,
             commandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator),
         )
-        eventStore = createEventStore().metrizable()
-        snapshotStore = createSnapshotStore().metrizable()
+        eventStore = createEventStore().meteredForTck()
+        snapshotStore = createSnapshotStore().meteredForTck()
         stateAggregateRepository = createStateAggregateRepository(stateAggregateFactory, snapshotStore, eventStore)
         commandAggregateFactory =
             createCommandAggregateFactory(eventStore)
         aggregateProcessorFactory =
             RetryableAggregateProcessorFactory(stateAggregateFactory, stateAggregateRepository, commandAggregateFactory)
-        domainEventBus = createEventBus().metrizable()
+        domainEventBus = createEventBus().meteredForTck()
     }
 
     protected open fun createCommandBus(): CommandBus = InMemoryCommandBus()
@@ -158,7 +158,7 @@ abstract class CommandDispatcherSpec {
         val commandDispatcher = CommandDispatcher(
             namedAggregates = setOf(aggregateMetadata.materialize()),
             commandBus = commandBus,
-            commandHandler = DefaultCommandHandler(chain).metrizable(),
+            commandHandler = DefaultCommandHandler(chain).meteredForTck(),
         )
 
         val runtime = WowRuntime(listOf(commandDispatcher), Duration.ofSeconds(30), Duration.ZERO)
@@ -206,7 +206,6 @@ abstract class CommandDispatcherSpec {
         println("------------- CreateAggregate -------------")
         val createdDuration = creates
             .toFlux()
-            .metrics()
             .flatMap({
                 // Create the aggregate before collecting dispatcher metrics.
                 commandGateway

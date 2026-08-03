@@ -13,36 +13,25 @@
 
 package me.ahoo.wow.metrics
 
-import me.ahoo.wow.api.Wow
 import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
 import reactor.core.publisher.Mono
 
-/**
- * Metric decorator for command handlers that collects metrics on command processing operations.
- * This class wraps a CommandHandler and adds metrics collection with tags for aggregate name
- * and command name to track command handling performance and success rates.
- *
- * @property delegate the underlying command handler implementation
- */
-class MetricCommandHandler(
-    override val delegate: CommandHandler
-) : CommandHandler,
-    Decorator<CommandHandler>,
-    Metrizable {
-    /**
-     * Handles a server command exchange and collects metrics on the operation.
-     * Metrics collected include timing, success/failure rates, and tags for aggregate and command identification.
-     *
-     * @param exchange the server command exchange containing the command to handle
-     * @return a Mono that completes when the command is handled
-     */
-    override fun handle(exchange: ServerCommandExchange<*>): Mono<Void> =
-        delegate
-            .handle(exchange)
-            .name(Wow.WOW_PREFIX + "command.handle")
-            .tag(Metrics.AGGREGATE_KEY, exchange.message.aggregateName)
-            .tag(Metrics.COMMAND_KEY, exchange.message.name)
-            .metrics()
+internal class MetricCommandHandler(
+    delegate: CommandHandler,
+    metrics: WowMetrics,
+    source: String,
+) : MetricComponentDecorator<CommandHandler>(delegate, metrics, source),
+    CommandHandler {
+    override fun handle(context: ServerCommandExchange<*>): Mono<Void> =
+        metrics.operation(
+            delegate.handle(context),
+            descriptor(
+                component = "command_handler",
+                operation = "handle",
+                context = context.message.contextName,
+                aggregate = context.message.aggregateName,
+                message = context.message.name,
+            ),
+        )
 }

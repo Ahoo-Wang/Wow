@@ -24,6 +24,7 @@ import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
 import me.ahoo.wow.messaging.handler.ExchangeAck.finallyAck
 import me.ahoo.wow.messaging.handler.MessageExchange
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.serialization.toJsonString
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -39,6 +40,7 @@ import reactor.core.publisher.Mono
  * @param messageReadiness Completes when the message transport can retain new work
  * @param processingAdmission Opens transport processing after dispatcher demand
  * @param processingQuiescence Revokes transport processing before source cancellation
+ * @param metrics Instance-scoped metrics recorder for dispatcher operations
  *
  * @see AggregateDispatcher
  * @see MessageExchange
@@ -50,10 +52,12 @@ abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEve
     messageReadiness: Mono<Void> = Mono.empty(),
     processingAdmission: () -> Unit = {},
     processingQuiescence: () -> Unit = {},
+    metrics: WowMetrics,
 ) : AggregateDispatcher<E>(
     messageReadiness = messageReadiness,
     processingAdmission = processingAdmission,
     processingQuiescence = processingQuiescence,
+    metrics = metrics,
 ) {
     companion object {
         private val log = KotlinLogging.logger {}

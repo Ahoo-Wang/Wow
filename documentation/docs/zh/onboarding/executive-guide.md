@@ -88,7 +88,7 @@ flowchart LR
     linkStyle default stroke:#8b949e
 ```
 
-<!-- Sources: [settings.gradle.kts:23-66](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L23-L66), [wow-spring-boot-starter/build.gradle.kts:5-44](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/build.gradle.kts#L5-L44), [Metrics.kt:138-217](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/metrics/Metrics.kt#L138-L217), [CompensationFilter.kt:58-119](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/main/kotlin/me/ahoo/wow/compensation/core/CompensationFilter.kt#L58-L119), [GenerateBIScriptHandlerFunction.kt:87-112](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/global/GenerateBIScriptHandlerFunction.kt#L87-L112), [ClickHouseCommandRenderer.kt:108-120](https://github.com/Ahoo-Wang/Wow/blob/main/wow-bi/src/main/kotlin/me/ahoo/wow/bi/renderer/ClickHouseCommandRenderer.kt#L108-L120), [ClickHouseStateEventRenderer.kt:119-132](https://github.com/Ahoo-Wang/Wow/blob/main/wow-bi/src/main/kotlin/me/ahoo/wow/bi/renderer/ClickHouseStateEventRenderer.kt#L119-L132) -->
+<!-- Sources: [settings.gradle.kts:23-66](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L23-L66), [wow-spring-boot-starter/build.gradle.kts:5-44](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/build.gradle.kts#L5-L44), [WowMetrics.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/metrics/WowMetrics.kt), [CompensationFilter.kt:58-119](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/main/kotlin/me/ahoo/wow/compensation/core/CompensationFilter.kt#L58-L119), [GenerateBIScriptHandlerFunction.kt:87-112](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/global/GenerateBIScriptHandlerFunction.kt#L87-L112), [ClickHouseCommandRenderer.kt:108-120](https://github.com/Ahoo-Wang/Wow/blob/main/wow-bi/src/main/kotlin/me/ahoo/wow/bi/renderer/ClickHouseCommandRenderer.kt#L108-L120), [ClickHouseStateEventRenderer.kt:119-132](https://github.com/Ahoo-Wang/Wow/blob/main/wow-bi/src/main/kotlin/me/ahoo/wow/bi/renderer/ClickHouseStateEventRenderer.kt#L119-L132) -->
 
 该图描述可用集成点，不表示所有组件都在每个应用中启用，也不表示这些组件
 都由 Wow 自动部署。
@@ -368,11 +368,11 @@ Saga 和事件处理路径创建 OpenTelemetry 插桩。
 
 | 指标 | 当前值 | 目标 | 来源 |
 | --- | --- | --- | --- |
-| 命令发送/处理数量、错误与延迟 | 有插桩点；未声明生产值 | 未声明 | [Metrics.kt:138-217](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/metrics/Metrics.kt#L138-L217) |
-| 事件追加/加载延迟与失败 | 有 Metrics 包装；未声明生产值 | 未声明 | [Metrics.kt:138-217](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/metrics/Metrics.kt#L138-L217) |
+| 命令发送/处理数量、错误与延迟 | 有插桩点；未声明生产值 | 未声明 | [WowMetrics.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/metrics/WowMetrics.kt) |
+| 事件追加/加载延迟与失败 | 有 Metrics 包装；未声明生产值 | 未声明 | [WowMetrics.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/metrics/WowMetrics.kt) |
 | 投影新鲜度与积压 | 未声明生产值 | 未声明 | [WowOpenTelemetryAutoConfiguration.kt:30-69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/opentelemetry/WowOpenTelemetryAutoConfiguration.kt#L30-L69) |
 | Saga 失败与积压 | 未声明生产值 | 未声明 | [WowOpenTelemetryAutoConfiguration.kt:30-69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/opentelemetry/WowOpenTelemetryAutoConfiguration.kt#L30-L69) |
-| 快照加载行为与状态大小 | 未声明生产值 | 未声明 | [Metrics.kt:138-217](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/metrics/Metrics.kt#L138-L217) |
+| 快照加载行为与状态大小 | 未声明生产值 | 未声明 | [WowMetrics.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/metrics/WowMetrics.kt) |
 | 按 Dashboard 分类的补偿记录数 | 分类存在；未声明生产值 | 未声明 | [routes/constants.tsx:18-25](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/routes/constants.tsx#L18-L25) |
 | 补偿积压年龄与恢复时间 | 未声明生产值 | 未声明 | [routes/constants.tsx:18-25](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/routes/constants.tsx#L18-L25) |
 | 事件、快照、索引和错误记录增长 | 未声明生产值 | 未声明 | [EventStore.kt:22-122](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L22-L122) |

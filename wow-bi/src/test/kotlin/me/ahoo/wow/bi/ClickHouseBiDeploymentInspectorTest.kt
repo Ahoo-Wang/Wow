@@ -1367,7 +1367,7 @@ class ClickHouseBiDeploymentInspectorTest {
         val response = mockk<QueryResponse>(relaxed = true)
         val responseFuture = CompletableFuture<QueryResponse>()
         val queryStarted = CountDownLatch(1)
-        val cleanupThread = AtomicReference<String>()
+        val cleanupThread = CompletableFuture<String>()
         val cancellation = ClickHouseQueryCancellation()
         val executor = Executors.newSingleThreadExecutor()
         every {
@@ -1377,7 +1377,7 @@ class ClickHouseBiDeploymentInspectorTest {
             responseFuture
         }
         every { response.close() } answers {
-            cleanupThread.set(Thread.currentThread().name)
+            cleanupThread.complete(Thread.currentThread().name)
             throw IllegalStateException("close failed")
         }
 
@@ -1401,8 +1401,8 @@ class ClickHouseBiDeploymentInspectorTest {
             (queryFailure.get(1, TimeUnit.SECONDS) is ClientException).assert().isTrue()
             responseFuture.complete(response).assert().isTrue()
 
-            verify(exactly = 1, timeout = 1_000) { response.close() }
-            cleanupThread.get().assert().startsWith("wow-bi-catalog-cleanup-")
+            cleanupThread.get(1, TimeUnit.SECONDS).assert().startsWith("wow-bi-catalog-cleanup-")
+            verify(exactly = 1) { response.close() }
         } finally {
             executor.shutdownNow()
         }

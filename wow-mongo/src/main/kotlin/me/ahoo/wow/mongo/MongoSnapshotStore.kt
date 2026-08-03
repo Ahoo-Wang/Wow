@@ -22,6 +22,7 @@ import me.ahoo.wow.api.Version.Companion.UNINITIALIZED_VERSION
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document
@@ -34,15 +35,19 @@ class MongoSnapshotStore private constructor(
     val batchOptions: MongoSnapshotStoreBatchOptions,
     private val saver: MongoSnapshotSaver,
 ) : SnapshotStore {
-    constructor(database: MongoDatabase) : this(
+    constructor(
+        database: MongoDatabase,
+        metrics: WowMetrics = WowMetrics.NONE,
+    ) : this(
         database = database,
         batchOptions = MongoSnapshotStoreBatchOptions(),
-        saver = DirectMongoSnapshotSaver(database),
+        metrics = metrics,
     )
 
     constructor(
         database: MongoDatabase,
         batchOptions: MongoSnapshotStoreBatchOptions,
+        metrics: WowMetrics = WowMetrics.NONE,
     ) : this(
         database = database,
         batchOptions = batchOptions,
@@ -50,6 +55,7 @@ class MongoSnapshotStore private constructor(
             BatchMongoSnapshotSaver(
                 database = database,
                 options = batchOptions,
+                metrics = metrics,
             )
         } else {
             DirectMongoSnapshotSaver(database)

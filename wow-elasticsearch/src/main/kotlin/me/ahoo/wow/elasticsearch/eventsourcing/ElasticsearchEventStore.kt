@@ -26,6 +26,7 @@ import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOptions
 import me.ahoo.wow.elasticsearch.query.event.EventStreamConditionConverter
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.sort
@@ -45,15 +46,13 @@ class ElasticsearchEventStore private constructor(
         elasticsearchClient: ReactiveElasticsearchClient,
         refreshPolicy: Refresh = Refresh.True,
         batchSize: Int = DEFAULT_BATCH_SIZE,
+        metrics: WowMetrics = WowMetrics.NONE,
     ) : this(
         elasticsearchClient = elasticsearchClient,
         refreshPolicy = refreshPolicy,
         batchSize = batchSize,
         batchOptions = ElasticsearchEventStoreBatchOptions(),
-        appender = DirectElasticsearchEventStreamAppender(
-            elasticsearchClient = elasticsearchClient,
-            refreshPolicy = refreshPolicy,
-        ),
+        metrics = metrics,
     )
 
     constructor(
@@ -61,6 +60,7 @@ class ElasticsearchEventStore private constructor(
         batchOptions: ElasticsearchEventStoreBatchOptions,
         refreshPolicy: Refresh = Refresh.True,
         batchSize: Int = DEFAULT_BATCH_SIZE,
+        metrics: WowMetrics = WowMetrics.NONE,
     ) : this(
         elasticsearchClient = elasticsearchClient,
         refreshPolicy = refreshPolicy,
@@ -71,6 +71,7 @@ class ElasticsearchEventStore private constructor(
                 elasticsearchClient = elasticsearchClient,
                 refreshPolicy = refreshPolicy,
                 options = batchOptions,
+                metrics = metrics,
             )
         } else {
             DirectElasticsearchEventStreamAppender(

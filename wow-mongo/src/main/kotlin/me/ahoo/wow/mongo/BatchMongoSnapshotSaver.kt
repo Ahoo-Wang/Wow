@@ -21,6 +21,7 @@ import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.infra.batch.BatchOverflowException
 import me.ahoo.wow.infra.batch.BatchWriter
 import me.ahoo.wow.infra.batch.KeyedBatchCoordinator
+import me.ahoo.wow.metrics.WowMetrics
 import reactor.core.publisher.Mono
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicReference
@@ -29,6 +30,7 @@ internal class BatchMongoSnapshotSaver(
     database: MongoDatabase,
     private val options: MongoSnapshotStoreBatchOptions,
     private val closeTimeout: Duration = DEFAULT_CLOSE_TIMEOUT,
+    metrics: WowMetrics = WowMetrics.NONE,
 ) : MongoSnapshotSaver {
     private data class MappedCloseTimeout(
         val source: BatchCloseTimeoutException,
@@ -54,6 +56,7 @@ internal class BatchMongoSnapshotSaver(
             write.collectionName to write.id
         },
         writer = BatchWriter(MongoSnapshotBatchWriter(database)::write),
+        metrics = metrics,
     )
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {

@@ -16,12 +16,11 @@ package me.ahoo.wow.infra.batch
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tags
-import me.ahoo.wow.metrics.Metrics
+import me.ahoo.wow.metrics.WowMetrics
 import reactor.core.Exceptions
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
-import io.micrometer.core.instrument.Metrics as MicrometerMetrics
 
 internal enum class BatchAdmissionRejectionReason(
     val metricValue: String,
@@ -49,18 +48,17 @@ internal enum class BatchWriteOutcome(
 /** Records bounded, storage-independent batch metrics through Micrometer. */
 internal class BatchMetrics(
     coordinatorName: String,
-    private val registry: MeterRegistry = MicrometerMetrics.globalRegistry,
+    metrics: WowMetrics,
     private val nanoTime: () -> Long = System::nanoTime,
 ) {
-    val isEnabled: Boolean = Metrics.enabled
+    private val registry = metrics.meterRegistry
+    val isEnabled: Boolean = registry != null
     private val coordinatorTags = Tags.of(COORDINATOR_TAG, coordinatorName)
     private val closeStartedAt = AtomicLong(NOT_STARTED)
     private val closeCompleted = AtomicBoolean()
 
     fun admissionRejected(reason: BatchAdmissionRejectionReason) {
-        if (!isEnabled) {
-            return
-        }
+        val registry = registry ?: return
         recordSafely {
             registry.counter(
                 ADMISSION_REJECTED,
@@ -75,9 +73,7 @@ internal class BatchMetrics(
         lane: Int,
         enqueuedAt: Long,
     ) {
-        if (!isEnabled) {
-            return
-        }
+        val registry = registry ?: return
         recordSafely {
             registry.timer(
                 QUEUE_WAIT,
@@ -92,7 +88,7 @@ internal class BatchMetrics(
         writtenItems: Int,
         windowType: BatchWindowType,
     ): BatchWriteMetrics {
-        check(isEnabled) { "Batch metrics are disabled." }
+        val registry = registry ?: error("Batch metrics are disabled.")
         val startedAt = nanoTime()
         val completed = AtomicBoolean()
         return BatchWriteMetrics { outcome, failedItems ->
@@ -100,6 +96,7 @@ internal class BatchMetrics(
                 return@BatchWriteMetrics
             }
             recordBatchWrite(
+                registry = registry,
                 lane = lane,
                 bufferedItems = bufferedItems,
                 writtenItems = writtenItems,
@@ -118,18 +115,16 @@ internal class BatchMetrics(
     }
 
     fun coordinatorFailed() {
-        if (!isEnabled) {
-            return
-        }
+        val registry = registry ?: return
         recordSafely {
             registry.counter(COORDINATOR_FAILED, coordinatorTags).increment()
         }
     }
 
     fun closeCompleted(failed: Boolean) {
+        val registry = registry ?: return
         val startedAt = closeStartedAt.get()
         if (
-            !isEnabled ||
             startedAt == NOT_STARTED ||
             !closeCompleted.compareAndSet(false, true)
         ) {
@@ -147,6 +142,7 @@ internal class BatchMetrics(
     }
 
     private fun recordBatchWrite(
+        registry: MeterRegistry,
         lane: Int,
         bufferedItems: Int,
         writtenItems: Int,

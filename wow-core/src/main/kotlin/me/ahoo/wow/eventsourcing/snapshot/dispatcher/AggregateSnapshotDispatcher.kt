@@ -19,6 +19,7 @@ import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.dispatcher.AggregateDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism.toGroupKey
+import me.ahoo.wow.metrics.WowMetrics
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
@@ -38,6 +39,7 @@ import reactor.core.scheduler.Scheduler
  * @param processingAdmission explicit transport-processing gate opened by
  * [start]
  * @param processingQuiescence logical transport gate closed by [quiesce]
+ * @param metrics instance-scoped metrics recorder for dispatcher operations
  */
 class AggregateSnapshotDispatcher(
     override val name: String =
@@ -50,10 +52,12 @@ class AggregateSnapshotDispatcher(
     messageReadiness: Mono<Void> = Mono.empty(),
     processingAdmission: () -> Unit = {},
     processingQuiescence: () -> Unit = {},
+    metrics: WowMetrics = WowMetrics.NONE,
 ) : AggregateDispatcher<StateEventExchange<*>>(
     messageReadiness = messageReadiness,
     processingAdmission = processingAdmission,
     processingQuiescence = processingQuiescence,
+    metrics = metrics,
 ),
     ProcessorInfo {
     /**

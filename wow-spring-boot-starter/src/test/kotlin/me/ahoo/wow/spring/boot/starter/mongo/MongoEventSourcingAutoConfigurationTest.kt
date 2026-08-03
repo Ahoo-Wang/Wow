@@ -26,6 +26,7 @@ import io.mockk.unmockkObject
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.configuration.NamedAggregateTypeSearcher
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.mongo.MongoDatabaseContextGuard
 import me.ahoo.wow.mongo.MongoEventStore
 import me.ahoo.wow.mongo.MongoSnapshotStore
@@ -45,10 +46,14 @@ import org.junit.jupiter.api.Test
 import org.reactivestreams.Publisher
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
+import org.springframework.beans.factory.support.StaticListableBeanFactory
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 
 class MongoEventSourcingAutoConfigurationTest {
+    private val metricsProvider = StaticListableBeanFactory(
+        mapOf("wowMetrics" to WowMetrics.NONE)
+    ).getBeanProvider(WowMetrics::class.java)
     private val contextRunner = ApplicationContextRunner()
 
     @Test
@@ -67,6 +72,7 @@ class MongoEventSourcingAutoConfigurationTest {
                 mongoClient = mongoClient("order-service"),
                 dataMongoProperties = null,
                 currentBoundedContext = MaterializedNamedBoundedContext("order-service"),
+                metrics = metricsProvider,
             )
             snapshotStore.assert().isInstanceOf(MongoSnapshotStore::class.java)
             snapshotStore.batchOptions.assert().isEqualTo(MongoSnapshotStoreBatchOptions())

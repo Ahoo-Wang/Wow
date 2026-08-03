@@ -23,9 +23,27 @@ import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
-import io.micrometer.core.instrument.Metrics as MicrometerMetrics
 
 class MetricReceiveBusTest {
+
+    @Test
+    fun `subscription cardinality tags should distinguish none one and multiple`() {
+        val first = MaterializedNamedAggregate("sales", "Order")
+        val second = MaterializedNamedAggregate("shipping", "Shipment")
+
+        MessageSubscription(emptySet()).apply {
+            metricContext().assert().isEqualTo(MetricDescriptor.NONE)
+            metricAggregate().assert().isEqualTo(MetricDescriptor.NONE)
+        }
+        MessageSubscription(setOf(first)).apply {
+            metricContext().assert().isEqualTo("sales")
+            metricAggregate().assert().isEqualTo("Order")
+        }
+        MessageSubscription(setOf(first, second)).apply {
+            metricContext().assert().isEqualTo(MetricDescriptor.MULTIPLE)
+            metricAggregate().assert().isEqualTo(MetricDescriptor.MULTIPLE)
+        }
+    }
 
     @Test
     fun `domain event receive should expose stable subscription tags`() {
@@ -34,8 +52,8 @@ class MetricReceiveBusTest {
             every { receive(subscription) } returns Flux.empty()
         }
 
-        assertReceiveTags("wow.event.receive", subscription) {
-            MetricDomainEventBus(delegate).receive(subscription).blockLast()
+        assertReceiveTags("domain_event_bus", subscription) { metrics ->
+            MetricDomainEventBus(delegate, metrics, "domainEventBus").receive(subscription).blockLast()
         }
     }
 
@@ -46,32 +64,31 @@ class MetricReceiveBusTest {
             every { receive(subscription) } returns Flux.empty()
         }
 
-        assertReceiveTags("wow.state.receive", subscription) {
-            MetricStateEventBus(delegate).receive(subscription).blockLast()
+        assertReceiveTags("state_event_bus", subscription) { metrics ->
+            MetricStateEventBus(delegate, metrics, "stateEventBus").receive(subscription).blockLast()
         }
     }
 
     private fun assertReceiveTags(
-        metricName: String,
+        component: String,
         subscription: MessageSubscription,
-        action: () -> Unit,
+        action: (WowMetrics) -> Unit,
     ) {
         val meterRegistry = SimpleMeterRegistry()
-        MicrometerMetrics.addRegistry(meterRegistry)
         try {
-            action()
+            action(WowMetrics(meterRegistry))
 
             val aggregateName = subscription.namedAggregates.single().aggregateName
             val meterIds = meterRegistry.meters
                 .map { it.id }
-                .filter { it.name.startsWith(metricName) }
-                .filter { it.getTag(Metrics.AGGREGATE_KEY) == aggregateName }
+                .filter { it.name == WowMetricNames.STREAM_MESSAGES }
+                .filter { it.getTag(MetricDescriptor.COMPONENT_TAG) == component }
+                .filter { it.getTag(MetricDescriptor.AGGREGATE_TAG) == aggregateName }
             meterIds.assert().isNotEmpty()
-            meterIds.mapNotNull { it.getTag(Metrics.SUBSCRIBER_KEY) }
+            meterIds.mapNotNull { it.getTag(MetricDescriptor.SUBSCRIBER_TAG) }
                 .toSet()
                 .assert().containsExactly(subscription.receiverGroup)
         } finally {
-            MicrometerMetrics.removeRegistry(meterRegistry)
             meterRegistry.close()
         }
     }

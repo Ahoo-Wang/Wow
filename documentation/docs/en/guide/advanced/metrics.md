@@ -1,250 +1,170 @@
 ---
 title: Metrics
-description: Micrometer metrics collection for comprehensive performance monitoring and observability.
+description: Low-cardinality Wow semantic metrics backed by an explicit MeterRegistry.
 ---
 
 # Metrics
 
-The Wow framework integrates Reactor and Micrometer metrics for its core reactive components.
+Wow records framework semantic metrics with Micrometer. Each `WowMetrics` instance is bound to
+one `MeterRegistry`. Spring Boot uses the registry from the current ApplicationContext; Wow does
+not depend on Micrometer's global registry or share enablement across application contexts.
 
-## Installation
+## Automatic setup
 
-::: code-group
-```kotlin [Gradle(Kotlin)]
-implementation("io.micrometer:micrometer-core")
-```
-```groovy [Gradle(Groovy)]
-implementation 'io.micrometer:micrometer-core'
-```
-```xml [Maven]
-<dependency>
-    <groupId>io.micrometer</groupId>
-    <artifactId>micrometer-core</artifactId>
-</dependency>
-```
-:::
-
-## Automatic Metrics Collection
-
-The Wow framework automatically collects metrics for the following components:
-
-The names below are Reactor publisher base names. Reactor creates meters such as `<base>.subscribed`,
-`<base>.requested`, `<base>.onNext.delay`, and `<base>.flow.duration` according to the publisher type.
-
-### Command Metrics
-
-- `wow.command.send`
-- `wow.command.receive`
-- `wow.command.handle`
-
-### Event Bus Metrics
-
-- `wow.event.send`
-- `wow.event.receive`
-- `wow.event.handle`
-- `wow.state.send`
-- `wow.state.receive`
-
-### Event Store Metrics
-
-- `wow.eventstore.append`: Event append count and latency
-- `wow.eventstore.load`: Event load count and latency
-- `wow.eventstore.last`
-- `wow.eventstore.exists.request.id`
-- `wow.eventstore.scanAggregateId`
-
-### Snapshot Metrics
-
-- `wow.snapshot.save`: Snapshot save count and latency
-- `wow.snapshot.load`: Snapshot load count and latency
-- `wow.snapshot.getVersion`
-- `wow.snapshot.event`
-- `wow.snapshot.handle`
-
-### Handler Metrics
-
-- `wow.projection.handle`
-- `wow.saga.handle`
-- `wow.dispatcher`
-
-### Storage Batch Metrics
-
-| Meter | Type | Main tags | Meaning |
-|-------|------|-----------|---------|
-| `wow.batch.admission.rejected` | Counter | `coordinator`, `reason` | Requests rejected before entering a batch lane |
-| `wow.batch.queue.wait` | Timer | `coordinator`, `lane` | Time spent waiting in a batch lane |
-| `wow.batch.write` | Timer | `coordinator`, `lane`, `window`, `outcome` | Storage batch-write duration and outcome |
-| `wow.batch.write.items` | Distribution summary | `coordinator`, `lane`, `window`, `outcome`, `kind` | Buffered, written, and failed item counts |
-| `wow.batch.coordinator.failed` | Counter | `coordinator` | Terminal coordinator failures |
-| `wow.batch.close` | Timer | `coordinator`, `outcome` | Coordinator close duration and outcome |
-
-Batch meters are emitted only when a batching-enabled storage path performs the corresponding
-operation. They are registered through Micrometer like the other Wow meters, so the application's
-configured registry determines their export format and destination.
-
-## Metrics Tags
-
-Tags depend on the operation. Wow-defined tags are:
-
-- `source`: Original decorated component type
-- `aggregate`: Aggregate name, or a canonical sorted aggregate list for receive publishers
-- `command`: Command name on command send/handle publishers
-- `event`: Event name on event handlers
-- `processor`: Processor name on handler publishers
-- `subscriber`: Subscriber identity on receive publishers; the Reactor context value overrides the subscription receiver group
-- `dispatcher`: Dispatcher name on dispatcher publishers
-
-Reactor adds tags such as `type`, `status`, and `exception` depending on the generated meter. Internal dispatcher routing keys are intentionally not exported as tags because they multiply time-series cardinality. A bounded-context tag is not currently emitted.
-
-### Storage Routing Ownership
-
-When aggregate-specific storage routing is enabled, event-store and snapshot-store metrics are recorded only by the selected leaf backend. `RoutingEventStore` and `RoutingSnapshotStore` are metric-transparent, so one storage operation produces one set of meters and the `source` tag identifies the physical backend such as `MongoEventStore` or `RedisEventStore`.
-
-Dashboards that previously selected `source=RoutingEventStore` or `source=RoutingSnapshotStore` must switch to the physical backend source. Queries that aggregate across `source` no longer double-count routed operations.
-
-## Custom Metrics
-
-### Manual Metrics Collection
+With `wow-spring-boot-starter`, the application only needs to provide a `MeterRegistry` bean. A
+typical setup adds Actuator and one registry implementation:
 
 ```kotlin
-import io.micrometer.core.instrument.MeterRegistry
-import io.micrometer.core.instrument.Timer
-
-@Service
-class OrderService(
-    private val meterRegistry: MeterRegistry,
-    private val commandGateway: CommandGateway
-) {
-
-    private val orderCreationTimer = Timer.builder("wow.business.order.creation")
-        .description("Order creation duration")
-        .register(meterRegistry)
-
-    fun createOrder(request: CreateOrderRequest): Mono<OrderSummary> {
-        return Mono.fromCallable {
-            Timer.Sample.start(meterRegistry)
-        }.flatMap { sample ->
-            commandGateway.sendAndWait(createOrderCommand, CommandWait.processed(createOrderCommand.commandId))
-                .doOnSuccess { result ->
-                    sample.stop(orderCreationTimer)
-                    // Business success metrics
-                    meterRegistry.counter("wow.business.order.created").increment()
-                }
-                .doOnError { error ->
-                    sample.stop(orderCreationTimer)
-                    // Business failure metrics
-                    meterRegistry.counter("wow.business.order.failed").increment()
-                }
-        }
-    }
-}
+implementation("org.springframework.boot:spring-boot-starter-actuator")
+runtimeOnly("io.micrometer:micrometer-registry-prometheus") // or micrometer-registry-otlp
 ```
-
-### Reactive Stream Metrics
-
-```kotlin
-fun <T> Flux<T>.tagMetrics(operation: String): Flux<T> {
-    return this.name(operation)
-        .metrics()
-}
-
-fun <T> Mono<T>.tagMetrics(operation: String): Mono<T> {
-    return this.name(operation)
-        .metrics()
-}
-```
-
-## Configuration
-
-### Micrometer Configuration
-
-```yaml
-management:
-  metrics:
-    export:
-      prometheus:
-        enabled: true
-    tags:
-      application: ${spring.application.name}
-```
-
-### Wow Metrics Configuration
-
-Wow framework metrics collection is enabled by default and can be controlled as follows:
 
 ```yaml
 wow:
   metrics:
-    enabled: true  # Enabled by default
+    enabled: true # default
 ```
 
-Wow's current Reactor decorators write to Micrometer's global registry. Keep Spring Boot's global-registry bridge enabled so application registries receive these meters. Explicit application-registry injection is planned for a future metrics integration revision.
+If `wow.metrics.enabled=false`, or no `MeterRegistry` exists in the context, Wow uses
+`WowMetrics.NONE` and keeps the compact, uninstrumented reactive path.
 
-### OpenTelemetry Collector via OTLP
+## Unified metric model
 
-Metrics and tracing use separate instrumentation paths: Wow metrics are Micrometer meters, while
-`wow-opentelemetry` creates OpenTelemetry spans. Both can still be sent to the same Collector.
+| Meter | Type | Meaning |
+|---|---|---|
+| `wow.operation` | Timer | Duration, outcome, and exception of finite operations |
+| `wow.operation.items` | DistributionSummary | Number of items emitted by finite Flux operations |
+| `wow.stream.active` | LongTaskTimer | Active subscriptions to long-lived receive streams |
+| `wow.stream.messages` | Counter | Messages received from receive streams |
+| `wow.stream.terminations` | Counter | Receive-stream completion, error, or cancellation |
+
+Every semantic meter uses the same low-cardinality base tags:
+
+| Tag | Meaning |
+|---|---|
+| `component` | Stable component type such as `command_bus`, `event_store`, or `projection_handler` |
+| `operation` | Stable operation such as `send`, `receive`, `append`, or `handle` |
+| `context` | Bounded context, or `none` when unavailable |
+| `aggregate` | Aggregate name, or `multiple` for multi-aggregate subscriptions |
+| `message` | Command or event name, or `none` when not applicable |
+| `processor` | Event processor or dispatcher name |
+| `source` | Spring bean name, storage binding name, or an explicitly supplied source |
+| `subscriber` | Receiver group, overridden by the dispatcher name in Reactor Context |
+
+Terminal meters also contain `outcome=success|error|cancelled` and `exception`. Wow does not
+export high-cardinality aggregate IDs or dispatcher group keys.
+
+The main component and operation mappings are:
+
+| `component` | `operation` |
+|---|---|
+| `command_bus`, `domain_event_bus`, `state_event_bus` | `send`, `send_if_subscribed`, `receive` |
+| `event_store` | `append`, `load_by_version`, `load_by_time`, `exists_request_id`, `last`, `scan_aggregate_id` |
+| `snapshot_store` | `load`, `get_version`, `save` |
+| `command_handler`, `domain_event_handler`, `projection_handler`, `stateless_saga_handler`, `snapshot_handler` | `handle` |
+| `snapshot_strategy` | `on_event` |
+| `dispatcher` | `handle` |
+
+`RoutingEventStore` and `RoutingSnapshotStore` are metric-transparent. Only the selected physical
+leaf store records an operation, preventing double-counting of routed calls.
+
+## Storage batch metrics
+
+MongoDB and Elasticsearch batching paths reuse the same `WowMetrics` registry:
+
+| Meter | Type | Main tags |
+|---|---|---|
+| `wow.batch.admission.rejected` | Counter | `coordinator`, `reason` |
+| `wow.batch.queue.wait` | Timer | `coordinator`, `lane` |
+| `wow.batch.write` | Timer | `coordinator`, `lane`, `window`, `outcome` |
+| `wow.batch.write.items` | DistributionSummary | `coordinator`, `lane`, `window`, `outcome`, `kind` |
+| `wow.batch.coordinator.failed` | Counter | `coordinator` |
+| `wow.batch.close` | Timer | `coordinator`, `outcome` |
+
+These meters appear only after a batching-enabled store performs the corresponding operation.
+
+## Non-Spring setup
+
+`wow-core` exposes the Micrometer contract directly. Create one instance and pass it to every
+component that should share the registry:
+
+```kotlin
+val registry: MeterRegistry = SimpleMeterRegistry()
+val metrics = WowMetrics(registry)
+
+val eventStore: EventStore = MongoEventStore(
+    database = database,
+    batchOptions = batchOptions,
+    metrics = metrics,
+).metered(metrics, source = "primary-event-store")
+
+val dispatcher = CommandDispatcher(
+    commandBus = commandBus,
+    commandHandler = commandHandler,
+    metrics = metrics,
+)
+```
+
+Finite operations and long-lived streams can use the unified model directly:
+
+```kotlin
+val descriptor = MetricDescriptor(
+    component = "integration",
+    operation = "pull",
+    source = "partner-api",
+)
+
+val result = metrics.operation(client.pull(), descriptor)
+val messages = metrics.stream(receiver.messages(), descriptor)
+```
+
+These APIs use Reactor `tap(SignalListenerFactory)` and do not call the deprecated
+`Mono.metrics()` or `Flux.metrics()` operators.
+
+## Migrating from the legacy metrics API
+
+The unified model does not provide a compatibility layer for legacy APIs or meter names. Migrate
+using the following mapping:
+
+| Legacy approach | Replacement |
+|---|---|
+| `Metrics.metrizable()` or `.metrizable()` | Create a shared `WowMetrics(registry)`, then call `.metered(metrics, source)` |
+| `Metrics.configureEnabled(...)` or the non-Spring system-property switch | Use `wow.metrics.enabled` with Spring; explicitly choose `WowMetrics(registry)` or `WowMetrics.NONE` without Spring |
+| Micrometer global registry | Pass one explicit `MeterRegistry` per application or runtime |
+| Reactor sequence meters such as `*.flow.duration` and `*.onNext.delay` | Query `wow.operation` / `wow.operation.items` for finite work and `wow.stream.*` for long-lived receive streams |
+
+Legacy meters do not have a one-to-one rename. Rewrite dashboards, recording rules, and alerts
+around tags such as `component`, `operation`, and `outcome`; retain the previous application
+version as the rollback path until the monitoring cutover is complete.
+
+## Prometheus and OTLP export
+
+Wow writes only to the application's selected `MeterRegistry`; that registry controls export:
 
 ```mermaid
 flowchart LR
-    Meters["Wow Micrometer meters"] --> Registry["OtlpMeterRegistry"]
-    Registry -->|"OTLP/HTTP metrics"| Collector["OpenTelemetry Collector"]
-    Spans["Wow OpenTelemetry spans"] -->|"OTLP traces"| Collector
-
-    classDef telemetry fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    class Meters,Registry,Collector,Spans telemetry
-```
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/metrics/Metrics.kt, wow-core/src/main/kotlin/me/ahoo/wow/infra/batch/BatchMetrics.kt, wow-opentelemetry/build.gradle.kts -->
-
-Add `io.micrometer:micrometer-registry-otlp` to the application's runtime dependencies and configure
-`management.otlp.metrics.export.url`. Keep `management.metrics.use-global-registry=true`. See
-[Observability Configuration](/reference/config/observability#exporting-metrics-via-otlp-opentelemetry-collector)
-for the complete dependency, configuration, and verification example.
-
-## Monitoring Dashboard
-
-### Prometheus + Grafana
-
-Use Prometheus to collect metrics and Grafana to create dashboards:
-
-```yaml
-# Prometheus configuration
-scrape_configs:
-  - job_name: 'wow-application'
-    static_configs:
-      - targets: ['localhost:8080']
-    metrics_path: '/actuator/prometheus'
+    Wow["WowMetrics"] --> Registry["Application MeterRegistry"]
+    Registry --> Prometheus["Prometheus"]
+    Registry --> Collector["OpenTelemetry Collector"]
+    Tracing["wow-opentelemetry spans"] --> Collector
 ```
 
-### Common Queries
+For OTLP, add `micrometer-registry-otlp` and configure
+`management.otlp.metrics.export.url`. `wow-opentelemetry` instruments tracing; it does not turn
+Micrometer meters into spans, although metrics and traces can target the same Collector.
 
-Exporter naming depends on the registry. Inspect `/actuator/metrics` or the target registry first, then build queries from the generated Reactor suffixes such as `flow.duration` and `onNext.delay`.
-
-## Performance Impact
-
-- **Lightweight**: Metrics collection uses efficient counters and histograms
-- **Asynchronous**: Does not block business logic execution
-- **Configurable**: Can enable or disable specific metrics as needed
-
-## Best Practices
-
-1. **Choose appropriate metrics**: Only collect metrics that are truly needed
-2. **Set reasonable tags**: Avoid performance issues caused by too many tags
-3. **Monitoring alerts**: Set alert thresholds for critical business metrics
-4. **Regular review**: Regularly review and clean up metrics that are no longer needed
+See [Observability Configuration](/reference/config/observability) for complete setup and
+verification steps.
 
 ## Troubleshooting
 
-### Metrics Not Showing
+When metrics are missing, verify in order:
 
-Check:
-1. Whether Micrometer dependencies are correctly added
-2. Whether the MeterRegistry Bean is correctly configured and connected to Micrometer's global registry
-3. Whether `/actuator/metrics` endpoint is accessible
+1. `wow.metrics.enabled` is not disabled;
+2. the expected `MeterRegistry` bean exists in the ApplicationContext;
+3. real traffic exercised the relevant component;
+4. `/actuator/metrics/wow.operation` is visible;
+5. batching is enabled when checking `wow.batch.*`;
+6. for OTLP, wait one export `step` and confirm that the Collector actually received data.
 
-### Performance Issues
-
-If metrics collection affects performance:
-1. Reduce the number of metrics collected
-2. Use sampling rates instead of full collection
-3. Consider asynchronous metrics collection
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/metrics/WowMetrics.kt, wow-core/src/main/kotlin/me/ahoo/wow/metrics/MetricDescriptor.kt, wow-core/src/main/kotlin/me/ahoo/wow/infra/batch/BatchMetrics.kt, wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/metrics/MetricsAutoConfiguration.kt -->

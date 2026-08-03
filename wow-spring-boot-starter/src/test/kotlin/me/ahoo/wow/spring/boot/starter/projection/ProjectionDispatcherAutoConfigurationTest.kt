@@ -13,11 +13,13 @@
 
 package me.ahoo.wow.spring.boot.starter.projection
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventBus
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.projection.ProjectionDispatcher
 import me.ahoo.wow.projection.ProjectionFunctionFilter
 import me.ahoo.wow.projection.ProjectionFunctionRegistrar
@@ -29,14 +31,17 @@ import me.ahoo.wow.spring.projection.ProjectionProcessorAutoRegistrar
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.test.util.ReflectionTestUtils
 
 internal class ProjectionDispatcherAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
     fun `should load context with projection dispatcher beans`() {
+        val metrics = WowMetrics(SimpleMeterRegistry())
         contextRunner
             .enableWow()
+            .withBean(WowMetrics::class.java, { metrics })
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(StateEventBus::class.java, { InMemoryStateEventBus() })
             .withUserConfiguration(
@@ -52,6 +57,10 @@ internal class ProjectionDispatcherAutoConfigurationTest {
                     .hasSingleBean(ProjectionHandler::class.java)
                     .hasSingleBean(ProjectionDispatcher::class.java)
                     .hasSingleBean(WowRuntimeLifecycle::class.java)
+                ReflectionTestUtils.getField(
+                    context.getBean(ProjectionDispatcher::class.java),
+                    "metrics",
+                ).assert().isSameAs(metrics)
             }
     }
 }

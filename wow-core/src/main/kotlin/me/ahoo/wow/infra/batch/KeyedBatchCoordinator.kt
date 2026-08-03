@@ -14,6 +14,7 @@
 package me.ahoo.wow.infra.batch
 
 import me.ahoo.wow.infra.lifecycle.GracefullyStoppable
+import me.ahoo.wow.metrics.WowMetrics
 import reactor.core.publisher.Mono
 import java.time.Duration
 
@@ -40,6 +41,7 @@ class KeyedBatchCoordinator<T : Any, K : Any>(
     val laneCount: Int,
     private val keySelector: (T) -> K,
     writer: BatchWriter<T>,
+    metrics: WowMetrics = WowMetrics.NONE,
 ) : GracefullyStoppable {
     init {
         require(laneCount > 0) {
@@ -58,6 +60,7 @@ class KeyedBatchCoordinator<T : Any, K : Any>(
         laneSelector = { item ->
             Math.floorMod(keySelector(item).hashCode(), laneCount)
         },
+        metrics = metrics,
     )
 
     fun submit(item: T): Mono<Void> = delegate.submit(item)

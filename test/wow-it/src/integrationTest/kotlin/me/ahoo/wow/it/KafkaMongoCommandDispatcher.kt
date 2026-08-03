@@ -18,12 +18,12 @@ import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.kafka.KafkaCommandBus
 import me.ahoo.wow.kafka.KafkaDomainEventBus
-import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.mongo.EventStreamSchemaInitializer
 import me.ahoo.wow.mongo.MongoEventStore
 import me.ahoo.wow.tck.container.KafkaTestFixture
 import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.modeling.command.CommandDispatcherSpec
+import me.ahoo.wow.tck.metrics.meteredForTck
 import org.junit.jupiter.api.extension.RegisterExtension
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
@@ -40,7 +40,7 @@ class KafkaMongoCommandDispatcher : CommandDispatcherSpec() {
     override fun createEventStore(): EventStore {
         val database = mongo.database()
         EventStreamSchemaInitializer(database).initSchema(aggregateMetadata.namedAggregate)
-        return MongoEventStore(database).metrizable()
+        return MongoEventStore(database).meteredForTck()
     }
 
     private val onCommandSeekSink = Sinks.empty<Void>()
@@ -61,7 +61,7 @@ class KafkaMongoCommandDispatcher : CommandDispatcherSpec() {
                         }
                     }
             },
-        ).metrizable()
+        ).meteredForTck()
     }
 
     override fun createEventBus(): DomainEventBus {

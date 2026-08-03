@@ -15,15 +15,28 @@ package me.ahoo.wow.spring.boot.starter.metrics
 
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.context.annotation.Condition
+import org.springframework.context.annotation.ConditionContext
+import org.springframework.context.annotation.Conditional
+import org.springframework.core.env.Environment
+import org.springframework.core.type.AnnotatedTypeMetadata
 
-@ConditionalOnProperty(
-    value = [ConditionalOnMetricsEnabled.ENABLED_KEY],
-    matchIfMissing = true,
-    havingValue = "true",
-)
+@Conditional(MetricsEnabledCondition::class)
 annotation class ConditionalOnMetricsEnabled {
     companion object {
         const val ENABLED_KEY: String = Wow.WOW_PREFIX + "metrics" + ENABLED_SUFFIX_KEY
     }
 }
+
+internal class MetricsEnabledCondition : Condition {
+    override fun matches(
+        context: ConditionContext,
+        metadata: AnnotatedTypeMetadata,
+    ): Boolean = context.environment.isMetricsEnabled()
+}
+
+internal fun Environment.isMetricsEnabled(): Boolean = getProperty(
+    ConditionalOnMetricsEnabled.ENABLED_KEY,
+    Boolean::class.java,
+    true,
+)

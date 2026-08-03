@@ -22,7 +22,6 @@ import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.ioc.SimpleServiceProvider
-import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.projection.DefaultProjectionHandler
@@ -30,6 +29,7 @@ import me.ahoo.wow.projection.ProjectionDispatcher
 import me.ahoo.wow.projection.ProjectionFunctionFilter
 import me.ahoo.wow.projection.ProjectionFunctionRegistrar
 import me.ahoo.wow.runtime.WowRuntime
+import me.ahoo.wow.tck.metrics.meteredForTck
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockStateAggregate
@@ -68,7 +68,7 @@ abstract class ProjectionDispatcherSpec {
                 domainEventBus = domainEventBus,
                 stateEventBus = stateEventBus,
                 functionRegistrar = handlerRegistrar,
-                eventHandler = DefaultProjectionHandler(chain).metrizable(),
+                eventHandler = DefaultProjectionHandler(chain).meteredForTck(),
             )
         val runtime = WowRuntime(listOf(projectionDispatcher), Duration.ofSeconds(30), Duration.ZERO)
         try {

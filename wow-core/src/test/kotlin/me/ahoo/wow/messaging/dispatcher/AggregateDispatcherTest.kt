@@ -18,6 +18,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.TestNamedMessage
 import me.ahoo.wow.messaging.handler.MessageExchange
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.runtime.WowRuntime
@@ -43,7 +44,6 @@ import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
-import io.micrometer.core.instrument.Metrics as MicrometerMetrics
 
 class AggregateDispatcherTest {
 
@@ -739,26 +739,26 @@ class AggregateDispatcherTest {
     @Test
     fun `dispatcher metrics should not expose routing group keys`() {
         val meterRegistry = SimpleMeterRegistry()
-        MicrometerMetrics.addRegistry(meterRegistry)
         try {
             val dispatcherName = "metrics-cardinality-dispatcher"
             val dispatcher = RecordingAggregateDispatcher(
                 messageFlux = Flux.just(TestExchange(group = 1), TestExchange(group = 2)),
                 name = dispatcherName,
+                metrics = WowMetrics(meterRegistry),
             )
 
             prepareAndStart(dispatcher)
 
             val dispatcherMeterIds = meterRegistry.meters
                 .map { it.id }
-                .filter { it.name.startsWith("wow.dispatcher") }
-                .filter { it.getTag("dispatcher") == dispatcherName }
+                .filter { it.name == "wow.operation" }
+                .filter { it.getTag("component") == "dispatcher" }
+                .filter { it.getTag("processor") == dispatcherName }
             dispatcherMeterIds.assert().isNotEmpty()
             dispatcherMeterIds
                 .mapNotNull { it.getTag("group.key") }
                 .assert().isEmpty()
         } finally {
-            MicrometerMetrics.removeRegistry(meterRegistry)
             meterRegistry.close()
         }
     }
@@ -797,10 +797,12 @@ class AggregateDispatcherTest {
         },
         messageReadiness: Mono<Void> = Mono.empty(),
         processingAdmission: () -> Unit = {},
+        metrics: WowMetrics = WowMetrics.NONE,
     ) : AggregateDispatcher<TestExchange>(
         cleanupDispatcher = cleanupDispatcher,
         messageReadiness = messageReadiness,
         processingAdmission = processingAdmission,
+        metrics = metrics,
     ) {
         override val parallelism: Int = 2
         override val namedAggregate: NamedAggregate = "wow-core-test.messaging_aggregate".toNamedAggregate().materialize()

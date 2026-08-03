@@ -13,88 +13,55 @@
 
 package me.ahoo.wow.spring.boot.starter.metrics
 
-import me.ahoo.wow.metrics.Metrics
+import io.micrometer.core.instrument.MeterRegistry
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
-import org.springframework.beans.factory.DisposableBean
-import org.springframework.beans.factory.config.BeanDefinition
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Role
+import org.springframework.core.Ordered
+import org.springframework.core.PriorityOrdered
 import org.springframework.core.env.Environment
-import java.util.concurrent.atomic.AtomicBoolean
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
 class MetricsAutoConfiguration {
     @Bean
-    @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-    internal fun metricsEnabledSynchronizer(environment: Environment): MetricsEnabledSynchronizer {
-        return MetricsEnabledSynchronizer(
-            environment.getProperty(ConditionalOnMetricsEnabled.ENABLED_KEY)
-                ?.toBoolean()
-                ?: true,
-        )
+    fun wowMetricsEnablementBeanPostProcessor(
+        environment: Environment,
+    ): WowMetricsEnablementBeanPostProcessor =
+        WowMetricsEnablementBeanPostProcessor(environment.isMetricsEnabled())
+
+    @Bean
+    @ConditionalOnMissingBean
+    fun wowMetrics(
+        meterRegistry: ObjectProvider<MeterRegistry>,
+        environment: Environment,
+    ): WowMetrics {
+        if (!environment.isMetricsEnabled()) {
+            return WowMetrics.NONE
+        }
+        return meterRegistry.getIfAvailable()?.let(::WowMetrics) ?: WowMetrics.NONE
     }
 
     @Bean
     @ConditionalOnMetricsEnabled
     @ConditionalOnMissingBean
-    fun metricsBeanPostProcessor(): MetricsBeanPostProcessor {
-        return MetricsBeanPostProcessor()
-    }
+    fun metricsBeanPostProcessor(metrics: WowMetrics): MetricsBeanPostProcessor =
+        MetricsBeanPostProcessor(metrics)
 }
 
-internal class MetricsEnabledSynchronizer(
+/** Enforces `wow.metrics.enabled` as a global kill switch for auto-configured and custom metrics. */
+class WowMetricsEnablementBeanPostProcessor(
     private val enabled: Boolean,
 ) : BeanPostProcessor,
-    DisposableBean {
-    private val active = AtomicBoolean(true)
+    PriorityOrdered {
+    override fun getOrder(): Int = Ordered.HIGHEST_PRECEDENCE
 
-    init {
-        MetricsEnabledContexts.register(enabled)
-    }
-
-    override fun destroy() {
-        if (active.compareAndSet(true, false)) {
-            MetricsEnabledContexts.unregister()
-        }
-    }
-}
-
-private object MetricsEnabledContexts {
-    private val monitor = Any()
-    private var initialEnabled = Metrics.enabled
-    private var activeEnabled = Metrics.enabled
-    private var activeContextCount = 0
-
-    fun register(enabled: Boolean) = synchronized(monitor) {
-        if (activeContextCount == 0) {
-            initialEnabled = Metrics.enabled
-            activeEnabled = enabled
-        } else {
-            require(activeEnabled == enabled) {
-                "Conflicting [${ConditionalOnMetricsEnabled.ENABLED_KEY}] values across active " +
-                    "Spring application contexts: expected [$activeEnabled], but found [$enabled]. " +
-                    "Wow metrics enablement is process-wide."
-            }
-        }
-        activeContextCount++
-        Metrics.configureEnabled(activeEnabled)
-    }
-
-    fun unregister() = synchronized(monitor) {
-        check(activeContextCount > 0) {
-            "No active Spring application context is registered for Wow metrics."
-        }
-        activeContextCount--
-        Metrics.configureEnabled(
-            if (activeContextCount == 0) {
-                initialEnabled
-            } else {
-                activeEnabled
-            },
-        )
-    }
+    override fun postProcessAfterInitialization(
+        bean: Any,
+        beanName: String,
+    ): Any = if (!enabled && bean is WowMetrics) WowMetrics.NONE else bean
 }
