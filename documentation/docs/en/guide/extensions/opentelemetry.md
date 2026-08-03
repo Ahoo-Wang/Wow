@@ -93,8 +93,9 @@ java -jar your-app.jar
 ```
 
 The general endpoint uses OTLP/HTTP: the Agent appends `/v1/traces`. If the application also has
-Spring Boot Actuator and `micrometer-registry-otlp`, Micrometer reuses the same service name and
-endpoint and appends `/v1/metrics`. No Wow-specific exporter configuration is required.
+Spring Boot Actuator, `spring-boot-opentelemetry`, and `micrometer-registry-otlp`, Micrometer reuses
+the same service name and endpoint and appends `/v1/metrics`. No Wow-specific exporter
+configuration is required.
 
 Do not enable the Java Agent's Micrometer bridge when `micrometer-registry-otlp` is present; both
 paths would export the same application meters. See

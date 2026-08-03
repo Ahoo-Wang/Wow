@@ -118,12 +118,19 @@ for the distinction between logical meter IDs and exported names.
 
 Wow records metrics with Micrometer; `wow-opentelemetry` instruments tracing and does not export
 Micrometer meters. To send Wow and standard application metrics to an OpenTelemetry Collector,
-add Spring Boot Actuator and Micrometer's OTLP registry to the application:
+add Spring Boot Actuator, Boot's OpenTelemetry support module, and Micrometer's OTLP registry:
 
 ```kotlin
 implementation("org.springframework.boot:spring-boot-starter-actuator")
+runtimeOnly("org.springframework.boot:spring-boot-opentelemetry")
 runtimeOnly("io.micrometer:micrometer-registry-otlp")
 ```
+
+With the project's current Spring Boot 4.1.0 baseline, `spring-boot-opentelemetry` supplies the
+shared OpenTelemetry environment and resource configuration used by the OTLP metrics
+auto-configuration. The starter's
+`opentelemetry-support` capability supplies Wow tracing instrumentation, but does not replace this
+Spring Boot runtime module.
 
 Use the standard OpenTelemetry environment variables for the shortest setup. Both Micrometer's
 OTLP registry and the Java Agent understand the general endpoint and service name:

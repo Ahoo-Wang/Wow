@@ -112,12 +112,18 @@ scheduler meter 只有在应用显式配置 `reactor-core-micrometer` 插桩后�
 
 Wow 使用 Micrometer 记录指标；`wow-opentelemetry` 负责链路追踪埋点，并不导出 Micrometer
 meter。要把 Wow 指标和应用标准指标发送到 OpenTelemetry Collector，请在应用中加入
-Spring Boot Actuator 和 Micrometer OTLP Registry：
+Spring Boot Actuator、Boot OpenTelemetry 支持模块和 Micrometer OTLP Registry：
 
 ```kotlin
 implementation("org.springframework.boot:spring-boot-starter-actuator")
+runtimeOnly("org.springframework.boot:spring-boot-opentelemetry")
 runtimeOnly("io.micrometer:micrometer-registry-otlp")
 ```
+
+在项目当前使用的 Spring Boot 4.1.0 中，`spring-boot-opentelemetry` 提供 OTLP Metrics
+自动配置所依赖的统一 OpenTelemetry 环境变量与 Resource 配置。Starter 的
+`opentelemetry-support` capability 提供 Wow 链路追踪埋点，但不能替代这个 Spring Boot
+运行时模块。
 
 最简接入只需使用标准 OpenTelemetry 环境变量。Micrometer OTLP Registry 与 Java Agent 都能
 识别统一端点和服务名：

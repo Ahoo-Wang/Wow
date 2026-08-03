@@ -90,9 +90,9 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
 java -jar your-app.jar
 ```
 
-统一端点使用 OTLP/HTTP，Agent 自动追加 `/v1/traces`。如果应用同时引入 Spring Boot Actuator
-和 `micrometer-registry-otlp`，Micrometer 会复用相同的服务名与端点，并自动追加 `/v1/metrics`；
-不需要配置 Wow 专用 exporter。
+统一端点使用 OTLP/HTTP，Agent 自动追加 `/v1/traces`。如果应用同时引入 Spring Boot Actuator、
+`spring-boot-opentelemetry` 和 `micrometer-registry-otlp`，Micrometer 会复用相同的服务名与端点，
+并自动追加 `/v1/metrics`；不需要配置 Wow 专用 exporter。
 
 存在 `micrometer-registry-otlp` 时，不要再开启 Java Agent 的 Micrometer bridge，否则两条路径会
 重复导出应用指标。依赖、鉴权、验证方法和 signal-specific endpoint 覆盖方式参见
