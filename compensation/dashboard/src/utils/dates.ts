@@ -22,3 +22,27 @@ export function formatDate(
   }
   return dayjs(timeAt).format(template);
 }
+
+export function formatAge(timeAt: number, now: number = Date.now()): string {
+  const elapsedSeconds = Math.max(0, Math.floor((now - timeAt) / 1_000));
+  const seconds = elapsedSeconds % 60;
+  const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+
+  if (elapsedMinutes === 0) {
+    return `${seconds}s`;
+  }
+
+  const minutes = elapsedMinutes % 60;
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+  if (elapsedHours === 0) {
+    return `${minutes}m ${seconds}s`;
+  }
+
+  const hours = elapsedHours % 24;
+  const days = Math.floor(elapsedHours / 24);
+  if (days === 0) {
+    return `${hours}h ${minutes}m`;
+  }
+
+  return `${days}d ${hours}h`;
+}

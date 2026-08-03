@@ -12,12 +12,13 @@
  */
 
 import { configDefaults, defineConfig, mergeConfig } from "vitest/config";
-import viteConfig from "./vite.config";
+import viteConfig from "./vite.config.ts";
 
 export default mergeConfig(
   viteConfig,
   defineConfig({
     test: {
+      exclude: [...configDefaults.exclude, "e2e/**"],
       reporters: ["verbose"],
       environment: "jsdom",
       setupFiles: ["./src/setupTests.ts"],
@@ -25,8 +26,16 @@ export default mergeConfig(
       coverage: {
         provider: "v8",
         include: ["src/**"],
-        exclude: [...configDefaults.coverage.exclude,
-          "src/generated/**"],
+        exclude: [
+          ...(configDefaults.coverage.exclude ?? []),
+          "src/generated/**",
+        ],
+        thresholds: {
+          branches: 60,
+          functions: 75,
+          lines: 80,
+          statements: 70,
+        },
       },
     },
   }),

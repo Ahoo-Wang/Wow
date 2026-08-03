@@ -11,19 +11,23 @@
  * limitations under the License.
  */
 
-import { createContext, useContext } from "react";
-import type { DrawerProps } from "antd/es/drawer";
+import { createContext, useContext, type ReactNode } from "react";
 
-interface GlobalDrawerContextProps {
-  openDrawer: (config: DrawerProps) => void;
-  closeDrawer: () => void;
-  updateDrawer: (config: Partial<DrawerProps>) => void;
+export interface GlobalDrawerOptions {
+  title: ReactNode;
+  description?: ReactNode;
+  children: ReactNode;
+  width?: string | number;
 }
 
+interface GlobalDrawerContextProps {
+  openDrawer: (config: GlobalDrawerOptions) => void;
+  closeDrawer: () => void;
+  isOpen: boolean;
+}
 
-export const GlobalDrawerContext = createContext<GlobalDrawerContextProps | null>(
-  null,
-);
+export const GlobalDrawerContext =
+  createContext<GlobalDrawerContextProps | null>(null);
 
 export function useGlobalDrawer() {
   const context = useContext(GlobalDrawerContext);

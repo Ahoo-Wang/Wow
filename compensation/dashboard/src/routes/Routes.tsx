@@ -15,7 +15,7 @@ import { Suspense } from "react";
 import { createBrowserRouter, Navigate } from "react-router";
 import App from "../features/App/App.tsx";
 import { NavItems, NavItemPaths } from "./constants.tsx";
-import { Skeleton } from "antd";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const AppRouter = createBrowserRouter([
   {
@@ -30,10 +30,16 @@ export const AppRouter = createBrowserRouter([
         element: (
           <Suspense
             fallback={
-              <Skeleton active/>
+              <div className="h-full space-y-4 p-5">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-[70vh] w-full" />
+              </div>
             }
           >
-            <routeItem.component key={routeItem.category} category={routeItem.category} />
+            <routeItem.component
+              key={routeItem.category}
+              category={routeItem.category}
+            />
           </Suspense>
         ),
       })),

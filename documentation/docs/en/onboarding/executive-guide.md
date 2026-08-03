@@ -328,7 +328,6 @@ Sources:
 | Capacity uncertainty | High before adopter load testing | High at production scale | Benchmark the actual workload and set capacity thresholds | Service and SRE owners; not declared |
 | Documentation and version drift | Confirmed in current repository | Medium | Add release-time consistency checks or an explicit historical label | Release owner; not declared |
 | Secret handling in example configuration | Confirmed in current repository | High if copied into a deployment | Replace inline values with secret injection and scan manifests | Deployment and security owners; not declared |
-| Retry UI unit mismatch | Confirmed in current repository | High for operator decisions | Correct labels and add contract tests before operator use | Compensation product owner; not declared |
 | Incomplete operator history | Confirmed in current repository | Medium to high if auditability is required | Implement or integrate an audit trail before making an audit claim | Compensation service owner; not declared |
 | Ownership ambiguity | Confirmed as not declared | High during incidents | Name service, data, security, and incident owners locally | Adopting executive sponsor |
 | Support-window limit | Medium | Medium | Budget for timely upgrades and dependency validation | Platform owner; not declared |
@@ -341,8 +340,6 @@ Sources:
 - [EventStore.kt:22-122](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L22-L122)
 - [wow-spring-boot-starter/build.gradle.kts:40-42](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/build.gradle.kts#L40-L42)
 - [EventCompensateSupporter.kt:33-69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/compensation/EventCompensateSupporter.kt#L33-L69)
-- [ApplyRetrySpec.tsx:77-100](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/ApplyRetrySpec.tsx#L77-L100)
-- [Retry.kt:57-99](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/Retry.kt#L57-L99)
 - [FailedHistory.tsx:14-16](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/FailedHistory.tsx#L14-L16)
 - [deploy/compensation/config.yaml:43-52](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/compensation/config.yaml#L43-L52)
 - [SECURITY.md:3-5](https://github.com/Ahoo-Wang/Wow/blob/main/SECURITY.md#L3-L5)
@@ -483,7 +480,7 @@ maintainers' roadmap.
 | Access and data policy | Prevent unauthorized operations and unsupported privacy claims | Required before production | Authentication, authorization, retention, erasure, and compliance policy are not declared |
 | Service objectives and capacity | Convert historical samples into workload-specific operating evidence | Required before production | Current latency, throughput, availability, and capacity targets are not declared |
 | Recovery operations | Make retries, replay, restore, and incident escalation safe | Partial repository capability; adopter process missing | Operator roles, audit history, and recovery objectives are not declared |
-| Release consistency | Reduce deployment and operator error from version or unit drift | Confirmed remediation need | Deployment image drift, retry unit mismatch, and sample credentials remain visible in repository evidence |
+| Release consistency | Reduce deployment error from version drift | Confirmed remediation need | Deployment image drift and sample credentials remain visible in repository evidence |
 
 ## Technical debt and evidence gaps
 
@@ -491,7 +488,6 @@ maintainers' roadmap.
 
 | Issue | Business Impact | Effort to Fix | Priority |
 | --- | --- | --- | --- |
-| Retry editor shows milliseconds while the API model uses seconds | Operators may configure recovery with the wrong timing assumptions | Small to medium: UI copy plus contract coverage | P0 before dashboard use |
 | Compensation history view is a stub | A complete operator audit trail cannot be claimed from the dashboard | Medium to large: define audit source, retention, and UI | P1 when auditability is a launch criterion |
 | Example deployment and dashboard versions drift from root `8.9.8` | Adopters may test or deploy artifacts that do not match current source | Small to medium: align or label versions and add release checks | P1 |
 | Example compensation config contains inline credentials | Copying the example can expose reusable secrets | Small: replace with placeholders or secret references and scan manifests | P0 |
@@ -504,8 +500,6 @@ Sources:
 - [deploy/compensation/deployment.yaml:8-26](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/compensation/deployment.yaml#L8-L26)
 - [deploy/example/perf/deployment.yaml:33-40](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/example/perf/deployment.yaml#L33-L40)
 - [compensation/dashboard/package.json:1-16](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/package.json#L1-L16)
-- [ApplyRetrySpec.tsx:77-100](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/ApplyRetrySpec.tsx#L77-L100)
-- [Retry.kt:57-99](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/Retry.kt#L57-L99)
 - [FailedHistory.tsx:14-16](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/FailedHistory.tsx#L14-L16)
 - [deploy/compensation/hpa.yaml:8-18](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/compensation/hpa.yaml#L8-L18)
 - [deploy/compensation/config.yaml:43-52](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/compensation/config.yaml#L43-L52)
@@ -532,7 +526,7 @@ must be supplied by the adopting organization or confirmed with maintainers.
 
 | Priority | Next-quarter recommendation | Expected impact | Completion evidence |
 | --- | --- | --- | --- |
-| 1 | Remove or externalize example credentials, correct retry units, and align or label example versions | Removes the most immediate security and operator-error traps | Manifest scan passes; UI contract test covers seconds; release consistency check is automated |
+| 1 | Remove or externalize example credentials and align or label example versions | Removes the remaining immediate security and release-consistency traps | Manifest scan passes; release consistency check is automated |
 | 2 | Select one bounded pilot, the minimum backend set, and named service, data, security, and incident owners | Tests value while containing cost and coordination risk | Signed pilot charter with owner map and exit criteria |
 | 3 | Define endpoint exposure, event-data lifecycle, and application-specific erasure policy | Prevents unsupported access, privacy, and compliance assumptions | Approved route inventory and data-policy review |
 | 4 | Establish service objectives from load, outage, replay, restore, and upgrade tests on the adopter topology | Replaces historical sample numbers with usable capacity and recovery evidence | Approved SLOs, capacity thresholds, dashboards, alerts, and rehearsal records |

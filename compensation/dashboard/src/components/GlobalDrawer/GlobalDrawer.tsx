@@ -11,57 +11,63 @@
  * limitations under the License.
  */
 
-import { Drawer } from "antd";
 import { useState, type ReactNode, useCallback, useMemo } from "react";
-import { GlobalDrawerContext } from "./useGlobalDrawer";
-import type { DrawerProps } from "antd/es/drawer";
+import {
+  GlobalDrawerContext,
+  type GlobalDrawerOptions,
+} from "./useGlobalDrawer";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 interface GlobalDrawerProviderProps {
   children: ReactNode;
 }
 
 export function GlobalDrawerProvider({ children }: GlobalDrawerProviderProps) {
-  const [drawerProps, setDrawerProps] = useState<DrawerProps>({
-    open: false,
-    resizable:true,
-    defaultSize: "80vw",
-  });
+  const [open, setOpen] = useState(false);
+  const [drawer, setDrawer] = useState<GlobalDrawerOptions | null>(null);
 
-  const openDrawer = useCallback((config: DrawerProps) => {
-    setDrawerProps({
-      resizable: true,
-      defaultSize: "80vw",
-      ...config,
-      open: true,
-    });
+  const openDrawer = useCallback((config: GlobalDrawerOptions) => {
+    setDrawer(config);
+    setOpen(true);
   }, []);
 
   const closeDrawer = useCallback(() => {
-    setDrawerProps((prev) => ({
-      ...prev,
-      children: null,
-      open: false,
-    }));
+    setOpen(false);
   }, []);
 
-  const updateDrawer = useCallback((config: Partial<DrawerProps>) => {
-    setDrawerProps((prev) => ({
-      ...prev,
-      ...config,
-    }));
-  }, []);
   const contextProps = useMemo(
     () => ({
       openDrawer,
       closeDrawer,
-      updateDrawer,
+      isOpen: open,
     }),
-    [openDrawer, closeDrawer, updateDrawer],
+    [open, openDrawer, closeDrawer],
   );
+  const requestedWidth =
+    typeof drawer?.width === "number" ? `${drawer.width}px` : drawer?.width;
   return (
     <GlobalDrawerContext.Provider value={contextProps}>
       {children}
-      <Drawer {...drawerProps} onClose={closeDrawer} />
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent
+          className="w-[min(92vw,560px)] gap-0 overflow-y-auto sm:max-w-none"
+          style={{ width: requestedWidth, maxWidth: "92vw" }}
+        >
+          <SheetHeader className="border-b px-6 py-5">
+            <SheetTitle>{drawer?.title}</SheetTitle>
+            {drawer?.description ? (
+              <SheetDescription>{drawer.description}</SheetDescription>
+            ) : null}
+          </SheetHeader>
+          <div className="flex-1 px-6 py-5">{drawer?.children}</div>
+        </SheetContent>
+      </Sheet>
     </GlobalDrawerContext.Provider>
   );
 }

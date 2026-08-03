@@ -13,14 +13,40 @@
 
 import { executionFailedQueryClientFactory } from "../generated";
 import type {
+  PagedQuery,
   QueryClientOptions,
+  SingleQuery,
 } from "@ahoo-wang/fetcher-wow";
 
-export const executionFailedQueryClientOptions: QueryClientOptions = {
+const executionFailedQueryClientOptions: QueryClientOptions = {
   contextAlias: "",
 };
 
-export const executionFailedSnapshotQueryClient =
+const executionFailedSnapshotQueryClient =
   executionFailedQueryClientFactory.createSnapshotQueryClient(
     executionFailedQueryClientOptions,
   );
+
+export function queryExecutionFailedPage(
+  query: PagedQuery,
+  attributes?: Record<string, unknown>,
+  abortController?: AbortController,
+) {
+  return executionFailedSnapshotQueryClient.pagedState(
+    query,
+    attributes,
+    abortController,
+  );
+}
+
+export function queryExecutionFailedState(
+  query: SingleQuery,
+  attributes?: Record<string, unknown>,
+  abortController?: AbortController,
+) {
+  return executionFailedSnapshotQueryClient.singleState(
+    query,
+    attributes,
+    abortController,
+  );
+}

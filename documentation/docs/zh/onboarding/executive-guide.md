@@ -299,7 +299,6 @@ flowchart TB
 | 容量不确定 | 采用方压测前为高 | 生产规模下为高 | 使用真实负载压测并定义容量阈值 | 服务与 SRE 负责人；未声明 |
 | 文档与版本漂移 | 当前仓库已确认 | 中 | 增加发布一致性检查或明确历史标签 | 发布负责人；未声明 |
 | 示例配置 Secret 管理 | 当前仓库已确认 | 复制到部署时为高 | 改用 Secret 注入并扫描清单 | 部署与安全负责人；未声明 |
-| 重试 UI 单位不一致 | 当前仓库已确认 | 对运营决策为高 | 运营使用前修复标签并增加契约测试 | 补偿产品负责人；未声明 |
 | 运营历史不完整 | 当前仓库已确认 | 审计为必需时为中到高 | 作出审计声明前实现或接入审计轨迹 | 补偿服务负责人；未声明 |
 | 所有权模糊 | 已确认为未声明 | 事件期间为高 | 在组织内指定服务、数据、安全和事件负责人 | 采用方高管 Sponsor |
 | 支持窗口有限 | 中 | 中 | 为及时升级和依赖验证安排预算 | 平台负责人；未声明 |
@@ -312,8 +311,6 @@ flowchart TB
 - [EventStore.kt:22-122](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L22-L122)
 - [wow-spring-boot-starter/build.gradle.kts:40-42](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/build.gradle.kts#L40-L42)
 - [EventCompensateSupporter.kt:33-69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/compensation/EventCompensateSupporter.kt#L33-L69)
-- [ApplyRetrySpec.tsx:77-100](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/ApplyRetrySpec.tsx#L77-L100)
-- [IExecutionFailedState.kt:68-107](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-api/src/main/kotlin/me/ahoo/wow/compensation/api/IExecutionFailedState.kt#L68-L107)
 - [FailedHistory.tsx:14-16](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/FailedHistory.tsx#L14-L16)
 - [deploy/compensation/config.yaml:43-52](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/compensation/config.yaml#L43-L52)
 - [SECURITY.md:3-5](https://github.com/Ahoo-Wang/Wow/blob/main/SECURITY.md#L3-L5)
@@ -444,7 +441,7 @@ flowchart LR
 | 访问与数据政策 | 防止未授权操作和无依据隐私声明 | 生产前必需 | 未声明认证、授权、保留、擦除和合规政策 |
 | 服务目标与容量 | 把历史样例转为负载特定运营证据 | 生产前必需 | 未声明当前延迟、吞吐、可用性和容量目标 |
 | 恢复运营 | 安全执行重试、重放、恢复和事件升级 | 仓库能力部分存在；采用方流程缺失 | 未声明运营角色、审计历史和恢复目标 |
-| 发布一致性 | 减少版本或单位漂移导致的部署与运营错误 | 已确认修复需求 | 仓库证据中仍有镜像漂移、重试单位不一致和示例凭据 |
+| 发布一致性 | 减少版本漂移导致的部署错误 | 已确认修复需求 | 仓库证据中仍有镜像漂移和示例凭据 |
 
 ## 技术债与证据缺口
 
@@ -452,7 +449,6 @@ flowchart LR
 
 | 问题 | 业务影响 | 修复工作量 | 优先级 |
 | --- | --- | --- | --- |
-| 重试编辑器显示毫秒，而 API 模型使用秒 | 运营人员可能按错误时间假设配置恢复 | 小到中：UI 文案加契约覆盖 | P0，Dashboard 使用前 |
 | 补偿历史视图为 stub | 不能依赖 Dashboard 宣称完整运营审计轨迹 | 中到大：定义审计源、保留和 UI | 审计为上线标准时 P1 |
 | 示例部署和 Dashboard 版本与根版本 `8.9.8` 漂移 | 采用方可能测试或部署不匹配当前源码的制品 | 小到中：对齐或标记版本并增加发布检查 | P1 |
 | 补偿示例配置含内联凭据 | 复制示例可能暴露可复用 Secret | 小：替换为占位或 Secret 引用，并扫描清单 | P0 |
@@ -465,8 +461,6 @@ flowchart LR
 - [deploy/compensation/deployment.yaml:8-26](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/compensation/deployment.yaml#L8-L26)
 - [deploy/example/perf/deployment.yaml:33-40](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/example/perf/deployment.yaml#L33-L40)
 - [compensation/dashboard/package.json:1-16](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/package.json#L1-L16)
-- [ApplyRetrySpec.tsx:77-100](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/ApplyRetrySpec.tsx#L77-L100)
-- [IExecutionFailedState.kt:68-107](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-api/src/main/kotlin/me/ahoo/wow/compensation/api/IExecutionFailedState.kt#L68-L107)
 - [FailedHistory.tsx:14-16](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/FailedHistory.tsx#L14-L16)
 - [deploy/compensation/hpa.yaml:8-18](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/compensation/hpa.yaml#L8-L18)
 - [deploy/compensation/config.yaml:43-52](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/compensation/config.yaml#L43-L52)
@@ -492,7 +486,7 @@ flowchart LR
 
 | 优先级 | 下季度建议 | 预期影响 | 完成证据 |
 | --- | --- | --- | --- |
-| 1 | 移除或外置示例凭据，修复重试单位，并对齐或标记示例版本 | 消除最直接的安全与运营误用风险 | 清单扫描通过；UI 契约测试覆盖秒；发布一致性检查自动化 |
+| 1 | 移除或外置示例凭据，并对齐或标记示例版本 | 消除剩余的直接安全与发布一致性风险 | 清单扫描通过；发布一致性检查自动化 |
 | 2 | 选择一个有界试点、最小后端集合，并指定服务、数据、安全和事件负责人 | 在控制成本与协作风险的同时验证价值 | 已签署的试点章程、负责人地图和退出标准 |
 | 3 | 定义端点暴露、事件数据生命周期和应用级擦除政策 | 防止无支持的访问、隐私和合规假设 | 已审批的路由清单和数据政策评审 |
 | 4 | 基于采用方拓扑执行负载、故障、重放、恢复和升级测试并建立服务目标 | 用可用的容量与恢复证据替代历史样例 | 已审批的 SLO、容量阈值、Dashboard、告警和演练记录 |

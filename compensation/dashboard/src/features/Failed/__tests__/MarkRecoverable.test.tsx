@@ -1,58 +1,107 @@
-import React from "react";
-import { describe, it, expect, vi } from "vitest";
-import { render } from "@testing-library/react";
-import { MarkRecoverable } from "../MarkRecoverable.tsx";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RecoverableType } from "@ahoo-wang/fetcher-wow";
+import { MarkRecoverable } from "../MarkRecoverable.tsx";
 
-// Mock dependencies
-vi.mock("@ahoo-wang/fetcher-wow", () => ({
-  RecoverableType: {
-    UNRECOVERABLE: "UNRECOVERABLE",
-    RECOVERABLE: "RECOVERABLE",
-  },
-  ResourceAttributionPathSpec: { NONE: "NONE" },
-  QueryClientFactory: class {
-    createSnapshotQueryClient() {
-      return {};
-    }
-  },
-}));
-vi.mock("../../services", () => ({
-  executionFailedCommandClient: {
-    markRecoverable: vi.fn().mockResolvedValue({}),
-    markUnrecoverable: vi.fn().mockResolvedValue({}),
-  },
+const mocks = vi.hoisted(() => ({
+  markRecoverable: vi.fn().mockResolvedValue({}),
+  toastError: vi.fn(),
+  toastSuccess: vi.fn(),
 }));
 
-vi.mock("../../utils/useExecutePromise.ts", () => ({
-  useExecutePromise: vi.fn(() => ({
-    execute: vi.fn(),
-    state: { loading: false },
-  })),
+vi.mock("../../../services", () => ({
+  executionFailedCommandClient: { markRecoverable: mocks.markRecoverable },
 }));
 
-vi.mock("antd", () => ({
-  Button: ({ children }: { children?: React.ReactNode }) => (
-    <button data-testid="button">{children}</button>
-  ),
-  Select: () => <select data-testid="select" />,
-  Space: ({ children }: { children?: React.ReactNode }) => (
-    <div>{children}</div>
-  ),
-  App: {
-    useApp: () => ({ notification: { success: vi.fn(), error: vi.fn() } }),
-  },
+vi.mock("sonner", () => ({
+  toast: { success: mocks.toastSuccess, error: mocks.toastError },
 }));
 
 describe("MarkRecoverable", () => {
-  it("renders select for recoverable actions", () => {
-    const { getByTestId } = render(
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.markRecoverable.mockResolvedValue({});
+  });
+
+  it("renders a controlled recoverability selector", () => {
+    render(
       <MarkRecoverable
         id="test-id"
         recoverable={RecoverableType.UNRECOVERABLE}
-        onChanged={vi.fn()}
       />,
     );
-    expect(getByTestId("select")).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("combobox", { name: "Recoverable" }),
+    ).toHaveTextContent("Unrecoverable");
+  });
+
+  it("requires confirmation before changing recoverability", async () => {
+    const onChanged = vi.fn();
+    render(
+      <MarkRecoverable
+        id="test-id"
+        recoverable={RecoverableType.RECOVERABLE}
+        onChanged={onChanged}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Recoverable" }));
+    fireEvent.click(
+      await screen.findByRole("option", { name: "Unrecoverable" }),
+    );
+
+    expect(mocks.markRecoverable).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("alertdialog", { name: "Change recoverability?" }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Confirm change" }));
+
+    await waitFor(() => {
+      expect(mocks.markRecoverable).toHaveBeenCalledWith("test-id", {
+        body: { recoverable: RecoverableType.UNRECOVERABLE },
+        abortController: expect.any(AbortController),
+      });
+    });
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("alertdialog", { name: "Change recoverability?" }),
+      ).not.toBeInTheDocument();
+    });
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("Recoverability updated");
+    expect(onChanged).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the proposed value available when the command is rejected", async () => {
+    mocks.markRecoverable.mockRejectedValueOnce({
+      message: "transport failed",
+      exchange: {
+        extractResult: vi
+          .fn()
+          .mockResolvedValue({ errorMsg: "command rejected" }),
+      },
+    });
+    render(
+      <MarkRecoverable
+        id="test-id"
+        recoverable={RecoverableType.RECOVERABLE}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Recoverable" }));
+    fireEvent.click(
+      await screen.findByRole("option", { name: "Unrecoverable" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Confirm change" }));
+
+    await waitFor(() => {
+      expect(mocks.toastError).toHaveBeenCalledWith(
+        "Failed to update recoverability",
+        { description: "command rejected" },
+      );
+    });
+    expect(
+      screen.getByRole("alertdialog", { name: "Change recoverability?" }),
+    ).toBeInTheDocument();
   });
 });

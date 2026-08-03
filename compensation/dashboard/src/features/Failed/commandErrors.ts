@@ -11,6 +11,16 @@
  * limitations under the License.
  */
 
-export function FailedHistory() {
-  return <>FailedHistory</>;
+import type { ExchangeError } from "@ahoo-wang/fetcher";
+import type { CommandResult } from "@ahoo-wang/fetcher-wow";
+
+export async function commandErrorMessage(
+  error: ExchangeError,
+): Promise<string> {
+  try {
+    const result = await error.exchange.extractResult<CommandResult>();
+    return result.errorMsg || error.message;
+  } catch {
+    return error.message;
+  }
 }

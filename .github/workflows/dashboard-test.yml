@@ -61,3 +61,19 @@ jobs:
       - name: Test Dashboard
         working-directory: compensation/dashboard
         run: pnpm coverage
+
+      - name: Install Chromium
+        working-directory: compensation/dashboard
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Test Dashboard in Chromium
+        working-directory: compensation/dashboard
+        run: pnpm test:browser
+
+      - name: Upload Browser Test Report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-playwright-report
+          path: compensation/dashboard/playwright-report/
+          retention-days: 7

@@ -11,10 +11,9 @@
  * limitations under the License.
  */
 
-import { useLocation } from "react-router";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
-export function useQueryParams(name?: string): URLSearchParams | string | null {
-  const location = useLocation();
-  const queryParams = new URLSearchParams(location.search);
-  return name ? queryParams.get(name) : queryParams;
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
 }

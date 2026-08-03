@@ -15,6 +15,7 @@ package me.ahoo.wow.schema
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonSubTypes
+import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.schema.TypeFieldPaths.allFieldPaths
@@ -74,8 +75,18 @@ object TypeFieldPaths {
         depth: Int,
         maxDepth: Int
     ) {
-        if (depth > MAX_DEPTH) {
+        if (depth > maxDepth) {
             return
+        }
+        if (isSubclassOf(AggregateId::class)) {
+            listOf(
+                MessageRecords.CONTEXT_NAME,
+                MessageRecords.AGGREGATE_NAME,
+                MessageRecords.AGGREGATE_ID,
+                MessageRecords.TENANT_ID
+            ).forEach { field ->
+                fieldPaths.add(resolveFieldName(parentName, field))
+            }
         }
         val jsonSubTypes = this.findAnnotation<JsonSubTypes>()
         if (jsonSubTypes != null) {
@@ -84,7 +95,7 @@ object TypeFieldPaths {
                 subType.allFieldPathsInternal(
                     fieldPaths = fieldPaths,
                     parentName = parentName,
-                    depth = depth + 1,
+                    depth = depth,
                     maxDepth = maxDepth
                 )
             }
@@ -115,11 +126,11 @@ object TypeFieldPaths {
      * @return The full field name.
      */
     private fun KProperty1<*, *>.resolveFieldName(parentName: String): String {
-        if (parentName.isBlank()) {
-            return name
-        }
-        return "$parentName${JOIN_DELIMITER}$name"
+        return resolveFieldName(parentName, name)
     }
+
+    private fun resolveFieldName(parentName: String, fieldName: String): String =
+        if (parentName.isBlank()) fieldName else "$parentName${JOIN_DELIMITER}$fieldName"
 
     /**
      * Resolves the nested type of a property.

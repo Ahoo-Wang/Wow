@@ -1,90 +1,81 @@
-import React from "react";
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
-import "@testing-library/jest-dom";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import { GlobalDrawerProvider } from "../GlobalDrawer.tsx";
 import { useGlobalDrawer } from "../useGlobalDrawer.ts";
 
-// Mock antd Drawer
-vi.mock("antd", () => ({
-  Drawer: ({ open, onClose, children }: { open?: boolean; onClose?: () => void; children?: React.ReactNode }) => (
-    <div data-testid="drawer" data-open={open}>
-      {children}
-      <button onClick={onClose} data-testid="close-button">Close</button>
-    </div>
-  ),
-}));
-
 function TestComponent() {
   const { openDrawer, closeDrawer } = useGlobalDrawer();
-
   return (
     <div>
-      <button onClick={() => openDrawer({ title: "Test", children: <div>Test Content</div> })}>
-        Open Drawer
+      <button
+        onClick={() =>
+          openDrawer({
+            title: "Test drawer",
+            children: <div>Test content</div>,
+          })
+        }
+      >
+        Open drawer
       </button>
-      <button onClick={closeDrawer}>Close Drawer</button>
+      <button onClick={closeDrawer}>Close from context</button>
+      <button
+        onClick={() =>
+          openDrawer({
+            title: "Responsive drawer",
+            children: <div>Responsive content</div>,
+            width: 500,
+          })
+        }
+      >
+        Open responsive drawer
+      </button>
     </div>
   );
 }
 
 describe("GlobalDrawerProvider", () => {
-  it("provides context to children", () => {
+  it("opens the neutral sheet context", () => {
     render(
       <GlobalDrawerProvider>
         <TestComponent />
-      </GlobalDrawerProvider>
+      </GlobalDrawerProvider>,
     );
 
-    expect(screen.getByText("Open Drawer")).toBeInTheDocument();
-    expect(screen.getByText("Close Drawer")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Open drawer" }));
+    expect(
+      screen.getByRole("dialog", { name: "Test drawer" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Test content")).toBeInTheDocument();
   });
 
-  it("opens drawer when openDrawer is called", () => {
+  it("closes from the sheet close button", () => {
     render(
       <GlobalDrawerProvider>
         <TestComponent />
-      </GlobalDrawerProvider>
+      </GlobalDrawerProvider>,
     );
 
-    const openButton = screen.getByText("Open Drawer");
-    fireEvent.click(openButton);
+    fireEvent.click(screen.getByRole("button", { name: "Open drawer" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
 
-    const drawer = screen.getByTestId("drawer");
-    expect(drawer).toHaveAttribute("data-open", "true");
+    expect(
+      screen.queryByRole("dialog", { name: "Test drawer" }),
+    ).not.toBeInTheDocument();
   });
 
-  it("closes drawer when closeDrawer is called", () => {
+  it("caps requested widths to the mobile viewport", () => {
     render(
       <GlobalDrawerProvider>
         <TestComponent />
-      </GlobalDrawerProvider>
+      </GlobalDrawerProvider>,
     );
 
-    const openButton = screen.getByText("Open Drawer");
-    fireEvent.click(openButton);
-
-    const closeButton = screen.getByText("Close Drawer");
-    fireEvent.click(closeButton);
-
-    const drawer = screen.getByTestId("drawer");
-    expect(drawer).toHaveAttribute("data-open", "false");
-  });
-
-  it("closes drawer when drawer close button is clicked", () => {
-    render(
-      <GlobalDrawerProvider>
-        <TestComponent />
-      </GlobalDrawerProvider>
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open responsive drawer" }),
     );
 
-    const openButton = screen.getByText("Open Drawer");
-    fireEvent.click(openButton);
-
-    const drawerCloseButton = screen.getByTestId("close-button");
-    fireEvent.click(drawerCloseButton);
-
-    const drawer = screen.getByTestId("drawer");
-    expect(drawer).toHaveAttribute("data-open", "false");
+    expect(
+      screen.getByRole("dialog", { name: "Responsive drawer" }),
+    ).toHaveStyle({ width: "500px", maxWidth: "92vw" });
   });
 });

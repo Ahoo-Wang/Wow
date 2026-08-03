@@ -284,8 +284,8 @@ erDiagram
 | WebFlux 批量并发 | 1 | 按配置并发处理批量项 | 部署运营人员 |
 | 补偿 | 启用 | 提供补偿集成；安全重试政策另行定义 | 应用或部署运营人员 |
 | 补偿最大重试 | 10 | 限制自动重试次数 | 补偿服务运营人员 |
-| 补偿最小退避 | 180 秒 | 延迟重试；UI 当前错误标为毫秒 | 补偿服务运营人员 |
-| 补偿执行超时 | 120 秒 | 限制一次执行；UI 当前错误标为毫秒 | 补偿服务运营人员 |
+| 补偿最小退避 | 180 秒 | 延迟重试 | 补偿服务运营人员 |
+| 补偿执行超时 | 120 秒 | 限制一次执行 | 补偿服务运营人员 |
 | 补偿 Scheduler 批量 | 100 | 限制单批处理记录数 | 补偿服务运营人员 |
 | 补偿 Scheduler 周期 | 60 秒 | 设置调度周期；不构成恢复 SLA | 补偿服务运营人员 |
 | Metrics | 支持时启用 | 产生运行时度量 | 平台或部署运营人员 |
@@ -399,7 +399,6 @@ README 样例运行两分钟，报告两个示例命令的发送/处理速率和
 | --- | --- | --- | --- |
 | 补偿只覆盖符合条件的事件处理路径，不是通用回滚 | 不能把重试描述为撤销原业务动作 | 重试前要求业务安全判断 | 未声明 |
 | Dashboard 历史视图为 stub | 运营人员不能依赖它作为完整审计轨迹 | 使用已审批的外部审计流程 | 未声明 |
-| 重试 UI 把以秒为单位的值标为毫秒 | 运营人员可能输入或解释不安全的时间值 | 使用前在当前表单外校正并验证参数 | 未声明 |
 | 示例镜像和 package 版本与根版本 `8.9.8` 不一致 | 示例行为可能与当前源码不匹配 | 从选定发布构建经过评审的制品 | 未声明 |
 | 补偿示例配置含内联凭据 | 复制示例可能暴露可复用 Secret | 替换为采用方 Secret 机制 | 未声明 |
 | 默认聚合删除不是通用事件擦除机制 | 删除操作可能不满足数据擦除义务 | 最小化受监管事件数据，并设计存储特定生命周期流程 | 未声明 |
@@ -422,16 +421,6 @@ README 样例运行两分钟，报告两个示例命令的发送/处理速率和
 体验已经存在。
 
 来源：[FailedHistory.tsx:14-16](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/FailedHistory.tsx#L14-L16)
-
-### 重试单位展示不一致
-
-Dashboard 把 minimum backoff 和 execution timeout 标为毫秒，而后端 API 模型
-明确两者单位为秒。运营人员依赖该表单前应修复并测试。
-
-来源：
-
-- [ApplyRetrySpec.tsx:77-100](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/ApplyRetrySpec.tsx#L77-L100)
-- [IExecutionFailedState.kt:68-107](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-api/src/main/kotlin/me/ahoo/wow/compensation/api/IExecutionFailedState.kt#L68-L107)
 
 ### 示例不是生产承诺
 
@@ -609,8 +598,8 @@ Wow 可以持久化事件 Body、事件元数据、聚合标识、租户标识�
 
 ### 8. 默认重试值是什么？
 
-后端默认最多重试 10 次、最小退避 180 秒、执行超时 120 秒。当前 UI 对两个值
-标错单位，因此必须先修复并测试运营体验。
+后端默认最多重试 10 次、最小退避 180 秒、执行超时 120 秒。Dashboard 以秒展示并
+提交两个时间值，契约测试同时覆盖单位和 int32 边界。
 
 ### 9. Wow 是否保证吞吐或延迟数字？
 

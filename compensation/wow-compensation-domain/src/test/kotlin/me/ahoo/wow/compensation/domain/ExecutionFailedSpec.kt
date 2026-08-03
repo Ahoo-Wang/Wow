@@ -140,6 +140,12 @@ class ExecutionFailedSpec : AggregateSpec<ExecutionFailed, ExecutionFailedState>
                 isRetryable.assert().isTrue()
                 retryState.timeout().assert().isFalse()
                 retrySpec.assert().isEqualTo(createExecutionFailed.retrySpec)
+                retryState.nextRetryAt.assert()
+                    .isEqualTo(createExecutionFailed.executeAt + createExecutionFailed.retrySpec!!.minBackoff * 1000L)
+                val expectedTimeoutAt =
+                    createExecutionFailed.executeAt + createExecutionFailed.retrySpec!!.executionTimeout * 1000L
+                retryState.timeoutAt.assert()
+                    .isEqualTo(expectedTimeoutAt)
                 canRetry().assert().isTrue()
                 canNextRetry().assert().isFalse()
                 recoverable.assert().isEqualTo(createExecutionFailed.recoverable)
@@ -300,6 +306,30 @@ class ExecutionFailedSpec : AggregateSpec<ExecutionFailed, ExecutionFailedState>
                     retrySpec.maxRetries.assert().isEqualTo(applyRetrySpec.maxRetries)
                     retrySpec.minBackoff.assert().isEqualTo(applyRetrySpec.minBackoff)
                     retrySpec.executionTimeout.assert().isEqualTo(applyRetrySpec.executionTimeout)
+                }
+                fork {
+                    whenCommand(
+                        ApplyRetrySpec(
+                            id = generateGlobalId(),
+                            maxRetries = -1,
+                            minBackoff = 0,
+                            executionTimeout = 0
+                        )
+                    ) {
+                        expectErrorType(IllegalArgumentException::class.java)
+                    }
+                }
+                fork {
+                    whenCommand(
+                        ApplyRetrySpec(
+                            id = generateGlobalId(),
+                            maxRetries = 32,
+                            minBackoff = Int.MAX_VALUE,
+                            executionTimeout = 0
+                        )
+                    ) {
+                        expectErrorType(ArithmeticException::class.java)
+                    }
                 }
             }
 
