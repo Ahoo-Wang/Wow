@@ -7,3 +7,4 @@
 {"id":"A17-none-dashboard","prompt":"升级 compensation dashboard 的 React 依赖并修复 ESLint。","expectedSkills":[],"tags":["negative"]}
 {"id":"A19-develop-english","prompt":"Explain how to page Wow Query DSL results by tenant and status while projecting only selected fields; do not change files.","expectedSkills":["wow-develop"],"tags":["positive","lookup","language-en"]}
 {"id":"A23-develop-adoption-english","prompt":"Design the aggregate, storage entry point, and test strategy for a new service adopting Wow 8 for the first time.","expectedSkills":["wow-develop"],"tags":["boundary","adoption","conflict","language-en"]}
+{"id":"A29-none-release-prep","prompt":"准备 Wow 8.9.9 patch release：只同步 Gradle、package metadata 和版本文档，不修改 Wow framework 或 domain behavior。","expectedSkills":[],"tags":["negative","wow-repository","release-tooling"]}
