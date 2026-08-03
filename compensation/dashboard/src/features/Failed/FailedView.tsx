@@ -47,7 +47,6 @@ import { RetryConditions } from "./RetryConditions.ts";
 import { clearExecutionSelection, selectExecution } from "./selection.ts";
 import { FailedDetails } from "./details/FailedDetails.tsx";
 import { FetchingFailedDetails } from "./details/FetchingFailedDetails.tsx";
-import { useServerClock } from "@/components/ServerClockContext.ts";
 import { useGlobalDrawer } from "@/components/GlobalDrawer";
 
 interface FailedViewProps {
@@ -138,7 +137,6 @@ function LoadingPageDetails() {
 
 export default function FailedView({ category }: FailedViewProps) {
   const desktop = useMediaQuery("(min-width: 960px)");
-  const { now } = useServerClock();
   const { isOpen: isDrawerOpen } = useGlobalDrawer();
   const mobileDetailsFocusRef = useRef<HTMLDivElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -159,7 +157,7 @@ export default function FailedView({ category }: FailedViewProps) {
     useState<PagedList<ExecutionFailedState>>();
   const [query, setCurrentQuery] = useState(() =>
     pagedQuery({
-      condition: RetryConditions.categoryToCondition(category, now()),
+      condition: RetryConditions.categoryToCondition(category, Date.now()),
       sort: executionFailedSort(),
     }),
   );
@@ -278,14 +276,14 @@ export default function FailedView({ category }: FailedViewProps) {
       updateQuery(
         pagedQuery({
           condition: and(
-            RetryConditions.categoryToCondition(category, now()),
+            RetryConditions.categoryToCondition(category, Date.now()),
             searchCondition,
           ),
           sort: executionFailedSort(),
         }),
       );
     },
-    [category, clearSelection, now, updateQuery],
+    [category, clearSelection, updateQuery],
   );
 
   const clearFilters = useCallback(() => {
@@ -300,14 +298,14 @@ export default function FailedView({ category }: FailedViewProps) {
       updateQuery({
         ...query,
         condition: and(
-          RetryConditions.categoryToCondition(category, now()),
+          RetryConditions.categoryToCondition(category, Date.now()),
           searchCondition,
         ),
         sort: executionFailedSort(),
         pagination: { index: nextPage, size: nextPageSize },
       });
     },
-    [category, clearSelection, now, query, searchCondition, updateQuery],
+    [category, clearSelection, query, searchCondition, updateQuery],
   );
 
   const select = useCallback(
@@ -322,12 +320,12 @@ export default function FailedView({ category }: FailedViewProps) {
     updateQuery({
       ...query,
       condition: and(
-        RetryConditions.categoryToCondition(category, now()),
+        RetryConditions.categoryToCondition(category, Date.now()),
         searchCondition,
       ),
       sort: executionFailedSort(),
     });
-  }, [category, now, query, searchCondition, updateQuery]);
+  }, [category, query, searchCondition, updateQuery]);
 
   useEffect(() => {
     const timeSensitive = [

@@ -34,10 +34,6 @@ const mocks = vi.hoisted(() => ({
   result: { list: [], total: 0 } as PagedList<ExecutionFailedState>,
 }));
 
-vi.mock("@/components/ServerClockContext.ts", () => ({
-  useServerClock: () => ({ now: () => 1_785_501_209_222 }),
-}));
-
 vi.mock("@/components/GlobalDrawer", () => ({
   useGlobalDrawer: () => ({ isOpen: mocks.drawerOpen }),
 }));

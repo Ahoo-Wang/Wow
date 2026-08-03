@@ -48,10 +48,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { copyTextToClipboard } from "@/utils/clipboard.ts";
+import { useNow } from "@/hooks/useNow.ts";
 import type { OnChangedCapable } from "./types.ts";
 import { commandErrorMessage } from "./commandErrors.ts";
 import { getCompensationCapabilities } from "./compensationCapabilities.ts";
-import { serverNow } from "@/services/serverClock.ts";
 
 export interface ActionsProps
   extends StateCapable<ExecutionFailedState>, OnChangedCapable {
@@ -61,7 +61,8 @@ export interface ActionsProps
 export function Actions({ state, onChanged, disabled }: ActionsProps) {
   const [forceDialogOpen, setForceDialogOpen] = useState(false);
   const unavailableReasonId = useId();
-  const stateCapabilities = getCompensationCapabilities(state, serverNow());
+  const now = useNow();
+  const stateCapabilities = getCompensationCapabilities(state, now);
   const capabilities = disabled
     ? {
         canForcePrepare: false,

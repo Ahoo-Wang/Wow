@@ -23,5 +23,10 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
   },
-  "include": ["vite.config.ts", "vitest.config.ts"]
+  "include": [
+    "buildMetadata.test.ts",
+    "buildMetadata.ts",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ]
 }

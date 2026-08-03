@@ -5,7 +5,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FunctionKind, RecoverableType } from "@ahoo-wang/fetcher-wow";
 import {
   ExecutionFailedStatus,
@@ -80,6 +80,38 @@ describe("Actions", () => {
       configurable: true,
       value: { writeText: mocks.writeText },
     });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("recomputes prepared actions after the server timeout expires", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    render(
+      <Actions
+        state={{
+          ...state,
+          status: ExecutionFailedStatus.PREPARED,
+          retryState: {
+            ...state.retryState,
+            timeoutAt: 1_000_500,
+          },
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Compensation executing" }),
+    ).toBeDisabled();
+
+    act(() => vi.advanceTimersByTime(1_000));
+
+    expect(
+      screen.getByRole("button", { name: "Prepare compensation" }),
+    ).toBeEnabled();
   });
 
   it("requires confirmation before force prepare", async () => {

@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { defineConfig } from "vite";
 import tailwindcss from "@tailwindcss/vite";
@@ -6,8 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import babel from "@rolldown/plugin-babel";
-
-const dashboardRoot = fileURLToPath(new URL(".", import.meta.url));
+import { resolveCommitSha } from "./buildMetadata.ts";
 
 function resolveProjectVersion(): string {
   const gradleProperties = readFileSync(
@@ -19,25 +17,6 @@ function resolveProjectVersion(): string {
     throw new Error("Unable to resolve version from root gradle.properties.");
   }
   return version;
-}
-
-function resolveCommitSha(): string {
-  const environmentSha =
-    process.env.GITHUB_SHA ?? process.env.VITE_APP_COMMIT_SHA;
-  if (environmentSha && /^[0-9a-f]{40}$/i.test(environmentSha)) {
-    return environmentSha.toLowerCase();
-  }
-
-  try {
-    return execFileSync("git", ["rev-parse", "HEAD"], {
-      cwd: dashboardRoot,
-      encoding: "utf8",
-    }).trim();
-  } catch {
-    throw new Error(
-      "Unable to resolve the dashboard Git commit. Build from a Git checkout or set GITHUB_SHA.",
-    );
-  }
 }
 
 // https://vite.dev/config/

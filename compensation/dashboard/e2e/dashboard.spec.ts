@@ -52,15 +52,6 @@ const execution = {
   isRetryable: true,
 };
 
-async function mockRuntime(page: Page) {
-  await page.route("**/dashboard/runtime", (route) =>
-    route.fulfill({
-      json: { serverTime: 1_785_501_209_222 },
-      headers: { "Cache-Control": "no-store" },
-    }),
-  );
-}
-
 async function openDetails(page: Page, projectName: string) {
   if (projectName === "mobile-chromium") {
     await page
@@ -78,7 +69,6 @@ async function openDetails(page: Page, projectName: string) {
 test("loads the deterministic queue and responsive execution details", async ({
   page,
 }, testInfo) => {
-  await mockRuntime(page);
   let queryBody: Record<string, unknown> | undefined;
   await page.route(
     "**/execution_failed/snapshot/paged/state",
@@ -105,7 +95,6 @@ test("loads the deterministic queue and responsive execution details", async ({
 test("preserves and freezes last-known-good data after refresh fails", async ({
   page,
 }, testInfo) => {
-  await mockRuntime(page);
   let queryCount = 0;
   await page.route(
     "**/execution_failed/snapshot/paged/state",
