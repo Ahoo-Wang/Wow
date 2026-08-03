@@ -1,6 +1,6 @@
 ---
 name: "wow-migrate"
-description: "Audit, plan, implement, debug, review, and verify a breaking Wow migration to a pinned release, including cross-major compatibility, same-major source/config breaking changes, and storage-format or data cutovers that may also start on v8. Use when migration, reconciliation, rollout, or rollback is the primary outcome. Do not use for first-time Wow adoption, routine v8 upgrades with no source/config breaking change and no data migration, or ordinary development, review, and failures."
+description: "Audit, plan, implement, debug, review, and verify breaking application migrations to a pinned Wow release, including cross-major compatibility, known same-major source or configuration breaks, and storage-format or data cutovers even when both versions are v8. Use only when service migration, data reconciliation, cutover, rollout, or rollback is the primary outcome. Do not use for first-time adoption, routine same-major service upgrades with no known breaking contract and no data migration, framework release preparation or version metadata, repository tooling, or ordinary development, review, and failures."
 ---
 
 # Migrate Wow Across Breaking Boundaries
