@@ -97,6 +97,12 @@ class WowSkillsValidatorTest(unittest.TestCase):
             manifest["schemaVersion"] = True
             path.write_text(json.dumps(manifest), encoding="utf-8")
             self.assert_error("expected schemaVersion 1")
+        with self.subTest(boundary="linked-manifest"):
+            path.write_text(original, encoding="utf-8")
+            outside = self.root / "outside-plugins.json"
+            path.rename(outside)
+            path.symlink_to(outside)
+            self.assert_error("plugin manifest must be a regular file inside skills")
 
     def test_resource_references_must_exist_and_stay_inside_the_skill(self) -> None:
         path = self.root / "skills" / "wow-develop" / "SKILL.md"
@@ -125,6 +131,19 @@ class WowSkillsValidatorTest(unittest.TestCase):
             errors = validate_repository(self.root)
             self.assertTrue(any("resource links are not allowed" in error for error in errors))
             self.assertFalse(any("local link" in error for error in errors))
+
+        with self.subTest(reference="asset-local-link"):
+            asset = self.root / "skills" / "wow-develop" / "assets" / "design-report.md"
+            asset_original = asset.read_text(encoding="utf-8")
+            asset.write_text(asset_original + "\n[outside](../../outside.md)\n", encoding="utf-8")
+            self.assert_error("local link escapes the Skill")
+            asset.write_text(asset_original, encoding="utf-8")
+
+        with self.subTest(reference="resource-is-directory"):
+            resource = self.root / "skills" / "wow-develop" / "assets" / "behavior-scenarios.md"
+            resource.unlink()
+            resource.mkdir()
+            self.assert_error("referenced resource must be a regular file")
 
     def test_eval_jsonl_rejects_invalid_json_duplicate_ids_and_unknown_skills(self) -> None:
         behavior = self.root / "skills" / "wow-debug" / "evals" / "behavior.jsonl"

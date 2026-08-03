@@ -175,6 +175,8 @@ def _validate_resources(skill_dir: Path, body: str, errors: list[str]) -> None:
             errors.append(f"{skill_dir / 'SKILL.md'}: resource path escapes the Skill: {raw}")
         elif not target.exists():
             errors.append(f"{skill_dir / 'SKILL.md'}: referenced resource does not exist: {raw}")
+        elif target.is_symlink() or not target.is_file():
+            errors.append(f"{skill_dir / 'SKILL.md'}: referenced resource must be a regular file: {raw}")
 
     for directory in ("references", "assets", "scripts"):
         root = skill_dir / directory
@@ -200,15 +202,16 @@ def _validate_resources(skill_dir: Path, body: str, errors: list[str]) -> None:
                 errors.append(f"{path}: resource is not referenced directly from SKILL.md")
 
     documents = [(skill_dir / "SKILL.md", body)]
-    reference_root = skill_dir / "references"
-    if reference_root.is_dir() and not reference_root.is_symlink() and _contained(reference_root, skill_dir):
-        for path in sorted(reference_root.rglob("*.md")):
-            if path.is_symlink() or not _contained(path, skill_dir):
-                continue
-            try:
-                documents.append((path, path.read_text(encoding="utf-8")))
-            except (OSError, UnicodeError) as exc:
-                errors.append(f"{path}: cannot read UTF-8 text: {exc}")
+    for directory in ("references", "assets"):
+        document_root = skill_dir / directory
+        if document_root.is_dir() and not document_root.is_symlink() and _contained(document_root, skill_dir):
+            for path in sorted(document_root.rglob("*.md")):
+                if path.is_symlink() or not _contained(path, skill_dir):
+                    continue
+                try:
+                    documents.append((path, path.read_text(encoding="utf-8")))
+                except (OSError, UnicodeError) as exc:
+                    errors.append(f"{path}: cannot read UTF-8 text: {exc}")
     for source, text in documents:
         if RAW_HTML_RESOURCE_PATTERN.search(text):
             errors.append(f"{source}: raw HTML resource links are not allowed")
@@ -338,6 +341,10 @@ def validate_repository(root: Path) -> list[str]:
     errors: list[str] = []
     skills_root = root / "skills"
     manifest_path = skills_root / "plugins.json"
+    if skills_root.is_symlink() or not skills_root.is_dir():
+        return [f"{skills_root}: skills must be a regular directory, not a link"]
+    if manifest_path.is_symlink() or not manifest_path.is_file() or not _contained(manifest_path, skills_root):
+        return [f"{manifest_path}: plugin manifest must be a regular file inside skills"]
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         plugins = manifest["plugins"]
