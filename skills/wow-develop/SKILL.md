@@ -1,6 +1,6 @@
 ---
-name: wow-develop
-description: Design, implement, test, refactor, or explain Wow framework behavior and APIs in Kotlin or Java reactive DDD, Event Sourcing, and CQRS applications. Use when the primary outcome is new or changed Wow code, tests, domain modeling, or focused API guidance involving aggregates, sourcing, sagas, projections, event processors, command delivery, Query DSL, starter configuration, storage, runtime lifecycle, or PrepareKey. Do not use when the primary outcome is reviewing an existing diff, diagnosing an observed failure, or migrating an existing Wow v6 application to v8.
+name: "wow-develop"
+description: "Design, implement, test, refactor, or explain Wow framework behavior and APIs in Kotlin or Java reactive DDD, Event Sourcing, and CQRS applications. Use when the primary outcome is new or changed Wow code, tests, domain modeling, or focused API guidance involving aggregates, sourcing, sagas, projections, event processors, command delivery, Query DSL, starter configuration, storage, runtime lifecycle, or PrepareKey. Do not use when the primary outcome is reviewing an existing diff, diagnosing an observed failure, or executing a breaking migration or storage/data cutover centered on migration, reconciliation, rollout, or rollback."
 ---
 
 # Develop Wow Applications
@@ -13,6 +13,7 @@ Own the complete development task. Do not route to another Wow Skill.
 - Treat commands as intent, domain events as committed facts, and sourced state as reconstructed memory.
 - Keep aggregate invariants inside the aggregate boundary and external side effects outside it.
 - Preserve reactive execution, serialization compatibility, module boundaries, and public contracts unless the user authorizes a breaking change.
+- Keep explanation, lookup, design-only, and other read-only requests non-mutating. Enter test-first implementation only when the user requests a code or document change.
 - Use RED→GREEN→REFACTOR for behavior changes. If a change is not testable at the unit level, name the narrowest replacement evidence before editing.
 - Report exact commands, results, changed behavior, and remaining uncertainty.
 
@@ -21,8 +22,8 @@ Own the complete development task. Do not route to another Wow Skill.
 1. **Frame**: state the requested outcome, writable scope, compatibility boundary, and completion evidence.
 2. **Discover**: inspect `settings.gradle.kts`, relevant source, neighboring implementations, tests, configuration, generated contracts, and recent diffs.
 3. **Model**: identify the responsible boundary, invariant, message flow, failure behavior, and required compatibility.
-4. **Prove**: add or tighten the smallest failing test or equivalent pre-change evidence.
-5. **Change**: implement the smallest coherent design; avoid introducing a second source of truth.
+4. **Prove**: for read-only guidance, verify the requested facts against current source and tests. For an authorized behavior change, add or tighten the smallest failing test or name equivalent pre-change evidence.
+5. **Change**: only within the authorized writable scope, implement the smallest coherent design; avoid introducing a second source of truth.
 6. **Verify**: run the narrowest relevant test/check first, then broaden only when risk requires it.
 7. **Report**: distinguish verified behavior from inference and list every unverified external boundary.
 
@@ -80,4 +81,4 @@ Do not load either asset merely to answer or implement a task.
 
 ## Completion
 
-Finish with the aligned goal, changed files and behavior, verification commands and results, compatibility or operational risk, and remaining evidence gaps. Never replace an unavailable test with “should pass.”
+For read-only work, finish with the aligned question, source-backed answer, verification performed, and remaining evidence gaps. For authorized changes, also report changed files and behavior plus compatibility or operational risk. Never replace an unavailable test with “should pass.”

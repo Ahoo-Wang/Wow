@@ -1,6 +1,6 @@
 plugins {
-    kotlin("jvm") version "1.9.25"
-    id("org.springframework.boot") version "3.3.0"
+    kotlin("jvm") version "2.3.20"
+    id("org.springframework.boot") version "4.0.6"
 }
 
 repositories {
@@ -8,5 +8,9 @@ repositories {
 }
 
 dependencies {
-    implementation("me.ahoo.wow:wow-spring-boot-starter:6.7.0")
+    implementation("me.ahoo.wow:wow-spring-boot-starter:6.21.5")
+}
+
+kotlin {
+    jvmToolchain(17)
 }

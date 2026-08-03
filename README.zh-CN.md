@@ -46,7 +46,10 @@ Wow 荣获 [KaiCode’26 Excellent Award](https://www.kaicode.org/2026.html)。�
 
 > **Wow 8.x** 支持 Spring Boot 4.x，基于 Java 17+
 >
-> **Wow 6.x** 支持 Spring Boot 3.x，基于 Java 17+
+> **Wow 6.x** 基于 Java 17+，但 Spring Boot 基线取决于精确 tag：较早的
+> [`v6.8.0`](https://github.com/Ahoo-Wang/Wow/blob/v6.8.0/gradle/libs.versions.toml)
+> 等版本使用 Spring Boot 3，而 [`v6.21.5`](https://github.com/Ahoo-Wang/Wow/blob/v6.21.5/gradle/libs.versions.toml)
+> 使用 Spring Boot 4.0。规划升级前必须先固定源 tag。
 
 ## 为什么选择 Wow？
 

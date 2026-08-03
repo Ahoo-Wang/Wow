@@ -20,7 +20,7 @@ request / command
 |---|---|
 | Command not handled | route, aggregate metadata, generated registration, bus selection |
 | State is wrong | emitted event body/order, sourcing selection, replay/snapshot path |
-| Saga/processor not invoked | event type/scope, generated metadata, registration, subscription, function selection |
+| Saga/processor not invoked | event type/scope, bounded-context resolution, Spring annotated-bean discovery or explicit registration, runtime parser, subscription, function selection |
 | Handler invoked but retries incorrectly | original exception, retry filter, idempotency, compensation state |
 | Projection is stale | event publication, processor invocation, repository result, duplicate/retry behavior |
 | Wait hangs or times out | command identity, wait plan, propagation, stage completion, resource cleanup |

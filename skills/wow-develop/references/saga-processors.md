@@ -20,7 +20,7 @@ rg -n "@StatelessSaga|@ProjectionProcessor|@EventProcessor|@OnEvent|@OnStateEven
 rg -n "SagaSpec<|sagaVerifier|Projection.*Test|EventProcessor.*Test" . -g '*.kt' -g '*.java'
 ```
 
-Inspect the current annotation definitions under `wow-api`, their metadata/compiler consumers, runtime processor registration, delivery filters, compensation/retry path, and representative tests. Resolve exact return shapes, parameter injection, retry defaults, and blocking behavior from the target version.
+For Spring-managed Saga, Projection, and EventProcessor components, trace the component annotation, `AutoRegistrar` bean discovery, the type-specific runtime metadata parser, and the function registrar. Their processor functions are built at runtime rather than loaded from generated processor metadata; also verify the generated bounded-context scopes used by `requiredNamedBoundedContext()`. For explicit registration, trace the registrar call and resulting `MessageFunction` set. Resolve exact return shapes, parameter injection, delivery filters, retry defaults, compensation, and blocking behavior from the target version.
 
 ## Design decisions
 
@@ -40,6 +40,6 @@ Inspect the current annotation definitions under `wow-api`, their metadata/compi
 | Duplicate delivery is safe | Test at the repository/idempotency boundary that owns duplicate suppression |
 | Retry or compensation works | Runtime/integration test through the retry/compensation path |
 | Blocking scheduling is correct | Test or trace that crosses the actual invocation wrapper and scheduler boundary |
-| Handler is discoverable | Evidence from the current registration path—generated metadata or runtime bean/parser/registrar—not only direct method invocation |
+| Handler is discoverable | Spring path: annotated bean, bounded-context resolution, runtime parser result, and registrar contents; explicit path: resulting `MessageFunction` set—not only direct method invocation |
 
 Do not claim delivery, retry, idempotency, or registration from a direct handler unit test.

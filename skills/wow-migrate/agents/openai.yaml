@@ -1,4 +1,4 @@
 interface:
   display_name: "Wow Migrate"
-  short_description: "Migrate Wow v6 services with evidence-gated cutovers"
-  default_prompt: "Use $wow-migrate to audit this Wow v6 service and produce a pinned, evidence-gated migration to Wow v8."
+  short_description: "Migrate Wow releases with evidence-gated cutovers"
+  default_prompt: "Use $wow-migrate to audit this breaking Wow migration and produce a pinned, evidence-gated source, data, cutover, and rollback plan."

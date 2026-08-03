@@ -1,0 +1,12 @@
+diff --git a/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt b/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt
+--- a/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt
++++ b/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt
+@@ -41,7 +41,7 @@ class Cart(private val state: CartState) {
+     fun onCommand(
+         command: AddCartItem
+     ): Any {
+-        require(state.items.size < MAX_CART_ITEM_SIZE) {
++        require(state.items.size <= MAX_CART_ITEM_SIZE) {
+             "购物车最多只能添加[$MAX_CART_ITEM_SIZE]个商品."
+         }
+         state.items.firstOrNull {

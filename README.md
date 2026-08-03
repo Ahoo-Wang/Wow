@@ -46,7 +46,10 @@ Click the button above to create a new repository from [Wow Project Template](ht
 
 > **Wow 8.x** supports Spring Boot 4.x, Java 17+
 > 
-> **Wow 6.x** supports Spring Boot 3.x, Java 17+
+> **Wow 6.x** requires Java 17+, but its Spring Boot baseline depends on the exact tag:
+> earlier tags such as [`v6.8.0`](https://github.com/Ahoo-Wang/Wow/blob/v6.8.0/gradle/libs.versions.toml)
+> use Spring Boot 3, while [`v6.21.5`](https://github.com/Ahoo-Wang/Wow/blob/v6.21.5/gradle/libs.versions.toml)
+> uses Spring Boot 4.0. Pin the source tag before planning an upgrade.
 
 ## Why Wow?
 

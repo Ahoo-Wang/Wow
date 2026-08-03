@@ -6,8 +6,8 @@ description: Choose between traditional-architecture adoption and the Wow v6-to-
 # Migration Guide
 
 There are two primary migration paths. **First-time Wow adoption** is about domain boundaries,
-data modeling, and traffic cutover. **Wow v6 → v8** is about Spring Boot 4, source compatibility,
-and storage-format cutovers. A system already on Wow v8 with custom runtime lifecycle ownership
+data modeling, and traffic cutover. **Wow v6 → v8** is about the exact source-tag platform delta,
+source compatibility, and storage-format cutovers. A system already on Wow v8 with custom runtime lifecycle ownership
 also needs the **runtime-orchestration migration track** inside the v8 path; it is not a third
 business or data migration. Choose the primary path first; do not combine both into one release.
 
@@ -16,7 +16,7 @@ business or data migration. Choose the primary path first; do not combine both i
 | Current state | Goal | Read | Keep out of scope |
 |---|---|---|---|
 | Traditional CRUD, transaction scripts, or direct database writes | Adopt Wow CQRS and event sourcing incrementally | [Migrating from Traditional Architecture](./migration/traditional-architecture.md) | Wow v6 version-compatibility assumptions |
-| Wow v6 and Spring Boot 3 | Wow v8 and Spring Boot 4 | [Migrate Wow v6 to v8](./migration/v6-to-v8.md) | Redesigning every business boundary |
+| Wow v6 on its exact pinned platform | Wow v8 on its pinned target platform | [Migrate Wow v6 to v8](./migration/v6-to-v8.md) | Redesigning every business boundary |
 | Wow v8 with custom Dispatcher, MessageBus, or Spring lifecycle integration | Current unified `WowRuntime` | [Runtime Orchestration Migration](./migration/runtime-orchestration.md) | Rewriting business data |
 
 ```mermaid
@@ -67,7 +67,7 @@ graph TD
 | Page | Answers | Primary source |
 |---|---|---|
 | Traditional architecture | How do we establish commands, aggregates, events, and state from CRUD, then move traffic safely? | [CreateOrder.kt:31-64](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/order/CreateOrder.kt#L31-L64), [Order.kt:55-137](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt#L55-L137) |
-| v6 → v8 | How do we cross Spring Boot 3 → 4 and handle v8 storage and API breaks? | [v8.0.0 Release](https://github.com/Ahoo-Wang/Wow/releases/tag/v8.0.0), [gradle/libs.versions.toml:3-18](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L3-L18) |
+| v6 → v8 | How do we align the exact v6 platform baseline with the pinned v8 target and handle storage and API breaks? | [v6.21.5 versions](https://github.com/Ahoo-Wang/Wow/blob/v6.21.5/gradle/libs.versions.toml), [v8.0.0 Release](https://github.com/Ahoo-Wang/Wow/releases/tag/v8.0.0), [current versions](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml) |
 | Runtime orchestration | How do we converge multiple lifecycle owners on one `WowRuntime`? | [WowAutoConfiguration.kt:118-152](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L118-L152) |
 
 ## Shared Completion Gates

@@ -1,11 +1,11 @@
 ---
-name: wow-migrate
-description: Audit, plan, implement, debug, review, and verify migration of an existing Wow v6 and Spring Boot 3 application to a pinned Wow v8 and Spring Boot 4 release, including source, generated contracts, runtime, storage and data cutover, rollout, and rollback. Use whenever v6-to-v8 compatibility or cutover is the primary scope. Do not use for first-time Wow adoption, upgrades that start on v8, or ordinary v8 development, review, or failures.
+name: "wow-migrate"
+description: "Audit, plan, implement, debug, review, and verify a breaking Wow migration to a pinned release, including v6-to-v8 compatibility and storage-format or data cutovers that may also start on v8. Use when migration, reconciliation, rollout, or rollback is the primary outcome. Do not use for first-time Wow adoption, routine v8 upgrades without data migration, or ordinary development, review, and failures."
 ---
 
-# Migrate Wow v6 Applications to v8
+# Migrate Wow Across Breaking Boundaries
 
-Own the complete migration task. Treat it as a platform, source, generated-contract, data, runtime, and release migration rather than a dependency bump.
+Own the complete migration task. Treat cross-major upgrades and storage/data cutovers as platform, source, generated-contract, data, runtime, and release migrations rather than dependency bumps.
 
 ## Contract
 
@@ -26,14 +26,16 @@ Own the complete migration task. Treat it as a platform, source, generated-contr
 
 ## Workflow
 
+Execute only the stages required by the requested mode and explicitly authorized scope. Audit, planning, review, and diagnosis remain read-only unless a code fix is requested. `Adapt` requires code-write authorization. Data rehearsal and every write performed by `Validate` require an exact isolated target plus explicit non-production data-write authorization. Cutover, traffic changes, production data writes, and release each require their own explicit production authorization. Skip data conversion when target-specific evidence proves no conversion or rebuild is needed.
+
 1. **Baseline**: resolve current Wow, Spring Boot, Kotlin/KSP, Java, storage, messaging, runtime customization, generated contracts, and deployment topology.
-2. **Target**: pin the exact Wow v8 release and verify its platform and storage contracts from that tag.
+2. **Target**: pin the exact target release and verify its platform and storage contracts from that tag.
 3. **Matrix**: classify every dependency, source API, generated artifact, configuration, runtime owner, store, and release gate.
 4. **Adapt**: change platform and source in dependency order; regenerate contracts from their source.
 5. **Rehearse data**: inventory source and target, back up, dry-run, checksum, reconcile, and prove resume/idempotency in isolation.
-6. **Validate**: start one isolated v8 instance and verify write, idempotency, replay, query, regeneration, monitoring, and graceful shutdown.
-7. **Cut over**: stop and drain all v6 writers, migrate offline, reconcile, switch traffic, then scale only v8.
-8. **Observe and roll back**: monitor agreed signals and preserve distinct rollback paths for zero and non-zero v8 production writes.
+6. **Validate**: only with the isolated-target and data-write authorization above, start one target-version instance and verify write, idempotency, replay, query, regeneration, monitoring, and graceful shutdown.
+7. **Cut over**: stop and drain all source-version writers, migrate offline, reconcile, switch traffic, then scale only the target version.
+8. **Observe and roll back**: monitor agreed signals and preserve distinct rollback paths for zero and non-zero target-version production writes.
 
 ## Load by risk
 

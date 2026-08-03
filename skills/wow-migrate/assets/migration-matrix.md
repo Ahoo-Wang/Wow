@@ -1,4 +1,4 @@
-# Wow v6 to v8 Migration Matrix
+# Wow Breaking Migration and Data Cutover Matrix
 
 ## Baseline and target
 

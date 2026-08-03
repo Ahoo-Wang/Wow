@@ -1,6 +1,6 @@
 ---
-name: wow-review
-description: Review existing Wow framework code, diffs, or pull requests and produce evidence-backed findings about correctness, compatibility, reactive behavior, and tests. Use when the primary outcome is findings, readiness, approval evidence, or a review-and-fix workflow that must begin with review. Do not use for symptom-led failure diagnosis, proactive feature development, or review of an existing application's Wow v6-to-v8 migration.
+name: "wow-review"
+description: "Review existing Wow framework code, diffs, or pull requests and produce evidence-backed findings about correctness, compatibility, reactive behavior, and tests. Use when the primary outcome is findings, readiness, approval evidence, or a review-and-fix workflow that must begin with review. Do not use for symptom-led failure diagnosis, proactive feature development, or review of a breaking migration or storage/data cutover centered on migration, reconciliation, rollout, or rollback."
 ---
 
 # Review Wow Changes

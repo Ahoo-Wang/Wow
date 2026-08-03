@@ -5,7 +5,7 @@ Use this reference for aggregate modeling, command handling, event design, state
 ## Stable boundaries
 
 - Let the command model decide whether an intent is valid and emit facts describing the accepted change.
-- Rebuild state only from ordered domain events. Keep sourcing deterministic, synchronous in meaning, and free of external services or writes.
+- Treat domain events as the authoritative facts for aggregate state. When loading the latest state, Wow may start from a persisted snapshot and apply only subsequent ordered event streams. Keep every sourcing transition deterministic, synchronous in meaning, and free of external services or writes; snapshots must remain regenerable from event history.
 - Put business invariants inside one aggregate when they require one consistency boundary. Coordinate multiple aggregates with messages rather than shared mutable state.
 - Make emitted events sufficient to rebuild state and to preserve downstream meaning. Treat serialized event changes as compatibility changes.
 - Keep creation, deletion, recovery, expected-version, tenant, owner, and routing behavior explicit and covered by tests when relevant.

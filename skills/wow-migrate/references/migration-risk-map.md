@@ -1,6 +1,6 @@
 # Migration Risk Map
 
-Use this reference to build a target-specific migration matrix. Every concrete API, version, default, storage layout, and removed symbol must be verified against the existing application and the pinned Wow v8 tag.
+Use this reference to build a target-specific migration matrix. Every concrete API, version, default, storage layout, and removed symbol must be verified against the existing application and the pinned target tag or release.
 
 ## Platform and dependency surface
 

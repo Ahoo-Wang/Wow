@@ -1,11 +1,11 @@
 ---
 title: "Agent Skills"
-description: "Install four intent-focused Wow Agent Skills for source-backed development, review, debugging, and v6-to-v8 migration."
+description: "Install four intent-focused Wow Agent Skills for source-backed development, review, debugging, and evidence-gated breaking migrations."
 ---
 
 # Agent Skills
 
-Wow Agent Skills package framework-specific workflows, architectural invariants, safety boundaries, and completion evidence into four reusable skills. They do not copy the API documentation: annotation parameters, configuration defaults, DSL methods, and generated contracts must be re-established from the current checkout or the pinned target tag. [`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md#L1-L5)
+Wow Agent Skills package framework-specific workflows, architectural invariants, safety boundaries, and completion evidence into four reusable skills. They do not copy the API documentation: annotation parameters, configuration defaults, DSL methods, and generated contracts must be re-established from the current checkout or the pinned target tag. [`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md)
 
 | Entry | Purpose |
 |---|---|
@@ -14,20 +14,20 @@ Wow Agent Skills package framework-specific workflows, architectural invariants,
 | [Ahoo-Wang/skills](https://github.com/Ahoo-Wang/skills) | Aggregated marketplace for Codex and Claude Code |
 | [Agent Skills specification](https://agentskills.io/) | `SKILL.md` format and progressive-disclosure model |
 
-The Wow repository owns the content. Ahoo Skills Hub periodically synchronizes, validates, and generates the `ahoo-wow-skills` plugin. Do not edit generated copies in the aggregation repository. [`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md#L54-L56)
+The Wow repository owns the content. Ahoo Skills Hub periodically synchronizes, validates, and generates the `ahoo-wow-skills` plugin. Do not edit generated copies in the aggregation repository. [`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md#distribution)
 
 ## Four primary skills
 
-The client selects one Primary Skill from the user's **primary outcome**, not from the component names mentioned in the request. That Skill owns the task through completion without switching to another Wow Skill. [`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md#L7-L26)
+The client selects one Primary Skill from the user's **primary outcome**, not from the component names mentioned in the request. That Skill owns the task through completion without switching to another Wow Skill. [`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md#selection-order)
 
 | Skill | Use it when | Complete lifecycle |
 |---|---|---|
-| `wow-develop` | Designing, implementing, testing, refactoring, or explaining Wow behavior/APIs | Frame → Discover → Model → Prove → Change → Verify → Report |
+| `wow-develop` | Designing, implementing, testing, refactoring, or explaining Wow behavior/APIs | Read-only: Frame → Discover → Model → Prove facts → Verify → Report; authorized change: Frame → Discover → Model → Prove RED → Change → Verify → Report |
 | `wow-review` | Producing findings, readiness evidence, or completing review-and-fix | Scope → Context → Findings → Authorized fix → Post-fix review |
 | `wow-debug` | Reproducing and locating an observed failure, or completing diagnose-and-fix | Capture → Reproduce → Locate → Hypothesize → Test → Fix/Conclude |
-| `wow-migrate` | Moving an existing Wow v6 application to a pinned Wow v8 release | Baseline → Target → Matrix → Adapt → Rehearse → Cut over → Roll back |
+| `wow-migrate` | Cross-major migration, or storage/data-format cutover from any starting version | Baseline → Target → Matrix, then only explicitly authorized adapt/data/validate/cutover stages |
 
-Source entries: [`wow-develop`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-develop/SKILL.md#L1-L27), [`wow-review`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-review/SKILL.md#L1-L38), [`wow-debug`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-debug/SKILL.md#L1-L39), and [`wow-migrate`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-migrate/SKILL.md#L1-L47).
+Source entries: [`wow-develop`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-develop/SKILL.md#develop-wow-applications), [`wow-review`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-review/SKILL.md#review-wow-changes), [`wow-debug`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-debug/SKILL.md#debug-wow-failures), and [`wow-migrate`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-migrate/SKILL.md#migrate-wow-across-breaking-boundaries).
 
 ```mermaid
 flowchart TD
@@ -35,7 +35,7 @@ flowchart TD
     Intent -->|Design, implement, test, explain| Develop["wow-develop"]
     Intent -->|Findings or merge readiness| Review["wow-review"]
     Intent -->|Reproducer or root cause| Debug["wow-debug"]
-    Intent -->|Existing v6 app to v8| Migrate["wow-migrate"]
+    Intent -->|Cross-major or data/storage cutover| Migrate["wow-migrate"]
     Intent -->|No Wow behavior involved| None["Do not activate"]
 
     classDef default fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
@@ -45,7 +45,7 @@ flowchart TD
 
 ### Selection order
 
-1. If v6→v8 compatibility, data, or cutover is primary, use `wow-migrate`.
+1. If v6→v8 compatibility, or storage/data cutover and rollback from any version, is primary, use `wow-migrate`.
 2. If there is an observed failure, hang, incorrect state, or reproducer and the goal is root cause, use `wow-debug`.
 3. If the goal is findings, approval evidence, or merge readiness, use `wow-review`.
 4. If the goal is designing, changing, testing, or explaining Wow, use `wow-develop`.
@@ -55,7 +55,7 @@ Keep review-and-fix inside `wow-review` and diagnose-and-fix inside `wow-debug`.
 
 ## Progressive loading
 
-Each `SKILL.md` contains only the core procedure and selection rules. Domain material loads on demand from the [development reference table](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-develop/SKILL.md#L29-L41).
+Each `SKILL.md` contains only the core procedure and selection rules. Domain material loads on demand from the [development reference table](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-develop/SKILL.md#load-one-domain-reference-first).
 
 | Task | First reference |
 |---|---|
@@ -68,7 +68,7 @@ Each `SKILL.md` contains only the core procedure and selection rules. Domain mat
 | PrepareKey uniqueness and reservation | `prepare-key.md` |
 | Test level and completion evidence | `verification-evidence.md` |
 
-References contain stable decisions, source-discovery methods, and verification boundaries. Discover complete annotation parameters, test DSL APIs, configuration keys, defaults, and backend lists from the target version. [`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md#L28-L36)
+References contain stable decisions, source-discovery methods, and verification boundaries. Discover complete annotation parameters, test DSL APIs, configuration keys, defaults, and backend lists from the target version. [`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md#content-model)
 
 ## Installation
 
@@ -125,11 +125,12 @@ Maintainers run:
 
 ```bash
 python3 scripts/validate_wow_skills.py
+python3 -m unittest scripts/test_validate_wow_skills.py scripts/test_run_wow_skill_evals.py
 ```
 
-The command validates standard Skill structure, `openai.yaml`, the explicit plugin list, resource links, the migration script, and eval schemas for all four Skills. [`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md#L38-L52)
+The repository-owned validator is self-contained. It validates standard Skill metadata, `openai.yaml`, the explicit plugin list, contained resource paths, shell syntax without executing `--help`, and activation/behavior contracts for all four Skills. [`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md#validation)
 
-Structural validation cannot prove automatic activation. Run every `evals/activation.jsonl` prompt in a fresh task and inspect the real activation trace. Use `evals/behavior.jsonl` to verify source-first execution, read-only authorization, test evidence, and migration safety. An answer that merely looks correct is not proof of routing or behavior.
+Structural validation cannot prove an eval is executable, automatically activated, or behaviorally correct. `scripts/run_wow_skill_evals.py` freezes the contract and a runtime-only plugin copy without `evals/`, prepares a pinned isolated fixture, and compares a full runner-owned path manifest that records directories and rejects special files. During `prepare`, a protected key domain-signs the RUN v2 descriptor, including the pinned adapter identity and the case, repository, workspace, revision, contract, plugin, and baseline. HMAC evidence independently signs `requestSha256`, which is the SHA-256 of the exact UTF-8 bytes stored in `request.json`, not a canonical-JSON hash. Verification uses only that frozen snapshot and does not reread the live skills package, so an editable `run.json` cannot rebase or redirect a result and asynchronous runs survive later source updates. The standalone review clone receives the exact subject/base object closure in a runner-owned pack before its remote is removed, so detached commits do not depend on advertised refs or external objects. The runner accepts v2 traces only from a pinned adapter with protected HMAC attestation, enforced workspace policy, and commands bound to root cwd plus the resolved executable; activation runs must stop immediately after routing. Authenticated cleanup re-seals its completed lifecycle state; explicit recovery of a damaged marker requires the protected key, uses fixed runner-owned paths plus a caller-supplied source repository, and writes a key-signed idempotency tombstone. Recovery does not cover simultaneous loss of the trust key. Runner-owned oracles independently cover Cart capacity branches, an exact platform contract, and synthetic data interruption/resume, idempotency, checksum, and reconciliation; the interrupted data gate seals an unpredictable, JSON-insignificant byte prefix to reject restart-from-zero rewrites. The hidden Cart test reuses only the workspace-local Gradle cache populated by the signed RED/GREEN commands, forces `--offline` task re-execution, and returns `UNSUPPORTED` rather than `FAIL` when the wrapper, dependency cache, or Java toolchain is unavailable. Missing trust, activation/tool traces, or enforcement also return `UNSUPPORTED`; malformed or tampered evidence returns `ERROR`; assertion failures return `FAIL` and a nonzero CLI exit. See the [runner contract](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md#validation) for `prepare`, `verify`, and `cleanup` commands.
 
 ## Related pages
 
