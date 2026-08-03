@@ -79,7 +79,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webflux")
     testImplementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
-    testCompileOnly("io.opentelemetry.proto:opentelemetry-proto:1.10.0-alpha")
+    testCompileOnly(libs.opentelemetry.proto)
     testRuntimeOnly("org.springframework.boot:spring-boot-opentelemetry")
 }
 
