@@ -33,8 +33,9 @@ wow:
     enabled: true
 ```
 
-当 `wow-opentelemetry` 模块和 `WowInstrumenter` 类位于类路径上时，默认启用
-（`matchIfMissing = true`）。设为 `false` 可禁用横跨命令总线、事件存储、投影和 Saga 的分布式追踪链路。
+当 `wow-spring-boot-starter` 自动配置生效，且 `wow-opentelemetry` 模块及其 `WowInstrumenter`
+类位于 classpath 上时，链路追踪默认启用（`matchIfMissing = true`）。设为 `false` 可禁用横跨命令
+总线、事件存储、投影和 Saga 的分布式追踪链路。
 
 ## 指标
 
@@ -118,41 +119,41 @@ implementation("org.springframework.boot:spring-boot-starter-actuator")
 runtimeOnly("io.micrometer:micrometer-registry-otlp")
 ```
 
-配置 OTLP/HTTP Metrics 端点。Wow 会直接使用 Spring Boot 创建的 `OtlpMeterRegistry` Bean，
-不需要 Micrometer global-registry bridge：
+最简接入只需使用标准 OpenTelemetry 环境变量。Micrometer OTLP Registry 与 Java Agent 都能
+识别统一端点和服务名：
 
-```yaml
-wow:
-  metrics:
-    enabled: true
-
-management:
-  otlp:
-    metrics:
-      export:
-        enabled: ${OTEL_METRICS_ENABLED:true}
-        url: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:http://otel-collector:4318/v1/metrics}
-        step: 30s
-  opentelemetry:
-    resource-attributes:
-      service.name: ${spring.application.name}
+```bash
+export OTEL_SERVICE_NAME=order-service
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+export OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer token" # 可选。
 ```
+
+默认路径不需要配置 `wow.metrics` 或 `management.otlp.metrics` YAML。指标默认启用；Spring Boot
+会把统一端点映射到 Metrics exporter，并自动追加 `/v1/metrics`。只有 Metrics 需要发送到不同的
+OTLP/HTTP 端点时，才配置 `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`。
 
 ```mermaid
 flowchart LR
-    Wow["WowMetrics"] --> Otlp["Application OtlpMeterRegistry"]
+    Env["OTEL_* 环境变量"] --> Otlp["Application OtlpMeterRegistry"]
+    Env --> Agent["OpenTelemetry Java Agent"]
+    Wow["WowMetrics"] --> Otlp
     Otlp -->|"OTLP/HTTP"| Collector["OpenTelemetry Collector"]
-    Tracing["wow-opentelemetry 链路追踪"] --> Collector
+    Agent --> Global["GlobalOpenTelemetry"]
+    Tracing["wow-opentelemetry 链路追踪"] --> Global
+    Global -->|"OTLP/HTTP"| Collector
 
     classDef telemetry fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    class Wow,Otlp,Collector,Tracing telemetry
+    class Env,Otlp,Agent,Wow,Collector,Global,Tracing telemetry
 ```
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/metrics/WowMetrics.kt, wow-core/src/main/kotlin/me/ahoo/wow/infra/batch/BatchMetrics.kt, wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/metrics/MetricsAutoConfiguration.kt -->
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/metrics/WowMetrics.kt, wow-core/src/main/kotlin/me/ahoo/wow/infra/batch/BatchMetrics.kt, wow-opentelemetry/src/main/kotlin/me/ahoo/wow/opentelemetry/aggregate/AggregateInstrumenter.kt, wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/metrics/MetricsAutoConfiguration.kt -->
 
 Registry 实现位于运行时类路径时，Spring Boot 会自动配置 `OtlpMeterRegistry`。Wow 注入这个应用
 Registry，因此即使设置 `management.metrics.use-global-registry=false`，Wow meter 仍能进入 OTLP Registry。参见
 [Spring Boot OTLP Metrics 文档](https://docs.spring.io/spring-boot/reference/actuator/metrics.html#actuator.metrics.export.otlp)
 和 [Micrometer OTLP Registry 文档](https://docs.micrometer.io/micrometer/reference/implementations/otlp.html)。
+不要同时启用 Java Agent 的 Micrometer bridge：`OtlpMeterRegistry` 已负责导出这些 meter，第二条
+bridge 可能造成重复导出。该 Agent 插桩默认关闭，参见
+[OpenTelemetry Java 支持列表](https://opentelemetry.io/docs/zero-code/java/agent/supported-libraries/)。
 
 验证接入时，先把 `metrics` 临时加入已有的 Actuator endpoint 暴露列表：
 
@@ -163,8 +164,6 @@ management:
       exposure:
         include:
           - health
-          - prometheus
-          - threaddump
           - metrics       # 临时诊断 endpoint
 ```
 
@@ -176,23 +175,31 @@ Collector 或下游后端已经收到指标。Actuator 中可见只证明指标�
 
 ### 启用分布式链路追踪（OpenTelemetry）
 
-启用链路追踪的推荐方式是使用 OpenTelemetry Java Agent，它会在 Spring 上下文启动前引导初始化
-`GlobalOpenTelemetry`：
-
-```bash
-java -javaagent:opentelemetry-javaagent.jar \
-     -Dotel.service.name=${spring.application.name} \
-     -Dotel.exporter.otlp.endpoint=http://otel-collector:4317 \
-     -jar your-app.jar
-```
-
-在依赖中添加 `wow-opentelemetry`。自动配置会检测 Agent 已初始化的 `GlobalOpenTelemetry`，
-并自动注册 Wow 追踪过滤器与装饰器。仅当需要禁用 Wow 的 span 但保留 Agent 的其他仪表时，
-才设置 `wow.opentelemetry.enabled=false`。
+Gradle 构建的 Spring Boot 应用应请求 starter 的 `opentelemetry-support` capability。它会引入
+`wow-opentelemetry`；`WowOpenTelemetryAutoConfiguration` 本身位于 starter 中：
 
 ```kotlin
-implementation("me.ahoo.wow:wow-opentelemetry")
+implementation("me.ahoo.wow:wow-spring-boot-starter") {
+    capabilities {
+        requireCapability("me.ahoo.wow:opentelemetry-support")
+    }
+}
 ```
+
+链路追踪推荐使用 OpenTelemetry Java Agent，它会在 Spring 上下文启动前初始化
+`GlobalOpenTelemetry`。Tracing 与 Metrics 复用同一个 OTLP/HTTP 端点和服务名：
+
+```bash
+export JAVA_TOOL_OPTIONS="-javaagent:/opt/otel/opentelemetry-javaagent.jar"
+export OTEL_SERVICE_NAME=order-service
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+java -jar your-app.jar
+```
+
+Agent 自动追加 `/v1/traces`，Micrometer 自动追加 `/v1/metrics`。统一端点要求 Collector 在
+`4318` 端口提供 OTLP/HTTP；如果 tracing 必须使用 `4317` 的 OTLP/gRPC，需要单独配置 protocol
+和 signal-specific endpoint。自动配置会注册 Wow tracing filters 和 decorators。只有需要禁用
+Wow span、同时保留 Agent 其他插桩时，才设置 `wow.opentelemetry.enabled=false`。
 
 仪表覆盖范围参见 [可观测性](/zh/guide/advanced/observability)，
 仪表器列表参见 [OpenTelemetry 扩展](/zh/guide/extensions/opentelemetry)。

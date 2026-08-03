@@ -20,7 +20,7 @@ The Wow framework is composed of over 20 Gradle modules, each with a single, wel
 | `wow-redis` | Infra | `EventStore` and `SnapshotStore` via Redis / Lettuce. |
 | `wow-elasticsearch` | Infra | Projection indexing via Elasticsearch. |
 | `wow-webflux` | Infra | Spring WebFlux command endpoint integration. |
-| `wow-opentelemetry` | Infra | Distributed tracing and metrics via OpenTelemetry. |
+| `wow-opentelemetry` | Infra | Distributed tracing for Wow operations via OpenTelemetry. |
 | `wow-cosec` | Infra | ABAC authorization via CoSec. |
 | `wow-compiler` | Tooling | KSP processor — generates command routing, event handling metadata, OpenAPI specs at compile time. |
 | `wow-test` | Testing | Unit testing DSL: `AggregateSpec`, `SagaSpec`, Given-When-Expect pattern. |
@@ -312,7 +312,7 @@ graph TB
 | `wow-redis` | `EventStore`, `SnapshotStore` | `spring-data-redis`, `lettuce-core` |
 | `wow-elasticsearch` | Projection storage | `spring-data-elasticsearch` |
 | `wow-webflux` | Command endpoints | `spring-webflux` |
-| `wow-opentelemetry` | Tracing &amp; metrics | `opentelemetry-instrumentation-api` |
+| `wow-opentelemetry` | Distributed tracing | `opentelemetry-instrumentation-api` |
 | `wow-cosec` | Authorization | (depends on wow-webflux) |
 
 ### Tooling Modules

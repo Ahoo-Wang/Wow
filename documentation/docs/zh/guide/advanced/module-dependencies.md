@@ -20,7 +20,7 @@ Wow 框架由 20 多个 Gradle 模块组成，每个模块都有单一且定义�
 | `wow-redis` | Infra | 通过 Redis / Lettuce 实现 `EventStore` 和 `SnapshotStore`。 |
 | `wow-elasticsearch` | Infra | 通过 Elasticsearch 实现投影索引。 |
 | `wow-webflux` | Infra | Spring WebFlux 命令端点集成。 |
-| `wow-opentelemetry` | Infra | 通过 OpenTelemetry 实现分布式链路追踪和指标。 |
+| `wow-opentelemetry` | Infra | 通过 OpenTelemetry 为 Wow 操作提供分布式链路追踪。 |
 | `wow-cosec` | Infra | 通过 CoSec 实现 ABAC 授权。 |
 | `wow-compiler` | Tooling | KSP 处理器 — 在编译时生成命令路由、事件处理元数据和 OpenAPI 规范。 |
 | `wow-test` | Testing | 单元测试 DSL：`AggregateSpec`、`SagaSpec`，Given-When-Expect 模式。 |
@@ -312,7 +312,7 @@ graph TB
 | `wow-redis` | `EventStore`、`SnapshotStore` | `spring-data-redis`、`lettuce-core` |
 | `wow-elasticsearch` | 投影存储 | `spring-data-elasticsearch` |
 | `wow-webflux` | 命令端点 | `spring-webflux` |
-| `wow-opentelemetry` | 链路追踪与指标 | `opentelemetry-instrumentation-api` |
+| `wow-opentelemetry` | 分布式链路追踪 | `opentelemetry-instrumentation-api` |
 | `wow-cosec` | 授权 | （依赖 wow-webflux） |
 
 ### 工具模块

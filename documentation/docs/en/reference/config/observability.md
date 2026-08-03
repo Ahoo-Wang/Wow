@@ -35,9 +35,10 @@ wow:
     enabled: true
 ```
 
-Enabled by default (`matchIfMissing = true`) when the `wow-opentelemetry` module and the
-`WowInstrumenter` class are on the classpath. Set to `false` to disable distributed tracing
-spans across the command bus, event store, projections, and sagas.
+With `wow-spring-boot-starter` auto-configuration active, tracing is enabled by default
+(`matchIfMissing = true`) when the `wow-opentelemetry` module and its `WowInstrumenter` class are
+on the classpath. Set it to `false` to disable distributed tracing spans across the command bus,
+event store, projections, and sagas.
 
 ## Metrics
 
@@ -124,42 +125,43 @@ implementation("org.springframework.boot:spring-boot-starter-actuator")
 runtimeOnly("io.micrometer:micrometer-registry-otlp")
 ```
 
-Configure the OTLP/HTTP metrics endpoint. Wow directly uses Spring Boot's `OtlpMeterRegistry` bean;
-Micrometer's global-registry bridge is not required:
+Use the standard OpenTelemetry environment variables for the shortest setup. Both Micrometer's
+OTLP registry and the Java Agent understand the general endpoint and service name:
 
-```yaml
-wow:
-  metrics:
-    enabled: true
-
-management:
-  otlp:
-    metrics:
-      export:
-        enabled: ${OTEL_METRICS_ENABLED:true}
-        url: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:http://otel-collector:4318/v1/metrics}
-        step: 30s
-  opentelemetry:
-    resource-attributes:
-      service.name: ${spring.application.name}
+```bash
+export OTEL_SERVICE_NAME=order-service
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+export OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer token" # Optional.
 ```
+
+No `wow.metrics` or `management.otlp.metrics` YAML is required for the default path. Metrics are
+enabled by default; Spring Boot maps the general endpoint to the metrics exporter and appends
+`/v1/metrics`. Use `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` only when metrics must target a different
+OTLP/HTTP endpoint.
 
 ```mermaid
 flowchart LR
-    Wow["WowMetrics"] --> Otlp["Application OtlpMeterRegistry"]
+    Env["OTEL_* environment"] --> Otlp["Application OtlpMeterRegistry"]
+    Env --> Agent["OpenTelemetry Java Agent"]
+    Wow["WowMetrics"] --> Otlp
     Otlp -->|"OTLP/HTTP"| Collector["OpenTelemetry Collector"]
-    Tracing["wow-opentelemetry tracing"] --> Collector
+    Agent --> Global["GlobalOpenTelemetry"]
+    Tracing["wow-opentelemetry tracing"] --> Global
+    Global -->|"OTLP/HTTP"| Collector
 
     classDef telemetry fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    class Wow,Otlp,Collector,Tracing telemetry
+    class Env,Otlp,Agent,Wow,Collector,Global,Tracing telemetry
 ```
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/metrics/WowMetrics.kt, wow-core/src/main/kotlin/me/ahoo/wow/infra/batch/BatchMetrics.kt, wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/metrics/MetricsAutoConfiguration.kt -->
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/metrics/WowMetrics.kt, wow-core/src/main/kotlin/me/ahoo/wow/infra/batch/BatchMetrics.kt, wow-opentelemetry/src/main/kotlin/me/ahoo/wow/opentelemetry/aggregate/AggregateInstrumenter.kt, wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/metrics/MetricsAutoConfiguration.kt -->
 
 Spring Boot auto-configures `OtlpMeterRegistry` when the registry implementation is on the runtime
 classpath. Wow injects that application registry directly, so Wow meters still reach OTLP when
 `management.metrics.use-global-registry=false`. See the
 [Spring Boot OTLP metrics documentation](https://docs.spring.io/spring-boot/reference/actuator/metrics.html#actuator.metrics.export.otlp)
 and [Micrometer OTLP registry documentation](https://docs.micrometer.io/micrometer/reference/implementations/otlp.html).
+Do not also enable the Java Agent's Micrometer bridge: `OtlpMeterRegistry` already exports these
+meters, and a second bridge can duplicate them. The bridge is disabled by default for this reason;
+see the [OpenTelemetry Java supported libraries](https://opentelemetry.io/docs/zero-code/java/agent/supported-libraries/).
 
 To verify the integration, temporarily add `metrics` to the existing Actuator exposure list:
 
@@ -170,8 +172,6 @@ management:
       exposure:
         include:
           - health
-          - prometheus
-          - threaddump
           - metrics       # temporary diagnostic endpoint
 ```
 
@@ -184,25 +184,33 @@ verification.
 
 ### Enabling Distributed Tracing (OpenTelemetry)
 
-The recommended way to enable tracing is the OpenTelemetry Java Agent, which bootstraps
-`GlobalOpenTelemetry` before the Spring context starts:
-
-```bash
-java -javaagent:opentelemetry-javaagent.jar \
-     -Dotel.service.name=${spring.application.name} \
-     -Dotel.exporter.otlp.endpoint=http://otel-collector:4317 \
-     -jar your-app.jar
-```
-
-Add `wow-opentelemetry` to your dependencies. You also need `wow-spring-boot-starter` (with the
-`opentelemetry-support` capability) — `WowOpenTelemetryAutoConfiguration` lives in the starter,
-not the module. The auto-configuration detects the agent's initialized `GlobalOpenTelemetry` and
-registers the Wow tracing filters and decorators automatically. Set `wow.opentelemetry.enabled=false` only to disable Wow's spans while
-keeping the agent's other instrumentation.
+For a Gradle-based Spring Boot application, request the starter's `opentelemetry-support` capability.
+It brings in `wow-opentelemetry`; `WowOpenTelemetryAutoConfiguration` itself lives in the starter:
 
 ```kotlin
-implementation("me.ahoo.wow:wow-opentelemetry")
+implementation("me.ahoo.wow:wow-spring-boot-starter") {
+    capabilities {
+        requireCapability("me.ahoo.wow:opentelemetry-support")
+    }
+}
 ```
+
+The recommended tracing runtime is the OpenTelemetry Java Agent. It initializes
+`GlobalOpenTelemetry` before the Spring context starts. Reuse the same OTLP/HTTP endpoint and
+service name as metrics:
+
+```bash
+export JAVA_TOOL_OPTIONS="-javaagent:/opt/otel/opentelemetry-javaagent.jar"
+export OTEL_SERVICE_NAME=order-service
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+java -jar your-app.jar
+```
+
+The Agent appends `/v1/traces`; Micrometer appends `/v1/metrics`. This shared endpoint assumes the
+Collector exposes OTLP/HTTP on port `4318`. If tracing must use OTLP/gRPC on `4317`, configure its
+protocol and signal-specific endpoint separately. The auto-configuration registers Wow tracing
+filters and decorators automatically. Set `wow.opentelemetry.enabled=false` only to disable Wow's
+spans while keeping the Agent's other instrumentation.
 
 See [Observability](/guide/advanced/observability) for the instrumentation coverage and
 [OpenTelemetry Extension](/guide/extensions/opentelemetry) for the instrumenter list.

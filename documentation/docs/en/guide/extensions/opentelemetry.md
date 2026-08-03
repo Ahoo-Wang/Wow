@@ -11,12 +11,15 @@ Supported by the Cloud Native Computing Foundation (CNCF) and the OpenTelemetry 
 Its main goal is to provide developers with consistent tracing solutions to help them collect, generate, and export tracing data for distributed systems to better understand application performance, behavior, and exceptions.
 OpenTelemetry supports multiple programming languages and frameworks such as Java, Python, Go, Node.js, making it easy for developers to integrate tracing functionality.
 
-OpenTelemetry provides the following core features:
+The OpenTelemetry project provides the following core features:
 - Distributed Tracing: Captures the passage of requests between different services and components, forming call chains to track the path and execution time of entire distributed requests.
 - Metrics Collection: Collects and exports performance metrics such as request rate, response time, error rate, etc., helping developers monitor and optimize performance.
 - Logging: Collects application log data, associates it with tracing and metrics data, providing deep insights into application behavior and issues.
 
-The _OpenTelemetry_ module of the Wow framework provides a series of instrumenters to record operations of the framework's core components, helping developers better understand application performance, behavior, and exceptions.
+The Wow `wow-opentelemetry` module deliberately covers **distributed tracing only**. It provides
+instrumenters for the framework's core operations, while Wow metrics remain Micrometer meters and
+are exported by a Micrometer registry. The module does not initialize an OpenTelemetry SDK or
+exporter by itself.
 
 - `AggregateInstrumenter`: Aggregate root instrumenter, used to record aggregate root operations.
 - `EventProcessorInstrumenter`: Event processor instrumenter, used to record event processor operations.
@@ -44,14 +47,28 @@ Supports the following attribute tags:
 
 ## Installation
 
+For a Gradle-based Spring Boot application, request the starter's `opentelemetry-support` capability.
+This is the recommended single dependency entry point: it brings in `wow-opentelemetry` and enables
+the corresponding Wow auto-configuration.
+
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
-implementation("me.ahoo.wow:wow-opentelemetry")
+implementation("me.ahoo.wow:wow-spring-boot-starter") {
+    capabilities {
+        requireCapability("me.ahoo.wow:opentelemetry-support")
+    }
+}
 ```
 ```groovy [Gradle(Groovy)]
-implementation 'me.ahoo.wow:wow-opentelemetry'
+implementation('me.ahoo.wow:wow-spring-boot-starter') {
+    capabilities {
+        requireCapability('me.ahoo.wow:opentelemetry-support')
+    }
+}
 ```
 ```xml [Maven]
+<!-- Maven does not resolve Gradle feature capabilities. Keep wow-spring-boot-starter
+     in the application and add the tracing module explicitly. -->
 <dependency>
     <groupId>me.ahoo.wow</groupId>
     <artifactId>wow-opentelemetry</artifactId>
@@ -60,9 +77,34 @@ implementation 'me.ahoo.wow:wow-opentelemetry'
 ```
 :::
 
+When not using Spring Boot auto-configuration, depend on `wow-opentelemetry` directly and register
+the tracing filters/decorators yourself.
+
+## Quick Start with OTLP
+
+The recommended runtime is the OpenTelemetry Java Agent. It initializes `GlobalOpenTelemetry`
+before Wow creates its tracing instrumenters:
+
+```bash
+export JAVA_TOOL_OPTIONS="-javaagent:/opt/otel/opentelemetry-javaagent.jar"
+export OTEL_SERVICE_NAME=order-service
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+java -jar your-app.jar
+```
+
+The general endpoint uses OTLP/HTTP: the Agent appends `/v1/traces`. If the application also has
+Spring Boot Actuator and `micrometer-registry-otlp`, Micrometer reuses the same service name and
+endpoint and appends `/v1/metrics`. No Wow-specific exporter configuration is required.
+
+Do not enable the Java Agent's Micrometer bridge when `micrometer-registry-otlp` is present; both
+paths would export the same application meters. See
+[Observability Configuration](/reference/config/observability) for dependencies, authentication,
+verification, and signal-specific endpoint overrides.
+
 ## Configuration
 
-When `wow-opentelemetry` is on the classpath, Wow tracing auto-configuration is enabled by default. It can be disabled without removing the dependency:
+When the starter auto-configuration is active and `wow-opentelemetry` is on the classpath, Wow
+tracing is enabled by default. It can be disabled without removing the dependency:
 
 ```yaml
 wow:
@@ -70,7 +112,9 @@ wow:
     enabled: false
 ```
 
-Initialize `GlobalOpenTelemetry` before the Wow application context creates tracing filters and decorators. Use the OpenTelemetry Java agent or register an SDK during application bootstrap; registering the SDK after Wow tracing instrumenters have initialized is too late.
+If you use an SDK instead of the Agent, initialize `GlobalOpenTelemetry` before the Wow application
+context creates tracing filters and decorators. Registering the SDK after Wow tracing instrumenters
+have initialized is too late.
 
 ## How Tracing Is Wired
 

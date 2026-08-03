@@ -21,7 +21,7 @@ Wow's architecture is built around a single core principle: **"Domain Model as a
 | **wow-test** | Unit testing DSL: `AggregateSpec` / `SagaSpec` with Given-When-Expect pattern | `test/wow-test` | [settings.gradle.kts:44-45](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L44-L45) |
 | **wow-kafka** | Command/event bus implementation via Apache Kafka | `wow-kafka` module | [settings.gradle.kts:27](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L27) |
 | **wow-elasticsearch** | Projection (read model) storage via Elasticsearch | `wow-elasticsearch` module | [settings.gradle.kts:31](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L31) |
-| **wow-opentelemetry** | End-to-end tracing and observability | `wow-opentelemetry` module | [settings.gradle.kts:35](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L35) |
+| **wow-opentelemetry** | Distributed tracing for Wow operations | `wow-opentelemetry` module | [settings.gradle.kts:35](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L35) |
 | **wow-cosec** | Authorization and access control | `wow-cosec` module | [settings.gradle.kts:40](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L40) |
 | **wow-webflux** | Spring WebFlux integration: auto-registers command route handler functions | `wow-webflux` module | [settings.gradle.kts:33](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L33) |
 
@@ -50,7 +50,7 @@ flowchart TB
         E5["wow-elasticsearch<br>Elasticsearch projection"]
         E6["wow-webflux<br>WebFlux command endpoint"]
         E7["wow-cosec<br>Authorization"]
-        E8["wow-opentelemetry<br>Tracing & metrics"]
+        E8["wow-opentelemetry<br>Distributed tracing"]
     end
 
     subgraph SPRING["Spring Integration"]
@@ -101,7 +101,7 @@ The module hierarchy is defined in [settings.gradle.kts:19-80](https://github.co
 | **Core Engine** | `wow-core` | Aggregate processing, command bus, event store abstraction, saga processing, projection dispatch, serialization. All reactive (Project Reactor). | [wow-core](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt) |
 | **Compile-Time** | `wow-compiler` | KSP processor. Generates command routing tables, event handler metadata, and OpenAPI specs from annotations at compile time. | [settings.gradle.kts:26](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L26) |
 | **Spring Integration** | `wow-spring`, `wow-spring-boot-starter` | Bridges the core engine into Spring's `ApplicationContext`. The starter provides auto-configuration with Gradle feature variants for optional capabilities. | [WowAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt) |
-| **Observability** | `wow-opentelemetry` | End-to-end tracing, metrics, and logging integration via OpenTelemetry. | [settings.gradle.kts:35](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L35) |
+| **Observability** | `wow-opentelemetry` | End-to-end tracing integration via OpenTelemetry. Metrics are provided separately through Micrometer. | [settings.gradle.kts:35](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L35) |
 | **Security** | `wow-cosec` | Command/query authorization with policy-based access control. | [settings.gradle.kts:40](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L40) |
 | **Testing** | `wow-test`, `wow-tck`, `wow-mock` | Aggregate and saga testing DSL; Technology Compatibility Kit for integration tests; in-memory mock implementations. | [settings.gradle.kts:44-49](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L44-L49) |
 | **Compensation** | `wow-compensation-api`, `wow-compensation-core`, `wow-compensation-domain`, `wow-compensation-server` | Event compensation subsystem with dashboard for monitoring and retrying failed events. | [settings.gradle.kts:56-63](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L56-L63) |
@@ -437,4 +437,4 @@ The architectural choices of the Wow Framework directly enable its performance p
 | [Testing](../test-suite) | AggregateSpec and SagaSpec testing DSL |
 | [Spring Boot Integration](../extensions/spring-boot-starter) | Auto-configuration details and property reference |
 | [CoCache](../extensions/cocache) | Projection caching for query performance |
-| [Observability](../../reference/config/observability) | OpenTelemetry tracing and metrics |
+| [Observability](../../reference/config/observability) | OpenTelemetry tracing and Micrometer metrics |
