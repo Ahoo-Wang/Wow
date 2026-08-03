@@ -21,6 +21,7 @@ import me.ahoo.wow.messaging.dispatcher.MessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.runtime.RuntimeContext
 import me.ahoo.wow.runtime.internal.RuntimeComponentGroup
 import me.ahoo.wow.runtime.internal.forceAllReporting
@@ -68,6 +69,7 @@ import java.util.concurrent.atomic.AtomicReference
  * @param functionRegistrar The registrar for domain event handler functions.
  * @param eventHandler The event handler for processing domain events.
  * @param schedulerSupplier Supplier for creating schedulers for aggregate processing. Defaults to a default implementation.
+ * @param metrics Instance-scoped metrics recorder propagated to both child dispatchers.
  *
  * @see EventStreamDispatcher
  * @see StateEventDispatcher
@@ -103,7 +105,8 @@ open class CompositeEventDispatcher(
      * Supplier for creating schedulers for aggregate processing.
      * @default DefaultAggregateSchedulerSupplier("EventDispatcher")
      */
-    private val schedulerSupplier: AggregateSchedulerSupplier
+    private val schedulerSupplier: AggregateSchedulerSupplier,
+    private val metrics: WowMetrics = WowMetrics.NONE,
 ) : MessageDispatcher {
     private val childSchedulerSupplier =
         BorrowedAggregateSchedulerSupplier(schedulerSupplier)
@@ -116,6 +119,7 @@ open class CompositeEventDispatcher(
             functionRegistrar = functionRegistrar.filter { it.functionKind == FunctionKind.EVENT },
             eventHandler = eventHandler,
             schedulerSupplier = childSchedulerSupplier,
+            metrics = metrics,
         )
     }
     private val eventStreamDispatcher by eventStreamDispatcherLazy
@@ -128,6 +132,7 @@ open class CompositeEventDispatcher(
             functionRegistrar = functionRegistrar.filter { it.functionKind == FunctionKind.STATE_EVENT },
             eventHandler = eventHandler,
             schedulerSupplier = childSchedulerSupplier,
+            metrics = metrics,
         )
     }
     private val stateEventDispatcher by stateEventDispatcherLazy

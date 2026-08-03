@@ -21,6 +21,7 @@ import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.infra.batch.BatchOverflowException
 import me.ahoo.wow.infra.batch.BatchWriter
 import me.ahoo.wow.infra.batch.KeyedBatchCoordinator
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
 import org.bson.Document
 import reactor.core.publisher.Mono
@@ -37,6 +38,7 @@ internal class BatchMongoEventStreamAppender(
     database: MongoDatabase,
     private val options: MongoEventStoreBatchOptions,
     private val closeTimeout: Duration = DEFAULT_CLOSE_TIMEOUT,
+    metrics: WowMetrics = WowMetrics.NONE,
 ) : MongoEventStreamAppender {
     private data class MappedCloseTimeout(
         val source: BatchCloseTimeoutException,
@@ -62,6 +64,7 @@ internal class BatchMongoEventStreamAppender(
             append.eventStream.aggregateId
         },
         writer = BatchWriter(MongoEventStreamBatchWriter(database)::write),
+        metrics = metrics,
     )
 
     override fun append(eventStream: DomainEventStream): Mono<Void> {

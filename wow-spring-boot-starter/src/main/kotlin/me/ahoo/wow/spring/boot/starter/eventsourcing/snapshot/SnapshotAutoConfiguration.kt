@@ -28,12 +28,14 @@ import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.messaging.handler.ExchangeFilter
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.WowRuntimeComponentOrder
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnSnapshotStoreStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -122,12 +124,14 @@ class SnapshotAutoConfiguration(
         @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         namedBoundedContext: NamedBoundedContext,
         snapshotHandler: SnapshotHandler,
-        stateEventBus: StateEventBus
+        stateEventBus: StateEventBus,
+        metrics: ObjectProvider<WowMetrics>,
     ): SnapshotDispatcher {
         return SnapshotDispatcher(
             name = "${namedBoundedContext.contextName}.${SnapshotDispatcher::class.simpleName}",
             snapshotHandler = snapshotHandler,
             stateEventBus = stateEventBus,
+            metrics = metrics.getIfAvailable { WowMetrics.NONE },
         )
     }
 }

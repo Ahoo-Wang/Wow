@@ -53,6 +53,10 @@ export const navbarEn: DefaultTheme.NavItem[] = [
         text: "Resources",
         items: [
             {
+                text: 'Agent Skills',
+                link: '/guide/skills'
+            },
+            {
                 text: 'Project template for quickly building DDD projects based on Wow framework',
                 link: 'https://github.com/Ahoo-Wang/wow-project-template'
             },

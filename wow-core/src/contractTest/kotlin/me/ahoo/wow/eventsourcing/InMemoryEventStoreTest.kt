@@ -13,8 +13,8 @@
 package me.ahoo.wow.eventsourcing
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.metrics.MetricEventStore
 import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
+import me.ahoo.wow.tck.metrics.meteredForTck
 import org.junit.jupiter.api.Test
 
 /**
@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test
  */
 internal class InMemoryEventStoreTest : EventStoreSpec() {
     override fun createEventStore(): EventStore {
-        return MetricEventStore(InMemoryEventStore())
+        return InMemoryEventStore().meteredForTck()
     }
 
     @Test

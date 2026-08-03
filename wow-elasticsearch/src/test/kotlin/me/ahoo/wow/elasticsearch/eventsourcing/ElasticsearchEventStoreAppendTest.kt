@@ -20,6 +20,7 @@ import co.elastic.clients.elasticsearch.core.BulkResponse
 import co.elastic.clients.elasticsearch.core.IndexRequest
 import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem
 import co.elastic.clients.elasticsearch.core.bulk.OperationType
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -28,6 +29,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.event.MockDomainEventStreams
@@ -164,6 +166,7 @@ class ElasticsearchEventStoreAppendTest {
     @Test
     fun `close should flush a partial batch and settle its caller`() {
         val eventStream = eventStream("order-close", aggregateVersion = 1)
+        val registry = SimpleMeterRegistry()
         every { client.bulk(any<BulkRequest>()) } returns Mono.just(
             bulkResponse(responseItem(eventStream))
         )
@@ -175,6 +178,7 @@ class ElasticsearchEventStoreAppendTest {
                 maxDelay = Duration.ofSeconds(30),
                 maxPendingAppends = 8,
             ),
+            metrics = WowMetrics(registry),
         )
         val result = eventStore.append(eventStream)
             .materialize()
@@ -184,6 +188,12 @@ class ElasticsearchEventStoreAppendTest {
 
         result.get(1, TimeUnit.SECONDS)!!.isOnComplete.assert().isTrue()
         verify(exactly = 1) { client.bulk(any<BulkRequest>()) }
+        registry.get("wow.batch.write")
+            .tag("coordinator", "ElasticsearchEventStore")
+            .timer()
+            .count()
+            .assert()
+            .isEqualTo(1)
     }
 
     @Test

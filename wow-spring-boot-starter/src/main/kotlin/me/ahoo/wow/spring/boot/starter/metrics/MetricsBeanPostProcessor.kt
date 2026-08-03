@@ -14,43 +14,48 @@
 package me.ahoo.wow.spring.boot.starter.metrics
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import me.ahoo.wow.metrics.Metrics.metrizable
+import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import me.ahoo.wow.metrics.MetricDecoratorFactory
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.core.Ordered
 
-class MetricsBeanPostProcessor : BeanPostProcessor, Ordered {
-    companion object {
-        private val log = KotlinLogging.logger {}
-    }
+class MetricsBeanPostProcessor(
+    metrics: WowMetrics,
+) : BeanPostProcessor,
+    Ordered {
+    private val decoratorFactory = MetricDecoratorFactory(metrics)
 
     override fun postProcessAfterInitialization(bean: Any, beanName: String): Any {
-        val metatableBean = bean.metrizableBean()
-        if (metatableBean !== bean) {
+        val meteredBean = bean.meteredBean(beanName)
+        if (meteredBean !== bean) {
             log.info {
-                "Magnetizable bean [$beanName] [${bean.javaClass.name}] -> [${metatableBean.javaClass.name}]"
+                "Metered bean [$beanName] [${bean.javaClass.name}] -> [${meteredBean.javaClass.name}]"
             }
         }
-        return metatableBean
+        return meteredBean
     }
 
-    override fun getOrder(): Int {
-        return Ordered.LOWEST_PRECEDENCE
-    }
+    override fun getOrder(): Int = Ordered.LOWEST_PRECEDENCE
 
-    private fun Any.metrizableBean(): Any =
-        when (this) {
-            is EventStoreBinding -> {
-                val metricEventStore = eventStore.metrizable()
-                if (metricEventStore === eventStore) this else copy(eventStore = metricEventStore)
-            }
-
-            is SnapshotStoreBinding -> {
-                val metricSnapshotStore = snapshotStore.metrizable()
-                if (metricSnapshotStore === snapshotStore) this else copy(snapshotStore = metricSnapshotStore)
-            }
-
-            else -> metrizable()
+    private fun Any.meteredBean(beanName: String): Any = when (this) {
+        is EventStoreBinding -> {
+            val meteredEventStore = decoratorFactory.decorate(eventStore, name) as EventStore
+            if (meteredEventStore === eventStore) this else copy(eventStore = meteredEventStore)
         }
+
+        is SnapshotStoreBinding -> {
+            val meteredSnapshotStore = decoratorFactory.decorate(snapshotStore, name) as SnapshotStore
+            if (meteredSnapshotStore === snapshotStore) this else copy(snapshotStore = meteredSnapshotStore)
+        }
+
+        else -> decoratorFactory.decorate(this, beanName)
+    }
+
+    private companion object {
+        val log = KotlinLogging.logger {}
+    }
 }

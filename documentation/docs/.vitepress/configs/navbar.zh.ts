@@ -53,6 +53,10 @@ export const navbarZh: DefaultTheme.NavItem[] = [
         text: "资源",
         items: [
             {
+                text: 'Agent Skills',
+                link: '/zh/guide/skills'
+            },
+            {
                 text: '用于快速构建基于 Wow 框架的 DDD 项目模板',
                 link: 'https://github.com/Ahoo-Wang/wow-project-template'
             },

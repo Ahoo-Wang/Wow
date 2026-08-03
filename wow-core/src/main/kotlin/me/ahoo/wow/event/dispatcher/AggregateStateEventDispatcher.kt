@@ -21,6 +21,7 @@ import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
+import me.ahoo.wow.metrics.WowMetrics
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
@@ -45,6 +46,7 @@ import java.util.concurrent.ConcurrentHashMap
  * @param processingAdmission Explicit transport-processing gate opened by
  * [start]
  * @param processingQuiescence Logical transport gate closed by [quiesce]
+ * @param metrics Instance-scoped metrics recorder for dispatcher operations
  *
  * @constructor Creates a new AggregateStateEventDispatcher with the specified parameters
  *
@@ -67,10 +69,12 @@ class AggregateStateEventDispatcher(
     messageReadiness: Mono<Void> = Mono.empty(),
     processingAdmission: () -> Unit = {},
     processingQuiescence: () -> Unit = {},
+    metrics: WowMetrics = WowMetrics.NONE,
 ) : AbstractAggregateEventDispatcher<StateEventExchange<*>>(
     messageReadiness = messageReadiness,
     processingAdmission = processingAdmission,
     processingQuiescence = processingQuiescence,
+    metrics = metrics,
 ) {
     /**
      * Creates a state domain event exchange from a state event exchange and domain event.

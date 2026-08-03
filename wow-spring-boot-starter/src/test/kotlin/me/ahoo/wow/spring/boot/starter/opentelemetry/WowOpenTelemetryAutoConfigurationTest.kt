@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot.starter.opentelemetry
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.eventsourcing.AggregateEventStoreRegistry
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
@@ -20,6 +21,7 @@ import me.ahoo.wow.eventsourcing.RoutingEventStore
 import me.ahoo.wow.eventsourcing.snapshot.AggregateSnapshotStoreRegistry
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.RoutingSnapshotStore
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.opentelemetry.aggregate.TraceAggregateFilter
 import me.ahoo.wow.opentelemetry.eventprocessor.TraceEventProcessorFilter
 import me.ahoo.wow.opentelemetry.projection.TraceProjectionFilter
@@ -97,7 +99,7 @@ internal class WowOpenTelemetryAutoConfigurationTest {
             "eventStore",
         )
 
-        val metricStore = MetricsBeanPostProcessor().postProcessAfterInitialization(
+        val metricStore = MetricsBeanPostProcessor(WowMetrics(SimpleMeterRegistry())).postProcessAfterInitialization(
             tracedStore,
             "eventStore",
         )
@@ -118,7 +120,7 @@ internal class WowOpenTelemetryAutoConfigurationTest {
             "snapshotStore",
         )
 
-        val metricStore = MetricsBeanPostProcessor().postProcessAfterInitialization(
+        val metricStore = MetricsBeanPostProcessor(WowMetrics(SimpleMeterRegistry())).postProcessAfterInitialization(
             tracedStore,
             "snapshotStore",
         )

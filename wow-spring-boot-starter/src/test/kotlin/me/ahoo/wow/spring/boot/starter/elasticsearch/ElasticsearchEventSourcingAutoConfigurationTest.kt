@@ -27,6 +27,7 @@ import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStoreBatchOptions
 import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryServiceFactory
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
@@ -36,6 +37,7 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
+import org.springframework.beans.factory.support.StaticListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.data.elasticsearch.autoconfigure.DataElasticsearchAutoConfiguration
 import org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration
@@ -51,6 +53,9 @@ import reactor.kotlin.core.publisher.toMono
 
 internal class ElasticsearchEventSourcingAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
+    private val metricsProvider = StaticListableBeanFactory(
+        mapOf("wowMetrics" to WowMetrics.NONE)
+    ).getBeanProvider(WowMetrics::class.java)
 
     @Test
     fun `secondary constructor should use default batch properties`() {
@@ -60,12 +65,12 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
         val elasticsearchClient = mock(ReactiveElasticsearchClient::class.java)
         val indexTemplateInitializer = mockk<IndexTemplateInitializer>()
 
-        autoConfiguration.elasticsearchEventStore(elasticsearchClient, indexTemplateInitializer)
+        autoConfiguration.elasticsearchEventStore(elasticsearchClient, indexTemplateInitializer, metricsProvider)
             .use { eventStore ->
                 eventStore.batchOptions.assert()
                     .isEqualTo(ElasticsearchEventStoreBatchOptions())
             }
-        autoConfiguration.elasticsearchSnapshotStore(elasticsearchClient, indexTemplateInitializer)
+        autoConfiguration.elasticsearchSnapshotStore(elasticsearchClient, indexTemplateInitializer, metricsProvider)
             .use { snapshotStore ->
                 snapshotStore.batchOptions.assert()
                     .isEqualTo(ElasticsearchSnapshotStoreBatchOptions())

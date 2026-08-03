@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.metrics
 
-import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DomainEventStream
@@ -21,108 +20,73 @@ import me.ahoo.wow.eventsourcing.EventStore
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-/**
- * Metric decorator for event stores that collects metrics on event storage and retrieval operations.
- * This class wraps an EventStore implementation and adds metrics collection with tags for
- * aggregate name and source identification to track event store performance.
- *
- * @param delegate the underlying event store implementation
- */
-class MetricEventStore(
-    delegate: EventStore
-) : AbstractMetricDecorator<EventStore>(delegate),
-    EventStore,
-    Metrizable {
-    /**
-     * Appends a domain event stream to the event store and collects metrics on the operation.
-     * Metrics collected include timing, success/failure rates, and tags for aggregate identification.
-     *
-     * @param eventStream the domain event stream to append
-     * @return a Mono that completes when the event stream is appended
-     */
+internal class MetricEventStore(
+    delegate: EventStore,
+    metrics: WowMetrics,
+    source: String,
+) : MetricComponentDecorator<EventStore>(delegate, metrics, source),
+    EventStore {
     override fun append(eventStream: DomainEventStream): Mono<Void> =
-        delegate
-            .append(eventStream)
-            .name(Wow.WOW_PREFIX + "eventstore.append")
-            .tagSource()
-            .tag(Metrics.AGGREGATE_KEY, eventStream.aggregateName)
-            .metrics()
+        metrics.operation(
+            delegate.append(eventStream),
+            descriptor("append", eventStream.contextName, eventStream.aggregateName),
+        )
 
-    /**
-     * Loads domain event streams for the specified aggregate ID within the given version range
-     * and collects metrics on the operation.
-     * Metrics collected include timing and tags for aggregate identification.
-     *
-     * @param aggregateId the aggregate ID to load events for
-     * @param headVersion the starting version number (inclusive)
-     * @param tailVersion the ending version number (inclusive)
-     * @return a Flux of domain event streams
-     */
     override fun load(
         aggregateId: AggregateId,
         headVersion: Int,
-        tailVersion: Int
+        tailVersion: Int,
     ): Flux<DomainEventStream> =
-        delegate
-            .load(aggregateId, headVersion, tailVersion)
-            .name(Wow.WOW_PREFIX + "eventstore.load")
-            .tagSource()
-            .tag(Metrics.AGGREGATE_KEY, aggregateId.aggregateName)
-            .metrics()
+        metrics.operation(
+            delegate.load(aggregateId, headVersion, tailVersion),
+            descriptor("load_by_version", aggregateId.contextName, aggregateId.aggregateName),
+        )
 
-    /**
-     * Loads domain event streams for the specified aggregate ID within the given time range
-     * and collects metrics on the operation.
-     * Metrics collected include timing and tags for aggregate identification.
-     *
-     * @param aggregateId the aggregate ID to load events for
-     * @param headEventTime the starting event time (inclusive) in milliseconds since epoch
-     * @param tailEventTime the ending event time (inclusive) in milliseconds since epoch
-     * @return a Flux of domain event streams
-     */
     override fun load(
         aggregateId: AggregateId,
         headEventTime: Long,
-        tailEventTime: Long
+        tailEventTime: Long,
     ): Flux<DomainEventStream> =
-        delegate
-            .load(aggregateId, headEventTime, tailEventTime)
-            .name(Wow.WOW_PREFIX + "eventstore.load")
-            .tagSource()
-            .tag(Metrics.AGGREGATE_KEY, aggregateId.aggregateName)
-            .metrics()
+        metrics.operation(
+            delegate.load(aggregateId, headEventTime, tailEventTime),
+            descriptor("load_by_time", aggregateId.contextName, aggregateId.aggregateName),
+        )
 
-    override fun existsRequestId(aggregateId: AggregateId, requestId: String): Mono<Boolean> {
-        return delegate
-            .existsRequestId(aggregateId, requestId)
-            .name(Wow.WOW_PREFIX + "eventstore.exists.request.id")
-            .tagSource()
-            .tag(Metrics.AGGREGATE_KEY, aggregateId.aggregateName)
-            .metrics()
-    }
+    override fun existsRequestId(
+        aggregateId: AggregateId,
+        requestId: String,
+    ): Mono<Boolean> =
+        metrics.operation(
+            delegate.existsRequestId(aggregateId, requestId),
+            descriptor("exists_request_id", aggregateId.contextName, aggregateId.aggregateName),
+        )
 
-    override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
-        return delegate
-            .last(aggregateId)
-            .name(Wow.WOW_PREFIX + "eventstore.last")
-            .tagSource()
-            .tag(Metrics.AGGREGATE_KEY, aggregateId.aggregateName)
-            .metrics()
-    }
+    override fun last(aggregateId: AggregateId): Mono<DomainEventStream> =
+        metrics.operation(
+            delegate.last(aggregateId),
+            descriptor("last", aggregateId.contextName, aggregateId.aggregateName),
+        )
 
     override fun scanAggregateId(
         namedAggregate: NamedAggregate,
         afterId: String,
-        limit: Int
+        limit: Int,
     ): Flux<AggregateId> =
-        delegate
-            .scanAggregateId(namedAggregate, afterId, limit)
-            .name(Wow.WOW_PREFIX + "eventstore.scanAggregateId")
-            .tagSource()
-            .tag(Metrics.AGGREGATE_KEY, namedAggregate.aggregateName)
-            .metrics()
+        metrics.operation(
+            delegate.scanAggregateId(namedAggregate, afterId, limit),
+            descriptor("scan_aggregate_id", namedAggregate.contextName, namedAggregate.aggregateName),
+        )
 
-    override fun close() {
-        delegate.close()
-    }
+    private fun descriptor(
+        operation: String,
+        context: String,
+        aggregate: String,
+    ): MetricDescriptor = descriptor(
+        component = "event_store",
+        operation = operation,
+        context = context,
+        aggregate = aggregate,
+    )
+
+    override fun close() = delegate.close()
 }

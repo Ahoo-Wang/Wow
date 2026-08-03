@@ -13,39 +13,28 @@
 
 package me.ahoo.wow.metrics
 
-import me.ahoo.wow.api.Wow
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.dispatcher.DomainEventHandler
-import me.ahoo.wow.infra.Decorator
 import reactor.core.publisher.Mono
 
-/**
- * Metric decorator for domain event handlers that collects metrics on domain event processing operations.
- * This class wraps a DomainEventHandler and adds metrics collection with tags for aggregate name,
- * event name, and processor name to track event handling performance and success rates.
- *
- * @property delegate the underlying domain event handler implementation
- */
-class MetricDomainEventHandler(
-    override val delegate: DomainEventHandler
-) : DomainEventHandler,
-    Decorator<DomainEventHandler>,
-    Metrizable {
-    /**
-     * Handles a domain event exchange and collects metrics on the operation.
-     * Metrics collected include timing, success/failure rates, and tags for aggregate, event,
-     * and processor identification.
-     *
-     * @param exchange the domain event exchange containing the event to handle
-     * @return a Mono that completes when the event is handled
-     * @throws IllegalArgumentException if the event function cannot be retrieved from the exchange
-     */
-    override fun handle(exchange: DomainEventExchange<*>): Mono<Void> =
-        delegate
-            .handle(exchange)
-            .name(Wow.WOW_PREFIX + "event.handle")
-            .tag(Metrics.AGGREGATE_KEY, exchange.message.aggregateName)
-            .tag(Metrics.EVENT_KEY, exchange.message.name)
-            .tag(Metrics.PROCESSOR_KEY, requireNotNull(exchange.getEventFunction()).processorName)
-            .metrics()
+internal class MetricDomainEventHandler(
+    delegate: DomainEventHandler,
+    metrics: WowMetrics,
+    source: String,
+) : MetricComponentDecorator<DomainEventHandler>(delegate, metrics, source),
+    DomainEventHandler {
+    override fun handle(context: DomainEventExchange<*>): Mono<Void> {
+        val processor = context.getEventFunction()?.processorName ?: MetricDescriptor.NONE
+        return metrics.operation(
+            delegate.handle(context),
+            descriptor(
+                component = "domain_event_handler",
+                operation = "handle",
+                context = context.message.contextName,
+                aggregate = context.message.aggregateName,
+                message = context.message.name,
+                processor = processor,
+            ),
+        )
+    }
 }

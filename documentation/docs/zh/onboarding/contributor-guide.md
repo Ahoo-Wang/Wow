@@ -1941,7 +1941,7 @@ wow-mongo                  MongoDB 存储
 wow-redis                  Redis 存储
 wow-elasticsearch          Elasticsearch 事件/快照存储与查询
 wow-webflux                响应式 HTTP 命令集成
-wow-opentelemetry          Tracing 与 Metrics
+wow-opentelemetry          分布式链路追踪
 wow-cosec                  授权集成
 wow-cocache                投影缓存
 wow-apiclient              REST Client 支持

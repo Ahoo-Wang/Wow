@@ -13,39 +13,28 @@
 
 package me.ahoo.wow.metrics
 
-import me.ahoo.wow.api.Wow
 import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.projection.ProjectionHandler
 import reactor.core.publisher.Mono
 
-/**
- * Metric decorator for projection handlers that collects metrics on projection processing operations.
- * This class wraps a ProjectionHandler and adds metrics collection with tags for aggregate name,
- * event name, and processor name to track projection performance and success rates.
- *
- * @property delegate the underlying projection handler implementation
- */
-class MetricProjectionHandler(
-    override val delegate: ProjectionHandler
-) : ProjectionHandler,
-    Decorator<ProjectionHandler>,
-    Metrizable {
-    /**
-     * Handles a domain event exchange for projection and collects metrics on the operation.
-     * Metrics collected include timing, success/failure rates, and tags for aggregate, event,
-     * and processor identification.
-     *
-     * @param exchange the domain event exchange containing the event to project
-     * @return a Mono that completes when the projection is handled
-     * @throws IllegalArgumentException if the event function cannot be retrieved from the exchange
-     */
-    override fun handle(exchange: DomainEventExchange<*>): Mono<Void> =
-        delegate
-            .handle(exchange)
-            .name(Wow.WOW_PREFIX + "projection.handle")
-            .tag(Metrics.AGGREGATE_KEY, exchange.message.aggregateName)
-            .tag(Metrics.EVENT_KEY, exchange.message.name)
-            .tag(Metrics.PROCESSOR_KEY, requireNotNull(exchange.getEventFunction()).processorName)
-            .metrics()
+internal class MetricProjectionHandler(
+    delegate: ProjectionHandler,
+    metrics: WowMetrics,
+    source: String,
+) : MetricComponentDecorator<ProjectionHandler>(delegate, metrics, source),
+    ProjectionHandler {
+    override fun handle(context: DomainEventExchange<*>): Mono<Void> {
+        val processor = context.getEventFunction()?.processorName ?: MetricDescriptor.NONE
+        return metrics.operation(
+            delegate.handle(context),
+            descriptor(
+                component = "projection_handler",
+                operation = "handle",
+                context = context.message.contextName,
+                aggregate = context.message.aggregateName,
+                message = context.message.name,
+                processor = processor,
+            ),
+        )
+    }
 }

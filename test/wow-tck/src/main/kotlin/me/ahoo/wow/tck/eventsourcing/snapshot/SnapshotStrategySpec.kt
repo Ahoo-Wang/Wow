@@ -18,8 +18,8 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotStrategy
 import me.ahoo.wow.eventsourcing.state.SimpleStateEventExchange
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.tck.metrics.meteredForTck
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockStateAggregate
@@ -34,7 +34,7 @@ abstract class SnapshotStrategySpec {
     protected val snapshotStrategy: SnapshotStrategy
 
     init {
-        this.snapshotStrategy = createSnapshotStrategy().metrizable()
+        this.snapshotStrategy = createSnapshotStrategy().meteredForTck()
     }
 
     abstract fun createSnapshotStrategy(): SnapshotStrategy

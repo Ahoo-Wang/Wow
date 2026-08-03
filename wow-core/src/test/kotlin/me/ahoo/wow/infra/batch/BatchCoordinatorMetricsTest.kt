@@ -15,7 +15,7 @@ package me.ahoo.wow.infra.batch
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.metrics.Metrics
+import me.ahoo.wow.metrics.WowMetrics
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
@@ -24,13 +24,14 @@ import reactor.test.StepVerifier
 import java.time.Duration
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import io.micrometer.core.instrument.Metrics as MicrometerMetrics
 
 class BatchCoordinatorMetricsTest {
+    private var metrics: WowMetrics = WowMetrics.NONE
+
     @Test
     fun `disabled metrics should preserve the compact batch path`() =
         withMeterRegistry { registry ->
-            withMetricsEnabled(false) {
+            withMetrics(WowMetrics.NONE) {
                 val name = "metrics-disabled"
                 val coordinator = metricsCoordinator(name) { items ->
                     Mono.just(items.map { BatchItemResult.Success })
@@ -217,6 +218,7 @@ class BatchCoordinatorMetricsTest {
                 writer = BatchWriter { items ->
                     Mono.just(items.map { BatchItemResult.Success })
                 },
+                metrics = metrics,
             )
 
             try {
@@ -398,29 +400,31 @@ class BatchCoordinatorMetricsTest {
                 maxPendingItems = maxPendingItems,
             ),
             writer = BatchWriter(writer),
+            metrics = metrics,
         )
 
     private fun withMeterRegistry(block: (SimpleMeterRegistry) -> Unit) {
         val registry = SimpleMeterRegistry()
-        MicrometerMetrics.addRegistry(registry)
+        val previousMetrics = metrics
+        metrics = WowMetrics(registry)
         try {
             block(registry)
         } finally {
-            MicrometerMetrics.removeRegistry(registry)
+            metrics = previousMetrics
             registry.close()
         }
     }
 
-    private fun <T> withMetricsEnabled(
-        enabled: Boolean,
+    private fun <T> withMetrics(
+        scopedMetrics: WowMetrics,
         block: () -> T,
     ): T {
-        val previousEnabled = Metrics.enabled
-        Metrics.configureEnabled(enabled)
+        val previousMetrics = metrics
+        metrics = scopedMetrics
         return try {
             block()
         } finally {
-            Metrics.configureEnabled(previousEnabled)
+            metrics = previousMetrics
         }
     }
 

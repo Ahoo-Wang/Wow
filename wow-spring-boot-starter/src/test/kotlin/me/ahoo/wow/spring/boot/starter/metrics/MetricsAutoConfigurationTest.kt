@@ -1,19 +1,35 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package me.ahoo.wow.spring.boot.starter.metrics
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
-import me.ahoo.wow.metrics.MetricEventStore
-import me.ahoo.wow.metrics.MetricSnapshotStore
-import me.ahoo.wow.metrics.Metrics
+import me.ahoo.wow.infra.Decorator
+import me.ahoo.wow.metrics.MetricDescriptor
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.core.Ordered
+import reactor.core.publisher.Mono
 import java.io.Closeable
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -21,29 +37,137 @@ class MetricsAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun `metrics post processor should decorate raw event store binding once`() {
-        val binding = EventStoreBinding(
+    fun `post processor should decorate storage bindings once with their explicit names`() {
+        val postProcessor = MetricsBeanPostProcessor(WowMetrics(SimpleMeterRegistry()))
+        postProcessor.order.assert().isEqualTo(Ordered.LOWEST_PRECEDENCE)
+        val eventBinding = EventStoreBinding(
             name = "custom-event-store",
             storage = null,
             eventStore = mockk<EventStore>(),
         )
-        val postProcessor = MetricsBeanPostProcessor()
+        val snapshotBinding = SnapshotStoreBinding(
+            name = "custom-snapshot-store",
+            storage = null,
+            snapshotStore = InMemorySnapshotStore(),
+        )
 
-        val metricBinding = postProcessor
-            .postProcessAfterInitialization(binding, "customEventStoreBinding") as EventStoreBinding
-        val processedAgain = postProcessor
-            .postProcessAfterInitialization(metricBinding, "customEventStoreBinding")
+        val meteredEventBinding = postProcessor.postProcessAfterInitialization(
+            eventBinding,
+            "customEventStoreBinding",
+        ) as EventStoreBinding
+        val meteredSnapshotBinding = postProcessor.postProcessAfterInitialization(
+            snapshotBinding,
+            "customSnapshotStoreBinding",
+        ) as SnapshotStoreBinding
 
-        metricBinding.eventStore.assert().isInstanceOf(MetricEventStore::class.java)
-        processedAgain.assert().isSameAs(metricBinding)
+        meteredEventBinding.eventStore.assert().isInstanceOf(Decorator::class.java)
+        meteredSnapshotBinding.snapshotStore.assert().isInstanceOf(Decorator::class.java)
+        postProcessor.postProcessAfterInitialization(meteredEventBinding, "customEventStoreBinding")
+            .assert()
+            .isSameAs(meteredEventBinding)
+        postProcessor.postProcessAfterInitialization(meteredSnapshotBinding, "customSnapshotStoreBinding")
+            .assert()
+            .isSameAs(meteredSnapshotBinding)
     }
 
     @Test
-    fun `metrics post processor should preserve inferred event store destruction`() {
+    fun `context should bind Wow metrics to its own meter registry`() {
+        val meterRegistry = SimpleMeterRegistry()
+
+        contextRunner
+            .enableWow()
+            .withBean(SimpleMeterRegistry::class.java, { meterRegistry })
+            .withUserConfiguration(MetricsAutoConfiguration::class.java)
+            .run { context: AssertableApplicationContext ->
+                context.assert()
+                    .hasSingleBean(WowMetrics::class.java)
+                    .hasSingleBean(MetricsBeanPostProcessor::class.java)
+                val metrics = context.getBean(WowMetrics::class.java)
+                metrics.enabled.assert().isTrue()
+                metrics.operation(
+                    Mono.just("value"),
+                    MetricDescriptor(component = "test", operation = "bind"),
+                ).block()
+                meterRegistry.find("wow.operation")
+                    .tag("component", "test")
+                    .tag("operation", "bind")
+                    .timer()
+                    .assert()
+                    .isNotNull()
+            }
+    }
+
+    @Test
+    fun `enabled metrics without a registry should remain a local no-op`() {
+        contextRunner
+            .enableWow()
+            .withUserConfiguration(MetricsAutoConfiguration::class.java)
+            .run { context ->
+                context.getBean(WowMetrics::class.java).assert().isSameAs(WowMetrics.NONE)
+                context.assert().hasSingleBean(MetricsBeanPostProcessor::class.java)
+            }
+    }
+
+    @Test
+    fun `disabled metrics should expose NONE and consistently omit post processor`() {
+        contextRunner
+            .enableWow()
+            .withBean(SimpleMeterRegistry::class.java, ::SimpleMeterRegistry)
+            .withPropertyValues("${ConditionalOnMetricsEnabled.ENABLED_KEY}=false")
+            .withUserConfiguration(MetricsAutoConfiguration::class.java)
+            .run { context ->
+                context.getBean(WowMetrics::class.java).assert().isSameAs(WowMetrics.NONE)
+                context.assert().doesNotHaveBean(MetricsBeanPostProcessor::class.java)
+            }
+    }
+
+    @Test
+    fun `disabled metrics should override a custom metrics bean`() {
+        val customMetrics = WowMetrics(SimpleMeterRegistry())
+
+        contextRunner
+            .enableWow()
+            .withBean(WowMetrics::class.java, { customMetrics })
+            .withPropertyValues("${ConditionalOnMetricsEnabled.ENABLED_KEY}=false")
+            .withUserConfiguration(MetricsAutoConfiguration::class.java)
+            .run { context ->
+                context.getBean(WowMetrics::class.java).assert().isSameAs(WowMetrics.NONE)
+                context.assert().doesNotHaveBean(MetricsBeanPostProcessor::class.java)
+            }
+    }
+
+    @Test
+    fun `Spring Boolean aliases should enable metrics consistently`() {
+        listOf("true", "on", "yes", "1").forEach { enabled ->
+            contextRunner
+                .enableWow()
+                .withBean(SimpleMeterRegistry::class.java, ::SimpleMeterRegistry)
+                .withPropertyValues("${ConditionalOnMetricsEnabled.ENABLED_KEY}=$enabled")
+                .withUserConfiguration(MetricsAutoConfiguration::class.java)
+                .run { context ->
+                    context.getBean(WowMetrics::class.java).enabled.assert().isTrue()
+                    context.assert().hasSingleBean(MetricsBeanPostProcessor::class.java)
+                }
+        }
+    }
+
+    @Test
+    fun `application contexts should isolate metrics enablement`() {
+        metricsContextRunner(enabled = false).run { disabledContext ->
+            metricsContextRunner(enabled = true).run { enabledContext ->
+                disabledContext.getBean(WowMetrics::class.java).enabled.assert().isFalse()
+                enabledContext.getBean(WowMetrics::class.java).enabled.assert().isTrue()
+            }
+        }
+    }
+
+    @Test
+    fun `post processor should preserve inferred event store destruction`() {
         val closeCount = AtomicInteger()
 
         contextRunner
             .enableWow()
+            .withBean(SimpleMeterRegistry::class.java, ::SimpleMeterRegistry)
             .withBean(
                 "closeableEventStore",
                 EventStore::class.java,
@@ -51,9 +175,7 @@ class MetricsAutoConfigurationTest {
             )
             .withUserConfiguration(MetricsAutoConfiguration::class.java)
             .run { context ->
-                context.getBean("closeableEventStore")
-                    .assert()
-                    .isInstanceOf(MetricEventStore::class.java)
+                context.getBean("closeableEventStore").assert().isInstanceOf(Decorator::class.java)
                 closeCount.get().assert().isEqualTo(0)
             }
 
@@ -61,170 +183,27 @@ class MetricsAutoConfigurationTest {
     }
 
     @Test
-    fun `metrics post processor should decorate raw snapshot store binding once`() {
-        val binding = SnapshotStoreBinding(
-            name = "custom-snapshot-store",
-            storage = null,
-            snapshotStore = InMemorySnapshotStore(),
-        )
-        val postProcessor = MetricsBeanPostProcessor()
-
-        val metricBinding = postProcessor
-            .postProcessAfterInitialization(binding, "customSnapshotStoreBinding") as SnapshotStoreBinding
-        val processedAgain = postProcessor
-            .postProcessAfterInitialization(metricBinding, "customSnapshotStoreBinding")
-
-        metricBinding.snapshotStore.assert().isInstanceOf(MetricSnapshotStore::class.java)
-        processedAgain.assert().isSameAs(metricBinding)
-    }
-
-    @Test
-    fun `should load context with metrics bean post processor`() {
-        contextRunner
-            .enableWow()
-            .withUserConfiguration(
-                MetricsAutoConfiguration::class.java,
-            )
-            .run { context: AssertableApplicationContext ->
-                context.assert()
-                    .hasSingleBean(MetricsBeanPostProcessor::class.java)
-            }
-    }
-
-    @Test
-    fun `should not load metrics bean when disabled`() {
-        val previousEnabled = Metrics.enabled
+    fun `auto configuration should back off for custom metrics beans`() {
+        val customMetrics = WowMetrics(SimpleMeterRegistry())
+        val customPostProcessor = MetricsBeanPostProcessor(customMetrics)
 
         contextRunner
             .enableWow()
-            .withPropertyValues(
-                "${ConditionalOnMetricsEnabled.ENABLED_KEY}=false",
-            )
-            .withBean(
-                "metricsEnabledAtBeanCreation",
-                Boolean::class.javaObjectType,
-                { Metrics.enabled },
-            )
-            .withUserConfiguration(
-                MetricsAutoConfiguration::class.java,
-            )
-            .run { context: AssertableApplicationContext ->
-                context.assert()
-                    .doesNotHaveBean(MetricsBeanPostProcessor::class.java)
-                context.getBean("metricsEnabledAtBeanCreation", Boolean::class.java)
-                    .assert()
-                    .isFalse()
-            }
-
-        Metrics.enabled.assert().isEqualTo(previousEnabled)
-    }
-
-    @Test
-    fun `metrics switch should use the same strict truth parsing as its condition`() {
-        val previousEnabled = Metrics.enabled
-
-        contextRunner
-            .enableWow()
-            .withPropertyValues(
-                "${ConditionalOnMetricsEnabled.ENABLED_KEY}=on",
-            ).withBean(
-                "metricsEnabledAtBeanCreation",
-                Boolean::class.javaObjectType,
-                { Metrics.enabled },
-            ).withUserConfiguration(
-                MetricsAutoConfiguration::class.java,
-            ).run { context: AssertableApplicationContext ->
-                context.assert()
-                    .doesNotHaveBean(MetricsBeanPostProcessor::class.java)
-                context.getBean("metricsEnabledAtBeanCreation", Boolean::class.java)
-                    .assert()
-                    .isFalse()
-            }
-
-        Metrics.enabled.assert().isEqualTo(previousEnabled)
-    }
-
-    @Test
-    fun `metrics should remain disabled until every disabling context closes`() {
-        val previousEnabled = Metrics.enabled
-        val disabledContextRunner = contextRunner
-            .enableWow()
-            .withPropertyValues(
-                "${ConditionalOnMetricsEnabled.ENABLED_KEY}=false",
-            ).withUserConfiguration(
-                MetricsAutoConfiguration::class.java,
-            )
-
-        disabledContextRunner.run { firstContext ->
-            disabledContextRunner.run {
-                firstContext.close()
-
-                Metrics.enabled.assert().isFalse()
-            }
-        }
-
-        Metrics.enabled.assert().isEqualTo(previousEnabled)
-    }
-
-    @Test
-    fun `metrics synchronizer destruction should be idempotent`() {
-        val previousEnabled = Metrics.enabled
-        val synchronizer = MetricsEnabledSynchronizer(enabled = false)
-
-        try {
-            Metrics.enabled.assert().isFalse()
-        } finally {
-            synchronizer.destroy()
-            synchronizer.destroy()
-        }
-
-        Metrics.enabled.assert().isEqualTo(previousEnabled)
-    }
-
-    @Test
-    fun `conflicting metrics contexts should fail instead of partially instrumenting`() {
-        val previousEnabled = Metrics.enabled
-
-        metricsContextRunner(enabled = false).run {
-            metricsContextRunner(enabled = true).run { conflictingContext ->
-                conflictingContext.assert().hasFailed()
-                Metrics.enabled.assert().isFalse()
-            }
-        }
-        Metrics.enabled.assert().isEqualTo(previousEnabled)
-
-        metricsContextRunner(enabled = true).run {
-            metricsContextRunner(enabled = false).run { conflictingContext ->
-                conflictingContext.assert().hasFailed()
-                Metrics.enabled.assert().isTrue()
-            }
-        }
-        Metrics.enabled.assert().isEqualTo(previousEnabled)
-    }
-
-    @Test
-    fun `should back off when custom metrics post processor exists`() {
-        contextRunner
-            .enableWow()
-            .withBean(
-                "customMetricsBeanPostProcessor",
-                MetricsBeanPostProcessor::class.java,
-                { MetricsBeanPostProcessor() },
-            )
+            .withBean(WowMetrics::class.java, { customMetrics })
+            .withBean(MetricsBeanPostProcessor::class.java, { customPostProcessor })
             .withUserConfiguration(MetricsAutoConfiguration::class.java)
-            .run { context: AssertableApplicationContext ->
-                context.assert().hasSingleBean(MetricsBeanPostProcessor::class.java)
+            .run { context ->
+                context.getBean(WowMetrics::class.java).assert().isSameAs(customMetrics)
+                context.getBean(MetricsBeanPostProcessor::class.java).assert().isSameAs(customPostProcessor)
             }
     }
 
     private fun metricsContextRunner(enabled: Boolean): ApplicationContextRunner =
         contextRunner
             .enableWow()
-            .withPropertyValues(
-                "${ConditionalOnMetricsEnabled.ENABLED_KEY}=$enabled",
-            ).withUserConfiguration(
-                MetricsAutoConfiguration::class.java,
-            )
+            .withBean(SimpleMeterRegistry::class.java, ::SimpleMeterRegistry)
+            .withPropertyValues("${ConditionalOnMetricsEnabled.ENABLED_KEY}=$enabled")
+            .withUserConfiguration(MetricsAutoConfiguration::class.java)
 }
 
 private class CloseableEventStore(

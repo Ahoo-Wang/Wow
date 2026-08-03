@@ -22,6 +22,7 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
 import me.ahoo.wow.serialization.MessageRecords
@@ -39,19 +40,24 @@ class MongoEventStore private constructor(
     private val appender: MongoEventStreamAppender,
 ) : AbstractEventStore(),
     Closeable {
-    constructor(database: MongoDatabase) : this(
+    constructor(
+        database: MongoDatabase,
+        metrics: WowMetrics = WowMetrics.NONE,
+    ) : this(
         database = database,
         batchOptions = MongoEventStoreBatchOptions(),
+        metrics = metrics,
     )
 
     constructor(
         database: MongoDatabase,
         batchOptions: MongoEventStoreBatchOptions,
+        metrics: WowMetrics = WowMetrics.NONE,
     ) : this(
         database = database,
         batchOptions = batchOptions,
         appender = if (batchOptions.enabled) {
-            BatchMongoEventStreamAppender(database, batchOptions)
+            BatchMongoEventStreamAppender(database, batchOptions, metrics = metrics)
         } else {
             DirectMongoEventStreamAppender(database)
         },

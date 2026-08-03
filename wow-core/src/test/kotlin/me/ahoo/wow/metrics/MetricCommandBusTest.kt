@@ -23,25 +23,24 @@ import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.wait.TestCommandMessage
 import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
-import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import org.junit.jupiter.api.Test
-import reactor.core.Scannable
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.test.StepVerifier
 import java.util.concurrent.TimeUnit
-import io.micrometer.core.instrument.Metrics as MicrometerMetrics
 
 class MetricCommandBusTest {
+    private val meterRegistry = SimpleMeterRegistry()
+    private val metrics = WowMetrics(meterRegistry)
 
     @Test
     fun `receiver preserves delegate readiness`() {
         val readiness = Sinks.empty<Void>()
         val command = TestCommandMessage(id = "command-id")
-        val receiver = MetricCommandBus(
-            RecordingLocalCommandBus(readiness = readiness.asMono()),
+        val receiver = metricCommandBus(
+            RecordingLocalCommandBus(readiness = readiness.asMono())
         ).receiver(
             MessageSubscription(command.aggregateId.namedAggregate),
         )
@@ -58,24 +57,28 @@ class MetricCommandBusTest {
         val delegate = RecordingLocalCommandBus()
         val subscription = MessageSubscription(command.aggregateId.namedAggregate)
 
-        MetricCommandBus(delegate).runtimeReceiver(subscription)
+        metricCommandBus(delegate).runtimeReceiver(subscription)
 
         delegate.runtimeSubscriptions.assert().containsExactly(subscription)
     }
 
     @Test
-    fun `send should name publisher and delegate command`() {
+    fun `send should record semantic metric and delegate command`() {
         val delegate = RecordingLocalCommandBus()
         val command = TestCommandMessage(id = "command-id")
-        val commandBus = MetricCommandBus(delegate)
+        val commandBus = metricCommandBus(delegate)
         val publisher = commandBus.send(command)
-
-        Scannable.from(publisher).name().assert().isEqualTo("wow.command.send")
 
         StepVerifier.create(publisher)
             .verifyComplete()
 
         delegate.sent.single().assert().isSameAs(command)
+        meterRegistry.get(WowMetricNames.OPERATION)
+            .tags("component", "command_bus", "operation", "send")
+            .timer()
+            .count()
+            .assert()
+            .isEqualTo(1)
     }
 
     @Test
@@ -85,7 +88,7 @@ class MetricCommandBusTest {
         val delegate = RecordingLocalCommandBus(
             receiveFlux = Flux.just(exchange)
         )
-        val commandBus = MetricCommandBus(delegate)
+        val commandBus = metricCommandBus(delegate)
         val subscription = MessageSubscription(command.aggregateId.namedAggregate, receiverGroup = "test-group")
         val publisher = commandBus.receive(subscription)
 
@@ -103,7 +106,7 @@ class MetricCommandBusTest {
         val delegate = RecordingLocalCommandBus(
             receiveFlux = Flux.just(exchange)
         )
-        val commandBus = MetricCommandBus(delegate)
+        val commandBus = metricCommandBus(delegate)
 
         StepVerifier.create(
             commandBus.receive(MessageSubscription(command.aggregateId.namedAggregate))
@@ -116,7 +119,7 @@ class MetricCommandBusTest {
     @Test
     fun `receive should use receiver group as default subscriber tag`() {
         withMeterRegistry { meterRegistry ->
-            val commandBus = MetricCommandBus(RecordingLocalCommandBus())
+            val commandBus = metricCommandBus(RecordingLocalCommandBus())
             val subscription = MessageSubscription(
                 MaterializedNamedAggregate("sales", "Order"),
                 receiverGroup = "order-handler",
@@ -125,16 +128,16 @@ class MetricCommandBusTest {
             commandBus.receive(subscription).blockLast()
 
             meterRegistry.receiveMeterIds()
-                .mapNotNull { it.getTag(Metrics.SUBSCRIBER_KEY) }
+                .mapNotNull { it.getTag(MetricDescriptor.SUBSCRIBER_TAG) }
                 .toSet()
                 .assert().containsExactly("order-handler")
         }
     }
 
     @Test
-    fun `receive should canonicalize aggregate tag order`() {
+    fun `receive should bound multiple aggregate cardinality`() {
         withMeterRegistry { meterRegistry ->
-            val commandBus = MetricCommandBus(RecordingLocalCommandBus())
+            val commandBus = metricCommandBus(RecordingLocalCommandBus())
             val inventory = MaterializedNamedAggregate("sales", "Inventory")
             val payment = MaterializedNamedAggregate("sales", "Payment")
 
@@ -144,10 +147,9 @@ class MetricCommandBusTest {
                 .blockLast()
 
             meterRegistry.receiveMeterIds()
-                .mapNotNull { it.getTag(Metrics.AGGREGATE_KEY) }
-                .filter { "Inventory" in it || "Payment" in it }
+                .mapNotNull { it.getTag(MetricDescriptor.AGGREGATE_TAG) }
                 .toSet()
-                .assert().containsExactly("Inventory,Payment")
+                .assert().containsExactly(MetricDescriptor.MULTIPLE)
         }
     }
 
@@ -155,7 +157,7 @@ class MetricCommandBusTest {
     fun `local command bus should delegate subscriber count and close`() {
         val command = TestCommandMessage(id = "command-id")
         val delegate = RecordingLocalCommandBus(subscribers = 3)
-        val commandBus = MetricLocalCommandBus(delegate)
+        val commandBus = MetricLocalCommandBus(delegate, metrics, "commandBus")
 
         commandBus.subscriberCount(command.aggregateId.namedAggregate).assert().isEqualTo(3)
 
@@ -168,7 +170,7 @@ class MetricCommandBusTest {
     fun `local command bus preserves atomic delivery receipt`() {
         val command = TestCommandMessage(id = "command-id")
         val delegate = RecordingLocalCommandBus(localDelivery = false)
-        val commandBus = MetricLocalCommandBus(delegate)
+        val commandBus = MetricLocalCommandBus(delegate, metrics, "commandBus")
 
         StepVerifier.create(commandBus.sendIfSubscribed(command))
             .expectNext(false)
@@ -179,19 +181,18 @@ class MetricCommandBusTest {
     }
 
     private fun withMeterRegistry(block: (SimpleMeterRegistry) -> Unit) {
-        val meterRegistry = SimpleMeterRegistry()
-        MicrometerMetrics.addRegistry(meterRegistry)
-        try {
-            block(meterRegistry)
-        } finally {
-            MicrometerMetrics.removeRegistry(meterRegistry)
-            meterRegistry.close()
-        }
+        meterRegistry.clear()
+        block(meterRegistry)
     }
 
     private fun SimpleMeterRegistry.receiveMeterIds() = meters
         .map { it.id }
-        .filter { it.name.startsWith("wow.command.receive") }
+        .filter { it.name == WowMetricNames.STREAM_MESSAGES }
+        .filter { it.getTag(MetricDescriptor.COMPONENT_TAG) == "command_bus" }
+        .filter { it.getTag(MetricDescriptor.OPERATION_TAG) == "receive" }
+
+    private fun metricCommandBus(delegate: RecordingLocalCommandBus): MetricCommandBus<LocalCommandBus> =
+        MetricCommandBus(delegate, metrics, "commandBus")
 }
 
 private class RecordingLocalCommandBus(

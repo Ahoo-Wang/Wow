@@ -22,6 +22,7 @@ import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.infra.batch.BatchOverflowException
 import me.ahoo.wow.infra.batch.BatchWriter
 import me.ahoo.wow.infra.batch.KeyedBatchCoordinator
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.serialization.toLinkedHashMap
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
@@ -33,6 +34,7 @@ internal class BatchElasticsearchEventStreamAppender(
     refreshPolicy: Refresh,
     private val options: ElasticsearchEventStoreBatchOptions,
     private val closeTimeout: Duration = DEFAULT_CLOSE_TIMEOUT,
+    metrics: WowMetrics = WowMetrics.NONE,
 ) : ElasticsearchEventStreamAppender {
     private data class MappedCloseTimeout(
         val source: BatchCloseTimeoutException,
@@ -63,6 +65,7 @@ internal class BatchElasticsearchEventStreamAppender(
                 refreshPolicy = refreshPolicy,
             )::write
         ),
+        metrics = metrics,
     )
 
     override fun append(eventStream: DomainEventStream): Mono<Void> {

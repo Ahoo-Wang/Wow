@@ -14,7 +14,6 @@
 package me.ahoo.wow.messaging.dispatcher
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.infra.lifecycle.TerminatedSignalCapable
 import me.ahoo.wow.infra.sink.terminated
@@ -22,7 +21,8 @@ import me.ahoo.wow.messaging.LocalDeliveryTicket
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.messaging.rejectLocalDelivery
 import me.ahoo.wow.messaging.takeLocalDeliveryTicket
-import me.ahoo.wow.metrics.Metrics
+import me.ahoo.wow.metrics.MetricDescriptor
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.runtime.RuntimeActivity
 import me.ahoo.wow.runtime.RuntimeContext
 import me.ahoo.wow.runtime.internal.RuntimeCleanupExecutor
@@ -97,6 +97,7 @@ import java.util.concurrent.atomic.AtomicReference
  * [start] after dispatcher demand opens.
  * @param processingQuiescence Prompt logical transport gate closed before
  * physical source cancellation is detached.
+ * @param metrics Instance-scoped metrics recorder for handled exchanges.
  *
  * @see MessageDispatcher for the interface this class implements
  * @see SafeSubscriber for error handling capabilities
@@ -109,6 +110,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
     private val messageReadiness: Mono<Void> = Mono.empty(),
     private val processingAdmission: () -> Unit = {},
     private val processingQuiescence: () -> Unit = {},
+    private val metrics: WowMetrics = WowMetrics.NONE,
 ) :
     SafeSubscriber<Void>(),
     MessageDispatcher,
@@ -157,6 +159,17 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
      * by the handleExchange() method implementation.
      */
     abstract val messageFlux: Flux<T>
+
+    private val handleMetricDescriptor by lazy {
+        MetricDescriptor(
+            component = "dispatcher",
+            operation = "handle",
+            context = namedAggregate.contextName,
+            aggregate = namedAggregate.aggregateName,
+            processor = name,
+            source = name,
+        )
+    }
 
     private val terminatedSink = Sinks.empty<Void>()
     private val stopRequestedSink = Sinks.empty<Void>()
@@ -371,8 +384,9 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
      * on the configured scheduler, and processes exchanges sequentially within
      * the group. Task counting is managed for graceful shutdown support.
      *
-     * Metrics are collected for monitoring dispatcher performance, including
-     * processing time, error rates, and throughput per group.
+     * Metrics are collected for monitoring dispatcher processing time and
+     * outcomes. Group keys are intentionally excluded from tags to keep label
+     * cardinality bounded.
      *
      * @param grouped The grouped flux of message exchanges to process
      * @return A Mono that completes when all exchanges in the group are handled
@@ -380,16 +394,14 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
     private fun handleGroupedExchange(grouped: GroupedFlux<Int, TrackedExchange<T>>): Mono<Void> =
         grouped
             .publishOn(scheduler)
-            .name(Wow.WOW_PREFIX + "dispatcher")
-            .tag("dispatcher", name)
-            .tag(Metrics.AGGREGATE_KEY, namedAggregate.aggregateName)
-            .metrics()
             .concatMap { trackedExchange ->
-                Mono.defer {
-                    handleExchange(trackedExchange.exchange)
-                }.doFinally {
-                    trackedExchange.complete()
+                val handledExchange = Mono.defer { handleExchange(trackedExchange.exchange) }
+                val measuredExchange = if (metrics.enabled) {
+                    metrics.operation(handledExchange, handleMetricDescriptor)
+                } else {
+                    handledExchange
                 }
+                measuredExchange.doFinally { trackedExchange.complete() }
             }.then()
 
     /**
