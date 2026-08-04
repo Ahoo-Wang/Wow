@@ -488,7 +488,7 @@ maintainers' roadmap.
 
 | Issue | Business Impact | Effort to Fix | Priority |
 | --- | --- | --- | --- |
-| Compensation history view is a stub | A complete operator audit trail cannot be claimed from the dashboard | Medium to large: define audit source, retention, and UI | P1 when auditability is a launch criterion |
+| Compensation history requires EventStream query support from the configured storage | The dashboard provides paged lifecycle history when the query is supported and reports it as unavailable otherwise; this is not a complete audit-retention policy | Medium: select a query-capable storage and define retention, access, and export controls | P1 when auditability is a launch criterion |
 | Example deployment image versions drift from root `8.10.1` | Adopters may test or deploy artifacts that do not match current source | Small to medium: align or label versions and add release checks | P1 |
 | Example compensation config contains inline credentials | Copying the example can expose reusable secrets | Small: replace with placeholders or secret references and scan manifests | P0 |
 | Compensation deployment requests one replica while its HPA minimum is two | Capacity and cost expectations differ between deployment files | Small: align the example and document intent | P2 |
@@ -500,7 +500,7 @@ Sources:
 - [deploy/compensation/deployment.yaml:8-26](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/compensation/deployment.yaml#L8-L26)
 - [deploy/example/perf/deployment.yaml:33-40](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/example/perf/deployment.yaml#L33-L40)
 - [compensation/dashboard/package.json:1-16](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/package.json#L1-L16)
-- [FailedHistory.tsx:14-16](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/FailedHistory.tsx#L14-L16)
+- [ExecutionHistory.tsx:119-383](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/history/ExecutionHistory.tsx#L119-L383)
 - [deploy/compensation/hpa.yaml:8-18](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/compensation/hpa.yaml#L8-L18)
 - [deploy/compensation/config.yaml:43-52](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/compensation/config.yaml#L43-L52)
 

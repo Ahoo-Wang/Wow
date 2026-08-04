@@ -398,7 +398,7 @@ README 样例运行两分钟，报告两个示例命令的发送/处理速率和
 | 限制 | 用户影响 | 变通方案 | 计划修复 |
 | --- | --- | --- | --- |
 | 补偿只覆盖符合条件的事件处理路径，不是通用回滚 | 不能把重试描述为撤销原业务动作 | 重试前要求业务安全判断 | 未声明 |
-| Dashboard 历史视图为 stub | 运营人员不能依赖它作为完整审计轨迹 | 使用已审批的外部审计流程 | 未声明 |
+| Dashboard 历史依赖所配置存储提供 EventStream 查询能力 | 支持查询时运营人员可查看分页生命周期记录，否则会看到明确的不可用状态；保留与导出仍由采用方负责 | 使用支持查询的存储和已审批的审计流程 | 存储相关 |
 | 示例镜像版本与根版本 `8.10.1` 不一致 | 示例行为可能与当前源码不匹配 | 从选定发布构建经过评审的制品 | 未声明 |
 | 补偿示例配置含内联凭据 | 复制示例可能暴露可复用 Secret | 替换为采用方 Secret 机制 | 未声明 |
 | 默认聚合删除不是通用事件擦除机制 | 删除操作可能不满足数据擦除义务 | 最小化受监管事件数据，并设计存储特定生命周期流程 | 未声明 |
@@ -415,12 +415,16 @@ README 样例运行两分钟，报告两个示例命令的发送/处理速率和
 - [CompensationFilter.kt:58-119](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/main/kotlin/me/ahoo/wow/compensation/core/CompensationFilter.kt#L58-L119)
 - [EventCompensateSupporter.kt:33-69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/compensation/EventCompensateSupporter.kt#L33-L69)
 
-### 运营历史尚不完整
+### 运营历史依赖存储能力
 
-当前补偿 Dashboard 的历史组件只是 stub。产品和运营团队不能假定完整审计历史
-体验已经存在。
+运营人员展开历史区域时，补偿 Dashboard 才会分页查询 EventStream 生命周期记录。
+界面提供加载、重试、分页，以及所配置存储不支持 EventStream 查询时的明确不可用
+状态。产品和运营团队仍须定义保留、访问和导出要求，才能把它作为审计轨迹。
 
-来源：[FailedHistory.tsx:14-16](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/FailedHistory.tsx#L14-L16)
+来源：
+
+- [ExecutionHistory.tsx:119-383](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/history/ExecutionHistory.tsx#L119-L383)
+- [executionFailedEventStreamClient.ts:17-33](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/services/executionFailedEventStreamClient.ts#L17-L33)
 
 ### 示例不是生产承诺
 
@@ -594,7 +598,8 @@ Wow 可以持久化事件 Body、事件元数据、聚合标识、租户标识�
 
 ### 7. Dashboard 中是否已有完整运营审计历史？
 
-不要这样假设。当前历史组件只是 stub，仓库也未声明组织审计政策。
+不要这样假设。所配置存储支持查询时，Dashboard 会提供分页 EventStream 生命周期
+记录，但仓库没有声明组织级保留、访问或导出政策。
 
 ### 8. 默认重试值是什么？
 

@@ -449,7 +449,7 @@ flowchart LR
 
 | 问题 | 业务影响 | 修复工作量 | 优先级 |
 | --- | --- | --- | --- |
-| 补偿历史视图为 stub | 不能依赖 Dashboard 宣称完整运营审计轨迹 | 中到大：定义审计源、保留和 UI | 审计为上线标准时 P1 |
+| 补偿历史依赖所配置存储提供 EventStream 查询能力 | 查询可用时 Dashboard 提供分页生命周期历史，否则明确显示不可用；该能力本身不等于完整审计保留政策 | 中：选择支持查询的存储，并定义保留、访问和导出控制 | 审计为上线标准时 P1 |
 | 示例部署镜像版本与根版本 `8.10.1` 漂移 | 采用方可能测试或部署不匹配当前源码的制品 | 小到中：对齐或标记版本并增加发布检查 | P1 |
 | 补偿示例配置含内联凭据 | 复制示例可能暴露可复用 Secret | 小：替换为占位或 Secret 引用，并扫描清单 | P0 |
 | 补偿部署声明一个副本，而 HPA 最小副本为两个 | 部署文件之间的容量和成本预期不一致 | 小：对齐示例并记录意图 | P2 |
@@ -461,7 +461,7 @@ flowchart LR
 - [deploy/compensation/deployment.yaml:8-26](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/compensation/deployment.yaml#L8-L26)
 - [deploy/example/perf/deployment.yaml:33-40](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/example/perf/deployment.yaml#L33-L40)
 - [compensation/dashboard/package.json:1-16](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/package.json#L1-L16)
-- [FailedHistory.tsx:14-16](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/FailedHistory.tsx#L14-L16)
+- [ExecutionHistory.tsx:119-383](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/history/ExecutionHistory.tsx#L119-L383)
 - [deploy/compensation/hpa.yaml:8-18](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/compensation/hpa.yaml#L8-L18)
 - [deploy/compensation/config.yaml:43-52](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/compensation/config.yaml#L43-L52)
 
