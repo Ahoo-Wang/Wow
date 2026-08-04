@@ -124,13 +124,13 @@ Jackson 2。Spring Boot 官方建议先使用 classic starter 作为短期编译
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
 // 更新 wow 版本
-implementation("me.ahoo.wow:wow-spring-boot-starter:8.10.1")
+implementation("me.ahoo.wow:wow-spring-boot-starter:8.10.2")
 ```
 ```xml [Maven]
 <dependency>
     <groupId>me.ahoo.wow</groupId>
     <artifactId>wow-spring-boot-starter</artifactId>
-    <version>8.10.1</version>
+    <version>8.10.2</version>
 </dependency>
 ```
 :::
