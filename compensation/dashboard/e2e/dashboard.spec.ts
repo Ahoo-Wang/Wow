@@ -115,6 +115,17 @@ test("loads the deterministic queue and responsive execution details", async ({
   await expect(page.getByText("656", { exact: true })).toBeVisible();
   await expect(page.getByText("v656", { exact: true })).toHaveCount(0);
   await expect(page.getByText("3 minutes (180 s)")).toBeVisible();
+  for (const [name, minHeight] of [
+    ["History", 56],
+    ["Execution context", 160],
+    ["Stack trace", 52],
+  ] as const) {
+    const section = page.getByRole("region", { name });
+    await expect(section).toBeVisible();
+    expect((await section.boundingBox())?.height).toBeGreaterThanOrEqual(
+      minHeight,
+    );
+  }
   await expect
     .poll(() => queryBody?.sort)
     .toEqual([{ field: "aggregateId", direction: "DESC" }]);

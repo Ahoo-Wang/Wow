@@ -41,7 +41,7 @@ export function FailedDetails({
         onChanged={onChanged}
       />
 
-      <div className="grid min-h-0 flex-1 content-start gap-3 overflow-y-auto p-3 sm:p-4">
+      <div className="grid min-h-0 flex-1 auto-rows-max gap-3 overflow-y-auto p-3 sm:p-4">
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
           <FailureSummary state={state} />
           <RecoveryStatus
