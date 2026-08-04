@@ -125,6 +125,57 @@ describe("ExecutionHistory", () => {
     expect(screen.getByText(/"errorCode": "TEST_ERROR"/)).toBeVisible();
   });
 
+  it("surfaces missing query capability instead of claiming an existing execution has no history", async () => {
+    mocks.query.mockResolvedValue({ total: 0, list: [] });
+
+    render(<ExecutionHistory executionId="failed-1" />);
+    fireEvent.click(screen.getByRole("button", { name: "Expand history" }));
+
+    expect(await screen.findByText("History unavailable")).toBeInTheDocument();
+    expect(
+      screen.getByText(/configured event storage.*EventStream queries/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("No history recorded")).not.toBeInTheDocument();
+  });
+
+  it("reloads the first page of expanded history when its refresh token changes", async () => {
+    mocks.query.mockResolvedValue({ total: 11, list: [stream] });
+    const { rerender } = render(
+      <ExecutionHistory executionId="failed-1" refreshToken={0} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Expand history" }));
+
+    await waitFor(() => expect(mocks.query).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "Next history page" }));
+    await waitFor(() => expect(mocks.query).toHaveBeenCalledTimes(2));
+
+    rerender(<ExecutionHistory executionId="failed-1" refreshToken={1} />);
+
+    await waitFor(() => expect(mocks.query).toHaveBeenCalledTimes(3));
+    expect(mocks.query.mock.calls[2][0].pagination).toEqual({
+      index: 1,
+      size: 10,
+    });
+  });
+
+  it("keeps history invalidation lazy while collapsed", async () => {
+    const { rerender } = render(
+      <ExecutionHistory executionId="failed-1" refreshToken={0} />,
+    );
+
+    rerender(<ExecutionHistory executionId="failed-1" refreshToken={1} />);
+
+    expect(mocks.query).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Expand history" }));
+
+    await waitFor(() => expect(mocks.query).toHaveBeenCalledTimes(1));
+    expect(mocks.query.mock.calls[0][0].pagination).toEqual({
+      index: 1,
+      size: 10,
+    });
+  });
+
   it("loads the next page while keeping pagination explicit", async () => {
     mocks.query.mockResolvedValue({ total: 11, list: [stream] });
     render(<ExecutionHistory executionId="failed-1" />);

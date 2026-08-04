@@ -13,6 +13,7 @@
 
 import type { ExecutionFailedState } from "../../../generated";
 import { ExecutionFailedStatus } from "../../../generated";
+import { useCallback, useState } from "react";
 import { ExecutionHistory } from "../history/ExecutionHistory.tsx";
 import type { OnChangedCapable } from "../types.ts";
 import { ErrorDetails } from "./ErrorDetails.tsx";
@@ -32,13 +33,18 @@ export function FailedDetails({
   mutationsDisabled,
 }: FailedDetailsProps) {
   const historicalFailure = state.status === ExecutionFailedStatus.SUCCEEDED;
+  const [historyRefreshToken, setHistoryRefreshToken] = useState(0);
+  const handleChanged = useCallback(() => {
+    setHistoryRefreshToken((current) => current + 1);
+    onChanged?.();
+  }, [onChanged]);
 
   return (
     <article className="flex h-full min-h-0 flex-col bg-slate-50/50">
       <FailedDetailsHeader
         state={state}
         mutationsDisabled={mutationsDisabled}
-        onChanged={onChanged}
+        onChanged={handleChanged}
       />
 
       <div className="grid min-h-0 flex-1 auto-rows-max gap-3 overflow-y-auto p-3 sm:p-4">
@@ -47,16 +53,20 @@ export function FailedDetails({
           <RecoveryStatus
             state={state}
             mutationsDisabled={mutationsDisabled}
-            onChanged={onChanged}
+            onChanged={handleChanged}
           />
         </div>
 
-        <ExecutionHistory key={state.id} executionId={state.id} />
+        <ExecutionHistory
+          key={state.id}
+          executionId={state.id}
+          refreshToken={historyRefreshToken}
+        />
 
         <ExecutionContext
           state={state}
           mutationsDisabled={mutationsDisabled}
-          onChanged={onChanged}
+          onChanged={handleChanged}
         />
 
         <ErrorDetails

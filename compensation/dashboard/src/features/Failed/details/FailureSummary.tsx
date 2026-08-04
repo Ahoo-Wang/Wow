@@ -72,7 +72,9 @@ export function FailureSummary({ state }: FailureSummaryProps) {
         </p>
         <dl className="mt-4 border-t pt-3">
           <div>
-            <dt className="text-xs text-slate-500">Executed</dt>
+            <dt className="text-xs text-slate-500">
+              {historical ? "Succeeded at" : "Failed at"}
+            </dt>
             <dd className="mt-1 text-sm tabular-nums text-slate-800">
               {formatDate(state.executeAt)}
             </dd>

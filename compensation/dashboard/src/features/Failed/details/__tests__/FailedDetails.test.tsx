@@ -17,7 +17,14 @@ vi.mock("@/components/GlobalDrawer", () => ({
 }));
 
 vi.mock("../../Actions.tsx", () => ({
-  Actions: () => <div>Actions</div>,
+  Actions: ({ onChanged }: { onChanged?: () => void }) => (
+    <div>
+      Actions
+      <button type="button" onClick={onChanged}>
+        Complete mutation
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock("../../MarkRecoverable.tsx", () => ({
@@ -45,9 +52,15 @@ vi.mock("../ErrorDetails.tsx", () => ({
 }));
 
 vi.mock("../../history/ExecutionHistory.tsx", () => ({
-  ExecutionHistory: ({ executionId }: { executionId: string }) => (
+  ExecutionHistory: ({
+    executionId,
+    refreshToken,
+  }: {
+    executionId: string;
+    refreshToken?: number;
+  }) => (
     <div role="region" aria-label="Execution history">
-      History: {executionId}
+      History: {executionId}; refresh: {refreshToken}
     </div>
   ),
 }));
@@ -145,7 +158,25 @@ describe("FailedDetails", () => {
   it("renders the selected execution history in the detail flow", () => {
     renderDetails();
 
-    expect(screen.getByText("History: test-id")).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Execution history" }),
+    ).toHaveTextContent("History: test-id; refresh: 0");
+  });
+
+  it("invalidates history after a successful execution mutation", () => {
+    const onChanged = vi.fn();
+    render(
+      <TooltipProvider>
+        <FailedDetails state={state} onChanged={onChanged} />
+      </TooltipProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Complete mutation" }));
+
+    expect(onChanged).toHaveBeenCalledOnce();
+    expect(
+      screen.getByRole("region", { name: "Execution history" }),
+    ).toHaveTextContent("History: test-id; refresh: 1");
   });
 
   it("keeps edit flows owned by their corresponding detail sections", () => {
@@ -182,6 +213,8 @@ describe("FailedDetails", () => {
     });
 
     expect(screen.getByText("2026-08-02 20:30:40")).toBeInTheDocument();
+    expect(screen.getByText("Failed at")).toBeInTheDocument();
+    expect(screen.queryByText("Executed")).not.toBeInTheDocument();
     expect(screen.getByText("Last: 2026-08-02 19:20:30")).toBeInTheDocument();
     expect(screen.getByText("2026-08-02 21:40:50")).toBeInTheDocument();
     expect(screen.queryByText(/ UTC$/)).not.toBeInTheDocument();
@@ -241,6 +274,8 @@ describe("FailedDetails", () => {
     );
     expect(screen.getByText("Succeeded")).toBeInTheDocument();
     expect(screen.getByText("Unrecoverable")).toBeInTheDocument();
+    expect(screen.getByText("Succeeded at")).toBeInTheDocument();
+    expect(screen.queryByText("Executed")).not.toBeInTheDocument();
     expect(
       screen.getByText("Error: TEST_ERROR (historical)"),
     ).toBeInTheDocument();

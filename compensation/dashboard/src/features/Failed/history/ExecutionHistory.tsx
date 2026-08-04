@@ -28,7 +28,7 @@ import {
   History,
   RefreshCw,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ExecutionFailedDomainEventType } from "../../../generated";
 import { queryExecutionFailedEventStreamPage } from "../../../services";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,7 @@ const PAGE_SIZE = 10;
 
 interface ExecutionHistoryProps {
   executionId: string;
+  refreshToken?: number;
 }
 
 type ExecutionEventStream = DomainEventStream<ExecutionFailedDomainEventType>;
@@ -115,7 +116,10 @@ function EventStreamCard({ stream }: { stream: ExecutionEventStream }) {
   );
 }
 
-export function ExecutionHistory({ executionId }: ExecutionHistoryProps) {
+export function ExecutionHistory({
+  executionId,
+  refreshToken = 0,
+}: ExecutionHistoryProps) {
   const [expanded, setExpanded] = useState(false);
   const [settledPageIndex, setSettledPageIndex] = useState(1);
   const [requestedPageIndex, setRequestedPageIndex] = useState(1);
@@ -125,19 +129,25 @@ export function ExecutionHistory({ executionId }: ExecutionHistoryProps) {
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error>();
+  const observedRefreshToken = useRef(refreshToken);
+  const activeRequestPageIndex = useRef(requestedPageIndex);
 
   useEffect(() => {
     if (!expanded) {
       return;
     }
 
+    const refreshRequested = observedRefreshToken.current !== refreshToken;
+    const targetPageIndex = refreshRequested ? 1 : requestedPageIndex;
+    observedRefreshToken.current = refreshToken;
+    activeRequestPageIndex.current = targetPageIndex;
     const abortController = new AbortController();
     let active = true;
     queryExecutionFailedEventStreamPage(
       pagedQuery({
         condition: aggregateId(executionId),
         sort: [desc(DomainEventStreamMetadataFields.VERSION)],
-        pagination: { index: requestedPageIndex, size: PAGE_SIZE },
+        pagination: { index: targetPageIndex, size: PAGE_SIZE },
       }),
       undefined,
       abortController,
@@ -145,7 +155,7 @@ export function ExecutionHistory({ executionId }: ExecutionHistoryProps) {
       .then((result) => {
         if (active) {
           setPage(result as PagedList<ExecutionEventStream>);
-          setSettledPageIndex(requestedPageIndex);
+          setSettledPageIndex(targetPageIndex);
           setError(undefined);
         }
       })
@@ -169,7 +179,13 @@ export function ExecutionHistory({ executionId }: ExecutionHistoryProps) {
       active = false;
       abortController.abort();
     };
-  }, [executionId, expanded, reloadToken, requestedPageIndex]);
+  }, [
+    executionId,
+    expanded,
+    refreshToken,
+    reloadToken,
+    requestedPageIndex,
+  ]);
 
   const loadPage = (nextPageIndex: number) => {
     setLoading(true);
@@ -266,7 +282,7 @@ export function ExecutionHistory({ executionId }: ExecutionHistoryProps) {
                 size="sm"
                 className="mt-4 bg-white"
                 aria-label="Retry history"
-                onClick={() => loadPage(requestedPageIndex)}
+                onClick={() => loadPage(activeRequestPageIndex.current)}
               >
                 <RefreshCw />
                 Retry
@@ -275,13 +291,15 @@ export function ExecutionHistory({ executionId }: ExecutionHistoryProps) {
           ) : null}
 
           {!loading && !error && page.list.length === 0 ? (
-            <div className="rounded-lg border border-dashed bg-white p-8 text-center">
-              <History className="mx-auto size-5 text-slate-400" />
-              <p className="mt-2 text-sm font-medium text-slate-700">
-                No history recorded
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-8 text-center">
+              <AlertCircle className="mx-auto size-5 text-amber-700" />
+              <p className="mt-2 text-sm font-medium text-amber-900">
+                History unavailable
               </p>
-              <p className="mt-1 text-xs text-slate-500">
-                No EventStream records were found for this execution.
+              <p className="mt-1 text-xs text-amber-800">
+                The configured event storage did not expose EventStream records
+                for this existing execution. Verify that it supports EventStream
+                queries.
               </p>
             </div>
           ) : null}
@@ -308,7 +326,7 @@ export function ExecutionHistory({ executionId }: ExecutionHistoryProps) {
                 size="sm"
                 className="bg-white"
                 aria-label="Retry history"
-                onClick={() => loadPage(requestedPageIndex)}
+                onClick={() => loadPage(activeRequestPageIndex.current)}
               >
                 <RefreshCw />
                 Retry
