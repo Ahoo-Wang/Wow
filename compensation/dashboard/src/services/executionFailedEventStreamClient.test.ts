@@ -11,50 +11,31 @@
  * limitations under the License.
  */
 
-import { aggregateId, pagedQuery } from "@ahoo-wang/fetcher-wow";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { queryExecutionFailedEventStreamPage } from "./executionFailedEventStreamClient.ts";
+import { describe, expect, it, vi } from "vitest";
+import { executionFailedEventStreamQueryClient } from "./executionFailedEventStreamClient.ts";
 
 const mocks = vi.hoisted(() => ({
+  client: {
+    count: vi.fn(),
+    list: vi.fn(),
+    listStream: vi.fn(),
+    paged: vi.fn(),
+  },
   createEventStreamQueryClient: vi.fn(),
-  paged: vi.fn(),
 }));
 
 vi.mock("../generated", () => ({
   executionFailedQueryClientFactory: {
     createEventStreamQueryClient:
-      mocks.createEventStreamQueryClient.mockReturnValue({
-        paged: mocks.paged,
-      }),
+      mocks.createEventStreamQueryClient.mockReturnValue(mocks.client),
   },
 }));
 
 describe("executionFailedEventStreamClient", () => {
-  beforeEach(() => {
-    mocks.paged.mockClear();
-  });
-
-  it("creates the EventStream REST client behind the dashboard service boundary", () => {
+  it("exposes the configured EventStreamQueryClient without narrowing its API", () => {
     expect(mocks.createEventStreamQueryClient).toHaveBeenCalledWith({
       contextAlias: "",
     });
-  });
-
-  it("delegates paged history queries with request context and cancellation", async () => {
-    const query = pagedQuery({ condition: aggregateId("failed-1") });
-    const attributes = { source: "history" };
-    const abortController = new AbortController();
-
-    await queryExecutionFailedEventStreamPage(
-      query,
-      attributes,
-      abortController,
-    );
-
-    expect(mocks.paged).toHaveBeenCalledWith(
-      query,
-      attributes,
-      abortController,
-    );
+    expect(executionFailedEventStreamQueryClient).toBe(mocks.client);
   });
 });
