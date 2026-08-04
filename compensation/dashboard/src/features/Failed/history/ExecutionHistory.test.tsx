@@ -11,7 +11,13 @@
  * limitations under the License.
  */
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import {
   RecoverableType,
   type DomainEventStream,
@@ -25,7 +31,9 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../../../services", () => ({
-  queryExecutionFailedEventStreamPage: mocks.query,
+  executionFailedEventStreamQueryClient: {
+    paged: mocks.query,
+  },
 }));
 
 const stream: DomainEventStream<ExecutionFailedDomainEventType> = {
@@ -158,6 +166,78 @@ describe("ExecutionHistory", () => {
     });
   });
 
+  it("cancels the stale EventStream query when a refresh starts", async () => {
+    const staleRequest = deferred<{
+      total: number;
+      list: DomainEventStream<ExecutionFailedDomainEventType>[];
+    }>();
+    let staleAbortController: AbortController | undefined;
+    mocks.query
+      .mockImplementationOnce(
+        (
+          _query: unknown,
+          _attributes: unknown,
+          abortController: AbortController,
+        ) => {
+          staleAbortController = abortController;
+          return staleRequest.promise;
+        },
+      )
+      .mockResolvedValueOnce({ total: 1, list: [nextPageStream] });
+
+    const { rerender } = render(
+      <ExecutionHistory executionId="failed-1" refreshToken={0} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Expand history" }));
+    await waitFor(() => expect(mocks.query).toHaveBeenCalledTimes(1));
+
+    rerender(<ExecutionHistory executionId="failed-1" refreshToken={1} />);
+
+    expect(await screen.findByText("Version 3")).toBeInTheDocument();
+    expect(staleAbortController?.signal.aborted).toBe(true);
+
+    await act(async () => {
+      staleRequest.resolve({ total: 1, list: [stream] });
+      await staleRequest.promise;
+    });
+    expect(screen.getByText("Version 3")).toBeInTheDocument();
+    expect(screen.queryByText("Version 2")).not.toBeInTheDocument();
+  });
+
+  it("cancels the in-flight EventStream query when history is collapsed", async () => {
+    const pendingRequest = deferred<{
+      total: number;
+      list: DomainEventStream<ExecutionFailedDomainEventType>[];
+    }>();
+    const observedRejection = pendingRequest.promise.catch(() => undefined);
+    let abortController: AbortController | undefined;
+    mocks.query.mockImplementationOnce(
+      (
+        _query: unknown,
+        _attributes: unknown,
+        nextAbortController: AbortController,
+      ) => {
+        abortController = nextAbortController;
+        return pendingRequest.promise;
+      },
+    );
+
+    render(<ExecutionHistory executionId="failed-1" />);
+    fireEvent.click(screen.getByRole("button", { name: "Expand history" }));
+    await waitFor(() => expect(mocks.query).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole("button", { name: "Collapse history" }));
+    const wasAborted = abortController?.signal.aborted;
+
+    await act(async () => {
+      const abortError = new Error("The operation was aborted");
+      abortError.name = "AbortError";
+      pendingRequest.reject(abortError);
+      await observedRejection;
+    });
+    expect(wasAborted).toBe(true);
+  });
+
   it("keeps history invalidation lazy while collapsed", async () => {
     const { rerender } = render(
       <ExecutionHistory executionId="failed-1" refreshToken={0} />,
@@ -181,7 +261,9 @@ describe("ExecutionHistory", () => {
     render(<ExecutionHistory executionId="failed-1" />);
     fireEvent.click(screen.getByRole("button", { name: "Expand history" }));
 
-    const next = await screen.findByRole("button", { name: "Next history page" });
+    const next = await screen.findByRole("button", {
+      name: "Next history page",
+    });
     fireEvent.click(next);
 
     await waitFor(() => expect(mocks.query).toHaveBeenCalledTimes(2));

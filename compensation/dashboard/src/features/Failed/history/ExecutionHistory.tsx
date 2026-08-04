@@ -11,14 +11,6 @@
  * limitations under the License.
  */
 
-import type { DomainEventStream, PagedList } from "@ahoo-wang/fetcher-wow";
-import {
-  aggregateId,
-  desc,
-  DomainEventStreamMetadataFields,
-  pagedList,
-  pagedQuery,
-} from "@ahoo-wang/fetcher-wow";
 import {
   AlertCircle,
   Braces,
@@ -28,27 +20,19 @@ import {
   History,
   RefreshCw,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import type { ExecutionFailedDomainEventType } from "../../../generated";
-import { queryExecutionFailedEventStreamPage } from "../../../services";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate } from "@/utils/dates";
-
-const PAGE_SIZE = 10;
+import {
+  EXECUTION_HISTORY_PAGE_SIZE,
+  type ExecutionEventStream,
+  useExecutionHistory,
+} from "./useExecutionHistory.ts";
 
 interface ExecutionHistoryProps {
   executionId: string;
   refreshToken?: number;
-}
-
-type ExecutionEventStream = DomainEventStream<ExecutionFailedDomainEventType>;
-
-function isAbortError(error: Error): boolean {
-  return (
-    error.name === "AbortError" ||
-    error.message.toLowerCase().includes("signal is aborted")
-  );
 }
 
 function EventStreamCard({ stream }: { stream: ExecutionEventStream }) {
@@ -64,7 +48,8 @@ function EventStreamCard({ stream }: { stream: ExecutionEventStream }) {
               Version {stream.version}
             </span>
             <span className="text-xs text-slate-500">
-              {stream.body.length} {stream.body.length === 1 ? "event" : "events"}
+              {stream.body.length}{" "}
+              {stream.body.length === 1 ? "event" : "events"}
             </span>
           </div>
           <p
@@ -121,83 +106,19 @@ export function ExecutionHistory({
   refreshToken = 0,
 }: ExecutionHistoryProps) {
   const [expanded, setExpanded] = useState(false);
-  const [settledPageIndex, setSettledPageIndex] = useState(1);
-  const [requestedPageIndex, setRequestedPageIndex] = useState(1);
-  const [reloadToken, setReloadToken] = useState(0);
-  const [page, setPage] = useState<PagedList<ExecutionEventStream>>(() =>
-    pagedList<ExecutionEventStream>(),
-  );
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error>();
-  const observedRefreshToken = useRef(refreshToken);
-  const activeRequestPageIndex = useRef(requestedPageIndex);
-
-  useEffect(() => {
-    if (!expanded) {
-      return;
-    }
-
-    const refreshRequested = observedRefreshToken.current !== refreshToken;
-    const targetPageIndex = refreshRequested ? 1 : requestedPageIndex;
-    observedRefreshToken.current = refreshToken;
-    activeRequestPageIndex.current = targetPageIndex;
-    const abortController = new AbortController();
-    let active = true;
-    queryExecutionFailedEventStreamPage(
-      pagedQuery({
-        condition: aggregateId(executionId),
-        sort: [desc(DomainEventStreamMetadataFields.VERSION)],
-        pagination: { index: targetPageIndex, size: PAGE_SIZE },
-      }),
-      undefined,
-      abortController,
-    )
-      .then((result) => {
-        if (active) {
-          setPage(result as PagedList<ExecutionEventStream>);
-          setSettledPageIndex(targetPageIndex);
-          setError(undefined);
-        }
-      })
-      .catch((reason: unknown) => {
-        if (!active) {
-          return;
-        }
-        const nextError =
-          reason instanceof Error ? reason : new Error(String(reason));
-        if (!isAbortError(nextError)) {
-          setError(nextError);
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setLoading(false);
-        }
-      });
-
-    return () => {
-      active = false;
-      abortController.abort();
-    };
-  }, [
-    executionId,
-    expanded,
-    refreshToken,
-    reloadToken,
-    requestedPageIndex,
-  ]);
-
-  const loadPage = (nextPageIndex: number) => {
-    setLoading(true);
-    setError(undefined);
-    setRequestedPageIndex(nextPageIndex);
-    setReloadToken((current) => current + 1);
-  };
+  const { error, loadPage, loading, page, retry, settledPageIndex } =
+    useExecutionHistory({
+      enabled: expanded,
+      executionId,
+      refreshToken,
+    });
 
   const firstItem =
-    page.total === 0 ? 0 : (settledPageIndex - 1) * PAGE_SIZE + 1;
+    page.total === 0
+      ? 0
+      : (settledPageIndex - 1) * EXECUTION_HISTORY_PAGE_SIZE + 1;
   const lastItem = Math.min(firstItem + page.list.length - 1, page.total);
-  const pageCount = Math.ceil(page.total / PAGE_SIZE);
+  const pageCount = Math.ceil(page.total / EXECUTION_HISTORY_PAGE_SIZE);
 
   return (
     <section
@@ -238,14 +159,7 @@ export function ExecutionHistory({
             size="sm"
             aria-label={expanded ? "Collapse history" : "Expand history"}
             aria-expanded={expanded}
-            onClick={() => {
-              if (!expanded) {
-                setLoading(true);
-                setError(undefined);
-                setRequestedPageIndex(settledPageIndex);
-              }
-              setExpanded((current) => !current);
-            }}
+            onClick={() => setExpanded((current) => !current)}
           >
             {expanded ? "Hide" : "View"}
             {expanded ? <ChevronDown /> : <ChevronRight />}
@@ -282,7 +196,7 @@ export function ExecutionHistory({
                 size="sm"
                 className="mt-4 bg-white"
                 aria-label="Retry history"
-                onClick={() => loadPage(activeRequestPageIndex.current)}
+                onClick={retry}
               >
                 <RefreshCw />
                 Retry
@@ -326,7 +240,7 @@ export function ExecutionHistory({
                 size="sm"
                 className="bg-white"
                 aria-label="Retry history"
-                onClick={() => loadPage(activeRequestPageIndex.current)}
+                onClick={retry}
               >
                 <RefreshCw />
                 Retry

@@ -11,22 +11,9 @@
  * limitations under the License.
  */
 
-import type { PagedQuery } from "@ahoo-wang/fetcher-wow";
 import { executionFailedQueryClientFactory } from "../generated";
 
-const executionFailedEventStreamQueryClient =
+export const executionFailedEventStreamQueryClient =
   executionFailedQueryClientFactory.createEventStreamQueryClient({
     contextAlias: "",
   });
-
-export function queryExecutionFailedEventStreamPage(
-  query: PagedQuery,
-  attributes?: Record<string, unknown>,
-  abortController?: AbortController,
-) {
-  return executionFailedEventStreamQueryClient.paged(
-    query,
-    attributes,
-    abortController,
-  );
-}
