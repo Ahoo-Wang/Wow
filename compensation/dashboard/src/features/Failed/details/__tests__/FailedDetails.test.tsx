@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FunctionKind, RecoverableType } from "@ahoo-wang/fetcher-wow";
 import {
   ExecutionFailedStatus,
@@ -8,12 +8,23 @@ import {
 import { FailedDetails } from "../FailedDetails.tsx";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
+const mocks = vi.hoisted(() => ({
+  openDrawer: vi.fn(),
+}));
+
 vi.mock("@/components/GlobalDrawer", () => ({
-  useGlobalDrawer: () => ({ openDrawer: vi.fn() }),
+  useGlobalDrawer: () => ({ openDrawer: mocks.openDrawer }),
 }));
 
 vi.mock("../../Actions.tsx", () => ({
-  Actions: () => <div>Actions</div>,
+  Actions: ({ onChanged }: { onChanged?: () => void }) => (
+    <div>
+      Actions
+      <button type="button" onClick={onChanged}>
+        Complete mutation
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock("../../MarkRecoverable.tsx", () => ({
@@ -26,13 +37,30 @@ vi.mock("../ErrorDetails.tsx", () => ({
   ErrorDetails: ({
     error,
     historical,
+    defaultExpanded,
   }: {
     error: { errorCode: string };
     historical?: boolean;
+    defaultExpanded?: boolean;
   }) => (
-    <div>
+    <div role="region" aria-label="Stack trace">
       Error: {error.errorCode}
       {historical ? " (historical)" : ""}
+      {defaultExpanded === false ? " (collapsed)" : ""}
+    </div>
+  ),
+}));
+
+vi.mock("../../history/ExecutionHistory.tsx", () => ({
+  ExecutionHistory: ({
+    executionId,
+    refreshToken,
+  }: {
+    executionId: string;
+    refreshToken?: number;
+  }) => (
+    <div role="region" aria-label="Execution history">
+      History: {executionId}; refresh: {refreshToken}
     </div>
   ),
 }));
@@ -85,6 +113,94 @@ function renderDetails(currentState: ExecutionFailedState = state) {
 }
 
 describe("FailedDetails", () => {
+  beforeEach(() => {
+    mocks.openDrawer.mockClear();
+  });
+
+  it("orders content by operational importance", () => {
+    renderDetails();
+
+    const failureSummary = screen.getByRole("region", {
+      name: "Failure summary",
+    });
+    const recoveryStatus = screen.getByRole("region", {
+      name: "Recovery status",
+    });
+    const history = screen.getByRole("region", {
+      name: "Execution history",
+    });
+    const executionContext = screen.getByRole("region", {
+      name: "Execution context",
+    });
+    const stackTrace = screen.getByRole("region", { name: "Stack trace" });
+
+    expect(within(failureSummary).getByText("TEST_ERROR")).toBeInTheDocument();
+    expect(within(failureSummary).getByText("Test error")).toBeInTheDocument();
+    expect(
+      failureSummary.compareDocumentPosition(recoveryStatus) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      recoveryStatus.compareDocumentPosition(history) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      history.compareDocumentPosition(executionContext) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      executionContext.compareDocumentPosition(stackTrace) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(stackTrace).toHaveTextContent("(collapsed)");
+  });
+
+  it("renders the selected execution history in the detail flow", () => {
+    renderDetails();
+
+    expect(
+      screen.getByRole("region", { name: "Execution history" }),
+    ).toHaveTextContent("History: test-id; refresh: 0");
+  });
+
+  it("invalidates history after a successful execution mutation", () => {
+    const onChanged = vi.fn();
+    render(
+      <TooltipProvider>
+        <FailedDetails state={state} onChanged={onChanged} />
+      </TooltipProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Complete mutation" }));
+
+    expect(onChanged).toHaveBeenCalledOnce();
+    expect(
+      screen.getByRole("region", { name: "Execution history" }),
+    ).toHaveTextContent("History: test-id; refresh: 1");
+  });
+
+  it("keeps edit flows owned by their corresponding detail sections", () => {
+    renderDetails();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit retry specification" }),
+    );
+    expect(mocks.openDrawer).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        title: "Apply retry specification",
+        width: 440,
+      }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit function" }));
+    expect(mocks.openDrawer).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        title: "Change function",
+        width: 500,
+      }),
+    );
+  });
+
   it("renders execution timestamps in the browser local time", () => {
     renderDetails({
       ...state,
@@ -97,6 +213,8 @@ describe("FailedDetails", () => {
     });
 
     expect(screen.getByText("2026-08-02 20:30:40")).toBeInTheDocument();
+    expect(screen.getByText("Failed at")).toBeInTheDocument();
+    expect(screen.queryByText("Executed")).not.toBeInTheDocument();
     expect(screen.getByText("Last: 2026-08-02 19:20:30")).toBeInTheDocument();
     expect(screen.getByText("2026-08-02 21:40:50")).toBeInTheDocument();
     expect(screen.queryByText(/ UTC$/)).not.toBeInTheDocument();
@@ -117,7 +235,9 @@ describe("FailedDetails", () => {
     expect(screen.queryByText("v1")).not.toBeInTheDocument();
     expect(screen.getByText(/Last:/)).toBeInTheDocument();
     expect(screen.getByText("Yes")).toBeInTheDocument();
-    expect(screen.getByText("Error: TEST_ERROR")).toBeInTheDocument();
+    expect(
+      screen.getByText("Error: TEST_ERROR (collapsed)"),
+    ).toBeInTheDocument();
   });
 
   it("renders tenant as read-only identity information", () => {
@@ -154,6 +274,8 @@ describe("FailedDetails", () => {
     );
     expect(screen.getByText("Succeeded")).toBeInTheDocument();
     expect(screen.getByText("Unrecoverable")).toBeInTheDocument();
+    expect(screen.getByText("Succeeded at")).toBeInTheDocument();
+    expect(screen.queryByText("Executed")).not.toBeInTheDocument();
     expect(
       screen.getByText("Error: TEST_ERROR (historical)"),
     ).toBeInTheDocument();

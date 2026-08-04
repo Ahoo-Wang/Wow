@@ -35,11 +35,20 @@ import { StackTraceEditor } from "./StackTraceEditor.tsx";
 export interface ErrorDetailsProps {
   error: ErrorDetailsModel;
   historical?: boolean;
+  defaultExpanded?: boolean;
 }
 
-export function ErrorDetails({ error, historical = false }: ErrorDetailsProps) {
+export function ErrorDetails({
+  error,
+  historical = false,
+  defaultExpanded,
+}: ErrorDetailsProps) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const [expanded, setExpanded] = useState(!historical);
+  const expandedContentRef = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState(
+    defaultExpanded ?? !historical,
+  );
+  const previousExpandedRef = useRef(expanded);
   const [fullscreen, setFullscreen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [wrapLongLines, setWrapLongLines] = useState(true);
@@ -51,6 +60,31 @@ export function ErrorDetails({ error, historical = false }: ErrorDetailsProps) {
     document.addEventListener("fullscreenchange", update);
     return () => document.removeEventListener("fullscreenchange", update);
   }, []);
+
+  useEffect(() => {
+    const shouldRevealContent = expanded && !previousExpandedRef.current;
+    previousExpandedRef.current = expanded;
+    if (shouldRevealContent) {
+      expandedContentRef.current?.scrollIntoView({ block: "nearest" });
+    }
+  }, [expanded]);
+
+  const toggleExpanded = async () => {
+    if (!expanded) {
+      setExpanded(true);
+      return;
+    }
+
+    if (document.fullscreenElement === panelRef.current) {
+      try {
+        await document.exitFullscreen();
+      } catch {
+        toast.error("Unable to change fullscreen mode");
+        return;
+      }
+    }
+    setExpanded(false);
+  };
 
   const toggleFullscreen = async () => {
     try {
@@ -79,6 +113,7 @@ export function ErrorDetails({ error, historical = false }: ErrorDetailsProps) {
         .length
     : 0;
   const title = historical ? "Last failure" : "Stack trace";
+  const collapsible = historical || defaultExpanded !== undefined;
 
   return (
     <section
@@ -92,16 +127,18 @@ export function ErrorDetails({ error, historical = false }: ErrorDetailsProps) {
     >
       <div className="flex min-h-13 items-center justify-between border-b px-4">
         <div className="flex min-w-0 items-center gap-2">
-          {historical ? (
+          {collapsible ? (
             <Button
               type="button"
               variant="ghost"
               size="icon-sm"
               aria-label={
-                expanded ? "Collapse last failure" : "Expand last failure"
+                expanded
+                  ? `Collapse ${title.toLowerCase()}`
+                  : `Expand ${title.toLowerCase()}`
               }
               aria-expanded={expanded}
-              onClick={() => setExpanded((current) => !current)}
+              onClick={() => void toggleExpanded()}
             >
               {expanded ? <ChevronDown /> : <ChevronRight />}
             </Button>
@@ -156,7 +193,10 @@ export function ErrorDetails({ error, historical = false }: ErrorDetailsProps) {
         </div>
       </div>
       {expanded ? (
-        <>
+        <div
+          ref={expandedContentRef}
+          className="flex min-h-0 flex-1 flex-col"
+        >
           <div className="flex flex-wrap items-center gap-2 border-b bg-slate-50 px-3 py-2">
             <div className="min-w-[180px] flex-1">
               <Input
@@ -199,7 +239,7 @@ export function ErrorDetails({ error, historical = false }: ErrorDetailsProps) {
               wrapLongLines={wrapLongLines}
             />
           </div>
-        </>
+        </div>
       ) : null}
     </section>
   );
