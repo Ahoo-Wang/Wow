@@ -52,6 +52,34 @@ const execution = {
   isRetryable: true,
 };
 
+const executionHistory = {
+  id: "history-stream-e2e-2",
+  aggregateId: execution.id,
+  aggregateName: "execution_failed",
+  contextName: "compensation",
+  tenantId: "(0)",
+  ownerId: "",
+  spaceId: "",
+  commandId: "history-command-e2e-2",
+  requestId: "history-request-e2e-2",
+  version: 2,
+  createTime: 1_735_000_180_000,
+  header: {},
+  body: [
+    {
+      id: "history-event-e2e-2",
+      name: "execution_failed_applied",
+      bodyType: "compensation.execution_failed.ExecutionFailedApplied",
+      revision: "1.0.0",
+      body: {
+        executeAt: 1_735_000_180_000,
+        recoverable: "RECOVERABLE",
+        error: execution.error,
+      },
+    },
+  ],
+};
+
 async function openDetails(page: Page, projectName: string) {
   if (projectName === "mobile-chromium") {
     await page
@@ -146,6 +174,35 @@ test("copies identifiers when the Clipboard API is unavailable", async ({
       .toBe(value);
   }
   await expect(page.getByText(/^Unable to copy/)).toHaveCount(0);
+});
+
+test("loads lifecycle history through the paged EventStream REST API", async ({
+  page,
+}, testInfo) => {
+  let historyQuery: Record<string, unknown> | undefined;
+  await page.route("**/execution_failed/snapshot/paged/state", (route) =>
+    route.fulfill({ json: { total: 1, list: [execution] } }),
+  );
+  await page.route("**/execution_failed/event/paged", async (route) => {
+    historyQuery = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({ json: { total: 1, list: [executionHistory] } });
+  });
+
+  await page.goto("/to-retry");
+  await openDetails(page, testInfo.project.name);
+  await page.getByRole("button", { name: "Expand history" }).click();
+
+  await expect(page.getByText("execution_failed_applied")).toBeVisible();
+  await expect(page.getByText("Version 2")).toBeVisible();
+  await page.getByText("Event payload").click();
+  await expect(page.getByText(/"errorCode": "E2E_ERROR"/)).toBeVisible();
+  await expect
+    .poll(() => historyQuery)
+    .toMatchObject({
+      condition: { operator: "AGGREGATE_ID", value: execution.id },
+      sort: [{ field: "version", direction: "DESC" }],
+      pagination: { index: 1, size: 10 },
+    });
 });
 
 test("keeps prepared actions independent of the browser clock", async ({

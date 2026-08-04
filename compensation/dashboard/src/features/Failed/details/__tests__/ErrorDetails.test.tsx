@@ -35,6 +35,10 @@ function renderErrorDetails() {
 describe("ErrorDetails", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Object.defineProperty(document, "fullscreenElement", {
+      configurable: true,
+      value: null,
+    });
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
       value: { writeText: mocks.writeText },
@@ -106,6 +110,56 @@ describe("ErrorDetails", () => {
     });
   });
 
+  it("exits fullscreen before collapsing the stack trace", async () => {
+    mocks.exitFullscreen.mockResolvedValue(undefined);
+    render(
+      <TooltipProvider>
+        <ErrorDetails error={error} defaultExpanded />
+      </TooltipProvider>,
+    );
+    const panel = screen.getByRole("region", { name: "Stack trace" });
+    Object.defineProperty(document, "fullscreenElement", {
+      configurable: true,
+      value: panel,
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Collapse stack trace" }),
+    );
+
+    await waitFor(() => expect(mocks.exitFullscreen).toHaveBeenCalledOnce());
+    expect(
+      screen.queryByRole("region", { name: "Stack trace content" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the fullscreen stack trace expanded when exiting fails", async () => {
+    mocks.exitFullscreen.mockRejectedValue(new Error("exit denied"));
+    render(
+      <TooltipProvider>
+        <ErrorDetails error={error} defaultExpanded />
+      </TooltipProvider>,
+    );
+    const panel = screen.getByRole("region", { name: "Stack trace" });
+    Object.defineProperty(document, "fullscreenElement", {
+      configurable: true,
+      value: panel,
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Collapse stack trace" }),
+    );
+
+    await waitFor(() =>
+      expect(mocks.toastError).toHaveBeenCalledWith(
+        "Unable to change fullscreen mode",
+      ),
+    );
+    expect(
+      screen.getByRole("region", { name: "Stack trace content" }),
+    ).toBeInTheDocument();
+  });
+
   it("collapses a historical failure by default and can reveal it", () => {
     render(
       <TooltipProvider>
@@ -126,6 +180,30 @@ describe("ErrorDetails", () => {
     expect(
       screen.getByRole("region", { name: "Stack trace content" }),
     ).toBeInTheDocument();
+  });
+
+  it("reveals the deferred stack trace in the nearest viewport", () => {
+    const scrollIntoView = vi.mocked(HTMLElement.prototype.scrollIntoView);
+    render(
+      <TooltipProvider>
+        <ErrorDetails error={error} defaultExpanded={false} />
+      </TooltipProvider>,
+    );
+
+    expect(
+      screen.queryByRole("region", { name: "Stack trace content" }),
+    ).not.toBeInTheDocument();
+
+    const expandButton = screen.getByRole("button", {
+      name: "Expand stack trace",
+    });
+    expandButton.focus();
+    fireEvent.click(expandButton);
+    expect(
+      screen.getByRole("region", { name: "Stack trace content" }),
+    ).toBeInTheDocument();
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
+    expect(expandButton).toHaveFocus();
   });
 
   it("searches matching stack lines and toggles line wrapping", () => {
