@@ -1,6 +1,6 @@
 plugins {
     kotlin("jvm") version "2.4.10"
-    id("org.springframework.boot") version "4.1.0"
+    id("org.springframework.boot") version "4.0.6"
 }
 
 repositories {
