@@ -11,6 +11,9 @@
   "commitMessagePrefix": "fix(deps)",
   "commitMessageTopic": "{{depName}}",
   "rangeStrategy": "bump",
+  "ignorePaths": [
+    "skills/wow-migrate/evals/fixtures/**"
+  ],
   "minimumReleaseAge": "12 hours",
   "prHourlyLimit": 10,
   "prConcurrentLimit": 20,
