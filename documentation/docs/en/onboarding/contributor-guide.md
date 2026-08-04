@@ -31,7 +31,7 @@ Use the repository wrapper and toolchain rather than installing arbitrary global
 
 | Component | Repository baseline | Source |
 | --- | --- | --- |
-| Wow | `8.10.0` | [`gradle.properties`](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties#L18-L23) |
+| Wow | `8.10.1` | [`gradle.properties`](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties#L18-L23) |
 | Kotlin | `2.4.10` | [version catalog](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L23-L35) |
 | Spring Boot | `4.1.0` | [version catalog](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L1-L5) |
 | Gradle | `9.6.1` | [wrapper properties](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/wrapper/gradle-wrapper.properties#L1-L9) |
