@@ -16,8 +16,10 @@ package me.ahoo.wow.query.converter
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.query.dsl.condition
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class ConditionConverterTest {
 
@@ -66,6 +68,10 @@ class ConditionConverterTest {
 
         fun testInternalConvert(condition: Condition): Pair<String, Condition> {
             return internalConvert(condition)
+        }
+
+        fun testConvertWithoutGuard(condition: Condition): Pair<String, Condition> {
+            return convertWithoutGuard(condition)
         }
     }
 
@@ -234,5 +240,121 @@ class ConditionConverterTest {
         guardedConverter.calls.first().first.assert().isEqualTo("and")
         val guarded = guardedConverter.calls.first().second
         guarded.children.first().operator.assert().isEqualTo(Condition.ACTIVE.operator)
+    }
+
+    @Test
+    fun `should reject empty logical conditions recursively`() {
+        listOf(Operator.AND, Operator.OR, Operator.NOR).forEach { operator ->
+            val exception = assertThrows<IllegalArgumentException> {
+                converter.convert(
+                    Condition.and(
+                        Condition.eq("field", "value"),
+                        Condition(operator = operator),
+                    )
+                )
+            }
+            exception.message.assert().isEqualTo("$operator operator requires at least one child condition.")
+        }
+    }
+
+    @Test
+    fun `should recursively validate conversions without deletion guard`() {
+        val exception = assertThrows<IllegalArgumentException> {
+            converter.testConvertWithoutGuard(
+                Condition.and(
+                    Condition.eq("field", "value"),
+                    Condition("nested", Operator.EXISTS, "true"),
+                )
+            )
+        }
+        exception.message.assert().isEqualTo("EXISTS operator requires value to be a Boolean.")
+    }
+
+    @Test
+    fun `should validate fixed arity operators`() {
+        listOf(
+            Condition("field", Operator.BETWEEN, "1,2"),
+            Condition("field", Operator.BETWEEN, listOf(1)),
+            Condition("field", Operator.BETWEEN, listOf(1, 2, 3)),
+        ).forEach { condition ->
+            val exception = assertThrows<IllegalArgumentException> {
+                converter.testInternalConvert(condition)
+            }
+            exception.message.assert().isEqualTo(
+                "BETWEEN operator requires value to be an Iterable with exactly 2 elements."
+            )
+        }
+
+        listOf(
+            Condition("items", Operator.ELEM_MATCH),
+            Condition(
+                "items",
+                Operator.ELEM_MATCH,
+                children = listOf(Condition.ALL, Condition.ALL),
+            ),
+        ).forEach { condition ->
+            val elemMatchException = assertThrows<IllegalArgumentException> {
+                converter.testInternalConvert(condition)
+            }
+            elemMatchException.message.assert().isEqualTo(
+                "ELEM_MATCH operator requires exactly one child condition."
+            )
+        }
+    }
+
+    @Test
+    fun `should validate operator value types`() {
+        val invalidConditions = listOf(
+            Condition(operator = Operator.ID, value = 1) to
+                "ID operator requires value to be a String.",
+            Condition(operator = Operator.IDS, value = listOf("id", 1)) to
+                "IDS operator requires value to be an Iterable of String values.",
+            Condition("field", Operator.IN, "value") to
+                "IN operator requires value to be an Iterable.",
+            Condition("field", Operator.CONTAINS, 1) to
+                "CONTAINS operator requires value to be a String.",
+            Condition("field", Operator.EXISTS, "true") to
+                "EXISTS operator requires value to be a Boolean.",
+            Condition("field", Operator.RECENT_DAYS, 0) to
+                "RECENT_DAYS operator requires value to be a positive whole number.",
+            Condition("field", Operator.EARLIER_DAYS, 1.5) to
+                "EARLIER_DAYS operator requires value to be a positive whole number.",
+        )
+
+        invalidConditions.forEach { (condition, expectedMessage) ->
+            val exception = assertThrows<IllegalArgumentException> {
+                converter.testInternalConvert(condition)
+            }
+            exception.message.assert().isEqualTo(expectedMessage)
+        }
+    }
+
+    @Test
+    fun `should validate standard option types`() {
+        val invalidConditions = listOf(
+            Condition(
+                "field",
+                Operator.CONTAINS,
+                "value",
+                options = mapOf(Condition.IGNORE_CASE_OPTION_KEY to "true"),
+            ) to "CONTAINS operator requires option 'ignoreCase' to be a Boolean.",
+            Condition(
+                "field",
+                Operator.TODAY,
+                options = mapOf(Condition.ZONE_ID_OPTION_KEY to 8),
+            ) to "TODAY operator requires option 'zoneId' to be a String or ZoneId.",
+            Condition(
+                "field",
+                Operator.TODAY,
+                options = mapOf(Condition.DATE_PATTERN_OPTION_KEY to 8),
+            ) to "TODAY operator requires option 'datePattern' to be a String or DateTimeFormatter.",
+        )
+
+        invalidConditions.forEach { (condition, expectedMessage) ->
+            val exception = assertThrows<IllegalArgumentException> {
+                converter.testInternalConvert(condition)
+            }
+            exception.message.assert().isEqualTo(expectedMessage)
+        }
     }
 }

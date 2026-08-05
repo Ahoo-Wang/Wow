@@ -57,6 +57,21 @@ description: 通过 wow-mongo 和 wow-elasticsearch 模块提供的查询服务�
 | RECENT_DAYS   | 匹配字段在指定值最近天数范围区间的所有文档。比如：`today` : `2024-06-06`，近三天，匹配范围 : `2024-06-04 00:00:00.000` ~ `2024-06-06 23:59:59.999` 的所有文档。即 : 今天、昨天、前天 |
 | EARLIER_DAYS  | 匹配字段在指定值之前天数范围的所有文档。比如：`today` : `2024-06-06`，前三天，匹配范围 : 小于`2024-06-04 00:00:00.000`的所有文档                                           |
 
+### 跨存储语义合同
+
+MongoDB 是通用查询操作符的语义基准。`wow-mongo` 与 `wow-elasticsearch` 对共同操作符遵循以下合同：
+
+- `AND`、`OR`、`NOR` 至少包含一个子条件，`BETWEEN` 必须包含两个边界，`ELEM_MATCH` 必须包含一个子条件；无效输入统一抛出 `IllegalArgumentException`。
+- `IDS`、`IN`、`ALL_IN` 的空集合不匹配任何文档；`NOT_IN` 的空集合匹配所有文档。`ALL_IN` 中的重复查询值不增加匹配要求。
+- `CONTAINS`、`STARTS_WITH`、`ENDS_WITH` 是字面量字符串操作；`*`、`?`、`\` 不作为通配符输入解释，并支持 `ignoreCase`。
+- `MATCH` 与 `RAW` 保留存储后端原生语义，不属于跨存储等价合同。
+
+Elasticsearch 需要满足对应的索引合同：精确比较和上述字符串操作应查询 `keyword` 字段；`ELEM_MATCH` 的数组字段必须显式映射为 `nested`，子条件使用相对于数组元素的字段名。Wow 的默认快照模板会将**新索引**中的动态字符串映射为 `keyword`；需要全文检索的字段应在业务模板中显式映射为 `text`，并通过 `MATCH` 查询。
+
+:::warning 可移植性边界
+MongoDB 与 Elasticsearch 对“字段缺失、显式 `null`、空数组、仅包含 `null` 的数组”的索引模型不同，因此 `NULL`、`NOT_NULL`、`EXISTS` 在这些值上不能保证完全等价。需要跨后端可移植时，建议把业务状态建模为显式状态字段。Elasticsearch 的 `CONTAINS` 和 `ENDS_WITH` 使用前导通配符，可能代价较高；高流量场景应采用专用索引字段或搜索分析方案。
+:::
+
 ## Query DSL
 
 `Query DSL` 旨在提供一种简洁而灵活的方式来构建查询条件。

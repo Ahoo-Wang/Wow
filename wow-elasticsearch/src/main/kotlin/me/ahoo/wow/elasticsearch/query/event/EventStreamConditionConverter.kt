@@ -15,6 +15,7 @@ package me.ahoo.wow.elasticsearch.query.event
 
 import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchNone
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.term
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.terms
 import me.ahoo.wow.api.query.Condition
@@ -22,7 +23,7 @@ import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchConditionConverter
 import me.ahoo.wow.serialization.MessageRecords
 
 object EventStreamConditionConverter : AbstractElasticsearchConditionConverter() {
-    override fun convert(condition: Condition): Query = internalConvert(condition)
+    override fun convert(condition: Condition): Query = convertWithoutGuard(condition)
 
     override fun id(condition: Condition): Query {
         return term {
@@ -32,10 +33,14 @@ object EventStreamConditionConverter : AbstractElasticsearchConditionConverter()
     }
 
     override fun ids(condition: Condition): Query {
+        val values = condition.valueAs<Iterable<String>>().toList()
+        if (values.isEmpty()) {
+            return matchNone { it }
+        }
         return terms {
             it.field(MessageRecords.ID)
                 .terms { builder ->
-                    condition.valueAs<List<String>>().map {
+                    values.map {
                         FieldValue.of(it)
                     }.let { builder.value(it) }
                 }
@@ -50,10 +55,14 @@ object EventStreamConditionConverter : AbstractElasticsearchConditionConverter()
     }
 
     override fun aggregateIds(condition: Condition): Query {
+        val values = condition.valueAs<Iterable<String>>().toList()
+        if (values.isEmpty()) {
+            return matchNone { it }
+        }
         return terms {
             it.field(MessageRecords.AGGREGATE_ID)
                 .terms { builder ->
-                    condition.valueAs<List<String>>().map {
+                    values.map {
                         FieldValue.of(it)
                     }.toList().let { builder.value(it) }
                 }

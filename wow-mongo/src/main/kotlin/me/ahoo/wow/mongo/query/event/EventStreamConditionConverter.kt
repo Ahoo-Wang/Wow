@@ -24,7 +24,7 @@ object EventStreamConditionConverter : AbstractMongoConditionConverter() {
     override val fieldConverter: FieldConverter = EventStreamFieldConverter
     override fun convert(condition: Condition): Bson {
         val convertedCondition = convertCondition(condition)
-        return internalConvert(convertedCondition)
+        return convertWithoutGuard(convertedCondition)
     }
 
     override fun aggregateId(condition: Condition): Bson {

@@ -20,7 +20,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.exists
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.ids
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.match
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
-import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchPhrase
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchNone
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.nested
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.prefix
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.range
@@ -159,6 +159,14 @@ class ElasticsearchConditionConverterTest {
                 it.values("1", "2")
             }
         )
+    }
+
+    @Test
+    fun `empty ids condition to match none`() {
+        val query = Condition.ids(emptyList()).let {
+            SnapshotConditionConverter.convert(it)
+        }
+        assertConvert(query, matchNone { it })
     }
 
     @Test
@@ -304,15 +312,16 @@ class ElasticsearchConditionConverterTest {
     @Test
     fun `contains condition to Query`() {
         val query = condition {
-            "field" contains "value"
+            "field".contains("va*l?ue\\", ignoreCase = true)
         }.let {
             SnapshotConditionConverter.convert(it)
         }
         assertConvert(
             query,
-            matchPhrase {
+            wildcard {
                 it.field("field")
-                    .query("value")
+                    .value("*va\\*l\\?ue\\\\*")
+                    .caseInsensitive(true)
             }
         )
     }
@@ -335,6 +344,22 @@ class ElasticsearchConditionConverterTest {
                     }
             }
         )
+    }
+
+    @Test
+    fun `empty isIn condition to match none`() {
+        val query = Condition.isIn("field", emptyList()).let {
+            SnapshotConditionConverter.convert(it)
+        }
+        assertConvert(query, matchNone { it })
+    }
+
+    @Test
+    fun `empty notIn condition to match all`() {
+        val query = Condition.notIn("field", emptyList()).let {
+            SnapshotConditionConverter.convert(it)
+        }
+        assertConvert(query, matchAll { it })
     }
 
     @Test
@@ -373,7 +398,9 @@ class ElasticsearchConditionConverterTest {
                 SnapshotConditionConverter.convert(it)
             }
         }
-        exception.message.assert().isEqualTo("BETWEEN operator value must be a array with 2 elements.")
+        exception.message.assert().isEqualTo(
+            "BETWEEN operator requires value to be an Iterable with exactly 2 elements."
+        )
     }
 
     @Test
@@ -383,13 +410,15 @@ class ElasticsearchConditionConverterTest {
                 SnapshotConditionConverter.convert(it)
             }
         }
-        exception.message.assert().isEqualTo("BETWEEN operator value must be a array with 2 elements.")
+        exception.message.assert().isEqualTo(
+            "BETWEEN operator requires value to be an Iterable with exactly 2 elements."
+        )
     }
 
     @Test
     fun `allIn condition to Query`() {
         val query = condition {
-            "field" all listOf("value1", "value2")
+            "field" all listOf("value1", "value1", "value2")
         }.let {
             SnapshotConditionConverter.convert(it)
         }
@@ -404,9 +433,17 @@ class ElasticsearchConditionConverterTest {
     }
 
     @Test
+    fun `empty allIn condition to match none`() {
+        val query = Condition.all("field", emptyList()).let {
+            SnapshotConditionConverter.convert(it)
+        }
+        assertConvert(query, matchNone { it })
+    }
+
+    @Test
     fun `startsWith condition to Query`() {
         val query = condition {
-            "field" startsWith "value"
+            "field".startsWith("value", ignoreCase = true)
         }.let {
             SnapshotConditionConverter.convert(it)
         }
@@ -415,6 +452,7 @@ class ElasticsearchConditionConverterTest {
             prefix {
                 it.field("field")
                     .value("value")
+                    .caseInsensitive(true)
             }
         )
     }
@@ -422,7 +460,7 @@ class ElasticsearchConditionConverterTest {
     @Test
     fun `endsWith condition to Query`() {
         val query = condition {
-            "field" endsWith "value"
+            "field".endsWith("va*l?ue\\", ignoreCase = true)
         }.let {
             SnapshotConditionConverter.convert(it)
         }
@@ -430,7 +468,8 @@ class ElasticsearchConditionConverterTest {
             query,
             wildcard {
                 it.field("field")
-                    .value("*value")
+                    .value("*va\\*l\\?ue\\\\")
+                    .caseInsensitive(true)
             }
         )
     }
@@ -465,13 +504,9 @@ class ElasticsearchConditionConverterTest {
             nested {
                 it.path("field")
                     .query(
-                        bool { builder ->
-                            builder.filter {
-                                it.term {
-                                    it.field("subField")
-                                        .value("value")
-                                }
-                            }
+                        term {
+                            it.field("field.subField")
+                                .value("value")
                         }
                     )
             }

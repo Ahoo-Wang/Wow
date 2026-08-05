@@ -20,7 +20,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.exists
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.ids
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.match
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
-import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchPhrase
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchNone
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.nested
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.prefix
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.range
@@ -31,6 +31,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.wildcard
 import co.elastic.clients.json.JsonData
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.query.converter.AbstractConditionConverter
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
@@ -64,8 +65,12 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
     }
 
     override fun ids(condition: Condition): Query {
+        val values = condition.valueAs<Iterable<String>>().toList()
+        if (values.isEmpty()) {
+            return matchNone { it }
+        }
         return ids {
-            it.values(condition.valueAs<List<String>>())
+            it.values(values)
         }
     }
 
@@ -144,9 +149,13 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
     }
 
     override fun contains(condition: Condition): Query {
-        return matchPhrase {
-            it.field(condition.field)
-                .query(condition.valueAs<String>())
+        return wildcard { builder ->
+            builder.field(condition.field)
+                .value("*${condition.valueAs<String>().escapeWildcard()}*")
+            if (condition.ignoreCase() == true) {
+                builder.caseInsensitive(true)
+            }
+            builder
         }
     }
 
@@ -158,10 +167,14 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
         }
 
     override fun isIn(condition: Condition): Query {
+        val values = condition.valueAs<Iterable<Any>>().toList()
+        if (values.isEmpty()) {
+            return matchNone { it }
+        }
         return terms {
             it.field(condition.field)
                 .terms { builder ->
-                    condition.valueAs<List<Any>>().map {
+                    values.map {
                         FieldValue.of(it)
                     }.toList().let { builder.value(it) }
                 }
@@ -169,22 +182,16 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
     }
 
     override fun notIn(condition: Condition): Query {
+        if (condition.valueAs<Iterable<Any>>().none()) {
+            return matchAll { it }
+        }
         return bool { builder ->
             builder.mustNot(isIn(condition))
         }
     }
 
     override fun between(condition: Condition): Query {
-        val valueIterable = condition.valueAs<Iterable<Any>>()
-        val ite = valueIterable.iterator()
-        require(ite.hasNext()) {
-            "BETWEEN operator value must be a array with 2 elements."
-        }
-        val first = ite.next()
-        require(ite.hasNext()) {
-            "BETWEEN operator value must be a array with 2 elements."
-        }
-        val second = ite.next()
+        val (first, second) = condition.valueAs<Iterable<Any>>().toList()
         return range {
             it.untyped {
                 it.field(condition.field)
@@ -195,8 +202,11 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
     }
 
     override fun allIn(condition: Condition): Query {
-        val values = condition.valueAs<List<Any>>().map {
+        val values = condition.valueAs<Iterable<Any>>().distinct().map {
             FieldValue.of(it)
+        }
+        if (values.isEmpty()) {
+            return matchNone { it }
         }
         return termsSet { builder ->
             builder.field(condition.field)
@@ -206,29 +216,91 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
     }
 
     override fun startsWith(condition: Condition): Query {
-        return prefix {
-            it.field(condition.field)
+        return prefix { builder ->
+            builder.field(condition.field)
                 .value(condition.valueAs<String>())
+            if (condition.ignoreCase() == true) {
+                builder.caseInsensitive(true)
+            }
+            builder
         }
     }
 
     override fun endsWith(condition: Condition): Query {
-        return wildcard {
-            it.field(condition.field)
-                .value("*${condition.valueAs<String>()}")
+        return wildcard { builder ->
+            builder.field(condition.field)
+                .value("*${condition.valueAs<String>().escapeWildcard()}")
+            if (condition.ignoreCase() == true) {
+                builder.caseInsensitive(true)
+            }
+            builder
         }
     }
 
     override fun elemMatch(condition: Condition): Query {
+        return elemMatch(condition, parentPath = null)
+    }
+
+    private fun elemMatch(
+        condition: Condition,
+        parentPath: String?
+    ): Query {
+        val nestedPath = condition.field.withParentPath(parentPath)
         return nested {
-            it.path(condition.field)
-                .query(
-                    bool { builder ->
-                        builder.filter(condition.children.map { internalConvert(it) })
-                    }
-                )
+            it.path(nestedPath)
+                .query(convertNestedCondition(condition.children.single(), nestedPath))
         }
     }
+
+    private fun convertNestedCondition(
+        condition: Condition,
+        nestedPath: String
+    ): Query =
+        when (condition.operator) {
+            Operator.AND ->
+                bool { builder ->
+                    builder.filter(condition.children.map { convertNestedCondition(it, nestedPath) })
+                }
+
+            Operator.OR ->
+                bool { builder ->
+                    builder.should(condition.children.map { convertNestedCondition(it, nestedPath) })
+                        .minimumShouldMatch("1")
+                }
+
+            Operator.NOR ->
+                bool { builder ->
+                    builder.mustNot(condition.children.map { convertNestedCondition(it, nestedPath) })
+                }
+
+            Operator.ELEM_MATCH -> elemMatch(condition, nestedPath)
+            else -> {
+                val convertedCondition =
+                    if (condition.field.isEmpty()) {
+                        condition
+                    } else {
+                        condition.copy(field = condition.field.withParentPath(nestedPath))
+                    }
+                internalConvert(convertedCondition)
+            }
+        }
+
+    private fun String.withParentPath(parentPath: String?): String {
+        if (parentPath.isNullOrEmpty() || startsWith("$parentPath.")) {
+            return this
+        }
+        return "$parentPath.$this"
+    }
+
+    private fun String.escapeWildcard(): String =
+        buildString(length + 8) {
+            this@escapeWildcard.forEach { character ->
+                if (character == '\\' || character == '*' || character == '?') {
+                    append('\\')
+                }
+                append(character)
+            }
+        }
 
     override fun isNull(condition: Condition): Query {
         return bool { builder ->

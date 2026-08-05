@@ -57,6 +57,21 @@ Currently the `wow-mongo` module and `wow-elasticsearch` module support query se
 | RECENT_DAYS   | Matches all documents where the field is within the specified number of recent days range. For example: `today`: `2024-06-06`, recent 3 days, matches range: `2024-06-04 00:00:00.000` ~ `2024-06-06 23:59:59.999`. That is: today, yesterday, the day before yesterday |
 | EARLIER_DAYS  | Matches all documents where the field is within the specified number of days before the specified value. For example: `today`: `2024-06-06`, 3 days ago, matches range: less than `2024-06-04 00:00:00.000`                                                             |
 
+### Cross-storage semantics contract
+
+MongoDB is the semantic baseline for common query operators. `wow-mongo` and `wow-elasticsearch` follow this contract:
+
+- `AND`, `OR`, and `NOR` require at least one child; `BETWEEN` requires exactly two bounds; `ELEM_MATCH` requires exactly one child. Invalid inputs consistently throw `IllegalArgumentException`.
+- Empty `IDS`, `IN`, and `ALL_IN` collections match no documents; an empty `NOT_IN` collection matches all documents. Duplicate `ALL_IN` query values do not add matching requirements.
+- `CONTAINS`, `STARTS_WITH`, and `ENDS_WITH` perform literal string matching. Input `*`, `?`, and `\` are not interpreted as wildcard syntax, and `ignoreCase` is honored.
+- `MATCH` and `RAW` retain backend-native behavior and are outside the cross-storage equivalence contract.
+
+Elasticsearch also requires the corresponding index contract: exact comparisons and the string operators above should target `keyword` fields. An array queried by `ELEM_MATCH` must be explicitly mapped as `nested`, and child conditions use field names relative to the array element. Wow's default snapshot template maps dynamic strings in **new indices** as `keyword`. Fields intended for full-text search should be explicitly mapped as `text` in an application template and queried with `MATCH`.
+
+:::warning Portability boundary
+MongoDB and Elasticsearch model missing fields, explicit `null`, empty arrays, and arrays containing only `null` differently. Therefore `NULL`, `NOT_NULL`, and `EXISTS` cannot be fully equivalent for those values. For portable behavior, model the business state explicitly. Elasticsearch implements `CONTAINS` and `ENDS_WITH` with leading wildcards, which can be expensive; high-traffic workloads should use purpose-built indexed fields or an analyzed search design.
+:::
+
 ## Query DSL
 
 The `Query DSL` aims to provide a concise and flexible way to build query conditions.

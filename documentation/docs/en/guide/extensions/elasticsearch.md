@@ -256,6 +256,12 @@ POST _index_template/wow-snapshot-template
         "eventId": {
           "type": "keyword"
         },
+        "ownerId": {
+          "type": "keyword"
+        },
+        "spaceId": {
+          "type": "keyword"
+        },
         "firstOperator": {
           "type": "keyword"
         },
@@ -274,6 +280,10 @@ POST _index_template/wow-snapshot-template
         "deleted": {
           "type": "boolean"
         },
+        "tags": {
+          "type": "object",
+          "dynamic": true
+        },
         "state": {
           "properties": {
             "id": {
@@ -286,6 +296,15 @@ POST _index_template/wow-snapshot-template
         }
       },
       "dynamic_templates": [
+        {
+          "tags_strings_as_keyword": {
+            "match_mapping_type": "string",
+            "path_match": "tags.*",
+            "mapping": {
+              "type": "keyword"
+            }
+          }
+        },
         {
           "id_string_as_keyword": {
             "match": "id",
@@ -303,12 +322,60 @@ POST _index_template/wow-snapshot-template
               "type": "keyword"
             }
           }
+        },
+        {
+          "strings_as_keyword": {
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "keyword"
+            }
+          }
         }
       ]
     }
   }
 }
 ```
+
+The default template prioritizes parity with MongoDB exact-query operators, so dynamic strings in new snapshot indices are mapped as `keyword`. Arrays of objects are not inferred as `nested`; when using `ELEM_MATCH`, provide a higher-priority template for the aggregate:
+
+```http request
+POST _index_template/wow-order-snapshot-template
+{
+  "index_patterns": ["wow.*.order.snapshot"],
+  "priority": 100,
+  "template": {
+    "mappings": {
+      "properties": {
+        "state": {
+          "properties": {
+            "items": {
+              "type": "nested",
+              "properties": {
+                "sku": { "type": "keyword" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+A higher-priority index template is not automatically merged with Wow's default index template. The example shows only the application-specific delta; a production template must also include the baseline snapshot mappings or compose baseline and application mappings through component templates.
+
+### Migrating existing snapshot indices
+
+Index templates affect only newly created indices; they do not change existing field mappings. Migrate one aggregate at a time:
+
+1. Install the new template and create a new concrete index with explicit mappings, for example `wow.sales.order-v2.snapshot`.
+2. Pause snapshot writes for that aggregate, or establish a reliable dual-write path, then `_reindex` from the existing `wow.sales.order.snapshot` index.
+3. Verify document counts, representative operator queries, and sampled data. Keep a restorable Elasticsearch snapshot before cutover.
+4. Wow uses a fixed logical index name. In one `_aliases` request, `remove_index` the old concrete index and add an alias with the old name pointing to the new index, with `is_write_index: true`.
+5. Resume writes and monitor query/save failures. To roll back, restore the pre-migration snapshot into another concrete index and atomically switch the fixed-name alias; reinstalling the old template is not a rollback.
+
+`remove_index` deletes the old concrete index. Do not cut over without a tested snapshot/restore path.
 
 ## Full-Text Search
 

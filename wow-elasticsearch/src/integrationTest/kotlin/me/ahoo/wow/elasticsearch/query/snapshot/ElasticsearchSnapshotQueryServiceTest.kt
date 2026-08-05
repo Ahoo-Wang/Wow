@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.elasticsearch.query.snapshot
 
+import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
 import me.ahoo.wow.elasticsearch.TemplateInitializer.initSnapshotTemplate
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
@@ -20,9 +21,12 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.query.SnapshotQueryServiceSpec
+import me.ahoo.wow.tck.query.QUERY_OPERATOR_AGGREGATE_METADATA
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.extension.RegisterExtension
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
+import reactor.core.publisher.Mono
+import java.io.StringReader
 
 class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     @JvmField
@@ -44,5 +48,34 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
     override fun createSnapshotStore(): SnapshotStore {
         return ElasticsearchSnapshotStore(elasticsearchClient)
+    }
+
+    override fun prepareOperatorSnapshotStorage() {
+        val indexName = QUERY_OPERATOR_AGGREGATE_METADATA.namedAggregate.toSnapshotIndexName()
+        elasticsearchClient.indices().delete { it.index(indexName) }
+            .onErrorResume { Mono.empty() }
+            .then(
+                elasticsearchClient.indices().create { request ->
+                    request.index(indexName)
+                        .withJson(
+                            StringReader(
+                                """
+                                {
+                                  "mappings": {
+                                    "properties": {
+                                      "state": {
+                                        "properties": {
+                                          "items": { "type": "nested" }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                                """.trimIndent()
+                            )
+                        )
+                }
+            )
+            .block()
     }
 }

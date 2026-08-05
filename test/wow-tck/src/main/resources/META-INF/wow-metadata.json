@@ -12,6 +12,9 @@
             "me.ahoo.wow.tck"
           ]
         },
+        "query_operator": {
+          "type": "me.ahoo.wow.tck.query.QueryOperatorCommandAggregate"
+        },
         "modeling_command_aggregate_with_tenant_id": {
           "type": "me.ahoo.wow.tck.modeling.state.MockCommandAggregateWithTenantId"
         },

@@ -252,6 +252,12 @@ POST _index_template/wow-snapshot-template
         "eventId": {
           "type": "keyword"
         },
+        "ownerId": {
+          "type": "keyword"
+        },
+        "spaceId": {
+          "type": "keyword"
+        },
         "firstOperator": {
           "type": "keyword"
         },
@@ -270,6 +276,10 @@ POST _index_template/wow-snapshot-template
         "deleted": {
           "type": "boolean"
         },
+        "tags": {
+          "type": "object",
+          "dynamic": true
+        },
         "state": {
           "properties": {
             "id": {
@@ -282,6 +292,15 @@ POST _index_template/wow-snapshot-template
         }
       },
       "dynamic_templates": [
+        {
+          "tags_strings_as_keyword": {
+            "match_mapping_type": "string",
+            "path_match": "tags.*",
+            "mapping": {
+              "type": "keyword"
+            }
+          }
+        },
         {
           "id_string_as_keyword": {
             "match": "id",
@@ -299,12 +318,60 @@ POST _index_template/wow-snapshot-template
               "type": "keyword"
             }
           }
+        },
+        {
+          "strings_as_keyword": {
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "keyword"
+            }
+          }
         }
       ]
     }
   }
 }
 ```
+
+默认模板优先保证与 MongoDB 精确查询操作符的一致性，因此新快照索引中的动态字符串会映射为 `keyword`。对象数组不会被自动推断为 `nested`；使用 `ELEM_MATCH` 时，应为具体聚合提供更高优先级的模板：
+
+```http request
+POST _index_template/wow-order-snapshot-template
+{
+  "index_patterns": ["wow.*.order.snapshot"],
+  "priority": 100,
+  "template": {
+    "mappings": {
+      "properties": {
+        "state": {
+          "properties": {
+            "items": {
+              "type": "nested",
+              "properties": {
+                "sku": { "type": "keyword" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+更高优先级的 index template 不会与 Wow 默认 index template 自动合并。上例只展示业务增量；生产模板必须同时包含快照基础映射，或通过 component template 组合基础映射与业务映射。
+
+### 迁移已有快照索引
+
+索引模板只影响新建索引，不会改变已有字段映射。升级后应按聚合逐个迁移：
+
+1. 安装新模板，并用显式映射创建新的具体索引，例如 `wow.sales.order-v2.snapshot`。
+2. 暂停该聚合的快照写入或建立可靠的双写方案，然后使用 `_reindex` 从现有 `wow.sales.order.snapshot` 复制数据。
+3. 校验文档总数、代表性操作符查询和抽样数据；迁移前保留可恢复的 Elasticsearch snapshot。
+4. 由于 Wow 使用固定的逻辑索引名，通过单次 `_aliases` 请求执行 `remove_index` 旧索引并把同名 alias 指向新索引，同时设置 `is_write_index: true`。
+5. 恢复写入并监控查询/保存错误。回滚时从迁移前 snapshot 恢复到另一具体索引，再原子切换同名 alias；不要把“重新安装模板”当作回滚。
+
+`remove_index` 会删除旧具体索引，因此在没有验证过的 snapshot/restore 之前不要执行切换。
 
 ## 全文搜索
 
