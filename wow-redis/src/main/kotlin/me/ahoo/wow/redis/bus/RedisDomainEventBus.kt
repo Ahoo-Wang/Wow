@@ -20,12 +20,12 @@ import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 import reactor.core.publisher.Mono
 import java.time.Duration
 
-class RedisDomainEventBus private constructor(
+class RedisDomainEventBus(
     redisTemplate: ReactiveStringRedisTemplate,
-    topicConverter: EventStreamTopicConverter,
-    pollTimeout: Duration,
-    recoveryOptions: RedisStreamRecoveryOptions,
-    messageBusObserver: RedisMessageBusObserver,
+    topicConverter: EventStreamTopicConverter = DefaultEventStreamTopicConverter,
+    pollTimeout: Duration = Duration.ofSeconds(2),
+    recoveryOptions: RedisStreamRecoveryOptions = RedisStreamRecoveryOptions.DEFAULT,
+    messageBusObserver: RedisMessageBusObserver = RedisMessageBusObserver.NOOP,
 ) : DistributedDomainEventBus,
     AbstractRedisMessageBus<DomainEventStream, EventStreamExchange>(
         redisTemplate,
@@ -34,32 +34,6 @@ class RedisDomainEventBus private constructor(
         recoveryOptions,
         messageBusObserver,
     ) {
-    constructor(
-        redisTemplate: ReactiveStringRedisTemplate,
-        topicConverter: EventStreamTopicConverter = DefaultEventStreamTopicConverter,
-        pollTimeout: Duration = Duration.ofSeconds(2),
-    ) : this(
-        redisTemplate = redisTemplate,
-        topicConverter = topicConverter,
-        pollTimeout = pollTimeout,
-        recoveryOptions = RedisStreamRecoveryOptions.DEFAULT,
-        messageBusObserver = RedisMessageBusObserver.NOOP,
-    )
-
-    constructor(
-        redisTemplate: ReactiveStringRedisTemplate,
-        recoveryOptions: RedisStreamRecoveryOptions,
-        observer: RedisMessageBusObserver = RedisMessageBusObserver.NOOP,
-        topicConverter: EventStreamTopicConverter = DefaultEventStreamTopicConverter,
-        pollTimeout: Duration = Duration.ofSeconds(2),
-    ) : this(
-        redisTemplate = redisTemplate,
-        topicConverter = topicConverter,
-        pollTimeout = pollTimeout,
-        recoveryOptions = recoveryOptions,
-        messageBusObserver = observer,
-    )
-
     override val messageType: Class<DomainEventStream>
         get() = DomainEventStream::class.java
 

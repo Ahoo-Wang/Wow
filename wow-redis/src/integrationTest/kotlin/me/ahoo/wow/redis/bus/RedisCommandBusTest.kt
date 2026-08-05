@@ -212,7 +212,7 @@ class RedisCommandBusTest : CommandBusSpec() {
         val bus = RedisCommandBus(
             redisTemplate = redis.redisTemplate,
             recoveryOptions = RedisStreamRecoveryOptions.DISABLED,
-            observer = RedisMessageBusObserver { observation ->
+            messageBusObserver = RedisMessageBusObserver { observation ->
                 observations += observation
                 throw IllegalStateException("observer failed")
             },

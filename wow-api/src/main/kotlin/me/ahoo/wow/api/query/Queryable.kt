@@ -68,15 +68,15 @@ data class Sort(
  */
 data class Pagination(
     @field:Schema(defaultValue = "1")
-    val index: Int,
+    val index: Int = 1,
     @field:Schema(defaultValue = "10")
-    val size: Int
+    val size: Int = 10,
 ) {
     companion object {
         /**
          * Default pagination settings (page 1, 10 items per page).
          */
-        val DEFAULT = Pagination(1, 10)
+        val DEFAULT = Pagination()
 
         /**
          * Calculates the offset for a given page index and size.

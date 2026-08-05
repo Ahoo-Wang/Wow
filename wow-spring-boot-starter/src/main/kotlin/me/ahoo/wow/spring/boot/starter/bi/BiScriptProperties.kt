@@ -22,14 +22,13 @@ import me.ahoo.wow.bi.UnsupportedTypeStrategy
 import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.NestedConfigurationProperty
-import org.springframework.boot.context.properties.bind.ConstructorBinding
 import org.springframework.boot.context.properties.bind.DefaultValue
 import java.net.URI
 import java.time.Duration
 
 @ConfigurationProperties(prefix = BiScriptProperties.PREFIX)
-data class BiScriptProperties @ConstructorBinding constructor(
-    @DefaultValue("true") val enabled: Boolean,
+data class BiScriptProperties(
+    @DefaultValue("true") val enabled: Boolean = true,
     val database: String? = null,
     val consumerDatabase: String? = null,
     @NestedConfigurationProperty
@@ -45,30 +44,26 @@ data class BiScriptProperties @ConstructorBinding constructor(
     @NestedConfigurationProperty
     val inspector: BiDeploymentInspectorProperties = BiDeploymentInspectorProperties(),
 ) {
-    constructor() : this(enabled = true)
-
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}bi.script"
     }
 }
 
-data class BiDeploymentInspectorProperties @ConstructorBinding constructor(
-    @DefaultValue("NO_OP") val type: BiDeploymentInspectorType,
+data class BiDeploymentInspectorProperties(
+    @DefaultValue("NO_OP") val type: BiDeploymentInspectorType = BiDeploymentInspectorType.NO_OP,
     @DefaultValue("30s") val timeout: Duration = Duration.ofSeconds(30),
     @NestedConfigurationProperty
     val clickhouse: BiClickHouseInspectorProperties = BiClickHouseInspectorProperties(),
-) {
-    constructor() : this(type = BiDeploymentInspectorType.NO_OP)
-}
+)
 
 enum class BiDeploymentInspectorType {
     NO_OP,
     CLICKHOUSE,
 }
 
-data class BiClickHouseInspectorProperties @ConstructorBinding constructor(
+data class BiClickHouseInspectorProperties(
     val endpoints: List<URI> = emptyList(),
-    @DefaultValue("default") val username: String,
+    @DefaultValue("default") val username: String = "default",
     @DefaultValue("") val password: String = "",
     @DefaultValue("true") val connectionPoolEnabled: Boolean = true,
     @DefaultValue("3s") val connectionTimeout: Duration = Duration.ofSeconds(3),
@@ -78,8 +73,6 @@ data class BiClickHouseInspectorProperties @ConstructorBinding constructor(
     @DefaultValue("10") val maxConnections: Int = 10,
     @DefaultValue("0") val maxRetries: Int = 0,
 ) {
-    constructor() : this(username = "default")
-
     override fun toString(): String =
         "BiClickHouseInspectorProperties(" +
             "endpoints=$endpoints, " +
@@ -107,25 +100,21 @@ internal fun BiClickHouseInspectorProperties.toClientOptions(): ClickHouseClient
     maxRetries = maxRetries,
 )
 
-data class BiScriptTopologyProperties @ConstructorBinding constructor(
-    @DefaultValue("CLUSTER") val mode: BiScriptTopologyMode,
+data class BiScriptTopologyProperties(
+    @DefaultValue("CLUSTER") val mode: BiScriptTopologyMode = BiScriptTopologyMode.CLUSTER,
     @NestedConfigurationProperty
     val cluster: BiScriptClusterProperties? = null,
-) {
-    constructor() : this(mode = BiScriptTopologyMode.CLUSTER)
-}
+)
 
 enum class BiScriptTopologyMode {
     CLUSTER,
     STANDALONE,
 }
 
-data class BiScriptClusterProperties @ConstructorBinding constructor(
-    val name: String?,
+data class BiScriptClusterProperties(
+    val name: String? = null,
     val installation: String? = null,
-) {
-    constructor() : this(name = null)
-}
+)
 
 internal fun BiScriptProperties.toBiScriptOptions(kafkaProperties: KafkaProperties?): BiScriptOptions {
     return BiScriptOptions(

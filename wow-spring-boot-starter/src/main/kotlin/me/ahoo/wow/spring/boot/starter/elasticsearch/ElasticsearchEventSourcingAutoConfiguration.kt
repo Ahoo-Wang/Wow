@@ -36,7 +36,6 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotQueryServic
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
 import org.springframework.beans.factory.ObjectProvider
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -62,16 +61,11 @@ import org.springframework.data.elasticsearch.core.ReactiveElasticsearchOperatio
     ElasticsearchEventStoreBatchProperties::class,
     ElasticsearchSnapshotStoreBatchProperties::class,
 )
-class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
+class ElasticsearchEventSourcingAutoConfiguration(
     private val elasticsearchProperties: ElasticsearchProperties,
     private val eventStoreBatchProperties: ElasticsearchEventStoreBatchProperties,
     private val snapshotStoreBatchProperties: ElasticsearchSnapshotStoreBatchProperties,
 ) {
-    constructor(elasticsearchProperties: ElasticsearchProperties) : this(
-        elasticsearchProperties = elasticsearchProperties,
-        eventStoreBatchProperties = ElasticsearchEventStoreBatchProperties(),
-        snapshotStoreBatchProperties = ElasticsearchSnapshotStoreBatchProperties(),
-    )
 
     @Bean
     @ConditionalOnProperty(ElasticsearchProperties.COMPATIBILITY_VERSION_KEY)

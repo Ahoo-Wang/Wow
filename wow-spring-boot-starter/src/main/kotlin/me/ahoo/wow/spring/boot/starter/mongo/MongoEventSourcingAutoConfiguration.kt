@@ -42,7 +42,6 @@ import me.ahoo.wow.spring.boot.starter.prepare.ConditionalOnPrepareEnabled
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareProperties
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareStorage
 import org.springframework.beans.factory.ObjectProvider
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -62,25 +61,11 @@ import org.springframework.context.annotation.Bean
     MongoEventStoreBatchProperties::class,
     MongoSnapshotStoreBatchProperties::class,
 )
-class MongoEventSourcingAutoConfiguration @Autowired constructor(
+class MongoEventSourcingAutoConfiguration(
     private val mongoProperties: MongoProperties,
     private val eventStoreBatchProperties: MongoEventStoreBatchProperties,
     private val snapshotStoreBatchProperties: MongoSnapshotStoreBatchProperties,
 ) {
-    constructor(mongoProperties: MongoProperties) : this(
-        mongoProperties = mongoProperties,
-        eventStoreBatchProperties = MongoEventStoreBatchProperties(),
-        snapshotStoreBatchProperties = MongoSnapshotStoreBatchProperties(),
-    )
-
-    constructor(
-        mongoProperties: MongoProperties,
-        eventStoreBatchProperties: MongoEventStoreBatchProperties,
-    ) : this(
-        mongoProperties = mongoProperties,
-        eventStoreBatchProperties = eventStoreBatchProperties,
-        snapshotStoreBatchProperties = MongoSnapshotStoreBatchProperties(),
-    )
 
     @Bean
     @ConditionalOnEventStoreStorage(StorageType.MONGO)

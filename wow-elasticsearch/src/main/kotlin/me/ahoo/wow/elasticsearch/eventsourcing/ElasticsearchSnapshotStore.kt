@@ -23,46 +23,25 @@ import org.springframework.data.elasticsearch.RestStatusException
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
 
-class ElasticsearchSnapshotStore private constructor(
+class ElasticsearchSnapshotStore(
     private val elasticsearchClient: ReactiveElasticsearchClient,
-    private val refreshPolicy: Refresh,
-    val batchOptions: ElasticsearchSnapshotStoreBatchOptions,
-    private val saver: ElasticsearchSnapshotSaver,
+    val batchOptions: ElasticsearchSnapshotStoreBatchOptions = ElasticsearchSnapshotStoreBatchOptions(),
+    private val refreshPolicy: Refresh = Refresh.True,
+    metrics: WowMetrics = WowMetrics.NONE,
 ) : SnapshotStore {
-    constructor(
-        elasticsearchClient: ReactiveElasticsearchClient,
-        refreshPolicy: Refresh = Refresh.True,
-        metrics: WowMetrics = WowMetrics.NONE,
-    ) : this(
-        elasticsearchClient = elasticsearchClient,
-        refreshPolicy = refreshPolicy,
-        batchOptions = ElasticsearchSnapshotStoreBatchOptions(),
-        metrics = metrics,
-    )
-
-    constructor(
-        elasticsearchClient: ReactiveElasticsearchClient,
-        batchOptions: ElasticsearchSnapshotStoreBatchOptions,
-        refreshPolicy: Refresh = Refresh.True,
-        metrics: WowMetrics = WowMetrics.NONE,
-    ) : this(
-        elasticsearchClient = elasticsearchClient,
-        refreshPolicy = refreshPolicy,
-        batchOptions = batchOptions,
-        saver = if (batchOptions.enabled) {
-            BatchElasticsearchSnapshotSaver(
-                elasticsearchClient = elasticsearchClient,
-                refreshPolicy = refreshPolicy,
-                options = batchOptions,
-                metrics = metrics,
-            )
-        } else {
-            DirectElasticsearchSnapshotSaver(
-                elasticsearchClient = elasticsearchClient,
-                refreshPolicy = refreshPolicy,
-            )
-        },
-    )
+    private val saver: ElasticsearchSnapshotSaver = if (batchOptions.enabled) {
+        BatchElasticsearchSnapshotSaver(
+            elasticsearchClient = elasticsearchClient,
+            refreshPolicy = refreshPolicy,
+            options = batchOptions,
+            metrics = metrics,
+        )
+    } else {
+        DirectElasticsearchSnapshotSaver(
+            elasticsearchClient = elasticsearchClient,
+            refreshPolicy = refreshPolicy,
+        )
+    }
 
     companion object {
         private const val NOT_FOUND_CODE = 404

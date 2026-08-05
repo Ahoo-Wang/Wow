@@ -61,20 +61,11 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
     ).getBeanProvider(WowMetrics::class.java)
 
     @Test
-    fun `should preserve binary compatible constructor`() {
-        val properties = ElasticsearchProperties::class.java
-            .getConstructor(java.lang.Boolean.TYPE, java.lang.Boolean.TYPE)
-            .newInstance(false, false)
-
-        properties.enabled.assert().isFalse()
-        properties.autoInitTemplate.assert().isFalse()
-        properties.compatibilityVersion.assert().isNull()
-    }
-
-    @Test
-    fun `secondary constructor should use default batch properties`() {
+    fun `default batch properties should be used`() {
         val autoConfiguration = ElasticsearchEventSourcingAutoConfiguration(
-            ElasticsearchProperties(autoInitTemplate = false)
+            elasticsearchProperties = ElasticsearchProperties(autoInitTemplate = false),
+            eventStoreBatchProperties = ElasticsearchEventStoreBatchProperties(),
+            snapshotStoreBatchProperties = ElasticsearchSnapshotStoreBatchProperties(),
         )
         val elasticsearchClient = mock(ReactiveElasticsearchClient::class.java)
         val indexTemplateInitializer = mockk<IndexTemplateInitializer>()
@@ -154,7 +145,9 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
     @Test
     fun `should fail fast when compatibility version is not bound`() {
         val autoConfiguration = ElasticsearchEventSourcingAutoConfiguration(
-            ElasticsearchProperties(),
+            elasticsearchProperties = ElasticsearchProperties(),
+            eventStoreBatchProperties = ElasticsearchEventStoreBatchProperties(),
+            snapshotStoreBatchProperties = ElasticsearchSnapshotStoreBatchProperties(),
         )
 
         assertThrownBy<IllegalArgumentException> {

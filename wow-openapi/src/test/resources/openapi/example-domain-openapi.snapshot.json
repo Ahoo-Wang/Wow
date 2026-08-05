@@ -4640,7 +4640,6 @@
             "type" : "integer"
           }
         },
-        "required" : [ "index", "size" ],
         "type" : "object"
       },
       "wow.api.query.Projection" : {

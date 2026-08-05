@@ -61,13 +61,6 @@ internal class MpscUnicastManySink<T : Any> private constructor(
     private val sink: Sinks.Many<T>,
 ) : Sinks.Many<T>,
     CloseSettlementAware {
-    private constructor(queue: Queue<T>) : this(
-        Sinks.unsafe()
-            .many()
-            .unicast()
-            .onBackpressureBuffer(queue),
-    )
-
     private val state = AtomicLong()
     private val terminalSignal = AtomicReference<TerminalSignal?>()
     private val subscription = AtomicReference<Subscription?>()
@@ -90,7 +83,15 @@ internal class MpscUnicastManySink<T : Any> private constructor(
 
     companion object {
         fun <T : Any> create(): MpscUnicastManySink<T> =
-            MpscUnicastManySink(Queues.unboundedMultiproducer<T>().get())
+            create(Queues.unboundedMultiproducer<T>().get())
+
+        internal fun <T : Any> create(queue: Queue<T>): MpscUnicastManySink<T> =
+            MpscUnicastManySink(
+                Sinks.unsafe()
+                    .many()
+                    .unicast()
+                    .onBackpressureBuffer(queue),
+            )
     }
 
     override fun tryEmitNext(t: T): Sinks.EmitResult {

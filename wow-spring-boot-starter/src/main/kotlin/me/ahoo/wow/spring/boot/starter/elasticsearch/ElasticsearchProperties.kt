@@ -24,8 +24,6 @@ class ElasticsearchProperties(
     @DefaultValue("true") var autoInitTemplate: Boolean = true,
     var compatibilityVersion: Int? = null,
 ) : EnabledCapable {
-    constructor(enabled: Boolean, autoInitTemplate: Boolean) : this(enabled, autoInitTemplate, null)
-
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}elasticsearch"
         const val COMPATIBILITY_VERSION_KEY = "$PREFIX.compatibility-version"

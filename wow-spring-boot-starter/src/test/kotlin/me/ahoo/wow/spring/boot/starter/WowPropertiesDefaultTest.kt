@@ -10,17 +10,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.ahoo.wow.mongo
 
-import com.mongodb.client.model.ReplaceOptions
-import com.mongodb.reactivestreams.client.MongoDatabase
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+package me.ahoo.wow.spring.boot.starter
 
-@Deprecated("Use MongoSnapshotStore.", ReplaceWith("MongoSnapshotStore(database)"))
-class MongoSnapshotRepository(database: MongoDatabase) :
-    SnapshotStore by MongoSnapshotStore(database) {
-    companion object {
-        const val NAME = "mongo"
-        val DEFAULT_REPLACE_OPTIONS: ReplaceOptions = MongoSnapshotStore.DEFAULT_REPLACE_OPTIONS
+import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Test
+
+class WowPropertiesDefaultTest {
+    @Test
+    fun `default constructor should provide runtime defaults`() {
+        val properties = WowProperties()
+
+        properties.enabled.assert().isTrue()
+        properties.contextName.assert().isNull()
+        properties.shutdownTimeout.assert().isEqualTo(DEFAULT_SHUTDOWN_TIMEOUT)
+        properties.shutdownQuietPeriod.assert().isEqualTo(DEFAULT_SHUTDOWN_QUIET_PERIOD)
     }
 }

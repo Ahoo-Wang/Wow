@@ -1117,11 +1117,8 @@ class MpscUnicastManySinkTest {
         subscription.cancel()
     }
 
-    @Suppress("UNCHECKED_CAST")
     private fun <T : Any> sinkWithQueue(queue: Queue<T>): MpscUnicastManySink<T> {
-        val constructor = MpscUnicastManySink::class.java.getDeclaredConstructor(Queue::class.java)
-        constructor.isAccessible = true
-        return constructor.newInstance(queue) as MpscUnicastManySink<T>
+        return MpscUnicastManySink.create(queue)
     }
 }
 
