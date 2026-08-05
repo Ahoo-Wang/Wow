@@ -59,12 +59,14 @@ class MongoEventSourcingAutoConfigurationTest {
     @Test
     fun `constructor creates mongo snapshot store`() {
         val configuration = MongoEventSourcingAutoConfiguration(
-            MongoProperties(
+            mongoProperties = MongoProperties(
                 autoInitSchema = true,
                 eventStreamDatabase = null,
                 snapshotDatabase = "testSnapshot",
                 prepareDatabase = null,
             ),
+            eventStoreBatchProperties = MongoEventStoreBatchProperties(),
+            snapshotStoreBatchProperties = MongoSnapshotStoreBatchProperties(),
         )
 
         withEmptyAggregateMetadata {

@@ -64,25 +64,12 @@ abstract class AbstractKafkaBus<M, E>(
     private val topicConverter: AggregateTopicConverter,
     private val senderOptions: SenderOptions<String, String>,
     private val receiverOptions: ReceiverOptions<String, String>,
-    private val receiverOptionsCustomizer: ReceiverOptionsCustomizer,
-    private val receiverPolicy: KafkaReceiverPolicy,
-    private val recordDecodeFailureHandler: KafkaRecordDecodeFailureHandler,
+    private val receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
+    private val receiverPolicy: KafkaReceiverPolicy = KafkaReceiverPolicy(),
+    private val recordDecodeFailureHandler: KafkaRecordDecodeFailureHandler =
+        FailKafkaRecordDecodeFailureHandler,
 ) : DistributedMessageBus<M, E>
     where M : Message<*, *>, M : AggregateIdCapable, M : NamedAggregate, E : MessageExchange<*, M> {
-    constructor(
-        topicConverter: AggregateTopicConverter,
-        senderOptions: SenderOptions<String, String>,
-        receiverOptions: ReceiverOptions<String, String>,
-        receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
-    ) : this(
-        topicConverter = topicConverter,
-        senderOptions = senderOptions,
-        receiverOptions = receiverOptions,
-        receiverOptionsCustomizer = receiverOptionsCustomizer,
-        receiverPolicy = KafkaReceiverPolicy(),
-        recordDecodeFailureHandler = FailKafkaRecordDecodeFailureHandler,
-    )
-
     companion object {
         private val log = KotlinLogging.logger {}
     }

@@ -41,10 +41,10 @@ class RedisStreamRecoveryOptionsTest {
         val recoveryOptions = recoveryOptionsField.get(commandBus) as RedisStreamRecoveryOptions
 
         recoveryOptions.enabled.assert().isTrue()
-        RedisDomainEventBus(redisTemplate, RedisStreamRecoveryOptions.DISABLED)
+        RedisDomainEventBus(redisTemplate, recoveryOptions = RedisStreamRecoveryOptions.DISABLED)
             .assert()
             .isInstanceOf(RedisDomainEventBus::class.java)
-        RedisStateEventBus(redisTemplate, RedisStreamRecoveryOptions.DISABLED)
+        RedisStateEventBus(redisTemplate, recoveryOptions = RedisStreamRecoveryOptions.DISABLED)
             .assert()
             .isInstanceOf(RedisStateEventBus::class.java)
     }

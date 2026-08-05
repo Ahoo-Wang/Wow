@@ -20,12 +20,12 @@ import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 import reactor.core.publisher.Mono
 import java.time.Duration
 
-class RedisCommandBus private constructor(
+class RedisCommandBus(
     redisTemplate: ReactiveStringRedisTemplate,
-    topicConverter: CommandTopicConverter,
-    pollTimeout: Duration,
-    recoveryOptions: RedisStreamRecoveryOptions,
-    messageBusObserver: RedisMessageBusObserver,
+    topicConverter: CommandTopicConverter = DefaultCommandTopicConverter,
+    pollTimeout: Duration = Duration.ofSeconds(2),
+    recoveryOptions: RedisStreamRecoveryOptions = RedisStreamRecoveryOptions.DEFAULT,
+    messageBusObserver: RedisMessageBusObserver = RedisMessageBusObserver.NOOP,
 ) : DistributedCommandBus,
     AbstractRedisMessageBus<CommandMessage<*>, ServerCommandExchange<*>>(
         redisTemplate,
@@ -34,32 +34,6 @@ class RedisCommandBus private constructor(
         recoveryOptions,
         messageBusObserver,
     ) {
-    constructor(
-        redisTemplate: ReactiveStringRedisTemplate,
-        topicConverter: CommandTopicConverter = DefaultCommandTopicConverter,
-        pollTimeout: Duration = Duration.ofSeconds(2),
-    ) : this(
-        redisTemplate = redisTemplate,
-        topicConverter = topicConverter,
-        pollTimeout = pollTimeout,
-        recoveryOptions = RedisStreamRecoveryOptions.DEFAULT,
-        messageBusObserver = RedisMessageBusObserver.NOOP,
-    )
-
-    constructor(
-        redisTemplate: ReactiveStringRedisTemplate,
-        recoveryOptions: RedisStreamRecoveryOptions,
-        observer: RedisMessageBusObserver = RedisMessageBusObserver.NOOP,
-        topicConverter: CommandTopicConverter = DefaultCommandTopicConverter,
-        pollTimeout: Duration = Duration.ofSeconds(2),
-    ) : this(
-        redisTemplate = redisTemplate,
-        topicConverter = topicConverter,
-        pollTimeout = pollTimeout,
-        recoveryOptions = recoveryOptions,
-        messageBusObserver = observer,
-    )
-
     override val messageType: Class<CommandMessage<*>>
         get() = CommandMessage::class.java
 

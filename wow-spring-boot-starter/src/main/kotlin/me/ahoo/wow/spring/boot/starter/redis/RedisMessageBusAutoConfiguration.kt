@@ -67,7 +67,7 @@ class RedisMessageBusAutoConfiguration {
         return RedisCommandBus(
             redisTemplate = redisTemplate,
             recoveryOptions = recoveryProperties.toOptions(),
-            observer = observers.toObserver(),
+            messageBusObserver = observers.toObserver(),
         )
     }
 
@@ -85,7 +85,7 @@ class RedisMessageBusAutoConfiguration {
         return RedisDomainEventBus(
             redisTemplate = redisTemplate,
             recoveryOptions = recoveryProperties.toOptions(),
-            observer = observers.toObserver(),
+            messageBusObserver = observers.toObserver(),
         )
     }
 
@@ -103,7 +103,7 @@ class RedisMessageBusAutoConfiguration {
         return RedisStateEventBus(
             redisTemplate = redisTemplate,
             recoveryOptions = recoveryProperties.toOptions(),
-            observer = observers.toObserver(),
+            messageBusObserver = observers.toObserver(),
         )
     }
 

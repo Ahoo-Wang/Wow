@@ -34,34 +34,17 @@ import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
 import java.io.Closeable
 
-class MongoEventStore private constructor(
+class MongoEventStore(
     private val database: MongoDatabase,
-    val batchOptions: MongoEventStoreBatchOptions,
-    private val appender: MongoEventStreamAppender,
+    val batchOptions: MongoEventStoreBatchOptions = MongoEventStoreBatchOptions(),
+    metrics: WowMetrics = WowMetrics.NONE,
 ) : AbstractEventStore(),
     Closeable {
-    constructor(
-        database: MongoDatabase,
-        metrics: WowMetrics = WowMetrics.NONE,
-    ) : this(
-        database = database,
-        batchOptions = MongoEventStoreBatchOptions(),
-        metrics = metrics,
-    )
-
-    constructor(
-        database: MongoDatabase,
-        batchOptions: MongoEventStoreBatchOptions,
-        metrics: WowMetrics = WowMetrics.NONE,
-    ) : this(
-        database = database,
-        batchOptions = batchOptions,
-        appender = if (batchOptions.enabled) {
-            BatchMongoEventStreamAppender(database, batchOptions, metrics = metrics)
-        } else {
-            DirectMongoEventStreamAppender(database)
-        },
-    )
+    private val appender: MongoEventStreamAppender = if (batchOptions.enabled) {
+        BatchMongoEventStreamAppender(database, batchOptions, metrics = metrics)
+    } else {
+        DirectMongoEventStreamAppender(database)
+    }
 
     override fun appendStream(eventStream: DomainEventStream): Mono<Void> =
         appender.append(eventStream)

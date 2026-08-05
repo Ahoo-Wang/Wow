@@ -57,18 +57,8 @@ class GenerateBIScriptHandlerFunction internal constructor(
     private val options: BiScriptOptions,
     private val deploymentInspector: BiDeploymentInspector,
     private val exceptionHandler: RequestExceptionHandler,
-    private val generationScheduler: Scheduler,
+    private val generationScheduler: Scheduler = BI_SCRIPT_GENERATION_SCHEDULER,
 ) : HandlerFunction<ServerResponse> {
-    constructor(
-        options: BiScriptOptions,
-        deploymentInspector: BiDeploymentInspector,
-        exceptionHandler: RequestExceptionHandler,
-    ) : this(
-        options = options,
-        deploymentInspector = deploymentInspector,
-        exceptionHandler = exceptionHandler,
-        generationScheduler = BI_SCRIPT_GENERATION_SCHEDULER,
-    )
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return request.bodyToMono(BiScriptRequest::class.java)

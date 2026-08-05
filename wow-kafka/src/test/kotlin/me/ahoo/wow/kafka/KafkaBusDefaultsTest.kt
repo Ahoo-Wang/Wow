@@ -25,38 +25,10 @@ import reactor.kafka.receiver.ReceiverOffset
 import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.sender.SenderOptions
 
-class KafkaBusCompatibilityTest {
+class KafkaBusDefaultsTest {
 
     @Test
-    fun `should preserve the four argument JVM constructors`() {
-        KafkaCommandBus::class.java.getConstructor(
-            CommandTopicConverter::class.java,
-            SenderOptions::class.java,
-            ReceiverOptions::class.java,
-            ReceiverOptionsCustomizer::class.java,
-        ).assert().isNotNull()
-        KafkaDomainEventBus::class.java.getConstructor(
-            EventStreamTopicConverter::class.java,
-            SenderOptions::class.java,
-            ReceiverOptions::class.java,
-            ReceiverOptionsCustomizer::class.java,
-        ).assert().isNotNull()
-        KafkaStateEventBus::class.java.getConstructor(
-            StateEventTopicConverter::class.java,
-            SenderOptions::class.java,
-            ReceiverOptions::class.java,
-            ReceiverOptionsCustomizer::class.java,
-        ).assert().isNotNull()
-        AbstractKafkaBus::class.java.getConstructor(
-            AggregateTopicConverter::class.java,
-            SenderOptions::class.java,
-            ReceiverOptions::class.java,
-            ReceiverOptionsCustomizer::class.java,
-        ).assert().isNotNull()
-    }
-
-    @Test
-    fun `compatibility constructors should use safe receiver defaults`() {
+    fun `default constructor arguments should use safe receiver defaults`() {
         val buses = listOf(
             KafkaCommandBus(
                 DefaultCommandTopicConverter(),
@@ -89,7 +61,7 @@ class KafkaBusCompatibilityTest {
                 receiverOptions = receiverOptions(),
             ),
         )
-        val abstractBus = CompatibilityAbstractKafkaBus(
+        val abstractBus = TestAbstractKafkaBus(
             senderOptions = senderOptions(),
             receiverOptions = receiverOptions(),
         )
@@ -119,7 +91,7 @@ class KafkaBusCompatibilityTest {
         )
     }
 
-    private class CompatibilityAbstractKafkaBus(
+    private class TestAbstractKafkaBus(
         senderOptions: SenderOptions<String, String>,
         receiverOptions: ReceiverOptions<String, String>,
     ) : AbstractKafkaBus<DomainEventStream, EventStreamExchange>(

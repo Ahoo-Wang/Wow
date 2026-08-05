@@ -22,9 +22,9 @@ import org.springframework.boot.context.properties.bind.DefaultValue
 class MongoProperties(
     @DefaultValue("true") override val enabled: Boolean = true,
     @DefaultValue("true") var autoInitSchema: Boolean = true,
-    val eventStreamDatabase: String?,
-    val snapshotDatabase: String?,
-    val prepareDatabase: String?,
+    val eventStreamDatabase: String? = null,
+    val snapshotDatabase: String? = null,
+    val prepareDatabase: String? = null,
 ) : EnabledCapable {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}mongo"

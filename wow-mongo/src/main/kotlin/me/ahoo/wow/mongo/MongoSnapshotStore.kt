@@ -30,37 +30,20 @@ import org.bson.conversions.Bson
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
-class MongoSnapshotStore private constructor(
+class MongoSnapshotStore(
     private val database: MongoDatabase,
-    val batchOptions: MongoSnapshotStoreBatchOptions,
-    private val saver: MongoSnapshotSaver,
+    val batchOptions: MongoSnapshotStoreBatchOptions = MongoSnapshotStoreBatchOptions(),
+    metrics: WowMetrics = WowMetrics.NONE,
 ) : SnapshotStore {
-    constructor(
-        database: MongoDatabase,
-        metrics: WowMetrics = WowMetrics.NONE,
-    ) : this(
-        database = database,
-        batchOptions = MongoSnapshotStoreBatchOptions(),
-        metrics = metrics,
-    )
-
-    constructor(
-        database: MongoDatabase,
-        batchOptions: MongoSnapshotStoreBatchOptions,
-        metrics: WowMetrics = WowMetrics.NONE,
-    ) : this(
-        database = database,
-        batchOptions = batchOptions,
-        saver = if (batchOptions.enabled) {
-            BatchMongoSnapshotSaver(
-                database = database,
-                options = batchOptions,
-                metrics = metrics,
-            )
-        } else {
-            DirectMongoSnapshotSaver(database)
-        },
-    )
+    private val saver: MongoSnapshotSaver = if (batchOptions.enabled) {
+        BatchMongoSnapshotSaver(
+            database = database,
+            options = batchOptions,
+            metrics = metrics,
+        )
+    } else {
+        DirectMongoSnapshotSaver(database)
+    }
 
     companion object {
         const val NAME = "mongo"

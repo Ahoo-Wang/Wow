@@ -35,51 +35,26 @@ import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchCl
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-class ElasticsearchEventStore private constructor(
+class ElasticsearchEventStore(
     private val elasticsearchClient: ReactiveElasticsearchClient,
+    val batchOptions: ElasticsearchEventStoreBatchOptions = ElasticsearchEventStoreBatchOptions(),
     private val refreshPolicy: Refresh = Refresh.True,
     private val batchSize: Int = DEFAULT_BATCH_SIZE,
-    val batchOptions: ElasticsearchEventStoreBatchOptions,
-    private val appender: ElasticsearchEventStreamAppender,
+    metrics: WowMetrics = WowMetrics.NONE,
 ) : AbstractEventStore() {
-    constructor(
-        elasticsearchClient: ReactiveElasticsearchClient,
-        refreshPolicy: Refresh = Refresh.True,
-        batchSize: Int = DEFAULT_BATCH_SIZE,
-        metrics: WowMetrics = WowMetrics.NONE,
-    ) : this(
-        elasticsearchClient = elasticsearchClient,
-        refreshPolicy = refreshPolicy,
-        batchSize = batchSize,
-        batchOptions = ElasticsearchEventStoreBatchOptions(),
-        metrics = metrics,
-    )
-
-    constructor(
-        elasticsearchClient: ReactiveElasticsearchClient,
-        batchOptions: ElasticsearchEventStoreBatchOptions,
-        refreshPolicy: Refresh = Refresh.True,
-        batchSize: Int = DEFAULT_BATCH_SIZE,
-        metrics: WowMetrics = WowMetrics.NONE,
-    ) : this(
-        elasticsearchClient = elasticsearchClient,
-        refreshPolicy = refreshPolicy,
-        batchSize = batchSize,
-        batchOptions = batchOptions,
-        appender = if (batchOptions.enabled) {
-            BatchElasticsearchEventStreamAppender(
-                elasticsearchClient = elasticsearchClient,
-                refreshPolicy = refreshPolicy,
-                options = batchOptions,
-                metrics = metrics,
-            )
-        } else {
-            DirectElasticsearchEventStreamAppender(
-                elasticsearchClient = elasticsearchClient,
-                refreshPolicy = refreshPolicy,
-            )
-        },
-    )
+    private val appender: ElasticsearchEventStreamAppender = if (batchOptions.enabled) {
+        BatchElasticsearchEventStreamAppender(
+            elasticsearchClient = elasticsearchClient,
+            refreshPolicy = refreshPolicy,
+            options = batchOptions,
+            metrics = metrics,
+        )
+    } else {
+        DirectElasticsearchEventStreamAppender(
+            elasticsearchClient = elasticsearchClient,
+            refreshPolicy = refreshPolicy,
+        )
+    }
 
     companion object {
         private const val NOT_FOUND_CODE = 404

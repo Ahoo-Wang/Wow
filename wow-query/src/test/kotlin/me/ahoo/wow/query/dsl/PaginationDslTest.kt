@@ -37,6 +37,11 @@ class PaginationDslTest {
     }
 
     @Test
+    fun `default constructor should match default pagination`() {
+        Pagination().assert().isEqualTo(Pagination.DEFAULT)
+    }
+
+    @Test
     fun `should override index independently`() {
         val pagination = pagination {
             index(5)

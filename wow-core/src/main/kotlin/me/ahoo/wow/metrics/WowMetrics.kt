@@ -33,11 +33,9 @@ import java.util.concurrent.atomic.AtomicLong
  * A [WowMetrics] instance is bound to exactly one [MeterRegistry]. [NONE]
  * leaves publishers unchanged and never touches a registry.
  */
-class WowMetrics private constructor(
-    internal val meterRegistry: MeterRegistry?,
-    @Suppress("UNUSED_PARAMETER") constructorMarker: Unit,
+class WowMetrics(
+    internal val meterRegistry: MeterRegistry? = null,
 ) {
-    constructor(meterRegistry: MeterRegistry) : this(meterRegistry, Unit)
 
     val enabled: Boolean
         get() = meterRegistry != null
@@ -72,7 +70,7 @@ class WowMetrics private constructor(
     }
 
     companion object {
-        val NONE = WowMetrics(null, Unit)
+        val NONE = WowMetrics()
     }
 }
 
