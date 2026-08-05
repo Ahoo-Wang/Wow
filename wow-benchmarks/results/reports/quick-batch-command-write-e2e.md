@@ -12,28 +12,35 @@ Quick Batch CommandWrite E2E compares 32 individual blocking boundaries with one
 - Throughput uses decimal prefixes: `k` = 1,000, `M` = 1,000,000, `G` = 1,000,000,000.
 - Allocation uses binary prefixes: `KiB` = 1,024 bytes, `MiB` = 1,048,576 bytes.
 - Every displayed score and error keeps its scaled unit attached, for example `1.57 k ops/s`.
-- Average latency is automatically scaled to `ns/op`, `µs/op`, `ms/op`, or `s/op`.
+- Average-time results are automatically scaled to `ns/op`, `µs/op`, `ms/op`, or `s/op`.
 - `±` is the JMH-reported error. Scaling changes presentation only; calculations keep raw precision.
 
 ## Benchmark Run Provenance
-- **Source Commit**: `cf5809a61fe32f3ee86aa2357a3b5572683de0a4`
+- **Source Commit**: `a43b45acb730bf2f8922bcb0348ac336cf59f520`
 - **Source Dirty**: `false`
-- **Project Version**: `8.9.0`
-- **JMH Jar SHA-256**: `264e446f22fa0ae471fed066ff1a0ea82311dff859823be9d8b76883c028dd8b`
+- **Project Version**: `8.10.4`
+- **JMH Jar SHA-256**: `85ddc559cd882343e027133cb2c9e3db27632711420132bf97860168d7aad93a`
 - **Runtime JVM**: OpenJDK 64-Bit Server VM 17.0.7+7-LTS / Java 17.0.7
 - **Runtime OS**: Mac OS X 26.5.2 aarch64
 - **CPU Cores**: 14
 - **Physical Memory**: 24.0 GiB
 
+### Manifest-bound Run-Time Infrastructure
+
+- **Captured At**: 2026-08-05T06:42:38.429070Z to 2026-08-05T06:45:27.442970Z
+- **Benchmark Client**: host JVM
+- **Docker Server**: not required by these suites
+- **Local Docker Containers**: none required; service endpoints remain bound in each run manifest.
+
 | Suite | Profile | Threads | Run ID | Started | Completed | Profilers | Rows | Result SHA-256 |
 |-------|---------|---------|--------|---------|-----------|-----------|------|----------------|
-| batch-command-write-e2e | quick | 1 | `27dd4e6a-2e9a-4dd7-a6d5-e676be2aa698` | 2026-07-22T13:23:59.419383Z | 2026-07-22T13:25:17.887813Z | `-prof gc` | 9 | `a83deef22746d5d7b24c15a2fe187e81b993b44b747f7d46acf52729abfb7054` |
+| batch-command-write-e2e | quick | 1 | `aaf7309a-a5d8-45f7-beec-12df71f6e025` | 2026-08-05T06:42:38.429093Z | 2026-08-05T06:45:27.443667Z | `-prof gc` | 9 | `30aa2ec98396eb81fefc22baa46fa88eaedef39f80722292a3006fcb2346b5e5` |
 
 ## Report Generation Environment
-- **Version**: 8.9.0
+- **Version**: 8.10.4
 - **JVM**: OpenJDK 64-Bit Server VM 17.0.7+7-LTS
 - **OS**: Mac OS X 26.5.2 aarch64
-- **Generated At**: 2026-07-22T21:37:19+08:00
+- **Generated At**: 2026-08-05T14:45:27+08:00
 - **CPU Cores**: 14
 - **Physical Memory**: 24.0 GiB
 - **Benchmark JVM Args**: `-Xmx1g -Xms1g -XX:+UseG1GC`
@@ -54,9 +61,9 @@ The same 32-command workload is normalized per command. Sequential c1 isolates b
 
 | Scenario | Control | Primary c1 | vs Control | Scaling c4 | vs Control | c4 / c1 |
 |----------|------------------------|---------------|---------------|---------------|---------------|---------|
-| `ceiling` | 94.75 k ops/s | 129.13 k ops/s | +36.3% | 268.2 k ops/s | +183.1% | 2.08× |
-| `noop-store` | 92.16 k ops/s | 114.81 k ops/s | +24.6% | 230.21 k ops/s | +149.8% | 2.01× |
-| `in-memory-new-aggregate` | 86.43 k ops/s | 105.79 k ops/s | +22.4% | 194.87 k ops/s | +125.5% | 1.84× |
+| `ceiling` | 29.95 k ops/s | 86.84 k ops/s | +190.0% | 168.02 k ops/s | +461.1% | 1.93× |
+| `noop-store` | 62.51 k ops/s | 88.3 k ops/s | +41.3% | 147.38 k ops/s | +135.8% | 1.67× |
+| `in-memory-new-aggregate` | 44.79 k ops/s | 83.41 k ops/s | +86.2% | 140.68 k ops/s | +214.1% | 1.69× |
 
 Higher throughput is better. Changes use unrounded JMH scores.
 
@@ -64,9 +71,9 @@ Higher throughput is better. Changes use unrounded JMH scores.
 
 | Scenario | Control | Primary c1 | Reduction vs Control | Scaling c4 | Reduction vs Control | c4 / c1 |
 |----------|------------------------|---------------|-----------|---------------|-----------|---------|
-| `ceiling` | 3.86 KiB/op | 142.75 B/op | 96.4% | 657.39 B/op | 83.4% | 4.61× |
-| `noop-store` | 4.8 KiB/op | 255.59 B/op | 94.8% | 2.36 KiB/op | 50.7% | 9.47× |
-| `in-memory-new-aggregate` | 4.57 KiB/op | 255.69 B/op | 94.5% | 1.94 KiB/op | 57.6% | 7.77× |
+| `ceiling` | 4.72 KiB/op | 199.57 B/op | 95.9% | 4.66 KiB/op | 1.4% | 23.90× |
+| `noop-store` | 5.65 KiB/op | 338.69 B/op | 94.1% | 5.6 KiB/op | 0.9% | 16.93× |
+| `in-memory-new-aggregate` | 5.51 KiB/op | 338.31 B/op | 94.0% | 5.43 KiB/op | 1.5% | 16.42× |
 
 Lower allocation is better. Reduction is relative to the Control; c4 / c1 makes the concurrency trade-off explicit.
 
@@ -74,12 +81,12 @@ Lower allocation is better. Reduction is relative to the Control; c4 / c1 makes 
 
 | Suite | Benchmark | Threads | Mode | Score | Error | gc.alloc.rate.norm |
 |-------|-----------|---------|------|-------|-------|-------------------|
-| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendBatchConcurrentAndWaitProcessed (scenario=ceiling) | 1 | thrpt | 268.2 k ops/s | - | 657.39 B/op |
-| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendBatchConcurrentAndWaitProcessed (scenario=in-memory-new-aggregate) | 1 | thrpt | 194.87 k ops/s | - | 1.94 KiB/op |
-| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendBatchConcurrentAndWaitProcessed (scenario=noop-store) | 1 | thrpt | 230.21 k ops/s | - | 2.36 KiB/op |
-| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendBatchSequentialAndWaitProcessed (scenario=ceiling) | 1 | thrpt | 129.13 k ops/s | - | 142.75 B/op |
-| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendBatchSequentialAndWaitProcessed (scenario=in-memory-new-aggregate) | 1 | thrpt | 105.79 k ops/s | - | 255.69 B/op |
-| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendBatchSequentialAndWaitProcessed (scenario=noop-store) | 1 | thrpt | 114.81 k ops/s | - | 255.59 B/op |
-| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendIndividuallyAndWaitProcessed (scenario=ceiling) | 1 | thrpt | 94.75 k ops/s | - | 3.86 KiB/op |
-| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendIndividuallyAndWaitProcessed (scenario=in-memory-new-aggregate) | 1 | thrpt | 86.43 k ops/s | - | 4.57 KiB/op |
-| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendIndividuallyAndWaitProcessed (scenario=noop-store) | 1 | thrpt | 92.16 k ops/s | - | 4.8 KiB/op |
+| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendBatchConcurrentAndWaitProcessed (scenario=ceiling) | 1 | thrpt | 168.02 k ops/s | - | 4.66 KiB/op |
+| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendBatchConcurrentAndWaitProcessed (scenario=in-memory-new-aggregate) | 1 | thrpt | 140.68 k ops/s | - | 5.43 KiB/op |
+| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendBatchConcurrentAndWaitProcessed (scenario=noop-store) | 1 | thrpt | 147.38 k ops/s | - | 5.6 KiB/op |
+| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendBatchSequentialAndWaitProcessed (scenario=ceiling) | 1 | thrpt | 86.84 k ops/s | - | 199.57 B/op |
+| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendBatchSequentialAndWaitProcessed (scenario=in-memory-new-aggregate) | 1 | thrpt | 83.41 k ops/s | - | 338.31 B/op |
+| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendBatchSequentialAndWaitProcessed (scenario=noop-store) | 1 | thrpt | 88.3 k ops/s | - | 338.69 B/op |
+| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendIndividuallyAndWaitProcessed (scenario=ceiling) | 1 | thrpt | 29.95 k ops/s | - | 4.72 KiB/op |
+| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendIndividuallyAndWaitProcessed (scenario=in-memory-new-aggregate) | 1 | thrpt | 44.79 k ops/s | - | 5.51 KiB/op |
+| Batch CommandWrite E2E | BatchCommandWriteE2EBenchmark.sendIndividuallyAndWaitProcessed (scenario=noop-store) | 1 | thrpt | 62.51 k ops/s | - | 5.65 KiB/op |
