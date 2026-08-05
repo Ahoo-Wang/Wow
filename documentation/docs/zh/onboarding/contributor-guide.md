@@ -31,7 +31,7 @@ description: 面向 Wow 代码库、开发流程、测试策略与首次贡献�
 
 | 组件 | 仓库基线 | 事实来源 |
 | --- | --- | --- |
-| Wow | `8.10.4` | [`gradle.properties`](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties#L18-L23) |
+| Wow | `8.10.5` | [`gradle.properties`](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties#L18-L23) |
 | Kotlin | `2.4.10` | [版本目录](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L23-L35) |
 | Spring Boot | `4.1.0` | [版本目录](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L1-L5) |
 | Gradle | `9.6.1` | [Wrapper 配置](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/wrapper/gradle-wrapper.properties#L1-L9) |
