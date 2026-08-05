@@ -53,7 +53,7 @@ private val BI_SCRIPT_GENERATION_SCHEDULER: Scheduler = Schedulers.newBoundedEla
     true,
 )
 
-class GenerateBIScriptHandlerFunction internal constructor(
+class GenerateBIScriptHandlerFunction(
     private val options: BiScriptOptions,
     private val deploymentInspector: BiDeploymentInspector,
     private val exceptionHandler: RequestExceptionHandler,
