@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot.starter.elasticsearch
 import co.elastic.clients.json.JsonpMapper
 import co.elastic.clients.json.jackson.Jackson3JsonpMapper
 import co.elastic.clients.transport.rest5_client.Rest5ClientOptions
+import co.elastic.clients.transport.rest5_client.SafeResponseConsumer
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -131,6 +132,11 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
                 val headers = context.getBean(Rest5ClientOptions::class.java).headers().toList()
                 headers.first { it.key == "Accept" }.value.assert().isEqualTo(mediaType)
                 headers.first { it.key == "Content-Type" }.value.assert().isEqualTo(mediaType)
+                context.getBean(Rest5ClientOptions::class.java)
+                    .restClientRequestOptions()
+                    .httpAsyncResponseConsumerFactory
+                    .assert()
+                    .isSameAs(SafeResponseConsumer.DEFAULT_FACTORY)
             }
     }
 

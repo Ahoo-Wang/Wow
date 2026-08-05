@@ -16,7 +16,7 @@ package me.ahoo.wow.spring.boot.starter.elasticsearch
 import co.elastic.clients.json.JsonpMapper
 import co.elastic.clients.json.jackson.Jackson3JsonpMapper
 import co.elastic.clients.transport.rest5_client.Rest5ClientOptions
-import co.elastic.clients.transport.rest5_client.low_level.RequestOptions
+import co.elastic.clients.transport.rest5_client.SafeResponseConsumer
 import me.ahoo.wow.elasticsearch.IndexTemplateInitializer
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
@@ -81,7 +81,7 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
             "${ElasticsearchProperties.COMPATIBILITY_VERSION_KEY} must be configured when the compatibility option is enabled"
         }
         val mediaType = "application/vnd.elasticsearch+json; compatible-with=$compatibilityVersion"
-        val builder = Rest5ClientOptions.Builder(RequestOptions.DEFAULT.toBuilder())
+        val builder = Rest5ClientOptions.Builder(SafeResponseConsumer.DEFAULT_REQUEST_OPTIONS.toBuilder())
         builder.setHeader("Accept", mediaType)
         builder.setHeader("Content-Type", mediaType)
         return builder.build()
