@@ -20,6 +20,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.elasticsearch.IndexTemplateInitializer
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
@@ -131,6 +132,19 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
                 headers.first { it.key == "Accept" }.value.assert().isEqualTo(mediaType)
                 headers.first { it.key == "Content-Type" }.value.assert().isEqualTo(mediaType)
             }
+    }
+
+    @Test
+    fun `should fail fast when compatibility version is not bound`() {
+        val autoConfiguration = ElasticsearchEventSourcingAutoConfiguration(
+            ElasticsearchProperties(compatibilityVersion = null),
+        )
+
+        assertThrownBy<IllegalArgumentException> {
+            autoConfiguration.rest5ClientOptions()
+        }.hasMessage(
+            "${ElasticsearchProperties.COMPATIBILITY_VERSION_KEY} must be configured when the compatibility option is enabled",
+        )
     }
 
     @Test
