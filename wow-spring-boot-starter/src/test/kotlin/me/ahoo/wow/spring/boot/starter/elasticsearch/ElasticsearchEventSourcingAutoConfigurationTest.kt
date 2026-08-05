@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot.starter.elasticsearch
 
 import co.elastic.clients.json.JsonpMapper
 import co.elastic.clients.json.jackson.Jackson3JsonpMapper
+import co.elastic.clients.transport.rest5_client.Rest5ClientOptions
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -103,6 +104,32 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
                     .hasSingleBean(ElasticsearchEventStore::class.java)
                     .hasSingleBean(JsonpMapper::class.java)
                 context.getBean(JsonpMapper::class.java).assert().isSameAs(WowJsonpMapper)
+            }
+    }
+
+    @Test
+    fun `should configure Elasticsearch compatibility media type`() {
+        ApplicationContextRunner()
+            .enableWow()
+            .withConfiguration(
+                AutoConfigurations.of(
+                    ElasticsearchRestClientAutoConfiguration::class.java,
+                    ElasticsearchClientAutoConfiguration::class.java,
+                    DataElasticsearchAutoConfiguration::class.java,
+                    ElasticsearchEventSourcingAutoConfiguration::class.java,
+                ),
+            )
+            .withPropertyValues(
+                "${EventStoreProperties.STORAGE}=${StorageType.ELASTICSEARCH_NAME}",
+                "${SnapshotProperties.STORAGE}=${StorageType.MONGO_NAME}",
+                "${ElasticsearchProperties.PREFIX}.auto-init-template=false",
+                "${ElasticsearchProperties.COMPATIBILITY_VERSION_KEY}=8",
+            )
+            .run { context ->
+                val mediaType = "application/vnd.elasticsearch+json; compatible-with=8"
+                val headers = context.getBean(Rest5ClientOptions::class.java).headers().toList()
+                headers.first { it.key == "Accept" }.value.assert().isEqualTo(mediaType)
+                headers.first { it.key == "Content-Type" }.value.assert().isEqualTo(mediaType)
             }
     }
 

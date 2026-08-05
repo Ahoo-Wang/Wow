@@ -22,8 +22,10 @@ import org.springframework.boot.context.properties.bind.DefaultValue
 class ElasticsearchProperties(
     @DefaultValue("true") override val enabled: Boolean = true,
     @DefaultValue("true") var autoInitTemplate: Boolean = true,
+    var compatibilityVersion: Int? = null,
 ) : EnabledCapable {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}elasticsearch"
+        const val COMPATIBILITY_VERSION_KEY = "$PREFIX.compatibility-version"
     }
 }
