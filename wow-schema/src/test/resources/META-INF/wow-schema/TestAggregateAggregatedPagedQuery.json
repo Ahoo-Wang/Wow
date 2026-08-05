@@ -93,8 +93,7 @@
           "format" : "int32",
           "default" : "10"
         }
-      },
-      "required" : [ "index", "size" ]
+      }
     },
     "projection" : {
       "type" : "object",
