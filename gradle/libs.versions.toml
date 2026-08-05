@@ -31,7 +31,7 @@ test-retry = "1.6.5"
 detekt = "1.23.8"
 dokka = "2.2.0"
 kotlin = "2.4.10"
-ksp = "2.3.10"
+ksp = "2.3.11"
 publish-plugin = "2.0.0"
 jmh-plugin = "0.7.3"
 
