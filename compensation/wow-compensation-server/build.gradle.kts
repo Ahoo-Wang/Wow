@@ -85,7 +85,7 @@ dependencies {
     implementation("me.ahoo.coapi:coapi-spring-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
     implementation("org.springframework.boot:spring-boot-starter-data-redis-reactive")
-    implementation("org.springframework.boot:spring-boot-starter-elasticsearch")
+    implementation("org.springframework.boot:spring-boot-starter-data-elasticsearch")
     api("io.projectreactor.kotlin:reactor-kotlin-extensions")
     implementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
     implementation("org.springframework.boot:spring-boot-starter-validation")

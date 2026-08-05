@@ -15,10 +15,13 @@ package me.ahoo.wow.spring.boot.starter.elasticsearch
 
 import co.elastic.clients.json.JsonpMapper
 import co.elastic.clients.json.jackson.Jackson3JsonpMapper
+import co.elastic.clients.transport.rest5_client.Rest5ClientOptions
+import co.elastic.clients.transport.rest5_client.SafeResponseConsumer
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.elasticsearch.IndexTemplateInitializer
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
@@ -56,6 +59,17 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
     private val metricsProvider = StaticListableBeanFactory(
         mapOf("wowMetrics" to WowMetrics.NONE)
     ).getBeanProvider(WowMetrics::class.java)
+
+    @Test
+    fun `should preserve binary compatible constructor`() {
+        val properties = ElasticsearchProperties::class.java
+            .getConstructor(java.lang.Boolean.TYPE, java.lang.Boolean.TYPE)
+            .newInstance(false, false)
+
+        properties.enabled.assert().isFalse()
+        properties.autoInitTemplate.assert().isFalse()
+        properties.compatibilityVersion.assert().isNull()
+    }
 
     @Test
     fun `secondary constructor should use default batch properties`() {
@@ -104,6 +118,50 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
                     .hasSingleBean(JsonpMapper::class.java)
                 context.getBean(JsonpMapper::class.java).assert().isSameAs(WowJsonpMapper)
             }
+    }
+
+    @Test
+    fun `should configure Elasticsearch compatibility media type`() {
+        ApplicationContextRunner()
+            .enableWow()
+            .withConfiguration(
+                AutoConfigurations.of(
+                    ElasticsearchRestClientAutoConfiguration::class.java,
+                    ElasticsearchClientAutoConfiguration::class.java,
+                    DataElasticsearchAutoConfiguration::class.java,
+                    ElasticsearchEventSourcingAutoConfiguration::class.java,
+                ),
+            )
+            .withPropertyValues(
+                "${EventStoreProperties.STORAGE}=${StorageType.ELASTICSEARCH_NAME}",
+                "${SnapshotProperties.STORAGE}=${StorageType.MONGO_NAME}",
+                "${ElasticsearchProperties.PREFIX}.auto-init-template=false",
+                "${ElasticsearchProperties.COMPATIBILITY_VERSION_KEY}=8",
+            )
+            .run { context ->
+                val mediaType = "application/vnd.elasticsearch+json; compatible-with=8"
+                val headers = context.getBean(Rest5ClientOptions::class.java).headers().toList()
+                headers.first { it.key == "Accept" }.value.assert().isEqualTo(mediaType)
+                headers.first { it.key == "Content-Type" }.value.assert().isEqualTo(mediaType)
+                context.getBean(Rest5ClientOptions::class.java)
+                    .restClientRequestOptions()
+                    .httpAsyncResponseConsumerFactory
+                    .assert()
+                    .isSameAs(SafeResponseConsumer.DEFAULT_FACTORY)
+            }
+    }
+
+    @Test
+    fun `should fail fast when compatibility version is not bound`() {
+        val autoConfiguration = ElasticsearchEventSourcingAutoConfiguration(
+            ElasticsearchProperties(),
+        )
+
+        assertThrownBy<IllegalArgumentException> {
+            autoConfiguration.rest5ClientOptions()
+        }.hasMessage(
+            "${ElasticsearchProperties.COMPATIBILITY_VERSION_KEY} must be configured when the compatibility option is enabled",
+        )
     }
 
     @Test
