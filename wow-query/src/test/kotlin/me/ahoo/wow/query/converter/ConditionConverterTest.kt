@@ -330,6 +330,10 @@ class ConditionConverterTest {
                 "RECENT_DAYS operator requires value to be a positive whole number.",
             Condition("field", Operator.EARLIER_DAYS, 1.5) to
                 "EARLIER_DAYS operator requires value to be a positive whole number.",
+            Condition("field", Operator.RECENT_DAYS, BigDecimal("1.0000000000000000001")) to
+                "RECENT_DAYS operator requires value to be a positive whole number.",
+            Condition("field", Operator.EARLIER_DAYS, BigDecimal("1.0000000000000000001")) to
+                "EARLIER_DAYS operator requires value to be a positive whole number.",
         )
 
         invalidConditions.forEach { (condition, expectedMessage) ->

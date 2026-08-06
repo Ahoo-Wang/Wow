@@ -171,14 +171,17 @@ internal object ConditionValidator {
     }
 
     private fun Number.isSecondOfDay(): Boolean {
-        val exactValue = runCatching { toString().toBigDecimal().longValueExact() }.getOrNull()
+        val exactValue = toExactLongOrNull()
         return exactValue != null && exactValue in 0..86399
     }
 
+    private fun Number.toExactLongOrNull(): Long? =
+        runCatching { toString().toBigDecimal().longValueExact() }.getOrNull()
+
     private fun validatePositiveWholeNumber(condition: Condition) {
         val number = condition.value as? Number
-        val value = number?.toDouble()
-        require(value != null && value.isFinite() && value > 0 && value % 1.0 == 0.0) {
+        val value = number?.toExactLongOrNull()
+        require(value != null && value > 0) {
             "${condition.operator} operator requires value to be a positive whole number."
         }
     }
