@@ -21,6 +21,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             collapsed: false,
             items: [
                 {text: '文章首页', link: ''},
+                {text: '接口返回 200，查询却查不到', link: 'command-success-is-not-complete'},
                 {text: 'AI 越强，业务模型越值钱', link: 'why-ddd-fits-ai-era'},
             ],
         },
