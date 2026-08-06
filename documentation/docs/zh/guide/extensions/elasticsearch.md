@@ -297,7 +297,8 @@ POST _index_template/wow-snapshot-template
             "match_mapping_type": "string",
             "path_match": "tags.*",
             "mapping": {
-              "type": "keyword"
+              "type": "keyword",
+              "ignore_above": 8191
             }
           }
         },
@@ -306,7 +307,8 @@ POST _index_template/wow-snapshot-template
             "match": "id",
             "match_mapping_type": "string",
             "mapping": {
-              "type": "keyword"
+              "type": "keyword",
+              "ignore_above": 8191
             }
           }
         },
@@ -315,7 +317,8 @@ POST _index_template/wow-snapshot-template
             "match": "*Id",
             "match_mapping_type": "string",
             "mapping": {
-              "type": "keyword"
+              "type": "keyword",
+              "ignore_above": 8191
             }
           }
         },
@@ -323,7 +326,8 @@ POST _index_template/wow-snapshot-template
           "strings_as_keyword": {
             "match_mapping_type": "string",
             "mapping": {
-              "type": "keyword"
+              "type": "keyword",
+              "ignore_above": 8191
             }
           }
         }
@@ -333,7 +337,7 @@ POST _index_template/wow-snapshot-template
 }
 ```
 
-默认模板优先保证与 MongoDB 精确查询操作符的一致性，因此新快照索引中的动态字符串会映射为 `keyword`。对象数组不会被自动推断为 `nested`；使用 `ELEM_MATCH` 时，应为具体聚合提供更高优先级的模板：
+默认模板优先保证与 MongoDB 精确查询操作符的一致性，因此新快照索引中的动态字符串会映射为 `keyword`。为避免任意 UTF-8 值超过 Lucene 的 term 上限，超过 8191 个字符的值仍保留在 `_source` 中，但不会建立索引；精确、字符串及 `EXISTS` 查询不会匹配这些被忽略的值。需要关注该差异时，可监控 Elasticsearch 的 `_ignored` 元数据。对象数组不会被自动推断为 `nested`；使用 `ELEM_MATCH` 时，应为具体聚合提供更高优先级的模板：
 
 ```http request
 POST _index_template/wow-order-snapshot-template

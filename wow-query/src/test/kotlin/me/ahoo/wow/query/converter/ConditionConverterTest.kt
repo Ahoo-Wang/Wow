@@ -20,8 +20,19 @@ import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.query.dsl.condition
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.math.BigDecimal
 
 class ConditionConverterTest {
+
+    private class SingleUseIterable<T>(private val values: List<T>) : Iterable<T> {
+        private var consumed = false
+
+        override fun iterator(): Iterator<T> {
+            check(consumed.not()) { "Iterable can only be consumed once." }
+            consumed = true
+            return values.iterator()
+        }
+    }
 
     private class RecordingConditionConverter : AbstractConditionConverter<Pair<String, Condition>>() {
         val calls = mutableListOf<Pair<String, Condition>>()
@@ -327,6 +338,59 @@ class ConditionConverterTest {
             }
             exception.message.assert().isEqualTo(expectedMessage)
         }
+    }
+
+    @Test
+    fun `should reject fractional and non finite BEFORE_TODAY seconds`() {
+        listOf(
+            Double.NaN,
+            Double.POSITIVE_INFINITY,
+            Double.NEGATIVE_INFINITY,
+            0.5,
+            86399.5,
+            BigDecimal("1.5"),
+        )
+            .forEach { value ->
+                val exception = assertThrows<IllegalArgumentException> {
+                    converter.testInternalConvert(Condition("field", Operator.BEFORE_TODAY, value))
+                }
+                exception.message.assert().isEqualTo(
+                    "BEFORE_TODAY operator requires value to be a valid second-of-day Number, " +
+                        "ISO LocalTime String, or LocalTime."
+                )
+            }
+    }
+
+    @Test
+    fun `should materialize collection values before dispatch`() {
+        val conditions =
+            listOf(
+                Condition(operator = Operator.IDS, value = SingleUseIterable(listOf("id-1", "id-2"))) to
+                    listOf("id-1", "id-2"),
+                Condition(operator = Operator.AGGREGATE_IDS, value = SingleUseIterable(listOf("aggregate-1"))) to
+                    listOf("aggregate-1"),
+                Condition("field", Operator.IN, SingleUseIterable(listOf("included"))) to listOf("included"),
+                Condition("field", Operator.BETWEEN, SingleUseIterable(listOf(1, 2))) to listOf(1, 2),
+                Condition("field", Operator.NOT_IN, SingleUseIterable(listOf("excluded"))) to listOf("excluded"),
+                Condition("field", Operator.ALL_IN, SingleUseIterable(listOf("required"))) to listOf("required"),
+            )
+
+        conditions.forEach { (condition, expectedValues) ->
+            val dispatchedCondition = converter.testInternalConvert(condition).second
+            dispatchedCondition.value.assert().isEqualTo(expectedValues)
+        }
+    }
+
+    @Test
+    fun `should recursively materialize collection values before dispatch`() {
+        val condition =
+            Condition.and(
+                Condition("field", Operator.IN, SingleUseIterable(listOf("included"))),
+            )
+
+        val dispatchedCondition = converter.testConvertWithoutGuard(condition).second
+
+        dispatchedCondition.children.single().value.assert().isEqualTo(listOf("included"))
     }
 
     @Test

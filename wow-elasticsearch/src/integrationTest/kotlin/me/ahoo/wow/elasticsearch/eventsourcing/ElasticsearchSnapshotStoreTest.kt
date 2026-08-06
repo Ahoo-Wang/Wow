@@ -136,6 +136,27 @@ internal class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
     }
 
     @Test
+    fun `direct save should retain a dynamic string beyond the safe keyword limit`() {
+        val client = ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch)
+        client.initSnapshotTemplate()
+        val longValue = "😀".repeat(8192)
+        val snapshot = snapshot(id = generateGlobalId(), version = 1, data = longValue)
+
+        ElasticsearchSnapshotStore(client).use { store ->
+            store.save(snapshot)
+                .test()
+                .verifyComplete()
+
+            store.load<MockStateAggregate>(snapshot.aggregateId)
+                .test()
+                .assertNext { loaded ->
+                    loaded.state.data.assert().isEqualTo(longValue)
+                }
+                .verifyComplete()
+        }
+    }
+
+    @Test
     fun `batch save should upgrade a legacy internal version document without failing another item`() {
         val client = ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch)
         client.initSnapshotTemplate()
@@ -377,6 +398,7 @@ internal class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
     private fun snapshot(
         id: String,
         version: Int,
+        data: String = generateGlobalId(),
     ): SimpleSnapshot<MockStateAggregate> {
         val aggregateId = aggregateMetadata.aggregateId(id)
         val aggregate: StateAggregate<MockStateAggregate> = ConstructorStateAggregateFactory.create(
@@ -384,7 +406,7 @@ internal class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
             aggregateId,
         )
         aggregate.onSourcing(
-            listOf(MockAggregateCreated(generateGlobalId())).toDomainEventStream(
+            listOf(MockAggregateCreated(data)).toDomainEventStream(
                 upstream = GivenInitializationCommand(aggregateId),
                 aggregateVersion = 0,
             )

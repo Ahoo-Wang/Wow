@@ -17,12 +17,15 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.springframework.core.io.ClassPathResource
 import org.springframework.data.elasticsearch.core.ReactiveElasticsearchOperations
 import org.springframework.data.elasticsearch.core.ReactiveIndexOperations
 import org.springframework.data.elasticsearch.core.mapping.IndexCoordinates
 import reactor.core.publisher.Mono
+import tools.jackson.databind.JsonNode
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -78,6 +81,30 @@ class IndexTemplateInitializerTest {
 
         assertThrows<IllegalStateException> {
             initializer.initAll()
+        }
+    }
+
+    @Test
+    fun `snapshot dynamic string mappings should use the safe keyword limit`() {
+        val template =
+            ClassPathResource("templates/wow-snapshot-template.json").inputStream.use {
+                JsonSerializer.readValue(it, JsonNode::class.java)
+            }
+        val dynamicTemplates = template.get("template").get("mappings").get("dynamic_templates")
+        val templateNames =
+            listOf(
+                "tags_strings_as_keyword",
+                "id_string_as_keyword",
+                "id_suffix_string_as_keyword",
+                "strings_as_keyword",
+            )
+
+        dynamicTemplates.size().assert().isEqualTo(templateNames.size)
+        templateNames.forEachIndexed { index, templateName ->
+            val definition = dynamicTemplates.get(index).get(templateName)
+            definition.get("match_mapping_type").asString().assert().isEqualTo("string")
+            definition.get("mapping").get("type").asString().assert().isEqualTo("keyword")
+            definition.get("mapping").get("ignore_above").asInt().assert().isEqualTo(8191)
         }
     }
 

@@ -20,14 +20,40 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 internal object ConditionValidator {
-    fun validate(condition: Condition) {
-        validateNode(condition)
-        condition.children.forEach(::validate)
+    fun validate(condition: Condition): Condition {
+        val normalizedCondition = validateNode(condition)
+        if (normalizedCondition.children.isEmpty()) {
+            return normalizedCondition
+        }
+        return normalizedCondition.copy(
+            children = normalizedCondition.children.map(::validate),
+        )
     }
 
-    fun validateNode(condition: Condition) {
-        validateValue(condition)
-        validateOptions(condition)
+    fun validateNode(condition: Condition): Condition {
+        val normalizedCondition = materializeIterableValue(condition)
+        validateValue(normalizedCondition)
+        validateOptions(normalizedCondition)
+        return normalizedCondition
+    }
+
+    private fun materializeIterableValue(condition: Condition): Condition {
+        val requiresMaterialization =
+            when (condition.operator) {
+                Operator.IDS,
+                Operator.AGGREGATE_IDS,
+                Operator.IN,
+                Operator.NOT_IN,
+                Operator.ALL_IN,
+                Operator.BETWEEN -> true
+
+                else -> false
+            }
+        if (requiresMaterialization.not()) {
+            return condition
+        }
+        val values = condition.value as? Iterable<*> ?: return condition
+        return condition.copy(value = values.toList())
     }
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
@@ -134,7 +160,7 @@ internal object ConditionValidator {
     private fun validateBeforeToday(condition: Condition) {
         val valid =
             when (val value = condition.value) {
-                is Number -> value.toLong() in 0..86399
+                is Number -> value.isSecondOfDay()
                 is String -> runCatching { LocalTime.parse(value) }.isSuccess
                 is LocalTime -> true
                 else -> false
@@ -142,6 +168,11 @@ internal object ConditionValidator {
         require(valid) {
             "BEFORE_TODAY operator requires value to be a valid second-of-day Number, ISO LocalTime String, or LocalTime."
         }
+    }
+
+    private fun Number.isSecondOfDay(): Boolean {
+        val exactValue = runCatching { toString().toBigDecimal().longValueExact() }.getOrNull()
+        return exactValue != null && exactValue in 0..86399
     }
 
     private fun validatePositiveWholeNumber(condition: Condition) {

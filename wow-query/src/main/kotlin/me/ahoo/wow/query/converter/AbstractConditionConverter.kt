@@ -26,18 +26,15 @@ import java.time.temporal.TemporalAdjusters
 abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
     override fun convert(condition: Condition): T {
         val convertedCondition = condition.guard()
-        ConditionValidator.validate(convertedCondition)
-        return dispatch(convertedCondition)
+        return dispatch(ConditionValidator.validate(convertedCondition))
     }
 
     protected fun internalConvert(condition: Condition): T {
-        ConditionValidator.validateNode(condition)
-        return dispatch(condition)
+        return dispatch(ConditionValidator.validateNode(condition))
     }
 
     protected fun convertWithoutGuard(condition: Condition): T {
-        ConditionValidator.validate(condition)
-        return dispatch(condition)
+        return dispatch(ConditionValidator.validate(condition))
     }
 
     @Suppress("CyclomaticComplexMethod")

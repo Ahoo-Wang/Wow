@@ -301,7 +301,8 @@ POST _index_template/wow-snapshot-template
             "match_mapping_type": "string",
             "path_match": "tags.*",
             "mapping": {
-              "type": "keyword"
+              "type": "keyword",
+              "ignore_above": 8191
             }
           }
         },
@@ -310,7 +311,8 @@ POST _index_template/wow-snapshot-template
             "match": "id",
             "match_mapping_type": "string",
             "mapping": {
-              "type": "keyword"
+              "type": "keyword",
+              "ignore_above": 8191
             }
           }
         },
@@ -319,7 +321,8 @@ POST _index_template/wow-snapshot-template
             "match": "*Id",
             "match_mapping_type": "string",
             "mapping": {
-              "type": "keyword"
+              "type": "keyword",
+              "ignore_above": 8191
             }
           }
         },
@@ -327,7 +330,8 @@ POST _index_template/wow-snapshot-template
           "strings_as_keyword": {
             "match_mapping_type": "string",
             "mapping": {
-              "type": "keyword"
+              "type": "keyword",
+              "ignore_above": 8191
             }
           }
         }
@@ -337,7 +341,7 @@ POST _index_template/wow-snapshot-template
 }
 ```
 
-The default template prioritizes parity with MongoDB exact-query operators, so dynamic strings in new snapshot indices are mapped as `keyword`. Arrays of objects are not inferred as `nested`; when using `ELEM_MATCH`, provide a higher-priority template for the aggregate:
+The default template prioritizes parity with MongoDB exact-query operators, so dynamic strings in new snapshot indices are mapped as `keyword`. To keep arbitrary UTF-8 values from exceeding Lucene's term limit, values longer than 8191 characters remain in `_source` but are not indexed; exact, string, and `EXISTS` queries do not match those ignored values. Monitor Elasticsearch's `_ignored` metadata when this distinction matters. Arrays of objects are not inferred as `nested`; when using `ELEM_MATCH`, provide a higher-priority template for the aggregate:
 
 ```http request
 POST _index_template/wow-order-snapshot-template
