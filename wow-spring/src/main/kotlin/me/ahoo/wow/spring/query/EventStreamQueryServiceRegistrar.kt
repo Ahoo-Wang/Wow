@@ -16,7 +16,6 @@ package me.ahoo.wow.spring.query
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.toStringWithAlias
-import me.ahoo.wow.query.event.EventStreamQueryGatewayFactory
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
@@ -45,11 +44,9 @@ class EventStreamQueryServiceRegistrar : QueryServiceRegistrar() {
             return
         }
         val beanDefinitionBuilder = BeanDefinitionBuilder.rootBeanDefinition(EventStreamQueryService::class.java) {
-            appContext.getBeanProvider(EventStreamQueryGatewayFactory::class.java).getIfAvailable()
-                ?.create(namedAggregate)
-                ?: appContext.getBeanProvider(EventStreamQueryServiceFactory::class.java)
-                    .getOrNoOp()
-                    .create(namedAggregate)
+            val queryServiceFactory: EventStreamQueryServiceFactory =
+                appContext.getBeanProvider(EventStreamQueryServiceFactory::class.java).getOrNoOp()
+            queryServiceFactory.create(namedAggregate)
         }
 
         registry.registerBeanDefinition(beanName, beanDefinitionBuilder.beanDefinition)

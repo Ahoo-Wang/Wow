@@ -19,8 +19,6 @@ import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
-import me.ahoo.wow.query.event.CachingEventStreamQueryBackendProvider
-import me.ahoo.wow.query.event.EventStreamQueryBackendProvider
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
@@ -33,16 +31,13 @@ interface EventStreamQueryFilter : QueryFilter<QueryContext<*, *>>
 @Order(ORDER_LAST)
 @FilterType(EventStreamQueryHandler::class)
 @Suppress("UNCHECKED_CAST")
-class TailEventStreamQueryFilter(private val backendProvider: EventStreamQueryBackendProvider) :
+class TailEventStreamQueryFilter(private val queryServiceFactory: EventStreamQueryServiceFactory) :
     EventStreamQueryFilter {
-    constructor(queryServiceFactory: EventStreamQueryServiceFactory) :
-        this(CachingEventStreamQueryBackendProvider(queryServiceFactory))
-
     override fun filter(
         context: QueryContext<*, *>,
         next: FilterChain<QueryContext<*, *>>
     ): Mono<Void> {
-        val queryService = backendProvider.get(context.namedAggregate)
+        val queryService = queryServiceFactory.create(context.namedAggregate)
         when (context.queryType) {
             QueryType.SINGLE -> {
                 context.asSingleQuery<DomainEventStream>().setResult {

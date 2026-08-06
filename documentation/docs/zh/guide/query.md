@@ -459,12 +459,6 @@ eq("state.status", "CREATED")
 `SnapshotQueryServiceRegistrar` 用于自动将所有本地聚合根查询服务注册到 `Spring` 容器中。
 开发者可以通过指定的 `Bean Name` 从 `BeanFactory` 中获取相应的 `SnapshotQueryService`。
 
-注册到 Spring 的服务是应用级 Query Gateway。它与内置 HTTP 查询路由共享同一条
-`SnapshotQueryFilter` / `QueryHandler` 链，因此基于 Query Filter 的条件重写、授权扩展、脱敏和错误处理对进程内查询同样生效。
-HTTP 路由根据 path/header 执行的 `RewriteRequestCondition` 仍属于 Web 边界，不会自动应用到进程内调用；进程内调用方必须显式提供查询范围或可信的 Reactor authority context。
-MongoDB、Elasticsearch 或自定义 `SnapshotQueryServiceFactory` 位于该链路的存储端；直接构造存储实现属于受信任的
-Backend SPI 用法，不会自动应用这些应用级 Filter。
-
 > `Bean Name` 命名规则：`聚合根名称 + ".SnapshotQueryService"`。
 
 使用案例：

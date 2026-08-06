@@ -461,15 +461,6 @@ eq("state.status", "CREATED")
 `SnapshotQueryServiceRegistrar` is used to automatically register all local aggregate root query services into the `Spring` container.
 Developers can obtain the corresponding `SnapshotQueryService` from the `BeanFactory` using the specified `Bean Name`.
 
-The Spring-registered service is an application-level Query Gateway. It shares the same
-`SnapshotQueryFilter` / `QueryHandler` chain as the built-in HTTP query routes, so Query Filter-based condition rewriting,
-authorization extensions, masking, and error handling also apply to in-process queries. The HTTP route's
-path/header-based `RewriteRequestCondition` remains a Web-boundary concern and is not automatically applied to
-in-process calls; those callers must provide an explicit query scope or a trusted Reactor authority context.
-MongoDB, Elasticsearch, and custom
-`SnapshotQueryServiceFactory` implementations sit at the storage tail of that chain. Constructing a storage
-implementation directly is a trusted Backend SPI use case and does not automatically apply application-level filters.
-
 > `Bean Name` naming convention: `Aggregate Root Name + ".SnapshotQueryService"`.
 
 Usage examples:

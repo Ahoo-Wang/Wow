@@ -1,179 +1,278 @@
 # Query 服务架构升级设计
 
-## 1. 背景
+## 1. 决策摘要
 
-当前 Query 能力由以下部分共同组成：
-
-- `wow-api` 提供 `Condition`、`SingleQuery`、`ListQuery`、`PagedQuery`、`Projection` 和 `Sort`；
-- `wow-query` 提供 `QueryService`、Snapshot/EventStream 查询服务、Filter 与 Handler；
-- `wow-spring` 按聚合注册进程内 `SnapshotQueryService` / `EventStreamQueryService` Bean；
-- `wow-webflux` 通过 Query Handler 暴露 HTTP 查询端点；
-- MongoDB 与 Elasticsearch 分别转换和执行同一套 Query DTO。
-
-旧架构存在两个并行入口：HTTP 请求经过 Query Handler 和 Filter，而进程内 QueryService 直接进入存储实现。授权、条件重写、脱敏和错误处理因此不是不可绕过的应用边界。MongoDB 与 Elasticsearch 又分别承担条件验证、字段解析、分页、投影和结果物化，导致公共 DTO 相同但实际语义不同。
-
-本次升级不再以逐个修补 Elasticsearch 操作符为目标，而是建立统一的查询应用边界、语义计划和后端执行协议。
-
-## 2. 目标与非目标
-
-### 2.1 目标
-
-1. HTTP 与进程内查询共享同一应用服务边界。
-2. 将用户 Query DTO 规范化为不可变、后端无关的 `QueryPlan`。
-3. 在进入存储前统一执行授权约束、结构验证、资源预算和字段能力验证。
-4. MongoDB 与 Elasticsearch 只负责编译并执行同一份计划。
-5. 查询结果必须显式区分完整成功、部分结果和失败；默认不接受静默截断。
-6. 保持现有 Query DTO、DSL、HTTP JSON、聚合 Bean 名称和主要服务接口兼容。
-7. 支持按聚合 shadow compare、渐进切换和快速回滚。
-
-### 2.2 非目标
-
-- 不承诺 `MATCH` 的分词和相关性在 MongoDB 与 Elasticsearch 间完全一致。
-- 不把 `RAW` 纳入可移植语义。
-- 第一阶段不新增公开 cursor HTTP 协议。
-- 应用启动不得自动迁移已有 Elasticsearch 索引或切换 alias。
-
-## 3. 目标架构
+Query 服务重构为一条不可绕过的应用主干：
 
 ```mermaid
 flowchart LR
-    HTTP[HTTP Query Route] --> Gateway
-    Internal[In-process QueryService] --> Gateway
+    HTTP[WebFlux Adapter] --> Gateway[QueryGateway]
+    Legacy[Legacy QueryService Adapter] --> Gateway
+    Internal[New In-process Caller] --> Gateway
 
-    subgraph Application[Application Boundary]
-        Gateway[Snapshot/EventStream Query Gateway]
-        Policy[QueryAuthority + QueryPolicy]
-        Budget[QueryBudget]
-        Normalizer[QueryNormalizer]
-        Planner[QueryPlanner]
-        Masking[Result Masking]
-        Errors[Query Error Boundary]
-        Gateway --> Policy --> Budget --> Normalizer --> Planner
+    subgraph Application[Wow Query Application]
+        Gateway --> Admission[Raw Admission Guard]
+        Admission --> Normalizer[Query Normalizer]
+        Normalizer --> Policy[QueryPolicy]
+        Policy --> Planner[Query Planner]
+        Planner --> Executor[Query Executor]
+        Executor --> ResultPolicy[Mandatory Result Policy]
+        ResultPolicy --> ErrorBoundary[Error Boundary]
     end
 
-    Schema[QueryFieldSchema] --> Planner
-    Planner --> Router[QueryBackendRouter]
-    Router --> Mongo[MongoQueryBackend]
-    Router --> ES[ElasticsearchQueryBackend]
-    Mongo --> Materializer[ResultMaterializer]
+    Executor --> Router[Backend Registry / Router]
+    Router --> Mongo[Mongo QueryBackend]
+    Router --> ES[Elasticsearch QueryBackend]
+    Mongo --> Materializer[Result Materializer]
     ES --> Materializer
-    Materializer --> Masking --> Errors
+    Materializer --> ResultPolicy
 ```
 
-### 3.1 Query Gateway
+只把以下三类能力设计为长期扩展端口：
 
-Gateway 是唯一应用级查询入口：
+1. `QueryGateway`：唯一应用查询入口；
+2. `QueryPolicy`：可信授权、强制条件、字段和结果约束；
+3. `QueryBackend`：只执行已经验证的后端无关计划。
 
-- WebFlux Query Route 调用 Gateway；
-- Spring 按聚合注册的 QueryService Bean 也是 Gateway 适配器；
-- 存储 QueryServiceFactory 仅供 Tail/Backend 层使用；
-- Backend Service 生命周期统一为每个物化聚合一个实例；自定义 Factory 的订阅级状态必须位于 Reactor Publisher 内，不能依赖每次查询创建 Service；
-- 每次订阅创建独立 invocation，不跨订阅共享可变 `QueryContext`；
-- Filter、后端 publisher、结果物化与 masking 位于同一错误边界。
+`QueryNormalizer`、`QueryPlanner`、预算计算器和路由器在模型稳定前保持框架内部具体实现，不提前开放多套 SPI。现有 `SnapshotQueryService`、`EventStreamQueryService`、HTTP Handler 和存储 `QueryServiceFactory` 保留为兼容适配器，不再同时承担应用端口和 Backend 端口。
 
-现有 `SnapshotQueryService`、`EventStreamQueryService` 和聚合 Bean 名称继续保留，作为兼容外壳委托 Gateway。
+## 2. 背景与根因
 
-### 3.2 Query Policy
+当前查询合同由 `wow-api` 的 Query DTO、`wow-query` 的 Service/Handler/Filter、WebFlux 路由以及 MongoDB/Elasticsearch 实现共同解释，存在以下结构性问题：
 
-`QueryPolicy` 只能产生以下决策：
+- HTTP 查询经过 Handler/Filter，进程内 `QueryService` 可以直接进入存储，安全与错误处理边界不一致；
+- `SnapshotQueryService` / `EventStreamQueryService` 同时表示应用服务和存储服务，类型系统不能阻止循环接线；
+- Filter 可通过可变 `QueryContext` 替换整个 query/result，无法承载不可移除的授权条件；
+- MongoDB 和 Elasticsearch 分别解释 `Condition`、字段、分页、投影与完整性，公共 DTO 相同但语义并不相同；
+- Factory、Provider、Gateway 各自缓存同一聚合的服务实例，生命周期没有唯一 owner；
+- `SHADOW` 是执行策略，`STRICT` 是校验策略，把两者放入单一 profile 会形成互斥关系，无法表达“严格校验下进行 shadow”。
 
-- `Deny(reason)`；
-- `Allow(mandatoryCondition, fieldPolicy, resultPolicy)`。
+因此本次升级不是给 Elasticsearch 增加 MongoDB 操作符别名，而是重新划分应用、语义与存储边界。
 
-`mandatoryCondition` 必须与用户条件执行逻辑 `AND`，不得替换用户条件。tenant、owner、space、删除态与 ABAC 约束在此边界统一追加。Authority 必须来自可信上下文，不得直接信任请求参数或 Header。
+## 3. 目标与非目标
 
-### 3.3 Query Normalizer 与 Query Plan
+### 3.1 目标
 
-Normalizer 在一次订阅内完成：
+1. HTTP 与进程内调用最终都进入同一个 `QueryGateway`。
+2. 原始 Query DTO 在应用边界内转换为深度不可变、后端无关的 `QueryPlan`。
+3. 授权强制条件具有 provenance，任何后续扩展都不能移除或覆盖。
+4. MongoDB 作为 `PORTABLE` 查询语义基准，Backend 只负责编译和执行同一份 Plan。
+5. 查询完整性、分页一致性、预算与错误分类由公共合同定义，Backend 不得静默降级。
+6. 保持现有 Query DTO、JSON/OpenAPI、七个 `QueryService` 方法、DSL、Spring 聚合 Bean 名称与主要返回结构兼容。
+7. 支持按聚合逐步启用 planned path、shadow compare、切换和回滚。
 
-1. Query DTO 结构验证；
-2. 时间操作符基于注入的 `Clock` 冻结边界；
-3. 递归规范化逻辑条件；
-4. 解析逻辑字段和 `ELEM_MATCH` 相对作用域；
-5. 校验 projection、sort、pagination 和 limit；
-6. 计算结构复杂度与执行预算；
-7. 生成深度不可变的 `QueryPlan`。
+### 3.2 非目标
 
-`QueryPlan` 不得包含 BSON、Elasticsearch `Query`、物理字段名或索引名。MongoDB 的 `_id`、Elasticsearch multi-field 和 nested path 只在 Backend compiler 内出现。
+- 不承诺 `MATCH` 在 MongoDB 与 Elasticsearch 间具有相同分词和相关性。
+- 不把 `RAW` 纳入跨 Backend 可移植语义。
+- 第一阶段不新增公开 cursor HTTP 协议。
+- 应用启动不自动迁移、删除 Elasticsearch 索引或切换 alias。
+- 在核心模型尚未稳定前不拆分新的 Gradle module。
 
-建议的计划形态：
+## 4. 边界与职责
+
+### 4.1 QueryGateway
+
+`QueryGateway` 是唯一应用端口，负责整个 Publisher 生命周期：
+
+- 每次订阅创建独立的 `QueryInvocation`；
+- 读取显式、可信的 `QueryExecutionContext`；
+- 完成 admission、normalization、policy、planning、execution 和结果策略；
+- 覆盖同步异常、异步 Backend 异常、部分 `Flux` 后的异常和取消；
+- 不缓存聚合服务、不解析物理字段、不拥有存储客户端。
+
+WebFlux 是 transport adapter；现有聚合级 `SnapshotQueryService<State>` / `EventStreamQueryService` Bean 是 legacy adapter。两者都只能委托 Gateway。兼容期保留 Handler/Filter，但它们不得再被描述为最终安全边界。
+
+### 4.2 Raw Admission Guard
+
+Policy 不直接接收未经验证的 `Any` DTO。Admission 先执行低成本结构保护：
+
+- 条件深度、节点数、children 形态；
+- 字段、projection、sort 数量和字符串长度；
+- value、options、RAW payload 的大小上限；
+- 非法分页、负 limit 和明显溢出。
+
+Admission 只防止畸形输入消耗过多资源，不决定业务授权或 Backend 语义。
+
+### 4.3 Normalizer
+
+Normalizer 将 wire DTO 转换为 `NormalizedQuery`：
+
+- 完整递归解析逻辑条件和 `ELEM_MATCH` 相对字段作用域；
+- 将内置 ID、tenant、owner、space、deleted 操作符映射为逻辑 `SystemField`；
+- 将时间操作符基于一次订阅内冻结的 `Clock.instant()` 展开为半开区间；
+- 对 List、Map 和字节值进行防御性复制，消除 `Any` 的可变性；
+- 验证 projection、sort、pagination、limit 和 Native payload 形态；
+- 标注用户条件来源，不混入授权条件。
+
+Normalizer 产物不能包含 BSON、Elasticsearch `Query`、`_id`、`.keyword`、索引名或集合名。
+
+### 4.4 QueryPolicy
+
+`QueryPolicy` 是响应式授权扩展端口，只返回：
+
+```text
+Deny(reason)
+Allow(
+  mandatoryCondition,
+  fieldConstraint,
+  resultConstraint
+)
+```
+
+Authority 必须来自经过认证的 `QueryExecutionContext`，不能直接把 Header、请求参数或任意 Reactor key 当作可信身份。用户条件与 `mandatoryCondition` 分开保存 provenance，Planner 在最终 Plan 中强制执行外层 `AND`。Filter、Backend 和 `RAW` 都不能移除该条件。
+
+`LEGACY` 模式下无 authority 的内部调用是一个需要显式迁移的兼容事实，不能默认等价为系统权限。
+
+### 4.5 Planner
+
+Planner 是框架内部确定性实现，输入为 normalized query、policy decision、逻辑字段 schema 和 validation mode，输出 `QueryPlan`。它负责：
+
+- operation 与 typed/dynamic result shape；
+- projection、稳定排序、limit/page 与一致性要求；
+- 字段 capability 和语义层级；
+- Native Backend binding；
+- 预算评估和兼容问题报告。
+
+相同语义输入必须产生相同 Plan。deadline、当前时间、执行模式、租户凭据和动态预算不写入语义 Plan，而放在 `QueryExecutionContext/QueryExecutionOptions` 中，避免破坏计划比较、缓存和 shadow 稳定性。
+
+### 4.6 QueryBackend
+
+Backend 只接收完整、已验证的 Plan：
+
+```kotlin
+interface QueryBackend<D : Any> {
+    fun single(plan: SingleQueryPlan, options: QueryExecutionOptions): Mono<BackendRecord<D>>
+    fun stream(plan: StreamQueryPlan, options: QueryExecutionOptions): Flux<BackendRecord<D>>
+    fun page(plan: PageQueryPlan, options: QueryExecutionOptions): Mono<BackendPage<D>>
+    fun count(plan: CountQueryPlan, options: QueryExecutionOptions): Mono<Long>
+}
+```
+
+Backend module 负责：
+
+- 逻辑字段到物理字段/multi-field/nested path 的映射；
+- Plan 到驱动查询对象的编译；
+- driver/cursor/PIT 生命周期；
+- timeout、failed shard、total relation、缺失 source 等完整性校验；
+- 返回独立 identity 与 payload，不直接物化 typed API 对象。
+
+Backend 不再校验 wire DTO、不追加授权条件、不决定公共 projection/分页语义，也不恢复异常为成功。
+
+### 4.7 Result Materializer 与结果策略
+
+`ResultMaterializer` 在 Backend record 与公共结果之间隔离存储格式：
+
+- typed 查询需要完整信封；
+- dynamic 查询可投影 payload，但 identity 由独立 metadata 承载；
+- 物理 `_id`、索引名和内部字段不得泄漏；
+- mandatory result policy 和 masking 在 materialization 后执行；
+- partial `Flux` 必须以 error 终止，不能因为错误处理器返回 empty 而伪装完整成功。
+
+不为所有结果增加通用 `QueryResult<T>` 包装。内部 page 使用带 total relation 与 consistency 的 `BackendPage/PlannedPage`，兼容 adapter 再映射为现有 `PagedList<T>`。
+
+## 5. 核心模型
+
+### 5.1 QueryInvocation 与执行上下文
+
+`QueryInvocation` 显式表达：
+
+- materialized aggregate；
+- document kind：`SNAPSHOT` / `EVENT_STREAM`；
+- result shape：`TYPED` / `DYNAMIC` / `COUNT`；
+- operation：`SINGLE` / `STREAM` / `PAGE` / `COUNT`；
+- 原始兼容 Query DTO。
+
+`QueryExecutionContext` 显式携带可信 authority、purpose、deadline、execution mode、validation mode 和 budget。它不是任意 attribute map。
+
+### 5.2 NormalizedCondition
+
+```text
+All
+Junction(AND | OR | NOR, children)
+Predicate(field, operator, immutableValue, options)
+ElementMatch(field, childScopeCondition)
+Search(field?, text)
+Native(backendId, immutableUtf8Json)
+```
+
+逻辑字段分为：
+
+```text
+SystemField(IDENTITY | AGGREGATE_ID | TENANT_ID | OWNER_ID | SPACE_ID | DELETED)
+Path(segments, basis = ROOT | CURRENT_ELEMENT)
+```
+
+嵌套元素中的 `id` 是元素相对字段，不得被错误映射为根文档 `_id`。`RAW` 只有显式 Backend binding、可信 capability 和不可变 JSON 才能进入 Plan；旧 `Bson/Query/Any` 只留在 legacy passthrough。
+
+### 5.3 QueryPlan
+
+Plan 使用 sealed operation：
 
 ```text
 SingleQueryPlan
-ListQueryPlan(limit = Bounded | Unbounded)
-OffsetPageQueryPlan(index, size, exactTotal)
+StreamQueryPlan(limit = Bounded | Unbounded)
+PageQueryPlan(offset: Long, size, totalMode, consistency)
 CountQueryPlan
 ```
 
-所有计划共享：
+共享内容：
 
-- `QueryTarget`：Snapshot/EventStream、Typed/Dynamic；
-- `NormalizedCondition`；
-- `ValidatedProjection`；
-- 稳定排序；
-- `SemanticTier`；
-- `QueryBudget`；
-- `CompatibilityProfile`。
+- `QueryTarget`；
+- 用户条件与 mandatory condition 的最终外层合取；
+- `PlannedProjection`；
+- `PlannedSort`；
+- `RequiredCapabilities`；
+- `SemanticTier`。
 
-### 3.4 字段能力
+Plan 禁止包含：
 
-每个聚合通过 `QueryFieldSchema` 声明逻辑查询能力，至少包括：
+- `Any`、BSON 或 Elasticsearch driver 对象；
+- 物理字段、集合、索引或 alias；
+- mixed include/exclude；
+- 未验证的负分页、Int offset 或溢出值；
+- 未绑定 Backend 的 Native 条件。
 
-- `EXACT`：精确、集合和字面量字符串操作；
-- `RANGE`：数值、日期或可排序标量；
-- `TEXT`：全文检索；
-- `SORT`：稳定单值排序；
-- `NESTED`：`ELEM_MATCH` 嵌套作用域；
-- null/missing/空数组模型；
-- 精确值最大长度等物理限制。
+### 5.4 逻辑字段 Schema 与 Backend binding
 
-同一个 Schema 既用于 Planner 校验，也用于生成/验证 Elasticsearch mapping。客户端始终使用逻辑字段，不暴露 `.keyword`、`_id` 或 nested 物理路径。
+`QueryFieldSchema` 只描述逻辑合同：字段类型、允许的 operator、exact/range/text/sort/projection/nested 能力及 null/missing/array 模型。
 
-### 3.5 语义分层
+MongoDB/Elasticsearch 各自持有 `BackendFieldBinding`：物理字段、keyword/text multi-field、nested mapping、索引限制和 mapping version。Backend 启动校验 binding/mapping 是否满足逻辑 schema，并记录 capability digest；逻辑 schema 不直接负责生成某个 Backend 的 mapping。
 
-| 层级 | 说明 | 路由约束 |
+## 6. 语义、分页与完整性
+
+### 6.1 语义层级
+
+| 层级 | 合同 | 路由与对比 |
 |---|---|---|
-| `PORTABLE` | MongoDB 基准下可由所有目标 Backend 实现的精确语义 | 允许跨后端路由与 shadow compare |
-| `SEARCH` | `MATCH` 等全文检索能力 | 必须声明 `TEXT` capability，不承诺跨后端分词一致 |
-| `NATIVE` | `RAW` 等后端原生查询 | 必须绑定 backend，禁止自动改写或跨后端等价比较 |
+| `PORTABLE` | 以 MongoDB 行为为基准的精确查询语义 | 可跨 Backend 路由和等价 shadow |
+| `SEARCH` | `MATCH` 等全文能力 | 要求 TEXT capability；只比较结构与错误，不承诺分词等价 |
+| `NATIVE` | `RAW` 等 Backend 原生能力 | 必须绑定 Backend；禁止自动跨 Backend 路由和等价判断 |
 
-即使是 `NATIVE` 查询，系统强制条件仍应在最外层追加，不能绕过 tenant、owner、删除态和授权约束。
+`CONTAINS`、`STARTS_WITH`、`ENDS_WITH` 是字面量字符串合同，不允许 Elasticsearch 用 analyzed `match_phrase` 代替。
 
-## 4. 查询合同
+### 6.2 Projection
 
-### 4.1 Projection
+- strict typed 查询只接受 `Projection.ALL`；
+- compatible typed projection 继续走 legacy，并记录 compatibility issue；
+- dynamic 查询允许 include 或 exclude，二者同时非空必须拒绝；
+- Backend 永远独立返回 identity，最终 logical projection 不泄漏物理字段。
 
-- Typed 查询需要完整的存储信封；严格模式下只允许 `Projection.ALL`。
-- Dynamic 查询允许字段投影，但 Backend 必须通过隐藏 metadata 保留 identity，最终结果不得泄漏物理字段。
-- include 与 exclude 同时非空必须拒绝，不能由不同 Backend 自行决定优先级。
+### 6.3 排序与分页
 
-### 4.2 分页与排序
+- `index >= 1`、`size > 0`；
+- offset 使用 `Math.multiplyExact((index - 1).toLong(), size.toLong())`；
+- strict page 必须具有唯一稳定排序，缺少 identity 时由 Planner 追加逻辑 identity；
+- offset page 只支持预算允许的窗口，深分页后续使用独立 cursor 协议；
+- page 是 Backend 的单个 SPI 操作，返回 total relation 与 consistency；Executor 不允许静默降低一致性。
 
-- `index >= 1`、`size > 0`，offset 使用 `Long` 计算并校验预算与溢出。
-- Paged 查询必须有稳定唯一排序；缺少唯一键时由 Planner 追加逻辑 identity。
-- Offset page 只支持配置允许的浅分页窗口。
-- 深分页由后续独立 `CursorQuery` 协议提供，不把 Elasticsearch cursor 细节泄漏给客户端。
-- page 的 total 和 items 由同一个 Backend page 操作产生，并显式声明一致性等级。
+MongoDB `SAME_INPUT` 可使用单次 `$facet`，但必须显式处理 stage/文档大小和索引风险；`SNAPSHOT` 需要匹配的 read concern。Elasticsearch exact page 必须校验 `total.relation == Eq`。
 
-### 4.3 List limit
+### 6.4 List limit
 
-现有 `limit=0` 合同表示 unlimited。兼容模式保留该含义：
+现有 `limit=0` 继续表示 `Unbounded`，不能静默映射为 Elasticsearch 的固定 result window。策略只能显式允许或返回 `BudgetExceeded`。Elasticsearch planned backend 使用 PIT + `search_after`，并在 complete/error/cancel 时关闭 PIT。
 
-- MongoDB 使用响应式 cursor；
-- Elasticsearch 使用 PIT + `search_after` 分页展开；
-- 完成、错误和取消均关闭 PIT；
-- 不允许把 unlimited 静默映射为 10,000。
-
-公开 API 是否改为强制上限属于下一主版本决策。
-
-### 4.4 结果完整性
-
-Elasticsearch Backend 必须校验：
-
-- `timedOut == false`；
-- failed shards 为 0；
-- hit 必须包含 `_source`；
-- exact page 的 total relation 必须为 `Eq`。
+### 6.5 完整性与错误
 
 公共错误模型至少区分：
 
@@ -186,93 +285,145 @@ Elasticsearch Backend 必须校验：
 - `IncompleteResult`；
 - `MappingFailure`。
 
-## 5. 兼容策略
+Elasticsearch Backend 必须拒绝 timeout、failed shards、缺失 `_source` 和要求 exact 时的非 `Eq` total。MongoDB 与 Elasticsearch 的 driver exception 统一映射，但根因保留为 cause。
 
-升级期间使用单一 `CompatibilityProfile`，不散落布尔开关：
+## 7. 兼容与发布模式
 
-| Profile | 用途 |
+执行策略与语义校验是两个独立维度：
+
+```text
+QueryExecutionMode = LEGACY | SHADOW | PLANNED
+QueryValidationMode = COMPATIBLE | STRICT
+```
+
+这样可以表达 `SHADOW + STRICT`，也可以在 `PLANNED + COMPATIBLE` 下对无法规范化的历史请求显式 fallback。禁止散落 `strictEnabled`、`shadowEnabled` 等布尔开关。
+
+SHADOW 始终返回 legacy 结果，比较 planned 的：
+
+- 错误类别；
+- identity 集合与顺序；
+- exact/lower-bound total；
+- null/missing/array 行为；
+- 完整性与延迟。
+
+`SEARCH/NATIVE` 只记录差异，不判定跨 Backend 等价。任何 fallback 都必须产生原因和指标，不能默默发生。
+
+兼容阶段不能静默修改：
+
+- Query DTO JSON/OpenAPI、七个 QueryService 方法或聚合 Bean 名；
+- `limit=0` 语义；
+- legacy 排序、typed projection、NoOp 和 HTTP status；
+- 自动索引迁移、alias 切换或旧索引删除。
+
+## 8. 生命周期与模块归属
+
+### 8.1 生命周期
+
+- `QueryGateway`、Normalizer、Planner、Policy chain 和 Backend registry 为单例、无请求级可变状态；
+- `QueryInvocation`、normalized query、Plan 和 execution context 每订阅创建；
+- Backend registry 是 planned Backend 实例的唯一生命周期 owner，key 至少包含 materialized aggregate、document kind 和 backend id；
+- 旧 Factory 的缓存行为在兼容期保留，但不再叠加 Provider/Gateway cache；
+- cursor/PIT/session 是每次执行资源，必须覆盖 complete/error/cancel 释放。
+
+### 8.2 模块
+
+| 模块 | 职责 |
 |---|---|
-| `LEGACY_V8` | 保持现有公开结果与排序行为，记录不兼容能力和弃用指标 |
-| `SHADOW` | 同时执行 legacy/planned，返回 legacy，比较结果、顺序、total、错误与延迟 |
-| `STRICT` | 启用完整验证、预算、字段能力、稳定排序和完整结果要求 |
+| `wow-api` | wire DTO、JSON/OpenAPI 和 DSL 合同 |
+| `wow-query` | Gateway、Plan/Normalizer/Planner、Policy、错误、experimental Backend SPI |
+| `wow-spring` | 现有聚合 QueryService 兼容 adapter 与 Bean name/generic 注册 |
+| `wow-spring-boot-starter` | 默认装配、Backend registry/routing 和模式配置 |
+| `wow-webflux` | HTTP、authority、request/response adapter；显式依赖 `wow-query` |
+| `wow-mongo` | Mongo compiler、binding、Backend、materializer |
+| `wow-elasticsearch` | ES compiler、mapping 校验、PIT Backend、materializer |
+| `wow-tck` | Mongo 基准 fixtures、计划 golden、双 Backend 语义对比 |
 
-以下变化不能在兼容阶段静默发生：
+Backend SPI 稳定前放在 experimental package 并增加兼容测试，不新建 Gradle module。
 
-- 修改 QueryService 方法签名或聚合 Bean 名称；
-- 修改 Query DTO JSON/OpenAPI 形态；
-- 把 unlimited 静默改为固定上限；
-- 自动改变业务排序；
-- 把 NoOp 查询结果直接改成启动失败；
-- 改变 HTTP 错误码而不更新契约；
-- 自动迁移或删除 Elasticsearch 索引。
+## 9. Elasticsearch 索引生命周期
 
-## 6. Elasticsearch 索引生命周期
-
-逻辑名称保持稳定 alias，物理索引版本化：
+逻辑名保持稳定 alias，物理索引使用 mapping version 与 generation：
 
 ```text
 wow.<context>.<aggregate>.snapshot-v0002-000001
 wow.<context>.<aggregate>.es-v0002-000001
 ```
 
-mapping `_meta` 保存 mapping version、capability digest 和 document kind。应用启动默认只执行 `VALIDATE` 或 `CREATE_MISSING`，索引重建与 alias 切换由显式运维流程完成。
+mapping `_meta` 保存 mapping version、document kind 和 capability digest。应用启动只执行 `VALIDATE` 或显式配置的 `CREATE_MISSING`；回填与 alias 切换是独立运维流程：
 
-迁移顺序：
-
-1. 建立 QueryFieldSchema；
-2. 创建 component template、聚合模板和新物理索引；
-3. 从权威事件流重建 Snapshot；
-4. 对 EventStream 停止/排空 writer 或启用受控镜像写；
-5. 校验文档数、identity、事件版本连续性和 checksum；
-6. 运行 SHADOW 对比；
+1. 固化 logical schema 与 backend binding；
+2. 创建 template 和新物理索引；
+3. Snapshot 从权威事件流重建；
+4. EventStream 排空 writer 或启用受控镜像写；
+5. 校验 count、identity、版本连续性和 checksum；
+6. 执行 SHADOW；
 7. 原子切换 alias；
-8. 保留旧索引、旧模板和 legacy Backend，覆盖回滚窗口。
+8. 在回滚窗口保留旧索引与 legacy backend。
 
-若切换后只向新索引写入，不能直接把 alias 指回旧索引。EventStream 回滚前必须同步增量，Snapshot 则必须从权威事件流重建并验证版本。
+若切换后没有向旧 EventStream 索引镜像新增写入，alias 不能直接回切。Snapshot 回滚同样需要以权威事件流重建和版本校验为准。
 
-## 7. 分阶段实施
+## 10. 分阶段实施
 
-### Phase 0：应用边界
+### Phase 0：执行正确性基础
 
-- 聚合级 QueryService Bean 改为 Gateway；
-- HTTP 与进程内查询共享 Handler/Filter；
-- 后端异步错误纳入 QueryErrorHandler；
-- 每次订阅使用独立 QueryContext；
-- 修复 EventStream factory 并发缓存与逻辑聚合键。
+- `QueryHandler` 每次订阅创建独立 context；
+- 同步与异步 Backend 错误统一进入 error observer，错误处理器不能把查询恢复为成功；
+- 覆盖 partial Flux 和 cancellation；
+- EventStream legacy Factory 使用 materialized aggregate key 和并发安全缓存；
+- 不切换 Spring Bean，不新增 Gateway/Provider cache，不宣称已形成安全边界。
 
-### Phase 1：规范化与预算
+### Phase 1：纯语义模型
 
-- 引入 QueryNormalizer、QueryPlan、QueryBudget 和 CompatibilityProfile；
-- 覆盖递归条件、时间冻结、projection、分页、排序与 RAW 分层；
-- 通过 legacy adapter 保持现有 Backend 可运行。
+- additive 引入 `QueryInvocation`、`NormalizedCondition`、`QueryPlan`、execution/validation mode；
+- 用 golden tests 固化递归字段、时间冻结、projection、limit、分页与 mandatory provenance；
+- 不接管生产流量。
 
-### Phase 2：Backend SPI
+### Phase 2：Policy 与 legacy Backend adapter
 
-- 引入 QueryBackend、QueryBackendRouter、ResultMaterializer；
-- MongoDB/Elasticsearch converter 降级为 Backend compiler；
-- TCK 对同一 portable plan 比较 identity、顺序、total 与错误。
+- 引入可信 execution context 与 `QueryPolicy`；
+- 用 legacy Backend adapter 包裹现有 ServiceFactory；
+- Gateway、WebFlux 和进程内 legacy adapter 完整接线后再切换 Bean；
+- 默认 `LEGACY + COMPATIBLE`，所有 fallback 可观测。
 
-### Phase 3：严格语义
+### Phase 3：MongoDB planned path
 
-- MongoDB 递归字段作用域、稳定分页和 page 一致性；
-- Elasticsearch 完整结果校验、PIT + `search_after`；
-- QueryFieldSchema 与 mapping readiness 校验；
-- 聚合级 SHADOW/STRICT 切换。
+- Mongo compiler、field binding、Backend、materializer；
+- page 单 SPI、一致性与预算；
+- 扩展共享 TCK，以 MongoDB 固化 portable 语义；
+- 按聚合启用 `SHADOW`，达到门槛后再切 `PLANNED`。
 
-### Phase 4：索引与 cursor
+### Phase 4：Elasticsearch planned path
 
-- 版本化物理索引、alias 和显式迁移工具；
-- 独立 CursorQuery/CursorPage 公共协议；
-- 删除 legacy converter/service 路径需要主版本迁移计划。
+- literal string、nested scope、projection/sort binding；
+- 完整结果校验与 PIT unlimited；
+- mapping capability readiness；
+- 与 MongoDB 运行同一 portable TCK 和 shadow fixtures。
 
-## 8. 验证门槛
+### Phase 5：索引与 cursor
+
+- 版本化物理索引、显式回填与 alias cutover；
+- 独立 cursor API；
+- 主版本中移除 legacy Filter/converter/service 路径。
+
+## 11. 当前 PR 的处理
+
+当前 PR 只保留 Phase 0 的执行正确性修复和本设计文档。以下过早抽象应撤回：
+
+- `SnapshotQueryGateway*` / `EventStreamQueryGateway*`；
+- 名为 Backend、实际返回旧 `QueryService` 的 Provider；
+- Gateway/Provider/Factory 三层缓存；
+- Spring Registrar 与 Web 文档中“Bean 已切到 Gateway”的声明；
+- 为上述临时层保留的自动配置与 ABI bridge。
+
+这能避免在真正的 Plan、Policy、Backend SPI 之前固化错误公开类型。Phase 1 作为后续独立、additive 的可审查切片实现。
+
+## 12. 验证门槛
 
 - Query DTO/OpenAPI golden 不变；
-- Kotlin/Java 调用方继续编译；
-- Spring 聚合 Bean 名、类型和泛型注入不变；
-- Query Gateway 覆盖 Filter、同步/异步错误、多订阅、取消和超时；
-- MongoDB/Elasticsearch 对同一数据集运行共享 TCK；
-- 覆盖大于 10,000 条、null/missing/数组/nested、日期边界、相同排序键和并发写入；
-- Elasticsearch mapping capability digest 不匹配时 readiness 失败；
-- SHADOW 记录 identity、顺序、total、错误类型和延迟差异；
-- 所有切换均保留明确回滚源和可验证回滚步骤。
+- Kotlin/Java 调用方、Spring Bean name/generic injection 不变；
+- error observer 覆盖同步、异步、partial Flux、取消和多订阅；
+- Normalizer/Planner golden 覆盖递归 `AND/OR/NOR`、嵌套 element identity、一次 Clock、mandatory 外层 AND、深度不可变；
+- MongoDB/Elasticsearch 对同一 fixture 比较 identity、顺序、total、错误与 null/missing/array；
+- 覆盖 `limit=0` 且超过 10,000 条、相同业务排序键、多页稳定回放和并发写；
+- mapping capability 不满足 logical schema 时 readiness 失败；
+- 所有执行模式、alias 切换和索引回滚均有明确数据源、指标、阈值与演练证据。
