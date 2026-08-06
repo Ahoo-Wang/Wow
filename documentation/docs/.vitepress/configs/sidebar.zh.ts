@@ -22,6 +22,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             items: [
                 {text: '文章首页', link: ''},
                 {text: '接口返回 200，查询却查不到', link: 'command-success-is-not-complete'},
+                {text: '传统架构 VS Wow：从写接口到交付领域模型', link: 'traditional-vs-wow-architecture'},
                 {text: 'AI 越强，业务模型越值钱', link: 'why-ddd-fits-ai-era'},
             ],
         },
