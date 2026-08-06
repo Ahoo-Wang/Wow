@@ -33,6 +33,7 @@ import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import reactor.test.publisher.PublisherProbe
 
 class DefaultSnapshotQueryHandlerTest {
     private val tailSnapshotQueryFilter = TailSnapshotQueryFilter<Any>(NoOpSnapshotQueryServiceFactory)
@@ -167,6 +168,45 @@ class DefaultSnapshotQueryHandlerTest {
             }
             .verify()
 
+        verify(exactly = 1) { resumeErrorHandler.handle(any(), failure) }
+    }
+
+    @Test
+    fun `should not execute result after filter chain error`() {
+        val failure = IllegalStateException("masking failed")
+        val condition = condition { id("1") }
+        val backendPublisher = PublisherProbe.of(Mono.just(1L))
+        val queryService = mockk<SnapshotQueryService<Any>> {
+            every { count(condition) } returns backendPublisher.mono()
+        }
+        val queryServiceFactory = mockk<SnapshotQueryServiceFactory> {
+            every { create<Any>(any()) } returns queryService
+        }
+        val failingPostFilter = object : SnapshotQueryFilter {
+            override fun filter(
+                context: QueryContext<*, *>,
+                next: FilterChain<QueryContext<*, *>>,
+            ): Mono<Void> {
+                return next.filter(context).then(Mono.error(failure))
+            }
+        }
+        val resumeErrorHandler = mockk<ErrorHandler<QueryContext<*, *>>> {
+            every { handle(any(), failure) } returns Mono.empty()
+        }
+        val chain = FilterChainBuilder<QueryContext<*, *>>()
+            .addFilters(listOf(failingPostFilter, TailSnapshotQueryFilter<Any>(queryServiceFactory)))
+            .filterCondition(SnapshotQueryHandler::class)
+            .build()
+        val handler = DefaultSnapshotQueryHandler(chain, resumeErrorHandler)
+
+        handler.count(MOCK_AGGREGATE_METADATA, condition)
+            .test()
+            .expectErrorSatisfies {
+                it.assert().isSameAs(failure)
+            }
+            .verify()
+
+        backendPublisher.assertWasNotSubscribed()
         verify(exactly = 1) { resumeErrorHandler.handle(any(), failure) }
     }
 

@@ -143,6 +143,35 @@ class DefaultEventStreamQueryHandlerTest {
     }
 
     @Test
+    fun `should observe synchronous event stream query error once`() {
+        val failure = IllegalStateException("query failed")
+        val query = listQuery { }
+        val queryService = mockk<EventStreamQueryService> {
+            every { list(query) } throws failure
+        }
+        val queryServiceFactory = mockk<EventStreamQueryServiceFactory> {
+            every { create(any()) } returns queryService
+        }
+        val resumeErrorHandler = mockk<ErrorHandler<QueryContext<*, *>>> {
+            every { handle(any(), failure) } returns Mono.empty()
+        }
+        val chain = FilterChainBuilder<QueryContext<*, *>>()
+            .addFilters(listOf(TailEventStreamQueryFilter(queryServiceFactory)))
+            .filterCondition(EventStreamQueryHandler::class)
+            .build()
+        val handler = DefaultEventStreamQueryHandler(chain, resumeErrorHandler)
+
+        handler.list(MOCK_AGGREGATE_METADATA, query)
+            .test()
+            .expectErrorSatisfies {
+                it.assert().isSameAs(failure)
+            }
+            .verify()
+
+        verify(exactly = 1) { resumeErrorHandler.handle(any(), failure) }
+    }
+
+    @Test
     fun `should not recover partial event stream query error`() {
         val failure = IllegalStateException("query failed")
         val query = listQuery { }

@@ -42,8 +42,8 @@ abstract class AbstractQueryHandler<R : Any>(
     private val errorHandler: ErrorHandler<QueryContext<*, *>>
 ) : QueryHandler<R> {
     override fun handle(context: QueryContext<*, *>): Mono<Void> {
-        return chain.filter(context)
-            .onErrorResume { handleError(context, it) }
+        return Mono.defer { chain.filter(context) }
+            .failClosed(context)
     }
 
     override fun single(namedAggregate: NamedAggregate, singleQuery: ISingleQuery): Mono<R> {
@@ -97,11 +97,9 @@ abstract class AbstractQueryHandler<R : Any>(
                 namedAggregate = namedAggregate,
                 queryType = queryType,
             ).setQuery(query)
-            val result = Mono.defer { context.getRequiredResult() }
-                .onErrorResume {
-                    handleError(context, it).then(Mono.error(it))
-                }
-            handle(context).then(result)
+            Mono.defer { chain.filter(context) }
+                .then(Mono.defer { context.getRequiredResult() })
+                .failClosed(context)
         }
     }
 
@@ -115,11 +113,21 @@ abstract class AbstractQueryHandler<R : Any>(
                 namedAggregate = namedAggregate,
                 queryType = queryType,
             ).setQuery(query)
-            val result = Flux.defer { context.getRequiredResult() }
-                .onErrorResume {
-                    handleError(context, it).thenMany(Flux.error(it))
-                }
-            handle(context).thenMany(result)
+            Mono.defer { chain.filter(context) }
+                .thenMany(Flux.defer { context.getRequiredResult() })
+                .failClosed(context)
+        }
+    }
+
+    private fun <T : Any> Mono<T>.failClosed(context: QueryContext<*, *>): Mono<T> {
+        return onErrorResume { throwable ->
+            handleError(context, throwable).then(Mono.error(throwable))
+        }
+    }
+
+    private fun <T : Any> Flux<T>.failClosed(context: QueryContext<*, *>): Flux<T> {
+        return onErrorResume { throwable ->
+            handleError(context, throwable).thenMany(Flux.error(throwable))
         }
     }
 }

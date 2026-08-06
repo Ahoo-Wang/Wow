@@ -114,13 +114,15 @@ Normalizer 产物不能包含 BSON、Elasticsearch `Query`、`_id`、`.keyword`�
 ```text
 Deny(reason)
 Allow(
-  mandatoryCondition,
+  mandatoryCondition: NormalizedCondition,
   fieldConstraint,
   resultConstraint
 )
 ```
 
-Authority 必须来自经过认证的 `QueryExecutionContext`，不能直接把 Header、请求参数或任意 Reactor key 当作可信身份。用户条件与 `mandatoryCondition` 分开保存 provenance，Planner 在最终 Plan 中强制执行外层 `AND`。Filter、Backend 和 `RAW` 都不能移除该条件。
+Authority 必须来自经过认证的 `QueryExecutionContext`，不能直接把 Header、请求参数或任意 Reactor key 当作可信身份。Policy 只接收已经规范化的 query，并且只能通过 typed policy builder 产生 `NormalizedCondition`；不得把 wire `Condition`、`Any`、`RAW` 或 Backend Native 条件直接注入 policy decision。
+
+用户条件与 `mandatoryCondition` 分开保存 provenance。Planner 必须分别对两者执行同一套字段 schema、operator、capability 和预算校验，通过后才在最终 Plan 中强制执行外层 `AND`。Filter、Backend 和 Native 查询都不能移除或覆盖该条件。
 
 `LEGACY` 模式下无 authority 的内部调用是一个需要显式迁移的兼容事实，不能默认等价为系统权限。
 
