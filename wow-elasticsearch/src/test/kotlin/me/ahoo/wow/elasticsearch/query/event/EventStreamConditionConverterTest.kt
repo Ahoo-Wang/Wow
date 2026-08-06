@@ -14,9 +14,11 @@
 package me.ahoo.wow.elasticsearch.query.event
 
 import co.elastic.clients.elasticsearch._types.FieldValue
+import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.term
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.terms
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.serialization.MessageRecords
 import org.junit.jupiter.api.Test
@@ -37,6 +39,13 @@ class EventStreamConditionConverterTest {
         actual.terms().field().assert().isEqualTo(MessageRecords.ID)
         actual.terms().terms().value().map { it.stringValue() }
             .assert().containsExactly("streamId-1", "streamId-2")
+    }
+
+    @Test
+    fun `should convert empty event stream ids to match none`() {
+        val actual = EventStreamConditionConverter.convert(Condition.ids(emptyList()))
+
+        actual._kind().assert().isEqualTo(Query.Kind.MatchNone)
     }
 
     @Test
@@ -63,5 +72,14 @@ class EventStreamConditionConverterTest {
                 }
         }
         actual.terms().field().assert().isEqualTo(expected.terms().field())
+        actual.terms().terms().value().map { it.stringValue() }
+            .assert().containsExactly("aggregateIds")
+    }
+
+    @Test
+    fun `should convert empty aggregate ids to match none`() {
+        val actual = EventStreamConditionConverter.convert(Condition.aggregateIds(emptyList()))
+
+        actual._kind().assert().isEqualTo(Query.Kind.MatchNone)
     }
 }

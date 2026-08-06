@@ -14,12 +14,14 @@
 package me.ahoo.wow.tck.query
 
 import me.ahoo.wow.api.annotation.AggregateRoot
+import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 
 val QUERY_OPERATOR_AGGREGATE_METADATA =
     aggregateMetadata<QueryOperatorCommandAggregate, QueryOperatorState>()
 
 @AggregateRoot
+@AggregateRoute(enabled = false)
 class QueryOperatorCommandAggregate(val state: QueryOperatorState)
 
 data class QueryOperatorItem(
