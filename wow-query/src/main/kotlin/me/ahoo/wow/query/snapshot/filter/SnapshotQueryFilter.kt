@@ -22,6 +22,8 @@ import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.snapshot.CachingSnapshotQueryBackendProvider
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackendProvider
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import reactor.core.publisher.Mono
 
@@ -30,13 +32,16 @@ interface SnapshotQueryFilter : QueryFilter<QueryContext<*, *>>
 
 @Order(ORDER_LAST)
 @FilterType(SnapshotQueryHandler::class)
-class TailSnapshotQueryFilter<S : Any>(private val queryServiceFactory: SnapshotQueryServiceFactory) :
+class TailSnapshotQueryFilter<S : Any>(private val backendProvider: SnapshotQueryBackendProvider) :
     SnapshotQueryFilter {
+    constructor(queryServiceFactory: SnapshotQueryServiceFactory) :
+        this(CachingSnapshotQueryBackendProvider(queryServiceFactory))
+
     override fun filter(
         context: QueryContext<*, *>,
         next: FilterChain<QueryContext<*, *>>
     ): Mono<Void> {
-        val queryService = queryServiceFactory.create<S>(context.namedAggregate)
+        val queryService = backendProvider.get<S>(context.namedAggregate)
         when (context.queryType) {
             QueryType.SINGLE -> {
                 context.asSingleQuery<MaterializedSnapshot<S>>().setResult {

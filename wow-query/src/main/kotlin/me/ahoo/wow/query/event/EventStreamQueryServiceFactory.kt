@@ -14,16 +14,25 @@
 package me.ahoo.wow.query.event
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.modeling.materialize
+import java.util.concurrent.ConcurrentHashMap
 
+/**
+ * Creates the storage backend for an event-stream aggregate.
+ *
+ * Application query wiring treats the returned service as one backend instance per materialized aggregate. Custom
+ * implementations must keep per-subscription state inside the returned Reactor publisher instead of relying on a new
+ * service instance for every query.
+ */
 fun interface EventStreamQueryServiceFactory {
     fun create(namedAggregate: NamedAggregate): EventStreamQueryService
 }
 
 abstract class AbstractEventStreamQueryServiceFactory : EventStreamQueryServiceFactory {
-    private val queryServiceCache = mutableMapOf<NamedAggregate, EventStreamQueryService>()
+    private val queryServiceCache = ConcurrentHashMap<NamedAggregate, EventStreamQueryService>()
 
     override fun create(namedAggregate: NamedAggregate): EventStreamQueryService {
-        return queryServiceCache.computeIfAbsent(namedAggregate) {
+        return queryServiceCache.computeIfAbsent(namedAggregate.materialize()) {
             createQueryService(it)
         }
     }

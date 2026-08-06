@@ -17,6 +17,13 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.materialize
 import java.util.concurrent.ConcurrentHashMap
 
+/**
+ * Creates the storage backend for a snapshot aggregate.
+ *
+ * Application query wiring treats the returned service as one backend instance per materialized aggregate. Custom
+ * implementations must keep per-subscription state inside the returned Reactor publisher instead of relying on a new
+ * service instance for every query.
+ */
 interface SnapshotQueryServiceFactory {
     fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryService<S>
 }
