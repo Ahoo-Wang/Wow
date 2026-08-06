@@ -88,7 +88,11 @@ classDiagram
     Cart --> CartQuantityChanged : produces
 
     classDef domain fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    class Cart,CartState,AddCartItem,CartItemAdded,CartQuantityChanged domain
+    class Cart domain
+    class CartState domain
+    class AddCartItem domain
+    class CartItemAdded domain
+    class CartQuantityChanged domain
 ```
 
 <!-- Sources: example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt:35-77, example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/CartState.kt:28-67 -->
