@@ -36,6 +36,8 @@ data class QueryOperatorState(val id: String) {
         internal set
     var labels: List<String> = emptyList()
         internal set
+    var numbers: List<Int> = emptyList()
+        internal set
     var active: Boolean = false
         internal set
     var items: List<QueryOperatorItem> = emptyList()

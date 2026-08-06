@@ -202,7 +202,7 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
     }
 
     override fun allIn(condition: Condition): Query {
-        val values = condition.valueAs<Iterable<Any>>().distinct().map {
+        val values = condition.valueAs<Iterable<Any>>().distinctBy { it.elasticsearchTermKey() }.map {
             FieldValue.of(it)
         }
         if (values.isEmpty()) {
@@ -214,6 +214,13 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
                 .minimumShouldMatch(values.size.toString())
         }
     }
+
+    private fun Any.elasticsearchTermKey(): Any =
+        if (this is Number) {
+            runCatching { toString().toBigDecimal().stripTrailingZeros() }.getOrDefault(this)
+        } else {
+            this
+        }
 
     override fun startsWith(condition: Condition): Query {
         return prefix { builder ->

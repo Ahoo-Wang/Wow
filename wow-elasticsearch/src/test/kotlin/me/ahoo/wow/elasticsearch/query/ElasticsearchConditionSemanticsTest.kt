@@ -69,6 +69,16 @@ class ElasticsearchConditionSemanticsTest {
         nested.query()._kind().assert().isEqualTo(Query.Kind.MatchAll)
     }
 
+    @Test
+    fun `allIn deduplicates equivalent numeric values`() {
+        val termsSet = Condition.all("field", listOf<Any>(1, 1L, 1.0))
+            .convertWithoutDeletionGuard()
+            .termsSet()
+
+        termsSet.terms().assert().hasSize(1)
+        termsSet.minimumShouldMatch().assert().isEqualTo("1")
+    }
+
     private fun Condition.convertWithoutDeletionGuard(): Query =
         SnapshotConditionConverter.convert(this).bool().filter().last()
 }

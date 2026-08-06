@@ -76,6 +76,7 @@ abstract class SnapshotQueryServiceSpec {
                 name = "Prefix-Mid*?\\-Suffix",
                 score = 10,
                 labels = listOf("red", "blue"),
+                numbers = listOf(1, 2),
                 active = true,
                 items = listOf(
                     QueryOperatorItem("sku-a", 2),
@@ -86,6 +87,7 @@ abstract class SnapshotQueryServiceSpec {
                 name = "PREFIX-Other-Suffix",
                 score = 20,
                 labels = listOf("blue", "green"),
+                numbers = listOf(2, 3),
                 active = false,
                 items = listOf(
                     QueryOperatorItem("sku-a", 1),
@@ -96,6 +98,7 @@ abstract class SnapshotQueryServiceSpec {
                 name = "Other",
                 score = 30,
                 labels = listOf("green"),
+                numbers = listOf(3),
                 active = true,
                 items = listOf(QueryOperatorItem("sku-c", 4)),
             ),
@@ -105,6 +108,7 @@ abstract class SnapshotQueryServiceSpec {
         name: String,
         score: Int,
         labels: List<String>,
+        numbers: List<Int>,
         active: Boolean,
         items: List<QueryOperatorItem>
     ): Snapshot<QueryOperatorState> {
@@ -114,6 +118,7 @@ abstract class SnapshotQueryServiceSpec {
                 this.name = name
                 this.score = score
                 this.labels = labels
+                this.numbers = numbers
                 this.active = active
                 this.items = items
             }
@@ -277,6 +282,7 @@ abstract class SnapshotQueryServiceSpec {
         assertMatches(Condition.notIn("state.score", emptyList()), 0, 1, 2)
         assertMatches(Condition.all("state.labels", emptyList()))
         assertMatches(Condition.all("state.labels", listOf("red", "red", "blue")), 0)
+        assertMatches(Condition.all("state.numbers", listOf<Any>(1, 1L, 1.0)), 0)
     }
 
     @Test
