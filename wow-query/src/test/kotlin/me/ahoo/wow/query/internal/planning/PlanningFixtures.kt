@@ -20,6 +20,7 @@ import me.ahoo.wow.query.internal.model.QueryResultShape
 import me.ahoo.wow.query.internal.model.QueryTarget
 import me.ahoo.wow.query.internal.normalization.LogicalField
 import me.ahoo.wow.query.internal.normalization.NormalizedCondition
+import me.ahoo.wow.query.internal.normalization.NormalizedDeletionScope
 import me.ahoo.wow.query.internal.normalization.NormalizedProjection
 import me.ahoo.wow.query.internal.normalization.NormalizedQueryInput
 import me.ahoo.wow.query.internal.normalization.NormalizedQueryInvocation
@@ -48,6 +49,7 @@ internal object PlanningFixtures {
     )
     val identity = QueryFieldId.System(me.ahoo.wow.query.internal.normalization.SystemFieldKind.IDENTITY)
     val tenant = QueryFieldId.System(me.ahoo.wow.query.internal.normalization.SystemFieldKind.TENANT_ID)
+    val deleted = QueryFieldId.System(me.ahoo.wow.query.internal.normalization.SystemFieldKind.DELETED)
     val state = QueryFieldId.Path(listOf("state"))
     val name = QueryFieldId.Path(listOf("state", "name"))
     val amount = QueryFieldId.Path(listOf("state", "amount"))
@@ -74,6 +76,12 @@ internal object PlanningFixtures {
                 tenant,
                 LogicalFieldType.Text,
                 setOf(PredicateOperator.EQ, PredicateOperator.IN),
+                setOf(FieldCapability.EXACT),
+            ),
+            field(
+                deleted,
+                LogicalFieldType.Boolean,
+                setOf(PredicateOperator.IS_TRUE, PredicateOperator.IS_FALSE),
                 setOf(FieldCapability.EXACT),
             ),
             field(state, LogicalFieldType.Object),
@@ -217,7 +225,8 @@ internal object PlanningFixtures {
         condition: NormalizedCondition = NormalizedCondition.All,
         projection: NormalizedProjection = NormalizedProjection.All,
         sort: List<NormalizedSort> = emptyList(),
-    ): NormalizedRecordQuery = NormalizedRecordQuery(condition, projection, sort)
+        deletionScope: NormalizedDeletionScope = NormalizedDeletionScope.EXPLICIT,
+    ): NormalizedRecordQuery = NormalizedRecordQuery(condition, projection, sort, deletionScope)
 
     fun single(
         query: NormalizedRecordQuery = recordQuery(),

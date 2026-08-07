@@ -204,6 +204,7 @@ internal data class LegacyQueryGrant(
     val callerId: LegacyQueryCallerId,
     val target: QueryTarget,
     val purpose: QueryPurpose,
+    val executionMode: QueryExecutionMode,
     val resourceScope: QueryResourceScope,
 )
 
@@ -315,7 +316,7 @@ private val EXECUTION_CONTEXT_PATH = QueryRejectionPath.ROOT.property("execution
 private class LegacyGrantRejectedException : IllegalStateException("Legacy query grant rejected.")
 
 private fun QueryExecutionRequest.matches(grant: LegacyQueryGrant): Boolean =
-    executionMode == QueryExecutionMode.LEGACY &&
+    executionMode == grant.executionMode &&
         target == grant.target &&
         purpose == grant.purpose &&
         resourceScope == grant.resourceScope

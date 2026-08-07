@@ -21,6 +21,7 @@ import me.ahoo.wow.query.internal.model.QueryValidationMode
 import me.ahoo.wow.query.internal.normalization.CaseSensitivity
 import me.ahoo.wow.query.internal.normalization.LogicalField
 import me.ahoo.wow.query.internal.normalization.NormalizedCondition
+import me.ahoo.wow.query.internal.normalization.NormalizedDeletionScope
 import me.ahoo.wow.query.internal.normalization.NormalizedPredicateOptions
 import me.ahoo.wow.query.internal.normalization.NormalizedProjection
 import me.ahoo.wow.query.internal.normalization.NormalizedQueryInput
@@ -30,6 +31,7 @@ import me.ahoo.wow.query.internal.normalization.NormalizedValue
 import me.ahoo.wow.query.internal.normalization.PathBasis
 import me.ahoo.wow.query.internal.normalization.PredicateOperator
 import me.ahoo.wow.query.internal.normalization.SearchScopeId
+import me.ahoo.wow.query.internal.plan.CountQueryPlan
 import me.ahoo.wow.query.internal.plan.PageQueryPlan
 import me.ahoo.wow.query.internal.plan.PlannedCondition
 import me.ahoo.wow.query.internal.plan.PlannedProjection
@@ -77,10 +79,50 @@ class QueryPlannerRecordTest {
             PlanningFixtures.target,
             QueryOperation.COUNT,
             QueryResultShape.COUNT,
-            NormalizedQueryInput.Count(NormalizedCondition.All),
+            NormalizedQueryInput.Count(NormalizedCondition.All, NormalizedDeletionScope.EXPLICIT),
         )
         planner.plan(count, PlanningFixtures.schema, constraints(QueryValidationMode.STRICT))
             .planned().plan.operation.assert().isEqualTo(QueryOperation.COUNT)
+    }
+
+    @Test
+    fun `planner should apply default active deletion without treating it as user field access`() {
+        val defaultActive = PlanningFixtures.recordQuery(
+            deletionScope = NormalizedDeletionScope.DEFAULT_ACTIVE,
+        )
+        val constrained = constraints(QueryValidationMode.STRICT).copy(
+            fieldConstraint = QueryFieldConstraint(filterFields = FieldAccess.DenyAll),
+        )
+        val recordPlan = planner.plan(
+            PlanningFixtures.single(defaultActive),
+            PlanningFixtures.schema,
+            constrained,
+        ).planned().plan as SingleQueryPlan
+        recordPlan.filter.user.assert().isEqualTo(
+            PlannedCondition.Predicate(PlanningFixtures.deleted, PredicateOperator.IS_FALSE),
+        )
+
+        val countPlan = planner.plan(
+            NormalizedQueryInvocation(
+                PlanningFixtures.target,
+                QueryOperation.COUNT,
+                QueryResultShape.COUNT,
+                NormalizedQueryInput.Count(NormalizedCondition.All, NormalizedDeletionScope.DEFAULT_ACTIVE),
+            ),
+            PlanningFixtures.schema,
+            constrained,
+        ).planned().plan as CountQueryPlan
+        countPlan.filter.user.assert().isEqualTo(recordPlan.filter.user)
+
+        val explicitAll = PlanningFixtures.recordQuery(
+            deletionScope = NormalizedDeletionScope.EXPLICIT,
+        )
+        val explicitPlan = planner.plan(
+            PlanningFixtures.single(explicitAll),
+            PlanningFixtures.schema,
+            constrained,
+        ).planned().plan as SingleQueryPlan
+        explicitPlan.filter.user.assert().isEqualTo(PlannedCondition.All)
     }
 
     @Test

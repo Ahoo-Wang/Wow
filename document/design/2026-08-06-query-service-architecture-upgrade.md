@@ -738,6 +738,9 @@ P1-B 当前实现约束：
   才进入 payload budget，留 P1-C/P5-A；
 - mixed include/exclude 在 Normalizer 保留为 `NormalizedProjection.Mixed`，不在缺失 validation mode 时提前决定
   compatible/strict policy；P1-C Planner 根据 result shape、validation mode 和 compatibility issue 决策；
+- Normalizer 以 `NormalizedDeletionScope` 保留 legacy 根条件是否显式声明删除范围；Planner 对未显式声明的 record/count
+  查询加入 logical `DELETED=false`，该框架默认条件不受 user field allow-list 影响。显式 `deleted(ALL)` 保持 `All`，
+  final execution request 禁止再次经过会隐式追加 `ACTIVE` 的 legacy guard；
 - `RawAdmissionGuard`、`RawValueSnapshotter`、`AdmissionBudget` 与 `QueryNormalizer` 均保持 internal，生产调用链、
   Spring Bean、现有 wire DTO 和 OpenAPI 不接线。
 
@@ -835,13 +838,72 @@ P2-A exit gate：
 
 #### P2-B：Gateway、Executor 与 legacy Backend
 
-- 实现单一 `QueryGateway`、Executor、Backend registry/router、legacy Backend adapter 和公共错误映射；
-- 跨 module 必需的 Gateway/错误类型使用受控 experimental opt-in 和 ABI guard；Normalizer/Planner 仍保持 internal；
+- 实现单一 `QueryGateway`、Executor、Backend registry/router、legacy Backend adapter 和内部 typed 错误边界；
+- 跨 module 必需的 Gateway/错误类型在 P2-C 接线前使用受控 experimental opt-in 和 ABI guard；
+  Normalizer/Planner 仍保持 internal，公共 HTTP 错误映射与 status golden 同 P2-C 一起闭环；
 - Publisher 生命周期覆盖同步、异步、partial Flux、cancel，并复用 Phase 0 已证明的错误边界；
 - registry 成为 planned Backend 唯一 owner；Gateway/Provider 不再增加聚合级缓存；
 - legacy adapter 只接收 Gateway 已最终确定的 immutable execution request；mandatory condition 无法无损执行时
   必须 fail closed，不能退回原始 DTO；
 - 默认仍不接管现有 Bean，先以内部 probe 验证 plan 与 legacy adapter。
+
+P2-B 当前实现约束：
+
+- `QueryGateway` 的 `single/stream/page/count/analyze` 保持 operation-specific `Mono/Flux` cardinality；整个
+  admission、normalization、authority、policy、planning、routing、Backend 和 observer 链在 subscription 内创建，
+  同一个 Publisher 再订阅会重新创建 invocation 与可信上下文，不缓存 request、Plan、结果或聚合 service；
+- subscription 开始后立即在同步 budget 边界内冻结 legacy wire DTO，再进入异步 authority/policy；调用方随后修改
+  condition children、List、Map 或 ByteArray 不得改变该次执行。`LegacyCompilationInput` 只携带 immutable
+  `NormalizedQueryInvocation + QueryDocumentSchema + PlanningDecision`，类型边界不包含 `QueryInvocation`、wire
+  `Condition` 或 `Any`；
+- `QueryBackendRegistry` 按 `QueryTarget + BackendId` 唯一注册，default route 与 Native-pinned route 均执行
+  schema contract、operation、semantic tier、field/search/native capability 精确校验；planned route 缺失或运行期失败
+  永不触发 legacy fallback，只有 Planner 显式 `LegacyFallback` 可以选择兼容路径。`Planned/Shadow` route 只持有
+  immutable registry 与 Plan，Backend registration 必须在每次订阅时由 registry 解析，不能直接注入 registration
+  绕过唯一 owner；
+- mode matrix 固定为：`LEGACY` 对 record planned/fallback 均走 legacy，`SHADOW` 只对 planned request 创建受控 probe、
+  fallback 明确记录 shadow skipped，`PLANNED` 对 planned request 走 planned Backend、仅 `COMPATIBLE` fallback 走
+  legacy；所有 mode 的 `LegacyFallback` 都通过独立 decision observer 上报 target/operation/mode/reasons，不能只在
+  `SHADOW` 中可见。任意 `STRICT + LegacyFallback` 是内部不变量错误。Analytics 只允许 `PLANNED`，不进入
+  legacy/shadow；
+- `LegacyQueryCompiler<C>` 与 `LegacyQueryBackend<C>` 由同一个 typed binding 封装，compiler 每订阅只接收 final
+  immutable input，并校验 target/operation/result shape/schema contract。compiled query 必须携带绑定本次 input 的唯一
+  token，并由 trusted compiler 显式 attestation 已 lowering framework deletion scope 与 validated mandatory condition；
+  attestation 不是对物理 Backend AST 的独立证明，生产 compiler 注册前必须通过 golden/TCK，证明物理查询同时包含
+  user condition、default-active deletion 与 mandatory condition，且 unsupported Search/Native 稳定拒绝。registry 只接受
+  final、受控 factory 创建的 erased binding，禁止自定义 binding 绕过 attestation。mandatory 无法无损 lowering 固定为
+  `ACCESS_DENIED/$.constraints.mandatoryCondition/MANDATORY_CONDITION_UNENFORCEABLE`。P2-B 不提供跨 Backend
+  通用 lowering：unbound RAW 继续在 Normalizer 前置拒绝，Search/Native 只有未来 target-specific trusted compiler
+  能证明等价时才可开放，禁止原 driver object/DTO passthrough；
+- planned Backend 返回独立 identity、immutable document、total relation、achieved consistency 与 completeness；
+  `BackendRecord.completeness` 无默认值。planned single/stream/page 对 unknown record、bounded stream max+1、非 exact
+  total、非 same-input page、page 实际条数与 `min(size, max(0, total-offset))` 不一致均 fail closed；analytics 同样校验
+  bucket limit、alias shape、cursor arity 以及 achieved consistency/completeness 不弱于 Plan。legacy 可以显式返回
+  `UNKNOWN` provenance，但不能冒充 planned exact success；page/count/analyze 的 empty Publisher 与任意 mode 的负 count
+  均视为 incomplete result；
+- deadline 使用 subscription 时计算的单个绝对 timer，覆盖 authority、policy 和持续出数的 Backend Flux；timer 到期
+  cancel 上游并返回 `BUDGET_EXCEEDED/$.executionContext.deadline/DEADLINE_EXPIRED`，不会像逐项 `timeout` 那样被
+  每个 onNext 重置；Mono 使用单次绝对 timeout，不通过 `Flux.next()` 把正常完成误判为 cancel。SHADOW 的 planned
+  registry resolve、Backend error 和 deadline 全在受 supervisor 管理的 cold probe 内，planned readiness/error 不得阻断
+  legacy primary；probe deadline 固定为 `min(request deadline, configured shadow cap)`，request 未提供 deadline 时仍由
+  shadow cap 终止并 cancel probe。supervisor 同时接收 target/operation/tier、planned publisher 与 typed primary
+  value/terminal signal；submit 必须返回 `Accepted(handle)` 或 `Rejected(typed issue)`，disabled/overload/reject 与同步异常
+  都由独立 decision observer 以上报 `target/fingerprint/tier/operation + stable rejection` 的健康事件，事件不暴露可执行
+  Publisher，不能静默丢失，也不能改变 legacy primary。`SEARCH/NATIVE` tier 只记录差异，不得由 supervisor 判定跨
+  Backend 等价；fallback 与 unbounded stream 明确
+  上报 skipped。observer 每订阅独立计数并在 complete/error/cancel 仅终结一次，observer/shadow callback 失败不得替换
+  primary 结果；
+- 本 slice 的 Gateway/Backend/legacy contracts 仍在 `wow-query/internal`，不注册 Spring Bean、不改变受支持
+  `QueryService` 七方法、JSON/OpenAPI 或 HTTP status；P2-C 提升最小跨 module facade 并接线所有框架托管入口。
+
+P2-B exit gate：
+
+- tests 覆盖 route matrix、registry duplicate/missing/schema/operation/capability、legacy compiler cold/mismatch/
+  mandatory fail-closed、Gateway cold 与多订阅、wire TOCTOU、sync/async error、partial Flux、cancel、authority/backend
+  absolute deadline、observer failure、RAW 拒绝、shadow primary 隔离及 result completeness；
+- `./gradlew :wow-query:check`、public compatibility guard 和 OpenAPI snapshot 通过；
+- 默认生产 Bean 和 transport 调用链保持不变，回滚为删除 additive internal execution package 与 deletion provenance
+  接线，不涉及配置、索引或数据。
 
 #### P2-C：Spring/WebFlux/进程内接线
 
