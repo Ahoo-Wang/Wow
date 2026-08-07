@@ -360,6 +360,50 @@ class StorageRouteResolverTest {
             .defaultSnapshotQueryServiceFactory.assert().isSameAs(NoOpSnapshotQueryServiceFactory)
     }
 
+    @Test
+    fun `duplicate query factory binding name fails fast`() {
+        val duplicate = EventStreamQueryServiceFactoryBinding(
+            name = "archive-event-store",
+            storage = StorageType.ELASTICSEARCH,
+            eventStreamQueryServiceFactory = archiveEventStreamQueryServiceFactory,
+        )
+
+        val exception = assertThrows<IllegalArgumentException> {
+            StorageRouteResolver(
+                contextName = "order-service",
+                snapshotEnabled = true,
+                eventStoreBindings = emptyList(),
+                snapshotStoreBindings = emptyList(),
+                eventStreamQueryServiceFactoryBindings = eventStreamQueryServiceFactoryBindings(true) + duplicate,
+            )
+        }
+
+        exception.message.assert().contains("EventStreamQueryServiceFactoryBinding")
+        exception.message.assert().contains("archive-event-store")
+    }
+
+    @Test
+    fun `duplicate query factory binding storage fails fast`() {
+        val duplicate = SnapshotQueryServiceFactoryBinding(
+            name = "secondary-mongo-snapshot-query",
+            storage = StorageType.MONGO,
+            snapshotQueryServiceFactory = archiveSnapshotQueryServiceFactory,
+        )
+
+        val exception = assertThrows<IllegalArgumentException> {
+            StorageRouteResolver(
+                contextName = "order-service",
+                snapshotEnabled = true,
+                eventStoreBindings = emptyList(),
+                snapshotStoreBindings = emptyList(),
+                snapshotQueryServiceFactoryBindings = snapshotQueryServiceFactoryBindings(true) + duplicate,
+            )
+        }
+
+        exception.message.assert().contains("SnapshotQueryServiceFactoryBinding")
+        exception.message.assert().contains(StorageType.MONGO.name)
+    }
+
     private fun resolver(
         contextName: String = "order-service",
         snapshotEnabled: Boolean = true,

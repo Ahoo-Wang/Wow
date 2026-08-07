@@ -950,11 +950,19 @@ P2-C 拆成三个可独立回滚的实现切片：
   factory；新增不同类型的 raw registry，按 materialized aggregate/document kind 精确解析并拒绝重复 binding；
 - 依赖方向固定为 `storage binding -> raw registry -> Gateway runtime -> @Primary facade factory -> Registrar/Tail`。
   Gateway 不能注入同一个 public facade factory，raw registry 也不能注册 facade，避免递归与双 `@Primary`；
+- Spring 不再注册 `RoutingSnapshotQueryServiceFactory`/`RoutingEventStreamQueryServiceFactory` 作为 application Bean；
+  raw registry 直接保留解析后的 factory route，并且只在每个 Gateway target 初始化 legacy leaf 时调用对应 raw factory。
+  内建 Mongo/Elasticsearch route 同时解析固定 dialect；未声明 storage 的 custom binding 必须显式贡献
+  `QueryLegacyDialectResolver`，不能猜测 Backend 语义；
 - Registrar 保留现有 aggregate Bean name、`ResolvableType` 与七方法；framework-managed public factory、aggregate Bean、
   `QueryHandler.handle` 和七个 convenience 方法均只能得到 Gateway facade。手工构造的 Mongo/Elasticsearch concrete
   service/factory 仍是受信 Backend/TCK 边界，P2-C 不破坏其构造器 ABI，也不宣称 JVM 内物理不可绕过；
 - NoOp 下沉为显式 raw route，empty single/list、empty page、count 0 仍经过 admission/policy/Gateway；Gateway/facade
-  不增加第二层 aggregate cache，现有 raw factory cache 仍是 legacy 唯一 owner；
+  不缓存 raw executor、Plan、DTO 或结果。为保持既有 factory identity contract，application factory 只缓存轻量 target facade；
+  现有 raw factory cache 仍是 legacy Backend service 的唯一 owner；
+- 七方法缺少显式 context 参数，facade 因此在每次 subscription 调用 `QueryCallResolver`，并校验 exact target。P2-C2
+  的默认 resolver/authority 均为空且 fail closed，不把进程内调用默认提升为 System；P2-C3 再从 trusted transport marker
+  或 exact legacy grant 解析 call/authority；
 - 自定义 factory 不再通过 `@ConditionalOnMissingBean` 被猜测为 application facade；必须显式注册 raw binding，保留一版
   migration adapter 和启动期诊断。
 
