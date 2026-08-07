@@ -233,7 +233,7 @@ All
 Junction(AND | OR | NOR, children)
 Predicate(field, operator, immutableValue, options)
 ElementMatch(field, childScopeCondition)
-Search(field?, text)
+Search(scope, text)
 Native(backendId, immutableUtf8Json)
 ```
 
@@ -278,9 +278,97 @@ Plan 禁止包含：
 
 ### 5.4 逻辑字段 Schema 与 Backend binding
 
-`QueryFieldSchema` 只描述逻辑合同：字段类型、允许的 operator、exact/range/text/sort/projection/nested 能力及 null/missing/array 模型。
+`QueryFieldSchema` 只描述逻辑合同：字段类型、允许的 operator、exact/range/full-text/literal-pattern/
+sort/projection/aggregation/nested 能力及 null/missing/array 模型。
 
 MongoDB/Elasticsearch 各自持有 `BackendFieldBinding`：物理字段、keyword/text multi-field、nested mapping、索引限制和 mapping version。Backend 启动校验 binding/mapping 是否满足逻辑 schema，并记录 capability digest；逻辑 schema 不直接负责生成某个 Backend 的 mapping。
+
+#### 5.4.1 字符串能力模型
+
+客户端和 Plan 只引用 `state.name` 这样的逻辑字段，不允许引用 `.keyword`、`.exact`、analyzer、normalizer
+或 Elasticsearch field type。字符串不是单一 `STRING` capability，而是按查询语义组合：
+
+| 逻辑能力 | 允许的操作 | Elasticsearch 典型 binding | MongoDB 基准 |
+|---|---|---|---|
+| `EXACT` | `EQ/NE/IN/NOT_IN/ALL_IN` | 未分析的 `keyword` field | 原字段精确值比较 |
+| `FULL_TEXT` | `MATCH` / `Search` | `text` field | 已声明 text index/search scope |
+| `LITERAL_PATTERN` | `CONTAINS/STARTS_WITH/ENDS_WITH` | `keyword` 或专用 `wildcard` field | 转义用户值后的字面量 regex |
+| `SORTABLE` | record sort、稳定 tie-breaker | 启用 `doc_values` 的 exact field | 原字段排序与显式 collation |
+| `AGGREGATABLE` | analytics dimension | 启用 `doc_values` 的 exact field | 原字段 `$group` key |
+| `PROJECTABLE` | include/exclude/materialization | `_source` 中的 source field | 原文档字段 |
+
+`MATCH` 不再伪装成普通字段 predicate，而规范化为 `Search(scope, text)`。`scope` 是逻辑搜索范围：MongoDB
+binding 指向一个已声明的 text index，Elasticsearch binding 指向一个或多个 `text` field。MongoDB text index
+不能满足任意单字段 scope 时，该 scope 在 MongoDB 上为 unsupported；`SEARCH` tier 不承诺跨 Backend analyzer、
+分词、相关性或排序等价。
+
+现有 wire `Condition.MATCH(field, value)` 保持 JSON/DSL 兼容，由 Normalizer 把 `field` 解析为 schema 已声明的
+legacy search scope。找不到 scope 或 Backend 无法满足字段范围时，planned path 稳定拒绝；`COMPATIBLE` 模式
+可以带 reason/metric 回退 legacy，但不得在 planned path 中悄悄扩大为 MongoDB 全 text index。
+
+首批 `PORTABLE` 字面量字符串合同只承诺 case-sensitive。`ignoreCase=true` 只有在 schema 声明大小写模型、
+MongoDB/Elasticsearch binding 具有等价 normalization/collation 且 shared TCK 证明 Unicode/边界行为后才开放；
+否则稳定返回 `UnsupportedFeature`，不能把 Elasticsearch `case_insensitive` 当作 MongoDB `i` regex 的无证据
+替代。
+
+字符串范围比较只在 schema 显式声明有序字符串、normalization 和 collation 时允许。否则
+`GT/LT/GTE/LTE/BETWEEN` 对字符串稳定拒绝，避免把 Backend 默认字典序误认为公共合同。
+
+#### 5.4.2 Elasticsearch 字符串 binding
+
+需要全文检索和精确能力的同一逻辑字段使用 multi-field，但 sub-field 名称仍是 Backend 私有实现，例如：
+
+```text
+logical field: state.name
+
+ElasticsearchStringBinding(
+  sourceField = state.name,
+  searchField = state.name,
+  exactField = state.name.exact,
+  literalField = state.name.exact,
+  sortField = state.name.exact,
+  groupField = state.name.exact
+)
+```
+
+Planner 只产生 required capability；Elasticsearch compiler 必须按 binding 精确选择字段：
+
+- `EQ/IN` 及其否定、排序和分组只使用 exact/sort/group field；不得对 analyzed `text` 执行 `term`；
+- `MATCH` 只使用 search field；不得自动回退到 keyword；
+- `CONTAINS/STARTS_WITH/ENDS_WITH` 只使用 literal field，并转义 `\\`、`*`、`?` 等模式字符；不得用
+  `match_phrase` 替代字面量子串；
+- projection/materialization 始终读取 logical source field，不返回或泄漏 multi-field；
+- 缺少所需 binding、mapping 类型不符或 `doc_values` 不满足时，在执行前返回 `UnsupportedFeature` 或
+  readiness failure，不按字段名猜测 `.keyword`。
+
+推荐 mapping 由字段用途决定，而不是使用一个全局 dynamic string template：
+
+| 字段用途 | 推荐 mapping |
+|---|---|
+| ID、code、status、tag | `keyword` |
+| name/title，既检索又精确排序/分组 | `text` + exact `keyword` multi-field |
+| description/content，仅全文检索 | `text` |
+| 高频 grep-like、前导 wildcard 的机器生成大文本 | 经 benchmark 后声明专用 `wildcard` literal field |
+
+`ignore_above` 是完整性边界，不只是 mapping 参数。超过限制的值仍可能存在于 `_source`，却不进入 exact
+field，导致精确查询、排序和聚合静默漏数。只有满足以下全部条件，Backend 才能发布对应 exact/sort/group
+capability：
+
+1. logical schema 声明并在写入端执行可索引的字符/UTF-8 byte 长度约束；
+2. `ignore_above`、Lucene term 限制与该约束一致；
+3. readiness 对现有 generation 完成 mapping 和数据审计，不存在会被忽略的历史值；
+4. 新增 multi-field 后已重建/回填历史文档；只更新 template/mapping 不算完成。
+
+旧索引的动态 `.keyword` 只有通过上述 readiness 后才能临时绑定。默认动态 mapping、Snapshot/EventStream
+不同 template 或字段名恰好存在都不能成为 capability 证据。
+
+#### 5.4.3 其他字段类型
+
+- numeric、instant/date、boolean 使用对应逻辑类型与物理 binding，不通过字符串 multi-field 模拟；
+- object 本身不能参与 exact/range/sort/group，必须选择有 schema 的叶子字段；
+- array 沿用元素类型能力，并显式声明 missing/null/empty/multi-valued 模型；
+- `ELEM_MATCH` 需要 element-relative schema；Elasticsearch 必须具有对应 `nestedPath`，普通 object array
+  mapping 不能冒充 nested capability。
 
 ## 6. 语义、分页与完整性
 
@@ -289,7 +377,7 @@ MongoDB/Elasticsearch 各自持有 `BackendFieldBinding`：物理字段、keywor
 | 层级 | 合同 | 路由与对比 |
 |---|---|---|
 | `PORTABLE` | 以 MongoDB 行为为基准的精确查询语义 | 可跨 Backend 路由和等价 shadow |
-| `SEARCH` | `MATCH` 等全文能力 | 要求 TEXT capability；只比较结构与错误，不承诺分词等价 |
+| `SEARCH` | `MATCH` 等全文能力 | 要求 `FULL_TEXT` capability；只比较结构与错误，不承诺分词等价 |
 | `NATIVE` | `RAW` 等 Backend 原生能力 | 必须绑定 Backend；禁止自动跨 Backend 路由和等价判断 |
 
 `CONTAINS`、`STARTS_WITH`、`ENDS_WITH` 是字面量字符串合同，不允许 Elasticsearch 用 analyzed `match_phrase` 代替。
@@ -624,6 +712,8 @@ Phase 0 提交，不涉及配置、索引或数据。
 #### P1-C：Logical Schema 与 Planner
 
 - 引入 `QueryFieldSchema`、logical capability、`RequiredCapabilities`、`SemanticTier`、plan fingerprint；
+- 固化 `EXACT/FULL_TEXT/LITERAL_PATTERN/SORTABLE/AGGREGATABLE/PROJECTABLE` 字符串能力和 typed
+  `SearchScope`；Plan/公开 DTO 不得包含 `.keyword`、analyzer 或 Backend field type；
 - `PlanningConstraints` 作为未来 Policy decision 的内部承接模型；
 - user/mandatory condition 分别校验并保留 provenance，最终只能形成不可拆除的外层 `AND`；
 - strict page 自动追加 logical identity 稳定排序；`limit=0 -> Unbounded`；offset 使用 Long 和
@@ -634,7 +724,8 @@ Phase 0 提交，不涉及配置、索引或数据。
 Phase 1 exit gate：
 
 - golden tests 覆盖 invocation matrix、深度不可变、递归 scope、一次 Clock、projection、limit/page overflow、
-  mandatory provenance、global/grouped analytics、alias/capability 与 cursor binding；
+  mandatory provenance、global/grouped analytics、string operator-to-capability、`SearchScope`、禁止物理字段泄漏、
+  alias/capability 与 cursor binding；
 - 增加 public compatibility guard，固定 `QueryService` 七方法和现有 `QueryType` 常量；
 - `./gradlew :wow-query:check` 通过；
 - `./gradlew :wow-openapi:test --tests "me.ahoo.wow.openapi.snapshot.OpenApiCompatibilitySnapshotTest"` 通过；
@@ -679,6 +770,8 @@ Phase 2 exit gate：所有公开入口调用链测试必须经过 Gateway；安�
 - 将 Backend 必需的 Plan/value/record 与 SPI 从 Phase 1 internal model 最小化提升到受控 experimental opt-in；
   Normalizer、Planner、policy implementation 不对 Backend module 公开；
 - 实现 `MongoFieldBinding`、record plan compiler、`MongoQueryBackend` 和 materializer；
+- `MongoFieldBinding` 分别声明 value path、text search scope 与 collation；`MATCH` 只能进入已声明 text index，
+  literal string 必须转义用户值，`ignoreCase` 在 shared TCK 完成前保持 unsupported；
 - compiler 只接收 validated Plan，禁止调用 wire/legacy converter 或接收 RAW/Bson；
 - 先支持 Snapshot 的 single、bounded stream、count，再扩展 page；
 - logical identity、tenant/owner/deleted、projection 和 stable sort 只从 binding 解析物理字段。
@@ -708,14 +801,18 @@ Phase 3 exit gate：Mongo integration 与 shared TCK 固化 portable record/anal
 #### P4-A：Binding readiness 与完整性 validator
 
 - 实现 `ElasticsearchFieldBinding`、mapping version/capability digest 校验和 readiness；
-- 验证 exact keyword/doc-values、numeric/date metric、nested path、所有目标 generation 的 mapping 一致性；
+- 分别验证 source/search/exact/literal/sort/group field，不允许 compiler 通过追加 `.keyword` 猜测；
+- 验证 exact keyword/doc-values、text analyzer、literal keyword/wildcard、`ignore_above` 与数据长度审计、
+  numeric/date metric、nested path、所有目标 generation 的 mapping 一致性；
 - timeout、failed shard、partial total、缺失 source、未知 aggregation response 全部 fail closed；
 - readiness 未通过时不注册 capability，不接业务流量。
 
 #### P4-B：Record planned path
 
 - 实现 bounded single/page/count/stream compiler、materializer 与错误映射；
-- literal string、nested scope、projection、stable sort 通过 binding 编译；
+- exact、full-text、literal string、nested scope、projection、stable sort 只按所需 capability/binding 编译；
+- `MATCH` 只使用 search binding；literal string 转义模式字符且禁止 `match_phrase`；首批 portable
+  `ignoreCase=true` 在等价 normalization/collation TCK 完成前保持 unsupported；
 - `limit=0` 使用 PIT + `search_after`，以 `usingWhen` 等价生命周期覆盖 complete/error/cancel；
 - 不再保留 legacy “缺失 source 静默跳过”行为，planned path 返回 `IncompleteResult`。
 
@@ -744,6 +841,8 @@ expiry、after-key、failed shard、timeout、numeric precision 和 concurrent w
 #### P5-B：版本化索引与显式 cutover 工具
 
 - 支持 component/index template、`_meta` mapping version/capability digest、physical generation 与 stable alias；
+- template 按字段用途显式生成 keyword、text + exact multi-field、text 或经批准的 wildcard；禁止全局
+  “所有 string 都是 keyword”规则，也不依赖 Elasticsearch 默认动态 `.keyword`；
 - 工具只执行显式 `VALIDATE/CREATE/REBUILD/VERIFY/CUTOVER/ROLLBACK` 命令，应用启动不 reindex/cutover/delete；
 - Snapshot 从权威事件流重建；EventStream 必须 pause/drain 或受控镜像写；
 - cutover 前校验 count、identity、version continuity、checksum、record/analytics probe；旧 generation 保留
@@ -774,6 +873,9 @@ Phase 5 exit gate：cursor 安全/租约测试、索引迁移与回滚演练、�
 - Phase 1 模型保持 Kotlin internal；跨 module API 只在实际需要时最小化提升为 experimental opt-in；
 - PR #2903 只作为 validator/TCK 素材，不整体合并 legacy Backend 修改；
 - MongoDB 是 portable expected baseline；Elasticsearch mapping 不满足时 unsupported/readiness fail；
+- 客户端和 Plan 只使用逻辑字段；text/keyword/multi-field 由字符串 capability 与 Backend binding 决定；
+- 首批 portable literal string 仅 case-sensitive；`ignoreCase` 在等价 normalization/collation TCK 前 unsupported；
+- 全局 dynamic keyword template 和硬编码 `.keyword` 都不是长期方案；exact capability 必须证明长度完整性；
 - 首批 analytics 是 Snapshot/document grain；EventStream 不自动 unwind；
 - Phase 1 只固定 cursor semantic state，token codec/签名/lease 属于 P5-A；
 - `Exact/Approximate` 与 `Eventual/Snapshot` 是正交维度；
@@ -787,6 +889,7 @@ Phase 5 exit gate：cursor 安全/租约测试、索引迁移与回滚演练、�
 | Mongo page `SAME_INPUT` 的 `$facet` 限制与 Snapshot read concern 支持矩阵 | P3-B | Mongo 目标版本 integration、16 MiB/100 MB 边界、并发写 fixture |
 | Mongo analytics cursor predicate 是否可安全下推 | P3-C | missing/null/collation 等价测试与 explain；否则保持 group 后过滤并限制预算 |
 | numeric policy 的 portable type/range | P3-C | Mongo int/long/double/Decimal128 与 ES numeric metric 双 Backend TCK |
+| 各 Aggregate 字符串 capability、search scope、长度、analyzer/normalizer/collation | P1-C/P4-A | 查询用例、实际 mapping、现有值长度/`_ignored` 审计与双 Backend fixtures |
 | cursor token 完整性方案与 lease 是否需要 server-side state | P5-A | threat model、token 大小、key rotation、PIT TTL/资源实验 |
 | ES template v2 与现有 concrete index 到 alias 的迁移步骤 | P5-B | 当前 template/index inventory、rebuild/checksum rehearsal、回滚窗口 |
 | 每 Aggregate 的 shadow/cutover 性能阈值 | P3/P4 rollout 前 | 可重复 benchmark/metrics；安全和 exact semantic 差异阈值固定为零 |
@@ -819,12 +922,12 @@ security 和 completeness 合同，再用独立 Phase 1 PR 落地最小模型。
 | 层 | 必须证明 | 权威证据 |
 |---|---|---|
 | Public contract | Query DTO/JSON/OpenAPI、七方法 `QueryService`、`QueryType`、Bean name/generic injection、Kotlin/Java 调用保持兼容 | reflection/Java compile guard、OpenAPI golden、Spring context tests、required CI |
-| Semantic model | invocation matrix、深度不可变、一次 Clock、field scope、projection/limit/page、global/grouped analytics、provenance、capability、fingerprint | `wow-query` unit/golden tests |
+| Semantic model | invocation matrix、深度不可变、一次 Clock、field/search scope、字符串 capability、projection/limit/page、global/grouped analytics、provenance、fingerprint | `wow-query` unit/golden tests |
 | Gateway/Policy | HTTP 与直接 Service 调用同路；authority/policy/mandatory/result constraint 不可绕过；错误 fail closed | Gateway contract tests、WebFlux tests、direct in-process tests、security negative cases |
-| Backend compiler | 只接受 Plan；logical-to-physical binding 正确；禁止 RAW/driver object；unsupported 稳定拒绝 | compiler golden 与 architecture tests |
+| Backend compiler | 只接受 Plan；source/search/exact/literal/sort/group/nested binding 正确；禁止 RAW/driver object 和物理字段猜测；unsupported 稳定拒绝 | compiler golden 与 architecture tests |
 | MongoDB | record/page/analytics、null/missing/array、numeric、deadline/cancel、read concern、预算和 pipeline 顺序 | Mongo container integration、shared TCK、必要时 explain/profile |
 | Elasticsearch | mapping readiness、完整性、record/PIT/composite、after-key、failed shard/timeout、mapping generation | Elasticsearch container integration、shared TCK、PIT/resource tests |
-| Cross Backend | portable identity/order/total/error 与 bucket key/order/metric type/value/completeness 等价 | 同一 logical fixture 的双 Backend TCK；MongoDB 是 expected baseline |
+| Cross Backend | portable literal/exact string、identity/order/total/error 与 bucket key/order/metric type/value/completeness 等价 | 同一 logical fixture 的双 Backend TCK；MongoDB 是 expected baseline |
 | Operations | mode rollout、fallback/shadow 指标、index rebuild/checksum、alias cutover、cursor lease、rollback | rehearsal logs、指标快照、迁移清单和目标应用验证记录 |
 
 本地最低命令随 slice 扩展，而不是用一个窄测试代替全局结论：
@@ -876,6 +979,8 @@ security 和 completeness 合同，再用独立 Phase 1 PR 落地最小模型。
 | internal model 意外成为 ABI | Phase 1 类型 public，或被 `wow-api`/OpenAPI 引用 | 使用 Kotlin `internal` visibility，并禁止公开签名引用；public reflection/OpenAPI golden；仓库增加 ABI guard |
 | mandatory 条件被绕过 | direct Service、Filter rewrite、Native payload 或 Backend 自行追加条件 | 所有入口统一 Gateway；typed policy builder；外层 AND provenance；负向安全测试 |
 | Mongo/ES 语义漂移 | 相同 DTO 分别由两个 converter 解释 | 单一 Plan + Backend binding；Mongo expected TCK；mapping readiness；unsupported fail closed |
+| 字符串 mapping 猜测 | compiler 硬编码 `.keyword`、依赖默认 dynamic mapping 或全局 string-as-keyword | logical string capability；显式 source/search/exact/literal/sort/group binding；mapping digest/readiness |
+| exact 字段静默漏数 | 历史值或新值超过 `ignore_above`，仍在 `_source` 但未被索引 | schema/write 长度约束；历史数据审计；重建/回填；不满足时撤销 exact/sort/group capability |
 | `Exact` 被误当 `Snapshot` | cursor 多页期间有并发写 | completeness/consistency 分离；Eventual 明示；Snapshot capability 不满足时执行前拒绝 |
 | Mongo aggregation 成本失控 | 高基数 `$group/$sort`、每页重扫、自动落盘 | maxTime/scan/bucket/page budget；allowDiskUse policy；真实 fixture explain/profile；无通用性能承诺 |
 | PIT/search context 泄漏 | client 停止翻页、error/cancel、旧 cursor | 短 TTL lease、最新 PIT id、terminal/error/cancel close、nodes stats/资源测试 |
@@ -892,6 +997,7 @@ security 和 completeness 合同，再用独立 Phase 1 PR 落地最小模型。
 - portable TCK 出现无法解释的 identity/order/metric/type 差异；
 - fallback 没有 reason/metric，或 budget/deadline 被 Backend 忽略；
 - mapping digest/readiness 不一致；
+- exact/sort/group binding 存在 `_ignored` 或超长未索引值，或 search/literal field 类型与声明不符；
 - cursor/PIT 无法有界释放；
 - index rebuild/checksum/version continuity 或 rollback rehearsal 未通过。
 
@@ -909,3 +1015,9 @@ cutover/删除。已经写入新 EventStream generation 且旧 generation 未镜
   doc count/sub-aggregation 近似性和 error bound；
 - [Elasticsearch PIT](https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-open-point-in-time)：
   跨请求 index state、一致性、keep-alive 与资源成本。
+- [Elasticsearch multi-fields](https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/multi-fields)：
+  同一 source value 的全文、精确、排序和聚合多种索引方式，以及新增 multi-field 后的历史数据回填边界；
+- [Elasticsearch keyword type family](https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/keyword)：
+  keyword/text/wildcard 适用场景、doc values、`ignore_above` 与动态 `.keyword` 的完整性限制；
+- [MongoDB `$regex`](https://www.mongodb.com/docs/manual/reference/operator/query/regex/) 与
+  [MongoDB `$text`](https://www.mongodb.com/docs/manual/reference/operator/query/text/)：字面量模式与 text index 搜索边界。
