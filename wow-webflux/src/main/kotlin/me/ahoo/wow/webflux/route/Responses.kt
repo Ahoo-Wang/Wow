@@ -17,8 +17,8 @@ import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import me.ahoo.wow.serialization.toJsonString
-import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
+import me.ahoo.wow.webflux.exception.toWebFluxHttpStatus
 import me.ahoo.wow.webflux.route.response.DefaultWebFluxResponseStrategy
 import org.springframework.core.ParameterizedTypeReference
 import org.springframework.http.MediaType
@@ -34,7 +34,7 @@ object StringServerSentEventType : ParameterizedTypeReference<ServerSentEvent<St
 
 fun Throwable.toResponseEntity(): ResponseEntity<ErrorInfo> {
     val errorInfo = toErrorInfo()
-    val status = errorInfo.toHttpStatus()
+    val status = toWebFluxHttpStatus(errorInfo)
     return ResponseEntity.status(status)
         .contentType(MediaType.APPLICATION_JSON)
         .header(ERROR_CODE, errorInfo.errorCode)
@@ -42,11 +42,16 @@ fun Throwable.toResponseEntity(): ResponseEntity<ErrorInfo> {
 }
 
 fun ErrorInfo.toServerResponse(): Mono<ServerResponse> {
-    val status = toHttpStatus()
+    val errorInfo = if (this is Throwable) toErrorInfo() else this
+    val status = if (this is Throwable) {
+        toWebFluxHttpStatus(errorInfo)
+    } else {
+        errorInfo.toWebFluxHttpStatus()
+    }
     return ServerResponse.status(status)
         .contentType(MediaType.APPLICATION_JSON)
-        .header(ERROR_CODE, errorCode)
-        .bodyValue(this.toJsonString())
+        .header(ERROR_CODE, errorInfo.errorCode)
+        .bodyValue(errorInfo.toJsonString())
 }
 
 fun Mono<*>.toServerResponse(

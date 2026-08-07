@@ -11,10 +11,13 @@
  * limitations under the License.
  */
 
+@file:OptIn(me.ahoo.wow.query.gateway.ExperimentalQueryGatewayApi::class)
+
 package me.ahoo.wow.webflux.route.event
 
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
+import me.ahoo.wow.query.gateway.QueryDocumentKind
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.query.CountQueryHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.query.RewriteRequestCondition
@@ -26,6 +29,7 @@ class CountEventStreamHandlerFunctionFactory(
 ) : CountQueryHandlerFunctionFactory(
     handlerKey = BuiltInHttpRouteHandlerKeys.Event.COUNT,
     queryHandler = eventStreamQueryHandler,
+    documentKind = QueryDocumentKind.EVENT_STREAM,
     rewriteRequestCondition = rewriteRequestCondition,
     exceptionHandler = exceptionHandler
 )

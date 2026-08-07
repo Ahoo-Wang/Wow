@@ -393,7 +393,9 @@ order 冒充 portable 数值/时间范围语义。
 ### 6.2 Projection
 
 - strict typed 查询只接受 `Projection.ALL`；
-- compatible typed projection 继续走 legacy，并记录 compatibility issue；
+- compatible typed projection 只有在 legacy Backend 能直接承载 typed result 且证明投影映射等价时才允许 fallback。P2-C 的
+  immutable `BackendRecord` 过渡 seam 尚不具备该证明，因此 non-`ALL` typed projection 在两种 validation mode 都稳定拒绝，
+  禁止先裁剪动态文档再伪装成完整 typed result；
 - dynamic 查询允许 include 或 exclude，二者同时非空必须拒绝；
 - Backend 永远独立返回 identity，最终 logical projection 不泄漏物理字段。
 
@@ -907,16 +909,130 @@ P2-B exit gate：
 
 #### P2-C：Spring/WebFlux/进程内接线
 
-- WebFlux、`SnapshotQueryService`、`EventStreamQueryService` legacy adapter 和新进程内调用全部委托 Gateway；
+- WebFlux、`SnapshotQueryService`、`EventStreamQueryService` legacy adapter 和新进程内调用最终全部委托 Gateway；
 - 保持 Bean name、generic injection、JSON/OpenAPI、HTTP status、NoOp 和七方法 ABI；
 - 默认 `LEGACY + COMPATIBLE`，fallback 带 reason/metric；`SHADOW + STRICT` 可独立配置；
 - 兼容 request Filter 必须在 admission/policy 前执行；policy 后不得再替换 query。result Filter 只能在 mandatory
   result policy 后执行更严格的 masking；
-- 证明 Filter 不能绕过 mandatory condition；兼容 Filter 只作为 adapter hook，不再作为安全边界。
+- 证明 Filter 不能绕过 mandatory condition；兼容 Filter 只作为 adapter hook，不再作为安全边界；
+- 当前 legacy storage 的 typed 方法已经完成 `MaterializedSnapshot<S>`/`DomainEventStream` 物化，而 P2-B Gateway
+  返回带 identity/completeness 的 immutable logical document。P2-C 禁止通过 `Any`、unchecked generic cast、原 wire DTO
+  passthrough 或“typed -> JSON -> typed”重复序列化桥接这两个边界；必须先让 Gateway 的 legacy leaf 调用 storage
+  dynamic 方法，再由 target-bound materializer 统一产生 dynamic/typed public result。
 
-Phase 2 exit gate：所有公开入口调用链测试必须经过 Gateway；安全测试覆盖直接 Service 调用、HTTP、Filter
-重写、Native 条件、无 authority 和跨租户；Spring context/Java compatibility/OpenAPI 全绿。运行时回滚使用
-`LEGACY` mode；如果 Gateway 本身接线失败，保留一个版本的显式 legacy wiring rollback 配置并记录指标。
+P2-C 拆成三个可独立回滚的实现切片：
+
+##### P2-C1：Core facade、legacy lowering 与 materializer
+
+- 只提升跨 module 必需的 experimental facade、trusted authority context 和公共 typed error；Plan、Normalizer、schema、
+  registry、`BackendRecord`、attestation token 继续保持 internal；
+- facade 只暴露 operation-specific `Mono/Flux`，record path 以 immutable logical document 为唯一中间结果。dynamic
+  result 从它生成新的独立 `DynamicDocument`，typed result 由 exact `QueryTarget + result Class` 绑定的唯一 materializer
+  生成；materializer 运行在 Gateway 的 absolute deadline、error boundary 与 lifecycle observer 内。materializer 缺失、
+  类型不匹配或 mapping 失败均 fail closed，不能回调 storage typed 方法绕过 Gateway；
+- legacy compiler 只接收 `LegacyCompilationInput`，为 single/stream/page/count 新建 wire DTO。Snapshot 的最终
+  condition 显式为 `user AND deletion AND mandatory`：`DEFAULT_ACTIVE` lowering 为 direct
+  `DELETED=ACTIVE`，`EXPLICIT` 追加 direct `DELETED=ALL` sentinel 以中和旧 `DeleteConditionGuard`，同时保留用户原
+  deletion predicate。EventStream 没有 snapshot deletion 字段，Planner 不合成 default-active，legacy lowering 也不注入
+  deletion 条件；
+- compiler 必须按 target-specific dialect 处理 `ELEM_MATCH` 子字段相对/绝对路径和 legacy `MATCH` scope；未注册 dialect、
+  `RAW/Native` 或不能证明等价的条件稳定拒绝。`None` 在 legacy leaf 本地短路，不能依赖 Backend 对空集合的偶然行为；
+- storage dynamic projection 必须额外取 identity；raw document 先通过一次有界 snapshot，再从 frozen value 读取 identity，
+  禁止先无界复制或对动态 getter/entries 做两次观察。之后按原 projection 深层恢复 Include/Exclude/Mixed 并移除内部补取
+  字段；output snapshot 有独立 value/payload budget，源 `Map/List/ByteArray` 后续变化不能影响结果；
+- runtime 只接受独立类型 `QueryRawServiceSource`，不能接收与 application facade 相同的 public factory 类型。P2-C1 公开
+  budget 只包含当前可证明执行的 `maxReturnedRecords`；它与 policy constraint 取较小值并在 storage 前验证，尚未支持的
+  scan/bucket/cursor/disk budget 不形成 fail-open 公共承诺；
+- 首个 facade schema 只声明 target-independent system fields。未知 user path 在 `COMPATIBLE` 下形成显式 legacy
+  fallback，`STRICT` 下拒绝；不得伪造尚未存在的 production field/search capability。
+
+##### P2-C2：Raw storage registry 与 Spring facade
+
+- `SnapshotQueryServiceFactoryBinding`/`EventStreamQueryServiceFactoryBinding` 继续持有 Mongo/Elasticsearch/custom raw
+  factory；新增不同类型的 raw registry，按 materialized aggregate/document kind 精确解析并拒绝重复 binding；
+- 依赖方向固定为 `storage binding -> raw registry -> Gateway runtime -> @Primary facade factory -> Registrar/Tail`。
+  Gateway 不能注入同一个 public facade factory，raw registry 也不能注册 facade，避免递归与双 `@Primary`；
+- Spring 不再注册 `RoutingSnapshotQueryServiceFactory`/`RoutingEventStreamQueryServiceFactory` 作为 application Bean；
+  raw registry 直接保留解析后的 factory route，并且只在每个 Gateway target 初始化 legacy leaf 时调用对应 raw factory。
+  内建 Mongo/Elasticsearch route 同时解析固定 dialect；未声明 storage 的 custom binding 必须显式贡献
+  `QueryLegacyDialectResolver`，不能猜测 Backend 语义；
+- Registrar 保留现有 aggregate Bean name、`ResolvableType` 与七方法；framework-managed public factory、aggregate Bean、
+  `QueryHandler.handle` 和七个 convenience 方法均只能得到 Gateway facade。手工构造的 Mongo/Elasticsearch concrete
+  service/factory 仍是受信 Backend/TCK 边界，P2-C 不破坏其构造器 ABI，也不宣称 JVM 内物理不可绕过；
+- NoOp 下沉为显式 raw route，empty single/list、empty page、count 0 仍经过 admission/policy/Gateway；Gateway/facade
+  不缓存 raw executor、Plan、DTO 或结果。为保持既有 factory identity contract，application factory 只缓存轻量 target facade；
+  现有 raw factory cache 仍是 legacy Backend service 的唯一 owner；
+- 七方法缺少显式 context 参数，facade 因此在每次 subscription 调用 `QueryCallResolver`，并校验 exact target。P2-C2
+  的默认 resolver/authority 均为空且 fail closed，不把进程内调用默认提升为 System；P2-C3 再从 trusted transport marker
+  或 exact legacy grant 解析 call/authority；
+- 自定义 factory 不再通过 `@ConditionalOnMissingBean` 被猜测为 application facade；必须显式注册 raw binding，保留一版
+  migration adapter 和启动期诊断。
+- `QueryGatewayRuntime` 是 Spring 组合的唯一 customization owner：resolver/configuration 与每 runtime 的 authority capability
+  在构造时冻结，公开 facade factory 只允许零参获取。仅注册自定义 `QueryGateway` 的部分覆盖会启动失败；需要替换执行栈时必须
+  提供完整 runtime，避免 direct Gateway 与 facade 使用不同实例。
+
+##### P2-C3：Trusted transport、Filter 分相与公共错误
+
+- WebFlux 只把 authenticated application context 转成 trusted authority；path/header/CoSec tenant/owner/space 只能形成
+  frozen `QueryResourceScope` selector，不能建立 principal；missing/empty/error authority 与 selector mismatch 均在 storage
+  publisher 前 fail closed；
+- POST query route 与两个 GET load route 都必须写入同一 typed transport marker。存在 transport marker 时绝不降级为
+  legacy grant；进程内兼容调用只允许预注册且精确匹配 `caller + target + purpose + mode + resourceScope` 的 legacy grant；
+- legacy request Filter 只能在 admission 前重写隔离 query，不得设置/替换 result；policy 后 result extension 改为一入一出、
+  不可替换 Publisher/identity/cardinality/total/cursor 的 masker。未声明 phase 的第三方旧 Filter 在 Gateway wiring 下启动失败；
+- internal rejection 在 facade 边界映射为稳定公共 Query error，复用 `DefaultErrorInfo` envelope，不新增 JSON 字段、不泄漏
+  policy/backend cause。锁定 400/403/408/429/502/503/504/500 status matrix；JSON Flux partial error 与 SSE 已提交
+  200 后的 transport 语义单独 golden，不把 Publisher 正确性误报为 HTTP 已闭环；
+- 保留一个版本的显式 legacy wiring 回滚开关并记录告警/指标；授权、policy、mandatory、schema、lowering 或 mapping 失败
+  绝不能自动切回旧链。
+
+P2-C3 已实现合同：
+
+- `QueryWebTransportResolvers` 以一个原子 trusted resolver 同时解析 call 与 authority。所有 Snapshot/EventStream 的
+  single/list/page/count route 与两个 GET load route 都写入同一种 Reactor transport marker；marker 固化 exact target、
+  `QueryType`、purpose 与 tenant/owner/space selector。默认 `QueryWebAuthorityResolver` 返回 empty 并 fail closed，应用必须从
+  已认证的 principal/security context 贡献 authority，禁止从 path/header/CoSec selector 反推身份；
+- `CompositeQueryTrustedContextResolver` 按 Spring order 对 `QueryTrustedContextRequest` 原子解析 call 与 authority；同一次
+  facade subscription 选中的 resolver 必须同时给出两者，禁止 A resolver 的 call 与 B resolver 的 authority 混合。解析出的
+  authority 只通过每个 `QueryGatewayRuntime` 独有的对象 capability 在受控 Reactor context 中交给 Gateway；resolver 在 runtime
+  构造时冻结，公开 factory 不接受替换 resolver，同名字符串或另一 runtime/channel 的对象都不能伪造。Web marker 存在但 authority 缺失时稳定返回
+  `ACCESS_DENIED / $.executionContext.authority / AUTHORITY_REQUIRED`，即使 Reactor context 同时存在 legacy caller marker 也不降级；
+- 进程内迁移使用 `QueryLegacyContextResolver` 的预注册 `QueryLegacyGrant`。caller marker 只选择固定 grant，不能修改
+  `target + purpose + executionMode + resourceScope`；不存在或不精确匹配稳定返回
+  `ACCESS_DENIED / $.executionContext.legacyGrant / LEGACY_CALLER_NOT_ALLOWED`，不提升为 System；
+- request chain 只运行显式实现 `PreAdmissionQueryFilter` 的 Filter，随后丢弃任何提前写入的 result，再进入唯一 Gateway tail。
+  policy 后只运行内建 masking Filter；一入一出 mapper 不能绕过 Gateway source 或改变 cardinality/page envelope，dynamic masker
+  不能新增/改写 `id/aggregateId/tenantId/ownerId/spaceId`。未声明 phase 的第三方 `QueryFilter` 启动失败。旧 `AbacQueryFilter`
+  仅以 deprecated pre-admission 兼容桥保留，不再被视为安全边界；授权必须迁移为 mandatory policy constraint；
+- `QueryExecutionException` 继续复用 `DefaultErrorInfo` 与 `bindingErrors(name=path,msg=code)`。functional/global WebFlux 使用同一
+  映射：Invalid/Cursor/Unsupported=400，AccessDenied=403，deadline=408，其他 BudgetExceeded=429，Incomplete=502，
+  BackendUnavailable=503，BackendTimeout=504，Mapping/Internal=500；不增加 OpenAPI error schema 字段。P2-C3 只锁定运行时
+  映射并保持既有 OpenAPI snapshot 不变；为全部 query/load operation 声明 403/408/429/5xx response 属于公开契约扩展，
+  需单独兼容性审批后补齐，当前不宣称 OpenAPI 已完整描述该 status matrix；
+- 一版紧急回滚属性为 `wow.query.gateway.legacy-wiring-rollback=true`。它显式停用 Gateway facade，并让 application factory
+  直接委托独立 raw registry；启动持续记录 warning，计数器 `wow.query.gateway.legacy.wiring.rollback` 增加一次。该开关不由
+  任何运行时错误自动触发，不恢复旧的双 `@Primary` routing factory，也不改变 raw factory cache owner；启用期间 admission、
+  policy 与生命周期保护均被绕过，只能作为限时迁移措施；属性值不是精确 `true/false` 时启动失败，禁止 typo 静默绕过。
+
+P2-C exit gate：
+
+- core golden 覆盖 deletion 五态、portable condition、两级 `ELEM_MATCH` dialect、`MATCH`/`RAW`、identity 补取与 projection
+  恢复、dynamic/typed materialization、结果深度不可变、NoOp、fallback reason 和每订阅 cold 行为；
+- Spring context 覆盖 no-storage/Mongo/Elasticsearch/mixed/custom/duplicate binding，证明唯一 application factory、raw registry
+  无 facade、无循环、Bean name/generic injection 与七方法 ABI 不变；
+- 公开入口矩阵覆盖 aggregate Service、public factory、`QueryHandler.handle`、七 convenience 方法与全部 WebFlux routes，
+  storage probe 证明每 subscription 只在 Gateway 后触达一次；
+- 安全矩阵覆盖无 authority、provider empty/error、跨 tenant/owner/space、伪造 Header、Filter 替换 query/result、Native、
+  mandatory lowering failure，全部 storage 零调用；
+- `:wow-query:check`、`:wow-spring:check`、`:wow-spring-boot-starter:check`、`:wow-webflux:check`、Java/reflection ABI
+  guard 与既有 OpenAPI snapshot 通过；新增运行时 status 的 OpenAPI response 声明仍是待审批的独立兼容任务。P2-C1/P2-C2/
+  P2-C3 均保持独立 commit/PR 或可单独 revert 的 commit 边界。
+
+Phase 2 exit gate：P2-C 三个切片全部完成后，所有 framework-managed 公开入口调用链必须经过 Gateway；安全测试覆盖
+直接 Service 调用、HTTP、Filter 重写、Native 条件、无 authority 和跨租户；Spring context/Java compatibility/OpenAPI
+全绿。任意代码手工构造 concrete storage service 或直接使用 driver 属于受信 Backend 边界，只有下一 major 收窄 public
+constructor/SPI 才能物理禁止。运行时回滚使用 `LEGACY` execution mode；如果 Gateway wiring 本身失败，显式 legacy
+wiring rollback 只允许在一个迁移版本内启用并持续记录告警/指标。
 
 ### 10.6 Phase 3：MongoDB planned path 与语义基准
 

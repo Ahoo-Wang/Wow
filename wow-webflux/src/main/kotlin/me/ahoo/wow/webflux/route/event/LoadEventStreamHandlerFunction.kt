@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+@file:OptIn(me.ahoo.wow.query.gateway.ExperimentalQueryGatewayApi::class)
+
 package me.ahoo.wow.webflux.route.event
 
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
@@ -20,10 +22,14 @@ import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
+import me.ahoo.wow.query.filter.Contexts.writeRawRequest
+import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.gateway.QueryDocumentKind
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
+import me.ahoo.wow.webflux.route.query.writeQueryWebTransport
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -41,7 +47,11 @@ class LoadEventStreamHandlerFunction(
         val id = request.pathVariable(MessageRecords.ID)
         val headVersion = request.pathVariable(BatchComponent.PathVariable.HEAD_VERSION).toInt()
         val tailVersion = request.pathVariable(BatchComponent.PathVariable.TAIL_VERSION).toInt()
-        val limit = tailVersion - headVersion + 1
+        require(tailVersion >= headVersion) {
+            "Tail version must be greater than or equal to head version."
+        }
+        val versionCount = tailVersion.toLong() - headVersion.toLong() + 1
+        val limit = if (versionCount > Int.MAX_VALUE) 0 else versionCount.toInt()
         val listQuery = listQuery {
             condition {
                 tenantId(tenantId)
@@ -51,6 +61,14 @@ class LoadEventStreamHandlerFunction(
             limit(limit)
         }
         return eventStreamQueryHandler.dynamicList(aggregateMetadata, listQuery)
+            .writeRawRequest(request)
+            .writeQueryWebTransport(
+                request,
+                aggregateMetadata,
+                QueryDocumentKind.EVENT_STREAM,
+                QueryType.DYNAMIC_LIST,
+                tenantId,
+            )
             .toServerResponse(request, exceptionHandler)
     }
 }

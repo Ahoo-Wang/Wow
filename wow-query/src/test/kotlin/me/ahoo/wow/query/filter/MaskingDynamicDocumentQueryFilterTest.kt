@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+@file:OptIn(me.ahoo.wow.query.gateway.ExperimentalQueryGatewayApi::class)
+
 package me.ahoo.wow.query.filter
 
 import io.mockk.every
@@ -21,9 +23,11 @@ import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.query.gateway.QueryExecutionException
 import me.ahoo.wow.query.mask.AggregateDataMasker
 import me.ahoo.wow.query.mask.AggregateDynamicDocumentMasker
 import me.ahoo.wow.query.mask.DataMaskerRegistry
+import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
@@ -108,6 +112,27 @@ class MaskingDynamicDocumentQueryFilterTest {
     }
 
     @Test
+    fun `should reject masking that injects an authoritative identity`() {
+        assertSystemFieldMaskingRejected(
+            original = mutableMapOf(MessageRecords.TENANT_ID to "tenant-1"),
+            masked = mutableMapOf(
+                MessageRecords.TENANT_ID to "tenant-1",
+                MessageRecords.AGGREGATE_ID to "forged-id",
+            ),
+            expectedPath = "$.result.aggregateId",
+        )
+    }
+
+    @Test
+    fun `should reject masking that changes tenant scope`() {
+        assertSystemFieldMaskingRejected(
+            original = mutableMapOf(MessageRecords.TENANT_ID to "tenant-1"),
+            masked = mutableMapOf(MessageRecords.TENANT_ID to "tenant-2"),
+            expectedPath = "$.result.tenantId",
+        )
+    }
+
+    @Test
     fun `should mask dynamic list result`() {
         val maskedDoc = mutableMapOf("field" to "masked").toDynamicDocument()
         val mockAggregateMasker = mockk<AggregateDataMasker<AggregateDynamicDocumentMasker>> {
@@ -147,5 +172,37 @@ class MaskingDynamicDocumentQueryFilterTest {
             every { filter(context) } returns Mono.empty()
         }
         filter.filter(context, chain).test().verifyComplete()
+    }
+
+    private fun assertSystemFieldMaskingRejected(
+        original: MutableMap<String, Any?>,
+        masked: MutableMap<String, Any?>,
+        expectedPath: String,
+    ) {
+        val mockAggregateMasker = mockk<AggregateDataMasker<AggregateDynamicDocumentMasker>> {
+            every { isEmpty() } returns false
+            every { mask(any<DynamicDocument>()) } returns masked.toDynamicDocument()
+        }
+        val filter = MockMaskingFilter(MockMaskerRegistry(mockAggregateMasker))
+        val context = DefaultQueryContext<Any, Any>(
+            queryType = QueryType.DYNAMIC_SINGLE,
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+        )
+        context.setResult(Mono.just(original.toDynamicDocument()))
+        val chain = mockk<FilterChain<QueryContext<*, *>>> {
+            every { filter(context) } returns Mono.empty()
+        }
+
+        filter.filter(context, chain).test().verifyComplete()
+        @Suppress("UNCHECKED_CAST")
+        val result = context.getRequiredResult() as Mono<DynamicDocument>
+        result.test()
+            .expectErrorSatisfies { error ->
+                error.assert().isInstanceOf(QueryExecutionException::class.java)
+                (error as QueryExecutionException).path.assert().isEqualTo(expectedPath)
+                error.category.assert().isEqualTo(me.ahoo.wow.query.gateway.QueryErrorCategory.INTERNAL_FAILURE)
+                error.code.assert().isEqualTo("RESULT_MASKING_SYSTEM_FIELD_VIOLATION")
+            }
+            .verify()
     }
 }

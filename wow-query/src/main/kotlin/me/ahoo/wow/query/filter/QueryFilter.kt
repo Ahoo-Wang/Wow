@@ -18,3 +18,12 @@ import me.ahoo.wow.filter.FilterType
 
 @FilterType(QueryHandler::class)
 interface QueryFilter<CONTEXT : QueryContext<*, *>> : Filter<CONTEXT>
+
+/**
+ * Compatibility request filter that completes before Query Gateway admission and policy evaluation.
+ *
+ * Any result written by this phase is discarded. Implementations may only rewrite the request query and attributes
+ * needed by another pre-admission filter. Result masking is provided by the framework's cardinality-preserving
+ * masking phase.
+ */
+interface PreAdmissionQueryFilter

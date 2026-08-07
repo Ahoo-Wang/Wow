@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+@file:Suppress("DEPRECATION")
+
 package me.ahoo.wow.query.snapshot.filter
 
 import io.mockk.every
@@ -25,6 +27,7 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.query.filter.DefaultQueryContext
+import me.ahoo.wow.query.filter.PreAdmissionQueryFilter
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter.Companion.toCondition
@@ -36,6 +39,12 @@ import reactor.kotlin.test.test
 import reactor.util.context.ContextView
 
 class AbacQueryFilterTest {
+
+    @Test
+    fun `legacy ABAC filter should only remain as pre-admission compatibility rewrite`() {
+        MockAbacQueryFilter.assert().isInstanceOf(PreAdmissionQueryFilter::class.java)
+    }
+
     @Test
     fun `toCondition for wildcard should return condition with EXISTS operator`() {
         val entry: Map.Entry<AbacTagKey, AbacTagValue> = mapOf("dept" to listOf("*")).entries.first()

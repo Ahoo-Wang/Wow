@@ -19,10 +19,6 @@ import me.ahoo.wow.eventsourcing.RoutingEventStore
 import me.ahoo.wow.eventsourcing.snapshot.AggregateSnapshotStoreRegistry
 import me.ahoo.wow.eventsourcing.snapshot.RoutingSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
-import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
-import me.ahoo.wow.query.event.RoutingEventStreamQueryServiceFactory
-import me.ahoo.wow.query.snapshot.RoutingSnapshotQueryServiceFactory
-import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.elasticsearch.ElasticsearchEventSourcingAutoConfiguration
@@ -130,66 +126,6 @@ class StorageRoutingAutoConfiguration {
                 defaultSnapshotStore = resolvedRoutes.defaultSnapshotStore,
                 routes = resolvedRoutes.snapshotRoutes,
             ),
-        )
-    }
-
-    @Bean
-    @Primary
-    @Conditional(OnEventStorageRouteCondition::class)
-    fun routingEventStreamQueryServiceFactory(
-        @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
-        namedBoundedContext: NamedBoundedContext,
-        eventStoreProperties: EventStoreProperties,
-        snapshotProperties: SnapshotProperties,
-        storageRoutingProperties: StorageRoutingProperties,
-        eventStoreBindings: List<EventStoreBinding>,
-        snapshotStoreBindings: List<SnapshotStoreBinding>,
-        eventStreamQueryServiceFactoryBindings: List<EventStreamQueryServiceFactoryBinding>,
-        snapshotQueryServiceFactoryBindings: List<SnapshotQueryServiceFactoryBinding>,
-    ): EventStreamQueryServiceFactory {
-        val resolvedRoutes = StorageRouteResolver(
-            contextName = namedBoundedContext.contextName,
-            snapshotEnabled = snapshotProperties.enabled,
-            eventStoreBindings = eventStoreBindings,
-            snapshotStoreBindings = snapshotStoreBindings,
-            eventStreamQueryServiceFactoryBindings = eventStreamQueryServiceFactoryBindings,
-            snapshotQueryServiceFactoryBindings = snapshotQueryServiceFactoryBindings,
-            defaultEventStorage = eventStoreProperties.storage,
-            defaultSnapshotStorage = snapshotProperties.storage,
-        ).resolveEventStreamQueryServiceFactoryRoutes(storageRoutingProperties)
-        return RoutingEventStreamQueryServiceFactory(
-            defaultEventStreamQueryServiceFactory = resolvedRoutes.defaultEventStreamQueryServiceFactory,
-            routes = resolvedRoutes.eventStreamQueryServiceFactoryRoutes,
-        )
-    }
-
-    @Bean
-    @Primary
-    @Conditional(OnSnapshotStorageRouteCondition::class)
-    fun routingSnapshotQueryServiceFactory(
-        @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
-        namedBoundedContext: NamedBoundedContext,
-        eventStoreProperties: EventStoreProperties,
-        snapshotProperties: SnapshotProperties,
-        storageRoutingProperties: StorageRoutingProperties,
-        eventStoreBindings: List<EventStoreBinding>,
-        snapshotStoreBindings: List<SnapshotStoreBinding>,
-        eventStreamQueryServiceFactoryBindings: List<EventStreamQueryServiceFactoryBinding>,
-        snapshotQueryServiceFactoryBindings: List<SnapshotQueryServiceFactoryBinding>,
-    ): SnapshotQueryServiceFactory {
-        val resolvedRoutes = StorageRouteResolver(
-            contextName = namedBoundedContext.contextName,
-            snapshotEnabled = snapshotProperties.enabled,
-            eventStoreBindings = eventStoreBindings,
-            snapshotStoreBindings = snapshotStoreBindings,
-            eventStreamQueryServiceFactoryBindings = eventStreamQueryServiceFactoryBindings,
-            snapshotQueryServiceFactoryBindings = snapshotQueryServiceFactoryBindings,
-            defaultEventStorage = eventStoreProperties.storage,
-            defaultSnapshotStorage = snapshotProperties.storage,
-        ).resolveSnapshotQueryServiceFactoryRoutes(storageRoutingProperties)
-        return RoutingSnapshotQueryServiceFactory(
-            defaultSnapshotQueryServiceFactory = resolvedRoutes.defaultSnapshotQueryServiceFactory,
-            routes = resolvedRoutes.snapshotQueryServiceFactoryRoutes,
         )
     }
 }

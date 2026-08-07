@@ -267,15 +267,22 @@ internal class QueryExecutionContextFactory(
             .onErrorMap { error -> error.toAuthorityRejection() }
 
     private fun Throwable.toAuthorityRejection(): QueryRejectedException =
-        if (this is LegacyGrantRejectedException) {
-            rejectedException(
+        when (this) {
+            is LegacyGrantRejectedException -> rejectedException(
                 QueryRejectionCategory.ACCESS_DENIED,
                 EXECUTION_CONTEXT_PATH.property("legacyGrant"),
                 QueryRejectionCode.LEGACY_CALLER_NOT_ALLOWED,
                 this,
             )
-        } else {
-            rejectedException(
+
+            is TrustedAuthorityRejectedException -> rejectedException(
+                QueryRejectionCategory.ACCESS_DENIED,
+                path,
+                code,
+                this,
+            )
+
+            else -> rejectedException(
                 QueryRejectionCategory.ACCESS_DENIED,
                 EXECUTION_CONTEXT_PATH.property("authority"),
                 QueryRejectionCode.AUTHORITY_RESOLUTION_FAILED,
@@ -314,6 +321,12 @@ internal class QueryExecutionContextFactory(
 private val EXECUTION_CONTEXT_PATH = QueryRejectionPath.ROOT.property("executionContext")
 
 private class LegacyGrantRejectedException : IllegalStateException("Legacy query grant rejected.")
+
+internal class TrustedAuthorityRejectedException(
+    val path: QueryRejectionPath,
+    val code: QueryRejectionCode,
+    cause: Throwable,
+) : IllegalStateException("Trusted authority rejected.", cause)
 
 private fun QueryExecutionRequest.matches(grant: LegacyQueryGrant): Boolean =
     executionMode == grant.executionMode &&

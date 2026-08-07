@@ -10,6 +10,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+@file:OptIn(me.ahoo.wow.query.gateway.ExperimentalQueryGatewayApi::class)
+
 package me.ahoo.wow.spring.boot.starter.eventsourcing.routing
 
 import io.mockk.every
@@ -27,6 +30,11 @@ import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.NoOpEventStreamQueryService
+import me.ahoo.wow.query.gateway.QueryElementPathMode
+import me.ahoo.wow.query.gateway.QueryLegacyDialect
+import me.ahoo.wow.query.gateway.QueryLegacyDialectResolver
+import me.ahoo.wow.query.gateway.QueryMatchScopeMode
+import me.ahoo.wow.query.gateway.QueryRawServiceSource
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
@@ -34,6 +42,7 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
+import me.ahoo.wow.spring.boot.starter.query.QueryGatewayAutoConfiguration
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.BeanCreationException
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -59,6 +68,7 @@ class StorageRoutingAutoConfigurationTest {
         )
         .withUserConfiguration(
             StorageRoutingAutoConfiguration::class.java,
+            QueryGatewayAutoConfiguration::class.java,
             StorageRoutingTestConfiguration::class.java,
         )
 
@@ -238,17 +248,17 @@ class StorageRoutingAutoConfigurationTest {
     }
 
     @Test
-    fun `event route should create primary routing event stream query service factory`() {
+    fun `event route should configure raw event stream query service source`() {
         routingContextRunner
             .withPropertyValues("${StorageRoutingProperties.AGGREGATES}.order.event.storage=${StorageType.REDIS_NAME}")
             .run { context: AssertableApplicationContext ->
                 val stores = context.getBean(RecordingStores::class.java)
-                val queryServiceFactory = context.getBean(EventStreamQueryServiceFactory::class.java)
+                val rawServiceSource = context.getBean(QueryRawServiceSource::class.java)
 
-                queryServiceFactory.create(ORDER)
+                rawServiceSource.eventStream(ORDER)
                 stores.redisEventStreamQueryServiceFactory.lastNamedAggregate.assert().isEqualTo(ORDER)
 
-                queryServiceFactory.create(CART)
+                rawServiceSource.eventStream(CART)
                 stores.mongoEventStreamQueryServiceFactory.lastNamedAggregate.assert().isEqualTo(CART)
             }
     }
@@ -298,19 +308,19 @@ class StorageRoutingAutoConfigurationTest {
     }
 
     @Test
-    fun `snapshot route should create primary routing snapshot query service factory`() {
+    fun `snapshot route should configure raw snapshot query service source`() {
         routingContextRunner
             .withPropertyValues(
                 "${StorageRoutingProperties.AGGREGATES}.cart.snapshot.storage=${StorageType.REDIS_NAME}"
             )
             .run { context: AssertableApplicationContext ->
                 val stores = context.getBean(RecordingStores::class.java)
-                val queryServiceFactory = context.getBean(SnapshotQueryServiceFactory::class.java)
+                val rawServiceSource = context.getBean(QueryRawServiceSource::class.java)
 
-                queryServiceFactory.create<Any>(CART)
+                rawServiceSource.snapshot(CART)
                 stores.redisSnapshotQueryServiceFactory.lastNamedAggregate.assert().isEqualTo(CART)
 
-                queryServiceFactory.create<Any>(ORDER)
+                rawServiceSource.snapshot(ORDER)
                 stores.mongoSnapshotQueryServiceFactory.lastNamedAggregate.assert().isEqualTo(ORDER)
             }
     }
@@ -396,6 +406,14 @@ class StorageRoutingAutoConfigurationTest {
     internal class StorageRoutingTestConfiguration {
         @Bean
         fun recordingStores(): RecordingStores = RecordingStores()
+
+        @Bean
+        fun queryLegacyDialectResolver(): QueryLegacyDialectResolver = QueryLegacyDialectResolver {
+            QueryLegacyDialect(
+                QueryElementPathMode.CURRENT_ELEMENT_RELATIVE,
+                QueryMatchScopeMode.DOCUMENT,
+            )
+        }
 
         @Bean
         fun eventStore(stores: RecordingStores): EventStore = stores.mongoEventStore

@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.webflux.route.snapshot
 
-import io.mockk.every
-import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
@@ -23,11 +21,9 @@ import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
-import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
-import org.springframework.web.reactive.function.server.ServerRequest
+import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import reactor.kotlin.test.test
-import java.net.URI
 
 class LoadSnapshotHandlerFunctionTest {
 
@@ -42,13 +38,11 @@ class LoadSnapshotHandlerFunctionTest {
                 aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA
             )
         )
-        val request = mockk<ServerRequest> {
-            every { method() } returns HttpMethod.GET
-            every { uri() } returns URI.create("http://localhost")
-            every { pathVariables()[MessageRecords.ID] } returns generateGlobalId()
-            every { pathVariables()[MessageRecords.TENANT_ID] } returns generateGlobalId()
-            every { pathVariables()[MessageRecords.OWNER_ID] } returns generateGlobalId()
-        }
+        val request = MockServerRequest.builder()
+            .pathVariable(MessageRecords.ID, generateGlobalId())
+            .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
+            .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
+            .build()
 
         handlerFunction.handle(request)
             .test()

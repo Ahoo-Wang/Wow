@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+@file:OptIn(me.ahoo.wow.query.gateway.ExperimentalQueryGatewayApi::class)
+
 package me.ahoo.wow.webflux.route.query
 
 import me.ahoo.wow.api.query.DynamicDocument
@@ -20,6 +22,8 @@ import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.query.filter.Contexts.writeRawRequest
 import me.ahoo.wow.query.filter.QueryHandler
+import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.gateway.QueryDocumentKind
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.SINGLE_QUERY_EXTRACTOR
@@ -32,18 +36,40 @@ import reactor.core.publisher.Mono
 class SingleQueryHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val queryHandler: QueryHandler<*>,
+    private val documentKind: QueryDocumentKind?,
     private val rewriteRequestCondition: RewriteRequestCondition,
     private val exceptionHandler: RequestExceptionHandler,
     private val rewriteResult: (Mono<DynamicDocument>) -> Mono<DynamicDocument>
 ) : HandlerFunction<ServerResponse> {
+
+    constructor(
+        aggregateMetadata: AggregateMetadata<*, *>,
+        queryHandler: QueryHandler<*>,
+        rewriteRequestCondition: RewriteRequestCondition,
+        exceptionHandler: RequestExceptionHandler,
+        rewriteResult: (Mono<DynamicDocument>) -> Mono<DynamicDocument>,
+    ) : this(
+        aggregateMetadata,
+        queryHandler,
+        queryHandler.queryDocumentKind(),
+        rewriteRequestCondition,
+        exceptionHandler,
+        rewriteResult,
+    )
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return request.body(SINGLE_QUERY_EXTRACTOR)
             .flatMap {
                 val query = rewriteRequestCondition.rewrite(aggregateMetadata, request, it)
                 val result = queryHandler.dynamicSingle(aggregateMetadata, query)
-                rewriteResult(result)
+                result.rewriteResultOneToOne(rewriteResult)
                     .writeRawRequest(request)
+                    .writeQueryWebTransport(
+                        request,
+                        aggregateMetadata,
+                        documentKind,
+                        QueryType.DYNAMIC_SINGLE,
+                    )
                     .throwNotFoundIfEmpty()
             }.toServerResponse(request, exceptionHandler)
     }
@@ -52,10 +78,26 @@ class SingleQueryHandlerFunction(
 open class SingleQueryHandlerFunctionFactory(
     handlerKey: String,
     private val queryHandler: QueryHandler<*>,
+    private val documentKind: QueryDocumentKind?,
     private val rewriteRequestCondition: RewriteRequestCondition,
     private val exceptionHandler: RequestExceptionHandler,
     private val rewriteResult: (Mono<DynamicDocument>) -> Mono<DynamicDocument> = { it }
 ) : AggregateRouteHandlerFunctionFactorySupport(handlerKey) {
+    constructor(
+        handlerKey: String,
+        queryHandler: QueryHandler<*>,
+        rewriteRequestCondition: RewriteRequestCondition,
+        exceptionHandler: RequestExceptionHandler,
+        rewriteResult: (Mono<DynamicDocument>) -> Mono<DynamicDocument> = { it },
+    ) : this(
+        handlerKey,
+        queryHandler,
+        queryHandler.queryDocumentKind(),
+        rewriteRequestCondition,
+        exceptionHandler,
+        rewriteResult,
+    )
+
     override fun create(
         contract: HttpRouteContract,
         metadata: HttpRouteHandlerMetadata.Aggregate
@@ -67,6 +109,7 @@ open class SingleQueryHandlerFunctionFactory(
         return SingleQueryHandlerFunction(
             aggregateMetadata = aggregateMetadata,
             queryHandler = queryHandler,
+            documentKind = documentKind,
             rewriteRequestCondition = rewriteRequestCondition,
             exceptionHandler = exceptionHandler,
             rewriteResult = rewriteResult

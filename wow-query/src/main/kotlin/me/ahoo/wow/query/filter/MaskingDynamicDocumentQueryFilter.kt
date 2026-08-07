@@ -11,13 +11,18 @@
  * limitations under the License.
  */
 
+@file:OptIn(me.ahoo.wow.query.gateway.ExperimentalQueryGatewayApi::class)
+
 package me.ahoo.wow.query.filter
 
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.query.gateway.QueryErrorCategory
+import me.ahoo.wow.query.gateway.QueryExecutionException
 import me.ahoo.wow.query.mask.AggregateDynamicDocumentMasker
 import me.ahoo.wow.query.mask.DataMaskerRegistry
 import me.ahoo.wow.query.mask.mask
+import me.ahoo.wow.serialization.MessageRecords
 import reactor.core.publisher.Mono
 
 abstract class MaskingDynamicDocumentQueryFilter<MASKER : AggregateDynamicDocumentMasker>(
@@ -48,7 +53,7 @@ abstract class MaskingDynamicDocumentQueryFilter<MASKER : AggregateDynamicDocume
             QueryType.DYNAMIC_SINGLE -> {
                 context.asSingleQuery<DynamicDocument>().rewriteResult { result ->
                     result.map {
-                        aggregateDataMasker.mask(it)
+                        aggregateDataMasker.maskPreservingSystemFields(it)
                     }
                 }
             }
@@ -56,15 +61,20 @@ abstract class MaskingDynamicDocumentQueryFilter<MASKER : AggregateDynamicDocume
             QueryType.DYNAMIC_LIST -> {
                 context.asListQuery<DynamicDocument>().rewriteResult { result ->
                     result.map {
-                        aggregateDataMasker.mask(it)
+                        aggregateDataMasker.maskPreservingSystemFields(it)
                     }
                 }
             }
 
             QueryType.DYNAMIC_PAGED -> {
                 context.asPagedQuery<DynamicDocument>().rewriteResult { result ->
-                    result.map {
-                        aggregateDataMasker.mask(it)
+                    result.map { page ->
+                        me.ahoo.wow.api.query.PagedList(
+                            page.total,
+                            page.list.map { document ->
+                                aggregateDataMasker.maskPreservingSystemFields(document)
+                            },
+                        )
                     }
                 }
             }
@@ -72,5 +82,36 @@ abstract class MaskingDynamicDocumentQueryFilter<MASKER : AggregateDynamicDocume
             else -> {
             }
         }
+    }
+
+    private fun me.ahoo.wow.query.mask.AggregateDataMasker<MASKER>.maskPreservingSystemFields(
+        source: DynamicDocument,
+    ): DynamicDocument {
+        val protectedFields = SYSTEM_FIELDS.associateWith { field ->
+            ProtectedField(source.containsKey(field), source[field])
+        }
+        val masked = mask(source)
+        protectedFields.forEach { (field, original) ->
+            if (masked.containsKey(field) != original.present || masked[field] != original.value) {
+                throw QueryExecutionException(
+                    category = QueryErrorCategory.INTERNAL_FAILURE,
+                    path = "$.result.$field",
+                    code = "RESULT_MASKING_SYSTEM_FIELD_VIOLATION",
+                )
+            }
+        }
+        return masked
+    }
+
+    private data class ProtectedField(val present: Boolean, val value: Any?)
+
+    private companion object {
+        val SYSTEM_FIELDS = listOf(
+            MessageRecords.ID,
+            MessageRecords.AGGREGATE_ID,
+            MessageRecords.TENANT_ID,
+            MessageRecords.OWNER_ID,
+            MessageRecords.SPACE_ID,
+        )
     }
 }

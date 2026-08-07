@@ -34,38 +34,34 @@ class StorageRouteResolver(
     private val defaultSnapshotStorage: StorageType = StorageType.MONGO
 ) {
     private val eventStoreBindingsByName: Map<String, EventStoreBinding> =
-        eventStoreBindings.associateBy { it.name }
+        eventStoreBindings.associateUniqueBy("EventStoreBinding", "name", EventStoreBinding::name)
     private val eventStoreBindingsByStorage: Map<StorageType, EventStoreBinding> =
-        eventStoreBindings.mapNotNull { binding ->
-            binding.storage?.let { storage ->
-                storage to binding
-            }
-        }.toMap()
+        eventStoreBindings.filter { it.storage != null }
+            .associateUniqueBy("EventStoreBinding", "storage") { binding -> binding.storage!! }
     private val snapshotStoreBindingsByName: Map<String, SnapshotStoreBinding> =
-        snapshotStoreBindings.associateBy { it.name }
+        snapshotStoreBindings.associateUniqueBy("SnapshotStoreBinding", "name", SnapshotStoreBinding::name)
     private val snapshotStoreBindingsByStorage: Map<StorageType, SnapshotStoreBinding> =
-        snapshotStoreBindings.mapNotNull { binding ->
-            binding.storage?.let { storage ->
-                storage to binding
-            }
-        }.toMap()
+        snapshotStoreBindings.filter { it.storage != null }
+            .associateUniqueBy("SnapshotStoreBinding", "storage") { binding -> binding.storage!! }
     private val eventStreamQueryServiceFactoryBindingsByName: Map<String, EventStreamQueryServiceFactoryBinding> =
-        eventStreamQueryServiceFactoryBindings.associateBy { it.name }
+        eventStreamQueryServiceFactoryBindings.associateUniqueBy(
+            "EventStreamQueryServiceFactoryBinding",
+            "name",
+            EventStreamQueryServiceFactoryBinding::name,
+        )
     private val eventStreamQueryServiceFactoryBindingsByStorage:
         Map<StorageType, EventStreamQueryServiceFactoryBinding> =
-        eventStreamQueryServiceFactoryBindings.mapNotNull { binding ->
-            binding.storage?.let { storage ->
-                storage to binding
-            }
-        }.toMap()
+        eventStreamQueryServiceFactoryBindings.filter { it.storage != null }
+            .associateUniqueBy("EventStreamQueryServiceFactoryBinding", "storage") { binding -> binding.storage!! }
     private val snapshotQueryServiceFactoryBindingsByName: Map<String, SnapshotQueryServiceFactoryBinding> =
-        snapshotQueryServiceFactoryBindings.associateBy { it.name }
+        snapshotQueryServiceFactoryBindings.associateUniqueBy(
+            "SnapshotQueryServiceFactoryBinding",
+            "name",
+            SnapshotQueryServiceFactoryBinding::name,
+        )
     private val snapshotQueryServiceFactoryBindingsByStorage: Map<StorageType, SnapshotQueryServiceFactoryBinding> =
-        snapshotQueryServiceFactoryBindings.mapNotNull { binding ->
-            binding.storage?.let { storage ->
-                storage to binding
-            }
-        }.toMap()
+        snapshotQueryServiceFactoryBindings.filter { it.storage != null }
+            .associateUniqueBy("SnapshotQueryServiceFactoryBinding", "storage") { binding -> binding.storage!! }
 
     fun resolveEventRoutes(properties: StorageRoutingProperties): ResolvedEventRoutes {
         val routes: Map<NamedAggregate, EventStore> = properties.aggregates.mapNotNull { (routeKey, aggregateRoute) ->
@@ -249,6 +245,21 @@ class StorageRouteResolver(
         private const val EVENT_CHANNEL = "event"
         private const val SNAPSHOT_CHANNEL = "snapshot"
     }
+}
+
+private fun <B, K : Any> Iterable<B>.associateUniqueBy(
+    bindingType: String,
+    keyName: String,
+    keySelector: (B) -> K,
+): Map<K, B> {
+    val result = LinkedHashMap<K, B>()
+    for (binding in this) {
+        val key = keySelector(binding)
+        require(result.putIfAbsent(key, binding) == null) {
+            "Duplicate $bindingType $keyName[$key]."
+        }
+    }
+    return result
 }
 
 data class ResolvedEventRoutes(

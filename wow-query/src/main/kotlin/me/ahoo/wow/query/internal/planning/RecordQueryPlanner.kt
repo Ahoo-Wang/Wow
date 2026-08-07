@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.internal.planning
 
+import me.ahoo.wow.query.internal.model.QueryDocumentKind
 import me.ahoo.wow.query.internal.model.QueryOperation
 import me.ahoo.wow.query.internal.model.QueryResultShape
 import me.ahoo.wow.query.internal.model.QueryValidationMode
@@ -239,7 +240,10 @@ internal class RecordQueryPlanner(
                 fieldConstraint = constraints.fieldConstraint,
             )
         } ?: return null
-        if (deletionScope == NormalizedDeletionScope.EXPLICIT || user.condition == PlannedCondition.None) {
+        if (schema.target.documentKind == QueryDocumentKind.EVENT_STREAM ||
+            deletionScope == NormalizedDeletionScope.EXPLICIT ||
+            user.condition == PlannedCondition.None
+        ) {
             return user
         }
         val defaultActive = conditionPlanner.plan(
@@ -326,17 +330,14 @@ internal class RecordQueryPlanner(
         }
     }
 
-    private fun handleTypedProjection(path: QueryRejectionPath): ProjectionResult? {
-        val rejection = QueryRejection(
-            QueryRejectionCategory.INVALID_QUERY,
-            path,
-            QueryRejectionCode.TYPED_PROJECTION_NOT_ALLOWED,
+    private fun handleTypedProjection(path: QueryRejectionPath): Nothing {
+        throw QueryRejectedException(
+            QueryRejection(
+                QueryRejectionCategory.INVALID_QUERY,
+                path,
+                QueryRejectionCode.TYPED_PROJECTION_NOT_ALLOWED,
+            ),
         )
-        if (constraints.validationMode == QueryValidationMode.STRICT) {
-            throw QueryRejectedException(rejection)
-        }
-        issues += rejection
-        return null
     }
 
     private fun planSort(
