@@ -189,19 +189,22 @@ class QueryPlannerRecordTest {
             planned.filter.mandatory,
         )
 
-        val typedProjection = PlanningFixtures.recordQuery(
-            user,
-            NormalizedProjection.Include(NonEmptyList.of(PlanningFixtures.path("state", "name"))),
+        val compatibleGap = PlanningFixtures.recordQuery(
+            predicate(
+                PlanningFixtures.path("state", "unknown"),
+                PredicateOperator.EQ,
+                NormalizedValue.Text("Ada"),
+            ),
         )
         val fallback = planner.plan(
-            PlanningFixtures.single(typedProjection),
+            PlanningFixtures.single(compatibleGap),
             PlanningFixtures.schema,
             constraints(QueryValidationMode.COMPATIBLE, mandatory),
         ) as PlanningDecision.LegacyFallback
         fallback.validatedMandatory.condition.assert().isEqualTo(planned.filter.mandatory)
         fallback.validatedMandatory.target.assert().isEqualTo(PlanningFixtures.target)
         fallback.validatedMandatory.schemaContractId.assert().isEqualTo(PlanningFixtures.schema.contractId)
-        fallback.issues.values.single().code.assert().isEqualTo(QueryRejectionCode.TYPED_PROJECTION_NOT_ALLOWED)
+        fallback.issues.values.single().code.assert().isEqualTo(QueryRejectionCode.FIELD_NOT_FOUND)
     }
 
     @Test
@@ -226,44 +229,33 @@ class QueryPlannerRecordTest {
     }
 
     @Test
-    fun `projection policy should distinguish typed dynamic strict and compatible modes`() {
+    fun `typed projection should reject until legacy typed fallback is provably lossless`() {
         val include = NormalizedProjection.Include(NonEmptyList.of(PlanningFixtures.path("state", "name")))
         val mixed = NormalizedProjection.Mixed(
             NonEmptyList.of(PlanningFixtures.path("state", "name")),
             NonEmptyList.of(PlanningFixtures.path("state", "amount")),
         )
 
-        assertRejected(
-            QueryRejectionCategory.INVALID_QUERY,
-            QueryRejectionCode.TYPED_PROJECTION_NOT_ALLOWED,
-            "$.input.query.projection",
-        ) {
-            planner.plan(
-                PlanningFixtures.single(PlanningFixtures.recordQuery(projection = include)),
-                PlanningFixtures.schema,
-                constraints(QueryValidationMode.STRICT),
-            )
-        }
-        planner.plan(
-            PlanningFixtures.single(PlanningFixtures.recordQuery(projection = include)),
-            PlanningFixtures.schema,
-            constraints(QueryValidationMode.COMPATIBLE),
-        ).assert().isInstanceOf(PlanningDecision.LegacyFallback::class.java)
-        planner.plan(
-            PlanningFixtures.single(PlanningFixtures.recordQuery(projection = mixed)),
-            PlanningFixtures.schema,
-            constraints(QueryValidationMode.COMPATIBLE),
-        ).assert().isInstanceOf(PlanningDecision.LegacyFallback::class.java)
-        assertRejected(
-            QueryRejectionCategory.INVALID_QUERY,
-            QueryRejectionCode.TYPED_PROJECTION_NOT_ALLOWED,
-            "$.input.query.projection",
-        ) {
-            planner.plan(
-                PlanningFixtures.single(PlanningFixtures.recordQuery(projection = mixed)),
-                PlanningFixtures.schema,
-                constraints(QueryValidationMode.STRICT),
-            )
+        QueryValidationMode.entries.forEach { validationMode ->
+            listOf(include, mixed).forEach { projection ->
+                listOf(
+                    PlanningFixtures.single(PlanningFixtures.recordQuery(projection = projection)),
+                    PlanningFixtures.stream(PlanningFixtures.recordQuery(projection = projection)),
+                    PlanningFixtures.page(PlanningFixtures.recordQuery(projection = projection)),
+                ).forEach { invocation ->
+                    assertRejected(
+                        QueryRejectionCategory.INVALID_QUERY,
+                        QueryRejectionCode.TYPED_PROJECTION_NOT_ALLOWED,
+                        "$.input.query.projection",
+                    ) {
+                        planner.plan(
+                            invocation,
+                            PlanningFixtures.schema,
+                            constraints(validationMode),
+                        )
+                    }
+                }
+            }
         }
     }
 

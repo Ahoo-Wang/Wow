@@ -19,8 +19,7 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
-import me.ahoo.wow.query.gateway.GatewayEventStreamQueryServiceFactory
-import me.ahoo.wow.query.gateway.GatewaySnapshotQueryServiceFactory
+import me.ahoo.wow.query.gateway.CompositeQueryTrustedContextResolver
 import me.ahoo.wow.query.gateway.QueryAuthorityResolver
 import me.ahoo.wow.query.gateway.QueryCallResolver
 import me.ahoo.wow.query.gateway.QueryDocumentKind
@@ -31,6 +30,7 @@ import me.ahoo.wow.query.gateway.QueryLegacyDialectResolver
 import me.ahoo.wow.query.gateway.QueryResultMaterializer
 import me.ahoo.wow.query.gateway.QueryResultMaterializers
 import me.ahoo.wow.query.gateway.QueryTarget
+import me.ahoo.wow.query.gateway.QueryTrustedContextResolver
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
@@ -40,12 +40,15 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.StorageRoutingAutoC
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.StorageRoutingProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
+import me.ahoo.wow.spring.boot.starter.webflux.WebFluxAutoConfiguration
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.SmartInitializingSingleton
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Primary
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 /**
@@ -57,6 +60,7 @@ import reactor.core.publisher.Mono
     after = [
         QueryAutoConfiguration::class,
         StorageRoutingAutoConfiguration::class,
+        WebFluxAutoConfiguration::class,
     ],
 )
 @ConditionalOnWowEnabled
@@ -82,23 +86,18 @@ class QueryGatewayAutoConfiguration {
         )
 
     @Bean
-    @ConditionalOnMissingBean(QueryCallResolver::class)
-    fun failClosedQueryCallResolver(): QueryCallResolver = QueryCallResolver { Mono.empty() }
-
-    @Bean
-    @ConditionalOnMissingBean(QueryAuthorityResolver::class)
-    fun failClosedQueryAuthorityResolver(): QueryAuthorityResolver = QueryAuthorityResolver { Mono.empty() }
-
-    @Bean
     @ConditionalOnMissingBean(QueryGatewayConfiguration::class)
     fun queryGatewayConfiguration(): QueryGatewayConfiguration = QueryGatewayConfiguration()
 
     @Bean
-    @ConditionalOnMissingBean(QueryGateway::class)
+    @ConditionalOnMissingBean(QueryGatewayRuntime::class)
+    @ConditionalOnQueryGatewayWiring
     internal fun queryGatewayRuntime(
         rawServiceRegistry: StorageBindingQueryRawServiceRegistry,
         dialectResolverProvider: ObjectProvider<QueryLegacyDialectResolver>,
-        authorityResolver: QueryAuthorityResolver,
+        authorityResolverProvider: ObjectProvider<QueryAuthorityResolver>,
+        callResolverProvider: ObjectProvider<QueryCallResolver>,
+        trustedContextResolvers: List<QueryTrustedContextResolver>,
         configuration: QueryGatewayConfiguration,
         customResultMaterializers: List<QueryResultMaterializer<*>>,
     ): QueryGatewayRuntime {
@@ -121,7 +120,12 @@ class QueryGatewayAutoConfiguration {
             namedAggregates = aggregateTypes.keys,
             rawServiceSource = rawServiceRegistry,
             dialectResolver = dialectResolver,
-            authorityResolver = authorityResolver,
+            authorityResolver = resolveDirectAuthorityResolver(authorityResolverProvider),
+            trustedContextResolver = resolveTrustedContextResolver(
+                trustedContextResolvers,
+                callResolverProvider,
+                authorityResolverProvider,
+            ),
             resultMaterializers = standardMaterializers + customResultMaterializers,
             configuration = configuration,
         )
@@ -129,19 +133,92 @@ class QueryGatewayAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(QueryGateway::class)
+    @ConditionalOnQueryGatewayWiring
     fun queryGateway(runtime: QueryGatewayRuntime): QueryGateway = runtime.gateway
 
     @Bean
-    @Primary
-    fun gatewaySnapshotQueryServiceFactory(
-        gateway: QueryGateway,
-        callResolver: QueryCallResolver,
-    ): SnapshotQueryServiceFactory = GatewaySnapshotQueryServiceFactory(gateway, callResolver)
+    @ConditionalOnQueryGatewayWiring
+    internal fun queryGatewayRuntimeOwnership(
+        runtime: QueryGatewayRuntime,
+        gateways: List<QueryGateway>,
+    ): SmartInitializingSingleton = SmartInitializingSingleton {
+        require(gateways.size == 1 && gateways.single() === runtime.gateway) {
+            "A custom QueryGateway cannot partially override framework Gateway wiring. " +
+                "Provide one complete QueryGatewayRuntime override instead."
+        }
+    }
 
     @Bean
     @Primary
-    fun gatewayEventStreamQueryServiceFactory(
-        gateway: QueryGateway,
-        callResolver: QueryCallResolver,
-    ): EventStreamQueryServiceFactory = GatewayEventStreamQueryServiceFactory(gateway, callResolver)
+    @ConditionalOnQueryGatewayWiring
+    fun gatewaySnapshotQueryServiceFactory(runtime: QueryGatewayRuntime): SnapshotQueryServiceFactory =
+        runtime.snapshotQueryServiceFactory()
+
+    @Bean
+    @Primary
+    @ConditionalOnQueryGatewayWiring
+    fun gatewayEventStreamQueryServiceFactory(runtime: QueryGatewayRuntime): EventStreamQueryServiceFactory =
+        runtime.eventStreamQueryServiceFactory()
+}
+
+private fun failClosedQueryAuthorityResolver(): QueryAuthorityResolver =
+    QueryAuthorityResolver { Mono.empty() }
+
+private fun resolveTrustedContextResolver(
+    trustedResolvers: List<QueryTrustedContextResolver>,
+    callResolverProvider: ObjectProvider<QueryCallResolver>,
+    authorityResolverProvider: ObjectProvider<QueryAuthorityResolver>,
+): QueryTrustedContextResolver {
+    val callResolvers = callResolverProvider.orderedStream()
+        .filter { resolver -> resolver !is QueryTrustedContextResolver }
+        .toList()
+    val authorityResolvers = authorityResolverProvider.orderedStream()
+        .filter { resolver -> resolver !is QueryTrustedContextResolver }
+        .toList()
+    require(callResolvers.size <= 1) {
+        "Separate QueryCallResolver compatibility beans must be unique. " +
+            "Use QueryTrustedContextResolver for ordered composition."
+    }
+    if (callResolvers.isNotEmpty()) {
+        require(authorityResolvers.size == 1) {
+            "A separate QueryCallResolver compatibility bean requires exactly one QueryAuthorityResolver partner."
+        }
+    }
+    val directPair = callResolvers.singleOrNull()?.let { callResolver ->
+        val authorityResolver = authorityResolvers.single()
+        QueryTrustedContextResolver { request ->
+            callResolver.resolve(request.callRequest)
+                .flatMap { call ->
+                    authorityResolver.resolve(
+                        me.ahoo.wow.query.gateway.QueryAuthorityRequest(
+                            call,
+                            request.executionMode,
+                            request.validationMode,
+                        ),
+                    ).map { authority -> me.ahoo.wow.query.gateway.QueryTrustedContext(call, authority) }
+                }
+        }
+    }
+    val resolvers = directPair?.let { trustedResolvers + it } ?: trustedResolvers
+    if (resolvers.isEmpty()) {
+        return QueryTrustedContextResolver { Mono.empty() }
+    }
+    return CompositeQueryTrustedContextResolver(resolvers)
+}
+
+private fun resolveDirectAuthorityResolver(
+    directProvider: ObjectProvider<QueryAuthorityResolver>,
+): QueryAuthorityResolver {
+    val resolvers = directProvider.orderedStream()
+        .filter { resolver -> resolver !is QueryTrustedContextResolver }
+        .toList()
+    return when (resolvers.size) {
+        0 -> failClosedQueryAuthorityResolver()
+        1 -> resolvers.single()
+        else -> QueryAuthorityResolver { request ->
+            Flux.fromIterable(resolvers)
+                .concatMap { resolver -> Mono.defer { resolver.resolve(request) } }
+                .next()
+        }
+    }
 }

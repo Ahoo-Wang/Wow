@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+@file:OptIn(me.ahoo.wow.query.gateway.ExperimentalQueryGatewayApi::class)
+
 package me.ahoo.wow.webflux.route.query
 
 import me.ahoo.wow.api.query.DynamicDocument
@@ -20,6 +22,8 @@ import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.query.filter.Contexts.writeRawRequest
 import me.ahoo.wow.query.filter.QueryHandler
+import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.gateway.QueryDocumentKind
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.PAGED_QUERY_EXTRACTOR
@@ -32,18 +36,42 @@ import reactor.core.publisher.Mono
 class PagedQueryHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val queryHandler: QueryHandler<*>,
+    private val documentKind: QueryDocumentKind?,
     private val rewriteRequestCondition: RewriteRequestCondition,
     private val exceptionHandler: RequestExceptionHandler,
     private val rewriteResult: (Mono<PagedList<DynamicDocument>>) -> Mono<PagedList<DynamicDocument>>
 ) : HandlerFunction<ServerResponse> {
+
+    constructor(
+        aggregateMetadata: AggregateMetadata<*, *>,
+        queryHandler: QueryHandler<*>,
+        rewriteRequestCondition: RewriteRequestCondition,
+        exceptionHandler: RequestExceptionHandler,
+        rewriteResult: (Mono<PagedList<DynamicDocument>>) -> Mono<PagedList<DynamicDocument>>,
+    ) : this(
+        aggregateMetadata,
+        queryHandler,
+        queryHandler.queryDocumentKind(),
+        rewriteRequestCondition,
+        exceptionHandler,
+        rewriteResult,
+    )
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return request.body(PAGED_QUERY_EXTRACTOR)
             .flatMap {
                 val query = rewriteRequestCondition.rewrite(aggregateMetadata, request, it)
                 val result = queryHandler.dynamicPaged(aggregateMetadata, query)
-                rewriteResult(result)
+                result.rewriteResultOneToOne(rewriteResult) { original, rewritten ->
+                    original.total == rewritten.total && original.list.size == rewritten.list.size
+                }
                     .writeRawRequest(request)
+                    .writeQueryWebTransport(
+                        request,
+                        aggregateMetadata,
+                        documentKind,
+                        QueryType.DYNAMIC_PAGED,
+                    )
             }.toServerResponse(request, exceptionHandler)
     }
 }
@@ -51,10 +79,26 @@ class PagedQueryHandlerFunction(
 open class PagedQueryHandlerFunctionFactory(
     handlerKey: String,
     private val queryHandler: QueryHandler<*>,
+    private val documentKind: QueryDocumentKind?,
     private val rewriteRequestCondition: RewriteRequestCondition,
     private val exceptionHandler: RequestExceptionHandler,
     private val rewriteResult: (Mono<PagedList<DynamicDocument>>) -> Mono<PagedList<DynamicDocument>> = { it }
 ) : AggregateRouteHandlerFunctionFactorySupport(handlerKey) {
+    constructor(
+        handlerKey: String,
+        queryHandler: QueryHandler<*>,
+        rewriteRequestCondition: RewriteRequestCondition,
+        exceptionHandler: RequestExceptionHandler,
+        rewriteResult: (Mono<PagedList<DynamicDocument>>) -> Mono<PagedList<DynamicDocument>> = { it },
+    ) : this(
+        handlerKey,
+        queryHandler,
+        queryHandler.queryDocumentKind(),
+        rewriteRequestCondition,
+        exceptionHandler,
+        rewriteResult,
+    )
+
     override fun create(
         contract: HttpRouteContract,
         metadata: HttpRouteHandlerMetadata.Aggregate
@@ -66,6 +110,7 @@ open class PagedQueryHandlerFunctionFactory(
         return PagedQueryHandlerFunction(
             aggregateMetadata = aggregateMetadata,
             queryHandler = queryHandler,
+            documentKind = documentKind,
             rewriteRequestCondition = rewriteRequestCondition,
             exceptionHandler = exceptionHandler,
             rewriteResult = rewriteResult

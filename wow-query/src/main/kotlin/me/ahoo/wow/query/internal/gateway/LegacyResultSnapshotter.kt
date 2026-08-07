@@ -97,6 +97,7 @@ private fun NormalizedValue.ObjectValue.include(paths: List<List<String>>): Norm
 
 private fun NormalizedValue.includeNested(paths: List<List<String>>): NormalizedValue =
     when (this) {
+        NormalizedValue.Null -> NormalizedValue.Null
         is NormalizedValue.ObjectValue -> include(paths)
         is NormalizedValue.ListValue -> NormalizedValue.ListValue(values.map { value -> value.includeNested(paths) })
         else -> throw IllegalArgumentException("Legacy result does not match the requested projection path.")

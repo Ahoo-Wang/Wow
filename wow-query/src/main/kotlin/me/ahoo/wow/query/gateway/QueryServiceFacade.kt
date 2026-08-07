@@ -28,12 +28,17 @@ import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.query.event.AbstractEventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.internal.gateway.QueryGatewayRuntimeBuilder
+import me.ahoo.wow.query.internal.gateway.TrustedAuthorityChannel
 import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.convert
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.scheduler.Scheduler
+import reactor.core.scheduler.Schedulers
+import java.time.Clock
 
 @ExperimentalQueryGatewayApi
 data class QueryCallResolutionRequest(
@@ -50,25 +55,29 @@ fun interface QueryCallResolver {
 @ExperimentalQueryGatewayApi
 class GatewaySnapshotQueryServiceFactory(
     private val gateway: QueryGateway,
-    private val callResolver: QueryCallResolver,
+    callResolver: QueryCallResolver,
 ) : AbstractSnapshotQueryServiceFactory() {
+    private val facadeContextResolver = callResolver.asFacadeContextResolver()
+
     override fun createQueryService(namedAggregate: NamedAggregate): SnapshotQueryService<*> =
-        GatewaySnapshotQueryService(namedAggregate.materialize(), gateway, callResolver)
+        GatewaySnapshotQueryService(namedAggregate.materialize(), gateway, facadeContextResolver)
 }
 
 @ExperimentalQueryGatewayApi
 class GatewayEventStreamQueryServiceFactory(
     private val gateway: QueryGateway,
-    private val callResolver: QueryCallResolver,
+    callResolver: QueryCallResolver,
 ) : AbstractEventStreamQueryServiceFactory() {
+    private val facadeContextResolver = callResolver.asFacadeContextResolver()
+
     override fun createQueryService(namedAggregate: NamedAggregate): EventStreamQueryService =
-        GatewayEventStreamQueryService(namedAggregate.materialize(), gateway, callResolver)
+        GatewayEventStreamQueryService(namedAggregate.materialize(), gateway, facadeContextResolver)
 }
 
 private class GatewaySnapshotQueryService(
     override val namedAggregate: NamedAggregate,
     private val gateway: QueryGateway,
-    private val callResolver: QueryCallResolver,
+    private val facadeContextResolver: FacadeContextResolver,
 ) : SnapshotQueryService<Any> {
     override val name: String = GATEWAY_QUERY_SERVICE_NAME
 
@@ -99,10 +108,12 @@ private class GatewaySnapshotQueryService(
         callMono(QueryType.COUNT) { call -> gateway.count(call, condition) }
 
     private fun <R : Any> callMono(queryType: QueryType, source: (QueryCall) -> Mono<R>): Mono<R> =
-        resolveCall(callResolver, target(), queryType).flatMap(source)
+        resolveFacadeContext(facadeContextResolver, target(), queryType)
+            .flatMap { context -> context.applyTo(source(context.call)) }
 
     private fun <R : Any> callFlux(queryType: QueryType, source: (QueryCall) -> Flux<R>): Flux<R> =
-        resolveCall(callResolver, target(), queryType).flatMapMany(source)
+        resolveFacadeContext(facadeContextResolver, target(), queryType)
+            .flatMapMany { context -> context.applyTo(source(context.call)) }
 
     private fun target(): QueryTarget = QueryTarget(namedAggregate, QueryDocumentKind.SNAPSHOT)
 }
@@ -110,7 +121,7 @@ private class GatewaySnapshotQueryService(
 private class GatewayEventStreamQueryService(
     override val namedAggregate: NamedAggregate,
     private val gateway: QueryGateway,
-    private val callResolver: QueryCallResolver,
+    private val facadeContextResolver: FacadeContextResolver,
 ) : EventStreamQueryService {
     override fun single(singleQuery: ISingleQuery): Mono<DomainEventStream> =
         callMono(QueryType.SINGLE) { call -> gateway.single(call, singleQuery, DomainEventStream::class.java) }
@@ -134,20 +145,22 @@ private class GatewayEventStreamQueryService(
         callMono(QueryType.COUNT) { call -> gateway.count(call, condition) }
 
     private fun <R : Any> callMono(queryType: QueryType, source: (QueryCall) -> Mono<R>): Mono<R> =
-        resolveCall(callResolver, target(), queryType).flatMap(source)
+        resolveFacadeContext(facadeContextResolver, target(), queryType)
+            .flatMap { context -> context.applyTo(source(context.call)) }
 
     private fun <R : Any> callFlux(queryType: QueryType, source: (QueryCall) -> Flux<R>): Flux<R> =
-        resolveCall(callResolver, target(), queryType).flatMapMany(source)
+        resolveFacadeContext(facadeContextResolver, target(), queryType)
+            .flatMapMany { context -> context.applyTo(source(context.call)) }
 
     private fun target(): QueryTarget = QueryTarget(namedAggregate, QueryDocumentKind.EVENT_STREAM)
 }
 
-private fun resolveCall(
-    resolver: QueryCallResolver,
+private fun resolveFacadeContext(
+    resolver: FacadeContextResolver,
     target: QueryTarget,
     queryType: QueryType,
-): Mono<QueryCall> = Mono.defer {
-    resolver.resolve(QueryCallResolutionRequest(target, queryType))
+): Mono<ResolvedFacadeContext> = Mono.defer {
+    resolver.resolveContext(QueryCallResolutionRequest(target, queryType))
 }.onErrorMap { error ->
     if (error is QueryExecutionException) {
         error
@@ -155,12 +168,118 @@ private fun resolveCall(
         queryCallError("QUERY_CALL_RESOLUTION_FAILED", error)
     }
 }.switchIfEmpty(Mono.error(queryCallError("QUERY_CALL_REQUIRED")))
-    .map { call ->
-        if (call.target != target) {
+    .map { context ->
+        if (context.call.target != target) {
             throw queryCallError("QUERY_CALL_TARGET_MISMATCH")
         }
-        call
+        context
     }
+
+private fun interface FacadeContextResolver {
+    fun resolveContext(request: QueryCallResolutionRequest): Mono<ResolvedFacadeContext>
+}
+
+private data class ResolvedFacadeContext(
+    val call: QueryCall,
+    val authority: QueryAuthority?,
+    val trustedAuthorityChannel: TrustedAuthorityChannel?,
+) {
+    fun <R : Any> applyTo(source: Mono<R>): Mono<R> =
+        authority?.let { trustedAuthorityChannel!!.bind(source, it) } ?: source
+
+    fun <R : Any> applyTo(source: Flux<R>): Flux<R> =
+        authority?.let { trustedAuthorityChannel!!.bind(source, it) } ?: source
+}
+
+private class CallOnlyFacadeContextResolver(
+    private val callResolver: QueryCallResolver,
+) : FacadeContextResolver {
+    override fun resolveContext(request: QueryCallResolutionRequest): Mono<ResolvedFacadeContext> =
+        callResolver.resolve(request).map { call -> ResolvedFacadeContext(call, null, null) }
+}
+
+private class TrustedFacadeContextResolver(
+    private val trustedContextResolver: QueryTrustedContextResolver,
+    private val configuration: QueryGatewayConfiguration,
+    private val trustedAuthorityChannel: TrustedAuthorityChannel,
+) : QueryCallResolver, FacadeContextResolver {
+    override fun resolve(request: QueryCallResolutionRequest): Mono<QueryCall> =
+        resolveContext(request).map(ResolvedFacadeContext::call)
+
+    override fun resolveContext(request: QueryCallResolutionRequest): Mono<ResolvedFacadeContext> =
+        trustedContextResolver.resolve(
+            QueryTrustedContextRequest(
+                request,
+                configuration.executionMode,
+                configuration.validationMode,
+            ),
+        ).map { context -> ResolvedFacadeContext(context.call, context.authority, trustedAuthorityChannel) }
+}
+
+private fun QueryCallResolver.asFacadeContextResolver(): FacadeContextResolver =
+    this as? FacadeContextResolver ?: CallOnlyFacadeContextResolver(this)
+
+/**
+ * Owns one immutable Gateway runtime for the supplied aggregate set.
+ *
+ * The raw source has a distinct type from the public application factories, so the runtime cannot recursively resolve
+ * its own facade. The trusted resolver and its per-runtime authority capability are frozen at construction time.
+ */
+@ExperimentalQueryGatewayApi
+class QueryGatewayRuntime private constructor(private val state: RuntimeState) {
+    val gateway: QueryGateway
+        get() = state.gateway
+
+    fun snapshotQueryServiceFactory(): GatewaySnapshotQueryServiceFactory = GatewaySnapshotQueryServiceFactory(
+        state.gateway,
+        state.trustedCallResolver,
+    )
+
+    fun eventStreamQueryServiceFactory(): GatewayEventStreamQueryServiceFactory = GatewayEventStreamQueryServiceFactory(
+        state.gateway,
+        state.trustedCallResolver,
+    )
+
+    private class RuntimeState(
+        val gateway: QueryGateway,
+        val trustedCallResolver: QueryCallResolver,
+    )
+
+    companion object {
+        fun create(
+            namedAggregates: Iterable<NamedAggregate>,
+            rawServiceSource: QueryRawServiceSource,
+            dialectResolver: QueryLegacyDialectResolver,
+            authorityResolver: QueryAuthorityResolver,
+            trustedContextResolver: QueryTrustedContextResolver = QueryTrustedContextResolver { Mono.empty() },
+            resultMaterializers: Iterable<QueryResultMaterializer<*>> = emptyList(),
+            configuration: QueryGatewayConfiguration = QueryGatewayConfiguration(),
+            clock: Clock = Clock.systemUTC(),
+            scheduler: Scheduler = Schedulers.parallel(),
+        ): QueryGatewayRuntime {
+            val components = QueryGatewayRuntimeBuilder.build(
+                namedAggregates,
+                rawServiceSource,
+                resultMaterializers,
+                dialectResolver,
+                authorityResolver,
+                configuration,
+                clock,
+                scheduler,
+            )
+            return QueryGatewayRuntime(
+                RuntimeState(
+                    components.gateway,
+                    TrustedFacadeContextResolver(
+                        trustedContextResolver,
+                        configuration,
+                        components.trustedAuthorityChannel,
+                    ),
+                ),
+            )
+        }
+    }
+}
 
 @ExperimentalQueryGatewayApi
 object QueryResultMaterializers {

@@ -41,7 +41,10 @@ import me.ahoo.wow.query.internal.model.QueryResultShape
 import me.ahoo.wow.query.internal.normalization.NormalizedValue
 import me.ahoo.wow.query.internal.policy.QueryAuthorityProvider
 import me.ahoo.wow.query.internal.policy.QueryExecutionRequest
+import me.ahoo.wow.query.internal.policy.TrustedAuthorityRejectedException
 import me.ahoo.wow.query.internal.rejection.QueryRejectedException
+import me.ahoo.wow.query.internal.rejection.QueryRejectionCode
+import me.ahoo.wow.query.internal.rejection.QueryRejectionPath
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.util.LinkedHashMap
@@ -180,12 +183,39 @@ internal class DefaultQueryGateway(
 }
 
 internal class GatewayAuthorityProvider(
+    private val trustedAuthorityChannel: TrustedAuthorityChannel,
     private val resolver: QueryAuthorityResolver,
 ) : QueryAuthorityProvider {
     override fun resolve(request: QueryExecutionRequest): Mono<InternalQueryAuthority> =
-        Mono.defer {
-            resolver.resolve(request.toPublic()).map(PublicQueryAuthority::toInternal)
-        }
+        Mono.deferContextual { context ->
+            trustedAuthorityChannel.read(context)?.let { authority ->
+                Mono.just(authority.toInternal())
+            } ?: Mono.defer {
+                resolver.resolve(request.toPublic()).map(PublicQueryAuthority::toInternal)
+            }
+        }.onErrorMap(::mapTrustedAuthorityRejection)
+}
+
+private fun mapTrustedAuthorityRejection(error: Throwable): Throwable {
+    if (error !is QueryExecutionException || error.category != QueryErrorCategory.ACCESS_DENIED) {
+        return error
+    }
+    val (path, code) = when {
+        error.path == AUTHORITY_PATH && error.code == QueryRejectionCode.AUTHORITY_REQUIRED.name ->
+            QueryRejectionPath.ROOT.property("executionContext").property("authority") to
+                QueryRejectionCode.AUTHORITY_REQUIRED
+
+        error.path == LEGACY_GRANT_PATH && error.code == QueryRejectionCode.LEGACY_CALLER_NOT_ALLOWED.name ->
+            QueryRejectionPath.ROOT.property("executionContext").property("legacyGrant") to
+                QueryRejectionCode.LEGACY_CALLER_NOT_ALLOWED
+
+        error.path == TRANSPORT_PATH && error.code == QueryRejectionCode.QUERY_TRANSPORT_AUTHORITY_MISMATCH.name ->
+            QueryRejectionPath.ROOT.property("executionContext").property("transport") to
+                QueryRejectionCode.QUERY_TRANSPORT_AUTHORITY_MISMATCH
+
+        else -> return error
+    }
+    return TrustedAuthorityRejectedException(path, code, error)
 }
 
 private fun QueryCall.toRequest(configuration: QueryGatewayConfiguration): QueryExecutionRequest =
@@ -246,6 +276,20 @@ private fun PublicQueryAuthority.toInternal(): InternalQueryAuthority =
         )
 
         is PublicQueryAuthority.System -> InternalQueryAuthority.System(principalId, justification)
+
+        is PublicQueryAuthority.Legacy -> InternalQueryAuthority.Legacy(
+            me.ahoo.wow.query.internal.policy.LegacyQueryGrant(
+                me.ahoo.wow.query.internal.policy.LegacyQueryCallerId(grant.callerId),
+                grant.target.toInternal(),
+                me.ahoo.wow.query.internal.policy.QueryPurpose(grant.purpose.value),
+                grant.executionMode.toInternal(),
+                me.ahoo.wow.query.internal.policy.QueryResourceScope(
+                    grant.resourceScope.tenantId,
+                    grant.resourceScope.ownerId,
+                    grant.resourceScope.spaceId,
+                ),
+            ),
+        )
     }
 
 private fun PublicOwnerGrant.toInternal(): InternalOwnerGrant =
@@ -425,3 +469,7 @@ private fun me.ahoo.wow.query.internal.rejection.QueryRejectionCategory.toPublic
         me.ahoo.wow.query.internal.rejection.QueryRejectionCategory.MAPPING_FAILURE -> QueryErrorCategory.MAPPING_FAILURE
         me.ahoo.wow.query.internal.rejection.QueryRejectionCategory.INTERNAL_FAILURE -> QueryErrorCategory.INTERNAL_FAILURE
     }
+
+private const val AUTHORITY_PATH = "$.executionContext.authority"
+private const val LEGACY_GRANT_PATH = "$.executionContext.legacyGrant"
+private const val TRANSPORT_PATH = "$.executionContext.transport"

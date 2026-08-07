@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+@file:OptIn(me.ahoo.wow.query.gateway.ExperimentalQueryGatewayApi::class)
+
 package me.ahoo.wow.spring.boot.starter.webflux
 
 import io.mockk.mockk
@@ -49,6 +51,7 @@ import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyMode
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyRequest
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
+import me.ahoo.wow.query.gateway.QueryTrustedContextResolver
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
 import me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties
@@ -79,6 +82,8 @@ import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
+import me.ahoo.wow.webflux.route.query.QueryWebAuthorityResolver
+import me.ahoo.wow.webflux.route.query.QueryWebTransportResolvers
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.test.context.FilteredClassLoader
@@ -112,6 +117,7 @@ internal class WebFluxAutoConfigurationTest {
     )
 
     @Test
+    @Suppress("LongMethod")
     fun `should load context with webflux command route and exception handler`() {
         contextRunner
             .enableWow()
@@ -153,6 +159,9 @@ internal class WebFluxAutoConfigurationTest {
                     .hasSingleBean(BatchExecutionPolicy::class.java)
                     .hasSingleBean(WebFluxProperties::class.java)
                     .hasSingleBean(BiScriptProperties::class.java)
+                    .hasSingleBean(QueryWebAuthorityResolver::class.java)
+                    .hasSingleBean(QueryWebTransportResolvers::class.java)
+                    .hasSingleBean(QueryTrustedContextResolver::class.java)
                 val batchExecutionPolicy = context.getBean(BatchExecutionPolicy::class.java)
                 batchExecutionPolicy.concurrency.assert().isOne()
                 batchExecutionPolicy.prefetch.assert().isOne()

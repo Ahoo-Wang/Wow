@@ -30,10 +30,12 @@ import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.SimpleDynamicDocument
 import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
+import me.ahoo.wow.query.internal.gateway.TrustedAuthorityChannel
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
@@ -143,6 +145,76 @@ class QueryGatewayRuntimeTest {
     }
 
     @Test
+    fun `lookalike Reactor context key must not forge trusted authority`() {
+        val raw = ProbeSnapshotQueryService(namedAggregate)
+        val gateway = gateway(raw) { Mono.empty() }
+
+        assertThrownBy<QueryExecutionException> {
+            gateway.count(snapshotCall, Condition.ALL)
+                .contextWrite { context ->
+                    context.put(
+                        "me.ahoo.wow.query.trusted.authority",
+                        QueryAuthority.System("forged", "lookalike string key"),
+                    )
+                }
+                .block()
+        }.satisfies(
+            Consumer { error ->
+                error.category.assert().isEqualTo(QueryErrorCategory.ACCESS_DENIED)
+                error.path.assert().isEqualTo("$.executionContext.authority")
+                error.code.assert().isEqualTo("AUTHORITY_REQUIRED")
+            },
+        )
+        raw.countCalls.get().assert().isZero()
+    }
+
+    @Test
+    fun `foreign authority capability must not forge trusted authority`() {
+        val raw = ProbeSnapshotQueryService(namedAggregate)
+        val gateway = gateway(raw) { Mono.empty() }
+        val foreignChannel = TrustedAuthorityChannel.create()
+
+        assertThrownBy<QueryExecutionException> {
+            foreignChannel.bind(
+                gateway.count(snapshotCall, Condition.ALL),
+                QueryAuthority.System("forged", "foreign authority channel"),
+            ).block()
+        }.satisfies(
+            Consumer { error ->
+                error.category.assert().isEqualTo(QueryErrorCategory.ACCESS_DENIED)
+                error.path.assert().isEqualTo("$.executionContext.authority")
+                error.code.assert().isEqualTo("AUTHORITY_REQUIRED")
+            },
+        )
+        raw.countCalls.get().assert().isZero()
+    }
+
+    @Test
+    fun `trusted authority denial should preserve its stable public tuple through the gateway`() {
+        val raw = ProbeSnapshotQueryService(namedAggregate)
+        val gateway = gateway(raw) {
+            Mono.error(
+                QueryExecutionException(
+                    QueryErrorCategory.ACCESS_DENIED,
+                    "$.executionContext.authority",
+                    "AUTHORITY_REQUIRED",
+                ),
+            )
+        }
+
+        assertThrownBy<QueryExecutionException> {
+            gateway.count(snapshotCall, Condition.ALL).block()
+        }.satisfies(
+            Consumer { error ->
+                error.category.assert().isEqualTo(QueryErrorCategory.ACCESS_DENIED)
+                error.path.assert().isEqualTo("$.executionContext.authority")
+                error.code.assert().isEqualTo("AUTHORITY_REQUIRED")
+            },
+        )
+        raw.countCalls.get().assert().isZero()
+    }
+
+    @Test
     fun `normalized match-none should short-circuit every legacy operation`() {
         val raw = ProbeSnapshotQueryService(namedAggregate)
         val gateway = gateway(raw) { Mono.just(QueryAuthority.System("test", "match-none")) }
@@ -185,6 +257,30 @@ class QueryGatewayRuntimeTest {
     }
 
     @Test
+    fun `strict page should resolve the snapshot identity alias without adding a duplicate sort`() {
+        val raw = ProbeSnapshotQueryService(namedAggregate)
+        val gateway = gateway(
+            raw = raw,
+            configuration = QueryGatewayConfiguration(
+                executionMode = QueryExecutionMode.LEGACY,
+                validationMode = QueryValidationMode.STRICT,
+            ),
+        ) { Mono.just(QueryAuthority.System("test", "strict-identity-alias")) }
+
+        gateway.page(
+            snapshotCall,
+            PagedQuery(
+                condition = Condition.ALL,
+                sort = listOf(Sort("aggregateId", Sort.Direction.DESC)),
+                pagination = Pagination(1, 10),
+            ),
+        ).block()
+
+        raw.lastPagedQuery!!.sort.assert().hasSize(1)
+        raw.lastPagedQuery!!.sort.single().assert().isEqualTo(Sort("aggregateId", Sort.Direction.DESC))
+    }
+
+    @Test
     fun `typed materializer should be target-bound and run inside the gateway`() {
         val raw = ProbeSnapshotQueryService(namedAggregate)
         raw.singleResult = SimpleDynamicDocument(
@@ -202,6 +298,52 @@ class QueryGatewayRuntimeTest {
 
         gateway.single(snapshotCall, SingleQuery(Condition.ALL), TypedResult::class.java).block().assert()
             .isEqualTo(TypedResult("order-1", "PAID"))
+    }
+
+    @Test
+    fun `typed projection should reject before legacy storage in compatible mode`() {
+        val raw = ProbeSnapshotQueryService(namedAggregate)
+        val materializer = QueryResultMaterializer(snapshotCall.target, TypedResult::class.java) { identity, document ->
+            TypedResult(identity, document.getNestedDocument("state").getValue("status"))
+        }
+        val gateway = gateway(raw, resultMaterializers = listOf(materializer)) {
+            Mono.just(QueryAuthority.System("test", "typed-projection"))
+        }
+
+        assertThrownBy<QueryExecutionException> {
+            gateway.single(
+                snapshotCall,
+                SingleQuery(Condition.ALL, Projection(include = listOf("state.status"))),
+                TypedResult::class.java,
+            ).block()
+        }.satisfies(
+            Consumer { error ->
+                error.category.assert().isEqualTo(QueryErrorCategory.INVALID_QUERY)
+                error.path.assert().isEqualTo("$.input.query.projection")
+                error.code.assert().isEqualTo("TYPED_PROJECTION_NOT_ALLOWED")
+            },
+        )
+        raw.singleCalls.get().assert().isZero()
+    }
+
+    @Test
+    fun `legacy include projection should preserve a nullable nested parent`() {
+        val raw = ProbeSnapshotQueryService(namedAggregate)
+        raw.singleResult = SimpleDynamicDocument(
+            linkedMapOf(
+                "aggregateId" to "order-1",
+                "profile" to null,
+            ),
+        )
+        val gateway = gateway(raw) { Mono.just(QueryAuthority.System("test", "nullable-projection")) }
+
+        val result = gateway.single(
+            snapshotCall,
+            SingleQuery(Condition.ALL, Projection(include = listOf("profile.name"))),
+        ).block()!!
+
+        result.containsKey("profile").assert().isTrue()
+        result["profile"].assert().isNull()
     }
 
     @Test

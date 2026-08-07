@@ -24,6 +24,7 @@ import me.ahoo.wow.query.internal.schema.Presence
 import me.ahoo.wow.query.internal.schema.QueryDocumentSchema
 import me.ahoo.wow.query.internal.schema.QueryFieldId
 import me.ahoo.wow.query.internal.schema.QueryFieldSchema
+import me.ahoo.wow.serialization.MessageRecords
 
 /**
  * Bootstrap schema for legacy-compatible execution.
@@ -35,13 +36,52 @@ internal fun legacyQuerySchema(target: QueryTarget): QueryDocumentSchema =
     QueryDocumentSchema(
         target,
         fields = buildList {
-            add(textSystemField(SystemFieldKind.IDENTITY, Presence.REQUIRED, sortable = true))
-            add(textSystemField(SystemFieldKind.AGGREGATE_ID, Presence.REQUIRED))
-            add(textSystemField(SystemFieldKind.TENANT_ID, Presence.OPTIONAL))
-            add(textSystemField(SystemFieldKind.OWNER_ID, Presence.OPTIONAL))
-            add(textSystemField(SystemFieldKind.SPACE_ID, Presence.OPTIONAL))
+            val identityAlias = when (target.documentKind) {
+                QueryDocumentKind.SNAPSHOT -> MessageRecords.AGGREGATE_ID
+                QueryDocumentKind.EVENT_STREAM -> MessageRecords.ID
+            }
+            add(
+                textSystemField(
+                    SystemFieldKind.IDENTITY,
+                    Presence.REQUIRED,
+                    sortable = true,
+                    logicalAliases = listOf(path(identityAlias)),
+                ),
+            )
+            add(
+                textSystemField(
+                    SystemFieldKind.AGGREGATE_ID,
+                    Presence.REQUIRED,
+                    logicalAliases = if (target.documentKind == QueryDocumentKind.EVENT_STREAM) {
+                        listOf(path(MessageRecords.AGGREGATE_ID))
+                    } else {
+                        emptyList()
+                    },
+                ),
+            )
+            add(
+                textSystemField(
+                    SystemFieldKind.TENANT_ID,
+                    Presence.OPTIONAL,
+                    logicalAliases = listOf(path(MessageRecords.TENANT_ID)),
+                ),
+            )
+            add(
+                textSystemField(
+                    SystemFieldKind.OWNER_ID,
+                    Presence.OPTIONAL,
+                    logicalAliases = listOf(path(MessageRecords.OWNER_ID)),
+                ),
+            )
+            add(
+                textSystemField(
+                    SystemFieldKind.SPACE_ID,
+                    Presence.OPTIONAL,
+                    logicalAliases = listOf(path(MessageRecords.SPACE_ID)),
+                ),
+            )
             if (target.documentKind == QueryDocumentKind.SNAPSHOT) {
-                add(booleanSystemField(SystemFieldKind.DELETED))
+                add(booleanSystemField(SystemFieldKind.DELETED, listOf(path(DELETED_FIELD))))
             }
         },
         searchScopes = emptyList(),
@@ -51,6 +91,7 @@ private fun textSystemField(
     kind: SystemFieldKind,
     presence: Presence,
     sortable: Boolean = false,
+    logicalAliases: Iterable<QueryFieldId.Path> = emptyList(),
 ): QueryFieldSchema =
     QueryFieldSchema(
         id = QueryFieldId.System(kind),
@@ -65,9 +106,13 @@ private fun textSystemField(
                 add(FieldCapability.SORTABLE)
             }
         },
+        logicalAliases = logicalAliases,
     )
 
-private fun booleanSystemField(kind: SystemFieldKind): QueryFieldSchema =
+private fun booleanSystemField(
+    kind: SystemFieldKind,
+    logicalAliases: Iterable<QueryFieldId.Path> = emptyList(),
+): QueryFieldSchema =
     QueryFieldSchema(
         id = QueryFieldId.System(kind),
         type = LogicalFieldType.Boolean,
@@ -79,4 +124,9 @@ private fun booleanSystemField(kind: SystemFieldKind): QueryFieldSchema =
             PredicateOperator.IS_FALSE,
         ),
         capabilities = setOf(FieldCapability.EXACT, FieldCapability.PROJECTABLE),
+        logicalAliases = logicalAliases,
     )
+
+private fun path(field: String): QueryFieldId.Path = QueryFieldId.Path(listOf(field))
+
+private const val DELETED_FIELD = "deleted"

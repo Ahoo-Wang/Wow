@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+@file:OptIn(me.ahoo.wow.query.gateway.ExperimentalQueryGatewayApi::class)
+
 package me.ahoo.wow.webflux.route
 
 import io.mockk.every
@@ -25,6 +27,8 @@ import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
+import me.ahoo.wow.query.gateway.QueryErrorCategory
+import me.ahoo.wow.query.gateway.QueryExecutionException
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
@@ -41,6 +45,32 @@ import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 
 class ResponsesKtTest {
+
+    @Test
+    fun `should preserve query status mapping in response entity adapter`() {
+        QueryExecutionException(QueryErrorCategory.ACCESS_DENIED, "$.policy", "POLICY_DENIED")
+            .toResponseEntity()
+            .statusCode.assert().isEqualTo(HttpStatus.FORBIDDEN)
+    }
+
+    @Test
+    fun `should preserve query status mapping after materializing error info`() {
+        val cases = listOf(
+            Triple(QueryErrorCategory.ACCESS_DENIED, "POLICY_DENIED", HttpStatus.FORBIDDEN),
+            Triple(QueryErrorCategory.BUDGET_EXCEEDED, "DEADLINE_EXPIRED", HttpStatus.REQUEST_TIMEOUT),
+            Triple(QueryErrorCategory.BACKEND_UNAVAILABLE, "BACKEND_NOT_REGISTERED", HttpStatus.SERVICE_UNAVAILABLE),
+            Triple(QueryErrorCategory.INTERNAL_FAILURE, "UNEXPECTED_QUERY_FAILURE", HttpStatus.INTERNAL_SERVER_ERROR),
+        )
+
+        cases.forEach { (category, code, status) ->
+            QueryExecutionException(category, "$.query", code)
+                .toErrorInfo()
+                .toServerResponse()
+                .test()
+                .consumeNextWith { response -> response.statusCode().assert().isEqualTo(status) }
+                .verifyComplete()
+        }
+    }
 
     @Test
     fun `should convert exception to response entity`() {

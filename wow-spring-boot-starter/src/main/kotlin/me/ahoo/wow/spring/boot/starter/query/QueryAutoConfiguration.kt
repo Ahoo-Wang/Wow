@@ -24,7 +24,10 @@ import me.ahoo.wow.query.event.filter.EventStreamQueryFilter
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.event.filter.MaskingEventStreamQueryFilter
 import me.ahoo.wow.query.event.filter.TailEventStreamQueryFilter
+import me.ahoo.wow.query.filter.PreAdmissionQueryFilter
 import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.filter.QueryFilter
+import me.ahoo.wow.query.filter.RESULT_KEY
 import me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker
 import me.ahoo.wow.query.mask.EventStreamMaskerRegistry
 import me.ahoo.wow.query.mask.StateDataMaskerRegistry
@@ -85,7 +88,9 @@ class QueryAutoConfiguration {
     }
 
     @Bean
-    fun maskingEventStreamQueryFilter(eventStreamMaskerRegistry: EventStreamMaskerRegistry): EventStreamQueryFilter {
+    fun maskingEventStreamQueryFilter(
+        eventStreamMaskerRegistry: EventStreamMaskerRegistry
+    ): EventStreamQueryFilter {
         return MaskingEventStreamQueryFilter(eventStreamMaskerRegistry)
     }
 
@@ -107,20 +112,26 @@ class QueryAutoConfiguration {
     fun snapshotQueryFilterChain(
         filters: List<Filter<QueryContext<*, *>>>
     ): FilterChain<QueryContext<*, *>> {
-        return FilterChainBuilder<QueryContext<*, *>>()
-            .addFilters(filters)
-            .filterCondition(SnapshotQueryHandler::class)
-            .build()
+        validateQueryFilterPhases(filters)
+        return phasedQueryFilterChain(
+            filters,
+            SnapshotQueryHandler::class,
+            filters.filterIsInstance<TailSnapshotQueryFilter<*>>().single(),
+            filters.filterIsInstance<MaskingSnapshotQueryFilter>().single(),
+        )
     }
 
     @Bean
     fun eventStreamQueryFilterChain(
         filters: List<Filter<QueryContext<*, *>>>
     ): FilterChain<QueryContext<*, *>> {
-        return FilterChainBuilder<QueryContext<*, *>>()
-            .addFilters(filters)
-            .filterCondition(EventStreamQueryHandler::class)
-            .build()
+        validateQueryFilterPhases(filters)
+        return phasedQueryFilterChain(
+            filters,
+            EventStreamQueryHandler::class,
+            filters.filterIsInstance<TailEventStreamQueryFilter>().single(),
+            filters.filterIsInstance<MaskingEventStreamQueryFilter>().single(),
+        )
     }
 
     @Bean("snapshotQueryErrorHandler")
@@ -161,5 +172,42 @@ class QueryAutoConfiguration {
     @ConditionalOnMissingBean(EventStreamQueryServiceFactory::class)
     fun noOpEventStreamQueryServiceFactory(): EventStreamQueryServiceFactory {
         return NoOpEventStreamQueryServiceFactory
+    }
+}
+
+private fun validateQueryFilterPhases(filters: List<Filter<QueryContext<*, *>>>) {
+    val unsupported = filters.filterIsInstance<QueryFilter<*>>().filterNot { filter ->
+        filter is PreAdmissionQueryFilter ||
+            filter is TailSnapshotQueryFilter<*> ||
+            filter is TailEventStreamQueryFilter ||
+            filter is MaskingSnapshotQueryFilter ||
+            filter is MaskingEventStreamQueryFilter
+    }
+    require(unsupported.isEmpty()) {
+        "QueryFilter must declare the pre-admission phase; post-policy result replacement is not supported: " +
+            unsupported.joinToString { it.javaClass.name }
+    }
+}
+
+private fun phasedQueryFilterChain(
+    filters: List<Filter<QueryContext<*, *>>>,
+    filterType: kotlin.reflect.KClass<*>,
+    terminal: Filter<QueryContext<*, *>>,
+    masker: Filter<QueryContext<*, *>>,
+): FilterChain<QueryContext<*, *>> {
+    val requestChain = FilterChainBuilder<QueryContext<*, *>>()
+        .addFilters(filters.filter { it is PreAdmissionQueryFilter })
+        .filterCondition(filterType)
+        .build()
+    val emptyChain = FilterChain<QueryContext<*, *>> { reactor.core.publisher.Mono.empty() }
+    return FilterChain { context ->
+        requestChain.filter(context)
+            .then(
+                reactor.core.publisher.Mono.fromRunnable {
+                    context.attributes.remove(RESULT_KEY)
+                },
+            )
+            .then(reactor.core.publisher.Mono.defer { terminal.filter(context, emptyChain) })
+            .then(reactor.core.publisher.Mono.defer { masker.filter(context, emptyChain) })
     }
 }

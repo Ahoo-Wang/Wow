@@ -24,6 +24,7 @@ import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.query.dsl.condition
+import me.ahoo.wow.query.filter.PreAdmissionQueryFilter
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.serialization.state.StateAggregateRecords.TAGS
 import reactor.core.publisher.Mono
@@ -31,10 +32,12 @@ import reactor.kotlin.core.publisher.toMono
 import reactor.util.context.ContextView
 
 /**
- * Filters snapshot queries using attribute-based access control (ABAC).
+ * Compatibility filter that appends legacy ABAC tag conditions before Gateway admission.
  *
  * Principal tags from the current context are converted into query conditions and
- * appended to snapshot queries.
+ * appended to snapshot queries. The appended condition remains a user condition; it is not a mandatory policy
+ * constraint and must not be used as the authorization boundary. New applications should implement
+ * the Query Gateway policy boundary instead.
  *
  * ## Matching rules
  *
@@ -49,7 +52,8 @@ import reactor.util.context.ContextView
  */
 @Order(ORDER_FIRST)
 @FilterType(SnapshotQueryHandler::class)
-abstract class AbacQueryFilter : SnapshotQueryFilter {
+@Deprecated("Move ABAC authorization to Query Gateway policy constraints so it is mandatory and fail closed.")
+abstract class AbacQueryFilter : SnapshotQueryFilter, PreAdmissionQueryFilter {
     companion object {
         /**
          * Converts one principal tag into a nested query condition.

@@ -10,6 +10,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:OptIn(me.ahoo.wow.query.gateway.ExperimentalQueryGatewayApi::class)
+
 package me.ahoo.wow.spring.boot.starter.webflux
 
 import me.ahoo.wow.bi.BiDeploymentInspector
@@ -61,6 +63,8 @@ import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
 import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestCondition
+import me.ahoo.wow.webflux.route.query.QueryWebAuthorityResolver
+import me.ahoo.wow.webflux.route.query.QueryWebTransportResolvers
 import me.ahoo.wow.webflux.route.query.RewriteRequestCondition
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -88,6 +92,19 @@ import org.springframework.web.server.WebExceptionHandler
     name = ["org.springframework.web.server.WebFilter", "me.ahoo.wow.webflux.route.command.CommandHandlerFunction"],
 )
 class WebFluxAutoConfiguration {
+    @Bean
+    @ConditionalOnMissingBean
+    fun queryWebAuthorityResolver(): QueryWebAuthorityResolver = QueryWebAuthorityResolver {
+        reactor.core.publisher.Mono.empty()
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean
+    fun queryWebTransportResolvers(
+        queryWebAuthorityResolver: QueryWebAuthorityResolver,
+    ): QueryWebTransportResolvers = QueryWebTransportResolvers(queryWebAuthorityResolver)
+
     @Bean
     @ConditionalOnMissingBean
     fun webFluxErrorStrategy(): WebFluxErrorStrategy {

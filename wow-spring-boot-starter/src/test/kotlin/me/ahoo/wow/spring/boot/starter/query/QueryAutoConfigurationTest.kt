@@ -3,10 +3,15 @@ package me.ahoo.wow.spring.boot.starter.query
 import io.mockk.every
 import io.mockk.spyk
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.query.event.filter.EventStreamQueryFilter
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker
+import me.ahoo.wow.query.mask.EventStreamMaskerRegistry
+import me.ahoo.wow.query.mask.StateDataMaskerRegistry
 import me.ahoo.wow.query.mask.StateDynamicDocumentMasker
 import me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilter
+import me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
 import me.ahoo.wow.spring.boot.starter.enableWow
@@ -17,6 +22,22 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner
 
 class QueryAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
+
+    @Test
+    fun `existing query auto configuration JVM descriptors should remain compatible`() {
+        QueryAutoConfiguration::class.java
+            .getDeclaredMethod("maskingSnapshotQueryFilter", StateDataMaskerRegistry::class.java)
+            .returnType.assert().isEqualTo(SnapshotQueryFilter::class.java)
+        QueryAutoConfiguration::class.java
+            .getDeclaredMethod("maskingEventStreamQueryFilter", EventStreamMaskerRegistry::class.java)
+            .returnType.assert().isEqualTo(EventStreamQueryFilter::class.java)
+        QueryAutoConfiguration::class.java
+            .getDeclaredMethod("snapshotQueryFilterChain", List::class.java)
+            .returnType.assert().isEqualTo(FilterChain::class.java)
+        QueryAutoConfiguration::class.java
+            .getDeclaredMethod("eventStreamQueryFilterChain", List::class.java)
+            .returnType.assert().isEqualTo(FilterChain::class.java)
+    }
 
     @Test
     fun `should load context with query handler beans`() {

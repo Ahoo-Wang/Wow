@@ -260,11 +260,14 @@ pagedQuery {
 
 ## 重写查询
 
+`PreAdmissionQueryFilter` 只适合兼容性的查询改写。该阶段写入的结果会被丢弃，追加的条件仍属于用户条件，
+不能作为租户隔离、ABAC 或其他授权边界；安全约束必须由 Query Gateway policy 生成 mandatory condition。
+
 ```kotlin
 @Component
 @Order(ORDER_FIRST)
 @FilterType(SnapshotQueryHandler::class)
-class DataFilterSnapshotQueryFilter : SnapshotQueryFilter {
+class DataFilterSnapshotQueryFilter : SnapshotQueryFilter, PreAdmissionQueryFilter {
 
     override fun filter(
         context: QueryContext<*, *>,
@@ -295,6 +298,27 @@ class DataFilterSnapshotQueryFilter : SnapshotQueryFilter {
 
 以下示例查询 `tenant-1` 的 `sales-order` 聚合。四个请求都描述同一条模拟快照，因此查询条件与响应数量保持一致。
 
+::: warning 查询端点默认拒绝匿名访问
+Query Gateway 不会把 path、`Wow-Space-Id` 或其他请求 Header 当作可信身份。应用必须实现
+`QueryWebAuthorityResolver`，从已经认证的 principal/security context 返回 `Mono<QueryAuthority>`；默认 resolver
+返回 empty，因此未接入认证的查询会得到 `403 Query.ACCESS_DENIED.AUTHORITY_REQUIRED`。下面的 curl 假设应用已经把
+`Authorization` 凭据解析为相应 tenant/owner/space grant。
+
+```kotlin
+fun interface QueryAuthorityService {
+    fun resolveAuthenticated(request: ServerRequest): Mono<QueryAuthority>
+}
+
+@Bean
+fun queryWebAuthorityResolver(authorityService: QueryAuthorityService): QueryWebAuthorityResolver =
+    QueryWebAuthorityResolver { request ->
+        authorityService.resolveAuthenticated(request.request)
+    }
+```
+
+tenant/owner/space 仍然只是资源 selector；resolver 必须将它们与已认证 authority 比较，冲突时拒绝，不能降级为个人范围。
+:::
+
 ![Query Service](../../public/images/query/open-api-query.png)
 
 ### 分页查询
@@ -305,6 +329,7 @@ class DataFilterSnapshotQueryFilter : SnapshotQueryFilter {
   curl -X 'POST' \
   'http://localhost:8080/tenant/tenant-1/sales-order/snapshot/paged' \
   -H 'accept: application/json' \
+  -H 'Authorization: Bearer <token>' \
   -H 'Content-Type: application/json' \
   -H 'Wow-Space-Id: space-1' \
   -d '{
@@ -360,6 +385,7 @@ eq("state.status", "CREATED")
   curl -X 'POST' \
   'http://localhost:8080/tenant/tenant-1/sales-order/snapshot/list' \
   -H 'accept: application/json' \
+  -H 'Authorization: Bearer <token>' \
   -H 'Content-Type: application/json' \
   -H 'Wow-Space-Id: space-1' \
   -d '{
@@ -403,6 +429,7 @@ eq("state.status", "CREATED")
   curl -X 'POST' \
   'http://localhost:8080/tenant/tenant-1/sales-order/snapshot/count' \
   -H 'accept: application/json' \
+  -H 'Authorization: Bearer <token>' \
   -H 'Content-Type: application/json' \
   -H 'Wow-Space-Id: space-1' \
   -d '{
@@ -427,6 +454,7 @@ eq("state.status", "CREATED")
   curl -X 'POST' \
   'http://localhost:8080/tenant/tenant-1/sales-order/snapshot/single' \
   -H 'accept: application/json' \
+  -H 'Authorization: Bearer <token>' \
   -H 'Content-Type: application/json' \
   -H 'Wow-Space-Id: space-1' \
   -d '{
@@ -459,6 +487,32 @@ eq("state.status", "CREATED")
 `SnapshotQueryServiceRegistrar` 用于自动将所有本地聚合根查询服务注册到 `Spring` 容器中。
 开发者可以通过指定的 `Bean Name` 从 `BeanFactory` 中获取相应的 `SnapshotQueryService`。
 
+聚合查询 Bean 的七个兼容方法没有显式 context 参数，因此默认不会自动提升为 `System` authority。新代码优先直接调用
+`QueryGateway` 并显式传入 `QueryCall`；迁移期如果继续使用聚合 Bean，必须预注册精确的 `QueryLegacyGrant`，并在订阅时用
+`withLegacyQueryCaller` 选择它。caller marker 只能选择已经固定的 `target + purpose + executionMode + resourceScope`，不能扩大授权：
+
+```kotlin
+@Bean
+fun queryLegacyContextResolver(): QueryLegacyContextResolver = QueryLegacyContextResolver(
+    listOf(
+        QueryLegacyGrant(
+            callerId = "order-read-model",
+            target = QueryTarget(
+                MaterializedNamedAggregate("example", "order"),
+                QueryDocumentKind.SNAPSHOT,
+            ),
+            purpose = QueryPurpose("order-read-model"),
+            executionMode = QueryExecutionMode.LEGACY,
+            resourceScope = QueryResourceScope(tenantId = "tenant-1"),
+        ),
+    ),
+)
+```
+
+未提供 trusted context 时，兼容 Bean 稳定返回 `QUERY_CALL_REQUIRED`。紧急迁移回滚只能临时设置
+`wow.query.gateway.legacy-wiring-rollback=true`；该开关会绕过 admission、policy 和生命周期保护，只支持一个迁移版本，
+不能作为授权或查询失败时的自动 fallback。
+
 > `Bean Name` 命名规则：`聚合根名称 + ".SnapshotQueryService"`。
 
 使用案例：
@@ -474,7 +528,10 @@ class OrderService(
             condition {
                 id(id)
             }
-        }.query(queryService).toState().throwNotFoundIfEmpty()
+        }.query(queryService)
+            .withLegacyQueryCaller("order-read-model")
+            .toState()
+            .throwNotFoundIfEmpty()
     }
 }
 ```

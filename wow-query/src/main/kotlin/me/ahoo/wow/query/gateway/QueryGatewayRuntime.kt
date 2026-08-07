@@ -17,11 +17,7 @@ package me.ahoo.wow.query.gateway
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.query.event.EventStreamQueryService
-import me.ahoo.wow.query.internal.gateway.QueryGatewayRuntimeBuilder
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
-import reactor.core.scheduler.Scheduler
-import reactor.core.scheduler.Schedulers
-import java.time.Clock
 
 @ExperimentalQueryGatewayApi
 enum class QueryElementPathMode {
@@ -64,39 +60,4 @@ interface QueryRawServiceSource {
     fun snapshot(namedAggregate: NamedAggregate): SnapshotQueryService<*>
 
     fun eventStream(namedAggregate: NamedAggregate): EventStreamQueryService
-}
-
-/**
- * Owns one immutable Gateway runtime for the supplied aggregate set.
- *
- * The raw source has a distinct type from the public application factories, so the runtime cannot recursively resolve
- * its own facade. Spring wiring must implement it from the storage binding registry.
- */
-@ExperimentalQueryGatewayApi
-class QueryGatewayRuntime private constructor(
-    val gateway: QueryGateway,
-) {
-    companion object {
-        fun create(
-            namedAggregates: Iterable<NamedAggregate>,
-            rawServiceSource: QueryRawServiceSource,
-            dialectResolver: QueryLegacyDialectResolver,
-            authorityResolver: QueryAuthorityResolver,
-            resultMaterializers: Iterable<QueryResultMaterializer<*>> = emptyList(),
-            configuration: QueryGatewayConfiguration = QueryGatewayConfiguration(),
-            clock: Clock = Clock.systemUTC(),
-            scheduler: Scheduler = Schedulers.parallel(),
-        ): QueryGatewayRuntime = QueryGatewayRuntime(
-            QueryGatewayRuntimeBuilder.build(
-                namedAggregates,
-                rawServiceSource,
-                resultMaterializers,
-                dialectResolver,
-                authorityResolver,
-                configuration,
-                clock,
-                scheduler,
-            ),
-        )
-    }
 }

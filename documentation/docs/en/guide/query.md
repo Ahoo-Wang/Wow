@@ -260,11 +260,15 @@ pagedQuery {
 
 ## Rewrite Query
 
+`PreAdmissionQueryFilter` is only a compatibility hook for rewriting query input. Results written in this phase are
+discarded, and appended conditions remain user conditions. Do not use it as a tenant, ABAC, or authorization boundary;
+security constraints must be emitted as mandatory conditions by the Query Gateway policy.
+
 ```kotlin
 @Component
 @Order(ORDER_FIRST)
 @FilterType(SnapshotQueryHandler::class)
-class DataFilterSnapshotQueryFilter : SnapshotQueryFilter {
+class DataFilterSnapshotQueryFilter : SnapshotQueryFilter, PreAdmissionQueryFilter {
 
     override fun filter(
         context: QueryContext<*, *>,
@@ -295,6 +299,29 @@ This means developers usually only need to focus on writing domain models to com
 
 The examples below query the `sales-order` aggregate for `tenant-1`. All four requests describe the same synthetic snapshot, so their conditions and response counts stay consistent.
 
+::: warning Query endpoints deny anonymous access by default
+The Query Gateway never treats a path, `Wow-Space-Id`, or another request header as trusted identity evidence. An
+application must implement `QueryWebAuthorityResolver` and return `Mono<QueryAuthority>` from an authenticated
+principal/security context. The default resolver is empty, so a query without authentication integration returns
+`403 Query.ACCESS_DENIED.AUTHORITY_REQUIRED`. The curl examples below assume the application resolves the
+`Authorization` credential to the corresponding tenant/owner/space grants.
+
+```kotlin
+fun interface QueryAuthorityService {
+    fun resolveAuthenticated(request: ServerRequest): Mono<QueryAuthority>
+}
+
+@Bean
+fun queryWebAuthorityResolver(authorityService: QueryAuthorityService): QueryWebAuthorityResolver =
+    QueryWebAuthorityResolver { request ->
+        authorityService.resolveAuthenticated(request.request)
+    }
+```
+
+Tenant, owner, and space remain resource selectors. The resolver must compare them with authenticated authority and
+deny a conflict instead of silently falling back to personal scope.
+:::
+
 ![Query Service](../../public/images/query/open-api-query.png)
 
 ### Paged Query
@@ -305,6 +332,7 @@ The examples below query the `sales-order` aggregate for `tenant-1`. All four re
   curl -X 'POST' \
   'http://localhost:8080/tenant/tenant-1/sales-order/snapshot/paged' \
   -H 'accept: application/json' \
+  -H 'Authorization: Bearer <token>' \
   -H 'Content-Type: application/json' \
   -H 'Wow-Space-Id: space-1' \
   -d '{
@@ -360,6 +388,7 @@ eq("state.status", "CREATED")
   curl -X 'POST' \
   'http://localhost:8080/tenant/tenant-1/sales-order/snapshot/list' \
   -H 'accept: application/json' \
+  -H 'Authorization: Bearer <token>' \
   -H 'Content-Type: application/json' \
   -H 'Wow-Space-Id: space-1' \
   -d '{
@@ -403,6 +432,7 @@ eq("state.status", "CREATED")
   curl -X 'POST' \
   'http://localhost:8080/tenant/tenant-1/sales-order/snapshot/count' \
   -H 'accept: application/json' \
+  -H 'Authorization: Bearer <token>' \
   -H 'Content-Type: application/json' \
   -H 'Wow-Space-Id: space-1' \
   -d '{
@@ -427,6 +457,7 @@ eq("state.status", "CREATED")
   curl -X 'POST' \
   'http://localhost:8080/tenant/tenant-1/sales-order/snapshot/single' \
   -H 'accept: application/json' \
+  -H 'Authorization: Bearer <token>' \
   -H 'Content-Type: application/json' \
   -H 'Wow-Space-Id: space-1' \
   -d '{
@@ -461,6 +492,34 @@ eq("state.status", "CREATED")
 `SnapshotQueryServiceRegistrar` is used to automatically register all local aggregate root query services into the `Spring` container.
 Developers can obtain the corresponding `SnapshotQueryService` from the `BeanFactory` using the specified `Bean Name`.
 
+The seven compatibility methods on an aggregate query bean have no explicit context parameter, so they are never
+promoted to `System` authority automatically. New code should prefer `QueryGateway` with an explicit `QueryCall`. If a
+migration still uses the aggregate bean, register an exact `QueryLegacyGrant` and select it at subscription time with
+`withLegacyQueryCaller`. The caller marker can only select a pre-bound
+`target + purpose + executionMode + resourceScope`; it cannot broaden the grant:
+
+```kotlin
+@Bean
+fun queryLegacyContextResolver(): QueryLegacyContextResolver = QueryLegacyContextResolver(
+    listOf(
+        QueryLegacyGrant(
+            callerId = "order-read-model",
+            target = QueryTarget(
+                MaterializedNamedAggregate("example", "order"),
+                QueryDocumentKind.SNAPSHOT,
+            ),
+            purpose = QueryPurpose("order-read-model"),
+            executionMode = QueryExecutionMode.LEGACY,
+            resourceScope = QueryResourceScope(tenantId = "tenant-1"),
+        ),
+    ),
+)
+```
+
+Without trusted context, the compatibility bean returns `QUERY_CALL_REQUIRED`. The emergency migration switch
+`wow.query.gateway.legacy-wiring-rollback=true` is temporary: it bypasses admission, policy, and lifecycle protection,
+is supported for one migration version only, and must never be an automatic fallback for authorization or query errors.
+
 > `Bean Name` naming convention: `Aggregate Root Name + ".SnapshotQueryService"`.
 
 Usage examples:
@@ -476,7 +535,10 @@ class OrderService(
             condition {
                 id(id)
             }
-        }.query(queryService).toState().throwNotFoundIfEmpty()
+        }.query(queryService)
+            .withLegacyQueryCaller("order-read-model")
+            .toState()
+            .throwNotFoundIfEmpty()
     }
 }
 ```

@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+@file:OptIn(me.ahoo.wow.query.gateway.ExperimentalQueryGatewayApi::class)
+
 package me.ahoo.wow.webflux.exception
 
 import io.mockk.CapturingSlot
@@ -25,6 +27,8 @@ import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.ErrorInfoConverter
 import me.ahoo.wow.exception.ErrorInfoConverterRegistrar
 import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
+import me.ahoo.wow.query.gateway.QueryErrorCategory
+import me.ahoo.wow.query.gateway.QueryExecutionException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.reactivestreams.Publisher
@@ -74,6 +78,48 @@ class WebFluxErrorStrategyTest {
                 it.headers().getFirst(ERROR_CODE).assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
             }
             .verifyComplete()
+    }
+
+    @Test
+    fun `should map stable query error categories without changing the error envelope`() {
+        val request = MockServerRequest.builder()
+            .method(HttpMethod.POST)
+            .uri(URI.create("/query"))
+            .build()
+        val cases = listOf(
+            Triple(QueryErrorCategory.INVALID_QUERY, "INVALID_FIELD", HttpStatus.BAD_REQUEST),
+            Triple(QueryErrorCategory.INVALID_CURSOR, "CURSOR_TYPE_MISMATCH", HttpStatus.BAD_REQUEST),
+            Triple(QueryErrorCategory.UNSUPPORTED_FEATURE, "CAPABILITY_UNAVAILABLE", HttpStatus.BAD_REQUEST),
+            Triple(QueryErrorCategory.ACCESS_DENIED, "POLICY_DENIED", HttpStatus.FORBIDDEN),
+            Triple(QueryErrorCategory.BUDGET_EXCEEDED, "DEADLINE_EXPIRED", HttpStatus.REQUEST_TIMEOUT),
+            Triple(QueryErrorCategory.BUDGET_EXCEEDED, "RESULT_LIMIT_EXCEEDED", HttpStatus.TOO_MANY_REQUESTS),
+            Triple(QueryErrorCategory.INCOMPLETE_RESULT, "INCOMPLETE_RESULT", HttpStatus.BAD_GATEWAY),
+            Triple(QueryErrorCategory.BACKEND_UNAVAILABLE, "BACKEND_NOT_REGISTERED", HttpStatus.SERVICE_UNAVAILABLE),
+            Triple(QueryErrorCategory.BACKEND_TIMEOUT, "BACKEND_TIMEOUT", HttpStatus.GATEWAY_TIMEOUT),
+            Triple(QueryErrorCategory.MAPPING_FAILURE, "RESULT_MAPPING_FAILED", HttpStatus.INTERNAL_SERVER_ERROR),
+            Triple(QueryErrorCategory.INTERNAL_FAILURE, "UNEXPECTED_QUERY_FAILURE", HttpStatus.INTERNAL_SERVER_ERROR),
+        )
+
+        cases.forEach { (category, code, expectedStatus) ->
+            val failure = QueryExecutionException(category, "$.query", code)
+            WebTestClient.bindToRouterFunction(
+                route(POST("/query")) {
+                    DefaultWebFluxErrorStrategy.toServerResponse(request, failure)
+                },
+            ).build()
+                .post()
+                .uri("/query")
+                .exchange()
+                .expectStatus().isEqualTo(expectedStatus)
+                .expectHeader().valueEquals(ERROR_CODE, "Query.${category.name}.$code")
+                .expectBody(String::class.java)
+                .consumeWith { result ->
+                    result.responseBody!!.assert()
+                        .contains("\"errorCode\":\"Query.${category.name}.$code\"")
+                        .contains("\"name\":\"$.query\"")
+                        .contains("\"msg\":\"$code\"")
+                }
+        }
     }
 
     @Test

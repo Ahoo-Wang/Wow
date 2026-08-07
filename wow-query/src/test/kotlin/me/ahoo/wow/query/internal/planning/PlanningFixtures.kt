@@ -251,6 +251,17 @@ internal object PlanningFixtures {
         NormalizedQueryInput.Page(query, me.ahoo.wow.query.internal.normalization.NormalizedPage(index, size, offset)),
     )
 
+    fun stream(
+        query: NormalizedRecordQuery = recordQuery(),
+        resultShape: QueryResultShape = QueryResultShape.TYPED,
+        limit: Int = 0,
+    ): NormalizedQueryInvocation = NormalizedQueryInvocation(
+        target,
+        QueryOperation.STREAM,
+        resultShape,
+        NormalizedQueryInput.Stream(query, limit),
+    )
+
     fun sort(field: LogicalField, direction: NormalizedSortDirection = NormalizedSortDirection.ASC): NormalizedSort =
         NormalizedSort(field, direction)
 

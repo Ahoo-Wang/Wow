@@ -393,7 +393,9 @@ order 冒充 portable 数值/时间范围语义。
 ### 6.2 Projection
 
 - strict typed 查询只接受 `Projection.ALL`；
-- compatible typed projection 继续走 legacy，并记录 compatibility issue；
+- compatible typed projection 只有在 legacy Backend 能直接承载 typed result 且证明投影映射等价时才允许 fallback。P2-C 的
+  immutable `BackendRecord` 过渡 seam 尚不具备该证明，因此 non-`ALL` typed projection 在两种 validation mode 都稳定拒绝，
+  禁止先裁剪动态文档再伪装成完整 typed result；
 - dynamic 查询允许 include 或 exclude，二者同时非空必须拒绝；
 - Backend 永远独立返回 identity，最终 logical projection 不泄漏物理字段。
 
@@ -965,6 +967,9 @@ P2-C 拆成三个可独立回滚的实现切片：
   或 exact legacy grant 解析 call/authority；
 - 自定义 factory 不再通过 `@ConditionalOnMissingBean` 被猜测为 application facade；必须显式注册 raw binding，保留一版
   migration adapter 和启动期诊断。
+- `QueryGatewayRuntime` 是 Spring 组合的唯一 customization owner：resolver/configuration 与每 runtime 的 authority capability
+  在构造时冻结，公开 facade factory 只允许零参获取。仅注册自定义 `QueryGateway` 的部分覆盖会启动失败；需要替换执行栈时必须
+  提供完整 runtime，避免 direct Gateway 与 facade 使用不同实例。
 
 ##### P2-C3：Trusted transport、Filter 分相与公共错误
 
@@ -981,6 +986,34 @@ P2-C 拆成三个可独立回滚的实现切片：
 - 保留一个版本的显式 legacy wiring 回滚开关并记录告警/指标；授权、policy、mandatory、schema、lowering 或 mapping 失败
   绝不能自动切回旧链。
 
+P2-C3 已实现合同：
+
+- `QueryWebTransportResolvers` 以一个原子 trusted resolver 同时解析 call 与 authority。所有 Snapshot/EventStream 的
+  single/list/page/count route 与两个 GET load route 都写入同一种 Reactor transport marker；marker 固化 exact target、
+  `QueryType`、purpose 与 tenant/owner/space selector。默认 `QueryWebAuthorityResolver` 返回 empty 并 fail closed，应用必须从
+  已认证的 principal/security context 贡献 authority，禁止从 path/header/CoSec selector 反推身份；
+- `CompositeQueryTrustedContextResolver` 按 Spring order 对 `QueryTrustedContextRequest` 原子解析 call 与 authority；同一次
+  facade subscription 选中的 resolver 必须同时给出两者，禁止 A resolver 的 call 与 B resolver 的 authority 混合。解析出的
+  authority 只通过每个 `QueryGatewayRuntime` 独有的对象 capability 在受控 Reactor context 中交给 Gateway；resolver 在 runtime
+  构造时冻结，公开 factory 不接受替换 resolver，同名字符串或另一 runtime/channel 的对象都不能伪造。Web marker 存在但 authority 缺失时稳定返回
+  `ACCESS_DENIED / $.executionContext.authority / AUTHORITY_REQUIRED`，即使 Reactor context 同时存在 legacy caller marker 也不降级；
+- 进程内迁移使用 `QueryLegacyContextResolver` 的预注册 `QueryLegacyGrant`。caller marker 只选择固定 grant，不能修改
+  `target + purpose + executionMode + resourceScope`；不存在或不精确匹配稳定返回
+  `ACCESS_DENIED / $.executionContext.legacyGrant / LEGACY_CALLER_NOT_ALLOWED`，不提升为 System；
+- request chain 只运行显式实现 `PreAdmissionQueryFilter` 的 Filter，随后丢弃任何提前写入的 result，再进入唯一 Gateway tail。
+  policy 后只运行内建 masking Filter；一入一出 mapper 不能绕过 Gateway source 或改变 cardinality/page envelope，dynamic masker
+  不能新增/改写 `id/aggregateId/tenantId/ownerId/spaceId`。未声明 phase 的第三方 `QueryFilter` 启动失败。旧 `AbacQueryFilter`
+  仅以 deprecated pre-admission 兼容桥保留，不再被视为安全边界；授权必须迁移为 mandatory policy constraint；
+- `QueryExecutionException` 继续复用 `DefaultErrorInfo` 与 `bindingErrors(name=path,msg=code)`。functional/global WebFlux 使用同一
+  映射：Invalid/Cursor/Unsupported=400，AccessDenied=403，deadline=408，其他 BudgetExceeded=429，Incomplete=502，
+  BackendUnavailable=503，BackendTimeout=504，Mapping/Internal=500；不增加 OpenAPI error schema 字段。P2-C3 只锁定运行时
+  映射并保持既有 OpenAPI snapshot 不变；为全部 query/load operation 声明 403/408/429/5xx response 属于公开契约扩展，
+  需单独兼容性审批后补齐，当前不宣称 OpenAPI 已完整描述该 status matrix；
+- 一版紧急回滚属性为 `wow.query.gateway.legacy-wiring-rollback=true`。它显式停用 Gateway facade，并让 application factory
+  直接委托独立 raw registry；启动持续记录 warning，计数器 `wow.query.gateway.legacy.wiring.rollback` 增加一次。该开关不由
+  任何运行时错误自动触发，不恢复旧的双 `@Primary` routing factory，也不改变 raw factory cache owner；启用期间 admission、
+  policy 与生命周期保护均被绕过，只能作为限时迁移措施；属性值不是精确 `true/false` 时启动失败，禁止 typo 静默绕过。
+
 P2-C exit gate：
 
 - core golden 覆盖 deletion 五态、portable condition、两级 `ELEM_MATCH` dialect、`MATCH`/`RAW`、identity 补取与 projection
@@ -992,7 +1025,8 @@ P2-C exit gate：
 - 安全矩阵覆盖无 authority、provider empty/error、跨 tenant/owner/space、伪造 Header、Filter 替换 query/result、Native、
   mandatory lowering failure，全部 storage 零调用；
 - `:wow-query:check`、`:wow-spring:check`、`:wow-spring-boot-starter:check`、`:wow-webflux:check`、Java/reflection ABI
-  guard 与 OpenAPI snapshot 通过。P2-C1/P2-C2/P2-C3 均保持独立 commit/PR 或可单独 revert 的 commit 边界。
+  guard 与既有 OpenAPI snapshot 通过；新增运行时 status 的 OpenAPI response 声明仍是待审批的独立兼容任务。P2-C1/P2-C2/
+  P2-C3 均保持独立 commit/PR 或可单独 revert 的 commit 边界。
 
 Phase 2 exit gate：P2-C 三个切片全部完成后，所有 framework-managed 公开入口调用链必须经过 Gateway；安全测试覆盖
 直接 Service 调用、HTTP、Filter 重写、Native 条件、无 authority 和跨租户；Spring context/Java compatibility/OpenAPI

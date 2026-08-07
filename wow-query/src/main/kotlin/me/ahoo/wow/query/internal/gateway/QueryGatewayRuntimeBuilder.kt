@@ -57,7 +57,7 @@ internal object QueryGatewayRuntimeBuilder {
         configuration: QueryGatewayConfiguration,
         clock: Clock,
         scheduler: Scheduler,
-    ): QueryGateway {
+    ): QueryGatewayRuntimeComponents {
         val aggregates = materializeAggregates(namedAggregates)
         val targets = aggregates.flatMap { aggregate ->
             listOf(
@@ -87,6 +87,7 @@ internal object QueryGatewayRuntimeBuilder {
             )
         }
         val deadlineEnforcer = QueryDeadlineEnforcer(clock, scheduler)
+        val trustedAuthorityChannel = TrustedAuthorityChannel.create()
         val plannedRegistry = QueryBackendRegistry(emptyList(), emptyMap())
         val routeResolver = QueryExecutionRouteResolver(
             plannedRegistry,
@@ -96,14 +97,20 @@ internal object QueryGatewayRuntimeBuilder {
             admissionGuard = RawAdmissionGuard(QueryAdmissionLimits.DEFAULT),
             normalizer = QueryNormalizer(clock),
             schemaRegistry = schemas,
-            contextFactory = QueryExecutionContextFactory(GatewayAuthorityProvider(authorityResolver), clock),
+            contextFactory = QueryExecutionContextFactory(
+                GatewayAuthorityProvider(trustedAuthorityChannel, authorityResolver),
+                clock,
+            ),
             policyEnforcer = QueryPolicyEnforcer(TenantIsolationQueryPolicy()),
             planner = QueryPlanner(),
             routeResolver = routeResolver,
             executor = QueryExecutor(deadlineEnforcer),
             deadlineEnforcer = deadlineEnforcer,
         )
-        return DefaultQueryGateway(delegate, configuration, resultMaterializers)
+        return QueryGatewayRuntimeComponents(
+            DefaultQueryGateway(delegate, configuration, resultMaterializers),
+            trustedAuthorityChannel,
+        )
     }
 
     private fun materializeAggregates(namedAggregates: Iterable<NamedAggregate>) =
@@ -128,3 +135,8 @@ internal object QueryGatewayRuntimeBuilder {
         val identityField: String,
     )
 }
+
+internal data class QueryGatewayRuntimeComponents(
+    val gateway: QueryGateway,
+    val trustedAuthorityChannel: TrustedAuthorityChannel,
+)

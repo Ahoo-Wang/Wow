@@ -238,6 +238,24 @@ sealed interface QueryAuthority {
             requireIdentifier(justification, "System authority justification")
         }
     }
+
+    data class Legacy(val grant: QueryLegacyGrant) : QueryAuthority {
+        override val principalId: String = grant.callerId
+    }
+}
+
+/** Exact, pre-registered compatibility grant for a trusted process-internal caller. */
+@ExperimentalQueryGatewayApi
+data class QueryLegacyGrant(
+    val callerId: String,
+    val target: QueryTarget,
+    val purpose: QueryPurpose,
+    val executionMode: QueryExecutionMode,
+    val resourceScope: QueryResourceScope,
+) {
+    init {
+        requireIdentifier(callerId, "Legacy query caller id")
+    }
 }
 
 @ExperimentalQueryGatewayApi
@@ -248,9 +266,92 @@ data class QueryAuthorityRequest(
 )
 
 @ExperimentalQueryGatewayApi
+data class QueryTrustedContextRequest(
+    val callRequest: QueryCallResolutionRequest,
+    val executionMode: QueryExecutionMode,
+    val validationMode: QueryValidationMode,
+)
+
+@ExperimentalQueryGatewayApi
+data class QueryTrustedContext(
+    val call: QueryCall,
+    val authority: QueryAuthority,
+)
+
+@ExperimentalQueryGatewayApi
 fun interface QueryAuthorityResolver {
     /** Called once for every subscription. Empty and error signals are fail-closed by the Gateway. */
     fun resolve(request: QueryAuthorityRequest): Mono<QueryAuthority>
+}
+
+/** A trusted context source that atomically resolves both halves of one compatibility-facade subscription. */
+@ExperimentalQueryGatewayApi
+fun interface QueryTrustedContextResolver {
+    fun resolve(request: QueryTrustedContextRequest): Mono<QueryTrustedContext>
+}
+
+/** Ordered composition. An error from an applicable resolver is fail-closed and never falls through. */
+@ExperimentalQueryGatewayApi
+class CompositeQueryTrustedContextResolver(resolvers: Iterable<QueryTrustedContextResolver>) :
+    QueryTrustedContextResolver {
+    private val resolvers = resolvers.toList()
+
+    init {
+        require(this.resolvers.isNotEmpty()) {
+            "At least one trusted query context resolver is required."
+        }
+    }
+
+    override fun resolve(request: QueryTrustedContextRequest): Mono<QueryTrustedContext> =
+        Flux.fromIterable(resolvers)
+            .concatMap { resolver -> Mono.defer { resolver.resolve(request) } }
+            .next()
+}
+
+/**
+ * Resolves an exact registered [QueryLegacyGrant] from a trusted process-internal Reactor context marker.
+ *
+ * This is a one-version migration bridge. The caller marker is not a System authority and cannot change the grant's
+ * target, purpose, execution mode or resource scope.
+ */
+@ExperimentalQueryGatewayApi
+class QueryLegacyContextResolver(grants: Iterable<QueryLegacyGrant>) : QueryTrustedContextResolver {
+    private val grantsByCallerAndTarget: Map<LegacyGrantKey, QueryLegacyGrant>
+
+    init {
+        val materialized = grants.toList()
+        val indexed = materialized.associateBy { LegacyGrantKey(it.callerId, it.target) }
+        require(indexed.size == materialized.size) {
+            "Legacy query grants must be unique by caller id and target."
+        }
+        grantsByCallerAndTarget = Collections.unmodifiableMap(LinkedHashMap(indexed))
+    }
+
+    override fun resolve(request: QueryTrustedContextRequest): Mono<QueryTrustedContext> = Mono.deferContextual { context ->
+        val callerId = context.getOrDefault<String>(LEGACY_CALLER_CONTEXT_KEY, null)
+            ?: return@deferContextual Mono.empty()
+        val grant = grantsByCallerAndTarget[LegacyGrantKey(callerId, request.callRequest.target)]
+            ?: return@deferContextual Mono.error(legacyGrantRejected())
+        if (request.executionMode != grant.executionMode ||
+            request.callRequest.target != grant.target
+        ) {
+            return@deferContextual Mono.error(legacyGrantRejected())
+        }
+        val call = QueryCall(grant.target, grant.purpose, grant.resourceScope)
+        Mono.just(QueryTrustedContext(call, QueryAuthority.Legacy(grant)))
+    }
+}
+
+@ExperimentalQueryGatewayApi
+fun <T : Any> Mono<T>.withLegacyQueryCaller(callerId: String): Mono<T> {
+    requireIdentifier(callerId, "Legacy query caller id")
+    return contextWrite { context -> context.put(LEGACY_CALLER_CONTEXT_KEY, callerId) }
+}
+
+@ExperimentalQueryGatewayApi
+fun <T : Any> Flux<T>.withLegacyQueryCaller(callerId: String): Flux<T> {
+    requireIdentifier(callerId, "Legacy query caller id")
+    return contextWrite { context -> context.put(LEGACY_CALLER_CONTEXT_KEY, callerId) }
 }
 
 @ExperimentalQueryGatewayApi
@@ -338,5 +439,15 @@ private fun immutableIdentifiers(values: Iterable<String>, name: String): Set<St
     materialized.forEach { requireIdentifier(it, name) }
     return Collections.unmodifiableSet(LinkedHashSet(materialized.sorted()))
 }
+
+private data class LegacyGrantKey(val callerId: String, val target: QueryTarget)
+
+private fun legacyGrantRejected(): QueryExecutionException = QueryExecutionException(
+    category = QueryErrorCategory.ACCESS_DENIED,
+    path = "$.executionContext.legacyGrant",
+    code = "LEGACY_CALLER_NOT_ALLOWED",
+)
+
+private const val LEGACY_CALLER_CONTEXT_KEY = "me.ahoo.wow.query.legacy.caller"
 
 private const val MAX_IDENTIFIER_LENGTH = 512

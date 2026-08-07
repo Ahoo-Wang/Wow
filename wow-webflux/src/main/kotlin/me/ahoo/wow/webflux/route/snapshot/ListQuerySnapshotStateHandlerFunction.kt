@@ -11,9 +11,12 @@
  * limitations under the License.
  */
 
+@file:OptIn(me.ahoo.wow.query.gateway.ExperimentalQueryGatewayApi::class)
+
 package me.ahoo.wow.webflux.route.snapshot
 
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.query.gateway.QueryDocumentKind
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.toStateDocument
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
@@ -27,6 +30,7 @@ class ListQuerySnapshotStateHandlerFunctionFactory(
 ) : ListQueryHandlerFunctionFactory(
     handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY_STATE,
     queryHandler = snapshotQueryHandler,
+    documentKind = QueryDocumentKind.SNAPSHOT,
     rewriteRequestCondition = rewriteRequestCondition,
     exceptionHandler = exceptionHandler,
     rewriteResult = { it.toStateDocument() }

@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+@file:OptIn(me.ahoo.wow.query.gateway.ExperimentalQueryGatewayApi::class)
+
 package me.ahoo.wow.webflux.route.snapshot
 
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
@@ -19,12 +21,16 @@ import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.query.dsl.singleQuery
+import me.ahoo.wow.query.filter.Contexts.writeRawRequest
+import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.gateway.QueryDocumentKind
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.command.getAggregateId
 import me.ahoo.wow.webflux.route.command.getOwnerId
 import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
+import me.ahoo.wow.webflux.route.query.writeQueryWebTransport
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -51,6 +57,14 @@ class LoadSnapshotHandlerFunction(
             }
         }
         return snapshotQueryHandler.dynamicSingle(aggregateMetadata, singleQuery)
+            .writeRawRequest(request)
+            .writeQueryWebTransport(
+                request,
+                aggregateMetadata,
+                QueryDocumentKind.SNAPSHOT,
+                QueryType.DYNAMIC_SINGLE,
+                tenantId,
+            )
             .throwNotFoundIfEmpty()
             .toServerResponse(request, exceptionHandler)
     }

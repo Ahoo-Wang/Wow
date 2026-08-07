@@ -11,10 +11,15 @@
  * limitations under the License.
  */
 
+@file:OptIn(me.ahoo.wow.query.gateway.ExperimentalQueryGatewayApi::class)
+
 package me.ahoo.wow.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.gateway.GatewayEventStreamQueryServiceFactory
+import me.ahoo.wow.query.gateway.GatewaySnapshotQueryServiceFactory
+import me.ahoo.wow.query.gateway.QueryGatewayRuntime
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Modifier
 
@@ -56,5 +61,34 @@ class PublicQueryContractCompatibilityTest {
             "DYNAMIC_PAGED",
             "COUNT",
         )
+    }
+
+    @Test
+    fun `trusted authority writer must not be JVM public`() {
+        listOf(
+            "me.ahoo.wow.query.gateway.QueryGatewayKt",
+            "me.ahoo.wow.query.gateway.QueryServiceFacadeKt",
+        ).flatMap { className -> Class.forName(className).methods.toList() }
+            .map { method -> method.name }
+            .filter { methodName -> methodName.contains("withTrustedQueryAuthority") }
+            .assert()
+            .isEmpty()
+
+        listOf(
+            QueryGatewayRuntime::class.java,
+            GatewaySnapshotQueryServiceFactory::class.java,
+            GatewayEventStreamQueryServiceFactory::class.java,
+        ).flatMap { type ->
+            val constructorTypes = type.declaredConstructors
+                .filter { constructor -> Modifier.isPublic(constructor.modifiers) }
+                .flatMap { constructor -> constructor.parameterTypes.toList() }
+            val methodTypes = type.declaredMethods
+                .filter { method -> Modifier.isPublic(method.modifiers) }
+                .flatMap { method -> method.parameterTypes.toList() + method.returnType }
+            constructorTypes + methodTypes
+        }.map(Class<*>::getName)
+            .filter { typeName -> typeName.startsWith("me.ahoo.wow.query.internal.") }
+            .assert()
+            .isEmpty()
     }
 }

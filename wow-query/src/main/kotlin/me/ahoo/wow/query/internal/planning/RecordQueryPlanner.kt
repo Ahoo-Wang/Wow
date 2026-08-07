@@ -330,17 +330,14 @@ internal class RecordQueryPlanner(
         }
     }
 
-    private fun handleTypedProjection(path: QueryRejectionPath): ProjectionResult? {
-        val rejection = QueryRejection(
-            QueryRejectionCategory.INVALID_QUERY,
-            path,
-            QueryRejectionCode.TYPED_PROJECTION_NOT_ALLOWED,
+    private fun handleTypedProjection(path: QueryRejectionPath): Nothing {
+        throw QueryRejectedException(
+            QueryRejection(
+                QueryRejectionCategory.INVALID_QUERY,
+                path,
+                QueryRejectionCode.TYPED_PROJECTION_NOT_ALLOWED,
+            ),
         )
-        if (constraints.validationMode == QueryValidationMode.STRICT) {
-            throw QueryRejectedException(rejection)
-        }
-        issues += rejection
-        return null
     }
 
     private fun planSort(
