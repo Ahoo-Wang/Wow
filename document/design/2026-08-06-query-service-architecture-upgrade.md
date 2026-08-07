@@ -291,6 +291,7 @@ MongoDB/Elasticsearch 各自持有 `BackendFieldBinding`：物理字段、keywor
 | 逻辑能力 | 允许的操作 | Elasticsearch 典型 binding | MongoDB 基准 |
 |---|---|---|---|
 | `EXACT` | `EQ/NE/IN/NOT_IN/ALL_IN` | 未分析的 `keyword` field | 原字段精确值比较 |
+| `PRESENCE` | `NULL/NOT_NULL/EXISTS` | `exists` 与显式 null/missing binding | 按已声明 null/missing 模型判断 |
 | `FULL_TEXT` | `MATCH` / `Search` | `text` field | 已声明 text index/search scope |
 | `LITERAL_PATTERN` | `CONTAINS/STARTS_WITH/ENDS_WITH` | `keyword` 或专用 `wildcard` field | 转义用户值后的字面量 regex |
 | `SORTABLE` | record sort、稳定 tie-breaker | 启用 `doc_values` 的 exact field | 原字段排序与显式 collation |
@@ -369,6 +370,13 @@ capability：
 - array 沿用元素类型能力，并显式声明 missing/null/empty/multi-valued 模型；
 - `ELEM_MATCH` 需要 element-relative schema；Elasticsearch 必须具有对应 `nestedPath`，普通 object array
   mapping 不能冒充 nested capability。
+
+Mongo baseline 下 `null` 是查询语义而不是普通字段类型：`EQ null`/`IN [..., null]` 包含 missing，`NE null`
+只匹配存在且非 null，`NOT_IN` 仍包含 missing；详见 MongoDB 官方
+[null/missing 查询](https://www.mongodb.com/docs/manual/tutorial/query-for-null-fields/) 与
+[`$nin`](https://www.mongodb.com/docs/manual/reference/operator/query/nin/) 合同。因此 exact 集合允许 canonical
+`Null` operand，由 Compiler 按 presence/nullability 明确展开；range/BETWEEN 一律拒绝 `Null`，不得借 BSON type
+order 冒充 portable 数值/时间范围语义。
 
 ## 6. 语义、分页与完整性
 
@@ -475,10 +483,14 @@ AnalyticsPage(
 
 - 单个 `QueryTarget`，优先只开放 `SNAPSHOT`；
 - 支持无 dimension 的 global aggregation；分组时只允许根级、单值、非 nested 的 scalar dimension，支持单 key 和复合 key；
-- `DOCUMENT_COUNT`；`MIN/MAX/SUM/AVG` 仅用于 schema 已声明的 numeric/instant 字段，并且全部满足显式
-  numeric precision、type promotion 与 overflow policy；
+- `DOCUMENT_COUNT`；`MIN/MAX` 用于 schema 已声明的 numeric/instant 字段，`SUM/AVG` 仅用于 numeric 字段；
+  只要 metric 涉及 numeric，就必须提供显式 precision、scale、type promotion、rounding 与 overflow policy；
 - `EXCLUDE` 或 `AS_NULL_BUCKET` missing policy；后者按 MongoDB 基准把 missing 与显式 null 合为同一桶；
-- 按 dimension key 的 exact cursor 分页；第一批跨 Backend 合同只承诺 `Eventual` consistency。
+- 按 dimension key 的 exact cursor 分页；首批顺序固定为 binary collation、null-first，cursor key 使用 dimension
+  输出类型的 canonical value，不复用 predicate numeric widening；第一批跨 Backend 合同只承诺 `Eventual`
+  consistency；
+- numeric promotion 首批固定为 `Decimal128`，precision 为 `1..34`；`Global` bucket window canonicalize 为
+  `limit=1`，调用方传入的更大 limit 不改变 Plan 或 fingerprint。
 
 以下能力先标记为 unsupported，而不是由 Backend 猜测或降级：
 
@@ -749,6 +761,29 @@ P1-B 验证证据：
   `Math.multiplyExact`；
 - analytics 首批能力和 unsupported 集合在 Planner 稳定拒绝；Phase 1 cursor 只固定 decoded semantic state，
   token codec、签名和 expiry 留到 P5-A。
+
+P1-C 当前实现约束：
+
+- `QuerySchemaRegistry` 按完整 `QueryTarget(context, aggregate, documentKind)` 精确注册 immutable
+  `QueryDocumentSchema`；schema 只包含 canonical logical field/type/operator/capability、null/missing/array 语义和
+  typed `SearchScope`，logical alias 在 schema 内解析为 canonical system/path field，nested search scope 必须绑定
+  最近的 `ELEMENT_MATCH` owner，并生成与注册顺序无关的 `SchemaContractId`；
+- Planner 输出 `Planned(QueryPlan)` 或 `LegacyFallback(issues, validatedMandatory)`；fallback 只能由 user-side
+  compatibility gap 触发，必须携带已验证 mandatory proof，mandatory schema/capability/Native 失败始终 fail closed；
+- `EnforcedFilter` 分别保存 user/mandatory provenance，并固定生成不可拆除的外层 `AND`；Plan 中的 predicate、
+  projection、sort 和 analytics dimension/metric 全部引用 canonical `QueryFieldId`，不再保留相对 path；
+- version 1 plan fingerprint 使用显式 length-prefixed canonical encoder 与 SHA-256；包含 schema contract、target、
+  operation/result shape、provenance、condition、projection/sort origin、page/limit、capability、tier 和 analytics
+  语义，保留 condition/list/sort/object entry order，对 set/map canonical 排序；不包含 validation/execution mode、
+  deadline、动态 planning limit、物理 binding 或 analytics cursor position；fingerprint 是 immutable Plan 内容的
+  派生值，构造方不能注入与 Plan 不一致的 digest；
+- 首批 analytics 只计划 `SNAPSHOT`、portable pre-filter、`Global` 或根级单值 scalar dimension、
+  `DOCUMENT_COUNT`、numeric `MIN/MAX/SUM/AVG` 与 instant `MIN/MAX`、dimension-key ascending、`Eventual + Exact`
+  和 decoded exact keyset cursor；排序显式固定 binary/null-first，numeric policy 固定 Decimal128 precision 1..34，
+  `Global limit=1`；array/nested、having、metric order、Snapshot consistency、Approximate completeness、无 numeric
+  policy、超精度 policy 及错误 cursor binding 稳定 typed reject，不进入 legacy fallback；
+- P1-C 仍只位于 `wow-query/internal`，不接 Gateway、Backend compiler、Spring Bean、现有 wire DTO、OpenAPI、
+  cursor token codec、签名或 expiry。
 
 Phase 1 exit gate：
 

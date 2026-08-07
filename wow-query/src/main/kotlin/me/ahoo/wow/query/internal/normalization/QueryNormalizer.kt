@@ -242,7 +242,7 @@ internal class QueryNormalizer(
             Operator.RECENT_DAYS -> normalizeRecentDays(condition, path, elementScope, session)
             Operator.EARLIER_DAYS -> normalizeEarlierDays(condition, path, elementScope, session)
             Operator.MATCH -> NormalizedCondition.Search(
-                scope = SearchScope(normalizeSearchScope(condition.field, elementScope)),
+                scope = SearchScope.LegacyField(normalizeSearchScope(condition.field, elementScope)),
                 text = (condition.queryValue() as NormalizedValue.Text).value,
             )
 
@@ -586,8 +586,8 @@ internal class QueryNormalizer(
         return LogicalField.Path(relative, PathBasis.CURRENT_ELEMENT)
     }
 
-    private fun normalizeSearchScope(field: String, elementScope: ElementScope?): String =
-        normalizeField(field, elementScope).segments.joinToString(".")
+    private fun normalizeSearchScope(field: String, elementScope: ElementScope?): LogicalField.Path =
+        normalizeField(field, elementScope)
 
     private fun ElementScope?.nest(relativeField: List<String>): ElementScope {
         if (this == null) {

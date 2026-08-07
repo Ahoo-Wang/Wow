@@ -229,7 +229,10 @@ class QueryNormalizerTest {
     @Test
     fun `should normalize search and Mongo baseline empty collection constants`() {
         normalizeCount(Condition.match("description", "distributed systems")).assert().isEqualTo(
-            NormalizedCondition.Search(SearchScope("description"), "distributed systems"),
+            NormalizedCondition.Search(
+                SearchScope.LegacyField(LogicalField.Path(listOf("description"), PathBasis.ROOT)),
+                "distributed systems",
+            ),
         )
         normalizeCount(Condition("field", Operator.IN, emptyList<Any>())).assert()
             .isEqualTo(NormalizedCondition.None)

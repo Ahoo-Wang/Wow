@@ -82,7 +82,7 @@ internal enum class NormalizedSortDirection {
 }
 
 internal data class NormalizedSort(
-    val field: LogicalField.Path,
+    val field: LogicalField,
     val direction: NormalizedSortDirection,
 )
 

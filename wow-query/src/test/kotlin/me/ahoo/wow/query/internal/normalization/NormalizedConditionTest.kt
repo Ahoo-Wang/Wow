@@ -58,10 +58,10 @@ class NormalizedConditionTest {
     @Test
     fun `search scope and text should not be blank`() {
         assertThrownBy<IllegalArgumentException> {
-            SearchScope(" ")
+            SearchScopeId(" ")
         }
         assertThrownBy<IllegalArgumentException> {
-            NormalizedCondition.Search(SearchScope("default"), " ")
+            NormalizedCondition.Search(SearchScope.Named(SearchScopeId("default")), " ")
         }
     }
 
