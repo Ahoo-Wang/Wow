@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.internal.planning
 
+import me.ahoo.wow.query.internal.model.QueryDocumentKind
 import me.ahoo.wow.query.internal.model.QueryOperation
 import me.ahoo.wow.query.internal.model.QueryResultShape
 import me.ahoo.wow.query.internal.model.QueryValidationMode
@@ -239,7 +240,10 @@ internal class RecordQueryPlanner(
                 fieldConstraint = constraints.fieldConstraint,
             )
         } ?: return null
-        if (deletionScope == NormalizedDeletionScope.EXPLICIT || user.condition == PlannedCondition.None) {
+        if (schema.target.documentKind == QueryDocumentKind.EVENT_STREAM ||
+            deletionScope == NormalizedDeletionScope.EXPLICIT ||
+            user.condition == PlannedCondition.None
+        ) {
             return user
         }
         val defaultActive = conditionPlanner.plan(

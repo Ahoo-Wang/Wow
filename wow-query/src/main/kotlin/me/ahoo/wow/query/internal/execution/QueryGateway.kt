@@ -18,7 +18,10 @@ import me.ahoo.wow.query.internal.model.QueryInvocation
 import me.ahoo.wow.query.internal.model.QueryOperation
 import me.ahoo.wow.query.internal.normalization.NormalizedQueryInvocation
 import me.ahoo.wow.query.internal.normalization.QueryNormalizer
+import me.ahoo.wow.query.internal.planning.PlanningConstraints
 import me.ahoo.wow.query.internal.planning.QueryPlanner
+import me.ahoo.wow.query.internal.planning.ResultPlanningConstraint
+import me.ahoo.wow.query.internal.policy.QueryExecutionBudget
 import me.ahoo.wow.query.internal.policy.QueryExecutionContextFactory
 import me.ahoo.wow.query.internal.policy.QueryExecutionRequest
 import me.ahoo.wow.query.internal.policy.QueryPolicyEnforcer
@@ -51,25 +54,46 @@ internal class QueryGateway(
     fun single(
         request: QueryExecutionRequest,
         invocationFactory: QueryInvocationFactory,
-    ): Mono<BackendRecord> = observeMono(request, QueryOperation.SINGLE) {
+    ): Mono<BackendRecord> = singleResult(request, invocationFactory) { record -> record }
+
+    fun <T : Any> singleResult(
+        request: QueryExecutionRequest,
+        invocationFactory: QueryInvocationFactory,
+        materialize: (BackendRecord) -> T,
+    ): Mono<T> = observeMono(request, QueryOperation.SINGLE) {
         prepare(request, QueryOperation.SINGLE, invocationFactory)
             .flatMap { prepared -> executor.single(prepared.route, prepared.options) }
+            .map(materialize)
     }
 
     fun stream(
         request: QueryExecutionRequest,
         invocationFactory: QueryInvocationFactory,
-    ): Flux<BackendRecord> = observeFlux(request, QueryOperation.STREAM) {
+    ): Flux<BackendRecord> = streamResult(request, invocationFactory) { record -> record }
+
+    fun <T : Any> streamResult(
+        request: QueryExecutionRequest,
+        invocationFactory: QueryInvocationFactory,
+        materialize: (BackendRecord) -> T,
+    ): Flux<T> = observeFlux(request, QueryOperation.STREAM) {
         prepare(request, QueryOperation.STREAM, invocationFactory)
             .flatMapMany { prepared -> executor.stream(prepared.route, prepared.options) }
+            .map(materialize)
     }
 
     fun page(
         request: QueryExecutionRequest,
         invocationFactory: QueryInvocationFactory,
-    ): Mono<BackendPage> = observeMono(request, QueryOperation.PAGE) {
+    ): Mono<BackendPage> = pageResult(request, invocationFactory) { page -> page }
+
+    fun <T : Any> pageResult(
+        request: QueryExecutionRequest,
+        invocationFactory: QueryInvocationFactory,
+        materialize: (BackendPage) -> T,
+    ): Mono<T> = observeMono(request, QueryOperation.PAGE) {
         prepare(request, QueryOperation.PAGE, invocationFactory)
             .flatMap { prepared -> executor.page(prepared.route, prepared.options) }
+            .map(materialize)
     }
 
     fun count(
@@ -102,7 +126,7 @@ internal class QueryGateway(
                     QueryRejectionCode.SCHEMA_NOT_REGISTERED,
                 )
             policyEnforcer.authorize(QueryPolicyInput(context, normalized, schema)).map { constraints ->
-                val decision = planner.plan(normalized, schema, constraints)
+                val decision = planner.plan(normalized, schema, constraints.constrain(context.budget))
                 PreparedExecution(
                     routeResolver.resolve(context, normalized, schema, decision),
                     QueryExecutionOptions.from(context),
@@ -152,3 +176,21 @@ internal class QueryGateway(
         val options: QueryExecutionOptions,
     )
 }
+
+private fun PlanningConstraints.constrain(budget: QueryExecutionBudget): PlanningConstraints {
+    if (budget.hasUnsupportedConstraints()) {
+        rejectQuery(
+            QueryRejectionCategory.UNSUPPORTED_FEATURE,
+            QueryRejectionPath.ROOT.property("executionContext").property("budget"),
+            QueryRejectionCode.EXECUTION_BUDGET_UNSUPPORTED,
+        )
+    }
+    val requestedMaximum = budget.maxReturnedRecords ?: return this
+    val policyMaximum = (resultConstraint as? ResultPlanningConstraint.MaximumRecords)?.value
+    val effectiveMaximum = policyMaximum?.coerceAtMost(requestedMaximum) ?: requestedMaximum
+    return copy(resultConstraint = ResultPlanningConstraint.MaximumRecords(effectiveMaximum))
+}
+
+private fun QueryExecutionBudget.hasUnsupportedConstraints(): Boolean =
+    sequenceOf(maxScannedRecords, maxCandidateBuckets, maxReturnedBuckets, maxCursorPages).any { it != null } ||
+        allowDiskUse
