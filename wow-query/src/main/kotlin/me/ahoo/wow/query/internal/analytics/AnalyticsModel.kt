@@ -1,0 +1,76 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.query.internal.analytics
+
+import me.ahoo.wow.query.internal.normalization.LogicalField
+import me.ahoo.wow.query.internal.normalization.NormalizedCondition
+import me.ahoo.wow.query.internal.value.NonEmptyList
+
+@JvmInline
+internal value class AnalyticsAlias(val value: String) {
+    init {
+        require(value.isNotBlank()) {
+            "Analytics alias must not be blank."
+        }
+    }
+}
+
+internal data class AnalyticsDimension(
+    val alias: AnalyticsAlias,
+    val field: LogicalField,
+)
+
+internal sealed interface AnalyticsGrouping {
+    data object Global : AnalyticsGrouping
+
+    data class By(val dimensions: NonEmptyList<AnalyticsDimension>) : AnalyticsGrouping
+}
+
+internal sealed interface AnalyticsMetric {
+    val alias: AnalyticsAlias
+
+    data class DocumentCount(
+        override val alias: AnalyticsAlias,
+    ) : AnalyticsMetric
+
+    data class Min(
+        override val alias: AnalyticsAlias,
+        val field: LogicalField,
+    ) : AnalyticsMetric
+
+    data class Max(
+        override val alias: AnalyticsAlias,
+        val field: LogicalField,
+    ) : AnalyticsMetric
+
+    data class Sum(
+        override val alias: AnalyticsAlias,
+        val field: LogicalField,
+    ) : AnalyticsMetric
+
+    data class Average(
+        override val alias: AnalyticsAlias,
+        val field: LogicalField,
+    ) : AnalyticsMetric
+}
+
+/**
+ * Backend-independent analytics input after its future wire adapter has normalized field and value semantics.
+ * It remains internal until the public analytics contract is introduced in a later phase.
+ */
+internal data class AnalyticsQuery(
+    val userCondition: NormalizedCondition,
+    val grouping: AnalyticsGrouping,
+    val metrics: NonEmptyList<AnalyticsMetric>,
+)

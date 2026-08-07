@@ -633,7 +633,7 @@ mapping `_meta` 保存 mapping version、document kind 和 capability digest。�
 | Phase | 当前证据 | 状态 |
 |---|---|---|
 | 0 | `QueryHandler` 已形成单一 defer/fail-closed 边界；EventStream factory 已使用 materialized key 与并发缓存；对应同步、异步、partial Flux、cancel、direct handle 和多订阅测试已存在 | 已实现，待 PR #2908 合并 |
-| 1 | 仓库中不存在 `QueryInvocation`、`NormalizedCondition`、`QueryPlan`、Normalizer、Planner 或 analytics model | 未开始 |
+| 1 | P1-A 已在 stacked 分支引入 internal `QueryInvocation`、`NormalizedCondition`、`QueryPlan` 与最小 analytics model；尚无 Normalizer、Planner 或运行时接线 | P1-A 已实现，P1-B/P1-C 未开始 |
 | 2 | Spring Registrar 仍从 storage `QueryServiceFactory` 直接创建 Bean；WebFlux 仍直接调用 legacy `QueryHandler` | 未开始 |
 | 3 | MongoDB 查询仍由 `AbstractMongoQueryService` 直接执行 `find/countDocuments`，没有 planned compiler、Backend、单操作 page 或 aggregation pipeline | 未开始 |
 | 4 | Elasticsearch 查询仍使用 `from/size` 和 hits/count，没有 field binding、readiness、完整性 validator、PIT 或 composite aggregation | 未开始 |
@@ -697,12 +697,19 @@ Phase 0 提交，不涉及配置、索引或数据。
   `QueryInvocation`、operation/result shape、
   execution/validation mode、无 `Any` 的 `NormalizedValue/NormalizedCondition`、record/analytics plan skeleton；
 - analytics grouping 建模为 `Global | By(NonEmptyList<Dimension>)`，支持合法的无 `GROUP BY` 全局统计；
-- 所有 collection/map/bytes 在边界防御复制，不能用 Kotlin read-only interface 冒充深度不可变；
+- `QueryInvocation` 是每订阅创建、不得比较或缓存的临时 envelope；其中 legacy wire DTO 保持原样，深度不可变
+  从 admitted snapshot/normalized query 边界开始；
+- normalized condition/value、analytics model 与 Plan 的所有 collection/map/bytes 在边界防御复制，不能用
+  Kotlin read-only interface 冒充深度不可变；
+- Kotlin `internal` 类型在 JVM 字节码中仍可能表现为 public class；它们位于 internal package 且不进入受支持
+  API，兼容性声明不得表述为“JAR 严格零 ABI diff”；
 - 不加 Jackson/Swagger 注解，不修改 `wow-api`、`QueryService` 或 `QueryType`，不发布 cursor codec。
 
 #### P1-B：Admission 与 Normalizer
 
 - 实现内部具体 `RawAdmissionGuard` 与 `QueryNormalizer`，不先开放 SPI；
+- admission 必须在一次有界遍历中完成校验与防御性物化，产出 immutable admitted snapshot；Normalizer
+  只能读取该 snapshot，禁止校验后再次读取调用方的动态 getter、`Any`、List、Map 或 ByteArray；
 - 固化深度/节点/字段/value/options 大小，递归 `AND/OR/NOR`、`ELEM_MATCH` 相对字段、system field、
   projection、sort、limit 和 page 规则；
 - 每次 normalization 只读取一次 `Clock.instant()`；时间范围使用半开区间；
