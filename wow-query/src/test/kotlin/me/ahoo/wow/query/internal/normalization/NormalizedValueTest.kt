@@ -71,6 +71,19 @@ class NormalizedValueTest {
     }
 
     @Test
+    fun `object equality should preserve Mongo document field order`() {
+        val first = NormalizedValue.ObjectValue(
+            linkedMapOf("a" to NormalizedValue.Int64(1), "b" to NormalizedValue.Int64(2)),
+        )
+        val reversed = NormalizedValue.ObjectValue(
+            linkedMapOf("b" to NormalizedValue.Int64(2), "a" to NormalizedValue.Int64(1)),
+        )
+
+        first.assert().isNotEqualTo(reversed)
+        first.hashCode().assert().isNotEqualTo(reversed.hashCode())
+    }
+
+    @Test
     fun `list should materialize a one-shot iterable exactly once`() {
         var iteratorCalls = 0
         val oneShot = Iterable {

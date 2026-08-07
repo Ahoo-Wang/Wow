@@ -27,7 +27,16 @@ internal sealed interface NormalizedValue {
 
     data class Int64(val value: Long) : NormalizedValue
 
-    data class Decimal(val value: BigDecimal) : NormalizedValue
+    class Decimal(value: BigDecimal) : NormalizedValue {
+        val value: BigDecimal = value.stripTrailingZeros()
+
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Decimal && value == other.value
+
+        override fun hashCode(): Int = value.hashCode()
+
+        override fun toString(): String = "Decimal(value=$value)"
+    }
 
     data class InstantValue(val value: Instant) : NormalizedValue
 
@@ -58,11 +67,13 @@ internal sealed interface NormalizedValue {
     class ObjectValue(values: Map<String, NormalizedValue>) : NormalizedValue {
         val values: Map<String, NormalizedValue> =
             Collections.unmodifiableMap(LinkedHashMap(values))
+        private val orderedEntries: List<Pair<String, NormalizedValue>> =
+            this.values.map { entry -> entry.key to entry.value }
 
         override fun equals(other: Any?): Boolean =
-            this === other || other is ObjectValue && values == other.values
+            this === other || other is ObjectValue && orderedEntries == other.orderedEntries
 
-        override fun hashCode(): Int = values.hashCode()
+        override fun hashCode(): Int = orderedEntries.hashCode()
 
         override fun toString(): String = values.toString()
     }
