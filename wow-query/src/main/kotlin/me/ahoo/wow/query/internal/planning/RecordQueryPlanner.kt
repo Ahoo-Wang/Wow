@@ -103,6 +103,14 @@ internal class RecordQueryPlanner(
                 QueryRejectionCode.UNBOUNDED_STREAM_DISALLOWED,
             )
         }
+        val maximumRecords = (constraints.resultConstraint as? ResultPlanningConstraint.MaximumRecords)?.value
+        if (maximumRecords != null && (input.limit == 0 || input.limit > maximumRecords)) {
+            rejectQuery(
+                QueryRejectionCategory.BUDGET_EXCEEDED,
+                path,
+                QueryRejectionCode.RESULT_LIMIT_EXCEEDED,
+            )
+        }
         return planRecord(input.query) { common ->
             StreamQueryPlan.create(
                 invocation.target,
@@ -148,6 +156,10 @@ internal class RecordQueryPlanner(
         if (input.page.offset < 0 || expectedOffset == null || input.page.offset != expectedOffset) {
             rejectQuery(QueryRejectionCategory.INVALID_QUERY, path, QueryRejectionCode.INVALID_PAGE)
         }
+        val maximumRecords = (constraints.resultConstraint as? ResultPlanningConstraint.MaximumRecords)?.value
+        if (maximumRecords != null && input.page.size.toLong() > maximumRecords) {
+            rejectQuery(QueryRejectionCategory.BUDGET_EXCEEDED, path, QueryRejectionCode.RESULT_LIMIT_EXCEEDED)
+        }
         val maximumWindow = (constraints.pageConstraint as? PagePlanningConstraint.MaximumWindow)?.value ?: return
         val endExclusive =
             try {
@@ -171,6 +183,7 @@ internal class RecordQueryPlanner(
                 input.userCondition,
                 QueryRejectionPath.ROOT.property("input").property("userCondition"),
                 mandatory = false,
+                fieldConstraint = constraints.fieldConstraint,
             )
         } ?: return null
         return CountQueryPlan.create(
@@ -188,7 +201,12 @@ internal class RecordQueryPlanner(
     ): QueryPlan? {
         val queryPath = QueryRejectionPath.ROOT.property("input").property("query")
         val user = planCompatible {
-            conditionPlanner.plan(query.userCondition, queryPath.property("condition"), mandatory = false)
+            conditionPlanner.plan(
+                query.userCondition,
+                queryPath.property("condition"),
+                mandatory = false,
+                fieldConstraint = constraints.fieldConstraint,
+            )
         }
         val projection = planProjection(query.projection, queryPath.property("projection"))
         val sort = planSort(query.sort, queryPath.property("sort"))
@@ -215,38 +233,61 @@ internal class RecordQueryPlanner(
         projection: NormalizedProjection,
         path: QueryRejectionPath,
     ): ProjectionResult? {
+        val access = constraints.fieldConstraint.projectionFields
+        if (access != FieldAccess.Unrestricted &&
+            (invocation.resultShape == QueryResultShape.TYPED || projection !is NormalizedProjection.Include)
+        ) {
+            rejectQuery(
+                QueryRejectionCategory.ACCESS_DENIED,
+                path,
+                QueryRejectionCode.PROJECTION_FIELD_NOT_ALLOWED,
+            )
+        }
+        if (projection == NormalizedProjection.All) {
+            return ProjectionResult(PlannedProjection.All, RequiredCapabilities())
+        }
+        validateProjectionAccess(projection, path)
         if (invocation.resultShape == QueryResultShape.TYPED && projection != NormalizedProjection.All) {
             return handleTypedProjection(path)
         }
         if (projection is NormalizedProjection.Mixed) {
             rejectQuery(QueryRejectionCategory.INVALID_QUERY, path, QueryRejectionCode.INVALID_PROJECTION)
         }
-        if (projection == NormalizedProjection.All) {
-            return ProjectionResult(PlannedProjection.All, RequiredCapabilities())
-        }
-        return planCompatible {
-            val fields = projection.fields()
-            val resolved = fields.mapIndexed { index, field ->
+        val resolved = planCompatible {
+            projection.fields().mapIndexed { index, field ->
                 val fieldPath = path.property("fields").index(index)
                 conditionPlanner.resolveField(field, fieldPath).also { resolvedField ->
-                    requireFieldCapability(
-                        schema,
-                        resolvedField,
-                        FieldCapability.PROJECTABLE,
-                        fieldPath,
-                    )
+                    requireFieldCapability(schema, resolvedField, FieldCapability.PROJECTABLE, fieldPath)
                 }
             }.distinct().sortedBy(QueryFieldId::stableKey)
-            val nonEmpty = checkNotNull(NonEmptyList.from(resolved))
-            val planned =
-                if (projection is NormalizedProjection.Include) {
-                    PlannedProjection.Include(nonEmpty)
-                } else {
-                    PlannedProjection.Exclude(nonEmpty)
-                }
-            ProjectionResult(
-                planned,
-                RequiredCapabilities(resolved.associateWith { setOf(FieldCapability.PROJECTABLE) }),
+        } ?: return null
+        val nonEmpty = checkNotNull(NonEmptyList.from(resolved))
+        val planned =
+            if (projection is NormalizedProjection.Include) {
+                PlannedProjection.Include(nonEmpty)
+            } else {
+                PlannedProjection.Exclude(nonEmpty)
+            }
+        return ProjectionResult(
+            planned,
+            RequiredCapabilities(resolved.associateWith { setOf(FieldCapability.PROJECTABLE) }),
+        )
+    }
+
+    private fun validateProjectionAccess(
+        projection: NormalizedProjection,
+        path: QueryRejectionPath,
+    ) {
+        val access = constraints.fieldConstraint.projectionFields
+        if (access == FieldAccess.Unrestricted) {
+            return
+        }
+        projection.fields().forEachIndexed { index, field ->
+            conditionPlanner.resolveAccessibleField(
+                field,
+                path.property("fields").index(index),
+                access,
+                QueryRejectionCode.PROJECTION_FIELD_NOT_ALLOWED,
             )
         }
     }
@@ -272,7 +313,12 @@ internal class RecordQueryPlanner(
         val seen = mutableSetOf<QueryFieldId>()
         sort.forEachIndexed { index, item ->
             val itemPath = path.index(index)
-            val field = conditionPlanner.resolveField(item.field, itemPath.property("field"))
+            val field = conditionPlanner.resolveAccessibleField(
+                item.field,
+                itemPath.property("field"),
+                constraints.fieldConstraint.sortFields,
+                QueryRejectionCode.SORT_FIELD_NOT_ALLOWED,
+            )
             if (!seen.add(field)) {
                 return@planCompatible handleDuplicateSort(itemPath.property("field"))
             }
@@ -330,9 +376,8 @@ internal class RecordQueryPlanner(
         when (this) {
             is NormalizedProjection.Include -> fields.values
             is NormalizedProjection.Exclude -> fields.values
-            NormalizedProjection.All,
-            is NormalizedProjection.Mixed,
-            -> error("Projection branch was already handled.")
+            is NormalizedProjection.Mixed -> include.values + exclude.values
+            NormalizedProjection.All -> error("Projection branch was already handled.")
         }
 
     private fun QueryResultShape.toRecordShape(): RecordResultShape =

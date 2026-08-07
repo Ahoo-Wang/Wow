@@ -640,14 +640,14 @@ mapping `_meta` 保存 mapping version、document kind 和 capability digest。�
 
 ### 10.1 当前基线与完成度
 
-以下状态以 stacked Phase 1 分支的当前源码和测试为审计基线。状态只根据可执行代码与验证结果判断，
+以下状态以 stacked query-service 分支的当前源码和测试为审计基线。状态只根据可执行代码与验证结果判断，
 不根据设计意图推断：
 
 | Phase | 当前证据 | 状态 |
 |---|---|---|
 | 0 | `QueryHandler` 已形成单一 defer/fail-closed 边界；EventStream factory 已使用 materialized key 与并发缓存；对应同步、异步、partial Flux、cancel、direct handle 和多订阅测试已存在 | 已实现，待 PR #2908 合并 |
-| 1 | P1-A 已引入 internal `QueryInvocation`、语义代数、`QueryPlan` 与最小 analytics model；P1-B 已引入单遍 admission snapshot、全局 value/payload budget、typed rejection 与 43 operator Normalizer；尚无 Planner、Backend compiler 或运行时接线 | P1-A/P1-B 已实现，P1-C 未开始 |
-| 2 | Spring Registrar 仍从 storage `QueryServiceFactory` 直接创建 Bean；WebFlux 仍直接调用 legacy `QueryHandler` | 未开始 |
+| 1 | P1-A 已引入 internal `QueryInvocation`、语义代数、`QueryPlan` 与最小 analytics model；P1-B 已引入单遍 admission snapshot、全局 value/payload budget、typed rejection 与 43 operator Normalizer；P1-C 已引入 logical schema、provenance-bearing Planner、record/analytics Plan 与 canonical fingerprint；尚无 Backend compiler 或运行时接线 | 已实现，stacked Draft PR #2909/#2910/#2915 |
+| 2 | P2-A 已引入 typed execution context、每订阅 authority resolver、精确绑定 target/purpose/resource scope 的 legacy grant、响应式 fail-closed Policy、tenant scope mandatory condition，以及 filter/projection/sort/search/native/analytics/result planning constraint；Spring Registrar 仍从 storage `QueryServiceFactory` 直接创建 Bean，WebFlux 仍直接调用 legacy `QueryHandler` | P2-A 已实现，P2-B/P2-C 未开始 |
 | 3 | MongoDB 查询仍由 `AbstractMongoQueryService` 直接执行 `find/countDocuments`，没有 planned compiler、Backend、单操作 page 或 aggregation pipeline | 未开始 |
 | 4 | Elasticsearch 查询仍使用 `from/size` 和 hits/count，没有 field binding、readiness、完整性 validator、PIT 或 composite aggregation | 未开始 |
 | 5 | 没有 cursor lease、版本化 physical index/alias 运维工具或公开 `AnalyticsQueryService`/HTTP/DSL contract | 未开始 |
@@ -802,7 +802,36 @@ Phase 1 exit gate：
 - 建立 typed `QueryExecutionContext`、authority resolver 和响应式 `QueryPolicy`；
 - policy builder 只能产生 normalized mandatory condition/field/result/analytics constraint；
 - authority 缺失、跨租户、policy error 和 mandatory schema/capability failure 均 fail closed；
-- 明确 LEGACY 内部无 authority 调用清单与迁移负责人，禁止默认提升为 system authority。
+- 明确 LEGACY 内部无 authority 调用的精确 grant 与迁移负责人，禁止默认提升为 system authority。
+
+P2-A 当前实现约束：
+
+- `QueryExecutionContextFactory` 在每次 subscription 内解析 authority；provider 同步异常、异步异常、empty、过期
+  deadline 和不匹配的 legacy grant 都形成 typed rejection，不捕获创建时身份，也不 fail open；legacy grant 由受信
+  adapter 固定，并精确绑定 `callerId + target + purpose + resourceScope`，调用方不能在单次 request 中自报 caller；
+- route/header 中的 tenant/owner/space 只建模为 `QueryResourceScope` selector；`TenantIsolationQueryPolicy` 必须先与
+  authenticated subject 或 tenant-scoped service authority 比较，匹配后才转为 mandatory condition；System authority
+  必须显式提供 justification；Subject 的 owner/space grant 即使 selector 缺失也必须形成 mandatory condition 或拒绝，
+  不能静默扩大到同 tenant 全量数据；
+- `QueryPolicyAllowance.Builder` 默认拒绝全部 user field/search/native 访问，只能返回 normalized mandatory condition、
+  分维度 field/search/native constraint 和静态 result/stream/page/analytics constraint；mandatory Native 在 builder
+  边界直接拒绝；
+- Planner 在 user condition、projection、sort、search scope、native backend、analytics dimension/metric 上分别执行
+  access constraint，且 access denial 不被 `COMPATIBLE` fallback 吞掉；mandatory condition 使用独立 provenance 和
+  schema/capability 校验，不受 user allow-list 限制；
+- typed compatible projection 的字段访问检查发生在 legacy fallback 决策前，避免 fallback 绕过 projection policy；
+  `MaximumRecords` 对 unbounded stream 和 oversized page fail closed，不做 clamp；
+- 本 slice 仍全部位于 `wow-query/internal`，未注册 Spring Bean、未接管 `QueryHandler`/public factory、未增加公开
+  error code 或 OpenAPI schema；跨 module experimental SPI、公共错误映射和生产入口接线分别留给 P2-B/P2-C。
+
+P2-A exit gate：
+
+- 测试覆盖 authority 每订阅解析、sync/async/empty error、deadline 跨越、精确 legacy grant、Policy deny/empty/error、
+  tenant/owner/space mismatch 与 selector 缺失、mandatory Native、约束深度不可变、受限 projection All/Exclude，以及
+  filter/projection/sort/search/native/analytics 各 Planner 访问维度；
+- `./gradlew :wow-query:check`、public compatibility guard 和 OpenAPI snapshot 通过；
+- 生产调用链保持不变，回滚为删除 additive internal context/policy/constraint 模型并恢复 Planner 的默认 unrestricted
+  参数，不需要运行时开关。
 
 #### P2-B：Gateway、Executor 与 legacy Backend
 
