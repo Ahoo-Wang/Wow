@@ -23,6 +23,7 @@ import me.ahoo.wow.query.internal.model.QueryOperation
 import me.ahoo.wow.query.internal.model.QueryResultShape
 import me.ahoo.wow.query.internal.model.QueryValidationMode
 import me.ahoo.wow.query.internal.normalization.NormalizedCondition
+import me.ahoo.wow.query.internal.normalization.NormalizedDeletionScope
 import me.ahoo.wow.query.internal.normalization.NormalizedPage
 import me.ahoo.wow.query.internal.normalization.NormalizedQueryInput
 import me.ahoo.wow.query.internal.normalization.NormalizedQueryInvocation
@@ -103,7 +104,7 @@ class QueryPlannerInvocationMatrixTest {
                 "single" -> NormalizedQueryInput.Single(query)
                 "stream" -> NormalizedQueryInput.Stream(query, limit = 0)
                 "page" -> NormalizedQueryInput.Page(query, NormalizedPage(1, 20, 0))
-                "count" -> NormalizedQueryInput.Count(NormalizedCondition.All)
+                "count" -> NormalizedQueryInput.Count(NormalizedCondition.All, NormalizedDeletionScope.EXPLICIT)
                 "analytics" -> NormalizedQueryInput.Analytics(
                     AnalyticsQuery(
                         NormalizedCondition.All,

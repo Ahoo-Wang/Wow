@@ -40,7 +40,10 @@ internal sealed interface NormalizedQueryInput {
         val page: NormalizedPage,
     ) : NormalizedQueryInput
 
-    data class Count(val userCondition: NormalizedCondition) : NormalizedQueryInput
+    data class Count(
+        val userCondition: NormalizedCondition,
+        val deletionScope: NormalizedDeletionScope,
+    ) : NormalizedQueryInput
 
     data class Analytics(val query: AnalyticsQuery) : NormalizedQueryInput
 }
@@ -49,6 +52,7 @@ internal class NormalizedRecordQuery(
     val userCondition: NormalizedCondition,
     val projection: NormalizedProjection,
     sort: Iterable<NormalizedSort>,
+    val deletionScope: NormalizedDeletionScope,
 ) {
     val sort: List<NormalizedSort> = Collections.unmodifiableList(sort.toList())
 
@@ -57,9 +61,22 @@ internal class NormalizedRecordQuery(
             other is NormalizedRecordQuery &&
             userCondition == other.userCondition &&
             projection == other.projection &&
-            sort == other.sort
+            sort == other.sort &&
+            deletionScope == other.deletionScope
 
-    override fun hashCode(): Int = 31 * (31 * userCondition.hashCode() + projection.hashCode()) + sort.hashCode()
+    override fun hashCode(): Int {
+        var result = userCondition.hashCode()
+        result = 31 * result + projection.hashCode()
+        result = 31 * result + sort.hashCode()
+        result = 31 * result + deletionScope.hashCode()
+        return result
+    }
+}
+
+/** Captures whether the legacy default-active deletion rule still has to be applied. */
+internal enum class NormalizedDeletionScope {
+    DEFAULT_ACTIVE,
+    EXPLICIT,
 }
 
 internal sealed interface NormalizedProjection {

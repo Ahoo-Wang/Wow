@@ -269,6 +269,7 @@ class QueryPolicyEnforcerTest {
             LegacyQueryCallerId("migration"),
             PlanningFixtures.target,
             QueryPurpose("interactive-query"),
+            QueryExecutionMode.LEGACY,
             scope,
         )
         listOf<QueryAuthority>(

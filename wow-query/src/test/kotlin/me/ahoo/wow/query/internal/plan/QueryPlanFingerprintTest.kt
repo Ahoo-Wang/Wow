@@ -66,7 +66,7 @@ class QueryPlanFingerprintTest {
 
         first.fingerprint.assert().isEqualTo(second.fingerprint)
         first.fingerprint.value.assert().isEqualTo(
-            "bbc5469bc026dc35371b3858c5f6fc741ea17c4638e027f15c0ca40d1b8b3de9",
+            "7a2a1b9f9ea7bee9544f5356fed8b7e4738f4fbe684c65bde60abc60ec0a3e50",
         )
         (first.projection as PlannedProjection.Include).fields.values.assert().containsExactly(
             PlanningFixtures.amount,

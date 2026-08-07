@@ -318,6 +318,41 @@ class QueryNormalizerTest {
     }
 
     @Test
+    fun `should preserve root deletion intent before normalization removes deleted all`() {
+        val ordinaryAll = normalizeCountInput(Condition.ALL)
+        ordinaryAll.deletionScope.assert().isEqualTo(NormalizedDeletionScope.DEFAULT_ACTIVE)
+        ordinaryAll.userCondition.assert().isEqualTo(NormalizedCondition.All)
+
+        val explicitAll = normalizeCountInput(Condition.deleted(DeletionState.ALL))
+        explicitAll.deletionScope.assert().isEqualTo(NormalizedDeletionScope.EXPLICIT)
+        explicitAll.userCondition.assert().isEqualTo(NormalizedCondition.All)
+
+        normalizeCountInput(
+            Condition.and(
+                Condition.eq("state.name", "Ada"),
+                Condition.deleted(DeletionState.ALL),
+            ),
+        ).deletionScope.assert().isEqualTo(NormalizedDeletionScope.EXPLICIT)
+
+        normalizeCountInput(
+            Condition.or(
+                Condition.eq("state.name", "Ada"),
+                Condition.deleted(DeletionState.ALL),
+            ),
+        ).deletionScope.assert().isEqualTo(NormalizedDeletionScope.DEFAULT_ACTIVE)
+
+        val single = normalize(
+            QueryInvocation(
+                target,
+                QueryOperation.SINGLE,
+                QueryResultShape.DYNAMIC,
+                QueryInput.Single(SingleQuery(Condition.ALL)),
+            ),
+        ).input as NormalizedQueryInput.Single
+        single.query.deletionScope.assert().isEqualTo(NormalizedDeletionScope.DEFAULT_ACTIVE)
+    }
+
+    @Test
     fun `should expand week month and relative time operators from the frozen instant`() {
         normalizeCount(Condition.thisWeek("field")).assert().isEqualTo(
             halfOpenRange("field", Instant.parse("2024-03-04T05:00:00Z"), Instant.parse("2024-03-11T04:00:00Z")),
@@ -512,7 +547,10 @@ class QueryNormalizerTest {
         QueryNormalizer(Clock.fixed(fixedInstant, zoneId)).normalize(guard.admit(invocation))
 
     private fun normalizeCount(condition: Condition): NormalizedCondition =
-        (normalize(countInvocation(condition)).input as NormalizedQueryInput.Count).userCondition
+        normalizeCountInput(condition).userCondition
+
+    private fun normalizeCountInput(condition: Condition): NormalizedQueryInput.Count =
+        normalize(countInvocation(condition)).input as NormalizedQueryInput.Count
 
     private fun countInvocation(condition: Condition): QueryInvocation =
         QueryInvocation(

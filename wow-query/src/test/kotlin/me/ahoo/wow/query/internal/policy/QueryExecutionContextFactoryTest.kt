@@ -138,6 +138,7 @@ class QueryExecutionContextFactoryTest {
             caller,
             PlanningFixtures.target,
             QueryPurpose("interactive-query"),
+            QueryExecutionMode.LEGACY,
             QueryResourceScope("tenant-1"),
         )
         val denied = LegacyQueryAuthorityProvider()
@@ -158,6 +159,12 @@ class QueryExecutionContextFactoryTest {
             QueryExecutionContextFactory(LegacyQueryAuthorityProvider(grant), clock)
                 .resolve(request().copy(executionMode = QueryExecutionMode.PLANNED))
         }
+        val shadowGrant = grant.copy(executionMode = QueryExecutionMode.SHADOW)
+        QueryExecutionContextFactory(LegacyQueryAuthorityProvider(shadowGrant), clock)
+            .resolve(request().copy(executionMode = QueryExecutionMode.SHADOW))
+            .test()
+            .consumeNextWith { context -> context.authority.assert().isEqualTo(QueryAuthority.Legacy(shadowGrant)) }
+            .verifyComplete()
         val mismatchedGrant = grant.copy(purpose = QueryPurpose("another-purpose"))
         assertRejected(QueryRejectionCode.LEGACY_CALLER_NOT_ALLOWED, "$.executionContext.legacyGrant") {
             QueryExecutionContextFactory(

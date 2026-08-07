@@ -62,12 +62,13 @@ internal class QueryNormalizer(
                 )
 
                 is AdmittedQueryInput.Count -> NormalizedQueryInput.Count(
-                    normalizeCondition(
+                    userCondition = normalizeCondition(
                         input.condition,
                         inputPath.property("condition"),
                         elementScope = null,
                         session,
                     ),
+                    deletionScope = input.condition.deletionScope(),
                 )
 
                 is AdmittedQueryInput.Analytics -> NormalizedQueryInput.Analytics(input.query)
@@ -103,7 +104,17 @@ internal class QueryNormalizer(
                     },
                 )
             },
+            deletionScope = query.condition.deletionScope(),
         )
+
+    private fun AdmittedCondition.deletionScope(): NormalizedDeletionScope =
+        if (operator == Operator.DELETED ||
+            operator == Operator.AND && children.any { child -> child.operator == Operator.DELETED }
+        ) {
+            NormalizedDeletionScope.EXPLICIT
+        } else {
+            NormalizedDeletionScope.DEFAULT_ACTIVE
+        }
 
     private fun normalizeProjection(projection: AdmittedProjection): NormalizedProjection {
         if (projection.include.isNotEmpty() && projection.exclude.isNotEmpty()) {

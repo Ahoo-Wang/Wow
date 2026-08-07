@@ -17,17 +17,24 @@ import me.ahoo.wow.query.internal.model.QueryOperation
 import me.ahoo.wow.query.internal.model.QueryResultShape
 import me.ahoo.wow.query.internal.model.QueryValidationMode
 import me.ahoo.wow.query.internal.model.RecordResultShape
+import me.ahoo.wow.query.internal.normalization.JunctionOperator
+import me.ahoo.wow.query.internal.normalization.LogicalField
+import me.ahoo.wow.query.internal.normalization.NormalizedCondition
+import me.ahoo.wow.query.internal.normalization.NormalizedDeletionScope
+import me.ahoo.wow.query.internal.normalization.NormalizedPredicateOptions
 import me.ahoo.wow.query.internal.normalization.NormalizedProjection
 import me.ahoo.wow.query.internal.normalization.NormalizedQueryInput
 import me.ahoo.wow.query.internal.normalization.NormalizedQueryInvocation
 import me.ahoo.wow.query.internal.normalization.NormalizedRecordQuery
 import me.ahoo.wow.query.internal.normalization.NormalizedSort
 import me.ahoo.wow.query.internal.normalization.NormalizedSortDirection
+import me.ahoo.wow.query.internal.normalization.PredicateOperator
 import me.ahoo.wow.query.internal.normalization.SystemFieldKind
 import me.ahoo.wow.query.internal.plan.CountQueryPlan
 import me.ahoo.wow.query.internal.plan.EnforcedFilter
 import me.ahoo.wow.query.internal.plan.PageQueryPlan
 import me.ahoo.wow.query.internal.plan.PageWindow
+import me.ahoo.wow.query.internal.plan.PlannedCondition
 import me.ahoo.wow.query.internal.plan.PlannedProjection
 import me.ahoo.wow.query.internal.plan.PlannedSort
 import me.ahoo.wow.query.internal.plan.PlannedSortOrigin
@@ -178,14 +185,11 @@ internal class RecordQueryPlanner(
     }
 
     private fun planCount(input: NormalizedQueryInput.Count): QueryPlan? {
-        val user = planCompatible {
-            conditionPlanner.plan(
-                input.userCondition,
-                QueryRejectionPath.ROOT.property("input").property("userCondition"),
-                mandatory = false,
-                fieldConstraint = constraints.fieldConstraint,
-            )
-        } ?: return null
+        val user = planUserCondition(
+            input.userCondition,
+            input.deletionScope,
+            QueryRejectionPath.ROOT.property("input").property("userCondition"),
+        ) ?: return null
         return CountQueryPlan.create(
             invocation.target,
             schema.contractId,
@@ -200,14 +204,7 @@ internal class RecordQueryPlanner(
         factory: (RecordCommon) -> RecordQueryPlan,
     ): QueryPlan? {
         val queryPath = QueryRejectionPath.ROOT.property("input").property("query")
-        val user = planCompatible {
-            conditionPlanner.plan(
-                query.userCondition,
-                queryPath.property("condition"),
-                mandatory = false,
-                fieldConstraint = constraints.fieldConstraint,
-            )
-        }
+        val user = planUserCondition(query.userCondition, query.deletionScope, queryPath.property("condition"))
         val projection = planProjection(query.projection, queryPath.property("projection"))
         val sort = planSort(query.sort, queryPath.property("sort"))
         if (user == null || projection == null || sort == null) {
@@ -226,6 +223,43 @@ internal class RecordQueryPlanner(
                 ),
                 user.semanticTier.max(mandatory.semanticTier),
             ),
+        )
+    }
+
+    private fun planUserCondition(
+        condition: NormalizedCondition,
+        deletionScope: NormalizedDeletionScope,
+        path: QueryRejectionPath,
+    ): PlannedConditionResult? {
+        val user = planCompatible {
+            conditionPlanner.plan(
+                condition,
+                path,
+                mandatory = false,
+                fieldConstraint = constraints.fieldConstraint,
+            )
+        } ?: return null
+        if (deletionScope == NormalizedDeletionScope.EXPLICIT || user.condition == PlannedCondition.None) {
+            return user
+        }
+        val defaultActive = conditionPlanner.plan(
+            DEFAULT_ACTIVE_CONDITION,
+            path.property("defaultDeletion"),
+            mandatory = false,
+        )
+        val effectiveCondition =
+            if (user.condition == PlannedCondition.All) {
+                defaultActive.condition
+            } else {
+                PlannedCondition.Junction(
+                    JunctionOperator.AND,
+                    NonEmptyList.of(defaultActive.condition, user.condition),
+                )
+            }
+        return PlannedConditionResult(
+            effectiveCondition,
+            mergeCapabilities(defaultActive.requiredCapabilities, user.requiredCapabilities),
+            defaultActive.semanticTier.max(user.semanticTier),
         )
     }
 
@@ -408,6 +442,11 @@ internal class RecordQueryPlanner(
     )
 
     private companion object {
+        val DEFAULT_ACTIVE_CONDITION = NormalizedCondition.Predicate(
+            LogicalField.System(SystemFieldKind.DELETED),
+            PredicateOperator.IS_FALSE,
+            options = NormalizedPredicateOptions(),
+        )
         val REJECTION_ORDER = compareBy<QueryRejection>({ it.path.toString() }, { it.code.name })
     }
 }
