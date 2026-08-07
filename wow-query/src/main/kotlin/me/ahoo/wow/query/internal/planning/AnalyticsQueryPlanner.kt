@@ -71,6 +71,7 @@ internal class AnalyticsQueryPlanner(
             query.userCondition,
             queryPath.property("userCondition"),
             mandatory = false,
+            fieldConstraint = constraints.fieldConstraint,
         )
         if (user.semanticTier != SemanticTier.PORTABLE) {
             rejectQuery(
@@ -182,7 +183,12 @@ internal class AnalyticsQueryPlanner(
                     NonEmptyList.from(
                         grouping.dimensions.values.mapIndexed { index, dimension ->
                             val path = queryPath.property("grouping").property("dimensions").index(index)
-                            val field = conditionPlanner.resolveField(dimension.field, path.property("field"))
+                            val field = conditionPlanner.resolveAccessibleField(
+                                dimension.field,
+                                path.property("field"),
+                                constraints.fieldConstraint.analyticsDimensionFields,
+                                QueryRejectionCode.ANALYTICS_DIMENSION_FIELD_NOT_ALLOWED,
+                            )
                             if (!schema.fields.getValue(field).type.isPortableDimension()) {
                                 rejectQuery(
                                     QueryRejectionCategory.UNSUPPORTED_FEATURE,
@@ -263,7 +269,12 @@ internal class AnalyticsQueryPlanner(
         path: QueryRejectionPath,
         allowInstant: Boolean,
     ): QueryFieldId {
-        val field = conditionPlanner.resolveField(logicalField, path.property("field"))
+        val field = conditionPlanner.resolveAccessibleField(
+            logicalField,
+            path.property("field"),
+            constraints.fieldConstraint.analyticsMetricFields,
+            QueryRejectionCode.ANALYTICS_METRIC_FIELD_NOT_ALLOWED,
+        )
         val type = schema.fields.getValue(field).type
         if (field is QueryFieldId.Path && schema.elementOwner(field) != null) {
             rejectQuery(

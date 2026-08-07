@@ -27,10 +27,24 @@ import me.ahoo.wow.query.internal.value.NonEmptyList
 internal data class PlanningConstraints(
     val validationMode: QueryValidationMode,
     val mandatoryCondition: NormalizedCondition = NormalizedCondition.All,
+    val fieldConstraint: QueryFieldConstraint = QueryFieldConstraint(),
+    val resultConstraint: ResultPlanningConstraint = ResultPlanningConstraint.Unrestricted,
     val streamConstraint: StreamPlanningConstraint = StreamPlanningConstraint.Unrestricted,
     val pageConstraint: PagePlanningConstraint = PagePlanningConstraint.Unrestricted,
     val analyticsConstraint: AnalyticsPlanningConstraint = AnalyticsPlanningConstraint.Unrestricted,
 )
+
+internal sealed interface ResultPlanningConstraint {
+    data object Unrestricted : ResultPlanningConstraint
+
+    data class MaximumRecords(val value: Long) : ResultPlanningConstraint {
+        init {
+            require(value > 0) {
+                "Maximum returned records must be positive."
+            }
+        }
+    }
+}
 
 internal sealed interface StreamPlanningConstraint {
     data object Unrestricted : StreamPlanningConstraint
