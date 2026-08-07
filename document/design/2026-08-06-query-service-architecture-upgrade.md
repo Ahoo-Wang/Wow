@@ -59,15 +59,32 @@ flowchart LR
 4. MongoDB 作为 `PORTABLE` 查询语义基准，Backend 只负责编译和执行同一份 Plan。
 5. 查询完整性、分页一致性、预算与错误分类由公共合同定义，Backend 不得静默降级。
 6. 保持现有 Query DTO、JSON/OpenAPI、七个 `QueryService` 方法、DSL、Spring 聚合 Bean 名称与主要返回结构兼容。
-7. 支持按聚合逐步启用 planned path、shadow compare、切换和回滚。
+7. 将分析型聚合建模为独立的一等操作，在不污染记录查询合同的前提下统一 MongoDB/Elasticsearch 的分组、指标、桶分页与完整性语义。
+8. 支持按聚合逐步启用 planned path、shadow compare、切换和回滚。
 
 ### 3.2 非目标
 
 - 不承诺 `MATCH` 在 MongoDB 与 Elasticsearch 间具有相同分词和相关性。
 - 不把 `RAW` 纳入跨 Backend 可移植语义。
 - 第一阶段不新增公开 cursor HTTP 协议。
+- 当前 PR 不增加公开聚合 DSL、`AnalyticsQueryService` 或第八个 `QueryService` 方法。
+- 不在查询运行时提供跨聚合、跨集合或跨索引 join；此类需求通过 Projection 物化专用 read model。
 - 应用启动不自动迁移、删除 Elasticsearch 索引或切换 alias。
 - 在核心模型尚未稳定前不拆分新的 Gradle module。
+
+### 3.3 聚合术语边界
+
+“聚合”在 Wow 中必须区分三种含义：
+
+| 术语 | 含义 | 本设计的处理 |
+|---|---|---|
+| DDD Aggregate 查询 | 查询某个聚合根的 Snapshot 或 EventStream read model | 现有记录查询目标 |
+| 分析型聚合 | `GROUP BY`、document count、`MIN/MAX/SUM/AVG` 等统计 | 独立 `ANALYZE` 操作 |
+| 联邦查询 | 跨聚合/集合/索引 join | 明确排除，改用物化 Projection |
+
+公开类型使用 `Analytics*`，避免 `AggregateQuery` 与 DDD Aggregate 混淆。分析型聚合共享
+`QueryGateway`、Policy、Planner 和 Backend registry，但不复用记录查询的 `PagedList`、
+`DynamicDocument` 或七方法 `QueryService` 合同。
 
 ## 4. 边界与职责
 
@@ -82,6 +99,9 @@ flowchart LR
 - 不缓存聚合服务、不解析物理字段、不拥有存储客户端。
 
 WebFlux 是 transport adapter；现有聚合级 `SnapshotQueryService<State>` / `EventStreamQueryService` Bean 是 legacy adapter。两者都只能委托 Gateway。兼容期保留 Handler/Filter，但它们不得再被描述为最终安全边界。
+
+未来新增的 `AnalyticsQueryService` 是独立、additive 的应用 adapter，同样只能委托 Gateway；它不是现有
+`QueryService` 的第八个方法，也不能直接持有 MongoDB collection 或 Elasticsearch client。
 
 ### 4.2 Raw Admission Guard
 
@@ -116,13 +136,18 @@ Deny(reason)
 Allow(
   mandatoryCondition: NormalizedCondition,
   fieldConstraint,
-  resultConstraint
+  resultConstraint,
+  analyticsConstraint
 )
 ```
 
 Authority 必须来自经过认证的 `QueryExecutionContext`，不能直接把 Header、请求参数或任意 Reactor key 当作可信身份。Policy 只接收已经规范化的 query，并且只能通过 typed policy builder 产生 `NormalizedCondition`；不得把 wire `Condition`、`Any`、`RAW` 或 Backend Native 条件直接注入 policy decision。
 
 用户条件与 `mandatoryCondition` 分开保存 provenance。Planner 必须分别对两者执行同一套字段 schema、operator、capability 和预算校验，通过后才在最终 Plan 中强制执行外层 `AND`。Filter、Backend 和 Native 查询都不能移除或覆盖该条件。
+
+`analyticsConstraint` 约束可使用的 dimension、metric、having、bucket order、最大桶数以及最小桶文档数。
+最小桶文档数属于带 provenance 的强制聚合条件，必须在 Backend 内执行，不能只在响应序列化阶段删除小桶，
+否则 cursor、桶数或相邻查询仍可能泄露受保护信息。
 
 `LEGACY` 模式下无 authority 的内部调用是一个需要显式迁移的兼容事实，不能默认等价为系统权限。
 
@@ -149,7 +174,17 @@ interface QueryBackend<D : Any> {
     fun page(plan: PageQueryPlan, options: QueryExecutionOptions): Mono<BackendPage<D>>
     fun count(plan: CountQueryPlan, options: QueryExecutionOptions): Mono<Long>
 }
+
+interface AnalyticsQueryBackend {
+    fun analyze(
+        plan: AnalyticsQueryPlan,
+        options: QueryExecutionOptions
+    ): Mono<BackendAnalyticsPage>
+}
 ```
+
+分析能力使用独立 Backend capability interface，避免强迫只支持记录查询的 Backend 实现空方法或在运行期
+抛出通用异常。Planner/Router 在执行前根据 capability 拒绝不支持的 operation。
 
 Backend module 负责：
 
@@ -173,6 +208,10 @@ Backend 不再校验 wire DTO、不追加授权条件、不决定公共 projecti
 
 不为所有结果增加通用 `QueryResult<T>` 包装。内部 page 使用带 total relation 与 consistency 的 `BackendPage/PlannedPage`，兼容 adapter 再映射为现有 `PagedList<T>`。
 
+分析结果使用独立、深度不可变的 `AnalyticsPage`：bucket key、metric value、cursor 和 completeness
+均为显式值对象。它不伪装成实体列表，不复用可变 `DynamicDocument`，也不把 bucket count 填入
+`PagedList.total`。桶总数默认不计算；未来若调用方显式请求，必须作为单独高成本 capability 预算和执行。
+
 ## 5. 核心模型
 
 ### 5.1 QueryInvocation 与执行上下文
@@ -181,8 +220,8 @@ Backend 不再校验 wire DTO、不追加授权条件、不决定公共 projecti
 
 - materialized aggregate；
 - document kind：`SNAPSHOT` / `EVENT_STREAM`；
-- result shape：`TYPED` / `DYNAMIC` / `COUNT`；
-- operation：`SINGLE` / `STREAM` / `PAGE` / `COUNT`；
+- result shape：`TYPED` / `DYNAMIC` / `COUNT` / `ANALYTICS`；
+- operation：`SINGLE` / `STREAM` / `PAGE` / `COUNT` / `ANALYZE`；
 - 原始兼容 Query DTO。
 
 `QueryExecutionContext` 显式携带可信 authority、purpose、deadline、execution mode、validation mode 和 budget。它不是任意 attribute map。
@@ -216,16 +255,18 @@ SingleQueryPlan
 StreamQueryPlan(limit = Bounded | Unbounded)
 PageQueryPlan(offset: Long, size, totalMode, consistency)
 CountQueryPlan
+AnalyticsQueryPlan
 ```
 
-共享内容：
+所有 Plan 共享 `QueryTarget`、用户条件与 mandatory condition 的最终外层合取、
+`RequiredCapabilities` 和 `SemanticTier`。记录型 Plan 另外共享：
 
-- `QueryTarget`；
-- 用户条件与 mandatory condition 的最终外层合取；
 - `PlannedProjection`；
 - `PlannedSort`；
-- `RequiredCapabilities`；
-- `SemanticTier`。
+
+`AnalyticsQueryPlan` 不复用记录 projection/sort/pagination，改为显式包含 dimension、metric、having、
+bucket order、bucket window/cursor、missing policy、numeric policy、required consistency 和
+required completeness。预算与 deadline 仍属于 `QueryExecutionOptions`，不写入可比较的语义 Plan。
 
 Plan 禁止包含：
 
@@ -279,6 +320,7 @@ MongoDB `SAME_INPUT` 可使用单次 `$facet`，但必须显式处理 stage/文�
 公共错误模型至少区分：
 
 - `InvalidQuery`；
+- `InvalidCursor`；
 - `AccessDenied`；
 - `UnsupportedFeature`；
 - `BudgetExceeded`；
@@ -288,6 +330,125 @@ MongoDB `SAME_INPUT` 可使用单次 `$facet`，但必须显式处理 stage/文�
 - `MappingFailure`。
 
 Elasticsearch Backend 必须拒绝 timeout、failed shards、缺失 `_source` 和要求 exact 时的非 `Eq` total。MongoDB 与 Elasticsearch 的 driver exception 统一映射，但根因保留为 cause。
+
+### 6.6 分析型聚合合同
+
+分析请求先规范化为独立模型：
+
+```text
+AnalyticsQueryPlan(
+  target,
+  preFilter = userCondition AND mandatoryCondition,
+  dimensions: NonEmptyList<Dimension>,
+  metrics: NonEmptyList<Metric>,
+  having: AnalyticsCondition = All,
+  bucketOrder,
+  bucketWindow: First | After(cursor),
+  missingPolicy,
+  numericPolicy,
+  requiredConsistency,
+  requiredCompleteness,
+  requiredCapabilities
+)
+```
+
+- `preFilter` 只引用 read-model 字段，在分组前执行；
+- `having` 使用独立 AST，只能引用 dimension 或 metric alias，不能混入 `NormalizedCondition`、`RAW`
+  或物理字段；
+- dimension/metric alias 在一次请求中唯一，并在 Planner 阶段绑定逻辑 schema；
+- bucket order 是分析结果合同，不等价于记录 `sort`；
+- cursor 是不透明值，绑定 plan digest、target、稳定 key order 和 Backend paging state；调用方不能自行拼装；
+- 成功结果的 completeness 为 `Exact`，或在调用方显式允许近似时为
+  `Approximate(errorBound?, warnings)`；要求 exact 时任何近似、timeout 或分片失败都返回
+  `IncompleteResult`。
+
+结果模型：
+
+```text
+AnalyticsPage(
+  buckets: List<AnalyticsBucket(key: DimensionKey, metrics: List<MetricValue>)>,
+  nextCursor: AnalyticsCursor?,
+  consistency: Eventual | Snapshot,
+  completeness: Exact | Approximate,
+  warnings
+)
+```
+
+`nextCursor == null` 只表示本次查询已无更多桶，不承诺已计算桶总数。exact bucket pagination 只能按唯一、
+稳定的 dimension key 顺序进行；按 metric 排序的全局 top-N 不是同一能力。
+
+`completeness` 与 `consistency` 正交：`Exact` 表示每次请求没有已知近似或部分结果，不表示多次 cursor
+请求观察到同一数据快照。`Snapshot` 才承诺跨页输入集合固定；Backend 不具备该能力时必须在执行前拒绝，
+不能用 `Eventual` 静默替代。
+
+第一批 `PORTABLE` 合同收敛为：
+
+- 单个 `QueryTarget`，优先只开放 `SNAPSHOT`；
+- 根级、单值、非 nested 的 scalar dimension，支持单 key 和复合 key；
+- `DOCUMENT_COUNT`；`MIN/MAX/SUM/AVG` 仅用于 schema 已声明的 numeric/instant 字段，并且全部满足显式
+  numeric precision、type promotion 与 overflow policy；
+- `EXCLUDE` 或 `AS_NULL_BUCKET` missing policy；后者按 MongoDB 基准把 missing 与显式 null 合为同一桶；
+- 按 dimension key 的 exact cursor 分页；第一批跨 Backend 合同只承诺 `Eventual` consistency。
+
+以下能力先标记为 unsupported，而不是由 Backend 猜测或降级：
+
+- array/multi-valued、nested、自动 unwind 和跨文档 join；
+- metric-sorted paging、全局 top-N、cardinality、percentile、pipeline metric；
+- portable `having`；模型先保留，但首个 Elasticsearch exact path 只接受 `All`；
+- locale collation、calendar interval/timezone；
+- 无精度策略的 `Decimal128`、超过安全表示范围的整数与浮点精确相等比较。
+
+`EVENT_STREAM` 的统计粒度必须显式定义。现有 QueryTarget 的一个文档表示一个
+`DomainEventStream`，`ANALYZE` 不会隐式展开其中的 event array。按单个 domain event 统计应先投影到专用
+read model；待 EventStream grain 和 mapping fixture 独立验证后再声明相应 capability。
+
+### 6.7 MongoDB 基准与 Elasticsearch 编译策略
+
+MongoDB planned backend 是 portable aggregation 的语义基准。基本 pipeline 顺序为：
+
+```text
+$match(userCondition AND mandatoryCondition)
+  -> $group(dimensions, metrics)
+  -> $match(mandatoryHaving AND userHaving)
+  -> keyset cursor predicate
+  -> $sort(stable dimension key)
+  -> $limit(bucketLimit + 1)
+```
+
+首批 portable path 的 `userHaving=All`。`allowDiskUse`、`maxTimeMS`、扫描文档预算、最大 dimension/metric
+数量、最大候选桶数和返回桶数必须由 options/policy 显式控制。`$group` 是 blocking stage；是否允许落盘是
+部署策略，不是 Backend 可以自行开启的透明优化。只有未来显式请求 bucket total 时才考虑 `$facet/$count`，
+且必须单独评估内存、文档大小和重复扫描成本。
+
+首批 Mongo analytics cursor 只声明 `Eventual` consistency。除非后续证明并封装可跨 HTTP 请求安全恢复、
+有界保留且可释放的 snapshot/session 机制，否则 `requiredConsistency=Snapshot` 必须返回
+`UnsupportedFeature`，不能因为单次 aggregation 命令内部读取一致就宣称跨页快照一致。
+
+Elasticsearch exact portable path 使用 `composite` aggregation：
+
+- dimension 绑定到满足 exact/doc-values 的字段；
+- 使用响应返回的 `after_key` 生成 cursor，不能从最后一个 bucket key 自行推导；
+- `requiredConsistency=Snapshot` 时使用 PIT；cursor 保存每次响应返回的最新 PIT id。无 next cursor 的
+  terminal page 立即关闭，error/cancel 尽力关闭，调用方停止翻页时由短 keep-alive/expiry 有界回收；
+- timeout、failed shards、无法解析的 `after_key` 或 metric 精度不满足 Plan 时失败关闭；
+- `terms` aggregation 的 doc count/sub-aggregation 可能近似，只能进入显式允许近似的非 portable capability，
+  不能冒充 MongoDB exact 结果；
+- `composite` 不能满足首批 portable 的 metric-sorted 全局分页或 pipeline `having`，因此 Planner 直接拒绝。
+- policy 要求 `minBucketDocumentCount` 时等价于 mandatory having；首批 composite path 不支持时必须拒绝或
+  路由到满足能力的 Backend，不能在返回后过滤。
+
+MongoDB 与 Elasticsearch 共享同一组 fixtures/TCK，至少比较 bucket key、顺序、metric type/value、
+missing/null、cursor replay、completeness 和错误类别。仅比较 JSON 形状不构成语义等价证据。
+
+### 6.8 聚合安全、预算与可观测性
+
+- mandatory pre-filter 必须在分组前进入最终 Plan，Native payload 不能绕开；
+- Policy 分别约束 filter field、dimension field、metric field、having alias、bucket order 和输出 metric；
+- 强制最小桶文档数在 Backend 内执行，并保留 policy provenance；
+- admission 限制 dimension/metric/having 节点、alias、cursor 和 payload 大小；
+- execution budget 至少覆盖 deadline、扫描文档数、候选桶数、返回桶数、内存/落盘策略和跨页次数；
+- 指标记录 operation、target、semantic tier、capability、bucket 数、扫描/执行耗时、completeness、fallback
+  原因和 budget rejection；不得把 dimension key 或 metric 原值写入低基数标签/普通日志。
 
 ## 7. 兼容与发布模式
 
@@ -308,6 +469,11 @@ SHADOW 始终返回 legacy 结果，比较 planned 的：
 - null/missing/array 行为；
 - 完整性与延迟。
 
+现有系统没有 legacy analytics path，因此 `ANALYZE` 不适用 `LEGACY/SHADOW`，只能在 `PLANNED` 下执行。
+公开发布前使用 TCK、离线 fixtures 和内部 dual-backend probe 比较 bucket key/order、metric type/value、
+cursor termination 与 completeness；发布后若需要非 serving Backend 对比，应增加独立的 backend comparison
+option，而不是伪造 legacy 结果。近似查询只记录误差元数据和结构差异，不能据此宣称与 MongoDB exact 等价。
+
 `SEARCH/NATIVE` 只记录差异，不判定跨 Backend 等价。任何 fallback 都必须产生原因和指标，不能默默发生。
 
 兼容阶段不能静默修改：
@@ -325,20 +491,24 @@ SHADOW 始终返回 legacy 结果，比较 planned 的：
 - `QueryInvocation`、normalized query、Plan 和 execution context 每订阅创建；
 - Backend registry 是 planned Backend 实例的唯一生命周期 owner，key 至少包含 materialized aggregate、document kind 和 backend id；
 - 旧 Factory 的缓存行为在兼容期保留，但不再叠加 Provider/Gateway cache；
-- cursor/PIT/session 是每次执行资源，必须覆盖 complete/error/cancel 释放。
+- record cursor、analytics cursor、PIT/session 默认是每次执行资源；需要跨请求的 PIT/session 只能通过
+  有有效期的 cursor lease 显式转移所有权，并在 terminal page/error/cancel 时尽力释放，在调用方停止翻页时
+  依靠短 expiry 有界回收；
+- analytics cursor 必须有版本、有效期和 plan/target binding；升级后无法安全恢复时返回明确的 cursor 错误，
+  不能从错误位置继续。
 
 ### 8.2 模块
 
 | 模块 | 职责 |
 |---|---|
-| `wow-api` | wire DTO、JSON/OpenAPI 和 DSL 合同 |
-| `wow-query` | Gateway、Plan/Normalizer/Planner、Policy、错误、experimental Backend SPI |
+| `wow-api` | 现有 wire DTO、JSON/OpenAPI 和 DSL 合同；稳定后 additive 引入 analytics wire contract |
+| `wow-query` | Gateway、Plan/Normalizer/Planner、Policy、错误、analytics model、experimental Backend SPI |
 | `wow-spring` | 现有聚合 QueryService 兼容 adapter 与 Bean name/generic 注册 |
 | `wow-spring-boot-starter` | 默认装配、Backend registry/routing 和模式配置 |
 | `wow-webflux` | HTTP、authority、request/response adapter；显式依赖 `wow-query` |
-| `wow-mongo` | Mongo compiler、binding、Backend、materializer |
-| `wow-elasticsearch` | ES compiler、mapping 校验、PIT Backend、materializer |
-| `wow-tck` | Mongo 基准 fixtures、计划 golden、双 Backend 语义对比 |
+| `wow-mongo` | Mongo compiler、binding、record/analytics Backend、materializer |
+| `wow-elasticsearch` | ES compiler、mapping 校验、PIT record/composite analytics Backend、materializer |
+| `wow-tck` | Mongo 基准 fixtures、计划 golden、record/analytics 双 Backend 语义对比 |
 
 Backend SPI 稳定前放在 experimental package 并增加兼容测试，不新建 Gradle module。
 
@@ -376,8 +546,9 @@ mapping `_meta` 保存 mapping version、document kind 和 capability digest。�
 
 ### Phase 1：纯语义模型
 
-- additive 引入 `QueryInvocation`、`NormalizedCondition`、`QueryPlan`、execution/validation mode；
-- 用 golden tests 固化递归字段、时间冻结、projection、limit、分页与 mandatory provenance；
+- additive 引入 `QueryInvocation`、`NormalizedCondition`、record/analytics `QueryPlan`、execution/validation mode；
+- 先以内部分层模型保留 `ANALYZE/ANALYTICS`、dimension/metric/having/completeness，不发布 DSL/HTTP；
+- 用 golden tests 固化递归字段、时间冻结、projection、limit、分页、analytics cursor 与 mandatory provenance；
 - 不接管生产流量。
 
 ### Phase 2：Policy 与 legacy Backend adapter
@@ -391,20 +562,23 @@ mapping `_meta` 保存 mapping version、document kind 和 capability digest。�
 
 - Mongo compiler、field binding、Backend、materializer；
 - page 单 SPI、一致性与预算；
-- 扩展共享 TCK，以 MongoDB 固化 portable 语义；
-- 按聚合启用 `SHADOW`，达到门槛后再切 `PLANNED`。
+- 实现首批 Mongo exact analytics pipeline、独立结果模型与预算；
+- 扩展共享 TCK，以 MongoDB 固化 record/analytics portable 语义；
+- record path 按 DDD Aggregate 启用 `SHADOW`，达到门槛后再切 `PLANNED`。
 
 ### Phase 4：Elasticsearch planned path
 
 - literal string、nested scope、projection/sort binding；
 - 完整结果校验与 PIT unlimited；
+- analytics 使用 composite + `after_key`，要求 `Snapshot` consistency 时使用 PIT；`terms` 不进入 exact portable path；
 - mapping capability readiness；
-- 与 MongoDB 运行同一 portable TCK 和 shadow fixtures。
+- 与 MongoDB 运行同一 record/analytics portable TCK 和 shadow fixtures。
 
 ### Phase 5：索引与 cursor
 
 - 版本化物理索引、显式回填与 alias cutover；
-- 独立 cursor API；
+- 稳定 record/analytics cursor envelope；
+- 通过 additive `AnalyticsQueryService` 和独立 HTTP/DSL contract 发布分析查询，不修改七方法 `QueryService`；
 - 主版本中移除 legacy Filter/converter/service 路径。
 
 ## 11. 当前 PR 的处理
@@ -417,6 +591,10 @@ mapping `_meta` 保存 mapping version、document kind 和 capability digest。�
 - Spring Registrar 与 Web 文档中“Bean 已切到 Gateway”的声明；
 - 为上述临时层保留的自动配置与 ABI bridge。
 
+分析型聚合在当前 PR 中也只进入设计，不新增 `AnalyticsQueryService`、DSL、wire DTO、Backend SPI 或
+MongoDB/Elasticsearch aggregation 实现。这样可以先评审 portable scope、cursor、precision、missing、
+security 和 completeness 合同，再用独立 Phase 1 PR 落地最小模型。
+
 这能避免在真正的 Plan、Policy、Backend SPI 之前固化错误公开类型。Phase 1 作为后续独立、additive 的可审查切片实现。
 
 ## 12. 验证门槛
@@ -427,5 +605,20 @@ mapping `_meta` 保存 mapping version、document kind 和 capability digest。�
 - Normalizer/Planner golden 覆盖递归 `AND/OR/NOR`、嵌套 element identity、一次 Clock、mandatory 外层 AND、深度不可变；
 - MongoDB/Elasticsearch 对同一 fixture 比较 identity、顺序、total、错误与 null/missing/array；
 - 覆盖 `limit=0` 且超过 10,000 条、相同业务排序键、多页稳定回放和并发写；
+- analytics TCK 覆盖单/复合 dimension、count/min/max/sum/avg、missing/null、数字精度/溢出、
+  `after_key` replay、PIT 失效、并发写下的 consistency、最大桶预算和 exact/approximate completeness；
+- 不支持的 array/nested、metric sort、portable having、cardinality/percentile 必须在 Planner 阶段稳定拒绝；
+- mandatory pre-filter 与最小桶条件分别在分组前/后强制执行，并有无法被 Filter/Native Backend 绕过的测试；
 - mapping capability 不满足 logical schema 时 readiness 失败；
 - 所有执行模式、alias 切换和索引回滚均有明确数据源、指标、阈值与演练证据。
+
+## 13. 后端语义依据
+
+- [MongoDB `$group`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/group/)：blocking stage 与内存/落盘边界；
+- [MongoDB `$avg`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/avg/)：numeric、missing、array 与返回类型语义；
+- [Elasticsearch composite aggregation](https://www.elastic.co/docs/reference/aggregations/search-aggregations-bucket-composite-aggregation)：
+  bucket 分页、`after_key`、source ordering 与 pipeline aggregation 限制；
+- [Elasticsearch terms aggregation](https://www.elastic.co/docs/reference/aggregations/search-aggregations-bucket-terms-aggregation)：
+  doc count/sub-aggregation 近似性和 error bound；
+- [Elasticsearch PIT](https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-open-point-in-time)：
+  跨请求 index state、一致性、keep-alive 与资源成本。
