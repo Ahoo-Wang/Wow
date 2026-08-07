@@ -122,6 +122,8 @@ internal value class Utf8Json(val value: String) {
 internal sealed interface NormalizedCondition {
     data object All : NormalizedCondition
 
+    data object None : NormalizedCondition
+
     class Junction(
         val operator: JunctionOperator,
         children: Iterable<NormalizedCondition>,

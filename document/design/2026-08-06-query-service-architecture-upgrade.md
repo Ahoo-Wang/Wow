@@ -109,7 +109,7 @@ Policy 不直接接收未经验证的 `Any` DTO。Admission 先执行低成本�
 
 - 条件深度、节点数、children 形态；
 - 字段、projection、sort 数量和字符串长度；
-- value、options、RAW payload 的大小上限；
+- value、options，以及未来已绑定 immutable JSON `RAW` payload 的大小上限；
 - 非法分页、负 limit 和明显溢出。
 
 Admission 只防止畸形输入消耗过多资源，不决定业务授权或 Backend 语义。
@@ -628,12 +628,13 @@ mapping `_meta` 保存 mapping version、document kind 和 capability digest。�
 
 ### 10.1 当前基线与完成度
 
-以下状态以提交 `9ddeba24f` 为审计基线。状态只根据当前源码和测试判断，不根据设计意图推断：
+以下状态以 stacked Phase 1 分支的当前源码和测试为审计基线。状态只根据可执行代码与验证结果判断，
+不根据设计意图推断：
 
 | Phase | 当前证据 | 状态 |
 |---|---|---|
 | 0 | `QueryHandler` 已形成单一 defer/fail-closed 边界；EventStream factory 已使用 materialized key 与并发缓存；对应同步、异步、partial Flux、cancel、direct handle 和多订阅测试已存在 | 已实现，待 PR #2908 合并 |
-| 1 | P1-A 已在 stacked 分支引入 internal `QueryInvocation`、`NormalizedCondition`、`QueryPlan` 与最小 analytics model；尚无 Normalizer、Planner 或运行时接线 | P1-A 已实现，P1-B/P1-C 未开始 |
+| 1 | P1-A 已引入 internal `QueryInvocation`、语义代数、`QueryPlan` 与最小 analytics model；P1-B 已引入单遍 admission snapshot、全局 value/payload budget、typed rejection 与 43 operator Normalizer；尚无 Planner、Backend compiler 或运行时接线 | P1-A/P1-B 已实现，P1-C 未开始 |
 | 2 | Spring Registrar 仍从 storage `QueryServiceFactory` 直接创建 Bean；WebFlux 仍直接调用 legacy `QueryHandler` | 未开始 |
 | 3 | MongoDB 查询仍由 `AbstractMongoQueryService` 直接执行 `find/countDocuments`，没有 planned compiler、Backend、单操作 page 或 aggregation pipeline | 未开始 |
 | 4 | Elasticsearch 查询仍使用 `from/size` 和 hits/count，没有 field binding、readiness、完整性 validator、PIT 或 composite aggregation | 未开始 |
@@ -715,6 +716,27 @@ Phase 0 提交，不涉及配置、索引或数据。
 - 每次 normalization 只读取一次 `Clock.instant()`；时间范围使用半开区间；
 - 从 PR #2903 搬运有效 operator fixtures/validator cases，但不复用其 Backend-specific converter 修改；
 - 返回稳定 category/path/code 的 typed rejection，测试不绑定异常文案。
+
+P1-B 当前实现约束：
+
+- `QueryAdmissionLimits` 同时限制局部容器和整次 admission 的 condition/value node、UTF-8 payload、数字精度；
+  默认值仍是 internal safety baseline，P2-A 接入运行时时再通过配置与真实流量证据校准；
+- legacy `RAW` 不携带 Backend id，admission 不读取、不预算并丢弃原 driver object，只产出 `NativeUnbound` marker，
+  Normalizer 稳定返回 `UNSUPPORTED_FEATURE/NATIVE_BACKEND_UNBOUND`；未来已绑定 immutable JSON Native contract
+  才进入 payload budget，留 P1-C/P5-A；
+- mixed include/exclude 在 Normalizer 保留为 `NormalizedProjection.Mixed`，不在缺失 validation mode 时提前决定
+  compatible/strict policy；P1-C Planner 根据 result shape、validation mode 和 compatibility issue 决策；
+- `RawAdmissionGuard`、`RawValueSnapshotter`、`AdmissionBudget` 与 `QueryNormalizer` 均保持 internal，生产调用链、
+  Spring Bean、现有 wire DTO 和 OpenAPI 不接线。
+
+P1-B 验证证据：
+
+- admission tests 覆盖动态 getter 单读、one-shot iterable、List/Map/ByteArray 防御复制、condition/value cycle、
+  hostile duplicate-key Map、局部与累计预算、稳定 key path、分页 Long offset 和 typed rejection；
+- Normalizer golden tests 覆盖全部 43 个 wire operator、Mongo 空集合常量、数字 canonicalization、system field、
+  多层 `ELEM_MATCH` 相对 scope、literal pattern、projection/sort、一次 Clock、DST-safe 半开时间范围和 RAW 拒绝；
+- `./gradlew :wow-query:check` 与 OpenAPI snapshot test 是该切片的退出验证；P1-C 完成前不宣称 Phase 1 exit gate
+  整体满足。
 
 #### P1-C：Logical Schema 与 Planner
 
