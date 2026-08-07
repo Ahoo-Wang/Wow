@@ -13,9 +13,13 @@
 
 package me.ahoo.wow.query.internal.analytics
 
+import me.ahoo.wow.query.internal.model.QueryTarget
 import me.ahoo.wow.query.internal.normalization.LogicalField
 import me.ahoo.wow.query.internal.normalization.NormalizedCondition
+import me.ahoo.wow.query.internal.normalization.NormalizedValue
+import me.ahoo.wow.query.internal.plan.PlanFingerprint
 import me.ahoo.wow.query.internal.value.NonEmptyList
+import java.math.RoundingMode
 
 @JvmInline
 internal value class AnalyticsAlias(val value: String) {
@@ -26,9 +30,15 @@ internal value class AnalyticsAlias(val value: String) {
     }
 }
 
+internal enum class AnalyticsMissingPolicy {
+    EXCLUDE,
+    AS_NULL_BUCKET,
+}
+
 internal data class AnalyticsDimension(
     val alias: AnalyticsAlias,
     val field: LogicalField,
+    val missingPolicy: AnalyticsMissingPolicy = AnalyticsMissingPolicy.EXCLUDE,
 )
 
 internal sealed interface AnalyticsGrouping {
@@ -65,12 +75,112 @@ internal sealed interface AnalyticsMetric {
     ) : AnalyticsMetric
 }
 
+internal sealed interface AnalyticsCondition {
+    data object All : AnalyticsCondition
+
+    /** Reserved logical alias reference. The first portable planner rejects it deterministically. */
+    data class Predicate(val alias: AnalyticsAlias) : AnalyticsCondition
+}
+
+internal sealed interface AnalyticsBucketOrder {
+    data object Default : AnalyticsBucketOrder
+
+    data object DimensionKeyAscending : AnalyticsBucketOrder
+
+    data class MetricDescending(val alias: AnalyticsAlias) : AnalyticsBucketOrder
+}
+
+internal sealed interface AnalyticsBucketWindow {
+    val limit: Int
+
+    data class First(override val limit: Int) : AnalyticsBucketWindow {
+        init {
+            require(limit > 0) {
+                "Analytics bucket limit must be positive."
+            }
+        }
+    }
+
+    data class After(
+        override val limit: Int,
+        val cursor: DecodedAnalyticsCursor,
+    ) : AnalyticsBucketWindow {
+        init {
+            require(limit > 0) {
+                "Analytics bucket limit must be positive."
+            }
+        }
+    }
+}
+
+internal enum class AnalyticsConsistency {
+    EVENTUAL,
+    SNAPSHOT,
+}
+
+internal enum class AnalyticsCompleteness {
+    EXACT,
+    APPROXIMATE,
+}
+
+internal enum class AnalyticsOverflowPolicy {
+    REJECT,
+}
+
+internal enum class AnalyticsNumericPromotion {
+    DECIMAL128,
+}
+
+internal enum class AnalyticsNullPlacement {
+    FIRST,
+}
+
+internal enum class AnalyticsTextCollation {
+    BINARY,
+}
+
+internal data class AnalyticsNumericPolicy(
+    val promotion: AnalyticsNumericPromotion,
+    val precision: Int,
+    val scale: Int,
+    val roundingMode: RoundingMode,
+    val overflowPolicy: AnalyticsOverflowPolicy,
+) {
+    init {
+        require(precision > 0) {
+            "Analytics numeric precision must be positive."
+        }
+        require(scale in 0..precision) {
+            "Analytics numeric scale must be between zero and precision."
+        }
+    }
+}
+
+/**
+ * Decoded semantic cursor state. Token encoding, signing and expiry are deliberately outside Phase 1.
+ */
+internal data class DecodedAnalyticsCursor(
+    val target: QueryTarget,
+    val planFingerprint: PlanFingerprint,
+    val dimensionAliases: NonEmptyList<AnalyticsAlias>,
+    val afterKey: NonEmptyList<NormalizedValue>,
+)
+
 /**
  * Backend-independent analytics input after its future wire adapter has normalized field and value semantics.
- * It remains internal until the public analytics contract is introduced in a later phase.
  */
 internal data class AnalyticsQuery(
     val userCondition: NormalizedCondition,
     val grouping: AnalyticsGrouping,
     val metrics: NonEmptyList<AnalyticsMetric>,
-)
+    val having: AnalyticsCondition = AnalyticsCondition.All,
+    val bucketOrder: AnalyticsBucketOrder = AnalyticsBucketOrder.Default,
+    val bucketWindow: AnalyticsBucketWindow = AnalyticsBucketWindow.First(DEFAULT_BUCKET_LIMIT),
+    val numericPolicy: AnalyticsNumericPolicy? = null,
+    val requiredConsistency: AnalyticsConsistency = AnalyticsConsistency.EVENTUAL,
+    val requiredCompleteness: AnalyticsCompleteness = AnalyticsCompleteness.EXACT,
+) {
+    private companion object {
+        const val DEFAULT_BUCKET_LIMIT = 100
+    }
+}

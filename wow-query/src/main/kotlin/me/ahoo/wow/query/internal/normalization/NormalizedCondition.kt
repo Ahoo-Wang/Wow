@@ -93,12 +93,18 @@ internal data class NormalizedPredicateOptions(
 )
 
 @JvmInline
-internal value class SearchScope(val value: String) {
+internal value class SearchScopeId(val value: String) {
     init {
         require(value.isNotBlank()) {
-            "Search scope must not be blank."
+            "Search scope id must not be blank."
         }
     }
+}
+
+internal sealed interface SearchScope {
+    data class Named(val id: SearchScopeId) : SearchScope
+
+    data class LegacyField(val field: LogicalField.Path) : SearchScope
 }
 
 @JvmInline
