@@ -81,6 +81,7 @@ object AggregateMetadataParser : CacheableMetadataParser() {
             } catch (e: NoSuchElementException) {
                 throw IllegalStateException(
                     "Failed to parse CommandAggregate[$commandAggregateType] metadata: Not defined Constructor[ctor(aggregateId) or ctor(stateAggregate)].",
+                    e,
                 )
             }
 
