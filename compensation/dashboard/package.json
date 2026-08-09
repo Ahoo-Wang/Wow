@@ -55,7 +55,7 @@
     "@vitejs/plugin-react": "6.0.5",
     "@vitest/coverage-v8": "4.1.10",
     "babel-plugin-react-compiler": "1.0.0",
-    "eslint": "^10.8.0",
+    "eslint": "^10.8.1",
     "eslint-plugin-react-compiler": "19.1.0-rc.2",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
