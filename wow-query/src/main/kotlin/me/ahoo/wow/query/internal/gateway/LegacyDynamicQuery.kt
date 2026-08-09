@@ -25,6 +25,7 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.QueryService
+import me.ahoo.wow.query.backend.SchemaContractId
 import me.ahoo.wow.query.gateway.QueryLegacyDialect
 import me.ahoo.wow.query.internal.admission.QueryAdmissionLimits
 import me.ahoo.wow.query.internal.execution.BackendPage
@@ -53,7 +54,6 @@ import me.ahoo.wow.query.internal.rejection.QueryRejectionCategory
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCode
 import me.ahoo.wow.query.internal.rejection.QueryRejectionPath
 import me.ahoo.wow.query.internal.rejection.rejectQuery
-import me.ahoo.wow.query.internal.schema.SchemaContractId
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -276,8 +276,8 @@ private fun PlanningDecision.plannedRecordSort(identityField: String): List<Sort
 private fun PlannedSort.toLegacy(identityField: String): Sort =
     Sort(
         field = when (val plannedField = field) {
-            is me.ahoo.wow.query.internal.schema.QueryFieldId.Path -> plannedField.segments.joinToString(".")
-            is me.ahoo.wow.query.internal.schema.QueryFieldId.System ->
+            is me.ahoo.wow.query.backend.QueryFieldId.Path -> plannedField.segments.joinToString(".")
+            is me.ahoo.wow.query.backend.QueryFieldId.System ->
                 if (plannedField.kind == me.ahoo.wow.query.internal.normalization.SystemFieldKind.IDENTITY) {
                     identityField
                 } else {

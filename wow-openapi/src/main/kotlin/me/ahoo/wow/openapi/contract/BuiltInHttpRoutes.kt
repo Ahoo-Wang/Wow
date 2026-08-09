@@ -53,6 +53,7 @@ object BuiltInHttpRouteHandlerKeys {
     }
 
     object Snapshot {
+        const val ANALYZE = "$AGGREGATE_SNAPSHOT.analyze"
         const val COUNT = "$AGGREGATE_SNAPSHOT.count"
         const val LIST_QUERY = "$AGGREGATE_SNAPSHOT.list-query"
         const val LIST_QUERY_STATE = "$AGGREGATE_SNAPSHOT.list-query-state"

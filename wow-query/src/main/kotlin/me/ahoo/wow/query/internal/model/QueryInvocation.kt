@@ -11,70 +11,26 @@
  * limitations under the License.
  */
 
+@file:OptIn(
+    me.ahoo.wow.query.backend.ExperimentalQueryBackendApi::class,
+    me.ahoo.wow.query.gateway.ExperimentalQueryGatewayApi::class,
+)
+
 package me.ahoo.wow.query.internal.model
 
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.query.internal.analytics.AnalyticsQuery
 
-internal enum class QueryDocumentKind {
-    SNAPSHOT,
-    EVENT_STREAM,
-}
-
-internal class QueryTarget(
-    namedAggregate: NamedAggregate,
-    val documentKind: QueryDocumentKind,
-) {
-    val namedAggregate: MaterializedNamedAggregate = namedAggregate.materialize()
-
-    override fun equals(other: Any?): Boolean =
-        this === other ||
-            other is QueryTarget &&
-            namedAggregate == other.namedAggregate &&
-            documentKind == other.documentKind
-
-    override fun hashCode(): Int = 31 * namedAggregate.hashCode() + documentKind.hashCode()
-
-    override fun toString(): String =
-        "QueryTarget(namedAggregate=$namedAggregate, documentKind=$documentKind)"
-}
-
-internal enum class QueryOperation {
-    SINGLE,
-    STREAM,
-    PAGE,
-    COUNT,
-    ANALYZE,
-}
-
-internal enum class QueryResultShape {
-    TYPED,
-    DYNAMIC,
-    COUNT,
-    ANALYTICS,
-}
-
-internal enum class RecordResultShape {
-    TYPED,
-    DYNAMIC,
-}
-
-internal enum class QueryExecutionMode {
-    LEGACY,
-    SHADOW,
-    PLANNED,
-}
-
-internal enum class QueryValidationMode {
-    COMPATIBLE,
-    STRICT,
-}
+internal typealias QueryDocumentKind = me.ahoo.wow.query.gateway.QueryDocumentKind
+internal typealias QueryTarget = me.ahoo.wow.query.gateway.QueryTarget
+internal typealias QueryOperation = me.ahoo.wow.query.gateway.QueryOperation
+internal typealias QueryResultShape = me.ahoo.wow.query.backend.QueryResultShape
+internal typealias RecordResultShape = me.ahoo.wow.query.backend.RecordResultShape
+internal typealias QueryExecutionMode = me.ahoo.wow.query.gateway.QueryExecutionMode
+internal typealias QueryValidationMode = me.ahoo.wow.query.gateway.QueryValidationMode
 
 /**
  * Invocation input at the application boundary.
@@ -82,7 +38,7 @@ internal enum class QueryValidationMode {
  * Record variants deliberately retain the existing wire DTO so the compatibility adapter can admit and normalize it.
  * They are ephemeral references rather than value objects and must never be cached or used as map keys. The gateway
  * creates them per subscription and P1-B synchronously materializes an immutable admitted snapshot before normalization.
- * Analytics has no legacy wire DTO, so its internal input is already backend-independent and immutable.
+ * AnalyticsWire retains its public wire DTO only until the same per-subscription admission boundary.
  */
 internal sealed interface QueryInput {
     class Single(val query: ISingleQuery) : QueryInput
@@ -94,6 +50,8 @@ internal sealed interface QueryInput {
     class Count(val condition: Condition) : QueryInput
 
     data class Analytics(val query: AnalyticsQuery) : QueryInput
+
+    class AnalyticsWire(val query: me.ahoo.wow.api.query.analytics.AnalyticsQuery) : QueryInput
 }
 
 /**
@@ -123,7 +81,7 @@ internal class QueryInvocation(
             QueryOperation.STREAM -> input is QueryInput.Stream
             QueryOperation.PAGE -> input is QueryInput.Page
             QueryOperation.COUNT -> input is QueryInput.Count
-            QueryOperation.ANALYZE -> input is QueryInput.Analytics
+            QueryOperation.ANALYZE -> input is QueryInput.Analytics || input is QueryInput.AnalyticsWire
         }
 
     private fun QueryOperation.accepts(resultShape: QueryResultShape): Boolean =

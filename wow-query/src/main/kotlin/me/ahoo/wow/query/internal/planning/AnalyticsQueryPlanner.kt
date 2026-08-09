@@ -13,12 +13,18 @@
 
 package me.ahoo.wow.query.internal.planning
 
+import me.ahoo.wow.query.backend.FieldCapability
+import me.ahoo.wow.query.backend.LogicalFieldType
+import me.ahoo.wow.query.backend.NormalizedValue
+import me.ahoo.wow.query.backend.Nullability
+import me.ahoo.wow.query.backend.Presence
+import me.ahoo.wow.query.backend.QueryDocumentSchema
+import me.ahoo.wow.query.backend.QueryFieldId
 import me.ahoo.wow.query.internal.analytics.AnalyticsAlias
 import me.ahoo.wow.query.internal.analytics.AnalyticsBucketOrder
 import me.ahoo.wow.query.internal.analytics.AnalyticsBucketWindow
 import me.ahoo.wow.query.internal.analytics.AnalyticsCompleteness
 import me.ahoo.wow.query.internal.analytics.AnalyticsCondition
-import me.ahoo.wow.query.internal.analytics.AnalyticsConsistency
 import me.ahoo.wow.query.internal.analytics.AnalyticsGrouping
 import me.ahoo.wow.query.internal.analytics.AnalyticsMetric
 import me.ahoo.wow.query.internal.analytics.AnalyticsMissingPolicy
@@ -31,7 +37,6 @@ import me.ahoo.wow.query.internal.analytics.DecodedAnalyticsCursor
 import me.ahoo.wow.query.internal.model.QueryDocumentKind
 import me.ahoo.wow.query.internal.normalization.LogicalField
 import me.ahoo.wow.query.internal.normalization.NormalizedQueryInvocation
-import me.ahoo.wow.query.internal.normalization.NormalizedValue
 import me.ahoo.wow.query.internal.plan.AnalyticsPageWindow
 import me.ahoo.wow.query.internal.plan.AnalyticsQueryPlan
 import me.ahoo.wow.query.internal.plan.EnforcedFilter
@@ -47,12 +52,6 @@ import me.ahoo.wow.query.internal.rejection.QueryRejectionCategory
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCode
 import me.ahoo.wow.query.internal.rejection.QueryRejectionPath
 import me.ahoo.wow.query.internal.rejection.rejectQuery
-import me.ahoo.wow.query.internal.schema.FieldCapability
-import me.ahoo.wow.query.internal.schema.LogicalFieldType
-import me.ahoo.wow.query.internal.schema.Nullability
-import me.ahoo.wow.query.internal.schema.Presence
-import me.ahoo.wow.query.internal.schema.QueryDocumentSchema
-import me.ahoo.wow.query.internal.schema.QueryFieldId
 import me.ahoo.wow.query.internal.value.NonEmptyList
 
 internal class AnalyticsQueryPlanner(
@@ -132,13 +131,16 @@ internal class AnalyticsQueryPlanner(
         if (!query.hasPortableOrder()) {
             rejectUnsupported("bucketOrder", QueryRejectionCode.ANALYTICS_ORDER_UNSUPPORTED)
         }
-        if (query.requiredConsistency != AnalyticsConsistency.EVENTUAL) {
-            rejectUnsupported("requiredConsistency", QueryRejectionCode.ANALYTICS_CONSISTENCY_UNSUPPORTED)
-        }
         if (query.requiredCompleteness != AnalyticsCompleteness.EXACT) {
             rejectUnsupported("requiredCompleteness", QueryRejectionCode.ANALYTICS_COMPLETENESS_UNSUPPORTED)
         }
         if (query.grouping == AnalyticsGrouping.Global && query.bucketWindow is AnalyticsBucketWindow.After) {
+            rejectInvalidCursor(queryPath.property("bucketWindow").property("cursor"))
+        }
+        if (query.grouping == AnalyticsGrouping.Global && query.cursorToken != null) {
+            rejectInvalidCursor(queryPath.property("bucketWindow").property("cursor"))
+        }
+        if (query.cursorToken != null && query.bucketWindow is AnalyticsBucketWindow.After) {
             rejectInvalidCursor(queryPath.property("bucketWindow").property("cursor"))
         }
     }

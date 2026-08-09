@@ -13,14 +13,27 @@
 
 package me.ahoo.wow.openapi
 
+import io.swagger.v3.oas.models.media.ArraySchema
+import io.swagger.v3.oas.models.media.ComposedSchema
+import io.swagger.v3.oas.models.media.IntegerSchema
+import io.swagger.v3.oas.models.media.ObjectSchema
+import io.swagger.v3.oas.models.media.StringSchema
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.analytics.AnalyticsCompleteness
+import me.ahoo.wow.api.query.analytics.AnalyticsConsistency
+import me.ahoo.wow.api.query.analytics.AnalyticsCursor
+import me.ahoo.wow.api.query.analytics.AnalyticsDimension
+import me.ahoo.wow.api.query.analytics.AnalyticsNumericPolicy
+import me.ahoo.wow.api.query.analytics.AnalyticsPage
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.CommonComponent.Response.withErrorCodeHeader
+import me.ahoo.wow.openapi.QueryComponent.Schema.analyticsPageSchema
+import me.ahoo.wow.openapi.QueryComponent.Schema.analyticsQuerySchema
 import me.ahoo.wow.openapi.QueryComponent.Schema.conditionSchema
 import me.ahoo.wow.openapi.QueryComponent.Schema.listQuerySchema
 import me.ahoo.wow.openapi.QueryComponent.Schema.pagedQuerySchema
@@ -32,6 +45,8 @@ import me.ahoo.wow.schema.typed.query.AggregatedPagedQuery
 import me.ahoo.wow.schema.typed.query.AggregatedSingleQuery
 
 object QueryComponent {
+    const val ANALYTICS_QUERY_SUFFIX = ".AnalyticsQuery"
+    const val ANALYTICS_PAGE_SUFFIX = ".AnalyticsPage"
     const val SINGLE_QUERY_SUFFIX = ".SingleQuery"
     const val COUNT_QUERY_SUFFIX = ".CountQuery"
     const val LIST_QUERY_SUFFIX = ".ListQuery"
@@ -39,6 +54,8 @@ object QueryComponent {
     const val COUNT_QUERY_KEY = Wow.WOW + COUNT_QUERY_SUFFIX
     const val LIST_QUERY_KEY = Wow.WOW + LIST_QUERY_SUFFIX
     const val PAGED_QUERY_KEY = Wow.WOW + PAGED_QUERY_SUFFIX
+    const val ANALYTICS_QUERY_KEY = Wow.WOW + ANALYTICS_QUERY_SUFFIX
+    const val ANALYTICS_PAGE_KEY = Wow.WOW + ANALYTICS_PAGE_SUFFIX
 
     object Schema {
 
@@ -52,6 +69,87 @@ object QueryComponent {
 
         fun OpenAPIComponentContext.pagedQuerySchema(): io.swagger.v3.oas.models.media.Schema<*> {
             return schema(PagedQuery::class.java)
+        }
+
+        fun OpenAPIComponentContext.analyticsQuerySchema(): io.swagger.v3.oas.models.media.Schema<*> {
+            return ComposedSchema().oneOf(
+                listOf(
+                    analyticsQueryVariant(global = true),
+                    analyticsQueryVariant(global = false),
+                ),
+            )
+        }
+
+        private fun OpenAPIComponentContext.analyticsQueryVariant(global: Boolean): ObjectSchema =
+            ObjectSchema().apply {
+                additionalProperties = false
+                addProperties("condition", schema(Condition::class.java))
+                addProperties("grouping", analyticsGroupingSchema(global))
+                addProperties("metrics", ArraySchema().items(analyticsMetricSchema()).minItems(1))
+                addProperties("window", analyticsBucketWindowSchema(global))
+                addProperties("numericPolicy", schema(AnalyticsNumericPolicy::class.java))
+                addProperties("consistency", schema(AnalyticsConsistency::class.java))
+                addProperties("completeness", schema(AnalyticsCompleteness::class.java))
+                required = listOf("grouping", "metrics", "window")
+            }
+
+        private fun OpenAPIComponentContext.analyticsGroupingSchema(global: Boolean): ObjectSchema =
+            ObjectSchema().apply {
+                additionalProperties = false
+                addProperties(
+                    "kind",
+                    StringSchema()._const(if (global) "GLOBAL" else "BY"),
+                )
+                addProperties(
+                    "dimensions",
+                    ArraySchema().items(schema(AnalyticsDimension::class.java)).also { dimensions ->
+                        if (global) dimensions.maxItems(0) else dimensions.minItems(1)
+                    },
+                )
+                required = if (global) listOf("kind") else listOf("kind", "dimensions")
+            }
+
+        private fun OpenAPIComponentContext.analyticsMetricSchema(): ComposedSchema = ComposedSchema().apply {
+            oneOf = listOf(
+                ObjectSchema().apply {
+                    additionalProperties = false
+                    addProperties("alias", boundedString(128))
+                    addProperties("kind", StringSchema()._const("DOCUMENT_COUNT"))
+                    required = listOf("alias", "kind")
+                },
+                ObjectSchema().apply {
+                    additionalProperties = false
+                    addProperties("alias", boundedString(128))
+                    addProperties(
+                        "kind",
+                        StringSchema()._enum(listOf("MIN", "MAX", "SUM", "AVERAGE")),
+                    )
+                    addProperties("field", boundedString(512))
+                    required = listOf("alias", "kind", "field")
+                },
+            )
+        }
+
+        private fun OpenAPIComponentContext.analyticsBucketWindowSchema(global: Boolean): ObjectSchema =
+            ObjectSchema().apply {
+                additionalProperties = false
+                addProperties(
+                    "limit",
+                    IntegerSchema().minimum(java.math.BigDecimal.ONE).also { limit ->
+                        if (global) limit.maximum(java.math.BigDecimal.ONE)
+                    },
+                )
+                if (!global) addProperties("cursor", schema(AnalyticsCursor::class.java))
+                required = listOf("limit")
+            }
+
+        private fun boundedString(maxLength: Int): StringSchema = StringSchema().apply {
+            minLength = 1
+            this.maxLength = maxLength
+        }
+
+        fun OpenAPIComponentContext.analyticsPageSchema(): io.swagger.v3.oas.models.media.Schema<*> {
+            return schema(AnalyticsPage::class.java)
         }
     }
 
@@ -102,6 +200,12 @@ object QueryComponent {
                 content(schema = schema(AggregatedPagedQuery::class.java, aggregateMetadata.command.aggregateType))
             }
         }
+
+        fun OpenAPIComponentContext.analyticsQueryRequestBody(): io.swagger.v3.oas.models.parameters.RequestBody {
+            return requestBody(ANALYTICS_QUERY_KEY) {
+                content(schema = analyticsQuerySchema())
+            }
+        }
     }
 
     object Response {
@@ -121,6 +225,13 @@ object QueryComponent {
                         resolveType(AggregatedDomainEventStream::class.java, aggregateMetadata.command.aggregateType)
                     )
                 ).build()
+        }
+
+        fun OpenAPIComponentContext.analyticsPageResponse(): io.swagger.v3.oas.models.responses.ApiResponse {
+            return response(ANALYTICS_PAGE_KEY) {
+                withErrorCodeHeader(this@analyticsPageResponse)
+                content(Https.MediaType.APPLICATION_JSON, schema = analyticsPageSchema())
+            }
         }
 
         fun OpenAPIComponentContext.loadEventStreamResponse(aggregateMetadata: AggregateMetadata<*, *>): io.swagger.v3.oas.models.responses.ApiResponse {

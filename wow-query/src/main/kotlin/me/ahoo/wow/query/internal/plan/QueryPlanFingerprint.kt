@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.query.internal.plan
 
-import me.ahoo.wow.query.internal.normalization.NormalizedValue
-import me.ahoo.wow.query.internal.schema.QueryFieldId
+import me.ahoo.wow.query.backend.NormalizedValue
+import me.ahoo.wow.query.backend.QueryFieldId
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 import java.security.MessageDigest

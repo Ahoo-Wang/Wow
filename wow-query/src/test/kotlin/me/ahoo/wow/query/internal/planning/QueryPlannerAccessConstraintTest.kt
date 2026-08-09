@@ -15,6 +15,7 @@ package me.ahoo.wow.query.internal.planning
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.query.backend.NormalizedValue
 import me.ahoo.wow.query.internal.analytics.AnalyticsAlias
 import me.ahoo.wow.query.internal.analytics.AnalyticsDimension
 import me.ahoo.wow.query.internal.analytics.AnalyticsGrouping
@@ -32,7 +33,6 @@ import me.ahoo.wow.query.internal.normalization.NormalizedCondition
 import me.ahoo.wow.query.internal.normalization.NormalizedProjection
 import me.ahoo.wow.query.internal.normalization.NormalizedQueryInput
 import me.ahoo.wow.query.internal.normalization.NormalizedQueryInvocation
-import me.ahoo.wow.query.internal.normalization.NormalizedValue
 import me.ahoo.wow.query.internal.normalization.PredicateOperator
 import me.ahoo.wow.query.internal.normalization.SearchScope
 import me.ahoo.wow.query.internal.normalization.SystemFieldKind

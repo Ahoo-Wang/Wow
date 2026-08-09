@@ -16,6 +16,8 @@
 package me.ahoo.wow.webflux.route.query
 
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
+import me.ahoo.wow.query.analytics.AnalyticsQueryTrustedContextRequest
+import me.ahoo.wow.query.analytics.AnalyticsQueryTrustedContextResolver
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.filter.QueryHandler
 import me.ahoo.wow.query.filter.QueryType
@@ -61,7 +63,8 @@ data class QueryWebAuthorityRequest(
 @ExperimentalQueryGatewayApi
 class QueryWebTransportResolvers(
     private val webAuthorityResolver: QueryWebAuthorityResolver,
-) : me.ahoo.wow.query.gateway.QueryTrustedContextResolver {
+) : me.ahoo.wow.query.gateway.QueryTrustedContextResolver,
+    AnalyticsQueryTrustedContextResolver {
     override fun resolve(request: QueryTrustedContextRequest): Mono<QueryTrustedContext> =
         Mono.deferContextual { context ->
             val marker = context.queryTransportMarker() ?: return@deferContextual Mono.empty()
@@ -73,6 +76,31 @@ class QueryWebTransportResolvers(
                 .switchIfEmpty(Mono.error(authorityRequired()))
                 .map { authority -> QueryTrustedContext(marker.call, authority) }
         }
+
+    override fun resolve(request: AnalyticsQueryTrustedContextRequest): Mono<QueryTrustedContext> =
+        Mono.deferContextual { context ->
+            val marker = context.analyticsQueryTransportMarker() ?: return@deferContextual Mono.empty()
+            if (marker.call.target != request.target) {
+                return@deferContextual Mono.error(transportMismatch("QUERY_TRANSPORT_CALL_MISMATCH"))
+            }
+            Mono.defer { webAuthorityResolver.resolve(QueryWebAuthorityRequest(marker.call, marker.request)) }
+                .onErrorMap(::authorityResolutionFailed)
+                .switchIfEmpty(Mono.error(authorityRequired()))
+                .map { authority -> QueryTrustedContext(marker.call, authority) }
+        }
+}
+
+internal fun <T : Any> Mono<T>.writeAnalyticsQueryWebTransport(
+    request: ServerRequest,
+    aggregateMetadata: AggregateMetadata<*, *>,
+): Mono<T> = contextWrite { context ->
+    context.put(
+        ANALYTICS_QUERY_TRANSPORT_MARKER_KEY,
+        AnalyticsQueryTransportMarker(
+            call = request.toQueryCall(aggregateMetadata, QueryDocumentKind.SNAPSHOT),
+            request = request,
+        ),
+    )
 }
 
 internal fun <T : Any> Mono<T>.writeQueryWebTransport(
@@ -119,27 +147,41 @@ private data class QueryTransportMarker(
     val request: ServerRequest,
 )
 
+private data class AnalyticsQueryTransportMarker(
+    val call: QueryCall,
+    val request: ServerRequest,
+)
+
 private fun ServerRequest.toMarker(
     aggregateMetadata: AggregateMetadata<*, *>,
     documentKind: QueryDocumentKind,
     queryType: QueryType,
     effectiveTenantId: String?,
 ): QueryTransportMarker = QueryTransportMarker(
-    call = QueryCall(
-        target = QueryTarget(aggregateMetadata, documentKind),
-        purpose = WEB_QUERY_PURPOSE,
-        resourceScope = QueryResourceScope(
-            tenantId = effectiveTenantId ?: getTenantId(aggregateMetadata),
-            ownerId = getOwnerId(),
-            spaceId = getSpaceId(),
-        ),
-    ),
+    call = toQueryCall(aggregateMetadata, documentKind, effectiveTenantId),
     queryType = queryType,
     request = this,
 )
 
+private fun ServerRequest.toQueryCall(
+    aggregateMetadata: AggregateMetadata<*, *>,
+    documentKind: QueryDocumentKind,
+    effectiveTenantId: String? = null,
+): QueryCall = QueryCall(
+    target = QueryTarget(aggregateMetadata, documentKind),
+    purpose = WEB_QUERY_PURPOSE,
+    resourceScope = QueryResourceScope(
+        tenantId = effectiveTenantId ?: getTenantId(aggregateMetadata),
+        ownerId = getOwnerId(),
+        spaceId = getSpaceId(),
+    ),
+)
+
 private fun ContextView.queryTransportMarker(): QueryTransportMarker? =
     getOrDefault(QUERY_TRANSPORT_MARKER_KEY, null)
+
+private fun ContextView.analyticsQueryTransportMarker(): AnalyticsQueryTransportMarker? =
+    getOrDefault(ANALYTICS_QUERY_TRANSPORT_MARKER_KEY, null)
 
 private fun transportMismatch(code: String): QueryExecutionException = QueryExecutionException(
     category = QueryErrorCategory.ACCESS_DENIED,
@@ -162,3 +204,4 @@ private fun authorityResolutionFailed(cause: Throwable): QueryExecutionException
 
 private val WEB_QUERY_PURPOSE = QueryPurpose("interactive-query")
 private const val QUERY_TRANSPORT_MARKER_KEY = "me.ahoo.wow.query.web.transport"
+private const val ANALYTICS_QUERY_TRANSPORT_MARKER_KEY = "me.ahoo.wow.query.web.analytics.transport"

@@ -15,6 +15,7 @@ package me.ahoo.wow.query.internal.normalization
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.query.backend.NormalizedValue
 import org.junit.jupiter.api.Test
 
 class NormalizedConditionTest {

@@ -40,6 +40,7 @@ import me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.query.AnalyticsQueryServiceRegistrar
 import me.ahoo.wow.spring.query.EventStreamQueryServiceRegistrar
 import me.ahoo.wow.spring.query.SnapshotQueryServiceRegistrar
 import me.ahoo.wow.spring.query.getOrNoOp
@@ -56,7 +57,11 @@ import org.springframework.context.annotation.Import
  * @author ahoo wang
  */
 @AutoConfiguration
-@Import(SnapshotQueryServiceRegistrar::class, EventStreamQueryServiceRegistrar::class)
+@Import(
+    SnapshotQueryServiceRegistrar::class,
+    EventStreamQueryServiceRegistrar::class,
+    AnalyticsQueryServiceRegistrar::class
+)
 @ConditionalOnWowEnabled
 class QueryAutoConfiguration {
 

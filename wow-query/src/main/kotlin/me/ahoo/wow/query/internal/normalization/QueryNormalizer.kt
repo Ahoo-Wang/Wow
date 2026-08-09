@@ -17,6 +17,8 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.query.backend.NormalizedValue
+import me.ahoo.wow.query.internal.admission.AdmittedAnalyticsQuery
 import me.ahoo.wow.query.internal.admission.AdmittedCondition
 import me.ahoo.wow.query.internal.admission.AdmittedConditionValue
 import me.ahoo.wow.query.internal.admission.AdmittedPage
@@ -24,6 +26,7 @@ import me.ahoo.wow.query.internal.admission.AdmittedProjection
 import me.ahoo.wow.query.internal.admission.AdmittedQueryInput
 import me.ahoo.wow.query.internal.admission.AdmittedQueryInvocation
 import me.ahoo.wow.query.internal.admission.AdmittedRecordQuery
+import me.ahoo.wow.query.internal.analytics.AnalyticsQuery
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCategory
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCode
 import me.ahoo.wow.query.internal.rejection.QueryRejectionPath
@@ -72,6 +75,9 @@ internal class QueryNormalizer(
                 )
 
                 is AdmittedQueryInput.Analytics -> NormalizedQueryInput.Analytics(input.query)
+                is AdmittedQueryInput.AnalyticsWire -> NormalizedQueryInput.Analytics(
+                    normalizeAnalytics(input.query, inputPath.property("query"), session),
+                )
             }
         return NormalizedQueryInvocation(
             target = invocation.target,
@@ -80,6 +86,19 @@ internal class QueryNormalizer(
             input = normalizedInput,
         )
     }
+
+    private fun normalizeAnalytics(
+        query: AdmittedAnalyticsQuery,
+        path: QueryRejectionPath,
+        session: NormalizationSession,
+    ): AnalyticsQuery = AnalyticsNormalizer.normalize(
+        query,
+        path,
+        conditionNormalizer = { condition, conditionPath ->
+            normalizeCondition(condition, conditionPath, elementScope = null, session)
+        },
+        fieldNormalizer = { field -> normalizeField(field, elementScope = null) },
+    )
 
     private fun normalizeRecordQuery(
         query: AdmittedRecordQuery,

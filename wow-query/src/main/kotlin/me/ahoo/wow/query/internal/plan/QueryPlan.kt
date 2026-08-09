@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.query.internal.plan
 
+import me.ahoo.wow.query.backend.FieldCapability
+import me.ahoo.wow.query.backend.NormalizedValue
+import me.ahoo.wow.query.backend.QueryFieldId
+import me.ahoo.wow.query.backend.SchemaContractId
 import me.ahoo.wow.query.internal.analytics.AnalyticsAlias
 import me.ahoo.wow.query.internal.analytics.AnalyticsCompleteness
 import me.ahoo.wow.query.internal.analytics.AnalyticsConsistency
@@ -27,13 +31,9 @@ import me.ahoo.wow.query.internal.normalization.BackendId
 import me.ahoo.wow.query.internal.normalization.JunctionOperator
 import me.ahoo.wow.query.internal.normalization.NormalizedPredicateOptions
 import me.ahoo.wow.query.internal.normalization.NormalizedSortDirection
-import me.ahoo.wow.query.internal.normalization.NormalizedValue
 import me.ahoo.wow.query.internal.normalization.PredicateOperator
 import me.ahoo.wow.query.internal.normalization.SearchScopeId
 import me.ahoo.wow.query.internal.normalization.Utf8Json
-import me.ahoo.wow.query.internal.schema.FieldCapability
-import me.ahoo.wow.query.internal.schema.QueryFieldId
-import me.ahoo.wow.query.internal.schema.SchemaContractId
 import me.ahoo.wow.query.internal.value.NonEmptyList
 import java.util.Collections
 import java.util.LinkedHashMap

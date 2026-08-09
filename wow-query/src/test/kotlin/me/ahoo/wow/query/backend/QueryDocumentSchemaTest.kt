@@ -11,19 +11,19 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.internal.schema
+package me.ahoo.wow.query.backend
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.query.internal.model.QueryDocumentKind
 import me.ahoo.wow.query.internal.model.QueryTarget
-import me.ahoo.wow.query.internal.normalization.NormalizedValue
 import me.ahoo.wow.query.internal.normalization.PredicateOperator
 import me.ahoo.wow.query.internal.normalization.SearchScopeId
 import me.ahoo.wow.query.internal.planning.PlanningFixtures
-import me.ahoo.wow.query.internal.value.NonEmptyList
+import me.ahoo.wow.query.internal.schema.QuerySchemaRegistry
 import org.junit.jupiter.api.Test
 
+@OptIn(ExperimentalQueryBackendApi::class)
 class QueryDocumentSchemaTest {
 
     @Test
@@ -74,7 +74,7 @@ class QueryDocumentSchemaTest {
 
         val resolved = checkNotNull(definition)
         resolved.id.assert().isEqualTo(PlanningFixtures.searchScopeId)
-        resolved.fields.values.assert().containsExactly(PlanningFixtures.description)
+        resolved.fields.assert().containsExactly(PlanningFixtures.description)
         PlanningFixtures.schema.resolveField(QueryFieldId.Path(listOf("aggregateId"))).assert()
             .isEqualTo(PlanningFixtures.identity)
     }
@@ -95,7 +95,7 @@ class QueryDocumentSchemaTest {
         val nestedScope = QuerySearchScopeDefinition(
             SearchScopeId("item-name"),
             PlanningFixtures.items,
-            NonEmptyList.of(PlanningFixtures.itemName),
+            listOf(PlanningFixtures.itemName),
             setOf(PlanningFixtures.itemName),
         )
         QueryDocumentSchema(
@@ -109,7 +109,7 @@ class QueryDocumentSchemaTest {
         val crossOwner = QuerySearchScopeDefinition(
             SearchScopeId("invalid-nested"),
             PlanningFixtures.items,
-            NonEmptyList.of(PlanningFixtures.description),
+            listOf(PlanningFixtures.description),
             setOf(PlanningFixtures.itemName),
         )
         assertThrownBy<IllegalArgumentException> {
@@ -131,7 +131,7 @@ class QueryDocumentSchemaTest {
                     QuerySearchScopeDefinition(
                         SearchScopeId("duplicate-alias"),
                         null,
-                        NonEmptyList.of(PlanningFixtures.description),
+                        listOf(PlanningFixtures.description),
                         setOf(PlanningFixtures.description),
                     ),
                 ),
@@ -145,7 +145,7 @@ class QueryDocumentSchemaTest {
             QuerySearchScopeDefinition(
                 SearchScopeId("duplicate-field"),
                 null,
-                NonEmptyList.of(PlanningFixtures.description, PlanningFixtures.description),
+                listOf(PlanningFixtures.description, PlanningFixtures.description),
                 setOf(PlanningFixtures.description),
             )
         }

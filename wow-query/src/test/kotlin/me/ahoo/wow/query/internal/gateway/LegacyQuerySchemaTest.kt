@@ -15,10 +15,10 @@ package me.ahoo.wow.query.internal.gateway
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.backend.QueryFieldId
 import me.ahoo.wow.query.internal.model.QueryDocumentKind
 import me.ahoo.wow.query.internal.model.QueryTarget
 import me.ahoo.wow.query.internal.normalization.SystemFieldKind
-import me.ahoo.wow.query.internal.schema.QueryFieldId
 import org.junit.jupiter.api.Test
 
 class LegacyQuerySchemaTest {

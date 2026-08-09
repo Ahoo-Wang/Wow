@@ -11,7 +11,10 @@
  * limitations under the License.
  */
 
-@file:OptIn(me.ahoo.wow.query.gateway.ExperimentalQueryGatewayApi::class)
+@file:OptIn(
+    me.ahoo.wow.query.backend.ExperimentalQueryBackendApi::class,
+    me.ahoo.wow.query.gateway.ExperimentalQueryGatewayApi::class,
+)
 
 package me.ahoo.wow.spring.boot.starter.query
 
@@ -30,9 +33,28 @@ import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.query.analytics.AnalyticsQueryService
+import me.ahoo.wow.query.analytics.AnalyticsQueryServiceFactory
+import me.ahoo.wow.query.backend.BackendCountQueryPlan
+import me.ahoo.wow.query.backend.BackendId
+import me.ahoo.wow.query.backend.BackendStreamSupport
+import me.ahoo.wow.query.backend.FieldCapability
+import me.ahoo.wow.query.backend.LogicalFieldType
+import me.ahoo.wow.query.backend.Nullability
+import me.ahoo.wow.query.backend.PredicateOperator
+import me.ahoo.wow.query.backend.Presence
+import me.ahoo.wow.query.backend.QueryBackendExecutionOptions
+import me.ahoo.wow.query.backend.QueryDocumentSchema
+import me.ahoo.wow.query.backend.QueryFieldId
+import me.ahoo.wow.query.backend.QueryFieldSchema
+import me.ahoo.wow.query.backend.RecordQueryBackend
+import me.ahoo.wow.query.backend.RecordQueryBackendContribution
+import me.ahoo.wow.query.backend.SemanticTier
+import me.ahoo.wow.query.backend.SystemFieldKind
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.filter.PreAdmissionQueryFilter
 import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.gateway.AnalyticsQueryGateway
 import me.ahoo.wow.query.gateway.GatewayEventStreamQueryServiceFactory
 import me.ahoo.wow.query.gateway.GatewaySnapshotQueryServiceFactory
 import me.ahoo.wow.query.gateway.QueryAuthority
@@ -42,14 +64,23 @@ import me.ahoo.wow.query.gateway.QueryCallResolver
 import me.ahoo.wow.query.gateway.QueryDocumentKind
 import me.ahoo.wow.query.gateway.QueryExecutionException
 import me.ahoo.wow.query.gateway.QueryExecutionMode
+import me.ahoo.wow.query.gateway.QueryExecutionProfile
+import me.ahoo.wow.query.gateway.QueryExecutionProfiles
 import me.ahoo.wow.query.gateway.QueryGateway
 import me.ahoo.wow.query.gateway.QueryLegacyContextResolver
 import me.ahoo.wow.query.gateway.QueryLegacyGrant
+import me.ahoo.wow.query.gateway.QueryOperation
+import me.ahoo.wow.query.gateway.QueryOperationProfileKey
 import me.ahoo.wow.query.gateway.QueryPurpose
 import me.ahoo.wow.query.gateway.QueryRawServiceSource
 import me.ahoo.wow.query.gateway.QueryResourceScope
+import me.ahoo.wow.query.gateway.QueryRuntimeHealthObserver
+import me.ahoo.wow.query.gateway.QueryShadowObservation
+import me.ahoo.wow.query.gateway.QueryShadowObserver
+import me.ahoo.wow.query.gateway.QueryShadowOutcome
 import me.ahoo.wow.query.gateway.QueryTarget
 import me.ahoo.wow.query.gateway.QueryTrustedContextResolver
+import me.ahoo.wow.query.gateway.QueryValidationMode
 import me.ahoo.wow.query.gateway.withLegacyQueryCaller
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
@@ -71,6 +102,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.ResolvableType
+import org.springframework.core.env.Environment
 import org.springframework.http.HttpStatus
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
@@ -81,6 +113,8 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import reactor.test.StepVerifier
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class QueryGatewayAutoConfigurationTest {
@@ -105,6 +139,7 @@ class QueryGatewayAutoConfigurationTest {
                     .assert().isInstanceOf(GatewaySnapshotQueryServiceFactory::class.java)
                 context.getBean(EventStreamQueryServiceFactory::class.java)
                     .assert().isInstanceOf(GatewayEventStreamQueryServiceFactory::class.java)
+                context.getBean(AnalyticsQueryGateway::class.java).assert().isNotNull()
                 context.getBean(QueryRawServiceSource::class.java)
                     .assert().isInstanceOf(StorageBindingQueryRawServiceRegistry::class.java)
                 (context.getBean(QueryRawServiceSource::class.java) is SnapshotQueryServiceFactory)
@@ -120,6 +155,9 @@ class QueryGatewayAutoConfigurationTest {
                 context.getBeanProvider<Any>(genericType).getObject().assert().isSameAs(aggregateBean)
                 context.getBean(SnapshotQueryServiceFactory::class.java).create<Any>(ORDER)
                     .assert().isSameAs(aggregateBean)
+                val analyticsBean = context.getBean(ANALYTICS_QUERY_SERVICE_BEAN, AnalyticsQueryService::class.java)
+                context.getBean(AnalyticsQueryServiceFactory::class.java).create(ORDER)
+                    .namedAggregate.assert().isEqualTo(analyticsBean.namedAggregate)
 
                 StepVerifier.create(aggregateBean.count(Condition.all()))
                     .expectNext(0)
@@ -268,9 +306,60 @@ class QueryGatewayAutoConfigurationTest {
     }
 
     @Test
+    fun `example order should rehearse storage routed shadow cut over and rollback through one facade`() {
+        listOf(
+            QueryExecutionMode.LEGACY to ExpectedRolloutCalls(raw = 1, planned = 0, prepared = 0),
+            QueryExecutionMode.SHADOW to ExpectedRolloutCalls(raw = 1, planned = 1, prepared = 1),
+            QueryExecutionMode.PLANNED to ExpectedRolloutCalls(raw = 0, planned = 1, prepared = 1),
+        ).forEach { (mode, expected) ->
+            CountingSnapshotQueryService.countCalls.set(0)
+            contextRunner
+                .withPropertyValues("$ROLLOUT_MODE_PROPERTY=${mode.name}")
+                .withUserConfiguration(
+                    CountingRawSnapshotConfiguration::class.java,
+                    WebTrustedContextConfiguration::class.java,
+                    ExampleOrderRolloutConfiguration::class.java,
+                )
+                .run { context: AssertableApplicationContext ->
+                    context.assert().hasNotFailed()
+                    val probe = context.getBean(ExampleOrderRolloutProbe::class.java)
+
+                    val exchange = writeCountRoute(context)
+
+                    exchange.response.statusCode.assert().isEqualTo(HttpStatus.OK)
+                    exchange.response.bodyAsString.block().assert().isEqualTo("7")
+                    if (mode == QueryExecutionMode.SHADOW) {
+                        probe.observed.await(5, TimeUnit.SECONDS).assert().isTrue()
+                        probe.observation!!.outcome.assert().isEqualTo(QueryShadowOutcome.MATCH)
+                        probe.observation!!.target.assert().isEqualTo(SNAPSHOT_TARGET)
+                        probe.observation!!.operation.assert().isEqualTo(QueryOperation.COUNT)
+                    } else {
+                        probe.observation.assert().isNull()
+                    }
+                    CountingSnapshotQueryService.countCalls.get().assert().isEqualTo(expected.raw)
+                    probe.plannedCalls.get().assert().isEqualTo(expected.planned)
+                    probe.prepareCalls.get().assert().isEqualTo(expected.prepared)
+                }
+        }
+    }
+
+    @Test
     fun `partial custom gateway override should fail with a stable diagnostic`() {
         contextRunner
             .withUserConfiguration(CustomGatewayConfiguration::class.java)
+            .run { context: AssertableApplicationContext ->
+                context.assert().hasFailed()
+                generateSequence(context.startupFailure, Throwable::cause)
+                    .mapNotNull(Throwable::message)
+                    .joinToString("\n")
+                    .assert().contains("Provide one complete QueryGatewayRuntime override instead")
+            }
+    }
+
+    @Test
+    fun `partial custom analytics gateway override should fail with a stable diagnostic`() {
+        contextRunner
+            .withUserConfiguration(CustomAnalyticsGatewayConfiguration::class.java)
             .run { context: AssertableApplicationContext ->
                 context.assert().hasFailed()
                 generateSequence(context.startupFailure, Throwable::cause)
@@ -372,6 +461,12 @@ class QueryGatewayAutoConfigurationTest {
     }
 
     @Configuration(proxyBeanMethods = false)
+    class CustomAnalyticsGatewayConfiguration {
+        @Bean
+        fun customAnalyticsQueryGateway(): AnalyticsQueryGateway = mockk(relaxed = true)
+    }
+
+    @Configuration(proxyBeanMethods = false)
     class CountingRawSnapshotConfiguration {
         @Bean
         fun countingSnapshotQueryServiceFactoryBinding(): SnapshotQueryServiceFactoryBinding =
@@ -390,6 +485,86 @@ class QueryGatewayAutoConfigurationTest {
     class MissingWebAuthorityConfiguration {
         @Bean
         fun webQueryTrustedContextResolver(): QueryTrustedContextResolver = QueryWebTransportResolvers { Mono.empty() }
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    class ExampleOrderRolloutConfiguration {
+        @Bean
+        fun exampleOrderRolloutProbe(): ExampleOrderRolloutProbe = ExampleOrderRolloutProbe()
+
+        @Bean
+        internal fun exampleOrderPlannedBackendSource(
+            probe: ExampleOrderRolloutProbe,
+        ): StorageQueryBackendSource = object : StorageQueryBackendSource {
+            override val storage: StorageType = StorageType.MONGO
+            override val targets: Set<QueryTarget> = setOf(SNAPSHOT_TARGET)
+
+            override fun prepare(target: QueryTarget): Mono<StorageQueryBackendPreparation> = Mono.fromSupplier {
+                target.assert().isEqualTo(SNAPSHOT_TARGET)
+                probe.prepareCalls.incrementAndGet()
+                StorageQueryBackendPreparation.Ready(exampleOrderContribution(probe))
+            }
+        }
+
+        @Bean
+        fun queryExecutionProfiles(environment: Environment): QueryExecutionProfiles {
+            val mode = environment.getRequiredProperty(ROLLOUT_MODE_PROPERTY, QueryExecutionMode::class.java)
+            return QueryExecutionProfiles(
+                operationProfiles = mapOf(
+                    QueryOperationProfileKey(SNAPSHOT_TARGET, QueryOperation.COUNT) to
+                        QueryExecutionProfile(mode, QueryValidationMode.STRICT),
+                ),
+            )
+        }
+
+        @Bean
+        fun queryShadowObserver(probe: ExampleOrderRolloutProbe): QueryShadowObserver =
+            QueryShadowObserver { observation ->
+                probe.observation = observation
+                probe.observed.countDown()
+            }
+
+        @Bean
+        fun queryRuntimeHealthObserver(): QueryRuntimeHealthObserver = QueryRuntimeHealthObserver { }
+
+        private fun exampleOrderContribution(probe: ExampleOrderRolloutProbe): RecordQueryBackendContribution =
+            RecordQueryBackendContribution(
+                schema = EXAMPLE_ORDER_SCHEMA,
+                backendId = BackendId("example-order-mongo"),
+                supportedOperations = setOf(QueryOperation.COUNT),
+                streamSupport = BackendStreamSupport.NONE,
+                semanticTiers = setOf(SemanticTier.PORTABLE),
+                fieldCapabilities = EXAMPLE_ORDER_SCHEMA.fields.mapValues { (_, field) -> field.capabilities },
+                backend = object : RecordQueryBackend {
+                    override fun single(
+                        plan: me.ahoo.wow.query.backend.BackendSingleQueryPlan,
+                        options: QueryBackendExecutionOptions,
+                    ) = Mono.empty<me.ahoo.wow.query.backend.BackendRecord>()
+
+                    override fun stream(
+                        plan: me.ahoo.wow.query.backend.BackendStreamQueryPlan,
+                        options: QueryBackendExecutionOptions,
+                    ) = Flux.empty<me.ahoo.wow.query.backend.BackendRecord>()
+
+                    override fun count(
+                        plan: BackendCountQueryPlan,
+                        options: QueryBackendExecutionOptions,
+                    ): Mono<Long> = Mono.fromSupplier {
+                        plan.target.assert().isEqualTo(SNAPSHOT_TARGET)
+                        probe.plannedCalls.incrementAndGet()
+                        7L
+                    }
+                },
+            )
+    }
+
+    class ExampleOrderRolloutProbe {
+        val plannedCalls = AtomicInteger()
+        val prepareCalls = AtomicInteger()
+        val observed = CountDownLatch(1)
+
+        @Volatile
+        var observation: QueryShadowObservation? = null
     }
 
     @Configuration(proxyBeanMethods = false)
@@ -482,8 +657,33 @@ class QueryGatewayAutoConfigurationTest {
 
     private companion object {
         val ORDER = MaterializedNamedAggregate("example-service", "order")
+        val SNAPSHOT_TARGET = QueryTarget(ORDER, QueryDocumentKind.SNAPSHOT)
+        val EXAMPLE_ORDER_SCHEMA = QueryDocumentSchema(
+            SNAPSHOT_TARGET,
+            listOf(
+                QueryFieldSchema(
+                    QueryFieldId.System(SystemFieldKind.TENANT_ID),
+                    LogicalFieldType.Text,
+                    Presence.OPTIONAL,
+                    Nullability.NON_NULL,
+                    setOf(PredicateOperator.EQ),
+                    setOf(FieldCapability.EXACT),
+                ),
+                QueryFieldSchema(
+                    QueryFieldId.System(SystemFieldKind.DELETED),
+                    LogicalFieldType.Boolean,
+                    Presence.REQUIRED,
+                    Nullability.NON_NULL,
+                    setOf(PredicateOperator.IS_FALSE),
+                    setOf(FieldCapability.EXACT),
+                ),
+            ),
+            emptyList(),
+        )
         val PURPOSE = QueryPurpose("spring-facade-test")
+        const val ROLLOUT_MODE_PROPERTY = "test.query.rollout-mode"
         const val SNAPSHOT_QUERY_SERVICE_BEAN = "example.order.SnapshotQueryService"
+        const val ANALYTICS_QUERY_SERVICE_BEAN = "example.order.AnalyticsQueryService"
         val SERVER_RESPONSE_CONTEXT = object : ServerResponse.Context {
             private val strategies = HandlerStrategies.withDefaults()
 
@@ -492,4 +692,10 @@ class QueryGatewayAutoConfigurationTest {
             override fun viewResolvers() = strategies.viewResolvers()
         }
     }
+
+    private data class ExpectedRolloutCalls(
+        val raw: Int,
+        val planned: Int,
+        val prepared: Int,
+    )
 }

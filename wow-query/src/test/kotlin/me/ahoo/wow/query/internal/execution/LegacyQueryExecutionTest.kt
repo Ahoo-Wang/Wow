@@ -15,6 +15,7 @@ package me.ahoo.wow.query.internal.execution
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.query.backend.SchemaContractId
 import me.ahoo.wow.query.internal.model.QueryDocumentKind
 import me.ahoo.wow.query.internal.model.QueryOperation
 import me.ahoo.wow.query.internal.model.QueryTarget
@@ -27,7 +28,6 @@ import me.ahoo.wow.query.internal.policy.QueryExecutionBudget
 import me.ahoo.wow.query.internal.rejection.QueryRejectedException
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCategory
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCode
-import me.ahoo.wow.query.internal.schema.SchemaContractId
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -163,6 +163,41 @@ class LegacyQueryExecutionTest {
             binding.count(countInput(), options).block()
         }
         backendCalls.get().assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `legacy execution should reject backend-only budgets before compilation and storage`() {
+        val compilerCalls = AtomicInteger()
+        val backendCalls = AtomicInteger()
+        val binding = LegacyExecutionBinding.create(
+            PlanningFixtures.target,
+            LegacyQueryCompiler { compilation ->
+                compilerCalls.incrementAndGet()
+                ProbeCompiledQuery(
+                    compilation.invocation.target,
+                    compilation.invocation.operation,
+                    compilation.schema.contractId,
+                    compilation.attestLowering(
+                        compilation.enforcementRequirements.deletionScope,
+                        compilation.enforcementRequirements.mandatoryCondition,
+                    ),
+                )
+            },
+            ProbeLegacyBackend {
+                backendCalls.incrementAndGet()
+                Mono.just(3)
+            },
+        )
+        val unsupported = QueryExecutionOptions(
+            null,
+            QueryExecutionBudget(maxScannedRecords = 1),
+        )
+
+        assertRejected(QueryRejectionCode.EXECUTION_BUDGET_UNSUPPORTED) {
+            binding.count(countInput(), unsupported).block()
+        }.rejection.path.toString().assert().isEqualTo("$.executionContext.budget")
+        compilerCalls.get().assert().isZero()
+        backendCalls.get().assert().isZero()
     }
 
     @Test

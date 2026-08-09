@@ -15,6 +15,7 @@ package me.ahoo.wow.query.internal.execution
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.query.backend.SchemaContractId
 import me.ahoo.wow.query.internal.model.QueryOperation
 import me.ahoo.wow.query.internal.model.QueryResultShape
 import me.ahoo.wow.query.internal.model.QueryValidationMode
@@ -36,7 +37,6 @@ import me.ahoo.wow.query.internal.policy.QueryExecutionBudget
 import me.ahoo.wow.query.internal.rejection.QueryRejectedException
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCategory
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCode
-import me.ahoo.wow.query.internal.schema.SchemaContractId
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -283,7 +283,7 @@ class QueryExecutorTest {
         ) as PlanningDecision.Planned
         val unknown = BackendRecord(
             "order-1",
-            me.ahoo.wow.query.internal.normalization.NormalizedValue.ObjectValue(emptyMap()),
+            me.ahoo.wow.query.backend.NormalizedValue.ObjectValue(emptyMap()),
             BackendRecordCompleteness.UNKNOWN,
         )
         val registration = QueryBackendRegistration(

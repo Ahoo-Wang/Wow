@@ -18,6 +18,7 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.Operator
+import me.ahoo.wow.query.backend.NormalizedValue
 import me.ahoo.wow.query.internal.admission.QueryAdmissionLimits
 import me.ahoo.wow.query.internal.admission.RawAdmissionGuard
 import me.ahoo.wow.query.internal.model.QueryExecutionMode
@@ -27,7 +28,6 @@ import me.ahoo.wow.query.internal.model.QueryOperation
 import me.ahoo.wow.query.internal.model.QueryResultShape
 import me.ahoo.wow.query.internal.model.QueryValidationMode
 import me.ahoo.wow.query.internal.normalization.BackendId
-import me.ahoo.wow.query.internal.normalization.NormalizedValue
 import me.ahoo.wow.query.internal.normalization.QueryNormalizer
 import me.ahoo.wow.query.internal.plan.CountQueryPlan
 import me.ahoo.wow.query.internal.plan.PageQueryPlan
@@ -161,6 +161,12 @@ class QueryGatewayLifecycleTest {
                 QueryRejectionCategory.MAPPING_FAILURE,
                 "$.result",
                 QueryRejectionCode.RESULT_MAPPING_FAILED,
+            ),
+            BackendFailureExpectation(
+                QueryBackendFailureKind.BUDGET_EXCEEDED,
+                QueryRejectionCategory.BUDGET_EXCEEDED,
+                "$.executionContext.budget",
+                QueryRejectionCode.BACKEND_BUDGET_EXCEEDED,
             ),
         ).forEach { expectation ->
             val backend = StubRecordBackend(

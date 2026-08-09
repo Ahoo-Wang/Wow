@@ -21,13 +21,13 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.backend.NormalizedValue
 import me.ahoo.wow.query.internal.model.QueryDocumentKind
 import me.ahoo.wow.query.internal.model.QueryInput
 import me.ahoo.wow.query.internal.model.QueryInvocation
 import me.ahoo.wow.query.internal.model.QueryOperation
 import me.ahoo.wow.query.internal.model.QueryResultShape
 import me.ahoo.wow.query.internal.model.QueryTarget
-import me.ahoo.wow.query.internal.normalization.NormalizedValue
 import me.ahoo.wow.query.internal.rejection.QueryRejectedException
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCategory
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCode

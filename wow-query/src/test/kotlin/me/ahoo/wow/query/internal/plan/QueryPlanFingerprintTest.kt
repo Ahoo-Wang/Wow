@@ -15,6 +15,9 @@ package me.ahoo.wow.query.internal.plan
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.query.backend.NormalizedValue
+import me.ahoo.wow.query.backend.QueryDocumentSchema
+import me.ahoo.wow.query.backend.QueryFieldId
 import me.ahoo.wow.query.internal.model.QueryOperation
 import me.ahoo.wow.query.internal.model.QueryResultShape
 import me.ahoo.wow.query.internal.model.QueryValidationMode
@@ -24,15 +27,12 @@ import me.ahoo.wow.query.internal.normalization.NormalizedCondition
 import me.ahoo.wow.query.internal.normalization.NormalizedProjection
 import me.ahoo.wow.query.internal.normalization.NormalizedQueryInput
 import me.ahoo.wow.query.internal.normalization.NormalizedQueryInvocation
-import me.ahoo.wow.query.internal.normalization.NormalizedValue
 import me.ahoo.wow.query.internal.normalization.PredicateOperator
 import me.ahoo.wow.query.internal.normalization.Utf8Json
 import me.ahoo.wow.query.internal.planning.PlanningConstraints
 import me.ahoo.wow.query.internal.planning.PlanningDecision
 import me.ahoo.wow.query.internal.planning.PlanningFixtures
 import me.ahoo.wow.query.internal.planning.QueryPlanner
-import me.ahoo.wow.query.internal.schema.QueryDocumentSchema
-import me.ahoo.wow.query.internal.schema.QueryFieldId
 import me.ahoo.wow.query.internal.value.NonEmptyList
 import org.junit.jupiter.api.Test
 
@@ -66,7 +66,7 @@ class QueryPlanFingerprintTest {
 
         first.fingerprint.assert().isEqualTo(second.fingerprint)
         first.fingerprint.value.assert().isEqualTo(
-            "7a2a1b9f9ea7bee9544f5356fed8b7e4738f4fbe684c65bde60abc60ec0a3e50",
+            "49a4b6842c6441a3bd5c2a4a05a2e94c49bb6e88494454204d1a05b7fd669388",
         )
         (first.projection as PlannedProjection.Include).fields.values.assert().containsExactly(
             PlanningFixtures.amount,

@@ -13,10 +13,11 @@
 
 package me.ahoo.wow.query.internal.analytics
 
+import me.ahoo.wow.query.backend.NormalizedValue
+import me.ahoo.wow.query.internal.cursor.QueryCursorToken
 import me.ahoo.wow.query.internal.model.QueryTarget
 import me.ahoo.wow.query.internal.normalization.LogicalField
 import me.ahoo.wow.query.internal.normalization.NormalizedCondition
-import me.ahoo.wow.query.internal.normalization.NormalizedValue
 import me.ahoo.wow.query.internal.plan.PlanFingerprint
 import me.ahoo.wow.query.internal.value.NonEmptyList
 import java.math.RoundingMode
@@ -24,9 +25,16 @@ import java.math.RoundingMode
 @JvmInline
 internal value class AnalyticsAlias(val value: String) {
     init {
-        require(value.isNotBlank()) {
-            "Analytics alias must not be blank."
+        require(value.isNotBlank()) { "Analytics alias must not be blank." }
+        require(value.length <= MAX_ALIAS_LENGTH) {
+            "Analytics alias must not exceed $MAX_ALIAS_LENGTH characters."
         }
+        require(value.none(Char::isISOControl)) { "Analytics alias must not contain control characters." }
+        require('.' !in value && '$' !in value) { "Analytics alias must be a safe backend field name." }
+    }
+
+    private companion object {
+        const val MAX_ALIAS_LENGTH = 128
     }
 }
 
@@ -179,6 +187,8 @@ internal data class AnalyticsQuery(
     val numericPolicy: AnalyticsNumericPolicy? = null,
     val requiredConsistency: AnalyticsConsistency = AnalyticsConsistency.EVENTUAL,
     val requiredCompleteness: AnalyticsCompleteness = AnalyticsCompleteness.EXACT,
+    /** Opaque public token awaiting asynchronous store resolution inside the Gateway. */
+    val cursorToken: QueryCursorToken? = null,
 ) {
     private companion object {
         const val DEFAULT_BUCKET_LIMIT = 100

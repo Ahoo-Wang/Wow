@@ -13,11 +13,17 @@
 
 package me.ahoo.wow.query.internal.planning
 
+import me.ahoo.wow.query.backend.FieldCapability
+import me.ahoo.wow.query.backend.LogicalFieldType
+import me.ahoo.wow.query.backend.NormalizedValue
+import me.ahoo.wow.query.backend.QueryDocumentSchema
+import me.ahoo.wow.query.backend.QueryFieldId
+import me.ahoo.wow.query.backend.acceptsOperand
+import me.ahoo.wow.query.backend.hasOperandType
 import me.ahoo.wow.query.internal.normalization.BackendId
 import me.ahoo.wow.query.internal.normalization.CaseSensitivity
 import me.ahoo.wow.query.internal.normalization.LogicalField
 import me.ahoo.wow.query.internal.normalization.NormalizedCondition
-import me.ahoo.wow.query.internal.normalization.NormalizedValue
 import me.ahoo.wow.query.internal.normalization.PathBasis
 import me.ahoo.wow.query.internal.normalization.PredicateOperator
 import me.ahoo.wow.query.internal.normalization.SearchScope
@@ -29,12 +35,6 @@ import me.ahoo.wow.query.internal.rejection.QueryRejectionCategory
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCode
 import me.ahoo.wow.query.internal.rejection.QueryRejectionPath
 import me.ahoo.wow.query.internal.rejection.rejectQuery
-import me.ahoo.wow.query.internal.schema.FieldCapability
-import me.ahoo.wow.query.internal.schema.LogicalFieldType
-import me.ahoo.wow.query.internal.schema.QueryDocumentSchema
-import me.ahoo.wow.query.internal.schema.QueryFieldId
-import me.ahoo.wow.query.internal.schema.acceptsOperand
-import me.ahoo.wow.query.internal.schema.hasOperandType
 import me.ahoo.wow.query.internal.value.NonEmptyList
 
 internal class QueryConditionPlanner(
@@ -178,12 +178,35 @@ internal class QueryConditionPlanner(
         val capability = condition.operator.requiredCapability()
         requireCapability(field, capability, path.property("operator"), state)
         validatePredicateValue(condition, fieldSchema, path)
+        requireNullOperandCapability(condition, field, path, state)
         return PlannedCondition.Predicate(field, condition.operator, condition.value, condition.options)
+    }
+
+    private fun requireNullOperandCapability(
+        condition: NormalizedCondition.Predicate,
+        field: QueryFieldId,
+        path: QueryRejectionPath,
+        state: ConditionPlanningState,
+    ) {
+        val containsNull = condition.value == NormalizedValue.Null ||
+            (condition.value as? NormalizedValue.ListValue)?.values?.contains(NormalizedValue.Null) == true
+        if (!containsNull) return
+        val required = when (condition.operator) {
+            PredicateOperator.ALL_IN -> FieldCapability.ELEMENT_NULL
+            PredicateOperator.EQ,
+            PredicateOperator.NE,
+            PredicateOperator.IN,
+            PredicateOperator.NOT_IN,
+            -> FieldCapability.PRESENCE
+
+            else -> return
+        }
+        requireCapability(field, required, path.property("value"), state)
     }
 
     private fun validatePredicateValue(
         condition: NormalizedCondition.Predicate,
-        fieldSchema: me.ahoo.wow.query.internal.schema.QueryFieldSchema,
+        fieldSchema: me.ahoo.wow.query.backend.QueryFieldSchema,
         path: QueryRejectionPath,
     ) {
         if (!acceptsPredicateValue(condition, fieldSchema)) {
@@ -197,7 +220,7 @@ internal class QueryConditionPlanner(
 
     private fun acceptsPredicateValue(
         condition: NormalizedCondition.Predicate,
-        fieldSchema: me.ahoo.wow.query.internal.schema.QueryFieldSchema,
+        fieldSchema: me.ahoo.wow.query.backend.QueryFieldSchema,
     ): Boolean {
         if (condition.operator == PredicateOperator.IS_NULL || condition.operator == PredicateOperator.NOT_NULL) {
             return true
@@ -222,7 +245,7 @@ internal class QueryConditionPlanner(
 
     private fun acceptsCollectionValue(
         condition: NormalizedCondition.Predicate,
-        fieldSchema: me.ahoo.wow.query.internal.schema.QueryFieldSchema,
+        fieldSchema: me.ahoo.wow.query.backend.QueryFieldSchema,
     ): Boolean {
         val values = condition.value as? NormalizedValue.ListValue ?: return false
         val validSize =

@@ -13,10 +13,10 @@
 
 package me.ahoo.wow.query.internal.planning
 
+import me.ahoo.wow.query.backend.QUERY_FIELD_ID_COMPARATOR
+import me.ahoo.wow.query.backend.QueryFieldId
 import me.ahoo.wow.query.internal.normalization.BackendId
 import me.ahoo.wow.query.internal.normalization.SearchScopeId
-import me.ahoo.wow.query.internal.schema.QUERY_FIELD_ID_COMPARATOR
-import me.ahoo.wow.query.internal.schema.QueryFieldId
 import java.util.Collections
 
 internal sealed interface FieldAccess {

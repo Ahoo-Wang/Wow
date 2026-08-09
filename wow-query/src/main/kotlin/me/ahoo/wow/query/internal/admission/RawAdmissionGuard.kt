@@ -22,10 +22,10 @@ import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.query.backend.NormalizedValue
 import me.ahoo.wow.query.internal.model.QueryInput
 import me.ahoo.wow.query.internal.model.QueryInvocation
 import me.ahoo.wow.query.internal.normalization.CaseSensitivity
-import me.ahoo.wow.query.internal.normalization.NormalizedValue
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCategory
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCode
 import me.ahoo.wow.query.internal.rejection.QueryRejectionPath
@@ -42,6 +42,7 @@ internal class RawAdmissionGuard(
     private val limits: QueryAdmissionLimits,
 ) {
     private val valueSnapshotter = RawValueSnapshotter(limits)
+    private val analyticsAdmissionGuard = AnalyticsAdmissionGuard(limits)
 
     fun admit(invocation: QueryInvocation): AdmittedQueryInvocation {
         val session = AdmissionSession(limits)
@@ -59,6 +60,13 @@ internal class RawAdmissionGuard(
                 )
 
                 is QueryInput.Analytics -> AdmittedQueryInput.Analytics(input.query)
+                is QueryInput.AnalyticsWire -> AdmittedQueryInput.AnalyticsWire(
+                    analyticsAdmissionGuard.admit(
+                        input.query,
+                        inputPath.property("query"),
+                        session.budget,
+                    ) { condition, path -> admitCondition(condition, path, 1, session) },
+                )
             }
         return AdmittedQueryInvocation(
             target = invocation.target,

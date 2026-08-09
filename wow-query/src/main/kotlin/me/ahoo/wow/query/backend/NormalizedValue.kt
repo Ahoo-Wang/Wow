@@ -11,14 +11,16 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.internal.normalization
+package me.ahoo.wow.query.backend
 
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.Collections
 import java.util.LinkedHashMap
 
-internal sealed interface NormalizedValue {
+/** Backend-neutral, deeply immutable value admitted into a validated Query Plan. */
+@ExperimentalQueryBackendApi
+sealed interface NormalizedValue {
     data object Null : NormalizedValue
 
     data class BooleanValue(val value: Boolean) : NormalizedValue
@@ -65,8 +67,7 @@ internal sealed interface NormalizedValue {
     }
 
     class ObjectValue(values: Map<String, NormalizedValue>) : NormalizedValue {
-        val values: Map<String, NormalizedValue> =
-            Collections.unmodifiableMap(LinkedHashMap(values))
+        val values: Map<String, NormalizedValue> = Collections.unmodifiableMap(LinkedHashMap(values))
         private val orderedEntries: List<Pair<String, NormalizedValue>> =
             this.values.map { entry -> entry.key to entry.value }
 

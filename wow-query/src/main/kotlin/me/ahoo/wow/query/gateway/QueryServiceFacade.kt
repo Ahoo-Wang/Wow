@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-@file:OptIn(ExperimentalQueryGatewayApi::class)
+@file:OptIn(ExperimentalQueryCursorApi::class, ExperimentalQueryGatewayApi::class)
 
 package me.ahoo.wow.query.gateway
 
@@ -25,6 +25,14 @@ import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.query.analytics.AnalyticsQueryService
+import me.ahoo.wow.query.analytics.AnalyticsQueryServiceFactory
+import me.ahoo.wow.query.analytics.AnalyticsQueryTrustedContextRequest
+import me.ahoo.wow.query.analytics.AnalyticsQueryTrustedContextResolver
+import me.ahoo.wow.query.backend.ExperimentalQueryBackendApi
+import me.ahoo.wow.query.backend.QueryBackendComposition
+import me.ahoo.wow.query.cursor.ExperimentalQueryCursorApi
+import me.ahoo.wow.query.cursor.QueryCursorLeaseConfiguration
 import me.ahoo.wow.query.event.AbstractEventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.query.filter.QueryType
@@ -200,21 +208,40 @@ private class CallOnlyFacadeContextResolver(
 
 private class TrustedFacadeContextResolver(
     private val trustedContextResolver: QueryTrustedContextResolver,
-    private val configuration: QueryGatewayConfiguration,
+    private val executionProfiles: QueryExecutionProfiles,
     private val trustedAuthorityChannel: TrustedAuthorityChannel,
 ) : QueryCallResolver, FacadeContextResolver {
     override fun resolve(request: QueryCallResolutionRequest): Mono<QueryCall> =
         resolveContext(request).map(ResolvedFacadeContext::call)
 
     override fun resolveContext(request: QueryCallResolutionRequest): Mono<ResolvedFacadeContext> =
-        trustedContextResolver.resolve(
-            QueryTrustedContextRequest(
-                request,
-                configuration.executionMode,
-                configuration.validationMode,
-            ),
-        ).map { context -> ResolvedFacadeContext(context.call, context.authority, trustedAuthorityChannel) }
+        executionProfiles.resolve(request.target, request.queryType.toOperation()).let { profile ->
+            trustedContextResolver.resolve(
+                QueryTrustedContextRequest(
+                    request,
+                    profile.executionMode,
+                    profile.validationMode,
+                ),
+            )
+        }.map { context -> ResolvedFacadeContext(context.call, context.authority, trustedAuthorityChannel) }
 }
+
+private fun QueryType.toOperation(): QueryOperation =
+    when (this) {
+        QueryType.SINGLE,
+        QueryType.DYNAMIC_SINGLE,
+        -> QueryOperation.SINGLE
+
+        QueryType.LIST,
+        QueryType.DYNAMIC_LIST,
+        -> QueryOperation.STREAM
+
+        QueryType.PAGED,
+        QueryType.DYNAMIC_PAGED,
+        -> QueryOperation.PAGE
+
+        QueryType.COUNT -> QueryOperation.COUNT
+    }
 
 private fun QueryCallResolver.asFacadeContextResolver(): FacadeContextResolver =
     this as? FacadeContextResolver ?: CallOnlyFacadeContextResolver(this)
@@ -230,6 +257,13 @@ class QueryGatewayRuntime private constructor(private val state: RuntimeState) {
     val gateway: QueryGateway
         get() = state.gateway
 
+    val analyticsGateway: AnalyticsQueryGateway
+        get() = state.analyticsGateway
+
+    /** Reaps one bounded batch of expired cursor leases and closes their backend-owned resources. */
+    @ExperimentalQueryCursorApi
+    fun reapExpiredQueryCursors(batchSize: Int = 100): Mono<Long> = state.cursorReaper(batchSize)
+
     fun snapshotQueryServiceFactory(): GatewaySnapshotQueryServiceFactory = GatewaySnapshotQueryServiceFactory(
         state.gateway,
         state.trustedCallResolver,
@@ -240,9 +274,21 @@ class QueryGatewayRuntime private constructor(private val state: RuntimeState) {
         state.trustedCallResolver,
     )
 
+    fun analyticsQueryServiceFactory(): AnalyticsQueryServiceFactory = GatewayAnalyticsQueryServiceFactory(
+        state.analyticsGateway,
+        state.executionProfiles,
+        state.trustedAuthorityChannel,
+        state.analyticsTrustedContextResolver,
+    )
+
     private class RuntimeState(
         val gateway: QueryGateway,
+        val analyticsGateway: AnalyticsQueryGateway,
         val trustedCallResolver: QueryCallResolver,
+        val executionProfiles: QueryExecutionProfiles,
+        val trustedAuthorityChannel: TrustedAuthorityChannel,
+        val analyticsTrustedContextResolver: AnalyticsQueryTrustedContextResolver,
+        val cursorReaper: (Int) -> Mono<Long>,
     )
 
     companion object {
@@ -256,29 +302,187 @@ class QueryGatewayRuntime private constructor(private val state: RuntimeState) {
             configuration: QueryGatewayConfiguration = QueryGatewayConfiguration(),
             clock: Clock = Clock.systemUTC(),
             scheduler: Scheduler = Schedulers.parallel(),
+        ): QueryGatewayRuntime = createRuntime(
+            namedAggregates,
+            rawServiceSource,
+            dialectResolver,
+            authorityResolver,
+            trustedContextResolver,
+            resultMaterializers,
+            clock,
+            scheduler,
+            QueryBackendComposition.EMPTY,
+            QueryExecutionProfiles.fixed(configuration),
+            QueryShadowConfiguration(),
+            QueryShadowObserver.NONE,
+            QueryRuntimeHealthObserver.NONE,
+            null,
+        )
+
+        @ExperimentalQueryBackendApi
+        fun create(
+            namedAggregates: Iterable<NamedAggregate>,
+            backendComposition: QueryBackendComposition,
+            rawServiceSource: QueryRawServiceSource,
+            dialectResolver: QueryLegacyDialectResolver,
+            authorityResolver: QueryAuthorityResolver,
+            trustedContextResolver: QueryTrustedContextResolver = QueryTrustedContextResolver { Mono.empty() },
+            resultMaterializers: Iterable<QueryResultMaterializer<*>> = emptyList(),
+            configuration: QueryGatewayConfiguration = QueryGatewayConfiguration(),
+            executionProfiles: QueryExecutionProfiles = QueryExecutionProfiles.fixed(configuration),
+            shadowConfiguration: QueryShadowConfiguration = QueryShadowConfiguration(),
+            shadowObserver: QueryShadowObserver = QueryShadowObserver.NONE,
+            runtimeHealthObserver: QueryRuntimeHealthObserver = QueryRuntimeHealthObserver.NONE,
+            clock: Clock = Clock.systemUTC(),
+            scheduler: Scheduler = Schedulers.parallel(),
+        ): QueryGatewayRuntime = createRuntime(
+            namedAggregates,
+            rawServiceSource,
+            dialectResolver,
+            authorityResolver,
+            trustedContextResolver,
+            resultMaterializers,
+            clock,
+            scheduler,
+            backendComposition,
+            executionProfiles,
+            shadowConfiguration,
+            shadowObserver,
+            runtimeHealthObserver,
+            null,
+        )
+
+        @ExperimentalQueryBackendApi
+        @ExperimentalQueryCursorApi
+        fun create(
+            namedAggregates: Iterable<NamedAggregate>,
+            backendComposition: QueryBackendComposition,
+            cursorLeaseConfiguration: QueryCursorLeaseConfiguration,
+            rawServiceSource: QueryRawServiceSource,
+            dialectResolver: QueryLegacyDialectResolver,
+            authorityResolver: QueryAuthorityResolver,
+            trustedContextResolver: QueryTrustedContextResolver = QueryTrustedContextResolver { Mono.empty() },
+            resultMaterializers: Iterable<QueryResultMaterializer<*>> = emptyList(),
+            configuration: QueryGatewayConfiguration = QueryGatewayConfiguration(),
+            executionProfiles: QueryExecutionProfiles = QueryExecutionProfiles.fixed(configuration),
+            shadowConfiguration: QueryShadowConfiguration = QueryShadowConfiguration(),
+            shadowObserver: QueryShadowObserver = QueryShadowObserver.NONE,
+            runtimeHealthObserver: QueryRuntimeHealthObserver = QueryRuntimeHealthObserver.NONE,
+            clock: Clock = Clock.systemUTC(),
+            scheduler: Scheduler = Schedulers.parallel(),
+        ): QueryGatewayRuntime = createRuntime(
+            namedAggregates,
+            rawServiceSource,
+            dialectResolver,
+            authorityResolver,
+            trustedContextResolver,
+            resultMaterializers,
+            clock,
+            scheduler,
+            backendComposition,
+            executionProfiles,
+            shadowConfiguration,
+            shadowObserver,
+            runtimeHealthObserver,
+            cursorLeaseConfiguration,
+        )
+
+        @OptIn(ExperimentalQueryBackendApi::class)
+        private fun createRuntime(
+            namedAggregates: Iterable<NamedAggregate>,
+            rawServiceSource: QueryRawServiceSource,
+            dialectResolver: QueryLegacyDialectResolver,
+            authorityResolver: QueryAuthorityResolver,
+            trustedContextResolver: QueryTrustedContextResolver,
+            resultMaterializers: Iterable<QueryResultMaterializer<*>>,
+            clock: Clock,
+            scheduler: Scheduler,
+            backendComposition: QueryBackendComposition,
+            executionProfiles: QueryExecutionProfiles,
+            shadowConfiguration: QueryShadowConfiguration,
+            shadowObserver: QueryShadowObserver,
+            runtimeHealthObserver: QueryRuntimeHealthObserver,
+            cursorLeaseConfiguration: QueryCursorLeaseConfiguration?,
         ): QueryGatewayRuntime {
+            val analyticsTrustedContextResolver =
+                (trustedContextResolver as? AnalyticsQueryTrustedContextResolver)
+                    ?: AnalyticsQueryTrustedContextResolver { Mono.empty() }
             val components = QueryGatewayRuntimeBuilder.build(
                 namedAggregates,
                 rawServiceSource,
                 resultMaterializers,
                 dialectResolver,
                 authorityResolver,
-                configuration,
                 clock,
                 scheduler,
+                backendComposition,
+                executionProfiles,
+                shadowConfiguration,
+                shadowObserver,
+                runtimeHealthObserver,
+                cursorLeaseConfiguration,
             )
             return QueryGatewayRuntime(
                 RuntimeState(
                     components.gateway,
+                    components.analyticsGateway,
                     TrustedFacadeContextResolver(
                         trustedContextResolver,
-                        configuration,
+                        executionProfiles,
                         components.trustedAuthorityChannel,
                     ),
+                    executionProfiles,
+                    components.trustedAuthorityChannel,
+                    analyticsTrustedContextResolver,
+                    components.cursorReaper,
                 ),
             )
         }
     }
+}
+
+private class GatewayAnalyticsQueryServiceFactory(
+    private val gateway: AnalyticsQueryGateway,
+    private val executionProfiles: QueryExecutionProfiles,
+    private val trustedAuthorityChannel: TrustedAuthorityChannel,
+    private val resolver: AnalyticsQueryTrustedContextResolver,
+) : AnalyticsQueryServiceFactory {
+    override fun create(namedAggregate: NamedAggregate): AnalyticsQueryService = GatewayAnalyticsQueryService(
+        namedAggregate.materialize(),
+        gateway,
+        executionProfiles,
+        trustedAuthorityChannel,
+        resolver,
+    )
+}
+
+private class GatewayAnalyticsQueryService(
+    override val namedAggregate: NamedAggregate,
+    private val gateway: AnalyticsQueryGateway,
+    private val executionProfiles: QueryExecutionProfiles,
+    private val trustedAuthorityChannel: TrustedAuthorityChannel,
+    private val resolver: AnalyticsQueryTrustedContextResolver,
+) : AnalyticsQueryService {
+    override fun analyze(
+        query: me.ahoo.wow.api.query.analytics.AnalyticsQuery
+    ): Mono<me.ahoo.wow.api.query.analytics.AnalyticsPage> =
+        Mono.defer {
+            val target = QueryTarget(namedAggregate, QueryDocumentKind.SNAPSHOT)
+            val profile = executionProfiles.resolve(target, QueryOperation.ANALYZE)
+            Mono.defer {
+                resolver.resolve(
+                    AnalyticsQueryTrustedContextRequest(target, profile.executionMode, profile.validationMode),
+                )
+            }.onErrorMap { error ->
+                if (error is QueryExecutionException) error else queryCallError("QUERY_CALL_RESOLUTION_FAILED", error)
+            }.switchIfEmpty(Mono.error(queryCallError("QUERY_CALL_REQUIRED")))
+                .flatMap { context ->
+                    if (context.call.target != target) {
+                        return@flatMap Mono.error(queryCallError("QUERY_CALL_TARGET_MISMATCH"))
+                    }
+                    trustedAuthorityChannel.bind(gateway.analyze(context.call, query), context.authority)
+                }
+        }
 }
 
 @ExperimentalQueryGatewayApi

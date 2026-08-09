@@ -15,6 +15,8 @@ package me.ahoo.wow.query.internal.execution
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.query.backend.NormalizedValue
+import me.ahoo.wow.query.backend.SchemaContractId
 import me.ahoo.wow.query.internal.analytics.AnalyticsAlias
 import me.ahoo.wow.query.internal.analytics.AnalyticsCompleteness
 import me.ahoo.wow.query.internal.analytics.AnalyticsConsistency
@@ -31,7 +33,6 @@ import me.ahoo.wow.query.internal.normalization.BackendId
 import me.ahoo.wow.query.internal.normalization.NormalizedCondition
 import me.ahoo.wow.query.internal.normalization.NormalizedQueryInput
 import me.ahoo.wow.query.internal.normalization.NormalizedQueryInvocation
-import me.ahoo.wow.query.internal.normalization.NormalizedValue
 import me.ahoo.wow.query.internal.plan.AnalyticsQueryPlan
 import me.ahoo.wow.query.internal.plan.CountQueryPlan
 import me.ahoo.wow.query.internal.plan.PageQueryPlan
@@ -48,7 +49,6 @@ import me.ahoo.wow.query.internal.rejection.QueryRejection
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCategory
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCode
 import me.ahoo.wow.query.internal.rejection.QueryRejectionPath
-import me.ahoo.wow.query.internal.schema.SchemaContractId
 import me.ahoo.wow.query.internal.value.NonEmptyList
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux

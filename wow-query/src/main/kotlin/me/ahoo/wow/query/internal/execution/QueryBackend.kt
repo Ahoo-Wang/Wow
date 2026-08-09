@@ -13,10 +13,10 @@
 
 package me.ahoo.wow.query.internal.execution
 
+import me.ahoo.wow.query.backend.NormalizedValue
 import me.ahoo.wow.query.internal.analytics.AnalyticsAlias
 import me.ahoo.wow.query.internal.analytics.AnalyticsCompleteness
 import me.ahoo.wow.query.internal.analytics.AnalyticsConsistency
-import me.ahoo.wow.query.internal.normalization.NormalizedValue
 import me.ahoo.wow.query.internal.plan.AnalyticsQueryPlan
 import me.ahoo.wow.query.internal.plan.CountQueryPlan
 import me.ahoo.wow.query.internal.plan.PageQueryPlan
@@ -29,6 +29,9 @@ import reactor.core.publisher.Mono
 import java.time.Instant
 import java.util.Collections
 import java.util.LinkedHashMap
+
+internal typealias QueryBackendException = me.ahoo.wow.query.backend.QueryBackendException
+internal typealias QueryBackendFailureKind = me.ahoo.wow.query.backend.QueryBackendFailureKind
 
 internal data class QueryExecutionOptions(
     val deadline: Instant?,
@@ -124,9 +127,13 @@ internal class BackendAnalyticsPage(
     afterKey: List<NormalizedValue>?,
     val consistency: AnalyticsConsistency,
     val completeness: AnalyticsCompleteness,
+    cursorState: ByteArray? = null,
 ) {
+    private val frozenCursorState: ByteArray? = cursorState?.copyOf()
     val buckets: List<BackendAnalyticsBucket> = Collections.unmodifiableList(buckets.toList())
     val afterKey: List<NormalizedValue>? = afterKey?.let { Collections.unmodifiableList(it.toList()) }
+
+    fun cursorState(): ByteArray? = frozenCursorState?.copyOf()
 
     override fun equals(other: Any?): Boolean =
         this === other ||
@@ -134,15 +141,24 @@ internal class BackendAnalyticsPage(
             buckets == other.buckets &&
             afterKey == other.afterKey &&
             consistency == other.consistency &&
-            completeness == other.completeness
+            completeness == other.completeness &&
+            cursorStateContentEquals(other)
 
     override fun hashCode(): Int {
         var result = buckets.hashCode()
         result = 31 * result + (afterKey?.hashCode() ?: 0)
         result = 31 * result + consistency.hashCode()
         result = 31 * result + completeness.hashCode()
+        result = 31 * result + (frozenCursorState?.contentHashCode() ?: 0)
         return result
     }
+
+    private fun cursorStateContentEquals(other: BackendAnalyticsPage): Boolean =
+        when {
+            frozenCursorState == null -> other.frozenCursorState == null
+            other.frozenCursorState == null -> false
+            else -> frozenCursorState.contentEquals(other.frozenCursorState)
+        }
 }
 
 internal interface RecordQueryBackend {
@@ -157,16 +173,14 @@ internal interface RecordQueryBackend {
 
 internal fun interface AnalyticsQueryBackend {
     fun analyze(plan: AnalyticsQueryPlan, options: QueryExecutionOptions): Mono<BackendAnalyticsPage>
-}
 
-internal class QueryBackendException(
-    val kind: QueryBackendFailureKind,
-    cause: Throwable? = null,
-) : IllegalStateException("Query backend failure: $kind", cause)
-
-internal enum class QueryBackendFailureKind {
-    UNAVAILABLE,
-    TIMEOUT,
-    INCOMPLETE_RESULT,
-    MAPPING_FAILURE,
+    fun analyze(
+        plan: AnalyticsQueryPlan,
+        options: QueryExecutionOptions,
+        cursorState: ByteArray?,
+    ): Mono<BackendAnalyticsPage> = if (cursorState == null) {
+        analyze(plan, options)
+    } else {
+        Mono.error(QueryBackendException(QueryBackendFailureKind.UNSUPPORTED))
+    }
 }

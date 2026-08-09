@@ -25,6 +25,7 @@ import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RouterSpecs
+import me.ahoo.wow.query.analytics.AnalyticsQueryServiceFactory
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
@@ -62,6 +63,7 @@ import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
+import me.ahoo.wow.webflux.route.query.AnalyticsQueryHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestCondition
 import me.ahoo.wow.webflux.route.query.QueryWebAuthorityResolver
 import me.ahoo.wow.webflux.route.query.QueryWebTransportResolvers
@@ -251,6 +253,18 @@ class WebFluxAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnMissingBean
+    fun analyticsQueryHandlerFunctionFactory(
+        analyticsQueryServiceFactories: ObjectProvider<AnalyticsQueryServiceFactory>,
+        exceptionHandler: RequestExceptionHandler,
+    ): AnalyticsQueryHandlerFunctionFactory = AnalyticsQueryHandlerFunctionFactory(
+        analyticsQueryServiceFactory = analyticsQueryServiceFactories.getIfAvailable {
+            UnavailableAnalyticsQueryServiceFactory
+        },
+        exceptionHandler = exceptionHandler,
+    )
+
+    @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean
     fun snapshotRouteModule(
@@ -339,5 +353,23 @@ class WebFluxAutoConfiguration {
             routerSpecs = routerSpecs,
             routeHandlerFunctionRegistrar = routeHandlerFunctionRegistrar
         ).build()
+    }
+}
+
+private object UnavailableAnalyticsQueryServiceFactory : AnalyticsQueryServiceFactory {
+    override fun create(
+        namedAggregate: me.ahoo.wow.api.modeling.NamedAggregate,
+    ): me.ahoo.wow.query.analytics.AnalyticsQueryService = object : me.ahoo.wow.query.analytics.AnalyticsQueryService {
+        override val namedAggregate: me.ahoo.wow.api.modeling.NamedAggregate = namedAggregate
+
+        override fun analyze(
+            query: me.ahoo.wow.api.query.analytics.AnalyticsQuery,
+        ): reactor.core.publisher.Mono<me.ahoo.wow.api.query.analytics.AnalyticsPage> = reactor.core.publisher.Mono.error(
+            me.ahoo.wow.query.gateway.QueryExecutionException(
+                me.ahoo.wow.query.gateway.QueryErrorCategory.UNSUPPORTED_FEATURE,
+                "$.target",
+                "SCHEMA_NOT_REGISTERED",
+            ),
+        )
     }
 }

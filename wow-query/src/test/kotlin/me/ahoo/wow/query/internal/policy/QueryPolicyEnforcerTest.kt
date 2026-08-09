@@ -14,12 +14,13 @@
 package me.ahoo.wow.query.internal.policy
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.query.backend.NormalizedValue
+import me.ahoo.wow.query.backend.QueryFieldId
 import me.ahoo.wow.query.internal.model.QueryExecutionMode
 import me.ahoo.wow.query.internal.model.QueryValidationMode
 import me.ahoo.wow.query.internal.normalization.BackendId
 import me.ahoo.wow.query.internal.normalization.LogicalField
 import me.ahoo.wow.query.internal.normalization.NormalizedCondition
-import me.ahoo.wow.query.internal.normalization.NormalizedValue
 import me.ahoo.wow.query.internal.normalization.PredicateOperator
 import me.ahoo.wow.query.internal.normalization.SystemFieldKind
 import me.ahoo.wow.query.internal.normalization.Utf8Json
@@ -31,7 +32,6 @@ import me.ahoo.wow.query.internal.rejection.QueryRejection
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCategory
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCode
 import me.ahoo.wow.query.internal.rejection.QueryRejectionPath
-import me.ahoo.wow.query.internal.schema.QueryFieldId
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test

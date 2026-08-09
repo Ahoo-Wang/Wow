@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.internal.gateway
 
 import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.query.backend.NormalizedValue
 import me.ahoo.wow.query.internal.admission.AdmissionBudget
 import me.ahoo.wow.query.internal.admission.QueryAdmissionLimits
 import me.ahoo.wow.query.internal.admission.RawValueSnapshotter
@@ -23,7 +24,6 @@ import me.ahoo.wow.query.internal.execution.QueryBackendException
 import me.ahoo.wow.query.internal.execution.QueryBackendFailureKind
 import me.ahoo.wow.query.internal.normalization.LogicalField
 import me.ahoo.wow.query.internal.normalization.NormalizedProjection
-import me.ahoo.wow.query.internal.normalization.NormalizedValue
 import me.ahoo.wow.query.internal.normalization.PathBasis
 import me.ahoo.wow.query.internal.rejection.QueryRejectionPath
 import java.util.LinkedHashMap

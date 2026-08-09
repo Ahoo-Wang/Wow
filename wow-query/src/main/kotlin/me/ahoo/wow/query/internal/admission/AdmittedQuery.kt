@@ -16,12 +16,18 @@ package me.ahoo.wow.query.internal.admission
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.analytics.AnalyticsBucketWindow
+import me.ahoo.wow.api.query.analytics.AnalyticsCompleteness
+import me.ahoo.wow.api.query.analytics.AnalyticsConsistency
+import me.ahoo.wow.api.query.analytics.AnalyticsGrouping
+import me.ahoo.wow.api.query.analytics.AnalyticsMetric
+import me.ahoo.wow.api.query.analytics.AnalyticsNumericPolicy
+import me.ahoo.wow.query.backend.NormalizedValue
 import me.ahoo.wow.query.internal.analytics.AnalyticsQuery
 import me.ahoo.wow.query.internal.model.QueryOperation
 import me.ahoo.wow.query.internal.model.QueryResultShape
 import me.ahoo.wow.query.internal.model.QueryTarget
 import me.ahoo.wow.query.internal.normalization.CaseSensitivity
-import me.ahoo.wow.query.internal.normalization.NormalizedValue
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -98,6 +104,20 @@ internal sealed interface AdmittedQueryInput {
     data class Count(val condition: AdmittedCondition) : AdmittedQueryInput
 
     data class Analytics(val query: AnalyticsQuery) : AdmittedQueryInput
+
+    data class AnalyticsWire(val query: AdmittedAnalyticsQuery) : AdmittedQueryInput
+}
+
+internal class AdmittedAnalyticsQuery(
+    val condition: AdmittedCondition,
+    val grouping: AnalyticsGrouping,
+    metrics: Iterable<AnalyticsMetric>,
+    val window: AnalyticsBucketWindow,
+    val numericPolicy: AnalyticsNumericPolicy?,
+    val consistency: AnalyticsConsistency,
+    val completeness: AnalyticsCompleteness,
+) {
+    val metrics: List<AnalyticsMetric> = Collections.unmodifiableList(metrics.toList())
 }
 
 internal class AdmittedRecordQuery(

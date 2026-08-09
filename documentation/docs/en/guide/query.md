@@ -322,6 +322,12 @@ Tenant, owner, and space remain resource selectors. The resolver must compare th
 deny a conflict instead of silently falling back to personal scope.
 :::
 
+Generated Snapshot/Event query, load, and Analytics endpoints declare one Query failure contract: `400` for an
+invalid query, cursor, or unsupported capability; `403` for denied access; `408` for an expired deadline; `429` for
+an exceeded budget; `502` for an incomplete result; `503` for an unavailable backend; `504` for a backend timeout;
+and `500` for mapping or internal failures. Responses continue to use the `DefaultErrorInfo` JSON body and the
+`Wow-Error-Code` header; Analytics/Cursor does not introduce a second error envelope.
+
 ![Query Service](../../public/images/query/open-api-query.png)
 
 ### Paged Query
@@ -484,6 +490,131 @@ eq("state.status", "CREATED")
 ```
 
 :::
+
+### Analytics Query
+
+Analytics uses separate `AnalyticsQuery` / `AnalyticsPage` contracts and does not add a method to the seven-method
+`QueryService`. Every field is logical; `.keyword`, index names, Mongo/Elasticsearch native queries, and backend options
+are not part of the public request. `Int64`, `Decimal`, and `Instant` results use typed canonical strings so JavaScript
+and JSON number parsing cannot lose precision.
+
+This release contains an approved upgrade of the public Query, Analytics, and Cursor contracts marked with
+`@ExperimentalQueryGatewayApi` / `@ExperimentalQueryCursorApi`. Applications using those experimental APIs must be
+recompiled and migrated to the current constructors and budget fields. The stable seven-method `QueryService` and the
+seven `QueryType` values remain unchanged. OpenAPI now fixes the conditional Analytics shape with `oneOf`: `GLOBAL`
+requires empty dimensions, `limit=1`, and no cursor; `BY` requires at least one dimension; `DOCUMENT_COUNT` has no field,
+while every other metric requires one.
+
+```shell
+curl -X POST \
+  'http://localhost:8080/tenant/tenant-1/sales-order/snapshot/analyze' \
+  -H 'Authorization: Bearer <token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "condition": { "operator": "ALL" },
+    "grouping": {
+      "kind": "BY",
+      "dimensions": [
+        { "alias": "status", "field": "state.status", "missingPolicy": "EXCLUDE" }
+      ]
+    },
+    "metrics": [
+      { "alias": "count", "kind": "DOCUMENT_COUNT" },
+      { "alias": "total", "kind": "SUM", "field": "state.total" }
+    ],
+    "window": { "limit": 100 },
+    "numericPolicy": { "scale": 2 },
+    "consistency": "EVENTUAL",
+    "completeness": "EXACT"
+  }'
+```
+
+```json
+{
+  "buckets": [
+    {
+      "keys": { "status": { "type": "TEXT", "value": "PAID" } },
+      "metrics": {
+        "count": { "type": "INT64", "value": "42" },
+        "total": { "type": "DECIMAL", "value": "120.50" }
+      }
+    }
+  ],
+  "nextCursor": null,
+  "consistency": "EVENTUAL",
+  "completeness": "EXACT"
+}
+```
+
+`grouping.kind=GLOBAL` requires `dimensions=[]`, `window.limit=1`, and no cursor. A `BY` query's `nextCursor` is an
+opaque URL-safe token of at most 256 characters. A client may only copy it into the next request's `window.cursor`; it
+must never parse, modify, or manufacture the token. The server validates the target, plan fingerprint, mapping
+generation, authority/security binding, and backend before deleting the lease with CAS. Wrong authority or mapping
+does not consume the cursor, and only one request may acquire a cursor page.
+
+When the first page issues a cursor, the server also stores the complete `QueryExecutionBudget` ceiling in the signed
+lease. A continuation may only preserve or tighten `maxReturnedRecords`, `maxScannedRecords`, `maxPageWindow`, candidate
+and returned bucket limits, `maxCursorPages`, and `allowDiskUse`; it cannot remove or relax an initial bound. An attempted
+relaxation returns `CURSOR_BUDGET_RELAXATION_NOT_ALLOWED` without consuming the lease.
+
+A multi-instance deployment must provide a shared `QueryCursorLeaseStore`. The MongoDB implementation uses bounded
+slots, a unique lease id, revision CAS, and a grace-delayed TTL. It never creates the collection or indexes implicitly at
+application startup; initialize them through an explicit, controlled operation:
+
+```kotlin
+val store = MongoQueryCursorLeaseStore(
+    cursorDatabase,
+    MongoQueryCursorLeaseStoreOptions(
+        maxEntries = 65_536,
+        retentionGrace = Duration.ofMinutes(5),
+    ),
+)
+
+// Run once from a migration/operations entry point, never from a normal query request.
+store.ensureIndexes().block()
+
+@Bean
+fun queryCursorLeaseConfiguration(
+    signingKeys: QueryCursorSigningKeys, // Build from a managed Secret; never log or commit key material.
+): QueryCursorLeaseConfiguration = QueryCursorLeaseConfiguration(store, signingKeys)
+```
+
+MongoDB TTL applies to `expiresAt + retentionGrace`: the framework reaper first attempts revision CAS and Backend-state
+cleanup, while TTL remains the final safety net for abandoned leases. No scheduler is created by default. After configuring
+the shared store, explicitly enable the Starter's single-owner, bounded serial reaper when desired:
+
+```yaml
+wow:
+  query:
+    cursor:
+      reaper:
+        enabled: true
+        initial-delay: 30s
+        interval: 1m
+        batch-size: 100
+        max-batches-per-run: 10
+```
+
+Enabling the reaper without a `QueryCursorLeaseConfiguration` fails application startup. Each run processes at most
+`batch-size * max-batches-per-run` leases, never overlaps the previous run, and isolates a store/closer failure so the next
+scheduled run remains active. Operations code may still invoke `QueryGatewayRuntime.reapExpiredQueryCursors(batchSize)`
+explicitly when Starter scheduling is not used. Normal query requests never trigger cleanup or DDL. During HMAC rotation,
+issue with the new `current` key and keep the old key in `previous` until `maxCursorTtl` has elapsed.
+
+Mongo Analytics currently declares `EVENTUAL + EXACT`. Elasticsearch grouped Analytics supports `SNAPSHOT + EXACT` when
+its mapping/readiness checks pass and a shared cursor store is configured. The PIT id is stored only as opaque server-side
+lease state and never appears in the client token; terminal, error, cancellation, capacity rejection, and expired-reaper
+paths all attempt to close the PIT. Without a lifecycle closer registered for the exact `QueryTarget + BackendId`, the
+request is rejected before storage access.
+
+Spring also registers a `<context>.<aggregate>.AnalyticsQueryService` bean. Direct process calls still require trusted
+context, while HTTP calls reuse the query route's authenticated authority. If an aggregate has no matching Analytics
+schema/backend readiness, the request is rejected before storage is accessed.
+
+Enabling any `SHADOW` profile also requires a bounded `QueryShadowConfiguration`, a `QueryShadowObserver`, and a
+`QueryRuntimeHealthObserver`; a missing observer fails runtime startup. A health observation contains only target,
+operation, kind, and a stable reason code. It deliberately excludes authority, query values, and backend causes and must
+feed bounded low-cardinality metrics/alerts instead of becoming a silent fallback.
 
 
 

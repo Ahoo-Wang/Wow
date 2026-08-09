@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.internal.schema
 
+import me.ahoo.wow.query.backend.QueryDocumentSchema
 import me.ahoo.wow.query.internal.model.QueryTarget
 import java.util.Collections
 import java.util.LinkedHashMap

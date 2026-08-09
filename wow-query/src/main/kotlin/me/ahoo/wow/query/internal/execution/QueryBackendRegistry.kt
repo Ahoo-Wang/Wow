@@ -13,27 +13,37 @@
 
 package me.ahoo.wow.query.internal.execution
 
+import me.ahoo.wow.query.backend.ExperimentalQueryBackendApi
+import me.ahoo.wow.query.backend.FieldCapability
+import me.ahoo.wow.query.backend.QUERY_FIELD_ID_COMPARATOR
+import me.ahoo.wow.query.backend.QueryFieldId
+import me.ahoo.wow.query.backend.SchemaContractId
 import me.ahoo.wow.query.internal.model.QueryOperation
 import me.ahoo.wow.query.internal.model.QueryTarget
 import me.ahoo.wow.query.internal.normalization.BackendId
 import me.ahoo.wow.query.internal.normalization.SearchScopeId
 import me.ahoo.wow.query.internal.plan.QueryPlan
 import me.ahoo.wow.query.internal.plan.SemanticTier
+import me.ahoo.wow.query.internal.plan.StreamLimit
+import me.ahoo.wow.query.internal.plan.StreamQueryPlan
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCategory
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCode
 import me.ahoo.wow.query.internal.rejection.QueryRejectionPath
 import me.ahoo.wow.query.internal.rejection.rejectQuery
-import me.ahoo.wow.query.internal.schema.FieldCapability
-import me.ahoo.wow.query.internal.schema.QUERY_FIELD_ID_COMPARATOR
-import me.ahoo.wow.query.internal.schema.QueryFieldId
-import me.ahoo.wow.query.internal.schema.SchemaContractId
 import java.util.Collections
 import java.util.LinkedHashMap
+import me.ahoo.wow.query.backend.RecordQueryBackend as ExperimentalRecordQueryBackend
 
 internal data class QueryBackendKey(
     val target: QueryTarget,
     val backendId: BackendId,
 )
+
+internal enum class QueryBackendStreamSupport {
+    NONE,
+    BOUNDED_ONLY,
+    UNBOUNDED,
+}
 
 internal class QueryBackendDescriptor(
     val key: QueryBackendKey,
@@ -42,6 +52,12 @@ internal class QueryBackendDescriptor(
     semanticTiers: Set<SemanticTier>,
     fieldCapabilities: Map<QueryFieldId, Set<FieldCapability>>,
     searchScopes: Set<SearchScopeId> = emptySet(),
+    val mappingGenerationDigest: String = schemaContractId.value,
+    val streamSupport: QueryBackendStreamSupport = if (QueryOperation.STREAM in supportedOperations) {
+        QueryBackendStreamSupport.UNBOUNDED
+    } else {
+        QueryBackendStreamSupport.NONE
+    },
 ) {
     val supportedOperations: Set<QueryOperation> = Collections.unmodifiableSet(
         LinkedHashSet(supportedOperations.sortedBy(QueryOperation::name)),
@@ -61,6 +77,18 @@ internal class QueryBackendDescriptor(
         require(this.semanticTiers.isNotEmpty()) {
             "Query backend must support at least one semantic tier."
         }
+        require(QueryOperation.STREAM in this.supportedOperations || streamSupport == QueryBackendStreamSupport.NONE) {
+            "Stream support must be NONE when STREAM is not registered."
+        }
+        require(QueryOperation.STREAM !in this.supportedOperations || streamSupport != QueryBackendStreamSupport.NONE) {
+            "STREAM requires an explicit stream support level."
+        }
+        require(
+            mappingGenerationDigest.length == SHA_256_HEX_LENGTH &&
+                mappingGenerationDigest.all { character -> character in HEX_CHARACTERS },
+        ) {
+            "Mapping generation digest must be lowercase SHA-256 hex."
+        }
     }
 
     private fun immutableCapabilities(
@@ -76,15 +104,20 @@ internal class QueryBackendDescriptor(
     }
 }
 
+@OptIn(ExperimentalQueryBackendApi::class)
 internal data class QueryBackendRegistration(
     val descriptor: QueryBackendDescriptor,
     val recordBackend: RecordQueryBackend? = null,
+    val experimentalRecordBackend: ExperimentalRecordQueryBackend? = null,
     val analyticsBackend: AnalyticsQueryBackend? = null,
 ) {
     init {
         val recordOperations = descriptor.supportedOperations - QueryOperation.ANALYZE
-        require(recordOperations.isEmpty() || recordBackend != null) {
+        require(recordOperations.isEmpty() || recordBackend != null || experimentalRecordBackend != null) {
             "Record operations require a record query backend."
+        }
+        require(recordBackend == null || experimentalRecordBackend == null) {
+            "A query backend registration must have one record backend owner."
         }
         require(QueryOperation.ANALYZE !in descriptor.supportedOperations || analyticsBackend != null) {
             "ANALYZE requires an analytics query backend."
@@ -95,9 +128,11 @@ internal data class QueryBackendRegistration(
 internal class QueryBackendRegistry(
     registrations: Iterable<QueryBackendRegistration>,
     defaultRoutes: Map<QueryTarget, BackendId>,
+    notReadyKeys: Set<QueryBackendKey> = emptySet(),
 ) {
     val registrations: Map<QueryBackendKey, QueryBackendRegistration>
     val defaultRoutes: Map<QueryTarget, BackendId>
+    val notReadyKeys: Set<QueryBackendKey>
 
     init {
         val registrationList = registrations.toList()
@@ -117,13 +152,23 @@ internal class QueryBackendRegistry(
             routeCopy[entry.key] = entry.value
         }
         this.defaultRoutes = Collections.unmodifiableMap(routeCopy)
+        this.notReadyKeys = Collections.unmodifiableSet(
+            LinkedHashSet(notReadyKeys.sortedWith(QUERY_BACKEND_KEY_COMPARATOR)),
+        )
+        require(this.registrations.keys.intersect(this.notReadyKeys).isEmpty()) {
+            "A Query backend registration cannot be ready and not-ready at the same time."
+        }
     }
 
     fun resolve(plan: QueryPlan): QueryBackendRegistration {
         val backendId = plan.requiredCapabilities.nativeBackend ?: defaultRoutes[plan.target]
             ?: rejectBackend(QueryRejectionCode.BACKEND_NOT_REGISTERED)
-        val registration = registrations[QueryBackendKey(plan.target, backendId)]
-            ?: rejectBackend(QueryRejectionCode.BACKEND_NOT_REGISTERED)
+        val key = QueryBackendKey(plan.target, backendId)
+        val registration = registrations[key] ?: if (key in notReadyKeys) {
+            rejectBackend(QueryRejectionCode.BACKEND_NOT_READY)
+        } else {
+            rejectBackend(QueryRejectionCode.BACKEND_NOT_REGISTERED)
+        }
         validate(plan, registration.descriptor)
         return registration
     }
@@ -133,6 +178,13 @@ internal class QueryBackendRegistry(
             rejectBackend(QueryRejectionCode.BACKEND_SCHEMA_MISMATCH)
         }
         if (plan.operation !in descriptor.supportedOperations) {
+            rejectBackend(QueryRejectionCode.BACKEND_OPERATION_UNSUPPORTED)
+        }
+        if (
+            plan is StreamQueryPlan &&
+            plan.limit == StreamLimit.Unbounded &&
+            descriptor.streamSupport == QueryBackendStreamSupport.BOUNDED_ONLY
+        ) {
             rejectBackend(QueryRejectionCode.BACKEND_OPERATION_UNSUPPORTED)
         }
         if (plan.semanticTier !in descriptor.semanticTiers) {
@@ -168,4 +220,12 @@ private val QUERY_BACKEND_ROUTE_COMPARATOR: Comparator<Map.Entry<QueryTarget, Ba
         .thenBy { entry -> entry.key.namedAggregate.aggregateName }
         .thenBy { entry -> entry.key.documentKind.name }
 
+private val QUERY_BACKEND_KEY_COMPARATOR: Comparator<QueryBackendKey> =
+    compareBy<QueryBackendKey> { key -> key.target.namedAggregate.contextName }
+        .thenBy { key -> key.target.namedAggregate.aggregateName }
+        .thenBy { key -> key.target.documentKind.name }
+        .thenBy { key -> key.backendId.value }
+
 private val BACKEND_PATH = QueryRejectionPath.ROOT.property("backend")
+private const val SHA_256_HEX_LENGTH = 64
+private const val HEX_CHARACTERS = "0123456789abcdef"

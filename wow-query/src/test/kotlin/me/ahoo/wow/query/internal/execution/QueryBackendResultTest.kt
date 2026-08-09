@@ -15,10 +15,10 @@ package me.ahoo.wow.query.internal.execution
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.query.backend.NormalizedValue
 import me.ahoo.wow.query.internal.analytics.AnalyticsAlias
 import me.ahoo.wow.query.internal.analytics.AnalyticsCompleteness
 import me.ahoo.wow.query.internal.analytics.AnalyticsConsistency
-import me.ahoo.wow.query.internal.normalization.NormalizedValue
 import org.junit.jupiter.api.Test
 
 class QueryBackendResultTest {

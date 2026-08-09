@@ -37,6 +37,7 @@ class WowDefinitionProviderRegistryTest {
             "StateEventDefinitionProvider",
             "ServerSentEventCustomDefinitionProvider",
             "ConditionOptionsDefinitionProvider",
+            "AnalyticsCursorDefinitionProvider",
             "MapDefinitionProvider",
             "EnumTextDefinitionProvider"
         )

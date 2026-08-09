@@ -11,24 +11,41 @@
  * limitations under the License.
  */
 
-@file:OptIn(me.ahoo.wow.query.gateway.ExperimentalQueryGatewayApi::class)
+@file:OptIn(
+    me.ahoo.wow.query.backend.ExperimentalQueryBackendApi::class,
+    me.ahoo.wow.query.cursor.ExperimentalQueryCursorApi::class,
+    me.ahoo.wow.query.gateway.ExperimentalQueryGatewayApi::class,
+)
 
 package me.ahoo.wow.spring.boot.starter.query
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.MetadataSearcher
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.query.analytics.AnalyticsQueryServiceFactory
+import me.ahoo.wow.query.analytics.AnalyticsQueryTrustedContextResolver
+import me.ahoo.wow.query.analytics.CompositeAnalyticsQueryTrustedContextResolver
+import me.ahoo.wow.query.backend.QueryBackendComposition
+import me.ahoo.wow.query.cursor.QueryCursorLeaseConfiguration
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
+import me.ahoo.wow.query.gateway.AnalyticsQueryGateway
 import me.ahoo.wow.query.gateway.CompositeQueryTrustedContextResolver
 import me.ahoo.wow.query.gateway.QueryAuthorityResolver
 import me.ahoo.wow.query.gateway.QueryCallResolver
 import me.ahoo.wow.query.gateway.QueryDocumentKind
+import me.ahoo.wow.query.gateway.QueryExecutionMode
+import me.ahoo.wow.query.gateway.QueryExecutionProfiles
 import me.ahoo.wow.query.gateway.QueryGateway
 import me.ahoo.wow.query.gateway.QueryGatewayConfiguration
 import me.ahoo.wow.query.gateway.QueryGatewayRuntime
 import me.ahoo.wow.query.gateway.QueryLegacyDialectResolver
+import me.ahoo.wow.query.gateway.QueryOperation
 import me.ahoo.wow.query.gateway.QueryResultMaterializer
 import me.ahoo.wow.query.gateway.QueryResultMaterializers
+import me.ahoo.wow.query.gateway.QueryRuntimeHealthObserver
+import me.ahoo.wow.query.gateway.QueryShadowConfiguration
+import me.ahoo.wow.query.gateway.QueryShadowObserver
 import me.ahoo.wow.query.gateway.QueryTarget
 import me.ahoo.wow.query.gateway.QueryTrustedContextResolver
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
@@ -90,6 +107,26 @@ class QueryGatewayAutoConfiguration {
     fun queryGatewayConfiguration(): QueryGatewayConfiguration = QueryGatewayConfiguration()
 
     @Bean
+    @ConditionalOnMissingBean(QueryBackendComposition::class)
+    internal fun storageRoutedQueryBackendComposition(
+        rawServiceRegistry: StorageBindingQueryRawServiceRegistry,
+        sources: List<StorageQueryBackendSource>,
+        configuration: QueryGatewayConfiguration,
+        executionProfilesProvider: ObjectProvider<QueryExecutionProfiles>,
+    ): QueryBackendComposition {
+        val profiles = executionProfilesProvider.getIfAvailable { QueryExecutionProfiles.fixed(configuration) }
+        return StorageRoutedQueryBackendComposition.create(
+            sources = sources,
+            shouldPrepare = { target ->
+                RECORD_QUERY_OPERATIONS.any { operation ->
+                    profiles.resolve(target, operation).executionMode != QueryExecutionMode.LEGACY
+                }
+            },
+            storageResolver = rawServiceRegistry::resolveStorage,
+        )
+    }
+
+    @Bean
     @ConditionalOnMissingBean(QueryGatewayRuntime::class)
     @ConditionalOnQueryGatewayWiring
     internal fun queryGatewayRuntime(
@@ -98,36 +135,84 @@ class QueryGatewayAutoConfiguration {
         authorityResolverProvider: ObjectProvider<QueryAuthorityResolver>,
         callResolverProvider: ObjectProvider<QueryCallResolver>,
         trustedContextResolvers: List<QueryTrustedContextResolver>,
+        analyticsTrustedContextResolvers: List<AnalyticsQueryTrustedContextResolver>,
         configuration: QueryGatewayConfiguration,
+        executionProfilesProvider: ObjectProvider<QueryExecutionProfiles>,
+        shadowConfigurationProvider: ObjectProvider<QueryShadowConfiguration>,
+        shadowObserverProvider: ObjectProvider<QueryShadowObserver>,
+        runtimeHealthObserverProvider: ObjectProvider<QueryRuntimeHealthObserver>,
+        backendCompositionProvider: ObjectProvider<QueryBackendComposition>,
+        cursorLeaseConfigurationProvider: ObjectProvider<QueryCursorLeaseConfiguration>,
         customResultMaterializers: List<QueryResultMaterializer<*>>,
     ): QueryGatewayRuntime {
         val aggregateTypes = MetadataSearcher.namedAggregateType
-        val standardMaterializers = aggregateTypes.flatMap { (namedAggregate, aggregateType) ->
-            val snapshotTarget = QueryTarget(namedAggregate, QueryDocumentKind.SNAPSHOT)
-            val eventStreamTarget = QueryTarget(namedAggregate, QueryDocumentKind.EVENT_STREAM)
-            listOf(
-                QueryResultMaterializers.snapshot(
-                    snapshotTarget,
-                    aggregateType.aggregateMetadata<Any, Any>().state.aggregateType,
-                ),
-                QueryResultMaterializers.eventStream(eventStreamTarget),
-            )
-        }
+        val standardMaterializers = createStandardMaterializers(aggregateTypes)
         val dialectResolver = dialectResolverProvider.getIfAvailable {
             QueryLegacyDialectResolver(rawServiceRegistry::resolveDialect)
         }
-        return QueryGatewayRuntime.create(
-            namedAggregates = aggregateTypes.keys,
-            rawServiceSource = rawServiceRegistry,
-            dialectResolver = dialectResolver,
-            authorityResolver = resolveDirectAuthorityResolver(authorityResolverProvider),
-            trustedContextResolver = resolveTrustedContextResolver(
-                trustedContextResolvers,
-                callResolverProvider,
-                authorityResolverProvider,
+        val composition = backendCompositionProvider.getIfAvailable { QueryBackendComposition.EMPTY }
+        val authorityResolver = resolveDirectAuthorityResolver(authorityResolverProvider)
+        val recordTrustedResolver = resolveTrustedContextResolver(
+            trustedContextResolvers,
+            callResolverProvider,
+            authorityResolverProvider,
+        )
+        val analyticsTrustedResolver = when (analyticsTrustedContextResolvers.size) {
+            0 -> AnalyticsQueryTrustedContextResolver { Mono.empty() }
+            1 -> analyticsTrustedContextResolvers.single()
+            else -> CompositeAnalyticsQueryTrustedContextResolver(analyticsTrustedContextResolvers)
+        }
+        val trustedResolver = FrozenQueryTrustedContextResolvers(recordTrustedResolver, analyticsTrustedResolver)
+        val profiles = executionProfilesProvider.getIfAvailable { QueryExecutionProfiles.fixed(configuration) }
+        val shadowConfiguration = shadowConfigurationProvider.getIfAvailable { QueryShadowConfiguration() }
+        val shadowObserver = shadowObserverProvider.getIfAvailable { QueryShadowObserver.NONE }
+        val runtimeHealthObserver = runtimeHealthObserverProvider.getIfAvailable { QueryRuntimeHealthObserver.NONE }
+        val cursorConfiguration = cursorLeaseConfigurationProvider.getIfAvailable()
+        return if (cursorConfiguration == null) {
+            QueryGatewayRuntime.create(
+                aggregateTypes.keys,
+                composition,
+                rawServiceRegistry,
+                dialectResolver,
+                authorityResolver,
+                trustedResolver,
+                standardMaterializers + customResultMaterializers,
+                configuration,
+                profiles,
+                shadowConfiguration,
+                shadowObserver,
+                runtimeHealthObserver,
+            )
+        } else {
+            QueryGatewayRuntime.create(
+                aggregateTypes.keys,
+                composition,
+                cursorConfiguration,
+                rawServiceRegistry,
+                dialectResolver,
+                authorityResolver,
+                trustedResolver,
+                standardMaterializers + customResultMaterializers,
+                configuration,
+                profiles,
+                shadowConfiguration,
+                shadowObserver,
+                runtimeHealthObserver,
+            )
+        }
+    }
+
+    private fun createStandardMaterializers(
+        aggregateTypes: Map<MaterializedNamedAggregate, Class<*>>,
+    ): List<QueryResultMaterializer<*>> = aggregateTypes.flatMap { (namedAggregate, aggregateType) ->
+        val snapshotTarget = QueryTarget(namedAggregate, QueryDocumentKind.SNAPSHOT)
+        val eventStreamTarget = QueryTarget(namedAggregate, QueryDocumentKind.EVENT_STREAM)
+        listOf<QueryResultMaterializer<*>>(
+            QueryResultMaterializers.snapshot(
+                snapshotTarget,
+                aggregateType.aggregateMetadata<Any, Any>().state.aggregateType,
             ),
-            resultMaterializers = standardMaterializers + customResultMaterializers,
-            configuration = configuration,
+            QueryResultMaterializers.eventStream(eventStreamTarget),
         )
     }
 
@@ -137,13 +222,30 @@ class QueryGatewayAutoConfiguration {
     fun queryGateway(runtime: QueryGatewayRuntime): QueryGateway = runtime.gateway
 
     @Bean
+    @ConditionalOnMissingBean(AnalyticsQueryGateway::class)
+    @ConditionalOnQueryGatewayWiring
+    fun analyticsQueryGateway(runtime: QueryGatewayRuntime): AnalyticsQueryGateway = runtime.analyticsGateway
+
+    @Bean
+    @Primary
+    @ConditionalOnQueryGatewayWiring
+    fun analyticsQueryServiceFactory(
+        runtime: QueryGatewayRuntime,
+    ): AnalyticsQueryServiceFactory = runtime.analyticsQueryServiceFactory()
+
+    @Bean
     @ConditionalOnQueryGatewayWiring
     internal fun queryGatewayRuntimeOwnership(
         runtime: QueryGatewayRuntime,
         gateways: List<QueryGateway>,
+        analyticsGateways: List<AnalyticsQueryGateway>,
     ): SmartInitializingSingleton = SmartInitializingSingleton {
         require(gateways.size == 1 && gateways.single() === runtime.gateway) {
             "A custom QueryGateway cannot partially override framework Gateway wiring. " +
+                "Provide one complete QueryGatewayRuntime override instead."
+        }
+        require(analyticsGateways.size == 1 && analyticsGateways.single() === runtime.analyticsGateway) {
+            "A custom AnalyticsQueryGateway cannot partially override framework Gateway wiring. " +
                 "Provide one complete QueryGatewayRuntime override instead."
         }
     }
@@ -160,6 +262,25 @@ class QueryGatewayAutoConfiguration {
     fun gatewayEventStreamQueryServiceFactory(runtime: QueryGatewayRuntime): EventStreamQueryServiceFactory =
         runtime.eventStreamQueryServiceFactory()
 }
+
+private class FrozenQueryTrustedContextResolvers(
+    private val record: QueryTrustedContextResolver,
+    private val analytics: AnalyticsQueryTrustedContextResolver,
+) : QueryTrustedContextResolver,
+    AnalyticsQueryTrustedContextResolver {
+    override fun resolve(request: me.ahoo.wow.query.gateway.QueryTrustedContextRequest) = record.resolve(request)
+
+    override fun resolve(request: me.ahoo.wow.query.analytics.AnalyticsQueryTrustedContextRequest) =
+        analytics.resolve(request)
+}
+
+private val RECORD_QUERY_OPERATIONS = listOf(
+    QueryOperation.SINGLE,
+    QueryOperation.STREAM,
+    QueryOperation.PAGE,
+    QueryOperation.COUNT,
+    QueryOperation.ANALYZE,
+)
 
 private fun failClosedQueryAuthorityResolver(): QueryAuthorityResolver =
     QueryAuthorityResolver { Mono.empty() }

@@ -15,6 +15,8 @@ package me.ahoo.wow.query.internal.planning
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.query.backend.FieldCapability
+import me.ahoo.wow.query.backend.NormalizedValue
 import me.ahoo.wow.query.internal.model.QueryOperation
 import me.ahoo.wow.query.internal.model.QueryResultShape
 import me.ahoo.wow.query.internal.model.QueryValidationMode
@@ -27,7 +29,6 @@ import me.ahoo.wow.query.internal.normalization.NormalizedProjection
 import me.ahoo.wow.query.internal.normalization.NormalizedQueryInput
 import me.ahoo.wow.query.internal.normalization.NormalizedQueryInvocation
 import me.ahoo.wow.query.internal.normalization.NormalizedSortDirection
-import me.ahoo.wow.query.internal.normalization.NormalizedValue
 import me.ahoo.wow.query.internal.normalization.PathBasis
 import me.ahoo.wow.query.internal.normalization.PredicateOperator
 import me.ahoo.wow.query.internal.normalization.SearchScopeId
@@ -42,7 +43,6 @@ import me.ahoo.wow.query.internal.plan.StreamQueryPlan
 import me.ahoo.wow.query.internal.rejection.QueryRejectedException
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCategory
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCode
-import me.ahoo.wow.query.internal.schema.FieldCapability
 import me.ahoo.wow.query.internal.value.NonEmptyList
 import org.junit.jupiter.api.Test
 import java.util.function.Consumer

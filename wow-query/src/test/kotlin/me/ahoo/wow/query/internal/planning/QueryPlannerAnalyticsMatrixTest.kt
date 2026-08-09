@@ -15,6 +15,14 @@ package me.ahoo.wow.query.internal.planning
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.query.backend.FieldCapability
+import me.ahoo.wow.query.backend.LogicalFieldType
+import me.ahoo.wow.query.backend.NormalizedValue
+import me.ahoo.wow.query.backend.Nullability
+import me.ahoo.wow.query.backend.Presence
+import me.ahoo.wow.query.backend.QueryDocumentSchema
+import me.ahoo.wow.query.backend.QueryFieldId
+import me.ahoo.wow.query.backend.QueryFieldSchema
 import me.ahoo.wow.query.internal.analytics.AnalyticsAlias
 import me.ahoo.wow.query.internal.analytics.AnalyticsBucketWindow
 import me.ahoo.wow.query.internal.analytics.AnalyticsDimension
@@ -30,19 +38,11 @@ import me.ahoo.wow.query.internal.model.QueryResultShape
 import me.ahoo.wow.query.internal.normalization.NormalizedCondition
 import me.ahoo.wow.query.internal.normalization.NormalizedQueryInput
 import me.ahoo.wow.query.internal.normalization.NormalizedQueryInvocation
-import me.ahoo.wow.query.internal.normalization.NormalizedValue
 import me.ahoo.wow.query.internal.plan.AnalyticsQueryPlan
 import me.ahoo.wow.query.internal.plan.PlannedAnalyticsMetric
 import me.ahoo.wow.query.internal.rejection.QueryRejectedException
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCategory
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCode
-import me.ahoo.wow.query.internal.schema.FieldCapability
-import me.ahoo.wow.query.internal.schema.LogicalFieldType
-import me.ahoo.wow.query.internal.schema.Nullability
-import me.ahoo.wow.query.internal.schema.Presence
-import me.ahoo.wow.query.internal.schema.QueryDocumentSchema
-import me.ahoo.wow.query.internal.schema.QueryFieldId
-import me.ahoo.wow.query.internal.schema.QueryFieldSchema
 import me.ahoo.wow.query.internal.value.NonEmptyList
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal

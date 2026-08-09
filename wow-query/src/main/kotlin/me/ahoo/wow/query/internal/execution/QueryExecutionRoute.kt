@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.internal.execution
 
+import me.ahoo.wow.query.backend.QueryDocumentSchema
 import me.ahoo.wow.query.internal.model.QueryExecutionMode
 import me.ahoo.wow.query.internal.model.QueryOperation
 import me.ahoo.wow.query.internal.model.QueryTarget
@@ -26,7 +27,6 @@ import me.ahoo.wow.query.internal.rejection.QueryRejectionCategory
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCode
 import me.ahoo.wow.query.internal.rejection.QueryRejectionPath
 import me.ahoo.wow.query.internal.rejection.rejectQuery
-import me.ahoo.wow.query.internal.schema.QueryDocumentSchema
 import me.ahoo.wow.query.internal.value.NonEmptyList
 
 internal data class QueryFallback(

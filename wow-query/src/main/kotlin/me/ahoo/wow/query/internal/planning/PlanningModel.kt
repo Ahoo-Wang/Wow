@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.internal.planning
 
+import me.ahoo.wow.query.backend.SchemaContractId
 import me.ahoo.wow.query.internal.model.QueryTarget
 import me.ahoo.wow.query.internal.model.QueryValidationMode
 import me.ahoo.wow.query.internal.normalization.NormalizedCondition
@@ -21,7 +22,6 @@ import me.ahoo.wow.query.internal.plan.QueryPlan
 import me.ahoo.wow.query.internal.plan.RequiredCapabilities
 import me.ahoo.wow.query.internal.plan.SemanticTier
 import me.ahoo.wow.query.internal.rejection.QueryRejection
-import me.ahoo.wow.query.internal.schema.SchemaContractId
 import me.ahoo.wow.query.internal.value.NonEmptyList
 
 internal data class PlanningConstraints(

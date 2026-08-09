@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.query.internal.admission
 
-import me.ahoo.wow.query.internal.normalization.NormalizedValue
+import me.ahoo.wow.query.backend.NormalizedValue
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCategory
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCode
 import me.ahoo.wow.query.internal.rejection.QueryRejectionPath

@@ -30,8 +30,18 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.api.query.analytics.AnalyticsBucketWindow
+import me.ahoo.wow.api.query.analytics.AnalyticsCompleteness
+import me.ahoo.wow.api.query.analytics.AnalyticsConsistency
+import me.ahoo.wow.api.query.analytics.AnalyticsGrouping
+import me.ahoo.wow.api.query.analytics.AnalyticsMetric
+import me.ahoo.wow.api.query.analytics.AnalyticsMetricKind
+import me.ahoo.wow.api.query.analytics.AnalyticsPage
+import me.ahoo.wow.api.query.analytics.AnalyticsQuery
 import me.ahoo.wow.openapi.BatchComponent
 import me.ahoo.wow.openapi.CommonComponent
+import me.ahoo.wow.query.analytics.AnalyticsQueryService
+import me.ahoo.wow.query.analytics.AnalyticsQueryTrustedContextRequest
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryHandler
@@ -41,6 +51,7 @@ import me.ahoo.wow.query.gateway.QueryCall
 import me.ahoo.wow.query.gateway.QueryCallResolutionRequest
 import me.ahoo.wow.query.gateway.QueryDocumentKind
 import me.ahoo.wow.query.gateway.QueryExecutionMode
+import me.ahoo.wow.query.gateway.QueryResourceScope
 import me.ahoo.wow.query.gateway.QueryTarget
 import me.ahoo.wow.query.gateway.QueryTrustedContextRequest
 import me.ahoo.wow.query.gateway.QueryValidationMode
@@ -176,6 +187,49 @@ class QueryRouteTransportTest {
         )
         eventQuery.captured.limit.assert().isZero()
         resolvedLoadCalls.map { call -> call.resourceScope.tenantId }.assert().containsExactly("(0)", "(0)")
+    }
+
+    @Test
+    fun `analytics route should publish a snapshot transport marker without QueryType`() {
+        val calls = mutableListOf<QueryCall>()
+        val resolvers = QueryWebTransportResolvers {
+            Mono.just(QueryAuthority.System("route-test", "analytics-transport-marker-test"))
+        }
+        val service = object : AnalyticsQueryService {
+            override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
+
+            override fun analyze(query: AnalyticsQuery): Mono<AnalyticsPage> = resolvers.resolve(
+                AnalyticsQueryTrustedContextRequest(
+                    target = QueryTarget(namedAggregate, QueryDocumentKind.SNAPSHOT),
+                    executionMode = QueryExecutionMode.PLANNED,
+                    validationMode = QueryValidationMode.STRICT,
+                ),
+            ).doOnNext { context -> calls += context.call }
+                .map {
+                    AnalyticsPage(
+                        buckets = emptyList(),
+                        nextCursor = null,
+                        consistency = AnalyticsConsistency.EVENTUAL,
+                        completeness = AnalyticsCompleteness.EXACT,
+                    )
+                }
+        }
+        val request = request(
+            AnalyticsQuery(
+                grouping = AnalyticsGrouping.global(),
+                metrics = listOf(AnalyticsMetric("count", AnalyticsMetricKind.DOCUMENT_COUNT)),
+                window = AnalyticsBucketWindow(1),
+            ),
+        )
+
+        AnalyticsQueryHandlerFunction(
+            MOCK_AGGREGATE_METADATA,
+            service,
+            WebFluxRequestExceptionHandler(),
+        ).writeAndVerify(request)
+
+        calls.single().target.assert().isEqualTo(QueryTarget(MOCK_AGGREGATE_METADATA, QueryDocumentKind.SNAPSHOT))
+        calls.single().resourceScope.assert().isEqualTo(QueryResourceScope("tenant-1", "owner-1", "space-1"))
     }
 
     private fun request(body: Any): ServerRequest = MockServerRequest.builder()

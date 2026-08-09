@@ -22,13 +22,23 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.SimpleDynamicDocument
+import me.ahoo.wow.api.query.analytics.AnalyticsBucket
+import me.ahoo.wow.api.query.analytics.AnalyticsCompleteness
+import me.ahoo.wow.api.query.analytics.AnalyticsConsistency
+import me.ahoo.wow.api.query.analytics.AnalyticsCursor
+import me.ahoo.wow.api.query.analytics.AnalyticsPage
+import me.ahoo.wow.api.query.analytics.AnalyticsQuery
+import me.ahoo.wow.api.query.analytics.AnalyticsValue
+import me.ahoo.wow.query.backend.NormalizedValue
+import me.ahoo.wow.query.gateway.AnalyticsQueryGateway
 import me.ahoo.wow.query.gateway.QueryAuthorityRequest
 import me.ahoo.wow.query.gateway.QueryAuthorityResolver
 import me.ahoo.wow.query.gateway.QueryCall
 import me.ahoo.wow.query.gateway.QueryErrorCategory
 import me.ahoo.wow.query.gateway.QueryExecutionException
+import me.ahoo.wow.query.gateway.QueryExecutionProfile
+import me.ahoo.wow.query.gateway.QueryExecutionProfiles
 import me.ahoo.wow.query.gateway.QueryGateway
-import me.ahoo.wow.query.gateway.QueryGatewayConfiguration
 import me.ahoo.wow.query.gateway.QueryResultMaterializer
 import me.ahoo.wow.query.internal.execution.BackendPage
 import me.ahoo.wow.query.internal.execution.BackendRecord
@@ -38,7 +48,6 @@ import me.ahoo.wow.query.internal.model.QueryInput
 import me.ahoo.wow.query.internal.model.QueryInvocation
 import me.ahoo.wow.query.internal.model.QueryOperation
 import me.ahoo.wow.query.internal.model.QueryResultShape
-import me.ahoo.wow.query.internal.normalization.NormalizedValue
 import me.ahoo.wow.query.internal.policy.QueryAuthorityProvider
 import me.ahoo.wow.query.internal.policy.QueryExecutionRequest
 import me.ahoo.wow.query.internal.policy.TrustedAuthorityRejectedException
@@ -68,14 +77,14 @@ import me.ahoo.wow.query.internal.policy.QuerySpaceGrant as InternalSpaceGrant
 
 internal class DefaultQueryGateway(
     private val delegate: InternalQueryGateway,
-    private val configuration: QueryGatewayConfiguration,
+    private val executionProfiles: QueryExecutionProfiles,
     resultMaterializers: Iterable<QueryResultMaterializer<*>>,
 ) : QueryGateway {
     private val materializers = TargetMaterializerRegistry(resultMaterializers)
 
     override fun single(call: QueryCall, query: ISingleQuery): Mono<DynamicDocument> =
         delegate.singleResult(
-            call.toRequest(configuration),
+            call.toRequest(executionProfiles.resolve(call.target, me.ahoo.wow.query.gateway.QueryOperation.SINGLE)),
             {
                 QueryInvocation(
                     call.target.toInternal(),
@@ -92,7 +101,7 @@ internal class DefaultQueryGateway(
         query: ISingleQuery,
         resultType: Class<R>,
     ): Mono<R> = delegate.singleResult(
-        call.toRequest(configuration),
+        call.toRequest(executionProfiles.resolve(call.target, me.ahoo.wow.query.gateway.QueryOperation.SINGLE)),
         {
             materializers.require(call.target, resultType)
             QueryInvocation(
@@ -106,7 +115,7 @@ internal class DefaultQueryGateway(
 
     override fun stream(call: QueryCall, query: IListQuery): Flux<DynamicDocument> =
         delegate.streamResult(
-            call.toRequest(configuration),
+            call.toRequest(executionProfiles.resolve(call.target, me.ahoo.wow.query.gateway.QueryOperation.STREAM)),
             {
                 QueryInvocation(
                     call.target.toInternal(),
@@ -123,7 +132,7 @@ internal class DefaultQueryGateway(
         query: IListQuery,
         resultType: Class<R>,
     ): Flux<R> = delegate.streamResult(
-        call.toRequest(configuration),
+        call.toRequest(executionProfiles.resolve(call.target, me.ahoo.wow.query.gateway.QueryOperation.STREAM)),
         {
             materializers.require(call.target, resultType)
             QueryInvocation(
@@ -137,7 +146,7 @@ internal class DefaultQueryGateway(
 
     override fun page(call: QueryCall, query: IPagedQuery): Mono<PagedList<DynamicDocument>> =
         delegate.pageResult(
-            call.toRequest(configuration),
+            call.toRequest(executionProfiles.resolve(call.target, me.ahoo.wow.query.gateway.QueryOperation.PAGE)),
             {
                 QueryInvocation(
                     call.target.toInternal(),
@@ -154,7 +163,7 @@ internal class DefaultQueryGateway(
         query: IPagedQuery,
         resultType: Class<R>,
     ): Mono<PagedList<R>> = delegate.pageResult(
-        call.toRequest(configuration),
+        call.toRequest(executionProfiles.resolve(call.target, me.ahoo.wow.query.gateway.QueryOperation.PAGE)),
         {
             materializers.require(call.target, resultType)
             QueryInvocation(
@@ -172,12 +181,53 @@ internal class DefaultQueryGateway(
     }.mapError()
 
     override fun count(call: QueryCall, condition: Condition): Mono<Long> =
-        delegate.count(call.toRequest(configuration)) {
+        delegate.count(
+            call.toRequest(executionProfiles.resolve(call.target, me.ahoo.wow.query.gateway.QueryOperation.COUNT)),
+        ) {
             QueryInvocation(
                 call.target.toInternal(),
                 QueryOperation.COUNT,
                 QueryResultShape.COUNT,
                 QueryInput.Count(condition),
+            )
+        }.mapError()
+}
+
+internal class DefaultAnalyticsQueryGateway(
+    private val delegate: InternalQueryGateway,
+    private val executionProfiles: QueryExecutionProfiles,
+) : AnalyticsQueryGateway {
+    override fun analyze(call: QueryCall, query: AnalyticsQuery): Mono<AnalyticsPage> =
+        delegate.analyzePublic(
+            call.toRequest(executionProfiles.resolve(call.target, me.ahoo.wow.query.gateway.QueryOperation.ANALYZE)),
+        ) {
+            QueryInvocation(
+                call.target.toInternal(),
+                QueryOperation.ANALYZE,
+                QueryResultShape.ANALYTICS,
+                QueryInput.AnalyticsWire(query),
+            )
+        }.map { result ->
+            val decimalMetricAliases = query.metrics
+                .filterNot { metric -> metric.kind == me.ahoo.wow.api.query.analytics.AnalyticsMetricKind.DOCUMENT_COUNT }
+                .mapTo(linkedSetOf()) { metric -> metric.alias }
+            val numericScale = query.numericPolicy?.scale
+            AnalyticsPage(
+                result.page.buckets.map { bucket ->
+                    AnalyticsBucket(
+                        bucket.keys.mapKeys { entry -> entry.key.value }
+                            .mapValues { entry -> entry.value.toAnalyticsValue() },
+                        bucket.metrics.mapKeys { entry -> entry.key.value }
+                            .mapValues { entry ->
+                                entry.value.toAnalyticsValue(
+                                    numericScale.takeIf { entry.key in decimalMetricAliases },
+                                )
+                            },
+                    )
+                },
+                result.nextCursor?.let { token -> AnalyticsCursor(token.value) },
+                AnalyticsConsistency.valueOf(result.page.consistency.name),
+                AnalyticsCompleteness.valueOf(result.page.completeness.name),
             )
         }.mapError()
 }
@@ -218,12 +268,12 @@ private fun mapTrustedAuthorityRejection(error: Throwable): Throwable {
     return TrustedAuthorityRejectedException(path, code, error)
 }
 
-private fun QueryCall.toRequest(configuration: QueryGatewayConfiguration): QueryExecutionRequest =
+private fun QueryCall.toRequest(profile: QueryExecutionProfile): QueryExecutionRequest =
     QueryExecutionRequest(
         target = target.toInternal(),
         purpose = InternalQueryPurpose(purpose.value),
-        executionMode = configuration.executionMode.toInternal(),
-        validationMode = configuration.validationMode.toInternal(),
+        executionMode = profile.executionMode.toInternal(),
+        validationMode = profile.validationMode.toInternal(),
         resourceScope = InternalResourceScope(
             resourceScope.tenantId,
             resourceScope.ownerId,
@@ -232,6 +282,12 @@ private fun QueryCall.toRequest(configuration: QueryGatewayConfiguration): Query
         deadline = deadline,
         budget = InternalExecutionBudget(
             maxReturnedRecords = budget.maxReturnedRecords,
+            maxScannedRecords = budget.maxScannedRecords,
+            maxPageWindow = budget.maxPageWindow,
+            maxCandidateBuckets = budget.maxCandidateBuckets,
+            maxReturnedBuckets = budget.maxReturnedBuckets,
+            maxCursorPages = budget.maxCursorPages,
+            allowDiskUse = budget.allowDiskUse,
         ),
     )
 
@@ -254,6 +310,12 @@ private fun QueryExecutionRequest.toPublic(): QueryAuthorityRequest =
             deadline = deadline,
             budget = me.ahoo.wow.query.gateway.QueryExecutionBudget(
                 maxReturnedRecords = budget.maxReturnedRecords,
+                maxScannedRecords = budget.maxScannedRecords,
+                maxPageWindow = budget.maxPageWindow,
+                maxCandidateBuckets = budget.maxCandidateBuckets,
+                maxReturnedBuckets = budget.maxReturnedBuckets,
+                maxCursorPages = budget.maxCursorPages,
+                allowDiskUse = budget.allowDiskUse,
             ),
         ),
         executionMode = executionMode.toPublic(),
@@ -363,6 +425,27 @@ private fun NormalizedValue.toMutableValue(): Any? =
         is NormalizedValue.ListValue -> values.mapTo(ArrayList(values.size), NormalizedValue::toMutableValue)
         is NormalizedValue.ObjectValue -> toMutableMap()
     }
+
+private fun NormalizedValue.toAnalyticsValue(decimalScale: Int? = null): AnalyticsValue = when (this) {
+    NormalizedValue.Null -> AnalyticsValue.nullValue()
+    is NormalizedValue.BooleanValue -> AnalyticsValue.of(value)
+    is NormalizedValue.Text -> AnalyticsValue.of(value)
+    is NormalizedValue.Int64 -> AnalyticsValue.of(value)
+    is NormalizedValue.Decimal -> AnalyticsValue.of(
+        decimalScale?.let { scale ->
+            try {
+                value.setScale(scale, java.math.RoundingMode.UNNECESSARY)
+            } catch (_: ArithmeticException) {
+                rejectMaterialization()
+            }
+        } ?: value,
+    )
+    is NormalizedValue.InstantValue -> AnalyticsValue.of(value)
+    is NormalizedValue.Bytes,
+    is NormalizedValue.ListValue,
+    is NormalizedValue.ObjectValue,
+    -> rejectMaterialization()
+}
 
 private class TargetMaterializerRegistry(registrations: Iterable<QueryResultMaterializer<*>>) {
     private val registrations: Map<me.ahoo.wow.query.gateway.QueryTarget, QueryResultMaterializer<*>>

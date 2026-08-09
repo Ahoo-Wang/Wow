@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.Operator
+import me.ahoo.wow.query.backend.NormalizedValue
 import me.ahoo.wow.query.gateway.ExperimentalQueryGatewayApi
 import me.ahoo.wow.query.gateway.QueryElementPathMode
 import me.ahoo.wow.query.gateway.QueryLegacyDialect
@@ -25,7 +26,6 @@ import me.ahoo.wow.query.internal.normalization.JunctionOperator
 import me.ahoo.wow.query.internal.normalization.LogicalField
 import me.ahoo.wow.query.internal.normalization.NormalizedCondition
 import me.ahoo.wow.query.internal.normalization.NormalizedDeletionScope
-import me.ahoo.wow.query.internal.normalization.NormalizedValue
 import me.ahoo.wow.query.internal.normalization.PathBasis
 import me.ahoo.wow.query.internal.normalization.PredicateOperator
 import me.ahoo.wow.query.internal.normalization.SearchScopeId

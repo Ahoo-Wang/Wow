@@ -76,7 +76,7 @@ class QueryPlannerAnalyticsFingerprintTest {
         }
 
         base.fingerprint.value.assert().isEqualTo(
-            "97fb24dc0ee83efcc07e4bbbc1bcb897f40a1b3709383af9644c894438ece3a7",
+            "82300c5c723bdd295ce3f86800c2d89e93c7101e1152072070975f3bf88f4889",
         )
         plan(global().copy(bucketWindow = AnalyticsBucketWindow.First(1))).fingerprint.assert().isEqualTo(
             plan(global().copy(bucketWindow = AnalyticsBucketWindow.First(10_000))).fingerprint,

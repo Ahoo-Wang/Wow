@@ -22,6 +22,7 @@ import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
 import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryServiceFactory
+import me.ahoo.wow.elasticsearch.query.planned.ElasticsearchSnapshotQueryBinding
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
@@ -35,9 +36,11 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStreamQuerySer
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotQueryServiceFactoryBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
+import me.ahoo.wow.spring.boot.starter.query.StorageQueryBackendSource
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -185,4 +188,13 @@ class ElasticsearchEventSourcingAutoConfiguration(
             elasticsearchSnapshotQueryServiceFactory,
         )
     }
+
+    @Bean
+    @ConditionalOnBean(ElasticsearchSnapshotQueryBinding::class)
+    @ConditionalOnSnapshotEnabled
+    @ConditionalOnSnapshotStoreStorage(StorageType.ELASTICSEARCH)
+    internal fun elasticsearchPlannedQueryBackendSource(
+        elasticsearchClient: ReactiveElasticsearchClient,
+        bindings: List<ElasticsearchSnapshotQueryBinding>,
+    ): StorageQueryBackendSource = ElasticsearchPlannedQueryBackendSource(elasticsearchClient, bindings)
 }

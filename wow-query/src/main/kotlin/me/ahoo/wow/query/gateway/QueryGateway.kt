@@ -28,8 +28,10 @@ import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import java.time.Duration
 import java.time.Instant
 import java.util.Collections
+import java.util.LinkedHashMap
 
 /**
  * Marks the additive, evolving Query Gateway composition API.
@@ -62,6 +64,15 @@ enum class QueryExecutionMode {
 enum class QueryValidationMode {
     COMPATIBLE,
     STRICT,
+}
+
+@ExperimentalQueryGatewayApi
+enum class QueryOperation {
+    SINGLE,
+    STREAM,
+    PAGE,
+    COUNT,
+    ANALYZE,
 }
 
 @ExperimentalQueryGatewayApi
@@ -109,10 +120,31 @@ data class QueryResourceScope(
 @ExperimentalQueryGatewayApi
 data class QueryExecutionBudget(
     val maxReturnedRecords: Long? = null,
+    val maxScannedRecords: Long? = null,
+    val maxPageWindow: Long? = null,
+    val maxCandidateBuckets: Int? = null,
+    val maxReturnedBuckets: Int? = null,
+    val maxCursorPages: Int? = null,
+    val allowDiskUse: Boolean = false,
 ) {
     init {
         require(maxReturnedRecords == null || maxReturnedRecords > 0)
+        require(maxScannedRecords == null || maxScannedRecords > 0)
+        require(maxPageWindow == null || maxPageWindow > 0)
+        require(maxCandidateBuckets == null || maxCandidateBuckets > 0)
+        require(maxReturnedBuckets == null || maxReturnedBuckets > 0)
+        require(maxCursorPages == null || maxCursorPages > 0)
     }
+
+    constructor(maxReturnedRecords: Long?) : this(
+        maxReturnedRecords,
+        null,
+        null,
+        null,
+        null,
+        null,
+        false,
+    )
 }
 
 @ExperimentalQueryGatewayApi
@@ -129,6 +161,112 @@ data class QueryGatewayConfiguration(
     val executionMode: QueryExecutionMode = QueryExecutionMode.LEGACY,
     val validationMode: QueryValidationMode = QueryValidationMode.COMPATIBLE,
 )
+
+@ExperimentalQueryGatewayApi
+data class QueryExecutionProfile(
+    val executionMode: QueryExecutionMode,
+    val validationMode: QueryValidationMode,
+)
+
+@ExperimentalQueryGatewayApi
+data class QueryOperationProfileKey(
+    val target: QueryTarget,
+    val operation: QueryOperation,
+)
+
+/** Immutable rollout profile: operation override, then target override, then the default profile. */
+@ExperimentalQueryGatewayApi
+class QueryExecutionProfiles(
+    val defaultProfile: QueryExecutionProfile = QueryExecutionProfile(
+        QueryExecutionMode.LEGACY,
+        QueryValidationMode.COMPATIBLE,
+    ),
+    targetProfiles: Map<QueryTarget, QueryExecutionProfile> = emptyMap(),
+    operationProfiles: Map<QueryOperationProfileKey, QueryExecutionProfile> = emptyMap(),
+) {
+    val targetProfiles: Map<QueryTarget, QueryExecutionProfile> = Collections.unmodifiableMap(
+        LinkedHashMap(targetProfiles),
+    )
+    val operationProfiles: Map<QueryOperationProfileKey, QueryExecutionProfile> = Collections.unmodifiableMap(
+        LinkedHashMap(operationProfiles),
+    )
+
+    fun resolve(target: QueryTarget, operation: QueryOperation): QueryExecutionProfile =
+        operationProfiles[QueryOperationProfileKey(target, operation)] ?: targetProfiles[target] ?: defaultProfile
+
+    companion object {
+        fun fixed(configuration: QueryGatewayConfiguration): QueryExecutionProfiles = QueryExecutionProfiles(
+            QueryExecutionProfile(configuration.executionMode, configuration.validationMode),
+        )
+    }
+}
+
+@ExperimentalQueryGatewayApi
+data class QueryShadowConfiguration(
+    val maxConcurrentProbes: Int = 4,
+    val maxComparedRecords: Int = 1_000,
+    val probeTimeout: Duration = Duration.ofSeconds(30),
+) {
+    init {
+        require(maxConcurrentProbes > 0)
+        require(maxComparedRecords > 0)
+        require(!probeTimeout.isZero && !probeTimeout.isNegative)
+    }
+}
+
+@ExperimentalQueryGatewayApi
+enum class QueryShadowOutcome {
+    MATCH,
+    VALUE_MISMATCH,
+    PROBE_ERROR,
+    PRIMARY_ERROR,
+    CANCELLED,
+    SKIPPED,
+    SATURATED,
+}
+
+@ExperimentalQueryGatewayApi
+data class QueryShadowObservation(
+    val target: QueryTarget,
+    val operation: QueryOperation,
+    val planFingerprint: String?,
+    val outcome: QueryShadowOutcome,
+    val reasonCode: String? = null,
+)
+
+@ExperimentalQueryGatewayApi
+fun interface QueryShadowObserver {
+    fun onObservation(observation: QueryShadowObservation)
+
+    companion object {
+        val NONE = QueryShadowObserver { }
+    }
+}
+
+@ExperimentalQueryGatewayApi
+enum class QueryRuntimeHealthKind {
+    FALLBACK,
+    SHADOW_SUPERVISOR_FAILURE,
+    CURSOR_CLEANUP_FAILURE,
+}
+
+/** Descriptor-only runtime health signal. It deliberately excludes authority, query values and backend causes. */
+@ExperimentalQueryGatewayApi
+data class QueryRuntimeHealthObservation(
+    val target: QueryTarget,
+    val operation: QueryOperation,
+    val kind: QueryRuntimeHealthKind,
+    val reasonCode: String,
+)
+
+@ExperimentalQueryGatewayApi
+fun interface QueryRuntimeHealthObserver {
+    fun onObservation(observation: QueryRuntimeHealthObservation)
+
+    companion object {
+        val NONE = QueryRuntimeHealthObserver { }
+    }
+}
 
 @ExperimentalQueryGatewayApi
 sealed interface QueryOwnerGrant {
@@ -315,7 +453,9 @@ class CompositeQueryTrustedContextResolver(resolvers: Iterable<QueryTrustedConte
  * target, purpose, execution mode or resource scope.
  */
 @ExperimentalQueryGatewayApi
-class QueryLegacyContextResolver(grants: Iterable<QueryLegacyGrant>) : QueryTrustedContextResolver {
+class QueryLegacyContextResolver(grants: Iterable<QueryLegacyGrant>) :
+    QueryTrustedContextResolver,
+    me.ahoo.wow.query.analytics.AnalyticsQueryTrustedContextResolver {
     private val grantsByCallerAndTarget: Map<LegacyGrantKey, QueryLegacyGrant>
 
     init {
@@ -339,6 +479,24 @@ class QueryLegacyContextResolver(grants: Iterable<QueryLegacyGrant>) : QueryTrus
         }
         val call = QueryCall(grant.target, grant.purpose, grant.resourceScope)
         Mono.just(QueryTrustedContext(call, QueryAuthority.Legacy(grant)))
+    }
+
+    override fun resolve(
+        request: me.ahoo.wow.query.analytics.AnalyticsQueryTrustedContextRequest,
+    ): Mono<QueryTrustedContext> = Mono.deferContextual { context ->
+        val callerId = context.getOrDefault<String>(LEGACY_CALLER_CONTEXT_KEY, null)
+            ?: return@deferContextual Mono.empty()
+        val grant = grantsByCallerAndTarget[LegacyGrantKey(callerId, request.target)]
+            ?: return@deferContextual Mono.error(legacyGrantRejected())
+        if (request.executionMode != grant.executionMode || request.target != grant.target) {
+            return@deferContextual Mono.error(legacyGrantRejected())
+        }
+        Mono.just(
+            QueryTrustedContext(
+                QueryCall(grant.target, grant.purpose, grant.resourceScope),
+                QueryAuthority.Legacy(grant),
+            ),
+        )
     }
 }
 

@@ -85,10 +85,7 @@ internal class StorageBindingQueryRawServiceRegistry(
         eventStreamFactory(namedAggregate).create(namedAggregate.materialize())
 
     fun resolveDialect(target: QueryTarget): QueryLegacyDialect {
-        val storage = when (target.documentKind) {
-            QueryDocumentKind.SNAPSHOT -> storageOf(snapshotFactory(target.namedAggregate), snapshotBindings)
-            QueryDocumentKind.EVENT_STREAM -> storageOf(eventStreamFactory(target.namedAggregate), eventStreamBindings)
-        }
+        val storage = resolveStorage(target)
         return when (storage) {
             StorageType.ELASTICSEARCH -> ELASTICSEARCH_DIALECT
             StorageType.MONGO -> MONGO_DIALECT
@@ -97,6 +94,11 @@ internal class StorageBindingQueryRawServiceRegistry(
                 "Raw query route for target[$target] does not declare a supported legacy dialect.",
             )
         }
+    }
+
+    fun resolveStorage(target: QueryTarget): StorageType? = when (target.documentKind) {
+        QueryDocumentKind.SNAPSHOT -> storageOf(snapshotFactory(target.namedAggregate), snapshotBindings)
+        QueryDocumentKind.EVENT_STREAM -> storageOf(eventStreamFactory(target.namedAggregate), eventStreamBindings)
     }
 
     private fun snapshotFactory(namedAggregate: NamedAggregate): SnapshotQueryServiceFactory =

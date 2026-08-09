@@ -11,8 +11,11 @@
  * limitations under the License.
  */
 
+@file:OptIn(me.ahoo.wow.query.backend.ExperimentalQueryBackendApi::class)
+
 package me.ahoo.wow.query.internal.normalization
 
+import me.ahoo.wow.query.backend.NormalizedValue
 import java.util.Collections
 
 internal enum class PathBasis {
@@ -20,14 +23,7 @@ internal enum class PathBasis {
     CURRENT_ELEMENT,
 }
 
-internal enum class SystemFieldKind {
-    IDENTITY,
-    AGGREGATE_ID,
-    TENANT_ID,
-    OWNER_ID,
-    SPACE_ID,
-    DELETED,
-}
+internal typealias SystemFieldKind = me.ahoo.wow.query.backend.SystemFieldKind
 
 internal sealed interface LogicalField {
     data class System(val kind: SystemFieldKind) : LogicalField
@@ -56,50 +52,11 @@ internal sealed interface LogicalField {
     }
 }
 
-internal enum class JunctionOperator {
-    AND,
-    OR,
-    NOR,
-}
-
-internal enum class PredicateOperator(val requiresValue: Boolean) {
-    EQ(true),
-    NE(true),
-    GT(true),
-    LT(true),
-    GTE(true),
-    LTE(true),
-    CONTAINS(true),
-    IN(true),
-    NOT_IN(true),
-    BETWEEN(true),
-    ALL_IN(true),
-    STARTS_WITH(true),
-    ENDS_WITH(true),
-    IS_NULL(false),
-    NOT_NULL(false),
-    IS_TRUE(false),
-    IS_FALSE(false),
-    EXISTS(true),
-}
-
-internal enum class CaseSensitivity {
-    SENSITIVE,
-    INSENSITIVE,
-}
-
-internal data class NormalizedPredicateOptions(
-    val caseSensitivity: CaseSensitivity = CaseSensitivity.SENSITIVE,
-)
-
-@JvmInline
-internal value class SearchScopeId(val value: String) {
-    init {
-        require(value.isNotBlank()) {
-            "Search scope id must not be blank."
-        }
-    }
-}
+internal typealias JunctionOperator = me.ahoo.wow.query.backend.JunctionOperator
+internal typealias PredicateOperator = me.ahoo.wow.query.backend.PredicateOperator
+internal typealias CaseSensitivity = me.ahoo.wow.query.backend.CaseSensitivity
+internal typealias NormalizedPredicateOptions = me.ahoo.wow.query.backend.NormalizedPredicateOptions
+internal typealias SearchScopeId = me.ahoo.wow.query.backend.SearchScopeId
 
 internal sealed interface SearchScope {
     data class Named(val id: SearchScopeId) : SearchScope
@@ -107,23 +64,8 @@ internal sealed interface SearchScope {
     data class LegacyField(val field: LogicalField.Path) : SearchScope
 }
 
-@JvmInline
-internal value class BackendId(val value: String) {
-    init {
-        require(value.isNotBlank()) {
-            "Backend id must not be blank."
-        }
-    }
-}
-
-@JvmInline
-internal value class Utf8Json(val value: String) {
-    init {
-        require(value.isNotBlank()) {
-            "Native JSON must not be blank."
-        }
-    }
-}
+internal typealias BackendId = me.ahoo.wow.query.backend.BackendId
+internal typealias Utf8Json = me.ahoo.wow.query.backend.Utf8Json
 
 internal sealed interface NormalizedCondition {
     data object All : NormalizedCondition

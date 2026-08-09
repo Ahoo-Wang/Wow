@@ -11,10 +11,9 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.internal.schema
+package me.ahoo.wow.query.backend
 
-import me.ahoo.wow.query.internal.model.QueryTarget
-import me.ahoo.wow.query.internal.normalization.SearchScopeId
+import me.ahoo.wow.query.gateway.QueryTarget
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 import java.security.MessageDigest
@@ -22,7 +21,8 @@ import java.util.Collections
 import java.util.LinkedHashMap
 
 @JvmInline
-internal value class SchemaContractId(val value: String) {
+@ExperimentalQueryBackendApi
+value class SchemaContractId(val value: String) {
     init {
         require(value.matches(HEX_PATTERN)) {
             "Schema contract id must be a SHA-256 hex string."
@@ -34,7 +34,8 @@ internal value class SchemaContractId(val value: String) {
     }
 }
 
-internal class QueryDocumentSchema(
+@ExperimentalQueryBackendApi
+class QueryDocumentSchema(
     val target: QueryTarget,
     fields: Iterable<QueryFieldSchema>,
     searchScopes: Iterable<QuerySearchScopeDefinition>,
@@ -142,7 +143,7 @@ internal class QueryDocumentSchema(
                 "Search scope owner $owner must declare ELEMENT_MATCH."
             }
         }
-        definition.fields.values.forEach { field ->
+        definition.fields.forEach { field ->
             val schema = requireNotNull(fields[field]) {
                 "Search scope field $field is not declared."
             }
@@ -205,7 +206,7 @@ private object SchemaContractEncoder {
         writeUtf8(scope.id.value)
         writeBoolean(scope.owner != null)
         scope.owner?.let { owner -> writeFieldId(owner) }
-        writeFieldIds(scope.fields.values)
+        writeFieldIds(scope.fields)
         writeFieldIds(scope.legacyAliases.sortedWith(QUERY_FIELD_PATH_COMPARATOR))
     }
 

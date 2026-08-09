@@ -11,16 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.internal.schema
+package me.ahoo.wow.query.backend
 
-import me.ahoo.wow.query.internal.normalization.NormalizedValue
-import me.ahoo.wow.query.internal.normalization.PredicateOperator
-import me.ahoo.wow.query.internal.normalization.SearchScopeId
-import me.ahoo.wow.query.internal.normalization.SystemFieldKind
-import me.ahoo.wow.query.internal.value.NonEmptyList
 import java.util.Collections
 
-internal sealed interface QueryFieldId {
+@ExperimentalQueryBackendApi
+sealed interface QueryFieldId {
     data class System(val kind: SystemFieldKind) : QueryFieldId
 
     class Path(segments: Iterable<String>) : QueryFieldId {
@@ -46,22 +42,26 @@ internal sealed interface QueryFieldId {
     }
 }
 
-internal enum class Presence {
+@ExperimentalQueryBackendApi
+enum class Presence {
     REQUIRED,
     OPTIONAL,
 }
 
-internal enum class Nullability {
+@ExperimentalQueryBackendApi
+enum class Nullability {
     NON_NULL,
     NULLABLE,
 }
 
-internal enum class EmptyArraySemantics {
+@ExperimentalQueryBackendApi
+enum class EmptyArraySemantics {
     DISTINCT,
     COLLAPSES_TO_MISSING,
 }
 
-internal sealed interface LogicalFieldType {
+@ExperimentalQueryBackendApi
+sealed interface LogicalFieldType {
     data object Text : LogicalFieldType
 
     data object Boolean : LogicalFieldType
@@ -83,7 +83,8 @@ internal sealed interface LogicalFieldType {
     ) : LogicalFieldType
 }
 
-internal enum class FieldCapability {
+@ExperimentalQueryBackendApi
+enum class FieldCapability {
     EXACT,
     PRESENCE,
     RANGE,
@@ -93,9 +94,11 @@ internal enum class FieldCapability {
     PROJECTABLE,
     AGGREGATABLE,
     ELEMENT_MATCH,
+    ELEMENT_NULL,
 }
 
-internal class QueryFieldSchema(
+@ExperimentalQueryBackendApi
+class QueryFieldSchema(
     val id: QueryFieldId,
     val type: LogicalFieldType,
     val presence: Presence,
@@ -230,23 +233,28 @@ private fun LogicalFieldType.Array.acceptsElement(value: NormalizedValue): Boole
         elementType.accepts(value)
     }
 
-internal class QuerySearchScopeDefinition(
+@ExperimentalQueryBackendApi
+class QuerySearchScopeDefinition(
     val id: SearchScopeId,
     val owner: QueryFieldId.Path?,
-    fields: NonEmptyList<QueryFieldId.Path>,
+    fields: Iterable<QueryFieldId.Path>,
     legacyAliases: Iterable<QueryFieldId.Path>,
 ) {
-    val fields: NonEmptyList<QueryFieldId.Path>
+    val fields: List<QueryFieldId.Path>
     val legacyAliases: Set<QueryFieldId.Path> = Collections.unmodifiableSet(
         LinkedHashSet(legacyAliases.sortedWith(QUERY_FIELD_PATH_COMPARATOR)),
     )
 
     init {
-        require(fields.values.distinct().size == fields.values.size) {
+        val materializedFields = fields.toList()
+        require(materializedFields.isNotEmpty()) {
+            "Search scope fields must not be empty."
+        }
+        require(materializedFields.distinct().size == materializedFields.size) {
             "Search scope fields must be unique."
         }
-        this.fields = checkNotNull(
-            NonEmptyList.from(fields.values.sortedWith(QUERY_FIELD_PATH_COMPARATOR)),
+        this.fields = Collections.unmodifiableList(
+            materializedFields.sortedWith(QUERY_FIELD_PATH_COMPARATOR),
         )
     }
 

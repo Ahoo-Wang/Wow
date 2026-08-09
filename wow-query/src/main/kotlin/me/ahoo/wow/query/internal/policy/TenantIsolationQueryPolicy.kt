@@ -13,10 +13,10 @@
 
 package me.ahoo.wow.query.internal.policy
 
+import me.ahoo.wow.query.backend.NormalizedValue
 import me.ahoo.wow.query.internal.normalization.JunctionOperator
 import me.ahoo.wow.query.internal.normalization.LogicalField
 import me.ahoo.wow.query.internal.normalization.NormalizedCondition
-import me.ahoo.wow.query.internal.normalization.NormalizedValue
 import me.ahoo.wow.query.internal.normalization.PredicateOperator
 import me.ahoo.wow.query.internal.normalization.SystemFieldKind
 import me.ahoo.wow.query.internal.planning.NativeBackendAccess

@@ -17,6 +17,7 @@ package me.ahoo.wow.webflux.route.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.openapi.CommonComponent
+import me.ahoo.wow.query.analytics.AnalyticsQueryTrustedContextRequest
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.gateway.CompositeQueryTrustedContextResolver
 import me.ahoo.wow.query.gateway.QueryAuthority
@@ -76,6 +77,41 @@ class QueryWebTransportTest {
                 authority.assert().isEqualTo(QueryAuthority.Subject("subject-1", "tenant-1"))
                 authorityRequest.get().request.assert().isSameAs(request)
                 authorityRequest.get().call.assert().isEqualTo(call)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `should resolve analytics authority from a dedicated marker without QueryType`() {
+        val authorityRequest = AtomicReference<QueryWebAuthorityRequest>()
+        val resolvers = QueryWebTransportResolvers { request ->
+            authorityRequest.set(request)
+            Mono.just(QueryAuthority.Subject("subject-1", "tenant-1"))
+        }
+        val request = MockServerRequest.builder()
+            .pathVariable(MessageRecords.TENANT_ID, "tenant-1")
+            .pathVariable(MessageRecords.OWNER_ID, "owner-1")
+            .header(CommonComponent.Header.SPACE_ID, "space-1")
+            .build()
+
+        Mono.defer {
+            resolvers.resolve(
+                AnalyticsQueryTrustedContextRequest(
+                    target,
+                    QueryExecutionMode.PLANNED,
+                    QueryValidationMode.STRICT,
+                ),
+            )
+        }.writeAnalyticsQueryWebTransport(request, MOCK_AGGREGATE_METADATA)
+            .test()
+            .consumeNextWith { context ->
+                context.call.target.assert().isEqualTo(target)
+                context.call.resourceScope.assert().isEqualTo(
+                    QueryResourceScope("tenant-1", "owner-1", "space-1"),
+                )
+                context.authority.assert().isEqualTo(QueryAuthority.Subject("subject-1", "tenant-1"))
+                authorityRequest.get().request.assert().isSameAs(request)
+                authorityRequest.get().call.assert().isEqualTo(context.call)
             }
             .verifyComplete()
     }

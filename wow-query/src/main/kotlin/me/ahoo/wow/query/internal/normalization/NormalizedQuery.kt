@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+@file:OptIn(me.ahoo.wow.query.backend.ExperimentalQueryBackendApi::class)
+
 package me.ahoo.wow.query.internal.normalization
 
 import me.ahoo.wow.query.internal.analytics.AnalyticsQuery
@@ -93,10 +95,7 @@ internal sealed interface NormalizedProjection {
     ) : NormalizedProjection
 }
 
-internal enum class NormalizedSortDirection {
-    ASC,
-    DESC,
-}
+internal typealias NormalizedSortDirection = me.ahoo.wow.query.backend.NormalizedSortDirection
 
 internal data class NormalizedSort(
     val field: LogicalField,

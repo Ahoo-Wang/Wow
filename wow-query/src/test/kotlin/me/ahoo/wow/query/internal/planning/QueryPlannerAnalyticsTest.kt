@@ -15,6 +15,11 @@ package me.ahoo.wow.query.internal.planning
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.query.backend.NormalizedValue
+import me.ahoo.wow.query.backend.Nullability
+import me.ahoo.wow.query.backend.Presence
+import me.ahoo.wow.query.backend.QueryDocumentSchema
+import me.ahoo.wow.query.backend.QueryFieldSchema
 import me.ahoo.wow.query.internal.analytics.AnalyticsAlias
 import me.ahoo.wow.query.internal.analytics.AnalyticsBucketOrder
 import me.ahoo.wow.query.internal.analytics.AnalyticsBucketWindow
@@ -41,7 +46,6 @@ import me.ahoo.wow.query.internal.normalization.BackendId
 import me.ahoo.wow.query.internal.normalization.NormalizedCondition
 import me.ahoo.wow.query.internal.normalization.NormalizedQueryInput
 import me.ahoo.wow.query.internal.normalization.NormalizedQueryInvocation
-import me.ahoo.wow.query.internal.normalization.NormalizedValue
 import me.ahoo.wow.query.internal.normalization.Utf8Json
 import me.ahoo.wow.query.internal.plan.AnalyticsQueryPlan
 import me.ahoo.wow.query.internal.plan.PlanFingerprint
@@ -52,10 +56,6 @@ import me.ahoo.wow.query.internal.plan.PlannedAnalyticsMetric
 import me.ahoo.wow.query.internal.rejection.QueryRejectedException
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCategory
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCode
-import me.ahoo.wow.query.internal.schema.Nullability
-import me.ahoo.wow.query.internal.schema.Presence
-import me.ahoo.wow.query.internal.schema.QueryDocumentSchema
-import me.ahoo.wow.query.internal.schema.QueryFieldSchema
 import me.ahoo.wow.query.internal.value.NonEmptyList
 import org.junit.jupiter.api.Test
 import java.math.RoundingMode
@@ -103,7 +103,7 @@ class QueryPlannerAnalyticsTest {
         grouping.dimensions.values.single().missingPolicy.assert().isEqualTo(AnalyticsMissingPolicy.AS_NULL_BUCKET)
         (plan.metrics.values.last() as PlannedAnalyticsMetric.Sum).field.assert().isEqualTo(PlanningFixtures.amount)
         plan.requiredCapabilities.fieldRequirements.getValue(PlanningFixtures.amount).assert()
-            .contains(me.ahoo.wow.query.internal.schema.FieldCapability.AGGREGATABLE)
+            .contains(me.ahoo.wow.query.backend.FieldCapability.AGGREGATABLE)
         plan.bucketOrder.assert().isEqualTo(
             PlannedAnalyticsBucketOrder.DimensionKeyAscending(
                 AnalyticsNullPlacement.FIRST,
@@ -187,7 +187,7 @@ class QueryPlannerAnalyticsTest {
     }
 
     @Test
-    fun `analytics should reject unsupported having order consistency and completeness`() {
+    fun `analytics should support snapshot consistency and reject unsupported having order and completeness`() {
         assertRejected(
             QueryRejectionCategory.UNSUPPORTED_FEATURE,
             QueryRejectionCode.ANALYTICS_HAVING_UNSUPPORTED,
@@ -204,13 +204,8 @@ class QueryPlannerAnalyticsTest {
             plan(grouped().copy(bucketOrder = AnalyticsBucketOrder.MetricDescending(AnalyticsAlias("total"))))
         }
 
-        assertRejected(
-            QueryRejectionCategory.UNSUPPORTED_FEATURE,
-            QueryRejectionCode.ANALYTICS_CONSISTENCY_UNSUPPORTED,
-            "$.input.query.requiredConsistency",
-        ) {
-            plan(grouped().copy(requiredConsistency = AnalyticsConsistency.SNAPSHOT))
-        }
+        plan(grouped().copy(requiredConsistency = AnalyticsConsistency.SNAPSHOT))
+            .requiredConsistency.assert().isEqualTo(AnalyticsConsistency.SNAPSHOT)
 
         assertRejected(
             QueryRejectionCategory.UNSUPPORTED_FEATURE,

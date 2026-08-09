@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.internal.policy
 
+import me.ahoo.wow.query.backend.QueryDocumentSchema
 import me.ahoo.wow.query.internal.model.QueryValidationMode
 import me.ahoo.wow.query.internal.normalization.NormalizedCondition
 import me.ahoo.wow.query.internal.normalization.NormalizedQueryInvocation
@@ -27,7 +28,6 @@ import me.ahoo.wow.query.internal.planning.StreamPlanningConstraint
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCategory
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCode
 import me.ahoo.wow.query.internal.rejection.QueryRejectionPath
-import me.ahoo.wow.query.internal.schema.QueryDocumentSchema
 import reactor.core.publisher.Mono
 
 internal data class QueryPolicyInput(

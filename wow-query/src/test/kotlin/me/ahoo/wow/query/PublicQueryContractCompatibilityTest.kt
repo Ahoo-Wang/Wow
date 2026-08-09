@@ -64,6 +64,41 @@ class PublicQueryContractCompatibilityTest {
     }
 
     @Test
+    fun `query gateway runtime should retain legacy composition factory`() {
+        QueryGatewayRuntime.Companion::class.java.declaredMethods
+            .filter { method -> method.name == "create" && Modifier.isPublic(method.modifiers) }
+            .map { method ->
+                val parameters = method.parameterTypes.joinToString(",") { type -> type.name }
+                "${method.name}($parameters):${method.returnType.name}"
+            }.assert()
+            .contains(
+                "create(java.lang.Iterable," +
+                    "me.ahoo.wow.query.gateway.QueryRawServiceSource," +
+                    "me.ahoo.wow.query.gateway.QueryLegacyDialectResolver," +
+                    "me.ahoo.wow.query.gateway.QueryAuthorityResolver," +
+                    "me.ahoo.wow.query.gateway.QueryTrustedContextResolver," +
+                    "java.lang.Iterable," +
+                    "me.ahoo.wow.query.gateway.QueryGatewayConfiguration," +
+                    "java.time.Clock," +
+                    "reactor.core.scheduler.Scheduler):" +
+                    "me.ahoo.wow.query.gateway.QueryGatewayRuntime",
+            )
+    }
+
+    @Test
+    fun `analytics facade factory should use only its construction-time frozen resolver`() {
+        QueryGatewayRuntime::class.java.declaredMethods
+            .filter { method ->
+                method.name == "analyticsQueryServiceFactory" &&
+                    Modifier.isPublic(method.modifiers) &&
+                    !method.isSynthetic
+            }
+            .map { method -> method.parameterCount }
+            .assert()
+            .containsExactly(0)
+    }
+
+    @Test
     fun `trusted authority writer must not be JVM public`() {
         listOf(
             "me.ahoo.wow.query.gateway.QueryGatewayKt",

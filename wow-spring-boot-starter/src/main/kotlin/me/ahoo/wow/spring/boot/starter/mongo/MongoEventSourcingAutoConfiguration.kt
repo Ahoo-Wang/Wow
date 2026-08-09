@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+@file:OptIn(me.ahoo.wow.query.backend.ExperimentalQueryBackendApi::class)
+
 package me.ahoo.wow.spring.boot.starter.mongo
 
 import com.mongodb.reactivestreams.client.MongoClient
@@ -27,6 +29,8 @@ import me.ahoo.wow.mongo.MongoSnapshotStore
 import me.ahoo.wow.mongo.SnapshotSchemaInitializer
 import me.ahoo.wow.mongo.prepare.MongoPrepareKeyFactory
 import me.ahoo.wow.mongo.query.event.MongoEventStreamQueryServiceFactory
+import me.ahoo.wow.mongo.query.planned.MongoEventStreamQueryBinding
+import me.ahoo.wow.mongo.query.planned.MongoSnapshotQueryBinding
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
@@ -41,6 +45,7 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnaps
 import me.ahoo.wow.spring.boot.starter.prepare.ConditionalOnPrepareEnabled
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareProperties
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareStorage
+import me.ahoo.wow.spring.boot.starter.query.StorageQueryBackendSource
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -188,6 +193,31 @@ class MongoEventSourcingAutoConfiguration(
     ): SnapshotQueryServiceFactoryBinding {
         return SnapshotQueryServiceFactoryBinding.storage(StorageType.MONGO, mongoSnapshotQueryServiceFactory)
     }
+
+    @Bean
+    @ConditionalOnBean(MongoSnapshotQueryBinding::class)
+    @ConditionalOnSnapshotEnabled
+    @ConditionalOnSnapshotStoreStorage(StorageType.MONGO)
+    internal fun mongoPlannedQueryBackendSource(
+        mongoClient: MongoClient,
+        dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?,
+        bindings: List<MongoSnapshotQueryBinding>,
+    ): StorageQueryBackendSource = MongoPlannedQueryBackendSource.snapshot(
+        getMongoSnapshotDatabase(dataMongoProperties, mongoClient),
+        bindings,
+    )
+
+    @Bean
+    @ConditionalOnBean(MongoEventStreamQueryBinding::class)
+    @ConditionalOnEventStoreStorage(StorageType.MONGO)
+    internal fun mongoEventStreamPlannedQueryBackendSource(
+        mongoClient: MongoClient,
+        dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?,
+        bindings: List<MongoEventStreamQueryBinding>,
+    ): StorageQueryBackendSource = MongoPlannedQueryBackendSource.eventStream(
+        getEventStreamDatabase(dataMongoProperties, mongoClient),
+        bindings,
+    )
 
     private fun getMongoSnapshotDatabase(
         dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?,

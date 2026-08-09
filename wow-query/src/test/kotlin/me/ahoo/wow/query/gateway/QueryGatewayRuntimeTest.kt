@@ -33,6 +33,28 @@ import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.backend.BackendCountQueryPlan
+import me.ahoo.wow.query.backend.BackendId
+import me.ahoo.wow.query.backend.BackendRecord
+import me.ahoo.wow.query.backend.BackendRecordCompleteness
+import me.ahoo.wow.query.backend.BackendSingleQueryPlan
+import me.ahoo.wow.query.backend.BackendStreamQueryPlan
+import me.ahoo.wow.query.backend.BackendStreamSupport
+import me.ahoo.wow.query.backend.FieldCapability
+import me.ahoo.wow.query.backend.LogicalFieldType
+import me.ahoo.wow.query.backend.NormalizedValue
+import me.ahoo.wow.query.backend.Nullability
+import me.ahoo.wow.query.backend.PredicateOperator
+import me.ahoo.wow.query.backend.Presence
+import me.ahoo.wow.query.backend.QueryBackendComposition
+import me.ahoo.wow.query.backend.QueryBackendExecutionOptions
+import me.ahoo.wow.query.backend.QueryDocumentSchema
+import me.ahoo.wow.query.backend.QueryFieldId
+import me.ahoo.wow.query.backend.QueryFieldSchema
+import me.ahoo.wow.query.backend.RecordQueryBackend
+import me.ahoo.wow.query.backend.RecordQueryBackendContribution
+import me.ahoo.wow.query.backend.RecordQueryBackendNotReady
+import me.ahoo.wow.query.backend.SemanticTier
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
 import me.ahoo.wow.query.internal.gateway.TrustedAuthorityChannel
@@ -44,10 +66,14 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.LinkedHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.Consumer
 
-@OptIn(ExperimentalQueryGatewayApi::class)
+@OptIn(
+    me.ahoo.wow.query.backend.ExperimentalQueryBackendApi::class,
+    ExperimentalQueryGatewayApi::class,
+)
 class QueryGatewayRuntimeTest {
     @Test
     fun `gateway should remain cold and materialize an independent projected document`() {
@@ -220,6 +246,227 @@ class QueryGatewayRuntimeTest {
         val gateway = gateway(raw) { Mono.just(QueryAuthority.System("test", "match-none")) }
 
         gateway.count(snapshotCall, Condition.ids(emptyList())).block().assert().isZero()
+        raw.countCalls.get().assert().isZero()
+    }
+
+    @Test
+    fun `planned runtime should execute the contributed backend without touching legacy storage`() {
+        val raw = ProbeSnapshotQueryService(namedAggregate)
+        val planned = ProbeRecordQueryBackend()
+        val gateway = QueryGatewayRuntime.create(
+            namedAggregates = listOf(namedAggregate),
+            backendComposition = plannedComposition(planned),
+            rawServiceSource = object : QueryRawServiceSource {
+                override fun snapshot(namedAggregate: NamedAggregate): SnapshotQueryService<*> = raw
+
+                override fun eventStream(namedAggregate: NamedAggregate) =
+                    NoOpEventStreamQueryServiceFactory.create(namedAggregate)
+            },
+            dialectResolver = QueryLegacyDialectResolver {
+                QueryLegacyDialect(QueryElementPathMode.CURRENT_ELEMENT_RELATIVE, QueryMatchScopeMode.DOCUMENT)
+            },
+            authorityResolver = QueryAuthorityResolver {
+                Mono.just(QueryAuthority.System("test", "planned-runtime"))
+            },
+            executionProfiles = QueryExecutionProfiles(
+                operationProfiles = listOf(QueryOperation.SINGLE, QueryOperation.STREAM, QueryOperation.COUNT)
+                    .associate { operation ->
+                        QueryOperationProfileKey(snapshotCall.target, operation) to
+                            QueryExecutionProfile(QueryExecutionMode.PLANNED, QueryValidationMode.STRICT)
+                    },
+            ),
+            clock = Clock.fixed(Instant.parse("2024-01-01T00:00:00Z"), ZoneOffset.UTC),
+        ).gateway
+
+        gateway.count(snapshotCall.copy(budget = fullBudget), Condition.ALL).block().assert().isEqualTo(7)
+        val document = gateway.single(snapshotCall, SingleQuery(Condition.ALL)).block()!!
+        document.getValue<String>("aggregateId").assert().isEqualTo("order-1")
+        document.getNestedDocument("state").getValue<String>("status").assert().isEqualTo("PAID")
+        gateway.stream(snapshotCall, ListQuery(condition = Condition.ALL, limit = 1)).collectList().block().assert()
+            .hasSize(1)
+        gateway.count(eventCall, Condition.ALL).block().assert().isZero()
+
+        planned.countCalls.get().assert().isEqualTo(1)
+        planned.lastCountOptions.assert().isEqualTo(fullBackendOptions)
+        planned.singleCalls.get().assert().isEqualTo(1)
+        planned.streamCalls.get().assert().isEqualTo(1)
+        raw.countCalls.get().assert().isZero()
+        raw.singleCalls.get().assert().isZero()
+        raw.streamCalls.get().assert().isZero()
+
+        assertThrownBy<QueryExecutionException> {
+            gateway.page(
+                snapshotCall.copy(budget = QueryExecutionBudget(maxPageWindow = 1)),
+                PagedQuery(Condition.ALL, pagination = Pagination(2, 1)),
+            ).block()
+        }.satisfies(
+            Consumer { error ->
+                error.category.assert().isEqualTo(QueryErrorCategory.BUDGET_EXCEEDED)
+                error.path.assert().isEqualTo("$.input.page")
+                error.code.assert().isEqualTo("PAGE_WINDOW_EXCEEDED")
+            },
+        )
+        raw.lastPagedQuery.assert().isNull()
+    }
+
+    @Test
+    fun `shadow runtime should return legacy and compare the planned probe`() {
+        val raw = ProbeSnapshotQueryService(namedAggregate).apply { countResult = 7 }
+        val planned = ProbeRecordQueryBackend()
+        val observations = CopyOnWriteArrayList<QueryShadowObservation>()
+        val gateway = QueryGatewayRuntime.create(
+            namedAggregates = listOf(namedAggregate),
+            backendComposition = plannedComposition(planned),
+            rawServiceSource = object : QueryRawServiceSource {
+                override fun snapshot(namedAggregate: NamedAggregate): SnapshotQueryService<*> = raw
+
+                override fun eventStream(namedAggregate: NamedAggregate) =
+                    NoOpEventStreamQueryServiceFactory.create(namedAggregate)
+            },
+            dialectResolver = QueryLegacyDialectResolver {
+                QueryLegacyDialect(QueryElementPathMode.CURRENT_ELEMENT_RELATIVE, QueryMatchScopeMode.DOCUMENT)
+            },
+            authorityResolver = QueryAuthorityResolver {
+                Mono.just(QueryAuthority.System("test", "shadow-runtime"))
+            },
+            executionProfiles = QueryExecutionProfiles(
+                operationProfiles = mapOf(
+                    QueryOperationProfileKey(snapshotCall.target, QueryOperation.COUNT) to
+                        QueryExecutionProfile(QueryExecutionMode.SHADOW, QueryValidationMode.STRICT),
+                ),
+            ),
+            shadowObserver = QueryShadowObserver(observations::add),
+            runtimeHealthObserver = QueryRuntimeHealthObserver { },
+            clock = Clock.fixed(Instant.parse("2024-01-01T00:00:00Z"), ZoneOffset.UTC),
+        ).gateway
+
+        gateway.count(snapshotCall, Condition.ALL).block().assert().isEqualTo(7)
+        observations.single().outcome.assert().isEqualTo(QueryShadowOutcome.MATCH)
+
+        planned.countResult = 9
+        gateway.count(snapshotCall, Condition.ALL).block().assert().isEqualTo(7)
+        observations.last().outcome.assert().isEqualTo(QueryShadowOutcome.VALUE_MISMATCH)
+        observations.assert().hasSize(2)
+        raw.countCalls.get().assert().isEqualTo(2)
+        planned.countCalls.get().assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `shadow runtime should keep legacy available and report a configured backend that is not ready`() {
+        val raw = ProbeSnapshotQueryService(namedAggregate).apply { countResult = 7 }
+        val observations = CopyOnWriteArrayList<QueryShadowObservation>()
+        val gateway = QueryGatewayRuntime.create(
+            namedAggregates = listOf(namedAggregate),
+            backendComposition = notReadyComposition(),
+            rawServiceSource = object : QueryRawServiceSource {
+                override fun snapshot(namedAggregate: NamedAggregate): SnapshotQueryService<*> = raw
+
+                override fun eventStream(namedAggregate: NamedAggregate) =
+                    NoOpEventStreamQueryServiceFactory.create(namedAggregate)
+            },
+            dialectResolver = QueryLegacyDialectResolver {
+                QueryLegacyDialect(QueryElementPathMode.CURRENT_ELEMENT_RELATIVE, QueryMatchScopeMode.DOCUMENT)
+            },
+            authorityResolver = QueryAuthorityResolver {
+                Mono.just(QueryAuthority.System("test", "shadow-not-ready"))
+            },
+            executionProfiles = QueryExecutionProfiles(
+                operationProfiles = mapOf(
+                    QueryOperationProfileKey(snapshotCall.target, QueryOperation.COUNT) to
+                        QueryExecutionProfile(QueryExecutionMode.SHADOW, QueryValidationMode.STRICT),
+                ),
+            ),
+            shadowObserver = QueryShadowObserver(observations::add),
+            runtimeHealthObserver = QueryRuntimeHealthObserver { },
+            clock = Clock.fixed(Instant.parse("2024-01-01T00:00:00Z"), ZoneOffset.UTC),
+        ).gateway
+
+        gateway.count(snapshotCall, Condition.ALL).block().assert().isEqualTo(7)
+
+        observations.single().outcome.assert().isEqualTo(QueryShadowOutcome.PROBE_ERROR)
+        observations.single().reasonCode.assert().isEqualTo("BACKEND_NOT_READY")
+        raw.countCalls.get().assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `compatible fallback should emit a stable descriptor only runtime health observation`() {
+        val raw = ProbeSnapshotQueryService(namedAggregate).apply { countResult = 3 }
+        val observations = CopyOnWriteArrayList<QueryRuntimeHealthObservation>()
+        val gateway = gateway(
+            raw,
+            runtimeHealthObserver = QueryRuntimeHealthObserver(observations::add),
+        ) { Mono.just(QueryAuthority.System("test", "fallback-observation")) }
+
+        gateway.count(snapshotCall, Condition.eq("state.unregistered", "value")).block().assert().isEqualTo(3)
+
+        observations.single().let { observation ->
+            observation.target.assert().isEqualTo(snapshotCall.target)
+            observation.operation.assert().isEqualTo(QueryOperation.COUNT)
+            observation.kind.assert().isEqualTo(QueryRuntimeHealthKind.FALLBACK)
+            observation.reasonCode.assert().isEqualTo("FIELD_NOT_FOUND")
+        }
+    }
+
+    @Test
+    fun `planned runtime should reject a configured backend that is not ready at startup`() {
+        val raw = ProbeSnapshotQueryService(namedAggregate)
+
+        assertThrownBy<IllegalArgumentException> {
+            QueryGatewayRuntime.create(
+                namedAggregates = listOf(namedAggregate),
+                backendComposition = notReadyComposition(),
+                rawServiceSource = object : QueryRawServiceSource {
+                    override fun snapshot(namedAggregate: NamedAggregate): SnapshotQueryService<*> = raw
+
+                    override fun eventStream(namedAggregate: NamedAggregate) =
+                        NoOpEventStreamQueryServiceFactory.create(namedAggregate)
+                },
+                dialectResolver = QueryLegacyDialectResolver {
+                    QueryLegacyDialect(QueryElementPathMode.CURRENT_ELEMENT_RELATIVE, QueryMatchScopeMode.DOCUMENT)
+                },
+                authorityResolver = QueryAuthorityResolver {
+                    Mono.just(QueryAuthority.System("test", "planned-not-ready"))
+                },
+                executionProfiles = QueryExecutionProfiles(
+                    operationProfiles = mapOf(
+                        QueryOperationProfileKey(snapshotCall.target, QueryOperation.COUNT) to
+                            QueryExecutionProfile(QueryExecutionMode.PLANNED, QueryValidationMode.STRICT),
+                    ),
+                ),
+            )
+        }
+        raw.countCalls.get().assert().isZero()
+    }
+
+    @Test
+    fun `target wide planned profile should reject a partial backend matrix at startup`() {
+        val raw = ProbeSnapshotQueryService(namedAggregate)
+        assertThrownBy<IllegalArgumentException> {
+            QueryGatewayRuntime.create(
+                namedAggregates = listOf(namedAggregate),
+                backendComposition = plannedComposition(ProbeRecordQueryBackend()),
+                rawServiceSource = object : QueryRawServiceSource {
+                    override fun snapshot(namedAggregate: NamedAggregate): SnapshotQueryService<*> = raw
+
+                    override fun eventStream(namedAggregate: NamedAggregate) =
+                        NoOpEventStreamQueryServiceFactory.create(namedAggregate)
+                },
+                dialectResolver = QueryLegacyDialectResolver {
+                    QueryLegacyDialect(QueryElementPathMode.CURRENT_ELEMENT_RELATIVE, QueryMatchScopeMode.DOCUMENT)
+                },
+                authorityResolver = QueryAuthorityResolver {
+                    Mono.just(QueryAuthority.System("test", "invalid-planned-profile"))
+                },
+                executionProfiles = QueryExecutionProfiles(
+                    targetProfiles = mapOf(
+                        snapshotCall.target to QueryExecutionProfile(
+                            QueryExecutionMode.PLANNED,
+                            QueryValidationMode.STRICT,
+                        ),
+                    ),
+                ),
+            )
+        }
         raw.countCalls.get().assert().isZero()
     }
 
@@ -415,9 +662,11 @@ class QueryGatewayRuntimeTest {
         eventRaw: EventStreamQueryService = NoOpEventStreamQueryServiceFactory.create(namedAggregate),
         configuration: QueryGatewayConfiguration = QueryGatewayConfiguration(),
         resultMaterializers: Iterable<QueryResultMaterializer<*>> = emptyList(),
+        runtimeHealthObserver: QueryRuntimeHealthObserver = QueryRuntimeHealthObserver.NONE,
         authority: QueryAuthorityResolver,
     ): QueryGateway = QueryGatewayRuntime.create(
         namedAggregates = listOf(namedAggregate),
+        backendComposition = QueryBackendComposition.EMPTY,
         rawServiceSource = object : QueryRawServiceSource {
             override fun snapshot(namedAggregate: NamedAggregate): SnapshotQueryService<*> = raw
 
@@ -428,9 +677,66 @@ class QueryGatewayRuntimeTest {
         },
         authorityResolver = authority,
         resultMaterializers = resultMaterializers,
+        runtimeHealthObserver = runtimeHealthObserver,
         configuration = configuration,
         clock = Clock.fixed(Instant.parse("2024-01-01T00:00:00Z"), ZoneOffset.UTC),
     ).gateway
+
+    private fun plannedComposition(backend: RecordQueryBackend): QueryBackendComposition {
+        val identity = QueryFieldId.System(me.ahoo.wow.query.backend.SystemFieldKind.IDENTITY)
+        val deleted = QueryFieldId.System(me.ahoo.wow.query.backend.SystemFieldKind.DELETED)
+        val schema = QueryDocumentSchema(
+            target = snapshotCall.target,
+            fields = listOf(
+                QueryFieldSchema(
+                    id = identity,
+                    type = LogicalFieldType.Text,
+                    presence = Presence.REQUIRED,
+                    nullability = Nullability.NON_NULL,
+                    allowedOperators = listOf(PredicateOperator.EQ, PredicateOperator.IN),
+                    capabilities = listOf(FieldCapability.EXACT, FieldCapability.SORTABLE),
+                    logicalAliases = listOf(QueryFieldId.Path(listOf("aggregateId"))),
+                ),
+                QueryFieldSchema(
+                    id = deleted,
+                    type = LogicalFieldType.Boolean,
+                    presence = Presence.REQUIRED,
+                    nullability = Nullability.NON_NULL,
+                    allowedOperators = listOf(PredicateOperator.IS_TRUE, PredicateOperator.IS_FALSE),
+                    capabilities = listOf(FieldCapability.EXACT),
+                ),
+            ),
+            searchScopes = emptyList(),
+        )
+        val backendId = BackendId("probe")
+        return QueryBackendComposition(
+            contributions = listOf(
+                RecordQueryBackendContribution(
+                    schema = schema,
+                    backendId = backendId,
+                    supportedOperations = setOf(QueryOperation.SINGLE, QueryOperation.STREAM, QueryOperation.COUNT),
+                    streamSupport = BackendStreamSupport.BOUNDED_ONLY,
+                    semanticTiers = setOf(SemanticTier.PORTABLE),
+                    fieldCapabilities = mapOf(
+                        identity to setOf(FieldCapability.EXACT, FieldCapability.SORTABLE),
+                        deleted to setOf(FieldCapability.EXACT),
+                    ),
+                    backend = backend,
+                ),
+            ),
+            defaultRoutes = mapOf(snapshotCall.target to backendId),
+        )
+    }
+
+    private fun notReadyComposition(): QueryBackendComposition {
+        val ready = plannedComposition(ProbeRecordQueryBackend())
+        val contribution = ready.contributions.single()
+        return QueryBackendComposition(
+            contributions = emptyList(),
+            notReadyBackends = listOf(RecordQueryBackendNotReady(contribution.schema, contribution.backendId)),
+            defaultRoutes = ready.defaultRoutes,
+        )
+    }
 
     private val namedAggregate = MaterializedNamedAggregate("sales", "order")
     private val snapshotCall = QueryCall(
@@ -441,6 +747,16 @@ class QueryGatewayRuntimeTest {
         QueryTarget(namedAggregate, QueryDocumentKind.EVENT_STREAM),
         QueryPurpose("query-test"),
     )
+    private val fullBudget = QueryExecutionBudget(
+        maxReturnedRecords = 10,
+        maxScannedRecords = 100,
+        maxPageWindow = 1_000,
+        maxCandidateBuckets = 20,
+        maxReturnedBuckets = 5,
+        maxCursorPages = 3,
+        allowDiskUse = true,
+    )
+    private val fullBackendOptions = QueryBackendExecutionOptions(null, 10, 100, 1_000, 20, 5, 3, true)
 
     private data class TypedResult(val identity: String, val status: String)
 
@@ -527,5 +843,48 @@ class QueryGatewayRuntimeTest {
             lastCountCondition = condition
             return Mono.just(countResult)
         }
+    }
+
+    private class ProbeRecordQueryBackend : RecordQueryBackend {
+        val singleCalls = AtomicInteger()
+        val streamCalls = AtomicInteger()
+        val countCalls = AtomicInteger()
+        var countResult: Long = 7
+        var lastCountOptions: QueryBackendExecutionOptions? = null
+
+        override fun single(
+            plan: BackendSingleQueryPlan,
+            options: QueryBackendExecutionOptions,
+        ): Mono<BackendRecord> {
+            singleCalls.incrementAndGet()
+            return Mono.just(record())
+        }
+
+        override fun stream(
+            plan: BackendStreamQueryPlan,
+            options: QueryBackendExecutionOptions,
+        ): Flux<BackendRecord> {
+            streamCalls.incrementAndGet()
+            return Flux.just(record())
+        }
+
+        override fun count(plan: BackendCountQueryPlan, options: QueryBackendExecutionOptions): Mono<Long> {
+            countCalls.incrementAndGet()
+            lastCountOptions = options
+            return Mono.just(countResult)
+        }
+
+        private fun record(): BackendRecord = BackendRecord(
+            identity = "order-1",
+            document = NormalizedValue.ObjectValue(
+                linkedMapOf(
+                    "aggregateId" to NormalizedValue.Text("order-1"),
+                    "state" to NormalizedValue.ObjectValue(
+                        linkedMapOf("status" to NormalizedValue.Text("PAID")),
+                    ),
+                ),
+            ),
+            completeness = BackendRecordCompleteness.COMPLETE,
+        )
     }
 }

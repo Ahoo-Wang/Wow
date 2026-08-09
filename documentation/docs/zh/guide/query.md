@@ -319,6 +319,11 @@ fun queryWebAuthorityResolver(authorityService: QueryAuthorityService): QueryWeb
 tenant/owner/space 仍然只是资源 selector；resolver 必须将它们与已认证 authority 比较，冲突时拒绝，不能降级为个人范围。
 :::
 
+生成的 Snapshot/Event 查询、load 与 Analytics 端点统一声明 Query 错误响应：`400`（无效查询、Cursor 或不支持的能力）、
+`403`（拒绝访问）、`408`（deadline）、`429`（预算超限）、`502`（结果不完整）、`503`（Backend 不可用）、
+`504`（Backend 超时）和 `500`（映射或内部错误）。响应继续使用 `DefaultErrorInfo` JSON 与 `Wow-Error-Code` Header，
+不会为 Analytics/Cursor 引入第二套错误 envelope。
+
 ![Query Service](../../public/images/query/open-api-query.png)
 
 ### 分页查询
@@ -481,6 +486,119 @@ eq("state.status", "CREATED")
 ```
 
 :::
+
+### 分析查询（Analytics）
+
+分析查询使用独立的 `AnalyticsQuery` / `AnalyticsPage` 契约，不修改 `QueryService` 的七个兼容方法。字段均为逻辑字段；
+`.keyword`、索引名、Mongo/Elasticsearch 原生查询及 Backend option 不属于公共请求。`Int64`、`Decimal` 与 `Instant`
+结果使用带类型的规范字符串，避免 JavaScript/JSON number 精度损失。
+
+本版本经审批升级了标记为 `@ExperimentalQueryGatewayApi` / `@ExperimentalQueryCursorApi` 的公共 Query、Analytics、Cursor
+契约；使用这些实验 API 的应用需要重新编译，并迁移到当前构造器和 budget 字段。稳定的 `QueryService` 七方法与
+`QueryType` 七个值保持不变。OpenAPI 使用条件 `oneOf` 固定 Analytics 形状：`GLOBAL` 只能有空 dimensions、`limit=1`
+且不能带 cursor；`BY` 至少一个 dimension；`DOCUMENT_COUNT` metric 不接受 field，其他 metric 必须带 field。
+
+```shell
+curl -X POST \
+  'http://localhost:8080/tenant/tenant-1/sales-order/snapshot/analyze' \
+  -H 'Authorization: Bearer <token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "condition": { "operator": "ALL" },
+    "grouping": {
+      "kind": "BY",
+      "dimensions": [
+        { "alias": "status", "field": "state.status", "missingPolicy": "EXCLUDE" }
+      ]
+    },
+    "metrics": [
+      { "alias": "count", "kind": "DOCUMENT_COUNT" },
+      { "alias": "total", "kind": "SUM", "field": "state.total" }
+    ],
+    "window": { "limit": 100 },
+    "numericPolicy": { "scale": 2 },
+    "consistency": "EVENTUAL",
+    "completeness": "EXACT"
+  }'
+```
+
+```json
+{
+  "buckets": [
+    {
+      "keys": { "status": { "type": "TEXT", "value": "PAID" } },
+      "metrics": {
+        "count": { "type": "INT64", "value": "42" },
+        "total": { "type": "DECIMAL", "value": "120.50" }
+      }
+    }
+  ],
+  "nextCursor": null,
+  "consistency": "EVENTUAL",
+  "completeness": "EXACT"
+}
+```
+
+`grouping.kind=GLOBAL` 要求 `dimensions=[]`、`window.limit=1` 且不带 cursor。`BY` 的 `nextCursor` 是不超过
+256 字符的 opaque URL-safe token；客户端只能原样放入下一次 `window.cursor`，不得解析、修改或自行构造。
+服务端在校验 target、Plan fingerprint、mapping generation、authority/security binding 和 Backend 后，才以 CAS 删除 lease；
+错误 authority 或 mapping 不会消费 cursor，同一 cursor 只允许一个请求成功取得下一页。
+
+第一页签发 cursor 时，服务端还会把完整 `QueryExecutionBudget` ceiling 写入签名 lease。后续页只能保持或收紧
+`maxReturnedRecords`、`maxScannedRecords`、`maxPageWindow`、候选/返回 bucket 数、`maxCursorPages` 与
+`allowDiskUse`，不能删除或放宽首次请求的限制；尝试放宽会以 `CURSOR_BUDGET_RELAXATION_NOT_ALLOWED` 拒绝且不消费 lease。
+
+多实例部署必须提供共享 `QueryCursorLeaseStore`。MongoDB 实现使用固定容量 slot、唯一 lease id、revision CAS 和带 grace 的 TTL；
+集合与索引不会在应用启动时隐式创建，必须先在受控运维步骤中显式执行 `ensureIndexes()`：
+
+```kotlin
+val store = MongoQueryCursorLeaseStore(
+    cursorDatabase,
+    MongoQueryCursorLeaseStoreOptions(
+        maxEntries = 65_536,
+        retentionGrace = Duration.ofMinutes(5),
+    ),
+)
+
+// 由迁移/运维入口执行一次，不要放进普通查询请求。
+store.ensureIndexes().block()
+
+@Bean
+fun queryCursorLeaseConfiguration(
+    signingKeys: QueryCursorSigningKeys, // 从受管 Secret 构造，禁止写入源码或普通配置日志。
+): QueryCursorLeaseConfiguration = QueryCursorLeaseConfiguration(store, signingKeys)
+```
+
+Mongo TTL 使用 `expiresAt + retentionGrace`；framework reaper 会先尝试 revision CAS 并关闭 Backend state，TTL 只是遗弃 lease 的最终
+安全网。默认不创建调度器；配置共享 store 后，可以显式启用 Starter 的单 owner、有界串行 reaper：
+
+```yaml
+wow:
+  query:
+    cursor:
+      reaper:
+        enabled: true
+        initial-delay: 30s
+        interval: 1m
+        batch-size: 100
+        max-batches-per-run: 10
+```
+
+启用 reaper 但未提供 `QueryCursorLeaseConfiguration` 会使应用启动失败。每个周期最多处理
+`batch-size * max-batches-per-run` 条 lease，前一轮未完成时不会并发启动下一轮；单轮 store/closer 错误被隔离并在下一周期重试。
+不使用 Starter 调度时，运维入口仍可显式调用 `QueryGatewayRuntime.reapExpiredQueryCursors(batchSize)`。普通查询请求永远不会触发
+清理或 DDL。轮换 HMAC key 时，新 key 作为 `current`，旧 key 仅放在 `previous`；必须等待 `maxCursorTtl` 后才能删除旧 key。
+
+Mongo Analytics 目前声明 `EVENTUAL + EXACT`。Elasticsearch grouped Analytics 在 Backend mapping/readiness 通过且配置共享 cursor
+store 时支持 `SNAPSHOT + EXACT`：PIT id 只作为服务端 opaque lease state 保存，客户端 token 不包含 PIT；terminal、error、cancel、
+容量拒绝与过期 reaper 都会尽力关闭 PIT。缺少与精确 `QueryTarget + BackendId` 匹配的 lifecycle closer 时，请求会在访问存储前拒绝。
+
+Spring 同时注册 `<context>.<aggregate>.AnalyticsQueryService` Bean。直接进程内调用仍必须提供 trusted context；HTTP
+调用复用查询路由的认证 authority。Aggregate 未注册匹配的 Analytics schema/backend readiness 时会稳定拒绝且不会访问存储。
+
+启用任一 `SHADOW` profile 时，必须同时提供有界的 `QueryShadowConfiguration`、`QueryShadowObserver` 和
+`QueryRuntimeHealthObserver`；缺少 observer 会使 runtime 启动失败。health observation 只包含 target、operation、kind 与稳定
+reason code，不包含 authority、查询值或 Backend cause，必须接入有界、低基数的指标/告警，而不能作为静默 fallback。
 
 ## 查询服务注册器
 

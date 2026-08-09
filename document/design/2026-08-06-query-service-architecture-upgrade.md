@@ -58,7 +58,8 @@ flowchart LR
 3. 授权强制条件具有 provenance，任何后续扩展都不能移除或覆盖。
 4. MongoDB 作为 `PORTABLE` 查询语义基准，Backend 只负责编译和执行同一份 Plan。
 5. 查询完整性、分页一致性、预算与错误分类由公共合同定义，Backend 不得静默降级。
-6. 保持现有 Query DTO、JSON/OpenAPI、七个 `QueryService` 方法、DSL、Spring 聚合 Bean 名称与主要返回结构兼容。
+6. 保持现有记录 Query DTO、七个 `QueryService` 方法、DSL、Spring 聚合 Bean 名称与主要返回结构兼容；
+   经批准的 Analytics/Cursor 契约以 additive 方式升级 JSON/OpenAPI。
 7. 将分析型聚合建模为独立的一等操作，在不污染记录查询合同的前提下统一 MongoDB/Elasticsearch 的分组、指标、桶分页与完整性语义。
 8. 支持按聚合逐步启用 planned path、shadow compare、切换和回滚。
 
@@ -66,8 +67,8 @@ flowchart LR
 
 - 不承诺 `MATCH` 在 MongoDB 与 Elasticsearch 间具有相同分词和相关性。
 - 不把 `RAW` 纳入跨 Backend 可移植语义。
-- 第一阶段不新增公开 cursor HTTP 协议。
-- 当前 PR 不增加公开聚合 DSL、`AnalyticsQueryService` 或第八个 `QueryService` 方法。
+- 不给现有记录查询增加 cursor HTTP 协议；Analytics 使用独立、已批准的 opaque cursor 契约。
+- 不给 `QueryService` 增加第八个方法；Analytics 通过独立的 `AnalyticsQueryService` / Gateway / route additive 发布。
 - 不在查询运行时提供跨聚合、跨集合或跨索引 join；此类需求通过 Projection 物化专用 read model。
 - 应用启动不自动迁移、删除 Elasticsearch 索引或切换 alias。
 - 在核心模型尚未稳定前不拆分新的 Gradle module。
@@ -100,7 +101,7 @@ flowchart LR
 
 WebFlux 是 transport adapter；现有聚合级 `SnapshotQueryService<State>` / `EventStreamQueryService` Bean 是 legacy adapter。两者都只能委托 Gateway。兼容期保留 Handler/Filter，但它们不得再被描述为最终安全边界。
 
-未来新增的 `AnalyticsQueryService` 是独立、additive 的应用 adapter，同样只能委托 Gateway；它不是现有
+已批准的 `AnalyticsQueryService` 是独立、additive 的应用 adapter，同样只能委托 Gateway；它不是现有
 `QueryService` 的第八个方法，也不能直接持有 MongoDB collection 或 Elasticsearch client。
 
 ### 4.2 Raw Admission Guard
@@ -551,6 +552,8 @@ missing/null、cursor replay、completeness 和错误类别。仅比较 JSON 形
 - 强制最小桶文档数在 Backend 内执行，并保留 policy provenance；
 - admission 限制 dimension/metric/having 节点、alias、cursor 和 payload 大小；
 - execution budget 至少覆盖 deadline、扫描文档数、候选桶数、返回桶数、内存/落盘策略和跨页次数；
+- cursor 首页把完整 execution budget ceiling 写入签名 lease；continuation 可逐项收紧但不得删除或放宽 ceiling，
+  因此 security-context digest 可以保持身份/用途/模式绑定而不阻止合法收紧；
 - 指标记录 operation、target、semantic tier、capability、bucket 数、扫描/执行耗时、completeness、fallback
   原因和 budget rejection；不得把 dimension key 或 metric 原值写入低基数标签/普通日志。
 
@@ -625,7 +628,8 @@ wow.<context>.<aggregate>.snapshot-v0002-000001
 wow.<context>.<aggregate>.es-v0002-000001
 ```
 
-mapping `_meta` 保存 mapping version、document kind 和 capability digest。应用启动只执行 `VALIDATE` 或显式配置的 `CREATE_MISSING`；回填与 alias 切换是独立运维流程：
+mapping `_meta` 保存 mapping version、document kind、schema contract id 和由 binding 规范编码生成的 capability digest。
+应用启动不执行 reindex、alias 切换或删除；`CREATE` 也只能由显式运维命令触发。回填与 alias 切换是独立运维流程：
 
 1. 固化 logical schema 与 backend binding；
 2. 创建 template 和新物理索引；
@@ -648,11 +652,11 @@ mapping `_meta` 保存 mapping version、document kind 和 capability digest。�
 | Phase | 当前证据 | 状态 |
 |---|---|---|
 | 0 | `QueryHandler` 已形成单一 defer/fail-closed 边界；EventStream factory 已使用 materialized key 与并发缓存；对应同步、异步、partial Flux、cancel、direct handle 和多订阅测试已存在 | 已实现，待 PR #2908 合并 |
-| 1 | P1-A 已引入 internal `QueryInvocation`、语义代数、`QueryPlan` 与最小 analytics model；P1-B 已引入单遍 admission snapshot、全局 value/payload budget、typed rejection 与 43 operator Normalizer；P1-C 已引入 logical schema、provenance-bearing Planner、record/analytics Plan 与 canonical fingerprint；尚无 Backend compiler 或运行时接线 | 已实现，stacked Draft PR #2909/#2910/#2915 |
-| 2 | P2-A 已引入 typed execution context、每订阅 authority resolver、精确绑定 target/purpose/resource scope 的 legacy grant、响应式 fail-closed Policy、tenant scope mandatory condition，以及 filter/projection/sort/search/native/analytics/result planning constraint；Spring Registrar 仍从 storage `QueryServiceFactory` 直接创建 Bean，WebFlux 仍直接调用 legacy `QueryHandler` | P2-A 已实现，P2-B/P2-C 未开始 |
-| 3 | MongoDB 查询仍由 `AbstractMongoQueryService` 直接执行 `find/countDocuments`，没有 planned compiler、Backend、单操作 page 或 aggregation pipeline | 未开始 |
-| 4 | Elasticsearch 查询仍使用 `from/size` 和 hits/count，没有 field binding、readiness、完整性 validator、PIT 或 composite aggregation | 未开始 |
-| 5 | 没有 cursor lease、版本化 physical index/alias 运维工具或公开 `AnalyticsQueryService`/HTTP/DSL contract | 未开始 |
+| 1 | P1-A 已引入 internal `QueryInvocation`、语义代数、`QueryPlan` 与最小 analytics model；P1-B 已引入单遍 admission snapshot、全局 value/payload budget、typed rejection 与 43 operator Normalizer；P1-C 已引入 logical schema、provenance-bearing Planner、record/analytics Plan 与 canonical fingerprint；Backend compiler 与运行时接线由后续 Phase 独立实现 | 已实现，stacked Draft PR #2909/#2910/#2915 |
+| 2 | P2-A 已引入 typed execution context 与 fail-closed Policy；P2-B 已引入 per-subscription Gateway、Executor、legacy lowering/attestation、绝对 deadline、typed error boundary 与受控 SHADOW；P2-C 已把 framework-managed Service factory、Registrar、Handler/WebFlux transport 接到 Gateway，并保留 legacy wiring rollback 与原七方法 ABI；公共 Query/Analytics/Cursor 与完整 Query status OpenAPI 扩展已经审批并由 golden 锁定 | P2-A/P2-B/P2-C 已实现 |
+| 3 | P3-A 已提升最小 experimental Backend contract，并实现 Snapshot Mongo binding/compiler/backend/materializer、text-index readiness、storage-routed composition、per-operation profile 与真实 Mongo SHADOW 对比；P3-B 已增加 Snapshot/EventStream PAGE 单操作、独立 system/identity/deletion binding、分库 Spring route、完整 budget envelope、Mongo deadline/allowDiskUse 执行与真实 explain fixture；P3-C 已增加 Snapshot `ANALYZE` Backend contract/adapter、Mongo Global/By pipeline、numeric/missing/cursor 映射及真实 Mongo fixture。高基数 explain/concurrency/cancel、跨 Backend Analytics TCK，以及同一真实集合上的 `SHADOW -> PLANNED -> LEGACY` count 演练已完成；精确 scanned-record enforcement、生产性能签署与 unbounded stream 尚未完成 | P3-A/P3-B/P3-C vertical slice 与仓库级回滚演练已实现；Phase 3 生产性能 exit gate 未完成 |
+| 4 | P4-A 已引入显式 Elasticsearch source/exact/presence/search/literal/sort/group/nested binding、mapping-version/readiness 与 analyzer/normalizer/keyword 完整性证明；P4-B 已实现 Snapshot SINGLE/bounded STREAM/PAGE/COUNT compiler、mapper、完整性/error validator、Spring storage-routed contribution和真实 Elasticsearch fixture，PAGE 已使用 PIT + search_after 并通过 >10k 实库回归，PIT expiry/cancel/closed-transport fault 均有真实 client 回归；P4-C 已实现 EVENTUAL/EXACT 的 global/grouped DocumentCount composite、服务端 after_key replay、`EXCLUDE/AS_NULL_BUCKET`，并通过 Mongo/Elasticsearch shared TCK；P5-A 现已为 grouped SNAPSHOT Analytics 接入跨请求 PIT state/lifecycle。同一真实索引上的 `SHADOW -> PLANNED -> LEGACY` count 演练已完成；unbounded、EventStream 与 Decimal128 metric 未完成 | P4-A、P4-B 与 P4-C exact-count vertical slice、仓库级回滚演练已实现；SNAPSHOT cursor 由 P5-A 闭环；Phase 4 exit gate 未完成 |
+| 5 | P5-A 已实现 internal cursor envelope/codec/lease manager，并由公共 Analytics Gateway 使用经批准的持久化 store SPI；MongoDB 已提供显式初始化、固定容量 slot、unique lease id、TTL grace 与 revision CAS 的跨节点 store，真实 Mongo fixture 已证明跨实例翻页、单次消费和 HMAC key rotation。Elasticsearch grouped SNAPSHOT Analytics 已把最新 PIT id 作为 opaque Backend state 交给 target/backend keyed lease coordinator，覆盖 continuation、terminal/error/cancel、capacity failure、expired reaper 与 PIT expiry `IncompleteResult`；公共 token 不含 PIT。Starter 已提供默认关闭、显式配置、单 lifecycle owner 的有界串行 reaper。P5-B 已实现 internal migration manifest、版本/generation 命名、不可变 inventory/attestation/verification、CAS command state、幂等恢复、component/index template、显式 create、source↔destination write-alias 原子切换，以及基于独立 hidden system index 与 `_seq_no/_primary_term` 的持久化 migration repository；Snapshot/EventStream rebuild 与 verification 已形成 vertical slice。公开 Analytics contract 已 additive 落地；目标应用 probe/cutover、EventStream controlled mirror/生产 barrier 接线和旧同名 concrete index 转 managed alias尚未完成 | P5-A persistent cursor、自动 reaper 与 Elasticsearch SNAPSHOT PIT lifecycle、P5-C 公共契约已实现；P5-B vertical slice 已实现；Phase 5 exit gate 未完成 |
 
 关闭但未合并的 PR #2903（`agent/unify-mongo-elasticsearch-query-semantics`）包含
 `ConditionValidator`、operator fixtures 和部分双 Backend 测试。它作为 Phase 1/3 的需求与测试素材使用，
@@ -941,8 +945,8 @@ P2-C 拆成三个可独立回滚的实现切片：
   禁止先无界复制或对动态 getter/entries 做两次观察。之后按原 projection 深层恢复 Include/Exclude/Mixed 并移除内部补取
   字段；output snapshot 有独立 value/payload budget，源 `Map/List/ByteArray` 后续变化不能影响结果；
 - runtime 只接受独立类型 `QueryRawServiceSource`，不能接收与 application facade 相同的 public factory 类型。P2-C1 公开
-  budget 只包含当前可证明执行的 `maxReturnedRecords`；它与 policy constraint 取较小值并在 storage 前验证，尚未支持的
-  scan/bucket/cursor/disk budget 不形成 fail-open 公共承诺；
+  budget 在 P2-C1 首次只开放可证明执行的 `maxReturnedRecords`；P3-B 已扩展完整 envelope。Planner 仍只消费自身可证明
+  的 result/page 约束，其余 budget 必须由最终 Backend 显式执行或在 storage 前稳定拒绝，不能形成 fail-open 承诺；
 - 首个 facade schema 只声明 target-independent system fields。未知 user path 在 `COMPATIBLE` 下形成显式 legacy
   fallback，`STRICT` 下拒绝；不得伪造尚未存在的 production field/search capability。
 
@@ -1007,8 +1011,9 @@ P2-C3 已实现合同：
 - `QueryExecutionException` 继续复用 `DefaultErrorInfo` 与 `bindingErrors(name=path,msg=code)`。functional/global WebFlux 使用同一
   映射：Invalid/Cursor/Unsupported=400，AccessDenied=403，deadline=408，其他 BudgetExceeded=429，Incomplete=502，
   BackendUnavailable=503，BackendTimeout=504，Mapping/Internal=500；不增加 OpenAPI error schema 字段。P2-C3 只锁定运行时
-  映射并保持既有 OpenAPI snapshot 不变；为全部 query/load operation 声明 403/408/429/5xx response 属于公开契约扩展，
-  需单独兼容性审批后补齐，当前不宣称 OpenAPI 已完整描述该 status matrix；
+  映射。经公共 Query/Analytics/Cursor 契约升级审批后，全部 query/load operation 已统一声明
+  400/403/408/429/502/503/504/500 response，并继续复用 `DefaultErrorInfo` 与 `Wow-Error-Code`；该 additive OpenAPI diff
+  已由 route contract test 与更新后的 compatibility snapshot 锁定；
 - 一版紧急回滚属性为 `wow.query.gateway.legacy-wiring-rollback=true`。它显式停用 Gateway facade，并让 application factory
   直接委托独立 raw registry；启动持续记录 warning，计数器 `wow.query.gateway.legacy.wiring.rollback` 增加一次。该开关不由
   任何运行时错误自动触发，不恢复旧的双 `@Primary` routing factory，也不改变 raw factory cache owner；启用期间 admission、
@@ -1025,7 +1030,8 @@ P2-C exit gate：
 - 安全矩阵覆盖无 authority、provider empty/error、跨 tenant/owner/space、伪造 Header、Filter 替换 query/result、Native、
   mandatory lowering failure，全部 storage 零调用；
 - `:wow-query:check`、`:wow-spring:check`、`:wow-spring-boot-starter:check`、`:wow-webflux:check`、Java/reflection ABI
-  guard 与既有 OpenAPI snapshot 通过；新增运行时 status 的 OpenAPI response 声明仍是待审批的独立兼容任务。P2-C1/P2-C2/
+  guard 与经审批更新的 OpenAPI snapshot 通过；全部 Query/Analytics/load route 的运行时 status response 已由统一组件与矩阵测试
+  锁定。P2-C1/P2-C2/
   P2-C3 均保持独立 commit/PR 或可单独 revert 的 commit 边界。
 
 Phase 2 exit gate：P2-C 三个切片全部完成后，所有 framework-managed 公开入口调用链必须经过 Gateway；安全测试覆盖
@@ -1047,12 +1053,47 @@ wiring rollback 只允许在一个迁移版本内启用并持续记录告警/指
 - 先支持 Snapshot 的 single、bounded stream、count，再扩展 page；
 - logical identity、tenant/owner/deleted、projection 和 stable sort 只从 binding 解析物理字段。
 
+P3-A 当前实现约束：
+
+- `LEGACY` target 不执行 planned readiness I/O；只有配置了非 `LEGACY` record operation 的 target 才按精确 storage route
+  选择 planned source，不能以 Mongo Bean 存在推断所有 target 使用 Mongo；
+- `SHADOW` 遇到已配置但未 ready 的 binding 时继续返回 legacy primary，并通过受控 probe 上报
+  `BACKEND_UNAVAILABLE/$.backend/BACKEND_NOT_READY`；`PLANNED` 在启动阶段 fail closed；
+- P3-A 的最小 contribution 只声明 `SINGLE`、`COUNT` 和 `BOUNDED_ONLY` stream；Native/RAW、`ignoreCase` 和无法
+  exact 编码的 Decimal/Instant 在 driver I/O 前稳定拒绝；
+- text search 仅接受 binding 精确声明、readiness 验证通过的 collection-wide root text index，并要求 simple/binary
+  collation；一个 ready contribution 必须覆盖 logical schema 的全部字段，user path 不得与 framework system path
+  冲突，collection namespace 必须与 binding 精确一致；
+- materializer 对 Mongo source 只做一次有界冻结，再仅从 binding 重建 logical document；projection 内部补取 identity
+  后重新应用 logical projection，不能泄漏 `_id`、未声明的顶层物理字段或被排除的 identity；
+- bounded shadow supervisor 有独立上限，planned registry resolve、deadline 和 Backend error 均留在 cold probe 内，
+  readiness、overload 或 planned failure 不得替换 legacy primary。
+
 #### P3-B：EventStream、page、一致性与预算
 
 - 增加 EventStream record binding，保持一个 document 等于一个 `DomainEventStream`；
 - page 是 Backend 单操作，`SAME_INPUT` 使用经验证的 `$facet`，`SNAPSHOT` 只有 read concern 能力满足时开放；
 - unbounded stream、deadline、cancel、driver error、mapping failure 和资源释放全部显式；
 - 预算覆盖扫描、offset、返回记录、stage、内存/落盘；性能结论必须有 integration fixture/explain。
+
+P3-B 当前实现约束：
+
+- experimental record SPI 已增加 `BackendPageQueryPlan` 与 immutable `BackendPage`；Mongo PAGE 使用单次
+  `$match + $facet(records, total)`，同时返回 `EXACT` total 和 `SAME_INPUT`，不以两次独立查询伪装一致性；
+- Snapshot 与 EventStream 共用 validated compiler/backend，但 binding 分别固定 system path：Snapshot identity/
+  aggregateId 为 `_id` 且包含 deleted；EventStream identity 为 `_id -> id`、aggregateId 保留独立字段且禁止 deleted；
+- Snapshot/EventStream planned source 按既有 storage route 分别绑定 snapshot database/event-stream database，未选中
+  Mongo 的 target 不读取 Mongo database/readiness；
+- PAGE、SINGLE、bounded STREAM、COUNT 共享 mandatory/projection/sort/value 编译与 immutable mapper；deadline、cancel、
+  max-returned 及 Backend error 继续由 Gateway/Executor 的绝对生命周期边界统一执行；
+- `QueryExecutionBudget`/`QueryBackendExecutionOptions` 已完整携带 scan/return/page/bucket/cursor/disk budget；
+  `maxReturnedRecords` 与 `maxPageWindow` 在 Planner 和 Mongo Backend 双重校验，高级 budget 在 legacy storage 前拒绝；
+  Mongo 对 find/aggregate/count 使用绝对 deadline 派生的 `maxTime`，find/page 显式设置 `allowDiskUse`；
+- Mongo 目前不能以单次普通查询精确限制 `totalDocsExamined`，因此 `maxScannedRecords` 在 driver I/O 前返回 unsupported，
+  不以 result limit 或预跑第二次 explain 冒充 scan budget。真实 Testcontainers explain fixture 已证明代表性 tenant/deleted/
+  identity PAGE 走 `IXSCAN` 且无 `COLLSCAN`，但它不是生产数据分布的性能签署；
+- unbounded stream 仍保持 `BACKEND_OPERATION_UNSUPPORTED`。精确 scanned-record enforcement 与目标应用 explain/profile
+  阈值签署完成前，生产 `PLANNED` 必须继续使用 operation-scoped rollout。
 
 #### P3-C：Mongo analytics baseline
 
@@ -1061,6 +1102,34 @@ wiring rollback 只允许在一个迁移版本内启用并持续记录告警/指
 - pipeline 强制 `$match(user AND mandatory)` 在 `$group` 前，mandatory having 在 group 后；
 - 默认不计算 bucket total；`Eventual` 是首批跨页 consistency，`Snapshot` capability 未证明前稳定拒绝；
 - keyset cursor 不能掩盖每页重跑 `$group` 的成本，必须由扫描/跨页预算和真实 explain 约束。
+
+P3-C 当前实现约束：
+
+- experimental Backend contract 已增加深度不可变的 `BackendAnalyticsQueryPlan`、bucket/page result 与独立
+  `AnalyticsQueryBackend`；internal adapter 只做 validated Plan/options/result 的类型转换，不向 Mongo 暴露
+  Normalizer、Planner、wire DTO 或 legacy converter；
+- Snapshot Mongo contribution 原子声明 `ANALYZE` 并注册 analytics Backend；EventStream contribution 明确不声明
+  `ANALYZE`，避免把一个 `DomainEventStream` document 误报为 domain-event 粒度；
+- Mongo compiler 只接受 `PORTABLE + EVENTUAL + EXACT + having=All`，Global 强制 limit=1 且无 cursor；By 只接受
+  root scalar dimension、binary collation、null-first 与 dimension-key ascending；所有 dimension/metric 必须从同一
+  logical binding 证明 `AGGREGATABLE`，cursor key 继续按 dimension canonical type 校验；
+- pipeline 固定为 `$match(user AND mandatory)`、dimension missing filter、`$group`、keyset cursor、稳定 key sort、
+  `limit+1`；`EXCLUDE` 在 group 前排除 missing/null，`AS_NULL_BUCKET` 使用 `$ifNull` 合并二者。Global 空输入由
+  Backend 合成为一个 bucket：document count/sum 为零，min/max/avg 为 null；
+- numeric metric 使用显式 Decimal128 policy；`SUM/AVG` 通过 `$toDecimal` 聚合，所有 numeric metric 在 materialize
+  时按 rounding/scale/precision 校验，超出 policy 或 BSON 可表示范围返回 mapping failure，不静默截断；
+- analytics Backend 对 deadline 派生 `maxTime`，显式传递 `allowDiskUse`，并在 I/O 前双检最大返回桶数；当前 Mongo
+  单次 aggregation 无法精确执行 `maxScannedRecords`、`maxCandidateBuckets` 或 `maxCursorPages`，这些 budget 稳定
+  unsupported，不以结果 limit 或额外预查询冒充；
+- unit/golden 已覆盖 enforced filter、Global/复合 By pipeline、missing policy、canonical cursor、Decimal128 rounding、
+  Global 空桶、预算零 I/O 与 Snapshot/EventStream 注册矩阵；Testcontainers 已覆盖 mandatory tenant/deleted、
+  Global count/min/max/sum/avg、空输入、missing/null bucket、257 个高基数桶的完整 key cursor replay、跨页并发插入的
+  `EVENTUAL` 可见性、Decimal128 aggregation overflow 的 fail-closed mapping，以及 2,000 documents 高基数
+  aggregation `executionStats` 使用声明的 tenant/deleted/group index 且无 `COLLSCAN`。目标应用 profile/阈值签署、
+  Mongo aggregate Publisher 的剩余 deadline→`maxTime` 与 cancel 传播也已有 driver-probe 回归。目标应用生产 profile/
+  阈值签署与真实服务端 timeout/kill 场景仍属于 Phase 3 exit gate，不构成当前生产性能签署。shared analytics TCK
+  已明确锁定 capability 差异：Mongo 对 Decimal128 policy 执行 exact `MIN/MAX/SUM/AVG`，Elasticsearch 对合法
+  `Int64 AGGREGATABLE` numeric plan 在 I/O 前稳定 `UNSUPPORTED`，不得用 `double` 冒充 exact portable capability。
 
 Phase 3 exit gate：Mongo integration 与 shared TCK 固化 portable record/analytics 基准；覆盖 null/missing/array、
 数字提升/溢出、稳定排序、`limit=0 > 10,000`、cursor replay、并发写、budget/deadline/cancel 和 mandatory
@@ -1087,10 +1156,47 @@ Phase 3 exit gate：Mongo integration 与 shared TCK 固化 portable record/anal
 - `limit=0` 使用 PIT + `search_after`，以 `usingWhen` 等价生命周期覆盖 complete/error/cancel；
 - 不再保留 legacy “缺失 source 静默跳过”行为，planned path 返回 `IncompleteResult`。
 
+P4-A/P4-B 当前实现约束：
+
+- Snapshot binding 必须精确绑定目标 Aggregate 的标准索引/alias 名，并在启动 readiness 阶段读取该名字解析出的每个
+  concrete mapping；所有 generation 都必须携带一致的 `wow_query_mapping_version`，任一 generation 缺字段、类型、
+  `doc_values`、nested、analyzer、normalizer、`ignore_above` 或历史长度审计证明即不注册 Backend capability；
+- exact/search/literal/sort/group/source/presence 是相互独立的显式物理角色，compiler 不追加 `.keyword`。字符串 exact
+  首批只接受无 normalizer 的 binary keyword；全文字段必须显式声明并同时匹配 analyzer 与 search analyzer；nullable
+  presence 使用独立、已验证的 boolean presence marker，禁止可能与合法业务字符串碰撞的 `null_value` sentinel；
+- 当前 record vertical slice 已覆盖 Snapshot `SINGLE`、bounded `STREAM`、`PAGE`、`COUNT`，mandatory filter、logical
+  projection、stable sort、literal wildcard 转义、显式 search scope 与 nested path 均只从 binding 编译；timeout、failed
+  shards、非 `Eq` total、缺失 `_source`/identity、`_ignored` 与 mapper 异常 fail closed；
+- Spring planned source 只在目标 Aggregate 的既有 storage route 实际选择 Elasticsearch 且 execution profile 非
+  `LEGACY` 时检查 mapping；Mongo/Elasticsearch mixed routing 不以某个 client Bean 的存在推断默认 Backend；
+- `PAGE` 使用每订阅独立 PIT + stable sort + `search_after` 有界推进，响应轮换 PIT id 时更新租约，并在
+  complete/error/cancel 三条路径关闭；真实 Elasticsearch fixture 已跨越 10,000 result window。`maxCursorPages` 与
+  `maxPageWindow` 双重限制内部请求数与窗口；PIT 404 expiry 通过真实 transport 归一为 `IncompleteResult`，并保持
+  最新 lease cleanup；`search_context_missing_exception` 的结构化 root cause 与 `usingWhen` 成功后 cleanup 包装都稳定归类为
+  `IncompleteResult`，cleanup 失败不会被外层误报成 `BackendUnavailable`；真实 client 回归同时覆盖 cancel cleanup 与 closed
+  transport 的 `BackendUnavailable` 分类；
+- composite Analytics 真实 fixture 已以 257 个额外 dimension key、31 bucket/page 完整 replay 全部 key，证明 after-key 无缺口、
+  无重复且在有界页数内终止；跨页插入排序位于 cursor 之后的新 bucket 可在下一页观察到，同时结果继续显式声明
+  `EVENTUAL + EXACT`，不冒充 snapshot consistency；
+- `limit=0` unbounded stream、EventStream，以及 composite 的 Decimal128 metric 尚未完成；grouped SNAPSHOT cursor
+  已在 P5-A 通过持久化 lease + PIT state/lifecycle 补齐，因此
+  P4-B/P4-C exit gate 未通过，生产只能继续 operation-scoped `SHADOW`，不得把该 vertical slice 视为 Phase 4 完成。
+
 #### P4-C：Composite analytics
 
 - Snapshot/root scalar 使用 composite + response `after_key`；Eventual 先行；
-- `requiredConsistency=Snapshot` 时使用 PIT，并把每次响应最新 PIT id 转交给 cursor state；
+- 当前 exact-count vertical slice 只发布 `DocumentCount`、root scalar、`EXCLUDE/AS_NULL_BUCKET` missing、
+  `EVENTUAL + EXACT`；global count 必须取得 `track_total_hits` 的 `eq` 关系，grouped count 使用 composite
+  bucket 的精确 `doc_count`；Mongo/Elasticsearch 已运行同一 shared TCK，覆盖 mandatory pre-filter、稳定 key 顺序与
+  cursor replay、有界终止、显式 null 与 missing 合并为同一 canonical null bucket，以及 bucket/scan/deadline budget 的
+  fail-closed 分类；Elasticsearch 只使用响应 `after_key`，因此允许最后一个非空页继续返回 opaque cursor，再以一个空页终止，
+  禁止从最后一个 bucket 自行推导 cursor；
+- Elasticsearch 的 `sum/avg/min/max` 响应值经 double 表示，在没有额外精度证明前不得冒充 Decimal128 exact；
+  `AS_NULL_BUCKET` 只能使用与 presence sentinel 分离、无 `null_value` 的显式 group binding，并要求历史值审计证明；
+  compiler 固定 `missing_bucket=true`、null-first，cursor 把 Elasticsearch null key 还原为 canonical `Null`，从而按
+  MongoDB 基准把显式 null 与 missing 合并为一个桶；
+- `requiredConsistency=Snapshot` 由 Phase 5 把最新 PIT id 作为 opaque Backend state 纳入持久化 lease；只有注册
+  target/backend keyed lifecycle closer 的 Backend 才能执行，否则在 storage-I/O 前拒绝；
 - `terms`、metric-sorted top-N、pipeline having 不进入 exact portable path；
 - 与 MongoDB 运行同一 fixtures/TCK；只比较结构不能作为语义等价证据。
 
@@ -1098,6 +1204,20 @@ Phase 4 exit gate：mapping mismatch readiness fail、record/analytics portable 
 expiry、after-key、failed shard、timeout、numeric precision 和 concurrent write consistency 全部有 integration
 证据。先内部 dual-backend probe，再按 Aggregate/target planned route；回滚路由到 Mongo/legacy，并关闭或等待
 短 TTL 回收现有 PIT，不切 alias、不删除索引。
+
+仓库级切换/回滚演练记录（2026-08-09）：
+
+| Backend | 可执行 fixture | 演练结果 |
+|---|---|---|
+| MongoDB | `MongoSnapshotRecordQueryBackendIntegrationTest.gateway Mongo rehearsal should shadow cut over and roll back against one collection` | 同一 Testcontainers 集合上 SHADOW=`MATCH`；PLANNED 结果一致且 legacy raw 调用数不增加；切回 LEGACY 后 raw 调用恢复 |
+| Elasticsearch | `ElasticsearchSnapshotRecordQueryBackendIntegrationTest.gateway Elasticsearch rehearsal should shadow cut over and roll back against one index` | 同一 Testcontainers 索引上 SHADOW=`MATCH`；PLANNED 结果一致且 legacy raw 调用数不增加；切回 LEGACY 后 raw 调用恢复 |
+| Elasticsearch Analytics | 同 fixture 的 composite replay、并发写 EVENTUAL、跨页 PIT SNAPSHOT、PIT expiry/cancel 用例 | 服务端 `after_key`、opaque PIT state、terminal/error/cancel 清理和 `IncompleteResult` 分类均由真实 client 验证 |
+| Spring 示例目标 | `QueryGatewayAutoConfigurationTest.example order should rehearse storage routed shadow cut over and rollback through one facade` | 使用真实 `example-service/order` 聚合元数据和 Mongo storage route；LEGACY 只调用 raw，SHADOW raw/planned 各一次且 `MATCH`，PLANNED 不再调用 raw；三个模式复用同一个 Gateway facade |
+
+以上证明仓库内 vertical slice 可切换、可回滚，不替代目标生产应用的 mapping inventory、性能阈值、迁移窗口与
+运维签署；后者仍是 Phase 3/4/5 的生产 exit gate。目标应用必须按
+[Query 服务目标应用发布与回滚 Runbook](./2026-08-09-query-service-application-rollout-runbook.md) 固定 authority、
+Schema/Binding、operation profile、阈值和签署证据。
 
 ### 10.8 Phase 5：cursor、索引生命周期与公开 analytics contract
 
@@ -1109,6 +1229,39 @@ expiry、after-key、failed shard、timeout、numeric precision 和 concurrent w
 - tamper、version/target/plan/order mismatch 和 expiry 映射为 `InvalidCursor`；
 - cursor token 不泄漏 PIT id、物理索引或 policy 数据。
 
+P5-A 当前实现边界：
+
+- token 是固定二进制 format version、独立 signing-key id、256-bit 随机 lease id、expiry 与 HMAC-SHA256，不把 target、plan fingerprint、
+  group/sort key、mapping generation digest 或 Backend state 放入客户端 token；上述 envelope 全部保存在有界服务端
+  registry，避免把 Base64 当成加密；
+- internal codec 已实现最多 4 把 key 的有界 key ring：current key 只签发，previous key 只验签；key material 防御复制，重复、未知或
+  已退役 key id 稳定拒绝且不会消费 lease。运维仍必须在 `maxCursorTtl` 之后才能移除 previous key；公共
+  `QueryCursorLeaseConfiguration` 只接受显式 store 与 key ring，不从普通请求/header 推导密钥；
+- envelope 额外保存 security-context SHA-256 digest，绑定 canonical authority type/principal/grants、purpose、resource scope
+  与 policy constraint。`acquire` 必须提交 expected target、plan fingerprint、mapping generation 与 security-context binding；
+  任一 mismatch 在原子移除前返回 `INVALID_CURSOR_BINDING`，且不能消费合法主体的 lease；
+- binding 验证后 `acquire` 原子移除 entry，防止重放和并发双重消费；调用方取得 ownership 后只能向同一 Backend 转移为下一 token，
+  或在 terminal/error/cancel 幂等关闭一次；遗弃 entry 由 TTL reaper 转交 Backend closer，cleanup/observer 失败隔离；
+- registry 对 entry 数、最大 TTL 和 Backend state bytes 设硬预算；tamper、未知/version mismatch/replay、expiry 与
+  Backend owner mismatch 均为稳定 typed rejection；
+- `MongoQueryCursorLeaseStore` 使用固定数量 slot 实现严格容量上限，以 unique lease id 区分 token collision，并以 store revision
+  条件删除转移唯一 ownership；`scanExpired` 按 lease id 有界 keyset 扫描。TTL 只作用于 `expiresAt + retentionGrace`，给 framework
+  reaper 留出关闭 Backend state 的窗口，随后才由 MongoDB 作为最终遗弃清理。集合和 unique/TTL index 只能通过显式
+  `ensureIndexes()` 管理操作初始化，Starter 不会因发现 MongoDB 就自动启用 cursor 或隐式执行 DDL；
+- 公共 grouped Analytics Gateway 已在同一条 admission/policy/planner/executor 流水线中签发和接续 opaque wire token，
+  校验 target、Plan fingerprint、mapping generation、security-context 与 Backend 后才执行 revision CAS。真实 Mongo fixture 已证明
+  两个 runtime/两个 client 之间接续、previous-key 验签、新 key 签发、未知 key 不消费和 replay 拒绝；
+- experimental Backend SPI 以 defensive-copy 的 `BackendAnalyticsCursorState` 传递物理 continuation state，并以
+  `AnalyticsQueryCursorLifecycle` 幂等关闭；Gateway 仅接受与 exact `QueryTarget + BackendId` 匹配的 closer，禁止同 Backend id
+  跨 target 误清理；
+- Elasticsearch grouped SNAPSHOT Analytics 首页打开 PIT、后续页使用服务端 lease 中的最新 PIT id，并在 terminal、error、cancel、
+  lease capacity failure 与 expired reaper 路径关闭。真实 Elasticsearch fixture 已证明并发写不进入同一 PIT continuation，关闭后续页
+  稳定归类为 `IncompleteResult`；公共 cursor 从不携带 PIT id；
+- `QueryGatewayRuntime.reapExpiredQueryCursors(batchSize)` 提供有界单批运维入口。Starter 的 reaper 默认关闭；只有显式配置
+  `wow.query.cursor.reaper.enabled=true` 且存在 `QueryCursorLeaseConfiguration` 时，才由单一 `SmartLifecycle` 串行调度。
+  每轮受 batch size 与 max-batches 双重上限约束，运行重叠被丢弃，单轮错误不终止后续周期。framework 不在普通查询请求中
+  隐式清理，Mongo TTL grace 继续作为最终安全网；不使用 Starter 时仍可由外部运维 scheduler 调用单批入口。
+
 #### P5-B：版本化索引与显式 cutover 工具
 
 - 支持 component/index template、`_meta` mapping version/capability digest、physical generation 与 stable alias；
@@ -1119,12 +1272,181 @@ expiry、after-key、failed shard、timeout、numeric precision 和 concurrent w
 - cutover 前校验 count、identity、version continuity、checksum、record/analytics probe；旧 generation 保留
   `max cursor TTL + rollback window`。
 
-#### P5-C：公开 Analytics API
+P5-B 当前实现边界：
+
+- physical 名固定为 `<stable-alias>-v<4-digit-mapping-version>-<6-digit-generation>`；manifest 精确绑定 target、
+  schema contract、由 planned binding 规范编码生成的 capability digest、source/destination、重建策略、cursor TTL
+  与 rollback window，并固定 checksum algorithm 与 probe suite id；
+- `NEW -> VALIDATED -> CREATED -> REBUILT -> VERIFIED -> CUTOVER -> ROLLBACK_VERIFIED -> ROLLED_BACK`
+  是唯一合法状态序列。每个外部动作前先以 revision CAS 认领 command，失败后只允许同一 command id 恢复；
+  另一个并发 command fail closed；
+- `VERIFY` 在 cutover 前证明 destination，在 cutover 后重新证明 source，后者不是复用旧报告。报告必须同时满足
+  count、identity/content checksum、version continuity、authoritative/indexed watermark、record/analytics probe 零差异；
+- `CREATE` 先幂等写 component template 和 composed index template，再显式创建 physical index并回读 `_meta`；
+  alias 切换使用同一个 `_aliases` 请求执行 `remove(source, must_exist=true) + add(destination, is_write_index=true)`，
+  完成后再次读取 alias；无任何 delete index 行为；
+- Snapshot destination verification 与 alias 切换之间仍存在 writer 继续写 source 的窗口，因此 CUTOVER 默认由
+  `ElasticsearchSnapshotCutoverGuard.DENY` fail closed。只有目标应用提供受信 pause/drain 或 controlled-mirror attestation
+  才能执行 alias transition；仓库测试 allow guard 不是生产实现，本次任务不执行真实切换；
+- Snapshot rebuild 由 EventStore authority port 全量重放；Snapshot verification authority 端复用相同有序分页，physical
+  端用 exact generation PIT + `aggregateId` keyset 扫描，并以 `CANONICAL_DOCUMENT_SHA256_V1` 生成 count、identity/content
+  checksum。顶层 `snapshotTime` 作为重建时易变元数据被排除，其他 logical document 内容全部进入摘要；严格拒绝
+  partial shard、非 exact/不稳定 total、identity/source/version/顺序错误和超预算值；
+- EventStream pause-and-drain rebuild 通过窄 barrier port 在复制前后取得同一 non-negative authority watermark，按 aggregate
+  分页读取完整 EventStore history，并严格校验 named aggregate、aggregate 顺序、stream version 连续性、event sequence/last
+  与 body size，再幂等覆盖 exact physical generation。authority verification 复用同一有序扫描，physical verification 使用 PIT
+  与 `(aggregateId,version)` keyset，并以 `CANONICAL_EVENT_STREAM_SHA256_V1` 比较完整 canonical document；真实
+  Elasticsearch fixture 已证明 authority/physical count、identity/content checksum 与 watermark 一致。外部生产 writer 的
+  pause/drain、indexed-watermark 持久化和 barrier attestation 仍未接线；`EVENT_STREAM_CONTROLLED_MIRROR` 继续稳定拒绝；
+- 目标应用 probe 已有 internal bounded runner：manifest suite id、exact `QueryTarget` 与 `SchemaContractId` 精确匹配，
+  probe id 唯一且 canonical 排序、总数硬限制为
+  256；每个 record/analytics probe 分别从 authority 与 exact physical generation 取得完整的
+  `resultCount + resultChecksum` evidence，empty/incomplete/上游 error 一律 `VERIFICATION_FAILED`，mismatch 分类计数。
+  具体 probe catalog/evaluator 仍由目标应用窄 port 提供；管理内核不允许用旧索引 `_reindex` 冒充权威重建；
+- `ReactiveElasticsearchIndexLifecycleRepository` 使用显式创建的 `.wow-query-index-lifecycle-v1` hidden system index；
+  repository document/mapping format 固定为 `v1`，当前有界 lifecycle payload codec 为 `v2`，旧 payload 不做隐式升级；
+  strict mapping 只保存 format version、migration id、revision 与 payload；状态写入用 document create，更新用
+  `_seq_no + _primary_term` compare-and-set。duplicate create 与 stale CAS 返回空，由 Executor 执行既有幂等/冲突协议；
+  损坏、越界、跨 migration payload 以 `REPOSITORY_CORRUPTED` fail closed。真实 Elasticsearch 容器已验证重复
+  `ensureIndex()`、跨 repository 实例重载与 stale CAS 不覆盖；
+- `InMemoryElasticsearchIndexLifecycleRepository` 仍只用于单进程验证；生产 repository 不自动注册，也不在应用启动时
+  隐式创建 system index。管理入口必须先显式 `ensureIndex()`，再注册 manifest/执行命令；
+- Elasticsearch 不允许 alias 与同名 concrete index 共存。当前工具要求 source 已是受管 generation/write alias；
+  既有 `wow.<context>.<aggregate>.snapshot|es` concrete index 到 managed alias 的一次性转换涉及停写、备份、权威
+  重建及删除/改名限制，必须另行审批 runbook 和演练，工具不会静默删除旧 concrete index。
+
+`EVENT_STREAM_CONTROLLED_MIRROR` 当前继续 fail closed。安全实现至少需要权威 EventStore 提供全局单调 watermark 与
+`scanAsOf(watermark)`，并在 destination 达到同一 watermark 时原子取得 exact physical PIT；或在 mirror 历史回填后进入
+短暂 pause-and-drain finalization。现有 `EventStore` 只有 aggregate/version 读取，EventStream physical document 也没有全局
+offset，无法证明不停写期间 authority checksum 与稍后打开的 PIT 属于同一快照，因此不得用“两个当前水位相等”冒充完成。
+
+#### P5-C：公开 Analytics API（公共契约已批准）
 
 - additive 引入 `AnalyticsQueryService`、独立 wire DTO、HTTP route、DSL 和 OpenAPI；
 - 不修改七方法 `QueryService`，不复用 `PagedList/DynamicDocument`；
 - 发布文档明确 portable/unsupported、numeric/missing/consistency/completeness、budget 和 cursor 合同；
 - Java/Kotlin/JSON/OpenAPI compatibility 与客户端生成链路一起验证。
+
+以下公共契约已获批准并按 additive 方式落地；Mongo/Elasticsearch 的全部 capability、生产级 store 实现与目标应用
+cutover 仍需各自 readiness/TCK 证据，不能因公共 route 已存在就宣称 Backend 已支持：
+
+| 模块 | 新增边界 | 约束 |
+|---|---|---|
+| `wow-api` | `me.ahoo.wow.api.query.analytics` request/result DTO | 只有逻辑字段、显式 discriminator、无 Backend/driver/`Any` result |
+| `wow-query` | `AnalyticsQueryService`、独立 `AnalyticsQueryGateway`、cursor store SPI | 不修改 `QueryService` 七方法和现有 `QueryGateway` JVM descriptor |
+| `wow-spring` | `<context>.<aggregate>.AnalyticsQueryService` target-bound Bean | 首批只注册 Snapshot/document grain；EventStream 不自动 unwind |
+| `wow-webflux` | 现有 tenant/owner variant 下新增 `POST .../snapshot/analyze` | 使用同一 trusted context、policy、deadline/error boundary |
+| `wow-openapi` | request/page/value/cursor schema 与 Query error responses | 属于经批准的 additive snapshot 变化，随后重新生成客户端 |
+
+服务边界固定为：
+
+```kotlin
+interface AnalyticsQueryService : NamedAggregateDecorator {
+    fun analyze(query: AnalyticsQuery): Mono<AnalyticsPage>
+}
+
+interface AnalyticsQueryGateway {
+    fun analyze(call: QueryCall, query: AnalyticsQuery): Mono<AnalyticsPage>
+}
+```
+
+独立 `AnalyticsQueryGateway` 避免给当前 experimental `QueryGateway` 增加新的 abstract JVM method；runtime 实例可以同时实现
+两个端口，但 authority、admission、policy、planner、executor 仍只有一条内部流水线。
+
+首版 request wire shape：
+
+```json
+{
+  "condition": { "operator": "ALL" },
+  "grouping": {
+    "kind": "BY",
+    "dimensions": [
+      { "alias": "status", "field": "state.status", "missingPolicy": "EXCLUDE" }
+    ]
+  },
+  "metrics": [
+    { "alias": "count", "kind": "DOCUMENT_COUNT" },
+    { "alias": "total", "kind": "SUM", "field": "state.total" }
+  ],
+  "window": { "limit": 100, "cursor": null },
+  "numericPolicy": {
+    "promotion": "DECIMAL128",
+    "precision": 34,
+    "scale": 2,
+    "roundingMode": "HALF_EVEN",
+    "overflowPolicy": "REJECT"
+  },
+  "consistency": "EVENTUAL",
+  "completeness": "EXACT"
+}
+```
+
+- `grouping.kind=GLOBAL` 要求 dimensions 为空、limit 为 1、cursor 为空；`BY` 要求 1..N 个唯一 alias；
+- metric 首版仅 `DOCUMENT_COUNT/MIN/MAX/SUM/AVERAGE`。`DOCUMENT_COUNT` 禁止 field，其他 metric 必须有逻辑 field；
+- public 首版不暴露 `having`、metric sort、approximate bucket total 或 Backend-specific option；未形成 portable 合同的能力不进入
+  wire schema，而不是用可选字段接收后静默忽略；
+- bucket order 固定为 dimensions declaration order 的 binary/null-first ascending，不接受 `.keyword`、physical path、analyzer
+  名或 collation 名；
+- `condition` 复用现有 Mongo-baseline `Condition` wire，但在同一次 subscription 内立即 admission/snapshot；policy mandatory
+  condition 仍保留独立 provenance；
+- cursor 是不超过 256 字符的 opaque URL-safe token；client 不得读取、拼接 after-key 或 PIT state。
+
+首版 result 不复用 mutable `DynamicDocument`，也不直接以 JSON number 暴露 `Int64/Decimal`：
+
+```json
+{
+  "buckets": [
+    {
+      "keys": { "status": { "type": "TEXT", "value": "PAID" } },
+      "metrics": {
+        "count": { "type": "INT64", "value": "42" },
+        "total": { "type": "DECIMAL", "value": "120.50" }
+      }
+    }
+  ],
+  "nextCursor": null,
+  "consistency": "EVENTUAL",
+  "completeness": "EXACT"
+}
+```
+
+`AnalyticsValue.type` 首版只允许 `NULL/BOOLEAN/TEXT/INT64/DECIMAL/INSTANT`；`value` 为 nullable canonical string，
+`NULL` 必须为 null，Boolean 为小写，Int64/Decimal 为十进制规范串，Instant 为 ISO-8601。这样 OpenAPI/JavaScript/Java/Kotlin
+不会因 IEEE-754 或 JSON parser 自动提升丢失精度。keys/metrics 以 alias 索引，容器 defensive-copy 且不可变。
+
+持久化 cursor SPI 不暴露 `NormalizedValue`、Plan、PIT 或 policy：framework 先把完整 envelope 编码为有界、版本化、完整性保护的
+opaque bytes，再交给 experimental `QueryCursorLeaseStore`。最小原子合同为：
+
+```kotlin
+interface QueryCursorLeaseStore {
+    fun create(entry: QueryCursorLeaseEntry): Mono<QueryCursorLeaseCreateResult>
+    fun load(id: QueryCursorLeaseId): Mono<StoredQueryCursorLease>
+    fun compareAndDelete(expected: StoredQueryCursorLease): Mono<Boolean>
+    fun scanExpired(before: Instant, afterId: QueryCursorLeaseId?, limit: Int): Flux<StoredQueryCursorLease>
+}
+```
+
+- `create` 区分 `CREATED/COLLISION/CAPACITY_EXCEEDED`；不得 last-write-wins；
+- `load` 只读后，framework 先校验 token expiry 与 expected target/plan/mapping/security binding，再调用 compare-and-delete；错误
+  authority 即使持有有效 token 也不能消费 lease；
+- `compareAndDelete` 必须按 store revision 原子转移唯一 ownership；只有 winner 可返回下一页或关闭 Backend state；
+- reaper 对有界 keyset scan 的每条 expired entry 也执行 compare-and-delete，成功者才清理 PIT；
+- entry 只包含随机 lease id、expiry、payload format、opaque bytes 和 store revision，所有 byte array defensive-copy；
+- store 必须支持 TTL、容量上限、跨节点一致的原子删除与可运维 namespace。进程内 manager 不能作为多实例默认；
+- token HMAC key ring 至少 256 bit，token 带 key/version id；current key 签发，previous keys 只在 `maxCursorTtl` 内验签，移除
+  旧 key 前必须等待其全部 token 过期。
+
+兼容与发布门禁：
+
+- 原 `QueryService` 七方法、`QueryType` 七值、Bean 名、HTTP route 与 error JSON 不变；
+- 新 Analytics route/OpenAPI schema、opaque Cursor 与 Query status response 是经审批的 additive diff；仓库 golden、
+  `wow-apiclient` 与 Java/Kotlin compile fixture 必须通过，下游 Fetcher/其他 SDK 在发布流程中从更新后的 OpenAPI 重新生成；
+- `INVALID_CURSOR`、`UNSUPPORTED_FEATURE`、`BUDGET_EXCEEDED` 与 Backend failure 使用现有 Query error category/status 矩阵，
+  不新增另一个错误 envelope；
+- Aggregate 没有 Snapshot analytics schema/backend readiness 时稳定 `UNSUPPORTED_FEATURE` 且 storage zero-I/O；不能因 route
+  存在就猜 mapping/capability；
+- 完成标准包括 EVENTUAL 多页 cursor replay、SNAPSHOT PIT complete/error/cancel/expiry、跨节点 lease acquisition、key rotation、
+  Mongo/Elasticsearch shared TCK、OpenAPI/client golden 与目标应用授权/预算负测。
 
 #### P5-D：主版本清理
 
@@ -1179,12 +1501,9 @@ Plan/Policy/Backend contract 形成前以其他名称重新引入：
 - Spring Registrar 与 Web 文档中“Bean 已切到 Gateway”的声明；
 - 为上述临时层保留的自动配置与 ABI bridge。
 
-分析型聚合在 PR #2908 中也只进入设计，不新增 `AnalyticsQueryService`、DSL、wire DTO、Backend SPI 或
-MongoDB/Elasticsearch aggregation 实现。这样可以先评审 portable scope、cursor、precision、missing、
-security 和 completeness 合同，再用独立 Phase 1 PR 落地最小模型。
-
-这能避免在真正的 Plan、Policy、Backend SPI 之前固化错误公开类型。Phase 1 按 10.4 的 P1-A/P1-B/P1-C
-作为后续独立、additive、无生产流量的可审查切片实现。
+历史 PR #2908 只评审 Analytics portable scope、cursor、precision、missing、security 和 completeness 合同，
+没有提前发布公开 DTO 或 Backend SPI。当前实现已按 Phase 1-5 的顺序完成内部 Plan/Policy、experimental Backend SPI、
+MongoDB/Elasticsearch vertical slice 与经批准的 additive 公共契约；这一历史切片边界不再表示当前能力状态。
 
 ## 12. 验证与完成审计
 
@@ -1241,6 +1560,50 @@ security 和 completeness 合同，再用独立 Phase 1 PR 落地最小模型。
 - 没有待处理的安全绕过、数据迁移、cursor 资源泄漏或兼容性 finding。
 
 单个 Phase、PR、测试任务或绿色 CI 只能证明对应 slice，不能替代上述整体完成审计。
+
+### 12.4 当前完成审计（2026-08-09）
+
+本节区分“仓库内可重复验证的实现证据”和“必须由目标应用、真实数据与发布环境提供的运营证据”。
+前者通过不代表后者已经完成，也不能据此执行生产 planned cutover。
+
+| 目标 | 当前直接证据 | 当前判定 |
+|---|---|---|
+| 1. 所有受支持入口进入 Gateway | Spring aggregate Service/Factory、Handler/WebFlux route 与 direct facade 的 vertical tests；raw storage registry 与 facade 类型隔离；恶意 Filter、缺 authority、selector mismatch 均在 storage 前拒绝 | 仓库级已证明 |
+| 2. 深度不可变 Plan | admission/normalization 的 getter-once、one-shot Iterable、List/Map/ByteArray 防御复制、canonical fingerprint 与 public Backend contract architecture tests | 仓库级已证明 |
+| 3. Mandatory provenance | policy mandatory 与 user condition 分离验证；最终 `EnforcedFilter` 外层 AND；legacy attestation、Native/Filter/direct caller 绕过负测 | 仓库级已证明 |
+| 4. Mongo portable baseline | Mongo planned record/analytics integration、shared record/analytics TCK；Elasticsearch 对同一 portable fixtures 的 integration 与 unsupported/readiness 负测 | 仓库级已证明 |
+| 5. 完整性、Consistency、Budget 与错误 | page/stream/analytics envelope、partial/timeout/mapping、deadline/cancel、EVENTUAL cursor、Elasticsearch PIT SNAPSHOT、lease/reaper/key rotation tests | 仓库级已证明；目标数据规模与性能预算仍待实测 |
+| 6. 兼容性 | 原 `QueryService` 七方法/`QueryType` 七值 reflection 与 Java fixture；Spring Bean/generic；HTTP status/ErrorInfo；经批准的 Analytics/Cursor/OpenAPI/client additive golden | 仓库级已证明 |
+| 7. Analytics 一等能力 | 独立 public Analytics DTO/Service/Gateway/HTTP/DSL；Global/By、metric、missing/numeric、cursor/completeness；Mongo/Elasticsearch shared TCK | 仓库级已证明 |
+| 8. 渐进发布与回滚 | Mongo 与 Elasticsearch integration 中的 LEGACY→SHADOW→PLANNED→LEGACY；Spring example `order` target 经同一 facade/storage route 的 mode rehearsal；目标应用 Runbook | 仓库演练已证明；生产未完成 |
+
+当前仓库门禁结果：
+
+```text
+./gradlew :wow-spring-boot-starter:check                         PASS
+pnpm --dir documentation docs:build                             PASS
+./gradlew allLocalTest allContractTest allIntegrationTest       PASS
+./gradlew detekt build                                          PASS
+git diff --check                                                PASS
+```
+
+因此当前不能宣称 12.3 的整体 Definition of Done 已完成，原因不是仓库内已知测试失败，而是以下证据只能在
+真实目标应用或发布流程中产生：
+
+- 当前工作树尚未形成已合并、远端 required checks 全绿的发布提交；
+- 目标应用尚未提供受认证的 `QueryWebAuthorityResolver`/direct-call grant，框架保持 fail closed，禁止自动提升为
+  `System` authority；
+- 目标 Aggregate 的真实 schema、Mongo/Elasticsearch binding、mapping/index inventory、历史值长度与 `_ignored`
+  审计尚未签署；
+- 生产或等价预发布环境尚未留下 SHADOW 差异、fallback reason、deadline/budget、性能阈值和资源使用快照；
+- 同名 Elasticsearch concrete index 到 alias 的转换以及 EventStream generation mirror/watermark 仍属于需审批的
+  数据迁移边界，未执行时不得把回滚描述为无损。
+
+目标应用必须按
+[Query 服务目标应用发布与回滚 Runbook](./2026-08-09-query-service-application-rollout-runbook.md)
+补齐 authority、schema/binding、preflight、LEGACY 基线、SHADOW 观察、PLANNED cutover、rollback 和 operations sign-off。
+任何安全、完整性、cursor 资源、mapping readiness 或 portable semantic 差异非零，立即按第 13 节停止条件回到
+`LEGACY`，不得用 silent fallback 掩盖。
 
 ## 13. 风险登记与统一停止条件
 

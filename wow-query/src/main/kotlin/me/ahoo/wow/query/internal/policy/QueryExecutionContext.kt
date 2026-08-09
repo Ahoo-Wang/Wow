@@ -176,6 +176,7 @@ internal data class QueryResourceScope(
 internal data class QueryExecutionBudget(
     val maxScannedRecords: Long? = null,
     val maxReturnedRecords: Long? = null,
+    val maxPageWindow: Long? = null,
     val maxCandidateBuckets: Int? = null,
     val maxReturnedBuckets: Int? = null,
     val maxCursorPages: Int? = null,
@@ -184,6 +185,7 @@ internal data class QueryExecutionBudget(
     init {
         require(maxScannedRecords == null || maxScannedRecords > 0)
         require(maxReturnedRecords == null || maxReturnedRecords > 0)
+        require(maxPageWindow == null || maxPageWindow > 0)
         require(maxCandidateBuckets == null || maxCandidateBuckets > 0)
         require(maxReturnedBuckets == null || maxReturnedBuckets > 0)
         require(maxCursorPages == null || maxCursorPages > 0)

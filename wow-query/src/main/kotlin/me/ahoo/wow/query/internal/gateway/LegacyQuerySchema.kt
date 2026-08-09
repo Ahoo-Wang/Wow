@@ -13,17 +13,17 @@
 
 package me.ahoo.wow.query.internal.gateway
 
+import me.ahoo.wow.query.backend.FieldCapability
+import me.ahoo.wow.query.backend.LogicalFieldType
+import me.ahoo.wow.query.backend.Nullability
+import me.ahoo.wow.query.backend.Presence
+import me.ahoo.wow.query.backend.QueryDocumentSchema
+import me.ahoo.wow.query.backend.QueryFieldId
+import me.ahoo.wow.query.backend.QueryFieldSchema
 import me.ahoo.wow.query.internal.model.QueryDocumentKind
 import me.ahoo.wow.query.internal.model.QueryTarget
 import me.ahoo.wow.query.internal.normalization.PredicateOperator
 import me.ahoo.wow.query.internal.normalization.SystemFieldKind
-import me.ahoo.wow.query.internal.schema.FieldCapability
-import me.ahoo.wow.query.internal.schema.LogicalFieldType
-import me.ahoo.wow.query.internal.schema.Nullability
-import me.ahoo.wow.query.internal.schema.Presence
-import me.ahoo.wow.query.internal.schema.QueryDocumentSchema
-import me.ahoo.wow.query.internal.schema.QueryFieldId
-import me.ahoo.wow.query.internal.schema.QueryFieldSchema
 import me.ahoo.wow.serialization.MessageRecords
 
 /**

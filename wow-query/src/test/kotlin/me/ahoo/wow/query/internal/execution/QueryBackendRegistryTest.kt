@@ -15,6 +15,7 @@ package me.ahoo.wow.query.internal.execution
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.query.backend.FieldCapability
 import me.ahoo.wow.query.internal.model.QueryOperation
 import me.ahoo.wow.query.internal.model.RecordResultShape
 import me.ahoo.wow.query.internal.normalization.BackendId
@@ -29,7 +30,6 @@ import me.ahoo.wow.query.internal.planning.PlanningFixtures
 import me.ahoo.wow.query.internal.rejection.QueryRejectedException
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCategory
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCode
-import me.ahoo.wow.query.internal.schema.FieldCapability
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -45,7 +45,7 @@ class QueryBackendRegistryTest {
         val semanticTiers = mutableSetOf(SemanticTier.PORTABLE)
         val innerCapabilities = mutableSetOf(FieldCapability.EXACT)
         val searchScopes = mutableSetOf(PlanningFixtures.searchScopeId)
-        val fieldCapabilities = mutableMapOf<me.ahoo.wow.query.internal.schema.QueryFieldId, Set<FieldCapability>>(
+        val fieldCapabilities = mutableMapOf<me.ahoo.wow.query.backend.QueryFieldId, Set<FieldCapability>>(
             PlanningFixtures.name to innerCapabilities,
         )
         val routes = mutableMapOf(PlanningFixtures.target to backendId)
@@ -90,10 +90,17 @@ class QueryBackendRegistryTest {
         assertRejected(QueryRejectionCode.BACKEND_NOT_REGISTERED) {
             QueryBackendRegistry(emptyList(), emptyMap()).resolve(plan())
         }
+        assertRejected(QueryRejectionCode.BACKEND_NOT_READY) {
+            QueryBackendRegistry(
+                emptyList(),
+                mapOf(PlanningFixtures.target to backendId),
+                setOf(QueryBackendKey(PlanningFixtures.target, backendId)),
+            ).resolve(plan())
+        }
         assertRejected(QueryRejectionCode.BACKEND_SCHEMA_MISMATCH) {
             val wrongSchema = registration(
                 mapOf(PlanningFixtures.name to setOf(FieldCapability.EXACT)),
-                schemaContractId = me.ahoo.wow.query.internal.schema.SchemaContractId("0".repeat(64)),
+                schemaContractId = me.ahoo.wow.query.backend.SchemaContractId("0".repeat(64)),
             )
             QueryBackendRegistry(listOf(wrongSchema), mapOf(PlanningFixtures.target to backendId)).resolve(plan())
         }
@@ -155,8 +162,8 @@ class QueryBackendRegistryTest {
     }
 
     private fun registration(
-        capabilities: Map<me.ahoo.wow.query.internal.schema.QueryFieldId, Set<FieldCapability>>,
-        schemaContractId: me.ahoo.wow.query.internal.schema.SchemaContractId = PlanningFixtures.schema.contractId,
+        capabilities: Map<me.ahoo.wow.query.backend.QueryFieldId, Set<FieldCapability>>,
+        schemaContractId: me.ahoo.wow.query.backend.SchemaContractId = PlanningFixtures.schema.contractId,
         operations: Set<QueryOperation> = setOf(QueryOperation.SINGLE),
         semanticTiers: Set<SemanticTier> = setOf(SemanticTier.PORTABLE),
         searchScopes: Set<me.ahoo.wow.query.internal.normalization.SearchScopeId> = emptySet(),

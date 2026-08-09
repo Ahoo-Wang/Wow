@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.query.internal.execution
 
+import me.ahoo.wow.query.backend.QueryDocumentSchema
+import me.ahoo.wow.query.backend.SchemaContractId
 import me.ahoo.wow.query.internal.model.QueryOperation
 import me.ahoo.wow.query.internal.model.QueryResultShape
 import me.ahoo.wow.query.internal.model.QueryTarget
@@ -29,8 +31,6 @@ import me.ahoo.wow.query.internal.rejection.QueryRejectionCategory
 import me.ahoo.wow.query.internal.rejection.QueryRejectionCode
 import me.ahoo.wow.query.internal.rejection.QueryRejectionPath
 import me.ahoo.wow.query.internal.rejection.rejectQuery
-import me.ahoo.wow.query.internal.schema.QueryDocumentSchema
-import me.ahoo.wow.query.internal.schema.SchemaContractId
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.util.Collections
@@ -181,24 +181,28 @@ private class DefaultLegacyExecutionDelegate<C : LegacyCompiledQuery>(
 ) : LegacyExecutionDelegate {
     override fun single(input: LegacyCompilationInput, options: QueryExecutionOptions): Mono<BackendRecord> =
         Mono.defer {
+            requireSupportedBudget(options)
             val compiled = compile(input, QueryOperation.SINGLE)
             backendMono { backend.single(compiled, options) }
         }
 
     override fun stream(input: LegacyCompilationInput, options: QueryExecutionOptions): Flux<BackendRecord> =
         Flux.defer {
+            requireSupportedBudget(options)
             val compiled = compile(input, QueryOperation.STREAM)
             backendFlux { backend.stream(compiled, options) }
         }
 
     override fun page(input: LegacyCompilationInput, options: QueryExecutionOptions): Mono<BackendPage> =
         Mono.defer {
+            requireSupportedBudget(options)
             val compiled = compile(input, QueryOperation.PAGE)
             backendMono { backend.page(compiled, options) }
         }
 
     override fun count(input: LegacyCompilationInput, options: QueryExecutionOptions): Mono<Long> =
         Mono.defer {
+            requireSupportedBudget(options)
             val compiled = compile(input, QueryOperation.COUNT)
             backendMono { backend.count(compiled, options) }
         }
@@ -216,6 +220,23 @@ private class DefaultLegacyExecutionDelegate<C : LegacyCompiledQuery>(
             rejectLegacy(QueryRejectionCode.LEGACY_LOWERING_UNSUPPORTED)
         }
         return compiled
+    }
+
+    private fun requireSupportedBudget(options: QueryExecutionOptions) {
+        val budget = options.budget
+        val unsupported = sequenceOf(
+            budget.maxScannedRecords,
+            budget.maxCandidateBuckets,
+            budget.maxReturnedBuckets,
+            budget.maxCursorPages,
+        ).any { value -> value != null } || budget.allowDiskUse
+        if (unsupported) {
+            rejectQuery(
+                QueryRejectionCategory.UNSUPPORTED_FEATURE,
+                QueryRejectionPath.ROOT.property("executionContext").property("budget"),
+                QueryRejectionCode.EXECUTION_BUDGET_UNSUPPORTED,
+            )
+        }
     }
 
     private fun <T : Any> backendMono(source: () -> Mono<T>): Mono<T> =

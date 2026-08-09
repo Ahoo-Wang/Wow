@@ -26,9 +26,14 @@ internal data class ElasticsearchSnapshotWrite(
 )
 
 internal fun Snapshot<*>.toElasticsearchSnapshotWrite(): ElasticsearchSnapshotWrite {
+    return toElasticsearchSnapshotWrite(aggregateId.toSnapshotIndexName())
+}
+
+internal fun Snapshot<*>.toElasticsearchSnapshotWrite(index: String): ElasticsearchSnapshotWrite {
+    require(index.isNotBlank()) { "Elasticsearch snapshot write index must not be blank." }
     val document = toLinkedHashMap()
     return ElasticsearchSnapshotWrite(
-        index = aggregateId.toSnapshotIndexName(),
+        index = index,
         id = aggregateId.id,
         document = document,
         version = document.requiredSnapshotVersion(),

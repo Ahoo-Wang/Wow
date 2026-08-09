@@ -14,6 +14,15 @@
 package me.ahoo.wow.query.internal.planning
 
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.backend.EmptyArraySemantics
+import me.ahoo.wow.query.backend.FieldCapability
+import me.ahoo.wow.query.backend.LogicalFieldType
+import me.ahoo.wow.query.backend.Nullability
+import me.ahoo.wow.query.backend.Presence
+import me.ahoo.wow.query.backend.QueryDocumentSchema
+import me.ahoo.wow.query.backend.QueryFieldId
+import me.ahoo.wow.query.backend.QueryFieldSchema
+import me.ahoo.wow.query.backend.QuerySearchScopeDefinition
 import me.ahoo.wow.query.internal.model.QueryDocumentKind
 import me.ahoo.wow.query.internal.model.QueryOperation
 import me.ahoo.wow.query.internal.model.QueryResultShape
@@ -31,16 +40,6 @@ import me.ahoo.wow.query.internal.normalization.PathBasis
 import me.ahoo.wow.query.internal.normalization.PredicateOperator
 import me.ahoo.wow.query.internal.normalization.SearchScope
 import me.ahoo.wow.query.internal.normalization.SearchScopeId
-import me.ahoo.wow.query.internal.schema.EmptyArraySemantics
-import me.ahoo.wow.query.internal.schema.FieldCapability
-import me.ahoo.wow.query.internal.schema.LogicalFieldType
-import me.ahoo.wow.query.internal.schema.Nullability
-import me.ahoo.wow.query.internal.schema.Presence
-import me.ahoo.wow.query.internal.schema.QueryDocumentSchema
-import me.ahoo.wow.query.internal.schema.QueryFieldId
-import me.ahoo.wow.query.internal.schema.QueryFieldSchema
-import me.ahoo.wow.query.internal.schema.QuerySearchScopeDefinition
-import me.ahoo.wow.query.internal.value.NonEmptyList
 
 internal object PlanningFixtures {
     val target = QueryTarget(
@@ -157,7 +156,11 @@ internal object PlanningFixtures {
                     PredicateOperator.NOT_IN,
                     PredicateOperator.ALL_IN,
                 ),
-                setOf(FieldCapability.EXACT, FieldCapability.PROJECTABLE),
+                setOf(
+                    FieldCapability.EXACT,
+                    FieldCapability.PROJECTABLE,
+                    FieldCapability.ELEMENT_NULL,
+                ),
             ),
             field(
                 items,
@@ -196,7 +199,7 @@ internal object PlanningFixtures {
             QuerySearchScopeDefinition(
                 id = searchScopeId,
                 owner = null,
-                fields = NonEmptyList.of(description),
+                fields = listOf(description),
                 legacyAliases = setOf(description),
             ),
         ),

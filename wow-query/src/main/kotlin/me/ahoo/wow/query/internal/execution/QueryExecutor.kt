@@ -240,9 +240,13 @@ internal class QueryExecutor(
         return result.map(::requireNonNegativeCount).switchIfEmpty(incompleteResult())
     }
 
-    fun analyze(route: QueryExecutionRoute, options: QueryExecutionOptions): Mono<BackendAnalyticsPage> {
+    fun analyze(
+        route: QueryExecutionRoute,
+        options: QueryExecutionOptions,
+        cursorState: ByteArray? = null,
+    ): Mono<BackendAnalyticsPage> {
         val result = when (route) {
-            is QueryExecutionRoute.Planned -> plannedAnalytics(route.registry, route.plan, options)
+            is QueryExecutionRoute.Planned -> plannedAnalytics(route.registry, route.plan, options, cursorState)
             is QueryExecutionRoute.Legacy,
             is QueryExecutionRoute.Shadow,
             -> rejectExecution(QueryRejectionCode.EXECUTION_MODE_UNSUPPORTED)
@@ -321,11 +325,12 @@ internal class QueryExecutor(
         registration: QueryBackendRegistration,
         plan: QueryPlan,
         options: QueryExecutionOptions,
+        cursorState: ByteArray?,
     ): Mono<BackendAnalyticsPage> = Mono.defer {
         val analyticsPlan = requirePlan<AnalyticsQueryPlan>(plan)
         val backend = registration.analyticsBackend
             ?: rejectExecution(QueryRejectionCode.BACKEND_OPERATION_UNSUPPORTED)
-        backendMono { backend.analyze(analyticsPlan, options) }.map { page ->
+        backendMono { backend.analyze(analyticsPlan, options, cursorState) }.map { page ->
             if (!page.isCompleteFor(analyticsPlan)) {
                 rejectIncomplete()
             }
@@ -337,7 +342,10 @@ internal class QueryExecutor(
         registry: QueryBackendRegistry,
         plan: QueryPlan,
         options: QueryExecutionOptions,
-    ): Mono<BackendAnalyticsPage> = Mono.defer { plannedAnalytics(registry.resolve(plan), plan, options) }
+        cursorState: ByteArray?,
+    ): Mono<BackendAnalyticsPage> = Mono.defer {
+        plannedAnalytics(registry.resolve(plan), plan, options, cursorState)
+    }
 
     private fun shadowStream(
         route: QueryExecutionRoute.Shadow,
@@ -555,7 +563,9 @@ internal class QueryExecutor(
     }
 
     private fun requireRecordBackend(registration: QueryBackendRegistration): RecordQueryBackend =
-        registration.recordBackend ?: rejectExecution(QueryRejectionCode.BACKEND_OPERATION_UNSUPPORTED)
+        registration.recordBackend
+            ?: registration.experimentalRecordBackend?.let(::ExperimentalRecordBackendAdapter)
+            ?: rejectExecution(QueryRejectionCode.BACKEND_OPERATION_UNSUPPORTED)
 
     private fun requireCompleteRecord(record: BackendRecord): BackendRecord {
         if (record.completeness != BackendRecordCompleteness.COMPLETE) {
@@ -581,7 +591,15 @@ internal class QueryExecutor(
         consistency.satisfies(plan.requiredConsistency) &&
             completeness.satisfies(plan.requiredCompleteness) &&
             buckets.size <= plan.bucketWindow.limit &&
+            hasExpectedCursorState(plan) &&
             hasExpectedAnalyticsShape(plan)
+
+    private fun BackendAnalyticsPage.hasExpectedCursorState(plan: AnalyticsQueryPlan): Boolean = when {
+        plan.grouping is me.ahoo.wow.query.internal.plan.PlannedAnalyticsGrouping.Global -> cursorState() == null
+        consistency == AnalyticsConsistency.EVENTUAL -> cursorState() == null
+        consistency == AnalyticsConsistency.SNAPSHOT -> cursorState() != null
+        else -> false
+    }
 
     private fun BackendAnalyticsPage.hasExpectedAnalyticsShape(plan: AnalyticsQueryPlan): Boolean {
         val (dimensionAliases, cursorMatches) = when (val grouping = plan.grouping) {

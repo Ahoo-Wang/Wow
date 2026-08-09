@@ -48,6 +48,7 @@ import me.ahoo.wow.openapi.contributor.eventStreamPagedResponse
 import me.ahoo.wow.openapi.contributor.headVersionPathParameterRef
 import me.ahoo.wow.openapi.contributor.listQueryRequestBodyRef
 import me.ahoo.wow.openapi.contributor.pagedQueryRequestBodyRef
+import me.ahoo.wow.openapi.contributor.queryRouteResponses
 import me.ahoo.wow.openapi.contributor.requestTimeoutResponseRef
 import me.ahoo.wow.openapi.contributor.tailVersionPathParameterRef
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
@@ -93,7 +94,7 @@ object EventRouteContributor : RouteContributor {
                 appendOwnerPath = variant.appendOwnerPath,
                 appendPathSuffix = "event/count",
                 requestBody = componentContext.countQueryRequestBodyRef(),
-                responses = listOf(componentContext.countQueryResponseRef())
+                responses = componentContext.queryRouteResponses(componentContext.countQueryResponseRef())
             ),
             eventRoute(
                 currentContext = currentContext,
@@ -108,7 +109,9 @@ object EventRouteContributor : RouteContributor {
                 appendPathSuffix = "event/list",
                 accept = STREAMING_ACCEPT,
                 requestBody = componentContext.listQueryRequestBodyRef(),
-                responses = listOf(componentContext.eventStreamListResponse(aggregateMetadata))
+                responses = componentContext.queryRouteResponses(
+                    componentContext.eventStreamListResponse(aggregateMetadata)
+                )
             ),
             eventRoute(
                 currentContext = currentContext,
@@ -122,7 +125,9 @@ object EventRouteContributor : RouteContributor {
                 appendOwnerPath = variant.appendOwnerPath,
                 appendPathSuffix = "event/paged",
                 requestBody = componentContext.pagedQueryRequestBodyRef(),
-                responses = listOf(componentContext.eventStreamPagedResponse(aggregateMetadata))
+                responses = componentContext.queryRouteResponses(
+                    componentContext.eventStreamPagedResponse(aggregateMetadata)
+                )
             )
         )
     }
@@ -150,7 +155,9 @@ object EventRouteContributor : RouteContributor {
                 componentContext.headVersionPathParameterRef(),
                 componentContext.tailVersionPathParameterRef()
             ),
-            responses = listOf(componentContext.eventStreamListResponse(aggregateRouteMetadata.aggregateMetadata))
+            responses = componentContext.queryRouteResponses(
+                componentContext.eventStreamListResponse(aggregateRouteMetadata.aggregateMetadata)
+            )
         )
     }
 

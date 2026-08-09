@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.query.internal.execution
 
+import me.ahoo.wow.query.backend.QueryBackendException
+import me.ahoo.wow.query.backend.QueryBackendFailureKind
 import me.ahoo.wow.query.internal.model.QueryOperation
 import me.ahoo.wow.query.internal.policy.QueryExecutionRequest
 import me.ahoo.wow.query.internal.rejection.QueryRejectedException
@@ -75,6 +77,12 @@ internal class QueryErrorBoundary {
                     QueryRejectionCode.BACKEND_TIMEOUT,
                 )
 
+                QueryBackendFailureKind.BUDGET_EXCEEDED -> Triple(
+                    QueryRejectionCategory.BUDGET_EXCEEDED,
+                    QueryRejectionPath.ROOT.property("executionContext").property("budget"),
+                    QueryRejectionCode.BACKEND_BUDGET_EXCEEDED,
+                )
+
                 QueryBackendFailureKind.INCOMPLETE_RESULT -> Triple(
                     QueryRejectionCategory.INCOMPLETE_RESULT,
                     QueryRejectionPath.ROOT.property("backend").property("result"),
@@ -85,6 +93,12 @@ internal class QueryErrorBoundary {
                     QueryRejectionCategory.MAPPING_FAILURE,
                     QueryRejectionPath.ROOT.property("result"),
                     QueryRejectionCode.RESULT_MAPPING_FAILED,
+                )
+
+                QueryBackendFailureKind.UNSUPPORTED -> Triple(
+                    QueryRejectionCategory.UNSUPPORTED_FEATURE,
+                    QueryRejectionPath.ROOT.property("backend"),
+                    QueryRejectionCode.BACKEND_OPERATION_UNSUPPORTED,
                 )
             }
         return QueryRejectedException(QueryRejection(category, path, code), this)

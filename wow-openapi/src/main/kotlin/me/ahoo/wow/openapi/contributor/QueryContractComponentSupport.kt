@@ -13,19 +13,24 @@
 
 package me.ahoo.wow.openapi.contributor
 
+import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
+import me.ahoo.wow.openapi.CommonComponent.Response.withErrorCodeHeader
+import me.ahoo.wow.openapi.CommonComponent.Schema.errorInfoSchema
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.QueryComponent
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedCountQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedListQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedPagedQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedSingleQueryRequestBody
+import me.ahoo.wow.openapi.QueryComponent.RequestBody.analyticsQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.countQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.listQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.pagedQueryRequestBody
+import me.ahoo.wow.openapi.QueryComponent.Response.analyticsPageResponse
 import me.ahoo.wow.openapi.QueryComponent.Response.countQueryResponse
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpContent
@@ -39,6 +44,11 @@ import java.lang.reflect.Type
 internal fun OpenAPIComponentContext.countQueryRequestBodyRef(): HttpRequestBody {
     countQueryRequestBody()
     return HttpRequestBody(componentRef = QueryComponent.COUNT_QUERY_KEY)
+}
+
+internal fun OpenAPIComponentContext.analyticsQueryRequestBodyRef(): HttpRequestBody {
+    analyticsQueryRequestBody()
+    return HttpRequestBody(componentRef = QueryComponent.ANALYTICS_QUERY_KEY)
 }
 
 internal fun OpenAPIComponentContext.listQueryRequestBodyRef(): HttpRequestBody {
@@ -86,6 +96,47 @@ internal fun OpenAPIComponentContext.countQueryResponseRef(): HttpResponse {
         componentRef = QueryComponent.COUNT_QUERY_KEY
     )
 }
+
+internal fun OpenAPIComponentContext.analyticsPageResponseRef(): HttpResponse {
+    analyticsPageResponse()
+    return HttpResponse(
+        statusCode = Https.Code.OK,
+        componentRef = QueryComponent.ANALYTICS_PAGE_KEY,
+    )
+}
+
+internal fun OpenAPIComponentContext.queryRouteResponses(
+    vararg successResponses: HttpResponse,
+): List<HttpResponse> = successResponses.toList() + listOf(
+    badRequestResponseRef(),
+    queryErrorResponseRef(
+        Https.Code.FORBIDDEN,
+        QUERY_ACCESS_DENIED_RESPONSE_KEY,
+        "Query access was denied.",
+    ),
+    requestTimeoutResponseRef(),
+    tooManyRequestsResponseRef(),
+    queryErrorResponseRef(
+        Https.Code.BAD_GATEWAY,
+        QUERY_INCOMPLETE_RESULT_RESPONSE_KEY,
+        "The query result was incomplete.",
+    ),
+    queryErrorResponseRef(
+        Https.Code.SERVICE_UNAVAILABLE,
+        QUERY_BACKEND_UNAVAILABLE_RESPONSE_KEY,
+        "The query backend is unavailable.",
+    ),
+    queryErrorResponseRef(
+        Https.Code.GATEWAY_TIMEOUT,
+        QUERY_BACKEND_TIMEOUT_RESPONSE_KEY,
+        "The query backend timed out.",
+    ),
+    queryErrorResponseRef(
+        Https.Code.INTERNAL_SERVER_ERROR,
+        QUERY_INTERNAL_FAILURE_RESPONSE_KEY,
+        "The query result could not be produced.",
+    ),
+)
 
 internal fun OpenAPIComponentContext.eventStreamListResponse(
     aggregateMetadata: AggregateMetadata<*, *>
@@ -195,3 +246,22 @@ private fun OpenAPIComponentContext.responseWithJson(schema: HttpSchema): HttpRe
         content = listOf(HttpContent(Https.MediaType.APPLICATION_JSON, schema))
     )
 }
+
+private fun OpenAPIComponentContext.queryErrorResponseRef(
+    statusCode: String,
+    componentKey: String,
+    description: String,
+): HttpResponse {
+    response(componentKey) {
+        withErrorCodeHeader(this@queryErrorResponseRef)
+        description(description)
+        content(schema = errorInfoSchema())
+    }
+    return HttpResponse(statusCode = statusCode, componentRef = componentKey)
+}
+
+private const val QUERY_ACCESS_DENIED_RESPONSE_KEY = "${Wow.WOW_PREFIX}QueryAccessDenied"
+private const val QUERY_INCOMPLETE_RESULT_RESPONSE_KEY = "${Wow.WOW_PREFIX}QueryIncompleteResult"
+private const val QUERY_BACKEND_UNAVAILABLE_RESPONSE_KEY = "${Wow.WOW_PREFIX}QueryBackendUnavailable"
+private const val QUERY_BACKEND_TIMEOUT_RESPONSE_KEY = "${Wow.WOW_PREFIX}QueryBackendTimeout"
+private const val QUERY_INTERNAL_FAILURE_RESPONSE_KEY = "${Wow.WOW_PREFIX}QueryInternalFailure"

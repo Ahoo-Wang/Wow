@@ -25,6 +25,7 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.backend.NormalizedValue
 import me.ahoo.wow.query.internal.admission.QueryAdmissionLimits
 import me.ahoo.wow.query.internal.admission.RawAdmissionGuard
 import me.ahoo.wow.query.internal.model.QueryDocumentKind

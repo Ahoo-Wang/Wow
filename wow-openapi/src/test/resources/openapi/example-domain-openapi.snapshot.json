@@ -447,6 +447,199 @@
           }
         }
       },
+      "wow.AnalyticsQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "oneOf" : [ {
+                "additionalProperties" : false,
+                "properties" : {
+                  "completeness" : {
+                    "$ref" : "#/components/schemas/wow.api.query.AnalyticsCompleteness"
+                  },
+                  "condition" : {
+                    "$ref" : "#/components/schemas/wow.api.query.Condition"
+                  },
+                  "consistency" : {
+                    "$ref" : "#/components/schemas/wow.api.query.AnalyticsConsistency"
+                  },
+                  "grouping" : {
+                    "additionalProperties" : false,
+                    "properties" : {
+                      "dimensions" : {
+                        "items" : {
+                          "$ref" : "#/components/schemas/wow.api.query.AnalyticsDimension"
+                        },
+                        "maxItems" : 0,
+                        "type" : "array"
+                      },
+                      "kind" : {
+                        "const" : "GLOBAL",
+                        "type" : "string"
+                      }
+                    },
+                    "required" : [ "kind" ],
+                    "type" : "object"
+                  },
+                  "metrics" : {
+                    "items" : {
+                      "oneOf" : [ {
+                        "additionalProperties" : false,
+                        "properties" : {
+                          "alias" : {
+                            "maxLength" : 128,
+                            "minLength" : 1,
+                            "type" : "string"
+                          },
+                          "kind" : {
+                            "const" : "DOCUMENT_COUNT",
+                            "type" : "string"
+                          }
+                        },
+                        "required" : [ "alias", "kind" ],
+                        "type" : "object"
+                      }, {
+                        "additionalProperties" : false,
+                        "properties" : {
+                          "alias" : {
+                            "maxLength" : 128,
+                            "minLength" : 1,
+                            "type" : "string"
+                          },
+                          "field" : {
+                            "maxLength" : 512,
+                            "minLength" : 1,
+                            "type" : "string"
+                          },
+                          "kind" : {
+                            "enum" : [ "MIN", "MAX", "SUM", "AVERAGE" ],
+                            "type" : "string"
+                          }
+                        },
+                        "required" : [ "alias", "field", "kind" ],
+                        "type" : "object"
+                      } ]
+                    },
+                    "minItems" : 1,
+                    "type" : "array"
+                  },
+                  "numericPolicy" : {
+                    "$ref" : "#/components/schemas/wow.api.query.AnalyticsNumericPolicy"
+                  },
+                  "window" : {
+                    "additionalProperties" : false,
+                    "properties" : {
+                      "limit" : {
+                        "format" : "int32",
+                        "maximum" : 1,
+                        "minimum" : 1,
+                        "type" : "integer"
+                      }
+                    },
+                    "required" : [ "limit" ],
+                    "type" : "object"
+                  }
+                },
+                "required" : [ "grouping", "metrics", "window" ],
+                "type" : "object"
+              }, {
+                "additionalProperties" : false,
+                "properties" : {
+                  "completeness" : {
+                    "$ref" : "#/components/schemas/wow.api.query.AnalyticsCompleteness"
+                  },
+                  "condition" : {
+                    "$ref" : "#/components/schemas/wow.api.query.Condition"
+                  },
+                  "consistency" : {
+                    "$ref" : "#/components/schemas/wow.api.query.AnalyticsConsistency"
+                  },
+                  "grouping" : {
+                    "additionalProperties" : false,
+                    "properties" : {
+                      "dimensions" : {
+                        "items" : {
+                          "$ref" : "#/components/schemas/wow.api.query.AnalyticsDimension"
+                        },
+                        "minItems" : 1,
+                        "type" : "array"
+                      },
+                      "kind" : {
+                        "const" : "BY",
+                        "type" : "string"
+                      }
+                    },
+                    "required" : [ "dimensions", "kind" ],
+                    "type" : "object"
+                  },
+                  "metrics" : {
+                    "items" : {
+                      "oneOf" : [ {
+                        "additionalProperties" : false,
+                        "properties" : {
+                          "alias" : {
+                            "maxLength" : 128,
+                            "minLength" : 1,
+                            "type" : "string"
+                          },
+                          "kind" : {
+                            "const" : "DOCUMENT_COUNT",
+                            "type" : "string"
+                          }
+                        },
+                        "required" : [ "alias", "kind" ],
+                        "type" : "object"
+                      }, {
+                        "additionalProperties" : false,
+                        "properties" : {
+                          "alias" : {
+                            "maxLength" : 128,
+                            "minLength" : 1,
+                            "type" : "string"
+                          },
+                          "field" : {
+                            "maxLength" : 512,
+                            "minLength" : 1,
+                            "type" : "string"
+                          },
+                          "kind" : {
+                            "enum" : [ "MIN", "MAX", "SUM", "AVERAGE" ],
+                            "type" : "string"
+                          }
+                        },
+                        "required" : [ "alias", "field", "kind" ],
+                        "type" : "object"
+                      } ]
+                    },
+                    "minItems" : 1,
+                    "type" : "array"
+                  },
+                  "numericPolicy" : {
+                    "$ref" : "#/components/schemas/wow.api.query.AnalyticsNumericPolicy"
+                  },
+                  "window" : {
+                    "additionalProperties" : false,
+                    "properties" : {
+                      "cursor" : {
+                        "$ref" : "#/components/schemas/wow.api.query.AnalyticsCursor"
+                      },
+                      "limit" : {
+                        "format" : "int32",
+                        "minimum" : 1,
+                        "type" : "integer"
+                      }
+                    },
+                    "required" : [ "limit" ],
+                    "type" : "object"
+                  }
+                },
+                "required" : [ "grouping", "metrics", "window" ],
+                "type" : "object"
+              } ]
+            }
+          }
+        }
+      },
       "wow.CompensationTarget" : {
         "content" : {
           "application/json" : {
@@ -485,6 +678,20 @@
       }
     },
     "responses" : {
+      "wow.AnalyticsPage" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.query.AnalyticsPage"
+            }
+          }
+        },
+        "headers" : {
+          "Wow-Error-Code" : {
+            "$ref" : "#/components/headers/wow.Wow-Error-Code"
+          }
+        }
+      },
       "wow.BadRequest" : {
         "content" : {
           "application/json" : {
@@ -665,6 +872,76 @@
           }
         }
       },
+      "wow.QueryAccessDenied" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.DefaultErrorInfo"
+            }
+          }
+        },
+        "headers" : {
+          "Wow-Error-Code" : {
+            "$ref" : "#/components/headers/wow.Wow-Error-Code"
+          }
+        }
+      },
+      "wow.QueryBackendTimeout" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.DefaultErrorInfo"
+            }
+          }
+        },
+        "headers" : {
+          "Wow-Error-Code" : {
+            "$ref" : "#/components/headers/wow.Wow-Error-Code"
+          }
+        }
+      },
+      "wow.QueryBackendUnavailable" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.DefaultErrorInfo"
+            }
+          }
+        },
+        "headers" : {
+          "Wow-Error-Code" : {
+            "$ref" : "#/components/headers/wow.Wow-Error-Code"
+          }
+        }
+      },
+      "wow.QueryIncompleteResult" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.DefaultErrorInfo"
+            }
+          }
+        },
+        "headers" : {
+          "Wow-Error-Code" : {
+            "$ref" : "#/components/headers/wow.Wow-Error-Code"
+          }
+        }
+      },
+      "wow.QueryInternalFailure" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.DefaultErrorInfo"
+            }
+          }
+        },
+        "headers" : {
+          "Wow-Error-Code" : {
+            "$ref" : "#/components/headers/wow.Wow-Error-Code"
+          }
+        }
+      },
       "wow.RequestTimeout" : {
         "content" : {
           "application/json" : {
@@ -709,6 +986,10 @@
       }
     },
     "schemas" : {
+      "example.RoundingMode" : {
+        "enum" : [ "UP", "DOWN", "CEILING", "FLOOR", "HALF_UP", "HALF_DOWN", "HALF_EVEN", "UNNECESSARY" ],
+        "type" : "string"
+      },
       "example.StringObjectMap" : {
         "type" : "object"
       },
@@ -4537,6 +4818,134 @@
         "required" : [ "aggregateId", "aggregateName", "contextName", "tenantId" ],
         "type" : "object"
       },
+      "wow.api.query.AnalyticsBucket" : {
+        "properties" : {
+          "keys" : {
+            "$ref" : "#/components/schemas/wow.api.query.StringAnalyticsValueMap"
+          },
+          "metrics" : {
+            "$ref" : "#/components/schemas/wow.api.query.StringAnalyticsValueMap"
+          }
+        },
+        "required" : [ "keys", "metrics" ],
+        "type" : "object"
+      },
+      "wow.api.query.AnalyticsCompleteness" : {
+        "const" : "EXACT",
+        "type" : "string"
+      },
+      "wow.api.query.AnalyticsConsistency" : {
+        "enum" : [ "EVENTUAL", "SNAPSHOT" ],
+        "type" : "string"
+      },
+      "wow.api.query.AnalyticsCursor" : {
+        "maxLength" : 256,
+        "pattern" : "^[A-Za-z0-9._-]+$",
+        "type" : "string"
+      },
+      "wow.api.query.AnalyticsDimension" : {
+        "properties" : {
+          "alias" : {
+            "maxLength" : 128,
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "field" : {
+            "maxLength" : 512,
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "missingPolicy" : {
+            "$ref" : "#/components/schemas/wow.api.query.AnalyticsMissingPolicy"
+          }
+        },
+        "required" : [ "alias", "field" ],
+        "type" : "object"
+      },
+      "wow.api.query.AnalyticsMissingPolicy" : {
+        "enum" : [ "EXCLUDE", "AS_NULL_BUCKET" ],
+        "type" : "string"
+      },
+      "wow.api.query.AnalyticsNumericPolicy" : {
+        "properties" : {
+          "overflowPolicy" : {
+            "$ref" : "#/components/schemas/wow.api.query.AnalyticsOverflowPolicy"
+          },
+          "precision" : {
+            "format" : "int32",
+            "maximum" : 34,
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "promotion" : {
+            "$ref" : "#/components/schemas/wow.api.query.AnalyticsNumericPromotion"
+          },
+          "roundingMode" : {
+            "$ref" : "#/components/schemas/example.RoundingMode"
+          },
+          "scale" : {
+            "format" : "int32",
+            "maximum" : 34,
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        },
+        "required" : [ "scale" ],
+        "type" : "object"
+      },
+      "wow.api.query.AnalyticsNumericPromotion" : {
+        "const" : "DECIMAL128",
+        "type" : "string"
+      },
+      "wow.api.query.AnalyticsOverflowPolicy" : {
+        "const" : "REJECT",
+        "type" : "string"
+      },
+      "wow.api.query.AnalyticsPage" : {
+        "properties" : {
+          "buckets" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.AnalyticsBucket"
+            },
+            "type" : "array"
+          },
+          "completeness" : {
+            "$ref" : "#/components/schemas/wow.api.query.AnalyticsCompleteness"
+          },
+          "consistency" : {
+            "$ref" : "#/components/schemas/wow.api.query.AnalyticsConsistency"
+          },
+          "nextCursor" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.AnalyticsCursor"
+            } ]
+          }
+        },
+        "required" : [ "buckets", "completeness", "consistency", "nextCursor" ],
+        "type" : "object"
+      },
+      "wow.api.query.AnalyticsValue" : {
+        "properties" : {
+          "type" : {
+            "$ref" : "#/components/schemas/wow.api.query.AnalyticsValueType"
+          },
+          "value" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
+          }
+        },
+        "required" : [ "type", "value" ],
+        "type" : "object"
+      },
+      "wow.api.query.AnalyticsValueType" : {
+        "enum" : [ "NULL", "BOOLEAN", "TEXT", "INT64", "DECIMAL", "INSTANT" ],
+        "type" : "string"
+      },
       "wow.api.query.Condition" : {
         "properties" : {
           "children" : {
@@ -4676,6 +5085,12 @@
       "wow.api.query.Sort.Direction" : {
         "enum" : [ "ASC", "DESC" ],
         "type" : "string"
+      },
+      "wow.api.query.StringAnalyticsValueMap" : {
+        "additionalProperties" : {
+          "$ref" : "#/components/schemas/wow.api.query.AnalyticsValue"
+        },
+        "type" : "object"
       },
       "wow.command.CommandResult" : {
         "properties" : {
@@ -5121,6 +5536,30 @@
         "responses" : {
           "200" : {
             "$ref" : "#/components/responses/wow.CountQuery"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.cart", "customer" ]
@@ -5158,6 +5597,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.cart", "customer" ]
@@ -5184,6 +5647,69 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
+          }
+        },
+        "tags" : [ "example.cart", "customer" ]
+      }
+    },
+    "/cart/snapshot/analyze" : {
+      "post" : {
+        "operationId" : "example.cart.snapshot.analyze",
+        "parameters" : [ ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.AnalyticsQuery"
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.AnalyticsPage"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.cart", "customer" ]
@@ -5200,11 +5726,29 @@
           "200" : {
             "$ref" : "#/components/responses/wow.CountQuery"
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "408" : {
             "$ref" : "#/components/responses/wow.RequestTimeout"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.cart", "customer" ]
@@ -5242,6 +5786,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.cart", "customer" ]
@@ -5279,6 +5847,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.cart", "customer" ]
@@ -5305,6 +5897,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.cart", "customer" ]
@@ -5331,6 +5947,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.cart", "customer" ]
@@ -5358,8 +5998,32 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.cart", "customer" ]
@@ -5387,8 +6051,32 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.cart", "customer" ]
@@ -5467,6 +6155,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.cart", "customer" ]
@@ -5762,6 +6474,30 @@
         "responses" : {
           "200" : {
             "$ref" : "#/components/responses/wow.CountQuery"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.cart", "customer" ]
@@ -5801,6 +6537,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.cart", "customer" ]
@@ -5829,6 +6589,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.cart", "customer" ]
@@ -6062,8 +6846,73 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
+          }
+        },
+        "tags" : [ "example.cart", "customer" ]
+      }
+    },
+    "/owner/{ownerId}/cart/snapshot/analyze" : {
+      "post" : {
+        "operationId" : "example.cart.owner.snapshot.analyze",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.ownerId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.AnalyticsQuery"
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.AnalyticsPage"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.cart", "customer" ]
@@ -6082,11 +6931,29 @@
           "200" : {
             "$ref" : "#/components/responses/wow.CountQuery"
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "408" : {
             "$ref" : "#/components/responses/wow.RequestTimeout"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.cart", "customer" ]
@@ -6126,6 +6993,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.cart", "customer" ]
@@ -6165,6 +7056,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.cart", "customer" ]
@@ -6193,6 +7108,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.cart", "customer" ]
@@ -6221,6 +7160,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.cart", "customer" ]
@@ -6250,8 +7213,32 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.cart", "customer" ]
@@ -6281,8 +7268,32 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.cart", "customer" ]
@@ -6537,6 +7548,30 @@
         "responses" : {
           "200" : {
             "$ref" : "#/components/responses/wow.CountQuery"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -6578,6 +7613,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -6608,6 +7667,73 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
+          }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
+    "/owner/{ownerId}/sales-order/snapshot/analyze" : {
+      "post" : {
+        "operationId" : "example.order.owner.snapshot.analyze",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        }, {
+          "$ref" : "#/components/parameters/wow.ownerId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.AnalyticsQuery"
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.AnalyticsPage"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -6628,11 +7754,29 @@
           "200" : {
             "$ref" : "#/components/responses/wow.CountQuery"
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "408" : {
             "$ref" : "#/components/responses/wow.RequestTimeout"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -6674,6 +7818,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -6715,6 +7883,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -6745,6 +7937,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -6775,6 +7991,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -6806,8 +8046,32 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -6839,8 +8103,32 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -6858,6 +8146,30 @@
         "responses" : {
           "200" : {
             "$ref" : "#/components/responses/wow.CountQuery"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -6897,6 +8209,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -6925,6 +8261,71 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
+          }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
+    "/sales-order/snapshot/analyze" : {
+      "post" : {
+        "operationId" : "example.order.snapshot.analyze",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.AnalyticsQuery"
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.AnalyticsPage"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -6943,11 +8344,29 @@
           "200" : {
             "$ref" : "#/components/responses/wow.CountQuery"
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "408" : {
             "$ref" : "#/components/responses/wow.RequestTimeout"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -6987,6 +8406,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -7026,6 +8469,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -7054,6 +8521,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -7082,6 +8573,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -7111,8 +8626,32 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -7142,8 +8681,32 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -7201,6 +8764,30 @@
         "responses" : {
           "200" : {
             "$ref" : "#/components/responses/wow.CountQuery"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.mock_aggregate" ]
@@ -7238,6 +8825,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.mock_aggregate" ]
@@ -7264,6 +8875,69 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
+          }
+        },
+        "tags" : [ "tck.mock_aggregate" ]
+      }
+    },
+    "/tck/mock_aggregate/snapshot/analyze" : {
+      "post" : {
+        "operationId" : "tck.mock_aggregate.snapshot.analyze",
+        "parameters" : [ ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.AnalyticsQuery"
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.AnalyticsPage"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.mock_aggregate" ]
@@ -7280,11 +8954,29 @@
           "200" : {
             "$ref" : "#/components/responses/wow.CountQuery"
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "408" : {
             "$ref" : "#/components/responses/wow.RequestTimeout"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.mock_aggregate" ]
@@ -7322,6 +9014,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.mock_aggregate" ]
@@ -7359,6 +9075,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.mock_aggregate" ]
@@ -7385,6 +9125,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.mock_aggregate" ]
@@ -7411,6 +9175,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.mock_aggregate" ]
@@ -7438,8 +9226,32 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.mock_aggregate" ]
@@ -7467,8 +9279,32 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.mock_aggregate" ]
@@ -7522,6 +9358,30 @@
         "responses" : {
           "200" : {
             "$ref" : "#/components/responses/wow.CountQuery"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
@@ -7559,6 +9419,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
@@ -7585,6 +9469,69 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
+          }
+        },
+        "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+      }
+    },
+    "/tck/modeling_command_aggregate_with_tenant_id/snapshot/analyze" : {
+      "post" : {
+        "operationId" : "tck.modeling_command_aggregate_with_tenant_id.snapshot.analyze",
+        "parameters" : [ ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.AnalyticsQuery"
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.AnalyticsPage"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
@@ -7601,11 +9548,29 @@
           "200" : {
             "$ref" : "#/components/responses/wow.CountQuery"
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "408" : {
             "$ref" : "#/components/responses/wow.RequestTimeout"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
@@ -7643,6 +9608,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
@@ -7680,6 +9669,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
@@ -7706,6 +9719,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
@@ -7732,6 +9769,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
@@ -7759,8 +9820,32 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
@@ -7788,8 +9873,32 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
@@ -7843,6 +9952,30 @@
         "responses" : {
           "200" : {
             "$ref" : "#/components/responses/wow.CountQuery"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
@@ -7880,6 +10013,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
@@ -7906,6 +10063,69 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
+          }
+        },
+        "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+      }
+    },
+    "/tck/modeling_command_aggregate_without_ctor_parameters/snapshot/analyze" : {
+      "post" : {
+        "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot.analyze",
+        "parameters" : [ ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.AnalyticsQuery"
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.AnalyticsPage"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
@@ -7922,11 +10142,29 @@
           "200" : {
             "$ref" : "#/components/responses/wow.CountQuery"
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "408" : {
             "$ref" : "#/components/responses/wow.RequestTimeout"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
@@ -7964,6 +10202,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
@@ -8001,6 +10263,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
@@ -8027,6 +10313,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
@@ -8053,6 +10363,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
@@ -8080,8 +10414,32 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
@@ -8109,8 +10467,32 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
@@ -8166,6 +10548,30 @@
         "responses" : {
           "200" : {
             "$ref" : "#/components/responses/wow.CountQuery"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.mock_aggregate" ]
@@ -8205,6 +10611,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.mock_aggregate" ]
@@ -8233,6 +10663,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.mock_aggregate" ]
@@ -8376,6 +10830,47 @@
         "tags" : [ "tck.mock_aggregate" ]
       }
     },
+    "/tck/tenant/{tenantId}/mock_aggregate/snapshot/analyze" : {
+      "post" : {
+        "operationId" : "tck.mock_aggregate.tenant.snapshot.analyze",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.AnalyticsQuery"
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.AnalyticsPage"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
+          }
+        },
+        "tags" : [ "tck.mock_aggregate" ]
+      }
+    },
     "/tck/tenant/{tenantId}/mock_aggregate/snapshot/count" : {
       "post" : {
         "operationId" : "tck.mock_aggregate.tenant.snapshot.count",
@@ -8389,11 +10884,29 @@
           "200" : {
             "$ref" : "#/components/responses/wow.CountQuery"
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "408" : {
             "$ref" : "#/components/responses/wow.RequestTimeout"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.mock_aggregate" ]
@@ -8433,6 +10946,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.mock_aggregate" ]
@@ -8472,6 +11009,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.mock_aggregate" ]
@@ -8500,6 +11061,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.mock_aggregate" ]
@@ -8528,6 +11113,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.mock_aggregate" ]
@@ -8557,8 +11166,32 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.mock_aggregate" ]
@@ -8588,8 +11221,32 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.mock_aggregate" ]
@@ -8703,6 +11360,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.mock_aggregate" ]
@@ -8873,8 +11554,32 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.mock_aggregate" ]
@@ -9141,6 +11846,30 @@
         "responses" : {
           "200" : {
             "$ref" : "#/components/responses/wow.CountQuery"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
@@ -9180,6 +11909,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
@@ -9208,6 +11961,71 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
+          }
+        },
+        "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+      }
+    },
+    "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/snapshot/analyze" : {
+      "post" : {
+        "operationId" : "tck.modeling_command_aggregate_with_tenant_id.tenant.snapshot.analyze",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.AnalyticsQuery"
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.AnalyticsPage"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
@@ -9226,11 +12044,29 @@
           "200" : {
             "$ref" : "#/components/responses/wow.CountQuery"
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "408" : {
             "$ref" : "#/components/responses/wow.RequestTimeout"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
@@ -9270,6 +12106,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
@@ -9309,6 +12169,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
@@ -9337,6 +12221,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
@@ -9365,6 +12273,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
@@ -9394,8 +12326,32 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
@@ -9425,8 +12381,32 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
@@ -9540,6 +12520,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
@@ -9639,8 +12643,32 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
@@ -9907,6 +12935,30 @@
         "responses" : {
           "200" : {
             "$ref" : "#/components/responses/wow.CountQuery"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
@@ -9946,6 +12998,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
@@ -9974,6 +13050,71 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
+          }
+        },
+        "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+      }
+    },
+    "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/snapshot/analyze" : {
+      "post" : {
+        "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.tenant.snapshot.analyze",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.AnalyticsQuery"
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.AnalyticsPage"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
@@ -9992,11 +13133,29 @@
           "200" : {
             "$ref" : "#/components/responses/wow.CountQuery"
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "408" : {
             "$ref" : "#/components/responses/wow.RequestTimeout"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
@@ -10036,6 +13195,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
@@ -10075,6 +13258,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
@@ -10103,6 +13310,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
@@ -10131,6 +13362,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
@@ -10160,8 +13415,32 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
@@ -10191,8 +13470,32 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
@@ -10306,6 +13609,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
@@ -10405,8 +13732,32 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
@@ -11168,8 +14519,32 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -11379,6 +14754,30 @@
         "responses" : {
           "200" : {
             "$ref" : "#/components/responses/wow.CountQuery"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -11420,6 +14819,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -11450,6 +14873,73 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
+          }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
+    "/tenant/{tenantId}/sales-order/snapshot/analyze" : {
+      "post" : {
+        "operationId" : "example.order.tenant.snapshot.analyze",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        }, {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.AnalyticsQuery"
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.AnalyticsPage"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -11470,11 +14960,29 @@
           "200" : {
             "$ref" : "#/components/responses/wow.CountQuery"
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "408" : {
             "$ref" : "#/components/responses/wow.RequestTimeout"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -11516,6 +15024,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -11557,6 +15089,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -11587,6 +15143,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -11617,6 +15197,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -11648,8 +15252,32 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -11681,8 +15309,32 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
           "404" : {
             "$ref" : "#/components/responses/wow.NotFound"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
@@ -11727,6 +15379,30 @@
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
               }
             }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.BadRequest"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.QueryAccessDenied"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.QueryInternalFailure"
+          },
+          "502" : {
+            "$ref" : "#/components/responses/wow.QueryIncompleteResult"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.QueryBackendUnavailable"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.QueryBackendTimeout"
           }
         },
         "tags" : [ "example.order" ]
