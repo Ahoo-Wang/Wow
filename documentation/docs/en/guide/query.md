@@ -557,6 +557,11 @@ lease. A continuation may only preserve or tighten `maxReturnedRecords`, `maxSca
 and returned bucket limits, `maxCursorPages`, and `allowDiskUse`; it cannot remove or relax an initial bound. An attempted
 relaxation returns `CURSOR_BUDGET_RELAXATION_NOT_ALLOWED` without consuming the lease.
 
+Lease expiry is normalized to millisecond precision before HMAC signing and persistence so a Mongo BSON Date round trip
+cannot diverge from the signed envelope. Backend continuation state is limited to `4_096` bytes by default, and the public
+hard maximum for `QueryCursorLeaseConfiguration.maxBackendStateBytes` is `1 MiB`; runtime validation and the cursor codec
+use the same configured value.
+
 A multi-instance deployment must provide a shared `QueryCursorLeaseStore`. The MongoDB implementation uses bounded
 slots, a unique lease id, revision CAS, and a grace-delayed TTL. It never creates the collection or indexes implicitly at
 application startup; initialize them through an explicit, controlled operation:
@@ -576,7 +581,11 @@ store.ensureIndexes().block()
 @Bean
 fun queryCursorLeaseConfiguration(
     signingKeys: QueryCursorSigningKeys, // Build from a managed Secret; never log or commit key material.
-): QueryCursorLeaseConfiguration = QueryCursorLeaseConfiguration(store, signingKeys)
+): QueryCursorLeaseConfiguration = QueryCursorLeaseConfiguration(
+    store = store,
+    signingKeys = signingKeys,
+    maxBackendStateBytes = 4_096,
+)
 ```
 
 MongoDB TTL applies to `expiresAt + retentionGrace`: the framework reaper first attempts revision CAS and Backend-state
@@ -606,6 +615,12 @@ its mapping/readiness checks pass and a shared cursor store is configured. The P
 lease state and never appears in the client token; terminal, error, cancellation, capacity rejection, and expired-reaper
 paths all attempt to close the PIT. Without a lifecycle closer registered for the exact `QueryTarget + BackendId`, the
 request is rejected before storage access.
+
+For record queries, Mongo planned `PAGE` derives the page and exact total from one matched input plus an in-memory sentinel
+and window accumulator. It neither rereads the collection nor packs the page into one BSON document; `SAME_INPUT` is not a
+point-in-time snapshot claim. Elasticsearch planned direct `STREAM` accepts only `limit=1..10_000`; a larger limit is
+rejected before Elasticsearch I/O, while `limit=0` unbounded streaming remains unsupported instead of silently becoming a
+fixed result window.
 
 Spring also registers a `<context>.<aggregate>.AnalyticsQueryService` bean. Direct process calls still require trusted
 context, while HTTP calls reuse the query route's authenticated authority. If an aggregate has no matching Analytics

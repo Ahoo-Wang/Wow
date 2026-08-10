@@ -368,7 +368,7 @@ class MongoSnapshotRecordQueryBackendIntegrationTest :
     }
 
     @Test
-    fun `planned page should return exact records and total from one facet input`() {
+    fun `planned page should return exact records and total from one input stream`() {
         val backend = fixture.binding.prepareContribution(fixture.collection).block()!!.backend
         val mandatory = BackendPlannedCondition.Junction(
             JunctionOperator.AND,
@@ -393,6 +393,67 @@ class MongoSnapshotRecordQueryBackendIntegrationTest :
         page.consistency.assert().isEqualTo(BackendPageConsistency.SAME_INPUT)
         page.records.assert().hasSize(1)
         page.records.single().identity.assert().isEqualTo("order-4")
+    }
+
+    @Test
+    fun `planned page should emit an exact total for empty and out of range pages`() {
+        val backend = fixture.binding.prepareContribution(fixture.collection).block()!!.backend
+        val noMatch = fixture.predicate(
+            fixture.tenant,
+            PredicateOperator.EQ,
+            NormalizedValue.Text("tenant-missing"),
+        )
+        val empty = backend.page(
+            fixture.pagePlan(
+                BackendEnforcedFilter(noMatch, BackendPlannedCondition.All),
+                offset = 0,
+                size = 1,
+            ),
+            OPTIONS,
+        ).block()!!
+        val outOfRange = backend.page(
+            fixture.pagePlan(
+                BackendEnforcedFilter(BackendPlannedCondition.All, analyticsMandatory()),
+                offset = 20,
+                size = 1,
+            ),
+            OPTIONS,
+        ).block()!!
+
+        empty.total.assert().isEqualTo(0)
+        empty.records.assert().isEmpty()
+        outOfRange.total.assert().isEqualTo(2)
+        outOfRange.records.assert().isEmpty()
+    }
+
+    @Test
+    fun `planned page should not pack large records into one BSON document`() {
+        fixture.collection.deleteMany(Document()).toMono().block()
+        val largeStatus = "x".repeat(8 * 1024 * 1024)
+        fixture.collection.insertMany(
+            listOf(
+                fixture.document("large-1", "tenant-1", false, largeStatus, emptyList(), "large", 1),
+                fixture.document("large-2", "tenant-1", false, largeStatus, emptyList(), "large", 2),
+            ),
+        ).toMono().block()
+        val backend = fixture.binding.prepareContribution(fixture.collection).block()!!.backend
+
+        val page = backend.page(
+            fixture.pagePlan(
+                BackendEnforcedFilter(BackendPlannedCondition.All, analyticsMandatory()),
+                offset = 0,
+                size = 2,
+            ),
+            QueryBackendExecutionOptions(
+                deadline = Instant.now().plusSeconds(300),
+                maxReturnedRecords = 2,
+                maxPageWindow = 2,
+                allowDiskUse = true,
+            ),
+        ).block()!!
+
+        page.total.assert().isEqualTo(2)
+        page.records.map { record -> record.identity }.assert().containsExactly("large-1", "large-2")
     }
 
     @Test
@@ -838,7 +899,7 @@ class MongoSnapshotRecordQueryBackendIntegrationTest :
     }
 
     @Test
-    fun `gateway planned page should execute one exact Mongo facet`() {
+    fun `gateway planned page should execute one exact Mongo input stream`() {
         val contribution = fixture.binding.prepareContribution(fixture.collection).block()!!
         val raw = LegacyMongoCountQueryService(fixture.target.namedAggregate, fixture.collection)
         val gateway = QueryGatewayRuntime.create(

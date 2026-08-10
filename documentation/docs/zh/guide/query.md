@@ -548,6 +548,10 @@ curl -X POST \
 `maxReturnedRecords`、`maxScannedRecords`、`maxPageWindow`、候选/返回 bucket 数、`maxCursorPages` 与
 `allowDiskUse`，不能删除或放宽首次请求的限制；尝试放宽会以 `CURSOR_BUDGET_RELAXATION_NOT_ALLOWED` 拒绝且不消费 lease。
 
+lease expiry 在 HMAC 签名和持久化前统一规范到毫秒精度，避免 Mongo BSON Date 往返后与签名 envelope 不一致。
+Backend continuation state 默认最多 `4_096` bytes，`QueryCursorLeaseConfiguration.maxBackendStateBytes` 的公共硬上限为
+`1 MiB`；runtime 校验和 cursor codec 使用同一配置值，不能通过持久化层绕过。
+
 多实例部署必须提供共享 `QueryCursorLeaseStore`。MongoDB 实现使用固定容量 slot、唯一 lease id、revision CAS 和带 grace 的 TTL；
 集合与索引不会在应用启动时隐式创建，必须先在受控运维步骤中显式执行 `ensureIndexes()`：
 
@@ -566,7 +570,11 @@ store.ensureIndexes().block()
 @Bean
 fun queryCursorLeaseConfiguration(
     signingKeys: QueryCursorSigningKeys, // 从受管 Secret 构造，禁止写入源码或普通配置日志。
-): QueryCursorLeaseConfiguration = QueryCursorLeaseConfiguration(store, signingKeys)
+): QueryCursorLeaseConfiguration = QueryCursorLeaseConfiguration(
+    store = store,
+    signingKeys = signingKeys,
+    maxBackendStateBytes = 4_096,
+)
 ```
 
 Mongo TTL 使用 `expiresAt + retentionGrace`；framework reaper 会先尝试 revision CAS 并关闭 Backend state，TTL 只是遗弃 lease 的最终
@@ -592,6 +600,11 @@ wow:
 Mongo Analytics 目前声明 `EVENTUAL + EXACT`。Elasticsearch grouped Analytics 在 Backend mapping/readiness 通过且配置共享 cursor
 store 时支持 `SNAPSHOT + EXACT`：PIT id 只作为服务端 opaque lease state 保存，客户端 token 不包含 PIT；terminal、error、cancel、
 容量拒绝与过期 reaper 都会尽力关闭 PIT。缺少与精确 `QueryTarget + BackendId` 匹配的 lifecycle closer 时，请求会在访问存储前拒绝。
+
+记录查询方面，Mongo planned `PAGE` 由单个 matched input、内存 sentinel 与 window accumulator 同时产生当前页和 exact total，
+不会二次读取集合，也不会把整页记录打包进一个 BSON document；`SAME_INPUT` 不等同于 point-in-time snapshot。
+Elasticsearch planned direct `STREAM` 只接受 `limit=1..10_000`；更大的 limit 会在访问 Elasticsearch 前拒绝，`limit=0`
+unbounded stream 当前仍不支持，不能静默退化为固定 result window。
 
 Spring 同时注册 `<context>.<aggregate>.AnalyticsQueryService` Bean。直接进程内调用仍必须提供 trusted context；HTTP
 调用复用查询路由的认证 authority。Aggregate 未注册匹配的 Analytics schema/backend readiness 时会稳定拒绝且不会访问存储。

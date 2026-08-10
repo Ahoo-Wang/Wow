@@ -175,6 +175,9 @@ class MongoFieldBinding(
         require(segments.none { segment -> segment.startsWith('$') }) {
             "Mongo field path segments must not start with '$'."
         }
+        require(segments.none { segment -> segment.startsWith(MongoPagePipelineFields.PREFIX) }) {
+            "Mongo field path segments must not use the reserved planned-page prefix."
+        }
         require(path.none(Char::isISOControl)) { "Mongo field path must not contain control characters." }
     }
 }

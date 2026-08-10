@@ -408,7 +408,12 @@ order 冒充 portable 数值/时间范围语义。
 - offset page 只支持预算允许的窗口，深分页后续使用独立 cursor 协议；
 - page 是 Backend 的单个 SPI 操作，返回 total relation 与 consistency；Executor 不允许静默降低一致性。
 
-MongoDB `SAME_INPUT` 可使用单次 `$facet`，但必须显式处理 stage/文档大小和索引风险；`SNAPSHOT` 需要匹配的 read concern。Elasticsearch exact page 必须校验 `total.relation == Eq`。
+MongoDB `SAME_INPUT` 使用一条 aggregation 观察流：匹配记录后追加不读取集合的 `$documents` sentinel，
+再由 `$setWindowFields` 同时计算记录位置与 total，最后分别输出当前页记录和一条 total row。该结构不二次读取集合，
+也不把整页记录封装进单个 BSON document；records 与 total 因而来自同一 observed input。它不把 MongoDB
+`local` read concern 冒充 point-in-time snapshot；若未来声明 `SNAPSHOT`，仍必须具有匹配的 read concern/transaction
+能力。窗口排序、`allowDiskUse`、stage 内存与目标数据规模仍需 explain/profile 签署。Elasticsearch exact page 必须
+校验 `total.relation == Eq`。
 
 ### 6.4 List limit
 
@@ -1072,14 +1077,17 @@ P3-A 当前实现约束：
 #### P3-B：EventStream、page、一致性与预算
 
 - 增加 EventStream record binding，保持一个 document 等于一个 `DomainEventStream`；
-- page 是 Backend 单操作，`SAME_INPUT` 使用经验证的 `$facet`，`SNAPSHOT` 只有 read concern 能力满足时开放；
+- page 是 Backend 单操作；Mongo `SAME_INPUT` 使用单个 matched input、内存 sentinel 与 window accumulator，
+  `SNAPSHOT` 只有 read concern 能力满足时开放；
 - unbounded stream、deadline、cancel、driver error、mapping failure 和资源释放全部显式；
 - 预算覆盖扫描、offset、返回记录、stage、内存/落盘；性能结论必须有 integration fixture/explain。
 
 P3-B 当前实现约束：
 
 - experimental record SPI 已增加 `BackendPageQueryPlan` 与 immutable `BackendPage`；Mongo PAGE 使用单次
-  `$match + $facet(records, total)`，同时返回 `EXACT` total 和 `SAME_INPUT`，不以两次独立查询伪装一致性；
+  `$match` 输入，借助不指定 collection 的 `$unionWith + $documents` sentinel 和 `$setWindowFields` 同时计算
+  position/total，再分别输出记录与 total row；它不二次读取 collection、不构造 page-sized BSON array，返回
+  `EXACT` total 和 `SAME_INPUT`，但不把 `local` read concern 冒充 point-in-time snapshot；
 - Snapshot 与 EventStream 共用 validated compiler/backend，但 binding 分别固定 system path：Snapshot identity/
   aggregateId 为 `_id` 且包含 deleted；EventStream identity 为 `_id -> id`、aggregateId 保留独立字段且禁止 deleted；
 - Snapshot/EventStream planned source 按既有 storage route 分别绑定 snapshot database/event-stream database，未选中
@@ -1091,7 +1099,8 @@ P3-B 当前实现约束：
   Mongo 对 find/aggregate/count 使用绝对 deadline 派生的 `maxTime`，find/page 显式设置 `allowDiskUse`；
 - Mongo 目前不能以单次普通查询精确限制 `totalDocsExamined`，因此 `maxScannedRecords` 在 driver I/O 前返回 unsupported，
   不以 result limit 或预跑第二次 explain 冒充 scan budget。真实 Testcontainers explain fixture 已证明代表性 tenant/deleted/
-  identity PAGE 走 `IXSCAN` 且无 `COLLSCAN`，但它不是生产数据分布的性能签署；
+  identity PAGE 走 `IXSCAN` 且无 `COLLSCAN`；空结果、越界页和两条各 8 MiB 记录的 page fixture 证明 total sentinel
+  与 16 MiB BSON document 边界不依赖 page array，但这些证据仍不是生产数据分布的性能签署；
 - unbounded stream 仍保持 `BACKEND_OPERATION_UNSUPPORTED`。精确 scanned-record enforcement 与目标应用 explain/profile
   阈值签署完成前，生产 `PLANNED` 必须继续使用 operation-scoped rollout。
 
@@ -1167,6 +1176,8 @@ P4-A/P4-B 当前实现约束：
 - 当前 record vertical slice 已覆盖 Snapshot `SINGLE`、bounded `STREAM`、`PAGE`、`COUNT`，mandatory filter、logical
   projection、stable sort、literal wildcard 转义、显式 search scope 与 nested path 均只从 binding 编译；timeout、failed
   shards、非 `Eq` total、缺失 `_source`/identity、`_ignored` 与 mapper 异常 fail closed；
+- direct bounded `STREAM` 只接受 `1..10_000`；大于 `10_000` 在 Elasticsearch I/O 前稳定拒绝，`limit=0`
+  unbounded stream 仍保持 unsupported，不能退化为固定 result window；
 - Spring planned source 只在目标 Aggregate 的既有 storage route 实际选择 Elasticsearch 且 execution profile 非
   `LEGACY` 时检查 mapping；Mongo/Elasticsearch mixed routing 不以某个 client Bean 的存在推断默认 Backend；
 - `PAGE` 使用每订阅独立 PIT + stable sort + `search_after` 有界推进，响应轮换 PIT id 时更新租约，并在
@@ -1234,6 +1245,8 @@ P5-A 当前实现边界：
 - token 是固定二进制 format version、独立 signing-key id、256-bit 随机 lease id、expiry 与 HMAC-SHA256，不把 target、plan fingerprint、
   group/sort key、mapping generation digest 或 Backend state 放入客户端 token；上述 envelope 全部保存在有界服务端
   registry，避免把 Base64 当成加密；
+- expiry 在签名与持久化前统一截断到毫秒精度，确保 HMAC envelope 与 Mongo BSON Date 往返值一致；Backend state
+  使用同一份配置限额完成 runtime 校验与 codec 编解码，默认 `4_096` bytes，公共硬上限 `1 MiB`；
 - internal codec 已实现最多 4 把 key 的有界 key ring：current key 只签发，previous key 只验签；key material 防御复制，重复、未知或
   已退役 key id 稳定拒绝且不会消费 lease。运维仍必须在 `maxCursorTtl` 之后才能移除 previous key；公共
   `QueryCursorLeaseConfiguration` 只接受显式 store 与 key ring，不从普通请求/header 推导密钥；
@@ -1479,7 +1492,7 @@ Phase 5 exit gate：cursor 安全/租约测试、索引迁移与回滚演练、�
 | 待决事项 | 最晚决策点 | 所需证据 |
 |---|---|---|
 | admission/budget 默认上限 | P1-B/P2-A | 现有 DTO 分布、边界测试、目标应用配置需求 |
-| Mongo page `SAME_INPUT` 的 `$facet` 限制与 Snapshot read concern 支持矩阵 | P3-B | Mongo 目标版本 integration、16 MiB/100 MB 边界、并发写 fixture |
+| Mongo page window pipeline 的目标规模性能阈值 | Mongo target 进入 `PLANNED` 前 | 目标数据分布 explain/profile、window sort/落盘指标与 latency/内存预算；语义实现已不使用 `$facet` 或 collection re-read |
 | Mongo analytics cursor predicate 是否可安全下推 | P3-C | missing/null/collation 等价测试与 explain；否则保持 group 后过滤并限制预算 |
 | numeric policy 的 portable type/range | P3-C | Mongo int/long/double/Decimal128 与 ES numeric metric 双 Backend TCK |
 | 各 Aggregate 字符串 capability、search scope、长度、analyzer/normalizer/collation | P1-C/P4-A | 查询用例、实际 mapping、现有值长度/`_ignored` 审计与双 Backend fixtures |

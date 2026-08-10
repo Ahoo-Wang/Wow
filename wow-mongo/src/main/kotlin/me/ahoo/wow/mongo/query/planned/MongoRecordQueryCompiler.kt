@@ -46,29 +46,139 @@ import org.bson.conversions.Bson
 import org.bson.types.Binary
 import org.bson.types.Decimal128
 
+internal object MongoPagePipelineFields {
+    const val PREFIX = "__wowQueryPage"
+    const val KIND = "${PREFIX}Kind"
+    const val POSITION = "${PREFIX}Position"
+    const val TOTAL = "${PREFIX}Total"
+    const val RECORD_KIND = 0
+    const val SENTINEL_KIND = 1
+}
+
 internal data class MongoCompiledRecordQuery(
-    val collectionName: String,
     val filter: Bson,
     val projection: Bson?,
+    val pageProjection: Bson?,
     val sort: Bson?,
     val limit: Int?,
     val page: BackendPageWindow?,
 ) {
     fun pagePipeline(): List<Bson> {
         val window = requireNotNull(page) { "Mongo page pipeline requires a page window." }
-        val records = buildList<Bson> {
+        return buildList {
             add(Aggregates.match(filter))
-            sort?.let { currentSort -> add(Aggregates.sort(currentSort)) }
-            add(Document("\$skip", window.offset))
-            add(Aggregates.limit(window.size))
-            projection?.let { currentProjection -> add(Aggregates.project(currentProjection)) }
+            add(markRecords())
+            add(appendSentinel())
+            add(setPageWindow())
+            add(matchPageRows(window))
+            pageProjection?.let { currentProjection -> add(Aggregates.project(currentProjection)) }
+            add(replaceSentinel())
+            add(clearPageFields())
         }
-        val totalPipeline = listOf(Aggregates.match(filter), Aggregates.count(PAGE_TOTAL_VALUE))
-        return records + Document(
-            "\$unionWith",
-            Document("coll", collectionName).append("pipeline", totalPipeline),
+    }
+
+    private fun markRecords(): Bson =
+        Document("\$set", Document(MongoPagePipelineFields.KIND, MongoPagePipelineFields.RECORD_KIND))
+
+    private fun appendSentinel(): Bson = Document(
+        "\$unionWith",
+        Document(
+            "pipeline",
+            listOf(
+                Document(
+                    "\$documents",
+                    listOf(Document(MongoPagePipelineFields.KIND, MongoPagePipelineFields.SENTINEL_KIND)),
+                ),
+            ),
+        ),
+    )
+
+    private fun setPageWindow(): Bson = Document(
+        "\$setWindowFields",
+        Document("sortBy", pageSort().toBsonDocument()).append("output", pageWindowOutput()),
+    )
+
+    private fun pageSort(): Bson = sort?.let { currentSort ->
+        Sorts.orderBy(Sorts.ascending(MongoPagePipelineFields.KIND), currentSort)
+    } ?: Sorts.ascending(MongoPagePipelineFields.KIND)
+
+    private fun pageWindowOutput(): Bson = Document(
+        MongoPagePipelineFields.POSITION,
+        Document("\$sum", 1).append(
+            "window",
+            Document("documents", listOf("unbounded", "current")),
+        ),
+    ).append(
+        MongoPagePipelineFields.TOTAL,
+        Document(
+            "\$sum",
+            Document(
+                "\$cond",
+                listOf(
+                    Document(
+                        "\$eq",
+                        listOf("\$${MongoPagePipelineFields.KIND}", MongoPagePipelineFields.RECORD_KIND),
+                    ),
+                    1,
+                    0,
+                ),
+            ),
+        ).append(
+            "window",
+            Document("documents", listOf("unbounded", "unbounded")),
+        ),
+    )
+
+    private fun matchPageRows(window: BackendPageWindow): Bson {
+        val endInclusive = pageEndInclusive(window)
+        return Document(
+            "\$match",
+            Document(
+                "\$or",
+                listOf(
+                    Document(MongoPagePipelineFields.KIND, MongoPagePipelineFields.SENTINEL_KIND),
+                    Document(
+                        "\$and",
+                        listOf(
+                            Document(MongoPagePipelineFields.KIND, MongoPagePipelineFields.RECORD_KIND),
+                            Document(MongoPagePipelineFields.POSITION, Document("\$gt", window.offset)),
+                            Document(MongoPagePipelineFields.POSITION, Document("\$lte", endInclusive)),
+                        ),
+                    ),
+                ),
+            ),
         )
     }
+
+    private fun pageEndInclusive(window: BackendPageWindow): Long = try {
+        Math.addExact(window.offset, window.size.toLong())
+    } catch (error: ArithmeticException) {
+        throw QueryBackendException(QueryBackendFailureKind.BUDGET_EXCEEDED, error)
+    }
+
+    private fun replaceSentinel(): Bson = Document(
+        "\$replaceWith",
+        Document(
+            "\$cond",
+            listOf(
+                Document(
+                    "\$eq",
+                    listOf("\$${MongoPagePipelineFields.KIND}", MongoPagePipelineFields.SENTINEL_KIND),
+                ),
+                Document(PAGE_TOTAL_VALUE, "\$${MongoPagePipelineFields.TOTAL}"),
+                "\$\$ROOT",
+            ),
+        ),
+    )
+
+    private fun clearPageFields(): Bson = Document(
+        "\$unset",
+        listOf(
+            MongoPagePipelineFields.KIND,
+            MongoPagePipelineFields.POSITION,
+            MongoPagePipelineFields.TOTAL,
+        ),
+    )
 
     companion object {
         const val PAGE_TOTAL_VALUE = "value"
@@ -89,9 +199,9 @@ internal class MongoRecordQueryCompiler(
         }
         val resultPlan = plan as? BackendRecordResultPlan
         return MongoCompiledRecordQuery(
-            collectionName = binding.namespace.collectionName,
             filter = compileFilter(plan.filter),
             projection = resultPlan?.projection?.let(::compileProjection),
+            pageProjection = (plan as? BackendPageQueryPlan)?.projection?.let(::compilePageProjection),
             sort = resultPlan?.sort?.takeIf(List<*>::isNotEmpty)?.let { sorts ->
                 Sorts.orderBy(
                     sorts.map { sort ->
@@ -290,6 +400,24 @@ internal class MongoRecordQueryCompiler(
                 )
                 excluded.takeIf(List<*>::isNotEmpty)?.let(Projections::exclude)
             }
+        }
+
+    private fun compilePageProjection(projection: BackendProjection): Bson? =
+        when (projection) {
+            BackendProjection.All -> null
+            is BackendProjection.Include -> Projections.include(
+                canonicalPhysicalPaths(
+                    projection.fields.map { field -> requireField(field).path } +
+                        Documents.ID_FIELD +
+                        listOf(
+                            MongoPagePipelineFields.KIND,
+                            MongoPagePipelineFields.POSITION,
+                            MongoPagePipelineFields.TOTAL,
+                        ),
+                ),
+            )
+
+            is BackendProjection.Exclude -> compileProjection(projection)
         }
 
     private fun requireField(field: QueryFieldId): MongoFieldBinding =

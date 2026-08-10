@@ -50,6 +50,9 @@ class MongoSnapshotQueryBindingTest {
             MongoFieldBinding("state.\$expr", emptySet())
         }
         assertThrownBy<IllegalArgumentException> {
+            MongoFieldBinding("state.__wowQueryPageKind", emptySet())
+        }
+        assertThrownBy<IllegalArgumentException> {
             binding(
                 mapOf(
                     identity to MongoFieldBinding(Documents.ID_FIELD, setOf(FieldCapability.EXACT)),

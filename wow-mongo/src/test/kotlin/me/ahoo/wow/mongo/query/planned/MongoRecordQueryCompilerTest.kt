@@ -191,14 +191,36 @@ class MongoRecordQueryCompilerTest {
     }
 
     @Test
-    fun `should preserve one exact same-input page window for the backend`() {
+    fun `should preserve one exact same-input page without a collection union target`() {
         val compiled = compiler.compile(fixture.pagePlan(offset = 3, size = 2))
 
         compiled.page.assert().isEqualTo(BackendPageWindow(3, 2))
         (compiled.limit == null).assert().isTrue()
         val pipeline = compiled.pagePipeline().map(Bson::toBsonDocument)
         pipeline.none { stage -> stage.containsKey("\$facet") }.assert().isTrue()
-        pipeline.last().containsKey("\$unionWith").assert().isTrue()
+        pipeline.none { stage -> stage.containsKey("\$skip") || stage.containsKey("\$limit") }.assert().isTrue()
+        pipeline.any { stage -> stage.containsKey("\$setWindowFields") }.assert().isTrue()
+        val union = requireNotNull(
+            pipeline.single { stage -> stage.containsKey("\$unionWith") }["\$unionWith"],
+        ).asDocument()
+        union.containsKey("coll").assert().isFalse()
+        requireNotNull(union["pipeline"])
+            .asArray()
+            .single()
+            .asDocument()
+            .containsKey("\$documents")
+            .assert()
+            .isTrue()
+        pipeline.last().containsKey("\$unset").assert().isTrue()
+    }
+
+    @Test
+    fun `should reject overflowing page window before storage`() {
+        assertThrownBy<QueryBackendException> {
+            compiler.compile(fixture.pagePlan(offset = Long.MAX_VALUE, size = 1)).pagePipeline()
+        }.satisfies(
+            Consumer { error -> error.kind.assert().isEqualTo(QueryBackendFailureKind.BUDGET_EXCEEDED) },
+        )
     }
 
     @Test
