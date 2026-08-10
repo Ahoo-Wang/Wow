@@ -83,6 +83,13 @@ data class QueryCursorLeaseConfiguration(
         require(!maxCursorTtl.isZero && !maxCursorTtl.isNegative) { "Query cursor maximum TTL must be positive." }
         require(leaseTtl <= maxCursorTtl) { "Query cursor lease TTL must not exceed its maximum TTL." }
         require(maxBackendStateBytes > 0) { "Query cursor backend state limit must be positive." }
+        require(maxBackendStateBytes <= MAX_BACKEND_STATE_BYTES) {
+            "Query cursor backend state limit exceeds its supported maximum."
+        }
+    }
+
+    companion object {
+        const val MAX_BACKEND_STATE_BYTES: Int = 1024 * 1024
     }
 }
 

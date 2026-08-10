@@ -34,6 +34,7 @@ import me.ahoo.wow.query.gateway.QueryDocumentKind
 import me.ahoo.wow.query.gateway.QueryTarget
 import me.ahoo.wow.serialization.MessageRecords
 import org.junit.jupiter.api.Test
+import java.time.Instant
 import java.util.function.Consumer
 
 class ElasticsearchSnapshotRecordMapperTest {
@@ -82,6 +83,22 @@ class ElasticsearchSnapshotRecordMapperTest {
         }
     }
 
+    @Test
+    fun `mapper should decode epoch millis using the logical field schema`() {
+        val record = mapper.map(
+            "order-1",
+            mapOf(
+                MessageRecords.AGGREGATE_ID to "order-1",
+                "state" to mapOf("createdAt" to 1_234L),
+            ),
+        )
+
+        val state = record.document.values["state"] as NormalizedValue.ObjectValue
+        state.values["createdAt"].assert().isEqualTo(
+            NormalizedValue.InstantValue(Instant.ofEpochMilli(1_234L)),
+        )
+    }
+
     private fun assertMappingFailure(action: () -> Unit) {
         assertThrownBy<QueryBackendException>(action).satisfies(
             Consumer { error -> error.kind.assert().isEqualTo(QueryBackendFailureKind.MAPPING_FAILURE) },
@@ -93,6 +110,7 @@ class ElasticsearchSnapshotRecordMapperTest {
             val identity = QueryFieldId.System(SystemFieldKind.IDENTITY)
             val state = QueryFieldId.Path(listOf("state"))
             val name = QueryFieldId.Path(listOf("state", "name"))
+            val createdAt = QueryFieldId.Path(listOf("state", "createdAt"))
             val schema = QueryDocumentSchema(
                 QueryTarget(MaterializedNamedAggregate("sales", "order"), QueryDocumentKind.SNAPSHOT),
                 listOf(
@@ -120,6 +138,14 @@ class ElasticsearchSnapshotRecordMapperTest {
                         emptyList(),
                         emptyList()
                     ),
+                    QueryFieldSchema(
+                        createdAt,
+                        LogicalFieldType.Instant,
+                        Presence.OPTIONAL,
+                        Nullability.NULLABLE,
+                        emptyList(),
+                        emptyList(),
+                    ),
                 ),
                 emptyList(),
             )
@@ -132,6 +158,11 @@ class ElasticsearchSnapshotRecordMapperTest {
                         identity to ElasticsearchFieldBinding(MessageRecords.AGGREGATE_ID, emptySet()),
                         state to ElasticsearchFieldBinding("state", emptySet()),
                         name to ElasticsearchFieldBinding("state.name", emptySet()),
+                        createdAt to ElasticsearchFieldBinding(
+                            "state.createdAt",
+                            emptySet(),
+                            valueEncoding = ElasticsearchValueEncoding.EPOCH_MILLIS,
+                        ),
                     ),
                     emptyMap(),
                     BackendId("elasticsearch"),

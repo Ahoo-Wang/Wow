@@ -97,9 +97,8 @@ abstract class AbstractQueryHandler<R : Any>(
                 namedAggregate = namedAggregate,
                 queryType = queryType,
             ).setQuery(query)
-            Mono.defer { chain.filter(context) }
-                .then(Mono.defer { context.getRequiredResult() })
-                .failClosed(context)
+            Mono.defer { handle(context) }
+                .then(Mono.defer { context.getRequiredResult() }.failClosed(context))
         }
     }
 
@@ -113,9 +112,8 @@ abstract class AbstractQueryHandler<R : Any>(
                 namedAggregate = namedAggregate,
                 queryType = queryType,
             ).setQuery(query)
-            Mono.defer { chain.filter(context) }
-                .thenMany(Flux.defer { context.getRequiredResult() })
-                .failClosed(context)
+            Mono.defer { handle(context) }
+                .thenMany(Flux.defer { context.getRequiredResult() }.failClosed(context))
         }
     }
 

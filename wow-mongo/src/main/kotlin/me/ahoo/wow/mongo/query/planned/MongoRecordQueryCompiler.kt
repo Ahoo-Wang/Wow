@@ -19,7 +19,6 @@
 package me.ahoo.wow.mongo.query.planned
 
 import com.mongodb.client.model.Aggregates
-import com.mongodb.client.model.Facet
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.Sorts
@@ -48,6 +47,7 @@ import org.bson.types.Binary
 import org.bson.types.Decimal128
 
 internal data class MongoCompiledRecordQuery(
+    val collectionName: String,
     val filter: Bson,
     val projection: Bson?,
     val sort: Bson?,
@@ -57,23 +57,20 @@ internal data class MongoCompiledRecordQuery(
     fun pagePipeline(): List<Bson> {
         val window = requireNotNull(page) { "Mongo page pipeline requires a page window." }
         val records = buildList<Bson> {
+            add(Aggregates.match(filter))
             sort?.let { currentSort -> add(Aggregates.sort(currentSort)) }
             add(Document("\$skip", window.offset))
             add(Aggregates.limit(window.size))
             projection?.let { currentProjection -> add(Aggregates.project(currentProjection)) }
         }
-        return listOf(
-            Aggregates.match(filter),
-            Aggregates.facet(
-                Facet(PAGE_RECORDS, records),
-                Facet(PAGE_TOTAL, Aggregates.count(PAGE_TOTAL_VALUE)),
-            ),
+        val totalPipeline = listOf(Aggregates.match(filter), Aggregates.count(PAGE_TOTAL_VALUE))
+        return records + Document(
+            "\$unionWith",
+            Document("coll", collectionName).append("pipeline", totalPipeline),
         )
     }
 
     companion object {
-        const val PAGE_RECORDS = "records"
-        const val PAGE_TOTAL = "total"
         const val PAGE_TOTAL_VALUE = "value"
     }
 }
@@ -92,6 +89,7 @@ internal class MongoRecordQueryCompiler(
         }
         val resultPlan = plan as? BackendRecordResultPlan
         return MongoCompiledRecordQuery(
+            collectionName = binding.namespace.collectionName,
             filter = compileFilter(plan.filter),
             projection = resultPlan?.projection?.let(::compileProjection),
             sort = resultPlan?.sort?.takeIf(List<*>::isNotEmpty)?.let { sorts ->

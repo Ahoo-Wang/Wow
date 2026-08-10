@@ -46,6 +46,7 @@ import me.ahoo.wow.query.backend.BackendRequiredConsistency
 import me.ahoo.wow.query.backend.BackendSingleQueryPlan
 import me.ahoo.wow.query.backend.BackendSort
 import me.ahoo.wow.query.backend.BackendSortOrigin
+import me.ahoo.wow.query.backend.BackendStreamQueryPlan
 import me.ahoo.wow.query.backend.BackendTotalMode
 import me.ahoo.wow.query.backend.FieldCapability
 import me.ahoo.wow.query.backend.LogicalFieldType
@@ -254,6 +255,20 @@ class ElasticsearchSnapshotRecordQueryBackendTest {
         confirmVerified(client)
     }
 
+    @Test
+    fun `bounded stream beyond the supported result window should fail before Elasticsearch IO`() {
+        val client = mockk<ReactiveElasticsearchClient>()
+
+        assertFailure(QueryBackendFailureKind.UNSUPPORTED) {
+            backend(client).stream(
+                streamPlan(10_001),
+                OPTIONS.copy(maxReturnedRecords = 20_000),
+            ).blockLast()
+        }
+
+        confirmVerified(client)
+    }
+
     private fun backend(client: ReactiveElasticsearchClient) = ElasticsearchSnapshotRecordQueryBackend(
         client,
         binding.prepared,
@@ -350,6 +365,19 @@ class ElasticsearchSnapshotRecordQueryBackendTest {
         PlanFingerprint("1".repeat(64)),
     )
     private val pagePlan = pagePlan(0, 10)
+
+    private fun streamPlan(limit: Int) = BackendStreamQueryPlan(
+        target,
+        schema.contractId,
+        filter,
+        RecordResultShape.DYNAMIC,
+        BackendProjection.All,
+        emptyList(),
+        limit,
+        BackendRequiredCapabilities(),
+        SemanticTier.PORTABLE,
+        PlanFingerprint("3".repeat(64)),
+    )
 
     private fun pagePlan(offset: Long, size: Int) = BackendPageQueryPlan(
         target,

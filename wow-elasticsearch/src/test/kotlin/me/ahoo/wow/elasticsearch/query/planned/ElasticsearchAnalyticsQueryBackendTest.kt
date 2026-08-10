@@ -252,6 +252,20 @@ class ElasticsearchAnalyticsQueryBackendTest {
     }
 
     @Test
+    fun `unsuccessful analytics PIT close should fail incomplete`() {
+        val client = mockk<ReactiveElasticsearchClient>()
+        every { client.closePointInTime(any<ClosePointInTimeRequest>()) } returns Mono.just(
+            ClosePointInTimeResponse.of { response -> response.succeeded(false).numFreed(0) },
+        )
+
+        assertFailure(QueryBackendFailureKind.INCOMPLETE_RESULT) {
+            backend(client).close(
+                me.ahoo.wow.query.backend.BackendAnalyticsCursorState("pit-open".encodeToByteArray()),
+            ).block()
+        }
+    }
+
+    @Test
     fun `expired snapshot PIT should fail incomplete and consume the leased state`() {
         val client = mockk<ReactiveElasticsearchClient>()
         val closeRequest = slot<ClosePointInTimeRequest>()

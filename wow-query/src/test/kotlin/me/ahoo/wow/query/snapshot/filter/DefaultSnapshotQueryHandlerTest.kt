@@ -27,6 +27,7 @@ import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.singleQuery
+import me.ahoo.wow.query.filter.AbstractQueryHandler
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
@@ -115,6 +116,27 @@ class DefaultSnapshotQueryHandlerTest {
                 it.assert().isZero()
             }
             .verifyComplete()
+    }
+
+    @Test
+    fun `query methods should execute through the overridable handle hook`() {
+        var handled = 0
+        val handler = object : AbstractQueryHandler<Any>(snapshotQueryFilterChain, LogErrorHandler()) {
+            override fun handle(context: QueryContext<*, *>): Mono<Void> {
+                handled++
+                return super.handle(context)
+            }
+        }
+
+        handler.count(MOCK_AGGREGATE_METADATA, Condition.ALL)
+            .test()
+            .expectNext(0)
+            .verifyComplete()
+        handler.list(MOCK_AGGREGATE_METADATA, listQuery { })
+            .test()
+            .verifyComplete()
+
+        handled.assert().isEqualTo(2)
     }
 
     @Test

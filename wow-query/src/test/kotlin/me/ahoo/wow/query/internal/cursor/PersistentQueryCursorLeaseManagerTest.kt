@@ -42,6 +42,7 @@ import reactor.test.StepVerifier
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
@@ -113,6 +114,36 @@ class PersistentQueryCursorLeaseManagerTest {
             .verifyComplete()
 
         store.size.assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `configured backend state limit should also configure the signed envelope codec`() {
+        val store = InMemoryStore()
+        val manager = PersistentQueryCursorLeaseManager(
+            store,
+            QueryCursorSigningKeyRing(QueryCursorSigningKey(1, SECRET)),
+            Clock.fixed(NOW, ZoneOffset.UTC),
+            QueryCursorLeaseLimits(maxBackendStateBytes = 5_000),
+        )
+        val envelope = envelope().copy(
+            backendState = QueryCursorBackendState(BackendId("elasticsearch"), ByteArray(4_097) { 7 }),
+        )
+
+        val token = manager.issue(envelope).block()!!
+
+        manager.load(token).block()!!.envelope.assert().isEqualTo(envelope)
+    }
+
+    @Test
+    fun `lease expiry should be normalized before signing and persistence`() {
+        val manager = manager(InMemoryStore())
+        val envelope = envelope(expiresAt = NOW.plusSeconds(60).plusNanos(123_456))
+
+        val token = manager.issue(envelope).block()!!
+
+        manager.load(token).block()!!.envelope.expiresAt.assert().isEqualTo(
+            envelope.expiresAt.truncatedTo(ChronoUnit.MILLIS),
+        )
     }
 
     private fun manager(store: QueryCursorLeaseStore): PersistentQueryCursorLeaseManager =

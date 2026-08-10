@@ -49,6 +49,7 @@ import java.security.SecureRandom
 import java.time.Clock
 import java.time.DateTimeException
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.Base64
 
 internal class PersistentQueryCursorLeaseManager(
@@ -58,12 +59,13 @@ internal class PersistentQueryCursorLeaseManager(
     private val limits: QueryCursorLeaseLimits = QueryCursorLeaseLimits(),
 ) {
     private val tokenCodec = QueryCursorTokenCodec(signingKeyRing)
-    private val envelopeCodec = QueryCursorEnvelopeCodec(signingKeyRing)
+    private val envelopeCodec = QueryCursorEnvelopeCodec(signingKeyRing, limits.maxBackendStateBytes)
     private val random = SecureRandom()
 
     fun issue(envelope: QueryCursorEnvelope): Mono<QueryCursorToken> = Mono.defer {
-        validateEnvelope(envelope)
-        create(envelope, attempt = 0)
+        val normalized = envelope.copy(expiresAt = envelope.expiresAt.truncatedTo(ChronoUnit.MILLIS))
+        validateEnvelope(normalized)
+        create(normalized, attempt = 0)
     }
 
     /** Loads and verifies the immutable envelope without consuming its store revision. */
@@ -203,13 +205,20 @@ internal data class LoadedQueryCursorLease(
 
 private class QueryCursorEnvelopeCodec(
     private val keyRing: QueryCursorSigningKeyRing,
+    private val maxBackendStateBytes: Int,
 ) {
+    private val maxBodyBytes: Int = Math.addExact(
+        FIXED_BODY_BYTES,
+        maxOf(DEFAULT_BACKEND_STATE_BYTES, maxBackendStateBytes),
+    )
+    private val maxPayloadBytes: Int = Math.addExact(HEADER_BYTES + HMAC_BYTES, maxBodyBytes)
+
     fun encode(envelope: QueryCursorEnvelope): ByteArray {
         val body = ByteArrayOutputStream().use { bytes ->
             DataOutputStream(bytes).use { output -> output.writeEnvelope(envelope) }
             bytes.toByteArray()
         }
-        require(body.size <= MAX_BODY_BYTES) { "Query cursor envelope exceeds its encoded size limit." }
+        require(body.size <= maxBodyBytes) { "Query cursor envelope exceeds its encoded size limit." }
         val headerAndBody = ByteArrayOutputStream(HEADER_BYTES + body.size).use { bytes ->
             DataOutputStream(bytes).use { output ->
                 output.writeInt(MAGIC)
@@ -224,7 +233,7 @@ private class QueryCursorEnvelopeCodec(
     }
 
     fun decode(payload: ByteArray): QueryCursorEnvelope {
-        if (payload.size !in (HEADER_BYTES + HMAC_BYTES + 1)..MAX_PAYLOAD_BYTES) rejectInvalidCursor()
+        if (payload.size !in (HEADER_BYTES + HMAC_BYTES + 1)..maxPayloadBytes) rejectInvalidCursor()
         val signed = payload.copyOf(payload.size - HMAC_BYTES)
         val signature = payload.copyOfRange(payload.size - HMAC_BYTES, payload.size)
         val key = signingKey(signed)
@@ -237,7 +246,7 @@ private class QueryCursorEnvelopeCodec(
             if (input.readInt() != MAGIC || input.readUnsignedByte() != FORMAT_VERSION) rejectInvalidCursor()
             if (keyRing.resolve(input.readUnsignedByte()) == null) rejectInvalidCursor()
             val bodySize = input.readInt()
-            if (bodySize <= 0 || bodySize > MAX_BODY_BYTES || bodySize != input.available()) rejectInvalidCursor()
+            if (bodySize <= 0 || bodySize > maxBodyBytes || bodySize != input.available()) rejectInvalidCursor()
             val envelope = input.readEnvelope()
             if (input.available() != 0) rejectInvalidCursor()
             envelope
@@ -444,13 +453,13 @@ private class QueryCursorEnvelopeCodec(
     }
 
     private fun DataOutputStream.writeBytes(value: ByteArray) {
-        require(value.size <= MAX_BACKEND_STATE_BYTES) { "Query cursor backend state exceeds its encoded size limit." }
+        require(value.size <= maxBackendStateBytes) { "Query cursor backend state exceeds its encoded size limit." }
         writeInt(value.size)
         write(value)
     }
 
     private fun DataInputStream.readBytes(): ByteArray {
-        val size = readCount(MAX_BACKEND_STATE_BYTES)
+        val size = readCount(maxBackendStateBytes)
         val value = ByteArray(size)
         readFully(value)
         return value
@@ -465,10 +474,9 @@ private class QueryCursorEnvelopeCodec(
         const val FORMAT_VERSION = 3
         const val HMAC_BYTES = 32
         const val HEADER_BYTES = Int.SIZE_BYTES + Byte.SIZE_BYTES + Byte.SIZE_BYTES + Int.SIZE_BYTES
-        const val MAX_BODY_BYTES = 8 * 1024
-        const val MAX_PAYLOAD_BYTES = HEADER_BYTES + MAX_BODY_BYTES + HMAC_BYTES
+        const val FIXED_BODY_BYTES = 4 * 1024
+        const val DEFAULT_BACKEND_STATE_BYTES = 4 * 1024
         const val MAX_STRING_BYTES = 1024
-        const val MAX_BACKEND_STATE_BYTES = 4096
         const val MAX_POSITION_VALUES = 32
         const val RECORD_POSITION = 1
         const val ANALYTICS_POSITION = 2

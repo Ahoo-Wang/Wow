@@ -29,6 +29,7 @@ import me.ahoo.wow.query.backend.BackendRecordCompleteness
 import me.ahoo.wow.query.backend.BackendRecordQueryPlan
 import me.ahoo.wow.query.backend.BackendSingleQueryPlan
 import me.ahoo.wow.query.backend.BackendStreamQueryPlan
+import me.ahoo.wow.query.backend.LogicalFieldType
 import me.ahoo.wow.query.backend.NormalizedValue
 import me.ahoo.wow.query.backend.QueryBackendException
 import me.ahoo.wow.query.backend.QueryBackendExecutionOptions
@@ -135,6 +136,9 @@ internal class ElasticsearchSnapshotRecordQueryBackend(
     }
 
     private fun validateOptions(plan: BackendRecordQueryPlan, options: QueryBackendExecutionOptions) {
+        if (plan is BackendStreamQueryPlan && plan.limit > MAX_DIRECT_STREAM_RESULT_WINDOW) {
+            unsupported()
+        }
         requireSupportedOptions(options)
         requireReturnedRecordsBudget(plan, options)
         requirePageWindowBudget(plan, options)
@@ -229,6 +233,10 @@ internal class ElasticsearchSnapshotRecordQueryBackend(
     private fun unsupported(): Nothing = throw QueryBackendException(QueryBackendFailureKind.UNSUPPORTED)
 
     private fun budgetExceeded(): Nothing = throw QueryBackendException(QueryBackendFailureKind.BUDGET_EXCEEDED)
+
+    private companion object {
+        const val MAX_DIRECT_STREAM_RESULT_WINDOW = 10_000
+    }
 }
 
 internal class ElasticsearchSnapshotRecordMapper(
@@ -259,12 +267,75 @@ internal class ElasticsearchSnapshotRecordMapper(
 
     private fun NormalizedValue.ObjectValue.toLogicalDocument(): NormalizedValue.ObjectValue {
         val paths = binding.schema.fields.keys.filterIsInstance<QueryFieldId.Path>().map(QueryFieldId.Path::segments)
-        val logical = LinkedHashMap(include(paths).values)
-        binding.schema.fields.keys.filterIsInstance<QueryFieldId.System>().forEach { field ->
-            val sourcePath = requireNotNull(binding.fields[field]).sourceField.split('.')
-            valueAt(sourcePath)?.let { value -> logical[field.outputPath(identityOutputField).single()] = value }
+        var logical = include(paths)
+        binding.schema.fields.filterKeys { field -> field is QueryFieldId.Path }.forEach { (field, schemaField) ->
+            field as QueryFieldId.Path
+            logical = logical.transformAt(field.segments) { value ->
+                decodeValue(value, schemaField.type, binding.fields.getValue(field).valueEncoding)
+            }
         }
-        return NormalizedValue.ObjectValue(logical)
+        val values = LinkedHashMap(logical.values)
+        binding.schema.fields.filterKeys { field -> field is QueryFieldId.System }.forEach { (field, schemaField) ->
+            field as QueryFieldId.System
+            val physical = binding.fields.getValue(field)
+            val sourcePath = physical.sourceField.split('.')
+            valueAt(sourcePath)?.let { value ->
+                values[field.outputPath(identityOutputField).single()] =
+                    decodeValue(value, schemaField.type, physical.valueEncoding)
+            }
+        }
+        return NormalizedValue.ObjectValue(values)
+    }
+
+    private fun NormalizedValue.ObjectValue.transformAt(
+        path: List<String>,
+        transform: (NormalizedValue) -> NormalizedValue,
+    ): NormalizedValue.ObjectValue {
+        val head = path.firstOrNull() ?: mappingFailure()
+        val current = values[head] ?: return this
+        val copy = LinkedHashMap(values)
+        copy[head] = current.transformAt(path.drop(1), transform)
+        return NormalizedValue.ObjectValue(copy)
+    }
+
+    private fun NormalizedValue.transformAt(
+        path: List<String>,
+        transform: (NormalizedValue) -> NormalizedValue,
+    ): NormalizedValue = when {
+        path.isEmpty() -> transform(this)
+        this == NormalizedValue.Null -> this
+        this is NormalizedValue.ObjectValue -> transformAt(path, transform)
+        this is NormalizedValue.ListValue -> NormalizedValue.ListValue(
+            values.map { value -> value.transformAt(path, transform) },
+        )
+        else -> mappingFailure()
+    }
+
+    private fun decodeValue(
+        value: NormalizedValue,
+        type: LogicalFieldType,
+        encoding: ElasticsearchValueEncoding,
+    ): NormalizedValue {
+        if (value == NormalizedValue.Null) return value
+        return when (type) {
+            LogicalFieldType.Instant -> {
+                if (encoding != ElasticsearchValueEncoding.EPOCH_MILLIS || value !is NormalizedValue.Int64) {
+                    mappingFailure()
+                }
+                NormalizedValue.InstantValue(Instant.ofEpochMilli(value.value))
+            }
+
+            is LogicalFieldType.Array -> {
+                val list = value as? NormalizedValue.ListValue ?: mappingFailure()
+                NormalizedValue.ListValue(
+                    list.values.map { element ->
+                        decodeValue(element, type.elementType, encoding)
+                    },
+                )
+            }
+
+            else -> value
+        }
     }
 
     private fun NormalizedValue.ObjectValue.valueAt(path: List<String>): NormalizedValue? {

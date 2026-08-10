@@ -15,6 +15,7 @@
 
 package me.ahoo.wow.query.cursor
 
+import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
@@ -63,6 +64,13 @@ class QueryCursorLeaseStoreTest {
                 Instant.parse("2026-08-09T00:05:00Z"),
                 QueryCursorPayloadFormat.WOW_QUERY_CURSOR_V1,
                 byteArrayOf(),
+            )
+        }
+        assertThrownBy<IllegalArgumentException> {
+            QueryCursorLeaseConfiguration(
+                mockk(),
+                QueryCursorSigningKeys(QueryCursorHmacKey(1, ByteArray(32) { 7 })),
+                maxBackendStateBytes = QueryCursorLeaseConfiguration.MAX_BACKEND_STATE_BYTES + 1,
             )
         }
     }

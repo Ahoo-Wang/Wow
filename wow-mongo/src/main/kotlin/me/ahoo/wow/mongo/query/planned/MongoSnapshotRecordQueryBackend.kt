@@ -62,6 +62,7 @@ internal class MongoRecordQueryBackend(
 ) : RecordQueryBackend {
     private val compiler = MongoRecordQueryCompiler(binding)
     private val mapper = MongoRecordMapper(binding)
+    private val pageMapper = MongoPageResultMapper(binding)
     private val collation = when (binding.collationMode) {
         MongoCollationMode.SIMPLE_BINARY -> Collation.builder().locale("simple").build()
     }
@@ -98,8 +99,9 @@ internal class MongoRecordQueryBackend(
         options.remainingMillis()?.let { remaining ->
             publisher = publisher.maxTime(remaining, TimeUnit.MILLISECONDS)
         }
-        Mono.from(publisher.first())
-            .map { result -> result.toPage(plan.projection) }
+        Flux.from(publisher)
+            .collectList()
+            .map { results -> pageMapper.map(results, plan.projection) }
     }.mapBackendErrors()
 
     override fun count(
@@ -211,21 +213,27 @@ internal class MongoRecordQueryBackend(
 
     private fun mapBackendError(error: Throwable): Throwable =
         if (error is QueryBackendException) error else QueryBackendException(QueryBackendFailureKind.UNAVAILABLE, error)
+}
 
-    private fun Document.toPage(projection: BackendProjection): BackendPage {
-        val records = getList(MongoCompiledRecordQuery.PAGE_RECORDS, Document::class.java)
-            ?.map { source -> mapper.map(source, projection) }
-            ?: mappingFailure()
-        val totalEntries = getList(MongoCompiledRecordQuery.PAGE_TOTAL, Document::class.java) ?: mappingFailure()
-        val total = when (totalEntries.size) {
-            0 -> 0L
-            1 -> (totalEntries.single()[MongoCompiledRecordQuery.PAGE_TOTAL_VALUE] as? Number)?.toLong()
-                ?: mappingFailure()
-            else -> mappingFailure()
+internal class MongoPageResultMapper(binding: MongoPreparedQueryBinding) {
+    private val mapper = MongoRecordMapper(binding)
+
+    fun map(results: List<Document>, projection: BackendProjection): BackendPage {
+        val records = ArrayList<BackendRecord>(results.size)
+        var total: Long? = null
+        results.forEach { result ->
+            if (result.containsKey(Documents.ID_FIELD)) {
+                records += mapper.map(result, projection)
+            } else {
+                if (result.keys != setOf(MongoCompiledRecordQuery.PAGE_TOTAL_VALUE) || total != null) mappingFailure()
+                total = (result[MongoCompiledRecordQuery.PAGE_TOTAL_VALUE] as? Number)?.toLong()
+                    ?.takeIf { value -> value >= 0 }
+                    ?: mappingFailure()
+            }
         }
         return BackendPage(
             records,
-            total,
+            total ?: 0L,
             BackendTotalRelation.EXACT,
             BackendPageConsistency.SAME_INPUT,
         )

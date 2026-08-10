@@ -62,6 +62,7 @@ import me.ahoo.wow.query.gateway.QueryDocumentKind
 import me.ahoo.wow.query.gateway.QueryTarget
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
+import org.bson.Document
 import org.bson.conversions.Bson
 import org.bson.types.Decimal128
 import org.junit.jupiter.api.DynamicTest
@@ -195,6 +196,28 @@ class MongoRecordQueryCompilerTest {
 
         compiled.page.assert().isEqualTo(BackendPageWindow(3, 2))
         (compiled.limit == null).assert().isTrue()
+        val pipeline = compiled.pagePipeline().map(Bson::toBsonDocument)
+        pipeline.none { stage -> stage.containsKey("\$facet") }.assert().isTrue()
+        pipeline.last().containsKey("\$unionWith").assert().isTrue()
+    }
+
+    @Test
+    fun `page result should keep records separate from the exact total row`() {
+        val results = listOf(
+            Document(Documents.ID_FIELD, "order-1")
+                .append(MessageRecords.TENANT_ID, "tenant-1")
+                .append(StateAggregateRecords.DELETED, false)
+                .append("state", Document("name", "Alice")),
+            Document(MongoCompiledRecordQuery.PAGE_TOTAL_VALUE, 3L),
+        )
+
+        val page = MongoPageResultMapper(fixture.binding.prepared).map(results, BackendProjection.All)
+
+        page.total.assert().isEqualTo(3)
+        page.records.single().identity.assert().isEqualTo("order-1")
+        page.records.single().document.values["state"].assert().isEqualTo(
+            NormalizedValue.ObjectValue(mapOf("name" to NormalizedValue.Text("Alice"))),
+        )
     }
 
     @Test

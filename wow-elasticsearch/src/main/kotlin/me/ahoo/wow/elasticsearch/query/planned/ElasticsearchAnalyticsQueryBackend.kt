@@ -219,7 +219,15 @@ internal class ElasticsearchAnalyticsQueryBackend(
 
     private fun closePit(lease: PitLease): Mono<Void> = client.closePointInTime(
         ClosePointInTimeRequest.of { request -> request.id(lease.id) },
-    ).then()
+    ).switchIfEmpty(
+        Mono.error(QueryBackendException(QueryBackendFailureKind.INCOMPLETE_RESULT)),
+    ).flatMap { response ->
+        if (response.succeeded()) {
+            Mono.empty()
+        } else {
+            Mono.error(QueryBackendException(QueryBackendFailureKind.INCOMPLETE_RESULT))
+        }
+    }
 
     private fun decodePitId(state: BackendAnalyticsCursorState): String = try {
         val payload = state.payload()

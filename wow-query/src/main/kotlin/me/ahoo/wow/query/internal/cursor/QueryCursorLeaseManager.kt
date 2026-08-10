@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+@file:OptIn(me.ahoo.wow.query.cursor.ExperimentalQueryCursorApi::class)
+
 package me.ahoo.wow.query.internal.cursor
 
 import me.ahoo.wow.query.backend.AnalyticsAlias
@@ -168,6 +170,7 @@ internal data class QueryCursorLeaseLimits(
         require(maxEntries > 0)
         require(!maxTtl.isZero && !maxTtl.isNegative)
         require(maxBackendStateBytes > 0)
+        require(maxBackendStateBytes <= me.ahoo.wow.query.cursor.QueryCursorLeaseConfiguration.MAX_BACKEND_STATE_BYTES)
     }
 }
 
