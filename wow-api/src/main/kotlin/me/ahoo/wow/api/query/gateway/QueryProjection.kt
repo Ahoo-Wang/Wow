@@ -56,5 +56,8 @@ sealed interface QueryProjection {
     }
 }
 
-private fun <T> immutableSet(values: Collection<T>): Set<T> =
-    Collections.unmodifiableSet(LinkedHashSet(values))
+private fun <T> immutableSet(values: Collection<T>): Set<T> {
+    val snapshot = LinkedHashSet(values)
+    require(snapshot.size == values.size) { "Query projection set cardinality changed during immutable snapshot." }
+    return Collections.unmodifiableSet(snapshot)
+}

@@ -16,8 +16,11 @@ package me.ahoo.wow.api.query.expression
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertAll
 import org.junit.jupiter.api.assertThrows
 import java.math.BigDecimal
+import java.util.Collections
+import java.util.IdentityHashMap
 
 class QueryExpressionTest {
     @Test
@@ -91,6 +94,116 @@ class QueryExpressionTest {
         assertThrows<UnsupportedOperationException> {
             (value.values as MutableMap).clear()
         }
+    }
+
+    @Test
+    fun `decimal values should reject mutable big decimal subclasses at every composition boundary`() {
+        val mutableDecimal = MutableBigDecimal()
+        val initialHash = mutableDecimal.hashCode()
+        mutableDecimal.mutation++
+        (mutableDecimal.hashCode() == initialHash).assert().isFalse()
+
+        assertAll(
+            {
+                assertSensitiveTypeRejected { QueryValue.DecimalValue(mutableDecimal) }
+            },
+            {
+                assertSensitiveTypeRejected {
+                    QueryValue.ListValue(listOf(QueryValue.DecimalValue(MutableBigDecimal())))
+                }
+            },
+            {
+                assertSensitiveTypeRejected {
+                    QueryValue.ObjectValue(mapOf("nested" to QueryValue.DecimalValue(MutableBigDecimal())))
+                }
+            },
+            {
+                assertSensitiveTypeRejected {
+                    PredicateExpression(
+                        LogicalField("amount"),
+                        PortableOperator.EQ,
+                        listOf(QueryValue.DecimalValue(MutableBigDecimal()))
+                    )
+                }
+            },
+            {
+                assertSensitiveTypeRejected {
+                    QueryValue.DecimalValue(BigDecimal.ONE).copy(value = MutableBigDecimal())
+                }
+            }
+        )
+
+        val exact = QueryValue.DecimalValue(BigDecimal("1.25"))
+        exact.copy().assert().isEqualTo(exact)
+        exact.value.javaClass.assert().isEqualTo(BigDecimal::class.java)
+    }
+
+    @Test
+    fun `query object maps should reject key cardinality loss in direct copy and nested construction`() {
+        val ordinary = QueryValue.ObjectValue(linkedMapOf("first" to QueryValue.NullValue))
+        val identityParameters = identityParameters()
+        identityParameters.assert().hasSize(2)
+
+        assertAll(
+            {
+                assertSensitiveCardinalityRejected { QueryValue.ObjectValue(identityParameters) }
+            },
+            {
+                assertSensitiveCardinalityRejected { ordinary.copy(values = identityParameters) }
+            },
+            {
+                assertSensitiveCardinalityRejected {
+                    QueryValue.ListValue(listOf(QueryValue.ObjectValue(identityParameters)))
+                }
+            }
+        )
+        ordinary.values.assert().hasSize(1)
+    }
+
+    @Test
+    fun `capability maps and sets should reject cardinality loss in direct and copy construction`() {
+        val capability = QueryCapabilityId("cardinality-test")
+        val field = LogicalField("ordinaryField")
+        val native = NativeExpression(
+            capability,
+            "mongo",
+            "template",
+            mapOf("value" to QueryValue.NullValue),
+            setOf(field)
+        )
+        val fullText = FullTextExpression(capability, "query", setOf(field))
+        val identityParameters = identityParameters()
+        val identityFields = identityFields()
+        identityParameters.assert().hasSize(2)
+        identityFields.assert().hasSize(2)
+
+        assertAll(
+            {
+                assertSensitiveCardinalityRejected {
+                    NativeExpression(capability, "mongo", "template", identityParameters, setOf(field))
+                }
+            },
+            {
+                assertSensitiveCardinalityRejected { native.copy(parameters = identityParameters) }
+            },
+            {
+                assertSensitiveCardinalityRejected {
+                    NativeExpression(capability, "mongo", "template", emptyMap(), identityFields)
+                }
+            },
+            {
+                assertSensitiveCardinalityRejected { native.copy(declaredFields = identityFields) }
+            },
+            {
+                assertSensitiveCardinalityRejected { FullTextExpression(capability, "query", identityFields) }
+            },
+            {
+                assertSensitiveCardinalityRejected { fullText.copy(fields = identityFields) }
+            }
+        )
+        native.parameters.assert().hasSize(1)
+        native.declaredFields.assert().containsExactly(field)
+        fullText.fields.assert().containsExactly(field)
     }
 
     @Test
@@ -178,5 +291,41 @@ class QueryExpressionTest {
         )
 
         expression.operands.assert().hasSize(2)
+    }
+
+    private fun identityParameters(): Map<String, QueryValue> = IdentityHashMap<String, QueryValue>().apply {
+        this[String(charArrayOf('s', 'e', 'n', 's', 'i', 't', 'i', 'v', 'e', 'K', 'e', 'y'))] =
+            QueryValue.NullValue
+        this[String(charArrayOf('s', 'e', 'n', 's', 'i', 't', 'i', 'v', 'e', 'K', 'e', 'y'))] =
+            QueryValue.NullValue
+    }
+
+    @Suppress("IDENTITY_SENSITIVE_OPERATIONS_WITH_VALUE_TYPE")
+    private fun identityFields(): Set<LogicalField> =
+        Collections.newSetFromMap(IdentityHashMap<LogicalField, Boolean>()).apply {
+            add(LogicalField("sensitiveField"))
+            add(LogicalField("sensitiveField"))
+        }
+
+    private fun assertSensitiveCardinalityRejected(factory: () -> Any) {
+        val error = assertThrows<IllegalArgumentException> { factory() }
+        error.message.assert().doesNotContain("sensitive")
+    }
+
+    private fun assertSensitiveTypeRejected(factory: () -> Any) {
+        val error = assertThrows<IllegalArgumentException> { factory() }
+        error.message.assert().doesNotContain("987654321")
+    }
+
+    private class MutableBigDecimal : BigDecimal("987654321.125") {
+        var mutation: Int = 1
+
+        override fun toByte(): Byte = toInt().toByte()
+
+        override fun toShort(): Short = toInt().toShort()
+
+        override fun equals(other: Any?): Boolean = super.equals(other)
+
+        override fun hashCode(): Int = super.hashCode() + mutation
     }
 }

@@ -24,8 +24,11 @@ import me.ahoo.wow.api.query.expression.LogicalField
 import me.ahoo.wow.api.query.expression.MatchAll
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertAll
 import org.junit.jupiter.api.assertThrows
 import java.time.Duration
+import java.util.Collections
+import java.util.IdentityHashMap
 
 class QueryRequestTest {
     @Test
@@ -137,6 +140,24 @@ class QueryRequestTest {
     }
 
     @Test
+    fun `projection sets should reject field cardinality loss in direct and copy construction`() {
+        val field = LogicalField("ordinaryField")
+        val include = QueryProjection.Include(setOf(field))
+        val exclude = QueryProjection.Exclude(setOf(field))
+        val identityFields = identityFields()
+        identityFields.assert().hasSize(2)
+
+        assertAll(
+            { assertSensitiveCardinalityRejected { QueryProjection.Include(identityFields) } },
+            { assertSensitiveCardinalityRejected { include.copy(fields = identityFields) } },
+            { assertSensitiveCardinalityRejected { QueryProjection.Exclude(identityFields) } },
+            { assertSensitiveCardinalityRejected { exclude.copy(fields = identityFields) } }
+        )
+        include.fields.assert().containsExactly(field)
+        exclude.fields.assert().containsExactly(field)
+    }
+
+    @Test
     fun `request boundaries should reject invalid budgets pages limits and totals`() {
         assertThrows<IllegalArgumentException> { QueryBudgetHint(timeout = Duration.ofNanos(-1)) }
         assertThrows<IllegalArgumentException> { QueryBudgetHint(maxResults = -1) }
@@ -209,4 +230,16 @@ class QueryRequestTest {
         },
         QueryDocumentKind.SNAPSHOT
     )
+
+    @Suppress("IDENTITY_SENSITIVE_OPERATIONS_WITH_VALUE_TYPE")
+    private fun identityFields(): Set<LogicalField> =
+        Collections.newSetFromMap(IdentityHashMap<LogicalField, Boolean>()).apply {
+            add(LogicalField("sensitiveField"))
+            add(LogicalField("sensitiveField"))
+        }
+
+    private fun assertSensitiveCardinalityRejected(factory: () -> Any) {
+        val error = assertThrows<IllegalArgumentException> { factory() }
+        error.message.assert().doesNotContain("sensitive")
+    }
 }

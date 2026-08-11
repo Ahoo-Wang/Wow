@@ -45,7 +45,11 @@ sealed interface QueryValue {
         }
     }
 
-    data class DecimalValue(val value: BigDecimal) : QueryValue
+    data class DecimalValue(val value: BigDecimal) : QueryValue {
+        init {
+            require(value.javaClass == BigDecimal::class.java) { "Decimal value type is unsupported." }
+        }
+    }
 
     data class StringValue(val value: String) : QueryValue
 
@@ -117,5 +121,6 @@ private fun <K, V> immutableMap(values: Map<K, V>, validateKey: (K) -> Unit = {}
         validateKey(key)
         snapshot[key] = value
     }
+    require(snapshot.size == values.size) { "Query value map cardinality changed during immutable snapshot." }
     return Collections.unmodifiableMap(snapshot)
 }

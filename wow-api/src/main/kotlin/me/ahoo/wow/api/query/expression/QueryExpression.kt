@@ -32,8 +32,11 @@ value class LogicalField(val value: String) {
 private fun <T> immutableList(values: Collection<T>): List<T> =
     Collections.unmodifiableList(ArrayList(values))
 
-private fun <T> immutableSet(values: Collection<T>): Set<T> =
-    Collections.unmodifiableSet(LinkedHashSet(values))
+private fun <T> immutableSet(values: Collection<T>): Set<T> {
+    val snapshot = LinkedHashSet(values)
+    require(snapshot.size == values.size) { "Query expression set cardinality changed during immutable snapshot." }
+    return Collections.unmodifiableSet(snapshot)
+}
 
 private fun <K, V> immutableMap(values: Map<K, V>, validateKey: (K) -> Unit): Map<K, V> {
     val snapshot = LinkedHashMap<K, V>(values.size)
@@ -41,6 +44,7 @@ private fun <K, V> immutableMap(values: Map<K, V>, validateKey: (K) -> Unit): Ma
         validateKey(key)
         snapshot[key] = value
     }
+    require(snapshot.size == values.size) { "Query expression map cardinality changed during immutable snapshot." }
     return Collections.unmodifiableMap(snapshot)
 }
 
