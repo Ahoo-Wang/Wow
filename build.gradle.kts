@@ -13,6 +13,7 @@
 
 import io.gitlab.arturbosch.detekt.DetektPlugin
 import io.gitlab.arturbosch.detekt.extensions.DetektExtension
+import org.gradle.api.tasks.ClasspathNormalizer
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.Exec
@@ -245,30 +246,29 @@ val queryApiRuntimeClasspathTaskName = "writeQueryApiRuntimeClasspath"
 configure(queryApiModules.map(::project)) {
     val sourceSets = extensions.getByType<SourceSetContainer>()
     val mainSourceSet = sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME)
-    val runtimeClasspath = mainSourceSet.runtimeClasspath
+    val runtimeDependencyClasspath = providers.provider {
+        mainSourceSet.runtimeClasspath.minus(mainSourceSet.output)
+    }
+    val runtimeDependencyClasspathOrder = runtimeDependencyClasspath.map { classpath ->
+        classpath.files.map(File::getAbsolutePath)
+    }
     val runtimeClasspathFile = layout.buildDirectory.file("query-api/runtime-classpath.txt")
     tasks.register(queryApiRuntimeClasspathTaskName) {
-        inputs.files(runtimeClasspath).withPropertyName("runtimeClasspath")
+        inputs.files(runtimeDependencyClasspath)
+            .withPropertyName("runtimeDependencyClasspath")
+            .withNormalizer(ClasspathNormalizer::class.java)
+        inputs.property("runtimeDependencyClasspathOrder", runtimeDependencyClasspathOrder)
         outputs.file(runtimeClasspathFile)
         doLast {
-            val optionalSourceOutputs = mainSourceSet.output.files
-                .filter { !it.exists() }
-                .toSet()
-            val missingRequiredEntries = runtimeClasspath.files.filter { entry ->
-                !entry.exists() && entry !in optionalSourceOutputs
-            }
+            val classpathEntries = runtimeDependencyClasspath.get().files
+            val missingRequiredEntries = classpathEntries.filter { entry -> !entry.exists() }
             check(missingRequiredEntries.isEmpty()) {
                 "Runtime classpath contains missing required entries: $missingRequiredEntries"
-            }
-            optionalSourceOutputs.forEach { entry ->
-                logger.info("Not writing absent optional source output to query API runtime classpath: $entry")
             }
             val output = runtimeClasspathFile.get().asFile
             output.parentFile.mkdirs()
             output.writeText(
-                runtimeClasspath.files
-                    .filter { it.exists() }
-                    .joinToString(File.pathSeparator) { it.absolutePath }
+                classpathEntries.joinToString(separator = "\n", postfix = "\n") { it.absolutePath }
             )
         }
     }
@@ -282,9 +282,9 @@ fun queryApiRuntimeClasspath(): String = queryApiModules
             .file("query-api/runtime-classpath.txt")
             .get()
             .asFile
-            .readText()
-            .trim()
+            .readLines()
     }
+    .flatten()
     .filter(String::isNotEmpty)
     .joinToString(File.pathSeparator)
 
