@@ -30,6 +30,8 @@ import java.time.ZonedDateTime
 import java.util.Collections
 import java.util.IdentityHashMap
 import java.util.UUID
+import java.util.function.BiFunction
+import java.util.function.Function
 
 /**
  * Interface representing a dynamic document that can store arbitrary key-value pairs.
@@ -135,20 +137,32 @@ class SimpleDynamicDocument(
  * deep snapshot at its boundary and rejects every mutation operation. Binary values are copied again when read so
  * callers cannot mutate the internal snapshot through a returned array.
  *
- * Accepted values are null; strings, booleans, characters and the primitive number wrappers; [BigInteger],
- * [BigDecimal], [UUID] and immutable `java.time` values; nested string-keyed maps, lists, sets, object arrays and
- * primitive arrays. Set elements are restricted to the accepted scalar values because container and array equality
- * cannot preserve set cardinality safely. Enum constants and every other value are rejected instead of being
- * retained by reference. Cyclic value graphs are rejected at the construction boundary.
+ * Accepted values are null; strings, booleans, characters and the primitive number wrappers; exact
+ * [BigDecimal]/[BigInteger] JDK classes, [UUID] and immutable `java.time` values; nested string-keyed maps,
+ * lists, sets, object arrays and primitive arrays. Big-number subclasses are rejected because they may override
+ * equality or hash behavior. Maps and sets must preserve cardinality when copied into value-equality snapshots.
+ * Set elements are restricted to the accepted scalar values because container and array equality cannot preserve
+ * set cardinality safely. Enum constants and every other value are rejected instead of being retained by reference.
+ * Cyclic value graphs are rejected at the construction boundary.
  */
 class ImmutableDynamicDocument private constructor(
     private val snapshot: Map<String, Any?>
 ) : AbstractMutableMap<String, Any?>(),
     DynamicDocument {
-    private val structuralEntries = StructuralEntrySet(snapshot)
+    private val structuralEntries: MutableSet<MutableMap.MutableEntry<String, Any?>> =
+        Collections.unmodifiableSet(StructuralEntrySet(snapshot))
+    private val strictKeys: MutableSet<String> = Collections.unmodifiableSet(snapshot.keys)
+    private val strictValues: MutableCollection<Any?> =
+        Collections.unmodifiableCollection(DetachedValueCollection(snapshot.values))
 
     override val entries: MutableSet<MutableMap.MutableEntry<String, Any?>>
         get() = structuralEntries
+
+    override val keys: MutableSet<String>
+        get() = strictKeys
+
+    override val values: MutableCollection<Any?>
+        get() = strictValues
 
     override fun get(key: String): Any? = snapshot[key].toDetachedValue()
 
@@ -159,6 +173,33 @@ class ImmutableDynamicDocument private constructor(
     override fun clear(): Unit = immutableMutation()
 
     override fun putAll(from: Map<out String, Any?>): Unit = immutableMutation()
+
+    override fun putIfAbsent(key: String, value: Any?): Any? = immutableMutation()
+
+    override fun remove(key: String, value: Any?): Boolean = immutableMutation()
+
+    override fun replace(key: String, oldValue: Any?, newValue: Any?): Boolean = immutableMutation()
+
+    override fun replace(key: String, value: Any?): Any? = immutableMutation()
+
+    override fun replaceAll(function: BiFunction<in String, in Any?, out Any?>): Unit = immutableMutation()
+
+    override fun computeIfAbsent(key: String, mappingFunction: Function<in String, out Any?>): Any? =
+        immutableMutation()
+
+    override fun computeIfPresent(
+        key: String,
+        remappingFunction: BiFunction<in String, in Any, out Any?>
+    ): Any? = immutableMutation()
+
+    override fun compute(key: String, remappingFunction: BiFunction<in String, in Any?, out Any?>): Any? =
+        immutableMutation()
+
+    override fun merge(
+        key: String,
+        value: Any,
+        remappingFunction: BiFunction<in Any, in Any, out Any?>
+    ): Any? = immutableMutation()
 
     override fun getNestedDocument(key: String): DynamicDocument {
         val value = snapshot[key] ?: throw NoSuchElementException("Key not found: $key")
@@ -191,6 +232,9 @@ class ImmutableDynamicDocument private constructor(
             source.forEach { (key, value) ->
                 require(key is String) { "Dynamic document keys must be strings." }
                 result[key] = snapshotValue(value, recursionStack)
+            }
+            require(result.size == source.size) {
+                "Dynamic document map keys must preserve cardinality."
             }
             ImmutableDynamicDocument(Collections.unmodifiableMap(result))
         }
@@ -256,9 +300,11 @@ class ImmutableDynamicDocument private constructor(
             is Int,
             is Long,
             is Float,
-            is Double,
-            is BigInteger,
-            is BigDecimal,
+            is Double -> value
+
+            is BigInteger -> requireExactBigNumber(value, BigInteger::class.java)
+            is BigDecimal -> requireExactBigNumber(value, BigDecimal::class.java)
+
             is UUID,
             is Instant,
             is Duration,
@@ -274,6 +320,11 @@ class ImmutableDynamicDocument private constructor(
             is MonthDay -> value
 
             else -> throw IllegalArgumentException("Unsupported dynamic document value type.")
+        }
+
+        private fun <T : Any> requireExactBigNumber(value: T, expectedType: Class<T>): T {
+            require(value.javaClass == expectedType) { "Unsupported dynamic document value type." }
+            return value
         }
     }
 }
@@ -365,6 +416,26 @@ private class StructuralEntry(
     override fun hashCode(): Int = key.hashCode() xor (snapshotValue?.hashCode() ?: 0)
 
     override fun toString(): String = "$key=$value"
+}
+
+private class DetachedValueCollection(
+    private val snapshot: Collection<Any?>
+) : AbstractMutableCollection<Any?>() {
+    override val size: Int
+        get() = snapshot.size
+
+    override fun iterator(): MutableIterator<Any?> {
+        val iterator = snapshot.iterator()
+        return object : MutableIterator<Any?> {
+            override fun hasNext(): Boolean = iterator.hasNext()
+
+            override fun next(): Any? = iterator.next().toDetachedValue()
+
+            override fun remove(): Unit = immutableMutation()
+        }
+    }
+
+    override fun add(element: Any?): Boolean = immutableMutation()
 }
 
 private class BinarySnapshot(value: ByteArray) {

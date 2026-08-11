@@ -16,7 +16,10 @@ package me.ahoo.wow.api.query
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertAll
 import org.junit.jupiter.api.assertThrows
+import java.math.BigDecimal
+import java.math.BigInteger
 import java.util.Date
 import java.util.IdentityHashMap
 
@@ -39,6 +42,69 @@ class ImmutableDynamicDocumentTest {
         assertThrows<IllegalArgumentException> {
             ImmutableDynamicDocument.copyOf(mapOf("value" to MutableEnum.VALUE))
         }
+    }
+
+    @Test
+    fun `maps should reject key cardinality loss without exposing contents`() {
+        val root = IdentityHashMap<String, Any?>()
+        root[String(charArrayOf('s', 'e', 'c', 'r', 'e', 't'))] = "first-sensitive-value"
+        root[String(charArrayOf('s', 'e', 'c', 'r', 'e', 't'))] = "second-sensitive-value"
+
+        val rootError = assertThrows<IllegalArgumentException> {
+            ImmutableDynamicDocument.copyOf(root)
+        }
+        val nestedError = assertThrows<IllegalArgumentException> {
+            ImmutableDynamicDocument.copyOf(mapOf("nested" to root))
+        }
+
+        listOf(rootError, nestedError).forEach { error ->
+            error.message.assert().doesNotContain("secret")
+            error.message.assert().doesNotContain("sensitive")
+        }
+        val ordinary = ImmutableDynamicDocument.copyOf(
+            linkedMapOf("first" to 1, "nested" to linkedMapOf("second" to 2))
+        )
+        ordinary.assert().hasSize(2)
+        ordinary.getNestedDocument("nested").assert().hasSize(1)
+    }
+
+    @Test
+    fun `big number subclasses should be rejected while exact base values remain stable`() {
+        val mutableDecimal = MutableBigDecimal()
+        val mutableInteger = MutableBigInteger()
+        mutableDecimal.mutation = 1
+        mutableInteger.mutation = 1
+
+        assertAll(
+            {
+                assertThrows<IllegalArgumentException> {
+                    ImmutableDynamicDocument.copyOf(mapOf("value" to mutableDecimal))
+                }
+            },
+            {
+                assertThrows<IllegalArgumentException> {
+                    ImmutableDynamicDocument.copyOf(mapOf("value" to setOf(mutableDecimal)))
+                }
+            },
+            {
+                assertThrows<IllegalArgumentException> {
+                    ImmutableDynamicDocument.copyOf(mapOf("value" to mutableInteger))
+                }
+            },
+            {
+                assertThrows<IllegalArgumentException> {
+                    ImmutableDynamicDocument.copyOf(mapOf("value" to setOf(mutableInteger)))
+                }
+            }
+        )
+
+        val document = ImmutableDynamicDocument.copyOf(
+            mapOf("decimal" to BigDecimal("1.25"), "integer" to BigInteger("125"))
+        )
+        val initialHash = document.hashCode()
+        document["decimal"].assert().isEqualTo(BigDecimal("1.25"))
+        document["integer"].assert().isEqualTo(BigInteger("125"))
+        document.hashCode().assert().isEqualTo(initialHash)
     }
 
     @Test
@@ -178,5 +244,29 @@ class ImmutableDynamicDocumentTest {
 
     private enum class MutableEnum(var mutable: String) {
         VALUE("initial")
+    }
+
+    private class MutableBigDecimal : BigDecimal("1.25") {
+        var mutation: Int = 0
+
+        override fun toByte(): Byte = toInt().toByte()
+
+        override fun toShort(): Short = toInt().toShort()
+
+        override fun equals(other: Any?): Boolean = super.equals(other)
+
+        override fun hashCode(): Int = super.hashCode() + mutation
+    }
+
+    private class MutableBigInteger : BigInteger("125") {
+        var mutation: Int = 0
+
+        override fun toByte(): Byte = toInt().toByte()
+
+        override fun toShort(): Short = toInt().toShort()
+
+        override fun equals(other: Any?): Boolean = super.equals(other)
+
+        override fun hashCode(): Int = super.hashCode() + mutation
     }
 }
