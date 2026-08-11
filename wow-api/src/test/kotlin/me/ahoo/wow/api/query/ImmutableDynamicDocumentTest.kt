@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.Date
+import java.util.IdentityHashMap
 
 class ImmutableDynamicDocumentTest {
     @Test
@@ -33,6 +34,31 @@ class ImmutableDynamicDocumentTest {
         }
         assertThrows<IllegalArgumentException> {
             ImmutableDynamicDocument.copyOf(mapOf("value" to arrayOf(hashMapOf("field" to "value"))))
+        }
+        MutableEnum.VALUE.mutable = "secret"
+        assertThrows<IllegalArgumentException> {
+            ImmutableDynamicDocument.copyOf(mapOf("value" to MutableEnum.VALUE))
+        }
+    }
+
+    @Test
+    fun `sets should accept only stable equality scalar elements`() {
+        val safe = ImmutableDynamicDocument.copyOf(mapOf("values" to linkedSetOf("one", "two")))
+        val identityStrings = java.util.Collections.newSetFromMap(IdentityHashMap<String, Boolean>())
+        identityStrings.add(String(charArrayOf('s', 'a', 'm', 'e')))
+        identityStrings.add(String(charArrayOf('s', 'a', 'm', 'e')))
+
+        (safe["values"] as Set<*>).assert().containsExactly("one", "two")
+        assertThrows<IllegalArgumentException> {
+            ImmutableDynamicDocument.copyOf(
+                mapOf("values" to linkedSetOf(byteArrayOf(1, 2), byteArrayOf(1, 2)))
+            )
+        }
+        assertThrows<IllegalArgumentException> {
+            ImmutableDynamicDocument.copyOf(mapOf("values" to linkedSetOf(listOf("nested"))))
+        }
+        assertThrows<IllegalArgumentException> {
+            ImmutableDynamicDocument.copyOf(mapOf("values" to identityStrings))
         }
     }
 
@@ -80,6 +106,16 @@ class ImmutableDynamicDocumentTest {
         (document.values.first { it is ByteArray } as ByteArray)[0] = 9
         (document.getNestedDocument("nested")["binary"] as ByteArray)[0] = 9
 
+        val entryIterator = document.entries.iterator()
+        val entry = entryIterator.next()
+        assertThrows<UnsupportedOperationException> { entry.setValue("changed") }
+        assertThrows<UnsupportedOperationException> { entryIterator.remove() }
+        assertThrows<UnsupportedOperationException> { document.entries.add(entry) }
+        assertThrows<UnsupportedOperationException> { document.entries.remove(entry) }
+        assertThrows<UnsupportedOperationException> { document.entries.clear() }
+        assertThrows<UnsupportedOperationException> { document.keys.remove("binary") }
+        assertThrows<UnsupportedOperationException> { document.values.clear() }
+
         assertArrayEquals(byteArrayOf(1, 2), document["binary"] as ByteArray)
         assertArrayEquals(byteArrayOf(3, 4), document.getNestedDocument("nested")["binary"] as ByteArray)
     }
@@ -95,8 +131,12 @@ class ImmutableDynamicDocumentTest {
 
         first.assert().isEqualTo(second)
         second.assert().isEqualTo(first)
+        first.entries.assert().isEqualTo(second.entries)
+        second.entries.assert().isEqualTo(first.entries)
         repeat(10) {
             first.hashCode().assert().isEqualTo(second.hashCode())
+            first.hashCode().assert().isEqualTo(first.entries.hashCode())
+            first.entries.hashCode().assert().isEqualTo(second.entries.hashCode())
         }
 
         val scalarMap = mapOf<String, Any?>("value" to "same")
@@ -110,7 +150,33 @@ class ImmutableDynamicDocumentTest {
         (binaryMap == binaryDocument).assert().isFalse()
     }
 
+    @Test
+    fun `cyclic value graphs should fail fast while shared acyclic graphs remain valid`() {
+        val cyclicMap = mutableMapOf<String, Any?>()
+        cyclicMap["self"] = cyclicMap
+        val cyclicList = mutableListOf<Any?>()
+        cyclicList.add(cyclicList)
+        val cyclicSet = java.util.Collections.newSetFromMap(IdentityHashMap<Any?, Boolean>())
+        cyclicSet.add(cyclicSet)
+        val cyclicArray = arrayOfNulls<Any?>(1)
+        cyclicArray[0] = cyclicArray
+
+        listOf(cyclicMap, cyclicList, cyclicSet, cyclicArray).forEach { cyclic ->
+            assertThrows<IllegalArgumentException> {
+                ImmutableDynamicDocument.copyOf(mapOf("cyclic" to cyclic))
+            }
+        }
+
+        val shared = mutableListOf<Any?>("value")
+        val document = ImmutableDynamicDocument.copyOf(mapOf("first" to shared, "second" to shared))
+        document.assert().hasSize(2)
+    }
+
     private data class MutableBox(var value: String)
 
     private data class FakeDriverValue(val raw: String)
+
+    private enum class MutableEnum(var mutable: String) {
+        VALUE("initial")
+    }
 }

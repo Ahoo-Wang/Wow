@@ -94,6 +94,28 @@ class QueryExpressionTest {
     }
 
     @Test
+    fun `payload data surfaces should stay structural while toString remains redacted`() {
+        val binary = QueryValue.BinaryValue(byteArrayOf(1, 2))
+        val binaryCopy = binary.copy(value = binary.component1())
+        val native = NativeExpression(
+            capabilityId = QueryCapabilityId("native-template"),
+            backendId = "mongo",
+            templateId = "safe-template",
+            parameters = mapOf("secret" to QueryValue.StringValue("do-not-log")),
+            declaredFields = setOf(LogicalField("amount"))
+        )
+        val nativeCopy = native.copy(parameters = native.component4())
+
+        binaryCopy.assert().isEqualTo(binary)
+        binaryCopy.hashCode().assert().isEqualTo(binary.hashCode())
+        nativeCopy.assert().isEqualTo(native)
+        nativeCopy.hashCode().assert().isEqualTo(native.hashCode())
+        binary.toString().assert().isEqualTo("BinaryValue(size=2)")
+        native.toString().assert().doesNotContain("do-not-log")
+        native.toString().assert().contains("parameterNames=[secret]")
+    }
+
+    @Test
     fun `logical nodes should reject empty operands`() {
         assertThrows<IllegalArgumentException> {
             LogicalExpression(LogicalOperator.OR, emptyList())
