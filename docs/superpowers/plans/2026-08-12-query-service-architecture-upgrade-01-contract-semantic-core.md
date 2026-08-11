@@ -21,87 +21,151 @@
 
 ## Task 1: 锁定 Wow 8.x 查询 API/ABI 与 source compatibility
 
-**Interfaces consumed:** 当前 `wow-api`、`wow-query` 的 public/protected JVM 符号；规格第 10.1 节兼容矩阵。
+**Interfaces consumed:** 当前 `wow-api`、`wow-query`、`wow-webflux`、`wow-spring`、`wow-spring-boot-starter`、`wow-mongo`、`wow-elasticsearch`、`wow-cosec` 的查询相关 public/protected JVM 符号；规格第 10.1 节兼容矩阵。
 
-**Interfaces produced:** `queryApiDump`、`queryApiCheck` Gradle 任务；两份不可手改的当前 baseline；唯一批准删除清单；Kotlin/Java source fixture。
+**Interfaces produced:** `queryApiDump`、`queryApiCheck` Gradle 任务；八份不可手改的当前 baseline；唯一批准删除清单；各模块本地 Kotlin/Java source fixture；ABI 脚本行为测试。
 
 **Files:**
 
 - Create: `scripts/query-api-abi.sh`
+- Create: `scripts/query-api-abi-test.sh`
+- Create: `config/query-api/modules.tsv`
 - Create: `config/query-api/wow-api-8.x.baseline`
 - Create: `config/query-api/wow-query-8.x.baseline`
+- Create: `config/query-api/wow-webflux-8.x.baseline`
+- Create: `config/query-api/wow-spring-8.x.baseline`
+- Create: `config/query-api/wow-spring-boot-starter-8.x.baseline`
+- Create: `config/query-api/wow-mongo-8.x.baseline`
+- Create: `config/query-api/wow-elasticsearch-8.x.baseline`
+- Create: `config/query-api/wow-cosec-8.x.baseline`
 - Create: `config/query-api/approved-removals.txt`
 - Create: `wow-query/src/test/kotlin/me/ahoo/wow/query/compat/LegacyQueryApiSourceCompatibilityTest.kt`
 - Create: `wow-query/src/test/java/me/ahoo/wow/query/compat/LegacyQueryApiJavaCompatibilityTest.java`
+- Create: `wow-webflux/src/test/kotlin/me/ahoo/wow/webflux/route/query/LegacyWebFluxQueryApiSourceCompatibilityTest.kt`
+- Create: `wow-spring/src/test/kotlin/me/ahoo/wow/spring/query/LegacySpringQueryApiSourceCompatibilityTest.kt`
+- Create: `wow-spring-boot-starter/src/test/kotlin/me/ahoo/wow/spring/boot/starter/query/LegacyQueryStarterApiSourceCompatibilityTest.kt`
+- Create: `wow-mongo/src/test/kotlin/me/ahoo/wow/mongo/query/LegacyMongoQueryApiSourceCompatibilityTest.kt`
+- Create: `wow-elasticsearch/src/test/kotlin/me/ahoo/wow/elasticsearch/query/LegacyElasticsearchQueryApiSourceCompatibilityTest.kt`
+- Create: `wow-cosec/src/test/kotlin/me/ahoo/wow/cosec/query/LegacyCoSecQueryApiSourceCompatibilityTest.kt`
 - Modify: `build.gradle.kts`
 
-- [ ] **Step 1: 写 source compatibility fixtures，先覆盖必须保留的入口**
+- [ ] **Step 1: 先写 ABI 脚本的行为测试并观察 RED**
 
-Kotlin fixture 必须编译引用：`QueryService` 七个方法、`SnapshotQueryService`、`EventStreamQueryService`、两类 factory、两类 routing factory、`RewriteRequestCondition` 与 masker。Java fixture 覆盖 Java 可见的公开构造器和方法签名。不要引用批准删除的 Filter/Handler/Context。
+`scripts/query-api-abi-test.sh` 在 `mktemp -d` 中用 `javac`/`jar` 构造受控 mini API v1/v2，并通过命令行参数把临时 module manifest、artifact dir、baseline dir 和 allowlist 传给被测脚本。测试必须覆盖：新增 public method 允许；删除/descriptor 改变失败；精确 allowlist 删除允许；allowlist symbol 不存在于 baseline 时失败；缺 jar/JDK tool/空 baseline 失败。测试清理只删除自己创建的临时目录。
 
-```kotlin
-class LegacyQueryApiSourceCompatibilityTest {
-    @Test
-    fun `legacy services remain callable`() {
-        val service: QueryService<Map<String, Any>> = error("compile-only fixture")
-        service.single(SingleQuery(condition = Condition.all()))
-        service.list(ListQuery(condition = Condition.all(), limit = 1))
-        service.paged(PagedQuery(condition = Condition.all(), pagination = Pagination()))
-        service.count(CountQuery(condition = Condition.all()))
-    }
-}
+```bash
+bash scripts/query-api-abi-test.sh
 ```
 
-采用不会执行 `error("compile-only fixture")` 的编译 fixture 形式：把调用放入未调用的私有函数，测试方法只断言 fixture 类能加载，避免运行时失败。
+Expected RED: 非零退出，明确因为 `scripts/query-api-abi.sh` 尚不存在；不能因 fixture 编译错误或命令拼写错误失败。
 
-- [ ] **Step 2: 运行 fixture，确认当前代码通过**
+- [ ] **Step 2: 写归属模块内的 source compatibility fixtures**
 
-Run: `./gradlew :wow-query:compileTestKotlin :wow-query:compileTestJava`
+`wow-query` fixture 覆盖 `QueryService` 七方法、Snapshot/EventStream service/factory/routing 与 masker；WebFlux fixture 覆盖 `RewriteRequestCondition`、默认实现和 route handler/factory class symbols，但不锁定参数中引用已批准删除 `QueryHandler` 的旧 constructor descriptor；这些 descriptor 只由 ABI baseline 与 Plan 04 的精确 allowlist 管理。MongoDB/Elasticsearch fixtures 覆盖公开 query service/factory constructor；Spring/starter fixtures 覆盖 registrar、query auto-configuration、storage routing binding/property；CoSec fixture 覆盖 `CoSecRewriteRequestCondition`。Java fixture 覆盖核心 Java 可见签名。批准删除的 Filter/Handler/Context 不进入保留 fixture。
+
+每个 fixture 只引用本模块及其正常依赖，禁止为兼容测试新增 `wow-query -> wow-webflux`、storage -> starter 或其他反向依赖。fixture 不声明伪造的 `@Test`：把签名调用放入不执行的 private compile-only 方法，由 `compileTestKotlin`/`compileTestJava` 本身作为 source compatibility gate。
+
+- [ ] **Step 3: 编译 source fixtures，确认当前契约基线通过**
+
+Run:
+
+```bash
+./gradlew :wow-query:compileTestKotlin :wow-query:compileTestJava \
+  :wow-webflux:compileTestKotlin :wow-spring:compileTestKotlin \
+  :wow-spring-boot-starter:compileTestKotlin :wow-mongo:compileTestKotlin \
+  :wow-elasticsearch:compileTestKotlin :wow-cosec:compileTestKotlin
+```
 
 Expected: `BUILD SUCCESSFUL`。若当前公开签名与规格矩阵不一致，先把差异写入规格并请求确认，不修改 fixture 迁就实现。
 
-- [ ] **Step 3: 实现不依赖第三方插件的 ABI dump/check 脚本**
+- [ ] **Step 4: 实现不依赖第三方插件的 ABI dump/check 脚本**
 
 `scripts/query-api-abi.sh dump|check` 必须：
 
-1. 只读取 `wow-api/build/libs/wow-api-*.jar` 与 `wow-query/build/libs/wow-query-*.jar`；
-2. 用 `jar tf` 找到 `me/ahoo/wow/api/query/**` 与 `me/ahoo/wow/query/**` 的 public class；排除 `*Test*`、`META-INF` 和 Kotlin synthetic helper；
+1. 从 `config/query-api/modules.tsv` 读取八个 module、jar glob 与精确 query package prefix；测试可通过 `--manifest`、`--artifacts-dir`、`--baseline-dir`、`--allowlist` 指向临时 fixture，不读取隐式环境变量；
+2. 用 `jar tf` 查找 manifest 声明 package 下的 public class；排除 `*Test*`、`META-INF` 和 Kotlin synthetic helper；
 3. 对每个 class 执行 `javap -classpath <jar-and-runtime-classpath> -public -s`，去掉 jar 绝对路径和非确定性空白后排序；
-4. `dump` 原子写入两份 baseline；`check` 计算 `baseline - current - approved-removals`，允许新增符号，但任何未批准的删除/descriptor 改变都失败；
+4. `dump` 原子写入每模块 baseline；`check` 计算 `baseline - current - approved-removals`，允许新增符号，但任何未批准的删除/descriptor 改变都失败；
 5. `approved-removals.txt` 只列规格第 10.1 节明确批准的 Filter、Handler、Context、Tail/Masking/ABAC filter JVM symbol，不使用包级通配符。
 
 脚本必须在缺 jar、缺 JDK 工具、baseline 为空或 allowlist 命中不存在的 baseline 符号时退出非零，防止 gate 假通过。
 
-- [ ] **Step 4: 注册 Gradle 任务并生成当前 baseline**
+`modules.tsv` 的模块和 package prefix 固定为：
+
+```text
+wow-api	wow-api/build/libs/wow-api-*.jar	me/ahoo/wow/api/query/
+wow-query	wow-query/build/libs/wow-query-*.jar	me/ahoo/wow/query/
+wow-webflux	wow-webflux/build/libs/wow-webflux-*.jar	me/ahoo/wow/webflux/route/query/;me/ahoo/wow/webflux/route/snapshot/;me/ahoo/wow/webflux/route/event/
+wow-spring	wow-spring/build/libs/wow-spring-*.jar	me/ahoo/wow/spring/query/
+wow-spring-boot-starter	wow-spring-boot-starter/build/libs/wow-spring-boot-starter-*.jar	me/ahoo/wow/spring/boot/starter/query/;me/ahoo/wow/spring/boot/starter/eventsourcing/routing/;me/ahoo/wow/spring/boot/starter/webflux/route/
+wow-mongo	wow-mongo/build/libs/wow-mongo-*.jar	me/ahoo/wow/mongo/query/
+wow-elasticsearch	wow-elasticsearch/build/libs/wow-elasticsearch-*.jar	me/ahoo/wow/elasticsearch/query/
+wow-cosec	wow-cosec/build/libs/wow-cosec-*.jar	me/ahoo/wow/cosec/query/
+```
+
+- [ ] **Step 5: 运行 ABI 行为测试并观察 GREEN**
+
+Run: `bash scripts/query-api-abi-test.sh`
+
+Expected GREEN: 所有受控场景通过，输出逐项说明 addition/removal/descriptor/allowlist/missing-input 结果且最终 exit 0。
+
+- [ ] **Step 6: 注册 Gradle 任务并生成当前 baseline**
 
 在根 `build.gradle.kts` 注册：
 
 ```kotlin
+val queryApiModules = listOf(
+    ":wow-api",
+    ":wow-query",
+    ":wow-webflux",
+    ":wow-spring",
+    ":wow-spring-boot-starter",
+    ":wow-mongo",
+    ":wow-elasticsearch",
+    ":wow-cosec",
+)
+
 tasks.register<Exec>("queryApiDump") {
-    dependsOn(":wow-api:jar", ":wow-query:jar")
+    dependsOn(queryApiModules.map { "$it:jar" })
     commandLine("bash", "scripts/query-api-abi.sh", "dump")
 }
 
 tasks.register<Exec>("queryApiCheck") {
-    dependsOn(":wow-api:jar", ":wow-query:jar")
+    dependsOn(queryApiModules.map { "$it:jar" })
     commandLine("bash", "scripts/query-api-abi.sh", "check")
 }
 ```
 
 Run: `./gradlew queryApiDump queryApiCheck`
 
-Expected: baseline 已生成，紧接着 check 为 `BUILD SUCCESSFUL`；`git diff -- config/query-api` 可审查且不含本机绝对路径。
+Expected: 八份 baseline 已生成，紧接着 check 为 `BUILD SUCCESSFUL`；`git diff -- config/query-api` 可审查且不含本机绝对路径。
 
-- [ ] **Step 5: 为 gate 写破坏性自测并恢复 fixture**
+- [ ] **Step 7: 对真实 baseline 运行 gate 与 source fixtures**
 
-临时从 baseline 的副本删除/改写一个未批准方法 descriptor，运行脚本必须失败并打印缺失 symbol；恢复后 `./gradlew queryApiCheck` 必须通过。不要提交临时破坏。
-
-- [ ] **Step 6: 提交**
+Run:
 
 ```bash
-git add build.gradle.kts scripts/query-api-abi.sh config/query-api \
-  wow-query/src/test/kotlin/me/ahoo/wow/query/compat \
-  wow-query/src/test/java/me/ahoo/wow/query/compat
+bash scripts/query-api-abi-test.sh
+./gradlew queryApiCheck \
+  :wow-query:compileTestKotlin :wow-query:compileTestJava \
+  :wow-webflux:compileTestKotlin :wow-spring:compileTestKotlin \
+  :wow-spring-boot-starter:compileTestKotlin :wow-mongo:compileTestKotlin \
+  :wow-elasticsearch:compileTestKotlin :wow-cosec:compileTestKotlin
+```
+
+Expected: script tests 和真实 gate 全部成功；不修改真实 baseline 来模拟失败，破坏性场景只在临时 mini API 中执行。
+
+- [ ] **Step 8: 提交**
+
+```bash
+git add build.gradle.kts scripts/query-api-abi.sh scripts/query-api-abi-test.sh config/query-api \
+  wow-query/src/test/kotlin/me/ahoo/wow/query/compat wow-query/src/test/java/me/ahoo/wow/query/compat \
+  wow-webflux/src/test/kotlin/me/ahoo/wow/webflux/route/query/LegacyWebFluxQueryApiSourceCompatibilityTest.kt \
+  wow-spring/src/test/kotlin/me/ahoo/wow/spring/query/LegacySpringQueryApiSourceCompatibilityTest.kt \
+  wow-spring-boot-starter/src/test/kotlin/me/ahoo/wow/spring/boot/starter/query/LegacyQueryStarterApiSourceCompatibilityTest.kt \
+  wow-mongo/src/test/kotlin/me/ahoo/wow/mongo/query/LegacyMongoQueryApiSourceCompatibilityTest.kt \
+  wow-elasticsearch/src/test/kotlin/me/ahoo/wow/elasticsearch/query/LegacyElasticsearchQueryApiSourceCompatibilityTest.kt \
+  wow-cosec/src/test/kotlin/me/ahoo/wow/cosec/query/LegacyCoSecQueryApiSourceCompatibilityTest.kt
 git commit -m "test: lock query api compatibility"
 ```
 
