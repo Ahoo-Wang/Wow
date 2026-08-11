@@ -19,7 +19,7 @@ readonly DEFAULT_BASELINE_DIR="$ROOT_DIR/config/query-api"
 readonly DEFAULT_ALLOWLIST="$ROOT_DIR/config/query-api/approved-removals.txt"
 
 usage() {
-    echo "Usage: $0 dump|check [--manifest FILE] [--artifacts-dir DIR] [--baseline-dir DIR] [--allowlist FILE] [--runtime-classpath PATH]" >&2
+    echo "Usage: $0 dump|check [--manifest FILE] [--artifacts-dir DIR] [--baseline-dir DIR] [--allowlist FILE] [--runtime-classpath PATH] [--classpath-separator :|;]" >&2
 }
 
 die() {
@@ -74,7 +74,7 @@ dump_jar_symbols() {
     local entry class_name class_dump javap_classpath
     javap_classpath="$jar_file"
     if [[ -n "$RUNTIME_CLASSPATH" ]]; then
-        javap_classpath="$javap_classpath:$RUNTIME_CLASSPATH"
+        javap_classpath="$javap_classpath$CLASSPATH_SEPARATOR$RUNTIME_CLASSPATH"
     fi
     while IFS= read -r entry; do
         is_included_class "$entry" "$prefixes" || continue
@@ -159,6 +159,7 @@ ARTIFACTS_DIR="$DEFAULT_ARTIFACTS_DIR"
 BASELINE_DIR="$DEFAULT_BASELINE_DIR"
 ALLOWLIST="$DEFAULT_ALLOWLIST"
 RUNTIME_CLASSPATH=""
+CLASSPATH_SEPARATOR=":"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -182,12 +183,21 @@ while [[ $# -gt 0 ]]; do
             RUNTIME_CLASSPATH="$2"
             shift 2
             ;;
+        --classpath-separator)
+            CLASSPATH_SEPARATOR="$2"
+            shift 2
+            ;;
         *)
             usage
             die "Unknown argument: $1"
             ;;
     esac
 done
+
+case "$CLASSPATH_SEPARATOR" in
+    :|';') ;;
+    *) die "Invalid classpath separator: $CLASSPATH_SEPARATOR" ;;
+esac
 
 case "$COMMAND" in
     dump|check) ;;

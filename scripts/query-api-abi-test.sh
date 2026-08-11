@@ -186,28 +186,51 @@ mkdir -p "$TEMP_DIR/jdk-tool-wrapper"
 cat >"$TEMP_DIR/jdk-tool-wrapper/javap" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+arguments=()
+classpath_seen=0
 for ((index = 1; index <= $#; index++)); do
-    if [[ "${!index}" == "-classpath" ]]; then
+    argument="${!index}"
+    if [[ "$argument" == "-classpath" ]]; then
         next_index=$((index + 1))
         classpath="${!next_index}"
-        case ":$classpath:" in
-            *":$EXPECTED_RUNTIME_ENTRY:"*) exec "$JAVAP_REAL" "$@" ;;
-            *) echo "runtime classpath entry was not passed to javap" >&2; exit 79 ;;
-        esac
+        [[ "$classpath" == "$EXPECTED_JAVAP_CLASSPATH" ]] || {
+            echo "unexpected javap classpath: $classpath" >&2
+            exit 79
+        }
+        arguments+=("$argument" "${classpath//;/:}")
+        classpath_seen=1
+        index=$next_index
+    else
+        arguments+=("$argument")
     fi
 done
-echo "javap did not receive -classpath" >&2
-exit 79
+[[ "$classpath_seen" -eq 1 ]] || {
+    echo "javap did not receive -classpath" >&2
+    exit 79
+}
+exec "$JAVAP_REAL" "${arguments[@]}"
 EOF
 chmod +x "$TEMP_DIR/jdk-tool-wrapper/javap"
 cp "$TEMP_DIR/external-api/mini.jar" "$ARTIFACTS/mini.jar"
 expect_success external_runtime_classpath_is_passed_to_javap env \
     PATH="$TEMP_DIR/jdk-tool-wrapper:$PATH" \
-    EXPECTED_RUNTIME_ENTRY="$TEMP_DIR/external/dependency.jar" \
+    EXPECTED_JAVAP_CLASSPATH="$ARTIFACTS/mini.jar:$TEMP_DIR/external/dependency.jar" \
     JAVAP_REAL="$(command -v javap)" \
     bash "$ABI_SCRIPT" dump \
     --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$TEMP_DIR/external-baselines" \
     --allowlist "$ALLOWLIST" --runtime-classpath "$TEMP_DIR/external/dependency.jar"
+
+expect_failure invalid_classpath_separator_is_rejected 'Invalid classpath separator: ,' bash "$ABI_SCRIPT" dump \
+    --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$TEMP_DIR/external-invalid-separator-baselines" \
+    --allowlist "$ALLOWLIST" --runtime-classpath "$TEMP_DIR/external/dependency.jar" --classpath-separator ','
+
+expect_success semicolon_runtime_classpath_is_passed_to_javap env \
+    PATH="$TEMP_DIR/jdk-tool-wrapper:$PATH" \
+    EXPECTED_JAVAP_CLASSPATH="$ARTIFACTS/mini.jar;$TEMP_DIR/external/dependency.jar" \
+    JAVAP_REAL="$(command -v javap)" \
+    bash "$ABI_SCRIPT" dump \
+    --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$TEMP_DIR/external-semicolon-baselines" \
+    --allowlist "$ALLOWLIST" --runtime-classpath "$TEMP_DIR/external/dependency.jar" --classpath-separator ';'
 
 if grep -Fq 'fixture.PackagePrivate' "$TEMP_DIR/external-baselines/mini-8.x.baseline"; then
     fail 'package-private class should not be present in ABI baseline'

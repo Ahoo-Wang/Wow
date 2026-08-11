@@ -292,7 +292,15 @@ tasks.register<Exec>("queryApiDump") {
     dependsOn(queryApiModules.map { "$it:jar" })
     dependsOn(queryApiModules.map { "$it:$queryApiRuntimeClasspathTaskName" })
     doFirst {
-        commandLine("bash", "scripts/query-api-abi.sh", "dump", "--runtime-classpath", queryApiRuntimeClasspath())
+        commandLine(
+            "bash",
+            "scripts/query-api-abi.sh",
+            "dump",
+            "--runtime-classpath",
+            queryApiRuntimeClasspath(),
+            "--classpath-separator",
+            File.pathSeparator,
+        )
     }
 }
 
@@ -300,7 +308,15 @@ tasks.register<Exec>("queryApiCheck") {
     dependsOn(queryApiModules.map { "$it:jar" })
     dependsOn(queryApiModules.map { "$it:$queryApiRuntimeClasspathTaskName" })
     doFirst {
-        commandLine("bash", "scripts/query-api-abi.sh", "check", "--runtime-classpath", queryApiRuntimeClasspath())
+        commandLine(
+            "bash",
+            "scripts/query-api-abi.sh",
+            "check",
+            "--runtime-classpath",
+            queryApiRuntimeClasspath(),
+            "--classpath-separator",
+            File.pathSeparator,
+        )
     }
 }
 
