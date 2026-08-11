@@ -132,7 +132,7 @@ interface QueryGateway {
 
 `PortableExpression` 第一阶段覆盖现有共同语义：
 
-- 逻辑组合：`AND`、`OR`、`NOT`；
+- 逻辑组合：`AND`、`OR`、`NOR`；
 - 相等与集合：`EQ`、`NE`、`IN`、`NOT_IN`、`ALL_IN`；
 - 比较与区间：`GT`、`GTE`、`LT`、`LTE`、`BETWEEN`；
 - 空值与存在性；
