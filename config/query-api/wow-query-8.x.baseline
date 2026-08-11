@@ -1,4 +1,4 @@
-me.ahoo.wow.query.QueryService#class
+me.ahoo.wow.query.QueryService#class|public interface me.ahoo.wow.query.QueryService<R> extends me.ahoo.wow.api.modeling.NamedAggregateDecorator {
 me.ahoo.wow.query.QueryService#public abstract reactor.core.publisher.Flux<R> list(me.ahoo.wow.api.query.IListQuery);|descriptor: (Lme/ahoo/wow/api/query/IListQuery;)Lreactor/core/publisher/Flux;
 me.ahoo.wow.query.QueryService#public abstract reactor.core.publisher.Flux<me.ahoo.wow.api.query.DynamicDocument> dynamicList(me.ahoo.wow.api.query.IListQuery);|descriptor: (Lme/ahoo/wow/api/query/IListQuery;)Lreactor/core/publisher/Flux;
 me.ahoo.wow.query.QueryService#public abstract reactor.core.publisher.Mono<R> single(me.ahoo.wow.api.query.ISingleQuery);|descriptor: (Lme/ahoo/wow/api/query/ISingleQuery;)Lreactor/core/publisher/Mono;
@@ -10,7 +10,19 @@ me.ahoo.wow.query.QueryService#public static boolean access$isSameAggregateName$
 me.ahoo.wow.query.QueryService#public static boolean access$isSameBoundedContext$jd(me.ahoo.wow.query.QueryService, me.ahoo.wow.api.naming.NamedBoundedContext);|descriptor: (Lme/ahoo/wow/query/QueryService;Lme/ahoo/wow/api/naming/NamedBoundedContext;)Z
 me.ahoo.wow.query.QueryService#public static java.lang.String access$getAggregateName$jd(me.ahoo.wow.query.QueryService);|descriptor: (Lme/ahoo/wow/query/QueryService;)Ljava/lang/String;
 me.ahoo.wow.query.QueryService#public static java.lang.String access$getContextName$jd(me.ahoo.wow.query.QueryService);|descriptor: (Lme/ahoo/wow/query/QueryService;)Ljava/lang/String;
-me.ahoo.wow.query.converter.AbstractConditionConverter#class
+me.ahoo.wow.query.converter.AbstractConditionConverter#class|public abstract class me.ahoo.wow.query.converter.AbstractConditionConverter<T> implements me.ahoo.wow.query.converter.ConditionConverter<T> {
+me.ahoo.wow.query.converter.AbstractConditionConverter#protected final T beforeToday(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Ljava/lang/Object;
+me.ahoo.wow.query.converter.AbstractConditionConverter#protected final T earlierDays(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Ljava/lang/Object;
+me.ahoo.wow.query.converter.AbstractConditionConverter#protected final T internalConvert(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Ljava/lang/Object;
+me.ahoo.wow.query.converter.AbstractConditionConverter#protected final T lastMonth(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Ljava/lang/Object;
+me.ahoo.wow.query.converter.AbstractConditionConverter#protected final T lastWeek(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Ljava/lang/Object;
+me.ahoo.wow.query.converter.AbstractConditionConverter#protected final T nextWeek(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Ljava/lang/Object;
+me.ahoo.wow.query.converter.AbstractConditionConverter#protected final T recentDays(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Ljava/lang/Object;
+me.ahoo.wow.query.converter.AbstractConditionConverter#protected final T thisMonth(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Ljava/lang/Object;
+me.ahoo.wow.query.converter.AbstractConditionConverter#protected final T thisWeek(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Ljava/lang/Object;
+me.ahoo.wow.query.converter.AbstractConditionConverter#protected final T timeRange(java.lang.String, java.time.OffsetDateTime, java.time.OffsetDateTime, java.time.format.DateTimeFormatter);|descriptor: (Ljava/lang/String;Ljava/time/OffsetDateTime;Ljava/time/OffsetDateTime;Ljava/time/format/DateTimeFormatter;)Ljava/lang/Object;
+me.ahoo.wow.query.converter.AbstractConditionConverter#protected final T today(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Ljava/lang/Object;
+me.ahoo.wow.query.converter.AbstractConditionConverter#protected final T tomorrow(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Ljava/lang/Object;
 me.ahoo.wow.query.converter.AbstractConditionConverter#public T convert(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Ljava/lang/Object;
 me.ahoo.wow.query.converter.AbstractConditionConverter#public abstract T aggregateId(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Ljava/lang/Object;
 me.ahoo.wow.query.converter.AbstractConditionConverter#public abstract T aggregateIds(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Ljava/lang/Object;
@@ -47,25 +59,28 @@ me.ahoo.wow.query.converter.AbstractConditionConverter#public abstract T startsW
 me.ahoo.wow.query.converter.AbstractConditionConverter#public abstract T tenantId(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Ljava/lang/Object;
 me.ahoo.wow.query.converter.AbstractConditionConverter#public me.ahoo.wow.query.converter.AbstractConditionConverter();|descriptor: ()V
 me.ahoo.wow.query.converter.AbstractConditionConverter#public static java.lang.Object timeRange$default(me.ahoo.wow.query.converter.AbstractConditionConverter, java.lang.String, java.time.OffsetDateTime, java.time.OffsetDateTime, java.time.format.DateTimeFormatter, int, java.lang.Object);|descriptor: (Lme/ahoo/wow/query/converter/AbstractConditionConverter;Ljava/lang/String;Ljava/time/OffsetDateTime;Ljava/time/OffsetDateTime;Ljava/time/format/DateTimeFormatter;ILjava/lang/Object;)Ljava/lang/Object;
-me.ahoo.wow.query.converter.AbstractProjectionConverter#class
+me.ahoo.wow.query.converter.AbstractProjectionConverter#class|public abstract class me.ahoo.wow.query.converter.AbstractProjectionConverter<T> implements me.ahoo.wow.query.converter.ProjectionConverter<T> {
+me.ahoo.wow.query.converter.AbstractProjectionConverter#protected abstract T internalConvert(me.ahoo.wow.api.query.Projection);|descriptor: (Lme/ahoo/wow/api/query/Projection;)Ljava/lang/Object;
 me.ahoo.wow.query.converter.AbstractProjectionConverter#public T convert(me.ahoo.wow.api.query.Projection);|descriptor: (Lme/ahoo/wow/api/query/Projection;)Ljava/lang/Object;
 me.ahoo.wow.query.converter.AbstractProjectionConverter#public abstract me.ahoo.wow.query.converter.FieldConverter getFieldConverter();|descriptor: ()Lme/ahoo/wow/query/converter/FieldConverter;
 me.ahoo.wow.query.converter.AbstractProjectionConverter#public me.ahoo.wow.query.converter.AbstractProjectionConverter();|descriptor: ()V
-me.ahoo.wow.query.converter.AbstractSortConverter#class
+me.ahoo.wow.query.converter.AbstractSortConverter#class|public abstract class me.ahoo.wow.query.converter.AbstractSortConverter<T> implements me.ahoo.wow.query.converter.SortConverter<T> {
+me.ahoo.wow.query.converter.AbstractSortConverter#protected abstract T internalConvert(java.util.List<me.ahoo.wow.api.query.Sort>);|descriptor: (Ljava/util/List;)Ljava/lang/Object;
+me.ahoo.wow.query.converter.AbstractSortConverter#protected abstract me.ahoo.wow.query.converter.FieldConverter getFieldConverter();|descriptor: ()Lme/ahoo/wow/query/converter/FieldConverter;
 me.ahoo.wow.query.converter.AbstractSortConverter#public T convert(java.util.List<me.ahoo.wow.api.query.Sort>);|descriptor: (Ljava/util/List;)Ljava/lang/Object;
 me.ahoo.wow.query.converter.AbstractSortConverter#public me.ahoo.wow.query.converter.AbstractSortConverter();|descriptor: ()V
-me.ahoo.wow.query.converter.ConditionConverter#class
+me.ahoo.wow.query.converter.ConditionConverter#class|public interface me.ahoo.wow.query.converter.ConditionConverter<T> {
 me.ahoo.wow.query.converter.ConditionConverter#public abstract T convert(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Ljava/lang/Object;
-me.ahoo.wow.query.converter.DeleteConditionGuard#class
+me.ahoo.wow.query.converter.DeleteConditionGuard#class|public final class me.ahoo.wow.query.converter.DeleteConditionGuard {
 me.ahoo.wow.query.converter.DeleteConditionGuard#public final me.ahoo.wow.api.query.Condition guard(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Lme/ahoo/wow/api/query/Condition;
 me.ahoo.wow.query.converter.DeleteConditionGuard#public static final me.ahoo.wow.query.converter.DeleteConditionGuard INSTANCE;|descriptor: Lme/ahoo/wow/query/converter/DeleteConditionGuard;
-me.ahoo.wow.query.converter.FieldConverter#class
+me.ahoo.wow.query.converter.FieldConverter#class|public interface me.ahoo.wow.query.converter.FieldConverter {
 me.ahoo.wow.query.converter.FieldConverter#public abstract java.lang.String convert(java.lang.String);|descriptor: (Ljava/lang/String;)Ljava/lang/String;
-me.ahoo.wow.query.converter.ProjectionConverter#class
+me.ahoo.wow.query.converter.ProjectionConverter#class|public interface me.ahoo.wow.query.converter.ProjectionConverter<T> {
 me.ahoo.wow.query.converter.ProjectionConverter#public abstract T convert(me.ahoo.wow.api.query.Projection);|descriptor: (Lme/ahoo/wow/api/query/Projection;)Ljava/lang/Object;
-me.ahoo.wow.query.converter.SortConverter#class
+me.ahoo.wow.query.converter.SortConverter#class|public interface me.ahoo.wow.query.converter.SortConverter<T> {
 me.ahoo.wow.query.converter.SortConverter#public abstract T convert(java.util.List<me.ahoo.wow.api.query.Sort>);|descriptor: (Ljava/util/List;)Ljava/lang/Object;
-me.ahoo.wow.query.dsl.BetweenStart#class
+me.ahoo.wow.query.dsl.BetweenStart#class|public final class me.ahoo.wow.query.dsl.BetweenStart<V> {
 me.ahoo.wow.query.dsl.BetweenStart#public boolean equals(java.lang.Object);|descriptor: (Ljava/lang/Object;)Z
 me.ahoo.wow.query.dsl.BetweenStart#public final V component2();|descriptor: ()Ljava/lang/Object;
 me.ahoo.wow.query.dsl.BetweenStart#public final V getStart();|descriptor: ()Ljava/lang/Object;
@@ -76,7 +91,7 @@ me.ahoo.wow.query.dsl.BetweenStart#public int hashCode();|descriptor: ()I
 me.ahoo.wow.query.dsl.BetweenStart#public java.lang.String toString();|descriptor: ()Ljava/lang/String;
 me.ahoo.wow.query.dsl.BetweenStart#public me.ahoo.wow.query.dsl.BetweenStart(java.lang.String, V);|descriptor: (Ljava/lang/String;Ljava/lang/Object;)V
 me.ahoo.wow.query.dsl.BetweenStart#public static me.ahoo.wow.query.dsl.BetweenStart copy$default(me.ahoo.wow.query.dsl.BetweenStart, java.lang.String, java.lang.Object, int, java.lang.Object);|descriptor: (Lme/ahoo/wow/query/dsl/BetweenStart;Ljava/lang/String;Ljava/lang/Object;ILjava/lang/Object;)Lme/ahoo/wow/query/dsl/BetweenStart;
-me.ahoo.wow.query.dsl.ConditionDsl#class
+me.ahoo.wow.query.dsl.ConditionDsl#class|public final class me.ahoo.wow.query.dsl.ConditionDsl extends me.ahoo.wow.query.dsl.NestedFieldDsl {
 me.ahoo.wow.query.dsl.ConditionDsl#public final <V> me.ahoo.wow.query.dsl.BetweenStart<V> between(java.lang.String, V);|descriptor: (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/query/dsl/BetweenStart;
 me.ahoo.wow.query.dsl.ConditionDsl#public final <V> me.ahoo.wow.query.dsl.BetweenStart<V> between(kotlin.reflect.KCallable<?>, V);|descriptor: (Lkotlin/reflect/KCallable;Ljava/lang/Object;)Lme/ahoo/wow/query/dsl/BetweenStart;
 me.ahoo.wow.query.dsl.ConditionDsl#public final <V> void between(java.lang.String, kotlin.Pair<? extends V, ? extends V>);|descriptor: (Ljava/lang/String;Lkotlin/Pair;)V
@@ -182,33 +197,40 @@ me.ahoo.wow.query.dsl.ConditionDsl#public static void today$default(me.ahoo.wow.
 me.ahoo.wow.query.dsl.ConditionDsl#public static void today$default(me.ahoo.wow.query.dsl.ConditionDsl, kotlin.reflect.KCallable, java.lang.Object, int, java.lang.Object);|descriptor: (Lme/ahoo/wow/query/dsl/ConditionDsl;Lkotlin/reflect/KCallable;Ljava/lang/Object;ILjava/lang/Object;)V
 me.ahoo.wow.query.dsl.ConditionDsl#public static void tomorrow$default(me.ahoo.wow.query.dsl.ConditionDsl, java.lang.String, java.lang.Object, int, java.lang.Object);|descriptor: (Lme/ahoo/wow/query/dsl/ConditionDsl;Ljava/lang/String;Ljava/lang/Object;ILjava/lang/Object;)V
 me.ahoo.wow.query.dsl.ConditionDsl#public static void tomorrow$default(me.ahoo.wow.query.dsl.ConditionDsl, kotlin.reflect.KCallable, java.lang.Object, int, java.lang.Object);|descriptor: (Lme/ahoo/wow/query/dsl/ConditionDsl;Lkotlin/reflect/KCallable;Ljava/lang/Object;ILjava/lang/Object;)V
-me.ahoo.wow.query.dsl.ListQueryDsl#class
+me.ahoo.wow.query.dsl.ListQueryDsl#class|public final class me.ahoo.wow.query.dsl.ListQueryDsl extends me.ahoo.wow.query.dsl.QueryableDsl<me.ahoo.wow.api.query.IListQuery> {
 me.ahoo.wow.query.dsl.ListQueryDsl#public final void limit(int);|descriptor: (I)V
 me.ahoo.wow.query.dsl.ListQueryDsl#public me.ahoo.wow.api.query.IListQuery build();|descriptor: ()Lme/ahoo/wow/api/query/IListQuery;
 me.ahoo.wow.query.dsl.ListQueryDsl#public me.ahoo.wow.api.query.Queryable build();|descriptor: ()Lme/ahoo/wow/api/query/Queryable;
 me.ahoo.wow.query.dsl.ListQueryDsl#public me.ahoo.wow.query.dsl.ListQueryDsl();|descriptor: ()V
-me.ahoo.wow.query.dsl.NestedFieldDsl#class
+me.ahoo.wow.query.dsl.NestedFieldDsl#class|public abstract class me.ahoo.wow.query.dsl.NestedFieldDsl {
+me.ahoo.wow.query.dsl.NestedFieldDsl#protected final java.lang.String getNestedField();|descriptor: ()Ljava/lang/String;
 me.ahoo.wow.query.dsl.NestedFieldDsl#public final java.lang.String withNestedField(java.lang.String);|descriptor: (Ljava/lang/String;)Ljava/lang/String;
 me.ahoo.wow.query.dsl.NestedFieldDsl#public final void nested(java.lang.String);|descriptor: (Ljava/lang/String;)V
 me.ahoo.wow.query.dsl.NestedFieldDsl#public me.ahoo.wow.query.dsl.NestedFieldDsl();|descriptor: ()V
-me.ahoo.wow.query.dsl.PagedQueryDsl#class
+me.ahoo.wow.query.dsl.PagedQueryDsl#class|public final class me.ahoo.wow.query.dsl.PagedQueryDsl extends me.ahoo.wow.query.dsl.QueryableDsl<me.ahoo.wow.api.query.IPagedQuery> {
 me.ahoo.wow.query.dsl.PagedQueryDsl#public final void pagination(kotlin.jvm.functions.Function1<? super me.ahoo.wow.query.dsl.PaginationDsl, kotlin.Unit>);|descriptor: (Lkotlin/jvm/functions/Function1;)V
 me.ahoo.wow.query.dsl.PagedQueryDsl#public final void pagination(me.ahoo.wow.api.query.Pagination);|descriptor: (Lme/ahoo/wow/api/query/Pagination;)V
 me.ahoo.wow.query.dsl.PagedQueryDsl#public me.ahoo.wow.api.query.IPagedQuery build();|descriptor: ()Lme/ahoo/wow/api/query/IPagedQuery;
 me.ahoo.wow.query.dsl.PagedQueryDsl#public me.ahoo.wow.api.query.Queryable build();|descriptor: ()Lme/ahoo/wow/api/query/Queryable;
 me.ahoo.wow.query.dsl.PagedQueryDsl#public me.ahoo.wow.query.dsl.PagedQueryDsl();|descriptor: ()V
-me.ahoo.wow.query.dsl.PaginationDsl#class
+me.ahoo.wow.query.dsl.PaginationDsl#class|public final class me.ahoo.wow.query.dsl.PaginationDsl {
 me.ahoo.wow.query.dsl.PaginationDsl#public final me.ahoo.wow.api.query.Pagination build();|descriptor: ()Lme/ahoo/wow/api/query/Pagination;
 me.ahoo.wow.query.dsl.PaginationDsl#public final void index(int);|descriptor: (I)V
 me.ahoo.wow.query.dsl.PaginationDsl#public final void size(int);|descriptor: (I)V
 me.ahoo.wow.query.dsl.PaginationDsl#public me.ahoo.wow.query.dsl.PaginationDsl();|descriptor: ()V
-me.ahoo.wow.query.dsl.ProjectionDsl#class
+me.ahoo.wow.query.dsl.ProjectionDsl#class|public final class me.ahoo.wow.query.dsl.ProjectionDsl extends me.ahoo.wow.query.dsl.NestedFieldDsl {
 me.ahoo.wow.query.dsl.ProjectionDsl#public final me.ahoo.wow.api.query.Projection build();|descriptor: ()Lme/ahoo/wow/api/query/Projection;
 me.ahoo.wow.query.dsl.ProjectionDsl#public final void exclude(java.lang.String...);|descriptor: ([Ljava/lang/String;)V
 me.ahoo.wow.query.dsl.ProjectionDsl#public final void include(java.lang.String...);|descriptor: ([Ljava/lang/String;)V
 me.ahoo.wow.query.dsl.ProjectionDsl#public me.ahoo.wow.query.dsl.ProjectionDsl();|descriptor: ()V
-me.ahoo.wow.query.dsl.QueryDslMarker#class
-me.ahoo.wow.query.dsl.QueryableDsl#class
+me.ahoo.wow.query.dsl.QueryDslMarker#class|public interface me.ahoo.wow.query.dsl.QueryDslMarker extends java.lang.annotation.Annotation {
+me.ahoo.wow.query.dsl.QueryableDsl#class|public abstract class me.ahoo.wow.query.dsl.QueryableDsl<Q extends me.ahoo.wow.api.query.Queryable<Q>> {
+me.ahoo.wow.query.dsl.QueryableDsl#protected final java.util.List<me.ahoo.wow.api.query.Sort> getSort();|descriptor: ()Ljava/util/List;
+me.ahoo.wow.query.dsl.QueryableDsl#protected final me.ahoo.wow.api.query.Condition getCondition();|descriptor: ()Lme/ahoo/wow/api/query/Condition;
+me.ahoo.wow.query.dsl.QueryableDsl#protected final me.ahoo.wow.api.query.Projection getProjection();|descriptor: ()Lme/ahoo/wow/api/query/Projection;
+me.ahoo.wow.query.dsl.QueryableDsl#protected final void setCondition(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)V
+me.ahoo.wow.query.dsl.QueryableDsl#protected final void setProjection(me.ahoo.wow.api.query.Projection);|descriptor: (Lme/ahoo/wow/api/query/Projection;)V
+me.ahoo.wow.query.dsl.QueryableDsl#protected final void setSort(java.util.List<me.ahoo.wow.api.query.Sort>);|descriptor: (Ljava/util/List;)V
 me.ahoo.wow.query.dsl.QueryableDsl#public abstract Q build();|descriptor: ()Lme/ahoo/wow/api/query/Queryable;
 me.ahoo.wow.query.dsl.QueryableDsl#public final void condition(kotlin.jvm.functions.Function1<? super me.ahoo.wow.query.dsl.ConditionDsl, kotlin.Unit>);|descriptor: (Lkotlin/jvm/functions/Function1;)V
 me.ahoo.wow.query.dsl.QueryableDsl#public final void condition(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)V
@@ -217,27 +239,28 @@ me.ahoo.wow.query.dsl.QueryableDsl#public final void projection(me.ahoo.wow.api.
 me.ahoo.wow.query.dsl.QueryableDsl#public final void sort(java.util.List<me.ahoo.wow.api.query.Sort>);|descriptor: (Ljava/util/List;)V
 me.ahoo.wow.query.dsl.QueryableDsl#public final void sort(kotlin.jvm.functions.Function1<? super me.ahoo.wow.query.dsl.SortDsl, kotlin.Unit>);|descriptor: (Lkotlin/jvm/functions/Function1;)V
 me.ahoo.wow.query.dsl.QueryableDsl#public me.ahoo.wow.query.dsl.QueryableDsl();|descriptor: ()V
-me.ahoo.wow.query.dsl.SingleQueryDsl#class
+me.ahoo.wow.query.dsl.SingleQueryDsl#class|public final class me.ahoo.wow.query.dsl.SingleQueryDsl extends me.ahoo.wow.query.dsl.QueryableDsl<me.ahoo.wow.api.query.ISingleQuery> {
 me.ahoo.wow.query.dsl.SingleQueryDsl#public me.ahoo.wow.api.query.ISingleQuery build();|descriptor: ()Lme/ahoo/wow/api/query/ISingleQuery;
 me.ahoo.wow.query.dsl.SingleQueryDsl#public me.ahoo.wow.api.query.Queryable build();|descriptor: ()Lme/ahoo/wow/api/query/Queryable;
 me.ahoo.wow.query.dsl.SingleQueryDsl#public me.ahoo.wow.query.dsl.SingleQueryDsl();|descriptor: ()V
-me.ahoo.wow.query.dsl.SortDsl#class
+me.ahoo.wow.query.dsl.SortDsl#class|public final class me.ahoo.wow.query.dsl.SortDsl extends me.ahoo.wow.query.dsl.NestedFieldDsl {
 me.ahoo.wow.query.dsl.SortDsl#public final java.util.List<me.ahoo.wow.api.query.Sort> build();|descriptor: ()Ljava/util/List;
 me.ahoo.wow.query.dsl.SortDsl#public final void asc(java.lang.String);|descriptor: (Ljava/lang/String;)V
 me.ahoo.wow.query.dsl.SortDsl#public final void desc(java.lang.String);|descriptor: (Ljava/lang/String;)V
 me.ahoo.wow.query.dsl.SortDsl#public final void sort(me.ahoo.wow.api.query.Sort);|descriptor: (Lme/ahoo/wow/api/query/Sort;)V
 me.ahoo.wow.query.dsl.SortDsl#public me.ahoo.wow.query.dsl.SortDsl();|descriptor: ()V
-me.ahoo.wow.query.event.AbstractEventStreamQueryServiceFactory#class
+me.ahoo.wow.query.event.AbstractEventStreamQueryServiceFactory#class|public abstract class me.ahoo.wow.query.event.AbstractEventStreamQueryServiceFactory implements me.ahoo.wow.query.event.EventStreamQueryServiceFactory {
+me.ahoo.wow.query.event.AbstractEventStreamQueryServiceFactory#protected abstract me.ahoo.wow.query.event.EventStreamQueryService createQueryService(me.ahoo.wow.api.modeling.NamedAggregate);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;)Lme/ahoo/wow/query/event/EventStreamQueryService;
 me.ahoo.wow.query.event.AbstractEventStreamQueryServiceFactory#public me.ahoo.wow.query.event.AbstractEventStreamQueryServiceFactory();|descriptor: ()V
 me.ahoo.wow.query.event.AbstractEventStreamQueryServiceFactory#public me.ahoo.wow.query.event.EventStreamQueryService create(me.ahoo.wow.api.modeling.NamedAggregate);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;)Lme/ahoo/wow/query/event/EventStreamQueryService;
-me.ahoo.wow.query.event.EventStreamQueryService#class
+me.ahoo.wow.query.event.EventStreamQueryService#class|public interface me.ahoo.wow.query.event.EventStreamQueryService extends me.ahoo.wow.query.QueryService<me.ahoo.wow.event.DomainEventStream> {
 me.ahoo.wow.query.event.EventStreamQueryService#public static boolean access$isSameAggregateName$jd(me.ahoo.wow.query.event.EventStreamQueryService, me.ahoo.wow.api.modeling.NamedAggregate);|descriptor: (Lme/ahoo/wow/query/event/EventStreamQueryService;Lme/ahoo/wow/api/modeling/NamedAggregate;)Z
 me.ahoo.wow.query.event.EventStreamQueryService#public static boolean access$isSameBoundedContext$jd(me.ahoo.wow.query.event.EventStreamQueryService, me.ahoo.wow.api.naming.NamedBoundedContext);|descriptor: (Lme/ahoo/wow/query/event/EventStreamQueryService;Lme/ahoo/wow/api/naming/NamedBoundedContext;)Z
 me.ahoo.wow.query.event.EventStreamQueryService#public static java.lang.String access$getAggregateName$jd(me.ahoo.wow.query.event.EventStreamQueryService);|descriptor: (Lme/ahoo/wow/query/event/EventStreamQueryService;)Ljava/lang/String;
 me.ahoo.wow.query.event.EventStreamQueryService#public static java.lang.String access$getContextName$jd(me.ahoo.wow.query.event.EventStreamQueryService);|descriptor: (Lme/ahoo/wow/query/event/EventStreamQueryService;)Ljava/lang/String;
-me.ahoo.wow.query.event.EventStreamQueryServiceFactory#class
+me.ahoo.wow.query.event.EventStreamQueryServiceFactory#class|public interface me.ahoo.wow.query.event.EventStreamQueryServiceFactory {
 me.ahoo.wow.query.event.EventStreamQueryServiceFactory#public abstract me.ahoo.wow.query.event.EventStreamQueryService create(me.ahoo.wow.api.modeling.NamedAggregate);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;)Lme/ahoo/wow/query/event/EventStreamQueryService;
-me.ahoo.wow.query.event.NoOpEventStreamQueryService#class
+me.ahoo.wow.query.event.NoOpEventStreamQueryService#class|public final class me.ahoo.wow.query.event.NoOpEventStreamQueryService implements me.ahoo.wow.query.event.EventStreamQueryService {
 me.ahoo.wow.query.event.NoOpEventStreamQueryService#public boolean isSameAggregateName(me.ahoo.wow.api.modeling.NamedAggregate);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;)Z
 me.ahoo.wow.query.event.NoOpEventStreamQueryService#public boolean isSameBoundedContext(me.ahoo.wow.api.naming.NamedBoundedContext);|descriptor: (Lme/ahoo/wow/api/naming/NamedBoundedContext;)Z
 me.ahoo.wow.query.event.NoOpEventStreamQueryService#public java.lang.String getAggregateName();|descriptor: ()Ljava/lang/String;
@@ -251,24 +274,24 @@ me.ahoo.wow.query.event.NoOpEventStreamQueryService#public reactor.core.publishe
 me.ahoo.wow.query.event.NoOpEventStreamQueryService#public reactor.core.publisher.Mono<me.ahoo.wow.api.query.PagedList<me.ahoo.wow.api.query.DynamicDocument>> dynamicPaged(me.ahoo.wow.api.query.IPagedQuery);|descriptor: (Lme/ahoo/wow/api/query/IPagedQuery;)Lreactor/core/publisher/Mono;
 me.ahoo.wow.query.event.NoOpEventStreamQueryService#public reactor.core.publisher.Mono<me.ahoo.wow.api.query.PagedList<me.ahoo.wow.event.DomainEventStream>> paged(me.ahoo.wow.api.query.IPagedQuery);|descriptor: (Lme/ahoo/wow/api/query/IPagedQuery;)Lreactor/core/publisher/Mono;
 me.ahoo.wow.query.event.NoOpEventStreamQueryService#public reactor.core.publisher.Mono<me.ahoo.wow.event.DomainEventStream> single(me.ahoo.wow.api.query.ISingleQuery);|descriptor: (Lme/ahoo/wow/api/query/ISingleQuery;)Lreactor/core/publisher/Mono;
-me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory#class
+me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory#class|public final class me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory implements me.ahoo.wow.query.event.EventStreamQueryServiceFactory {
 me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory#public me.ahoo.wow.query.event.EventStreamQueryService create(me.ahoo.wow.api.modeling.NamedAggregate);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;)Lme/ahoo/wow/query/event/EventStreamQueryService;
 me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory#public static final me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory INSTANCE;|descriptor: Lme/ahoo/wow/query/event/NoOpEventStreamQueryServiceFactory;
-me.ahoo.wow.query.event.RoutingEventStreamQueryServiceFactory#class
+me.ahoo.wow.query.event.RoutingEventStreamQueryServiceFactory#class|public final class me.ahoo.wow.query.event.RoutingEventStreamQueryServiceFactory implements me.ahoo.wow.query.event.EventStreamQueryServiceFactory {
 me.ahoo.wow.query.event.RoutingEventStreamQueryServiceFactory#public me.ahoo.wow.query.event.EventStreamQueryService create(me.ahoo.wow.api.modeling.NamedAggregate);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;)Lme/ahoo/wow/query/event/EventStreamQueryService;
 me.ahoo.wow.query.event.RoutingEventStreamQueryServiceFactory#public me.ahoo.wow.query.event.RoutingEventStreamQueryServiceFactory(me.ahoo.wow.query.event.EventStreamQueryServiceFactory, java.util.Map<me.ahoo.wow.api.modeling.NamedAggregate, ? extends me.ahoo.wow.query.event.EventStreamQueryServiceFactory>);|descriptor: (Lme/ahoo/wow/query/event/EventStreamQueryServiceFactory;Ljava/util/Map;)V
-me.ahoo.wow.query.event.filter.DefaultEventStreamQueryHandler#class
+me.ahoo.wow.query.event.filter.DefaultEventStreamQueryHandler#class|public final class me.ahoo.wow.query.event.filter.DefaultEventStreamQueryHandler extends me.ahoo.wow.query.filter.AbstractQueryHandler<me.ahoo.wow.event.DomainEventStream> implements me.ahoo.wow.query.event.filter.EventStreamQueryHandler {
 me.ahoo.wow.query.event.filter.DefaultEventStreamQueryHandler#public me.ahoo.wow.query.event.filter.DefaultEventStreamQueryHandler(me.ahoo.wow.filter.FilterChain, me.ahoo.wow.filter.ErrorHandler, int, kotlin.jvm.internal.DefaultConstructorMarker);|descriptor: (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 me.ahoo.wow.query.event.filter.DefaultEventStreamQueryHandler#public me.ahoo.wow.query.event.filter.DefaultEventStreamQueryHandler(me.ahoo.wow.filter.FilterChain<me.ahoo.wow.query.filter.QueryContext<?, ?>>, me.ahoo.wow.filter.ErrorHandler<me.ahoo.wow.query.filter.QueryContext<?, ?>>);|descriptor: (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;)V
-me.ahoo.wow.query.event.filter.EventStreamQueryFilter#class
-me.ahoo.wow.query.event.filter.EventStreamQueryHandler#class
-me.ahoo.wow.query.event.filter.MaskingEventStreamQueryFilter#class
+me.ahoo.wow.query.event.filter.EventStreamQueryFilter#class|public interface me.ahoo.wow.query.event.filter.EventStreamQueryFilter extends me.ahoo.wow.query.filter.QueryFilter<me.ahoo.wow.query.filter.QueryContext<?, ?>> {
+me.ahoo.wow.query.event.filter.EventStreamQueryHandler#class|public interface me.ahoo.wow.query.event.filter.EventStreamQueryHandler extends me.ahoo.wow.query.filter.QueryHandler<me.ahoo.wow.event.DomainEventStream> {
+me.ahoo.wow.query.event.filter.MaskingEventStreamQueryFilter#class|public final class me.ahoo.wow.query.event.filter.MaskingEventStreamQueryFilter extends me.ahoo.wow.query.filter.MaskingDynamicDocumentQueryFilter<me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker> implements me.ahoo.wow.query.event.filter.EventStreamQueryFilter {
 me.ahoo.wow.query.event.filter.MaskingEventStreamQueryFilter#public me.ahoo.wow.query.event.filter.MaskingEventStreamQueryFilter(me.ahoo.wow.query.mask.EventStreamMaskerRegistry);|descriptor: (Lme/ahoo/wow/query/mask/EventStreamMaskerRegistry;)V
-me.ahoo.wow.query.event.filter.TailEventStreamQueryFilter#class
+me.ahoo.wow.query.event.filter.TailEventStreamQueryFilter#class|public final class me.ahoo.wow.query.event.filter.TailEventStreamQueryFilter implements me.ahoo.wow.query.event.filter.EventStreamQueryFilter {
 me.ahoo.wow.query.event.filter.TailEventStreamQueryFilter#public me.ahoo.wow.query.event.filter.TailEventStreamQueryFilter(me.ahoo.wow.query.event.EventStreamQueryServiceFactory);|descriptor: (Lme/ahoo/wow/query/event/EventStreamQueryServiceFactory;)V
 me.ahoo.wow.query.event.filter.TailEventStreamQueryFilter#public reactor.core.publisher.Mono filter(java.lang.Object, me.ahoo.wow.filter.FilterChain);|descriptor: (Ljava/lang/Object;Lme/ahoo/wow/filter/FilterChain;)Lreactor/core/publisher/Mono;
 me.ahoo.wow.query.event.filter.TailEventStreamQueryFilter#public reactor.core.publisher.Mono<java.lang.Void> filter(me.ahoo.wow.query.filter.QueryContext<?, ?>, me.ahoo.wow.filter.FilterChain<me.ahoo.wow.query.filter.QueryContext<?, ?>>);|descriptor: (Lme/ahoo/wow/query/filter/QueryContext;Lme/ahoo/wow/filter/FilterChain;)Lreactor/core/publisher/Mono;
-me.ahoo.wow.query.filter.AbstractQueryHandler#class
+me.ahoo.wow.query.filter.AbstractQueryHandler#class|public abstract class me.ahoo.wow.query.filter.AbstractQueryHandler<R> implements me.ahoo.wow.query.filter.QueryHandler<R> {
 me.ahoo.wow.query.filter.AbstractQueryHandler#public me.ahoo.wow.query.filter.AbstractQueryHandler(me.ahoo.wow.filter.FilterChain<me.ahoo.wow.query.filter.QueryContext<?, ?>>, me.ahoo.wow.filter.ErrorHandler<me.ahoo.wow.query.filter.QueryContext<?, ?>>);|descriptor: (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;)V
 me.ahoo.wow.query.filter.AbstractQueryHandler#public reactor.core.publisher.Flux<R> list(me.ahoo.wow.api.modeling.NamedAggregate, me.ahoo.wow.api.query.IListQuery);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;Lme/ahoo/wow/api/query/IListQuery;)Lreactor/core/publisher/Flux;
 me.ahoo.wow.query.filter.AbstractQueryHandler#public reactor.core.publisher.Flux<me.ahoo.wow.api.query.DynamicDocument> dynamicList(me.ahoo.wow.api.modeling.NamedAggregate, me.ahoo.wow.api.query.IListQuery);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;Lme/ahoo/wow/api/query/IListQuery;)Lreactor/core/publisher/Flux;
@@ -279,12 +302,12 @@ me.ahoo.wow.query.filter.AbstractQueryHandler#public reactor.core.publisher.Mono
 me.ahoo.wow.query.filter.AbstractQueryHandler#public reactor.core.publisher.Mono<me.ahoo.wow.api.query.DynamicDocument> dynamicSingle(me.ahoo.wow.api.modeling.NamedAggregate, me.ahoo.wow.api.query.ISingleQuery);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;Lme/ahoo/wow/api/query/ISingleQuery;)Lreactor/core/publisher/Mono;
 me.ahoo.wow.query.filter.AbstractQueryHandler#public reactor.core.publisher.Mono<me.ahoo.wow.api.query.PagedList<R>> paged(me.ahoo.wow.api.modeling.NamedAggregate, me.ahoo.wow.api.query.IPagedQuery);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;Lme/ahoo/wow/api/query/IPagedQuery;)Lreactor/core/publisher/Mono;
 me.ahoo.wow.query.filter.AbstractQueryHandler#public reactor.core.publisher.Mono<me.ahoo.wow.api.query.PagedList<me.ahoo.wow.api.query.DynamicDocument>> dynamicPaged(me.ahoo.wow.api.modeling.NamedAggregate, me.ahoo.wow.api.query.IPagedQuery);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;Lme/ahoo/wow/api/query/IPagedQuery;)Lreactor/core/publisher/Mono;
-me.ahoo.wow.query.filter.Contexts#class
+me.ahoo.wow.query.filter.Contexts#class|public final class me.ahoo.wow.query.filter.Contexts {
 me.ahoo.wow.query.filter.Contexts#public final <R> R getRawRequest(reactor.util.context.ContextView);|descriptor: (Lreactor/util/context/ContextView;)Ljava/lang/Object;
 me.ahoo.wow.query.filter.Contexts#public final <T> reactor.core.publisher.Flux<T> writeRawRequest(reactor.core.publisher.Flux<T>, java.lang.Object);|descriptor: (Lreactor/core/publisher/Flux;Ljava/lang/Object;)Lreactor/core/publisher/Flux;
 me.ahoo.wow.query.filter.Contexts#public final <T> reactor.core.publisher.Mono<T> writeRawRequest(reactor.core.publisher.Mono<T>, java.lang.Object);|descriptor: (Lreactor/core/publisher/Mono;Ljava/lang/Object;)Lreactor/core/publisher/Mono;
 me.ahoo.wow.query.filter.Contexts#public static final me.ahoo.wow.query.filter.Contexts INSTANCE;|descriptor: Lme/ahoo/wow/query/filter/Contexts;
-me.ahoo.wow.query.filter.DefaultQueryContext#class
+me.ahoo.wow.query.filter.DefaultQueryContext#class|public final class me.ahoo.wow.query.filter.DefaultQueryContext<Q, R> implements me.ahoo.wow.query.filter.QueryContext<Q, R> {
 me.ahoo.wow.query.filter.DefaultQueryContext#public <E> me.ahoo.wow.query.filter.QueryContext<me.ahoo.wow.api.query.IListQuery, reactor.core.publisher.Flux<E>> asListQuery();|descriptor: ()Lme/ahoo/wow/query/filter/QueryContext;
 me.ahoo.wow.query.filter.DefaultQueryContext#public <E> me.ahoo.wow.query.filter.QueryContext<me.ahoo.wow.api.query.IPagedQuery, reactor.core.publisher.Mono<me.ahoo.wow.api.query.PagedList<E>>> asPagedQuery();|descriptor: ()Lme/ahoo/wow/query/filter/QueryContext;
 me.ahoo.wow.query.filter.DefaultQueryContext#public <E> me.ahoo.wow.query.filter.QueryContext<me.ahoo.wow.api.query.ISingleQuery, reactor.core.publisher.Mono<E>> asSingleQuery();|descriptor: ()Lme/ahoo/wow/query/filter/QueryContext;
@@ -304,12 +327,13 @@ me.ahoo.wow.query.filter.DefaultQueryContext#public me.ahoo.wow.query.filter.Que
 me.ahoo.wow.query.filter.DefaultQueryContext#public me.ahoo.wow.query.filter.QueryContext<me.ahoo.wow.api.query.Condition, reactor.core.publisher.Mono<java.lang.Long>> asCountQuery();|descriptor: ()Lme/ahoo/wow/query/filter/QueryContext;
 me.ahoo.wow.query.filter.DefaultQueryContext#public me.ahoo.wow.query.filter.QueryContext<me.ahoo.wow.api.query.RewritableCondition<?>, R> asRewritableQuery();|descriptor: ()Lme/ahoo/wow/query/filter/QueryContext;
 me.ahoo.wow.query.filter.DefaultQueryContext#public me.ahoo.wow.query.filter.QueryType getQueryType();|descriptor: ()Lme/ahoo/wow/query/filter/QueryType;
-me.ahoo.wow.query.filter.MaskingDynamicDocumentQueryFilter#class
+me.ahoo.wow.query.filter.MaskingDynamicDocumentQueryFilter#class|public abstract class me.ahoo.wow.query.filter.MaskingDynamicDocumentQueryFilter<MASKER extends me.ahoo.wow.query.mask.AggregateDynamicDocumentMasker> implements me.ahoo.wow.query.filter.QueryFilter<me.ahoo.wow.query.filter.QueryContext<?, ?>> {
+me.ahoo.wow.query.filter.MaskingDynamicDocumentQueryFilter#protected final me.ahoo.wow.query.mask.DataMaskerRegistry<MASKER> getMaskerRegistry();|descriptor: ()Lme/ahoo/wow/query/mask/DataMaskerRegistry;
 me.ahoo.wow.query.filter.MaskingDynamicDocumentQueryFilter#public final void maskDynamicDocument(me.ahoo.wow.query.filter.QueryContext<?, ?>);|descriptor: (Lme/ahoo/wow/query/filter/QueryContext;)V
 me.ahoo.wow.query.filter.MaskingDynamicDocumentQueryFilter#public me.ahoo.wow.query.filter.MaskingDynamicDocumentQueryFilter(me.ahoo.wow.query.mask.DataMaskerRegistry<MASKER>);|descriptor: (Lme/ahoo/wow/query/mask/DataMaskerRegistry;)V
 me.ahoo.wow.query.filter.MaskingDynamicDocumentQueryFilter#public reactor.core.publisher.Mono filter(java.lang.Object, me.ahoo.wow.filter.FilterChain);|descriptor: (Ljava/lang/Object;Lme/ahoo/wow/filter/FilterChain;)Lreactor/core/publisher/Mono;
 me.ahoo.wow.query.filter.MaskingDynamicDocumentQueryFilter#public reactor.core.publisher.Mono<java.lang.Void> filter(me.ahoo.wow.query.filter.QueryContext<?, ?>, me.ahoo.wow.filter.FilterChain<me.ahoo.wow.query.filter.QueryContext<?, ?>>);|descriptor: (Lme/ahoo/wow/query/filter/QueryContext;Lme/ahoo/wow/filter/FilterChain;)Lreactor/core/publisher/Mono;
-me.ahoo.wow.query.filter.QueryContext#class
+me.ahoo.wow.query.filter.QueryContext#class|public interface me.ahoo.wow.query.filter.QueryContext<Q, R> {
 me.ahoo.wow.query.filter.QueryContext#public abstract java.util.Map<java.lang.String, java.lang.Object> getAttributes();|descriptor: ()Ljava/util/Map;
 me.ahoo.wow.query.filter.QueryContext#public abstract me.ahoo.wow.api.modeling.NamedAggregate getNamedAggregate();|descriptor: ()Lme/ahoo/wow/api/modeling/NamedAggregate;
 me.ahoo.wow.query.filter.QueryContext#public abstract me.ahoo.wow.query.filter.QueryType getQueryType();|descriptor: ()Lme/ahoo/wow/query/filter/QueryType;
@@ -341,8 +365,8 @@ me.ahoo.wow.query.filter.QueryContext#public static me.ahoo.wow.query.filter.Que
 me.ahoo.wow.query.filter.QueryContext#public static me.ahoo.wow.query.filter.QueryContext access$setQuery$jd(me.ahoo.wow.query.filter.QueryContext, java.lang.Object);|descriptor: (Lme/ahoo/wow/query/filter/QueryContext;Ljava/lang/Object;)Lme/ahoo/wow/query/filter/QueryContext;
 me.ahoo.wow.query.filter.QueryContext#public static me.ahoo.wow.query.filter.QueryContext access$setResult$jd(me.ahoo.wow.query.filter.QueryContext, java.lang.Object);|descriptor: (Lme/ahoo/wow/query/filter/QueryContext;Ljava/lang/Object;)Lme/ahoo/wow/query/filter/QueryContext;
 me.ahoo.wow.query.filter.QueryContext#public static me.ahoo.wow.query.filter.QueryContext access$setResult$jd(me.ahoo.wow.query.filter.QueryContext, kotlin.jvm.functions.Function1);|descriptor: (Lme/ahoo/wow/query/filter/QueryContext;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/query/filter/QueryContext;
-me.ahoo.wow.query.filter.QueryFilter#class
-me.ahoo.wow.query.filter.QueryHandler#class
+me.ahoo.wow.query.filter.QueryFilter#class|public interface me.ahoo.wow.query.filter.QueryFilter<CONTEXT extends me.ahoo.wow.query.filter.QueryContext<?, ?>> extends me.ahoo.wow.filter.Filter<CONTEXT> {
+me.ahoo.wow.query.filter.QueryHandler#class|public interface me.ahoo.wow.query.filter.QueryHandler<R> extends me.ahoo.wow.filter.Handler<me.ahoo.wow.query.filter.QueryContext<?, ?>> {
 me.ahoo.wow.query.filter.QueryHandler#public abstract reactor.core.publisher.Flux<R> list(me.ahoo.wow.api.modeling.NamedAggregate, me.ahoo.wow.api.query.IListQuery);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;Lme/ahoo/wow/api/query/IListQuery;)Lreactor/core/publisher/Flux;
 me.ahoo.wow.query.filter.QueryHandler#public abstract reactor.core.publisher.Flux<me.ahoo.wow.api.query.DynamicDocument> dynamicList(me.ahoo.wow.api.modeling.NamedAggregate, me.ahoo.wow.api.query.IListQuery);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;Lme/ahoo/wow/api/query/IListQuery;)Lreactor/core/publisher/Flux;
 me.ahoo.wow.query.filter.QueryHandler#public abstract reactor.core.publisher.Mono<R> single(me.ahoo.wow.api.modeling.NamedAggregate, me.ahoo.wow.api.query.ISingleQuery);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;Lme/ahoo/wow/api/query/ISingleQuery;)Lreactor/core/publisher/Mono;
@@ -350,7 +374,7 @@ me.ahoo.wow.query.filter.QueryHandler#public abstract reactor.core.publisher.Mon
 me.ahoo.wow.query.filter.QueryHandler#public abstract reactor.core.publisher.Mono<me.ahoo.wow.api.query.DynamicDocument> dynamicSingle(me.ahoo.wow.api.modeling.NamedAggregate, me.ahoo.wow.api.query.ISingleQuery);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;Lme/ahoo/wow/api/query/ISingleQuery;)Lreactor/core/publisher/Mono;
 me.ahoo.wow.query.filter.QueryHandler#public abstract reactor.core.publisher.Mono<me.ahoo.wow.api.query.PagedList<R>> paged(me.ahoo.wow.api.modeling.NamedAggregate, me.ahoo.wow.api.query.IPagedQuery);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;Lme/ahoo/wow/api/query/IPagedQuery;)Lreactor/core/publisher/Mono;
 me.ahoo.wow.query.filter.QueryHandler#public abstract reactor.core.publisher.Mono<me.ahoo.wow.api.query.PagedList<me.ahoo.wow.api.query.DynamicDocument>> dynamicPaged(me.ahoo.wow.api.modeling.NamedAggregate, me.ahoo.wow.api.query.IPagedQuery);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;Lme/ahoo/wow/api/query/IPagedQuery;)Lreactor/core/publisher/Mono;
-me.ahoo.wow.query.filter.QueryType#class
+me.ahoo.wow.query.filter.QueryType#class|public final class me.ahoo.wow.query.filter.QueryType extends java.lang.Enum<me.ahoo.wow.query.filter.QueryType> {
 me.ahoo.wow.query.filter.QueryType#public final boolean isDynamic();|descriptor: ()Z
 me.ahoo.wow.query.filter.QueryType#public static final me.ahoo.wow.query.filter.QueryType COUNT;|descriptor: Lme/ahoo/wow/query/filter/QueryType;
 me.ahoo.wow.query.filter.QueryType#public static final me.ahoo.wow.query.filter.QueryType DYNAMIC_LIST;|descriptor: Lme/ahoo/wow/query/filter/QueryType;
@@ -362,34 +386,34 @@ me.ahoo.wow.query.filter.QueryType#public static final me.ahoo.wow.query.filter.
 me.ahoo.wow.query.filter.QueryType#public static kotlin.enums.EnumEntries<me.ahoo.wow.query.filter.QueryType> getEntries();|descriptor: ()Lkotlin/enums/EnumEntries;
 me.ahoo.wow.query.filter.QueryType#public static me.ahoo.wow.query.filter.QueryType valueOf(java.lang.String);|descriptor: (Ljava/lang/String;)Lme/ahoo/wow/query/filter/QueryType;
 me.ahoo.wow.query.filter.QueryType#public static me.ahoo.wow.query.filter.QueryType[] values();|descriptor: ()[Lme/ahoo/wow/query/filter/QueryType;
-me.ahoo.wow.query.mask.AbstractDataMaskerRegistry#class
+me.ahoo.wow.query.mask.AbstractDataMaskerRegistry#class|public abstract class me.ahoo.wow.query.mask.AbstractDataMaskerRegistry<MASKER extends me.ahoo.wow.query.mask.AggregateDynamicDocumentMasker> implements me.ahoo.wow.query.mask.DataMaskerRegistry<MASKER> {
 me.ahoo.wow.query.mask.AbstractDataMaskerRegistry#public me.ahoo.wow.query.mask.AbstractDataMaskerRegistry();|descriptor: ()V
 me.ahoo.wow.query.mask.AbstractDataMaskerRegistry#public me.ahoo.wow.query.mask.AggregateDataMasker<MASKER> getAggregateDataMasker(me.ahoo.wow.api.modeling.NamedAggregate);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;)Lme/ahoo/wow/query/mask/AggregateDataMasker;
 me.ahoo.wow.query.mask.AbstractDataMaskerRegistry#public static final me.ahoo.wow.query.mask.AbstractDataMaskerRegistry$Companion Companion;|descriptor: Lme/ahoo/wow/query/mask/AbstractDataMaskerRegistry$Companion;
 me.ahoo.wow.query.mask.AbstractDataMaskerRegistry#public void register(MASKER);|descriptor: (Lme/ahoo/wow/query/mask/AggregateDynamicDocumentMasker;)V
 me.ahoo.wow.query.mask.AbstractDataMaskerRegistry#public void unregister(MASKER);|descriptor: (Lme/ahoo/wow/query/mask/AggregateDynamicDocumentMasker;)V
-me.ahoo.wow.query.mask.AbstractDataMaskerRegistry$Companion#class
+me.ahoo.wow.query.mask.AbstractDataMaskerRegistry$Companion#class|public final class me.ahoo.wow.query.mask.AbstractDataMaskerRegistry$Companion {
 me.ahoo.wow.query.mask.AbstractDataMaskerRegistry$Companion#public me.ahoo.wow.query.mask.AbstractDataMaskerRegistry$Companion(kotlin.jvm.internal.DefaultConstructorMarker);|descriptor: (Lkotlin/jvm/internal/DefaultConstructorMarker;)V
-me.ahoo.wow.query.mask.AggregateDataMasker#class
+me.ahoo.wow.query.mask.AggregateDataMasker#class|public interface me.ahoo.wow.query.mask.AggregateDataMasker<MASKER extends me.ahoo.wow.query.mask.DynamicDocumentMasker> extends me.ahoo.wow.query.mask.DynamicDocumentMasker {
 me.ahoo.wow.query.mask.AggregateDataMasker#public abstract java.util.List<MASKER> getMaskers();|descriptor: ()Ljava/util/List;
 me.ahoo.wow.query.mask.AggregateDataMasker#public abstract me.ahoo.wow.api.query.DynamicDocument mask(me.ahoo.wow.api.query.DynamicDocument);|descriptor: (Lme/ahoo/wow/api/query/DynamicDocument;)Lme/ahoo/wow/api/query/DynamicDocument;
 me.ahoo.wow.query.mask.AggregateDataMasker#public abstract me.ahoo.wow.query.mask.AggregateDataMasker<MASKER> addMasker(MASKER);|descriptor: (Lme/ahoo/wow/query/mask/DynamicDocumentMasker;)Lme/ahoo/wow/query/mask/AggregateDataMasker;
 me.ahoo.wow.query.mask.AggregateDataMasker#public abstract me.ahoo.wow.query.mask.AggregateDataMasker<MASKER> removeMasker(MASKER);|descriptor: (Lme/ahoo/wow/query/mask/DynamicDocumentMasker;)Lme/ahoo/wow/query/mask/AggregateDataMasker;
 me.ahoo.wow.query.mask.AggregateDataMasker#public default boolean isEmpty();|descriptor: ()Z
 me.ahoo.wow.query.mask.AggregateDataMasker#public static boolean access$isEmpty$jd(me.ahoo.wow.query.mask.AggregateDataMasker);|descriptor: (Lme/ahoo/wow/query/mask/AggregateDataMasker;)Z
-me.ahoo.wow.query.mask.AggregateDynamicDocumentMasker#class
+me.ahoo.wow.query.mask.AggregateDynamicDocumentMasker#class|public interface me.ahoo.wow.query.mask.AggregateDynamicDocumentMasker extends me.ahoo.wow.query.mask.DynamicDocumentMasker,me.ahoo.wow.api.modeling.NamedAggregateDecorator {
 me.ahoo.wow.query.mask.AggregateDynamicDocumentMasker#public static boolean access$isSameAggregateName$jd(me.ahoo.wow.query.mask.AggregateDynamicDocumentMasker, me.ahoo.wow.api.modeling.NamedAggregate);|descriptor: (Lme/ahoo/wow/query/mask/AggregateDynamicDocumentMasker;Lme/ahoo/wow/api/modeling/NamedAggregate;)Z
 me.ahoo.wow.query.mask.AggregateDynamicDocumentMasker#public static boolean access$isSameBoundedContext$jd(me.ahoo.wow.query.mask.AggregateDynamicDocumentMasker, me.ahoo.wow.api.naming.NamedBoundedContext);|descriptor: (Lme/ahoo/wow/query/mask/AggregateDynamicDocumentMasker;Lme/ahoo/wow/api/naming/NamedBoundedContext;)Z
 me.ahoo.wow.query.mask.AggregateDynamicDocumentMasker#public static java.lang.String access$getAggregateName$jd(me.ahoo.wow.query.mask.AggregateDynamicDocumentMasker);|descriptor: (Lme/ahoo/wow/query/mask/AggregateDynamicDocumentMasker;)Ljava/lang/String;
 me.ahoo.wow.query.mask.AggregateDynamicDocumentMasker#public static java.lang.String access$getContextName$jd(me.ahoo.wow.query.mask.AggregateDynamicDocumentMasker);|descriptor: (Lme/ahoo/wow/query/mask/AggregateDynamicDocumentMasker;)Ljava/lang/String;
-me.ahoo.wow.query.mask.DataMasker#class
-me.ahoo.wow.query.mask.DataMaskerRegistry#class
+me.ahoo.wow.query.mask.DataMasker#class|public interface me.ahoo.wow.query.mask.DataMasker {
+me.ahoo.wow.query.mask.DataMaskerRegistry#class|public interface me.ahoo.wow.query.mask.DataMaskerRegistry<MASKER extends me.ahoo.wow.query.mask.AggregateDynamicDocumentMasker> {
 me.ahoo.wow.query.mask.DataMaskerRegistry#public abstract me.ahoo.wow.query.mask.AggregateDataMasker<MASKER> getAggregateDataMasker(me.ahoo.wow.api.modeling.NamedAggregate);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;)Lme/ahoo/wow/query/mask/AggregateDataMasker;
 me.ahoo.wow.query.mask.DataMaskerRegistry#public abstract void register(MASKER);|descriptor: (Lme/ahoo/wow/query/mask/AggregateDynamicDocumentMasker;)V
 me.ahoo.wow.query.mask.DataMaskerRegistry#public abstract void unregister(MASKER);|descriptor: (Lme/ahoo/wow/query/mask/AggregateDynamicDocumentMasker;)V
-me.ahoo.wow.query.mask.DataMasking#class
+me.ahoo.wow.query.mask.DataMasking#class|public interface me.ahoo.wow.query.mask.DataMasking<SOURCE extends me.ahoo.wow.query.mask.DataMasking<SOURCE>> extends me.ahoo.wow.query.mask.DataMasker {
 me.ahoo.wow.query.mask.DataMasking#public abstract SOURCE mask();|descriptor: ()Lme/ahoo/wow/query/mask/DataMasking;
-me.ahoo.wow.query.mask.DefaultAggregateDataMasker#class
+me.ahoo.wow.query.mask.DefaultAggregateDataMasker#class|public final class me.ahoo.wow.query.mask.DefaultAggregateDataMasker<MASKER extends me.ahoo.wow.query.mask.DynamicDocumentMasker> implements me.ahoo.wow.query.mask.AggregateDataMasker<MASKER> {
 me.ahoo.wow.query.mask.DefaultAggregateDataMasker#public boolean isEmpty();|descriptor: ()Z
 me.ahoo.wow.query.mask.DefaultAggregateDataMasker#public java.util.List<MASKER> getMaskers();|descriptor: ()Ljava/util/List;
 me.ahoo.wow.query.mask.DefaultAggregateDataMasker#public me.ahoo.wow.api.query.DynamicDocument mask(me.ahoo.wow.api.query.DynamicDocument);|descriptor: (Lme/ahoo/wow/api/query/DynamicDocument;)Lme/ahoo/wow/api/query/DynamicDocument;
@@ -398,30 +422,31 @@ me.ahoo.wow.query.mask.DefaultAggregateDataMasker#public me.ahoo.wow.query.mask.
 me.ahoo.wow.query.mask.DefaultAggregateDataMasker#public me.ahoo.wow.query.mask.DefaultAggregateDataMasker(java.util.List<? extends MASKER>);|descriptor: (Ljava/util/List;)V
 me.ahoo.wow.query.mask.DefaultAggregateDataMasker#public static final me.ahoo.wow.query.mask.DefaultAggregateDataMasker access$getEMPTY$cp();|descriptor: ()Lme/ahoo/wow/query/mask/DefaultAggregateDataMasker;
 me.ahoo.wow.query.mask.DefaultAggregateDataMasker#public static final me.ahoo.wow.query.mask.DefaultAggregateDataMasker$Companion Companion;|descriptor: Lme/ahoo/wow/query/mask/DefaultAggregateDataMasker$Companion;
-me.ahoo.wow.query.mask.DefaultAggregateDataMasker$Companion#class
+me.ahoo.wow.query.mask.DefaultAggregateDataMasker$Companion#class|public final class me.ahoo.wow.query.mask.DefaultAggregateDataMasker$Companion {
 me.ahoo.wow.query.mask.DefaultAggregateDataMasker$Companion#public final <MASKER extends me.ahoo.wow.query.mask.DynamicDocumentMasker> me.ahoo.wow.query.mask.DefaultAggregateDataMasker<MASKER> empty();|descriptor: ()Lme/ahoo/wow/query/mask/DefaultAggregateDataMasker;
 me.ahoo.wow.query.mask.DefaultAggregateDataMasker$Companion#public final me.ahoo.wow.query.mask.DefaultAggregateDataMasker<me.ahoo.wow.query.mask.DynamicDocumentMasker> getEMPTY();|descriptor: ()Lme/ahoo/wow/query/mask/DefaultAggregateDataMasker;
 me.ahoo.wow.query.mask.DefaultAggregateDataMasker$Companion#public me.ahoo.wow.query.mask.DefaultAggregateDataMasker$Companion(kotlin.jvm.internal.DefaultConstructorMarker);|descriptor: (Lkotlin/jvm/internal/DefaultConstructorMarker;)V
-me.ahoo.wow.query.mask.DynamicDocumentMasker#class
+me.ahoo.wow.query.mask.DynamicDocumentMasker#class|public interface me.ahoo.wow.query.mask.DynamicDocumentMasker {
 me.ahoo.wow.query.mask.DynamicDocumentMasker#public abstract me.ahoo.wow.api.query.DynamicDocument mask(me.ahoo.wow.api.query.DynamicDocument);|descriptor: (Lme/ahoo/wow/api/query/DynamicDocument;)Lme/ahoo/wow/api/query/DynamicDocument;
-me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker#class
+me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker#class|public interface me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker extends me.ahoo.wow.query.mask.AggregateDynamicDocumentMasker {
 me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker#public static boolean access$isSameAggregateName$jd(me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker, me.ahoo.wow.api.modeling.NamedAggregate);|descriptor: (Lme/ahoo/wow/query/mask/EventStreamDynamicDocumentMasker;Lme/ahoo/wow/api/modeling/NamedAggregate;)Z
 me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker#public static boolean access$isSameBoundedContext$jd(me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker, me.ahoo.wow.api.naming.NamedBoundedContext);|descriptor: (Lme/ahoo/wow/query/mask/EventStreamDynamicDocumentMasker;Lme/ahoo/wow/api/naming/NamedBoundedContext;)Z
 me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker#public static java.lang.String access$getAggregateName$jd(me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker);|descriptor: (Lme/ahoo/wow/query/mask/EventStreamDynamicDocumentMasker;)Ljava/lang/String;
 me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker#public static java.lang.String access$getContextName$jd(me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker);|descriptor: (Lme/ahoo/wow/query/mask/EventStreamDynamicDocumentMasker;)Ljava/lang/String;
-me.ahoo.wow.query.mask.EventStreamMaskerRegistry#class
+me.ahoo.wow.query.mask.EventStreamMaskerRegistry#class|public final class me.ahoo.wow.query.mask.EventStreamMaskerRegistry extends me.ahoo.wow.query.mask.AbstractDataMaskerRegistry<me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker> {
 me.ahoo.wow.query.mask.EventStreamMaskerRegistry#public me.ahoo.wow.query.mask.EventStreamMaskerRegistry();|descriptor: ()V
-me.ahoo.wow.query.mask.StateDataMaskerRegistry#class
+me.ahoo.wow.query.mask.StateDataMaskerRegistry#class|public final class me.ahoo.wow.query.mask.StateDataMaskerRegistry extends me.ahoo.wow.query.mask.AbstractDataMaskerRegistry<me.ahoo.wow.query.mask.StateDynamicDocumentMasker> {
 me.ahoo.wow.query.mask.StateDataMaskerRegistry#public me.ahoo.wow.query.mask.StateDataMaskerRegistry();|descriptor: ()V
-me.ahoo.wow.query.mask.StateDynamicDocumentMasker#class
+me.ahoo.wow.query.mask.StateDynamicDocumentMasker#class|public interface me.ahoo.wow.query.mask.StateDynamicDocumentMasker extends me.ahoo.wow.query.mask.AggregateDynamicDocumentMasker {
 me.ahoo.wow.query.mask.StateDynamicDocumentMasker#public static boolean access$isSameAggregateName$jd(me.ahoo.wow.query.mask.StateDynamicDocumentMasker, me.ahoo.wow.api.modeling.NamedAggregate);|descriptor: (Lme/ahoo/wow/query/mask/StateDynamicDocumentMasker;Lme/ahoo/wow/api/modeling/NamedAggregate;)Z
 me.ahoo.wow.query.mask.StateDynamicDocumentMasker#public static boolean access$isSameBoundedContext$jd(me.ahoo.wow.query.mask.StateDynamicDocumentMasker, me.ahoo.wow.api.naming.NamedBoundedContext);|descriptor: (Lme/ahoo/wow/query/mask/StateDynamicDocumentMasker;Lme/ahoo/wow/api/naming/NamedBoundedContext;)Z
 me.ahoo.wow.query.mask.StateDynamicDocumentMasker#public static java.lang.String access$getAggregateName$jd(me.ahoo.wow.query.mask.StateDynamicDocumentMasker);|descriptor: (Lme/ahoo/wow/query/mask/StateDynamicDocumentMasker;)Ljava/lang/String;
 me.ahoo.wow.query.mask.StateDynamicDocumentMasker#public static java.lang.String access$getContextName$jd(me.ahoo.wow.query.mask.StateDynamicDocumentMasker);|descriptor: (Lme/ahoo/wow/query/mask/StateDynamicDocumentMasker;)Ljava/lang/String;
-me.ahoo.wow.query.snapshot.AbstractSnapshotQueryServiceFactory#class
+me.ahoo.wow.query.snapshot.AbstractSnapshotQueryServiceFactory#class|public abstract class me.ahoo.wow.query.snapshot.AbstractSnapshotQueryServiceFactory implements me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory {
+me.ahoo.wow.query.snapshot.AbstractSnapshotQueryServiceFactory#protected abstract me.ahoo.wow.query.snapshot.SnapshotQueryService<?> createQueryService(me.ahoo.wow.api.modeling.NamedAggregate);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;)Lme/ahoo/wow/query/snapshot/SnapshotQueryService;
 me.ahoo.wow.query.snapshot.AbstractSnapshotQueryServiceFactory#public <S> me.ahoo.wow.query.snapshot.SnapshotQueryService<S> create(me.ahoo.wow.api.modeling.NamedAggregate);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;)Lme/ahoo/wow/query/snapshot/SnapshotQueryService;
 me.ahoo.wow.query.snapshot.AbstractSnapshotQueryServiceFactory#public me.ahoo.wow.query.snapshot.AbstractSnapshotQueryServiceFactory();|descriptor: ()V
-me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService#class
+me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService#class|public final class me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService<S> implements me.ahoo.wow.query.snapshot.SnapshotQueryService<S> {
 me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService#public boolean isSameAggregateName(me.ahoo.wow.api.modeling.NamedAggregate);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;)Z
 me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService#public boolean isSameBoundedContext(me.ahoo.wow.api.naming.NamedBoundedContext);|descriptor: (Lme/ahoo/wow/api/naming/NamedBoundedContext;)Z
 me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService#public java.lang.String getAggregateName();|descriptor: ()Ljava/lang/String;
@@ -436,40 +461,40 @@ me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService#public reactor.core.publishe
 me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService#public reactor.core.publisher.Mono<me.ahoo.wow.api.query.MaterializedSnapshot<S>> single(me.ahoo.wow.api.query.ISingleQuery);|descriptor: (Lme/ahoo/wow/api/query/ISingleQuery;)Lreactor/core/publisher/Mono;
 me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService#public reactor.core.publisher.Mono<me.ahoo.wow.api.query.PagedList<me.ahoo.wow.api.query.DynamicDocument>> dynamicPaged(me.ahoo.wow.api.query.IPagedQuery);|descriptor: (Lme/ahoo/wow/api/query/IPagedQuery;)Lreactor/core/publisher/Mono;
 me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService#public reactor.core.publisher.Mono<me.ahoo.wow.api.query.PagedList<me.ahoo.wow.api.query.MaterializedSnapshot<S>>> paged(me.ahoo.wow.api.query.IPagedQuery);|descriptor: (Lme/ahoo/wow/api/query/IPagedQuery;)Lreactor/core/publisher/Mono;
-me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory#class
+me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory#class|public final class me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory implements me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory {
 me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory#public <S> me.ahoo.wow.query.snapshot.SnapshotQueryService<S> create(me.ahoo.wow.api.modeling.NamedAggregate);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;)Lme/ahoo/wow/query/snapshot/SnapshotQueryService;
 me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory#public static final me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory INSTANCE;|descriptor: Lme/ahoo/wow/query/snapshot/NoOpSnapshotQueryServiceFactory;
-me.ahoo.wow.query.snapshot.RoutingSnapshotQueryServiceFactory#class
+me.ahoo.wow.query.snapshot.RoutingSnapshotQueryServiceFactory#class|public final class me.ahoo.wow.query.snapshot.RoutingSnapshotQueryServiceFactory implements me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory {
 me.ahoo.wow.query.snapshot.RoutingSnapshotQueryServiceFactory#public <S> me.ahoo.wow.query.snapshot.SnapshotQueryService<S> create(me.ahoo.wow.api.modeling.NamedAggregate);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;)Lme/ahoo/wow/query/snapshot/SnapshotQueryService;
 me.ahoo.wow.query.snapshot.RoutingSnapshotQueryServiceFactory#public me.ahoo.wow.query.snapshot.RoutingSnapshotQueryServiceFactory(me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory, java.util.Map<me.ahoo.wow.api.modeling.NamedAggregate, ? extends me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory>);|descriptor: (Lme/ahoo/wow/query/snapshot/SnapshotQueryServiceFactory;Ljava/util/Map;)V
-me.ahoo.wow.query.snapshot.SnapshotQueryService#class
+me.ahoo.wow.query.snapshot.SnapshotQueryService#class|public interface me.ahoo.wow.query.snapshot.SnapshotQueryService<S> extends me.ahoo.wow.api.naming.Named, me.ahoo.wow.query.QueryService<me.ahoo.wow.api.query.MaterializedSnapshot<S>> {
 me.ahoo.wow.query.snapshot.SnapshotQueryService#public static boolean access$isSameAggregateName$jd(me.ahoo.wow.query.snapshot.SnapshotQueryService, me.ahoo.wow.api.modeling.NamedAggregate);|descriptor: (Lme/ahoo/wow/query/snapshot/SnapshotQueryService;Lme/ahoo/wow/api/modeling/NamedAggregate;)Z
 me.ahoo.wow.query.snapshot.SnapshotQueryService#public static boolean access$isSameBoundedContext$jd(me.ahoo.wow.query.snapshot.SnapshotQueryService, me.ahoo.wow.api.naming.NamedBoundedContext);|descriptor: (Lme/ahoo/wow/query/snapshot/SnapshotQueryService;Lme/ahoo/wow/api/naming/NamedBoundedContext;)Z
 me.ahoo.wow.query.snapshot.SnapshotQueryService#public static java.lang.String access$getAggregateName$jd(me.ahoo.wow.query.snapshot.SnapshotQueryService);|descriptor: (Lme/ahoo/wow/query/snapshot/SnapshotQueryService;)Ljava/lang/String;
 me.ahoo.wow.query.snapshot.SnapshotQueryService#public static java.lang.String access$getContextName$jd(me.ahoo.wow.query.snapshot.SnapshotQueryService);|descriptor: (Lme/ahoo/wow/query/snapshot/SnapshotQueryService;)Ljava/lang/String;
-me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory#class
+me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory#class|public interface me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory {
 me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory#public abstract <S> me.ahoo.wow.query.snapshot.SnapshotQueryService<S> create(me.ahoo.wow.api.modeling.NamedAggregate);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;)Lme/ahoo/wow/query/snapshot/SnapshotQueryService;
-me.ahoo.wow.query.snapshot.filter.AbacQueryFilter#class
+me.ahoo.wow.query.snapshot.filter.AbacQueryFilter#class|public abstract class me.ahoo.wow.query.snapshot.filter.AbacQueryFilter implements me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter {
 me.ahoo.wow.query.snapshot.filter.AbacQueryFilter#public abstract reactor.core.publisher.Mono<java.util.Map<java.lang.String, java.util.List<java.lang.String>>> getPrincipalTags(reactor.util.context.ContextView, me.ahoo.wow.query.filter.QueryContext<?, ?>);|descriptor: (Lreactor/util/context/ContextView;Lme/ahoo/wow/query/filter/QueryContext;)Lreactor/core/publisher/Mono;
 me.ahoo.wow.query.snapshot.filter.AbacQueryFilter#public me.ahoo.wow.query.snapshot.filter.AbacQueryFilter();|descriptor: ()V
 me.ahoo.wow.query.snapshot.filter.AbacQueryFilter#public reactor.core.publisher.Mono filter(java.lang.Object, me.ahoo.wow.filter.FilterChain);|descriptor: (Ljava/lang/Object;Lme/ahoo/wow/filter/FilterChain;)Lreactor/core/publisher/Mono;
 me.ahoo.wow.query.snapshot.filter.AbacQueryFilter#public reactor.core.publisher.Mono<java.lang.Void> filter(me.ahoo.wow.query.filter.QueryContext<?, ?>, me.ahoo.wow.filter.FilterChain<me.ahoo.wow.query.filter.QueryContext<?, ?>>);|descriptor: (Lme/ahoo/wow/query/filter/QueryContext;Lme/ahoo/wow/filter/FilterChain;)Lreactor/core/publisher/Mono;
 me.ahoo.wow.query.snapshot.filter.AbacQueryFilter#public reactor.core.publisher.Mono<me.ahoo.wow.api.query.Condition> resolveCondition(reactor.util.context.ContextView, me.ahoo.wow.query.filter.QueryContext<?, ?>);|descriptor: (Lreactor/util/context/ContextView;Lme/ahoo/wow/query/filter/QueryContext;)Lreactor/core/publisher/Mono;
 me.ahoo.wow.query.snapshot.filter.AbacQueryFilter#public static final me.ahoo.wow.query.snapshot.filter.AbacQueryFilter$Companion Companion;|descriptor: Lme/ahoo/wow/query/snapshot/filter/AbacQueryFilter$Companion;
-me.ahoo.wow.query.snapshot.filter.AbacQueryFilter$Companion#class
+me.ahoo.wow.query.snapshot.filter.AbacQueryFilter$Companion#class|public final class me.ahoo.wow.query.snapshot.filter.AbacQueryFilter$Companion {
 me.ahoo.wow.query.snapshot.filter.AbacQueryFilter$Companion#public final me.ahoo.wow.api.query.Condition toCondition(java.util.Map$Entry<java.lang.String, ? extends java.util.List<java.lang.String>>);|descriptor: (Ljava/util/Map$Entry;)Lme/ahoo/wow/api/query/Condition;
 me.ahoo.wow.query.snapshot.filter.AbacQueryFilter$Companion#public final me.ahoo.wow.api.query.Condition toCondition(java.util.Map<java.lang.String, ? extends java.util.List<java.lang.String>>);|descriptor: (Ljava/util/Map;)Lme/ahoo/wow/api/query/Condition;
 me.ahoo.wow.query.snapshot.filter.AbacQueryFilter$Companion#public me.ahoo.wow.query.snapshot.filter.AbacQueryFilter$Companion(kotlin.jvm.internal.DefaultConstructorMarker);|descriptor: (Lkotlin/jvm/internal/DefaultConstructorMarker;)V
-me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler#class
+me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler#class|public final class me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler extends me.ahoo.wow.query.filter.AbstractQueryHandler<me.ahoo.wow.api.query.MaterializedSnapshot<java.lang.Object>> implements me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler {
 me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler#public me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler(me.ahoo.wow.filter.FilterChain, me.ahoo.wow.filter.ErrorHandler, int, kotlin.jvm.internal.DefaultConstructorMarker);|descriptor: (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler#public me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler(me.ahoo.wow.filter.FilterChain<me.ahoo.wow.query.filter.QueryContext<?, ?>>, me.ahoo.wow.filter.ErrorHandler<me.ahoo.wow.query.filter.QueryContext<?, ?>>);|descriptor: (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;)V
-me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilter#class
+me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilter#class|public final class me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilter extends me.ahoo.wow.query.filter.MaskingDynamicDocumentQueryFilter<me.ahoo.wow.query.mask.StateDynamicDocumentMasker> implements me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter {
 me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilter#public me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilter(me.ahoo.wow.query.mask.StateDataMaskerRegistry);|descriptor: (Lme/ahoo/wow/query/mask/StateDataMaskerRegistry;)V
 me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilter#public reactor.core.publisher.Mono filter(java.lang.Object, me.ahoo.wow.filter.FilterChain);|descriptor: (Ljava/lang/Object;Lme/ahoo/wow/filter/FilterChain;)Lreactor/core/publisher/Mono;
 me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilter#public reactor.core.publisher.Mono<java.lang.Void> filter(me.ahoo.wow.query.filter.QueryContext<?, ?>, me.ahoo.wow.filter.FilterChain<me.ahoo.wow.query.filter.QueryContext<?, ?>>);|descriptor: (Lme/ahoo/wow/query/filter/QueryContext;Lme/ahoo/wow/filter/FilterChain;)Lreactor/core/publisher/Mono;
-me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter#class
-me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler#class
-me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter#class
+me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter#class|public interface me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter extends me.ahoo.wow.query.filter.QueryFilter<me.ahoo.wow.query.filter.QueryContext<?, ?>> {
+me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler#class|public interface me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler extends me.ahoo.wow.query.filter.QueryHandler<me.ahoo.wow.api.query.MaterializedSnapshot<java.lang.Object>> {
+me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter#class|public final class me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter<S> implements me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter {
 me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter#public me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter(me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory);|descriptor: (Lme/ahoo/wow/query/snapshot/SnapshotQueryServiceFactory;)V
 me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter#public reactor.core.publisher.Mono filter(java.lang.Object, me.ahoo.wow.filter.FilterChain);|descriptor: (Ljava/lang/Object;Lme/ahoo/wow/filter/FilterChain;)Lreactor/core/publisher/Mono;
 me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter#public reactor.core.publisher.Mono<java.lang.Void> filter(me.ahoo.wow.query.filter.QueryContext<?, ?>, me.ahoo.wow.filter.FilterChain<me.ahoo.wow.query.filter.QueryContext<?, ?>>);|descriptor: (Lme/ahoo/wow/query/filter/QueryContext;Lme/ahoo/wow/filter/FilterChain;)Lreactor/core/publisher/Mono;

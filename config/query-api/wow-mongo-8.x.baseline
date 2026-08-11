@@ -1,4 +1,6 @@
-me.ahoo.wow.mongo.query.AbstractMongoConditionConverter#class
+me.ahoo.wow.mongo.query.AbstractMongoConditionConverter#class|public abstract class me.ahoo.wow.mongo.query.AbstractMongoConditionConverter extends me.ahoo.wow.query.converter.AbstractConditionConverter<org.bson.conversions.Bson> {
+me.ahoo.wow.mongo.query.AbstractMongoConditionConverter#protected abstract me.ahoo.wow.query.converter.FieldConverter getFieldConverter();|descriptor: ()Lme/ahoo/wow/query/converter/FieldConverter;
+me.ahoo.wow.mongo.query.AbstractMongoConditionConverter#protected me.ahoo.wow.api.query.Condition convertCondition(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Lme/ahoo/wow/api/query/Condition;
 me.ahoo.wow.mongo.query.AbstractMongoConditionConverter#public java.lang.Object all(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Ljava/lang/Object;
 me.ahoo.wow.mongo.query.AbstractMongoConditionConverter#public java.lang.Object allIn(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Ljava/lang/Object;
 me.ahoo.wow.mongo.query.AbstractMongoConditionConverter#public java.lang.Object and(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Ljava/lang/Object;
@@ -65,9 +67,10 @@ me.ahoo.wow.mongo.query.AbstractMongoConditionConverter#public org.bson.conversi
 me.ahoo.wow.mongo.query.AbstractMongoConditionConverter#public org.bson.conversions.Bson startsWith(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Lorg/bson/conversions/Bson;
 me.ahoo.wow.mongo.query.AbstractMongoConditionConverter#public org.bson.conversions.Bson tenantId(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Lorg/bson/conversions/Bson;
 me.ahoo.wow.mongo.query.AbstractMongoConditionConverter#public static final me.ahoo.wow.mongo.query.AbstractMongoConditionConverter$Companion Companion;|descriptor: Lme/ahoo/wow/mongo/query/AbstractMongoConditionConverter$Companion;
-me.ahoo.wow.mongo.query.AbstractMongoConditionConverter$Companion#class
+me.ahoo.wow.mongo.query.AbstractMongoConditionConverter$Companion#class|public final class me.ahoo.wow.mongo.query.AbstractMongoConditionConverter$Companion {
 me.ahoo.wow.mongo.query.AbstractMongoConditionConverter$Companion#public me.ahoo.wow.mongo.query.AbstractMongoConditionConverter$Companion(kotlin.jvm.internal.DefaultConstructorMarker);|descriptor: (Lkotlin/jvm/internal/DefaultConstructorMarker;)V
-me.ahoo.wow.mongo.query.AbstractMongoQueryService#class
+me.ahoo.wow.mongo.query.AbstractMongoQueryService#class|public abstract class me.ahoo.wow.mongo.query.AbstractMongoQueryService<R> implements me.ahoo.wow.query.QueryService<R> {
+me.ahoo.wow.mongo.query.AbstractMongoQueryService#protected final com.mongodb.reactivestreams.client.FindPublisher<org.bson.Document> findDocument(me.ahoo.wow.api.query.Queryable<?>);|descriptor: (Lme/ahoo/wow/api/query/Queryable;)Lcom/mongodb/reactivestreams/client/FindPublisher;
 me.ahoo.wow.mongo.query.AbstractMongoQueryService#public abstract R toTypedResult(org.bson.Document);|descriptor: (Lorg/bson/Document;)Ljava/lang/Object;
 me.ahoo.wow.mongo.query.AbstractMongoQueryService#public abstract com.mongodb.reactivestreams.client.MongoCollection<org.bson.Document> getCollection();|descriptor: ()Lcom/mongodb/reactivestreams/client/MongoCollection;
 me.ahoo.wow.mongo.query.AbstractMongoQueryService#public abstract me.ahoo.wow.api.query.DynamicDocument toDynamicDocument(org.bson.Document);|descriptor: (Lorg/bson/Document;)Lme/ahoo/wow/api/query/DynamicDocument;
@@ -86,14 +89,18 @@ me.ahoo.wow.mongo.query.AbstractMongoQueryService#public reactor.core.publisher.
 me.ahoo.wow.mongo.query.AbstractMongoQueryService#public reactor.core.publisher.Mono<me.ahoo.wow.api.query.DynamicDocument> dynamicSingle(me.ahoo.wow.api.query.ISingleQuery);|descriptor: (Lme/ahoo/wow/api/query/ISingleQuery;)Lreactor/core/publisher/Mono;
 me.ahoo.wow.mongo.query.AbstractMongoQueryService#public reactor.core.publisher.Mono<me.ahoo.wow.api.query.PagedList<R>> paged(me.ahoo.wow.api.query.IPagedQuery);|descriptor: (Lme/ahoo/wow/api/query/IPagedQuery;)Lreactor/core/publisher/Mono;
 me.ahoo.wow.mongo.query.AbstractMongoQueryService#public reactor.core.publisher.Mono<me.ahoo.wow.api.query.PagedList<me.ahoo.wow.api.query.DynamicDocument>> dynamicPaged(me.ahoo.wow.api.query.IPagedQuery);|descriptor: (Lme/ahoo/wow/api/query/IPagedQuery;)Lreactor/core/publisher/Mono;
-me.ahoo.wow.mongo.query.MongoProjectionConverter#class
+me.ahoo.wow.mongo.query.MongoProjectionConverter#class|public final class me.ahoo.wow.mongo.query.MongoProjectionConverter extends me.ahoo.wow.query.converter.AbstractProjectionConverter<org.bson.conversions.Bson> {
+me.ahoo.wow.mongo.query.MongoProjectionConverter#protected org.bson.conversions.Bson internalConvert(me.ahoo.wow.api.query.Projection);|descriptor: (Lme/ahoo/wow/api/query/Projection;)Lorg/bson/conversions/Bson;
 me.ahoo.wow.mongo.query.MongoProjectionConverter#public java.lang.Object internalConvert(me.ahoo.wow.api.query.Projection);|descriptor: (Lme/ahoo/wow/api/query/Projection;)Ljava/lang/Object;
 me.ahoo.wow.mongo.query.MongoProjectionConverter#public me.ahoo.wow.mongo.query.MongoProjectionConverter(me.ahoo.wow.query.converter.FieldConverter);|descriptor: (Lme/ahoo/wow/query/converter/FieldConverter;)V
 me.ahoo.wow.mongo.query.MongoProjectionConverter#public me.ahoo.wow.query.converter.FieldConverter getFieldConverter();|descriptor: ()Lme/ahoo/wow/query/converter/FieldConverter;
-me.ahoo.wow.mongo.query.MongoSortConverter#class
+me.ahoo.wow.mongo.query.MongoSortConverter#class|public final class me.ahoo.wow.mongo.query.MongoSortConverter extends me.ahoo.wow.query.converter.AbstractSortConverter<org.bson.conversions.Bson> {
+me.ahoo.wow.mongo.query.MongoSortConverter#protected me.ahoo.wow.query.converter.FieldConverter getFieldConverter();|descriptor: ()Lme/ahoo/wow/query/converter/FieldConverter;
+me.ahoo.wow.mongo.query.MongoSortConverter#protected org.bson.conversions.Bson internalConvert(java.util.List<me.ahoo.wow.api.query.Sort>);|descriptor: (Ljava/util/List;)Lorg/bson/conversions/Bson;
 me.ahoo.wow.mongo.query.MongoSortConverter#public java.lang.Object internalConvert(java.util.List);|descriptor: (Ljava/util/List;)Ljava/lang/Object;
 me.ahoo.wow.mongo.query.MongoSortConverter#public me.ahoo.wow.mongo.query.MongoSortConverter(me.ahoo.wow.query.converter.FieldConverter);|descriptor: (Lme/ahoo/wow/query/converter/FieldConverter;)V
-me.ahoo.wow.mongo.query.event.EventStreamConditionConverter#class
+me.ahoo.wow.mongo.query.event.EventStreamConditionConverter#class|public final class me.ahoo.wow.mongo.query.event.EventStreamConditionConverter extends me.ahoo.wow.mongo.query.AbstractMongoConditionConverter {
+me.ahoo.wow.mongo.query.event.EventStreamConditionConverter#protected me.ahoo.wow.query.converter.FieldConverter getFieldConverter();|descriptor: ()Lme/ahoo/wow/query/converter/FieldConverter;
 me.ahoo.wow.mongo.query.event.EventStreamConditionConverter#public java.lang.Object aggregateId(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Ljava/lang/Object;
 me.ahoo.wow.mongo.query.event.EventStreamConditionConverter#public java.lang.Object aggregateIds(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Ljava/lang/Object;
 me.ahoo.wow.mongo.query.event.EventStreamConditionConverter#public java.lang.Object convert(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Ljava/lang/Object;
@@ -101,10 +108,10 @@ me.ahoo.wow.mongo.query.event.EventStreamConditionConverter#public org.bson.conv
 me.ahoo.wow.mongo.query.event.EventStreamConditionConverter#public org.bson.conversions.Bson aggregateIds(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Lorg/bson/conversions/Bson;
 me.ahoo.wow.mongo.query.event.EventStreamConditionConverter#public org.bson.conversions.Bson convert(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Lorg/bson/conversions/Bson;
 me.ahoo.wow.mongo.query.event.EventStreamConditionConverter#public static final me.ahoo.wow.mongo.query.event.EventStreamConditionConverter INSTANCE;|descriptor: Lme/ahoo/wow/mongo/query/event/EventStreamConditionConverter;
-me.ahoo.wow.mongo.query.event.EventStreamFieldConverter#class
+me.ahoo.wow.mongo.query.event.EventStreamFieldConverter#class|public final class me.ahoo.wow.mongo.query.event.EventStreamFieldConverter implements me.ahoo.wow.query.converter.FieldConverter {
 me.ahoo.wow.mongo.query.event.EventStreamFieldConverter#public java.lang.String convert(java.lang.String);|descriptor: (Ljava/lang/String;)Ljava/lang/String;
 me.ahoo.wow.mongo.query.event.EventStreamFieldConverter#public static final me.ahoo.wow.mongo.query.event.EventStreamFieldConverter INSTANCE;|descriptor: Lme/ahoo/wow/mongo/query/event/EventStreamFieldConverter;
-me.ahoo.wow.mongo.query.event.MongoEventStreamQueryService#class
+me.ahoo.wow.mongo.query.event.MongoEventStreamQueryService#class|public final class me.ahoo.wow.mongo.query.event.MongoEventStreamQueryService extends me.ahoo.wow.mongo.query.AbstractMongoQueryService<me.ahoo.wow.event.DomainEventStream> implements me.ahoo.wow.query.event.EventStreamQueryService {
 me.ahoo.wow.mongo.query.event.MongoEventStreamQueryService#public com.mongodb.reactivestreams.client.MongoCollection<org.bson.Document> getCollection();|descriptor: ()Lcom/mongodb/reactivestreams/client/MongoCollection;
 me.ahoo.wow.mongo.query.event.MongoEventStreamQueryService#public java.lang.Object toTypedResult(org.bson.Document);|descriptor: (Lorg/bson/Document;)Ljava/lang/Object;
 me.ahoo.wow.mongo.query.event.MongoEventStreamQueryService#public me.ahoo.wow.api.modeling.NamedAggregate getNamedAggregate();|descriptor: ()Lme/ahoo/wow/api/modeling/NamedAggregate;
@@ -115,9 +122,10 @@ me.ahoo.wow.mongo.query.event.MongoEventStreamQueryService#public me.ahoo.wow.mo
 me.ahoo.wow.mongo.query.event.MongoEventStreamQueryService#public me.ahoo.wow.mongo.query.event.MongoEventStreamQueryService(me.ahoo.wow.api.modeling.NamedAggregate, com.mongodb.reactivestreams.client.MongoCollection, me.ahoo.wow.query.converter.ConditionConverter, int, kotlin.jvm.internal.DefaultConstructorMarker);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;Lcom/mongodb/reactivestreams/client/MongoCollection;Lme/ahoo/wow/query/converter/ConditionConverter;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 me.ahoo.wow.mongo.query.event.MongoEventStreamQueryService#public me.ahoo.wow.mongo.query.event.MongoEventStreamQueryService(me.ahoo.wow.api.modeling.NamedAggregate, com.mongodb.reactivestreams.client.MongoCollection<org.bson.Document>, me.ahoo.wow.query.converter.ConditionConverter<org.bson.conversions.Bson>);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;Lcom/mongodb/reactivestreams/client/MongoCollection;Lme/ahoo/wow/query/converter/ConditionConverter;)V
 me.ahoo.wow.mongo.query.event.MongoEventStreamQueryService#public me.ahoo.wow.query.converter.ConditionConverter<org.bson.conversions.Bson> getConverter();|descriptor: ()Lme/ahoo/wow/query/converter/ConditionConverter;
-me.ahoo.wow.mongo.query.event.MongoEventStreamQueryServiceFactory#class
+me.ahoo.wow.mongo.query.event.MongoEventStreamQueryServiceFactory#class|public final class me.ahoo.wow.mongo.query.event.MongoEventStreamQueryServiceFactory extends me.ahoo.wow.query.event.AbstractEventStreamQueryServiceFactory {
+me.ahoo.wow.mongo.query.event.MongoEventStreamQueryServiceFactory#protected me.ahoo.wow.query.event.EventStreamQueryService createQueryService(me.ahoo.wow.api.modeling.NamedAggregate);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;)Lme/ahoo/wow/query/event/EventStreamQueryService;
 me.ahoo.wow.mongo.query.event.MongoEventStreamQueryServiceFactory#public me.ahoo.wow.mongo.query.event.MongoEventStreamQueryServiceFactory(com.mongodb.reactivestreams.client.MongoDatabase);|descriptor: (Lcom/mongodb/reactivestreams/client/MongoDatabase;)V
-me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryService#class
+me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryService#class|public final class me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryService<S> extends me.ahoo.wow.mongo.query.AbstractMongoQueryService<me.ahoo.wow.api.query.MaterializedSnapshot<S>> implements me.ahoo.wow.query.snapshot.SnapshotQueryService<S> {
 me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryService#public com.mongodb.reactivestreams.client.MongoCollection<org.bson.Document> getCollection();|descriptor: ()Lcom/mongodb/reactivestreams/client/MongoCollection;
 me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryService#public java.lang.Object toTypedResult(org.bson.Document);|descriptor: (Lorg/bson/Document;)Ljava/lang/Object;
 me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryService#public java.lang.String getName();|descriptor: ()Ljava/lang/String;
@@ -129,14 +137,16 @@ me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryService#public me.ahoo.wow.mo
 me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryService#public me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryService(me.ahoo.wow.api.modeling.NamedAggregate, com.mongodb.reactivestreams.client.MongoCollection, me.ahoo.wow.query.converter.ConditionConverter, int, kotlin.jvm.internal.DefaultConstructorMarker);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;Lcom/mongodb/reactivestreams/client/MongoCollection;Lme/ahoo/wow/query/converter/ConditionConverter;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryService#public me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryService(me.ahoo.wow.api.modeling.NamedAggregate, com.mongodb.reactivestreams.client.MongoCollection<org.bson.Document>, me.ahoo.wow.query.converter.ConditionConverter<org.bson.conversions.Bson>);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;Lcom/mongodb/reactivestreams/client/MongoCollection;Lme/ahoo/wow/query/converter/ConditionConverter;)V
 me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryService#public me.ahoo.wow.query.converter.ConditionConverter<org.bson.conversions.Bson> getConverter();|descriptor: ()Lme/ahoo/wow/query/converter/ConditionConverter;
-me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryServiceFactory#class
+me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryServiceFactory#class|public final class me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryServiceFactory extends me.ahoo.wow.query.snapshot.AbstractSnapshotQueryServiceFactory {
+me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryServiceFactory#protected me.ahoo.wow.query.snapshot.SnapshotQueryService<?> createQueryService(me.ahoo.wow.api.modeling.NamedAggregate);|descriptor: (Lme/ahoo/wow/api/modeling/NamedAggregate;)Lme/ahoo/wow/query/snapshot/SnapshotQueryService;
 me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryServiceFactory#public me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryServiceFactory(com.mongodb.reactivestreams.client.MongoDatabase);|descriptor: (Lcom/mongodb/reactivestreams/client/MongoDatabase;)V
-me.ahoo.wow.mongo.query.snapshot.SnapshotConditionConverter#class
+me.ahoo.wow.mongo.query.snapshot.SnapshotConditionConverter#class|public final class me.ahoo.wow.mongo.query.snapshot.SnapshotConditionConverter extends me.ahoo.wow.mongo.query.AbstractMongoConditionConverter {
+me.ahoo.wow.mongo.query.snapshot.SnapshotConditionConverter#protected me.ahoo.wow.query.converter.FieldConverter getFieldConverter();|descriptor: ()Lme/ahoo/wow/query/converter/FieldConverter;
 me.ahoo.wow.mongo.query.snapshot.SnapshotConditionConverter#public java.lang.Object aggregateId(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Ljava/lang/Object;
 me.ahoo.wow.mongo.query.snapshot.SnapshotConditionConverter#public java.lang.Object aggregateIds(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Ljava/lang/Object;
 me.ahoo.wow.mongo.query.snapshot.SnapshotConditionConverter#public org.bson.conversions.Bson aggregateId(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Lorg/bson/conversions/Bson;
 me.ahoo.wow.mongo.query.snapshot.SnapshotConditionConverter#public org.bson.conversions.Bson aggregateIds(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Lorg/bson/conversions/Bson;
 me.ahoo.wow.mongo.query.snapshot.SnapshotConditionConverter#public static final me.ahoo.wow.mongo.query.snapshot.SnapshotConditionConverter INSTANCE;|descriptor: Lme/ahoo/wow/mongo/query/snapshot/SnapshotConditionConverter;
-me.ahoo.wow.mongo.query.snapshot.SnapshotFieldConverter#class
+me.ahoo.wow.mongo.query.snapshot.SnapshotFieldConverter#class|public final class me.ahoo.wow.mongo.query.snapshot.SnapshotFieldConverter implements me.ahoo.wow.query.converter.FieldConverter {
 me.ahoo.wow.mongo.query.snapshot.SnapshotFieldConverter#public java.lang.String convert(java.lang.String);|descriptor: (Ljava/lang/String;)Ljava/lang/String;
 me.ahoo.wow.mongo.query.snapshot.SnapshotFieldConverter#public static final me.ahoo.wow.mongo.query.snapshot.SnapshotFieldConverter INSTANCE;|descriptor: Lme/ahoo/wow/mongo/query/snapshot/SnapshotFieldConverter;

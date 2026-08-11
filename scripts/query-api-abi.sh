@@ -19,7 +19,7 @@ readonly DEFAULT_BASELINE_DIR="$ROOT_DIR/config/query-api"
 readonly DEFAULT_ALLOWLIST="$ROOT_DIR/config/query-api/approved-removals.txt"
 
 usage() {
-    echo "Usage: $0 dump|check [--manifest FILE] [--artifacts-dir DIR] [--baseline-dir DIR] [--allowlist FILE]" >&2
+    echo "Usage: $0 dump|check [--manifest FILE] [--artifacts-dir DIR] [--baseline-dir DIR] [--allowlist FILE] [--runtime-classpath PATH]" >&2
 }
 
 die() {
@@ -71,13 +71,21 @@ resolve_jar() {
 dump_jar_symbols() {
     local jar_file="$1"
     local prefixes="$2"
-    local entry class_name
+    local entry class_name class_dump javap_classpath
+    javap_classpath="$jar_file"
+    if [[ -n "$RUNTIME_CLASSPATH" ]]; then
+        javap_classpath="$javap_classpath:$RUNTIME_CLASSPATH"
+    fi
     while IFS= read -r entry; do
         is_included_class "$entry" "$prefixes" || continue
         class_name="${entry%.class}"
         class_name="${class_name//\//.}"
-        javap -classpath "$jar_file" -public -s "$class_name" |
-            awk -v class_name="$class_name" '
+        class_dump="$(mktemp "$WORK_DIR/javap.XXXXXX")"
+        if ! javap -classpath "$javap_classpath" -protected -s "$class_name" >"$class_dump"; then
+            rm -f "$class_dump"
+            die "Unable to inspect ABI class $class_name from $jar_file"
+        fi
+        awk -v class_name="$class_name" '
                 function compact(value) {
                     gsub(/[[:space:]]+/, " ", value)
                     sub(/^ /, "", value)
@@ -91,20 +99,25 @@ dump_jar_symbols() {
                     declaration = ""
                     descriptor = ""
                 }
-                /^public ((abstract|final) )*(class|interface|enum|record) / {
-                    print class_name "#class"
+                !class_header_seen && /(^| )(class|interface|enum|record)( |<)/ {
+                    class_header_seen = 1
+                    if ($0 ~ /^public /) {
+                        public_class = 1
+                        print class_name "#class|" compact($0)
+                    }
                     next
                 }
-                /^  public / {
+                public_class && /^  (public|protected) / {
                     flush()
                     declaration = $0
                     next
                 }
-                declaration != "" && /^    descriptor: / {
+                public_class && declaration != "" && /^    descriptor: / {
                     descriptor = $0
                     flush()
                 }
-            '
+            ' "$class_dump"
+        rm -f "$class_dump"
     done < <(jar tf "$jar_file" | LC_ALL=C sort)
 }
 
@@ -145,6 +158,7 @@ MANIFEST="$DEFAULT_MANIFEST"
 ARTIFACTS_DIR="$DEFAULT_ARTIFACTS_DIR"
 BASELINE_DIR="$DEFAULT_BASELINE_DIR"
 ALLOWLIST="$DEFAULT_ALLOWLIST"
+RUNTIME_CLASSPATH=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -162,6 +176,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --allowlist)
             ALLOWLIST="$2"
+            shift 2
+            ;;
+        --runtime-classpath)
+            RUNTIME_CLASSPATH="$2"
             shift 2
             ;;
         *)

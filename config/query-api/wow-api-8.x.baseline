@@ -1,4 +1,4 @@
-me.ahoo.wow.api.query.Condition#class
+me.ahoo.wow.api.query.Condition#class|public final class me.ahoo.wow.api.query.Condition implements me.ahoo.wow.api.query.ICondition<me.ahoo.wow.api.query.Condition>, me.ahoo.wow.api.query.RewritableCondition<me.ahoo.wow.api.query.Condition> {
 me.ahoo.wow.api.query.Condition#public boolean equals(java.lang.Object);|descriptor: (Ljava/lang/Object;)Z
 me.ahoo.wow.api.query.Condition#public final <V> V valueAs();|descriptor: ()Ljava/lang/Object;
 me.ahoo.wow.api.query.Condition#public final java.lang.Boolean ignoreCase();|descriptor: ()Ljava/lang/Boolean;
@@ -37,7 +37,7 @@ me.ahoo.wow.api.query.Condition#public static final me.ahoo.wow.api.query.Condit
 me.ahoo.wow.api.query.Condition#public static final me.ahoo.wow.api.query.Condition access$getALL$cp();|descriptor: ()Lme/ahoo/wow/api/query/Condition;
 me.ahoo.wow.api.query.Condition#public static final me.ahoo.wow.api.query.Condition$Companion Companion;|descriptor: Lme/ahoo/wow/api/query/Condition$Companion;
 me.ahoo.wow.api.query.Condition#public static me.ahoo.wow.api.query.Condition copy$default(me.ahoo.wow.api.query.Condition, java.lang.String, me.ahoo.wow.api.query.Operator, java.lang.Object, java.util.List, java.util.Map, int, java.lang.Object);|descriptor: (Lme/ahoo/wow/api/query/Condition;Ljava/lang/String;Lme/ahoo/wow/api/query/Operator;Ljava/lang/Object;Ljava/util/List;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/api/query/Condition;
-me.ahoo.wow.api.query.Condition$Companion#class
+me.ahoo.wow.api.query.Condition$Companion#class|public final class me.ahoo.wow.api.query.Condition$Companion {
 me.ahoo.wow.api.query.Condition$Companion#public final <V> me.ahoo.wow.api.query.Condition between(java.lang.String, V, V);|descriptor: (Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Object;)Lme/ahoo/wow/api/query/Condition;
 me.ahoo.wow.api.query.Condition$Companion#public final java.util.Map<java.lang.String, java.lang.Boolean> ignoreCaseOptions(boolean);|descriptor: (Z)Ljava/util/Map;
 me.ahoo.wow.api.query.Condition$Companion#public final java.util.Map<java.lang.String, java.lang.Object> datePatternOptions(java.lang.Object);|descriptor: (Ljava/lang/Object;)Ljava/util/Map;
@@ -107,47 +107,47 @@ me.ahoo.wow.api.query.Condition$Companion#public static me.ahoo.wow.api.query.Co
 me.ahoo.wow.api.query.Condition$Companion#public static me.ahoo.wow.api.query.Condition thisWeek$default(me.ahoo.wow.api.query.Condition$Companion, java.lang.String, java.lang.Object, int, java.lang.Object);|descriptor: (Lme/ahoo/wow/api/query/Condition$Companion;Ljava/lang/String;Ljava/lang/Object;ILjava/lang/Object;)Lme/ahoo/wow/api/query/Condition;
 me.ahoo.wow.api.query.Condition$Companion#public static me.ahoo.wow.api.query.Condition today$default(me.ahoo.wow.api.query.Condition$Companion, java.lang.String, java.lang.Object, int, java.lang.Object);|descriptor: (Lme/ahoo/wow/api/query/Condition$Companion;Ljava/lang/String;Ljava/lang/Object;ILjava/lang/Object;)Lme/ahoo/wow/api/query/Condition;
 me.ahoo.wow.api.query.Condition$Companion#public static me.ahoo.wow.api.query.Condition tomorrow$default(me.ahoo.wow.api.query.Condition$Companion, java.lang.String, java.lang.Object, int, java.lang.Object);|descriptor: (Lme/ahoo/wow/api/query/Condition$Companion;Ljava/lang/String;Ljava/lang/Object;ILjava/lang/Object;)Lme/ahoo/wow/api/query/Condition;
-me.ahoo.wow.api.query.ConditionCapable#class
+me.ahoo.wow.api.query.ConditionCapable#class|public interface me.ahoo.wow.api.query.ConditionCapable<Q extends me.ahoo.wow.api.query.ConditionCapable<Q>> extends me.ahoo.wow.api.query.RewritableCondition<Q> {
 me.ahoo.wow.api.query.ConditionCapable#public abstract me.ahoo.wow.api.query.Condition getCondition();|descriptor: ()Lme/ahoo/wow/api/query/Condition;
 me.ahoo.wow.api.query.ConditionCapable#public default Q appendCondition(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Lme/ahoo/wow/api/query/ConditionCapable;
 me.ahoo.wow.api.query.ConditionCapable#public default me.ahoo.wow.api.query.RewritableCondition appendCondition(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Lme/ahoo/wow/api/query/RewritableCondition;
 me.ahoo.wow.api.query.ConditionCapable#public static me.ahoo.wow.api.query.ConditionCapable access$appendCondition$jd(me.ahoo.wow.api.query.ConditionCapable, me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/ConditionCapable;Lme/ahoo/wow/api/query/Condition;)Lme/ahoo/wow/api/query/ConditionCapable;
 me.ahoo.wow.api.query.ConditionCapable#public static me.ahoo.wow.api.query.ConditionCapable access$appendTenantId$jd(me.ahoo.wow.api.query.ConditionCapable, java.lang.String);|descriptor: (Lme/ahoo/wow/api/query/ConditionCapable;Ljava/lang/String;)Lme/ahoo/wow/api/query/ConditionCapable;
-me.ahoo.wow.api.query.ConditionOptions#class
-me.ahoo.wow.api.query.DeletionState#class
+me.ahoo.wow.api.query.ConditionOptions#class|public interface me.ahoo.wow.api.query.ConditionOptions {
+me.ahoo.wow.api.query.DeletionState#class|public final class me.ahoo.wow.api.query.DeletionState extends java.lang.Enum<me.ahoo.wow.api.query.DeletionState> {
 me.ahoo.wow.api.query.DeletionState#public static final me.ahoo.wow.api.query.DeletionState ACTIVE;|descriptor: Lme/ahoo/wow/api/query/DeletionState;
 me.ahoo.wow.api.query.DeletionState#public static final me.ahoo.wow.api.query.DeletionState ALL;|descriptor: Lme/ahoo/wow/api/query/DeletionState;
 me.ahoo.wow.api.query.DeletionState#public static final me.ahoo.wow.api.query.DeletionState DELETED;|descriptor: Lme/ahoo/wow/api/query/DeletionState;
 me.ahoo.wow.api.query.DeletionState#public static kotlin.enums.EnumEntries<me.ahoo.wow.api.query.DeletionState> getEntries();|descriptor: ()Lkotlin/enums/EnumEntries;
 me.ahoo.wow.api.query.DeletionState#public static me.ahoo.wow.api.query.DeletionState valueOf(java.lang.String);|descriptor: (Ljava/lang/String;)Lme/ahoo/wow/api/query/DeletionState;
 me.ahoo.wow.api.query.DeletionState#public static me.ahoo.wow.api.query.DeletionState[] values();|descriptor: ()[Lme/ahoo/wow/api/query/DeletionState;
-me.ahoo.wow.api.query.DynamicDocument#class
+me.ahoo.wow.api.query.DynamicDocument#class|public interface me.ahoo.wow.api.query.DynamicDocument extends java.util.Map<java.lang.String, java.lang.Object>, kotlin.jvm.internal.markers.KMutableMap {
 me.ahoo.wow.api.query.DynamicDocument#public abstract me.ahoo.wow.api.query.DynamicDocument getNestedDocument(java.lang.String);|descriptor: (Ljava/lang/String;)Lme/ahoo/wow/api/query/DynamicDocument;
 me.ahoo.wow.api.query.DynamicDocument#public default <V> V getValue(java.lang.String);|descriptor: (Ljava/lang/String;)Ljava/lang/Object;
 me.ahoo.wow.api.query.DynamicDocument#public static java.lang.Object access$getValue$jd(me.ahoo.wow.api.query.DynamicDocument, java.lang.String);|descriptor: (Lme/ahoo/wow/api/query/DynamicDocument;Ljava/lang/String;)Ljava/lang/Object;
-me.ahoo.wow.api.query.ICondition#class
+me.ahoo.wow.api.query.ICondition#class|public interface me.ahoo.wow.api.query.ICondition<C extends me.ahoo.wow.api.query.ICondition<C>> {
 me.ahoo.wow.api.query.ICondition#public abstract java.lang.Object getValue();|descriptor: ()Ljava/lang/Object;
 me.ahoo.wow.api.query.ICondition#public abstract java.lang.String getField();|descriptor: ()Ljava/lang/String;
 me.ahoo.wow.api.query.ICondition#public abstract java.util.List<C> getChildren();|descriptor: ()Ljava/util/List;
 me.ahoo.wow.api.query.ICondition#public abstract java.util.Map<java.lang.String, java.lang.Object> getOptions();|descriptor: ()Ljava/util/Map;
 me.ahoo.wow.api.query.ICondition#public abstract me.ahoo.wow.api.query.Operator getOperator();|descriptor: ()Lme/ahoo/wow/api/query/Operator;
-me.ahoo.wow.api.query.IListQuery#class
+me.ahoo.wow.api.query.IListQuery#class|public interface me.ahoo.wow.api.query.IListQuery extends me.ahoo.wow.api.query.Queryable<me.ahoo.wow.api.query.IListQuery> {
 me.ahoo.wow.api.query.IListQuery#public abstract int getLimit();|descriptor: ()I
 me.ahoo.wow.api.query.IListQuery#public static me.ahoo.wow.api.query.IListQuery access$appendCondition$jd(me.ahoo.wow.api.query.IListQuery, me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/IListQuery;Lme/ahoo/wow/api/query/Condition;)Lme/ahoo/wow/api/query/IListQuery;
 me.ahoo.wow.api.query.IListQuery#public static me.ahoo.wow.api.query.IListQuery access$appendTenantId$jd(me.ahoo.wow.api.query.IListQuery, java.lang.String);|descriptor: (Lme/ahoo/wow/api/query/IListQuery;Ljava/lang/String;)Lme/ahoo/wow/api/query/IListQuery;
-me.ahoo.wow.api.query.IMaterializedSnapshot#class
+me.ahoo.wow.api.query.IMaterializedSnapshot#class|public interface me.ahoo.wow.api.query.IMaterializedSnapshot<SOURCE extends me.ahoo.wow.api.query.IMaterializedSnapshot<SOURCE, S>, S> extends me.ahoo.wow.api.naming.Materialized, me.ahoo.wow.api.modeling.StateCapable<S> {
 me.ahoo.wow.api.query.IMaterializedSnapshot#public abstract SOURCE withState(S);|descriptor: (Ljava/lang/Object;)Lme/ahoo/wow/api/query/IMaterializedSnapshot;
-me.ahoo.wow.api.query.IPagedList#class
+me.ahoo.wow.api.query.IPagedList#class|public interface me.ahoo.wow.api.query.IPagedList<T> {
 me.ahoo.wow.api.query.IPagedList#public abstract java.util.List<T> getList();|descriptor: ()Ljava/util/List;
 me.ahoo.wow.api.query.IPagedList#public abstract long getTotal();|descriptor: ()J
-me.ahoo.wow.api.query.IPagedQuery#class
+me.ahoo.wow.api.query.IPagedQuery#class|public interface me.ahoo.wow.api.query.IPagedQuery extends me.ahoo.wow.api.query.Queryable<me.ahoo.wow.api.query.IPagedQuery> {
 me.ahoo.wow.api.query.IPagedQuery#public abstract me.ahoo.wow.api.query.Pagination getPagination();|descriptor: ()Lme/ahoo/wow/api/query/Pagination;
 me.ahoo.wow.api.query.IPagedQuery#public static me.ahoo.wow.api.query.IPagedQuery access$appendCondition$jd(me.ahoo.wow.api.query.IPagedQuery, me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/IPagedQuery;Lme/ahoo/wow/api/query/Condition;)Lme/ahoo/wow/api/query/IPagedQuery;
 me.ahoo.wow.api.query.IPagedQuery#public static me.ahoo.wow.api.query.IPagedQuery access$appendTenantId$jd(me.ahoo.wow.api.query.IPagedQuery, java.lang.String);|descriptor: (Lme/ahoo/wow/api/query/IPagedQuery;Ljava/lang/String;)Lme/ahoo/wow/api/query/IPagedQuery;
-me.ahoo.wow.api.query.ISingleQuery#class
+me.ahoo.wow.api.query.ISingleQuery#class|public interface me.ahoo.wow.api.query.ISingleQuery extends me.ahoo.wow.api.query.Queryable<me.ahoo.wow.api.query.ISingleQuery> {
 me.ahoo.wow.api.query.ISingleQuery#public static me.ahoo.wow.api.query.ISingleQuery access$appendCondition$jd(me.ahoo.wow.api.query.ISingleQuery, me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/ISingleQuery;Lme/ahoo/wow/api/query/Condition;)Lme/ahoo/wow/api/query/ISingleQuery;
 me.ahoo.wow.api.query.ISingleQuery#public static me.ahoo.wow.api.query.ISingleQuery access$appendTenantId$jd(me.ahoo.wow.api.query.ISingleQuery, java.lang.String);|descriptor: (Lme/ahoo/wow/api/query/ISingleQuery;Ljava/lang/String;)Lme/ahoo/wow/api/query/ISingleQuery;
-me.ahoo.wow.api.query.ListQuery#class
+me.ahoo.wow.api.query.ListQuery#class|public final class me.ahoo.wow.api.query.ListQuery implements me.ahoo.wow.api.query.IListQuery {
 me.ahoo.wow.api.query.ListQuery#public boolean equals(java.lang.Object);|descriptor: (Ljava/lang/Object;)Z
 me.ahoo.wow.api.query.ListQuery#public final int component4();|descriptor: ()I
 me.ahoo.wow.api.query.ListQuery#public final java.util.List<me.ahoo.wow.api.query.Sort> component3();|descriptor: ()Ljava/util/List;
@@ -172,7 +172,7 @@ me.ahoo.wow.api.query.ListQuery#public me.ahoo.wow.api.query.RewritableCondition
 me.ahoo.wow.api.query.ListQuery#public me.ahoo.wow.api.query.RewritableCondition withCondition(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Lme/ahoo/wow/api/query/RewritableCondition;
 me.ahoo.wow.api.query.ListQuery#public me.ahoo.wow.api.query.RewritableProjection withProjection(me.ahoo.wow.api.query.Projection);|descriptor: (Lme/ahoo/wow/api/query/Projection;)Lme/ahoo/wow/api/query/RewritableProjection;
 me.ahoo.wow.api.query.ListQuery#public static me.ahoo.wow.api.query.ListQuery copy$default(me.ahoo.wow.api.query.ListQuery, me.ahoo.wow.api.query.Condition, me.ahoo.wow.api.query.Projection, java.util.List, int, int, java.lang.Object);|descriptor: (Lme/ahoo/wow/api/query/ListQuery;Lme/ahoo/wow/api/query/Condition;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;IILjava/lang/Object;)Lme/ahoo/wow/api/query/ListQuery;
-me.ahoo.wow.api.query.MaterializedSnapshot#class
+me.ahoo.wow.api.query.MaterializedSnapshot#class|public final class me.ahoo.wow.api.query.MaterializedSnapshot<S> implements me.ahoo.wow.api.query.IMaterializedSnapshot<me.ahoo.wow.api.query.MaterializedSnapshot<S>, S>, me.ahoo.wow.api.modeling.NamedAggregate, me.ahoo.wow.api.modeling.TenantId, me.ahoo.wow.api.modeling.OwnerId, me.ahoo.wow.api.modeling.SpaceIdCapable, me.ahoo.wow.api.Version, me.ahoo.wow.api.modeling.EventIdCapable, me.ahoo.wow.api.modeling.FirstOperatorCapable, me.ahoo.wow.api.modeling.OperatorCapable, me.ahoo.wow.api.modeling.FirstEventTimeCapable, me.ahoo.wow.api.modeling.EventTimeCapable, me.ahoo.wow.api.modeling.SnapshotTimeCapable, me.ahoo.wow.api.abac.AbacTaggable, me.ahoo.wow.api.modeling.DeletedCapable {
 me.ahoo.wow.api.query.MaterializedSnapshot#public S getState();|descriptor: ()Ljava/lang/Object;
 me.ahoo.wow.api.query.MaterializedSnapshot#public boolean equals(java.lang.Object);|descriptor: (Ljava/lang/Object;)Z
 me.ahoo.wow.api.query.MaterializedSnapshot#public boolean getDeleted();|descriptor: ()Z
@@ -218,7 +218,7 @@ me.ahoo.wow.api.query.MaterializedSnapshot#public me.ahoo.wow.api.query.Material
 me.ahoo.wow.api.query.MaterializedSnapshot#public me.ahoo.wow.api.query.MaterializedSnapshot(java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String, int, java.lang.String, java.lang.String, java.lang.String, long, long, java.lang.Object, long, java.util.Map, boolean, int, kotlin.jvm.internal.DefaultConstructorMarker);|descriptor: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/lang/Object;JLjava/util/Map;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 me.ahoo.wow.api.query.MaterializedSnapshot#public me.ahoo.wow.api.query.MaterializedSnapshot<S> withState(S);|descriptor: (Ljava/lang/Object;)Lme/ahoo/wow/api/query/MaterializedSnapshot;
 me.ahoo.wow.api.query.MaterializedSnapshot#public static me.ahoo.wow.api.query.MaterializedSnapshot copy$default(me.ahoo.wow.api.query.MaterializedSnapshot, java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String, int, java.lang.String, java.lang.String, java.lang.String, long, long, java.lang.Object, long, java.util.Map, boolean, int, java.lang.Object);|descriptor: (Lme/ahoo/wow/api/query/MaterializedSnapshot;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/lang/Object;JLjava/util/Map;ZILjava/lang/Object;)Lme/ahoo/wow/api/query/MaterializedSnapshot;
-me.ahoo.wow.api.query.MediumMaterializedSnapshot#class
+me.ahoo.wow.api.query.MediumMaterializedSnapshot#class|public final class me.ahoo.wow.api.query.MediumMaterializedSnapshot<S> implements me.ahoo.wow.api.query.IMaterializedSnapshot<me.ahoo.wow.api.query.MediumMaterializedSnapshot<S>, S>, me.ahoo.wow.api.modeling.TenantId, me.ahoo.wow.api.modeling.OwnerId, me.ahoo.wow.api.modeling.SpaceIdCapable, me.ahoo.wow.api.Version, me.ahoo.wow.api.modeling.EventIdCapable, me.ahoo.wow.api.modeling.FirstOperatorCapable, me.ahoo.wow.api.modeling.OperatorCapable, me.ahoo.wow.api.modeling.FirstEventTimeCapable, me.ahoo.wow.api.modeling.EventTimeCapable, me.ahoo.wow.api.abac.AbacTaggable {
 me.ahoo.wow.api.query.MediumMaterializedSnapshot#public S getState();|descriptor: ()Ljava/lang/Object;
 me.ahoo.wow.api.query.MediumMaterializedSnapshot#public boolean equals(java.lang.Object);|descriptor: (Ljava/lang/Object;)Z
 me.ahoo.wow.api.query.MediumMaterializedSnapshot#public boolean getInitialized();|descriptor: ()Z
@@ -252,7 +252,7 @@ me.ahoo.wow.api.query.MediumMaterializedSnapshot#public me.ahoo.wow.api.query.Me
 me.ahoo.wow.api.query.MediumMaterializedSnapshot#public me.ahoo.wow.api.query.MediumMaterializedSnapshot(java.lang.String, java.lang.String, java.lang.String, int, java.lang.String, java.lang.String, java.lang.String, long, long, java.lang.Object, java.util.Map, int, kotlin.jvm.internal.DefaultConstructorMarker);|descriptor: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/lang/Object;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 me.ahoo.wow.api.query.MediumMaterializedSnapshot#public me.ahoo.wow.api.query.MediumMaterializedSnapshot<S> withState(S);|descriptor: (Ljava/lang/Object;)Lme/ahoo/wow/api/query/MediumMaterializedSnapshot;
 me.ahoo.wow.api.query.MediumMaterializedSnapshot#public static me.ahoo.wow.api.query.MediumMaterializedSnapshot copy$default(me.ahoo.wow.api.query.MediumMaterializedSnapshot, java.lang.String, java.lang.String, java.lang.String, int, java.lang.String, java.lang.String, java.lang.String, long, long, java.lang.Object, java.util.Map, int, java.lang.Object);|descriptor: (Lme/ahoo/wow/api/query/MediumMaterializedSnapshot;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/lang/Object;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/api/query/MediumMaterializedSnapshot;
-me.ahoo.wow.api.query.Operator#class
+me.ahoo.wow.api.query.Operator#class|public final class me.ahoo.wow.api.query.Operator extends java.lang.Enum<me.ahoo.wow.api.query.Operator> {
 me.ahoo.wow.api.query.Operator#public static final me.ahoo.wow.api.query.Operator AGGREGATE_ID;|descriptor: Lme/ahoo/wow/api/query/Operator;
 me.ahoo.wow.api.query.Operator#public static final me.ahoo.wow.api.query.Operator AGGREGATE_IDS;|descriptor: Lme/ahoo/wow/api/query/Operator;
 me.ahoo.wow.api.query.Operator#public static final me.ahoo.wow.api.query.Operator ALL;|descriptor: Lme/ahoo/wow/api/query/Operator;
@@ -299,7 +299,7 @@ me.ahoo.wow.api.query.Operator#public static final me.ahoo.wow.api.query.Operato
 me.ahoo.wow.api.query.Operator#public static kotlin.enums.EnumEntries<me.ahoo.wow.api.query.Operator> getEntries();|descriptor: ()Lkotlin/enums/EnumEntries;
 me.ahoo.wow.api.query.Operator#public static me.ahoo.wow.api.query.Operator valueOf(java.lang.String);|descriptor: (Ljava/lang/String;)Lme/ahoo/wow/api/query/Operator;
 me.ahoo.wow.api.query.Operator#public static me.ahoo.wow.api.query.Operator[] values();|descriptor: ()[Lme/ahoo/wow/api/query/Operator;
-me.ahoo.wow.api.query.PagedList#class
+me.ahoo.wow.api.query.PagedList#class|public final class me.ahoo.wow.api.query.PagedList<T> implements me.ahoo.wow.api.query.IPagedList<T> {
 me.ahoo.wow.api.query.PagedList#public boolean equals(java.lang.Object);|descriptor: (Ljava/lang/Object;)Z
 me.ahoo.wow.api.query.PagedList#public final java.util.List<T> component2();|descriptor: ()Ljava/util/List;
 me.ahoo.wow.api.query.PagedList#public final long component1();|descriptor: ()J
@@ -312,10 +312,10 @@ me.ahoo.wow.api.query.PagedList#public me.ahoo.wow.api.query.PagedList(long, jav
 me.ahoo.wow.api.query.PagedList#public static final me.ahoo.wow.api.query.PagedList access$getEMPTY$cp();|descriptor: ()Lme/ahoo/wow/api/query/PagedList;
 me.ahoo.wow.api.query.PagedList#public static final me.ahoo.wow.api.query.PagedList$Companion Companion;|descriptor: Lme/ahoo/wow/api/query/PagedList$Companion;
 me.ahoo.wow.api.query.PagedList#public static me.ahoo.wow.api.query.PagedList copy$default(me.ahoo.wow.api.query.PagedList, long, java.util.List, int, java.lang.Object);|descriptor: (Lme/ahoo/wow/api/query/PagedList;JLjava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/api/query/PagedList;
-me.ahoo.wow.api.query.PagedList$Companion#class
+me.ahoo.wow.api.query.PagedList$Companion#class|public final class me.ahoo.wow.api.query.PagedList$Companion {
 me.ahoo.wow.api.query.PagedList$Companion#public final <T> me.ahoo.wow.api.query.PagedList<T> empty();|descriptor: ()Lme/ahoo/wow/api/query/PagedList;
 me.ahoo.wow.api.query.PagedList$Companion#public me.ahoo.wow.api.query.PagedList$Companion(kotlin.jvm.internal.DefaultConstructorMarker);|descriptor: (Lkotlin/jvm/internal/DefaultConstructorMarker;)V
-me.ahoo.wow.api.query.PagedQuery#class
+me.ahoo.wow.api.query.PagedQuery#class|public final class me.ahoo.wow.api.query.PagedQuery implements me.ahoo.wow.api.query.IPagedQuery {
 me.ahoo.wow.api.query.PagedQuery#public boolean equals(java.lang.Object);|descriptor: (Ljava/lang/Object;)Z
 me.ahoo.wow.api.query.PagedQuery#public final java.util.List<me.ahoo.wow.api.query.Sort> component3();|descriptor: ()Ljava/util/List;
 me.ahoo.wow.api.query.PagedQuery#public final me.ahoo.wow.api.query.Condition component1();|descriptor: ()Lme/ahoo/wow/api/query/Condition;
@@ -340,7 +340,7 @@ me.ahoo.wow.api.query.PagedQuery#public me.ahoo.wow.api.query.RewritableConditio
 me.ahoo.wow.api.query.PagedQuery#public me.ahoo.wow.api.query.RewritableCondition withCondition(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Lme/ahoo/wow/api/query/RewritableCondition;
 me.ahoo.wow.api.query.PagedQuery#public me.ahoo.wow.api.query.RewritableProjection withProjection(me.ahoo.wow.api.query.Projection);|descriptor: (Lme/ahoo/wow/api/query/Projection;)Lme/ahoo/wow/api/query/RewritableProjection;
 me.ahoo.wow.api.query.PagedQuery#public static me.ahoo.wow.api.query.PagedQuery copy$default(me.ahoo.wow.api.query.PagedQuery, me.ahoo.wow.api.query.Condition, me.ahoo.wow.api.query.Projection, java.util.List, me.ahoo.wow.api.query.Pagination, int, java.lang.Object);|descriptor: (Lme/ahoo/wow/api/query/PagedQuery;Lme/ahoo/wow/api/query/Condition;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;Lme/ahoo/wow/api/query/Pagination;ILjava/lang/Object;)Lme/ahoo/wow/api/query/PagedQuery;
-me.ahoo.wow.api.query.Pagination#class
+me.ahoo.wow.api.query.Pagination#class|public final class me.ahoo.wow.api.query.Pagination {
 me.ahoo.wow.api.query.Pagination#public boolean equals(java.lang.Object);|descriptor: (Ljava/lang/Object;)Z
 me.ahoo.wow.api.query.Pagination#public final int component1();|descriptor: ()I
 me.ahoo.wow.api.query.Pagination#public final int component2();|descriptor: ()I
@@ -356,11 +356,11 @@ me.ahoo.wow.api.query.Pagination#public me.ahoo.wow.api.query.Pagination(int, in
 me.ahoo.wow.api.query.Pagination#public static final me.ahoo.wow.api.query.Pagination access$getDEFAULT$cp();|descriptor: ()Lme/ahoo/wow/api/query/Pagination;
 me.ahoo.wow.api.query.Pagination#public static final me.ahoo.wow.api.query.Pagination$Companion Companion;|descriptor: Lme/ahoo/wow/api/query/Pagination$Companion;
 me.ahoo.wow.api.query.Pagination#public static me.ahoo.wow.api.query.Pagination copy$default(me.ahoo.wow.api.query.Pagination, int, int, int, java.lang.Object);|descriptor: (Lme/ahoo/wow/api/query/Pagination;IIILjava/lang/Object;)Lme/ahoo/wow/api/query/Pagination;
-me.ahoo.wow.api.query.Pagination$Companion#class
+me.ahoo.wow.api.query.Pagination$Companion#class|public final class me.ahoo.wow.api.query.Pagination$Companion {
 me.ahoo.wow.api.query.Pagination$Companion#public final int offset(int, int);|descriptor: (II)I
 me.ahoo.wow.api.query.Pagination$Companion#public final me.ahoo.wow.api.query.Pagination getDEFAULT();|descriptor: ()Lme/ahoo/wow/api/query/Pagination;
 me.ahoo.wow.api.query.Pagination$Companion#public me.ahoo.wow.api.query.Pagination$Companion(kotlin.jvm.internal.DefaultConstructorMarker);|descriptor: (Lkotlin/jvm/internal/DefaultConstructorMarker;)V
-me.ahoo.wow.api.query.Projection#class
+me.ahoo.wow.api.query.Projection#class|public final class me.ahoo.wow.api.query.Projection {
 me.ahoo.wow.api.query.Projection#public boolean equals(java.lang.Object);|descriptor: (Ljava/lang/Object;)Z
 me.ahoo.wow.api.query.Projection#public final java.util.List<java.lang.String> component1();|descriptor: ()Ljava/util/List;
 me.ahoo.wow.api.query.Projection#public final java.util.List<java.lang.String> component2();|descriptor: ()Ljava/util/List;
@@ -375,22 +375,22 @@ me.ahoo.wow.api.query.Projection#public me.ahoo.wow.api.query.Projection(java.ut
 me.ahoo.wow.api.query.Projection#public static final me.ahoo.wow.api.query.Projection access$getALL$cp();|descriptor: ()Lme/ahoo/wow/api/query/Projection;
 me.ahoo.wow.api.query.Projection#public static final me.ahoo.wow.api.query.Projection$Companion Companion;|descriptor: Lme/ahoo/wow/api/query/Projection$Companion;
 me.ahoo.wow.api.query.Projection#public static me.ahoo.wow.api.query.Projection copy$default(me.ahoo.wow.api.query.Projection, java.util.List, java.util.List, int, java.lang.Object);|descriptor: (Lme/ahoo/wow/api/query/Projection;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/api/query/Projection;
-me.ahoo.wow.api.query.Projection$Companion#class
+me.ahoo.wow.api.query.Projection$Companion#class|public final class me.ahoo.wow.api.query.Projection$Companion {
 me.ahoo.wow.api.query.Projection$Companion#public final me.ahoo.wow.api.query.Projection getALL();|descriptor: ()Lme/ahoo/wow/api/query/Projection;
 me.ahoo.wow.api.query.Projection$Companion#public me.ahoo.wow.api.query.Projection$Companion(kotlin.jvm.internal.DefaultConstructorMarker);|descriptor: (Lkotlin/jvm/internal/DefaultConstructorMarker;)V
-me.ahoo.wow.api.query.ProjectionCapable#class
+me.ahoo.wow.api.query.ProjectionCapable#class|public interface me.ahoo.wow.api.query.ProjectionCapable<Q extends me.ahoo.wow.api.query.RewritableProjection<Q>> extends me.ahoo.wow.api.query.RewritableProjection<Q> {
 me.ahoo.wow.api.query.ProjectionCapable#public abstract me.ahoo.wow.api.query.Projection getProjection();|descriptor: ()Lme/ahoo/wow/api/query/Projection;
-me.ahoo.wow.api.query.Queryable#class
+me.ahoo.wow.api.query.Queryable#class|public interface me.ahoo.wow.api.query.Queryable<Q extends me.ahoo.wow.api.query.Queryable<Q>> extends me.ahoo.wow.api.query.ConditionCapable<Q>, me.ahoo.wow.api.query.ProjectionCapable<Q>, me.ahoo.wow.api.query.SortCapable {
 me.ahoo.wow.api.query.Queryable#public static me.ahoo.wow.api.query.Queryable access$appendCondition$jd(me.ahoo.wow.api.query.Queryable, me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Queryable;Lme/ahoo/wow/api/query/Condition;)Lme/ahoo/wow/api/query/Queryable;
 me.ahoo.wow.api.query.Queryable#public static me.ahoo.wow.api.query.Queryable access$appendTenantId$jd(me.ahoo.wow.api.query.Queryable, java.lang.String);|descriptor: (Lme/ahoo/wow/api/query/Queryable;Ljava/lang/String;)Lme/ahoo/wow/api/query/Queryable;
-me.ahoo.wow.api.query.RewritableCondition#class
+me.ahoo.wow.api.query.RewritableCondition#class|public interface me.ahoo.wow.api.query.RewritableCondition<Q extends me.ahoo.wow.api.query.RewritableCondition<Q>> {
 me.ahoo.wow.api.query.RewritableCondition#public abstract Q appendCondition(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Lme/ahoo/wow/api/query/RewritableCondition;
 me.ahoo.wow.api.query.RewritableCondition#public abstract Q withCondition(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Lme/ahoo/wow/api/query/RewritableCondition;
 me.ahoo.wow.api.query.RewritableCondition#public default Q appendTenantId(java.lang.String);|descriptor: (Ljava/lang/String;)Lme/ahoo/wow/api/query/RewritableCondition;
 me.ahoo.wow.api.query.RewritableCondition#public static me.ahoo.wow.api.query.RewritableCondition access$appendTenantId$jd(me.ahoo.wow.api.query.RewritableCondition, java.lang.String);|descriptor: (Lme/ahoo/wow/api/query/RewritableCondition;Ljava/lang/String;)Lme/ahoo/wow/api/query/RewritableCondition;
-me.ahoo.wow.api.query.RewritableProjection#class
+me.ahoo.wow.api.query.RewritableProjection#class|public interface me.ahoo.wow.api.query.RewritableProjection<Q extends me.ahoo.wow.api.query.RewritableProjection<Q>> {
 me.ahoo.wow.api.query.RewritableProjection#public abstract Q withProjection(me.ahoo.wow.api.query.Projection);|descriptor: (Lme/ahoo/wow/api/query/Projection;)Lme/ahoo/wow/api/query/RewritableProjection;
-me.ahoo.wow.api.query.SimpleDynamicDocument#class
+me.ahoo.wow.api.query.SimpleDynamicDocument#class|public final class me.ahoo.wow.api.query.SimpleDynamicDocument implements me.ahoo.wow.api.query.DynamicDocument, java.util.Map<java.lang.String, java.lang.Object>, kotlin.jvm.internal.markers.KMutableMap {
 me.ahoo.wow.api.query.SimpleDynamicDocument#public <V> V getValue(java.lang.String);|descriptor: (Ljava/lang/String;)Ljava/lang/Object;
 me.ahoo.wow.api.query.SimpleDynamicDocument#public boolean containsKey(java.lang.String);|descriptor: (Ljava/lang/String;)Z
 me.ahoo.wow.api.query.SimpleDynamicDocument#public boolean containsValue(java.lang.Object);|descriptor: (Ljava/lang/Object;)Z
@@ -416,10 +416,10 @@ me.ahoo.wow.api.query.SimpleDynamicDocument#public me.ahoo.wow.api.query.SimpleD
 me.ahoo.wow.api.query.SimpleDynamicDocument#public static final me.ahoo.wow.api.query.SimpleDynamicDocument$Companion Companion;|descriptor: Lme/ahoo/wow/api/query/SimpleDynamicDocument$Companion;
 me.ahoo.wow.api.query.SimpleDynamicDocument#public void clear();|descriptor: ()V
 me.ahoo.wow.api.query.SimpleDynamicDocument#public void putAll(java.util.Map<? extends java.lang.String, ? extends java.lang.Object>);|descriptor: (Ljava/util/Map;)V
-me.ahoo.wow.api.query.SimpleDynamicDocument$Companion#class
+me.ahoo.wow.api.query.SimpleDynamicDocument$Companion#class|public final class me.ahoo.wow.api.query.SimpleDynamicDocument$Companion {
 me.ahoo.wow.api.query.SimpleDynamicDocument$Companion#public final me.ahoo.wow.api.query.SimpleDynamicDocument toDynamicDocument(java.util.Map<java.lang.String, ?>);|descriptor: (Ljava/util/Map;)Lme/ahoo/wow/api/query/SimpleDynamicDocument;
 me.ahoo.wow.api.query.SimpleDynamicDocument$Companion#public me.ahoo.wow.api.query.SimpleDynamicDocument$Companion(kotlin.jvm.internal.DefaultConstructorMarker);|descriptor: (Lkotlin/jvm/internal/DefaultConstructorMarker;)V
-me.ahoo.wow.api.query.SingleQuery#class
+me.ahoo.wow.api.query.SingleQuery#class|public final class me.ahoo.wow.api.query.SingleQuery implements me.ahoo.wow.api.query.ISingleQuery {
 me.ahoo.wow.api.query.SingleQuery#public boolean equals(java.lang.Object);|descriptor: (Ljava/lang/Object;)Z
 me.ahoo.wow.api.query.SingleQuery#public final java.util.List<me.ahoo.wow.api.query.Sort> component3();|descriptor: ()Ljava/util/List;
 me.ahoo.wow.api.query.SingleQuery#public final me.ahoo.wow.api.query.Condition component1();|descriptor: ()Lme/ahoo/wow/api/query/Condition;
@@ -442,7 +442,7 @@ me.ahoo.wow.api.query.SingleQuery#public me.ahoo.wow.api.query.RewritableProject
 me.ahoo.wow.api.query.SingleQuery#public me.ahoo.wow.api.query.SingleQuery(me.ahoo.wow.api.query.Condition, me.ahoo.wow.api.query.Projection, java.util.List, int, kotlin.jvm.internal.DefaultConstructorMarker);|descriptor: (Lme/ahoo/wow/api/query/Condition;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 me.ahoo.wow.api.query.SingleQuery#public me.ahoo.wow.api.query.SingleQuery(me.ahoo.wow.api.query.Condition, me.ahoo.wow.api.query.Projection, java.util.List<me.ahoo.wow.api.query.Sort>);|descriptor: (Lme/ahoo/wow/api/query/Condition;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;)V
 me.ahoo.wow.api.query.SingleQuery#public static me.ahoo.wow.api.query.SingleQuery copy$default(me.ahoo.wow.api.query.SingleQuery, me.ahoo.wow.api.query.Condition, me.ahoo.wow.api.query.Projection, java.util.List, int, java.lang.Object);|descriptor: (Lme/ahoo/wow/api/query/SingleQuery;Lme/ahoo/wow/api/query/Condition;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/api/query/SingleQuery;
-me.ahoo.wow.api.query.SmallMaterializedSnapshot#class
+me.ahoo.wow.api.query.SmallMaterializedSnapshot#class|public final class me.ahoo.wow.api.query.SmallMaterializedSnapshot<S> implements me.ahoo.wow.api.Version, me.ahoo.wow.api.modeling.FirstEventTimeCapable, me.ahoo.wow.api.query.IMaterializedSnapshot<me.ahoo.wow.api.query.SmallMaterializedSnapshot<S>, S> {
 me.ahoo.wow.api.query.SmallMaterializedSnapshot#public S getState();|descriptor: ()Ljava/lang/Object;
 me.ahoo.wow.api.query.SmallMaterializedSnapshot#public boolean equals(java.lang.Object);|descriptor: (Ljava/lang/Object;)Z
 me.ahoo.wow.api.query.SmallMaterializedSnapshot#public boolean getInitialized();|descriptor: ()Z
@@ -459,7 +459,7 @@ me.ahoo.wow.api.query.SmallMaterializedSnapshot#public me.ahoo.wow.api.query.IMa
 me.ahoo.wow.api.query.SmallMaterializedSnapshot#public me.ahoo.wow.api.query.SmallMaterializedSnapshot(int, long, S);|descriptor: (IJLjava/lang/Object;)V
 me.ahoo.wow.api.query.SmallMaterializedSnapshot#public me.ahoo.wow.api.query.SmallMaterializedSnapshot<S> withState(S);|descriptor: (Ljava/lang/Object;)Lme/ahoo/wow/api/query/SmallMaterializedSnapshot;
 me.ahoo.wow.api.query.SmallMaterializedSnapshot#public static me.ahoo.wow.api.query.SmallMaterializedSnapshot copy$default(me.ahoo.wow.api.query.SmallMaterializedSnapshot, int, long, java.lang.Object, int, java.lang.Object);|descriptor: (Lme/ahoo/wow/api/query/SmallMaterializedSnapshot;IJLjava/lang/Object;ILjava/lang/Object;)Lme/ahoo/wow/api/query/SmallMaterializedSnapshot;
-me.ahoo.wow.api.query.Sort#class
+me.ahoo.wow.api.query.Sort#class|public final class me.ahoo.wow.api.query.Sort {
 me.ahoo.wow.api.query.Sort#public boolean equals(java.lang.Object);|descriptor: (Ljava/lang/Object;)Z
 me.ahoo.wow.api.query.Sort#public final java.lang.String component1();|descriptor: ()Ljava/lang/String;
 me.ahoo.wow.api.query.Sort#public final java.lang.String getField();|descriptor: ()Ljava/lang/String;
@@ -470,11 +470,11 @@ me.ahoo.wow.api.query.Sort#public int hashCode();|descriptor: ()I
 me.ahoo.wow.api.query.Sort#public java.lang.String toString();|descriptor: ()Ljava/lang/String;
 me.ahoo.wow.api.query.Sort#public me.ahoo.wow.api.query.Sort(java.lang.String, me.ahoo.wow.api.query.Sort$Direction);|descriptor: (Ljava/lang/String;Lme/ahoo/wow/api/query/Sort$Direction;)V
 me.ahoo.wow.api.query.Sort#public static me.ahoo.wow.api.query.Sort copy$default(me.ahoo.wow.api.query.Sort, java.lang.String, me.ahoo.wow.api.query.Sort$Direction, int, java.lang.Object);|descriptor: (Lme/ahoo/wow/api/query/Sort;Ljava/lang/String;Lme/ahoo/wow/api/query/Sort$Direction;ILjava/lang/Object;)Lme/ahoo/wow/api/query/Sort;
-me.ahoo.wow.api.query.Sort$Direction#class
+me.ahoo.wow.api.query.Sort$Direction#class|public final class me.ahoo.wow.api.query.Sort$Direction extends java.lang.Enum<me.ahoo.wow.api.query.Sort$Direction> {
 me.ahoo.wow.api.query.Sort$Direction#public static final me.ahoo.wow.api.query.Sort$Direction ASC;|descriptor: Lme/ahoo/wow/api/query/Sort$Direction;
 me.ahoo.wow.api.query.Sort$Direction#public static final me.ahoo.wow.api.query.Sort$Direction DESC;|descriptor: Lme/ahoo/wow/api/query/Sort$Direction;
 me.ahoo.wow.api.query.Sort$Direction#public static kotlin.enums.EnumEntries<me.ahoo.wow.api.query.Sort$Direction> getEntries();|descriptor: ()Lkotlin/enums/EnumEntries;
 me.ahoo.wow.api.query.Sort$Direction#public static me.ahoo.wow.api.query.Sort$Direction valueOf(java.lang.String);|descriptor: (Ljava/lang/String;)Lme/ahoo/wow/api/query/Sort$Direction;
 me.ahoo.wow.api.query.Sort$Direction#public static me.ahoo.wow.api.query.Sort$Direction[] values();|descriptor: ()[Lme/ahoo/wow/api/query/Sort$Direction;
-me.ahoo.wow.api.query.SortCapable#class
+me.ahoo.wow.api.query.SortCapable#class|public interface me.ahoo.wow.api.query.SortCapable {
 me.ahoo.wow.api.query.SortCapable#public abstract java.util.List<me.ahoo.wow.api.query.Sort> getSort();|descriptor: ()Ljava/util/List;

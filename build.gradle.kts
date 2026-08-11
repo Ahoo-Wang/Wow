@@ -22,6 +22,7 @@ import org.gradle.testretry.TestRetryPlugin
 import org.jetbrains.dokka.gradle.DokkaPlugin
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.io.File
 
 plugins {
     alias(libs.plugins.test.retry)
@@ -98,17 +99,6 @@ val queryApiModules = listOf(
     ":wow-elasticsearch",
     ":wow-cosec",
 )
-
-tasks.register<Exec>("queryApiDump") {
-    dependsOn(queryApiModules.map { "$it:jar" })
-    commandLine("bash", "scripts/query-api-abi.sh", "dump")
-}
-
-tasks.register<Exec>("queryApiCheck") {
-    dependsOn(queryApiModules.map { "$it:jar" })
-    commandLine("bash", "scripts/query-api-abi.sh", "check")
-}
-
 ext.set("localTestProjects", localTestProjects)
 ext.set("localContractTestProjects", localContractTestProjects)
 ext.set("integrationTestProjects", integrationTestProjects)
@@ -248,6 +238,50 @@ configure(libraryProjects) {
         testImplementation("org.junit.jupiter:junit-jupiter-params")
         testRuntimeOnly("org.junit.platform:junit-platform-launcher")
         testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
+    }
+}
+
+val queryApiRuntimeClasspathTaskName = "writeQueryApiRuntimeClasspath"
+configure(queryApiModules.map(::project)) {
+    val sourceSets = extensions.getByType<SourceSetContainer>()
+    val runtimeClasspathFile = layout.buildDirectory.file("query-api/runtime-classpath.txt")
+    tasks.register(queryApiRuntimeClasspathTaskName) {
+        outputs.file(runtimeClasspathFile)
+        doLast {
+            val output = runtimeClasspathFile.get().asFile
+            output.parentFile.mkdirs()
+            output.writeText(sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME).runtimeClasspath.asPath)
+        }
+    }
+}
+
+fun queryApiRuntimeClasspath(): String = queryApiModules
+    .map { module ->
+        project(module)
+            .layout
+            .buildDirectory
+            .file("query-api/runtime-classpath.txt")
+            .get()
+            .asFile
+            .readText()
+            .trim()
+    }
+    .filter(String::isNotEmpty)
+    .joinToString(File.pathSeparator)
+
+tasks.register<Exec>("queryApiDump") {
+    dependsOn(queryApiModules.map { "$it:jar" })
+    dependsOn(queryApiModules.map { "$it:$queryApiRuntimeClasspathTaskName" })
+    doFirst {
+        commandLine("bash", "scripts/query-api-abi.sh", "dump", "--runtime-classpath", queryApiRuntimeClasspath())
+    }
+}
+
+tasks.register<Exec>("queryApiCheck") {
+    dependsOn(queryApiModules.map { "$it:jar" })
+    dependsOn(queryApiModules.map { "$it:$queryApiRuntimeClasspathTaskName" })
+    doFirst {
+        commandLine("bash", "scripts/query-api-abi.sh", "check", "--runtime-classpath", queryApiRuntimeClasspath())
     }
 }
 
