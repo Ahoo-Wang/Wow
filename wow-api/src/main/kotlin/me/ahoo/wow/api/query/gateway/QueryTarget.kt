@@ -35,6 +35,15 @@ class QueryTarget(
         }
     )
 
+    operator fun component1(): NamedAggregate = namedAggregate
+
+    operator fun component2(): QueryDocumentKind = documentKind
+
+    fun copy(
+        namedAggregate: NamedAggregate = this.namedAggregate,
+        documentKind: QueryDocumentKind = this.documentKind
+    ): QueryTarget = QueryTarget(namedAggregate, documentKind)
+
     override fun equals(other: Any?): Boolean = other is QueryTarget &&
         namedAggregate.contextName == other.namedAggregate.contextName &&
         namedAggregate.aggregateName == other.namedAggregate.aggregateName &&

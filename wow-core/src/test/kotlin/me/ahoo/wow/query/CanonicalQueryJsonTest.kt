@@ -27,6 +27,7 @@ import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.api.query.gateway.QueryResultShape
 import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import org.junit.jupiter.api.Test
@@ -69,6 +70,20 @@ class CanonicalQueryJsonTest {
         val decoded = value.toJsonString().toObject<QueryValue>()
 
         decoded.assert().isEqualTo(value)
+    }
+
+    @Test
+    fun `binary value JSON should expose exactly one payload field and round trip when nested`() {
+        val value: QueryValue = QueryValue.ObjectValue(
+            mapOf("binary" to QueryValue.BinaryValue(byteArrayOf(1, 2)))
+        )
+
+        val json = value.toJsonString()
+        val tree = JsonSerializer.readTree(json)
+        val binary = tree["values"]["binary"]
+
+        binary.propertyNames().toSet().assert().containsExactlyInAnyOrder("type", "value")
+        json.toObject<QueryValue>().assert().isEqualTo(value)
     }
 
     @Test

@@ -90,6 +90,15 @@ class LogicalExpression(
         require(this.operands.isNotEmpty()) { "Logical expression operands cannot be empty." }
     }
 
+    operator fun component1(): LogicalOperator = operator
+
+    operator fun component2(): List<QueryExpression> = operands
+
+    fun copy(
+        operator: LogicalOperator = this.operator,
+        operands: List<QueryExpression> = this.operands
+    ): LogicalExpression = LogicalExpression(operator, operands)
+
     override fun equals(other: Any?): Boolean =
         other is LogicalExpression && operator == other.operator && operands == other.operands
 
@@ -107,6 +116,15 @@ class PortableLogicalExpression(
     init {
         require(this.operands.isNotEmpty()) { "Portable logical expression operands cannot be empty." }
     }
+
+    operator fun component1(): LogicalOperator = operator
+
+    operator fun component2(): List<PortableExpression> = operands
+
+    fun copy(
+        operator: LogicalOperator = this.operator,
+        operands: List<PortableExpression> = this.operands
+    ): PortableLogicalExpression = PortableLogicalExpression(operator, operands)
 
     override fun equals(other: Any?): Boolean =
         other is PortableLogicalExpression && operator == other.operator && operands == other.operands
@@ -144,6 +162,18 @@ class PredicateExpression(
 ) : PortableExpression {
     val values: List<QueryValue> = immutableList(values)
 
+    operator fun component1(): LogicalField = field
+
+    operator fun component2(): PortableOperator = operator
+
+    operator fun component3(): List<QueryValue> = values
+
+    fun copy(
+        field: LogicalField = this.field,
+        operator: PortableOperator = this.operator,
+        values: List<QueryValue> = this.values
+    ): PredicateExpression = PredicateExpression(field, operator, values)
+
     override fun equals(other: Any?): Boolean =
         other is PredicateExpression && field == other.field && operator == other.operator && values == other.values
 
@@ -168,6 +198,18 @@ class FullTextExpression(
         require(query.isNotBlank()) { "Full-text query cannot be blank." }
         require(this.fields.isNotEmpty()) { "Full-text fields cannot be empty." }
     }
+
+    operator fun component1(): QueryCapabilityId = capabilityId
+
+    operator fun component2(): String = query
+
+    operator fun component3(): Set<LogicalField> = fields
+
+    fun copy(
+        capabilityId: QueryCapabilityId = this.capabilityId,
+        query: String = this.query,
+        fields: Set<LogicalField> = this.fields
+    ): FullTextExpression = FullTextExpression(capabilityId, query, fields)
 
     override fun equals(other: Any?): Boolean =
         other is FullTextExpression && capabilityId == other.capabilityId && query == other.query && fields == other.fields
@@ -194,6 +236,24 @@ class NativeExpression(
         require(templateId.isNotBlank()) { "Native template id cannot be blank." }
         require(this.declaredFields.isNotEmpty()) { "Native declared fields cannot be empty." }
     }
+
+    operator fun component1(): QueryCapabilityId = capabilityId
+
+    operator fun component2(): String = backendId
+
+    operator fun component3(): String = templateId
+
+    operator fun component4(): Map<String, QueryValue> = parameters
+
+    operator fun component5(): Set<LogicalField> = declaredFields
+
+    fun copy(
+        capabilityId: QueryCapabilityId = this.capabilityId,
+        backendId: String = this.backendId,
+        templateId: String = this.templateId,
+        parameters: Map<String, QueryValue> = this.parameters,
+        declaredFields: Set<LogicalField> = this.declaredFields
+    ): NativeExpression = NativeExpression(capabilityId, backendId, templateId, parameters, declaredFields)
 
     override fun equals(other: Any?): Boolean = other is NativeExpression &&
         capabilityId == other.capabilityId && backendId == other.backendId && templateId == other.templateId &&

@@ -44,6 +44,18 @@ class QueryPage<R : Any>(
         require(total >= items.size) { "total cannot be less than the number of page items." }
     }
 
+    operator fun component1(): List<R> = items
+
+    operator fun component2(): Long = total
+
+    operator fun component3(): QueryConsistency = consistency
+
+    fun copy(
+        items: List<R> = this.items,
+        total: Long = this.total,
+        consistency: QueryConsistency = this.consistency
+    ): QueryPage<R> = QueryPage(items, total, consistency)
+
     override fun equals(other: Any?): Boolean = other is QueryPage<*> &&
         items == other.items && total == other.total && consistency == other.consistency
 

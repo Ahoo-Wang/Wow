@@ -38,6 +38,27 @@ class SingleQueryRequest<R : Any>(
 ) : ResultQueryRequest<R> {
     val sort: List<QuerySort> = immutableList(sort)
 
+    operator fun component1(): QueryTarget = target
+
+    operator fun component2(): QueryExpression = expression
+
+    operator fun component3(): QueryResultShape<R> = resultShape
+
+    operator fun component4(): RequestedQueryScope = requestedScope
+
+    operator fun component5(): QueryBudgetHint = budget
+
+    operator fun component6(): List<QuerySort> = sort
+
+    fun copy(
+        target: QueryTarget = this.target,
+        expression: QueryExpression = this.expression,
+        resultShape: QueryResultShape<R> = this.resultShape,
+        requestedScope: RequestedQueryScope = this.requestedScope,
+        budget: QueryBudgetHint = this.budget,
+        sort: List<QuerySort> = this.sort
+    ): SingleQueryRequest<R> = SingleQueryRequest(target, expression, resultShape, requestedScope, budget, sort)
+
     override fun equals(other: Any?): Boolean = other is SingleQueryRequest<*> &&
         target == other.target && expression == other.expression && resultShape == other.resultShape &&
         requestedScope == other.requestedScope && budget == other.budget && sort == other.sort
@@ -63,6 +84,38 @@ class ListQueryRequest<R : Any>(
     init {
         require(limit >= 0) { "limit cannot be negative." }
     }
+
+    operator fun component1(): QueryTarget = target
+
+    operator fun component2(): QueryExpression = expression
+
+    operator fun component3(): QueryResultShape<R> = resultShape
+
+    operator fun component4(): RequestedQueryScope = requestedScope
+
+    operator fun component5(): QueryBudgetHint = budget
+
+    operator fun component6(): List<QuerySort> = sort
+
+    operator fun component7(): Int = limit
+
+    fun copy(
+        target: QueryTarget = this.target,
+        expression: QueryExpression = this.expression,
+        resultShape: QueryResultShape<R> = this.resultShape,
+        requestedScope: RequestedQueryScope = this.requestedScope,
+        budget: QueryBudgetHint = this.budget,
+        sort: List<QuerySort> = this.sort,
+        limit: Int = this.limit
+    ): ListQueryRequest<R> = ListQueryRequest(
+        target,
+        expression,
+        resultShape,
+        requestedScope,
+        budget,
+        sort,
+        limit
+    )
 
     override fun equals(other: Any?): Boolean = other is ListQueryRequest<*> &&
         target == other.target && expression == other.expression && resultShape == other.resultShape &&
@@ -92,6 +145,38 @@ class PageQueryRequest<R : Any>(
     val page: QueryPageSpec = QueryPageSpec(index = 1, size = 10)
 ) : ResultQueryRequest<R> {
     val sort: List<QuerySort> = immutableList(sort)
+
+    operator fun component1(): QueryTarget = target
+
+    operator fun component2(): QueryExpression = expression
+
+    operator fun component3(): QueryResultShape<R> = resultShape
+
+    operator fun component4(): RequestedQueryScope = requestedScope
+
+    operator fun component5(): QueryBudgetHint = budget
+
+    operator fun component6(): List<QuerySort> = sort
+
+    operator fun component7(): QueryPageSpec = page
+
+    fun copy(
+        target: QueryTarget = this.target,
+        expression: QueryExpression = this.expression,
+        resultShape: QueryResultShape<R> = this.resultShape,
+        requestedScope: RequestedQueryScope = this.requestedScope,
+        budget: QueryBudgetHint = this.budget,
+        sort: List<QuerySort> = this.sort,
+        page: QueryPageSpec = this.page
+    ): PageQueryRequest<R> = PageQueryRequest(
+        target,
+        expression,
+        resultShape,
+        requestedScope,
+        budget,
+        sort,
+        page
+    )
 
     override fun equals(other: Any?): Boolean = other is PageQueryRequest<*> &&
         target == other.target && expression == other.expression && resultShape == other.resultShape &&

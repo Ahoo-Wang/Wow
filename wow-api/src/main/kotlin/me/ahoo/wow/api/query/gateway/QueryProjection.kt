@@ -26,6 +26,10 @@ sealed interface QueryProjection {
             require(this.fields.isNotEmpty()) { "Included fields cannot be empty." }
         }
 
+        operator fun component1(): Set<LogicalField> = fields
+
+        fun copy(fields: Set<LogicalField> = this.fields): Include = Include(fields)
+
         override fun equals(other: Any?): Boolean = other is Include && fields == other.fields
 
         override fun hashCode(): Int = fields.hashCode()
@@ -39,6 +43,10 @@ sealed interface QueryProjection {
         init {
             require(this.fields.isNotEmpty()) { "Excluded fields cannot be empty." }
         }
+
+        operator fun component1(): Set<LogicalField> = fields
+
+        fun copy(fields: Set<LogicalField> = this.fields): Exclude = Exclude(fields)
 
         override fun equals(other: Any?): Boolean = other is Exclude && fields == other.fields
 

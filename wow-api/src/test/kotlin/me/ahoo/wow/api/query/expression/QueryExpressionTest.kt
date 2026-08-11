@@ -51,6 +51,26 @@ class QueryExpressionTest {
     }
 
     @Test
+    fun `expression should expose data class source surface and copy defensively`() {
+        val operands = mutableListOf<QueryExpression>(MatchAll)
+        val expression = LogicalExpression(LogicalOperator.AND, operands)
+        val (operator, destructuredOperands) = expression
+        val replacement = mutableListOf<QueryExpression>(MatchNone)
+
+        val copied = expression.copy(operator = LogicalOperator.OR, operands = replacement)
+        replacement += MatchAll
+
+        operator.assert().isEqualTo(LogicalOperator.AND)
+        destructuredOperands.assert().containsExactly(MatchAll)
+        copied.operands.assert().containsExactly(MatchNone)
+        LogicalExpression::class.java.getDeclaredMethod("component1").returnType.assert()
+            .isEqualTo(LogicalOperator::class.java)
+        LogicalExpression::class.java.getDeclaredMethod("component2").returnType.assert()
+            .isEqualTo(List::class.java)
+        LogicalExpression::class.java.declaredMethods.any { it.name == "copy" }.assert().isTrue()
+    }
+
+    @Test
     fun `query values should deeply snapshot mutable input`() {
         val bytes = byteArrayOf(1, 2)
         val values = mutableListOf<QueryValue>(QueryValue.BinaryValue(bytes))

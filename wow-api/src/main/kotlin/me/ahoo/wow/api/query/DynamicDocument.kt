@@ -13,7 +13,22 @@
 
 package me.ahoo.wow.api.query
 
+import java.math.BigDecimal
+import java.math.BigInteger
+import java.time.Duration
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.MonthDay
+import java.time.OffsetDateTime
+import java.time.OffsetTime
+import java.time.Period
+import java.time.Year
+import java.time.YearMonth
+import java.time.ZonedDateTime
 import java.util.Collections
+import java.util.UUID
 
 /**
  * Interface representing a dynamic document that can store arbitrary key-value pairs.
@@ -118,6 +133,10 @@ class SimpleDynamicDocument(
  * The legacy [DynamicDocument] type remains a [MutableMap] for binary compatibility. This implementation takes a
  * deep snapshot at its boundary and rejects every mutation operation. Binary values are copied again when read so
  * callers cannot mutate the internal snapshot through a returned array.
+ *
+ * Accepted values are null; strings, booleans, characters and the primitive number wrappers; [BigInteger],
+ * [BigDecimal], [UUID], enum constants and immutable `java.time` values; nested string-keyed maps, lists, sets,
+ * object arrays and primitive arrays. Any other value is rejected instead of being retained by reference.
  */
 class ImmutableDynamicDocument private constructor(
     private val snapshot: Map<String, Any?>
@@ -146,6 +165,19 @@ class ImmutableDynamicDocument private constructor(
             ?: throw ClassCastException("Value at key [$key] is not a DynamicDocument")
     }
 
+    override fun equals(other: Any?): Boolean {
+        if (this === other) {
+            return true
+        }
+        return when (other) {
+            is ImmutableDynamicDocument -> snapshot == other.snapshot
+            is Map<*, *> -> super.equals(other)
+            else -> false
+        }
+    }
+
+    override fun hashCode(): Int = snapshot.hashCode()
+
     companion object {
         fun copyOf(source: Map<String, *>): ImmutableDynamicDocument = fromUntypedMap(source)
 
@@ -163,40 +195,169 @@ class ImmutableDynamicDocument private constructor(
             is Map<*, *> -> fromUntypedMap(value)
             is List<*> -> ListSnapshot(value.map(::snapshotValue))
             is Set<*> -> SetSnapshot(value.mapTo(LinkedHashSet(), ::snapshotValue))
-            is Array<*> -> ListSnapshot(value.map(::snapshotValue))
+            is Array<*> -> ObjectArraySnapshot(value.javaClass.componentType, value.map(::snapshotValue))
             is ByteArray -> BinarySnapshot(value)
-            else -> primitiveArraySnapshot(value) ?: value
+            else -> primitiveArraySnapshot(value) ?: acceptedScalar(value)
         }
 
-        private fun primitiveArraySnapshot(value: Any?): ListSnapshot? = when (value) {
-            is ShortArray -> ListSnapshot(value.toList())
-            is IntArray -> ListSnapshot(value.toList())
-            is LongArray -> ListSnapshot(value.toList())
-            is FloatArray -> ListSnapshot(value.toList())
-            is DoubleArray -> ListSnapshot(value.toList())
-            is BooleanArray -> ListSnapshot(value.toList())
-            is CharArray -> ListSnapshot(value.toList())
-            else -> null
+        private fun primitiveArraySnapshot(value: Any?): PrimitiveArraySnapshot? = PrimitiveArraySnapshot.copyOf(value)
+
+        private fun acceptedScalar(value: Any?): Any? = when (value) {
+            null,
+            is String,
+            is Boolean,
+            is Char,
+            is Byte,
+            is Short,
+            is Int,
+            is Long,
+            is Float,
+            is Double,
+            is BigInteger,
+            is BigDecimal,
+            is UUID,
+            is Enum<*>,
+            is Instant,
+            is Duration,
+            is Period,
+            is LocalDate,
+            is LocalTime,
+            is LocalDateTime,
+            is OffsetTime,
+            is OffsetDateTime,
+            is ZonedDateTime,
+            is Year,
+            is YearMonth,
+            is MonthDay -> value
+
+            else -> throw IllegalArgumentException("Unsupported dynamic document value type.")
         }
     }
 }
 
 private class BinarySnapshot(value: ByteArray) {
-    val value: ByteArray = value.copyOf()
+    private val value: ByteArray = value.copyOf()
+
+    fun detached(): ByteArray = value.copyOf()
+
+    override fun equals(other: Any?): Boolean = other is BinarySnapshot && value.contentEquals(other.value)
+
+    override fun hashCode(): Int = value.contentHashCode()
 }
 
 private class ListSnapshot(values: Collection<Any?>) {
     val values: List<Any?> = Collections.unmodifiableList(ArrayList(values))
+
+    override fun equals(other: Any?): Boolean = other is ListSnapshot && values == other.values
+
+    override fun hashCode(): Int = values.hashCode()
 }
 
 private class SetSnapshot(values: Collection<Any?>) {
     val values: Set<Any?> = Collections.unmodifiableSet(LinkedHashSet(values))
+
+    override fun equals(other: Any?): Boolean = other is SetSnapshot && values == other.values
+
+    override fun hashCode(): Int = values.hashCode()
+}
+
+private class ObjectArraySnapshot(
+    private val componentType: Class<*>,
+    private val values: List<Any?>
+) {
+    init {
+        try {
+            detached()
+        } catch (_: IllegalArgumentException) {
+            throw IllegalArgumentException("Object array component type cannot represent immutable snapshot values.")
+        }
+    }
+
+    fun detached(): Any {
+        val result = java.lang.reflect.Array.newInstance(componentType, values.size)
+        values.forEachIndexed { index, value ->
+            java.lang.reflect.Array.set(result, index, value.toDetachedValue())
+        }
+        return result
+    }
+
+    override fun equals(other: Any?): Boolean = other is ObjectArraySnapshot &&
+        componentType == other.componentType && values == other.values
+
+    override fun hashCode(): Int = 31 * componentType.hashCode() + values.hashCode()
+}
+
+private class PrimitiveArraySnapshot private constructor(
+    private val kind: Kind,
+    private val value: Any
+) {
+    fun detached(): Any = when (kind) {
+        Kind.SHORT -> (value as ShortArray).copyOf()
+        Kind.INT -> (value as IntArray).copyOf()
+        Kind.LONG -> (value as LongArray).copyOf()
+        Kind.FLOAT -> (value as FloatArray).copyOf()
+        Kind.DOUBLE -> (value as DoubleArray).copyOf()
+        Kind.BOOLEAN -> (value as BooleanArray).copyOf()
+        Kind.CHAR -> (value as CharArray).copyOf()
+    }
+
+    override fun equals(other: Any?): Boolean = other is PrimitiveArraySnapshot &&
+        kind == other.kind && contentEquals(value, other.value)
+
+    override fun hashCode(): Int = 31 * kind.hashCode() + contentHashCode(value)
+
+    private enum class Kind {
+        SHORT,
+        INT,
+        LONG,
+        FLOAT,
+        DOUBLE,
+        BOOLEAN,
+        CHAR
+    }
+
+    companion object {
+        fun copyOf(value: Any?): PrimitiveArraySnapshot? = when (value) {
+            is ShortArray -> PrimitiveArraySnapshot(Kind.SHORT, value.copyOf())
+            is IntArray -> PrimitiveArraySnapshot(Kind.INT, value.copyOf())
+            is LongArray -> PrimitiveArraySnapshot(Kind.LONG, value.copyOf())
+            is FloatArray -> PrimitiveArraySnapshot(Kind.FLOAT, value.copyOf())
+            is DoubleArray -> PrimitiveArraySnapshot(Kind.DOUBLE, value.copyOf())
+            is BooleanArray -> PrimitiveArraySnapshot(Kind.BOOLEAN, value.copyOf())
+            is CharArray -> PrimitiveArraySnapshot(Kind.CHAR, value.copyOf())
+            else -> null
+        }
+
+        private fun contentEquals(left: Any, right: Any): Boolean = when (left) {
+            is ShortArray -> left.contentEquals(right as ShortArray)
+            is IntArray -> left.contentEquals(right as IntArray)
+            is LongArray -> left.contentEquals(right as LongArray)
+            is FloatArray -> left.contentEquals(right as FloatArray)
+            is DoubleArray -> left.contentEquals(right as DoubleArray)
+            is BooleanArray -> left.contentEquals(right as BooleanArray)
+            is CharArray -> left.contentEquals(right as CharArray)
+            else -> false
+        }
+
+        private fun contentHashCode(value: Any): Int = when (value) {
+            is ShortArray -> value.contentHashCode()
+            is IntArray -> value.contentHashCode()
+            is LongArray -> value.contentHashCode()
+            is FloatArray -> value.contentHashCode()
+            is DoubleArray -> value.contentHashCode()
+            is BooleanArray -> value.contentHashCode()
+            is CharArray -> value.contentHashCode()
+            else -> 0
+        }
+    }
 }
 
 private fun Any?.toDetachedValue(): Any? = when (this) {
-    is BinarySnapshot -> value.copyOf()
+    is BinarySnapshot -> detached()
     is ListSnapshot -> Collections.unmodifiableList(values.map { it.toDetachedValue() })
     is SetSnapshot -> Collections.unmodifiableSet(values.mapTo(LinkedHashSet()) { it.toDetachedValue() })
+    is ObjectArraySnapshot -> detached()
+    is PrimitiveArraySnapshot -> detached()
     else -> this
 }
 

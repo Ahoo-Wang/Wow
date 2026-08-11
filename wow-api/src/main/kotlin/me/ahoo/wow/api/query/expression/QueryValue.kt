@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.api.query.expression
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import java.math.BigDecimal
@@ -59,6 +60,10 @@ sealed interface QueryValue {
     class ListValue(values: List<QueryValue>) : QueryValue {
         val values: List<QueryValue> = immutableList(values)
 
+        operator fun component1(): List<QueryValue> = values
+
+        fun copy(values: List<QueryValue> = this.values): ListValue = ListValue(values)
+
         override fun equals(other: Any?): Boolean = other is ListValue && values == other.values
 
         override fun hashCode(): Int = values.hashCode()
@@ -71,6 +76,10 @@ sealed interface QueryValue {
             require(key.isNotBlank()) { "Object value key cannot be blank." }
         }
 
+        operator fun component1(): Map<String, QueryValue> = values
+
+        fun copy(values: Map<String, QueryValue> = this.values): ObjectValue = ObjectValue(values)
+
         override fun equals(other: Any?): Boolean = other is ObjectValue && values == other.values
 
         override fun hashCode(): Int = values.hashCode()
@@ -79,10 +88,15 @@ sealed interface QueryValue {
     }
 
     class BinaryValue(value: ByteArray) : QueryValue {
+        @field:JsonIgnore
         private val snapshot: ByteArray = value.copyOf()
 
         val value: ByteArray
             get() = snapshot.copyOf()
+
+        operator fun component1(): ByteArray = value
+
+        fun copy(value: ByteArray = this.value): BinaryValue = BinaryValue(value)
 
         override fun equals(other: Any?): Boolean = other is BinaryValue && snapshot.contentEquals(other.snapshot)
 

@@ -68,6 +68,75 @@ class QueryRequestTest {
     }
 
     @Test
+    fun `request and target should expose ordered data class source surface`() {
+        val original = ListQueryRequest(
+            target = target(),
+            resultShape = QueryResultShape.Typed(String::class.java),
+            sort = listOf(QuerySort(LogicalField("amount"), QuerySortDirection.ASC)),
+            limit = 4
+        )
+        val (target, expression, shape) = original
+        val scope = original.component4()
+        val budget = original.component5()
+        val sort = original.component6()
+        val limit = original.component7()
+        val replacementSort = mutableListOf(QuerySort(LogicalField("name"), QuerySortDirection.DESC))
+        val copied = original.copy(sort = replacementSort, limit = 0)
+        replacementSort.clear()
+
+        target.assert().isEqualTo(original.target)
+        expression.assert().isEqualTo(original.expression)
+        shape.assert().isEqualTo(original.resultShape)
+        scope.assert().isEqualTo(original.requestedScope)
+        budget.assert().isEqualTo(original.budget)
+        sort.assert().isEqualTo(original.sort)
+        limit.assert().isEqualTo(4)
+        copied.sort.assert().hasSize(1)
+        copied.limit.assert().isZero()
+        ListQueryRequest::class.java.getDeclaredMethod("component1").returnType.assert()
+            .isEqualTo(QueryTarget::class.java)
+        ListQueryRequest::class.java.getDeclaredMethod("component6").returnType.assert()
+            .isEqualTo(List::class.java)
+        ListQueryRequest::class.java.declaredMethods.any { it.name == "copy" }.assert().isTrue()
+
+        val queryTarget = target()
+        val (namedAggregate, documentKind) = queryTarget
+        queryTarget.copy(documentKind = QueryDocumentKind.EVENT_STREAM).documentKind.assert()
+            .isEqualTo(QueryDocumentKind.EVENT_STREAM)
+        namedAggregate.contextName.assert().isEqualTo("sales")
+        documentKind.assert().isEqualTo(QueryDocumentKind.SNAPSHOT)
+        QueryTarget::class.java.getDeclaredMethod("component1").returnType.assert()
+            .isEqualTo(NamedAggregate::class.java)
+        QueryTarget::class.java.declaredMethods.any { it.name == "copy" }.assert().isTrue()
+    }
+
+    @Test
+    fun `projection and page should expose ordered data class source surface`() {
+        val projectionFields = mutableSetOf(LogicalField("amount"))
+        val projection = QueryProjection.Include(projectionFields)
+        val (fields) = projection
+        val projectionCopy = projection.copy(fields = projectionFields)
+        projectionFields.clear()
+        fields.assert().containsExactly(LogicalField("amount"))
+        projectionCopy.fields.assert().containsExactly(LogicalField("amount"))
+        QueryProjection.Include::class.java.getDeclaredMethod("component1").returnType.assert()
+            .isEqualTo(Set::class.java)
+        QueryProjection.Include::class.java.declaredMethods.any { it.name == "copy" }.assert().isTrue()
+
+        val pageItems = mutableListOf("one")
+        val page = QueryPage(pageItems, 1, QueryConsistency.EXACT)
+        val (items, total, consistency) = page
+        val pageCopy = page.copy(items = pageItems)
+        pageItems.clear()
+        items.assert().containsExactly("one")
+        total.assert().isEqualTo(1)
+        consistency.assert().isEqualTo(QueryConsistency.EXACT)
+        pageCopy.items.assert().containsExactly("one")
+        QueryPage::class.java.getDeclaredMethod("component1").returnType.assert().isEqualTo(List::class.java)
+        QueryPage::class.java.declaredMethods.any { it.name == "copy" }.assert().isTrue()
+    }
+
+    @Test
     fun `request boundaries should reject invalid budgets pages limits and totals`() {
         assertThrows<IllegalArgumentException> { QueryBudgetHint(timeout = Duration.ofNanos(-1)) }
         assertThrows<IllegalArgumentException> { QueryBudgetHint(maxResults = -1) }
@@ -115,14 +184,22 @@ class QueryRequestTest {
         val exception = QueryException(
             QueryErrorCode.POLICY_DENIED,
             QueryStage.POLICY,
-            QueryErrorReason("TENANT_SCOPE_DENIED")
+            QueryErrorReason.TENANT_SCOPE_DENIED
         )
 
         exception.code.assert().isEqualTo(QueryErrorCode.POLICY_DENIED)
         exception.stage.assert().isEqualTo(QueryStage.POLICY)
-        exception.reason.value.assert().isEqualTo("TENANT_SCOPE_DENIED")
+        exception.reason.name.assert().isEqualTo("TENANT_SCOPE_DENIED")
         exception.cause.assert().isNull()
-        assertThrows<IllegalArgumentException> { QueryErrorReason("tenant=secret") }
+        exception.message.assert().isEqualTo("POLICY_DENIED:POLICY:TENANT_SCOPE_DENIED")
+        assertThrows<IllegalArgumentException> {
+            QueryErrorReason.valueOf("TENANT_0123456789ABCDEF0123456789ABCDEF")
+        }
+        assertThrows<IllegalStateException> {
+            exception.initCause(IllegalStateException("backend secret"))
+        }
+        exception.addSuppressed(IllegalStateException("authority secret"))
+        exception.suppressed.assert().isEmpty()
     }
 
     private fun target() = QueryTarget(

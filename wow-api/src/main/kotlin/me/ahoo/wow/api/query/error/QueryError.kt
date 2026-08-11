@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.api.query.error
 
-private val QUERY_ERROR_REASON_PATTERN = Regex("[A-Z][A-Z0-9_]{0,63}")
-
 enum class QueryErrorCode {
     INVALID_QUERY,
     POLICY_DENIED,
@@ -40,19 +38,24 @@ enum class QueryStage {
     RESULT_POLICY
 }
 
-@JvmInline
-value class QueryErrorReason(val value: String) {
-    init {
-        require(QUERY_ERROR_REASON_PATTERN.matches(value)) {
-            "Query error reason must be an uppercase low-cardinality identifier."
-        }
-    }
-
-    override fun toString(): String = value
+enum class QueryErrorReason {
+    INVALID_REQUEST,
+    TENANT_SCOPE_DENIED,
+    OWNER_SCOPE_DENIED,
+    SPACE_SCOPE_DENIED,
+    FIELD_ACCESS_DENIED,
+    CAPABILITY_DENIED,
+    POLICY_EVALUATION_FAILED,
+    BACKEND_UNAVAILABLE,
+    BUDGET_LIMIT_REACHED,
+    DEADLINE_REACHED,
+    RESULT_INVALID,
+    BACKEND_EXECUTION_FAILED,
+    INCOMPLETE_STREAM
 }
 
 class QueryException(
     val code: QueryErrorCode,
     val stage: QueryStage,
     val reason: QueryErrorReason
-) : RuntimeException("${code.name}:${stage.name}:${reason.value}")
+) : RuntimeException("${code.name}:${stage.name}:${reason.name}", null, false, true)
