@@ -17,7 +17,7 @@
 - `PortableExpression` 定义 MongoDB、Elasticsearch 等后端都必须满足的可移植语义，并以 MongoDB 语义作为共享 TCK 的参考基线；
 - `CapabilityExpression` 显式承载 `FullText`、`Native`、未来 `Geo` 等后端能力，后端不支持时必须拒绝，不能静默降级。
 
-所有框架托管入口统一经过 Admission、Normalize、Policy、Backend Resolve、Plan、Execute、Result Policy 七个阶段。Admission 为每次订阅建立带来源信息的 `QueryInvocationScope`；`QueryPolicy` 根据可信 authority 校验、收窄并注入调用方不能移除的强制条件。结果脱敏由独立的 `ResultPolicy` 承担。存储后端只编译并执行已验证计划，不解析外部 DTO，也不自行拼接授权条件。
+所有框架托管入口统一经过 Admission、Normalize、Policy、Backend Resolve、Plan、Execute、Result Policy 七个阶段。Admission 为每次订阅建立带来源信息的 `QueryInvocationScope`；单一 `QueryPolicy` 扩展 SPI 统一承载服务端业务约束、安全条件、字段/capability 权限和预算上限，框架负责把其 mandatory expression 以 `AND` 注入，调用方不能移除。结果脱敏由独立的 `ResultPolicy` 承担。存储后端只编译并执行已验证计划，不解析外部 DTO，也不自行拼接授权条件。
 
 第一阶段不拆 Gradle 模块、不修改 KSP、不实现聚合分析 API、不自动迁移索引。默认查询 Schema 在启动时由聚合状态类型的 Jackson 序列化模型推导，并只提供一个 `QuerySchemaCustomizer` 扩展点。
 
@@ -85,7 +85,7 @@ flowchart LR
 | --- | --- | --- |
 | Admission | 每次订阅创建独立调用；从入口请求和可信 authority 构造带 provenance 的 `QueryInvocationScope`；固化 Clock、deadline、budget；防御性复制输入；结构预算校验 | 解释后端语法、仅凭调用方字段授予权限 |
 | Normalize | 将外部条件和值转换为不可变逻辑模型；统一时间和值语义 | 拼接授权、访问物理字段 |
-| QueryPolicy | 根据可信 authority 校验/收窄 scope；注入不可移除的强制条件；限制所有字段引用、能力与资源范围 | 编译 MongoDB/ES 查询 |
+| QueryPolicy | 注入跨入口业务约束；根据可信 authority 校验/收窄 scope；限制所有字段引用、能力与资源范围 | 编译 MongoDB/ES 查询、提供调用方可覆盖的默认值 |
 | QueryBackendResolver | 保留现有 aggregate/storage routing 语义；解析具体后端、稳定 descriptor、capability 和 readiness | 改写查询语义、执行查询 |
 | Planner | 根据 Schema 和已解析后端能力生成版本化可执行计划；解析输出 shape；加入稳定排序；拒绝超预算请求 | 执行网络 I/O |
 | QueryBackend | 编译和执行已验证计划；报告 readiness 与 capability | 解析 wire DTO、静默改写语义 |
@@ -94,12 +94,13 @@ flowchart LR
 ### 4.1 模块边界
 
 - `wow-api`：稳定公开请求、结果、表达式和错误码等纯数据契约；
-- `wow-query`：Reactive `QueryGateway` 公开契约及其默认实现、兼容门面、Admission、Normalizer、Policy、Planner、稳定且版本化的 Backend SPI 与生命周期管理；
+- `wow-query`：Reactive `QueryGateway` 公开契约及其默认实现、兼容门面、Admission、Normalizer、稳定 `QueryPolicy` SPI、Planner、稳定且版本化的 Backend SPI 与生命周期管理；
 - `wow-mongo`：MongoDB 计划编译器、执行器、readiness 检查；
 - `wow-elasticsearch`：Elasticsearch 计划编译器、执行器、mapping/readiness 检查；
 - `wow-spring*`：Bean 装配、旧 Bean 名称与泛型注入兼容；
 - `wow-webflux`：保持现有 HTTP wire 契约，从 route/header/request 构造带 provenance 的入口 scope，并将请求交给统一 Gateway；
-- `wow-cosec`：向 Admission 提供可信 authority/scope contributor，不再把安全性寄托于普通条件重写。
+- `wow-cosec`：向 Admission 提供可信 authority/scope contributor，不再把安全性寄托于普通条件重写；
+- `wow-test`：提供公开 `QueryPolicyTestKit` 和 Backend/Policy 契约测试支持。
 
 由于后端位于独立 Gradle 模块，也允许第三方实现自定义存储，`me.ahoo.wow.query.backend` 中的 `QueryBackend`、`QueryBackendDescriptor`、`QueryBackendResolver` 与 `QueryPlanV1` 是稳定、公开、版本化的基础设施 SPI：一旦在 8.x 发布，必须保持该主版本内的 source/binary compatibility。新增计划能力通过并行的 `QueryPlanV2`/新 capability 类型演进，不原地修改 `QueryPlanV1` 的既有语义。Normalizer、Planner 实现、中间构建器和物理编译细节仍保持 Kotlin `internal`。导出的计划数据结构必须最小、不可变且不含 Spring、wire DTO 或存储驱动类型；应用查询入口仍是 `QueryGateway`，Backend SPI 在独立文档中面向基础设施开发者说明。
 
@@ -148,6 +149,8 @@ interface QueryGateway {
 - requested resource scope：旧请求中的 tenant/owner/space 只能作为带 `CALLER_REQUEST` provenance 的范围请求，不能覆盖 Admission 从可信 authority 建立的 scope。
 
 请求对象不暴露 BSON、Elasticsearch DSL、物理索引字段或驱动类型，也不提供能让调用方把自己标记为已授权的 authority 字段。每次 Reactor subscription 创建独立 invocation，不在请求或 Context 中复用可变状态。
+
+开发者对单次查询的条件直接放入 request/DSL；允许调用方覆盖的默认条件放在领域 Query Facade 或 request builder。只有必须对旧 `QueryService`、新 `QueryGateway`、WebFlux 等所有入口统一生效且调用方不能移除的服务端约束，才实现第 7.4 节的 `QueryPolicy`。
 
 `QueryPage<R>` 在新 API 中明确携带 items、精确 total 与一致性元数据。旧分页 API继续映射为 `PagedList<R>`；如果后端不能在同一逻辑命令内产生精确结果，必须返回错误，不得用近似 total 或两次无一致性保证的独立查询冒充。
 
@@ -237,9 +240,11 @@ MongoDB 默认物理路径与逻辑 Jackson 路径一致。Wow 管理的 Elastic
 | --- | --- |
 | 授权、tenant/aggregate 范围、强制条件 | `QueryPolicy` |
 | 字段权限、能力许可、预算上限 | `QueryPolicy` |
+| 所有入口必须追加的业务条件 | `QueryPolicy` |
+| 单次条件或调用方可覆盖的默认条件 | Query request/DSL 或领域 Query Facade/request builder |
 | 结果字段脱敏、结果侧审计信息 | `ResultPolicy` |
 | 后端特有条件或字段绑定 | `CapabilityExpression`、`QuerySchemaCustomizer` 或 Backend compiler |
-| 通用请求/结果改写、任意前后置拦截 | 不提供一比一替代；拆分到上述有类型的职责边界 |
+| 任意前后置拦截 | 不提供一比一替代；拆分到上述有类型的职责边界 |
 
 这是 8.x 兼容承诺中的显式破坏性例外。使用旧 Filter 的预编译应用不保证原地二进制升级，必须重新编译并完成迁移；框架不以运行时探测补偿这一点。迁移文档必须提供中英文版本、职责对照、前后代码示例以及授权 Filter 的安全迁移检查清单。
 
@@ -276,6 +281,77 @@ Admission 在每次 subscription 中重新构造不可变 `QueryInvocationScope`
 `Projection.ALL` 不能把决定权留给后端或仅靠事后 masking；Policy 必须先把它解析为当前 authority 允许的明确输出 shape，再交给 Planner。`ResultPolicy` 继续做脱敏、审计和防御性检查，但不是防止敏感字段被读取的唯一边界。
 
 Policy 读取的是每次订阅固化的 authority，不依赖共享可变 `QueryContext.attributes`。Native、FullText 和 `LegacyBackendField` 默认拒绝，只有后端支持、配置启用且 Policy 明确授权时才可执行。
+
+### 7.4 单一 QueryPolicy 扩展 SPI
+
+框架不再提供 `QueryConditionContributor` 或新的通用 query hook。所有框架级条件注入本质上都是调用方不能移除的服务端约束，因此统一由一个最小函数式接口承载：
+
+```kotlin
+fun interface QueryPolicy {
+    fun evaluate(context: QueryPolicyContext): Mono<QueryPolicyResult>
+}
+
+data class QueryPolicyResult(
+    val mandatoryExpression: PortableExpression = MatchAll,
+    val constraints: QueryPolicyConstraints = QueryPolicyConstraints.NONE
+)
+
+data class QueryPolicyConstraints(
+    val fieldAccess: QueryFieldAccess = QueryFieldAccess.UNRESTRICTED,
+    val capabilityAccess: Map<QueryCapabilityId, CapabilityDecision> = emptyMap(),
+    val maxBudget: QueryBudgetLimit = QueryBudgetLimit.UNBOUNDED
+)
+```
+
+`me.ahoo.wow.query.policy` 下的 `QueryPolicy`、`QueryPolicyContext`、`QueryPolicyResult`、constraints、denied exception 及它们引用的 context view 都是稳定公开 SPI。`QueryPolicyContext` 是不可变值，包含 `QueryTarget`、operation、Normalize 后的 expression、result shape、`QueryInvocationScope`、`QuerySchemaView`、请求 budget，以及本次 subscription 冻结的 `Instant`/`ZoneId`。它不暴露 Spring、HTTP request、存储驱动类型、可变 attributes 或可替换 query 的方法。`QueryPolicy` 可以读取 trusted authority；实现该 SPI 的服务端代码属于受信部署面。
+
+Policy 不适用或没有附加条件时返回默认 `QueryPolicyResult`/`MatchAll`。明确拒绝通过 `Mono.error(QueryPolicyDeniedException(reasonCode))` 表达；`reasonCode` 必须稳定、低基数且不含敏感数据。`Mono.empty()` 不是允许或不适用，而是扩展协议错误。
+
+所有 Policy 接收相同的只读 context，不能读取前一个 Policy 的结果。框架集中合并：
+
+```text
+securedExpression = AND(
+    normalizedUserAndLegacyExpression,
+    policy1.mandatoryExpression,
+    policy2.mandatoryExpression,
+    ...
+)
+```
+
+- mandatory expression 全部 `AND`，且只能是 `PortableExpression`；安全条件不能依赖 Native、全文或某个 mapping 特性；
+- field access 取交集；max budget 取最小值；
+- capability 任意显式 `DENY` 优先，否则需要至少一个 `GRANT`；全部 `ABSTAIN` 时拒绝；
+- capability 的最终许可仍是 backend 支持、系统配置启用、Policy grant 三者同时满足；
+- Policy 顺序只影响执行、日志和错误诊断稳定性，不允许形成语义依赖。
+
+组合器在进入 Backend Resolver 前验证每个 Policy result 及最终 expression/constraints；未知字段、错误值类型、非法表达式或不一致约束立即产生 `POLICY_FAILURE`。Policy evaluation、组合和验证都受本次 invocation deadline 约束。
+
+框架内置 `SystemQueryPolicy` 负责 Snapshot 默认 active、Schema 基线、管理员预算，以及“没有任何 Policy grant 时拒绝 capability”的系统不变量；它不能对所有 capability 预先产生显式 `DENY`，否则自定义 `GRANT` 永远无法生效。System Policy 始终参与组合，不能因为应用声明自定义 Bean 或没有自定义 Policy 而被替换/移除。CoSec 等集成追加自己的 Policy，不覆盖系统策略。
+
+Spring 自动收集 `List<QueryPolicy>`，复用 Wow 的 `@Order`/`Ordered` 排序，并在 `QueryGateway` 创建时与内置 Policy 合成为不可变快照。非 Spring 环境由 `QueryGatewayFactory` 构造时显式传入不可变自定义 Policy 列表，系统 Policy 仍由框架加入。扩展描述符由注册层根据 Spring bean name/实现类生成，用于低基数指标和日志，不污染 `QueryPolicy` 接口。第一阶段不提供运行时 `register`/`unregister`。
+
+普通业务约束和安全约束使用同一注册方式：
+
+```kotlin
+@Bean
+fun activeOrderPolicy() = QueryPolicy { context ->
+    val mandatory = if (context.target.aggregateName == "order") {
+        PortableExpression.eq("state.status", "ACTIVE")
+    } else {
+        MatchAll
+    }
+    QueryPolicyResult(mandatoryExpression = mandatory).toMono()
+}
+
+@Bean
+fun tenantPolicy() = QueryPolicy { context ->
+    val tenantId = context.invocationScope.trustedAuthority.tenantId
+        ?: return@QueryPolicy Mono.error(QueryPolicyDeniedException("TENANT_REQUIRED"))
+    QueryPolicyResult(
+        mandatoryExpression = PortableExpression.tenantId(tenantId)
+    ).toMono()
+}
+```
 
 ## 8. 规划与后端执行
 
@@ -341,6 +417,7 @@ bounded list 自动加入稳定 identity tie-breaker。超过后端深分页能�
 | --- | --- |
 | `INVALID_QUERY` | 请求结构、类型、Schema 字段或预算参数无效 |
 | `POLICY_DENIED` | 授权、字段、能力或资源范围被拒绝 |
+| `POLICY_FAILURE` | Policy 异常、返回 `Mono.empty()`、输出未知字段/错误类型/非法表达式等服务端扩展失败 |
 | `UNSUPPORTED_CAPABILITY` | 目标后端不支持请求能力 |
 | `BACKEND_NOT_READY` | 后端未注册、mapping/index 未就绪或配置不满足计划 |
 | `BUDGET_EXCEEDED` | 表达式、结果量、深分页或资源预算超限 |
@@ -359,6 +436,8 @@ bounded list 自动加入稳定 identity tie-breaker。超过后端深分页能�
 
 当前 `StreamingJsonArrayResponse` 已用 `switchOnFirst` 区分首信号，但进入写出后固定拼接 `[`、元素、`]`（`wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/response/StreamingJsonArrayResponse.kt:59`）；中途错误无法回写状态，也不会产生完整数组。现有 streaming JSON 的 success header 与 `[` 写出时机必须随 adapter 调整；在首项前失败时不能预先宣告成功，在首项后失败时也不得追加伪造的成功结尾。HTTP client 文档必须明确：只有完整消费并成功闭合的 JSON array 才是成功结果。
 
+Policy 明确抛出的 `QueryPolicyDeniedException` 映射为 `POLICY_DENIED`；其他异常、空 publisher 或无效输出映射为 `POLICY_FAILURE`，不能错误归因于调用方的 `INVALID_QUERY`。Policy 评估期间超过 invocation deadline 仍使用 `DEADLINE_EXCEEDED` 并标记 Policy stage。三类错误都 fail-closed，Backend Resolver 不得运行；外部响应不暴露 bean name、堆栈、authority 或 mandatory expression，内部日志/指标只记录安全的 policy descriptor、阶段、耗时和 cause 分类。禁止用 `onErrorResume` 将 Policy 失败恢复为 `MatchAll`。
+
 禁止以下行为：
 
 - 用 `NoOp` 返回空集合、`Mono.empty()` 或 `0` 表示后端缺失；
@@ -367,7 +446,7 @@ bounded list 自动加入稳定 identity tie-breaker。超过后端深分页能�
 - 用 approximate total 替代 exact total；
 - 在不支持 capability 时自动退化到另一语义。
 
-指标至少按 operation、document kind、backend、outcome、error code、capability、legacy facade 区分；不得记录 Native 原文、敏感条件值或未脱敏 authority。`LegacyBackendField` 和旧 API 使用量必须可观测，用于下一主版本删除评估。
+指标至少按 operation、document kind、backend、outcome、error code、capability、低基数 policy descriptor、legacy facade 区分；不得记录 Native 原文、mandatory expression、敏感条件值或未脱敏 authority。`LegacyBackendField` 和旧 API 使用量必须可观测，用于下一主版本删除评估。
 
 ## 10. 兼容与迁移策略
 
@@ -378,6 +457,7 @@ bounded list 自动加入稳定 identity tie-breaker。超过后端深分页能�
 | 公开面 | Wow 8.x 处置 |
 | --- | --- |
 | `QueryGateway`、新 request/result/expression/error | 新增稳定应用 API；遵循 8.x source/binary/wire compatibility |
+| `QueryPolicy`、`QueryPolicyContext`、`QueryPolicyResult`、约束与测试工具 | 新增稳定扩展 SPI；所有入口共享同一不可变 Policy 快照和组合器 |
 | `QueryService`、`SnapshotQueryService`、`EventStreamQueryService` 及现有 request/result DTO | 保留 package、方法和既有公开签名并 deprecate；实现改为只委托 `QueryGateway` 的兼容门面 |
 | `SnapshotQueryServiceFactory`、`EventStreamQueryServiceFactory`、`RoutingSnapshotQueryServiceFactory`、`RoutingEventStreamQueryServiceFactory` | 保留接口/类、公开构造器和行为入口并 deprecate；内部统一委托 resolver/Gateway，不保留第二路由表或执行器 |
 | MongoDB/Elasticsearch 公开的具体 `*QueryServiceFactory` 与相关存储绑定 | 保留既有公开类、构造器和 package；改为注册/适配 `QueryBackend`。若 ABI 工具发现无法适配的签名，须单独提案确认，不能顺带删除 |
@@ -394,6 +474,8 @@ bounded list 自动加入稳定 identity tie-breaker。超过后端深分页能�
 旧调用 API 标记 deprecation。兼容门面只依赖 `QueryGateway` 公共接口，在内部完成 `legacy DTO -> new request -> QueryGateway -> legacy result/error` 映射；它不能访问 Planner、Backend 或默认 Gateway 实现。兼容门面不保留以下错误行为：NoOp 静默空结果、非法分页未校验、ES 静默 10k 截断、部分失败伪装成功、能力不支持时语义降级。
 
 旧 Query Filter 类型、Handler/Context 扩展面及其 Spring 注册入口直接删除。没有 runtime warning 或 Bean 检测；重新编译产生的错误就是迁移入口。`RewriteRequestCondition` 与 masker API 按上表保留，不能被误归入 Filter 删除。发布说明必须将批准删除项列为 breaking change，并链接到 `documentation/docs/zh/guide/migration/` 与 `documentation/docs/en/guide/migration/` 下的 Query Filter 迁移指南。
+
+条件扩展的迁移判断固定为：调用方可以决定或覆盖的条件放入 query request/DSL/领域 Query Facade；所有框架托管入口都必须执行且调用方不能移除的业务或安全约束实现 `QueryPolicy`。旧授权/ABAC Filter 迁移到 `QueryPolicy`；仅 WebFlux 生效的 `RewriteRequestCondition` 在 8.x 继续作为 `LEGACY_ENRICHMENT`，需要跨入口一致性的规则应迁移到 `QueryPolicy`。普通 Policy 与安全 Policy 使用同一 SPI，不再额外引入职责重叠的 `QueryConditionContributor`。
 
 8.x 同时公开新的稳定 `QueryGateway`，让应用可以主动迁移。第一阶段不新增 HTTP 路由：现有 WebFlux wire 契约改由 Gateway 执行即可。
 
@@ -428,7 +510,7 @@ flowchart LR
 
 1. **Contract Lock**：按第 10.1 节完整矩阵为旧 API/ABI、JSON/OpenAPI、Spring Bean/storage routing 与关键语义建立 golden/集成基线，并锁定唯一批准删除的 Filter API 清单；
 2. **Semantic Core**：实现不可变值、43 个 Operator 的穷尽 lowering、portable/capability expression、Schema resolver、标准化和预算验证；
-3. **Gateway, Scope & Policy**：实现 `QueryGateway`、每订阅 `QueryInvocationScope`、WebFlux/CoSec scope contributor、Policy provenance、ResultPolicy 和稳定错误；
+3. **Gateway, Scope & Policy**：实现 `QueryGateway`、每订阅 `QueryInvocationScope`、WebFlux/CoSec scope contributor、单一 `QueryPolicy` SPI/组合器、Policy provenance、ResultPolicy 和稳定错误；
 4. **Backend SPI & Resolver**：先发布版本化 `QueryPlanV1`/Backend SPI，实现 storage route resolver、descriptor、capability/readiness；
 5. **Backends**：实现 MongoDB、Elasticsearch plan compiler/executor、readiness 与共享 TCK；
 6. **Facade Cutover**：把旧 QueryService/factory、Spring、WebFlux、DSL 全部切到 Gateway；保留 deprecated rewrite/masker adapter，删除独立执行路径与 NoOp 语义；
@@ -445,12 +527,15 @@ flowchart LR
 - 当前 43 个 `Operator` 每个都有唯一 lowering；枚举新增/遗漏无默认分支并使测试失败；相对时间只读取一次冻结 Clock/ZoneId；
 - Jackson Schema 推导覆盖命名、ignore、nullable、enum、nested、collection；
 - `QueryInvocationScope` provenance、caller scope 不可伪造 authority、mandatory condition 不可删除；WebFlux/CoSec 即使禁用 legacy rewrite 仍强制 tenant/owner/space；
+- `QueryPolicy` 的 `MatchAll`、mandatory `AND`、field intersection、budget minimum、capability deny/grant/abstain；所有 Policy 读取相同 context 且顺序不改变语义；
+- `QueryPolicyDeniedException`、`Mono.empty()`、意外异常、invalid expression 和 deadline 分别映射 `POLICY_DENIED`、`POLICY_FAILURE` 或 `DEADLINE_EXCEEDED`，且后端无 I/O；
 - condition、projection、`Projection.ALL`、sort、capability payload、result shape 和自动 tie-breaker 的字段权限；
 - `QueryBackendResolver` 对每聚合/storage route 的稳定解析、非法启动配置、缺失后端与 readiness 错误；
 - 旧 DTO 到新 request、错误和结果形态的兼容映射；
 - 公开 ABI 检查覆盖第 10.1 节全部类型，只允许批准清单中的 Query Filter 删除，其他差异失败；
 - JSON/OpenAPI 与 Spring Bean 名称 golden test；
 - deprecated `RewriteRequestCondition`/masker adapter 兼容测试；迁移后的 Policy/ResultPolicy 示例可编译，并覆盖旧授权 Filter 的等价安全约束。
+- 提供 `QueryPolicyTestKit` 构造 target、authority、scope、expression 与 frozen time，覆盖适用/不适用 target、tenant mismatch，以及同一个 Policy 对旧 `QueryService`、新 `QueryGateway` 和 WebFlux 的一致生效。
 
 ### 12.2 Portable Query TCK
 
@@ -493,7 +578,7 @@ cd documentation
 pnpm docs:build
 ```
 
-文档不是只新增 migration 页。交付时必须同步更新中英文 `guide/query.md`、`guide/data-access.md`、`guide/extensions/cosec.md`、Staff Engineer onboarding，以及 Spring Boot、自定义 backend、Snapshot 和 best-practices 中所有相关章节；migration 页要分别覆盖 Query Filter、legacy rewrite/masker 的时间表、43 个 Operator、行为修正与自定义 backend SPI。使用 `rg` 清理除 migration/history 外已经失效的 Filter/rewrite 示例，文档示例必须编译，最后运行 `pnpm docs:build`。
+文档不是只新增 migration 页。交付时必须同步更新中英文 `guide/query.md`、`guide/data-access.md`、`guide/extensions/cosec.md`、Staff Engineer onboarding，以及 Spring Boot、自定义 backend、Snapshot 和 best-practices 中所有相关章节；migration 页要分别覆盖 Query Filter 到单一 `QueryPolicy` 的迁移、request/DSL/Facade/Policy 选择规则、legacy rewrite/masker 的时间表、43 个 Operator、行为修正与自定义 backend SPI。使用 `rg` 清理除 migration/history 外已经失效的 Filter/rewrite 示例，`QueryPolicy`、普通业务约束和 tenant/ABAC 示例必须编译，最后运行 `pnpm docs:build`。
 
 性能结论只能来自可复现 benchmark、profile、日志或复杂度分析。特别验证无限列表的背压和内存上界、PIT 循环开销、Schema 缓存与 Policy/Planner 延迟。
 
@@ -505,6 +590,7 @@ pnpm docs:build
 | Jackson 模型与物理 mapping 不一致 | 启动 readiness 验证；不自动迁移；失败为 `BACKEND_NOT_READY` |
 | 兼容门面演变为第二执行器 | 门面只做 lowering/mapping；共享测试断言所有入口命中同一 Gateway |
 | 删除旧授权 Filter 导致迁移遗漏 | 编译期破坏、显式 breaking change、中英文迁移示例与安全检查清单；不使用容易被忽略的运行时 warning |
+| Policy 扩展输出错误或被恢复为放行 | 无效输出统一 `POLICY_FAILURE`；禁止 empty/错误恢复为 `MatchAll`；组合器 fail-closed；提供 Policy TestKit |
 | 能力层成为任意后门 | capability 默认拒绝；后端声明 + 配置 + Policy 三重许可；严格预算与审计 |
 | `limit=0` 导致资源失控 | 背压、deadline、budget、取消清理和 `INCOMPLETE_RESULT` 语义 |
 | 版本化 Backend SPI 演进受限 | 保持 `QueryPlanV1` 最小不可变；新版本并行增加，不原地改语义；API/ABI 检查和 backend TCK |
@@ -522,5 +608,6 @@ pnpm docs:build
 4. 第 10.1 节完整 API/ABI 矩阵通过，除批准删除的 Query Filter 扩展面外没有未确认破坏；保留的旧 API 已 deprecate；
 5. NoOp 静默结果、ES 静默 10k 截断、部分失败伪装成功等行为已被明确错误替代；
 6. Query Schema、mapping readiness、权限、预算、资源清理和错误可观测性均有自动化测试；
-7. 所有相关 check、契约/集成测试、detekt 和 build 通过；
-8. 中英文 Query Filter 迁移指南、相关 query/data-access/CoSec/onboarding/backend/Snapshot/best-practices 文档、行为修正清单、索引准备说明和制品级回滚步骤已经发布；过时示例已清理，迁移示例可编译且文档站构建通过。
+7. 单一 `QueryPolicy` SPI、不可变 context、固定组合规则、Spring/非 Spring 注册、`POLICY_DENIED`/`POLICY_FAILURE` 与跨入口一致性测试全部通过；不存在 `QueryConditionContributor` 或新的通用 query hook；
+8. 所有相关 check、契约/集成测试、detekt 和 build 通过；
+9. 中英文 Query Filter 迁移指南、相关 query/data-access/CoSec/onboarding/backend/Snapshot/best-practices 文档、行为修正清单、索引准备说明和制品级回滚步骤已经发布；过时示例已清理，迁移示例可编译且文档站构建通过。
