@@ -10,7 +10,7 @@
 
 ## 1. 决策摘要
 
-本次升级选择**直接切换到单一 `PLANNED` 执行引擎**，不在运行时维护 `LEGACY` 或 `SHADOW` 双轨。Wow 8.x 新增稳定的 `QueryGateway` 公开 API；现有 `QueryService`、Spring Bean、HTTP/JSON/OpenAPI 契约继续保留，但实现全部改为委托新引擎的兼容门面。下一主版本删除旧 API 与仅用于迁移的兼容能力。
+本次升级选择**直接切换到单一 `PLANNED` 执行引擎**，不在运行时维护 `LEGACY` 或 `SHADOW` 双轨。Wow 8.x 新增稳定的 `QueryGateway` 公开 API；现有 `QueryService`、Spring Bean、HTTP/JSON/OpenAPI 契约继续保留，但实现全部改为通过 `QueryGateway` 公共接口委托新引擎的兼容门面。旧 Query Filter 扩展 API 直接删除，不保留兼容 hook 或运行时检测；开发者在重新编译时通过 IDE/编译错误定位迁移点。下一主版本删除其余旧 API 与仅用于迁移的兼容能力。
 
 查询能力采用两层模型：
 
@@ -44,7 +44,7 @@
 1. 为 Snapshot 和 EventStream 的单条、列表、分页、计数查询建立统一执行管线。
 2. 让可移植语义一致，同时通过显式能力模型保留存储后端特性。
 3. 将授权、字段可见性、成本预算和结果脱敏变成不可绕过的框架阶段。
-4. 在 Wow 8.x 保持旧公开 API、Spring Bean、HTTP/JSON/OpenAPI 契约兼容，并给出下一主版本的明确删除路径。
+4. 在 Wow 8.x 保持旧查询调用 API、Spring Bean、HTTP/JSON/OpenAPI 契约兼容，并给出下一主版本的明确删除路径；Query Filter 扩展 API 是经过批准的破坏性删除例外。
 5. 消除静默空结果、静默截断、近似结果冒充精确结果和未声明字段直通等错误模式。
 6. 用共享契约测试和真实后端集成测试证明 MongoDB、Elasticsearch 的共同语义与能力差异。
 
@@ -55,6 +55,7 @@
 - 不修改 KSP 生成协议，也不要求 `wow-query` 依赖完整 `wow-schema`；
 - 不新增公开游标、PIT 或 `search_after` API；
 - 不保留运行时 `LEGACY`、`SHADOW` 引擎或双读比对；
+- 不为旧 Query Filter 提供兼容 hook、适配器或运行时 Bean 检测；
 - 不自动执行 Elasticsearch 索引迁移、alias 切换或破坏性数据变更；
 - 不支持跨聚合 Join；
 - 不把全文检索、Native DSL 等后端能力伪装成可移植语义。
@@ -75,7 +76,7 @@ flowchart LR
     I --> J["Mono / Flux / Page"]
 ```
 
-所有框架管理的查询入口都必须进入同一个 `QueryGateway`。旧 `QueryService` 不再拥有独立执行器，而是负责把旧 DTO 降低为新请求并映射回旧结果类型。Raw backend API 仅供基础设施内部使用，不能成为绕过 Policy 和 Planner 的应用入口。
+所有框架管理的查询入口都必须进入同一个 `QueryGateway`。旧 `QueryService` 不再拥有独立执行器，而是通过注入的 `QueryGateway` 公共接口，把旧 DTO 降低为新请求并映射回旧结果类型。兼容门面不能依赖 `DefaultQueryGateway`、Planner 或 Backend 实现。Raw backend API 仅供基础设施内部使用，不能成为绕过 Policy 和 Planner 的应用入口。
 
 职责边界如下：
 
@@ -202,11 +203,17 @@ MongoDB 默认物理路径与逻辑 Jackson 路径一致。Wow 管理的 Elastic
 
 ## 7. Policy、安全与旧 Filter 迁移
 
-旧 Filter 的职责拆为三个明确层次：
+旧 Query Filter 扩展 API 直接删除。框架不保留兼容 hook、Filter adapter 或运行时 Bean 扫描，也不会静默忽略旧 Filter。依赖旧类型的源码在重新编译时由 IDE/编译器报告缺失 import、接口实现或 Bean 声明，开发者按迁移文档将职责迁移到明确端口：
 
-1. `QueryPolicy`：强制授权、tenant/aggregate 范围、字段权限、能力许可和预算上限；
-2. `ResultPolicy`：结果字段脱敏、审计附加信息；
-3. 兼容 Filter hook：只允许旧 API 的有界请求/结果适配，不能移除 mandatory condition 或绕过 Planner。
+| 旧 Filter 职责 | 新边界 |
+| --- | --- |
+| 授权、tenant/aggregate 范围、强制条件 | `QueryPolicy` |
+| 字段权限、能力许可、预算上限 | `QueryPolicy` |
+| 结果字段脱敏、结果侧审计信息 | `ResultPolicy` |
+| 后端特有条件或字段绑定 | `CapabilityExpression`、`QuerySchemaCustomizer` 或 Backend compiler |
+| 通用请求/结果改写、任意前后置拦截 | 不提供一比一替代；拆分到上述有类型的职责边界 |
+
+这是 8.x 兼容承诺中的显式破坏性例外。使用旧 Filter 的预编译应用不保证原地二进制升级，必须重新编译并完成迁移；框架不以运行时探测补偿这一点。迁移文档必须提供中英文版本、职责对照、前后代码示例以及授权 Filter 的安全迁移检查清单。
 
 用户表达式和策略表达式在内部保持不同 provenance，直到 Planner 完成审计和合成。最终计划虽然通常使用 `AND(user, mandatory)`，但审计、错误定位和优化都不能丢失其来源。
 
@@ -284,14 +291,16 @@ bounded list 自动加入稳定 identity tie-breaker。超过后端深分页能�
 
 ### 10.1 Wow 8.x 兼容承诺
 
-8.x 保持：
+除 Query Filter 扩展 API 外，8.x 保持：
 
-- Kotlin/Java 旧公开类型、方法、构造器和 package 的 source/binary 兼容；
+- Kotlin/Java 旧 `QueryService`、请求/结果类型、方法、构造器和 package 的 source/binary 兼容；
 - 现有 JSON 字段、HTTP 路由和 OpenAPI 契约；
 - Spring Bean 名称、按聚合注册方式和已有泛型注入点；
 - `limit=0` 不限制等已公开语义。
 
-旧 API 标记 deprecation，并在内部转换为新 request、调用 `QueryGateway`、映射为旧结果。兼容门面不保留以下错误行为：NoOp 静默空结果、非法分页未校验、ES 静默 10k 截断、部分失败伪装成功、能力不支持时语义降级。
+旧调用 API 标记 deprecation。兼容门面只依赖 `QueryGateway` 公共接口，在内部完成 `legacy DTO -> new request -> QueryGateway -> legacy result/error` 映射；它不能访问 Planner、Backend 或默认 Gateway 实现。兼容门面不保留以下错误行为：NoOp 静默空结果、非法分页未校验、ES 静默 10k 截断、部分失败伪装成功、能力不支持时语义降级。
+
+旧 Query Filter 类型、Handler/Context 扩展面及其 Spring 注册入口直接删除。没有 runtime warning 或 Bean 检测；重新编译产生的错误就是迁移入口。发布说明必须将其列为 breaking change，并链接到 `documentation/docs/zh/guide/migration/` 与 `documentation/docs/en/guide/migration/` 下的 Query Filter 迁移指南。
 
 8.x 同时公开新的稳定 `QueryGateway`，让应用可以主动迁移。第一阶段不新增 HTTP 路由：现有 WebFlux wire 契约改由 Gateway 执行即可。
 
@@ -314,7 +323,6 @@ flowchart LR
 下一主版本删除：
 
 - 旧 `QueryService` 公开门面及其旧 DTO；
-- 兼容 Filter hook；
 - `LegacyBackendField`；
 - 只为旧 Bean/构造器存在的适配层。
 
@@ -324,12 +332,12 @@ flowchart LR
 
 虽然发布后的运行时直接使用单一 PLANNED 引擎，实现应按以下可验证切片推进：
 
-1. **Contract Lock**：为旧公开 API、JSON/OpenAPI、Spring Bean 与关键现有语义建立 golden/ABI/集成基线；
+1. **Contract Lock**：为除 Query Filter 外的旧查询调用 API、JSON/OpenAPI、Spring Bean 与关键现有语义建立 golden/ABI/集成基线，并锁定批准删除的 Filter API 清单；
 2. **Semantic Core**：实现不可变值、portable/capability expression、Schema resolver、标准化和预算验证；
 3. **Gateway & Policy**：实现 `QueryGateway`、每订阅 invocation、Policy provenance、ResultPolicy 和稳定错误；
 4. **Backends**：实现 MongoDB、Elasticsearch plan compiler/executor、readiness 与共享 TCK；
 5. **Facade Cutover**：把旧 QueryService、Spring、WebFlux、DSL 全部切到 Gateway，删除独立执行路径与 NoOp 语义；
-6. **Release Closure**：完成迁移文档、deprecation、指标、真实后端验证和可回滚发布说明。
+6. **Release Closure**：完成中英文 Query Filter 迁移文档、其余旧 API deprecation、指标、真实后端验证和可回滚发布说明。
 
 切片可以在开发分支上以 additive 方式合并，但对外发布时必须满足：所有框架托管入口已经进入 PLANNED，且不存在可被应用误用的旧执行器。
 
@@ -342,7 +350,9 @@ flowchart LR
 - Jackson Schema 推导覆盖命名、ignore、nullable、enum、nested、collection；
 - Policy provenance、mandatory condition 不可删除、字段和 capability 权限；
 - 旧 DTO 到新 request、错误和结果形态的兼容映射；
-- 公开 ABI、JSON/OpenAPI 与 Spring Bean 名称 golden test。
+- 公开 ABI 检查只允许批准清单中的 Query Filter 删除，其他差异失败；
+- JSON/OpenAPI 与 Spring Bean 名称 golden test；
+- 迁移后的 Policy/ResultPolicy 示例可编译，并覆盖旧授权 Filter 的等价安全约束。
 
 ### 12.2 Portable Query TCK
 
@@ -394,6 +404,7 @@ pnpm docs:build
 | 直接切换暴露旧行为依赖 | Contract Lock、兼容门面、明确行为修正清单、制品级回滚 |
 | Jackson 模型与物理 mapping 不一致 | 启动 readiness 验证；不自动迁移；失败为 `BACKEND_NOT_READY` |
 | 兼容门面演变为第二执行器 | 门面只做 lowering/mapping；共享测试断言所有入口命中同一 Gateway |
+| 删除旧授权 Filter 导致迁移遗漏 | 编译期破坏、显式 breaking change、中英文迁移示例与安全检查清单；不使用容易被忽略的运行时 warning |
 | 能力层成为任意后门 | capability 默认拒绝；后端声明 + 配置 + Policy 三重许可；严格预算与审计 |
 | `limit=0` 导致资源失控 | 背压、deadline、budget、取消清理和 `INCOMPLETE_RESULT` 语义 |
 | 跨模块 SPI 被应用依赖 | 最小契约、opt-in annotation、非稳定包命名、文档声明和 API 检查 |
@@ -406,8 +417,8 @@ pnpm docs:build
 1. Snapshot/EventStream 的 single/list/page/count 以及 typed/dynamic 路径全部通过统一 Gateway；
 2. 运行时不存在 LEGACY/SHADOW 或可绕过 Planner/Policy 的框架托管执行路径；
 3. Portable TCK 在真实 MongoDB、Elasticsearch 上通过，后端特性通过 capability 显式表达；
-4. 旧公开 API、JSON/OpenAPI、Spring Bean 兼容测试通过，且旧 API 已 deprecate；
+4. 除批准删除的 Query Filter API 外，旧查询调用 API、JSON/OpenAPI、Spring Bean 兼容测试通过，且保留的旧调用 API 已 deprecate；
 5. NoOp 静默结果、ES 静默 10k 截断、部分失败伪装成功等行为已被明确错误替代；
 6. Query Schema、mapping readiness、权限、预算、资源清理和错误可观测性均有自动化测试；
 7. 所有相关 check、契约/集成测试、detekt 和 build 通过；
-8. 迁移指南、行为修正清单、索引准备说明和制品级回滚步骤已经发布。
+8. 中英文 Query Filter 迁移指南、行为修正清单、索引准备说明和制品级回滚步骤已经发布。
