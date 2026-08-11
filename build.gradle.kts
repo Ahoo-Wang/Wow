@@ -244,13 +244,32 @@ configure(libraryProjects) {
 val queryApiRuntimeClasspathTaskName = "writeQueryApiRuntimeClasspath"
 configure(queryApiModules.map(::project)) {
     val sourceSets = extensions.getByType<SourceSetContainer>()
+    val mainSourceSet = sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME)
+    val runtimeClasspath = mainSourceSet.runtimeClasspath
     val runtimeClasspathFile = layout.buildDirectory.file("query-api/runtime-classpath.txt")
     tasks.register(queryApiRuntimeClasspathTaskName) {
+        inputs.files(runtimeClasspath).withPropertyName("runtimeClasspath")
         outputs.file(runtimeClasspathFile)
         doLast {
+            val optionalSourceOutputs = mainSourceSet.output.files
+                .filter { !it.exists() }
+                .toSet()
+            val missingRequiredEntries = runtimeClasspath.files.filter { entry ->
+                !entry.exists() && entry !in optionalSourceOutputs
+            }
+            check(missingRequiredEntries.isEmpty()) {
+                "Runtime classpath contains missing required entries: $missingRequiredEntries"
+            }
+            optionalSourceOutputs.forEach { entry ->
+                logger.info("Not writing absent optional source output to query API runtime classpath: $entry")
+            }
             val output = runtimeClasspathFile.get().asFile
             output.parentFile.mkdirs()
-            output.writeText(sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME).runtimeClasspath.asPath)
+            output.writeText(
+                runtimeClasspath.files
+                    .filter { it.exists() }
+                    .joinToString(File.pathSeparator) { it.absolutePath }
+            )
         }
     }
 }
