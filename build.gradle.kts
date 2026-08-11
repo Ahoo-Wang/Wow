@@ -15,6 +15,7 @@ import io.gitlab.arturbosch.detekt.DetektPlugin
 import io.gitlab.arturbosch.detekt.extensions.DetektExtension
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
+import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 import org.gradle.testretry.TestRetryPlugin
@@ -86,6 +87,27 @@ val integrationTestProjects = setOf(
     project(":wow-elasticsearch"),
     project(":wow-it"),
 )
+
+val queryApiModules = listOf(
+    ":wow-api",
+    ":wow-query",
+    ":wow-webflux",
+    ":wow-spring",
+    ":wow-spring-boot-starter",
+    ":wow-mongo",
+    ":wow-elasticsearch",
+    ":wow-cosec",
+)
+
+tasks.register<Exec>("queryApiDump") {
+    dependsOn(queryApiModules.map { "$it:jar" })
+    commandLine("bash", "scripts/query-api-abi.sh", "dump")
+}
+
+tasks.register<Exec>("queryApiCheck") {
+    dependsOn(queryApiModules.map { "$it:jar" })
+    commandLine("bash", "scripts/query-api-abi.sh", "check")
+}
 
 ext.set("localTestProjects", localTestProjects)
 ext.set("localContractTestProjects", localContractTestProjects)
