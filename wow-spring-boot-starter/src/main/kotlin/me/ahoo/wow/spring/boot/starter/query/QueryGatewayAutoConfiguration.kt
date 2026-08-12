@@ -39,10 +39,12 @@ import me.ahoo.wow.query.validation.QueryStructureLimits
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.support.DefaultListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
+import org.springframework.core.PriorityOrdered
 import reactor.core.publisher.Mono
 import tools.jackson.databind.ObjectMapper
 import java.time.Clock
@@ -146,26 +148,33 @@ class QueryGatewayAutoConfiguration {
         getBeanProvider(type).orderedStream().toList()
 
     private fun ListableBeanFactory.queryPolicyRegistrationSnapshot(): List<QueryPolicyRegistration> {
-        val namedPolicies = getBeansOfType(QueryPolicy::class.java, true, true).entries.toMutableList()
-        val registrations = orderedSnapshot(QueryPolicy::class.java).mapIndexed { ordinal, policy ->
-            val namedPolicyIndex = namedPolicies.indexOfFirst { it.value === policy }
-            require(namedPolicyIndex >= 0) {
-                "Spring query policy ordering snapshot must preserve bean identity."
-            }
-            val beanName = namedPolicies.removeAt(namedPolicyIndex).key
+        val factoryAwareBeanFactory = requireNotNull(this as? DefaultListableBeanFactory) {
+            "Query policy registration requires Spring factory-aware bean ordering."
+        }
+        val orderedNamedPolicies = getBeansOfType(QueryPolicy::class.java, true, true).entries
+            .sortedWith { first, second -> factoryAwareBeanFactory.comparePolicyOrder(first, second) }
+        val registrations = orderedNamedPolicies.mapIndexed { ordinal, (beanName, policy) ->
             QueryPolicyRegistration(
                 descriptorId = safePolicyDescriptor(beanName),
                 order = ordinal,
                 policy = policy
             )
         }
-        require(namedPolicies.isEmpty()) {
-            "Spring query policy ordering snapshot must include every policy bean."
-        }
         require(registrations.map(QueryPolicyRegistration::descriptorId).distinct().size == registrations.size) {
             "Normalized query policy descriptors must be unique."
         }
         return registrations.toList()
+    }
+
+    private fun DefaultListableBeanFactory.comparePolicyOrder(
+        first: Map.Entry<String, QueryPolicy>,
+        second: Map.Entry<String, QueryPolicy>
+    ): Int {
+        val priorityComparison = (first.value !is PriorityOrdered).compareTo(second.value !is PriorityOrdered)
+        if (priorityComparison != 0) {
+            return priorityComparison
+        }
+        return getOrder(first.key, first.value).compareTo(getOrder(second.key, second.value))
     }
 
     private fun safePolicyDescriptor(beanName: String): String {

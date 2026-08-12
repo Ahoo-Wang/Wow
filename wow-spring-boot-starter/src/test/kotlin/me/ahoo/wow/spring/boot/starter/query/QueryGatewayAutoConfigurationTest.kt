@@ -67,6 +67,7 @@ import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.config.ConfigurableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.context.annotation.ImportCandidates
@@ -86,6 +87,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
 
 class QueryGatewayAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
@@ -296,6 +298,45 @@ class QueryGatewayAutoConfigurationTest {
                 trace.assert().containsExactly("priority-lowest", "plain-highest")
                 registry.get("wow.query.gateway")
                     .tag("policyDescriptor", "spring-plain-highest")
+                    .tag("outcome", "failure")
+                    .counter().count().assert().isEqualTo(1.0)
+                backend.countPlans.assert().isEmpty()
+            }
+    }
+
+    @Test
+    fun `prototype policy is materialized once into the ordered deployment snapshot`() {
+        val registry = SimpleMeterRegistry()
+        val trace = CopyOnWriteArrayList<String>()
+        val backend = RecordingBackend(trace)
+        val prototypeCreations = AtomicInteger()
+        gatewayContextRunner(backend)
+            .withBean(SimpleMeterRegistry::class.java, { registry })
+            .withBean("priority-lowest", QueryPolicy::class.java, {
+                PriorityOrderedQueryPolicy(Ordered.LOWEST_PRECEDENCE, "priority-lowest", trace)
+            })
+            .withBean(
+                "prototype-policy",
+                QueryPolicy::class.java,
+                {
+                    prototypeCreations.incrementAndGet()
+                    FailingOrderedQueryPolicy(Ordered.HIGHEST_PRECEDENCE, "prototype-policy", trace)
+                },
+                { beanDefinition -> beanDefinition.scope = ConfigurableBeanFactory.SCOPE_PROTOTYPE }
+            )
+            .run { context ->
+                context.startupFailure.assert().isNull()
+                prototypeCreations.get().assert().isEqualTo(1)
+
+                StepVerifier.create(context.getBean(QueryGateway::class.java).count(CountQueryRequest(QUERY_TARGET)))
+                    .expectErrorSatisfies { error ->
+                        (error as QueryException).code.assert().isEqualTo(QueryErrorCode.POLICY_FAILURE)
+                    }.verify()
+
+                prototypeCreations.get().assert().isEqualTo(1)
+                trace.assert().containsExactly("priority-lowest", "prototype-policy")
+                registry.get("wow.query.gateway")
+                    .tag("policyDescriptor", "spring-prototype-policy")
                     .tag("outcome", "failure")
                     .counter().count().assert().isEqualTo(1.0)
                 backend.countPlans.assert().isEmpty()
