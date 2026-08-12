@@ -18,6 +18,35 @@ import org.junit.jupiter.api.Test
 
 class QueryErrorContractTest {
     @Test
+    fun `query exception keeps the three argument constructor and defaults cause code to null`() {
+        val exception = QueryException(
+            QueryErrorCode.BACKEND_FAILURE,
+            QueryStage.EXECUTION,
+            QueryErrorReason.BACKEND_EXECUTION_FAILED
+        )
+
+        exception.causeCode.assert().isNull()
+        exception.cause.assert().isNull()
+        exception.suppressed.toList().assert().isEmpty()
+        exception.message.assert().isEqualTo("BACKEND_FAILURE:EXECUTION:BACKEND_EXECUTION_FAILED")
+    }
+
+    @Test
+    fun `query exception exposes only an enum cause code without throwable details`() {
+        val exception = QueryException(
+            QueryErrorCode.INCOMPLETE_RESULT,
+            QueryStage.EXECUTION,
+            QueryErrorReason.INCOMPLETE_STREAM,
+            QueryErrorCode.DEADLINE_EXCEEDED
+        )
+
+        exception.causeCode.assert().isEqualTo(QueryErrorCode.DEADLINE_EXCEEDED)
+        exception.cause.assert().isNull()
+        exception.suppressed.toList().assert().isEmpty()
+        exception.message.assert().isEqualTo("INCOMPLETE_RESULT:EXECUTION:INCOMPLETE_STREAM")
+    }
+
+    @Test
     fun `query error codes should expose only the final public contract`() {
         QueryErrorCode.entries.assert().containsExactly(
             QueryErrorCode.INVALID_QUERY,

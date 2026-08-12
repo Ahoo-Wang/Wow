@@ -49,6 +49,7 @@ import me.ahoo.wow.query.validation.QueryStructureLimits
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import reactor.core.Disposable
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import reactor.test.StepVerifier
@@ -460,6 +461,83 @@ class QuerySubscriptionIsolationTest {
 }
 
 class QueryDeadlineGuardTest {
+    @Test
+    fun `flux deadline remains active after the first item and cancels upstream once`() {
+        val scheduler = VirtualTimeScheduler.create()
+        val guard = QueryDeadlineGuard.anchor(FROZEN, scheduler)
+        val subscriptions = AtomicInteger()
+        val cancellations = AtomicInteger()
+        val upstream = Flux.defer {
+            subscriptions.incrementAndGet()
+            Flux.concat(Flux.just("first"), Flux.never<String>())
+                .doOnCancel(cancellations::incrementAndGet)
+        }
+
+        StepVerifier.withVirtualTime(
+            { guard.enforce(upstream, FROZEN.plusSeconds(1), QueryStage.EXECUTION) },
+            { scheduler },
+            Long.MAX_VALUE
+        ).expectSubscription()
+            .expectNext("first")
+            .thenAwait(Duration.ofSeconds(1))
+            .expectErrorSatisfies { error ->
+                (error as QueryDeadlineExceededException).stage.assert().isEqualTo(QueryStage.EXECUTION)
+            }.verify(Duration.ofSeconds(1))
+
+        subscriptions.get().assert().isOne()
+        cancellations.get().assert().isOne()
+    }
+
+    @Test
+    fun `flux source completion cancels its deadline timer and completes immediately`() {
+        val scheduler = TrackingScheduler(VirtualTimeScheduler.create())
+        val guard = QueryDeadlineGuard.anchor(FROZEN, scheduler)
+
+        StepVerifier.create(
+            guard.enforce(Flux.just("value"), FROZEN.plusSeconds(1), QueryStage.EXECUTION)
+        ).expectNext("value").verifyComplete()
+
+        scheduler.scheduled.get().assert().isOne()
+        scheduler.cancelled.get().assert().isOne()
+    }
+
+    @Test
+    fun `flux source error cancels its deadline timer and preserves the source error`() {
+        val scheduler = TrackingScheduler(VirtualTimeScheduler.create())
+        val guard = QueryDeadlineGuard.anchor(FROZEN, scheduler)
+        val sourceError = IllegalStateException("source")
+
+        StepVerifier.create(
+            guard.enforce(Flux.error<String>(sourceError), FROZEN.plusSeconds(1), QueryStage.EXECUTION)
+        ).expectErrorSatisfies { error ->
+            (error === sourceError).assert().isTrue()
+        }.verify()
+
+        scheduler.scheduled.get().assert().isOne()
+        scheduler.cancelled.get().assert().isOne()
+    }
+
+    @Test
+    fun `flux downstream cancellation disposes deadline timer and upstream once`() {
+        val scheduler = TrackingScheduler(VirtualTimeScheduler.create())
+        val guard = QueryDeadlineGuard.anchor(FROZEN, scheduler)
+        val subscriptions = AtomicInteger()
+        val cancellations = AtomicInteger()
+        val upstream = Flux.defer {
+            subscriptions.incrementAndGet()
+            Flux.never<String>().doOnCancel(cancellations::incrementAndGet)
+        }
+
+        StepVerifier.create(
+            guard.enforce(upstream, FROZEN.plusSeconds(1), QueryStage.EXECUTION)
+        ).expectSubscription().thenCancel().verify()
+
+        subscriptions.get().assert().isOne()
+        cancellations.get().assert().isOne()
+        scheduler.scheduled.get().assert().isOne()
+        scheduler.cancelled.get().assert().isOne()
+    }
+
     @Test
     fun `deadline guard preserves immediate zero and unbounded semantics`() {
         val scheduler = VirtualTimeScheduler.create()

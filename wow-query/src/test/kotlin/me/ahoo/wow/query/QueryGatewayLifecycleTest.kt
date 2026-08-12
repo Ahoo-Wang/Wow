@@ -19,6 +19,12 @@ import me.ahoo.wow.api.query.error.QueryErrorCode
 import me.ahoo.wow.api.query.error.QueryErrorReason
 import me.ahoo.wow.api.query.error.QueryException
 import me.ahoo.wow.api.query.error.QueryStage
+import me.ahoo.wow.api.query.expression.FullTextExpression
+import me.ahoo.wow.api.query.expression.LogicalExpression
+import me.ahoo.wow.api.query.expression.LogicalOperator
+import me.ahoo.wow.api.query.expression.QueryCapabilityId
+import me.ahoo.wow.api.query.gateway.ListQueryRequest
+import me.ahoo.wow.api.query.gateway.QueryBudgetHint
 import me.ahoo.wow.query.backend.RecordingQueryBackend
 import me.ahoo.wow.query.result.ResultPolicy
 import org.junit.jupiter.api.Test
@@ -26,9 +32,69 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
 import reactor.test.publisher.TestPublisher
+import reactor.test.scheduler.VirtualTimeScheduler
+import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 
 class QueryGatewayLifecycleTest {
+    @Test
+    fun `list maps a deadline after its first item to incomplete result and cancels backend`() {
+        val scheduler = VirtualTimeScheduler.create()
+        val backend = RecordingQueryBackend(gatewayDescriptor()).respondList(
+            Flux.concat(Flux.just("one"), Flux.never<String>())
+        )
+        val request = ListQueryRequest(
+            target = GATEWAY_TARGET,
+            resultShape = GATEWAY_SHAPE,
+            budget = QueryBudgetHint(timeout = Duration.ofSeconds(1))
+        )
+
+        StepVerifier.withVirtualTime(
+            { QueryGatewayFactory.create(gatewayConfiguration(backend)).list(request) },
+            { scheduler },
+            Long.MAX_VALUE
+        ).expectSubscription()
+            .expectNext("one")
+            .thenAwait(Duration.ofSeconds(1))
+            .expectErrorSatisfies { error ->
+                (error as QueryException).apply {
+                    code.assert().isEqualTo(QueryErrorCode.INCOMPLETE_RESULT)
+                    stage.assert().isEqualTo(QueryStage.EXECUTION)
+                    reason.assert().isEqualTo(QueryErrorReason.INCOMPLETE_STREAM)
+                    causeCode.assert().isEqualTo(QueryErrorCode.DEADLINE_EXCEEDED)
+                    cause.assert().isNull()
+                    suppressed.toList().assert().isEmpty()
+                }
+            }.verify(Duration.ofSeconds(1))
+
+        backend.listSubscriptions.get().assert().isOne()
+        backend.cancellations.get().assert().isOne()
+    }
+
+    @Test
+    fun `list preserves a deadline before its first item`() {
+        val scheduler = VirtualTimeScheduler.create()
+        val backend = RecordingQueryBackend(gatewayDescriptor()).respondList(Flux.never<String>())
+        val request = ListQueryRequest(
+            target = GATEWAY_TARGET,
+            resultShape = GATEWAY_SHAPE,
+            budget = QueryBudgetHint(timeout = Duration.ofSeconds(1))
+        )
+
+        StepVerifier.withVirtualTime(
+            { QueryGatewayFactory.create(gatewayConfiguration(backend)).list(request) },
+            { scheduler },
+            Long.MAX_VALUE
+        ).expectSubscription()
+            .thenAwait(Duration.ofSeconds(1))
+            .expectErrorSatisfies { error ->
+                (error as QueryException).code.assert().isEqualTo(QueryErrorCode.DEADLINE_EXCEEDED)
+            }.verify(Duration.ofSeconds(1))
+
+        backend.listSubscriptions.get().assert().isOne()
+        backend.cancellations.get().assert().isOne()
+    }
+
     @Test
     fun `single waits for backend and result policy completion before emitting`() {
         val backendPublisher = TestPublisher.create<String>()
@@ -129,10 +195,53 @@ class QueryGatewayLifecycleTest {
                 code.assert().isEqualTo(QueryErrorCode.INCOMPLETE_RESULT)
                 stage.assert().isEqualTo(QueryStage.EXECUTION)
                 reason.assert().isEqualTo(QueryErrorReason.INCOMPLETE_STREAM)
+                causeCode.assert().isEqualTo(QueryErrorCode.RESULT_VALIDATION_FAILED)
+                cause.assert().isNull()
+                suppressed.toList().assert().isEmpty()
                 message.orEmpty().contains("sensitive").assert().isFalse()
             }
         }.verify()
         cancelled.get().assert().isOne()
+    }
+
+    @Test
+    fun `list retains backend failure as safe cause code after its first item`() {
+        val backend = RecordingQueryBackend(gatewayDescriptor()).respondList(
+            Flux.concat(Flux.just("one"), Flux.error(IllegalStateException("backend-sensitive")))
+        )
+        val gateway = QueryGatewayFactory.create(gatewayConfiguration(backend))
+
+        StepVerifier.create(gateway.list(listRequest())).expectNext("one").expectErrorSatisfies { error ->
+            (error as QueryException).apply {
+                code.assert().isEqualTo(QueryErrorCode.INCOMPLETE_RESULT)
+                causeCode.assert().isEqualTo(QueryErrorCode.BACKEND_FAILURE)
+                cause.assert().isNull()
+                suppressed.toList().assert().isEmpty()
+                message.orEmpty().contains("backend-sensitive").assert().isFalse()
+            }
+        }.verify()
+    }
+
+    @Test
+    fun `list retains result validation failure as safe cause code after its first item`() {
+        val backend = RecordingQueryBackend(gatewayDescriptor()).respondList(Flux.just("one", "bad"))
+        val gateway = QueryGatewayFactory.create(
+            gatewayConfiguration(
+                backend,
+                resultPolicies = listOf(
+                    ResultPolicy { _, value -> if (value == "bad") Mono.just(42) else Mono.just(value) }
+                )
+            )
+        )
+
+        StepVerifier.create(gateway.list(listRequest())).expectNext("one").expectErrorSatisfies { error ->
+            (error as QueryException).apply {
+                code.assert().isEqualTo(QueryErrorCode.INCOMPLETE_RESULT)
+                causeCode.assert().isEqualTo(QueryErrorCode.RESULT_VALIDATION_FAILED)
+                cause.assert().isNull()
+                suppressed.toList().assert().isEmpty()
+            }
+        }.verify()
     }
 
     @Test
@@ -181,6 +290,52 @@ class QueryGatewayLifecycleTest {
     }
 
     @Test
+    fun `capability metrics bound unknown values to one unsupported tag`() {
+        val registry = SimpleMeterRegistry()
+        val backend = RecordingQueryBackend(gatewayDescriptor())
+        val knownCapability = QueryCapabilityId("configured-full-text")
+        val enabledCapabilities = mutableSetOf(knownCapability)
+        val gateway = QueryGatewayFactory.create(
+            gatewayConfiguration(
+                backend,
+                meterRegistry = registry,
+                enabledCapabilities = enabledCapabilities
+            )
+        )
+        enabledCapabilities.clear()
+
+        repeat(32) { index ->
+            StepVerifier.create(gateway.list(capabilityRequest(QueryCapabilityId("unknown-$index"))))
+                .expectError(QueryException::class.java)
+                .verify()
+        }
+
+        val unknownMeters = registry.find("wow.query.gateway").counters()
+        unknownMeters.size.assert().isOne()
+        unknownMeters.single().id.getTag("capabilityId").assert().isEqualTo("unsupported")
+        unknownMeters.single().count().assert().isEqualTo(32.0)
+
+        StepVerifier.create(gateway.list(capabilityRequest(knownCapability)))
+            .expectError(QueryException::class.java)
+            .verify()
+        registry.find("wow.query.gateway").tag("capabilityId", knownCapability.value).counters().size.assert().isOne()
+
+        val multipleRequest = ListQueryRequest(
+            target = GATEWAY_TARGET,
+            expression = LogicalExpression(
+                LogicalOperator.AND,
+                listOf(
+                    fullText(knownCapability),
+                    fullText(QueryCapabilityId("another-unknown"))
+                )
+            ),
+            resultShape = GATEWAY_SHAPE
+        )
+        StepVerifier.create(gateway.list(multipleRequest)).expectError(QueryException::class.java).verify()
+        registry.find("wow.query.gateway").tag("capabilityId", "multiple").counters().size.assert().isOne()
+    }
+
+    @Test
     fun `execution deadline cancels backend and records one terminal error`() {
         val registry = SimpleMeterRegistry()
         val backend = RecordingQueryBackend(gatewayDescriptor()).respondCount(Mono.never())
@@ -199,4 +354,15 @@ class QueryGatewayLifecycleTest {
         backend.cancellations.get().assert().isOne()
         registry.find("wow.query.gateway").tag("outcome", "failure").counter()!!.count().assert().isEqualTo(1.0)
     }
+    private fun capabilityRequest(capabilityId: QueryCapabilityId): ListQueryRequest<String> = ListQueryRequest(
+        target = GATEWAY_TARGET,
+        expression = fullText(capabilityId),
+        resultShape = GATEWAY_SHAPE
+    )
+
+    private fun fullText(capabilityId: QueryCapabilityId): FullTextExpression = FullTextExpression(
+        capabilityId = capabilityId,
+        query = "query",
+        fields = setOf(GATEWAY_STATUS)
+    )
 }

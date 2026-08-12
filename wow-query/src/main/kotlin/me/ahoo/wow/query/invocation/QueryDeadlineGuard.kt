@@ -20,6 +20,7 @@ import reactor.core.scheduler.Scheduler
 import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 internal class QueryDeadlineGuard(
     private val frozenInstant: Instant,
@@ -68,7 +69,16 @@ internal class QueryDeadlineGuard(
             if (remaining.isZero) {
                 return@defer Flux.error(QueryDeadlineExceededException(stage))
             }
-            publisher.timeout(deadlineSignal(remaining, stage, sliceAnchorNanos))
+            val deadlineError = AtomicReference<Throwable?>()
+            val deadlineTrigger = deadlineSignal(remaining, stage, sliceAnchorNanos)
+                .materialize()
+                .doOnNext { signal -> deadlineError.set(signal.throwable) }
+            publisher.takeUntilOther(deadlineTrigger)
+                .concatWith(
+                    Flux.defer {
+                        deadlineError.get()?.let(Flux<T>::error) ?: Flux.empty()
+                    }
+                )
         }
     }
 

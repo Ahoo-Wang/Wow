@@ -17,6 +17,7 @@ import io.micrometer.core.instrument.MeterRegistry
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.expression.LogicalField
 import me.ahoo.wow.api.query.expression.PortableOperator
+import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.expression.StringComparisonMode
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.api.query.gateway.QueryProjection
@@ -99,7 +100,8 @@ internal fun gatewayConfiguration(
     backendResolver: QueryBackendResolver = QueryBackendResolver {
         ResolvedQueryBackend.resolve(backend, QueryBackendRouteIdentity("gateway-route"))
     },
-    systemBudgetLimit: QueryBudgetLimit = QueryBudgetLimit.UNBOUNDED
+    systemBudgetLimit: QueryBudgetLimit = QueryBudgetLimit.UNBOUNDED,
+    enabledCapabilities: Set<QueryCapabilityId> = emptySet()
 ): QueryGatewayConfiguration = QueryGatewayConfiguration(
     admission = admission,
     schemaResolver = schemaResolver,
@@ -110,6 +112,6 @@ internal fun gatewayConfiguration(
     zoneId = ZoneOffset.UTC,
     structureLimits = GATEWAY_LIMITS,
     systemBudgetLimit = systemBudgetLimit,
-    enabledCapabilities = emptySet(),
+    enabledCapabilities = enabledCapabilities,
     meterRegistry = meterRegistry
 )

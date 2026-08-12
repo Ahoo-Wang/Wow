@@ -335,6 +335,10 @@ import java.time.Clock;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Set;
+import me.ahoo.wow.api.query.error.QueryErrorCode;
+import me.ahoo.wow.api.query.error.QueryErrorReason;
+import me.ahoo.wow.api.query.error.QueryException;
+import me.ahoo.wow.api.query.error.QueryStage;
 import me.ahoo.wow.api.query.expression.QueryCapabilityId;
 import me.ahoo.wow.api.query.gateway.CountQueryRequest;
 import me.ahoo.wow.api.query.gateway.ListQueryRequest;
@@ -381,6 +385,21 @@ public final class StableGatewayApi {
         return (context, value) -> Mono.just(value);
     }
 
+    public static QueryErrorCode useQueryExceptionConstructors() {
+        QueryException legacy = new QueryException(
+            QueryErrorCode.BACKEND_FAILURE,
+            QueryStage.EXECUTION,
+            QueryErrorReason.BACKEND_EXECUTION_FAILED
+        );
+        QueryException incomplete = new QueryException(
+            QueryErrorCode.INCOMPLETE_RESULT,
+            QueryStage.EXECUTION,
+            QueryErrorReason.INCOMPLETE_STREAM,
+            legacy.getCode()
+        );
+        return incomplete.getCauseCode();
+    }
+
     public static Object[] use(
         QueryGateway gateway,
         SingleQueryRequest<String> single,
@@ -413,9 +432,26 @@ import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryGatewayConfiguration
 import me.ahoo.wow.query.QueryGatewayFactory
 import me.ahoo.wow.query.result.ResultPolicy
+import me.ahoo.wow.api.query.error.QueryErrorCode
+import me.ahoo.wow.api.query.error.QueryErrorReason
+import me.ahoo.wow.api.query.error.QueryException
+import me.ahoo.wow.api.query.error.QueryStage
 import reactor.core.publisher.Mono
 
 val stableResultPolicy = ResultPolicy { _, value -> Mono.just(value) }
+
+val legacyQueryException = QueryException(
+    QueryErrorCode.BACKEND_FAILURE,
+    QueryStage.EXECUTION,
+    QueryErrorReason.BACKEND_EXECUTION_FAILED
+)
+
+val incompleteQueryException = QueryException(
+    QueryErrorCode.INCOMPLETE_RESULT,
+    QueryStage.EXECUTION,
+    QueryErrorReason.INCOMPLETE_STREAM,
+    legacyQueryException.code
+)
 
 fun createStableGateway(configuration: QueryGatewayConfiguration): QueryGateway =
     QueryGatewayFactory.create(configuration)

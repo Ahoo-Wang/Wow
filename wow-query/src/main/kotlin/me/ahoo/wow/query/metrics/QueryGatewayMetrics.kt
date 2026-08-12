@@ -24,6 +24,7 @@ import me.ahoo.wow.api.query.expression.MatchNone
 import me.ahoo.wow.api.query.expression.NativeExpression
 import me.ahoo.wow.api.query.expression.PortableLogicalExpression
 import me.ahoo.wow.api.query.expression.PredicateExpression
+import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.expression.QueryExpression
 import me.ahoo.wow.api.query.gateway.QueryOperation
 import me.ahoo.wow.api.query.gateway.QueryRequest
@@ -31,10 +32,17 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.SignalType
 import java.util.ArrayDeque
+import java.util.Collections
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
-internal class QueryGatewayMetrics(private val meterRegistry: MeterRegistry?) {
+internal class QueryGatewayMetrics(
+    private val meterRegistry: MeterRegistry?,
+    enabledCapabilities: Set<QueryCapabilityId>
+) {
+    private val enabledCapabilities: Set<QueryCapabilityId> =
+        Collections.unmodifiableSet(LinkedHashSet(enabledCapabilities))
+
     fun state(request: QueryRequest, operation: QueryOperation): QueryGatewayMetricState = QueryGatewayMetricState(
         request = request,
         operation = operation,
@@ -100,13 +108,13 @@ internal class QueryGatewayMetrics(private val meterRegistry: MeterRegistry?) {
     }
 
     private fun capabilityTag(expression: QueryExpression): String {
-        val capabilities = linkedSetOf<String>()
+        val capabilities = linkedSetOf<QueryCapabilityId>()
         val pending = ArrayDeque<QueryExpression>()
         pending += expression
         while (pending.isNotEmpty()) {
             when (val current = pending.removeLast()) {
-                is FullTextExpression -> capabilities += current.capabilityId.value
-                is NativeExpression -> capabilities += current.capabilityId.value
+                is FullTextExpression -> capabilities += current.capabilityId
+                is NativeExpression -> capabilities += current.capabilityId
                 is LogicalExpression -> current.operands.forEach(pending::addLast)
                 is PortableLogicalExpression -> current.operands.forEach(pending::addLast)
                 is ElementMatchExpression -> pending += current.predicate
@@ -117,7 +125,7 @@ internal class QueryGatewayMetrics(private val meterRegistry: MeterRegistry?) {
         }
         return when (capabilities.size) {
             0 -> "none"
-            1 -> capabilities.single()
+            1 -> capabilities.single().takeIf { it in enabledCapabilities }?.value ?: "unsupported"
             else -> "multiple"
         }
     }

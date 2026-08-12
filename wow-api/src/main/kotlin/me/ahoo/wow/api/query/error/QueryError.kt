@@ -56,5 +56,12 @@ enum class QueryErrorReason {
 class QueryException(
     val code: QueryErrorCode,
     val stage: QueryStage,
-    val reason: QueryErrorReason
-) : RuntimeException("${code.name}:${stage.name}:${reason.name}", null, false, true)
+    val reason: QueryErrorReason,
+    val causeCode: QueryErrorCode?
+) : RuntimeException("${code.name}:${stage.name}:${reason.name}", null, false, true) {
+    constructor(
+        code: QueryErrorCode,
+        stage: QueryStage,
+        reason: QueryErrorReason
+    ) : this(code, stage, reason, null)
+}

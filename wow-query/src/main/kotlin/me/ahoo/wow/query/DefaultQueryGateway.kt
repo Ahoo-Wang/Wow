@@ -114,7 +114,7 @@ internal class DefaultQueryGateway private constructor(
             .concatMap({ value -> applyResultPolicy(prepared, value) }, 1)
             .doOnNext { emitted.set(true) }
             .onErrorMap { error ->
-                if (emitted.get() && !error.isIncomplete()) incompleteResult() else error
+                if (emitted.get() && !error.isIncomplete()) incompleteResult(error) else error
             }
     }
 
@@ -366,10 +366,11 @@ internal class DefaultQueryGateway private constructor(
         QueryErrorReason.DEADLINE_REACHED
     )
 
-    private fun incompleteResult(): QueryException = QueryException(
+    private fun incompleteResult(error: Throwable): QueryException = QueryException(
         QueryErrorCode.INCOMPLETE_RESULT,
         QueryStage.EXECUTION,
-        QueryErrorReason.INCOMPLETE_STREAM
+        QueryErrorReason.INCOMPLETE_STREAM,
+        (error as? QueryException)?.code ?: QueryErrorCode.BACKEND_FAILURE
     )
 
     private fun Throwable.isIncomplete(): Boolean =

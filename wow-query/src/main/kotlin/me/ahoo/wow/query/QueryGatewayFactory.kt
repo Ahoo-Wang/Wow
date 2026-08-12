@@ -65,7 +65,10 @@ internal object DefaultQueryGatewayFactory {
                 QueryPlanValidator()
             ),
             resultPolicyChain = DefaultResultPolicyChain(configuration.resultPolicies),
-            metrics = QueryGatewayMetrics(configuration.meterRegistry),
+            metrics = QueryGatewayMetrics(
+                configuration.meterRegistry,
+                configuration.enabledCapabilities
+            ),
             stageObserver = stageObserver
         )
     }
