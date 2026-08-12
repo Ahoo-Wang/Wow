@@ -17,9 +17,10 @@ readonly DEFAULT_MANIFEST="$ROOT_DIR/config/query-api/modules.tsv"
 readonly DEFAULT_ARTIFACTS_DIR="$ROOT_DIR"
 readonly DEFAULT_BASELINE_DIR="$ROOT_DIR/config/query-api"
 readonly DEFAULT_ALLOWLIST="$ROOT_DIR/config/query-api/approved-removals.txt"
+readonly DEFAULT_EXPECTED_MODULES="$ROOT_DIR/config/query-api/expected-modules.txt"
 
 usage() {
-    echo "Usage: $0 dump|check [--manifest FILE] [--artifacts-dir DIR] [--baseline-dir DIR] [--allowlist FILE] [--class-overrides FILE] [--runtime-classpath PATH] [--classpath-separator :|;]" >&2
+    echo "Usage: $0 dump|check [--manifest FILE] [--expected-modules FILE] [--artifacts-dir DIR] [--baseline-dir DIR] [--allowlist FILE] [--class-overrides FILE] [--runtime-classpath PATH] [--classpath-separator :|;]" >&2
 }
 
 die() {
@@ -162,7 +163,46 @@ dump_module() {
 
 validate_manifest() {
     [[ -f "$MANIFEST" ]] || die "Manifest does not exist: $MANIFEST"
-    [[ -s "$MANIFEST" ]] || die "Manifest is empty: $MANIFEST"
+    : >"$NORMALIZED_MANIFEST"
+    local line module jar_glob prefixes extra duplicate prefix
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        [[ -z "$line" || "$line" == \#* ]] && continue
+        IFS=$'\t' read -r module jar_glob prefixes extra <<<"$line"
+        [[ -n "${module:-}" && -n "${jar_glob:-}" && -n "${prefixes:-}" && -z "${extra:-}" ]] || \
+            die "Invalid manifest row for module ${module:-<empty>}"
+        [[ "$module" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || die "Invalid manifest module: $module"
+        [[ "$prefixes" != \;* && "$prefixes" != *\; && "$prefixes" != *\;\;* ]] || \
+            die "Invalid manifest prefix components for module $module: $prefixes"
+        IFS=';' read -r -a prefix_list <<<"$prefixes"
+        for prefix in "${prefix_list[@]}"; do
+            [[ -n "$prefix" && "$prefix" != /* && "$prefix" != *../* ]] || \
+                die "Invalid manifest prefix component for module $module: $prefix"
+        done
+        printf '%s\t%s\t%s\n' "$module" "$jar_glob" "$prefixes" >>"$NORMALIZED_MANIFEST"
+    done <"$MANIFEST"
+    [[ -s "$NORMALIZED_MANIFEST" ]] || die "Manifest is empty: $MANIFEST"
+    duplicate="$(cut -f1 "$NORMALIZED_MANIFEST" | LC_ALL=C sort | uniq -d | head -n 1)"
+    [[ -z "$duplicate" ]] || die "Duplicate manifest module or baseline target: $duplicate"
+}
+
+validate_expected_modules() {
+    [[ -f "$EXPECTED_MODULES" ]] || die "Expected modules do not exist: $EXPECTED_MODULES"
+    : >"$NORMALIZED_EXPECTED_MODULES"
+    local module duplicate missing unexpected
+    while IFS= read -r module || [[ -n "$module" ]]; do
+        [[ -z "$module" || "$module" == \#* ]] && continue
+        [[ "$module" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || die "Invalid expected module: $module"
+        printf '%s\n' "$module" >>"$NORMALIZED_EXPECTED_MODULES"
+    done <"$EXPECTED_MODULES"
+    [[ -s "$NORMALIZED_EXPECTED_MODULES" ]] || die "Expected modules are empty: $EXPECTED_MODULES"
+    duplicate="$(LC_ALL=C sort "$NORMALIZED_EXPECTED_MODULES" | uniq -d | head -n 1)"
+    [[ -z "$duplicate" ]] || die "Duplicate expected module: $duplicate"
+    cut -f1 "$NORMALIZED_MANIFEST" | LC_ALL=C sort -u >"$WORK_DIR/manifest-modules"
+    LC_ALL=C sort -u "$NORMALIZED_EXPECTED_MODULES" >"$WORK_DIR/expected-modules"
+    missing="$(comm -23 "$WORK_DIR/expected-modules" "$WORK_DIR/manifest-modules" | head -n 1)"
+    [[ -z "$missing" ]] || die "Missing expected manifest module: $missing"
+    unexpected="$(comm -13 "$WORK_DIR/expected-modules" "$WORK_DIR/manifest-modules" | head -n 1)"
+    [[ -z "$unexpected" ]] || die "Unexpected manifest module: $unexpected"
 }
 
 validate_class_overrides() {
@@ -186,7 +226,7 @@ validate_class_overrides() {
         esac
         [[ "$entry" == *.class && "$entry" != /* && "$entry" != *../* ]] || \
             die "Invalid configured class entry [$module]: $entry"
-        manifest_prefixes="$(awk -F '\t' -v module="$module" '$1 == module { print $3 }' "$MANIFEST")"
+        manifest_prefixes="$(awk -F '\t' -v module="$module" '$1 == module { print $3 }' "$NORMALIZED_MANIFEST")"
         [[ -n "$manifest_prefixes" && "$manifest_prefixes" != *$'\n'* ]] || \
             die "Configured class references unknown or duplicate module: $module"
         entry_matches_prefixes "$entry" "$manifest_prefixes" || \
@@ -243,6 +283,7 @@ ARTIFACTS_DIR="$DEFAULT_ARTIFACTS_DIR"
 BASELINE_DIR="$DEFAULT_BASELINE_DIR"
 ALLOWLIST="$DEFAULT_ALLOWLIST"
 CLASS_OVERRIDES=""
+EXPECTED_MODULES=""
 RUNTIME_CLASSPATH=""
 CLASSPATH_SEPARATOR=":"
 
@@ -250,6 +291,10 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --manifest)
             MANIFEST="$2"
+            shift 2
+            ;;
+        --expected-modules)
+            EXPECTED_MODULES="$2"
             shift 2
             ;;
         --artifacts-dir)
@@ -297,9 +342,11 @@ case "$COMMAND" in
 esac
 
 require_jdk_tools
-validate_manifest
 if [[ -z "$CLASS_OVERRIDES" ]]; then
     CLASS_OVERRIDES="$(dirname "$MANIFEST")/class-overrides.tsv"
+fi
+if [[ -z "$EXPECTED_MODULES" && "$MANIFEST" == "$DEFAULT_MANIFEST" ]]; then
+    EXPECTED_MODULES="$DEFAULT_EXPECTED_MODULES"
 fi
 [[ -f "$ALLOWLIST" ]] || die "Allowlist does not exist: $ALLOWLIST"
 
@@ -309,7 +356,13 @@ cleanup() {
 }
 trap cleanup EXIT
 
+NORMALIZED_MANIFEST="$WORK_DIR/modules.normalized.tsv"
+NORMALIZED_EXPECTED_MODULES="$WORK_DIR/expected-modules.normalized.txt"
 NORMALIZED_CLASS_OVERRIDES="$WORK_DIR/class-overrides.normalized.tsv"
+validate_manifest
+if [[ -n "$EXPECTED_MODULES" ]]; then
+    validate_expected_modules
+fi
 validate_class_overrides
 
 all_baselines="$WORK_DIR/all-baselines"
@@ -348,7 +401,7 @@ while IFS=$'\t' read -r module jar_glob prefixes extra || [[ -n "${module:-}" ]]
         fi
         echo "Checked module: $module"
     fi
-done <"$MANIFEST"
+done <"$NORMALIZED_MANIFEST"
 
 if [[ "$COMMAND" == "check" ]]; then
     [[ -s "$all_baselines" ]] || die "No baselines were read from $BASELINE_DIR"

@@ -100,6 +100,7 @@ val queryApiModules = listOf(
     ":wow-elasticsearch",
     ":wow-cosec",
 )
+val queryApiExpectedModules = layout.projectDirectory.file("config/query-api/expected-modules.txt")
 ext.set("localTestProjects", localTestProjects)
 ext.set("localContractTestProjects", localContractTestProjects)
 ext.set("integrationTestProjects", integrationTestProjects)
@@ -291,11 +292,14 @@ fun queryApiRuntimeClasspath(): String = queryApiModules
 tasks.register<Exec>("queryApiDump") {
     dependsOn(queryApiModules.map { "$it:jar" })
     dependsOn(queryApiModules.map { "$it:$queryApiRuntimeClasspathTaskName" })
+    inputs.file(queryApiExpectedModules)
     doFirst {
         commandLine(
             "bash",
             "scripts/query-api-abi.sh",
             "dump",
+            "--expected-modules",
+            queryApiExpectedModules.asFile.absolutePath,
             "--runtime-classpath",
             queryApiRuntimeClasspath(),
             "--classpath-separator",
@@ -307,11 +311,14 @@ tasks.register<Exec>("queryApiDump") {
 tasks.register<Exec>("queryApiCheck") {
     dependsOn(queryApiModules.map { "$it:jar" })
     dependsOn(queryApiModules.map { "$it:$queryApiRuntimeClasspathTaskName" })
+    inputs.file(queryApiExpectedModules)
     doFirst {
         commandLine(
             "bash",
             "scripts/query-api-abi.sh",
             "check",
+            "--expected-modules",
+            queryApiExpectedModules.asFile.absolutePath,
             "--runtime-classpath",
             queryApiRuntimeClasspath(),
             "--classpath-separator",

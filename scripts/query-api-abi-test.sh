@@ -138,6 +138,65 @@ cp "$TEMP_DIR/v1/mini.jar" "$ARTIFACTS/mini.jar"
 expect_success dump_v1 bash "$ABI_SCRIPT" dump \
     --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$BASELINES" --allowlist "$ALLOWLIST"
 
+printf 'mini\tmini.jar\tfixture/\nmini\tmini.jar\tfixture/\n' >"$TEMP_DIR/duplicate-modules.tsv"
+expect_failure duplicate_manifest_module_is_rejected 'Duplicate manifest module or baseline target: mini' bash "$ABI_SCRIPT" check \
+    --manifest "$TEMP_DIR/duplicate-modules.tsv" --artifacts-dir "$ARTIFACTS" \
+    --baseline-dir "$BASELINES" --allowlist "$ALLOWLIST" --class-overrides "$CLASS_OVERRIDES"
+
+printf 'mini\nrequired\n' >"$TEMP_DIR/missing-expected-modules.txt"
+expect_failure missing_expected_manifest_module_is_rejected 'Missing expected manifest module: required' bash "$ABI_SCRIPT" check \
+    --manifest "$MANIFEST" --expected-modules "$TEMP_DIR/missing-expected-modules.txt" \
+    --artifacts-dir "$ARTIFACTS" --baseline-dir "$BASELINES" --allowlist "$ALLOWLIST"
+
+printf 'mini\n' >"$TEMP_DIR/exact-expected-modules.txt"
+expect_success exact_expected_manifest_modules_are_allowed bash "$ABI_SCRIPT" check \
+    --manifest "$MANIFEST" --expected-modules "$TEMP_DIR/exact-expected-modules.txt" \
+    --artifacts-dir "$ARTIFACTS" --baseline-dir "$BASELINES" --allowlist "$ALLOWLIST"
+
+printf 'mini\tmini.jar\tfixture/\nextra\tmini.jar\tfixture/\n' >"$TEMP_DIR/unexpected-module.tsv"
+expect_failure unexpected_manifest_module_is_rejected 'Unexpected manifest module: extra' bash "$ABI_SCRIPT" check \
+    --manifest "$TEMP_DIR/unexpected-module.tsv" --expected-modules "$TEMP_DIR/exact-expected-modules.txt" \
+    --artifacts-dir "$ARTIFACTS" --baseline-dir "$BASELINES" --allowlist "$ALLOWLIST" \
+    --class-overrides "$CLASS_OVERRIDES"
+
+printf 'mini\nmini\n' >"$TEMP_DIR/duplicate-expected-modules.txt"
+expect_failure duplicate_expected_module_is_rejected 'Duplicate expected module: mini' bash "$ABI_SCRIPT" check \
+    --manifest "$MANIFEST" --expected-modules "$TEMP_DIR/duplicate-expected-modules.txt" \
+    --artifacts-dir "$ARTIFACTS" --baseline-dir "$BASELINES" --allowlist "$ALLOWLIST"
+
+: >"$TEMP_DIR/empty-expected-modules.txt"
+expect_failure empty_expected_modules_are_rejected 'Expected modules are empty' bash "$ABI_SCRIPT" check \
+    --manifest "$MANIFEST" --expected-modules "$TEMP_DIR/empty-expected-modules.txt" \
+    --artifacts-dir "$ARTIFACTS" --baseline-dir "$BASELINES" --allowlist "$ALLOWLIST"
+
+expect_failure missing_expected_modules_file_is_rejected 'Expected modules do not exist' bash "$ABI_SCRIPT" check \
+    --manifest "$MANIFEST" --expected-modules "$TEMP_DIR/absent-expected-modules.txt" \
+    --artifacts-dir "$ARTIFACTS" --baseline-dir "$BASELINES" --allowlist "$ALLOWLIST"
+
+printf '../escape\n' >"$TEMP_DIR/invalid-expected-modules.txt"
+expect_failure invalid_expected_module_is_rejected 'Invalid expected module: ../escape' bash "$ABI_SCRIPT" check \
+    --manifest "$MANIFEST" --expected-modules "$TEMP_DIR/invalid-expected-modules.txt" \
+    --artifacts-dir "$ARTIFACTS" --baseline-dir "$BASELINES" --allowlist "$ALLOWLIST"
+
+awk -F '\t' '$1 != "wow-cosec"' "$ROOT_DIR/config/query-api/modules.tsv" \
+    >"$TEMP_DIR/production-missing-cosec.tsv"
+expect_failure production_expected_module_omission_is_rejected 'Missing expected manifest module: wow-cosec' \
+    bash "$ABI_SCRIPT" check \
+    --manifest "$TEMP_DIR/production-missing-cosec.tsv" \
+    --expected-modules "$ROOT_DIR/config/query-api/expected-modules.txt" \
+    --class-overrides "$ROOT_DIR/config/query-api/class-overrides.tsv" \
+    --artifacts-dir "$ARTIFACTS" --baseline-dir "$BASELINES" --allowlist "$ALLOWLIST"
+
+printf '../escape\tmini.jar\tfixture/\n' >"$TEMP_DIR/invalid-module.tsv"
+expect_failure invalid_manifest_module_is_rejected 'Invalid manifest module: ../escape' bash "$ABI_SCRIPT" check \
+    --manifest "$TEMP_DIR/invalid-module.tsv" --artifacts-dir "$ARTIFACTS" \
+    --baseline-dir "$BASELINES" --allowlist "$ALLOWLIST" --class-overrides "$CLASS_OVERRIDES"
+
+printf 'mini\tmini.jar\tfixture/;;other/\n' >"$TEMP_DIR/empty-prefix-component.tsv"
+expect_failure empty_manifest_prefix_component_is_rejected 'Invalid manifest prefix components for module mini' bash "$ABI_SCRIPT" check \
+    --manifest "$TEMP_DIR/empty-prefix-component.tsv" --artifacts-dir "$ARTIFACTS" \
+    --baseline-dir "$BASELINES" --allowlist "$ALLOWLIST" --class-overrides "$CLASS_OVERRIDES"
+
 compile_api "$API_WITH_ADDITION" "$TEMP_DIR/addition"
 cp "$TEMP_DIR/addition/mini.jar" "$ARTIFACTS/mini.jar"
 expect_success addition_is_allowed bash "$ABI_SCRIPT" check \
