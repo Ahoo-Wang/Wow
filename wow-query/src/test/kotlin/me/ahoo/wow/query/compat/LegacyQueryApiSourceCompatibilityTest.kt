@@ -22,11 +22,11 @@ import me.ahoo.wow.query.QueryService
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.RoutingEventStreamQueryServiceFactory
+import me.ahoo.wow.query.mask.EventStreamMaskerRegistry
+import me.ahoo.wow.query.mask.StateDataMaskerRegistry
 import me.ahoo.wow.query.snapshot.RoutingSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
-import me.ahoo.wow.query.mask.EventStreamMaskerRegistry
-import me.ahoo.wow.query.mask.StateDataMaskerRegistry
 
 class LegacyQueryApiSourceCompatibilityTest {
     @Suppress("Unused")
