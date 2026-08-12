@@ -269,7 +269,7 @@ git commit -m "feat: migrate query security to policies"
 
 - [ ] **Step 2: 直接注入 QueryGateway 并保留 rewrite**
 
-handler 先解析原 wire DTO，再调用 deprecated rewrite，mapper 将其标为 `LEGACY_ENRICHMENT`，随后调用 Gateway。`WebFluxQueryAdmission` 将 route/header/request scope 标为 caller input；`WebFluxQueryAuthorityResolver` 只接受已认证 principal adapter 的结果。不得把 header tenant/owner/space 复制到 trusted authority。
+handler 先解析原 wire DTO，保留原 caller expression，再调用 deprecated rewrite；mapper 将 rewrite 追加的 expression 作为独立 legacy contribution 交给受控 Gateway adapter，Factory 固定将其标为 `LEGACY_ENRICHMENT`，不得接受 adapter 自选任意 provenance，也不得先与 caller expression 合并后再推断来源。随后调用 Gateway。`WebFluxQueryAdmission` 将 route/header/request scope 标为 caller input；`WebFluxQueryAuthorityResolver` 只接受已认证 principal adapter 的结果。不得把 header tenant/owner/space 复制到 trusted authority。
 
 - [ ] **Step 3: 删除 Filter/Handler/Context 与 Spring filter chain**
 

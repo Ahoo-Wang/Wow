@@ -80,7 +80,7 @@ git commit -m "fix: align query error contract"
 
 - [ ] **Step 1: 写 subscription isolation 与 authority 边界失败测试**
 
-同一个 cold request publisher 订阅两次，断言两次 correlation id、frozen instant、deadline 和 scope object identity 不同；同一次 subscription 的 Normalize/Policy/Planner 观察到完全相同的 frozen instant。调用方 request 中 tenant/owner/space 只能进入 `CALLER_REQUEST`，不能成为 trusted authority。
+同一个 cold request publisher 订阅两次，断言两次 correlation id、frozen instant、deadline 和 scope object identity 不同；同一次 subscription 的 Normalize/Policy/Planner 观察到完全相同的 frozen instant。调用方 request 中 tenant/owner/space 只能进入 `CALLER_REQUEST`，不能成为 trusted authority。标准入口固定建立 `CALLER_REQUEST -> request.expression`；受控兼容入口只能额外建立 `LEGACY_ENRICHMENT -> enrichmentExpression`，不得接受调用方指定任意 provenance，也不得生成 `TRUSTED_AUTHORITY`、`SYSTEM_METADATA` 或 `MANDATORY_POLICY` 表达式。
 
 Run: `./gradlew :wow-query:test --tests "me.ahoo.wow.query.invocation.*"`
 
@@ -112,9 +112,9 @@ data class QueryInvocationScope(
 )
 ```
 
-集合构造时复制。Admission 产出的 internal `QueryInvocationSeed` 持有 raw immutable request、scope、frozen `Instant`、`ZoneId`、admission deadline 和 request/system admission budget；后续 Schema/Normalize 阶段才创建 internal `QueryInvocation`，加入 operation、schema、normalized expression 和 provenance map。Policy/backend 产生的 effective budget/deadline 只进入 Planner 创建的 plan。两者都不得提供 mutable map 或替换 request/expression 的 setter。
+集合构造时复制。Admission 产出的 internal `QueryInvocationSeed` 持有 raw immutable request、scope、frozen `Instant`、`ZoneId`、admission deadline、request/system admission budget，以及不可变的 entry expression contributions。标准 contribution 固定为 `CALLER_REQUEST -> request.expression`；可选 legacy contribution 只能由受控框架 adapter 传入并固定标为 `LEGACY_ENRICHMENT`。后续 Schema/Normalize 阶段分别规范化每个 contribution，再创建 internal `QueryInvocation`，加入 operation、schema、合成后的 normalized expression 和仍按来源分段的 provenance map；不得先合并再从表达式内容反推来源。Policy/backend 产生的 effective budget/deadline 只进入 Planner 创建的 plan。两者都不得提供 mutable map 或替换 request/expression 的 setter。
 
-Kotlin `internal` 在 JVM 字节码中仍可能表现为 public class。`QueryInvocationSeed`、`QueryInvocation`、`QueryInvocationFactory` 与 `DefaultQueryAdmission` 必须在 `class-overrides.tsv` 中以 exact class entry 和 `exclude/kotlin-internal` 分类，不能用通配符；ABI baseline 只保留供扩展者使用的稳定 SPI/context view。测试必须证明配置无 stale/unclassified entry，且 source fixture 不依赖这些 internal 实现。
+Kotlin `internal` 在 JVM 字节码中仍可能表现为 public class。`QueryInvocationSeed`、`QueryInvocation`、`QueryInvocationFactory` 与 `DefaultQueryAdmission` 必须在 `class-overrides.tsv` 中以 exact class entry 和 `exclude/kotlin-internal` 分类，不能用通配符；ABI baseline 只保留供扩展者使用的稳定 SPI/context view。自动化 external source fixture 必须以发布 JAR/runtime classpath、独立 module name（非 friend source）编译：Java/Kotlin 对稳定 SPI 为正例，Kotlin 对上述 internal 实现为负例；同时证明配置无 stale/unclassified entry。
 
 - [ ] **Step 3: 实现 `QueryAdmission` 与默认实现**
 
@@ -124,11 +124,13 @@ fun interface QueryAdmission {
 }
 ```
 
-`QueryAdmissionContext` 固定包含 raw immutable `QueryRequest`、显式 `QueryOperation`、入口 `QueryProvenance` 与由 `QueryInvocationFactory` 为本次 subscription 生成的只读 `correlationId`。`correlationId` 只是作用域标识，不授予 Admission 读取时钟或预算的权限；Admission 必须将它原样带入返回的 `QueryInvocationScope`，不得重新生成或从隐式 Reactor Context 获取。`DefaultQueryAdmission` 由服务器装配可信 `QueryAuthorityProvider`，从服务器安全上下文读取 authority；request 只贡献 requested scope。`QueryAdmission` 只解析并校验可信 scope，返回 `QueryInvocationScope`；它不冻结时间，也不创建 seed。Admission port 不读取 Spring/HTTP 类型。
+`QueryAdmissionContext` 固定包含 raw immutable `QueryRequest`、显式 `QueryOperation`、不可变 entry provenance 集合与由 `QueryInvocationFactory` 为本次 subscription 生成的只读 `correlationId`。`correlationId` 只是作用域标识，不授予 Admission 读取时钟或预算的权限；Admission 必须将它原样带入返回的 `QueryInvocationScope`，不得重新生成或从隐式 Reactor Context 获取。`DefaultQueryAdmission` 由服务器装配可信 `QueryAuthorityProvider`，从服务器安全上下文读取 authority；request 只贡献 requested scope。`QueryAdmission` 只解析并校验可信 scope，返回 `QueryInvocationScope`；它不冻结时间，也不创建 seed。Admission 或 authority provider 返回 `Mono.empty()` 属于协议失败，必须 fail closed 为安全的 `POLICY_FAILURE/ADMISSION/POLICY_EVALUATION_FAILED`；显式匿名访问必须返回真实 anonymous authority view。Admission port 不读取 Spring/HTTP 类型。
+
+`QueryAdmissionContext`、`QueryInvocationScope` 和 authority view 不得在 `toString()` 中输出 raw request/expression、requested/trusted scope、correlation id、permissions 或 Native 参数；公开 value surface 保留结构相等/copy/component 语义，但字符串只允许低基数安全枚举和固定 redaction 标记。
 
 - [ ] **Step 4: 用 `defer` 证明时间与状态不跨订阅复用**
 
-增加 `QueryInvocationFactory.admit(request, operation, entryProvenance)` 返回 cold `Mono<QueryInvocationSeed>`；它在 `Mono.defer` 内唯一冻结 Clock、Zone、correlation、request/system `admissionBudget` 与绝对 `admissionDeadline`，再调用 `QueryAdmission` 获得 scope。用可推进 fake clock 断言 subscription 间变化、subscription 内稳定；取消 Admission 时不调用 Schema/Backend resolver。Gateway 后续阶段用同一 seed 构造 `QueryInvocation`，不再次读取 clock。`QueryInvocation` 保存 admission budget/deadline；Policy 与 Backend 限制合并后的 effective budget/deadline 只进入最终 plan，不通过 setter 回写 invocation。
+增加标准 `QueryInvocationFactory.admit(request, operation)` 与只接受额外 legacy expression 的受控兼容入口，返回 cold `Mono<QueryInvocationSeed>`；不得暴露接受任意 `QueryProvenance` 的入口。Factory 在 `Mono.defer` 内唯一冻结 Clock、Zone、correlation、request/system `admissionBudget` 与绝对 `admissionDeadline`，再调用 `QueryAdmission` 获得 scope。用可推进 fake clock 断言 subscription 间变化、subscription 内稳定；取消 Admission 时不调用 Schema/Backend resolver。Gateway 后续阶段用同一 seed 构造 `QueryInvocation`，不再次读取 clock。`QueryInvocation` 保存 admission budget/deadline；Policy 与 Backend 限制合并后的 effective budget/deadline 只进入最终 plan，不通过 setter 回写 invocation。有限 timeout 若无法从 frozen instant 表示为绝对 deadline，必须稳定拒绝为 `INVALID_QUERY/ADMISSION/INVALID_REQUEST`，不能泄漏 `DateTimeException`/`ArithmeticException`、降级为 unbounded 或饱和到伪造 deadline；zero 与 `UNBOUNDED` 语义不变，后续 effective deadline 复用同一 overflow-safe helper。
 
 - [ ] **Step 5: 运行测试并提交**
 
