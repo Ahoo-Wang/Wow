@@ -205,7 +205,7 @@ data class QueryPolicyConstraints(
 
 - `QueryPolicyDeniedException(reasonCode)` → `POLICY_DENIED`；
 - `Mono.empty()`、unexpected exception、unknown field、illegal result → `POLICY_FAILURE`；
-- deadline 先到 → `DEADLINE_EXCEEDED`，stage=`POLICY`；Policy 开始时从注入的共享 `Clock` 读取当前时间并计算 `absoluteDeadline - now`，已经过期立即失败，尚未过期只获得剩余时间；不得重新使用 `absoluteDeadline - frozenInstant` 启动完整 timeout。timeout scheduler 与 Clock 必须由同一装配边界提供并在测试中可控，取消要传播到当前 Policy；
+- deadline 先到 → `DEADLINE_EXCEEDED`，stage=`POLICY`；Admission 在 subscription 开始冻结 wall `Clock` 的同时创建唯一、subscription-anchored monotonic deadline guard，该 guard 绑定同一个 timeout scheduler/ticker 并随 Seed/Invocation 传递。Policy 不得再次读取 wall `Clock`，只能通过此 guard 用“原始绝对 deadline - 自 subscription 起的 monotonic elapsed”取得剩余时间；已经过期立即失败，尚未过期只获得剩余时间，不得使用 `absoluteDeadline - frozenInstant` 重新启动完整 timeout。后续 effective deadline 复用同一 anchor/guard；取消要传播到当前 Policy；
 - 所有错误都不得 `onErrorResume` 为 `MatchAll`。
 
 - [ ] **Step 4: 实现 System policy 不变量**
