@@ -120,7 +120,7 @@ fun interface QueryAdmission {
 }
 ```
 
-`QueryAdmissionContext` 固定包含 raw immutable `QueryRequest<*>`、显式 `QueryOperation` 与入口 `QueryProvenance`。`DefaultQueryAdmission` 由服务器装配可信 `QueryAuthorityProvider`，从服务器安全上下文读取 authority；request 只贡献 requested scope。`QueryAdmission` 只解析并校验可信 scope，返回 `QueryInvocationScope`；它不冻结时间，也不创建 seed。Admission port 不读取 Spring/HTTP 类型。
+`QueryAdmissionContext` 固定包含 raw immutable `QueryRequest`、显式 `QueryOperation`、入口 `QueryProvenance` 与由 `QueryInvocationFactory` 为本次 subscription 生成的只读 `correlationId`。`correlationId` 只是作用域标识，不授予 Admission 读取时钟或预算的权限；Admission 必须将它原样带入返回的 `QueryInvocationScope`，不得重新生成或从隐式 Reactor Context 获取。`DefaultQueryAdmission` 由服务器装配可信 `QueryAuthorityProvider`，从服务器安全上下文读取 authority；request 只贡献 requested scope。`QueryAdmission` 只解析并校验可信 scope，返回 `QueryInvocationScope`；它不冻结时间，也不创建 seed。Admission port 不读取 Spring/HTTP 类型。
 
 - [ ] **Step 4: 用 `defer` 证明时间与状态不跨订阅复用**
 
