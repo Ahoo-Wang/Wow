@@ -430,7 +430,7 @@ git commit -m "feat: normalize legacy query expressions"
 
 ## Task 4: 从 Jackson 模型推导 Query Schema
 
-**Interfaces consumed:** `AggregateMetadata.state.aggregateType`、Wow 当前 Jackson `ObjectMapper`、Task 2 logical fields/value types。
+**Interfaces consumed:** aggregate metadata identity、Snapshot 的 `AggregateMetadata.state.aggregateType`、Wow 当前 Jackson `ObjectMapper`、Task 2 logical fields/value types。EventStream 不内省 aggregate state type。
 
 **Interfaces produced:** immutable `QuerySchemaView`、缓存 resolver、唯一 `QuerySchemaCustomizer` SPI。
 
@@ -447,7 +447,7 @@ git commit -m "feat: normalize legacy query expressions"
 
 - [ ] **Step 1: 写 Jackson 语义失败测试**
 
-fixture 覆盖 `@JsonProperty`、`@JsonIgnore`、全局 naming strategy、Kotlin nullable、enum、nested object、scalar collection、object collection、map、继承和递归类型。分别断言 Snapshot/EventStream framework system fields，且 ignored/property 原名不能被查询。
+fixture 覆盖 `@JsonProperty`、`@JsonIgnore`、全局 naming strategy、Kotlin nullable、enum、nested object、scalar collection、object collection、map、继承和递归类型。断言 Snapshot 应用字段统一位于 `state.*`，且 ignored/property 原名不能被查询。分别断言 Snapshot/EventStream framework system fields；EventStream 默认只有固定 stream envelope 与 `body.id`、`body.name`、`body.revision`、`body.bodyType` 事件项元数据，不得出现 `state.*` 或任何 `body.body.*` payload 字段。再用唯一 `QuerySchemaCustomizer` 的 fixture 证明 EventStream payload 字段只能显式增补。
 
 Run: `./gradlew :wow-query:test --tests "me.ahoo.wow.query.schema.*"`
 
@@ -469,7 +469,7 @@ Schema field 至少记录 logical path、value kind、nullable、collection kind
 
 - [ ] **Step 3: 实现 Jackson resolver 与 cache**
 
-使用 Wow 注入的同一个 `ObjectMapper` introspection API，不依赖 `wow-schema`。cache key 必须包含 `QueryTarget` 和 aggregate metadata identity；缓存只保存 fully immutable schema。递归类型使用访问栈截断并产生确定性 schema error，不无限递归。
+使用 Wow 注入的同一个 `ObjectMapper` introspection API，不依赖 `wow-schema`。Snapshot 内省 state type 并加上 `state` 逻辑前缀；EventStream 只构建固定 system schema，不读取 state properties、不对事件类型做 union inference。cache key 必须包含 `QueryTarget` 和 aggregate metadata identity；缓存只保存 fully immutable schema。递归类型使用访问栈截断并产生确定性 schema error，不无限递归。
 
 - [ ] **Step 4: 验证 customizer 固定顺序与冲突失败**
 

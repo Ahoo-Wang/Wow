@@ -19,7 +19,7 @@
 
 所有框架托管入口统一经过 Admission、Normalize、Policy、Backend Resolve、Plan、Execute、Result Policy 七个阶段。Admission 为每次订阅建立带来源信息的 `QueryInvocationScope`；单一 `QueryPolicy` 扩展 SPI 统一承载服务端业务约束、安全条件、字段/capability 权限和预算上限，框架负责把其 mandatory expression 以 `AND` 注入，调用方不能移除。结果脱敏由独立的 `ResultPolicy` 承担。存储后端只编译并执行已验证计划，不解析外部 DTO，也不自行拼接授权条件。
 
-第一阶段不拆 Gradle 模块、不修改 KSP、不实现聚合分析 API、不自动迁移索引。默认查询 Schema 在启动时由聚合状态类型的 Jackson 序列化模型推导，并只提供一个 `QuerySchemaCustomizer` 扩展点。
+第一阶段不拆 Gradle 模块、不修改 KSP、不实现聚合分析 API、不自动迁移索引。Snapshot 的默认查询 Schema 在启动时由聚合状态类型的 Jackson 序列化模型推导；EventStream 默认只声明框架固定 envelope/system fields，事件 payload 字段不从聚合状态推导。两者都只提供一个 `QuerySchemaCustomizer` 扩展点。
 
 ## 2. 背景与根因
 
@@ -193,9 +193,14 @@ Admission 对 List、Map、byte array 等可变输入只遍历一次并防御性
 
 ### 6.1 默认来源
 
-第一阶段采用单一、低配置的 Schema 来源：启动时从 `AggregateMetadata.state.aggregateType` 获取聚合状态类型，并使用 Wow 当前 Jackson 序列化配置构建逻辑查询 Schema。固定的 Snapshot/EventStream 系统字段由框架内置。
+第一阶段采用单一、低配置的 Schema 来源，但严格区分两种存储文档：
 
-这一设计与现有元数据和 Jackson 能力对齐：聚合状态类型由 `StateAggregateMetadata` 暴露（`wow-core/src/main/kotlin/me/ahoo/wow/modeling/metadata/StateAggregateMetadata.kt:38`）；现有 schema 工具已经证明 Jackson、Kotlin 和 Jakarta 模型可以共同推导字段结构（`wow-schema/src/main/kotlin/me/ahoo/wow/schema/SchemaGeneratorBuilder.kt:52`）。第一阶段只复用同类运行时 introspection 思路，不增加 `wow-query -> wow-schema` 的强耦合。
+- Snapshot 在启动时从 `AggregateMetadata.state.aggregateType` 获取聚合状态类型，使用 Wow 当前 Jackson 序列化配置推导应用字段，并统一置于 `state.*` 逻辑路径下。框架另行声明 Snapshot 固定系统字段。
+- EventStream 默认不内省 aggregate state type。它只声明固定的 stream envelope 字段以及 `body[].id`、`body[].name`、`body[].revision`、`body[].bodyType` 事件项元数据；`body[].body.*` 的类型由具体领域事件决定，不得从 aggregate state type 复用或推测。需要查询事件 payload 时，必须通过唯一的 `QuerySchemaCustomizer` 显式增补受控逻辑字段和 capability binding。
+
+两种文档的固定系统字段以 Wow 权威序列化器的实际 wire shape 为准；字段必须以 backend-neutral 逻辑 descriptor 表示，不在 Schema 层冻结 MongoDB `_id` 或 Elasticsearch document id 等物理差异。EventStream 的 cache key 仍包含 `QueryTarget` 与 aggregate metadata identity，使自定义结果与聚合生命周期一致，但 resolver 不因此内省 state type。
+
+这一设计与现有元数据、序列化 wire shape 和 Jackson 能力对齐：聚合状态类型由 `StateAggregateMetadata` 暴露（`wow-core/src/main/kotlin/me/ahoo/wow/modeling/metadata/StateAggregateMetadata.kt:38`）；Snapshot 状态实际写入 `state` （`wow-core/src/main/kotlin/me/ahoo/wow/serialization/state/AbstractStateAggregateSerializer.kt:57`）；EventStream 把多态事件 payload 写入 `body[].body` （`wow-core/src/main/kotlin/me/ahoo/wow/serialization/event/AbstractEventStreamJsonSerializer.kt:36`）。现有 schema 工具已经证明 Jackson、Kotlin 和 Jakarta 模型可以共同推导字段结构（`wow-schema/src/main/kotlin/me/ahoo/wow/schema/SchemaGeneratorBuilder.kt:52`）。第一阶段只复用同类运行时 introspection 思路，不增加 `wow-query -> wow-schema` 的强耦合，也不引入事件类型联合推导或第二个 Schema hook。
 
 推导必须尊重 `@JsonProperty`、`@JsonIgnore`、命名策略、nullable、collection、nested object 和 enum 等实际序列化规则。默认规则保持保守：
 
