@@ -100,6 +100,7 @@ internal class QueryDeadlineGuard(
 
     companion object {
         private val MAX_REACTOR_TIMER_SLICE: Duration = Duration.ofNanos(Long.MAX_VALUE)
+
         // Keep each local ticker delta far below the signed half-range so wrap remains unambiguous.
         private val SAFE_TIMER_SLICE: Duration = Duration.ofDays(365)
 
