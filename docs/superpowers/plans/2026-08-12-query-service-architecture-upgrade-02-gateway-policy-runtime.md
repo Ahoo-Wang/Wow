@@ -75,6 +75,8 @@ git commit -m "fix: align query error contract"
 - Create: `wow-query/src/main/kotlin/me/ahoo/wow/query/invocation/DefaultQueryAdmission.kt`
 - Create: `wow-query/src/test/kotlin/me/ahoo/wow/query/invocation/DefaultQueryAdmissionTest.kt`
 - Create: `wow-query/src/test/kotlin/me/ahoo/wow/query/invocation/QuerySubscriptionIsolationTest.kt`
+- Modify: `config/query-api/class-overrides.tsv`
+- Modify: `config/query-api/wow-query-8.x.baseline`
 
 - [ ] **Step 1: 写 subscription isolation 与 authority 边界失败测试**
 
@@ -110,7 +112,9 @@ data class QueryInvocationScope(
 )
 ```
 
-集合构造时复制。Admission 产出的 internal `QueryInvocationSeed` 持有 raw immutable request、scope、frozen `Instant`、`ZoneId`、admission deadline 和 request/system admission budget；后续 Schema/Normalize 阶段才创建 `QueryInvocation`，加入 operation、schema、normalized expression 和 provenance map。Policy/backend 产生的 effective budget/deadline 只进入 Planner 创建的 plan。两者都不得提供 mutable map 或替换 request/expression 的 setter。
+集合构造时复制。Admission 产出的 internal `QueryInvocationSeed` 持有 raw immutable request、scope、frozen `Instant`、`ZoneId`、admission deadline 和 request/system admission budget；后续 Schema/Normalize 阶段才创建 internal `QueryInvocation`，加入 operation、schema、normalized expression 和 provenance map。Policy/backend 产生的 effective budget/deadline 只进入 Planner 创建的 plan。两者都不得提供 mutable map 或替换 request/expression 的 setter。
+
+Kotlin `internal` 在 JVM 字节码中仍可能表现为 public class。`QueryInvocationSeed`、`QueryInvocation`、`QueryInvocationFactory` 与 `DefaultQueryAdmission` 必须在 `class-overrides.tsv` 中以 exact class entry 和 `exclude/kotlin-internal` 分类，不能用通配符；ABI baseline 只保留供扩展者使用的稳定 SPI/context view。测试必须证明配置无 stale/unclassified entry，且 source fixture 不依赖这些 internal 实现。
 
 - [ ] **Step 3: 实现 `QueryAdmission` 与默认实现**
 
@@ -134,7 +138,9 @@ Expected: 全部通过；ABI 只有新增。
 
 ```bash
 git add wow-query/src/main/kotlin/me/ahoo/wow/query/invocation \
-  wow-query/src/test/kotlin/me/ahoo/wow/query/invocation
+  wow-query/src/test/kotlin/me/ahoo/wow/query/invocation \
+  config/query-api/class-overrides.tsv \
+  config/query-api/wow-query-8.x.baseline
 git commit -m "feat: add query admission scope"
 ```
 
