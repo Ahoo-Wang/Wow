@@ -166,6 +166,31 @@ class QueryGatewayAutoConfigurationTest {
     }
 
     @Test
+    fun `invalid structure limits fail startup when custom query gateway makes runtime bean back off`() {
+        listOf(
+            "max-depth=0" to "Maximum query depth must be positive.",
+            "max-depth=-1" to "Maximum query depth must be positive.",
+            "max-nodes=0" to "Maximum query nodes must be positive.",
+            "max-nodes=-1" to "Maximum query nodes must be positive.",
+            "max-membership-items=0" to "Maximum membership items must be positive.",
+            "max-membership-items=-1" to "Maximum membership items must be positive.",
+            "max-native-parameter-bytes=0" to "Maximum native parameter bytes must be positive.",
+            "max-native-parameter-bytes=-1" to "Maximum native parameter bytes must be positive."
+        ).forEach { (property, message) ->
+            contextRunner
+                .withBean(QueryGateway::class.java, { UnavailableQueryGateway })
+                .withPropertyValues("${QueryGatewayProperties.PREFIX}.$property")
+                .run { context ->
+                    context.startupFailure.assert().isNotNull()
+                    generateSequence(context.startupFailure) { it.cause }
+                        .mapNotNull(Throwable::message)
+                        .any { it.contains(message) }
+                        .assert().isTrue()
+                }
+        }
+    }
+
+    @Test
     fun `missing backend fails with stable unavailable error and records metrics`() {
         val registry = SimpleMeterRegistry()
         gatewayContextRunner()

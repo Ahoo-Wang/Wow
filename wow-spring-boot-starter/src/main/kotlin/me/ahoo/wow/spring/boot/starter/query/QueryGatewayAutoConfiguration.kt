@@ -53,7 +53,9 @@ import java.time.ZoneId
 class QueryGatewayAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(QueryAuthorityProvider::class)
-    fun queryAuthorityProvider(): QueryAuthorityProvider = ANONYMOUS_AUTHORITY_PROVIDER
+    fun queryAuthorityProvider(): QueryAuthorityProvider = QueryAuthorityProvider {
+        Mono.just(QueryAuthorityView(null, null, null, emptySet(), emptySet()))
+    }
 
     @Bean
     @ConditionalOnMissingBean(QuerySchemaResolver::class)
@@ -87,7 +89,17 @@ class QueryGatewayAutoConfiguration {
             QueryGatewayConfiguration(
                 admission = authorityAdmission(authorityProvider),
                 schemaResolver = schemaResolver,
-                backendResolver = backendResolver.getIfAvailable { UNAVAILABLE_BACKEND_RESOLVER },
+                backendResolver = backendResolver.getIfAvailable {
+                    QueryBackendResolver {
+                        Mono.error(
+                            QueryException(
+                                QueryErrorCode.BACKEND_NOT_READY,
+                                QueryStage.BACKEND_RESOLUTION,
+                                QueryErrorReason.BACKEND_UNAVAILABLE
+                            )
+                        )
+                    }
+                },
                 customPolicies = beanFactory.orderedSnapshot(QueryPolicy::class.java),
                 resultPolicies = beanFactory.orderedSnapshot(ResultPolicy::class.java),
                 clock = clock,
@@ -125,19 +137,4 @@ class QueryGatewayAutoConfiguration {
 
     private fun <T : Any> ListableBeanFactory.orderedSnapshot(type: Class<T>): List<T> =
         getBeanProvider(type).orderedStream().toList()
-
-    private companion object {
-        val ANONYMOUS_AUTHORITY_PROVIDER: QueryAuthorityProvider = QueryAuthorityProvider {
-            Mono.just(QueryAuthorityView(null, null, null, emptySet(), emptySet()))
-        }
-        val UNAVAILABLE_BACKEND_RESOLVER: QueryBackendResolver = QueryBackendResolver {
-            Mono.error(
-                QueryException(
-                    QueryErrorCode.BACKEND_NOT_READY,
-                    QueryStage.BACKEND_RESOLUTION,
-                    QueryErrorReason.BACKEND_UNAVAILABLE
-                )
-            )
-        }
-    }
 }

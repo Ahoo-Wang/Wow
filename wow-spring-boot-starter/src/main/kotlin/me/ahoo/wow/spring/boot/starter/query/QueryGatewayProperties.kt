@@ -27,6 +27,13 @@ data class QueryGatewayProperties(
     val systemBudget: QueryGatewaySystemBudgetProperties = QueryGatewaySystemBudgetProperties(),
     val enabledCapabilities: Set<String> = emptySet()
 ) {
+    init {
+        require(maxDepth > 0) { "Maximum query depth must be positive." }
+        require(maxNodes > 0) { "Maximum query nodes must be positive." }
+        require(maxMembershipItems > 0) { "Maximum membership items must be positive." }
+        require(maxNativeParameterBytes > 0) { "Maximum native parameter bytes must be positive." }
+    }
+
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}query.gateway"
     }
