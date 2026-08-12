@@ -254,10 +254,13 @@ enum class PortableOperator {
     STARTS_WITH, ENDS_WITH, NULL, NOT_NULL, TRUE, FALSE, EXISTS
 }
 
+enum class StringComparisonMode { DEFAULT, CASE_SENSITIVE, CASE_INSENSITIVE }
+
 data class PredicateExpression(
     val field: LogicalField,
     val operator: PortableOperator,
-    val values: List<QueryValue>
+    val values: List<QueryValue>,
+    val stringComparison: StringComparisonMode = StringComparisonMode.DEFAULT
 ) : PortableExpression
 
 data class ElementMatchExpression(
@@ -280,7 +283,7 @@ data class NativeExpression(
 ) : CapabilityExpression
 ```
 
-`LogicalField`、`QueryCapabilityId` 使用校验过的 value class。`QueryValue` 是 scalar/decimal/string/instant/enum/list/object/binary/null 的封闭层级；集合在构造器入口复制且公开只读视图。
+`LogicalField`、`QueryCapabilityId` 使用校验过的 value class。`QueryValue` 是 scalar/decimal/string/instant/enum/list/object/binary/null 的封闭层级；集合在构造器入口复制且公开只读视图。`PredicateExpression.stringComparison` 保留字符串字面操作的默认、显式大小写敏感与忽略大小写三态；非字符串字面操作只能使用 `DEFAULT`。为已形成的 Task 2 source surface 保留三参数 constructor/call 形态，新增维度以默认参数/兼容 overload 演进。
 
 `LogicalExpression` 允许用户表达式在布尔树中组合 portable/capability 节点；`PortableLogicalExpression` 保证 `QueryPolicyResult.mandatoryExpression` 的整个子树只含 portable 节点。两者共享 `AND`/`OR`/`NOR` 归一化规则，但不能互相偷偷降级。
 
@@ -401,7 +404,7 @@ Expected: compile failure，因为 lowerer 尚不存在。
 
 - [ ] **Step 2: 实现无 `else` 的穷尽 lowerer**
 
-`LegacyConditionLowerer.lower(condition, target, frozenInstant, zoneId)` 中使用 `when (condition.operator)` 明确列出全部 43 个枚举。system operator 映射到固定 `QuerySystemFields`；普通 operator 映射到 `PredicateExpression`；时间 operator 委托 `RelativeTimeNormalizer`；`MATCH` 生成 `FullTextExpression`。`RAW` 只接受 `condition.value is NativeExpression` 并返回该不可变 descriptor；其它 legacy payload 抛出 `QueryException(INVALID_QUERY, NORMALIZE, INVALID_REQUEST)`，不新增 resolver/registry hook，也不把驱动对象交给 `QueryValueNormalizer`。
+`LegacyConditionLowerer.lower(condition, target, frozenInstant, zoneId)` 中使用 `when (condition.operator)` 明确列出全部 43 个枚举。system operator 映射到固定 `QuerySystemFields`，并按 `QueryDocumentKind` 保留 Snapshot/EventStream 的 ID 差异：Snapshot 的 `ID/IDS` 与 `AGGREGATE_ID/AGGREGATE_IDS` 指向同一聚合身份字段，EventStream 的 record `id` 与 `aggregateId` 分离。普通 operator 映射到 `PredicateExpression`；`CONTAINS`/`STARTS_WITH`/`ENDS_WITH` 将 legacy `ignoreCase` 精确降低为 `StringComparisonMode` 三态。时间 operator 委托 `RelativeTimeNormalizer`；`MATCH` 生成 `FullTextExpression`。`RAW` 只接受 `condition.value is NativeExpression` 并返回该不可变 descriptor；其它 legacy payload 抛出 `QueryException(INVALID_QUERY, NORMALIZE, INVALID_REQUEST)`，不新增 resolver/registry hook，也不把驱动对象交给 `QueryValueNormalizer`。
 
 - [ ] **Step 3: 实现一次 materialize 和 canonical simplification**
 
