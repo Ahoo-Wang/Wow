@@ -34,6 +34,7 @@ import org.junit.jupiter.api.assertThrows
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.time.Instant
+import java.time.LocalTime
 import java.time.ZoneId
 
 class RelativeTimeNormalizerTest {
@@ -113,7 +114,17 @@ class RelativeTimeNormalizerTest {
 
     @Test
     fun `rejects zero negative non-integral and overflowing day counts`() {
-        listOf<Any>(0, -1, 1.5, BigDecimal("2.1"), BigInteger("9223372036854775808"), Long.MAX_VALUE).forEach { days ->
+        listOf<Any>(
+            0,
+            -1,
+            1.5,
+            Double.NaN,
+            Double.POSITIVE_INFINITY,
+            Double.NEGATIVE_INFINITY,
+            BigDecimal("2.1"),
+            BigInteger("9223372036854775808"),
+            Long.MAX_VALUE
+        ).forEach { days ->
             assertSafeInvalid {
                 lower(Condition("state.time", Operator.RECENT_DAYS, days), Instant.EPOCH, ZoneId.of("UTC"))
             }
@@ -130,6 +141,35 @@ class RelativeTimeNormalizerTest {
             Instant.parse("2024-06-12T12:00:00Z"),
             ZoneId.of("UTC")
         ).assert().isEqualTo(range("2024-06-11T00:00:00Z", "2024-06-13T00:00:00Z"))
+    }
+
+    @Test
+    fun `before today accepts string and numeric local time using frozen calendar date`() {
+        val frozen = Instant.parse("2023-12-31T16:00:01Z")
+        val shanghai = ZoneId.of("Asia/Shanghai")
+
+        lower(Condition.beforeToday("state.time", "17:30:15"), frozen, shanghai).assert().isEqualTo(
+            before("2024-01-01T09:30:15Z")
+        )
+        lower(Condition.beforeToday("state.time", 3600), frozen, shanghai).assert().isEqualTo(
+            before("2023-12-31T17:00:00Z")
+        )
+        lower(Condition.beforeToday("state.time", LocalTime.MIDNIGHT), frozen, shanghai).assert().isEqualTo(
+            before("2023-12-31T16:00:00Z")
+        )
+    }
+
+    @Test
+    fun `before today condition zone overrides invocation zone and invalid value fails safely`() {
+        val condition = Condition.beforeToday("state.time", "00:00").copy(
+            options = mapOf(Condition.ZONE_ID_OPTION_KEY to "Asia/Shanghai")
+        )
+        lower(condition, Instant.parse("2023-12-31T16:00:01Z"), ZoneId.of("UTC")).assert().isEqualTo(
+            before("2023-12-31T16:00:00Z")
+        )
+        assertSafeInvalid {
+            lower(Condition.beforeToday("state.time", Any()), Instant.EPOCH, ZoneId.of("UTC"))
+        }
     }
 
     private fun lower(condition: Condition, instant: Instant, zoneId: ZoneId) =
@@ -149,6 +189,12 @@ class RelativeTimeNormalizerTest {
                 listOf(QueryValue.InstantValue(Instant.parse(end)))
             )
         )
+    )
+
+    private fun before(end: String) = PredicateExpression(
+        LogicalField("state.time"),
+        PortableOperator.LT,
+        listOf(QueryValue.InstantValue(Instant.parse(end)))
     )
 
     private fun assertSafeInvalid(block: () -> Unit) {

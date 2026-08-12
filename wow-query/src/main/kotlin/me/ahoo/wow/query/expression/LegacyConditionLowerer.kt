@@ -27,6 +27,7 @@ import me.ahoo.wow.api.query.expression.PortableOperator
 import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.expression.QueryExpression
+import me.ahoo.wow.api.query.expression.StringComparisonMode
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.query.converter.DeleteConditionGuard.guard
@@ -41,7 +42,7 @@ object LegacyConditionLowerer {
         zoneId: ZoneId
     ): QueryExpression = try {
         val guarded = if (target.documentKind == QueryDocumentKind.SNAPSHOT) condition.guard() else condition
-        ExpressionNormalizer.normalize(lowerInternal(guarded, frozenInstant, zoneId))
+        ExpressionNormalizer.normalize(lowerInternal(guarded, target, frozenInstant, zoneId))
     } catch (error: me.ahoo.wow.api.query.error.QueryException) {
         throw error
     } catch (_: RuntimeException) {
@@ -49,15 +50,24 @@ object LegacyConditionLowerer {
     }
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
-    private fun lowerInternal(condition: Condition, frozenInstant: Instant, zoneId: ZoneId): QueryExpression =
+    private fun lowerInternal(
+        condition: Condition,
+        target: QueryTarget,
+        frozenInstant: Instant,
+        zoneId: ZoneId
+    ): QueryExpression =
         when (condition.operator) {
-            Operator.AND -> logical(LogicalOperator.AND, condition, frozenInstant, zoneId)
-            Operator.OR -> logical(LogicalOperator.OR, condition, frozenInstant, zoneId)
-            Operator.NOR -> logical(LogicalOperator.NOR, condition, frozenInstant, zoneId)
+            Operator.AND -> logical(LogicalOperator.AND, condition, target, frozenInstant, zoneId)
+            Operator.OR -> logical(LogicalOperator.OR, condition, target, frozenInstant, zoneId)
+            Operator.NOR -> logical(LogicalOperator.NOR, condition, target, frozenInstant, zoneId)
             Operator.ID -> predicate(ID_FIELD, PortableOperator.EQ, condition.value)
             Operator.IDS -> predicateElements(ID_FIELD, PortableOperator.IN, condition.value)
-            Operator.AGGREGATE_ID -> predicate(AGGREGATE_ID_FIELD, PortableOperator.EQ, condition.value)
-            Operator.AGGREGATE_IDS -> predicateElements(AGGREGATE_ID_FIELD, PortableOperator.IN, condition.value)
+            Operator.AGGREGATE_ID -> predicate(aggregateIdentityField(target), PortableOperator.EQ, condition.value)
+            Operator.AGGREGATE_IDS -> predicateElements(
+                aggregateIdentityField(target),
+                PortableOperator.IN,
+                condition.value
+            )
             Operator.TENANT_ID -> predicate(TENANT_ID_FIELD, PortableOperator.EQ, condition.value)
             Operator.OWNER_ID -> predicate(OWNER_ID_FIELD, PortableOperator.EQ, condition.value)
             Operator.SPACE_ID -> predicate(SPACE_ID_FIELD, PortableOperator.EQ, condition.value)
@@ -69,14 +79,14 @@ object LegacyConditionLowerer {
             Operator.LT -> predicate(condition.field, PortableOperator.LT, condition.value)
             Operator.GTE -> predicate(condition.field, PortableOperator.GTE, condition.value)
             Operator.LTE -> predicate(condition.field, PortableOperator.LTE, condition.value)
-            Operator.CONTAINS -> predicate(condition.field, PortableOperator.CONTAINS, condition.value)
+            Operator.CONTAINS -> stringPredicate(condition, PortableOperator.CONTAINS)
             Operator.IN -> predicateElements(condition.field, PortableOperator.IN, condition.value)
             Operator.NOT_IN -> predicateElements(condition.field, PortableOperator.NOT_IN, condition.value)
             Operator.BETWEEN -> predicateElements(condition.field, PortableOperator.BETWEEN, condition.value)
             Operator.ALL_IN -> predicateElements(condition.field, PortableOperator.ALL_IN, condition.value)
-            Operator.STARTS_WITH -> predicate(condition.field, PortableOperator.STARTS_WITH, condition.value)
-            Operator.ENDS_WITH -> predicate(condition.field, PortableOperator.ENDS_WITH, condition.value)
-            Operator.ELEM_MATCH -> elementMatch(condition, frozenInstant, zoneId)
+            Operator.STARTS_WITH -> stringPredicate(condition, PortableOperator.STARTS_WITH)
+            Operator.ENDS_WITH -> stringPredicate(condition, PortableOperator.ENDS_WITH)
+            Operator.ELEM_MATCH -> elementMatch(condition, target, frozenInstant, zoneId)
             Operator.NULL -> predicate(condition.field, PortableOperator.NULL)
             Operator.NOT_NULL -> predicate(condition.field, PortableOperator.NOT_NULL)
             Operator.TRUE -> predicate(condition.field, PortableOperator.TRUE)
@@ -104,18 +114,24 @@ object LegacyConditionLowerer {
     private fun logical(
         operator: LogicalOperator,
         condition: Condition,
+        target: QueryTarget,
         frozenInstant: Instant,
         zoneId: ZoneId
     ): QueryExpression = ExpressionNormalizer.logical(
         operator,
-        condition.children.map { lowerInternal(it, frozenInstant, zoneId) }
+        condition.children.map { lowerInternal(it, target, frozenInstant, zoneId) }
     )
 
-    private fun elementMatch(condition: Condition, frozenInstant: Instant, zoneId: ZoneId): ElementMatchExpression {
+    private fun elementMatch(
+        condition: Condition,
+        target: QueryTarget,
+        frozenInstant: Instant,
+        zoneId: ZoneId
+    ): ElementMatchExpression {
         if (condition.children.size != 1) {
             invalidQuery()
         }
-        val predicate = lowerInternal(condition.children.single(), frozenInstant, zoneId) as? PortableExpression
+        val predicate = lowerInternal(condition.children.single(), target, frozenInstant, zoneId) as? PortableExpression
             ?: invalidQuery()
         return ElementMatchExpression(LogicalField(condition.field), predicate)
     }
@@ -132,6 +148,24 @@ object LegacyConditionLowerer {
 
     private fun predicateElements(field: String, operator: PortableOperator, value: Any?): PredicateExpression =
         PredicateExpression(LogicalField(field), operator, QueryValueNormalizer.normalizeElements(value))
+
+    private fun stringPredicate(condition: Condition, operator: PortableOperator): PredicateExpression =
+        PredicateExpression(
+            LogicalField(condition.field),
+            operator,
+            listOf(QueryValueNormalizer.normalize(condition.value)),
+            when (condition.ignoreCase()) {
+                null -> StringComparisonMode.DEFAULT
+                false -> StringComparisonMode.CASE_SENSITIVE
+                true -> StringComparisonMode.CASE_INSENSITIVE
+            }
+        )
+
+    private fun aggregateIdentityField(target: QueryTarget): String =
+        when (target.documentKind) {
+            QueryDocumentKind.SNAPSHOT -> ID_FIELD
+            QueryDocumentKind.EVENT_STREAM -> AGGREGATE_ID_FIELD
+        }
 
     private const val ID_FIELD = "id"
     private const val AGGREGATE_ID_FIELD = "aggregateId"

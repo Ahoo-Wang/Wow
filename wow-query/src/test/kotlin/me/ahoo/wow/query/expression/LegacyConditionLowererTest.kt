@@ -34,9 +34,11 @@ import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.expression.QueryExpression
 import me.ahoo.wow.api.query.expression.QueryValue
+import me.ahoo.wow.api.query.expression.StringComparisonMode
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.modeling.toNamedAggregate
+import me.ahoo.wow.query.converter.DeleteConditionGuard.guard
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Instant
@@ -62,6 +64,7 @@ class LegacyConditionLowererTest {
     )
 
     @Test
+    @Suppress("LongMethod")
     fun `every legacy operator has one exact canonical lowering`() {
         val fixtures = mapOf(
             Operator.AND to Fixture(Condition(operator = Operator.AND), MatchAll),
@@ -82,13 +85,37 @@ class LegacyConditionLowererTest {
             Operator.LT to Fixture(Condition.lt("state.score", 10), predicate("state.score", PortableOperator.LT, integer(10))),
             Operator.GTE to Fixture(Condition.gte("state.score", 10), predicate("state.score", PortableOperator.GTE, integer(10))),
             Operator.LTE to Fixture(Condition.lte("state.score", 10), predicate("state.score", PortableOperator.LTE, integer(10))),
-            Operator.CONTAINS to Fixture(Condition.contains("state.name", "wang"), predicate("state.name", PortableOperator.CONTAINS, string("wang"))),
+            Operator.CONTAINS to Fixture(
+                Condition.contains("state.name", "wang"),
+                predicate(
+                    "state.name",
+                    PortableOperator.CONTAINS,
+                    string("wang"),
+                    stringComparison = StringComparisonMode.CASE_SENSITIVE
+                )
+            ),
             Operator.IN to Fixture(Condition.isIn("state.status", listOf("NEW", "DONE")), predicate("state.status", PortableOperator.IN, string("NEW"), string("DONE"))),
             Operator.NOT_IN to Fixture(Condition.notIn("state.status", listOf("NEW", "DONE")), predicate("state.status", PortableOperator.NOT_IN, string("NEW"), string("DONE"))),
             Operator.BETWEEN to Fixture(Condition.between("state.score", 1, 9), predicate("state.score", PortableOperator.BETWEEN, integer(1), integer(9))),
             Operator.ALL_IN to Fixture(Condition.all("state.tags", listOf("a", "b")), predicate("state.tags", PortableOperator.ALL_IN, string("a"), string("b"))),
-            Operator.STARTS_WITH to Fixture(Condition.startsWith("state.name", "A"), predicate("state.name", PortableOperator.STARTS_WITH, string("A"))),
-            Operator.ENDS_WITH to Fixture(Condition.endsWith("state.name", "Z"), predicate("state.name", PortableOperator.ENDS_WITH, string("Z"))),
+            Operator.STARTS_WITH to Fixture(
+                Condition.startsWith("state.name", "A"),
+                predicate(
+                    "state.name",
+                    PortableOperator.STARTS_WITH,
+                    string("A"),
+                    stringComparison = StringComparisonMode.CASE_SENSITIVE
+                )
+            ),
+            Operator.ENDS_WITH to Fixture(
+                Condition.endsWith("state.name", "Z"),
+                predicate(
+                    "state.name",
+                    PortableOperator.ENDS_WITH,
+                    string("Z"),
+                    stringComparison = StringComparisonMode.CASE_SENSITIVE
+                )
+            ),
             Operator.ELEM_MATCH to Fixture(Condition.elemMatch("state.lines", Condition.eq("sku", "sku-1")), ElementMatchExpression(LogicalField("state.lines"), predicate("sku", PortableOperator.EQ, string("sku-1")))),
             Operator.NULL to Fixture(Condition.isNull("state.memo"), predicate("state.memo", PortableOperator.NULL)),
             Operator.NOT_NULL to Fixture(Condition.notNull("state.memo"), predicate("state.memo", PortableOperator.NOT_NULL)),
@@ -187,6 +214,203 @@ class LegacyConditionLowererTest {
     }
 
     @Test
+    fun `preserves legacy string comparison mode for every matching operator`() {
+        val matchingOperators = listOf(
+            PortableOperator.CONTAINS to Operator.CONTAINS,
+            PortableOperator.STARTS_WITH to Operator.STARTS_WITH,
+            PortableOperator.ENDS_WITH to Operator.ENDS_WITH
+        )
+
+        val nullOption = nullIgnoreCaseOptions()
+
+        matchingOperators.forEach { (portableOperator, legacyOperator) ->
+            val absent = lowerPredicate(Condition("state.name", legacyOperator, "needle"))
+            val explicitNull = lowerPredicate(
+                Condition("state.name", legacyOperator, "needle", options = nullOption)
+            )
+            val sensitive = lowerPredicate(
+                Condition(
+                    "state.name",
+                    legacyOperator,
+                    "needle",
+                    options = Condition.ignoreCaseOptions(false)
+                )
+            )
+            val insensitive = lowerPredicate(
+                Condition(
+                    "state.name",
+                    legacyOperator,
+                    "needle",
+                    options = Condition.ignoreCaseOptions(true)
+                )
+            )
+
+            absent.assert().isEqualTo(
+                PredicateExpression(
+                    LogicalField("state.name"),
+                    portableOperator,
+                    listOf(string("needle")),
+                    StringComparisonMode.DEFAULT
+                )
+            )
+            explicitNull.stringComparison.assert().isEqualTo(StringComparisonMode.DEFAULT)
+            sensitive.stringComparison.assert().isEqualTo(StringComparisonMode.CASE_SENSITIVE)
+            insensitive.stringComparison.assert().isEqualTo(StringComparisonMode.CASE_INSENSITIVE)
+            sensitive.component4().assert().isEqualTo(StringComparisonMode.CASE_SENSITIVE)
+            insensitive.component4().assert().isEqualTo(StringComparisonMode.CASE_INSENSITIVE)
+            absent.assert().isNotEqualTo(sensitive)
+            sensitive.assert().isNotEqualTo(insensitive)
+        }
+    }
+
+    @Test
+    @Suppress("LongMethod")
+    fun `uses target-specific identity fields and preserves scalar versus membership arity`() {
+        val active = predicate("deleted", PortableOperator.EQ, bool(false))
+        val fixtures = listOf(
+            Triple(
+                snapshotTarget,
+                Condition.id("record-1"),
+                and(
+                    active,
+                    predicate("id", PortableOperator.EQ, string("record-1"))
+                )
+            ),
+            Triple(
+                snapshotTarget,
+                Condition.ids("record-1", "record-2"),
+                and(
+                    active,
+                    predicate(
+                        "id",
+                        PortableOperator.IN,
+                        string("record-1"),
+                        string("record-2")
+                    )
+                )
+            ),
+            Triple(
+                snapshotTarget,
+                Condition.aggregateId("aggregate-1"),
+                and(
+                    active,
+                    predicate("id", PortableOperator.EQ, string("aggregate-1"))
+                )
+            ),
+            Triple(
+                snapshotTarget,
+                Condition.aggregateIds("aggregate-1", "aggregate-2"),
+                and(
+                    active,
+                    predicate(
+                        "id",
+                        PortableOperator.IN,
+                        string("aggregate-1"),
+                        string("aggregate-2")
+                    )
+                )
+            ),
+            Triple(
+                eventTarget,
+                Condition.id("record-1"),
+                predicate("id", PortableOperator.EQ, string("record-1"))
+            ),
+            Triple(
+                eventTarget,
+                Condition.ids("record-1", "record-2"),
+                predicate(
+                    "id",
+                    PortableOperator.IN,
+                    string("record-1"),
+                    string("record-2")
+                )
+            ),
+            Triple(
+                eventTarget,
+                Condition.aggregateId("aggregate-1"),
+                predicate("aggregateId", PortableOperator.EQ, string("aggregate-1"))
+            ),
+            Triple(
+                eventTarget,
+                Condition.aggregateIds("aggregate-1", "aggregate-2"),
+                predicate(
+                    "aggregateId",
+                    PortableOperator.IN,
+                    string("aggregate-1"),
+                    string("aggregate-2")
+                )
+            )
+        )
+
+        fixtures.forEach { (target, condition, expected) ->
+            LegacyConditionLowerer.lower(condition, target, frozenInstant, zoneId)
+                .assert()
+                .isEqualTo(expected)
+        }
+    }
+
+    @Test
+    fun `snapshot deletion guard preserves every legacy root shape exactly`() {
+        val active = predicate("deleted", PortableOperator.EQ, bool(false))
+        val deleted = predicate("deleted", PortableOperator.EQ, bool(true))
+        val state = predicate("state.status", PortableOperator.EQ, string("ACTIVE"))
+        val directDeleted = Condition.and(
+            Condition.deleted(DeletionState.DELETED),
+            Condition.eq("state.status", "ACTIVE")
+        )
+        val nestedDeleted = Condition.and(
+            Condition.and(
+                Condition.deleted(DeletionState.DELETED),
+                Condition.eq("state.status", "ACTIVE")
+            )
+        )
+        val orDeleted = Condition.or(
+            Condition.eq("state.status", "ACTIVE"),
+            Condition.deleted(DeletionState.DELETED)
+        )
+        val norDeleted = Condition.nor(
+            Condition.eq("state.status", "ACTIVE"),
+            Condition.deleted(DeletionState.DELETED)
+        )
+        val alreadyActive = Condition.and(
+            Condition.ACTIVE,
+            Condition.eq("state.status", "ACTIVE")
+        )
+        val fixtures = listOf(
+            Condition.ALL to active,
+            directDeleted to and(deleted, state),
+            nestedDeleted to and(active, deleted, state),
+            orDeleted to and(active, or(state, deleted)),
+            norDeleted to and(active, nor(state, deleted)),
+            alreadyActive to and(active, state)
+        )
+
+        fixtures.forEach { (condition, expected) ->
+            val snapshot = LegacyConditionLowerer.lower(condition, snapshotTarget, frozenInstant, zoneId)
+            val explicitlyGuarded = LegacyConditionLowerer.lower(
+                condition.guard(),
+                eventTarget,
+                frozenInstant,
+                zoneId
+            )
+            snapshot.assert().isEqualTo(expected)
+            snapshot.assert().isEqualTo(explicitlyGuarded)
+        }
+        LegacyConditionLowerer.lower(
+            orDeleted,
+            eventTarget,
+            frozenInstant,
+            zoneId
+        ).assert().isEqualTo(or(state, deleted))
+        LegacyConditionLowerer.lower(
+            norDeleted,
+            eventTarget,
+            frozenInstant,
+            zoneId
+        ).assert().isEqualTo(nor(state, deleted))
+    }
+
+    @Test
     fun `rejects every unstructured RAW payload with safe dimensions`() {
         listOf("{}", mapOf("state.status" to "ACTIVE"), Any()).forEach { payload ->
             val error = assertThrows<QueryException> {
@@ -206,8 +430,28 @@ class LegacyConditionLowererTest {
             .isSameAs(native)
     }
 
-    private fun predicate(field: String, operator: PortableOperator, vararg values: QueryValue) =
-        PredicateExpression(LogicalField(field), operator, values.toList())
+    private fun predicate(
+        field: String,
+        operator: PortableOperator,
+        vararg values: QueryValue,
+        stringComparison: StringComparisonMode = StringComparisonMode.DEFAULT
+    ) = PredicateExpression(LogicalField(field), operator, values.toList(), stringComparison)
+
+    private fun lowerPredicate(condition: Condition): PredicateExpression =
+        LegacyConditionLowerer.lower(condition, eventTarget, frozenInstant, zoneId) as PredicateExpression
+
+    @Suppress("UNCHECKED_CAST")
+    private fun nullIgnoreCaseOptions(): Map<String, Any> =
+        mapOf<String, Any?>(Condition.IGNORE_CASE_OPTION_KEY to null) as Map<String, Any>
+
+    private fun and(vararg expressions: me.ahoo.wow.api.query.expression.PortableExpression) =
+        PortableLogicalExpression(LogicalOperator.AND, expressions.toList())
+
+    private fun or(vararg expressions: me.ahoo.wow.api.query.expression.PortableExpression) =
+        PortableLogicalExpression(LogicalOperator.OR, expressions.toList())
+
+    private fun nor(vararg expressions: me.ahoo.wow.api.query.expression.PortableExpression) =
+        PortableLogicalExpression(LogicalOperator.NOR, expressions.toList())
 
     private fun range(field: String, start: String, end: String) = PortableLogicalExpression(
         LogicalOperator.AND,
