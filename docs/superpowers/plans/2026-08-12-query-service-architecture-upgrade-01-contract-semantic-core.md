@@ -503,10 +503,13 @@ git commit -m "feat: derive logical query schema"
 - Create: `wow-query/src/main/kotlin/me/ahoo/wow/query/validation/QueryBudgetValidator.kt`
 - Create: `wow-query/src/test/kotlin/me/ahoo/wow/query/validation/QueryRequestValidatorTest.kt`
 - Create: `wow-query/src/test/kotlin/me/ahoo/wow/query/validation/QueryExpressionValidatorTest.kt`
+- Modify: `wow-api/src/main/kotlin/me/ahoo/wow/api/query/error/QueryError.kt`
 
 - [ ] **Step 1: 写 arity/type/field/depth/cardinality 失败测试**
 
-覆盖所有 `PortableOperator` 的合法/非法 arity；unknown/ignored field；scalar 与 collection 类型错配；`ELEM_MATCH` 仅 object collection；projection/sort/capability declared fields；表达式最大深度、节点数、IN 项数、Native parameter bytes；负 page/size/limit；`limit=0` 合法但受 budget。
+覆盖所有 `PortableOperator` 的合法/非法 arity：`EQ/NE/GT/LT/GTE/LTE/CONTAINS/STARTS_WITH/ENDS_WITH/EXISTS` 精确 1 个值，`BETWEEN` 精确 2 个，`IN/NOT_IN/ALL_IN` 至少 1 个，`NULL/NOT_NULL/TRUE/FALSE` 精确 0 个，且 `EXISTS` 的唯一值必须为 boolean。同时覆盖 unknown/ignored field；scalar 与 collection 类型错配；`ELEM_MATCH` 仅允许 Schema 显式启用的 object collection，其子字段按 collection logical path 相对解析；projection/sort/capability declared fields；表达式最大深度、节点数、membership 项数、Native parameter bytes；负 page/size/limit；`limit=0` 合法但受 budget。
+
+`QueryStructureLimits` 的各上限必须由构造方显式提供且为正数；Plan 01 不凭空固化一组会影响后端能力的生产默认值，后续 non-Spring/Spring 装配必须显式传入经运维选择的限制。深度从 root=1 计数，节点包括 logical、predicate、element-match 与 capability 节点。Native bytes 使用 backend-neutral、overflow-safe 的确定性结构估算：包含 UTF-8 key/string/enum/decimal/instant/binding 内容、binary 原始字节以及每个值/容器项的固定结构成本，不依赖 `toString()`、Jackson 或后端驱动序列化。测试使用显式的小上限锁定边界。
 
 Run: `./gradlew :wow-query:test --tests "me.ahoo.wow.query.validation.*"`
 
@@ -514,11 +517,11 @@ Expected: compile failure，因为 validator 尚不存在。
 
 - [ ] **Step 2: 实现两阶段验证**
 
-第一阶段只验证 request 结构和硬上限；第二阶段拿到 `QuerySchemaView` 后验证字段、类型、operator、projection/sort/capability fields。错误统一产生 `QueryException(INVALID_QUERY, stage = VALIDATION)`，外部 message 不回显值。
+第一阶段只验证 request 结构和硬上限；第二阶段拿到 `QuerySchemaView` 后验证字段、类型、operator、projection/sort/capability fields。为公开 `QueryStage` 增加 `VALIDATION`；所有验证错误统一产生 `QueryException(INVALID_QUERY, stage = VALIDATION, reason = INVALID_REQUEST)`，外部 message 不回显字段、值、Native parameter 或 Schema 细节。构造时已经拒绝的负 page/size/limit/budget 由值模型测试锁定，validator 不使用 reflection/unsafe 伪造不可构造状态。
 
 - [ ] **Step 3: 固定预算合并所需值对象**
 
-`QueryBudgetLimit.min(requestHint, systemLimit, policyLimit, backendLimit)` 对 timeout/results/cost 分别取最小有限值；unbounded 只作为内部明确常量，不用 `Long.MAX_VALUE` 参与溢出运算。当前计划只实现纯函数与测试，Policy/backend 值在后续计划接入。
+`QueryBudgetLimit.min(requestHint, systemLimit, policyLimit, backendLimit)` 对 timeout/results/cost 分别取最小有限值；对每个维度，request hint 的 `null` 与 `QueryBudgetLimit.UNBOUNDED` 都表示本来源不新增上限，有限的 `0` 保持为最严限制。unbounded 使用显式 value/constant 语义，不用 `Long.MAX_VALUE`、超大 `Duration` 或溢出运算伪装。输入及合并结果不可变；当前计划只实现纯函数与测试，Policy/backend 值在后续计划接入。
 
 - [ ] **Step 4: 添加 no-backend-I/O 证明 fixture**
 
@@ -534,7 +537,8 @@ Expected: `BUILD SUCCESSFUL`；ABI 只有新增，无未批准删除；所有新
 
 ```bash
 git add wow-query/src/main/kotlin/me/ahoo/wow/query/validation \
-  wow-query/src/test/kotlin/me/ahoo/wow/query/validation
+  wow-query/src/test/kotlin/me/ahoo/wow/query/validation \
+  wow-api/src/main/kotlin/me/ahoo/wow/api/query/error/QueryError.kt
 git commit -m "feat: validate canonical queries"
 ```
 
