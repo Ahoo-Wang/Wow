@@ -323,15 +323,15 @@ interface QueryBackendResolver {
 }
 ```
 
-`QueryBackendDescriptor` 固定 backend id、document kinds、plan versions、portable operators、capability ids 与 backend budget limit。`ResolvedQueryBackend` 绑定 backend、descriptor、route identity 与本次 resolve 唯一取得的 immutable `readinessSnapshot`，构造时校验 descriptor 与 backend 一致。Resolver 每次 invocation 只调用一次 readiness；Planner 与执行器不得重读 backend readiness。
+`QueryBackendDescriptor` 固定 backend id、document kinds、plan versions、portable operators、portable structural features（至少显式声明 `ELEMENT_MATCH`）、string comparison modes、capability ids 与 backend budget limit。Planner 必须对表达式全树协商这些语义；Backend 不能执行的 element-match 或 string comparison mode 在 execute 前返回 `UNSUPPORTED_CAPABILITY`，不能等到 compiler 才失败或静默降级。`ResolvedQueryBackend` 绑定 backend、descriptor、route identity 与本次 resolve 唯一取得的 immutable `readinessSnapshot`。其 raw snapshot constructor 必须 private；public resolver 实现只能调用 `ResolvedQueryBackend.resolve(backend, routeIdentity)`，由该 factory 对 `backend.readiness()` 恰好订阅一次并构造结果，不能注入或伪造 Ready snapshot。Planner 与执行器不得重读 backend readiness。
 
 - [ ] **Step 3: 用 sealed consumer interfaces 定义只读计划**
 
-`QueryPlanV1` 与四个 operation-specific plan 是 public sealed consumer interfaces；实际 immutable implementation 必须是 Planner/private factory 内的 **private nested classes**，不能使用会编译成 JVM-public 的 top-level Kotlin `internal class`。第三方 Backend 只能读取接口，Kotlin/Java source 都不能新增 permitted implementation，也没有 public builder/constructor/copy。用 Kotlin/Java compile-negative fixture 与 `javap`/ABI probe 证明无 public implementation/constructor/copy。共享 target、canonical secured expression、authorized result shape、stable sort、从 frozen instant 追溯形成的 absolute effective deadline/effective budget、correlation/route identity；各接口只暴露 operation 所需的 limit/page 字段。不得出现 authority、Spring、wire DTO、BSON、ES DSL。
+`QueryPlanV1` 与四个 operation-specific plan 是 public sealed consumer interfaces；实际 immutable implementation 必须是 Planner/private factory 内的 **private nested classes**，不能使用会编译成 JVM-public 的 top-level Kotlin `internal class`。第三方 Backend 只能读取接口，Kotlin/Java source 都不能新增 permitted implementation，也没有 public builder/constructor/copy。Planner 的 JVM construction/invocation path 也必须对外部 Java source 不可访问：private constructor + Java-hidden internal factory/method（或更强边界），不能只依赖 Kotlin `internal` 与 ABI exclude。用 Kotlin/Java compile-negative fixture 与 `javap`/ABI probe 同时证明无法实现 plan、无法构造/调用 Planner、无 public implementation/constructor/copy。共享 target、canonical secured expression、authorized result shape、stable sort、从 frozen instant 追溯形成的 absolute effective deadline/effective budget、correlation/route identity；各接口只暴露 operation 所需的 limit/page 字段。不得出现 authority、Spring、wire DTO、BSON、ES DSL。
 
 - [ ] **Step 4: 实现 Planner 能力与预算协商**
 
-顺序固定：descriptor/readiness snapshot validation → portable operator support → capability backend/config/policy 三方许可 → projection/sort field binding → stable sort → effective budget → plan validation。Planner 只消费 Policy 合并结果，不再看旧 `Condition` 或旧 `Operator`。
+顺序固定：descriptor/readiness snapshot validation → portable operator/structural feature/string-comparison support → capability backend/config/policy 三方许可 → projection/sort field binding → stable sort → effective budget → plan validation。Projection include 与 exclude 都是字段引用，两者都必须逐字段通过 schema 与 Policy field access；exclude 不能因为最终不返回该字段而跳过授权。Planner 只消费 Policy 合并结果，不再看旧 `Condition` 或旧 `Operator`。
 
 - [ ] **Step 5: 实现 recording backend 测试替身**
 
