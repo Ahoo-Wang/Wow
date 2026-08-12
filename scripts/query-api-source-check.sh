@@ -56,17 +56,44 @@ import me.ahoo.wow.query.invocation.QueryAuthorityProvider;
 import me.ahoo.wow.query.invocation.QueryAuthorityView;
 import me.ahoo.wow.query.invocation.QueryInvocationScope;
 import me.ahoo.wow.query.invocation.QueryProvenance;
+import me.ahoo.wow.query.policy.CapabilityDecision;
+import me.ahoo.wow.query.policy.QueryFieldAccess;
+import me.ahoo.wow.query.policy.QueryPolicy;
+import me.ahoo.wow.query.policy.QueryPolicyConstraints;
+import me.ahoo.wow.query.policy.QueryPolicyContext;
+import me.ahoo.wow.query.policy.QueryPolicyDeniedException;
+import me.ahoo.wow.query.policy.QueryPolicyPermissions;
+import me.ahoo.wow.query.policy.QueryPolicyResult;
+import me.ahoo.wow.query.policy.QueryPolicyResultShape;
+import reactor.core.publisher.Mono;
 
 public final class StableAdmissionSpi {
+    public static QueryPolicy policy() {
+        return context -> Mono.just(new QueryPolicyResult());
+    }
+
     public static Object[] use(
         QueryAdmission admission,
         QueryAdmissionContext context,
         QueryAuthorityProvider provider,
         QueryAuthorityView authority,
         QueryInvocationScope scope,
-        QueryProvenance provenance
+        QueryProvenance provenance,
+        QueryPolicy policy,
+        QueryPolicyContext policyContext,
+        QueryPolicyResult policyResult,
+        QueryPolicyConstraints policyConstraints,
+        QueryFieldAccess fieldAccess,
+        CapabilityDecision capabilityDecision,
+        QueryPolicyDeniedException deniedException,
+        QueryPolicyResultShape resultShape
     ) {
-        return new Object[]{admission, context, provider, authority, scope, provenance};
+        return new Object[]{
+            admission, context, provider, authority, scope, provenance,
+            policy, policyContext, policyResult, policyConstraints, fieldAccess,
+            capabilityDecision, deniedException, resultShape,
+            QueryPolicyPermissions.QUERY_DELETED_SNAPSHOTS
+        };
     }
 }
 EOF
@@ -84,6 +111,18 @@ import me.ahoo.wow.query.invocation.QueryAuthorityProvider
 import me.ahoo.wow.query.invocation.QueryAuthorityView
 import me.ahoo.wow.query.invocation.QueryInvocationScope
 import me.ahoo.wow.query.invocation.QueryProvenance
+import me.ahoo.wow.query.policy.CapabilityDecision
+import me.ahoo.wow.query.policy.QueryFieldAccess
+import me.ahoo.wow.query.policy.QueryPolicy
+import me.ahoo.wow.query.policy.QueryPolicyConstraints
+import me.ahoo.wow.query.policy.QueryPolicyContext
+import me.ahoo.wow.query.policy.QueryPolicyDeniedException
+import me.ahoo.wow.query.policy.QueryPolicyPermissions
+import me.ahoo.wow.query.policy.QueryPolicyResult
+import me.ahoo.wow.query.policy.QueryPolicyResultShape
+import reactor.core.publisher.Mono
+
+val stablePolicy = QueryPolicy { Mono.just(QueryPolicyResult()) }
 
 fun useStableAdmissionSpi(
     admission: QueryAdmission,
@@ -91,8 +130,32 @@ fun useStableAdmissionSpi(
     provider: QueryAuthorityProvider,
     authority: QueryAuthorityView,
     scope: QueryInvocationScope,
-    provenance: QueryProvenance
-): List<Any> = listOf(admission, context, provider, authority, scope, provenance)
+    provenance: QueryProvenance,
+    policy: QueryPolicy,
+    policyContext: QueryPolicyContext,
+    policyResult: QueryPolicyResult,
+    policyConstraints: QueryPolicyConstraints,
+    fieldAccess: QueryFieldAccess,
+    capabilityDecision: CapabilityDecision,
+    deniedException: QueryPolicyDeniedException,
+    resultShape: QueryPolicyResultShape
+): List<Any> = listOf(
+    admission,
+    context,
+    provider,
+    authority,
+    scope,
+    provenance,
+    policy,
+    policyContext,
+    policyResult,
+    policyConstraints,
+    fieldAccess,
+    capabilityDecision,
+    deniedException,
+    resultShape,
+    QueryPolicyPermissions.QUERY_DELETED_SNAPSHOTS
+)
 EOF
 
 java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
@@ -111,13 +174,21 @@ import me.ahoo.wow.query.invocation.QueryDeadline
 import me.ahoo.wow.query.invocation.QueryInvocation
 import me.ahoo.wow.query.invocation.QueryInvocationFactory
 import me.ahoo.wow.query.invocation.QueryInvocationSeed
+import me.ahoo.wow.query.policy.CombinedQueryPolicyResult
+import me.ahoo.wow.query.policy.DefaultQueryPolicyChain
+import me.ahoo.wow.query.policy.QueryPolicyDescriptor
+import me.ahoo.wow.query.policy.SystemQueryPolicy
 
 fun internalImplementations(): List<Class<*>> = listOf(
     DefaultQueryAdmission::class.java,
     QueryDeadline::class.java,
     QueryInvocation::class.java,
     QueryInvocationFactory::class.java,
-    QueryInvocationSeed::class.java
+    QueryInvocationSeed::class.java,
+    CombinedQueryPolicyResult::class.java,
+    DefaultQueryPolicyChain::class.java,
+    QueryPolicyDescriptor::class.java,
+    SystemQueryPolicy::class.java
 )
 EOF
 
@@ -132,7 +203,8 @@ if java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompi
     fail "Kotlin external source unexpectedly accessed internal admission implementations"
 fi
 
-for class_name in DefaultQueryAdmission QueryDeadline QueryInvocation QueryInvocationFactory QueryInvocationSeed; do
+for class_name in DefaultQueryAdmission QueryDeadline QueryInvocation QueryInvocationFactory QueryInvocationSeed \
+    CombinedQueryPolicyResult DefaultQueryPolicyChain QueryPolicyDescriptor SystemQueryPolicy; do
     grep -F "$class_name" "$TEMP_DIR/kotlin-negative.out" >/dev/null || {
         cat "$TEMP_DIR/kotlin-negative.out" >&2
         fail "Kotlin negative fixture did not diagnose $class_name"

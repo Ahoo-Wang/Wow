@@ -1,0 +1,275 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.query.policy
+
+import me.ahoo.wow.api.query.error.QueryErrorCode
+import me.ahoo.wow.api.query.error.QueryErrorReason
+import me.ahoo.wow.api.query.error.QueryException
+import me.ahoo.wow.api.query.error.QueryStage
+import me.ahoo.wow.api.query.expression.ElementMatchExpression
+import me.ahoo.wow.api.query.expression.FullTextExpression
+import me.ahoo.wow.api.query.expression.LogicalExpression
+import me.ahoo.wow.api.query.expression.MatchAll
+import me.ahoo.wow.api.query.expression.MatchNone
+import me.ahoo.wow.api.query.expression.NativeExpression
+import me.ahoo.wow.api.query.expression.PortableLogicalExpression
+import me.ahoo.wow.api.query.expression.PredicateExpression
+import me.ahoo.wow.api.query.expression.QueryCapabilityId
+import me.ahoo.wow.api.query.expression.QueryExpression
+import me.ahoo.wow.api.query.gateway.CountQueryRequest
+import me.ahoo.wow.api.query.gateway.QueryResultShape
+import me.ahoo.wow.api.query.gateway.ResultQueryRequest
+import me.ahoo.wow.query.expression.ExpressionNormalizer
+import me.ahoo.wow.query.invocation.QueryDeadline
+import me.ahoo.wow.query.invocation.QueryInvocation
+import me.ahoo.wow.query.validation.QueryBudgetLimit
+import me.ahoo.wow.query.validation.QueryExpressionValidator
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
+import reactor.core.scheduler.Scheduler
+import reactor.core.scheduler.Schedulers
+import java.time.Duration
+import java.time.Instant
+import java.util.ArrayDeque
+import java.util.Collections
+
+private const val SYSTEM_POLICY_ID: String = "system"
+
+internal class DefaultQueryPolicyChain(
+    systemPolicy: SystemQueryPolicy,
+    customPolicies: List<QueryPolicyDescriptor>,
+    private val expressionValidator: QueryExpressionValidator,
+    private val scheduler: Scheduler = Schedulers.parallel()
+) {
+    private val policies: List<QueryPolicyDescriptor>
+
+    init {
+        require(customPolicies.none { it.policy is SystemQueryPolicy }) {
+            "System query policy cannot be registered as a custom policy."
+        }
+        val orderedCustomPolicies = customPolicies.sortedWith(PolicyDescriptorComparator)
+        policies = Collections.unmodifiableList(
+            listOf(QueryPolicyDescriptor(SYSTEM_POLICY_ID, Int.MIN_VALUE, systemPolicy)) + orderedCustomPolicies
+        )
+    }
+
+    fun evaluate(invocation: QueryInvocation): Mono<CombinedQueryPolicyResult> = evaluate(
+        context = contextOf(invocation),
+        admissionDeadline = invocation.admissionDeadline
+    )
+
+    fun evaluate(
+        context: QueryPolicyContext,
+        admissionDeadline: Instant? = QueryDeadline.from(
+            context.frozenInstant,
+            context.requestBudget.timeout,
+            QueryStage.POLICY
+        )
+    ): Mono<CombinedQueryPolicyResult> = Mono.defer {
+        if (admissionDeadline != null && !admissionDeadline.isAfter(context.frozenInstant)) {
+            return@defer Mono.error(PolicyDeadlineExceededException())
+        }
+        val evaluation = Flux.fromIterable(policies)
+            .concatMap { descriptor -> evaluate(descriptor, context) }
+            .collectList()
+            .map { results -> combine(context, results) }
+        if (admissionDeadline == null) {
+            evaluation
+        } else {
+            evaluation.timeout(
+                Duration.between(context.frozenInstant, admissionDeadline),
+                Mono.error(PolicyDeadlineExceededException()),
+                scheduler
+            )
+        }
+    }.onErrorMap { error -> mapPolicyError(error) }
+
+    private fun evaluate(
+        descriptor: QueryPolicyDescriptor,
+        context: QueryPolicyContext
+    ): Mono<QueryPolicyResult> = Mono.defer { descriptor.policy.evaluate(context) }
+        .switchIfEmpty(Mono.error(policyFailure()))
+        .map { result -> validateResult(result, context) }
+
+    private fun validateResult(
+        result: QueryPolicyResult,
+        context: QueryPolicyContext
+    ): QueryPolicyResult {
+        expressionValidator.validateStructure(result.mandatoryExpression)
+        expressionValidator.validateSchema(result.mandatoryExpression, context.schema)
+        when (val access = result.constraints.fieldAccess) {
+            QueryFieldAccess.Unrestricted -> Unit
+            is QueryFieldAccess.Restricted -> require(context.schema.fields.keys.containsAll(access.fields))
+        }
+        val schemaCapabilities = context.schema.fields.values.flatMap { it.capabilities }.toSet()
+        require(schemaCapabilities.containsAll(result.constraints.capabilityAccess.keys))
+        return result
+    }
+
+    private fun combine(
+        context: QueryPolicyContext,
+        results: List<QueryPolicyResult>
+    ): CombinedQueryPolicyResult {
+        val constraints = combineConstraints(results.map(QueryPolicyResult::constraints))
+        requestedCapabilities(context.normalizedExpression).forEach { capability ->
+            if (constraints.capabilityAccess[capability] != CapabilityDecision.GRANT) {
+                throw CapabilityDeniedException()
+            }
+        }
+        val securedExpression = ExpressionNormalizer.logical(
+            me.ahoo.wow.api.query.expression.LogicalOperator.AND,
+            listOf(context.normalizedExpression) + results.map(QueryPolicyResult::mandatoryExpression)
+        )
+        expressionValidator.validateStructure(securedExpression)
+        expressionValidator.validateSchema(securedExpression, context.schema)
+        return CombinedQueryPolicyResult(securedExpression, constraints)
+    }
+
+    private fun combineConstraints(constraints: List<QueryPolicyConstraints>): QueryPolicyConstraints {
+        val fieldAccess = constraints.fold(QueryFieldAccess.UNRESTRICTED, ::intersect)
+        val maxBudget = constraints.fold(QueryBudgetLimit.UNBOUNDED) { current, constraint ->
+            QueryBudgetLimit.min(null, current, constraint.maxBudget, QueryBudgetLimit.UNBOUNDED)
+        }
+        val decisions = LinkedHashMap<QueryCapabilityId, MutableList<CapabilityDecision>>()
+        constraints.forEach { constraint ->
+            constraint.capabilityAccess.forEach { (capability, decision) ->
+                decisions.computeIfAbsent(capability) { mutableListOf() } += decision
+            }
+        }
+        val capabilityAccess = decisions.entries.sortedWith(CapabilityEntryComparator)
+            .associateTo(LinkedHashMap()) { entry ->
+                entry.key to decide(entry.value)
+            }
+        return QueryPolicyConstraints(fieldAccess, capabilityAccess, maxBudget)
+    }
+
+    private fun intersect(
+        current: QueryFieldAccess,
+        next: QueryPolicyConstraints
+    ): QueryFieldAccess = when {
+        current === QueryFieldAccess.Unrestricted -> next.fieldAccess
+        next.fieldAccess === QueryFieldAccess.Unrestricted -> current
+        current is QueryFieldAccess.Restricted && next.fieldAccess is QueryFieldAccess.Restricted ->
+            QueryFieldAccess.Restricted(current.fields.intersect(next.fieldAccess.fields))
+
+        else -> error("Unknown query field access type.")
+    }
+
+    private fun decide(decisions: List<CapabilityDecision>): CapabilityDecision = when {
+        CapabilityDecision.DENY in decisions -> CapabilityDecision.DENY
+        CapabilityDecision.GRANT in decisions -> CapabilityDecision.GRANT
+        else -> CapabilityDecision.ABSTAIN
+    }
+
+    private fun requestedCapabilities(expression: QueryExpression): Set<QueryCapabilityId> {
+        val capabilities = LinkedHashSet<QueryCapabilityId>()
+        val pending = ArrayDeque<QueryExpression>()
+        pending += expression
+        while (pending.isNotEmpty()) {
+            when (val current = pending.removeLast()) {
+                is FullTextExpression -> capabilities += current.capabilityId
+                is NativeExpression -> capabilities += current.capabilityId
+                is LogicalExpression -> current.operands.forEach(pending::addLast)
+                is PortableLogicalExpression -> current.operands.forEach(pending::addLast)
+                is ElementMatchExpression -> pending += current.predicate
+                MatchAll,
+                MatchNone,
+                is PredicateExpression -> Unit
+            }
+        }
+        return Collections.unmodifiableSet(capabilities)
+    }
+
+    private fun contextOf(invocation: QueryInvocation): QueryPolicyContext = QueryPolicyContext(
+        target = invocation.request.target,
+        operation = invocation.operation,
+        normalizedExpression = invocation.normalizedExpression,
+        resultShape = when (val request = invocation.request) {
+            is CountQueryRequest -> QueryPolicyResultShape.Count
+            is ResultQueryRequest<*> -> when (val resultShape = request.resultShape) {
+                QueryResultShape.Dynamic -> QueryPolicyResultShape.Dynamic
+                is QueryResultShape.Typed<*> -> QueryPolicyResultShape.Typed(
+                    resultShape.resultType,
+                    resultShape.projection
+                )
+            }
+        },
+        invocationScope = invocation.scope,
+        schema = invocation.schema,
+        requestBudget = invocation.request.budget,
+        frozenInstant = invocation.frozenInstant,
+        zoneId = invocation.zoneId
+    )
+
+    private fun mapPolicyError(error: Throwable): Throwable = when (error) {
+        is QueryPolicyDeniedException -> QueryException(
+            QueryErrorCode.POLICY_DENIED,
+            QueryStage.POLICY,
+            QueryErrorReason.POLICY_EVALUATION_FAILED
+        )
+
+        is CapabilityDeniedException -> QueryException(
+            QueryErrorCode.POLICY_DENIED,
+            QueryStage.POLICY,
+            QueryErrorReason.CAPABILITY_DENIED
+        )
+
+        is PolicyDeadlineExceededException -> deadlineExceeded()
+        else -> policyFailure()
+    }
+
+    private fun policyFailure(): QueryException = QueryException(
+        QueryErrorCode.POLICY_FAILURE,
+        QueryStage.POLICY,
+        QueryErrorReason.POLICY_EVALUATION_FAILED
+    )
+
+    private fun deadlineExceeded(): QueryException = QueryException(
+        QueryErrorCode.DEADLINE_EXCEEDED,
+        QueryStage.POLICY,
+        QueryErrorReason.DEADLINE_REACHED
+    )
+
+    private object PolicyDescriptorComparator : Comparator<QueryPolicyDescriptor> {
+        override fun compare(first: QueryPolicyDescriptor, second: QueryPolicyDescriptor): Int {
+            val orderComparison = first.order.compareTo(second.order)
+            return if (orderComparison != 0) orderComparison else first.id.compareTo(second.id)
+        }
+    }
+
+    private object CapabilityEntryComparator :
+        Comparator<Map.Entry<QueryCapabilityId, MutableList<CapabilityDecision>>> {
+        override fun compare(
+            first: Map.Entry<QueryCapabilityId, MutableList<CapabilityDecision>>,
+            second: Map.Entry<QueryCapabilityId, MutableList<CapabilityDecision>>
+        ): Int = first.key.value.compareTo(second.key.value)
+    }
+
+    private class CapabilityDeniedException : RuntimeException(null, null, false, false)
+
+    private class PolicyDeadlineExceededException : RuntimeException(null, null, false, false)
+}
+
+internal class CombinedQueryPolicyResult(
+    val securedExpression: QueryExpression,
+    val constraints: QueryPolicyConstraints
+) {
+    override fun equals(other: Any?): Boolean = other is CombinedQueryPolicyResult &&
+        securedExpression == other.securedExpression && constraints == other.constraints
+
+    override fun hashCode(): Int = 31 * securedExpression.hashCode() + constraints.hashCode()
+
+    override fun toString(): String =
+        "CombinedQueryPolicyResult(securedExpression=<redacted>, constraints=<redacted>)"
+}
