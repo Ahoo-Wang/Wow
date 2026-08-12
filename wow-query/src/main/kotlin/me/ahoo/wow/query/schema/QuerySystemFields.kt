@@ -71,7 +71,7 @@ object QuerySystemFields {
 
     private val SNAPSHOT_FIELDS = immutableList {
         addAll(COMMON_FIELDS)
-        add(string("id", sortable = true))
+        add(string("aggregateId", sortable = true))
         add(string("eventId"))
         add(string("firstOperator"))
         add(string("operator"))

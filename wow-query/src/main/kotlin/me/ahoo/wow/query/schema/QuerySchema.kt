@@ -37,6 +37,42 @@ enum class QueryCollectionKind {
     OBJECT
 }
 
+@JvmInline
+value class QueryBackendId(val value: String) {
+    init {
+        require(BACKEND_ID_PATTERN.matches(value) && value !in RESERVED_BACKEND_IDS) {
+            "Query backend id is invalid."
+        }
+    }
+
+    override fun toString(): String = value
+
+    private companion object {
+        val BACKEND_ID_PATTERN = Regex("[a-z][a-z0-9-]{0,63}")
+        val RESERVED_BACKEND_IDS = setOf("authority", "driver", "system")
+    }
+}
+
+@JvmInline
+value class QueryBackendFieldPath(val value: String) {
+    init {
+        require(BACKEND_FIELD_PATH_PATTERN.matches(value)) { "Query backend field path is invalid." }
+    }
+
+    override fun toString(): String = value
+
+    private companion object {
+        val BACKEND_FIELD_PATH_PATTERN = Regex("[A-Za-z_][A-Za-z0-9_-]*(\\.[A-Za-z_][A-Za-z0-9_-]*)*")
+    }
+}
+
+enum class QueryFieldUsage {
+    EXACT,
+    SEARCH,
+    SORT,
+    NESTED
+}
+
 class StringQueryOptions(
     comparisonModes: Set<StringComparisonMode> = StringComparisonMode.entries.toSet(),
     val collation: String? = null,
@@ -58,31 +94,16 @@ class StringQueryOptions(
 }
 
 class QueryCapabilityBinding(
-    val backendId: String,
-    val bindingId: String,
-    options: Map<String, String> = emptyMap()
+    val backendId: QueryBackendId,
+    val usage: QueryFieldUsage,
+    val field: QueryBackendFieldPath
 ) {
-    val options: Map<String, String> = immutableMap(options, "Capability binding options") { key, value ->
-        require(key.isNotBlank() && value.isNotBlank()) { "Capability binding options cannot be blank." }
-        require(key !in FORBIDDEN_OPTION_KEYS) { "Capability binding option is not allowed." }
-    }
-
-    init {
-        require(backendId.isNotBlank()) { "Backend id cannot be blank." }
-        require(bindingId.isNotBlank()) { "Binding id cannot be blank." }
-    }
-
     override fun equals(other: Any?): Boolean = other is QueryCapabilityBinding &&
-        backendId == other.backendId && bindingId == other.bindingId && options == other.options
+        backendId == other.backendId && usage == other.usage && field == other.field
 
-    override fun hashCode(): Int = 31 * (31 * backendId.hashCode() + bindingId.hashCode()) + options.hashCode()
+    override fun hashCode(): Int = 31 * (31 * backendId.hashCode() + usage.hashCode()) + field.hashCode()
 
-    override fun toString(): String =
-        "QueryCapabilityBinding(backendId=$backendId, bindingId=$bindingId, optionKeys=${options.keys})"
-
-    private companion object {
-        val FORBIDDEN_OPTION_KEYS = setOf("authority", "driver", "physicalObject")
-    }
+    override fun toString(): String = "QueryCapabilityBinding(backendId=$backendId, usage=$usage, field=$field)"
 }
 
 class QueryFieldSchema @JvmOverloads constructor(
@@ -100,24 +121,41 @@ class QueryFieldSchema @JvmOverloads constructor(
     val elementMatchEnabled: Boolean = false,
     operators: Set<PortableOperator> = defaultOperators(valueKind, collectionKind),
     capabilities: Set<QueryCapabilityId> = emptySet(),
-    bindings: Map<String, QueryCapabilityBinding> = emptyMap(),
+    bindings: Set<QueryCapabilityBinding> = emptySet(),
     val stringOptions: StringQueryOptions? = if (valueKind == QueryFieldValueKind.STRING) StringQueryOptions() else null,
     val system: Boolean = false
 ) {
     val operators: Set<PortableOperator> = immutableSet(operators, "Field operators")
     val capabilities: Set<QueryCapabilityId> = immutableSet(capabilities, "Field capabilities")
-    val bindings: Map<String, QueryCapabilityBinding> = immutableMap(bindings, "Field bindings") { key, binding ->
-        require(key == binding.backendId) { "Field binding key must match backend id." }
-    }
+    val bindings: Set<QueryCapabilityBinding> = immutableSet(bindings, "Field bindings")
 
     init {
+        require(defaultOperators(valueKind, collectionKind).containsAll(this.operators)) {
+            "Field declares a portable operator incompatible with its value or collection kind."
+        }
         require(queryable || this.operators.isEmpty()) { "Non-queryable field cannot declare portable operators." }
         require(valueKind == QueryFieldValueKind.STRING || stringOptions == null) {
             "String options require a string field."
         }
+        require(!nested || valueKind == QueryFieldValueKind.OBJECT) { "Only object fields can be nested." }
+        require(collectionKind != QueryCollectionKind.OBJECT || valueKind == QueryFieldValueKind.OBJECT) {
+            "Object collection requires an object value kind."
+        }
+        require(collectionKind != QueryCollectionKind.SCALAR || valueKind != QueryFieldValueKind.OBJECT) {
+            "Scalar collection cannot use an object value kind."
+        }
         require(!elementMatchEnabled || collectionKind == QueryCollectionKind.OBJECT) {
             "Element match requires an object collection."
         }
+        require(this.capabilities.all { it.isAllowedCapability() }) { "Query capability id is not allowed." }
+        require(
+            QueryCapabilityId(FULL_TEXT_CAPABILITY) !in this.capabilities ||
+                (valueKind == QueryFieldValueKind.STRING && collectionKind == QueryCollectionKind.NONE)
+        ) { "Full-text capability requires a scalar string field." }
+        require(this.bindings.map { it.backendId to it.usage }.distinct().size == this.bindings.size) {
+            "Field bindings must be unique by backend and usage."
+        }
+        this.bindings.forEach(::validateBinding)
     }
 
     fun copy(
@@ -132,7 +170,7 @@ class QueryFieldSchema @JvmOverloads constructor(
         elementMatchEnabled: Boolean = this.elementMatchEnabled,
         operators: Set<PortableOperator> = this.operators,
         capabilities: Set<QueryCapabilityId> = this.capabilities,
-        bindings: Map<String, QueryCapabilityBinding> = this.bindings,
+        bindings: Set<QueryCapabilityBinding> = this.bindings,
         stringOptions: StringQueryOptions? = this.stringOptions,
         system: Boolean = this.system
     ): QueryFieldSchema = QueryFieldSchema(
@@ -174,9 +212,31 @@ class QueryFieldSchema @JvmOverloads constructor(
         system
     )
 
+    private fun validateBinding(binding: QueryCapabilityBinding) {
+        when (binding.usage) {
+            QueryFieldUsage.EXACT -> require(
+                queryable && valueKind != QueryFieldValueKind.OBJECT && valueKind != QueryFieldValueKind.MAP
+            ) { "Exact binding requires a queryable scalar field." }
+
+            QueryFieldUsage.SEARCH -> require(
+                valueKind == QueryFieldValueKind.STRING && collectionKind == QueryCollectionKind.NONE &&
+                    QueryCapabilityId(FULL_TEXT_CAPABILITY) in capabilities
+            ) { "Search binding requires a scalar string field with the full-text capability." }
+
+            QueryFieldUsage.SORT -> require(sortable) { "Sort binding requires a sortable field." }
+            QueryFieldUsage.NESTED -> require(
+                valueKind == QueryFieldValueKind.OBJECT &&
+                    (nested || collectionKind == QueryCollectionKind.OBJECT)
+            ) { "Nested binding requires an object field." }
+        }
+    }
+
     override fun toString(): String = "QueryFieldSchema(path=$path, valueKind=$valueKind, system=$system)"
 
     companion object {
+        private const val FULL_TEXT_CAPABILITY = "full-text"
+        private val EXTENSION_CAPABILITY_PATTERN = Regex("x-[a-z][a-z0-9-]*:[a-z][a-z0-9-]*")
+
         @JvmStatic
         fun string(path: LogicalField, nullable: Boolean): QueryFieldSchema = QueryFieldSchema(
             path = path,
@@ -237,6 +297,9 @@ class QueryFieldSchema @JvmOverloads constructor(
             PortableOperator.NOT_IN,
             PortableOperator.ALL_IN
         )
+
+        private fun QueryCapabilityId.isAllowedCapability(): Boolean =
+            value == FULL_TEXT_CAPABILITY || EXTENSION_CAPABILITY_PATTERN.matches(value)
     }
 }
 
@@ -252,6 +315,8 @@ class QuerySchema(
             require(snapshot.put(field.path, field) == null) { "Query schema contains duplicate logical fields." }
         }
         require(snapshot.size == fields.size) { "Query schema field cardinality changed during immutable snapshot." }
+        validateSystemFields(target, snapshot)
+        validateFieldHierarchy(snapshot)
         this.fields = Collections.unmodifiableMap(snapshot)
     }
 
@@ -264,24 +329,39 @@ class QuerySchema(
     override fun equals(other: Any?): Boolean = other is QuerySchema && target == other.target && fields == other.fields
 
     override fun hashCode(): Int = 31 * target.hashCode() + fields.hashCode()
+
+    private fun validateSystemFields(
+        target: QueryTarget,
+        fields: Map<LogicalField, QueryFieldSchema>
+    ) {
+        val canonicalSystemFields = QuerySystemFields.fields(target.documentKind).associateBy(QueryFieldSchema::path)
+        fields.values.filter(QueryFieldSchema::system).forEach { field ->
+            val canonical = canonicalSystemFields[field.path]
+            require(canonical != null && field.hasSameIdentity(canonical)) {
+                "Query schema contains an undeclared or incompatible system field."
+            }
+        }
+    }
+
+    private fun validateFieldHierarchy(fields: Map<LogicalField, QueryFieldSchema>) {
+        fields.values.forEach { field ->
+            val segments = field.path.value.split('.')
+            for (endIndex in 1 until segments.size) {
+                val ancestor = fields[LogicalField(segments.take(endIndex).joinToString("."))] ?: continue
+                require(ancestor.valueKind == QueryFieldValueKind.OBJECT) {
+                    "Query field cannot be declared below a scalar, collection, or map field."
+                }
+            }
+        }
+    }
+
+    private fun QueryFieldSchema.hasSameIdentity(other: QueryFieldSchema): Boolean =
+        path == other.path && valueKind == other.valueKind && nullable == other.nullable &&
+            collectionKind == other.collectionKind && nested == other.nested && system == other.system
 }
 
 private fun <T> immutableSet(values: Set<T>, label: String): Set<T> {
     val snapshot = LinkedHashSet(values)
     require(snapshot.size == values.size) { "$label cardinality changed during immutable snapshot." }
     return Collections.unmodifiableSet(snapshot)
-}
-
-private fun <K, V> immutableMap(
-    values: Map<K, V>,
-    label: String,
-    validate: (K, V) -> Unit
-): Map<K, V> {
-    val snapshot = LinkedHashMap<K, V>(values.size)
-    values.forEach { (key, value) ->
-        validate(key, value)
-        snapshot[key] = value
-    }
-    require(snapshot.size == values.size) { "$label cardinality changed during immutable snapshot." }
-    return Collections.unmodifiableMap(snapshot)
 }

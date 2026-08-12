@@ -13,6 +13,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.query.expression.LogicalField
+import me.ahoo.wow.api.query.expression.PortableOperator
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
@@ -79,9 +80,9 @@ class JacksonQuerySchemaResolver(
         rootType: JavaType,
         prefix: String,
         fields: MutableList<QueryFieldSchema>,
-        visiting: MutableSet<TypeIdentity>
+        visiting: MutableSet<Class<*>>
     ) {
-        val identity = rootType.identity()
+        val identity = rootType.rawClass
         if (!visiting.add(identity)) {
             throw QuerySchemaException(QuerySchemaErrorReason.RECURSIVE_TYPE)
         }
@@ -105,7 +106,7 @@ class JacksonQuerySchemaResolver(
         property: BeanPropertyDefinition,
         path: String,
         fields: MutableList<QueryFieldSchema>,
-        visiting: MutableSet<TypeIdentity>
+        visiting: MutableSet<Class<*>>
     ) {
         val type = property.primaryType
         val nullable = property.isKotlinNullable(ownerType.rawClass)
@@ -155,7 +156,7 @@ class JacksonQuerySchemaResolver(
         path: String,
         nullable: Boolean,
         fields: MutableList<QueryFieldSchema>,
-        visiting: MutableSet<TypeIdentity>
+        visiting: MutableSet<Class<*>>
     ) {
         val contentType = type.contentType ?: throw QuerySchemaException(QuerySchemaErrorReason.INTROSPECTION_FAILED)
         val contentKind = contentType.scalarKind()
@@ -249,8 +250,6 @@ class JacksonQuerySchemaResolver(
     private fun Class<*>.isTimeType(): Boolean = Date::class.java.isAssignableFrom(this) ||
         Temporal::class.java.isAssignableFrom(this) || TemporalAccessor::class.java.isAssignableFrom(this)
 
-    private fun JavaType.identity(): TypeIdentity = TypeIdentity(rawClass, toString())
-
     private data class AggregateKey(val contextName: String, val aggregateName: String)
 
     private class MetadataIdentity(private val metadata: AggregateMetadata<*, *>) {
@@ -260,11 +259,9 @@ class JacksonQuerySchemaResolver(
     }
 
     private data class CacheKey(val target: QueryTarget, val metadata: MetadataIdentity)
-
-    private data class TypeIdentity(val rawClass: Class<*>, val signature: String)
 }
 
-private object QuerySchemaCustomizationMerger {
+internal object QuerySchemaCustomizationMerger {
     fun merge(base: QuerySchema, customizedSchemas: List<QuerySchema>): QuerySchema {
         customizedSchemas.forEach { customized ->
             if (customized.target != base.target || !customized.fields.keys.containsAll(base.fields.keys)) {
@@ -287,49 +284,88 @@ private object QuerySchemaCustomizationMerger {
             } else {
                 mergeExisting(baseField, changes)
             }
-            merged = merged.withField(field)
+            merged = conflictOnInvalidDescriptor { merged.withField(field) }
         }
         return merged
     }
 
     private fun mergeAddition(changes: List<QueryFieldSchema>): QueryFieldSchema {
         val first = changes.first()
-        if (changes.any { it != first }) {
+        if (first.system || changes.any { it.hasDifferentIdentityFrom(first) }) {
             throw QuerySchemaException(QuerySchemaErrorReason.CUSTOMIZER_CONFLICT)
         }
-        return first
+        val bindings = changes.flatMap(QueryFieldSchema::bindings).groupBy(QueryCapabilityBinding::key)
+        validateBindingChanges(bindings)
+        val stringOptions = changes.map(QueryFieldSchema::stringOptions).distinct()
+        validateStringOptionChanges(stringOptions)
+        return conflictOnInvalidDescriptor {
+            first.copy(
+                queryable = changes.all(QueryFieldSchema::queryable),
+                sortable = changes.all(QueryFieldSchema::sortable),
+                projectable = changes.all(QueryFieldSchema::projectable),
+                elementMatchEnabled = changes.any(QueryFieldSchema::elementMatchEnabled),
+                operators = changes.map(QueryFieldSchema::operators).reduce(Set<PortableOperator>::intersect),
+                capabilities = changes.flatMap(QueryFieldSchema::capabilities).toSet(),
+                bindings = bindings.values.map { it.first() }.toSet(),
+                stringOptions = stringOptions.single()
+            )
+        }
     }
 
     private fun mergeExisting(base: QueryFieldSchema, changes: List<QueryFieldSchema>): QueryFieldSchema {
         if (changes.any { change -> change.isInvalidModificationOf(base) }) {
             throw QuerySchemaException(QuerySchemaErrorReason.INVALID_CUSTOMIZATION)
         }
-        val bindingChanges = changes.flatMap { change ->
-            change.bindings.filter { (backendId, binding) -> base.bindings[backendId] != binding }.values
-        }.groupBy(QueryCapabilityBinding::backendId)
-        validateBindingChanges(bindingChanges)
         val stringOptionChanges = changes.map(QueryFieldSchema::stringOptions)
             .filter { it != base.stringOptions }
             .distinct()
         validateStringOptionChanges(stringOptionChanges)
 
-        val operatorsAdded = changes.flatMap { it.operators - base.operators }.toSet()
         val operatorsRemoved = changes.flatMap { base.operators - it.operators }.toSet()
-        val bindings = LinkedHashMap(base.bindings)
-        bindingChanges.values.forEach { values ->
-            val binding = values.first()
-            bindings[binding.backendId] = binding
+        val capabilitiesRemoved = changes.flatMap { base.capabilities - it.capabilities }.toSet()
+        val capabilitiesAdded = changes.flatMap { it.capabilities - base.capabilities }.toSet()
+        return conflictOnInvalidDescriptor {
+            base.copy(
+                queryable = base.queryable && changes.all(QueryFieldSchema::queryable),
+                sortable = base.sortable && changes.all(QueryFieldSchema::sortable),
+                projectable = base.projectable && changes.all(QueryFieldSchema::projectable),
+                elementMatchEnabled = if (base.elementMatchEnabled) {
+                    changes.all(QueryFieldSchema::elementMatchEnabled)
+                } else {
+                    changes.any(QueryFieldSchema::elementMatchEnabled)
+                },
+                operators = base.operators - operatorsRemoved,
+                capabilities = (base.capabilities - capabilitiesRemoved) + capabilitiesAdded,
+                bindings = mergeExistingBindings(base.bindings, changes),
+                stringOptions = stringOptionChanges.singleOrNull() ?: base.stringOptions
+            )
         }
-        return base.copy(
-            queryable = changes.all(QueryFieldSchema::queryable),
-            sortable = changes.all(QueryFieldSchema::sortable),
-            projectable = changes.all(QueryFieldSchema::projectable),
-            elementMatchEnabled = changes.any(QueryFieldSchema::elementMatchEnabled),
-            operators = (base.operators - operatorsRemoved) + operatorsAdded,
-            capabilities = base.capabilities + changes.flatMap(QueryFieldSchema::capabilities),
-            bindings = bindings,
-            stringOptions = stringOptionChanges.singleOrNull() ?: base.stringOptions
-        )
+    }
+
+    private fun mergeExistingBindings(
+        baseBindings: Set<QueryCapabilityBinding>,
+        changes: List<QueryFieldSchema>
+    ): Set<QueryCapabilityBinding> {
+        val baseByKey = baseBindings.associateBy(QueryCapabilityBinding::key)
+        val result = LinkedHashMap(baseByKey)
+        baseByKey.forEach { (key, baseBinding) ->
+            val values = changes.map { change -> change.bindings.singleOrNull { it.key() == key } }
+            val removes = values.any { it == null }
+            val modifications = values.filterNotNull().filter { it != baseBinding }.distinct()
+            if ((removes && modifications.isNotEmpty()) || modifications.size > 1) {
+                throw QuerySchemaException(QuerySchemaErrorReason.CUSTOMIZER_CONFLICT)
+            }
+            when {
+                removes -> result.remove(key)
+                modifications.isNotEmpty() -> result[key] = modifications.single()
+            }
+        }
+        val additions = changes.flatMap(QueryFieldSchema::bindings)
+            .filter { it.key() !in baseByKey }
+            .groupBy(QueryCapabilityBinding::key)
+        validateBindingChanges(additions)
+        additions.forEach { (key, bindings) -> result[key] = bindings.first() }
+        return result.values.toSet()
     }
 
     private fun QueryFieldSchema.isInvalidModificationOf(base: QueryFieldSchema): Boolean =
@@ -346,7 +382,7 @@ private object QuerySchemaCustomizationMerger {
     private fun QueryFieldSchema.enablesInvalidElementMatch(): Boolean =
         elementMatchEnabled && collectionKind != QueryCollectionKind.OBJECT
 
-    private fun validateBindingChanges(changes: Map<String, List<QueryCapabilityBinding>>) {
+    private fun validateBindingChanges(changes: Map<QueryBindingKey, List<QueryCapabilityBinding>>) {
         if (changes.values.any { bindings -> bindings.distinct().size > 1 }) {
             throw QuerySchemaException(QuerySchemaErrorReason.CUSTOMIZER_CONFLICT)
         }
@@ -357,7 +393,17 @@ private object QuerySchemaCustomizationMerger {
             throw QuerySchemaException(QuerySchemaErrorReason.CUSTOMIZER_CONFLICT)
         }
     }
+
+    private inline fun <T> conflictOnInvalidDescriptor(block: () -> T): T = try {
+        block()
+    } catch (_: IllegalArgumentException) {
+        throw QuerySchemaException(QuerySchemaErrorReason.CUSTOMIZER_CONFLICT)
+    }
 }
+
+private data class QueryBindingKey(val backendId: QueryBackendId, val usage: QueryFieldUsage)
+
+private fun QueryCapabilityBinding.key(): QueryBindingKey = QueryBindingKey(backendId, usage)
 
 private fun <T, K> Collection<T>.associateByUnique(keySelector: (T) -> K): Map<K, T> {
     val result = LinkedHashMap<K, T>(size)

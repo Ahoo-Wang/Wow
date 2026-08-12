@@ -28,9 +28,11 @@ import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.assertTimeoutPreemptively
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
 import tools.jackson.databind.PropertyNamingStrategies
+import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -71,10 +73,30 @@ class JacksonQuerySchemaResolverTest {
         val snapshot = resolver.resolve(snapshotTarget).block()!!
         val eventStream = resolver.resolve(eventStreamTarget).block()!!
 
-        snapshot.field("id")!!.system.assert().isTrue()
+        snapshot.field("aggregateId")!!.system.assert().isTrue()
         snapshot.field("deleted")!!.valueKind.assert().isEqualTo(QueryFieldValueKind.BOOLEAN)
         snapshot.field("state.display_name").assert().isNotNull()
-        snapshot.field("aggregateId").assert().isNull()
+        snapshot.field("id").assert().isNull()
+        snapshot.fields.values.filter(QueryFieldSchema::system).map { it.path.value }.toSet().assert().isEqualTo(
+            setOf(
+                "contextName",
+                "aggregateName",
+                "aggregateId",
+                "tenantId",
+                "ownerId",
+                "spaceId",
+                "version",
+                "eventId",
+                "firstOperator",
+                "operator",
+                "firstEventTime",
+                "eventTime",
+                "state",
+                "snapshotTime",
+                "tags",
+                "deleted"
+            )
+        )
 
         eventStream.field("id")!!.system.assert().isTrue()
         eventStream.field("aggregateId")!!.system.assert().isTrue()
@@ -119,12 +141,18 @@ class JacksonQuerySchemaResolverTest {
         resolver(ExampleState::class.java).resolve(snapshotTarget).block()!!.field("state.secondary_address.city")
             .assert().isNotNull()
 
-        listOf(DirectCycle::class.java, IndirectCycleA::class.java).forEach { recursiveType ->
-            val error = assertThrows<QuerySchemaException> {
-                resolver(recursiveType).resolve(snapshotTarget).block()
+        listOf(
+            DirectCycle::class.java,
+            IndirectCycleA::class.java,
+            ExpandingCycle::class.java
+        ).forEach { recursiveType ->
+            assertTimeoutPreemptively(Duration.ofSeconds(3)) {
+                val error = assertThrows<QuerySchemaException> {
+                    resolver(recursiveType).resolve(snapshotTarget).block()
+                }
+                error.reason.assert().isEqualTo(QuerySchemaErrorReason.RECURSIVE_TYPE)
+                error.message.assert().isEqualTo("Query schema resolution failed: RECURSIVE_TYPE.")
             }
-            error.reason.assert().isEqualTo(QuerySchemaErrorReason.RECURSIVE_TYPE)
-            error.message.assert().isEqualTo("Query schema resolution failed: RECURSIVE_TYPE.")
         }
     }
 
@@ -227,4 +255,8 @@ class JacksonQuerySchemaResolverTest {
     data class IndirectCycleA(val child: IndirectCycleB)
 
     data class IndirectCycleB(val parent: IndirectCycleA?)
+
+    class ExpandingCycle(val root: ExpandingNode<String>)
+
+    class ExpandingNode<T>(val child: ExpandingNode<List<T>>?)
 }
