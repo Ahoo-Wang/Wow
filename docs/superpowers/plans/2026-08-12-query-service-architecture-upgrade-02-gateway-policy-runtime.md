@@ -382,7 +382,7 @@ interface QueryGateway {
 
 - [ ] **Step 2: 写原子/流式与错误语义失败测试**
 
-`single/page/count` 只有 backend 完成且 result validation/ResultPolicy 全部成功才发射；`list` 逐项背压发射。首项前失败保留具体错误；首项后 decode/policy/backend 失败映射 `INCOMPLETE_RESULT`、保留安全 cause code 并取消上游。deadline/cancel 传播到 backend，terminal signal 只记录一次。
+`single/page/count` 只有 backend 完成且 result validation/ResultPolicy 全部成功才发射；`list` 逐项背压发射。absolute deadline 必须与整个 list publisher 生命周期竞态，不能使用只约束首项的 `Flux.timeout(firstTimeout)`；首项后停滞仍必须在同一 deadline 取消 backend。首项前失败保留具体错误；首项后 decode/policy/backend/deadline 失败映射 `INCOMPLETE_RESULT`，并在 `QueryException.causeCode: QueryErrorCode?` 保留归一化后的安全原 code；未知异常先归一为 `BACKEND_FAILURE`，不得保存 Throwable/message。deadline/cancel 传播到 backend，terminal signal 只记录一次。
 
 - [ ] **Step 3: 实现 `DefaultQueryGateway`**
 
@@ -394,7 +394,7 @@ ResultPolicy 接收只读 context 与单个 decoded value，支持脱敏/审计/
 
 - [ ] **Step 5: 实现低基数 metrics**
 
-只记录 operation、document kind、backend id、outcome、error code、capability id、policy descriptor、legacy facade flag；不得记录 Native payload、expression、字段值、authority 或高基数 aggregate id。测试用 `SimpleMeterRegistry` 断言成功/失败/取消各一次。
+只记录 operation、document kind、backend id、outcome、error code、capability id、policy descriptor、legacy facade flag；不得记录 Native payload、expression、字段值、authority 或高基数 aggregate id。capability tag 只允许配置快照中的已知 id；未知 caller id 归一为固定 `unsupported`，多个为 `multiple`，无 capability 为 `none`。测试用 `SimpleMeterRegistry` 断言成功/失败/取消各一次，并证明大量不同未知 id 不增加 tag/cardinality。
 
 - [ ] **Step 6: 实现 non-Spring factory**
 

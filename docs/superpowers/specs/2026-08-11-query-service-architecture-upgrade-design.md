@@ -442,7 +442,7 @@ bounded list 自动加入稳定 identity tie-breaker。超过后端深分页能�
 
 | 调用/传输 | 首个结果前失败 | 已发射部分结果后失败 |
 | --- | --- | --- |
-| in-process Reactor | 以原始稳定 code 的 `QueryException` 终止 | 以 `QueryException(INCOMPLETE_RESULT)` 终止，并保留安全的 cause code |
+| in-process Reactor | 以原始稳定 code 的 `QueryException` 终止 | 以 `QueryException(INCOMPLETE_RESULT)` 终止，并在只读 `causeCode: QueryErrorCode?` 中保留原始安全 code |
 | HTTP `single`/`page`/`count` | materialize/验证完成后才提交；映射为稳定 HTTP status 与结构化 error body | 不存在部分业务结果；响应提交故障按 transport failure 记录 |
 | HTTP streaming JSON array | adapter 必须延迟到首项或终止信号再决定响应；首项前错误映射为正常 HTTP error | HTTP 200/数组前缀一旦提交就不能替换 status/body；立即中止连接，客户端必须把不完整或无法完成解析的 body 视为失败，并记录 `INCOMPLETE_RESULT` metric/log |
 | SSE | 首事件前映射为正常 HTTP error | 发送最终 error event（含稳定 code，不含敏感 diagnostic）后关闭；若连接已不可写则直接关闭并记录指标 |
@@ -459,7 +459,9 @@ Policy 明确抛出的 `QueryPolicyDeniedException` 映射为 `POLICY_DENIED`；
 - 用 approximate total 替代 exact total；
 - 在不支持 capability 时自动退化到另一语义。
 
-指标至少按 operation、document kind、backend、outcome、error code、capability、低基数 policy descriptor、legacy facade 区分；不得记录 Native 原文、mandatory expression、敏感条件值或未脱敏 authority。`LegacyBackendField` 和旧 API 使用量必须可观测，用于下一主版本删除评估。
+`QueryException.causeCode` 只允许稳定 `QueryErrorCode`，不得保存 `Throwable`、message、堆栈或任意字符串；非 incomplete 错误默认为 `null`，首项后未知执行异常先归一为 `BACKEND_FAILURE` 再写入 causeCode。保持现有三参数构造器的 Java/Kotlin source/binary surface，并为四参数形态增加 ABI/序列化测试。
+
+指标至少按 operation、document kind、backend、outcome、error code、capability、低基数 policy descriptor、legacy facade 区分；不得记录 Native 原文、mandatory expression、敏感条件值或未脱敏 authority。capability tag 只能输出 factory 冻结的 configured capability id，调用方提供但未配置的 id 统一为 `unsupported`，多个 id 为 `multiple`，无 id 为 `none`；不得把任意 caller capability value 原样建 meter。`LegacyBackendField` 和旧 API 使用量必须可观测，用于下一主版本删除评估。
 
 ## 10. 兼容与迁移策略
 
