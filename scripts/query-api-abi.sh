@@ -33,6 +33,16 @@ require_jdk_tools() {
     command -v jar >/dev/null 2>&1 || die "Missing required JDK tool: jar"
 }
 
+tsv_field_count() {
+    awk -F '\t' '{ print NF; exit }' <<<"$1"
+}
+
+tsv_field() {
+    local line="$1"
+    local field_index="$2"
+    awk -F '\t' -v field_index="$field_index" '{ print $field_index; exit }' <<<"$line"
+}
+
 entry_matches_prefixes() {
     local entry="$1"
     local prefixes="$2"
@@ -164,12 +174,16 @@ dump_module() {
 validate_manifest() {
     [[ -f "$MANIFEST" ]] || die "Manifest does not exist: $MANIFEST"
     : >"$NORMALIZED_MANIFEST"
-    local line module jar_glob prefixes extra duplicate prefix
+    local line module jar_glob prefixes duplicate prefix
     while IFS= read -r line || [[ -n "$line" ]]; do
         [[ -z "$line" || "$line" == \#* ]] && continue
-        IFS=$'\t' read -r module jar_glob prefixes extra <<<"$line"
-        [[ -n "${module:-}" && -n "${jar_glob:-}" && -n "${prefixes:-}" && -z "${extra:-}" ]] || \
-            die "Invalid manifest row for module ${module:-<empty>}"
+        [[ "$(tsv_field_count "$line")" -eq 3 ]] || \
+            die "Invalid manifest row: expected exactly 3 non-empty tab-separated fields"
+        module="$(tsv_field "$line" 1)"
+        jar_glob="$(tsv_field "$line" 2)"
+        prefixes="$(tsv_field "$line" 3)"
+        [[ -n "$module" && -n "$jar_glob" && -n "$prefixes" ]] || \
+            die "Invalid manifest row: expected exactly 3 non-empty tab-separated fields"
         [[ "$module" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || die "Invalid manifest module: $module"
         [[ "$prefixes" != \;* && "$prefixes" != *\; && "$prefixes" != *\;\;* ]] || \
             die "Invalid manifest prefix components for module $module: $prefixes"
@@ -208,11 +222,17 @@ validate_expected_modules() {
 validate_class_overrides() {
     [[ -f "$CLASS_OVERRIDES" ]] || die "Class overrides do not exist: $CLASS_OVERRIDES"
     : >"$NORMALIZED_CLASS_OVERRIDES"
-    local module entry action reason extra manifest_prefixes duplicate
-    while IFS=$'\t' read -r module entry action reason extra || [[ -n "${module:-}" ]]; do
-        [[ -z "${module:-}" || "$module" == \#* ]] && continue
-        [[ -n "${entry:-}" && -n "${action:-}" && -n "${reason:-}" && -z "${extra:-}" ]] || \
-            die "Invalid class override row for module $module"
+    local line module entry action reason manifest_prefixes duplicate
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        [[ -z "$line" || "$line" == \#* ]] && continue
+        [[ "$(tsv_field_count "$line")" -eq 4 ]] || \
+            die "Invalid class override row: expected exactly 4 non-empty tab-separated fields"
+        module="$(tsv_field "$line" 1)"
+        entry="$(tsv_field "$line" 2)"
+        action="$(tsv_field "$line" 3)"
+        reason="$(tsv_field "$line" 4)"
+        [[ -n "$module" && -n "$entry" && -n "$action" && -n "$reason" ]] || \
+            die "Invalid class override row: expected exactly 4 non-empty tab-separated fields"
         case "$action" in
             include|exclude) ;;
             *) die "Invalid class override action [$module/$entry]: $action" ;;
@@ -345,7 +365,7 @@ require_jdk_tools
 if [[ -z "$CLASS_OVERRIDES" ]]; then
     CLASS_OVERRIDES="$(dirname "$MANIFEST")/class-overrides.tsv"
 fi
-if [[ -z "$EXPECTED_MODULES" && "$MANIFEST" == "$DEFAULT_MANIFEST" ]]; then
+if [[ -z "$EXPECTED_MODULES" && -f "$MANIFEST" && -f "$DEFAULT_MANIFEST" && "$MANIFEST" -ef "$DEFAULT_MANIFEST" ]]; then
     EXPECTED_MODULES="$DEFAULT_EXPECTED_MODULES"
 fi
 [[ -f "$ALLOWLIST" ]] || die "Allowlist does not exist: $ALLOWLIST"

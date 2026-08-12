@@ -138,6 +138,83 @@ cp "$TEMP_DIR/v1/mini.jar" "$ARTIFACTS/mini.jar"
 expect_success dump_v1 bash "$ABI_SCRIPT" dump \
     --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$BASELINES" --allowlist "$ALLOWLIST"
 
+readonly DEFAULT_POLICY_ROOT="$TEMP_DIR/default-policy-root"
+mkdir -p "$DEFAULT_POLICY_ROOT/scripts" "$DEFAULT_POLICY_ROOT/config/query-api" \
+    "$DEFAULT_POLICY_ROOT/artifacts" "$DEFAULT_POLICY_ROOT/baselines"
+cp "$ABI_SCRIPT" "$DEFAULT_POLICY_ROOT/scripts/query-api-abi.sh"
+printf 'mini\tmini.jar\tfixture/\n' >"$DEFAULT_POLICY_ROOT/config/query-api/modules.tsv"
+printf 'mini\nrequired\n' >"$DEFAULT_POLICY_ROOT/config/query-api/expected-modules.txt"
+: >"$DEFAULT_POLICY_ROOT/config/query-api/class-overrides.tsv"
+: >"$DEFAULT_POLICY_ROOT/config/query-api/approved-removals.txt"
+cp "$TEMP_DIR/v1/mini.jar" "$DEFAULT_POLICY_ROOT/artifacts/mini.jar"
+cp "$BASELINES/mini-8.x.baseline" "$DEFAULT_POLICY_ROOT/baselines/mini-8.x.baseline"
+ln -s "config/query-api/modules.tsv" "$DEFAULT_POLICY_ROOT/modules-alias.tsv"
+
+expect_default_manifest_alias_failure() {
+    local scenario="$1"
+    local manifest_alias="$2"
+    expect_failure "$scenario" 'Missing expected manifest module: required' bash -c '
+        cd "$1"
+        bash scripts/query-api-abi.sh check \
+            --manifest "$2" \
+            --artifacts-dir "$1/artifacts" \
+            --baseline-dir "$1/baselines" \
+            --allowlist "$1/config/query-api/approved-removals.txt" \
+            --class-overrides "$1/config/query-api/class-overrides.tsv"
+    ' _ "$DEFAULT_POLICY_ROOT" "$manifest_alias"
+}
+
+expect_default_manifest_alias_failure default_manifest_relative_alias_keeps_expected_policy \
+    'config/query-api/modules.tsv'
+expect_default_manifest_alias_failure default_manifest_dot_alias_keeps_expected_policy \
+    "$DEFAULT_POLICY_ROOT/config/query-api/./modules.tsv"
+expect_default_manifest_alias_failure default_manifest_symlink_alias_keeps_expected_policy \
+    "$DEFAULT_POLICY_ROOT/modules-alias.tsv"
+
+printf '\tmini\tmini.jar\tfixture/\n' >"$TEMP_DIR/leading-empty-manifest-field.tsv"
+expect_failure leading_empty_manifest_field_is_rejected 'Invalid manifest row' bash "$ABI_SCRIPT" check \
+    --manifest "$TEMP_DIR/leading-empty-manifest-field.tsv" --artifacts-dir "$ARTIFACTS" \
+    --baseline-dir "$BASELINES" --allowlist "$ALLOWLIST" --class-overrides "$CLASS_OVERRIDES"
+
+printf 'mini\t\tmini.jar\tfixture/\n' >"$TEMP_DIR/middle-empty-manifest-field.tsv"
+expect_failure middle_empty_manifest_field_is_rejected 'Invalid manifest row' bash "$ABI_SCRIPT" check \
+    --manifest "$TEMP_DIR/middle-empty-manifest-field.tsv" --artifacts-dir "$ARTIFACTS" \
+    --baseline-dir "$BASELINES" --allowlist "$ALLOWLIST" --class-overrides "$CLASS_OVERRIDES"
+
+printf 'mini\tmini.jar\tfixture/\t\n' >"$TEMP_DIR/trailing-empty-manifest-field.tsv"
+expect_failure trailing_empty_manifest_field_is_rejected 'Invalid manifest row' bash "$ABI_SCRIPT" check \
+    --manifest "$TEMP_DIR/trailing-empty-manifest-field.tsv" --artifacts-dir "$ARTIFACTS" \
+    --baseline-dir "$BASELINES" --allowlist "$ALLOWLIST" --class-overrides "$CLASS_OVERRIDES"
+
+printf 'mini\tmini.jar\tfixture/\textra\n' >"$TEMP_DIR/extra-manifest-field.tsv"
+expect_failure extra_manifest_field_is_rejected 'Invalid manifest row' bash "$ABI_SCRIPT" check \
+    --manifest "$TEMP_DIR/extra-manifest-field.tsv" --artifacts-dir "$ARTIFACTS" \
+    --baseline-dir "$BASELINES" --allowlist "$ALLOWLIST" --class-overrides "$CLASS_OVERRIDES"
+
+printf '\tmini\tfixture/Api.class\tinclude\tretained-public-facade\n' \
+    >"$TEMP_DIR/leading-empty-class-override-field.tsv"
+expect_failure leading_empty_class_override_field_is_rejected 'Invalid class override row' bash "$ABI_SCRIPT" check \
+    --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$BASELINES" \
+    --allowlist "$ALLOWLIST" --class-overrides "$TEMP_DIR/leading-empty-class-override-field.tsv"
+
+printf 'mini\t\tfixture/Api.class\tinclude\tretained-public-facade\n' \
+    >"$TEMP_DIR/middle-empty-class-override-field.tsv"
+expect_failure middle_empty_class_override_field_is_rejected 'Invalid class override row' bash "$ABI_SCRIPT" check \
+    --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$BASELINES" \
+    --allowlist "$ALLOWLIST" --class-overrides "$TEMP_DIR/middle-empty-class-override-field.tsv"
+
+printf 'mini\tfixture/Api.class\tinclude\tretained-public-facade\t\n' \
+    >"$TEMP_DIR/trailing-empty-class-override-field.tsv"
+expect_failure trailing_empty_class_override_field_is_rejected 'Invalid class override row' bash "$ABI_SCRIPT" check \
+    --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$BASELINES" \
+    --allowlist "$ALLOWLIST" --class-overrides "$TEMP_DIR/trailing-empty-class-override-field.tsv"
+
+printf 'mini\tfixture/Api.class\tinclude\tretained-public-facade\textra\n' \
+    >"$TEMP_DIR/extra-class-override-field.tsv"
+expect_failure extra_class_override_field_is_rejected 'Invalid class override row' bash "$ABI_SCRIPT" check \
+    --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$BASELINES" \
+    --allowlist "$ALLOWLIST" --class-overrides "$TEMP_DIR/extra-class-override-field.tsv"
+
 printf 'mini\tmini.jar\tfixture/\nmini\tmini.jar\tfixture/\n' >"$TEMP_DIR/duplicate-modules.tsv"
 expect_failure duplicate_manifest_module_is_rejected 'Duplicate manifest module or baseline target: mini' bash "$ABI_SCRIPT" check \
     --manifest "$TEMP_DIR/duplicate-modules.tsv" --artifacts-dir "$ARTIFACTS" \
