@@ -393,7 +393,7 @@ git commit -m "feat: add canonical query contracts"
 
 - [ ] **Step 1: 写 43 项枚举覆盖与边界失败测试**
 
-测试构造 `Operator.entries.associateWith { fixture }`，断言 fixture keys 与 `Operator.entries.toSet()` 完全相同；逐项断言 lowering 类型。额外覆盖：空/单子句 AND/OR/NOR、Snapshot `DELETED` 默认 active、EventStream 不加 deletion、`MATCH`→`FullText`、`RAW`→`Native`、`ALL_IN` one-shot iterable 只迭代一次。
+测试构造 `Operator.entries.associateWith { fixture }`，断言 fixture keys 与 `Operator.entries.toSet()` 完全相同；逐项断言 lowering 类型。额外覆盖：空/单子句 AND/OR/NOR、Snapshot `DELETED` 默认 active、EventStream 不加 deletion、`MATCH`→`FullText`、显式 `NativeExpression` 的 `RAW`→`Native`、裸 BSON/ES Query/JSON/String/Map `RAW`→`INVALID_QUERY`、legacy `datePattern`→`INVALID_QUERY`、`ALL_IN` one-shot iterable 只迭代一次。
 
 Run: `./gradlew :wow-query:test --tests "me.ahoo.wow.query.expression.*"`
 
@@ -401,7 +401,7 @@ Expected: compile failure，因为 lowerer 尚不存在。
 
 - [ ] **Step 2: 实现无 `else` 的穷尽 lowerer**
 
-`LegacyConditionLowerer.lower(condition, target, frozenInstant, zoneId)` 中使用 `when (condition.operator)` 明确列出全部 43 个枚举。system operator 映射到固定 `QuerySystemFields`；普通 operator 映射到 `PredicateExpression`；时间 operator 委托 `RelativeTimeNormalizer`；`MATCH`/`RAW` 生成 capability，绝不退化或忽略。
+`LegacyConditionLowerer.lower(condition, target, frozenInstant, zoneId)` 中使用 `when (condition.operator)` 明确列出全部 43 个枚举。system operator 映射到固定 `QuerySystemFields`；普通 operator 映射到 `PredicateExpression`；时间 operator 委托 `RelativeTimeNormalizer`；`MATCH` 生成 `FullTextExpression`。`RAW` 只接受 `condition.value is NativeExpression` 并返回该不可变 descriptor；其它 legacy payload 抛出 `QueryException(INVALID_QUERY, NORMALIZE, INVALID_REQUEST)`，不新增 resolver/registry hook，也不把驱动对象交给 `QueryValueNormalizer`。
 
 - [ ] **Step 3: 实现一次 materialize 和 canonical simplification**
 
@@ -409,7 +409,7 @@ Expected: compile failure，因为 lowerer 尚不存在。
 
 - [ ] **Step 4: 用冻结时间实现相对日期 lowering**
 
-每个测试使用 `Clock.fixed` 和明确 `ZoneId`，覆盖 DST 切换日、周/月边界、`RECENT_DAYS`/`EARLIER_DAYS` 非法参数。Normalizer 只接收冻结 `Instant`，不持有或再次读取系统 `Clock`。
+每个测试使用 `Clock.fixed` 和明确 `ZoneId`，覆盖 DST 切换日、周/月/年边界、`RECENT_DAYS`/`EARLIER_DAYS` 的零值、负数、非整数与溢出参数。日、周、月范围输出 `[startInclusive, endExclusive)` 的 `Instant` 比较，Normalizer 只接收冻结 `Instant`，不持有或再次读取系统 `Clock`。legacy condition 的显式 `zoneId` 保持为该节点的兼容覆盖值；缺省时使用 invocation `zoneId`。任何存在 `DATE_PATTERN_OPTION_KEY` 的相对时间 condition 都在 Normalize 阶段返回 `INVALID_QUERY`，不生成字符串边界。
 
 - [ ] **Step 5: 运行测试与现有 converter 回归**
 

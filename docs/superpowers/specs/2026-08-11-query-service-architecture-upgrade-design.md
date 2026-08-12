@@ -165,9 +165,9 @@ interface QueryGateway {
 | `DELETED` | 降低为 Snapshot 固定 deletion scope/predicate。新 API 的 Snapshot 默认 `ACTIVE`；兼容门面精确复现现有 `DeleteConditionGuard` 的默认 active 与显式 deletion 规则。EventStream 不套用 Snapshot deletion guard。 |
 | `ALL` | 降低为 `MatchAll`。Snapshot 的默认 `ACTIVE` mandatory policy 仍然生效，除非请求以受允许的显式 deletion scope 改变它。 |
 | `EQ`、`NE`、`GT`、`LT`、`GTE`、`LTE`、`CONTAINS`、`IN`、`NOT_IN`、`BETWEEN`、`ALL_IN`、`STARTS_WITH`、`ENDS_WITH`、`ELEM_MATCH`、`NULL`、`NOT_NULL`、`TRUE`、`FALSE`、`EXISTS` | 降低为 canonical portable predicate；字段类型、arity、null/missing、collection 与 nested 语义由 Schema 校验，并以 MongoDB 现有可观察语义为参考 oracle 写入双后端 TCK。`ELEM_MATCH` 只允许 Schema 显式声明的 object collection。 |
-| `TODAY`、`BEFORE_TODAY`、`TOMORROW`、`THIS_WEEK`、`NEXT_WEEK`、`LAST_WEEK`、`THIS_MONTH`、`LAST_MONTH`、`RECENT_DAYS`、`EARLIER_DAYS` | 在 Normalize 阶段使用本次 subscription 冻结的 `Clock` 与明确 `ZoneId` 一次性降低为 range/comparison；Planner 和 Backend 不得再次读取当前时间。 |
+| `TODAY`、`BEFORE_TODAY`、`TOMORROW`、`THIS_WEEK`、`NEXT_WEEK`、`LAST_WEEK`、`THIS_MONTH`、`LAST_MONTH`、`RECENT_DAYS`、`EARLIER_DAYS` | 在 Normalize 阶段使用本次 subscription 冻结的 `Clock` 与明确 `ZoneId` 一次性降低为 `Instant` range/comparison；日、周、月范围统一为 `[startInclusive, endExclusive)`，以正确覆盖 DST 与存储精度差异。Planner 和 Backend 不得再次读取当前时间。legacy `datePattern` 会把边界改写为无类型字符串，无法经过 Schema 证明其时间语义，因此兼容门面明确返回 `INVALID_QUERY`；开发者必须迁移为类型化时间字段，不提供字符串范围回退。 |
 | `MATCH` | 降低为 `FullText` capability；不允许退化成 `CONTAINS`。 |
-| `RAW` | 降低为 `Native` capability；必须通过后端支持、显式配置、Policy 许可、字段与复杂度预算四重校验。 |
+| `RAW` | 仅当 legacy `Condition.value` 已是完整、不可变的 `NativeExpression` 时原样降低为 `Native` capability；必须通过后端支持、显式配置、Policy 许可、字段与复杂度预算四重校验。旧 BSON、Elasticsearch `Query`、任意 JSON/String/Map 等裸 payload 不含 backend、受控 template、参数与字段声明，兼容门面统一返回 `INVALID_QUERY`，不得运行时推断、自动包装或透传驱动对象。开发者可先将 `Condition.raw(payload)` 改为 `Condition.raw(NativeExpression(...))` 过渡，最终迁移为直接提交 canonical expression 的 `QueryGateway` 请求。 |
 
 矩阵与代码都必须穷尽枚举；新增或遗漏 `Operator` 时编译或契约测试失败，禁止通过默认分支静默忽略。兼容 lowering 完成后，Planner 只看 canonical expression，不再依赖旧 `Operator`。
 
@@ -180,6 +180,8 @@ interface QueryGateway {
 Capability 不可用时返回 `UNSUPPORTED_CAPABILITY`。禁止把 FullText 自动降级为字符串 contains，也禁止忽略 Native 片段。
 
 Capability payload 中引用的每一个逻辑字段都必须参与 Schema 与字段权限校验；`Native` 即使无法完全结构化解析，也必须使用受控模板/参数和显式字段声明，不能用不可审计的任意字符串绕过字段策略。
+
+上述 `RAW` 与 `datePattern` 规则是经批准的显式行为修正：兼容门面仍委托同一 `QueryGateway`，不保留 legacy backend 旁路、运行时 payload 检测、resolver/registry hook 或字符串时间语义。迁移文档必须同时给出旧写法、过渡写法、最终 `QueryGateway` 写法以及失败码。
 
 ### 5.3 不可变值模型
 
