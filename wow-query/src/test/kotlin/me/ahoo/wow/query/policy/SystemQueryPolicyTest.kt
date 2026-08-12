@@ -36,6 +36,7 @@ import me.ahoo.wow.query.schema.QuerySystemFields
 import me.ahoo.wow.query.validation.QueryBudgetLimit
 import org.junit.jupiter.api.Test
 import reactor.test.StepVerifier
+import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
 
@@ -95,7 +96,8 @@ class SystemQueryPolicyTest {
                     listOf(QueryPolicyDescriptor("replacement", 0, system)),
                     me.ahoo.wow.query.validation.QueryExpressionValidator(
                         me.ahoo.wow.query.validation.QueryStructureLimits(64, 10_000, 10_000, 1_048_576)
-                    )
+                    ),
+                    Clock.fixed(FROZEN, ZoneOffset.UTC)
                 )
             }
         ).expectError(IllegalArgumentException::class.java).verify()
@@ -108,7 +110,8 @@ class SystemQueryPolicyTest {
             emptyList(),
             me.ahoo.wow.query.validation.QueryExpressionValidator(
                 me.ahoo.wow.query.validation.QueryStructureLimits(64, 10_000, 10_000, 1_048_576)
-            )
+            ),
+            Clock.fixed(FROZEN, ZoneOffset.UTC)
         )
 
         StepVerifier.create(chain.evaluate(context(QueryDocumentKind.SNAPSHOT, DeletionScope.ALL)))
@@ -142,7 +145,7 @@ class SystemQueryPolicyTest {
             ),
             schema,
             QueryBudgetHint(),
-            Instant.parse("2026-08-12T08:00:00Z"),
+            FROZEN,
             ZoneOffset.UTC
         )
     }
@@ -162,6 +165,7 @@ class SystemQueryPolicyTest {
     )
 
     private companion object {
+        val FROZEN: Instant = Instant.parse("2026-08-12T08:00:00Z")
         val SYSTEM_BUDGET: QueryBudgetLimit = QueryBudgetLimit(maxResults = 1_000, maxCost = 100)
     }
 }

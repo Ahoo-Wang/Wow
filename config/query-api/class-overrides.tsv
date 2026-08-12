@@ -29,7 +29,7 @@ wow-query	me/ahoo/wow/query/policy/QueryPolicyExceptionKt.class	exclude	syntheti
 wow-query	me/ahoo/wow/query/policy/SystemQueryPolicy.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/policy/SystemQueryPolicyKt.class	exclude	synthetic-private-helper
 wow-query	me/ahoo/wow/query/schema/JacksonQuerySchemaResolverKt.class	exclude	synthetic-private-helper
-wow-query	me/ahoo/wow/query/schema/QuerySchemaKt.class	exclude	synthetic-private-helper
+wow-query	me/ahoo/wow/query/schema/QuerySchemaKt.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/schema/QuerySchemaCustomizationMerger.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/snapshot/QueryDslKt.class	include	retained-public-facade
 wow-query	me/ahoo/wow/query/snapshot/SnapshotStatesKt.class	include	retained-public-facade

@@ -178,6 +178,8 @@ import me.ahoo.wow.query.policy.CombinedQueryPolicyResult
 import me.ahoo.wow.query.policy.DefaultQueryPolicyChain
 import me.ahoo.wow.query.policy.QueryPolicyDescriptor
 import me.ahoo.wow.query.policy.SystemQueryPolicy
+import me.ahoo.wow.query.schema.QuerySchemaView
+import me.ahoo.wow.query.schema.immutableSnapshot
 
 fun internalImplementations(): List<Class<*>> = listOf(
     DefaultQueryAdmission::class.java,
@@ -190,6 +192,8 @@ fun internalImplementations(): List<Class<*>> = listOf(
     QueryPolicyDescriptor::class.java,
     SystemQueryPolicy::class.java
 )
+
+fun snapshotSchema(schema: QuerySchemaView) = schema.immutableSnapshot()
 EOF
 
 if java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
@@ -210,6 +214,10 @@ for class_name in DefaultQueryAdmission QueryDeadline QueryInvocation QueryInvoc
         fail "Kotlin negative fixture did not diagnose $class_name"
     }
 done
+grep -F "immutableSnapshot" "$TEMP_DIR/kotlin-negative.out" >/dev/null || {
+    cat "$TEMP_DIR/kotlin-negative.out" >&2
+    fail "Kotlin negative fixture did not diagnose immutableSnapshot"
+}
 grep -F "internal" "$TEMP_DIR/kotlin-negative.out" >/dev/null || {
     cat "$TEMP_DIR/kotlin-negative.out" >&2
     fail "Kotlin negative fixture did not enforce internal visibility"

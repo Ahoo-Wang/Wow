@@ -22,6 +22,7 @@ import me.ahoo.wow.api.query.error.QueryStage
 import me.ahoo.wow.api.query.expression.FullTextExpression
 import me.ahoo.wow.api.query.expression.LogicalField
 import me.ahoo.wow.api.query.expression.MatchAll
+import me.ahoo.wow.api.query.expression.MatchNone
 import me.ahoo.wow.api.query.expression.PortableOperator
 import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryCapabilityId
@@ -41,6 +42,7 @@ import me.ahoo.wow.query.schema.QueryCapabilityBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryFieldUsage
 import me.ahoo.wow.query.schema.QuerySchema
+import me.ahoo.wow.query.schema.QuerySchemaView
 import me.ahoo.wow.query.schema.QuerySystemFields
 import me.ahoo.wow.query.validation.QueryBudgetLimit
 import me.ahoo.wow.query.validation.QueryExpressionValidator
@@ -49,6 +51,7 @@ import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
 import reactor.test.scheduler.VirtualTimeScheduler
+import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
@@ -219,6 +222,7 @@ class DefaultQueryPolicyChainTest {
             systemPolicy = SystemQueryPolicy(QueryBudgetLimit(Duration.ofSeconds(30), 300, 300)),
             customPolicies = listOf(policy),
             expressionValidator = QueryExpressionValidator(LIMITS),
+            clock = Clock.fixed(FROZEN, ZoneOffset.UTC),
             scheduler = scheduler
         )
 
@@ -239,6 +243,80 @@ class DefaultQueryPolicyChainTest {
 
         policyCalls.get().assert().isEqualTo(1)
         resolverCalls.get().assert().isZero()
+    }
+
+    @Test
+    fun `rejects an absolute deadline already past when policy subscription starts`() {
+        val policyCalls = AtomicInteger()
+        val absoluteDeadline = FROZEN.plusSeconds(1)
+        val chain = chain(
+            customPolicies = listOf(
+                descriptor("never") {
+                    policyCalls.incrementAndGet()
+                    Mono.just(QueryPolicyResult())
+                }
+            ),
+            clock = Clock.fixed(absoluteDeadline.plusNanos(1), ZoneOffset.UTC)
+        )
+
+        assertPolicyError(
+            chain.evaluate(context(), absoluteDeadline),
+            QueryErrorCode.DEADLINE_EXCEEDED,
+            QueryErrorReason.DEADLINE_REACHED
+        )
+        policyCalls.get().assert().isZero()
+    }
+
+    @Test
+    fun `uses only absolute deadline remaining time and cancels in flight policy`() {
+        val scheduler = VirtualTimeScheduler.create()
+        val absoluteDeadline = FROZEN.plusSeconds(1)
+        val cancellationCalls = AtomicInteger()
+        val chain = DefaultQueryPolicyChain(
+            systemPolicy = SystemQueryPolicy(QueryBudgetLimit.UNBOUNDED),
+            customPolicies = listOf(
+                descriptor("never") {
+                    Mono.never<QueryPolicyResult>().doOnCancel(cancellationCalls::incrementAndGet)
+                }
+            ),
+            expressionValidator = QueryExpressionValidator(LIMITS),
+            clock = Clock.fixed(FROZEN.plusMillis(600), ZoneOffset.UTC),
+            scheduler = scheduler
+        )
+
+        StepVerifier.withVirtualTime(
+            { chain.evaluate(context(), absoluteDeadline) },
+            { scheduler },
+            Long.MAX_VALUE
+        ).expectSubscription()
+            .expectNoEvent(Duration.ofMillis(399))
+            .thenAwait(Duration.ofMillis(1))
+            .expectErrorSatisfies { error ->
+                (error as QueryException).apply {
+                    code.assert().isEqualTo(QueryErrorCode.DEADLINE_EXCEEDED)
+                    stage.assert().isEqualTo(QueryStage.POLICY)
+                    reason.assert().isEqualTo(QueryErrorReason.DEADLINE_REACHED)
+                }
+            }.verify(Duration.ofSeconds(1))
+
+        cancellationCalls.get().assert().isOne()
+    }
+
+    @Test
+    fun `unbounded policy evaluation does not derive a deadline from frozen instant`() {
+        val policyCalls = AtomicInteger()
+        val chain = chain(
+            customPolicies = listOf(
+                descriptor("success") {
+                    policyCalls.incrementAndGet()
+                    Mono.just(QueryPolicyResult())
+                }
+            ),
+            clock = Clock.fixed(FROZEN.plus(Duration.ofDays(365)), ZoneOffset.UTC)
+        )
+
+        chain.evaluate(context(), null).block()!!.securedExpression.toString().contains("deleted").assert().isTrue()
+        policyCalls.get().assert().isOne()
     }
 
     @Test
@@ -264,6 +342,32 @@ class DefaultQueryPolicyChainTest {
     }
 
     @Test
+    fun `custom schema mutation by one policy cannot change what later policies observe`() {
+        val target = target(QueryDocumentKind.SNAPSHOT)
+        val mutableFields = QuerySystemFields.fields(QueryDocumentKind.SNAPSHOT)
+            .associateByTo(LinkedHashMap(), QueryFieldSchema::path)
+        val mutableView = object : QuerySchemaView {
+            override val target: QueryTarget = target
+            override val fields: Map<LogicalField, QueryFieldSchema> = mutableFields
+        }
+        val context = context(schema = mutableView)
+        val observedFieldCounts = mutableListOf<Int>()
+        val mutator = descriptor("mutator", 0) {
+            mutableFields.clear()
+            Mono.just(QueryPolicyResult())
+        }
+        val observer = descriptor("observer", 1) {
+            observedFieldCounts += it.schema.fields.size
+            Mono.just(QueryPolicyResult())
+        }
+
+        chain(listOf(mutator, observer)).evaluate(context).block()
+
+        mutableFields.assert().isEmpty()
+        observedFieldCounts.assert().containsExactly(QuerySystemFields.fields(QueryDocumentKind.SNAPSHOT).size)
+    }
+
+    @Test
     fun `invokes downstream resolver exactly once after successful combination`() {
         val resolverCalls = AtomicInteger()
 
@@ -276,11 +380,30 @@ class DefaultQueryPolicyChainTest {
         resolverCalls.get().assert().isEqualTo(1)
     }
 
-    private fun chain(customPolicies: List<QueryPolicyDescriptor>): DefaultQueryPolicyChain =
+    @Test
+    fun `retains mandatory policy contribution when secured expression simplifies to match none`() {
+        val secret = "mandatory-secret-3024"
+        val mandatory = predicate(STATUS, secret)
+
+        val result = chain(
+            listOf(descriptor("mandatory") { Mono.just(QueryPolicyResult(mandatory)) })
+        ).evaluate(context(expression = MatchNone)).block()!!
+
+        result.securedExpression.assert().isSameAs(MatchNone)
+        result.mandatoryExpression.toString().contains("deleted").assert().isTrue()
+        result.mandatoryExpression.toString().contains(secret).assert().isTrue()
+        result.toString().contains(secret).assert().isFalse()
+    }
+
+    private fun chain(
+        customPolicies: List<QueryPolicyDescriptor>,
+        clock: Clock = Clock.fixed(FROZEN, ZoneOffset.UTC)
+    ): DefaultQueryPolicyChain =
         DefaultQueryPolicyChain(
             systemPolicy = SystemQueryPolicy(QueryBudgetLimit(Duration.ofSeconds(30), 300, 300)),
             customPolicies = customPolicies,
-            expressionValidator = QueryExpressionValidator(LIMITS)
+            expressionValidator = QueryExpressionValidator(LIMITS),
+            clock = clock
         )
 
     private fun result(capability: QueryCapabilityId, decision: CapabilityDecision): QueryPolicyResult =
@@ -312,10 +435,11 @@ class DefaultQueryPolicyChainTest {
         expression: QueryExpression = MatchAll,
         deletion: DeletionScope = DeletionScope.DEFAULT,
         requestBudget: QueryBudgetHint = QueryBudgetHint(),
-        permissions: Set<String> = emptySet()
+        permissions: Set<String> = emptySet(),
+        schema: QuerySchemaView? = null
     ): QueryPolicyContext {
         val target = target(QueryDocumentKind.SNAPSHOT)
-        val schema = QuerySchema(
+        val resolvedSchema = schema ?: QuerySchema(
             target,
             QuerySystemFields.fields(QueryDocumentKind.SNAPSHOT) +
                 QueryFieldSchema(
@@ -342,7 +466,7 @@ class DefaultQueryPolicyChainTest {
                 RequestedQueryScope(deletion = deletion),
                 "correlation"
             ),
-            schema = schema,
+            schema = resolvedSchema,
             requestBudget = requestBudget,
             frozenInstant = FROZEN,
             zoneId = ZoneOffset.UTC

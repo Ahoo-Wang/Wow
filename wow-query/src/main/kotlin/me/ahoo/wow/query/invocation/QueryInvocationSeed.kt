@@ -19,6 +19,7 @@ import me.ahoo.wow.api.query.gateway.QueryOperation
 import me.ahoo.wow.api.query.gateway.QueryRequest
 import me.ahoo.wow.query.expression.ExpressionNormalizer
 import me.ahoo.wow.query.schema.QuerySchemaView
+import me.ahoo.wow.query.schema.immutableSnapshot
 import me.ahoo.wow.query.validation.QueryBudgetLimit
 import java.time.Instant
 import java.time.ZoneId
@@ -56,6 +57,7 @@ internal class QueryInvocationSeed(
         schema: QuerySchemaView,
         normalize: (QueryExpression) -> QueryExpression
     ): QueryInvocation {
+        val schemaSnapshot = schema.immutableSnapshot()
         val normalizedContributions = LinkedHashMap<QueryProvenance, QueryExpression>(expressionContributions.size)
         expressionContributions.forEach { (provenance, expression) ->
             normalizedContributions[provenance] = normalize(expression)
@@ -72,7 +74,7 @@ internal class QueryInvocationSeed(
             zoneId = zoneId,
             admissionDeadline = admissionDeadline,
             admissionBudget = admissionBudget,
-            schema = schema,
+            schema = schemaSnapshot,
             normalizedExpression = normalizedExpression,
             expressionProvenance = normalizedContributions
         )

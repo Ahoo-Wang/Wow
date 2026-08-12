@@ -33,7 +33,10 @@ import me.ahoo.wow.api.query.gateway.QueryBudgetHint
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.api.query.gateway.QueryOperation
 import me.ahoo.wow.api.query.gateway.QueryTarget
+import me.ahoo.wow.query.schema.QueryFieldSchema
+import me.ahoo.wow.query.schema.QueryFieldValueKind
 import me.ahoo.wow.query.schema.QuerySchema
+import me.ahoo.wow.query.schema.QuerySchemaView
 import me.ahoo.wow.query.validation.QueryBudgetLimit
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
@@ -159,6 +162,46 @@ class QuerySubscriptionIsolationTest {
         invocation.normalizedExpression.assert().isEqualTo(
             PortableLogicalExpression(LogicalOperator.AND, listOf(callerPredicate, legacyPredicate))
         )
+    }
+
+    @Test
+    fun `snapshots and validates a mutable custom schema before creating invocation`() {
+        val seed = factory(
+            Instant.parse("2026-08-12T01:45:00Z"),
+            QueryBudgetLimit.UNBOUNDED
+        ).admit(request(), QueryOperation.COUNT).block()!!
+        val field = QueryFieldSchema(LogicalField("state.status"), QueryFieldValueKind.STRING, false)
+        val mutableFields = linkedMapOf(field.path to field)
+        val customView = object : QuerySchemaView {
+            override val target: QueryTarget = queryTarget()
+            override val fields: Map<LogicalField, QueryFieldSchema> = mutableFields
+        }
+
+        val invocation = seed.toInvocation(customView) { it }
+        mutableFields.clear()
+
+        invocation.schema.assert().isNotSameAs(customView)
+        invocation.schema.fields.keys.assert().containsExactly(field.path)
+    }
+
+    @Test
+    fun `fails closed when custom schema cardinality changes during snapshot`() {
+        val seed = factory(
+            Instant.parse("2026-08-12T01:50:00Z"),
+            QueryBudgetLimit.UNBOUNDED
+        ).admit(request(), QueryOperation.COUNT).block()!!
+        val field = QueryFieldSchema(LogicalField("state.status"), QueryFieldValueKind.STRING, false)
+        val inconsistentFields = object : Map<LogicalField, QueryFieldSchema> by mapOf(field.path to field) {
+            override val size: Int = 2
+        }
+        val customView = object : QuerySchemaView {
+            override val target: QueryTarget = queryTarget()
+            override val fields: Map<LogicalField, QueryFieldSchema> = inconsistentFields
+        }
+
+        StepVerifier.create(Mono.fromCallable { seed.toInvocation(customView) { it } })
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
     }
 
     @Test

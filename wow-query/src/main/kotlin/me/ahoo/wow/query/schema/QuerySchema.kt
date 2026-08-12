@@ -360,6 +360,25 @@ class QuerySchema(
             collectionKind == other.collectionKind && nested == other.nested && system == other.system
 }
 
+internal fun QuerySchemaView.immutableSnapshot(): QuerySchema {
+    if (this is QuerySchema) {
+        return this
+    }
+    val snapshotTarget = target
+    val sourceFields = fields
+    val expectedSize = sourceFields.size
+    val fieldSnapshot = ArrayList<QueryFieldSchema>(expectedSize)
+    sourceFields.forEach { (path, field) ->
+        require(path == field.path) { "Query schema field key must match its logical path." }
+        fieldSnapshot += field
+    }
+    require(fieldSnapshot.size == expectedSize && sourceFields.size == expectedSize) {
+        "Query schema field cardinality changed during immutable snapshot."
+    }
+    require(target == snapshotTarget) { "Query schema target changed during immutable snapshot." }
+    return QuerySchema(snapshotTarget, fieldSnapshot)
+}
+
 private fun <T> immutableSet(values: Set<T>, label: String): Set<T> {
     val snapshot = LinkedHashSet(values)
     require(snapshot.size == values.size) { "$label cardinality changed during immutable snapshot." }

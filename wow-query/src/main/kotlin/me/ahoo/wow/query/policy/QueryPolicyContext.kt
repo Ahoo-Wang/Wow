@@ -19,6 +19,7 @@ import me.ahoo.wow.api.query.gateway.QueryOperation
 import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.query.invocation.QueryInvocationScope
 import me.ahoo.wow.query.schema.QuerySchemaView
+import me.ahoo.wow.query.schema.immutableSnapshot
 import java.time.Instant
 import java.time.ZoneId
 
@@ -28,13 +29,15 @@ class QueryPolicyContext(
     val normalizedExpression: QueryExpression,
     val resultShape: QueryPolicyResultShape,
     val invocationScope: QueryInvocationScope,
-    val schema: QuerySchemaView,
+    schema: QuerySchemaView,
     val requestBudget: QueryBudgetHint,
     val frozenInstant: Instant,
     val zoneId: ZoneId
 ) {
+    val schema: QuerySchemaView = schema.immutableSnapshot()
+
     init {
-        require(schema.target == target) { "Policy schema target must match the query target." }
+        require(this.schema.target == target) { "Policy schema target must match the query target." }
     }
 
     operator fun component1(): QueryTarget = target

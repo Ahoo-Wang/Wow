@@ -23,6 +23,7 @@ import me.ahoo.wow.api.query.expression.LogicalExpression
 import me.ahoo.wow.api.query.expression.MatchAll
 import me.ahoo.wow.api.query.expression.MatchNone
 import me.ahoo.wow.api.query.expression.NativeExpression
+import me.ahoo.wow.api.query.expression.PortableExpression
 import me.ahoo.wow.api.query.expression.PortableLogicalExpression
 import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryCapabilityId
@@ -39,6 +40,7 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
+import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.util.ArrayDeque
@@ -50,6 +52,7 @@ internal class DefaultQueryPolicyChain(
     systemPolicy: SystemQueryPolicy,
     customPolicies: List<QueryPolicyDescriptor>,
     private val expressionValidator: QueryExpressionValidator,
+    private val clock: Clock,
     private val scheduler: Scheduler = Schedulers.parallel()
 ) {
     private val policies: List<QueryPolicyDescriptor>
@@ -77,7 +80,8 @@ internal class DefaultQueryPolicyChain(
             QueryStage.POLICY
         )
     ): Mono<CombinedQueryPolicyResult> = Mono.defer {
-        if (admissionDeadline != null && !admissionDeadline.isAfter(context.frozenInstant)) {
+        val policyStartedAt = clock.instant()
+        if (admissionDeadline != null && !admissionDeadline.isAfter(policyStartedAt)) {
             return@defer Mono.error(PolicyDeadlineExceededException())
         }
         val evaluation = Flux.fromIterable(policies)
@@ -88,7 +92,7 @@ internal class DefaultQueryPolicyChain(
             evaluation
         } else {
             evaluation.timeout(
-                Duration.between(context.frozenInstant, admissionDeadline),
+                Duration.between(policyStartedAt, admissionDeadline),
                 Mono.error(PolicyDeadlineExceededException()),
                 scheduler
             )
@@ -127,13 +131,17 @@ internal class DefaultQueryPolicyChain(
                 throw CapabilityDeniedException()
             }
         }
+        val mandatoryExpression = ExpressionNormalizer.logical(
+            me.ahoo.wow.api.query.expression.LogicalOperator.AND,
+            results.map(QueryPolicyResult::mandatoryExpression)
+        ) as PortableExpression
         val securedExpression = ExpressionNormalizer.logical(
             me.ahoo.wow.api.query.expression.LogicalOperator.AND,
-            listOf(context.normalizedExpression) + results.map(QueryPolicyResult::mandatoryExpression)
+            listOf(context.normalizedExpression, mandatoryExpression)
         )
         expressionValidator.validateStructure(securedExpression)
         expressionValidator.validateSchema(securedExpression, context.schema)
-        return CombinedQueryPolicyResult(securedExpression, constraints)
+        return CombinedQueryPolicyResult(securedExpression, mandatoryExpression, constraints)
     }
 
     private fun combineConstraints(constraints: List<QueryPolicyConstraints>): QueryPolicyConstraints {
@@ -263,13 +271,17 @@ internal class DefaultQueryPolicyChain(
 
 internal class CombinedQueryPolicyResult(
     val securedExpression: QueryExpression,
+    val mandatoryExpression: PortableExpression,
     val constraints: QueryPolicyConstraints
 ) {
     override fun equals(other: Any?): Boolean = other is CombinedQueryPolicyResult &&
-        securedExpression == other.securedExpression && constraints == other.constraints
+        securedExpression == other.securedExpression && mandatoryExpression == other.mandatoryExpression &&
+        constraints == other.constraints
 
-    override fun hashCode(): Int = 31 * securedExpression.hashCode() + constraints.hashCode()
+    override fun hashCode(): Int = 31 * (31 * securedExpression.hashCode() + mandatoryExpression.hashCode()) +
+        constraints.hashCode()
 
     override fun toString(): String =
-        "CombinedQueryPolicyResult(securedExpression=<redacted>, constraints=<redacted>)"
+        "CombinedQueryPolicyResult(securedExpression=<redacted>, mandatoryExpression=<redacted>, " +
+            "constraints=<redacted>)"
 }
