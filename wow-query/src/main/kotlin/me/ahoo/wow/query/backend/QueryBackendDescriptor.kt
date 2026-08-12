@@ -15,9 +15,14 @@ package me.ahoo.wow.query.backend
 
 import me.ahoo.wow.api.query.expression.PortableOperator
 import me.ahoo.wow.api.query.expression.QueryCapabilityId
+import me.ahoo.wow.api.query.expression.StringComparisonMode
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.query.validation.QueryBudgetLimit
 import java.util.Collections
+
+enum class QueryPortableFeature {
+    ELEMENT_MATCH
+}
 
 class QueryPlanVersion(val value: Int) {
     init {
@@ -57,6 +62,8 @@ class QueryBackendDescriptor(
     documentKinds: Set<QueryDocumentKind>,
     planVersions: Set<QueryPlanVersion>,
     portableOperators: Set<PortableOperator>,
+    portableFeatures: Set<QueryPortableFeature>,
+    stringComparisonModes: Set<StringComparisonMode>,
     capabilities: Set<QueryCapabilityId>,
     val maxBudget: QueryBudgetLimit
 ) {
@@ -68,6 +75,8 @@ class QueryBackendDescriptor(
     val documentKinds: Set<QueryDocumentKind> = immutableSet(documentKinds)
     val planVersions: Set<QueryPlanVersion> = immutableSet(planVersions)
     val portableOperators: Set<PortableOperator> = immutableSet(portableOperators)
+    val portableFeatures: Set<QueryPortableFeature> = immutableSet(portableFeatures)
+    val stringComparisonModes: Set<StringComparisonMode> = immutableSet(stringComparisonModes)
     val capabilities: Set<QueryCapabilityId> = immutableSet(capabilities)
 
     init {
@@ -77,13 +86,17 @@ class QueryBackendDescriptor(
 
     override fun equals(other: Any?): Boolean = other is QueryBackendDescriptor &&
         backendId == other.backendId && documentKinds == other.documentKinds && planVersions == other.planVersions &&
-        portableOperators == other.portableOperators && capabilities == other.capabilities && maxBudget == other.maxBudget
+        portableOperators == other.portableOperators && portableFeatures == other.portableFeatures &&
+        stringComparisonModes == other.stringComparisonModes && capabilities == other.capabilities &&
+        maxBudget == other.maxBudget
 
     override fun hashCode(): Int = listOf(
         backendId,
         documentKinds,
         planVersions,
         portableOperators,
+        portableFeatures,
+        stringComparisonModes,
         capabilities,
         maxBudget
     ).hashCode()
@@ -91,6 +104,7 @@ class QueryBackendDescriptor(
     override fun toString(): String =
         "QueryBackendDescriptor(backendId=$backendId, documentKinds=$documentKinds, " +
             "planVersions=$planVersions, portableOperatorCount=${portableOperators.size}, " +
+            "portableFeatureCount=${portableFeatures.size}, stringComparisonModeCount=${stringComparisonModes.size}, " +
             "capabilityCount=${capabilities.size}, maxBudget=$maxBudget)"
 
     private fun <T> immutableSet(source: Set<T>): Set<T> =

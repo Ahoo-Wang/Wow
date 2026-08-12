@@ -29,6 +29,7 @@ import me.ahoo.wow.api.query.expression.PortableOperator
 import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.expression.QueryExpression
+import me.ahoo.wow.api.query.expression.StringComparisonMode
 import me.ahoo.wow.api.query.gateway.CountQueryRequest
 import me.ahoo.wow.api.query.gateway.ListQueryRequest
 import me.ahoo.wow.api.query.gateway.PageQueryRequest
@@ -42,6 +43,7 @@ import me.ahoo.wow.api.query.gateway.SingleQueryRequest
 import me.ahoo.wow.query.backend.QueryBackendReadiness
 import me.ahoo.wow.query.backend.QueryBackendRouteIdentity
 import me.ahoo.wow.query.backend.QueryPlanVersion
+import me.ahoo.wow.query.backend.QueryPortableFeature
 import me.ahoo.wow.query.backend.ResolvedQueryBackend
 import me.ahoo.wow.query.invocation.QueryDeadline
 import me.ahoo.wow.query.invocation.QueryDeadlineExceededException
@@ -58,21 +60,22 @@ import java.time.Instant
 import java.util.ArrayDeque
 import java.util.Collections
 
-internal class DefaultQueryPlanner(
+internal class DefaultQueryPlanner private constructor(
     enabledCapabilities: Set<QueryCapabilityId>,
     private val validator: QueryPlanValidator
 ) {
     private val enabledCapabilities: Set<QueryCapabilityId> =
         Collections.unmodifiableSet(LinkedHashSet(enabledCapabilities))
 
-    fun plan(
+    @JvmSynthetic
+    internal fun plan(
         invocation: QueryInvocation,
         policyResult: CombinedQueryPolicyResult,
         resolvedBackend: ResolvedQueryBackend
     ): Mono<QueryPlanV1> = Mono.defer {
         validateDescriptorAndReadiness(invocation, resolvedBackend)
         val expressionInspection = inspect(policyResult.securedExpression)
-        validatePortableOperators(expressionInspection.portableOperators, resolvedBackend)
+        validatePortableSemantics(expressionInspection, resolvedBackend)
         validateCapabilities(expressionInspection.capabilities, policyResult, resolvedBackend)
         validateFields(expressionInspection.fields, invocation.schema, policyResult.constraints.fieldAccess)
         val authorizedResultShape = authorizeResultShape(invocation, policyResult.constraints.fieldAccess)
@@ -117,11 +120,14 @@ internal class DefaultQueryPlanner(
         }
     }
 
-    private fun validatePortableOperators(
-        requested: Set<PortableOperator>,
+    private fun validatePortableSemantics(
+        requested: ExpressionInspection,
         resolved: ResolvedQueryBackend
     ) {
-        if (!resolved.descriptor.portableOperators.containsAll(requested)) {
+        if (!resolved.descriptor.portableOperators.containsAll(requested.portableOperators) ||
+            !resolved.descriptor.portableFeatures.containsAll(requested.portableFeatures) ||
+            !resolved.descriptor.stringComparisonModes.containsAll(requested.stringComparisonModes)
+        ) {
             unsupportedCapability()
         }
     }
@@ -180,7 +186,12 @@ internal class DefaultQueryPlanner(
                         LinkedHashSet(projection.fields)
                     }
 
-                    is QueryProjection.Exclude -> allowed.filterTo(LinkedHashSet()) { it !in projection.fields }
+                    is QueryProjection.Exclude -> {
+                        if (!allowed.containsAll(projection.fields)) {
+                            fieldAccessDenied()
+                        }
+                        allowed.filterTo(LinkedHashSet()) { it !in projection.fields }
+                    }
                 }
                 QueryPlanResultShape.Typed(resultShape.resultType, fields)
             }
@@ -266,6 +277,8 @@ internal class DefaultQueryPlanner(
 
     private fun inspect(expression: QueryExpression): ExpressionInspection {
         val operators = LinkedHashSet<PortableOperator>()
+        val features = LinkedHashSet<QueryPortableFeature>()
+        val stringComparisonModes = LinkedHashSet<StringComparisonMode>()
         val capabilities = LinkedHashSet<QueryCapabilityId>()
         val fields = LinkedHashSet<LogicalField>()
         val pending = ArrayDeque<ExpressionFrame>()
@@ -284,10 +297,12 @@ internal class DefaultQueryPlanner(
                 }
                 is PredicateExpression -> {
                     operators += current.operator
+                    stringComparisonModes += current.stringComparison
                     fields += resolvePath(frame.relativeTo, current.field)
                 }
 
                 is ElementMatchExpression -> {
+                    features += QueryPortableFeature.ELEMENT_MATCH
                     val field = resolvePath(frame.relativeTo, current.field)
                     fields += field
                     pending += ExpressionFrame(current.predicate, field)
@@ -304,7 +319,7 @@ internal class DefaultQueryPlanner(
                 }
             }
         }
-        return ExpressionInspection(operators, capabilities, fields)
+        return ExpressionInspection(operators, features, stringComparisonModes, capabilities, fields)
     }
 
     private fun resolvePath(relativeTo: LogicalField?, field: LogicalField): LogicalField =
@@ -363,6 +378,8 @@ internal class DefaultQueryPlanner(
 
     private class ExpressionInspection(
         val portableOperators: Set<PortableOperator>,
+        val portableFeatures: Set<QueryPortableFeature>,
+        val stringComparisonModes: Set<StringComparisonMode>,
         val capabilities: Set<QueryCapabilityId>,
         val fields: Set<LogicalField>
     )
@@ -420,4 +437,12 @@ internal class DefaultQueryPlanner(
         PageQueryPlanV1<R>
 
     private class CountPlan(state: PlanState) : AbstractPlan(state), CountQueryPlanV1
+
+    internal companion object {
+        @JvmSynthetic
+        internal fun create(
+            enabledCapabilities: Set<QueryCapabilityId>,
+            validator: QueryPlanValidator
+        ): DefaultQueryPlanner = DefaultQueryPlanner(enabledCapabilities, validator)
+    }
 }

@@ -24,6 +24,7 @@ wow-query	me/ahoo/wow/query/invocation/QueryInvocationSeed.class	exclude	kotlin-
 wow-query	me/ahoo/wow/query/mask/AggregateDataMaskerKt.class	include	retained-public-facade
 wow-query	me/ahoo/wow/query/mask/DataMaskingKt.class	include	retained-public-facade
 wow-query	me/ahoo/wow/query/plan/DefaultQueryPlanner$AbstractPlan.class	exclude	kotlin-internal
+wow-query	me/ahoo/wow/query/plan/DefaultQueryPlanner$Companion.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/plan/DefaultQueryPlanner$CountPlan.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/plan/DefaultQueryPlanner$ExpressionFrame.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/plan/DefaultQueryPlanner$ExpressionInspection.class	exclude	kotlin-internal

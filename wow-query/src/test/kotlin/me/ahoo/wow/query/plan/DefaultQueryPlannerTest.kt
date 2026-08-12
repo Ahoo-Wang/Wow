@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.expression.QueryExpression
 import me.ahoo.wow.api.query.expression.QueryValue
+import me.ahoo.wow.api.query.expression.StringComparisonMode
 import me.ahoo.wow.api.query.gateway.ListQueryRequest
 import me.ahoo.wow.api.query.gateway.QueryBudgetHint
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
@@ -43,6 +44,7 @@ import me.ahoo.wow.query.backend.QueryBackendReadiness
 import me.ahoo.wow.query.backend.QueryBackendReadinessReason
 import me.ahoo.wow.query.backend.QueryBackendRouteIdentity
 import me.ahoo.wow.query.backend.QueryPlanVersion
+import me.ahoo.wow.query.backend.QueryPortableFeature
 import me.ahoo.wow.query.backend.RecordingQueryBackend
 import me.ahoo.wow.query.backend.ResolvedQueryBackend
 import me.ahoo.wow.query.invocation.QueryAuthorityView
@@ -129,18 +131,24 @@ class DefaultQueryPlannerTest {
         val documentKinds = linkedSetOf(QueryDocumentKind.SNAPSHOT)
         val versions = linkedSetOf(QueryPlanVersion.V1)
         val operators = LinkedHashSet(PortableOperator.entries)
+        val features = LinkedHashSet(QueryPortableFeature.entries)
+        val comparisonModes = LinkedHashSet(StringComparisonMode.entries)
         val capabilities = linkedSetOf<QueryCapabilityId>()
         val descriptor = QueryBackendDescriptor(
             backendId = BACKEND_ID,
             documentKinds = documentKinds,
             planVersions = versions,
             portableOperators = operators,
+            portableFeatures = features,
+            stringComparisonModes = comparisonModes,
             capabilities = capabilities,
             maxBudget = QueryBudgetLimit.UNBOUNDED
         )
         documentKinds.clear()
         versions.clear()
         operators.clear()
+        features.clear()
+        comparisonModes.clear()
         capabilities += FULL_TEXT
         val backend = RecordingQueryBackend(descriptor)
         val resolved = ResolvedQueryBackend.resolve(backend, ROUTE).block()!!
@@ -154,6 +162,8 @@ class DefaultQueryPlannerTest {
         descriptor.documentKinds.assert().isEqualTo(setOf(QueryDocumentKind.SNAPSHOT))
         descriptor.planVersions.assert().isEqualTo(setOf(QueryPlanVersion.V1))
         descriptor.portableOperators.assert().isEqualTo(PortableOperator.entries.toSet())
+        descriptor.portableFeatures.assert().isEqualTo(QueryPortableFeature.entries.toSet())
+        descriptor.stringComparisonModes.assert().isEqualTo(StringComparisonMode.entries.toSet())
         descriptor.capabilities.assert().isEmpty()
         backend.readinessSubscriptions.get().assert().isOne()
     }
@@ -264,6 +274,62 @@ class DefaultQueryPlannerTest {
     }
 
     @Test
+    fun `rejects unsupported structural features and default or explicit string comparison modes before execution`() {
+        val elementMatch = ElementMatchExpression(LINES, predicate(LogicalField("sku"), "sku-1"))
+        val nestedSchema = QuerySchema(
+            TARGET,
+            QuerySystemFields.fields(QueryDocumentKind.SNAPSHOT) +
+                QueryFieldSchema.string(STATUS, nullable = false).copy(sortable = true) +
+                QueryFieldSchema(
+                    path = LINES,
+                    valueKind = QueryFieldValueKind.OBJECT,
+                    nullable = false,
+                    collectionKind = QueryCollectionKind.OBJECT,
+                    elementMatchEnabled = true
+                ) +
+                QueryFieldSchema.string(LINE_SKU, nullable = false)
+        )
+        val caseInsensitive = PredicateExpression(
+            STATUS,
+            PortableOperator.CONTAINS,
+            listOf(QueryValue.StringValue("open")),
+            StringComparisonMode.CASE_INSENSITIVE
+        )
+        val cases = listOf(
+            Triple(
+                invocation(expression = elementMatch, schema = nestedSchema),
+                descriptor(portableFeatures = emptySet()),
+                policyResult(
+                    securedExpression = elementMatch,
+                    fieldAccess = QueryFieldAccess.Restricted(nestedSchema.fields.keys)
+                )
+            ),
+            Triple(
+                invocation(),
+                descriptor(stringComparisonModes = emptySet()),
+                policyResult()
+            ),
+            Triple(
+                invocation(expression = caseInsensitive),
+                descriptor(stringComparisonModes = setOf(StringComparisonMode.DEFAULT)),
+                policyResult(securedExpression = caseInsensitive)
+            )
+        )
+
+        cases.forEach { (invocation, backendDescriptor, result) ->
+            val backend = RecordingQueryBackend(backendDescriptor)
+            val resolved = ResolvedQueryBackend.resolve(backend, ROUTE).block()!!
+
+            assertQueryError(
+                planner().plan(invocation, result, resolved),
+                QueryErrorCode.UNSUPPORTED_CAPABILITY,
+                QueryErrorReason.CAPABILITY_DENIED
+            )
+            backend.listSubscriptions.get().assert().isZero()
+        }
+    }
+
+    @Test
     fun `rejects duplicate sort field conflicts unauthorized projection and insufficient result budget`() {
         val duplicateSort = invocation(
             sort = listOf(
@@ -307,6 +373,34 @@ class DefaultQueryPlannerTest {
     }
 
     @Test
+    fun `rejects excluded fields that are unknown or not authorized`() {
+        val projectionSchema = QuerySchema(
+            TARGET,
+            QuerySystemFields.fields(QueryDocumentKind.SNAPSHOT) +
+                QueryFieldSchema.string(STATUS, nullable = false).copy(sortable = true) +
+                QueryFieldSchema.string(SECRET, nullable = false)
+        )
+        val resolved = ResolvedQueryBackend.resolve(RecordingQueryBackend(descriptor()), ROUTE).block()!!
+        val authorized = setOf(STATUS, AGGREGATE_ID)
+
+        listOf(SECRET, LogicalField("state.unknown")).forEach { excluded ->
+            val invocation = invocation(
+                projection = QueryProjection.Exclude(setOf(excluded)),
+                schema = projectionSchema
+            )
+            assertQueryError(
+                planner().plan(
+                    invocation,
+                    policyResult(fieldAccess = QueryFieldAccess.Restricted(authorized)),
+                    resolved
+                ),
+                QueryErrorCode.POLICY_DENIED,
+                QueryErrorReason.FIELD_ACCESS_DENIED
+            )
+        }
+    }
+
+    @Test
     fun `uses the invocation monotonic deadline guard for a tighter backend deadline`() {
         val scheduler = VirtualTimeScheduler.create()
         val invocation = invocation(scheduler = scheduler)
@@ -324,17 +418,23 @@ class DefaultQueryPlannerTest {
     }
 
     @Test
-    fun `rejects a resolver snapshot whose descriptor differs from the backend descriptor`() {
-        val backend = RecordingQueryBackend(descriptor())
+    fun `captures backend descriptor exactly once before readiness resolution`() {
+        val expected = descriptor()
+        val changed = descriptor(maxBudget = QueryBudgetLimit(maxCost = 1))
+        var descriptorReads = 0
+        val backend = RecordingQueryBackend(
+            initialDescriptor = expected,
+            descriptorProvider = {
+                descriptorReads++
+                if (descriptorReads == 1) expected else changed
+            }
+        )
 
-        assertThrows<IllegalArgumentException> {
-            ResolvedQueryBackend(
-                backend = backend,
-                descriptor = descriptor(maxBudget = QueryBudgetLimit(maxCost = 1)),
-                routeIdentity = ROUTE,
-                readinessSnapshot = QueryBackendReadiness.Ready
-            )
-        }
+        val resolved = ResolvedQueryBackend.resolve(backend, ROUTE).block()!!
+
+        resolved.descriptor.assert().isSameAs(expected)
+        descriptorReads.assert().isOne()
+        backend.readinessSubscriptions.get().assert().isOne()
     }
 
     private fun assertQueryError(
@@ -352,20 +452,21 @@ class DefaultQueryPlannerTest {
     }
 
     private fun planner(enabledCapabilities: Set<QueryCapabilityId> = emptySet()): DefaultQueryPlanner =
-        DefaultQueryPlanner(enabledCapabilities, QueryPlanValidator())
+        DefaultQueryPlanner.create(enabledCapabilities, QueryPlanValidator())
 
     private fun invocation(
         scheduler: VirtualTimeScheduler = VirtualTimeScheduler.create(),
         expression: QueryExpression = predicate(STATUS, "OPEN"),
         sort: List<QuerySort> = listOf(QuerySort(STATUS, QuerySortDirection.ASC)),
-        schema: QuerySchema = schema(expression is FullTextExpression)
+        schema: QuerySchema = schema(expression is FullTextExpression),
+        projection: QueryProjection = QueryProjection.Include(setOf(STATUS))
     ): QueryInvocation {
         val request = ListQueryRequest(
             target = TARGET,
             expression = expression,
             resultShape = QueryResultShape.Typed(
                 String::class.java,
-                QueryProjection.Include(setOf(STATUS))
+                projection
             ),
             requestedScope = RequestedQueryScope(),
             budget = QueryBudgetHint(Duration.ofSeconds(20), 80, 90),
@@ -415,6 +516,8 @@ class DefaultQueryPlannerTest {
         documentKinds: Set<QueryDocumentKind> = setOf(QueryDocumentKind.SNAPSHOT),
         planVersions: Set<QueryPlanVersion> = setOf(QueryPlanVersion.V1),
         portableOperators: Set<PortableOperator> = PortableOperator.entries.toSet(),
+        portableFeatures: Set<QueryPortableFeature> = QueryPortableFeature.entries.toSet(),
+        stringComparisonModes: Set<StringComparisonMode> = StringComparisonMode.entries.toSet(),
         capabilities: Set<QueryCapabilityId> = emptySet(),
         maxBudget: QueryBudgetLimit = QueryBudgetLimit.UNBOUNDED
     ): QueryBackendDescriptor = QueryBackendDescriptor(
@@ -422,6 +525,8 @@ class DefaultQueryPlannerTest {
         documentKinds = documentKinds,
         planVersions = planVersions,
         portableOperators = portableOperators,
+        portableFeatures = portableFeatures,
+        stringComparisonModes = stringComparisonModes,
         capabilities = capabilities,
         maxBudget = maxBudget
     )
@@ -443,6 +548,7 @@ class DefaultQueryPlannerTest {
         private val STATUS = LogicalField("state.status")
         private val LINES = LogicalField("state.lines")
         private val LINE_SKU = LogicalField("state.lines.sku")
+        private val SECRET = LogicalField("state.secret")
         private val AGGREGATE_ID = LogicalField("aggregateId")
         private val FULL_TEXT = QueryCapabilityId("full-text")
         private const val BACKEND_ID = "recording"

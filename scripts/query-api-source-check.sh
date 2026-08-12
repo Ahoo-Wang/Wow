@@ -107,7 +107,12 @@ package external.fixture;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import me.ahoo.wow.api.query.expression.PortableOperator;
+import me.ahoo.wow.api.query.expression.QueryCapabilityId;
 import me.ahoo.wow.api.query.expression.QueryExpression;
+import me.ahoo.wow.api.query.expression.StringComparisonMode;
+import me.ahoo.wow.api.query.gateway.QueryDocumentKind;
 import me.ahoo.wow.api.query.gateway.QueryPage;
 import me.ahoo.wow.api.query.gateway.QuerySort;
 import me.ahoo.wow.api.query.gateway.QueryTarget;
@@ -117,6 +122,8 @@ import me.ahoo.wow.query.backend.QueryBackendReadiness;
 import me.ahoo.wow.query.backend.QueryBackendResolver;
 import me.ahoo.wow.query.backend.QueryBackendRouteIdentity;
 import me.ahoo.wow.query.backend.QueryPlanVersion;
+import me.ahoo.wow.query.backend.QueryPortableFeature;
+import me.ahoo.wow.query.backend.ResolvedQueryBackend;
 import me.ahoo.wow.query.invocation.QueryProvenance;
 import me.ahoo.wow.query.plan.CountQueryPlanV1;
 import me.ahoo.wow.query.plan.ListQueryPlanV1;
@@ -165,8 +172,21 @@ public final class StableBackendSpi implements QueryBackend {
         return Mono.just(QueryBackendReadiness.Ready.INSTANCE);
     }
 
-    public static QueryBackendResolver resolver() {
-        return target -> Mono.empty();
+    public static QueryBackendDescriptor descriptor() {
+        return new QueryBackendDescriptor(
+            "fixture",
+            Set.of(QueryDocumentKind.SNAPSHOT),
+            Set.of(QueryPlanVersion.V1),
+            Set.of(PortableOperator.EQ),
+            Set.of(QueryPortableFeature.ELEMENT_MATCH),
+            Set.of(StringComparisonMode.DEFAULT),
+            Set.<QueryCapabilityId>of(),
+            QueryBudgetLimit.UNBOUNDED
+        );
+    }
+
+    public static QueryBackendResolver resolver(QueryBackend backend, QueryBackendRouteIdentity route) {
+        return target -> ResolvedQueryBackend.resolve(backend, route);
     }
 
     public static String backendId(QueryBackendDescriptor descriptor) {
@@ -265,6 +285,8 @@ import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendDescriptor
 import me.ahoo.wow.query.backend.QueryBackendReadiness
 import me.ahoo.wow.query.backend.QueryBackendResolver
+import me.ahoo.wow.query.backend.QueryBackendRouteIdentity
+import me.ahoo.wow.query.backend.ResolvedQueryBackend
 import me.ahoo.wow.query.plan.CountQueryPlanV1
 import me.ahoo.wow.query.plan.ListQueryPlanV1
 import me.ahoo.wow.query.plan.PageQueryPlanV1
@@ -281,7 +303,8 @@ class StableBackendSpi(override val descriptor: QueryBackendDescriptor) : QueryB
     override fun readiness(): Mono<QueryBackendReadiness> = Mono.just(QueryBackendReadiness.Ready)
 }
 
-val stableResolver = QueryBackendResolver { Mono.empty() }
+fun stableResolver(backend: QueryBackend, route: QueryBackendRouteIdentity) =
+    QueryBackendResolver { ResolvedQueryBackend.resolve(backend, route) }
 
 fun consumePlan(plan: QueryPlanV1): List<Any?> = listOf(
     plan.version,
@@ -367,6 +390,165 @@ grep -F "internal" "$TEMP_DIR/kotlin-negative.out" >/dev/null || {
     fail "Kotlin negative fixture did not enforce internal visibility"
 }
 echo "PASS: Kotlin external internal admission implementation boundary"
+
+cat >"$TEMP_DIR/java/ExternalPlannerConstruction.java" <<'EOF'
+package external.fixture;
+
+import java.util.Set;
+import me.ahoo.wow.query.plan.DefaultQueryPlanner;
+import me.ahoo.wow.query.plan.QueryPlanValidator;
+
+public final class ExternalPlannerConstruction {
+    public static DefaultQueryPlanner construct() {
+        return new DefaultQueryPlanner(Set.of(), new QueryPlanValidator());
+    }
+}
+EOF
+
+if javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/java-planner-construction-negative" \
+    "$TEMP_DIR/java/ExternalPlannerConstruction.java" \
+    >"$TEMP_DIR/java-planner-construction-negative.out" 2>&1; then
+    fail "Java external source unexpectedly constructed the internal query planner"
+fi
+grep -F 'DefaultQueryPlanner' "$TEMP_DIR/java-planner-construction-negative.out" >/dev/null || {
+    cat "$TEMP_DIR/java-planner-construction-negative.out" >&2
+    fail "Java planner construction fixture did not diagnose DefaultQueryPlanner"
+}
+echo "PASS: Java external query planner construction boundary"
+
+cat >"$TEMP_DIR/java/ExternalPlannerFactory.java" <<'EOF'
+package external.fixture;
+
+import java.util.Set;
+import me.ahoo.wow.query.plan.DefaultQueryPlanner;
+import me.ahoo.wow.query.plan.QueryPlanValidator;
+
+public final class ExternalPlannerFactory {
+    public static DefaultQueryPlanner construct() {
+        return DefaultQueryPlanner.Companion.create$me_ahoo_wow_wow_query(
+            Set.of(),
+            new QueryPlanValidator()
+        );
+    }
+}
+EOF
+
+if javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/java-planner-factory-negative" \
+    "$TEMP_DIR/java/ExternalPlannerFactory.java" \
+    >"$TEMP_DIR/java-planner-factory-negative.out" 2>&1; then
+    fail "Java external source unexpectedly invoked the internal query planner factory"
+fi
+grep -F 'create$me_ahoo_wow_wow_query' "$TEMP_DIR/java-planner-factory-negative.out" >/dev/null || {
+    cat "$TEMP_DIR/java-planner-factory-negative.out" >&2
+    fail "Java planner factory fixture did not diagnose the synthetic factory"
+}
+echo "PASS: Java external query planner factory boundary"
+
+cat >"$TEMP_DIR/java/ExternalPlannerInvocation.java" <<'EOF'
+package external.fixture;
+
+import me.ahoo.wow.query.plan.DefaultQueryPlanner;
+
+public final class ExternalPlannerInvocation {
+    public static Object invoke(DefaultQueryPlanner planner) {
+        return planner.plan(null, null, null);
+    }
+}
+EOF
+
+if javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/java-planner-invocation-negative" \
+    "$TEMP_DIR/java/ExternalPlannerInvocation.java" \
+    >"$TEMP_DIR/java-planner-invocation-negative.out" 2>&1; then
+    fail "Java external source unexpectedly invoked the internal query planner"
+fi
+grep -F 'plan' "$TEMP_DIR/java-planner-invocation-negative.out" >/dev/null || {
+    cat "$TEMP_DIR/java-planner-invocation-negative.out" >&2
+    fail "Java planner invocation fixture did not diagnose plan"
+}
+echo "PASS: Java external query planner invocation boundary"
+
+javap -classpath "$FIXTURE_CLASSPATH" -p -v \
+    me.ahoo.wow.query.plan.DefaultQueryPlanner >"$TEMP_DIR/planner-javap.out"
+awk '
+    /private me\.ahoo\.wow\.query\.plan\.DefaultQueryPlanner\(/ { constructor = 1; next }
+    constructor && /flags:/ { if ($0 ~ /ACC_PRIVATE/) private_constructor = 1; constructor = 0 }
+    /public final reactor\.core\.publisher\.Mono plan[$]/ {
+        plan = 1
+        next
+    }
+    plan && /flags:/ { if ($0 ~ /ACC_SYNTHETIC/) synthetic_plan = 1; plan = 0 }
+    END { exit !(private_constructor && synthetic_plan) }
+' "$TEMP_DIR/planner-javap.out" || {
+    grep -E -A2 'DefaultQueryPlanner\(| plan[$]' "$TEMP_DIR/planner-javap.out" >&2 || true
+    fail "Query planner constructor or invocation method is Java-visible"
+}
+echo "PASS: JVM query planner construction and invocation boundary"
+
+javap -classpath "$FIXTURE_CLASSPATH" -p -v \
+    'me.ahoo.wow.query.plan.DefaultQueryPlanner$Companion' >"$TEMP_DIR/planner-companion-javap.out"
+awk '
+    /public final me\.ahoo\.wow\.query\.plan\.DefaultQueryPlanner create[$]/ { factory = 1; next }
+    factory && /flags:/ { if ($0 ~ /ACC_SYNTHETIC/) synthetic_factory = 1; factory = 0 }
+    END { exit !synthetic_factory }
+' "$TEMP_DIR/planner-companion-javap.out" || {
+    grep -E -A2 ' create[$]' "$TEMP_DIR/planner-companion-javap.out" >&2 || true
+    fail "Query planner factory is Java-visible"
+}
+echo "PASS: JVM query planner factory boundary"
+
+cat >"$TEMP_DIR/java/ExternalResolvedBackendForgery.java" <<'EOF'
+package external.fixture;
+
+import me.ahoo.wow.query.backend.QueryBackend;
+import me.ahoo.wow.query.backend.QueryBackendReadiness;
+import me.ahoo.wow.query.backend.QueryBackendRouteIdentity;
+import me.ahoo.wow.query.backend.ResolvedQueryBackend;
+
+public final class ExternalResolvedBackendForgery {
+    public static ResolvedQueryBackend forge(QueryBackend backend, QueryBackendRouteIdentity route) {
+        return new ResolvedQueryBackend(
+            backend,
+            backend.getDescriptor(),
+            route,
+            QueryBackendReadiness.Ready.INSTANCE
+        );
+    }
+}
+EOF
+
+if javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/java-resolved-forgery-negative" \
+    "$TEMP_DIR/java/ExternalResolvedBackendForgery.java" \
+    >"$TEMP_DIR/java-resolved-forgery-negative.out" 2>&1; then
+    fail "Java external source unexpectedly forged a resolved backend readiness snapshot"
+fi
+echo "PASS: Java external resolved backend snapshot boundary"
+
+cat >"$TEMP_DIR/kotlin/ExternalResolvedBackendForgery.kt" <<'EOF'
+package external.fixture
+
+import me.ahoo.wow.query.backend.QueryBackend
+import me.ahoo.wow.query.backend.QueryBackendReadiness
+import me.ahoo.wow.query.backend.QueryBackendRouteIdentity
+import me.ahoo.wow.query.backend.ResolvedQueryBackend
+
+fun forge(backend: QueryBackend, route: QueryBackendRouteIdentity): ResolvedQueryBackend =
+    ResolvedQueryBackend(backend, backend.descriptor, route, QueryBackendReadiness.Ready)
+EOF
+
+if java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+    -module-name query-resolved-backend-external-negative-fixture \
+    -no-stdlib -no-reflect \
+    -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/kotlin-resolved-forgery-negative" \
+    "$TEMP_DIR/kotlin/ExternalResolvedBackendForgery.kt" \
+    >"$TEMP_DIR/kotlin-resolved-forgery-negative.out" 2>&1; then
+    fail "Kotlin external source unexpectedly forged a resolved backend readiness snapshot"
+fi
+echo "PASS: Kotlin external resolved backend snapshot boundary"
 
 cat >"$TEMP_DIR/java/ExternalPlanImplementation.java" <<'EOF'
 package external.fixture;

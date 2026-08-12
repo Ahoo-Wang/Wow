@@ -26,9 +26,12 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
 internal class RecordingQueryBackend(
-    override val descriptor: QueryBackendDescriptor,
-    private var readinessPublisher: Mono<QueryBackendReadiness> = Mono.just(QueryBackendReadiness.Ready)
+    private val initialDescriptor: QueryBackendDescriptor,
+    private var readinessPublisher: Mono<QueryBackendReadiness> = Mono.just(QueryBackendReadiness.Ready),
+    private val descriptorProvider: (() -> QueryBackendDescriptor)? = null
 ) : QueryBackend {
+    override val descriptor: QueryBackendDescriptor
+        get() = descriptorProvider?.invoke() ?: initialDescriptor
     val readinessSubscriptions: AtomicInteger = AtomicInteger()
     val singleSubscriptions: AtomicInteger = AtomicInteger()
     val listSubscriptions: AtomicInteger = AtomicInteger()

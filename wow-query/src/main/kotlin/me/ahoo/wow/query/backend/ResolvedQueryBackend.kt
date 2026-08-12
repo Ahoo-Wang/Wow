@@ -19,18 +19,12 @@ import me.ahoo.wow.api.query.error.QueryException
 import me.ahoo.wow.api.query.error.QueryStage
 import reactor.core.publisher.Mono
 
-class ResolvedQueryBackend(
+class ResolvedQueryBackend private constructor(
     val backend: QueryBackend,
     val descriptor: QueryBackendDescriptor,
     val routeIdentity: QueryBackendRouteIdentity,
     val readinessSnapshot: QueryBackendReadiness
 ) {
-    init {
-        require(backend.descriptor == descriptor) {
-            "Resolved backend descriptor must equal the backend descriptor."
-        }
-    }
-
     override fun toString(): String =
         "ResolvedQueryBackend(backendId=${descriptor.backendId}, routeIdentity=<redacted>, " +
             "readiness=${readinessSnapshot.safeKind()})"
@@ -45,17 +39,20 @@ class ResolvedQueryBackend(
         fun resolve(
             backend: QueryBackend,
             routeIdentity: QueryBackendRouteIdentity
-        ): Mono<ResolvedQueryBackend> = Mono.defer { backend.readiness() }
-            .switchIfEmpty(Mono.error(backendUnavailable()))
+        ): Mono<ResolvedQueryBackend> = Mono.defer {
+            val descriptorSnapshot = backend.descriptor
+            backend.readiness()
+                .switchIfEmpty(Mono.error(backendUnavailable()))
+                .map { readiness ->
+                    ResolvedQueryBackend(
+                        backend = backend,
+                        descriptor = descriptorSnapshot,
+                        routeIdentity = routeIdentity,
+                        readinessSnapshot = readiness
+                    )
+                }
+        }
             .onErrorMap { backendUnavailable() }
-            .map { readiness ->
-                ResolvedQueryBackend(
-                    backend = backend,
-                    descriptor = backend.descriptor,
-                    routeIdentity = routeIdentity,
-                    readinessSnapshot = readiness
-                )
-            }
 
         private fun backendUnavailable(): QueryException = QueryException(
             QueryErrorCode.BACKEND_NOT_READY,
