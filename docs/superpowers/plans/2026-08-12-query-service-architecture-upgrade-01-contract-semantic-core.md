@@ -404,7 +404,7 @@ Expected: compile failure，因为 lowerer 尚不存在。
 
 - [ ] **Step 2: 实现无 `else` 的穷尽 lowerer**
 
-`LegacyConditionLowerer.lower(condition, target, frozenInstant, zoneId)` 中使用 `when (condition.operator)` 明确列出全部 43 个枚举。system operator 映射到固定 `QuerySystemFields`，并按 `QueryDocumentKind` 保留 Snapshot/EventStream 的 ID 差异：Snapshot 的 `ID/IDS` 与 `AGGREGATE_ID/AGGREGATE_IDS` 指向同一聚合身份字段，EventStream 的 record `id` 与 `aggregateId` 分离。普通 operator 映射到 `PredicateExpression`；`CONTAINS`/`STARTS_WITH`/`ENDS_WITH` 将 legacy `ignoreCase` 精确降低为 `StringComparisonMode` 三态。时间 operator 委托 `RelativeTimeNormalizer`；`MATCH` 生成 `FullTextExpression`。`RAW` 只接受 `condition.value is NativeExpression` 并返回该不可变 descriptor；其它 legacy payload 抛出 `QueryException(INVALID_QUERY, NORMALIZE, INVALID_REQUEST)`，不新增 resolver/registry hook，也不把驱动对象交给 `QueryValueNormalizer`。
+`LegacyConditionLowerer.lower(condition, target, frozenInstant, zoneId)` 中使用 `when (condition.operator)` 明确列出全部 43 个枚举。system operator 映射到固定 `QuerySystemFields`，并按 `QueryDocumentKind` 保留 Snapshot/EventStream 的 ID 差异：Snapshot 的 `ID/IDS` 与 `AGGREGATE_ID/AGGREGATE_IDS` 都指向 logical `aggregateId`，EventStream 的 record `id` 与 `aggregateId` 分离。MongoDB `_id` 或 Elasticsearch document id 等物理身份由后端 binding/compiler 解析，lowering 不固化它们。普通 operator 映射到 `PredicateExpression`；`CONTAINS`/`STARTS_WITH`/`ENDS_WITH` 将 legacy `ignoreCase` 精确降低为 `StringComparisonMode` 三态。时间 operator 委托 `RelativeTimeNormalizer`；`MATCH` 生成 `FullTextExpression`。`RAW` 只接受 `condition.value is NativeExpression` 并返回该不可变 descriptor；其它 legacy payload 抛出 `QueryException(INVALID_QUERY, NORMALIZE, INVALID_REQUEST)`，不新增 resolver/registry hook，也不把驱动对象交给 `QueryValueNormalizer`。
 
 - [ ] **Step 3: 实现一次 materialize 和 canonical simplification**
 

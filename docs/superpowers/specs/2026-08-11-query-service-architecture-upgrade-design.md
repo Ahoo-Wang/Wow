@@ -161,7 +161,7 @@ interface QueryGateway {
 | 当前操作符 | lowering 与约束 |
 | --- | --- |
 | `AND`、`OR`、`NOR` | 降低为同名 portable 逻辑节点。否定组合是 `NOR`，第一阶段不新增语义不同的通用 `NOT`。空子句和单子句规则由标准化器统一并写入 TCK。 |
-| `ID`、`IDS`、`AGGREGATE_ID`、`AGGREGATE_IDS`、`TENANT_ID`、`OWNER_ID`、`SPACE_ID` | 降低为框架固定 system logical field 上的 equality/membership。所有 system field 引用仍须经过 Policy；tenant/owner/space 不能仅凭调用方条件获得授权。 |
+| `ID`、`IDS`、`AGGREGATE_ID`、`AGGREGATE_IDS`、`TENANT_ID`、`OWNER_ID`、`SPACE_ID` | 降低为框架固定 system logical field 上的 equality/membership。Snapshot 文档中 `ID(S)` 与 `AGGREGATE_ID(S)` 都表示聚合身份，统一为 logical `aggregateId`；EventStream 保留 stream record `id` 与 `aggregateId` 的区分。所有 system field 引用仍须经过 Policy；tenant/owner/space 不能仅凭调用方条件获得授权。 |
 | `DELETED` | 降低为 Snapshot 固定 deletion scope/predicate。新 API 的 Snapshot 默认 `ACTIVE`；兼容门面精确复现现有 `DeleteConditionGuard` 的默认 active 与显式 deletion 规则。EventStream 不套用 Snapshot deletion guard。 |
 | `ALL` | 降低为 `MatchAll`。Snapshot 的默认 `ACTIVE` mandatory policy 仍然生效，除非请求以受允许的显式 deletion scope 改变它。 |
 | `EQ`、`NE`、`GT`、`LT`、`GTE`、`LTE`、`CONTAINS`、`IN`、`NOT_IN`、`BETWEEN`、`ALL_IN`、`STARTS_WITH`、`ENDS_WITH`、`ELEM_MATCH`、`NULL`、`NOT_NULL`、`TRUE`、`FALSE`、`EXISTS` | 降低为 canonical portable predicate；字段类型、arity、null/missing、collection 与 nested 语义由 Schema 校验，并以 MongoDB 现有可观察语义为参考 oracle 写入双后端 TCK。`ELEM_MATCH` 只允许 Schema 显式声明的 object collection。`CONTAINS`、`STARTS_WITH`、`ENDS_WITH` 额外携带显式 `StringComparisonMode`：无 legacy option 为 `DEFAULT`，`ignoreCase=false/true` 分别为 `CASE_SENSITIVE`/`CASE_INSENSITIVE`；Planner/Backend 必须按字段 binding 与 capability 保留该语义或返回 `UNSUPPORTED_CAPABILITY`，不得静默忽略。 |
