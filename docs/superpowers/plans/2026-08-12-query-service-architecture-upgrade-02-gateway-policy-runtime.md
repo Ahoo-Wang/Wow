@@ -195,17 +195,17 @@ data class QueryPolicyConstraints(
 )
 ```
 
-`QueryPolicyContext` 只暴露 target、operation、normalized expression、result shape view、invocation scope、schema view、request budget、frozen instant/zone。公开 sealed `QueryPolicyResultShape` 显式区分 `Typed`、`Dynamic` 与 `Count`，COUNT 不使用 null/伪造类型表达。它不暴露 Spring、HTTP、driver、mutable attributes、Backend 或 replace-query 方法。
+`QueryPolicyContext` 只暴露 target、operation、normalized expression、result shape view、invocation scope、schema view、request budget、frozen instant/zone。进入 context 前必须把任意 resolver 返回的 `QuerySchemaView` 复制并校验成框架拥有的 immutable `QuerySchema`；不能原样保存 custom view 或其 map 引用，所有 Policy 观察同一个稳定快照。公开 sealed `QueryPolicyResultShape` 显式区分 `Typed`、`Dynamic` 与 `Count`，COUNT 不使用 null/伪造类型表达。它不暴露 Spring、HTTP、driver、mutable attributes、Backend 或 replace-query 方法。
 
 - [ ] **Step 3: 实现 deterministic fail-closed 组合器**
 
-`DefaultQueryPolicyChain` 在构造时复制 `[SystemQueryPolicy] + sorted custom policies`；排序只用于稳定评估/日志。使用 `concatMap` 逐个评估，但每个都接收同一个原始 context。对每个结果先验证 mandatory expression 仅为 portable、字段/预算约束有效，再集中合并。
+`DefaultQueryPolicyChain` 在构造时复制 `[SystemQueryPolicy] + sorted custom policies`；排序只用于稳定评估/日志。使用 `concatMap` 逐个评估，但每个都接收同一个原始 context。对每个结果先验证 mandatory expression 仅为 portable、字段/预算约束有效，再集中合并。组合结果必须同时保留独立规范化的 mandatory contribution 与最终 secured expression：`MANDATORY_POLICY -> mandatoryExpression` 不得因 `AND` 与 caller/legacy 表达式发生 `MatchNone`/`MatchAll` 简化而丢失；Planner 将它与 `QueryInvocation.expressionProvenance` 合并后再审计和编译。
 
 错误映射固定为：
 
 - `QueryPolicyDeniedException(reasonCode)` → `POLICY_DENIED`；
 - `Mono.empty()`、unexpected exception、unknown field、illegal result → `POLICY_FAILURE`；
-- deadline 先到 → `DEADLINE_EXCEEDED`，stage=`POLICY`；
+- deadline 先到 → `DEADLINE_EXCEEDED`，stage=`POLICY`；Policy 开始时从注入的共享 `Clock` 读取当前时间并计算 `absoluteDeadline - now`，已经过期立即失败，尚未过期只获得剩余时间；不得重新使用 `absoluteDeadline - frozenInstant` 启动完整 timeout。timeout scheduler 与 Clock 必须由同一装配边界提供并在测试中可控，取消要传播到当前 Policy；
 - 所有错误都不得 `onErrorResume` 为 `MatchAll`。
 
 - [ ] **Step 4: 实现 System policy 不变量**
