@@ -71,7 +71,7 @@ EventStream 同形。facade 只能 import `me.ahoo.wow.query.QueryGateway` 与�
 
 - [ ] **Step 4: 保留 factory/routing API 并消除 NoOp 语义**
 
-现有 factory/routing class、公开构造器、cache 行为和 bean-target type 保留并 deprecate；内部返回 Gateway facade。`NoOpSnapshotQueryService*`/`NoOpEventStreamQueryService*` 符号为 ABI 保留，但每个 operation 改为 `BACKEND_NOT_FOUND`/`BACKEND_NOT_READY` error，不再 empty/0/empty page。
+现有 factory/routing class、公开构造器、cache 行为和 bean-target type 保留并 deprecate；内部返回 Gateway facade。`NoOpSnapshotQueryService*`/`NoOpEventStreamQueryService*` 符号为 ABI 保留，但每个 operation 统一改为 `BACKEND_NOT_READY` error，不再 empty/0/empty page。
 
 - [ ] **Step 5: 添加 facade 架构测试**
 

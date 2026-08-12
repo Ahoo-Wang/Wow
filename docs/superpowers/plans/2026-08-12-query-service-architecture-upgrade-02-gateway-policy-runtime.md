@@ -17,6 +17,41 @@
 - System policy 始终存在且不可替换；不得对所有 capability 预先产生 blanket `DENY`。
 - 本阶段不得修改旧 `QueryService`、WebFlux handler、Mongo/ES converter 或 storage routing；真实后端留给 Plan 03。
 - 所有新增稳定 SPI 进入 ABI gate；实现类、combiner、planner、recording backend 保持 `internal` 或 test source。
+- 唯一准备顺序为 `Admission → Structure Validation → Schema Resolve → Normalize → Schema Validation → Policy → Policy-output Validation → Backend Resolve → Plan → Execute → ResultPolicy`；Schema Resolver 不是 Backend Resolver。
+- 所有 timeout 从 subscription 的同一 frozen instant 追溯：request/system 先形成 admission deadline，policy/backend 后形成 effective deadline；后续阶段不重读 Clock。
+
+---
+
+## Task 0: 收敛预检发现的公开错误契约
+
+**Interfaces consumed:** Plan 01 新增但尚未发布的 `QueryErrorCode`；最终规格错误表。
+
+**Interfaces produced:** 单义的 backend-unavailable 与 incomplete-stream 错误集合。
+
+**Files:**
+
+- Modify: `wow-api/src/main/kotlin/me/ahoo/wow/api/query/error/QueryError.kt`
+- Create: `wow-api/src/test/kotlin/me/ahoo/wow/api/query/error/QueryErrorContractTest.kt`
+- Modify by authoritative dump only: `config/query-api/wow-api-8.x.baseline`
+
+- [ ] **Step 1: 写精确错误码集合失败测试**
+
+断言公开 enum 精确为最终规格的十个 code；`BACKEND_NOT_FOUND` 与 `PARTIAL_RESULT` 不得存在。先在旧实现上得到集合不匹配 RED。
+
+- [ ] **Step 2: 删除未发布的同义 code 并重建 ABI baseline**
+
+未注册/未就绪 backend 统一使用 `BACKEND_NOT_READY`；首项后流失败统一使用 `INCOMPLETE_RESULT`。这是 Plan 01 新增面在首次发布前的契约纠正，不加入 approved-removals。运行权威 `queryApiDump`，审查 baseline 只删除这两个 enum field，并保留所有既有 8.x symbol。
+
+- [ ] **Step 3: 运行验证并提交**
+
+Run: `./gradlew :wow-api:check queryApiDump queryApiCheck`
+
+```bash
+git add wow-api/src/main/kotlin/me/ahoo/wow/api/query/error \
+  wow-api/src/test/kotlin/me/ahoo/wow/api/query/error \
+  config/query-api/wow-api-8.x.baseline
+git commit -m "fix: align query error contract"
+```
 
 ---
 
@@ -35,6 +70,7 @@
 - Create: `wow-query/src/main/kotlin/me/ahoo/wow/query/invocation/QueryInvocation.kt`
 - Create: `wow-query/src/main/kotlin/me/ahoo/wow/query/invocation/QueryInvocationFactory.kt`
 - Create: `wow-query/src/main/kotlin/me/ahoo/wow/query/invocation/QueryAdmission.kt`
+- Create: `wow-query/src/main/kotlin/me/ahoo/wow/query/invocation/QueryAdmissionContext.kt`
 - Create: `wow-query/src/main/kotlin/me/ahoo/wow/query/invocation/QueryAuthorityProvider.kt`
 - Create: `wow-query/src/main/kotlin/me/ahoo/wow/query/invocation/DefaultQueryAdmission.kt`
 - Create: `wow-query/src/test/kotlin/me/ahoo/wow/query/invocation/DefaultQueryAdmissionTest.kt`
@@ -74,7 +110,7 @@ data class QueryInvocationScope(
 )
 ```
 
-集合构造时复制。Admission 产出的 internal `QueryInvocationSeed` 持有 raw immutable request、scope、frozen `Instant`、`ZoneId`、绝对 deadline 和 request budget；后续 Normalize 阶段才创建 `QueryInvocation`，加入 operation、schema、normalized expression、provenance map 和 effective budget。两者都不得提供 mutable map 或替换 request/expression 的 setter。
+集合构造时复制。Admission 产出的 internal `QueryInvocationSeed` 持有 raw immutable request、scope、frozen `Instant`、`ZoneId`、admission deadline 和 request/system admission budget；后续 Schema/Normalize 阶段才创建 `QueryInvocation`，加入 operation、schema、normalized expression 和 provenance map。Policy/backend 产生的 effective budget/deadline 只进入 Planner 创建的 plan。两者都不得提供 mutable map 或替换 request/expression 的 setter。
 
 - [ ] **Step 3: 实现 `QueryAdmission` 与默认实现**
 
@@ -84,11 +120,11 @@ fun interface QueryAdmission {
 }
 ```
 
-`DefaultQueryAdmission` 由服务器装配可信 `QueryAuthorityProvider`，从服务器安全上下文读取 authority；request 只贡献 requested scope。Admission 做 Plan 01 的基础结构 validation，并由 `QueryInvocationFactory` 冻结 clock/zone/deadline 后产生 seed；Schema resolve 与 expression normalize 是 Gateway 随后的独立阶段。Admission port 不读取 Spring/HTTP 类型。
+`QueryAdmissionContext` 固定包含 raw immutable `QueryRequest<*>`、显式 `QueryOperation` 与入口 `QueryProvenance`。`DefaultQueryAdmission` 由服务器装配可信 `QueryAuthorityProvider`，从服务器安全上下文读取 authority；request 只贡献 requested scope。`QueryAdmission` 只解析并校验可信 scope，返回 `QueryInvocationScope`；它不冻结时间，也不创建 seed。Admission port 不读取 Spring/HTTP 类型。
 
 - [ ] **Step 4: 用 `defer` 证明时间与状态不跨订阅复用**
 
-增加 `QueryInvocationFactory.admit(request)` 返回 cold `Mono<QueryInvocationSeed>`，内部所有冻结动作都放在 `Mono.defer`。用可推进 fake clock 断言 subscription 间变化、subscription 内稳定；取消 Admission 时不调用 Schema/Backend resolver。Gateway 的 Normalize stage 用同一 seed 构造完整 `QueryInvocation`，不再次读取 clock。
+增加 `QueryInvocationFactory.admit(request, operation, entryProvenance)` 返回 cold `Mono<QueryInvocationSeed>`；它在 `Mono.defer` 内唯一冻结 Clock、Zone、correlation、request/system `admissionBudget` 与绝对 `admissionDeadline`，再调用 `QueryAdmission` 获得 scope。用可推进 fake clock 断言 subscription 间变化、subscription 内稳定；取消 Admission 时不调用 Schema/Backend resolver。Gateway 后续阶段用同一 seed 构造 `QueryInvocation`，不再次读取 clock。`QueryInvocation` 保存 admission budget/deadline；Policy 与 Backend 限制合并后的 effective budget/deadline 只进入最终 plan，不通过 setter 回写 invocation。
 
 - [ ] **Step 5: 运行测试并提交**
 
@@ -120,6 +156,7 @@ git commit -m "feat: add query admission scope"
 - Create: `wow-query/src/main/kotlin/me/ahoo/wow/query/policy/SystemQueryPolicy.kt`
 - Create: `wow-query/src/main/kotlin/me/ahoo/wow/query/policy/DefaultQueryPolicyChain.kt`
 - Create: `wow-query/src/main/kotlin/me/ahoo/wow/query/policy/QueryPolicyDescriptor.kt`
+- Create: `wow-query/src/main/kotlin/me/ahoo/wow/query/policy/QueryPolicyResultShape.kt`
 - Create: `wow-query/src/test/kotlin/me/ahoo/wow/query/policy/DefaultQueryPolicyChainTest.kt`
 - Create: `wow-query/src/test/kotlin/me/ahoo/wow/query/policy/SystemQueryPolicyTest.kt`
 
@@ -150,7 +187,7 @@ data class QueryPolicyConstraints(
 )
 ```
 
-`QueryPolicyContext` 只暴露 target、operation、normalized expression、result shape view、invocation scope、schema view、request budget、frozen instant/zone。它不暴露 Spring、HTTP、driver、mutable attributes、Backend 或 replace-query 方法。
+`QueryPolicyContext` 只暴露 target、operation、normalized expression、result shape view、invocation scope、schema view、request budget、frozen instant/zone。公开 sealed `QueryPolicyResultShape` 显式区分 `Typed`、`Dynamic` 与 `Count`，COUNT 不使用 null/伪造类型表达。它不暴露 Spring、HTTP、driver、mutable attributes、Backend 或 replace-query 方法。
 
 - [ ] **Step 3: 实现 deterministic fail-closed 组合器**
 
@@ -165,7 +202,7 @@ data class QueryPolicyConstraints(
 
 - [ ] **Step 4: 实现 System policy 不变量**
 
-Snapshot 的 `DEFAULT`/`ACTIVE` deletion scope 注入 active portable predicate；EventStream 不注入。显式请求 `DELETED`/`ALL` 时，System policy 先检查 trusted authority 的稳定删除查询 permission：允许则生成对应 predicate/`MatchAll`，否则 `POLICY_DENIED`，不能把 active 与 deleted 同时 `AND` 成空结果。System policy 同时提供 schema field baseline 和系统预算上限，并让组合器在请求 capability 但无任何 grant 时拒绝；它本身不输出 blanket capability `DENY`。
+Snapshot 的 `DEFAULT`/`ACTIVE` deletion scope 注入 active portable predicate；EventStream 不注入。显式请求 `DELETED`/`ALL` 时，System policy 先检查 trusted authority 的稳定删除查询 permission：允许则生成对应 predicate/`MatchAll`，否则 `POLICY_DENIED`，不能把 active 与 deleted 同时 `AND` 成空结果。Gateway 的 user expression 不得预先包含兼容 `DeleteConditionGuard`；Plan 04 的 legacy mapper 必须先把 deletion intent 提取为 `RequestedQueryScope.deletion`，最终 deletion predicate 只在这里注入。System policy 同时提供 schema field baseline 和系统预算上限，并让组合器在请求 capability 但无任何 grant 时拒绝；它本身不输出 blanket capability `DENY`。
 
 - [ ] **Step 5: 验证 Backend 尚未被调用**
 
@@ -278,11 +315,11 @@ interface QueryBackendResolver {
 }
 ```
 
-`QueryBackendDescriptor` 固定 backend id、document kinds、plan versions、portable operators、capability ids 与 backend budget limit。`ResolvedQueryBackend` 绑定 backend、descriptor、route identity，构造时校验 descriptor 与 backend 一致。
+`QueryBackendDescriptor` 固定 backend id、document kinds、plan versions、portable operators、capability ids 与 backend budget limit。`ResolvedQueryBackend` 绑定 backend、descriptor、route identity 与本次 resolve 唯一取得的 immutable `readinessSnapshot`，构造时校验 descriptor 与 backend 一致。Resolver 每次 invocation 只调用一次 readiness；Planner 与执行器不得重读 backend readiness。
 
 - [ ] **Step 3: 用 sealed consumer interfaces 定义只读计划**
 
-`QueryPlanV1` 与四个 operation-specific plan 是 public sealed consumer interfaces；实际 immutable implementation 全部为 `internal` class，由 Planner 创建。第三方 Backend 只能读取接口，Kotlin/Java source 都不能新增 permitted implementation，也没有 public builder/constructor/copy。共享 target、canonical secured expression、authorized result shape、stable sort、absolute deadline/effective budget、correlation/route identity；各接口只暴露 operation 所需的 limit/page 字段。不得出现 authority、Spring、wire DTO、BSON、ES DSL。
+`QueryPlanV1` 与四个 operation-specific plan 是 public sealed consumer interfaces；实际 immutable implementation 必须是 Planner/private factory 内的 **private nested classes**，不能使用会编译成 JVM-public 的 top-level Kotlin `internal class`。第三方 Backend 只能读取接口，Kotlin/Java source 都不能新增 permitted implementation，也没有 public builder/constructor/copy。用 Kotlin/Java compile-negative fixture 与 `javap`/ABI probe 证明无 public implementation/constructor/copy。共享 target、canonical secured expression、authorized result shape、stable sort、从 frozen instant 追溯形成的 absolute effective deadline/effective budget、correlation/route identity；各接口只暴露 operation 所需的 limit/page 字段。不得出现 authority、Spring、wire DTO、BSON、ES DSL。
 
 - [ ] **Step 4: 实现 Planner 能力与预算协商**
 
@@ -333,11 +370,11 @@ interface QueryGateway {
 }
 ```
 
-记录 stage events，断言 Admission → Normalize → Policy → Resolve → Plan → Execute → ResultPolicy；四方法都走同一私有 orchestration，不复制安全逻辑。重复订阅执行两套 invocation；未订阅不执行任何阶段。
+记录 stage events，断言 Admission → Structure Validation → Schema Resolve → Normalize → Schema Validation → Policy → Policy-output Validation → Backend Resolve → Plan → Execute → ResultPolicy；Schema resolver 与 Backend resolver 使用不同事件/计数，Policy 错误时 Backend resolver 为 0。四方法都走同一私有 orchestration，不复制安全逻辑。重复订阅执行两套 invocation；未订阅不执行任何阶段。
 
 - [ ] **Step 2: 写原子/流式与错误语义失败测试**
 
-`single/page/count` 只有 backend 完成且 result validation/ResultPolicy 全部成功才发射；`list` 逐项背压发射。首项前失败保留具体错误；首项后 decode/policy/backend 失败映射 `PARTIAL_RESULT` 并取消上游。deadline/cancel 传播到 backend，terminal signal 只记录一次。
+`single/page/count` 只有 backend 完成且 result validation/ResultPolicy 全部成功才发射；`list` 逐项背压发射。首项前失败保留具体错误；首项后 decode/policy/backend 失败映射 `INCOMPLETE_RESULT`、保留安全 cause code 并取消上游。deadline/cancel 传播到 backend，terminal signal 只记录一次。
 
 - [ ] **Step 3: 实现 `DefaultQueryGateway`**
 
@@ -353,7 +390,7 @@ ResultPolicy 接收只读 context 与单个 decoded value，支持脱敏/审计/
 
 - [ ] **Step 6: 实现 non-Spring factory**
 
-`QueryGatewayFactory.create(configuration: QueryGatewayConfiguration)` 的 configuration 显式持有 immutable custom policy/result policy list、admission、schema resolver、backend resolver、clock、zone 和 budget/capability config；框架始终加入 System policy。传入 list 后外部修改不得影响已创建 Gateway。
+`QueryGatewayFactory.create(configuration: QueryGatewayConfiguration)` 的 configuration 显式持有 immutable custom policy/result policy list、admission、schema resolver、backend resolver、clock、zone、无默认值的 structure limits、显式 system budget limit 和 capability config；框架始终加入 System policy。传入 list 后外部修改不得影响已创建 Gateway。request/system 形成 admission deadline；Policy/Backend 后按 frozen instant 追溯形成 effective deadline，形成时已过期立即失败。
 
 - [ ] **Step 7: 运行测试并提交**
 
@@ -382,15 +419,17 @@ git commit -m "feat: add planned query gateway"
 
 - [ ] **Step 1: 写 Spring context 失败测试**
 
-覆盖：无 custom policy 仍有 System policy；多个 `@Order` policy 被固定成快照；用户不能以自定义 bean 替换 System policy；自定义 `QueryGateway` 时 auto-config back off；尚无 backend 时调用返回 `BACKEND_NOT_FOUND` 而不是空结果；旧 QueryService/Filter beans 本阶段原样存在。
+覆盖：无 custom policy 仍有 System policy；多个 `@Order` policy 被固定成快照；用户不能以自定义 bean 替换 System policy；自定义 `QueryGateway` 时 auto-config back off；尚无 backend 时调用返回 `BACKEND_NOT_READY` 而不是空结果；旧 QueryService/Filter beans 本阶段原样存在。
 
 - [ ] **Step 2: 实现独立 auto-configuration**
 
-不要在现有 `QueryAutoConfiguration` 中立刻删除 filter wiring。新配置通过 `@ConditionalOnMissingBean(QueryGateway::class)` 创建 Gateway；注入 `List<QueryPolicy>` 和 `List<ResultPolicy>` 后按 `AnnotationAwareOrderComparator` 排序并复制。注册层生成低基数 `QueryPolicyDescriptor`，不修改 SPI。
+不要在现有 `QueryAutoConfiguration` 中立刻删除 filter wiring。新配置通过 `@ConditionalOnMissingBean(QueryGateway::class)` 创建 Gateway；注入 `List<QueryPolicy>` 和 `List<ResultPolicy>` 后按 `AnnotationAwareOrderComparator` 排序并复制。注册层生成低基数 `QueryPolicyDescriptor`，不修改 SPI。Task 6 必须明确装配 schema resolver、authority provider（无安全扩展时为显式 anonymous authority）、clock/zone、structure limits、system budget/capability config 与 metrics。System policy 只由 factory 内部追加一次，不注册为会再次进入 custom `List<QueryPolicy>` 的普通 bean。
+
+Spring 默认配置为显式、可覆盖的生产值：`maxDepth=64`、`maxNodes=10000`、`maxMembershipItems=10000`、`maxNativeParameterBytes=1048576`；system timeout/results/cost 默认 `UNBOUNDED`，保持 legacy 无隐式结果量/deadline 上限；capability 默认禁用，必须配置启用并由 Policy grant。properties 绑定与构造测试锁定这些值，配置的 0/负结构上限启动失败。
 
 - [ ] **Step 3: 实现明确 unavailable resolver**
 
-当 Plan 03 尚未注册 `QueryBackendResolver` 时使用只返回 `QueryException(BACKEND_NOT_FOUND, RESOLVE)` 的 resolver；禁止 NoOp/empty fallback。该 bean 在真实 resolver 出现时 back off。
+当 Plan 03 尚未注册 `QueryBackendResolver` 时使用只返回 `QueryException(BACKEND_NOT_READY, BACKEND_RESOLUTION, BACKEND_UNAVAILABLE)` 的 resolver；禁止 NoOp/empty fallback。优先把它作为 Gateway 构造时的 missing-bean fallback，避免与 Plan 03 的真实 resolver 形成多 bean；若注册 fallback bean，必须以明确 ordering/conditional 在真实 resolver 出现时 back off。
 
 - [ ] **Step 4: 运行阶段验收并提交**
 

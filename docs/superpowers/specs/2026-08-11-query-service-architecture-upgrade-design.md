@@ -289,6 +289,10 @@ Admission 在每次 subscription 中重新构造不可变 `QueryInvocationScope`
 
 Policy 读取的是每次订阅固化的 authority，不依赖共享可变 `QueryContext.attributes`。Native、FullText 和 `LegacyBackendField` 默认拒绝，只有后端支持、配置启用且 Policy 明确授权时才可执行。
 
+每次订阅的准备阶段固定为：`Admission → Structure Validation → Schema Resolve → Normalize → Schema Validation → Policy → Policy-output Validation → Backend Resolve → Plan → Execute → ResultPolicy`。`QuerySchemaResolver` 是后端无关的逻辑 Schema 端口，不是 `QueryBackendResolver`；Policy 读取 Schema，但 Policy 拒绝、失败或超时时 `QueryBackendResolver` 与 Backend 调用计数仍必须为 0。
+
+兼容门面不得把 `DeleteConditionGuard` 已注入的条件和默认 deletion scope 同时交给 Gateway。兼容映射必须先提取 deletion intent，产出“不含 deletion guard 的用户 expression + RequestedQueryScope.deletion + provenance”；最终 active/deleted/all mandatory predicate 只由 `SystemQueryPolicy` 根据可信 authority 注入。
+
 ### 7.4 单一 QueryPolicy 扩展 SPI
 
 框架不再提供 `QueryConditionContributor` 或新的通用 query hook。所有框架级条件注入本质上都是调用方不能移除的服务端约束，因此统一由一个最小函数式接口承载：
@@ -400,6 +404,8 @@ Planner 输出给后端的计划必须已经满足：
 - 达到 deadline 或预算时以终止错误结束，绝不返回看似成功的截断结果。
 
 为避免 8.x 升级静默改变旧查询，legacy facade 在没有显式运维配置时不得暗加有限 result-count 上限或 deadline；默认是 result-count unbounded、deadline disabled。新旧 API 都服从同一管理员上限；受信内部调用的预算提示只能收紧或在策略允许范围内调整，不能超过 policy maximum。配置上限触发时返回终止错误，绝不成功截断。
+
+所有 timeout 都从本次 subscription 唯一的 `frozenInstant` 追溯计算，后续阶段不得重读 Clock 或以“发现限制的时间”重新起算。Admission 先用 request 与 system timeout 的最小有限值形成 `admissionDeadline`，约束 Normalize、Schema 与 Policy；Policy/Backend 限制确定后，再用 request/system/policy/backend 的最小有限值形成 `effectiveDeadline`，约束 Plan、Execute 与 ResultPolicy。后发现的更严 deadline 若在形成时已经到期，立即返回 `DEADLINE_EXCEEDED`。显式有限 `timeout=0` 表示从 `frozenInstant` 起立即到期；`UNBOUNDED`/disabled 不伪造最大时间值。
 
 bounded list 自动加入稳定 identity tie-breaker。超过后端深分页能力或可预检预算的请求在执行前拒绝；只能在执行时确定的流量/deadline 超限按终止错误处理。
 

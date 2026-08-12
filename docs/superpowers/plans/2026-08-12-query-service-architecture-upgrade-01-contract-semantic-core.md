@@ -227,7 +227,7 @@ data class RequestedQueryScope(
 )
 ```
 
-`QueryErrorCode` 至少包含：`INVALID_QUERY`、`POLICY_DENIED`、`POLICY_FAILURE`、`UNSUPPORTED_CAPABILITY`、`BACKEND_NOT_FOUND`、`BACKEND_NOT_READY`、`DEADLINE_EXCEEDED`、`RESULT_VALIDATION_FAILED`、`BACKEND_FAILURE`、`PARTIAL_RESULT`。公开 exception 只携带安全 code、stage 与低基数 reason，不携带表达式值或 authority。
+`QueryErrorCode` 固定包含：`INVALID_QUERY`、`POLICY_DENIED`、`POLICY_FAILURE`、`UNSUPPORTED_CAPABILITY`、`BACKEND_NOT_READY`、`BUDGET_EXCEEDED`、`DEADLINE_EXCEEDED`、`RESULT_VALIDATION_FAILED`、`BACKEND_FAILURE`、`INCOMPLETE_RESULT`。未注册 backend 与未就绪 backend 统一为 `BACKEND_NOT_READY`；流式结果在首项后失败统一为 `INCOMPLETE_RESULT`，不再保留同义的 `BACKEND_NOT_FOUND`/`PARTIAL_RESULT`。公开 exception 只携带安全 code、stage 与低基数 reason，不携带表达式值或 authority。
 
 - [ ] **Step 3: 实现 expression 与 `QueryValue`**
 
