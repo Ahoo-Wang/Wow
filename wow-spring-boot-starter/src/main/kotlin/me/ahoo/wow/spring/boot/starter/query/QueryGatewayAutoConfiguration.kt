@@ -29,6 +29,7 @@ import me.ahoo.wow.query.invocation.QueryAuthorityProvider
 import me.ahoo.wow.query.invocation.QueryAuthorityView
 import me.ahoo.wow.query.invocation.QueryInvocationScope
 import me.ahoo.wow.query.policy.QueryPolicy
+import me.ahoo.wow.query.policy.QueryPolicyRegistration
 import me.ahoo.wow.query.result.ResultPolicy
 import me.ahoo.wow.query.schema.JacksonQuerySchemaResolver
 import me.ahoo.wow.query.schema.QuerySchemaCustomizer
@@ -42,15 +43,21 @@ import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
+import org.springframework.core.Ordered
+import org.springframework.core.annotation.Order
 import reactor.core.publisher.Mono
 import tools.jackson.databind.ObjectMapper
 import java.time.Clock
 import java.time.ZoneId
+import java.util.Locale
 
 @AutoConfiguration(after = [QueryAutoConfiguration::class])
 @ConditionalOnWowEnabled
 @EnableConfigurationProperties(QueryGatewayProperties::class)
 class QueryGatewayAutoConfiguration {
+    private val springPolicyDescriptorPrefix: String = "spring-"
+    private val maxSpringPolicyDescriptorSuffixLength: Int = 64 - springPolicyDescriptorPrefix.length
+
     @Bean
     @ConditionalOnMissingBean(QueryAuthorityProvider::class)
     fun queryAuthorityProvider(): QueryAuthorityProvider = QueryAuthorityProvider {
@@ -85,6 +92,7 @@ class QueryGatewayAutoConfiguration {
     ): QueryGateway {
         val clock = clockProvider.getIfAvailable { Clock.systemUTC() }
         val zoneId = zoneIdProvider.getIfAvailable { clock.zone }
+        val policyRegistrations = beanFactory.queryPolicyRegistrationSnapshot()
         return QueryGatewayFactory.create(
             QueryGatewayConfiguration(
                 admission = authorityAdmission(authorityProvider),
@@ -100,7 +108,7 @@ class QueryGatewayAutoConfiguration {
                         )
                     }
                 },
-                customPolicies = beanFactory.orderedSnapshot(QueryPolicy::class.java),
+                customPolicies = policyRegistrations.map(QueryPolicyRegistration::policy),
                 resultPolicies = beanFactory.orderedSnapshot(ResultPolicy::class.java),
                 clock = clock,
                 zoneId = zoneId,
@@ -108,7 +116,8 @@ class QueryGatewayAutoConfiguration {
                 systemBudgetLimit = properties.systemBudget.toBudgetLimit(),
                 enabledCapabilities = properties.enabledCapabilities.mapTo(LinkedHashSet(), ::QueryCapabilityId),
                 meterRegistry = meterRegistry.getIfAvailable()
-            )
+            ),
+            policyRegistrations
         )
     }
 
@@ -137,4 +146,49 @@ class QueryGatewayAutoConfiguration {
 
     private fun <T : Any> ListableBeanFactory.orderedSnapshot(type: Class<T>): List<T> =
         getBeanProvider(type).orderedStream().toList()
+
+    private fun ListableBeanFactory.queryPolicyRegistrationSnapshot(): List<QueryPolicyRegistration> {
+        val registrations = getBeansOfType(QueryPolicy::class.java, true, true).map { (beanName, policy) ->
+            QueryPolicyRegistration(
+                descriptorId = safePolicyDescriptor(beanName),
+                order = policyOrder(beanName, policy),
+                policy = policy
+            )
+        }.sortedWith(QueryPolicyRegistrationComparator)
+        require(registrations.map(QueryPolicyRegistration::descriptorId).distinct().size == registrations.size) {
+            "Normalized query policy descriptors must be unique."
+        }
+        return registrations.toList()
+    }
+
+    private fun ListableBeanFactory.policyOrder(beanName: String, policy: QueryPolicy): Int =
+        (policy as? Ordered)?.order
+            ?: findAnnotationOnBean(beanName, Order::class.java)?.value
+            ?: Ordered.LOWEST_PRECEDENCE
+
+    private fun safePolicyDescriptor(beanName: String): String {
+        val normalized = buildString(beanName.length) {
+            var previousWasReplacement = false
+            beanName.lowercase(Locale.ROOT).forEach { character ->
+                val safe = character in 'a'..'z' || character in '0'..'9' ||
+                    character == '.' || character == '_' || character == '-'
+                if (safe) {
+                    append(character)
+                    previousWasReplacement = false
+                } else if (!previousWasReplacement) {
+                    append('-')
+                    previousWasReplacement = true
+                }
+            }
+        }.trim('.', '_', '-')
+        val suffix = normalized.ifBlank { "policy" }.take(maxSpringPolicyDescriptorSuffixLength)
+        return springPolicyDescriptorPrefix + suffix
+    }
+
+    private object QueryPolicyRegistrationComparator : Comparator<QueryPolicyRegistration> {
+        override fun compare(first: QueryPolicyRegistration, second: QueryPolicyRegistration): Int {
+            val orderComparison = first.order.compareTo(second.order)
+            return if (orderComparison != 0) orderComparison else first.descriptorId.compareTo(second.descriptorId)
+        }
+    }
 }

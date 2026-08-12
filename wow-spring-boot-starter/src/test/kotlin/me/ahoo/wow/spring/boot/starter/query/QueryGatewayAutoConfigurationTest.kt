@@ -213,6 +213,58 @@ class QueryGatewayAutoConfigurationTest {
     }
 
     @Test
+    fun `spring policy failure metric uses a normalized bounded bean descriptor`() {
+        val registry = SimpleMeterRegistry()
+        val backend = RecordingBackend()
+        val secret = "secret-policy-error"
+        val beanName = "Tenant Authorization@Primary" + "X".repeat(100)
+        gatewayContextRunner(backend)
+            .withBean(SimpleMeterRegistry::class.java, { registry })
+            .withBean(beanName, QueryPolicy::class.java, {
+                QueryPolicy { Mono.error(IllegalStateException(secret)) }
+            })
+            .run { context ->
+                StepVerifier.create(context.getBean(QueryGateway::class.java).count(CountQueryRequest(QUERY_TARGET)))
+                    .expectErrorSatisfies { error ->
+                        (error as QueryException).apply {
+                            code.assert().isEqualTo(QueryErrorCode.POLICY_FAILURE)
+                            message.orEmpty().contains(secret).assert().isFalse()
+                            message.orEmpty().contains("Tenant Authorization").assert().isFalse()
+                            message.orEmpty().contains("IllegalStateException").assert().isFalse()
+                        }
+                    }.verify()
+
+                registry.get("wow.query.gateway")
+                    .tag(
+                        "policyDescriptor",
+                        "spring-tenant-authorization-primaryxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                    )
+                    .tag("outcome", "failure")
+                    .counter().count().assert().isEqualTo(1.0)
+                backend.countPlans.assert().isEmpty()
+            }
+    }
+
+    @Test
+    fun `normalized spring policy descriptor collisions fail fast`() {
+        gatewayContextRunner(RecordingBackend())
+            .withBean("Access Policy", QueryPolicy::class.java, {
+                QueryPolicy { Mono.just(QueryPolicyResult()) }
+            })
+            .withBean("Access@Policy", QueryPolicy::class.java, {
+                QueryPolicy { Mono.just(QueryPolicyResult()) }
+            })
+            .run { context ->
+                val failure = context.startupFailure
+                failure.assert().isNotNull()
+                generateSequence(failure) { it.cause }
+                    .mapNotNull(Throwable::message)
+                    .any { it == "Normalized query policy descriptors must be unique." }
+                    .assert().isTrue()
+            }
+    }
+
+    @Test
     fun `system policy is always applied and anonymous authority is explicit`() {
         listOf(false, true).forEach { registerCustomSystemPolicy ->
             val backend = RecordingBackend()

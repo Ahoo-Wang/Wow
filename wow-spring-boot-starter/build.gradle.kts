@@ -96,3 +96,12 @@ configurations.named("testImplementation") {
         configurations.getByName("cosecSupportImplementation"),
     )
 }
+
+tasks.named<Test>("test") {
+    val publishedJar = tasks.named<Jar>("jar").flatMap { it.archiveFile }
+    dependsOn(publishedJar)
+    inputs.file(publishedJar)
+    doFirst {
+        systemProperty("wow.starter.jar", publishedJar.get().asFile.absolutePath)
+    }
+}

@@ -19,11 +19,13 @@ import me.ahoo.wow.query.plan.DefaultQueryPlanner
 import me.ahoo.wow.query.plan.QueryPlanValidator
 import me.ahoo.wow.query.policy.DefaultQueryPolicyChain
 import me.ahoo.wow.query.policy.QueryPolicyDescriptor
+import me.ahoo.wow.query.policy.QueryPolicyRegistration
 import me.ahoo.wow.query.policy.SystemQueryPolicy
 import me.ahoo.wow.query.result.DefaultResultPolicyChain
 import me.ahoo.wow.query.validation.QueryExpressionValidator
 import me.ahoo.wow.query.validation.QueryRequestValidator
 import reactor.core.scheduler.Schedulers
+import java.util.Collections
 import java.util.UUID
 
 object QueryGatewayFactory {
@@ -32,17 +34,29 @@ object QueryGatewayFactory {
         configuration,
         QueryGatewayStageObserver.NONE
     )
+
+    @JvmStatic
+    fun create(
+        configuration: QueryGatewayConfiguration,
+        policyRegistrations: List<QueryPolicyRegistration>
+    ): QueryGateway = DefaultQueryGatewayFactory.create(
+        configuration,
+        QueryGatewayStageObserver.NONE,
+        policyRegistrations
+    )
 }
 
 internal object DefaultQueryGatewayFactory {
     fun create(
         configuration: QueryGatewayConfiguration,
-        stageObserver: QueryGatewayStageObserver
+        stageObserver: QueryGatewayStageObserver,
+        policyRegistrations: List<QueryPolicyRegistration> = fallbackRegistrations(configuration)
     ): QueryGateway {
         val expressionValidator = QueryExpressionValidator(configuration.structureLimits)
-        val policyDescriptors = configuration.customPolicies.mapIndexed { index, policy ->
-            QueryPolicyDescriptor("custom-$index", index, policy)
-        }
+        val policyDescriptors = validateAndSnapshotRegistrations(configuration, policyRegistrations)
+            .map { registration ->
+                QueryPolicyDescriptor(registration.descriptorId, registration.order, registration.policy)
+            }
         return DefaultQueryGateway.create(
             invocationFactory = QueryInvocationFactory(
                 admission = configuration.admission,
@@ -71,5 +85,42 @@ internal object DefaultQueryGatewayFactory {
             ),
             stageObserver = stageObserver
         )
+    }
+
+    private fun validateAndSnapshotRegistrations(
+        configuration: QueryGatewayConfiguration,
+        registrations: List<QueryPolicyRegistration>
+    ): List<QueryPolicyRegistration> {
+        val snapshot = ArrayList(registrations)
+        require(snapshot.map(QueryPolicyRegistration::descriptorId).distinct().size == snapshot.size) {
+            "Query policy registration descriptors must be unique."
+        }
+        require(snapshot.none { it.policy is SystemQueryPolicy }) {
+            "System query policy cannot be registered as a custom policy."
+        }
+        val ordered = snapshot.sortedWith(QueryPolicyRegistrationComparator)
+        require(ordered.size == configuration.customPolicies.size) {
+            "Query policy registrations must match configured custom policies."
+        }
+        require(
+            ordered.map(QueryPolicyRegistration::policy)
+                .zip(configuration.customPolicies)
+                .all { (registered, configured) -> registered === configured }
+        ) {
+            "Query policy registrations must preserve configured policy identity and order."
+        }
+        return Collections.unmodifiableList(ordered)
+    }
+
+    private fun fallbackRegistrations(configuration: QueryGatewayConfiguration): List<QueryPolicyRegistration> =
+        configuration.customPolicies.mapIndexed { index, policy ->
+            QueryPolicyRegistration("custom-$index", index, policy)
+        }
+
+    private object QueryPolicyRegistrationComparator : Comparator<QueryPolicyRegistration> {
+        override fun compare(first: QueryPolicyRegistration, second: QueryPolicyRegistration): Int {
+            val orderComparison = first.order.compareTo(second.order)
+            return if (orderComparison != 0) orderComparison else first.descriptorId.compareTo(second.descriptorId)
+        }
     }
 }

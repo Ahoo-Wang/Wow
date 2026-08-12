@@ -443,6 +443,10 @@ cp "$TEMP_DIR/public-deletion/mini.jar" "$ARTIFACTS/mini.jar"
 expect_failure classified_public_facade_deletion_is_rejected 'Configured included class is absent' bash "$ABI_SCRIPT" check \
     --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$TEMP_DIR/classification-baselines" \
     --allowlist "$ALLOWLIST" --class-overrides "$CLASS_OVERRIDES"
+expect_failure classified_public_facade_deletion_is_rejected_during_dump \
+    'Configured included class is absent' bash "$ABI_SCRIPT" dump \
+    --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$TEMP_DIR/public-deletion-baselines" \
+    --allowlist "$ALLOWLIST" --class-overrides "$CLASS_OVERRIDES"
 
 compile_classification_api "$TEMP_DIR/public-descriptor-change" public-descriptor-change
 cp "$TEMP_DIR/public-descriptor-change/mini.jar" "$ARTIFACTS/mini.jar"
@@ -458,9 +462,16 @@ expect_success classified_internal_descriptor_change_is_allowed bash "$ABI_SCRIP
 
 compile_classification_api "$TEMP_DIR/internal-deletion" internal-deletion
 cp "$TEMP_DIR/internal-deletion/mini.jar" "$ARTIFACTS/mini.jar"
-expect_success classified_internal_deletion_is_allowed bash "$ABI_SCRIPT" check \
+expect_failure classified_internal_deletion_with_stale_exclude_is_rejected \
+    'Configured excluded class is absent' bash "$ABI_SCRIPT" check \
     --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$TEMP_DIR/classification-baselines" \
     --allowlist "$ALLOWLIST" --class-overrides "$CLASS_OVERRIDES"
+
+awk -F '\t' '$2 != "fixture/InternalFacadeKt.class" && $2 != "fixture/InternalImpl.class"' \
+    "$CLASS_OVERRIDES" >"$TEMP_DIR/internal-deletion-class-overrides.tsv"
+expect_success classified_internal_deletion_with_synchronized_overrides_is_allowed bash "$ABI_SCRIPT" check \
+    --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$TEMP_DIR/classification-baselines" \
+    --allowlist "$ALLOWLIST" --class-overrides "$TEMP_DIR/internal-deletion-class-overrides.tsv"
 
 compile_classification_api "$TEMP_DIR/unclassified-facade" unclassified-facade
 cp "$TEMP_DIR/unclassified-facade/mini.jar" "$ARTIFACTS/mini.jar"

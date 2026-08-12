@@ -168,7 +168,7 @@ internal class DefaultQueryGateway private constructor(
             requestValidator.validateStructure(seed.request)
             seed
         }.flatMap(::resolveSchemaAndValidate)
-        .flatMap(::evaluatePolicy)
+        .flatMap { invocation -> evaluatePolicy(invocation, metricState) }
         .flatMap { evaluated -> resolveBackend(evaluated, metricState) }
         .flatMap { evaluated -> createPlan(evaluated, operation) }
 
@@ -200,9 +200,12 @@ internal class DefaultQueryGateway private constructor(
             }.onErrorMap { error -> mapPreparationError(error, QueryStage.VALIDATION) }
     }
 
-    private fun evaluatePolicy(invocation: QueryInvocation): Mono<InvocationPolicy> {
+    private fun evaluatePolicy(
+        invocation: QueryInvocation,
+        metricState: QueryGatewayMetricState
+    ): Mono<InvocationPolicy> {
         stageObserver.record(QueryGatewayStage.POLICY)
-        return policyChain.evaluate(invocation).map { policyResult ->
+        return policyChain.evaluate(invocation, metricState::recordPolicyDescriptor).map { policyResult ->
             stageObserver.record(QueryGatewayStage.POLICY_OUTPUT_VALIDATION)
             InvocationPolicy(invocation, policyResult)
         }

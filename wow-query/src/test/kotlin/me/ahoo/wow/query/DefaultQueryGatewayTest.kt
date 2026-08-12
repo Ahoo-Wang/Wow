@@ -15,7 +15,9 @@ package me.ahoo.wow.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.error.QueryErrorCode
+import me.ahoo.wow.api.query.error.QueryErrorReason
 import me.ahoo.wow.api.query.error.QueryException
+import me.ahoo.wow.api.query.error.QueryStage
 import me.ahoo.wow.api.query.gateway.CountQueryRequest
 import me.ahoo.wow.api.query.gateway.ListQueryRequest
 import me.ahoo.wow.api.query.gateway.PageQueryRequest
@@ -23,12 +25,18 @@ import me.ahoo.wow.api.query.gateway.QueryConsistency
 import me.ahoo.wow.api.query.gateway.QueryPage
 import me.ahoo.wow.api.query.gateway.SingleQueryRequest
 import me.ahoo.wow.query.backend.RecordingQueryBackend
+import me.ahoo.wow.query.invocation.QueryAuthorityView
+import me.ahoo.wow.query.invocation.QueryInvocationScope
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.policy.QueryPolicyDeniedException
+import me.ahoo.wow.query.schema.QuerySchemaResolver
+import me.ahoo.wow.query.schema.QuerySchemaView
+import me.ahoo.wow.query.validation.QueryBudgetLimit
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
+import java.time.Duration
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -131,6 +139,49 @@ class DefaultQueryGatewayTest {
             }
         }.verify()
         resolverCalls.get().assert().isZero()
+    }
+
+    @Test
+    fun `finite admission guard includes protocol validation before schema and backend resolution`() {
+        val schemaCalls = AtomicInteger()
+        val backendCalls = AtomicInteger()
+        val backend = RecordingQueryBackend(gatewayDescriptor())
+        val gateway = QueryGatewayFactory.create(
+            gatewayConfiguration(
+                backend = backend,
+                admission = { context ->
+                    Mono.just(
+                        QueryInvocationScope(
+                            QueryAuthorityView("subject", "tenant", "owner", emptySet(), emptySet()),
+                            context.request.requestedScope,
+                            "forged-correlation"
+                        )
+                    )
+                },
+                schemaResolver = object : QuerySchemaResolver {
+                    override fun resolve(target: me.ahoo.wow.api.query.gateway.QueryTarget): Mono<QuerySchemaView> {
+                        schemaCalls.incrementAndGet()
+                        return Mono.error(AssertionError("schema resolver must not run"))
+                    }
+                },
+                backendResolver = {
+                    backendCalls.incrementAndGet()
+                    Mono.error(AssertionError("backend resolver must not run"))
+                },
+                systemBudgetLimit = QueryBudgetLimit(timeout = Duration.ofSeconds(1))
+            )
+        )
+
+        StepVerifier.create(gateway.count(countRequest())).expectErrorSatisfies { error ->
+            (error as QueryException).apply {
+                code.assert().isEqualTo(QueryErrorCode.POLICY_FAILURE)
+                stage.assert().isEqualTo(QueryStage.ADMISSION)
+                reason.assert().isEqualTo(QueryErrorReason.POLICY_EVALUATION_FAILED)
+                message.orEmpty().contains("forged-correlation").assert().isFalse()
+            }
+        }.verify()
+        schemaCalls.get().assert().isZero()
+        backendCalls.get().assert().isZero()
     }
 
     private class OperationCase(

@@ -77,7 +77,7 @@ internal class QueryInvocationFactory(
             )
             val admissionDeadline = QueryDeadline.from(frozenInstant, admissionBudget.timeout)
             val context = QueryAdmissionContext(request, operation, contributionSnapshot.keys, correlationId)
-            admission.admit(context)
+            val admitted = admission.admit(context)
                 .switchIfEmpty(
                     Mono.error(
                         QueryException(
@@ -105,6 +105,18 @@ internal class QueryInvocationFactory(
                         deadlineGuard = deadlineGuard
                     )
                 }
+            deadlineGuard.enforce(admitted, admissionDeadline, QueryStage.ADMISSION)
+                .onErrorMap { error -> mapAdmissionError(error) }
         }
+    }
+
+    private fun mapAdmissionError(error: Throwable): Throwable = when (error) {
+        is QueryDeadlineExceededException -> QueryException(
+            QueryErrorCode.DEADLINE_EXCEEDED,
+            QueryStage.ADMISSION,
+            QueryErrorReason.DEADLINE_REACHED
+        )
+
+        else -> error
     }
 }

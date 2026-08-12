@@ -20,10 +20,12 @@ import me.ahoo.wow.api.query.gateway.QueryBudgetHint
 import me.ahoo.wow.api.query.gateway.SingleQueryRequest
 import me.ahoo.wow.query.backend.RecordingQueryBackend
 import me.ahoo.wow.query.policy.QueryPolicy
+import me.ahoo.wow.query.policy.QueryPolicyRegistration
 import me.ahoo.wow.query.policy.QueryPolicyResult
 import me.ahoo.wow.query.result.ResultPolicy
 import me.ahoo.wow.query.validation.QueryBudgetLimit
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
 import java.time.Duration
@@ -58,6 +60,67 @@ class QueryGatewayPolicyConsistencyTest {
         resultPolicyCalls.get().assert().isOne()
         configuration.customPolicies.size.assert().isOne()
         configuration.resultPolicies.size.assert().isOne()
+    }
+
+    @Test
+    fun `registration aware factory snapshots validated registrations and rejects policy drift`() {
+        val policyCalls = AtomicInteger()
+        val secondPolicyCalls = AtomicInteger()
+        val policy = QueryPolicy {
+            policyCalls.incrementAndGet()
+            Mono.just(QueryPolicyResult())
+        }
+        val secondPolicy = QueryPolicy {
+            secondPolicyCalls.incrementAndGet()
+            Mono.just(QueryPolicyResult())
+        }
+        val backend = RecordingQueryBackend(gatewayDescriptor()).respondSingle(Mono.just("value"))
+        val configuration = gatewayConfiguration(backend, customPolicies = listOf(policy, secondPolicy))
+        val registrations = mutableListOf(
+            QueryPolicyRegistration("deployment-policy", 20, policy),
+            QueryPolicyRegistration("audit-policy", 30, secondPolicy)
+        )
+        val gateway = QueryGatewayFactory.create(configuration, registrations)
+
+        registrations.clear()
+        StepVerifier.create(gateway.single(singleRequest())).expectNext("value").verifyComplete()
+
+        policyCalls.get().assert().isOne()
+        secondPolicyCalls.get().assert().isOne()
+        assertThrows<IllegalArgumentException> {
+            QueryGatewayFactory.create(
+                configuration,
+                listOf(
+                    QueryPolicyRegistration("deployment-policy", 20, policy),
+                    QueryPolicyRegistration("other-policy", 30, QueryPolicy { Mono.just(QueryPolicyResult()) })
+                )
+            )
+        }
+        assertThrows<IllegalArgumentException> {
+            QueryGatewayFactory.create(
+                configuration,
+                listOf(
+                    QueryPolicyRegistration("deployment-policy", 30, policy),
+                    QueryPolicyRegistration("audit-policy", 20, secondPolicy)
+                )
+            )
+        }
+        assertThrows<IllegalArgumentException> {
+            QueryGatewayFactory.create(
+                configuration,
+                listOf(
+                    QueryPolicyRegistration("deployment-policy", 20, policy),
+                    QueryPolicyRegistration("deployment-policy", 30, secondPolicy)
+                )
+            )
+        }
+        QueryPolicyRegistration("deployment-policy", 20, policy).toString().assert()
+            .isEqualTo("QueryPolicyRegistration(descriptorId=deployment-policy, order=20, policy=<redacted>)")
+        listOf("", "1policy", "policy!", "p".repeat(65), "system", "combined").forEach { invalidDescriptor ->
+            assertThrows<IllegalArgumentException> {
+                QueryPolicyRegistration(invalidDescriptor, 0, policy)
+            }
+        }
     }
 
     @Test

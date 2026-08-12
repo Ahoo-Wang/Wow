@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.expression.QueryExpression
 import me.ahoo.wow.api.query.gateway.QueryOperation
 import me.ahoo.wow.api.query.gateway.QueryRequest
+import me.ahoo.wow.query.policy.COMBINED_POLICY_ID
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.SignalType
@@ -101,7 +102,10 @@ internal class QueryGatewayMetrics(
                 Tag.of("outcome", outcome),
                 Tag.of("errorCode", errorCode),
                 Tag.of("capabilityId", state.capabilityId),
-                Tag.of("policyDescriptor", "combined"),
+                Tag.of(
+                    "policyDescriptor",
+                    if (signal == SignalType.ON_ERROR) state.policyDescriptor.get() else COMBINED_POLICY_ID
+                ),
                 Tag.of("legacyFacade", "false")
             )
         ).increment()
@@ -142,4 +146,9 @@ internal class QueryGatewayMetricState(
 ) {
     val backendId: AtomicReference<String> = AtomicReference("unresolved")
     val error: AtomicReference<Throwable?> = AtomicReference()
+    val policyDescriptor: AtomicReference<String> = AtomicReference(COMBINED_POLICY_ID)
+
+    fun recordPolicyDescriptor(descriptor: String) {
+        policyDescriptor.set(descriptor)
+    }
 }

@@ -269,9 +269,7 @@ validate_classification_for_module() {
         if [[ "$action" == "include" ]]; then
             die "Configured included class is absent [$module]: $configured_entry"
         fi
-        if [[ "$COMMAND" == "dump" ]]; then
-            die "Configured excluded class is absent [$module]: $configured_entry"
-        fi
+        die "Configured excluded class is absent [$module]: $configured_entry"
     done < <(awk -F '\t' -v module="$module" '$1 == module' "$NORMALIZED_CLASS_OVERRIDES")
     while IFS= read -r current_entry; do
         [[ "$current_entry" == *Kt.class ]] || continue

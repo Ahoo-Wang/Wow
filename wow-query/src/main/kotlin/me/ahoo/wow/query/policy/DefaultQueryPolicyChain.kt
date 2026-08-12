@@ -45,6 +45,7 @@ import java.util.ArrayDeque
 import java.util.Collections
 
 private const val SYSTEM_POLICY_ID: String = "system"
+internal const val COMBINED_POLICY_ID: String = "combined"
 
 internal class DefaultQueryPolicyChain(
     systemPolicy: SystemQueryPolicy,
@@ -63,10 +64,14 @@ internal class DefaultQueryPolicyChain(
         )
     }
 
-    fun evaluate(invocation: QueryInvocation): Mono<CombinedQueryPolicyResult> = evaluate(
+    fun evaluate(
+        invocation: QueryInvocation,
+        descriptorObserver: (String) -> Unit = {}
+    ): Mono<CombinedQueryPolicyResult> = evaluate(
         context = contextOf(invocation),
         admissionDeadline = invocation.admissionDeadline,
-        deadlineGuard = invocation.deadlineGuard
+        deadlineGuard = invocation.deadlineGuard,
+        descriptorObserver = descriptorObserver
     )
 
     fun evaluate(
@@ -76,19 +81,27 @@ internal class DefaultQueryPolicyChain(
             context.frozenInstant,
             context.requestBudget.timeout,
             QueryStage.POLICY
-        )
+        ),
+        descriptorObserver: (String) -> Unit = {}
     ): Mono<CombinedQueryPolicyResult> = Mono.defer {
         val evaluation = Flux.fromIterable(policies)
-            .concatMap { descriptor -> evaluate(descriptor, context) }
+            .concatMap { descriptor -> evaluate(descriptor, context, descriptorObserver) }
             .collectList()
-            .map { results -> combine(context, results) }
+            .map { results ->
+                descriptorObserver(COMBINED_POLICY_ID)
+                combine(context, results)
+            }
         deadlineGuard.enforce(evaluation, admissionDeadline, QueryStage.POLICY)
     }.onErrorMap { error -> mapPolicyError(error) }
 
     private fun evaluate(
         descriptor: QueryPolicyDescriptor,
-        context: QueryPolicyContext
-    ): Mono<QueryPolicyResult> = Mono.defer { descriptor.policy.evaluate(context) }
+        context: QueryPolicyContext,
+        descriptorObserver: (String) -> Unit
+    ): Mono<QueryPolicyResult> = Mono.defer {
+        descriptorObserver(descriptor.id)
+        descriptor.policy.evaluate(context)
+    }
         .switchIfEmpty(Mono.error(policyFailure()))
         .map { result -> validateResult(result, context) }
 

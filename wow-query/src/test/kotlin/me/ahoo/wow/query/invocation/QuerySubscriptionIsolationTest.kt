@@ -182,6 +182,56 @@ class QuerySubscriptionIsolationTest {
     }
 
     @Test
+    fun `finite admission deadline cancels in flight admission with a stable admission error`() {
+        val scheduler = VirtualTimeScheduler.create()
+        val admissionSubscriptions = AtomicInteger()
+        val admissionCancellations = AtomicInteger()
+        val schemaResolverInvocations = AtomicInteger()
+        val backendResolverInvocations = AtomicInteger()
+        val factory = QueryInvocationFactory(
+            admission = QueryAdmission {
+                Mono.defer {
+                    admissionSubscriptions.incrementAndGet()
+                    Mono.never<QueryInvocationScope>().doOnCancel(admissionCancellations::incrementAndGet)
+                }
+            },
+            clock = Clock.fixed(Instant.parse("2026-08-12T01:20:00Z"), ZoneOffset.UTC),
+            zoneId = ZoneOffset.UTC,
+            systemBudgetLimit = QueryBudgetLimit(timeout = Duration.ofSeconds(1)),
+            deadlineScheduler = scheduler,
+            correlationIdFactory = { "admission-timeout" }
+        )
+        val prepared = factory.admit(request(), QueryOperation.COUNT)
+            .flatMap { seed ->
+                schemaResolverInvocations.incrementAndGet()
+                Mono.just(seed)
+            }.flatMap { seed ->
+                backendResolverInvocations.incrementAndGet()
+                Mono.just(seed)
+            }
+
+        StepVerifier.withVirtualTime(
+            { prepared },
+            { scheduler },
+            Long.MAX_VALUE
+        ).expectSubscription()
+            .expectNoEvent(Duration.ofMillis(999))
+            .thenAwait(Duration.ofMillis(1))
+            .expectErrorSatisfies { error ->
+                (error as QueryException).apply {
+                    code.assert().isEqualTo(QueryErrorCode.DEADLINE_EXCEEDED)
+                    stage.assert().isEqualTo(QueryStage.ADMISSION)
+                    reason.assert().isEqualTo(QueryErrorReason.DEADLINE_REACHED)
+                }
+            }.verify(Duration.ofSeconds(1))
+
+        admissionSubscriptions.get().assert().isOne()
+        admissionCancellations.get().assert().isOne()
+        schemaResolverInvocations.get().assert().isZero()
+        backendResolverInvocations.get().assert().isZero()
+    }
+
+    @Test
     fun `keeps caller and legacy expressions as separate normalized contributions`() {
         val callerPredicate = predicate("state.status", "CREATED")
         val legacyPredicate = predicate("tenantId", "tenant")
@@ -284,19 +334,84 @@ class QuerySubscriptionIsolationTest {
     }
 
     @Test
-    fun `keeps zero timeout immediate and unbounded timeout absent`() {
+    fun `zero timeout rejects admission before subscribing while unbounded timeout remains absent`() {
         val frozen = Instant.parse("2026-08-12T02:00:00Z")
-        val zeroTimeoutSeed = factory(
-            frozen,
-            QueryBudgetLimit(timeout = Duration.ZERO)
-        ).admit(request(), QueryOperation.COUNT).block()!!
+        val admissionSubscriptions = AtomicInteger()
+        val zeroTimeoutFactory = QueryInvocationFactory(
+            admission = QueryAdmission {
+                Mono.defer {
+                    admissionSubscriptions.incrementAndGet()
+                    Mono.never()
+                }
+            },
+            clock = Clock.fixed(frozen, ZoneOffset.UTC),
+            zoneId = ZoneOffset.UTC,
+            systemBudgetLimit = QueryBudgetLimit(timeout = Duration.ZERO),
+            deadlineScheduler = VirtualTimeScheduler.create(),
+            correlationIdFactory = { "zero-timeout" }
+        )
         val unboundedSeed = factory(
             frozen,
             QueryBudgetLimit.UNBOUNDED
         ).admit(request(), QueryOperation.COUNT).block()!!
 
-        zeroTimeoutSeed.admissionDeadline.assert().isSameAs(zeroTimeoutSeed.frozenInstant)
+        StepVerifier.create(zeroTimeoutFactory.admit(request(), QueryOperation.COUNT))
+            .expectErrorSatisfies { error ->
+                (error as QueryException).apply {
+                    code.assert().isEqualTo(QueryErrorCode.DEADLINE_EXCEEDED)
+                    stage.assert().isEqualTo(QueryStage.ADMISSION)
+                    reason.assert().isEqualTo(QueryErrorReason.DEADLINE_REACHED)
+                }
+            }.verify()
+        admissionSubscriptions.get().assert().isZero()
         unboundedSeed.admissionDeadline.assert().isNull()
+    }
+
+    @Test
+    fun `admission time consumes the original absolute budget instead of restarting it`() {
+        val scheduler = VirtualTimeScheduler.create()
+        val frozen = Instant.parse("2026-08-12T02:10:00Z")
+        val downstreamCancellations = AtomicInteger()
+        val authority = QueryAuthorityView(
+            subjectId = "subject",
+            tenantId = "tenant",
+            ownerId = null,
+            spaceIds = emptySet(),
+            permissions = emptySet()
+        )
+        val factory = QueryInvocationFactory(
+            admission = DefaultQueryAdmission(
+                QueryAuthorityProvider {
+                    Mono.delay(Duration.ofMillis(600), scheduler).map { authority }
+                }
+            ),
+            clock = Clock.fixed(frozen, ZoneOffset.UTC),
+            zoneId = ZoneOffset.UTC,
+            systemBudgetLimit = QueryBudgetLimit(timeout = Duration.ofSeconds(1)),
+            deadlineScheduler = scheduler,
+            correlationIdFactory = { "original-budget" }
+        )
+        val downstream = factory.admit(request(), QueryOperation.COUNT).flatMap { seed ->
+            seed.admissionDeadline.assert().isEqualTo(frozen.plusSeconds(1))
+            seed.deadlineGuard.enforce(
+                Mono.never<String>().doOnCancel(downstreamCancellations::incrementAndGet),
+                seed.admissionDeadline,
+                QueryStage.VALIDATION
+            )
+        }
+
+        StepVerifier.withVirtualTime(
+            { downstream },
+            { scheduler },
+            Long.MAX_VALUE
+        ).expectSubscription()
+            .expectNoEvent(Duration.ofMillis(999))
+            .thenAwait(Duration.ofMillis(1))
+            .expectErrorSatisfies { error ->
+                (error as QueryDeadlineExceededException).stage.assert().isEqualTo(QueryStage.VALIDATION)
+            }.verify(Duration.ofSeconds(1))
+
+        downstreamCancellations.get().assert().isOne()
     }
 
     @Test
@@ -376,12 +491,39 @@ class QuerySubscriptionIsolationTest {
     }
 
     @Test
+    fun `downstream cancellation disposes a finite admission deadline and cancels admission once`() {
+        val scheduler = VirtualTimeScheduler.create()
+        val admissionCancellations = AtomicInteger()
+        val factory = QueryInvocationFactory(
+            admission = QueryAdmission {
+                Mono.never<QueryInvocationScope>().doOnCancel(admissionCancellations::incrementAndGet)
+            },
+            clock = Clock.fixed(Instant.parse("2026-08-12T03:15:00Z"), ZoneOffset.UTC),
+            zoneId = ZoneOffset.UTC,
+            systemBudgetLimit = QueryBudgetLimit(timeout = Duration.ofSeconds(1)),
+            deadlineScheduler = scheduler,
+            correlationIdFactory = { "finite-cancel" }
+        )
+
+        StepVerifier.withVirtualTime(
+            { factory.admit(request(), QueryOperation.COUNT) },
+            { scheduler },
+            Long.MAX_VALUE
+        ).expectSubscription()
+            .thenCancel()
+            .verify()
+        scheduler.advanceTimeBy(Duration.ofSeconds(2))
+
+        admissionCancellations.get().assert().isOne()
+    }
+
+    @Test
     fun `fails closed when admission completes empty`() {
         val factory = QueryInvocationFactory(
             admission = QueryAdmission { Mono.empty() },
             clock = Clock.fixed(Instant.parse("2026-08-12T03:30:00Z"), ZoneOffset.UTC),
             zoneId = ZoneOffset.UTC,
-            systemBudgetLimit = QueryBudgetLimit.UNBOUNDED,
+            systemBudgetLimit = QueryBudgetLimit(timeout = Duration.ofSeconds(1)),
             deadlineScheduler = VirtualTimeScheduler.create(),
             correlationIdFactory = { "empty-admission" }
         )

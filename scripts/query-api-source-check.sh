@@ -351,6 +351,8 @@ import me.ahoo.wow.query.QueryGatewayFactory;
 import me.ahoo.wow.query.backend.QueryBackendResolver;
 import me.ahoo.wow.query.invocation.QueryAdmission;
 import me.ahoo.wow.query.policy.QueryPolicy;
+import me.ahoo.wow.query.policy.QueryPolicyRegistration;
+import me.ahoo.wow.query.policy.QueryPolicyResult;
 import me.ahoo.wow.query.result.ResultPolicy;
 import me.ahoo.wow.query.result.ResultPolicyContext;
 import me.ahoo.wow.query.schema.QuerySchemaResolver;
@@ -365,11 +367,12 @@ public final class StableGatewayApi {
         QuerySchemaResolver schemaResolver,
         QueryBackendResolver backendResolver
     ) {
+        QueryPolicy policy = context -> Mono.just(new QueryPolicyResult());
         QueryGatewayConfiguration configuration = new QueryGatewayConfiguration(
             admission,
             schemaResolver,
             backendResolver,
-            List.<QueryPolicy>of(),
+            List.of(policy),
             List.<ResultPolicy>of(),
             Clock.systemUTC(),
             ZoneId.of("UTC"),
@@ -378,7 +381,13 @@ public final class StableGatewayApi {
             Set.<QueryCapabilityId>of(),
             null
         );
-        return QueryGatewayFactory.create(configuration);
+        QueryGatewayFactory.create(configuration);
+        QueryPolicyRegistration registration = new QueryPolicyRegistration("fixture-policy", 10, policy);
+        if (!registration.getDescriptorId().equals("fixture-policy") ||
+            registration.getOrder() != 10 || registration.getPolicy() != policy) {
+            throw new AssertionError("Unexpected query policy registration snapshot");
+        }
+        return QueryGatewayFactory.create(configuration, List.of(registration));
     }
 
     public static ResultPolicy resultPolicy() {
@@ -431,6 +440,8 @@ import me.ahoo.wow.api.query.gateway.SingleQueryRequest
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryGatewayConfiguration
 import me.ahoo.wow.query.QueryGatewayFactory
+import me.ahoo.wow.query.policy.QueryPolicy
+import me.ahoo.wow.query.policy.QueryPolicyRegistration
 import me.ahoo.wow.query.result.ResultPolicy
 import me.ahoo.wow.api.query.error.QueryErrorCode
 import me.ahoo.wow.api.query.error.QueryErrorReason
@@ -455,6 +466,18 @@ val incompleteQueryException = QueryException(
 
 fun createStableGateway(configuration: QueryGatewayConfiguration): QueryGateway =
     QueryGatewayFactory.create(configuration)
+
+fun createRegistrationAwareGateway(
+    configuration: QueryGatewayConfiguration,
+    policy: QueryPolicy
+): QueryGateway {
+    val registration = QueryPolicyRegistration("fixture-policy", 10, policy)
+    check(
+        registration.descriptorId == "fixture-policy" &&
+            registration.order == 10 && registration.policy === policy
+    )
+    return QueryGatewayFactory.create(configuration, listOf(registration))
+}
 
 fun useStableGateway(
     gateway: QueryGateway,

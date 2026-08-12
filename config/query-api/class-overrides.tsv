@@ -54,6 +54,7 @@ wow-query	me/ahoo/wow/query/policy/DefaultQueryPolicyChainKt.class	exclude	synth
 wow-query	me/ahoo/wow/query/policy/QueryPolicyDescriptor.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/policy/QueryPolicyDescriptorKt.class	exclude	synthetic-private-helper
 wow-query	me/ahoo/wow/query/policy/QueryPolicyExceptionKt.class	exclude	synthetic-private-helper
+wow-query	me/ahoo/wow/query/policy/QueryPolicyRegistrationKt.class	exclude	synthetic-private-helper
 wow-query	me/ahoo/wow/query/policy/SystemQueryPolicy.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/policy/SystemQueryPolicyKt.class	exclude	synthetic-private-helper
 wow-query	me/ahoo/wow/query/result/DefaultResultPolicyChain.class	exclude	kotlin-internal

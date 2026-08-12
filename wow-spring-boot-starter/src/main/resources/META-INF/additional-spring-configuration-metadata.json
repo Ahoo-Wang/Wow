@@ -31,6 +31,50 @@
       "name": "wow.eventsourcing.storage-routing.aggregates.*.snapshot.binding",
       "type": "java.lang.String",
       "description": "Named SnapshotStore binding for this aggregate. The binding must be provided by application code or auto-configuration."
+    },
+    {
+      "name": "wow.query.gateway.max-depth",
+      "type": "java.lang.Integer",
+      "defaultValue": 64,
+      "description": "Maximum nesting depth accepted in a query expression."
+    },
+    {
+      "name": "wow.query.gateway.max-nodes",
+      "type": "java.lang.Integer",
+      "defaultValue": 10000,
+      "description": "Maximum total node count accepted in a query expression."
+    },
+    {
+      "name": "wow.query.gateway.max-membership-items",
+      "type": "java.lang.Integer",
+      "defaultValue": 10000,
+      "description": "Maximum item count accepted by a membership predicate."
+    },
+    {
+      "name": "wow.query.gateway.max-native-parameter-bytes",
+      "type": "java.lang.Long",
+      "defaultValue": 1048576,
+      "description": "Maximum serialized byte size accepted for native query parameters."
+    },
+    {
+      "name": "wow.query.gateway.system-budget.timeout",
+      "type": "java.time.Duration",
+      "description": "Optional system-wide timeout ceiling for each query invocation."
+    },
+    {
+      "name": "wow.query.gateway.system-budget.max-results",
+      "type": "java.lang.Long",
+      "description": "Optional system-wide maximum result count for each query invocation."
+    },
+    {
+      "name": "wow.query.gateway.system-budget.max-cost",
+      "type": "java.lang.Long",
+      "description": "Optional system-wide maximum planner cost for each query invocation."
+    },
+    {
+      "name": "wow.query.gateway.enabled-capabilities",
+      "type": "java.util.Set<java.lang.String>",
+      "description": "Capability identifiers explicitly enabled for query planning."
     }
   ],
   "hints": [

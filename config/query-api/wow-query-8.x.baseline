@@ -18,6 +18,7 @@ me.ahoo.wow.query.QueryGatewayConfiguration#public final me.ahoo.wow.query.valid
 me.ahoo.wow.query.QueryGatewayConfiguration#public me.ahoo.wow.query.QueryGatewayConfiguration(me.ahoo.wow.query.invocation.QueryAdmission, me.ahoo.wow.query.schema.QuerySchemaResolver, me.ahoo.wow.query.backend.QueryBackendResolver, java.util.List<? extends me.ahoo.wow.query.policy.QueryPolicy>, java.util.List<? extends me.ahoo.wow.query.result.ResultPolicy>, java.time.Clock, java.time.ZoneId, me.ahoo.wow.query.validation.QueryStructureLimits, me.ahoo.wow.query.validation.QueryBudgetLimit, java.util.Set<me.ahoo.wow.api.query.expression.QueryCapabilityId>, io.micrometer.core.instrument.MeterRegistry);|descriptor: (Lme/ahoo/wow/query/invocation/QueryAdmission;Lme/ahoo/wow/query/schema/QuerySchemaResolver;Lme/ahoo/wow/query/backend/QueryBackendResolver;Ljava/util/List;Ljava/util/List;Ljava/time/Clock;Ljava/time/ZoneId;Lme/ahoo/wow/query/validation/QueryStructureLimits;Lme/ahoo/wow/query/validation/QueryBudgetLimit;Ljava/util/Set;Lio/micrometer/core/instrument/MeterRegistry;)V
 me.ahoo.wow.query.QueryGatewayFactory#class|public final class me.ahoo.wow.query.QueryGatewayFactory {
 me.ahoo.wow.query.QueryGatewayFactory#public static final me.ahoo.wow.query.QueryGateway create(me.ahoo.wow.query.QueryGatewayConfiguration);|descriptor: (Lme/ahoo/wow/query/QueryGatewayConfiguration;)Lme/ahoo/wow/query/QueryGateway;
+me.ahoo.wow.query.QueryGatewayFactory#public static final me.ahoo.wow.query.QueryGateway create(me.ahoo.wow.query.QueryGatewayConfiguration, java.util.List<me.ahoo.wow.query.policy.QueryPolicyRegistration>);|descriptor: (Lme/ahoo/wow/query/QueryGatewayConfiguration;Ljava/util/List;)Lme/ahoo/wow/query/QueryGateway;
 me.ahoo.wow.query.QueryGatewayFactory#public static final me.ahoo.wow.query.QueryGatewayFactory INSTANCE;|descriptor: Lme/ahoo/wow/query/QueryGatewayFactory;
 me.ahoo.wow.query.QueryService#class|public interface me.ahoo.wow.query.QueryService<R> extends me.ahoo.wow.api.modeling.NamedAggregateDecorator {
 me.ahoo.wow.query.QueryService#public abstract reactor.core.publisher.Flux<R> list(me.ahoo.wow.api.query.IListQuery);|descriptor: (Lme/ahoo/wow/api/query/IListQuery;)Lreactor/core/publisher/Flux;
@@ -753,6 +754,12 @@ me.ahoo.wow.query.policy.QueryPolicyDeniedException#public me.ahoo.wow.query.pol
 me.ahoo.wow.query.policy.QueryPolicyPermissions#class|public final class me.ahoo.wow.query.policy.QueryPolicyPermissions {
 me.ahoo.wow.query.policy.QueryPolicyPermissions#public static final java.lang.String QUERY_DELETED_SNAPSHOTS;|descriptor: Ljava/lang/String;
 me.ahoo.wow.query.policy.QueryPolicyPermissions#public static final me.ahoo.wow.query.policy.QueryPolicyPermissions INSTANCE;|descriptor: Lme/ahoo/wow/query/policy/QueryPolicyPermissions;
+me.ahoo.wow.query.policy.QueryPolicyRegistration#class|public final class me.ahoo.wow.query.policy.QueryPolicyRegistration {
+me.ahoo.wow.query.policy.QueryPolicyRegistration#public final int getOrder();|descriptor: ()I
+me.ahoo.wow.query.policy.QueryPolicyRegistration#public final java.lang.String getDescriptorId();|descriptor: ()Ljava/lang/String;
+me.ahoo.wow.query.policy.QueryPolicyRegistration#public final me.ahoo.wow.query.policy.QueryPolicy getPolicy();|descriptor: ()Lme/ahoo/wow/query/policy/QueryPolicy;
+me.ahoo.wow.query.policy.QueryPolicyRegistration#public java.lang.String toString();|descriptor: ()Ljava/lang/String;
+me.ahoo.wow.query.policy.QueryPolicyRegistration#public me.ahoo.wow.query.policy.QueryPolicyRegistration(java.lang.String, int, me.ahoo.wow.query.policy.QueryPolicy);|descriptor: (Ljava/lang/String;ILme/ahoo/wow/query/policy/QueryPolicy;)V
 me.ahoo.wow.query.policy.QueryPolicyResult#class|public final class me.ahoo.wow.query.policy.QueryPolicyResult {
 me.ahoo.wow.query.policy.QueryPolicyResult#public boolean equals(java.lang.Object);|descriptor: (Ljava/lang/Object;)Z
 me.ahoo.wow.query.policy.QueryPolicyResult#public final me.ahoo.wow.api.query.expression.PortableExpression component1();|descriptor: ()Lme/ahoo/wow/api/query/expression/PortableExpression;
