@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.invocation
 
 import me.ahoo.wow.api.query.error.QueryStage
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import java.time.Duration
@@ -48,6 +49,24 @@ internal class QueryDeadlineGuard(
             val remaining = initialRemaining(absoluteDeadline, sliceAnchorNanos)
             if (remaining.isZero) {
                 return@defer Mono.error(QueryDeadlineExceededException(stage))
+            }
+            publisher.timeout(deadlineSignal(remaining, stage, sliceAnchorNanos))
+        }
+    }
+
+    fun <T : Any> enforce(
+        publisher: Flux<T>,
+        absoluteDeadline: Instant?,
+        stage: QueryStage
+    ): Flux<T> {
+        if (absoluteDeadline == null) {
+            return publisher
+        }
+        return Flux.defer {
+            val sliceAnchorNanos = scheduler.now(TimeUnit.NANOSECONDS)
+            val remaining = initialRemaining(absoluteDeadline, sliceAnchorNanos)
+            if (remaining.isZero) {
+                return@defer Flux.error(QueryDeadlineExceededException(stage))
             }
             publisher.timeout(deadlineSignal(remaining, stage, sliceAnchorNanos))
         }

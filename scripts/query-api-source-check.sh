@@ -328,6 +328,120 @@ java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler
     "$TEMP_DIR/kotlin/StableBackendSpi.kt"
 echo "PASS: Kotlin external stable backend SPI source"
 
+cat >"$TEMP_DIR/java/StableGatewayApi.java" <<'EOF'
+package external.fixture;
+
+import java.time.Clock;
+import java.time.ZoneId;
+import java.util.List;
+import java.util.Set;
+import me.ahoo.wow.api.query.expression.QueryCapabilityId;
+import me.ahoo.wow.api.query.gateway.CountQueryRequest;
+import me.ahoo.wow.api.query.gateway.ListQueryRequest;
+import me.ahoo.wow.api.query.gateway.PageQueryRequest;
+import me.ahoo.wow.api.query.gateway.QueryPage;
+import me.ahoo.wow.api.query.gateway.SingleQueryRequest;
+import me.ahoo.wow.query.QueryGateway;
+import me.ahoo.wow.query.QueryGatewayConfiguration;
+import me.ahoo.wow.query.QueryGatewayFactory;
+import me.ahoo.wow.query.backend.QueryBackendResolver;
+import me.ahoo.wow.query.invocation.QueryAdmission;
+import me.ahoo.wow.query.policy.QueryPolicy;
+import me.ahoo.wow.query.result.ResultPolicy;
+import me.ahoo.wow.query.result.ResultPolicyContext;
+import me.ahoo.wow.query.schema.QuerySchemaResolver;
+import me.ahoo.wow.query.validation.QueryBudgetLimit;
+import me.ahoo.wow.query.validation.QueryStructureLimits;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+public final class StableGatewayApi {
+    public static QueryGateway create(
+        QueryAdmission admission,
+        QuerySchemaResolver schemaResolver,
+        QueryBackendResolver backendResolver
+    ) {
+        QueryGatewayConfiguration configuration = new QueryGatewayConfiguration(
+            admission,
+            schemaResolver,
+            backendResolver,
+            List.<QueryPolicy>of(),
+            List.<ResultPolicy>of(),
+            Clock.systemUTC(),
+            ZoneId.of("UTC"),
+            new QueryStructureLimits(16, 128, 128, 4096),
+            QueryBudgetLimit.UNBOUNDED,
+            Set.<QueryCapabilityId>of(),
+            null
+        );
+        return QueryGatewayFactory.create(configuration);
+    }
+
+    public static ResultPolicy resultPolicy() {
+        return (context, value) -> Mono.just(value);
+    }
+
+    public static Object[] use(
+        QueryGateway gateway,
+        SingleQueryRequest<String> single,
+        ListQueryRequest<String> list,
+        PageQueryRequest<String> page,
+        CountQueryRequest count,
+        ResultPolicyContext context
+    ) {
+        Mono<String> singleResult = gateway.single(single);
+        Flux<String> listResult = gateway.list(list);
+        Mono<QueryPage<String>> pageResult = gateway.page(page);
+        Mono<Long> countResult = gateway.count(count);
+        return new Object[]{singleResult, listResult, pageResult, countResult, context.getBackendId()};
+    }
+}
+EOF
+
+javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/java" "$TEMP_DIR/java/StableGatewayApi.java"
+echo "PASS: Java external stable query gateway API source"
+
+cat >"$TEMP_DIR/kotlin/StableGatewayApi.kt" <<'EOF'
+package external.fixture
+
+import me.ahoo.wow.api.query.gateway.CountQueryRequest
+import me.ahoo.wow.api.query.gateway.ListQueryRequest
+import me.ahoo.wow.api.query.gateway.PageQueryRequest
+import me.ahoo.wow.api.query.gateway.SingleQueryRequest
+import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.QueryGatewayConfiguration
+import me.ahoo.wow.query.QueryGatewayFactory
+import me.ahoo.wow.query.result.ResultPolicy
+import reactor.core.publisher.Mono
+
+val stableResultPolicy = ResultPolicy { _, value -> Mono.just(value) }
+
+fun createStableGateway(configuration: QueryGatewayConfiguration): QueryGateway =
+    QueryGatewayFactory.create(configuration)
+
+fun useStableGateway(
+    gateway: QueryGateway,
+    single: SingleQueryRequest<String>,
+    list: ListQueryRequest<String>,
+    page: PageQueryRequest<String>,
+    count: CountQueryRequest
+) = listOf(
+    gateway.single(single),
+    gateway.list(list),
+    gateway.page(page),
+    gateway.count(count)
+)
+EOF
+
+java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+    -module-name query-gateway-api-external-fixture \
+    -no-stdlib -no-reflect \
+    -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/kotlin" \
+    "$TEMP_DIR/kotlin/StableGatewayApi.kt"
+echo "PASS: Kotlin external stable query gateway API source"
+
 cat >"$TEMP_DIR/kotlin/InternalAdmissionImplementations.kt" <<'EOF'
 package external.fixture
 
@@ -344,6 +458,13 @@ import me.ahoo.wow.query.policy.QueryPolicyDescriptor
 import me.ahoo.wow.query.policy.SystemQueryPolicy
 import me.ahoo.wow.query.schema.QuerySchemaView
 import me.ahoo.wow.query.schema.immutableSnapshot
+import me.ahoo.wow.query.DefaultQueryGateway
+import me.ahoo.wow.query.DefaultQueryGatewayFactory
+import me.ahoo.wow.query.QueryGatewayStage
+import me.ahoo.wow.query.QueryGatewayStageObserver
+import me.ahoo.wow.query.metrics.QueryGatewayMetricState
+import me.ahoo.wow.query.metrics.QueryGatewayMetrics
+import me.ahoo.wow.query.result.DefaultResultPolicyChain
 
 fun internalImplementations(): List<Class<*>> = listOf(
     DefaultQueryAdmission::class.java,
@@ -356,7 +477,14 @@ fun internalImplementations(): List<Class<*>> = listOf(
     CombinedQueryPolicyResult::class.java,
     DefaultQueryPolicyChain::class.java,
     QueryPolicyDescriptor::class.java,
-    SystemQueryPolicy::class.java
+    SystemQueryPolicy::class.java,
+    DefaultQueryGateway::class.java,
+    DefaultQueryGatewayFactory::class.java,
+    QueryGatewayStage::class.java,
+    QueryGatewayStageObserver::class.java,
+    QueryGatewayMetricState::class.java,
+    QueryGatewayMetrics::class.java,
+    DefaultResultPolicyChain::class.java
 )
 
 fun snapshotSchema(schema: QuerySchemaView) = schema.immutableSnapshot()
@@ -375,7 +503,10 @@ fi
 
 for class_name in DefaultQueryAdmission QueryDeadline QueryDeadlineExceededException QueryDeadlineGuard \
     QueryInvocation QueryInvocationFactory QueryInvocationSeed \
-    CombinedQueryPolicyResult DefaultQueryPolicyChain QueryPolicyDescriptor SystemQueryPolicy; do
+    CombinedQueryPolicyResult DefaultQueryPolicyChain QueryPolicyDescriptor SystemQueryPolicy \
+    DefaultQueryGateway DefaultQueryGatewayFactory QueryGatewayStage QueryGatewayStageObserver \
+    QueryGatewayMetricState QueryGatewayMetrics \
+    DefaultResultPolicyChain; do
     grep -F "$class_name" "$TEMP_DIR/kotlin-negative.out" >/dev/null || {
         cat "$TEMP_DIR/kotlin-negative.out" >&2
         fail "Kotlin negative fixture did not diagnose $class_name"
