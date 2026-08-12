@@ -47,6 +47,7 @@ import me.ahoo.wow.query.validation.QueryBudgetLimit
 import me.ahoo.wow.query.validation.QueryExpressionValidator
 import me.ahoo.wow.query.validation.QueryStructureLimits
 import org.junit.jupiter.api.Test
+import reactor.core.Disposable
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import reactor.test.StepVerifier
@@ -236,6 +237,121 @@ class QuerySubscriptionIsolationTest {
         ).expectErrorSatisfies { error ->
             (error as QueryDeadlineExceededException).stage.assert().isEqualTo(QueryStage.POLICY)
         }.verify()
+    }
+
+    @Test
+    fun `long finite deadline remains bounded instead of overflowing reactor timeout`() {
+        val scheduler = VirtualTimeScheduler.create()
+        val guard = QueryDeadlineGuard.anchor(FROZEN, scheduler)
+        val subscriptions = AtomicInteger()
+        val cancellations = AtomicInteger()
+        val threeHundredYears = Duration.ofDays(109_573)
+        val upstream = Mono.defer {
+            subscriptions.incrementAndGet()
+            Mono.never<String>().doOnCancel(cancellations::incrementAndGet)
+        }
+
+        StepVerifier.withVirtualTime(
+            { guard.enforce(upstream, FROZEN.plus(threeHundredYears), QueryStage.POLICY) },
+            { scheduler },
+            Long.MAX_VALUE
+        ).expectSubscription()
+            .expectNoEvent(Duration.ofDays(1))
+            .thenCancel()
+            .verify(Duration.ofSeconds(1))
+
+        subscriptions.get().assert().isOne()
+        cancellations.get().assert().isOne()
+    }
+
+    @Test
+    fun `deadline guard keeps one upstream subscription across timer slices and expires at original boundary`() {
+        val scheduler = VirtualTimeScheduler.create()
+        val guard = QueryDeadlineGuard.anchor(
+            frozenInstant = FROZEN,
+            scheduler = scheduler,
+            maximumTimerSlice = Duration.ofSeconds(1)
+        )
+        val subscriptions = AtomicInteger()
+        val cancellations = AtomicInteger()
+        val upstream = Mono.defer {
+            subscriptions.incrementAndGet()
+            Mono.never<String>().doOnCancel(cancellations::incrementAndGet)
+        }
+
+        StepVerifier.withVirtualTime(
+            { guard.enforce(upstream, FROZEN.plusSeconds(2).plusNanos(1), QueryStage.EXECUTION) },
+            { scheduler },
+            Long.MAX_VALUE
+        ).expectSubscription()
+            .expectNoEvent(Duration.ofSeconds(1))
+            .then {
+                subscriptions.get().assert().isOne()
+                cancellations.get().assert().isZero()
+            }
+            .expectNoEvent(Duration.ofSeconds(1))
+            .then {
+                subscriptions.get().assert().isOne()
+                cancellations.get().assert().isZero()
+            }
+            .thenAwait(Duration.ofNanos(1))
+            .expectErrorSatisfies { error ->
+                (error as QueryDeadlineExceededException).stage.assert().isEqualTo(QueryStage.EXECUTION)
+            }.verify(Duration.ofSeconds(1))
+
+        subscriptions.get().assert().isOne()
+        cancellations.get().assert().isOne()
+    }
+
+    @Test
+    fun `reactor nanosecond timer boundary exact and plus one stay finite`() {
+        listOf(
+            Duration.ofNanos(Long.MAX_VALUE),
+            Duration.ofNanos(Long.MAX_VALUE).plusNanos(1)
+        ).forEach { timeout ->
+            val scheduler = VirtualTimeScheduler.create()
+            val guard = QueryDeadlineGuard.anchor(FROZEN, scheduler)
+            val subscriptions = AtomicInteger()
+            val cancellations = AtomicInteger()
+            val upstream = Mono.defer {
+                subscriptions.incrementAndGet()
+                Mono.never<String>().doOnCancel(cancellations::incrementAndGet)
+            }
+
+            StepVerifier.withVirtualTime(
+                { guard.enforce(upstream, FROZEN.plus(timeout), QueryStage.POLICY) },
+                { scheduler },
+                Long.MAX_VALUE
+            ).expectSubscription()
+                .thenCancel()
+                .verify(Duration.ofSeconds(1))
+
+            subscriptions.get().assert().isOne()
+            cancellations.get().assert().isOne()
+        }
+    }
+
+    @Test
+    fun `downstream cancellation disposes long deadline timer and upstream once`() {
+        val scheduler = TrackingScheduler(VirtualTimeScheduler.create())
+        val guard = QueryDeadlineGuard.anchor(FROZEN, scheduler)
+        val subscriptions = AtomicInteger()
+        val cancellations = AtomicInteger()
+        val upstream = Mono.defer {
+            subscriptions.incrementAndGet()
+            Mono.never<String>().doOnCancel(cancellations::incrementAndGet)
+        }
+
+        StepVerifier.create(
+            guard.enforce(upstream, FROZEN.plus(Duration.ofDays(109_573)), QueryStage.POLICY)
+        ).expectSubscription()
+            .thenCancel()
+            .verify()
+
+        subscriptions.get().assert().isOne()
+        cancellations.get().assert().isOne()
+        scheduler.scheduled.get().assert().isOne()
+        scheduler.cancelled.get().assert().isOne()
     }
 
     @Test
@@ -522,6 +638,28 @@ class QuerySubscriptionIsolationTest {
                 return delegate.now(unit)
             }
             return if (reads.getAndIncrement() == 0) Long.MIN_VALUE else Long.MAX_VALUE
+        }
+    }
+
+    private class TrackingScheduler(
+        private val delegate: Scheduler
+    ) : Scheduler by delegate {
+        val scheduled = AtomicInteger()
+        val cancelled = AtomicInteger()
+
+        override fun schedule(task: Runnable, delay: Long, unit: TimeUnit): Disposable {
+            scheduled.incrementAndGet()
+            val disposable = delegate.schedule(task, delay, unit)
+            return object : Disposable {
+                override fun dispose() {
+                    if (!disposable.isDisposed) {
+                        cancelled.incrementAndGet()
+                    }
+                    disposable.dispose()
+                }
+
+                override fun isDisposed(): Boolean = disposable.isDisposed
+            }
         }
     }
 

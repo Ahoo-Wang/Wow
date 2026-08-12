@@ -23,8 +23,18 @@ import java.util.concurrent.TimeUnit
 internal class QueryDeadlineGuard(
     private val frozenInstant: Instant,
     private val anchorNanos: Long,
-    private val scheduler: Scheduler
+    private val scheduler: Scheduler,
+    private val maximumTimerSlice: Duration
 ) {
+    init {
+        require(!maximumTimerSlice.isNegative && !maximumTimerSlice.isZero) {
+            "maximumTimerSlice must be positive."
+        }
+        require(maximumTimerSlice <= MAX_REACTOR_TIMER_SLICE) {
+            "maximumTimerSlice exceeds Reactor's nanosecond timer range."
+        }
+    }
+
     fun <T : Any> enforce(
         publisher: Mono<T>,
         absoluteDeadline: Instant?,
@@ -33,11 +43,32 @@ internal class QueryDeadlineGuard(
         if (absoluteDeadline == null) {
             return publisher
         }
-        val remaining = remaining(absoluteDeadline)
-        if (remaining.isZero) {
-            return Mono.error(QueryDeadlineExceededException(stage))
+        return Mono.defer {
+            val remaining = remaining(absoluteDeadline)
+            if (remaining.isZero) {
+                return@defer Mono.error(QueryDeadlineExceededException(stage))
+            }
+            publisher.timeout(deadlineSignal(absoluteDeadline, stage, remaining))
         }
-        return publisher.timeout(remaining, Mono.error(QueryDeadlineExceededException(stage)), scheduler)
+    }
+
+    private fun deadlineSignal(
+        absoluteDeadline: Instant,
+        stage: QueryStage,
+        remaining: Duration
+    ): Mono<Void> {
+        val timerSlice = if (remaining > maximumTimerSlice) maximumTimerSlice else remaining
+        return Mono.delay(timerSlice, scheduler)
+            .then(
+                Mono.defer {
+                    val nextRemaining = remaining(absoluteDeadline)
+                    if (nextRemaining.isZero) {
+                        Mono.error(QueryDeadlineExceededException(stage))
+                    } else {
+                        deadlineSignal(absoluteDeadline, stage, nextRemaining)
+                    }
+                }
+            )
     }
 
     private fun remaining(absoluteDeadline: Instant): Duration {
@@ -61,10 +92,17 @@ internal class QueryDeadlineGuard(
     }
 
     companion object {
-        fun anchor(frozenInstant: Instant, scheduler: Scheduler): QueryDeadlineGuard = QueryDeadlineGuard(
-            frozenInstant,
-            scheduler.now(TimeUnit.NANOSECONDS),
-            scheduler
+        private val MAX_REACTOR_TIMER_SLICE: Duration = Duration.ofNanos(Long.MAX_VALUE)
+
+        fun anchor(
+            frozenInstant: Instant,
+            scheduler: Scheduler,
+            maximumTimerSlice: Duration = MAX_REACTOR_TIMER_SLICE
+        ): QueryDeadlineGuard = QueryDeadlineGuard(
+            frozenInstant = frozenInstant,
+            anchorNanos = scheduler.now(TimeUnit.NANOSECONDS),
+            scheduler = scheduler,
+            maximumTimerSlice = maximumTimerSlice
         )
     }
 }
