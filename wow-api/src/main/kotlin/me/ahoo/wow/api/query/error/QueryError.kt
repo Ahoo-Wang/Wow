@@ -31,6 +31,7 @@ enum class QueryErrorCode {
 enum class QueryStage {
     ADMISSION,
     NORMALIZE,
+    VALIDATION,
     POLICY,
     BACKEND_RESOLUTION,
     PLANNING,
