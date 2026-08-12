@@ -102,6 +102,97 @@ javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
     -d "$TEMP_DIR/classes/java" "$TEMP_DIR/java/StableAdmissionSpi.java"
 echo "PASS: Java external stable admission SPI source"
 
+cat >"$TEMP_DIR/java/StableBackendSpi.java" <<'EOF'
+package external.fixture;
+
+import java.util.List;
+import java.util.Map;
+import me.ahoo.wow.api.query.expression.QueryExpression;
+import me.ahoo.wow.api.query.gateway.QueryPage;
+import me.ahoo.wow.api.query.gateway.QuerySort;
+import me.ahoo.wow.api.query.gateway.QueryTarget;
+import me.ahoo.wow.query.backend.QueryBackend;
+import me.ahoo.wow.query.backend.QueryBackendDescriptor;
+import me.ahoo.wow.query.backend.QueryBackendReadiness;
+import me.ahoo.wow.query.backend.QueryBackendResolver;
+import me.ahoo.wow.query.backend.QueryBackendRouteIdentity;
+import me.ahoo.wow.query.backend.QueryPlanVersion;
+import me.ahoo.wow.query.invocation.QueryProvenance;
+import me.ahoo.wow.query.plan.CountQueryPlanV1;
+import me.ahoo.wow.query.plan.ListQueryPlanV1;
+import me.ahoo.wow.query.plan.PageQueryPlanV1;
+import me.ahoo.wow.query.plan.QueryPlanResultShape;
+import me.ahoo.wow.query.plan.QueryPlanV1;
+import me.ahoo.wow.query.plan.SingleQueryPlanV1;
+import me.ahoo.wow.query.validation.QueryBudgetLimit;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+public final class StableBackendSpi implements QueryBackend {
+    @Override
+    public QueryBackendDescriptor getDescriptor() {
+        return null;
+    }
+
+    @Override
+    public <R> Mono<R> single(SingleQueryPlanV1<R> plan) {
+        use(plan);
+        return Mono.empty();
+    }
+
+    @Override
+    public <R> Flux<R> list(ListQueryPlanV1<R> plan) {
+        int ignored = plan.getLimit();
+        use(plan);
+        return Flux.empty();
+    }
+
+    @Override
+    public <R> Mono<QueryPage<R>> page(PageQueryPlanV1<R> plan) {
+        Object ignored = plan.getPage();
+        use(plan);
+        return Mono.empty();
+    }
+
+    @Override
+    public Mono<Long> count(CountQueryPlanV1 plan) {
+        use(plan);
+        return Mono.just(0L);
+    }
+
+    @Override
+    public Mono<QueryBackendReadiness> readiness() {
+        return Mono.just(QueryBackendReadiness.Ready.INSTANCE);
+    }
+
+    public static QueryBackendResolver resolver() {
+        return target -> Mono.empty();
+    }
+
+    public static String backendId(QueryBackendDescriptor descriptor) {
+        return descriptor.getBackendId();
+    }
+
+    public static Object[] use(QueryPlanV1 plan) {
+        QueryPlanVersion version = plan.getVersion();
+        QueryTarget target = plan.getTarget();
+        QueryExpression expression = plan.getSecuredExpression();
+        Map<QueryProvenance, QueryExpression> provenance = plan.getExpressionProvenance();
+        QueryPlanResultShape shape = plan.getAuthorizedResultShape();
+        List<QuerySort> sort = plan.getSort();
+        Object deadline = plan.getEffectiveDeadline();
+        QueryBudgetLimit budget = plan.getEffectiveBudget();
+        String correlationId = plan.getCorrelationId();
+        QueryBackendRouteIdentity route = plan.getRouteIdentity();
+        return new Object[]{version, target, expression, provenance, shape, sort, deadline, budget, correlationId, route};
+    }
+}
+EOF
+
+javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/java" "$TEMP_DIR/java/StableBackendSpi.java"
+echo "PASS: Java external stable backend SPI source"
+
 cat >"$TEMP_DIR/kotlin/StableAdmissionSpi.kt" <<'EOF'
 package external.fixture
 
@@ -166,6 +257,54 @@ java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler
     "$TEMP_DIR/kotlin/StableAdmissionSpi.kt"
 echo "PASS: Kotlin external stable admission SPI source"
 
+cat >"$TEMP_DIR/kotlin/StableBackendSpi.kt" <<'EOF'
+package external.fixture
+
+import me.ahoo.wow.api.query.gateway.QueryPage
+import me.ahoo.wow.query.backend.QueryBackend
+import me.ahoo.wow.query.backend.QueryBackendDescriptor
+import me.ahoo.wow.query.backend.QueryBackendReadiness
+import me.ahoo.wow.query.backend.QueryBackendResolver
+import me.ahoo.wow.query.plan.CountQueryPlanV1
+import me.ahoo.wow.query.plan.ListQueryPlanV1
+import me.ahoo.wow.query.plan.PageQueryPlanV1
+import me.ahoo.wow.query.plan.QueryPlanV1
+import me.ahoo.wow.query.plan.SingleQueryPlanV1
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
+
+class StableBackendSpi(override val descriptor: QueryBackendDescriptor) : QueryBackend {
+    override fun <R : Any> single(plan: SingleQueryPlanV1<R>): Mono<R> = Mono.empty()
+    override fun <R : Any> list(plan: ListQueryPlanV1<R>): Flux<R> = Flux.empty()
+    override fun <R : Any> page(plan: PageQueryPlanV1<R>): Mono<QueryPage<R>> = Mono.empty()
+    override fun count(plan: CountQueryPlanV1): Mono<Long> = Mono.just(0)
+    override fun readiness(): Mono<QueryBackendReadiness> = Mono.just(QueryBackendReadiness.Ready)
+}
+
+val stableResolver = QueryBackendResolver { Mono.empty() }
+
+fun consumePlan(plan: QueryPlanV1): List<Any?> = listOf(
+    plan.version,
+    plan.target,
+    plan.securedExpression,
+    plan.expressionProvenance,
+    plan.authorizedResultShape,
+    plan.sort,
+    plan.effectiveDeadline,
+    plan.effectiveBudget,
+    plan.correlationId,
+    plan.routeIdentity
+)
+EOF
+
+java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+    -module-name query-backend-api-external-fixture \
+    -no-stdlib -no-reflect \
+    -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/kotlin" \
+    "$TEMP_DIR/kotlin/StableBackendSpi.kt"
+echo "PASS: Kotlin external stable backend SPI source"
+
 cat >"$TEMP_DIR/kotlin/InternalAdmissionImplementations.kt" <<'EOF'
 package external.fixture
 
@@ -228,3 +367,95 @@ grep -F "internal" "$TEMP_DIR/kotlin-negative.out" >/dev/null || {
     fail "Kotlin negative fixture did not enforce internal visibility"
 }
 echo "PASS: Kotlin external internal admission implementation boundary"
+
+cat >"$TEMP_DIR/java/ExternalPlanImplementation.java" <<'EOF'
+package external.fixture;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import me.ahoo.wow.api.query.expression.QueryExpression;
+import me.ahoo.wow.api.query.gateway.QuerySort;
+import me.ahoo.wow.api.query.gateway.QueryTarget;
+import me.ahoo.wow.query.backend.QueryBackendRouteIdentity;
+import me.ahoo.wow.query.backend.QueryPlanVersion;
+import me.ahoo.wow.query.invocation.QueryProvenance;
+import me.ahoo.wow.query.plan.CountQueryPlanV1;
+import me.ahoo.wow.query.plan.QueryPlanResultShape;
+import me.ahoo.wow.query.validation.QueryBudgetLimit;
+
+public final class ExternalPlanImplementation implements CountQueryPlanV1 {
+    public QueryPlanVersion getVersion() { return null; }
+    public QueryTarget getTarget() { return null; }
+    public QueryExpression getSecuredExpression() { return null; }
+    public Map<QueryProvenance, QueryExpression> getExpressionProvenance() { return null; }
+    public QueryPlanResultShape getAuthorizedResultShape() { return null; }
+    public List<QuerySort> getSort() { return null; }
+    public Instant getEffectiveDeadline() { return null; }
+    public QueryBudgetLimit getEffectiveBudget() { return null; }
+    public String getCorrelationId() { return null; }
+    public QueryBackendRouteIdentity getRouteIdentity() { return null; }
+}
+EOF
+
+if javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/java-negative" "$TEMP_DIR/java/ExternalPlanImplementation.java" \
+    >"$TEMP_DIR/java-plan-negative.out" 2>&1; then
+    cat "$TEMP_DIR/java-plan-negative.out" >&2
+    fail "Java external source unexpectedly implemented a sealed query plan"
+fi
+echo "PASS: Java external sealed plan implementation boundary"
+
+cat >"$TEMP_DIR/kotlin/ExternalPlanImplementation.kt" <<'EOF'
+package external.fixture
+
+import me.ahoo.wow.api.query.expression.MatchAll
+import me.ahoo.wow.api.query.gateway.QueryTarget
+import me.ahoo.wow.query.backend.QueryBackendRouteIdentity
+import me.ahoo.wow.query.backend.QueryPlanVersion
+import me.ahoo.wow.query.plan.CountQueryPlanV1
+import me.ahoo.wow.query.plan.QueryPlanResultShape
+import me.ahoo.wow.query.validation.QueryBudgetLimit
+
+class ExternalPlanImplementation(
+    override val target: QueryTarget,
+    override val routeIdentity: QueryBackendRouteIdentity
+) : CountQueryPlanV1 {
+    override val version = QueryPlanVersion.V1
+    override val securedExpression = MatchAll
+    override val expressionProvenance = emptyMap<me.ahoo.wow.query.invocation.QueryProvenance, me.ahoo.wow.api.query.expression.QueryExpression>()
+    override val authorizedResultShape = QueryPlanResultShape.Count
+    override val sort = emptyList<me.ahoo.wow.api.query.gateway.QuerySort>()
+    override val effectiveDeadline = null
+    override val effectiveBudget = QueryBudgetLimit.UNBOUNDED
+    override val correlationId = "external"
+}
+EOF
+
+if java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+    -module-name query-plan-api-external-negative-fixture \
+    -no-stdlib -no-reflect \
+    -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/kotlin-plan-negative" \
+    "$TEMP_DIR/kotlin/ExternalPlanImplementation.kt" \
+    >"$TEMP_DIR/kotlin-plan-negative.out" 2>&1; then
+    cat "$TEMP_DIR/kotlin-plan-negative.out" >&2
+    fail "Kotlin external source unexpectedly implemented a sealed query plan"
+fi
+echo "PASS: Kotlin external sealed plan implementation boundary"
+
+for plan_class in \
+    'me.ahoo.wow.query.plan.QueryPlanV1' \
+    'me.ahoo.wow.query.plan.SingleQueryPlanV1' \
+    'me.ahoo.wow.query.plan.ListQueryPlanV1' \
+    'me.ahoo.wow.query.plan.PageQueryPlanV1' \
+    'me.ahoo.wow.query.plan.CountQueryPlanV1'; do
+    javap -classpath "$FIXTURE_CLASSPATH" -public "$plan_class" >"$TEMP_DIR/plan-javap.out"
+    grep -F 'interface' "$TEMP_DIR/plan-javap.out" >/dev/null ||
+        fail "Query plan consumer is not an interface: $plan_class"
+    if grep -E ' copy\(| builder\(| of\(| create\(' "$TEMP_DIR/plan-javap.out" >/dev/null; then
+        cat "$TEMP_DIR/plan-javap.out" >&2
+        fail "Query plan consumer exposes a public construction method: $plan_class"
+    fi
+done
+echo "PASS: Query plan consumers expose no public constructor, builder, factory, or copy"

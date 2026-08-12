@@ -1,0 +1,66 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.query.backend
+
+import me.ahoo.wow.api.query.error.QueryErrorCode
+import me.ahoo.wow.api.query.error.QueryErrorReason
+import me.ahoo.wow.api.query.error.QueryException
+import me.ahoo.wow.api.query.error.QueryStage
+import reactor.core.publisher.Mono
+
+class ResolvedQueryBackend(
+    val backend: QueryBackend,
+    val descriptor: QueryBackendDescriptor,
+    val routeIdentity: QueryBackendRouteIdentity,
+    val readinessSnapshot: QueryBackendReadiness
+) {
+    init {
+        require(backend.descriptor == descriptor) {
+            "Resolved backend descriptor must equal the backend descriptor."
+        }
+    }
+
+    override fun toString(): String =
+        "ResolvedQueryBackend(backendId=${descriptor.backendId}, routeIdentity=<redacted>, " +
+            "readiness=${readinessSnapshot.safeKind()})"
+
+    private fun QueryBackendReadiness.safeKind(): String = when (this) {
+        QueryBackendReadiness.Ready -> "READY"
+        is QueryBackendReadiness.NotReady -> "NOT_READY:${reason.name}"
+    }
+
+    companion object {
+        @JvmStatic
+        fun resolve(
+            backend: QueryBackend,
+            routeIdentity: QueryBackendRouteIdentity
+        ): Mono<ResolvedQueryBackend> = Mono.defer { backend.readiness() }
+            .switchIfEmpty(Mono.error(backendUnavailable()))
+            .onErrorMap { backendUnavailable() }
+            .map { readiness ->
+                ResolvedQueryBackend(
+                    backend = backend,
+                    descriptor = backend.descriptor,
+                    routeIdentity = routeIdentity,
+                    readinessSnapshot = readiness
+                )
+            }
+
+        private fun backendUnavailable(): QueryException = QueryException(
+            QueryErrorCode.BACKEND_NOT_READY,
+            QueryStage.BACKEND_RESOLUTION,
+            QueryErrorReason.BACKEND_UNAVAILABLE
+        )
+    }
+}

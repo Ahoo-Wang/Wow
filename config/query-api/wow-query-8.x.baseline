@@ -10,6 +10,80 @@ me.ahoo.wow.query.QueryService#public static boolean access$isSameAggregateName$
 me.ahoo.wow.query.QueryService#public static boolean access$isSameBoundedContext$jd(me.ahoo.wow.query.QueryService, me.ahoo.wow.api.naming.NamedBoundedContext);|descriptor: (Lme/ahoo/wow/query/QueryService;Lme/ahoo/wow/api/naming/NamedBoundedContext;)Z
 me.ahoo.wow.query.QueryService#public static java.lang.String access$getAggregateName$jd(me.ahoo.wow.query.QueryService);|descriptor: (Lme/ahoo/wow/query/QueryService;)Ljava/lang/String;
 me.ahoo.wow.query.QueryService#public static java.lang.String access$getContextName$jd(me.ahoo.wow.query.QueryService);|descriptor: (Lme/ahoo/wow/query/QueryService;)Ljava/lang/String;
+me.ahoo.wow.query.backend.QueryBackend#class|public interface me.ahoo.wow.query.backend.QueryBackend {
+me.ahoo.wow.query.backend.QueryBackend#public abstract <R> reactor.core.publisher.Flux<R> list(me.ahoo.wow.query.plan.ListQueryPlanV1<R>);|descriptor: (Lme/ahoo/wow/query/plan/ListQueryPlanV1;)Lreactor/core/publisher/Flux;
+me.ahoo.wow.query.backend.QueryBackend#public abstract <R> reactor.core.publisher.Mono<R> single(me.ahoo.wow.query.plan.SingleQueryPlanV1<R>);|descriptor: (Lme/ahoo/wow/query/plan/SingleQueryPlanV1;)Lreactor/core/publisher/Mono;
+me.ahoo.wow.query.backend.QueryBackend#public abstract <R> reactor.core.publisher.Mono<me.ahoo.wow.api.query.gateway.QueryPage<R>> page(me.ahoo.wow.query.plan.PageQueryPlanV1<R>);|descriptor: (Lme/ahoo/wow/query/plan/PageQueryPlanV1;)Lreactor/core/publisher/Mono;
+me.ahoo.wow.query.backend.QueryBackend#public abstract me.ahoo.wow.query.backend.QueryBackendDescriptor getDescriptor();|descriptor: ()Lme/ahoo/wow/query/backend/QueryBackendDescriptor;
+me.ahoo.wow.query.backend.QueryBackend#public abstract reactor.core.publisher.Mono<java.lang.Long> count(me.ahoo.wow.query.plan.CountQueryPlanV1);|descriptor: (Lme/ahoo/wow/query/plan/CountQueryPlanV1;)Lreactor/core/publisher/Mono;
+me.ahoo.wow.query.backend.QueryBackend#public abstract reactor.core.publisher.Mono<me.ahoo.wow.query.backend.QueryBackendReadiness> readiness();|descriptor: ()Lreactor/core/publisher/Mono;
+me.ahoo.wow.query.backend.QueryBackendDescriptor#class|public final class me.ahoo.wow.query.backend.QueryBackendDescriptor {
+me.ahoo.wow.query.backend.QueryBackendDescriptor#public boolean equals(java.lang.Object);|descriptor: (Ljava/lang/Object;)Z
+me.ahoo.wow.query.backend.QueryBackendDescriptor#public final java.lang.String getBackendId();|descriptor: ()Ljava/lang/String;
+me.ahoo.wow.query.backend.QueryBackendDescriptor#public final java.util.Set<me.ahoo.wow.api.query.expression.PortableOperator> getPortableOperators();|descriptor: ()Ljava/util/Set;
+me.ahoo.wow.query.backend.QueryBackendDescriptor#public final java.util.Set<me.ahoo.wow.api.query.expression.QueryCapabilityId> getCapabilities();|descriptor: ()Ljava/util/Set;
+me.ahoo.wow.query.backend.QueryBackendDescriptor#public final java.util.Set<me.ahoo.wow.api.query.gateway.QueryDocumentKind> getDocumentKinds();|descriptor: ()Ljava/util/Set;
+me.ahoo.wow.query.backend.QueryBackendDescriptor#public final java.util.Set<me.ahoo.wow.query.backend.QueryPlanVersion> getPlanVersions();|descriptor: ()Ljava/util/Set;
+me.ahoo.wow.query.backend.QueryBackendDescriptor#public final me.ahoo.wow.query.validation.QueryBudgetLimit getMaxBudget();|descriptor: ()Lme/ahoo/wow/query/validation/QueryBudgetLimit;
+me.ahoo.wow.query.backend.QueryBackendDescriptor#public int hashCode();|descriptor: ()I
+me.ahoo.wow.query.backend.QueryBackendDescriptor#public java.lang.String toString();|descriptor: ()Ljava/lang/String;
+me.ahoo.wow.query.backend.QueryBackendDescriptor#public me.ahoo.wow.query.backend.QueryBackendDescriptor(java.lang.String, java.util.Set<? extends me.ahoo.wow.api.query.gateway.QueryDocumentKind>, java.util.Set<me.ahoo.wow.query.backend.QueryPlanVersion>, java.util.Set<? extends me.ahoo.wow.api.query.expression.PortableOperator>, java.util.Set<me.ahoo.wow.api.query.expression.QueryCapabilityId>, me.ahoo.wow.query.validation.QueryBudgetLimit);|descriptor: (Ljava/lang/String;Ljava/util/Set;Ljava/util/Set;Ljava/util/Set;Ljava/util/Set;Lme/ahoo/wow/query/validation/QueryBudgetLimit;)V
+me.ahoo.wow.query.backend.QueryBackendDescriptor#public static final java.util.Set access$getRESERVED_BACKEND_IDS$cp();|descriptor: ()Ljava/util/Set;
+me.ahoo.wow.query.backend.QueryBackendDescriptor#public static final kotlin.text.Regex access$getBACKEND_ID_PATTERN$cp();|descriptor: ()Lkotlin/text/Regex;
+me.ahoo.wow.query.backend.QueryBackendReadiness#class|public interface me.ahoo.wow.query.backend.QueryBackendReadiness {
+me.ahoo.wow.query.backend.QueryBackendReadiness$NotReady#class|public final class me.ahoo.wow.query.backend.QueryBackendReadiness$NotReady implements me.ahoo.wow.query.backend.QueryBackendReadiness {
+me.ahoo.wow.query.backend.QueryBackendReadiness$NotReady#public boolean equals(java.lang.Object);|descriptor: (Ljava/lang/Object;)Z
+me.ahoo.wow.query.backend.QueryBackendReadiness$NotReady#public final me.ahoo.wow.query.backend.QueryBackendReadiness$NotReady copy(me.ahoo.wow.query.backend.QueryBackendReadinessReason);|descriptor: (Lme/ahoo/wow/query/backend/QueryBackendReadinessReason;)Lme/ahoo/wow/query/backend/QueryBackendReadiness$NotReady;
+me.ahoo.wow.query.backend.QueryBackendReadiness$NotReady#public final me.ahoo.wow.query.backend.QueryBackendReadinessReason component1();|descriptor: ()Lme/ahoo/wow/query/backend/QueryBackendReadinessReason;
+me.ahoo.wow.query.backend.QueryBackendReadiness$NotReady#public final me.ahoo.wow.query.backend.QueryBackendReadinessReason getReason();|descriptor: ()Lme/ahoo/wow/query/backend/QueryBackendReadinessReason;
+me.ahoo.wow.query.backend.QueryBackendReadiness$NotReady#public int hashCode();|descriptor: ()I
+me.ahoo.wow.query.backend.QueryBackendReadiness$NotReady#public java.lang.String toString();|descriptor: ()Ljava/lang/String;
+me.ahoo.wow.query.backend.QueryBackendReadiness$NotReady#public me.ahoo.wow.query.backend.QueryBackendReadiness$NotReady(me.ahoo.wow.query.backend.QueryBackendReadinessReason);|descriptor: (Lme/ahoo/wow/query/backend/QueryBackendReadinessReason;)V
+me.ahoo.wow.query.backend.QueryBackendReadiness$NotReady#public static me.ahoo.wow.query.backend.QueryBackendReadiness$NotReady copy$default(me.ahoo.wow.query.backend.QueryBackendReadiness$NotReady, me.ahoo.wow.query.backend.QueryBackendReadinessReason, int, java.lang.Object);|descriptor: (Lme/ahoo/wow/query/backend/QueryBackendReadiness$NotReady;Lme/ahoo/wow/query/backend/QueryBackendReadinessReason;ILjava/lang/Object;)Lme/ahoo/wow/query/backend/QueryBackendReadiness$NotReady;
+me.ahoo.wow.query.backend.QueryBackendReadiness$Ready#class|public final class me.ahoo.wow.query.backend.QueryBackendReadiness$Ready implements me.ahoo.wow.query.backend.QueryBackendReadiness {
+me.ahoo.wow.query.backend.QueryBackendReadiness$Ready#public boolean equals(java.lang.Object);|descriptor: (Ljava/lang/Object;)Z
+me.ahoo.wow.query.backend.QueryBackendReadiness$Ready#public int hashCode();|descriptor: ()I
+me.ahoo.wow.query.backend.QueryBackendReadiness$Ready#public java.lang.String toString();|descriptor: ()Ljava/lang/String;
+me.ahoo.wow.query.backend.QueryBackendReadiness$Ready#public static final me.ahoo.wow.query.backend.QueryBackendReadiness$Ready INSTANCE;|descriptor: Lme/ahoo/wow/query/backend/QueryBackendReadiness$Ready;
+me.ahoo.wow.query.backend.QueryBackendReadinessReason#class|public final class me.ahoo.wow.query.backend.QueryBackendReadinessReason extends java.lang.Enum<me.ahoo.wow.query.backend.QueryBackendReadinessReason> {
+me.ahoo.wow.query.backend.QueryBackendReadinessReason#public static final me.ahoo.wow.query.backend.QueryBackendReadinessReason CONFIGURATION_INVALID;|descriptor: Lme/ahoo/wow/query/backend/QueryBackendReadinessReason;
+me.ahoo.wow.query.backend.QueryBackendReadinessReason#public static final me.ahoo.wow.query.backend.QueryBackendReadinessReason DEPENDENCY_UNAVAILABLE;|descriptor: Lme/ahoo/wow/query/backend/QueryBackendReadinessReason;
+me.ahoo.wow.query.backend.QueryBackendReadinessReason#public static final me.ahoo.wow.query.backend.QueryBackendReadinessReason INDEX_MISSING;|descriptor: Lme/ahoo/wow/query/backend/QueryBackendReadinessReason;
+me.ahoo.wow.query.backend.QueryBackendReadinessReason#public static final me.ahoo.wow.query.backend.QueryBackendReadinessReason MAPPING_INCOMPATIBLE;|descriptor: Lme/ahoo/wow/query/backend/QueryBackendReadinessReason;
+me.ahoo.wow.query.backend.QueryBackendReadinessReason#public static kotlin.enums.EnumEntries<me.ahoo.wow.query.backend.QueryBackendReadinessReason> getEntries();|descriptor: ()Lkotlin/enums/EnumEntries;
+me.ahoo.wow.query.backend.QueryBackendReadinessReason#public static me.ahoo.wow.query.backend.QueryBackendReadinessReason valueOf(java.lang.String);|descriptor: (Ljava/lang/String;)Lme/ahoo/wow/query/backend/QueryBackendReadinessReason;
+me.ahoo.wow.query.backend.QueryBackendReadinessReason#public static me.ahoo.wow.query.backend.QueryBackendReadinessReason[] values();|descriptor: ()[Lme/ahoo/wow/query/backend/QueryBackendReadinessReason;
+me.ahoo.wow.query.backend.QueryBackendResolver#class|public interface me.ahoo.wow.query.backend.QueryBackendResolver {
+me.ahoo.wow.query.backend.QueryBackendResolver#public abstract reactor.core.publisher.Mono<me.ahoo.wow.query.backend.ResolvedQueryBackend> resolve(me.ahoo.wow.api.query.gateway.QueryTarget);|descriptor: (Lme/ahoo/wow/api/query/gateway/QueryTarget;)Lreactor/core/publisher/Mono;
+me.ahoo.wow.query.backend.QueryBackendRouteIdentity#class|public final class me.ahoo.wow.query.backend.QueryBackendRouteIdentity {
+me.ahoo.wow.query.backend.QueryBackendRouteIdentity#public boolean equals(java.lang.Object);|descriptor: (Ljava/lang/Object;)Z
+me.ahoo.wow.query.backend.QueryBackendRouteIdentity#public final java.lang.String getValue();|descriptor: ()Ljava/lang/String;
+me.ahoo.wow.query.backend.QueryBackendRouteIdentity#public int hashCode();|descriptor: ()I
+me.ahoo.wow.query.backend.QueryBackendRouteIdentity#public java.lang.String toString();|descriptor: ()Ljava/lang/String;
+me.ahoo.wow.query.backend.QueryBackendRouteIdentity#public me.ahoo.wow.query.backend.QueryBackendRouteIdentity(java.lang.String);|descriptor: (Ljava/lang/String;)V
+me.ahoo.wow.query.backend.QueryBackendRouteIdentity#public static final kotlin.text.Regex access$getROUTE_ID_PATTERN$cp();|descriptor: ()Lkotlin/text/Regex;
+me.ahoo.wow.query.backend.QueryPlanVersion#class|public final class me.ahoo.wow.query.backend.QueryPlanVersion {
+me.ahoo.wow.query.backend.QueryPlanVersion#public boolean equals(java.lang.Object);|descriptor: (Ljava/lang/Object;)Z
+me.ahoo.wow.query.backend.QueryPlanVersion#public final int getValue();|descriptor: ()I
+me.ahoo.wow.query.backend.QueryPlanVersion#public int hashCode();|descriptor: ()I
+me.ahoo.wow.query.backend.QueryPlanVersion#public java.lang.String toString();|descriptor: ()Ljava/lang/String;
+me.ahoo.wow.query.backend.QueryPlanVersion#public me.ahoo.wow.query.backend.QueryPlanVersion(int);|descriptor: (I)V
+me.ahoo.wow.query.backend.QueryPlanVersion#public static final me.ahoo.wow.query.backend.QueryPlanVersion V1;|descriptor: Lme/ahoo/wow/query/backend/QueryPlanVersion;
+me.ahoo.wow.query.backend.QueryPlanVersion#public static final me.ahoo.wow.query.backend.QueryPlanVersion$Companion Companion;|descriptor: Lme/ahoo/wow/query/backend/QueryPlanVersion$Companion;
+me.ahoo.wow.query.backend.QueryPlanVersion$Companion#class|public final class me.ahoo.wow.query.backend.QueryPlanVersion$Companion {
+me.ahoo.wow.query.backend.QueryPlanVersion$Companion#public me.ahoo.wow.query.backend.QueryPlanVersion$Companion(kotlin.jvm.internal.DefaultConstructorMarker);|descriptor: (Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+me.ahoo.wow.query.backend.ResolvedQueryBackend#class|public final class me.ahoo.wow.query.backend.ResolvedQueryBackend {
+me.ahoo.wow.query.backend.ResolvedQueryBackend#public final me.ahoo.wow.query.backend.QueryBackend getBackend();|descriptor: ()Lme/ahoo/wow/query/backend/QueryBackend;
+me.ahoo.wow.query.backend.ResolvedQueryBackend#public final me.ahoo.wow.query.backend.QueryBackendDescriptor getDescriptor();|descriptor: ()Lme/ahoo/wow/query/backend/QueryBackendDescriptor;
+me.ahoo.wow.query.backend.ResolvedQueryBackend#public final me.ahoo.wow.query.backend.QueryBackendReadiness getReadinessSnapshot();|descriptor: ()Lme/ahoo/wow/query/backend/QueryBackendReadiness;
+me.ahoo.wow.query.backend.ResolvedQueryBackend#public final me.ahoo.wow.query.backend.QueryBackendRouteIdentity getRouteIdentity();|descriptor: ()Lme/ahoo/wow/query/backend/QueryBackendRouteIdentity;
+me.ahoo.wow.query.backend.ResolvedQueryBackend#public java.lang.String toString();|descriptor: ()Ljava/lang/String;
+me.ahoo.wow.query.backend.ResolvedQueryBackend#public me.ahoo.wow.query.backend.ResolvedQueryBackend(me.ahoo.wow.query.backend.QueryBackend, me.ahoo.wow.query.backend.QueryBackendDescriptor, me.ahoo.wow.query.backend.QueryBackendRouteIdentity, me.ahoo.wow.query.backend.QueryBackendReadiness);|descriptor: (Lme/ahoo/wow/query/backend/QueryBackend;Lme/ahoo/wow/query/backend/QueryBackendDescriptor;Lme/ahoo/wow/query/backend/QueryBackendRouteIdentity;Lme/ahoo/wow/query/backend/QueryBackendReadiness;)V
+me.ahoo.wow.query.backend.ResolvedQueryBackend#public static final me.ahoo.wow.query.backend.ResolvedQueryBackend$Companion Companion;|descriptor: Lme/ahoo/wow/query/backend/ResolvedQueryBackend$Companion;
+me.ahoo.wow.query.backend.ResolvedQueryBackend#public static final reactor.core.publisher.Mono<me.ahoo.wow.query.backend.ResolvedQueryBackend> resolve(me.ahoo.wow.query.backend.QueryBackend, me.ahoo.wow.query.backend.QueryBackendRouteIdentity);|descriptor: (Lme/ahoo/wow/query/backend/QueryBackend;Lme/ahoo/wow/query/backend/QueryBackendRouteIdentity;)Lreactor/core/publisher/Mono;
+me.ahoo.wow.query.backend.ResolvedQueryBackend$Companion#class|public final class me.ahoo.wow.query.backend.ResolvedQueryBackend$Companion {
+me.ahoo.wow.query.backend.ResolvedQueryBackend$Companion#public final reactor.core.publisher.Mono<me.ahoo.wow.query.backend.ResolvedQueryBackend> resolve(me.ahoo.wow.query.backend.QueryBackend, me.ahoo.wow.query.backend.QueryBackendRouteIdentity);|descriptor: (Lme/ahoo/wow/query/backend/QueryBackend;Lme/ahoo/wow/query/backend/QueryBackendRouteIdentity;)Lreactor/core/publisher/Mono;
+me.ahoo.wow.query.backend.ResolvedQueryBackend$Companion#public me.ahoo.wow.query.backend.ResolvedQueryBackend$Companion(kotlin.jvm.internal.DefaultConstructorMarker);|descriptor: (Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 me.ahoo.wow.query.converter.AbstractConditionConverter#class|public abstract class me.ahoo.wow.query.converter.AbstractConditionConverter<T> implements me.ahoo.wow.query.converter.ConditionConverter<T> {
 me.ahoo.wow.query.converter.AbstractConditionConverter#protected final T beforeToday(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Ljava/lang/Object;
 me.ahoo.wow.query.converter.AbstractConditionConverter#protected final T earlierDays(me.ahoo.wow.api.query.Condition);|descriptor: (Lme/ahoo/wow/api/query/Condition;)Ljava/lang/Object;
@@ -536,6 +610,45 @@ me.ahoo.wow.query.mask.StateDynamicDocumentMasker#public static boolean access$i
 me.ahoo.wow.query.mask.StateDynamicDocumentMasker#public static boolean access$isSameBoundedContext$jd(me.ahoo.wow.query.mask.StateDynamicDocumentMasker, me.ahoo.wow.api.naming.NamedBoundedContext);|descriptor: (Lme/ahoo/wow/query/mask/StateDynamicDocumentMasker;Lme/ahoo/wow/api/naming/NamedBoundedContext;)Z
 me.ahoo.wow.query.mask.StateDynamicDocumentMasker#public static java.lang.String access$getAggregateName$jd(me.ahoo.wow.query.mask.StateDynamicDocumentMasker);|descriptor: (Lme/ahoo/wow/query/mask/StateDynamicDocumentMasker;)Ljava/lang/String;
 me.ahoo.wow.query.mask.StateDynamicDocumentMasker#public static java.lang.String access$getContextName$jd(me.ahoo.wow.query.mask.StateDynamicDocumentMasker);|descriptor: (Lme/ahoo/wow/query/mask/StateDynamicDocumentMasker;)Ljava/lang/String;
+me.ahoo.wow.query.plan.CountQueryPlanV1#class|public interface me.ahoo.wow.query.plan.CountQueryPlanV1 extends me.ahoo.wow.query.plan.QueryPlanV1 {
+me.ahoo.wow.query.plan.ListQueryPlanV1#class|public interface me.ahoo.wow.query.plan.ListQueryPlanV1<R> extends me.ahoo.wow.query.plan.QueryPlanV1 {
+me.ahoo.wow.query.plan.ListQueryPlanV1#public abstract int getLimit();|descriptor: ()I
+me.ahoo.wow.query.plan.PageQueryPlanV1#class|public interface me.ahoo.wow.query.plan.PageQueryPlanV1<R> extends me.ahoo.wow.query.plan.QueryPlanV1 {
+me.ahoo.wow.query.plan.PageQueryPlanV1#public abstract me.ahoo.wow.api.query.gateway.QueryPageSpec getPage();|descriptor: ()Lme/ahoo/wow/api/query/gateway/QueryPageSpec;
+me.ahoo.wow.query.plan.QueryPlanResultShape#class|public interface me.ahoo.wow.query.plan.QueryPlanResultShape {
+me.ahoo.wow.query.plan.QueryPlanResultShape#public static final me.ahoo.wow.query.plan.QueryPlanResultShape$Companion Companion;|descriptor: Lme/ahoo/wow/query/plan/QueryPlanResultShape$Companion;
+me.ahoo.wow.query.plan.QueryPlanResultShape$Companion#class|public final class me.ahoo.wow.query.plan.QueryPlanResultShape$Companion {
+me.ahoo.wow.query.plan.QueryPlanResultShape$Companion#public static final java.util.Set access$immutableFields(me.ahoo.wow.query.plan.QueryPlanResultShape$Companion, java.util.Set);|descriptor: (Lme/ahoo/wow/query/plan/QueryPlanResultShape$Companion;Ljava/util/Set;)Ljava/util/Set;
+me.ahoo.wow.query.plan.QueryPlanResultShape$Count#class|public final class me.ahoo.wow.query.plan.QueryPlanResultShape$Count implements me.ahoo.wow.query.plan.QueryPlanResultShape {
+me.ahoo.wow.query.plan.QueryPlanResultShape$Count#public boolean equals(java.lang.Object);|descriptor: (Ljava/lang/Object;)Z
+me.ahoo.wow.query.plan.QueryPlanResultShape$Count#public int hashCode();|descriptor: ()I
+me.ahoo.wow.query.plan.QueryPlanResultShape$Count#public java.lang.String toString();|descriptor: ()Ljava/lang/String;
+me.ahoo.wow.query.plan.QueryPlanResultShape$Count#public static final me.ahoo.wow.query.plan.QueryPlanResultShape$Count INSTANCE;|descriptor: Lme/ahoo/wow/query/plan/QueryPlanResultShape$Count;
+me.ahoo.wow.query.plan.QueryPlanResultShape$Dynamic#class|public final class me.ahoo.wow.query.plan.QueryPlanResultShape$Dynamic implements me.ahoo.wow.query.plan.QueryPlanResultShape {
+me.ahoo.wow.query.plan.QueryPlanResultShape$Dynamic#public boolean equals(java.lang.Object);|descriptor: (Ljava/lang/Object;)Z
+me.ahoo.wow.query.plan.QueryPlanResultShape$Dynamic#public final java.util.Set<me.ahoo.wow.api.query.expression.LogicalField> getFields();|descriptor: ()Ljava/util/Set;
+me.ahoo.wow.query.plan.QueryPlanResultShape$Dynamic#public int hashCode();|descriptor: ()I
+me.ahoo.wow.query.plan.QueryPlanResultShape$Dynamic#public java.lang.String toString();|descriptor: ()Ljava/lang/String;
+me.ahoo.wow.query.plan.QueryPlanResultShape$Dynamic#public me.ahoo.wow.query.plan.QueryPlanResultShape$Dynamic(java.util.Set<me.ahoo.wow.api.query.expression.LogicalField>);|descriptor: (Ljava/util/Set;)V
+me.ahoo.wow.query.plan.QueryPlanResultShape$Typed#class|public final class me.ahoo.wow.query.plan.QueryPlanResultShape$Typed implements me.ahoo.wow.query.plan.QueryPlanResultShape {
+me.ahoo.wow.query.plan.QueryPlanResultShape$Typed#public boolean equals(java.lang.Object);|descriptor: (Ljava/lang/Object;)Z
+me.ahoo.wow.query.plan.QueryPlanResultShape$Typed#public final java.lang.Class<?> getResultType();|descriptor: ()Ljava/lang/Class;
+me.ahoo.wow.query.plan.QueryPlanResultShape$Typed#public final java.util.Set<me.ahoo.wow.api.query.expression.LogicalField> getFields();|descriptor: ()Ljava/util/Set;
+me.ahoo.wow.query.plan.QueryPlanResultShape$Typed#public int hashCode();|descriptor: ()I
+me.ahoo.wow.query.plan.QueryPlanResultShape$Typed#public java.lang.String toString();|descriptor: ()Ljava/lang/String;
+me.ahoo.wow.query.plan.QueryPlanResultShape$Typed#public me.ahoo.wow.query.plan.QueryPlanResultShape$Typed(java.lang.Class<?>, java.util.Set<me.ahoo.wow.api.query.expression.LogicalField>);|descriptor: (Ljava/lang/Class;Ljava/util/Set;)V
+me.ahoo.wow.query.plan.QueryPlanV1#class|public interface me.ahoo.wow.query.plan.QueryPlanV1 {
+me.ahoo.wow.query.plan.QueryPlanV1#public abstract java.lang.String getCorrelationId();|descriptor: ()Ljava/lang/String;
+me.ahoo.wow.query.plan.QueryPlanV1#public abstract java.time.Instant getEffectiveDeadline();|descriptor: ()Ljava/time/Instant;
+me.ahoo.wow.query.plan.QueryPlanV1#public abstract java.util.List<me.ahoo.wow.api.query.gateway.QuerySort> getSort();|descriptor: ()Ljava/util/List;
+me.ahoo.wow.query.plan.QueryPlanV1#public abstract java.util.Map<me.ahoo.wow.query.invocation.QueryProvenance, me.ahoo.wow.api.query.expression.QueryExpression> getExpressionProvenance();|descriptor: ()Ljava/util/Map;
+me.ahoo.wow.query.plan.QueryPlanV1#public abstract me.ahoo.wow.api.query.expression.QueryExpression getSecuredExpression();|descriptor: ()Lme/ahoo/wow/api/query/expression/QueryExpression;
+me.ahoo.wow.query.plan.QueryPlanV1#public abstract me.ahoo.wow.api.query.gateway.QueryTarget getTarget();|descriptor: ()Lme/ahoo/wow/api/query/gateway/QueryTarget;
+me.ahoo.wow.query.plan.QueryPlanV1#public abstract me.ahoo.wow.query.backend.QueryBackendRouteIdentity getRouteIdentity();|descriptor: ()Lme/ahoo/wow/query/backend/QueryBackendRouteIdentity;
+me.ahoo.wow.query.plan.QueryPlanV1#public abstract me.ahoo.wow.query.backend.QueryPlanVersion getVersion();|descriptor: ()Lme/ahoo/wow/query/backend/QueryPlanVersion;
+me.ahoo.wow.query.plan.QueryPlanV1#public abstract me.ahoo.wow.query.plan.QueryPlanResultShape getAuthorizedResultShape();|descriptor: ()Lme/ahoo/wow/query/plan/QueryPlanResultShape;
+me.ahoo.wow.query.plan.QueryPlanV1#public abstract me.ahoo.wow.query.validation.QueryBudgetLimit getEffectiveBudget();|descriptor: ()Lme/ahoo/wow/query/validation/QueryBudgetLimit;
+me.ahoo.wow.query.plan.SingleQueryPlanV1#class|public interface me.ahoo.wow.query.plan.SingleQueryPlanV1<R> extends me.ahoo.wow.query.plan.QueryPlanV1 {
 me.ahoo.wow.query.policy.CapabilityDecision#class|public final class me.ahoo.wow.query.policy.CapabilityDecision extends java.lang.Enum<me.ahoo.wow.query.policy.CapabilityDecision> {
 me.ahoo.wow.query.policy.CapabilityDecision#public static final me.ahoo.wow.query.policy.CapabilityDecision ABSTAIN;|descriptor: Lme/ahoo/wow/query/policy/CapabilityDecision;
 me.ahoo.wow.query.policy.CapabilityDecision#public static final me.ahoo.wow.query.policy.CapabilityDecision DENY;|descriptor: Lme/ahoo/wow/query/policy/CapabilityDecision;
