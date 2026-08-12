@@ -274,8 +274,34 @@ class DefaultQueryPlannerTest {
     }
 
     @Test
-    fun `rejects unsupported structural features and default or explicit string comparison modes before execution`() {
-        val elementMatch = ElementMatchExpression(LINES, predicate(LogicalField("sku"), "sku-1"))
+    fun `does not negotiate string comparison modes for integer equality predicates`() {
+        val expression = PredicateExpression(
+            AGE,
+            PortableOperator.EQ,
+            listOf(QueryValue.IntegerValue(42))
+        )
+        val numericSchema = QuerySchema(
+            TARGET,
+            QuerySystemFields.fields(QueryDocumentKind.SNAPSHOT) +
+                QueryFieldSchema.string(STATUS, nullable = false).copy(sortable = true) +
+                QueryFieldSchema(AGE, QueryFieldValueKind.INTEGER, nullable = false)
+        )
+        val backend = RecordingQueryBackend(descriptor(stringComparisonModes = emptySet()))
+        val resolved = ResolvedQueryBackend.resolve(backend, ROUTE).block()!!
+
+        planner().plan(
+            invocation(expression = expression, schema = numericSchema),
+            policyResult(
+                securedExpression = expression,
+                fieldAccess = QueryFieldAccess.Restricted(numericSchema.fields.keys)
+            ),
+            resolved
+        ).block().assert().isNotNull()
+    }
+
+    @Test
+    fun `rejects an unsupported element match feature before execution`() {
+        val expression = ElementMatchExpression(LINES, predicate(LogicalField("sku"), "sku-1"))
         val nestedSchema = QuerySchema(
             TARGET,
             QuerySystemFields.fields(QueryDocumentKind.SNAPSHOT) +
@@ -289,39 +315,59 @@ class DefaultQueryPlannerTest {
                 ) +
                 QueryFieldSchema.string(LINE_SKU, nullable = false)
         )
-        val caseInsensitive = PredicateExpression(
-            STATUS,
-            PortableOperator.CONTAINS,
-            listOf(QueryValue.StringValue("open")),
-            StringComparisonMode.CASE_INSENSITIVE
-        )
-        val cases = listOf(
-            Triple(
-                invocation(expression = elementMatch, schema = nestedSchema),
-                descriptor(portableFeatures = emptySet()),
+        val backend = RecordingQueryBackend(descriptor(portableFeatures = emptySet()))
+        val resolved = ResolvedQueryBackend.resolve(backend, ROUTE).block()!!
+
+        assertQueryError(
+            planner().plan(
+                invocation(expression = expression, schema = nestedSchema),
                 policyResult(
-                    securedExpression = elementMatch,
+                    securedExpression = expression,
                     fieldAccess = QueryFieldAccess.Restricted(nestedSchema.fields.keys)
-                )
+                ),
+                resolved
             ),
-            Triple(
-                invocation(),
-                descriptor(stringComparisonModes = emptySet()),
-                policyResult()
-            ),
-            Triple(
-                invocation(expression = caseInsensitive),
-                descriptor(stringComparisonModes = setOf(StringComparisonMode.DEFAULT)),
-                policyResult(securedExpression = caseInsensitive)
+            QueryErrorCode.UNSUPPORTED_CAPABILITY,
+            QueryErrorReason.CAPABILITY_DENIED
+        )
+        backend.listSubscriptions.get().assert().isZero()
+    }
+
+    @Test
+    fun `rejects unsupported modes for every string matching operator before execution`() {
+        val defaultCases = listOf(
+            PortableOperator.CONTAINS,
+            PortableOperator.STARTS_WITH,
+            PortableOperator.ENDS_WITH
+        ).map { operator ->
+            PredicateExpression(
+                STATUS,
+                operator,
+                listOf(QueryValue.StringValue("open")),
+                StringComparisonMode.DEFAULT
             )
+        }
+        val cases = defaultCases.map { expression ->
+            expression to emptySet<StringComparisonMode>()
+        } + listOf(
+            PredicateExpression(
+                STATUS,
+                PortableOperator.CONTAINS,
+                listOf(QueryValue.StringValue("open")),
+                StringComparisonMode.CASE_INSENSITIVE
+            ) to setOf(StringComparisonMode.DEFAULT)
         )
 
-        cases.forEach { (invocation, backendDescriptor, result) ->
-            val backend = RecordingQueryBackend(backendDescriptor)
+        cases.forEach { (expression, supportedModes) ->
+            val backend = RecordingQueryBackend(descriptor(stringComparisonModes = supportedModes))
             val resolved = ResolvedQueryBackend.resolve(backend, ROUTE).block()!!
 
             assertQueryError(
-                planner().plan(invocation, result, resolved),
+                planner().plan(
+                    invocation(expression = expression),
+                    policyResult(securedExpression = expression),
+                    resolved
+                ),
                 QueryErrorCode.UNSUPPORTED_CAPABILITY,
                 QueryErrorReason.CAPABILITY_DENIED
             )
@@ -546,6 +592,7 @@ class DefaultQueryPlannerTest {
             QueryDocumentKind.SNAPSHOT
         )
         private val STATUS = LogicalField("state.status")
+        private val AGE = LogicalField("state.age")
         private val LINES = LogicalField("state.lines")
         private val LINE_SKU = LogicalField("state.lines.sku")
         private val SECRET = LogicalField("state.secret")

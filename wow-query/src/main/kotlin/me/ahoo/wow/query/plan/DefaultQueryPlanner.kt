@@ -297,7 +297,9 @@ internal class DefaultQueryPlanner private constructor(
                 }
                 is PredicateExpression -> {
                     operators += current.operator
-                    stringComparisonModes += current.stringComparison
+                    if (current.operator in STRING_COMPARISON_OPERATORS) {
+                        stringComparisonModes += current.stringComparison
+                    }
                     fields += resolvePath(frame.relativeTo, current.field)
                 }
 
@@ -439,6 +441,12 @@ internal class DefaultQueryPlanner private constructor(
     private class CountPlan(state: PlanState) : AbstractPlan(state), CountQueryPlanV1
 
     internal companion object {
+        private val STRING_COMPARISON_OPERATORS = setOf(
+            PortableOperator.CONTAINS,
+            PortableOperator.STARTS_WITH,
+            PortableOperator.ENDS_WITH
+        )
+
         @JvmSynthetic
         internal fun create(
             enabledCapabilities: Set<QueryCapabilityId>,
