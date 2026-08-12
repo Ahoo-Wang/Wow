@@ -39,7 +39,12 @@ import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.query.converter.DeleteConditionGuard.guard
+import me.ahoo.wow.query.schema.QueryFieldSchema
+import me.ahoo.wow.query.schema.QueryFieldValueKind
+import me.ahoo.wow.query.schema.QuerySchema
 import me.ahoo.wow.query.schema.QuerySystemFields
+import me.ahoo.wow.query.validation.QueryExpressionValidator
+import me.ahoo.wow.query.validation.QueryStructureLimits
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Instant
@@ -52,7 +57,7 @@ class LegacyConditionLowererTest {
     private val eventTarget = QueryTarget("sales.order".toNamedAggregate(), QueryDocumentKind.EVENT_STREAM)
     private val snapshotTarget = QueryTarget("sales.order".toNamedAggregate(), QueryDocumentKind.SNAPSHOT)
     private val native = NativeExpression(
-        capabilityId = QueryCapabilityId("native.mongo"),
+        capabilityId = QueryCapabilityId("x-wow:native"),
         backendId = "mongo",
         templateId = "active-orders",
         parameters = mapOf("status" to QueryValue.StringValue("ACTIVE")),
@@ -142,6 +147,59 @@ class LegacyConditionLowererTest {
             LegacyConditionLowerer.lower(fixture.condition, eventTarget, frozenInstant, zoneId)
                 .assert()
                 .isEqualTo(fixture.expected)
+        }
+    }
+
+    @Test
+    fun `legacy RAW remains admissible through compatible schema validation`() {
+        val lowered = LegacyConditionLowerer.lower(
+            Condition.raw(native),
+            eventTarget,
+            frozenInstant,
+            zoneId
+        )
+        val validator = QueryExpressionValidator(
+            QueryStructureLimits(
+                maxDepth = 4,
+                maxNodes = 4,
+                maxMembershipItems = 4,
+                maxNativeParameterBytes = 256
+            )
+        )
+        val compatibleSchema = QuerySchema(
+            eventTarget,
+            listOf(
+                QueryFieldSchema(
+                    path = LogicalField("state.status"),
+                    valueKind = QueryFieldValueKind.STRING,
+                    nullable = false,
+                    capabilities = setOf(native.capabilityId)
+                )
+            )
+        )
+
+        lowered.assert().isSameAs(native)
+        validator.validateStructure(lowered).assert().isSameAs(native)
+        validator.validateSchema(lowered, compatibleSchema).assert().isSameAs(native)
+
+        assertThrows<QueryException> {
+            validator.validateSchema(lowered, QuerySchema(eventTarget, emptyList()))
+        }
+        assertThrows<QueryException> {
+            validator.validateSchema(
+                lowered,
+                QuerySchema(
+                    eventTarget,
+                    listOf(
+                        QueryFieldSchema(
+                            path = LogicalField("state.status"),
+                            valueKind = QueryFieldValueKind.STRING,
+                            nullable = false,
+                            capabilities = setOf(QueryCapabilityId("x-wow:other"))
+                        )
+                    )
+                )
+            )
         }
     }
 

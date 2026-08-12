@@ -19,7 +19,7 @@ readonly DEFAULT_BASELINE_DIR="$ROOT_DIR/config/query-api"
 readonly DEFAULT_ALLOWLIST="$ROOT_DIR/config/query-api/approved-removals.txt"
 
 usage() {
-    echo "Usage: $0 dump|check [--manifest FILE] [--artifacts-dir DIR] [--baseline-dir DIR] [--allowlist FILE] [--runtime-classpath PATH] [--classpath-separator :|;]" >&2
+    echo "Usage: $0 dump|check [--manifest FILE] [--artifacts-dir DIR] [--baseline-dir DIR] [--allowlist FILE] [--class-overrides FILE] [--runtime-classpath PATH] [--classpath-separator :|;]" >&2
 }
 
 die() {
@@ -32,21 +32,41 @@ require_jdk_tools() {
     command -v jar >/dev/null 2>&1 || die "Missing required JDK tool: jar"
 }
 
-is_included_class() {
+entry_matches_prefixes() {
     local entry="$1"
     local prefixes="$2"
     local prefix
-    [[ "$entry" == *.class ]] || return 1
-    [[ "$entry" != META-INF/* ]] || return 1
-    [[ "$entry" != *Test* ]] || return 1
-    [[ "$entry" != *\$DefaultImpls.class ]] || return 1
-    [[ "$entry" != *\$WhenMappings.class ]] || return 1
-    [[ "$entry" != *Kt.class ]] || return 1
     IFS=';' read -r -a prefix_list <<<"$prefixes"
     for prefix in "${prefix_list[@]}"; do
         [[ "$entry" == "$prefix"* ]] && return 0
     done
     return 1
+}
+
+configured_class_action() {
+    local module="$1"
+    local entry="$2"
+    awk -F '\t' -v module="$module" -v entry="$entry" \
+        '$1 == module && $2 == entry { print $3; exit }' "$NORMALIZED_CLASS_OVERRIDES"
+}
+
+is_included_class() {
+    local module="$1"
+    local entry="$2"
+    local prefixes="$3"
+    local action
+    [[ "$entry" == *.class ]] || return 1
+    [[ "$entry" != META-INF/* ]] || return 1
+    [[ "$entry" != *Test* ]] || return 1
+    [[ "$entry" != *\$DefaultImpls.class ]] || return 1
+    [[ "$entry" != *\$WhenMappings.class ]] || return 1
+    entry_matches_prefixes "$entry" "$prefixes" || return 1
+    action="$(configured_class_action "$module" "$entry")"
+    [[ "$action" != "exclude" ]] || return 1
+    if [[ "$entry" == *Kt.class ]]; then
+        [[ "$action" == "include" ]] || die "Unclassified Kotlin facade [$module]: $entry"
+    fi
+    return 0
 }
 
 resolve_jar() {
@@ -69,15 +89,16 @@ resolve_jar() {
 }
 
 dump_jar_symbols() {
-    local jar_file="$1"
-    local prefixes="$2"
+    local module="$1"
+    local jar_file="$2"
+    local prefixes="$3"
     local entry class_name class_dump javap_classpath
     javap_classpath="$jar_file"
     if [[ -n "$RUNTIME_CLASSPATH" ]]; then
         javap_classpath="$javap_classpath$CLASSPATH_SEPARATOR$RUNTIME_CLASSPATH"
     fi
     while IFS= read -r entry; do
-        is_included_class "$entry" "$prefixes" || continue
+        is_included_class "$module" "$entry" "$prefixes" || continue
         class_name="${entry%.class}"
         class_name="${class_name//\//.}"
         class_dump="$(mktemp "$WORK_DIR/javap.XXXXXX")"
@@ -126,15 +147,78 @@ dump_module() {
     local jar_glob="$2"
     local prefixes="$3"
     local output_file="$4"
-    local jar_file
+    local jar_file configured_entry class_name
     jar_file="$(resolve_jar "$module" "$jar_glob")"
-    dump_jar_symbols "$jar_file" "$prefixes" | LC_ALL=C sort -u >"$output_file"
+    validate_classification_for_module "$module" "$jar_file" "$prefixes"
+    dump_jar_symbols "$module" "$jar_file" "$prefixes" | LC_ALL=C sort -u >"$output_file"
     [[ -s "$output_file" ]] || die "No public ABI symbols found for module $module"
+    while IFS=$'\t' read -r _ configured_entry _ _; do
+        class_name="${configured_entry%.class}"
+        class_name="${class_name//\//.}"
+        grep -Fq "$class_name#" "$output_file" || \
+            die "Configured included class has no public ABI [$module]: $configured_entry"
+    done < <(awk -F '\t' -v module="$module" '$1 == module && $3 == "include"' "$NORMALIZED_CLASS_OVERRIDES")
 }
 
 validate_manifest() {
     [[ -f "$MANIFEST" ]] || die "Manifest does not exist: $MANIFEST"
     [[ -s "$MANIFEST" ]] || die "Manifest is empty: $MANIFEST"
+}
+
+validate_class_overrides() {
+    [[ -f "$CLASS_OVERRIDES" ]] || die "Class overrides do not exist: $CLASS_OVERRIDES"
+    : >"$NORMALIZED_CLASS_OVERRIDES"
+    local module entry action reason extra manifest_prefixes duplicate
+    while IFS=$'\t' read -r module entry action reason extra || [[ -n "${module:-}" ]]; do
+        [[ -z "${module:-}" || "$module" == \#* ]] && continue
+        [[ -n "${entry:-}" && -n "${action:-}" && -n "${reason:-}" && -z "${extra:-}" ]] || \
+            die "Invalid class override row for module $module"
+        case "$action" in
+            include|exclude) ;;
+            *) die "Invalid class override action [$module/$entry]: $action" ;;
+        esac
+        case "$action:$reason" in
+            include:retained-public-facade | \
+            exclude:approved-filter-context-removal | \
+            exclude:synthetic-private-helper | \
+            exclude:kotlin-internal) ;;
+            *) die "Invalid class override reason [$module/$entry]: $action/$reason" ;;
+        esac
+        [[ "$entry" == *.class && "$entry" != /* && "$entry" != *../* ]] || \
+            die "Invalid configured class entry [$module]: $entry"
+        manifest_prefixes="$(awk -F '\t' -v module="$module" '$1 == module { print $3 }' "$MANIFEST")"
+        [[ -n "$manifest_prefixes" && "$manifest_prefixes" != *$'\n'* ]] || \
+            die "Configured class references unknown or duplicate module: $module"
+        entry_matches_prefixes "$entry" "$manifest_prefixes" || \
+            die "Configured class is outside module prefixes [$module]: $entry"
+        printf '%s\t%s\t%s\t%s\n' "$module" "$entry" "$action" "$reason" >>"$NORMALIZED_CLASS_OVERRIDES"
+    done <"$CLASS_OVERRIDES"
+    duplicate="$(cut -f1,2 "$NORMALIZED_CLASS_OVERRIDES" | LC_ALL=C sort | uniq -d | head -n 1)"
+    [[ -z "$duplicate" ]] || die "Duplicate configured class: ${duplicate//$'\t'/ }"
+}
+
+validate_classification_for_module() {
+    local module="$1"
+    local jar_file="$2"
+    local prefixes="$3"
+    local jar_entries="$WORK_DIR/$module.jar-entries"
+    local configured_entry action current_entry
+    jar tf "$jar_file" | LC_ALL=C sort -u >"$jar_entries"
+    while IFS=$'\t' read -r _ configured_entry action _; do
+        grep -Fxq "$configured_entry" "$jar_entries" && continue
+        if [[ "$action" == "include" ]]; then
+            die "Configured included class is absent [$module]: $configured_entry"
+        fi
+        if [[ "$COMMAND" == "dump" ]]; then
+            die "Configured excluded class is absent [$module]: $configured_entry"
+        fi
+    done < <(awk -F '\t' -v module="$module" '$1 == module' "$NORMALIZED_CLASS_OVERRIDES")
+    while IFS= read -r current_entry; do
+        [[ "$current_entry" == *Kt.class ]] || continue
+        entry_matches_prefixes "$current_entry" "$prefixes" || continue
+        action="$(configured_class_action "$module" "$current_entry")"
+        [[ -n "$action" ]] || die "Unclassified Kotlin facade [$module]: $current_entry"
+    done <"$jar_entries"
 }
 
 validate_allowlist() {
@@ -158,6 +242,7 @@ MANIFEST="$DEFAULT_MANIFEST"
 ARTIFACTS_DIR="$DEFAULT_ARTIFACTS_DIR"
 BASELINE_DIR="$DEFAULT_BASELINE_DIR"
 ALLOWLIST="$DEFAULT_ALLOWLIST"
+CLASS_OVERRIDES=""
 RUNTIME_CLASSPATH=""
 CLASSPATH_SEPARATOR=":"
 
@@ -177,6 +262,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --allowlist)
             ALLOWLIST="$2"
+            shift 2
+            ;;
+        --class-overrides)
+            CLASS_OVERRIDES="$2"
             shift 2
             ;;
         --runtime-classpath)
@@ -209,6 +298,9 @@ esac
 
 require_jdk_tools
 validate_manifest
+if [[ -z "$CLASS_OVERRIDES" ]]; then
+    CLASS_OVERRIDES="$(dirname "$MANIFEST")/class-overrides.tsv"
+fi
 [[ -f "$ALLOWLIST" ]] || die "Allowlist does not exist: $ALLOWLIST"
 
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/query-api-abi.XXXXXX")"
@@ -216,6 +308,9 @@ cleanup() {
     rm -rf "$WORK_DIR"
 }
 trap cleanup EXIT
+
+NORMALIZED_CLASS_OVERRIDES="$WORK_DIR/class-overrides.normalized.tsv"
+validate_class_overrides
 
 all_baselines="$WORK_DIR/all-baselines"
 : >"$all_baselines"

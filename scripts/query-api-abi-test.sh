@@ -75,9 +75,11 @@ readonly MANIFEST="$TEMP_DIR/modules.tsv"
 readonly ARTIFACTS="$TEMP_DIR/artifacts"
 readonly BASELINES="$TEMP_DIR/baselines"
 readonly ALLOWLIST="$TEMP_DIR/approved-removals.txt"
+readonly CLASS_OVERRIDES="$TEMP_DIR/class-overrides.tsv"
 mkdir -p "$ARTIFACTS" "$BASELINES"
 printf 'mini\tmini.jar\tfixture/\n' >"$MANIFEST"
 : >"$ALLOWLIST"
+: >"$CLASS_OVERRIDES"
 
 if [[ ! -f "$ABI_SCRIPT" ]]; then
     echo "RED: production script is missing: scripts/query-api-abi.sh" >&2
@@ -239,5 +241,144 @@ echo 'PASS: package_private_class_is_excluded'
 
 expect_failure missing_jdk_tool_is_rejected 'Missing required JDK tool: javap' env PATH="$TEMP_DIR/no-jdk-tools" /bin/bash "$ABI_SCRIPT" check \
     --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$BASELINES" --allowlist "$ALLOWLIST"
+
+compile_classification_api() {
+    local output_dir="$1"
+    local variant="$2"
+    mkdir -p "$output_dir/src/fixture" "$output_dir/classes"
+    if [[ "$variant" != "public-deletion" ]]; then
+        if [[ "$variant" == "public-descriptor-change" ]]; then
+            printf '%s\n' 'package fixture; public final class QueryableKt { public static int isEmpty() { return 0; } }' \
+                >"$output_dir/src/fixture/QueryableKt.java"
+        elif [[ "$variant" == "public-visibility-change" ]]; then
+            printf '%s\n' 'package fixture; final class QueryableKt { public static boolean isEmpty() { return true; } }' \
+                >"$output_dir/src/fixture/QueryableKt.java"
+        else
+            printf '%s\n' 'package fixture; public final class QueryableKt { public static boolean isEmpty() { return true; } }' \
+                >"$output_dir/src/fixture/QueryableKt.java"
+        fi
+        printf '%s\n' 'package fixture; public final class DslKt { public static void query() {} }' \
+            >"$output_dir/src/fixture/DslKt.java"
+        printf '%s\n' 'package fixture; public final class DataMaskingKt { public static Object tryMask(Object value) { return value; } }' \
+            >"$output_dir/src/fixture/DataMaskingKt.java"
+    fi
+    if [[ "$variant" != "internal-deletion" ]]; then
+        if [[ "$variant" == "internal-change" ]]; then
+            printf '%s\n' 'package fixture; public final class InternalFacadeKt { public static long internalOnly() { return 1L; } }' \
+                >"$output_dir/src/fixture/InternalFacadeKt.java"
+            printf '%s\n' 'package fixture; public final class InternalImpl { public long internalOnly() { return 1L; } }' \
+                >"$output_dir/src/fixture/InternalImpl.java"
+        else
+            printf '%s\n' 'package fixture; public final class InternalFacadeKt { public static int internalOnly() { return 1; } }' \
+                >"$output_dir/src/fixture/InternalFacadeKt.java"
+            printf '%s\n' 'package fixture; public final class InternalImpl { public int internalOnly() { return 1; } }' \
+                >"$output_dir/src/fixture/InternalImpl.java"
+        fi
+    fi
+    if [[ "$variant" == "unclassified-facade" ]]; then
+        printf '%s\n' 'package fixture; public final class NewFacadeKt { public static void newApi() {} }' \
+            >"$output_dir/src/fixture/NewFacadeKt.java"
+    fi
+    javac -d "$output_dir/classes" "$output_dir"/src/fixture/*.java
+    jar --create --file "$output_dir/mini.jar" -C "$output_dir/classes" .
+}
+
+cat >"$CLASS_OVERRIDES" <<'EOF'
+mini	fixture/QueryableKt.class	include	retained-public-facade
+mini	fixture/DslKt.class	include	retained-public-facade
+mini	fixture/DataMaskingKt.class	include	retained-public-facade
+mini	fixture/InternalFacadeKt.class	exclude	kotlin-internal
+mini	fixture/InternalImpl.class	exclude	kotlin-internal
+EOF
+
+compile_classification_api "$TEMP_DIR/classification-v1" v1
+cp "$TEMP_DIR/classification-v1/mini.jar" "$ARTIFACTS/mini.jar"
+expect_success classified_facades_dump bash "$ABI_SCRIPT" dump \
+    --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$TEMP_DIR/classification-baselines" \
+    --allowlist "$ALLOWLIST" --class-overrides "$CLASS_OVERRIDES"
+grep -Fq 'fixture.QueryableKt#' "$TEMP_DIR/classification-baselines/mini-8.x.baseline" || \
+    fail 'classified retained facade should be present in ABI baseline'
+if grep -Fq 'fixture.Internal' "$TEMP_DIR/classification-baselines/mini-8.x.baseline"; then
+    fail 'classified Kotlin internal classes should not be present in ABI baseline'
+fi
+
+compile_classification_api "$TEMP_DIR/public-deletion" public-deletion
+cp "$TEMP_DIR/public-deletion/mini.jar" "$ARTIFACTS/mini.jar"
+expect_failure classified_public_facade_deletion_is_rejected 'Configured included class is absent' bash "$ABI_SCRIPT" check \
+    --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$TEMP_DIR/classification-baselines" \
+    --allowlist "$ALLOWLIST" --class-overrides "$CLASS_OVERRIDES"
+
+compile_classification_api "$TEMP_DIR/public-descriptor-change" public-descriptor-change
+cp "$TEMP_DIR/public-descriptor-change/mini.jar" "$ARTIFACTS/mini.jar"
+expect_failure classified_public_facade_descriptor_change_is_rejected 'Unapproved removed ABI symbol' bash "$ABI_SCRIPT" check \
+    --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$TEMP_DIR/classification-baselines" \
+    --allowlist "$ALLOWLIST" --class-overrides "$CLASS_OVERRIDES"
+
+compile_classification_api "$TEMP_DIR/internal-change" internal-change
+cp "$TEMP_DIR/internal-change/mini.jar" "$ARTIFACTS/mini.jar"
+expect_success classified_internal_descriptor_change_is_allowed bash "$ABI_SCRIPT" check \
+    --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$TEMP_DIR/classification-baselines" \
+    --allowlist "$ALLOWLIST" --class-overrides "$CLASS_OVERRIDES"
+
+compile_classification_api "$TEMP_DIR/internal-deletion" internal-deletion
+cp "$TEMP_DIR/internal-deletion/mini.jar" "$ARTIFACTS/mini.jar"
+expect_success classified_internal_deletion_is_allowed bash "$ABI_SCRIPT" check \
+    --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$TEMP_DIR/classification-baselines" \
+    --allowlist "$ALLOWLIST" --class-overrides "$CLASS_OVERRIDES"
+
+compile_classification_api "$TEMP_DIR/unclassified-facade" unclassified-facade
+cp "$TEMP_DIR/unclassified-facade/mini.jar" "$ARTIFACTS/mini.jar"
+expect_failure unclassified_kotlin_facade_is_rejected 'Unclassified Kotlin facade' bash "$ABI_SCRIPT" check \
+    --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$TEMP_DIR/classification-baselines" \
+    --allowlist "$ALLOWLIST" --class-overrides "$CLASS_OVERRIDES"
+
+cp "$CLASS_OVERRIDES" "$TEMP_DIR/duplicate-class-overrides.tsv"
+printf '%s\n' 'mini	fixture/QueryableKt.class	include	retained-public-facade' >>"$TEMP_DIR/duplicate-class-overrides.tsv"
+expect_failure duplicate_class_override_is_rejected 'Duplicate configured class' bash "$ABI_SCRIPT" check \
+    --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$TEMP_DIR/classification-baselines" \
+    --allowlist "$ALLOWLIST" --class-overrides "$TEMP_DIR/duplicate-class-overrides.tsv"
+
+sed 's#fixture/InternalImpl.class#fixture/TypoInternalImpl.class#' "$CLASS_OVERRIDES" \
+    >"$TEMP_DIR/stale-class-overrides.tsv"
+cp "$TEMP_DIR/classification-v1/mini.jar" "$ARTIFACTS/mini.jar"
+expect_failure stale_excluded_class_is_rejected_during_dump 'Configured excluded class is absent' bash "$ABI_SCRIPT" dump \
+    --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$TEMP_DIR/stale-baselines" \
+    --allowlist "$ALLOWLIST" --class-overrides "$TEMP_DIR/stale-class-overrides.tsv"
+
+sed 's/\texclude\tkotlin-internal$/\tunknown\tkotlin-internal/' "$CLASS_OVERRIDES" \
+    >"$TEMP_DIR/invalid-action-class-overrides.tsv"
+expect_failure invalid_class_override_action_is_rejected 'Invalid class override action' bash "$ABI_SCRIPT" check \
+    --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$TEMP_DIR/classification-baselines" \
+    --allowlist "$ALLOWLIST" --class-overrides "$TEMP_DIR/invalid-action-class-overrides.tsv"
+
+cp "$CLASS_OVERRIDES" "$TEMP_DIR/unknown-module-class-overrides.tsv"
+printf '%s\n' 'unknown	fixture/UnknownKt.class	exclude	kotlin-internal' \
+    >>"$TEMP_DIR/unknown-module-class-overrides.tsv"
+expect_failure unknown_class_override_module_is_rejected 'Configured class references unknown or duplicate module' bash "$ABI_SCRIPT" check \
+    --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$TEMP_DIR/classification-baselines" \
+    --allowlist "$ALLOWLIST" --class-overrides "$TEMP_DIR/unknown-module-class-overrides.tsv"
+
+cp "$CLASS_OVERRIDES" "$TEMP_DIR/outside-prefix-class-overrides.tsv"
+printf '%s\n' 'mini	outside/OtherKt.class	exclude	kotlin-internal' \
+    >>"$TEMP_DIR/outside-prefix-class-overrides.tsv"
+expect_failure outside_prefix_class_override_is_rejected 'Configured class is outside module prefixes' bash "$ABI_SCRIPT" check \
+    --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$TEMP_DIR/classification-baselines" \
+    --allowlist "$ALLOWLIST" --class-overrides "$TEMP_DIR/outside-prefix-class-overrides.tsv"
+
+expect_failure missing_class_overrides_is_rejected 'Class overrides do not exist' bash "$ABI_SCRIPT" check \
+    --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$TEMP_DIR/classification-baselines" \
+    --allowlist "$ALLOWLIST" --class-overrides "$TEMP_DIR/missing-class-overrides.tsv"
+
+sed 's/retained-public-facade/unknown-reason/' "$CLASS_OVERRIDES" \
+    >"$TEMP_DIR/invalid-reason-class-overrides.tsv"
+expect_failure invalid_class_override_reason_is_rejected 'Invalid class override reason' bash "$ABI_SCRIPT" check \
+    --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$TEMP_DIR/classification-baselines" \
+    --allowlist "$ALLOWLIST" --class-overrides "$TEMP_DIR/invalid-reason-class-overrides.tsv"
+
+compile_classification_api "$TEMP_DIR/public-visibility-change" public-visibility-change
+cp "$TEMP_DIR/public-visibility-change/mini.jar" "$ARTIFACTS/mini.jar"
+expect_failure non_public_included_class_is_rejected_during_dump 'Configured included class has no public ABI' bash "$ABI_SCRIPT" dump \
+    --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$TEMP_DIR/non-public-baselines" \
+    --allowlist "$ALLOWLIST" --class-overrides "$CLASS_OVERRIDES"
 
 echo 'PASS: all ABI script behavior scenarios'

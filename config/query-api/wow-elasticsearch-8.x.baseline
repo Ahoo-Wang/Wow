@@ -90,6 +90,9 @@ me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter#public final java.uti
 me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter#public java.lang.Object convert(java.util.List);|descriptor: (Ljava/util/List;)Ljava/lang/Object;
 me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter#public java.util.List<co.elastic.clients.elasticsearch._types.SortOptions> convert(java.util.List<me.ahoo.wow.api.query.Sort>);|descriptor: (Ljava/util/List;)Ljava/util/List;
 me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter#public static final me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter INSTANCE;|descriptor: Lme/ahoo/wow/elasticsearch/query/ElasticsearchSortConverter;
+me.ahoo.wow.elasticsearch.query.ListQueriesKt#class|public final class me.ahoo.wow.elasticsearch.query.ListQueriesKt {
+me.ahoo.wow.elasticsearch.query.ListQueriesKt#public static final int UNLIMITED_SIZE;|descriptor: I
+me.ahoo.wow.elasticsearch.query.ListQueriesKt#public static final int searchSize(int);|descriptor: (I)I
 me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryService#class|public final class me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryService extends me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService<me.ahoo.wow.event.DomainEventStream> implements me.ahoo.wow.query.event.EventStreamQueryService {
 me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryService#public java.lang.Object toTypedResult(me.ahoo.wow.api.query.DynamicDocument);|descriptor: (Lme/ahoo/wow/api/query/DynamicDocument;)Ljava/lang/Object;
 me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryService#public java.lang.String getIndexName();|descriptor: ()Ljava/lang/String;

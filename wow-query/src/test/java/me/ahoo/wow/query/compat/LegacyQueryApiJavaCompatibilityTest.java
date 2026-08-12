@@ -14,10 +14,23 @@
 package me.ahoo.wow.query.compat;
 
 import me.ahoo.wow.api.query.Condition;
+import me.ahoo.wow.api.query.PagedList;
+import me.ahoo.wow.api.query.Projection;
+import me.ahoo.wow.api.query.QueryableKt;
 import me.ahoo.wow.api.query.IListQuery;
 import me.ahoo.wow.api.query.IPagedQuery;
 import me.ahoo.wow.api.query.ISingleQuery;
 import me.ahoo.wow.query.QueryService;
+import me.ahoo.wow.query.dsl.DslKt;
+import me.ahoo.wow.query.event.EventStreamQueryService;
+import me.ahoo.wow.query.mask.AggregateDataMaskerKt;
+import me.ahoo.wow.query.mask.DataMaskingKt;
+import me.ahoo.wow.query.mask.DefaultAggregateDataMasker;
+import me.ahoo.wow.query.mask.DynamicDocumentMasker;
+import me.ahoo.wow.query.snapshot.SnapshotQueryService;
+import kotlin.Unit;
+
+import java.util.List;
 
 final class LegacyQueryApiJavaCompatibilityTest {
     @SuppressWarnings("unused")
@@ -26,7 +39,9 @@ final class LegacyQueryApiJavaCompatibilityTest {
         ISingleQuery singleQuery,
         IListQuery listQuery,
         IPagedQuery pagedQuery,
-        Condition condition
+        Condition condition,
+        EventStreamQueryService eventStreamService,
+        SnapshotQueryService<Object> snapshotService
     ) {
         service.single(singleQuery);
         service.dynamicSingle(singleQuery);
@@ -35,5 +50,13 @@ final class LegacyQueryApiJavaCompatibilityTest {
         service.paged(pagedQuery);
         service.dynamicPaged(pagedQuery);
         service.count(condition);
+
+        QueryableKt.isEmpty(new Projection());
+        DslKt.singleQuery(dsl -> Unit.INSTANCE);
+        me.ahoo.wow.query.event.QueryDslKt.query(singleQuery, eventStreamService);
+        me.ahoo.wow.query.snapshot.QueryDslKt.query(singleQuery, snapshotService);
+        DataMaskingKt.tryMask(condition);
+        DefaultAggregateDataMasker<DynamicDocumentMasker> masker = new DefaultAggregateDataMasker<>(List.of());
+        AggregateDataMaskerKt.mask(masker, new PagedList<>(0L, List.of()));
     }
 }

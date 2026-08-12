@@ -30,5 +30,7 @@ class LegacyElasticsearchQueryApiSourceCompatibilityTest {
         ElasticsearchEventStreamQueryService(namedAggregate, client)
         ElasticsearchSnapshotQueryServiceFactory(client)
         ElasticsearchEventStreamQueryServiceFactory(client)
+        UNLIMITED_SIZE
+        0.searchSize()
     }
 }

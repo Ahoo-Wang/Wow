@@ -20,7 +20,9 @@ import me.ahoo.wow.mongo.query.event.MongoEventStreamQueryService
 import me.ahoo.wow.mongo.query.event.MongoEventStreamQueryServiceFactory
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryService
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryServiceFactory
+import me.ahoo.wow.query.converter.ConditionConverter
 import org.bson.Document
+import org.bson.conversions.Bson
 
 class LegacyMongoQueryApiSourceCompatibilityTest {
     @Suppress("Unused")
@@ -28,10 +30,15 @@ class LegacyMongoQueryApiSourceCompatibilityTest {
         namedAggregate: NamedAggregate,
         collection: MongoCollection<Document>,
         database: MongoDatabase,
+        conditionConverter: ConditionConverter<Bson>,
+        projectionConverter: MongoProjectionConverter,
+        sortConverter: MongoSortConverter,
+        queryable: me.ahoo.wow.api.query.Queryable<*>,
     ) {
         MongoSnapshotQueryService<Any>(namedAggregate, collection)
         MongoEventStreamQueryService(namedAggregate, collection)
         MongoSnapshotQueryServiceFactory(database)
         MongoEventStreamQueryServiceFactory(database)
+        collection.findDocument(conditionConverter, queryable, projectionConverter, sortConverter)
     }
 }
