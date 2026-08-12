@@ -44,39 +44,50 @@ internal class QueryDeadlineGuard(
             return publisher
         }
         return Mono.defer {
-            val remaining = remaining(absoluteDeadline)
+            val sliceAnchorNanos = scheduler.now(TimeUnit.NANOSECONDS)
+            val remaining = initialRemaining(absoluteDeadline, sliceAnchorNanos)
             if (remaining.isZero) {
                 return@defer Mono.error(QueryDeadlineExceededException(stage))
             }
-            publisher.timeout(deadlineSignal(absoluteDeadline, stage, remaining))
+            publisher.timeout(deadlineSignal(remaining, stage, sliceAnchorNanos))
         }
     }
 
     private fun deadlineSignal(
-        absoluteDeadline: Instant,
+        remaining: Duration,
         stage: QueryStage,
-        remaining: Duration
+        sliceAnchorNanos: Long
     ): Mono<Void> {
-        val timerSlice = if (remaining > maximumTimerSlice) maximumTimerSlice else remaining
+        val timerSlice = minOf(remaining, maximumTimerSlice, SAFE_TIMER_SLICE)
         return Mono.delay(timerSlice, scheduler)
             .then(
                 Mono.defer {
-                    val nextRemaining = remaining(absoluteDeadline)
+                    val currentNanos = scheduler.now(TimeUnit.NANOSECONDS)
+                    val sliceElapsedNanos = currentNanos - sliceAnchorNanos
+                    if (sliceElapsedNanos < 0) {
+                        return@defer Mono.error(QueryDeadlineExceededException(stage))
+                    }
+                    val sliceElapsed = Duration.ofNanos(sliceElapsedNanos)
+                    val nextRemaining = if (sliceElapsed >= remaining) {
+                        Duration.ZERO
+                    } else {
+                        remaining.minus(sliceElapsed)
+                    }
                     if (nextRemaining.isZero) {
                         Mono.error(QueryDeadlineExceededException(stage))
                     } else {
-                        deadlineSignal(absoluteDeadline, stage, nextRemaining)
+                        deadlineSignal(nextRemaining, stage, currentNanos)
                     }
                 }
             )
     }
 
-    private fun remaining(absoluteDeadline: Instant): Duration {
+    private fun initialRemaining(absoluteDeadline: Instant, currentNanos: Long): Duration {
         val initialBudget = Duration.between(frozenInstant, absoluteDeadline)
         if (initialBudget.isNegative || initialBudget.isZero) {
             return Duration.ZERO
         }
-        val elapsedNanos = scheduler.now(TimeUnit.NANOSECONDS) - anchorNanos
+        val elapsedNanos = currentNanos - anchorNanos
         if (elapsedNanos < 0) {
             return Duration.ZERO
         }
@@ -89,6 +100,8 @@ internal class QueryDeadlineGuard(
 
     companion object {
         private val MAX_REACTOR_TIMER_SLICE: Duration = Duration.ofNanos(Long.MAX_VALUE)
+        // Keep each local ticker delta far below the signed half-range so wrap remains unambiguous.
+        private val SAFE_TIMER_SLICE: Duration = Duration.ofDays(365)
 
         fun anchor(
             frozenInstant: Instant,
