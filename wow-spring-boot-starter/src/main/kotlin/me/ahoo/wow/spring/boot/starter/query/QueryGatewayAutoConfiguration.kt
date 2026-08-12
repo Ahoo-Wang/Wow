@@ -43,8 +43,6 @@ import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
-import org.springframework.core.Ordered
-import org.springframework.core.annotation.Order
 import reactor.core.publisher.Mono
 import tools.jackson.databind.ObjectMapper
 import java.time.Clock
@@ -148,23 +146,27 @@ class QueryGatewayAutoConfiguration {
         getBeanProvider(type).orderedStream().toList()
 
     private fun ListableBeanFactory.queryPolicyRegistrationSnapshot(): List<QueryPolicyRegistration> {
-        val registrations = getBeansOfType(QueryPolicy::class.java, true, true).map { (beanName, policy) ->
+        val namedPolicies = getBeansOfType(QueryPolicy::class.java, true, true).entries.toMutableList()
+        val registrations = orderedSnapshot(QueryPolicy::class.java).mapIndexed { ordinal, policy ->
+            val namedPolicyIndex = namedPolicies.indexOfFirst { it.value === policy }
+            require(namedPolicyIndex >= 0) {
+                "Spring query policy ordering snapshot must preserve bean identity."
+            }
+            val beanName = namedPolicies.removeAt(namedPolicyIndex).key
             QueryPolicyRegistration(
                 descriptorId = safePolicyDescriptor(beanName),
-                order = policyOrder(beanName, policy),
+                order = ordinal,
                 policy = policy
             )
-        }.sortedWith(QueryPolicyRegistrationComparator)
+        }
+        require(namedPolicies.isEmpty()) {
+            "Spring query policy ordering snapshot must include every policy bean."
+        }
         require(registrations.map(QueryPolicyRegistration::descriptorId).distinct().size == registrations.size) {
             "Normalized query policy descriptors must be unique."
         }
         return registrations.toList()
     }
-
-    private fun ListableBeanFactory.policyOrder(beanName: String, policy: QueryPolicy): Int =
-        (policy as? Ordered)?.order
-            ?: findAnnotationOnBean(beanName, Order::class.java)?.value
-            ?: Ordered.LOWEST_PRECEDENCE
 
     private fun safePolicyDescriptor(beanName: String): String {
         val normalized = buildString(beanName.length) {
@@ -183,12 +185,5 @@ class QueryGatewayAutoConfiguration {
         }.trim('.', '_', '-')
         val suffix = normalized.ifBlank { "policy" }.take(maxSpringPolicyDescriptorSuffixLength)
         return springPolicyDescriptorPrefix + suffix
-    }
-
-    private object QueryPolicyRegistrationComparator : Comparator<QueryPolicyRegistration> {
-        override fun compare(first: QueryPolicyRegistration, second: QueryPolicyRegistration): Int {
-            val orderComparison = first.order.compareTo(second.order)
-            return if (orderComparison != 0) orderComparison else first.descriptorId.compareTo(second.descriptorId)
-        }
     }
 }

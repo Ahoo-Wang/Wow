@@ -71,7 +71,10 @@ import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.context.annotation.ImportCandidates
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
 import org.springframework.core.Ordered
+import org.springframework.core.PriorityOrdered
 import org.springframework.core.annotation.Order
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -265,6 +268,41 @@ class QueryGatewayAutoConfigurationTest {
     }
 
     @Test
+    fun `priority ordered spring policy sequence is preserved through registration and execution`() {
+        val registry = SimpleMeterRegistry()
+        val trace = CopyOnWriteArrayList<String>()
+        val backend = RecordingBackend(trace)
+        gatewayContextRunner(backend)
+            .withBean(SimpleMeterRegistry::class.java, { registry })
+            .withBean("priority-lowest", QueryPolicy::class.java, {
+                PriorityOrderedQueryPolicy(Ordered.LOWEST_PRECEDENCE, "priority-lowest", trace)
+            })
+            .withBean("plain-highest", QueryPolicy::class.java, {
+                FailingOrderedQueryPolicy(Ordered.HIGHEST_PRECEDENCE, "plain-highest", trace)
+            })
+            .run { context ->
+                val springOrderedPolicies = context.beanFactory.getBeanProvider(QueryPolicy::class.java)
+                    .orderedStream()
+                    .toList()
+                springOrderedPolicies.assert().hasSize(2)
+                springOrderedPolicies[0].assert().isSameAs(context.getBean("priority-lowest"))
+                springOrderedPolicies[1].assert().isSameAs(context.getBean("plain-highest"))
+
+                StepVerifier.create(context.getBean(QueryGateway::class.java).count(CountQueryRequest(QUERY_TARGET)))
+                    .expectErrorSatisfies { error ->
+                        (error as QueryException).code.assert().isEqualTo(QueryErrorCode.POLICY_FAILURE)
+                    }.verify()
+
+                trace.assert().containsExactly("priority-lowest", "plain-highest")
+                registry.get("wow.query.gateway")
+                    .tag("policyDescriptor", "spring-plain-highest")
+                    .tag("outcome", "failure")
+                    .counter().count().assert().isEqualTo(1.0)
+                backend.countPlans.assert().isEmpty()
+            }
+    }
+
+    @Test
     fun `system policy is always applied and anonymous authority is explicit`() {
         listOf(false, true).forEach { registerCustomSystemPolicy ->
             val backend = RecordingBackend()
@@ -317,6 +355,12 @@ class QueryGatewayAutoConfigurationTest {
             .withBean("earlierQueryPolicy", QueryPolicy::class.java, {
                 EarlierAnnotatedQueryPolicy(trace)
             })
+            .withBean("zTieFirstQueryPolicy", QueryPolicy::class.java, {
+                OrderedQueryPolicy(0, "policy-tie-first", trace)
+            })
+            .withBean("aTieSecondQueryPolicy", QueryPolicy::class.java, {
+                OrderedQueryPolicy(0, "policy-tie-second", trace)
+            })
             .withBean("laterResultPolicy", ResultPolicy::class.java, {
                 LaterAnnotatedResultPolicy(trace)
             })
@@ -339,12 +383,29 @@ class QueryGatewayAutoConfigurationTest {
 
                 trace.assert().containsExactly(
                     "policy-earlier",
+                    "policy-tie-first",
+                    "policy-tie-second",
                     "policy-later",
                     "backend",
                     "result-earlier",
                     "result-later"
                 )
                 observedTimes.assert().containsExactly(frozen to zone)
+            }
+    }
+
+    @Test
+    fun `factory method order remains part of the authoritative spring policy sequence`() {
+        val trace = CopyOnWriteArrayList<String>()
+        gatewayContextRunner(RecordingBackend(trace))
+            .withBean(FactoryMethodPolicyTrace::class.java, { FactoryMethodPolicyTrace(trace) })
+            .withUserConfiguration(FactoryMethodOrderedPolicyConfiguration::class.java)
+            .run { context ->
+                StepVerifier.create(context.getBean(QueryGateway::class.java).count(CountQueryRequest(QUERY_TARGET)))
+                    .expectNext(0)
+                    .verifyComplete()
+
+                trace.assert().containsExactly("factory-earlier", "factory-later", "backend")
             }
     }
 
@@ -497,6 +558,59 @@ private class OrderedQueryPolicy(
         trace += label
         observer(context.invocationScope.trustedAuthority, context)
         QueryPolicyResult()
+    }
+}
+
+private class PriorityOrderedQueryPolicy(
+    private val order: Int,
+    private val label: String,
+    private val trace: MutableList<String>
+) : QueryPolicy,
+    PriorityOrdered {
+    override fun getOrder(): Int = order
+
+    override fun evaluate(context: me.ahoo.wow.query.policy.QueryPolicyContext): Mono<QueryPolicyResult> = Mono.fromSupplier {
+        trace += label
+        QueryPolicyResult()
+    }
+}
+
+private class FailingOrderedQueryPolicy(
+    private val order: Int,
+    private val label: String,
+    private val trace: MutableList<String>
+) : QueryPolicy,
+    Ordered {
+    override fun getOrder(): Int = order
+
+    override fun evaluate(context: me.ahoo.wow.query.policy.QueryPolicyContext): Mono<QueryPolicyResult> = Mono.defer {
+        trace += label
+        Mono.error(IllegalStateException("policy failed"))
+    }
+}
+
+private class FactoryMethodPolicyTrace(
+    val values: MutableList<String>
+)
+
+@Configuration(proxyBeanMethods = false)
+private class FactoryMethodOrderedPolicyConfiguration {
+    @Bean
+    @Order(20)
+    fun factoryLaterQueryPolicy(trace: FactoryMethodPolicyTrace): QueryPolicy = QueryPolicy {
+        Mono.fromSupplier {
+            trace.values += "factory-later"
+            QueryPolicyResult()
+        }
+    }
+
+    @Bean
+    @Order(-20)
+    fun factoryEarlierQueryPolicy(trace: FactoryMethodPolicyTrace): QueryPolicy = QueryPolicy {
+        Mono.fromSupplier {
+            trace.values += "factory-earlier"
+            QueryPolicyResult()
+        }
     }
 }
 
