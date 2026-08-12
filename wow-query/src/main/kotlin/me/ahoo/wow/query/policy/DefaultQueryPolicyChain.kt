@@ -33,15 +33,13 @@ import me.ahoo.wow.api.query.gateway.QueryResultShape
 import me.ahoo.wow.api.query.gateway.ResultQueryRequest
 import me.ahoo.wow.query.expression.ExpressionNormalizer
 import me.ahoo.wow.query.invocation.QueryDeadline
+import me.ahoo.wow.query.invocation.QueryDeadlineExceededException
+import me.ahoo.wow.query.invocation.QueryDeadlineGuard
 import me.ahoo.wow.query.invocation.QueryInvocation
 import me.ahoo.wow.query.validation.QueryBudgetLimit
 import me.ahoo.wow.query.validation.QueryExpressionValidator
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.core.scheduler.Scheduler
-import reactor.core.scheduler.Schedulers
-import java.time.Clock
-import java.time.Duration
 import java.time.Instant
 import java.util.ArrayDeque
 import java.util.Collections
@@ -51,9 +49,7 @@ private const val SYSTEM_POLICY_ID: String = "system"
 internal class DefaultQueryPolicyChain(
     systemPolicy: SystemQueryPolicy,
     customPolicies: List<QueryPolicyDescriptor>,
-    private val expressionValidator: QueryExpressionValidator,
-    private val clock: Clock,
-    private val scheduler: Scheduler = Schedulers.parallel()
+    private val expressionValidator: QueryExpressionValidator
 ) {
     private val policies: List<QueryPolicyDescriptor>
 
@@ -69,34 +65,24 @@ internal class DefaultQueryPolicyChain(
 
     fun evaluate(invocation: QueryInvocation): Mono<CombinedQueryPolicyResult> = evaluate(
         context = contextOf(invocation),
-        admissionDeadline = invocation.admissionDeadline
+        admissionDeadline = invocation.admissionDeadline,
+        deadlineGuard = invocation.deadlineGuard
     )
 
     fun evaluate(
         context: QueryPolicyContext,
+        deadlineGuard: QueryDeadlineGuard,
         admissionDeadline: Instant? = QueryDeadline.from(
             context.frozenInstant,
             context.requestBudget.timeout,
             QueryStage.POLICY
         )
     ): Mono<CombinedQueryPolicyResult> = Mono.defer {
-        val policyStartedAt = clock.instant()
-        if (admissionDeadline != null && !admissionDeadline.isAfter(policyStartedAt)) {
-            return@defer Mono.error(PolicyDeadlineExceededException())
-        }
         val evaluation = Flux.fromIterable(policies)
             .concatMap { descriptor -> evaluate(descriptor, context) }
             .collectList()
             .map { results -> combine(context, results) }
-        if (admissionDeadline == null) {
-            evaluation
-        } else {
-            evaluation.timeout(
-                Duration.between(policyStartedAt, admissionDeadline),
-                Mono.error(PolicyDeadlineExceededException()),
-                scheduler
-            )
-        }
+        deadlineGuard.enforce(evaluation, admissionDeadline, QueryStage.POLICY)
     }.onErrorMap { error -> mapPolicyError(error) }
 
     private fun evaluate(
@@ -233,7 +219,12 @@ internal class DefaultQueryPolicyChain(
             QueryErrorReason.CAPABILITY_DENIED
         )
 
-        is PolicyDeadlineExceededException -> deadlineExceeded()
+        is QueryDeadlineExceededException -> QueryException(
+            QueryErrorCode.DEADLINE_EXCEEDED,
+            error.stage,
+            QueryErrorReason.DEADLINE_REACHED
+        )
+
         else -> policyFailure()
     }
 
@@ -241,12 +232,6 @@ internal class DefaultQueryPolicyChain(
         QueryErrorCode.POLICY_FAILURE,
         QueryStage.POLICY,
         QueryErrorReason.POLICY_EVALUATION_FAILED
-    )
-
-    private fun deadlineExceeded(): QueryException = QueryException(
-        QueryErrorCode.DEADLINE_EXCEEDED,
-        QueryStage.POLICY,
-        QueryErrorReason.DEADLINE_REACHED
     )
 
     private object PolicyDescriptorComparator : Comparator<QueryPolicyDescriptor> {
@@ -265,8 +250,6 @@ internal class DefaultQueryPolicyChain(
     }
 
     private class CapabilityDeniedException : RuntimeException(null, null, false, false)
-
-    private class PolicyDeadlineExceededException : RuntimeException(null, null, false, false)
 }
 
 internal class CombinedQueryPolicyResult(

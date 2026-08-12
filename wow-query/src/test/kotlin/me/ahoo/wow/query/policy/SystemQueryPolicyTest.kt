@@ -30,13 +30,14 @@ import me.ahoo.wow.api.query.gateway.QueryOperation
 import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.api.query.gateway.RequestedQueryScope
 import me.ahoo.wow.query.invocation.QueryAuthorityView
+import me.ahoo.wow.query.invocation.QueryDeadlineGuard
 import me.ahoo.wow.query.invocation.QueryInvocationScope
 import me.ahoo.wow.query.schema.QuerySchema
 import me.ahoo.wow.query.schema.QuerySystemFields
 import me.ahoo.wow.query.validation.QueryBudgetLimit
 import org.junit.jupiter.api.Test
 import reactor.test.StepVerifier
-import java.time.Clock
+import reactor.test.scheduler.VirtualTimeScheduler
 import java.time.Instant
 import java.time.ZoneOffset
 
@@ -96,8 +97,7 @@ class SystemQueryPolicyTest {
                     listOf(QueryPolicyDescriptor("replacement", 0, system)),
                     me.ahoo.wow.query.validation.QueryExpressionValidator(
                         me.ahoo.wow.query.validation.QueryStructureLimits(64, 10_000, 10_000, 1_048_576)
-                    ),
-                    Clock.fixed(FROZEN, ZoneOffset.UTC)
+                    )
                 )
             }
         ).expectError(IllegalArgumentException::class.java).verify()
@@ -110,11 +110,15 @@ class SystemQueryPolicyTest {
             emptyList(),
             me.ahoo.wow.query.validation.QueryExpressionValidator(
                 me.ahoo.wow.query.validation.QueryStructureLimits(64, 10_000, 10_000, 1_048_576)
-            ),
-            Clock.fixed(FROZEN, ZoneOffset.UTC)
+            )
         )
 
-        StepVerifier.create(chain.evaluate(context(QueryDocumentKind.SNAPSHOT, DeletionScope.ALL)))
+        StepVerifier.create(
+            chain.evaluate(
+                context(QueryDocumentKind.SNAPSHOT, DeletionScope.ALL),
+                QueryDeadlineGuard.anchor(FROZEN, VirtualTimeScheduler.create())
+            )
+        )
             .expectErrorSatisfies { error ->
                 (error as QueryException).apply {
                     code.assert().isEqualTo(QueryErrorCode.POLICY_DENIED)

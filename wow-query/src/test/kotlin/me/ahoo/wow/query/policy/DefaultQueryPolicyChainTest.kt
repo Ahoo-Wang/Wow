@@ -35,6 +35,7 @@ import me.ahoo.wow.api.query.gateway.QueryOperation
 import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.api.query.gateway.RequestedQueryScope
 import me.ahoo.wow.query.invocation.QueryAuthorityView
+import me.ahoo.wow.query.invocation.QueryDeadlineGuard
 import me.ahoo.wow.query.invocation.QueryInvocationScope
 import me.ahoo.wow.query.schema.QueryBackendFieldPath
 import me.ahoo.wow.query.schema.QueryBackendId
@@ -49,6 +50,7 @@ import me.ahoo.wow.query.validation.QueryExpressionValidator
 import me.ahoo.wow.query.validation.QueryStructureLimits
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
+import reactor.core.scheduler.Scheduler
 import reactor.test.StepVerifier
 import reactor.test.scheduler.VirtualTimeScheduler
 import java.time.Clock
@@ -221,13 +223,12 @@ class DefaultQueryPolicyChainTest {
         val chain = DefaultQueryPolicyChain(
             systemPolicy = SystemQueryPolicy(QueryBudgetLimit(Duration.ofSeconds(30), 300, 300)),
             customPolicies = listOf(policy),
-            expressionValidator = QueryExpressionValidator(LIMITS),
-            clock = Clock.fixed(FROZEN, ZoneOffset.UTC),
-            scheduler = scheduler
+            expressionValidator = QueryExpressionValidator(LIMITS)
         )
+        val guard = QueryDeadlineGuard.anchor(FROZEN, scheduler)
 
         StepVerifier.create(
-            chain.evaluate(context).flatMap {
+            chain.evaluate(context, guard).flatMap {
                 resolverCalls.incrementAndGet()
                 Mono.just(it)
             }
@@ -250,17 +251,19 @@ class DefaultQueryPolicyChainTest {
         val policyCalls = AtomicInteger()
         val absoluteDeadline = FROZEN.plusSeconds(1)
         val chain = chain(
-            customPolicies = listOf(
+            listOf(
                 descriptor("never") {
                     policyCalls.incrementAndGet()
                     Mono.just(QueryPolicyResult())
                 }
-            ),
-            clock = Clock.fixed(absoluteDeadline.plusNanos(1), ZoneOffset.UTC)
+            )
         )
+        val scheduler = VirtualTimeScheduler.create()
+        val guard = QueryDeadlineGuard.anchor(FROZEN, scheduler)
+        scheduler.advanceTimeBy(Duration.ofSeconds(1).plusNanos(1))
 
         assertPolicyError(
-            chain.evaluate(context(), absoluteDeadline),
+            chain.evaluate(context(), guard, absoluteDeadline),
             QueryErrorCode.DEADLINE_EXCEEDED,
             QueryErrorReason.DEADLINE_REACHED
         )
@@ -279,13 +282,13 @@ class DefaultQueryPolicyChainTest {
                     Mono.never<QueryPolicyResult>().doOnCancel(cancellationCalls::incrementAndGet)
                 }
             ),
-            expressionValidator = QueryExpressionValidator(LIMITS),
-            clock = Clock.fixed(FROZEN.plusMillis(600), ZoneOffset.UTC),
-            scheduler = scheduler
+            expressionValidator = QueryExpressionValidator(LIMITS)
         )
+        val guard = QueryDeadlineGuard.anchor(FROZEN, scheduler)
+        scheduler.advanceTimeBy(Duration.ofMillis(600))
 
         StepVerifier.withVirtualTime(
-            { chain.evaluate(context(), absoluteDeadline) },
+            { chain.evaluate(context(), guard, absoluteDeadline) },
             { scheduler },
             Long.MAX_VALUE
         ).expectSubscription()
@@ -306,17 +309,25 @@ class DefaultQueryPolicyChainTest {
     fun `unbounded policy evaluation does not derive a deadline from frozen instant`() {
         val policyCalls = AtomicInteger()
         val chain = chain(
-            customPolicies = listOf(
+            listOf(
                 descriptor("success") {
                     policyCalls.incrementAndGet()
                     Mono.just(QueryPolicyResult())
                 }
-            ),
-            clock = Clock.fixed(FROZEN.plus(Duration.ofDays(365)), ZoneOffset.UTC)
+            )
         )
 
-        chain.evaluate(context(), null).block()!!.securedExpression.toString().contains("deleted").assert().isTrue()
+        chain.evaluate(context(), deadlineGuard(), null).block()!!
+            .securedExpression.toString().contains("deleted").assert().isTrue()
         policyCalls.get().assert().isOne()
+    }
+
+    @Test
+    fun `policy chain has no wall clock or scheduler dependency`() {
+        DefaultQueryPolicyChain::class.java.declaredConstructors
+            .flatMap { it.parameterTypes.asList() }
+            .none { it == Clock::class.java || it == Scheduler::class.java }
+            .assert().isTrue()
     }
 
     @Test
@@ -395,16 +406,18 @@ class DefaultQueryPolicyChainTest {
         result.toString().contains(secret).assert().isFalse()
     }
 
-    private fun chain(
-        customPolicies: List<QueryPolicyDescriptor>,
-        clock: Clock = Clock.fixed(FROZEN, ZoneOffset.UTC)
-    ): DefaultQueryPolicyChain =
+    private fun chain(customPolicies: List<QueryPolicyDescriptor>): DefaultQueryPolicyChain =
         DefaultQueryPolicyChain(
             systemPolicy = SystemQueryPolicy(QueryBudgetLimit(Duration.ofSeconds(30), 300, 300)),
             customPolicies = customPolicies,
-            expressionValidator = QueryExpressionValidator(LIMITS),
-            clock = clock
+            expressionValidator = QueryExpressionValidator(LIMITS)
         )
+
+    private fun DefaultQueryPolicyChain.evaluate(context: QueryPolicyContext): Mono<CombinedQueryPolicyResult> =
+        evaluate(context, deadlineGuard())
+
+    private fun deadlineGuard(): QueryDeadlineGuard =
+        QueryDeadlineGuard.anchor(FROZEN, VirtualTimeScheduler.create())
 
     private fun result(capability: QueryCapabilityId, decision: CapabilityDecision): QueryPolicyResult =
         QueryPolicyResult(

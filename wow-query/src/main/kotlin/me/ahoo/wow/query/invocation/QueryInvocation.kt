@@ -30,6 +30,7 @@ internal class QueryInvocation(
     val zoneId: ZoneId,
     val admissionDeadline: Instant?,
     val admissionBudget: QueryBudgetLimit,
+    val deadlineGuard: QueryDeadlineGuard,
     val schema: QuerySchemaView,
     val normalizedExpression: QueryExpression,
     expressionProvenance: Map<QueryProvenance, QueryExpression>

@@ -33,7 +33,8 @@ internal class QueryInvocationSeed(
     val frozenInstant: Instant,
     val zoneId: ZoneId,
     val admissionDeadline: Instant?,
-    val admissionBudget: QueryBudgetLimit
+    val admissionBudget: QueryBudgetLimit,
+    val deadlineGuard: QueryDeadlineGuard
 ) {
     val expressionContributions: Map<QueryProvenance, QueryExpression> =
         Collections.unmodifiableMap(LinkedHashMap(expressionContributions))
@@ -74,6 +75,7 @@ internal class QueryInvocationSeed(
             zoneId = zoneId,
             admissionDeadline = admissionDeadline,
             admissionBudget = admissionBudget,
+            deadlineGuard = deadlineGuard,
             schema = schemaSnapshot,
             normalizedExpression = normalizedExpression,
             expressionProvenance = normalizedContributions

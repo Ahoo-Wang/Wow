@@ -33,19 +33,30 @@ import me.ahoo.wow.api.query.gateway.QueryBudgetHint
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.api.query.gateway.QueryOperation
 import me.ahoo.wow.api.query.gateway.QueryTarget
+import me.ahoo.wow.query.policy.DefaultQueryPolicyChain
+import me.ahoo.wow.query.policy.QueryPolicy
+import me.ahoo.wow.query.policy.QueryPolicyDescriptor
+import me.ahoo.wow.query.policy.QueryPolicyResult
+import me.ahoo.wow.query.policy.SystemQueryPolicy
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryFieldValueKind
 import me.ahoo.wow.query.schema.QuerySchema
 import me.ahoo.wow.query.schema.QuerySchemaView
+import me.ahoo.wow.query.schema.QuerySystemFields
 import me.ahoo.wow.query.validation.QueryBudgetLimit
+import me.ahoo.wow.query.validation.QueryExpressionValidator
+import me.ahoo.wow.query.validation.QueryStructureLimits
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
+import reactor.core.scheduler.Scheduler
 import reactor.test.StepVerifier
+import reactor.test.scheduler.VirtualTimeScheduler
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class QuerySubscriptionIsolationTest {
@@ -70,6 +81,7 @@ class QuerySubscriptionIsolationTest {
                 maxResults = 50,
                 maxCost = 20
             ),
+            deadlineScheduler = VirtualTimeScheduler.create(),
             correlationIdFactory = { "correlation-${correlationSequence.incrementAndGet()}" }
         )
         val invocationPublisher = factory.admit(
@@ -108,6 +120,122 @@ class QuerySubscriptionIsolationTest {
             mapOf(QueryProvenance.CALLER_REQUEST to MatchAll)
         )
         clock.reads.get().assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `anchors one monotonic deadline per subscription without rereading wall clock in policy`() {
+        val frozen = Instant.parse("2026-08-12T01:10:00Z")
+        val wallClock = AdvancingClock(frozen, Duration.ZERO)
+        val scheduler = VirtualTimeScheduler.create()
+        val cancellationCalls = AtomicInteger()
+        val request = CountQueryRequest(
+            target = queryTarget(),
+            budget = QueryBudgetHint(timeout = Duration.ofSeconds(1))
+        )
+        val factory = QueryInvocationFactory(
+            admission = trustedAdmission(),
+            clock = wallClock,
+            zoneId = ZoneOffset.UTC,
+            systemBudgetLimit = QueryBudgetLimit.UNBOUNDED,
+            deadlineScheduler = scheduler,
+            correlationIdFactory = { "monotonic" }
+        )
+        val seed = factory.admit(request, QueryOperation.COUNT).block()!!
+        val invocation = seed.toInvocation(
+            QuerySchema(request.target, QuerySystemFields.fields(QueryDocumentKind.SNAPSHOT))
+        ) { it }
+        val chain = DefaultQueryPolicyChain(
+            systemPolicy = SystemQueryPolicy(QueryBudgetLimit.UNBOUNDED),
+            customPolicies = listOf(
+                QueryPolicyDescriptor(
+                    "never",
+                    0,
+                    QueryPolicy {
+                        Mono.never<QueryPolicyResult>().doOnCancel(cancellationCalls::incrementAndGet)
+                    }
+                )
+            ),
+            expressionValidator = QueryExpressionValidator(LIMITS)
+        )
+
+        scheduler.advanceTimeBy(Duration.ofMillis(600))
+        StepVerifier.withVirtualTime(
+            { chain.evaluate(invocation) },
+            { scheduler },
+            Long.MAX_VALUE
+        ).expectSubscription()
+            .expectNoEvent(Duration.ofMillis(399))
+            .thenAwait(Duration.ofMillis(1))
+            .expectErrorSatisfies { error ->
+                (error as QueryException).apply {
+                    code.assert().isEqualTo(QueryErrorCode.DEADLINE_EXCEEDED)
+                    stage.assert().isEqualTo(QueryStage.POLICY)
+                    reason.assert().isEqualTo(QueryErrorReason.DEADLINE_REACHED)
+                }
+            }.verify(Duration.ofSeconds(1))
+
+        wallClock.reads.get().assert().isOne()
+        cancellationCalls.get().assert().isOne()
+    }
+
+    @Test
+    fun `deadline guard preserves immediate zero and unbounded semantics`() {
+        val scheduler = VirtualTimeScheduler.create()
+        val guard = QueryDeadlineGuard.anchor(FROZEN, scheduler)
+        val boundedSubscriptions = AtomicInteger()
+        val unboundedSubscriptions = AtomicInteger()
+
+        StepVerifier.create(
+            guard.enforce(
+                Mono.defer {
+                    boundedSubscriptions.incrementAndGet()
+                    Mono.just("bounded")
+                },
+                FROZEN,
+                QueryStage.POLICY
+            )
+        ).expectErrorSatisfies { error ->
+            (error as QueryDeadlineExceededException).stage.assert().isEqualTo(QueryStage.POLICY)
+        }.verify()
+        guard.enforce(
+            Mono.defer {
+                unboundedSubscriptions.incrementAndGet()
+                Mono.just("unbounded")
+            },
+            null,
+            QueryStage.POLICY
+        ).block().assert().isEqualTo("unbounded")
+
+        boundedSubscriptions.get().assert().isZero()
+        unboundedSubscriptions.get().assert().isOne()
+    }
+
+    @Test
+    fun `deadline guard reuses the same monotonic anchor for later stages`() {
+        val scheduler = VirtualTimeScheduler.create()
+        val guard = QueryDeadlineGuard.anchor(FROZEN, scheduler)
+        val absoluteDeadline = FROZEN.plusSeconds(1)
+
+        scheduler.advanceTimeBy(Duration.ofMillis(700))
+        guard.enforce(Mono.just("policy"), absoluteDeadline, QueryStage.POLICY).block()
+            .assert().isEqualTo("policy")
+        scheduler.advanceTimeBy(Duration.ofMillis(300))
+        StepVerifier.create(guard.enforce(Mono.just("plan"), absoluteDeadline, QueryStage.PLANNING))
+            .expectErrorSatisfies { error ->
+                (error as QueryDeadlineExceededException).stage.assert().isEqualTo(QueryStage.PLANNING)
+            }.verify()
+    }
+
+    @Test
+    fun `deadline guard fails closed when monotonic elapsed arithmetic overflows`() {
+        val scheduler = OverflowingNowScheduler()
+        val guard = QueryDeadlineGuard.anchor(FROZEN, scheduler)
+
+        StepVerifier.create(
+            guard.enforce(Mono.just("result"), FROZEN.plusSeconds(1), QueryStage.POLICY)
+        ).expectErrorSatisfies { error ->
+            (error as QueryDeadlineExceededException).stage.assert().isEqualTo(QueryStage.POLICY)
+        }.verify()
     }
 
     @Test
@@ -285,6 +413,7 @@ class QuerySubscriptionIsolationTest {
             clock = Clock.fixed(Instant.parse("2026-08-12T03:00:00Z"), ZoneOffset.UTC),
             zoneId = ZoneOffset.UTC,
             systemBudgetLimit = QueryBudgetLimit.UNBOUNDED,
+            deadlineScheduler = VirtualTimeScheduler.create(),
             correlationIdFactory = { "cancelled" }
         )
         val prepared = factory.admit(request(), QueryOperation.COUNT)
@@ -310,6 +439,7 @@ class QuerySubscriptionIsolationTest {
             clock = Clock.fixed(Instant.parse("2026-08-12T03:30:00Z"), ZoneOffset.UTC),
             zoneId = ZoneOffset.UTC,
             systemBudgetLimit = QueryBudgetLimit.UNBOUNDED,
+            deadlineScheduler = VirtualTimeScheduler.create(),
             correlationIdFactory = { "empty-admission" }
         )
 
@@ -330,6 +460,7 @@ class QuerySubscriptionIsolationTest {
             clock = Clock.fixed(frozen, ZoneOffset.UTC),
             zoneId = ZoneOffset.UTC,
             systemBudgetLimit = systemBudget,
+            deadlineScheduler = VirtualTimeScheduler.create(),
             correlationIdFactory = { "correlation" }
         )
 
@@ -379,5 +510,23 @@ class QuerySubscriptionIsolationTest {
             reads.incrementAndGet()
             current = current.plus(step)
         }
+    }
+
+    private class OverflowingNowScheduler(
+        private val delegate: Scheduler = VirtualTimeScheduler.create()
+    ) : Scheduler by delegate {
+        private val reads = AtomicInteger()
+
+        override fun now(unit: TimeUnit): Long {
+            if (unit != TimeUnit.NANOSECONDS) {
+                return delegate.now(unit)
+            }
+            return if (reads.getAndIncrement() == 0) Long.MIN_VALUE else Long.MAX_VALUE
+        }
+    }
+
+    private companion object {
+        val FROZEN: Instant = Instant.parse("2026-08-12T00:00:00Z")
+        val LIMITS: QueryStructureLimits = QueryStructureLimits(64, 10_000, 10_000, 1_048_576)
     }
 }

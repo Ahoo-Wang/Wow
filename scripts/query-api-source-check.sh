@@ -171,6 +171,8 @@ package external.fixture
 
 import me.ahoo.wow.query.invocation.DefaultQueryAdmission
 import me.ahoo.wow.query.invocation.QueryDeadline
+import me.ahoo.wow.query.invocation.QueryDeadlineExceededException
+import me.ahoo.wow.query.invocation.QueryDeadlineGuard
 import me.ahoo.wow.query.invocation.QueryInvocation
 import me.ahoo.wow.query.invocation.QueryInvocationFactory
 import me.ahoo.wow.query.invocation.QueryInvocationSeed
@@ -184,6 +186,8 @@ import me.ahoo.wow.query.schema.immutableSnapshot
 fun internalImplementations(): List<Class<*>> = listOf(
     DefaultQueryAdmission::class.java,
     QueryDeadline::class.java,
+    QueryDeadlineExceededException::class.java,
+    QueryDeadlineGuard::class.java,
     QueryInvocation::class.java,
     QueryInvocationFactory::class.java,
     QueryInvocationSeed::class.java,
@@ -207,7 +211,8 @@ if java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompi
     fail "Kotlin external source unexpectedly accessed internal admission implementations"
 fi
 
-for class_name in DefaultQueryAdmission QueryDeadline QueryInvocation QueryInvocationFactory QueryInvocationSeed \
+for class_name in DefaultQueryAdmission QueryDeadline QueryDeadlineExceededException QueryDeadlineGuard \
+    QueryInvocation QueryInvocationFactory QueryInvocationSeed \
     CombinedQueryPolicyResult DefaultQueryPolicyChain QueryPolicyDescriptor SystemQueryPolicy; do
     grep -F "$class_name" "$TEMP_DIR/kotlin-negative.out" >/dev/null || {
         cat "$TEMP_DIR/kotlin-negative.out" >&2

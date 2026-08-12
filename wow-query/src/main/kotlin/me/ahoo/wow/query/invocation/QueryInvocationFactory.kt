@@ -22,6 +22,7 @@ import me.ahoo.wow.api.query.gateway.QueryOperation
 import me.ahoo.wow.api.query.gateway.QueryRequest
 import me.ahoo.wow.query.validation.QueryBudgetLimit
 import reactor.core.publisher.Mono
+import reactor.core.scheduler.Scheduler
 import java.time.Clock
 import java.time.ZoneId
 import java.util.Collections
@@ -31,6 +32,7 @@ internal class QueryInvocationFactory(
     private val clock: Clock,
     private val zoneId: ZoneId,
     private val systemBudgetLimit: QueryBudgetLimit,
+    private val deadlineScheduler: Scheduler,
     private val correlationIdFactory: () -> String
 ) {
     fun admit(
@@ -63,6 +65,7 @@ internal class QueryInvocationFactory(
         val contributionSnapshot = Collections.unmodifiableMap(LinkedHashMap(expressionContributions))
         return Mono.defer {
             val frozenInstant = clock.instant()
+            val deadlineGuard = QueryDeadlineGuard.anchor(frozenInstant, deadlineScheduler)
             val correlationId = correlationIdFactory().also {
                 require(it.isNotBlank()) { "correlationId cannot be blank." }
             }
@@ -98,7 +101,8 @@ internal class QueryInvocationFactory(
                         frozenInstant = frozenInstant,
                         zoneId = zoneId,
                         admissionDeadline = admissionDeadline,
-                        admissionBudget = admissionBudget
+                        admissionBudget = admissionBudget,
+                        deadlineGuard = deadlineGuard
                     )
                 }
         }
