@@ -22,6 +22,7 @@ import me.ahoo.wow.api.query.expression.PortableOperator
 import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryExpression
 import me.ahoo.wow.api.query.expression.QueryValue
+import me.ahoo.wow.api.query.expression.StringComparisonMode
 import me.ahoo.wow.api.query.gateway.ListQueryRequest
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.api.query.gateway.QueryResultShape
@@ -55,6 +56,33 @@ class CanonicalQueryJsonTest {
         val decoded = expression.toJsonString().toObject<QueryExpression>()
 
         decoded.assert().isEqualTo(expression)
+    }
+
+    @Test
+    fun `predicate string comparison should round trip and default when absent from legacy JSON`() {
+        val expression: QueryExpression = PredicateExpression(
+            LogicalField("name"),
+            PortableOperator.CONTAINS,
+            listOf(QueryValue.StringValue("Wow")),
+            StringComparisonMode.CASE_INSENSITIVE
+        )
+
+        val json = expression.toJsonString()
+        val decoded = json.toObject<QueryExpression>() as PredicateExpression
+        val legacyDecoded = """
+            {
+              "type": "predicate",
+              "field": "name",
+              "operator": "CONTAINS",
+              "values": [{"type": "string", "value": "Wow"}]
+            }
+        """.trimIndent().toObject<QueryExpression>() as PredicateExpression
+
+        JsonSerializer.readTree(json)["stringComparison"].stringValue().assert()
+            .isEqualTo("CASE_INSENSITIVE")
+        decoded.assert().isEqualTo(expression)
+        decoded.stringComparison.assert().isEqualTo(StringComparisonMode.CASE_INSENSITIVE)
+        legacyDecoded.stringComparison.assert().isEqualTo(StringComparisonMode.DEFAULT)
     }
 
     @Test

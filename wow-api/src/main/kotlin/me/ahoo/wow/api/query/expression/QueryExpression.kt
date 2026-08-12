@@ -159,12 +159,28 @@ enum class PortableOperator {
     EXISTS
 }
 
-class PredicateExpression(
+enum class StringComparisonMode {
+    DEFAULT,
+    CASE_SENSITIVE,
+    CASE_INSENSITIVE
+}
+
+class PredicateExpression @JvmOverloads constructor(
     val field: LogicalField,
     val operator: PortableOperator,
-    values: List<QueryValue>
+    values: List<QueryValue>,
+    val stringComparison: StringComparisonMode = StringComparisonMode.DEFAULT
 ) : PortableExpression {
     val values: List<QueryValue> = immutableList(values)
+
+    init {
+        require(
+            stringComparison == StringComparisonMode.DEFAULT ||
+                operator == PortableOperator.CONTAINS ||
+                operator == PortableOperator.STARTS_WITH ||
+                operator == PortableOperator.ENDS_WITH
+        ) { "String comparison mode requires a string matching operator." }
+    }
 
     operator fun component1(): LogicalField = field
 
@@ -172,18 +188,24 @@ class PredicateExpression(
 
     operator fun component3(): List<QueryValue> = values
 
+    operator fun component4(): StringComparisonMode = stringComparison
+
     fun copy(
         field: LogicalField = this.field,
         operator: PortableOperator = this.operator,
-        values: List<QueryValue> = this.values
-    ): PredicateExpression = PredicateExpression(field, operator, values)
+        values: List<QueryValue> = this.values,
+        stringComparison: StringComparisonMode = this.stringComparison
+    ): PredicateExpression = PredicateExpression(field, operator, values, stringComparison)
 
     override fun equals(other: Any?): Boolean =
-        other is PredicateExpression && field == other.field && operator == other.operator && values == other.values
+        other is PredicateExpression && field == other.field && operator == other.operator && values == other.values &&
+            stringComparison == other.stringComparison
 
-    override fun hashCode(): Int = 31 * (31 * field.hashCode() + operator.hashCode()) + values.hashCode()
+    override fun hashCode(): Int =
+        31 * (31 * (31 * field.hashCode() + operator.hashCode()) + values.hashCode()) + stringComparison.hashCode()
 
-    override fun toString(): String = "PredicateExpression(field=$field, operator=$operator, values=$values)"
+    override fun toString(): String =
+        "PredicateExpression(field=$field, operator=$operator, values=$values, stringComparison=$stringComparison)"
 }
 
 data class ElementMatchExpression(

@@ -74,6 +74,88 @@ class QueryExpressionTest {
     }
 
     @Test
+    fun `predicate should preserve three argument compatibility and expose string comparison data surface`() {
+        val field = LogicalField("name")
+        val originalValues = mutableListOf<QueryValue>(QueryValue.StringValue("Wow"))
+        val legacy = PredicateExpression(field, PortableOperator.CONTAINS, originalValues)
+        val explicitDefault = PredicateExpression(
+            field,
+            PortableOperator.CONTAINS,
+            originalValues,
+            StringComparisonMode.DEFAULT
+        )
+        val insensitive = explicitDefault.copy(stringComparison = StringComparisonMode.CASE_INSENSITIVE)
+        originalValues.clear()
+
+        legacy.assert().isEqualTo(explicitDefault)
+        legacy.stringComparison.assert().isEqualTo(StringComparisonMode.DEFAULT)
+        insensitive.component1().assert().isEqualTo(field)
+        insensitive.component2().assert().isEqualTo(PortableOperator.CONTAINS)
+        insensitive.component3().assert().containsExactly(QueryValue.StringValue("Wow"))
+        insensitive.component4().assert().isEqualTo(StringComparisonMode.CASE_INSENSITIVE)
+        insensitive.assert().isEqualTo(
+            PredicateExpression(
+                field,
+                PortableOperator.CONTAINS,
+                listOf(QueryValue.StringValue("Wow")),
+                StringComparisonMode.CASE_INSENSITIVE
+            )
+        )
+        (insensitive == explicitDefault).assert().isFalse()
+        (insensitive.hashCode() == explicitDefault.hashCode()).assert().isFalse()
+        insensitive.toString().assert().contains("stringComparison=CASE_INSENSITIVE")
+        PredicateExpression::class.java.getDeclaredConstructor(
+            String::class.java,
+            PortableOperator::class.java,
+            List::class.java
+        ).assert().isNotNull()
+        PredicateExpression::class.java.getDeclaredMethod("component4").returnType.assert()
+            .isEqualTo(StringComparisonMode::class.java)
+    }
+
+    @Test
+    fun `non-default string comparison should be limited to string matching operators`() {
+        StringComparisonMode.entries.assert().containsExactly(
+            StringComparisonMode.DEFAULT,
+            StringComparisonMode.CASE_SENSITIVE,
+            StringComparisonMode.CASE_INSENSITIVE
+        )
+        val values = listOf<QueryValue>(QueryValue.StringValue("Wow"))
+        val field = LogicalField("name")
+
+        listOf(
+            PortableOperator.CONTAINS,
+            PortableOperator.STARTS_WITH,
+            PortableOperator.ENDS_WITH
+        ).forEach { operator ->
+            PredicateExpression(
+                field,
+                operator,
+                values,
+                StringComparisonMode.CASE_SENSITIVE
+            ).stringComparison.assert()
+                .isEqualTo(StringComparisonMode.CASE_SENSITIVE)
+            PredicateExpression(
+                field,
+                operator,
+                values,
+                StringComparisonMode.CASE_INSENSITIVE
+            ).stringComparison.assert()
+                .isEqualTo(StringComparisonMode.CASE_INSENSITIVE)
+        }
+        PortableOperator.entries.filterNot {
+            it in setOf(PortableOperator.CONTAINS, PortableOperator.STARTS_WITH, PortableOperator.ENDS_WITH)
+        }.forEach { operator ->
+            val error = assertThrows<IllegalArgumentException> {
+                PredicateExpression(field, operator, values, StringComparisonMode.CASE_INSENSITIVE)
+            }
+            error.message.assert().isEqualTo("String comparison mode requires a string matching operator.")
+            PredicateExpression(field, operator, values).stringComparison.assert()
+                .isEqualTo(StringComparisonMode.DEFAULT)
+        }
+    }
+
+    @Test
     fun `query values should deeply snapshot mutable input`() {
         val bytes = byteArrayOf(1, 2)
         val values = mutableListOf<QueryValue>(QueryValue.BinaryValue(bytes))
