@@ -76,11 +76,7 @@ internal class QueryDeadlineGuard(
         if (initialBudget.isNegative || initialBudget.isZero) {
             return Duration.ZERO
         }
-        val elapsedNanos = try {
-            Math.subtractExact(scheduler.now(TimeUnit.NANOSECONDS), anchorNanos)
-        } catch (_: ArithmeticException) {
-            return Duration.ZERO
-        }
+        val elapsedNanos = scheduler.now(TimeUnit.NANOSECONDS) - anchorNanos
         if (elapsedNanos < 0) {
             return Duration.ZERO
         }

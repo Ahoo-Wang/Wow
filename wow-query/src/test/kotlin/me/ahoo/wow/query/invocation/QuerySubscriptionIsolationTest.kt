@@ -47,6 +47,7 @@ import me.ahoo.wow.query.validation.QueryBudgetLimit
 import me.ahoo.wow.query.validation.QueryExpressionValidator
 import me.ahoo.wow.query.validation.QueryStructureLimits
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import reactor.core.Disposable
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
@@ -229,7 +230,7 @@ class QuerySubscriptionIsolationTest {
 
     @Test
     fun `deadline guard fails closed when monotonic elapsed arithmetic overflows`() {
-        val scheduler = OverflowingNowScheduler()
+        val scheduler = SequencedNowScheduler(Long.MIN_VALUE, Long.MAX_VALUE)
         val guard = QueryDeadlineGuard.anchor(FROZEN, scheduler)
 
         StepVerifier.create(
@@ -237,6 +238,28 @@ class QuerySubscriptionIsolationTest {
         ).expectErrorSatisfies { error ->
             (error as QueryDeadlineExceededException).stage.assert().isEqualTo(QueryStage.POLICY)
         }.verify()
+    }
+
+    @Test
+    fun `deadline guard fails closed when monotonic ticker regresses`() {
+        val scheduler = SequencedNowScheduler(100, 99)
+        val guard = QueryDeadlineGuard.anchor(FROZEN, scheduler)
+        val subscriptions = AtomicInteger()
+
+        StepVerifier.create(
+            guard.enforce(
+                Mono.defer {
+                    subscriptions.incrementAndGet()
+                    Mono.just("result")
+                },
+                FROZEN.plusSeconds(1),
+                QueryStage.POLICY
+            )
+        ).expectErrorSatisfies { error ->
+            (error as QueryDeadlineExceededException).stage.assert().isEqualTo(QueryStage.POLICY)
+        }.verify()
+
+        subscriptions.get().assert().isZero()
     }
 
     @Test
@@ -304,31 +327,70 @@ class QuerySubscriptionIsolationTest {
     }
 
     @Test
-    fun `reactor nanosecond timer boundary exact and plus one stay finite`() {
-        listOf(
-            Duration.ofNanos(Long.MAX_VALUE),
-            Duration.ofNanos(Long.MAX_VALUE).plusNanos(1)
-        ).forEach { timeout ->
-            val scheduler = VirtualTimeScheduler.create()
-            val guard = QueryDeadlineGuard.anchor(FROZEN, scheduler)
-            val subscriptions = AtomicInteger()
-            val cancellations = AtomicInteger()
-            val upstream = Mono.defer {
-                subscriptions.incrementAndGet()
-                Mono.never<String>().doOnCancel(cancellations::incrementAndGet)
-            }
-
-            StepVerifier.withVirtualTime(
-                { guard.enforce(upstream, FROZEN.plus(timeout), QueryStage.POLICY) },
-                { scheduler },
-                Long.MAX_VALUE
-            ).expectSubscription()
-                .thenCancel()
-                .verify(Duration.ofSeconds(1))
-
-            subscriptions.get().assert().isOne()
-            cancellations.get().assert().isOne()
+    fun `long max plus one deadline survives the first slice and expires one nanosecond later`() {
+        val scheduler = WrappingTestScheduler(1)
+        val guard = QueryDeadlineGuard.anchor(FROZEN, scheduler)
+        val subscriptions = AtomicInteger()
+        val cancellations = AtomicInteger()
+        val timeout = Duration.ofNanos(Long.MAX_VALUE).plusNanos(1)
+        val upstream = Mono.defer {
+            subscriptions.incrementAndGet()
+            Mono.never<String>().doOnCancel(cancellations::incrementAndGet)
         }
+
+        StepVerifier.create(guard.enforce(upstream, FROZEN.plus(timeout), QueryStage.POLICY))
+            .expectSubscription()
+            .then {
+                scheduler.advanceBy(Long.MAX_VALUE)
+                subscriptions.get().assert().isOne()
+                cancellations.get().assert().isZero()
+            }
+            .then { scheduler.advanceBy(1) }
+            .expectErrorSatisfies { error ->
+                (error as QueryDeadlineExceededException).stage.assert().isEqualTo(QueryStage.POLICY)
+            }.verify(Duration.ofSeconds(1))
+
+        subscriptions.get().assert().isOne()
+        cancellations.get().assert().isOne()
+    }
+
+    @Test
+    fun `long max deadline expires at its exact monotonic wrap boundary`() {
+        val scheduler = WrappingTestScheduler(1)
+        val guard = QueryDeadlineGuard.anchor(FROZEN, scheduler)
+        val subscriptions = AtomicInteger()
+        val cancellations = AtomicInteger()
+        val timeout = Duration.ofNanos(Long.MAX_VALUE)
+        val upstream = Mono.defer {
+            subscriptions.incrementAndGet()
+            Mono.never<String>().doOnCancel(cancellations::incrementAndGet)
+        }
+
+        StepVerifier.create(guard.enforce(upstream, FROZEN.plus(timeout), QueryStage.EXECUTION))
+            .expectSubscription()
+            .then { scheduler.advanceBy(Long.MAX_VALUE) }
+            .expectErrorSatisfies { error ->
+                (error as QueryDeadlineExceededException).stage.assert().isEqualTo(QueryStage.EXECUTION)
+            }.verify(Duration.ofSeconds(1))
+
+        subscriptions.get().assert().isOne()
+        cancellations.get().assert().isOne()
+    }
+
+    @Test
+    fun `timer slice rejects zero negative and above reactor nanosecond range`() {
+        val scheduler = VirtualTimeScheduler.create()
+        listOf(
+            Duration.ZERO,
+            Duration.ofNanos(-1),
+            Duration.ofNanos(Long.MAX_VALUE).plusNanos(1)
+        ).forEach { invalidSlice ->
+            assertThrows<IllegalArgumentException> {
+                QueryDeadlineGuard.anchor(FROZEN, scheduler, invalidSlice)
+            }
+        }
+
+        QueryDeadlineGuard.anchor(FROZEN, scheduler, Duration.ofNanos(Long.MAX_VALUE))
     }
 
     @Test
@@ -628,7 +690,9 @@ class QuerySubscriptionIsolationTest {
         }
     }
 
-    private class OverflowingNowScheduler(
+    private class SequencedNowScheduler(
+        private val firstNanos: Long,
+        private val subsequentNanos: Long,
         private val delegate: Scheduler = VirtualTimeScheduler.create()
     ) : Scheduler by delegate {
         private val reads = AtomicInteger()
@@ -637,7 +701,7 @@ class QuerySubscriptionIsolationTest {
             if (unit != TimeUnit.NANOSECONDS) {
                 return delegate.now(unit)
             }
-            return if (reads.getAndIncrement() == 0) Long.MIN_VALUE else Long.MAX_VALUE
+            return if (reads.getAndIncrement() == 0) firstNanos else subsequentNanos
         }
     }
 
@@ -660,6 +724,81 @@ class QuerySubscriptionIsolationTest {
 
                 override fun isDisposed(): Boolean = disposable.isDisposed
             }
+        }
+    }
+
+    private class WrappingTestScheduler(
+        initialNanos: Long
+    ) : Scheduler {
+        private var currentNanos: Long = initialNanos
+        private val tasks = ArrayDeque<ScheduledTask>()
+        private var disposed: Boolean = false
+
+        override fun now(unit: TimeUnit): Long = unit.convert(currentNanos, TimeUnit.NANOSECONDS)
+
+        override fun schedule(task: Runnable): Disposable {
+            task.run()
+            return object : Disposable {
+                override fun dispose() = Unit
+
+                override fun isDisposed(): Boolean = true
+            }
+        }
+
+        override fun schedule(task: Runnable, delay: Long, unit: TimeUnit): Disposable {
+            check(!disposed) { "scheduler is disposed." }
+            return ScheduledTask(task, unit.toNanos(delay)).also(tasks::addLast)
+        }
+
+        fun advanceBy(elapsedNanos: Long) {
+            require(elapsedNanos >= 0) { "elapsedNanos cannot be negative." }
+            currentNanos += elapsedNanos
+            val scheduledBeforeAdvance = tasks.toList()
+            tasks.clear()
+            val dueTasks = scheduledBeforeAdvance.filter { !it.isDisposed && it.remainingNanos <= elapsedNanos }
+            scheduledBeforeAdvance.filterNot(dueTasks::contains).forEach {
+                it.remainingNanos -= elapsedNanos
+                tasks.addLast(it)
+            }
+            dueTasks.forEach { it.run() }
+        }
+
+        override fun createWorker(): Scheduler.Worker = object : Scheduler.Worker {
+            override fun schedule(task: Runnable): Disposable = this@WrappingTestScheduler.schedule(task)
+
+            override fun schedule(task: Runnable, delay: Long, unit: TimeUnit): Disposable =
+                this@WrappingTestScheduler.schedule(task, delay, unit)
+
+            override fun dispose() = Unit
+
+            override fun isDisposed(): Boolean = disposed
+        }
+
+        override fun dispose() {
+            disposed = true
+            tasks.forEach(ScheduledTask::dispose)
+            tasks.clear()
+        }
+
+        override fun isDisposed(): Boolean = disposed
+
+        private class ScheduledTask(
+            private val task: Runnable,
+            var remainingNanos: Long
+        ) : Disposable {
+            private var disposed: Boolean = false
+
+            fun run() {
+                if (!disposed) {
+                    task.run()
+                }
+            }
+
+            override fun dispose() {
+                disposed = true
+            }
+
+            override fun isDisposed(): Boolean = disposed
         }
     }
 
