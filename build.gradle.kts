@@ -275,19 +275,44 @@ configure(queryApiModules.map(::project)) {
     }
 }
 
-fun queryApiRuntimeClasspath(): String = queryApiModules
-    .map { module ->
-        project(module)
-            .layout
-            .buildDirectory
-            .file("query-api/runtime-classpath.txt")
-            .get()
-            .asFile
-            .readLines()
-    }
-    .flatten()
+fun queryApiModuleRuntimeClasspath(module: String): List<String> = project(module)
+    .layout
+    .buildDirectory
+    .file("query-api/runtime-classpath.txt")
+    .get()
+    .asFile
+    .readLines()
     .filter(String::isNotEmpty)
+
+fun queryApiRuntimeClasspath(): String = queryApiModules
+    .map(::queryApiModuleRuntimeClasspath)
+    .flatten()
     .joinToString(File.pathSeparator)
+
+val queryApiKotlinCompiler = configurations.detachedConfiguration(
+    dependencies.create("org.jetbrains.kotlin:kotlin-compiler-embeddable:${libs.versions.kotlin.asProvider().get()}")
+)
+
+val queryApiSourceCheck = tasks.register<Exec>("queryApiSourceCheck") {
+    description = "Compiles query admission API fixtures as external Java and Kotlin modules."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    dependsOn(":wow-query:jar")
+    dependsOn(":wow-query:$queryApiRuntimeClasspathTaskName")
+    inputs.file("scripts/query-api-source-check.sh")
+    inputs.files(queryApiKotlinCompiler)
+        .withPropertyName("kotlinCompilerClasspath")
+        .withNormalizer(ClasspathNormalizer::class.java)
+    doFirst {
+        val wowQueryJar = project(":wow-query").tasks.named<Jar>("jar").get().archiveFile.get().asFile
+        commandLine(
+            "bash",
+            "scripts/query-api-source-check.sh",
+            wowQueryJar.absolutePath,
+            queryApiModuleRuntimeClasspath(":wow-query").joinToString(File.pathSeparator),
+            queryApiKotlinCompiler.asPath,
+        )
+    }
+}
 
 tasks.register<Exec>("queryApiDump") {
     dependsOn(queryApiModules.map { "$it:jar" })
@@ -309,6 +334,7 @@ tasks.register<Exec>("queryApiDump") {
 }
 
 tasks.register<Exec>("queryApiCheck") {
+    dependsOn(queryApiSourceCheck)
     dependsOn(queryApiModules.map { "$it:jar" })
     dependsOn(queryApiModules.map { "$it:$queryApiRuntimeClasspathTaskName" })
     inputs.file(queryApiExpectedModules)

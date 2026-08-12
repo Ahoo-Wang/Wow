@@ -13,14 +13,18 @@
 
 package me.ahoo.wow.query.invocation
 
+import me.ahoo.wow.api.query.error.QueryErrorCode
+import me.ahoo.wow.api.query.error.QueryErrorReason
+import me.ahoo.wow.api.query.error.QueryException
+import me.ahoo.wow.api.query.error.QueryStage
+import me.ahoo.wow.api.query.expression.QueryExpression
 import me.ahoo.wow.api.query.gateway.QueryOperation
 import me.ahoo.wow.api.query.gateway.QueryRequest
 import me.ahoo.wow.query.validation.QueryBudgetLimit
 import reactor.core.publisher.Mono
 import java.time.Clock
-import java.time.Duration
-import java.time.Instant
 import java.time.ZoneId
+import java.util.Collections
 
 internal class QueryInvocationFactory(
     private val admission: QueryAdmission,
@@ -31,44 +35,72 @@ internal class QueryInvocationFactory(
 ) {
     fun admit(
         request: QueryRequest,
-        operation: QueryOperation,
-        entryProvenance: QueryProvenance
-    ): Mono<QueryInvocationSeed> = Mono.defer {
-        val frozenInstant = clock.instant()
-        val correlationId = correlationIdFactory().also {
-            require(it.isNotBlank()) { "correlationId cannot be blank." }
-        }
-        val admissionBudget = QueryBudgetLimit.min(
-            requestHint = request.budget,
-            systemLimit = systemBudgetLimit,
-            policyLimit = QueryBudgetLimit.UNBOUNDED,
-            backendLimit = QueryBudgetLimit.UNBOUNDED
-        )
-        val admissionDeadline = admissionBudget.timeout.toDeadline(frozenInstant)
-        val context = QueryAdmissionContext(request, operation, entryProvenance, correlationId)
-        admission.admit(context).map { scope ->
-            require(scope.correlationId == correlationId) {
-                "Query admission must preserve the invocation correlationId."
-            }
-            require(scope.requestedScope == request.requestedScope) {
-                "Query admission must preserve the requested scope."
-            }
-            QueryInvocationSeed(
-                request = request,
-                operation = operation,
-                entryProvenance = entryProvenance,
-                scope = scope,
-                frozenInstant = frozenInstant,
-                zoneId = zoneId,
-                admissionDeadline = admissionDeadline,
-                admissionBudget = admissionBudget
-            )
-        }
-    }
+        operation: QueryOperation
+    ): Mono<QueryInvocationSeed> = admitInternal(
+        request = request,
+        operation = operation,
+        expressionContributions = mapOf(QueryProvenance.CALLER_REQUEST to request.expression)
+    )
 
-    private fun Duration?.toDeadline(frozenInstant: Instant): Instant? = when {
-        this == null -> null
-        isZero -> frozenInstant
-        else -> frozenInstant.plus(this)
+    fun admitLegacy(
+        request: QueryRequest,
+        operation: QueryOperation,
+        legacyExpression: QueryExpression
+    ): Mono<QueryInvocationSeed> = admitInternal(
+        request = request,
+        operation = operation,
+        expressionContributions = linkedMapOf(
+            QueryProvenance.CALLER_REQUEST to request.expression,
+            QueryProvenance.LEGACY_ENRICHMENT to legacyExpression
+        )
+    )
+
+    private fun admitInternal(
+        request: QueryRequest,
+        operation: QueryOperation,
+        expressionContributions: Map<QueryProvenance, QueryExpression>
+    ): Mono<QueryInvocationSeed> {
+        val contributionSnapshot = Collections.unmodifiableMap(LinkedHashMap(expressionContributions))
+        return Mono.defer {
+            val frozenInstant = clock.instant()
+            val correlationId = correlationIdFactory().also {
+                require(it.isNotBlank()) { "correlationId cannot be blank." }
+            }
+            val admissionBudget = QueryBudgetLimit.min(
+                requestHint = request.budget,
+                systemLimit = systemBudgetLimit,
+                policyLimit = QueryBudgetLimit.UNBOUNDED,
+                backendLimit = QueryBudgetLimit.UNBOUNDED
+            )
+            val admissionDeadline = QueryDeadline.from(frozenInstant, admissionBudget.timeout)
+            val context = QueryAdmissionContext(request, operation, contributionSnapshot.keys, correlationId)
+            admission.admit(context)
+                .switchIfEmpty(
+                    Mono.error(
+                        QueryException(
+                            QueryErrorCode.POLICY_FAILURE,
+                            QueryStage.ADMISSION,
+                            QueryErrorReason.POLICY_EVALUATION_FAILED
+                        )
+                    )
+                ).map { scope ->
+                    require(scope.correlationId == correlationId) {
+                        "Query admission must preserve the invocation correlationId."
+                    }
+                    require(scope.requestedScope == request.requestedScope) {
+                        "Query admission must preserve the requested scope."
+                    }
+                    QueryInvocationSeed(
+                        request = request,
+                        operation = operation,
+                        expressionContributions = contributionSnapshot,
+                        scope = scope,
+                        frozenInstant = frozenInstant,
+                        zoneId = zoneId,
+                        admissionDeadline = admissionDeadline,
+                        admissionBudget = admissionBudget
+                    )
+                }
+        }
     }
 }

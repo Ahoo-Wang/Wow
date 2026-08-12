@@ -13,37 +13,68 @@
 
 package me.ahoo.wow.query.invocation
 
+import me.ahoo.wow.api.query.expression.LogicalOperator
 import me.ahoo.wow.api.query.expression.QueryExpression
 import me.ahoo.wow.api.query.gateway.QueryOperation
 import me.ahoo.wow.api.query.gateway.QueryRequest
+import me.ahoo.wow.query.expression.ExpressionNormalizer
 import me.ahoo.wow.query.schema.QuerySchemaView
 import me.ahoo.wow.query.validation.QueryBudgetLimit
 import java.time.Instant
 import java.time.ZoneId
+import java.util.Collections
 
 internal class QueryInvocationSeed(
     val request: QueryRequest,
     val operation: QueryOperation,
-    val entryProvenance: QueryProvenance,
+    expressionContributions: Map<QueryProvenance, QueryExpression>,
     val scope: QueryInvocationScope,
     val frozenInstant: Instant,
     val zoneId: ZoneId,
     val admissionDeadline: Instant?,
     val admissionBudget: QueryBudgetLimit
 ) {
+    val expressionContributions: Map<QueryProvenance, QueryExpression> =
+        Collections.unmodifiableMap(LinkedHashMap(expressionContributions))
+
+    init {
+        require(
+            this.expressionContributions.keys == setOf(QueryProvenance.CALLER_REQUEST) ||
+                this.expressionContributions.keys == linkedSetOf(
+                    QueryProvenance.CALLER_REQUEST,
+                    QueryProvenance.LEGACY_ENRICHMENT
+                )
+        ) {
+            "Invocation expression contributions contain unsupported provenance."
+        }
+        require(this.expressionContributions.getValue(QueryProvenance.CALLER_REQUEST) === request.expression) {
+            "Caller contribution must be the request expression."
+        }
+    }
+
     fun toInvocation(
         schema: QuerySchemaView,
-        normalizedExpression: QueryExpression
-    ): QueryInvocation = QueryInvocation(
-        request = request,
-        operation = operation,
-        scope = scope,
-        frozenInstant = frozenInstant,
-        zoneId = zoneId,
-        admissionDeadline = admissionDeadline,
-        admissionBudget = admissionBudget,
-        schema = schema,
-        normalizedExpression = normalizedExpression,
-        expressionProvenance = mapOf(entryProvenance to normalizedExpression)
-    )
+        normalize: (QueryExpression) -> QueryExpression
+    ): QueryInvocation {
+        val normalizedContributions = LinkedHashMap<QueryProvenance, QueryExpression>(expressionContributions.size)
+        expressionContributions.forEach { (provenance, expression) ->
+            normalizedContributions[provenance] = normalize(expression)
+        }
+        val normalizedExpression = ExpressionNormalizer.logical(
+            LogicalOperator.AND,
+            normalizedContributions.values.toList()
+        )
+        return QueryInvocation(
+            request = request,
+            operation = operation,
+            scope = scope,
+            frozenInstant = frozenInstant,
+            zoneId = zoneId,
+            admissionDeadline = admissionDeadline,
+            admissionBudget = admissionBudget,
+            schema = schema,
+            normalizedExpression = normalizedExpression,
+            expressionProvenance = normalizedContributions
+        )
+    }
 }

@@ -15,7 +15,19 @@ package me.ahoo.wow.query.invocation
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.error.QueryErrorCode
+import me.ahoo.wow.api.query.error.QueryErrorReason
+import me.ahoo.wow.api.query.error.QueryException
+import me.ahoo.wow.api.query.error.QueryStage
+import me.ahoo.wow.api.query.expression.LogicalExpression
+import me.ahoo.wow.api.query.expression.LogicalField
+import me.ahoo.wow.api.query.expression.LogicalOperator
 import me.ahoo.wow.api.query.expression.MatchAll
+import me.ahoo.wow.api.query.expression.PortableLogicalExpression
+import me.ahoo.wow.api.query.expression.PortableOperator
+import me.ahoo.wow.api.query.expression.PredicateExpression
+import me.ahoo.wow.api.query.expression.QueryExpression
+import me.ahoo.wow.api.query.expression.QueryValue
 import me.ahoo.wow.api.query.gateway.CountQueryRequest
 import me.ahoo.wow.api.query.gateway.QueryBudgetHint
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
@@ -59,8 +71,7 @@ class QuerySubscriptionIsolationTest {
         )
         val invocationPublisher = factory.admit(
             request = request,
-            operation = QueryOperation.COUNT,
-            entryProvenance = QueryProvenance.CALLER_REQUEST
+            operation = QueryOperation.COUNT
         )
 
         clock.reads.get().assert().isZero()
@@ -84,7 +95,7 @@ class QuerySubscriptionIsolationTest {
         clock.reads.get().assert().isEqualTo(2)
 
         val schema = QuerySchema(request.target, emptyList())
-        val invocation = first.toInvocation(schema, MatchAll)
+        val invocation = first.toInvocation(schema) { it }
         invocation.frozenInstant.assert().isSameAs(first.frozenInstant)
         invocation.admissionDeadline.assert().isSameAs(first.admissionDeadline)
         invocation.scope.assert().isSameAs(first.scope)
@@ -97,19 +108,120 @@ class QuerySubscriptionIsolationTest {
     }
 
     @Test
+    fun `keeps caller and legacy expressions as separate normalized contributions`() {
+        val callerPredicate = predicate("state.status", "CREATED")
+        val legacyPredicate = predicate("tenantId", "tenant")
+        val request = CountQueryRequest(
+            target = queryTarget(),
+            expression = LogicalExpression(LogicalOperator.AND, listOf(callerPredicate))
+        )
+        val seed = factory(
+            Instant.parse("2026-08-12T01:30:00Z"),
+            QueryBudgetLimit.UNBOUNDED
+        ).admitLegacy(
+            request = request,
+            operation = QueryOperation.COUNT,
+            legacyExpression = LogicalExpression(LogicalOperator.AND, listOf(legacyPredicate))
+        ).block()!!
+
+        seed.expressionContributions.assert().isEqualTo(
+            mapOf(
+                QueryProvenance.CALLER_REQUEST to request.expression,
+                QueryProvenance.LEGACY_ENRICHMENT to
+                    LogicalExpression(LogicalOperator.AND, listOf(legacyPredicate))
+            )
+        )
+        seed.expressionContributions.keys.none {
+            it == QueryProvenance.TRUSTED_AUTHORITY ||
+                it == QueryProvenance.SYSTEM_METADATA ||
+                it == QueryProvenance.MANDATORY_POLICY
+        }.assert().isTrue()
+
+        val normalizationInputs = mutableListOf<QueryExpression>()
+        val invocation = seed.toInvocation(QuerySchema(request.target, emptyList())) { expression ->
+            normalizationInputs += expression
+            when (expression) {
+                request.expression -> callerPredicate
+                else -> legacyPredicate
+            }
+        }
+
+        normalizationInputs.assert().containsExactly(
+            request.expression,
+            seed.expressionContributions.getValue(QueryProvenance.LEGACY_ENRICHMENT)
+        )
+        invocation.expressionProvenance.assert().isEqualTo(
+            mapOf(
+                QueryProvenance.CALLER_REQUEST to callerPredicate,
+                QueryProvenance.LEGACY_ENRICHMENT to legacyPredicate
+            )
+        )
+        invocation.normalizedExpression.assert().isEqualTo(
+            PortableLogicalExpression(LogicalOperator.AND, listOf(callerPredicate, legacyPredicate))
+        )
+    }
+
+    @Test
+    fun `factory does not accept caller selected provenance`() {
+        QueryInvocationFactory::class.java.declaredMethods
+            .flatMap { it.parameterTypes.asList() }
+            .none { it == QueryProvenance::class.java }
+            .assert().isTrue()
+    }
+
+    @Test
     fun `keeps zero timeout immediate and unbounded timeout absent`() {
         val frozen = Instant.parse("2026-08-12T02:00:00Z")
         val zeroTimeoutSeed = factory(
             frozen,
             QueryBudgetLimit(timeout = Duration.ZERO)
-        ).admit(request(), QueryOperation.COUNT, QueryProvenance.SYSTEM_METADATA).block()!!
+        ).admit(request(), QueryOperation.COUNT).block()!!
         val unboundedSeed = factory(
             frozen,
             QueryBudgetLimit.UNBOUNDED
-        ).admit(request(), QueryOperation.COUNT, QueryProvenance.SYSTEM_METADATA).block()!!
+        ).admit(request(), QueryOperation.COUNT).block()!!
 
         zeroTimeoutSeed.admissionDeadline.assert().isSameAs(zeroTimeoutSeed.frozenInstant)
         unboundedSeed.admissionDeadline.assert().isNull()
+    }
+
+    @Test
+    fun `rejects finite timeout whose absolute deadline overflows`() {
+        val factory = factory(
+            Instant.MAX.minusSeconds(1),
+            QueryBudgetLimit(timeout = Duration.ofSeconds(2))
+        )
+
+        StepVerifier.create(factory.admit(request(), QueryOperation.COUNT))
+            .expectErrorSatisfies { error ->
+                (error is java.time.DateTimeException).assert().isFalse()
+                (error is ArithmeticException).assert().isFalse()
+                (error as QueryException).apply {
+                    code.assert().isEqualTo(QueryErrorCode.INVALID_QUERY)
+                    stage.assert().isEqualTo(QueryStage.ADMISSION)
+                    reason.assert().isEqualTo(QueryErrorReason.INVALID_REQUEST)
+                }
+            }
+            .verify()
+    }
+
+    @Test
+    fun `rejects maximum finite duration without saturating or becoming unbounded`() {
+        val maximumDuration = Duration.ofSeconds(Long.MAX_VALUE, 999_999_999)
+        val factory = factory(
+            Instant.parse("2026-08-12T02:30:00Z"),
+            QueryBudgetLimit(timeout = maximumDuration)
+        )
+
+        StepVerifier.create(factory.admit(request(), QueryOperation.COUNT))
+            .expectErrorSatisfies { error ->
+                (error as QueryException).apply {
+                    code.assert().isEqualTo(QueryErrorCode.INVALID_QUERY)
+                    stage.assert().isEqualTo(QueryStage.ADMISSION)
+                    reason.assert().isEqualTo(QueryErrorReason.INVALID_REQUEST)
+                }
+            }
+            .verify()
     }
 
     @Test
@@ -132,7 +244,7 @@ class QuerySubscriptionIsolationTest {
             systemBudgetLimit = QueryBudgetLimit.UNBOUNDED,
             correlationIdFactory = { "cancelled" }
         )
-        val prepared = factory.admit(request(), QueryOperation.COUNT, QueryProvenance.CALLER_REQUEST)
+        val prepared = factory.admit(request(), QueryOperation.COUNT)
             .flatMap { seed ->
                 schemaResolverInvocations.incrementAndGet()
                 Mono.just(seed)
@@ -146,6 +258,27 @@ class QuerySubscriptionIsolationTest {
         authoritySubscriptions.get().assert().isOne()
         schemaResolverInvocations.get().assert().isZero()
         backendResolverInvocations.get().assert().isZero()
+    }
+
+    @Test
+    fun `fails closed when admission completes empty`() {
+        val factory = QueryInvocationFactory(
+            admission = QueryAdmission { Mono.empty() },
+            clock = Clock.fixed(Instant.parse("2026-08-12T03:30:00Z"), ZoneOffset.UTC),
+            zoneId = ZoneOffset.UTC,
+            systemBudgetLimit = QueryBudgetLimit.UNBOUNDED,
+            correlationIdFactory = { "empty-admission" }
+        )
+
+        StepVerifier.create(factory.admit(request(), QueryOperation.COUNT))
+            .expectErrorSatisfies { error ->
+                (error as QueryException).apply {
+                    code.assert().isEqualTo(QueryErrorCode.POLICY_FAILURE)
+                    stage.assert().isEqualTo(QueryStage.ADMISSION)
+                    reason.assert().isEqualTo(QueryErrorReason.POLICY_EVALUATION_FAILED)
+                }
+            }
+            .verify()
     }
 
     private fun factory(frozen: Instant, systemBudget: QueryBudgetLimit): QueryInvocationFactory =
@@ -172,6 +305,12 @@ class QuerySubscriptionIsolationTest {
     )
 
     private fun request(): CountQueryRequest = CountQueryRequest(queryTarget())
+
+    private fun predicate(field: String, value: String): PredicateExpression = PredicateExpression(
+        field = LogicalField(field),
+        operator = PortableOperator.EQ,
+        values = listOf(QueryValue.StringValue(value))
+    )
 
     private fun queryTarget(): QueryTarget = QueryTarget(
         namedAggregate = object : NamedAggregate {

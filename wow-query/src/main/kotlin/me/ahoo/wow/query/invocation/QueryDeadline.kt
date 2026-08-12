@@ -17,25 +17,30 @@ import me.ahoo.wow.api.query.error.QueryErrorCode
 import me.ahoo.wow.api.query.error.QueryErrorReason
 import me.ahoo.wow.api.query.error.QueryException
 import me.ahoo.wow.api.query.error.QueryStage
-import reactor.core.publisher.Mono
+import java.time.DateTimeException
+import java.time.Duration
+import java.time.Instant
 
-internal class DefaultQueryAdmission(
-    private val authorityProvider: QueryAuthorityProvider
-) : QueryAdmission {
-    override fun admit(context: QueryAdmissionContext): Mono<QueryInvocationScope> = Mono.defer {
-        authorityProvider.getAuthority(context)
-    }.switchIfEmpty(Mono.error(admissionProtocolFailure()))
-        .map { authority ->
-            QueryInvocationScope(
-                trustedAuthority = authority,
-                requestedScope = context.request.requestedScope,
-                correlationId = context.correlationId
-            )
+internal object QueryDeadline {
+    fun from(
+        frozenInstant: Instant,
+        timeout: Duration?,
+        stage: QueryStage = QueryStage.ADMISSION
+    ): Instant? = when {
+        timeout == null -> null
+        timeout.isZero -> frozenInstant
+        else -> try {
+            frozenInstant.plus(timeout)
+        } catch (_: DateTimeException) {
+            throw invalidDeadline(stage)
+        } catch (_: ArithmeticException) {
+            throw invalidDeadline(stage)
         }
+    }
 
-    private fun admissionProtocolFailure(): QueryException = QueryException(
-        QueryErrorCode.POLICY_FAILURE,
-        QueryStage.ADMISSION,
-        QueryErrorReason.POLICY_EVALUATION_FAILED
+    private fun invalidDeadline(stage: QueryStage): QueryException = QueryException(
+        QueryErrorCode.INVALID_QUERY,
+        stage,
+        QueryErrorReason.INVALID_REQUEST
     )
 }

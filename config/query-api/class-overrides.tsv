@@ -14,6 +14,7 @@ wow-query	me/ahoo/wow/query/event/QueryDslKt.class	include	retained-public-facad
 wow-query	me/ahoo/wow/query/expression/QueryValueNormalizerKt.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/filter/QueryContextKt.class	exclude	approved-filter-context-removal
 wow-query	me/ahoo/wow/query/invocation/DefaultQueryAdmission.class	exclude	kotlin-internal
+wow-query	me/ahoo/wow/query/invocation/QueryDeadline.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/invocation/QueryInvocation.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/invocation/QueryInvocationFactory.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/invocation/QueryInvocationSeed.class	exclude	kotlin-internal

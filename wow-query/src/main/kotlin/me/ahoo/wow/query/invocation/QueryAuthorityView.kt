@@ -41,6 +41,16 @@ class QueryAuthorityView(
         permissions: Set<String> = this.permissions
     ): QueryAuthorityView = QueryAuthorityView(subjectId, tenantId, ownerId, spaceIds, permissions)
 
+    operator fun component1(): String? = subjectId
+
+    operator fun component2(): String? = tenantId
+
+    operator fun component3(): String? = ownerId
+
+    operator fun component4(): Set<String> = spaceIds
+
+    operator fun component5(): Set<String> = permissions
+
     override fun equals(other: Any?): Boolean = other is QueryAuthorityView &&
         subjectId == other.subjectId && tenantId == other.tenantId && ownerId == other.ownerId &&
         spaceIds == other.spaceIds && permissions == other.permissions
@@ -52,6 +62,8 @@ class QueryAuthorityView(
         result = 31 * result + spaceIds.hashCode()
         return 31 * result + permissions.hashCode()
     }
+
+    override fun toString(): String = "QueryAuthorityView(<redacted>)"
 
     private fun <T> immutableSet(source: Set<T>): Set<T> =
         Collections.unmodifiableSet(LinkedHashSet(source))
