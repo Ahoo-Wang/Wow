@@ -15,6 +15,7 @@ package me.ahoo.wow.query.validation
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.error.QueryErrorCode
 import me.ahoo.wow.api.query.error.QueryErrorReason
 import me.ahoo.wow.api.query.error.QueryException
@@ -133,6 +134,24 @@ class QueryRequestValidatorTest {
             request(MatchAll, sort = listOf(QuerySort(LogicalField("missing"), QuerySortDirection.ASC))),
             request(MatchAll, sort = listOf(QuerySort(LogicalField("unsortable"), QuerySortDirection.DESC)))
         ).forEach { request -> assertInvalid { validator.validateSchema(request, schema) } }
+    }
+
+    @Test
+    fun `validates dynamic result shape explicitly while retaining sort validation`() {
+        val valid: SingleQueryRequest<DynamicDocument> = SingleQueryRequest(
+            target = target,
+            resultShape = QueryResultShape.Dynamic,
+            sort = listOf(QuerySort(LogicalField("name"), QuerySortDirection.ASC))
+        )
+        val invalid: SingleQueryRequest<DynamicDocument> = SingleQueryRequest(
+            target = target,
+            resultShape = QueryResultShape.Dynamic,
+            sort = listOf(QuerySort(LogicalField("unsortable"), QuerySortDirection.ASC))
+        )
+
+        validator.validateSchema(valid, schema).assert().isSameAs(valid)
+        assertInvalid { validator.validateSchema(invalid, schema) }
+        valid.resultShape.assert().isInstanceOf(QueryResultShape.Dynamic::class.java)
     }
 
     @Test

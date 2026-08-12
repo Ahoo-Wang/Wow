@@ -68,7 +68,10 @@ class QueryRequestValidator(
     }
 
     private fun validateProjection(resultShape: QueryResultShape<*>, schema: QuerySchemaView) {
-        val projection = (resultShape as? QueryResultShape.Typed<*>)?.projection ?: return
+        val projection = when (resultShape) {
+            is QueryResultShape.Typed<*> -> resultShape.projection
+            QueryResultShape.Dynamic -> return
+        }
         val fields = when (projection) {
             QueryProjection.All -> return
             is QueryProjection.Include -> projection.fields

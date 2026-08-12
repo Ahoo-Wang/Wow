@@ -42,7 +42,7 @@ class QueryExpressionValidator(
     fun <E : QueryExpression> validateStructure(expression: E): E {
         val pending = ArrayDeque<StructureFrame>()
         pending.addLast(StructureFrame(expression, 1))
-        var nodes = 0L
+        var reservedNodes = 1L
         var membershipItems = 0L
         var nativeParameterBytes = 0L
         while (pending.isNotEmpty()) {
@@ -50,17 +50,18 @@ class QueryExpressionValidator(
             if (frame.depth > limits.maxDepth) {
                 invalidQuery()
             }
-            nodes = incrementWithin(nodes, limits.maxNodes.toLong())
             when (val current = frame.expression) {
                 MatchAll,
                 MatchNone -> Unit
 
-                is LogicalExpression -> current.operands.forEach { child ->
-                    pending.addChild(child, frame.depth)
+                is LogicalExpression -> {
+                    reservedNodes = reserveNodes(reservedNodes, current.operands.size)
+                    current.operands.forEach { child -> pending.addChild(child, frame.depth) }
                 }
 
-                is PortableLogicalExpression -> current.operands.forEach { child ->
-                    pending.addChild(child, frame.depth)
+                is PortableLogicalExpression -> {
+                    reservedNodes = reserveNodes(reservedNodes, current.operands.size)
+                    current.operands.forEach { child -> pending.addChild(child, frame.depth) }
                 }
 
                 is PredicateExpression -> {
@@ -74,7 +75,10 @@ class QueryExpressionValidator(
                     }
                 }
 
-                is ElementMatchExpression -> pending.addChild(current.predicate, frame.depth)
+                is ElementMatchExpression -> {
+                    reservedNodes = reserveNodes(reservedNodes, 1)
+                    pending.addChild(current.predicate, frame.depth)
+                }
                 is FullTextExpression -> Unit
                 is NativeExpression -> {
                     nativeParameterBytes = addWithin(
@@ -360,7 +364,8 @@ class QueryExpressionValidator(
         return bytes
     }
 
-    private fun incrementWithin(current: Long, maximum: Long): Long = addWithin(current, 1, maximum)
+    private fun reserveNodes(reserved: Long, children: Int): Long =
+        addWithin(reserved, children.toLong(), limits.maxNodes.toLong())
 
     private fun addWithin(current: Long, addition: Long, maximum: Long): Long {
         if (addition < 0 || current > maximum || addition > maximum - current) {

@@ -44,9 +44,11 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.assertTimeoutPreemptively
+import java.lang.management.ManagementFactory
 import java.math.BigDecimal
 import java.time.Duration
 import java.time.Instant
+import java.util.Collections
 
 class QueryExpressionValidatorTest {
     private val limits = QueryStructureLimits(
@@ -225,6 +227,30 @@ class QueryExpressionValidatorTest {
         assertInvalid {
             QueryExpressionValidator(limits.copy(maxMembershipItems = 4)).validateStructure(expression)
         }
+    }
+
+    @Test
+    fun `rejects an over budget wide expression before expanding its siblings`() {
+        val validator = QueryExpressionValidator(limits.copy(maxDepth = 2, maxNodes = 1))
+        val expression = PortableLogicalExpression(
+            LogicalOperator.AND,
+            Collections.nCopies(100_000, MatchAll)
+        )
+        assertInvalid {
+            validator.validateStructure(
+                PortableLogicalExpression(LogicalOperator.AND, listOf(MatchAll))
+            )
+        }
+        val threadBean = ManagementFactory.getThreadMXBean() as com.sun.management.ThreadMXBean
+
+        @Suppress("DEPRECATION")
+        val threadId = Thread.currentThread().id
+        val allocatedBefore = threadBean.getThreadAllocatedBytes(threadId)
+
+        assertInvalid { validator.validateStructure(expression) }
+
+        val allocatedBytes = threadBean.getThreadAllocatedBytes(threadId) - allocatedBefore
+        allocatedBytes.assert().isLessThan(128 * 1024)
     }
 
     @Test
