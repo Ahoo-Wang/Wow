@@ -542,13 +542,11 @@ me.ahoo.wow.api.query.StructuralEntrySet$iterator$1#public java.util.Map$Entry<j
 me.ahoo.wow.api.query.StructuralEntrySet$iterator$1#public void remove();|descriptor: ()V
 me.ahoo.wow.api.query.error.QueryErrorCode#class|public final class me.ahoo.wow.api.query.error.QueryErrorCode extends java.lang.Enum<me.ahoo.wow.api.query.error.QueryErrorCode> {
 me.ahoo.wow.api.query.error.QueryErrorCode#public static final me.ahoo.wow.api.query.error.QueryErrorCode BACKEND_FAILURE;|descriptor: Lme/ahoo/wow/api/query/error/QueryErrorCode;
-me.ahoo.wow.api.query.error.QueryErrorCode#public static final me.ahoo.wow.api.query.error.QueryErrorCode BACKEND_NOT_FOUND;|descriptor: Lme/ahoo/wow/api/query/error/QueryErrorCode;
 me.ahoo.wow.api.query.error.QueryErrorCode#public static final me.ahoo.wow.api.query.error.QueryErrorCode BACKEND_NOT_READY;|descriptor: Lme/ahoo/wow/api/query/error/QueryErrorCode;
 me.ahoo.wow.api.query.error.QueryErrorCode#public static final me.ahoo.wow.api.query.error.QueryErrorCode BUDGET_EXCEEDED;|descriptor: Lme/ahoo/wow/api/query/error/QueryErrorCode;
 me.ahoo.wow.api.query.error.QueryErrorCode#public static final me.ahoo.wow.api.query.error.QueryErrorCode DEADLINE_EXCEEDED;|descriptor: Lme/ahoo/wow/api/query/error/QueryErrorCode;
 me.ahoo.wow.api.query.error.QueryErrorCode#public static final me.ahoo.wow.api.query.error.QueryErrorCode INCOMPLETE_RESULT;|descriptor: Lme/ahoo/wow/api/query/error/QueryErrorCode;
 me.ahoo.wow.api.query.error.QueryErrorCode#public static final me.ahoo.wow.api.query.error.QueryErrorCode INVALID_QUERY;|descriptor: Lme/ahoo/wow/api/query/error/QueryErrorCode;
-me.ahoo.wow.api.query.error.QueryErrorCode#public static final me.ahoo.wow.api.query.error.QueryErrorCode PARTIAL_RESULT;|descriptor: Lme/ahoo/wow/api/query/error/QueryErrorCode;
 me.ahoo.wow.api.query.error.QueryErrorCode#public static final me.ahoo.wow.api.query.error.QueryErrorCode POLICY_DENIED;|descriptor: Lme/ahoo/wow/api/query/error/QueryErrorCode;
 me.ahoo.wow.api.query.error.QueryErrorCode#public static final me.ahoo.wow.api.query.error.QueryErrorCode POLICY_FAILURE;|descriptor: Lme/ahoo/wow/api/query/error/QueryErrorCode;
 me.ahoo.wow.api.query.error.QueryErrorCode#public static final me.ahoo.wow.api.query.error.QueryErrorCode RESULT_VALIDATION_FAILED;|descriptor: Lme/ahoo/wow/api/query/error/QueryErrorCode;
