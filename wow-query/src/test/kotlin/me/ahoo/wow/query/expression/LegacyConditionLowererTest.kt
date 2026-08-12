@@ -39,6 +39,7 @@ import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.query.converter.DeleteConditionGuard.guard
+import me.ahoo.wow.query.schema.QuerySystemFields
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Instant
@@ -273,7 +274,7 @@ class LegacyConditionLowererTest {
                 Condition.id("record-1"),
                 and(
                     active,
-                    predicate("id", PortableOperator.EQ, string("record-1"))
+                    predicate("aggregateId", PortableOperator.EQ, string("record-1"))
                 )
             ),
             Triple(
@@ -282,7 +283,7 @@ class LegacyConditionLowererTest {
                 and(
                     active,
                     predicate(
-                        "id",
+                        "aggregateId",
                         PortableOperator.IN,
                         string("record-1"),
                         string("record-2")
@@ -294,7 +295,7 @@ class LegacyConditionLowererTest {
                 Condition.aggregateId("aggregate-1"),
                 and(
                     active,
-                    predicate("id", PortableOperator.EQ, string("aggregate-1"))
+                    predicate("aggregateId", PortableOperator.EQ, string("aggregate-1"))
                 )
             ),
             Triple(
@@ -303,7 +304,7 @@ class LegacyConditionLowererTest {
                 and(
                     active,
                     predicate(
-                        "id",
+                        "aggregateId",
                         PortableOperator.IN,
                         string("aggregate-1"),
                         string("aggregate-2")
@@ -343,9 +344,13 @@ class LegacyConditionLowererTest {
         )
 
         fixtures.forEach { (target, condition, expected) ->
-            LegacyConditionLowerer.lower(condition, target, frozenInstant, zoneId)
-                .assert()
-                .isEqualTo(expected)
+            val actual = LegacyConditionLowerer.lower(condition, target, frozenInstant, zoneId)
+            actual.assert().isEqualTo(expected)
+
+            val declaredSystemFields = QuerySystemFields.fields(target.documentKind).map { it.path }.toSet()
+            actual.predicateFields().forEach { field ->
+                declaredSystemFields.assert().contains(field)
+            }
         }
     }
 
@@ -439,6 +444,12 @@ class LegacyConditionLowererTest {
 
     private fun lowerPredicate(condition: Condition): PredicateExpression =
         LegacyConditionLowerer.lower(condition, eventTarget, frozenInstant, zoneId) as PredicateExpression
+
+    private fun QueryExpression.predicateFields(): Set<LogicalField> = when (this) {
+        is PredicateExpression -> setOf(field)
+        is PortableLogicalExpression -> operands.flatMap { it.predicateFields() }.toSet()
+        else -> emptySet()
+    }
 
     @Suppress("UNCHECKED_CAST")
     private fun nullIgnoreCaseOptions(): Map<String, Any> =

@@ -60,11 +60,11 @@ object LegacyConditionLowerer {
             Operator.AND -> logical(LogicalOperator.AND, condition, target, frozenInstant, zoneId)
             Operator.OR -> logical(LogicalOperator.OR, condition, target, frozenInstant, zoneId)
             Operator.NOR -> logical(LogicalOperator.NOR, condition, target, frozenInstant, zoneId)
-            Operator.ID -> predicate(ID_FIELD, PortableOperator.EQ, condition.value)
-            Operator.IDS -> predicateElements(ID_FIELD, PortableOperator.IN, condition.value)
-            Operator.AGGREGATE_ID -> predicate(aggregateIdentityField(target), PortableOperator.EQ, condition.value)
+            Operator.ID -> predicate(recordIdentityField(target), PortableOperator.EQ, condition.value)
+            Operator.IDS -> predicateElements(recordIdentityField(target), PortableOperator.IN, condition.value)
+            Operator.AGGREGATE_ID -> predicate(AGGREGATE_ID_FIELD, PortableOperator.EQ, condition.value)
             Operator.AGGREGATE_IDS -> predicateElements(
-                aggregateIdentityField(target),
+                AGGREGATE_ID_FIELD,
                 PortableOperator.IN,
                 condition.value
             )
@@ -161,10 +161,10 @@ object LegacyConditionLowerer {
             }
         )
 
-    private fun aggregateIdentityField(target: QueryTarget): String =
+    private fun recordIdentityField(target: QueryTarget): String =
         when (target.documentKind) {
-            QueryDocumentKind.SNAPSHOT -> ID_FIELD
-            QueryDocumentKind.EVENT_STREAM -> AGGREGATE_ID_FIELD
+            QueryDocumentKind.SNAPSHOT -> AGGREGATE_ID_FIELD
+            QueryDocumentKind.EVENT_STREAM -> ID_FIELD
         }
 
     private const val ID_FIELD = "id"
