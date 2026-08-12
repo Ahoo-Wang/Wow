@@ -1,10 +1,12 @@
 # Query 服务架构升级设计
 
-> 状态：复审修订待确认
+> 状态：已确认，Plan 03 实施中
 >
 > 日期：2026-08-11
 >
 > 审查基线：`53dc6d9c860379aa799c46c62ee3d3fe7aee4548`
+>
+> Plan 03 实施基线：`a6cc49a6b2eca8b7db1309b70d0dd3212d0e8086`
 >
 > 范围：`wow-api`、`wow-query`、`wow-mongo`、`wow-elasticsearch`、`wow-spring`、`wow-spring-boot-starter`、`wow-webflux` 及相关测试模块
 
@@ -14,10 +16,10 @@
 
 查询能力采用两层模型：
 
-- `PortableExpression` 定义 MongoDB、Elasticsearch 等后端都必须满足的可移植语义，并以 MongoDB 语义作为共享 TCK 的参考基线；
+- `PortableExpression` 定义 MongoDB、Elasticsearch 等后端都必须满足的可移植语义；第 5.2 节矩阵是共享 TCK 的唯一语义 oracle，现有任一后端行为都不能覆盖它；
 - `CapabilityExpression` 显式承载 `FullText`、`Native`、未来 `Geo` 等后端能力，后端不支持时必须拒绝，不能静默降级。
 
-所有框架托管入口统一经过 Admission、Normalize、Policy、Backend Resolve、Plan、Execute、Result Policy 七个阶段。Admission 为每次订阅建立带来源信息的 `QueryInvocationScope`；单一 `QueryPolicy` 扩展 SPI 统一承载服务端业务约束、安全条件、字段/capability 权限和预算上限，框架负责把其 mandatory expression 以 `AND` 注入，调用方不能移除。结果脱敏由独立的 `ResultPolicy` 承担。存储后端只编译并执行已验证计划，不解析外部 DTO，也不自行拼接授权条件。
+所有框架托管入口统一经过 Admission、Structure Validation、Schema Resolve、Normalize、Schema Validation、Policy、Policy-output Validation、Backend Resolve、Plan、Execute、Result Policy 十一个阶段。Admission 为每次订阅建立带来源信息的 `QueryInvocationScope`；单一 `QueryPolicy` 扩展 SPI 统一承载服务端业务约束、安全条件、字段/capability 权限和预算上限，框架负责把其 mandatory expression 以 `AND` 注入，调用方不能移除。结果脱敏由独立的 `ResultPolicy` 承担。存储后端只编译并执行已验证计划，不解析外部 DTO，也不自行拼接授权条件。
 
 第一阶段不拆 Gradle 模块、不修改 KSP、不实现聚合分析 API、不自动迁移索引。Snapshot 的默认查询 Schema 在启动时由聚合状态类型的 Jackson 序列化模型推导；EventStream 默认只声明框架固定 envelope/system fields，事件 payload 字段不从聚合状态推导。两者都只提供一个 `QuerySchemaCustomizer` 扩展点。
 
@@ -102,7 +104,7 @@ flowchart LR
 - `wow-cosec`：向 Admission 提供可信 authority/scope contributor，不再把安全性寄托于普通条件重写；
 - `wow-test`：提供公开 `QueryPolicyTestKit` 和 Backend/Policy 契约测试支持。
 
-由于后端位于独立 Gradle 模块，也允许第三方实现自定义存储，`me.ahoo.wow.query.backend` 中的 `QueryBackend`、`QueryBackendDescriptor`、`QueryBackendResolver` 与 `QueryPlanV1` 是稳定、公开、版本化的基础设施 SPI：一旦在 8.x 发布，必须保持该主版本内的 source/binary compatibility。新增计划能力通过并行的 `QueryPlanV2`/新 capability 类型演进，不原地修改 `QueryPlanV1` 的既有语义。Normalizer、Planner 实现、中间构建器和物理编译细节仍保持 Kotlin `internal`。导出的计划数据结构必须最小、不可变且不含 Spring、wire DTO 或存储驱动类型；应用查询入口仍是 `QueryGateway`，Backend SPI 在独立文档中面向基础设施开发者说明。
+由于后端位于独立 Gradle 模块，也允许第三方实现自定义存储，`me.ahoo.wow.query.backend` 中的 `QueryBackend`、`QueryBackendDescriptor`、`QueryBackendResolver`、`QueryBackendResolutionContext` 与 `QueryPlanV1` 是稳定、公开、版本化的基础设施 SPI：一旦在 8.x 发布，必须保持该主版本内的 source/binary compatibility。新增计划能力通过并行的 `QueryPlanV2`/新 capability 类型演进，不原地修改 `QueryPlanV1` 的既有语义。Normalizer、Planner 实现、中间构建器和物理编译细节仍保持 Kotlin `internal`。导出的计划数据结构必须最小、不可变且不含 Spring、wire DTO 或存储驱动类型；应用查询入口仍是 `QueryGateway`，Backend SPI 在独立文档中面向基础设施开发者说明。
 
 稳定 SPI 的职责形态固定为 operation-specific consumer；第三方 backend 接收框架创建的只读计划，不获得绕过 Gateway 的 plan builder：
 
@@ -116,12 +118,25 @@ interface QueryBackend {
     fun readiness(): Mono<QueryBackendReadiness>
 }
 
-interface QueryBackendResolver {
+fun interface QueryBackendFactory {
+    fun bind(context: QueryBackendResolutionContext): QueryBackend
+}
+
+class QueryBackendResolutionContext(
+    val target: QueryTarget,
+    val schema: QuerySchema,
+    val securedExpression: QueryExpression
+)
+
+fun interface QueryBackendResolver {
     fun resolve(target: QueryTarget): Mono<ResolvedQueryBackend>
+
+    fun resolve(context: QueryBackendResolutionContext): Mono<ResolvedQueryBackend> =
+        resolve(context.target)
 }
 ```
 
-`QueryBackendDescriptor` 固定声明 backend id、支持的 document kind/plan version/portable operator/capability；capability id 使用可扩展值对象而不是封闭 enum。四种 `*QueryPlanV1` 共享 target、canonical expression、已授权 result shape、sort/page/limit、frozen deadline/budget 与审计 correlation，但只暴露各 operation 必需字段。`ResolvedQueryBackend` 将 resolver 选择的 backend、descriptor 和 route identity 绑定为一次 invocation 的不可变结果。只有 Planner 能创建计划；应用和兼容门面均不能直接调用 Backend。
+`QueryBackendDescriptor` 固定声明 backend id、支持的 document kind/plan version/portable operator/capability；capability id 使用可扩展值对象而不是封闭 enum。`QueryBackendResolutionContext` 是框架创建的不可变解析输入，只包含 target、framework-owned `QuerySchema` 快照和 Policy 合成后的 canonical expression；不包含 authority、Spring、wire DTO 或驱动对象。它保留 data-like `componentN`/`copy`/structural equals/hash surface，但手写 `toString()` 只输出安全的 target/schema 摘要，不展开 expression/value。`QueryBackendFactory` 是后端模块与 storage routing 之间唯一的 route-bound 创建 SPI：`bind(context)` 必须同步、防御性快照且不做 I/O，异步 index/mapping/template 检查仍由返回实例的 `readiness()` 完成。保留 `resolve(target)` 作为 8.x 已发布 SPI 的兼容入口，新增 context overload 由默认实现委托旧入口；统一 Gateway 必须调用 context overload，存储路由 resolver 据此创建 route-bound backend。四种 `*QueryPlanV1` 共享 target、canonical expression、已授权 result shape、sort/page/limit、frozen deadline/budget 与审计 correlation，但只暴露各 operation 必需字段。`ResolvedQueryBackend` 将 resolver 选择的 route-bound backend、descriptor、target-specific readiness snapshot 和 route identity 绑定为一次 invocation 的不可变结果。只有 Planner 能创建计划；应用和兼容门面均不能直接调用 Backend。
 
 ## 5. 公开查询模型
 
@@ -164,17 +179,37 @@ interface QueryGateway {
 | `ID`、`IDS`、`AGGREGATE_ID`、`AGGREGATE_IDS`、`TENANT_ID`、`OWNER_ID`、`SPACE_ID` | 降低为框架固定 system logical field 上的 equality/membership。Snapshot 文档中 `ID(S)` 与 `AGGREGATE_ID(S)` 都表示聚合身份，统一为 logical `aggregateId`；EventStream 保留 stream record `id` 与 `aggregateId` 的区分。所有 system field 引用仍须经过 Policy；tenant/owner/space 不能仅凭调用方条件获得授权。 |
 | `DELETED` | 降低为 Snapshot 固定 deletion scope/predicate。新 API 的 Snapshot 默认 `ACTIVE`；兼容门面精确复现现有 `DeleteConditionGuard` 的默认 active 与显式 deletion 规则。EventStream 不套用 Snapshot deletion guard。 |
 | `ALL` | 降低为 `MatchAll`。Snapshot 的默认 `ACTIVE` mandatory policy 仍然生效，除非请求以受允许的显式 deletion scope 改变它。 |
-| `EQ`、`NE`、`GT`、`LT`、`GTE`、`LTE`、`CONTAINS`、`IN`、`NOT_IN`、`BETWEEN`、`ALL_IN`、`STARTS_WITH`、`ENDS_WITH`、`ELEM_MATCH`、`NULL`、`NOT_NULL`、`TRUE`、`FALSE`、`EXISTS` | 降低为 canonical portable predicate；字段类型、arity、null/missing、collection 与 nested 语义由 Schema 校验，并以 MongoDB 现有可观察语义为参考 oracle 写入双后端 TCK。`ELEM_MATCH` 只允许 Schema 显式声明的 object collection。`CONTAINS`、`STARTS_WITH`、`ENDS_WITH` 额外携带显式 `StringComparisonMode`：无 legacy option 为 `DEFAULT`，`ignoreCase=false/true` 分别为 `CASE_SENSITIVE`/`CASE_INSENSITIVE`；Planner/Backend 必须按字段 binding 与 capability 保留该语义或返回 `UNSUPPORTED_CAPABILITY`，不得静默忽略。 |
+| `EQ`、`NE`、`GT`、`LT`、`GTE`、`LTE`、`CONTAINS`、`IN`、`NOT_IN`、`BETWEEN`、`ALL_IN`、`STARTS_WITH`、`ENDS_WITH`、`ELEM_MATCH`、`NULL`、`NOT_NULL`、`TRUE`、`FALSE`、`EXISTS` | 降低为 canonical portable predicate；字段类型、arity、null/missing、collection 与 nested 语义由 Schema 校验，并按下述权威矩阵写入双后端 TCK。`ELEM_MATCH` 只允许 Schema 显式声明的 object collection。`CONTAINS`、`STARTS_WITH`、`ENDS_WITH` 额外携带显式 `StringComparisonMode`：无 legacy option 为 `DEFAULT`，`ignoreCase=false/true` 分别为 `CASE_SENSITIVE`/`CASE_INSENSITIVE`；Planner/Backend 必须按字段 binding 与 capability 保留该语义或返回 `UNSUPPORTED_CAPABILITY`，不得静默忽略。 |
 | `TODAY`、`BEFORE_TODAY`、`TOMORROW`、`THIS_WEEK`、`NEXT_WEEK`、`LAST_WEEK`、`THIS_MONTH`、`LAST_MONTH`、`RECENT_DAYS`、`EARLIER_DAYS` | 在 Normalize 阶段使用本次 subscription 冻结的 `Clock` 与明确 `ZoneId` 一次性降低为 `Instant` range/comparison；日、周、月范围统一为 `[startInclusive, endExclusive)`，以正确覆盖 DST 与存储精度差异。Planner 和 Backend 不得再次读取当前时间。legacy `datePattern` 会把边界改写为无类型字符串，无法经过 Schema 证明其时间语义，因此兼容门面明确返回 `INVALID_QUERY`；开发者必须迁移为类型化时间字段，不提供字符串范围回退。 |
 | `MATCH` | 降低为 `FullText` capability；不允许退化成 `CONTAINS`。 |
 | `RAW` | 仅当 legacy `Condition.value` 已是完整、不可变的 `NativeExpression` 时原样降低为 `Native` capability；必须通过后端支持、显式配置、Policy 许可、字段与复杂度预算四重校验。旧 BSON、Elasticsearch `Query`、任意 JSON/String/Map 等裸 payload 不含 backend、受控 template、参数与字段声明，兼容门面统一返回 `INVALID_QUERY`，不得运行时推断、自动包装或透传驱动对象。开发者可先将 `Condition.raw(payload)` 改为 `Condition.raw(NativeExpression(...))` 过渡，最终迁移为直接提交 canonical expression 的 `QueryGateway` 请求。 |
 
 矩阵与代码都必须穷尽枚举；新增或遗漏 `Operator` 时编译或契约测试失败，禁止通过默认分支静默忽略。兼容 lowering 完成后，Planner 只看 canonical expression，不再依赖旧 `Operator`。
 
+Portable predicate 的跨后端可观察语义固定如下；MongoDB 与 Elasticsearch 必须消费同一 TCK vector，不能各自解释：
+
+| predicate | portable 语义 |
+| --- | --- |
+| `EQ` | 字段必须存在，且标量值或 Schema 允许的精确值与 operand 相等；missing 不匹配。nullable 字段上的 `EQ(null)` 等价于“存在且值为 null”。 |
+| `NE` | 字段必须存在，且值与 operand 不相等；missing 不匹配。nullable 字段上的 `NE(null)` 只匹配存在且非 null。 |
+| `GT`、`LT`、`GTE`、`LTE` | 字段必须存在、非 null、Schema 类型兼容，并按 canonical number/time/string ordering 比较。后端无法证明相同 ordering 时返回 `UNSUPPORTED_CAPABILITY` 或 `BACKEND_NOT_READY`，不得使用近似排序。 |
+| `BETWEEN` | 两个边界均包含，即 `[lowerInclusive, upperInclusive]`；字段必须存在、非 null且类型兼容。 |
+| `IN` | 字段必须存在；标量等于任一 operand，或 Schema 声明的 scalar collection 至少一个元素等于任一 operand。operand 至少一个。 |
+| `NOT_IN` | 字段必须存在，且标量/collection 没有任何值命中 operand；missing 不匹配。operand 至少一个。 |
+| `ALL_IN` | 字段必须是 Schema 声明的 collection，并包含全部 operand；operand 至少一个。 |
+| `NULL` | 字段存在且值为 null。 |
+| `NOT_NULL` | 字段存在且值非 null。 |
+| `EXISTS(true)` / `EXISTS(false)` | 分别只判断物理字段存在/不存在；显式 null 仍属于 exists。 |
+| `TRUE`、`FALSE` | 字段存在且为对应 boolean 值。 |
+| `CONTAINS`、`STARTS_WITH`、`ENDS_WITH` | 对整个逻辑字符串执行字面量 substring/prefix/suffix 匹配；operand 中 regex/wildcard/query-string 元字符没有特殊含义。它们不是 FullText，禁止降级为 analyzer query。 |
+| `ELEM_MATCH` | object collection 中必须存在同一个 array element 同时满足子表达式；不能把多个 object/nested query 拼接成可能跨元素命中的普通布尔查询。 |
+
+`CONTAINS`、`STARTS_WITH`、`ENDS_WITH` 的 `StringComparisonMode` 也是 portable 合同：`CASE_SENSITIVE` 与 `CASE_INSENSITIVE` 必须保留精确字面量语义；`DEFAULT` 由 Schema field binding 明确选择并由 backend descriptor/readiness 证明支持。若现有 Elasticsearch analyzer/keyword mapping 或 Mongo collation/index 不能证明该模式，必须拒绝，不能忽略、转换为 FullText 或在内存二次过滤。普通 equality/range predicate 不协商 `StringComparisonMode`。
+
 `CapabilityExpression` 必须显式声明能力标识及后端约束：
 
-- `FullText`：由后端定义相关度、分析器等搜索语义；
-- `Native`：受配置、权限、字段白名单与复杂度预算约束的原生查询；
+- `FullText`：统一 capability id 为 `full-text`，由当前 route-bound backend 定义相关度、分析器等搜索语义；MongoDB 与 Elasticsearch 不另造 backend-prefixed FullText id；
+- `Native`：MongoDB 使用 capability id `x-wow:mongo-native` 且 `backendId=mongo`，Elasticsearch 使用 `x-wow:elasticsearch-native` 且 `backendId=elasticsearch`；它们只接受受配置、权限、字段白名单与复杂度预算约束的注册模板；
 - 未来 `Geo`、向量检索等能力。
 
 Capability 不可用时返回 `UNSUPPORTED_CAPABILITY`。禁止把 FullText 自动降级为字符串 contains，也禁止忽略 Native 片段。
@@ -227,6 +262,10 @@ Admission 对 List、Map、byte array 等可变输入只遍历一次并防御性
 - 设置 collation、最大字符串长度、数值精度等约束。
 
 MongoDB 默认物理路径与逻辑 Jackson 路径一致。Wow 管理的 Elasticsearch 索引遵循固定 mapping 约定；已有或自定义索引在启动 readiness 阶段验证 mapping 是否满足 Schema。Mapping 是验证对象和物理绑定，不是 Schema 真相来源。验证失败返回 `BACKEND_NOT_READY` 并要求显式迁移，不自动改索引。
+
+Elasticsearch 原生 `exists` 无法区分 missing、显式 null、空 collection/object，因此 Wow 管理索引必须写入版本化的隐藏 presence metadata。序列化后的每个 object（包括 nested array element）在保留业务字段的同时增加保留物理对象 `__wow_query`，其中 `present` 是该 object 中实际出现的直接子字段名集合，`null` 是值为显式 null 的直接子字段名集合；empty collection/object 只进入 `present`。Backend 将 logical `state.address.city` 的 presence/null predicate 绑定到 `state.address.__wow_query.present/null`，nested `ELEM_MATCH` 内使用当前 nested element 自己的 metadata，从而保持同元素语义。该 namespace 不是逻辑 Schema 字段，新 Backend 的 projection/dynamic decoder 与 Plan 04 前仍保留的 legacy Elasticsearch QueryService decoder 都必须递归移除，typed decoder 也不能暴露它。
+
+模板在 mapping `_meta` 中记录固定 `wow_query_presence_version=1`，并把任意层级的 `__wow_query.present/null` 映射为 exact keyword。已有索引缺少该版本、保留 namespace 与业务字段冲突或 metadata mapping 不兼容时返回 `BACKEND_NOT_READY` 和迁移文档 key；不得使用碰撞风险的 `null_value` sentinel、`_source` script、内存后过滤，也不得仅新增 mapping 后谎称旧文档已兼容。MongoDB 不写这套 metadata，但 compiler 必须给 `NE`/`NOT_IN`/`NULL`/`NOT_NULL` 增加显式 existence 约束，以满足同一 portable 矩阵。
 
 ### 6.3 旧 API 的未知字段
 
@@ -368,7 +407,16 @@ fun tenantPolicy() = QueryPolicy { context ->
 
 ### 8.1 Backend 解析与路由
 
-`QueryBackendResolver` 在 Policy 之后、Planner 之前，根据 document kind、命名聚合、当前 `StorageRoutingProperties`/aggregate storage binding 和已注册 backend 解析唯一的 `QueryBackendDescriptor`。当前启动装配已经分别按 aggregate 的 event/snapshot channel 解析 query factory route（`wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRouteResolver.kt:104`），而 routing factory 在调用时再次选择具体 factory（`wow-query/src/main/kotlin/me/ahoo/wow/query/snapshot/RoutingSnapshotQueryServiceFactory.kt:20`）。Planner 因此必须在统一 resolver 已解析具体后端后，基于其 capability、计划版本和 readiness 生成计划，而不是先生成一个无法证明可执行的抽象计划。
+`QueryBackendResolver` 在 Policy 之后、Planner 之前，根据不可变 `QueryBackendResolutionContext`、当前 `StorageRoutingProperties`/aggregate storage binding 和已注册 backend 解析唯一的 route-bound backend。当前启动装配已经分别按 aggregate 的 event/snapshot channel 解析 query factory route（`wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRouteResolver.kt:104`），而 routing factory 在调用时再次选择具体 factory（`wow-query/src/main/kotlin/me/ahoo/wow/query/snapshot/RoutingSnapshotQueryServiceFactory.kt:20`）。Planner 因此必须在统一 resolver 已解析具体后端后，基于其 capability、计划版本和 target-specific readiness 生成计划，而不是先生成一个无法证明可执行的抽象计划。
+
+route-bound backend 在 resolver 返回前一次性冻结以下内容：
+
+- 具体 backend、collection/index/alias 与安全 route identity；
+- framework-owned logical Schema 快照以及 logical→physical field binding；
+- 当前 target/schema version/mapping 或 index metadata 对应的 readiness snapshot；
+- secured expression 请求的 `full-text`、Native template 和 portable feature/mode 是否可执行。
+
+这些物理绑定属于 backend 实例的不可变私有状态，不加入 `QueryPlanV1`，也不增加每个 Backend operation 的 execution-context 参数。这样第三方 Backend 仍只消费稳定、后端无关的只读计划，同时同一次 invocation 的 compile/execute 使用 resolver 已证明的同一 route、mapping 和 readiness。Backend 的无参 `readiness()` 检查其已经绑定的 target-specific 状态；generic singleton backend 或全局 readiness 不能替代 route-bound 检查。`ResolvedQueryBackend` 仍只公开安全 descriptor、route identity 和 readiness snapshot，不泄露 collection/index 配置、mapping 全文或驱动对象。
 
 解析必须保留现有按 aggregate 与 storage channel 路由的语义；旧 `SnapshotQueryServiceFactory`、`EventStreamQueryServiceFactory` 和 routing factory 的兼容适配都委托同一个 resolver，不能各自维护第二份路由表。错误边界如下：
 
@@ -376,6 +424,8 @@ fun tenantPolicy() = QueryPolicy { context ->
 - 合法 target 在运行时没有已注册 backend：查询返回 `BACKEND_NOT_READY`，不再使用 NoOp；
 - backend 已注册但 index/mapping 暂不可用：descriptor/readiness 报告原因，查询返回 `BACKEND_NOT_READY`；默认不阻止不使用该查询后端的应用启动；
 - 运维要求全量就绪时，可启用 strict readiness 使应用 readiness 失败，但不能改变查询错误语义。
+
+显式配置不存在的 named binding、冲突 storage route 或非法 backend id 属于启动配置错误；“应用启用了 QueryGateway 但某个合法 target 暂无 backend/index”不是启动错误，仍走上述运行时 `BACKEND_NOT_READY`。因此 auto-configuration 保留 unavailable resolver 的 fail-closed 运行时语义，但不得返回 empty/NoOp，也不得把非法显式配置降级为 unavailable。
 
 ### 8.2 计划不变量
 
@@ -481,7 +531,7 @@ Policy 明确抛出的 `QueryPolicyDeniedException` 映射为 `POLICY_DENIED`；
 | HTTP route、JSON 字段与 OpenAPI | 保留；只修正已列明的错误行为和不可伪造的流式错误语义 |
 | `RewriteRequestCondition`、`DefaultRewriteRequestCondition`、`CoSecRewriteRequestCondition` 及其 Spring 注入点 | 8.x 保留并 deprecate，只作 `LEGACY_ENRICHMENT`；安全 scope 改走独立 contributor；下一主版本删除 |
 | `me.ahoo.wow.query.mask` 下的 `DataMasking`/`DataMasker`、各 `DynamicDocumentMasker`、`AggregateDataMasker`、`DataMaskerRegistry`、实现类、扩展函数与现有 masker 注册点 | 8.x 保留既有公开签名并 deprecate；由 adapter 接入 `ResultPolicy`，不要求用户在本次升级同时重写 masker |
-| `QueryBackend`、`QueryBackendDescriptor`、`QueryBackendResolver`、`QueryPlanV1` | 新增稳定、版本化基础设施 SPI；第三方 backend 不依赖内部 Planner 实现 |
+| `QueryBackend`、`QueryBackendFactory`、`QueryBackendDescriptor`、`QueryBackendResolver`、`QueryBackendResolutionContext`、`QueryPlanV1` | 新增稳定、版本化基础设施 SPI；第三方 backend 不依赖内部 Planner 实现；resolver 旧 target-only SAM 保持兼容 |
 | `QueryFilter`、`SnapshotQueryFilter`、`EventStreamQueryFilter`、`QueryContext`/`Contexts`/`QueryType`、`QueryHandler`/`AbstractQueryHandler`、`SnapshotQueryHandler`、`EventStreamQueryHandler`、Tail/Masking/ABAC query filter 及对应 Spring Filter 注册面 | 本次经批准直接删除；不提供 hook、adapter 或 runtime 检测，必须重新编译并按迁移文档迁移到 Policy/ResultPolicy |
 
 除最后一行明确批准的 Query Filter 扩展面及已经逐项列出的行为修正外，ABI/API golden test 不允许其他删除或签名漂移。现有 `limit=0` 等公开语义按第 8.3 节保持。
@@ -562,7 +612,7 @@ flowchart LR
 - 非法字段、类型不匹配、unsupported capability、预算和 deadline；
 - exact total、分页一致性与 `limit=0` 完整流。
 
-MongoDB 是 portable 语义参考 oracle，但不是通过复制 MongoDB 特有行为来定义跨后端能力。无法满足共同契约的功能必须进入 capability layer。
+MongoDB 提供共享 logical dataset 的参考 fixture，但第 5.2 节矩阵才是 portable 语义的唯一 oracle；不得复制 MongoDB 特有行为或旧 converter 差异来定义共同契约。无法满足共同契约的功能必须进入 capability layer。
 
 ### 12.3 真实后端集成测试
 
