@@ -216,6 +216,7 @@ internal class ElasticsearchQueryReadiness(
         requirement.valueKind == QueryFieldValueKind.OBJECT -> isObject || isNested
         requirement.valueKind == QueryFieldValueKind.STRING ->
             isText || isKeyword || isConstantKeyword
+        requirement.valueKind == QueryFieldValueKind.ENUM -> isKeyword || isConstantKeyword
         else -> matches(requirement.valueKind, requirement.system)
     }
 

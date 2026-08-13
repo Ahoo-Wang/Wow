@@ -161,6 +161,65 @@ class ElasticsearchQueryReadinessTest {
     }
 
     @Test
+    fun `source enum accepts keyword and constant keyword wire forms`() {
+        val requirements = ElasticsearchQueryReadinessRequirements(
+            configurationValid = true,
+            fields = setOf(field("status", QueryFieldValueKind.ENUM, ElasticsearchMappingUsage.SOURCE)),
+            presenceVersion = ElasticsearchQueryPresenceEncoder.VERSION,
+        )
+
+        listOf(
+            Property.of { it.keyword { value -> value } },
+            Property.of { it.constantKeyword { value -> value.value(JsonData.of("PROCESSING")) } },
+        ).forEach { property ->
+            StepVerifier.create(
+                readiness(
+                    requirements,
+                    mapping(
+                        ElasticsearchQueryPresenceEncoder.VERSION,
+                        mapOf("status" to property),
+                    ),
+                ).inspect(),
+            ).expectNext(QueryBackendReadiness.Ready).verifyComplete()
+        }
+    }
+
+    @Test
+    fun `source enum rejects text mapping`() {
+        val requirements = ElasticsearchQueryReadinessRequirements(
+            configurationValid = true,
+            fields = setOf(field("status", QueryFieldValueKind.ENUM, ElasticsearchMappingUsage.SOURCE)),
+            presenceVersion = ElasticsearchQueryPresenceEncoder.VERSION,
+        )
+        val mapping = mapping(
+            ElasticsearchQueryPresenceEncoder.VERSION,
+            mapOf("status" to Property.of { it.text { value -> value } }),
+        )
+
+        StepVerifier.create(readiness(requirements, mapping).inspect())
+            .expectNext(QueryBackendReadiness.NotReady(QueryBackendReadinessReason.MAPPING_INCOMPATIBLE))
+            .verifyComplete()
+    }
+
+    @Test
+    fun `exact and sort enum reject constant keyword mapping`() {
+        val mapping = mapping(
+            ElasticsearchQueryPresenceEncoder.VERSION,
+            mapOf("status" to Property.of { it.constantKeyword { value -> value } }),
+        )
+        listOf(ElasticsearchMappingUsage.EXACT, ElasticsearchMappingUsage.SORT).forEach { usage ->
+            val requirements = ElasticsearchQueryReadinessRequirements(
+                configurationValid = true,
+                fields = setOf(field("status", QueryFieldValueKind.ENUM, usage)),
+                presenceVersion = ElasticsearchQueryPresenceEncoder.VERSION,
+            )
+            StepVerifier.create(readiness(requirements, mapping).inspect())
+                .expectNext(QueryBackendReadiness.NotReady(QueryBackendReadinessReason.MAPPING_INCOMPATIBLE))
+                .verifyComplete()
+        }
+    }
+
+    @Test
     fun `source object collection accepts ordinary object and nested mapping shapes`() {
         val requirements = ElasticsearchQueryReadinessRequirements(
             configurationValid = true,

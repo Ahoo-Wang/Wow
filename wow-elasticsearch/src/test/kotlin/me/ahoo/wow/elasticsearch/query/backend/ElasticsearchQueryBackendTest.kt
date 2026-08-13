@@ -260,6 +260,14 @@ class ElasticsearchQueryBackendTest {
                 ),
             )
         }
+        assertRejected(
+            mapOf("status" to Property.of { it.constantKeyword { value -> value.value(JsonData.of("PROCESSING")) } }),
+            PredicateExpression(
+                PortableQueryDataset.STATUS,
+                PortableOperator.EQ,
+                listOf(QueryValue.EnumValue("PROCESSING")),
+            ),
+        )
         listOf(
             "enabled" to Property.of { it.boolean_ { value -> value.nullValue(false) } },
             "rank" to Property.of { it.long_ { value -> value.nullValue(0) } },
