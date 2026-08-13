@@ -66,7 +66,8 @@ value class QueryCapabilityId(val value: String) {
     JsonSubTypes.Type(PredicateExpression::class, name = "predicate"),
     JsonSubTypes.Type(ElementMatchExpression::class, name = "element-match"),
     JsonSubTypes.Type(FullTextExpression::class, name = "full-text"),
-    JsonSubTypes.Type(NativeExpression::class, name = "native")
+    JsonSubTypes.Type(NativeExpression::class, name = "native"),
+    JsonSubTypes.Type(RelativeTimeExpression::class, name = "relative-time")
 )
 sealed interface QueryExpression
 
@@ -77,6 +78,63 @@ sealed interface CapabilityExpression : QueryExpression
 data object MatchAll : PortableExpression
 
 data object MatchNone : PortableExpression
+
+enum class RelativeTimeOperation {
+    TODAY,
+    BEFORE_TODAY,
+    TOMORROW,
+    THIS_WEEK,
+    NEXT_WEEK,
+    LAST_WEEK,
+    THIS_MONTH,
+    LAST_MONTH,
+    RECENT_DAYS,
+    EARLIER_DAYS
+}
+
+/**
+ * A pre-normalization relative-time expression resolved from the invocation's frozen instant.
+ *
+ * This descriptor is an external request value only. The query runtime eliminates it during normalization before
+ * schema validation, policy evaluation, planning, or backend resolution.
+ */
+class RelativeTimeExpression @JvmOverloads constructor(
+    val field: String,
+    val operation: RelativeTimeOperation,
+    operands: List<QueryValue> = emptyList(),
+    val zoneId: String? = null
+) : PortableExpression {
+    val operands: List<QueryValue> = immutableList(operands)
+
+    init {
+        LogicalField(field)
+        require(zoneId == null || zoneId.isNotBlank()) { "Relative-time zone id cannot be blank." }
+    }
+
+    operator fun component1(): String = field
+
+    operator fun component2(): RelativeTimeOperation = operation
+
+    operator fun component3(): List<QueryValue> = operands
+
+    operator fun component4(): String? = zoneId
+
+    fun copy(
+        field: String = this.field,
+        operation: RelativeTimeOperation = this.operation,
+        operands: List<QueryValue> = this.operands,
+        zoneId: String? = this.zoneId
+    ): RelativeTimeExpression = RelativeTimeExpression(field, operation, operands, zoneId)
+
+    override fun equals(other: Any?): Boolean = other is RelativeTimeExpression &&
+        field == other.field && operation == other.operation && operands == other.operands && zoneId == other.zoneId
+
+    override fun hashCode(): Int = 31 * (31 * (31 * field.hashCode() + operation.hashCode()) + operands.hashCode()) +
+        (zoneId?.hashCode() ?: 0)
+
+    override fun toString(): String =
+        "RelativeTimeExpression(field=$field, operation=$operation, operands=$operands, zoneId=$zoneId)"
+}
 
 enum class LogicalOperator {
     AND,

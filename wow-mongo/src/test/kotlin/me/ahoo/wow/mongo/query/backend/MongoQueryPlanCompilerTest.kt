@@ -29,6 +29,8 @@ import me.ahoo.wow.api.query.expression.PortableOperator
 import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.expression.QueryValue
+import me.ahoo.wow.api.query.expression.RelativeTimeExpression
+import me.ahoo.wow.api.query.expression.RelativeTimeOperation
 import me.ahoo.wow.api.query.expression.StringComparisonMode
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.tck.query.backend.PortableQueryDataset
@@ -43,6 +45,29 @@ class MongoQueryPlanCompilerTest {
         binding = MongoQueryFieldBinding.bind(PortableQueryDataset.schema(QueryDocumentKind.SNAPSHOT)),
         nativeTemplates = MongoNativeQueryTemplateRegistry()
     )
+
+    @Test
+    fun `relative time is rejected before native template compilation`() {
+        var nativeCalls = 0
+        val template = MongoNativeQueryTemplate {
+            nativeCalls++
+            Filters.empty()
+        }
+        val guardedCompiler = MongoQueryPlanCompiler(
+            MongoQueryFieldBinding.bind(PortableQueryDataset.schema(QueryDocumentKind.SNAPSHOT)),
+            MongoNativeQueryTemplateRegistry(mapOf("must-not-run" to template))
+        )
+
+        assertThrows<IllegalStateException> {
+            guardedCompiler.filter(
+                RelativeTimeExpression(
+                    PortableQueryDataset.CREATED_AT.value,
+                    RelativeTimeOperation.TODAY
+                )
+            )
+        }
+        nativeCalls.assert().isZero()
+    }
 
     @Test
     fun `not-in requires field existence and never matches missing`() {

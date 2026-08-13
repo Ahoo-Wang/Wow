@@ -29,6 +29,8 @@ import me.ahoo.wow.api.query.expression.PortableOperator
 import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryExpression
 import me.ahoo.wow.api.query.expression.QueryValue
+import me.ahoo.wow.api.query.expression.RelativeTimeExpression
+import me.ahoo.wow.query.expression.RelativeTimeExpressionNormalizer
 import me.ahoo.wow.query.schema.QueryCollectionKind
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryFieldValueKind
@@ -79,6 +81,7 @@ class QueryExpressionValidator(
                     reservedNodes = reserveNodes(reservedNodes, 1)
                     pending.addChild(current.predicate, frame.depth)
                 }
+                is RelativeTimeExpression -> validateRelativeTime(current)
                 is FullTextExpression -> Unit
                 is NativeExpression -> {
                     nativeParameterBytes = addWithin(
@@ -114,6 +117,7 @@ class QueryExpressionValidator(
             is PortableLogicalExpression -> pending.addChildren(current.operands, frame.relativeTo)
             is PredicateExpression -> validatePredicate(current, frame.relativeTo, schema)
             is ElementMatchExpression -> validateElementMatch(current, frame.relativeTo, schema, pending)
+            is RelativeTimeExpression -> invalidQuery()
             is FullTextExpression -> validateCapabilityFields(current.capabilityId, current.fields, schema)
             is NativeExpression -> validateCapabilityFields(current.capabilityId, current.declaredFields, schema)
         }
@@ -130,6 +134,17 @@ class QueryExpressionValidator(
             invalidQuery()
         }
         pending.addLast(SchemaFrame(expression.predicate, field.path))
+    }
+
+    private fun validateRelativeTime(expression: RelativeTimeExpression) {
+        try {
+            LogicalField(expression.field)
+            RelativeTimeExpressionNormalizer.validate(expression)
+        } catch (_: QueryException) {
+            invalidQuery()
+        } catch (_: RuntimeException) {
+            invalidQuery()
+        }
     }
 
     private fun QueryFieldSchema.supportsElementMatch(): Boolean =

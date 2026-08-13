@@ -25,6 +25,8 @@ import me.ahoo.wow.api.query.expression.PortableOperator
 import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.expression.QueryValue
+import me.ahoo.wow.api.query.expression.RelativeTimeExpression
+import me.ahoo.wow.api.query.expression.RelativeTimeOperation
 import me.ahoo.wow.api.query.expression.StringComparisonMode
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.query.schema.QueryBackendFieldPath
@@ -52,6 +54,32 @@ class ElasticsearchQueryPlanCompilerTest {
     }
     private val binding = ElasticsearchQueryFieldBinding.bind(schema)
     private val compiler = ElasticsearchQueryPlanCompiler(binding, ElasticsearchNativeQueryTemplateRegistry())
+
+    @Test
+    fun `relative time is rejected before native template compilation`() {
+        var nativeCalls = 0
+        val guardedCompiler = ElasticsearchQueryPlanCompiler(
+            binding,
+            ElasticsearchNativeQueryTemplateRegistry(
+                mapOf(
+                    "must-not-run" to ElasticsearchNativeQueryTemplate {
+                        nativeCalls++
+                        Query.of { query -> query.matchAll { it } }
+                    }
+                )
+            )
+        )
+
+        assertThrows<IllegalStateException> {
+            guardedCompiler.query(
+                RelativeTimeExpression(
+                    PortableQueryDataset.CREATED_AT.value,
+                    RelativeTimeOperation.TODAY
+                )
+            )
+        }
+        nativeCalls.assert().isZero()
+    }
 
     @Test
     fun `null uses nearest object presence metadata`() {

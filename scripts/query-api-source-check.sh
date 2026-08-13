@@ -262,6 +262,11 @@ import java.util.Set;
 import me.ahoo.wow.api.query.expression.MatchAll;
 import me.ahoo.wow.api.query.expression.PortableOperator;
 import me.ahoo.wow.api.query.expression.QueryCapabilityId;
+import me.ahoo.wow.api.query.expression.LogicalField;
+import me.ahoo.wow.api.query.expression.QueryValue;
+import me.ahoo.wow.api.query.expression.RelativeTimeExpression;
+import me.ahoo.wow.api.query.expression.RelativeTimeOperation;
+import me.ahoo.wow.api.modeling.NamedAggregate;
 import me.ahoo.wow.api.query.expression.QueryExpression;
 import me.ahoo.wow.api.query.expression.StringComparisonMode;
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind;
@@ -618,7 +623,12 @@ import me.ahoo.wow.api.query.error.QueryErrorCode;
 import me.ahoo.wow.api.query.error.QueryErrorReason;
 import me.ahoo.wow.api.query.error.QueryException;
 import me.ahoo.wow.api.query.error.QueryStage;
+import me.ahoo.wow.api.modeling.NamedAggregate;
 import me.ahoo.wow.api.query.expression.QueryCapabilityId;
+import me.ahoo.wow.api.query.expression.LogicalField;
+import me.ahoo.wow.api.query.expression.QueryValue;
+import me.ahoo.wow.api.query.expression.RelativeTimeExpression;
+import me.ahoo.wow.api.query.expression.RelativeTimeOperation;
 import me.ahoo.wow.api.query.gateway.CountQueryRequest;
 import me.ahoo.wow.api.query.gateway.ListQueryRequest;
 import me.ahoo.wow.api.query.gateway.PageQueryRequest;
@@ -637,6 +647,10 @@ import me.ahoo.wow.query.result.ResultPolicyContext;
 import me.ahoo.wow.query.schema.QuerySchemaResolver;
 import me.ahoo.wow.query.validation.QueryBudgetLimit;
 import me.ahoo.wow.query.validation.QueryStructureLimits;
+import me.ahoo.wow.query.event.GatewayEventStreamQueryService;
+import me.ahoo.wow.query.event.GatewayEventStreamQueryServiceFactory;
+import me.ahoo.wow.query.snapshot.GatewaySnapshotQueryService;
+import me.ahoo.wow.query.snapshot.GatewaySnapshotQueryServiceFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -671,6 +685,25 @@ public final class StableGatewayApi {
 
     public static ResultPolicy resultPolicy() {
         return (context, value) -> Mono.just(value);
+    }
+
+    public static Object[] compatibilityApi(NamedAggregate aggregate, QueryGateway gateway) {
+        RelativeTimeExpression relative = new RelativeTimeExpression(
+            "eventTime",
+            RelativeTimeOperation.RECENT_DAYS,
+            List.of(new QueryValue.IntegerValue(3)),
+            "UTC"
+        );
+        RelativeTimeExpression copy = relative.copy(
+            relative.getField(), relative.getOperation(), relative.getOperands(), relative.getZoneId()
+        );
+        return new Object[]{
+            copy,
+            new GatewaySnapshotQueryService<Object>(aggregate, gateway),
+            new GatewaySnapshotQueryServiceFactory(gateway),
+            new GatewayEventStreamQueryService(aggregate, gateway),
+            new GatewayEventStreamQueryServiceFactory(gateway)
+        };
     }
 
     public static QueryErrorCode useQueryExceptionConstructors() {
@@ -716,12 +749,21 @@ import me.ahoo.wow.api.query.gateway.CountQueryRequest
 import me.ahoo.wow.api.query.gateway.ListQueryRequest
 import me.ahoo.wow.api.query.gateway.PageQueryRequest
 import me.ahoo.wow.api.query.gateway.SingleQueryRequest
+import me.ahoo.wow.api.query.expression.LogicalField
+import me.ahoo.wow.api.query.expression.QueryValue
+import me.ahoo.wow.api.query.expression.RelativeTimeExpression
+import me.ahoo.wow.api.query.expression.RelativeTimeOperation
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryGatewayConfiguration
 import me.ahoo.wow.query.QueryGatewayFactory
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.policy.QueryPolicyRegistration
 import me.ahoo.wow.query.result.ResultPolicy
+import me.ahoo.wow.query.event.GatewayEventStreamQueryService
+import me.ahoo.wow.query.event.GatewayEventStreamQueryServiceFactory
+import me.ahoo.wow.query.snapshot.GatewaySnapshotQueryService
+import me.ahoo.wow.query.snapshot.GatewaySnapshotQueryServiceFactory
 import me.ahoo.wow.api.query.error.QueryErrorCode
 import me.ahoo.wow.api.query.error.QueryErrorReason
 import me.ahoo.wow.api.query.error.QueryException
@@ -742,6 +784,22 @@ val incompleteQueryException = QueryException(
     QueryErrorReason.INCOMPLETE_STREAM,
     legacyQueryException.code
 )
+
+fun compatibilityApi(aggregate: NamedAggregate, gateway: QueryGateway): List<Any> {
+    val relative = RelativeTimeExpression(
+        "eventTime",
+        RelativeTimeOperation.RECENT_DAYS,
+        listOf(QueryValue.IntegerValue(3)),
+        "UTC"
+    )
+    return listOf(
+        relative.copy(operands = relative.operands),
+        GatewaySnapshotQueryService<Any>(aggregate, gateway),
+        GatewaySnapshotQueryServiceFactory(gateway),
+        GatewayEventStreamQueryService(aggregate, gateway),
+        GatewayEventStreamQueryServiceFactory(gateway)
+    )
+}
 
 fun createStableGateway(configuration: QueryGatewayConfiguration): QueryGateway =
     QueryGatewayFactory.create(configuration)
@@ -779,6 +837,184 @@ java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler
     -d "$TEMP_DIR/classes/kotlin" \
     "$TEMP_DIR/kotlin/StableGatewayApi.kt"
 echo "PASS: Kotlin external stable query gateway API source"
+
+cat >"$TEMP_DIR/java/InternalLegacyGatewayAdapters.java" <<'EOF'
+package external.fixture;
+
+import me.ahoo.wow.api.modeling.NamedAggregate;
+import me.ahoo.wow.api.query.Condition;
+import me.ahoo.wow.api.query.DynamicDocument;
+import me.ahoo.wow.api.query.gateway.QueryTarget;
+import me.ahoo.wow.query.compat.LegacyEventResultMapper;
+import me.ahoo.wow.query.compat.LegacyQueryErrorMapper;
+import me.ahoo.wow.query.compat.LegacyQueryRequestMapper;
+import me.ahoo.wow.query.compat.LegacySnapshotResultMapper;
+import me.ahoo.wow.query.expression.LegacyConditionLowerer;
+
+public final class InternalLegacyGatewayAdapters {
+    public static Object[] access(
+        QueryTarget target,
+        NamedAggregate aggregate,
+        DynamicDocument document,
+        Condition condition
+    ) {
+        return new Object[]{
+            new LegacyQueryRequestMapper(target),
+            new LegacySnapshotResultMapper<>(aggregate),
+            LegacyEventResultMapper.INSTANCE.map(document),
+            LegacyQueryErrorMapper.INSTANCE,
+            LegacyConditionLowerer.INSTANCE
+                .lowerForGateway$me_ahoo_wow_wow_query(condition, target)
+        };
+    }
+}
+EOF
+
+if javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/java-legacy-adapters-negative" \
+    "$TEMP_DIR/java/InternalLegacyGatewayAdapters.java" \
+    >"$TEMP_DIR/java-legacy-adapters-negative.out" 2>&1; then
+    fail "Java external source unexpectedly accessed legacy Gateway adapters"
+fi
+for adapter_name in LegacyQueryRequestMapper LegacySnapshotResultMapper \
+    LegacyEventResultMapper LegacyQueryErrorMapper lowerForGateway; do
+    grep -F "$adapter_name" "$TEMP_DIR/java-legacy-adapters-negative.out" >/dev/null || {
+        cat "$TEMP_DIR/java-legacy-adapters-negative.out" >&2
+        fail "Java legacy adapter negative fixture did not diagnose $adapter_name"
+    }
+done
+echo "PASS: Java external source cannot access legacy Gateway adapters"
+
+cat >"$TEMP_DIR/kotlin/InternalLegacyGatewayAdapters.kt" <<'EOF'
+package external.fixture
+
+import me.ahoo.wow.query.compat.LegacyEventResultMapper
+import me.ahoo.wow.query.compat.LegacyQueryErrorMapper
+import me.ahoo.wow.query.compat.LegacyQueryRequestMapper
+import me.ahoo.wow.query.compat.LegacySnapshotResultMapper
+import me.ahoo.wow.query.expression.LegacyConditionLowerer
+
+fun internalLegacyGatewayAdapters(): List<Any> = listOf(
+    LegacyQueryRequestMapper::class,
+    LegacySnapshotResultMapper::class,
+    LegacyEventResultMapper::class,
+    LegacyQueryErrorMapper::class,
+    LegacyConditionLowerer::lowerForGateway
+)
+EOF
+
+if java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+    -module-name query-legacy-adapters-external-negative-fixture \
+    -no-stdlib -no-reflect \
+    -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/kotlin-legacy-adapters-negative" \
+    "$TEMP_DIR/kotlin/InternalLegacyGatewayAdapters.kt" \
+    >"$TEMP_DIR/kotlin-legacy-adapters-negative.out" 2>&1; then
+    fail "Kotlin external source unexpectedly accessed legacy Gateway adapters"
+fi
+for adapter_name in LegacyQueryRequestMapper LegacySnapshotResultMapper \
+    LegacyEventResultMapper LegacyQueryErrorMapper lowerForGateway; do
+    grep -F "$adapter_name" "$TEMP_DIR/kotlin-legacy-adapters-negative.out" >/dev/null || {
+        cat "$TEMP_DIR/kotlin-legacy-adapters-negative.out" >&2
+        fail "Kotlin legacy adapter negative fixture did not diagnose $adapter_name"
+    }
+done
+echo "PASS: Kotlin external source cannot access legacy Gateway adapters"
+
+cat >"$TEMP_DIR/java/InternalGatewayNormalization.java" <<'EOF'
+package external.fixture;
+
+import java.time.Instant;
+import java.time.ZoneId;
+import me.ahoo.wow.api.query.Condition;
+import me.ahoo.wow.api.query.expression.QueryExpression;
+import me.ahoo.wow.api.query.expression.RelativeTimeExpression;
+import me.ahoo.wow.api.query.gateway.QueryTarget;
+import me.ahoo.wow.query.expression.InvocationExpressionNormalizer;
+import me.ahoo.wow.query.expression.LegacyConditionLowering;
+import me.ahoo.wow.query.expression.RelativeTimeExpressionNormalizer;
+import me.ahoo.wow.query.validation.QueryRequestSchemaValidator;
+
+public final class InternalGatewayNormalization {
+    public static Object[] access(
+        QueryExpression expression,
+        RelativeTimeExpression relative,
+        Condition condition,
+        QueryTarget target
+    ) {
+        return new Object[]{
+            InvocationExpressionNormalizer.INSTANCE.normalize(expression, Instant.EPOCH, ZoneId.of("UTC")),
+            LegacyConditionLowering.INSTANCE.lowerForGateway$me_ahoo_wow_wow_query(condition, target),
+            RelativeTimeExpressionNormalizer.INSTANCE.lower(relative, Instant.EPOCH, ZoneId.of("UTC")),
+            QueryRequestSchemaValidator.Companion.create$me_ahoo_wow_wow_query(null)
+        };
+    }
+}
+EOF
+
+if javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/java-gateway-normalization-negative" \
+    "$TEMP_DIR/java/InternalGatewayNormalization.java" \
+    >"$TEMP_DIR/java-gateway-normalization-negative.out" 2>&1; then
+    fail "Java external source unexpectedly accessed Gateway normalization internals"
+fi
+for internal_name in InvocationExpressionNormalizer LegacyConditionLowering \
+    RelativeTimeExpressionNormalizer QueryRequestSchemaValidator; do
+    grep -F "$internal_name" "$TEMP_DIR/java-gateway-normalization-negative.out" >/dev/null || {
+        cat "$TEMP_DIR/java-gateway-normalization-negative.out" >&2
+        fail "Java Gateway normalization negative fixture did not diagnose $internal_name"
+    }
+done
+echo "PASS: Java external source cannot access Gateway normalization internals"
+
+cat >"$TEMP_DIR/kotlin/InternalGatewayNormalization.kt" <<'EOF'
+package external.fixture
+
+import me.ahoo.wow.query.expression.InvocationExpressionNormalizer
+import me.ahoo.wow.query.expression.LegacyConditionLowering
+import me.ahoo.wow.query.expression.RelativeTimeExpressionNormalizer
+import me.ahoo.wow.query.validation.QueryRequestSchemaValidator
+
+fun gatewayNormalizationInternals(): List<Any> = listOf(
+    InvocationExpressionNormalizer,
+    LegacyConditionLowering,
+    RelativeTimeExpressionNormalizer,
+    QueryRequestSchemaValidator::class
+)
+EOF
+
+if java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+    -module-name query-gateway-normalization-external-negative-fixture \
+    -no-stdlib -no-reflect \
+    -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/kotlin-gateway-normalization-negative" \
+    "$TEMP_DIR/kotlin/InternalGatewayNormalization.kt" \
+    >"$TEMP_DIR/kotlin-gateway-normalization-negative.out" 2>&1; then
+    fail "Kotlin external source unexpectedly accessed Gateway normalization internals"
+fi
+for internal_name in InvocationExpressionNormalizer LegacyConditionLowering \
+    RelativeTimeExpressionNormalizer QueryRequestSchemaValidator; do
+    grep -F "$internal_name" "$TEMP_DIR/kotlin-gateway-normalization-negative.out" >/dev/null || {
+        cat "$TEMP_DIR/kotlin-gateway-normalization-negative.out" >&2
+        fail "Kotlin Gateway normalization negative fixture did not diagnose $internal_name"
+    }
+done
+echo "PASS: Kotlin external source cannot access Gateway normalization internals"
+
+for facade_class in \
+    me.ahoo.wow.query.snapshot.GatewaySnapshotQueryService \
+    me.ahoo.wow.query.snapshot.GatewaySnapshotQueryServiceFactory \
+    me.ahoo.wow.query.event.GatewayEventStreamQueryService \
+    me.ahoo.wow.query.event.GatewayEventStreamQueryServiceFactory; do
+    javap -classpath "$FIXTURE_CLASSPATH" -p -v "$facade_class" >"$TEMP_DIR/facade-javap.out"
+    if grep -E 'me/ahoo/wow/query/(DefaultQueryGateway|plan/|backend/)' \
+        "$TEMP_DIR/facade-javap.out" >/dev/null; then
+        grep -E 'me/ahoo/wow/query/(DefaultQueryGateway|plan/|backend/)' \
+            "$TEMP_DIR/facade-javap.out" >&2
+        fail "Compatibility facade leaked query implementation dependencies: $facade_class"
+    fi
+done
+echo "PASS: Gateway compatibility facades depend on public QueryGateway only"
 
 cat >"$TEMP_DIR/kotlin/InternalAdmissionImplementations.kt" <<'EOF'
 package external.fixture

@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.query.snapshot.filter
 
-import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.error.QueryException
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.query.dsl.condition
@@ -23,7 +23,8 @@ import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
-import reactor.kotlin.test.test
+import org.reactivestreams.Publisher
+import reactor.test.StepVerifier
 
 class DefaultSnapshotQueryHandlerTest {
     private val tailSnapshotQueryFilter = TailSnapshotQueryFilter<Any>(NoOpSnapshotQueryServiceFactory)
@@ -42,7 +43,7 @@ class DefaultSnapshotQueryHandlerTest {
         }
 
         queryHandler.single(MOCK_AGGREGATE_METADATA, query)
-            .test().verifyComplete()
+            .verifyUnavailable()
     }
 
     @Test
@@ -51,43 +52,35 @@ class DefaultSnapshotQueryHandlerTest {
         }
 
         queryHandler.dynamicSingle(MOCK_AGGREGATE_METADATA, query)
-            .test().verifyComplete()
+            .verifyUnavailable()
     }
 
     @Test
     fun `should execute list query`() {
         val query = listQuery { }
         queryHandler.list(MOCK_AGGREGATE_METADATA, query)
-            .test().verifyComplete()
+            .verifyUnavailable()
     }
 
     @Test
     fun `should execute dynamic list query`() {
         val query = listQuery { }
         queryHandler.dynamicList(MOCK_AGGREGATE_METADATA, query)
-            .test().verifyComplete()
+            .verifyUnavailable()
     }
 
     @Test
     fun `should execute paged query`() {
         val pagedQuery = me.ahoo.wow.query.dsl.pagedQuery { }
         queryHandler.paged(MOCK_AGGREGATE_METADATA, pagedQuery)
-            .test()
-            .consumeNextWith {
-                it.total.assert().isZero()
-            }
-            .verifyComplete()
+            .verifyUnavailable()
     }
 
     @Test
     fun `should execute dynamic paged query`() {
         val pagedQuery = me.ahoo.wow.query.dsl.pagedQuery { }
         queryHandler.dynamicPaged(MOCK_AGGREGATE_METADATA, pagedQuery)
-            .test()
-            .consumeNextWith {
-                it.total.assert().isZero()
-            }
-            .verifyComplete()
+            .verifyUnavailable()
     }
 
     @Test
@@ -96,10 +89,10 @@ class DefaultSnapshotQueryHandlerTest {
             id("1")
         }
         queryHandler.count(MOCK_AGGREGATE_METADATA, condition)
-            .test()
-            .consumeNextWith {
-                it.assert().isZero()
-            }
-            .verifyComplete()
+            .verifyUnavailable()
     }
+
+    private fun Publisher<*>.verifyUnavailable() = StepVerifier.create(this)
+        .expectError(QueryException::class.java)
+        .verify()
 }

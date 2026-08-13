@@ -113,7 +113,7 @@ class QuerySubscriptionIsolationTest {
         clock.reads.get().assert().isEqualTo(2)
 
         val schema = QuerySchema(request.target, emptyList())
-        val invocation = first.toInvocation(schema) { it }
+        val invocation = first.toInvocation(schema) { expression, _, _ -> expression }
         invocation.frozenInstant.assert().isSameAs(first.frozenInstant)
         invocation.admissionDeadline.assert().isSameAs(first.admissionDeadline)
         invocation.scope.assert().isSameAs(first.scope)
@@ -146,7 +146,7 @@ class QuerySubscriptionIsolationTest {
         val seed = factory.admit(request, QueryOperation.COUNT).block()!!
         val invocation = seed.toInvocation(
             QuerySchema(request.target, QuerySystemFields.fields(QueryDocumentKind.SNAPSHOT))
-        ) { it }
+        ) { expression, _, _ -> expression }
         val chain = DefaultQueryPolicyChain(
             systemPolicy = SystemQueryPolicy(QueryBudgetLimit.UNBOUNDED),
             customPolicies = listOf(
@@ -262,7 +262,7 @@ class QuerySubscriptionIsolationTest {
         }.assert().isTrue()
 
         val normalizationInputs = mutableListOf<QueryExpression>()
-        val invocation = seed.toInvocation(QuerySchema(request.target, emptyList())) { expression ->
+        val invocation = seed.toInvocation(QuerySchema(request.target, emptyList())) { expression, _, _ ->
             normalizationInputs += expression
             when (expression) {
                 request.expression -> callerPredicate
@@ -298,7 +298,7 @@ class QuerySubscriptionIsolationTest {
             override val fields: Map<LogicalField, QueryFieldSchema> = mutableFields
         }
 
-        val invocation = seed.toInvocation(customView) { it }
+        val invocation = seed.toInvocation(customView) { expression, _, _ -> expression }
         mutableFields.clear()
 
         invocation.schema.assert().isNotSameAs(customView)
@@ -320,7 +320,11 @@ class QuerySubscriptionIsolationTest {
             override val fields: Map<LogicalField, QueryFieldSchema> = inconsistentFields
         }
 
-        StepVerifier.create(Mono.fromCallable { seed.toInvocation(customView) { it } })
+        StepVerifier.create(
+            Mono.fromCallable {
+                seed.toInvocation(customView) { expression, _, _ -> expression }
+            }
+        )
             .expectError(IllegalArgumentException::class.java)
             .verify()
     }

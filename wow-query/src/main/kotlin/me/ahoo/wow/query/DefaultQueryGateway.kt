@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.expression.PortableLogicalExpression
 import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.expression.QueryExpression
+import me.ahoo.wow.api.query.expression.RelativeTimeExpression
 import me.ahoo.wow.api.query.gateway.CountQueryRequest
 import me.ahoo.wow.api.query.gateway.ListQueryRequest
 import me.ahoo.wow.api.query.gateway.PageQueryRequest
@@ -38,7 +39,7 @@ import me.ahoo.wow.api.query.gateway.SingleQueryRequest
 import me.ahoo.wow.query.backend.QueryBackendResolutionContext
 import me.ahoo.wow.query.backend.QueryBackendResolver
 import me.ahoo.wow.query.backend.ResolvedQueryBackend
-import me.ahoo.wow.query.expression.ExpressionNormalizer
+import me.ahoo.wow.query.expression.InvocationExpressionNormalizer
 import me.ahoo.wow.query.invocation.QueryDeadlineExceededException
 import me.ahoo.wow.query.invocation.QueryInvocation
 import me.ahoo.wow.query.invocation.QueryInvocationFactory
@@ -56,6 +57,7 @@ import me.ahoo.wow.query.policy.DefaultQueryPolicyChain
 import me.ahoo.wow.query.result.DefaultResultPolicyChain
 import me.ahoo.wow.query.result.ResultPolicyContext
 import me.ahoo.wow.query.schema.QuerySchemaResolver
+import me.ahoo.wow.query.validation.QueryRequestSchemaValidator
 import me.ahoo.wow.query.validation.QueryRequestValidator
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -64,6 +66,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal class DefaultQueryGateway private constructor(
     private val invocationFactory: QueryInvocationFactory,
     private val requestValidator: QueryRequestValidator,
+    private val schemaValidator: QueryRequestSchemaValidator,
     private val schemaResolver: QuerySchemaResolver,
     private val policyChain: DefaultQueryPolicyChain,
     private val backendResolver: QueryBackendResolver,
@@ -206,6 +209,7 @@ internal class DefaultQueryGateway private constructor(
                 MatchAll,
                 MatchNone,
                 is PredicateExpression -> Unit
+                is RelativeTimeExpression -> throw IllegalStateException("Relative time was not normalized.")
             }
         }
         return capabilities
@@ -221,14 +225,20 @@ internal class DefaultQueryGateway private constructor(
             .flatMap { schema ->
                 val normalization = Mono.fromCallable {
                     stageObserver.record(QueryGatewayStage.NORMALIZE)
-                    seed.toInvocation(schema, ExpressionNormalizer::normalize)
+                    seed.toInvocation(schema) { expression, frozenInstant, zoneId ->
+                        InvocationExpressionNormalizer.normalize(expression, frozenInstant, zoneId)
+                    }
                 }
                 seed.deadlineGuard.enforce(normalization, seed.admissionDeadline, QueryStage.NORMALIZE)
             }.onErrorMap { error -> mapPreparationError(error, QueryStage.NORMALIZE) }
             .flatMap { invocation ->
                 val validation = Mono.fromCallable {
                     stageObserver.record(QueryGatewayStage.SCHEMA_VALIDATION)
-                    requestValidator.validateSchema(invocation.request, invocation.schema)
+                    schemaValidator.validate(
+                        invocation.request,
+                        invocation.normalizedExpression,
+                        invocation.schema
+                    )
                     invocation
                 }
                 invocation.deadlineGuard.enforce(
@@ -461,6 +471,7 @@ internal class DefaultQueryGateway private constructor(
         internal fun create(
             invocationFactory: QueryInvocationFactory,
             requestValidator: QueryRequestValidator,
+            schemaValidator: QueryRequestSchemaValidator,
             schemaResolver: QuerySchemaResolver,
             policyChain: DefaultQueryPolicyChain,
             backendResolver: QueryBackendResolver,
@@ -472,6 +483,7 @@ internal class DefaultQueryGateway private constructor(
         ): DefaultQueryGateway = DefaultQueryGateway(
             invocationFactory,
             requestValidator,
+            schemaValidator,
             schemaResolver,
             policyChain,
             backendResolver,

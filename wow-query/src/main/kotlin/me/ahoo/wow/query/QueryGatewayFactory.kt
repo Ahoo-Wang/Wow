@@ -23,6 +23,7 @@ import me.ahoo.wow.query.policy.QueryPolicyRegistration
 import me.ahoo.wow.query.policy.SystemQueryPolicy
 import me.ahoo.wow.query.result.DefaultResultPolicyChain
 import me.ahoo.wow.query.validation.QueryExpressionValidator
+import me.ahoo.wow.query.validation.QueryRequestSchemaValidator
 import me.ahoo.wow.query.validation.QueryRequestValidator
 import reactor.core.scheduler.Schedulers
 import java.util.Collections
@@ -67,6 +68,7 @@ internal object DefaultQueryGatewayFactory {
                 correlationIdFactory = { UUID.randomUUID().toString() }
             ),
             requestValidator = QueryRequestValidator(configuration.structureLimits),
+            schemaValidator = QueryRequestSchemaValidator.create(configuration.structureLimits),
             schemaResolver = configuration.schemaResolver,
             policyChain = DefaultQueryPolicyChain(
                 SystemQueryPolicy(configuration.systemBudgetLimit),

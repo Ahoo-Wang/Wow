@@ -14,6 +14,7 @@
 package me.ahoo.wow.query
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.error.QueryErrorCode
 import me.ahoo.wow.api.query.error.QueryErrorReason
 import me.ahoo.wow.api.query.error.QueryException
@@ -22,9 +23,12 @@ import me.ahoo.wow.api.query.expression.LogicalField
 import me.ahoo.wow.api.query.expression.PortableOperator
 import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryValue
+import me.ahoo.wow.api.query.expression.RelativeTimeExpression
+import me.ahoo.wow.api.query.expression.RelativeTimeOperation
 import me.ahoo.wow.api.query.gateway.CountQueryRequest
 import me.ahoo.wow.api.query.gateway.ListQueryRequest
 import me.ahoo.wow.api.query.gateway.PageQueryRequest
+import me.ahoo.wow.api.query.gateway.QueryBudgetHint
 import me.ahoo.wow.api.query.gateway.QueryConsistency
 import me.ahoo.wow.api.query.gateway.QueryPage
 import me.ahoo.wow.api.query.gateway.SingleQueryRequest
@@ -33,6 +37,7 @@ import me.ahoo.wow.query.backend.QueryBackendResolver
 import me.ahoo.wow.query.backend.QueryBackendRouteIdentity
 import me.ahoo.wow.query.backend.RecordingQueryBackend
 import me.ahoo.wow.query.backend.ResolvedQueryBackend
+import me.ahoo.wow.query.compat.LegacyQueryRequestMapper
 import me.ahoo.wow.query.invocation.QueryAuthorityView
 import me.ahoo.wow.query.invocation.QueryInvocationScope
 import me.ahoo.wow.query.policy.QueryPolicy
@@ -46,11 +51,152 @@ import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
+import java.time.Clock
 import java.time.Duration
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 class DefaultQueryGatewayTest {
+    @Test
+    fun `legacy snapshot scope leaves system policy as the only direct deletion predicate producer`() {
+        val backend = RecordingQueryBackend(gatewayDescriptor()).respondCount(Mono.just(1))
+        val gateway = QueryGatewayFactory.create(gatewayConfiguration(backend))
+        val request = LegacyQueryRequestMapper.create(GATEWAY_TARGET).count(
+            Condition.eq("state.status", "ACTIVE")
+        )
+
+        StepVerifier.create(gateway.count(request)).expectNext(1).verifyComplete()
+
+        backend.countPlans.single().securedExpression.predicateFields()
+            .count { it == LogicalField("deleted") }
+            .assert().isEqualTo(1)
+        request.expression.predicateFields().contains(LogicalField("deleted")).assert().isFalse()
+    }
+
+    @Test
+    fun `relative time normalization shares the invocation frozen instant with policy and deadline`() {
+        val firstInstant = Instant.parse("2026-08-11T23:59:59Z")
+        val clock = AdvancingClock(firstInstant, Instant.parse("2026-08-12T00:00:01Z"))
+        val policyContext = AtomicReference<me.ahoo.wow.query.policy.QueryPolicyContext>()
+        val backend = RecordingQueryBackend(gatewayDescriptor()).respondCount(Mono.just(1))
+        val gateway = QueryGatewayFactory.create(
+            gatewayConfiguration(
+                backend = backend,
+                clock = clock,
+                zoneId = ZoneOffset.UTC,
+                customPolicies = listOf(
+                    QueryPolicy { context ->
+                        policyContext.set(context)
+                        Mono.just(QueryPolicyResult())
+                    }
+                )
+            )
+        )
+        val request = CountQueryRequest(
+            target = GATEWAY_TARGET,
+            expression = RelativeTimeExpression(
+                "eventTime",
+                RelativeTimeOperation.TODAY
+            ),
+            budget = QueryBudgetHint(timeout = Duration.ofSeconds(30))
+        )
+
+        StepVerifier.create(gateway.count(request)).expectNext(1).verifyComplete()
+
+        clock.reads.get().assert().isEqualTo(1)
+        policyContext.get().frozenInstant.assert().isEqualTo(firstInstant)
+        policyContext.get().normalizedExpression.relativeExpressions().assert().isEmpty()
+        policyContext.get().normalizedExpression.instantValues().assert().containsExactly(
+            Instant.parse("2026-08-11T00:00:00Z"),
+            Instant.parse("2026-08-12T00:00:00Z")
+        )
+        backend.countPlans.single().effectiveDeadline.assert().isEqualTo(firstInstant.plusSeconds(30))
+        backend.countPlans.single().securedExpression.relativeExpressions().assert().isEmpty()
+    }
+
+    @Test
+    fun `malformed relative time fails before schema and backend resolution`() {
+        val schemaCalls = AtomicInteger()
+        val backendCalls = AtomicInteger()
+        val backend = RecordingQueryBackend(gatewayDescriptor())
+        val gateway = QueryGatewayFactory.create(
+            gatewayConfiguration(
+                backend = backend,
+                schemaResolver = object : QuerySchemaResolver {
+                    override fun resolve(target: me.ahoo.wow.api.query.gateway.QueryTarget): Mono<QuerySchemaView> {
+                        schemaCalls.incrementAndGet()
+                        return Mono.error(AssertionError("schema resolver must not run"))
+                    }
+                },
+                backendResolver = {
+                    backendCalls.incrementAndGet()
+                    Mono.error(AssertionError("backend resolver must not run"))
+                }
+            )
+        )
+        val request = CountQueryRequest(
+            target = GATEWAY_TARGET,
+            expression = RelativeTimeExpression(
+                "eventTime",
+                RelativeTimeOperation.BEFORE_TODAY,
+                operands = emptyList()
+            )
+        )
+
+        StepVerifier.create(gateway.count(request)).expectErrorSatisfies { error ->
+            (error as QueryException).apply {
+                code.assert().isEqualTo(QueryErrorCode.INVALID_QUERY)
+                stage.assert().isEqualTo(QueryStage.VALIDATION)
+                reason.assert().isEqualTo(QueryErrorReason.INVALID_REQUEST)
+            }
+        }.verify()
+        schemaCalls.get().assert().isZero()
+        backendCalls.get().assert().isZero()
+        backend.readinessSubscriptions.get().assert().isZero()
+    }
+
+    @Test
+    fun `policy cannot reintroduce relative time after invocation normalization`() {
+        val backendCalls = AtomicInteger()
+        val backend = RecordingQueryBackend(gatewayDescriptor())
+        val gateway = QueryGatewayFactory.create(
+            gatewayConfiguration(
+                backend = backend,
+                customPolicies = listOf(
+                    QueryPolicy {
+                        Mono.just(
+                            QueryPolicyResult(
+                                RelativeTimeExpression(
+                                    "eventTime",
+                                    RelativeTimeOperation.TODAY
+                                )
+                            )
+                        )
+                    }
+                ),
+                backendResolver = {
+                    backendCalls.incrementAndGet()
+                    Mono.error(AssertionError("backend resolver must not run"))
+                }
+            )
+        )
+
+        StepVerifier.create(gateway.count(countRequest())).expectErrorSatisfies { error ->
+            (error as QueryException).apply {
+                code.assert().isEqualTo(QueryErrorCode.POLICY_FAILURE)
+                stage.assert().isEqualTo(QueryStage.POLICY)
+                reason.assert().isEqualTo(QueryErrorReason.POLICY_EVALUATION_FAILED)
+            }
+        }.verify()
+        backendCalls.get().assert().isZero()
+        backend.readinessSubscriptions.get().assert().isZero()
+        backend.countSubscriptions.get().assert().isZero()
+    }
+
     @Test
     fun `all operations use the complete ordered pipeline`() {
         val operations = listOf(
@@ -300,6 +446,48 @@ class DefaultQueryGatewayTest {
     ) {
         override fun toString(): String = name
     }
+}
+
+private class AdvancingClock(
+    first: Instant,
+    private val later: Instant
+) : Clock() {
+    private val firstInstant = AtomicReference(first)
+    val reads = AtomicInteger()
+
+    override fun getZone(): ZoneId = ZoneOffset.UTC
+
+    override fun withZone(zone: ZoneId): Clock = this
+
+    override fun instant(): Instant {
+        reads.incrementAndGet()
+        return firstInstant.getAndSet(later)
+    }
+}
+
+private fun me.ahoo.wow.api.query.expression.QueryExpression.relativeExpressions(): List<RelativeTimeExpression> =
+    when (this) {
+        is RelativeTimeExpression -> listOf(this)
+        is me.ahoo.wow.api.query.expression.LogicalExpression -> operands.flatMap { it.relativeExpressions() }
+        is me.ahoo.wow.api.query.expression.PortableLogicalExpression -> operands.flatMap { it.relativeExpressions() }
+        is me.ahoo.wow.api.query.expression.ElementMatchExpression -> predicate.relativeExpressions()
+        else -> emptyList()
+    }
+
+private fun me.ahoo.wow.api.query.expression.QueryExpression.instantValues(): List<Instant> = when (this) {
+    is PredicateExpression -> values.filterIsInstance<QueryValue.InstantValue>().map(QueryValue.InstantValue::value)
+    is me.ahoo.wow.api.query.expression.LogicalExpression -> operands.flatMap { it.instantValues() }
+    is me.ahoo.wow.api.query.expression.PortableLogicalExpression -> operands.flatMap { it.instantValues() }
+    is me.ahoo.wow.api.query.expression.ElementMatchExpression -> predicate.instantValues()
+    else -> emptyList()
+}
+
+private fun me.ahoo.wow.api.query.expression.QueryExpression.predicateFields(): List<LogicalField> = when (this) {
+    is PredicateExpression -> listOf(field)
+    is me.ahoo.wow.api.query.expression.LogicalExpression -> operands.flatMap { it.predicateFields() }
+    is me.ahoo.wow.api.query.expression.PortableLogicalExpression -> operands.flatMap { it.predicateFields() }
+    is me.ahoo.wow.api.query.expression.ElementMatchExpression -> predicate.predicateFields()
+    else -> emptyList()
 }
 
 private class QueryPolicyTestAdmission(

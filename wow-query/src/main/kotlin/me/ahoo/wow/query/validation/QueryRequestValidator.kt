@@ -13,13 +13,7 @@
 
 package me.ahoo.wow.query.validation
 
-import me.ahoo.wow.api.query.gateway.CountQueryRequest
-import me.ahoo.wow.api.query.gateway.ListQueryRequest
-import me.ahoo.wow.api.query.gateway.PageQueryRequest
-import me.ahoo.wow.api.query.gateway.QueryProjection
 import me.ahoo.wow.api.query.gateway.QueryRequest
-import me.ahoo.wow.api.query.gateway.QueryResultShape
-import me.ahoo.wow.api.query.gateway.SingleQueryRequest
 import me.ahoo.wow.query.schema.QuerySchemaView
 import reactor.core.publisher.Mono
 
@@ -27,6 +21,7 @@ class QueryRequestValidator(
     limits: QueryStructureLimits
 ) {
     private val expressionValidator = QueryExpressionValidator(limits)
+    private val schemaValidator = QueryRequestSchemaValidator.create(limits)
 
     fun <R : QueryRequest> validateStructure(request: R): R {
         expressionValidator.validateStructure(request.expression)
@@ -34,29 +29,7 @@ class QueryRequestValidator(
     }
 
     fun <R : QueryRequest> validateSchema(request: R, schema: QuerySchemaView): R {
-        if (schema.target != request.target) {
-            invalidQuery()
-        }
-        expressionValidator.validateSchema(request.expression, schema)
-        when (request) {
-            is SingleQueryRequest<*> -> {
-                validateProjection(request.resultShape, schema)
-                validateSort(request.sort, schema)
-            }
-
-            is ListQueryRequest<*> -> {
-                validateProjection(request.resultShape, schema)
-                validateSort(request.sort, schema)
-            }
-
-            is PageQueryRequest<*> -> {
-                validateProjection(request.resultShape, schema)
-                validateSort(request.sort, schema)
-            }
-
-            is CountQueryRequest -> Unit
-        }
-        return request
+        return schemaValidator.validate(request, request.expression, schema)
     }
 
     fun <R : QueryRequest> validate(
@@ -65,30 +38,5 @@ class QueryRequestValidator(
     ): Mono<R> = Mono.defer {
         validateStructure(request)
         schemaResolver().map { schema -> validateSchema(request, schema) }
-    }
-
-    private fun validateProjection(resultShape: QueryResultShape<*>, schema: QuerySchemaView) {
-        val projection = when (resultShape) {
-            is QueryResultShape.Typed<*> -> resultShape.projection
-            QueryResultShape.Dynamic -> return
-        }
-        val fields = when (projection) {
-            QueryProjection.All -> return
-            is QueryProjection.Include -> projection.fields
-            is QueryProjection.Exclude -> projection.fields
-        }
-        fields.forEach { field ->
-            if (schema.field(field)?.projectable != true) {
-                invalidQuery()
-            }
-        }
-    }
-
-    private fun validateSort(sort: List<me.ahoo.wow.api.query.gateway.QuerySort>, schema: QuerySchemaView) {
-        sort.forEach { fieldSort ->
-            if (schema.field(fieldSort.field)?.sortable != true) {
-                invalidQuery()
-            }
-        }
     }
 }

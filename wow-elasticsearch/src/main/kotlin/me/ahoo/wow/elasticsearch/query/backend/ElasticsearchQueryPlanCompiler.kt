@@ -37,6 +37,7 @@ import me.ahoo.wow.api.query.expression.PortableOperator
 import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryExpression
 import me.ahoo.wow.api.query.expression.QueryValue
+import me.ahoo.wow.api.query.expression.RelativeTimeExpression
 import me.ahoo.wow.api.query.expression.StringComparisonMode
 import me.ahoo.wow.api.query.gateway.QuerySortDirection
 import me.ahoo.wow.query.plan.QueryPlanResultShape
@@ -87,6 +88,7 @@ internal class ElasticsearchQueryPlanCompiler(
         is ElementMatchExpression -> elementMatch(expression, relativeLogical)
         is FullTextExpression -> fullText(expression, relativeLogical)
         is NativeExpression -> native(expression, relativeLogical)
+        is RelativeTimeExpression -> error("Relative time was not normalized.")
     }
 
     private fun logical(

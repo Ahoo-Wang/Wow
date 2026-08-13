@@ -1,0 +1,307 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.query.compat
+
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.modeling.TenantId
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.ImmutableDynamicDocument
+import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.MaterializedSnapshot
+import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.Pagination
+import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.api.query.error.QueryErrorCode
+import me.ahoo.wow.api.query.error.QueryErrorReason
+import me.ahoo.wow.api.query.error.QueryException
+import me.ahoo.wow.api.query.error.QueryStage
+import me.ahoo.wow.api.query.gateway.CountQueryRequest
+import me.ahoo.wow.api.query.gateway.ListQueryRequest
+import me.ahoo.wow.api.query.gateway.PageQueryRequest
+import me.ahoo.wow.api.query.gateway.QueryConsistency
+import me.ahoo.wow.api.query.gateway.QueryDocumentKind
+import me.ahoo.wow.api.query.gateway.QueryPage
+import me.ahoo.wow.api.query.gateway.QueryRequest
+import me.ahoo.wow.api.query.gateway.SingleQueryRequest
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.modeling.toNamedAggregate
+import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.event.GatewayEventStreamQueryService
+import me.ahoo.wow.query.event.GatewayEventStreamQueryServiceFactory
+import me.ahoo.wow.query.snapshot.GatewaySnapshotQueryService
+import me.ahoo.wow.query.snapshot.GatewaySnapshotQueryServiceFactory
+import me.ahoo.wow.serialization.toLinkedHashMap
+import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.tck.mock.MockStateAggregate
+import org.junit.jupiter.api.Test
+import org.reactivestreams.Publisher
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
+import reactor.test.StepVerifier
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
+
+class GatewayQueryServiceTest {
+    private val projection = Projection(include = listOf("aggregateId", "state.id"))
+    private val snapshot = MaterializedSnapshot(
+        contextName = MOCK_AGGREGATE_METADATA.contextName,
+        aggregateName = MOCK_AGGREGATE_METADATA.aggregateName,
+        tenantId = TenantId.DEFAULT_TENANT_ID,
+        aggregateId = "aggregate-id",
+        version = 1,
+        eventId = "event-id",
+        firstOperator = "operator",
+        operator = "operator",
+        firstEventTime = 1,
+        eventTime = 2,
+        state = MockStateAggregate("aggregate-id"),
+        snapshotTime = 3,
+        deleted = false
+    )
+    private val eventStream = generateEventStream(MOCK_AGGREGATE_METADATA.aggregateId("aggregate-id"), eventCount = 1)
+    private val snapshotDocument = document(snapshot)
+    private val eventDocument = document(eventStream)
+
+    @Test
+    fun `snapshot facade delegates all seven methods once and materializes typed results after gateway`() {
+        val gateway = RecordingLegacyGateway(snapshotDocument)
+        val service = GatewaySnapshotQueryService<MockStateAggregate>(MOCK_AGGREGATE_METADATA, gateway)
+        val single = SingleQuery(Condition.ALL, projection)
+        val list = ListQuery(Condition.ALL, projection, limit = 2)
+        val page = PagedQuery(Condition.ALL, projection, pagination = Pagination(2, 2))
+
+        StepVerifier.create(service.single(single)).assertNext { it.assert().isEqualTo(snapshot) }.verifyComplete()
+        StepVerifier.create(
+            service.dynamicSingle(single)
+        ).assertNext { it.assert().isSameAs(snapshotDocument) }.verifyComplete()
+        StepVerifier.create(service.list(list)).expectNext(snapshot).verifyComplete()
+        StepVerifier.create(service.dynamicList(list)).expectNext(snapshotDocument).verifyComplete()
+        StepVerifier.create(service.paged(page)).assertNext { result ->
+            result.total.assert().isEqualTo(1)
+            result.list.assert().containsExactly(snapshot)
+        }.verifyComplete()
+        StepVerifier.create(service.dynamicPaged(page)).assertNext { result ->
+            result.list.single().assert().isSameAs(snapshotDocument)
+        }.verifyComplete()
+        StepVerifier.create(service.count(Condition.ALL)).expectNext(1).verifyComplete()
+
+        gateway.calls.get().assert().isEqualTo(7)
+        gateway.requests.map { it.target.documentKind }.assert().containsOnly(QueryDocumentKind.SNAPSHOT)
+        gateway.requests.filterIsInstance<ListQueryRequest<*>>().map { it.limit }.assert().containsOnly(2)
+        gateway.requests.filterIsInstance<PageQueryRequest<*>>().first().page.index.assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `event facade preserves empty single and partial gateway errors`() {
+        val partialError = QueryException(
+            QueryErrorCode.BACKEND_FAILURE,
+            QueryStage.EXECUTION,
+            QueryErrorReason.BACKEND_EXECUTION_FAILED
+        )
+        val gateway = RecordingLegacyGateway(
+            document = eventDocument,
+            singleResult = Mono.empty(),
+            listResult = Flux.concat(Flux.just(eventDocument), Flux.error(partialError))
+        )
+        val service = GatewayEventStreamQueryService(MOCK_AGGREGATE_METADATA, gateway)
+        val query = SingleQuery(Condition.ALL, Projection.ALL)
+
+        StepVerifier.create(service.single(query)).verifyComplete()
+        StepVerifier.create(service.dynamicSingle(query)).verifyComplete()
+        StepVerifier.create(service.list(ListQuery(Condition.ALL)))
+            .expectNext(eventStream)
+            .expectErrorSatisfies { it.assert().isSameAs(partialError) }
+            .verify()
+        StepVerifier.create(service.dynamicList(ListQuery(Condition.ALL)))
+            .expectNext(eventDocument)
+            .expectErrorSatisfies { it.assert().isSameAs(partialError) }
+            .verify()
+
+        gateway.calls.get().assert().isEqualTo(4)
+        gateway.requests.map { it.target.documentKind }.assert().containsOnly(QueryDocumentKind.EVENT_STREAM)
+    }
+
+    @Test
+    fun `event facade delegates all seven methods with typed page and exact targets`() {
+        val gateway = RecordingLegacyGateway(eventDocument)
+        val service = GatewayEventStreamQueryService(MOCK_AGGREGATE_METADATA, gateway)
+        val single = SingleQuery(Condition.ALL, projection)
+        val list = ListQuery(Condition.ALL, projection, limit = 3)
+        val page = PagedQuery(Condition.ALL, projection, pagination = Pagination(4, 3))
+
+        StepVerifier.create(service.single(single)).expectNext(eventStream).verifyComplete()
+        StepVerifier.create(service.dynamicSingle(single)).expectNext(eventDocument).verifyComplete()
+        StepVerifier.create(service.list(list)).expectNext(eventStream).verifyComplete()
+        StepVerifier.create(service.dynamicList(list)).expectNext(eventDocument).verifyComplete()
+        StepVerifier.create(service.paged(page)).assertNext { result ->
+            result.total.assert().isEqualTo(1)
+            result.list.assert().containsExactly(eventStream)
+        }.verifyComplete()
+        StepVerifier.create(service.dynamicPaged(page)).assertNext { result ->
+            result.list.single().assert().isSameAs(eventDocument)
+        }.verifyComplete()
+        StepVerifier.create(service.count(Condition.ALL)).expectNext(1).verifyComplete()
+
+        gateway.calls.get().assert().isEqualTo(7)
+        gateway.requests.map { it.target.documentKind }.assert().containsOnly(QueryDocumentKind.EVENT_STREAM)
+        gateway.requests.filterIsInstance<ListQueryRequest<*>>().map { it.limit }.assert().containsOnly(3)
+        gateway.requests.filterIsInstance<PageQueryRequest<*>>().map { it.page.index }.assert().containsOnly(4)
+    }
+
+    @Test
+    fun `mixed projection fails reactively without calling gateway`() {
+        val gateway = RecordingLegacyGateway(snapshotDocument)
+        val service = GatewaySnapshotQueryService<MockStateAggregate>(MOCK_AGGREGATE_METADATA, gateway)
+        val result = service.dynamicSingle(
+            SingleQuery(
+                Condition.ALL,
+                Projection(include = listOf("state.id"), exclude = listOf("eventId"))
+            )
+        )
+
+        gateway.calls.get().assert().isZero()
+        StepVerifier.create(result).expectErrorSatisfies { error ->
+            (error as QueryException).code.assert().isEqualTo(QueryErrorCode.INVALID_QUERY)
+        }.verify()
+        gateway.calls.get().assert().isZero()
+    }
+
+    @Test
+    fun `all seven facade methods are cold and factories cache materialized aggregate identity`() {
+        val gateway = RecordingLegacyGateway(snapshotDocument)
+        val snapshotFactory = GatewaySnapshotQueryServiceFactory(gateway)
+        val service = snapshotFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+        val single = SingleQuery(Condition.ALL)
+        val list = ListQuery(Condition.ALL)
+        val page = PagedQuery(Condition.ALL)
+        val publishers = listOf(
+            service.single(single),
+            service.dynamicSingle(single),
+            service.list(list),
+            service.dynamicList(list),
+            service.paged(page),
+            service.dynamicPaged(page),
+            service.count(Condition.ALL)
+        )
+
+        verifyCold(publishers, gateway)
+        gateway.calls.get().assert().isEqualTo(14)
+        snapshotFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA).assert().isSameAs(service)
+
+        val eventGateway = RecordingLegacyGateway(eventDocument)
+        val eventFactory = GatewayEventStreamQueryServiceFactory(eventGateway)
+        val eventService = eventFactory.create(MOCK_AGGREGATE_METADATA)
+        val eventPublishers = listOf(
+            eventService.single(single),
+            eventService.dynamicSingle(single),
+            eventService.list(list),
+            eventService.dynamicList(list),
+            eventService.paged(page),
+            eventService.dynamicPaged(page),
+            eventService.count(Condition.ALL)
+        )
+        verifyCold(eventPublishers, eventGateway)
+        eventGateway.calls.get().assert().isEqualTo(14)
+        eventFactory.create(MOCK_AGGREGATE_METADATA).assert()
+            .isSameAs(eventService)
+    }
+
+    @Test
+    fun `typed materialization failure is a stable low information result error`() {
+        val malformed = ImmutableDynamicDocument.copyOf(mapOf("sensitive" to "must-not-leak"))
+        val gateway = RecordingLegacyGateway(malformed)
+        val service = GatewaySnapshotQueryService<MockStateAggregate>(MOCK_AGGREGATE_METADATA, gateway)
+
+        StepVerifier.create(service.single(SingleQuery(Condition.ALL))).expectErrorSatisfies { error ->
+            (error as QueryException).apply {
+                code.assert().isEqualTo(QueryErrorCode.RESULT_VALIDATION_FAILED)
+                stage.assert().isEqualTo(QueryStage.EXECUTION)
+                reason.assert().isEqualTo(QueryErrorReason.RESULT_INVALID)
+                message.orEmpty().contains("sensitive").assert().isFalse()
+            }
+        }.verify()
+    }
+
+    @Test
+    fun `snapshot metadata failure is deferred to subscription and mapped as result invalid`() {
+        val gateway = RecordingLegacyGateway(snapshotDocument)
+        val service = GatewaySnapshotQueryService<MockStateAggregate>(
+            "missing.aggregate".toNamedAggregate(),
+            gateway
+        )
+        val result = service.single(SingleQuery(Condition.ALL))
+
+        gateway.calls.get().assert().isZero()
+        StepVerifier.create(result).expectErrorSatisfies { error ->
+            (error as QueryException).apply {
+                code.assert().isEqualTo(QueryErrorCode.RESULT_VALIDATION_FAILED)
+                stage.assert().isEqualTo(QueryStage.EXECUTION)
+                reason.assert().isEqualTo(QueryErrorReason.RESULT_INVALID)
+            }
+        }.verify()
+        gateway.calls.get().assert().isEqualTo(1)
+    }
+
+    private fun document(value: Any): DynamicDocument = ImmutableDynamicDocument.copyOf(value.toLinkedHashMap())
+
+    private fun verifyCold(publishers: List<Publisher<*>>, gateway: RecordingLegacyGateway) {
+        gateway.calls.get().assert().isZero()
+        publishers.forEach { publisher ->
+            val before = gateway.calls.get()
+            StepVerifier.create(publisher).expectNextCount(1).verifyComplete()
+            StepVerifier.create(publisher).expectNextCount(1).verifyComplete()
+            gateway.calls.get().assert().isEqualTo(before + 2)
+        }
+    }
+}
+
+private class RecordingLegacyGateway(
+    private val document: DynamicDocument,
+    private val singleResult: Mono<DynamicDocument> = Mono.just(document),
+    private val listResult: Flux<DynamicDocument> = Flux.just(document)
+) : QueryGateway {
+    val calls = AtomicInteger()
+    val requests = CopyOnWriteArrayList<QueryRequest>()
+
+    override fun <R : Any> single(request: SingleQueryRequest<R>): Mono<R> = Mono.defer {
+        record(request)
+        @Suppress("UNCHECKED_CAST")
+        singleResult as Mono<R>
+    }
+
+    override fun <R : Any> list(request: ListQueryRequest<R>): Flux<R> = Flux.defer {
+        record(request)
+        @Suppress("UNCHECKED_CAST")
+        listResult as Flux<R>
+    }
+
+    override fun <R : Any> page(request: PageQueryRequest<R>): Mono<QueryPage<R>> = Mono.defer {
+        record(request)
+        @Suppress("UNCHECKED_CAST")
+        Mono.just(QueryPage(listOf(document as R), 1, QueryConsistency.EXACT))
+    }
+
+    override fun count(request: CountQueryRequest): Mono<Long> = Mono.fromSupplier {
+        record(request)
+        1
+    }
+
+    private fun record(request: QueryRequest) {
+        calls.incrementAndGet()
+        requests += request
+    }
+}

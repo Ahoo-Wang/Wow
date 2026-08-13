@@ -56,12 +56,12 @@ internal class QueryInvocationSeed(
 
     fun toInvocation(
         schema: QuerySchemaView,
-        normalize: (QueryExpression) -> QueryExpression
+        normalize: (QueryExpression, Instant, ZoneId) -> QueryExpression
     ): QueryInvocation {
         val schemaSnapshot = schema.immutableSnapshot()
         val normalizedContributions = LinkedHashMap<QueryProvenance, QueryExpression>(expressionContributions.size)
         expressionContributions.forEach { (provenance, expression) ->
-            normalizedContributions[provenance] = normalize(expression)
+            normalizedContributions[provenance] = normalize(expression, frozenInstant, zoneId)
         }
         val normalizedExpression = ExpressionNormalizer.logical(
             LogicalOperator.AND,

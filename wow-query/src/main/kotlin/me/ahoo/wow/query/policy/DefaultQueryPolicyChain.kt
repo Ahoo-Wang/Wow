@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.expression.PortableLogicalExpression
 import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.expression.QueryExpression
+import me.ahoo.wow.api.query.expression.RelativeTimeExpression
 import me.ahoo.wow.api.query.gateway.CountQueryRequest
 import me.ahoo.wow.api.query.gateway.QueryResultShape
 import me.ahoo.wow.api.query.gateway.ResultQueryRequest
@@ -193,6 +194,7 @@ internal class DefaultQueryPolicyChain(
                 MatchAll,
                 MatchNone,
                 is PredicateExpression -> Unit
+                is RelativeTimeExpression -> throw IllegalStateException("Relative time was not normalized.")
             }
         }
         return Collections.unmodifiableSet(capabilities)

@@ -29,6 +29,7 @@ import me.ahoo.wow.api.query.expression.PortableOperator
 import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.expression.QueryExpression
+import me.ahoo.wow.api.query.expression.RelativeTimeExpression
 import me.ahoo.wow.api.query.expression.StringComparisonMode
 import me.ahoo.wow.api.query.gateway.CountQueryRequest
 import me.ahoo.wow.api.query.gateway.ListQueryRequest
@@ -319,6 +320,7 @@ internal class DefaultQueryPlanner private constructor(
                     capabilities += current.capabilityId
                     fields += current.declaredFields.map { resolvePath(frame.relativeTo, it) }
                 }
+                is RelativeTimeExpression -> invalidQuery()
             }
         }
         return ExpressionInspection(operators, features, stringComparisonModes, capabilities, fields)
@@ -341,6 +343,7 @@ internal class DefaultQueryPlanner private constructor(
                 MatchNone,
                 is PredicateExpression,
                 is FullTextExpression -> Unit
+                is RelativeTimeExpression -> invalidQuery()
             }
         }
         return backendIds

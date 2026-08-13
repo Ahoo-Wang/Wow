@@ -26,6 +26,7 @@ import me.ahoo.wow.api.query.expression.PortableLogicalExpression
 import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.expression.QueryExpression
+import me.ahoo.wow.api.query.expression.RelativeTimeExpression
 import me.ahoo.wow.api.query.gateway.QueryOperation
 import me.ahoo.wow.api.query.gateway.QueryRequest
 import me.ahoo.wow.query.policy.COMBINED_POLICY_ID
@@ -124,7 +125,8 @@ internal class QueryGatewayMetrics(
                 is ElementMatchExpression -> pending += current.predicate
                 MatchAll,
                 MatchNone,
-                is PredicateExpression -> Unit
+                is PredicateExpression,
+                is RelativeTimeExpression -> Unit
             }
         }
         return when (capabilities.size) {

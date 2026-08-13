@@ -26,6 +26,7 @@ import me.ahoo.wow.api.query.expression.PortableLogicalExpression
 import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.expression.QueryExpression
+import me.ahoo.wow.api.query.expression.RelativeTimeExpression
 import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.query.backend.QueryBackendResolutionContext
 import me.ahoo.wow.query.backend.QueryBackendResolver
@@ -93,6 +94,11 @@ internal class StorageRoutingQueryBackendResolver private constructor(
                 MatchAll,
                 MatchNone,
                 is PredicateExpression -> Unit
+                is RelativeTimeExpression -> throw QueryException(
+                    QueryErrorCode.INVALID_QUERY,
+                    QueryStage.PLANNING,
+                    QueryErrorReason.INVALID_REQUEST,
+                )
             }
         }
         if (!supportedCapabilities.containsAll(requestedCapabilities) || nativeBackendIds.any { it != backendId }) {

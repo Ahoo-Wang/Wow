@@ -14,13 +14,18 @@
 package me.ahoo.wow.query.event
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.error.QueryErrorCode
+import me.ahoo.wow.api.query.error.QueryErrorReason
+import me.ahoo.wow.api.query.error.QueryException
+import me.ahoo.wow.api.query.error.QueryStage
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
 import org.junit.jupiter.api.Test
-import reactor.kotlin.test.test
+import org.reactivestreams.Publisher
+import reactor.test.StepVerifier
 
 class NoOpSnapshotQueryServiceFactoryTest {
     private val queryService = NoOpEventStreamQueryServiceFactory.create("test.test".toNamedAggregate())
@@ -36,9 +41,7 @@ class NoOpSnapshotQueryServiceFactoryTest {
             condition {
                 "test" eq "test"
             }
-        }.query(queryService)
-            .test()
-            .verifyComplete()
+        }.query(queryService).verifyUnavailable()
     }
 
     @Test
@@ -47,9 +50,7 @@ class NoOpSnapshotQueryServiceFactoryTest {
             condition {
                 "test" eq "test"
             }
-        }.dynamicQuery(queryService)
-            .test()
-            .verifyComplete()
+        }.dynamicQuery(queryService).verifyUnavailable()
     }
 
     @Test
@@ -58,9 +59,7 @@ class NoOpSnapshotQueryServiceFactoryTest {
             condition {
                 "test" eq "test"
             }
-        }.query(queryService)
-            .test()
-            .verifyComplete()
+        }.query(queryService).verifyUnavailable()
     }
 
     @Test
@@ -69,9 +68,7 @@ class NoOpSnapshotQueryServiceFactoryTest {
             condition {
                 "test" eq "test"
             }
-        }.dynamicQuery(queryService)
-            .test()
-            .verifyComplete()
+        }.dynamicQuery(queryService).verifyUnavailable()
     }
 
     @Test
@@ -80,12 +77,7 @@ class NoOpSnapshotQueryServiceFactoryTest {
             condition {
                 "test" eq "test"
             }
-        }.query(queryService)
-            .test()
-            .consumeNextWith {
-                it.total.assert().isZero()
-            }
-            .verifyComplete()
+        }.query(queryService).verifyUnavailable()
     }
 
     @Test
@@ -94,21 +86,23 @@ class NoOpSnapshotQueryServiceFactoryTest {
             condition {
                 "test" eq "test"
             }
-        }.dynamicQuery(queryService)
-            .test()
-            .consumeNextWith {
-                it.total.assert().isZero()
-            }
-            .verifyComplete()
+        }.dynamicQuery(queryService).verifyUnavailable()
     }
 
     @Test
     fun `should return zero count`() {
         condition {
             "test" eq "test"
-        }.count(queryService)
-            .test()
-            .expectNext(0)
-            .verifyComplete()
+        }.count(queryService).verifyUnavailable()
+    }
+
+    private fun Publisher<*>.verifyUnavailable() {
+        StepVerifier.create(this).expectErrorSatisfies { error ->
+            (error as QueryException).apply {
+                code.assert().isEqualTo(QueryErrorCode.BACKEND_NOT_READY)
+                stage.assert().isEqualTo(QueryStage.BACKEND_RESOLUTION)
+                reason.assert().isEqualTo(QueryErrorReason.BACKEND_UNAVAILABLE)
+            }
+        }.verify()
     }
 }

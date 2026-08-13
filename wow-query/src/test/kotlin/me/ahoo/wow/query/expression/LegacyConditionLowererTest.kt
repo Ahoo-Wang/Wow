@@ -34,7 +34,10 @@ import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.expression.QueryExpression
 import me.ahoo.wow.api.query.expression.QueryValue
+import me.ahoo.wow.api.query.expression.RelativeTimeExpression
+import me.ahoo.wow.api.query.expression.RelativeTimeOperation
 import me.ahoo.wow.api.query.expression.StringComparisonMode
+import me.ahoo.wow.api.query.gateway.DeletionScope
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.modeling.toNamedAggregate
@@ -45,6 +48,8 @@ import me.ahoo.wow.query.schema.QuerySchema
 import me.ahoo.wow.query.schema.QuerySystemFields
 import me.ahoo.wow.query.validation.QueryExpressionValidator
 import me.ahoo.wow.query.validation.QueryStructureLimits
+import me.ahoo.wow.serialization.toJsonString
+import me.ahoo.wow.serialization.toObject
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Instant
@@ -52,6 +57,21 @@ import java.time.LocalTime
 import java.time.ZoneId
 
 class LegacyConditionLowererTest {
+    @Test
+    fun `relative time descriptor validates field and round trips through authoritative JSON`() {
+        val expression: QueryExpression = RelativeTimeExpression(
+            "eventTime",
+            RelativeTimeOperation.RECENT_DAYS,
+            listOf(QueryValue.IntegerValue(3)),
+            "Asia/Shanghai"
+        )
+
+        expression.toJsonString().toObject<QueryExpression>().assert().isEqualTo(expression)
+        assertThrows<IllegalArgumentException> {
+            RelativeTimeExpression("eventTime.$", RelativeTimeOperation.TODAY)
+        }
+    }
+
     private val frozenInstant = Instant.parse("2024-06-12T12:00:00Z")
     private val zoneId = ZoneId.of("UTC")
     private val eventTarget = QueryTarget("sales.order".toNamedAggregate(), QueryDocumentKind.EVENT_STREAM)
@@ -68,6 +88,99 @@ class LegacyConditionLowererTest {
         val condition: Condition,
         val expected: QueryExpression
     )
+
+    @Test
+    fun `gateway lowering defers relative time without reading a clock`() {
+        val condition = Condition.recentDays("state.time", 3).copy(
+            options = mapOf(Condition.ZONE_ID_OPTION_KEY to "Asia/Shanghai")
+        )
+
+        val lowered = LegacyConditionLowering.lowerForGateway(condition, eventTarget)
+
+        lowered.first.assert().isEqualTo(
+            RelativeTimeExpression(
+                field = "state.time",
+                operation = RelativeTimeOperation.RECENT_DAYS,
+                operands = listOf(QueryValue.IntegerValue(3)),
+                zoneId = "Asia/Shanghai"
+            )
+        )
+        lowered.second.assert().isEqualTo(DeletionScope.DEFAULT)
+    }
+
+    @Test
+    fun `gateway lowering preserves nested relative descriptors in logical and element match expressions`() {
+        val lowered = LegacyConditionLowering.lowerForGateway(
+            Condition.nor(
+                Condition.elemMatch("state.items", Condition.today("createdAt")),
+                Condition.and(Condition.earlierDays("state.time", 2))
+            ),
+            eventTarget
+        )
+
+        lowered.first.assert().isEqualTo(
+            me.ahoo.wow.api.query.expression.PortableLogicalExpression(
+                LogicalOperator.NOR,
+                listOf(
+                    ElementMatchExpression(
+                        LogicalField("state.items"),
+                        RelativeTimeExpression(
+                            "createdAt",
+                            RelativeTimeOperation.TODAY
+                        )
+                    ),
+                    RelativeTimeExpression(
+                        "state.time",
+                        RelativeTimeOperation.EARLIER_DAYS,
+                        listOf(QueryValue.IntegerValue(2))
+                    )
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `gateway lowering extracts only direct snapshot deletion intent`() {
+        val state = predicate("state.status", PortableOperator.EQ, string("ACTIVE"))
+        val direct = LegacyConditionLowering.lowerForGateway(
+            Condition.and(Condition.deleted(DeletionState.DELETED), Condition.eq("state.status", "ACTIVE")),
+            snapshotTarget
+        )
+        direct.second.assert().isEqualTo(DeletionScope.DELETED)
+        direct.first.assert().isEqualTo(state)
+
+        val root = LegacyConditionLowering.lowerForGateway(Condition.deleted(DeletionState.ALL), snapshotTarget)
+        root.second.assert().isEqualTo(DeletionScope.ALL)
+        root.first.assert().isSameAs(MatchAll)
+
+        val nested = LegacyConditionLowering.lowerForGateway(
+            Condition.or(Condition.deleted(DeletionState.DELETED), Condition.eq("state.status", "ACTIVE")),
+            snapshotTarget
+        )
+        nested.second.assert().isEqualTo(DeletionScope.DEFAULT)
+        nested.first.assert().isEqualTo(or(predicate("deleted", PortableOperator.EQ, bool(true)), state))
+
+        val event = LegacyConditionLowering.lowerForGateway(Condition.deleted(DeletionState.DELETED), eventTarget)
+        event.second.assert().isEqualTo(DeletionScope.DEFAULT)
+        event.first.assert().isEqualTo(predicate("deleted", PortableOperator.EQ, bool(true)))
+    }
+
+    @Test
+    fun `gateway lowering rejects contradictory direct snapshot deletion intents`() {
+        val error = assertThrows<QueryException> {
+            LegacyConditionLowering.lowerForGateway(
+                Condition.and(
+                    Condition.deleted(DeletionState.ACTIVE),
+                    Condition.deleted(DeletionState.DELETED)
+                ),
+                snapshotTarget
+            )
+        }
+
+        error.code.assert().isEqualTo(QueryErrorCode.INVALID_QUERY)
+        error.stage.assert().isEqualTo(QueryStage.NORMALIZE)
+        error.reason.assert().isEqualTo(QueryErrorReason.INVALID_REQUEST)
+    }
 
     @Test
     @Suppress("LongMethod")

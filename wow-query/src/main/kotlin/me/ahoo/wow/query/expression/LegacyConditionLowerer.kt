@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.expression.QueryExpression
 import me.ahoo.wow.api.query.expression.StringComparisonMode
+import me.ahoo.wow.api.query.gateway.DeletionScope
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.query.converter.DeleteConditionGuard.guard
@@ -40,9 +41,39 @@ object LegacyConditionLowerer {
         target: QueryTarget,
         frozenInstant: Instant,
         zoneId: ZoneId
+    ): QueryExpression = LegacyConditionLowering.lower(condition, target, frozenInstant, zoneId)
+}
+
+internal object LegacyConditionLowering {
+    @JvmSynthetic
+    fun lower(
+        condition: Condition,
+        target: QueryTarget,
+        frozenInstant: Instant,
+        zoneId: ZoneId
     ): QueryExpression = try {
         val guarded = if (target.documentKind == QueryDocumentKind.SNAPSHOT) condition.guard() else condition
-        ExpressionNormalizer.normalize(lowerInternal(guarded, target, frozenInstant, zoneId))
+        ExpressionNormalizer.normalize(
+            lowerInternal(guarded, target) { relative -> RelativeTimeNormalizer.lower(relative, frozenInstant, zoneId) }
+        )
+    } catch (error: me.ahoo.wow.api.query.error.QueryException) {
+        throw error
+    } catch (_: RuntimeException) {
+        invalidQuery()
+    }
+
+    @JvmSynthetic
+    internal fun lowerForGateway(
+        condition: Condition,
+        target: QueryTarget
+    ): Pair<QueryExpression, DeletionScope> = try {
+        val extracted = extractDeletion(condition, target)
+        Pair(
+            ExpressionNormalizer.normalize(
+                lowerInternal(extracted.first, target, RelativeTimeExpressionNormalizer::defer)
+            ),
+            extracted.second
+        )
     } catch (error: me.ahoo.wow.api.query.error.QueryException) {
         throw error
     } catch (_: RuntimeException) {
@@ -53,13 +84,12 @@ object LegacyConditionLowerer {
     private fun lowerInternal(
         condition: Condition,
         target: QueryTarget,
-        frozenInstant: Instant,
-        zoneId: ZoneId
+        relativeTime: (Condition) -> QueryExpression
     ): QueryExpression =
         when (condition.operator) {
-            Operator.AND -> logical(LogicalOperator.AND, condition, target, frozenInstant, zoneId)
-            Operator.OR -> logical(LogicalOperator.OR, condition, target, frozenInstant, zoneId)
-            Operator.NOR -> logical(LogicalOperator.NOR, condition, target, frozenInstant, zoneId)
+            Operator.AND -> logical(LogicalOperator.AND, condition, target, relativeTime)
+            Operator.OR -> logical(LogicalOperator.OR, condition, target, relativeTime)
+            Operator.NOR -> logical(LogicalOperator.NOR, condition, target, relativeTime)
             Operator.ID -> predicate(recordIdentityField(target), PortableOperator.EQ, condition.value)
             Operator.IDS -> predicateElements(recordIdentityField(target), PortableOperator.IN, condition.value)
             Operator.AGGREGATE_ID -> predicate(AGGREGATE_ID_FIELD, PortableOperator.EQ, condition.value)
@@ -86,22 +116,22 @@ object LegacyConditionLowerer {
             Operator.ALL_IN -> predicateElements(condition.field, PortableOperator.ALL_IN, condition.value)
             Operator.STARTS_WITH -> stringPredicate(condition, PortableOperator.STARTS_WITH)
             Operator.ENDS_WITH -> stringPredicate(condition, PortableOperator.ENDS_WITH)
-            Operator.ELEM_MATCH -> elementMatch(condition, target, frozenInstant, zoneId)
+            Operator.ELEM_MATCH -> elementMatch(condition, target, relativeTime)
             Operator.NULL -> predicate(condition.field, PortableOperator.NULL)
             Operator.NOT_NULL -> predicate(condition.field, PortableOperator.NOT_NULL)
             Operator.TRUE -> predicate(condition.field, PortableOperator.TRUE)
             Operator.FALSE -> predicate(condition.field, PortableOperator.FALSE)
             Operator.EXISTS -> predicate(condition.field, PortableOperator.EXISTS, condition.value)
-            Operator.TODAY -> RelativeTimeNormalizer.lower(condition, frozenInstant, zoneId)
-            Operator.BEFORE_TODAY -> RelativeTimeNormalizer.lower(condition, frozenInstant, zoneId)
-            Operator.TOMORROW -> RelativeTimeNormalizer.lower(condition, frozenInstant, zoneId)
-            Operator.THIS_WEEK -> RelativeTimeNormalizer.lower(condition, frozenInstant, zoneId)
-            Operator.NEXT_WEEK -> RelativeTimeNormalizer.lower(condition, frozenInstant, zoneId)
-            Operator.LAST_WEEK -> RelativeTimeNormalizer.lower(condition, frozenInstant, zoneId)
-            Operator.THIS_MONTH -> RelativeTimeNormalizer.lower(condition, frozenInstant, zoneId)
-            Operator.LAST_MONTH -> RelativeTimeNormalizer.lower(condition, frozenInstant, zoneId)
-            Operator.RECENT_DAYS -> RelativeTimeNormalizer.lower(condition, frozenInstant, zoneId)
-            Operator.EARLIER_DAYS -> RelativeTimeNormalizer.lower(condition, frozenInstant, zoneId)
+            Operator.TODAY,
+            Operator.BEFORE_TODAY,
+            Operator.TOMORROW,
+            Operator.THIS_WEEK,
+            Operator.NEXT_WEEK,
+            Operator.LAST_WEEK,
+            Operator.THIS_MONTH,
+            Operator.LAST_MONTH,
+            Operator.RECENT_DAYS,
+            Operator.EARLIER_DAYS -> relativeTime(condition)
             Operator.MATCH -> FullTextExpression(
                 FULL_TEXT_CAPABILITY,
                 condition.value as? String ?: invalidQuery(),
@@ -115,23 +145,21 @@ object LegacyConditionLowerer {
         operator: LogicalOperator,
         condition: Condition,
         target: QueryTarget,
-        frozenInstant: Instant,
-        zoneId: ZoneId
+        relativeTime: (Condition) -> QueryExpression
     ): QueryExpression = ExpressionNormalizer.logical(
         operator,
-        condition.children.map { lowerInternal(it, target, frozenInstant, zoneId) }
+        condition.children.map { lowerInternal(it, target, relativeTime) }
     )
 
     private fun elementMatch(
         condition: Condition,
         target: QueryTarget,
-        frozenInstant: Instant,
-        zoneId: ZoneId
+        relativeTime: (Condition) -> QueryExpression
     ): ElementMatchExpression {
         if (condition.children.size != 1) {
             invalidQuery()
         }
-        val predicate = lowerInternal(condition.children.single(), target, frozenInstant, zoneId) as? PortableExpression
+        val predicate = lowerInternal(condition.children.single(), target, relativeTime) as? PortableExpression
             ?: invalidQuery()
         return ElementMatchExpression(LogicalField(condition.field), predicate)
     }
@@ -142,6 +170,36 @@ object LegacyConditionLowerer {
             DeletionState.DELETED -> predicate(DELETED_FIELD, PortableOperator.EQ, true)
             DeletionState.ALL -> MatchAll
         }
+
+    private fun extractDeletion(condition: Condition, target: QueryTarget): Pair<Condition, DeletionScope> {
+        if (target.documentKind == QueryDocumentKind.EVENT_STREAM) {
+            return Pair(condition, DeletionScope.DEFAULT)
+        }
+        if (condition.operator == Operator.DELETED) {
+            return Pair(Condition.ALL, condition.deletionState().toScope())
+        }
+        if (condition.operator != Operator.AND) {
+            return Pair(condition, DeletionScope.DEFAULT)
+        }
+        val deletionChildren = condition.children.filter { it.operator == Operator.DELETED }
+        if (deletionChildren.isEmpty()) {
+            return Pair(condition, DeletionScope.DEFAULT)
+        }
+        val scopes = deletionChildren.mapTo(LinkedHashSet()) { it.deletionState().toScope() }
+        if (scopes.size != 1) {
+            invalidQuery()
+        }
+        return Pair(
+            condition.copy(children = condition.children.filterNot { it.operator == Operator.DELETED }),
+            scopes.single()
+        )
+    }
+
+    private fun DeletionState.toScope(): DeletionScope = when (this) {
+        DeletionState.ACTIVE -> DeletionScope.ACTIVE
+        DeletionState.DELETED -> DeletionScope.DELETED
+        DeletionState.ALL -> DeletionScope.ALL
+    }
 
     private fun predicate(field: String, operator: PortableOperator, vararg values: Any?): PredicateExpression =
         PredicateExpression(LogicalField(field), operator, values.map(QueryValueNormalizer::normalize))

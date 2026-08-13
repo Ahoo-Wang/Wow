@@ -21,21 +21,37 @@ import me.ahoo.wow.api.query.expression.MatchNone
 import me.ahoo.wow.api.query.expression.PortableExpression
 import me.ahoo.wow.api.query.expression.PortableLogicalExpression
 import me.ahoo.wow.api.query.expression.QueryExpression
+import me.ahoo.wow.api.query.expression.RelativeTimeExpression
 
 object ExpressionNormalizer {
     fun normalize(expression: QueryExpression): QueryExpression =
+        normalize(expression) { it }
+
+    private fun normalize(
+        expression: QueryExpression,
+        relativeTime: (RelativeTimeExpression) -> QueryExpression
+    ): QueryExpression =
         when (expression) {
-            is LogicalExpression -> logical(expression.operator, expression.operands)
-            is PortableLogicalExpression -> logical(expression.operator, expression.operands)
+            is LogicalExpression -> logical(expression.operator, expression.operands, relativeTime)
+            is PortableLogicalExpression -> logical(expression.operator, expression.operands, relativeTime)
             is ElementMatchExpression -> ElementMatchExpression(
                 expression.field,
-                normalize(expression.predicate) as PortableExpression
+                normalize(expression.predicate, relativeTime) as PortableExpression
             )
+            is RelativeTimeExpression -> relativeTime(expression)
             else -> expression
         }
 
     fun logical(operator: LogicalOperator, operands: List<QueryExpression>): QueryExpression {
-        val normalized = operands.map(::normalize)
+        return logical(operator, operands) { it }
+    }
+
+    private fun logical(
+        operator: LogicalOperator,
+        operands: List<QueryExpression>,
+        relativeTime: (RelativeTimeExpression) -> QueryExpression
+    ): QueryExpression {
+        val normalized = operands.map { normalize(it, relativeTime) }
         if (operator == LogicalOperator.NOR) {
             return createLogical(operator, normalized)
         }

@@ -25,6 +25,8 @@ import me.ahoo.wow.api.query.expression.MatchAll
 import me.ahoo.wow.api.query.expression.NativeExpression
 import me.ahoo.wow.api.query.expression.PortableOperator
 import me.ahoo.wow.api.query.expression.QueryCapabilityId
+import me.ahoo.wow.api.query.expression.RelativeTimeExpression
+import me.ahoo.wow.api.query.expression.RelativeTimeOperation
 import me.ahoo.wow.api.query.expression.StringComparisonMode
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.api.query.gateway.QueryPage
@@ -151,6 +153,30 @@ class StorageRoutingQueryBackendResolverTest {
 
         StepVerifier.create(resolver.resolve(resolutionContext(expression)))
             .expectErrorSatisfies(::assertUnsupported)
+            .verify()
+
+        factory.bindCount.get().assert().isOne()
+        backend.readinessCount.get().assert().isZero()
+    }
+
+    @Test
+    fun `relative time is rejected before readiness`() {
+        val backend = ReadyBackend()
+        val factory = RecordingBackendFactory(backend)
+        val resolver = resolver(QueryBackendSelection.available(backendBinding(factory)))
+        val expression = RelativeTimeExpression(
+            "eventTime",
+            RelativeTimeOperation.TODAY
+        )
+
+        StepVerifier.create(resolver.resolve(resolutionContext(expression)))
+            .expectErrorSatisfies { error ->
+                (error as QueryException).apply {
+                    code.assert().isEqualTo(QueryErrorCode.INVALID_QUERY)
+                    stage.assert().isEqualTo(QueryStage.PLANNING)
+                    reason.assert().isEqualTo(QueryErrorReason.INVALID_REQUEST)
+                }
+            }
             .verify()
 
         factory.bindCount.get().assert().isOne()
