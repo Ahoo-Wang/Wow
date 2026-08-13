@@ -13,18 +13,40 @@
 
 package me.ahoo.wow.elasticsearch.query.backend
 
+import co.elastic.clients.elasticsearch._types.mapping.Property
+import co.elastic.clients.elasticsearch.core.OpenPointInTimeRequest
+import co.elastic.clients.elasticsearch.indices.ExistsRequest
+import co.elastic.clients.elasticsearch.indices.GetMappingRequest
+import co.elastic.clients.elasticsearch.indices.GetMappingResponse
+import co.elastic.clients.json.JsonData
+import co.elastic.clients.transport.endpoints.BooleanResponse
 import io.mockk.confirmVerified
+import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.expression.ElementMatchExpression
+import me.ahoo.wow.api.query.expression.LogicalField
 import me.ahoo.wow.api.query.expression.MatchAll
+import me.ahoo.wow.api.query.expression.PortableOperator
+import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryCapabilityId
+import me.ahoo.wow.api.query.expression.QueryValue
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
+import me.ahoo.wow.query.backend.QueryBackendReadiness
 import me.ahoo.wow.query.backend.QueryBackendResolutionContext
 import me.ahoo.wow.query.backend.QueryPlanVersion
+import me.ahoo.wow.query.schema.QueryBackendFieldPath
+import me.ahoo.wow.query.schema.QueryBackendId
+import me.ahoo.wow.query.schema.QueryCapabilityBinding
+import me.ahoo.wow.query.schema.QueryFieldUsage
 import me.ahoo.wow.query.validation.QueryBudgetLimit
 import me.ahoo.wow.tck.query.backend.PortableQueryDataset
 import org.junit.jupiter.api.Test
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
+import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchIndicesClient
+import reactor.core.publisher.Mono
+import reactor.test.StepVerifier
 
 class ElasticsearchQueryBackendTest {
     @Test
@@ -53,5 +75,108 @@ class ElasticsearchQueryBackendTest {
         )
         backend.descriptor.maxBudget.assert().isEqualTo(budget)
         confirmVerified(client)
+    }
+
+    @Test
+    fun `readiness gates only current expression dependencies`() {
+        val client = mappingClient(
+            mapOf(
+                "rank" to Property.of { it.long_ { value -> value } },
+                "title" to Property.of { it.keyword { value -> value } },
+            ),
+        )
+        val expression = PredicateExpression(
+            PortableQueryDataset.RANK,
+            PortableOperator.EQ,
+            listOf(QueryValue.IntegerValue(1)),
+        )
+        val backend = ElasticsearchQueryBackendFactory(client).bind(
+            QueryBackendResolutionContext(
+                PortableQueryDataset.target(QueryDocumentKind.SNAPSHOT),
+                PortableQueryDataset.schema(QueryDocumentKind.SNAPSHOT),
+                expression,
+            ),
+        )
+
+        StepVerifier.create(backend.readiness()).expectNext(QueryBackendReadiness.Ready).verifyComplete()
+    }
+
+    @Test
+    fun `null metadata mismatch is not ready and performs no search or pit io`() {
+        val client = mappingClient(
+            mapOf(
+                "nullableText" to Property.of { it.keyword { value -> value } },
+                "__wow_query" to Property.of { property ->
+                    property.`object` { obj ->
+                        obj.properties("present") { it.keyword { value -> value } }
+                    }
+                },
+            ),
+        )
+        val expression = PredicateExpression(PortableQueryDataset.NULLABLE_TEXT, PortableOperator.NULL, emptyList())
+        val backend = ElasticsearchQueryBackendFactory(client).bind(
+            QueryBackendResolutionContext(
+                PortableQueryDataset.target(QueryDocumentKind.SNAPSHOT),
+                PortableQueryDataset.schema(QueryDocumentKind.SNAPSHOT),
+                expression,
+            ),
+        )
+
+        StepVerifier.create(backend.readiness())
+            .expectNextMatches { readiness -> readiness is QueryBackendReadiness.NotReady }
+            .verifyComplete()
+        verify(exactly = 0) { client.openPointInTime(any<OpenPointInTimeRequest>()) }
+    }
+
+    @Test
+    fun `source divergent nested binding is configuration invalid before index io`() {
+        val client = mockk<ReactiveElasticsearchClient>(relaxed = true)
+        val source = PortableQueryDataset.schema(QueryDocumentKind.SNAPSHOT)
+        val items = source.fields.getValue(PortableQueryDataset.ITEMS).copy(
+            bindings = setOf(
+                QueryCapabilityBinding(
+                    QueryBackendId("elasticsearch"),
+                    QueryFieldUsage.NESTED,
+                    QueryBackendFieldPath("line_items"),
+                ),
+            ),
+        )
+        val schema = source.withField(items)
+        val backend = ElasticsearchQueryBackendFactory(client).bind(
+            QueryBackendResolutionContext(
+                PortableQueryDataset.target(QueryDocumentKind.SNAPSHOT),
+                schema,
+                ElementMatchExpression(
+                    PortableQueryDataset.ITEMS,
+                    PredicateExpression(
+                        LogicalField("sku"),
+                        PortableOperator.EQ,
+                        listOf(QueryValue.StringValue("A")),
+                    ),
+                ),
+            ),
+        )
+
+        StepVerifier.create(backend.readiness())
+            .expectNextMatches { readiness -> readiness is QueryBackendReadiness.NotReady }
+            .verifyComplete()
+        confirmVerified(client)
+    }
+
+    private fun mappingClient(properties: Map<String, Property>): ReactiveElasticsearchClient {
+        val client = mockk<ReactiveElasticsearchClient>(relaxed = true)
+        val indices = mockk<ReactiveElasticsearchIndicesClient>()
+        every { client.indices() } returns indices
+        every { indices.exists(any<ExistsRequest>()) } returns Mono.just(BooleanResponse(true))
+        every { indices.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            GetMappingResponse.of { response ->
+                response.mappings("index") { record ->
+                    record.mappings { mapping ->
+                        mapping.meta("wow_query_presence_version", JsonData.of(1)).properties(properties)
+                    }
+                }
+            },
+        )
+        return client
     }
 }

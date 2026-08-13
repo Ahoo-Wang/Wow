@@ -75,6 +75,74 @@ class ElasticsearchQueryPlanCompilerTest {
     }
 
     @Test
+    fun `sparse deep leaf derives source parent metadata and keeps custom exact binding`() {
+        val sparse = LogicalField("profile.address.city")
+        val sparseSchema = schema.withField(
+            me.ahoo.wow.query.schema.QueryFieldSchema(
+                sparse,
+                me.ahoo.wow.query.schema.QueryFieldValueKind.STRING,
+                nullable = true,
+                bindings = setOf(
+                    QueryCapabilityBinding(
+                        ES_BACKEND,
+                        QueryFieldUsage.EXACT,
+                        QueryBackendFieldPath("profile.address.city.exact"),
+                    ),
+                ),
+            ),
+        )
+        val sparseCompiler = ElasticsearchQueryPlanCompiler(
+            ElasticsearchQueryFieldBinding.bind(sparseSchema),
+            ElasticsearchNativeQueryTemplateRegistry(),
+        )
+
+        assertTerm(
+            sparseCompiler.query(predicate(sparse.value, PortableOperator.NULL)),
+            "profile.address.__wow_query.null",
+            "city",
+        )
+        assertTerm(
+            sparseCompiler.query(
+                PredicateExpression(sparse, PortableOperator.EQ, listOf(QueryValue.StringValue("杭州"))),
+            ),
+            "profile.address.city.exact",
+            "杭州",
+        )
+    }
+
+    @Test
+    fun `explicit source-aligned nested binding remains expressible`() {
+        val itemsSchema = schema.fields.getValue(PortableQueryDataset.ITEMS).copy(
+            bindings = setOf(
+                QueryCapabilityBinding(ES_BACKEND, QueryFieldUsage.NESTED, QueryBackendFieldPath("items")),
+            ),
+        )
+        val itemSkuSchema = schema.fields.getValue(PortableQueryDataset.ITEM_SKU).copy(
+            bindings = setOf(
+                QueryCapabilityBinding(ES_BACKEND, QueryFieldUsage.EXACT, QueryBackendFieldPath("items.sku.exact")),
+            ),
+        )
+        val customCompiler = ElasticsearchQueryPlanCompiler(
+            ElasticsearchQueryFieldBinding.bind(schema.withField(itemsSchema).withField(itemSkuSchema)),
+            ElasticsearchNativeQueryTemplateRegistry(),
+        )
+
+        val query = customCompiler.query(
+            ElementMatchExpression(
+                PortableQueryDataset.ITEMS,
+                PredicateExpression(
+                    LogicalField("sku"),
+                    PortableOperator.EQ,
+                    listOf(QueryValue.StringValue("A")),
+                ),
+            ),
+        )
+
+        query.nested().path().assert().isEqualTo("items")
+        assertTerm(query.nested().query(), "items.sku.exact", "A")
+    }
+
+    @Test
     fun `not equal requires presence and excludes exact value`() {
         val query = compiler.query(
             PredicateExpression(title, PortableOperator.NE, listOf(QueryValue.StringValue("alpha"))),

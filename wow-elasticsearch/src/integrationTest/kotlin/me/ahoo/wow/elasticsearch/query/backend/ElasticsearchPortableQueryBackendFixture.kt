@@ -43,6 +43,8 @@ import reactor.core.publisher.MonoOperator
 import reactor.core.publisher.Flux
 import reactor.test.StepVerifier
 import java.util.Base64
+import java.util.EnumMap
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
@@ -183,73 +185,99 @@ internal class ElasticsearchObservableQueryBackendFactory(
     client: ReactiveElasticsearchClient,
 ) : ObservableQueryBackendFactory, ElasticsearchQueryPublisherObserver {
     private val delegate = ElasticsearchQueryBackendFactory(client)
+    private val preparedDelegate = ElasticsearchQueryBackendBinder(
+        client,
+        ElasticsearchNativeQueryTemplateRegistry(),
+        me.ahoo.wow.query.validation.QueryBudgetLimit.UNBOUNDED,
+    )
     private val nextHold = AtomicReference<QueryBackendClientHold?>()
-    private val subscriptions = AtomicLong()
-    private val cancellations = AtomicLong()
+    private val operationProbes = EnumMap<ElasticsearchQueryOperation, ElasticsearchClientOperationProbe>(
+        ElasticsearchQueryOperation::class.java,
+    ).apply {
+        ElasticsearchQueryOperation.entries.forEach { operation -> put(operation, ElasticsearchClientOperationProbe()) }
+    }
+    private val latestObservedPitId = AtomicReference<String>()
+    private val observedClosedPitIds = ConcurrentLinkedQueue<String>()
     private val routeReadinessVerified = AtomicBoolean()
+    private val preparedMappingSnapshot = AtomicReference<ElasticsearchQueryMappingSnapshot>()
 
     init {
         ElasticsearchQueryPublisherObservers.install(client, this)
     }
 
-    override val subscriptionCount: Long get() = subscriptions.get()
-    override val cancellationCount: Long get() = cancellations.get()
+    override val subscriptionCount: Long get() = subscriptionCount(ElasticsearchQueryOperation.SEARCH)
+    override val cancellationCount: Long get() = cancellationCount(ElasticsearchQueryOperation.SEARCH)
+    val latestPitId: String get() = checkNotNull(latestObservedPitId.get())
+    val closedPitIds: List<String> get() = observedClosedPitIds.toList()
+
+    fun subscriptionCount(operation: ElasticsearchQueryOperation): Long = probe(operation).subscriptions.get()
+
+    fun cancellationCount(operation: ElasticsearchQueryOperation): Long = probe(operation).cancellations.get()
 
     override fun bind(context: QueryBackendResolutionContext): QueryBackend {
         check(routeReadinessVerified.get()) { "Elasticsearch TCK route readiness was not verified." }
-        return ReadySnapshotQueryBackend(delegate.bind(context))
+        return preparedDelegate.bind(context, preparedMappingSnapshot.get())
     }
 
-    fun verifyRouteReadiness(context: QueryBackendResolutionContext): Mono<Void> = delegate.bind(context).readiness()
-        .flatMap { readiness ->
+    fun verifyRouteReadiness(context: QueryBackendResolutionContext): Mono<Void> {
+        val backend = delegate.bind(context) as ElasticsearchQueryBackend
+        return backend.readiness().flatMap { readiness ->
             if (readiness == QueryBackendReadiness.Ready) {
+                preparedMappingSnapshot.set((backend.mappingGuard as ElasticsearchQueryReadiness).mappingSnapshot)
                 routeReadinessVerified.set(true)
                 Mono.empty()
             } else Mono.error(AssertionError("Elasticsearch route is not ready: $readiness"))
         }
+    }
 
     override fun reset() {
         nextHold.set(null)
-        subscriptions.set(0)
-        cancellations.set(0)
+        operationProbes.values.forEach(ElasticsearchClientOperationProbe::reset)
+        latestObservedPitId.set(null)
+        observedClosedPitIds.clear()
     }
 
     override fun holdNextList(hold: QueryBackendClientHold) {
         check(nextHold.compareAndSet(null, hold)) { "An Elasticsearch client publisher hold is already armed." }
     }
 
-    override fun <T : Any> observe(publisher: Mono<T>): Mono<T> = HoldingClientMono(
+    override fun <T : Any> observe(
+        context: ElasticsearchQueryOperationContext,
+        publisher: Mono<T>,
+    ): Mono<T> = HoldingClientMono(
         publisher,
-        nextHold.getAndSet(null),
-        subscriptions,
-        cancellations,
+        context,
+        if (context.operation == ElasticsearchQueryOperation.SEARCH) nextHold.getAndSet(null) else null,
+        probe(context.operation),
+        observedClosedPitIds,
     )
-}
 
-private class ReadySnapshotQueryBackend(private val delegate: QueryBackend) : QueryBackend by delegate {
-    override fun readiness(): Mono<QueryBackendReadiness> = Mono.just(QueryBackendReadiness.Ready)
+    override fun updatePitId(pitId: String) {
+        latestObservedPitId.set(pitId)
+    }
+
+    private fun probe(operation: ElasticsearchQueryOperation): ElasticsearchClientOperationProbe =
+        operationProbes.getValue(operation)
 }
 
 private class HoldingClientMono<T : Any>(
     source: Mono<out T>,
+    private val operationContext: ElasticsearchQueryOperationContext,
     private val hold: QueryBackendClientHold?,
-    private val subscriptions: AtomicLong,
-    private val cancellations: AtomicLong,
+    private val probe: ElasticsearchClientOperationProbe,
+    private val closedPitIds: ConcurrentLinkedQueue<String>,
 ) : MonoOperator<T, T>(source) {
     override fun subscribe(actual: CoreSubscriber<in T>) {
-        subscriptions.incrementAndGet()
-        if (hold == null) {
-            source.subscribe(actual)
-            return
-        }
-        source.subscribe(HoldingClientSubscriber(actual, hold, cancellations))
+        source.subscribe(HoldingClientSubscriber(actual, operationContext, hold, probe, closedPitIds))
     }
 }
 
 private class HoldingClientSubscriber<T : Any>(
     private val downstream: CoreSubscriber<in T>,
-    private val hold: QueryBackendClientHold,
-    private val cancellations: AtomicLong,
+    private val operationContext: ElasticsearchQueryOperationContext,
+    private val hold: QueryBackendClientHold?,
+    private val probe: ElasticsearchClientOperationProbe,
+    private val closedPitIds: ConcurrentLinkedQueue<String>,
 ) : CoreSubscriber<T>, Subscription {
     private lateinit var upstream: Subscription
     private val cancelled = AtomicBoolean()
@@ -257,23 +285,49 @@ private class HoldingClientSubscriber<T : Any>(
     override fun currentContext() = downstream.currentContext()
     override fun onSubscribe(subscription: Subscription) {
         upstream = subscription
+        probe.subscriptions.incrementAndGet()
+        if (operationContext.operation == ElasticsearchQueryOperation.CLOSE_PIT) {
+            operationContext.pitId?.let(closedPitIds::add)
+        }
         downstream.onSubscribe(this)
     }
     override fun request(n: Long) {
-        if (hold == QueryBackendClientHold.AFTER_FIRST_RESULT) {
+        if (hold != QueryBackendClientHold.BEFORE_FIRST_RESULT) {
             upstream.request(n)
         }
     }
     override fun cancel() {
-        if (cancelled.compareAndSet(false, true)) cancellations.incrementAndGet()
+        if (cancelled.compareAndSet(false, true)) probe.cancellations.incrementAndGet()
         upstream.cancel()
     }
     override fun onNext(value: T) {
-        if (hold == QueryBackendClientHold.AFTER_FIRST_RESULT) downstream.onNext(value)
+        probe.responses.incrementAndGet()
+        if (hold != QueryBackendClientHold.BEFORE_FIRST_RESULT) downstream.onNext(value)
     }
-    override fun onError(error: Throwable) = downstream.onError(error)
+    override fun onError(error: Throwable) {
+        probe.errors.incrementAndGet()
+        downstream.onError(error)
+    }
     override fun onComplete() {
+        probe.completions.incrementAndGet()
         if (hold == QueryBackendClientHold.AFTER_FIRST_RESULT) return
+        downstream.onComplete()
+    }
+}
+
+private class ElasticsearchClientOperationProbe {
+    val subscriptions = AtomicLong()
+    val cancellations = AtomicLong()
+    val responses = AtomicLong()
+    val completions = AtomicLong()
+    val errors = AtomicLong()
+
+    fun reset() {
+        subscriptions.set(0)
+        cancellations.set(0)
+        responses.set(0)
+        completions.set(0)
+        errors.set(0)
     }
 }
 

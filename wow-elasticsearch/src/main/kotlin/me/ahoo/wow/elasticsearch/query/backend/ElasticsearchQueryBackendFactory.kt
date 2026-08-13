@@ -25,8 +25,8 @@ import me.ahoo.wow.api.query.expression.NativeExpression
 import me.ahoo.wow.api.query.expression.PortableLogicalExpression
 import me.ahoo.wow.api.query.expression.PortableOperator
 import me.ahoo.wow.api.query.expression.PredicateExpression
-import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.expression.QueryExpression
+import me.ahoo.wow.api.query.expression.QueryValue
 import me.ahoo.wow.api.query.expression.StringComparisonMode
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
@@ -36,7 +36,6 @@ import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendFactory
 import me.ahoo.wow.query.backend.QueryBackendResolutionContext
 import me.ahoo.wow.query.schema.QueryFieldUsage
-import me.ahoo.wow.query.schema.QueryFieldValueKind
 import me.ahoo.wow.query.validation.QueryBudgetLimit
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 
@@ -46,7 +45,28 @@ class ElasticsearchQueryBackendFactory @JvmOverloads constructor(
         ElasticsearchNativeQueryTemplateRegistry(),
     private val maxBudget: QueryBudgetLimit = QueryBudgetLimit.UNBOUNDED,
 ) : QueryBackendFactory {
-    override fun bind(context: QueryBackendResolutionContext): QueryBackend {
+    private val binder = ElasticsearchQueryBackendBinder(client, nativeTemplates, maxBudget)
+
+    override fun bind(context: QueryBackendResolutionContext): QueryBackend = binder.bind(context)
+
+    companion object {
+        const val BACKEND_ID: String = "elasticsearch"
+        const val FULL_TEXT_CAPABILITY: String = "full-text"
+        const val NATIVE_CAPABILITY: String = "x-wow:elasticsearch-native"
+    }
+}
+
+internal class ElasticsearchQueryBackendBinder(
+    private val client: ReactiveElasticsearchClient,
+    private val nativeTemplates: ElasticsearchNativeQueryTemplateRegistry,
+    private val maxBudget: QueryBudgetLimit,
+) {
+    fun bind(context: QueryBackendResolutionContext): QueryBackend = bind(context, null)
+
+    fun bind(
+        context: QueryBackendResolutionContext,
+        preparedMappingSnapshot: ElasticsearchQueryMappingSnapshot?,
+    ): QueryBackend {
         val index = when (context.target.documentKind) {
             QueryDocumentKind.SNAPSHOT -> context.target.namedAggregate.toSnapshotIndexName()
             QueryDocumentKind.EVENT_STREAM -> context.target.namedAggregate.toEventStreamIndexName()
@@ -63,6 +83,12 @@ class ElasticsearchQueryBackendFactory @JvmOverloads constructor(
             nativeTemplates,
             elasticsearchQueryBackendDescriptor(maxBudget),
             requirements,
+            mappingGuard = ElasticsearchQueryReadiness(
+                client,
+                index,
+                requirements,
+                preparedMappingSnapshot ?: ElasticsearchQueryMappingSnapshot(),
+            ),
         )
     }
 
@@ -70,11 +96,9 @@ class ElasticsearchQueryBackendFactory @JvmOverloads constructor(
         private val binding: ElasticsearchQueryFieldBinding,
         private val nativeTemplates: ElasticsearchNativeQueryTemplateRegistry,
     ) {
-        val exact = LinkedHashSet<String>()
-        val search = LinkedHashSet<String>()
-        val sort = LinkedHashSet<String>()
-        val nested = LinkedHashSet<String>()
-        val presence = LinkedHashSet<String>()
+        private val fields = LinkedHashSet<ElasticsearchMappingFieldRequirement>()
+        private val presenceFields = LinkedHashSet<String>()
+        private val presence = ElasticsearchQueryPresenceBinding(binding)
         var valid = true
 
         fun collect(
@@ -82,33 +106,13 @@ class ElasticsearchQueryBackendFactory @JvmOverloads constructor(
             configurationValid: Boolean,
         ): ElasticsearchQueryReadinessRequirements {
             valid = configurationValid
-            collectSchemaRequirements()
             inspect(expression)
             return ElasticsearchQueryReadinessRequirements(
-                valid,
-                exact,
-                search,
-                sort,
-                nested,
-                ElasticsearchQueryPresenceEncoder.VERSION,
-                presence,
+                configurationValid = valid,
+                fields = fields,
+                presenceVersion = ElasticsearchQueryPresenceEncoder.VERSION,
+                presenceFields = presenceFields,
             )
-        }
-
-        private fun collectSchemaRequirements() = binding.schemas().forEach { (logical, schema) ->
-            if (schema.queryable && schema.valueKind !in setOf(QueryFieldValueKind.OBJECT, QueryFieldValueKind.MAP)) {
-                exact += binding.physical(logical, QueryFieldUsage.EXACT)
-                presence += binding.presenceField(logical)
-            }
-            if (schema.sortable) {
-                sort += binding.physical(logical, QueryFieldUsage.SORT)
-            }
-            if (me.ahoo.wow.api.query.expression.QueryCapabilityId(FULL_TEXT_CAPABILITY) in schema.capabilities) {
-                search += binding.physical(logical, QueryFieldUsage.SEARCH)
-            }
-            if (schema.elementMatchEnabled) {
-                nested += binding.physical(logical, QueryFieldUsage.NESTED)
-            }
         }
 
         private fun inspect(current: QueryExpression, relativeTo: LogicalField? = null) {
@@ -125,7 +129,7 @@ class ElasticsearchQueryBackendFactory @JvmOverloads constructor(
 
         private fun inspectPredicate(current: PredicateExpression, relativeTo: LogicalField?) {
             val logical = resolve(relativeTo, current.field)
-            exact += binding.physical(logical)
+            collectPredicateFields(current, logical)
             val hasUnsupportedCollation = current.stringComparison == StringComparisonMode.DEFAULT &&
                 current.operator.isStringOperator() && binding.schema(logical).stringOptions?.collation != null
             if (hasUnsupportedCollation) {
@@ -135,12 +139,15 @@ class ElasticsearchQueryBackendFactory @JvmOverloads constructor(
 
         private fun inspectElementMatch(current: ElementMatchExpression, relativeTo: LogicalField?) {
             val logical = resolve(relativeTo, current.field)
-            nested += binding.physical(logical, QueryFieldUsage.NESTED)
+            addField(logical, QueryFieldUsage.NESTED, ElasticsearchMappingUsage.NESTED)
+            if (binding.physical(logical, QueryFieldUsage.NESTED) != binding.source(logical)) {
+                valid = false
+            }
             inspect(current.predicate, logical)
         }
 
         private fun inspectFullText(current: FullTextExpression, relativeTo: LogicalField?) {
-            if (current.capabilityId.value != FULL_TEXT_CAPABILITY) {
+            if (current.capabilityId.value != ElasticsearchQueryBackendFactory.FULL_TEXT_CAPABILITY) {
                 unsupported()
             }
             current.fields.forEach { field ->
@@ -148,17 +155,82 @@ class ElasticsearchQueryBackendFactory @JvmOverloads constructor(
                 if (!binding.contains(logical) || current.capabilityId !in binding.schema(logical).capabilities) {
                     unsupported()
                 }
-                search += binding.physical(logical, QueryFieldUsage.SEARCH)
+                addField(logical, QueryFieldUsage.SEARCH, ElasticsearchMappingUsage.SEARCH)
             }
         }
 
         private fun inspectNative(current: NativeExpression, relativeTo: LogicalField?) {
-            val capabilityMismatch = current.capabilityId.value != NATIVE_CAPABILITY || current.backendId != BACKEND_ID
+            val capabilityMismatch =
+                current.capabilityId.value != ElasticsearchQueryBackendFactory.NATIVE_CAPABILITY ||
+                    current.backendId != ElasticsearchQueryBackendFactory.BACKEND_ID
             val undeclaredField = current.declaredFields.any { field -> !binding.contains(resolve(relativeTo, field)) }
             val missingTemplate = nativeTemplates.template(current.templateId) == null
             if (capabilityMismatch || undeclaredField || missingTemplate) {
                 unsupported()
             }
+            current.declaredFields.forEach { field ->
+                addField(resolve(relativeTo, field), QueryFieldUsage.EXACT, ElasticsearchMappingUsage.EXACT)
+            }
+        }
+
+        private fun collectPredicateFields(expression: PredicateExpression, logical: LogicalField) {
+            val hasNull = QueryValue.NullValue in expression.values
+            when (expression.operator) {
+                PortableOperator.EQ -> if (hasNull) addNull(logical) else addExact(logical)
+                PortableOperator.NE -> {
+                    addPresent(logical)
+                    if (hasNull) addNull(logical) else addExact(logical)
+                }
+                PortableOperator.IN,
+                PortableOperator.NOT_IN,
+                -> {
+                    addPresent(logical)
+                    if (hasNull) addNull(logical)
+                    if (expression.values.any { it != QueryValue.NullValue }) addExact(logical)
+                }
+                PortableOperator.GT,
+                PortableOperator.LT,
+                PortableOperator.GTE,
+                PortableOperator.LTE,
+                PortableOperator.BETWEEN,
+                -> {
+                    addPresent(logical)
+                    addExact(logical)
+                }
+                PortableOperator.NULL -> addNull(logical)
+                PortableOperator.NOT_NULL -> {
+                    addPresent(logical)
+                    addNull(logical)
+                }
+                PortableOperator.EXISTS -> addPresent(logical)
+                else -> addExact(logical)
+            }
+        }
+
+        private fun addExact(logical: LogicalField) =
+            addField(logical, QueryFieldUsage.EXACT, ElasticsearchMappingUsage.EXACT)
+
+        private fun addPresent(logical: LogicalField) {
+            presenceFields += presence.present(logical).field
+        }
+
+        private fun addNull(logical: LogicalField) {
+            presenceFields += presence.explicitNull(logical).field
+        }
+
+        private fun addField(
+            logical: LogicalField,
+            physicalUsage: QueryFieldUsage,
+            mappingUsage: ElasticsearchMappingUsage,
+        ) {
+            val schema = binding.schema(logical)
+            fields += ElasticsearchMappingFieldRequirement(
+                binding.physical(logical, physicalUsage),
+                schema.valueKind,
+                schema.collectionKind,
+                schema.system,
+                mappingUsage,
+            )
         }
 
         private fun resolve(relativeTo: LogicalField?, field: LogicalField): LogicalField =
@@ -178,11 +250,5 @@ class ElasticsearchQueryBackendFactory @JvmOverloads constructor(
             QueryStage.PLANNING,
             QueryErrorReason.CAPABILITY_DENIED,
         )
-    }
-
-    companion object {
-        const val BACKEND_ID: String = "elasticsearch"
-        const val FULL_TEXT_CAPABILITY: String = "full-text"
-        const val NATIVE_CAPABILITY: String = "x-wow:elasticsearch-native"
     }
 }

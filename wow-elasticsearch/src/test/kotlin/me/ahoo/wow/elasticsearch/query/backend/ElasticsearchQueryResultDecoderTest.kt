@@ -14,14 +14,29 @@
 package me.ahoo.wow.elasticsearch.query.backend
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.ImmutableDynamicDocument
+import me.ahoo.wow.api.query.error.QueryErrorCode
+import me.ahoo.wow.api.query.error.QueryErrorReason
 import me.ahoo.wow.api.query.error.QueryException
+import me.ahoo.wow.api.query.error.QueryStage
+import me.ahoo.wow.api.query.expression.LogicalField
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
+import me.ahoo.wow.api.query.gateway.QueryTarget
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.plan.QueryPlanResultShape
+import me.ahoo.wow.query.schema.QueryCollectionKind
+import me.ahoo.wow.query.schema.QueryFieldSchema
+import me.ahoo.wow.query.schema.QueryFieldValueKind
+import me.ahoo.wow.query.schema.QuerySchema
+import me.ahoo.wow.query.schema.QuerySystemFields
 import me.ahoo.wow.tck.query.backend.PortableQueryDataset
 import me.ahoo.wow.tck.query.backend.PortableQueryResult
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.math.BigInteger
+import java.time.Instant
+import java.util.Base64
 
 class ElasticsearchQueryResultDecoderTest {
     private val binding = ElasticsearchQueryFieldBinding.bind(
@@ -82,5 +97,193 @@ class ElasticsearchQueryResultDecoderTest {
                 binding.projection(rank.fields),
             )
         }
+    }
+
+    @Test
+    fun `scalar and collection shapes are enforced`() {
+        val scalar = QueryFieldSchema(VALUE, QueryFieldValueKind.STRING, nullable = false)
+        assertResultInvalid(assertThrows { decodeDynamic(listOf(scalar), mapOf("value" to listOf("a")), VALUE) })
+
+        val collection = QueryFieldSchema(
+            VALUE,
+            QueryFieldValueKind.INTEGER,
+            nullable = false,
+            collectionKind = QueryCollectionKind.SCALAR,
+        )
+        assertResultInvalid(assertThrows { decodeDynamic(listOf(collection), mapOf("value" to 1L), VALUE) })
+        assertResultInvalid(
+            assertThrows { decodeDynamic(listOf(collection), mapOf("value" to listOf(1L, null)), VALUE) },
+        )
+    }
+
+    @Test
+    fun `nullable object ancestor materializes as null but malformed ancestor fails`() {
+        val profile = LogicalField("profile")
+        val city = LogicalField("profile.city")
+        val fields = listOf(
+            QueryFieldSchema(profile, QueryFieldValueKind.OBJECT, nullable = true),
+            QueryFieldSchema(city, QueryFieldValueKind.STRING, nullable = false),
+        )
+        val decoder = decoder(fields)
+        val shape = QueryPlanResultShape.Typed(NullableProfileResult::class.java, setOf(city))
+
+        listOf(emptyMap(), mapOf("profile" to null)).forEach { source ->
+            decodeDynamic(fields, source, city).assert().isNull()
+            decoder.decode<NullableProfileResult>(source, shape, linkedMapOf(city to "profile.city"))
+                .profile.assert().isNull()
+        }
+        assertResultInvalid(assertThrows { decodeDynamic(fields, mapOf("profile" to "invalid"), city) })
+    }
+
+    @Test
+    fun `typed object collection merges same-index children independent of projection order`() {
+        val items = LogicalField("items")
+        val sku = LogicalField("items.sku")
+        val quantity = LogicalField("items.quantity")
+        val fields = listOf(
+            QueryFieldSchema(
+                items,
+                QueryFieldValueKind.OBJECT,
+                nullable = false,
+                collectionKind = QueryCollectionKind.OBJECT,
+            ),
+            QueryFieldSchema(sku, QueryFieldValueKind.STRING, nullable = false),
+            QueryFieldSchema(quantity, QueryFieldValueKind.INTEGER, nullable = false),
+        )
+        val decoder = decoder(fields)
+        val source = mapOf(
+            "items" to listOf(
+                mapOf("sku" to "A", "quantity" to 1L),
+                mapOf("sku" to "B", "quantity" to 2L),
+            ),
+        )
+        val shape = QueryPlanResultShape.Typed(ItemsResult::class.java, setOf(sku, quantity))
+
+        listOf(
+            linkedMapOf(sku to "items.sku", quantity to "items.quantity"),
+            linkedMapOf(quantity to "items.quantity", sku to "items.sku"),
+        ).forEach { projection ->
+            decoder.decode<ItemsResult>(source, shape, projection).assert().isEqualTo(
+                ItemsResult(listOf(ItemResult("A", 1), ItemResult("B", 2))),
+            )
+        }
+    }
+
+    @Test
+    fun `typed object collection rejects child array length collision`() {
+        val items = LogicalField("items")
+        val sku = LogicalField("items.sku")
+        val quantity = LogicalField("items.quantity")
+        val fields = listOf(
+            QueryFieldSchema(
+                items,
+                QueryFieldValueKind.OBJECT,
+                nullable = false,
+                collectionKind = QueryCollectionKind.OBJECT,
+            ),
+            QueryFieldSchema(sku, QueryFieldValueKind.STRING, nullable = false),
+            QueryFieldSchema(quantity, QueryFieldValueKind.INTEGER, nullable = false),
+        )
+        val shape = QueryPlanResultShape.Typed(ItemsResult::class.java, setOf(sku, quantity))
+
+        val error = assertThrows<QueryException> {
+            decoder(fields).decode<ItemsResult>(
+                mapOf("skus" to listOf("A", "B"), "quantities" to listOf(1L)),
+                shape,
+                linkedMapOf(sku to "skus", quantity to "quantities"),
+            )
+        }
+
+        assertResultInvalid(error)
+    }
+
+    @Test
+    fun `wire values normalize defensively and enforce time representation`() {
+        val binary = LogicalField("binary")
+        val systemTime = QuerySystemFields.fields(QueryDocumentKind.SNAPSHOT).single { it.path.value == "eventTime" }
+        val applicationTime = QueryFieldSchema(
+            LogicalField("applicationTime"),
+            QueryFieldValueKind.TIME,
+            nullable = false,
+        )
+        val fields = QuerySystemFields.fields(QueryDocumentKind.SNAPSHOT) +
+            QueryFieldSchema(binary, QueryFieldValueKind.BINARY, nullable = false) + applicationTime
+        val bytes = byteArrayOf(1, 2, 3)
+        val encoded = Base64.getEncoder().encodeToString(bytes)
+
+        val decoded = decodeDynamic(fields, mapOf("binary" to encoded), binary) as ByteArray
+        decoded.assert().isEqualTo(bytes)
+        bytes[0] = 9
+        decoded.assert().isEqualTo(byteArrayOf(1, 2, 3))
+        decodeDynamic(fields, mapOf("eventTime" to 1L), systemTime.path)
+            .assert().isEqualTo(Instant.ofEpochMilli(1))
+        decodeDynamic(fields, mapOf("applicationTime" to "2026-08-13T00:00:00Z"), applicationTime.path)
+            .assert().isEqualTo(Instant.parse("2026-08-13T00:00:00Z"))
+
+        listOf(
+            Triple(binary, mapOf("binary" to "%%%"), fields),
+            Triple(systemTime.path, mapOf("eventTime" to "2026-08-13T00:00:00Z"), fields),
+            Triple(applicationTime.path, mapOf("applicationTime" to 1L), fields),
+            Triple(
+                systemTime.path,
+                mapOf("eventTime" to BigInteger.valueOf(Long.MAX_VALUE).add(BigInteger.ONE)),
+                fields,
+            ),
+        ).forEach { (field, source, schemas) ->
+            assertResultInvalid(assertThrows { decodeDynamic(schemas, source, field) })
+        }
+    }
+
+    @Test
+    fun `non-finite decimals and typed conversion errors are low information`() {
+        val decimal = QueryFieldSchema(VALUE, QueryFieldValueKind.DECIMAL, nullable = false)
+        listOf(Double.NaN, Double.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY).forEach { value ->
+            assertResultInvalid(assertThrows { decodeDynamic(listOf(decimal), mapOf("value" to value), VALUE) })
+        }
+        val string = QueryFieldSchema(VALUE, QueryFieldValueKind.STRING, nullable = false)
+        val typed = QueryPlanResultShape.Typed(IntValueResult::class.java, setOf(VALUE))
+        val error = assertThrows<QueryException> {
+            decoder(listOf(string)).decode<IntValueResult>(
+                mapOf("value" to "not-an-int"),
+                typed,
+                mapOf(VALUE to "value"),
+            )
+        }
+        assertResultInvalid(error)
+    }
+
+    private fun decodeDynamic(
+        fields: Collection<QueryFieldSchema>,
+        source: Map<String, Any?>,
+        field: LogicalField,
+    ): Any? = decoder(fields).decode<DynamicDocument>(
+        source,
+        QueryPlanResultShape.Dynamic(setOf(field)),
+        mapOf(field to field.value),
+    )[field.value]
+
+    private fun decoder(fields: Collection<QueryFieldSchema>): ElasticsearchQueryResultDecoder =
+        ElasticsearchQueryResultDecoder(ElasticsearchQueryFieldBinding.bind(QuerySchema(TARGET, fields)))
+
+    private fun assertResultInvalid(error: QueryException) {
+        error.code.assert().isEqualTo(QueryErrorCode.RESULT_VALIDATION_FAILED)
+        error.stage.assert().isEqualTo(QueryStage.EXECUTION)
+        error.reason.assert().isEqualTo(QueryErrorReason.RESULT_INVALID)
+        error.message.assert().isEqualTo("RESULT_VALIDATION_FAILED:EXECUTION:RESULT_INVALID")
+        error.cause.assert().isNull()
+    }
+
+    data class NullableProfileResult(val profile: ProfileResult?)
+    data class ProfileResult(val city: String)
+    data class ItemsResult(val items: List<ItemResult>)
+    data class ItemResult(val sku: String, val quantity: Long)
+    data class IntValueResult(val value: Int)
+
+    private companion object {
+        val TARGET = QueryTarget(
+            MaterializedNamedAggregate("elasticsearch-query-decoder", "value"),
+            QueryDocumentKind.SNAPSHOT,
+        )
+        val VALUE = LogicalField("value")
     }
 }

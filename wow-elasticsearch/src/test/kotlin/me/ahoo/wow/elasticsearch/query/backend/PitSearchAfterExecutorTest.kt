@@ -27,11 +27,11 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class PitSearchAfterExecutorTest {
     @Test
-    fun `complete closes pit exactly once and advances with last sort`() {
+    fun `complete advances and closes with the latest rotated pit id`() {
         val transport = RecordingPitTransport(
             listOf(
-                PitSearchPage(listOf(hit("a", 1), hit("b", 2))),
-                PitSearchPage(emptyList()),
+                PitSearchPage(listOf(hit("a", 1), hit("b", 2)), pitId = "pit-1"),
+                PitSearchPage(emptyList(), pitId = "pit-2"),
             ),
         )
         val executor = PitSearchAfterExecutor(transport, "index", 2) { request -> request }
@@ -43,38 +43,59 @@ class PitSearchAfterExecutorTest {
         transport.openCount.get().assert().isOne()
         transport.closeCount.get().assert().isOne()
         transport.requests.size.assert().isEqualTo(2)
+        transport.requests[0].pit()!!.id().assert().isEqualTo("pit-id")
+        transport.requests[1].pit()!!.id().assert().isEqualTo("pit-1")
         transport.requests[0].searchAfter().assert().isEmpty()
         transport.requests[1].searchAfter().single().longValue().assert().isEqualTo(2L)
+        transport.closedPitIds.assert().containsExactly("pit-2")
     }
 
     @Test
-    fun `cancel error and decode failure close pit exactly once`() {
-        val cancel = RecordingPitTransport(listOf(PitSearchPage(listOf(hit("a", 1), hit("b", 2)))))
+    fun `downstream cancel closes the latest rotated pit id`() {
+        val cancel = RecordingPitTransport(
+            listOf(PitSearchPage(listOf(hit("a", 1), hit("b", 2)), pitId = "pit-1")),
+        )
         StepVerifier.create(PitSearchAfterExecutor(cancel, "index", 2) { it }.execute(null), 1)
             .expectNextCount(1)
             .thenCancel()
             .verify()
         cancel.closeCount.get().assert().isOne()
         cancel.requests.size.assert().isOne()
+        cancel.closedPitIds.assert().containsExactly("pit-1")
+    }
 
-        val failure = RecordingPitTransport(emptyList(), searchError = IllegalStateException("boom"))
-        StepVerifier.create(PitSearchAfterExecutor(failure, "index", 2) { it }.execute(null))
+    @Test
+    fun `search error closes the latest rotated pit id`() {
+        val failure = RecordingPitTransport(
+            pages = listOf(PitSearchPage(listOf(hit("a", 1)), pitId = "pit-1")),
+            searchError = IllegalStateException("boom"),
+            searchErrorAt = 1,
+        )
+        StepVerifier.create(PitSearchAfterExecutor(failure, "index", 1) { it }.execute(null))
+            .expectNextCount(1)
             .expectError(QueryException::class.java)
             .verify()
         failure.closeCount.get().assert().isOne()
+        failure.closedPitIds.assert().containsExactly("pit-1")
+    }
 
-        val decode = RecordingPitTransport(listOf(PitSearchPage(listOf(hit("a", 1)))))
+    @Test
+    fun `decode failure closes the latest rotated pit id`() {
+        val decode = RecordingPitTransport(
+            listOf(PitSearchPage(listOf(hit("a", 1)), pitId = "pit-1")),
+        )
         StepVerifier.create(
             PitSearchAfterExecutor(decode, "index", 2) { it }.execute(null)
                 .map<Any> { throw IllegalArgumentException("decode") },
         ).expectError(IllegalArgumentException::class.java).verify()
         decode.closeCount.get().assert().isOne()
+        decode.closedPitIds.assert().containsExactly("pit-1")
     }
 
     @Test
     fun `finite administrator budget reads one sentinel then fails and closes`() {
         val transport = RecordingPitTransport(
-            listOf(PitSearchPage(listOf(hit("a", 1), hit("b", 2), hit("c", 3)))),
+            listOf(PitSearchPage(listOf(hit("a", 1), hit("b", 2), hit("c", 3)), pitId = "pit-1")),
         )
 
         StepVerifier.create(PitSearchAfterExecutor(transport, "index", 3) { it }.execute(maxResults = 2))
@@ -83,7 +104,29 @@ class PitSearchAfterExecutorTest {
             .verify()
 
         transport.closeCount.get().assert().isOne()
+        transport.closedPitIds.assert().containsExactly("pit-1")
         transport.requests.single().size().assert().isEqualTo(3)
+    }
+
+    @Test
+    fun `request limit truncates normally while administrator limit uses a sentinel`() {
+        val requestLimited = RecordingPitTransport(
+            listOf(PitSearchPage(listOf(hit("a", 1), hit("b", 2), hit("c", 3)))),
+        )
+        StepVerifier.create(
+            PitSearchAfterExecutor(requestLimited, "index", 3) { it }
+                .execute(requestLimit = 2, maxResults = null),
+        ).expectNextCount(2).verifyComplete()
+        requestLimited.requests.single().size().assert().isEqualTo(2)
+
+        val administratorLimited = RecordingPitTransport(
+            listOf(PitSearchPage(listOf(hit("a", 1), hit("b", 2), hit("c", 3)))),
+        )
+        StepVerifier.create(
+            PitSearchAfterExecutor(administratorLimited, "index", 3) { it }
+                .execute(requestLimit = null, maxResults = 2),
+        ).expectNextCount(2).expectError(QueryException::class.java).verify()
+        administratorLimited.requests.single().size().assert().isEqualTo(3)
     }
 
     @Test
@@ -116,15 +159,17 @@ class PitSearchAfterExecutorTest {
     fun `absolute deadline cancels an in-flight search and closes pit exactly once`() {
         val scheduler = VirtualTimeScheduler.create()
         val searchCancelled = AtomicBoolean()
-        val transport = RecordingPitTransport(emptyList()).also {
-            it.searchPublisher = Mono.never<String>().doOnCancel {
+        val transport = RecordingPitTransport(
+            listOf(PitSearchPage(listOf(hit("a", 1)), pitId = "pit-1")),
+        ).also {
+            it.searchPublishers[1] = Mono.never<String>().doOnCancel {
                 searchCancelled.set(true)
             }.thenReturn(PitSearchPage(emptyList()))
         }
         val executor = PitSearchAfterExecutor(
             transport,
             "index",
-            2,
+            1,
             now = { Instant.EPOCH },
             deadlineScheduler = scheduler,
         ) { it }
@@ -135,7 +180,8 @@ class PitSearchAfterExecutorTest {
             },
             { scheduler },
             1,
-        ).thenAwait(java.time.Duration.ofSeconds(2))
+        ).expectNextCount(1)
+            .thenAwait(java.time.Duration.ofSeconds(2))
             .expectErrorSatisfies { error ->
                 (error as QueryException).code.assert()
                     .isEqualTo(me.ahoo.wow.api.query.error.QueryErrorCode.DEADLINE_EXCEEDED)
@@ -144,6 +190,7 @@ class PitSearchAfterExecutorTest {
 
         transport.openCount.get().assert().isOne()
         transport.closeCount.get().assert().isOne()
+        transport.closedPitIds.assert().containsExactly("pit-1")
         searchCancelled.get().assert().isTrue()
     }
 
@@ -173,12 +220,14 @@ class PitSearchAfterExecutorTest {
 private class RecordingPitTransport(
     private val pages: List<PitSearchPage<String>>,
     private val searchError: Throwable? = null,
+    private val searchErrorAt: Int = 0,
 ) : PitSearchAfterTransport<String> {
     val openCount = AtomicInteger()
     val closeCount = AtomicInteger()
+    val closedPitIds = mutableListOf<String>()
     val requests = mutableListOf<SearchRequest>()
     var openPublisher: Mono<String>? = null
-    var searchPublisher: Mono<PitSearchPage<String>>? = null
+    val searchPublishers = mutableMapOf<Int, Mono<PitSearchPage<String>>>()
     var closePublisher: Mono<Void>? = null
 
     override fun open(index: String) = Mono.defer {
@@ -188,12 +237,16 @@ private class RecordingPitTransport(
 
     override fun search(request: SearchRequest): Mono<PitSearchPage<String>> = Mono.defer {
         requests += request
-        searchError?.let { return@defer Mono.error(it) }
-        searchPublisher ?: Mono.just(pages.getOrElse(requests.lastIndex) { PitSearchPage(emptyList()) })
+        val requestIndex = requests.lastIndex
+        if (requestIndex == searchErrorAt) {
+            searchError?.let { return@defer Mono.error(it) }
+        }
+        searchPublishers[requestIndex] ?: Mono.just(pages.getOrElse(requestIndex) { PitSearchPage(emptyList()) })
     }
 
     override fun close(pitId: String) = Mono.defer {
         closeCount.incrementAndGet()
+        closedPitIds += pitId
         closePublisher ?: Mono.empty()
     }
 }

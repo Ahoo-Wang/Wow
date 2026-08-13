@@ -25,6 +25,7 @@ import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import java.time.Duration
 import java.time.Instant
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.min
 
 internal data class PitSearchHit<T : Any>(
@@ -34,6 +35,7 @@ internal data class PitSearchHit<T : Any>(
 
 internal data class PitSearchPage<T : Any>(
     val hits: List<PitSearchHit<T>>,
+    val pitId: String? = null,
 )
 
 internal interface PitSearchAfterTransport<T : Any> {
@@ -56,13 +58,20 @@ internal class PitSearchAfterExecutor<T : Any>(
         require(pageSize > 0) { "pageSize must be positive." }
     }
 
-    fun execute(maxResults: Long?, deadline: Instant? = null): Flux<PitSearchHit<T>> {
+    fun execute(maxResults: Long?, deadline: Instant? = null): Flux<PitSearchHit<T>> =
+        execute(requestLimit = null, maxResults = maxResults, deadline = deadline)
+
+    fun execute(
+        requestLimit: Long?,
+        maxResults: Long?,
+        deadline: Instant? = null,
+    ): Flux<PitSearchHit<T>> {
         val execution = Flux.usingWhen(
-            transport.open(index).switchIfEmpty(Mono.error(backendFailure())),
-            { pitId -> search(pitId, emptyList(), 0, maxResults) },
-            ::close,
-            { pitId, _ -> close(pitId) },
-            ::close,
+            transport.open(index).map(::AtomicReference).switchIfEmpty(Mono.error(backendFailure())),
+            { session -> search(session, emptyList(), 0, requestLimit, maxResults) },
+            { session -> close(session.get()) },
+            { session, _ -> close(session.get()) },
+            { session -> close(session.get()) },
         ).onErrorMap(::sanitize)
         if (deadline == null) {
             return execution
@@ -79,19 +88,36 @@ internal class PitSearchAfterExecutor<T : Any>(
     }
 
     private fun search(
-        pitId: String,
+        session: AtomicReference<String>,
         searchAfter: List<FieldValue>,
         emitted: Long,
+        requestLimit: Long?,
         maxResults: Long?,
     ): Flux<PitSearchHit<T>> = Flux.defer {
-        val remaining = maxResults?.minus(emitted)
-        if (remaining != null && remaining < 0) {
-            return@defer Flux.error(budgetExceeded())
+        val window = searchWindow(emitted, requestLimit, maxResults) ?: return@defer Flux.empty()
+        val request = searchRequest(session.get(), searchAfter, window.requestedSize)
+        transport.search(request).flatMapMany { page ->
+            page.pitId?.let(session::set)
+            emitPage(session, searchAfter, emitted, requestLimit, maxResults, window, page)
         }
-        val requestedSize = remaining
-            ?.let { min(pageSize.toLong(), if (it == Long.MAX_VALUE) it else it + 1).toInt() }
-            ?: pageSize
-        val request = SearchRequest.of { builder ->
+    }
+
+    private fun searchWindow(emitted: Long, requestLimit: Long?, maxResults: Long?): SearchWindow? {
+        val remainingRequest = requestLimit?.minus(emitted)
+        if (remainingRequest != null && remainingRequest <= 0) {
+            return null
+        }
+        val remainingBudget = maxResults?.minus(emitted)
+        if (remainingBudget != null && remainingBudget < 0) {
+            throw budgetExceeded()
+        }
+        val budgetWindow = remainingBudget?.let { if (it == Long.MAX_VALUE) it else it + 1 }
+        val requestedSize = listOfNotNull(pageSize.toLong(), remainingRequest, budgetWindow).min().toInt()
+        return SearchWindow(remainingRequest, remainingBudget, requestedSize)
+    }
+
+    private fun searchRequest(pitId: String, searchAfter: List<FieldValue>, requestedSize: Int): SearchRequest =
+        SearchRequest.of { builder ->
             builder
                 .pit { pit -> pit.id(pitId).keepAlive { keepAlive -> keepAlive.time(PIT_KEEP_ALIVE) } }
                 .size(requestedSize)
@@ -102,20 +128,54 @@ internal class PitSearchAfterExecutor<T : Any>(
                 }
         }.let(requestDecorator)
 
-        transport.search(request).flatMapMany { page ->
-            if (page.hits.isEmpty()) {
-                return@flatMapMany Flux.empty()
-            }
-            validateSort(page.hits, searchAfter)
-            val allowed = remaining?.coerceAtLeast(0)?.coerceAtMost(page.hits.size.toLong())?.toInt()
-                ?: page.hits.size
-            val current = page.hits.take(allowed)
-            val terminal = when {
-                allowed < page.hits.size -> Flux.error(budgetExceeded())
-                page.hits.size < requestedSize -> Flux.empty()
-                else -> search(pitId, page.hits.last().sort, emitted + current.size, maxResults)
-            }
-            Flux.fromIterable(current).concatWith(terminal)
+    private fun emitPage(
+        session: AtomicReference<String>,
+        searchAfter: List<FieldValue>,
+        emitted: Long,
+        requestLimit: Long?,
+        maxResults: Long?,
+        window: SearchWindow,
+        page: PitSearchPage<T>,
+    ): Flux<PitSearchHit<T>> {
+        if (page.hits.isEmpty()) {
+            return Flux.empty()
+        }
+        validateSort(page.hits, searchAfter)
+        val allowed = listOfNotNull(
+            page.hits.size.toLong(),
+            window.remainingRequest,
+            window.remainingBudget?.coerceAtLeast(0),
+        ).min().toInt()
+        val current = page.hits.take(allowed)
+        return Flux.fromIterable(current).concatWith(
+            nextPage(session, emitted, requestLimit, maxResults, window, page, current.size),
+        )
+    }
+
+    private fun nextPage(
+        session: AtomicReference<String>,
+        emitted: Long,
+        requestLimit: Long?,
+        maxResults: Long?,
+        window: SearchWindow,
+        page: PitSearchPage<T>,
+        currentSize: Int,
+    ): Flux<PitSearchHit<T>> {
+        val budgetExceeded = window.remainingBudget != null &&
+            page.hits.size.toLong() > window.remainingBudget &&
+            (window.remainingRequest == null || window.remainingBudget < window.remainingRequest)
+        val requestSatisfied = window.remainingRequest != null &&
+            currentSize.toLong() >= window.remainingRequest
+        return when {
+            budgetExceeded -> Flux.error(budgetExceeded())
+            requestSatisfied || page.hits.size < window.requestedSize -> Flux.empty()
+            else -> search(
+                session,
+                page.hits.last().sort,
+                emitted + currentSize,
+                requestLimit,
+                maxResults,
+            )
         }
     }
 
@@ -180,4 +240,10 @@ internal class PitSearchAfterExecutor<T : Any>(
     companion object {
         private const val PIT_KEEP_ALIVE = "1m"
     }
+
+    private data class SearchWindow(
+        val remainingRequest: Long?,
+        val remainingBudget: Long?,
+        val requestedSize: Int,
+    )
 }

@@ -37,18 +37,20 @@ import reactor.core.publisher.Mono
 internal class ElasticsearchQueryBackend(
     client: ReactiveElasticsearchClient,
     private val index: String,
-    binding: ElasticsearchQueryFieldBinding,
+    private val binding: ElasticsearchQueryFieldBinding,
     nativeTemplates: ElasticsearchNativeQueryTemplateRegistry,
     override val descriptor: QueryBackendDescriptor,
     readinessRequirements: ElasticsearchQueryReadinessRequirements,
     private val transport: ElasticsearchQueryTransport = ReactiveClientElasticsearchQueryTransport(client),
+    internal val mappingGuard: ElasticsearchQueryMappingGuard =
+        ElasticsearchQueryReadiness(client, index, readinessRequirements),
 ) : QueryBackend {
     private val compiler = ElasticsearchQueryPlanCompiler(binding, nativeTemplates)
     private val decoder = ElasticsearchQueryResultDecoder(binding)
-    private val readiness = ElasticsearchQueryReadiness(client, index, readinessRequirements)
-    override fun readiness(): Mono<QueryBackendReadiness> = readiness.inspect()
+    override fun readiness(): Mono<QueryBackendReadiness> = mappingGuard.inspect()
 
     override fun <R : Any> single(plan: SingleQueryPlanV1<R>): Mono<R> = Mono.defer {
+        requirePlanFields(plan)
         transport.searchResult(searchRequest(plan, from = 0, size = 1, exactTotal = false))
             .flatMap { result ->
                 result.page.hits.firstOrNull()?.let { hit -> Mono.just(decode<R>(hit.source, plan)) } ?: Mono.empty()
@@ -56,6 +58,7 @@ internal class ElasticsearchQueryBackend(
     }
 
     override fun <R : Any> list(plan: ListQueryPlanV1<R>): Flux<R> = Flux.defer {
+        requirePlanFields(plan)
         val budgetLimit = plan.effectiveBudget.maxResults
         if (plan.limit > 0 && budgetLimit != null && plan.limit.toLong() > budgetLimit) {
             return@defer Flux.error(budgetExceeded())
@@ -66,17 +69,19 @@ internal class ElasticsearchQueryBackend(
             ).flatMapMany { result -> Flux.fromIterable(result.page.hits) }
                 .map { hit -> decode<R>(hit.source, plan) }
         }
-        val maxResults = if (plan.limit > 0) plan.limit.toLong() else budgetLimit
+        val requestLimit = plan.limit.takeIf { it > 0 }?.toLong()
+        val maxResults = budgetLimit.takeIf { requestLimit == null }
         PitSearchAfterExecutor(
             transport,
             index,
             PIT_PAGE_SIZE,
         ) { request -> pitSearchRequest(request, plan) }
-            .execute(maxResults)
+            .execute(requestLimit, maxResults)
             .map { hit -> decode<R>(hit.source, plan) }
     }
 
     override fun <R : Any> page(plan: PageQueryPlanV1<R>): Mono<QueryPage<R>> = Mono.defer {
+        requirePlanFields(plan)
         val offset = try {
             Math.multiplyExact((plan.page.index - 1).toLong(), plan.page.size.toLong())
         } catch (_: ArithmeticException) {
@@ -91,7 +96,7 @@ internal class ElasticsearchQueryBackend(
         transport.searchResult(
             searchRequest(plan, offset.toInt(), plan.page.size, exactTotal = true),
         ).map { result ->
-            val total = result.total?.takeIf { result.totalIsExact } ?: throw incompleteResult()
+            val total = result.total?.takeIf { result.totalIsExact } ?: throw backendFailure()
             QueryPage(
                 result.page.hits.map { hit -> decode<R>(hit.source, plan) },
                 total,
@@ -101,6 +106,7 @@ internal class ElasticsearchQueryBackend(
     }
 
     override fun count(plan: CountQueryPlanV1): Mono<Long> = Mono.defer {
+        requirePlanFields(plan)
         val request = CountRequest.of { builder ->
             builder.index(index).query(compiler.query(plan.securedExpression))
         }
@@ -147,16 +153,41 @@ internal class ElasticsearchQueryBackend(
     private fun <R : Any> decode(source: Map<String, Any?>, plan: me.ahoo.wow.query.plan.QueryPlanV1): R =
         decoder.decode(source, plan.authorizedResultShape, compiler.resultProjection(plan))
 
+    private fun requirePlanFields(plan: me.ahoo.wow.query.plan.QueryPlanV1) {
+        val requirements = LinkedHashSet<ElasticsearchMappingFieldRequirement>()
+        plan.sort.forEach { sort ->
+            val schema = binding.schema(sort.field)
+            requirements += ElasticsearchMappingFieldRequirement(
+                binding.physical(sort.field, me.ahoo.wow.query.schema.QueryFieldUsage.SORT),
+                schema.valueKind,
+                schema.collectionKind,
+                schema.system,
+                ElasticsearchMappingUsage.SORT,
+            )
+        }
+        compiler.resultProjection(plan).forEach { (logical, source) ->
+            val schema = binding.schema(logical)
+            requirements += ElasticsearchMappingFieldRequirement(
+                source,
+                schema.valueKind,
+                schema.collectionKind,
+                schema.system,
+                ElasticsearchMappingUsage.SOURCE,
+            )
+        }
+        mappingGuard.requireFields(requirements)
+    }
+
     private fun budgetExceeded() = QueryException(
         QueryErrorCode.BUDGET_EXCEEDED,
         QueryStage.EXECUTION,
         QueryErrorReason.BUDGET_LIMIT_REACHED,
     )
 
-    private fun incompleteResult() = QueryException(
-        QueryErrorCode.INCOMPLETE_RESULT,
+    private fun backendFailure() = QueryException(
+        QueryErrorCode.BACKEND_FAILURE,
         QueryStage.EXECUTION,
-        QueryErrorReason.INCOMPLETE_STREAM,
+        QueryErrorReason.BACKEND_EXECUTION_FAILED,
     )
 
     companion object {

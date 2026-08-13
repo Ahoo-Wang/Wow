@@ -46,17 +46,24 @@ internal class ReactiveClientElasticsearchQueryTransport(
     private val client: ReactiveElasticsearchClient,
 ) : ElasticsearchQueryTransport {
     private val observer = ElasticsearchQueryPublisherObservers.resolve(client)
-    override fun open(index: String): Mono<String> = client.openPointInTime(
-        OpenPointInTimeRequest.of { request ->
-            request.index(index).keepAlive { keepAlive -> keepAlive.time(PIT_KEEP_ALIVE) }
-        },
-    ).map { response -> response.id() }
+    override fun open(index: String): Mono<String> = observer.observe(
+        ElasticsearchQueryOperationContext(ElasticsearchQueryOperation.OPEN_PIT),
+        client.openPointInTime(
+            OpenPointInTimeRequest.of { request ->
+                request.index(index).keepAlive { keepAlive -> keepAlive.time(PIT_KEEP_ALIVE) }
+            },
+        ),
+    ).map { response -> response.id().also(observer::updatePitId) }
         .switchIfEmpty(Mono.error(backendFailure()))
         .onErrorMap(::sanitize)
 
     override fun searchResult(request: SearchRequest): Mono<ElasticsearchSearchResult> =
-        observer.observe(client.search(request, Map::class.java))
+        observer.observe(
+            ElasticsearchQueryOperationContext(ElasticsearchQueryOperation.SEARCH, request.pit()?.id()),
+            client.search(request, Map::class.java),
+        )
             .map { response ->
+                response.pitId()?.let(observer::updatePitId)
                 if (response.timedOut() || response.shards().failed().toInt() > 0) {
                     throw backendFailure()
                 }
@@ -68,6 +75,7 @@ internal class ReactiveClientElasticsearchQueryTransport(
                             val source = hit.source() as? Map<String, Any?> ?: throw invalidResult()
                             PitSearchHit(source, hit.sort())
                         },
+                        response.pitId(),
                     ),
                     hits.total()?.value(),
                     hits.total()?.relation() == TotalHitsRelation.Eq,
@@ -76,13 +84,17 @@ internal class ReactiveClientElasticsearchQueryTransport(
             .switchIfEmpty(Mono.error(backendFailure()))
             .onErrorMap(::sanitize)
 
-    override fun count(request: CountRequest): Mono<Long> = client.count(request)
+    override fun count(request: CountRequest): Mono<Long> = observer.observe(
+        ElasticsearchQueryOperationContext(ElasticsearchQueryOperation.COUNT),
+        client.count(request),
+    )
         .map { response -> response.count() }
         .switchIfEmpty(Mono.error(backendFailure()))
         .onErrorMap(::sanitize)
 
-    override fun close(pitId: String): Mono<Void> = client.closePointInTime(
-        ClosePointInTimeRequest.of { request -> request.id(pitId) },
+    override fun close(pitId: String): Mono<Void> = observer.observe(
+        ElasticsearchQueryOperationContext(ElasticsearchQueryOperation.CLOSE_PIT, pitId),
+        client.closePointInTime(ClosePointInTimeRequest.of { request -> request.id(pitId) }),
     ).flatMap { response ->
         if (response.succeeded()) Mono.empty<Void>() else Mono.error(backendFailure())
     }.onErrorMap(::sanitize)

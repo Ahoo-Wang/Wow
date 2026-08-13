@@ -17,7 +17,6 @@ package me.ahoo.wow.elasticsearch.query.backend
 
 import me.ahoo.wow.api.query.expression.LogicalField
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchQueryPresenceEncoder
-import me.ahoo.wow.query.schema.QueryFieldValueKind
 
 internal class ElasticsearchQueryPresenceBinding(
     private val fields: ElasticsearchQueryFieldBinding,
@@ -28,20 +27,10 @@ internal class ElasticsearchQueryPresenceBinding(
 
     private fun term(logical: LogicalField, kind: String): PresenceTerm {
         val source = fields.source(logical)
-        val segments = logical.value.split('.')
-        var parentPath: String? = null
-        for (endIndex in 1 until segments.size) {
-            val ancestor = LogicalField(segments.take(endIndex).joinToString("."))
-            if (fields.contains(ancestor) && fields.schema(ancestor).valueKind == QueryFieldValueKind.OBJECT) {
-                val ancestorSource = fields.source(ancestor)
-                if (source.startsWith("$ancestorSource.")) {
-                    parentPath = ancestorSource
-                }
-            }
-        }
-        val directName = if (parentPath == null) source.substringAfterLast('.') else source.removePrefix("$parentPath.")
-        require('.' !in directName) { "Elasticsearch presence field is not a direct object child." }
-        val metadataPath = listOfNotNull(parentPath, ElasticsearchQueryPresenceEncoder.NAMESPACE, kind)
+        val parentPath = source.substringBeforeLast('.', missingDelimiterValue = "")
+        val directName = source.substringAfterLast('.')
+        val metadataPath = listOf(parentPath, ElasticsearchQueryPresenceEncoder.NAMESPACE, kind)
+            .filter(String::isNotEmpty)
             .joinToString(".")
         return PresenceTerm(metadataPath, directName)
     }

@@ -1146,8 +1146,15 @@ cat >"$TEMP_DIR/kotlin/ExternalElasticsearchBackendInternals.kt" <<'EOF'
 package external.fixture
 
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchQueryPresenceEncoder
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchMappingFieldRequirement
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchMappingUsage
 import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryBackend
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryBackendBinder
 import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryFieldBinding
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryMappingGuard
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryMappingSnapshot
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryOperation
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryOperationContext
 import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryPlanCompiler
 import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryPresenceBinding
 import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryPublisherObserver
@@ -1161,8 +1168,15 @@ import me.ahoo.wow.elasticsearch.query.backend.PitSearchAfterTransport
 import me.ahoo.wow.elasticsearch.query.backend.elasticsearchQueryBackendDescriptor
 
 fun useElasticsearchInternals(
+    fieldRequirement: ElasticsearchMappingFieldRequirement,
+    mappingUsage: ElasticsearchMappingUsage,
     backend: ElasticsearchQueryBackend,
+    binder: ElasticsearchQueryBackendBinder,
     binding: ElasticsearchQueryFieldBinding,
+    mappingGuard: ElasticsearchQueryMappingGuard,
+    mappingSnapshot: ElasticsearchQueryMappingSnapshot,
+    operation: ElasticsearchQueryOperation,
+    operationContext: ElasticsearchQueryOperationContext,
     compiler: ElasticsearchQueryPlanCompiler,
     presence: ElasticsearchQueryPresenceBinding,
     observer: ElasticsearchQueryPublisherObserver,
@@ -1174,7 +1188,8 @@ fun useElasticsearchInternals(
     pitTransport: PitSearchAfterTransport<*>,
     pitExecutor: PitSearchAfterExecutor<*>
 ): List<Any> = listOf(
-    backend, binding, compiler, presence, observer, observers, readiness, requirements,
+    fieldRequirement, mappingUsage, backend, binder, binding, mappingGuard, mappingSnapshot,
+    operation, operationContext, compiler, presence, observer, observers, readiness, requirements,
     decoder, transport, pitTransport, pitExecutor, ElasticsearchQueryPresenceEncoder,
     ::elasticsearchQueryBackendDescriptor
 )
@@ -1193,8 +1208,11 @@ grep -F "internal" "$TEMP_DIR/kotlin-elasticsearch-internal-negative.out" >/dev/
     cat "$TEMP_DIR/kotlin-elasticsearch-internal-negative.out" >&2
     fail "Kotlin Elasticsearch internal fixture did not enforce internal visibility"
 }
-for class_name in ElasticsearchQueryPresenceEncoder ElasticsearchQueryBackend ElasticsearchQueryFieldBinding \
-    ElasticsearchQueryPlanCompiler ElasticsearchQueryPresenceBinding ElasticsearchQueryPublisherObserver \
+for class_name in ElasticsearchQueryPresenceEncoder ElasticsearchMappingFieldRequirement ElasticsearchMappingUsage \
+    ElasticsearchQueryBackend ElasticsearchQueryBackendBinder ElasticsearchQueryFieldBinding \
+    ElasticsearchQueryMappingGuard ElasticsearchQueryMappingSnapshot ElasticsearchQueryOperation \
+    ElasticsearchQueryOperationContext ElasticsearchQueryPlanCompiler ElasticsearchQueryPresenceBinding \
+    ElasticsearchQueryPublisherObserver \
     ElasticsearchQueryPublisherObservers ElasticsearchQueryReadiness ElasticsearchQueryReadinessRequirements \
     ElasticsearchQueryResultDecoder ElasticsearchQueryTransport PitSearchAfterTransport PitSearchAfterExecutor \
     elasticsearchQueryBackendDescriptor; do

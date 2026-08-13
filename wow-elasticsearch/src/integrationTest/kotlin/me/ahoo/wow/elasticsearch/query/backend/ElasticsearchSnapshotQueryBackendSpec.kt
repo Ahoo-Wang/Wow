@@ -13,16 +13,27 @@
 
 package me.ahoo.wow.elasticsearch.query.backend
 
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.error.QueryErrorCode
+import me.ahoo.wow.api.query.error.QueryException
+import me.ahoo.wow.api.query.expression.MatchAll
+import me.ahoo.wow.api.query.gateway.ListQueryRequest
+import me.ahoo.wow.api.query.gateway.QueryBudgetHint
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
+import me.ahoo.wow.api.query.gateway.QueryResultShape
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.query.backend.ObservableQueryBackendFactory
 import me.ahoo.wow.tck.query.backend.PortableQueryDataset
+import me.ahoo.wow.tck.query.backend.QueryBackendClientHold
 import me.ahoo.wow.tck.query.backend.SnapshotQueryBackendSpec
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
+import java.time.Duration
 
 class ElasticsearchSnapshotQueryBackendSpec : SnapshotQueryBackendSpec() {
     @JvmField
@@ -43,4 +54,81 @@ class ElasticsearchSnapshotQueryBackendSpec : SnapshotQueryBackendSpec() {
     override fun prepare(dataset: PortableQueryDataset): Mono<Void> = fixture.prepare(dataset)
     override fun clear(): Mono<Void> = fixture.clear()
     override fun declaredCapabilities() = setOf(PortableQueryDataset.FULL_TEXT_CAPABILITY)
+
+    @Test
+    fun `normal completion closes the latest pit through the actual client publisher`() {
+        val factory = fixture.backendFactory.apply { reset() }
+        val request = ListQueryRequest(
+            target = PortableQueryDataset.target(QueryDocumentKind.SNAPSHOT),
+            expression = MatchAll,
+            resultShape = QueryResultShape.Dynamic,
+            limit = 0,
+        )
+
+        StepVerifier.create(withDataset(testKit(factory).gateway.list(request)))
+            .expectNextCount(PortableQueryDataset.documents.count { !it.deleted }.toLong())
+            .verifyComplete()
+
+        factory.subscriptionCount(ElasticsearchQueryOperation.OPEN_PIT).assert().isOne()
+        factory.subscriptionCount(ElasticsearchQueryOperation.SEARCH).assert().isOne()
+        factory.subscriptionCount(ElasticsearchQueryOperation.CLOSE_PIT).assert().isOne()
+        factory.cancellationCount(ElasticsearchQueryOperation.SEARCH).assert().isZero()
+        factory.closedPitIds.assert().containsExactly(factory.latestPitId)
+    }
+
+    @Test
+    fun `deadline cancels the actual search publisher and closes the latest pit`() {
+        val factory = fixture.backendFactory.apply {
+            reset()
+            holdNextList(me.ahoo.wow.tck.query.backend.QueryBackendClientHold.BEFORE_FIRST_RESULT)
+        }
+        val vector = PortableQueryDataset.vectors.single {
+            it.key == me.ahoo.wow.tck.query.backend.PortableContractKey.Lifecycle(
+                me.ahoo.wow.tck.query.backend.PortableLifecycleCase.DEADLINE,
+            )
+        }
+        val request = ListQueryRequest(
+            target = PortableQueryDataset.target(QueryDocumentKind.SNAPSHOT),
+            expression = vector.expression,
+            resultShape = QueryResultShape.Dynamic,
+            budget = QueryBudgetHint(timeout = Duration.ofMillis(50)),
+            limit = 0,
+        )
+
+        StepVerifier.create(withDataset(testKit(factory).gateway.list(request)))
+            .expectErrorSatisfies { error ->
+                (error as QueryException).code.assert().isEqualTo(QueryErrorCode.DEADLINE_EXCEEDED)
+            }
+            .verify(Duration.ofSeconds(2))
+
+        factory.subscriptionCount(ElasticsearchQueryOperation.SEARCH).assert().isOne()
+        factory.cancellationCount(ElasticsearchQueryOperation.SEARCH).assert().isOne()
+        factory.subscriptionCount(ElasticsearchQueryOperation.CLOSE_PIT).assert().isOne()
+        factory.closedPitIds.assert().containsExactly(factory.latestPitId)
+    }
+
+    @Test
+    fun `downstream cancellation cancels the actual search publisher and closes the latest pit`() {
+        val factory = fixture.backendFactory.apply {
+            reset()
+            holdNextList(QueryBackendClientHold.AFTER_FIRST_RESULT)
+        }
+        val request = ListQueryRequest(
+            target = PortableQueryDataset.target(QueryDocumentKind.SNAPSHOT),
+            expression = MatchAll,
+            resultShape = QueryResultShape.Dynamic,
+            limit = 0,
+        )
+
+        StepVerifier.create(withDataset(testKit(factory).gateway.list(request)), 0)
+            .thenRequest(1)
+            .expectNextCount(1)
+            .thenCancel()
+            .verify(Duration.ofSeconds(2))
+
+        factory.subscriptionCount(ElasticsearchQueryOperation.SEARCH).assert().isOne()
+        factory.cancellationCount(ElasticsearchQueryOperation.SEARCH).assert().isOne()
+        factory.subscriptionCount(ElasticsearchQueryOperation.CLOSE_PIT).assert().isOne()
+        factory.closedPitIds.assert().containsExactly(factory.latestPitId)
+    }
 }

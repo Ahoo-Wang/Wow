@@ -19,8 +19,22 @@ import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchCl
 import reactor.core.publisher.Mono
 import java.util.WeakHashMap
 
+internal enum class ElasticsearchQueryOperation {
+    OPEN_PIT,
+    SEARCH,
+    CLOSE_PIT,
+    COUNT,
+}
+
+internal data class ElasticsearchQueryOperationContext(
+    val operation: ElasticsearchQueryOperation,
+    val pitId: String? = null,
+)
+
 internal interface ElasticsearchQueryPublisherObserver {
-    fun <T : Any> observe(publisher: Mono<T>): Mono<T>
+    fun <T : Any> observe(context: ElasticsearchQueryOperationContext, publisher: Mono<T>): Mono<T>
+
+    fun updatePitId(pitId: String) = Unit
 }
 
 internal object ElasticsearchQueryPublisherObservers {
@@ -33,6 +47,7 @@ internal object ElasticsearchQueryPublisherObservers {
     fun resolve(client: ReactiveElasticsearchClient): ElasticsearchQueryPublisherObserver = synchronized(observers) {
         observers[client]
     } ?: object : ElasticsearchQueryPublisherObserver {
-        override fun <T : Any> observe(publisher: Mono<T>): Mono<T> = publisher
+        override fun <T : Any> observe(context: ElasticsearchQueryOperationContext, publisher: Mono<T>): Mono<T> =
+            publisher
     }
 }
