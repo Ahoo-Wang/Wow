@@ -25,6 +25,7 @@ import me.ahoo.wow.api.query.gateway.QueryOperation
 import me.ahoo.wow.api.query.gateway.QueryPage
 import me.ahoo.wow.api.query.gateway.QueryRequest
 import me.ahoo.wow.api.query.gateway.SingleQueryRequest
+import me.ahoo.wow.query.backend.QueryBackendResolutionContext
 import me.ahoo.wow.query.backend.QueryBackendResolver
 import me.ahoo.wow.query.backend.ResolvedQueryBackend
 import me.ahoo.wow.query.expression.ExpressionNormalizer
@@ -217,7 +218,13 @@ internal class DefaultQueryGateway private constructor(
     ): Mono<EvaluatedBackend> {
         val resolution = Mono.defer {
             stageObserver.record(QueryGatewayStage.BACKEND_RESOLVE)
-            backendResolver.resolve(evaluated.invocation.request.target)
+            backendResolver.resolve(
+                QueryBackendResolutionContext(
+                    target = evaluated.invocation.request.target,
+                    schema = evaluated.invocation.schema,
+                    securedExpression = evaluated.policyResult.securedExpression
+                )
+            )
         }.switchIfEmpty(Mono.error(backendNotReady()))
         return evaluated.invocation.deadlineGuard.enforce(
             resolution,

@@ -13,11 +13,12 @@
 
 package me.ahoo.wow.query.backend
 
-import me.ahoo.wow.api.query.gateway.QueryTarget
-import reactor.core.publisher.Mono
-
-fun interface QueryBackendResolver {
-    fun resolve(target: QueryTarget): Mono<ResolvedQueryBackend>
-
-    fun resolve(context: QueryBackendResolutionContext): Mono<ResolvedQueryBackend> = resolve(context.target)
+/**
+ * Synchronously binds one immutable resolution context to a backend instance.
+ *
+ * Implementations must not perform I/O. Asynchronous mapping, index, template, and dependency checks belong to the
+ * returned backend's [QueryBackend.readiness].
+ */
+fun interface QueryBackendFactory {
+    fun bind(context: QueryBackendResolutionContext): QueryBackend
 }

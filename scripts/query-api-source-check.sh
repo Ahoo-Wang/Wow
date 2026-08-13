@@ -108,6 +108,7 @@ package external.fixture;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import me.ahoo.wow.api.query.expression.MatchAll;
 import me.ahoo.wow.api.query.expression.PortableOperator;
 import me.ahoo.wow.api.query.expression.QueryCapabilityId;
 import me.ahoo.wow.api.query.expression.QueryExpression;
@@ -118,7 +119,9 @@ import me.ahoo.wow.api.query.gateway.QuerySort;
 import me.ahoo.wow.api.query.gateway.QueryTarget;
 import me.ahoo.wow.query.backend.QueryBackend;
 import me.ahoo.wow.query.backend.QueryBackendDescriptor;
+import me.ahoo.wow.query.backend.QueryBackendFactory;
 import me.ahoo.wow.query.backend.QueryBackendReadiness;
+import me.ahoo.wow.query.backend.QueryBackendResolutionContext;
 import me.ahoo.wow.query.backend.QueryBackendResolver;
 import me.ahoo.wow.query.backend.QueryBackendRouteIdentity;
 import me.ahoo.wow.query.backend.QueryPlanVersion;
@@ -131,6 +134,7 @@ import me.ahoo.wow.query.plan.PageQueryPlanV1;
 import me.ahoo.wow.query.plan.QueryPlanResultShape;
 import me.ahoo.wow.query.plan.QueryPlanV1;
 import me.ahoo.wow.query.plan.SingleQueryPlanV1;
+import me.ahoo.wow.query.schema.QuerySchema;
 import me.ahoo.wow.query.validation.QueryBudgetLimit;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -187,6 +191,36 @@ public final class StableBackendSpi implements QueryBackend {
 
     public static QueryBackendResolver resolver(QueryBackend backend, QueryBackendRouteIdentity route) {
         return target -> ResolvedQueryBackend.resolve(backend, route);
+    }
+
+    public static QueryBackendResolver contextAwareResolver(
+        QueryBackend backend,
+        QueryBackendRouteIdentity route
+    ) {
+        return new QueryBackendResolver() {
+            @Override
+            public Mono<ResolvedQueryBackend> resolve(QueryTarget target) {
+                return ResolvedQueryBackend.resolve(backend, route);
+            }
+
+            @Override
+            public Mono<ResolvedQueryBackend> resolve(QueryBackendResolutionContext context) {
+                return ResolvedQueryBackend.resolve(backend, route);
+            }
+        };
+    }
+
+    public static QueryBackendFactory factory(QueryBackend backend) {
+        return context -> backend;
+    }
+
+    public static QueryBackendResolutionContext context(QueryTarget target, QuerySchema schema) {
+        QueryBackendResolutionContext context = new QueryBackendResolutionContext(target, schema, MatchAll.INSTANCE);
+        if (!context.copy(target, schema, MatchAll.INSTANCE).equals(context) ||
+            context.component1() != target || context.component2() != schema || context.component3() != MatchAll.INSTANCE) {
+            throw new AssertionError("Unexpected backend resolution context value semantics");
+        }
+        return context;
     }
 
     public static String backendId(QueryBackendDescriptor descriptor) {
@@ -283,7 +317,9 @@ package external.fixture
 import me.ahoo.wow.api.query.gateway.QueryPage
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendDescriptor
+import me.ahoo.wow.query.backend.QueryBackendFactory
 import me.ahoo.wow.query.backend.QueryBackendReadiness
+import me.ahoo.wow.query.backend.QueryBackendResolutionContext
 import me.ahoo.wow.query.backend.QueryBackendResolver
 import me.ahoo.wow.query.backend.QueryBackendRouteIdentity
 import me.ahoo.wow.query.backend.ResolvedQueryBackend
@@ -292,6 +328,7 @@ import me.ahoo.wow.query.plan.ListQueryPlanV1
 import me.ahoo.wow.query.plan.PageQueryPlanV1
 import me.ahoo.wow.query.plan.QueryPlanV1
 import me.ahoo.wow.query.plan.SingleQueryPlanV1
+import me.ahoo.wow.query.schema.QuerySchema
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -305,6 +342,25 @@ class StableBackendSpi(override val descriptor: QueryBackendDescriptor) : QueryB
 
 fun stableResolver(backend: QueryBackend, route: QueryBackendRouteIdentity) =
     QueryBackendResolver { ResolvedQueryBackend.resolve(backend, route) }
+
+fun contextAwareResolver(backend: QueryBackend, route: QueryBackendRouteIdentity) =
+    object : QueryBackendResolver {
+        override fun resolve(target: me.ahoo.wow.api.query.gateway.QueryTarget) =
+            ResolvedQueryBackend.resolve(backend, route)
+
+        override fun resolve(context: QueryBackendResolutionContext) =
+            ResolvedQueryBackend.resolve(backend, route)
+    }
+
+fun stableBackendFactory(backend: QueryBackend) = QueryBackendFactory { backend }
+
+fun consumeResolutionContext(context: QueryBackendResolutionContext): List<Any> {
+    val copied = context.copy()
+    val target = copied.component1()
+    val schema: QuerySchema = copied.component2()
+    val securedExpression = copied.component3()
+    return listOf(target, schema, securedExpression)
+}
 
 fun consumePlan(plan: QueryPlanV1): List<Any?> = listOf(
     plan.version,
@@ -327,6 +383,78 @@ java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler
     -d "$TEMP_DIR/classes/kotlin" \
     "$TEMP_DIR/kotlin/StableBackendSpi.kt"
 echo "PASS: Kotlin external stable backend SPI source"
+
+cat >"$TEMP_DIR/java/PrecompiledResolverBinaryProbe.java" <<'EOF'
+package external.fixture;
+
+import java.util.Base64;
+import java.util.HexFormat;
+import java.util.List;
+import java.security.MessageDigest;
+import me.ahoo.wow.api.modeling.NamedAggregate;
+import me.ahoo.wow.api.query.expression.MatchAll;
+import me.ahoo.wow.api.query.gateway.QueryDocumentKind;
+import me.ahoo.wow.api.query.gateway.QueryTarget;
+import me.ahoo.wow.query.backend.QueryBackendResolutionContext;
+import me.ahoo.wow.query.backend.QueryBackendResolver;
+import me.ahoo.wow.query.schema.QuerySchema;
+import reactor.core.publisher.Mono;
+
+public final class PrecompiledResolverBinaryProbe {
+    /*
+     * external.fixture.PreChangeTargetOnlyResolver compiled with javac --release 17 against the exact
+     * 4963c3f6422ff60958117d6a9de3aa1ce081ae1c wow-query JAR. Class SHA-256:
+     * 85f9a3b52525d2d30a493fa7fbaeb1e251f70d20c3995d1a2b45dc70e1e84c46.
+     */
+    private static final String PRE_CHANGE_RESOLVER =
+        "yv66vgAAAD0AIQoAAgADBwAEDAAFAAYBABBqYXZhL2xhbmcvT2JqZWN0AQAGPGluaXQ+AQADKClWCQAIAAkHAAoMAAsADAEALGV4dGVybmFsL2ZpeHR1cmUvUHJlQ2hhbmdlVGFyZ2V0T25seVJlc29sdmVyAQAFY2FsbHMBAAFJCQAIAA4MAA8AEAEADm9ic2VydmVkVGFyZ2V0AQArTG1lL2Fob28vd293L2FwaS9xdWVyeS9nYXRld2F5L1F1ZXJ5VGFyZ2V0OwoAEgATBwAUDAAVABYBABtyZWFjdG9yL2NvcmUvcHVibGlzaGVyL01vbm8BAAVlbXB0eQEAHygpTHJlYWN0b3IvY29yZS9wdWJsaXNoZXIvTW9ubzsHABgBAC5tZS9haG9vL3dvdy9xdWVyeS9iYWNrZW5kL1F1ZXJ5QmFja2VuZFJlc29sdmVyAQAEQ29kZQEAD0xpbmVOdW1iZXJUYWJsZQEAB3Jlc29sdmUBAEooTG1lL2Fob28vd293L2FwaS9xdWVyeS9nYXRld2F5L1F1ZXJ5VGFyZ2V0OylMcmVhY3Rvci9jb3JlL3B1Ymxpc2hlci9Nb25vOwEACVNpZ25hdHVyZQEAfChMbWUvYWhvby93b3cvYXBpL3F1ZXJ5L2dhdGV3YXkvUXVlcnlUYXJnZXQ7KUxyZWFjdG9yL2NvcmUvcHVibGlzaGVyL01vbm88TG1lL2Fob28vd293L3F1ZXJ5L2JhY2tlbmQvUmVzb2x2ZWRRdWVyeUJhY2tlbmQ7PjsBAApTb3VyY2VGaWxlAQAgUHJlQ2hhbmdlVGFyZ2V0T25seVJlc29sdmVyLmphdmEAMQAIAAIAAQAXAAIAAQALAAwAAAABAA8AEAAAAAIAAQAFAAYAAQAZAAAAHQABAAEAAAAFKrcAAbEAAAABABoAAAAGAAEAAAAIAAEAGwAcAAIAGQAAADMAAwACAAAAEypZtAAHBGC1AAcqK7UADbgAEbAAAAABABoAAAAOAAMAAAAOAAoADwAPABAAHQAAAAIAHgABAB8AAAACACA=";
+
+    private PrecompiledResolverBinaryProbe() {
+    }
+
+    public static void main(String[] args) throws Exception {
+        byte[] bytes = Base64.getDecoder().decode(PRE_CHANGE_RESOLVER);
+        String digest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+        if (!digest.equals("85f9a3b52525d2d30a493fa7fbaeb1e251f70d20c3995d1a2b45dc70e1e84c46")) {
+            throw new AssertionError("Pre-change resolver fixture digest changed");
+        }
+        Class<?> legacyType = new ClassLoader(PrecompiledResolverBinaryProbe.class.getClassLoader()) {
+            Class<?> defineLegacy() {
+                return defineClass("external.fixture.PreChangeTargetOnlyResolver", bytes, 0, bytes.length);
+            }
+        }.defineLegacy();
+        Object legacy = legacyType.getConstructor().newInstance();
+        QueryBackendResolver resolver = (QueryBackendResolver) legacy;
+        NamedAggregate aggregate = new NamedAggregate() {
+            @Override
+            public String getContextName() {
+                return "binary";
+            }
+
+            @Override
+            public String getAggregateName() {
+                return "probe";
+            }
+        };
+        QueryTarget target = new QueryTarget(aggregate, QueryDocumentKind.SNAPSHOT);
+        QueryBackendResolutionContext context = new QueryBackendResolutionContext(
+            target,
+            new QuerySchema(target, List.of()),
+            MatchAll.INSTANCE
+        );
+        Mono<?> result = resolver.resolve(context);
+        if (result == null || legacyType.getField("calls").getInt(legacy) != 1 ||
+            legacyType.getField("observedTarget").get(legacy) != target) {
+            throw new AssertionError("Pre-change target-only resolver was not invoked through the context default method");
+        }
+    }
+}
+EOF
+
+javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/java" "$TEMP_DIR/java/PrecompiledResolverBinaryProbe.java"
+java -classpath "$TEMP_DIR/classes/java:$FIXTURE_CLASSPATH" external.fixture.PrecompiledResolverBinaryProbe
+echo "PASS: Pre-change target-only resolver binary compatibility"
 
 cat >"$TEMP_DIR/java/StableGatewayApi.java" <<'EOF'
 package external.fixture;

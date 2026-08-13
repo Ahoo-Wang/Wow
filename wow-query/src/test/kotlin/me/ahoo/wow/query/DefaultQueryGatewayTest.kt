@@ -18,17 +18,27 @@ import me.ahoo.wow.api.query.error.QueryErrorCode
 import me.ahoo.wow.api.query.error.QueryErrorReason
 import me.ahoo.wow.api.query.error.QueryException
 import me.ahoo.wow.api.query.error.QueryStage
+import me.ahoo.wow.api.query.expression.LogicalField
+import me.ahoo.wow.api.query.expression.PortableOperator
+import me.ahoo.wow.api.query.expression.PredicateExpression
+import me.ahoo.wow.api.query.expression.QueryValue
 import me.ahoo.wow.api.query.gateway.CountQueryRequest
 import me.ahoo.wow.api.query.gateway.ListQueryRequest
 import me.ahoo.wow.api.query.gateway.PageQueryRequest
 import me.ahoo.wow.api.query.gateway.QueryConsistency
 import me.ahoo.wow.api.query.gateway.QueryPage
 import me.ahoo.wow.api.query.gateway.SingleQueryRequest
+import me.ahoo.wow.query.backend.QueryBackendResolutionContext
+import me.ahoo.wow.query.backend.QueryBackendResolver
+import me.ahoo.wow.query.backend.QueryBackendRouteIdentity
 import me.ahoo.wow.query.backend.RecordingQueryBackend
+import me.ahoo.wow.query.backend.ResolvedQueryBackend
 import me.ahoo.wow.query.invocation.QueryAuthorityView
 import me.ahoo.wow.query.invocation.QueryInvocationScope
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.policy.QueryPolicyDeniedException
+import me.ahoo.wow.query.policy.QueryPolicyResult
+import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QuerySchemaResolver
 import me.ahoo.wow.query.schema.QuerySchemaView
 import me.ahoo.wow.query.validation.QueryBudgetLimit
@@ -92,6 +102,77 @@ class DefaultQueryGatewayTest {
     }
 
     @Test
+    fun `backend resolution receives an isolated context with the final secured expression`() {
+        val contexts = CopyOnWriteArrayList<QueryBackendResolutionContext>()
+        val schemaBackings = CopyOnWriteArrayList<MutableMap<LogicalField, QueryFieldSchema>>()
+        val mandatoryExpression = PredicateExpression(
+            GATEWAY_STATUS,
+            PortableOperator.EQ,
+            listOf(QueryValue.StringValue("policy-secret"))
+        )
+        val backend = RecordingQueryBackend(gatewayDescriptor()).respondCount(Mono.just(1))
+        val resolver = object : QueryBackendResolver {
+            override fun resolve(target: me.ahoo.wow.api.query.gateway.QueryTarget): Mono<ResolvedQueryBackend> =
+                Mono.error(AssertionError("Gateway used the target-only compatibility path."))
+
+            override fun resolve(context: QueryBackendResolutionContext): Mono<ResolvedQueryBackend> {
+                contexts += context
+                schemaBackings.last().clear()
+                context.schema.fields.assert().isNotEmpty()
+                return ResolvedQueryBackend.resolve(backend, QueryBackendRouteIdentity("gateway-route"))
+            }
+        }
+        val schemaResolver = object : QuerySchemaResolver {
+            override fun resolve(target: me.ahoo.wow.api.query.gateway.QueryTarget): Mono<QuerySchemaView> =
+                Mono.fromSupplier {
+                    val backing = LinkedHashMap(gatewaySchema().fields)
+                    schemaBackings += backing
+                    object : QuerySchemaView {
+                        override val target = target
+                        override val fields = backing
+                    }
+                }
+        }
+        val gateway = QueryGatewayFactory.create(
+            gatewayConfiguration(
+                backend = backend,
+                customPolicies = listOf(QueryPolicy { Mono.just(QueryPolicyResult(mandatoryExpression)) }),
+                schemaResolver = schemaResolver,
+                backendResolver = resolver
+            )
+        )
+        val result = gateway.count(countRequest())
+
+        StepVerifier.create(result).expectNext(1).verifyComplete()
+        StepVerifier.create(result).expectNext(1).verifyComplete()
+
+        contexts.assert().hasSize(2)
+        contexts[0].assert().isNotSameAs(contexts[1])
+        contexts.forEachIndexed { index, context ->
+            context.target.assert().isEqualTo(GATEWAY_TARGET)
+            context.schema.assert().isEqualTo(gatewaySchema())
+            context.schema.assert().isNotSameAs(contexts[1 - index].schema)
+            context.securedExpression.assert().isSameAs(backend.countPlans[index].securedExpression)
+        }
+        schemaBackings.forEach { it.assert().isEmpty() }
+
+        val first = contexts.first()
+        val copied = first.copy()
+        val (target, schema, securedExpression) = copied
+        copied.assert().isEqualTo(first)
+        copied.hashCode().assert().isEqualTo(first.hashCode())
+        target.assert().isEqualTo(GATEWAY_TARGET)
+        schema.assert().isSameAs(first.schema)
+        securedExpression.assert().isSameAs(first.securedExpression)
+        copied.toString().assert().isEqualTo(
+            "QueryBackendResolutionContext(target=<redacted>, " +
+                "schemaFieldCount=${gatewaySchema().fields.size}, securedExpression=<redacted>)"
+        )
+        copied.toString().contains("policy-secret").assert().isFalse()
+        copied.toString().contains(GATEWAY_TARGET.namedAggregate.aggregateName).assert().isFalse()
+    }
+
+    @Test
     fun `policy denial fails closed before backend resolution`() {
         val resolverCalls = AtomicInteger()
         val backend = RecordingQueryBackend(gatewayDescriptor())
@@ -110,6 +191,35 @@ class DefaultQueryGatewayTest {
 
         StepVerifier.create(gateway.count(countRequest())).expectErrorSatisfies { error ->
             (error as QueryException).code.assert().isEqualTo(QueryErrorCode.POLICY_DENIED)
+        }.verify()
+
+        resolverCalls.get().assert().isZero()
+        backend.readinessSubscriptions.get().assert().isZero()
+        backend.countSubscriptions.get().assert().isZero()
+    }
+
+    @Test
+    fun `policy failure fails closed before backend resolution`() {
+        val resolverCalls = AtomicInteger()
+        val backend = RecordingQueryBackend(gatewayDescriptor())
+        val gateway = QueryGatewayFactory.create(
+            gatewayConfiguration(
+                backend = backend,
+                customPolicies = listOf(
+                    QueryPolicy { Mono.error(IllegalStateException("sensitive policy failure")) }
+                ),
+                backendResolver = {
+                    resolverCalls.incrementAndGet()
+                    Mono.error(AssertionError("backend resolver must not run"))
+                }
+            )
+        )
+
+        StepVerifier.create(gateway.count(countRequest())).expectErrorSatisfies { error ->
+            (error as QueryException).apply {
+                code.assert().isEqualTo(QueryErrorCode.POLICY_FAILURE)
+                message.orEmpty().contains("sensitive").assert().isFalse()
+            }
         }.verify()
 
         resolverCalls.get().assert().isZero()

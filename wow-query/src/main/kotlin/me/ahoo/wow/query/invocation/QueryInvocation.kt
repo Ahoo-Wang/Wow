@@ -16,7 +16,7 @@ package me.ahoo.wow.query.invocation
 import me.ahoo.wow.api.query.expression.QueryExpression
 import me.ahoo.wow.api.query.gateway.QueryOperation
 import me.ahoo.wow.api.query.gateway.QueryRequest
-import me.ahoo.wow.query.schema.QuerySchemaView
+import me.ahoo.wow.query.schema.QuerySchema
 import me.ahoo.wow.query.validation.QueryBudgetLimit
 import java.time.Instant
 import java.time.ZoneId
@@ -31,7 +31,7 @@ internal class QueryInvocation(
     val admissionDeadline: Instant?,
     val admissionBudget: QueryBudgetLimit,
     val deadlineGuard: QueryDeadlineGuard,
-    val schema: QuerySchemaView,
+    val schema: QuerySchema,
     val normalizedExpression: QueryExpression,
     expressionProvenance: Map<QueryProvenance, QueryExpression>
 ) {
