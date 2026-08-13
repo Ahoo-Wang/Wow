@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.gateway.QuerySortDirection
 import me.ahoo.wow.query.backend.QueryBackendFactory
 import me.ahoo.wow.query.backend.QueryBackendReadiness
 import me.ahoo.wow.query.policy.QueryFieldAccess
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
@@ -49,24 +50,37 @@ interface QueryBackendClientLifecycleProbe {
     fun holdNextList(hold: QueryBackendClientHold)
 }
 
+/**
+ * TCK adapter that owns both backend creation and the lifecycle instrumentation for that backend's real client
+ * publisher. [bind] must return a backend whose list execution reaches the transport publisher controlled and
+ * observed by this exact instance. Implementations must attach observation to the driver command/cursor publisher,
+ * never to a generic backend response wrapper. MongoDB and Elasticsearch specs adapt their production factory and
+ * real driver instrumentation together in this test-only contract.
+ */
+interface ObservableQueryBackendFactory : QueryBackendFactory, QueryBackendClientLifecycleProbe
+
 abstract class QueryBackendLifecycleSpec protected constructor(
     protected val documentKind: QueryDocumentKind
 ) {
-    protected abstract fun backendFactory(): QueryBackendFactory
+    protected abstract fun backendFactory(): ObservableQueryBackendFactory
 
     protected abstract fun prepare(dataset: PortableQueryDataset): Mono<Void>
 
     protected abstract fun clear(): Mono<Void>
-
-    protected abstract fun clientLifecycleProbe(): QueryBackendClientLifecycleProbe
 
     protected open fun declaredCapabilities(): Set<QueryCapabilityId> = emptySet()
 
     protected open fun readinessFixture(): QueryBackendReadiness = QueryBackendReadiness.Ready
 
     protected fun testKit(fieldAccess: QueryFieldAccess = QueryFieldAccess.UNRESTRICTED): QueryBackendTestKit =
+        testKit(backendFactory(), fieldAccess)
+
+    protected fun testKit(
+        backendFactory: ObservableQueryBackendFactory,
+        fieldAccess: QueryFieldAccess = QueryFieldAccess.UNRESTRICTED
+    ): QueryBackendTestKit =
         QueryBackendTestKit(
-            backendFactory = backendFactory(),
+            backendFactory = backendFactory,
             documentKind = documentKind,
             expectedCapabilities = declaredCapabilities(),
             expectedReadiness = readinessFixture(),
@@ -119,11 +133,11 @@ abstract class QueryBackendLifecycleSpec protected constructor(
 
     @Test
     fun `downstream cancellation cancels backend client publisher`() {
-        val clientProbe = clientLifecycleProbe().apply {
+        val observableFactory = backendFactory().apply {
             reset()
             holdNextList(QueryBackendClientHold.AFTER_FIRST_RESULT)
         }
-        val testKit = testKit()
+        val testKit = testKit(observableFactory)
         val request = ListQueryRequest(
             target = testKit.target,
             expression = MatchAll,
@@ -139,19 +153,20 @@ abstract class QueryBackendLifecycleSpec protected constructor(
             .thenCancel()
             .verify()
 
-        clientProbe.subscriptionCount.assert().isOne()
-        clientProbe.cancellationCount.assert().isOne()
+        assertSame(observableFactory, testKit.backendFactory)
+        observableFactory.subscriptionCount.assert().isOne()
+        observableFactory.cancellationCount.assert().isOne()
         testKit.executionSubscriptionCount.assert().isOne()
         testKit.targetOnlyResolutionCount.assert().isZero()
     }
 
     @Test
     fun `deadline cancels backend client publisher before its first item`() {
-        val clientProbe = clientLifecycleProbe().apply {
+        val observableFactory = backendFactory().apply {
             reset()
             holdNextList(QueryBackendClientHold.BEFORE_FIRST_RESULT)
         }
-        val testKit = testKit()
+        val testKit = testKit(observableFactory)
         val vector = PortableQueryDataset.vectors.single {
             it.key == PortableContractKey.Lifecycle(PortableLifecycleCase.DEADLINE)
         }
@@ -169,8 +184,9 @@ abstract class QueryBackendLifecycleSpec protected constructor(
             }
             .verify(Duration.ofSeconds(2))
 
-        clientProbe.subscriptionCount.assert().isOne()
-        clientProbe.cancellationCount.assert().isOne()
+        assertSame(observableFactory, testKit.backendFactory)
+        observableFactory.subscriptionCount.assert().isOne()
+        observableFactory.cancellationCount.assert().isOne()
         testKit.executionSubscriptionCount.assert().isOne()
         testKit.targetOnlyResolutionCount.assert().isZero()
     }

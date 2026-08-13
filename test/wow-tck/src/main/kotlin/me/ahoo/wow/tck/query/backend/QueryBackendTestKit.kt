@@ -52,7 +52,7 @@ import java.time.ZoneOffset
 import java.util.concurrent.atomic.AtomicLong
 
 class QueryBackendTestKit(
-    backendFactory: QueryBackendFactory,
+    val backendFactory: ObservableQueryBackendFactory,
     val documentKind: QueryDocumentKind,
     expectedCapabilities: Set<QueryCapabilityId> = emptySet(),
     expectedReadiness: QueryBackendReadiness = QueryBackendReadiness.Ready,

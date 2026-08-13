@@ -58,7 +58,7 @@ import java.util.concurrent.atomic.AtomicReference
 internal class InMemoryPortableQueryBackend(
     private val context: QueryBackendResolutionContext,
     private val documents: () -> List<PortableStoredQueryDocument>,
-    private val clientProbe: InMemoryPortableQueryClientLifecycleProbe
+    private val observableFactory: InMemoryObservableQueryBackendFactory
 ) : QueryBackend {
     override val descriptor: QueryBackendDescriptor = QueryBackendDescriptor(
         backendId = "in-memory-tck",
@@ -85,7 +85,7 @@ internal class InMemoryPortableQueryBackend(
             if (plan.limit == 0) values else values.take(plan.limit)
         }
         val decoded = matches.map { document -> decode<R>(document, plan.authorizedResultShape) }
-        clientProbe.listPublisher(decoded)
+        observableFactory.listPublisher(decoded)
     }
 
     override fun <R : Any> page(plan: PageQueryPlanV1<R>): Mono<QueryPage<R>> = Mono.fromSupplier {
@@ -301,7 +301,9 @@ internal class InMemoryPortableQueryBackend(
     )
 }
 
-internal class InMemoryPortableQueryClientLifecycleProbe : QueryBackendClientLifecycleProbe {
+internal class InMemoryObservableQueryBackendFactory(
+    private val documents: () -> List<PortableStoredQueryDocument>
+) : ObservableQueryBackendFactory {
     private val subscriptions = AtomicLong()
     private val cancellations = AtomicLong()
     private val nextListHold = AtomicReference<QueryBackendClientHold?>()
@@ -311,6 +313,9 @@ internal class InMemoryPortableQueryClientLifecycleProbe : QueryBackendClientLif
 
     override val cancellationCount: Long
         get() = cancellations.get()
+
+    override fun bind(context: QueryBackendResolutionContext): QueryBackend =
+        InMemoryPortableQueryBackend(context, documents, this)
 
     override fun reset() {
         subscriptions.set(0)
