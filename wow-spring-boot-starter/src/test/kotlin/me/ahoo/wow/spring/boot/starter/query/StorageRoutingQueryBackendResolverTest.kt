@@ -17,8 +17,14 @@ import me.ahoo.wow.api.query.error.QueryErrorCode
 import me.ahoo.wow.api.query.error.QueryErrorReason
 import me.ahoo.wow.api.query.error.QueryException
 import me.ahoo.wow.api.query.error.QueryStage
+import me.ahoo.wow.api.query.expression.FullTextExpression
+import me.ahoo.wow.api.query.expression.LogicalExpression
+import me.ahoo.wow.api.query.expression.LogicalField
+import me.ahoo.wow.api.query.expression.LogicalOperator
 import me.ahoo.wow.api.query.expression.MatchAll
+import me.ahoo.wow.api.query.expression.NativeExpression
 import me.ahoo.wow.api.query.expression.PortableOperator
+import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.expression.StringComparisonMode
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.api.query.gateway.QueryPage
@@ -110,6 +116,65 @@ class StorageRoutingQueryBackendResolverTest {
             .verify()
     }
 
+    @Test
+    fun `unsupported descriptor capability fails after bind and before readiness`() {
+        val capability = QueryCapabilityId("full-text")
+        val backend = ReadyBackend()
+        val factory = RecordingBackendFactory(backend)
+        val resolver = resolver(QueryBackendSelection.available(backendBinding(factory)))
+        val expression = LogicalExpression(
+            LogicalOperator.AND,
+            listOf(MatchAll, FullTextExpression(capability, "query", setOf(CONTENT)))
+        )
+
+        StepVerifier.create(resolver.resolve(resolutionContext(expression)))
+            .expectErrorSatisfies(::assertUnsupported)
+            .verify()
+
+        factory.bindCount.get().assert().isOne()
+        backend.readinessCount.get().assert().isZero()
+    }
+
+    @Test
+    fun `native backend mismatch fails after bind and before readiness`() {
+        val capability = QueryCapabilityId("x-wow:mongo-native")
+        val backend = ReadyBackend(capabilities = setOf(capability))
+        val factory = RecordingBackendFactory(backend)
+        val resolver = resolver(QueryBackendSelection.available(backendBinding(factory)))
+        val expression = NativeExpression(
+            capabilityId = capability,
+            backendId = "elasticsearch",
+            templateId = "registered",
+            parameters = emptyMap(),
+            declaredFields = setOf(CONTENT)
+        )
+
+        StepVerifier.create(resolver.resolve(resolutionContext(expression)))
+            .expectErrorSatisfies(::assertUnsupported)
+            .verify()
+
+        factory.bindCount.get().assert().isOne()
+        backend.readinessCount.get().assert().isZero()
+    }
+
+    @Test
+    fun `safe factory query exception preserves its identity`() {
+        val expected = QueryException(
+            QueryErrorCode.UNSUPPORTED_CAPABILITY,
+            QueryStage.PLANNING,
+            QueryErrorReason.CAPABILITY_DENIED
+        )
+        val resolver = resolver(
+            QueryBackendSelection.available(
+                backendBinding(QueryBackendFactory { throw expected })
+            )
+        )
+
+        StepVerifier.create(resolver.resolve(resolutionContext()))
+            .expectErrorSatisfies { actual -> actual.assert().isSameAs(expected) }
+            .verify()
+    }
+
     @TestFactory
     fun `fatal factory binding failures preserve their identity`(): List<DynamicTest> = listOf(
         "VirtualMachineError" to object : VirtualMachineError("fatal-vm") {},
@@ -147,10 +212,12 @@ class StorageRoutingQueryBackendResolverTest {
         backendFactory = factory,
     )
 
-    private fun resolutionContext(): QueryBackendResolutionContext = QueryBackendResolutionContext(
+    private fun resolutionContext(
+        expression: me.ahoo.wow.api.query.expression.QueryExpression = MatchAll
+    ): QueryBackendResolutionContext = QueryBackendResolutionContext(
         TARGET,
         QuerySchema(TARGET, QuerySystemFields.fields(QueryDocumentKind.SNAPSHOT)),
-        MatchAll,
+        expression,
     )
 
     private fun assertUnavailable(error: Throwable) {
@@ -161,17 +228,27 @@ class StorageRoutingQueryBackendResolverTest {
         }
     }
 
+    private fun assertUnsupported(error: Throwable) {
+        (error as QueryException).apply {
+            code.assert().isEqualTo(QueryErrorCode.UNSUPPORTED_CAPABILITY)
+            stage.assert().isEqualTo(QueryStage.PLANNING)
+            reason.assert().isEqualTo(QueryErrorReason.CAPABILITY_DENIED)
+        }
+    }
+
     companion object {
         private val TARGET = QueryTarget(
             MaterializedNamedAggregate("order-service", "order"),
             QueryDocumentKind.SNAPSHOT,
         )
+        private val CONTENT = LogicalField("state.content")
     }
 }
 
-private class RecordingBackendFactory : QueryBackendFactory {
+private class RecordingBackendFactory(
+    val backend: ReadyBackend = ReadyBackend()
+) : QueryBackendFactory {
     val bindCount = AtomicInteger()
-    val backend = ReadyBackend()
     var context: QueryBackendResolutionContext? = null
 
     override fun bind(context: QueryBackendResolutionContext): QueryBackend {
@@ -181,7 +258,10 @@ private class RecordingBackendFactory : QueryBackendFactory {
     }
 }
 
-private class ReadyBackend : QueryBackend {
+private class ReadyBackend(
+    capabilities: Set<QueryCapabilityId> = emptySet()
+) : QueryBackend {
+    val readinessCount = AtomicInteger()
     override val descriptor: QueryBackendDescriptor = QueryBackendDescriptor(
         backendId = "recording",
         documentKinds = setOf(QueryDocumentKind.SNAPSHOT),
@@ -189,11 +269,14 @@ private class ReadyBackend : QueryBackend {
         portableOperators = PortableOperator.entries.toSet(),
         portableFeatures = QueryPortableFeature.entries.toSet(),
         stringComparisonModes = StringComparisonMode.entries.toSet(),
-        capabilities = emptySet(),
+        capabilities = capabilities,
         maxBudget = QueryBudgetLimit.UNBOUNDED,
     )
 
-    override fun readiness(): Mono<QueryBackendReadiness> = Mono.just(QueryBackendReadiness.Ready)
+    override fun readiness(): Mono<QueryBackendReadiness> = Mono.fromSupplier {
+        readinessCount.incrementAndGet()
+        QueryBackendReadiness.Ready
+    }
 
     override fun <R : Any> single(plan: SingleQueryPlanV1<R>): Mono<R> = Mono.error(AssertionError("unexpected"))
 

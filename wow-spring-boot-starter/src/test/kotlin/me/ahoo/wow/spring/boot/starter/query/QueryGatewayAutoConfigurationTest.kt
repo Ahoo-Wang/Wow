@@ -549,13 +549,15 @@ class QueryGatewayAutoConfigurationTest {
             )
         }
 
-        gatewayContextRunner(RecordingBackend(capabilities = setOf(capability)), schema)
+        val disabledBackend = RecordingBackend(capabilities = setOf(capability))
+        gatewayContextRunner(disabledBackend, schema)
             .withBean(QueryPolicy::class.java, { grant })
             .run { context ->
                 StepVerifier.create(context.getBean(QueryGateway::class.java).count(request))
                     .expectErrorSatisfies { error ->
                         (error as QueryException).code.assert().isEqualTo(QueryErrorCode.UNSUPPORTED_CAPABILITY)
                     }.verify()
+                disabledBackend.readinessSubscriptions.get().assert().isZero()
             }
 
         gatewayContextRunner(RecordingBackend(capabilities = setOf(capability)), schema)
@@ -579,6 +581,48 @@ class QueryGatewayAutoConfigurationTest {
                     .expectNext(0)
                     .verifyComplete()
                 backend.countPlans.assert().hasSize(1)
+            }
+    }
+
+    @Test
+    fun `storage route rejects unsupported descriptor before readiness`() {
+        val capability = QueryCapabilityId("full-text")
+        val content = LogicalField("state.content")
+        val schema = QuerySchema(
+            QUERY_TARGET,
+            QuerySystemFields.fields(QueryDocumentKind.SNAPSHOT) +
+                QueryFieldSchema.string(content, nullable = false).copy(capabilities = setOf(capability))
+        )
+        val request = CountQueryRequest(
+            QUERY_TARGET,
+            expression = FullTextExpression(capability, "term", setOf(content))
+        )
+        val backend = RecordingBackend()
+        val grant = QueryPolicy {
+            Mono.just(
+                QueryPolicyResult(
+                    constraints = QueryPolicyConstraints(
+                        capabilityAccess = mapOf(capability to CapabilityDecision.GRANT)
+                    )
+                )
+            )
+        }
+
+        gatewayContextRunner(schema = schema)
+            .withBean(QueryBackendRouteSnapshot::class.java, { routeSnapshot(backend) })
+            .withBean(QueryPolicy::class.java, { grant })
+            .withPropertyValues("${QueryGatewayProperties.PREFIX}.enabled-capabilities[0]=full-text")
+            .run { context ->
+                StepVerifier.create(context.getBean(QueryGateway::class.java).count(request))
+                    .expectErrorSatisfies { error ->
+                        (error as QueryException).apply {
+                            code.assert().isEqualTo(QueryErrorCode.UNSUPPORTED_CAPABILITY)
+                            stage.assert().isEqualTo(QueryStage.PLANNING)
+                            reason.assert().isEqualTo(QueryErrorReason.CAPABILITY_DENIED)
+                        }
+                    }.verify()
+                backend.readinessSubscriptions.get().assert().isZero()
+                backend.countPlans.assert().isEmpty()
             }
     }
 
@@ -784,6 +828,7 @@ private class RecordingBackend(
     capabilities: Set<QueryCapabilityId> = emptySet()
 ) : QueryBackend {
     val countPlans: MutableList<CountQueryPlanV1> = CopyOnWriteArrayList()
+    val readinessSubscriptions = AtomicInteger()
 
     override val descriptor: QueryBackendDescriptor = QueryBackendDescriptor(
         backendId = "recording",
@@ -796,7 +841,10 @@ private class RecordingBackend(
         maxBudget = QueryBudgetLimit.UNBOUNDED
     )
 
-    override fun readiness(): Mono<QueryBackendReadiness> = Mono.just(QueryBackendReadiness.Ready)
+    override fun readiness(): Mono<QueryBackendReadiness> = Mono.fromSupplier {
+        readinessSubscriptions.incrementAndGet()
+        QueryBackendReadiness.Ready
+    }
 
     override fun <R : Any> single(plan: SingleQueryPlanV1<R>): Mono<R> = Mono.error(AssertionError("unexpected single"))
 

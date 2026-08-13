@@ -83,7 +83,8 @@ internal object DefaultQueryGatewayFactory {
                 configuration.meterRegistry,
                 configuration.enabledCapabilities
             ),
-            stageObserver = stageObserver
+            stageObserver = stageObserver,
+            enabledCapabilities = configuration.enabledCapabilities
         )
     }
 

@@ -28,10 +28,16 @@ import me.ahoo.wow.api.query.gateway.DeletionScope
 import me.ahoo.wow.api.query.gateway.ListQueryRequest
 import me.ahoo.wow.api.query.gateway.QueryBudgetHint
 import me.ahoo.wow.api.query.gateway.RequestedQueryScope
+import me.ahoo.wow.query.backend.QueryBackendResolver
 import me.ahoo.wow.query.backend.RecordingQueryBackend
+import me.ahoo.wow.query.policy.CapabilityDecision
 import me.ahoo.wow.query.policy.QueryPolicy
+import me.ahoo.wow.query.policy.QueryPolicyConstraints
 import me.ahoo.wow.query.policy.QueryPolicyResult
 import me.ahoo.wow.query.result.ResultPolicy
+import me.ahoo.wow.query.schema.QuerySchema
+import me.ahoo.wow.query.schema.QuerySchemaResolver
+import me.ahoo.wow.query.schema.QuerySchemaView
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -42,6 +48,70 @@ import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 
 class QueryGatewayLifecycleTest {
+    @Test
+    fun `configured capability preflight rejects before backend resolution`() {
+        val capability = QueryCapabilityId("full-text")
+        val resolverCalls = AtomicInteger()
+        val backend = RecordingQueryBackend(gatewayDescriptor())
+        val gateway = QueryGatewayFactory.create(
+            gatewayConfiguration(
+                backend,
+                customPolicies = listOf(capabilityPolicy(capability, CapabilityDecision.GRANT)),
+                schemaResolver = capabilitySchemaResolver(capability),
+                backendResolver = QueryBackendResolver {
+                    resolverCalls.incrementAndGet()
+                    Mono.error(AssertionError("Backend resolution must not run for a disabled capability."))
+                },
+                enabledCapabilities = emptySet()
+            )
+        )
+
+        StepVerifier.create(gateway.count(capabilityCountRequest(capability)))
+            .expectErrorSatisfies(::assertUnsupportedCapability)
+            .verify()
+
+        resolverCalls.get().assert().isZero()
+    }
+
+    @Test
+    fun `policy capability denial precedes configured capability preflight`() {
+        val capability = QueryCapabilityId("full-text")
+        val cases = listOf(
+            listOf(capabilityPolicy(capability, CapabilityDecision.DENY)),
+            listOf(capabilityPolicy(capability, CapabilityDecision.ABSTAIN)),
+            listOf(
+                capabilityPolicy(capability, CapabilityDecision.GRANT),
+                capabilityPolicy(capability, CapabilityDecision.DENY)
+            )
+        )
+
+        cases.forEach { policies ->
+            val resolverCalls = AtomicInteger()
+            val gateway = QueryGatewayFactory.create(
+                gatewayConfiguration(
+                    RecordingQueryBackend(gatewayDescriptor()),
+                    customPolicies = policies,
+                    schemaResolver = capabilitySchemaResolver(capability),
+                    backendResolver = QueryBackendResolver {
+                        resolverCalls.incrementAndGet()
+                        Mono.error(AssertionError("Backend resolution must not run after policy denial."))
+                    },
+                    enabledCapabilities = emptySet()
+                )
+            )
+
+            StepVerifier.create(gateway.count(capabilityCountRequest(capability)))
+                .expectErrorSatisfies { error ->
+                    (error as QueryException).apply {
+                        code.assert().isEqualTo(QueryErrorCode.POLICY_DENIED)
+                        stage.assert().isEqualTo(QueryStage.POLICY)
+                        reason.assert().isEqualTo(QueryErrorReason.CAPABILITY_DENIED)
+                    }
+                }.verify()
+            resolverCalls.get().assert().isZero()
+        }
+    }
+
     @Test
     fun `list maps a deadline after its first item to incomplete result and cancels backend`() {
         val scheduler = VirtualTimeScheduler.create()
@@ -553,6 +623,11 @@ class QueryGatewayLifecycleTest {
         backend.cancellations.get().assert().isOne()
         registry.find("wow.query.gateway").tag("outcome", "failure").counter()!!.count().assert().isEqualTo(1.0)
     }
+    private fun capabilityCountRequest(capabilityId: QueryCapabilityId): CountQueryRequest = CountQueryRequest(
+        target = GATEWAY_TARGET,
+        expression = fullText(capabilityId)
+    )
+
     private fun capabilityRequest(capabilityId: QueryCapabilityId): ListQueryRequest<String> = ListQueryRequest(
         target = GATEWAY_TARGET,
         expression = fullText(capabilityId),
@@ -564,4 +639,35 @@ class QueryGatewayLifecycleTest {
         query = "query",
         fields = setOf(GATEWAY_STATUS)
     )
+
+    private fun capabilityPolicy(
+        capability: QueryCapabilityId,
+        decision: CapabilityDecision
+    ): QueryPolicy = QueryPolicy {
+        Mono.just(
+            QueryPolicyResult(
+                constraints = QueryPolicyConstraints(capabilityAccess = mapOf(capability to decision))
+            )
+        )
+    }
+
+    private fun capabilitySchemaResolver(capability: QueryCapabilityId): QuerySchemaResolver =
+        object : QuerySchemaResolver {
+            override fun resolve(target: me.ahoo.wow.api.query.gateway.QueryTarget): Mono<QuerySchemaView> = Mono.just(
+                QuerySchema(
+                    GATEWAY_TARGET,
+                    gatewaySchema().fields.values.map { field ->
+                        if (field.path == GATEWAY_STATUS) field.copy(capabilities = setOf(capability)) else field
+                    }
+                )
+            )
+        }
+
+    private fun assertUnsupportedCapability(error: Throwable) {
+        (error as QueryException).apply {
+            code.assert().isEqualTo(QueryErrorCode.UNSUPPORTED_CAPABILITY)
+            stage.assert().isEqualTo(QueryStage.PLANNING)
+            reason.assert().isEqualTo(QueryErrorReason.CAPABILITY_DENIED)
+        }
+    }
 }

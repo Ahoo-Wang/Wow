@@ -18,6 +18,16 @@ import me.ahoo.wow.api.query.error.QueryErrorCode
 import me.ahoo.wow.api.query.error.QueryErrorReason
 import me.ahoo.wow.api.query.error.QueryException
 import me.ahoo.wow.api.query.error.QueryStage
+import me.ahoo.wow.api.query.expression.ElementMatchExpression
+import me.ahoo.wow.api.query.expression.FullTextExpression
+import me.ahoo.wow.api.query.expression.LogicalExpression
+import me.ahoo.wow.api.query.expression.MatchAll
+import me.ahoo.wow.api.query.expression.MatchNone
+import me.ahoo.wow.api.query.expression.NativeExpression
+import me.ahoo.wow.api.query.expression.PortableLogicalExpression
+import me.ahoo.wow.api.query.expression.PredicateExpression
+import me.ahoo.wow.api.query.expression.QueryCapabilityId
+import me.ahoo.wow.api.query.expression.QueryExpression
 import me.ahoo.wow.api.query.gateway.CountQueryRequest
 import me.ahoo.wow.api.query.gateway.ListQueryRequest
 import me.ahoo.wow.api.query.gateway.PageQueryRequest
@@ -60,7 +70,8 @@ internal class DefaultQueryGateway private constructor(
     private val planner: DefaultQueryPlanner,
     private val resultPolicyChain: DefaultResultPolicyChain,
     private val metrics: QueryGatewayMetrics,
-    private val stageObserver: QueryGatewayStageObserver
+    private val stageObserver: QueryGatewayStageObserver,
+    private val enabledCapabilities: Set<QueryCapabilityId>
 ) : QueryGateway {
     override fun <R : Any> single(request: SingleQueryRequest<R>): Mono<R> = Mono.defer {
         val metricState = metrics.state(request, QueryOperation.SINGLE)
@@ -170,8 +181,35 @@ internal class DefaultQueryGateway private constructor(
             seed
         }.flatMap(::resolveSchemaAndValidate)
         .flatMap { invocation -> evaluatePolicy(invocation, metricState) }
+        .map(::validateConfiguredCapabilities)
         .flatMap { evaluated -> resolveBackend(evaluated, metricState) }
         .flatMap { evaluated -> createPlan(evaluated, operation) }
+
+    private fun validateConfiguredCapabilities(evaluated: InvocationPolicy): InvocationPolicy {
+        if (!enabledCapabilities.containsAll(requestedCapabilities(evaluated.policyResult.securedExpression))) {
+            throw unsupportedCapability()
+        }
+        return evaluated
+    }
+
+    private fun requestedCapabilities(expression: QueryExpression): Set<QueryCapabilityId> {
+        val capabilities = LinkedHashSet<QueryCapabilityId>()
+        val pending = ArrayDeque<QueryExpression>()
+        pending += expression
+        while (pending.isNotEmpty()) {
+            when (val current = pending.removeLast()) {
+                is FullTextExpression -> capabilities += current.capabilityId
+                is NativeExpression -> capabilities += current.capabilityId
+                is LogicalExpression -> current.operands.forEach(pending::addLast)
+                is PortableLogicalExpression -> current.operands.forEach(pending::addLast)
+                is ElementMatchExpression -> pending += current.predicate
+                MatchAll,
+                MatchNone,
+                is PredicateExpression -> Unit
+            }
+        }
+        return capabilities
+    }
 
     private fun resolveSchemaAndValidate(seed: QueryInvocationSeed): Mono<QueryInvocation> {
         val schemaResolution = Mono.defer {
@@ -372,6 +410,12 @@ internal class DefaultQueryGateway private constructor(
         QueryErrorReason.BACKEND_UNAVAILABLE
     )
 
+    private fun unsupportedCapability(): QueryException = QueryException(
+        QueryErrorCode.UNSUPPORTED_CAPABILITY,
+        QueryStage.PLANNING,
+        QueryErrorReason.CAPABILITY_DENIED
+    )
+
     private fun resultInvalid(): QueryException = QueryException(
         QueryErrorCode.RESULT_VALIDATION_FAILED,
         QueryStage.RESULT_POLICY,
@@ -423,7 +467,8 @@ internal class DefaultQueryGateway private constructor(
             planner: DefaultQueryPlanner,
             resultPolicyChain: DefaultResultPolicyChain,
             metrics: QueryGatewayMetrics,
-            stageObserver: QueryGatewayStageObserver
+            stageObserver: QueryGatewayStageObserver,
+            enabledCapabilities: Set<QueryCapabilityId>
         ): DefaultQueryGateway = DefaultQueryGateway(
             invocationFactory,
             requestValidator,
@@ -433,7 +478,8 @@ internal class DefaultQueryGateway private constructor(
             planner,
             resultPolicyChain,
             metrics,
-            stageObserver
+            stageObserver,
+            enabledCapabilities
         )
     }
 }
