@@ -191,10 +191,11 @@ class ElasticsearchEventStore(
             descending = true,
         )
             .mapNotNull {
-                it
-                    .firstOrNull()
-                    ?.source()
-                    ?.let(::restoreEventStream)
+                it.firstOrNull()?.let { hit ->
+                    restoreEventStream(
+                        requireNotNull(hit.source()) { "Elasticsearch hit source is required." },
+                    )
+                }
             }
     }
 

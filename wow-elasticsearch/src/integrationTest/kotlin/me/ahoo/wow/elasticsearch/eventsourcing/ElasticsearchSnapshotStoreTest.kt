@@ -20,6 +20,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
 import me.ahoo.wow.elasticsearch.TemplateInitializer.initSnapshotTemplate
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryReadiness
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryReadinessRequirements
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.id.generateGlobalId
@@ -32,7 +34,9 @@ import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotStoreSpec
 import me.ahoo.wow.tck.mock.MockAggregateChanged
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockStateAggregate
+import me.ahoo.wow.query.backend.QueryBackendReadiness
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
+import me.ahoo.wow.test.saga.stateless.GivenReadOnlyStateAggregate
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import reactor.core.publisher.Flux
@@ -50,6 +54,39 @@ internal class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
         return ElasticsearchSnapshotStore(
             elasticsearchClient = elasticsearchClient
         )
+    }
+
+    @Test
+    fun `production writer and managed template cover an unmaterialized null marker`() {
+        val client = ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch)
+        client.initSnapshotTemplate()
+        val snapshot = emptyPresenceSnapshot(generateGlobalId())
+
+        ElasticsearchSnapshotStore(client).use { store ->
+            store.save(snapshot)
+                .then(
+                    ElasticsearchQueryReadiness(
+                        client = client,
+                        index = snapshot.aggregateId.toSnapshotIndexName(),
+                        requirements = ElasticsearchQueryReadinessRequirements(
+                            configurationValid = true,
+                            fields = emptySet(),
+                            presenceVersion = ElasticsearchQueryPresenceEncoder.VERSION,
+                            presenceFields = setOf(
+                                "__wow_query.present",
+                                "__wow_query.null",
+                                "state.__wow_query.present",
+                                "state.__wow_query.null",
+                                "state.emptyObject.__wow_query.present",
+                                "state.emptyObject.__wow_query.null",
+                            ),
+                        ),
+                    ).inspect(),
+                )
+                .test()
+                .expectNext(QueryBackendReadiness.Ready)
+                .verifyComplete()
+        }
     }
 
     @Test
@@ -400,6 +437,24 @@ internal class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
         return SimpleSnapshot(aggregate, snapshotTime = version.toLong())
     }
 
+    private fun emptyPresenceSnapshot(id: String): SimpleSnapshot<EmptyPresenceState> =
+        SimpleSnapshot(
+            delegate = GivenReadOnlyStateAggregate(
+                aggregateId = aggregateMetadata.aggregateId(id),
+                state = EmptyPresenceState(id),
+                version = 1,
+                ownerId = "",
+                spaceId = "",
+                deleted = false,
+                eventId = "event-id",
+                firstOperator = "",
+                operator = "",
+                firstEventTime = 1,
+                eventTime = 1,
+            ),
+            snapshotTime = 1,
+        )
+
     private fun writeLegacySnapshot(
         client: org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient,
         snapshot: SimpleSnapshot<MockStateAggregate>,
@@ -440,3 +495,9 @@ internal class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
         return concreteIndex
     }
 }
+
+private data class EmptyPresenceState(
+    val id: String,
+    val emptyObject: Map<String, Any?> = emptyMap(),
+    val emptyList: List<Any?> = emptyList(),
+)

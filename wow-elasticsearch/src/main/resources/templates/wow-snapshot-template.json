@@ -5,9 +5,25 @@
   "template": {
     "mappings": {
       "_meta": {
-        "wow_query_presence_version": 1
+        "wow_query_presence_version": 1,
+        "wow_query_presence_template_version": 1
       },
       "properties": {
+        "__wow_query": {
+          "type": "object",
+          "properties": {
+            "present": {
+              "type": "keyword",
+              "index": true,
+              "doc_values": true
+            },
+            "null": {
+              "type": "keyword",
+              "index": true,
+              "doc_values": true
+            }
+          }
+        },
         "contextName": {
           "type": "keyword"
         },

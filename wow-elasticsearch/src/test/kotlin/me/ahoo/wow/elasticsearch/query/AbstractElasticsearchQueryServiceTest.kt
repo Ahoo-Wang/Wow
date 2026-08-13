@@ -38,6 +38,7 @@ import me.ahoo.wow.query.converter.ConditionConverter
 import org.junit.jupiter.api.Test
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
+import reactor.kotlin.test.test
 
 class AbstractElasticsearchQueryServiceTest {
     private val elasticsearchClient = mockk<ReactiveElasticsearchClient>()
@@ -104,6 +105,26 @@ class AbstractElasticsearchQueryServiceTest {
     }
 
     @Test
+    fun `legacy query should fail the whole result when any hit source is missing`() {
+        every {
+            elasticsearchClient.search(any<SearchRequest>(), Map::class.java)
+        } returns Mono.just(searchResponse(total = 2, includeNullSource = true))
+
+        queryService.dynamicPaged(PagedQuery(Condition.ALL))
+            .test()
+            .expectErrorMatches {
+                it is IllegalArgumentException && it.message == "Elasticsearch hit source is required."
+            }
+            .verify()
+        queryService.paged(PagedQuery(Condition.ALL))
+            .test()
+            .expectErrorMatches {
+                it is IllegalArgumentException && it.message == "Elasticsearch hit source is required."
+            }
+            .verify()
+    }
+
+    @Test
     fun `count should use count api`() {
         val request = slot<CountRequest>()
         every { elasticsearchClient.count(capture(request)) } returns Mono.just(
@@ -120,7 +141,10 @@ class AbstractElasticsearchQueryServiceTest {
         verify(exactly = 0) { elasticsearchClient.search(any<SearchRequest>(), Map::class.java) }
     }
 
-    private fun searchResponse(total: Long?): SearchResponse<Map<*, *>> {
+    private fun searchResponse(
+        total: Long?,
+        includeNullSource: Boolean = false,
+    ): SearchResponse<Map<*, *>> {
         return SearchResponse.of<Map<*, *>> {
             it.took(1)
                 .timedOut(false)
@@ -148,7 +172,11 @@ class AbstractElasticsearchQueryServiceTest {
                                     ),
                                 )
                             )
-                    }.hits { hit -> hit.index("test-index").id("2") }
+                    }.apply {
+                        if (includeNullSource) {
+                            hits { hit -> hit.index("test-index").id("2") }
+                        }
+                    }
                 }
         }
     }

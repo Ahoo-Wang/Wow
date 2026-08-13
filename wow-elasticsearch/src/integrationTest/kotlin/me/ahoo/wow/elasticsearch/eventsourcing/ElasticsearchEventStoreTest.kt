@@ -18,6 +18,8 @@ import me.ahoo.wow.elasticsearch.IndexNameConverter.EVENT_STREAM_SUFFIX
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
 import me.ahoo.wow.elasticsearch.TemplateInitializer.initEventStreamTemplate
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryReadiness
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryReadinessRequirements
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.id.generateGlobalId
@@ -25,9 +27,11 @@ import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
+import me.ahoo.wow.query.backend.QueryBackendReadiness
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.time.Duration
 
@@ -45,6 +49,64 @@ class ElasticsearchEventStoreTest : EventStoreSpec() {
     }
 
     override fun appendEventStreamWhenDuplicateRequestIdException() = Unit
+
+    @Test
+    fun `production writer and managed template cover an unmaterialized event null marker`() {
+        val client = ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch)
+        client.initEventStreamTemplate()
+        val eventStream = generateEventStream(
+            aggregateId = namedAggregate.aggregateId(generateGlobalId()),
+            eventCount = 1,
+            createdEventSupplier = { EmptyPresenceEvent() },
+        )
+
+        ElasticsearchEventStore(client).use { store ->
+            store.append(eventStream)
+                .then(
+                    ElasticsearchQueryReadiness(
+                        client = client,
+                        index = eventStream.aggregateId.toEventStreamIndexName(),
+                        requirements = ElasticsearchQueryReadinessRequirements(
+                            configurationValid = true,
+                            fields = emptySet(),
+                            presenceVersion = ElasticsearchQueryPresenceEncoder.VERSION,
+                            presenceFields = setOf(
+                                "__wow_query.present",
+                                "__wow_query.null",
+                                "body.__wow_query.present",
+                                "body.__wow_query.null",
+                                "body.body.__wow_query.present",
+                                "body.body.__wow_query.null",
+                                "body.body.emptyObject.__wow_query.present",
+                                "body.body.emptyObject.__wow_query.null",
+                            ),
+                        ),
+                    ).inspect(),
+                )
+                .test()
+                .expectNext(QueryBackendReadiness.Ready)
+                .verifyComplete()
+        }
+    }
+
+    @Test
+    fun `last should fail closed when elasticsearch returns a hit without source`() {
+        val client = ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch)
+        val eventStream = generateEventStream(
+            aggregateId = namedAggregate.aggregateId(generateGlobalId()),
+            eventCount = 1,
+        )
+        val index = eventStream.aggregateId.toEventStreamIndexName()
+        ElasticsearchEventStore(client).use { store ->
+            client.indices().create { request ->
+                request.index(index).mappings { mapping -> mapping.source { source -> source.enabled(false) } }
+            }.then(Mono.defer { store.append(eventStream) })
+                .then(Mono.defer { store.last(eventStream.aggregateId) })
+                .test()
+                .expectError(IllegalArgumentException::class.java)
+                .verify()
+        }
+    }
 
     @Test
     fun `scan aggregate id should be empty when index is missing`() {
@@ -200,3 +262,8 @@ class ElasticsearchEventStoreTest : EventStoreSpec() {
         }
     }
 }
+
+private data class EmptyPresenceEvent(
+    val emptyObject: Map<String, Any?> = emptyMap(),
+    val emptyList: List<Any?> = emptyList(),
+)

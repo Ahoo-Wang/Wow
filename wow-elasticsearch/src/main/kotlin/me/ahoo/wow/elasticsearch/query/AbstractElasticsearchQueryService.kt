@@ -121,13 +121,12 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
         return elasticsearchClient.search(searchRequest, Map::class.java)
             .map { result ->
                 val hits = result.hits()
-                val list = hits.hits().mapNotNull { hit ->
-                    hit.source()?.let {
-                        ElasticsearchQueryPresenceEncoder
-                            .strip(it as Map<String, Any?>)
-                            .toMutableMap()
-                            .toDynamicDocument()
-                    }
+                val list = hits.hits().map { hit ->
+                    val source = requireNotNull(hit.source()) { "Elasticsearch hit source is required." }
+                    ElasticsearchQueryPresenceEncoder
+                        .strip(source as Map<String, Any?>)
+                        .toMutableMap()
+                        .toDynamicDocument()
                 }
                 PagedList(hits.total()?.value() ?: 0, list)
             }

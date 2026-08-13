@@ -67,5 +67,6 @@ internal class DirectElasticsearchEventStreamAppender(
 
 internal fun DomainEventStream.toDocId(): String = "${this.aggregateId.id}-${this.version}"
 
+@JvmSynthetic
 internal fun DomainEventStream.toElasticsearchDocument(): Map<String, Any?> =
     ElasticsearchQueryPresenceEncoder.encode(toLinkedHashMap())

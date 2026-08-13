@@ -16,17 +16,25 @@ package me.ahoo.wow.elasticsearch.query.backend
 import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.elasticsearch._types.mapping.Property
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
+import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch.core.IndexRequest
 import co.elastic.clients.elasticsearch.indices.CreateIndexRequest
 import co.elastic.clients.elasticsearch.indices.ExistsIndexTemplateRequest
 import co.elastic.clients.elasticsearch.indices.GetMappingRequest
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.elasticsearch.IndexTemplateInitializer
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
 import me.ahoo.wow.elasticsearch.TemplateInitializer.createElasticsearchTemplate
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchQueryPresenceEncoder
+import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.backend.QueryBackendReadiness
 import me.ahoo.wow.query.backend.QueryBackendReadinessReason
+import me.ahoo.wow.query.converter.ConditionConverter
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -68,6 +76,28 @@ internal class ElasticsearchQueryPresenceTemplateTest {
         result.test().verifyComplete()
     }
 
+    @Test
+    fun `legacy query should fail closed when elasticsearch returns a hit without source`() {
+        val client = ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch)
+        val index = elasticsearch.index("legacy_source_disabled")
+        val service = SourceNullQueryService(client, index)
+
+        client.indices().create { request ->
+            request.index(index).mappings { mapping -> mapping.source { source -> source.enabled(false) } }
+        }.then(
+            Mono.defer {
+                client.index(
+                    IndexRequest.of<Map<String, Any?>> { request ->
+                        request.index(index).id("1").document(mapOf("field" to "value")).refresh(Refresh.True)
+                    },
+                )
+            },
+        ).then(Mono.defer { service.dynamicPaged(PagedQuery(Condition.ALL)) })
+            .test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+    }
+
     private fun deleteTemplateIfPresent(
         client: ReactiveElasticsearchClient,
         template: String,
@@ -87,17 +117,22 @@ internal class ElasticsearchQueryPresenceTemplateTest {
     ): Mono<Void> {
         val source = ElasticsearchQueryPresenceEncoder.encode(
             linkedMapOf(
-                "rootValue" to null,
-                "payload" to linkedMapOf("deepValue" to null),
+                "rootValue" to "value",
+                "payload" to linkedMapOf(
+                    "emptyObject" to emptyMap<String, Any?>(),
+                    "emptyList" to emptyList<Any?>(),
+                ),
             )
         )
-        return client.indices().create(CreateIndexRequest.of { request -> request.index(index) })
+        return Mono.defer { client.indices().create(CreateIndexRequest.of { request -> request.index(index) }) }
             .then(
-                client.index(
-                    IndexRequest.of<Map<String, Any?>> { request ->
-                        request.index(index).id("1").document(source).refresh(Refresh.True)
-                    }
-                )
+                Mono.defer {
+                    client.index(
+                        IndexRequest.of<Map<String, Any?>> { request ->
+                            request.index(index).id("1").document(source).refresh(Refresh.True)
+                        }
+                    )
+                }
             ).then()
     }
 
@@ -138,11 +173,31 @@ internal class ElasticsearchQueryPresenceTemplateTest {
             ?.to(Int::class.javaObjectType)
             .assert()
             .isEqualTo(ElasticsearchQueryPresenceEncoder.VERSION)
-        PRESENCE_FIELDS.forEach { path ->
-            val property = propertyAt(mapping, path)
+        mapping.meta()[ElasticsearchQueryReadiness.PRESENCE_TEMPLATE_VERSION_META]
+            ?.to(Int::class.javaObjectType)
+            .assert()
+            .isEqualTo(ElasticsearchQueryPresenceEncoder.VERSION)
+        ROOT_PRESENCE_FIELDS.forEach { path ->
+            val property = checkNotNull(propertyAt(mapping, path))
             checkNotNull(property).isKeyword.assert().isTrue()
             property.keyword().index().assert().isNotEqualTo(false)
             property.keyword().docValues().assert().isNotEqualTo(false)
+        }
+        propertyAt(mapping, "payload.__wow_query.null").assert().isNull()
+        propertyAt(mapping, "payload.emptyObject.__wow_query.present").assert().isNull()
+        propertyAt(mapping, "payload.emptyObject.__wow_query.null").assert().isNull()
+        val templates = mapping.dynamicTemplates()
+        templates.take(2).map { it.name() }.assert().containsExactly(
+            "wow_query_present_keyword",
+            "wow_query_null_keyword",
+        )
+        templates.take(2).zip(listOf("present", "null")).forEach { (named, marker) ->
+            named.value().pathMatch().assert().containsExactly(
+                "__wow_query.$marker",
+                "*.__wow_query.$marker",
+            )
+            named.value().matchMappingType().assert().containsExactly("string")
+            named.value().mapping().isKeyword.assert().isTrue()
         }
     }
 
@@ -168,12 +223,29 @@ internal class ElasticsearchQueryPresenceTemplateTest {
         val new: String,
     )
 
+    private class SourceNullQueryService(
+        override val elasticsearchClient: ReactiveElasticsearchClient,
+        override val indexName: String,
+    ) : AbstractElasticsearchQueryService<DynamicDocument>() {
+        override val namedAggregate: NamedAggregate = MaterializedNamedAggregate("test", "source-null")
+        override val conditionConverter: ConditionConverter<Query> = object : ConditionConverter<Query> {
+            override fun convert(condition: Condition): Query = Query.of { it.matchAll { match -> match } }
+        }
+
+        override fun toTypedResult(document: DynamicDocument): DynamicDocument = document
+    }
+
     private companion object {
-        val PRESENCE_FIELDS = setOf(
+        val ROOT_PRESENCE_FIELDS = setOf(
             "__wow_query.present",
             "__wow_query.null",
             "payload.__wow_query.present",
+        )
+        val PRESENCE_FIELDS = setOf(
+            *ROOT_PRESENCE_FIELDS.toTypedArray(),
             "payload.__wow_query.null",
+            "payload.emptyObject.__wow_query.present",
+            "payload.emptyObject.__wow_query.null",
         )
     }
 }

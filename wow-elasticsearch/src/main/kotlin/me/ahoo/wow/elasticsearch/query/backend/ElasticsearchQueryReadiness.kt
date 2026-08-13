@@ -18,6 +18,7 @@ package me.ahoo.wow.elasticsearch.query.backend
 import co.elastic.clients.elasticsearch.indices.ExistsRequest
 import co.elastic.clients.elasticsearch.indices.GetIndicesSettingsRequest
 import co.elastic.clients.elasticsearch.indices.GetMappingRequest
+import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchQueryPresenceEncoder
 import me.ahoo.wow.query.backend.QueryBackendReadiness
 import me.ahoo.wow.query.backend.QueryBackendReadinessReason
 import me.ahoo.wow.query.schema.QueryCollectionKind
@@ -149,10 +150,42 @@ internal class ElasticsearchQueryReadiness(
         val version = runCatching {
             mapping.meta()[PRESENCE_VERSION_META]?.to(Int::class.javaObjectType)
         }.getOrNull()
+        val managedPresenceTemplates = mapping.hasManagedPresenceTemplateContract()
         return version == requirements.presenceVersion &&
             requirements.fields.all { requirement -> compatible(snapshot, requirement) } &&
-            requirements.presenceFields.all { path -> propertyAt(mapping, path)?.hasManagedKeywordSemantics() == true }
+            requirements.presenceFields.all { path ->
+                propertyAt(mapping, path)?.hasManagedKeywordSemantics() ?: managedPresenceTemplates
+            }
     }
+
+    private fun co.elastic.clients.elasticsearch._types.mapping.TypeMapping.hasManagedPresenceTemplateContract(): Boolean {
+        val contractVersion = runCatching {
+            meta()[PRESENCE_TEMPLATE_VERSION_META]?.to(Int::class.javaObjectType)
+        }.getOrNull()
+        if (contractVersion != requirements.presenceVersion) return false
+        val templates = dynamicTemplates()
+        if (templates.size < PRESENCE_TEMPLATE_NAMES.size) return false
+        return PRESENCE_TEMPLATE_NAMES.entries.withIndex().all { (index, expected) ->
+            val actual = templates[index]
+            actual.name() == expected.key && actual.value().matchesPresenceTemplate(expected.value)
+        }
+    }
+
+    private fun co.elastic.clients.elasticsearch._types.mapping.DynamicTemplate.matchesPresenceTemplate(
+        marker: String,
+    ): Boolean =
+        pathMatch() == listOf(
+            "${ElasticsearchQueryPresenceEncoder.NAMESPACE}.$marker",
+            "*.${ElasticsearchQueryPresenceEncoder.NAMESPACE}.$marker",
+        ) &&
+            matchMappingType() == listOf("string") &&
+            match().isEmpty() &&
+            unmatch().isEmpty() &&
+            pathUnmatch().isEmpty() &&
+            unmatchMappingType().isEmpty() &&
+            matchPattern() == null &&
+            isMapping &&
+            mapping().hasManagedKeywordSemantics()
 
     private fun compatible(
         snapshot: ElasticsearchIndexMappingSnapshot,
@@ -322,6 +355,11 @@ internal class ElasticsearchQueryReadiness(
 
     companion object {
         internal const val PRESENCE_VERSION_META = "wow_query_presence_version"
+        internal const val PRESENCE_TEMPLATE_VERSION_META = "wow_query_presence_template_version"
+        private val PRESENCE_TEMPLATE_NAMES = linkedMapOf(
+            "wow_query_present_keyword" to ElasticsearchQueryPresenceEncoder.PRESENT,
+            "wow_query_null_keyword" to ElasticsearchQueryPresenceEncoder.NULL,
+        )
         private const val DEFAULT_ANALYZER = "standard"
         private const val INDEX_DEFAULT_ANALYZER = "default"
         private const val INDEX_DEFAULT_SEARCH_ANALYZER = "default_search"

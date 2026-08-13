@@ -83,6 +83,20 @@ class ElasticsearchEventStoreUnitTest {
     }
 
     @Test
+    fun `last event stream hit source is required`() {
+        stubSearch(
+            Mono.just(searchResponse(source = null, sort = listOf(FieldValue.of(1), FieldValue.of("id")))),
+        )
+
+        ElasticsearchEventStore(client).last(aggregateId)
+            .test()
+            .expectErrorMatches {
+                it is IllegalArgumentException && it.message == "Elasticsearch hit source is required."
+            }
+            .verify()
+    }
+
+    @Test
     fun `presence metadata is stripped before restoring an event stream`() {
         val expected = eventStream()
         val encoded = ElasticsearchQueryPresenceEncoder.encode(expected.toLinkedHashMap())

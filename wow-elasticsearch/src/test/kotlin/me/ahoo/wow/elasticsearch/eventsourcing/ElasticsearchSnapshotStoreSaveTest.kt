@@ -128,8 +128,12 @@ class ElasticsearchSnapshotStoreSaveTest {
         val upsert = checkNotNull(request.captured.upsert())
         upsert["version"].assert().isEqualTo(3)
         assertPresenceEncoded(upsert)
-        checkNotNull(request.captured.script())
-            .params().keys.assert().contains("version", "snapshot")
+        val scriptParams = checkNotNull(request.captured.script()).params()
+        scriptParams.keys.assert().contains("version", "snapshot")
+        @Suppress("UNCHECKED_CAST")
+        val scriptSnapshot = scriptParams.getValue("snapshot").to(Map::class.java) as Map<String, Any?>
+        assertPresenceEncoded(scriptSnapshot)
+        scriptSnapshot.assert().isEqualTo(upsert)
         verify(exactly = 0) { client.bulk(any<BulkRequest>()) }
         verify(exactly = 0) { client.index(any<IndexRequest<Map<String, Any?>>>()) }
     }
@@ -225,7 +229,14 @@ class ElasticsearchSnapshotStoreSaveTest {
         request.captured.operations().all { it.isUpdate }.assert().isTrue()
         request.captured.operations().forEach { operation ->
             val update = operation.update<Map<String, Any?>, Map<String, Any?>>()
-            assertPresenceEncoded(checkNotNull(checkNotNull(update.action()).upsert()))
+            val action = checkNotNull(update.action())
+            val upsert = checkNotNull(action.upsert())
+            assertPresenceEncoded(upsert)
+            @Suppress("UNCHECKED_CAST")
+            val scriptSnapshot = checkNotNull(action.script()).params().getValue("snapshot")
+                .to(Map::class.java) as Map<String, Any?>
+            assertPresenceEncoded(scriptSnapshot)
+            scriptSnapshot.assert().isEqualTo(upsert)
         }
         verify(exactly = 0) { client.index(any<IndexRequest<Map<String, Any?>>>()) }
     }
@@ -466,7 +477,10 @@ class ElasticsearchSnapshotStoreSaveTest {
     private fun reservedSnapshot(id: String): SimpleSnapshot<ReservedSnapshotState> {
         val aggregate = GivenReadOnlyStateAggregate(
             aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(id),
-            state = ReservedSnapshotState(id = id, reserved = "collision"),
+            state = ReservedSnapshotState(
+                id = id,
+                nested = ReservedSnapshotNested(reserved = "collision"),
+            ),
             version = 1,
             ownerId = "",
             spaceId = "",
@@ -518,6 +532,10 @@ class ElasticsearchSnapshotStoreSaveTest {
 
 private data class ReservedSnapshotState(
     val id: String,
+    val nested: ReservedSnapshotNested,
+)
+
+private data class ReservedSnapshotNested(
     @field:JsonProperty("__wow_query")
     val reserved: String,
 )

@@ -436,7 +436,7 @@ class ElasticsearchEventStoreAppendTest {
         MockDomainEventStreams.generateEventStream(
             aggregateId = namedAggregate.aggregateId(id),
             eventCount = 1,
-            createdEventSupplier = { ReservedEvent("collision") },
+            createdEventSupplier = { ReservedEvent(ReservedEventNested("collision")) },
         )
 
     private fun bulkResponse(
@@ -489,6 +489,10 @@ class ElasticsearchEventStoreAppendTest {
 }
 
 private data class ReservedEvent(
+    val nested: ReservedEventNested,
+)
+
+private data class ReservedEventNested(
     @field:JsonProperty("__wow_query")
     val reserved: String,
 )

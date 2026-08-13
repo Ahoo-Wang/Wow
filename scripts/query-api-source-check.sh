@@ -139,6 +139,29 @@ javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
     -d "$TEMP_DIR/classes/java" "$TEMP_DIR/java/StableElasticsearchBackendApi.java"
 echo "PASS: Java external stable Elasticsearch backend API source"
 
+cat >"$TEMP_DIR/java/InternalElasticsearchEventDocumentFactory.java" <<'EOF'
+package external.fixture;
+
+import java.util.Map;
+import me.ahoo.wow.event.DomainEventStream;
+import static me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStreamAppenderKt.toElasticsearchDocument;
+
+public final class InternalElasticsearchEventDocumentFactory {
+    public static Map<String, Object> encode(DomainEventStream eventStream) {
+        return toElasticsearchDocument(eventStream);
+    }
+}
+EOF
+
+if javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/java" "$TEMP_DIR/java/InternalElasticsearchEventDocumentFactory.java" \
+    >"$TEMP_DIR/internal-elasticsearch-event-document.out" 2>&1; then
+    fail "Java external source unexpectedly compiled internal Elasticsearch event document factory"
+fi
+grep -Fq "toElasticsearchDocument" "$TEMP_DIR/internal-elasticsearch-event-document.out" ||
+    fail "Java external source failed for an unexpected reason while checking internal Elasticsearch event document factory"
+echo "PASS: Java external source cannot reference internal Elasticsearch event document factory"
+
 cat >"$TEMP_DIR/kotlin/StableElasticsearchBackendApi.kt" <<'EOF'
 package external.fixture
 
