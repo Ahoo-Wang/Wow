@@ -17,13 +17,25 @@ import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
+import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 
-class MongoSnapshotQueryServiceFactory(private val database: MongoDatabase) : AbstractSnapshotQueryServiceFactory() {
+class MongoSnapshotQueryServiceFactory private constructor(
+    private val database: MongoDatabase,
+    private val queryGateway: QueryGateway?,
+    @Suppress("UNUSED_PARAMETER") marker: Unit
+) : AbstractSnapshotQueryServiceFactory() {
+    @Deprecated("Use the constructor that requires QueryGateway.")
+    constructor(database: MongoDatabase) : this(database, null, Unit)
+
+    constructor(database: MongoDatabase, queryGateway: QueryGateway) : this(database, queryGateway, Unit)
+
     override fun createQueryService(namedAggregate: NamedAggregate): SnapshotQueryService<*> {
         val collectionName = namedAggregate.toSnapshotCollectionName()
         val collection = database.getCollection(collectionName)
-        return MongoSnapshotQueryService<Any>(namedAggregate.materialize(), collection)
+        val materialized = namedAggregate.materialize()
+        return queryGateway?.let { MongoSnapshotQueryService<Any>(materialized, collection, it) }
+            ?: MongoSnapshotQueryService<Any>(materialized, collection)
     }
 }

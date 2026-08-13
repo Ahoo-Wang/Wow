@@ -22,16 +22,22 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.Queryable
+import me.ahoo.wow.api.query.error.QueryErrorCode
+import me.ahoo.wow.api.query.error.QueryErrorReason
+import me.ahoo.wow.api.query.error.QueryException
+import me.ahoo.wow.api.query.error.QueryStage
 import me.ahoo.wow.query.QueryService
 import me.ahoo.wow.query.converter.ConditionConverter
 import org.bson.Document
 import org.bson.conversions.Bson
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.toFlux
-import reactor.kotlin.core.publisher.toMono
 
-abstract class AbstractMongoQueryService<R : Any> : QueryService<R> {
+abstract class AbstractMongoQueryService<R : Any> protected constructor(
+    private val queryService: QueryService<R>?
+) : QueryService<R> {
+    constructor() : this(null)
+
     abstract val collection: MongoCollection<Document>
     abstract val converter: ConditionConverter<Bson>
     abstract val projectionConverter: MongoProjectionConverter
@@ -43,79 +49,41 @@ abstract class AbstractMongoQueryService<R : Any> : QueryService<R> {
         return collection.findDocument(converter, queryable, projectionConverter, sortConverter)
     }
 
-    private fun singleDocument(singleQuery: ISingleQuery): Mono<Document> {
-        return findDocument(singleQuery)
-            .limit(1)
-            .first()
-            .toMono()
-    }
-
     override fun single(singleQuery: ISingleQuery): Mono<R> {
-        return singleDocument(singleQuery).map {
-            toTypedResult(it)
-        }
+        return queryService?.single(singleQuery) ?: unavailableMono()
     }
 
     override fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument> {
-        return singleDocument(singleQuery).map {
-            toDynamicDocument(it)
-        }
-    }
-
-    private fun listDocument(listQuery: IListQuery): Flux<Document> {
-        return findDocument(listQuery)
-            .limit(listQuery.limit)
-            .toFlux()
+        return queryService?.dynamicSingle(singleQuery) ?: unavailableMono()
     }
 
     override fun list(listQuery: IListQuery): Flux<R> {
-        return listDocument(listQuery).map {
-            toTypedResult(it)
-        }
+        return queryService?.list(listQuery) ?: unavailableFlux()
     }
 
     override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> {
-        return listDocument(listQuery).map {
-            toDynamicDocument(it)
-        }
-    }
-
-    private fun <T : Any> pagedDocument(
-        pagedQuery: IPagedQuery,
-        documentMapper: (Document) -> T
-    ): Mono<PagedList<T>> {
-        val projectionBson = projectionConverter.convert(pagedQuery.projection)
-        val filter = converter.convert(pagedQuery.condition)
-        val sort = sortConverter.convert(pagedQuery.sort)
-
-        val totalPublisher = collection.countDocuments(filter).toMono()
-        val listPublisher = collection.find(filter)
-            .projection(projectionBson)
-            .sort(sort)
-            .skip(pagedQuery.pagination.offset())
-            .limit(pagedQuery.pagination.size)
-            .batchSize(pagedQuery.pagination.size)
-            .toFlux()
-
-        val listMappedPublisher = listPublisher.map { documentMapper(it) }.collectList()
-        return Mono.zip(totalPublisher, listMappedPublisher)
-            .map { result ->
-                PagedList(result.t1, result.t2)
-            }
+        return queryService?.dynamicList(listQuery) ?: unavailableFlux()
     }
 
     override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<R>> {
-        return pagedDocument(pagedQuery) {
-            toTypedResult(it)
-        }
+        return queryService?.paged(pagedQuery) ?: unavailableMono()
     }
 
     override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> {
-        return pagedDocument(pagedQuery) { toDynamicDocument(it) }
+        return queryService?.dynamicPaged(pagedQuery) ?: unavailableMono()
     }
 
     override fun count(condition: Condition): Mono<Long> {
-        val filter = converter.convert(condition)
-        return collection.countDocuments(filter).toMono()
+        return queryService?.count(condition) ?: unavailableMono()
     }
+
+    private fun <T : Any> unavailableMono(): Mono<T> = Mono.defer { Mono.error(backendUnavailable()) }
+
+    private fun <T : Any> unavailableFlux(): Flux<T> = Flux.defer { Flux.error(backendUnavailable()) }
+
+    private fun backendUnavailable(): QueryException = QueryException(
+        QueryErrorCode.BACKEND_NOT_READY,
+        QueryStage.BACKEND_RESOLUTION,
+        QueryErrorReason.BACKEND_UNAVAILABLE
+    )
 }

@@ -43,6 +43,54 @@ import java.time.Instant
 import java.util.stream.Stream
 
 class MongoQueryResultDecoderTest {
+    @Test
+    fun `typed DynamicDocument materializes the exact validated projection`() {
+        val profile = LogicalField("profile")
+        val city = LogicalField("profile.city")
+        val fields = listOf(
+            QueryFieldSchema(profile, QueryFieldValueKind.OBJECT, nullable = false),
+            QueryFieldSchema(city, QueryFieldValueKind.STRING, nullable = false),
+            QueryFieldSchema(OTHER, QueryFieldValueKind.STRING, nullable = false)
+        )
+        val result = MongoQueryResultDecoder(MongoQueryFieldBinding.bind(QuerySchema(TARGET, fields)))
+            .decode<DynamicDocument>(
+                Document(mapOf("profile" to Document("city", "杭州"), "other" to "not-projected")),
+                QueryPlanResultShape.Typed(DynamicDocument::class.java, setOf(city)),
+                mapOf(city to "profile.city")
+            )
+
+        result.assert().isEqualTo(mapOf("profile" to mapOf("city" to "杭州")))
+    }
+
+    @Test
+    fun `typed DynamicDocument preserves a nullable projected field`() {
+        val field = QueryFieldSchema(VALUE, QueryFieldValueKind.STRING, nullable = true)
+
+        val result = decoder(field).decode<DynamicDocument>(
+            Document(),
+            QueryPlanResultShape.Typed(DynamicDocument::class.java, setOf(VALUE)),
+            mapOf(VALUE to "value")
+        )
+
+        result.containsKey(VALUE.value).assert().isTrue()
+        result[VALUE.value].assert().isNull()
+    }
+
+    @Test
+    fun `typed DynamicDocument rejects malformed projected values with the stable tuple`() {
+        val field = QueryFieldSchema(VALUE, QueryFieldValueKind.STRING, nullable = false)
+
+        val error = assertThrows<QueryException> {
+            decoder(field).decode<DynamicDocument>(
+                Document("value", 42),
+                QueryPlanResultShape.Typed(DynamicDocument::class.java, setOf(VALUE)),
+                mapOf(VALUE to "value")
+            )
+        }
+
+        assertResultInvalid(error)
+    }
+
     @ParameterizedTest(name = "{0} rejects {1}")
     @MethodSource("malformedScalarCases")
     fun `dynamic result rejects values incompatible with the schema kind`(
@@ -216,6 +264,7 @@ class MongoQueryResultDecoderTest {
     private companion object {
         val TARGET = QueryTarget(MaterializedNamedAggregate("mongo-query-decoder", "value"), QueryDocumentKind.SNAPSHOT)
         val VALUE = LogicalField("value")
+        val OTHER = LogicalField("other")
 
         @JvmStatic
         fun malformedScalarCases(): Stream<Arguments> = Stream.of(

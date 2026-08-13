@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot.starter.query
 
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.error.QueryErrorCode
 import me.ahoo.wow.api.query.error.QueryErrorReason
 import me.ahoo.wow.api.query.error.QueryException
@@ -44,6 +45,8 @@ import me.ahoo.wow.query.plan.PageQueryPlanV1
 import me.ahoo.wow.query.plan.SingleQueryPlanV1
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.policy.QueryPolicyDeniedException
+import me.ahoo.wow.query.policy.QueryPolicyResult
+import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.schema.QueryBackendFieldPath
 import me.ahoo.wow.query.schema.QueryBackendId
 import me.ahoo.wow.query.schema.QueryCapabilityBinding
@@ -88,6 +91,7 @@ class StorageRoutingQueryGatewayIntegrationTest {
             AutoConfigurations.of(
                 StorageRoutingAutoConfiguration::class.java,
                 CanonicalStorageRouteConfiguration::class.java,
+                QueryAutoConfiguration::class.java,
                 QueryGatewayAutoConfiguration::class.java,
             ),
         )
@@ -157,7 +161,12 @@ class StorageRoutingQueryGatewayIntegrationTest {
             .run { context ->
                 val recording = context.getBean(RoutingBackendRecording::class.java)
 
-                StepVerifier.create(context.getBean(QueryGateway::class.java).count(snapshotRequest()))
+                @Suppress("UNCHECKED_CAST")
+                val legacyService = context.getBean(
+                    "order-service.order.SnapshotQueryService",
+                    SnapshotQueryService::class.java
+                ) as SnapshotQueryService<Any>
+                StepVerifier.create(legacyService.count(Condition.ALL))
                     .expectErrorSatisfies { error ->
                         (error as QueryException).let { queryError ->
                             queryError.code.assert().isEqualTo(QueryErrorCode.POLICY_DENIED)
@@ -168,6 +177,38 @@ class StorageRoutingQueryGatewayIntegrationTest {
 
                 recording.contexts.assert().isEmpty()
                 recording.transportCalls.get().assert().isZero()
+            }
+    }
+
+    @Test
+    fun `legacy Spring bean and direct gateway share policy and routed backend identity`() {
+        val policyCalls = AtomicInteger()
+        contextRunner
+            .withBean("recordingPolicy", QueryPolicy::class.java, {
+                QueryPolicy {
+                    policyCalls.incrementAndGet()
+                    Mono.just(QueryPolicyResult())
+                }
+            })
+            .run { context ->
+                context.assert().hasNotFailed()
+                val gateway = context.getBean(QueryGateway::class.java)
+                val recording = context.getBean(RoutingBackendRecording::class.java)
+                @Suppress("UNCHECKED_CAST")
+                val legacyService = context.getBean(
+                    "order-service.order.SnapshotQueryService",
+                    SnapshotQueryService::class.java
+                ) as SnapshotQueryService<Any>
+
+                StepVerifier.create(legacyService.count(Condition.ALL)).expectNext(1).verifyComplete()
+                StepVerifier.create(gateway.count(CountQueryRequest(SNAPSHOT_TARGET))).expectNext(1).verifyComplete()
+
+                policyCalls.get().assert().isEqualTo(2)
+                recording.contexts.assert().hasSize(2)
+                recording.plans.map { it.routeIdentity.value }.assert().containsOnly(
+                    "mongo-snapshot-store:SNAPSHOT"
+                )
+                recording.transportCalls.get().assert().isEqualTo(2)
             }
     }
 

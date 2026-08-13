@@ -44,7 +44,7 @@ class GatewaySnapshotQueryService<S : Any>(
     private val snapshotType = lazy { legacySnapshotType<S>(namedAggregate) }
 
     override fun single(singleQuery: ISingleQuery): Mono<MaterializedSnapshot<S>> = Mono.defer {
-        queryGateway.single(legacySingleRequest(target, singleQuery)).map(::materialize)
+        queryGateway.single(legacySingleRequest(target, singleQuery)).map { document -> materialize(document) }
     }
 
     override fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument> = Mono.defer {
@@ -52,7 +52,9 @@ class GatewaySnapshotQueryService<S : Any>(
     }
 
     override fun list(listQuery: IListQuery): Flux<MaterializedSnapshot<S>> = Flux.defer {
-        materializeLegacyList(queryGateway.list(legacyListRequest(target, listQuery)), ::materialize)
+        materializeLegacyList(
+            queryGateway.list(legacyListRequest(target, listQuery)),
+        ) { document -> materialize(document) }
     }
 
     override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> = Flux.defer {
@@ -61,7 +63,7 @@ class GatewaySnapshotQueryService<S : Any>(
 
     override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<MaterializedSnapshot<S>>> = Mono.defer {
         queryGateway.page(legacyPageRequest(target, pagedQuery)).map { page ->
-            PagedList(page.total, page.items.map(::materialize))
+            PagedList(page.total, page.items.map { document -> materialize(document) })
         }
     }
 

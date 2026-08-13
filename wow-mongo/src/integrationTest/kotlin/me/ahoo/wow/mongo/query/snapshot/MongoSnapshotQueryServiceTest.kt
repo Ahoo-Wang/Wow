@@ -15,10 +15,14 @@ package me.ahoo.wow.mongo.query.snapshot
 
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import me.ahoo.wow.api.query.gateway.QueryDocumentKind
+import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.mongo.MongoSnapshotStore
+import me.ahoo.wow.mongo.query.legacyMongoQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.query.SnapshotQueryServiceSpec
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.extension.RegisterExtension
 
@@ -36,7 +40,12 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     override fun createSnapshotQueryServiceFactory(): SnapshotQueryServiceFactory {
-        return MongoSnapshotQueryServiceFactory(database)
+        val gateway = legacyMongoQueryGateway(
+            database,
+            QueryTarget(MOCK_AGGREGATE_METADATA, QueryDocumentKind.SNAPSHOT),
+            MOCK_AGGREGATE_METADATA
+        )
+        return MongoSnapshotQueryServiceFactory(database, gateway)
     }
 
     override fun createSnapshotStore(): SnapshotStore {

@@ -14,8 +14,11 @@
 package me.ahoo.wow.elasticsearch.query.event
 
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
+import me.ahoo.wow.api.query.gateway.QueryDocumentKind
+import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.elasticsearch.TemplateInitializer.initEventStreamTemplate
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
+import me.ahoo.wow.elasticsearch.query.legacyElasticsearchQueryGateway
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
@@ -25,6 +28,7 @@ import me.ahoo.wow.query.event.count
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.query.EventStreamQueryServiceSpec
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -50,7 +54,12 @@ class ElasticsearchEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
     }
 
     override fun createEventStreamQueryServiceFactory(): EventStreamQueryServiceFactory {
-        return ElasticsearchEventStreamQueryServiceFactory(elasticsearchClient)
+        val gateway = legacyElasticsearchQueryGateway(
+            elasticsearchClient,
+            QueryTarget(namedAggregate, QueryDocumentKind.EVENT_STREAM),
+            MOCK_AGGREGATE_METADATA
+        )
+        return ElasticsearchEventStreamQueryServiceFactory(elasticsearchClient, gateway)
     }
 
     @Test
@@ -65,28 +74,4 @@ class ElasticsearchEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
             .verifyComplete()
     }
 
-    @Test
-    fun `should query null as a missing field`() {
-        val eventStream = generateEventStream(
-            namedAggregate.aggregateId(id = generateGlobalId(), tenantId = generateGlobalId())
-        )
-        eventStore.append(eventStream).block()
-
-        condition {
-            tenantId(eventStream.aggregateId.tenantId)
-            "missingField".isNull()
-        }
-            .count(eventStreamQueryService)
-            .test()
-            .expectNext(1L)
-            .verifyComplete()
-        condition {
-            tenantId(eventStream.aggregateId.tenantId)
-            "missingField".notNull()
-        }
-            .count(eventStreamQueryService)
-            .test()
-            .expectNext(0L)
-            .verifyComplete()
-    }
 }

@@ -26,17 +26,39 @@ import me.ahoo.wow.mongo.query.AbstractMongoQueryService
 import me.ahoo.wow.mongo.query.MongoProjectionConverter
 import me.ahoo.wow.mongo.query.MongoSortConverter
 import me.ahoo.wow.mongo.toMaterializedSnapshot
+import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.QueryService
 import me.ahoo.wow.query.converter.ConditionConverter
+import me.ahoo.wow.query.snapshot.GatewaySnapshotQueryService
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.serialization.JsonSerializer
 import org.bson.Document
 import org.bson.conversions.Bson
 
-class MongoSnapshotQueryService<S : Any>(
+class MongoSnapshotQueryService<S : Any> private constructor(
     override val namedAggregate: NamedAggregate,
     override val collection: MongoCollection<Document>,
-    override val converter: ConditionConverter<Bson> = SnapshotConditionConverter
-) : AbstractMongoQueryService<MaterializedSnapshot<S>>(), SnapshotQueryService<S> {
+    override val converter: ConditionConverter<Bson>,
+    queryService: QueryService<MaterializedSnapshot<S>>?
+) : AbstractMongoQueryService<MaterializedSnapshot<S>>(queryService), SnapshotQueryService<S> {
+    @Deprecated("Use the constructor that requires QueryGateway.")
+    constructor(
+        namedAggregate: NamedAggregate,
+        collection: MongoCollection<Document>,
+        converter: ConditionConverter<Bson> = SnapshotConditionConverter
+    ) : this(namedAggregate, collection, converter, null)
+
+    constructor(
+        namedAggregate: NamedAggregate,
+        collection: MongoCollection<Document>,
+        queryGateway: QueryGateway
+    ) : this(
+        namedAggregate,
+        collection,
+        SnapshotConditionConverter,
+        GatewaySnapshotQueryService<S>(namedAggregate, queryGateway)
+    )
+
     override val name: String
         get() = MongoSnapshotStore.NAME
     override val projectionConverter: MongoProjectionConverter = MongoProjectionConverter(SnapshotFieldConverter)

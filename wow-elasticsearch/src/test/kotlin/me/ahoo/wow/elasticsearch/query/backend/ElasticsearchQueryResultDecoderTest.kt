@@ -45,6 +45,53 @@ class ElasticsearchQueryResultDecoderTest {
     private val decoder = ElasticsearchQueryResultDecoder(binding)
 
     @Test
+    fun `typed DynamicDocument materializes the exact validated projection`() {
+        val profile = LogicalField("profile")
+        val city = LogicalField("profile.city")
+        val fields = listOf(
+            QueryFieldSchema(profile, QueryFieldValueKind.OBJECT, nullable = false),
+            QueryFieldSchema(city, QueryFieldValueKind.STRING, nullable = false),
+            QueryFieldSchema(OTHER, QueryFieldValueKind.STRING, nullable = false),
+        )
+        val result = decoder(fields).decode<DynamicDocument>(
+            mapOf("profile" to mapOf("city" to "杭州"), "other" to "not-projected"),
+            QueryPlanResultShape.Typed(DynamicDocument::class.java, setOf(city)),
+            mapOf(city to "profile.city"),
+        )
+
+        result.assert().isEqualTo(mapOf("profile" to mapOf("city" to "杭州")))
+    }
+
+    @Test
+    fun `typed DynamicDocument preserves a nullable projected field`() {
+        val field = QueryFieldSchema(VALUE, QueryFieldValueKind.STRING, nullable = true)
+
+        val result = decoder(listOf(field)).decode<DynamicDocument>(
+            emptyMap(),
+            QueryPlanResultShape.Typed(DynamicDocument::class.java, setOf(VALUE)),
+            mapOf(VALUE to "value"),
+        )
+
+        result.containsKey(VALUE.value).assert().isTrue()
+        result[VALUE.value].assert().isNull()
+    }
+
+    @Test
+    fun `typed DynamicDocument rejects malformed projected values with the stable tuple`() {
+        val field = QueryFieldSchema(VALUE, QueryFieldValueKind.STRING, nullable = false)
+
+        val error = assertThrows<QueryException> {
+            decoder(listOf(field)).decode<DynamicDocument>(
+                mapOf("value" to 42),
+                QueryPlanResultShape.Typed(DynamicDocument::class.java, setOf(VALUE)),
+                mapOf(VALUE to "value"),
+            )
+        }
+
+        assertResultInvalid(error)
+    }
+
+    @Test
     fun `dynamic projection is validated and strips recursive presence metadata`() {
         val shape = QueryPlanResultShape.Dynamic(
             setOf(PortableQueryDataset.LOGICAL_ID, PortableQueryDataset.PROFILE),
@@ -324,5 +371,6 @@ class ElasticsearchQueryResultDecoderTest {
             QueryDocumentKind.SNAPSHOT,
         )
         val VALUE = LogicalField("value")
+        val OTHER = LogicalField("other")
     }
 }

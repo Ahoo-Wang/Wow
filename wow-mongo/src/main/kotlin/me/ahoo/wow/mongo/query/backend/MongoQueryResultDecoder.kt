@@ -15,6 +15,7 @@
 
 package me.ahoo.wow.mongo.query.backend
 
+import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.ImmutableDynamicDocument
 import me.ahoo.wow.api.query.error.QueryErrorCode
 import me.ahoo.wow.api.query.error.QueryErrorReason
@@ -49,22 +50,46 @@ internal class MongoQueryResultDecoder(
         }
         @Suppress("UNCHECKED_CAST")
         return when (shape) {
-            is QueryPlanResultShape.Dynamic -> ImmutableDynamicDocument.copyOf(
-                flatValues.entries.associateTo(LinkedHashMap()) { (field, value) -> field.value to externalize(value) }
-            ) as R
+            is QueryPlanResultShape.Dynamic -> decodeDynamic(flatValues) as R
             is QueryPlanResultShape.Typed -> {
-                val structured = LinkedHashMap<String, Any?>()
-                flatValues.forEach { (field, value) -> insert(structured, field, value) }
-                try {
-                    structured.convert(shape.resultType) as R
-                } catch (error: QueryException) {
-                    throw error
-                } catch (_: Exception) {
-                    resultInvalid()
+                if (shape.resultType == DynamicDocument::class.java) {
+                    decodeTypedDynamic(flatValues) as R
+                } else {
+                    decodeTyped(shape, flatValues)
                 }
             }
             QueryPlanResultShape.Count -> error("Count plans do not decode result documents.")
         }
+    }
+
+    private fun decodeDynamic(flatValues: Map<LogicalField, Any?>): ImmutableDynamicDocument =
+        ImmutableDynamicDocument.copyOf(
+            flatValues.entries.associateTo(LinkedHashMap()) { (field, value) ->
+                field.value to externalize(value)
+            }
+        )
+
+    private fun decodeTypedDynamic(flatValues: Map<LogicalField, Any?>): ImmutableDynamicDocument {
+        val structured = structured(flatValues)
+        return ImmutableDynamicDocument.copyOf(structured)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <R : Any> decodeTyped(
+        shape: QueryPlanResultShape.Typed,
+        flatValues: Map<LogicalField, Any?>
+    ): R = try {
+        structured(flatValues).convert(shape.resultType) as R
+    } catch (error: QueryException) {
+        throw error
+    } catch (_: Exception) {
+        resultInvalid()
+    }
+
+    private fun structured(flatValues: Map<LogicalField, Any?>): LinkedHashMap<String, Any?> {
+        val result = LinkedHashMap<String, Any?>()
+        flatValues.forEach { (field, value) -> insert(result, field, value) }
+        return result
     }
 
     private fun resolve(source: Any?, segments: List<String>, index: Int = 0): Any? {

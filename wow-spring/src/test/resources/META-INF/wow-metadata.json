@@ -1,0 +1,14 @@
+{
+  "contexts": {
+    "spring-query-test": {
+      "scopes": [
+        "me.ahoo.wow.spring.query"
+      ],
+      "aggregates": {
+        "registrar_aggregate": {
+          "type": "me.ahoo.wow.spring.query.RegistrarAggregate"
+        }
+      }
+    }
+  }
+}

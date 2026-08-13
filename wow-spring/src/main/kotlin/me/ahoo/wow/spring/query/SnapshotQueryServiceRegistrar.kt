@@ -17,6 +17,8 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
+import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.snapshot.GatewaySnapshotQueryService
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
@@ -52,9 +54,7 @@ class SnapshotQueryServiceRegistrar : QueryServiceRegistrar() {
         )
 
         val beanDefinitionBuilder = BeanDefinitionBuilder.rootBeanDefinition(snapshotQueryServiceType) {
-            val queryServiceFactory: SnapshotQueryServiceFactory =
-                appContext.getBeanProvider(SnapshotQueryServiceFactory::class.java).getOrNoOp()
-            queryServiceFactory.create<Any>(namedAggregate)
+            GatewaySnapshotQueryService<Any>(namedAggregate, appContext.getBean(QueryGateway::class.java))
         }
 
         registry.registerBeanDefinition(beanName, beanDefinitionBuilder.beanDefinition)

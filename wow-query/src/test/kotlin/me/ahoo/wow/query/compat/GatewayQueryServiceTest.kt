@@ -52,6 +52,7 @@ import org.reactivestreams.Publisher
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
+import java.time.Instant
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -75,6 +76,58 @@ class GatewayQueryServiceTest {
     private val eventStream = generateEventStream(MOCK_AGGREGATE_METADATA.aggregateId("aggregate-id"), eventCount = 1)
     private val snapshotDocument = document(snapshot)
     private val eventDocument = document(eventStream)
+
+    @Test
+    fun `facades adapt only backend canonical system time values without mutating source documents`() {
+        val backendSnapshot = snapshotDocument.withValues(
+            "firstEventTime" to Instant.ofEpochMilli(snapshot.firstEventTime),
+            "snapshotTime" to Instant.ofEpochMilli(snapshot.snapshotTime),
+        )
+        val backendEvent = eventDocument.withValues(
+            "createTime" to Instant.ofEpochMilli(eventStream.createTime),
+        )
+
+        StepVerifier.create(
+            GatewaySnapshotQueryService<MockStateAggregate>(
+                MOCK_AGGREGATE_METADATA,
+                RecordingLegacyGateway(backendSnapshot),
+            ).single(SingleQuery(Condition.ALL)),
+        ).expectNext(snapshot).verifyComplete()
+        StepVerifier.create(
+            GatewayEventStreamQueryService(
+                MOCK_AGGREGATE_METADATA,
+                RecordingLegacyGateway(backendEvent),
+            ).single(SingleQuery(Condition.ALL)),
+        ).expectNext(eventStream).verifyComplete()
+
+        backendSnapshot["firstEventTime"].assert().isEqualTo(Instant.ofEpochMilli(snapshot.firstEventTime))
+        backendSnapshot["eventTime"].assert().isEqualTo(snapshot.eventTime)
+        backendSnapshot["snapshotTime"].assert().isEqualTo(Instant.ofEpochMilli(snapshot.snapshotTime))
+        backendEvent["createTime"].assert().isEqualTo(Instant.ofEpochMilli(eventStream.createTime))
+    }
+
+    @Test
+    fun `legacy time adaptation does not coerce non-time instants and keeps malformed times invalid`() {
+        val nonTimeInstant = snapshotDocument.withValues(
+            "contextName" to Instant.EPOCH,
+        )
+        val malformedTime = snapshotDocument.withValues(
+            "snapshotTime" to mapOf("sensitive" to "must-not-leak"),
+        )
+
+        StepVerifier.create(
+            GatewaySnapshotQueryService<MockStateAggregate>(
+                MOCK_AGGREGATE_METADATA,
+                RecordingLegacyGateway(nonTimeInstant),
+            ).single(SingleQuery(Condition.ALL)),
+        ).assertNext { result -> result.contextName.assert().isEqualTo(Instant.EPOCH.toString()) }.verifyComplete()
+        StepVerifier.create(
+            GatewaySnapshotQueryService<MockStateAggregate>(
+                MOCK_AGGREGATE_METADATA,
+                RecordingLegacyGateway(malformedTime),
+            ).single(SingleQuery(Condition.ALL)),
+        ).expectErrorSatisfies(::assertResultInvalid).verify()
+    }
 
     @Test
     fun `snapshot facade delegates all seven methods once and materializes typed results after gateway`() {
@@ -313,6 +366,9 @@ class GatewayQueryServiceTest {
     }
 
     private fun document(value: Any): DynamicDocument = ImmutableDynamicDocument.copyOf(value.toLinkedHashMap())
+
+    private fun DynamicDocument.withValues(vararg values: Pair<String, Any?>): DynamicDocument =
+        ImmutableDynamicDocument.copyOf(LinkedHashMap(this).apply { putAll(values) })
 
     private fun verifyCold(publishers: List<Publisher<*>>, gateway: RecordingLegacyGateway) {
         gateway.calls.get().assert().isZero()

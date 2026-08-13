@@ -28,6 +28,10 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.error.QueryErrorCode
+import me.ahoo.wow.api.query.error.QueryErrorReason
+import me.ahoo.wow.api.query.error.QueryException
+import me.ahoo.wow.api.query.error.QueryStage
 import me.ahoo.wow.elasticsearch.IndexTemplateInitializer
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
 import me.ahoo.wow.elasticsearch.TemplateInitializer.createElasticsearchTemplate
@@ -79,24 +83,21 @@ internal class ElasticsearchQueryPresenceTemplateTest {
     }
 
     @Test
-    fun `legacy query should fail closed when elasticsearch returns a hit without source`() {
+    fun `storage-only legacy query fails closed before querying source`() {
         val client = ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch)
         val index = elasticsearch.index("legacy_source_disabled")
         val service = SourceNullQueryService(client, index)
 
-        client.indices().create { request ->
-            request.index(index).mappings { mapping -> mapping.source { source -> source.enabled(false) } }
-        }.then(
-            Mono.defer {
-                client.index(
-                    IndexRequest.of<Map<String, Any?>> { request ->
-                        request.index(index).id("1").document(mapOf("field" to "value")).refresh(Refresh.True)
-                    },
-                )
-            },
-        ).then(Mono.defer { service.dynamicPaged(PagedQuery(Condition.ALL)) })
+        service.dynamicPaged(PagedQuery(Condition.ALL))
             .test()
-            .expectError(IllegalArgumentException::class.java)
+            .expectErrorSatisfies { error ->
+                (error as QueryException).apply {
+                    code.assert().isEqualTo(QueryErrorCode.BACKEND_NOT_READY)
+                    stage.assert().isEqualTo(QueryStage.BACKEND_RESOLUTION)
+                    reason.assert().isEqualTo(QueryErrorReason.BACKEND_UNAVAILABLE)
+                    causeCode.assert().isNull()
+                }
+            }
             .verify()
     }
 

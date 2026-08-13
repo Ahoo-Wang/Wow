@@ -14,12 +14,16 @@
 package me.ahoo.wow.elasticsearch.query.snapshot
 
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
+import me.ahoo.wow.api.query.gateway.QueryDocumentKind
+import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.elasticsearch.TemplateInitializer.initSnapshotTemplate
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
+import me.ahoo.wow.elasticsearch.query.legacyElasticsearchQueryGateway
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.query.SnapshotQueryServiceSpec
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.extension.RegisterExtension
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
@@ -39,7 +43,12 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     override fun createSnapshotQueryServiceFactory(): SnapshotQueryServiceFactory {
-        return ElasticsearchSnapshotQueryServiceFactory(elasticsearchClient)
+        val gateway = legacyElasticsearchQueryGateway(
+            elasticsearchClient,
+            QueryTarget(MOCK_AGGREGATE_METADATA, QueryDocumentKind.SNAPSHOT),
+            MOCK_AGGREGATE_METADATA
+        )
+        return ElasticsearchSnapshotQueryServiceFactory(elasticsearchClient, gateway)
     }
 
     override fun createSnapshotStore(): SnapshotStore {

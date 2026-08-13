@@ -14,13 +14,26 @@
 package me.ahoo.wow.elasticsearch.query.snapshot
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 
-class ElasticsearchSnapshotQueryServiceFactory(private val elasticsearchClient: ReactiveElasticsearchClient) :
-    AbstractSnapshotQueryServiceFactory() {
+class ElasticsearchSnapshotQueryServiceFactory private constructor(
+    private val elasticsearchClient: ReactiveElasticsearchClient,
+    private val queryGateway: QueryGateway?,
+    @Suppress("UNUSED_PARAMETER") marker: Unit
+) : AbstractSnapshotQueryServiceFactory() {
+    @Deprecated("Use the constructor that requires QueryGateway.")
+    constructor(elasticsearchClient: ReactiveElasticsearchClient) : this(elasticsearchClient, null, Unit)
+
+    constructor(
+        elasticsearchClient: ReactiveElasticsearchClient,
+        queryGateway: QueryGateway
+    ) : this(elasticsearchClient, queryGateway, Unit)
+
     override fun createQueryService(namedAggregate: NamedAggregate): SnapshotQueryService<*> {
-        return ElasticsearchSnapshotQueryService<Any>(namedAggregate, elasticsearchClient)
+        return queryGateway?.let { ElasticsearchSnapshotQueryService<Any>(namedAggregate, elasticsearchClient, it) }
+            ?: ElasticsearchSnapshotQueryService<Any>(namedAggregate, elasticsearchClient)
     }
 }

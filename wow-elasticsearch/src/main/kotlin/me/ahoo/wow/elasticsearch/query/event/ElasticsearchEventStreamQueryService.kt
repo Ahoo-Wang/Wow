@@ -19,16 +19,37 @@ import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService
 import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.QueryService
 import me.ahoo.wow.query.converter.ConditionConverter
 import me.ahoo.wow.query.event.EventStreamQueryService
+import me.ahoo.wow.query.event.GatewayEventStreamQueryService
 import me.ahoo.wow.serialization.convert
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 
-class ElasticsearchEventStreamQueryService(
+class ElasticsearchEventStreamQueryService private constructor(
     override val namedAggregate: NamedAggregate,
     override val elasticsearchClient: ReactiveElasticsearchClient,
-    override val conditionConverter: ConditionConverter<Query> = EventStreamConditionConverter
-) : AbstractElasticsearchQueryService<DomainEventStream>(), EventStreamQueryService {
+    override val conditionConverter: ConditionConverter<Query>,
+    queryService: QueryService<DomainEventStream>?
+) : AbstractElasticsearchQueryService<DomainEventStream>(queryService), EventStreamQueryService {
+    @Deprecated("Use the constructor that requires QueryGateway.")
+    constructor(
+        namedAggregate: NamedAggregate,
+        elasticsearchClient: ReactiveElasticsearchClient,
+        conditionConverter: ConditionConverter<Query> = EventStreamConditionConverter
+    ) : this(namedAggregate, elasticsearchClient, conditionConverter, null)
+
+    constructor(
+        namedAggregate: NamedAggregate,
+        elasticsearchClient: ReactiveElasticsearchClient,
+        queryGateway: QueryGateway
+    ) : this(
+        namedAggregate,
+        elasticsearchClient,
+        EventStreamConditionConverter,
+        GatewayEventStreamQueryService(namedAggregate, queryGateway)
+    )
     override val indexName: String = namedAggregate.toEventStreamIndexName()
 
     override fun toTypedResult(document: DynamicDocument): DomainEventStream {

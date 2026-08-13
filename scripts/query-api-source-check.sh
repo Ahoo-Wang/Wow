@@ -64,12 +64,22 @@ package external.fixture;
 
 import java.util.Map;
 import com.mongodb.client.model.Filters;
+import com.mongodb.reactivestreams.client.MongoCollection;
 import com.mongodb.reactivestreams.client.MongoDatabase;
+import me.ahoo.wow.api.modeling.NamedAggregate;
 import me.ahoo.wow.api.query.expression.QueryValue;
+import me.ahoo.wow.mongo.query.event.EventStreamConditionConverter;
+import me.ahoo.wow.mongo.query.event.MongoEventStreamQueryService;
+import me.ahoo.wow.mongo.query.event.MongoEventStreamQueryServiceFactory;
 import me.ahoo.wow.mongo.query.backend.MongoNativeQueryTemplate;
 import me.ahoo.wow.mongo.query.backend.MongoNativeQueryTemplateRegistry;
 import me.ahoo.wow.mongo.query.backend.MongoQueryBackendFactory;
+import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryService;
+import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryServiceFactory;
+import me.ahoo.wow.mongo.query.snapshot.SnapshotConditionConverter;
+import me.ahoo.wow.query.QueryGateway;
 import me.ahoo.wow.query.validation.QueryBudgetLimit;
+import org.bson.Document;
 
 public final class StableMongoBackendApi {
     public static MongoNativeQueryTemplateRegistry registry() {
@@ -80,6 +90,24 @@ public final class StableMongoBackendApi {
 
     public static MongoQueryBackendFactory factory(MongoDatabase database) {
         return new MongoQueryBackendFactory(database, registry(), QueryBudgetLimit.UNBOUNDED);
+    }
+
+    public static Object[] compatibilityServices(
+        NamedAggregate aggregate,
+        MongoDatabase database,
+        MongoCollection<Document> collection,
+        QueryGateway gateway
+    ) {
+        return new Object[]{
+            new MongoSnapshotQueryService<Object>(aggregate, collection, SnapshotConditionConverter.INSTANCE),
+            new MongoEventStreamQueryService(aggregate, collection, EventStreamConditionConverter.INSTANCE),
+            new MongoSnapshotQueryServiceFactory(database),
+            new MongoEventStreamQueryServiceFactory(database),
+            new MongoSnapshotQueryService<Object>(aggregate, collection, gateway),
+            new MongoEventStreamQueryService(aggregate, collection, gateway),
+            new MongoSnapshotQueryServiceFactory(database, gateway),
+            new MongoEventStreamQueryServiceFactory(database, gateway)
+        };
     }
 }
 EOF
@@ -92,11 +120,19 @@ cat >"$TEMP_DIR/kotlin/StableMongoBackendApi.kt" <<'EOF'
 package external.fixture
 
 import com.mongodb.client.model.Filters
+import com.mongodb.reactivestreams.client.MongoCollection
 import com.mongodb.reactivestreams.client.MongoDatabase
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.expression.QueryValue
+import me.ahoo.wow.mongo.query.event.MongoEventStreamQueryService
+import me.ahoo.wow.mongo.query.event.MongoEventStreamQueryServiceFactory
 import me.ahoo.wow.mongo.query.backend.MongoNativeQueryTemplate
 import me.ahoo.wow.mongo.query.backend.MongoNativeQueryTemplateRegistry
 import me.ahoo.wow.mongo.query.backend.MongoQueryBackendFactory
+import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryService
+import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryServiceFactory
+import me.ahoo.wow.query.QueryGateway
+import org.bson.Document
 
 fun mongoFactory(database: MongoDatabase): MongoQueryBackendFactory {
     val template = MongoNativeQueryTemplate { parameters ->
@@ -104,6 +140,23 @@ fun mongoFactory(database: MongoDatabase): MongoQueryBackendFactory {
     }
     return MongoQueryBackendFactory(database, MongoNativeQueryTemplateRegistry(mapOf("tenant-eq" to template)))
 }
+
+@Suppress("DEPRECATION")
+fun mongoCompatibilityServices(
+    aggregate: NamedAggregate,
+    database: MongoDatabase,
+    collection: MongoCollection<Document>,
+    gateway: QueryGateway
+): List<Any> = listOf(
+    MongoSnapshotQueryService<Any>(aggregate, collection),
+    MongoEventStreamQueryService(aggregate, collection),
+    MongoSnapshotQueryServiceFactory(database),
+    MongoEventStreamQueryServiceFactory(database),
+    MongoSnapshotQueryService<Any>(aggregate, collection, gateway),
+    MongoEventStreamQueryService(aggregate, collection, gateway),
+    MongoSnapshotQueryServiceFactory(database, gateway),
+    MongoEventStreamQueryServiceFactory(database, gateway)
+)
 EOF
 
 java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
@@ -118,10 +171,18 @@ package external.fixture;
 
 import java.util.Map;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
+import me.ahoo.wow.api.modeling.NamedAggregate;
 import me.ahoo.wow.api.query.expression.QueryValue;
 import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchNativeQueryTemplate;
 import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchNativeQueryTemplateRegistry;
 import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryBackendFactory;
+import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryService;
+import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryServiceFactory;
+import me.ahoo.wow.elasticsearch.query.event.EventStreamConditionConverter;
+import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryService;
+import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory;
+import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotConditionConverter;
+import me.ahoo.wow.query.QueryGateway;
 import me.ahoo.wow.query.validation.QueryBudgetLimit;
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient;
 
@@ -135,6 +196,23 @@ public final class StableElasticsearchBackendApi {
 
     public static ElasticsearchQueryBackendFactory factory(ReactiveElasticsearchClient client) {
         return new ElasticsearchQueryBackendFactory(client, registry(), QueryBudgetLimit.UNBOUNDED);
+    }
+
+    public static Object[] compatibilityServices(
+        NamedAggregate aggregate,
+        ReactiveElasticsearchClient client,
+        QueryGateway gateway
+    ) {
+        return new Object[]{
+            new ElasticsearchSnapshotQueryService<Object>(aggregate, client, SnapshotConditionConverter.INSTANCE),
+            new ElasticsearchEventStreamQueryService(aggregate, client, EventStreamConditionConverter.INSTANCE),
+            new ElasticsearchSnapshotQueryServiceFactory(client),
+            new ElasticsearchEventStreamQueryServiceFactory(client),
+            new ElasticsearchSnapshotQueryService<Object>(aggregate, client, gateway),
+            new ElasticsearchEventStreamQueryService(aggregate, client, gateway),
+            new ElasticsearchSnapshotQueryServiceFactory(client, gateway),
+            new ElasticsearchEventStreamQueryServiceFactory(client, gateway)
+        };
     }
 }
 EOF
@@ -170,10 +248,16 @@ cat >"$TEMP_DIR/kotlin/StableElasticsearchBackendApi.kt" <<'EOF'
 package external.fixture
 
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.expression.QueryValue
 import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchNativeQueryTemplate
 import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchNativeQueryTemplateRegistry
 import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryBackendFactory
+import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryService
+import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryServiceFactory
+import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryService
+import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
+import me.ahoo.wow.query.QueryGateway
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 
 fun elasticsearchFactory(client: ReactiveElasticsearchClient): ElasticsearchQueryBackendFactory {
@@ -189,6 +273,22 @@ fun elasticsearchFactory(client: ReactiveElasticsearchClient): ElasticsearchQuer
         ElasticsearchNativeQueryTemplateRegistry(mapOf("tenant-eq" to template))
     )
 }
+
+@Suppress("DEPRECATION")
+fun elasticsearchCompatibilityServices(
+    aggregate: NamedAggregate,
+    client: ReactiveElasticsearchClient,
+    gateway: QueryGateway
+): List<Any> = listOf(
+    ElasticsearchSnapshotQueryService<Any>(aggregate, client),
+    ElasticsearchEventStreamQueryService(aggregate, client),
+    ElasticsearchSnapshotQueryServiceFactory(client),
+    ElasticsearchEventStreamQueryServiceFactory(client),
+    ElasticsearchSnapshotQueryService<Any>(aggregate, client, gateway),
+    ElasticsearchEventStreamQueryService(aggregate, client, gateway),
+    ElasticsearchSnapshotQueryServiceFactory(client, gateway),
+    ElasticsearchEventStreamQueryServiceFactory(client, gateway)
+)
 EOF
 
 java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
@@ -1199,6 +1299,40 @@ for facade_class in \
     fi
 done
 echo "PASS: Gateway compatibility facades depend on public QueryGateway only"
+
+assert_abstract_gateway_delegation() {
+    local jar="$1"
+    local class_name="$2"
+    local forbidden="$3"
+    local disassembly="$TEMP_DIR/$(basename "$jar").abstract-query-service.javap"
+    javap -classpath "$jar:$RUNTIME_CLASSPATH" -p -c "$class_name" >"$disassembly"
+    for method in single dynamicSingle list dynamicList paged dynamicPaged count; do
+        local method_body="$TEMP_DIR/$(basename "$jar").$method.javap"
+        awk -v method="$method" '
+            $0 ~ "^  public .* " method "\\(" { capture = 1; next }
+            capture && $0 ~ "^  (public|protected|private) " { exit }
+            capture { print }
+        ' "$disassembly" >"$method_body"
+        grep -F "InterfaceMethod me/ahoo/wow/query/QueryService.$method:" "$method_body" >/dev/null || {
+            cat "$method_body" >&2
+            fail "$class_name.$method does not delegate through QueryService"
+        }
+        if grep -E "$forbidden" "$method_body" >/dev/null; then
+            grep -E "$forbidden" "$method_body" >&2
+            fail "$class_name.$method references a storage driver path"
+        fi
+    done
+}
+
+assert_abstract_gateway_delegation \
+    "$WOW_MONGO_JAR" \
+    me.ahoo.wow.mongo.query.AbstractMongoQueryService \
+    'com/mongodb|org/bson|MongoCollectionsKt|findDocument|getCollection|getConverter|getProjectionConverter|getSortConverter'
+assert_abstract_gateway_delegation \
+    "$WOW_ELASTICSEARCH_JAR" \
+    me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService \
+    'co/elastic|org/springframework/data/elasticsearch|getElasticsearchClient|getConditionConverter|getIndexName|toTypedResult'
+echo "PASS: Published storage abstract query methods delegate without driver references"
 
 cat >"$TEMP_DIR/kotlin/InternalAdmissionImplementations.kt" <<'EOF'
 package external.fixture

@@ -22,17 +22,39 @@ import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.QueryService
 import me.ahoo.wow.query.converter.ConditionConverter
+import me.ahoo.wow.query.snapshot.GatewaySnapshotQueryService
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.convert
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 
-class ElasticsearchSnapshotQueryService<S : Any>(
+class ElasticsearchSnapshotQueryService<S : Any> private constructor(
     override val namedAggregate: NamedAggregate,
     override val elasticsearchClient: ReactiveElasticsearchClient,
-    override val conditionConverter: ConditionConverter<Query> = SnapshotConditionConverter
-) : AbstractElasticsearchQueryService<MaterializedSnapshot<S>>(), SnapshotQueryService<S> {
+    override val conditionConverter: ConditionConverter<Query>,
+    queryService: QueryService<MaterializedSnapshot<S>>?
+) : AbstractElasticsearchQueryService<MaterializedSnapshot<S>>(queryService), SnapshotQueryService<S> {
+    @Deprecated("Use the constructor that requires QueryGateway.")
+    constructor(
+        namedAggregate: NamedAggregate,
+        elasticsearchClient: ReactiveElasticsearchClient,
+        conditionConverter: ConditionConverter<Query> = SnapshotConditionConverter
+    ) : this(namedAggregate, elasticsearchClient, conditionConverter, null)
+
+    constructor(
+        namedAggregate: NamedAggregate,
+        elasticsearchClient: ReactiveElasticsearchClient,
+        queryGateway: QueryGateway
+    ) : this(
+        namedAggregate,
+        elasticsearchClient,
+        SnapshotConditionConverter,
+        GatewaySnapshotQueryService<S>(namedAggregate, queryGateway)
+    )
+
     override val name: String
         get() = ElasticsearchSnapshotStore.NAME
     override val indexName: String = namedAggregate.toSnapshotIndexName()

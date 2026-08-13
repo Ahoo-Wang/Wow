@@ -14,129 +14,67 @@
 package me.ahoo.wow.elasticsearch.query
 
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
-import co.elastic.clients.elasticsearch.core.CountRequest
-import co.elastic.clients.elasticsearch.core.SearchRequest
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.Queryable
-import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
-import me.ahoo.wow.api.query.isEmpty
-import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchQueryPresenceEncoder
-import me.ahoo.wow.elasticsearch.query.ElasticsearchProjectionConverter.toSourceFilter
-import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOptions
+import me.ahoo.wow.api.query.error.QueryErrorCode
+import me.ahoo.wow.api.query.error.QueryErrorReason
+import me.ahoo.wow.api.query.error.QueryException
+import me.ahoo.wow.api.query.error.QueryStage
 import me.ahoo.wow.query.QueryService
 import me.ahoo.wow.query.converter.ConditionConverter
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
+abstract class AbstractElasticsearchQueryService<R : Any> protected constructor(
+    private val queryService: QueryService<R>?
+) : QueryService<R> {
+    constructor() : this(null)
+
     abstract val elasticsearchClient: ReactiveElasticsearchClient
     abstract val conditionConverter: ConditionConverter<Query>
     abstract val indexName: String
     abstract fun toTypedResult(document: DynamicDocument): R
 
     override fun single(singleQuery: ISingleQuery): Mono<R> {
-        return dynamicSingle(singleQuery).map { toTypedResult(it) }
+        return queryService?.single(singleQuery) ?: unavailableMono()
     }
 
     override fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument> {
-        val listQuery = ListQuery(
-            condition = singleQuery.condition,
-            projection = singleQuery.projection,
-            limit = 1,
-            sort = singleQuery.sort
-        )
-        return dynamicList(listQuery).next()
+        return queryService?.dynamicSingle(singleQuery) ?: unavailableMono()
     }
 
     override fun list(listQuery: IListQuery): Flux<R> {
-        return dynamicList(listQuery).map { toTypedResult(it) }
+        return queryService?.list(listQuery) ?: unavailableFlux()
     }
 
     override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> {
-        val searchRequest = createSearchRequest(
-            query = listQuery,
-            from = 0,
-            size = listQuery.limit.searchSize(),
-            trackTotalHits = false,
-        )
-        return search(searchRequest).flatMapIterable { it.list }
+        return queryService?.dynamicList(listQuery) ?: unavailableFlux()
     }
 
     override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<R>> {
-        return dynamicPaged(pagedQuery).map {
-            PagedList(
-                total = it.total,
-                list = it.list.map { doc ->
-                    toTypedResult(doc)
-                }
-            )
-        }
+        return queryService?.paged(pagedQuery) ?: unavailableMono()
     }
 
     override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> {
-        val searchRequest = createSearchRequest(
-            query = pagedQuery,
-            from = pagedQuery.pagination.offset(),
-            size = pagedQuery.pagination.size,
-            trackTotalHits = true,
-        )
-        return search(searchRequest)
-    }
-
-    private fun createSearchRequest(
-        query: Queryable<*>,
-        from: Int,
-        size: Int,
-        trackTotalHits: Boolean,
-    ): SearchRequest {
-        val searchRequest = SearchRequest.of {
-            it.index(indexName)
-                .query(conditionConverter.convert(query.condition))
-                .from(from)
-                .size(size)
-
-            it.trackTotalHits { trackHits -> trackHits.enabled(trackTotalHits) }
-            if (query.sort.isNotEmpty()) {
-                it.sort(query.sort.toSortOptions())
-            }
-            if (!query.projection.isEmpty()) {
-                it.source {
-                    it.filter(query.projection.toSourceFilter())
-                }
-            }
-            it
-        }
-        return searchRequest
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    private fun search(searchRequest: SearchRequest): Mono<PagedList<DynamicDocument>> {
-        return elasticsearchClient.search(searchRequest, Map::class.java)
-            .map { result ->
-                val hits = result.hits()
-                val list = hits.hits().map { hit ->
-                    val source = requireNotNull(hit.source()) { "Elasticsearch hit source is required." }
-                    ElasticsearchQueryPresenceEncoder
-                        .strip(source as Map<String, Any?>)
-                        .toMutableMap()
-                        .toDynamicDocument()
-                }
-                PagedList(hits.total()?.value() ?: 0, list)
-            }
+        return queryService?.dynamicPaged(pagedQuery) ?: unavailableMono()
     }
 
     override fun count(condition: Condition): Mono<Long> {
-        val countRequest = CountRequest.of {
-            it.index(indexName)
-                .query(conditionConverter.convert(condition))
-        }
-        return elasticsearchClient.count(countRequest).map { it.count() }
+        return queryService?.count(condition) ?: unavailableMono()
     }
+
+    private fun <T : Any> unavailableMono(): Mono<T> = Mono.defer { Mono.error(backendUnavailable()) }
+
+    private fun <T : Any> unavailableFlux(): Flux<T> = Flux.defer { Flux.error(backendUnavailable()) }
+
+    private fun backendUnavailable(): QueryException = QueryException(
+        QueryErrorCode.BACKEND_NOT_READY,
+        QueryStage.BACKEND_RESOLUTION,
+        QueryErrorReason.BACKEND_UNAVAILABLE
+    )
 }

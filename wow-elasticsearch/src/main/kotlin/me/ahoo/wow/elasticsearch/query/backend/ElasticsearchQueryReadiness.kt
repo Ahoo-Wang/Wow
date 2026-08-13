@@ -292,7 +292,7 @@ internal class ElasticsearchQueryReadiness(
         system: Boolean,
     ): Boolean = when (kind) {
         QueryFieldValueKind.BOOLEAN -> isBoolean
-        QueryFieldValueKind.INTEGER -> isLong
+        QueryFieldValueKind.INTEGER -> isInteger || isLong
         QueryFieldValueKind.DECIMAL -> isDouble
         QueryFieldValueKind.STRING,
         QueryFieldValueKind.ENUM,
@@ -352,6 +352,7 @@ internal class ElasticsearchQueryReadiness(
     private fun co.elastic.clients.elasticsearch._types.mapping.Property.isIndexed(): Boolean = when (_kind()) {
         co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Keyword -> keyword().index() != false
         co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Boolean -> boolean_().index() != false
+        co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Integer -> integer().index() != false
         co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Long -> long_().index() != false
         co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Double -> double_().index() != false
         co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Date -> date().index() != false
@@ -399,6 +400,7 @@ internal class ElasticsearchQueryReadiness(
     private fun co.elastic.clients.elasticsearch._types.mapping.Property.hasNullSentinel(): Boolean = when (_kind()) {
         co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Keyword -> keyword().nullValue() != null
         co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Boolean -> boolean_().nullValue() != null
+        co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Integer -> integer().nullValue() != null
         co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Long -> long_().nullValue() != null
         co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Double -> double_().nullValue() != null
         co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Date -> date().nullValue() != null
@@ -408,6 +410,7 @@ internal class ElasticsearchQueryReadiness(
     private fun co.elastic.clients.elasticsearch._types.mapping.Property.hasDocValues(): Boolean = when (_kind()) {
         co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Keyword -> keyword().docValues() != false
         co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Boolean -> boolean_().docValues() != false
+        co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Integer -> integer().docValues() != false
         co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Long -> long_().docValues() != false
         co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Double -> double_().docValues() != false
         co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Date -> date().docValues() != false

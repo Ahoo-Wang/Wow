@@ -15,6 +15,7 @@ package me.ahoo.wow.query.compat
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.ImmutableDynamicDocument
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.error.QueryErrorCode
 import me.ahoo.wow.api.query.error.QueryErrorReason
@@ -27,6 +28,7 @@ import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.convert
 import reactor.core.publisher.Flux
 import tools.jackson.databind.JavaType
+import java.time.Instant
 
 @JvmSynthetic
 internal fun <S : Any> legacySnapshotType(namedAggregate: NamedAggregate): JavaType =
@@ -40,12 +42,12 @@ internal fun <S : Any> materializeLegacySnapshot(
     document: DynamicDocument,
     snapshotType: Lazy<JavaType>
 ): MaterializedSnapshot<S> = materializeLegacyDocument {
-    document.convert(snapshotType.value)
+    document.adaptLegacySystemTimes(SNAPSHOT_LEGACY_TIME_FIELDS).convert(snapshotType.value)
 }
 
 @JvmSynthetic
 internal fun materializeLegacyEvent(document: DynamicDocument): DomainEventStream = materializeLegacyDocument {
-    document.convert(DomainEventStream::class.java)
+    document.adaptLegacySystemTimes(EVENT_LEGACY_TIME_FIELDS).convert(DomainEventStream::class.java)
 }
 
 @JvmSynthetic
@@ -82,3 +84,20 @@ private inline fun <T> materializeLegacyDocument(convert: () -> T): T = try {
         QueryErrorReason.RESULT_INVALID
     )
 }
+
+private fun DynamicDocument.adaptLegacySystemTimes(fields: Set<String>): DynamicDocument {
+    var changed = false
+    val adapted = entries.associateTo(LinkedHashMap(size)) { (field, value) ->
+        val legacyValue = if (field in fields && value is Instant) {
+            changed = true
+            value.toEpochMilli()
+        } else {
+            value
+        }
+        field to legacyValue
+    }
+    return if (changed) ImmutableDynamicDocument.copyOf(adapted) else this
+}
+
+private val SNAPSHOT_LEGACY_TIME_FIELDS = setOf("firstEventTime", "eventTime", "snapshotTime")
+private val EVENT_LEGACY_TIME_FIELDS = setOf("createTime")
