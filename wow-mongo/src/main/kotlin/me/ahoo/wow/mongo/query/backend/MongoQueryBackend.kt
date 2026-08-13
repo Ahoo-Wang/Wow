@@ -18,6 +18,10 @@ package me.ahoo.wow.mongo.query.backend
 import com.mongodb.client.model.Aggregates
 import com.mongodb.client.model.Facet
 import com.mongodb.reactivestreams.client.MongoDatabase
+import me.ahoo.wow.api.query.error.QueryErrorCode
+import me.ahoo.wow.api.query.error.QueryErrorReason
+import me.ahoo.wow.api.query.error.QueryException
+import me.ahoo.wow.api.query.error.QueryStage
 import me.ahoo.wow.api.query.gateway.QueryConsistency
 import me.ahoo.wow.api.query.gateway.QueryPage
 import me.ahoo.wow.query.backend.QueryBackend
@@ -31,6 +35,7 @@ import org.bson.Document
 import org.bson.conversions.Bson
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import java.util.concurrent.atomic.AtomicLong
 
 internal class MongoQueryBackend(
     private val database: MongoDatabase,
@@ -42,7 +47,7 @@ internal class MongoQueryBackend(
     readinessRequirements: MongoQueryReadinessRequirements
 ) : QueryBackend {
     private val compiler = MongoQueryPlanCompiler(binding, nativeTemplates)
-    private val decoder = MongoQueryResultDecoder()
+    private val decoder = MongoQueryResultDecoder(binding)
     private val readiness = MongoQueryReadiness(database, collectionName, readinessRequirements)
 
     override fun readiness(): Mono<QueryBackendReadiness> = readiness.inspect()
@@ -56,15 +61,43 @@ internal class MongoQueryBackend(
 
     override fun <R : Any> list(plan: ListQueryPlanV1<R>): Flux<R> = Flux.defer {
         var query = configureFind(plan).batchSize(batchSize(plan))
-        if (plan.limit > 0) {
-            query = query.limit(plan.limit)
+        val budgetLimit = plan.effectiveBudget.maxResults
+        if (plan.limit > 0 && budgetLimit != null && plan.limit.toLong() > budgetLimit) {
+            return@defer Flux.error(budgetExceeded())
         }
-        Flux.from(publisherObserver.observe(query)).map { document -> decode(document, plan) }
+        val driverLimit = when {
+            plan.limit > 0 -> plan.limit
+            budgetLimit != null && budgetLimit < Int.MAX_VALUE -> (budgetLimit + 1).toInt()
+            else -> null
+        }
+        driverLimit?.let { query = query.limit(it) }
+        val source = Flux.from(publisherObserver.observe(query))
+        val guarded = if (plan.limit == 0 && budgetLimit != null) {
+            val delivered = AtomicLong()
+            source.handle<Document> { document, sink ->
+                if (delivered.getAndIncrement() >= budgetLimit) {
+                    sink.error(budgetExceeded())
+                } else {
+                    sink.next(document)
+                }
+            }
+        } else {
+            source
+        }
+        guarded.map { document -> decode(document, plan) }
     }
 
     override fun <R : Any> page(plan: PageQueryPlanV1<R>): Mono<QueryPage<R>> = Mono.defer {
+        val offset = try {
+            Math.multiplyExact((plan.page.index - 1).toLong(), plan.page.size.toLong())
+        } catch (_: ArithmeticException) {
+            throw budgetExceeded()
+        }
+        if (offset > Int.MAX_VALUE) {
+            throw budgetExceeded()
+        }
         val itemStages = ArrayList<Bson>()
-        itemStages += Aggregates.skip((plan.page.index - 1) * plan.page.size)
+        itemStages += Aggregates.skip(offset.toInt())
         itemStages += Aggregates.limit(plan.page.size)
         compiler.projection(plan)?.let { itemStages += Aggregates.project(it) }
         val pipeline = ArrayList<Bson>()
@@ -95,6 +128,12 @@ internal class MongoQueryBackend(
         val configured = plan.effectiveBudget.maxResults?.coerceAtMost(DEFAULT_BATCH_SIZE.toLong())?.toInt()
         return (configured ?: DEFAULT_BATCH_SIZE).coerceAtLeast(1)
     }
+
+    private fun budgetExceeded(): QueryException = QueryException(
+        QueryErrorCode.BUDGET_EXCEEDED,
+        QueryStage.EXECUTION,
+        QueryErrorReason.BUDGET_LIMIT_REACHED
+    )
 
     private fun <R : Any> decode(document: Document, plan: me.ahoo.wow.query.plan.QueryPlanV1): R =
         decoder.decode(document, plan.authorizedResultShape, compiler.resultProjection(plan))

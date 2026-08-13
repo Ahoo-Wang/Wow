@@ -16,45 +16,144 @@
 package me.ahoo.wow.mongo.query.backend
 
 import me.ahoo.wow.api.query.ImmutableDynamicDocument
+import me.ahoo.wow.api.query.error.QueryErrorCode
+import me.ahoo.wow.api.query.error.QueryErrorReason
+import me.ahoo.wow.api.query.error.QueryException
+import me.ahoo.wow.api.query.error.QueryStage
 import me.ahoo.wow.api.query.expression.LogicalField
 import me.ahoo.wow.query.plan.QueryPlanResultShape
+import me.ahoo.wow.query.schema.QueryCollectionKind
+import me.ahoo.wow.query.schema.QueryFieldValueKind
 import me.ahoo.wow.serialization.convert
 import org.bson.BsonBinary
 import org.bson.Document
 import org.bson.types.Binary
 import org.bson.types.Decimal128
+import java.time.Instant
 import java.util.Date
 
-internal class MongoQueryResultDecoder {
+internal class MongoQueryResultDecoder(
+    private val binding: MongoQueryFieldBinding
+) {
     fun <R : Any> decode(
         source: Document,
         shape: QueryPlanResultShape,
         projection: Map<LogicalField, String>
     ): R {
-        val values = LinkedHashMap<String, Any?>(projection.size)
+        val flatValues = LinkedHashMap<LogicalField, Any?>(projection.size)
         projection.forEach { (logical, physical) ->
-            val resolved = resolve(source, physical)
-            if (resolved !== MISSING) {
-                values[logical.value] = normalize(resolved)
-            }
+            val resolved = resolve(source, physical.split('.'))
+            flatValues[logical] = materialize(logical, resolved)
         }
         @Suppress("UNCHECKED_CAST")
         return when (shape) {
-            is QueryPlanResultShape.Dynamic -> ImmutableDynamicDocument.copyOf(values) as R
-            is QueryPlanResultShape.Typed -> values.convert(shape.resultType) as R
+            is QueryPlanResultShape.Dynamic -> ImmutableDynamicDocument.copyOf(
+                flatValues.entries.associateTo(LinkedHashMap()) { (field, value) -> field.value to value }
+            ) as R
+            is QueryPlanResultShape.Typed -> {
+                val structured = LinkedHashMap<String, Any?>()
+                flatValues.forEach { (field, value) -> insert(structured, field, value) }
+                structured.convert(shape.resultType) as R
+            }
             QueryPlanResultShape.Count -> error("Count plans do not decode result documents.")
         }
     }
 
-    private fun resolve(source: Any?, path: String): Any? {
-        var current: Any? = source
-        path.split('.').forEach { segment ->
-            current = when (val value = current) {
-                is Map<*, *> -> if (value.containsKey(segment)) value[segment] else return MISSING
-                else -> return MISSING
-            }
+    private fun resolve(source: Any?, segments: List<String>, index: Int = 0): Any? {
+        if (index == segments.size) {
+            return source
         }
-        return current
+        return when (source) {
+            is Map<*, *> -> {
+                val segment = segments[index]
+                if (source.containsKey(segment)) {
+                    resolve(source[segment], segments, index + 1)
+                } else {
+                    MISSING
+                }
+            }
+
+            is List<*> -> source.map { element -> resolve(element, segments, index) }
+            null -> MISSING
+            else -> INVALID
+        }
+    }
+
+    private fun materialize(logical: LogicalField, resolved: Any?): Any? {
+        val schema = binding.schema(logical)
+        fun materializeValue(value: Any?): Any? = when {
+            value === INVALID -> resultInvalid()
+            value === MISSING -> null
+            value is List<*> -> value.map(::materializeValue)
+            schema.valueKind == QueryFieldValueKind.TIME -> normalizeTime(value, schema.system)
+            else -> normalize(value)
+        }
+        return materializeValue(resolved)
+    }
+
+    private fun normalizeTime(value: Any?, system: Boolean): Any? = when {
+        value == null -> null
+        system && value is Number -> Instant.ofEpochMilli(value.toLong())
+        !system && value is String -> runCatching { Instant.parse(value) }.getOrElse { resultInvalid() }
+        else -> resultInvalid()
+    }
+
+    private fun insert(target: MutableMap<String, Any?>, logical: LogicalField, value: Any?) {
+        val segments = logical.value.split('.')
+        insert(target, segments, 0, "", value)
+    }
+
+    private fun insert(
+        target: MutableMap<String, Any?>,
+        segments: List<String>,
+        index: Int,
+        parentPath: String,
+        value: Any?
+    ) {
+        val segment = segments[index]
+        if (index == segments.lastIndex) {
+            target[segment] = value
+            return
+        }
+        val currentPath = if (parentPath.isEmpty()) segment else "$parentPath.$segment"
+        val field = binding.schema(LogicalField(currentPath))
+        if (field.collectionKind == QueryCollectionKind.OBJECT) {
+            insertCollection(target, segment, segments, index, currentPath, value)
+        } else {
+            val child = target[segment]?.let(::mutableStringMap) ?: LinkedHashMap()
+            insert(child, segments, index + 1, currentPath, value)
+            target[segment] = child
+        }
+    }
+
+    private fun insertCollection(
+        target: MutableMap<String, Any?>,
+        segment: String,
+        segments: List<String>,
+        index: Int,
+        currentPath: String,
+        value: Any?
+    ) {
+        val projected = value as? List<*> ?: resultInvalid()
+        val elements = when (val existing = target[segment]) {
+            null -> MutableList(projected.size) { LinkedHashMap<String, Any?>() }
+            is List<*> -> existing.map(::mutableStringMap).toMutableList()
+            else -> resultInvalid()
+        }
+        if (elements.size != projected.size) {
+            resultInvalid()
+        }
+        projected.forEachIndexed { elementIndex, nestedValue ->
+            insert(elements[elementIndex], segments, index + 1, currentPath, nestedValue)
+        }
+        target[segment] = elements
+    }
+
+    private fun mutableStringMap(value: Any?): LinkedHashMap<String, Any?> {
+        val source = value as? Map<*, *> ?: resultInvalid()
+        return source.entries.associateTo(LinkedHashMap()) { (key, nested) ->
+            (key as? String ?: resultInvalid()) to nested
+        }
     }
 
     private fun normalize(value: Any?): Any? = when (value) {
@@ -71,7 +170,14 @@ internal class MongoQueryResultDecoder {
         else -> value
     }
 
+    private fun resultInvalid(): Nothing = throw QueryException(
+        QueryErrorCode.RESULT_VALIDATION_FAILED,
+        QueryStage.EXECUTION,
+        QueryErrorReason.RESULT_INVALID
+    )
+
     private companion object {
         val MISSING: Any = Any()
+        val INVALID: Any = Any()
     }
 }

@@ -41,8 +41,6 @@ import me.ahoo.wow.query.plan.QueryPlanResultShape
 import me.ahoo.wow.query.plan.QueryPlanV1
 import org.bson.Document
 import org.bson.conversions.Bson
-import org.bson.types.Decimal128
-import java.util.Date
 
 internal class MongoQueryPlanCompiler(
     private val binding: MongoQueryFieldBinding,
@@ -133,25 +131,43 @@ internal class MongoQueryPlanCompiler(
             PortableOperator.EQ -> if (expression.values.single() == QueryValue.NullValue) {
                 present(field, Filters.eq(field, null))
             } else {
-                Filters.eq(field, value(expression.values.single()))
+                Filters.eq(field, value(logicalField, expression.values.single()))
             }
 
-            PortableOperator.NE -> present(field, Filters.ne(field, value(expression.values.single())))
-            PortableOperator.IN -> present(field, Filters.`in`(field, expression.values.map(::value)))
+            PortableOperator.NE -> present(field, Filters.ne(field, value(logicalField, expression.values.single())))
+            PortableOperator.IN -> present(
+                field,
+                Filters.`in`(field, expression.values.map { value -> value(logicalField, value) })
+            )
             PortableOperator.NOT_IN -> Filters.and(
                 Filters.exists(field, true),
-                Filters.nin(field, expression.values.map(::value))
+                Filters.nin(field, expression.values.map { value -> value(logicalField, value) })
             )
 
-            PortableOperator.ALL_IN -> Filters.all(field, expression.values.map(::value))
-            PortableOperator.GT -> present(field, Filters.gt(field, nonNullValue(expression.values.single())))
-            PortableOperator.LT -> present(field, Filters.lt(field, nonNullValue(expression.values.single())))
-            PortableOperator.GTE -> present(field, Filters.gte(field, nonNullValue(expression.values.single())))
-            PortableOperator.LTE -> present(field, Filters.lte(field, nonNullValue(expression.values.single())))
+            PortableOperator.ALL_IN -> Filters.all(
+                field,
+                expression.values.map { value -> value(logicalField, value) }
+            )
+            PortableOperator.GT -> present(
+                field,
+                Filters.gt(field, nonNullValue(logicalField, expression.values.single()))
+            )
+            PortableOperator.LT -> present(
+                field,
+                Filters.lt(field, nonNullValue(logicalField, expression.values.single()))
+            )
+            PortableOperator.GTE -> present(
+                field,
+                Filters.gte(field, nonNullValue(logicalField, expression.values.single()))
+            )
+            PortableOperator.LTE -> present(
+                field,
+                Filters.lte(field, nonNullValue(logicalField, expression.values.single()))
+            )
             PortableOperator.BETWEEN -> present(
                 field,
-                Filters.gte(field, nonNullValue(expression.values[0])),
-                Filters.lte(field, nonNullValue(expression.values[1]))
+                Filters.gte(field, nonNullValue(logicalField, expression.values[0])),
+                Filters.lte(field, nonNullValue(logicalField, expression.values[1]))
             )
             PortableOperator.CONTAINS -> regex(field, expression, prefix = "", suffix = "")
             PortableOperator.STARTS_WITH -> regex(field, expression, prefix = "^", suffix = "")
@@ -236,22 +252,10 @@ internal class MongoQueryPlanCompiler(
     private fun present(field: String, vararg predicates: Bson): Bson =
         Filters.and(listOf(Filters.exists(field, true)) + predicates)
 
-    private fun value(value: QueryValue): Any? = when (value) {
-        is QueryValue.BooleanValue -> value.value
-        is QueryValue.IntegerValue -> value.value
-        is QueryValue.FloatingValue -> value.value
-        is QueryValue.DecimalValue -> Decimal128(value.value)
-        is QueryValue.StringValue -> value.value
-        is QueryValue.InstantValue -> Date.from(value.value)
-        is QueryValue.EnumValue -> value.value
-        is QueryValue.ListValue -> value.values.map(::value)
-        is QueryValue.ObjectValue -> Document(value.values.mapValues { (_, nested) -> value(nested) })
-        is QueryValue.BinaryValue -> value.value
-        QueryValue.NullValue -> null
-    }
+    private fun value(logicalField: LogicalField, value: QueryValue): Any? = binding.encode(logicalField, value)
 
-    private fun nonNullValue(value: QueryValue): Any =
-        requireNotNull(value(value)) { "Ordered Mongo query value cannot be null." }
+    private fun nonNullValue(logicalField: LogicalField, value: QueryValue): Any =
+        requireNotNull(value(logicalField, value)) { "Ordered Mongo query value cannot be null." }
 
     private fun unsupported(): Nothing = throw QueryException(
         QueryErrorCode.UNSUPPORTED_CAPABILITY,

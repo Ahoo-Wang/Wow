@@ -74,8 +74,10 @@ wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryBackend$Companion.class	excl
 wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryBackend.class	exclude	kotlin-internal
 wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryBackendDescriptorKt.class	exclude	kotlin-internal
 wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryBackendFactory$WhenMappings.class	exclude	synthetic-private-helper
+wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryFieldBinding$BoundField$WhenMappings.class	exclude	synthetic-private-helper
 wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryFieldBinding$BoundField.class	exclude	kotlin-internal
 wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryFieldBinding$Companion.class	exclude	kotlin-internal
+wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryFieldBinding$ValueEncoding.class	exclude	kotlin-internal
 wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryFieldBinding.class	exclude	kotlin-internal
 wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryPlanCompiler$Companion.class	exclude	kotlin-internal
 wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryPlanCompiler$WhenMappings.class	exclude	synthetic-private-helper

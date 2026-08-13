@@ -37,7 +37,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.math.BigDecimal
 import java.time.Instant
-import java.util.Date
 
 class MongoQueryPlanCompilerTest {
     private val compiler = MongoQueryPlanCompiler(
@@ -134,8 +133,8 @@ class MongoQueryPlanCompilerTest {
         ).assert().isEqualTo(
             and(
                 Document("createdAt", Document("\$exists", true)),
-                Document("createdAt", Document("\$gte", Date.from(lower))),
-                Document("createdAt", Document("\$lte", Date.from(upper)))
+                Document("createdAt", Document("\$gte", lower.toString())),
+                Document("createdAt", Document("\$lte", upper.toString()))
             )
         )
         document(
@@ -150,6 +149,19 @@ class MongoQueryPlanCompilerTest {
                 Document("score", Document("\$gt", BigDecimal("10.50")))
             )
         )
+    }
+
+    @Test
+    fun `system time operands use serializer epoch millis encoding`() {
+        val eventTime = Instant.parse("2026-02-01T00:00:00Z")
+
+        document(
+            PredicateExpression(
+                LogicalField("eventTime"),
+                PortableOperator.EQ,
+                listOf(QueryValue.InstantValue(eventTime))
+            )
+        ).assert().isEqualTo(bson(Document("eventTime", eventTime.toEpochMilli())))
     }
 
     @Test

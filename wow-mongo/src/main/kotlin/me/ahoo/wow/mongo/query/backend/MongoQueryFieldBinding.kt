@@ -16,12 +16,17 @@
 package me.ahoo.wow.mongo.query.backend
 
 import me.ahoo.wow.api.query.expression.LogicalField
+import me.ahoo.wow.api.query.expression.QueryValue
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.query.schema.QueryBackendId
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryFieldUsage
+import me.ahoo.wow.query.schema.QueryFieldValueKind
 import me.ahoo.wow.query.schema.QuerySchema
+import me.ahoo.wow.query.schema.QuerySystemFields
+import org.bson.Document
+import org.bson.types.Decimal128
 import java.util.Collections
 
 internal class MongoQueryFieldBinding private constructor(
@@ -37,6 +42,22 @@ internal class MongoQueryFieldBinding private constructor(
 
     fun contains(logicalField: LogicalField): Boolean = fields.containsKey(logicalField)
 
+    fun encode(logicalField: LogicalField, value: QueryValue): Any? {
+        val bound = fields[logicalField] ?: throw IllegalArgumentException("Logical query field is not bound.")
+        return bound.encode(value)
+    }
+
+    fun hasAuthoritativeSystemFields(documentKind: QueryDocumentKind): Boolean =
+        QuerySystemFields.fields(documentKind).all { authoritative ->
+            val bound = fields[authoritative.path] ?: return@all false
+            val expectedPhysical = authoritativePhysical(documentKind, authoritative.path)
+            bound.schema.system &&
+                bound.schema.valueKind == authoritative.valueKind &&
+                bound.schema.collectionKind == authoritative.collectionKind &&
+                bound.encoding == authoritative.encoding() &&
+                bound.physical.values.all { it == expectedPhysical }
+        }
+
     fun projection(fields: Set<LogicalField>): Map<LogicalField, String> {
         val snapshot = LinkedHashMap<LogicalField, String>(fields.size)
         fields.forEach { logical -> snapshot[logical] = physical(logical) }
@@ -45,9 +66,32 @@ internal class MongoQueryFieldBinding private constructor(
 
     private class BoundField(
         val schema: QueryFieldSchema,
-        physical: Map<QueryFieldUsage, String>
+        physical: Map<QueryFieldUsage, String>,
+        val encoding: ValueEncoding
     ) {
         val physical: Map<QueryFieldUsage, String> = Collections.unmodifiableMap(LinkedHashMap(physical))
+
+        fun encode(value: QueryValue): Any? = when (value) {
+            is QueryValue.BooleanValue -> value.value
+            is QueryValue.IntegerValue -> value.value
+            is QueryValue.FloatingValue -> value.value
+            is QueryValue.DecimalValue -> Decimal128(value.value)
+            is QueryValue.StringValue -> value.value
+            is QueryValue.InstantValue -> when (encoding) {
+                ValueEncoding.ISO_INSTANT -> value.value.toString()
+                ValueEncoding.EPOCH_MILLIS -> value.value.toEpochMilli()
+            }
+            is QueryValue.EnumValue -> value.value
+            is QueryValue.ListValue -> value.values.map(::encode)
+            is QueryValue.ObjectValue -> Document(value.values.mapValues { (_, nested) -> encode(nested) })
+            is QueryValue.BinaryValue -> value.value
+            QueryValue.NullValue -> null
+        }
+    }
+
+    private enum class ValueEncoding {
+        ISO_INSTANT,
+        EPOCH_MILLIS
     }
 
     companion object {
@@ -72,9 +116,22 @@ internal class MongoQueryFieldBinding private constructor(
                 fieldSchema.bindings.filter { it.backendId == MONGO_BACKEND_ID }.forEach { binding ->
                     physical[binding.usage] = binding.field.value
                 }
-                fields[logical] = BoundField(fieldSchema, physical)
+                fields[logical] = BoundField(fieldSchema, physical, fieldSchema.encoding())
             }
             return MongoQueryFieldBinding(Collections.unmodifiableMap(fields))
+        }
+
+        private fun QueryFieldSchema.encoding(): ValueEncoding =
+            if (system && valueKind == QueryFieldValueKind.TIME) {
+                ValueEncoding.EPOCH_MILLIS
+            } else {
+                ValueEncoding.ISO_INSTANT
+            }
+
+        private fun authoritativePhysical(documentKind: QueryDocumentKind, logical: LogicalField): String = when {
+            documentKind == QueryDocumentKind.SNAPSHOT && logical.value == "aggregateId" -> Documents.ID_FIELD
+            documentKind == QueryDocumentKind.EVENT_STREAM && logical.value == "id" -> Documents.ID_FIELD
+            else -> logical.value
         }
     }
 }

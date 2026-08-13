@@ -28,6 +28,7 @@ import me.ahoo.wow.query.plan.PageQueryPlanV1
 import me.ahoo.wow.query.plan.SingleQueryPlanV1
 import reactor.core.publisher.Flux
 import me.ahoo.wow.query.backend.QueryBackendResolutionContext
+import me.ahoo.wow.query.validation.QueryBudgetLimit
 import me.ahoo.wow.tck.query.backend.ObservableQueryBackendFactory
 import me.ahoo.wow.tck.query.backend.PortableQueryDataset
 import me.ahoo.wow.tck.query.backend.QueryBackendClientHold
@@ -38,7 +39,6 @@ import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
-import java.util.Date
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
@@ -88,6 +88,7 @@ internal class MongoPortableQueryBackendFixture(
 
     private fun documents(dataset: PortableQueryDataset): List<Document> =
         dataset.storedDocuments(documentKind).map { stored ->
+            val schema = dataset.schema(documentKind)
             Document().also { target ->
                 stored.fields.forEach { (field, queryValue) ->
                     if ('.' !in field.value) {
@@ -96,7 +97,7 @@ internal class MongoPortableQueryBackendFixture(
                             documentKind == QueryDocumentKind.EVENT_STREAM && field.value == "id" -> "_id"
                             else -> field.value
                         }
-                        target[physicalField] = queryValue.toMongoValue()
+                        target[physicalField] = queryValue.toMongoValue(schema.fields.getValue(field).system)
                     }
                 }
             }
@@ -106,12 +107,13 @@ internal class MongoPortableQueryBackendFixture(
 }
 
 internal class MongoObservableQueryBackendFactory(
-    database: MongoDatabase
+    database: MongoDatabase,
+    maxBudget: QueryBudgetLimit = QueryBudgetLimit.UNBOUNDED
 ) : ObservableQueryBackendFactory, MongoQueryPublisherObserver {
     private val nextHold = AtomicReference<QueryBackendClientHold?>()
     private val subscriptions = AtomicLong()
     private val cancellations = AtomicLong()
-    private val delegate = MongoQueryBackendFactory(database)
+    private val delegate = MongoQueryBackendFactory(database, maxBudget = maxBudget)
     private val routeReadinessVerified = AtomicBoolean()
 
     init {
@@ -147,7 +149,7 @@ internal class MongoObservableQueryBackendFactory(
     }
 
     override fun <T : Any> observe(publisher: Publisher<T>): Publisher<T> {
-        val hold = nextHold.getAndSet(null) ?: return publisher
+        val hold = nextHold.getAndSet(null)
         return HoldingMongoPublisher(publisher, hold, subscriptions, cancellations)
     }
 }
@@ -160,7 +162,7 @@ private class ReadySnapshotQueryBackend(
 
 private class HoldingMongoPublisher<T : Any>(
     private val source: Publisher<T>,
-    private val hold: QueryBackendClientHold,
+    private val hold: QueryBackendClientHold?,
     private val subscriptions: AtomicLong,
     private val cancellations: AtomicLong
 ) : Publisher<T> {
@@ -173,12 +175,13 @@ private class HoldingMongoPublisher<T : Any>(
 
 private class HoldingMongoSubscriber<T : Any>(
     private val downstream: Subscriber<in T>,
-    private val hold: QueryBackendClientHold,
+    private val hold: QueryBackendClientHold?,
     private val subscriptions: AtomicLong,
     private val cancellations: AtomicLong
 ) : Subscriber<T>, Subscription {
     private val upstream = AtomicReference<Subscription?>()
     private val requested = AtomicBoolean()
+    private val pendingDemand = AtomicLong()
     private val cancelled = AtomicBoolean()
     private val upstreamCancelled = AtomicBoolean()
     private val delivered = AtomicBoolean()
@@ -191,6 +194,11 @@ private class HoldingMongoSubscriber<T : Any>(
         }
         if (hold == QueryBackendClientHold.AFTER_FIRST_RESULT && requested.compareAndSet(false, true)) {
             upstream.get()?.request(1)
+        } else if (hold == null) {
+            pendingDemand.updateAndGet { pending ->
+                if (Long.MAX_VALUE - pending < amount) Long.MAX_VALUE else pending + amount
+            }
+            upstream.get()?.let(::drainDemand)
         }
     }
 
@@ -208,11 +216,12 @@ private class HoldingMongoSubscriber<T : Any>(
         when {
             cancelled.get() -> cancelUpstream(subscription)
             hold == QueryBackendClientHold.AFTER_FIRST_RESULT && requested.get() -> subscription.request(1)
+            hold == null -> drainDemand(subscription)
         }
     }
 
     override fun onNext(value: T) {
-        if (delivered.compareAndSet(false, true) && !cancelled.get()) {
+        if (!cancelled.get() && (hold == null || delivered.compareAndSet(false, true))) {
             downstream.onNext(value)
         }
     }
@@ -235,18 +244,22 @@ private class HoldingMongoSubscriber<T : Any>(
             subscription.cancel()
         }
     }
+
+    private fun drainDemand(subscription: Subscription) {
+        pendingDemand.getAndSet(0).takeIf { it > 0 }?.let(subscription::request)
+    }
 }
 
-private fun QueryValue.toMongoValue(): Any? = when (this) {
+private fun QueryValue.toMongoValue(system: Boolean): Any? = when (this) {
     is QueryValue.BooleanValue -> value
     is QueryValue.IntegerValue -> value
     is QueryValue.FloatingValue -> value
     is QueryValue.DecimalValue -> Decimal128(value)
     is QueryValue.StringValue -> value
-    is QueryValue.InstantValue -> Date.from(value)
+    is QueryValue.InstantValue -> if (system) value.toEpochMilli() else value.toString()
     is QueryValue.EnumValue -> value
-    is QueryValue.ListValue -> values.map(QueryValue::toMongoValue)
-    is QueryValue.ObjectValue -> Document(values.mapValues { (_, value) -> value.toMongoValue() })
+    is QueryValue.ListValue -> values.map { value -> value.toMongoValue(system) }
+    is QueryValue.ObjectValue -> Document(values.mapValues { (_, value) -> value.toMongoValue(system) })
     is QueryValue.BinaryValue -> value.copyOf()
     QueryValue.NullValue -> null
 }

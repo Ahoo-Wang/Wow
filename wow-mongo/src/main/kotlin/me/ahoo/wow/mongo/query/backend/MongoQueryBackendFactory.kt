@@ -21,16 +21,22 @@ import me.ahoo.wow.api.query.error.QueryStage
 import me.ahoo.wow.api.query.expression.ElementMatchExpression
 import me.ahoo.wow.api.query.expression.FullTextExpression
 import me.ahoo.wow.api.query.expression.LogicalExpression
+import me.ahoo.wow.api.query.expression.LogicalField
+import me.ahoo.wow.api.query.expression.LogicalOperator
 import me.ahoo.wow.api.query.expression.NativeExpression
 import me.ahoo.wow.api.query.expression.PortableLogicalExpression
+import me.ahoo.wow.api.query.expression.PortableOperator
+import me.ahoo.wow.api.query.expression.PredicateExpression
+import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.expression.QueryExpression
+import me.ahoo.wow.api.query.expression.StringComparisonMode
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendFactory
 import me.ahoo.wow.query.backend.QueryBackendResolutionContext
-import me.ahoo.wow.query.schema.QuerySystemFields
+import me.ahoo.wow.query.schema.QueryFieldUsage
 import me.ahoo.wow.query.validation.QueryBudgetLimit
 import org.bson.Document
 
@@ -45,8 +51,7 @@ class MongoQueryBackendFactory @JvmOverloads constructor(
             QueryDocumentKind.EVENT_STREAM -> context.target.namedAggregate.toEventStreamCollectionName()
         }
         val binding = MongoQueryFieldBinding.bind(context.schema)
-        val systemBindingReady = QuerySystemFields.fields(context.target.documentKind)
-            .all { systemField -> binding.contains(systemField.path) }
+        val systemBindingReady = binding.hasAuthoritativeSystemFields(context.target.documentKind)
         val documentCodecReady = runCatching {
             database.codecRegistry.get(Document::class.java)
         }.isSuccess
@@ -66,16 +71,30 @@ class MongoQueryBackendFactory @JvmOverloads constructor(
         )
     }
 
+    @Suppress("CyclomaticComplexMethod", "ComplexCondition")
     private fun inspectRequirements(
         expression: QueryExpression,
         binding: MongoQueryFieldBinding,
         configurationValid: Boolean
     ): MongoQueryReadinessRequirements {
         val textFields = LinkedHashSet<String>()
-        fun inspect(current: QueryExpression) {
+        var fullTextCount = 0
+        var routeConfigurationValid = configurationValid
+        fun inspect(current: QueryExpression, relativeTo: LogicalField? = null, fullTextAllowed: Boolean = true) {
             when (current) {
-                is FullTextExpression -> if (current.capabilityId.value == FULL_TEXT_CAPABILITY) {
-                    current.fields.mapTo(textFields, binding::physical)
+                is FullTextExpression -> {
+                    if (!fullTextAllowed || current.capabilityId.value != FULL_TEXT_CAPABILITY ||
+                        ++fullTextCount > 1 || current.fields.any { field -> !binding.contains(resolve(relativeTo, field)) }
+                    ) {
+                        unsupportedCapability()
+                    }
+                    current.fields.mapTo(textFields) { field ->
+                        val logical = resolve(relativeTo, field)
+                        if (QueryCapabilityId(FULL_TEXT_CAPABILITY) !in binding.schema(logical).capabilities) {
+                            unsupportedCapability()
+                        }
+                        binding.physical(logical, QueryFieldUsage.SEARCH)
+                    }
                 }
 
                 is NativeExpression -> {
@@ -93,15 +112,39 @@ class MongoQueryBackendFactory @JvmOverloads constructor(
                     }
                 }
 
-                is ElementMatchExpression -> inspect(current.predicate)
-                is LogicalExpression -> current.operands.forEach(::inspect)
-                is PortableLogicalExpression -> current.operands.forEach(::inspect)
+                is PredicateExpression -> {
+                    val stringOptions = binding.schema(resolve(relativeTo, current.field)).stringOptions
+                    if (current.stringComparison == StringComparisonMode.DEFAULT &&
+                        current.operator in STRING_MATCH_OPERATORS &&
+                        (stringOptions == null || stringOptions.collation != null)
+                    ) {
+                        routeConfigurationValid = false
+                    }
+                }
+
+                is ElementMatchExpression -> {
+                    val nested = resolve(relativeTo, current.field)
+                    inspect(current.predicate, nested, fullTextAllowed = false)
+                }
+                is LogicalExpression -> current.operands.forEach { operand ->
+                    inspect(
+                        operand,
+                        relativeTo,
+                        fullTextAllowed && current.operator == LogicalOperator.AND
+                    )
+                }
+                is PortableLogicalExpression -> current.operands.forEach { operand ->
+                    inspect(operand, relativeTo, fullTextAllowed)
+                }
                 else -> Unit
             }
         }
         inspect(expression)
-        return MongoQueryReadinessRequirements(textFields, configurationValid)
+        return MongoQueryReadinessRequirements(textFields, routeConfigurationValid)
     }
+
+    private fun resolve(relativeTo: LogicalField?, field: LogicalField): LogicalField =
+        if (relativeTo == null) field else LogicalField("${relativeTo.value}.${field.value}")
 
     private fun unsupportedCapability(): Nothing = throw QueryException(
         QueryErrorCode.UNSUPPORTED_CAPABILITY,
@@ -113,5 +156,10 @@ class MongoQueryBackendFactory @JvmOverloads constructor(
         const val BACKEND_ID: String = "mongo"
         const val FULL_TEXT_CAPABILITY: String = "full-text"
         const val NATIVE_CAPABILITY: String = "x-wow:mongo-native"
+        private val STRING_MATCH_OPERATORS = setOf(
+            PortableOperator.CONTAINS,
+            PortableOperator.STARTS_WITH,
+            PortableOperator.ENDS_WITH
+        )
     }
 }

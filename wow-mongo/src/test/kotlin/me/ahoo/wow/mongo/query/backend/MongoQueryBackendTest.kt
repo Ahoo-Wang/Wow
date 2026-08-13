@@ -26,7 +26,12 @@ import me.ahoo.wow.query.backend.QueryBackendReadiness
 import me.ahoo.wow.query.backend.QueryBackendResolutionContext
 import me.ahoo.wow.query.backend.QueryPlanVersion
 import me.ahoo.wow.query.backend.QueryPortableFeature
+import me.ahoo.wow.query.schema.QueryBackendFieldPath
+import me.ahoo.wow.query.schema.QueryBackendId
+import me.ahoo.wow.query.schema.QueryCapabilityBinding
+import me.ahoo.wow.query.schema.QueryFieldUsage
 import me.ahoo.wow.query.schema.QuerySchema
+import me.ahoo.wow.query.schema.QuerySystemFields
 import me.ahoo.wow.query.validation.QueryBudgetLimit
 import me.ahoo.wow.tck.query.backend.PortableQueryDataset
 import org.junit.jupiter.api.Test
@@ -137,5 +142,60 @@ class MongoQueryBackendTest {
             )
             .verifyComplete()
         verify(exactly = 0) { database.listCollectionNames() }
+    }
+
+    @Test
+    fun `readiness rejects non-authoritative system field bindings before collection io`() {
+        QueryDocumentKind.entries.forEach { documentKind ->
+            val database = mockk<MongoDatabase>()
+            every { database.codecRegistry } returns MongoClientSettings.getDefaultCodecRegistry()
+            every { database.listCollectionNames() } throws AssertionError("readiness performed collection I/O")
+            val target = PortableQueryDataset.target(documentKind)
+            val identity = when (documentKind) {
+                QueryDocumentKind.SNAPSHOT -> me.ahoo.wow.api.query.expression.LogicalField("aggregateId")
+                QueryDocumentKind.EVENT_STREAM -> me.ahoo.wow.api.query.expression.LogicalField("id")
+            }
+            listOf(QueryFieldUsage.EXACT, QueryFieldUsage.SORT).forEach { maliciousUsage ->
+                val fields = QuerySystemFields.fields(documentKind).map { field ->
+                    if (field.path == identity) {
+                        field.copy(
+                            bindings = setOf(
+                                QueryCapabilityBinding(
+                                    QueryBackendId("mongo"),
+                                    maliciousUsage,
+                                    QueryBackendFieldPath("wrong.path")
+                                )
+                            )
+                        )
+                    } else {
+                        field
+                    }
+                }
+                val backend = MongoQueryBackendFactory(database).bind(
+                    QueryBackendResolutionContext(target, QuerySchema(target, fields), MatchAll)
+                )
+
+                StepVerifier.create(backend.readiness())
+                    .expectNext(
+                        QueryBackendReadiness.NotReady(
+                            me.ahoo.wow.query.backend.QueryBackendReadinessReason.CONFIGURATION_INVALID
+                        )
+                    )
+                    .verifyComplete()
+            }
+            val nonSystemFields = QuerySystemFields.fields(documentKind).map { field ->
+                if (field.path == identity) field.copy(system = false) else field
+            }
+            val nonSystemBackend = MongoQueryBackendFactory(database).bind(
+                QueryBackendResolutionContext(target, QuerySchema(target, nonSystemFields), MatchAll)
+            )
+            StepVerifier.create(nonSystemBackend.readiness())
+                .expectNext(
+                    QueryBackendReadiness.NotReady(
+                        me.ahoo.wow.query.backend.QueryBackendReadinessReason.CONFIGURATION_INVALID
+                    )
+                ).verifyComplete()
+            verify(exactly = 0) { database.listCollectionNames() }
+        }
     }
 }

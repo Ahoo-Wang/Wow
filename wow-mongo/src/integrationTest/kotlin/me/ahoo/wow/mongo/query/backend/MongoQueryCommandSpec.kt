@@ -21,7 +21,12 @@ import com.mongodb.reactivestreams.client.MongoClient
 import com.mongodb.reactivestreams.client.MongoClients
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.error.QueryErrorCode
+import me.ahoo.wow.api.query.error.QueryErrorReason
 import me.ahoo.wow.api.query.error.QueryException
+import me.ahoo.wow.api.query.error.QueryStage
+import me.ahoo.wow.api.query.expression.FullTextExpression
+import me.ahoo.wow.api.query.expression.MatchAll
+import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.gateway.ListQueryRequest
 import me.ahoo.wow.api.query.gateway.PageQueryRequest
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
@@ -34,6 +39,8 @@ import me.ahoo.wow.tck.query.backend.PortableContractKey
 import me.ahoo.wow.tck.query.backend.PortableQueryDataset
 import me.ahoo.wow.tck.query.backend.QueryBackendClientHold
 import me.ahoo.wow.tck.query.backend.QueryBackendTestKit
+import me.ahoo.wow.query.backend.QueryBackendResolutionContext
+import me.ahoo.wow.query.validation.QueryBudgetLimit
 import org.bson.Document
 import org.bson.BsonDocument
 import org.junit.jupiter.api.AfterEach
@@ -102,6 +109,28 @@ class MongoQueryCommandSpec {
     }
 
     @Test
+    fun `full text page keeps text match as the first aggregate stage`() {
+        val testKit = testKit()
+        val request = PageQueryRequest(
+            target = testKit.target,
+            expression = FullTextExpression(
+                QueryCapabilityId(MongoQueryBackendFactory.FULL_TEXT_CAPABILITY),
+                "alpha",
+                setOf(PortableQueryDataset.TITLE)
+            ),
+            resultShape = QueryResultShape.Dynamic,
+            page = QueryPageSpec(1, 2)
+        )
+
+        StepVerifier.create(testKit.gateway.page(request)).expectNextCount(1).verifyComplete()
+
+        val pipeline = commands.single { it.first == "aggregate" }.second.getArray("pipeline")
+        val firstStage = pipeline.first().asDocument()
+        firstStage.containsKey("\$match").assert().isTrue()
+        firstStage.getDocument("\$match").toJson().contains("\"\$text\"").assert().isTrue()
+    }
+
+    @Test
     fun `unlimited list omits driver limit and keeps bounded batch size`() {
         val testKit = testKit()
         val vector = PortableQueryDataset.vectors.single {
@@ -120,6 +149,104 @@ class MongoQueryCommandSpec {
         val find = commands.single { it.first == "find" }.second
         find.containsKey("limit").assert().isFalse()
         find.getNumber("batchSize").intValue().assert().isEqualTo(256)
+    }
+
+    @Test
+    fun `unlimited list probes one beyond finite budget then cancels the real driver`() {
+        val factory = MongoObservableQueryBackendFactory(
+            client.getDatabase(mongo.databaseName),
+            QueryBudgetLimit(maxResults = 3)
+        )
+        factory.verifyRouteReadiness(
+            QueryBackendResolutionContext(
+                PortableQueryDataset.target(QueryDocumentKind.SNAPSHOT),
+                PortableQueryDataset.schema(QueryDocumentKind.SNAPSHOT),
+                MatchAll
+            )
+        )
+        factory.reset()
+        commands.clear()
+        val testKit = QueryBackendTestKit(factory, QueryDocumentKind.SNAPSHOT)
+
+        StepVerifier.create(
+            testKit.gateway.list(
+                ListQueryRequest(
+                    target = testKit.target,
+                    expression = MatchAll,
+                    resultShape = QueryResultShape.Dynamic,
+                    limit = 0
+                )
+            )
+        ).expectNextCount(3)
+            .expectErrorSatisfies { error ->
+                (error as QueryException).code.assert().isEqualTo(QueryErrorCode.INCOMPLETE_RESULT)
+                error.stage.assert().isEqualTo(QueryStage.EXECUTION)
+                error.reason.assert().isEqualTo(QueryErrorReason.INCOMPLETE_STREAM)
+                error.causeCode.assert().isEqualTo(QueryErrorCode.BUDGET_EXCEEDED)
+            }
+            .verify()
+
+        factory.subscriptionCount.assert().isOne()
+        factory.cancellationCount.assert().isOne()
+        val find = commands.single { it.first == "find" }.second
+        find.getNumber("limit").intValue().assert().isEqualTo(4)
+    }
+
+    @Test
+    fun `finite request limit remains the smaller driver bound under a finite budget`() {
+        val factory = MongoObservableQueryBackendFactory(
+            client.getDatabase(mongo.databaseName),
+            QueryBudgetLimit(maxResults = 3)
+        )
+        factory.verifyRouteReadiness(
+            QueryBackendResolutionContext(
+                PortableQueryDataset.target(QueryDocumentKind.SNAPSHOT),
+                PortableQueryDataset.schema(QueryDocumentKind.SNAPSHOT),
+                MatchAll
+            )
+        )
+        factory.reset()
+        commands.clear()
+        val testKit = QueryBackendTestKit(factory, QueryDocumentKind.SNAPSHOT)
+
+        StepVerifier.create(
+            testKit.gateway.list(
+                ListQueryRequest(
+                    target = testKit.target,
+                    expression = MatchAll,
+                    resultShape = QueryResultShape.Dynamic,
+                    limit = 2
+                )
+            )
+        ).expectNextCount(2).verifyComplete()
+
+        factory.subscriptionCount.assert().isOne()
+        val find = commands.single { it.first == "find" }.second
+        find.getNumber("limit").intValue().assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `page offset outside Mongo skip range fails before aggregate command`() {
+        val testKit = testKit()
+
+        StepVerifier.create(
+            testKit.gateway.page(
+                PageQueryRequest(
+                    target = testKit.target,
+                    expression = MatchAll,
+                    resultShape = QueryResultShape.Dynamic,
+                    page = QueryPageSpec(Int.MAX_VALUE, 2)
+                )
+            )
+        ).expectErrorSatisfies { error ->
+            (error as QueryException).code.assert().isEqualTo(QueryErrorCode.BUDGET_EXCEEDED)
+            error.stage.assert().isEqualTo(QueryStage.EXECUTION)
+            error.reason.assert().isEqualTo(QueryErrorReason.BUDGET_LIMIT_REACHED)
+        }.verify()
+
+        commands.count { it.first == "aggregate" }.assert().isZero()
+        commands.count { it.first == "find" }.assert().isZero()
+        commands.count { it.first == "count" }.assert().isZero()
     }
 
     @Test

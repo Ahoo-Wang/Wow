@@ -57,7 +57,7 @@ internal class MongoQueryReadiness(
         }
         return Flux.from(database.getCollection(collectionName).listIndexes())
             .map(::textIndexFields)
-            .any { indexedFields -> indexedFields.containsAll(requirements.textFields) }
+            .any { indexedFields -> indexedFields == requirements.textFields }
             .map<QueryBackendReadiness> { indexed ->
                 if (indexed) {
                     QueryBackendReadiness.Ready
