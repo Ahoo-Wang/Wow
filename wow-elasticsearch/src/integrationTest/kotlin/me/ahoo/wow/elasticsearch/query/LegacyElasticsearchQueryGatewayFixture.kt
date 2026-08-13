@@ -14,6 +14,9 @@
 package me.ahoo.wow.elasticsearch.query
 
 import me.ahoo.wow.api.query.expression.LogicalField
+import me.ahoo.wow.api.query.expression.PortableOperator
+import me.ahoo.wow.api.query.expression.PredicateExpression
+import me.ahoo.wow.api.query.expression.QueryValue
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryBackendFactory
@@ -27,7 +30,9 @@ import me.ahoo.wow.query.backend.ResolvedQueryBackend
 import me.ahoo.wow.query.invocation.QueryAdmission
 import me.ahoo.wow.query.invocation.QueryAuthorityView
 import me.ahoo.wow.query.invocation.QueryInvocationScope
+import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.policy.QueryPolicyPermissions
+import me.ahoo.wow.query.policy.QueryPolicyResult
 import me.ahoo.wow.query.schema.JacksonQuerySchemaResolver
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryFieldValueKind
@@ -39,11 +44,13 @@ import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchCl
 import reactor.core.publisher.Mono
 import java.time.Clock
 import java.time.ZoneOffset
+import java.util.concurrent.atomic.AtomicInteger
 
 internal fun legacyElasticsearchQueryGateway(
     client: ReactiveElasticsearchClient,
     target: QueryTarget,
-    metadata: AggregateMetadata<*, *>
+    metadata: AggregateMetadata<*, *>,
+    customPolicies: List<QueryPolicy> = emptyList()
 ): QueryGateway {
     val backendFactory = ElasticsearchQueryBackendFactory(client)
     val schemaResolver = JacksonQuerySchemaResolver(
@@ -76,7 +83,7 @@ internal fun legacyElasticsearchQueryGateway(
                 override fun resolve(context: me.ahoo.wow.query.backend.QueryBackendResolutionContext) =
                     ResolvedQueryBackend.resolve(backendFactory.bind(context), ROUTE_IDENTITY)
             },
-            customPolicies = emptyList(),
+            customPolicies = customPolicies,
             resultPolicies = emptyList(),
             clock = Clock.systemUTC(),
             zoneId = ZoneOffset.UTC,
@@ -107,3 +114,19 @@ private fun eventPayloadCustomizer(documentKind: QueryDocumentKind): List<QueryS
     }
 
 private val ROUTE_IDENTITY = QueryBackendRouteIdentity("legacy-elasticsearch-tck")
+
+internal class ElasticsearchMandatoryTenantPolicy(private val tenantId: String) : QueryPolicy {
+    val calls = AtomicInteger()
+
+    override fun evaluate(context: me.ahoo.wow.query.policy.QueryPolicyContext): Mono<QueryPolicyResult> =
+        Mono.fromSupplier {
+            calls.incrementAndGet()
+            QueryPolicyResult(
+                PredicateExpression(
+                    LogicalField("tenantId"),
+                    PortableOperator.EQ,
+                    listOf(QueryValue.StringValue(tenantId))
+                )
+            )
+        }
+}

@@ -42,13 +42,21 @@ internal fun <S : Any> materializeLegacySnapshot(
     document: DynamicDocument,
     snapshotType: Lazy<JavaType>
 ): MaterializedSnapshot<S> = materializeLegacyDocument {
-    document.adaptLegacySystemTimes(SNAPSHOT_LEGACY_TIME_FIELDS).convert(snapshotType.value)
+    adaptLegacySnapshotDocument(document).convert(snapshotType.value)
 }
 
 @JvmSynthetic
 internal fun materializeLegacyEvent(document: DynamicDocument): DomainEventStream = materializeLegacyDocument {
-    document.adaptLegacySystemTimes(EVENT_LEGACY_TIME_FIELDS).convert(DomainEventStream::class.java)
+    adaptLegacyEventDocument(document).convert(DomainEventStream::class.java)
 }
+
+@JvmSynthetic
+internal fun adaptLegacySnapshotDocument(document: DynamicDocument): DynamicDocument =
+    materializeLegacyDocument { document.adaptLegacySystemTimes(SNAPSHOT_LEGACY_TIME_FIELDS) }
+
+@JvmSynthetic
+internal fun adaptLegacyEventDocument(document: DynamicDocument): DynamicDocument =
+    materializeLegacyDocument { document.adaptLegacySystemTimes(EVENT_LEGACY_TIME_FIELDS) }
 
 @JvmSynthetic
 internal fun <T : Any> materializeLegacyList(
@@ -88,11 +96,13 @@ private inline fun <T> materializeLegacyDocument(convert: () -> T): T = try {
 private fun DynamicDocument.adaptLegacySystemTimes(fields: Set<String>): DynamicDocument {
     var changed = false
     val adapted = entries.associateTo(LinkedHashMap(size)) { (field, value) ->
-        val legacyValue = if (field in fields && value is Instant) {
-            changed = true
-            value.toEpochMilli()
-        } else {
-            value
+        val legacyValue = when {
+            field !in fields || value == null || value is Long -> value
+            value is Instant -> {
+                changed = true
+                value.toEpochMilli()
+            }
+            else -> throw IllegalArgumentException("Invalid legacy system time value.")
         }
         field to legacyValue
     }

@@ -43,6 +43,7 @@ import me.ahoo.wow.query.event.GatewayEventStreamQueryService
 import me.ahoo.wow.query.event.GatewayEventStreamQueryServiceFactory
 import me.ahoo.wow.query.snapshot.GatewaySnapshotQueryService
 import me.ahoo.wow.query.snapshot.GatewaySnapshotQueryServiceFactory
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toLinkedHashMap
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -107,6 +108,66 @@ class GatewayQueryServiceTest {
     }
 
     @Test
+    fun `all dynamic facade paths expose legacy epoch millis without mutating canonical documents`() {
+        val applicationInstant = Instant.parse("2026-08-14T00:00:00Z")
+        val backendSnapshot = snapshotDocument.withValues(
+            "firstEventTime" to Instant.ofEpochMilli(snapshot.firstEventTime),
+            "eventTime" to Instant.ofEpochMilli(snapshot.eventTime),
+            "snapshotTime" to Instant.ofEpochMilli(snapshot.snapshotTime),
+            "applicationInstant" to applicationInstant,
+        )
+        val backendEvent = eventDocument.withValues(
+            "createTime" to Instant.ofEpochMilli(eventStream.createTime),
+            "applicationInstant" to applicationInstant,
+        )
+        val snapshotService = GatewaySnapshotQueryService<MockStateAggregate>(
+            MOCK_AGGREGATE_METADATA,
+            RecordingLegacyGateway(backendSnapshot),
+        )
+        val eventService = GatewayEventStreamQueryService(
+            MOCK_AGGREGATE_METADATA,
+            RecordingLegacyGateway(backendEvent),
+        )
+
+        listOf(
+            snapshotService.dynamicSingle(SingleQuery(Condition.ALL)),
+            snapshotService.dynamicList(ListQuery(Condition.ALL)).single(),
+            snapshotService.dynamicPaged(PagedQuery(Condition.ALL)).map { it.list.single() },
+        ).forEach { result ->
+            StepVerifier.create(result).assertNext { document ->
+                document.assertLegacyTimes(
+                    "firstEventTime" to snapshot.firstEventTime,
+                    "eventTime" to snapshot.eventTime,
+                    "snapshotTime" to snapshot.snapshotTime,
+                )
+                document["applicationInstant"].assert().isEqualTo(applicationInstant)
+                JsonSerializer.writeValueAsString(document).let { json ->
+                    json.contains("\"firstEventTime\":${snapshot.firstEventTime}").assert().isTrue()
+                    json.contains("\"snapshotTime\":${snapshot.snapshotTime}").assert().isTrue()
+                    json.contains(applicationInstant.toString()).assert().isTrue()
+                }
+            }.verifyComplete()
+        }
+        listOf(
+            eventService.dynamicSingle(SingleQuery(Condition.ALL)),
+            eventService.dynamicList(ListQuery(Condition.ALL)).single(),
+            eventService.dynamicPaged(PagedQuery(Condition.ALL)).map { it.list.single() },
+        ).forEach { result ->
+            StepVerifier.create(result).assertNext { document ->
+                document.assertLegacyTimes("createTime" to eventStream.createTime)
+                document["applicationInstant"].assert().isEqualTo(applicationInstant)
+                JsonSerializer.writeValueAsString(document)
+                    .contains("\"createTime\":${eventStream.createTime}").assert().isTrue()
+            }.verifyComplete()
+        }
+
+        backendSnapshot["firstEventTime"].assert().isEqualTo(Instant.ofEpochMilli(snapshot.firstEventTime))
+        backendSnapshot["eventTime"].assert().isEqualTo(Instant.ofEpochMilli(snapshot.eventTime))
+        backendSnapshot["snapshotTime"].assert().isEqualTo(Instant.ofEpochMilli(snapshot.snapshotTime))
+        backendEvent["createTime"].assert().isEqualTo(Instant.ofEpochMilli(eventStream.createTime))
+    }
+
+    @Test
     fun `legacy time adaptation does not coerce non-time instants and keeps malformed times invalid`() {
         val nonTimeInstant = snapshotDocument.withValues(
             "contextName" to Instant.EPOCH,
@@ -127,6 +188,54 @@ class GatewayQueryServiceTest {
                 RecordingLegacyGateway(malformedTime),
             ).single(SingleQuery(Condition.ALL)),
         ).expectErrorSatisfies(::assertResultInvalid).verify()
+    }
+
+    @Test
+    fun `all dynamic facade paths reject malformed fixed system times without leaking values`() {
+        val malformedSnapshot = snapshotDocument.withValues(
+            "snapshotTime" to mapOf("sensitive" to "must-not-leak"),
+        )
+        val malformedEvent = eventDocument.withValues(
+            "createTime" to mapOf("sensitive" to "must-not-leak"),
+        )
+        val snapshotService = GatewaySnapshotQueryService<MockStateAggregate>(
+            MOCK_AGGREGATE_METADATA,
+            RecordingLegacyGateway(malformedSnapshot),
+        )
+        val eventService = GatewayEventStreamQueryService(
+            MOCK_AGGREGATE_METADATA,
+            RecordingLegacyGateway(malformedEvent),
+        )
+
+        listOf(
+            snapshotService.dynamicSingle(SingleQuery(Condition.ALL)),
+            snapshotService.dynamicList(ListQuery(Condition.ALL)).single(),
+            snapshotService.dynamicPaged(PagedQuery(Condition.ALL)).flatMap { Mono.just(it.list.single()) },
+            eventService.dynamicSingle(SingleQuery(Condition.ALL)),
+            eventService.dynamicList(ListQuery(Condition.ALL)).single(),
+            eventService.dynamicPaged(PagedQuery(Condition.ALL)).flatMap { Mono.just(it.list.single()) },
+        ).forEach { publisher ->
+            StepVerifier.create(publisher).expectErrorSatisfies(::assertResultInvalid).verify()
+        }
+    }
+
+    @Test
+    fun `dynamic time adapter preserves projected absence and nullable values`() {
+        val partialSnapshot = ImmutableDynamicDocument.copyOf(mapOf("aggregateId" to snapshot.aggregateId))
+        val nullableEvent = ImmutableDynamicDocument.copyOf(mapOf("id" to eventStream.id, "createTime" to null))
+
+        StepVerifier.create(
+            GatewaySnapshotQueryService<MockStateAggregate>(
+                MOCK_AGGREGATE_METADATA,
+                RecordingLegacyGateway(partialSnapshot),
+            ).dynamicSingle(SingleQuery(Condition.ALL)),
+        ).expectNext(partialSnapshot).verifyComplete()
+        StepVerifier.create(
+            GatewayEventStreamQueryService(
+                MOCK_AGGREGATE_METADATA,
+                RecordingLegacyGateway(nullableEvent),
+            ).dynamicSingle(SingleQuery(Condition.ALL)),
+        ).expectNext(nullableEvent).verifyComplete()
     }
 
     @Test
@@ -369,6 +478,12 @@ class GatewayQueryServiceTest {
 
     private fun DynamicDocument.withValues(vararg values: Pair<String, Any?>): DynamicDocument =
         ImmutableDynamicDocument.copyOf(LinkedHashMap(this).apply { putAll(values) })
+
+    private fun DynamicDocument.assertLegacyTimes(vararg expected: Pair<String, Long>) {
+        expected.forEach { (field, value) ->
+            this[field].assert().isInstanceOf(Long::class.javaObjectType).isEqualTo(value)
+        }
+    }
 
     private fun verifyCold(publishers: List<Publisher<*>>, gateway: RecordingLegacyGateway) {
         gateway.calls.get().assert().isZero()

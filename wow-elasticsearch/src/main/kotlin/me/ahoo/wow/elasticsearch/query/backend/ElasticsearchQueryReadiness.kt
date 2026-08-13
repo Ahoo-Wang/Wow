@@ -288,16 +288,17 @@ internal class ElasticsearchQueryReadiness(
     }
 
     private fun co.elastic.clients.elasticsearch._types.mapping.Property.matches(
-        kind: QueryFieldValueKind,
-        system: Boolean,
-    ): Boolean = when (kind) {
+        requirement: ElasticsearchMappingFieldRequirement,
+    ): Boolean = when (requirement.valueKind) {
         QueryFieldValueKind.BOOLEAN -> isBoolean
-        QueryFieldValueKind.INTEGER -> isInteger || isLong
+        QueryFieldValueKind.INTEGER ->
+            isLong ||
+                (requirement.system && requirement.path == VERSION_FIELD && isInteger)
         QueryFieldValueKind.DECIMAL -> isDouble
         QueryFieldValueKind.STRING,
         QueryFieldValueKind.ENUM,
         -> isKeyword
-        QueryFieldValueKind.TIME -> if (system) isLong else isDate
+        QueryFieldValueKind.TIME -> if (requirement.system) isLong else isDate
         QueryFieldValueKind.BINARY -> isBinary
         QueryFieldValueKind.OBJECT -> isObject || isNested
         QueryFieldValueKind.MAP -> isObject
@@ -310,13 +311,13 @@ internal class ElasticsearchQueryReadiness(
         requirement.valueKind == QueryFieldValueKind.STRING ->
             isText || isKeyword || isConstantKeyword
         requirement.valueKind == QueryFieldValueKind.ENUM -> isKeyword || isConstantKeyword
-        else -> matches(requirement.valueKind, requirement.system)
+        else -> matches(requirement)
     }
 
     private fun co.elastic.clients.elasticsearch._types.mapping.Property.hasManagedExactSemantics(
         requirement: ElasticsearchMappingFieldRequirement,
     ): Boolean {
-        if (!matches(requirement.valueKind, requirement.system) || !isIndexed() || hasNullSentinel()) {
+        if (!matches(requirement) || !isIndexed() || hasNullSentinel()) {
             return false
         }
         return when {
@@ -424,6 +425,7 @@ internal class ElasticsearchQueryReadiness(
     )
 
     companion object {
+        private const val VERSION_FIELD = "version"
         internal const val PRESENCE_VERSION_META = "wow_query_presence_version"
         internal const val PRESENCE_TEMPLATE_VERSION_META = "wow_query_presence_template_version"
         private val PRESENCE_TEMPLATE_NAMES = linkedMapOf(

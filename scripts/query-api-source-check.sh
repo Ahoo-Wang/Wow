@@ -298,6 +298,178 @@ java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler
     -d "$TEMP_DIR/classes/kotlin" "$TEMP_DIR/kotlin/StableElasticsearchBackendApi.kt"
 echo "PASS: Kotlin external stable Elasticsearch backend API source"
 
+cat >"$TEMP_DIR/java/StorageQueryServiceInjection.java" <<'EOF'
+package external.fixture;
+
+import co.elastic.clients.elasticsearch._types.query_dsl.Query;
+import com.mongodb.reactivestreams.client.MongoCollection;
+import me.ahoo.wow.api.query.DynamicDocument;
+import me.ahoo.wow.api.modeling.NamedAggregate;
+import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService;
+import me.ahoo.wow.mongo.query.AbstractMongoQueryService;
+import me.ahoo.wow.mongo.query.MongoProjectionConverter;
+import me.ahoo.wow.mongo.query.MongoSortConverter;
+import me.ahoo.wow.query.QueryService;
+import me.ahoo.wow.query.converter.ConditionConverter;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient;
+
+public final class StorageQueryServiceInjection {
+    static final class MongoBypass extends AbstractMongoQueryService<Object> {
+        MongoBypass(QueryService<Object> arbitrary) { super(arbitrary); }
+        public NamedAggregate getNamedAggregate() { return null; }
+        public MongoCollection<Document> getCollection() { return null; }
+        public ConditionConverter<Bson> getConverter() { return null; }
+        public MongoProjectionConverter getProjectionConverter() { return null; }
+        public MongoSortConverter getSortConverter() { return null; }
+        public Object toTypedResult(Document document) { return document; }
+        public DynamicDocument toDynamicDocument(Document document) { return null; }
+    }
+
+    static final class ElasticsearchBypass extends AbstractElasticsearchQueryService<Object> {
+        ElasticsearchBypass(QueryService<Object> arbitrary) { super(arbitrary); }
+        public NamedAggregate getNamedAggregate() { return null; }
+        public ReactiveElasticsearchClient getElasticsearchClient() { return null; }
+        public ConditionConverter<Query> getConditionConverter() { return null; }
+        public String getIndexName() { return "index"; }
+        public Object toTypedResult(DynamicDocument document) { return document; }
+    }
+}
+EOF
+
+if javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/java" "$TEMP_DIR/java/StorageQueryServiceInjection.java" \
+    >"$TEMP_DIR/storage-query-service-injection-java.out" 2>&1; then
+    fail "Java external source unexpectedly injected arbitrary QueryService into storage abstract classes"
+fi
+grep -Eq "Abstract(Mongo|Elasticsearch)QueryService|QueryService" \
+    "$TEMP_DIR/storage-query-service-injection-java.out" || {
+    cat "$TEMP_DIR/storage-query-service-injection-java.out" >&2
+    fail "Java storage QueryService injection fixture failed for an unexpected reason"
+}
+echo "PASS: Java external source cannot inject arbitrary QueryService into storage abstract classes"
+
+cat >"$TEMP_DIR/kotlin/StorageQueryServiceInjection.kt" <<'EOF'
+package external.fixture
+
+import co.elastic.clients.elasticsearch._types.query_dsl.Query
+import com.mongodb.reactivestreams.client.MongoCollection
+import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService
+import me.ahoo.wow.mongo.query.AbstractMongoQueryService
+import me.ahoo.wow.mongo.query.MongoProjectionConverter
+import me.ahoo.wow.mongo.query.MongoSortConverter
+import me.ahoo.wow.query.QueryService
+import me.ahoo.wow.query.converter.ConditionConverter
+import org.bson.Document
+import org.bson.conversions.Bson
+import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
+
+class MongoBypass(arbitrary: QueryService<Any>) : AbstractMongoQueryService<Any>(arbitrary) {
+    override val namedAggregate: NamedAggregate get() = error("unused")
+    override val collection: MongoCollection<Document> get() = error("unused")
+    override val converter: ConditionConverter<Bson> get() = error("unused")
+    override val projectionConverter: MongoProjectionConverter get() = error("unused")
+    override val sortConverter: MongoSortConverter get() = error("unused")
+    override fun toTypedResult(document: Document): Any = document
+    override fun toDynamicDocument(document: Document): DynamicDocument = error("unused")
+}
+
+class ElasticsearchBypass(arbitrary: QueryService<Any>) : AbstractElasticsearchQueryService<Any>(arbitrary) {
+    override val namedAggregate: NamedAggregate get() = error("unused")
+    override val elasticsearchClient: ReactiveElasticsearchClient get() = error("unused")
+    override val conditionConverter: ConditionConverter<Query> get() = error("unused")
+    override val indexName: String = "index"
+    override fun toTypedResult(document: DynamicDocument): Any = document
+}
+EOF
+
+if java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+    -module-name storage-query-service-injection-negative \
+    -no-stdlib -no-reflect \
+    -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/kotlin" "$TEMP_DIR/kotlin/StorageQueryServiceInjection.kt" \
+    >"$TEMP_DIR/storage-query-service-injection-kotlin.out" 2>&1; then
+    fail "Kotlin external source unexpectedly injected arbitrary QueryService into storage abstract classes"
+fi
+grep -Eq "Abstract(Mongo|Elasticsearch)QueryService|QueryService" \
+    "$TEMP_DIR/storage-query-service-injection-kotlin.out" || {
+    cat "$TEMP_DIR/storage-query-service-injection-kotlin.out" >&2
+    fail "Kotlin storage QueryService injection fixture failed for an unexpected reason"
+}
+echo "PASS: Kotlin external source cannot inject arbitrary QueryService into storage abstract classes"
+
+cat >"$TEMP_DIR/java/LegacyStorageAbstractSubclass.java" <<'EOF'
+package external.fixture;
+
+import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService;
+import me.ahoo.wow.mongo.query.AbstractMongoQueryService;
+
+abstract class LegacyMongoSubclass extends AbstractMongoQueryService<Object> {
+    LegacyMongoSubclass() { super(); }
+}
+
+abstract class LegacyElasticsearchSubclass extends AbstractElasticsearchQueryService<Object> {
+    LegacyElasticsearchSubclass() { super(); }
+}
+EOF
+
+javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/java-storage-abstract-compatible" \
+    "$TEMP_DIR/java/LegacyStorageAbstractSubclass.java"
+echo "PASS: Java external legacy storage abstract subclasses remain source compatible"
+
+if javac --release 17 -Xlint:deprecation -Werror -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/java-storage-abstract-deprecated" \
+    "$TEMP_DIR/java/LegacyStorageAbstractSubclass.java" \
+    >"$TEMP_DIR/java-storage-abstract-deprecated.out" 2>&1; then
+    fail "Java legacy storage abstract no-arg constructors are not deprecated"
+fi
+for class_name in AbstractMongoQueryService AbstractElasticsearchQueryService; do
+    grep -F "$class_name" "$TEMP_DIR/java-storage-abstract-deprecated.out" >/dev/null || {
+        cat "$TEMP_DIR/java-storage-abstract-deprecated.out" >&2
+        fail "Java legacy storage abstract deprecation fixture did not diagnose $class_name"
+    }
+done
+echo "PASS: Java legacy storage abstract no-arg constructors are deprecated"
+
+cat >"$TEMP_DIR/kotlin/LegacyStorageAbstractSubclass.kt" <<'EOF'
+package external.fixture
+
+import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService
+import me.ahoo.wow.mongo.query.AbstractMongoQueryService
+
+abstract class LegacyMongoSubclass : AbstractMongoQueryService<Any>()
+abstract class LegacyElasticsearchSubclass : AbstractElasticsearchQueryService<Any>()
+EOF
+
+java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+    -module-name storage-abstract-source-compatible \
+    -no-stdlib -no-reflect \
+    -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/kotlin-storage-abstract-compatible" \
+    "$TEMP_DIR/kotlin/LegacyStorageAbstractSubclass.kt"
+echo "PASS: Kotlin external legacy storage abstract subclasses remain source compatible"
+
+if java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+    -module-name storage-abstract-deprecated \
+    -Werror -no-stdlib -no-reflect \
+    -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/kotlin-storage-abstract-deprecated" \
+    "$TEMP_DIR/kotlin/LegacyStorageAbstractSubclass.kt" \
+    >"$TEMP_DIR/kotlin-storage-abstract-deprecated.out" 2>&1; then
+    fail "Kotlin legacy storage abstract no-arg constructors are not deprecated"
+fi
+for class_name in AbstractMongoQueryService AbstractElasticsearchQueryService; do
+    grep -F "$class_name" "$TEMP_DIR/kotlin-storage-abstract-deprecated.out" >/dev/null || {
+        cat "$TEMP_DIR/kotlin-storage-abstract-deprecated.out" >&2
+        fail "Kotlin legacy storage abstract deprecation fixture did not diagnose $class_name"
+    }
+done
+echo "PASS: Kotlin legacy storage abstract no-arg constructors are deprecated"
+
 cat >"$TEMP_DIR/java/StableAdmissionSpi.java" <<'EOF'
 package external.fixture;
 
@@ -1149,7 +1321,9 @@ public final class InternalGatewayCompatibilityFunctions {
     ) {
         return new Object[]{
             LegacyRequestCompatibilityKt.legacyCountRequest(target, condition),
-            LegacyResultCompatibilityKt.materializeLegacyEvent(document)
+            LegacyResultCompatibilityKt.materializeLegacyEvent(document),
+            LegacyResultCompatibilityKt.adaptLegacySnapshotDocument(document),
+            LegacyResultCompatibilityKt.adaptLegacyEventDocument(document)
         };
     }
 }
@@ -1161,7 +1335,7 @@ if javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
     >"$TEMP_DIR/java-gateway-compatibility-negative.out" 2>&1; then
     fail "Java external source unexpectedly accessed Gateway compatibility functions"
 fi
-for function_name in legacyCountRequest materializeLegacyEvent; do
+for function_name in legacyCountRequest materializeLegacyEvent adaptLegacySnapshotDocument adaptLegacyEventDocument; do
     grep -F "$function_name" "$TEMP_DIR/java-gateway-compatibility-negative.out" >/dev/null || {
         cat "$TEMP_DIR/java-gateway-compatibility-negative.out" >&2
         fail "Java Gateway compatibility negative fixture did not diagnose $function_name"
@@ -1176,6 +1350,8 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.query.compat.legacyCountRequest
+import me.ahoo.wow.query.compat.adaptLegacyEventDocument
+import me.ahoo.wow.query.compat.adaptLegacySnapshotDocument
 import me.ahoo.wow.query.compat.materializeLegacyEvent
 
 fun internalGatewayCompatibilityFunctions(
@@ -1184,7 +1360,9 @@ fun internalGatewayCompatibilityFunctions(
     document: DynamicDocument
 ): List<Any> = listOf(
     legacyCountRequest(target, condition),
-    materializeLegacyEvent(document)
+    materializeLegacyEvent(document),
+    adaptLegacySnapshotDocument(document),
+    adaptLegacyEventDocument(document)
 )
 EOF
 
@@ -1197,7 +1375,7 @@ if java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompi
     >"$TEMP_DIR/kotlin-gateway-compatibility-negative.out" 2>&1; then
     fail "Kotlin external source unexpectedly accessed Gateway compatibility functions"
 fi
-for function_name in legacyCountRequest materializeLegacyEvent; do
+for function_name in legacyCountRequest materializeLegacyEvent adaptLegacySnapshotDocument adaptLegacyEventDocument; do
     grep -F "$function_name" "$TEMP_DIR/kotlin-gateway-compatibility-negative.out" >/dev/null || {
         cat "$TEMP_DIR/kotlin-gateway-compatibility-negative.out" >&2
         fail "Kotlin Gateway compatibility negative fixture did not diagnose $function_name"

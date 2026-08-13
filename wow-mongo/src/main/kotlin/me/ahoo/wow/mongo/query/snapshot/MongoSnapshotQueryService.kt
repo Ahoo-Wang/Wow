@@ -18,6 +18,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
+import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
@@ -27,47 +28,48 @@ import me.ahoo.wow.mongo.query.MongoProjectionConverter
 import me.ahoo.wow.mongo.query.MongoSortConverter
 import me.ahoo.wow.mongo.toMaterializedSnapshot
 import me.ahoo.wow.query.QueryGateway
-import me.ahoo.wow.query.QueryService
 import me.ahoo.wow.query.converter.ConditionConverter
-import me.ahoo.wow.query.snapshot.GatewaySnapshotQueryService
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.serialization.JsonSerializer
 import org.bson.Document
 import org.bson.conversions.Bson
 
-class MongoSnapshotQueryService<S : Any> private constructor(
-    override val namedAggregate: NamedAggregate,
-    override val collection: MongoCollection<Document>,
-    override val converter: ConditionConverter<Bson>,
-    queryService: QueryService<MaterializedSnapshot<S>>?
-) : AbstractMongoQueryService<MaterializedSnapshot<S>>(queryService), SnapshotQueryService<S> {
+class MongoSnapshotQueryService<S : Any> : AbstractMongoQueryService<MaterializedSnapshot<S>>, SnapshotQueryService<S> {
+    override val namedAggregate: NamedAggregate
+    override val collection: MongoCollection<Document>
+    override val converter: ConditionConverter<Bson>
+
     @Deprecated("Use the constructor that requires QueryGateway.")
     constructor(
         namedAggregate: NamedAggregate,
         collection: MongoCollection<Document>,
         converter: ConditionConverter<Bson> = SnapshotConditionConverter
-    ) : this(namedAggregate, collection, converter, null)
+    ) : super() {
+        this.namedAggregate = namedAggregate
+        this.collection = collection
+        this.converter = converter
+    }
 
     constructor(
         namedAggregate: NamedAggregate,
         collection: MongoCollection<Document>,
         queryGateway: QueryGateway
-    ) : this(
-        namedAggregate,
-        collection,
-        SnapshotConditionConverter,
-        GatewaySnapshotQueryService<S>(namedAggregate, queryGateway)
-    )
+    ) : super(namedAggregate, queryGateway, QueryDocumentKind.SNAPSHOT) {
+        this.namedAggregate = namedAggregate
+        this.collection = collection
+        this.converter = SnapshotConditionConverter
+    }
 
     override val name: String
         get() = MongoSnapshotStore.NAME
     override val projectionConverter: MongoProjectionConverter = MongoProjectionConverter(SnapshotFieldConverter)
     override val sortConverter: MongoSortConverter = MongoSortConverter(SnapshotFieldConverter)
-    private val snapshotType = JsonSerializer.typeFactory
-        .constructParametricType(
+    private val snapshotType by lazy {
+        JsonSerializer.typeFactory.constructParametricType(
             MaterializedSnapshot::class.java,
-            namedAggregate.requiredAggregateType<Any>().aggregateMetadata<Any, S>().state.aggregateType
+            namedAggregate.requiredAggregateType<Any>().aggregateMetadata<Any, S>().state.aggregateType,
         )
+    }
 
     override fun toTypedResult(document: Document): MaterializedSnapshot<S> {
         return document.toMaterializedSnapshot(snapshotType)

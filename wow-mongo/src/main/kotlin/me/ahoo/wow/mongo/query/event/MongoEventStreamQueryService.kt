@@ -17,6 +17,7 @@ import com.mongodb.reactivestreams.client.MongoCollection
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
+import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToId
 import me.ahoo.wow.mongo.query.AbstractMongoQueryService
@@ -24,36 +25,36 @@ import me.ahoo.wow.mongo.query.MongoProjectionConverter
 import me.ahoo.wow.mongo.query.MongoSortConverter
 import me.ahoo.wow.mongo.toDomainEventStream
 import me.ahoo.wow.query.QueryGateway
-import me.ahoo.wow.query.QueryService
 import me.ahoo.wow.query.converter.ConditionConverter
 import me.ahoo.wow.query.event.EventStreamQueryService
-import me.ahoo.wow.query.event.GatewayEventStreamQueryService
 import org.bson.Document
 import org.bson.conversions.Bson
 
-class MongoEventStreamQueryService private constructor(
-    override val namedAggregate: NamedAggregate,
-    override val collection: MongoCollection<Document>,
-    override val converter: ConditionConverter<Bson>,
-    queryService: QueryService<DomainEventStream>?
-) : AbstractMongoQueryService<DomainEventStream>(queryService), EventStreamQueryService {
+class MongoEventStreamQueryService : AbstractMongoQueryService<DomainEventStream>, EventStreamQueryService {
+    override val namedAggregate: NamedAggregate
+    override val collection: MongoCollection<Document>
+    override val converter: ConditionConverter<Bson>
+
     @Deprecated("Use the constructor that requires QueryGateway.")
     constructor(
         namedAggregate: NamedAggregate,
         collection: MongoCollection<Document>,
         converter: ConditionConverter<Bson> = EventStreamConditionConverter
-    ) : this(namedAggregate, collection, converter, null)
+    ) : super() {
+        this.namedAggregate = namedAggregate
+        this.collection = collection
+        this.converter = converter
+    }
 
     constructor(
         namedAggregate: NamedAggregate,
         collection: MongoCollection<Document>,
         queryGateway: QueryGateway
-    ) : this(
-        namedAggregate,
-        collection,
-        EventStreamConditionConverter,
-        GatewayEventStreamQueryService(namedAggregate, queryGateway)
-    )
+    ) : super(namedAggregate, queryGateway, QueryDocumentKind.EVENT_STREAM) {
+        this.namedAggregate = namedAggregate
+        this.collection = collection
+        this.converter = EventStreamConditionConverter
+    }
 
     override val projectionConverter: MongoProjectionConverter = MongoProjectionConverter(EventStreamFieldConverter)
     override val sortConverter: MongoSortConverter = MongoSortConverter(EventStreamFieldConverter)

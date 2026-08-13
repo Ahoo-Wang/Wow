@@ -15,6 +15,7 @@ package me.ahoo.wow.mongo.query
 
 import com.mongodb.reactivestreams.client.FindPublisher
 import com.mongodb.reactivestreams.client.MongoCollection
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
@@ -26,17 +27,36 @@ import me.ahoo.wow.api.query.error.QueryErrorCode
 import me.ahoo.wow.api.query.error.QueryErrorReason
 import me.ahoo.wow.api.query.error.QueryException
 import me.ahoo.wow.api.query.error.QueryStage
+import me.ahoo.wow.api.query.gateway.QueryDocumentKind
+import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryService
 import me.ahoo.wow.query.converter.ConditionConverter
+import me.ahoo.wow.query.event.GatewayEventStreamQueryService
+import me.ahoo.wow.query.snapshot.GatewaySnapshotQueryService
 import org.bson.Document
 import org.bson.conversions.Bson
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-abstract class AbstractMongoQueryService<R : Any> protected constructor(
-    private val queryService: QueryService<R>?
+abstract class AbstractMongoQueryService<R : Any> private constructor(
+    private val queryService: QueryService<R>?,
+    @Suppress("UNUSED_PARAMETER") marker: Unit,
 ) : QueryService<R> {
-    constructor() : this(null)
+    @Deprecated("Use the constructor that requires NamedAggregate and QueryGateway.")
+    constructor() : this(null, Unit)
+
+    @Suppress("UNCHECKED_CAST")
+    protected constructor(
+        namedAggregate: NamedAggregate,
+        queryGateway: QueryGateway,
+        documentKind: QueryDocumentKind,
+    ) : this(
+        when (documentKind) {
+            QueryDocumentKind.SNAPSHOT -> GatewaySnapshotQueryService<Any>(namedAggregate, queryGateway)
+            QueryDocumentKind.EVENT_STREAM -> GatewayEventStreamQueryService(namedAggregate, queryGateway)
+        } as QueryService<R>,
+        Unit,
+    )
 
     abstract val collection: MongoCollection<Document>
     abstract val converter: ConditionConverter<Bson>

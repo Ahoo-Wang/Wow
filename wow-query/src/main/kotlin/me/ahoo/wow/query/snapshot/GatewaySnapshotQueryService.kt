@@ -25,6 +25,7 @@ import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.compat.adaptLegacySnapshotDocument
 import me.ahoo.wow.query.compat.legacyCountRequest
 import me.ahoo.wow.query.compat.legacyListRequest
 import me.ahoo.wow.query.compat.legacyPageRequest
@@ -48,7 +49,7 @@ class GatewaySnapshotQueryService<S : Any>(
     }
 
     override fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument> = Mono.defer {
-        queryGateway.single(legacySingleRequest(target, singleQuery))
+        queryGateway.single(legacySingleRequest(target, singleQuery)).map(::adaptLegacySnapshotDocument)
     }
 
     override fun list(listQuery: IListQuery): Flux<MaterializedSnapshot<S>> = Flux.defer {
@@ -58,7 +59,7 @@ class GatewaySnapshotQueryService<S : Any>(
     }
 
     override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> = Flux.defer {
-        queryGateway.list(legacyListRequest(target, listQuery))
+        queryGateway.list(legacyListRequest(target, listQuery)).map(::adaptLegacySnapshotDocument)
     }
 
     override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<MaterializedSnapshot<S>>> = Mono.defer {
@@ -68,7 +69,9 @@ class GatewaySnapshotQueryService<S : Any>(
     }
 
     override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> = Mono.defer {
-        queryGateway.page(legacyPageRequest(target, pagedQuery)).map { page -> PagedList(page.total, page.items) }
+        queryGateway.page(legacyPageRequest(target, pagedQuery)).map { page ->
+            PagedList(page.total, page.items.map(::adaptLegacySnapshotDocument))
+        }
     }
 
     override fun count(condition: Condition): Mono<Long> = Mono.defer {

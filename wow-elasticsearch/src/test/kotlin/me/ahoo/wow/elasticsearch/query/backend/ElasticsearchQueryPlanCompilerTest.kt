@@ -265,6 +265,22 @@ class ElasticsearchQueryPlanCompilerTest {
     }
 
     @Test
+    fun `ordinary integer predicates preserve the full signed long range`() {
+        listOf(Long.MIN_VALUE, Long.MAX_VALUE).forEach { value ->
+            val query = compiler.query(
+                PredicateExpression(
+                    PortableQueryDataset.RANK,
+                    PortableOperator.EQ,
+                    listOf(QueryValue.IntegerValue(value)),
+                ),
+            )
+
+            query.term().field().assert().isEqualTo(PortableQueryDataset.RANK.value)
+            query.term().value().longValue().assert().isEqualTo(value)
+        }
+    }
+
+    @Test
     fun `native backend mismatch fails before query construction`() {
         val error = assertThrows<QueryException> {
             compiler.query(

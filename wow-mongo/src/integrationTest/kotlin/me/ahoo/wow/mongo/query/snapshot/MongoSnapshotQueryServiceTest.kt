@@ -14,17 +14,35 @@
 package me.ahoo.wow.mongo.query.snapshot
 
 import com.mongodb.reactivestreams.client.MongoDatabase
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.modeling.TenantId
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.expression.MatchAll
+import me.ahoo.wow.api.query.gateway.ListQueryRequest
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
+import me.ahoo.wow.api.query.gateway.QueryResultShape
 import me.ahoo.wow.api.query.gateway.QueryTarget
+import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
+import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.mongo.MongoSnapshotStore
+import me.ahoo.wow.mongo.query.MongoMandatoryTenantPolicy
 import me.ahoo.wow.mongo.query.legacyMongoQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.query.SnapshotQueryServiceSpec
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
+import reactor.core.publisher.Mono
+import reactor.kotlin.test.test
+import java.time.Instant
 
 class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     @JvmField
@@ -50,5 +68,70 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
     override fun createSnapshotStore(): SnapshotStore {
         return MongoSnapshotStore(database)
+    }
+
+    @Test
+    fun `legacy facade preserves dynamic time while mandatory tenant and active policies match direct gateway`() {
+        val target = QueryTarget(MOCK_AGGREGATE_METADATA, QueryDocumentKind.SNAPSHOT)
+        val policy = MongoMandatoryTenantPolicy(TenantId.DEFAULT_TENANT_ID)
+        val gateway = legacyMongoQueryGateway(database, target, MOCK_AGGREGATE_METADATA, listOf(policy))
+        val service = MongoSnapshotQueryServiceFactory(database, gateway)
+            .create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+        saveSnapshot(tenantId = "denied-tenant", deleted = false)
+        saveSnapshot(tenantId = TenantId.DEFAULT_TENANT_ID, deleted = true)
+
+        Mono.zip(
+            service.dynamicList(ListQuery(Condition.ALL)).collectList(),
+            gateway.list(
+                ListQueryRequest(
+                    target = target,
+                    expression = MatchAll,
+                    resultShape = QueryResultShape.Typed(DynamicDocument::class.java),
+                    limit = 10
+                )
+            ).collectList()
+        ).test()
+            .assertNext { results ->
+                val legacy = results.t1.single()
+                val direct = results.t2.single()
+                legacy.assertLegacyEquivalentTo(direct, SNAPSHOT_TIME_FIELDS)
+                legacy["tenantId"].assert().isEqualTo(TenantId.DEFAULT_TENANT_ID)
+                legacy["deleted"].assert().isEqualTo(false)
+                policy.calls.get().assert().isEqualTo(2)
+            }
+            .verifyComplete()
+    }
+
+    private fun saveSnapshot(tenantId: String, deleted: Boolean) {
+        val id = generateGlobalId()
+        val stateAggregate = ConstructorStateAggregateFactory.create(
+            metadata = MOCK_AGGREGATE_METADATA.state,
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(id, tenantId),
+            state = MockStateAggregate(id),
+            version = 1,
+            firstEventTime = 1_001,
+            eventTime = 1_002,
+            deleted = deleted
+        )
+        snapshotStore.save(SimpleSnapshot(stateAggregate, 1_003)).block()
+    }
+
+    private fun DynamicDocument.assertLegacyEquivalentTo(
+        direct: DynamicDocument,
+        timeFields: Set<String>
+    ) {
+        keys.assert().isEqualTo(direct.keys)
+        forEach { (field, value) ->
+            if (field in timeFields) {
+                value.assert().isInstanceOf(Long::class.javaObjectType)
+                value.assert().isEqualTo((direct[field] as Instant).toEpochMilli())
+            } else {
+                value.assert().isEqualTo(direct[field])
+            }
+        }
+    }
+
+    companion object {
+        private val SNAPSHOT_TIME_FIELDS = setOf("firstEventTime", "eventTime", "snapshotTime")
     }
 }

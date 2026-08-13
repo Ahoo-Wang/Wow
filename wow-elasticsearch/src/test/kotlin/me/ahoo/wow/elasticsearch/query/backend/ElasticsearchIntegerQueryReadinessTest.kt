@@ -36,32 +36,53 @@ import reactor.test.StepVerifier
 
 class ElasticsearchIntegerQueryReadinessTest {
     @Test
-    fun `integer schema accepts only Elasticsearch integer and long mappings for source exact and sort`() {
+    fun `authoritative system version accepts Elasticsearch integer and long mappings`() {
         listOf(
             Property.of { it.integer { value -> value } },
             Property.of { it.long_ { value -> value } },
         ).forEach { integral ->
-            StepVerifier.create(readiness(integral).inspect())
+            StepVerifier.create(readiness(integral, path = "version", system = true).inspect())
                 .expectNext(QueryBackendReadiness.Ready)
                 .verifyComplete()
         }
 
-        StepVerifier.create(readiness(Property.of { it.double_ { value -> value } }).inspect())
+        StepVerifier.create(
+            readiness(Property.of { it.double_ { value -> value } }, path = "version", system = true).inspect(),
+        )
             .expectNext(QueryBackendReadiness.NotReady(QueryBackendReadinessReason.MAPPING_INCOMPATIBLE))
             .verifyComplete()
     }
 
-    private fun readiness(property: Property): ElasticsearchQueryReadiness {
+    @Test
+    fun `ordinary integer schema requires Elasticsearch long mapping`() {
+        StepVerifier.create(
+            readiness(Property.of { it.integer { value -> value } }, path = "rank", system = false).inspect(),
+        ).expectNext(QueryBackendReadiness.NotReady(QueryBackendReadinessReason.MAPPING_INCOMPATIBLE))
+            .verifyComplete()
+        StepVerifier.create(
+            readiness(Property.of { it.long_ { value -> value } }, path = "rank", system = false).inspect(),
+        ).expectNext(QueryBackendReadiness.Ready).verifyComplete()
+    }
+
+    @Test
+    fun `system flag alone cannot allow integer mapping outside authoritative version`() {
+        StepVerifier.create(
+            readiness(Property.of { it.integer { value -> value } }, path = "rank", system = true).inspect(),
+        ).expectNext(QueryBackendReadiness.NotReady(QueryBackendReadinessReason.MAPPING_INCOMPATIBLE))
+            .verifyComplete()
+    }
+
+    private fun readiness(property: Property, path: String, system: Boolean): ElasticsearchQueryReadiness {
         val client = mockk<ReactiveElasticsearchClient>()
         val indices = mockk<ReactiveElasticsearchIndicesClient>()
         every { client.indices() } returns indices
         every { indices.exists(any<ExistsRequest>()) } returns Mono.just(BooleanResponse(true))
-        every { indices.getMapping(any<GetMappingRequest>()) } returns Mono.just(mapping(property))
+        every { indices.getMapping(any<GetMappingRequest>()) } returns Mono.just(mapping(path, property))
         every { indices.getSettings(any<GetIndicesSettingsRequest>()) } returns Mono.just(indexSettings())
-        return ElasticsearchQueryReadiness(client, "index", requirements())
+        return ElasticsearchQueryReadiness(client, "index", requirements(path, system))
     }
 
-    private fun requirements() = ElasticsearchQueryReadinessRequirements(
+    private fun requirements(path: String, system: Boolean) = ElasticsearchQueryReadinessRequirements(
         configurationValid = true,
         fields = setOf(
             ElasticsearchMappingUsage.SOURCE,
@@ -69,21 +90,21 @@ class ElasticsearchIntegerQueryReadinessTest {
             ElasticsearchMappingUsage.SORT,
         ).mapTo(LinkedHashSet()) { usage ->
             ElasticsearchMappingFieldRequirement(
-                path = "version",
+                path = path,
                 valueKind = QueryFieldValueKind.INTEGER,
                 collectionKind = QueryCollectionKind.NONE,
-                system = true,
+                system = system,
                 usage = usage,
             )
         },
         presenceVersion = ElasticsearchQueryPresenceEncoder.VERSION,
     )
 
-    private fun mapping(property: Property): GetMappingResponse = GetMappingResponse.of { response ->
+    private fun mapping(path: String, property: Property): GetMappingResponse = GetMappingResponse.of { response ->
         response.mappings("index") { record ->
             record.mappings { type ->
                 type.meta(PRESENCE_VERSION_META, JsonData.of(ElasticsearchQueryPresenceEncoder.VERSION))
-                    .properties("version", property)
+                    .properties(path, property)
             }
         }
     }

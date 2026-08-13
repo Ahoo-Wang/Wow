@@ -111,6 +111,35 @@ class ElasticsearchQueryBackendTest {
     }
 
     @Test
+    fun `ordinary integer mapping is not ready before search or pit io`() {
+        val client = mappingClient(
+            mapOf("rank" to Property.of { it.integer { value -> value } }),
+        )
+        val expression = PredicateExpression(
+            PortableQueryDataset.RANK,
+            PortableOperator.EQ,
+            listOf(QueryValue.IntegerValue(Long.MAX_VALUE)),
+        )
+        val backend = ElasticsearchQueryBackendFactory(client).bind(
+            QueryBackendResolutionContext(
+                PortableQueryDataset.target(QueryDocumentKind.SNAPSHOT),
+                PortableQueryDataset.schema(QueryDocumentKind.SNAPSHOT),
+                expression,
+            ),
+        )
+
+        StepVerifier.create(backend.readiness())
+            .expectNext(
+                QueryBackendReadiness.NotReady(
+                    me.ahoo.wow.query.backend.QueryBackendReadinessReason.MAPPING_INCOMPATIBLE,
+                ),
+            )
+            .verifyComplete()
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.openPointInTime(any<OpenPointInTimeRequest>()) }
+    }
+
+    @Test
     fun `null metadata mismatch is not ready and performs no search or pit io`() {
         val client = mappingClient(
             mapOf(
