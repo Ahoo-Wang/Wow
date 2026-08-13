@@ -13,12 +13,17 @@
 
 package me.ahoo.wow.mongo.query.backend
 
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
+import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
+import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryService
 import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.query.backend.PortableQueryDataset
 import me.ahoo.wow.tck.query.backend.ObservableQueryBackendFactory
 import me.ahoo.wow.tck.query.backend.SnapshotQueryBackendSpec
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import reactor.core.publisher.Mono
 
@@ -42,4 +47,17 @@ class MongoSnapshotQueryBackendSpec : SnapshotQueryBackendSpec() {
     override fun clear(): Mono<Void> = fixture.clear()
 
     override fun declaredCapabilities() = setOf(PortableQueryDataset.FULL_TEXT_CAPABILITY)
+
+    @Test
+    fun `legacy snapshot facade cancellation reaches each real driver subscription`() {
+        val testKit = testKit(fixture.backendFactory)
+        val target = testKit.target
+        val service = MongoSnapshotQueryService<Any>(
+            target.namedAggregate,
+            mongo.database().getCollection(target.namedAggregate.toSnapshotCollectionName()),
+            testKit.gateway,
+        )
+
+        fixture.verifyLegacyCancellation(service.dynamicList(ListQuery(Condition.ALL)))
+    }
 }

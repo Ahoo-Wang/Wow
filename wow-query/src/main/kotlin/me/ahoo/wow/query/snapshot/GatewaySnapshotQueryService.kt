@@ -59,7 +59,10 @@ class GatewaySnapshotQueryService<S : Any>(
     }
 
     override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> = Flux.defer {
-        queryGateway.list(legacyListRequest(target, listQuery)).map(::adaptLegacySnapshotDocument)
+        materializeLegacyList(
+            queryGateway.list(legacyListRequest(target, listQuery)),
+            ::adaptLegacySnapshotDocument,
+        )
     }
 
     override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<MaterializedSnapshot<S>>> = Mono.defer {

@@ -81,11 +81,15 @@ class ElasticsearchQueryServiceGatewayCompatibilityTest {
     fun `explicit gateway services delegate all seven methods once per subscription`() {
         val snapshotGateway = RecordingGateway()
         val snapshot = ElasticsearchSnapshotQueryService<Any>(MOCK_AGGREGATE_METADATA, client, snapshotGateway)
+        clearMocks(client)
         assertGatewayDelegation(snapshot, snapshotGateway, QueryDocumentKind.SNAPSHOT)
+        verify { client wasNot Called }
 
         val eventGateway = RecordingGateway()
         val event = ElasticsearchEventStreamQueryService(MOCK_AGGREGATE_METADATA, client, eventGateway)
+        clearMocks(client)
         assertGatewayDelegation(event, eventGateway, QueryDocumentKind.EVENT_STREAM)
+        verify { client wasNot Called }
     }
 
     @Test
@@ -94,13 +98,17 @@ class ElasticsearchQueryServiceGatewayCompatibilityTest {
         val snapshotFactory = ElasticsearchSnapshotQueryServiceFactory(client, snapshotGateway)
         val snapshot = snapshotFactory.create<Any>(MOCK_AGGREGATE_METADATA)
         snapshotFactory.create<Any>(MOCK_AGGREGATE_METADATA).assert().isSameAs(snapshot)
+        clearMocks(client)
         assertGatewayDelegation(snapshot, snapshotGateway, QueryDocumentKind.SNAPSHOT)
+        verify { client wasNot Called }
 
         val eventGateway = RecordingGateway()
         val eventFactory = ElasticsearchEventStreamQueryServiceFactory(client, eventGateway)
         val event = eventFactory.create(MOCK_AGGREGATE_METADATA)
         eventFactory.create(MOCK_AGGREGATE_METADATA).assert().isSameAs(event)
+        clearMocks(client)
         assertGatewayDelegation(event, eventGateway, QueryDocumentKind.EVENT_STREAM)
+        verify { client wasNot Called }
     }
 
     private fun assertUnavailable(service: QueryService<*>) {

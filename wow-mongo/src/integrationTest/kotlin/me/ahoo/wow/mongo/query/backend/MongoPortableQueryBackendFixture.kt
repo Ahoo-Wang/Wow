@@ -15,7 +15,9 @@ package me.ahoo.wow.mongo.query.backend
 
 import com.mongodb.client.model.Indexes
 import com.mongodb.reactivestreams.client.MongoDatabase
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.expression.QueryValue
+import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
@@ -86,6 +88,23 @@ internal class MongoPortableQueryBackendFixture(
         .doOnSuccess { prepared.set(false) }
         .then()
 
+    fun verifyLegacyCancellation(publisher: Flux<DynamicDocument>) {
+        repeat(2) {
+            backendFactory.reset()
+            backendFactory.holdNextList(QueryBackendClientHold.AFTER_FIRST_RESULT)
+
+            StepVerifier.create(publisher, 0)
+                .thenRequest(1)
+                .expectNextCount(1)
+                .thenCancel()
+                .verify()
+
+            backendFactory.subscriptionCount.assert().isOne()
+            backendFactory.cancellationCount.assert().isOne()
+            backendFactory.postCancellationSignalCount.assert().isZero()
+        }
+    }
+
     private fun documents(dataset: PortableQueryDataset): List<Document> =
         dataset.storedDocuments(documentKind).map { stored ->
             val schema = dataset.schema(documentKind)
@@ -126,6 +145,7 @@ internal class MongoObservableQueryBackendFactory(
     private val nextHold = AtomicReference<QueryBackendClientHold?>()
     private val subscriptions = AtomicLong()
     private val cancellations = AtomicLong()
+    private val postCancellationSignals = AtomicLong()
     private val delegate = MongoQueryBackendFactory(database, maxBudget = maxBudget)
     private val routeReadinessVerified = AtomicBoolean()
 
@@ -138,6 +158,9 @@ internal class MongoObservableQueryBackendFactory(
 
     override val cancellationCount: Long
         get() = cancellations.get()
+
+    val postCancellationSignalCount: Long
+        get() = postCancellationSignals.get()
 
     override fun bind(context: QueryBackendResolutionContext): QueryBackend {
         check(routeReadinessVerified.get()) { "Mongo TCK route readiness was not verified against the real backend." }
@@ -155,6 +178,7 @@ internal class MongoObservableQueryBackendFactory(
         nextHold.set(null)
         subscriptions.set(0)
         cancellations.set(0)
+        postCancellationSignals.set(0)
     }
 
     override fun holdNextList(hold: QueryBackendClientHold) {
@@ -163,7 +187,14 @@ internal class MongoObservableQueryBackendFactory(
 
     override fun <T : Any> observe(publisher: Publisher<T>): Publisher<T> {
         val hold = nextHold.getAndSet(null)
-        return HoldingMongoPublisher(publisher, hold, subscriptions, cancellations, beforeUpstreamCancel)
+        return HoldingMongoPublisher(
+            publisher,
+            hold,
+            subscriptions,
+            cancellations,
+            postCancellationSignals,
+            beforeUpstreamCancel,
+        )
     }
 }
 
@@ -178,6 +209,7 @@ private class HoldingMongoPublisher<T : Any>(
     private val hold: QueryBackendClientHold?,
     private val subscriptions: AtomicLong,
     private val cancellations: AtomicLong,
+    private val postCancellationSignals: AtomicLong,
     private val beforeUpstreamCancel: () -> Unit
 ) : Publisher<T> {
     override fun subscribe(subscriber: Subscriber<in T>) {
@@ -186,6 +218,7 @@ private class HoldingMongoPublisher<T : Any>(
             hold,
             subscriptions,
             cancellations,
+            postCancellationSignals,
             beforeUpstreamCancel
         )
         subscriber.onSubscribe(bridge)
@@ -198,6 +231,7 @@ private class HoldingMongoSubscriber<T : Any>(
     private val hold: QueryBackendClientHold?,
     private val subscriptions: AtomicLong,
     private val cancellations: AtomicLong,
+    private val postCancellationSignals: AtomicLong,
     private val beforeUpstreamCancel: () -> Unit
 ) : Subscriber<T>, Subscription {
     private val upstream = AtomicReference<Subscription?>()
@@ -242,19 +276,25 @@ private class HoldingMongoSubscriber<T : Any>(
     }
 
     override fun onNext(value: T) {
-        if (!cancelled.get() && (hold == null || delivered.compareAndSet(false, true))) {
+        if (cancelled.get()) {
+            postCancellationSignals.incrementAndGet()
+        } else if (hold == null || delivered.compareAndSet(false, true)) {
             downstream.onNext(value)
         }
     }
 
     override fun onError(error: Throwable) {
-        if (!cancelled.get()) {
+        if (cancelled.get()) {
+            postCancellationSignals.incrementAndGet()
+        } else {
             downstream.onError(error)
         }
     }
 
     override fun onComplete() {
-        if (!cancelled.get()) {
+        if (cancelled.get()) {
+            postCancellationSignals.incrementAndGet()
+        } else {
             downstream.onComplete()
         }
     }

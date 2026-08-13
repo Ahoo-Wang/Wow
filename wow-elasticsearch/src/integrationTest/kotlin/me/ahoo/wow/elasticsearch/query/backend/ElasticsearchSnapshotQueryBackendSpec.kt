@@ -21,6 +21,8 @@ import co.elastic.clients.elasticsearch.indices.CreateIndexRequest
 import co.elastic.clients.json.JsonData
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.error.QueryErrorCode
 import me.ahoo.wow.api.query.error.QueryException
 import me.ahoo.wow.api.query.expression.MatchAll
@@ -33,6 +35,7 @@ import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
 import me.ahoo.wow.elasticsearch.ElasticsearchSearchResponseGate
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchQueryPresenceEncoder
+import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryService
 import me.ahoo.wow.query.backend.QueryBackendResolutionContext
 import me.ahoo.wow.query.policy.QueryFieldAccess
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
@@ -216,6 +219,18 @@ class ElasticsearchSnapshotQueryBackendSpec : SnapshotQueryBackendSpec() {
         factory.heldSearchUpstreamCancelReturned.assert().isOne()
         factory.subscriptionCount(ElasticsearchQueryOperation.CLOSE_PIT).assert().isOne()
         factory.closedPitIds.assert().containsExactly(factory.latestPitId)
+    }
+
+    @Test
+    fun `legacy snapshot facade cancellation reaches each real search subscription`() {
+        val testKit = testKit(fixture.backendFactory)
+        val service = ElasticsearchSnapshotQueryService<Any>(
+            testKit.target.namedAggregate,
+            fixture.client,
+            testKit.gateway,
+        )
+
+        fixture.verifyLegacyCancellation(service.dynamicList(ListQuery(Condition.ALL)))
     }
 
     private fun enumProjectionMapping(): TypeMapping = TypeMapping.of { mapping ->

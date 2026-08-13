@@ -21,6 +21,8 @@ import co.elastic.clients.elasticsearch.core.OpenPointInTimeRequest
 import co.elastic.clients.elasticsearch.core.ClosePointInTimeRequest
 import co.elastic.clients.elasticsearch.indices.CreateIndexRequest
 import co.elastic.clients.json.JsonData
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.expression.QueryValue
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
@@ -51,9 +53,10 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
+import java.time.Duration
 
 internal class ElasticsearchPortableQueryBackendFixture(
-    private val client: ReactiveElasticsearchClient,
+    val client: ReactiveElasticsearchClient,
     private val documentKind: QueryDocumentKind,
     searchResponseGate: ElasticsearchSearchResponseGate,
 ) {
@@ -113,6 +116,28 @@ internal class ElasticsearchPortableQueryBackendFixture(
     }.onErrorResume { Mono.empty() }
         .doOnSuccess { prepared.set(false) }
         .then()
+
+    fun verifyLegacyCancellation(publisher: Flux<DynamicDocument>) {
+        repeat(2) {
+            backendFactory.reset()
+            backendFactory.holdNextList(QueryBackendClientHold.AFTER_FIRST_RESULT)
+
+            StepVerifier.create(publisher, 0)
+                .thenRequest(1)
+                .expectNextCount(1)
+                .then(backendFactory::awaitHeldSearchRequest)
+                .thenCancel()
+                .verify(Duration.ofSeconds(2))
+
+            backendFactory.cancellationCount.assert().isOne()
+            backendFactory.subscriptionCount(ElasticsearchQueryOperation.SEARCH).assert().isEqualTo(2)
+            backendFactory.heldSearchResponseCount.assert().isZero()
+            backendFactory.heldSearchTerminalAtCancellation.assert().isFalse()
+            backendFactory.heldSearchUpstreamCancelReturned.assert().isOne()
+            backendFactory.subscriptionCount(ElasticsearchQueryOperation.CLOSE_PIT).assert().isOne()
+            backendFactory.closedPitIds.assert().containsExactly(backendFactory.latestPitId)
+        }
+    }
 
     private fun verifyReadiness(dataset: PortableQueryDataset): Mono<Void> = Mono.defer {
         val context = QueryBackendResolutionContext(

@@ -298,14 +298,12 @@ java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler
     -d "$TEMP_DIR/classes/kotlin" "$TEMP_DIR/kotlin/StableElasticsearchBackendApi.kt"
 echo "PASS: Kotlin external stable Elasticsearch backend API source"
 
-cat >"$TEMP_DIR/java/StorageQueryServiceInjection.java" <<'EOF'
+cat >"$TEMP_DIR/java/MongoQueryServiceInjection.java" <<'EOF'
 package external.fixture;
 
-import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import com.mongodb.reactivestreams.client.MongoCollection;
 import me.ahoo.wow.api.query.DynamicDocument;
 import me.ahoo.wow.api.modeling.NamedAggregate;
-import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService;
 import me.ahoo.wow.mongo.query.AbstractMongoQueryService;
 import me.ahoo.wow.mongo.query.MongoProjectionConverter;
 import me.ahoo.wow.mongo.query.MongoSortConverter;
@@ -313,9 +311,8 @@ import me.ahoo.wow.query.QueryService;
 import me.ahoo.wow.query.converter.ConditionConverter;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient;
 
-public final class StorageQueryServiceInjection {
+public final class MongoQueryServiceInjection {
     static final class MongoBypass extends AbstractMongoQueryService<Object> {
         MongoBypass(QueryService<Object> arbitrary) { super(arbitrary); }
         public NamedAggregate getNamedAggregate() { return null; }
@@ -326,7 +323,32 @@ public final class StorageQueryServiceInjection {
         public Object toTypedResult(Document document) { return document; }
         public DynamicDocument toDynamicDocument(Document document) { return null; }
     }
+}
+EOF
 
+if javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/java" "$TEMP_DIR/java/MongoQueryServiceInjection.java" \
+    >"$TEMP_DIR/mongo-query-service-injection-java.out" 2>&1; then
+    fail "Java external source unexpectedly injected arbitrary QueryService into AbstractMongoQueryService"
+fi
+grep -F "AbstractMongoQueryService" "$TEMP_DIR/mongo-query-service-injection-java.out" >/dev/null || {
+    cat "$TEMP_DIR/mongo-query-service-injection-java.out" >&2
+    fail "Java Mongo QueryService injection fixture failed for an unexpected reason"
+}
+echo "PASS: Java external source cannot inject arbitrary QueryService into AbstractMongoQueryService"
+
+cat >"$TEMP_DIR/java/ElasticsearchQueryServiceInjection.java" <<'EOF'
+package external.fixture;
+
+import co.elastic.clients.elasticsearch._types.query_dsl.Query;
+import me.ahoo.wow.api.modeling.NamedAggregate;
+import me.ahoo.wow.api.query.DynamicDocument;
+import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService;
+import me.ahoo.wow.query.QueryService;
+import me.ahoo.wow.query.converter.ConditionConverter;
+import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient;
+
+public final class ElasticsearchQueryServiceInjection {
     static final class ElasticsearchBypass extends AbstractElasticsearchQueryService<Object> {
         ElasticsearchBypass(QueryService<Object> arbitrary) { super(arbitrary); }
         public NamedAggregate getNamedAggregate() { return null; }
@@ -339,25 +361,22 @@ public final class StorageQueryServiceInjection {
 EOF
 
 if javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
-    -d "$TEMP_DIR/classes/java" "$TEMP_DIR/java/StorageQueryServiceInjection.java" \
-    >"$TEMP_DIR/storage-query-service-injection-java.out" 2>&1; then
-    fail "Java external source unexpectedly injected arbitrary QueryService into storage abstract classes"
+    -d "$TEMP_DIR/classes/java" "$TEMP_DIR/java/ElasticsearchQueryServiceInjection.java" \
+    >"$TEMP_DIR/elasticsearch-query-service-injection-java.out" 2>&1; then
+    fail "Java external source unexpectedly injected arbitrary QueryService into AbstractElasticsearchQueryService"
 fi
-grep -Eq "Abstract(Mongo|Elasticsearch)QueryService|QueryService" \
-    "$TEMP_DIR/storage-query-service-injection-java.out" || {
-    cat "$TEMP_DIR/storage-query-service-injection-java.out" >&2
-    fail "Java storage QueryService injection fixture failed for an unexpected reason"
+grep -F "AbstractElasticsearchQueryService" "$TEMP_DIR/elasticsearch-query-service-injection-java.out" >/dev/null || {
+    cat "$TEMP_DIR/elasticsearch-query-service-injection-java.out" >&2
+    fail "Java Elasticsearch QueryService injection fixture failed for an unexpected reason"
 }
-echo "PASS: Java external source cannot inject arbitrary QueryService into storage abstract classes"
+echo "PASS: Java external source cannot inject arbitrary QueryService into AbstractElasticsearchQueryService"
 
-cat >"$TEMP_DIR/kotlin/StorageQueryServiceInjection.kt" <<'EOF'
+cat >"$TEMP_DIR/kotlin/MongoQueryServiceInjection.kt" <<'EOF'
 package external.fixture
 
-import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import com.mongodb.reactivestreams.client.MongoCollection
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService
 import me.ahoo.wow.mongo.query.AbstractMongoQueryService
 import me.ahoo.wow.mongo.query.MongoProjectionConverter
 import me.ahoo.wow.mongo.query.MongoSortConverter
@@ -365,7 +384,6 @@ import me.ahoo.wow.query.QueryService
 import me.ahoo.wow.query.converter.ConditionConverter
 import org.bson.Document
 import org.bson.conversions.Bson
-import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 
 class MongoBypass(arbitrary: QueryService<Any>) : AbstractMongoQueryService<Any>(arbitrary) {
     override val namedAggregate: NamedAggregate get() = error("unused")
@@ -376,6 +394,32 @@ class MongoBypass(arbitrary: QueryService<Any>) : AbstractMongoQueryService<Any>
     override fun toTypedResult(document: Document): Any = document
     override fun toDynamicDocument(document: Document): DynamicDocument = error("unused")
 }
+EOF
+
+if java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+    -module-name mongo-query-service-injection-negative \
+    -no-stdlib -no-reflect \
+    -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/kotlin" "$TEMP_DIR/kotlin/MongoQueryServiceInjection.kt" \
+    >"$TEMP_DIR/mongo-query-service-injection-kotlin.out" 2>&1; then
+    fail "Kotlin external source unexpectedly injected arbitrary QueryService into AbstractMongoQueryService"
+fi
+grep -F "AbstractMongoQueryService" "$TEMP_DIR/mongo-query-service-injection-kotlin.out" >/dev/null || {
+    cat "$TEMP_DIR/mongo-query-service-injection-kotlin.out" >&2
+    fail "Kotlin Mongo QueryService injection fixture failed for an unexpected reason"
+}
+echo "PASS: Kotlin external source cannot inject arbitrary QueryService into AbstractMongoQueryService"
+
+cat >"$TEMP_DIR/kotlin/ElasticsearchQueryServiceInjection.kt" <<'EOF'
+package external.fixture
+
+import co.elastic.clients.elasticsearch._types.query_dsl.Query
+import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService
+import me.ahoo.wow.query.QueryService
+import me.ahoo.wow.query.converter.ConditionConverter
+import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 
 class ElasticsearchBypass(arbitrary: QueryService<Any>) : AbstractElasticsearchQueryService<Any>(arbitrary) {
     override val namedAggregate: NamedAggregate get() = error("unused")
@@ -387,19 +431,18 @@ class ElasticsearchBypass(arbitrary: QueryService<Any>) : AbstractElasticsearchQ
 EOF
 
 if java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
-    -module-name storage-query-service-injection-negative \
+    -module-name elasticsearch-query-service-injection-negative \
     -no-stdlib -no-reflect \
     -classpath "$FIXTURE_CLASSPATH" \
-    -d "$TEMP_DIR/classes/kotlin" "$TEMP_DIR/kotlin/StorageQueryServiceInjection.kt" \
-    >"$TEMP_DIR/storage-query-service-injection-kotlin.out" 2>&1; then
-    fail "Kotlin external source unexpectedly injected arbitrary QueryService into storage abstract classes"
+    -d "$TEMP_DIR/classes/kotlin" "$TEMP_DIR/kotlin/ElasticsearchQueryServiceInjection.kt" \
+    >"$TEMP_DIR/elasticsearch-query-service-injection-kotlin.out" 2>&1; then
+    fail "Kotlin external source unexpectedly injected arbitrary QueryService into AbstractElasticsearchQueryService"
 fi
-grep -Eq "Abstract(Mongo|Elasticsearch)QueryService|QueryService" \
-    "$TEMP_DIR/storage-query-service-injection-kotlin.out" || {
-    cat "$TEMP_DIR/storage-query-service-injection-kotlin.out" >&2
-    fail "Kotlin storage QueryService injection fixture failed for an unexpected reason"
+grep -F "AbstractElasticsearchQueryService" "$TEMP_DIR/elasticsearch-query-service-injection-kotlin.out" >/dev/null || {
+    cat "$TEMP_DIR/elasticsearch-query-service-injection-kotlin.out" >&2
+    fail "Kotlin Elasticsearch QueryService injection fixture failed for an unexpected reason"
 }
-echo "PASS: Kotlin external source cannot inject arbitrary QueryService into storage abstract classes"
+echo "PASS: Kotlin external source cannot inject arbitrary QueryService into AbstractElasticsearchQueryService"
 
 cat >"$TEMP_DIR/java/LegacyStorageAbstractSubclass.java" <<'EOF'
 package external.fixture;

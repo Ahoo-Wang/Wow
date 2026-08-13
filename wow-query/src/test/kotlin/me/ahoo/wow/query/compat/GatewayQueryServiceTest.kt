@@ -455,6 +455,42 @@ class GatewayQueryServiceTest {
     }
 
     @Test
+    fun `dynamic list adapter failure after first item reports incomplete result and cancels upstream`() {
+        val malformedSnapshot = snapshotDocument.withValues(
+            "snapshotTime" to mapOf("sensitive" to "must-not-leak"),
+        )
+        val malformedEvent = eventDocument.withValues(
+            "createTime" to mapOf("sensitive" to "must-not-leak"),
+        )
+        val snapshotCancellations = AtomicInteger()
+        val eventCancellations = AtomicInteger()
+
+        StepVerifier.create(
+            GatewaySnapshotQueryService<MockStateAggregate>(
+                MOCK_AGGREGATE_METADATA,
+                RecordingLegacyGateway(
+                    snapshotDocument,
+                    listResult = Flux.just(snapshotDocument, malformedSnapshot)
+                        .doOnCancel(snapshotCancellations::incrementAndGet),
+                ),
+            ).dynamicList(ListQuery(Condition.ALL)),
+        ).expectNext(snapshotDocument).expectErrorSatisfies(::assertIncompleteResult).verify()
+        snapshotCancellations.get().assert().isEqualTo(1)
+
+        StepVerifier.create(
+            GatewayEventStreamQueryService(
+                MOCK_AGGREGATE_METADATA,
+                RecordingLegacyGateway(
+                    eventDocument,
+                    listResult = Flux.just(eventDocument, malformedEvent)
+                        .doOnCancel(eventCancellations::incrementAndGet),
+                ),
+            ).dynamicList(ListQuery(Condition.ALL)),
+        ).expectNext(eventDocument).expectErrorSatisfies(::assertIncompleteResult).verify()
+        eventCancellations.get().assert().isEqualTo(1)
+    }
+
+    @Test
     fun `snapshot metadata failure is deferred to subscription and mapped as result invalid`() {
         val gateway = RecordingLegacyGateway(snapshotDocument)
         val service = GatewaySnapshotQueryService<MockStateAggregate>(

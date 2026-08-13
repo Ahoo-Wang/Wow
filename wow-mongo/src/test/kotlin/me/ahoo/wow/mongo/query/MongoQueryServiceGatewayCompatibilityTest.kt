@@ -17,7 +17,10 @@ import com.mongodb.reactivestreams.client.MongoCollection
 import com.mongodb.reactivestreams.client.MongoDatabase
 import io.mockk.Called
 import io.mockk.clearMocks
+import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
@@ -96,13 +99,27 @@ class MongoQueryServiceGatewayCompatibilityTest {
 
     @Test
     fun `explicit gateway services delegate all seven methods once per subscription`() {
-        val snapshotGateway = RecordingGateway()
-        val snapshot = MongoSnapshotQueryService<Any>(MOCK_AGGREGATE_METADATA, collection, snapshotGateway)
-        assertGatewayDelegation(snapshot, snapshotGateway, QueryDocumentKind.SNAPSHOT)
+        mockkObject(SnapshotConditionConverter, EventStreamConditionConverter)
+        try {
+            every { SnapshotConditionConverter.convert(any()) } throws AssertionError("legacy snapshot converter invoked")
+            every { EventStreamConditionConverter.convert(any()) } throws AssertionError("legacy event converter invoked")
 
-        val eventGateway = RecordingGateway()
-        val event = MongoEventStreamQueryService(MOCK_AGGREGATE_METADATA, collection, eventGateway)
-        assertGatewayDelegation(event, eventGateway, QueryDocumentKind.EVENT_STREAM)
+            val snapshotGateway = RecordingGateway()
+            val snapshot = MongoSnapshotQueryService<Any>(MOCK_AGGREGATE_METADATA, collection, snapshotGateway)
+            clearMocks(collection)
+            assertGatewayDelegation(snapshot, snapshotGateway, QueryDocumentKind.SNAPSHOT)
+            verify { collection wasNot Called }
+            verify(exactly = 0) { SnapshotConditionConverter.convert(any()) }
+
+            val eventGateway = RecordingGateway()
+            val event = MongoEventStreamQueryService(MOCK_AGGREGATE_METADATA, collection, eventGateway)
+            clearMocks(collection)
+            assertGatewayDelegation(event, eventGateway, QueryDocumentKind.EVENT_STREAM)
+            verify { collection wasNot Called }
+            verify(exactly = 0) { EventStreamConditionConverter.convert(any()) }
+        } finally {
+            unmockkObject(SnapshotConditionConverter, EventStreamConditionConverter)
+        }
     }
 
     @Test
@@ -115,13 +132,17 @@ class MongoQueryServiceGatewayCompatibilityTest {
         val snapshotFactory = MongoSnapshotQueryServiceFactory(database, snapshotGateway)
         val snapshot = snapshotFactory.create<Any>(MOCK_AGGREGATE_METADATA)
         snapshotFactory.create<Any>(MOCK_AGGREGATE_METADATA).assert().isSameAs(snapshot)
+        clearMocks(snapshotCollection)
         assertGatewayDelegation(snapshot, snapshotGateway, QueryDocumentKind.SNAPSHOT)
+        verify { snapshotCollection wasNot Called }
 
         val eventGateway = RecordingGateway()
         val eventFactory = MongoEventStreamQueryServiceFactory(database, eventGateway)
         val event = eventFactory.create(MOCK_AGGREGATE_METADATA)
         eventFactory.create(MOCK_AGGREGATE_METADATA).assert().isSameAs(event)
+        clearMocks(eventCollection)
         assertGatewayDelegation(event, eventGateway, QueryDocumentKind.EVENT_STREAM)
+        verify { eventCollection wasNot Called }
     }
 
     private fun assertUnavailable(service: QueryService<*>) {
