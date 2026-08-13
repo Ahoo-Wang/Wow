@@ -23,6 +23,7 @@ import co.elastic.clients.elasticsearch.core.SearchResponse
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
+import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.error.QueryException
 import org.junit.jupiter.api.Test
@@ -60,6 +61,7 @@ class ReactiveClientElasticsearchQueryTransportTest {
                 .verify()
 
             closeRequest.captured.id().assert().isEqualTo("pit-2")
+            verify(exactly = 1) { client.closePointInTime(any<ClosePointInTimeRequest>()) }
         }
     }
 

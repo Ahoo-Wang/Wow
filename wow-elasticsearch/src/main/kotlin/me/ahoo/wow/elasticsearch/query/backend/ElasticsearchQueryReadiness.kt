@@ -203,7 +203,7 @@ internal class ElasticsearchQueryReadiness(
         QueryFieldValueKind.DECIMAL -> isDouble
         QueryFieldValueKind.STRING,
         QueryFieldValueKind.ENUM,
-        -> isKeyword || isConstantKeyword
+        -> isKeyword
         QueryFieldValueKind.TIME -> if (system) isLong else isDate
         QueryFieldValueKind.BINARY -> isBinary
         QueryFieldValueKind.OBJECT -> isObject || isNested
@@ -215,14 +215,14 @@ internal class ElasticsearchQueryReadiness(
     ): Boolean = when {
         requirement.valueKind == QueryFieldValueKind.OBJECT -> isObject || isNested
         requirement.valueKind == QueryFieldValueKind.STRING ->
-            isText || matches(requirement.valueKind, requirement.system)
+            isText || isKeyword || isConstantKeyword
         else -> matches(requirement.valueKind, requirement.system)
     }
 
     private fun co.elastic.clients.elasticsearch._types.mapping.Property.hasManagedExactSemantics(
         requirement: ElasticsearchMappingFieldRequirement,
     ): Boolean {
-        if (!matches(requirement.valueKind, requirement.system) || !isIndexed()) {
+        if (!matches(requirement.valueKind, requirement.system) || !isIndexed() || hasNullSentinel()) {
             return false
         }
         return when {
@@ -236,10 +236,12 @@ internal class ElasticsearchQueryReadiness(
     private fun co.elastic.clients.elasticsearch._types.mapping.Property.hasManagedKeywordSemantics(
         maxStringLength: Int? = null,
     ): Boolean {
-        if (!isKeyword || keyword().index() == false || keyword().normalizer() != null) {
+        if (!isKeyword) return false
+        val keyword = keyword()
+        if (keyword.index() == false || keyword.normalizer() != null || keyword.nullValue() != null) {
             return false
         }
-        val ignoreAbove = keyword().ignoreAbove() ?: return true
+        val ignoreAbove = keyword.ignoreAbove() ?: return true
         return maxStringLength != null && ignoreAbove.toLong() >= maxStringLength.toLong() * MAX_UTF8_BYTES_PER_CHAR
     }
 
@@ -248,7 +250,6 @@ internal class ElasticsearchQueryReadiness(
 
     private fun co.elastic.clients.elasticsearch._types.mapping.Property.isIndexed(): Boolean = when (_kind()) {
         co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Keyword -> keyword().index() != false
-        co.elastic.clients.elasticsearch._types.mapping.Property.Kind.ConstantKeyword -> true
         co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Boolean -> boolean_().index() != false
         co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Long -> long_().index() != false
         co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Double -> double_().index() != false
@@ -266,26 +267,45 @@ internal class ElasticsearchQueryReadiness(
         if (text.index() == false) {
             return false
         }
-        val defaultAnalyzer = settings.analysis()?.analyzer()?.get(INDEX_DEFAULT_ANALYZER)
-        val indexAnalyzer = text.analyzer()
-        val indexStandard = when (indexAnalyzer) {
-            null -> defaultAnalyzer == null || defaultAnalyzer.isStandard
-            DEFAULT_ANALYZER -> true
-            INDEX_DEFAULT_ANALYZER -> defaultAnalyzer?.isStandard == true
-            else -> false
-        }
-        val searchStandard = when (text.searchAnalyzer()) {
-            null -> indexStandard
-            DEFAULT_ANALYZER -> true
-            INDEX_DEFAULT_ANALYZER -> defaultAnalyzer?.isStandard == true
-            else -> false
+        val analyzers = settings.analysis()?.analyzer().orEmpty()
+        val fieldAnalyzer = text.analyzer()
+        val fieldSearchAnalyzer = text.searchAnalyzer()
+        val indexStandard = fieldAnalyzer?.let { name -> analyzers.isManagedStandard(name) }
+            ?: analyzers.defaultIsManagedStandard()
+        val searchStandard = when {
+            fieldSearchAnalyzer != null -> analyzers.isManagedStandard(fieldSearchAnalyzer)
+            fieldAnalyzer != null -> analyzers.isManagedStandard(fieldAnalyzer)
+            analyzers.containsKey(INDEX_DEFAULT_SEARCH_ANALYZER) ->
+                analyzers.getValue(INDEX_DEFAULT_SEARCH_ANALYZER).isManagedStandard()
+            else -> analyzers.defaultIsManagedStandard()
         }
         return indexStandard && searchStandard
     }
 
+    private fun Map<String, co.elastic.clients.elasticsearch._types.analysis.Analyzer>.defaultIsManagedStandard(): Boolean =
+        get(INDEX_DEFAULT_ANALYZER)?.isManagedStandard() ?: true
+
+    private fun Map<String, co.elastic.clients.elasticsearch._types.analysis.Analyzer>.isManagedStandard(
+        name: String,
+    ): Boolean = get(name)?.isManagedStandard() ?: (name == DEFAULT_ANALYZER)
+
+    private fun co.elastic.clients.elasticsearch._types.analysis.Analyzer.isManagedStandard(): Boolean {
+        if (!isStandard) return false
+        val standard = standard()
+        return standard.maxTokenLength() == null && standard.stopwordsPath() == null && standard.stopwords().isEmpty()
+    }
+
+    private fun co.elastic.clients.elasticsearch._types.mapping.Property.hasNullSentinel(): Boolean = when (_kind()) {
+        co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Keyword -> keyword().nullValue() != null
+        co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Boolean -> boolean_().nullValue() != null
+        co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Long -> long_().nullValue() != null
+        co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Double -> double_().nullValue() != null
+        co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Date -> date().nullValue() != null
+        else -> false
+    }
+
     private fun co.elastic.clients.elasticsearch._types.mapping.Property.hasDocValues(): Boolean = when (_kind()) {
         co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Keyword -> keyword().docValues() != false
-        co.elastic.clients.elasticsearch._types.mapping.Property.Kind.ConstantKeyword -> true
         co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Boolean -> boolean_().docValues() != false
         co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Long -> long_().docValues() != false
         co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Double -> double_().docValues() != false
@@ -303,6 +323,7 @@ internal class ElasticsearchQueryReadiness(
         internal const val PRESENCE_VERSION_META = "wow_query_presence_version"
         private const val DEFAULT_ANALYZER = "standard"
         private const val INDEX_DEFAULT_ANALYZER = "default"
+        private const val INDEX_DEFAULT_SEARCH_ANALYZER = "default_search"
         private const val DEFAULT_DATE_FORMAT = "strict_date_optional_time"
         private const val MAX_UTF8_BYTES_PER_CHAR = 4L
     }

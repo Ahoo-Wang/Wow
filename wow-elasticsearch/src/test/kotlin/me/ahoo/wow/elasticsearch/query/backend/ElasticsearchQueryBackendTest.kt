@@ -21,19 +21,23 @@ import co.elastic.clients.elasticsearch.indices.GetIndicesSettingsRequest
 import co.elastic.clients.elasticsearch.indices.GetIndicesSettingsResponse
 import co.elastic.clients.elasticsearch.indices.GetMappingRequest
 import co.elastic.clients.elasticsearch.indices.GetMappingResponse
+import co.elastic.clients.elasticsearch.indices.IndexSettings
 import co.elastic.clients.json.JsonData
 import co.elastic.clients.transport.endpoints.BooleanResponse
+import co.elastic.clients.util.DateTime
 import io.mockk.confirmVerified
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.expression.ElementMatchExpression
+import me.ahoo.wow.api.query.expression.FullTextExpression
 import me.ahoo.wow.api.query.expression.LogicalField
 import me.ahoo.wow.api.query.expression.MatchAll
 import me.ahoo.wow.api.query.expression.PortableOperator
 import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryCapabilityId
+import me.ahoo.wow.api.query.expression.QueryExpression
 import me.ahoo.wow.api.query.expression.QueryValue
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.query.backend.QueryBackendReadiness
@@ -240,7 +244,101 @@ class ElasticsearchQueryBackendTest {
         verify(exactly = 0) { client.openPointInTime(any<OpenPointInTimeRequest>()) }
     }
 
-    private fun mappingClient(properties: Map<String, Property>): ReactiveElasticsearchClient {
+    @Test
+    fun `managed exact mapping counterexamples are not ready before search or pit io`() {
+        listOf(
+            Property.of { it.constantKeyword { value -> value } },
+            Property.of { it.constantKeyword { value -> value.value(JsonData.of("fixed")) } },
+            Property.of { it.keyword { value -> value.nullValue("missing") } },
+        ).forEach { property ->
+            assertRejected(
+                mapOf("logicalId" to property),
+                PredicateExpression(
+                    PortableQueryDataset.LOGICAL_ID,
+                    PortableOperator.EQ,
+                    listOf(QueryValue.StringValue("d01")),
+                ),
+            )
+        }
+        listOf(
+            "enabled" to Property.of { it.boolean_ { value -> value.nullValue(false) } },
+            "rank" to Property.of { it.long_ { value -> value.nullValue(0) } },
+            "score" to Property.of { it.double_ { value -> value.nullValue(0.0) } },
+            "createdAt" to Property.of {
+                it.date { value -> value.nullValue(DateTime.of("1970-01-01T00:00:00Z")) }
+            },
+        ).forEach { (path, property) ->
+            val (field, queryValue) = when (path) {
+                "enabled" -> PortableQueryDataset.ENABLED to QueryValue.BooleanValue(true)
+                "rank" -> PortableQueryDataset.RANK to QueryValue.IntegerValue(1)
+                "score" -> PortableQueryDataset.SCORE to QueryValue.DecimalValue(java.math.BigDecimal.ONE)
+                else -> PortableQueryDataset.CREATED_AT to QueryValue.InstantValue(java.time.Instant.EPOCH)
+            }
+            assertRejected(
+                mapOf(path to property),
+                PredicateExpression(field, PortableOperator.EQ, listOf(queryValue)),
+            )
+        }
+    }
+
+    @Test
+    fun `managed analyzer counterexamples are not ready before search or pit io`() {
+        listOf<(IndexSettings.Builder) -> Unit>(
+            { settings ->
+                settings.analysis { analysis ->
+                    analysis.analyzer("default_search") { analyzer -> analyzer.keyword { value -> value } }
+                }
+            },
+            { settings ->
+                settings.analysis { analysis ->
+                    analysis.analyzer("default_search") { analyzer ->
+                        analyzer.standard { value -> value.maxTokenLength(1) }
+                    }
+                }
+            },
+        ).forEach { configure ->
+            assertRejected(
+                mapOf("title" to Property.of { it.text { value -> value } }),
+                FullTextExpression(
+                    QueryCapabilityId(ElasticsearchQueryBackendFactory.FULL_TEXT_CAPABILITY),
+                    "portable",
+                    setOf(PortableQueryDataset.TITLE),
+                ),
+            ) {
+                configure(this)
+            }
+        }
+    }
+
+    private fun assertRejected(
+        properties: Map<String, Property>,
+        expression: QueryExpression,
+        configureSettings: IndexSettings.Builder.() -> Unit = {},
+    ) {
+        val client = mappingClient(properties, configureSettings)
+        val backend = ElasticsearchQueryBackendFactory(client).bind(
+            QueryBackendResolutionContext(
+                PortableQueryDataset.target(QueryDocumentKind.SNAPSHOT),
+                PortableQueryDataset.schema(QueryDocumentKind.SNAPSHOT),
+                expression,
+            ),
+        )
+
+        StepVerifier.create(backend.readiness())
+            .expectNext(
+                QueryBackendReadiness.NotReady(
+                    me.ahoo.wow.query.backend.QueryBackendReadinessReason.MAPPING_INCOMPATIBLE,
+                ),
+            )
+            .verifyComplete()
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.openPointInTime(any<OpenPointInTimeRequest>()) }
+    }
+
+    private fun mappingClient(
+        properties: Map<String, Property>,
+        configureSettings: IndexSettings.Builder.() -> Unit = {},
+    ): ReactiveElasticsearchClient {
         val client = mockk<ReactiveElasticsearchClient>(relaxed = true)
         val indices = mockk<ReactiveElasticsearchIndicesClient>()
         every { client.indices() } returns indices
@@ -256,7 +354,7 @@ class ElasticsearchQueryBackendTest {
         )
         every { indices.getSettings(any<GetIndicesSettingsRequest>()) } returns Mono.just(
             GetIndicesSettingsResponse.of { response ->
-                response.settings("index") { state -> state.settings { settings -> settings } }
+                response.settings("index") { state -> state.settings { settings -> settings.apply(configureSettings) } }
             },
         )
         return client

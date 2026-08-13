@@ -21,6 +21,7 @@ import co.elastic.clients.elasticsearch.indices.GetMappingRequest
 import co.elastic.clients.elasticsearch.indices.GetMappingResponse
 import co.elastic.clients.json.JsonData
 import co.elastic.clients.transport.endpoints.BooleanResponse
+import co.elastic.clients.util.DateTime
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
@@ -133,15 +134,20 @@ class ElasticsearchQueryReadinessTest {
             presenceVersion = ElasticsearchQueryPresenceEncoder.VERSION,
         )
 
-        StepVerifier.create(
-            readiness(
-                requirements,
-                mapping(
-                    ElasticsearchQueryPresenceEncoder.VERSION,
-                    mapOf("title" to Property.of { it.text { value -> value } }),
-                ),
-            ).inspect(),
-        ).expectNext(QueryBackendReadiness.Ready).verifyComplete()
+        listOf(
+            Property.of { it.text { value -> value } },
+            Property.of { it.constantKeyword { value -> value } },
+        ).forEach { property ->
+            StepVerifier.create(
+                readiness(
+                    requirements,
+                    mapping(
+                        ElasticsearchQueryPresenceEncoder.VERSION,
+                        mapOf("title" to property),
+                    ),
+                ).inspect(),
+            ).expectNext(QueryBackendReadiness.Ready).verifyComplete()
+        }
 
         StepVerifier.create(
             readiness(
@@ -330,6 +336,117 @@ class ElasticsearchQueryReadinessTest {
     }
 
     @Test
+    fun `search analyzer precedence rejects nonstandard and parameterized defaults`() {
+        val requirements = ElasticsearchQueryReadinessRequirements(
+            configurationValid = true,
+            fields = setOf(field("title", QueryFieldValueKind.STRING, ElasticsearchMappingUsage.SEARCH)),
+            presenceVersion = ElasticsearchQueryPresenceEncoder.VERSION,
+        )
+        fun text(
+            analyzer: String? = null,
+            searchAnalyzer: String? = null,
+        ): GetMappingResponse = mapping(
+            ElasticsearchQueryPresenceEncoder.VERSION,
+            mapOf(
+                "title" to Property.of { property ->
+                    property.text { value ->
+                        value.apply {
+                            analyzer?.let(::analyzer)
+                            searchAnalyzer?.let(::searchAnalyzer)
+                        }
+                    }
+                },
+            ),
+        )
+
+        listOf(
+            readiness(requirements, text(), indexSettings(defaultSearchAnalyzer = "keyword")),
+            readiness(
+                requirements,
+                text(),
+                indexSettings(
+                    defaultSearchAnalyzer = "standard",
+                    parameterizedStandard = mapOf("default_search" to "max_token_length"),
+                ),
+            ),
+            readiness(
+                requirements,
+                text(),
+                indexSettings(
+                    defaultAnalyzer = "standard",
+                    parameterizedStandard = mapOf("default" to "stopwords"),
+                ),
+            ),
+            readiness(
+                requirements,
+                text(),
+                indexSettings(
+                    defaultSearchAnalyzer = "standard",
+                    parameterizedStandard = mapOf("default_search" to "stopwords_path"),
+                ),
+            ),
+        ).forEach { incompatible ->
+            StepVerifier.create(incompatible.inspect())
+                .expectNext(QueryBackendReadiness.NotReady(QueryBackendReadinessReason.MAPPING_INCOMPATIBLE))
+                .verifyComplete()
+        }
+
+        listOf(
+            readiness(
+                requirements,
+                text(searchAnalyzer = "standard"),
+                indexSettings(defaultSearchAnalyzer = "keyword"),
+            ),
+            readiness(
+                requirements,
+                text(analyzer = "standard"),
+                indexSettings(defaultSearchAnalyzer = "keyword"),
+            ),
+        ).forEach { compatible ->
+            StepVerifier.create(compatible.inspect())
+                .expectNext(QueryBackendReadiness.Ready)
+                .verifyComplete()
+        }
+    }
+
+    @Test
+    fun `managed exact mappings reject scalar null sentinels and constant keyword`() {
+        val cases = listOf(
+            field("name", QueryFieldValueKind.STRING, ElasticsearchMappingUsage.EXACT) to
+                Property.of { it.keyword { value -> value.nullValue("missing") } },
+            field("enabled", QueryFieldValueKind.BOOLEAN, ElasticsearchMappingUsage.EXACT) to
+                Property.of { it.boolean_ { value -> value.nullValue(false) } },
+            field("rank", QueryFieldValueKind.INTEGER, ElasticsearchMappingUsage.EXACT) to
+                Property.of { it.long_ { value -> value.nullValue(0) } },
+            field("score", QueryFieldValueKind.DECIMAL, ElasticsearchMappingUsage.EXACT) to
+                Property.of { it.double_ { value -> value.nullValue(0.0) } },
+            field("createdAt", QueryFieldValueKind.TIME, ElasticsearchMappingUsage.EXACT) to
+                Property.of { it.date { value -> value.nullValue(DateTime.of("1970-01-01T00:00:00Z")) } },
+            field("updatedAt", QueryFieldValueKind.TIME, ElasticsearchMappingUsage.EXACT, system = true) to
+                Property.of { it.long_ { value -> value.nullValue(0) } },
+            field("constant", QueryFieldValueKind.STRING, ElasticsearchMappingUsage.EXACT) to
+                Property.of { it.constantKeyword { value -> value } },
+            field("constant", QueryFieldValueKind.STRING, ElasticsearchMappingUsage.EXACT) to
+                Property.of { it.constantKeyword { value -> value.value(JsonData.of("fixed")) } },
+        )
+
+        cases.forEach { (requirement, property) ->
+            val requirements = ElasticsearchQueryReadinessRequirements(
+                configurationValid = true,
+                fields = setOf(requirement),
+                presenceVersion = ElasticsearchQueryPresenceEncoder.VERSION,
+            )
+            StepVerifier.create(
+                readiness(
+                    requirements,
+                    mapping(ElasticsearchQueryPresenceEncoder.VERSION, mapOf(requirement.path to property)),
+                ).inspect(),
+            ).expectNext(QueryBackendReadiness.NotReady(QueryBackendReadinessReason.MAPPING_INCOMPATIBLE))
+                .verifyComplete()
+        }
+    }
+
+    @Test
     fun `missing or wrong null metadata is incompatible`() {
         val requirements = ElasticsearchQueryReadinessRequirements(
             configurationValid = true,
@@ -388,20 +505,39 @@ class ElasticsearchQueryReadinessTest {
         return ElasticsearchQueryReadiness(client, "index", requirements)
     }
 
-    private fun indexSettings(defaultAnalyzer: String? = null): GetIndicesSettingsResponse =
+    private fun indexSettings(
+        defaultAnalyzer: String? = null,
+        defaultSearchAnalyzer: String? = null,
+        parameterizedStandard: Map<String, String> = emptyMap(),
+    ): GetIndicesSettingsResponse =
         GetIndicesSettingsResponse.of { response ->
             response.settings("index") { state ->
                 state.settings { settings ->
-                    if (defaultAnalyzer == null) {
+                    if (defaultAnalyzer == null && defaultSearchAnalyzer == null) {
                         settings
                     } else {
                         settings.analysis { analysis ->
-                            analysis.analyzer("default") { analyzer ->
-                                when (defaultAnalyzer) {
-                                    "standard" -> analyzer.standard { value -> value }
-                                    else -> analyzer.keyword { value -> value }
+                            mapOf(
+                                "default" to defaultAnalyzer,
+                                "default_search" to defaultSearchAnalyzer,
+                            ).forEach { (name, analyzerName) ->
+                                if (analyzerName != null) {
+                                    analysis.analyzer(name) { analyzer ->
+                                        when (analyzerName) {
+                                            "standard" -> analyzer.standard { value ->
+                                                when (parameterizedStandard[name]) {
+                                                    "max_token_length" -> value.maxTokenLength(1)
+                                                    "stopwords" -> value.stopwords("the")
+                                                    "stopwords_path" -> value.stopwordsPath("analysis/stopwords.txt")
+                                                    else -> value
+                                                }
+                                            }
+                                            else -> analyzer.keyword { value -> value }
+                                        }
+                                    }
                                 }
                             }
+                            analysis
                         }
                     }
                 }

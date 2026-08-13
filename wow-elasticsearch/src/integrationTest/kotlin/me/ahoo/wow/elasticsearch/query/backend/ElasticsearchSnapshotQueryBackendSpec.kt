@@ -111,6 +111,7 @@ class ElasticsearchSnapshotQueryBackendSpec : SnapshotQueryBackendSpec() {
         factory.heldSearchResponseCount.assert().isZero()
         factory.heldSearchTerminalAtCancellation.assert().isFalse()
         factory.heldSearchRequestPrecededCancellation.assert().isTrue()
+        factory.heldSearchUpstreamCancelReturned.assert().isOne()
         factory.subscriptionCount(ElasticsearchQueryOperation.CLOSE_PIT).assert().isOne()
         factory.closedPitIds.assert().containsExactly(factory.latestPitId)
     }
@@ -141,6 +142,7 @@ class ElasticsearchSnapshotQueryBackendSpec : SnapshotQueryBackendSpec() {
         factory.heldSearchResponseCount.assert().isZero()
         factory.heldSearchTerminalAtCancellation.assert().isFalse()
         factory.heldSearchRequestPrecededCancellation.assert().isTrue()
+        factory.heldSearchUpstreamCancelReturned.assert().isOne()
         factory.subscriptionCount(ElasticsearchQueryOperation.CLOSE_PIT).assert().isOne()
         factory.closedPitIds.assert().containsExactly(factory.latestPitId)
     }

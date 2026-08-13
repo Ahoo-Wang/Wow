@@ -238,6 +238,9 @@ internal class ElasticsearchObservableQueryBackendFactory(
             check(search.heldRequests.get() == 1L) { "Held Elasticsearch SEARCH was not requested." }
             check(search.heldResponses.get() == 0L) { "Held Elasticsearch SEARCH produced a raw response." }
             check(search.awaitHeldCancellation()) { "Held Elasticsearch SEARCH was not cancelled." }
+            check(search.awaitUpstreamCancelReturned()) {
+                "Held Elasticsearch SEARCH upstream cancellation did not return."
+            }
             check(search.terminalAtCancellation.get() == false) {
                 "Held Elasticsearch SEARCH terminalAtCancellation=${search.terminalAtCancellation.get()}."
             }
@@ -252,6 +255,14 @@ internal class ElasticsearchObservableQueryBackendFactory(
     val heldSearchRequestPrecededCancellation: Boolean
         get() = probe(ElasticsearchQueryOperation.SEARCH).requestNanos.get() in
             1 until probe(ElasticsearchQueryOperation.SEARCH).cancellationNanos.get()
+    val heldSearchUpstreamCancelReturned: Long
+        get() {
+            val search = probe(ElasticsearchQueryOperation.SEARCH)
+            check(search.awaitUpstreamCancelReturned()) {
+                "Held Elasticsearch SEARCH upstream cancellation did not return."
+            }
+            return search.upstreamCancelReturned.get()
+        }
 
     fun subscriptionCount(operation: ElasticsearchQueryOperation): Long = probe(operation).subscriptions.get()
 
@@ -296,6 +307,9 @@ internal class ElasticsearchObservableQueryBackendFactory(
         check(searchResponseGate.awaitIntercepted()) {
             "Held Elasticsearch SEARCH response did not reach the HTTP interceptor."
         }
+        val search = probe(ElasticsearchQueryOperation.SEARCH)
+        check(search.heldResponses.get() == 0L) { "Held Elasticsearch SEARCH produced a raw response." }
+        check(search.heldTerminals.get() == 0L) { "Held Elasticsearch SEARCH terminated before cancellation." }
     }
 
     override fun <T : Any> observe(
@@ -419,8 +433,16 @@ private class HoldingClientSubscriber<T : Any>(
                 probe.heldCancellationLatch.get().countDown()
             }
         }
-        if (inFlight && held) searchResponseGate.release()
-        upstream.cancel()
+        val releaseHeldResponse = inFlight && held
+        try {
+            upstream.cancel()
+            if (releaseHeldResponse) {
+                probe.upstreamCancelReturned.incrementAndGet()
+                probe.upstreamCancelReturnedLatch.get().countDown()
+            }
+        } finally {
+            if (releaseHeldResponse) searchResponseGate.release()
+        }
     }
     override fun onNext(value: T) {
         responseSeen.set(true)
@@ -431,11 +453,13 @@ private class HoldingClientSubscriber<T : Any>(
     override fun onError(error: Throwable) {
         terminal.set(true)
         probe.errors.incrementAndGet()
+        if (held) probe.heldTerminals.incrementAndGet()
         downstream.onError(error)
     }
     override fun onComplete() {
         terminal.set(true)
         probe.completions.incrementAndGet()
+        if (held) probe.heldTerminals.incrementAndGet()
         downstream.onComplete()
     }
 
@@ -462,6 +486,7 @@ private class ElasticsearchClientOperationProbe {
     val cancellations = AtomicLong()
     val responses = AtomicLong()
     val heldResponses = AtomicLong()
+    val heldTerminals = AtomicLong()
     val completions = AtomicLong()
     val errors = AtomicLong()
     val terminalAtCancellation = AtomicReference<Boolean?>()
@@ -469,10 +494,14 @@ private class ElasticsearchClientOperationProbe {
     val cancellationNanos = AtomicLong()
     val heldRequestLatch = AtomicReference(CountDownLatch(1))
     val heldCancellationLatch = AtomicReference(CountDownLatch(1))
+    val upstreamCancelReturned = AtomicLong()
+    val upstreamCancelReturnedLatch = AtomicReference(CountDownLatch(1))
 
     fun awaitHeldRequest(): Boolean = heldRequestLatch.get().await(2, TimeUnit.SECONDS)
 
     fun awaitHeldCancellation(): Boolean = heldCancellationLatch.get().await(2, TimeUnit.SECONDS)
+
+    fun awaitUpstreamCancelReturned(): Boolean = upstreamCancelReturnedLatch.get().await(2, TimeUnit.SECONDS)
 
     fun reset() {
         subscriptions.set(0)
@@ -481,6 +510,7 @@ private class ElasticsearchClientOperationProbe {
         cancellations.set(0)
         responses.set(0)
         heldResponses.set(0)
+        heldTerminals.set(0)
         completions.set(0)
         errors.set(0)
         terminalAtCancellation.set(null)
@@ -488,6 +518,8 @@ private class ElasticsearchClientOperationProbe {
         cancellationNanos.set(0)
         heldRequestLatch.set(CountDownLatch(1))
         heldCancellationLatch.set(CountDownLatch(1))
+        upstreamCancelReturned.set(0)
+        upstreamCancelReturnedLatch.set(CountDownLatch(1))
     }
 }
 
