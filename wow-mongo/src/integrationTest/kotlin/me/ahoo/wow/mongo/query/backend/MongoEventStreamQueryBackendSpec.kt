@@ -36,9 +36,16 @@ class MongoEventStreamQueryBackendSpec : EventStreamQueryBackendSpec() {
 
     @BeforeEach
     fun initializeCollection() {
-        fixture = MongoPortableQueryBackendFixture(mongo.database(), QueryDocumentKind.EVENT_STREAM)
+        fixture = MongoPortableQueryBackendFixture.resourceObserved(
+            mongo.connectionString,
+            mongo.databaseName,
+            QueryDocumentKind.EVENT_STREAM,
+        )
         fixture.initializeCollection()
     }
+
+    @org.junit.jupiter.api.AfterEach
+    fun closeFixture() = fixture.close()
 
     override fun backendFactory(): ObservableQueryBackendFactory = fixture.backendFactory
 

@@ -36,9 +36,16 @@ class MongoSnapshotQueryBackendSpec : SnapshotQueryBackendSpec() {
 
     @BeforeEach
     fun initializeCollection() {
-        fixture = MongoPortableQueryBackendFixture(mongo.database(), QueryDocumentKind.SNAPSHOT)
+        fixture = MongoPortableQueryBackendFixture.resourceObserved(
+            mongo.connectionString,
+            mongo.databaseName,
+            QueryDocumentKind.SNAPSHOT,
+        )
         fixture.initializeCollection()
     }
+
+    @org.junit.jupiter.api.AfterEach
+    fun closeFixture() = fixture.close()
 
     override fun backendFactory(): ObservableQueryBackendFactory = fixture.backendFactory
 

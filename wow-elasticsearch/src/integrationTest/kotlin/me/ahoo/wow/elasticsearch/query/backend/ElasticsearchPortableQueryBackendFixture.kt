@@ -134,7 +134,10 @@ internal class ElasticsearchPortableQueryBackendFixture(
             backendFactory.heldSearchResponseCount.assert().isZero()
             backendFactory.heldSearchTerminalAtCancellation.assert().isFalse()
             backendFactory.heldSearchUpstreamCancelReturned.assert().isOne()
+            backendFactory.awaitCloseResponseCompletion()
             backendFactory.subscriptionCount(ElasticsearchQueryOperation.CLOSE_PIT).assert().isOne()
+            backendFactory.responseCount(ElasticsearchQueryOperation.CLOSE_PIT).assert().isOne()
+            backendFactory.completionCount(ElasticsearchQueryOperation.CLOSE_PIT).assert().isOne()
             backendFactory.closedPitIds.assert().containsExactly(backendFactory.latestPitId)
         }
     }
@@ -293,6 +296,17 @@ internal class ElasticsearchObservableQueryBackendFactory(
 
     fun cancellationCount(operation: ElasticsearchQueryOperation): Long = probe(operation).cancellations.get()
 
+    fun responseCount(operation: ElasticsearchQueryOperation): Long = probe(operation).responses.get()
+
+    fun completionCount(operation: ElasticsearchQueryOperation): Long = probe(operation).completions.get()
+
+    fun awaitCloseResponseCompletion() {
+        val close = probe(ElasticsearchQueryOperation.CLOSE_PIT)
+        check(close.awaitResponse()) { "Elasticsearch CLOSE_PIT produced no real HTTP response." }
+        check(close.awaitCompletion()) { "Elasticsearch CLOSE_PIT response did not complete." }
+        check(close.errors.get() == 0L) { "Elasticsearch CLOSE_PIT terminated with an error." }
+    }
+
     override fun bind(context: QueryBackendResolutionContext): QueryBackend {
         check(routeReadinessVerified.get()) { "Elasticsearch TCK route readiness was not verified." }
         val delegate = if (nextHold.get() == null) preparedDelegate else lifecycleDelegate
@@ -439,9 +453,6 @@ private class HoldingClientSubscriber<T : Any>(
         upstream = subscription
         probe.subscriptions.incrementAndGet()
         if (held) probe.heldSubscriptions.incrementAndGet()
-        if (operationContext.operation == ElasticsearchQueryOperation.CLOSE_PIT) {
-            operationContext.pitId?.let(closedPitIds::add)
-        }
         downstream.onSubscribe(this)
         if (held) requestUpstream(Long.MAX_VALUE)
     }
@@ -472,6 +483,10 @@ private class HoldingClientSubscriber<T : Any>(
     override fun onNext(value: T) {
         responseSeen.set(true)
         probe.responses.incrementAndGet()
+        probe.responseLatch.get().countDown()
+        if (operationContext.operation == ElasticsearchQueryOperation.CLOSE_PIT) {
+            operationContext.pitId?.let(closedPitIds::add)
+        }
         if (held) probe.heldResponses.incrementAndGet()
         downstream.onNext(value)
     }
@@ -484,6 +499,7 @@ private class HoldingClientSubscriber<T : Any>(
     override fun onComplete() {
         terminal.set(true)
         probe.completions.incrementAndGet()
+        probe.completionLatch.get().countDown()
         if (held) probe.heldTerminals.incrementAndGet()
         downstream.onComplete()
     }
@@ -521,12 +537,18 @@ private class ElasticsearchClientOperationProbe {
     val heldCancellationLatch = AtomicReference(CountDownLatch(1))
     val upstreamCancelReturned = AtomicLong()
     val upstreamCancelReturnedLatch = AtomicReference(CountDownLatch(1))
+    val responseLatch = AtomicReference(CountDownLatch(1))
+    val completionLatch = AtomicReference(CountDownLatch(1))
 
     fun awaitHeldRequest(): Boolean = heldRequestLatch.get().await(2, TimeUnit.SECONDS)
 
     fun awaitHeldCancellation(): Boolean = heldCancellationLatch.get().await(2, TimeUnit.SECONDS)
 
     fun awaitUpstreamCancelReturned(): Boolean = upstreamCancelReturnedLatch.get().await(2, TimeUnit.SECONDS)
+
+    fun awaitResponse(): Boolean = responseLatch.get().await(2, TimeUnit.SECONDS)
+
+    fun awaitCompletion(): Boolean = completionLatch.get().await(2, TimeUnit.SECONDS)
 
     fun reset() {
         subscriptions.set(0)
@@ -545,6 +567,8 @@ private class ElasticsearchClientOperationProbe {
         heldCancellationLatch.set(CountDownLatch(1))
         upstreamCancelReturned.set(0)
         upstreamCancelReturnedLatch.set(CountDownLatch(1))
+        responseLatch.set(CountDownLatch(1))
+        completionLatch.set(CountDownLatch(1))
     }
 }
 

@@ -148,6 +148,7 @@ class ElasticsearchSnapshotQueryBackendSpec : SnapshotQueryBackendSpec() {
 
         factory.subscriptionCount(ElasticsearchQueryOperation.OPEN_PIT).assert().isOne()
         factory.subscriptionCount(ElasticsearchQueryOperation.SEARCH).assert().isOne()
+        factory.awaitCloseResponseCompletion()
         factory.subscriptionCount(ElasticsearchQueryOperation.CLOSE_PIT).assert().isOne()
         factory.cancellationCount(ElasticsearchQueryOperation.SEARCH).assert().isZero()
         factory.closedPitIds.assert().containsExactly(factory.latestPitId)
@@ -186,6 +187,7 @@ class ElasticsearchSnapshotQueryBackendSpec : SnapshotQueryBackendSpec() {
         factory.heldSearchTerminalAtCancellation.assert().isFalse()
         factory.heldSearchRequestPrecededCancellation.assert().isTrue()
         factory.heldSearchUpstreamCancelReturned.assert().isOne()
+        factory.awaitCloseResponseCompletion()
         factory.subscriptionCount(ElasticsearchQueryOperation.CLOSE_PIT).assert().isOne()
         factory.closedPitIds.assert().containsExactly(factory.latestPitId)
     }
@@ -217,6 +219,7 @@ class ElasticsearchSnapshotQueryBackendSpec : SnapshotQueryBackendSpec() {
         factory.heldSearchTerminalAtCancellation.assert().isFalse()
         factory.heldSearchRequestPrecededCancellation.assert().isTrue()
         factory.heldSearchUpstreamCancelReturned.assert().isOne()
+        factory.awaitCloseResponseCompletion()
         factory.subscriptionCount(ElasticsearchQueryOperation.CLOSE_PIT).assert().isOne()
         factory.closedPitIds.assert().containsExactly(factory.latestPitId)
     }

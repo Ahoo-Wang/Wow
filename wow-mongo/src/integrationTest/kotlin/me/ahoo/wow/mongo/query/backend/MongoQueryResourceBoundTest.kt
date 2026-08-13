@@ -227,11 +227,11 @@ class MongoQueryResourceBoundTest {
     }
 }
 
-private data class ResourceState(val logicalId: String)
+internal data class ResourceState(val logicalId: String)
 
 private data class ResourceQueryResult(val aggregateId: String)
 
-private class ResourceAggregate(
+internal class ResourceAggregate(
     override val aggregateId: AggregateId,
     override val state: ResourceState,
 ) : ReadOnlyStateAggregate<ResourceState> {
@@ -247,9 +247,9 @@ private class ResourceAggregate(
     override val deleted: Boolean = false
 }
 
-private data class MongoWireBatch(val requestedBatchSize: Int?, val itemCount: Int)
+internal data class MongoWireBatch(val requestedBatchSize: Int?, val itemCount: Int)
 
-private class MongoWireCommandMonitor : CommandListener {
+internal class MongoWireCommandMonitor : CommandListener {
     private data class StartedCommand(val name: String, val batchSize: Int?)
 
     private val startedCounts = ConcurrentHashMap<String, AtomicLong>()
