@@ -39,6 +39,10 @@ import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
 import me.ahoo.wow.mongo.toDocument
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryCollectionKind
+import me.ahoo.wow.query.schema.QueryBackendFieldPath
+import me.ahoo.wow.query.schema.QueryBackendId
+import me.ahoo.wow.query.schema.QueryCapabilityBinding
+import me.ahoo.wow.query.schema.QueryFieldUsage
 import me.ahoo.wow.query.schema.QueryFieldValueKind
 import me.ahoo.wow.query.schema.QuerySchema
 import me.ahoo.wow.query.schema.QuerySystemFields
@@ -327,6 +331,141 @@ class MongoQueryWireShapeSpec {
     }
 
     @Test
+    fun `nullable collection missing or null materializes the whole collection as null`() {
+        val target = QueryTarget(NAMED_AGGREGATE, QueryDocumentKind.SNAPSHOT)
+        val missingItems = taggedSnapshotDocument("a-missing", emptyList()).also { document ->
+            @Suppress("UNCHECKED_CAST")
+            val state = document["state"] as MutableMap<String, Any?>
+            state.remove("items")
+        }
+        val nullItems = taggedSnapshotDocument("b-null", emptyList()).also { document ->
+            @Suppress("UNCHECKED_CAST")
+            val state = document["state"] as MutableMap<String, Any?>
+            state["items"] = null
+        }
+        val schema = nestedSnapshotSchema(target, itemsNullable = true)
+        val (gateway, factory) = snapshotGateway(schema, listOf(missingItems, nullItems), ITEM_SKU)
+
+        StepVerifier.create(
+            gateway.list(
+                ListQueryRequest(
+                    target = target,
+                    expression = MatchAll,
+                    resultShape = QueryResultShape.Dynamic,
+                    sort = listOf(QuerySort(LogicalField("aggregateId"), QuerySortDirection.ASC)),
+                    limit = 0
+                )
+            )
+        ).assertNext { result -> result[ITEM_SKU.value].assert().isNull() }
+            .assertNext { result -> result[ITEM_SKU.value].assert().isNull() }
+            .verifyComplete()
+        factory.subscriptionCount.assert().isOne()
+        factory.cancellationCount.assert().isZero()
+
+        factory.reset()
+        StepVerifier.create(
+            gateway.list(
+                ListQueryRequest(
+                    target = target,
+                    expression = MatchAll,
+                    resultShape = QueryResultShape.Typed(
+                        NullableItemsSnapshotResult::class.java,
+                        QueryProjection.Include(setOf(LogicalField("aggregateId"), ITEM_SKU))
+                    ),
+                    sort = listOf(QuerySort(LogicalField("aggregateId"), QuerySortDirection.ASC)),
+                    limit = 0
+                )
+            )
+        ).assertNext { result -> result.state.items.assert().isNull() }
+            .assertNext { result -> result.state.items.assert().isNull() }
+            .verifyComplete()
+        factory.subscriptionCount.assert().isOne()
+        factory.cancellationCount.assert().isZero()
+    }
+
+    @Test
+    fun `nullable collection rejects null elements for dynamic and typed results`() {
+        val target = QueryTarget(NAMED_AGGREGATE, QueryDocumentKind.SNAPSHOT)
+        val nullElement = taggedSnapshotDocument("null-element", emptyList()).also { document ->
+            @Suppress("UNCHECKED_CAST")
+            val state = document["state"] as MutableMap<String, Any?>
+            state["items"] = listOf(null)
+        }
+        val schema = nestedSnapshotSchema(target, itemsNullable = true)
+        val (gateway, factory) = snapshotGateway(schema, listOf(nullElement), ITEM_SKU)
+
+        StepVerifier.create(
+            gateway.list(
+                ListQueryRequest(
+                    target = target,
+                    expression = MatchAll,
+                    resultShape = QueryResultShape.Dynamic,
+                    limit = 0
+                )
+            )
+        ).expectErrorSatisfies(::assertResultInvalid).verify()
+        factory.subscriptionCount.assert().isOne()
+        factory.cancellationCount.assert().isOne()
+
+        factory.reset()
+        StepVerifier.create(
+            gateway.list(
+                ListQueryRequest(
+                    target = target,
+                    expression = MatchAll,
+                    resultShape = QueryResultShape.Typed(
+                        NullableItemsSnapshotResult::class.java,
+                        QueryProjection.Include(setOf(LogicalField("aggregateId"), ITEM_SKU))
+                    ),
+                    limit = 0
+                )
+            )
+        ).expectErrorSatisfies(::assertResultInvalid).verify()
+        factory.subscriptionCount.assert().isOne()
+        factory.cancellationCount.assert().isOne()
+    }
+
+    @Test
+    fun `collection projection preserves an independently bound child field`() {
+        val target = QueryTarget(NAMED_AGGREGATE, QueryDocumentKind.SNAPSHOT)
+        val document = taggedSnapshotDocument("bound-child", emptyList()).append("sku_values", listOf("bound"))
+        val schema = nestedSnapshotSchema(target, itemSkuPhysical = "sku_values")
+        val (gateway, factory) = snapshotGateway(schema, listOf(document), ITEM_SKU)
+
+        StepVerifier.create(
+            gateway.list(
+                ListQueryRequest(
+                    target = target,
+                    expression = MatchAll,
+                    resultShape = QueryResultShape.Dynamic,
+                    limit = 0
+                )
+            )
+        ).assertNext { result -> result[ITEM_SKU.value].assert().isEqualTo(listOf("bound")) }
+            .verifyComplete()
+        factory.subscriptionCount.assert().isOne()
+        factory.cancellationCount.assert().isZero()
+
+        factory.reset()
+        StepVerifier.create(
+            gateway.list(
+                ListQueryRequest(
+                    target = target,
+                    expression = MatchAll,
+                    resultShape = QueryResultShape.Typed(
+                        NestedSnapshotResult::class.java,
+                        QueryProjection.Include(setOf(LogicalField("aggregateId"), ITEM_SKU))
+                    ),
+                    limit = 0
+                )
+            )
+        ).assertNext { result -> result.state.items.single().sku.assert().isEqualTo("bound") }
+            .verifyComplete()
+        factory.subscriptionCount.assert().isOne()
+        factory.cancellationCount.assert().isZero()
+    }
+
+    @Test
     fun `nullable missing or null object ancestor materializes a non-nullable descendant as null`() {
         val target = QueryTarget(NAMED_AGGREGATE, QueryDocumentKind.SNAPSHOT)
         val missingProfile = taggedSnapshotDocument("a-missing", emptyList())
@@ -459,6 +598,39 @@ class MongoQueryWireShapeSpec {
         ).assertNext { result -> result.state.labels.assert().isEqualTo(listOf("good")) }
             .expectErrorSatisfies(::assertIncompleteResultInvalid)
             .verify()
+
+        factory.subscriptionCount.assert().isOne()
+        factory.cancellationCount.assert().isOne()
+    }
+
+    @Test
+    fun `scalar kind failure after a prior result is incomplete and cancels the real driver`() {
+        val target = QueryTarget(NAMED_AGGREGATE, QueryDocumentKind.SNAPSHOT)
+        val malformed = taggedSnapshotDocument("b-bad", emptyList()).also { document ->
+            @Suppress("UNCHECKED_CAST")
+            val state = document["state"] as MutableMap<String, Any?>
+            state["occurredAt"] = true
+        }
+        val schema = nestedSnapshotSchema(target)
+        val (gateway, factory) = snapshotGateway(
+            schema,
+            listOf(taggedSnapshotDocument("a-good", emptyList()), malformed),
+            OCCURRED_AT
+        )
+
+        StepVerifier.create(
+            gateway.list(
+                ListQueryRequest(
+                    target = target,
+                    expression = MatchAll,
+                    resultShape = QueryResultShape.Dynamic,
+                    sort = listOf(QuerySort(LogicalField("aggregateId"), QuerySortDirection.ASC)),
+                    limit = 0
+                )
+            )
+        ).assertNext { result ->
+            result[OCCURRED_AT.value].assert().isEqualTo(Instant.parse("2026-03-01T00:00:00Z"))
+        }.expectErrorSatisfies(::assertIncompleteResultInvalid).verify()
 
         factory.subscriptionCount.assert().isOne()
         factory.cancellationCount.assert().isOne()
@@ -610,6 +782,8 @@ class MongoQueryWireShapeSpec {
     private fun nestedSnapshotSchema(
         target: QueryTarget,
         itemSkuNullable: Boolean = false,
+        itemsNullable: Boolean = false,
+        itemSkuPhysical: String? = null,
         includeProfile: Boolean = false
     ): QuerySchema = QuerySchema(
         target,
@@ -618,10 +792,20 @@ class MongoQueryWireShapeSpec {
             QueryFieldSchema(
                 path = ITEMS,
                 valueKind = QueryFieldValueKind.OBJECT,
-                nullable = false,
+                nullable = itemsNullable,
                 collectionKind = QueryCollectionKind.OBJECT
             ),
-            QueryFieldSchema.string(ITEM_SKU, nullable = itemSkuNullable),
+            QueryFieldSchema.string(ITEM_SKU, nullable = itemSkuNullable).copy(
+                bindings = itemSkuPhysical?.let { physical ->
+                    setOf(
+                        QueryCapabilityBinding(
+                            QueryBackendId("mongo"),
+                            QueryFieldUsage.EXACT,
+                            QueryBackendFieldPath(physical)
+                        )
+                    )
+                } ?: emptySet()
+            ),
             QueryFieldSchema(
                 path = LABELS,
                 valueKind = QueryFieldValueKind.STRING,
@@ -700,6 +884,10 @@ class MongoQueryWireShapeSpec {
     data class NullableProjectedState(val items: List<NullableProjectedItem>)
 
     data class NullableProjectedItem(val sku: String?)
+
+    data class NullableItemsSnapshotResult(val aggregateId: String, val state: NullableItemsProjectedState)
+
+    data class NullableItemsProjectedState(val items: List<ProjectedItem>?)
 
     data class LabelsSnapshotResult(val aggregateId: String, val state: ProjectedLabelsState)
 

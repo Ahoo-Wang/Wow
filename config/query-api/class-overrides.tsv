@@ -90,5 +90,6 @@ wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryReadiness$inspectIndexes$1.c
 wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryReadiness.class	exclude	kotlin-internal
 wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryReadinessRequirements.class	exclude	kotlin-internal
 wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryResultDecoder$Companion.class	exclude	kotlin-internal
+wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryResultDecoder$WhenMappings.class	exclude	synthetic-private-helper
 wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryResultDecoder.class	exclude	kotlin-internal
 wow-elasticsearch	me/ahoo/wow/elasticsearch/query/ListQueriesKt.class	include	retained-public-facade

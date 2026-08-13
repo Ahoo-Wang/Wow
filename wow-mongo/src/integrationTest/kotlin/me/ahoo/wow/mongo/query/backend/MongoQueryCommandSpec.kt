@@ -268,7 +268,11 @@ class MongoQueryCommandSpec {
 
         StepVerifier.create(testKit.gateway.list(request))
             .expectErrorSatisfies { error ->
-                (error as QueryException).code.assert().isEqualTo(QueryErrorCode.BACKEND_FAILURE)
+                (error as QueryException).code.assert().isEqualTo(QueryErrorCode.RESULT_VALIDATION_FAILED)
+                error.stage.assert().isEqualTo(QueryStage.EXECUTION)
+                error.reason.assert().isEqualTo(QueryErrorReason.RESULT_INVALID)
+                error.message.assert().isEqualTo("RESULT_VALIDATION_FAILED:EXECUTION:RESULT_INVALID")
+                error.cause.assert().isNull()
             }
             .verify()
 

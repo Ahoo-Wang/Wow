@@ -72,7 +72,7 @@ internal class MongoQueryPlanCompiler(
         if (fields.isEmpty()) {
             return Projections.excludeId()
         }
-        val physicalFields = fields.map(binding::physical).distinct().filter { candidate ->
+        val physicalFields = fields.map(::projectionSource).distinct().filter { candidate ->
             fields.none { other ->
                 val parent = binding.physical(other)
                 parent != candidate && candidate.startsWith("$parent.")
@@ -81,6 +81,22 @@ internal class MongoQueryPlanCompiler(
         val include = Projections.include(physicalFields)
         val includesIdentity = physicalFields.contains("_id")
         return if (includesIdentity) include else Projections.fields(include, Projections.excludeId())
+    }
+
+    private fun projectionSource(field: LogicalField): String {
+        val segments = field.value.split('.')
+        val fieldPhysical = binding.physical(field)
+        for (endIndex in 1..segments.size) {
+            val ancestor = LogicalField(segments.take(endIndex).joinToString("."))
+            if (
+                binding.contains(ancestor) &&
+                binding.schema(ancestor).collectionKind != me.ahoo.wow.query.schema.QueryCollectionKind.NONE &&
+                fieldPhysical.startsWith("${binding.physical(ancestor)}.")
+            ) {
+                return binding.physical(ancestor)
+            }
+        }
+        return fieldPhysical
     }
 
     fun resultProjection(plan: QueryPlanV1): Map<LogicalField, String> = when (val shape = plan.authorizedResultShape) {
