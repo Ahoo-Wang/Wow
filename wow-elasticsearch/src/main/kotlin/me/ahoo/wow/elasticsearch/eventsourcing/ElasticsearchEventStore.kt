@@ -31,6 +31,7 @@ import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.sort
 import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.serialization.convert
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -42,6 +43,9 @@ class ElasticsearchEventStore(
     private val batchSize: Int = DEFAULT_BATCH_SIZE,
     metrics: WowMetrics = WowMetrics.NONE,
 ) : AbstractEventStore() {
+    @Suppress("UNCHECKED_CAST")
+    private val documentClass = Map::class.java as Class<Map<String, Any?>>
+
     private val appender: ElasticsearchEventStreamAppender = if (batchOptions.enabled) {
         BatchElasticsearchEventStreamAppender(
             elasticsearchClient = elasticsearchClient,
@@ -126,7 +130,7 @@ class ElasticsearchEventStore(
             size = batchSize,
             searchAfter = searchAfter,
         ).map { hits ->
-            val streams = hits.map { hit -> requireNotNull(hit.source()) }
+            val streams = hits.map { hit -> restoreEventStream(requireNotNull(hit.source())) }
             val nextSearchAfter = if (hits.size < batchSize) {
                 null
             } else {
@@ -144,7 +148,7 @@ class ElasticsearchEventStore(
         size: Int,
         searchAfter: List<FieldValue> = emptyList(),
         descending: Boolean = false,
-    ): Mono<List<Hit<DomainEventStream>>> {
+    ): Mono<List<Hit<Map<String, Any?>>>> {
         val query = EventStreamConditionConverter.convert(condition)
         val sort = sort {
             if (descending) {
@@ -167,7 +171,7 @@ class ElasticsearchEventStore(
                     request.searchAfter(searchAfter)
                 }
                 request
-            }, DomainEventStream::class.java)
+            }, documentClass)
             .map {
                 it.hits().hits()
             }
@@ -190,6 +194,7 @@ class ElasticsearchEventStore(
                 it
                     .firstOrNull()
                     ?.source()
+                    ?.let(::restoreEventStream)
             }
     }
 
@@ -233,6 +238,11 @@ class ElasticsearchEventStore(
         }
         return Mono.error(error)
     }
+
+    private fun restoreEventStream(source: Map<String, Any?>): DomainEventStream =
+        ElasticsearchQueryPresenceEncoder
+            .strip(source)
+            .convert(DomainEventStream::class.java)
 
     override fun close() {
         appender.close()

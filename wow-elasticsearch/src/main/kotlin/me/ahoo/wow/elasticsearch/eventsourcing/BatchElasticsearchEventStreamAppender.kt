@@ -23,7 +23,6 @@ import me.ahoo.wow.infra.batch.BatchOverflowException
 import me.ahoo.wow.infra.batch.BatchWriter
 import me.ahoo.wow.infra.batch.KeyedBatchCoordinator
 import me.ahoo.wow.metrics.WowMetrics
-import me.ahoo.wow.serialization.toLinkedHashMap
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
 import java.time.Duration
@@ -74,7 +73,7 @@ internal class BatchElasticsearchEventStreamAppender(
                 eventStream = eventStream,
                 index = eventStream.aggregateId.toEventStreamIndexName(),
                 id = eventStream.toDocId(),
-                document = eventStream.toLinkedHashMap(),
+                document = eventStream.toElasticsearchDocument(),
                 routing = eventStream.aggregateId.id,
             )
         }.onErrorMap(::toElasticsearchBatchError)

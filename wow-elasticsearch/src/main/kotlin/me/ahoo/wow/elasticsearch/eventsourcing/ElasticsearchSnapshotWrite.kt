@@ -26,12 +26,12 @@ internal data class ElasticsearchSnapshotWrite(
 )
 
 internal fun Snapshot<*>.toElasticsearchSnapshotWrite(): ElasticsearchSnapshotWrite {
-    val document = toLinkedHashMap()
+    val source = toLinkedHashMap()
     return ElasticsearchSnapshotWrite(
         index = aggregateId.toSnapshotIndexName(),
         id = aggregateId.id,
-        document = document,
-        version = document.requiredSnapshotVersion(),
+        document = ElasticsearchQueryPresenceEncoder.encode(source),
+        version = source.requiredSnapshotVersion(),
     )
 }
 

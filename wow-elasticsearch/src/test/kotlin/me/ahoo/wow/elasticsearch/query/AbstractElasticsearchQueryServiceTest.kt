@@ -31,6 +31,7 @@ import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.converter.ConditionConverter
@@ -84,6 +85,25 @@ class AbstractElasticsearchQueryServiceTest {
     }
 
     @Test
+    fun `legacy dynamic and typed results should strip presence metadata recursively`() {
+        every {
+            elasticsearchClient.search(any<SearchRequest>(), Map::class.java)
+        } returns Mono.just(searchResponse(total = 1))
+
+        val documents = buildList {
+            add(checkNotNull(queryService.dynamicSingle(SingleQuery(Condition.ALL)).block()))
+            add(checkNotNull(queryService.single(SingleQuery(Condition.ALL)).block()))
+            addAll(queryService.dynamicList(ListQuery(Condition.ALL)).collectList().block()!!)
+            addAll(queryService.list(ListQuery(Condition.ALL)).collectList().block()!!)
+            addAll(queryService.dynamicPaged(PagedQuery(Condition.ALL)).block()!!.list)
+            addAll(queryService.paged(PagedQuery(Condition.ALL)).block()!!.list)
+        }
+
+        documents.assert().hasSize(6)
+        documents.forEach(::assertNoPresenceMetadata)
+    }
+
+    @Test
     fun `count should use count api`() {
         val request = slot<CountRequest>()
         every { elasticsearchClient.count(capture(request)) } returns Mono.just(
@@ -112,7 +132,22 @@ class AbstractElasticsearchQueryServiceTest {
                     hits.hits { hit ->
                         hit.index("test-index")
                             .id("1")
-                            .source(mutableMapOf<String, Any?>("field" to "value"))
+                            .source(
+                                mutableMapOf<String, Any?>(
+                                    "field" to "value",
+                                    "__wow_query" to mapOf("present" to listOf("field")),
+                                    "nested" to mutableMapOf(
+                                        "value" to "nested-value",
+                                        "__wow_query" to mapOf("present" to listOf("value")),
+                                    ),
+                                    "items" to mutableListOf(
+                                        mutableMapOf(
+                                            "value" to "item-value",
+                                            "__wow_query" to mapOf("present" to listOf("value")),
+                                        )
+                                    ),
+                                )
+                            )
                     }.hits { hit -> hit.index("test-index").id("2") }
                 }
         }
@@ -126,5 +161,17 @@ class AbstractElasticsearchQueryServiceTest {
         override val indexName: String = "test-index"
 
         override fun toTypedResult(document: DynamicDocument): DynamicDocument = document
+    }
+}
+
+private fun assertNoPresenceMetadata(value: Any?) {
+    when (value) {
+        is Map<*, *> -> {
+            value.containsKey("__wow_query").assert().isFalse()
+            value.values.forEach(::assertNoPresenceMetadata)
+        }
+
+        is Iterable<*> -> value.forEach(::assertNoPresenceMetadata)
+        is Array<*> -> value.forEach(::assertNoPresenceMetadata)
     }
 }

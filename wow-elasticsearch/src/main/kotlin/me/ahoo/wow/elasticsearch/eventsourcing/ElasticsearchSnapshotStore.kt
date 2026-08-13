@@ -19,6 +19,7 @@ import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.metrics.WowMetrics
+import me.ahoo.wow.serialization.convert
 import org.springframework.data.elasticsearch.RestStatusException
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
@@ -29,6 +30,9 @@ class ElasticsearchSnapshotStore(
     private val refreshPolicy: Refresh = Refresh.True,
     metrics: WowMetrics = WowMetrics.NONE,
 ) : SnapshotStore {
+    @Suppress("UNCHECKED_CAST")
+    private val documentClass = Map::class.java as Class<Map<String, Any?>>
+
     private val saver: ElasticsearchSnapshotSaver = if (batchOptions.enabled) {
         BatchElasticsearchSnapshotSaver(
             elasticsearchClient = elasticsearchClient,
@@ -56,9 +60,14 @@ class ElasticsearchSnapshotStore(
         return elasticsearchClient.get({
             it.index(aggregateId.toSnapshotIndexName())
                 .id(aggregateId.id)
-        }, Snapshot::class.java)
+        }, documentClass)
             .mapNotNull<Snapshot<S>> {
-                it.source() as Snapshot<S>?
+                if (!it.found()) {
+                    return@mapNotNull null
+                }
+                ElasticsearchQueryPresenceEncoder
+                    .strip(requireNotNull(it.source()))
+                    .convert(Snapshot::class.java) as Snapshot<S>
             }
             .onErrorResume {
                 if (it is RestStatusException && it.status == NOT_FOUND_CODE) {

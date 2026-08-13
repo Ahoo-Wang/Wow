@@ -20,6 +20,7 @@ import co.elastic.clients.elasticsearch.core.BulkResponse
 import co.elastic.clients.elasticsearch.core.IndexRequest
 import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem
 import co.elastic.clients.elasticsearch.core.bulk.OperationType
+import com.fasterxml.jackson.annotation.JsonProperty
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.mockk.every
 import io.mockk.mockk
@@ -64,6 +65,7 @@ class ElasticsearchEventStoreAppendTest {
         request.captured.opType().assert().isEqualTo(OpType.Create)
         request.captured.id().assert().isEqualTo(eventStream.toDocId())
         request.captured.routing().assert().isEqualTo(listOf("order-direct"))
+        assertEventPresenceEncoded(checkNotNull(request.captured.document()))
         verify(exactly = 0) { client.bulk(any<BulkRequest>()) }
     }
 
@@ -102,6 +104,40 @@ class ElasticsearchEventStoreAppendTest {
     }
 
     @Test
+    fun `reserved namespace should fail direct append before client IO`() {
+        val eventStore = ElasticsearchEventStore(client)
+
+        assertThrows<IllegalArgumentException> {
+            eventStore.append(reservedEventStream("reserved-direct"))
+        }
+
+        verify(exactly = 0) { client.index(any<IndexRequest<Map<String, Any?>>>()) }
+        verify(exactly = 0) { client.bulk(any<BulkRequest>()) }
+    }
+
+    @Test
+    fun `reserved namespace should fail batch append before client IO`() {
+        val eventStore = ElasticsearchEventStore(
+            elasticsearchClient = client,
+            batchOptions = ElasticsearchEventStoreBatchOptions(
+                enabled = true,
+                maxSize = 2,
+                maxPendingAppends = 2,
+            ),
+        )
+
+        try {
+            eventStore.append(reservedEventStream("reserved-batch"))
+                .test()
+                .expectError(IllegalArgumentException::class.java)
+                .verify()
+            verify(exactly = 0) { client.bulk(any<BulkRequest>()) }
+        } finally {
+            eventStore.close()
+        }
+    }
+
+    @Test
     fun `enabled batching should use one bulk create request`() {
         val request = slot<BulkRequest>()
         val firstEventStream = eventStream("order-1", aggregateVersion = 1)
@@ -130,6 +166,9 @@ class ElasticsearchEventStoreAppendTest {
 
         request.captured.operations().assert().hasSize(2)
         request.captured.operations().all { it.isCreate }.assert().isTrue()
+        request.captured.operations().forEach { operation ->
+            assertEventPresenceEncoded(checkNotNull(operation.create<Map<String, Any?>>().document()))
+        }
         verify(exactly = 0) { client.index(any<IndexRequest<Map<String, Any?>>>()) }
     }
 
@@ -393,6 +432,13 @@ class ElasticsearchEventStoreAppendTest {
         )
     }
 
+    private fun reservedEventStream(id: String): DomainEventStream =
+        MockDomainEventStreams.generateEventStream(
+            aggregateId = namedAggregate.aggregateId(id),
+            eventCount = 1,
+            createdEventSupplier = { ReservedEvent("collision") },
+        )
+
     private fun bulkResponse(
         vararg items: BulkResponseItem,
     ): BulkResponse {
@@ -439,5 +485,24 @@ class ElasticsearchEventStoreAppendTest {
                 .id(eventStream.toDocId())
                 .status(201)
         }
+    }
+}
+
+private data class ReservedEvent(
+    @field:JsonProperty("__wow_query")
+    val reserved: String,
+)
+
+private fun assertEventPresenceEncoded(value: Any?) {
+    when (value) {
+        is Map<*, *> -> {
+            value.containsKey("__wow_query").assert().isTrue()
+            value.entries
+                .filterNot { (key, _) -> key == "__wow_query" }
+                .forEach { (_, nested) -> assertEventPresenceEncoded(nested) }
+        }
+
+        is Iterable<*> -> value.forEach(::assertEventPresenceEncoded)
+        is Array<*> -> value.forEach(::assertEventPresenceEncoded)
     }
 }

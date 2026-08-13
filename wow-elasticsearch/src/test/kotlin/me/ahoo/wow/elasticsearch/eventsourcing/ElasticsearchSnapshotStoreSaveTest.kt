@@ -15,10 +15,14 @@ package me.ahoo.wow.elasticsearch.eventsourcing
 
 import co.elastic.clients.elasticsearch.core.BulkRequest
 import co.elastic.clients.elasticsearch.core.BulkResponse
+import co.elastic.clients.elasticsearch.core.GetRequest
+import co.elastic.clients.elasticsearch.core.GetResponse
 import co.elastic.clients.elasticsearch.core.IndexRequest
 import co.elastic.clients.elasticsearch.core.UpdateRequest
 import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem
 import co.elastic.clients.elasticsearch.core.bulk.OperationType
+import co.elastic.clients.util.ObjectBuilder
+import com.fasterxml.jackson.annotation.JsonProperty
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -31,11 +35,13 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregate
+import me.ahoo.wow.serialization.toLinkedHashMap
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateChanged
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
+import me.ahoo.wow.test.saga.stateless.GivenReadOnlyStateAggregate
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
@@ -47,9 +53,52 @@ import java.time.Duration
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.function.Function
 
 class ElasticsearchSnapshotStoreSaveTest {
     private val client = mockk<ReactiveElasticsearchClient>()
+
+    @Test
+    fun `presence metadata is stripped before restoring a snapshot`() {
+        val expected = snapshot(id = "order-load-presence", version = 2)
+        val encoded = ElasticsearchQueryPresenceEncoder.encode(expected.toLinkedHashMap())
+        stubGet(encoded)
+
+        ElasticsearchSnapshotStore(client).load<MockStateAggregate>(expected.aggregateId)
+            .test()
+            .assertNext { actual ->
+                actual.aggregateId.assert().isEqualTo(expected.aggregateId)
+                actual.version.assert().isEqualTo(expected.version)
+                actual.state.data.assert().isEqualTo(expected.state.data)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `legacy snapshot without presence metadata remains readable`() {
+        val expected = snapshot(id = "order-load-legacy", version = 1)
+        stubGet(expected.toLinkedHashMap())
+
+        ElasticsearchSnapshotStore(client).load<MockStateAggregate>(expected.aggregateId)
+            .test()
+            .assertNext { actual ->
+                actual.aggregateId.assert().isEqualTo(expected.aggregateId)
+                actual.version.assert().isEqualTo(expected.version)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `found snapshot source is required`() {
+        stubGet(null)
+
+        ElasticsearchSnapshotStore(client).load<MockStateAggregate>(
+            MOCK_AGGREGATE_METADATA.aggregateId("missing-source")
+        )
+            .test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+    }
 
     @Test
     fun `disabled batching should use source version guarded update`() {
@@ -76,7 +125,9 @@ class ElasticsearchSnapshotStoreSaveTest {
             co.elastic.clients.elasticsearch._types.Refresh.True
         )
         request.captured.retryOnConflict().assert().isNotNull()
-        checkNotNull(request.captured.upsert())["version"].assert().isEqualTo(3)
+        val upsert = checkNotNull(request.captured.upsert())
+        upsert["version"].assert().isEqualTo(3)
+        assertPresenceEncoded(upsert)
         checkNotNull(request.captured.script())
             .params().keys.assert().contains("version", "snapshot")
         verify(exactly = 0) { client.bulk(any<BulkRequest>()) }
@@ -102,6 +153,45 @@ class ElasticsearchSnapshotStoreSaveTest {
             .test()
             .expectErrorMatches { it === failure }
             .verify()
+    }
+
+    @Test
+    fun `reserved namespace should fail direct save before client IO`() {
+        val store = ElasticsearchSnapshotStore(client)
+
+        assertThrows<IllegalArgumentException> {
+            store.save(reservedSnapshot("reserved-direct"))
+        }
+
+        verify(exactly = 0) {
+            client.update(
+                any<UpdateRequest<Map<String, Any?>, Map<String, Any?>>>(),
+                any<Class<Map<String, Any?>>>(),
+            )
+        }
+        verify(exactly = 0) { client.bulk(any<BulkRequest>()) }
+    }
+
+    @Test
+    fun `reserved namespace should fail batch save before client IO`() {
+        val store = ElasticsearchSnapshotStore(
+            elasticsearchClient = client,
+            batchOptions = ElasticsearchSnapshotStoreBatchOptions(
+                enabled = true,
+                maxSize = 2,
+                maxPendingSaves = 2,
+            ),
+        )
+
+        try {
+            store.save(reservedSnapshot("reserved-batch"))
+                .test()
+                .expectError(IllegalArgumentException::class.java)
+                .verify()
+            verify(exactly = 0) { client.bulk(any<BulkRequest>()) }
+        } finally {
+            store.close()
+        }
     }
 
     @Test
@@ -133,6 +223,10 @@ class ElasticsearchSnapshotStoreSaveTest {
 
         request.captured.operations().assert().hasSize(2)
         request.captured.operations().all { it.isUpdate }.assert().isTrue()
+        request.captured.operations().forEach { operation ->
+            val update = operation.update<Map<String, Any?>, Map<String, Any?>>()
+            assertPresenceEncoded(checkNotNull(checkNotNull(update.action()).upsert()))
+        }
         verify(exactly = 0) { client.index(any<IndexRequest<Map<String, Any?>>>()) }
     }
 
@@ -350,6 +444,42 @@ class ElasticsearchSnapshotStoreSaveTest {
         )
     }
 
+    @Suppress("UNCHECKED_CAST")
+    private fun stubGet(source: Map<String, Any?>?) {
+        val documentClass = Map::class.java as Class<Map<String, Any?>>
+        every {
+            client.get(
+                any<Function<GetRequest.Builder, ObjectBuilder<GetRequest>>>(),
+                documentClass,
+            )
+        } returns Mono.just(
+            GetResponse.of<Map<String, Any?>> { response ->
+                response.index("test-index")
+                    .id("id")
+                    .found(true)
+                source?.let(response::source)
+                response
+            }
+        )
+    }
+
+    private fun reservedSnapshot(id: String): SimpleSnapshot<ReservedSnapshotState> {
+        val aggregate = GivenReadOnlyStateAggregate(
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(id),
+            state = ReservedSnapshotState(id = id, reserved = "collision"),
+            version = 1,
+            ownerId = "",
+            spaceId = "",
+            deleted = false,
+            eventId = "event-id",
+            firstOperator = "",
+            operator = "",
+            firstEventTime = 1,
+            eventTime = 1,
+        )
+        return SimpleSnapshot(delegate = aggregate, snapshotTime = 1)
+    }
+
     private fun bulkResponse(
         vararg items: BulkResponseItem,
     ): BulkResponse {
@@ -383,5 +513,25 @@ class ElasticsearchSnapshotStoreSaveTest {
                 .id(snapshot.aggregateId.id)
                 .status(200)
         }
+    }
+}
+
+private data class ReservedSnapshotState(
+    val id: String,
+    @field:JsonProperty("__wow_query")
+    val reserved: String,
+)
+
+private fun assertPresenceEncoded(value: Any?) {
+    when (value) {
+        is Map<*, *> -> {
+            value.containsKey("__wow_query").assert().isTrue()
+            value.entries
+                .filterNot { (key, _) -> key == "__wow_query" }
+                .forEach { (_, nested) -> assertPresenceEncoded(nested) }
+        }
+
+        is Iterable<*> -> value.forEach(::assertPresenceEncoded)
+        is Array<*> -> value.forEach(::assertPresenceEncoded)
     }
 }

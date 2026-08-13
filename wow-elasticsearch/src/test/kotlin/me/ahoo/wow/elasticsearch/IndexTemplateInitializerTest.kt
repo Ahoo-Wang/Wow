@@ -21,6 +21,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.core.ReactiveElasticsearchOperations
 import org.springframework.data.elasticsearch.core.ReactiveIndexOperations
+import org.springframework.data.elasticsearch.core.document.Document
+import org.springframework.data.elasticsearch.core.index.AliasActions
+import org.springframework.data.elasticsearch.core.index.PutIndexTemplateRequest
 import org.springframework.data.elasticsearch.core.mapping.IndexCoordinates
 import reactor.core.publisher.Mono
 import java.time.Duration
@@ -49,6 +52,26 @@ class IndexTemplateInitializerTest {
         verify(exactly = 1) {
             indexOperations.putIndexTemplate(match { it.name == "wow-snapshot-template" })
         }
+    }
+
+    @Test
+    fun `templates should declare presence version and exact root and deep mappings`() {
+        val requests = mutableListOf<PutIndexTemplateRequest>()
+        every { indexOperations.putIndexTemplate(capture(requests)) } returns Mono.just(true)
+
+        initializer.initAll()
+
+        requests.assert().hasSize(2)
+        requests.forEach { request ->
+            val mapping = checkNotNull(request.mapping())
+            val meta = mapping["_meta"] as Map<*, *>
+            meta["wow_query_presence_version"].assert().isEqualTo(1)
+            assertPresenceTemplate(mapping, "wow_query_present_keyword", "present")
+            assertPresenceTemplate(mapping, "wow_query_null_keyword", "null")
+        }
+        verify(exactly = 0) { indexOperations.putMapping(any<Mono<Document>>()) }
+        verify(exactly = 0) { indexOperations.delete() }
+        verify(exactly = 0) { indexOperations.alias(any<AliasActions>()) }
     }
 
     @Test
@@ -86,4 +109,22 @@ class IndexTemplateInitializerTest {
     fun `legacy init subscriber should retain its name`() {
         IndexTemplateInitializer.InitSubscriber("legacy").name.assert().isEqualTo("legacy")
     }
+}
+
+private fun assertPresenceTemplate(
+    mapping: Map<String, Any?>,
+    templateName: String,
+    marker: String,
+) {
+    val templates = mapping["dynamic_templates"] as List<*>
+    val template = templates
+        .map { it as Map<*, *> }
+        .first { it.containsKey(templateName) }[templateName] as Map<*, *>
+    (template["path_match"] as List<*>)
+        .assert()
+        .containsExactly("__wow_query.$marker", "*.__wow_query.$marker")
+    val keyword = template["mapping"] as Map<*, *>
+    keyword["type"].assert().isEqualTo("keyword")
+    keyword["index"].assert().isEqualTo(true)
+    keyword["doc_values"].assert().isEqualTo(true)
 }

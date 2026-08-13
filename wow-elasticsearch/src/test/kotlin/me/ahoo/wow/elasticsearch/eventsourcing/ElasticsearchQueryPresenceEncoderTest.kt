@@ -78,6 +78,22 @@ class ElasticsearchQueryPresenceEncoderTest {
     }
 
     @Test
+    fun `encode and strip detach binary values from their input`() {
+        val binary = byteArrayOf(1, 2, 3)
+        val source = linkedMapOf<String, Any?>("binary" to binary)
+
+        val encoded = ElasticsearchQueryPresenceEncoder.encode(source)
+        val encodedBinary = encoded.getValue("binary") as ByteArray
+        encodedBinary[0] = 9
+        binary[0].assert().isEqualTo(1)
+
+        val stripped = ElasticsearchQueryPresenceEncoder.strip(encoded)
+        val strippedBinary = stripped.getValue("binary") as ByteArray
+        strippedBinary[1] = 9
+        encodedBinary[1].assert().isEqualTo(2)
+    }
+
+    @Test
     fun `reserved namespace collision is rejected at every object level`() {
         listOf(
             linkedMapOf<String, Any?>("__wow_query" to emptyMap<String, Any?>()),

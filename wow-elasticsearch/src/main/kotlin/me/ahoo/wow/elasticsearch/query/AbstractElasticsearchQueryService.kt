@@ -26,6 +26,7 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.api.query.isEmpty
+import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchQueryPresenceEncoder
 import me.ahoo.wow.elasticsearch.query.ElasticsearchProjectionConverter.toSourceFilter
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOptions
 import me.ahoo.wow.query.QueryService
@@ -122,7 +123,10 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
                 val hits = result.hits()
                 val list = hits.hits().mapNotNull { hit ->
                     hit.source()?.let {
-                        (it as MutableMap<String, Any?>).toDynamicDocument()
+                        ElasticsearchQueryPresenceEncoder
+                            .strip(it as Map<String, Any?>)
+                            .toMutableMap()
+                            .toDynamicDocument()
                     }
                 }
                 PagedList(hits.total()?.value() ?: 0, list)
