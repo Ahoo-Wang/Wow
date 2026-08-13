@@ -17,10 +17,12 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.materialize
 import java.util.concurrent.ConcurrentHashMap
 
+@Deprecated("Use GatewaySnapshotQueryServiceFactory backed by QueryGateway.")
 interface SnapshotQueryServiceFactory {
     fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryService<S>
 }
 
+@Deprecated("Use GatewaySnapshotQueryServiceFactory backed by QueryGateway.")
 abstract class AbstractSnapshotQueryServiceFactory : SnapshotQueryServiceFactory {
     private val queryServiceCache = ConcurrentHashMap<NamedAggregate, SnapshotQueryService<*>>()
 
@@ -34,6 +36,7 @@ abstract class AbstractSnapshotQueryServiceFactory : SnapshotQueryServiceFactory
     protected abstract fun createQueryService(namedAggregate: NamedAggregate): SnapshotQueryService<*>
 }
 
+@Deprecated("Use GatewaySnapshotQueryServiceFactory backed by QueryGateway.")
 object NoOpSnapshotQueryServiceFactory : SnapshotQueryServiceFactory {
     override fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryService<S> {
         return NoOpSnapshotQueryService(namedAggregate = namedAggregate.materialize())

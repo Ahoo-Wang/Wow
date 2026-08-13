@@ -838,6 +838,77 @@ java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler
     "$TEMP_DIR/kotlin/StableGatewayApi.kt"
 echo "PASS: Kotlin external stable query gateway API source"
 
+cat >"$TEMP_DIR/kotlin/DeprecatedLegacyQueryFactories.kt" <<'EOF'
+package external.fixture
+
+import me.ahoo.wow.query.event.AbstractEventStreamQueryServiceFactory
+import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
+import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
+import me.ahoo.wow.query.event.RoutingEventStreamQueryServiceFactory
+import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.RoutingSnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
+
+fun retainedLegacyQueryFactories(
+    snapshotRouting: RoutingSnapshotQueryServiceFactory,
+    eventRouting: RoutingEventStreamQueryServiceFactory
+): List<Any> = listOf(
+    SnapshotQueryServiceFactory::class,
+    AbstractSnapshotQueryServiceFactory::class,
+    NoOpSnapshotQueryServiceFactory,
+    snapshotRouting,
+    EventStreamQueryServiceFactory::class,
+    AbstractEventStreamQueryServiceFactory::class,
+    NoOpEventStreamQueryServiceFactory,
+    eventRouting
+)
+EOF
+
+java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+    -module-name query-legacy-factories-source-compatible-fixture \
+    -no-stdlib -no-reflect \
+    -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/kotlin-legacy-factories-compatible" \
+    "$TEMP_DIR/kotlin/DeprecatedLegacyQueryFactories.kt"
+echo "PASS: Kotlin external legacy query factories remain source compatible"
+
+if java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+    -module-name query-legacy-factories-deprecated-fixture \
+    -Werror -no-stdlib -no-reflect \
+    -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/kotlin-legacy-factories-deprecated" \
+    "$TEMP_DIR/kotlin/DeprecatedLegacyQueryFactories.kt" \
+    >"$TEMP_DIR/kotlin-legacy-factories-deprecated.out" 2>&1; then
+    fail "Kotlin external source unexpectedly used legacy query factories without deprecation diagnostics"
+fi
+grep -F "deprecated" "$TEMP_DIR/kotlin-legacy-factories-deprecated.out" >/dev/null || {
+    cat "$TEMP_DIR/kotlin-legacy-factories-deprecated.out" >&2
+    fail "Kotlin legacy query factory fixture did not report deprecation diagnostics"
+}
+
+for factory_class in \
+    me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory \
+    me.ahoo.wow.query.snapshot.AbstractSnapshotQueryServiceFactory \
+    me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory \
+    me.ahoo.wow.query.snapshot.RoutingSnapshotQueryServiceFactory \
+    me.ahoo.wow.query.event.EventStreamQueryServiceFactory \
+    me.ahoo.wow.query.event.AbstractEventStreamQueryServiceFactory \
+    me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory \
+    me.ahoo.wow.query.event.RoutingEventStreamQueryServiceFactory; do
+    javap -classpath "$WOW_QUERY_JAR" -v "$factory_class" | grep -F "Deprecated: true" >/dev/null ||
+        fail "Published legacy query factory is missing the JVM Deprecated attribute: $factory_class"
+done
+echo "PASS: Published legacy query factories are deprecated"
+
+if jar tf "$WOW_QUERY_JAR" | grep -E \
+    'me/ahoo/wow/query/compat/Legacy(QueryRequest|SnapshotResult|EventResult|QueryError)Mapper([$.]|\.class)' \
+    >"$TEMP_DIR/legacy-gateway-mapper-entries.out"; then
+    cat "$TEMP_DIR/legacy-gateway-mapper-entries.out" >&2
+    fail "Published wow-query JAR exposes legacy Gateway mapper class entries"
+fi
+echo "PASS: Published wow-query JAR exposes no legacy Gateway mapper class entries"
+
 cat >"$TEMP_DIR/java/InternalLegacyGatewayAdapters.java" <<'EOF'
 package external.fixture;
 
@@ -920,6 +991,119 @@ for adapter_name in LegacyQueryRequestMapper LegacySnapshotResultMapper \
     }
 done
 echo "PASS: Kotlin external source cannot access legacy Gateway adapters"
+
+cat >"$TEMP_DIR/java/ExternallyCallableLegacyGatewayAdapters.java" <<'EOF'
+package external.fixture;
+
+import me.ahoo.wow.api.query.DynamicDocument;
+import me.ahoo.wow.api.query.ISingleQuery;
+import me.ahoo.wow.query.compat.LegacyEventResultMapper;
+import me.ahoo.wow.query.compat.LegacyQueryRequestMapper;
+import me.ahoo.wow.query.compat.LegacySnapshotResultMapper;
+
+public final class ExternallyCallableLegacyGatewayAdapters {
+    public static Object[] call(
+        LegacyQueryRequestMapper requests,
+        LegacySnapshotResultMapper<?> snapshots,
+        LegacyEventResultMapper events,
+        ISingleQuery query,
+        DynamicDocument document
+    ) {
+        return new Object[]{
+            requests.single(query),
+            snapshots.map(document),
+            events.map(document)
+        };
+    }
+}
+EOF
+
+if javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/java-legacy-adapters-call-negative" \
+    "$TEMP_DIR/java/ExternallyCallableLegacyGatewayAdapters.java" \
+    >"$TEMP_DIR/java-legacy-adapters-call-negative.out" 2>&1; then
+    fail "Java external source unexpectedly called legacy Gateway adapters passed as parameters"
+fi
+for adapter_name in LegacyQueryRequestMapper LegacySnapshotResultMapper LegacyEventResultMapper; do
+    grep -F "$adapter_name" "$TEMP_DIR/java-legacy-adapters-call-negative.out" >/dev/null || {
+        cat "$TEMP_DIR/java-legacy-adapters-call-negative.out" >&2
+        fail "Java callable legacy adapter fixture did not diagnose $adapter_name"
+    }
+done
+echo "PASS: Java external source cannot call legacy Gateway adapters passed as parameters"
+
+cat >"$TEMP_DIR/java/InternalGatewayCompatibilityFunctions.java" <<'EOF'
+package external.fixture;
+
+import me.ahoo.wow.api.query.Condition;
+import me.ahoo.wow.api.query.DynamicDocument;
+import me.ahoo.wow.api.query.gateway.QueryTarget;
+import me.ahoo.wow.query.compat.LegacyRequestCompatibilityKt;
+import me.ahoo.wow.query.compat.LegacyResultCompatibilityKt;
+
+public final class InternalGatewayCompatibilityFunctions {
+    public static Object[] access(
+        QueryTarget target,
+        Condition condition,
+        DynamicDocument document
+    ) {
+        return new Object[]{
+            LegacyRequestCompatibilityKt.legacyCountRequest(target, condition),
+            LegacyResultCompatibilityKt.materializeLegacyEvent(document)
+        };
+    }
+}
+EOF
+
+if javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/java-gateway-compatibility-negative" \
+    "$TEMP_DIR/java/InternalGatewayCompatibilityFunctions.java" \
+    >"$TEMP_DIR/java-gateway-compatibility-negative.out" 2>&1; then
+    fail "Java external source unexpectedly accessed Gateway compatibility functions"
+fi
+for function_name in legacyCountRequest materializeLegacyEvent; do
+    grep -F "$function_name" "$TEMP_DIR/java-gateway-compatibility-negative.out" >/dev/null || {
+        cat "$TEMP_DIR/java-gateway-compatibility-negative.out" >&2
+        fail "Java Gateway compatibility negative fixture did not diagnose $function_name"
+    }
+done
+echo "PASS: Java external source cannot access Gateway compatibility functions"
+
+cat >"$TEMP_DIR/kotlin/InternalGatewayCompatibilityFunctions.kt" <<'EOF'
+package external.fixture
+
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.gateway.QueryTarget
+import me.ahoo.wow.query.compat.legacyCountRequest
+import me.ahoo.wow.query.compat.materializeLegacyEvent
+
+fun internalGatewayCompatibilityFunctions(
+    target: QueryTarget,
+    condition: Condition,
+    document: DynamicDocument
+): List<Any> = listOf(
+    legacyCountRequest(target, condition),
+    materializeLegacyEvent(document)
+)
+EOF
+
+if java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+    -module-name query-gateway-compatibility-external-negative-fixture \
+    -no-stdlib -no-reflect \
+    -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/kotlin-gateway-compatibility-negative" \
+    "$TEMP_DIR/kotlin/InternalGatewayCompatibilityFunctions.kt" \
+    >"$TEMP_DIR/kotlin-gateway-compatibility-negative.out" 2>&1; then
+    fail "Kotlin external source unexpectedly accessed Gateway compatibility functions"
+fi
+for function_name in legacyCountRequest materializeLegacyEvent; do
+    grep -F "$function_name" "$TEMP_DIR/kotlin-gateway-compatibility-negative.out" >/dev/null || {
+        cat "$TEMP_DIR/kotlin-gateway-compatibility-negative.out" >&2
+        fail "Kotlin Gateway compatibility negative fixture did not diagnose $function_name"
+    }
+done
+echo "PASS: Kotlin external source cannot access Gateway compatibility functions"
 
 cat >"$TEMP_DIR/java/InternalGatewayNormalization.java" <<'EOF'
 package external.fixture;

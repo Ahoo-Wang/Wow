@@ -37,7 +37,7 @@ import me.ahoo.wow.query.backend.QueryBackendResolver
 import me.ahoo.wow.query.backend.QueryBackendRouteIdentity
 import me.ahoo.wow.query.backend.RecordingQueryBackend
 import me.ahoo.wow.query.backend.ResolvedQueryBackend
-import me.ahoo.wow.query.compat.LegacyQueryRequestMapper
+import me.ahoo.wow.query.compat.legacyCountRequest
 import me.ahoo.wow.query.invocation.QueryAuthorityView
 import me.ahoo.wow.query.invocation.QueryInvocationScope
 import me.ahoo.wow.query.policy.QueryPolicy
@@ -65,9 +65,7 @@ class DefaultQueryGatewayTest {
     fun `legacy snapshot scope leaves system policy as the only direct deletion predicate producer`() {
         val backend = RecordingQueryBackend(gatewayDescriptor()).respondCount(Mono.just(1))
         val gateway = QueryGatewayFactory.create(gatewayConfiguration(backend))
-        val request = LegacyQueryRequestMapper.create(GATEWAY_TARGET).count(
-            Condition.eq("state.status", "ACTIVE")
-        )
+        val request = legacyCountRequest(GATEWAY_TARGET, Condition.eq("state.status", "ACTIVE"))
 
         StepVerifier.create(gateway.count(request)).expectNext(1).verifyComplete()
 

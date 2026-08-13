@@ -17,10 +17,12 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.materialize
 import java.util.concurrent.ConcurrentHashMap
 
+@Deprecated("Use GatewayEventStreamQueryServiceFactory backed by QueryGateway.")
 fun interface EventStreamQueryServiceFactory {
     fun create(namedAggregate: NamedAggregate): EventStreamQueryService
 }
 
+@Deprecated("Use GatewayEventStreamQueryServiceFactory backed by QueryGateway.")
 abstract class AbstractEventStreamQueryServiceFactory : EventStreamQueryServiceFactory {
     private val queryServiceCache = ConcurrentHashMap<NamedAggregate, EventStreamQueryService>()
 
@@ -33,6 +35,7 @@ abstract class AbstractEventStreamQueryServiceFactory : EventStreamQueryServiceF
     protected abstract fun createQueryService(namedAggregate: NamedAggregate): EventStreamQueryService
 }
 
+@Deprecated("Use GatewayEventStreamQueryServiceFactory backed by QueryGateway.")
 object NoOpEventStreamQueryServiceFactory : EventStreamQueryServiceFactory {
     override fun create(namedAggregate: NamedAggregate): EventStreamQueryService {
         return NoOpEventStreamQueryService(namedAggregate = namedAggregate)

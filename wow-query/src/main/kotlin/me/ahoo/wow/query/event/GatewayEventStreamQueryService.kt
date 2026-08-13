@@ -25,8 +25,12 @@ import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.query.QueryGateway
-import me.ahoo.wow.query.compat.LegacyEventResultMapper
-import me.ahoo.wow.query.compat.LegacyQueryRequestMapper
+import me.ahoo.wow.query.compat.legacyCountRequest
+import me.ahoo.wow.query.compat.legacyListRequest
+import me.ahoo.wow.query.compat.legacyPageRequest
+import me.ahoo.wow.query.compat.legacySingleRequest
+import me.ahoo.wow.query.compat.materializeLegacyEvent
+import me.ahoo.wow.query.compat.materializeLegacyList
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -34,39 +38,36 @@ class GatewayEventStreamQueryService(
     override val namedAggregate: NamedAggregate,
     private val queryGateway: QueryGateway
 ) : EventStreamQueryService {
-    private val requestMapper = LegacyQueryRequestMapper.create(
-        QueryTarget(namedAggregate, QueryDocumentKind.EVENT_STREAM)
-    )
-    private val resultMapper = LegacyEventResultMapper.create()
+    private val target = QueryTarget(namedAggregate, QueryDocumentKind.EVENT_STREAM)
 
     override fun single(singleQuery: ISingleQuery): Mono<DomainEventStream> = Mono.defer {
-        queryGateway.single(requestMapper.single(singleQuery)).map(resultMapper::map)
+        queryGateway.single(legacySingleRequest(target, singleQuery)).map(::materializeLegacyEvent)
     }
 
     override fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument> = Mono.defer {
-        queryGateway.single(requestMapper.single(singleQuery))
+        queryGateway.single(legacySingleRequest(target, singleQuery))
     }
 
     override fun list(listQuery: IListQuery): Flux<DomainEventStream> = Flux.defer {
-        queryGateway.list(requestMapper.list(listQuery)).map(resultMapper::map)
+        materializeLegacyList(queryGateway.list(legacyListRequest(target, listQuery)), ::materializeLegacyEvent)
     }
 
     override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> = Flux.defer {
-        queryGateway.list(requestMapper.list(listQuery))
+        queryGateway.list(legacyListRequest(target, listQuery))
     }
 
     override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<DomainEventStream>> = Mono.defer {
-        queryGateway.page(requestMapper.page(pagedQuery)).map { page ->
-            PagedList(page.total, page.items.map(resultMapper::map))
+        queryGateway.page(legacyPageRequest(target, pagedQuery)).map { page ->
+            PagedList(page.total, page.items.map(::materializeLegacyEvent))
         }
     }
 
     override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> = Mono.defer {
-        queryGateway.page(requestMapper.page(pagedQuery)).map { page -> PagedList(page.total, page.items) }
+        queryGateway.page(legacyPageRequest(target, pagedQuery)).map { page -> PagedList(page.total, page.items) }
     }
 
     override fun count(condition: Condition): Mono<Long> = Mono.defer {
-        queryGateway.count(requestMapper.count(condition))
+        queryGateway.count(legacyCountRequest(target, condition))
     }
 }
 

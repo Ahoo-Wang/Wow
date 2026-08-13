@@ -237,6 +237,62 @@ class GatewayQueryServiceTest {
     }
 
     @Test
+    fun `typed list mapper failure before first item remains result validation failed`() {
+        val malformed = ImmutableDynamicDocument.copyOf(mapOf("sensitive" to "must-not-leak"))
+
+        StepVerifier.create(
+            GatewaySnapshotQueryService<MockStateAggregate>(
+                MOCK_AGGREGATE_METADATA,
+                RecordingLegacyGateway(snapshotDocument, listResult = Flux.just(malformed))
+            ).list(ListQuery(Condition.ALL))
+        ).expectErrorSatisfies(::assertResultInvalid).verify()
+        StepVerifier.create(
+            GatewayEventStreamQueryService(
+                MOCK_AGGREGATE_METADATA,
+                RecordingLegacyGateway(eventDocument, listResult = Flux.just(malformed))
+            ).list(ListQuery(Condition.ALL))
+        ).expectErrorSatisfies(::assertResultInvalid).verify()
+    }
+
+    @Test
+    fun `typed list mapper failure after first item reports incomplete result with validation cause`() {
+        val malformed = ImmutableDynamicDocument.copyOf(mapOf("sensitive" to "must-not-leak"))
+        val snapshotCancellations = AtomicInteger()
+        val eventCancellations = AtomicInteger()
+
+        StepVerifier.create(
+            GatewaySnapshotQueryService<MockStateAggregate>(
+                MOCK_AGGREGATE_METADATA,
+                RecordingLegacyGateway(
+                    snapshotDocument,
+                    listResult = Flux.just(
+                        snapshotDocument,
+                        malformed
+                    ).doOnCancel(
+                        snapshotCancellations::incrementAndGet
+                    )
+                )
+            ).list(ListQuery(Condition.ALL))
+        ).expectNext(snapshot).expectErrorSatisfies(::assertIncompleteResult).verify()
+        snapshotCancellations.get().assert().isEqualTo(1)
+        StepVerifier.create(
+            GatewayEventStreamQueryService(
+                MOCK_AGGREGATE_METADATA,
+                RecordingLegacyGateway(
+                    eventDocument,
+                    listResult = Flux.just(
+                        eventDocument,
+                        malformed
+                    ).doOnCancel(
+                        eventCancellations::incrementAndGet
+                    )
+                )
+            ).list(ListQuery(Condition.ALL))
+        ).expectNext(eventStream).expectErrorSatisfies(::assertIncompleteResult).verify()
+        eventCancellations.get().assert().isEqualTo(1)
+    }
+
+    @Test
     fun `snapshot metadata failure is deferred to subscription and mapped as result invalid`() {
         val gateway = RecordingLegacyGateway(snapshotDocument)
         val service = GatewaySnapshotQueryService<MockStateAggregate>(
@@ -265,6 +321,26 @@ class GatewayQueryServiceTest {
             StepVerifier.create(publisher).expectNextCount(1).verifyComplete()
             StepVerifier.create(publisher).expectNextCount(1).verifyComplete()
             gateway.calls.get().assert().isEqualTo(before + 2)
+        }
+    }
+
+    private fun assertResultInvalid(error: Throwable) {
+        (error as QueryException).apply {
+            code.assert().isEqualTo(QueryErrorCode.RESULT_VALIDATION_FAILED)
+            stage.assert().isEqualTo(QueryStage.EXECUTION)
+            reason.assert().isEqualTo(QueryErrorReason.RESULT_INVALID)
+            causeCode.assert().isNull()
+            message.orEmpty().contains("sensitive").assert().isFalse()
+        }
+    }
+
+    private fun assertIncompleteResult(error: Throwable) {
+        (error as QueryException).apply {
+            code.assert().isEqualTo(QueryErrorCode.INCOMPLETE_RESULT)
+            stage.assert().isEqualTo(QueryStage.EXECUTION)
+            reason.assert().isEqualTo(QueryErrorReason.INCOMPLETE_STREAM)
+            causeCode.assert().isEqualTo(QueryErrorCode.RESULT_VALIDATION_FAILED)
+            message.orEmpty().contains("sensitive").assert().isFalse()
         }
     }
 }

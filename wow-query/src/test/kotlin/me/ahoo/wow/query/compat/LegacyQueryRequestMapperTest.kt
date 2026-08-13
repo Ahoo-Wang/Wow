@@ -39,9 +39,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
 class LegacyQueryRequestMapperTest {
-    private val mapper = LegacyQueryRequestMapper.create(
-        QueryTarget("sales.order".toNamedAggregate(), QueryDocumentKind.SNAPSHOT)
-    )
+    private val target = QueryTarget("sales.order".toNamedAggregate(), QueryDocumentKind.SNAPSHOT)
 
     @Test
     fun `maps all include and exclude to projected dynamic typed shape`() {
@@ -56,7 +54,7 @@ class LegacyQueryRequestMapperTest {
         )
 
         fixtures.forEach { (legacy, expectedProjection) ->
-            mapper.dynamicShape(legacy).assert().isEqualTo(
+            legacyDynamicShape(legacy).assert().isEqualTo(
                 QueryResultShape.Typed(DynamicDocument::class.java, expectedProjection)
             )
         }
@@ -65,7 +63,7 @@ class LegacyQueryRequestMapperTest {
     @Test
     fun `rejects mixed include and exclude with stable normalization error`() {
         val error = assertThrows<QueryException> {
-            mapper.dynamicShape(Projection(include = listOf("state.name"), exclude = listOf("state.secret")))
+            legacyDynamicShape(Projection(include = listOf("state.name"), exclude = listOf("state.secret")))
         }
 
         error.code.assert().isEqualTo(QueryErrorCode.INVALID_QUERY)
@@ -79,20 +77,20 @@ class LegacyQueryRequestMapperTest {
         val projection = Projection(include = listOf("eventTime"))
         val sort = listOf(Sort("eventTime", Sort.Direction.DESC))
 
-        val single = mapper.single(SingleQuery(condition, projection, sort))
-        val list = mapper.list(ListQuery(condition, projection, sort, limit = 7))
-        val page = mapper.page(PagedQuery(condition, projection, sort, Pagination(index = 3, size = 7)))
-        val count = mapper.count(condition)
+        val single = legacySingleRequest(target, SingleQuery(condition, projection, sort))
+        val list = legacyListRequest(target, ListQuery(condition, projection, sort, limit = 7))
+        val page = legacyPageRequest(target, PagedQuery(condition, projection, sort, Pagination(index = 3, size = 7)))
+        val count = legacyCountRequest(target, condition)
 
         listOf(single.expression, list.expression, page.expression, count.expression).forEach { expression ->
             expression.assert().isInstanceOf(me.ahoo.wow.api.query.expression.RelativeTimeExpression::class.java)
         }
-        single.resultShape.assert().isEqualTo(mapper.dynamicShape(projection))
+        single.resultShape.assert().isEqualTo(legacyDynamicShape(projection))
         list.limit.assert().isEqualTo(7)
         page.page.assert().isEqualTo(QueryPageSpec(3, 7))
         listOf(single.sort, list.sort, page.sort).forEach { actual ->
             actual.assert().isEqualTo(listOf(QuerySort(LogicalField("eventTime"), QuerySortDirection.DESC)))
         }
-        listOf(single.target, list.target, page.target, count.target).forEach { it.assert().isEqualTo(mapper.target) }
+        listOf(single.target, list.target, page.target, count.target).forEach { it.assert().isEqualTo(target) }
     }
 }
