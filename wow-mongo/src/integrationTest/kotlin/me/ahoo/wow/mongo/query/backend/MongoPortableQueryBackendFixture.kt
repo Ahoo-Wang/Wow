@@ -120,7 +120,8 @@ internal class MongoPortableQueryBackendFixture(
 
 internal class MongoObservableQueryBackendFactory(
     database: MongoDatabase,
-    maxBudget: QueryBudgetLimit = QueryBudgetLimit.UNBOUNDED
+    maxBudget: QueryBudgetLimit = QueryBudgetLimit.UNBOUNDED,
+    private val beforeUpstreamCancel: () -> Unit = {}
 ) : ObservableQueryBackendFactory, MongoQueryPublisherObserver {
     private val nextHold = AtomicReference<QueryBackendClientHold?>()
     private val subscriptions = AtomicLong()
@@ -162,7 +163,7 @@ internal class MongoObservableQueryBackendFactory(
 
     override fun <T : Any> observe(publisher: Publisher<T>): Publisher<T> {
         val hold = nextHold.getAndSet(null)
-        return HoldingMongoPublisher(publisher, hold, subscriptions, cancellations)
+        return HoldingMongoPublisher(publisher, hold, subscriptions, cancellations, beforeUpstreamCancel)
     }
 }
 
@@ -176,10 +177,17 @@ private class HoldingMongoPublisher<T : Any>(
     private val source: Publisher<T>,
     private val hold: QueryBackendClientHold?,
     private val subscriptions: AtomicLong,
-    private val cancellations: AtomicLong
+    private val cancellations: AtomicLong,
+    private val beforeUpstreamCancel: () -> Unit
 ) : Publisher<T> {
     override fun subscribe(subscriber: Subscriber<in T>) {
-        val bridge = HoldingMongoSubscriber(subscriber, hold, subscriptions, cancellations)
+        val bridge = HoldingMongoSubscriber(
+            subscriber,
+            hold,
+            subscriptions,
+            cancellations,
+            beforeUpstreamCancel
+        )
         subscriber.onSubscribe(bridge)
         source.subscribe(bridge)
     }
@@ -189,7 +197,8 @@ private class HoldingMongoSubscriber<T : Any>(
     private val downstream: Subscriber<in T>,
     private val hold: QueryBackendClientHold?,
     private val subscriptions: AtomicLong,
-    private val cancellations: AtomicLong
+    private val cancellations: AtomicLong,
+    private val beforeUpstreamCancel: () -> Unit
 ) : Subscriber<T>, Subscription {
     private val upstream = AtomicReference<Subscription?>()
     private val requested = AtomicBoolean()
@@ -252,6 +261,7 @@ private class HoldingMongoSubscriber<T : Any>(
 
     private fun cancelUpstream(subscription: Subscription) {
         if (upstreamCancelled.compareAndSet(false, true)) {
+            beforeUpstreamCancel()
             cancellations.incrementAndGet()
             subscription.cancel()
         }
