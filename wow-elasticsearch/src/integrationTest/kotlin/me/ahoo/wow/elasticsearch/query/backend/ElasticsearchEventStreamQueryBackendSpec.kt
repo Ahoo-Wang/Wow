@@ -15,6 +15,7 @@ package me.ahoo.wow.elasticsearch.query.backend
 
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
+import me.ahoo.wow.elasticsearch.ElasticsearchSearchResponseGate
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.query.backend.EventStreamQueryBackendSpec
 import me.ahoo.wow.tck.query.backend.ObservableQueryBackendFactory
@@ -32,9 +33,11 @@ class ElasticsearchEventStreamQueryBackendSpec : EventStreamQueryBackendSpec() {
 
     @BeforeEach
     fun setupFixture() {
+        val searchResponseGate = ElasticsearchSearchResponseGate()
         fixture = ElasticsearchPortableQueryBackendFixture(
-            ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch),
+            ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch, searchResponseGate),
             QueryDocumentKind.EVENT_STREAM,
+            searchResponseGate,
         )
         StepVerifier.create(fixture.prepare(PortableQueryDataset)).verifyComplete()
     }

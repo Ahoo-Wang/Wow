@@ -60,6 +60,10 @@ internal class ElasticsearchQueryBackendBinder(
     private val client: ReactiveElasticsearchClient,
     private val nativeTemplates: ElasticsearchNativeQueryTemplateRegistry,
     private val maxBudget: QueryBudgetLimit,
+    private val pitPageSize: Int = 256,
+    private val prefetchFirstPitPage: Boolean = false,
+    private val prefetchBarrier: (() -> reactor.core.publisher.Mono<Void>)? = null,
+    private val transportFactory: ((ReactiveElasticsearchClient) -> ElasticsearchQueryTransport)? = null,
 ) {
     fun bind(context: QueryBackendResolutionContext): QueryBackend = bind(context, null)
 
@@ -83,6 +87,10 @@ internal class ElasticsearchQueryBackendBinder(
             nativeTemplates,
             elasticsearchQueryBackendDescriptor(maxBudget),
             requirements,
+            pitPageSize = pitPageSize,
+            prefetchFirstPitPage = prefetchFirstPitPage,
+            prefetchBarrier = prefetchBarrier,
+            transport = transportFactory?.invoke(client) ?: ReactiveClientElasticsearchQueryTransport(client),
             mappingGuard = ElasticsearchQueryReadiness(
                 client,
                 index,
@@ -207,8 +215,13 @@ internal class ElasticsearchQueryBackendBinder(
             }
         }
 
-        private fun addExact(logical: LogicalField) =
+        private fun addExact(logical: LogicalField) {
+            if (binding.schema(logical).valueKind == me.ahoo.wow.query.schema.QueryFieldValueKind.BINARY) {
+                valid = false
+                return
+            }
             addField(logical, QueryFieldUsage.EXACT, ElasticsearchMappingUsage.EXACT)
+        }
 
         private fun addPresent(logical: LogicalField) {
             presenceFields += presence.present(logical).field
@@ -230,6 +243,7 @@ internal class ElasticsearchQueryBackendBinder(
                 schema.collectionKind,
                 schema.system,
                 mappingUsage,
+                schema.stringOptions?.maxLength,
             )
         }
 

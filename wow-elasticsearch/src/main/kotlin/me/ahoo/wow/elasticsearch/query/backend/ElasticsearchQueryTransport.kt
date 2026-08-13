@@ -58,24 +58,39 @@ internal class ReactiveClientElasticsearchQueryTransport(
         .onErrorMap(::sanitize)
 
     override fun searchResult(request: SearchRequest): Mono<ElasticsearchSearchResult> =
-        observer.observe(
-            ElasticsearchQueryOperationContext(ElasticsearchQueryOperation.SEARCH, request.pit()?.id()),
-            client.search(request, Map::class.java),
+        searchResponse(request).flatMap { result ->
+            result.page.terminalError?.let { error -> Mono.error(error) } ?: Mono.just(result)
+        }
+
+    override fun search(request: SearchRequest): Mono<PitSearchPage<Map<String, Any?>>> =
+        searchResponse(request).map(ElasticsearchSearchResult::page)
+
+    private fun searchResponse(request: SearchRequest): Mono<ElasticsearchSearchResult> {
+        val observedRequest = observer.decorateSearch(request)
+        return observer.observe(
+            ElasticsearchQueryOperationContext(
+                ElasticsearchQueryOperation.SEARCH,
+                observedRequest.pit()?.id(),
+                observedRequest.preference(),
+            ),
+            client.search(observedRequest, Map::class.java),
         )
             .map { response ->
                 response.pitId()?.let(observer::updatePitId)
-                if (response.timedOut() || response.shards().failed().toInt() > 0) {
-                    throw backendFailure()
-                }
                 val hits = response.hits()
+                val terminalError = when {
+                    response.timedOut() || response.shards().failed().toInt() > 0 -> backendFailure()
+                    hits.hits().any { hit -> hit.source() !is Map<*, *> } -> invalidResult()
+                    else -> null
+                }
                 ElasticsearchSearchResult(
                     PitSearchPage(
-                        hits.hits().map { hit ->
+                        hits.hits().mapNotNull { hit ->
                             @Suppress("UNCHECKED_CAST")
-                            val source = hit.source() as? Map<String, Any?> ?: throw invalidResult()
-                            PitSearchHit(source, hit.sort())
+                            (hit.source() as? Map<String, Any?>)?.let { source -> PitSearchHit(source, hit.sort()) }
                         },
                         response.pitId(),
+                        terminalError,
                     ),
                     hits.total()?.value(),
                     hits.total()?.relation() == TotalHitsRelation.Eq,
@@ -83,6 +98,7 @@ internal class ReactiveClientElasticsearchQueryTransport(
             }
             .switchIfEmpty(Mono.error(backendFailure()))
             .onErrorMap(::sanitize)
+    }
 
     override fun count(request: CountRequest): Mono<Long> = observer.observe(
         ElasticsearchQueryOperationContext(ElasticsearchQueryOperation.COUNT),

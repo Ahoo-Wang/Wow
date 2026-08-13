@@ -195,6 +195,37 @@ class PitSearchAfterExecutorTest {
     }
 
     @Test
+    fun `absolute deadline cancels an in-flight pit open without closing an unowned resource`() {
+        val scheduler = VirtualTimeScheduler.create()
+        val openCancelled = AtomicBoolean()
+        val transport = RecordingPitTransport(emptyList()).also {
+            it.openPublisher = Mono.never<String>().doOnCancel { openCancelled.set(true) }
+        }
+        val executor = PitSearchAfterExecutor(
+            transport,
+            "index",
+            1,
+            now = { Instant.EPOCH },
+            deadlineScheduler = scheduler,
+        ) { it }
+
+        StepVerifier.withVirtualTime(
+            { executor.execute(null, Instant.EPOCH.plusSeconds(2)) },
+            { scheduler },
+            0,
+        ).thenAwait(java.time.Duration.ofSeconds(2))
+            .expectErrorSatisfies { error ->
+                (error as QueryException).code.assert()
+                    .isEqualTo(me.ahoo.wow.api.query.error.QueryErrorCode.DEADLINE_EXCEEDED)
+            }
+            .verify()
+
+        transport.openCount.get().assert().isOne()
+        openCancelled.get().assert().isTrue()
+        transport.closeCount.get().assert().isZero()
+    }
+
+    @Test
     fun `open empty fails and close error is sanitized`() {
         val emptyOpen = RecordingPitTransport(emptyList()).also { it.openPublisher = Mono.empty() }
         StepVerifier.create(PitSearchAfterExecutor(emptyOpen, "index", 2) { it }.execute(null))

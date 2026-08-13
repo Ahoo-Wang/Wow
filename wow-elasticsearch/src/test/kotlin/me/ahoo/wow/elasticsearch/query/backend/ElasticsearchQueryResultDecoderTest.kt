@@ -136,6 +136,35 @@ class ElasticsearchQueryResultDecoderTest {
     }
 
     @Test
+    fun `sparse typed schema reconstructs undeclared object ancestors and keeps failures low information`() {
+        val city = LogicalField("profile.address.city")
+        val fields = listOf(QueryFieldSchema(city, QueryFieldValueKind.STRING, nullable = true))
+        val decoder = decoder(fields)
+        val dynamic = QueryPlanResultShape.Dynamic(setOf(city))
+        val typed = QueryPlanResultShape.Typed(SparseCityResult::class.java, setOf(city))
+        val projection = linkedMapOf(city to city.value)
+        val cases = listOf(
+            mapOf<String, Any?>("profile" to mapOf("address" to mapOf("city" to "杭州"))) to "杭州",
+            emptyMap<String, Any?>() to null,
+            mapOf<String, Any?>("profile" to mapOf("address" to mapOf("city" to null))) to null,
+        )
+
+        cases.forEach { (source, expected) ->
+            decoder.decode<ImmutableDynamicDocument>(source, dynamic, projection)[city.value]
+                .assert().isEqualTo(expected)
+            decoder.decode<SparseCityResult>(source, typed, projection).assert().isEqualTo(
+                SparseCityResult(SparseProfile(SparseAddress(expected))),
+            )
+        }
+        listOf(dynamic, typed).forEach { shape ->
+            val error = assertThrows<QueryException> {
+                decoder.decode<Any>(mapOf("profile" to "invalid"), shape, projection)
+            }
+            assertResultInvalid(error)
+        }
+    }
+
+    @Test
     fun `typed object collection merges same-index children independent of projection order`() {
         val items = LogicalField("items")
         val sku = LogicalField("items.sku")
@@ -146,6 +175,7 @@ class ElasticsearchQueryResultDecoderTest {
                 QueryFieldValueKind.OBJECT,
                 nullable = false,
                 collectionKind = QueryCollectionKind.OBJECT,
+                nested = false,
             ),
             QueryFieldSchema(sku, QueryFieldValueKind.STRING, nullable = false),
             QueryFieldSchema(quantity, QueryFieldValueKind.INTEGER, nullable = false),
@@ -158,6 +188,12 @@ class ElasticsearchQueryResultDecoderTest {
             ),
         )
         val shape = QueryPlanResultShape.Typed(ItemsResult::class.java, setOf(sku, quantity))
+
+        decoder.decode<ImmutableDynamicDocument>(
+            source,
+            QueryPlanResultShape.Dynamic(setOf(items)),
+            linkedMapOf(items to "items"),
+        )["items"].assert().isEqualTo(source["items"])
 
         listOf(
             linkedMapOf(sku to "items.sku", quantity to "items.quantity"),
@@ -278,6 +314,9 @@ class ElasticsearchQueryResultDecoderTest {
     data class ItemsResult(val items: List<ItemResult>)
     data class ItemResult(val sku: String, val quantity: Long)
     data class IntValueResult(val value: Int)
+    data class SparseCityResult(val profile: SparseProfile)
+    data class SparseProfile(val address: SparseAddress)
+    data class SparseAddress(val city: String?)
 
     private companion object {
         val TARGET = QueryTarget(

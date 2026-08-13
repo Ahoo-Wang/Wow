@@ -41,6 +41,9 @@ internal class ElasticsearchQueryBackend(
     nativeTemplates: ElasticsearchNativeQueryTemplateRegistry,
     override val descriptor: QueryBackendDescriptor,
     readinessRequirements: ElasticsearchQueryReadinessRequirements,
+    private val pitPageSize: Int = 256,
+    private val prefetchFirstPitPage: Boolean = false,
+    private val prefetchBarrier: (() -> Mono<Void>)? = null,
     private val transport: ElasticsearchQueryTransport = ReactiveClientElasticsearchQueryTransport(client),
     internal val mappingGuard: ElasticsearchQueryMappingGuard =
         ElasticsearchQueryReadiness(client, index, readinessRequirements),
@@ -74,7 +77,9 @@ internal class ElasticsearchQueryBackend(
         PitSearchAfterExecutor(
             transport,
             index,
-            PIT_PAGE_SIZE,
+            pitPageSize,
+            prefetchFirstPitPage = prefetchFirstPitPage,
+            prefetchBarrier = prefetchBarrier,
         ) { request -> pitSearchRequest(request, plan) }
             .execute(requestLimit, maxResults)
             .map { hit -> decode<R>(hit.source, plan) }
@@ -163,6 +168,7 @@ internal class ElasticsearchQueryBackend(
                 schema.collectionKind,
                 schema.system,
                 ElasticsearchMappingUsage.SORT,
+                schema.stringOptions?.maxLength,
             )
         }
         compiler.resultProjection(plan).forEach { (logical, source) ->
@@ -173,6 +179,7 @@ internal class ElasticsearchQueryBackend(
                 schema.collectionKind,
                 schema.system,
                 ElasticsearchMappingUsage.SOURCE,
+                schema.stringOptions?.maxLength,
             )
         }
         mappingGuard.requireFields(requirements)
@@ -192,7 +199,6 @@ internal class ElasticsearchQueryBackend(
 
     companion object {
         private const val SAFE_SEARCH_SIZE = 256
-        private const val PIT_PAGE_SIZE = 256
         private const val MAX_RESULT_WINDOW = 10_000L
     }
 }

@@ -1148,6 +1148,7 @@ package external.fixture
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchQueryPresenceEncoder
 import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchMappingFieldRequirement
 import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchMappingUsage
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchIndexMappingSnapshot
 import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryBackend
 import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryBackendBinder
 import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryFieldBinding
@@ -1170,6 +1171,7 @@ import me.ahoo.wow.elasticsearch.query.backend.elasticsearchQueryBackendDescript
 fun useElasticsearchInternals(
     fieldRequirement: ElasticsearchMappingFieldRequirement,
     mappingUsage: ElasticsearchMappingUsage,
+    indexMappingSnapshot: ElasticsearchIndexMappingSnapshot,
     backend: ElasticsearchQueryBackend,
     binder: ElasticsearchQueryBackendBinder,
     binding: ElasticsearchQueryFieldBinding,
@@ -1188,7 +1190,7 @@ fun useElasticsearchInternals(
     pitTransport: PitSearchAfterTransport<*>,
     pitExecutor: PitSearchAfterExecutor<*>
 ): List<Any> = listOf(
-    fieldRequirement, mappingUsage, backend, binder, binding, mappingGuard, mappingSnapshot,
+    fieldRequirement, mappingUsage, indexMappingSnapshot, backend, binder, binding, mappingGuard, mappingSnapshot,
     operation, operationContext, compiler, presence, observer, observers, readiness, requirements,
     decoder, transport, pitTransport, pitExecutor, ElasticsearchQueryPresenceEncoder,
     ::elasticsearchQueryBackendDescriptor
@@ -1209,6 +1211,7 @@ grep -F "internal" "$TEMP_DIR/kotlin-elasticsearch-internal-negative.out" >/dev/
     fail "Kotlin Elasticsearch internal fixture did not enforce internal visibility"
 }
 for class_name in ElasticsearchQueryPresenceEncoder ElasticsearchMappingFieldRequirement ElasticsearchMappingUsage \
+    ElasticsearchIndexMappingSnapshot \
     ElasticsearchQueryBackend ElasticsearchQueryBackendBinder ElasticsearchQueryFieldBinding \
     ElasticsearchQueryMappingGuard ElasticsearchQueryMappingSnapshot ElasticsearchQueryOperation \
     ElasticsearchQueryOperationContext ElasticsearchQueryPlanCompiler ElasticsearchQueryPresenceBinding \

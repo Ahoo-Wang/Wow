@@ -15,7 +15,10 @@ package me.ahoo.wow.elasticsearch.query.backend
 
 import co.elastic.clients.elasticsearch._types.mapping.Property
 import co.elastic.clients.elasticsearch.core.OpenPointInTimeRequest
+import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.indices.ExistsRequest
+import co.elastic.clients.elasticsearch.indices.GetIndicesSettingsRequest
+import co.elastic.clients.elasticsearch.indices.GetIndicesSettingsResponse
 import co.elastic.clients.elasticsearch.indices.GetMappingRequest
 import co.elastic.clients.elasticsearch.indices.GetMappingResponse
 import co.elastic.clients.json.JsonData
@@ -163,6 +166,80 @@ class ElasticsearchQueryBackendTest {
         confirmVerified(client)
     }
 
+    @Test
+    fun `element match rejects ordinary object mapping before search or pit io`() {
+        val client = mappingClient(
+            mapOf(
+                "items" to Property.of { property ->
+                    property.`object` { obj ->
+                        obj.properties("sku") { value -> value.keyword { keyword -> keyword } }
+                    }
+                },
+            ),
+        )
+        val backend = ElasticsearchQueryBackendFactory(client).bind(
+            QueryBackendResolutionContext(
+                PortableQueryDataset.target(QueryDocumentKind.SNAPSHOT),
+                PortableQueryDataset.schema(QueryDocumentKind.SNAPSHOT),
+                ElementMatchExpression(
+                    PortableQueryDataset.ITEMS,
+                    PredicateExpression(
+                        LogicalField("sku"),
+                        PortableOperator.EQ,
+                        listOf(QueryValue.StringValue("A")),
+                    ),
+                ),
+            ),
+        )
+
+        StepVerifier.create(backend.readiness())
+            .expectNext(
+                QueryBackendReadiness.NotReady(
+                    me.ahoo.wow.query.backend.QueryBackendReadinessReason.MAPPING_INCOMPATIBLE,
+                ),
+            )
+            .verifyComplete()
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.openPointInTime(any<OpenPointInTimeRequest>()) }
+    }
+
+    @Test
+    fun `binary predicate is configuration invalid before index search or pit io`() {
+        val client = mappingClient(
+            mapOf("payload" to Property.of { it.binary { value -> value } }),
+        )
+        val payload = LogicalField("payload")
+        val schema = PortableQueryDataset.schema(QueryDocumentKind.SNAPSHOT).withField(
+            me.ahoo.wow.query.schema.QueryFieldSchema(
+                payload,
+                me.ahoo.wow.query.schema.QueryFieldValueKind.BINARY,
+                nullable = false,
+            ),
+        )
+        val backend = ElasticsearchQueryBackendFactory(client).bind(
+            QueryBackendResolutionContext(
+                PortableQueryDataset.target(QueryDocumentKind.SNAPSHOT),
+                schema,
+                PredicateExpression(
+                    payload,
+                    PortableOperator.EQ,
+                    listOf(QueryValue.BinaryValue(byteArrayOf(1, 2, 3))),
+                ),
+            ),
+        )
+
+        StepVerifier.create(backend.readiness())
+            .expectNext(
+                QueryBackendReadiness.NotReady(
+                    me.ahoo.wow.query.backend.QueryBackendReadinessReason.CONFIGURATION_INVALID,
+                ),
+            )
+            .verifyComplete()
+        verify(exactly = 0) { client.indices().exists(any<ExistsRequest>()) }
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.openPointInTime(any<OpenPointInTimeRequest>()) }
+    }
+
     private fun mappingClient(properties: Map<String, Property>): ReactiveElasticsearchClient {
         val client = mockk<ReactiveElasticsearchClient>(relaxed = true)
         val indices = mockk<ReactiveElasticsearchIndicesClient>()
@@ -175,6 +252,11 @@ class ElasticsearchQueryBackendTest {
                         mapping.meta("wow_query_presence_version", JsonData.of(1)).properties(properties)
                     }
                 }
+            },
+        )
+        every { indices.getSettings(any<GetIndicesSettingsRequest>()) } returns Mono.just(
+            GetIndicesSettingsResponse.of { response ->
+                response.settings("index") { state -> state.settings { settings -> settings } }
             },
         )
         return client

@@ -15,9 +15,8 @@
 
 package me.ahoo.wow.elasticsearch.query.backend
 
-import co.elastic.clients.elasticsearch._types.mapping.Property
-import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch.indices.ExistsRequest
+import co.elastic.clients.elasticsearch.indices.GetIndicesSettingsRequest
 import co.elastic.clients.elasticsearch.indices.GetMappingRequest
 import me.ahoo.wow.query.backend.QueryBackendReadiness
 import me.ahoo.wow.query.backend.QueryBackendReadinessReason
@@ -42,6 +41,7 @@ internal data class ElasticsearchMappingFieldRequirement(
     val collectionKind: QueryCollectionKind,
     val system: Boolean,
     val usage: ElasticsearchMappingUsage,
+    val maxStringLength: Int? = null,
 )
 
 internal class ElasticsearchQueryReadinessRequirements(
@@ -63,12 +63,17 @@ internal interface ElasticsearchQueryMappingGuard {
     fun requireFields(fields: Set<ElasticsearchMappingFieldRequirement>)
 }
 
+internal data class ElasticsearchIndexMappingSnapshot(
+    val mapping: co.elastic.clients.elasticsearch._types.mapping.TypeMapping,
+    val settings: co.elastic.clients.elasticsearch.indices.IndexSettings,
+)
+
 internal class ElasticsearchQueryMappingSnapshot {
-    private val mappings = AtomicReference<List<TypeMapping>>()
+    private val mappings = AtomicReference<List<ElasticsearchIndexMappingSnapshot>>()
 
-    fun get(): List<TypeMapping>? = mappings.get()
+    fun get(): List<ElasticsearchIndexMappingSnapshot>? = mappings.get()
 
-    fun set(mappings: List<TypeMapping>?) {
+    fun set(mappings: List<ElasticsearchIndexMappingSnapshot>?) {
         this.mappings.set(mappings)
     }
 }
@@ -96,11 +101,22 @@ internal class ElasticsearchQueryReadiness(
                     )
                 }
                 client.indices().getMapping(GetMappingRequest.of { request -> request.index(index) })
-                    .map<QueryBackendReadiness> { response ->
-                        val loadedMappings = response.mappings().values.map { record -> record.mappings() }
-                        val compatible = loadedMappings.isNotEmpty() && loadedMappings.all(::compatible)
-                        if (compatible) mappingSnapshot.set(Collections.unmodifiableList(loadedMappings))
-                        readiness(loadedMappings)
+                    .flatMap { mappingResponse ->
+                        client.indices().getSettings(
+                            GetIndicesSettingsRequest.of { request ->
+                                request.index(index).includeDefaults(true)
+                            },
+                        ).map<QueryBackendReadiness> { settingsResponse ->
+                            val loadedMappings = mappingResponse.mappings().mapNotNull { (indexName, record) ->
+                                settingsResponse.settings()[indexName]?.settings()?.let { settings ->
+                                    ElasticsearchIndexMappingSnapshot(record.mappings(), settings)
+                                }
+                            }
+                            val complete = loadedMappings.size == mappingResponse.mappings().size
+                            val compatible = complete && loadedMappings.isNotEmpty() && loadedMappings.all(::compatible)
+                            if (compatible) mappingSnapshot.set(Collections.unmodifiableList(loadedMappings))
+                            readiness(loadedMappings, complete)
+                        }
                     }
             }
             .onErrorResume {
@@ -118,37 +134,47 @@ internal class ElasticsearchQueryReadiness(
         }
     }
 
-    private fun readiness(snapshot: List<TypeMapping>): QueryBackendReadiness =
-        if (snapshot.isNotEmpty() && snapshot.all(::compatible)) {
+    private fun readiness(
+        snapshot: List<ElasticsearchIndexMappingSnapshot>,
+        complete: Boolean = true,
+    ): QueryBackendReadiness =
+        if (complete && snapshot.isNotEmpty() && snapshot.all(::compatible)) {
             QueryBackendReadiness.Ready
         } else {
             QueryBackendReadiness.NotReady(QueryBackendReadinessReason.MAPPING_INCOMPATIBLE)
         }
 
-    private fun compatible(mapping: TypeMapping): Boolean {
+    private fun compatible(snapshot: ElasticsearchIndexMappingSnapshot): Boolean {
+        val mapping = snapshot.mapping
         val version = runCatching {
             mapping.meta()[PRESENCE_VERSION_META]?.to(Int::class.javaObjectType)
         }.getOrNull()
         return version == requirements.presenceVersion &&
-            requirements.fields.all { requirement -> compatible(mapping, requirement) } &&
-            requirements.presenceFields.all { path -> propertyAt(mapping, path)?.isKeyword == true }
+            requirements.fields.all { requirement -> compatible(snapshot, requirement) } &&
+            requirements.presenceFields.all { path -> propertyAt(mapping, path)?.hasManagedKeywordSemantics() == true }
     }
 
-    private fun compatible(mapping: TypeMapping, requirement: ElasticsearchMappingFieldRequirement): Boolean {
-        val property = propertyAt(mapping, requirement.path) ?: return false
+    private fun compatible(
+        snapshot: ElasticsearchIndexMappingSnapshot,
+        requirement: ElasticsearchMappingFieldRequirement,
+    ): Boolean {
+        val property = propertyAt(snapshot.mapping, requirement.path) ?: return false
         return when (requirement.usage) {
-            ElasticsearchMappingUsage.SEARCH -> property.hasDefaultSearchSemantics()
+            ElasticsearchMappingUsage.SEARCH -> property.hasDefaultSearchSemantics(snapshot.settings)
             ElasticsearchMappingUsage.NESTED -> property.isNested
-            ElasticsearchMappingUsage.EXACT -> property.matches(requirement.valueKind, requirement.system)
+            ElasticsearchMappingUsage.EXACT -> property.hasManagedExactSemantics(requirement)
             ElasticsearchMappingUsage.SOURCE -> property.matchesSource(requirement)
-            ElasticsearchMappingUsage.SORT -> property.matches(requirement.valueKind, requirement.system) &&
+            ElasticsearchMappingUsage.SORT -> property.hasManagedExactSemantics(requirement) &&
                 property.hasDocValues()
         }
     }
 
-    private fun propertyAt(mapping: TypeMapping, path: String): Property? {
+    private fun propertyAt(
+        mapping: co.elastic.clients.elasticsearch._types.mapping.TypeMapping,
+        path: String,
+    ): co.elastic.clients.elasticsearch._types.mapping.Property? {
         var properties = mapping.properties()
-        var current: Property? = null
+        var current: co.elastic.clients.elasticsearch._types.mapping.Property? = null
         val segments = path.split('.')
         segments.forEachIndexed { index, segment ->
             current = properties[segment] ?: return null
@@ -159,14 +185,19 @@ internal class ElasticsearchQueryReadiness(
         return current
     }
 
-    private fun childProperties(property: Property): Map<String, Property> = when {
+    private fun childProperties(
+        property: co.elastic.clients.elasticsearch._types.mapping.Property,
+    ): Map<String, co.elastic.clients.elasticsearch._types.mapping.Property> = when {
         property.isObject -> property.`object`().properties()
         property.isNested -> property.nested().properties()
         property.isText -> property.text().fields()
         else -> emptyMap()
     }
 
-    private fun Property.matches(kind: QueryFieldValueKind, system: Boolean): Boolean = when (kind) {
+    private fun co.elastic.clients.elasticsearch._types.mapping.Property.matches(
+        kind: QueryFieldValueKind,
+        system: Boolean,
+    ): Boolean = when (kind) {
         QueryFieldValueKind.BOOLEAN -> isBoolean
         QueryFieldValueKind.INTEGER -> isLong
         QueryFieldValueKind.DECIMAL -> isDouble
@@ -179,29 +210,86 @@ internal class ElasticsearchQueryReadiness(
         QueryFieldValueKind.MAP -> isObject
     }
 
-    private fun Property.matchesSource(requirement: ElasticsearchMappingFieldRequirement): Boolean = when {
-        requirement.collectionKind == QueryCollectionKind.OBJECT -> isNested
+    private fun co.elastic.clients.elasticsearch._types.mapping.Property.matchesSource(
+        requirement: ElasticsearchMappingFieldRequirement,
+    ): Boolean = when {
+        requirement.valueKind == QueryFieldValueKind.OBJECT -> isObject || isNested
         requirement.valueKind == QueryFieldValueKind.STRING ->
             isText || matches(requirement.valueKind, requirement.system)
         else -> matches(requirement.valueKind, requirement.system)
     }
 
-    private fun Property.hasDefaultSearchSemantics(): Boolean {
+    private fun co.elastic.clients.elasticsearch._types.mapping.Property.hasManagedExactSemantics(
+        requirement: ElasticsearchMappingFieldRequirement,
+    ): Boolean {
+        if (!matches(requirement.valueKind, requirement.system) || !isIndexed()) {
+            return false
+        }
+        return when {
+            isKeyword -> hasManagedKeywordSemantics(requirement.maxStringLength)
+            isDate -> date().format().isCompatibleApplicationTimeFormat()
+            isBinary -> false
+            else -> true
+        }
+    }
+
+    private fun co.elastic.clients.elasticsearch._types.mapping.Property.hasManagedKeywordSemantics(
+        maxStringLength: Int? = null,
+    ): Boolean {
+        if (!isKeyword || keyword().index() == false || keyword().normalizer() != null) {
+            return false
+        }
+        val ignoreAbove = keyword().ignoreAbove() ?: return true
+        return maxStringLength != null && ignoreAbove.toLong() >= maxStringLength.toLong() * MAX_UTF8_BYTES_PER_CHAR
+    }
+
+    private fun String?.isCompatibleApplicationTimeFormat(): Boolean =
+        this == null || split("||").any { format -> format == DEFAULT_DATE_FORMAT }
+
+    private fun co.elastic.clients.elasticsearch._types.mapping.Property.isIndexed(): Boolean = when (_kind()) {
+        co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Keyword -> keyword().index() != false
+        co.elastic.clients.elasticsearch._types.mapping.Property.Kind.ConstantKeyword -> true
+        co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Boolean -> boolean_().index() != false
+        co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Long -> long_().index() != false
+        co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Double -> double_().index() != false
+        co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Date -> date().index() != false
+        else -> false
+    }
+
+    private fun co.elastic.clients.elasticsearch._types.mapping.Property.hasDefaultSearchSemantics(
+        settings: co.elastic.clients.elasticsearch.indices.IndexSettings,
+    ): Boolean {
         if (!isText) {
             return false
         }
         val text = text()
-        return text.analyzer() in setOf(null, DEFAULT_ANALYZER) &&
-            text.searchAnalyzer() in setOf(null, DEFAULT_ANALYZER)
+        if (text.index() == false) {
+            return false
+        }
+        val defaultAnalyzer = settings.analysis()?.analyzer()?.get(INDEX_DEFAULT_ANALYZER)
+        val indexAnalyzer = text.analyzer()
+        val indexStandard = when (indexAnalyzer) {
+            null -> defaultAnalyzer == null || defaultAnalyzer.isStandard
+            DEFAULT_ANALYZER -> true
+            INDEX_DEFAULT_ANALYZER -> defaultAnalyzer?.isStandard == true
+            else -> false
+        }
+        val searchStandard = when (text.searchAnalyzer()) {
+            null -> indexStandard
+            DEFAULT_ANALYZER -> true
+            INDEX_DEFAULT_ANALYZER -> defaultAnalyzer?.isStandard == true
+            else -> false
+        }
+        return indexStandard && searchStandard
     }
 
-    private fun Property.hasDocValues(): Boolean = when (_kind()) {
-        Property.Kind.Keyword -> keyword().docValues() != false
-        Property.Kind.ConstantKeyword -> true
-        Property.Kind.Boolean -> boolean_().docValues() != false
-        Property.Kind.Long -> long_().docValues() != false
-        Property.Kind.Double -> double_().docValues() != false
-        Property.Kind.Date -> date().docValues() != false
+    private fun co.elastic.clients.elasticsearch._types.mapping.Property.hasDocValues(): Boolean = when (_kind()) {
+        co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Keyword -> keyword().docValues() != false
+        co.elastic.clients.elasticsearch._types.mapping.Property.Kind.ConstantKeyword -> true
+        co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Boolean -> boolean_().docValues() != false
+        co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Long -> long_().docValues() != false
+        co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Double -> double_().docValues() != false
+        co.elastic.clients.elasticsearch._types.mapping.Property.Kind.Date -> date().docValues() != false
         else -> false
     }
 
@@ -214,5 +302,8 @@ internal class ElasticsearchQueryReadiness(
     companion object {
         internal const val PRESENCE_VERSION_META = "wow_query_presence_version"
         private const val DEFAULT_ANALYZER = "standard"
+        private const val INDEX_DEFAULT_ANALYZER = "default"
+        private const val DEFAULT_DATE_FORMAT = "strict_date_optional_time"
+        private const val MAX_UTF8_BYTES_PER_CHAR = 4L
     }
 }

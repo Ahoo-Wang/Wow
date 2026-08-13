@@ -15,6 +15,8 @@ package me.ahoo.wow.elasticsearch.query.backend
 
 import co.elastic.clients.elasticsearch._types.mapping.Property
 import co.elastic.clients.elasticsearch.indices.ExistsRequest
+import co.elastic.clients.elasticsearch.indices.GetIndicesSettingsRequest
+import co.elastic.clients.elasticsearch.indices.GetIndicesSettingsResponse
 import co.elastic.clients.elasticsearch.indices.GetMappingRequest
 import co.elastic.clients.elasticsearch.indices.GetMappingResponse
 import co.elastic.clients.json.JsonData
@@ -90,7 +92,7 @@ class ElasticsearchQueryReadinessTest {
             fields = setOf(
                 field("rank", QueryFieldValueKind.INTEGER, ElasticsearchMappingUsage.EXACT),
                 field("createdAt", QueryFieldValueKind.TIME, ElasticsearchMappingUsage.EXACT, system = false),
-                field("payload", QueryFieldValueKind.BINARY, ElasticsearchMappingUsage.EXACT),
+                field("payload", QueryFieldValueKind.BINARY, ElasticsearchMappingUsage.SOURCE),
                 field("title", QueryFieldValueKind.STRING, ElasticsearchMappingUsage.SEARCH),
             ),
             presenceVersion = ElasticsearchQueryPresenceEncoder.VERSION,
@@ -153,7 +155,7 @@ class ElasticsearchQueryReadinessTest {
     }
 
     @Test
-    fun `source object collection retains nested mapping shape`() {
+    fun `source object collection accepts ordinary object and nested mapping shapes`() {
         val requirements = ElasticsearchQueryReadinessRequirements(
             configurationValid = true,
             fields = setOf(
@@ -176,7 +178,7 @@ class ElasticsearchQueryReadinessTest {
                     mapOf("items" to Property.of { it.`object` { value -> value } }),
                 ),
             ).inspect(),
-        ).expectNext(QueryBackendReadiness.NotReady(QueryBackendReadinessReason.MAPPING_INCOMPATIBLE)).verifyComplete()
+        ).expectNext(QueryBackendReadiness.Ready).verifyComplete()
         StepVerifier.create(
             readiness(
                 requirements,
@@ -217,6 +219,114 @@ class ElasticsearchQueryReadinessTest {
             }
             error.code.assert().isEqualTo(me.ahoo.wow.api.query.error.QueryErrorCode.BACKEND_NOT_READY)
         }
+    }
+
+    @Test
+    fun `exact managed mapping rejects non-queryable normalized truncated and incompatible date fields`() {
+        val requirements = ElasticsearchQueryReadinessRequirements(
+            configurationValid = true,
+            fields = setOf(
+                field("name", QueryFieldValueKind.STRING, ElasticsearchMappingUsage.EXACT),
+                field("createdAt", QueryFieldValueKind.TIME, ElasticsearchMappingUsage.EXACT),
+            ),
+            presenceVersion = ElasticsearchQueryPresenceEncoder.VERSION,
+        )
+        listOf(
+            mapOf(
+                "name" to Property.of { it.keyword { value -> value.index(false) } },
+                "createdAt" to Property.of { it.date { value -> value } },
+            ),
+            mapOf(
+                "name" to Property.of { it.keyword { value -> value.normalizer("lowercase") } },
+                "createdAt" to Property.of { it.date { value -> value } },
+            ),
+            mapOf(
+                "name" to Property.of { it.keyword { value -> value.ignoreAbove(1) } },
+                "createdAt" to Property.of { it.date { value -> value } },
+            ),
+            mapOf(
+                "name" to Property.of { it.keyword { value -> value } },
+                "createdAt" to Property.of { it.date { value -> value.format("epoch_millis") } },
+            ),
+        ).forEach { properties ->
+            StepVerifier.create(
+                readiness(
+                    requirements,
+                    mapping(ElasticsearchQueryPresenceEncoder.VERSION, properties),
+                ).inspect(),
+            ).expectNext(QueryBackendReadiness.NotReady(QueryBackendReadinessReason.MAPPING_INCOMPATIBLE))
+                .verifyComplete()
+        }
+    }
+
+    @Test
+    fun `keyword ignore above requires a declared maximum and its UTF-8 upper bound`() {
+        val requirement = ElasticsearchMappingFieldRequirement(
+            path = "name",
+            valueKind = QueryFieldValueKind.STRING,
+            collectionKind = me.ahoo.wow.query.schema.QueryCollectionKind.NONE,
+            system = false,
+            usage = ElasticsearchMappingUsage.EXACT,
+            maxStringLength = 4,
+        )
+        val requirements = ElasticsearchQueryReadinessRequirements(
+            configurationValid = true,
+            fields = setOf(requirement),
+            presenceVersion = ElasticsearchQueryPresenceEncoder.VERSION,
+        )
+
+        listOf(
+            16 to QueryBackendReadiness.Ready,
+            15 to QueryBackendReadiness.NotReady(
+                QueryBackendReadinessReason.MAPPING_INCOMPATIBLE,
+            ),
+        ).forEach { (ignoreAbove, expected) ->
+            StepVerifier.create(
+                readiness(
+                    requirements,
+                    mapping(
+                        ElasticsearchQueryPresenceEncoder.VERSION,
+                        mapOf("name" to Property.of { it.keyword { value -> value.ignoreAbove(ignoreAbove) } }),
+                    ),
+                ).inspect(),
+            ).expectNext(expected).verifyComplete()
+        }
+
+        val unboundedRequirements = ElasticsearchQueryReadinessRequirements(
+            configurationValid = true,
+            fields = setOf(requirement.copy(maxStringLength = null)),
+            presenceVersion = ElasticsearchQueryPresenceEncoder.VERSION,
+        )
+        StepVerifier.create(
+            readiness(
+                unboundedRequirements,
+                mapping(
+                    ElasticsearchQueryPresenceEncoder.VERSION,
+                    mapOf("name" to Property.of { it.keyword { value -> value.ignoreAbove(Int.MAX_VALUE) } }),
+                ),
+            ).inspect(),
+        ).expectNext(QueryBackendReadiness.NotReady(QueryBackendReadinessReason.MAPPING_INCOMPATIBLE))
+            .verifyComplete()
+    }
+
+    @Test
+    fun `search default analyzer is read from index settings`() {
+        val requirements = ElasticsearchQueryReadinessRequirements(
+            configurationValid = true,
+            fields = setOf(field("title", QueryFieldValueKind.STRING, ElasticsearchMappingUsage.SEARCH)),
+            presenceVersion = ElasticsearchQueryPresenceEncoder.VERSION,
+        )
+        val mapping = mapping(
+            ElasticsearchQueryPresenceEncoder.VERSION,
+            mapOf("title" to Property.of { it.text { value -> value } }),
+        )
+
+        StepVerifier.create(readiness(requirements, mapping, indexSettings(defaultAnalyzer = null)).inspect())
+            .expectNext(QueryBackendReadiness.Ready)
+            .verifyComplete()
+        StepVerifier.create(readiness(requirements, mapping, indexSettings(defaultAnalyzer = "keyword")).inspect())
+            .expectNext(QueryBackendReadiness.NotReady(QueryBackendReadinessReason.MAPPING_INCOMPATIBLE))
+            .verifyComplete()
     }
 
     @Test
@@ -267,14 +377,36 @@ class ElasticsearchQueryReadinessTest {
     private fun readiness(
         requirements: ElasticsearchQueryReadinessRequirements,
         mapping: GetMappingResponse,
+        settings: GetIndicesSettingsResponse = indexSettings(),
     ): ElasticsearchQueryReadiness {
         val client = mockk<ReactiveElasticsearchClient>()
         val indices = mockk<ReactiveElasticsearchIndicesClient>()
         every { client.indices() } returns indices
         every { indices.exists(any<ExistsRequest>()) } returns Mono.just(BooleanResponse(true))
         every { indices.getMapping(any<GetMappingRequest>()) } returns Mono.just(mapping)
+        every { indices.getSettings(any<GetIndicesSettingsRequest>()) } returns Mono.just(settings)
         return ElasticsearchQueryReadiness(client, "index", requirements)
     }
+
+    private fun indexSettings(defaultAnalyzer: String? = null): GetIndicesSettingsResponse =
+        GetIndicesSettingsResponse.of { response ->
+            response.settings("index") { state ->
+                state.settings { settings ->
+                    if (defaultAnalyzer == null) {
+                        settings
+                    } else {
+                        settings.analysis { analysis ->
+                            analysis.analyzer("default") { analyzer ->
+                                when (defaultAnalyzer) {
+                                    "standard" -> analyzer.standard { value -> value }
+                                    else -> analyzer.keyword { value -> value }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
     private fun mapping(version: Int, rootProperties: Map<String, Property>): GetMappingResponse =
         GetMappingResponse.of { response ->

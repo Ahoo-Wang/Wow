@@ -23,6 +23,7 @@ import me.ahoo.wow.api.query.gateway.QueryBudgetHint
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.api.query.gateway.QueryResultShape
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
+import me.ahoo.wow.elasticsearch.ElasticsearchSearchResponseGate
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.query.backend.ObservableQueryBackendFactory
 import me.ahoo.wow.tck.query.backend.PortableQueryDataset
@@ -43,9 +44,11 @@ class ElasticsearchSnapshotQueryBackendSpec : SnapshotQueryBackendSpec() {
 
     @BeforeEach
     fun setupFixture() {
+        val searchResponseGate = ElasticsearchSearchResponseGate()
         fixture = ElasticsearchPortableQueryBackendFixture(
-            ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch),
+            ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch, searchResponseGate),
             QueryDocumentKind.SNAPSHOT,
+            searchResponseGate,
         )
         StepVerifier.create(fixture.prepare(PortableQueryDataset)).verifyComplete()
     }
@@ -91,18 +94,23 @@ class ElasticsearchSnapshotQueryBackendSpec : SnapshotQueryBackendSpec() {
             target = PortableQueryDataset.target(QueryDocumentKind.SNAPSHOT),
             expression = vector.expression,
             resultShape = QueryResultShape.Dynamic,
-            budget = QueryBudgetHint(timeout = Duration.ofMillis(50)),
+            budget = QueryBudgetHint(timeout = Duration.ofSeconds(5)),
             limit = 0,
         )
 
         StepVerifier.create(withDataset(testKit(factory).gateway.list(request)))
+            .then(factory::awaitHeldSearchRequest)
             .expectErrorSatisfies { error ->
                 (error as QueryException).code.assert().isEqualTo(QueryErrorCode.DEADLINE_EXCEEDED)
             }
-            .verify(Duration.ofSeconds(2))
+            .verify(Duration.ofSeconds(7))
 
         factory.subscriptionCount(ElasticsearchQueryOperation.SEARCH).assert().isOne()
         factory.cancellationCount(ElasticsearchQueryOperation.SEARCH).assert().isOne()
+        factory.heldSearchRequestCount.assert().isOne()
+        factory.heldSearchResponseCount.assert().isZero()
+        factory.heldSearchTerminalAtCancellation.assert().isFalse()
+        factory.heldSearchRequestPrecededCancellation.assert().isTrue()
         factory.subscriptionCount(ElasticsearchQueryOperation.CLOSE_PIT).assert().isOne()
         factory.closedPitIds.assert().containsExactly(factory.latestPitId)
     }
@@ -123,11 +131,16 @@ class ElasticsearchSnapshotQueryBackendSpec : SnapshotQueryBackendSpec() {
         StepVerifier.create(withDataset(testKit(factory).gateway.list(request)), 0)
             .thenRequest(1)
             .expectNextCount(1)
+            .then(factory::awaitHeldSearchRequest)
             .thenCancel()
             .verify(Duration.ofSeconds(2))
 
-        factory.subscriptionCount(ElasticsearchQueryOperation.SEARCH).assert().isOne()
+        factory.subscriptionCount(ElasticsearchQueryOperation.SEARCH).assert().isEqualTo(2)
         factory.cancellationCount(ElasticsearchQueryOperation.SEARCH).assert().isOne()
+        factory.heldSearchRequestCount.assert().isOne()
+        factory.heldSearchResponseCount.assert().isZero()
+        factory.heldSearchTerminalAtCancellation.assert().isFalse()
+        factory.heldSearchRequestPrecededCancellation.assert().isTrue()
         factory.subscriptionCount(ElasticsearchQueryOperation.CLOSE_PIT).assert().isOne()
         factory.closedPitIds.assert().containsExactly(factory.latestPitId)
     }

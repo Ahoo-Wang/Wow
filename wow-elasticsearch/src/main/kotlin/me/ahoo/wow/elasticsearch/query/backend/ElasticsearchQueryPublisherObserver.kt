@@ -15,6 +15,7 @@
 
 package me.ahoo.wow.elasticsearch.query.backend
 
+import co.elastic.clients.elasticsearch.core.SearchRequest
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
 import java.util.WeakHashMap
@@ -29,10 +30,13 @@ internal enum class ElasticsearchQueryOperation {
 internal data class ElasticsearchQueryOperationContext(
     val operation: ElasticsearchQueryOperation,
     val pitId: String? = null,
+    val queryToken: String? = null,
 )
 
 internal interface ElasticsearchQueryPublisherObserver {
     fun <T : Any> observe(context: ElasticsearchQueryOperationContext, publisher: Mono<T>): Mono<T>
+
+    fun decorateSearch(request: SearchRequest): SearchRequest = request
 
     fun updatePitId(pitId: String) = Unit
 }

@@ -36,6 +36,7 @@ internal data class PitSearchHit<T : Any>(
 internal data class PitSearchPage<T : Any>(
     val hits: List<PitSearchHit<T>>,
     val pitId: String? = null,
+    val terminalError: QueryException? = null,
 )
 
 internal interface PitSearchAfterTransport<T : Any> {
@@ -50,6 +51,8 @@ internal class PitSearchAfterExecutor<T : Any>(
     private val transport: PitSearchAfterTransport<T>,
     private val index: String,
     private val pageSize: Int,
+    private val prefetchFirstPitPage: Boolean = false,
+    private val prefetchBarrier: (() -> Mono<Void>)? = null,
     private val now: () -> Instant = Instant::now,
     private val deadlineScheduler: Scheduler = Schedulers.parallel(),
     private val requestDecorator: (SearchRequest) -> SearchRequest,
@@ -68,7 +71,7 @@ internal class PitSearchAfterExecutor<T : Any>(
     ): Flux<PitSearchHit<T>> {
         val execution = Flux.usingWhen(
             transport.open(index).map(::AtomicReference).switchIfEmpty(Mono.error(backendFailure())),
-            { session -> search(session, emptyList(), 0, requestLimit, maxResults) },
+            { session -> search(session, emptyList(), 0, requestLimit, maxResults, prefetchFirstPitPage) },
             { session -> close(session.get()) },
             { session, _ -> close(session.get()) },
             { session -> close(session.get()) },
@@ -93,12 +96,14 @@ internal class PitSearchAfterExecutor<T : Any>(
         emitted: Long,
         requestLimit: Long?,
         maxResults: Long?,
+        prefetchNext: Boolean = false,
     ): Flux<PitSearchHit<T>> = Flux.defer {
         val window = searchWindow(emitted, requestLimit, maxResults) ?: return@defer Flux.empty()
         val request = searchRequest(session.get(), searchAfter, window.requestedSize)
         transport.search(request).flatMapMany { page ->
             page.pitId?.let(session::set)
-            emitPage(session, searchAfter, emitted, requestLimit, maxResults, window, page)
+            page.terminalError?.let { error -> return@flatMapMany Flux.error(error) }
+            emitPage(session, searchAfter, emitted, requestLimit, maxResults, window, page, prefetchNext)
         }
     }
 
@@ -136,6 +141,7 @@ internal class PitSearchAfterExecutor<T : Any>(
         maxResults: Long?,
         window: SearchWindow,
         page: PitSearchPage<T>,
+        prefetchNext: Boolean,
     ): Flux<PitSearchHit<T>> {
         if (page.hits.isEmpty()) {
             return Flux.empty()
@@ -147,9 +153,16 @@ internal class PitSearchAfterExecutor<T : Any>(
             window.remainingBudget?.coerceAtLeast(0),
         ).min().toInt()
         val current = page.hits.take(allowed)
-        return Flux.fromIterable(current).concatWith(
-            nextPage(session, emitted, requestLimit, maxResults, window, page, current.size),
-        )
+        val currentPage = Flux.fromIterable(current)
+        val followingPages = nextPage(session, emitted, requestLimit, maxResults, window, page, current.size)
+        return if (prefetchNext) {
+            Flux.merge(
+                followingPages,
+                currentPage.delaySubscription(prefetchBarrier?.invoke() ?: Mono.empty()),
+            )
+        } else {
+            currentPage.concatWith(followingPages)
+        }
     }
 
     private fun nextPage(
@@ -175,6 +188,7 @@ internal class PitSearchAfterExecutor<T : Any>(
                 emitted + currentSize,
                 requestLimit,
                 maxResults,
+                prefetchNext = false,
             )
         }
     }

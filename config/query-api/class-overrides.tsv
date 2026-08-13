@@ -97,6 +97,7 @@ wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ElasticsearchQueryBack
 wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ElasticsearchQueryBackend.class	exclude	kotlin-internal
 wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ElasticsearchQueryBackendDescriptorKt.class	exclude	kotlin-internal
 wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ElasticsearchQueryBackendFactory$Companion.class	exclude	synthetic-private-helper
+wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ElasticsearchIndexMappingSnapshot.class	exclude	kotlin-internal
 wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ElasticsearchMappingFieldRequirement.class	exclude	kotlin-internal
 wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ElasticsearchMappingUsage.class	exclude	kotlin-internal
 wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ElasticsearchQueryBackendBinder$ReadinessRequirementCollector$WhenMappings.class	exclude	synthetic-private-helper
@@ -145,5 +146,6 @@ wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ReactiveClientElastics
 wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ReactiveClientElasticsearchQueryTransport$close$3.class	exclude	synthetic-private-helper
 wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ReactiveClientElasticsearchQueryTransport$count$2.class	exclude	synthetic-private-helper
 wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ReactiveClientElasticsearchQueryTransport$open$3.class	exclude	synthetic-private-helper
-wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ReactiveClientElasticsearchQueryTransport$searchResult$2.class	exclude	synthetic-private-helper
+wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ReactiveClientElasticsearchQueryTransport$search$1.class	exclude	synthetic-private-helper
+wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ReactiveClientElasticsearchQueryTransport$searchResponse$2.class	exclude	synthetic-private-helper
 wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ReactiveClientElasticsearchQueryTransport.class	exclude	kotlin-internal

@@ -62,9 +62,9 @@ internal class ElasticsearchQueryResultDecoder(
         shape: QueryPlanResultShape.Typed,
         flatValues: Map<LogicalField, Any?>,
     ): R {
-        val structured = LinkedHashMap<String, Any?>()
-        flatValues.forEach { (field, value) -> insert(structured, field, value) }
         return try {
+            val structured = LinkedHashMap<String, Any?>()
+            flatValues.forEach { (field, value) -> insert(structured, field, value) }
             structured.convert(shape.resultType) as R
         } catch (error: QueryException) {
             throw error
@@ -276,8 +276,10 @@ internal class ElasticsearchQueryResultDecoder(
             target[segment] = null
             return
         }
-        val field = binding.schema(LogicalField(currentPath))
-        if (field.collectionKind == QueryCollectionKind.OBJECT) {
+        val currentField = LogicalField(currentPath)
+        val objectCollection = binding.contains(currentField) &&
+            binding.schema(currentField).collectionKind == QueryCollectionKind.OBJECT
+        if (objectCollection) {
             insertCollection(target, segment, segments, index, currentPath, value)
         } else {
             val child = target[segment]?.let(::mutableStringMap) ?: LinkedHashMap()
