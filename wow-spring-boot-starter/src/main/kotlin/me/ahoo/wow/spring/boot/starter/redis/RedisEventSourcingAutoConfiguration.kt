@@ -30,8 +30,8 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnEventStoreStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnSnapshotStoreStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ResolvedStorageRouteSnapshot
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
-import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.StorageRouteResolver
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.StorageRoutingProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
@@ -40,6 +40,7 @@ import me.ahoo.wow.spring.boot.starter.prepare.PrepareProperties
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareStorage
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.SmartInitializingSingleton
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -63,6 +64,8 @@ import java.time.Duration
     StorageRoutingProperties::class,
 )
 class RedisEventSourcingAutoConfiguration {
+    @Autowired
+    private lateinit var routeSnapshotProvider: ObjectProvider<ResolvedStorageRouteSnapshot>
 
     @Bean
     @ConditionalOnEventStoreStorage(StorageType.REDIS)
@@ -81,6 +84,7 @@ class RedisEventSourcingAutoConfiguration {
 
     @Bean("redisEventStoreLayoutGuard")
     @ConditionalOnEventStoreStorage(StorageType.REDIS)
+    @Suppress("UnusedParameter")
     internal fun redisEventStoreLayoutGuard(
         redisTemplate: ReactiveStringRedisTemplate,
         @Qualifier("redisEventStore") redisEventStore: EventStore,
@@ -91,10 +95,7 @@ class RedisEventSourcingAutoConfiguration {
     ): SmartInitializingSingleton {
         return RedisEventStoreLayoutGuard(
             redisEventStore = redisEventStore,
-            contextName = currentContext.contextName,
-            defaultEventStorage = eventStoreProperties.storage,
-            storageRoutingProperties = storageRoutingProperties,
-            eventStoreBindingsProvider = { eventStoreBindings.orderedStream().toList() },
+            routeSnapshotProvider = routeSnapshotProvider::getObject,
             detector = RedisEventStoreLayoutDetector(redisTemplate),
         )
     }
@@ -192,10 +193,7 @@ class RedisEventSourcingAutoConfiguration {
 
     private class RedisEventStoreLayoutGuard(
         private val redisEventStore: EventStore,
-        private val contextName: String,
-        private val defaultEventStorage: StorageType,
-        private val storageRoutingProperties: StorageRoutingProperties,
-        private val eventStoreBindingsProvider: () -> List<EventStoreBinding>,
+        private val routeSnapshotProvider: () -> ResolvedStorageRouteSnapshot,
         private val detector: RedisEventStoreLayoutDetector,
     ) : SmartInitializingSingleton {
         override fun afterSingletonsInstantiated() {
@@ -218,13 +216,7 @@ class RedisEventSourcingAutoConfiguration {
 
         private fun resolveRedisAggregates(): Set<NamedAggregate> {
             val originalRedisEventStore = redisEventStore.getOriginalDelegate()
-            val resolvedRoutes = StorageRouteResolver(
-                contextName = contextName,
-                snapshotEnabled = false,
-                eventStoreBindings = eventStoreBindingsProvider(),
-                snapshotStoreBindings = emptyList(),
-                defaultEventStorage = defaultEventStorage,
-            ).resolveEventRoutes(storageRoutingProperties)
+            val resolvedRoutes = routeSnapshotProvider().eventRoutes()
             return MetadataSearcher.localAggregates
                 .filterTo(linkedSetOf()) { namedAggregate ->
                     val selectedEventStore = resolvedRoutes.eventRoutes[namedAggregate]

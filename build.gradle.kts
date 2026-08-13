@@ -308,20 +308,26 @@ val queryApiSourceCheck = tasks.register<Exec>("queryApiSourceCheck") {
     dependsOn(":wow-mongo:$queryApiRuntimeClasspathTaskName")
     dependsOn(":wow-elasticsearch:jar")
     dependsOn(":wow-elasticsearch:$queryApiRuntimeClasspathTaskName")
+    dependsOn(":wow-spring-boot-starter:jar")
+    dependsOn(":wow-spring-boot-starter:$queryApiRuntimeClasspathTaskName")
     val wowQueryJar = project(":wow-query").tasks.named<Jar>("jar").flatMap { it.archiveFile }
     val wowMongoJar = project(":wow-mongo").tasks.named<Jar>("jar").flatMap { it.archiveFile }
     val wowElasticsearchJar = project(":wow-elasticsearch").tasks.named<Jar>("jar").flatMap { it.archiveFile }
+    val wowStarterJar = project(":wow-spring-boot-starter").tasks.named<Jar>("jar").flatMap { it.archiveFile }
     val runtimeDependencies = queryApiModuleRuntimeDependencies(":wow-query")
         .plus(queryApiModuleRuntimeDependencies(":wow-mongo"))
         .plus(queryApiModuleRuntimeDependencies(":wow-elasticsearch"))
-        .minus(files(wowQueryJar, wowMongoJar, wowElasticsearchJar))
+        .plus(queryApiModuleRuntimeDependencies(":wow-spring-boot-starter"))
+        .minus(files(wowQueryJar, wowMongoJar, wowElasticsearchJar, wowStarterJar))
     inputs.file("scripts/query-api-source-check.sh")
     inputs.file(wowQueryJar)
     inputs.file(wowMongoJar)
     inputs.file(wowElasticsearchJar)
+    inputs.file(wowStarterJar)
     inputs.file(project(":wow-query").layout.buildDirectory.file("query-api/runtime-classpath.txt"))
     inputs.file(project(":wow-mongo").layout.buildDirectory.file("query-api/runtime-classpath.txt"))
     inputs.file(project(":wow-elasticsearch").layout.buildDirectory.file("query-api/runtime-classpath.txt"))
+    inputs.file(project(":wow-spring-boot-starter").layout.buildDirectory.file("query-api/runtime-classpath.txt"))
     inputs.files(runtimeDependencies)
         .withPropertyName("runtimeDependencyClasspath")
         .withNormalizer(ClasspathNormalizer::class.java)
@@ -332,12 +338,14 @@ val queryApiSourceCheck = tasks.register<Exec>("queryApiSourceCheck") {
         val wowQueryJar = project(":wow-query").tasks.named<Jar>("jar").get().archiveFile.get().asFile
         val wowMongoJar = project(":wow-mongo").tasks.named<Jar>("jar").get().archiveFile.get().asFile
         val wowElasticsearchJar = project(":wow-elasticsearch").tasks.named<Jar>("jar").get().archiveFile.get().asFile
+        val wowStarterJar = project(":wow-spring-boot-starter").tasks.named<Jar>("jar").get().archiveFile.get().asFile
         val sourceRuntimeClasspath = (
             queryApiModuleRuntimeClasspath(":wow-query") + queryApiModuleRuntimeClasspath(":wow-mongo") +
-                queryApiModuleRuntimeClasspath(":wow-elasticsearch")
+                queryApiModuleRuntimeClasspath(":wow-elasticsearch") +
+                queryApiModuleRuntimeClasspath(":wow-spring-boot-starter")
             ).distinct().filterNot { runtimeEntry ->
                 runtimeEntry == wowQueryJar.absolutePath || runtimeEntry == wowMongoJar.absolutePath ||
-                    runtimeEntry == wowElasticsearchJar.absolutePath
+                    runtimeEntry == wowElasticsearchJar.absolutePath || runtimeEntry == wowStarterJar.absolutePath
             }
         commandLine(
             "bash",
@@ -345,6 +353,7 @@ val queryApiSourceCheck = tasks.register<Exec>("queryApiSourceCheck") {
             wowQueryJar.absolutePath,
             wowMongoJar.absolutePath,
             wowElasticsearchJar.absolutePath,
+            wowStarterJar.absolutePath,
             sourceRuntimeClasspath.joinToString(File.pathSeparator),
             queryApiKotlinCompiler.asPath,
         )

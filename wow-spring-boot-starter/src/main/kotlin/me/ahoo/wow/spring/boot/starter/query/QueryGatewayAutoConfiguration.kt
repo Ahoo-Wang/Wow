@@ -37,6 +37,7 @@ import me.ahoo.wow.query.schema.QuerySchemaResolver
 import me.ahoo.wow.query.validation.QueryBudgetLimit
 import me.ahoo.wow.query.validation.QueryStructureLimits
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.StorageRoutingAutoConfiguration
 import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.support.DefaultListableBeanFactory
@@ -44,6 +45,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Import
 import org.springframework.core.PriorityOrdered
 import reactor.core.publisher.Mono
 import tools.jackson.databind.ObjectMapper
@@ -51,9 +53,10 @@ import java.time.Clock
 import java.time.ZoneId
 import java.util.Locale
 
-@AutoConfiguration(after = [QueryAutoConfiguration::class])
+@AutoConfiguration(after = [QueryAutoConfiguration::class, StorageRoutingAutoConfiguration::class])
 @ConditionalOnWowEnabled
 @EnableConfigurationProperties(QueryGatewayProperties::class)
+@Import(StorageRoutingQueryBackendConfiguration::class)
 class QueryGatewayAutoConfiguration {
     private val springPolicyDescriptorPrefix: String = "spring-"
     private val maxSpringPolicyDescriptorSuffixLength: Int = 64 - springPolicyDescriptorPrefix.length

@@ -17,15 +17,27 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.api.query.gateway.QueryDocumentKind
+import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.infra.Decorator.Companion.getOriginalDelegate
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
 import me.ahoo.wow.redis.eventsourcing.RedisEventStore
 import me.ahoo.wow.redis.eventsourcing.RedisSnapshotStore
 import me.ahoo.wow.redis.prepare.RedisPrepareKeyFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStreamQueryServiceFactoryBinding
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.QueryBackendBinding
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.QueryBackendSelection
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ResolvedStorageChannelRoute
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ResolvedStorageRouteSnapshot
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotQueryServiceFactoryBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.StorageRouteCoordinator
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.StorageRoutingProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
@@ -33,13 +45,17 @@ import me.ahoo.wow.spring.boot.starter.metrics.MetricsAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareProperties
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareStorage
 import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 import reactor.core.publisher.Mono
 
 class RedisEventSourcingAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
+        .withUserConfiguration(CanonicalRedisRouteSnapshotTestConfiguration::class.java)
 
     @Test
     fun `should load context with redis event sourcing beans`() {
@@ -209,6 +225,32 @@ class RedisEventSourcingAutoConfigurationTest {
     }
 
     @Test
+    fun `layout guard consumes the supplied canonical route snapshot`() {
+        val checkedKeys = mutableListOf<String>()
+        val redisTemplate = mockk<ReactiveStringRedisTemplate> {
+            every { hasKey(capture(checkedKeys)) } returns Mono.just(false)
+        }
+
+        ApplicationContextRunner()
+            .enableWow()
+            .withPropertyValues(
+                "${EventStoreProperties.STORAGE}=${StorageType.REDIS_NAME}",
+                "wow.context-name=order-service",
+            )
+            .withBean(ReactiveStringRedisTemplate::class.java, { redisTemplate })
+            .withUserConfiguration(
+                RedisEventSourcingAutoConfiguration::class.java,
+                CanonicalSnapshotProbeConfiguration::class.java,
+            )
+            .run { context ->
+                context.assert().hasNotFailed()
+            }
+
+        checkedKeys.assert().isNotEmpty()
+        checkedKeys.all { key -> key.contains("order-service.order") }.assert().isTrue()
+    }
+
+    @Test
     fun `should fail closed when Redis layout check fails`() {
         val redisFailure = IllegalStateException("Redis unavailable")
         val redisTemplate = mockk<ReactiveStringRedisTemplate> {
@@ -288,4 +330,63 @@ class RedisEventSourcingAutoConfigurationTest {
         generateSequence(failure) { error -> error.cause }
             .mapNotNull(Throwable::message)
             .toList()
+}
+
+@Configuration(proxyBeanMethods = false)
+internal class CanonicalRedisRouteSnapshotTestConfiguration {
+    @Bean
+    @me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnEventStoreStorage(StorageType.REDIS)
+    fun resolvedStorageRouteSnapshot(
+        @Qualifier(me.ahoo.wow.spring.boot.starter.WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
+        currentContext: NamedBoundedContext,
+        eventStoreProperties: EventStoreProperties,
+        storageRoutingProperties: StorageRoutingProperties,
+        eventStoreBindings: List<EventStoreBinding>,
+        eventQueryBindings: List<EventStreamQueryServiceFactoryBinding>,
+        snapshotQueryBindings: List<SnapshotQueryServiceFactoryBinding>,
+        queryBackendBindings: List<QueryBackendBinding>,
+    ): ResolvedStorageRouteSnapshot = StorageRouteCoordinator(
+        contextName = currentContext.contextName,
+        snapshotEnabled = false,
+        eventStoreBindings = eventStoreBindings,
+        snapshotStoreBindings = emptyList(),
+        eventStreamQueryServiceFactoryBindings = eventQueryBindings,
+        snapshotQueryServiceFactoryBindings = snapshotQueryBindings,
+        queryBackendBindings = queryBackendBindings,
+        defaultEventStorage = eventStoreProperties.storage,
+        defaultSnapshotStorage = StorageType.MONGO,
+    ).resolve(storageRoutingProperties)
+}
+
+@Configuration(proxyBeanMethods = false)
+internal class CanonicalSnapshotProbeConfiguration {
+    @Bean
+    fun resolvedStorageRouteSnapshot(
+        @Qualifier("redisEventStore") redisEventStore: EventStore,
+    ): ResolvedStorageRouteSnapshot {
+        val defaultRoute = ResolvedStorageChannelRoute.Event(
+            bindingName = "probe-event-store",
+            storage = null,
+            eventStore = mockk(),
+            legacyQueryFactory = NoOpEventStreamQueryServiceFactory,
+            queryBackendSelection = QueryBackendSelection.Unavailable,
+        )
+        val redisRoute = ResolvedStorageChannelRoute.Event(
+            bindingName = "redis-event-store",
+            storage = StorageType.REDIS,
+            eventStore = redisEventStore,
+            legacyQueryFactory = NoOpEventStreamQueryServiceFactory,
+            queryBackendSelection = QueryBackendSelection.Unavailable,
+        )
+        return ResolvedStorageRouteSnapshot(
+            defaultEvent = defaultRoute,
+            defaultSnapshot = null,
+            routeOverrides = mapOf(
+                QueryTarget(
+                    MaterializedNamedAggregate("order-service", "order"),
+                    QueryDocumentKind.EVENT_STREAM,
+                ) to redisRoute,
+            ),
+        )
+    }
 }

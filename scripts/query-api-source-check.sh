@@ -12,17 +12,18 @@
 
 set -euo pipefail
 
-[[ $# -eq 5 ]] || {
-    echo "Usage: $0 WOW_QUERY_JAR WOW_MONGO_JAR WOW_ELASTICSEARCH_JAR RUNTIME_CLASSPATH KOTLIN_COMPILER_CLASSPATH" >&2
+[[ $# -eq 6 ]] || {
+    echo "Usage: $0 WOW_QUERY_JAR WOW_MONGO_JAR WOW_ELASTICSEARCH_JAR WOW_STARTER_JAR RUNTIME_CLASSPATH KOTLIN_COMPILER_CLASSPATH" >&2
     exit 64
 }
 
 readonly WOW_QUERY_JAR="$1"
 readonly WOW_MONGO_JAR="$2"
 readonly WOW_ELASTICSEARCH_JAR="$3"
-readonly RUNTIME_CLASSPATH="$4"
-readonly KOTLIN_COMPILER_CLASSPATH="$5"
-readonly FIXTURE_CLASSPATH="$WOW_QUERY_JAR:$WOW_MONGO_JAR:$WOW_ELASTICSEARCH_JAR:$RUNTIME_CLASSPATH"
+readonly WOW_STARTER_JAR="$4"
+readonly RUNTIME_CLASSPATH="$5"
+readonly KOTLIN_COMPILER_CLASSPATH="$6"
+readonly FIXTURE_CLASSPATH="$WOW_QUERY_JAR:$WOW_MONGO_JAR:$WOW_ELASTICSEARCH_JAR:$WOW_STARTER_JAR:$RUNTIME_CLASSPATH"
 readonly TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/query-api-source-check.XXXXXX")"
 
 cleanup() {
@@ -38,6 +39,7 @@ fail() {
 [[ -f "$WOW_QUERY_JAR" ]] || fail "Published wow-query JAR is missing: $WOW_QUERY_JAR"
 [[ -f "$WOW_MONGO_JAR" ]] || fail "Published wow-mongo JAR is missing: $WOW_MONGO_JAR"
 [[ -f "$WOW_ELASTICSEARCH_JAR" ]] || fail "Published wow-elasticsearch JAR is missing: $WOW_ELASTICSEARCH_JAR"
+[[ -f "$WOW_STARTER_JAR" ]] || fail "Published wow-spring-boot-starter JAR is missing: $WOW_STARTER_JAR"
 [[ -n "$RUNTIME_CLASSPATH" ]] || fail "Runtime classpath is empty"
 [[ -n "$KOTLIN_COMPILER_CLASSPATH" ]] || fail "Kotlin compiler classpath is empty"
 
@@ -51,6 +53,8 @@ for runtime_entry in "${runtime_entries[@]}"; do
         fail "Published wow-mongo JAR must not be duplicated on the runtime dependency classpath"
     [[ "$runtime_entry" != "$WOW_ELASTICSEARCH_JAR" ]] ||
         fail "Published wow-elasticsearch JAR must not be duplicated on the runtime dependency classpath"
+    [[ "$runtime_entry" != "$WOW_STARTER_JAR" ]] ||
+        fail "Published wow-spring-boot-starter JAR must not be duplicated on the runtime dependency classpath"
 done
 
 mkdir -p "$TEMP_DIR/java" "$TEMP_DIR/kotlin" "$TEMP_DIR/classes/java" "$TEMP_DIR/classes/kotlin"
@@ -1248,3 +1252,100 @@ for class_name in ElasticsearchQueryPresenceEncoder ElasticsearchMappingFieldReq
     }
 done
 echo "PASS: Kotlin external Elasticsearch bound backend, compiler, PIT and encoder boundary"
+
+cat >"$TEMP_DIR/java/InternalStarterRoutingApi.java" <<'EOF'
+package external.fixture;
+
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.StorageRoutingAutoConfiguration;
+import me.ahoo.wow.spring.boot.starter.query.QueryGatewayAutoConfiguration;
+
+public final class InternalStarterRoutingApi {
+    public static Object leakStorageRoute(StorageRoutingAutoConfiguration configuration) {
+        return configuration.queryBackendRouteSnapshot$wow_spring_boot_starter(null);
+    }
+
+    public static Object leakResolver(QueryGatewayAutoConfiguration configuration) {
+        return configuration.storageRoutingQueryBackendResolver$wow_spring_boot_starter(null);
+    }
+}
+EOF
+
+if javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/java" "$TEMP_DIR/java/InternalStarterRoutingApi.java" \
+    >"$TEMP_DIR/internal-starter-routing.out" 2>&1; then
+    fail "Java external source unexpectedly compiled internal starter routing bean methods"
+fi
+for method_name in queryBackendRouteSnapshot storageRoutingQueryBackendResolver; do
+    grep -F "$method_name" "$TEMP_DIR/internal-starter-routing.out" >/dev/null || {
+        cat "$TEMP_DIR/internal-starter-routing.out" >&2
+        fail "Java starter routing negative fixture did not diagnose $method_name"
+    }
+done
+echo "PASS: Java external source cannot reference internal starter routing bean methods"
+
+cat >"$TEMP_DIR/kotlin/ExternalStarterRoutingInternals.kt" <<'EOF'
+package external.fixture
+
+import me.ahoo.wow.spring.boot.starter.elasticsearch.ElasticsearchQueryBackendBindingConfiguration
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.CanonicalStorageRouteConfiguration
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.QueryBackendBinding
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.QueryBackendRouteSnapshot
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.QueryBackendSelection
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ResolvedStorageChannelRoute
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ResolvedStorageRouteSnapshot
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.StorageRouteCoordinator
+import me.ahoo.wow.spring.boot.starter.mongo.MongoQueryBackendBindingConfiguration
+import me.ahoo.wow.spring.boot.starter.query.StorageRoutingQueryBackendConfiguration
+import me.ahoo.wow.spring.boot.starter.query.StorageRoutingQueryBackendResolver
+
+fun useStarterRoutingInternals(
+    backendBinding: QueryBackendBinding,
+    backendRoutes: QueryBackendRouteSnapshot,
+    selection: QueryBackendSelection,
+    route: ResolvedStorageChannelRoute,
+    snapshot: ResolvedStorageRouteSnapshot,
+    coordinator: StorageRouteCoordinator,
+    canonicalConfiguration: CanonicalStorageRouteConfiguration,
+    resolverConfiguration: StorageRoutingQueryBackendConfiguration,
+    resolver: StorageRoutingQueryBackendResolver,
+    mongoConfiguration: MongoQueryBackendBindingConfiguration,
+    elasticsearchConfiguration: ElasticsearchQueryBackendBindingConfiguration,
+): List<Any> = listOf(
+    backendBinding,
+    backendRoutes,
+    selection,
+    route,
+    snapshot,
+    coordinator,
+    canonicalConfiguration,
+    resolverConfiguration,
+    resolver,
+    mongoConfiguration,
+    elasticsearchConfiguration,
+)
+EOF
+
+if java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+    -module-name starter-query-routing-external-negative-fixture \
+    -no-stdlib -no-reflect \
+    -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/kotlin-starter-routing-negative" \
+    "$TEMP_DIR/kotlin/ExternalStarterRoutingInternals.kt" \
+    >"$TEMP_DIR/kotlin-starter-routing-negative.out" 2>&1; then
+    fail "Kotlin external source unexpectedly accessed starter routing internals"
+fi
+grep -F "internal" "$TEMP_DIR/kotlin-starter-routing-negative.out" >/dev/null || {
+    cat "$TEMP_DIR/kotlin-starter-routing-negative.out" >&2
+    fail "Kotlin starter routing fixture did not enforce internal visibility"
+}
+for class_name in QueryBackendBinding QueryBackendRouteSnapshot QueryBackendSelection \
+    ResolvedStorageChannelRoute ResolvedStorageRouteSnapshot StorageRouteCoordinator \
+    CanonicalStorageRouteConfiguration StorageRoutingQueryBackendConfiguration \
+    StorageRoutingQueryBackendResolver MongoQueryBackendBindingConfiguration \
+    ElasticsearchQueryBackendBindingConfiguration; do
+    grep -F "$class_name" "$TEMP_DIR/kotlin-starter-routing-negative.out" >/dev/null || {
+        cat "$TEMP_DIR/kotlin-starter-routing-negative.out" >&2
+        fail "Kotlin starter routing negative fixture did not diagnose $class_name"
+    }
+done
+echo "PASS: Kotlin external starter routing boundary"

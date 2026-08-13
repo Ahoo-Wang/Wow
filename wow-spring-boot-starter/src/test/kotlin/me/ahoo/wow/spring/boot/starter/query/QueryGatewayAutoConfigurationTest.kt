@@ -65,6 +65,10 @@ import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.validation.QueryBudgetLimit
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.spring.boot.starter.enableWow
+import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.QueryBackendBinding
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.QueryBackendRouteSnapshot
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.QueryBackendSelection
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.config.ConfigurableBeanFactory
@@ -214,6 +218,53 @@ class QueryGatewayAutoConfigurationTest {
                     .tag("backendId", "unresolved")
                     .tag("errorCode", "BACKEND_NOT_READY")
                     .counter().count().assert().isEqualTo(1.0)
+            }
+    }
+
+    @Test
+    fun `storage route snapshot supplies the default backend resolver`() {
+        val backend = RecordingBackend()
+        val routeSnapshot = routeSnapshot(backend)
+
+        gatewayContextRunner()
+            .withBean(QueryBackendRouteSnapshot::class.java, { routeSnapshot })
+            .run { context ->
+                context.assert().hasSingleBean(QueryBackendResolver::class.java)
+
+                StepVerifier.create(context.getBean(QueryGateway::class.java).count(CountQueryRequest(QUERY_TARGET)))
+                    .expectNext(0)
+                    .verifyComplete()
+
+                backend.countPlans.assert().hasSize(1)
+            }
+    }
+
+    @Test
+    fun `custom backend resolver makes the storage routing resolver back off`() {
+        val custom = QueryBackendResolver {
+            ResolvedQueryBackend.resolve(RecordingBackend(), QueryBackendRouteIdentity("custom-route"))
+        }
+
+        gatewayContextRunner()
+            .withBean(QueryBackendRouteSnapshot::class.java, { routeSnapshot(RecordingBackend()) })
+            .withBean(QueryBackendResolver::class.java, { custom })
+            .run { context ->
+                context.assert().hasSingleBean(QueryBackendResolver::class.java)
+                context.getBean(QueryBackendResolver::class.java).assert().isSameAs(custom)
+            }
+    }
+
+    @Test
+    fun `two custom backend resolvers fail startup explicitly`() {
+        gatewayContextRunner()
+            .withBean("firstBackendResolver", QueryBackendResolver::class.java, {
+                QueryBackendResolver { Mono.error(AssertionError("unused")) }
+            })
+            .withBean("secondBackendResolver", QueryBackendResolver::class.java, {
+                QueryBackendResolver { Mono.error(AssertionError("unused")) }
+            })
+            .run { context ->
+                context.startupFailure.assert().isNotNull()
             }
     }
 
@@ -558,6 +609,19 @@ class QueryGatewayAutoConfigurationTest {
             })
         }
         return runner
+    }
+
+    private fun routeSnapshot(backend: QueryBackend): QueryBackendRouteSnapshot {
+        val binding = QueryBackendBinding(
+            name = "mongo-snapshot-store",
+            documentKind = QueryDocumentKind.SNAPSHOT,
+            storage = StorageType.MONGO,
+            backendFactory = { backend },
+        )
+        return QueryBackendRouteSnapshot(
+            defaultSelections = mapOf(QueryDocumentKind.SNAPSHOT to QueryBackendSelection.Available(binding)),
+            routeOverrides = emptyMap(),
+        )
     }
 }
 

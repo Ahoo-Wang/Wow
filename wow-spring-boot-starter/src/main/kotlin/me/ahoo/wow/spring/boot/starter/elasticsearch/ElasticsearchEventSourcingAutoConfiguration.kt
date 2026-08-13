@@ -45,6 +45,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration
 import org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Import
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import org.springframework.data.elasticsearch.core.ReactiveElasticsearchOperations
 
@@ -61,6 +62,7 @@ import org.springframework.data.elasticsearch.core.ReactiveElasticsearchOperatio
     ElasticsearchEventStoreBatchProperties::class,
     ElasticsearchSnapshotStoreBatchProperties::class,
 )
+@Import(ElasticsearchQueryBackendBindingConfiguration::class)
 class ElasticsearchEventSourcingAutoConfiguration(
     private val elasticsearchProperties: ElasticsearchProperties,
     private val eventStoreBatchProperties: ElasticsearchEventStoreBatchProperties,

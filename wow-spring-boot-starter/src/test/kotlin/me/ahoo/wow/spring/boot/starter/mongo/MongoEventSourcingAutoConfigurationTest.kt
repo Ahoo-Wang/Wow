@@ -23,20 +23,30 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
+import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.expression.MatchAll
+import me.ahoo.wow.api.query.gateway.QueryDocumentKind
+import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.configuration.NamedAggregateTypeSearcher
 import me.ahoo.wow.metrics.WowMetrics
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.mongo.MongoDatabaseContextGuard
 import me.ahoo.wow.mongo.MongoEventStore
 import me.ahoo.wow.mongo.MongoSnapshotStore
 import me.ahoo.wow.mongo.MongoSnapshotStoreBatchOptions
 import me.ahoo.wow.mongo.prepare.MongoPrepareKeyFactory
+import me.ahoo.wow.mongo.query.backend.MongoQueryBackendFactory
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
+import me.ahoo.wow.query.backend.QueryBackendResolutionContext
+import me.ahoo.wow.query.schema.QuerySchema
+import me.ahoo.wow.query.schema.QuerySystemFields
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.QueryBackendBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
@@ -141,6 +151,58 @@ class MongoEventSourcingAutoConfigurationTest {
     }
 
     @Test
+    fun `mongo feature off does not register query backend bindings`() {
+        contextRunner
+            .enableWow()
+            .withPropertyValues("${MongoProperties.PREFIX}.enabled=false")
+            .withUserConfiguration(MongoEventSourcingAutoConfiguration::class.java)
+            .run { context ->
+                context.assert()
+                    .hasNotFailed()
+                    .doesNotHaveBean(QueryBackendBinding::class.java)
+            }
+    }
+
+    @Test
+    fun `mongo query backend bindings preserve event and snapshot databases`() {
+        val eventDatabase = backendDatabase("event-db")
+        val snapshotDatabase = backendDatabase("snapshot-db")
+        val client = mongoClient(
+            "order-service",
+            mapOf("event-db" to eventDatabase, "snapshot-db" to snapshotDatabase),
+        )
+
+        contextRunner
+            .enableWow()
+            .withPropertyValues(
+                "${MongoProperties.PREFIX}.event-stream-database=event-db",
+                "${MongoProperties.PREFIX}.snapshot-database=snapshot-db",
+                "${MongoProperties.PREFIX}.prepare-database=event-db",
+                "${MongoProperties.PREFIX}.auto-init-schema=false",
+                "wow.context-name=order-service",
+            )
+            .withBean(MongoClient::class.java, { client })
+            .withUserConfiguration(MongoEventSourcingAutoConfiguration::class.java)
+            .run { context ->
+                val bindings = context.getBeansOfType(QueryBackendBinding::class.java).values
+                    .associateBy(QueryBackendBinding::documentKind)
+                bindings.keys.assert().containsExactlyInAnyOrder(
+                    QueryDocumentKind.EVENT_STREAM,
+                    QueryDocumentKind.SNAPSHOT,
+                )
+
+                bindMongoBackend(bindings.getValue(QueryDocumentKind.EVENT_STREAM), QueryDocumentKind.EVENT_STREAM)
+                verify(exactly = 1) { eventDatabase.codecRegistry }
+                verify(exactly = 0) { snapshotDatabase.codecRegistry }
+
+                bindMongoBackend(bindings.getValue(QueryDocumentKind.SNAPSHOT), QueryDocumentKind.SNAPSHOT)
+                verify(exactly = 1) { snapshotDatabase.codecRegistry }
+                bindings.getValue(QueryDocumentKind.EVENT_STREAM).name.assert().isEqualTo("mongo-event-store")
+                bindings.getValue(QueryDocumentKind.SNAPSHOT).name.assert().isEqualTo("mongo-snapshot-store")
+            }
+    }
+
+    @Test
     fun `should reject a database owned by another context when auto init is disabled`() {
         contextRunner
             .enableWow()
@@ -197,7 +259,40 @@ class MongoEventSourcingAutoConfigurationTest {
             }
     }
 
-    private fun mongoClient(ownerContextName: String): MongoClient {
+    private fun bindMongoBackend(binding: QueryBackendBinding, kind: QueryDocumentKind) {
+        binding.backendFactory.assert().isInstanceOf(MongoQueryBackendFactory::class.java)
+        val target = QueryTarget(MaterializedNamedAggregate("order-service", "order"), kind)
+        binding.backendFactory.bind(
+            QueryBackendResolutionContext(
+                target,
+                QuerySchema(target, QuerySystemFields.fields(kind)),
+                MatchAll,
+            ),
+        )
+    }
+
+    private fun backendDatabase(name: String): MongoDatabase {
+        val marker = Document()
+            .append(MessageRecords.CONTEXT_NAME, "order-service")
+            .append(MongoDatabaseContextGuard.LAYOUT_VERSION_FIELD, 1)
+        val markerCollection = mockk<MongoCollection<Document>>()
+        val markerPublisher = mockk<FindPublisher<Document>>()
+        every { markerCollection.find(any<Bson>()) } returns markerPublisher
+        every { markerPublisher.first() } returns publisherOf(marker)
+        every {
+            markerCollection.findOneAndUpdate(any<Bson>(), any<Bson>(), any<FindOneAndUpdateOptions>())
+        } returns publisherOf(marker)
+        return mockk {
+            every { this@mockk.name } returns name
+            every { codecRegistry } returns com.mongodb.MongoClientSettings.getDefaultCodecRegistry()
+            every { getCollection(any()) } returns markerCollection
+        }
+    }
+
+    private fun mongoClient(
+        ownerContextName: String,
+        namedDatabases: Map<String, MongoDatabase> = emptyMap(),
+    ): MongoClient {
         val marker = Document()
             .append(MessageRecords.CONTEXT_NAME, ownerContextName)
             .append(MongoDatabaseContextGuard.LAYOUT_VERSION_FIELD, 1)
@@ -219,7 +314,9 @@ class MongoEventSourcingAutoConfigurationTest {
         every { database.getCollection(any()) } returns markerCollection
 
         return mockk<MongoClient> {
-            every { getDatabase(any()) } returns database
+            every { getDatabase(any()) } answers {
+                namedDatabases[firstArg()] ?: database
+            }
         }
     }
 

@@ -51,6 +51,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfiguration
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Import
 
 @AutoConfiguration(after = [WowAutoConfiguration::class, MongoReactiveAutoConfiguration::class])
 @ConditionalOnWowEnabled
@@ -61,6 +62,7 @@ import org.springframework.context.annotation.Bean
     MongoEventStoreBatchProperties::class,
     MongoSnapshotStoreBatchProperties::class,
 )
+@Import(MongoQueryBackendBindingConfiguration::class)
 class MongoEventSourcingAutoConfiguration(
     private val mongoProperties: MongoProperties,
     private val eventStoreBatchProperties: MongoEventStoreBatchProperties,

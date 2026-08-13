@@ -36,6 +36,8 @@ import me.ahoo.wow.spring.boot.starter.mock.MockSnapshotAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.mongo.MongoEventSourcingAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.query.QueryAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.redis.RedisEventSourcingAutoConfiguration
+import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionOutcome
@@ -68,10 +70,13 @@ import org.springframework.core.type.AnnotatedTypeMetadata
     SnapshotProperties::class,
 )
 class StorageRoutingAutoConfiguration {
+    @Autowired
+    private lateinit var routeSnapshotProvider: ObjectProvider<ResolvedStorageRouteSnapshot>
 
     @Bean(destroyMethod = "")
     @Primary
     @Conditional(OnEventStorageRouteCondition::class)
+    @Suppress("UnusedParameter")
     fun routingEventStore(
         @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         namedBoundedContext: NamedBoundedContext,
@@ -83,16 +88,7 @@ class StorageRoutingAutoConfiguration {
         eventStreamQueryServiceFactoryBindings: List<EventStreamQueryServiceFactoryBinding>,
         snapshotQueryServiceFactoryBindings: List<SnapshotQueryServiceFactoryBinding>,
     ): EventStore {
-        val resolvedRoutes = StorageRouteResolver(
-            contextName = namedBoundedContext.contextName,
-            snapshotEnabled = snapshotProperties.enabled,
-            eventStoreBindings = eventStoreBindings,
-            snapshotStoreBindings = snapshotStoreBindings,
-            eventStreamQueryServiceFactoryBindings = eventStreamQueryServiceFactoryBindings,
-            snapshotQueryServiceFactoryBindings = snapshotQueryServiceFactoryBindings,
-            defaultEventStorage = eventStoreProperties.storage,
-            defaultSnapshotStorage = snapshotProperties.storage,
-        ).resolveEventRoutes(storageRoutingProperties)
+        val resolvedRoutes = routeSnapshotProvider.getObject().eventRoutes()
         return RoutingEventStore(
             AggregateEventStoreRegistry(
                 defaultEventStore = resolvedRoutes.defaultEventStore,
@@ -104,6 +100,7 @@ class StorageRoutingAutoConfiguration {
     @Bean(destroyMethod = "")
     @Primary
     @Conditional(OnSnapshotStorageRouteCondition::class)
+    @Suppress("UnusedParameter")
     fun routingSnapshotStore(
         @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         namedBoundedContext: NamedBoundedContext,
@@ -115,16 +112,7 @@ class StorageRoutingAutoConfiguration {
         eventStreamQueryServiceFactoryBindings: List<EventStreamQueryServiceFactoryBinding>,
         snapshotQueryServiceFactoryBindings: List<SnapshotQueryServiceFactoryBinding>,
     ): SnapshotStore {
-        val resolvedRoutes = StorageRouteResolver(
-            contextName = namedBoundedContext.contextName,
-            snapshotEnabled = snapshotProperties.enabled,
-            eventStoreBindings = eventStoreBindings,
-            snapshotStoreBindings = snapshotStoreBindings,
-            eventStreamQueryServiceFactoryBindings = eventStreamQueryServiceFactoryBindings,
-            snapshotQueryServiceFactoryBindings = snapshotQueryServiceFactoryBindings,
-            defaultEventStorage = eventStoreProperties.storage,
-            defaultSnapshotStorage = snapshotProperties.storage,
-        ).resolveSnapshotRoutes(storageRoutingProperties)
+        val resolvedRoutes = routeSnapshotProvider.getObject().snapshotRoutes()
         return RoutingSnapshotStore(
             AggregateSnapshotStoreRegistry(
                 defaultSnapshotStore = resolvedRoutes.defaultSnapshotStore,
@@ -136,6 +124,7 @@ class StorageRoutingAutoConfiguration {
     @Bean
     @Primary
     @Conditional(OnEventStorageRouteCondition::class)
+    @Suppress("UnusedParameter")
     fun routingEventStreamQueryServiceFactory(
         @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         namedBoundedContext: NamedBoundedContext,
@@ -147,16 +136,7 @@ class StorageRoutingAutoConfiguration {
         eventStreamQueryServiceFactoryBindings: List<EventStreamQueryServiceFactoryBinding>,
         snapshotQueryServiceFactoryBindings: List<SnapshotQueryServiceFactoryBinding>,
     ): EventStreamQueryServiceFactory {
-        val resolvedRoutes = StorageRouteResolver(
-            contextName = namedBoundedContext.contextName,
-            snapshotEnabled = snapshotProperties.enabled,
-            eventStoreBindings = eventStoreBindings,
-            snapshotStoreBindings = snapshotStoreBindings,
-            eventStreamQueryServiceFactoryBindings = eventStreamQueryServiceFactoryBindings,
-            snapshotQueryServiceFactoryBindings = snapshotQueryServiceFactoryBindings,
-            defaultEventStorage = eventStoreProperties.storage,
-            defaultSnapshotStorage = snapshotProperties.storage,
-        ).resolveEventStreamQueryServiceFactoryRoutes(storageRoutingProperties)
+        val resolvedRoutes = routeSnapshotProvider.getObject().eventStreamQueryServiceFactoryRoutes()
         return RoutingEventStreamQueryServiceFactory(
             defaultEventStreamQueryServiceFactory = resolvedRoutes.defaultEventStreamQueryServiceFactory,
             routes = resolvedRoutes.eventStreamQueryServiceFactoryRoutes,
@@ -166,6 +146,7 @@ class StorageRoutingAutoConfiguration {
     @Bean
     @Primary
     @Conditional(OnSnapshotStorageRouteCondition::class)
+    @Suppress("UnusedParameter")
     fun routingSnapshotQueryServiceFactory(
         @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         namedBoundedContext: NamedBoundedContext,
@@ -177,16 +158,7 @@ class StorageRoutingAutoConfiguration {
         eventStreamQueryServiceFactoryBindings: List<EventStreamQueryServiceFactoryBinding>,
         snapshotQueryServiceFactoryBindings: List<SnapshotQueryServiceFactoryBinding>,
     ): SnapshotQueryServiceFactory {
-        val resolvedRoutes = StorageRouteResolver(
-            contextName = namedBoundedContext.contextName,
-            snapshotEnabled = snapshotProperties.enabled,
-            eventStoreBindings = eventStoreBindings,
-            snapshotStoreBindings = snapshotStoreBindings,
-            eventStreamQueryServiceFactoryBindings = eventStreamQueryServiceFactoryBindings,
-            snapshotQueryServiceFactoryBindings = snapshotQueryServiceFactoryBindings,
-            defaultEventStorage = eventStoreProperties.storage,
-            defaultSnapshotStorage = snapshotProperties.storage,
-        ).resolveSnapshotQueryServiceFactoryRoutes(storageRoutingProperties)
+        val resolvedRoutes = routeSnapshotProvider.getObject().snapshotQueryServiceFactoryRoutes()
         return RoutingSnapshotQueryServiceFactory(
             defaultSnapshotQueryServiceFactory = resolvedRoutes.defaultSnapshotQueryServiceFactory,
             routes = resolvedRoutes.snapshotQueryServiceFactoryRoutes,

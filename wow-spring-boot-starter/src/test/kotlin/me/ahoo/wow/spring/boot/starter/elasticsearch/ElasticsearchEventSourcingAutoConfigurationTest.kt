@@ -13,8 +13,10 @@
 
 package me.ahoo.wow.spring.boot.starter.elasticsearch
 
+import co.elastic.clients.elasticsearch.indices.ExistsRequest
 import co.elastic.clients.json.JsonpMapper
 import co.elastic.clients.json.jackson.Jackson3JsonpMapper
+import co.elastic.clients.transport.endpoints.BooleanResponse
 import co.elastic.clients.transport.rest5_client.Rest5ClientOptions
 import co.elastic.clients.transport.rest5_client.SafeResponseConsumer
 import io.mockk.every
@@ -22,18 +24,29 @@ import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.query.expression.MatchAll
+import me.ahoo.wow.api.query.gateway.QueryDocumentKind
+import me.ahoo.wow.api.query.gateway.QueryTarget
+import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
+import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.elasticsearch.IndexTemplateInitializer
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStoreBatchOptions
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStoreBatchOptions
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryBackendFactory
 import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryServiceFactory
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
 import me.ahoo.wow.metrics.WowMetrics
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.backend.QueryBackendResolutionContext
+import me.ahoo.wow.query.schema.QuerySchema
+import me.ahoo.wow.query.schema.QuerySystemFields
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.QueryBackendBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.StorageRoutingProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
@@ -53,6 +66,7 @@ import org.springframework.data.elasticsearch.core.ReactiveIndexOperations
 import org.springframework.data.elasticsearch.core.mapping.IndexCoordinates
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
+import reactor.test.StepVerifier
 
 internal class ElasticsearchEventSourcingAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
@@ -172,6 +186,7 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
                     .doesNotHaveBean(IndexTemplateInitializer::class.java)
                     .doesNotHaveBean(ElasticsearchEventStore::class.java)
                     .doesNotHaveBean(ElasticsearchSnapshotStore::class.java)
+                    .doesNotHaveBean(QueryBackendBinding::class.java)
                 verify(exactly = 0) { indexOperations.putIndexTemplate(any()) }
             }
     }
@@ -191,6 +206,7 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
                     .doesNotHaveBean(ElasticsearchEventStore::class.java)
                     .doesNotHaveBean(ElasticsearchSnapshotStore::class.java)
                     .doesNotHaveBean(IndexTemplateInitializer::class.java)
+                    .doesNotHaveBean(QueryBackendBinding::class.java)
             }
     }
 
@@ -249,6 +265,59 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
                 val snapshotBinding = context.getBean(SnapshotStoreBinding::class.java)
                 snapshotBinding.storage.assert().isEqualTo(StorageType.ELASTICSEARCH)
                 snapshotBinding.snapshotStore.assert().isSameAs(snapshotStore)
+            }
+    }
+
+    @Test
+    fun `elasticsearch query backend bindings preserve document kind index routes`() {
+        val existsRequests = mutableListOf<ExistsRequest>()
+        val indices = mockk<org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchIndicesClient>()
+        val client = mockk<ReactiveElasticsearchClient>(relaxed = true) {
+            every { this@mockk.indices() } returns indices
+        }
+        every { indices.exists(capture(existsRequests)) } returns Mono.just(BooleanResponse(false))
+
+        elasticsearchContextRunner(successfulIndexOperations(), client)
+            .withPropertyValues(
+                "${EventStoreProperties.STORAGE}=${StorageType.ELASTICSEARCH_NAME}",
+                "${SnapshotProperties.STORAGE}=${StorageType.ELASTICSEARCH_NAME}",
+                "${ElasticsearchProperties.PREFIX}.auto-init-template=false",
+            )
+            .run { context ->
+                val bindings = context.getBeansOfType(QueryBackendBinding::class.java).values
+                    .associateBy(QueryBackendBinding::documentKind)
+                bindings.keys.assert().containsExactlyInAnyOrder(
+                    QueryDocumentKind.EVENT_STREAM,
+                    QueryDocumentKind.SNAPSHOT,
+                )
+
+                val aggregate = MaterializedNamedAggregate("order-service", "order")
+                QueryDocumentKind.entries.forEach { kind ->
+                    val binding = bindings.getValue(kind)
+                    binding.backendFactory.assert().isInstanceOf(ElasticsearchQueryBackendFactory::class.java)
+                    val target = QueryTarget(aggregate, kind)
+                    val backend = binding.backendFactory.bind(
+                        QueryBackendResolutionContext(
+                            target,
+                            QuerySchema(target, QuerySystemFields.fields(kind)),
+                            MatchAll,
+                        ),
+                    )
+                    StepVerifier.create(backend.readiness())
+                        .expectNextMatches { readiness ->
+                            readiness is me.ahoo.wow.query.backend.QueryBackendReadiness.NotReady
+                        }
+                        .verifyComplete()
+                }
+
+                bindings.getValue(QueryDocumentKind.EVENT_STREAM).name.assert()
+                    .isEqualTo("elasticsearch-event-store")
+                bindings.getValue(QueryDocumentKind.SNAPSHOT).name.assert()
+                    .isEqualTo("elasticsearch-snapshot-store")
+                existsRequests.map { request -> request.index().single() }.assert().containsExactlyInAnyOrder(
+                    aggregate.toEventStreamIndexName(),
+                    aggregate.toSnapshotIndexName(),
+                )
             }
     }
 
@@ -388,14 +457,17 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
         every { putIndexTemplate(any()) } returns true.toMono()
     }
 
-    private fun elasticsearchContextRunner(indexOperations: ReactiveIndexOperations): ApplicationContextRunner {
+    private fun elasticsearchContextRunner(
+        indexOperations: ReactiveIndexOperations,
+        client: ReactiveElasticsearchClient = mock(ReactiveElasticsearchClient::class.java),
+    ): ApplicationContextRunner {
         val elasticsearchOperations = mockk<ReactiveElasticsearchOperations> {
             every { indexOps(any<IndexCoordinates>()) } returns indexOperations
         }
         return contextRunner
             .enableWow()
             .withBean(ReactiveElasticsearchClient::class.java, {
-                mock(ReactiveElasticsearchClient::class.java)
+                client
             })
             .withBean(ReactiveElasticsearchOperations::class.java, {
                 elasticsearchOperations
