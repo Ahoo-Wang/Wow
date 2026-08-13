@@ -22,6 +22,7 @@ import me.ahoo.wow.api.query.gateway.QueryOperation
 import me.ahoo.wow.query.backend.QueryPortableFeature
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -52,6 +53,25 @@ class PortableQueryVectorTest {
     }
 
     @Test
+    fun `branch discriminating portable vectors remain explicit`() {
+        val vectorIds = PortableQueryDataset.vectors.map(PortableQueryVector::id).toSet()
+
+        assertTrue(
+            vectorIds.containsAll(
+                setOf(
+                    "in-scalar-collection-any-match",
+                    "not-in-scalar-collection-no-match",
+                    "empty-list-exists-present",
+                    "starts-with-default-case-sensitive",
+                    "starts-with-case-insensitive",
+                    "ends-with-default-case-sensitive",
+                    "ends-with-case-insensitive"
+                )
+            )
+        )
+    }
+
+    @Test
     fun `dataset has ten immutable logical documents and both document wrappers`() {
         assertEquals(10, PortableQueryDataset.documents.size)
         assertEquals(
@@ -74,6 +94,26 @@ class PortableQueryVectorTest {
         @Suppress("UNCHECKED_CAST")
         val documents = PortableQueryDataset.documents as MutableList<PortableQueryDocument>
         assertThrows(UnsupportedOperationException::class.java) { documents.clear() }
+    }
+
+    @Test
+    fun `stable tie fixture cannot pass with primary sort alone`() {
+        val primaryOnlyOrder = PortableQueryDataset.documents
+            .sortedBy { document ->
+                (document.fields.getValue(PortableQueryDataset.RANK) as QueryValue.IntegerValue).value
+            }.map(PortableQueryDocument::logicalId)
+        val stableVector = PortableQueryDataset.vectors.single { vector ->
+            vector.id == "stable-primary-sort-tie"
+        }
+
+        assertEquals(
+            listOf("d01", "d02", "d03", "d04", "d05", "d06", "d07", "d08", "d09", "d10"),
+            stableVector.expectation(QueryDocumentKind.EVENT_STREAM)?.logicalIds
+        )
+        assertNotEquals(
+            listOf("d01", "d02", "d03", "d04", "d05", "d06", "d07", "d08", "d09", "d10"),
+            primaryOnlyOrder
+        )
     }
 
     @Test

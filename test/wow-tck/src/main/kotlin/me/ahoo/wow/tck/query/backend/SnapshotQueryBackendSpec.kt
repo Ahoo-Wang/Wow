@@ -15,6 +15,7 @@ package me.ahoo.wow.tck.query.backend
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.error.QueryException
+import me.ahoo.wow.api.query.expression.LogicalField
 import me.ahoo.wow.api.query.expression.PortableOperator
 import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryValue
@@ -30,6 +31,7 @@ import me.ahoo.wow.api.query.gateway.QueryResultShape
 import me.ahoo.wow.api.query.gateway.QuerySort
 import me.ahoo.wow.api.query.gateway.QuerySortDirection
 import me.ahoo.wow.api.query.gateway.SingleQueryRequest
+import me.ahoo.wow.query.policy.QueryFieldAccess
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
@@ -201,6 +203,10 @@ abstract class QueryBackendContractSpec protected constructor(
     }
 
     private fun verifyVector(vector: PortableQueryVector) {
+        if (vector.key == PortableContractKey.Scenario(PortableQueryScenario.PROJECTION)) {
+            verifyDynamicProjection(vector)
+            return
+        }
         val expectation = requireNotNull(vector.expectation(documentKind))
         val testKit = testKit()
         val results: Flux<String> = if (vector.projection == QueryProjection.All) {
@@ -242,6 +248,37 @@ abstract class QueryBackendContractSpec protected constructor(
             testKit.executionSubscriptionCount.assert().isOne()
         }
         testKit.targetOnlyResolutionCount.assert().isZero()
+    }
+
+    private fun verifyDynamicProjection(vector: PortableQueryVector) {
+        val expectation = requireNotNull(vector.expectation(documentKind))
+        val projection = vector.projection as QueryProjection.Include
+        val requiredSystemFields = when (documentKind) {
+            QueryDocumentKind.SNAPSHOT -> setOf(LogicalField("aggregateId"), LogicalField("deleted"))
+            QueryDocumentKind.EVENT_STREAM -> setOf(LogicalField("id"))
+        }
+        val authorizedFields = projection.fields + requiredSystemFields
+        val testKit = testKit(QueryFieldAccess.Restricted(authorizedFields))
+        val results = testKit.gateway.list(
+            ListQueryRequest(
+                target = testKit.target,
+                expression = vector.expression,
+                resultShape = QueryResultShape.Dynamic,
+                requestedScope = vector.requestedScope,
+                sort = vector.sort.ifEmpty(::identitySort),
+                limit = 0
+            )
+        )
+        val expectedFields = authorizedFields.mapTo(LinkedHashSet(), LogicalField::value)
+
+        StepVerifier.create(withDataset(results))
+            .assertNext { document ->
+                logicalId(document).assert().isEqualTo(expectation.logicalIds.single())
+                document.keys.assert().isEqualTo(expectedFields)
+                document.containsKey(PortableQueryDataset.TITLE.value).assert().isFalse()
+            }
+            .verifyComplete()
+        assertContextResolution(testKit)
     }
 
     private fun operationVector(operation: QueryOperation): PortableQueryVector =

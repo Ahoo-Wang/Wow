@@ -18,10 +18,7 @@ import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.error.QueryErrorCode
 import me.ahoo.wow.api.query.error.QueryException
 import me.ahoo.wow.api.query.expression.MatchAll
-import me.ahoo.wow.api.query.expression.PortableOperator
-import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryCapabilityId
-import me.ahoo.wow.api.query.expression.QueryValue
 import me.ahoo.wow.api.query.gateway.ListQueryRequest
 import me.ahoo.wow.api.query.gateway.QueryBudgetHint
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
@@ -30,12 +27,27 @@ import me.ahoo.wow.api.query.gateway.QuerySort
 import me.ahoo.wow.api.query.gateway.QuerySortDirection
 import me.ahoo.wow.query.backend.QueryBackendFactory
 import me.ahoo.wow.query.backend.QueryBackendReadiness
+import me.ahoo.wow.query.policy.QueryFieldAccess
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
 import java.time.Duration
+
+enum class QueryBackendClientHold {
+    BEFORE_FIRST_RESULT,
+    AFTER_FIRST_RESULT
+}
+
+interface QueryBackendClientLifecycleProbe {
+    val subscriptionCount: Long
+    val cancellationCount: Long
+
+    fun reset()
+
+    fun holdNextList(hold: QueryBackendClientHold)
+}
 
 abstract class QueryBackendLifecycleSpec protected constructor(
     protected val documentKind: QueryDocumentKind
@@ -46,16 +58,20 @@ abstract class QueryBackendLifecycleSpec protected constructor(
 
     protected abstract fun clear(): Mono<Void>
 
+    protected abstract fun clientLifecycleProbe(): QueryBackendClientLifecycleProbe
+
     protected open fun declaredCapabilities(): Set<QueryCapabilityId> = emptySet()
 
     protected open fun readinessFixture(): QueryBackendReadiness = QueryBackendReadiness.Ready
 
-    protected fun testKit(): QueryBackendTestKit = QueryBackendTestKit(
-        backendFactory = backendFactory(),
-        documentKind = documentKind,
-        expectedCapabilities = declaredCapabilities(),
-        expectedReadiness = readinessFixture()
-    )
+    protected fun testKit(fieldAccess: QueryFieldAccess = QueryFieldAccess.UNRESTRICTED): QueryBackendTestKit =
+        QueryBackendTestKit(
+            backendFactory = backendFactory(),
+            documentKind = documentKind,
+            expectedCapabilities = declaredCapabilities(),
+            expectedReadiness = readinessFixture(),
+            fieldAccess = fieldAccess
+        )
 
     protected fun <T : Any> withDataset(publisher: Mono<T>): Mono<T> = Mono.usingWhen(
         Mono.just(Unit),
@@ -103,7 +119,11 @@ abstract class QueryBackendLifecycleSpec protected constructor(
 
     @Test
     fun `downstream cancellation cancels backend client publisher`() {
-        val testKit = testKit().holdListPublisherOpen()
+        val clientProbe = clientLifecycleProbe().apply {
+            reset()
+            holdNextList(QueryBackendClientHold.AFTER_FIRST_RESULT)
+        }
+        val testKit = testKit()
         val request = ListQueryRequest(
             target = testKit.target,
             expression = MatchAll,
@@ -119,21 +139,25 @@ abstract class QueryBackendLifecycleSpec protected constructor(
             .thenCancel()
             .verify()
 
-        assertTrue(testKit.cancellationCount >= 1)
+        clientProbe.subscriptionCount.assert().isOne()
+        clientProbe.cancellationCount.assert().isOne()
         testKit.executionSubscriptionCount.assert().isOne()
         testKit.targetOnlyResolutionCount.assert().isZero()
     }
 
     @Test
     fun `deadline cancels backend client publisher before its first item`() {
-        val testKit = testKit().holdListPublisherOpen()
+        val clientProbe = clientLifecycleProbe().apply {
+            reset()
+            holdNextList(QueryBackendClientHold.BEFORE_FIRST_RESULT)
+        }
+        val testKit = testKit()
+        val vector = PortableQueryDataset.vectors.single {
+            it.key == PortableContractKey.Lifecycle(PortableLifecycleCase.DEADLINE)
+        }
         val request = ListQueryRequest(
             target = testKit.target,
-            expression = PredicateExpression(
-                PortableQueryDataset.LOGICAL_ID,
-                PortableOperator.EQ,
-                listOf(QueryValue.StringValue("missing"))
-            ),
+            expression = vector.expression,
             resultShape = QueryResultShape.Dynamic,
             budget = QueryBudgetHint(timeout = Duration.ofMillis(50)),
             limit = 0
@@ -145,7 +169,8 @@ abstract class QueryBackendLifecycleSpec protected constructor(
             }
             .verify(Duration.ofSeconds(2))
 
-        assertTrue(testKit.cancellationCount >= 1)
+        clientProbe.subscriptionCount.assert().isOne()
+        clientProbe.cancellationCount.assert().isOne()
         testKit.executionSubscriptionCount.assert().isOne()
         testKit.targetOnlyResolutionCount.assert().isZero()
     }

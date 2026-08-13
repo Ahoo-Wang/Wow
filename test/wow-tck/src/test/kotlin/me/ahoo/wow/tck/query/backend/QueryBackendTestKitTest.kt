@@ -19,9 +19,10 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 class SnapshotQueryBackendTestKitTest : SnapshotQueryBackendSpec() {
     private val documents = CopyOnWriteArrayList<PortableStoredQueryDocument>()
+    private val clientProbe = InMemoryPortableQueryClientLifecycleProbe()
 
     override fun backendFactory(): QueryBackendFactory = QueryBackendFactory { context ->
-        InMemoryPortableQueryBackend(context, documents::toList)
+        InMemoryPortableQueryBackend(context, documents::toList, clientProbe)
     }
 
     override fun prepare(dataset: PortableQueryDataset): Mono<Void> = Mono.fromRunnable {
@@ -30,13 +31,16 @@ class SnapshotQueryBackendTestKitTest : SnapshotQueryBackendSpec() {
     }
 
     override fun clear(): Mono<Void> = Mono.fromRunnable(documents::clear)
+
+    override fun clientLifecycleProbe(): QueryBackendClientLifecycleProbe = clientProbe
 }
 
 class EventStreamQueryBackendTestKitTest : EventStreamQueryBackendSpec() {
     private val documents = CopyOnWriteArrayList<PortableStoredQueryDocument>()
+    private val clientProbe = InMemoryPortableQueryClientLifecycleProbe()
 
     override fun backendFactory(): QueryBackendFactory = QueryBackendFactory { context ->
-        InMemoryPortableQueryBackend(context, documents::toList)
+        InMemoryPortableQueryBackend(context, documents::toList, clientProbe)
     }
 
     override fun prepare(dataset: PortableQueryDataset): Mono<Void> = Mono.fromRunnable {
@@ -45,4 +49,6 @@ class EventStreamQueryBackendTestKitTest : EventStreamQueryBackendSpec() {
     }
 
     override fun clear(): Mono<Void> = Mono.fromRunnable(documents::clear)
+
+    override fun clientLifecycleProbe(): QueryBackendClientLifecycleProbe = clientProbe
 }

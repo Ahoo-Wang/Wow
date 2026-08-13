@@ -51,10 +51,14 @@ import me.ahoo.wow.query.validation.QueryBudgetLimit
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.math.BigDecimal
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 
 internal class InMemoryPortableQueryBackend(
     private val context: QueryBackendResolutionContext,
-    private val documents: () -> List<PortableStoredQueryDocument>
+    private val documents: () -> List<PortableStoredQueryDocument>,
+    private val clientProbe: InMemoryPortableQueryClientLifecycleProbe
 ) : QueryBackend {
     override val descriptor: QueryBackendDescriptor = QueryBackendDescriptor(
         backendId = "in-memory-tck",
@@ -80,7 +84,8 @@ internal class InMemoryPortableQueryBackend(
         val matches = sortedMatches(plan).let { values ->
             if (plan.limit == 0) values else values.take(plan.limit)
         }
-        Flux.fromIterable(matches).map { document -> decode(document, plan.authorizedResultShape) }
+        val decoded = matches.map { document -> decode<R>(document, plan.authorizedResultShape) }
+        clientProbe.listPublisher(decoded)
     }
 
     override fun <R : Any> page(plan: PageQueryPlanV1<R>): Mono<QueryPage<R>> = Mono.fromSupplier {
@@ -294,4 +299,47 @@ internal class InMemoryPortableQueryBackend(
         QueryStage.EXECUTION,
         QueryErrorReason.CAPABILITY_DENIED
     )
+}
+
+internal class InMemoryPortableQueryClientLifecycleProbe : QueryBackendClientLifecycleProbe {
+    private val subscriptions = AtomicLong()
+    private val cancellations = AtomicLong()
+    private val nextListHold = AtomicReference<QueryBackendClientHold?>()
+
+    override val subscriptionCount: Long
+        get() = subscriptions.get()
+
+    override val cancellationCount: Long
+        get() = cancellations.get()
+
+    override fun reset() {
+        subscriptions.set(0)
+        cancellations.set(0)
+        nextListHold.set(null)
+    }
+
+    override fun holdNextList(hold: QueryBackendClientHold) {
+        check(nextListHold.compareAndSet(null, hold)) { "A client hold is already armed." }
+    }
+
+    fun <T : Any> listPublisher(values: List<T>): Flux<T> = Flux.defer {
+        subscriptions.incrementAndGet()
+        when (nextListHold.getAndSet(null)) {
+            QueryBackendClientHold.BEFORE_FIRST_RESULT -> Flux.never()
+            QueryBackendClientHold.AFTER_FIRST_RESULT -> holdAfterFirst(values)
+            null -> Flux.fromIterable(values)
+        }
+    }.doOnCancel(cancellations::incrementAndGet)
+
+    private fun <T : Any> holdAfterFirst(values: List<T>): Flux<T> {
+        require(values.isNotEmpty()) { "AFTER_FIRST_RESULT requires a matching client result." }
+        return Flux.create { sink ->
+            val emitted = AtomicBoolean()
+            sink.onRequest {
+                if (emitted.compareAndSet(false, true)) {
+                    sink.next(values.first())
+                }
+            }
+        }
+    }
 }

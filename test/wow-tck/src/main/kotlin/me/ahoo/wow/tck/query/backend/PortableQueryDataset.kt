@@ -140,8 +140,13 @@ object PortableQueryDataset {
         override val aggregateName: String = "document"
     }
     private val DELETED_IDS: Set<String> = setOf("d04", "d09")
+    private val INSERTION_ORDER: Map<String, Int> = listOf(
+        "d02", "d01", "d04", "d03", "d06", "d05", "d08", "d07", "d10", "d09"
+    ).withIndex().associate { (index, id) -> id to index }
 
-    val documents: List<PortableQueryDocument> = immutableList(createDocuments())
+    val documents: List<PortableQueryDocument> = immutableList(
+        createDocuments().sortedBy { document -> INSERTION_ORDER.getValue(document.logicalId) }
+    )
     val snapshotDocuments: List<PortableStoredQueryDocument> = immutableList(documents.map(::snapshotDocument))
     val eventStreamDocuments: List<PortableStoredQueryDocument> = immutableList(documents.map(::eventStreamDocument))
     val vectors: List<PortableQueryVector> = immutableList(createVectors())
@@ -472,6 +477,20 @@ object PortableQueryDataset {
             ids("d03", "d04", "d05", "d06", "d07", "d08", "d09", "d10")
         ),
         vector(
+            "in-scalar-collection-any-match",
+            PortableContractKey.Operator(PortableOperator.IN),
+            PortableVectorKind.POSITIVE,
+            predicate(TAGS, PortableOperator.IN, string("green")),
+            ids("d03", "d06", "d09")
+        ),
+        vector(
+            "not-in-scalar-collection-no-match",
+            PortableContractKey.Operator(PortableOperator.NOT_IN),
+            PortableVectorKind.NEGATIVE,
+            predicate(TAGS, PortableOperator.NOT_IN, string("green")),
+            ids("d01", "d02", "d04", "d05", "d07", "d08", "d10")
+        ),
+        vector(
             "exists-false-only-missing",
             PortableContractKey.Scenario(PortableQueryScenario.MISSING_VS_NULL),
             PortableVectorKind.BOUNDARY,
@@ -484,6 +503,13 @@ object PortableQueryDataset {
             PortableVectorKind.BOUNDARY,
             predicate(TAGS, PortableOperator.ALL_IN, string("red")),
             ids("d01", "d04", "d06", "d08")
+        ),
+        vector(
+            "empty-list-exists-present",
+            PortableContractKey.Scenario(PortableQueryScenario.EMPTY_COLLECTION),
+            PortableVectorKind.BOUNDARY,
+            predicate(TAGS, PortableOperator.EXISTS, QueryValue.BooleanValue(true)),
+            ids("d01", "d02", "d03", "d04", "d05", "d06", "d07", "d08", "d09", "d10")
         ),
         vector(
             "empty-stored-object-exists",
@@ -523,6 +549,44 @@ object PortableQueryDataset {
             predicate(
                 NULLABLE_TEXT,
                 PortableOperator.CONTAINS,
+                string("alpha"),
+                stringComparison = StringComparisonMode.CASE_INSENSITIVE
+            ),
+            ids("d08", "d10")
+        ),
+        vector(
+            "starts-with-default-case-sensitive",
+            PortableContractKey.Operator(PortableOperator.STARTS_WITH),
+            PortableVectorKind.BOUNDARY,
+            predicate(NULLABLE_TEXT, PortableOperator.STARTS_WITH, string("alpha")),
+            ids("d10")
+        ),
+        vector(
+            "starts-with-case-insensitive",
+            PortableContractKey.Operator(PortableOperator.STARTS_WITH),
+            PortableVectorKind.BOUNDARY,
+            predicate(
+                NULLABLE_TEXT,
+                PortableOperator.STARTS_WITH,
+                string("alpha"),
+                stringComparison = StringComparisonMode.CASE_INSENSITIVE
+            ),
+            ids("d08", "d10")
+        ),
+        vector(
+            "ends-with-default-case-sensitive",
+            PortableContractKey.Operator(PortableOperator.ENDS_WITH),
+            PortableVectorKind.BOUNDARY,
+            predicate(NULLABLE_TEXT, PortableOperator.ENDS_WITH, string("alpha")),
+            ids("d10")
+        ),
+        vector(
+            "ends-with-case-insensitive",
+            PortableContractKey.Operator(PortableOperator.ENDS_WITH),
+            PortableVectorKind.BOUNDARY,
+            predicate(
+                NULLABLE_TEXT,
+                PortableOperator.ENDS_WITH,
                 string("alpha"),
                 stringComparison = StringComparisonMode.CASE_INSENSITIVE
             ),

@@ -35,6 +35,7 @@ import me.ahoo.wow.query.plan.ListQueryPlanV1
 import me.ahoo.wow.query.plan.PageQueryPlanV1
 import me.ahoo.wow.query.plan.SingleQueryPlanV1
 import me.ahoo.wow.query.policy.CapabilityDecision
+import me.ahoo.wow.query.policy.QueryFieldAccess
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.policy.QueryPolicyConstraints
 import me.ahoo.wow.query.policy.QueryPolicyPermissions
@@ -48,23 +49,21 @@ import reactor.core.publisher.Mono
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
 class QueryBackendTestKit(
     backendFactory: QueryBackendFactory,
     val documentKind: QueryDocumentKind,
     expectedCapabilities: Set<QueryCapabilityId> = emptySet(),
-    expectedReadiness: QueryBackendReadiness = QueryBackendReadiness.Ready
+    expectedReadiness: QueryBackendReadiness = QueryBackendReadiness.Ready,
+    private val fieldAccess: QueryFieldAccess = QueryFieldAccess.UNRESTRICTED
 ) {
     private val observation = QueryBackendObservation()
-    private val holdListOpen = AtomicBoolean()
     private val observedFactory = QueryBackendFactory { context ->
         observation.contextResolutions.incrementAndGet()
         ObservedQueryBackend(
             delegate = backendFactory.bind(context),
             observation = observation,
-            holdListOpen = holdListOpen,
             expectedCapabilities = expectedCapabilities,
             expectedReadiness = expectedReadiness
         )
@@ -95,19 +94,15 @@ class QueryBackendTestKit(
     val listRequestCount: Long
         get() = observation.listRequests.get()
 
-    val cancellationCount: Long
-        get() = observation.cancellations.get()
-
-    fun holdListPublisherOpen(): QueryBackendTestKit = apply {
-        holdListOpen.set(true)
-    }
-
     private fun configuration(): QueryGatewayConfiguration {
         val capabilityDecisions = ENABLED_CAPABILITIES.associateWith { CapabilityDecision.GRANT }
         val capabilityPolicy = QueryPolicy {
             Mono.just(
                 QueryPolicyResult(
-                    constraints = QueryPolicyConstraints(capabilityAccess = capabilityDecisions)
+                    constraints = QueryPolicyConstraints(
+                        fieldAccess = fieldAccess,
+                        capabilityAccess = capabilityDecisions
+                    )
                 )
             )
         }
@@ -155,7 +150,6 @@ class QueryBackendTestKit(
     private class ObservedQueryBackend(
         private val delegate: QueryBackend,
         private val observation: QueryBackendObservation,
-        private val holdListOpen: AtomicBoolean,
         expectedCapabilities: Set<QueryCapabilityId>,
         private val expectedReadiness: QueryBackendReadiness
     ) : QueryBackend {
@@ -172,12 +166,7 @@ class QueryBackendTestKit(
         override fun <R : Any> single(plan: SingleQueryPlanV1<R>): Mono<R> =
             observe(delegate.single(plan))
 
-        override fun <R : Any> list(plan: ListQueryPlanV1<R>): Flux<R> {
-            val source = delegate.list(plan).let { publisher ->
-                if (holdListOpen.get()) publisher.concatWith(Flux.never()) else publisher
-            }
-            return observe(source)
-        }
+        override fun <R : Any> list(plan: ListQueryPlanV1<R>): Flux<R> = observe(delegate.list(plan))
 
         override fun <R : Any> page(plan: PageQueryPlanV1<R>): Mono<QueryPage<R>> =
             observe(delegate.page(plan))
@@ -187,13 +176,12 @@ class QueryBackendTestKit(
         private fun <T : Any> observe(publisher: Mono<T>): Mono<T> = Mono.defer {
             observation.executionSubscriptions.incrementAndGet()
             publisher
-        }.doOnCancel(observation.cancellations::incrementAndGet)
+        }
 
         private fun <T : Any> observe(publisher: Flux<T>): Flux<T> = Flux.defer {
             observation.executionSubscriptions.incrementAndGet()
             publisher
         }.doOnRequest(observation::recordRequest)
-            .doOnCancel(observation.cancellations::incrementAndGet)
     }
 
     private class QueryBackendObservation {
@@ -201,7 +189,6 @@ class QueryBackendTestKit(
         val targetOnlyResolutions: AtomicLong = AtomicLong()
         val executionSubscriptions: AtomicLong = AtomicLong()
         val listRequests: AtomicLong = AtomicLong()
-        val cancellations: AtomicLong = AtomicLong()
 
         fun recordRequest(requested: Long) {
             listRequests.updateAndGet { current ->
