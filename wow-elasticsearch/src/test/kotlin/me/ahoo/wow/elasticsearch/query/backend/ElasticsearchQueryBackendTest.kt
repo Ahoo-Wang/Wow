@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.elasticsearch.query.backend
 
+import co.elastic.clients.elasticsearch._types.mapping.DynamicTemplate
 import co.elastic.clients.elasticsearch._types.mapping.Property
 import co.elastic.clients.elasticsearch.core.OpenPointInTimeRequest
 import co.elastic.clients.elasticsearch.core.SearchRequest
@@ -25,6 +26,7 @@ import co.elastic.clients.elasticsearch.indices.IndexSettings
 import co.elastic.clients.json.JsonData
 import co.elastic.clients.transport.endpoints.BooleanResponse
 import co.elastic.clients.util.DateTime
+import co.elastic.clients.util.NamedValue
 import io.mockk.confirmVerified
 import io.mockk.every
 import io.mockk.mockk
@@ -132,6 +134,45 @@ class ElasticsearchQueryBackendTest {
         StepVerifier.create(backend.readiness())
             .expectNextMatches { readiness -> readiness is QueryBackendReadiness.NotReady }
             .verifyComplete()
+        verify(exactly = 0) { client.openPointInTime(any<OpenPointInTimeRequest>()) }
+    }
+
+    @Test
+    fun `managed presence fallback with disabled ancestor is not ready before search or pit io`() {
+        val rootMetadata = Property.of { property ->
+            property.`object` { objectProperty ->
+                objectProperty.properties("present") { it.keyword { keyword -> keyword } }
+                    .properties("null") { it.keyword { keyword -> keyword } }
+            }
+        }
+        val client = mappingClient(
+            properties = mapOf(
+                "profile" to Property.of { property ->
+                    property.`object` { objectProperty -> objectProperty.dynamic(co.elastic.clients.elasticsearch._types.mapping.DynamicMapping.False) }
+                },
+                "__wow_query" to rootMetadata,
+            ),
+            configureMapping = {
+                meta("wow_query_presence_template_version", JsonData.of(1))
+                    .dynamicTemplates(managedPresenceTemplates())
+            },
+        )
+        val backend = ElasticsearchQueryBackendFactory(client).bind(
+            QueryBackendResolutionContext(
+                PortableQueryDataset.target(QueryDocumentKind.SNAPSHOT),
+                PortableQueryDataset.schema(QueryDocumentKind.SNAPSHOT),
+                PredicateExpression(PortableQueryDataset.PROFILE_CITY, PortableOperator.NULL, emptyList()),
+            ),
+        )
+
+        StepVerifier.create(backend.readiness())
+            .expectNext(
+                QueryBackendReadiness.NotReady(
+                    me.ahoo.wow.query.backend.QueryBackendReadinessReason.MAPPING_INCOMPATIBLE,
+                ),
+            )
+            .verifyComplete()
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
         verify(exactly = 0) { client.openPointInTime(any<OpenPointInTimeRequest>()) }
     }
 
@@ -346,6 +387,7 @@ class ElasticsearchQueryBackendTest {
     private fun mappingClient(
         properties: Map<String, Property>,
         configureSettings: IndexSettings.Builder.() -> Unit = {},
+        configureMapping: co.elastic.clients.elasticsearch._types.mapping.TypeMapping.Builder.() -> Unit = {},
     ): ReactiveElasticsearchClient {
         val client = mockk<ReactiveElasticsearchClient>(relaxed = true)
         val indices = mockk<ReactiveElasticsearchIndicesClient>()
@@ -355,7 +397,9 @@ class ElasticsearchQueryBackendTest {
             GetMappingResponse.of { response ->
                 response.mappings("index") { record ->
                     record.mappings { mapping ->
-                        mapping.meta("wow_query_presence_version", JsonData.of(1)).properties(properties)
+                        mapping.meta("wow_query_presence_version", JsonData.of(1))
+                            .properties(properties)
+                            .apply(configureMapping)
                     }
                 }
             },
@@ -367,4 +411,21 @@ class ElasticsearchQueryBackendTest {
         )
         return client
     }
+
+    private fun managedPresenceTemplates(): List<NamedValue<DynamicTemplate>> = listOf(
+        presenceTemplate("wow_query_present_keyword", "present"),
+        presenceTemplate("wow_query_null_keyword", "null"),
+    )
+
+    private fun presenceTemplate(
+        name: String,
+        marker: String,
+    ): NamedValue<DynamicTemplate> = NamedValue.of(
+        name,
+        DynamicTemplate.of { template ->
+            template.pathMatch("__wow_query.$marker", "*.__wow_query.$marker")
+                .matchMappingType("string")
+                .mapping { property -> property.keyword { keyword -> keyword } }
+        },
+    )
 }

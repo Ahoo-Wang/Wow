@@ -150,19 +150,28 @@ internal class ElasticsearchQueryReadiness(
         val version = runCatching {
             mapping.meta()[PRESENCE_VERSION_META]?.to(Int::class.javaObjectType)
         }.getOrNull()
-        val managedPresenceTemplates = mapping.hasManagedPresenceTemplateContract()
+        val managedPresenceContract = mapping.hasManagedPresenceContract()
         return version == requirements.presenceVersion &&
             requirements.fields.all { requirement -> compatible(snapshot, requirement) } &&
             requirements.presenceFields.all { path ->
-                propertyAt(mapping, path)?.hasManagedKeywordSemantics() ?: managedPresenceTemplates
+                propertyAt(mapping, path)?.hasManagedPresenceKeywordSemantics()
+                    ?: (managedPresenceContract && mapping.canMaterializePresenceField(path))
             }
     }
 
-    private fun co.elastic.clients.elasticsearch._types.mapping.TypeMapping.hasManagedPresenceTemplateContract(): Boolean {
+    private fun co.elastic.clients.elasticsearch._types.mapping.TypeMapping.hasManagedPresenceContract(): Boolean {
         val contractVersion = runCatching {
             meta()[PRESENCE_TEMPLATE_VERSION_META]?.to(Int::class.javaObjectType)
         }.getOrNull()
         if (contractVersion != requirements.presenceVersion) return false
+        val rootMetadata = properties()[ElasticsearchQueryPresenceEncoder.NAMESPACE]
+        if (rootMetadata?.isObject != true || rootMetadata.`object`().enabled() == false) return false
+        if (!ROOT_PRESENCE_FIELDS.all { path ->
+                propertyAt(this, path)?.hasManagedPresenceKeywordSemantics() == true
+            }
+        ) {
+            return false
+        }
         val templates = dynamicTemplates()
         if (templates.size < PRESENCE_TEMPLATE_NAMES.size) return false
         return PRESENCE_TEMPLATE_NAMES.entries.withIndex().all { (index, expected) ->
@@ -185,7 +194,43 @@ internal class ElasticsearchQueryReadiness(
             unmatchMappingType().isEmpty() &&
             matchPattern() == null &&
             isMapping &&
-            mapping().hasManagedKeywordSemantics()
+            mapping().hasManagedPresenceKeywordSemantics()
+
+    private fun co.elastic.clients.elasticsearch._types.mapping.TypeMapping.canMaterializePresenceField(
+        path: String,
+    ): Boolean {
+        if (enabled() == false || !dynamic().allowsManagedDynamic()) return false
+        var properties = properties()
+        path.split('.').dropLast(1).forEach { segment ->
+            val ancestor = properties[segment] ?: run {
+                properties = emptyMap()
+                return@forEach
+            }
+            when {
+                ancestor.isObject -> {
+                    val objectProperty = ancestor.`object`()
+                    if (objectProperty.enabled() == false || !objectProperty.dynamic().allowsManagedDynamic()) {
+                        return false
+                    }
+                    properties = objectProperty.properties()
+                }
+
+                ancestor.isNested -> {
+                    val nestedProperty = ancestor.nested()
+                    if (nestedProperty.enabled() == false || !nestedProperty.dynamic().allowsManagedDynamic()) {
+                        return false
+                    }
+                    properties = nestedProperty.properties()
+                }
+
+                else -> return false
+            }
+        }
+        return true
+    }
+
+    private fun co.elastic.clients.elasticsearch._types.mapping.DynamicMapping?.allowsManagedDynamic(): Boolean =
+        this == null || this == co.elastic.clients.elasticsearch._types.mapping.DynamicMapping.True
 
     private fun compatible(
         snapshot: ElasticsearchIndexMappingSnapshot,
@@ -279,6 +324,13 @@ internal class ElasticsearchQueryReadiness(
         return maxStringLength != null && ignoreAbove.toLong() >= maxStringLength.toLong() * MAX_UTF8_BYTES_PER_CHAR
     }
 
+    private fun co.elastic.clients.elasticsearch._types.mapping.Property.hasManagedPresenceKeywordSemantics(): Boolean {
+        if (!isKeyword) return false
+        val keyword = keyword()
+        return keyword.index() != false && keyword.docValues() != false && keyword.normalizer() == null &&
+            keyword.nullValue() == null && keyword.ignoreAbove() == null
+    }
+
     private fun String?.isCompatibleApplicationTimeFormat(): Boolean =
         this == null || split("||").any { format -> format == DEFAULT_DATE_FORMAT }
 
@@ -359,6 +411,10 @@ internal class ElasticsearchQueryReadiness(
         private val PRESENCE_TEMPLATE_NAMES = linkedMapOf(
             "wow_query_present_keyword" to ElasticsearchQueryPresenceEncoder.PRESENT,
             "wow_query_null_keyword" to ElasticsearchQueryPresenceEncoder.NULL,
+        )
+        private val ROOT_PRESENCE_FIELDS = setOf(
+            "${ElasticsearchQueryPresenceEncoder.NAMESPACE}.${ElasticsearchQueryPresenceEncoder.PRESENT}",
+            "${ElasticsearchQueryPresenceEncoder.NAMESPACE}.${ElasticsearchQueryPresenceEncoder.NULL}",
         )
         private const val DEFAULT_ANALYZER = "standard"
         private const val INDEX_DEFAULT_ANALYZER = "default"

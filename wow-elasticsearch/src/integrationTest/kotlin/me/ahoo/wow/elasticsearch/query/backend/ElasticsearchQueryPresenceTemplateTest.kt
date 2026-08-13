@@ -14,6 +14,7 @@
 package me.ahoo.wow.elasticsearch.query.backend
 
 import co.elastic.clients.elasticsearch._types.Refresh
+import co.elastic.clients.elasticsearch._types.mapping.DynamicMapping
 import co.elastic.clients.elasticsearch._types.mapping.Property
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
@@ -96,6 +97,53 @@ internal class ElasticsearchQueryPresenceTemplateTest {
             .test()
             .expectError(IllegalArgumentException::class.java)
             .verify()
+    }
+
+    @Test
+    fun `dynamic false ancestor cannot use managed presence fallback`() {
+        val client = ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch)
+        val initializer = IndexTemplateInitializer(client.createElasticsearchTemplate())
+        val index = "wow.${elasticsearch.index("presence_dynamic_false")}.snapshot"
+        val source = ElasticsearchQueryPresenceEncoder.encode(
+            mapOf("payload" to mapOf("emptyObject" to emptyMap<String, Any?>())),
+        )
+
+        initializer.ensureAllTemplates()
+            .then(
+                Mono.defer {
+                    client.indices().create { request ->
+                        request.index(index).mappings { mapping ->
+                            mapping.properties("payload") { property ->
+                                property.`object` { objectProperty -> objectProperty.dynamic(DynamicMapping.False) }
+                            }
+                        }
+                    }
+                },
+            ).then(
+                Mono.defer {
+                    client.index(
+                        IndexRequest.of<Map<String, Any?>> { request ->
+                            request.index(index).id("1").document(source).refresh(Refresh.True)
+                        },
+                    )
+                },
+            ).then(
+                Mono.defer {
+                    Mono.zip(
+                        readiness(client, index),
+                        client.indices().getMapping(GetMappingRequest.of { request -> request.index(index) }),
+                    )
+                },
+            ).test()
+            .assertNext { result ->
+                result.t1.assert().isEqualTo(
+                    QueryBackendReadiness.NotReady(QueryBackendReadinessReason.MAPPING_INCOMPATIBLE),
+                )
+                val mapping = checkNotNull(result.t2.mappings()[index]).mappings()
+                propertyAt(mapping, "payload.__wow_query.present").assert().isNull()
+                propertyAt(mapping, "payload.__wow_query.null").assert().isNull()
+            }
+            .verifyComplete()
     }
 
     private fun deleteTemplateIfPresent(
