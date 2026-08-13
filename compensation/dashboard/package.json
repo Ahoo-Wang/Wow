@@ -62,7 +62,7 @@
     "globals": "^17.9.0",
     "jsdom": "^29.1.1",
     "prettier": "3.9.6",
-    "shadcn": "^4.16.2",
+    "shadcn": "^4.17.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.67.0",
