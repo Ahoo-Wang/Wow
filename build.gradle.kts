@@ -284,6 +284,12 @@ fun queryApiModuleRuntimeClasspath(module: String): List<String> = project(modul
     .readLines()
     .filter(String::isNotEmpty)
 
+fun queryApiModuleRuntimeDependencies(module: String): FileCollection {
+    val sourceSets = project(module).extensions.getByType<SourceSetContainer>()
+    val mainSourceSet = sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME)
+    return mainSourceSet.runtimeClasspath.minus(mainSourceSet.output)
+}
+
 fun queryApiRuntimeClasspath(): String = queryApiModules
     .map(::queryApiModuleRuntimeClasspath)
     .flatten()
@@ -298,17 +304,38 @@ val queryApiSourceCheck = tasks.register<Exec>("queryApiSourceCheck") {
     group = LifecycleBasePlugin.VERIFICATION_GROUP
     dependsOn(":wow-query:jar")
     dependsOn(":wow-query:$queryApiRuntimeClasspathTaskName")
+    dependsOn(":wow-mongo:jar")
+    dependsOn(":wow-mongo:$queryApiRuntimeClasspathTaskName")
+    val wowQueryJar = project(":wow-query").tasks.named<Jar>("jar").flatMap { it.archiveFile }
+    val wowMongoJar = project(":wow-mongo").tasks.named<Jar>("jar").flatMap { it.archiveFile }
+    val runtimeDependencies = queryApiModuleRuntimeDependencies(":wow-query")
+        .plus(queryApiModuleRuntimeDependencies(":wow-mongo"))
+        .minus(files(wowQueryJar, wowMongoJar))
     inputs.file("scripts/query-api-source-check.sh")
+    inputs.file(wowQueryJar)
+    inputs.file(wowMongoJar)
+    inputs.file(project(":wow-query").layout.buildDirectory.file("query-api/runtime-classpath.txt"))
+    inputs.file(project(":wow-mongo").layout.buildDirectory.file("query-api/runtime-classpath.txt"))
+    inputs.files(runtimeDependencies)
+        .withPropertyName("runtimeDependencyClasspath")
+        .withNormalizer(ClasspathNormalizer::class.java)
     inputs.files(queryApiKotlinCompiler)
         .withPropertyName("kotlinCompilerClasspath")
         .withNormalizer(ClasspathNormalizer::class.java)
     doFirst {
         val wowQueryJar = project(":wow-query").tasks.named<Jar>("jar").get().archiveFile.get().asFile
+        val wowMongoJar = project(":wow-mongo").tasks.named<Jar>("jar").get().archiveFile.get().asFile
+        val sourceRuntimeClasspath = (
+            queryApiModuleRuntimeClasspath(":wow-query") + queryApiModuleRuntimeClasspath(":wow-mongo")
+            ).distinct().filterNot { runtimeEntry ->
+                runtimeEntry == wowQueryJar.absolutePath || runtimeEntry == wowMongoJar.absolutePath
+            }
         commandLine(
             "bash",
             "scripts/query-api-source-check.sh",
             wowQueryJar.absolutePath,
-            queryApiModuleRuntimeClasspath(":wow-query").joinToString(File.pathSeparator),
+            wowMongoJar.absolutePath,
+            sourceRuntimeClasspath.joinToString(File.pathSeparator),
             queryApiKotlinCompiler.asPath,
         )
     }

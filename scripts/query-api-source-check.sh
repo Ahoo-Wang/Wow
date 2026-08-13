@@ -12,15 +12,16 @@
 
 set -euo pipefail
 
-[[ $# -eq 3 ]] || {
-    echo "Usage: $0 WOW_QUERY_JAR RUNTIME_CLASSPATH KOTLIN_COMPILER_CLASSPATH" >&2
+[[ $# -eq 4 ]] || {
+    echo "Usage: $0 WOW_QUERY_JAR WOW_MONGO_JAR RUNTIME_CLASSPATH KOTLIN_COMPILER_CLASSPATH" >&2
     exit 64
 }
 
 readonly WOW_QUERY_JAR="$1"
-readonly RUNTIME_CLASSPATH="$2"
-readonly KOTLIN_COMPILER_CLASSPATH="$3"
-readonly FIXTURE_CLASSPATH="$WOW_QUERY_JAR:$RUNTIME_CLASSPATH"
+readonly WOW_MONGO_JAR="$2"
+readonly RUNTIME_CLASSPATH="$3"
+readonly KOTLIN_COMPILER_CLASSPATH="$4"
+readonly FIXTURE_CLASSPATH="$WOW_QUERY_JAR:$WOW_MONGO_JAR:$RUNTIME_CLASSPATH"
 readonly TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/query-api-source-check.XXXXXX")"
 
 cleanup() {
@@ -34,6 +35,7 @@ fail() {
 }
 
 [[ -f "$WOW_QUERY_JAR" ]] || fail "Published wow-query JAR is missing: $WOW_QUERY_JAR"
+[[ -f "$WOW_MONGO_JAR" ]] || fail "Published wow-mongo JAR is missing: $WOW_MONGO_JAR"
 [[ -n "$RUNTIME_CLASSPATH" ]] || fail "Runtime classpath is empty"
 [[ -n "$KOTLIN_COMPILER_CLASSPATH" ]] || fail "Kotlin compiler classpath is empty"
 
@@ -43,9 +45,65 @@ for runtime_entry in "${runtime_entries[@]}"; do
         fail "Runtime classpath must contain dependency JARs only: $runtime_entry"
     [[ "$runtime_entry" != "$WOW_QUERY_JAR" ]] ||
         fail "Published wow-query JAR must not be duplicated on the runtime dependency classpath"
+    [[ "$runtime_entry" != "$WOW_MONGO_JAR" ]] ||
+        fail "Published wow-mongo JAR must not be duplicated on the runtime dependency classpath"
 done
 
 mkdir -p "$TEMP_DIR/java" "$TEMP_DIR/kotlin" "$TEMP_DIR/classes/java" "$TEMP_DIR/classes/kotlin"
+
+cat >"$TEMP_DIR/java/StableMongoBackendApi.java" <<'EOF'
+package external.fixture;
+
+import java.util.Map;
+import com.mongodb.client.model.Filters;
+import com.mongodb.reactivestreams.client.MongoDatabase;
+import me.ahoo.wow.api.query.expression.QueryValue;
+import me.ahoo.wow.mongo.query.backend.MongoNativeQueryTemplate;
+import me.ahoo.wow.mongo.query.backend.MongoNativeQueryTemplateRegistry;
+import me.ahoo.wow.mongo.query.backend.MongoQueryBackendFactory;
+import me.ahoo.wow.query.validation.QueryBudgetLimit;
+
+public final class StableMongoBackendApi {
+    public static MongoNativeQueryTemplateRegistry registry() {
+        MongoNativeQueryTemplate template = parameters ->
+            Filters.eq("tenantId", ((QueryValue.StringValue) parameters.get("tenant")).getValue());
+        return new MongoNativeQueryTemplateRegistry(Map.of("tenant-eq", template));
+    }
+
+    public static MongoQueryBackendFactory factory(MongoDatabase database) {
+        return new MongoQueryBackendFactory(database, registry(), QueryBudgetLimit.UNBOUNDED);
+    }
+}
+EOF
+
+javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/java" "$TEMP_DIR/java/StableMongoBackendApi.java"
+echo "PASS: Java external stable Mongo backend API source"
+
+cat >"$TEMP_DIR/kotlin/StableMongoBackendApi.kt" <<'EOF'
+package external.fixture
+
+import com.mongodb.client.model.Filters
+import com.mongodb.reactivestreams.client.MongoDatabase
+import me.ahoo.wow.api.query.expression.QueryValue
+import me.ahoo.wow.mongo.query.backend.MongoNativeQueryTemplate
+import me.ahoo.wow.mongo.query.backend.MongoNativeQueryTemplateRegistry
+import me.ahoo.wow.mongo.query.backend.MongoQueryBackendFactory
+
+fun mongoFactory(database: MongoDatabase): MongoQueryBackendFactory {
+    val template = MongoNativeQueryTemplate { parameters ->
+        Filters.eq("tenantId", (parameters.getValue("tenant") as QueryValue.StringValue).value)
+    }
+    return MongoQueryBackendFactory(database, MongoNativeQueryTemplateRegistry(mapOf("tenant-eq" to template)))
+}
+EOF
+
+java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+    -module-name mongo-query-api-external-fixture \
+    -no-stdlib -no-reflect \
+    -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/kotlin" "$TEMP_DIR/kotlin/StableMongoBackendApi.kt"
+echo "PASS: Kotlin external stable Mongo backend API source"
 
 cat >"$TEMP_DIR/java/StableAdmissionSpi.java" <<'EOF'
 package external.fixture;
@@ -959,3 +1017,61 @@ for plan_class in \
     fi
 done
 echo "PASS: Query plan consumers expose no public constructor, builder, factory, or copy"
+
+cat >"$TEMP_DIR/kotlin/ExternalMongoBackendInternals.kt" <<'EOF'
+package external.fixture
+
+import me.ahoo.wow.mongo.query.backend.MongoQueryBackend
+import me.ahoo.wow.mongo.query.backend.MongoQueryFieldBinding
+import me.ahoo.wow.mongo.query.backend.MongoQueryPlanCompiler
+import me.ahoo.wow.mongo.query.backend.MongoQueryPublisherObserver
+import me.ahoo.wow.mongo.query.backend.MongoQueryPublisherObservers
+import me.ahoo.wow.mongo.query.backend.MongoQueryReadiness
+import me.ahoo.wow.mongo.query.backend.MongoQueryReadinessRequirements
+import me.ahoo.wow.mongo.query.backend.MongoQueryResultDecoder
+import me.ahoo.wow.mongo.query.backend.mongoQueryBackendDescriptor
+
+fun useMongoInternals(
+    backend: MongoQueryBackend,
+    compiler: MongoQueryPlanCompiler,
+    binding: MongoQueryFieldBinding,
+    observer: MongoQueryPublisherObserver,
+    observers: MongoQueryPublisherObservers,
+    readiness: MongoQueryReadiness,
+    requirements: MongoQueryReadinessRequirements,
+    decoder: MongoQueryResultDecoder
+): List<Any> = listOf(
+    backend,
+    compiler,
+    binding,
+    observer,
+    observers,
+    readiness,
+    requirements,
+    decoder,
+    ::mongoQueryBackendDescriptor
+)
+EOF
+
+if java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+    -module-name mongo-query-api-external-negative-fixture \
+    -no-stdlib -no-reflect \
+    -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/kotlin-mongo-internal-negative" \
+    "$TEMP_DIR/kotlin/ExternalMongoBackendInternals.kt" \
+    >"$TEMP_DIR/kotlin-mongo-internal-negative.out" 2>&1; then
+    fail "Kotlin external source unexpectedly accessed Mongo backend internals"
+fi
+grep -F "internal" "$TEMP_DIR/kotlin-mongo-internal-negative.out" >/dev/null || {
+    cat "$TEMP_DIR/kotlin-mongo-internal-negative.out" >&2
+    fail "Kotlin Mongo internal fixture did not enforce internal visibility"
+}
+for class_name in MongoQueryBackend MongoQueryFieldBinding MongoQueryPlanCompiler \
+    MongoQueryPublisherObserver MongoQueryPublisherObservers MongoQueryReadiness \
+    MongoQueryReadinessRequirements MongoQueryResultDecoder mongoQueryBackendDescriptor; do
+    grep -F "$class_name" "$TEMP_DIR/kotlin-mongo-internal-negative.out" >/dev/null || {
+        cat "$TEMP_DIR/kotlin-mongo-internal-negative.out" >&2
+        fail "Kotlin Mongo negative fixture did not diagnose $class_name"
+    }
+done
+echo "PASS: Kotlin external Mongo bound backend and compiler boundary"
