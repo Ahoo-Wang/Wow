@@ -36,9 +36,12 @@ import me.ahoo.wow.tck.query.backend.QueryCapabilityFixture
 import me.ahoo.wow.tck.query.backend.QueryNativeCapabilityCase
 import org.bson.Document
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.api.extension.RegisterExtension
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
 import java.util.concurrent.ConcurrentHashMap
@@ -93,6 +96,18 @@ class MongoQueryCapabilityContractTest {
     @TestFactory
     fun mongoNativeObeysSharedCapabilityContract() =
         QueryCapabilityContract(MongoNativeCapabilityFixture(database, commands)).dynamicTests()
+
+    @Test
+    fun rawProbeCountsUnexpectedFindCommand() {
+        val collectionName = PortableQueryDataset.target(QueryDocumentKind.SNAPSHOT)
+            .namedAggregate.toSnapshotCollectionName()
+        StepVerifier.create(Flux.from(database.getCollection(collectionName).find()).take(1))
+            .expectNextCount(1)
+            .verifyComplete()
+
+        val fixture = MongoFullTextCapabilityFixture(database, commands)
+        assertEquals(mapOf("find" to 1L), fixture.rawCommands)
+    }
 }
 
 private abstract class MongoCapabilityFixture(
@@ -101,8 +116,8 @@ private abstract class MongoCapabilityFixture(
 ) : QueryCapabilityFixture {
     final override val target = PortableQueryDataset.target(QueryDocumentKind.SNAPSHOT)
     open override val schema = PortableQueryDataset.schema(QueryDocumentKind.SNAPSHOT)
-    final override val rawCommandCount: Long
-        get() = listOf("aggregate", "count").sumOf { command -> commands[command]?.get() ?: 0 }
+    final override val rawCommands: Map<String, Long>
+        get() = commands.mapValues { (_, count) -> count.get() }.filterValues { count -> count > 0 }
 
     final override fun reset() {
         commands.clear()
@@ -113,6 +128,11 @@ private class MongoFullTextCapabilityFixture(
     database: MongoDatabase,
     commands: ConcurrentHashMap<String, AtomicLong>,
 ) : MongoCapabilityFixture(database, commands) {
+    override val successfulRawCommands: Map<String, Long> = mapOf(
+        "listCollections" to 1L,
+        "listIndexes" to 1L,
+        "aggregate" to 1L,
+    )
     override val id: String = "mongo-full-text"
     override val capabilityId: QueryCapabilityId = QueryCapabilityId(MongoQueryBackendFactory.FULL_TEXT_CAPABILITY)
     override val expression = FullTextExpression(capabilityId, "capability", setOf(PortableQueryDataset.TITLE))
@@ -123,6 +143,10 @@ private class MongoNativeCapabilityFixture(
     database: MongoDatabase,
     commands: ConcurrentHashMap<String, AtomicLong>,
 ) : MongoCapabilityFixture(database, commands) {
+    override val successfulRawCommands: Map<String, Long> = mapOf(
+        "listCollections" to 1L,
+        "aggregate" to 1L,
+    )
     override val id: String = "mongo-native"
     override val capabilityId: QueryCapabilityId = QueryCapabilityId(MongoQueryBackendFactory.NATIVE_CAPABILITY)
     override val schema = super.schema.withField(

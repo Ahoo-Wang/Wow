@@ -15,6 +15,10 @@ package me.ahoo.wow.mongo.query.backend
 
 import com.mongodb.ConnectionString
 import com.mongodb.MongoClientSettings
+import com.mongodb.ServerAddress
+import com.mongodb.connection.ClusterId
+import com.mongodb.connection.ConnectionDescription
+import com.mongodb.connection.ServerId
 import com.mongodb.event.CommandListener
 import com.mongodb.event.CommandStartedEvent
 import com.mongodb.event.CommandSucceededEvent
@@ -40,9 +44,16 @@ import me.ahoo.wow.query.backend.QueryBackendResolutionContext
 import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.query.backend.PortableQueryDataset
 import me.ahoo.wow.tck.query.backend.QueryBackendTestKit
+import org.bson.BsonArray
+import org.bson.BsonDocument
+import org.bson.BsonDouble
+import org.bson.BsonInt32
+import org.bson.BsonInt64
+import org.bson.BsonString
 import org.bson.Document
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -117,12 +128,14 @@ class MongoQueryResourceBoundTest {
         assertEquals(600, emitted.get())
         assertEquals(1, commandMonitor.started("find"))
         assertTrue(commandMonitor.started("getMore") >= 2)
-        val batches = commandMonitor.nonEmptyBatches()
+        assertTrue(commandMonitor.hasBoundedReadEvidence(DEFAULT_BATCH_SIZE))
+        val batches = commandMonitor.batches().filter { batch -> batch.itemCount > 0 }
         assertTrue(batches.size >= 3)
         assertEquals(600, batches.sumOf(MongoWireBatch::itemCount))
         batches.forEach { batch ->
-            assertTrue(batch.itemCount <= batch.requestedBatchSize)
-            assertTrue(batch.requestedBatchSize <= DEFAULT_BATCH_SIZE)
+            val requestedBatchSize = checkNotNull(batch.requestedBatchSize)
+            assertTrue(batch.itemCount <= requestedBatchSize)
+            assertTrue(requestedBatchSize <= DEFAULT_BATCH_SIZE)
         }
         assertEquals(1, backendFactory.subscriptionCount)
         assertEquals(0, backendFactory.cancellationCount)
@@ -147,6 +160,17 @@ class MongoQueryResourceBoundTest {
         assertEquals(1, backendFactory.cancellationCount)
     }
 
+    @Test
+    fun wireOracleRejectsMissingOrZeroBatchSizeAndObservesEmptyBatch() {
+        listOf<Int?>(0, null).forEachIndexed { index, batchSize ->
+            commandMonitor.reset()
+            commandMonitor.commandStarted(startedFind(index + 1, batchSize))
+            commandMonitor.commandSucceeded(succeededEmptyFind(index + 1))
+
+            assertFalse(commandMonitor.hasBoundedReadEvidence(DEFAULT_BATCH_SIZE), "batchSize=$batchSize")
+        }
+    }
+
     private fun query() = testKit.gateway.list(
         ListQueryRequest(
             target = testKit.target,
@@ -168,6 +192,33 @@ class MongoQueryResourceBoundTest {
         )
         SimpleSnapshot(aggregate, snapshotTime = index.toLong()).toDocument()
     }
+
+    private fun startedFind(requestId: Int, batchSize: Int?): CommandStartedEvent {
+        val command = BsonDocument("find", BsonString("resource"))
+        batchSize?.let { command.append("batchSize", BsonInt32(it)) }
+        return CommandStartedEvent(null, 1, requestId, connectionDescription(), "resource", "find", command)
+    }
+
+    private fun succeededEmptyFind(requestId: Int): CommandSucceededEvent {
+        val cursor = BsonDocument("id", BsonInt64(0))
+            .append("ns", BsonString("resource.collection"))
+            .append("firstBatch", BsonArray())
+        val response = BsonDocument("cursor", cursor).append("ok", BsonDouble(1.0))
+        return CommandSucceededEvent(
+            null,
+            1,
+            requestId,
+            connectionDescription(),
+            "resource",
+            "find",
+            response,
+            1,
+        )
+    }
+
+    private fun connectionDescription(): ConnectionDescription = ConnectionDescription(
+        ServerId(ClusterId("query-resource-monitor"), ServerAddress()),
+    )
 
     private companion object {
         const val DOCUMENT_COUNT: Int = 600
@@ -196,14 +247,15 @@ private class ResourceAggregate(
     override val deleted: Boolean = false
 }
 
-private data class MongoWireBatch(val requestedBatchSize: Int, val itemCount: Int)
+private data class MongoWireBatch(val requestedBatchSize: Int?, val itemCount: Int)
 
 private class MongoWireCommandMonitor : CommandListener {
-    private data class StartedCommand(val name: String, val batchSize: Int)
+    private data class StartedCommand(val name: String, val batchSize: Int?)
 
     private val startedCounts = ConcurrentHashMap<String, AtomicLong>()
     private val succeededCounts = ConcurrentHashMap<String, AtomicLong>()
     private val startedByRequest = ConcurrentHashMap<Int, StartedCommand>()
+    private val readCommands = CopyOnWriteArrayList<StartedCommand>()
     private val batches = CopyOnWriteArrayList<MongoWireBatch>()
     private var killCursorSucceeded = CountDownLatch(1)
     val cancelPhase = AtomicBoolean()
@@ -215,10 +267,14 @@ private class MongoWireCommandMonitor : CommandListener {
         if (cancelPhase.get() && commandName in READ_COMMANDS) {
             postCancelReads.incrementAndGet()
         }
-        startedByRequest[event.requestId] = StartedCommand(
-            commandName,
-            event.command.getNumber("batchSize")?.intValue() ?: DEFAULT_BATCH_SIZE,
-        )
+        if (commandName in READ_COMMANDS) {
+            val command = StartedCommand(
+                commandName,
+                (event.command["batchSize"] as? org.bson.BsonNumber)?.intValue(),
+            )
+            startedByRequest[event.requestId] = command
+            readCommands += command
+        }
     }
 
     override fun commandSucceeded(event: CommandSucceededEvent) {
@@ -239,6 +295,7 @@ private class MongoWireCommandMonitor : CommandListener {
         startedCounts.clear()
         succeededCounts.clear()
         startedByRequest.clear()
+        readCommands.clear()
         batches.clear()
         cancelPhase.set(false)
         postCancelReads.set(0)
@@ -249,7 +306,24 @@ private class MongoWireCommandMonitor : CommandListener {
 
     fun succeeded(command: String): Long = succeededCounts[command]?.get() ?: 0
 
-    fun nonEmptyBatches(): List<MongoWireBatch> = batches.filter { batch -> batch.itemCount > 0 }
+    fun batches(): List<MongoWireBatch> = batches.toList()
+
+    fun hasBoundedReadEvidence(maxBatchSize: Int): Boolean {
+        if (readCommands.isEmpty() || readCommands.any { command ->
+                command.batchSize == null || command.batchSize !in 1..maxBatchSize
+            }
+        ) {
+            return false
+        }
+        val succeededReads = READ_COMMANDS.sumOf(::succeeded)
+        if (batches.size.toLong() != succeededReads) {
+            return false
+        }
+        return batches.all { batch ->
+            val requestedBatchSize = batch.requestedBatchSize
+            requestedBatchSize != null && batch.itemCount <= requestedBatchSize
+        }
+    }
 
     fun awaitKillCursor(): Boolean = killCursorSucceeded.await(5, TimeUnit.SECONDS)
 
@@ -264,7 +338,6 @@ private class MongoWireCommandMonitor : CommandListener {
     }
 
     private companion object {
-        const val DEFAULT_BATCH_SIZE: Int = 256
         val READ_COMMANDS: Set<String> = setOf("find", "getMore")
     }
 }

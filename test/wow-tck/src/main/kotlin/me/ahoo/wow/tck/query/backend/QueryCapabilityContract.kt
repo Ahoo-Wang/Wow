@@ -82,7 +82,7 @@ class QueryNativeCapabilityCase(
 
 /**
  * Driver-neutral fixture for the capability admission contract. Implementations expose only framework query types
- * and aggregate raw data-command counts; driver requests and registries stay inside the concrete backend fixture.
+ * and normalized raw backend requests; driver requests and registries stay inside the concrete backend fixture.
  */
 interface QueryCapabilityFixture {
     val id: String
@@ -91,7 +91,8 @@ interface QueryCapabilityFixture {
     val schema: QuerySchema
     val expression: QueryExpression
     val backendFactory: QueryBackendFactory
-    val rawCommandCount: Long
+    val rawCommands: Map<String, Long>
+    val successfulRawCommands: Map<String, Long>
     val nativePreflightCases: List<QueryNativeCapabilityCase>
         get() = emptyList()
 
@@ -140,7 +141,7 @@ class QueryCapabilityContract(
             bind = expectedBind,
             readiness = if (succeeds) 1 else 0,
             execution = if (succeeds) 1 else 0,
-            rawCommand = if (succeeds) 1 else 0,
+            rawCommands = if (succeeds) fixture.successfulRawCommands else emptyMap(),
         )
     }
 
@@ -162,7 +163,7 @@ class QueryCapabilityContract(
         )
 
         verifyError(gateway.count(CountQueryRequest(fixture.target, case.expression)), unsupportedCapability())
-        assertProbe(probe, resolver = 1, bind = 1, readiness = 0, execution = 0, rawCommand = 0)
+        assertProbe(probe, resolver = 1, bind = 1, readiness = 0, execution = 0, rawCommands = emptyMap())
     }
 
     private fun gateway(
@@ -277,13 +278,13 @@ class QueryCapabilityContract(
         bind: Long,
         readiness: Long,
         execution: Long,
-        rawCommand: Long,
+        rawCommands: Map<String, Long>,
     ) {
         assertEquals(resolver, probe.resolver.get(), "resolver")
         assertEquals(bind, probe.bind.get(), "bind")
         assertEquals(readiness, probe.readiness.get(), "readiness")
         assertEquals(execution, probe.execution.get(), "execution")
-        assertEquals(rawCommand, fixture.rawCommandCount, "raw command")
+        assertEquals(rawCommands, fixture.rawCommands, "raw commands")
     }
 
     private class ObservedCapabilityBackend(

@@ -57,7 +57,7 @@ class QueryCapabilityContractTest {
 }
 
 private class InMemoryCapabilityFixture : QueryCapabilityFixture {
-    private val rawCommands = AtomicLong()
+    private val rawCommandCounter = AtomicLong()
     override val id: String = "in-memory-full-text"
     override val capabilityId: QueryCapabilityId = QueryCapabilityId("full-text")
     override val target = PortableQueryDataset.target(QueryDocumentKind.SNAPSHOT)
@@ -83,7 +83,7 @@ private class InMemoryCapabilityFixture : QueryCapabilityFixture {
             override fun readiness(): Mono<QueryBackendReadiness> = Mono.just(QueryBackendReadiness.Ready)
 
             override fun count(plan: CountQueryPlanV1): Mono<Long> = Mono.fromSupplier {
-                rawCommands.incrementAndGet()
+                rawCommandCounter.incrementAndGet()
                 1L
             }
 
@@ -97,10 +97,11 @@ private class InMemoryCapabilityFixture : QueryCapabilityFixture {
                 Mono.error<me.ahoo.wow.api.query.gateway.QueryPage<R>>(UnsupportedOperationException())
         }
     }
-    override val rawCommandCount: Long
-        get() = rawCommands.get()
+    override val rawCommands: Map<String, Long>
+        get() = rawCommandCounter.get().takeIf { it > 0 }?.let { mapOf("count" to it) }.orEmpty()
+    override val successfulRawCommands: Map<String, Long> = mapOf("count" to 1L)
 
     override fun reset() {
-        rawCommands.set(0)
+        rawCommandCounter.set(0)
     }
 }

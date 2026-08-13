@@ -14,6 +14,7 @@
 package me.ahoo.wow.elasticsearch.query.backend
 
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
+import co.elastic.clients.elasticsearch.core.SearchRequest
 import me.ahoo.wow.api.query.expression.FullTextExpression
 import me.ahoo.wow.api.query.expression.LogicalField
 import me.ahoo.wow.api.query.expression.NativeExpression
@@ -21,6 +22,7 @@ import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.expression.QueryValue
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.elasticsearch.ElasticsearchSearchResponseGate
+import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.query.backend.PortableQueryDataset
@@ -28,11 +30,15 @@ import me.ahoo.wow.tck.query.backend.QueryCapabilityContract
 import me.ahoo.wow.tck.query.backend.QueryCapabilityFixture
 import me.ahoo.wow.tck.query.backend.QueryNativeCapabilityCase
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.api.extension.RegisterExtension
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.test.StepVerifier
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 
 class ElasticsearchQueryCapabilityContractTest {
     @JvmField
@@ -41,14 +47,21 @@ class ElasticsearchQueryCapabilityContractTest {
 
     private lateinit var client: ReactiveElasticsearchClient
     private lateinit var portableFixture: ElasticsearchPortableQueryBackendFixture
+    private lateinit var requestMonitor: ElasticsearchCapabilityRequestMonitor
 
     @BeforeEach
     fun prepareCapabilityIndex() {
         val gate = ElasticsearchSearchResponseGate()
-        client = ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch, gate)
+        requestMonitor = ElasticsearchCapabilityRequestMonitor()
+        client = ReactiveElasticsearchClients.createReactiveElasticsearchClient(
+            elasticsearch,
+            gate,
+            requestMonitor::record,
+        )
         portableFixture = ElasticsearchPortableQueryBackendFixture(client, QueryDocumentKind.SNAPSHOT, gate)
         StepVerifier.create(portableFixture.prepare(PortableQueryDataset)).verifyComplete()
         portableFixture.backendFactory.reset()
+        requestMonitor.reset()
     }
 
     @AfterEach
@@ -58,33 +71,57 @@ class ElasticsearchQueryCapabilityContractTest {
 
     @TestFactory
     fun elasticsearchFullTextObeysSharedCapabilityContract() = QueryCapabilityContract(
-        ElasticsearchFullTextCapabilityFixture(client, portableFixture.backendFactory),
+        ElasticsearchFullTextCapabilityFixture(client, portableFixture.backendFactory, requestMonitor),
     ).dynamicTests()
 
     @TestFactory
     fun elasticsearchNativeObeysSharedCapabilityContract() = QueryCapabilityContract(
-        ElasticsearchNativeCapabilityFixture(client, portableFixture.backendFactory),
+        ElasticsearchNativeCapabilityFixture(client, portableFixture.backendFactory, requestMonitor),
     ).dynamicTests()
+
+    @Test
+    fun rawProbeCountsUnexpectedSearchRequest() {
+        val request = SearchRequest.of { search ->
+            search.index(
+                PortableQueryDataset.target(QueryDocumentKind.SNAPSHOT).namedAggregate.toSnapshotIndexName(),
+            ).size(0)
+        }
+        StepVerifier.create(client.search(request, Map::class.java))
+            .expectNextCount(1)
+            .verifyComplete()
+
+        val fixture = ElasticsearchFullTextCapabilityFixture(client, portableFixture.backendFactory, requestMonitor)
+        assertEquals(mapOf("search" to 1L), fixture.rawCommands)
+    }
 }
 
 private abstract class ElasticsearchCapabilityFixture(
     protected val client: ReactiveElasticsearchClient,
     private val observer: ElasticsearchObservableQueryBackendFactory,
+    private val requestMonitor: ElasticsearchCapabilityRequestMonitor,
 ) : QueryCapabilityFixture {
     final override val target = PortableQueryDataset.target(QueryDocumentKind.SNAPSHOT)
     open override val schema = PortableQueryDataset.schema(QueryDocumentKind.SNAPSHOT)
-    final override val rawCommandCount: Long
-        get() = observer.subscriptionCount(ElasticsearchQueryOperation.COUNT)
+    final override val rawCommands: Map<String, Long>
+        get() = requestMonitor.snapshot()
+    final override val successfulRawCommands: Map<String, Long> = mapOf(
+        "exists" to 1L,
+        "mapping" to 1L,
+        "settings" to 1L,
+        "count" to 1L,
+    )
 
     final override fun reset() {
         observer.reset()
+        requestMonitor.reset()
     }
 }
 
 private class ElasticsearchFullTextCapabilityFixture(
     client: ReactiveElasticsearchClient,
     observer: ElasticsearchObservableQueryBackendFactory,
-) : ElasticsearchCapabilityFixture(client, observer) {
+    requestMonitor: ElasticsearchCapabilityRequestMonitor,
+) : ElasticsearchCapabilityFixture(client, observer, requestMonitor) {
     override val id: String = "elasticsearch-full-text"
     override val capabilityId = QueryCapabilityId(ElasticsearchQueryBackendFactory.FULL_TEXT_CAPABILITY)
     override val expression = FullTextExpression(capabilityId, "你好", setOf(PortableQueryDataset.TITLE))
@@ -94,7 +131,8 @@ private class ElasticsearchFullTextCapabilityFixture(
 private class ElasticsearchNativeCapabilityFixture(
     client: ReactiveElasticsearchClient,
     observer: ElasticsearchObservableQueryBackendFactory,
-) : ElasticsearchCapabilityFixture(client, observer) {
+    requestMonitor: ElasticsearchCapabilityRequestMonitor,
+) : ElasticsearchCapabilityFixture(client, observer, requestMonitor) {
     override val id: String = "elasticsearch-native"
     override val capabilityId = QueryCapabilityId(ElasticsearchQueryBackendFactory.NATIVE_CAPABILITY)
     override val schema = super.schema.withField(
@@ -129,4 +167,29 @@ private class ElasticsearchNativeCapabilityFixture(
         parameters = mapOf("title" to QueryValue.StringValue("Alpha.*")),
         declaredFields = setOf(LogicalField("title")),
     )
+}
+
+private class ElasticsearchCapabilityRequestMonitor {
+    private val requests = ConcurrentHashMap<String, AtomicLong>()
+
+    fun record(method: String, requestUri: String) {
+        val path = requestUri.substringBefore('?')
+        val operation = when {
+            path.endsWith("/_mapping") -> "mapping"
+            path.endsWith("/_settings") -> "settings"
+            path.endsWith("/_search") -> "search"
+            path.endsWith("/_count") -> "count"
+            path.endsWith("/_pit") && method == "POST" -> "open"
+            path.endsWith("/_pit") && method == "DELETE" -> "close"
+            method == "HEAD" -> "exists"
+            else -> "$method $path"
+        }
+        requests.computeIfAbsent(operation) { AtomicLong() }.incrementAndGet()
+    }
+
+    fun snapshot(): Map<String, Long> = requests.mapValues { (_, count) -> count.get() }
+
+    fun reset() {
+        requests.clear()
+    }
 }

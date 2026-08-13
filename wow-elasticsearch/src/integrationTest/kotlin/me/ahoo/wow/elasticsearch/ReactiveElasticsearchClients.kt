@@ -14,11 +14,11 @@
 package me.ahoo.wow.elasticsearch
 
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
+import org.apache.hc.core5.http.protocol.HttpCoreContext
 import org.springframework.data.elasticsearch.client.ClientConfiguration
 import org.springframework.data.elasticsearch.client.elc.ElasticsearchClients
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import org.springframework.data.elasticsearch.client.elc.rest5_client.Rest5Clients
-import org.apache.hc.core5.http.protocol.HttpCoreContext
 import org.springframework.data.elasticsearch.support.HttpHeaders
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
@@ -33,15 +33,17 @@ object ReactiveElasticsearchClients {
     fun createReactiveElasticsearchClient(
         elasticsearch: ElasticsearchTestFixture,
         searchResponseGate: ElasticsearchSearchResponseGate? = null,
+        requestObserver: ((method: String, path: String) -> Unit)? = null,
     ): ReactiveElasticsearchClient {
         return elasticsearch.getOrCreateResource(CLIENT_RESOURCE_KEY) {
-            createReactiveElasticsearchClientResource(elasticsearch, searchResponseGate)
+            createReactiveElasticsearchClientResource(elasticsearch, searchResponseGate, requestObserver)
         }
     }
 
     private fun createReactiveElasticsearchClientResource(
         elasticsearch: ElasticsearchTestFixture,
         searchResponseGate: ElasticsearchSearchResponseGate?,
+        requestObserver: ((method: String, path: String) -> Unit)?,
     ): ReactiveElasticsearchClient {
         val httpHeaders = HttpHeaders()
         val clientConfiguration =
@@ -54,12 +56,20 @@ object ReactiveElasticsearchClients {
                 .withConnectTimeout(Duration.ofSeconds(5))
                 .withDefaultHeaders(httpHeaders)
                 .apply {
-                    searchResponseGate?.let { gate ->
+                    if (searchResponseGate != null || requestObserver != null) {
                         withClientConfigurer(
                             Rest5Clients.ElasticsearchHttpClientConfigurationCallback.from { builder ->
-                                builder.addResponseInterceptorLast { _, _, context ->
-                                    gate.intercept(HttpCoreContext.cast(context).request?.requestUri)
+                                requestObserver?.let { observer ->
+                                    builder.addRequestInterceptorLast { request, _, _ ->
+                                        observer(request.method, request.requestUri)
+                                    }
                                 }
+                                searchResponseGate?.let { gate ->
+                                    builder.addResponseInterceptorLast { _, _, context ->
+                                        gate.intercept(HttpCoreContext.cast(context).request?.requestUri)
+                                    }
+                                }
+                                builder
                             },
                         )
                     }
