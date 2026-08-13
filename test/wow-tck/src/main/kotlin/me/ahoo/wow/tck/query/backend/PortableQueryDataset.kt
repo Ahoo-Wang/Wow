@@ -1015,7 +1015,7 @@ object PortableQueryDataset {
         QueryFieldSchema.string(ITEM_SKU, nullable = false),
         QueryFieldSchema(ITEM_QUANTITY, QueryFieldValueKind.INTEGER, nullable = false),
         QueryFieldSchema(PROFILE, QueryFieldValueKind.OBJECT, nullable = true),
-        QueryFieldSchema.string(PROFILE_CITY, nullable = false)
+        QueryFieldSchema.string(PROFILE_CITY, nullable = true)
     )
 }
 

@@ -97,6 +97,18 @@ class PortableQueryVectorTest {
     }
 
     @Test
+    fun `nullable nested city fixture keeps an empty profile object distinct from a missing profile`() {
+        val firstDocument = PortableQueryDataset.documents.first()
+
+        assertEquals(QueryValue.ObjectValue(emptyMap()), firstDocument.fields[PortableQueryDataset.PROFILE])
+        assertTrue(
+            PortableQueryDataset.schema(QueryDocumentKind.SNAPSHOT)
+                .fields.getValue(PortableQueryDataset.PROFILE_CITY)
+                .nullable
+        )
+    }
+
+    @Test
     fun `stable tie fixture cannot pass with primary sort alone`() {
         val primaryOnlyOrder = PortableQueryDataset.documents
             .sortedBy { document ->
