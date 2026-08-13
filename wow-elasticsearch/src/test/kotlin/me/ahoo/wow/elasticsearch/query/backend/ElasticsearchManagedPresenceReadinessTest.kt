@@ -213,6 +213,65 @@ class ElasticsearchManagedPresenceReadinessTest {
         assertNotReady(deepRequirements, deepMappings)
     }
 
+    @Test
+    fun `explicit marker rejects disabled root and root metadata object`() {
+        assertNotReady(
+            requirements("__wow_query.null"),
+            listOf(
+                mapping(
+                    managedPresenceTemplates(),
+                    metadataProperty(),
+                    rootEnabled = false,
+                ),
+                mapping(
+                    managedPresenceTemplates(),
+                    metadataProperty(enabled = false),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `explicit marker rejects disabled object and nested source parents`() {
+        listOf("state", "body", "payload").forEach { parent ->
+            val explicitMetadata = mapOf("__wow_query" to metadataProperty())
+            assertNotReady(
+                requirements("$parent.__wow_query.null"),
+                listOf(
+                    mapping(
+                        managedPresenceTemplates(),
+                        metadataProperty(),
+                        parentName = parent,
+                        payload = objectProperty(enabled = false, properties = explicitMetadata),
+                    ),
+                    mapping(
+                        managedPresenceTemplates(),
+                        metadataProperty(),
+                        parentName = parent,
+                        payload = nestedProperty(enabled = false, properties = explicitMetadata),
+                    ),
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `explicit marker rejects disabled multi level ancestor`() {
+        val payload = objectProperty(
+            properties = mapOf(
+                "body" to objectProperty(
+                    enabled = false,
+                    properties = mapOf("__wow_query" to metadataProperty()),
+                ),
+            ),
+        )
+
+        assertNotReady(
+            requirements("payload.body.__wow_query.null"),
+            listOf(mapping(managedPresenceTemplates(), metadataProperty(), payload = payload)),
+        )
+    }
+
     private fun assertNotReady(
         requirements: ElasticsearchQueryReadinessRequirements,
         mappings: List<GetMappingResponse>,
@@ -346,6 +405,18 @@ class ElasticsearchManagedPresenceReadinessTest {
         property.`object` { objectProperty ->
             objectProperty.apply {
                 if (dynamic != null) dynamic(dynamic)
+                if (enabled != null) enabled(enabled)
+                if (properties.isNotEmpty()) properties(properties)
+            }
+        }
+    }
+
+    private fun nestedProperty(
+        enabled: Boolean? = null,
+        properties: Map<String, Property> = emptyMap(),
+    ): Property = Property.of { property ->
+        property.nested { nestedProperty ->
+            nestedProperty.apply {
                 if (enabled != null) enabled(enabled)
                 if (properties.isNotEmpty()) properties(properties)
             }

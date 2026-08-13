@@ -18,6 +18,7 @@ import co.elastic.clients.elasticsearch._types.mapping.DynamicMapping
 import co.elastic.clients.elasticsearch._types.mapping.Property
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
+import co.elastic.clients.elasticsearch.core.CountRequest
 import co.elastic.clients.elasticsearch.core.IndexRequest
 import co.elastic.clients.elasticsearch.indices.CreateIndexRequest
 import co.elastic.clients.elasticsearch.indices.ExistsIndexTemplateRequest
@@ -146,6 +147,72 @@ internal class ElasticsearchQueryPresenceTemplateTest {
             .verifyComplete()
     }
 
+    @Test
+    fun `explicit marker under disabled ancestor is not searchable or ready`() {
+        val client = ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch)
+        val initializer = IndexTemplateInitializer(client.createElasticsearchTemplate())
+        val index = "wow.${elasticsearch.index("presence_enabled_false")}.snapshot"
+        val source = ElasticsearchQueryPresenceEncoder.encode(
+            mapOf("payload" to mapOf("emptyObject" to emptyMap<String, Any?>())),
+        )
+
+        initializer.ensureAllTemplates()
+            .then(Mono.defer { createDisabledPayloadIndex(client, index) })
+            .then(
+                Mono.defer {
+                    client.index(
+                        IndexRequest.of<Map<String, Any?>> { request ->
+                            request.index(index).id("1").document(source).refresh(Refresh.True)
+                        },
+                    )
+                },
+            ).then(
+                Mono.defer {
+                    Mono.zip(
+                        readiness(client, index, setOf("payload.__wow_query.present")),
+                        client.indices().getMapping(GetMappingRequest.of { request -> request.index(index) }),
+                        client.count(
+                            CountRequest.of { request ->
+                                request.index(index).query { query ->
+                                    query.term { term ->
+                                        term.field("payload.__wow_query.present").value("emptyObject")
+                                    }
+                                }
+                            },
+                        ),
+                    )
+                },
+            ).test()
+            .assertNext { result ->
+                result.t1.assert().isEqualTo(
+                    QueryBackendReadiness.NotReady(QueryBackendReadinessReason.MAPPING_INCOMPATIBLE),
+                )
+                val mapping = checkNotNull(result.t2.mappings()[index]).mappings()
+                val marker = checkNotNull(propertyAt(mapping, "payload.__wow_query.present"))
+                marker.isKeyword.assert().isTrue()
+                result.t3.count().assert().isZero()
+            }
+            .verifyComplete()
+    }
+
+    private fun createDisabledPayloadIndex(
+        client: ReactiveElasticsearchClient,
+        index: String,
+    ) = client.indices().create { request ->
+        request.index(index).mappings { mapping ->
+            mapping.properties("payload") { property ->
+                property.`object` { payload ->
+                    payload.enabled(false).properties("__wow_query") { metadata ->
+                        metadata.`object` { metadataObject ->
+                            metadataObject.properties("present") { marker -> marker.keyword { keyword -> keyword } }
+                                .properties("null") { marker -> marker.keyword { keyword -> keyword } }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private fun deleteTemplateIfPresent(
         client: ReactiveElasticsearchClient,
         template: String,
@@ -205,6 +272,7 @@ internal class ElasticsearchQueryPresenceTemplateTest {
     private fun readiness(
         client: ReactiveElasticsearchClient,
         index: String,
+        presenceFields: Set<String> = PRESENCE_FIELDS,
     ): Mono<QueryBackendReadiness> = ElasticsearchQueryReadiness(
         client = client,
         index = index,
@@ -212,7 +280,7 @@ internal class ElasticsearchQueryPresenceTemplateTest {
             configurationValid = true,
             fields = emptySet(),
             presenceVersion = ElasticsearchQueryPresenceEncoder.VERSION,
-            presenceFields = PRESENCE_FIELDS,
+            presenceFields = presenceFields,
         ),
     ).inspect()
 

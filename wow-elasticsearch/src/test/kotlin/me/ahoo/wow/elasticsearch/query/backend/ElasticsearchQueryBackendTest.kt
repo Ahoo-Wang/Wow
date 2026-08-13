@@ -177,6 +177,47 @@ class ElasticsearchQueryBackendTest {
     }
 
     @Test
+    fun `explicit presence marker with disabled ancestor is not ready before search or pit io`() {
+        val metadata = Property.of { property ->
+            property.`object` { objectProperty ->
+                objectProperty.properties("present") { it.keyword { keyword -> keyword } }
+                    .properties("null") { it.keyword { keyword -> keyword } }
+            }
+        }
+        val client = mappingClient(
+            properties = mapOf(
+                "profile" to Property.of { property ->
+                    property.`object` { objectProperty ->
+                        objectProperty.enabled(false).properties("__wow_query", metadata)
+                    }
+                },
+                "__wow_query" to metadata,
+            ),
+            configureMapping = {
+                meta("wow_query_presence_template_version", JsonData.of(1))
+                    .dynamicTemplates(managedPresenceTemplates())
+            },
+        )
+        val backend = ElasticsearchQueryBackendFactory(client).bind(
+            QueryBackendResolutionContext(
+                PortableQueryDataset.target(QueryDocumentKind.SNAPSHOT),
+                PortableQueryDataset.schema(QueryDocumentKind.SNAPSHOT),
+                PredicateExpression(PortableQueryDataset.PROFILE_CITY, PortableOperator.NULL, emptyList()),
+            ),
+        )
+
+        StepVerifier.create(backend.readiness())
+            .expectNext(
+                QueryBackendReadiness.NotReady(
+                    me.ahoo.wow.query.backend.QueryBackendReadinessReason.MAPPING_INCOMPATIBLE,
+                ),
+            )
+            .verifyComplete()
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.openPointInTime(any<OpenPointInTimeRequest>()) }
+    }
+
+    @Test
     fun `source divergent nested binding is configuration invalid before index io`() {
         val client = mockk<ReactiveElasticsearchClient>(relaxed = true)
         val source = PortableQueryDataset.schema(QueryDocumentKind.SNAPSHOT)

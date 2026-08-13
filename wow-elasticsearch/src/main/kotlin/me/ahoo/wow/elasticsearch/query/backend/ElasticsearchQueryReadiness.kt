@@ -153,10 +153,16 @@ internal class ElasticsearchQueryReadiness(
         val managedPresenceContract = mapping.hasManagedPresenceContract()
         return version == requirements.presenceVersion &&
             requirements.fields.all { requirement -> compatible(snapshot, requirement) } &&
-            requirements.presenceFields.all { path ->
-                propertyAt(mapping, path)?.hasManagedPresenceKeywordSemantics()
-                    ?: (managedPresenceContract && mapping.canMaterializePresenceField(path))
-            }
+            requirements.presenceFields.all { path -> mapping.hasCompatiblePresenceField(path, managedPresenceContract) }
+    }
+
+    private fun co.elastic.clients.elasticsearch._types.mapping.TypeMapping.hasCompatiblePresenceField(
+        path: String,
+        managedPresenceContract: Boolean,
+    ): Boolean {
+        if (!hasUsablePresenceAncestors(path)) return false
+        return propertyAt(this, path)?.hasManagedPresenceKeywordSemantics()
+            ?: (managedPresenceContract && canMaterializePresenceField(path))
     }
 
     private fun co.elastic.clients.elasticsearch._types.mapping.TypeMapping.hasManagedPresenceContract(): Boolean {
@@ -198,36 +204,45 @@ internal class ElasticsearchQueryReadiness(
 
     private fun co.elastic.clients.elasticsearch._types.mapping.TypeMapping.canMaterializePresenceField(
         path: String,
+    ): Boolean = hasUsablePresenceAncestors(path, requireDynamic = true)
+
+    private fun co.elastic.clients.elasticsearch._types.mapping.TypeMapping.hasUsablePresenceAncestors(
+        path: String,
+        requireDynamic: Boolean = false,
     ): Boolean {
-        if (enabled() == false || !dynamic().allowsManagedDynamic()) return false
+        if (enabled() == false || (requireDynamic && !dynamic().allowsManagedDynamic())) return false
         var properties = properties()
         path.split('.').dropLast(1).forEach { segment ->
             val ancestor = properties[segment] ?: run {
                 properties = emptyMap()
                 return@forEach
             }
-            when {
-                ancestor.isObject -> {
-                    val objectProperty = ancestor.`object`()
-                    if (objectProperty.enabled() == false || !objectProperty.dynamic().allowsManagedDynamic()) {
-                        return false
-                    }
-                    properties = objectProperty.properties()
-                }
-
-                ancestor.isNested -> {
-                    val nestedProperty = ancestor.nested()
-                    if (nestedProperty.enabled() == false || !nestedProperty.dynamic().allowsManagedDynamic()) {
-                        return false
-                    }
-                    properties = nestedProperty.properties()
-                }
-
-                else -> return false
-            }
+            properties = ancestor.usablePresenceAncestorProperties(requireDynamic) ?: return false
         }
         return true
     }
+
+    private fun co.elastic.clients.elasticsearch._types.mapping.Property.usablePresenceAncestorProperties(
+        requireDynamic: Boolean,
+    ): Map<String, co.elastic.clients.elasticsearch._types.mapping.Property>? = when {
+        isObject -> `object`().run {
+            usablePresenceAncestorProperties(enabled(), dynamic(), properties(), requireDynamic)
+        }
+
+        isNested -> nested().run {
+            usablePresenceAncestorProperties(enabled(), dynamic(), properties(), requireDynamic)
+        }
+
+        else -> null
+    }
+
+    private fun usablePresenceAncestorProperties(
+        enabled: Boolean?,
+        dynamic: co.elastic.clients.elasticsearch._types.mapping.DynamicMapping?,
+        properties: Map<String, co.elastic.clients.elasticsearch._types.mapping.Property>,
+        requireDynamic: Boolean,
+    ): Map<String, co.elastic.clients.elasticsearch._types.mapping.Property>? =
+        if (enabled == false || (requireDynamic && !dynamic.allowsManagedDynamic())) null else properties
 
     private fun co.elastic.clients.elasticsearch._types.mapping.DynamicMapping?.allowsManagedDynamic(): Boolean =
         this == null || this == co.elastic.clients.elasticsearch._types.mapping.DynamicMapping.True
