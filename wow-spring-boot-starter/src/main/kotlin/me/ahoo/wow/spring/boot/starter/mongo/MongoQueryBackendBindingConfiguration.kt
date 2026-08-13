@@ -26,12 +26,13 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.boot.mongodb.autoconfigure.MongoProperties as DataMongoProperties
 
 @Configuration(proxyBeanMethods = false)
-internal class MongoQueryBackendBindingConfiguration(
+internal class MongoQueryBackendBindingConfiguration private constructor(
     private val mongoProperties: MongoProperties,
 ) {
 
     @Bean
     @ConditionalOnEventStoreStorage(StorageType.MONGO)
+    @JvmSynthetic
     fun mongoEventQueryBackendBinding(
         mongoClient: MongoClient,
         dataMongoProperties: DataMongoProperties?,
@@ -50,6 +51,7 @@ internal class MongoQueryBackendBindingConfiguration(
     @Bean
     @ConditionalOnSnapshotEnabled
     @ConditionalOnSnapshotStoreStorage(StorageType.MONGO)
+    @JvmSynthetic
     fun mongoSnapshotQueryBackendBinding(
         mongoClient: MongoClient,
         dataMongoProperties: DataMongoProperties?,

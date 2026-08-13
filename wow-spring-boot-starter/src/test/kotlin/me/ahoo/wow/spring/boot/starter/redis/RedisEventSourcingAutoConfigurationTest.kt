@@ -369,14 +369,14 @@ internal class CanonicalSnapshotProbeConfiguration {
             storage = null,
             eventStore = mockk(),
             legacyQueryFactory = NoOpEventStreamQueryServiceFactory,
-            queryBackendSelection = QueryBackendSelection.Unavailable,
+            queryBackendSelection = QueryBackendSelection.unavailable(),
         )
         val redisRoute = ResolvedStorageChannelRoute.Event(
             bindingName = "redis-event-store",
             storage = StorageType.REDIS,
             eventStore = redisEventStore,
             legacyQueryFactory = NoOpEventStreamQueryServiceFactory,
-            queryBackendSelection = QueryBackendSelection.Unavailable,
+            queryBackendSelection = QueryBackendSelection.unavailable(),
         )
         return ResolvedStorageRouteSnapshot(
             defaultEvent = defaultRoute,

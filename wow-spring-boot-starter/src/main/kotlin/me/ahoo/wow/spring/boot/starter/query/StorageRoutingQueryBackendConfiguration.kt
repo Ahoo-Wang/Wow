@@ -21,11 +21,12 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 @Configuration(proxyBeanMethods = false)
-internal class StorageRoutingQueryBackendConfiguration {
+internal class StorageRoutingQueryBackendConfiguration private constructor() {
 
     @Bean("storageRoutingQueryBackendResolver")
     @ConditionalOnBean(QueryBackendRouteSnapshot::class)
     @ConditionalOnMissingBean(QueryBackendResolver::class)
+    @JvmSynthetic
     fun storageRoutingQueryBackendResolver(
         routeSnapshot: QueryBackendRouteSnapshot,
     ): QueryBackendResolver = StorageRoutingQueryBackendResolver(routeSnapshot)

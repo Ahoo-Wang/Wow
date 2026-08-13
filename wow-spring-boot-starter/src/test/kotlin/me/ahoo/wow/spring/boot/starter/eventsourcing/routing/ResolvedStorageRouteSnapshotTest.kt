@@ -20,11 +20,85 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.backend.QueryBackendFactory
+import me.ahoo.wow.query.backend.QueryBackendRouteIdentity
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.util.concurrent.atomic.AtomicInteger
 
 class ResolvedStorageRouteSnapshotTest {
+    @Test
+    fun `backend logical names must produce a safe route identity before binding`() {
+        val bindCount = AtomicInteger()
+        val factory = QueryBackendFactory {
+            bindCount.incrementAndGet()
+            mockk()
+        }
+        val unsafeNames = listOf("bad name", ".leading", "bad/name")
+
+        unsafeNames.forEach { unsafeName ->
+            assertThrows<IllegalArgumentException> {
+                coordinator(
+                    snapshotEnabled = false,
+                    eventStores = listOf(EventStoreBinding(unsafeName, StorageType.MONGO, mockk())),
+                    backends = listOf(
+                        QueryBackendBinding.named(
+                            unsafeName,
+                            QueryDocumentKind.EVENT_STREAM,
+                            StorageType.MONGO,
+                            factory,
+                        ),
+                    ),
+                ).resolve(StorageRoutingProperties())
+            }
+        }
+
+        bindCount.get().assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `backend logical name length includes the document kind suffix`() {
+        val bindCount = AtomicInteger()
+        val factory = QueryBackendFactory {
+            bindCount.incrementAndGet()
+            mockk()
+        }
+        val suffixLength = 1 + QueryDocumentKind.EVENT_STREAM.name.length
+        val maximumName = "a".repeat(128 - suffixLength)
+        QueryBackendRouteIdentity("$maximumName:${QueryDocumentKind.EVENT_STREAM.name}")
+
+        val valid = coordinator(
+            snapshotEnabled = false,
+            eventStores = listOf(EventStoreBinding(maximumName, StorageType.MONGO, mockk())),
+            backends = listOf(
+                QueryBackendBinding.named(
+                    maximumName,
+                    QueryDocumentKind.EVENT_STREAM,
+                    StorageType.MONGO,
+                    factory,
+                ),
+            ),
+        ).resolve(StorageRoutingProperties())
+        checkNotNull(valid.queryBackendRoutes().defaultSelections[QueryDocumentKind.EVENT_STREAM]?.binding)
+
+        val overlongName = "$maximumName-a"
+        assertThrows<IllegalArgumentException> {
+            coordinator(
+                snapshotEnabled = false,
+                eventStores = listOf(EventStoreBinding(overlongName, StorageType.MONGO, mockk())),
+                backends = listOf(
+                    QueryBackendBinding.named(
+                        overlongName,
+                        QueryDocumentKind.EVENT_STREAM,
+                        StorageType.MONGO,
+                        factory,
+                    ),
+                ),
+            ).resolve(StorageRoutingProperties())
+        }
+        bindCount.get().assert().isEqualTo(0)
+    }
+
     @Test
     fun `duplicate store logical names fail before route resolution`() {
         val failure = assertThrows<IllegalArgumentException> {
@@ -205,9 +279,9 @@ class ResolvedStorageRouteSnapshotTest {
         )
         val backendRoutes = snapshot.queryBackendRoutes()
 
-        backendRoutes.selection(eventTarget("order")).assert().isSameAs(QueryBackendSelection.Unavailable)
-        (backendRoutes.selection(eventTarget("cart")) as QueryBackendSelection.Available)
-            .binding.storage.assert().isEqualTo(StorageType.MONGO)
+        backendRoutes.selection(eventTarget("order")).assert().isSameAs(QueryBackendSelection.unavailable())
+        checkNotNull(backendRoutes.selection(eventTarget("cart")).binding)
+            .storage.assert().isEqualTo(StorageType.MONGO)
     }
 
     @Test
@@ -229,8 +303,8 @@ class ResolvedStorageRouteSnapshotTest {
         )
 
         snapshot.eventRoutes().eventRoutes.getValue(AUDIT).assert().isSameAs(archiveStore)
-        (snapshot.queryBackendRoutes().selection(eventTarget("audit")) as QueryBackendSelection.Available)
-            .binding.assert().isSameAs(archiveBackend)
+        checkNotNull(snapshot.queryBackendRoutes().selection(eventTarget("audit")).binding)
+            .assert().isSameAs(archiveBackend)
     }
 
     @Test
@@ -238,11 +312,11 @@ class ResolvedStorageRouteSnapshotTest {
         val orderTarget = eventTarget("order")
         val auditTarget = eventTarget("audit")
         val input = linkedMapOf<QueryTarget, QueryBackendSelection>(
-            orderTarget to QueryBackendSelection.Unavailable,
-            auditTarget to QueryBackendSelection.Unavailable,
+            orderTarget to QueryBackendSelection.unavailable(),
+            auditTarget to QueryBackendSelection.unavailable(),
         )
         val snapshot = QueryBackendRouteSnapshot(
-            defaultSelections = linkedMapOf(QueryDocumentKind.EVENT_STREAM to QueryBackendSelection.Unavailable),
+            defaultSelections = linkedMapOf(QueryDocumentKind.EVENT_STREAM to QueryBackendSelection.unavailable()),
             routeOverrides = input,
         )
 
@@ -300,6 +374,6 @@ class ResolvedStorageRouteSnapshotTest {
             name: String,
             documentKind: QueryDocumentKind,
             storage: StorageType?,
-        ): QueryBackendBinding = QueryBackendBinding(name, documentKind, storage, mockk<QueryBackendFactory>())
+        ): QueryBackendBinding = QueryBackendBinding.named(name, documentKind, storage, mockk<QueryBackendFactory>())
     }
 }

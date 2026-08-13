@@ -23,21 +23,21 @@ import me.ahoo.wow.query.backend.QueryBackendRouteIdentity
 import me.ahoo.wow.query.backend.ResolvedQueryBackend
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.QueryBackendBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.QueryBackendRouteSnapshot
-import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.QueryBackendSelection
 import reactor.core.publisher.Mono
 
-internal class StorageRoutingQueryBackendResolver(
+internal class StorageRoutingQueryBackendResolver private constructor(
     routeSnapshot: QueryBackendRouteSnapshot,
 ) : QueryBackendResolver {
     private val routes = routeSnapshot
 
+    @JvmSynthetic
     override fun resolve(target: QueryTarget): Mono<ResolvedQueryBackend> = backendNotReady()
 
+    @JvmSynthetic
     override fun resolve(context: QueryBackendResolutionContext): Mono<ResolvedQueryBackend> = Mono.defer {
-        when (val selection = routes.selection(context.target)) {
-            QueryBackendSelection.Unavailable -> backendNotReady()
-            is QueryBackendSelection.Available -> bind(selection.binding, context)
-        }
+        routes.selection(context.target).binding
+            ?.let { binding -> bind(binding, context) }
+            ?: backendNotReady()
     }
 
     private fun bind(
@@ -48,7 +48,7 @@ internal class StorageRoutingQueryBackendResolver(
             binding.backendFactory.bind(context),
             QueryBackendRouteIdentity("${binding.name}:${context.target.documentKind.name}"),
         )
-    } catch (_: Throwable) {
+    } catch (_: Exception) {
         backendNotReady()
     }
 
@@ -59,4 +59,10 @@ internal class StorageRoutingQueryBackendResolver(
             QueryErrorReason.BACKEND_UNAVAILABLE,
         ),
     )
+
+    companion object {
+        @JvmSynthetic
+        operator fun invoke(routeSnapshot: QueryBackendRouteSnapshot): StorageRoutingQueryBackendResolver =
+            StorageRoutingQueryBackendResolver(routeSnapshot)
+    }
 }

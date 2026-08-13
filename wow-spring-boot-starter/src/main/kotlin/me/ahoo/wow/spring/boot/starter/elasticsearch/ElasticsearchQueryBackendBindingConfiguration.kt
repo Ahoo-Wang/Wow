@@ -25,10 +25,11 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 
 @Configuration(proxyBeanMethods = false)
-internal class ElasticsearchQueryBackendBindingConfiguration {
+internal class ElasticsearchQueryBackendBindingConfiguration private constructor() {
 
     @Bean
     @ConditionalOnEventStoreStorage(StorageType.ELASTICSEARCH)
+    @JvmSynthetic
     fun elasticsearchEventQueryBackendBinding(
         client: ReactiveElasticsearchClient,
     ): QueryBackendBinding = QueryBackendBinding.storage(
@@ -40,6 +41,7 @@ internal class ElasticsearchQueryBackendBindingConfiguration {
     @Bean
     @ConditionalOnSnapshotEnabled
     @ConditionalOnSnapshotStoreStorage(StorageType.ELASTICSEARCH)
+    @JvmSynthetic
     fun elasticsearchSnapshotQueryBackendBinding(
         client: ReactiveElasticsearchClient,
     ): QueryBackendBinding = QueryBackendBinding.storage(

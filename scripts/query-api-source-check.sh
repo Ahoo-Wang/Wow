@@ -1256,16 +1256,92 @@ echo "PASS: Kotlin external Elasticsearch bound backend, compiler, PIT and encod
 cat >"$TEMP_DIR/java/InternalStarterRoutingApi.java" <<'EOF'
 package external.fixture;
 
-import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.StorageRoutingAutoConfiguration;
-import me.ahoo.wow.spring.boot.starter.query.QueryGatewayAutoConfiguration;
+import java.util.List;
+import java.util.Map;
+import me.ahoo.wow.api.query.gateway.QueryDocumentKind;
+import me.ahoo.wow.api.query.gateway.QueryTarget;
+import me.ahoo.wow.spring.boot.starter.elasticsearch.ElasticsearchQueryBackendBindingConfiguration;
+import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType;
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.CanonicalStorageRouteConfiguration;
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.QueryBackendBinding;
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.QueryBackendRouteSnapshot;
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.QueryBackendSelection;
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ResolvedStorageChannelRoute;
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ResolvedStorageRouteSnapshot;
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.StorageRouteCoordinator;
+import me.ahoo.wow.spring.boot.starter.mongo.MongoQueryBackendBindingConfiguration;
+import me.ahoo.wow.spring.boot.starter.query.StorageRoutingQueryBackendConfiguration;
+import me.ahoo.wow.spring.boot.starter.query.StorageRoutingQueryBackendResolver;
 
 public final class InternalStarterRoutingApi {
-    public static Object leakStorageRoute(StorageRoutingAutoConfiguration configuration) {
-        return configuration.queryBackendRouteSnapshot$wow_spring_boot_starter(null);
+    public static QueryBackendBinding constructBinding() {
+        return new QueryBackendBinding("mongo-event-store", QueryDocumentKind.EVENT_STREAM, StorageType.MONGO, null);
     }
 
-    public static Object leakResolver(QueryGatewayAutoConfiguration configuration) {
-        return configuration.storageRoutingQueryBackendResolver$wow_spring_boot_starter(null);
+    public static Object leakBinding(QueryBackendBinding binding) {
+        return binding.getName();
+    }
+
+    public static Object leakSelection(QueryBackendSelection selection) {
+        return selection.getBinding();
+    }
+
+    public static Object leakChannel(ResolvedStorageChannelRoute.Event event) {
+        return event.getBindingName();
+    }
+
+    public static Object leakBackendRoutes(QueryBackendRouteSnapshot routes, QueryTarget target) {
+        return routes.selection(target);
+    }
+
+    public static Object leakSnapshot(ResolvedStorageRouteSnapshot snapshot) {
+        return snapshot.eventRoutes();
+    }
+
+    public static Object leakCoordinator(StorageRouteCoordinator coordinator) {
+        return coordinator.resolve(null);
+    }
+
+    public static Object leakCanonical(
+        CanonicalStorageRouteConfiguration configuration,
+        ResolvedStorageRouteSnapshot snapshot
+    ) {
+        return configuration.queryBackendRouteSnapshot(snapshot);
+    }
+
+    public static Object leakQueryConfiguration(
+        StorageRoutingQueryBackendConfiguration configuration,
+        QueryBackendRouteSnapshot routes
+    ) {
+        return configuration.storageRoutingQueryBackendResolver(routes);
+    }
+
+    public static Object leakResolver(StorageRoutingQueryBackendResolver resolver, QueryTarget target) {
+        return resolver.resolve(target);
+    }
+
+    public static Object leakMongo(MongoQueryBackendBindingConfiguration configuration) {
+        return configuration.mongoEventQueryBackendBinding(null, null);
+    }
+
+    public static Object leakElasticsearch(ElasticsearchQueryBackendBindingConfiguration configuration) {
+        return configuration.elasticsearchEventQueryBackendBinding(null);
+    }
+
+    public static Object constructInternals(QueryBackendSelection selection) {
+        ResolvedStorageChannelRoute.Event event = new ResolvedStorageChannelRoute.Event(
+            "mongo-event-store", StorageType.MONGO, null, null, selection
+        );
+        new QueryBackendRouteSnapshot(Map.of(), Map.of());
+        new StorageRoutingQueryBackendConfiguration();
+        new StorageRoutingQueryBackendResolver(null);
+        new MongoQueryBackendBindingConfiguration(null);
+        new ElasticsearchQueryBackendBindingConfiguration();
+        new StorageRouteCoordinator(
+            "context", false, List.of(), List.of(), List.of(), List.of(), List.of(),
+            StorageType.MONGO, StorageType.MONGO
+        );
+        return new ResolvedStorageRouteSnapshot(event, null, Map.of());
     }
 }
 EOF
@@ -1273,15 +1349,27 @@ EOF
 if javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
     -d "$TEMP_DIR/classes/java" "$TEMP_DIR/java/InternalStarterRoutingApi.java" \
     >"$TEMP_DIR/internal-starter-routing.out" 2>&1; then
-    fail "Java external source unexpectedly compiled internal starter routing bean methods"
+    fail "Java external source unexpectedly compiled internal starter routing API"
 fi
-for method_name in queryBackendRouteSnapshot storageRoutingQueryBackendResolver; do
+for class_name in QueryBackendBinding QueryBackendSelection ResolvedStorageChannelRoute \
+    QueryBackendRouteSnapshot ResolvedStorageRouteSnapshot StorageRouteCoordinator \
+    CanonicalStorageRouteConfiguration StorageRoutingQueryBackendConfiguration \
+    StorageRoutingQueryBackendResolver MongoQueryBackendBindingConfiguration \
+    ElasticsearchQueryBackendBindingConfiguration; do
+    grep -F "$class_name" "$TEMP_DIR/internal-starter-routing.out" >/dev/null || {
+        cat "$TEMP_DIR/internal-starter-routing.out" >&2
+        fail "Java starter routing negative fixture did not diagnose $class_name"
+    }
+done
+for method_name in getName getBinding getBindingName selection eventRoutes resolve \
+    queryBackendRouteSnapshot storageRoutingQueryBackendResolver \
+    mongoEventQueryBackendBinding elasticsearchEventQueryBackendBinding; do
     grep -F "$method_name" "$TEMP_DIR/internal-starter-routing.out" >/dev/null || {
         cat "$TEMP_DIR/internal-starter-routing.out" >&2
         fail "Java starter routing negative fixture did not diagnose $method_name"
     }
 done
-echo "PASS: Java external source cannot reference internal starter routing bean methods"
+echo "PASS: Java external starter routing boundary"
 
 cat >"$TEMP_DIR/kotlin/ExternalStarterRoutingInternals.kt" <<'EOF'
 package external.fixture

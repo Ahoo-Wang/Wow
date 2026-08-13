@@ -19,6 +19,7 @@ import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.backend.QueryBackendRouteIdentity
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
@@ -27,61 +28,133 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import java.util.Collections
 
 internal sealed interface QueryBackendSelection {
-    data class Available(val binding: QueryBackendBinding) : QueryBackendSelection
+    @get:JvmSynthetic
+    val binding: QueryBackendBinding?
 
-    data object Unavailable : QueryBackendSelection
+    companion object {
+        @JvmSynthetic
+        fun available(binding: QueryBackendBinding): QueryBackendSelection = AvailableQueryBackendSelection(binding)
+
+        @JvmSynthetic
+        fun unavailable(): QueryBackendSelection = UnavailableQueryBackendSelection
+    }
+}
+
+private class AvailableQueryBackendSelection(
+    override val binding: QueryBackendBinding,
+) : QueryBackendSelection
+
+private data object UnavailableQueryBackendSelection : QueryBackendSelection {
+    override val binding: QueryBackendBinding? = null
 }
 
 internal sealed interface ResolvedStorageChannelRoute {
+    @get:JvmSynthetic
     val bindingName: String
+
+    @get:JvmSynthetic
     val storage: StorageType?
+
+    @get:JvmSynthetic
     val documentKind: QueryDocumentKind
+
+    @get:JvmSynthetic
     val queryBackendSelection: QueryBackendSelection
 
-    data class Event(
+    class Event private constructor(
+        @get:JvmSynthetic
         override val bindingName: String,
+        @get:JvmSynthetic
         override val storage: StorageType?,
+        @get:JvmSynthetic
         val eventStore: EventStore,
+        @get:JvmSynthetic
         val legacyQueryFactory: EventStreamQueryServiceFactory,
+        @get:JvmSynthetic
         override val queryBackendSelection: QueryBackendSelection,
     ) : ResolvedStorageChannelRoute {
+        @get:JvmSynthetic
         override val documentKind: QueryDocumentKind = QueryDocumentKind.EVENT_STREAM
+
+        companion object {
+            @JvmSynthetic
+            operator fun invoke(
+                bindingName: String,
+                storage: StorageType?,
+                eventStore: EventStore,
+                legacyQueryFactory: EventStreamQueryServiceFactory,
+                queryBackendSelection: QueryBackendSelection,
+            ): Event = Event(bindingName, storage, eventStore, legacyQueryFactory, queryBackendSelection)
+        }
     }
 
-    data class Snapshot(
+    class Snapshot private constructor(
+        @get:JvmSynthetic
         override val bindingName: String,
+        @get:JvmSynthetic
         override val storage: StorageType?,
+        @get:JvmSynthetic
         val snapshotStore: SnapshotStore,
+        @get:JvmSynthetic
         val legacyQueryFactory: SnapshotQueryServiceFactory,
+        @get:JvmSynthetic
         override val queryBackendSelection: QueryBackendSelection,
     ) : ResolvedStorageChannelRoute {
+        @get:JvmSynthetic
         override val documentKind: QueryDocumentKind = QueryDocumentKind.SNAPSHOT
+
+        companion object {
+            @JvmSynthetic
+            operator fun invoke(
+                bindingName: String,
+                storage: StorageType?,
+                snapshotStore: SnapshotStore,
+                legacyQueryFactory: SnapshotQueryServiceFactory,
+                queryBackendSelection: QueryBackendSelection,
+            ): Snapshot = Snapshot(bindingName, storage, snapshotStore, legacyQueryFactory, queryBackendSelection)
+        }
     }
 }
 
-internal class QueryBackendRouteSnapshot(
+internal class QueryBackendRouteSnapshot private constructor(
     defaultSelections: Map<QueryDocumentKind, QueryBackendSelection>,
     routeOverrides: Map<QueryTarget, QueryBackendSelection>,
 ) {
+    @get:JvmSynthetic
     val defaultSelections: Map<QueryDocumentKind, QueryBackendSelection> =
         defaultSelections.toImmutableLinkedMap()
+
+    @get:JvmSynthetic
     val routeOverrides: Map<QueryTarget, QueryBackendSelection> = routeOverrides.toImmutableLinkedMap()
 
+    @JvmSynthetic
     fun selection(target: QueryTarget): QueryBackendSelection =
         if (routeOverrides.containsKey(target)) {
             checkNotNull(routeOverrides[target])
         } else {
-            defaultSelections[target.documentKind] ?: QueryBackendSelection.Unavailable
+            defaultSelections[target.documentKind] ?: QueryBackendSelection.unavailable()
         }
+
+    companion object {
+        @JvmSynthetic
+        operator fun invoke(
+            defaultSelections: Map<QueryDocumentKind, QueryBackendSelection>,
+            routeOverrides: Map<QueryTarget, QueryBackendSelection>,
+        ): QueryBackendRouteSnapshot = QueryBackendRouteSnapshot(defaultSelections, routeOverrides)
+    }
 }
 
-internal class ResolvedStorageRouteSnapshot(
+internal class ResolvedStorageRouteSnapshot private constructor(
+    @get:JvmSynthetic
     val defaultEvent: ResolvedStorageChannelRoute.Event,
+    @get:JvmSynthetic
     val defaultSnapshot: ResolvedStorageChannelRoute.Snapshot?,
     routeOverrides: Map<QueryTarget, ResolvedStorageChannelRoute>,
 ) {
+    @get:JvmSynthetic
     val routeOverrides: Map<QueryTarget, ResolvedStorageChannelRoute> = routeOverrides.toImmutableLinkedMap()
 
+    @JvmSynthetic
     fun eventRoutes(): ResolvedEventRoutes = ResolvedEventRoutes(
         defaultEventStore = defaultEvent.eventStore,
         eventRoutes = routeOverrides.mapNotNullToLinkedMap { (target, route) ->
@@ -91,6 +164,7 @@ internal class ResolvedStorageRouteSnapshot(
         },
     )
 
+    @JvmSynthetic
     fun snapshotRoutes(): ResolvedSnapshotRoutes {
         val defaultRoute = requireNotNull(defaultSnapshot) { "Snapshot storage routing is disabled." }
         return ResolvedSnapshotRoutes(
@@ -103,6 +177,7 @@ internal class ResolvedStorageRouteSnapshot(
         )
     }
 
+    @JvmSynthetic
     fun eventStreamQueryServiceFactoryRoutes(): ResolvedEventStreamQueryServiceFactoryRoutes =
         ResolvedEventStreamQueryServiceFactoryRoutes(
             defaultEventStreamQueryServiceFactory = defaultEvent.legacyQueryFactory,
@@ -113,6 +188,7 @@ internal class ResolvedStorageRouteSnapshot(
             },
         )
 
+    @JvmSynthetic
     fun snapshotQueryServiceFactoryRoutes(): ResolvedSnapshotQueryServiceFactoryRoutes {
         val defaultRoute = requireNotNull(defaultSnapshot) { "Snapshot storage routing is disabled." }
         return ResolvedSnapshotQueryServiceFactoryRoutes(
@@ -125,6 +201,7 @@ internal class ResolvedStorageRouteSnapshot(
         )
     }
 
+    @JvmSynthetic
     fun queryBackendRoutes(): QueryBackendRouteSnapshot {
         val defaults = linkedMapOf<QueryDocumentKind, QueryBackendSelection>(
             QueryDocumentKind.EVENT_STREAM to defaultEvent.queryBackendSelection,
@@ -137,9 +214,19 @@ internal class ResolvedStorageRouteSnapshot(
             },
         )
     }
+
+    companion object {
+        @JvmSynthetic
+        operator fun invoke(
+            defaultEvent: ResolvedStorageChannelRoute.Event,
+            defaultSnapshot: ResolvedStorageChannelRoute.Snapshot?,
+            routeOverrides: Map<QueryTarget, ResolvedStorageChannelRoute>,
+        ): ResolvedStorageRouteSnapshot =
+            ResolvedStorageRouteSnapshot(defaultEvent, defaultSnapshot, routeOverrides)
+    }
 }
 
-internal class StorageRouteCoordinator(
+internal class StorageRouteCoordinator private constructor(
     private val contextName: String,
     private val snapshotEnabled: Boolean,
     eventStoreBindings: List<EventStoreBinding>,
@@ -179,10 +266,14 @@ internal class StorageRouteCoordinator(
     private val backendByStorageAndKind: Map<Pair<StorageType, QueryDocumentKind>, QueryBackendBinding>
 
     init {
+        backendBindings.forEach { binding ->
+            QueryBackendRouteIdentity("${binding.name}:${binding.documentKind.name}")
+        }
         backendByName = uniqueIndex("query backend", backendBindings, QueryBackendBinding::name)
         backendByStorageAndKind = uniqueBackendStorageIndex(backendBindings)
     }
 
+    @JvmSynthetic
     fun resolve(properties: StorageRoutingProperties): ResolvedStorageRouteSnapshot {
         validateSnapshotRoutes(properties)
         val defaultEvent = resolveDefaultEvent()
@@ -294,11 +385,11 @@ internal class StorageRouteCoordinator(
             else -> error("Unsupported storage binding.")
         }
         val backend = storage?.let { backendByStorageAndKind[it to documentKind] }
-            ?: return QueryBackendSelection.Unavailable
+            ?: return QueryBackendSelection.unavailable()
         require(backend.name == bindingName) {
             "Storage binding[$bindingName] and query backend[${backend.name}] must share a logical name."
         }
-        return QueryBackendSelection.Available(backend)
+        return QueryBackendSelection.available(backend)
     }
 
     private fun requiredNamedBackend(
@@ -306,7 +397,7 @@ internal class StorageRouteCoordinator(
         storage: StorageType?,
         documentKind: QueryDocumentKind,
         routeKey: String,
-    ): QueryBackendSelection.Available {
+    ): QueryBackendSelection {
         val backend = requireNotNull(backendByName[bindingName]) {
             "Storage route[$routeKey] binding[$bindingName] query backend was not found."
         }
@@ -316,7 +407,7 @@ internal class StorageRouteCoordinator(
         require(backend.storage == storage) {
             "Storage route[$routeKey] binding[$bindingName] backend storage is inconsistent."
         }
-        return QueryBackendSelection.Available(backend)
+        return QueryBackendSelection.available(backend)
     }
 
     private fun resolveNamedAggregate(routeKey: String): MaterializedNamedAggregate {
@@ -381,6 +472,29 @@ internal class StorageRouteCoordinator(
     companion object {
         private const val EVENT_CHANNEL = "event"
         private const val SNAPSHOT_CHANNEL = "snapshot"
+
+        @JvmSynthetic
+        operator fun invoke(
+            contextName: String,
+            snapshotEnabled: Boolean,
+            eventStoreBindings: List<EventStoreBinding>,
+            snapshotStoreBindings: List<SnapshotStoreBinding>,
+            eventStreamQueryServiceFactoryBindings: List<EventStreamQueryServiceFactoryBinding>,
+            snapshotQueryServiceFactoryBindings: List<SnapshotQueryServiceFactoryBinding>,
+            queryBackendBindings: List<QueryBackendBinding>,
+            defaultEventStorage: StorageType,
+            defaultSnapshotStorage: StorageType,
+        ): StorageRouteCoordinator = StorageRouteCoordinator(
+            contextName,
+            snapshotEnabled,
+            eventStoreBindings,
+            snapshotStoreBindings,
+            eventStreamQueryServiceFactoryBindings,
+            snapshotQueryServiceFactoryBindings,
+            queryBackendBindings,
+            defaultEventStorage,
+            defaultSnapshotStorage,
+        )
     }
 }
 

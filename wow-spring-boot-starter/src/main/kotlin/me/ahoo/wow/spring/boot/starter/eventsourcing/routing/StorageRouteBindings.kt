@@ -87,13 +87,18 @@ data class SnapshotQueryServiceFactoryBinding(
     }
 }
 
-internal data class QueryBackendBinding(
+internal class QueryBackendBinding private constructor(
+    @get:JvmSynthetic
     val name: String,
+    @get:JvmSynthetic
     val documentKind: QueryDocumentKind,
+    @get:JvmSynthetic
     val storage: StorageType?,
+    @get:JvmSynthetic
     val backendFactory: QueryBackendFactory,
 ) {
     companion object {
+        @JvmSynthetic
         fun storage(
             storage: StorageType,
             documentKind: QueryDocumentKind,
@@ -107,6 +112,14 @@ internal data class QueryBackendBinding(
             storage = storage,
             backendFactory = backendFactory,
         )
+
+        @JvmSynthetic
+        fun named(
+            name: String,
+            documentKind: QueryDocumentKind,
+            storage: StorageType?,
+            backendFactory: QueryBackendFactory,
+        ): QueryBackendBinding = QueryBackendBinding(name, documentKind, storage, backendFactory)
     }
 }
 

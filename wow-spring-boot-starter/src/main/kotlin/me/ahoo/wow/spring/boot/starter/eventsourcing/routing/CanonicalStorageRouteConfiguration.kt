@@ -27,21 +27,22 @@ import org.springframework.context.annotation.Bean
     beforeName = ["me.ahoo.wow.spring.boot.starter.query.QueryGatewayAutoConfiguration"],
 )
 @ConditionalOnBean(EventStoreBinding::class)
-internal class CanonicalStorageRouteConfiguration {
+internal class CanonicalStorageRouteConfiguration private constructor(
+    @param:Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
+    private val namedBoundedContext: NamedBoundedContext,
+    private val eventStoreProperties: EventStoreProperties,
+    private val snapshotProperties: SnapshotProperties,
+    private val storageRoutingProperties: StorageRoutingProperties,
+    private val eventStoreBindings: List<EventStoreBinding>,
+    private val snapshotStoreBindings: List<SnapshotStoreBinding>,
+    private val eventStreamQueryServiceFactoryBindings: List<EventStreamQueryServiceFactoryBinding>,
+    private val snapshotQueryServiceFactoryBindings: List<SnapshotQueryServiceFactoryBinding>,
+    private val queryBackendBindings: List<QueryBackendBinding>,
+) {
 
     @Bean("resolvedStorageRouteSnapshot")
-    fun resolvedStorageRouteSnapshot(
-        @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
-        namedBoundedContext: NamedBoundedContext,
-        eventStoreProperties: EventStoreProperties,
-        snapshotProperties: SnapshotProperties,
-        storageRoutingProperties: StorageRoutingProperties,
-        eventStoreBindings: List<EventStoreBinding>,
-        snapshotStoreBindings: List<SnapshotStoreBinding>,
-        eventStreamQueryServiceFactoryBindings: List<EventStreamQueryServiceFactoryBinding>,
-        snapshotQueryServiceFactoryBindings: List<SnapshotQueryServiceFactoryBinding>,
-        queryBackendBindings: List<QueryBackendBinding>,
-    ): ResolvedStorageRouteSnapshot = StorageRouteCoordinator(
+    @JvmSynthetic
+    fun resolvedStorageRouteSnapshot(): ResolvedStorageRouteSnapshot = StorageRouteCoordinator(
         contextName = namedBoundedContext.contextName,
         snapshotEnabled = snapshotProperties.enabled,
         eventStoreBindings = eventStoreBindings,
@@ -54,6 +55,7 @@ internal class CanonicalStorageRouteConfiguration {
     ).resolve(storageRoutingProperties)
 
     @Bean("queryBackendRouteSnapshot")
+    @JvmSynthetic
     fun queryBackendRouteSnapshot(
         routeSnapshot: ResolvedStorageRouteSnapshot,
     ): QueryBackendRouteSnapshot = routeSnapshot.queryBackendRoutes()

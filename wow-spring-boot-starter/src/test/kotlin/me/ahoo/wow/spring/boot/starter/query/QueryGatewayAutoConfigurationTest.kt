@@ -612,14 +612,14 @@ class QueryGatewayAutoConfigurationTest {
     }
 
     private fun routeSnapshot(backend: QueryBackend): QueryBackendRouteSnapshot {
-        val binding = QueryBackendBinding(
+        val binding = QueryBackendBinding.named(
             name = "mongo-snapshot-store",
             documentKind = QueryDocumentKind.SNAPSHOT,
             storage = StorageType.MONGO,
             backendFactory = { backend },
         )
         return QueryBackendRouteSnapshot(
-            defaultSelections = mapOf(QueryDocumentKind.SNAPSHOT to QueryBackendSelection.Available(binding)),
+            defaultSelections = mapOf(QueryDocumentKind.SNAPSHOT to QueryBackendSelection.available(binding)),
             routeOverrides = emptyMap(),
         )
     }

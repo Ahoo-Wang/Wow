@@ -261,9 +261,9 @@ class StorageRoutingAutoConfigurationTest {
                 snapshot.eventRoutes().eventRoutes.getValue(ORDER).assert().isSameAs(stores.redisEventStore)
                 val selection = snapshot.queryBackendRoutes().selection(
                     QueryTarget(ORDER, QueryDocumentKind.EVENT_STREAM),
-                ) as QueryBackendSelection.Available
-                selection.binding.name.assert().isEqualTo("redis-event-store")
-                selection.binding.storage.assert().isEqualTo(StorageType.REDIS)
+                )
+                checkNotNull(selection.binding).name.assert().isEqualTo("redis-event-store")
+                checkNotNull(selection.binding).storage.assert().isEqualTo(StorageType.REDIS)
             }
     }
 
@@ -546,7 +546,7 @@ class StorageRoutingAutoConfigurationTest {
         )
 
         @Bean
-        fun archiveEventQueryBackendBinding(): QueryBackendBinding = QueryBackendBinding(
+        fun archiveEventQueryBackendBinding(): QueryBackendBinding = QueryBackendBinding.named(
             "archive-event-store",
             QueryDocumentKind.EVENT_STREAM,
             null,
@@ -568,7 +568,7 @@ class StorageRoutingAutoConfigurationTest {
         )
 
         @Bean
-        fun archiveSnapshotQueryBackendBinding(): QueryBackendBinding = QueryBackendBinding(
+        fun archiveSnapshotQueryBackendBinding(): QueryBackendBinding = QueryBackendBinding.named(
             "archive-snapshot-store",
             QueryDocumentKind.SNAPSHOT,
             null,

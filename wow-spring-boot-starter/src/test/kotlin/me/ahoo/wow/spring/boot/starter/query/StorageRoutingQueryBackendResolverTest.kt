@@ -42,7 +42,9 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.QueryBackendBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.QueryBackendRouteSnapshot
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.QueryBackendSelection
+import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
@@ -55,7 +57,7 @@ class StorageRoutingQueryBackendResolverTest {
         val binding = backendBinding(factory)
         val resolver = StorageRoutingQueryBackendResolver(
             QueryBackendRouteSnapshot(
-                defaultSelections = mapOf(QueryDocumentKind.SNAPSHOT to QueryBackendSelection.Available(binding)),
+                defaultSelections = mapOf(QueryDocumentKind.SNAPSHOT to QueryBackendSelection.available(binding)),
                 routeOverrides = emptyMap(),
             ),
         )
@@ -75,7 +77,7 @@ class StorageRoutingQueryBackendResolverTest {
     @Test
     fun `target only compatibility resolution is always unavailable`() {
         val factory = RecordingBackendFactory()
-        val resolver = resolver(QueryBackendSelection.Available(backendBinding(factory)))
+        val resolver = resolver(QueryBackendSelection.available(backendBinding(factory)))
 
         StepVerifier.create(resolver.resolve(TARGET))
             .expectErrorSatisfies(::assertUnavailable)
@@ -86,7 +88,7 @@ class StorageRoutingQueryBackendResolverTest {
 
     @Test
     fun `unavailable route fails closed without binding a different backend`() {
-        val resolver = resolver(QueryBackendSelection.Unavailable)
+        val resolver = resolver(QueryBackendSelection.unavailable())
 
         StepVerifier.create(resolver.resolve(resolutionContext()))
             .expectErrorSatisfies(::assertUnavailable)
@@ -97,7 +99,7 @@ class StorageRoutingQueryBackendResolverTest {
     fun `factory binding failure is mapped to a low information unavailable error`() {
         val secret = "mongodb://secret-host/private-database"
         val factory = QueryBackendFactory { throw IllegalStateException(secret) }
-        val resolver = resolver(QueryBackendSelection.Available(backendBinding(factory)))
+        val resolver = resolver(QueryBackendSelection.available(backendBinding(factory)))
 
         StepVerifier.create(resolver.resolve(resolutionContext()))
             .expectErrorSatisfies { error ->
@@ -108,6 +110,28 @@ class StorageRoutingQueryBackendResolverTest {
             .verify()
     }
 
+    @TestFactory
+    fun `fatal factory binding failures preserve their identity`(): List<DynamicTest> = listOf(
+        "VirtualMachineError" to object : VirtualMachineError("fatal-vm") {},
+        "LinkageError" to LinkageError("fatal-linkage"),
+        "ThreadDeath" to ThreadDeath(),
+    ).map { (type, fatal) ->
+        DynamicTest.dynamicTest(type) {
+            val factory = QueryBackendFactory { throw fatal }
+            val resolver = resolver(QueryBackendSelection.available(backendBinding(factory)))
+
+            val propagated: Throwable? = try {
+                StepVerifier.create(resolver.resolve(resolutionContext()))
+                    .verifyComplete()
+                null
+            } catch (actual: Throwable) {
+                actual
+            }
+
+            propagated.assert().isSameAs(fatal)
+        }
+    }
+
     private fun resolver(selection: QueryBackendSelection): StorageRoutingQueryBackendResolver =
         StorageRoutingQueryBackendResolver(
             QueryBackendRouteSnapshot(
@@ -116,7 +140,7 @@ class StorageRoutingQueryBackendResolverTest {
             ),
         )
 
-    private fun backendBinding(factory: QueryBackendFactory): QueryBackendBinding = QueryBackendBinding(
+    private fun backendBinding(factory: QueryBackendFactory): QueryBackendBinding = QueryBackendBinding.named(
         name = "mongo-snapshot-store",
         documentKind = QueryDocumentKind.SNAPSHOT,
         storage = StorageType.MONGO,
