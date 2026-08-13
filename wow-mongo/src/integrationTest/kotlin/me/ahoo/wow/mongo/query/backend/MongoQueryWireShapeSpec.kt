@@ -57,6 +57,7 @@ import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.query.backend.PortableQueryDataset
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.bson.Document
+import org.bson.types.Decimal128
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import reactor.core.publisher.Mono
@@ -426,6 +427,50 @@ class MongoQueryWireShapeSpec {
     }
 
     @Test
+    fun `nullable leaf cannot authorize a missing or null non-nullable collection`() {
+        val target = QueryTarget(NAMED_AGGREGATE, QueryDocumentKind.SNAPSHOT)
+        val missingItems = taggedSnapshotDocument("missing-items", emptyList()).also { document ->
+            state(document).remove("items")
+        }
+        val nullItems = taggedSnapshotDocument("null-items", emptyList()).also { document ->
+            state(document)["items"] = null
+        }
+        val schema = nestedSnapshotSchema(target, itemSkuNullable = true)
+        val (gateway, factory) = snapshotGateway(schema, listOf(missingItems, nullItems), ITEM_SKU)
+
+        listOf("missing-items", "null-items").forEach { id ->
+            factory.reset()
+            assertResultInvalidAndCancelled(
+                factory,
+                gateway.list(
+                    ListQueryRequest(
+                        target = target,
+                        expression = aggregateIdEquals(id),
+                        resultShape = QueryResultShape.Dynamic,
+                        limit = 0
+                    )
+                )
+            )
+
+            factory.reset()
+            assertResultInvalidAndCancelled(
+                factory,
+                gateway.list(
+                    ListQueryRequest(
+                        target = target,
+                        expression = aggregateIdEquals(id),
+                        resultShape = QueryResultShape.Typed(
+                            NullableNestedSnapshotResult::class.java,
+                            QueryProjection.Include(setOf(LogicalField("aggregateId"), ITEM_SKU))
+                        ),
+                        limit = 0
+                    )
+                )
+            )
+        }
+    }
+
+    @Test
     fun `collection projection preserves an independently bound child field`() {
         val target = QueryTarget(NAMED_AGGREGATE, QueryDocumentKind.SNAPSHOT)
         val document = taggedSnapshotDocument("bound-child", emptyList()).append("sku_values", listOf("bound"))
@@ -466,7 +511,7 @@ class MongoQueryWireShapeSpec {
     }
 
     @Test
-    fun `nullable missing or null object ancestor materializes a non-nullable descendant as null`() {
+    fun `nullable missing or null object ancestor reconstructs the parent as null`() {
         val target = QueryTarget(NAMED_AGGREGATE, QueryDocumentKind.SNAPSHOT)
         val missingProfile = taggedSnapshotDocument("a-missing", emptyList())
         val nullProfile = taggedSnapshotDocument("b-null", emptyList()).also { document ->
@@ -507,8 +552,8 @@ class MongoQueryWireShapeSpec {
                     limit = 0
                 )
             )
-        ).assertNext { result -> result.state.profile.city.assert().isNull() }
-            .assertNext { result -> result.state.profile.city.assert().isNull() }
+        ).assertNext { result -> result.state.profile.assert().isNull() }
+            .assertNext { result -> result.state.profile.assert().isNull() }
             .verifyComplete()
         factory.subscriptionCount.assert().isOne()
         factory.cancellationCount.assert().isZero()
@@ -634,6 +679,52 @@ class MongoQueryWireShapeSpec {
 
         factory.subscriptionCount.assert().isOne()
         factory.cancellationCount.assert().isOne()
+    }
+
+    @Test
+    fun `non-finite decimal results fail stably and cancel the real driver`() {
+        val target = QueryTarget(NAMED_AGGREGATE, QueryDocumentKind.SNAPSHOT)
+        val documents = listOf(
+            taggedSnapshotDocument("double-nan", emptyList()).also { document ->
+                state(document)["score"] = Double.NaN
+            },
+            taggedSnapshotDocument("decimal-nan", emptyList()).also { document ->
+                state(document)["score"] = Decimal128.NaN
+            }
+        )
+        val schema = nestedSnapshotSchema(target, includeScore = true)
+        val (gateway, factory) = snapshotGateway(schema, documents, SCORE)
+
+        listOf("double-nan", "decimal-nan").forEach { id ->
+            factory.reset()
+            assertResultInvalidAndCancelled(
+                factory,
+                gateway.list(
+                    ListQueryRequest(
+                        target = target,
+                        expression = aggregateIdEquals(id),
+                        resultShape = QueryResultShape.Dynamic,
+                        limit = 0
+                    )
+                )
+            )
+
+            factory.reset()
+            assertResultInvalidAndCancelled(
+                factory,
+                gateway.list(
+                    ListQueryRequest(
+                        target = target,
+                        expression = aggregateIdEquals(id),
+                        resultShape = QueryResultShape.Typed(
+                            DecimalSnapshotResult::class.java,
+                            QueryProjection.Include(setOf(LogicalField("aggregateId"), SCORE))
+                        ),
+                        limit = 0
+                    )
+                )
+            )
+        }
     }
 
     @Test
@@ -764,6 +855,24 @@ class MongoQueryWireShapeSpec {
         error.causeCode.assert().isEqualTo(QueryErrorCode.RESULT_VALIDATION_FAILED)
     }
 
+    private fun assertResultInvalidAndCancelled(
+        factory: MongoObservableQueryBackendFactory,
+        publisher: org.reactivestreams.Publisher<*>
+    ) {
+        StepVerifier.create(publisher).expectErrorSatisfies(::assertResultInvalid).verify()
+        factory.subscriptionCount.assert().isOne()
+        factory.cancellationCount.assert().isOne()
+    }
+
+    private fun aggregateIdEquals(id: String): PredicateExpression = PredicateExpression(
+        LogicalField("aggregateId"),
+        PortableOperator.EQ,
+        listOf(QueryValue.StringValue(id))
+    )
+
+    @Suppress("UNCHECKED_CAST")
+    private fun state(document: Document): MutableMap<String, Any?> = document["state"] as MutableMap<String, Any?>
+
     private fun createCollection(target: QueryTarget, document: Document) {
         createCollection(target, listOf(document))
     }
@@ -784,7 +893,8 @@ class MongoQueryWireShapeSpec {
         itemSkuNullable: Boolean = false,
         itemsNullable: Boolean = false,
         itemSkuPhysical: String? = null,
-        includeProfile: Boolean = false
+        includeProfile: Boolean = false,
+        includeScore: Boolean = false
     ): QuerySchema = QuerySchema(
         target,
         QuerySystemFields.fields(target.documentKind) + listOf(
@@ -821,6 +931,10 @@ class MongoQueryWireShapeSpec {
                 ),
                 QueryFieldSchema.string(PROFILE_CITY, nullable = false)
             )
+        } else {
+            emptyList()
+        } + if (includeScore) {
+            listOf(QueryFieldSchema(SCORE, QueryFieldValueKind.DECIMAL, nullable = false))
         } else {
             emptyList()
         }
@@ -895,9 +1009,13 @@ class MongoQueryWireShapeSpec {
 
     data class ProfileSnapshotResult(val aggregateId: String, val state: ProjectedProfileState)
 
-    data class ProjectedProfileState(val profile: ProjectedProfile)
+    data class ProjectedProfileState(val profile: ProjectedProfile?)
 
     data class ProjectedProfile(val city: String?)
+
+    data class DecimalSnapshotResult(val aggregateId: String, val state: ProjectedDecimalState)
+
+    data class ProjectedDecimalState(val score: Any)
 
     data class NestedEventResult(val id: String, val body: List<ProjectedEvent>)
 
@@ -927,6 +1045,7 @@ class MongoQueryWireShapeSpec {
         val LABELS = LogicalField("state.labels")
         val PROFILE = LogicalField("state.profile")
         val PROFILE_CITY = LogicalField("state.profile.city")
+        val SCORE = LogicalField("state.score")
         val EVENT_BODY_ID = LogicalField("body.id")
     }
 }

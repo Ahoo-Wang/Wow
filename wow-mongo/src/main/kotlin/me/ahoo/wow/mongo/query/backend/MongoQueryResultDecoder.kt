@@ -45,7 +45,7 @@ internal class MongoQueryResultDecoder(
         val flatValues = LinkedHashMap<LogicalField, Any?>(projection.size)
         projection.forEach { (logical, physical) ->
             val resolved = resolve(source, physical.split('.'))
-            flatValues[logical] = materialize(source, logical, resolved)
+            flatValues[logical] = materialize(source, logical, physical, resolved)
         }
         @Suppress("UNCHECKED_CAST")
         return when (shape) {
@@ -89,17 +89,18 @@ internal class MongoQueryResultDecoder(
         }
     }
 
-    private fun materialize(source: Document, logical: LogicalField, resolved: Any?): Any? {
+    private fun materialize(source: Document, logical: LogicalField, physical: String, resolved: Any?): Any? {
         val schema = binding.schema(logical)
         val segments = logical.value.split('.')
         val collectionDepth = collectionDepth(segments, segments.size)
-        return materializeValue(source, schema, segments, resolved, collectionDepth, emptyList())
+        return materializeValue(source, schema, segments, physical, resolved, collectionDepth, emptyList())
     }
 
     private fun materializeValue(
         source: Document,
         schema: QueryFieldSchema,
         segments: List<String>,
+        physical: String,
         value: Any?,
         remainingCollections: Int,
         indices: List<Int>
@@ -109,12 +110,13 @@ internal class MongoQueryResultDecoder(
             source,
             schema,
             segments,
+            physical,
             remainingCollections,
             indices
         )
         remainingCollections > 0 -> (value as? List<*>)
             ?.mapIndexed { index, nested ->
-                materializeValue(source, schema, segments, nested, remainingCollections - 1, indices + index)
+                materializeValue(source, schema, segments, physical, nested, remainingCollections - 1, indices + index)
             } ?: resultInvalid()
         value is List<*> -> resultInvalid()
         else -> normalizeScalar(schema, value)
@@ -124,13 +126,16 @@ internal class MongoQueryResultDecoder(
         source: Document,
         schema: QueryFieldSchema,
         segments: List<String>,
+        physical: String,
         remainingCollections: Int,
         indices: List<Int>
-    ): Any? = when {
-        hasAbsentNullableCollectionAncestor(source, segments, indices) -> ABSENT_NULLABLE_COLLECTION
-        isNullableProperty(schema, remainingCollections) -> null
-        hasAbsentNullableAncestor(source, segments, indices) -> null
-        else -> resultInvalid()
+    ): Any? {
+        val absentAncestor = absentAncestor(source, segments, physical, indices)
+        return when {
+            absentAncestor !== NO_ABSENT_ANCESTOR -> absentAncestor
+            isNullableProperty(schema, remainingCollections) -> null
+            else -> resultInvalid()
+        }
     }
 
     private fun isNullableProperty(schema: QueryFieldSchema, remainingCollections: Int): Boolean =
@@ -139,7 +144,7 @@ internal class MongoQueryResultDecoder(
     private fun normalizeScalar(schema: QueryFieldSchema, value: Any): Any? = when (schema.valueKind) {
         QueryFieldValueKind.BOOLEAN -> normalizeIf(value, value is Boolean)
         QueryFieldValueKind.INTEGER -> normalizeIf(value, value.isIntegerNumber())
-        QueryFieldValueKind.DECIMAL -> normalizeIf(value, value.isDecimalNumber())
+        QueryFieldValueKind.DECIMAL -> normalizeIf(value, value.isFiniteDecimal())
         QueryFieldValueKind.STRING -> normalizeIf(value, value is String)
         QueryFieldValueKind.TIME -> normalizeTime(value, schema.system)
         QueryFieldValueKind.ENUM -> normalizeIf(value, value is String)
@@ -148,39 +153,60 @@ internal class MongoQueryResultDecoder(
         QueryFieldValueKind.MAP -> normalizeIf(value, value is Map<*, *>)
     }
 
-    private fun normalizeIf(value: Any, valid: Boolean): Any? = if (valid) normalize(value) else resultInvalid()
+    private fun normalizeIf(value: Any, valid: Boolean): Any? {
+        if (!valid) {
+            resultInvalid()
+        }
+        return try {
+            normalize(value)
+        } catch (error: QueryException) {
+            throw error
+        } catch (_: RuntimeException) {
+            resultInvalid()
+        }
+    }
 
-    private fun Any.isDecimalNumber(): Boolean = this is Number || this is Decimal128
+    private fun Any.isFiniteDecimal(): Boolean = when (this) {
+        is Double -> isFinite()
+        is Float -> isFinite()
+        is Decimal128 -> !isNaN && !isInfinite
+        is Number -> true
+        else -> false
+    }
 
     private fun Any.isBinary(): Boolean = this is ByteArray || this is Binary || this is BsonBinary
 
-    private fun hasAbsentNullableAncestor(
+    private fun absentAncestor(
         source: Document,
         segments: List<String>,
-        indices: List<Int>,
-        collectionOnly: Boolean = false
-    ): Boolean = (1 until segments.size).any { segmentCount ->
-        val ancestor = LogicalField(segments.take(segmentCount).joinToString("."))
-        if (!binding.contains(ancestor)) {
-            return@any false
-        }
-        val ancestorSchema = binding.schema(ancestor)
-        if (!ancestorSchema.nullable || collectionOnly && ancestorSchema.collectionKind == QueryCollectionKind.NONE) {
-            return@any false
-        }
-        var value = resolve(source, binding.physical(ancestor).split('.'))
-        val containingCollectionDepth = collectionDepth(segments, segmentCount - 1)
-        repeat(containingCollectionDepth) { depth ->
-            value = (value as? List<*>)?.getOrNull(indices.getOrNull(depth) ?: return@any false) ?: MISSING
-        }
-        value === MISSING || value == null
-    }
-
-    private fun hasAbsentNullableCollectionAncestor(
-        source: Document,
-        segments: List<String>,
+        requestedPhysical: String,
         indices: List<Int>
-    ): Boolean = hasAbsentNullableAncestor(source, segments, indices, collectionOnly = true)
+    ): Any {
+        ancestorLoop@ for (segmentCount in 1 until segments.size) {
+            val ancestor = LogicalField(segments.take(segmentCount).joinToString("."))
+            if (!binding.contains(ancestor)) {
+                continue
+            }
+            val ancestorSchema = binding.schema(ancestor)
+            val ancestorPhysical = binding.physical(ancestor)
+            if (!requestedPhysical.startsWith("$ancestorPhysical.")) {
+                continue
+            }
+            var value = resolve(source, ancestorPhysical.split('.'))
+            val containingCollectionDepth = collectionDepth(segments, segmentCount - 1)
+            for (depth in 0 until containingCollectionDepth) {
+                val elementIndex = indices.getOrNull(depth) ?: continue@ancestorLoop
+                value = (value as? List<*>)?.getOrNull(elementIndex) ?: MISSING
+            }
+            if (value === MISSING || value == null) {
+                if (!ancestorSchema.nullable) {
+                    resultInvalid()
+                }
+                return ABSENT_NULLABLE_ANCESTOR to ancestor.value
+            }
+        }
+        return NO_ABSENT_ANCESTOR
+    }
 
     private fun collectionDepth(segments: List<String>, segmentCount: Int): Int =
         (1..segmentCount).count { endIndex ->
@@ -190,9 +216,18 @@ internal class MongoQueryResultDecoder(
 
     private fun normalizeTime(value: Any?, system: Boolean): Any? = when {
         value == null -> null
-        system && value.isIntegerNumber() -> Instant.ofEpochMilli((value as Number).toLong())
+        system && value.isIntegerNumber() -> normalizeEpochMillis(value)
         !system && value is String -> runCatching { Instant.parse(value) }.getOrElse { resultInvalid() }
         else -> resultInvalid()
+    }
+
+    private fun normalizeEpochMillis(value: Any): Instant {
+        val epochMillis = try {
+            if (value is BigInteger) value.longValueExact() else (value as Number).toLong()
+        } catch (_: RuntimeException) {
+            resultInvalid()
+        }
+        return Instant.ofEpochMilli(epochMillis)
     }
 
     private fun Any?.isIntegerNumber(): Boolean =
@@ -217,12 +252,12 @@ internal class MongoQueryResultDecoder(
         }
         val currentPath = if (parentPath.isEmpty()) segment else "$parentPath.$segment"
         val field = binding.schema(LogicalField(currentPath))
+        if (absentAncestorPath(value) == currentPath) {
+            target[segment] = null
+            return
+        }
         if (field.collectionKind == QueryCollectionKind.OBJECT) {
-            if (value === ABSENT_NULLABLE_COLLECTION || field.nullable && value == null) {
-                target[segment] = null
-            } else {
-                insertCollection(target, segment, segments, index, currentPath, value)
-            }
+            insertCollection(target, segment, segments, index, currentPath, value)
         } else {
             val child = target[segment]?.let(::mutableStringMap) ?: LinkedHashMap()
             insert(child, segments, index + 1, currentPath, value)
@@ -275,10 +310,13 @@ internal class MongoQueryResultDecoder(
     }
 
     private fun externalize(value: Any?): Any? = when {
-        value === ABSENT_NULLABLE_COLLECTION -> null
+        absentAncestorPath(value) != null -> null
         value is List<*> -> value.map(::externalize)
         else -> value
     }
+
+    private fun absentAncestorPath(value: Any?): String? =
+        (value as? Pair<*, *>)?.takeIf { marker -> marker.first === ABSENT_NULLABLE_ANCESTOR }?.second as? String
 
     private fun resultInvalid(): Nothing = throw QueryException(
         QueryErrorCode.RESULT_VALIDATION_FAILED,
@@ -290,6 +328,7 @@ internal class MongoQueryResultDecoder(
         val MISSING: Any = Any()
         val INVALID: Any = Any()
         val NULL_COLLECTION_ELEMENT: Any = Any()
-        val ABSENT_NULLABLE_COLLECTION: Any = Any()
+        val ABSENT_NULLABLE_ANCESTOR: Any = Any()
+        val NO_ABSENT_ANCESTOR: Any = Any()
     }
 }

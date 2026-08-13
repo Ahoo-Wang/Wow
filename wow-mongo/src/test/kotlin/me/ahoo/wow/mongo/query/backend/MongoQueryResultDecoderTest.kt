@@ -28,6 +28,7 @@ import me.ahoo.wow.query.schema.QueryCollectionKind
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryFieldValueKind
 import me.ahoo.wow.query.schema.QuerySchema
+import me.ahoo.wow.query.schema.QuerySystemFields
 import org.bson.Document
 import org.bson.types.Binary
 import org.bson.types.Decimal128
@@ -37,6 +38,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import java.math.BigDecimal
+import java.math.BigInteger
 import java.time.Instant
 import java.util.stream.Stream
 
@@ -80,6 +82,50 @@ class MongoQueryResultDecoderTest {
         )
 
         val error = assertThrows<QueryException> { decodeDynamic(field, listOf(1, "two")) }
+
+        assertResultInvalid(error)
+    }
+
+    @ParameterizedTest(name = "DECIMAL rejects non-finite {0}")
+    @MethodSource("nonFiniteDecimalCases")
+    fun `decimal rejects non-finite values for dynamic and typed results`(value: Any) {
+        val field = QueryFieldSchema(VALUE, QueryFieldValueKind.DECIMAL, nullable = false)
+
+        assertResultInvalid(assertThrows { decodeDynamic(field, value) })
+        assertResultInvalid(
+            assertThrows {
+                decoder(field).decode<AnyValueResult>(
+                    Document("value", value),
+                    QueryPlanResultShape.Typed(AnyValueResult::class.java, setOf(VALUE)),
+                    mapOf(VALUE to "value")
+                )
+            }
+        )
+    }
+
+    @ParameterizedTest(name = "DECIMAL accepts finite {0}")
+    @MethodSource("finiteDecimalCases")
+    fun `decimal accepts finite canonical numeric representations`(value: Any, expected: Any) {
+        decodeDynamic(
+            QueryFieldSchema(VALUE, QueryFieldValueKind.DECIMAL, nullable = false),
+            value
+        ).assert().isEqualTo(expected)
+    }
+
+    @Test
+    fun `system time rejects an integer outside the epoch millis range`() {
+        val systemFields = QuerySystemFields.fields(QueryDocumentKind.SNAPSHOT)
+        val field = systemFields.single { it.path.value == "eventTime" }
+        val decoder = MongoQueryResultDecoder(MongoQueryFieldBinding.bind(QuerySchema(TARGET, systemFields)))
+        val outsideLong = BigInteger.valueOf(Long.MAX_VALUE).add(BigInteger.ONE)
+
+        val error = assertThrows<QueryException> {
+            decoder.decode<DynamicDocument>(
+                Document(field.path.value, outsideLong),
+                QueryPlanResultShape.Dynamic(setOf(field.path)),
+                mapOf(field.path to field.path.value)
+            )
+        }
 
         assertResultInvalid(error)
     }
@@ -182,6 +228,29 @@ class MongoQueryResultDecoderTest {
             Arguments.of(QueryFieldValueKind.BINARY, "bytes"),
             Arguments.of(QueryFieldValueKind.OBJECT, "object"),
             Arguments.of(QueryFieldValueKind.MAP, "map")
+        )
+
+        @JvmStatic
+        fun nonFiniteDecimalCases(): Stream<Any> = Stream.of(
+            Double.NaN,
+            Double.POSITIVE_INFINITY,
+            Double.NEGATIVE_INFINITY,
+            Float.NaN,
+            Float.POSITIVE_INFINITY,
+            Float.NEGATIVE_INFINITY,
+            Decimal128.NaN,
+            Decimal128.POSITIVE_INFINITY,
+            Decimal128.NEGATIVE_INFINITY
+        )
+
+        @JvmStatic
+        fun finiteDecimalCases(): Stream<Arguments> = Stream.of(
+            Arguments.of(BigDecimal("1.25"), BigDecimal("1.25")),
+            Arguments.of(Decimal128(BigDecimal("2.50")), BigDecimal("2.50")),
+            Arguments.of(3L, 3L),
+            Arguments.of(4, 4),
+            Arguments.of(5.5, 5.5),
+            Arguments.of(6.5f, 6.5f)
         )
     }
 }
