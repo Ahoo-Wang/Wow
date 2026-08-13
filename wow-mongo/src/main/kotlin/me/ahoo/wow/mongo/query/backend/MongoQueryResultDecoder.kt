@@ -23,6 +23,7 @@ import me.ahoo.wow.api.query.error.QueryStage
 import me.ahoo.wow.api.query.expression.LogicalField
 import me.ahoo.wow.query.plan.QueryPlanResultShape
 import me.ahoo.wow.query.schema.QueryCollectionKind
+import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryFieldValueKind
 import me.ahoo.wow.serialization.convert
 import org.bson.BsonBinary
@@ -43,7 +44,7 @@ internal class MongoQueryResultDecoder(
         val flatValues = LinkedHashMap<LogicalField, Any?>(projection.size)
         projection.forEach { (logical, physical) ->
             val resolved = resolve(source, physical.split('.'))
-            flatValues[logical] = materialize(logical, resolved)
+            flatValues[logical] = materialize(source, logical, resolved)
         }
         @Suppress("UNCHECKED_CAST")
         return when (shape) {
@@ -79,17 +80,62 @@ internal class MongoQueryResultDecoder(
         }
     }
 
-    private fun materialize(logical: LogicalField, resolved: Any?): Any? {
+    private fun materialize(source: Document, logical: LogicalField, resolved: Any?): Any? {
         val schema = binding.schema(logical)
-        fun materializeValue(value: Any?): Any? = when {
-            value === INVALID -> resultInvalid()
-            value === MISSING -> null
-            value is List<*> -> value.map(::materializeValue)
-            schema.valueKind == QueryFieldValueKind.TIME -> normalizeTime(value, schema.system)
-            else -> normalize(value)
-        }
-        return materializeValue(resolved)
+        val segments = logical.value.split('.')
+        val collectionDepth = collectionDepth(segments, segments.size)
+        return materializeValue(source, schema, segments, resolved, collectionDepth, emptyList())
     }
+
+    private fun materializeValue(
+        source: Document,
+        schema: QueryFieldSchema,
+        segments: List<String>,
+        value: Any?,
+        remainingCollections: Int,
+        indices: List<Int>
+    ): Any? = when {
+        value === INVALID -> resultInvalid()
+        value === MISSING || value == null ->
+            if (schema.nullable || hasAbsentNullableAncestor(source, segments, indices)) null else resultInvalid()
+        remainingCollections > 0 -> (value as? List<*>)
+            ?.mapIndexed { index, nested ->
+                materializeValue(source, schema, segments, nested, remainingCollections - 1, indices + index)
+            } ?: resultInvalid()
+        value is List<*> -> resultInvalid()
+        else -> normalizeScalar(schema, value)
+    }
+
+    private fun normalizeScalar(schema: QueryFieldSchema, value: Any): Any? = when {
+        schema.valueKind == QueryFieldValueKind.OBJECT || schema.valueKind == QueryFieldValueKind.MAP ->
+            if (value is Map<*, *>) normalize(value) else resultInvalid()
+        schema.valueKind == QueryFieldValueKind.TIME -> normalizeTime(value, schema.system)
+        value is Map<*, *> -> resultInvalid()
+        else -> normalize(value)
+    }
+
+    private fun hasAbsentNullableAncestor(
+        source: Document,
+        segments: List<String>,
+        indices: List<Int>
+    ): Boolean = (1 until segments.size).any { segmentCount ->
+        val ancestor = LogicalField(segments.take(segmentCount).joinToString("."))
+        if (!binding.contains(ancestor) || !binding.schema(ancestor).nullable) {
+            return@any false
+        }
+        var value = resolve(source, binding.physical(ancestor).split('.'))
+        val ancestorCollectionDepth = collectionDepth(segments, segmentCount)
+        repeat(ancestorCollectionDepth) { depth ->
+            value = (value as? List<*>)?.getOrNull(indices.getOrNull(depth) ?: return@any false) ?: MISSING
+        }
+        value === MISSING || value == null
+    }
+
+    private fun collectionDepth(segments: List<String>, segmentCount: Int): Int =
+        (1..segmentCount).count { endIndex ->
+            val field = LogicalField(segments.take(endIndex).joinToString("."))
+            binding.contains(field) && binding.schema(field).collectionKind != QueryCollectionKind.NONE
+        }
 
     private fun normalizeTime(value: Any?, system: Boolean): Any? = when {
         value == null -> null

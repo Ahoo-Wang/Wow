@@ -100,6 +100,18 @@ internal class MongoPortableQueryBackendFixture(
                         target[physicalField] = queryValue.toMongoValue(schema.fields.getValue(field).system)
                     }
                 }
+                if (documentKind == QueryDocumentKind.EVENT_STREAM) {
+                    val body = Document()
+                    stored.fields.forEach { (field, queryValue) ->
+                        if (field.value.startsWith("body.")) {
+                            body[field.value.removePrefix("body.")] =
+                                queryValue.toMongoValue(schema.fields.getValue(field).system)
+                        }
+                    }
+                    if (body.isNotEmpty()) {
+                        target["body"] = listOf(body)
+                    }
+                }
             }
         }
 

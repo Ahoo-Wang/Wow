@@ -71,8 +71,13 @@ internal class MongoQueryReadiness(
         val keys = index["key"] as? Document ?: return emptySet()
         val direct = keys.entries.filter { (_, kind) -> kind == "text" }.mapTo(LinkedHashSet()) { it.key }
         if (direct.remove("_fts")) {
+            if (keys.keys.any { key -> key != "_fts" && key != "_ftsx" }) {
+                return emptySet()
+            }
             val weights = index["weights"] as? Document
             weights?.keys?.let(direct::addAll)
+        } else if (keys.keys.any { key -> key !in direct }) {
+            return emptySet()
         }
         return direct
     }

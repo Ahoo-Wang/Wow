@@ -50,6 +50,7 @@ import me.ahoo.wow.api.query.error.QueryException
 import me.ahoo.wow.api.query.error.QueryStage
 import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.mock.MockAggregateCreated
+import me.ahoo.wow.tck.query.backend.PortableQueryDataset
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.bson.Document
 import org.junit.jupiter.api.Test
@@ -237,6 +238,233 @@ class MongoQueryWireShapeSpec {
     }
 
     @Test
+    fun `dynamic projection rejects a missing non-nullable array element field before emitting a result`() {
+        val target = QueryTarget(NAMED_AGGREGATE, QueryDocumentKind.SNAPSHOT)
+        val schema = nestedSnapshotSchema(target)
+        val (gateway, factory) = snapshotGateway(schema, listOf(snapshotDocumentWithMissingSku("missing-dynamic")), ITEM_SKU)
+
+        StepVerifier.create(
+            gateway.list(
+                ListQueryRequest(
+                    target = target,
+                    expression = MatchAll,
+                    resultShape = QueryResultShape.Dynamic,
+                    limit = 0
+                )
+            )
+        ).expectErrorSatisfies(::assertResultInvalid).verify()
+
+        factory.subscriptionCount.assert().isOne()
+        factory.cancellationCount.assert().isOne()
+    }
+
+    @Test
+    fun `typed projection rejects a missing non-nullable array element field before emitting a result`() {
+        val target = QueryTarget(NAMED_AGGREGATE, QueryDocumentKind.SNAPSHOT)
+        val schema = nestedSnapshotSchema(target)
+        val (gateway, factory) = snapshotGateway(schema, listOf(snapshotDocumentWithMissingSku("missing-typed")), ITEM_SKU)
+
+        StepVerifier.create(
+            gateway.list(
+                ListQueryRequest(
+                    target = target,
+                    expression = MatchAll,
+                    resultShape = QueryResultShape.Typed(
+                        NestedSnapshotResult::class.java,
+                        QueryProjection.Include(setOf(LogicalField("aggregateId"), ITEM_SKU))
+                    ),
+                    limit = 0
+                )
+            )
+        ).expectErrorSatisfies(::assertResultInvalid).verify()
+
+        factory.subscriptionCount.assert().isOne()
+        factory.cancellationCount.assert().isOne()
+    }
+
+    @Test
+    fun `nullable missing array element field is materialized explicitly for dynamic and typed results`() {
+        val target = QueryTarget(NAMED_AGGREGATE, QueryDocumentKind.SNAPSHOT)
+        val schema = nestedSnapshotSchema(target, itemSkuNullable = true)
+        val (gateway, factory) = snapshotGateway(
+            schema,
+            listOf(snapshotDocumentWithMissingSku("missing-nullable")),
+            ITEM_SKU
+        )
+
+        factory.reset()
+        StepVerifier.create(
+            gateway.list(
+                ListQueryRequest(
+                    target = target,
+                    expression = MatchAll,
+                    resultShape = QueryResultShape.Dynamic,
+                    limit = 0
+                )
+            )
+        ).assertNext { result -> result[ITEM_SKU.value].assert().isEqualTo(listOf(null)) }
+            .verifyComplete()
+        factory.subscriptionCount.assert().isOne()
+        factory.cancellationCount.assert().isZero()
+
+        factory.reset()
+        StepVerifier.create(
+            gateway.list(
+                ListQueryRequest(
+                    target = target,
+                    expression = MatchAll,
+                    resultShape = QueryResultShape.Typed(
+                        NullableNestedSnapshotResult::class.java,
+                        QueryProjection.Include(setOf(LogicalField("aggregateId"), ITEM_SKU))
+                    ),
+                    limit = 0
+                )
+            )
+        ).assertNext { result -> result.state.items.single().sku.assert().isNull() }
+            .verifyComplete()
+        factory.subscriptionCount.assert().isOne()
+        factory.cancellationCount.assert().isZero()
+    }
+
+    @Test
+    fun `nullable missing or null object ancestor materializes a non-nullable descendant as null`() {
+        val target = QueryTarget(NAMED_AGGREGATE, QueryDocumentKind.SNAPSHOT)
+        val missingProfile = taggedSnapshotDocument("a-missing", emptyList())
+        val nullProfile = taggedSnapshotDocument("b-null", emptyList()).also { document ->
+            @Suppress("UNCHECKED_CAST")
+            val state = document["state"] as MutableMap<String, Any?>
+            state["profile"] = null
+        }
+        val schema = nestedSnapshotSchema(target, includeProfile = true)
+        val (gateway, factory) = snapshotGateway(schema, listOf(missingProfile, nullProfile), PROFILE_CITY)
+
+        StepVerifier.create(
+            gateway.list(
+                ListQueryRequest(
+                    target = target,
+                    expression = MatchAll,
+                    resultShape = QueryResultShape.Dynamic,
+                    sort = listOf(QuerySort(LogicalField("aggregateId"), QuerySortDirection.ASC)),
+                    limit = 0
+                )
+            )
+        ).assertNext { result -> result[PROFILE_CITY.value].assert().isNull() }
+            .assertNext { result -> result[PROFILE_CITY.value].assert().isNull() }
+            .verifyComplete()
+        factory.subscriptionCount.assert().isOne()
+        factory.cancellationCount.assert().isZero()
+
+        factory.reset()
+        StepVerifier.create(
+            gateway.list(
+                ListQueryRequest(
+                    target = target,
+                    expression = MatchAll,
+                    resultShape = QueryResultShape.Typed(
+                        ProfileSnapshotResult::class.java,
+                        QueryProjection.Include(setOf(LogicalField("aggregateId"), PROFILE_CITY))
+                    ),
+                    sort = listOf(QuerySort(LogicalField("aggregateId"), QuerySortDirection.ASC)),
+                    limit = 0
+                )
+            )
+        ).assertNext { result -> result.state.profile.city.assert().isNull() }
+            .assertNext { result -> result.state.profile.city.assert().isNull() }
+            .verifyComplete()
+        factory.subscriptionCount.assert().isOne()
+        factory.cancellationCount.assert().isZero()
+    }
+
+    @Test
+    fun `portable event adapter materializes flattened body fields into a real array element`() {
+        val fixture = MongoPortableQueryBackendFixture(mongo.database(), QueryDocumentKind.EVENT_STREAM)
+        fixture.initializeCollection()
+        val target = PortableQueryDataset.target(QueryDocumentKind.EVENT_STREAM)
+        val collectionName = target.namedAggregate.toEventStreamCollectionName()
+
+        StepVerifier.create(
+            Mono.from(
+                mongo.database().getCollection(collectionName)
+                    .find(Document("_id", "event-d01"))
+                    .first()
+            )
+        ).assertNext { document ->
+            val body = document["body"] as List<*>
+            body.assert().hasSize(1)
+            val event = body.single() as Document
+            event["id"].assert().isEqualTo("body-d01")
+            event["name"].assert().isEqualTo("PortableEvent")
+            event["revision"].assert().isEqualTo("1")
+            event["bodyType"].assert().isEqualTo("DOMAIN_EVENT")
+        }.verifyComplete()
+    }
+
+    @Test
+    fun `dynamic projection rejects a scalar where schema requires a list after a prior result`() {
+        val target = QueryTarget(NAMED_AGGREGATE, QueryDocumentKind.SNAPSHOT)
+        val schema = nestedSnapshotSchema(target)
+        val (gateway, factory) = snapshotGateway(
+            schema,
+            listOf(
+                taggedSnapshotDocument("a-good", listOf("good")),
+                malformedLabelsDocument("b-bad")
+            ),
+            LABELS
+        )
+
+        StepVerifier.create(
+            gateway.list(
+                ListQueryRequest(
+                    target = target,
+                    expression = MatchAll,
+                    resultShape = QueryResultShape.Dynamic,
+                    sort = listOf(QuerySort(LogicalField("aggregateId"), QuerySortDirection.ASC)),
+                    limit = 0
+                )
+            )
+        ).assertNext { result -> result[LABELS.value].assert().isEqualTo(listOf("good")) }
+            .expectErrorSatisfies(::assertIncompleteResultInvalid)
+            .verify()
+
+        factory.subscriptionCount.assert().isOne()
+        factory.cancellationCount.assert().isOne()
+    }
+
+    @Test
+    fun `typed projection rejects a scalar where schema requires a list after a prior result`() {
+        val target = QueryTarget(NAMED_AGGREGATE, QueryDocumentKind.SNAPSHOT)
+        val schema = nestedSnapshotSchema(target)
+        val (gateway, factory) = snapshotGateway(
+            schema,
+            listOf(
+                taggedSnapshotDocument("a-good", listOf("good")),
+                malformedLabelsDocument("b-bad")
+            ),
+            LABELS
+        )
+
+        StepVerifier.create(
+            gateway.list(
+                ListQueryRequest(
+                    target = target,
+                    expression = MatchAll,
+                    resultShape = QueryResultShape.Typed(
+                        LabelsSnapshotResult::class.java,
+                        QueryProjection.Include(setOf(LogicalField("aggregateId"), LABELS))
+                    ),
+                    sort = listOf(QuerySort(LogicalField("aggregateId"), QuerySortDirection.ASC)),
+                    limit = 0
+                )
+            )
+        ).assertNext { result -> result.state.labels.assert().isEqualTo(listOf("good")) }
+            .expectErrorSatisfies(::assertIncompleteResultInvalid)
+            .verify()
+
+        factory.subscriptionCount.assert().isOne()
+        factory.cancellationCount.assert().isOne()
+    }
+
+    @Test
     fun `malformed nested projection fails stably and cancels the real driver`() {
         val target = QueryTarget(NAMED_AGGREGATE, QueryDocumentKind.SNAPSHOT)
         fun document(id: String, sku: String): Document = SimpleSnapshot(
@@ -292,6 +520,78 @@ class MongoQueryWireShapeSpec {
         factory.cancellationCount.assert().isOne()
     }
 
+    private fun snapshotDocumentWithMissingSku(id: String): Document {
+        val document = SimpleSnapshot(
+            WireAggregate(
+                aggregateId = NAMED_AGGREGATE.aggregateId(id),
+                state = WireState(Instant.parse("2026-03-01T00:00:00Z"), listOf(WireItem("removed"))),
+                firstEventTime = 1,
+                eventTime = 2
+            ),
+            snapshotTime = 3
+        ).toDocument()
+        @Suppress("UNCHECKED_CAST")
+        val state = document["state"] as MutableMap<String, Any?>
+        @Suppress("UNCHECKED_CAST")
+        val items = state["items"] as List<MutableMap<String, Any?>>
+        items.single().remove("sku")
+        return document
+    }
+
+    private fun taggedSnapshotDocument(id: String, labels: List<String>): Document = SimpleSnapshot(
+        WireAggregate(
+            aggregateId = NAMED_AGGREGATE.aggregateId(id),
+            state = WireState(
+                Instant.parse("2026-03-01T00:00:00Z"),
+                items = listOf(WireItem("sku")),
+                labels = labels
+            ),
+            firstEventTime = 1,
+            eventTime = 2
+        ),
+        snapshotTime = 3
+    ).toDocument()
+
+    private fun malformedLabelsDocument(id: String): Document =
+        taggedSnapshotDocument(id, listOf("removed")).also { document ->
+            @Suppress("UNCHECKED_CAST")
+            val state = document["state"] as MutableMap<String, Any?>
+            state["labels"] = "not-an-array"
+        }
+
+    private fun snapshotGateway(
+        schema: QuerySchema,
+        documents: List<Document>,
+        projectedField: LogicalField
+    ): Pair<me.ahoo.wow.query.QueryGateway, MongoObservableQueryBackendFactory> {
+        createCollection(schema.target, documents)
+        val factory = MongoObservableQueryBackendFactory(mongo.database())
+        factory.verifyRouteReadiness(QueryBackendResolutionContext(schema.target, schema, MatchAll))
+        factory.reset()
+        val gateway = MongoQueryGatewayHarness(
+            schema.target,
+            schema,
+            factory,
+            fieldAccess = QueryFieldAccess.Restricted(
+                setOf(LogicalField("aggregateId"), LogicalField("deleted"), projectedField)
+            )
+        ).gateway
+        return gateway to factory
+    }
+
+    private fun assertResultInvalid(error: Throwable) {
+        (error as QueryException).code.assert().isEqualTo(QueryErrorCode.RESULT_VALIDATION_FAILED)
+        error.stage.assert().isEqualTo(QueryStage.EXECUTION)
+        error.reason.assert().isEqualTo(QueryErrorReason.RESULT_INVALID)
+    }
+
+    private fun assertIncompleteResultInvalid(error: Throwable) {
+        (error as QueryException).code.assert().isEqualTo(QueryErrorCode.INCOMPLETE_RESULT)
+        error.stage.assert().isEqualTo(QueryStage.EXECUTION)
+        error.reason.assert().isEqualTo(QueryErrorReason.INCOMPLETE_STREAM)
+        error.causeCode.assert().isEqualTo(QueryErrorCode.RESULT_VALIDATION_FAILED)
+    }
+
     private fun createCollection(target: QueryTarget, document: Document) {
         createCollection(target, listOf(document))
     }
@@ -307,7 +607,11 @@ class MongoQueryWireShapeSpec {
         ).expectNextCount(1).verifyComplete()
     }
 
-    private fun nestedSnapshotSchema(target: QueryTarget): QuerySchema = QuerySchema(
+    private fun nestedSnapshotSchema(
+        target: QueryTarget,
+        itemSkuNullable: Boolean = false,
+        includeProfile: Boolean = false
+    ): QuerySchema = QuerySchema(
         target,
         QuerySystemFields.fields(target.documentKind) + listOf(
             QueryFieldSchema(OCCURRED_AT, QueryFieldValueKind.TIME, nullable = false),
@@ -317,8 +621,25 @@ class MongoQueryWireShapeSpec {
                 nullable = false,
                 collectionKind = QueryCollectionKind.OBJECT
             ),
-            QueryFieldSchema.string(ITEM_SKU, nullable = false)
-        )
+            QueryFieldSchema.string(ITEM_SKU, nullable = itemSkuNullable),
+            QueryFieldSchema(
+                path = LABELS,
+                valueKind = QueryFieldValueKind.STRING,
+                nullable = false,
+                collectionKind = QueryCollectionKind.SCALAR
+            )
+        ) + if (includeProfile) {
+            listOf(
+                QueryFieldSchema(
+                    path = PROFILE,
+                    valueKind = QueryFieldValueKind.OBJECT,
+                    nullable = true
+                ),
+                QueryFieldSchema.string(PROFILE_CITY, nullable = false)
+            )
+        } else {
+            emptyList()
+        }
     )
 
     private fun verifySingleId(
@@ -362,7 +683,8 @@ class MongoQueryWireShapeSpec {
 
     data class WireState(
         val occurredAt: Instant,
-        val items: List<WireItem> = emptyList()
+        val items: List<WireItem> = emptyList(),
+        val labels: List<String> = emptyList()
     )
 
     data class WireItem(val sku: String)
@@ -372,6 +694,22 @@ class MongoQueryWireShapeSpec {
     data class ProjectedState(val items: List<ProjectedItem>)
 
     data class ProjectedItem(val sku: String)
+
+    data class NullableNestedSnapshotResult(val aggregateId: String, val state: NullableProjectedState)
+
+    data class NullableProjectedState(val items: List<NullableProjectedItem>)
+
+    data class NullableProjectedItem(val sku: String?)
+
+    data class LabelsSnapshotResult(val aggregateId: String, val state: ProjectedLabelsState)
+
+    data class ProjectedLabelsState(val labels: List<String>)
+
+    data class ProfileSnapshotResult(val aggregateId: String, val state: ProjectedProfileState)
+
+    data class ProjectedProfileState(val profile: ProjectedProfile)
+
+    data class ProjectedProfile(val city: String?)
 
     data class NestedEventResult(val id: String, val body: List<ProjectedEvent>)
 
@@ -398,6 +736,9 @@ class MongoQueryWireShapeSpec {
         val OCCURRED_AT = LogicalField("state.occurredAt")
         val ITEMS = LogicalField("state.items")
         val ITEM_SKU = LogicalField("state.items.sku")
+        val LABELS = LogicalField("state.labels")
+        val PROFILE = LogicalField("state.profile")
+        val PROFILE_CITY = LogicalField("state.profile.city")
         val EVENT_BODY_ID = LogicalField("body.id")
     }
 }

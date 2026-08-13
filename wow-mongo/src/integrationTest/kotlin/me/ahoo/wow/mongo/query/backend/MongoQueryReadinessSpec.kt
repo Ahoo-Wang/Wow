@@ -45,6 +45,7 @@ import me.ahoo.wow.query.backend.QueryBackendReadinessReason
 import me.ahoo.wow.query.backend.QueryBackendResolutionContext
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendFactory
+import me.ahoo.wow.query.policy.QueryFieldAccess
 import me.ahoo.wow.query.schema.QueryBackendFieldPath
 import me.ahoo.wow.query.schema.QueryBackendId
 import me.ahoo.wow.query.schema.QueryCapabilityBinding
@@ -158,6 +159,32 @@ class MongoQueryReadinessSpec {
 
         commandCount("listCollections").assert().isOne()
         commandCount("listIndexes").assert().isOne()
+    }
+
+    @Test
+    fun `compound text index with an ordinary prefix is conservatively not ready`() {
+        createCollection()
+        StepVerifier.create(
+            Mono.from(
+                collection().createIndex(
+                    Indexes.compoundIndex(
+                        Indexes.ascending("tenant"),
+                        Indexes.text(PortableQueryDataset.TITLE.value)
+                    )
+                )
+            )
+        ).expectNextCount(1).verifyComplete()
+        commands.clear()
+
+        verifyReadiness(
+            MongoQueryBackendFactory(database()).bind(context(fullText())).readiness(),
+            QueryBackendReadiness.NotReady(QueryBackendReadinessReason.INDEX_MISSING)
+        )
+
+        commandCount("listCollections").assert().isOne()
+        commandCount("listIndexes").assert().isOne()
+        commandCount("find").assert().isZero()
+        commandCount("aggregate").assert().isZero()
     }
 
     @Test
@@ -277,7 +304,10 @@ class MongoQueryReadinessSpec {
         val gateway = MongoQueryGatewayHarness(
             PortableQueryDataset.target(QueryDocumentKind.SNAPSHOT),
             schema,
-            MongoQueryBackendFactory(database())
+            MongoQueryBackendFactory(database()),
+            fieldAccess = QueryFieldAccess.Restricted(
+                setOf(LogicalField("aggregateId"), LogicalField("deleted"), PortableQueryDataset.TITLE)
+            )
         ).gateway
 
         StepVerifier.create(
