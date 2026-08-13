@@ -19,6 +19,7 @@ import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch.core.IndexRequest
 import co.elastic.clients.elasticsearch.core.OpenPointInTimeRequest
 import co.elastic.clients.elasticsearch.core.ClosePointInTimeRequest
+import co.elastic.clients.elasticsearch.core.ClosePointInTimeResponse
 import co.elastic.clients.elasticsearch.indices.CreateIndexRequest
 import co.elastic.clients.json.JsonData
 import me.ahoo.test.asserts.assert
@@ -135,10 +136,16 @@ internal class ElasticsearchPortableQueryBackendFixture(
             backendFactory.heldSearchTerminalAtCancellation.assert().isFalse()
             backendFactory.heldSearchUpstreamCancelReturned.assert().isOne()
             backendFactory.awaitCloseResponseCompletion()
+            backendFactory.awaitCleanupTerminal()
             backendFactory.subscriptionCount(ElasticsearchQueryOperation.CLOSE_PIT).assert().isOne()
             backendFactory.responseCount(ElasticsearchQueryOperation.CLOSE_PIT).assert().isOne()
             backendFactory.completionCount(ElasticsearchQueryOperation.CLOSE_PIT).assert().isOne()
+            backendFactory.cleanupSubscriptionCount.assert().isOne()
+            backendFactory.cleanupSuccessCount.assert().isOne()
+            backendFactory.cleanupErrorCount.assert().isZero()
+            backendFactory.cleanupTerminalCount.assert().isOne()
             backendFactory.closedPitIds.assert().containsExactly(backendFactory.latestPitId)
+            backendFactory.successfullyCleanedPitIds.assert().containsExactly(backendFactory.latestPitId)
         }
     }
 
@@ -225,6 +232,7 @@ internal class ElasticsearchObservableQueryBackendFactory(
 ) : ObservableQueryBackendFactory, ElasticsearchQueryPublisherObserver {
     private val latestObservedPitId = AtomicReference<String>()
     private val delegate = ElasticsearchQueryBackendFactory(client)
+    private val cleanupProbe = ElasticsearchCleanupTerminalProbe()
     private val preparedDelegate = ElasticsearchQueryBackendBinder(
         client,
         ElasticsearchNativeQueryTemplateRegistry(),
@@ -238,10 +246,13 @@ internal class ElasticsearchObservableQueryBackendFactory(
         prefetchFirstPitPage = true,
         prefetchBarrier = searchResponseGate::intercepted,
         transportFactory = { reactiveClient ->
-            PreparedPitElasticsearchQueryTransport(
-                ReactiveClientElasticsearchQueryTransport(reactiveClient),
-                preparedPitId,
-                latestObservedPitId,
+            CleanupObservedElasticsearchQueryTransport(
+                PreparedPitElasticsearchQueryTransport(
+                    ReactiveClientElasticsearchQueryTransport(reactiveClient),
+                    preparedPitId,
+                    latestObservedPitId,
+                ),
+                cleanupProbe,
             )
         },
     )
@@ -291,6 +302,11 @@ internal class ElasticsearchObservableQueryBackendFactory(
             }
             return search.upstreamCancelReturned.get()
         }
+    val cleanupSubscriptionCount: Long get() = cleanupProbe.subscriptions.get()
+    val cleanupSuccessCount: Long get() = cleanupProbe.successes.get()
+    val cleanupErrorCount: Long get() = cleanupProbe.errors.get()
+    val cleanupTerminalCount: Long get() = cleanupProbe.terminals.get()
+    val successfullyCleanedPitIds: List<String> get() = cleanupProbe.successfulPitIds.toList()
 
     fun subscriptionCount(operation: ElasticsearchQueryOperation): Long = probe(operation).subscriptions.get()
 
@@ -305,6 +321,13 @@ internal class ElasticsearchObservableQueryBackendFactory(
         check(close.awaitResponse()) { "Elasticsearch CLOSE_PIT produced no real HTTP response." }
         check(close.awaitCompletion()) { "Elasticsearch CLOSE_PIT response did not complete." }
         check(close.errors.get() == 0L) { "Elasticsearch CLOSE_PIT terminated with an error." }
+        check(close.successfulCloseResponses.get() == 1L) {
+            "Elasticsearch CLOSE_PIT response did not report success."
+        }
+    }
+
+    fun awaitCleanupTerminal() = check(cleanupProbe.awaitTerminal()) {
+        "Elasticsearch production PIT cleanup did not terminate."
     }
 
     override fun bind(context: QueryBackendResolutionContext): QueryBackend {
@@ -328,6 +351,7 @@ internal class ElasticsearchObservableQueryBackendFactory(
         searchResponseGate.reset()
         nextHold.set(null)
         operationProbes.values.forEach(ElasticsearchClientOperationProbe::reset)
+        cleanupProbe.reset()
         latestObservedPitId.set(null)
         observedClosedPitIds.clear()
     }
@@ -412,6 +436,45 @@ private class PreparedPitElasticsearchQueryTransport(
     }
 }
 
+private class CleanupObservedElasticsearchQueryTransport(
+    private val delegate: ElasticsearchQueryTransport,
+    private val probe: ElasticsearchCleanupTerminalProbe,
+) : ElasticsearchQueryTransport by delegate {
+    override fun close(pitId: String): Mono<Void> = probe.observe(pitId, delegate.close(pitId))
+}
+
+private class ElasticsearchCleanupTerminalProbe {
+    val subscriptions = AtomicLong()
+    val successes = AtomicLong()
+    val errors = AtomicLong()
+    val terminals = AtomicLong()
+    val successfulPitIds = ConcurrentLinkedQueue<String>()
+    private val terminalLatch = AtomicReference(CountDownLatch(1))
+
+    fun observe(pitId: String, cleanup: Mono<Void>): Mono<Void> = cleanup
+        .doOnSubscribe { subscriptions.incrementAndGet() }
+        .doOnSuccess {
+            successes.incrementAndGet()
+            successfulPitIds += pitId
+        }
+        .doOnError { errors.incrementAndGet() }
+        .doFinally {
+            terminals.incrementAndGet()
+            terminalLatch.get().countDown()
+        }
+
+    fun awaitTerminal(): Boolean = terminalLatch.get().await(2, TimeUnit.SECONDS)
+
+    fun reset() {
+        subscriptions.set(0)
+        successes.set(0)
+        errors.set(0)
+        terminals.set(0)
+        successfulPitIds.clear()
+        terminalLatch.set(CountDownLatch(1))
+    }
+}
+
 private class HoldingClientMono<T : Any>(
     source: Mono<out T>,
     private val operationContext: ElasticsearchQueryOperationContext,
@@ -485,7 +548,10 @@ private class HoldingClientSubscriber<T : Any>(
         probe.responses.incrementAndGet()
         probe.responseLatch.get().countDown()
         if (operationContext.operation == ElasticsearchQueryOperation.CLOSE_PIT) {
-            operationContext.pitId?.let(closedPitIds::add)
+            if (value is ClosePointInTimeResponse && value.succeeded()) {
+                probe.successfulCloseResponses.incrementAndGet()
+                operationContext.pitId?.let(closedPitIds::add)
+            }
         }
         if (held) probe.heldResponses.incrementAndGet()
         downstream.onNext(value)
@@ -530,6 +596,7 @@ private class ElasticsearchClientOperationProbe {
     val heldTerminals = AtomicLong()
     val completions = AtomicLong()
     val errors = AtomicLong()
+    val successfulCloseResponses = AtomicLong()
     val terminalAtCancellation = AtomicReference<Boolean?>()
     val requestNanos = AtomicLong()
     val cancellationNanos = AtomicLong()
@@ -560,6 +627,7 @@ private class ElasticsearchClientOperationProbe {
         heldTerminals.set(0)
         completions.set(0)
         errors.set(0)
+        successfulCloseResponses.set(0)
         terminalAtCancellation.set(null)
         requestNanos.set(0)
         cancellationNanos.set(0)
