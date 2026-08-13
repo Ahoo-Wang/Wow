@@ -12,16 +12,17 @@
 
 set -euo pipefail
 
-[[ $# -eq 4 ]] || {
-    echo "Usage: $0 WOW_QUERY_JAR WOW_MONGO_JAR RUNTIME_CLASSPATH KOTLIN_COMPILER_CLASSPATH" >&2
+[[ $# -eq 5 ]] || {
+    echo "Usage: $0 WOW_QUERY_JAR WOW_MONGO_JAR WOW_ELASTICSEARCH_JAR RUNTIME_CLASSPATH KOTLIN_COMPILER_CLASSPATH" >&2
     exit 64
 }
 
 readonly WOW_QUERY_JAR="$1"
 readonly WOW_MONGO_JAR="$2"
-readonly RUNTIME_CLASSPATH="$3"
-readonly KOTLIN_COMPILER_CLASSPATH="$4"
-readonly FIXTURE_CLASSPATH="$WOW_QUERY_JAR:$WOW_MONGO_JAR:$RUNTIME_CLASSPATH"
+readonly WOW_ELASTICSEARCH_JAR="$3"
+readonly RUNTIME_CLASSPATH="$4"
+readonly KOTLIN_COMPILER_CLASSPATH="$5"
+readonly FIXTURE_CLASSPATH="$WOW_QUERY_JAR:$WOW_MONGO_JAR:$WOW_ELASTICSEARCH_JAR:$RUNTIME_CLASSPATH"
 readonly TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/query-api-source-check.XXXXXX")"
 
 cleanup() {
@@ -36,6 +37,7 @@ fail() {
 
 [[ -f "$WOW_QUERY_JAR" ]] || fail "Published wow-query JAR is missing: $WOW_QUERY_JAR"
 [[ -f "$WOW_MONGO_JAR" ]] || fail "Published wow-mongo JAR is missing: $WOW_MONGO_JAR"
+[[ -f "$WOW_ELASTICSEARCH_JAR" ]] || fail "Published wow-elasticsearch JAR is missing: $WOW_ELASTICSEARCH_JAR"
 [[ -n "$RUNTIME_CLASSPATH" ]] || fail "Runtime classpath is empty"
 [[ -n "$KOTLIN_COMPILER_CLASSPATH" ]] || fail "Kotlin compiler classpath is empty"
 
@@ -47,6 +49,8 @@ for runtime_entry in "${runtime_entries[@]}"; do
         fail "Published wow-query JAR must not be duplicated on the runtime dependency classpath"
     [[ "$runtime_entry" != "$WOW_MONGO_JAR" ]] ||
         fail "Published wow-mongo JAR must not be duplicated on the runtime dependency classpath"
+    [[ "$runtime_entry" != "$WOW_ELASTICSEARCH_JAR" ]] ||
+        fail "Published wow-elasticsearch JAR must not be duplicated on the runtime dependency classpath"
 done
 
 mkdir -p "$TEMP_DIR/java" "$TEMP_DIR/kotlin" "$TEMP_DIR/classes/java" "$TEMP_DIR/classes/kotlin"
@@ -104,6 +108,68 @@ java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler
     -classpath "$FIXTURE_CLASSPATH" \
     -d "$TEMP_DIR/classes/kotlin" "$TEMP_DIR/kotlin/StableMongoBackendApi.kt"
 echo "PASS: Kotlin external stable Mongo backend API source"
+
+cat >"$TEMP_DIR/java/StableElasticsearchBackendApi.java" <<'EOF'
+package external.fixture;
+
+import java.util.Map;
+import co.elastic.clients.elasticsearch._types.query_dsl.Query;
+import me.ahoo.wow.api.query.expression.QueryValue;
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchNativeQueryTemplate;
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchNativeQueryTemplateRegistry;
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryBackendFactory;
+import me.ahoo.wow.query.validation.QueryBudgetLimit;
+import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient;
+
+public final class StableElasticsearchBackendApi {
+    public static ElasticsearchNativeQueryTemplateRegistry registry() {
+        ElasticsearchNativeQueryTemplate template = parameters -> Query.of(query -> query.term(term ->
+            term.field("tenantId").value(((QueryValue.StringValue) parameters.get("tenant")).getValue())
+        ));
+        return new ElasticsearchNativeQueryTemplateRegistry(Map.of("tenant-eq", template));
+    }
+
+    public static ElasticsearchQueryBackendFactory factory(ReactiveElasticsearchClient client) {
+        return new ElasticsearchQueryBackendFactory(client, registry(), QueryBudgetLimit.UNBOUNDED);
+    }
+}
+EOF
+
+javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/java" "$TEMP_DIR/java/StableElasticsearchBackendApi.java"
+echo "PASS: Java external stable Elasticsearch backend API source"
+
+cat >"$TEMP_DIR/kotlin/StableElasticsearchBackendApi.kt" <<'EOF'
+package external.fixture
+
+import co.elastic.clients.elasticsearch._types.query_dsl.Query
+import me.ahoo.wow.api.query.expression.QueryValue
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchNativeQueryTemplate
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchNativeQueryTemplateRegistry
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryBackendFactory
+import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
+
+fun elasticsearchFactory(client: ReactiveElasticsearchClient): ElasticsearchQueryBackendFactory {
+    val template = ElasticsearchNativeQueryTemplate { parameters ->
+        Query.of { query ->
+            query.term { term ->
+                term.field("tenantId").value((parameters.getValue("tenant") as QueryValue.StringValue).value)
+            }
+        }
+    }
+    return ElasticsearchQueryBackendFactory(
+        client,
+        ElasticsearchNativeQueryTemplateRegistry(mapOf("tenant-eq" to template))
+    )
+}
+EOF
+
+java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+    -module-name elasticsearch-query-api-external-fixture \
+    -no-stdlib -no-reflect \
+    -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/kotlin" "$TEMP_DIR/kotlin/StableElasticsearchBackendApi.kt"
+echo "PASS: Kotlin external stable Elasticsearch backend API source"
 
 cat >"$TEMP_DIR/java/StableAdmissionSpi.java" <<'EOF'
 package external.fixture;
@@ -1075,3 +1141,66 @@ for class_name in MongoQueryBackend MongoQueryFieldBinding MongoQueryPlanCompile
     }
 done
 echo "PASS: Kotlin external Mongo bound backend and compiler boundary"
+
+cat >"$TEMP_DIR/kotlin/ExternalElasticsearchBackendInternals.kt" <<'EOF'
+package external.fixture
+
+import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchQueryPresenceEncoder
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryBackend
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryFieldBinding
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryPlanCompiler
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryPresenceBinding
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryPublisherObserver
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryPublisherObservers
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryReadiness
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryReadinessRequirements
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryResultDecoder
+import me.ahoo.wow.elasticsearch.query.backend.ElasticsearchQueryTransport
+import me.ahoo.wow.elasticsearch.query.backend.PitSearchAfterExecutor
+import me.ahoo.wow.elasticsearch.query.backend.PitSearchAfterTransport
+import me.ahoo.wow.elasticsearch.query.backend.elasticsearchQueryBackendDescriptor
+
+fun useElasticsearchInternals(
+    backend: ElasticsearchQueryBackend,
+    binding: ElasticsearchQueryFieldBinding,
+    compiler: ElasticsearchQueryPlanCompiler,
+    presence: ElasticsearchQueryPresenceBinding,
+    observer: ElasticsearchQueryPublisherObserver,
+    observers: ElasticsearchQueryPublisherObservers,
+    readiness: ElasticsearchQueryReadiness,
+    requirements: ElasticsearchQueryReadinessRequirements,
+    decoder: ElasticsearchQueryResultDecoder,
+    transport: ElasticsearchQueryTransport,
+    pitTransport: PitSearchAfterTransport<*>,
+    pitExecutor: PitSearchAfterExecutor<*>
+): List<Any> = listOf(
+    backend, binding, compiler, presence, observer, observers, readiness, requirements,
+    decoder, transport, pitTransport, pitExecutor, ElasticsearchQueryPresenceEncoder,
+    ::elasticsearchQueryBackendDescriptor
+)
+EOF
+
+if java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+    -module-name elasticsearch-query-api-external-negative-fixture \
+    -no-stdlib -no-reflect \
+    -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/kotlin-elasticsearch-internal-negative" \
+    "$TEMP_DIR/kotlin/ExternalElasticsearchBackendInternals.kt" \
+    >"$TEMP_DIR/kotlin-elasticsearch-internal-negative.out" 2>&1; then
+    fail "Kotlin external source unexpectedly accessed Elasticsearch backend internals"
+fi
+grep -F "internal" "$TEMP_DIR/kotlin-elasticsearch-internal-negative.out" >/dev/null || {
+    cat "$TEMP_DIR/kotlin-elasticsearch-internal-negative.out" >&2
+    fail "Kotlin Elasticsearch internal fixture did not enforce internal visibility"
+}
+for class_name in ElasticsearchQueryPresenceEncoder ElasticsearchQueryBackend ElasticsearchQueryFieldBinding \
+    ElasticsearchQueryPlanCompiler ElasticsearchQueryPresenceBinding ElasticsearchQueryPublisherObserver \
+    ElasticsearchQueryPublisherObservers ElasticsearchQueryReadiness ElasticsearchQueryReadinessRequirements \
+    ElasticsearchQueryResultDecoder ElasticsearchQueryTransport PitSearchAfterTransport PitSearchAfterExecutor \
+    elasticsearchQueryBackendDescriptor; do
+    grep -F "$class_name" "$TEMP_DIR/kotlin-elasticsearch-internal-negative.out" >/dev/null || {
+        cat "$TEMP_DIR/kotlin-elasticsearch-internal-negative.out" >&2
+        fail "Kotlin Elasticsearch negative fixture did not diagnose $class_name"
+    }
+done
+echo "PASS: Kotlin external Elasticsearch bound backend, compiler, PIT and encoder boundary"
