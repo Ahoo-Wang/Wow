@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot.starter.cosec
 
 import me.ahoo.wow.cosec.appender.CoSecCommandRequestHeaderAppender
 import me.ahoo.wow.cosec.extractor.CoSecCommandBuilderExtractor
+import me.ahoo.wow.cosec.query.CoSecQueryPolicy
 import me.ahoo.wow.cosec.query.CoSecRewriteRequestCondition
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestHeaderAppender
@@ -30,6 +31,11 @@ import org.springframework.context.annotation.Bean
 class CoSecAutoConfiguration {
 
     @Bean
+    fun coSecQueryPolicy(): CoSecQueryPolicy {
+        return CoSecQueryPolicy()
+    }
+
+    @Bean
     fun coSecCommandRequestHeaderAppender(): CommandRequestHeaderAppender {
         return CoSecCommandRequestHeaderAppender
     }
@@ -40,6 +46,7 @@ class CoSecAutoConfiguration {
     }
 
     @Bean
+    @Deprecated("Use CoSecQueryPolicy with a verified QueryAuthorityProvider.")
     fun coSecRewriteRequestCondition(): RewriteRequestCondition {
         return CoSecRewriteRequestCondition
     }

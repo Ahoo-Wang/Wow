@@ -46,13 +46,13 @@ import me.ahoo.wow.query.plan.SingleQueryPlanV1
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.policy.QueryPolicyDeniedException
 import me.ahoo.wow.query.policy.QueryPolicyResult
-import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.schema.QueryBackendFieldPath
 import me.ahoo.wow.query.schema.QueryBackendId
 import me.ahoo.wow.query.schema.QueryCapabilityBinding
 import me.ahoo.wow.query.schema.QueryFieldUsage
 import me.ahoo.wow.query.schema.QuerySchema
 import me.ahoo.wow.query.schema.QuerySchemaCustomizer
+import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.validation.QueryBudgetLimit
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.spring.boot.starter.enableWow
@@ -194,6 +194,7 @@ class StorageRoutingQueryGatewayIntegrationTest {
                 context.assert().hasNotFailed()
                 val gateway = context.getBean(QueryGateway::class.java)
                 val recording = context.getBean(RoutingBackendRecording::class.java)
+
                 @Suppress("UNCHECKED_CAST")
                 val legacyService = context.getBean(
                     "order-service.order.SnapshotQueryService",

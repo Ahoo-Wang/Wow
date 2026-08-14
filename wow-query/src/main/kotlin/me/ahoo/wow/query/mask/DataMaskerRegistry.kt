@@ -18,12 +18,14 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.materialize
 import java.util.concurrent.ConcurrentHashMap
 
+@Deprecated("Use ResultPolicy for query result masking.")
 interface DataMaskerRegistry<MASKER : AggregateDynamicDocumentMasker> {
     fun register(masker: MASKER)
     fun unregister(masker: MASKER)
     fun getAggregateDataMasker(namedAggregate: NamedAggregate): AggregateDataMasker<MASKER>
 }
 
+@Deprecated("Use ResultPolicy for query result masking.")
 abstract class AbstractDataMaskerRegistry<MASKER : AggregateDynamicDocumentMasker> : DataMaskerRegistry<MASKER> {
     companion object {
         private val log = KotlinLogging.logger {}
@@ -56,6 +58,8 @@ abstract class AbstractDataMaskerRegistry<MASKER : AggregateDynamicDocumentMaske
     }
 }
 
+@Deprecated("Use ResultPolicy for query result masking.")
 class StateDataMaskerRegistry : AbstractDataMaskerRegistry<StateDynamicDocumentMasker>()
 
+@Deprecated("Use ResultPolicy for query result masking.")
 class EventStreamMaskerRegistry : AbstractDataMaskerRegistry<EventStreamDynamicDocumentMasker>()

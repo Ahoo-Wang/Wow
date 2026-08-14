@@ -1,3 +1,6 @@
+me.ahoo.wow.cosec.query.CoSecQueryPolicy#class|public final class me.ahoo.wow.cosec.query.CoSecQueryPolicy implements me.ahoo.wow.query.policy.QueryPolicy {
+me.ahoo.wow.cosec.query.CoSecQueryPolicy#public me.ahoo.wow.cosec.query.CoSecQueryPolicy();|descriptor: ()V
+me.ahoo.wow.cosec.query.CoSecQueryPolicy#public reactor.core.publisher.Mono<me.ahoo.wow.query.policy.QueryPolicyResult> evaluate(me.ahoo.wow.query.policy.QueryPolicyContext);|descriptor: (Lme/ahoo/wow/query/policy/QueryPolicyContext;)Lreactor/core/publisher/Mono;
 me.ahoo.wow.cosec.query.CoSecRewriteRequestCondition#class|public final class me.ahoo.wow.cosec.query.CoSecRewriteRequestCondition extends me.ahoo.wow.webflux.route.query.AbstractRewriteRequestCondition {
 me.ahoo.wow.cosec.query.CoSecRewriteRequestCondition#protected java.lang.String resolveSpaceId(org.springframework.web.reactive.function.server.ServerRequest, me.ahoo.wow.modeling.metadata.AggregateMetadata<?, ?>);|descriptor: (Lorg/springframework/web/reactive/function/server/ServerRequest;Lme/ahoo/wow/modeling/metadata/AggregateMetadata;)Ljava/lang/String;
 me.ahoo.wow.cosec.query.CoSecRewriteRequestCondition#public static final me.ahoo.wow.cosec.query.CoSecRewriteRequestCondition INSTANCE;|descriptor: Lme/ahoo/wow/cosec/query/CoSecRewriteRequestCondition;

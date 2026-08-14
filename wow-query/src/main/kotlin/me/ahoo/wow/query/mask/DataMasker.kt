@@ -16,14 +16,19 @@ package me.ahoo.wow.query.mask
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.api.query.DynamicDocument
 
+@Deprecated("Use ResultPolicy for query result masking.")
 interface DataMasker
 
+@Deprecated("Use ResultPolicy for query result masking.")
 interface DynamicDocumentMasker {
     fun mask(dynamicDocument: DynamicDocument): DynamicDocument
 }
 
+@Deprecated("Use ResultPolicy for query result masking.")
 interface AggregateDynamicDocumentMasker : DynamicDocumentMasker, NamedAggregateDecorator
 
+@Deprecated("Use ResultPolicy for query result masking.")
 interface StateDynamicDocumentMasker : AggregateDynamicDocumentMasker
 
+@Deprecated("Use ResultPolicy for query result masking.")
 interface EventStreamDynamicDocumentMasker : AggregateDynamicDocumentMasker

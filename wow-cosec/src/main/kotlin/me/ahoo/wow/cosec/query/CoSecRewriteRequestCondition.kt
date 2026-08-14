@@ -20,6 +20,7 @@ import me.ahoo.wow.webflux.route.command.getSpaceId
 import me.ahoo.wow.webflux.route.query.AbstractRewriteRequestCondition
 import org.springframework.web.reactive.function.server.ServerRequest
 
+@Deprecated("Use CoSecQueryPolicy with a verified QueryAuthorityProvider.")
 object CoSecRewriteRequestCondition : AbstractRewriteRequestCondition() {
 
     override fun ServerRequest.resolveSpaceId(aggregateMetadata: AggregateMetadata<*, *>): String? {

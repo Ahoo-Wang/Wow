@@ -531,11 +531,35 @@ import me.ahoo.wow.query.policy.QueryPolicyDeniedException;
 import me.ahoo.wow.query.policy.QueryPolicyPermissions;
 import me.ahoo.wow.query.policy.QueryPolicyResult;
 import me.ahoo.wow.query.policy.QueryPolicyResultShape;
+import me.ahoo.wow.cosec.query.CoSecQueryPolicy;
+import me.ahoo.wow.query.mask.EventStreamMaskerRegistry;
+import me.ahoo.wow.query.mask.MaskingResultPolicy;
+import me.ahoo.wow.query.mask.StateDataMaskerRegistry;
+import me.ahoo.wow.query.policy.abac.AbacQueryPolicy;
+import me.ahoo.wow.query.policy.abac.PrincipalTagResolver;
+import me.ahoo.wow.query.policy.abac.PrincipalTagSchemaCustomizer;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public final class StableAdmissionSpi {
     public static QueryPolicy policy() {
         return context -> Mono.just(new QueryPolicyResult());
+    }
+
+    public static Object[] securityPolicies() {
+        PrincipalTagResolver tags = new PrincipalTagResolver(
+            Set.of("department"),
+            context -> Mono.just(Map.of("department", List.of("engineering")))
+        );
+        return new Object[]{
+            new MaskingResultPolicy(new StateDataMaskerRegistry(), new EventStreamMaskerRegistry()),
+            new AbacQueryPolicy(tags),
+            new PrincipalTagSchemaCustomizer(tags),
+            new CoSecQueryPolicy()
+        };
     }
 
     public static Object[] use(
@@ -736,9 +760,29 @@ import me.ahoo.wow.query.policy.QueryPolicyDeniedException
 import me.ahoo.wow.query.policy.QueryPolicyPermissions
 import me.ahoo.wow.query.policy.QueryPolicyResult
 import me.ahoo.wow.query.policy.QueryPolicyResultShape
+import me.ahoo.wow.cosec.query.CoSecQueryPolicy
+import me.ahoo.wow.query.mask.EventStreamMaskerRegistry
+import me.ahoo.wow.query.mask.MaskingResultPolicy
+import me.ahoo.wow.query.mask.StateDataMaskerRegistry
+import me.ahoo.wow.query.policy.abac.AbacQueryPolicy
+import me.ahoo.wow.query.policy.abac.PrincipalTagResolver
+import me.ahoo.wow.query.policy.abac.PrincipalTagSchemaCustomizer
 import reactor.core.publisher.Mono
 
 val stablePolicy = QueryPolicy { Mono.just(QueryPolicyResult()) }
+
+@Suppress("DEPRECATION")
+fun stableSecurityPolicies(): List<Any> {
+    val tags = PrincipalTagResolver(setOf("department")) {
+        Mono.just(mapOf("department" to listOf("engineering")))
+    }
+    return listOf(
+        MaskingResultPolicy(StateDataMaskerRegistry(), EventStreamMaskerRegistry()),
+        AbacQueryPolicy(tags),
+        PrincipalTagSchemaCustomizer(tags),
+        CoSecQueryPolicy()
+    )
+}
 
 fun useStableAdmissionSpi(
     admission: QueryAdmission,
@@ -1226,6 +1270,88 @@ for factory_class in \
         fail "Published legacy query factory is missing the JVM Deprecated attribute: $factory_class"
 done
 echo "PASS: Published legacy query factories are deprecated"
+
+cat >"$TEMP_DIR/kotlin/DeprecatedLegacyQuerySecurity.kt" <<'EOF'
+package external.fixture
+
+import me.ahoo.wow.cosec.query.CoSecRewriteRequestCondition
+import me.ahoo.wow.query.mask.AbstractDataMaskerRegistry
+import me.ahoo.wow.query.mask.AggregateDataMasker
+import me.ahoo.wow.query.mask.AggregateDynamicDocumentMasker
+import me.ahoo.wow.query.mask.DataMasker
+import me.ahoo.wow.query.mask.DataMaskerRegistry
+import me.ahoo.wow.query.mask.DataMasking
+import me.ahoo.wow.query.mask.DefaultAggregateDataMasker
+import me.ahoo.wow.query.mask.DynamicDocumentMasker
+import me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker
+import me.ahoo.wow.query.mask.EventStreamMaskerRegistry
+import me.ahoo.wow.query.mask.StateDataMaskerRegistry
+import me.ahoo.wow.query.mask.StateDynamicDocumentMasker
+import me.ahoo.wow.spring.boot.starter.cosec.CoSecAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.query.QueryAutoConfiguration
+
+fun retainedLegacyQuerySecurityTypes(): List<Any> = listOf(
+    DataMasker::class,
+    DynamicDocumentMasker::class,
+    AggregateDynamicDocumentMasker::class,
+    StateDynamicDocumentMasker::class,
+    EventStreamDynamicDocumentMasker::class,
+    AggregateDataMasker::class,
+    DefaultAggregateDataMasker::class,
+    DataMaskerRegistry::class,
+    AbstractDataMaskerRegistry::class,
+    StateDataMaskerRegistry::class,
+    EventStreamMaskerRegistry::class,
+    DataMasking::class,
+    CoSecRewriteRequestCondition,
+    CoSecAutoConfiguration().coSecRewriteRequestCondition(),
+    QueryAutoConfiguration().stateDataMaskerRegistry(emptyList()),
+    QueryAutoConfiguration().eventStreamMaskerRegistry(emptyList()),
+    QueryAutoConfiguration().maskingSnapshotQueryFilter(StateDataMaskerRegistry()),
+    QueryAutoConfiguration().maskingEventStreamQueryFilter(EventStreamMaskerRegistry())
+)
+EOF
+
+if java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+    -module-name query-legacy-security-deprecated-fixture \
+    -Werror -no-stdlib -no-reflect \
+    -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/kotlin-legacy-security-deprecated" \
+    "$TEMP_DIR/kotlin/DeprecatedLegacyQuerySecurity.kt" \
+    >"$TEMP_DIR/kotlin-legacy-security-deprecated.out" 2>&1; then
+    fail "Kotlin external source unexpectedly used legacy query security APIs without deprecation diagnostics"
+fi
+for legacy_security_name in \
+    DataMasker StateDataMaskerRegistry CoSecRewriteRequestCondition \
+    coSecRewriteRequestCondition maskingSnapshotQueryFilter; do
+    grep -F "$legacy_security_name" "$TEMP_DIR/kotlin-legacy-security-deprecated.out" >/dev/null || {
+        cat "$TEMP_DIR/kotlin-legacy-security-deprecated.out" >&2
+        fail "Kotlin legacy query security fixture did not diagnose $legacy_security_name"
+    }
+done
+
+for masker_class in \
+    DataMasker DynamicDocumentMasker AggregateDynamicDocumentMasker StateDynamicDocumentMasker \
+    EventStreamDynamicDocumentMasker AggregateDataMasker DefaultAggregateDataMasker DataMaskerRegistry \
+    AbstractDataMaskerRegistry StateDataMaskerRegistry EventStreamMaskerRegistry DataMasking; do
+    javap -classpath "$WOW_QUERY_JAR" -v "me.ahoo.wow.query.mask.$masker_class" |
+        grep -F "Deprecated: true" >/dev/null ||
+        fail "Published legacy masker is missing the JVM Deprecated attribute: $masker_class"
+done
+[[ "$(javap -classpath "$WOW_QUERY_JAR" -v me.ahoo.wow.query.mask.AggregateDataMaskerKt | grep -c 'Deprecated: true')" -eq 1 ]] ||
+    fail "Published AggregateDataMasker extensions have incomplete JVM deprecation metadata"
+[[ "$(javap -classpath "$WOW_QUERY_JAR" -v me.ahoo.wow.query.mask.DataMaskingKt | grep -c 'Deprecated: true')" -eq 3 ]] ||
+    fail "Published DataMasking extensions have incomplete JVM deprecation metadata"
+javap -classpath "$RUNTIME_CLASSPATH" -v me.ahoo.wow.cosec.query.CoSecRewriteRequestCondition |
+    grep -F "Deprecated: true" >/dev/null ||
+    fail "Published CoSec rewrite is missing the JVM Deprecated attribute"
+[[ "$(javap -classpath "$WOW_STARTER_JAR:$RUNTIME_CLASSPATH" -v \
+    me.ahoo.wow.spring.boot.starter.cosec.CoSecAutoConfiguration | grep -c 'Deprecated: true')" -eq 1 ]] ||
+    fail "Published CoSec rewrite registration is missing the JVM Deprecated attribute"
+[[ "$(javap -classpath "$WOW_STARTER_JAR:$RUNTIME_CLASSPATH" -v \
+    me.ahoo.wow.spring.boot.starter.query.QueryAutoConfiguration | grep -c 'Deprecated: true')" -eq 4 ]] ||
+    fail "Published legacy masker registration methods have incomplete JVM deprecation metadata"
+echo "PASS: Published legacy masker, registration and CoSec rewrite APIs are deprecated"
 
 if jar tf "$WOW_QUERY_JAR" | grep -E \
     'me/ahoo/wow/query/compat/Legacy(QueryRequest|SnapshotResult|EventResult|QueryError)Mapper([$.]|\.class)' \

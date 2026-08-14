@@ -17,6 +17,7 @@ import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.PagedList
 
+@Deprecated("Use ResultPolicy for query result masking.")
 interface AggregateDataMasker<MASKER : DynamicDocumentMasker> : DynamicDocumentMasker {
     val maskers: List<MASKER>
     fun isEmpty(): Boolean = maskers.isEmpty()
@@ -25,6 +26,7 @@ interface AggregateDataMasker<MASKER : DynamicDocumentMasker> : DynamicDocumentM
     override fun mask(dynamicDocument: DynamicDocument): DynamicDocument
 }
 
+@Deprecated("Use ResultPolicy for query result masking.")
 class DefaultAggregateDataMasker<MASKER : DynamicDocumentMasker>(override val maskers: List<MASKER>) :
     AggregateDataMasker<MASKER> {
     override fun addMasker(masker: MASKER): AggregateDataMasker<MASKER> {
@@ -56,7 +58,10 @@ class DefaultAggregateDataMasker<MASKER : DynamicDocumentMasker>(override val ma
     }
 }
 
-fun <MASKER : DynamicDocumentMasker> AggregateDataMasker<MASKER>.mask(pagedList: PagedList<DynamicDocument>): PagedList<DynamicDocument> {
+@Deprecated("Use ResultPolicy for query result masking.")
+fun <MASKER : DynamicDocumentMasker> AggregateDataMasker<MASKER>.mask(
+    pagedList: PagedList<DynamicDocument>
+): PagedList<DynamicDocument> {
     if (pagedList.list.isEmpty() || isEmpty()) {
         return pagedList
     }

@@ -27,6 +27,7 @@ import me.ahoo.wow.query.event.filter.TailEventStreamQueryFilter
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker
 import me.ahoo.wow.query.mask.EventStreamMaskerRegistry
+import me.ahoo.wow.query.mask.MaskingResultPolicy
 import me.ahoo.wow.query.mask.StateDataMaskerRegistry
 import me.ahoo.wow.query.mask.StateDynamicDocumentMasker
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
@@ -58,6 +59,7 @@ import org.springframework.context.annotation.Import
 class QueryAutoConfiguration {
 
     @Bean
+    @Deprecated("Use ResultPolicy for query result masking.")
     fun stateDataMaskerRegistry(
         maskers: List<StateDynamicDocumentMasker>
     ): StateDataMaskerRegistry {
@@ -69,6 +71,7 @@ class QueryAutoConfiguration {
     }
 
     @Bean
+    @Deprecated("Use ResultPolicy for query result masking.")
     fun eventStreamMaskerRegistry(
         maskers: List<EventStreamDynamicDocumentMasker>
     ): EventStreamMaskerRegistry {
@@ -80,11 +83,19 @@ class QueryAutoConfiguration {
     }
 
     @Bean
+    fun maskingResultPolicy(
+        stateDataMaskerRegistry: StateDataMaskerRegistry,
+        eventStreamMaskerRegistry: EventStreamMaskerRegistry
+    ): MaskingResultPolicy {
+        return MaskingResultPolicy(stateDataMaskerRegistry, eventStreamMaskerRegistry)
+    }
+
+    @Deprecated("Use MaskingResultPolicy.")
     fun maskingSnapshotQueryFilter(stateDataMaskerRegistry: StateDataMaskerRegistry): SnapshotQueryFilter {
         return MaskingSnapshotQueryFilter(stateDataMaskerRegistry)
     }
 
-    @Bean
+    @Deprecated("Use MaskingResultPolicy.")
     fun maskingEventStreamQueryFilter(eventStreamMaskerRegistry: EventStreamMaskerRegistry): EventStreamQueryFilter {
         return MaskingEventStreamQueryFilter(eventStreamMaskerRegistry)
     }
