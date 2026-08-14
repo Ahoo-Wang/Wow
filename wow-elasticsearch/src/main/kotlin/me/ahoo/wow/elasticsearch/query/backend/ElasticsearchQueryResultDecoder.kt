@@ -49,7 +49,9 @@ internal class ElasticsearchQueryResultDecoder(
         @Suppress("UNCHECKED_CAST")
         return when (shape) {
             is QueryPlanResultShape.Dynamic -> decodeDynamic(flatValues) as R
-            is QueryPlanResultShape.Typed -> if (shape.resultType == DynamicDocument::class.java) {
+            is QueryPlanResultShape.Typed -> if (shape.resultType == DynamicDocument::class.java ||
+                shape.resultType.name == LEGACY_TYPED_DYNAMIC_DOCUMENT_MARKER
+            ) {
                 decodeTypedDynamic(flatValues) as R
             } else {
                 decodeTyped(shape, flatValues)
@@ -358,6 +360,8 @@ internal class ElasticsearchQueryResultDecoder(
     )
 
     private companion object {
+        const val LEGACY_TYPED_DYNAMIC_DOCUMENT_MARKER =
+            "me.ahoo.wow.query.compat.LegacyTypedDynamicDocumentMarker"
         val MISSING: Any = Any()
         val INVALID: Any = Any()
         val NULL_COLLECTION_ELEMENT: Any = Any()

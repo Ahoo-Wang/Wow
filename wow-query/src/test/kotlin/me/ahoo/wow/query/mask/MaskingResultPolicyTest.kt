@@ -16,6 +16,7 @@ package me.ahoo.wow.query.mask
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.ImmutableDynamicDocument
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
@@ -96,6 +97,24 @@ class MaskingResultPolicyTest {
                 (result as DynamicDocument).getValue<String>(SECRET).assert().isEqualTo(EVENT_MASKED)
             }
             .verifyComplete()
+    }
+
+    @Test
+    fun `direct typed immutable DynamicDocument preserves dynamic registry semantics`() {
+        val masker = ReplacingStateMasker(namedAggregate)
+        stateRegistry.register(masker)
+        val shape = QueryPlanResultShape.Typed(ImmutableDynamicDocument::class.java, emptySet())
+
+        policy.apply(
+            context(QueryDocumentKind.SNAPSHOT, resultShape = shape),
+            ImmutableDynamicDocument.copyOf(mapOf(SECRET to ORIGINAL)),
+        ).test()
+            .assertNext { result ->
+                (result as DynamicDocument).getValue<String>(SECRET).assert().isEqualTo(MASKED)
+            }
+            .verifyComplete()
+
+        masker.invocations.assert().isOne()
     }
 
     @Test

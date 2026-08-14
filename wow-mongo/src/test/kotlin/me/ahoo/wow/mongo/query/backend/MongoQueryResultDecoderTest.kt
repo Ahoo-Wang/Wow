@@ -15,6 +15,7 @@ package me.ahoo.wow.mongo.query.backend
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.ImmutableDynamicDocument
 import me.ahoo.wow.api.query.error.QueryErrorCode
 import me.ahoo.wow.api.query.error.QueryErrorReason
 import me.ahoo.wow.api.query.error.QueryException
@@ -74,6 +75,34 @@ class MongoQueryResultDecoderTest {
 
         result.containsKey(VALUE.value).assert().isTrue()
         result[VALUE.value].assert().isNull()
+    }
+
+    @Test
+    fun `internal legacy typed marker uses structured dynamic decoding`() {
+        val field = QueryFieldSchema(VALUE, QueryFieldValueKind.STRING, nullable = false)
+
+        val result = decoder(field).decode<DynamicDocument>(
+            Document("value", "visible"),
+            QueryPlanResultShape.Typed(Class.forName(LEGACY_TYPED_MARKER), setOf(VALUE)),
+            mapOf(VALUE to "value")
+        )
+
+        result[VALUE.value].assert().isEqualTo("visible")
+    }
+
+    @Test
+    fun `direct typed immutable DynamicDocument keeps typed conversion semantics`() {
+        val field = QueryFieldSchema(VALUE, QueryFieldValueKind.STRING, nullable = false)
+
+        val error = assertThrows<QueryException> {
+            decoder(field).decode<ImmutableDynamicDocument>(
+                Document("value", "visible"),
+                QueryPlanResultShape.Typed(ImmutableDynamicDocument::class.java, setOf(VALUE)),
+                mapOf(VALUE to "value")
+            )
+        }
+
+        assertResultInvalid(error)
     }
 
     @Test
@@ -262,6 +291,7 @@ class MongoQueryResultDecoderTest {
     data class AnyValueResult(val value: Any)
 
     private companion object {
+        const val LEGACY_TYPED_MARKER = "me.ahoo.wow.query.compat.LegacyTypedDynamicDocumentMarker"
         val TARGET = QueryTarget(MaterializedNamedAggregate("mongo-query-decoder", "value"), QueryDocumentKind.SNAPSHOT)
         val VALUE = LogicalField("value")
         val OTHER = LogicalField("other")

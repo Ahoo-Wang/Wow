@@ -21,6 +21,7 @@ import me.ahoo.wow.webflux.route.command.getSpaceId
 import me.ahoo.wow.webflux.route.command.getTenantId
 import org.springframework.web.reactive.function.server.ServerRequest
 
+@Deprecated("Use QueryGateway policies with a verified QueryAuthorityProvider.")
 interface RewriteRequestCondition {
     fun <Q : RewritableCondition<Q>> rewrite(
         aggregateMetadata: AggregateMetadata<*, *>,
@@ -29,6 +30,7 @@ interface RewriteRequestCondition {
     ): Q
 }
 
+@Deprecated("Use QueryGateway policies with a verified QueryAuthorityProvider.")
 abstract class AbstractRewriteRequestCondition : RewriteRequestCondition {
     protected open fun ServerRequest.resolveTenantId(aggregateMetadata: AggregateMetadata<*, *>): String? {
         return getTenantId(aggregateMetadata)

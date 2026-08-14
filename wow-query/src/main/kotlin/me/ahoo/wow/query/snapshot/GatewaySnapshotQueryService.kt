@@ -31,6 +31,9 @@ import me.ahoo.wow.query.compat.legacyListRequest
 import me.ahoo.wow.query.compat.legacyPageRequest
 import me.ahoo.wow.query.compat.legacySingleRequest
 import me.ahoo.wow.query.compat.legacySnapshotType
+import me.ahoo.wow.query.compat.legacyTypedListRequest
+import me.ahoo.wow.query.compat.legacyTypedPageRequest
+import me.ahoo.wow.query.compat.legacyTypedSingleRequest
 import me.ahoo.wow.query.compat.materializeLegacyList
 import me.ahoo.wow.query.compat.materializeLegacySnapshot
 import reactor.core.publisher.Flux
@@ -45,7 +48,7 @@ class GatewaySnapshotQueryService<S : Any>(
     private val snapshotType = lazy { legacySnapshotType<S>(namedAggregate) }
 
     override fun single(singleQuery: ISingleQuery): Mono<MaterializedSnapshot<S>> = Mono.defer {
-        queryGateway.single(legacySingleRequest(target, singleQuery)).map { document -> materialize(document) }
+        queryGateway.single(legacyTypedSingleRequest(target, singleQuery)).map { document -> materialize(document) }
     }
 
     override fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument> = Mono.defer {
@@ -54,7 +57,7 @@ class GatewaySnapshotQueryService<S : Any>(
 
     override fun list(listQuery: IListQuery): Flux<MaterializedSnapshot<S>> = Flux.defer {
         materializeLegacyList(
-            queryGateway.list(legacyListRequest(target, listQuery)),
+            queryGateway.list(legacyTypedListRequest(target, listQuery)),
         ) { document -> materialize(document) }
     }
 
@@ -66,7 +69,7 @@ class GatewaySnapshotQueryService<S : Any>(
     }
 
     override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<MaterializedSnapshot<S>>> = Mono.defer {
-        queryGateway.page(legacyPageRequest(target, pagedQuery)).map { page ->
+        queryGateway.page(legacyTypedPageRequest(target, pagedQuery)).map { page ->
             PagedList(page.total, page.items.map { document -> materialize(document) })
         }
     }

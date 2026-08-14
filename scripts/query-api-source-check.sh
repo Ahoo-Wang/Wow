@@ -1353,6 +1353,60 @@ javap -classpath "$RUNTIME_CLASSPATH" -v me.ahoo.wow.cosec.query.CoSecRewriteReq
     fail "Published legacy masker registration methods have incomplete JVM deprecation metadata"
 echo "PASS: Published legacy masker, registration and CoSec rewrite APIs are deprecated"
 
+cat >"$TEMP_DIR/kotlin/DeprecatedLegacyWebFluxRewrite.kt" <<'EOF'
+package external.fixture
+
+import me.ahoo.wow.spring.boot.starter.webflux.WebFluxAutoConfiguration
+import me.ahoo.wow.webflux.route.query.AbstractRewriteRequestCondition
+import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestCondition
+import me.ahoo.wow.webflux.route.query.RewriteRequestCondition
+
+fun retainedLegacyWebFluxRewrite(): List<Any> = listOf(
+    RewriteRequestCondition::class,
+    AbstractRewriteRequestCondition::class,
+    DefaultRewriteRequestCondition,
+    WebFluxAutoConfiguration().rewriteRequestCondition()
+)
+EOF
+
+java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+    -module-name query-legacy-webflux-rewrite-source-compatible-fixture \
+    -no-stdlib -no-reflect \
+    -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/kotlin-legacy-webflux-rewrite-compatible" \
+    "$TEMP_DIR/kotlin/DeprecatedLegacyWebFluxRewrite.kt"
+echo "PASS: Kotlin external legacy WebFlux rewrite APIs remain source compatible"
+
+if java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+    -module-name query-legacy-webflux-rewrite-deprecated-fixture \
+    -Werror -no-stdlib -no-reflect \
+    -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/kotlin-legacy-webflux-rewrite-deprecated" \
+    "$TEMP_DIR/kotlin/DeprecatedLegacyWebFluxRewrite.kt" \
+    >"$TEMP_DIR/kotlin-legacy-webflux-rewrite-deprecated.out" 2>&1; then
+    fail "Kotlin external source unexpectedly used legacy WebFlux rewrite APIs without deprecation diagnostics"
+fi
+for legacy_webflux_name in \
+    RewriteRequestCondition AbstractRewriteRequestCondition DefaultRewriteRequestCondition \
+    rewriteRequestCondition; do
+    grep -F "$legacy_webflux_name" "$TEMP_DIR/kotlin-legacy-webflux-rewrite-deprecated.out" >/dev/null || {
+        cat "$TEMP_DIR/kotlin-legacy-webflux-rewrite-deprecated.out" >&2
+        fail "Kotlin legacy WebFlux rewrite fixture did not diagnose $legacy_webflux_name"
+    }
+done
+
+for rewrite_class in \
+    me.ahoo.wow.webflux.route.query.RewriteRequestCondition \
+    me.ahoo.wow.webflux.route.query.AbstractRewriteRequestCondition \
+    me.ahoo.wow.webflux.route.query.DefaultRewriteRequestCondition; do
+    javap -classpath "$RUNTIME_CLASSPATH" -v "$rewrite_class" | grep -F "Deprecated: true" >/dev/null ||
+        fail "Published legacy WebFlux rewrite type is missing the JVM Deprecated attribute: $rewrite_class"
+done
+[[ "$(javap -classpath "$WOW_STARTER_JAR:$RUNTIME_CLASSPATH" -v \
+    me.ahoo.wow.spring.boot.starter.webflux.WebFluxAutoConfiguration | grep -c 'Deprecated: true')" -eq 1 ]] ||
+    fail "Published WebFlux rewrite registration is missing the JVM Deprecated attribute"
+echo "PASS: Published legacy WebFlux rewrite types and registration are deprecated"
+
 if jar tf "$WOW_QUERY_JAR" | grep -E \
     'me/ahoo/wow/query/compat/Legacy(QueryRequest|SnapshotResult|EventResult|QueryError)Mapper([$.]|\.class)' \
     >"$TEMP_DIR/legacy-gateway-mapper-entries.out"; then

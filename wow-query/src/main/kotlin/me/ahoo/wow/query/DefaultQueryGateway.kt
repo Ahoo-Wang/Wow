@@ -39,6 +39,7 @@ import me.ahoo.wow.api.query.gateway.SingleQueryRequest
 import me.ahoo.wow.query.backend.QueryBackendResolutionContext
 import me.ahoo.wow.query.backend.QueryBackendResolver
 import me.ahoo.wow.query.backend.ResolvedQueryBackend
+import me.ahoo.wow.query.compat.isLegacyTypedDynamicDocumentMarker
 import me.ahoo.wow.query.expression.InvocationExpressionNormalizer
 import me.ahoo.wow.query.invocation.QueryDeadlineExceededException
 import me.ahoo.wow.query.invocation.QueryInvocation
@@ -356,7 +357,8 @@ internal class DefaultQueryGateway private constructor(
 
     private fun validateResult(shape: QueryPlanResultShape, value: Any) {
         val valid = when (shape) {
-            is QueryPlanResultShape.Typed -> shape.resultType.isInstance(value)
+            is QueryPlanResultShape.Typed -> shape.resultType.isInstance(value) ||
+                (shape.resultType.isLegacyTypedDynamicDocumentMarker() && value is DynamicDocument)
             is QueryPlanResultShape.Dynamic -> value is DynamicDocument
             QueryPlanResultShape.Count -> value is Long && value >= 0
         }

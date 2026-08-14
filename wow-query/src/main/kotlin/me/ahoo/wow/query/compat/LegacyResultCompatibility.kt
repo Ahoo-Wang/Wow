@@ -59,9 +59,9 @@ internal fun adaptLegacyEventDocument(document: DynamicDocument): DynamicDocumen
     materializeLegacyDocument { document.adaptLegacySystemTimes(EVENT_LEGACY_TIME_FIELDS) }
 
 @JvmSynthetic
-internal fun <T : Any> materializeLegacyList(
-    source: Flux<DynamicDocument>,
-    materialize: (DynamicDocument) -> T
+internal fun <D : DynamicDocument, T : Any> materializeLegacyList(
+    source: Flux<D>,
+    materialize: (D) -> T
 ): Flux<T> = Flux.defer {
     var emitted = false
     source.map { document ->

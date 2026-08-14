@@ -27,6 +27,11 @@ import me.ahoo.wow.api.query.error.QueryErrorReason
 import me.ahoo.wow.api.query.error.QueryException
 import me.ahoo.wow.api.query.error.QueryStage
 import me.ahoo.wow.api.query.expression.LogicalField
+import me.ahoo.wow.api.query.expression.LogicalOperator
+import me.ahoo.wow.api.query.expression.PortableLogicalExpression
+import me.ahoo.wow.api.query.expression.PortableOperator
+import me.ahoo.wow.api.query.expression.PredicateExpression
+import me.ahoo.wow.api.query.expression.QueryValue
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.api.query.gateway.QueryPageSpec
 import me.ahoo.wow.api.query.gateway.QueryProjection
@@ -34,6 +39,7 @@ import me.ahoo.wow.api.query.gateway.QueryResultShape
 import me.ahoo.wow.api.query.gateway.QuerySort
 import me.ahoo.wow.api.query.gateway.QuerySortDirection
 import me.ahoo.wow.api.query.gateway.QueryTarget
+import me.ahoo.wow.api.query.gateway.RequestedQueryScope
 import me.ahoo.wow.modeling.toNamedAggregate
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -92,5 +98,74 @@ class LegacyQueryRequestMapperTest {
             actual.assert().isEqualTo(listOf(QuerySort(LogicalField("eventTime"), QuerySortDirection.DESC)))
         }
         listOf(single.target, list.target, page.target, count.target).forEach { it.assert().isEqualTo(target) }
+    }
+
+    @Test
+    fun `direct legacy scope operators populate requested scope and preserve caller predicates`() {
+        val fixtures = listOf(
+            Condition.tenantId("tenant-a") to RequestedQueryScope(tenantId = "tenant-a"),
+            Condition.ownerId("owner-a") to RequestedQueryScope(ownerId = "owner-a"),
+            Condition.spaceId("space-a") to RequestedQueryScope(spaceId = "space-a"),
+        )
+
+        fixtures.forEach { (condition, expectedScope) ->
+            val request = legacyCountRequest(target, condition)
+
+            request.requestedScope.assert().isEqualTo(expectedScope)
+            (request.expression as PredicateExpression).apply {
+                operator.assert().isEqualTo(PortableOperator.EQ)
+                values.assert().containsExactly(QueryValue.StringValue(condition.value as String))
+            }
+        }
+    }
+
+    @Test
+    fun `top level AND extracts equal scopes without removing caller provenance`() {
+        val condition = Condition.and(
+            Condition.tenantId("tenant-a"),
+            Condition.spaceId("space-a"),
+            Condition.ownerId("owner-a"),
+            Condition.tenantId("tenant-a"),
+            Condition.eq("state.status", "ACTIVE"),
+        )
+
+        val request = legacyCountRequest(target, condition)
+
+        request.requestedScope.assert().isEqualTo(
+            RequestedQueryScope(tenantId = "tenant-a", ownerId = "owner-a", spaceId = "space-a"),
+        )
+        (request.expression as PortableLogicalExpression).apply {
+            operator.assert().isEqualTo(LogicalOperator.AND)
+            operands.assert().hasSize(5)
+        }
+    }
+
+    @Test
+    fun `unsafe nested scope stays only in caller expression`() {
+        val condition = Condition.or(Condition.tenantId("tenant-a"), Condition.spaceId("space-a"))
+
+        val request = legacyCountRequest(target, condition)
+
+        request.requestedScope.assert().isEqualTo(RequestedQueryScope())
+        (request.expression as PortableLogicalExpression).operator.assert().isEqualTo(LogicalOperator.OR)
+    }
+
+    @Test
+    fun `conflicting or blank direct legacy scopes fail closed during normalization`() {
+        val fixtures = listOf(
+            Condition.and(Condition.tenantId("tenant-a"), Condition.tenantId("tenant-b")),
+            Condition.and(Condition.spaceId("space-a"), Condition.spaceId("space-b")),
+            Condition.and(Condition.ownerId("owner-a"), Condition.ownerId("owner-b")),
+            Condition.tenantId(" "),
+            Condition.spaceId(""),
+            Condition.ownerId(" "),
+        )
+
+        fixtures.forEach { condition ->
+            val error = assertThrows<QueryException> { legacyCountRequest(target, condition) }
+            error.code.assert().isEqualTo(QueryErrorCode.INVALID_QUERY)
+            error.stage.assert().isEqualTo(QueryStage.NORMALIZE)
+            error.reason.assert().isEqualTo(QueryErrorReason.INVALID_REQUEST)
+        }
     }
 }

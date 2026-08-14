@@ -174,6 +174,7 @@ class WebFluxAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @Deprecated("Use QueryGateway policies with a verified QueryAuthorityProvider.")
     fun rewriteRequestCondition(): RewriteRequestCondition {
         return DefaultRewriteRequestCondition
     }

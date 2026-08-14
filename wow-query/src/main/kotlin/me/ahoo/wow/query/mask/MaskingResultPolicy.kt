@@ -16,9 +16,13 @@ package me.ahoo.wow.query.mask
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
+import me.ahoo.wow.query.compat.isLegacyTypedDynamicDocumentMarker
+import me.ahoo.wow.query.compat.legacySnapshotType
+import me.ahoo.wow.query.compat.materializeLegacySnapshot
 import me.ahoo.wow.query.plan.QueryPlanResultShape
 import me.ahoo.wow.query.result.ResultPolicy
 import me.ahoo.wow.query.result.ResultPolicyContext
+import me.ahoo.wow.serialization.toLinkedHashMap
 import reactor.core.publisher.Mono
 
 /** Adapts the live legacy masker registries to the canonical result-policy pipeline. */
@@ -35,6 +39,12 @@ class MaskingResultPolicy(
             return value
         }
         if (value is DynamicDocument) {
+            if (context.resultShape.isLegacyTypedDynamic()) {
+                return when (context.target.documentKind) {
+                    QueryDocumentKind.SNAPSHOT -> value.maskLegacyTypedSnapshot(context)
+                    QueryDocumentKind.EVENT_STREAM -> value
+                }
+            }
             return dynamicMasker(context).mask(value)
         }
         if (context.target.documentKind == QueryDocumentKind.SNAPSHOT &&
@@ -43,6 +53,15 @@ class MaskingResultPolicy(
             return value.tryMask()
         }
         return value
+    }
+
+    private fun QueryPlanResultShape.isLegacyTypedDynamic(): Boolean =
+        this is QueryPlanResultShape.Typed && resultType.isLegacyTypedDynamicDocumentMarker()
+
+    private fun DynamicDocument.maskLegacyTypedSnapshot(context: ResultPolicyContext): DynamicDocument {
+        val snapshotType = lazyOf(legacySnapshotType<Any>(context.target.namedAggregate))
+        val snapshot = materializeLegacySnapshot<Any>(this, snapshotType).tryMask()
+        return me.ahoo.wow.api.query.ImmutableDynamicDocument.copyOf(snapshot.toLinkedHashMap())
     }
 
     private fun dynamicMasker(context: ResultPolicyContext): AggregateDataMasker<out DynamicDocumentMasker> =

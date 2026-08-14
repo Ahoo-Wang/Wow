@@ -18,6 +18,7 @@ import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.error.QueryErrorCode
@@ -45,15 +46,63 @@ internal fun legacyDynamicShape(projection: Projection): QueryResultShape<Dynami
     QueryResultShape.Typed(DynamicDocument::class.java, projection.toCanonical())
 
 @JvmSynthetic
+internal fun legacyTypedDynamicShape(projection: Projection): QueryResultShape<DynamicDocument> =
+    QueryResultShape.Typed(legacyTypedDynamicDocumentType(), projection.toCanonical())
+
+@JvmSynthetic
+internal fun legacyTypedSingleRequest(
+    target: QueryTarget,
+    query: ISingleQuery
+): SingleQueryRequest<DynamicDocument> = query.condition.lower(target) { lowered, scope ->
+    SingleQueryRequest(
+        target,
+        lowered.first,
+        legacyTypedDynamicShape(query.projection),
+        scope,
+        sort = query.sort.toCanonical()
+    )
+}
+
+@JvmSynthetic
+internal fun legacyTypedListRequest(
+    target: QueryTarget,
+    query: IListQuery
+): ListQueryRequest<DynamicDocument> = query.condition.lower(target) { lowered, scope ->
+    ListQueryRequest(
+        target,
+        lowered.first,
+        legacyTypedDynamicShape(query.projection),
+        scope,
+        sort = query.sort.toCanonical(),
+        limit = query.limit
+    )
+}
+
+@JvmSynthetic
+internal fun legacyTypedPageRequest(
+    target: QueryTarget,
+    query: IPagedQuery
+): PageQueryRequest<DynamicDocument> = query.condition.lower(target) { lowered, scope ->
+    PageQueryRequest(
+        target,
+        lowered.first,
+        legacyTypedDynamicShape(query.projection),
+        scope,
+        sort = query.sort.toCanonical(),
+        page = QueryPageSpec(query.pagination.index, query.pagination.size)
+    )
+}
+
+@JvmSynthetic
 internal fun legacySingleRequest(
     target: QueryTarget,
     query: ISingleQuery
-): SingleQueryRequest<DynamicDocument> = query.condition.lower(target) { lowered ->
+): SingleQueryRequest<DynamicDocument> = query.condition.lower(target) { lowered, scope ->
     SingleQueryRequest(
         target,
         lowered.first,
         legacyDynamicShape(query.projection),
-        lowered.scope(),
+        scope,
         sort = query.sort.toCanonical()
     )
 }
@@ -62,12 +111,12 @@ internal fun legacySingleRequest(
 internal fun legacyListRequest(
     target: QueryTarget,
     query: IListQuery
-): ListQueryRequest<DynamicDocument> = query.condition.lower(target) { lowered ->
+): ListQueryRequest<DynamicDocument> = query.condition.lower(target) { lowered, scope ->
     ListQueryRequest(
         target,
         lowered.first,
         legacyDynamicShape(query.projection),
-        lowered.scope(),
+        scope,
         sort = query.sort.toCanonical(),
         limit = query.limit
     )
@@ -77,12 +126,12 @@ internal fun legacyListRequest(
 internal fun legacyPageRequest(
     target: QueryTarget,
     query: IPagedQuery
-): PageQueryRequest<DynamicDocument> = query.condition.lower(target) { lowered ->
+): PageQueryRequest<DynamicDocument> = query.condition.lower(target) { lowered, scope ->
     PageQueryRequest(
         target,
         lowered.first,
         legacyDynamicShape(query.projection),
-        lowered.scope(),
+        scope,
         sort = query.sort.toCanonical(),
         page = QueryPageSpec(query.pagination.index, query.pagination.size)
     )
@@ -90,23 +139,54 @@ internal fun legacyPageRequest(
 
 @JvmSynthetic
 internal fun legacyCountRequest(target: QueryTarget, condition: Condition): CountQueryRequest =
-    condition.lower(target) { lowered ->
-        CountQueryRequest(target, lowered.first, lowered.scope())
+    condition.lower(target) { lowered, scope ->
+        CountQueryRequest(target, lowered.first, scope)
     }
 
 private fun <T> Condition.lower(
     target: QueryTarget,
-    transform: (Pair<QueryExpression, DeletionScope>) -> T
+    transform: (Pair<QueryExpression, DeletionScope>, RequestedQueryScope) -> T
 ): T = try {
-    transform(LegacyConditionLowering.lowerForGateway(this, target))
+    val lowered = LegacyConditionLowering.lowerForGateway(this, target)
+    transform(lowered, requestedScope(lowered.second))
 } catch (error: QueryException) {
     throw error
 } catch (_: RuntimeException) {
     invalidLegacyRequest()
 }
 
-private fun Pair<QueryExpression, DeletionScope>.scope(): RequestedQueryScope =
-    RequestedQueryScope(deletion = second)
+private fun Condition.requestedScope(deletion: DeletionScope): RequestedQueryScope {
+    val candidates = when (operator) {
+        Operator.TENANT_ID,
+        Operator.OWNER_ID,
+        Operator.SPACE_ID -> listOf(this)
+        Operator.AND -> children.filter(Condition::isScopeCondition)
+        else -> emptyList()
+    }
+    return RequestedQueryScope(
+        tenantId = candidates.uniqueScopeValue(Operator.TENANT_ID),
+        ownerId = candidates.uniqueScopeValue(Operator.OWNER_ID),
+        spaceId = candidates.uniqueScopeValue(Operator.SPACE_ID),
+        deletion = deletion,
+    )
+}
+
+private fun Condition.isScopeCondition(): Boolean = when (operator) {
+    Operator.TENANT_ID,
+    Operator.OWNER_ID,
+    Operator.SPACE_ID -> true
+    else -> false
+}
+
+private fun List<Condition>.uniqueScopeValue(operator: Operator): String? {
+    val values = asSequence().filter { it.operator == operator }.map { condition ->
+        (condition.value as? String)?.takeIf(String::isNotBlank) ?: invalidLegacyRequest()
+    }.toCollection(LinkedHashSet())
+    if (values.size > 1) {
+        invalidLegacyRequest()
+    }
+    return values.singleOrNull()
+}
 
 private fun List<Sort>.toCanonical(): List<QuerySort> = map { sort ->
     QuerySort(
@@ -142,3 +222,13 @@ private fun invalidLegacyRequest(): Nothing = throw QueryException(
     QueryStage.NORMALIZE,
     QueryErrorReason.INVALID_REQUEST
 )
+
+@Suppress("UNCHECKED_CAST")
+private fun legacyTypedDynamicDocumentType(): Class<DynamicDocument> =
+    LegacyTypedDynamicDocumentMarker::class.java as Class<DynamicDocument>
+
+@JvmSynthetic
+internal fun Class<*>.isLegacyTypedDynamicDocumentMarker(): Boolean =
+    this == LegacyTypedDynamicDocumentMarker::class.java
+
+private abstract class LegacyTypedDynamicDocumentMarker : DynamicDocument
