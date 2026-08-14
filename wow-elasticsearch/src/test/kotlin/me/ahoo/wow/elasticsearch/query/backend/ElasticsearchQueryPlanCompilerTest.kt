@@ -200,6 +200,23 @@ class ElasticsearchQueryPlanCompilerTest {
     }
 
     @Test
+    fun `empty collection requires present nonnull metadata and no indexed element`() {
+        val query = compiler.query(
+            PredicateExpression(
+                PortableQueryDataset.NULLABLE_TAGS,
+                PortableOperator.EMPTY_COLLECTION,
+                emptyList(),
+            ),
+        )
+
+        val bool = query.bool()
+        assertTerm(bool.filter().single(), "__wow_query.present", "nullableLabels")
+        bool.mustNot().size.assert().isEqualTo(2)
+        assertTerm(bool.mustNot()[0], "__wow_query.null", "nullableLabels")
+        bool.mustNot()[1].exists().field().assert().isEqualTo("nullableLabels")
+    }
+
+    @Test
     fun `literal string operations escape wildcard syntax and preserve comparison mode`() {
         val value = QueryValue.StringValue("a*b?c\\d")
         val sensitive = compiler.query(

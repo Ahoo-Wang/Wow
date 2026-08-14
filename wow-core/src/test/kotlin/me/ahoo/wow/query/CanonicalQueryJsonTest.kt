@@ -86,6 +86,22 @@ class CanonicalQueryJsonTest {
     }
 
     @Test
+    fun `empty collection predicate should round trip with zero operands`() {
+        val expression: QueryExpression = PredicateExpression(
+            LogicalField("labels"),
+            PortableOperator.EMPTY_COLLECTION,
+            emptyList()
+        )
+
+        val json = expression.toJsonString()
+        val decoded = json.toObject<QueryExpression>() as PredicateExpression
+
+        JsonSerializer.readTree(json)["operator"].stringValue().assert().isEqualTo("EMPTY_COLLECTION")
+        decoded.assert().isEqualTo(expression)
+        decoded.values.assert().isEmpty()
+    }
+
+    @Test
     fun `nested query value should round trip with the authoritative mapper`() {
         val value: QueryValue = QueryValue.ObjectValue(
             mapOf(

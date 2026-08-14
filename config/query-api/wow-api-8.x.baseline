@@ -688,6 +688,7 @@ me.ahoo.wow.api.query.expression.PortableOperator#class|public final class me.ah
 me.ahoo.wow.api.query.expression.PortableOperator#public static final me.ahoo.wow.api.query.expression.PortableOperator ALL_IN;|descriptor: Lme/ahoo/wow/api/query/expression/PortableOperator;
 me.ahoo.wow.api.query.expression.PortableOperator#public static final me.ahoo.wow.api.query.expression.PortableOperator BETWEEN;|descriptor: Lme/ahoo/wow/api/query/expression/PortableOperator;
 me.ahoo.wow.api.query.expression.PortableOperator#public static final me.ahoo.wow.api.query.expression.PortableOperator CONTAINS;|descriptor: Lme/ahoo/wow/api/query/expression/PortableOperator;
+me.ahoo.wow.api.query.expression.PortableOperator#public static final me.ahoo.wow.api.query.expression.PortableOperator EMPTY_COLLECTION;|descriptor: Lme/ahoo/wow/api/query/expression/PortableOperator;
 me.ahoo.wow.api.query.expression.PortableOperator#public static final me.ahoo.wow.api.query.expression.PortableOperator ENDS_WITH;|descriptor: Lme/ahoo/wow/api/query/expression/PortableOperator;
 me.ahoo.wow.api.query.expression.PortableOperator#public static final me.ahoo.wow.api.query.expression.PortableOperator EQ;|descriptor: Lme/ahoo/wow/api/query/expression/PortableOperator;
 me.ahoo.wow.api.query.expression.PortableOperator#public static final me.ahoo.wow.api.query.expression.PortableOperator EXISTS;|descriptor: Lme/ahoo/wow/api/query/expression/PortableOperator;

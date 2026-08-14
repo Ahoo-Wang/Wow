@@ -119,6 +119,16 @@ class QueryExpressionValidatorTest {
                 collectionKind = QueryCollectionKind.OBJECT,
                 elementMatchEnabled = true
             ),
+            QueryFieldSchema(
+                path = LogicalField("profile"),
+                valueKind = QueryFieldValueKind.OBJECT,
+                nullable = false
+            ),
+            QueryFieldSchema(
+                path = LogicalField("attributes"),
+                valueKind = QueryFieldValueKind.MAP,
+                nullable = false
+            ),
             QueryFieldSchema.string(LogicalField("lines.sku"), nullable = false),
             QueryFieldSchema(
                 path = LogicalField("hiddenLines"),
@@ -162,6 +172,7 @@ class QueryExpressionValidatorTest {
             PortableOperator.IN to ArityFixture(one, listOf(emptyList())),
             PortableOperator.NOT_IN to ArityFixture(one, listOf(emptyList())),
             PortableOperator.ALL_IN to ArityFixture(one, listOf(emptyList())),
+            PortableOperator.EMPTY_COLLECTION to ArityFixture(emptyList(), listOf(one, two)),
             PortableOperator.NULL to ArityFixture(emptyList(), listOf(one)),
             PortableOperator.NOT_NULL to ArityFixture(emptyList(), listOf(one)),
             PortableOperator.TRUE to ArityFixture(emptyList(), listOf(one)),
@@ -390,6 +401,7 @@ class QueryExpressionValidatorTest {
             predicate("createdAt", PortableOperator.EQ, QueryValue.InstantValue(Instant.EPOCH)),
             predicate("payload", PortableOperator.EQ, QueryValue.BinaryValue(byteArrayOf(1))),
             predicate("tags", PortableOperator.ALL_IN, QueryValue.StringValue("blue")),
+            predicate("tags", PortableOperator.EMPTY_COLLECTION),
             predicate("optional", PortableOperator.EQ, QueryValue.NullValue),
             predicate("name", PortableOperator.EXISTS, QueryValue.BooleanValue(true)),
             PredicateExpression(
@@ -412,6 +424,10 @@ class QueryExpressionValidatorTest {
             predicate("age", PortableOperator.EQ, QueryValue.ListValue(listOf(QueryValue.IntegerValue(1)))),
             predicate("tags", PortableOperator.ALL_IN, QueryValue.ListValue(listOf(QueryValue.StringValue("blue")))),
             predicate("age", PortableOperator.EQ, QueryValue.NullValue),
+            predicate("age", PortableOperator.EMPTY_COLLECTION),
+            predicate("lines", PortableOperator.EMPTY_COLLECTION),
+            predicate("profile", PortableOperator.EMPTY_COLLECTION),
+            predicate("attributes", PortableOperator.EMPTY_COLLECTION),
             predicate("optional", PortableOperator.GT, QueryValue.NullValue),
             predicate("name", PortableOperator.EQ, QueryValue.StringValue("too-long-value")),
             PredicateExpression(

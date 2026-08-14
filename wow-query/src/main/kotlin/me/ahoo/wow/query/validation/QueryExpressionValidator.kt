@@ -178,7 +178,8 @@ class QueryExpressionValidator(
             PortableOperator.NULL,
             PortableOperator.NOT_NULL,
             PortableOperator.TRUE,
-            PortableOperator.FALSE -> if (size != 0) invalidQuery()
+            PortableOperator.FALSE,
+            PortableOperator.EMPTY_COLLECTION -> if (size != 0) invalidQuery()
         }
     }
 
@@ -285,7 +286,8 @@ class QueryExpressionValidator(
         PortableOperator.NOT_NULL,
         PortableOperator.TRUE,
         PortableOperator.FALSE,
-        PortableOperator.EXISTS -> false
+        PortableOperator.EXISTS,
+        PortableOperator.EMPTY_COLLECTION -> false
     }
 
     private fun PortableOperator.isStringMatching(): Boolean = when (this) {
@@ -307,7 +309,8 @@ class QueryExpressionValidator(
         PortableOperator.NOT_NULL,
         PortableOperator.TRUE,
         PortableOperator.FALSE,
-        PortableOperator.EXISTS -> false
+        PortableOperator.EXISTS,
+        PortableOperator.EMPTY_COLLECTION -> false
     }
 
     private fun estimateNativeParameters(parameters: Map<String, QueryValue>, available: Long): Long {

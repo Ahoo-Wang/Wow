@@ -30,6 +30,7 @@ import me.ahoo.wow.api.query.expression.PortableOperator
 import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryExpression
 import me.ahoo.wow.api.query.expression.QueryValue
+import me.ahoo.wow.api.query.expression.RelativeTimeExpression
 import me.ahoo.wow.api.query.expression.StringComparisonMode
 import me.ahoo.wow.api.query.gateway.QueryConsistency
 import me.ahoo.wow.api.query.gateway.QueryPage
@@ -141,6 +142,7 @@ internal class InMemoryPortableQueryBackend(
         is ElementMatchExpression -> matchesElement(expression, values)
         is FullTextExpression,
         is NativeExpression -> throw unsupportedCapability()
+        is RelativeTimeExpression -> error("Relative time was not normalized.")
     }
 
     private fun combine(operator: LogicalOperator, matches: List<Boolean>): Boolean = when (operator) {
@@ -196,8 +198,12 @@ internal class InMemoryPortableQueryBackend(
             PortableOperator.TRUE -> present && actual == QueryValue.BooleanValue(true)
             PortableOperator.FALSE -> present && actual == QueryValue.BooleanValue(false)
             PortableOperator.EXISTS -> present == (predicate.values.single() as QueryValue.BooleanValue).value
+            PortableOperator.EMPTY_COLLECTION -> present && actual.isEmptyCollection()
         }
     }
+
+    private fun QueryValue?.isEmptyCollection(): Boolean =
+        this is QueryValue.ListValue && values.isEmpty()
 
     private fun stringMatch(
         actual: QueryValue?,

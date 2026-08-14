@@ -198,6 +198,7 @@ internal class MongoQueryPlanCompiler(
                 field,
                 (expression.values.single() as QueryValue.BooleanValue).value
             )
+            PortableOperator.EMPTY_COLLECTION -> present(field, Filters.size(field, 0))
         }
     }
 

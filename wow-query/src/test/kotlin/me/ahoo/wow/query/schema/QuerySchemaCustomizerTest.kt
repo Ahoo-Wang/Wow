@@ -29,6 +29,7 @@ import org.junit.jupiter.api.assertThrows
 
 class QuerySchemaCustomizerTest {
     private val namedAggregate = "sales.order".toNamedAggregate()
+    private val snapshotTarget = QueryTarget(namedAggregate, QueryDocumentKind.SNAPSHOT)
     private val eventTarget = QueryTarget(namedAggregate, QueryDocumentKind.EVENT_STREAM)
 
     @Test
@@ -258,6 +259,81 @@ class QuerySchemaCustomizerTest {
     }
 
     @Test
+    fun `rejects a map value declared as a scalar collection`() {
+        assertThrows<IllegalArgumentException> {
+            QueryFieldSchema(
+                path = LogicalField("field"),
+                valueKind = QueryFieldValueKind.MAP,
+                nullable = false,
+                collectionKind = QueryCollectionKind.SCALAR
+            )
+        }
+    }
+
+    @Test
+    fun `only snapshot system tags map allows declared scalar collection children`() {
+        val validChild = tagChild("tags.region")
+
+        QuerySchema(snapshotTarget, QuerySystemFields.fields(QueryDocumentKind.SNAPSHOT) + validChild)
+            .field(validChild.path)!!.assert().isEqualTo(validChild)
+
+        listOf(
+            tagChild("tags.region", collectionKind = QueryCollectionKind.NONE),
+            tagChild(
+                "tags.region",
+                valueKind = QueryFieldValueKind.OBJECT,
+                collectionKind = QueryCollectionKind.OBJECT
+            ),
+            tagChild("tags.region", system = true),
+            tagChild("tags.region.value"),
+        ).forEach { child ->
+            assertThrows<IllegalArgumentException> {
+                QuerySchema(snapshotTarget, QuerySystemFields.fields(QueryDocumentKind.SNAPSHOT) + child)
+            }
+        }
+
+        assertThrows<IllegalArgumentException> {
+            QuerySchema(eventTarget, QuerySystemFields.fields(QueryDocumentKind.EVENT_STREAM) + validChild)
+        }
+        assertThrows<IllegalArgumentException> {
+            QuerySchema(
+                eventTarget,
+                QuerySystemFields.fields(QueryDocumentKind.EVENT_STREAM) + tagChild("header.region")
+            )
+        }
+        assertThrows<IllegalArgumentException> {
+            QuerySchema(
+                snapshotTarget,
+                QuerySystemFields.fields(QueryDocumentKind.SNAPSHOT) +
+                    QueryFieldSchema(LogicalField("attributes"), QueryFieldValueKind.MAP, nullable = false) +
+                    tagChild("attributes.region")
+            )
+        }
+    }
+
+    @Test
+    fun `customizer can declare a finite snapshot tags child through the resolver`() {
+        val child = tagChild("tags.region")
+        val customizer = QuerySchemaCustomizer { context ->
+            if (context.baseSchema.target.documentKind == QueryDocumentKind.SNAPSHOT) {
+                context.baseSchema.withField(child)
+            } else {
+                context.baseSchema
+            }
+        }
+
+        val snapshot = resolver(listOf(customizer)).resolve(snapshotTarget).block()!!
+        val event = resolver(listOf(customizer)).resolve(eventTarget).block()!!
+
+        snapshot.field(child.path).assert().isEqualTo(child)
+        snapshot.field("tags")!!.run {
+            valueKind.assert().isEqualTo(QueryFieldValueKind.MAP)
+            system.assert().isTrue()
+        }
+        event.field(child.path).assert().isNull()
+    }
+
+    @Test
     fun `rejects independently added child below a scalar parent during central merge`() {
         assertConflict(
             listOf(
@@ -280,6 +356,19 @@ class QuerySchemaCustomizerTest {
             )
         )
     }
+
+    private fun tagChild(
+        path: String,
+        valueKind: QueryFieldValueKind = QueryFieldValueKind.STRING,
+        collectionKind: QueryCollectionKind = QueryCollectionKind.SCALAR,
+        system: Boolean = false
+    ): QueryFieldSchema = QueryFieldSchema(
+        path = LogicalField(path),
+        valueKind = valueKind,
+        nullable = true,
+        collectionKind = collectionKind,
+        system = system
+    )
 
     private fun bindBodyName(fieldPath: String): QuerySchemaCustomizer = QuerySchemaCustomizer { context ->
         val field = context.baseSchema.field("body.name")!!

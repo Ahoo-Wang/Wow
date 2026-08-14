@@ -125,6 +125,8 @@ object PortableQueryDataset {
 
     val TAGS: LogicalField = LogicalField("labels")
 
+    val NULLABLE_TAGS: LogicalField = LogicalField("nullableLabels")
+
     val ITEMS: LogicalField = LogicalField("items")
 
     val ITEM_SKU: LogicalField = LogicalField("items.sku")
@@ -206,6 +208,7 @@ object PortableQueryDataset {
                 status = "DONE",
                 day = 2,
                 tags = emptyList(),
+                nullableTags = QueryValue.NullValue,
                 items = listOf(item("A", 1), item("C", 3)),
                 profile = QueryValue.ObjectValue(emptyMap())
             )
@@ -222,6 +225,7 @@ object PortableQueryDataset {
                 status = "PROCESSING",
                 day = 3,
                 tags = listOf("green"),
+                nullableTags = QueryValue.ListValue(emptyList()),
                 items = listOf(item("B", 2)),
                 profile = QueryValue.ObjectValue(mapOf("city" to string("杭州")))
             )
@@ -239,6 +243,7 @@ object PortableQueryDataset {
                 status = "NEW",
                 day = 4,
                 tags = listOf("red"),
+                nullableTags = QueryValue.ListValue(listOf(string("value"))),
                 items = listOf(item("A", 4))
             )
         ),
@@ -447,6 +452,16 @@ object PortableQueryDataset {
                     ids("d02", "d03", "d04", "d05", "d06", "d07", "d08", "d09", "d10"),
                 predicate(OPTIONAL_TEXT, PortableOperator.EXISTS, QueryValue.BooleanValue(true)) to ids(),
                 predicate(NULLABLE_TEXT, PortableOperator.EXISTS, string("true"))
+            ),
+            operatorCase(
+                PortableOperator.EMPTY_COLLECTION,
+                predicate(NULLABLE_TAGS, PortableOperator.EMPTY_COLLECTION) to ids("d03"),
+                logical(
+                    LogicalOperator.AND,
+                    predicate(NULLABLE_TAGS, PortableOperator.EMPTY_COLLECTION),
+                    predicate(LOGICAL_ID, PortableOperator.EQ, string("d04"))
+                ) to ids(),
+                predicate(TITLE, PortableOperator.EMPTY_COLLECTION)
             )
         ).flatMap(OperatorCase::vectors)
 
@@ -496,6 +511,13 @@ object PortableQueryDataset {
             PortableVectorKind.BOUNDARY,
             predicate(NULLABLE_TEXT, PortableOperator.EXISTS, QueryValue.BooleanValue(false)),
             ids("d01")
+        ),
+        vector(
+            "empty-nullable-collection-four-state",
+            PortableContractKey.Scenario(PortableQueryScenario.EMPTY_COLLECTION),
+            PortableVectorKind.BOUNDARY,
+            predicate(NULLABLE_TAGS, PortableOperator.EMPTY_COLLECTION),
+            ids("d03")
         ),
         vector(
             "empty-stored-collection",
@@ -958,7 +980,8 @@ object PortableQueryDataset {
         day: Int,
         tags: List<String>,
         items: List<QueryValue.ObjectValue>,
-        profile: QueryValue? = null
+        profile: QueryValue? = null,
+        nullableTags: QueryValue? = null
     ): Map<LogicalField, QueryValue> = LinkedHashMap<LogicalField, QueryValue>().apply {
         nullableText?.let { put(NULLABLE_TEXT, it) }
         put(TITLE, string(title))
@@ -968,6 +991,7 @@ object PortableQueryDataset {
         put(STATUS, QueryValue.EnumValue(status))
         put(CREATED_AT, instant(day))
         put(TAGS, QueryValue.ListValue(tags.map(::string)))
+        nullableTags?.let { put(NULLABLE_TAGS, it) }
         put(ITEMS, QueryValue.ListValue(items))
         profile?.let { put(PROFILE, it) }
     }
@@ -1003,6 +1027,12 @@ object PortableQueryDataset {
             TAGS,
             QueryFieldValueKind.STRING,
             nullable = false,
+            collectionKind = QueryCollectionKind.SCALAR
+        ),
+        QueryFieldSchema(
+            NULLABLE_TAGS,
+            QueryFieldValueKind.STRING,
+            nullable = true,
             collectionKind = QueryCollectionKind.SCALAR
         ),
         QueryFieldSchema(

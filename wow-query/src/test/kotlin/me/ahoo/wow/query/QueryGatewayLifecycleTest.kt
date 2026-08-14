@@ -21,15 +21,20 @@ import me.ahoo.wow.api.query.error.QueryException
 import me.ahoo.wow.api.query.error.QueryStage
 import me.ahoo.wow.api.query.expression.FullTextExpression
 import me.ahoo.wow.api.query.expression.LogicalExpression
+import me.ahoo.wow.api.query.expression.LogicalField
 import me.ahoo.wow.api.query.expression.LogicalOperator
+import me.ahoo.wow.api.query.expression.PortableOperator
+import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.gateway.CountQueryRequest
 import me.ahoo.wow.api.query.gateway.DeletionScope
 import me.ahoo.wow.api.query.gateway.ListQueryRequest
 import me.ahoo.wow.api.query.gateway.QueryBudgetHint
+import me.ahoo.wow.api.query.gateway.QueryOperation
 import me.ahoo.wow.api.query.gateway.RequestedQueryScope
 import me.ahoo.wow.query.backend.QueryBackendResolver
 import me.ahoo.wow.query.backend.RecordingQueryBackend
+import me.ahoo.wow.query.metrics.QueryGatewayMetrics
 import me.ahoo.wow.query.policy.CapabilityDecision
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.policy.QueryPolicyConstraints
@@ -48,6 +53,28 @@ import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 
 class QueryGatewayLifecycleTest {
+    @Test
+    fun `empty collection remains a portable predicate in bounded metrics`() {
+        val registry = SimpleMeterRegistry()
+        val metrics = QueryGatewayMetrics(registry, emptySet())
+        val request = CountQueryRequest(
+            target = GATEWAY_TARGET,
+            expression = PredicateExpression(
+                LogicalField("state.labels"),
+                PortableOperator.EMPTY_COLLECTION,
+                emptyList(),
+            ),
+        )
+
+        StepVerifier.create(metrics.observe(Mono.just(1), metrics.state(request, QueryOperation.COUNT)))
+            .expectNext(1)
+            .verifyComplete()
+
+        registry.get("wow.query.gateway")
+            .tag("capabilityId", "none")
+            .counter().count().assert().isEqualTo(1.0)
+    }
+
     @Test
     fun `configured capability preflight rejects before backend resolution`() {
         val capability = QueryCapabilityId("full-text")

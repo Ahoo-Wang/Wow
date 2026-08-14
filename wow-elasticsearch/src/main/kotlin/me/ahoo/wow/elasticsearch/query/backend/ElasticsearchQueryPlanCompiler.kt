@@ -136,6 +136,8 @@ internal class ElasticsearchQueryPlanCompiler(
             PortableOperator.EXISTS,
             -> presencePredicate(expression, logical)
 
+            PortableOperator.EMPTY_COLLECTION -> emptyCollection(logical, field)
+
             PortableOperator.TRUE -> term(field, FieldValue.TRUE)
             PortableOperator.FALSE -> term(field, FieldValue.FALSE)
         }
@@ -198,6 +200,15 @@ internal class ElasticsearchQueryPlanCompiler(
 
     private fun invalidOperator(operator: PortableOperator): Nothing =
         error("Unexpected portable operator group: $operator")
+
+    private fun emptyCollection(logical: LogicalField, field: String): Query = Query.of { query ->
+        query.bool { bool ->
+            bool.filter(presenceTerm(presence.present(logical)))
+                .mustNot(presenceTerm(presence.explicitNull(logical)), exists(field))
+        }
+    }
+
+    private fun exists(field: String): Query = Query.of { query -> query.exists { exists -> exists.field(field) } }
 
     private fun membership(
         logical: LogicalField,

@@ -214,7 +214,8 @@ enum class PortableOperator {
     NOT_NULL,
     TRUE,
     FALSE,
-    EXISTS
+    EXISTS,
+    EMPTY_COLLECTION
 }
 
 enum class StringComparisonMode {

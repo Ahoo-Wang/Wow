@@ -16,6 +16,7 @@ import me.ahoo.wow.api.query.expression.LogicalField
 import me.ahoo.wow.api.query.expression.PortableOperator
 import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.expression.StringComparisonMode
+import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.api.query.gateway.QueryTarget
 import java.util.Collections
 
@@ -141,8 +142,11 @@ class QueryFieldSchema @JvmOverloads constructor(
         require(collectionKind != QueryCollectionKind.OBJECT || valueKind == QueryFieldValueKind.OBJECT) {
             "Object collection requires an object value kind."
         }
-        require(collectionKind != QueryCollectionKind.SCALAR || valueKind != QueryFieldValueKind.OBJECT) {
-            "Scalar collection cannot use an object value kind."
+        require(
+            collectionKind != QueryCollectionKind.SCALAR ||
+                (valueKind != QueryFieldValueKind.OBJECT && valueKind != QueryFieldValueKind.MAP)
+        ) {
+            "Scalar collection cannot use an object or map value kind."
         }
         require(!elementMatchEnabled || collectionKind == QueryCollectionKind.OBJECT) {
             "Element match requires an object collection."
@@ -295,7 +299,8 @@ class QueryFieldSchema @JvmOverloads constructor(
         private val COLLECTION_OPERATORS = PRESENCE_OPERATORS + setOf(
             PortableOperator.IN,
             PortableOperator.NOT_IN,
-            PortableOperator.ALL_IN
+            PortableOperator.ALL_IN,
+            PortableOperator.EMPTY_COLLECTION
         )
 
         private fun QueryCapabilityId.isAllowedCapability(): Boolean =
@@ -346,13 +351,41 @@ class QuerySchema(
     private fun validateFieldHierarchy(fields: Map<LogicalField, QueryFieldSchema>) {
         fields.values.forEach { field ->
             val segments = field.path.value.split('.')
+            val snapshotTagChild = isSnapshotTagChild(field, segments, fields)
+            if (segments.first() == "tags" && segments.size > 1) {
+                require(snapshotTagChild) {
+                    "Only declared snapshot tag scalar collections may be nested below the system tags map."
+                }
+            }
             for (endIndex in 1 until segments.size) {
                 val ancestor = fields[LogicalField(segments.take(endIndex).joinToString("."))] ?: continue
-                require(ancestor.valueKind == QueryFieldValueKind.OBJECT) {
+                require(ancestor.valueKind == QueryFieldValueKind.OBJECT || snapshotTagChild) {
                     "Query field cannot be declared below a scalar, collection, or map field."
                 }
             }
         }
+    }
+
+    private fun isSnapshotTagChild(
+        field: QueryFieldSchema,
+        segments: List<String>,
+        fields: Map<LogicalField, QueryFieldSchema>
+    ): Boolean {
+        if (target.documentKind != QueryDocumentKind.SNAPSHOT) {
+            return false
+        }
+        if (segments.size != 2 || segments.first() != "tags") {
+            return false
+        }
+        if (field.system || field.collectionKind != QueryCollectionKind.SCALAR) {
+            return false
+        }
+        if (field.valueKind == QueryFieldValueKind.OBJECT || field.valueKind == QueryFieldValueKind.MAP) {
+            return false
+        }
+        val canonicalTags = QuerySystemFields.fields(QueryDocumentKind.SNAPSHOT)
+            .single { it.path.value == "tags" }
+        return fields[canonicalTags.path]?.hasSameIdentity(canonicalTags) == true
     }
 
     private fun QueryFieldSchema.hasSameIdentity(other: QueryFieldSchema): Boolean =

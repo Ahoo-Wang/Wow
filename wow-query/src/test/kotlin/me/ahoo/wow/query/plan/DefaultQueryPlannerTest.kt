@@ -242,6 +242,37 @@ class DefaultQueryPlannerTest {
     }
 
     @Test
+    fun `rejects empty collection before execution when descriptor does not advertise it`() {
+        val field = LogicalField("state.labels")
+        val schema = QuerySchema(
+            TARGET,
+            QuerySystemFields.fields(QueryDocumentKind.SNAPSHOT) +
+                QueryFieldSchema(
+                    field,
+                    QueryFieldValueKind.STRING,
+                    nullable = true,
+                    collectionKind = QueryCollectionKind.SCALAR,
+                ),
+        )
+        val expression = PredicateExpression(field, PortableOperator.EMPTY_COLLECTION, emptyList())
+        val invocation = invocation(expression = expression, schema = schema)
+        val backend = RecordingQueryBackend(
+            descriptor(portableOperators = PortableOperator.entries.toSet() - PortableOperator.EMPTY_COLLECTION),
+        )
+        val resolved = ResolvedQueryBackend.resolve(backend, ROUTE).block()!!
+
+        StepVerifier.create(
+            planner().plan(invocation, policyResult(securedExpression = expression), resolved),
+        ).expectErrorSatisfies { error ->
+            (error as QueryException).apply {
+                code.assert().isEqualTo(QueryErrorCode.UNSUPPORTED_CAPABILITY)
+                stage.assert().isEqualTo(QueryStage.PLANNING)
+            }
+        }.verify()
+        backend.listSubscriptions.get().assert().isZero()
+    }
+
+    @Test
     fun `binds element match child fields relative to the object collection path`() {
         val expression = ElementMatchExpression(
             LINES,

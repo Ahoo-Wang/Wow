@@ -109,6 +109,27 @@ class PortableQueryVectorTest {
     }
 
     @Test
+    fun `nullable scalar collection fixture distinguishes missing null empty and nonempty`() {
+        val documents = PortableQueryDataset.documents.associateBy(PortableQueryDocument::logicalId)
+
+        assertFalse(documents.getValue("d01").fields.containsKey(PortableQueryDataset.NULLABLE_TAGS))
+        assertEquals(QueryValue.NullValue, documents.getValue("d02").fields[PortableQueryDataset.NULLABLE_TAGS])
+        assertEquals(
+            QueryValue.ListValue(emptyList()),
+            documents.getValue("d03").fields[PortableQueryDataset.NULLABLE_TAGS]
+        )
+        assertEquals(
+            QueryValue.ListValue(listOf(QueryValue.StringValue("value"))),
+            documents.getValue("d04").fields[PortableQueryDataset.NULLABLE_TAGS]
+        )
+        assertTrue(
+            PortableQueryDataset.schema(QueryDocumentKind.SNAPSHOT)
+                .fields.getValue(PortableQueryDataset.NULLABLE_TAGS)
+                .nullable
+        )
+    }
+
+    @Test
     fun `stable tie fixture cannot pass with primary sort alone`() {
         val primaryOnlyOrder = PortableQueryDataset.documents
             .sortedBy { document ->

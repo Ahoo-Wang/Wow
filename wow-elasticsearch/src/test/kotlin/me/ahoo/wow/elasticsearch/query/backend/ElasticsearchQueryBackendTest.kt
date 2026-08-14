@@ -140,6 +140,75 @@ class ElasticsearchQueryBackendTest {
     }
 
     @Test
+    fun `empty collection readiness requires a managed exact scalar collection mapping`() {
+        val expression = PredicateExpression(
+            PortableQueryDataset.NULLABLE_TAGS,
+            PortableOperator.EMPTY_COLLECTION,
+            emptyList(),
+        )
+        val presence = Property.of { property ->
+            property.`object` { obj ->
+                obj.properties("present") { it.keyword { value -> value } }
+                    .properties("null") { it.keyword { value -> value } }
+            }
+        }
+        val valid = mappingClient(
+            mapOf(
+                "nullableLabels" to Property.of { it.keyword { value -> value } },
+                "__wow_query" to presence,
+            ),
+        )
+        val text = mappingClient(
+            mapOf(
+                "nullableLabels" to Property.of { it.text { value -> value } },
+                "__wow_query" to presence,
+            ),
+        )
+
+        StepVerifier.create(backend(valid, expression).readiness())
+            .expectNext(QueryBackendReadiness.Ready)
+            .verifyComplete()
+        StepVerifier.create(backend(text, expression).readiness())
+            .expectNext(
+                QueryBackendReadiness.NotReady(
+                    me.ahoo.wow.query.backend.QueryBackendReadinessReason.MAPPING_INCOMPATIBLE,
+                ),
+            ).verifyComplete()
+        verify(exactly = 0) { text.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { text.openPointInTime(any<OpenPointInTimeRequest>()) }
+    }
+
+    @Test
+    fun `binary empty collection is configuration invalid before index io`() {
+        val client = mockk<ReactiveElasticsearchClient>(relaxed = true)
+        val field = LogicalField("payloads")
+        val source = PortableQueryDataset.schema(QueryDocumentKind.SNAPSHOT)
+        val schema = source.withField(
+            me.ahoo.wow.query.schema.QueryFieldSchema(
+                field,
+                me.ahoo.wow.query.schema.QueryFieldValueKind.BINARY,
+                nullable = true,
+                collectionKind = me.ahoo.wow.query.schema.QueryCollectionKind.SCALAR,
+            ),
+        )
+        val backend = ElasticsearchQueryBackendFactory(client).bind(
+            QueryBackendResolutionContext(
+                source.target,
+                schema,
+                PredicateExpression(field, PortableOperator.EMPTY_COLLECTION, emptyList()),
+            ),
+        )
+
+        StepVerifier.create(backend.readiness())
+            .expectNext(
+                QueryBackendReadiness.NotReady(
+                    me.ahoo.wow.query.backend.QueryBackendReadinessReason.CONFIGURATION_INVALID,
+                ),
+            ).verifyComplete()
+        confirmVerified(client)
+    }
+
+    @Test
     fun `null metadata mismatch is not ready and performs no search or pit io`() {
         val client = mappingClient(
             mapOf(
@@ -453,6 +522,15 @@ class ElasticsearchQueryBackendTest {
         verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
         verify(exactly = 0) { client.openPointInTime(any<OpenPointInTimeRequest>()) }
     }
+
+    private fun backend(client: ReactiveElasticsearchClient, expression: QueryExpression) =
+        ElasticsearchQueryBackendFactory(client).bind(
+            QueryBackendResolutionContext(
+                PortableQueryDataset.target(QueryDocumentKind.SNAPSHOT),
+                PortableQueryDataset.schema(QueryDocumentKind.SNAPSHOT),
+                expression,
+            ),
+        )
 
     private fun mappingClient(
         properties: Map<String, Property>,

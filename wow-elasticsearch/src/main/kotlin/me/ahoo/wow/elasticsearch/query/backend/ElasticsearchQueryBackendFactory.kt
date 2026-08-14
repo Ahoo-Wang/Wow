@@ -211,6 +211,11 @@ internal class ElasticsearchQueryBackendBinder(
                     addNull(logical)
                 }
                 PortableOperator.EXISTS -> addPresent(logical)
+                PortableOperator.EMPTY_COLLECTION -> {
+                    addPresent(logical)
+                    addNull(logical)
+                    addExact(logical)
+                }
                 else -> addExact(logical)
             }
         }

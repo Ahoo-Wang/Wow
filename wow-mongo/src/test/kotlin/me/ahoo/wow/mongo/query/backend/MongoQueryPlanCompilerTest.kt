@@ -146,6 +146,22 @@ class MongoQueryPlanCompilerTest {
     }
 
     @Test
+    fun `empty collection requires a present zero-size array`() {
+        document(
+            PredicateExpression(
+                PortableQueryDataset.NULLABLE_TAGS,
+                PortableOperator.EMPTY_COLLECTION,
+                emptyList()
+            )
+        ).assert().isEqualTo(
+            and(
+                Document("nullableLabels", Document("\$exists", true)),
+                Document("nullableLabels", Document("\$size", 0))
+            )
+        )
+    }
+
+    @Test
     fun `range and between preserve canonical numeric and instant values`() {
         val lower = Instant.parse("2026-01-01T00:00:00Z")
         val upper = Instant.parse("2026-01-31T00:00:00Z")

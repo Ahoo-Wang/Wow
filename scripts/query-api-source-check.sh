@@ -941,6 +941,7 @@ import me.ahoo.wow.api.query.error.QueryStage;
 import me.ahoo.wow.api.modeling.NamedAggregate;
 import me.ahoo.wow.api.query.expression.QueryCapabilityId;
 import me.ahoo.wow.api.query.expression.LogicalField;
+import me.ahoo.wow.api.query.expression.PortableOperator;
 import me.ahoo.wow.api.query.expression.QueryValue;
 import me.ahoo.wow.api.query.expression.RelativeTimeExpression;
 import me.ahoo.wow.api.query.expression.RelativeTimeOperation;
@@ -1003,6 +1004,7 @@ public final class StableGatewayApi {
     }
 
     public static Object[] compatibilityApi(NamedAggregate aggregate, QueryGateway gateway) {
+        PortableOperator emptyCollection = PortableOperator.EMPTY_COLLECTION;
         RelativeTimeExpression relative = new RelativeTimeExpression(
             "eventTime",
             RelativeTimeOperation.RECENT_DAYS,
@@ -1013,6 +1015,7 @@ public final class StableGatewayApi {
             relative.getField(), relative.getOperation(), relative.getOperands(), relative.getZoneId()
         );
         return new Object[]{
+            emptyCollection,
             copy,
             new GatewaySnapshotQueryService<Object>(aggregate, gateway),
             new GatewaySnapshotQueryServiceFactory(gateway),
@@ -1068,6 +1071,8 @@ import me.ahoo.wow.api.query.expression.LogicalField
 import me.ahoo.wow.api.query.expression.QueryValue
 import me.ahoo.wow.api.query.expression.RelativeTimeExpression
 import me.ahoo.wow.api.query.expression.RelativeTimeOperation
+import me.ahoo.wow.api.query.expression.PortableOperator
+import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryGatewayConfiguration
@@ -1101,6 +1106,11 @@ val incompleteQueryException = QueryException(
 )
 
 fun compatibilityApi(aggregate: NamedAggregate, gateway: QueryGateway): List<Any> {
+    val emptyCollection = PredicateExpression(
+        LogicalField("labels"),
+        PortableOperator.EMPTY_COLLECTION,
+        emptyList()
+    )
     val relative = RelativeTimeExpression(
         "eventTime",
         RelativeTimeOperation.RECENT_DAYS,
@@ -1108,6 +1118,7 @@ fun compatibilityApi(aggregate: NamedAggregate, gateway: QueryGateway): List<Any
         "UTC"
     )
     return listOf(
+        emptyCollection,
         relative.copy(operands = relative.operands),
         GatewaySnapshotQueryService<Any>(aggregate, gateway),
         GatewaySnapshotQueryServiceFactory(gateway),
