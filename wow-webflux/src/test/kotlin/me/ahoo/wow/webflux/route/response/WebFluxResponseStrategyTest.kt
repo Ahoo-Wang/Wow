@@ -31,6 +31,8 @@ import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import java.nio.charset.StandardCharsets
+import java.util.concurrent.atomic.AtomicBoolean
 
 class WebFluxResponseStrategyTest {
 
@@ -105,7 +107,36 @@ class WebFluxResponseStrategyTest {
             )
             .block()!!
 
-        response.writeToExchangeExpectingError()
+        val exchange = response.writeToExchangeExpectingError()
+        val chunks = mutableListOf<String>()
+        exchange.response.body
+            .map { buffer -> buffer.toString(StandardCharsets.UTF_8) }
+            .doOnNext(chunks::add)
+            .test()
+            .thenConsumeWhile { true }
+            .verifyError(IllegalArgumentException::class.java)
+        chunks.joinToString("").assert()
+            .startsWith("[")
+            .doesNotEndWith("]")
+    }
+
+    @Test
+    fun `json array cancellation should cancel upstream`() {
+        val cancelled = AtomicBoolean()
+        val response = DefaultWebFluxResponseStrategy
+            .jsonArray(
+                Flux.never<BodyValue>().doOnCancel { cancelled.set(true) },
+                MockServerRequest.builder().build(),
+                WebFluxRequestExceptionHandler()
+            ).block()!!
+        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build())
+
+        response.writeTo(exchange, EMPTY_CONTEXT)
+            .test()
+            .thenCancel()
+            .verify()
+
+        cancelled.get().assert().isTrue()
     }
 
     @Test
@@ -126,7 +157,7 @@ class WebFluxResponseStrategyTest {
     }
 
     @Test
-    fun `sse response should write error event`() {
+    fun `sse response should delegate first error before committing success`() {
         val request = MockServerRequest.builder()
             .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
             .build()
@@ -139,11 +170,51 @@ class WebFluxResponseStrategyTest {
             )
             .test()
             .consumeNextWith {
-                val body = it.writeBody()
-                body.assert().contains(ErrorCodes.ILLEGAL_ARGUMENT)
-                body.assert().contains("data:")
+                val exchange = it.writeToExchange()
+                exchange.response.statusCode.assert().isEqualTo(HttpStatus.BAD_REQUEST)
+                exchange.response.headers.getFirst(ERROR_CODE).assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
+                exchange.response.headers.contentType.assert().isEqualTo(MediaType.APPLICATION_JSON)
+                exchange.response.bodyAsString.block()!!.assert().doesNotContain("data:")
             }
             .verifyComplete()
+    }
+
+    @Test
+    fun `sse response should emit exactly one safe event after first value fails`() {
+        val request = MockServerRequest.builder()
+            .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
+            .build()
+        val first = ServerSentEvent.builder<String>().event("value").data("one").build()
+        val response = DefaultWebFluxResponseStrategy.sse(
+            Flux.just(first).concatWith(Mono.error { IllegalArgumentException("bad") }),
+            request,
+            WebFluxRequestExceptionHandler()
+        ).block()!!
+
+        val body = response.writeBody()
+        body.assert().contains("event:value").contains("event:${ErrorCodes.ILLEGAL_ARGUMENT}")
+        Regex("event:${ErrorCodes.ILLEGAL_ARGUMENT}").findAll(body).count().assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `sse cancellation should cancel upstream`() {
+        val cancelled = AtomicBoolean()
+        val request = MockServerRequest.builder()
+            .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
+            .build()
+        val response = DefaultWebFluxResponseStrategy.sse(
+            Flux.never<ServerSentEvent<String>>().doOnCancel { cancelled.set(true) },
+            request,
+            WebFluxRequestExceptionHandler()
+        ).block()!!
+        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build())
+
+        response.writeTo(exchange, EMPTY_CONTEXT)
+            .test()
+            .thenCancel()
+            .verify()
+
+        cancelled.get().assert().isTrue()
     }
 
     private data class BodyValue(val name: String)

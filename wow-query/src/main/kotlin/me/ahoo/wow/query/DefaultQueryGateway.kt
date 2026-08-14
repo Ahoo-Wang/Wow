@@ -40,6 +40,7 @@ import me.ahoo.wow.query.backend.QueryBackendResolutionContext
 import me.ahoo.wow.query.backend.QueryBackendResolver
 import me.ahoo.wow.query.backend.ResolvedQueryBackend
 import me.ahoo.wow.query.compat.isLegacyTypedDynamicDocumentMarker
+import me.ahoo.wow.query.compat.legacyQueryExecution
 import me.ahoo.wow.query.expression.InvocationExpressionNormalizer
 import me.ahoo.wow.query.invocation.QueryDeadlineExceededException
 import me.ahoo.wow.query.invocation.QueryInvocation
@@ -77,30 +78,39 @@ internal class DefaultQueryGateway private constructor(
     private val stageObserver: QueryGatewayStageObserver,
     private val enabledCapabilities: Set<QueryCapabilityId>
 ) : QueryGateway {
-    override fun <R : Any> single(request: SingleQueryRequest<R>): Mono<R> = Mono.defer {
-        val metricState = metrics.state(request, QueryOperation.SINGLE)
-        metrics.observe(executeSingle(request, metricState), metricState)
+    override fun <R : Any> single(request: SingleQueryRequest<R>): Mono<R> = Mono.deferContextual { context ->
+        val legacyExecution = context.legacyQueryExecution(request, QueryOperation.SINGLE)
+        val callerRequest = legacyExecution?.callerRequest ?: request
+        val metricState = metrics.state(callerRequest, QueryOperation.SINGLE)
+        metrics.observe(executeSingle(callerRequest, metricState, legacyExecution?.legacyExpression), metricState)
     }
 
-    override fun <R : Any> list(request: ListQueryRequest<R>): Flux<R> = Flux.defer {
-        val metricState = metrics.state(request, QueryOperation.LIST)
-        metrics.observe(executeList(request, metricState), metricState)
+    override fun <R : Any> list(request: ListQueryRequest<R>): Flux<R> = Flux.deferContextual { context ->
+        val legacyExecution = context.legacyQueryExecution(request, QueryOperation.LIST)
+        val callerRequest = legacyExecution?.callerRequest ?: request
+        val metricState = metrics.state(callerRequest, QueryOperation.LIST)
+        metrics.observe(executeList(callerRequest, metricState, legacyExecution?.legacyExpression), metricState)
     }
 
-    override fun <R : Any> page(request: PageQueryRequest<R>): Mono<QueryPage<R>> = Mono.defer {
-        val metricState = metrics.state(request, QueryOperation.PAGE)
-        metrics.observe(executePage(request, metricState), metricState)
+    override fun <R : Any> page(request: PageQueryRequest<R>): Mono<QueryPage<R>> = Mono.deferContextual { context ->
+        val legacyExecution = context.legacyQueryExecution(request, QueryOperation.PAGE)
+        val callerRequest = legacyExecution?.callerRequest ?: request
+        val metricState = metrics.state(callerRequest, QueryOperation.PAGE)
+        metrics.observe(executePage(callerRequest, metricState, legacyExecution?.legacyExpression), metricState)
     }
 
-    override fun count(request: CountQueryRequest): Mono<Long> = Mono.defer {
-        val metricState = metrics.state(request, QueryOperation.COUNT)
-        metrics.observe(executeCount(request, metricState), metricState)
+    override fun count(request: CountQueryRequest): Mono<Long> = Mono.deferContextual { context ->
+        val legacyExecution = context.legacyQueryExecution(request, QueryOperation.COUNT)
+        val callerRequest = legacyExecution?.callerRequest ?: request
+        val metricState = metrics.state(callerRequest, QueryOperation.COUNT)
+        metrics.observe(executeCount(callerRequest, metricState, legacyExecution?.legacyExpression), metricState)
     }
 
     private fun <R : Any> executeSingle(
         request: SingleQueryRequest<R>,
-        metricState: QueryGatewayMetricState
-    ): Mono<R> = prepare(request, QueryOperation.SINGLE, metricState).flatMap { prepared ->
+        metricState: QueryGatewayMetricState,
+        legacyExpression: QueryExpression?
+    ): Mono<R> = prepare(request, QueryOperation.SINGLE, metricState, legacyExpression).flatMap { prepared ->
         @Suppress("UNCHECKED_CAST")
         val plan = prepared.plan as SingleQueryPlanV1<R>
         stageObserver.record(QueryGatewayStage.EXECUTE)
@@ -115,8 +125,9 @@ internal class DefaultQueryGateway private constructor(
 
     private fun <R : Any> executeList(
         request: ListQueryRequest<R>,
-        metricState: QueryGatewayMetricState
-    ): Flux<R> = prepare(request, QueryOperation.LIST, metricState).flatMapMany { prepared ->
+        metricState: QueryGatewayMetricState,
+        legacyExpression: QueryExpression?
+    ): Flux<R> = prepare(request, QueryOperation.LIST, metricState, legacyExpression).flatMapMany { prepared ->
         @Suppress("UNCHECKED_CAST")
         val plan = prepared.plan as ListQueryPlanV1<R>
         val emitted = AtomicBoolean()
@@ -136,8 +147,9 @@ internal class DefaultQueryGateway private constructor(
 
     private fun <R : Any> executePage(
         request: PageQueryRequest<R>,
-        metricState: QueryGatewayMetricState
-    ): Mono<QueryPage<R>> = prepare(request, QueryOperation.PAGE, metricState).flatMap { prepared ->
+        metricState: QueryGatewayMetricState,
+        legacyExpression: QueryExpression?
+    ): Mono<QueryPage<R>> = prepare(request, QueryOperation.PAGE, metricState, legacyExpression).flatMap { prepared ->
         @Suppress("UNCHECKED_CAST")
         val plan = prepared.plan as PageQueryPlanV1<R>
         stageObserver.record(QueryGatewayStage.EXECUTE)
@@ -158,8 +170,9 @@ internal class DefaultQueryGateway private constructor(
 
     private fun executeCount(
         request: CountQueryRequest,
-        metricState: QueryGatewayMetricState
-    ): Mono<Long> = prepare(request, QueryOperation.COUNT, metricState).flatMap { prepared ->
+        metricState: QueryGatewayMetricState,
+        legacyExpression: QueryExpression?
+    ): Mono<Long> = prepare(request, QueryOperation.COUNT, metricState, legacyExpression).flatMap { prepared ->
         val plan = prepared.plan as CountQueryPlanV1
         stageObserver.record(QueryGatewayStage.EXECUTE)
         val execution = atomic(Mono.defer { prepared.resolvedBackend.backend.count(plan) })
@@ -174,10 +187,15 @@ internal class DefaultQueryGateway private constructor(
     private fun prepare(
         request: QueryRequest,
         operation: QueryOperation,
-        metricState: QueryGatewayMetricState
+        metricState: QueryGatewayMetricState,
+        legacyExpression: QueryExpression?
     ): Mono<PreparedQuery> = Mono.defer {
         stageObserver.record(QueryGatewayStage.ADMISSION)
-        invocationFactory.admit(request, operation)
+        if (legacyExpression == null) {
+            invocationFactory.admit(request, operation)
+        } else {
+            invocationFactory.admitLegacy(request, operation, legacyExpression)
+        }
     }.onErrorMap { error -> mapAdmissionError(error) }
         .map { seed ->
             stageObserver.record(QueryGatewayStage.STRUCTURE_VALIDATION)

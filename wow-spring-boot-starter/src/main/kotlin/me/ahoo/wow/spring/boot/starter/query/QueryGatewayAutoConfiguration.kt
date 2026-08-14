@@ -87,6 +87,7 @@ class QueryGatewayAutoConfiguration {
         properties: QueryGatewayProperties,
         schemaResolver: QuerySchemaResolver,
         authorityProvider: QueryAuthorityProvider,
+        admissionProvider: ObjectProvider<QueryAdmission>,
         backendResolver: ObjectProvider<QueryBackendResolver>,
         clockProvider: ObjectProvider<Clock>,
         zoneIdProvider: ObjectProvider<ZoneId>,
@@ -98,7 +99,7 @@ class QueryGatewayAutoConfiguration {
         val policyRegistrations = beanFactory.queryPolicyRegistrationSnapshot()
         return QueryGatewayFactory.create(
             QueryGatewayConfiguration(
-                admission = authorityAdmission(authorityProvider),
+                admission = admissionProvider.resolveAdmission(authorityProvider),
                 schemaResolver = schemaResolver,
                 backendResolver = backendResolver.getIfAvailable {
                     QueryBackendResolver {
@@ -132,6 +133,16 @@ class QueryGatewayAutoConfiguration {
                 correlationId = context.correlationId
             )
         }
+    }
+
+    private fun ObjectProvider<QueryAdmission>.resolveAdmission(
+        authorityProvider: QueryAuthorityProvider
+    ): QueryAdmission {
+        val admissions = orderedStream().toList()
+        require(admissions.size <= 1) {
+            "At most one QueryAdmission bean may be registered, but found ${admissions.size}."
+        }
+        return admissions.singleOrNull() ?: authorityAdmission(authorityProvider)
     }
 
     private fun QueryGatewayProperties.toStructureLimits(): QueryStructureLimits = QueryStructureLimits(

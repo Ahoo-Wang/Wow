@@ -22,7 +22,6 @@ import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.acceptsEventStream
-import org.springframework.core.ParameterizedTypeReference
 import org.springframework.http.MediaType
 import org.springframework.http.codec.ServerSentEvent
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -30,8 +29,6 @@ import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
-
-private object StringServerSentEventType : ParameterizedTypeReference<ServerSentEvent<String>>()
 
 internal interface WebFluxResponseStrategy {
     fun singleJson(
@@ -119,11 +116,7 @@ internal object DefaultWebFluxResponseStrategy : WebFluxResponseStrategy {
         request: ServerRequest,
         exceptionHandler: RequestExceptionHandler
     ): Mono<ServerResponse> {
-        val eventStream = body.errorResume(request, exceptionHandler)
-        return ServerResponse.ok()
-            .contentType(MediaType.TEXT_EVENT_STREAM)
-            .header(ERROR_CODE, ErrorInfo.SUCCEEDED)
-            .body(eventStream, StringServerSentEventType)
+        return Mono.just(StreamingServerSentEventResponse(body, request, exceptionHandler))
     }
 }
 

@@ -13,17 +13,21 @@
 
 package me.ahoo.wow.webflux.route.event
 
+import me.ahoo.wow.api.query.gateway.QueryDocumentKind
+import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.BatchComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
+import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.compat.LegacyQueryGatewayExecution
 import me.ahoo.wow.query.dsl.listQuery
-import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
+import me.ahoo.wow.webflux.route.query.WebFluxQueryAdmission
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -32,7 +36,8 @@ import reactor.core.publisher.Mono
 
 class LoadEventStreamHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val eventStreamQueryHandler: EventStreamQueryHandler,
+    private val queryGateway: QueryGateway,
+    private val queryAdmission: WebFluxQueryAdmission,
     private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
 
@@ -50,13 +55,16 @@ class LoadEventStreamHandlerFunction(
             }
             limit(limit)
         }
-        return eventStreamQueryHandler.dynamicList(aggregateMetadata, listQuery)
+        val target = QueryTarget(aggregateMetadata, QueryDocumentKind.EVENT_STREAM)
+        val result = LegacyQueryGatewayExecution.list(queryGateway, target, listQuery, listQuery)
+        return queryAdmission.bind(request, result)
             .toServerResponse(request, exceptionHandler)
     }
 }
 
 class LoadEventStreamHandlerFunctionFactory(
-    private val eventStreamQueryHandler: EventStreamQueryHandler,
+    private val queryGateway: QueryGateway,
+    private val queryAdmission: WebFluxQueryAdmission,
     private val exceptionHandler: RequestExceptionHandler
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Event.LOAD) {
     override fun create(
@@ -67,6 +75,6 @@ class LoadEventStreamHandlerFunctionFactory(
     }
 
     private fun create(aggregateMetadata: AggregateMetadata<*, *>): HandlerFunction<ServerResponse> {
-        return LoadEventStreamHandlerFunction(aggregateMetadata, eventStreamQueryHandler, exceptionHandler)
+        return LoadEventStreamHandlerFunction(aggregateMetadata, queryGateway, queryAdmission, exceptionHandler)
     }
 }

@@ -35,6 +35,7 @@ import org.springframework.http.codec.ServerSentEventHttpMessageWriter
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import org.springframework.mock.web.server.MockServerWebExchange
+import org.springframework.web.reactive.function.server.HandlerStrategies
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
@@ -130,16 +131,16 @@ class ResponsesKtTest {
         val responseContext = mockk<ServerResponse.Context> {
             every {
                 messageWriters()
-            } returns listOf(ServerSentEventHttpMessageWriter())
+            } returns HandlerStrategies.withDefaults().messageWriters()
         }
         IllegalArgumentException().toFlux<String>()
             .toServerResponse(mockRequest, WebFluxRequestExceptionHandler())
             .test()
             .consumeNextWith {
                 it.writeTo(serverWebExchange, responseContext).test().verifyComplete()
-                it.statusCode().assert().isEqualTo(HttpStatus.OK)
-                it.headers().contentType.assert().isEqualTo(MediaType.TEXT_EVENT_STREAM)
-                it.headers().getFirst(ERROR_CODE).assert().isEqualTo(ErrorInfo.SUCCEEDED)
+                serverWebExchange.response.statusCode.assert().isEqualTo(HttpStatus.BAD_REQUEST)
+                serverWebExchange.response.headers.contentType.assert().isEqualTo(MediaType.APPLICATION_JSON)
+                serverWebExchange.response.headers.getFirst(ERROR_CODE).assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
             }
             .verifyComplete()
     }

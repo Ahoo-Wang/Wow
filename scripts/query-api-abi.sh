@@ -282,10 +282,15 @@ validate_classification_for_module() {
 validate_allowlist() {
     [[ -f "$ALLOWLIST" ]] || die "Allowlist does not exist: $ALLOWLIST"
     local all_baselines="$1"
+    local all_current="$2"
     local symbol
     while IFS= read -r symbol || [[ -n "$symbol" ]]; do
         [[ -z "$symbol" || "$symbol" == \#* ]] && continue
+        [[ "$symbol" != *'*'* ]] || die "Allowlist symbol must be exact and cannot contain wildcard: $symbol"
         grep -Fxq "$symbol" "$all_baselines" || die "Allowlist symbol is absent from baseline: $symbol"
+        if grep -Fxq "$symbol" "$all_current"; then
+            die "Allowlist symbol is still present in current surface: $symbol"
+        fi
     done <"$ALLOWLIST"
 }
 
@@ -385,12 +390,15 @@ validate_class_overrides
 
 all_baselines="$WORK_DIR/all-baselines"
 : >"$all_baselines"
+all_current="$WORK_DIR/all-current"
+: >"$all_current"
 
 while IFS=$'\t' read -r module jar_glob prefixes extra || [[ -n "${module:-}" ]]; do
     [[ -z "${module:-}" || "$module" == \#* ]] && continue
     [[ -n "${jar_glob:-}" && -n "${prefixes:-}" && -z "${extra:-}" ]] || die "Invalid manifest row for module $module"
     current="$WORK_DIR/$module.current"
     dump_module "$module" "$jar_glob" "$prefixes" "$current"
+    cat "$current" >>"$all_current"
     baseline="$BASELINE_DIR/$module-8.x.baseline"
     if [[ "$COMMAND" == "dump" ]]; then
         mkdir -p "$BASELINE_DIR"
@@ -423,7 +431,7 @@ done <"$NORMALIZED_MANIFEST"
 
 if [[ "$COMMAND" == "check" ]]; then
     [[ -s "$all_baselines" ]] || die "No baselines were read from $BASELINE_DIR"
-    validate_allowlist "$all_baselines"
+    validate_allowlist "$all_baselines" "$all_current"
 fi
 
 echo "Query API ABI $COMMAND completed successfully"

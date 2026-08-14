@@ -13,11 +13,13 @@
 
 package me.ahoo.wow.webflux.route.query
 
+import me.ahoo.wow.api.query.gateway.QueryDocumentKind
+import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
-import me.ahoo.wow.query.filter.Contexts.writeRawRequest
-import me.ahoo.wow.query.filter.QueryHandler
+import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.compat.LegacyQueryGatewayExecution
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.CONDITION_EXTRACTOR
@@ -29,25 +31,29 @@ import reactor.core.publisher.Mono
 
 class CountQueryHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val queryHandler: QueryHandler<*>,
+    private val queryGateway: QueryGateway,
+    private val documentKind: QueryDocumentKind,
     private val rewriteRequestCondition: RewriteRequestCondition,
+    private val queryAdmission: WebFluxQueryAdmission,
     private val exceptionHandler: RequestExceptionHandler,
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return request.body(CONDITION_EXTRACTOR)
             .flatMap {
-                val query = rewriteRequestCondition.rewrite(aggregateMetadata, request, it)
-                queryHandler.count(aggregateMetadata, query)
-                    .writeRawRequest(request)
+                val rewritten = rewriteRequestCondition.rewrite(aggregateMetadata, request, it)
+                val target = QueryTarget(aggregateMetadata, documentKind)
+                queryAdmission.bind(request, LegacyQueryGatewayExecution.count(queryGateway, target, it, rewritten))
             }.toServerResponse(request, exceptionHandler)
     }
 }
 
 open class CountQueryHandlerFunctionFactory(
     handlerKey: String,
-    private val queryHandler: QueryHandler<*>,
+    private val queryGateway: QueryGateway,
+    private val documentKind: QueryDocumentKind,
     private val rewriteRequestCondition: RewriteRequestCondition,
+    private val queryAdmission: WebFluxQueryAdmission,
     private val exceptionHandler: RequestExceptionHandler
 ) : AggregateRouteHandlerFunctionFactorySupport(handlerKey) {
     override fun create(
@@ -60,8 +66,10 @@ open class CountQueryHandlerFunctionFactory(
     private fun create(aggregateMetadata: AggregateMetadata<*, *>): HandlerFunction<ServerResponse> {
         return CountQueryHandlerFunction(
             aggregateMetadata = aggregateMetadata,
-            queryHandler = queryHandler,
+            queryGateway = queryGateway,
+            documentKind = documentKind,
             rewriteRequestCondition = rewriteRequestCondition,
+            queryAdmission = queryAdmission,
             exceptionHandler = exceptionHandler
         )
     }

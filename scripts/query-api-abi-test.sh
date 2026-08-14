@@ -301,6 +301,15 @@ grep -F '#public void removed();|descriptor: ()V' "$BASELINES/mini-8.x.baseline"
 expect_success exact_allowlist_is_allowed bash "$ABI_SCRIPT" check \
     --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$BASELINES" --allowlist "$ALLOWLIST"
 
+cp "$TEMP_DIR/v1/mini.jar" "$ARTIFACTS/mini.jar"
+expect_failure present_allowlist_is_rejected 'Allowlist symbol is still present in current surface' bash "$ABI_SCRIPT" check \
+    --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" --baseline-dir "$BASELINES" --allowlist "$ALLOWLIST"
+
+printf '%s\n' 'fixture.Api#public void *();|descriptor: ()V' >"$ALLOWLIST"
+expect_failure wildcard_allowlist_is_rejected 'Allowlist symbol must be exact and cannot contain wildcard' \
+    bash "$ABI_SCRIPT" check --manifest "$MANIFEST" --artifacts-dir "$ARTIFACTS" \
+    --baseline-dir "$BASELINES" --allowlist "$ALLOWLIST"
+
 printf '%s\n' 'fixture.Api#public void absent();|descriptor: ()V' >"$ALLOWLIST"
 cp "$TEMP_DIR/v1/mini.jar" "$ARTIFACTS/mini.jar"
 expect_failure stale_allowlist_is_rejected 'Allowlist symbol is absent from baseline' bash "$ABI_SCRIPT" check \

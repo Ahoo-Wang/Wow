@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.webflux.route.snapshot
+package me.ahoo.wow.webflux.route.event
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
@@ -29,30 +29,26 @@ import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 
-class PagedQuerySnapshotStateHandlerFunctionFactoryTest {
-
+class PagedQueryEventStreamHandlerFunctionTest {
     @Test
-    fun `should handle paged query snapshot state request`() {
-        val handlerFunction = PagedQuerySnapshotStateHandlerFunctionFactory(
+    fun `should handle paged event stream request`() {
+        val handler = PagedQueryEventStreamHandlerFunctionFactory(
             RouteTestFixtures.queryGateway,
             DefaultRewriteRequestCondition,
             RouteTestFixtures.queryAdmission,
-            exceptionHandler = WebFluxRequestExceptionHandler(),
+            WebFluxRequestExceptionHandler()
         ).create(
             testAggregateRouteContract(
-                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.PAGED_QUERY_STATE,
-                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA
+                BuiltInHttpRouteHandlerKeys.Event.PAGED_QUERY,
+                RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA
             )
         )
         val request = MockServerRequest.builder()
-            .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
             .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
             .body(PagedQuery(Condition.ALL).toMono())
 
-        handlerFunction.handle(request)
-            .test()
-            .consumeNextWith {
-                it.statusCode().assert().isEqualTo(HttpStatus.OK)
-            }.verifyComplete()
+        handler.handle(request).test()
+            .consumeNextWith { response -> response.statusCode().assert().isEqualTo(HttpStatus.OK) }
+            .verifyComplete()
     }
 }

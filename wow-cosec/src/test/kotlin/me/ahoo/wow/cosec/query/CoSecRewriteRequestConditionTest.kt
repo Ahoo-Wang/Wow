@@ -30,7 +30,10 @@ class CoSecRewriteRequestConditionTest {
         val request = MockServerRequest.builder().header(SPACE_ID_KEY, spaceId).build()
         val condition = CoSecRewriteRequestCondition.rewrite(MOCK_AGGREGATE_METADATA, request, condition { })
         condition.assert().isNotNull()
-        condition.operator.assert().isEqualTo(Operator.SPACE_ID)
-        condition.value.assert().isEqualTo(spaceId)
+        condition.operator.assert().isEqualTo(Operator.AND)
+        condition.children.assert().hasSize(2)
+        condition.children[0].assert().isEqualTo(condition { })
+        condition.children[1].operator.assert().isEqualTo(Operator.SPACE_ID)
+        condition.children[1].value.assert().isEqualTo(spaceId)
     }
 }

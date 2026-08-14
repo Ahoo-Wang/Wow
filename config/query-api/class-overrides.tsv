@@ -19,6 +19,7 @@ wow-query	me/ahoo/wow/query/DefaultQueryGateway$EvaluatedBackend.class	exclude	k
 wow-query	me/ahoo/wow/query/DefaultQueryGateway$InvocationPolicy.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/DefaultQueryGateway$PreparedQuery.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/DefaultQueryGatewayFactory.class	exclude	kotlin-internal
+wow-query	me/ahoo/wow/query/compat/LegacyQueryGatewayExecutionKt.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/QueryGatewayStage.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/QueryGatewayStageObserver.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/QueryGatewayStageObserver$Companion.class	exclude	kotlin-internal
@@ -29,7 +30,6 @@ wow-query	me/ahoo/wow/query/expression/LegacyConditionLowering$lowerForGateway$1
 wow-query	me/ahoo/wow/query/expression/LegacyConditionLowering.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/expression/RelativeTimeExpressionNormalizer$WhenMappings.class	exclude	synthetic-private-helper
 wow-query	me/ahoo/wow/query/expression/RelativeTimeExpressionNormalizer.class	exclude	kotlin-internal
-wow-query	me/ahoo/wow/query/filter/QueryContextKt.class	exclude	approved-filter-context-removal
 wow-query	me/ahoo/wow/query/invocation/DefaultQueryAdmission.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/invocation/QueryDeadline.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/invocation/QueryDeadlineExceededException.class	exclude	kotlin-internal

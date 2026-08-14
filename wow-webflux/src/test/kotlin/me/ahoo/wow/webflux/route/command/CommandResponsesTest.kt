@@ -21,6 +21,7 @@ import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
@@ -32,6 +33,7 @@ import org.springframework.http.codec.ServerSentEventHttpMessageWriter
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import org.springframework.mock.web.server.MockServerWebExchange
+import org.springframework.web.reactive.function.server.HandlerStrategies
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
@@ -118,7 +120,7 @@ class CommandResponsesTest {
         val responseContext = mockk<ServerResponse.Context> {
             every {
                 messageWriters()
-            } returns listOf(ServerSentEventHttpMessageWriter())
+            } returns HandlerStrategies.withDefaults().messageWriters()
         }
         CommandResult(
             id = generateGlobalId(),
@@ -147,6 +149,9 @@ class CommandResponsesTest {
             }
             .test()
             .verifyComplete()
+        serverWebExchange.response.statusCode.assert().isEqualTo(HttpStatus.REQUEST_TIMEOUT)
+        serverWebExchange.response.headers.contentType.assert().isEqualTo(MediaType.APPLICATION_JSON)
+        serverWebExchange.response.headers.getFirst(ERROR_CODE).assert().isEqualTo(ErrorCodes.REQUEST_TIMEOUT)
     }
 
     @Test

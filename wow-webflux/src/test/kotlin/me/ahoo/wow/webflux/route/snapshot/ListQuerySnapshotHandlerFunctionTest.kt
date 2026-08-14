@@ -35,8 +35,9 @@ class ListQuerySnapshotHandlerFunctionTest {
     @Test
     fun `should handle list query snapshot request`() {
         val handlerFunction = ListQuerySnapshotHandlerFunctionFactory(
-            RouteTestFixtures.snapshotQueryHandler,
+            RouteTestFixtures.queryGateway,
             rewriteRequestCondition = DefaultRewriteRequestCondition,
+            queryAdmission = RouteTestFixtures.queryAdmission,
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(
             testAggregateRouteContract(

@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.webflux.route.query
 
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.ConditionCapable
 import me.ahoo.wow.api.query.RewritableCondition
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.query.dsl.condition
@@ -66,6 +68,11 @@ abstract class AbstractRewriteRequestCondition : RewriteRequestCondition {
                 spaceId(spaceId)
             }
         }
-        return rewritableCondition.appendCondition(appendCondition)
+        val originalCondition = when (rewritableCondition) {
+            is Condition -> rewritableCondition
+            is ConditionCapable<*> -> rewritableCondition.condition
+            else -> return rewritableCondition.appendCondition(appendCondition)
+        }
+        return rewritableCondition.withCondition(Condition.and(originalCondition, appendCondition))
     }
 }

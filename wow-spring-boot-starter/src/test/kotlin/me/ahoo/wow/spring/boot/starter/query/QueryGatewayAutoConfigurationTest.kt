@@ -44,7 +44,6 @@ import me.ahoo.wow.query.backend.QueryBackendRouteIdentity
 import me.ahoo.wow.query.backend.QueryPlanVersion
 import me.ahoo.wow.query.backend.QueryPortableFeature
 import me.ahoo.wow.query.backend.ResolvedQueryBackend
-import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.invocation.QueryAuthorityProvider
 import me.ahoo.wow.query.invocation.QueryAuthorityView
 import me.ahoo.wow.query.plan.CountQueryPlanV1
@@ -61,7 +60,6 @@ import me.ahoo.wow.query.schema.QuerySchema
 import me.ahoo.wow.query.schema.QuerySchemaResolver
 import me.ahoo.wow.query.schema.QuerySchemaView
 import me.ahoo.wow.query.schema.QuerySystemFields
-import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.validation.QueryBudgetLimit
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.spring.boot.starter.enableWow
@@ -100,14 +98,14 @@ class QueryGatewayAutoConfigurationTest {
         .withConfiguration(queryAutoConfigurations())
 
     @Test
-    fun `auto configuration adds query gateway without replacing legacy query handlers`() {
+    fun `auto configuration adds query gateway without legacy query handlers`() {
         contextRunner.run { context ->
             context.assert()
                 .hasSingleBean(QueryGateway::class.java)
                 .hasSingleBean(QueryAuthorityProvider::class.java)
                 .hasSingleBean(QuerySchemaResolver::class.java)
-                .hasSingleBean(SnapshotQueryHandler::class.java)
-                .hasSingleBean(EventStreamQueryHandler::class.java)
+                .doesNotHaveBean("snapshotQueryHandler")
+                .doesNotHaveBean("eventStreamQueryHandler")
                 .doesNotHaveBean(QueryPolicy::class.java)
         }
     }

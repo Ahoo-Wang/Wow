@@ -14,7 +14,6 @@
 package me.ahoo.wow.spring.boot.starter.webflux
 
 import io.mockk.mockk
-import io.mockk.spyk
 import me.ahoo.cosid.machine.HostAddressSupplier
 import me.ahoo.cosid.machine.LocalHostAddressSupplier
 import me.ahoo.test.asserts.assert
@@ -48,8 +47,9 @@ import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyMode
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyRequest
-import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
-import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
+import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.invocation.QueryAuthorityProvider
+import me.ahoo.wow.query.invocation.QueryAuthorityView
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
 import me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
@@ -79,6 +79,8 @@ import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
+import me.ahoo.wow.webflux.route.query.WebFluxQueryAdmission
+import me.ahoo.wow.webflux.route.query.WebFluxQueryAuthorityResolver
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.test.context.FilteredClassLoader
@@ -123,8 +125,7 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(StateEventCompensator::class.java, { mockk() })
             .withBean(EventCompensateSupporter::class.java, { mockk() })
-            .withBean(SnapshotQueryHandler::class.java, { spyk<SnapshotQueryHandler>() })
-            .withBean(EventStreamQueryHandler::class.java, { spyk<EventStreamQueryHandler>() })
+            .withQueryGateway()
             .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
             .withUserConfiguration(
                 CommandAutoConfiguration::class.java,
@@ -145,6 +146,8 @@ internal class WebFluxAutoConfigurationTest {
                     .hasSingleBean(CommandRouteModule::class.java)
                     .hasSingleBean(StateRouteModule::class.java)
                     .hasSingleBean(QueryRouteModule::class.java)
+                    .hasSingleBean(WebFluxQueryAdmission::class.java)
+                    .hasSingleBean(WebFluxQueryAuthorityResolver::class.java)
                     .hasSingleBean(SnapshotRouteModule::class.java)
                     .hasSingleBean(EventRouteModule::class.java)
                     .hasSingleBean(GlobalRouteModule::class.java)
@@ -188,8 +191,7 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(StateEventCompensator::class.java, { mockk() })
             .withBean(EventCompensateSupporter::class.java, { mockk() })
-            .withBean(SnapshotQueryHandler::class.java, { spyk<SnapshotQueryHandler>() })
-            .withBean(EventStreamQueryHandler::class.java, { spyk<EventStreamQueryHandler>() })
+            .withQueryGateway()
             .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
             .withUserConfiguration(
                 CommandAutoConfiguration::class.java,
@@ -789,8 +791,7 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(StateEventCompensator::class.java, { mockk() })
             .withBean(EventCompensateSupporter::class.java, { mockk() })
-            .withBean(SnapshotQueryHandler::class.java, { spyk<SnapshotQueryHandler>() })
-            .withBean(EventStreamQueryHandler::class.java, { spyk<EventStreamQueryHandler>() })
+            .withQueryGateway()
             .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
             .withUserConfiguration(
                 CommandAutoConfiguration::class.java,
@@ -840,8 +841,7 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(StateEventCompensator::class.java, { mockk() })
             .withBean(EventCompensateSupporter::class.java, { mockk() })
-            .withBean(SnapshotQueryHandler::class.java, { spyk<SnapshotQueryHandler>() })
-            .withBean(EventStreamQueryHandler::class.java, { spyk<EventStreamQueryHandler>() })
+            .withQueryGateway()
             .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
             .withUserConfiguration(
                 CommandAutoConfiguration::class.java,
@@ -874,8 +874,7 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(StateEventCompensator::class.java, { mockk() })
             .withBean(EventCompensateSupporter::class.java, { mockk() })
-            .withBean(SnapshotQueryHandler::class.java, { spyk<SnapshotQueryHandler>() })
-            .withBean(EventStreamQueryHandler::class.java, { spyk<EventStreamQueryHandler>() })
+            .withQueryGateway()
             .withBean(KafkaProperties::class.java, {
                 KafkaProperties(bootstrapServers = listOf("localhost:9092"))
             })
@@ -921,8 +920,7 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(StateEventCompensator::class.java, { mockk() })
             .withBean(EventCompensateSupporter::class.java, { mockk() })
-            .withBean(SnapshotQueryHandler::class.java, { spyk<SnapshotQueryHandler>() })
-            .withBean(EventStreamQueryHandler::class.java, { spyk<EventStreamQueryHandler>() })
+            .withQueryGateway()
             .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
             .withUserConfiguration(
                 CommandAutoConfiguration::class.java,
@@ -933,6 +931,15 @@ internal class WebFluxAutoConfigurationTest {
                 BiDeploymentInspectorAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,
             )
+    }
+
+    private fun ApplicationContextRunner.withQueryGateway(): ApplicationContextRunner {
+        return withBean(QueryGateway::class.java, { mockk() })
+            .withBean(QueryAuthorityProvider::class.java, {
+                QueryAuthorityProvider {
+                    Mono.just(QueryAuthorityView(null, null, null, emptySet(), emptySet()))
+                }
+            })
     }
 
     private fun AssertableApplicationContext.assertRouteFactoryRegistered(handlerKey: String) {

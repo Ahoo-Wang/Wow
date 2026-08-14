@@ -1306,9 +1306,7 @@ fun retainedLegacyQuerySecurityTypes(): List<Any> = listOf(
     CoSecRewriteRequestCondition,
     CoSecAutoConfiguration().coSecRewriteRequestCondition(),
     QueryAutoConfiguration().stateDataMaskerRegistry(emptyList()),
-    QueryAutoConfiguration().eventStreamMaskerRegistry(emptyList()),
-    QueryAutoConfiguration().maskingSnapshotQueryFilter(StateDataMaskerRegistry()),
-    QueryAutoConfiguration().maskingEventStreamQueryFilter(EventStreamMaskerRegistry())
+    QueryAutoConfiguration().eventStreamMaskerRegistry(emptyList())
 )
 EOF
 
@@ -1323,7 +1321,7 @@ if java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompi
 fi
 for legacy_security_name in \
     DataMasker StateDataMaskerRegistry CoSecRewriteRequestCondition \
-    coSecRewriteRequestCondition maskingSnapshotQueryFilter; do
+    coSecRewriteRequestCondition stateDataMaskerRegistry; do
     grep -F "$legacy_security_name" "$TEMP_DIR/kotlin-legacy-security-deprecated.out" >/dev/null || {
         cat "$TEMP_DIR/kotlin-legacy-security-deprecated.out" >&2
         fail "Kotlin legacy query security fixture did not diagnose $legacy_security_name"
@@ -1349,7 +1347,7 @@ javap -classpath "$RUNTIME_CLASSPATH" -v me.ahoo.wow.cosec.query.CoSecRewriteReq
     me.ahoo.wow.spring.boot.starter.cosec.CoSecAutoConfiguration | grep -c 'Deprecated: true')" -eq 1 ]] ||
     fail "Published CoSec rewrite registration is missing the JVM Deprecated attribute"
 [[ "$(javap -classpath "$WOW_STARTER_JAR:$RUNTIME_CLASSPATH" -v \
-    me.ahoo.wow.spring.boot.starter.query.QueryAutoConfiguration | grep -c 'Deprecated: true')" -eq 4 ]] ||
+    me.ahoo.wow.spring.boot.starter.query.QueryAutoConfiguration | grep -c 'Deprecated: true')" -eq 2 ]] ||
     fail "Published legacy masker registration methods have incomplete JVM deprecation metadata"
 echo "PASS: Published legacy masker, registration and CoSec rewrite APIs are deprecated"
 
@@ -2403,3 +2401,82 @@ for class_name in QueryBackendBinding QueryBackendRouteSnapshot QueryBackendSele
     }
 done
 echo "PASS: Kotlin external starter routing boundary"
+
+cat >"$TEMP_DIR/java/RemovedSnapshotQueryFilter.java" <<'EOF'
+package external.fixture;
+
+import me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter;
+
+public interface RemovedSnapshotQueryFilter extends SnapshotQueryFilter {
+}
+EOF
+
+if javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/java-removed-snapshot-query-filter" \
+    "$TEMP_DIR/java/RemovedSnapshotQueryFilter.java" \
+    >"$TEMP_DIR/java-removed-snapshot-query-filter.out" 2>&1; then
+    fail "Java external source unexpectedly compiled removed SnapshotQueryFilter"
+fi
+grep -F "SnapshotQueryFilter" "$TEMP_DIR/java-removed-snapshot-query-filter.out" >/dev/null || {
+    cat "$TEMP_DIR/java-removed-snapshot-query-filter.out" >&2
+    fail "Java removed SnapshotQueryFilter fixture failed for an unexpected reason"
+}
+
+cat >"$TEMP_DIR/kotlin/RemovedSnapshotQueryFilter.kt" <<'EOF'
+package external.fixture
+
+import me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter
+
+interface RemovedSnapshotQueryFilter : SnapshotQueryFilter
+EOF
+
+if java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+    -module-name removed-snapshot-query-filter-negative-fixture \
+    -no-stdlib -no-reflect \
+    -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/kotlin-removed-snapshot-query-filter" \
+    "$TEMP_DIR/kotlin/RemovedSnapshotQueryFilter.kt" \
+    >"$TEMP_DIR/kotlin-removed-snapshot-query-filter.out" 2>&1; then
+    fail "Kotlin external source unexpectedly compiled removed SnapshotQueryFilter"
+fi
+grep -F "SnapshotQueryFilter" "$TEMP_DIR/kotlin-removed-snapshot-query-filter.out" >/dev/null || {
+    cat "$TEMP_DIR/kotlin-removed-snapshot-query-filter.out" >&2
+    fail "Kotlin removed SnapshotQueryFilter fixture failed for an unexpected reason"
+}
+echo "PASS: Removed SnapshotQueryFilter is a compile-time break"
+
+cat >"$TEMP_DIR/java/MigratedQueryPolicy.java" <<'EOF'
+package external.fixture;
+
+import me.ahoo.wow.query.policy.QueryPolicy;
+import me.ahoo.wow.query.policy.QueryPolicyResult;
+import reactor.core.publisher.Mono;
+
+public final class MigratedQueryPolicy {
+    public static QueryPolicy create() {
+        return context -> Mono.just(new QueryPolicyResult());
+    }
+}
+EOF
+
+javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/java-migrated-query-policy" \
+    "$TEMP_DIR/java/MigratedQueryPolicy.java"
+
+cat >"$TEMP_DIR/kotlin/MigratedQueryPolicy.kt" <<'EOF'
+package external.fixture
+
+import me.ahoo.wow.query.policy.QueryPolicy
+import me.ahoo.wow.query.policy.QueryPolicyResult
+import reactor.core.publisher.Mono
+
+val migratedQueryPolicy = QueryPolicy { Mono.just(QueryPolicyResult()) }
+EOF
+
+java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+    -module-name migrated-query-policy-positive-fixture \
+    -no-stdlib -no-reflect \
+    -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/kotlin-migrated-query-policy" \
+    "$TEMP_DIR/kotlin/MigratedQueryPolicy.kt"
+echo "PASS: Migrated QueryPolicy external fixtures compile"
