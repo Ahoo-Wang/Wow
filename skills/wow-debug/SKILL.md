@@ -1,6 +1,6 @@
 ---
 name: "wow-debug"
-description: "Diagnose observed Wow failures, hangs, missing handlers, incorrect sourced state, retry or wait problems, runtime failures, and failing tests by reproducing and locating the failing stage. Use for diagnosis-only and diagnose-and-fix requests; remain read-only until a fix is explicitly requested. Do not use for proactive diff review, planned feature development, or failures inside a breaking migration or storage/data cutover centered on migration, reconciliation, rollout, or rollback."
+description: "Diagnose observed Wow failures, hangs, missing handlers, incorrect sourced state, retry or wait problems, runtime failures, and failing tests by reproducing and locating the failing stage. Use only when the failure involves Wow framework pipeline behavior — commands, sourcing, event processing, projection, or runtime stages — for diagnosis-only and diagnose-and-fix requests; remain read-only until a fix is explicitly requested. Do not use for proactive diff review, planned feature development, failures in projects that do not use the Wow framework, or failures inside a breaking migration or storage/data cutover centered on migration, reconciliation, rollout, or rollback."
 ---
 
 # Debug Wow Failures
