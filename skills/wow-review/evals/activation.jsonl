@@ -5,3 +5,7 @@
 {"id":"A20-review-english","prompt":"Review the current Wow CommandGateway pull request against origin/main, report findings by severity, and do not edit files.","expectedSkills":["wow-review"],"tags":["positive","review","language-en"]}
 {"id":"A24-review-v8-data-cutover","prompt":"审查这个 Wow 8.8.1 到 8.9.6 的 Redis EventStore 数据切换 PR，重点核对 canonical v2 对账、切流和回滚，不要修改。","expectedSkills":["wow-migrate"],"tags":["boundary","review-data-cutover","migration","conflict"]}
 {"id":"A27-none-dashboard-review","prompt":"审查 compensation dashboard 的 React 表格组件 PR，只检查前端可访问性、状态管理和 Vitest 覆盖。","expectedSkills":[],"tags":["negative","wow-repository","dashboard"]}
+{"id":"A30-none-review-non-wow","prompt":"帮我审查这个 Spring Boot 订单服务的 PR，重点看事务边界和并发安全，可以直接合并吗？","expectedSkills":[],"tags":["negative","non-wow-project","review"]}
+{"id":"A31-none-review-non-wow-english","prompt":"Review this pull request in my Node.js Express service and tell me whether it is safe to merge.","expectedSkills":[],"tags":["negative","non-wow-project","review","language-en"]}
+{"id":"A32-none-review-axon-framework","prompt":"审查我的 Axon Framework 项目的 Saga 与 CommandGateway 改动，重点看聚合不变量和事件溯源是否正确。","expectedSkills":[],"tags":["negative","non-wow-project","review","vocabulary-collision"]}
+{"id":"A34-review-adoption-pr","prompt":"审查这个 PR：它在我们现有的 Spring Boot 订单服务中第一次引入 Wow 的 Order 聚合与 Saga，重点看建模和事件语义是否正确，不要修改文件。","expectedSkills":["wow-review"],"tags":["positive","adoption","review","conflict"]}

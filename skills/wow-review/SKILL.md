@@ -1,9 +1,13 @@
 ---
 name: "wow-review"
-description: "Review existing Wow framework code, diffs, or pull requests and produce evidence-backed findings about correctness, compatibility, reactive behavior, and tests. Use when the primary outcome is findings, readiness, approval evidence, or a review-and-fix workflow that must begin with review. Do not use for symptom-led failure diagnosis, proactive feature development, or review of a breaking migration or storage/data cutover centered on migration, reconciliation, rollout, or rollback."
+description: "Review existing Wow framework code, diffs, or pull requests and produce evidence-backed findings about correctness, compatibility, reactive behavior, and tests. Use only when the review target shows Wow-specific markers such as me.ahoo.wow imports, wow-* starters, @AggregateRoot, @OnCommand, @OnSourcing, @StatelessSaga, AggregateSpec, or SagaSpec in the project or the changed code, and the primary outcome is findings, merge readiness, approval evidence, or a review-and-fix workflow that must begin with review. Do not activate for code review in projects that neither depend on Wow nor introduce it in the changed code, for review scopes without Wow semantics, or for other DDD, CQRS, or event-sourcing frameworks that merely share terms like aggregate, saga, projection, or command gateway. Do not use for symptom-led failure diagnosis, proactive feature development, or review of a breaking migration or storage/data cutover centered on migration, reconciliation, rollout, or rollback."
 ---
 
 # Review Wow Changes
+
+## Scope gate
+
+This Skill exists only for code that runs on the Wow framework. Before reviewing, confirm Wow is actually involved: either the project depends on Wow (`me.ahoo.wow` imports, `wow-*` Gradle/Maven dependencies or starters), or the changed files introduce Wow constructs such as `@AggregateRoot`, `@OnCommand`, `@OnSourcing`, `@StatelessSaga`, `AggregateSpec`, or `SagaSpec`. Shared DDD vocabulary alone — aggregate, saga, projection, event sourcing, command gateway — does not qualify, because frameworks like Axon use the same terms. Likewise, when the project depends on Wow but the requested review scope touches no Wow semantics at all (for example a dashboard-only diff), this Skill does not apply to that scope. If no Wow-specific marker exists, state that this Skill does not apply, produce no findings, and stop.
 
 Own the complete review or review-and-fix task. Do not route to another Wow Skill.
 
@@ -17,7 +21,7 @@ Own the complete review or review-and-fix task. Do not route to another Wow Skil
 
 ## Review workflow
 
-1. **Resolve scope**: inspect worktree state, requested base, merge-base, staged/unstaged changes, and touched modules.
+1. **Resolve diff range**: inspect worktree state, requested base, merge-base, staged/unstaged changes, and touched modules.
 2. **Read context**: inspect changed files, their callers/consumers, neighboring implementations, tests, configuration, and generated outputs.
 3. **Check semantics**: use `references/review-rubric.md`; verify exact APIs in the current checkout instead of relying on remembered rules.
 4. **Run evidence**: execute the narrowest relevant tests/checks when feasible. Label unavailable checks unverified.
