@@ -131,5 +131,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           context: compensation/wow-compensation-server
           push: true
+          # AliyunCR 不支持 OCI 1.1 artifact manifest（provenance 证明），推送会被拒绝
+          provenance: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
