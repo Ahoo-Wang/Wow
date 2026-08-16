@@ -19,6 +19,7 @@ import io.mockk.spyk
 import me.ahoo.cache.DefaultCacheValue
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.MaterializedSnapshot
+import org.assertj.core.data.Offset
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
@@ -50,8 +51,9 @@ class QueryApiCacheSourceTest {
         queryApiCacheSource.loadCacheSourceConfiguration.assert().isEqualTo(
             LoadCacheSourceConfiguration(ttl = 1000, ttlAmplitude = 0)
         )
-        val cacheValue = queryApiCacheSource.loadCacheValue("test")
-        cacheValue.assert().isEqualTo(DefaultCacheValue.ttlAt("test", 1000))
+        val cacheValue = requireNotNull(queryApiCacheSource.loadCacheValue("test"))
+        cacheValue.value.assert().isEqualTo("test")
+        cacheValue.ttlAt.assert().isCloseTo(DefaultCacheValue.ttlAt("test", 1000).ttlAt, Offset.offset(1))
     }
 
     @Test
