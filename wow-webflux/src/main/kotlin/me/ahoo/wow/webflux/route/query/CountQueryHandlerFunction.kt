@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+@file:Suppress("DEPRECATION_ERROR")
+
 package me.ahoo.wow.webflux.route.query
 
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind

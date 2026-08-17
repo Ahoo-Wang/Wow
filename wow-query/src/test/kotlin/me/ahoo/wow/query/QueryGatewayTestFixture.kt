@@ -100,6 +100,7 @@ internal fun gatewayConfiguration(
     backendResolver: QueryBackendResolver = QueryBackendResolver {
         ResolvedQueryBackend.resolve(backend, QueryBackendRouteIdentity("gateway-route"))
     },
+    structureLimits: QueryStructureLimits = GATEWAY_LIMITS,
     systemBudgetLimit: QueryBudgetLimit = QueryBudgetLimit.UNBOUNDED,
     enabledCapabilities: Set<QueryCapabilityId> = emptySet(),
     clock: Clock = Clock.fixed(Instant.parse("2026-08-12T00:00:00Z"), ZoneOffset.UTC),
@@ -112,7 +113,7 @@ internal fun gatewayConfiguration(
     resultPolicies = resultPolicies,
     clock = clock,
     zoneId = zoneId,
-    structureLimits = GATEWAY_LIMITS,
+    structureLimits = structureLimits,
     systemBudgetLimit = systemBudgetLimit,
     enabledCapabilities = enabledCapabilities,
     meterRegistry = meterRegistry

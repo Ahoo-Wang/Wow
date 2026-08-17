@@ -15,6 +15,10 @@ package me.ahoo.wow.webflux.route.response
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.api.query.error.QueryErrorCode
+import me.ahoo.wow.api.query.error.QueryErrorReason
+import me.ahoo.wow.api.query.error.QueryException
+import me.ahoo.wow.api.query.error.QueryStage
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
@@ -114,7 +118,8 @@ class WebFluxResponseStrategyTest {
             .doOnNext(chunks::add)
             .test()
             .thenConsumeWhile { true }
-            .verifyError(IllegalArgumentException::class.java)
+            .consumeErrorWith(::assertIncompleteResult)
+            .verify()
         chunks.joinToString("").assert()
             .startsWith("[")
             .doesNotEndWith("]")
@@ -245,8 +250,16 @@ class WebFluxResponseStrategyTest {
         } catch (throwable: Throwable) {
             error = throwable
         }
-        error.assert().isInstanceOf(IllegalArgumentException::class.java)
+        assertIncompleteResult(error!!)
         return exchange
+    }
+
+    private fun assertIncompleteResult(error: Throwable) {
+        (error as QueryException).let {
+            it.code.assert().isEqualTo(QueryErrorCode.INCOMPLETE_RESULT)
+            it.stage.assert().isEqualTo(QueryStage.EXECUTION)
+            it.reason.assert().isEqualTo(QueryErrorReason.INCOMPLETE_STREAM)
+        }
     }
 
     private companion object {

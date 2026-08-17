@@ -148,14 +148,15 @@ private fun <T> Condition.lower(
     transform: (Pair<QueryExpression, DeletionScope>, RequestedQueryScope) -> T
 ): T = try {
     val lowered = LegacyConditionLowering.lowerForGateway(this, target)
-    transform(lowered, requestedScope(lowered.second))
+    transform(lowered, legacyRequestedScope(lowered.second))
 } catch (error: QueryException) {
     throw error
 } catch (_: RuntimeException) {
     invalidLegacyRequest()
 }
 
-private fun Condition.requestedScope(deletion: DeletionScope): RequestedQueryScope {
+@JvmSynthetic
+internal fun Condition.legacyRequestedScope(deletion: DeletionScope): RequestedQueryScope {
     val candidates = when (operator) {
         Operator.TENANT_ID,
         Operator.OWNER_ID,

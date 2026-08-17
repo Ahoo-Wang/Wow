@@ -1615,6 +1615,60 @@ for function_name in legacyCountRequest materializeLegacyEvent adaptLegacySnapsh
 done
 echo "PASS: Kotlin external source cannot access Gateway compatibility functions"
 
+cat >"$TEMP_DIR/java/InternalLegacyQueryGatewayExecution.java" <<'EOF'
+package external.fixture;
+
+import me.ahoo.wow.api.query.IListQuery;
+import me.ahoo.wow.api.query.gateway.QueryTarget;
+import me.ahoo.wow.query.QueryGateway;
+import me.ahoo.wow.query.compat.LegacyQueryGatewayExecution;
+
+public final class InternalLegacyQueryGatewayExecution {
+    public static Object call(QueryGateway gateway, QueryTarget target, IListQuery query) {
+        return LegacyQueryGatewayExecution.INSTANCE.list(gateway, target, query, query);
+    }
+}
+EOF
+
+if javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/java-legacy-query-execution-negative" \
+    "$TEMP_DIR/java/InternalLegacyQueryGatewayExecution.java" \
+    >"$TEMP_DIR/java-legacy-query-execution-negative.out" 2>&1; then
+    fail "Java external source unexpectedly accessed LegacyQueryGatewayExecution"
+fi
+grep -F "list" "$TEMP_DIR/java-legacy-query-execution-negative.out" >/dev/null || {
+    cat "$TEMP_DIR/java-legacy-query-execution-negative.out" >&2
+    fail "Java LegacyQueryGatewayExecution negative fixture did not diagnose list"
+}
+echo "PASS: Java external source cannot call LegacyQueryGatewayExecution"
+
+cat >"$TEMP_DIR/kotlin/InternalLegacyQueryGatewayExecution.kt" <<'EOF'
+package external.fixture
+
+import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.gateway.QueryTarget
+import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.compat.LegacyQueryGatewayExecution
+
+fun internalLegacyQueryGatewayExecution(gateway: QueryGateway, target: QueryTarget, query: IListQuery): Any =
+    LegacyQueryGatewayExecution.list(gateway, target, query, query)
+EOF
+
+if java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+    -module-name query-legacy-execution-external-negative-fixture \
+    -no-stdlib -no-reflect \
+    -classpath "$FIXTURE_CLASSPATH" \
+    -d "$TEMP_DIR/classes/kotlin-legacy-query-execution-negative" \
+    "$TEMP_DIR/kotlin/InternalLegacyQueryGatewayExecution.kt" \
+    >"$TEMP_DIR/kotlin-legacy-query-execution-negative.out" 2>&1; then
+    fail "Kotlin external source unexpectedly accessed LegacyQueryGatewayExecution"
+fi
+grep -F "LegacyQueryGatewayExecution" "$TEMP_DIR/kotlin-legacy-query-execution-negative.out" >/dev/null || {
+    cat "$TEMP_DIR/kotlin-legacy-query-execution-negative.out" >&2
+    fail "Kotlin LegacyQueryGatewayExecution negative fixture did not diagnose the bridge"
+}
+echo "PASS: Kotlin external source cannot call LegacyQueryGatewayExecution"
+
 cat >"$TEMP_DIR/java/InternalGatewayNormalization.java" <<'EOF'
 package external.fixture;
 

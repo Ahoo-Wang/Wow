@@ -87,7 +87,6 @@ class QueryGatewayAutoConfiguration {
         properties: QueryGatewayProperties,
         schemaResolver: QuerySchemaResolver,
         authorityProvider: QueryAuthorityProvider,
-        admissionProvider: ObjectProvider<QueryAdmission>,
         backendResolver: ObjectProvider<QueryBackendResolver>,
         clockProvider: ObjectProvider<Clock>,
         zoneIdProvider: ObjectProvider<ZoneId>,
@@ -99,7 +98,8 @@ class QueryGatewayAutoConfiguration {
         val policyRegistrations = beanFactory.queryPolicyRegistrationSnapshot()
         return QueryGatewayFactory.create(
             QueryGatewayConfiguration(
-                admission = admissionProvider.resolveAdmission(authorityProvider),
+                admission = beanFactory.getBeanProvider(QueryAdmission::class.java)
+                    .resolveAdmission(authorityProvider),
                 schemaResolver = schemaResolver,
                 backendResolver = backendResolver.getIfAvailable {
                     QueryBackendResolver {

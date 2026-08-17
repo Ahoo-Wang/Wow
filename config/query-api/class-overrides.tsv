@@ -20,6 +20,7 @@ wow-query	me/ahoo/wow/query/DefaultQueryGateway$InvocationPolicy.class	exclude	k
 wow-query	me/ahoo/wow/query/DefaultQueryGateway$PreparedQuery.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/DefaultQueryGatewayFactory.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/compat/LegacyQueryGatewayExecutionKt.class	exclude	kotlin-internal
+wow-query	me/ahoo/wow/query/compat/LegacyQueryGatewayExecution.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/QueryGatewayStage.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/QueryGatewayStageObserver.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/QueryGatewayStageObserver$Companion.class	exclude	kotlin-internal

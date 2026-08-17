@@ -61,6 +61,7 @@ import me.ahoo.wow.query.result.ResultPolicyContext
 import me.ahoo.wow.query.schema.QuerySchemaResolver
 import me.ahoo.wow.query.validation.QueryRequestSchemaValidator
 import me.ahoo.wow.query.validation.QueryRequestValidator
+import me.ahoo.wow.query.validation.QueryStructureLimits
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.util.concurrent.atomic.AtomicBoolean
@@ -76,8 +77,12 @@ internal class DefaultQueryGateway private constructor(
     private val resultPolicyChain: DefaultResultPolicyChain,
     private val metrics: QueryGatewayMetrics,
     private val stageObserver: QueryGatewayStageObserver,
-    private val enabledCapabilities: Set<QueryCapabilityId>
+    private val enabledCapabilities: Set<QueryCapabilityId>,
+    private val structureLimits: QueryStructureLimits
 ) : QueryGateway {
+    @JvmSynthetic
+    internal fun legacyStructureLimits(): QueryStructureLimits = structureLimits
+
     override fun <R : Any> single(request: SingleQueryRequest<R>): Mono<R> = Mono.deferContextual { context ->
         val legacyExecution = context.legacyQueryExecution(request, QueryOperation.SINGLE)
         val callerRequest = legacyExecution?.callerRequest ?: request
@@ -499,7 +504,8 @@ internal class DefaultQueryGateway private constructor(
             resultPolicyChain: DefaultResultPolicyChain,
             metrics: QueryGatewayMetrics,
             stageObserver: QueryGatewayStageObserver,
-            enabledCapabilities: Set<QueryCapabilityId>
+            enabledCapabilities: Set<QueryCapabilityId>,
+            structureLimits: QueryStructureLimits
         ): DefaultQueryGateway = DefaultQueryGateway(
             invocationFactory,
             requestValidator,
@@ -511,7 +517,8 @@ internal class DefaultQueryGateway private constructor(
             resultPolicyChain,
             metrics,
             stageObserver,
-            enabledCapabilities
+            enabledCapabilities,
+            structureLimits
         )
     }
 }

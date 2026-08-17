@@ -14,6 +14,10 @@
 package me.ahoo.wow.webflux.route.response
 
 import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.api.query.error.QueryErrorCode
+import me.ahoo.wow.api.query.error.QueryErrorReason
+import me.ahoo.wow.api.query.error.QueryException
+import me.ahoo.wow.api.query.error.QueryStage
 import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
@@ -57,26 +61,25 @@ internal class StreamingJsonArrayResponse<T : Any>(
     }
 
     override fun writeTo(exchange: ServerWebExchange, context: ServerResponse.Context): Mono<Void> {
-        return body.switchOnFirst { signal, flux ->
+        return body.map { it.toJsonString() }.switchOnFirst { signal, flux ->
             when {
                 signal.isOnError -> exceptionHandler.handle(request, signal.throwable!!)
                     .flatMap {
                         it.writeTo(exchange, context)
                     }.flux()
-                else -> writeJsonArray(exchange, flux).flux()
+
+                signal.hasValue() -> writeJsonArray(exchange, flux).flux()
+                else -> writeEmptyArray(exchange).flux()
             }
         }.then()
     }
 
-    private fun writeJsonArray(exchange: ServerWebExchange, body: Flux<T>): Mono<Void> {
+    private fun writeJsonArray(exchange: ServerWebExchange, body: Flux<String>): Mono<Void> {
         val response = exchange.response
-        response.statusCode = statusCode()
-        response.headers.addAll(headers)
-        response.cookies.addAll(cookies)
+        prepare(response)
 
         val bufferFactory = response.bufferFactory()
         val jsonValues = body
-            .map { it.toJsonString() }
             .index()
             .map {
                 if (it.t1 > 0L) {
@@ -92,10 +95,35 @@ internal class StreamingJsonArrayResponse<T : Any>(
             Mono.just("]").map { bufferFactory.wrapString(it) }
         )
 
-        return response.writeWith(dataBuffers)
+        return response.writeWith(dataBuffers.onErrorMap(::incompleteResult))
+            .onErrorMap(::incompleteResult)
+    }
+
+    private fun writeEmptyArray(exchange: ServerWebExchange): Mono<Void> {
+        val response = exchange.response
+        prepare(response)
+        return response.writeWith(Mono.just(response.bufferFactory().wrapString("[]")))
+    }
+
+    private fun prepare(response: org.springframework.http.server.reactive.ServerHttpResponse) {
+        response.statusCode = statusCode()
+        response.headers.addAll(headers)
+        response.cookies.addAll(cookies)
     }
 
     private fun DataBufferFactory.wrapString(value: String): DataBuffer {
         return wrap(value.toByteArray(StandardCharsets.UTF_8))
     }
+
+    private fun incompleteResult(error: Throwable): Throwable =
+        if (error is QueryException && error.code == QueryErrorCode.INCOMPLETE_RESULT) {
+            error
+        } else {
+            QueryException(
+                QueryErrorCode.INCOMPLETE_RESULT,
+                QueryStage.EXECUTION,
+                QueryErrorReason.INCOMPLETE_STREAM,
+                (error as? QueryException)?.code ?: QueryErrorCode.BACKEND_FAILURE
+            )
+        }
 }

@@ -86,7 +86,8 @@ internal object DefaultQueryGatewayFactory {
                 configuration.enabledCapabilities
             ),
             stageObserver = stageObserver,
-            enabledCapabilities = configuration.enabledCapabilities
+            enabledCapabilities = configuration.enabledCapabilities,
+            structureLimits = configuration.structureLimits
         )
     }
 
