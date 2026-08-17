@@ -258,35 +258,11 @@ pagedQuery {
 }.query(queryService)
 ```
 
-## 重写查询
+## 强制查询约束
 
-```kotlin
-@Component
-@Order(ORDER_FIRST)
-@FilterType(SnapshotQueryHandler::class)
-class DataFilterSnapshotQueryFilter : SnapshotQueryFilter {
+调用方可选择的条件放在 request / DSL；所有入口都必须执行且调用方不能移除的条件放在 `QueryPolicy`。脱敏放在 `ResultPolicy`，logical→physical binding 放在 `QuerySchemaCustomizer` 与 Backend compiler。框架没有通用查询条件 hook。
 
-    override fun filter(
-        context: QueryContext<*, *>,
-        next: FilterChain<QueryContext<*, *>>,
-    ): Mono<Void> {
-
-        return Mono.deferContextual {
-            /**
-             * 重写查询，将仓库ID附加到查询条件中。
-             */
-            context.asRewritableQuery().rewriteQuery { query ->
-                val warehouseIdCondition = condition {
-                    nestedState()
-                    WarehouseIdCapable::warehouseId.name eq warehouseId
-                }
-                query.appendCondition(warehouseIdCondition)
-            }
-            next.filter(context)
-        }
-    }
-}
-```
+`RewriteRequestCondition` 仅保留为 deprecated 8.x HTTP `LEGACY_ENRICHMENT`，不是授权。完整迁移与可编译示例见 [Query Filter 迁移到 Query Policy](./migration/query-filter-to-query-policy.md)，Backend 能力见 [自定义 Query Backend](./extensions/query-backend.md)。
 
 ## OpenAPI
 

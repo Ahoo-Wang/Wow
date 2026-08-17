@@ -316,9 +316,9 @@ class OrderState(
 
 This pattern allows ABAC rules to be based on aggregate state fields (like address) combined with explicitly assigned tags.
 
-### ABAC Query Filter
+### ABAC QueryPolicy
 
-When querying snapshots, the `AbacQueryFilter` automatically injects permission conditions based on the principal's tags. The matching rules are:
+For snapshot queries, `AbacQueryPolicy` creates mandatory conditions from a finite set of keys declared by `PrincipalTagResolver`. The rules are:
 
 | Principal Tags | Resource Tags | Result |
 |---------------|---------------|--------|
@@ -327,34 +327,24 @@ When querying snapshots, the `AbacQueryFilter` automatically injects permission 
 | `["a", "b"]` | `["c"]` | ❌ No match |
 | Any | Key absent | ✅ Match (resource is public for this key) |
 
-The filter converts principal tags into query conditions using AND logic across all keys:
+The Policy converts principal tags into portable expressions using AND across keys:
 - **Wildcard** tags: checks that the key exists on the resource (`EXISTS`)
 - **Regular** tags: matches resources where the key is absent, empty, or has a value in the principal's list
 
-To implement custom principal tag resolution, extend `AbacQueryFilter`:
+Provide a `PrincipalTagResolver`. Its keys are also supplied to `PrincipalTagSchemaCustomizer`; undeclared runtime keys, empty results, and errors fail closed:
 
 ```kotlin
-@Component
-class MemberAbacQueryFilter(
-    private val memberCache: MemberCache
-) : AbacQueryFilter() {
-
-    override fun getPrincipalTags(
-        contextView: ContextView,
-        context: QueryContext<*, *>
-    ): Mono<AbacTags> {
-        val securityContext = contextView.getSecurityContextOrEmpty()
-            ?: return Mono.empty()
-        val principal = securityContext.principal
-
-        // Look up member tags from cache based on user + tenant + app
-        return Mono.fromCallable {
-            val memberId = memberId(userId = principal.id, tenantId = principal.tenantId)
-            memberCache[memberId]?.tags?.get(appId)
-        }
-    }
+val principalTags = PrincipalTagResolver(
+    declaredKeys = setOf("region", "department")
+) { context ->
+    memberService.tags(context.invocationScope.trustedAuthority.subjectId)
 }
+
+val policy: QueryPolicy = AbacQueryPolicy(principalTags)
+val schemaCustomizer = PrincipalTagSchemaCustomizer(principalTags)
 ```
+
+`RewriteRequestCondition`, paths, and headers remain caller input and cannot replace trusted authority. See [Query Filter migration](./migration/query-filter-to-query-policy.md).
 
 ## Layered Isolation Summary
 

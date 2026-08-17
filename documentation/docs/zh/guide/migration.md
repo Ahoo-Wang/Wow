@@ -17,6 +17,7 @@ description: 根据系统现状选择传统架构迁移或 Wow v6 到 v8 升级�
 | 传统 CRUD / 事务脚本 / 直接操作数据库 | 渐进采用 Wow CQRS + Event Sourcing | [传统架构迁移](./migration/traditional-architecture.md) | Wow v6 的版本兼容假设 |
 | 使用精确平台基线的 Wow v6 | 使用固定目标平台的 Wow v8 | [Wow v6 迁移到 v8](./migration/v6-to-v8.md) | 重新设计全部业务边界 |
 | 已在 Wow v8 上自定义 Dispatcher、MessageBus 或 Spring 生命周期 | 当前统一 `WowRuntime` | [运行时编排迁移](./migration/runtime-orchestration.md) | 业务数据重写 |
+| 使用旧 QueryFilter / QueryHandler 扩展查询 | 统一 QueryGateway Policy / ResultPolicy / Backend | [Query Filter 迁移](./migration/query-filter-to-query-policy.md) | 重新引入条件 hook 或双查询引擎 |
 
 ```mermaid
 %%{init: {"theme": "dark"}}%%

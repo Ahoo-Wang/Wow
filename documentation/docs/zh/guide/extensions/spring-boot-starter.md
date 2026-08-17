@@ -51,6 +51,12 @@ Spring Boot Starter 使用 Spring Boot 的自动配置机制，根据类路径�
 
 这些能力是可选的；你也可以按各扩展文档所述，直接声明单个 `wow-*` 依赖。
 
+### QueryGateway 自动配置
+
+Starter 为应用创建唯一 `QueryGateway`，按 `@Order` 收集 `QueryPolicy` 与 `ResultPolicy`，并使用 canonical storage routing 选择 Backend。应用最多提供一个自定义 `QueryAdmission`；tenant/owner/space authority 必须来自认证适配器，不能从 header/path 自动提升。
+
+查询扩展请使用 `QueryPolicy`、`ResultPolicy`、`QuerySchemaCustomizer` 或 `QueryBackendFactory`。旧 Filter 运行面已删除；deprecated `RewriteRequestCondition` 只负责 8.x `LEGACY_ENRICHMENT`。参阅 [Query Filter 迁移](../migration/query-filter-to-query-policy.md) 与 [自定义 Query Backend](./query-backend.md)。
+
 ```mermaid
 flowchart TB
     subgraph AutoConfig["自动配置"]

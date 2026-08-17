@@ -820,14 +820,11 @@ CoSec extractor 把 request ID 和 space ID Header 写入命令 builder。
 
 这些条件检查会在上下文已提供时保护聚合一致性；它们不负责认证调用方，也不能替代端点授权。
 
-### 查询 ABAC
+### 查询 Policy 与 ABAC
 
-`AbacQueryFilter` 把 principal tag 转换为查询条件。
+所有查询入口由 `QueryGateway` 统一执行 Policy。`AbacQueryPolicy` 只接受有限、预声明的 principal tag keys；resolver empty/error/undeclared key 都 fail closed。CoSec Policy 只读取 trusted authority，header/path/rewrite 仍是 caller input。
 
-principal tag 解析是抽象方法，必须由集成实现。
-空 tag 集解析为 `Condition.all()`。
-因此仅存在该过滤器不能证明查询已认证或受限。
-来源：[AbacQueryFilter](https://github.com/Ahoo-Wang/Wow/blob/main/wow-query/src/main/kotlin/me/ahoo/wow/query/snapshot/filter/AbacQueryFilter.kt#L33-L130)。
+来源：[ABAC Policy](https://github.com/Ahoo-Wang/Wow/blob/main/wow-query/src/main/kotlin/me/ahoo/wow/query/policy/abac/AbacQueryPolicy.kt)、[迁移指南](../guide/migration/query-filter-to-query-policy.md)。
 
 ### 安全检查清单
 
@@ -998,7 +995,7 @@ DSL 通过 JUnit dynamic test 暴露 Given、When、Expect 阶段。
 | 约束 | 工程影响 | 来源 |
 |---|---|---|
 | 状态事件发送错误会在即时过滤器边界记录并恢复。 | 快照和状态事件消费者可能落后；具体总线持久性和重放政策必须补齐运营闭环。 | [SendStateEventFilter](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/state/SendStateEventFilter.kt#L54-L76) |
-| 认证和 principal-tag 解析由集成负责。 | 只有 Header 提取与 ABAC hook 不能证明访问已经认证或受限。 | [CoSec 提取](https://github.com/Ahoo-Wang/Wow/blob/main/wow-cosec/src/main/kotlin/me/ahoo/wow/cosec/extractor/CoSecCommandBuilderExtractor.kt#L23-L40)、[ABAC 空 tag](https://github.com/Ahoo-Wang/Wow/blob/main/wow-query/src/main/kotlin/me/ahoo/wow/query/snapshot/filter/AbacQueryFilter.kt#L91-L130) |
+| 认证和 principal-tag 解析由集成负责。 | Header/path/rewrite 都不能证明访问已认证；Policy 缺少 trusted authority 或有效 tags 时 fail closed。 | [CoSec Policy](https://github.com/Ahoo-Wang/Wow/blob/main/wow-cosec/src/main/kotlin/me/ahoo/wow/cosec/query/CoSecQueryPolicy.kt)、[ABAC Policy](https://github.com/Ahoo-Wang/Wow/blob/main/wow-query/src/main/kotlin/me/ahoo/wow/query/policy/abac/AbacQueryPolicy.kt) |
 | 普通事件处理器返回值没有发布语义。 | 事件结果需要转成命令时，应使用 stateless saga 映射。 | [事件函数过滤器](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/dispatcher/DomainEventFunctionFilter.kt#L41-L70)、[Saga 映射器](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunction.kt#L57-L105) |
 | `WowRuntime` 与 Spring bridge 都是一次性的。 | 嵌入代码必须替换运行时，而不是重启已停止实例。 | [一次性启动](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L188-L217)、[Spring 生命周期状态](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt#L45-L51) |
 | KSP 不会消除聚合运行时反射。 | AOT、启动时间或反射削减工作必须测量真实 parser 和 invocation 路径。 | [生成访问器](https://github.com/Ahoo-Wang/Wow/blob/main/wow-compiler/src/main/kotlin/me/ahoo/wow/compiler/aggregate/metadata/AggregatesMetadataResolver.kt#L48-L59)、[运行时 parser](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/annotation/AggregateMetadataParser.kt#L54-L102) |

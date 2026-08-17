@@ -317,9 +317,9 @@ class OrderState(
 
 这种模式允许 ABAC 规则基于聚合状态字段（如地址）与显式分配的标签组合进行匹配。
 
-### ABAC 查询过滤器
+### ABAC QueryPolicy
 
-查询快照时，`AbacQueryFilter` 根据主体的标签自动注入权限过滤条件。匹配规则如下：
+查询快照时，`AbacQueryPolicy` 从有限、预声明的 `PrincipalTagResolver` 标签键生成 mandatory 条件。匹配规则如下：
 
 | 主体标签 | 资源标签 | 结果 |
 |---------|---------|------|
@@ -328,34 +328,24 @@ class OrderState(
 | `["a", "b"]` | `["c"]` | ❌ 不匹配 |
 | 任意 | 键不存在 | ✅ 匹配（该键对应的资源为公开） |
 
-过滤器将主体标签转换为查询条件，所有标签键之间使用 AND 逻辑：
+Policy 将主体标签转换为 portable expression，所有标签键之间使用 AND 逻辑：
 - **通配符**标签：检查资源上该键是否存在（`EXISTS`）
 - **普通**标签：匹配键不存在、值为空、或值在主体列表中的资源
 
-实现自定义的主体标签解析，继承 `AbacQueryFilter`：
+实现自定义主体标签解析时提供 `PrincipalTagResolver`；声明的键会同时交给 `PrincipalTagSchemaCustomizer`，运行时返回未声明键、空结果或错误都会 fail closed：
 
 ```kotlin
-@Component
-class MemberAbacQueryFilter(
-    private val memberCache: MemberCache
-) : AbacQueryFilter() {
-
-    override fun getPrincipalTags(
-        contextView: ContextView,
-        context: QueryContext<*, *>
-    ): Mono<AbacTags> {
-        val securityContext = contextView.getSecurityContextOrEmpty()
-            ?: return Mono.empty()
-        val principal = securityContext.principal
-
-        // 根据用户 + 租户 + 应用从缓存查找成员标签
-        return Mono.fromCallable {
-            val memberId = memberId(userId = principal.id, tenantId = principal.tenantId)
-            memberCache[memberId]?.tags?.get(appId)
-        }
-    }
+val principalTags = PrincipalTagResolver(
+    declaredKeys = setOf("region", "department")
+) { context ->
+    memberService.tags(context.invocationScope.trustedAuthority.subjectId)
 }
+
+val policy: QueryPolicy = AbacQueryPolicy(principalTags)
+val schemaCustomizer = PrincipalTagSchemaCustomizer(principalTags)
 ```
+
+`RewriteRequestCondition`、path 和 header 都是 caller input，不能替代 trusted authority。迁移清单见 [Query Filter 迁移](./migration/query-filter-to-query-policy.md)。
 
 ## 隔离层级总结
 

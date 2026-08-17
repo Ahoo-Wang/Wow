@@ -14,7 +14,11 @@ CoSec 集成提供四个核心组件：
 1. **CommandRequestHeaderAppender** — 从 HTTP 请求头中提取 `CoSec-App-Id` 和 `CoSec-Device-Id`，附加到命令 Header 中
 2. **CommandBuilderExtractor** — 从 HTTP 请求头中提取 `CoSec-Request-Id` 和 `CoSec-Space-Id`，注入到 CommandBuilder 中
 3. **MessagePropagator** — 在处理链中将 `app_id` 和 `device_id` 从上游消息 Header 向下游传播
-4. **RewriteRequestCondition** — 从 `CoSec-Space-Id` 请求头（兜底取请求 space）解析查询的 `spaceId`，使快照/事件流查询按调用方的 space 隔离
+4. **CoSecQueryPolicy** — 只从已认证 Web principal adapter 提供的 trusted authority 约束 tenant/space；缺失或冲突时在 backend I/O 前拒绝
+
+::: warning
+deprecated `CoSecRewriteRequestCondition` 仅保留 8.x wire 兼容，会把 header 转为不可信 `LEGACY_ENRICHMENT`。它不是授权，也不会把 header 提升为 trusted authority。
+:::
 
 ## 安装
 
@@ -83,7 +87,7 @@ sequenceDiagram
 | `CoSec-App-Id` | `CoSecCommandRequestHeaderAppender` | 命令 `header.app_id`，并传播到下游消息 |
 | `CoSec-Device-Id` | `CoSecCommandRequestHeaderAppender` | 命令 `header.device_id`，并传播到下游消息 |
 | `CoSec-Request-Id` | `CoSecCommandBuilderExtractor` | `CommandBuilder.requestId`（幂等性） |
-| `CoSec-Space-Id` | `CoSecCommandBuilderExtractor` + `CoSecRewriteRequestCondition` | `CommandBuilder.spaceId`；对于读侧查询，`CoSecRewriteRequestCondition` 先解析 `Wow-Space-Id` 头，仅在其为空时才回退到 `CoSec-Space-Id` |
+| `CoSec-Space-Id` | `CoSecCommandBuilderExtractor`；deprecated `CoSecRewriteRequestCondition` 仅作 legacy caller enrichment | `CommandBuilder.spaceId`；查询授权必须由 authenticated principal adapter + `CoSecQueryPolicy` 提供，header 不可信 |
 
 要在处理器内访问传播的上下文，从消息头读取即可：
 

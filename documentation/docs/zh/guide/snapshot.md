@@ -7,6 +7,8 @@ description: 将快照作为聚合加载检查点与默认当前状态查询存�
 
 快照通过保存聚合状态检查点来减少事件重放。采用推荐的 `all` 策略后，同一份数据还可通过 `SnapshotQueryService` 与 Wow 内置查询路由，直接作为默认的当前状态物化查询存储。
 
+所有 Snapshot 查询入口都经过唯一 `QueryGateway`。强制租户/owner/space/ABAC 条件放在 `QueryPolicy`，脱敏放在 `ResultPolicy`；旧 Filter 迁移见 [Query Filter 迁移](./migration/query-filter-to-query-policy.md)。
+
 ## 快照机制
 
 在事件溯源中，聚合根的状态通过重放所有历史事件来重建。随着事件数量的增加，重放所有事件变得越来越慢。快照机制通过定期保存聚合根的当前状态来解决此问题。

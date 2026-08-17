@@ -18,6 +18,7 @@ business or data migration. Choose the primary path first; do not combine both i
 | Traditional CRUD, transaction scripts, or direct database writes | Adopt Wow CQRS and event sourcing incrementally | [Migrating from Traditional Architecture](./migration/traditional-architecture.md) | Wow v6 version-compatibility assumptions |
 | Wow v6 on its exact pinned platform | Wow v8 on its pinned target platform | [Migrate Wow v6 to v8](./migration/v6-to-v8.md) | Redesigning every business boundary |
 | Wow v8 with custom Dispatcher, MessageBus, or Spring lifecycle integration | Current unified `WowRuntime` | [Runtime Orchestration Migration](./migration/runtime-orchestration.md) | Rewriting business data |
+| Legacy QueryFilter / QueryHandler query extensions | Unified QueryGateway Policy / ResultPolicy / Backend | [Query Filter migration](./migration/query-filter-to-query-policy.md) | Reintroducing a condition hook or dual query engine |
 
 ```mermaid
 %%{init: {"theme": "dark"}}%%

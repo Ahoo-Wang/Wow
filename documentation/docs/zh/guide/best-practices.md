@@ -18,6 +18,7 @@ Wow 消除了 CQRS 与事件溯源的大量基础设施样板代码，但不会�
 | 重复请求 | 同一逻辑操作复用稳定的 `requestId` | 每次传输重试都生成新的请求 ID | [DefaultCommandGateway.kt:86-118](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L86-L118) |
 | 并发 | 调用方必须拒绝陈旧写入时传递 `aggregateVersion` | 假设所有并发业务命令都可以互换 | [CommandMessage.kt:85-95](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt#L85-L95) |
 | 快照 | 使用 `strategy: all`，让最新聚合状态直接作为默认查询存储 | 使用 `version_offset` 却要求每次查询都读到最新状态 | [SnapshotProperties.kt:23-45](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotProperties.kt#L23-L45) |
+| 查询安全 | mandatory 条件放 `QueryPolicy`，脱敏放 `ResultPolicy`，authority 只来自认证适配器 | 从 header/path 提升 authority，或恢复 Filter 条件 hook | [Query Filter 迁移](./migration/query-filter-to-query-policy.md) |
 | 跨聚合流程 | 用 Saga 编排，用补偿处理可恢复失败 | 把 Saga 完成称为分布式事务提交 | [StatelessSagaFunction.kt:57-69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunction.kt#L57-L69) |
 
 ## 建模业务决策，而不是数据更新
