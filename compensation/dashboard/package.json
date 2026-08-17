@@ -26,7 +26,7 @@
     "@tanstack/react-table": "^8.21.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "dayjs": "^1.11.21",
+    "dayjs": "^1.11.22",
     "lucide-react": "^1.31.0",
     "radix-ui": "^1.6.7",
     "react": "^19.2.8",
