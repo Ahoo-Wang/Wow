@@ -323,10 +323,11 @@ class OrderState(
 
 | 主体标签 | 资源标签 | 结果 |
 |---------|---------|------|
-| `["*"]`（通配符） | 任意 | ✅ 匹配 |
+| `["*"]`（通配符） | 键存在（包括空列表） | ✅ 匹配 |
+| `["*"]`（通配符） | 键不存在 | ❌ 不匹配 |
 | `["a", "b"]` | `["a"]` | ✅ 匹配 |
 | `["a", "b"]` | `["c"]` | ❌ 不匹配 |
-| 任意 | 键不存在 | ✅ 匹配（该键对应的资源为公开） |
+| 普通值 | 键不存在或为空列表 | ✅ 匹配（该键对应的资源为公开） |
 
 Policy 将主体标签转换为 portable expression，所有标签键之间使用 AND 逻辑：
 - **通配符**标签：检查资源上该键是否存在（`EXISTS`）
@@ -345,7 +346,7 @@ val policy: QueryPolicy = AbacQueryPolicy(principalTags)
 val schemaCustomizer = PrincipalTagSchemaCustomizer(principalTags)
 ```
 
-`RewriteRequestCondition`、path 和 header 都是 caller input，不能替代 trusted authority。迁移清单见 [Query Filter 迁移](./migration/query-filter-to-query-policy.md)。
+deprecated `RewriteRequestCondition` 只是 legacy `LEGACY_ENRICHMENT`；path 和 header 也都是不可信 caller input，均不能替代 trusted authority。迁移清单见 [Query Filter 迁移](./migration/query-filter-to-query-policy.md)。
 
 ## 隔离层级总结
 

@@ -322,10 +322,11 @@ For snapshot queries, `AbacQueryPolicy` creates mandatory conditions from a fini
 
 | Principal Tags | Resource Tags | Result |
 |---------------|---------------|--------|
-| `["*"]` (wildcard) | Any | ✅ Match |
+| `["*"]` (wildcard) | Key present (including an empty list) | ✅ Match |
+| `["*"]` (wildcard) | Key absent | ❌ No match |
 | `["a", "b"]` | `["a"]` | ✅ Match |
 | `["a", "b"]` | `["c"]` | ❌ No match |
-| Any | Key absent | ✅ Match (resource is public for this key) |
+| Regular values | Key absent or empty list | ✅ Match (resource is public for this key) |
 
 The Policy converts principal tags into portable expressions using AND across keys:
 - **Wildcard** tags: checks that the key exists on the resource (`EXISTS`)
@@ -344,7 +345,7 @@ val policy: QueryPolicy = AbacQueryPolicy(principalTags)
 val schemaCustomizer = PrincipalTagSchemaCustomizer(principalTags)
 ```
 
-`RewriteRequestCondition`, paths, and headers remain caller input and cannot replace trusted authority. See [Query Filter migration](./migration/query-filter-to-query-policy.md).
+Deprecated `RewriteRequestCondition` is legacy `LEGACY_ENRICHMENT`; paths and headers are also untrusted caller input. None can replace trusted authority. See [Query Filter migration](./migration/query-filter-to-query-policy.md).
 
 ## Layered Isolation Summary
 

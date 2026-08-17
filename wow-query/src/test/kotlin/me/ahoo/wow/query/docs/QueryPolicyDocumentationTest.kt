@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.docs
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.expression.LogicalField
 import me.ahoo.wow.api.query.expression.MatchAll
 import me.ahoo.wow.api.query.expression.PortableOperator
@@ -23,6 +24,10 @@ import me.ahoo.wow.api.query.gateway.QueryBudgetHint
 import me.ahoo.wow.api.query.gateway.QueryOperation
 import me.ahoo.wow.api.query.gateway.RequestedQueryScope
 import me.ahoo.wow.query.GATEWAY_TARGET
+import me.ahoo.wow.query.QueryGatewayFactory
+import me.ahoo.wow.query.backend.RecordingQueryBackend
+import me.ahoo.wow.query.gatewayConfiguration
+import me.ahoo.wow.query.gatewayDescriptor
 import me.ahoo.wow.query.gatewaySchema
 import me.ahoo.wow.query.invocation.QueryAuthorityView
 import me.ahoo.wow.query.invocation.QueryInvocationScope
@@ -37,6 +42,9 @@ import me.ahoo.wow.query.policy.QueryPolicyResultShape
 import me.ahoo.wow.query.validation.QueryBudgetLimit
 import me.ahoo.wow.test.query.QueryPolicyTestKit
 import org.junit.jupiter.api.Test
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import org.springframework.core.annotation.Order
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.time.Duration
@@ -60,6 +68,18 @@ class QueryPolicyDocumentationTest {
             .expectDenied("TENANT_REQUIRED")
             .test()
             .verifyComplete()
+    }
+
+    @Test
+    fun `non Spring factory and Spring ordering examples compile and execute`() {
+        val backend = RecordingQueryBackend(gatewayDescriptor())
+        val gateway = QueryGatewayFactory.create(
+            gatewayConfiguration(backend, customPolicies = listOf(TenantPolicy))
+        )
+
+        gateway.assert().isNotNull()
+        val beanMethod = PolicyConfiguration::class.java.getDeclaredMethod("tenantQueryPolicy")
+        beanMethod.getAnnotation(Order::class.java).value.assert().isEqualTo(100)
     }
 
     private fun context(tenantId: String?): QueryPolicyContext = QueryPolicyContext(
@@ -87,7 +107,7 @@ class QueryPolicyDocumentationTest {
                     mandatoryExpression = tenantPredicate(tenantId),
                     constraints = QueryPolicyConstraints(
                         fieldAccess = QueryFieldAccess.Restricted(
-                            setOf(LogicalField("tenantId"), LogicalField("state.status"))
+                            setOf(LogicalField("tenantId"), LogicalField("deleted"), LogicalField("state.status"))
                         ),
                         capabilityAccess = mapOf(FULL_TEXT to CapabilityDecision.GRANT),
                         maxBudget = QueryBudgetLimit(
@@ -99,6 +119,13 @@ class QueryPolicyDocumentationTest {
                 )
             )
         }
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    private class PolicyConfiguration {
+        @Bean
+        @Order(100)
+        fun tenantQueryPolicy(): QueryPolicy = TenantPolicy
     }
 
     private companion object {

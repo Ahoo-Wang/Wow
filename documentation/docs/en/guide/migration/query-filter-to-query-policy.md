@@ -52,7 +52,7 @@ object TenantPolicy : QueryPolicy {
                 ),
                 constraints = QueryPolicyConstraints(
                     fieldAccess = QueryFieldAccess.Restricted(
-                        setOf(LogicalField("tenantId"), LogicalField("state.status"))
+                        setOf(LogicalField("tenantId"), LogicalField("deleted"), LogicalField("state.status"))
                     ),
                     capabilityAccess = mapOf(QueryCapabilityId("full-text") to CapabilityDecision.GRANT),
                     maxBudget = QueryBudgetLimit(

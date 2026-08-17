@@ -15,8 +15,6 @@ package me.ahoo.wow.query.docs
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.expression.MatchAll
-import me.ahoo.wow.api.query.expression.PortableOperator
-import me.ahoo.wow.api.query.expression.StringComparisonMode
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.api.query.gateway.QueryPage
 import me.ahoo.wow.query.GATEWAY_TARGET
@@ -26,14 +24,12 @@ import me.ahoo.wow.query.backend.QueryBackendFactory
 import me.ahoo.wow.query.backend.QueryBackendReadiness
 import me.ahoo.wow.query.backend.QueryBackendResolutionContext
 import me.ahoo.wow.query.backend.QueryPlanVersion
-import me.ahoo.wow.query.backend.QueryPortableFeature
 import me.ahoo.wow.query.gatewaySchema
 import me.ahoo.wow.query.plan.CountQueryPlanV1
 import me.ahoo.wow.query.plan.ListQueryPlanV1
 import me.ahoo.wow.query.plan.PageQueryPlanV1
 import me.ahoo.wow.query.plan.SingleQueryPlanV1
 import me.ahoo.wow.query.validation.QueryBudgetLimit
-import me.ahoo.wow.tck.query.backend.QueryBackendTestKit
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -51,7 +47,9 @@ class QueryBackendDocumentationTest {
 
         backend.descriptor.planVersions.assert().contains(QueryPlanVersion.V1)
         backend.readiness().block().assert().isEqualTo(QueryBackendReadiness.Ready)
-        QueryBackendTestKit::class.java.simpleName.assert().isEqualTo("QueryBackendTestKit")
+        backend.descriptor.portableOperators.assert().isEmpty()
+        backend.descriptor.portableFeatures.assert().isEmpty()
+        backend.descriptor.stringComparisonModes.assert().isEmpty()
     }
 
     private object DocumentationBackend : QueryBackend {
@@ -59,9 +57,9 @@ class QueryBackendDocumentationTest {
             backendId = "documentation",
             documentKinds = setOf(QueryDocumentKind.SNAPSHOT),
             planVersions = setOf(QueryPlanVersion.V1),
-            portableOperators = PortableOperator.entries.toSet(),
-            portableFeatures = QueryPortableFeature.entries.toSet(),
-            stringComparisonModes = StringComparisonMode.entries.toSet(),
+            portableOperators = emptySet(),
+            portableFeatures = emptySet(),
+            stringComparisonModes = emptySet(),
             capabilities = emptySet(),
             maxBudget = QueryBudgetLimit(maxResults = 1_000)
         )

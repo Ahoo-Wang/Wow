@@ -29,9 +29,9 @@ override val descriptor = QueryBackendDescriptor(
     backendId = "documentation",
     documentKinds = setOf(QueryDocumentKind.SNAPSHOT),
     planVersions = setOf(QueryPlanVersion.V1),
-    portableOperators = PortableOperator.entries.toSet(),
-    portableFeatures = QueryPortableFeature.entries.toSet(),
-    stringComparisonModes = StringComparisonMode.entries.toSet(),
+    portableOperators = emptySet(), // 只加入 compiler 真正实现的 operator
+    portableFeatures = emptySet(),
+    stringComparisonModes = emptySet(),
     capabilities = emptySet(),
     maxBudget = QueryBudgetLimit(maxResults = 1_000)
 )
