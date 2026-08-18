@@ -822,15 +822,6 @@ me.ahoo.wow.query.policy.QueryPolicyResultShape$Dynamic#public boolean equals(ja
 me.ahoo.wow.query.policy.QueryPolicyResultShape$Dynamic#public int hashCode();|descriptor: ()I
 me.ahoo.wow.query.policy.QueryPolicyResultShape$Dynamic#public java.lang.String toString();|descriptor: ()Ljava/lang/String;
 me.ahoo.wow.query.policy.QueryPolicyResultShape$Dynamic#public static final me.ahoo.wow.query.policy.QueryPolicyResultShape$Dynamic INSTANCE;|descriptor: Lme/ahoo/wow/query/policy/QueryPolicyResultShape$Dynamic;
-me.ahoo.wow.query.policy.QueryPolicyResultShape$ProjectedDynamic#class|public final class me.ahoo.wow.query.policy.QueryPolicyResultShape$ProjectedDynamic implements me.ahoo.wow.query.policy.QueryPolicyResultShape {
-me.ahoo.wow.query.policy.QueryPolicyResultShape$ProjectedDynamic#public boolean equals(java.lang.Object);|descriptor: (Ljava/lang/Object;)Z
-me.ahoo.wow.query.policy.QueryPolicyResultShape$ProjectedDynamic#public final me.ahoo.wow.api.query.gateway.QueryProjection component1();|descriptor: ()Lme/ahoo/wow/api/query/gateway/QueryProjection;
-me.ahoo.wow.query.policy.QueryPolicyResultShape$ProjectedDynamic#public final me.ahoo.wow.api.query.gateway.QueryProjection getProjection();|descriptor: ()Lme/ahoo/wow/api/query/gateway/QueryProjection;
-me.ahoo.wow.query.policy.QueryPolicyResultShape$ProjectedDynamic#public final me.ahoo.wow.query.policy.QueryPolicyResultShape$ProjectedDynamic copy(me.ahoo.wow.api.query.gateway.QueryProjection);|descriptor: (Lme/ahoo/wow/api/query/gateway/QueryProjection;)Lme/ahoo/wow/query/policy/QueryPolicyResultShape$ProjectedDynamic;
-me.ahoo.wow.query.policy.QueryPolicyResultShape$ProjectedDynamic#public int hashCode();|descriptor: ()I
-me.ahoo.wow.query.policy.QueryPolicyResultShape$ProjectedDynamic#public java.lang.String toString();|descriptor: ()Ljava/lang/String;
-me.ahoo.wow.query.policy.QueryPolicyResultShape$ProjectedDynamic#public me.ahoo.wow.query.policy.QueryPolicyResultShape$ProjectedDynamic(me.ahoo.wow.api.query.gateway.QueryProjection);|descriptor: (Lme/ahoo/wow/api/query/gateway/QueryProjection;)V
-me.ahoo.wow.query.policy.QueryPolicyResultShape$ProjectedDynamic#public static me.ahoo.wow.query.policy.QueryPolicyResultShape$ProjectedDynamic copy$default(me.ahoo.wow.query.policy.QueryPolicyResultShape$ProjectedDynamic, me.ahoo.wow.api.query.gateway.QueryProjection, int, java.lang.Object);|descriptor: (Lme/ahoo/wow/query/policy/QueryPolicyResultShape$ProjectedDynamic;Lme/ahoo/wow/api/query/gateway/QueryProjection;ILjava/lang/Object;)Lme/ahoo/wow/query/policy/QueryPolicyResultShape$ProjectedDynamic;
 me.ahoo.wow.query.policy.QueryPolicyResultShape$Typed#class|public final class me.ahoo.wow.query.policy.QueryPolicyResultShape$Typed implements me.ahoo.wow.query.policy.QueryPolicyResultShape {
 me.ahoo.wow.query.policy.QueryPolicyResultShape$Typed#public boolean equals(java.lang.Object);|descriptor: (Ljava/lang/Object;)Z
 me.ahoo.wow.query.policy.QueryPolicyResultShape$Typed#public final java.lang.Class<?> component1();|descriptor: ()Ljava/lang/Class;

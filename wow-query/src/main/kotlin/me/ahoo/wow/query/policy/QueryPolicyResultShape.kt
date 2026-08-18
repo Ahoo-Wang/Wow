@@ -39,9 +39,5 @@ sealed interface QueryPolicyResultShape {
 
     data object Dynamic : QueryPolicyResultShape
 
-    data class ProjectedDynamic(
-        val projection: QueryProjection
-    ) : QueryPolicyResultShape
-
     data object Count : QueryPolicyResultShape
 }

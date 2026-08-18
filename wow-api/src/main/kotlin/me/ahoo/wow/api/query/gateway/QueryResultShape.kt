@@ -22,8 +22,4 @@ sealed interface QueryResultShape<R : Any> {
     ) : QueryResultShape<R>
 
     data object Dynamic : QueryResultShape<DynamicDocument>
-
-    data class ProjectedDynamic(
-        val projection: QueryProjection = QueryProjection.All
-    ) : QueryResultShape<DynamicDocument>
 }

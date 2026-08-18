@@ -32,7 +32,7 @@ implementation("me.ahoo.wow:wow-spring-boot-starter") {
 
 ## Auto-Configuration
 
-When both `wow-cosec` and CoSec are on the classpath, `CoSecAutoConfiguration` registers the security integration beans. Query endpoints must also provide an authenticated `WebFluxQueryAuthorityResolver`; startup fails if only the subject-only default is available:
+When both `wow-cosec` and CoSec are on the classpath, `CoSecAutoConfiguration` always registers the security policy. Query endpoints must also provide an authenticated `WebFluxQueryAuthorityResolver`; startup fails if only the subject-only default is available, while requests without any trusted resolver are denied by policy:
 
 ```kotlin
 @Bean

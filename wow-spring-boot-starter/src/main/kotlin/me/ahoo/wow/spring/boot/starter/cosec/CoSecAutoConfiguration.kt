@@ -22,8 +22,8 @@ import me.ahoo.wow.webflux.route.command.appender.CommandRequestHeaderAppender
 import me.ahoo.wow.webflux.route.command.extractor.CommandBuilderExtractor
 import me.ahoo.wow.webflux.route.query.RewriteRequestCondition
 import me.ahoo.wow.webflux.route.query.WebFluxQueryAuthorityResolver
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.context.annotation.Bean
 
@@ -32,16 +32,14 @@ import org.springframework.context.annotation.Bean
 @ConditionalOnClass(CoSecCommandRequestHeaderAppender::class)
 class CoSecAutoConfiguration {
 
-    @Deprecated("Use the Spring-managed CoSecQueryPolicy bean with a trusted authority resolver.")
     fun coSecQueryPolicy(): CoSecQueryPolicy = CoSecQueryPolicy()
 
     @Bean
-    @ConditionalOnBean(WebFluxQueryAuthorityResolver::class)
-    fun coSecQueryPolicy(authorityResolver: WebFluxQueryAuthorityResolver): CoSecQueryPolicy {
-        require(authorityResolver !== WebFluxQueryAuthorityResolver.SUBJECT) {
+    fun coSecQueryPolicy(authorityResolver: ObjectProvider<WebFluxQueryAuthorityResolver>): CoSecQueryPolicy {
+        require(authorityResolver.getIfAvailable() !== WebFluxQueryAuthorityResolver.SUBJECT) {
             "CoSec queries require a trusted query authority resolver."
         }
-        return CoSecQueryPolicy()
+        return coSecQueryPolicy()
     }
 
     @Bean

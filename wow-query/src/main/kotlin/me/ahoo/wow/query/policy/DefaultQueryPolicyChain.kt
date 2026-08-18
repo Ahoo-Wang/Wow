@@ -182,8 +182,6 @@ internal class DefaultQueryPolicyChain(
             is CountQueryRequest -> QueryPolicyResultShape.Count
             is ResultQueryRequest<*> -> when (val resultShape = request.resultShape) {
                 QueryResultShape.Dynamic -> QueryPolicyResultShape.Dynamic
-                is QueryResultShape.ProjectedDynamic ->
-                    QueryPolicyResultShape.ProjectedDynamic(resultShape.projection)
                 is QueryResultShape.Typed<*> -> QueryPolicyResultShape.Typed(
                     resultShape.resultType,
                     resultShape.projection

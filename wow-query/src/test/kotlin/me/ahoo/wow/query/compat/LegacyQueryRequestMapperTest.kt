@@ -15,6 +15,7 @@ package me.ahoo.wow.query.compat
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
@@ -47,7 +48,7 @@ class LegacyQueryRequestMapperTest {
     private val target = QueryTarget("sales.order".toNamedAggregate(), QueryDocumentKind.SNAPSHOT)
 
     @Test
-    fun `maps all include and exclude to public projected dynamic shape`() {
+    fun `maps all include and exclude to typed dynamic shape`() {
         val fixtures = listOf(
             Projection.ALL to QueryProjection.All,
             Projection(include = listOf("state.name", "aggregateId")) to QueryProjection.Include(
@@ -60,7 +61,7 @@ class LegacyQueryRequestMapperTest {
 
         fixtures.forEach { (legacy, expectedProjection) ->
             legacyDynamicShape(legacy).assert().isEqualTo(
-                QueryResultShape.ProjectedDynamic(expectedProjection)
+                QueryResultShape.Typed(DynamicDocument::class.java, expectedProjection)
             )
         }
     }

@@ -28,12 +28,14 @@ import me.ahoo.wow.api.query.error.QueryErrorCode
 import me.ahoo.wow.api.query.error.QueryErrorReason
 import me.ahoo.wow.api.query.error.QueryException
 import me.ahoo.wow.api.query.error.QueryStage
+import me.ahoo.wow.api.query.expression.LogicalField
 import me.ahoo.wow.api.query.gateway.CountQueryRequest
 import me.ahoo.wow.api.query.gateway.ListQueryRequest
 import me.ahoo.wow.api.query.gateway.PageQueryRequest
 import me.ahoo.wow.api.query.gateway.QueryConsistency
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.api.query.gateway.QueryPage
+import me.ahoo.wow.api.query.gateway.QueryProjection
 import me.ahoo.wow.api.query.gateway.QueryRequest
 import me.ahoo.wow.api.query.gateway.QueryResultShape
 import me.ahoo.wow.api.query.gateway.SingleQueryRequest
@@ -80,7 +82,7 @@ class GatewayQueryServiceTest {
     private val eventDocument = document(eventStream)
 
     @Test
-    fun `legacy facades expose only the public projected dynamic shape to custom gateways`() {
+    fun `legacy facades reuse the typed dynamic shape for projected requests`() {
         val gateway = RecordingLegacyGateway(snapshotDocument)
         val service = GatewaySnapshotQueryService<MockStateAggregate>(MOCK_AGGREGATE_METADATA, gateway)
 
@@ -93,8 +95,11 @@ class GatewayQueryServiceTest {
 
         gateway.requests.assert().hasSize(2)
         gateway.requests.forEach { request ->
-            (request as SingleQueryRequest<*>).resultShape.assert()
-                .isInstanceOf(QueryResultShape.ProjectedDynamic::class.java)
+            val resultShape = (request as SingleQueryRequest<*>).resultShape as QueryResultShape.Typed<*>
+            resultShape.resultType.assert().isEqualTo(DynamicDocument::class.java)
+            resultShape.projection.assert().isEqualTo(
+                QueryProjection.Include(linkedSetOf(LogicalField("aggregateId"), LogicalField("state.id")))
+            )
         }
     }
 

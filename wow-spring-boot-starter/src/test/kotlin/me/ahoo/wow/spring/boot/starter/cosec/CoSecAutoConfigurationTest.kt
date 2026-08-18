@@ -60,13 +60,13 @@ class CoSecAutoConfigurationTest {
     }
 
     @Test
-    fun `should not require query authority without a query resolver`() {
+    fun `should keep cosec policy without a webflux query resolver`() {
         contextRunner
             .enableWow()
             .withUserConfiguration(CoSecAutoConfiguration::class.java)
             .run { context: AssertableApplicationContext ->
                 context.startupFailure.assert().isNull()
-                context.assert().doesNotHaveBean(CoSecQueryPolicy::class.java)
+                context.assert().hasSingleBean(CoSecQueryPolicy::class.java)
             }
     }
 

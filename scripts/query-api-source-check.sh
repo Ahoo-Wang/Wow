@@ -984,7 +984,6 @@ import me.ahoo.wow.api.query.error.QueryException;
 import me.ahoo.wow.api.query.error.QueryStage;
 import me.ahoo.wow.api.modeling.NamedAggregate;
 import me.ahoo.wow.api.query.expression.QueryCapabilityId;
-import me.ahoo.wow.api.query.expression.LogicalField;
 import me.ahoo.wow.api.query.expression.PortableOperator;
 import me.ahoo.wow.api.query.expression.QueryValue;
 import me.ahoo.wow.api.query.expression.RelativeTimeExpression;
@@ -993,8 +992,6 @@ import me.ahoo.wow.api.query.gateway.CountQueryRequest;
 import me.ahoo.wow.api.query.gateway.ListQueryRequest;
 import me.ahoo.wow.api.query.gateway.PageQueryRequest;
 import me.ahoo.wow.api.query.gateway.QueryPage;
-import me.ahoo.wow.api.query.gateway.QueryProjection;
-import me.ahoo.wow.api.query.gateway.QueryResultShape;
 import me.ahoo.wow.api.query.gateway.SingleQueryRequest;
 import me.ahoo.wow.query.QueryGateway;
 import me.ahoo.wow.query.QueryGatewayConfiguration;
@@ -1004,7 +1001,6 @@ import me.ahoo.wow.query.invocation.QueryAdmission;
 import me.ahoo.wow.query.policy.QueryPolicy;
 import me.ahoo.wow.query.policy.QueryPolicyRegistration;
 import me.ahoo.wow.query.policy.QueryPolicyResult;
-import me.ahoo.wow.query.policy.QueryPolicyResultShape;
 import me.ahoo.wow.query.result.ResultPolicy;
 import me.ahoo.wow.query.result.ResultPolicyContext;
 import me.ahoo.wow.query.schema.QuerySchemaResolver;
@@ -1052,9 +1048,6 @@ public final class StableGatewayApi {
 
     public static Object[] compatibilityApi(NamedAggregate aggregate, QueryGateway gateway) {
         PortableOperator emptyCollection = PortableOperator.EMPTY_COLLECTION;
-        QueryResultShape.ProjectedDynamic projected = new QueryResultShape.ProjectedDynamic(
-            QueryProjection.All.INSTANCE
-        );
         RelativeTimeExpression relative = new RelativeTimeExpression(
             "eventTime",
             RelativeTimeOperation.RECENT_DAYS,
@@ -1066,8 +1059,6 @@ public final class StableGatewayApi {
         );
         return new Object[]{
             emptyCollection,
-            projected,
-            new QueryPolicyResultShape.ProjectedDynamic(QueryProjection.All.INSTANCE),
             copy,
             new GatewaySnapshotQueryService<Object>(aggregate, gateway),
             new GatewaySnapshotQueryServiceFactory(gateway),
@@ -1118,8 +1109,6 @@ package external.fixture
 import me.ahoo.wow.api.query.gateway.CountQueryRequest
 import me.ahoo.wow.api.query.gateway.ListQueryRequest
 import me.ahoo.wow.api.query.gateway.PageQueryRequest
-import me.ahoo.wow.api.query.gateway.QueryProjection
-import me.ahoo.wow.api.query.gateway.QueryResultShape
 import me.ahoo.wow.api.query.gateway.SingleQueryRequest
 import me.ahoo.wow.api.query.expression.LogicalField
 import me.ahoo.wow.api.query.expression.QueryValue
@@ -1133,7 +1122,6 @@ import me.ahoo.wow.query.QueryGatewayConfiguration
 import me.ahoo.wow.query.QueryGatewayFactory
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.policy.QueryPolicyRegistration
-import me.ahoo.wow.query.policy.QueryPolicyResultShape
 import me.ahoo.wow.query.result.ResultPolicy
 import me.ahoo.wow.query.event.GatewayEventStreamQueryService
 import me.ahoo.wow.query.event.GatewayEventStreamQueryServiceFactory
@@ -1161,9 +1149,6 @@ val incompleteQueryException = QueryException(
 )
 
 fun compatibilityApi(aggregate: NamedAggregate, gateway: QueryGateway): List<Any> {
-    val projected = QueryResultShape.ProjectedDynamic(
-        QueryProjection.Include(setOf(LogicalField("state.id")))
-    )
     val emptyCollection = PredicateExpression(
         LogicalField("labels"),
         PortableOperator.EMPTY_COLLECTION,
@@ -1177,8 +1162,6 @@ fun compatibilityApi(aggregate: NamedAggregate, gateway: QueryGateway): List<Any
     )
     return listOf(
         emptyCollection,
-        projected,
-        QueryPolicyResultShape.ProjectedDynamic(QueryProjection.All),
         relative.copy(operands = relative.operands),
         GatewaySnapshotQueryService<Any>(aggregate, gateway),
         GatewaySnapshotQueryServiceFactory(gateway),

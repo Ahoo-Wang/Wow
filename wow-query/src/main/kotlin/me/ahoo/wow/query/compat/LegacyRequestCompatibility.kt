@@ -47,11 +47,11 @@ import reactor.util.context.ContextView
 
 @JvmSynthetic
 internal fun legacyDynamicShape(projection: Projection): QueryResultShape<DynamicDocument> =
-    QueryResultShape.ProjectedDynamic(projection.toCanonical())
+    QueryResultShape.Typed(DynamicDocument::class.java, projection.toCanonical())
 
 @JvmSynthetic
 internal fun legacyTypedDynamicShape(projection: Projection): QueryResultShape<DynamicDocument> =
-    QueryResultShape.ProjectedDynamic(projection.toCanonical())
+    legacyDynamicShape(projection)
 
 @JvmSynthetic
 internal fun legacyTypedSingleRequest(
