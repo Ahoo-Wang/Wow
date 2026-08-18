@@ -993,6 +993,8 @@ import me.ahoo.wow.api.query.gateway.CountQueryRequest;
 import me.ahoo.wow.api.query.gateway.ListQueryRequest;
 import me.ahoo.wow.api.query.gateway.PageQueryRequest;
 import me.ahoo.wow.api.query.gateway.QueryPage;
+import me.ahoo.wow.api.query.gateway.QueryProjection;
+import me.ahoo.wow.api.query.gateway.QueryResultShape;
 import me.ahoo.wow.api.query.gateway.SingleQueryRequest;
 import me.ahoo.wow.query.QueryGateway;
 import me.ahoo.wow.query.QueryGatewayConfiguration;
@@ -1002,6 +1004,7 @@ import me.ahoo.wow.query.invocation.QueryAdmission;
 import me.ahoo.wow.query.policy.QueryPolicy;
 import me.ahoo.wow.query.policy.QueryPolicyRegistration;
 import me.ahoo.wow.query.policy.QueryPolicyResult;
+import me.ahoo.wow.query.policy.QueryPolicyResultShape;
 import me.ahoo.wow.query.result.ResultPolicy;
 import me.ahoo.wow.query.result.ResultPolicyContext;
 import me.ahoo.wow.query.schema.QuerySchemaResolver;
@@ -1049,6 +1052,9 @@ public final class StableGatewayApi {
 
     public static Object[] compatibilityApi(NamedAggregate aggregate, QueryGateway gateway) {
         PortableOperator emptyCollection = PortableOperator.EMPTY_COLLECTION;
+        QueryResultShape.ProjectedDynamic projected = new QueryResultShape.ProjectedDynamic(
+            QueryProjection.All.INSTANCE
+        );
         RelativeTimeExpression relative = new RelativeTimeExpression(
             "eventTime",
             RelativeTimeOperation.RECENT_DAYS,
@@ -1060,6 +1066,8 @@ public final class StableGatewayApi {
         );
         return new Object[]{
             emptyCollection,
+            projected,
+            new QueryPolicyResultShape.ProjectedDynamic(QueryProjection.All.INSTANCE),
             copy,
             new GatewaySnapshotQueryService<Object>(aggregate, gateway),
             new GatewaySnapshotQueryServiceFactory(gateway),
@@ -1110,6 +1118,8 @@ package external.fixture
 import me.ahoo.wow.api.query.gateway.CountQueryRequest
 import me.ahoo.wow.api.query.gateway.ListQueryRequest
 import me.ahoo.wow.api.query.gateway.PageQueryRequest
+import me.ahoo.wow.api.query.gateway.QueryProjection
+import me.ahoo.wow.api.query.gateway.QueryResultShape
 import me.ahoo.wow.api.query.gateway.SingleQueryRequest
 import me.ahoo.wow.api.query.expression.LogicalField
 import me.ahoo.wow.api.query.expression.QueryValue
@@ -1123,6 +1133,7 @@ import me.ahoo.wow.query.QueryGatewayConfiguration
 import me.ahoo.wow.query.QueryGatewayFactory
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.policy.QueryPolicyRegistration
+import me.ahoo.wow.query.policy.QueryPolicyResultShape
 import me.ahoo.wow.query.result.ResultPolicy
 import me.ahoo.wow.query.event.GatewayEventStreamQueryService
 import me.ahoo.wow.query.event.GatewayEventStreamQueryServiceFactory
@@ -1150,6 +1161,9 @@ val incompleteQueryException = QueryException(
 )
 
 fun compatibilityApi(aggregate: NamedAggregate, gateway: QueryGateway): List<Any> {
+    val projected = QueryResultShape.ProjectedDynamic(
+        QueryProjection.Include(setOf(LogicalField("state.id")))
+    )
     val emptyCollection = PredicateExpression(
         LogicalField("labels"),
         PortableOperator.EMPTY_COLLECTION,
@@ -1163,6 +1177,8 @@ fun compatibilityApi(aggregate: NamedAggregate, gateway: QueryGateway): List<Any
     )
     return listOf(
         emptyCollection,
+        projected,
+        QueryPolicyResultShape.ProjectedDynamic(QueryProjection.All),
         relative.copy(operands = relative.operands),
         GatewaySnapshotQueryService<Any>(aggregate, gateway),
         GatewaySnapshotQueryServiceFactory(gateway),
@@ -1343,8 +1359,10 @@ done
 javap -classpath "$RUNTIME_CLASSPATH" -v me.ahoo.wow.cosec.query.CoSecRewriteRequestCondition |
     grep -F "Deprecated: true" >/dev/null ||
     fail "Published CoSec rewrite is missing the JVM Deprecated attribute"
-[[ "$(javap -classpath "$WOW_STARTER_JAR:$RUNTIME_CLASSPATH" -v \
-    me.ahoo.wow.spring.boot.starter.cosec.CoSecAutoConfiguration | grep -c 'Deprecated: true')" -eq 1 ]] ||
+javap -classpath "$WOW_STARTER_JAR:$RUNTIME_CLASSPATH" -v \
+    me.ahoo.wow.spring.boot.starter.cosec.CoSecAutoConfiguration |
+    sed -n '/public .* coSecRewriteRequestCondition();/,/^  }/p' |
+    grep -F 'Deprecated: true' >/dev/null ||
     fail "Published CoSec rewrite registration is missing the JVM Deprecated attribute"
 [[ "$(javap -classpath "$WOW_STARTER_JAR:$RUNTIME_CLASSPATH" -v \
     me.ahoo.wow.spring.boot.starter.query.QueryAutoConfiguration | grep -c 'Deprecated: true')" -eq 2 ]] ||
@@ -1914,6 +1932,7 @@ if javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
     >"$TEMP_DIR/java-planner-factory-negative.out" 2>&1; then
     fail "Java external source unexpectedly invoked the internal query planner factory"
 fi
+# shellcheck disable=SC2016 # The dollar sign is part of Kotlin's JVM method name.
 grep -F 'create$me_ahoo_wow_wow_query' "$TEMP_DIR/java-planner-factory-negative.out" >/dev/null || {
     cat "$TEMP_DIR/java-planner-factory-negative.out" >&2
     fail "Java planner factory fixture did not diagnose the synthetic factory"
@@ -1961,6 +1980,7 @@ awk '
 }
 echo "PASS: JVM query planner construction and invocation boundary"
 
+# shellcheck disable=SC2016 # The dollar sign is part of Kotlin's companion class name.
 javap -classpath "$FIXTURE_CLASSPATH" -p -v \
     'me.ahoo.wow.query.plan.DefaultQueryPlanner$Companion' >"$TEMP_DIR/planner-companion-javap.out"
 awk '

@@ -30,6 +30,7 @@ import me.ahoo.wow.query.backend.QueryBackendReadiness
 import me.ahoo.wow.query.backend.QueryBackendReadinessReason
 import me.ahoo.wow.query.schema.QueryFieldValueKind
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchIndicesClient
 import reactor.core.publisher.Mono
@@ -531,10 +532,12 @@ class ElasticsearchQueryReadinessTest {
     fun `missing index and dependency failure stay distinguishable`() {
         val client = mockk<ReactiveElasticsearchClient>()
         val indices = mockk<ReactiveElasticsearchIndicesClient>()
+        val fatal = OutOfMemoryError("fatal")
         every { client.indices() } returns indices
         every { indices.exists(any<ExistsRequest>()) } returnsMany listOf(
             Mono.just(BooleanResponse(false)),
             Mono.error(IllegalStateException("down")),
+            Mono.error(fatal),
         )
         val requirements = ElasticsearchQueryReadinessRequirements(
             configurationValid = true,
@@ -548,6 +551,9 @@ class ElasticsearchQueryReadinessTest {
         StepVerifier.create(ElasticsearchQueryReadiness(client, "index", requirements).inspect())
             .expectNext(QueryBackendReadiness.NotReady(QueryBackendReadinessReason.DEPENDENCY_UNAVAILABLE))
             .verifyComplete()
+        assertThrows<OutOfMemoryError> {
+            ElasticsearchQueryReadiness(client, "index", requirements).inspect().block()
+        }.assert().isSameAs(fatal)
     }
 
     private fun readiness(

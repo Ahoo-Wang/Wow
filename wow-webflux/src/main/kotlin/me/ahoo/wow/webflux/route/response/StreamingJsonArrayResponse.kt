@@ -33,6 +33,7 @@ import org.springframework.util.MultiValueMap
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.server.ServerWebExchange
+import reactor.core.Exceptions
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.nio.charset.StandardCharsets
@@ -63,10 +64,13 @@ internal class StreamingJsonArrayResponse<T : Any>(
     override fun writeTo(exchange: ServerWebExchange, context: ServerResponse.Context): Mono<Void> {
         return body.map { it.toJsonString() }.switchOnFirst { signal, flux ->
             when {
-                signal.isOnError -> exceptionHandler.handle(request, signal.throwable!!)
-                    .flatMap {
-                        it.writeTo(exchange, context)
-                    }.flux()
+                signal.isOnError -> {
+                    Exceptions.throwIfFatal(signal.throwable!!)
+                    exceptionHandler.handle(request, signal.throwable!!)
+                        .flatMap {
+                            it.writeTo(exchange, context)
+                        }.flux()
+                }
 
                 signal.hasValue() -> writeJsonArray(exchange, flux).flux()
                 else -> writeEmptyArray(exchange).flux()
@@ -115,8 +119,9 @@ internal class StreamingJsonArrayResponse<T : Any>(
         return wrap(value.toByteArray(StandardCharsets.UTF_8))
     }
 
-    private fun incompleteResult(error: Throwable): Throwable =
-        if (error is QueryException && error.code == QueryErrorCode.INCOMPLETE_RESULT) {
+    private fun incompleteResult(error: Throwable): Throwable {
+        Exceptions.throwIfFatal(error)
+        return if (error is QueryException && error.code == QueryErrorCode.INCOMPLETE_RESULT) {
             error
         } else {
             QueryException(
@@ -126,4 +131,5 @@ internal class StreamingJsonArrayResponse<T : Any>(
                 (error as? QueryException)?.code ?: QueryErrorCode.BACKEND_FAILURE
             )
         }
+    }
 }

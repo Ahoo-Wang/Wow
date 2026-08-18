@@ -77,19 +77,6 @@ class ElasticsearchQueryResultDecoderTest {
     }
 
     @Test
-    fun `internal legacy typed marker uses structured dynamic decoding`() {
-        val field = QueryFieldSchema(VALUE, QueryFieldValueKind.STRING, nullable = false)
-
-        val result = decoder(listOf(field)).decode<DynamicDocument>(
-            mapOf("value" to "visible"),
-            QueryPlanResultShape.Typed(Class.forName(LEGACY_TYPED_MARKER), setOf(VALUE)),
-            mapOf(VALUE to "value"),
-        )
-
-        result[VALUE.value].assert().isEqualTo("visible")
-    }
-
-    @Test
     fun `direct typed immutable DynamicDocument keeps typed conversion semantics`() {
         val field = QueryFieldSchema(VALUE, QueryFieldValueKind.STRING, nullable = false)
 
@@ -394,7 +381,6 @@ class ElasticsearchQueryResultDecoderTest {
     data class SparseAddress(val city: String?)
 
     private companion object {
-        const val LEGACY_TYPED_MARKER = "me.ahoo.wow.query.compat.LegacyTypedDynamicDocumentMarker"
         val TARGET = QueryTarget(
             MaterializedNamedAggregate("elasticsearch-query-decoder", "value"),
             QueryDocumentKind.SNAPSHOT,

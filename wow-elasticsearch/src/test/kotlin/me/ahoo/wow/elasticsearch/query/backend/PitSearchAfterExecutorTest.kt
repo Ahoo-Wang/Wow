@@ -18,6 +18,7 @@ import co.elastic.clients.elasticsearch.core.SearchRequest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.error.QueryException
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
 import reactor.test.scheduler.VirtualTimeScheduler
@@ -242,6 +243,18 @@ class PitSearchAfterExecutorTest {
             }
             .verify()
         closeError.closeCount.get().assert().isOne()
+    }
+
+    @Test
+    fun `fatal cleanup errors remain fatal`() {
+        val fatal = OutOfMemoryError("fatal")
+        val transport = RecordingPitTransport(listOf(PitSearchPage(emptyList()))).also {
+            it.closePublisher = Mono.error(fatal)
+        }
+
+        assertThrows<OutOfMemoryError> {
+            PitSearchAfterExecutor(transport, "index", 2) { it }.execute(null).collectList().block()
+        }.assert().isSameAs(fatal)
     }
 
     private fun hit(source: String, sort: Long): PitSearchHit<String> =

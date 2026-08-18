@@ -41,14 +41,17 @@ import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.api.query.gateway.RequestedQueryScope
 import me.ahoo.wow.api.query.gateway.SingleQueryRequest
 import me.ahoo.wow.query.expression.LegacyConditionLowering
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
+import reactor.util.context.ContextView
 
 @JvmSynthetic
 internal fun legacyDynamicShape(projection: Projection): QueryResultShape<DynamicDocument> =
-    QueryResultShape.Typed(DynamicDocument::class.java, projection.toCanonical())
+    QueryResultShape.ProjectedDynamic(projection.toCanonical())
 
 @JvmSynthetic
 internal fun legacyTypedDynamicShape(projection: Projection): QueryResultShape<DynamicDocument> =
-    QueryResultShape.Typed(legacyTypedDynamicDocumentType(), projection.toCanonical())
+    QueryResultShape.ProjectedDynamic(projection.toCanonical())
 
 @JvmSynthetic
 internal fun legacyTypedSingleRequest(
@@ -226,12 +229,18 @@ private fun invalidLegacyRequest(): Nothing = throw QueryException(
     QueryErrorReason.INVALID_REQUEST
 )
 
-@Suppress("UNCHECKED_CAST")
-private fun legacyTypedDynamicDocumentType(): Class<DynamicDocument> =
-    LegacyTypedDynamicDocumentMarker::class.java as Class<DynamicDocument>
+@JvmSynthetic
+internal fun <T : Any> Mono<T>.markLegacyTypedResult(): Mono<T> = contextWrite { context ->
+    context.put(LegacyTypedResultContextKey, true)
+}
 
 @JvmSynthetic
-internal fun Class<*>.isLegacyTypedDynamicDocumentMarker(): Boolean =
-    this == LegacyTypedDynamicDocumentMarker::class.java
+internal fun <T : Any> Flux<T>.markLegacyTypedResult(): Flux<T> = contextWrite { context ->
+    context.put(LegacyTypedResultContextKey, true)
+}
 
-private abstract class LegacyTypedDynamicDocumentMarker : DynamicDocument
+@JvmSynthetic
+internal fun ContextView.isLegacyTypedResult(): Boolean =
+    getOrDefault<Boolean>(LegacyTypedResultContextKey, false) == true
+
+private object LegacyTypedResultContextKey

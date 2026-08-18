@@ -26,6 +26,7 @@ import org.springframework.http.MediaType
 import org.springframework.http.codec.ServerSentEvent
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
+import reactor.core.Exceptions
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
@@ -70,8 +71,9 @@ internal object DefaultWebFluxResponseStrategy : WebFluxResponseStrategy {
                 .contentType(MediaType.APPLICATION_JSON)
                 .header(ERROR_CODE, ErrorInfo.SUCCEEDED)
                 .bodyValue(it.toJsonString())
-        }.onErrorResume {
-            exceptionHandler.handle(request, it)
+        }.onErrorResume { error ->
+            Exceptions.throwIfFatal(error)
+            exceptionHandler.handle(request, error)
         }
     }
 
@@ -131,14 +133,15 @@ internal fun Flux<ServerSentEvent<String>>.errorResume(
     request: ServerRequest,
     exceptionHandler: RequestExceptionHandler
 ): Flux<ServerSentEvent<String>> {
-    return onErrorResume {
-        val errorInfo = it.toErrorInfo()
+    return onErrorResume { error ->
+        Exceptions.throwIfFatal(error)
+        val errorInfo = error.toErrorInfo()
         val serverSendEventMono = ServerSentEvent.builder<String>()
             .id(generateGlobalId())
             .event(errorInfo.errorCode)
             .data(errorInfo.toJsonString())
             .build().toMono()
 
-        exceptionHandler.handle(request, it).then(serverSendEventMono)
+        exceptionHandler.handle(request, error).then(serverSendEventMono)
     }
 }

@@ -458,4 +458,6 @@ private class NoopObservableFactory(
     override fun reset() = Unit
 
     override fun holdNextList(hold: QueryBackendClientHold) = Unit
+
+    override fun awaitHeldClientPublisher() = Unit
 }

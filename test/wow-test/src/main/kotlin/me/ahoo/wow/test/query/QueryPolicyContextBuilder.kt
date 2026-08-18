@@ -138,6 +138,7 @@ class QueryPolicyContextBuilder private constructor(
     private fun QueryPolicyResultShape.safeKind(): String = when (this) {
         QueryPolicyResultShape.Count -> "COUNT"
         QueryPolicyResultShape.Dynamic -> "DYNAMIC"
+        is QueryPolicyResultShape.ProjectedDynamic -> "PROJECTED_DYNAMIC"
         is QueryPolicyResultShape.Typed -> "TYPED"
     }
 

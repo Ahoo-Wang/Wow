@@ -78,19 +78,6 @@ class MongoQueryResultDecoderTest {
     }
 
     @Test
-    fun `internal legacy typed marker uses structured dynamic decoding`() {
-        val field = QueryFieldSchema(VALUE, QueryFieldValueKind.STRING, nullable = false)
-
-        val result = decoder(field).decode<DynamicDocument>(
-            Document("value", "visible"),
-            QueryPlanResultShape.Typed(Class.forName(LEGACY_TYPED_MARKER), setOf(VALUE)),
-            mapOf(VALUE to "value")
-        )
-
-        result[VALUE.value].assert().isEqualTo("visible")
-    }
-
-    @Test
     fun `direct typed immutable DynamicDocument keeps typed conversion semantics`() {
         val field = QueryFieldSchema(VALUE, QueryFieldValueKind.STRING, nullable = false)
 
@@ -291,7 +278,6 @@ class MongoQueryResultDecoderTest {
     data class AnyValueResult(val value: Any)
 
     private companion object {
-        const val LEGACY_TYPED_MARKER = "me.ahoo.wow.query.compat.LegacyTypedDynamicDocumentMarker"
         val TARGET = QueryTarget(MaterializedNamedAggregate("mongo-query-decoder", "value"), QueryDocumentKind.SNAPSHOT)
         val VALUE = LogicalField("value")
         val OTHER = LogicalField("other")

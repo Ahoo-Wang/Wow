@@ -19,6 +19,7 @@ import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.query.backend.QueryBackendReadiness
 import me.ahoo.wow.query.backend.QueryBackendReadinessReason
 import org.bson.Document
+import reactor.core.Exceptions
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.util.Collections
@@ -48,7 +49,10 @@ internal class MongoQueryReadiness(
                     inspectIndexes()
                 }
             }
-            .onErrorReturn(QueryBackendReadiness.NotReady(QueryBackendReadinessReason.DEPENDENCY_UNAVAILABLE))
+            .onErrorResume { error ->
+                Exceptions.throwIfFatal(error)
+                Mono.just(QueryBackendReadiness.NotReady(QueryBackendReadinessReason.DEPENDENCY_UNAVAILABLE))
+            }
     }
 
     private fun inspectIndexes(): Mono<QueryBackendReadiness> {

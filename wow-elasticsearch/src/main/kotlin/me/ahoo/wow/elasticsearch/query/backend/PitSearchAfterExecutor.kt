@@ -19,6 +19,7 @@ import me.ahoo.wow.api.query.error.QueryErrorCode
 import me.ahoo.wow.api.query.error.QueryErrorReason
 import me.ahoo.wow.api.query.error.QueryException
 import me.ahoo.wow.api.query.error.QueryStage
+import reactor.core.Exceptions
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
@@ -243,12 +244,18 @@ internal class PitSearchAfterExecutor<T : Any>(
     )
 
     private fun close(pitId: String): Mono<Void> = transport.close(pitId)
-        .onErrorMap { error -> if (error is QueryException) error else backendFailure() }
+        .onErrorMap { error ->
+            Exceptions.throwIfFatal(error)
+            if (error is QueryException) error else backendFailure()
+        }
 
-    private fun sanitize(error: Throwable): Throwable = when {
-        error is QueryException -> error
-        error.cause is QueryException -> error.cause!!
-        else -> backendFailure()
+    private fun sanitize(error: Throwable): Throwable {
+        Exceptions.throwIfFatal(error)
+        return when {
+            error is QueryException -> error
+            error.cause is QueryException -> error.cause!!
+            else -> backendFailure()
+        }
     }
 
     companion object {

@@ -17,6 +17,7 @@ import me.ahoo.wow.api.query.error.QueryErrorCode
 import me.ahoo.wow.api.query.error.QueryErrorReason
 import me.ahoo.wow.api.query.error.QueryException
 import me.ahoo.wow.api.query.error.QueryStage
+import reactor.core.Exceptions
 import reactor.core.publisher.Mono
 
 class ResolvedQueryBackend private constructor(
@@ -52,7 +53,10 @@ class ResolvedQueryBackend private constructor(
                     )
                 }
         }
-            .onErrorMap { backendUnavailable() }
+            .onErrorMap { error ->
+                Exceptions.throwIfFatal(error)
+                backendUnavailable()
+            }
 
         private fun backendUnavailable(): QueryException = QueryException(
             QueryErrorCode.BACKEND_NOT_READY,

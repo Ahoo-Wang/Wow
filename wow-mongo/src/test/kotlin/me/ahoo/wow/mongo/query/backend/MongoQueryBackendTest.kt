@@ -35,6 +35,7 @@ import me.ahoo.wow.query.schema.QuerySystemFields
 import me.ahoo.wow.query.validation.QueryBudgetLimit
 import me.ahoo.wow.tck.query.backend.PortableQueryDataset
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.test.StepVerifier
 
@@ -99,6 +100,27 @@ class MongoQueryBackendTest {
                 )
             )
             .verifyComplete()
+    }
+
+    @Test
+    fun `readiness preserves fatal driver errors`() {
+        val fatal = OutOfMemoryError("fatal")
+        val database = mockk<MongoDatabase>()
+        every { database.codecRegistry } returns MongoClientSettings.getDefaultCodecRegistry()
+        val collectionNames = mockk<com.mongodb.reactivestreams.client.ListCollectionNamesPublisher>()
+        every { database.listCollectionNames() } returns collectionNames
+        every { collectionNames.subscribe(any()) } answers {
+            Flux.error<String>(fatal).subscribe(firstArg<org.reactivestreams.Subscriber<in String>>())
+        }
+        val backend = MongoQueryBackendFactory(database).bind(
+            QueryBackendResolutionContext(
+                PortableQueryDataset.target(QueryDocumentKind.SNAPSHOT),
+                PortableQueryDataset.schema(QueryDocumentKind.SNAPSHOT),
+                PortableQueryDataset.vectors.first().expression,
+            ),
+        )
+
+        assertThrows<OutOfMemoryError> { backend.readiness().block() }.assert().isSameAs(fatal)
     }
 
     @Test

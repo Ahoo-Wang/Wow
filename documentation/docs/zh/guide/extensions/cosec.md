@@ -32,7 +32,18 @@ implementation("me.ahoo.wow:wow-spring-boot-starter") {
 
 ## 自动配置
 
-当 `wow-cosec` 和 CoSec 同时在 classpath 上时，`CoSecAutoConfiguration` 会自动注册安全集成 Bean，无需额外配置。
+当 `wow-cosec` 和 CoSec 同时在 classpath 上时，`CoSecAutoConfiguration` 会注册安全集成 Bean。查询端点还必须提供已认证的 `WebFluxQueryAuthorityResolver`；如果只有默认的 subject-only resolver，应用会在启动时失败：
+
+```kotlin
+@Bean
+fun queryAuthorityResolver(): WebFluxQueryAuthorityResolver = WebFluxQueryAuthorityResolver { principal ->
+    authenticatedAuthority(principal).map { authority ->
+        QueryAuthorityView(principal.name, authority.tenantId, null, authority.spaceIds, emptySet())
+    }
+}
+```
+
+`authenticatedAuthority` 代表应用自己的可信身份提供方。绝不能从请求 header 推导这些权限值。
 
 ## 使用方式
 

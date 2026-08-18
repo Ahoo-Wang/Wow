@@ -52,6 +52,8 @@ import me.ahoo.wow.query.validation.QueryBudgetLimit
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.math.BigDecimal
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
@@ -313,6 +315,7 @@ internal class InMemoryObservableQueryBackendFactory(
     private val subscriptions = AtomicLong()
     private val cancellations = AtomicLong()
     private val nextListHold = AtomicReference<QueryBackendClientHold?>()
+    private val heldSubscriptionLatch = AtomicReference(CountDownLatch(1))
 
     override val subscriptionCount: Long
         get() = subscriptions.get()
@@ -327,14 +330,22 @@ internal class InMemoryObservableQueryBackendFactory(
         subscriptions.set(0)
         cancellations.set(0)
         nextListHold.set(null)
+        heldSubscriptionLatch.set(CountDownLatch(1))
     }
 
     override fun holdNextList(hold: QueryBackendClientHold) {
         check(nextListHold.compareAndSet(null, hold)) { "A client hold is already armed." }
     }
 
+    override fun awaitHeldClientPublisher() {
+        check(heldSubscriptionLatch.get().await(3, TimeUnit.SECONDS)) {
+            "Held in-memory client publisher was not subscribed."
+        }
+    }
+
     fun <T : Any> listPublisher(values: List<T>): Flux<T> = Flux.defer {
         subscriptions.incrementAndGet()
+        heldSubscriptionLatch.get().countDown()
         when (nextListHold.getAndSet(null)) {
             QueryBackendClientHold.BEFORE_FIRST_RESULT -> Flux.never()
             QueryBackendClientHold.AFTER_FIRST_RESULT -> holdAfterFirst(values)

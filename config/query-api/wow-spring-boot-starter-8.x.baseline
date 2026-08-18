@@ -1,5 +1,6 @@
 me.ahoo.wow.spring.boot.starter.cosec.CoSecAutoConfiguration#class|public class me.ahoo.wow.spring.boot.starter.cosec.CoSecAutoConfiguration {
 me.ahoo.wow.spring.boot.starter.cosec.CoSecAutoConfiguration#public me.ahoo.wow.cosec.query.CoSecQueryPolicy coSecQueryPolicy();|descriptor: ()Lme/ahoo/wow/cosec/query/CoSecQueryPolicy;
+me.ahoo.wow.spring.boot.starter.cosec.CoSecAutoConfiguration#public me.ahoo.wow.cosec.query.CoSecQueryPolicy coSecQueryPolicy(me.ahoo.wow.webflux.route.query.WebFluxQueryAuthorityResolver);|descriptor: (Lme/ahoo/wow/webflux/route/query/WebFluxQueryAuthorityResolver;)Lme/ahoo/wow/cosec/query/CoSecQueryPolicy;
 me.ahoo.wow.spring.boot.starter.cosec.CoSecAutoConfiguration#public me.ahoo.wow.spring.boot.starter.cosec.CoSecAutoConfiguration();|descriptor: ()V
 me.ahoo.wow.spring.boot.starter.cosec.CoSecAutoConfiguration#public me.ahoo.wow.webflux.route.command.appender.CommandRequestHeaderAppender coSecCommandRequestHeaderAppender();|descriptor: ()Lme/ahoo/wow/webflux/route/command/appender/CommandRequestHeaderAppender;
 me.ahoo.wow.spring.boot.starter.cosec.CoSecAutoConfiguration#public me.ahoo.wow.webflux.route.command.extractor.CommandBuilderExtractor coSecCommandBuilderExtractor();|descriptor: ()Lme/ahoo/wow/webflux/route/command/extractor/CommandBuilderExtractor;

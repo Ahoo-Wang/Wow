@@ -22,6 +22,7 @@ import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.reactivestreams.Publisher
 import org.springframework.http.HttpStatus
 import org.springframework.http.server.reactive.ServerHttpResponse
@@ -40,6 +41,19 @@ import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicBoolean
 
 class StreamingJsonArrayResponseTest {
+    @Test
+    fun `fatal errors are never converted to HTTP or incomplete query errors`() {
+        val first = OutOfMemoryError("first")
+        assertThrows<OutOfMemoryError> {
+            response(Flux.error<Value>(first)).writeTo(exchange(), CONTEXT).block()
+        }.assert().isSameAs(first)
+
+        val later = OutOfMemoryError("later")
+        assertThrows<OutOfMemoryError> {
+            response(Flux.just(Value("one")).concatWith(Mono.error(later))).writeTo(exchange(), CONTEXT).block()
+        }.assert().isSameAs(later)
+    }
+
     @Test
     fun `first error should use normal HTTP error response`() {
         val exchange = exchange()

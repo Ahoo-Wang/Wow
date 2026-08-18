@@ -29,6 +29,7 @@ import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.policy.QueryPolicyContext
 import me.ahoo.wow.query.policy.QueryPolicyDeniedException
 import me.ahoo.wow.query.policy.QueryPolicyResult
+import reactor.core.Exceptions
 import reactor.core.publisher.Mono
 
 /** Reproduces legacy Snapshot ABAC matching as mandatory portable expressions. */
@@ -41,6 +42,7 @@ class AbacQueryPolicy(
         }
         return principalTags.resolve(context)
             .onErrorMap { error ->
+                Exceptions.throwIfFatal(error)
                 if (error is QueryPolicyDeniedException) error else denied("ABAC_TAGS_UNAVAILABLE")
             }
             .switchIfEmpty(Mono.error(denied("ABAC_TAGS_REQUIRED")))

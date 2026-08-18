@@ -28,6 +28,7 @@ import org.springframework.util.MultiValueMap
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.server.ServerWebExchange
+import reactor.core.Exceptions
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -51,9 +52,12 @@ internal class StreamingServerSentEventResponse(
     override fun writeTo(exchange: ServerWebExchange, context: ServerResponse.Context): Mono<Void> {
         return body.switchOnFirst { signal, flux ->
             when {
-                signal.isOnError -> exceptionHandler.handle(request, signal.throwable!!)
-                    .flatMap { response -> response.writeTo(exchange, context) }
-                    .flux()
+                signal.isOnError -> {
+                    Exceptions.throwIfFatal(signal.throwable!!)
+                    exceptionHandler.handle(request, signal.throwable!!)
+                        .flatMap { response -> response.writeTo(exchange, context) }
+                        .flux()
+                }
 
                 else -> successResponse(flux.errorResume(request, exceptionHandler))
                     .flatMap { response -> response.writeTo(exchange, context) }

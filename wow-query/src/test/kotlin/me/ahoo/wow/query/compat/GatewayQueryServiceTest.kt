@@ -35,6 +35,7 @@ import me.ahoo.wow.api.query.gateway.QueryConsistency
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.api.query.gateway.QueryPage
 import me.ahoo.wow.api.query.gateway.QueryRequest
+import me.ahoo.wow.api.query.gateway.QueryResultShape
 import me.ahoo.wow.api.query.gateway.SingleQueryRequest
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.toNamedAggregate
@@ -77,6 +78,25 @@ class GatewayQueryServiceTest {
     private val eventStream = generateEventStream(MOCK_AGGREGATE_METADATA.aggregateId("aggregate-id"), eventCount = 1)
     private val snapshotDocument = document(snapshot)
     private val eventDocument = document(eventStream)
+
+    @Test
+    fun `legacy facades expose only the public projected dynamic shape to custom gateways`() {
+        val gateway = RecordingLegacyGateway(snapshotDocument)
+        val service = GatewaySnapshotQueryService<MockStateAggregate>(MOCK_AGGREGATE_METADATA, gateway)
+
+        StepVerifier.create(
+            service.single(SingleQuery(Condition.ALL, projection))
+        ).expectNext(snapshot).verifyComplete()
+        StepVerifier.create(service.dynamicSingle(SingleQuery(Condition.ALL, projection)))
+            .expectNext(snapshotDocument)
+            .verifyComplete()
+
+        gateway.requests.assert().hasSize(2)
+        gateway.requests.forEach { request ->
+            (request as SingleQueryRequest<*>).resultShape.assert()
+                .isInstanceOf(QueryResultShape.ProjectedDynamic::class.java)
+        }
+    }
 
     @Test
     fun `facades adapt only backend canonical system time values without mutating source documents`() {

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.plan
 
+import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.error.QueryErrorCode
 import me.ahoo.wow.api.query.error.QueryErrorReason
 import me.ahoo.wow.api.query.error.QueryException
@@ -195,25 +196,34 @@ internal class DefaultQueryPlanner private constructor(
         }
         return when (val resultShape = request.resultShape) {
             QueryResultShape.Dynamic -> QueryPlanResultShape.Dynamic(allowed)
-            is QueryResultShape.Typed<*> -> {
-                val fields = when (val projection = resultShape.projection) {
-                    QueryProjection.All -> allowed
-                    is QueryProjection.Include -> {
-                        if (!allowed.containsAll(projection.fields)) {
-                            fieldAccessDenied()
-                        }
-                        LinkedHashSet(projection.fields)
-                    }
+            is QueryResultShape.ProjectedDynamic ->
+                QueryPlanResultShape.Typed(
+                    DynamicDocument::class.java,
+                    authorizeProjection(resultShape.projection, allowed),
+                )
 
-                    is QueryProjection.Exclude -> {
-                        if (!allowed.containsAll(projection.fields)) {
-                            fieldAccessDenied()
-                        }
-                        allowed.filterTo(LinkedHashSet()) { it !in projection.fields }
-                    }
-                }
-                QueryPlanResultShape.Typed(resultShape.resultType, fields)
+            is QueryResultShape.Typed<*> ->
+                QueryPlanResultShape.Typed(resultShape.resultType, authorizeProjection(resultShape.projection, allowed))
+        }
+    }
+
+    private fun authorizeProjection(
+        projection: QueryProjection,
+        allowed: LinkedHashSet<LogicalField>
+    ): Set<LogicalField> = when (projection) {
+        QueryProjection.All -> allowed
+        is QueryProjection.Include -> {
+            if (!allowed.containsAll(projection.fields)) {
+                fieldAccessDenied()
             }
+            LinkedHashSet(projection.fields)
+        }
+
+        is QueryProjection.Exclude -> {
+            if (!allowed.containsAll(projection.fields)) {
+                fieldAccessDenied()
+            }
+            allowed.filterTo(LinkedHashSet()) { it !in projection.fields }
         }
     }
 

@@ -43,11 +43,13 @@ import me.ahoo.wow.query.invocation.QueryInvocationScope
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.policy.QueryPolicyDeniedException
 import me.ahoo.wow.query.policy.QueryPolicyResult
+import me.ahoo.wow.query.result.ResultPolicy
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QuerySchemaResolver
 import me.ahoo.wow.query.schema.QuerySchemaView
 import me.ahoo.wow.query.validation.QueryBudgetLimit
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
@@ -61,6 +63,43 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 class DefaultQueryGatewayTest {
+    @Test
+    fun `fatal errors remain fatal at every gateway extension boundary`() {
+        val failures = listOf(
+            QueryGatewayFactory.create(
+                gatewayConfiguration(
+                    RecordingQueryBackend(
+                        gatewayDescriptor(),
+                        Mono.error(OutOfMemoryError("readiness")),
+                    ),
+                ),
+            ).count(countRequest()),
+            QueryGatewayFactory.create(
+                gatewayConfiguration(
+                    RecordingQueryBackend(gatewayDescriptor()),
+                    customPolicies = listOf(QueryPolicy { Mono.error(OutOfMemoryError("policy")) }),
+                ),
+            ).count(countRequest()),
+            QueryGatewayFactory.create(
+                gatewayConfiguration(
+                    RecordingQueryBackend(gatewayDescriptor()).respondCount(
+                        Mono.error(OutOfMemoryError("execution")),
+                    ),
+                ),
+            ).count(countRequest()),
+            QueryGatewayFactory.create(
+                gatewayConfiguration(
+                    RecordingQueryBackend(gatewayDescriptor()).respondCount(Mono.just(1)),
+                    resultPolicies = listOf(ResultPolicy { _, _ -> Mono.error(OutOfMemoryError("result")) }),
+                ),
+            ).count(countRequest()),
+        )
+
+        failures.forEach { failure ->
+            assertThrows<OutOfMemoryError> { failure.block() }
+        }
+    }
+
     @Test
     fun `legacy snapshot scope leaves system policy as the only direct deletion predicate producer`() {
         val backend = RecordingQueryBackend(gatewayDescriptor()).respondCount(Mono.just(1))

@@ -58,7 +58,11 @@ class QueryRequestValidator(
         sort: List<me.ahoo.wow.api.query.gateway.QuerySort>,
         schema: QuerySchemaView
     ) {
-        val projection = (resultShape as? QueryResultShape.Typed<*>)?.projection
+        val projection = when (resultShape) {
+            QueryResultShape.Dynamic -> null
+            is QueryResultShape.ProjectedDynamic -> resultShape.projection
+            is QueryResultShape.Typed<*> -> resultShape.projection
+        }
         val projectionFields = when (projection) {
             is QueryProjection.Include -> projection.fields
             is QueryProjection.Exclude -> projection.fields

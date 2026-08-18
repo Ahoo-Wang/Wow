@@ -25,6 +25,7 @@ import me.ahoo.wow.api.query.error.QueryErrorReason
 import me.ahoo.wow.api.query.error.QueryException
 import me.ahoo.wow.api.query.error.QueryStage
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
+import reactor.core.Exceptions
 import reactor.core.publisher.Mono
 
 internal data class ElasticsearchSearchResult(
@@ -115,7 +116,10 @@ internal class ReactiveClientElasticsearchQueryTransport(
         if (response.succeeded()) Mono.empty<Void>() else Mono.error(backendFailure())
     }.onErrorMap(::sanitize)
 
-    private fun sanitize(error: Throwable): Throwable = if (error is QueryException) error else backendFailure()
+    private fun sanitize(error: Throwable): Throwable {
+        Exceptions.throwIfFatal(error)
+        return if (error is QueryException) error else backendFailure()
+    }
 
     private fun backendFailure() = QueryException(
         QueryErrorCode.BACKEND_FAILURE,

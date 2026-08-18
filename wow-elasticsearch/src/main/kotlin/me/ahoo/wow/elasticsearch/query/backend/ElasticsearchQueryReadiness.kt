@@ -24,6 +24,7 @@ import me.ahoo.wow.query.backend.QueryBackendReadinessReason
 import me.ahoo.wow.query.schema.QueryCollectionKind
 import me.ahoo.wow.query.schema.QueryFieldValueKind
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
+import reactor.core.Exceptions
 import reactor.core.publisher.Mono
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicReference
@@ -120,7 +121,8 @@ internal class ElasticsearchQueryReadiness(
                         }
                     }
             }
-            .onErrorResume {
+            .onErrorResume { error ->
+                Exceptions.throwIfFatal(error)
                 mappingSnapshot.set(null)
                 Mono.just(
                     QueryBackendReadiness.NotReady(QueryBackendReadinessReason.DEPENDENCY_UNAVAILABLE),

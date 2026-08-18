@@ -49,6 +49,8 @@ import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
@@ -230,6 +232,7 @@ internal class MongoObservableQueryBackendFactory(
     private val cancellations = AtomicLong()
     private val upstreamCancelReturned = AtomicLong()
     private val postCancellationSignals = AtomicLong()
+    private val heldSubscriptionLatch = AtomicReference(CountDownLatch(1))
     private val delegate = MongoQueryBackendFactory(database, maxBudget = maxBudget)
     private val routeReadinessVerified = AtomicBoolean()
 
@@ -267,10 +270,17 @@ internal class MongoObservableQueryBackendFactory(
         cancellations.set(0)
         upstreamCancelReturned.set(0)
         postCancellationSignals.set(0)
+        heldSubscriptionLatch.set(CountDownLatch(1))
     }
 
     override fun holdNextList(hold: QueryBackendClientHold) {
         check(nextHold.compareAndSet(null, hold)) { "A Mongo client publisher hold is already armed." }
+    }
+
+    override fun awaitHeldClientPublisher() {
+        check(heldSubscriptionLatch.get().await(3, TimeUnit.SECONDS)) {
+            "Held Mongo client publisher was not subscribed."
+        }
     }
 
     override fun <T : Any> observe(publisher: Publisher<T>): Publisher<T> {
@@ -282,6 +292,7 @@ internal class MongoObservableQueryBackendFactory(
             cancellations,
             upstreamCancelReturned,
             postCancellationSignals,
+            heldSubscriptionLatch,
             beforeUpstreamCancel,
         )
     }
@@ -300,6 +311,7 @@ private class HoldingMongoPublisher<T : Any>(
     private val cancellations: AtomicLong,
     private val upstreamCancelReturned: AtomicLong,
     private val postCancellationSignals: AtomicLong,
+    private val heldSubscriptionLatch: AtomicReference<CountDownLatch>,
     private val beforeUpstreamCancel: () -> Unit
 ) : Publisher<T> {
     override fun subscribe(subscriber: Subscriber<in T>) {
@@ -310,6 +322,7 @@ private class HoldingMongoPublisher<T : Any>(
             cancellations,
             upstreamCancelReturned,
             postCancellationSignals,
+            heldSubscriptionLatch,
             beforeUpstreamCancel
         )
         subscriber.onSubscribe(bridge)
@@ -324,6 +337,7 @@ private class HoldingMongoSubscriber<T : Any>(
     private val cancellations: AtomicLong,
     private val upstreamCancelReturned: AtomicLong,
     private val postCancellationSignals: AtomicLong,
+    private val heldSubscriptionLatch: AtomicReference<CountDownLatch>,
     private val beforeUpstreamCancel: () -> Unit
 ) : Subscriber<T>, Subscription {
     private val upstream = AtomicReference<Subscription?>()
@@ -360,6 +374,7 @@ private class HoldingMongoSubscriber<T : Any>(
             return
         }
         subscriptions.incrementAndGet()
+        heldSubscriptionLatch.get().countDown()
         when {
             cancelled.get() -> cancelUpstream(subscription)
             hold == QueryBackendClientHold.AFTER_FIRST_RESULT && requested.get() -> subscription.request(1)

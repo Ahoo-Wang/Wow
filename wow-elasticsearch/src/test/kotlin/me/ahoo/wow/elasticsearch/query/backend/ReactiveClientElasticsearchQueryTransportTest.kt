@@ -27,11 +27,23 @@ import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.error.QueryException
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
 
 class ReactiveClientElasticsearchQueryTransportTest {
+    @Test
+    fun `fatal client errors remain fatal`() {
+        val fatal = OutOfMemoryError("fatal")
+        val client = mockk<ReactiveElasticsearchClient>()
+        every { client.openPointInTime(any<OpenPointInTimeRequest>()) } returns Mono.error(fatal)
+
+        assertThrows<OutOfMemoryError> {
+            ReactiveClientElasticsearchQueryTransport(client).open("index").block()
+        }.assert().isSameAs(fatal)
+    }
+
     @Test
     fun `same response validation failures close its rotated pit id`() {
         listOf(::timedOut, ::shardFailed, ::malformedSource).forEach { invalidResponse ->

@@ -33,6 +33,7 @@ import me.ahoo.wow.query.compat.legacySingleRequest
 import me.ahoo.wow.query.compat.legacyTypedListRequest
 import me.ahoo.wow.query.compat.legacyTypedPageRequest
 import me.ahoo.wow.query.compat.legacyTypedSingleRequest
+import me.ahoo.wow.query.compat.markLegacyTypedResult
 import me.ahoo.wow.query.compat.materializeLegacyEvent
 import me.ahoo.wow.query.compat.materializeLegacyList
 import reactor.core.publisher.Flux
@@ -45,7 +46,9 @@ class GatewayEventStreamQueryService(
     private val target = QueryTarget(namedAggregate, QueryDocumentKind.EVENT_STREAM)
 
     override fun single(singleQuery: ISingleQuery): Mono<DomainEventStream> = Mono.defer {
-        queryGateway.single(legacyTypedSingleRequest(target, singleQuery)).map(::materializeLegacyEvent)
+        queryGateway.single(legacyTypedSingleRequest(target, singleQuery))
+            .markLegacyTypedResult()
+            .map(::materializeLegacyEvent)
     }
 
     override fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument> = Mono.defer {
@@ -53,7 +56,10 @@ class GatewayEventStreamQueryService(
     }
 
     override fun list(listQuery: IListQuery): Flux<DomainEventStream> = Flux.defer {
-        materializeLegacyList(queryGateway.list(legacyTypedListRequest(target, listQuery)), ::materializeLegacyEvent)
+        materializeLegacyList(
+            queryGateway.list(legacyTypedListRequest(target, listQuery)).markLegacyTypedResult(),
+            ::materializeLegacyEvent,
+        )
     }
 
     override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> = Flux.defer {
@@ -64,7 +70,7 @@ class GatewayEventStreamQueryService(
     }
 
     override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<DomainEventStream>> = Mono.defer {
-        queryGateway.page(legacyTypedPageRequest(target, pagedQuery)).map { page ->
+        queryGateway.page(legacyTypedPageRequest(target, pagedQuery)).markLegacyTypedResult().map { page ->
             PagedList(page.total, page.items.map(::materializeLegacyEvent))
         }
     }

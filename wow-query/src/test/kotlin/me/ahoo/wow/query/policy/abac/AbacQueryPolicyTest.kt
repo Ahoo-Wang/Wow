@@ -209,6 +209,14 @@ class AbacQueryPolicyTest {
     }
 
     @Test
+    fun `fatal principal resolver errors remain fatal`() {
+        val fatal = OutOfMemoryError("fatal")
+        val policy = AbacQueryPolicy(PrincipalTagResolver(setOf("dept")) { Mono.error(fatal) })
+
+        assertThrows<OutOfMemoryError> { policy.evaluate(context()).block() }.assert().isSameAs(fatal)
+    }
+
+    @Test
     fun `fail closed policy stops gateway before backend resolution`() {
         val backend = RecordingQueryBackend(gatewayDescriptor())
         val policy = AbacQueryPolicy(PrincipalTagResolver(setOf("dept")) { Mono.empty() })

@@ -30,7 +30,6 @@ import me.ahoo.wow.api.query.gateway.SingleQueryRequest
 import me.ahoo.wow.query.backend.QueryBackendResolutionContext
 import me.ahoo.wow.query.backend.QueryBackendResolver
 import me.ahoo.wow.query.backend.ResolvedQueryBackend
-import me.ahoo.wow.query.compat.isLegacyTypedDynamicDocumentMarker
 import me.ahoo.wow.query.compat.legacyQueryExecution
 import me.ahoo.wow.query.compat.withExpression
 import me.ahoo.wow.query.expression.InvocationExpressionNormalizer
@@ -54,6 +53,7 @@ import me.ahoo.wow.query.schema.QuerySchemaResolver
 import me.ahoo.wow.query.validation.QueryRequestValidator
 import me.ahoo.wow.query.validation.QueryStructureLimits
 import me.ahoo.wow.query.validation.requestedCapabilities
+import reactor.core.Exceptions
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.util.concurrent.atomic.AtomicBoolean
@@ -137,6 +137,7 @@ internal class DefaultQueryGateway private constructor(
             .concatMap({ value -> applyResultPolicy(prepared, value) }, 1)
             .doOnNext { emitted.set(true) }
             .onErrorMap { error ->
+                Exceptions.throwIfFatal(error)
                 if (emitted.get() && !error.isIncomplete()) incompleteResult(error) else error
             }
     }
@@ -350,8 +351,7 @@ internal class DefaultQueryGateway private constructor(
 
     private fun validateResult(shape: QueryPlanResultShape, value: Any) {
         val valid = when (shape) {
-            is QueryPlanResultShape.Typed -> shape.resultType.isInstance(value) ||
-                (shape.resultType.isLegacyTypedDynamicDocumentMarker() && value is DynamicDocument)
+            is QueryPlanResultShape.Typed -> shape.resultType.isInstance(value)
             is QueryPlanResultShape.Dynamic -> value is DynamicDocument
             QueryPlanResultShape.Count -> value is Long && value >= 0
         }
@@ -360,14 +360,18 @@ internal class DefaultQueryGateway private constructor(
         }
     }
 
-    private fun mapPreparationError(error: Throwable, stage: QueryStage): Throwable = when (error) {
-        is QueryException -> error
-        is QueryDeadlineExceededException -> deadlineExceeded(error.stage)
+    private fun mapPreparationError(error: Throwable, stage: QueryStage): Throwable = when (
+        val nonFatal = error.also(Exceptions::throwIfFatal)
+    ) {
+        is QueryException -> nonFatal
+        is QueryDeadlineExceededException -> deadlineExceeded(nonFatal.stage)
         else -> QueryException(QueryErrorCode.INVALID_QUERY, stage, QueryErrorReason.INVALID_REQUEST)
     }
 
-    private fun mapAdmissionError(error: Throwable): Throwable = when (error) {
-        is QueryException -> error
+    private fun mapAdmissionError(error: Throwable): Throwable = when (
+        val nonFatal = error.also(Exceptions::throwIfFatal)
+    ) {
+        is QueryException -> nonFatal
         else -> QueryException(
             QueryErrorCode.POLICY_FAILURE,
             QueryStage.ADMISSION,
@@ -375,21 +379,27 @@ internal class DefaultQueryGateway private constructor(
         )
     }
 
-    private fun mapPlanningError(error: Throwable): Throwable = when (error) {
-        is QueryException -> error
-        is QueryDeadlineExceededException -> deadlineExceeded(error.stage)
+    private fun mapPlanningError(error: Throwable): Throwable = when (
+        val nonFatal = error.also(Exceptions::throwIfFatal)
+    ) {
+        is QueryException -> nonFatal
+        is QueryDeadlineExceededException -> deadlineExceeded(nonFatal.stage)
         else -> QueryException(QueryErrorCode.INVALID_QUERY, QueryStage.PLANNING, QueryErrorReason.INVALID_REQUEST)
     }
 
-    private fun mapBackendResolutionError(error: Throwable): Throwable = when (error) {
-        is QueryException -> error
-        is QueryDeadlineExceededException -> deadlineExceeded(error.stage)
+    private fun mapBackendResolutionError(error: Throwable): Throwable = when (
+        val nonFatal = error.also(Exceptions::throwIfFatal)
+    ) {
+        is QueryException -> nonFatal
+        is QueryDeadlineExceededException -> deadlineExceeded(nonFatal.stage)
         else -> backendNotReady()
     }
 
-    private fun mapExecutionError(error: Throwable): Throwable = when (error) {
-        is QueryException -> error
-        is QueryDeadlineExceededException -> deadlineExceeded(error.stage)
+    private fun mapExecutionError(error: Throwable): Throwable = when (
+        val nonFatal = error.also(Exceptions::throwIfFatal)
+    ) {
+        is QueryException -> nonFatal
+        is QueryDeadlineExceededException -> deadlineExceeded(nonFatal.stage)
         else -> QueryException(
             QueryErrorCode.BACKEND_FAILURE,
             QueryStage.EXECUTION,
@@ -397,9 +407,11 @@ internal class DefaultQueryGateway private constructor(
         )
     }
 
-    private fun mapResultPolicyError(error: Throwable): Throwable = when (error) {
-        is QueryException -> error
-        is QueryDeadlineExceededException -> deadlineExceeded(error.stage)
+    private fun mapResultPolicyError(error: Throwable): Throwable = when (
+        val nonFatal = error.also(Exceptions::throwIfFatal)
+    ) {
+        is QueryException -> nonFatal
+        is QueryDeadlineExceededException -> deadlineExceeded(nonFatal.stage)
         else -> resultInvalid()
     }
 

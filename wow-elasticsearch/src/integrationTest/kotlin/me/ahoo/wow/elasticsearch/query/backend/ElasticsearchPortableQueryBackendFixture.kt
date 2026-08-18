@@ -363,6 +363,8 @@ internal class ElasticsearchObservableQueryBackendFactory(
         }
     }
 
+    override fun awaitHeldClientPublisher() = awaitHeldSearchRequest()
+
     fun awaitHeldSearchRequest() {
         check(probe(ElasticsearchQueryOperation.SEARCH).awaitHeldRequest()) {
             "Held Elasticsearch SEARCH was not subscribed and requested."

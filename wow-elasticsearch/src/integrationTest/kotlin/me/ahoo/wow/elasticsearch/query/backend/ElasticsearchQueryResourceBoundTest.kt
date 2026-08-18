@@ -333,6 +333,8 @@ private class ElasticsearchResourceBackendFactory(
         error("Resource-bound fixture does not emulate client holds: $hold")
     }
 
+    override fun awaitHeldClientPublisher() = awaitHeldSecondSearch()
+
     override fun decorateSearch(request: SearchRequest): SearchRequest {
         val ordinal = decoratedSearches.incrementAndGet()
         val decorated = if (ordinal == 2 && heldSearchToken.get() != null) {

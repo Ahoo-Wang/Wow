@@ -153,6 +153,7 @@ ln -s "config/query-api/modules.tsv" "$DEFAULT_POLICY_ROOT/modules-alias.tsv"
 expect_default_manifest_alias_failure() {
     local scenario="$1"
     local manifest_alias="$2"
+    # shellcheck disable=SC2016 # Expand positional parameters only inside the child shell.
     expect_failure "$scenario" 'Missing expected manifest module: required' bash -c '
         cd "$1"
         bash scripts/query-api-abi.sh check \

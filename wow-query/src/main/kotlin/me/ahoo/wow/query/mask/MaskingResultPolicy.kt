@@ -16,7 +16,7 @@ package me.ahoo.wow.query.mask
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.gateway.QueryDocumentKind
-import me.ahoo.wow.query.compat.isLegacyTypedDynamicDocumentMarker
+import me.ahoo.wow.query.compat.isLegacyTypedResult
 import me.ahoo.wow.query.compat.legacySnapshotType
 import me.ahoo.wow.query.compat.materializeLegacySnapshot
 import me.ahoo.wow.query.plan.QueryPlanResultShape
@@ -30,16 +30,16 @@ class MaskingResultPolicy(
     private val stateMaskers: StateDataMaskerRegistry,
     private val eventStreamMaskers: EventStreamMaskerRegistry
 ) : ResultPolicy {
-    override fun apply(context: ResultPolicyContext, value: Any): Mono<Any> = Mono.defer {
-        Mono.just(mask(context, value))
+    override fun apply(context: ResultPolicyContext, value: Any): Mono<Any> = Mono.deferContextual { reactor ->
+        Mono.just(mask(context, value, reactor.isLegacyTypedResult()))
     }
 
-    private fun mask(context: ResultPolicyContext, value: Any): Any {
+    private fun mask(context: ResultPolicyContext, value: Any, legacyTypedResult: Boolean): Any {
         if (context.resultShape == QueryPlanResultShape.Count) {
             return value
         }
         if (value is DynamicDocument) {
-            if (context.resultShape.isLegacyTypedDynamic()) {
+            if (legacyTypedResult) {
                 return when (context.target.documentKind) {
                     QueryDocumentKind.SNAPSHOT -> value.maskLegacyTypedSnapshot(context)
                     QueryDocumentKind.EVENT_STREAM -> value
@@ -54,9 +54,6 @@ class MaskingResultPolicy(
         }
         return value
     }
-
-    private fun QueryPlanResultShape.isLegacyTypedDynamic(): Boolean =
-        this is QueryPlanResultShape.Typed && resultType.isLegacyTypedDynamicDocumentMarker()
 
     private fun DynamicDocument.maskLegacyTypedSnapshot(context: ResultPolicyContext): DynamicDocument {
         val snapshotType = lazyOf(legacySnapshotType<Any>(context.target.namedAggregate))

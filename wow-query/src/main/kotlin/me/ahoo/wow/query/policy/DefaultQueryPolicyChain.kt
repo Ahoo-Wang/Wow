@@ -31,6 +31,7 @@ import me.ahoo.wow.query.invocation.QueryInvocation
 import me.ahoo.wow.query.validation.QueryBudgetLimit
 import me.ahoo.wow.query.validation.QueryExpressionValidator
 import me.ahoo.wow.query.validation.requestedCapabilities
+import reactor.core.Exceptions
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.time.Instant
@@ -181,6 +182,8 @@ internal class DefaultQueryPolicyChain(
             is CountQueryRequest -> QueryPolicyResultShape.Count
             is ResultQueryRequest<*> -> when (val resultShape = request.resultShape) {
                 QueryResultShape.Dynamic -> QueryPolicyResultShape.Dynamic
+                is QueryResultShape.ProjectedDynamic ->
+                    QueryPolicyResultShape.ProjectedDynamic(resultShape.projection)
                 is QueryResultShape.Typed<*> -> QueryPolicyResultShape.Typed(
                     resultShape.resultType,
                     resultShape.projection
@@ -194,7 +197,9 @@ internal class DefaultQueryPolicyChain(
         zoneId = invocation.zoneId
     )
 
-    private fun mapPolicyError(error: Throwable): Throwable = when (error) {
+    private fun mapPolicyError(error: Throwable): Throwable = when (
+        val nonFatal = error.also(Exceptions::throwIfFatal)
+    ) {
         is QueryPolicyDeniedException -> QueryException(
             QueryErrorCode.POLICY_DENIED,
             QueryStage.POLICY,
@@ -209,7 +214,7 @@ internal class DefaultQueryPolicyChain(
 
         is QueryDeadlineExceededException -> QueryException(
             QueryErrorCode.DEADLINE_EXCEEDED,
-            error.stage,
+            nonFatal.stage,
             QueryErrorReason.DEADLINE_REACHED
         )
 

@@ -17,6 +17,7 @@ import me.ahoo.wow.api.query.error.QueryErrorCode
 import me.ahoo.wow.api.query.error.QueryErrorReason
 import me.ahoo.wow.api.query.error.QueryException
 import me.ahoo.wow.api.query.error.QueryStage
+import reactor.core.Exceptions
 import reactor.core.publisher.Mono
 import java.util.Collections
 
@@ -33,6 +34,7 @@ internal class DefaultResultPolicyChain(policies: List<ResultPolicy>) {
                 }
         }
     }.onErrorMap { error ->
+        Exceptions.throwIfFatal(error)
         if (error is QueryException && error.code == QueryErrorCode.RESULT_VALIDATION_FAILED) {
             error
         } else {

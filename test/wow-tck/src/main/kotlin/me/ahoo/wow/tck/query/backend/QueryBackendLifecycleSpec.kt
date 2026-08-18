@@ -48,6 +48,8 @@ interface QueryBackendClientLifecycleProbe {
     fun reset()
 
     fun holdNextList(hold: QueryBackendClientHold)
+
+    fun awaitHeldClientPublisher()
 }
 
 /**
@@ -174,15 +176,17 @@ abstract class QueryBackendLifecycleSpec protected constructor(
             target = testKit.target,
             expression = vector.expression,
             resultShape = QueryResultShape.Dynamic,
-            budget = QueryBudgetHint(timeout = Duration.ofMillis(50)),
+            budget = QueryBudgetHint(timeout = Duration.ofSeconds(5)),
             limit = 0
         )
 
         StepVerifier.create(withDataset(testKit.gateway.list(request)))
+            .expectSubscription()
+            .then(observableFactory::awaitHeldClientPublisher)
             .expectErrorSatisfies { error ->
                 (error as QueryException).code.assert().isEqualTo(QueryErrorCode.DEADLINE_EXCEEDED)
             }
-            .verify(Duration.ofSeconds(2))
+            .verify(Duration.ofSeconds(8))
 
         assertSame(observableFactory, testKit.backendFactory)
         observableFactory.subscriptionCount.assert().isOne()
