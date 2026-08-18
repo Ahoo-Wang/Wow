@@ -152,6 +152,19 @@ describe('QueryClientGenerator', () => {
     expect(mockSourceFile.addTypeAlias).toHaveBeenCalled();
   });
 
+  it('should use never when the aggregate has no domain events', () => {
+    const context = createContext(mockLogger);
+    const generator = new QueryClientGenerator(context);
+    const aggregates = Array.from(mockContextAggregates.values())[0];
+    const aggregate = Array.from(aggregates)[1];
+
+    generator.processQueryClient(aggregate);
+
+    expect(mockSourceFile.addTypeAlias).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'never' }),
+    );
+  });
+
   it('should create client file path correctly', async () => {
     const context = createContext(mockLogger);
     const generator = new QueryClientGenerator(context);

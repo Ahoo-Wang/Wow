@@ -192,7 +192,8 @@ export class QueryClientGenerator implements Generator {
       aggregate.aggregate,
       this.domainEventTypeSuffix,
     );
-    const eventTypeUnion = eventModelInfos.map(it => it.name).join(' | ');
+    const eventTypeUnion =
+      eventModelInfos.map(it => it.name).join(' | ') || 'never';
     this.context.logger.info(
       `Creating domain event types union: ${aggregateDomainEventType} = ${eventTypeUnion}`,
     );
