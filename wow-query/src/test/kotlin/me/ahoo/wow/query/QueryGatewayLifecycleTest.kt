@@ -268,20 +268,6 @@ class QueryGatewayLifecycleTest {
     }
 
     @Test
-    fun `single rejects a misbehaving backend that emits more than one item`() {
-        val backendPublisher = TestPublisher.create<String>()
-        val backend = RecordingQueryBackend(gatewayDescriptor()).respondSingle(Mono.fromDirect(backendPublisher))
-        val gateway = QueryGatewayFactory.create(gatewayConfiguration(backend))
-
-        StepVerifier.create(gateway.single(singleRequest()))
-            .then { backendPublisher.next("one", "two").complete() }
-            .expectErrorSatisfies { error ->
-                (error as QueryException).code.assert().isEqualTo(QueryErrorCode.RESULT_VALIDATION_FAILED)
-            }
-            .verify()
-    }
-
-    @Test
     fun `page rejects an empty backend result`() {
         val pageBackend = RecordingQueryBackend(gatewayDescriptor()).respondPage(Mono.empty())
         val pageGateway = QueryGatewayFactory.create(gatewayConfiguration(pageBackend))

@@ -43,9 +43,26 @@ import org.bson.Document
 class MongoQueryBackendFactory @JvmOverloads constructor(
     private val database: MongoDatabase,
     private val nativeTemplates: MongoNativeQueryTemplateRegistry = MongoNativeQueryTemplateRegistry(),
-    private val maxBudget: QueryBudgetLimit = QueryBudgetLimit.UNBOUNDED
+    private val maxBudget: QueryBudgetLimit = QueryBudgetLimit.UNBOUNDED,
 ) : QueryBackendFactory {
-    override fun bind(context: QueryBackendResolutionContext): QueryBackend {
+    private val binder = MongoQueryBackendBinder(database, nativeTemplates, maxBudget)
+
+    override fun bind(context: QueryBackendResolutionContext): QueryBackend = binder.bind(context)
+
+    companion object {
+        const val BACKEND_ID: String = "mongo"
+        const val FULL_TEXT_CAPABILITY: String = "full-text"
+        const val NATIVE_CAPABILITY: String = "x-wow:mongo-native"
+    }
+}
+
+internal class MongoQueryBackendBinder(
+    private val database: MongoDatabase,
+    private val nativeTemplates: MongoNativeQueryTemplateRegistry,
+    private val maxBudget: QueryBudgetLimit,
+    private val publisherObserver: MongoQueryPublisherObserver = MongoQueryPublisherObserver.NONE,
+) {
+    fun bind(context: QueryBackendResolutionContext): QueryBackend {
         val collectionName = when (context.target.documentKind) {
             QueryDocumentKind.SNAPSHOT -> context.target.namedAggregate.toSnapshotCollectionName()
             QueryDocumentKind.EVENT_STREAM -> context.target.namedAggregate.toEventStreamCollectionName()
@@ -65,7 +82,7 @@ class MongoQueryBackendFactory @JvmOverloads constructor(
             collectionName = collectionName,
             binding = binding,
             nativeTemplates = nativeTemplates,
-            publisherObserver = MongoQueryPublisherObservers.observer(database),
+            publisherObserver = publisherObserver,
             descriptor = mongoQueryBackendDescriptor(maxBudget),
             readinessRequirements = requirements
         )
@@ -83,14 +100,17 @@ class MongoQueryBackendFactory @JvmOverloads constructor(
         fun inspect(current: QueryExpression, relativeTo: LogicalField? = null, fullTextAllowed: Boolean = true) {
             when (current) {
                 is FullTextExpression -> {
-                    if (!fullTextAllowed || current.capabilityId.value != FULL_TEXT_CAPABILITY ||
+                    if (!fullTextAllowed ||
+                        current.capabilityId.value != MongoQueryBackendFactory.FULL_TEXT_CAPABILITY ||
                         ++fullTextCount > 1 || current.fields.any { field -> !binding.contains(resolve(relativeTo, field)) }
                     ) {
                         unsupportedCapability()
                     }
                     current.fields.mapTo(textFields) { field ->
                         val logical = resolve(relativeTo, field)
-                        if (QueryCapabilityId(FULL_TEXT_CAPABILITY) !in binding.schema(logical).capabilities) {
+                        if (QueryCapabilityId(MongoQueryBackendFactory.FULL_TEXT_CAPABILITY) !in
+                            binding.schema(logical).capabilities
+                        ) {
                             unsupportedCapability()
                         }
                         binding.physical(logical, QueryFieldUsage.SEARCH)
@@ -98,10 +118,10 @@ class MongoQueryBackendFactory @JvmOverloads constructor(
                 }
 
                 is NativeExpression -> {
-                    if (current.capabilityId.value != NATIVE_CAPABILITY) {
+                    if (current.capabilityId.value != MongoQueryBackendFactory.NATIVE_CAPABILITY) {
                         unsupportedCapability()
                     }
-                    if (current.backendId != BACKEND_ID) {
+                    if (current.backendId != MongoQueryBackendFactory.BACKEND_ID) {
                         unsupportedCapability()
                     }
                     if (current.declaredFields.any { !binding.contains(it) }) {
@@ -115,7 +135,7 @@ class MongoQueryBackendFactory @JvmOverloads constructor(
                 is PredicateExpression -> {
                     val stringOptions = binding.schema(resolve(relativeTo, current.field)).stringOptions
                     if (current.stringComparison == StringComparisonMode.DEFAULT &&
-                        current.operator in STRING_MATCH_OPERATORS &&
+                        supportsStringComparison(current.operator) &&
                         (stringOptions == null || stringOptions.collation != null)
                     ) {
                         routeConfigurationValid = false
@@ -146,20 +166,17 @@ class MongoQueryBackendFactory @JvmOverloads constructor(
     private fun resolve(relativeTo: LogicalField?, field: LogicalField): LogicalField =
         if (relativeTo == null) field else LogicalField("${relativeTo.value}.${field.value}")
 
+    private fun supportsStringComparison(operator: PortableOperator): Boolean = when (operator) {
+        PortableOperator.CONTAINS,
+        PortableOperator.STARTS_WITH,
+        PortableOperator.ENDS_WITH,
+        -> true
+        else -> false
+    }
+
     private fun unsupportedCapability(): Nothing = throw QueryException(
         QueryErrorCode.UNSUPPORTED_CAPABILITY,
         QueryStage.PLANNING,
         QueryErrorReason.CAPABILITY_DENIED
     )
-
-    companion object {
-        const val BACKEND_ID: String = "mongo"
-        const val FULL_TEXT_CAPABILITY: String = "full-text"
-        const val NATIVE_CAPABILITY: String = "x-wow:mongo-native"
-        private val STRING_MATCH_OPERATORS = setOf(
-            PortableOperator.CONTAINS,
-            PortableOperator.STARTS_WITH,
-            PortableOperator.ENDS_WITH
-        )
-    }
 }

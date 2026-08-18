@@ -15,10 +15,7 @@
 
 package me.ahoo.wow.mongo.query.backend
 
-import com.mongodb.reactivestreams.client.MongoDatabase
 import org.reactivestreams.Publisher
-import java.lang.ref.WeakReference
-import java.util.WeakHashMap
 
 internal interface MongoQueryPublisherObserver {
     fun <T : Any> observe(publisher: Publisher<T>): Publisher<T>
@@ -27,18 +24,5 @@ internal interface MongoQueryPublisherObserver {
         val NONE: MongoQueryPublisherObserver = object : MongoQueryPublisherObserver {
             override fun <T : Any> observe(publisher: Publisher<T>): Publisher<T> = publisher
         }
-    }
-}
-
-internal object MongoQueryPublisherObservers {
-    private val observers = WeakHashMap<MongoDatabase, WeakReference<MongoQueryPublisherObserver>>()
-
-    fun install(database: MongoDatabase, observer: MongoQueryPublisherObserver) = synchronized(observers) {
-        require(observers[database]?.get() == null) { "A Mongo query publisher observer is already installed." }
-        observers[database] = WeakReference(observer)
-    }
-
-    fun observer(database: MongoDatabase): MongoQueryPublisherObserver = synchronized(observers) {
-        observers[database]?.get() ?: MongoQueryPublisherObserver.NONE
     }
 }

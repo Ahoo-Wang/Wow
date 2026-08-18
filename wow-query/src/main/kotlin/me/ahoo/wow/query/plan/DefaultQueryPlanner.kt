@@ -48,7 +48,6 @@ import me.ahoo.wow.query.backend.QueryPortableFeature
 import me.ahoo.wow.query.backend.ResolvedQueryBackend
 import me.ahoo.wow.query.invocation.QueryDeadline
 import me.ahoo.wow.query.invocation.QueryDeadlineExceededException
-import me.ahoo.wow.query.invocation.QueryDeadlineGuard
 import me.ahoo.wow.query.invocation.QueryInvocation
 import me.ahoo.wow.query.invocation.QueryProvenance
 import me.ahoo.wow.query.policy.CapabilityDecision
@@ -282,7 +281,6 @@ internal class DefaultQueryPlanner private constructor(
             sort = stableSort,
             effectiveDeadline = effectiveDeadline,
             effectiveBudget = effectiveBudget,
-            deadlineGuard = invocation.deadlineGuard,
             correlationId = invocation.scope.correlationId,
             routeIdentity = routeIdentity
         )
@@ -410,8 +408,6 @@ internal class DefaultQueryPlanner private constructor(
         sort: List<QuerySort>,
         val effectiveDeadline: Instant?,
         val effectiveBudget: QueryBudgetLimit,
-        @Suppress("unused")
-        val deadlineGuard: QueryDeadlineGuard,
         val correlationId: String,
         val routeIdentity: QueryBackendRouteIdentity
     ) {

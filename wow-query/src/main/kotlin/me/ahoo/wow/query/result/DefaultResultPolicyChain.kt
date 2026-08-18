@@ -28,10 +28,7 @@ internal class DefaultResultPolicyChain(policies: List<ResultPolicy>) {
         result.flatMap { current ->
             Mono.defer { policy.apply(context, current) }
                 .flux()
-                .collectList()
-                .flatMap { values ->
-                    if (values.size == 1) Mono.just(values.single()) else Mono.error(resultInvalid())
-                }
+                .single()
         }
     }.onErrorMap { error ->
         Exceptions.throwIfFatal(error)

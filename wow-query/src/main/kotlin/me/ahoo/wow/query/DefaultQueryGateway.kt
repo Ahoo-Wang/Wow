@@ -337,17 +337,23 @@ internal class DefaultQueryGateway private constructor(
         }
     }
 
-    private fun <T : Any> atomic(publisher: Mono<T>): Mono<T> = publisher.flux().collectList().flatMap { values ->
-        if (values.size == 1) Mono.just(values.single()) else Mono.error(resultInvalid())
-    }
-
-    private fun <T : Any> zeroOrOne(publisher: Mono<T>): Mono<T> = publisher.flux().collectList().flatMap { values ->
-        when (values.size) {
-            0 -> Mono.empty()
-            1 -> Mono.just(values.single())
-            else -> Mono.error(resultInvalid())
+    private fun <T : Any> atomic(publisher: Mono<T>): Mono<T> = publisher.flux()
+        .take(2)
+        .collectList()
+        .flatMap { values ->
+            if (values.size == 1) Mono.just(values.single()) else Mono.error(resultInvalid())
         }
-    }
+
+    private fun <T : Any> zeroOrOne(publisher: Mono<T>): Mono<T> = publisher.flux()
+        .take(2)
+        .collectList()
+        .flatMap { values ->
+            when (values.size) {
+                0 -> Mono.empty()
+                1 -> Mono.just(values.single())
+                else -> Mono.error(resultInvalid())
+            }
+        }
 
     private fun validateResult(shape: QueryPlanResultShape, value: Any) {
         val valid = when (shape) {

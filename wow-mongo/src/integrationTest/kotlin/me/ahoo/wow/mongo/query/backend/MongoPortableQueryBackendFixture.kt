@@ -233,12 +233,13 @@ internal class MongoObservableQueryBackendFactory(
     private val upstreamCancelReturned = AtomicLong()
     private val postCancellationSignals = AtomicLong()
     private val heldSubscriptionLatch = AtomicReference(CountDownLatch(1))
-    private val delegate = MongoQueryBackendFactory(database, maxBudget = maxBudget)
+    private val delegate = MongoQueryBackendBinder(
+        database,
+        MongoNativeQueryTemplateRegistry(),
+        maxBudget,
+        this,
+    )
     private val routeReadinessVerified = AtomicBoolean()
-
-    init {
-        MongoQueryPublisherObservers.install(database, this)
-    }
 
     override val subscriptionCount: Long
         get() = subscriptions.get()

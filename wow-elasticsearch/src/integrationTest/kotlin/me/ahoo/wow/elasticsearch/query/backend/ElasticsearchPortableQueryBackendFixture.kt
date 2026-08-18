@@ -231,12 +231,22 @@ internal class ElasticsearchObservableQueryBackendFactory(
     private val searchResponseGate: ElasticsearchSearchResponseGate,
 ) : ObservableQueryBackendFactory, ElasticsearchQueryPublisherObserver {
     private val latestObservedPitId = AtomicReference<String>()
-    private val delegate = ElasticsearchQueryBackendFactory(client)
+    private val delegate = ElasticsearchQueryBackendBinder(
+        client,
+        ElasticsearchNativeQueryTemplateRegistry(),
+        me.ahoo.wow.query.validation.QueryBudgetLimit.UNBOUNDED,
+        transportFactory = { reactiveClient ->
+            ReactiveClientElasticsearchQueryTransport(reactiveClient, this)
+        },
+    )
     private val cleanupProbe = ElasticsearchCleanupTerminalProbe()
     private val preparedDelegate = ElasticsearchQueryBackendBinder(
         client,
         ElasticsearchNativeQueryTemplateRegistry(),
         me.ahoo.wow.query.validation.QueryBudgetLimit.UNBOUNDED,
+        transportFactory = { reactiveClient ->
+            ReactiveClientElasticsearchQueryTransport(reactiveClient, this)
+        },
     )
     private val lifecycleDelegate = ElasticsearchQueryBackendBinder(
         client,
@@ -248,7 +258,7 @@ internal class ElasticsearchObservableQueryBackendFactory(
         transportFactory = { reactiveClient ->
             CleanupObservedElasticsearchQueryTransport(
                 PreparedPitElasticsearchQueryTransport(
-                    ReactiveClientElasticsearchQueryTransport(reactiveClient),
+                    ReactiveClientElasticsearchQueryTransport(reactiveClient, this),
                     preparedPitId,
                     latestObservedPitId,
                 ),
@@ -265,10 +275,6 @@ internal class ElasticsearchObservableQueryBackendFactory(
     private val observedClosedPitIds = ConcurrentLinkedQueue<String>()
     private val routeReadinessVerified = AtomicBoolean()
     private val preparedMappingSnapshot = AtomicReference<ElasticsearchQueryMappingSnapshot>()
-
-    init {
-        ElasticsearchQueryPublisherObservers.install(client, this)
-    }
 
     override val subscriptionCount: Long get() = probe(ElasticsearchQueryOperation.SEARCH).heldSubscriptions.get()
     override val cancellationCount: Long

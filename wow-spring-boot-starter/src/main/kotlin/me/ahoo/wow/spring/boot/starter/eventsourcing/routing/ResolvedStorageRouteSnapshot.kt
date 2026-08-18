@@ -27,25 +27,20 @@ import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import java.util.Collections
 
-internal sealed interface QueryBackendSelection {
+internal class QueryBackendSelection private constructor(
     @get:JvmSynthetic
-    val binding: QueryBackendBinding?
+    val binding: QueryBackendBinding?,
+) {
 
     companion object {
-        @JvmSynthetic
-        fun available(binding: QueryBackendBinding): QueryBackendSelection = AvailableQueryBackendSelection(binding)
+        private val UNAVAILABLE = QueryBackendSelection(null)
 
         @JvmSynthetic
-        fun unavailable(): QueryBackendSelection = UnavailableQueryBackendSelection
+        fun available(binding: QueryBackendBinding): QueryBackendSelection = QueryBackendSelection(binding)
+
+        @JvmSynthetic
+        fun unavailable(): QueryBackendSelection = UNAVAILABLE
     }
-}
-
-private class AvailableQueryBackendSelection(
-    override val binding: QueryBackendBinding,
-) : QueryBackendSelection
-
-private data object UnavailableQueryBackendSelection : QueryBackendSelection {
-    override val binding: QueryBackendBinding? = null
 }
 
 internal sealed interface ResolvedStorageChannelRoute {

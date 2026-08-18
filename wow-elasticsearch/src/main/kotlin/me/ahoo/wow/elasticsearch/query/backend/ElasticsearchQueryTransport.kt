@@ -45,8 +45,8 @@ internal interface ElasticsearchQueryTransport : PitSearchAfterTransport<Map<Str
 
 internal class ReactiveClientElasticsearchQueryTransport(
     private val client: ReactiveElasticsearchClient,
+    private val observer: ElasticsearchQueryPublisherObserver = ElasticsearchQueryPublisherObserver.NONE,
 ) : ElasticsearchQueryTransport {
-    private val observer = ElasticsearchQueryPublisherObservers.resolve(client)
     override fun open(index: String): Mono<String> = observer.observe(
         ElasticsearchQueryOperationContext(ElasticsearchQueryOperation.OPEN_PIT),
         client.openPointInTime(

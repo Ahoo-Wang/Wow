@@ -73,7 +73,6 @@ wow-spring	me/ahoo/wow/spring/query/EventStreamQueryServiceRegistrarKt.class	inc
 wow-spring	me/ahoo/wow/spring/query/SnapshotQueryServiceRegistrarKt.class	include	retained-public-facade
 wow-spring-boot-starter	me/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRouteBindingsKt.class	exclude	synthetic-private-helper
 wow-spring-boot-starter	me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchQueryBackendBindingConfiguration.class	exclude	kotlin-internal
-wow-spring-boot-starter	me/ahoo/wow/spring/boot/starter/eventsourcing/routing/AvailableQueryBackendSelection.class	exclude	kotlin-internal
 wow-spring-boot-starter	me/ahoo/wow/spring/boot/starter/eventsourcing/routing/BindingIndex.class	exclude	kotlin-internal
 wow-spring-boot-starter	me/ahoo/wow/spring/boot/starter/eventsourcing/routing/CanonicalStorageRouteConfiguration.class	exclude	kotlin-internal
 wow-spring-boot-starter	me/ahoo/wow/spring/boot/starter/eventsourcing/routing/QueryBackendBinding$Companion$WhenMappings.class	exclude	synthetic-private-helper
@@ -103,7 +102,6 @@ wow-spring-boot-starter	me/ahoo/wow/spring/boot/starter/eventsourcing/routing/St
 wow-spring-boot-starter	me/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRouteCoordinator$snapshotStores$2.class	exclude	synthetic-private-helper
 wow-spring-boot-starter	me/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRouteCoordinator.class	exclude	kotlin-internal
 wow-spring-boot-starter	me/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRoutingAutoConfigurationKt.class	exclude	synthetic-private-helper
-wow-spring-boot-starter	me/ahoo/wow/spring/boot/starter/eventsourcing/routing/UnavailableQueryBackendSelection.class	exclude	kotlin-internal
 wow-spring-boot-starter	me/ahoo/wow/spring/boot/starter/mongo/MongoQueryBackendBindingConfiguration.class	exclude	kotlin-internal
 wow-spring-boot-starter	me/ahoo/wow/spring/boot/starter/query/StorageRoutingQueryBackendConfiguration.class	exclude	kotlin-internal
 wow-spring-boot-starter	me/ahoo/wow/spring/boot/starter/query/StorageRoutingQueryBackendResolver$Companion.class	exclude	kotlin-internal
@@ -113,7 +111,8 @@ wow-mongo	me/ahoo/wow/mongo/query/MongoCollectionsKt.class	include	retained-publ
 wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryBackend$Companion.class	exclude	kotlin-internal
 wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryBackend.class	exclude	kotlin-internal
 wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryBackendDescriptorKt.class	exclude	kotlin-internal
-wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryBackendFactory$WhenMappings.class	exclude	synthetic-private-helper
+wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryBackendBinder$WhenMappings.class	exclude	synthetic-private-helper
+wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryBackendBinder.class	exclude	kotlin-internal
 wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryFieldBinding$BoundField$WhenMappings.class	exclude	synthetic-private-helper
 wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryFieldBinding$BoundField.class	exclude	kotlin-internal
 wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryFieldBinding$Companion.class	exclude	kotlin-internal
@@ -125,7 +124,6 @@ wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryPlanCompiler.class	exclude	k
 wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryPublisherObserver$Companion$NONE$1.class	exclude	kotlin-internal
 wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryPublisherObserver$Companion.class	exclude	kotlin-internal
 wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryPublisherObserver.class	exclude	kotlin-internal
-wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryPublisherObservers.class	exclude	kotlin-internal
 wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryReadiness$inspectIndexes$1.class	exclude	kotlin-internal
 wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryReadiness.class	exclude	kotlin-internal
 wow-mongo	me/ahoo/wow/mongo/query/backend/MongoQueryReadinessRequirements.class	exclude	kotlin-internal
@@ -157,9 +155,9 @@ wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ElasticsearchQueryMapp
 wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ElasticsearchQueryOperation.class	exclude	kotlin-internal
 wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ElasticsearchQueryOperationContext.class	exclude	kotlin-internal
 wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ElasticsearchQueryPublisherObserver$DefaultImpls.class	exclude	synthetic-private-helper
+wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ElasticsearchQueryPublisherObserver$Companion$NONE$1.class	exclude	kotlin-internal
+wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ElasticsearchQueryPublisherObserver$Companion.class	exclude	kotlin-internal
 wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ElasticsearchQueryPublisherObserver.class	exclude	kotlin-internal
-wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ElasticsearchQueryPublisherObservers$resolve$2.class	exclude	synthetic-private-helper
-wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ElasticsearchQueryPublisherObservers.class	exclude	kotlin-internal
 wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ElasticsearchQueryReadiness$Companion.class	exclude	kotlin-internal
 wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ElasticsearchQueryReadiness$WhenMappings.class	exclude	synthetic-private-helper
 wow-elasticsearch	me/ahoo/wow/elasticsearch/query/backend/ElasticsearchQueryReadiness.class	exclude	kotlin-internal

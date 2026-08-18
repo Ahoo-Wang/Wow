@@ -97,7 +97,8 @@ internal class DefaultQueryPolicyChain(
         descriptorObserver(descriptor.id)
         descriptor.policy.evaluate(context)
     }
-        .switchIfEmpty(Mono.error(policyFailure()))
+        .flux()
+        .single()
         .map { result -> validateResult(result, context) }
 
     private fun validateResult(

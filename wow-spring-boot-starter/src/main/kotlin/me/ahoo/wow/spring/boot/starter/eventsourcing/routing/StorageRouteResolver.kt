@@ -21,6 +21,7 @@ import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 
+@Deprecated("Use the canonical storage route snapshot managed by Spring auto-configuration.")
 class StorageRouteResolver(
     private val contextName: String,
     private val snapshotEnabled: Boolean,

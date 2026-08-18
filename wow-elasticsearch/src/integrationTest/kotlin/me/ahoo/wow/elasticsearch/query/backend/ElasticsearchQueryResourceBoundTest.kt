@@ -280,7 +280,14 @@ private class ElasticsearchResourceBackendFactory(
     private val client: ReactiveElasticsearchClient,
     private val gate: ElasticsearchSearchResponseGate,
 ) : ObservableQueryBackendFactory, ElasticsearchQueryPublisherObserver {
-    private val delegate = ElasticsearchQueryBackendFactory(client)
+    private val delegate = ElasticsearchQueryBackendBinder(
+        client,
+        ElasticsearchNativeQueryTemplateRegistry(),
+        me.ahoo.wow.query.validation.QueryBudgetLimit.UNBOUNDED,
+        transportFactory = { reactiveClient ->
+            ReactiveClientElasticsearchQueryTransport(reactiveClient, this)
+        },
+    )
     private val operationProbes = EnumMap<ElasticsearchQueryOperation, ResourceOperationProbe>(
         ElasticsearchQueryOperation::class.java,
     ).apply { ElasticsearchQueryOperation.entries.forEach { put(it, ResourceOperationProbe()) } }
@@ -298,10 +305,6 @@ private class ElasticsearchResourceBackendFactory(
     val maxApplicationBuffered = AtomicLong()
     val postCancelOpenOrSearch = AtomicLong()
     private val cancelPhase = AtomicBoolean()
-
-    init {
-        ElasticsearchQueryPublisherObservers.install(client, this)
-    }
 
     override val subscriptionCount: Long
         get() = probe(ElasticsearchQueryOperation.SEARCH).subscriptions.get()
