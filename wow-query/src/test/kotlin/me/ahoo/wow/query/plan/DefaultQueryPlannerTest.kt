@@ -529,7 +529,7 @@ class DefaultQueryPlannerTest {
     }
 
     private fun planner(enabledCapabilities: Set<QueryCapabilityId> = emptySet()): DefaultQueryPlanner =
-        DefaultQueryPlanner.create(enabledCapabilities, QueryPlanValidator())
+        DefaultQueryPlanner.create(enabledCapabilities)
 
     private fun invocation(
         scheduler: VirtualTimeScheduler = VirtualTimeScheduler.create(),

@@ -15,10 +15,6 @@ package me.ahoo.wow.query.invocation
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.error.QueryErrorCode
-import me.ahoo.wow.api.query.error.QueryErrorReason
-import me.ahoo.wow.api.query.error.QueryException
-import me.ahoo.wow.api.query.error.QueryStage
 import me.ahoo.wow.api.query.expression.LogicalField
 import me.ahoo.wow.api.query.expression.NativeExpression
 import me.ahoo.wow.api.query.expression.QueryCapabilityId
@@ -32,51 +28,7 @@ import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
 
-class DefaultQueryAdmissionTest {
-    @Test
-    fun `uses only the server authority and preserves caller scope as requested`() {
-        val request = CountQueryRequest(
-            target = queryTarget(),
-            requestedScope = RequestedQueryScope(
-                tenantId = "caller-tenant",
-                ownerId = "caller-owner",
-                spaceId = "caller-space"
-            )
-        )
-        val trusted = QueryAuthorityView(
-            subjectId = "trusted-subject",
-            tenantId = "trusted-tenant",
-            ownerId = "trusted-owner",
-            spaceIds = setOf("trusted-space"),
-            permissions = setOf("query:read")
-        )
-        var observedContext: QueryAdmissionContext? = null
-        val admission = DefaultQueryAdmission(
-            QueryAuthorityProvider { context ->
-                observedContext = context
-                Mono.just(trusted)
-            }
-        )
-        val context = QueryAdmissionContext(
-            request = request,
-            operation = QueryOperation.COUNT,
-            entryProvenances = setOf(QueryProvenance.CALLER_REQUEST),
-            correlationId = "correlation-1"
-        )
-
-        StepVerifier.create(admission.admit(context))
-            .assertNext { scope ->
-                scope.trustedAuthority.assert().isSameAs(trusted)
-                scope.requestedScope.assert().isSameAs(request.requestedScope)
-                scope.correlationId.assert().isEqualTo("correlation-1")
-                scope.trustedAuthority.tenantId.assert().isEqualTo("trusted-tenant")
-                scope.trustedAuthority.spaceIds.assert().containsExactly("trusted-space")
-            }
-            .verifyComplete()
-
-        observedContext.assert().isSameAs(context)
-    }
-
+class QueryInvocationScopeTest {
     @Test
     fun `authority collections are defensive immutable snapshots`() {
         val spaces = linkedSetOf("space-1")
@@ -103,32 +55,7 @@ class DefaultQueryAdmissionTest {
     }
 
     @Test
-    fun `fails closed when authority provider completes empty`() {
-        val admission = DefaultQueryAdmission(QueryAuthorityProvider { Mono.empty() })
-
-        StepVerifier.create(admission.admit(context()))
-            .expectErrorSatisfies(::assertAdmissionProtocolFailure)
-            .verify()
-    }
-
-    @Test
-    fun `represents anonymous authority as a real immutable view`() {
-        val anonymous = QueryAuthorityView(
-            subjectId = null,
-            tenantId = null,
-            ownerId = null,
-            spaceIds = emptySet(),
-            permissions = emptySet()
-        )
-        val admission = DefaultQueryAdmission(QueryAuthorityProvider { Mono.just(anonymous) })
-
-        StepVerifier.create(admission.admit(context()))
-            .assertNext { scope -> scope.trustedAuthority.assert().isSameAs(anonymous) }
-            .verifyComplete()
-    }
-
-    @Test
-    fun `redacts request scope authority correlation and native values from string representations`() {
+    fun `scope authority correlation and native values stay redacted`() {
         val secret = "secret-sentinel-924713"
         val request = CountQueryRequest(
             target = queryTarget(),
@@ -171,28 +98,6 @@ class DefaultQueryAdmissionTest {
             "QueryInvocationScope(trustedAuthority=<redacted>, requestedScope=<redacted>, correlationId=<redacted>)"
         )
         authority.toString().assert().isEqualTo("QueryAuthorityView(<redacted>)")
-
-        context.copy().assert().isEqualTo(context)
-        context.component1().assert().isSameAs(request)
-        scope.copy().assert().isEqualTo(scope)
-        scope.component1().assert().isSameAs(authority)
-        authority.copy().assert().isEqualTo(authority)
-        authority.subjectId.assert().isEqualTo("subject-$secret")
-    }
-
-    private fun context(): QueryAdmissionContext = QueryAdmissionContext(
-        request = CountQueryRequest(queryTarget()),
-        operation = QueryOperation.COUNT,
-        entryProvenances = setOf(QueryProvenance.CALLER_REQUEST),
-        correlationId = "correlation"
-    )
-
-    private fun assertAdmissionProtocolFailure(error: Throwable) {
-        (error as QueryException).apply {
-            code.assert().isEqualTo(QueryErrorCode.POLICY_FAILURE)
-            stage.assert().isEqualTo(QueryStage.ADMISSION)
-            reason.assert().isEqualTo(QueryErrorReason.POLICY_EVALUATION_FAILED)
-        }
     }
 
     private fun queryTarget(): QueryTarget = QueryTarget(

@@ -27,6 +27,7 @@ import me.ahoo.wow.api.query.expression.NativeExpression
 import me.ahoo.wow.api.query.expression.PortableLogicalExpression
 import me.ahoo.wow.api.query.expression.PortableOperator
 import me.ahoo.wow.api.query.expression.PredicateExpression
+import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.expression.QueryExpression
 import me.ahoo.wow.api.query.expression.QueryValue
 import me.ahoo.wow.api.query.expression.RelativeTimeExpression
@@ -457,3 +458,24 @@ internal fun invalidQuery(): Nothing = throw QueryException(
     QueryStage.VALIDATION,
     QueryErrorReason.INVALID_REQUEST
 )
+
+@JvmSynthetic
+internal fun QueryExpression.requestedCapabilities(): Set<QueryCapabilityId> {
+    val capabilities = LinkedHashSet<QueryCapabilityId>()
+    val pending = ArrayDeque<QueryExpression>()
+    pending += this
+    while (pending.isNotEmpty()) {
+        when (val current = pending.removeLast()) {
+            is FullTextExpression -> capabilities += current.capabilityId
+            is NativeExpression -> capabilities += current.capabilityId
+            is LogicalExpression -> current.operands.forEach(pending::addLast)
+            is PortableLogicalExpression -> current.operands.forEach(pending::addLast)
+            is ElementMatchExpression -> pending += current.predicate
+            MatchAll,
+            MatchNone,
+            is PredicateExpression -> Unit
+            is RelativeTimeExpression -> error("Relative time was not normalized.")
+        }
+    }
+    return capabilities
+}

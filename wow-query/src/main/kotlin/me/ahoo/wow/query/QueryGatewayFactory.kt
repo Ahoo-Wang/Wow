@@ -16,14 +16,11 @@ package me.ahoo.wow.query
 import me.ahoo.wow.query.invocation.QueryInvocationFactory
 import me.ahoo.wow.query.metrics.QueryGatewayMetrics
 import me.ahoo.wow.query.plan.DefaultQueryPlanner
-import me.ahoo.wow.query.plan.QueryPlanValidator
 import me.ahoo.wow.query.policy.DefaultQueryPolicyChain
-import me.ahoo.wow.query.policy.QueryPolicyDescriptor
 import me.ahoo.wow.query.policy.QueryPolicyRegistration
 import me.ahoo.wow.query.policy.SystemQueryPolicy
 import me.ahoo.wow.query.result.DefaultResultPolicyChain
 import me.ahoo.wow.query.validation.QueryExpressionValidator
-import me.ahoo.wow.query.validation.QueryRequestSchemaValidator
 import me.ahoo.wow.query.validation.QueryRequestValidator
 import reactor.core.scheduler.Schedulers
 import java.util.Collections
@@ -54,10 +51,7 @@ internal object DefaultQueryGatewayFactory {
         policyRegistrations: List<QueryPolicyRegistration> = fallbackRegistrations(configuration)
     ): QueryGateway {
         val expressionValidator = QueryExpressionValidator(configuration.structureLimits)
-        val policyDescriptors = validateAndSnapshotRegistrations(configuration, policyRegistrations)
-            .map { registration ->
-                QueryPolicyDescriptor(registration.descriptorId, registration.order, registration.policy)
-            }
+        val registrations = validateAndSnapshotRegistrations(configuration, policyRegistrations)
         return DefaultQueryGateway.create(
             invocationFactory = QueryInvocationFactory(
                 admission = configuration.admission,
@@ -68,18 +62,14 @@ internal object DefaultQueryGatewayFactory {
                 correlationIdFactory = { UUID.randomUUID().toString() }
             ),
             requestValidator = QueryRequestValidator(configuration.structureLimits),
-            schemaValidator = QueryRequestSchemaValidator.create(configuration.structureLimits),
             schemaResolver = configuration.schemaResolver,
             policyChain = DefaultQueryPolicyChain(
                 SystemQueryPolicy(configuration.systemBudgetLimit),
-                policyDescriptors,
+                registrations,
                 expressionValidator
             ),
             backendResolver = configuration.backendResolver,
-            planner = DefaultQueryPlanner.create(
-                configuration.enabledCapabilities,
-                QueryPlanValidator()
-            ),
+            planner = DefaultQueryPlanner.create(configuration.enabledCapabilities),
             resultPolicyChain = DefaultResultPolicyChain(configuration.resultPolicies),
             metrics = QueryGatewayMetrics(
                 configuration.meterRegistry,
@@ -102,7 +92,9 @@ internal object DefaultQueryGatewayFactory {
         require(snapshot.none { it.policy is SystemQueryPolicy }) {
             "System query policy cannot be registered as a custom policy."
         }
-        val ordered = snapshot.sortedWith(QueryPolicyRegistrationComparator)
+        val ordered = snapshot.sortedWith(
+            compareBy<QueryPolicyRegistration> { it.order }.thenBy { it.descriptorId }
+        )
         require(ordered.size == configuration.customPolicies.size) {
             "Query policy registrations must match configured custom policies."
         }
@@ -120,11 +112,4 @@ internal object DefaultQueryGatewayFactory {
         configuration.customPolicies.mapIndexed { index, policy ->
             QueryPolicyRegistration("custom-$index", index, policy)
         }
-
-    private object QueryPolicyRegistrationComparator : Comparator<QueryPolicyRegistration> {
-        override fun compare(first: QueryPolicyRegistration, second: QueryPolicyRegistration): Int {
-            val orderComparison = first.order.compareTo(second.order)
-            return if (orderComparison != 0) orderComparison else first.descriptorId.compareTo(second.descriptorId)
-        }
-    }
 }

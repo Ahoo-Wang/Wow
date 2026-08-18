@@ -275,12 +275,12 @@ internal class StorageRouteCoordinator private constructor(
 
     @JvmSynthetic
     fun resolve(properties: StorageRoutingProperties): ResolvedStorageRouteSnapshot {
-        validateSnapshotRoutes(properties)
+        validateSnapshotRouting(snapshotEnabled, properties, SNAPSHOT_CHANNEL)
         val defaultEvent = resolveDefaultEvent()
         val defaultSnapshot = if (snapshotEnabled) resolveDefaultSnapshot() else null
         val overrides = LinkedHashMap<QueryTarget, ResolvedStorageChannelRoute>()
         properties.aggregates.forEach { (routeKey, aggregateRoute) ->
-            val namedAggregate = resolveNamedAggregate(routeKey)
+            val namedAggregate = resolveStorageNamedAggregate(contextName, routeKey)
             aggregateRoute.event?.let { channel ->
                 putUnique(
                     overrides,
@@ -313,7 +313,7 @@ internal class StorageRouteCoordinator private constructor(
         routeKey: String,
         channel: StorageChannelRouteProperties,
     ): ResolvedStorageChannelRoute.Event {
-        validateChannel(routeKey, EVENT_CHANNEL, channel)
+        validateStorageChannel(routeKey, EVENT_CHANNEL, channel)
         val store = channel.storage?.let { eventStores.requiredByStorage(it, routeKey, EVENT_CHANNEL) }
             ?: eventStores.requiredByName(channel.binding.orEmpty().trim(), routeKey, EVENT_CHANNEL)
         val selection = if (channel.storage != null) {
@@ -328,7 +328,7 @@ internal class StorageRouteCoordinator private constructor(
         routeKey: String,
         channel: StorageChannelRouteProperties,
     ): ResolvedStorageChannelRoute.Snapshot {
-        validateChannel(routeKey, SNAPSHOT_CHANNEL, channel)
+        validateStorageChannel(routeKey, SNAPSHOT_CHANNEL, channel)
         val store = channel.storage?.let { snapshotStores.requiredByStorage(it, routeKey, SNAPSHOT_CHANNEL) }
             ?: snapshotStores.requiredByName(channel.binding.orEmpty().trim(), routeKey, SNAPSHOT_CHANNEL)
         val selection = if (channel.storage != null) {
@@ -408,53 +408,6 @@ internal class StorageRouteCoordinator private constructor(
             "Storage route[$routeKey] binding[$bindingName] backend storage is inconsistent."
         }
         return QueryBackendSelection.available(backend)
-    }
-
-    private fun resolveNamedAggregate(routeKey: String): MaterializedNamedAggregate {
-        val segments = routeKey.split('.')
-        val namedAggregate = when (segments.size) {
-            1 -> {
-                require(contextName.isNotBlank()) {
-                    "Storage route[$routeKey] requires a non-blank current context name."
-                }
-                MaterializedNamedAggregate(contextName, segments[0])
-            }
-            2 -> MaterializedNamedAggregate(segments[0], segments[1])
-            else -> throw IllegalArgumentException(
-                "Storage route[$routeKey] must be either aggregate or context.aggregate.",
-            )
-        }
-        require(namedAggregate.contextName.isNotBlank() && namedAggregate.aggregateName.isNotBlank()) {
-            "Storage route[$routeKey] must not contain blank context or aggregate name."
-        }
-        require(MetadataSearcher.namedAggregateType.containsKey(namedAggregate)) {
-            "Storage route[$routeKey] references unknown aggregate[$namedAggregate]."
-        }
-        return namedAggregate
-    }
-
-    private fun validateSnapshotRoutes(properties: StorageRoutingProperties) {
-        if (snapshotEnabled) return
-        properties.aggregates.entries.firstOrNull { (_, route) -> route.snapshot != null }?.let { (routeKey, _) ->
-            check(snapshotEnabled) {
-                "Storage route[$routeKey] channel[$SNAPSHOT_CHANNEL] can not be configured when snapshot is disabled."
-            }
-        }
-    }
-
-    private fun validateChannel(
-        routeKey: String,
-        channelName: String,
-        channel: StorageChannelRouteProperties,
-    ) {
-        val hasStorage = channel.storage != null
-        val hasBinding = !channel.binding.isNullOrBlank()
-        require(hasStorage || hasBinding) {
-            "Storage route[$routeKey] channel[$channelName] must configure either storage or binding."
-        }
-        require(!(hasStorage && hasBinding)) {
-            "Storage route[$routeKey] channel[$channelName] can configure either storage or binding, not both."
-        }
     }
 
     private fun putUnique(
@@ -560,6 +513,58 @@ private fun uniqueBackendStorageIndex(
         }
     }
     return result.toMap(LinkedHashMap())
+}
+
+internal fun resolveStorageNamedAggregate(
+    contextName: String,
+    routeKey: String,
+): MaterializedNamedAggregate {
+    val segments = routeKey.split('.')
+    val namedAggregate = when (segments.size) {
+        1 -> {
+            require(contextName.isNotBlank()) {
+                "Storage route[$routeKey] requires a non-blank current context name."
+            }
+            MaterializedNamedAggregate(contextName, segments[0])
+        }
+        2 -> MaterializedNamedAggregate(segments[0], segments[1])
+        else -> throw IllegalArgumentException(
+            "Storage route[$routeKey] must be either aggregate or context.aggregate.",
+        )
+    }
+    require(namedAggregate.contextName.isNotBlank() && namedAggregate.aggregateName.isNotBlank()) {
+        "Storage route[$routeKey] must not contain blank context or aggregate name."
+    }
+    require(MetadataSearcher.namedAggregateType.containsKey(namedAggregate)) {
+        "Storage route[$routeKey] references unknown aggregate[$namedAggregate]."
+    }
+    return namedAggregate
+}
+
+internal fun validateSnapshotRouting(
+    snapshotEnabled: Boolean,
+    properties: StorageRoutingProperties,
+    channelName: String,
+) {
+    if (snapshotEnabled) return
+    properties.aggregates.entries.firstOrNull { (_, route) -> route.snapshot != null }?.let { (routeKey, _) ->
+        error("Storage route[$routeKey] channel[$channelName] can not be configured when snapshot is disabled.")
+    }
+}
+
+internal fun validateStorageChannel(
+    routeKey: String,
+    channelName: String,
+    channel: StorageChannelRouteProperties,
+) {
+    val hasStorage = channel.storage != null
+    val hasBinding = !channel.binding.isNullOrBlank()
+    require(hasStorage || hasBinding) {
+        "Storage route[$routeKey] channel[$channelName] must configure either storage or binding."
+    }
+    require(!(hasStorage && hasBinding)) {
+        "Storage route[$routeKey] channel[$channelName] can configure either storage or binding, not both."
+    }
 }
 
 private inline fun <K, V, RK, RV> Map<K, V>.mapNotNullToLinkedMap(

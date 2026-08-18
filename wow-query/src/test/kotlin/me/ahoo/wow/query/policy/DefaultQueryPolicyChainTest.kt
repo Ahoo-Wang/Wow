@@ -176,7 +176,7 @@ class DefaultQueryPolicyChainTest {
                     stage.assert().isEqualTo(QueryStage.POLICY)
                     reason.assert().isEqualTo(expected.second)
                     message.orEmpty().contains(secret).assert().isFalse()
-                    message.orEmpty().contains(policy.id).assert().isFalse()
+                    message.orEmpty().contains(policy.descriptorId).assert().isFalse()
                 }
             }.verify()
             resolverCalls.get().assert().isZero()
@@ -406,7 +406,7 @@ class DefaultQueryPolicyChainTest {
         result.toString().contains(secret).assert().isFalse()
     }
 
-    private fun chain(customPolicies: List<QueryPolicyDescriptor>): DefaultQueryPolicyChain =
+    private fun chain(customPolicies: List<QueryPolicyRegistration>): DefaultQueryPolicyChain =
         DefaultQueryPolicyChain(
             systemPolicy = SystemQueryPolicy(QueryBudgetLimit(Duration.ofSeconds(30), 300, 300)),
             customPolicies = customPolicies,
@@ -428,7 +428,7 @@ class DefaultQueryPolicyChainTest {
         id: String,
         order: Int = 0,
         evaluate: (QueryPolicyContext) -> Mono<QueryPolicyResult>
-    ): QueryPolicyDescriptor = QueryPolicyDescriptor(id, order, QueryPolicy(evaluate))
+    ): QueryPolicyRegistration = QueryPolicyRegistration(id, order, QueryPolicy(evaluate))
 
     private fun assertPolicyError(
         publisher: Mono<CombinedQueryPolicyResult>,

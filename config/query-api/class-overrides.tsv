@@ -31,7 +31,6 @@ wow-query	me/ahoo/wow/query/expression/LegacyConditionLowering$lowerForGateway$1
 wow-query	me/ahoo/wow/query/expression/LegacyConditionLowering.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/expression/RelativeTimeExpressionNormalizer$WhenMappings.class	exclude	synthetic-private-helper
 wow-query	me/ahoo/wow/query/expression/RelativeTimeExpressionNormalizer.class	exclude	kotlin-internal
-wow-query	me/ahoo/wow/query/invocation/DefaultQueryAdmission.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/invocation/QueryDeadline.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/invocation/QueryDeadlineExceededException.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/invocation/QueryDeadlineGuard$Companion.class	exclude	kotlin-internal
@@ -56,12 +55,9 @@ wow-query	me/ahoo/wow/query/plan/DefaultQueryPlanner$PlanState.class	exclude	kot
 wow-query	me/ahoo/wow/query/plan/DefaultQueryPlanner$SinglePlan.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/plan/DefaultQueryPlanner$WhenMappings.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/plan/DefaultQueryPlanner.class	exclude	kotlin-internal
-wow-query	me/ahoo/wow/query/plan/QueryPlanValidator.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/policy/CombinedQueryPolicyResult.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/policy/DefaultQueryPolicyChain.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/policy/DefaultQueryPolicyChainKt.class	exclude	synthetic-private-helper
-wow-query	me/ahoo/wow/query/policy/QueryPolicyDescriptor.class	exclude	kotlin-internal
-wow-query	me/ahoo/wow/query/policy/QueryPolicyDescriptorKt.class	exclude	synthetic-private-helper
 wow-query	me/ahoo/wow/query/policy/QueryPolicyExceptionKt.class	exclude	synthetic-private-helper
 wow-query	me/ahoo/wow/query/policy/QueryPolicyRegistrationKt.class	exclude	synthetic-private-helper
 wow-query	me/ahoo/wow/query/policy/SystemQueryPolicy.class	exclude	kotlin-internal
@@ -73,8 +69,6 @@ wow-query	me/ahoo/wow/query/schema/QuerySchemaCustomizationMerger.class	exclude	
 wow-query	me/ahoo/wow/query/snapshot/QueryDslKt.class	include	retained-public-facade
 wow-query	me/ahoo/wow/query/snapshot/SnapshotStatesKt.class	include	retained-public-facade
 wow-query	me/ahoo/wow/query/validation/QueryExpressionValidatorKt.class	exclude	kotlin-internal
-wow-query	me/ahoo/wow/query/validation/QueryRequestSchemaValidator$Companion.class	exclude	kotlin-internal
-wow-query	me/ahoo/wow/query/validation/QueryRequestSchemaValidator.class	exclude	kotlin-internal
 wow-spring	me/ahoo/wow/spring/query/EventStreamQueryServiceRegistrarKt.class	include	retained-public-facade
 wow-spring	me/ahoo/wow/spring/query/SnapshotQueryServiceRegistrarKt.class	include	retained-public-facade
 wow-spring-boot-starter	me/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRouteBindingsKt.class	exclude	synthetic-private-helper

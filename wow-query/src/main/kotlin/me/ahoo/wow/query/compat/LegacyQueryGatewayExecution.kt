@@ -245,14 +245,6 @@ object LegacyQueryGatewayExecution {
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun <R : QueryRequest> R.withExpression(expression: QueryExpression): R = when (this) {
-        is SingleQueryRequest<*> -> copy(expression = expression)
-        is ListQueryRequest<*> -> copy(expression = expression)
-        is PageQueryRequest<*> -> copy(expression = expression)
-        is CountQueryRequest -> copy(expression = expression)
-    } as R
-
-    @Suppress("UNCHECKED_CAST")
     private fun <R : QueryRequest> R.withRequestedScope(requestedScope: RequestedQueryScope): R = when (this) {
         is SingleQueryRequest<*> -> copy(requestedScope = requestedScope)
         is ListQueryRequest<*> -> copy(requestedScope = requestedScope)

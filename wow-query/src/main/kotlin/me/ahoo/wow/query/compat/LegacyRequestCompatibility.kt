@@ -33,6 +33,7 @@ import me.ahoo.wow.api.query.gateway.ListQueryRequest
 import me.ahoo.wow.api.query.gateway.PageQueryRequest
 import me.ahoo.wow.api.query.gateway.QueryPageSpec
 import me.ahoo.wow.api.query.gateway.QueryProjection
+import me.ahoo.wow.api.query.gateway.QueryRequest
 import me.ahoo.wow.api.query.gateway.QueryResultShape
 import me.ahoo.wow.api.query.gateway.QuerySort
 import me.ahoo.wow.api.query.gateway.QuerySortDirection
@@ -53,55 +54,35 @@ internal fun legacyTypedDynamicShape(projection: Projection): QueryResultShape<D
 internal fun legacyTypedSingleRequest(
     target: QueryTarget,
     query: ISingleQuery
-): SingleQueryRequest<DynamicDocument> = query.condition.lower(target) { lowered, scope ->
-    SingleQueryRequest(
-        target,
-        lowered.first,
-        legacyTypedDynamicShape(query.projection),
-        scope,
-        sort = query.sort.toCanonical()
-    )
-}
+): SingleQueryRequest<DynamicDocument> = legacySingleRequest(target, query, legacyTypedDynamicShape(query.projection))
 
 @JvmSynthetic
 internal fun legacyTypedListRequest(
     target: QueryTarget,
     query: IListQuery
-): ListQueryRequest<DynamicDocument> = query.condition.lower(target) { lowered, scope ->
-    ListQueryRequest(
-        target,
-        lowered.first,
-        legacyTypedDynamicShape(query.projection),
-        scope,
-        sort = query.sort.toCanonical(),
-        limit = query.limit
-    )
-}
+): ListQueryRequest<DynamicDocument> = legacyListRequest(target, query, legacyTypedDynamicShape(query.projection))
 
 @JvmSynthetic
 internal fun legacyTypedPageRequest(
     target: QueryTarget,
     query: IPagedQuery
-): PageQueryRequest<DynamicDocument> = query.condition.lower(target) { lowered, scope ->
-    PageQueryRequest(
-        target,
-        lowered.first,
-        legacyTypedDynamicShape(query.projection),
-        scope,
-        sort = query.sort.toCanonical(),
-        page = QueryPageSpec(query.pagination.index, query.pagination.size)
-    )
-}
+): PageQueryRequest<DynamicDocument> = legacyPageRequest(target, query, legacyTypedDynamicShape(query.projection))
 
 @JvmSynthetic
 internal fun legacySingleRequest(
     target: QueryTarget,
     query: ISingleQuery
+): SingleQueryRequest<DynamicDocument> = legacySingleRequest(target, query, legacyDynamicShape(query.projection))
+
+private fun legacySingleRequest(
+    target: QueryTarget,
+    query: ISingleQuery,
+    resultShape: QueryResultShape<DynamicDocument>
 ): SingleQueryRequest<DynamicDocument> = query.condition.lower(target) { lowered, scope ->
     SingleQueryRequest(
         target,
         lowered.first,
-        legacyDynamicShape(query.projection),
+        resultShape,
         scope,
         sort = query.sort.toCanonical()
     )
@@ -111,11 +92,17 @@ internal fun legacySingleRequest(
 internal fun legacyListRequest(
     target: QueryTarget,
     query: IListQuery
+): ListQueryRequest<DynamicDocument> = legacyListRequest(target, query, legacyDynamicShape(query.projection))
+
+private fun legacyListRequest(
+    target: QueryTarget,
+    query: IListQuery,
+    resultShape: QueryResultShape<DynamicDocument>
 ): ListQueryRequest<DynamicDocument> = query.condition.lower(target) { lowered, scope ->
     ListQueryRequest(
         target,
         lowered.first,
-        legacyDynamicShape(query.projection),
+        resultShape,
         scope,
         sort = query.sort.toCanonical(),
         limit = query.limit
@@ -126,11 +113,17 @@ internal fun legacyListRequest(
 internal fun legacyPageRequest(
     target: QueryTarget,
     query: IPagedQuery
+): PageQueryRequest<DynamicDocument> = legacyPageRequest(target, query, legacyDynamicShape(query.projection))
+
+private fun legacyPageRequest(
+    target: QueryTarget,
+    query: IPagedQuery,
+    resultShape: QueryResultShape<DynamicDocument>
 ): PageQueryRequest<DynamicDocument> = query.condition.lower(target) { lowered, scope ->
     PageQueryRequest(
         target,
         lowered.first,
-        legacyDynamicShape(query.projection),
+        resultShape,
         scope,
         sort = query.sort.toCanonical(),
         page = QueryPageSpec(query.pagination.index, query.pagination.size)
@@ -142,6 +135,15 @@ internal fun legacyCountRequest(target: QueryTarget, condition: Condition): Coun
     condition.lower(target) { lowered, scope ->
         CountQueryRequest(target, lowered.first, scope)
     }
+
+@JvmSynthetic
+@Suppress("UNCHECKED_CAST")
+internal fun <R : QueryRequest> R.withExpression(expression: QueryExpression): R = when (this) {
+    is SingleQueryRequest<*> -> copy(expression = expression)
+    is ListQueryRequest<*> -> copy(expression = expression)
+    is PageQueryRequest<*> -> copy(expression = expression)
+    is CountQueryRequest -> copy(expression = expression)
+} as R
 
 private fun <T> Condition.lower(
     target: QueryTarget,

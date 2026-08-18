@@ -13,10 +13,8 @@
 package me.ahoo.wow.spring.boot.starter.eventsourcing.routing
 
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
-import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
@@ -70,7 +68,7 @@ class StorageRouteResolver(
     fun resolveEventRoutes(properties: StorageRoutingProperties): ResolvedEventRoutes {
         val routes: Map<NamedAggregate, EventStore> = properties.aggregates.mapNotNull { (routeKey, aggregateRoute) ->
             val channel = aggregateRoute.event ?: return@mapNotNull null
-            val namedAggregate = resolveNamedAggregate(routeKey)
+            val namedAggregate = resolveStorageNamedAggregate(contextName, routeKey)
             namedAggregate to resolveEventStore(routeKey, channel)
         }.toMap()
         return ResolvedEventRoutes(
@@ -80,19 +78,11 @@ class StorageRouteResolver(
     }
 
     fun resolveSnapshotRoutes(properties: StorageRoutingProperties): ResolvedSnapshotRoutes {
-        if (!snapshotEnabled) {
-            properties.aggregates.entries
-                .firstOrNull { (_, aggregateRoute) -> aggregateRoute.snapshot != null }
-                ?.let { (routeKey, _) ->
-                    check(snapshotEnabled) {
-                        "Storage route[$routeKey] channel[$SNAPSHOT_CHANNEL] can not be configured when snapshot is disabled."
-                    }
-                }
-        }
+        validateSnapshotRouting(snapshotEnabled, properties, SNAPSHOT_CHANNEL)
 
         val routes: Map<NamedAggregate, SnapshotStore> = properties.aggregates.mapNotNull { (routeKey, aggregateRoute) ->
             val channel = aggregateRoute.snapshot ?: return@mapNotNull null
-            val namedAggregate = resolveNamedAggregate(routeKey)
+            val namedAggregate = resolveStorageNamedAggregate(contextName, routeKey)
             namedAggregate to resolveSnapshotStore(routeKey, channel)
         }.toMap()
         return ResolvedSnapshotRoutes(
@@ -107,7 +97,7 @@ class StorageRouteResolver(
         val routes: Map<NamedAggregate, EventStreamQueryServiceFactory> =
             properties.aggregates.mapNotNull { (routeKey, aggregateRoute) ->
                 val channel = aggregateRoute.event ?: return@mapNotNull null
-                val namedAggregate = resolveNamedAggregate(routeKey)
+                val namedAggregate = resolveStorageNamedAggregate(contextName, routeKey)
                 namedAggregate to resolveEventStreamQueryServiceFactory(routeKey, channel)
             }.toMap()
         return ResolvedEventStreamQueryServiceFactoryRoutes(
@@ -122,7 +112,7 @@ class StorageRouteResolver(
         val routes: Map<NamedAggregate, SnapshotQueryServiceFactory> =
             properties.aggregates.mapNotNull { (routeKey, aggregateRoute) ->
                 val channel = aggregateRoute.snapshot ?: return@mapNotNull null
-                val namedAggregate = resolveNamedAggregate(routeKey)
+                val namedAggregate = resolveStorageNamedAggregate(contextName, routeKey)
                 namedAggregate to resolveSnapshotQueryServiceFactory(routeKey, channel)
             }.toMap()
         return ResolvedSnapshotQueryServiceFactoryRoutes(
@@ -131,33 +121,8 @@ class StorageRouteResolver(
         )
     }
 
-    private fun resolveNamedAggregate(routeKey: String): MaterializedNamedAggregate {
-        val segments = routeKey.split('.')
-        val namedAggregate = when (segments.size) {
-            1 -> {
-                require(contextName.isNotBlank()) {
-                    "Storage route[$routeKey] requires a non-blank current context name."
-                }
-                MaterializedNamedAggregate(contextName, segments[0])
-            }
-
-            2 -> MaterializedNamedAggregate(segments[0], segments[1])
-
-            else -> throw IllegalArgumentException(
-                "Storage route[$routeKey] must be either aggregate or context.aggregate."
-            )
-        }
-        require(namedAggregate.contextName.isNotBlank() && namedAggregate.aggregateName.isNotBlank()) {
-            "Storage route[$routeKey] must not contain blank context or aggregate name."
-        }
-        require(MetadataSearcher.namedAggregateType.containsKey(namedAggregate)) {
-            "Storage route[$routeKey] references unknown aggregate[$namedAggregate]."
-        }
-        return namedAggregate
-    }
-
     private fun resolveEventStore(routeKey: String, channel: StorageChannelRouteProperties): EventStore {
-        validateChannel(routeKey, EVENT_CHANNEL, channel)
+        validateStorageChannel(routeKey, EVENT_CHANNEL, channel)
         channel.storage?.let { storage ->
             return requiredEventStore(storage, routeKey, EVENT_CHANNEL)
         }
@@ -168,7 +133,7 @@ class StorageRouteResolver(
     }
 
     private fun resolveSnapshotStore(routeKey: String, channel: StorageChannelRouteProperties): SnapshotStore {
-        validateChannel(routeKey, SNAPSHOT_CHANNEL, channel)
+        validateStorageChannel(routeKey, SNAPSHOT_CHANNEL, channel)
         channel.storage?.let { storage ->
             return requiredSnapshotStore(storage, routeKey, SNAPSHOT_CHANNEL)
         }
@@ -182,7 +147,7 @@ class StorageRouteResolver(
         routeKey: String,
         channel: StorageChannelRouteProperties
     ): EventStreamQueryServiceFactory {
-        validateChannel(routeKey, EVENT_CHANNEL, channel)
+        validateStorageChannel(routeKey, EVENT_CHANNEL, channel)
         channel.storage?.let { storage ->
             return eventStreamQueryServiceFactory(storage)
         }
@@ -195,28 +160,13 @@ class StorageRouteResolver(
         routeKey: String,
         channel: StorageChannelRouteProperties
     ): SnapshotQueryServiceFactory {
-        validateChannel(routeKey, SNAPSHOT_CHANNEL, channel)
+        validateStorageChannel(routeKey, SNAPSHOT_CHANNEL, channel)
         channel.storage?.let { storage ->
             return snapshotQueryServiceFactory(storage)
         }
         val binding = channel.binding!!.trim()
         return snapshotQueryServiceFactoryBindingsByName[binding]?.snapshotQueryServiceFactory
             ?: NoOpSnapshotQueryServiceFactory
-    }
-
-    private fun validateChannel(
-        routeKey: String,
-        channelName: String,
-        channel: StorageChannelRouteProperties
-    ) {
-        val hasStorage = channel.storage != null
-        val hasBinding = !channel.binding.isNullOrBlank()
-        require(hasStorage || hasBinding) {
-            "Storage route[$routeKey] channel[$channelName] must configure either storage or binding."
-        }
-        require(!(hasStorage && hasBinding)) {
-            "Storage route[$routeKey] channel[$channelName] can configure either storage or binding, not both."
-        }
     }
 
     private fun requiredEventStore(

@@ -1681,7 +1681,6 @@ import me.ahoo.wow.api.query.gateway.QueryTarget;
 import me.ahoo.wow.query.expression.InvocationExpressionNormalizer;
 import me.ahoo.wow.query.expression.LegacyConditionLowering;
 import me.ahoo.wow.query.expression.RelativeTimeExpressionNormalizer;
-import me.ahoo.wow.query.validation.QueryRequestSchemaValidator;
 
 public final class InternalGatewayNormalization {
     public static Object[] access(
@@ -1693,8 +1692,7 @@ public final class InternalGatewayNormalization {
         return new Object[]{
             InvocationExpressionNormalizer.INSTANCE.normalize(expression, Instant.EPOCH, ZoneId.of("UTC")),
             LegacyConditionLowering.INSTANCE.lowerForGateway$me_ahoo_wow_wow_query(condition, target),
-            RelativeTimeExpressionNormalizer.INSTANCE.lower(relative, Instant.EPOCH, ZoneId.of("UTC")),
-            QueryRequestSchemaValidator.Companion.create$me_ahoo_wow_wow_query(null)
+            RelativeTimeExpressionNormalizer.INSTANCE.lower(relative, Instant.EPOCH, ZoneId.of("UTC"))
         };
     }
 }
@@ -1707,7 +1705,7 @@ if javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
     fail "Java external source unexpectedly accessed Gateway normalization internals"
 fi
 for internal_name in InvocationExpressionNormalizer LegacyConditionLowering \
-    RelativeTimeExpressionNormalizer QueryRequestSchemaValidator; do
+    RelativeTimeExpressionNormalizer; do
     grep -F "$internal_name" "$TEMP_DIR/java-gateway-normalization-negative.out" >/dev/null || {
         cat "$TEMP_DIR/java-gateway-normalization-negative.out" >&2
         fail "Java Gateway normalization negative fixture did not diagnose $internal_name"
@@ -1721,13 +1719,11 @@ package external.fixture
 import me.ahoo.wow.query.expression.InvocationExpressionNormalizer
 import me.ahoo.wow.query.expression.LegacyConditionLowering
 import me.ahoo.wow.query.expression.RelativeTimeExpressionNormalizer
-import me.ahoo.wow.query.validation.QueryRequestSchemaValidator
 
 fun gatewayNormalizationInternals(): List<Any> = listOf(
     InvocationExpressionNormalizer,
     LegacyConditionLowering,
-    RelativeTimeExpressionNormalizer,
-    QueryRequestSchemaValidator::class
+    RelativeTimeExpressionNormalizer
 )
 EOF
 
@@ -1741,7 +1737,7 @@ if java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompi
     fail "Kotlin external source unexpectedly accessed Gateway normalization internals"
 fi
 for internal_name in InvocationExpressionNormalizer LegacyConditionLowering \
-    RelativeTimeExpressionNormalizer QueryRequestSchemaValidator; do
+    RelativeTimeExpressionNormalizer; do
     grep -F "$internal_name" "$TEMP_DIR/kotlin-gateway-normalization-negative.out" >/dev/null || {
         cat "$TEMP_DIR/kotlin-gateway-normalization-negative.out" >&2
         fail "Kotlin Gateway normalization negative fixture did not diagnose $internal_name"
@@ -1801,7 +1797,6 @@ echo "PASS: Published storage abstract query methods delegate without driver ref
 cat >"$TEMP_DIR/kotlin/InternalAdmissionImplementations.kt" <<'EOF'
 package external.fixture
 
-import me.ahoo.wow.query.invocation.DefaultQueryAdmission
 import me.ahoo.wow.query.invocation.QueryDeadline
 import me.ahoo.wow.query.invocation.QueryDeadlineExceededException
 import me.ahoo.wow.query.invocation.QueryDeadlineGuard
@@ -1810,7 +1805,6 @@ import me.ahoo.wow.query.invocation.QueryInvocationFactory
 import me.ahoo.wow.query.invocation.QueryInvocationSeed
 import me.ahoo.wow.query.policy.CombinedQueryPolicyResult
 import me.ahoo.wow.query.policy.DefaultQueryPolicyChain
-import me.ahoo.wow.query.policy.QueryPolicyDescriptor
 import me.ahoo.wow.query.policy.SystemQueryPolicy
 import me.ahoo.wow.query.schema.QuerySchemaView
 import me.ahoo.wow.query.schema.immutableSnapshot
@@ -1823,7 +1817,6 @@ import me.ahoo.wow.query.metrics.QueryGatewayMetrics
 import me.ahoo.wow.query.result.DefaultResultPolicyChain
 
 fun internalImplementations(): List<Class<*>> = listOf(
-    DefaultQueryAdmission::class.java,
     QueryDeadline::class.java,
     QueryDeadlineExceededException::class.java,
     QueryDeadlineGuard::class.java,
@@ -1832,7 +1825,6 @@ fun internalImplementations(): List<Class<*>> = listOf(
     QueryInvocationSeed::class.java,
     CombinedQueryPolicyResult::class.java,
     DefaultQueryPolicyChain::class.java,
-    QueryPolicyDescriptor::class.java,
     SystemQueryPolicy::class.java,
     DefaultQueryGateway::class.java,
     DefaultQueryGatewayFactory::class.java,
@@ -1857,9 +1849,9 @@ if java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompi
     fail "Kotlin external source unexpectedly accessed internal admission implementations"
 fi
 
-for class_name in DefaultQueryAdmission QueryDeadline QueryDeadlineExceededException QueryDeadlineGuard \
+for class_name in QueryDeadline QueryDeadlineExceededException QueryDeadlineGuard \
     QueryInvocation QueryInvocationFactory QueryInvocationSeed \
-    CombinedQueryPolicyResult DefaultQueryPolicyChain QueryPolicyDescriptor SystemQueryPolicy \
+    CombinedQueryPolicyResult DefaultQueryPolicyChain SystemQueryPolicy \
     DefaultQueryGateway DefaultQueryGatewayFactory QueryGatewayStage QueryGatewayStageObserver \
     QueryGatewayMetricState QueryGatewayMetrics \
     DefaultResultPolicyChain; do
@@ -1883,11 +1875,10 @@ package external.fixture;
 
 import java.util.Set;
 import me.ahoo.wow.query.plan.DefaultQueryPlanner;
-import me.ahoo.wow.query.plan.QueryPlanValidator;
 
 public final class ExternalPlannerConstruction {
     public static DefaultQueryPlanner construct() {
-        return new DefaultQueryPlanner(Set.of(), new QueryPlanValidator());
+        return new DefaultQueryPlanner(Set.of());
     }
 }
 EOF
@@ -1909,14 +1900,10 @@ package external.fixture;
 
 import java.util.Set;
 import me.ahoo.wow.query.plan.DefaultQueryPlanner;
-import me.ahoo.wow.query.plan.QueryPlanValidator;
 
 public final class ExternalPlannerFactory {
     public static DefaultQueryPlanner construct() {
-        return DefaultQueryPlanner.Companion.create$me_ahoo_wow_wow_query(
-            Set.of(),
-            new QueryPlanValidator()
-        );
+        return DefaultQueryPlanner.Companion.create$me_ahoo_wow_wow_query(Set.of());
     }
 }
 EOF

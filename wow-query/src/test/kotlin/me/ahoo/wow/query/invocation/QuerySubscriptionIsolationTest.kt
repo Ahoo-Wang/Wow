@@ -35,7 +35,7 @@ import me.ahoo.wow.api.query.gateway.QueryOperation
 import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.query.policy.DefaultQueryPolicyChain
 import me.ahoo.wow.query.policy.QueryPolicy
-import me.ahoo.wow.query.policy.QueryPolicyDescriptor
+import me.ahoo.wow.query.policy.QueryPolicyRegistration
 import me.ahoo.wow.query.policy.QueryPolicyResult
 import me.ahoo.wow.query.policy.SystemQueryPolicy
 import me.ahoo.wow.query.schema.QueryFieldSchema
@@ -150,7 +150,7 @@ class QuerySubscriptionIsolationTest {
         val chain = DefaultQueryPolicyChain(
             systemPolicy = SystemQueryPolicy(QueryBudgetLimit.UNBOUNDED),
             customPolicies = listOf(
-                QueryPolicyDescriptor(
+                QueryPolicyRegistration(
                     "never",
                     0,
                     QueryPolicy {
@@ -384,11 +384,11 @@ class QuerySubscriptionIsolationTest {
             permissions = emptySet()
         )
         val factory = QueryInvocationFactory(
-            admission = DefaultQueryAdmission(
-                QueryAuthorityProvider {
-                    Mono.delay(Duration.ofMillis(600), scheduler).map { authority }
+            admission = QueryAdmission { context ->
+                Mono.delay(Duration.ofMillis(600), scheduler).map {
+                    QueryInvocationScope(authority, context.request.requestedScope, context.correlationId)
                 }
-            ),
+            },
             clock = Clock.fixed(frozen, ZoneOffset.UTC),
             zoneId = ZoneOffset.UTC,
             systemBudgetLimit = QueryBudgetLimit(timeout = Duration.ofSeconds(1)),
@@ -462,14 +462,12 @@ class QuerySubscriptionIsolationTest {
         val authoritySubscriptions = AtomicInteger()
         val schemaResolverInvocations = AtomicInteger()
         val backendResolverInvocations = AtomicInteger()
-        val admission = DefaultQueryAdmission(
-            QueryAuthorityProvider {
-                Mono.defer {
-                    authoritySubscriptions.incrementAndGet()
-                    Mono.never()
-                }
+        val admission = QueryAdmission {
+            Mono.defer {
+                authoritySubscriptions.incrementAndGet()
+                Mono.never()
             }
-        )
+        }
         val factory = QueryInvocationFactory(
             admission = admission,
             clock = Clock.fixed(Instant.parse("2026-08-12T03:00:00Z"), ZoneOffset.UTC),
@@ -553,19 +551,21 @@ class QuerySubscriptionIsolationTest {
             correlationIdFactory = { "correlation" }
         )
 
-    private fun trustedAdmission(): QueryAdmission = DefaultQueryAdmission(
-        QueryAuthorityProvider {
-            Mono.just(
-                QueryAuthorityView(
+    private fun trustedAdmission(): QueryAdmission = QueryAdmission { context ->
+        Mono.just(
+            QueryInvocationScope(
+                trustedAuthority = QueryAuthorityView(
                     subjectId = "subject",
                     tenantId = "tenant",
                     ownerId = null,
                     spaceIds = setOf("space"),
                     permissions = setOf("query:read")
-                )
+                ),
+                requestedScope = context.request.requestedScope,
+                correlationId = context.correlationId
             )
-        }
-    )
+        )
+    }
 
     private fun request(): CountQueryRequest = CountQueryRequest(queryTarget())
 

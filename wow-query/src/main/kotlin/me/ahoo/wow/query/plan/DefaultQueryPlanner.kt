@@ -62,8 +62,7 @@ import java.util.ArrayDeque
 import java.util.Collections
 
 internal class DefaultQueryPlanner private constructor(
-    enabledCapabilities: Set<QueryCapabilityId>,
-    private val validator: QueryPlanValidator
+    enabledCapabilities: Set<QueryCapabilityId>
 ) {
     private val enabledCapabilities: Set<QueryCapabilityId> =
         Collections.unmodifiableSet(LinkedHashSet(enabledCapabilities))
@@ -77,7 +76,7 @@ internal class DefaultQueryPlanner private constructor(
         validateDescriptorAndReadiness(invocation, resolvedBackend)
         val expressionInspection = inspect(policyResult.securedExpression)
         validatePortableSemantics(expressionInspection, resolvedBackend)
-        validateCapabilities(expressionInspection.capabilities, policyResult, resolvedBackend)
+        validateCapabilities(expressionInspection, policyResult, resolvedBackend)
         validateFields(expressionInspection.fields, invocation.schema, policyResult.constraints.fieldAccess)
         val authorizedResultShape = authorizeResultShape(invocation, policyResult.constraints.fieldAccess)
         val stableSort = stableSort(invocation, policyResult.constraints.fieldAccess)
@@ -93,7 +92,7 @@ internal class DefaultQueryPlanner private constructor(
             QueryStage.PLANNING
         )
         val planCreation = Mono.fromCallable {
-            validator.validateBudget(invocation.request, effectiveBudget)
+            validateBudget(invocation.request, effectiveBudget)
             createPlan(
                 invocation = invocation,
                 policyResult = policyResult,
@@ -121,6 +120,26 @@ internal class DefaultQueryPlanner private constructor(
         }
     }
 
+    private fun validateBudget(
+        request: me.ahoo.wow.api.query.gateway.QueryRequest,
+        budget: QueryBudgetLimit
+    ) {
+        val maximum = budget.maxResults ?: return
+        val requested = when (request) {
+            is SingleQueryRequest<*> -> 1L
+            is ListQueryRequest<*> -> request.limit.toLong().takeIf { it > 0 }
+            is PageQueryRequest<*> -> request.page.size.toLong()
+            is CountQueryRequest -> null
+        }
+        if (requested != null && requested > maximum) {
+            throw QueryException(
+                QueryErrorCode.BUDGET_EXCEEDED,
+                QueryStage.PLANNING,
+                QueryErrorReason.BUDGET_LIMIT_REACHED
+            )
+        }
+    }
+
     private fun validatePortableSemantics(
         requested: ExpressionInspection,
         resolved: ResolvedQueryBackend
@@ -134,19 +153,18 @@ internal class DefaultQueryPlanner private constructor(
     }
 
     private fun validateCapabilities(
-        requested: Set<QueryCapabilityId>,
+        requested: ExpressionInspection,
         policyResult: CombinedQueryPolicyResult,
         resolved: ResolvedQueryBackend
     ) {
-        requested.forEach { capability ->
+        requested.capabilities.forEach { capability ->
             if (capability !in resolved.descriptor.capabilities || capability !in enabledCapabilities ||
                 policyResult.constraints.capabilityAccess[capability] != CapabilityDecision.GRANT
             ) {
                 unsupportedCapability()
             }
         }
-        val nativeBackendIds = inspectNativeBackendIds(policyResult.securedExpression)
-        if (nativeBackendIds.any { it != resolved.descriptor.backendId }) {
+        if (requested.nativeBackendIds.any { it != resolved.descriptor.backendId }) {
             unsupportedCapability()
         }
     }
@@ -281,6 +299,7 @@ internal class DefaultQueryPlanner private constructor(
         val features = LinkedHashSet<QueryPortableFeature>()
         val stringComparisonModes = LinkedHashSet<StringComparisonMode>()
         val capabilities = LinkedHashSet<QueryCapabilityId>()
+        val nativeBackendIds = LinkedHashSet<String>()
         val fields = LinkedHashSet<LogicalField>()
         val pending = ArrayDeque<ExpressionFrame>()
         pending += ExpressionFrame(expression, null)
@@ -318,36 +337,24 @@ internal class DefaultQueryPlanner private constructor(
 
                 is NativeExpression -> {
                     capabilities += current.capabilityId
+                    nativeBackendIds += current.backendId
                     fields += current.declaredFields.map { resolvePath(frame.relativeTo, it) }
                 }
                 is RelativeTimeExpression -> invalidQuery()
             }
         }
-        return ExpressionInspection(operators, features, stringComparisonModes, capabilities, fields)
+        return ExpressionInspection(
+            operators,
+            features,
+            stringComparisonModes,
+            capabilities,
+            nativeBackendIds,
+            fields
+        )
     }
 
     private fun resolvePath(relativeTo: LogicalField?, field: LogicalField): LogicalField =
         if (relativeTo == null) field else LogicalField("${relativeTo.value}.${field.value}")
-
-    private fun inspectNativeBackendIds(expression: QueryExpression): Set<String> {
-        val backendIds = LinkedHashSet<String>()
-        val pending = ArrayDeque<QueryExpression>()
-        pending += expression
-        while (pending.isNotEmpty()) {
-            when (val current = pending.removeLast()) {
-                is NativeExpression -> backendIds += current.backendId
-                is LogicalExpression -> current.operands.forEach(pending::addLast)
-                is PortableLogicalExpression -> current.operands.forEach(pending::addLast)
-                is ElementMatchExpression -> pending += current.predicate
-                MatchAll,
-                MatchNone,
-                is PredicateExpression,
-                is FullTextExpression -> Unit
-                is RelativeTimeExpression -> invalidQuery()
-            }
-        }
-        return backendIds
-    }
 
     private fun QueryFieldAccess.allows(fields: Set<LogicalField>): Boolean = when (this) {
         QueryFieldAccess.Unrestricted -> true
@@ -386,6 +393,7 @@ internal class DefaultQueryPlanner private constructor(
         val portableFeatures: Set<QueryPortableFeature>,
         val stringComparisonModes: Set<StringComparisonMode>,
         val capabilities: Set<QueryCapabilityId>,
+        val nativeBackendIds: Set<String>,
         val fields: Set<LogicalField>
     )
 
@@ -452,8 +460,7 @@ internal class DefaultQueryPlanner private constructor(
 
         @JvmSynthetic
         internal fun create(
-            enabledCapabilities: Set<QueryCapabilityId>,
-            validator: QueryPlanValidator
-        ): DefaultQueryPlanner = DefaultQueryPlanner(enabledCapabilities, validator)
+            enabledCapabilities: Set<QueryCapabilityId>
+        ): DefaultQueryPlanner = DefaultQueryPlanner(enabledCapabilities)
     }
 }

@@ -18,17 +18,8 @@ import me.ahoo.wow.api.query.error.QueryErrorCode
 import me.ahoo.wow.api.query.error.QueryErrorReason
 import me.ahoo.wow.api.query.error.QueryException
 import me.ahoo.wow.api.query.error.QueryStage
-import me.ahoo.wow.api.query.expression.ElementMatchExpression
-import me.ahoo.wow.api.query.expression.FullTextExpression
-import me.ahoo.wow.api.query.expression.LogicalExpression
-import me.ahoo.wow.api.query.expression.MatchAll
-import me.ahoo.wow.api.query.expression.MatchNone
-import me.ahoo.wow.api.query.expression.NativeExpression
-import me.ahoo.wow.api.query.expression.PortableLogicalExpression
-import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.expression.QueryExpression
-import me.ahoo.wow.api.query.expression.RelativeTimeExpression
 import me.ahoo.wow.api.query.gateway.CountQueryRequest
 import me.ahoo.wow.api.query.gateway.ListQueryRequest
 import me.ahoo.wow.api.query.gateway.PageQueryRequest
@@ -41,6 +32,7 @@ import me.ahoo.wow.query.backend.QueryBackendResolver
 import me.ahoo.wow.query.backend.ResolvedQueryBackend
 import me.ahoo.wow.query.compat.isLegacyTypedDynamicDocumentMarker
 import me.ahoo.wow.query.compat.legacyQueryExecution
+import me.ahoo.wow.query.compat.withExpression
 import me.ahoo.wow.query.expression.InvocationExpressionNormalizer
 import me.ahoo.wow.query.invocation.QueryDeadlineExceededException
 import me.ahoo.wow.query.invocation.QueryInvocation
@@ -59,9 +51,9 @@ import me.ahoo.wow.query.policy.DefaultQueryPolicyChain
 import me.ahoo.wow.query.result.DefaultResultPolicyChain
 import me.ahoo.wow.query.result.ResultPolicyContext
 import me.ahoo.wow.query.schema.QuerySchemaResolver
-import me.ahoo.wow.query.validation.QueryRequestSchemaValidator
 import me.ahoo.wow.query.validation.QueryRequestValidator
 import me.ahoo.wow.query.validation.QueryStructureLimits
+import me.ahoo.wow.query.validation.requestedCapabilities
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.util.concurrent.atomic.AtomicBoolean
@@ -69,7 +61,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal class DefaultQueryGateway private constructor(
     private val invocationFactory: QueryInvocationFactory,
     private val requestValidator: QueryRequestValidator,
-    private val schemaValidator: QueryRequestSchemaValidator,
     private val schemaResolver: QuerySchemaResolver,
     private val policyChain: DefaultQueryPolicyChain,
     private val backendResolver: QueryBackendResolver,
@@ -213,30 +204,10 @@ internal class DefaultQueryGateway private constructor(
         .flatMap { evaluated -> createPlan(evaluated, operation) }
 
     private fun validateConfiguredCapabilities(evaluated: InvocationPolicy): InvocationPolicy {
-        if (!enabledCapabilities.containsAll(requestedCapabilities(evaluated.policyResult.securedExpression))) {
+        if (!enabledCapabilities.containsAll(evaluated.policyResult.securedExpression.requestedCapabilities())) {
             throw unsupportedCapability()
         }
         return evaluated
-    }
-
-    private fun requestedCapabilities(expression: QueryExpression): Set<QueryCapabilityId> {
-        val capabilities = LinkedHashSet<QueryCapabilityId>()
-        val pending = ArrayDeque<QueryExpression>()
-        pending += expression
-        while (pending.isNotEmpty()) {
-            when (val current = pending.removeLast()) {
-                is FullTextExpression -> capabilities += current.capabilityId
-                is NativeExpression -> capabilities += current.capabilityId
-                is LogicalExpression -> current.operands.forEach(pending::addLast)
-                is PortableLogicalExpression -> current.operands.forEach(pending::addLast)
-                is ElementMatchExpression -> pending += current.predicate
-                MatchAll,
-                MatchNone,
-                is PredicateExpression -> Unit
-                is RelativeTimeExpression -> throw IllegalStateException("Relative time was not normalized.")
-            }
-        }
-        return capabilities
     }
 
     private fun resolveSchemaAndValidate(seed: QueryInvocationSeed): Mono<QueryInvocation> {
@@ -258,9 +229,8 @@ internal class DefaultQueryGateway private constructor(
             .flatMap { invocation ->
                 val validation = Mono.fromCallable {
                     stageObserver.record(QueryGatewayStage.SCHEMA_VALIDATION)
-                    schemaValidator.validate(
-                        invocation.request,
-                        invocation.normalizedExpression,
+                    requestValidator.validateSchema(
+                        invocation.request.withExpression(invocation.normalizedExpression),
                         invocation.schema
                     )
                     invocation
@@ -496,7 +466,6 @@ internal class DefaultQueryGateway private constructor(
         internal fun create(
             invocationFactory: QueryInvocationFactory,
             requestValidator: QueryRequestValidator,
-            schemaValidator: QueryRequestSchemaValidator,
             schemaResolver: QuerySchemaResolver,
             policyChain: DefaultQueryPolicyChain,
             backendResolver: QueryBackendResolver,
@@ -509,7 +478,6 @@ internal class DefaultQueryGateway private constructor(
         ): DefaultQueryGateway = DefaultQueryGateway(
             invocationFactory,
             requestValidator,
-            schemaValidator,
             schemaResolver,
             policyChain,
             backendResolver,

@@ -17,18 +17,9 @@ import me.ahoo.wow.api.query.error.QueryErrorCode
 import me.ahoo.wow.api.query.error.QueryErrorReason
 import me.ahoo.wow.api.query.error.QueryException
 import me.ahoo.wow.api.query.error.QueryStage
-import me.ahoo.wow.api.query.expression.ElementMatchExpression
-import me.ahoo.wow.api.query.expression.FullTextExpression
-import me.ahoo.wow.api.query.expression.LogicalExpression
-import me.ahoo.wow.api.query.expression.MatchAll
-import me.ahoo.wow.api.query.expression.MatchNone
-import me.ahoo.wow.api.query.expression.NativeExpression
 import me.ahoo.wow.api.query.expression.PortableExpression
-import me.ahoo.wow.api.query.expression.PortableLogicalExpression
-import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.expression.QueryExpression
-import me.ahoo.wow.api.query.expression.RelativeTimeExpression
 import me.ahoo.wow.api.query.gateway.CountQueryRequest
 import me.ahoo.wow.api.query.gateway.QueryResultShape
 import me.ahoo.wow.api.query.gateway.ResultQueryRequest
@@ -39,10 +30,10 @@ import me.ahoo.wow.query.invocation.QueryDeadlineGuard
 import me.ahoo.wow.query.invocation.QueryInvocation
 import me.ahoo.wow.query.validation.QueryBudgetLimit
 import me.ahoo.wow.query.validation.QueryExpressionValidator
+import me.ahoo.wow.query.validation.requestedCapabilities
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.time.Instant
-import java.util.ArrayDeque
 import java.util.Collections
 
 private const val SYSTEM_POLICY_ID: String = "system"
@@ -50,18 +41,20 @@ internal const val COMBINED_POLICY_ID: String = "combined"
 
 internal class DefaultQueryPolicyChain(
     systemPolicy: SystemQueryPolicy,
-    customPolicies: List<QueryPolicyDescriptor>,
+    customPolicies: List<QueryPolicyRegistration>,
     private val expressionValidator: QueryExpressionValidator
 ) {
-    private val policies: List<QueryPolicyDescriptor>
+    private val policies: List<PolicyEntry>
 
     init {
         require(customPolicies.none { it.policy is SystemQueryPolicy }) {
             "System query policy cannot be registered as a custom policy."
         }
-        val orderedCustomPolicies = customPolicies.sortedWith(PolicyDescriptorComparator)
+        val orderedCustomPolicies = customPolicies
+            .sortedWith(compareBy<QueryPolicyRegistration> { it.order }.thenBy { it.descriptorId })
+            .map { PolicyEntry(it.descriptorId, it.policy) }
         policies = Collections.unmodifiableList(
-            listOf(QueryPolicyDescriptor(SYSTEM_POLICY_ID, Int.MIN_VALUE, systemPolicy)) + orderedCustomPolicies
+            listOf(PolicyEntry(SYSTEM_POLICY_ID, systemPolicy)) + orderedCustomPolicies
         )
     }
 
@@ -96,7 +89,7 @@ internal class DefaultQueryPolicyChain(
     }.onErrorMap { error -> mapPolicyError(error) }
 
     private fun evaluate(
-        descriptor: QueryPolicyDescriptor,
+        descriptor: PolicyEntry,
         context: QueryPolicyContext,
         descriptorObserver: (String) -> Unit
     ): Mono<QueryPolicyResult> = Mono.defer {
@@ -126,7 +119,7 @@ internal class DefaultQueryPolicyChain(
         results: List<QueryPolicyResult>
     ): CombinedQueryPolicyResult {
         val constraints = combineConstraints(results.map(QueryPolicyResult::constraints))
-        requestedCapabilities(context.normalizedExpression).forEach { capability ->
+        context.normalizedExpression.requestedCapabilities().forEach { capability ->
             if (constraints.capabilityAccess[capability] != CapabilityDecision.GRANT) {
                 throw CapabilityDeniedException()
             }
@@ -155,7 +148,7 @@ internal class DefaultQueryPolicyChain(
                 decisions.computeIfAbsent(capability) { mutableListOf() } += decision
             }
         }
-        val capabilityAccess = decisions.entries.sortedWith(CapabilityEntryComparator)
+        val capabilityAccess = decisions.entries.sortedBy { it.key.value }
             .associateTo(LinkedHashMap()) { entry ->
                 entry.key to decide(entry.value)
             }
@@ -178,26 +171,6 @@ internal class DefaultQueryPolicyChain(
         CapabilityDecision.DENY in decisions -> CapabilityDecision.DENY
         CapabilityDecision.GRANT in decisions -> CapabilityDecision.GRANT
         else -> CapabilityDecision.ABSTAIN
-    }
-
-    private fun requestedCapabilities(expression: QueryExpression): Set<QueryCapabilityId> {
-        val capabilities = LinkedHashSet<QueryCapabilityId>()
-        val pending = ArrayDeque<QueryExpression>()
-        pending += expression
-        while (pending.isNotEmpty()) {
-            when (val current = pending.removeLast()) {
-                is FullTextExpression -> capabilities += current.capabilityId
-                is NativeExpression -> capabilities += current.capabilityId
-                is LogicalExpression -> current.operands.forEach(pending::addLast)
-                is PortableLogicalExpression -> current.operands.forEach(pending::addLast)
-                is ElementMatchExpression -> pending += current.predicate
-                MatchAll,
-                MatchNone,
-                is PredicateExpression -> Unit
-                is RelativeTimeExpression -> throw IllegalStateException("Relative time was not normalized.")
-            }
-        }
-        return Collections.unmodifiableSet(capabilities)
     }
 
     private fun contextOf(invocation: QueryInvocation): QueryPolicyContext = QueryPolicyContext(
@@ -249,22 +222,9 @@ internal class DefaultQueryPolicyChain(
         QueryErrorReason.POLICY_EVALUATION_FAILED
     )
 
-    private object PolicyDescriptorComparator : Comparator<QueryPolicyDescriptor> {
-        override fun compare(first: QueryPolicyDescriptor, second: QueryPolicyDescriptor): Int {
-            val orderComparison = first.order.compareTo(second.order)
-            return if (orderComparison != 0) orderComparison else first.id.compareTo(second.id)
-        }
-    }
-
-    private object CapabilityEntryComparator :
-        Comparator<Map.Entry<QueryCapabilityId, MutableList<CapabilityDecision>>> {
-        override fun compare(
-            first: Map.Entry<QueryCapabilityId, MutableList<CapabilityDecision>>,
-            second: Map.Entry<QueryCapabilityId, MutableList<CapabilityDecision>>
-        ): Int = first.key.value.compareTo(second.key.value)
-    }
-
     private class CapabilityDeniedException : RuntimeException(null, null, false, false)
+
+    private class PolicyEntry(val id: String, val policy: QueryPolicy)
 }
 
 internal class CombinedQueryPolicyResult(

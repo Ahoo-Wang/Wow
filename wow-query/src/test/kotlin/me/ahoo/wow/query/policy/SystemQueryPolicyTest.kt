@@ -94,7 +94,7 @@ class SystemQueryPolicyTest {
             reactor.core.publisher.Mono.fromCallable {
                 DefaultQueryPolicyChain(
                     system,
-                    listOf(QueryPolicyDescriptor("replacement", 0, system)),
+                    listOf(QueryPolicyRegistration("replacement", 0, system)),
                     me.ahoo.wow.query.validation.QueryExpressionValidator(
                         me.ahoo.wow.query.validation.QueryStructureLimits(64, 10_000, 10_000, 1_048_576)
                     )
