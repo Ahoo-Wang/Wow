@@ -69,7 +69,7 @@
     {
       "name": "wow.query.gateway.system-budget.max-cost",
       "type": "java.lang.Long",
-      "description": "Optional system-wide maximum planner cost for each query invocation."
+      "description": "Optional system-wide maximum deterministic planner cost: secured expression nodes plus projected fields plus stable sort fields."
     },
     {
       "name": "wow.query.gateway.enabled-capabilities",

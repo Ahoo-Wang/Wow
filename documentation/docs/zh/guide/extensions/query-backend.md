@@ -20,6 +20,8 @@ val factory = QueryBackendFactory { context ->
 
 每次 invocation 获得同一份 immutable `target + schema + securedExpression` 快照。网络、mapping、index 和 template 检查放在返回 Backend 的 `readiness()`；执行方法只消费 `SingleQueryPlanV1`、`ListQueryPlanV1`、`PageQueryPlanV1` 或 `CountQueryPlanV1`。
 
+实现 context-aware resolver 时必须调用 `ResolvedQueryBackend.resolve(backend, routeIdentity, context)`；它会在订阅 readiness 前，用 secured expression 校验 descriptor。
+
 ## Stable descriptor
 
 下面的主体由 `QueryBackendDocumentationTest` 编译：
@@ -38,6 +40,8 @@ override val descriptor = QueryBackendDescriptor(
 ```
 
 Descriptor 是能力承诺，不是运行时探测结果。缺少 operator、document kind、plan version、string mode 或 capability 时，Gateway 在执行前拒绝。FullText 和 Native 只在 descriptor、应用 enabled capability、Policy 决策及 schema binding 同时允许时执行；不能降级。
+
+`maxCost` 是确定值：secured expression 节点数 + projection 字段数 + stable sort 字段数。
 
 ## Legacy → canonical operator matrix
 

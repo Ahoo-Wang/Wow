@@ -450,6 +450,27 @@ class DefaultQueryPlannerTest {
     }
 
     @Test
+    fun `rejects deterministic planner cost above the effective budget`() {
+        val resolved = ResolvedQueryBackend.resolve(RecordingQueryBackend(descriptor()), ROUTE).block()!!
+
+        assertQueryError(
+            planner().plan(
+                invocation(),
+                policyResult(maxBudget = QueryBudgetLimit(maxCost = 3)),
+                resolved,
+            ),
+            QueryErrorCode.BUDGET_EXCEEDED,
+            QueryErrorReason.BUDGET_LIMIT_REACHED,
+        )
+
+        planner().plan(
+            invocation(),
+            policyResult(maxBudget = QueryBudgetLimit(maxCost = 4)),
+            resolved,
+        ).block().assert().isNotNull()
+    }
+
+    @Test
     fun `rejects excluded fields that are unknown or not authorized`() {
         val projectionSchema = QuerySchema(
             TARGET,

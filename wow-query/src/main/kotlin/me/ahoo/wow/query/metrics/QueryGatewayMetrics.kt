@@ -45,10 +45,15 @@ internal class QueryGatewayMetrics(
     private val enabledCapabilities: Set<QueryCapabilityId> =
         Collections.unmodifiableSet(LinkedHashSet(enabledCapabilities))
 
-    fun state(request: QueryRequest, operation: QueryOperation): QueryGatewayMetricState = QueryGatewayMetricState(
+    fun state(
+        request: QueryRequest,
+        operation: QueryOperation,
+        legacyFacade: Boolean = false,
+    ): QueryGatewayMetricState = QueryGatewayMetricState(
         request = request,
         operation = operation,
-        capabilityId = capabilityTag(request.expression)
+        capabilityId = capabilityTag(request.expression),
+        legacyFacade = legacyFacade,
     )
 
     fun <T : Any> observe(publisher: Mono<T>, state: QueryGatewayMetricState): Mono<T> {
@@ -107,7 +112,7 @@ internal class QueryGatewayMetrics(
                     "policyDescriptor",
                     if (signal == SignalType.ON_ERROR) state.policyDescriptor.get() else COMBINED_POLICY_ID
                 ),
-                Tag.of("legacyFacade", "false")
+                Tag.of("legacyFacade", state.legacyFacade.toString())
             )
         ).increment()
     }
@@ -144,7 +149,8 @@ internal class QueryGatewayMetrics(
 internal class QueryGatewayMetricState(
     val request: QueryRequest,
     val operation: QueryOperation,
-    val capabilityId: String
+    val capabilityId: String,
+    val legacyFacade: Boolean,
 ) {
     val backendId: AtomicReference<String> = AtomicReference("unresolved")
     val error: AtomicReference<Throwable?> = AtomicReference()

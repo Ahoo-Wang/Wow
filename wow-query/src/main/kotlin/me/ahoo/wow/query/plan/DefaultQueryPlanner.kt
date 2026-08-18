@@ -17,20 +17,9 @@ import me.ahoo.wow.api.query.error.QueryErrorCode
 import me.ahoo.wow.api.query.error.QueryErrorReason
 import me.ahoo.wow.api.query.error.QueryException
 import me.ahoo.wow.api.query.error.QueryStage
-import me.ahoo.wow.api.query.expression.ElementMatchExpression
-import me.ahoo.wow.api.query.expression.FullTextExpression
-import me.ahoo.wow.api.query.expression.LogicalExpression
 import me.ahoo.wow.api.query.expression.LogicalField
-import me.ahoo.wow.api.query.expression.MatchAll
-import me.ahoo.wow.api.query.expression.MatchNone
-import me.ahoo.wow.api.query.expression.NativeExpression
-import me.ahoo.wow.api.query.expression.PortableLogicalExpression
-import me.ahoo.wow.api.query.expression.PortableOperator
-import me.ahoo.wow.api.query.expression.PredicateExpression
 import me.ahoo.wow.api.query.expression.QueryCapabilityId
 import me.ahoo.wow.api.query.expression.QueryExpression
-import me.ahoo.wow.api.query.expression.RelativeTimeExpression
-import me.ahoo.wow.api.query.expression.StringComparisonMode
 import me.ahoo.wow.api.query.gateway.CountQueryRequest
 import me.ahoo.wow.api.query.gateway.ListQueryRequest
 import me.ahoo.wow.api.query.gateway.PageQueryRequest
@@ -44,8 +33,8 @@ import me.ahoo.wow.api.query.gateway.SingleQueryRequest
 import me.ahoo.wow.query.backend.QueryBackendReadiness
 import me.ahoo.wow.query.backend.QueryBackendRouteIdentity
 import me.ahoo.wow.query.backend.QueryPlanVersion
-import me.ahoo.wow.query.backend.QueryPortableFeature
 import me.ahoo.wow.query.backend.ResolvedQueryBackend
+import me.ahoo.wow.query.backend.inspectBackendCompatibility
 import me.ahoo.wow.query.invocation.QueryDeadline
 import me.ahoo.wow.query.invocation.QueryDeadlineExceededException
 import me.ahoo.wow.query.invocation.QueryInvocation
@@ -57,7 +46,6 @@ import me.ahoo.wow.query.schema.QuerySchemaView
 import me.ahoo.wow.query.validation.QueryBudgetLimit
 import reactor.core.publisher.Mono
 import java.time.Instant
-import java.util.ArrayDeque
 import java.util.Collections
 
 internal class DefaultQueryPlanner private constructor(
@@ -72,11 +60,14 @@ internal class DefaultQueryPlanner private constructor(
         policyResult: CombinedQueryPolicyResult,
         resolvedBackend: ResolvedQueryBackend
     ): Mono<QueryPlanV1> = Mono.defer {
-        validateDescriptorAndReadiness(invocation, resolvedBackend)
-        val expressionInspection = inspect(policyResult.securedExpression)
-        validatePortableSemantics(expressionInspection, resolvedBackend)
-        validateCapabilities(expressionInspection, policyResult, resolvedBackend)
-        validateFields(expressionInspection.fields, invocation.schema, policyResult.constraints.fieldAccess)
+        val (fields, capabilities, nodeCount) = inspectBackendCompatibility(
+            invocation.request.target.documentKind,
+            policyResult.securedExpression,
+            resolvedBackend.descriptor,
+        )
+        validateReadiness(resolvedBackend)
+        validateCapabilities(capabilities, policyResult)
+        validateFields(fields, invocation.schema, policyResult.constraints.fieldAccess)
         val authorizedResultShape = authorizeResultShape(invocation, policyResult.constraints.fieldAccess)
         val stableSort = stableSort(invocation, policyResult.constraints.fieldAccess)
         val effectiveBudget = QueryBudgetLimit.min(
@@ -91,7 +82,11 @@ internal class DefaultQueryPlanner private constructor(
             QueryStage.PLANNING
         )
         val planCreation = Mono.fromCallable {
-            validateBudget(invocation.request, effectiveBudget)
+            validateBudget(
+                invocation.request,
+                effectiveBudget,
+                plannerCost(nodeCount, authorizedResultShape, stableSort),
+            )
             createPlan(
                 invocation = invocation,
                 policyResult = policyResult,
@@ -107,65 +102,57 @@ internal class DefaultQueryPlanner private constructor(
         QueryException(QueryErrorCode.DEADLINE_EXCEEDED, error.stage, QueryErrorReason.DEADLINE_REACHED)
     }
 
-    private fun validateDescriptorAndReadiness(
-        invocation: QueryInvocation,
-        resolved: ResolvedQueryBackend
-    ) {
-        if (invocation.request.target.documentKind !in resolved.descriptor.documentKinds ||
-            QueryPlanVersion.V1 !in resolved.descriptor.planVersions ||
-            resolved.readinessSnapshot !is QueryBackendReadiness.Ready
-        ) {
+    private fun validateReadiness(resolved: ResolvedQueryBackend) {
+        if (resolved.readinessSnapshot !is QueryBackendReadiness.Ready) {
             throw backendNotReady()
         }
     }
 
     private fun validateBudget(
         request: me.ahoo.wow.api.query.gateway.QueryRequest,
-        budget: QueryBudgetLimit
+        budget: QueryBudgetLimit,
+        plannerCost: Long,
     ) {
-        val maximum = budget.maxResults ?: return
-        val requested = when (request) {
-            is SingleQueryRequest<*> -> 1L
-            is ListQueryRequest<*> -> request.limit.toLong().takeIf { it > 0 }
-            is PageQueryRequest<*> -> request.page.size.toLong()
-            is CountQueryRequest -> null
+        budget.maxResults?.let { maximum ->
+            val requested = when (request) {
+                is SingleQueryRequest<*> -> 1L
+                is ListQueryRequest<*> -> request.limit.toLong().takeIf { it > 0 }
+                is PageQueryRequest<*> -> request.page.size.toLong()
+                is CountQueryRequest -> null
+            }
+            if (requested != null && requested > maximum) {
+                budgetExceeded()
+            }
         }
-        if (requested != null && requested > maximum) {
-            throw QueryException(
-                QueryErrorCode.BUDGET_EXCEEDED,
-                QueryStage.PLANNING,
-                QueryErrorReason.BUDGET_LIMIT_REACHED
-            )
-        }
-    }
-
-    private fun validatePortableSemantics(
-        requested: ExpressionInspection,
-        resolved: ResolvedQueryBackend
-    ) {
-        if (!resolved.descriptor.portableOperators.containsAll(requested.portableOperators) ||
-            !resolved.descriptor.portableFeatures.containsAll(requested.portableFeatures) ||
-            !resolved.descriptor.stringComparisonModes.containsAll(requested.stringComparisonModes)
-        ) {
-            unsupportedCapability()
+        if (budget.maxCost?.let { plannerCost > it } == true) {
+            budgetExceeded()
         }
     }
 
     private fun validateCapabilities(
-        requested: ExpressionInspection,
+        requested: Set<QueryCapabilityId>,
         policyResult: CombinedQueryPolicyResult,
-        resolved: ResolvedQueryBackend
     ) {
-        requested.capabilities.forEach { capability ->
-            if (capability !in resolved.descriptor.capabilities || capability !in enabledCapabilities ||
+        requested.forEach { capability ->
+            if (capability !in enabledCapabilities ||
                 policyResult.constraints.capabilityAccess[capability] != CapabilityDecision.GRANT
             ) {
                 unsupportedCapability()
             }
         }
-        if (requested.nativeBackendIds.any { it != resolved.descriptor.backendId }) {
-            unsupportedCapability()
+    }
+
+    private fun plannerCost(
+        expressionNodes: Long,
+        resultShape: QueryPlanResultShape,
+        sort: List<QuerySort>,
+    ): Long {
+        val projectedFields = when (resultShape) {
+            is QueryPlanResultShape.Typed -> resultShape.fields.size
+            is QueryPlanResultShape.Dynamic -> resultShape.fields.size
+            QueryPlanResultShape.Count -> 0
         }
+        return expressionNodes + projectedFields + sort.size
     }
 
     private fun validateFields(
@@ -292,68 +279,6 @@ internal class DefaultQueryPlanner private constructor(
         }
     }
 
-    private fun inspect(expression: QueryExpression): ExpressionInspection {
-        val operators = LinkedHashSet<PortableOperator>()
-        val features = LinkedHashSet<QueryPortableFeature>()
-        val stringComparisonModes = LinkedHashSet<StringComparisonMode>()
-        val capabilities = LinkedHashSet<QueryCapabilityId>()
-        val nativeBackendIds = LinkedHashSet<String>()
-        val fields = LinkedHashSet<LogicalField>()
-        val pending = ArrayDeque<ExpressionFrame>()
-        pending += ExpressionFrame(expression, null)
-        while (pending.isNotEmpty()) {
-            val frame = pending.removeLast()
-            when (val current = frame.expression) {
-                MatchAll,
-                MatchNone -> Unit
-
-                is LogicalExpression -> current.operands.forEach {
-                    pending += ExpressionFrame(it, frame.relativeTo)
-                }
-                is PortableLogicalExpression -> current.operands.forEach {
-                    pending += ExpressionFrame(it, frame.relativeTo)
-                }
-                is PredicateExpression -> {
-                    operators += current.operator
-                    if (current.operator in STRING_COMPARISON_OPERATORS) {
-                        stringComparisonModes += current.stringComparison
-                    }
-                    fields += resolvePath(frame.relativeTo, current.field)
-                }
-
-                is ElementMatchExpression -> {
-                    features += QueryPortableFeature.ELEMENT_MATCH
-                    val field = resolvePath(frame.relativeTo, current.field)
-                    fields += field
-                    pending += ExpressionFrame(current.predicate, field)
-                }
-
-                is FullTextExpression -> {
-                    capabilities += current.capabilityId
-                    fields += current.fields.map { resolvePath(frame.relativeTo, it) }
-                }
-
-                is NativeExpression -> {
-                    capabilities += current.capabilityId
-                    nativeBackendIds += current.backendId
-                    fields += current.declaredFields.map { resolvePath(frame.relativeTo, it) }
-                }
-                is RelativeTimeExpression -> invalidQuery()
-            }
-        }
-        return ExpressionInspection(
-            operators,
-            features,
-            stringComparisonModes,
-            capabilities,
-            nativeBackendIds,
-            fields
-        )
-    }
-
-    private fun resolvePath(relativeTo: LogicalField?, field: LogicalField): LogicalField =
-        if (relativeTo == null) field else LogicalField("${relativeTo.value}.${field.value}")
-
     private fun QueryFieldAccess.allows(fields: Set<LogicalField>): Boolean = when (this) {
         QueryFieldAccess.Unrestricted -> true
         is QueryFieldAccess.Restricted -> this.fields.containsAll(fields)
@@ -386,18 +311,10 @@ internal class DefaultQueryPlanner private constructor(
     private fun <T> immutableList(source: Collection<T>): List<T> =
         Collections.unmodifiableList(ArrayList(source))
 
-    private class ExpressionInspection(
-        val portableOperators: Set<PortableOperator>,
-        val portableFeatures: Set<QueryPortableFeature>,
-        val stringComparisonModes: Set<StringComparisonMode>,
-        val capabilities: Set<QueryCapabilityId>,
-        val nativeBackendIds: Set<String>,
-        val fields: Set<LogicalField>
-    )
-
-    private class ExpressionFrame(
-        val expression: QueryExpression,
-        val relativeTo: LogicalField?
+    private fun budgetExceeded(): Nothing = throw QueryException(
+        QueryErrorCode.BUDGET_EXCEEDED,
+        QueryStage.PLANNING,
+        QueryErrorReason.BUDGET_LIMIT_REACHED,
     )
 
     private class PlanState(
@@ -448,12 +365,6 @@ internal class DefaultQueryPlanner private constructor(
     private class CountPlan(state: PlanState) : AbstractPlan(state), CountQueryPlanV1
 
     internal companion object {
-        private val STRING_COMPARISON_OPERATORS = setOf(
-            PortableOperator.CONTAINS,
-            PortableOperator.STARTS_WITH,
-            PortableOperator.ENDS_WITH
-        )
-
         @JvmSynthetic
         internal fun create(
             enabledCapabilities: Set<QueryCapabilityId>

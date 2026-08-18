@@ -16,17 +16,6 @@ import me.ahoo.wow.api.query.error.QueryErrorCode
 import me.ahoo.wow.api.query.error.QueryErrorReason
 import me.ahoo.wow.api.query.error.QueryException
 import me.ahoo.wow.api.query.error.QueryStage
-import me.ahoo.wow.api.query.expression.ElementMatchExpression
-import me.ahoo.wow.api.query.expression.FullTextExpression
-import me.ahoo.wow.api.query.expression.LogicalExpression
-import me.ahoo.wow.api.query.expression.MatchAll
-import me.ahoo.wow.api.query.expression.MatchNone
-import me.ahoo.wow.api.query.expression.NativeExpression
-import me.ahoo.wow.api.query.expression.PortableLogicalExpression
-import me.ahoo.wow.api.query.expression.PredicateExpression
-import me.ahoo.wow.api.query.expression.QueryCapabilityId
-import me.ahoo.wow.api.query.expression.QueryExpression
-import me.ahoo.wow.api.query.expression.RelativeTimeExpression
 import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.query.backend.QueryBackendResolutionContext
 import me.ahoo.wow.query.backend.QueryBackendResolver
@@ -60,57 +49,16 @@ internal class StorageRoutingQueryBackendResolver private constructor(
         context: QueryBackendResolutionContext,
     ): Mono<ResolvedQueryBackend> = try {
         val backend = binding.backendFactory.bind(context)
-        validateCapabilities(backend.descriptor.capabilities, backend.descriptor.backendId, context.securedExpression)
         ResolvedQueryBackend.resolve(
             backend,
             QueryBackendRouteIdentity("${binding.name}:${context.target.documentKind.name}"),
+            context,
         )
     } catch (error: QueryException) {
         Mono.error(error)
     } catch (_: Exception) {
         backendNotReady()
     }
-
-    private fun validateCapabilities(
-        supportedCapabilities: Set<QueryCapabilityId>,
-        backendId: String,
-        expression: QueryExpression,
-    ) {
-        val requestedCapabilities = LinkedHashSet<QueryCapabilityId>()
-        val nativeBackendIds = LinkedHashSet<String>()
-        val pending = ArrayDeque<QueryExpression>()
-        pending += expression
-        while (pending.isNotEmpty()) {
-            when (val current = pending.removeLast()) {
-                is FullTextExpression -> requestedCapabilities += current.capabilityId
-                is NativeExpression -> {
-                    requestedCapabilities += current.capabilityId
-                    nativeBackendIds += current.backendId
-                }
-
-                is LogicalExpression -> current.operands.forEach(pending::addLast)
-                is PortableLogicalExpression -> current.operands.forEach(pending::addLast)
-                is ElementMatchExpression -> pending += current.predicate
-                MatchAll,
-                MatchNone,
-                is PredicateExpression -> Unit
-                is RelativeTimeExpression -> throw QueryException(
-                    QueryErrorCode.INVALID_QUERY,
-                    QueryStage.PLANNING,
-                    QueryErrorReason.INVALID_REQUEST,
-                )
-            }
-        }
-        if (!supportedCapabilities.containsAll(requestedCapabilities) || nativeBackendIds.any { it != backendId }) {
-            throw unsupportedCapability()
-        }
-    }
-
-    private fun unsupportedCapability(): QueryException = QueryException(
-        QueryErrorCode.UNSUPPORTED_CAPABILITY,
-        QueryStage.PLANNING,
-        QueryErrorReason.CAPABILITY_DENIED,
-    )
 
     private fun backendNotReady(): Mono<ResolvedQueryBackend> = Mono.error(
         QueryException(

@@ -39,9 +39,32 @@ class ResolvedQueryBackend private constructor(
         @JvmStatic
         fun resolve(
             backend: QueryBackend,
-            routeIdentity: QueryBackendRouteIdentity
+            routeIdentity: QueryBackendRouteIdentity,
+        ): Mono<ResolvedQueryBackend> = Mono.deferContextual { subscriberContext ->
+            val context = subscriberContext.getOrEmpty<QueryBackendResolutionContext>(
+                QueryBackendResolutionContext::class.java,
+            ).orElse(null)
+            resolve(backend, routeIdentity) { descriptor ->
+                context?.let { validateBackendCompatibility(it, descriptor) }
+            }
+        }
+
+        @JvmStatic
+        fun resolve(
+            backend: QueryBackend,
+            routeIdentity: QueryBackendRouteIdentity,
+            context: QueryBackendResolutionContext,
+        ): Mono<ResolvedQueryBackend> = resolve(backend, routeIdentity) { descriptor ->
+            validateBackendCompatibility(context, descriptor)
+        }
+
+        private fun resolve(
+            backend: QueryBackend,
+            routeIdentity: QueryBackendRouteIdentity,
+            preflight: (QueryBackendDescriptor) -> Unit,
         ): Mono<ResolvedQueryBackend> = Mono.defer {
             val descriptorSnapshot = backend.descriptor
+            preflight(descriptorSnapshot)
             backend.readiness()
                 .switchIfEmpty(Mono.error(backendUnavailable()))
                 .map { readiness ->
@@ -52,10 +75,14 @@ class ResolvedQueryBackend private constructor(
                         readinessSnapshot = readiness
                     )
                 }
+                .onErrorMap { error ->
+                    Exceptions.throwIfFatal(error)
+                    backendUnavailable()
+                }
         }
             .onErrorMap { error ->
                 Exceptions.throwIfFatal(error)
-                backendUnavailable()
+                if (error is QueryException) error else backendUnavailable()
             }
 
         private fun backendUnavailable(): QueryException = QueryException(

@@ -19,6 +19,9 @@ wow-query	me/ahoo/wow/query/DefaultQueryGateway$EvaluatedBackend.class	exclude	k
 wow-query	me/ahoo/wow/query/DefaultQueryGateway$InvocationPolicy.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/DefaultQueryGateway$PreparedQuery.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/DefaultQueryGatewayFactory.class	exclude	kotlin-internal
+wow-query	me/ahoo/wow/query/backend/BackendCompatibilityInspection.class	exclude	synthetic-private-helper
+wow-query	me/ahoo/wow/query/backend/BackendExpressionFrame.class	exclude	synthetic-private-helper
+wow-query	me/ahoo/wow/query/backend/QueryBackendCompatibilityKt.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/compat/LegacyQueryGatewayExecutionKt.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/compat/LegacyQueryGatewayExecution.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/QueryGatewayStage.class	exclude	kotlin-internal
@@ -47,8 +50,6 @@ wow-query	me/ahoo/wow/query/metrics/QueryGatewayMetrics$WhenMappings.class	exclu
 wow-query	me/ahoo/wow/query/plan/DefaultQueryPlanner$AbstractPlan.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/plan/DefaultQueryPlanner$Companion.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/plan/DefaultQueryPlanner$CountPlan.class	exclude	kotlin-internal
-wow-query	me/ahoo/wow/query/plan/DefaultQueryPlanner$ExpressionFrame.class	exclude	kotlin-internal
-wow-query	me/ahoo/wow/query/plan/DefaultQueryPlanner$ExpressionInspection.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/plan/DefaultQueryPlanner$ListPlan.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/plan/DefaultQueryPlanner$PagePlan.class	exclude	kotlin-internal
 wow-query	me/ahoo/wow/query/plan/DefaultQueryPlanner$PlanState.class	exclude	kotlin-internal

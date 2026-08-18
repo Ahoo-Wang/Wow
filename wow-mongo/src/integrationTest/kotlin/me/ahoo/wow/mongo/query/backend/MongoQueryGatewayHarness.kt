@@ -73,7 +73,7 @@ internal class MongoQueryGatewayHarness(
                 Mono.error<ResolvedQueryBackend>(AssertionError("Target-only backend resolution is forbidden."))
 
             override fun resolve(context: me.ahoo.wow.query.backend.QueryBackendResolutionContext) = Mono.defer {
-                ResolvedQueryBackend.resolve(backendFactory.bind(context), ROUTE_IDENTITY)
+                ResolvedQueryBackend.resolve(backendFactory.bind(context), ROUTE_IDENTITY, context)
             }
         }
         gateway = QueryGatewayFactory.create(

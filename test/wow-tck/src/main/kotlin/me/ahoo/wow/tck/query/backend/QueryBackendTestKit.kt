@@ -75,7 +75,7 @@ class QueryBackendTestKit(
         }
 
         override fun resolve(context: QueryBackendResolutionContext): Mono<ResolvedQueryBackend> = Mono.defer {
-            ResolvedQueryBackend.resolve(observedFactory.bind(context), ROUTE_IDENTITY)
+            ResolvedQueryBackend.resolve(observedFactory.bind(context), ROUTE_IDENTITY, context)
         }
     }
 

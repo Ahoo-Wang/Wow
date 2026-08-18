@@ -15,6 +15,7 @@
 
 package me.ahoo.wow.query.compat
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DeletionState
@@ -64,6 +65,23 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 class LegacyQueryGatewayExecutionTest {
+
+    @Test
+    fun `legacy entry is identified in gateway metrics even without a rewrite`() {
+        val registry = SimpleMeterRegistry()
+        val backend = RecordingQueryBackend(gatewayDescriptor()).respondCount(Mono.just(1))
+        val gateway = QueryGatewayFactory.create(gatewayConfiguration(backend, meterRegistry = registry))
+        val original = Condition.eq("state.status", "OPEN")
+
+        LegacyQueryGatewayExecution.count(gateway, GATEWAY_TARGET, original, original)
+            .test()
+            .expectNext(1)
+            .verifyComplete()
+
+        registry.get("wow.query.gateway")
+            .tag("legacyFacade", "true")
+            .counter().count().assert().isEqualTo(1.0)
+    }
 
     @Test
     fun `append-only rewrite keeps caller and legacy provenance separate`() {

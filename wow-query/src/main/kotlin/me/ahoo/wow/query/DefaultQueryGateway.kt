@@ -77,28 +77,28 @@ internal class DefaultQueryGateway private constructor(
     override fun <R : Any> single(request: SingleQueryRequest<R>): Mono<R> = Mono.deferContextual { context ->
         val legacyExecution = context.legacyQueryExecution(request, QueryOperation.SINGLE)
         val callerRequest = legacyExecution?.callerRequest ?: request
-        val metricState = metrics.state(callerRequest, QueryOperation.SINGLE)
+        val metricState = metrics.state(callerRequest, QueryOperation.SINGLE, legacyExecution != null)
         metrics.observe(executeSingle(callerRequest, metricState, legacyExecution?.legacyExpression), metricState)
     }
 
     override fun <R : Any> list(request: ListQueryRequest<R>): Flux<R> = Flux.deferContextual { context ->
         val legacyExecution = context.legacyQueryExecution(request, QueryOperation.LIST)
         val callerRequest = legacyExecution?.callerRequest ?: request
-        val metricState = metrics.state(callerRequest, QueryOperation.LIST)
+        val metricState = metrics.state(callerRequest, QueryOperation.LIST, legacyExecution != null)
         metrics.observe(executeList(callerRequest, metricState, legacyExecution?.legacyExpression), metricState)
     }
 
     override fun <R : Any> page(request: PageQueryRequest<R>): Mono<QueryPage<R>> = Mono.deferContextual { context ->
         val legacyExecution = context.legacyQueryExecution(request, QueryOperation.PAGE)
         val callerRequest = legacyExecution?.callerRequest ?: request
-        val metricState = metrics.state(callerRequest, QueryOperation.PAGE)
+        val metricState = metrics.state(callerRequest, QueryOperation.PAGE, legacyExecution != null)
         metrics.observe(executePage(callerRequest, metricState, legacyExecution?.legacyExpression), metricState)
     }
 
     override fun count(request: CountQueryRequest): Mono<Long> = Mono.deferContextual { context ->
         val legacyExecution = context.legacyQueryExecution(request, QueryOperation.COUNT)
         val callerRequest = legacyExecution?.callerRequest ?: request
-        val metricState = metrics.state(callerRequest, QueryOperation.COUNT)
+        val metricState = metrics.state(callerRequest, QueryOperation.COUNT, legacyExecution != null)
         metrics.observe(executeCount(callerRequest, metricState, legacyExecution?.legacyExpression), metricState)
     }
 
@@ -259,16 +259,16 @@ internal class DefaultQueryGateway private constructor(
         evaluated: InvocationPolicy,
         metricState: QueryGatewayMetricState
     ): Mono<EvaluatedBackend> {
+        val context = QueryBackendResolutionContext(
+            target = evaluated.invocation.request.target,
+            schema = evaluated.invocation.schema,
+            securedExpression = evaluated.policyResult.securedExpression,
+        )
         val resolution = Mono.defer {
             stageObserver.record(QueryGatewayStage.BACKEND_RESOLVE)
-            backendResolver.resolve(
-                QueryBackendResolutionContext(
-                    target = evaluated.invocation.request.target,
-                    schema = evaluated.invocation.schema,
-                    securedExpression = evaluated.policyResult.securedExpression
-                )
-            )
-        }.switchIfEmpty(Mono.error(backendNotReady()))
+            backendResolver.resolve(context)
+        }.contextWrite { it.put(QueryBackendResolutionContext::class.java, context) }
+            .switchIfEmpty(Mono.error(backendNotReady()))
         return evaluated.invocation.deadlineGuard.enforce(
             resolution,
             evaluated.invocation.admissionDeadline,

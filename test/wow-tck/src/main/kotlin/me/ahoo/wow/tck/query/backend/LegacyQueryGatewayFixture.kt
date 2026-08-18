@@ -79,7 +79,7 @@ fun legacyQueryGateway(
                 Mono.error(AssertionError("Context-only resolution is required."))
 
             override fun resolve(context: QueryBackendResolutionContext): Mono<ResolvedQueryBackend> =
-                ResolvedQueryBackend.resolve(backendFactory.bind(context), QueryBackendRouteIdentity(identity))
+                ResolvedQueryBackend.resolve(backendFactory.bind(context), QueryBackendRouteIdentity(identity), context)
         },
         customPolicies = customPolicies,
         resultPolicies = emptyList(),

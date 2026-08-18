@@ -114,7 +114,6 @@ class QueryCapabilityContract(
         fixture.reset()
         val probe = QueryCapabilityProbe()
         val gateway = gateway(
-            expression = fixture.expression,
             backendSupported = case.backendSupported,
             configured = case.configured,
             policies = policies(case),
@@ -149,7 +148,6 @@ class QueryCapabilityContract(
         fixture.reset()
         val probe = QueryCapabilityProbe()
         val gateway = gateway(
-            expression = case.expression,
             backendSupported = true,
             configured = true,
             policies = policies(
@@ -167,7 +165,6 @@ class QueryCapabilityContract(
     }
 
     private fun gateway(
-        expression: QueryExpression,
         backendSupported: Boolean,
         configured: Boolean,
         policies: List<QueryPolicy>,
@@ -193,7 +190,7 @@ class QueryCapabilityContract(
                 override fun resolve(target: QueryTarget): Mono<QuerySchemaView> =
                     if (target == fixture.target) Mono.just(fixture.schema) else Mono.empty()
             },
-            backendResolver = resolver(expression, backendSupported, probe),
+            backendResolver = resolver(backendSupported, probe),
             customPolicies = policies,
             resultPolicies = emptyList(),
             clock = Clock.fixed(FROZEN_INSTANT, ZoneOffset.UTC),
@@ -211,7 +208,6 @@ class QueryCapabilityContract(
     )
 
     private fun resolver(
-        expression: QueryExpression,
         backendSupported: Boolean,
         probe: QueryCapabilityProbe,
     ): QueryBackendResolver = object : QueryBackendResolver {
@@ -227,12 +223,11 @@ class QueryCapabilityContract(
                 supported = backendSupported,
                 probe = probe,
             )
-            if (fixture.capabilityId !in backend.descriptor.capabilities ||
-                expression is NativeExpression && expression.backendId != backend.descriptor.backendId
-            ) {
-                return@defer Mono.error(unsupportedCapability())
-            }
-            ResolvedQueryBackend.resolve(backend, QueryBackendRouteIdentity("capability-contract:${fixture.id}"))
+            ResolvedQueryBackend.resolve(
+                backend,
+                QueryBackendRouteIdentity("capability-contract:${fixture.id}"),
+                context,
+            )
         }
     }
 

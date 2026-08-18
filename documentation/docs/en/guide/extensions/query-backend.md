@@ -20,6 +20,8 @@ val factory = QueryBackendFactory { context ->
 
 One invocation receives one immutable `target + schema + securedExpression` snapshot. Network, mapping, index, and template checks belong to `readiness()`. Execution consumes only `SingleQueryPlanV1`, `ListQueryPlanV1`, `PageQueryPlanV1`, or `CountQueryPlanV1`.
 
+A context-aware resolver must use `ResolvedQueryBackend.resolve(backend, routeIdentity, context)`. It validates the descriptor against the secured expression before subscribing to readiness.
+
 ## Stable descriptor
 
 The core of this example is compiled by `QueryBackendDocumentationTest`:
@@ -38,6 +40,8 @@ override val descriptor = QueryBackendDescriptor(
 ```
 
 The descriptor is a contract, not a readiness result. Gateway rejects unsupported operators, document kinds, versions, string modes, and capabilities before execution. FullText and Native run only when descriptor, application configuration, Policy, and schema binding all permit them; there is no fallback.
+
+`maxCost` is deterministic: secured expression node count + projected field count + stable sort field count.
 
 ## Legacy → canonical operator matrix
 

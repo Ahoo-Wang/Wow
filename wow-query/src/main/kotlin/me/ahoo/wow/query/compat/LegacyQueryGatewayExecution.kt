@@ -395,21 +395,13 @@ internal class LegacyQueryExecution<R : QueryRequest>(
 private object LegacyQueryExecutionContextKey
 
 private fun <T : Any> bind(publisher: Mono<T>, execution: LegacyQueryExecution<*>): Mono<T> =
-    if (execution.legacyExpression == null) {
-        publisher
-    } else {
-        publisher.contextWrite {
-            it.put(LegacyQueryExecutionContextKey, execution)
-        }
+    publisher.contextWrite {
+        it.put(LegacyQueryExecutionContextKey, execution)
     }
 
 private fun <T : Any> bind(publisher: Flux<T>, execution: LegacyQueryExecution<*>): Flux<T> =
-    if (execution.legacyExpression == null) {
-        publisher
-    } else {
-        publisher.contextWrite {
-            it.put(LegacyQueryExecutionContextKey, execution)
-        }
+    publisher.contextWrite {
+        it.put(LegacyQueryExecutionContextKey, execution)
     }
 
 @JvmSynthetic

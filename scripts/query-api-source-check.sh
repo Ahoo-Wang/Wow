@@ -700,7 +700,7 @@ public final class StableBackendSpi implements QueryBackend {
 
             @Override
             public Mono<ResolvedQueryBackend> resolve(QueryBackendResolutionContext context) {
-                return ResolvedQueryBackend.resolve(backend, route);
+                return ResolvedQueryBackend.resolve(backend, route, context);
             }
         };
     }
@@ -864,7 +864,7 @@ fun contextAwareResolver(backend: QueryBackend, route: QueryBackendRouteIdentity
             ResolvedQueryBackend.resolve(backend, route)
 
         override fun resolve(context: QueryBackendResolutionContext) =
-            ResolvedQueryBackend.resolve(backend, route)
+            ResolvedQueryBackend.resolve(backend, route, context)
     }
 
 fun stableBackendFactory(backend: QueryBackend) = QueryBackendFactory { backend }
@@ -1679,6 +1679,7 @@ import me.ahoo.wow.api.query.Condition;
 import me.ahoo.wow.api.query.expression.QueryExpression;
 import me.ahoo.wow.api.query.expression.RelativeTimeExpression;
 import me.ahoo.wow.api.query.gateway.QueryTarget;
+import me.ahoo.wow.query.backend.QueryBackendCompatibilityKt;
 import me.ahoo.wow.query.expression.InvocationExpressionNormalizer;
 import me.ahoo.wow.query.expression.LegacyConditionLowering;
 import me.ahoo.wow.query.expression.RelativeTimeExpressionNormalizer;
@@ -1690,6 +1691,7 @@ public final class InternalGatewayNormalization {
         Condition condition,
         QueryTarget target
     ) {
+        QueryBackendCompatibilityKt.validateBackendCompatibility(null, null);
         return new Object[]{
             InvocationExpressionNormalizer.INSTANCE.normalize(expression, Instant.EPOCH, ZoneId.of("UTC")),
             LegacyConditionLowering.INSTANCE.lowerForGateway$me_ahoo_wow_wow_query(condition, target),
@@ -1705,7 +1707,7 @@ if javac --release 17 -classpath "$FIXTURE_CLASSPATH" \
     >"$TEMP_DIR/java-gateway-normalization-negative.out" 2>&1; then
     fail "Java external source unexpectedly accessed Gateway normalization internals"
 fi
-for internal_name in InvocationExpressionNormalizer LegacyConditionLowering \
+for internal_name in BackendCompatibility InvocationExpressionNormalizer LegacyConditionLowering \
     RelativeTimeExpressionNormalizer; do
     grep -F "$internal_name" "$TEMP_DIR/java-gateway-normalization-negative.out" >/dev/null || {
         cat "$TEMP_DIR/java-gateway-normalization-negative.out" >&2
@@ -1720,8 +1722,15 @@ package external.fixture
 import me.ahoo.wow.query.expression.InvocationExpressionNormalizer
 import me.ahoo.wow.query.expression.LegacyConditionLowering
 import me.ahoo.wow.query.expression.RelativeTimeExpressionNormalizer
+import me.ahoo.wow.query.backend.QueryBackendDescriptor
+import me.ahoo.wow.query.backend.QueryBackendResolutionContext
+import me.ahoo.wow.query.backend.validateBackendCompatibility
 
-fun gatewayNormalizationInternals(): List<Any> = listOf(
+fun gatewayNormalizationInternals(
+    context: QueryBackendResolutionContext,
+    descriptor: QueryBackendDescriptor,
+): List<Any> = listOf(
+    validateBackendCompatibility(context, descriptor),
     InvocationExpressionNormalizer,
     LegacyConditionLowering,
     RelativeTimeExpressionNormalizer
@@ -1737,7 +1746,7 @@ if java -cp "$KOTLIN_COMPILER_CLASSPATH" org.jetbrains.kotlin.cli.jvm.K2JVMCompi
     >"$TEMP_DIR/kotlin-gateway-normalization-negative.out" 2>&1; then
     fail "Kotlin external source unexpectedly accessed Gateway normalization internals"
 fi
-for internal_name in InvocationExpressionNormalizer LegacyConditionLowering \
+for internal_name in BackendCompatibility InvocationExpressionNormalizer LegacyConditionLowering \
     RelativeTimeExpressionNormalizer; do
     grep -F "$internal_name" "$TEMP_DIR/kotlin-gateway-normalization-negative.out" >/dev/null || {
         cat "$TEMP_DIR/kotlin-gateway-normalization-negative.out" >&2
