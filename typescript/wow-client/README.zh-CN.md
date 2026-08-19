@@ -61,6 +61,7 @@ import { CommandResult, CommandStage } from '@ahoo-wang/fetcher-wow';
 import {
   Fetcher,
   FetchExchange,
+  HttpMethod,
   RequestInterceptor,
   URL_RESOLVE_INTERCEPTOR_ORDER,
 } from '@ahoo-wang/fetcher';
@@ -68,8 +69,7 @@ import '@ahoo-wang/fetcher-eventstream';
 import {
   CommandClient,
   CommandRequest,
-  HttpMethod,
-  CommandHttpHeaders,
+  CommandHeaders,
   CommandStage,
 } from '@ahoo-wang/fetcher-wow';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
@@ -119,7 +119,7 @@ type AddCartItemCommand = CommandRequest<AddCartItem>;
 const addCartItemCommand: AddCartItemCommand = {
   method: HttpMethod.POST,
   headers: {
-    [CommandHttpHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
+    [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
   },
   body: {
     productId: 'productId',
@@ -529,6 +529,7 @@ const paged = await cartEventStreamQueryClient.paged(pagedQuery);
 import {
   Fetcher,
   FetchExchange,
+  HttpMethod,
   RequestInterceptor,
   URL_RESOLVE_INTERCEPTOR_ORDER,
 } from '@ahoo-wang/fetcher';
@@ -536,9 +537,8 @@ import '@ahoo-wang/fetcher-eventstream';
 import {
   CommandClient,
   CommandRequest,
-  CommandHttpHeaders,
+  CommandHeaders,
   CommandStage,
-  HttpMethod,
   SnapshotQueryClient,
   all,
   ListQuery,
@@ -605,7 +605,7 @@ type AddCartItemCommand = CommandRequest<AddCartItem>;
 const addItemCommand: AddCartItemCommand = {
   method: HttpMethod.POST,
   headers: {
-    [CommandHttpHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
+    [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
   },
   body: {
     productId: 'product-123',
@@ -650,7 +650,7 @@ pnpm test --coverage
 ## 🤝 贡献
 
 欢迎贡献！请查看
-[贡献指南](https://github.com/Ahoo-Wang/fetcher/blob/main/CONTRIBUTING.md) 获取更多详情。
+[贡献指南](https://github.com/Ahoo-Wang/fetcher/blob/main/wiki/guide/contributing.md) 获取更多详情。
 
 ## 📄 许可证
 
