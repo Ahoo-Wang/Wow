@@ -19,7 +19,7 @@ json-schema-validator = "3.0.6"
 kotlinx-coroutines = "1.11.0"
 reactor-kafka = "1.3.25"
 # ClickHouse
-clickhouse-java = "0.9.8"
+clickhouse-java = "0.10.0"
 # testing
 junit = "6.1.3"
 fluent-assert = "1.1.0"
