@@ -39,7 +39,6 @@ import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.query.EventStreamQueryServiceRegistrar
 import me.ahoo.wow.spring.query.SnapshotQueryServiceRegistrar
-import me.ahoo.wow.spring.query.getOrNoOp
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -93,14 +92,14 @@ class QueryAutoConfiguration {
     fun tailSnapshotQueryFilter(
         snapshotQueryServiceFactory: ObjectProvider<SnapshotQueryServiceFactory>,
     ): TailSnapshotQueryFilter<Any> {
-        return TailSnapshotQueryFilter(snapshotQueryServiceFactory.getOrNoOp())
+        return TailSnapshotQueryFilter(snapshotQueryServiceFactory.getObject())
     }
 
     @Bean
     fun tailEventStreamQueryFilter(
         eventStreamQueryServiceFactory: ObjectProvider<EventStreamQueryServiceFactory>,
     ): TailEventStreamQueryFilter {
-        return TailEventStreamQueryFilter(eventStreamQueryServiceFactory.getOrNoOp())
+        return TailEventStreamQueryFilter(eventStreamQueryServiceFactory.getObject())
     }
 
     @Bean
@@ -151,15 +150,21 @@ class QueryAutoConfiguration {
         return DefaultEventStreamQueryHandler(chain, queryErrorHandler)
     }
 
-    @Bean
+    @Bean("noOpSnapshotQueryServiceFactory")
     @ConditionalOnMissingBean(SnapshotQueryServiceFactory::class)
-    fun noOpSnapshotQueryServiceFactory(): SnapshotQueryServiceFactory {
-        return NoOpSnapshotQueryServiceFactory
+    fun unavailableSnapshotQueryServiceFactory(): SnapshotQueryServiceFactory {
+        return UnavailableSnapshotQueryServiceFactory
     }
 
-    @Bean
+    @Bean("noOpEventStreamQueryServiceFactory")
     @ConditionalOnMissingBean(EventStreamQueryServiceFactory::class)
-    fun noOpEventStreamQueryServiceFactory(): EventStreamQueryServiceFactory {
-        return NoOpEventStreamQueryServiceFactory
+    fun unavailableEventStreamQueryServiceFactory(): EventStreamQueryServiceFactory {
+        return UnavailableEventStreamQueryServiceFactory
     }
+
+    @Deprecated("NoOp query services must be configured explicitly.")
+    fun noOpSnapshotQueryServiceFactory(): SnapshotQueryServiceFactory = NoOpSnapshotQueryServiceFactory
+
+    @Deprecated("NoOp query services must be configured explicitly.")
+    fun noOpEventStreamQueryServiceFactory(): EventStreamQueryServiceFactory = NoOpEventStreamQueryServiceFactory
 }

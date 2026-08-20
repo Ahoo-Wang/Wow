@@ -44,8 +44,7 @@ class EventStreamQueryServiceRegistrar : QueryServiceRegistrar() {
             return
         }
         val beanDefinitionBuilder = BeanDefinitionBuilder.rootBeanDefinition(EventStreamQueryService::class.java) {
-            val queryServiceFactory: EventStreamQueryServiceFactory =
-                appContext.getBeanProvider(EventStreamQueryServiceFactory::class.java).getOrNoOp()
+            val queryServiceFactory = appContext.getBean(EventStreamQueryServiceFactory::class.java)
             queryServiceFactory.create(namedAggregate)
         }
 

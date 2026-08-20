@@ -18,8 +18,6 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
-import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
-import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 
@@ -111,7 +109,11 @@ class StorageRouteResolver(
                 namedAggregate to resolveEventStreamQueryServiceFactory(routeKey, channel)
             }.toMap()
         return ResolvedEventStreamQueryServiceFactoryRoutes(
-            defaultEventStreamQueryServiceFactory = eventStreamQueryServiceFactory(defaultEventStorage),
+            defaultEventStreamQueryServiceFactory = requiredEventStreamQueryServiceFactory(
+                defaultEventStorage,
+                "<default>",
+                EVENT_CHANNEL,
+            ),
             eventStreamQueryServiceFactoryRoutes = routes,
         )
     }
@@ -126,7 +128,11 @@ class StorageRouteResolver(
                 namedAggregate to resolveSnapshotQueryServiceFactory(routeKey, channel)
             }.toMap()
         return ResolvedSnapshotQueryServiceFactoryRoutes(
-            defaultSnapshotQueryServiceFactory = snapshotQueryServiceFactory(defaultSnapshotStorage),
+            defaultSnapshotQueryServiceFactory = requiredSnapshotQueryServiceFactory(
+                defaultSnapshotStorage,
+                "<default>",
+                SNAPSHOT_CHANNEL,
+            ),
             snapshotQueryServiceFactoryRoutes = routes,
         )
     }
@@ -184,11 +190,14 @@ class StorageRouteResolver(
     ): EventStreamQueryServiceFactory {
         validateChannel(routeKey, EVENT_CHANNEL, channel)
         channel.storage?.let { storage ->
-            return eventStreamQueryServiceFactory(storage)
+            return requiredEventStreamQueryServiceFactory(storage, routeKey, EVENT_CHANNEL)
         }
         val binding = channel.binding!!.trim()
-        return eventStreamQueryServiceFactoryBindingsByName[binding]?.eventStreamQueryServiceFactory
-            ?: NoOpEventStreamQueryServiceFactory
+        return requireNotNull(
+            eventStreamQueryServiceFactoryBindingsByName[binding]?.eventStreamQueryServiceFactory
+        ) {
+            "Storage route[$routeKey] channel[$EVENT_CHANNEL] query service factory binding[$binding] was not found."
+        }
     }
 
     private fun resolveSnapshotQueryServiceFactory(
@@ -197,11 +206,12 @@ class StorageRouteResolver(
     ): SnapshotQueryServiceFactory {
         validateChannel(routeKey, SNAPSHOT_CHANNEL, channel)
         channel.storage?.let { storage ->
-            return snapshotQueryServiceFactory(storage)
+            return requiredSnapshotQueryServiceFactory(storage, routeKey, SNAPSHOT_CHANNEL)
         }
         val binding = channel.binding!!.trim()
-        return snapshotQueryServiceFactoryBindingsByName[binding]?.snapshotQueryServiceFactory
-            ?: NoOpSnapshotQueryServiceFactory
+        return requireNotNull(snapshotQueryServiceFactoryBindingsByName[binding]?.snapshotQueryServiceFactory) {
+            "Storage route[$routeKey] channel[$SNAPSHOT_CHANNEL] query service factory binding[$binding] was not found."
+        }
     }
 
     private fun validateChannel(
@@ -237,13 +247,23 @@ class StorageRouteResolver(
             "Storage route[$routeKey] channel[$channelName] storage[${storage.name}] was not found."
         }
 
-    private fun eventStreamQueryServiceFactory(storage: StorageType): EventStreamQueryServiceFactory =
-        eventStreamQueryServiceFactoryBindingsByStorage[storage]?.eventStreamQueryServiceFactory
-            ?: NoOpEventStreamQueryServiceFactory
+    private fun requiredEventStreamQueryServiceFactory(
+        storage: StorageType,
+        routeKey: String,
+        channelName: String,
+    ): EventStreamQueryServiceFactory =
+        requireNotNull(eventStreamQueryServiceFactoryBindingsByStorage[storage]?.eventStreamQueryServiceFactory) {
+            "Storage route[$routeKey] channel[$channelName] query service factory storage[${storage.name}] was not found."
+        }
 
-    private fun snapshotQueryServiceFactory(storage: StorageType): SnapshotQueryServiceFactory =
-        snapshotQueryServiceFactoryBindingsByStorage[storage]?.snapshotQueryServiceFactory
-            ?: NoOpSnapshotQueryServiceFactory
+    private fun requiredSnapshotQueryServiceFactory(
+        storage: StorageType,
+        routeKey: String,
+        channelName: String,
+    ): SnapshotQueryServiceFactory =
+        requireNotNull(snapshotQueryServiceFactoryBindingsByStorage[storage]?.snapshotQueryServiceFactory) {
+            "Storage route[$routeKey] channel[$channelName] query service factory storage[${storage.name}] was not found."
+        }
 
     companion object {
         private const val EVENT_CHANNEL = "event"

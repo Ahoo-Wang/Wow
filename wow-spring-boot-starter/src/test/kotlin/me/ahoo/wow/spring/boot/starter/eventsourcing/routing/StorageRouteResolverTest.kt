@@ -331,33 +331,77 @@ class StorageRouteResolverTest {
     }
 
     @Test
-    fun `missing query service factory bindings fall back to noop factories`() {
+    fun `missing named event query service factory binding fails`() {
         val properties = StorageRoutingProperties(
             aggregates = mapOf(
                 "audit" to AggregateStorageRouteProperties(
                     event = StorageChannelRouteProperties(binding = "archive-event-store"),
+                ),
+            ),
+        )
+        val resolver = resolver(includeQueryServiceFactoryBindings = false)
+
+        val exception = assertThrows<IllegalArgumentException> {
+            resolver.resolveEventStreamQueryServiceFactoryRoutes(properties)
+        }
+        exception.message.assert().contains("audit")
+        exception.message.assert().contains("archive-event-store")
+        exception.message.assert().contains("query service factory")
+    }
+
+    @Test
+    fun `missing named snapshot query service factory binding fails`() {
+        val properties = StorageRoutingProperties(
+            aggregates = mapOf(
+                "audit" to AggregateStorageRouteProperties(
                     snapshot = StorageChannelRouteProperties(binding = "archive-snapshot-store"),
                 ),
             ),
         )
         val resolver = resolver(includeQueryServiceFactoryBindings = false)
 
-        resolver.resolveEventStreamQueryServiceFactoryRoutes(properties)
-            .eventStreamQueryServiceFactoryRoutes.values.single()
-            .assert().isSameAs(NoOpEventStreamQueryServiceFactory)
-        resolver.resolveSnapshotQueryServiceFactoryRoutes(properties)
-            .snapshotQueryServiceFactoryRoutes.values.single()
-            .assert().isSameAs(NoOpSnapshotQueryServiceFactory)
+        val exception = assertThrows<IllegalArgumentException> {
+            resolver.resolveSnapshotQueryServiceFactoryRoutes(properties)
+        }
+        exception.message.assert().contains("audit")
+        exception.message.assert().contains("archive-snapshot-store")
+        exception.message.assert().contains("query service factory")
     }
 
     @Test
-    fun `missing default query service factory bindings fall back to noop factories`() {
+    fun `missing storage query service factory binding fails`() {
+        val properties = StorageRoutingProperties(
+            aggregates = mapOf(
+                "order" to AggregateStorageRouteProperties(
+                    event = StorageChannelRouteProperties(storage = StorageType.REDIS),
+                ),
+            ),
+        )
         val resolver = resolver(includeQueryServiceFactoryBindings = false)
 
-        resolver.resolveEventStreamQueryServiceFactoryRoutes(StorageRoutingProperties())
-            .defaultEventStreamQueryServiceFactory.assert().isSameAs(NoOpEventStreamQueryServiceFactory)
-        resolver.resolveSnapshotQueryServiceFactoryRoutes(StorageRoutingProperties())
-            .defaultSnapshotQueryServiceFactory.assert().isSameAs(NoOpSnapshotQueryServiceFactory)
+        val exception = assertThrows<IllegalArgumentException> {
+            resolver.resolveEventStreamQueryServiceFactoryRoutes(properties)
+        }
+        exception.message.assert().contains("order")
+        exception.message.assert().contains(StorageType.REDIS.name)
+        exception.message.assert().contains("query service factory")
+    }
+
+    @Test
+    fun `missing default query service factory binding fails`() {
+        val resolver = resolver(includeQueryServiceFactoryBindings = false)
+
+        val eventException = assertThrows<IllegalArgumentException> {
+            resolver.resolveEventStreamQueryServiceFactoryRoutes(StorageRoutingProperties())
+        }
+        eventException.message.assert().contains("<default>")
+        eventException.message.assert().contains("query service factory")
+
+        val snapshotException = assertThrows<IllegalArgumentException> {
+            resolver.resolveSnapshotQueryServiceFactoryRoutes(StorageRoutingProperties())
+        }
+        snapshotException.message.assert().contains("<default>")
+        snapshotException.message.assert().contains("query service factory")
     }
 
     private fun resolver(
