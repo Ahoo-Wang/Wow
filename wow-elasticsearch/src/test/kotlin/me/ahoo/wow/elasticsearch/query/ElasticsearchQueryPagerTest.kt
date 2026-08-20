@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import java.time.Duration
 
 class ElasticsearchQueryPagerTest {
     private val elasticsearchClient = mockk<ReactiveElasticsearchClient>()
@@ -52,7 +53,12 @@ class ElasticsearchQueryPagerTest {
             Mono.just(searchResponse("pit-3", hit("3", 3))),
         )
 
-        ElasticsearchQueryPager(elasticsearchClient, "test-index", batchSize = 2)
+        ElasticsearchQueryPager(
+            elasticsearchClient,
+            "test-index",
+            batchSize = 2,
+            keepAlive = Duration.ofMinutes(5),
+        )
             .search(0, query, null, sort)
             .mapNotNull { it.id() }
             .test()
@@ -60,11 +66,12 @@ class ElasticsearchQueryPagerTest {
             .verifyComplete()
 
         openRequest.captured.index().assert().containsExactly("test-index")
-        openRequest.captured.keepAlive().time().assert().isEqualTo("1m")
+        openRequest.captured.keepAlive().time().assert().isEqualTo("5m")
         searchRequests.assert().hasSize(2)
         searchRequests[0].index().assert().isEmpty()
         searchRequests[0].size().assert().isEqualTo(2)
         searchRequests[0].searchAfter().assert().isEmpty()
+        searchRequests[0].pit()!!.keepAlive()!!.time().assert().isEqualTo("5m")
         searchRequests[0].sort().map { it.field().field() }.assert().containsExactly("sequence", "_shard_doc")
         searchRequests[1].pit()!!.id().assert().isEqualTo("pit-2")
         searchRequests[1].searchAfter().map { it.longValue() }.assert().containsExactly(2L, 102L)

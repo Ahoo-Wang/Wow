@@ -21,21 +21,42 @@ import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService
+import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
+import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.query.converter.ConditionConverter
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.convert
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
+import java.time.Duration
 
 class ElasticsearchSnapshotQueryService<S : Any>(
     override val namedAggregate: NamedAggregate,
     override val elasticsearchClient: ReactiveElasticsearchClient,
     override val conditionConverter: ConditionConverter<Query> = SnapshotConditionConverter
 ) : AbstractElasticsearchQueryService<MaterializedSnapshot<S>>(), SnapshotQueryService<S> {
+    private var configuredQueryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE
+    private var configuredQueryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE
+
+    constructor(
+        namedAggregate: NamedAggregate,
+        elasticsearchClient: ReactiveElasticsearchClient,
+        conditionConverter: ConditionConverter<Query>,
+        queryBatchSize: Int,
+        queryKeepAlive: Duration,
+    ) : this(namedAggregate, elasticsearchClient, conditionConverter) {
+        configuredQueryBatchSize = queryBatchSize
+        configuredQueryKeepAlive = queryKeepAlive
+    }
+
     override val name: String
         get() = ElasticsearchSnapshotStore.NAME
     override val indexName: String = namedAggregate.toSnapshotIndexName()
+    protected override val queryBatchSize: Int
+        get() = configuredQueryBatchSize
+    protected override val queryKeepAlive: Duration
+        get() = configuredQueryKeepAlive
     private val snapshotType = JsonSerializer.typeFactory
         .constructParametricType(
             MaterializedSnapshot::class.java,

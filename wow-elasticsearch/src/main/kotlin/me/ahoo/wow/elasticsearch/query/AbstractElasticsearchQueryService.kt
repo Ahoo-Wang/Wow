@@ -37,11 +37,14 @@ import me.ahoo.wow.query.converter.ConditionConverter
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import java.time.Duration
 
 abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
     abstract val elasticsearchClient: ReactiveElasticsearchClient
     abstract val conditionConverter: ConditionConverter<Query>
     abstract val indexName: String
+    protected open val queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE
+    protected open val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE
     abstract fun toTypedResult(document: DynamicDocument): R
 
     override fun single(singleQuery: ISingleQuery): Mono<R> {
@@ -64,8 +67,8 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
 
     override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> {
         require(listQuery.limit >= 0) { "limit must be greater than or equal to 0." }
-        if (listQuery.limit == 0 || listQuery.limit > DEFAULT_SEARCH_BATCH_SIZE) {
-            return ElasticsearchQueryPager(elasticsearchClient, indexName)
+        if (listQuery.limit == 0 || listQuery.limit > queryBatchSize) {
+            return ElasticsearchQueryPager(elasticsearchClient, indexName, queryBatchSize, queryKeepAlive)
                 .search(
                     limit = listQuery.limit,
                     query = conditionConverter.convert(listQuery.condition),

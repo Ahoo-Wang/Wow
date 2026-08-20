@@ -321,6 +321,8 @@ wow:
 | 属性 | 类型 | 默认值 | 描述 |
 |------|------|--------|------|
 | `wow.elasticsearch.enabled` | Boolean | `true` | 启用 Elasticsearch 支持 |
+| `wow.elasticsearch.query.batch-size` | Int | `10000` | PIT + `search_after` 批大小；不得高于目标索引的 `index.max_result_window` |
+| `wow.elasticsearch.query.keep-alive` | Duration | `1m` | 每次全量列表请求都会刷新的 PIT 存活时间；慢速订阅场景应增大 |
 | `wow.elasticsearch.event-store-batch.enabled` | Boolean | `false` | 启用透明的 EventStore Bulk `create` 批处理 |
 | `wow.elasticsearch.event-store-batch.max-size` | Int | `128` | 单个 Bulk 请求最多包含的事件流数量 |
 | `wow.elasticsearch.event-store-batch.max-delay` | Duration | `1ms` | 收集不足一批事件的最长等待时间 |

@@ -14,13 +14,31 @@
 package me.ahoo.wow.elasticsearch.query.event
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
+import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.query.event.AbstractEventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.EventStreamQueryService
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
+import java.time.Duration
 
-class ElasticsearchEventStreamQueryServiceFactory(private val elasticsearchClient: ReactiveElasticsearchClient) :
-    AbstractEventStreamQueryServiceFactory() {
+class ElasticsearchEventStreamQueryServiceFactory(
+    private val elasticsearchClient: ReactiveElasticsearchClient,
+    private val queryBatchSize: Int,
+    private val queryKeepAlive: Duration,
+) : AbstractEventStreamQueryServiceFactory() {
+    constructor(elasticsearchClient: ReactiveElasticsearchClient) : this(
+        elasticsearchClient,
+        DEFAULT_SEARCH_BATCH_SIZE,
+        DEFAULT_PIT_KEEP_ALIVE,
+    )
+
     override fun createQueryService(namedAggregate: NamedAggregate): EventStreamQueryService {
-        return ElasticsearchEventStreamQueryService(namedAggregate, elasticsearchClient)
+        return ElasticsearchEventStreamQueryService(
+            namedAggregate,
+            elasticsearchClient,
+            EventStreamConditionConverter,
+            queryBatchSize,
+            queryKeepAlive,
+        )
     }
 }

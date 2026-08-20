@@ -13,8 +13,14 @@
 
 package me.ahoo.wow.elasticsearch.query
 
-@Deprecated("List queries now use PIT and search_after.")
-const val UNLIMITED_SIZE = 10_000
+import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Test
 
-@Deprecated("List queries now use PIT and search_after.")
-fun Int.searchSize(): Int = if (this == 0) 10_000 else this
+@Suppress("DEPRECATION")
+class SearchSizeTest {
+    @Test
+    fun `deprecated helpers should remain source compatible`() {
+        0.searchSize().assert().isEqualTo(UNLIMITED_SIZE)
+        1.searchSize().assert().isOne()
+    }
+}

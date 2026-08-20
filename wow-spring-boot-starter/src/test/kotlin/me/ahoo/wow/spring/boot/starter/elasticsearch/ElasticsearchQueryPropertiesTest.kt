@@ -11,10 +11,23 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.elasticsearch.query
+package me.ahoo.wow.spring.boot.starter.elasticsearch
 
-@Deprecated("List queries now use PIT and search_after.")
-const val UNLIMITED_SIZE = 10_000
+import me.ahoo.test.asserts.assertThrownBy
+import org.junit.jupiter.api.Test
+import java.time.Duration
 
-@Deprecated("List queries now use PIT and search_after.")
-fun Int.searchSize(): Int = if (this == 0) 10_000 else this
+class ElasticsearchQueryPropertiesTest {
+    @Test
+    fun `should reject invalid query settings`() {
+        assertThrownBy<IllegalArgumentException> {
+            ElasticsearchQueryProperties(batchSize = 0)
+        }
+        assertThrownBy<IllegalArgumentException> {
+            ElasticsearchQueryProperties(batchSize = 10_001)
+        }
+        assertThrownBy<IllegalArgumentException> {
+            ElasticsearchQueryProperties(keepAlive = Duration.ZERO)
+        }
+    }
+}

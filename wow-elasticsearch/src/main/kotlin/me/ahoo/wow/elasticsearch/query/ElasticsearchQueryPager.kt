@@ -25,20 +25,27 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import java.time.Duration
 import kotlin.math.min
 
 internal const val DEFAULT_SEARCH_BATCH_SIZE = 10_000
-private const val PIT_KEEP_ALIVE = "1m"
+internal val DEFAULT_PIT_KEEP_ALIVE: Duration = Duration.ofMinutes(1)
 
 internal class ElasticsearchQueryPager(
     private val elasticsearchClient: ReactiveElasticsearchClient,
     private val indexName: String,
     private val batchSize: Int = DEFAULT_SEARCH_BATCH_SIZE,
+    private val keepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
 ) {
+    private val keepAliveValue = keepAlive.toMillis().let {
+        if (it % 60_000 == 0L) "${it / 60_000}m" else "${it}ms"
+    }
+
     init {
         require(batchSize in 1..DEFAULT_SEARCH_BATCH_SIZE) {
             "batchSize must be between 1 and $DEFAULT_SEARCH_BATCH_SIZE."
         }
+        require(keepAlive.toMillis() > 0) { "keepAlive must be greater than or equal to 1ms." }
     }
 
     fun search(
@@ -71,7 +78,7 @@ internal class ElasticsearchQueryPager(
             elasticsearchClient.openPointInTime(
                 OpenPointInTimeRequest.of {
                     it.index(indexName)
-                        .keepAlive { keepAlive -> keepAlive.time(PIT_KEEP_ALIVE) }
+                        .keepAlive { it.time(keepAliveValue) }
                 }
             )
         }.map {
@@ -101,7 +108,7 @@ internal class ElasticsearchQueryPager(
                     .trackTotalHits { trackHits -> trackHits.enabled(false) }
                     .pit { pointInTime ->
                         pointInTime.id(pit.id)
-                            .keepAlive { keepAlive -> keepAlive.time(PIT_KEEP_ALIVE) }
+                            .keepAlive { it.time(keepAliveValue) }
                     }
                     .sort(sort)
                 if (searchAfter.isNotEmpty()) {
