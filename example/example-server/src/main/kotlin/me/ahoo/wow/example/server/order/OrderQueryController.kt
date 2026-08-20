@@ -32,7 +32,7 @@ import reactor.core.publisher.Mono
 @RestController
 @RequestMapping("/order")
 class OrderQueryController(
-    // Spring supplies a policy-enforced proxy; factories are reserved for trusted raw backend access.
+    // Spring's generated aggregate bean enforces policies; factories are reserved for trusted raw backend access.
     private val queryService: SnapshotQueryService<OrderState>
 ) {
     @GetMapping("{tenantId}/{orderId}")

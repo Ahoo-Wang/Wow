@@ -40,14 +40,16 @@ class EventStreamQueryServiceRegistrar : QueryServiceRegistrar() {
         }
         if (registry.containsBeanDefinition(beanName)) {
             log.warn {
-                "EventStreamQueryService [$beanName] already exists - Ignore."
+                "EventStreamQueryService [$beanName] already exists - use it as-is without a policy proxy."
             }
             return
         }
         val beanDefinitionBuilder = BeanDefinitionBuilder.rootBeanDefinition(EventStreamQueryService::class.java) {
             val queryServiceFactory = appContext.getBean(EventStreamQueryServiceFactory::class.java)
-            val queryHandler = appContext.getBean(EventStreamQueryHandler::class.java)
-            EventStreamQueryServiceProxy(queryServiceFactory.create(namedAggregate), queryHandler)
+            val queryService = queryServiceFactory.create(namedAggregate)
+            appContext.getBeanProvider(EventStreamQueryHandler::class.java).getIfAvailable()
+                ?.let { EventStreamQueryServiceProxy(queryService, it) }
+                ?: queryService
         }
 
         registry.registerBeanDefinition(beanName, beanDefinitionBuilder.beanDefinition)

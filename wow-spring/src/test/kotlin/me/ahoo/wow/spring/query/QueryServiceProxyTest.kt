@@ -27,6 +27,8 @@ import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
+import me.ahoo.wow.query.event.EventStreamQueryService
+import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.NoOpEventStreamQueryService
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.filter.QueryContext
@@ -34,6 +36,7 @@ import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService
 import me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler
 import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.support.DefaultListableBeanFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -73,6 +76,23 @@ class QueryServiceProxyTest {
 
         proxy.name.assert().isEqualTo(delegate.name)
         proxy.namedAggregate.assert().isSameAs(delegate.namedAggregate)
+    }
+
+    @Test
+    fun `registrar should preserve raw service when handler is unavailable`() {
+        val beanFactory = DefaultListableBeanFactory()
+        val rawService = NoOpEventStreamQueryService(namedAggregate)
+        beanFactory.registerSingleton(
+            "eventStreamQueryServiceFactory",
+            EventStreamQueryServiceFactory { rawService },
+        )
+        val registrar = EventStreamQueryServiceRegistrar()
+        registrar.setBeanFactory(beanFactory)
+
+        val entry = mapOf<MaterializedNamedAggregate, Class<*>>(namedAggregate to Any::class.java).entries.single()
+        registrar.registerQueryService(entry, beanFactory)
+
+        beanFactory.getBean(EventStreamQueryService::class.java).assert().isSameAs(rawService)
     }
 
     private class RecordingEventStreamQueryHandler : EventStreamQueryHandler {

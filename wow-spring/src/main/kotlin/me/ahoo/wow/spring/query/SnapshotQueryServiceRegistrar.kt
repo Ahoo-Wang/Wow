@@ -42,7 +42,7 @@ class SnapshotQueryServiceRegistrar : QueryServiceRegistrar() {
         }
         if (registry.containsBeanDefinition(beanName)) {
             log.warn {
-                "SnapshotQueryService [$beanName] already exists - Ignore."
+                "SnapshotQueryService [$beanName] already exists - use it as-is without a policy proxy."
             }
             return
         }
@@ -54,8 +54,10 @@ class SnapshotQueryServiceRegistrar : QueryServiceRegistrar() {
 
         val beanDefinitionBuilder = BeanDefinitionBuilder.rootBeanDefinition(snapshotQueryServiceType) {
             val queryServiceFactory = appContext.getBean(SnapshotQueryServiceFactory::class.java)
-            val queryHandler = appContext.getBean(SnapshotQueryHandler::class.java)
-            SnapshotQueryServiceProxy(queryServiceFactory.create<Any>(namedAggregate), queryHandler)
+            val queryService = queryServiceFactory.create<Any>(namedAggregate)
+            appContext.getBeanProvider(SnapshotQueryHandler::class.java).getIfAvailable()
+                ?.let { SnapshotQueryServiceProxy(queryService, it) }
+                ?: queryService
         }
 
         registry.registerBeanDefinition(beanName, beanDefinitionBuilder.beanDefinition)
