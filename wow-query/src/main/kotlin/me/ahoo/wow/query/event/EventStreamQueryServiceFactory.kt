@@ -18,6 +18,13 @@ import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.materialize
 import java.util.concurrent.ConcurrentHashMap
 
+/**
+ * Creates direct event-stream query backend services.
+ *
+ * This is a trusted low-level entry point. Services created through this factory bypass
+ * [me.ahoo.wow.query.filter.QueryHandler] filters, including authorization, query rewriting, and data masking.
+ * Application code should normally use the policy-enforced [EventStreamQueryService] provided by its integration layer.
+ */
 fun interface EventStreamQueryServiceFactory {
     fun create(namedAggregate: NamedAggregate): EventStreamQueryService
 }

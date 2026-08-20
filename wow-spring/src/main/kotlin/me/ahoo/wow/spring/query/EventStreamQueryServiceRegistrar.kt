@@ -19,6 +19,7 @@ import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
+import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.support.BeanDefinitionBuilder
 import org.springframework.beans.factory.support.BeanDefinitionRegistry
@@ -45,7 +46,8 @@ class EventStreamQueryServiceRegistrar : QueryServiceRegistrar() {
         }
         val beanDefinitionBuilder = BeanDefinitionBuilder.rootBeanDefinition(EventStreamQueryService::class.java) {
             val queryServiceFactory = appContext.getBean(EventStreamQueryServiceFactory::class.java)
-            queryServiceFactory.create(namedAggregate)
+            val queryHandler = appContext.getBean(EventStreamQueryHandler::class.java)
+            EventStreamQueryServiceProxy(queryServiceFactory.create(namedAggregate), queryHandler)
         }
 
         registry.registerBeanDefinition(beanName, beanDefinitionBuilder.beanDefinition)

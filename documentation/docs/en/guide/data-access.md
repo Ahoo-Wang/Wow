@@ -356,6 +356,12 @@ class MemberAbacQueryFilter(
 }
 ```
 
+### Query Entry Points and Policy Enforcement
+
+The `SnapshotQueryService` and `EventStreamQueryService` instances registered or injected by Spring pass through the `QueryHandler` filter chain by default, so ABAC conditions, query rewriting, and result masking are applied. Application code should use these aggregate-specific services.
+
+`SnapshotQueryServiceFactory` and `EventStreamQueryServiceFactory` are trusted raw-backend entry points. Services created directly through a factory bypass those policies and are intended only for infrastructure, operations, or migration code that explicitly requires raw access.
+
 ## Layered Isolation Summary
 
 | Layer | Scope | Mechanism | API Representation | Typical Use Case |

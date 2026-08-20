@@ -20,6 +20,7 @@ import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.support.BeanDefinitionBuilder
 import org.springframework.beans.factory.support.BeanDefinitionRegistry
@@ -53,7 +54,8 @@ class SnapshotQueryServiceRegistrar : QueryServiceRegistrar() {
 
         val beanDefinitionBuilder = BeanDefinitionBuilder.rootBeanDefinition(snapshotQueryServiceType) {
             val queryServiceFactory = appContext.getBean(SnapshotQueryServiceFactory::class.java)
-            queryServiceFactory.create<Any>(namedAggregate)
+            val queryHandler = appContext.getBean(SnapshotQueryHandler::class.java)
+            SnapshotQueryServiceProxy(queryServiceFactory.create<Any>(namedAggregate), queryHandler)
         }
 
         registry.registerBeanDefinition(beanName, beanDefinitionBuilder.beanDefinition)
