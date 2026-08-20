@@ -29,6 +29,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
+import reactor.core.publisher.Flux
 import reactor.kotlin.test.test
 
 class ElasticsearchEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
@@ -87,6 +88,27 @@ class ElasticsearchEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
             .count(eventStreamQueryService)
             .test()
             .expectNext(0L)
+            .verifyComplete()
+    }
+
+    @Test
+    fun `should query keyword field with literal string operators`() {
+        val target = generateEventStream(
+            namedAggregate.aggregateId(id = generateGlobalId(), tenantId = """Tenant*?Literal\Tail""")
+        )
+        val wildcardCandidate = generateEventStream(
+            namedAggregate.aggregateId(id = generateGlobalId(), tenantId = "TenantXYLiteralZTail")
+        )
+        eventStore.append(target)
+            .then(eventStore.append(wildcardCandidate))
+            .block()
+
+        Flux.concat(
+            condition { "tenantId".contains("*?literal", ignoreCase = true) }.count(eventStreamQueryService),
+            condition { "tenantId".startsWith("tenant*?", ignoreCase = true) }.count(eventStreamQueryService),
+            condition { "tenantId".endsWith("""\tail""", ignoreCase = true) }.count(eventStreamQueryService),
+        ).test()
+            .expectNext(1L, 1L, 1L)
             .verifyComplete()
     }
 }

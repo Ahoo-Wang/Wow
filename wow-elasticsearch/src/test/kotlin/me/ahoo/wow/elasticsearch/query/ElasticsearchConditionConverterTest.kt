@@ -20,7 +20,6 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.exists
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.ids
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.match
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
-import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchPhrase
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.nested
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.prefix
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.range
@@ -304,15 +303,16 @@ class ElasticsearchConditionConverterTest {
     @Test
     fun `contains condition to Query`() {
         val query = condition {
-            "field" contains "value"
+            "field".contains("""Value*?\Tail""", ignoreCase = true)
         }.let {
             SnapshotConditionConverter.convert(it)
         }
         assertConvert(
             query,
-            matchPhrase {
+            wildcard {
                 it.field("field")
-                    .query("value")
+                    .value("""*Value\*\?\\Tail*""")
+                    .caseInsensitive(true)
             }
         )
     }
@@ -406,7 +406,7 @@ class ElasticsearchConditionConverterTest {
     @Test
     fun `startsWith condition to Query`() {
         val query = condition {
-            "field" startsWith "value"
+            "field".startsWith("""Value*?\Tail""", ignoreCase = true)
         }.let {
             SnapshotConditionConverter.convert(it)
         }
@@ -414,7 +414,8 @@ class ElasticsearchConditionConverterTest {
             query,
             prefix {
                 it.field("field")
-                    .value("value")
+                    .value("""Value*?\Tail""")
+                    .caseInsensitive(true)
             }
         )
     }
@@ -422,7 +423,7 @@ class ElasticsearchConditionConverterTest {
     @Test
     fun `endsWith condition to Query`() {
         val query = condition {
-            "field" endsWith "value"
+            "field".endsWith("""Value*?\Tail""", ignoreCase = true)
         }.let {
             SnapshotConditionConverter.convert(it)
         }
@@ -430,7 +431,8 @@ class ElasticsearchConditionConverterTest {
             query,
             wildcard {
                 it.field("field")
-                    .value("*value")
+                    .value("""*Value\*\?\\Tail""")
+                    .caseInsensitive(true)
             }
         )
     }
