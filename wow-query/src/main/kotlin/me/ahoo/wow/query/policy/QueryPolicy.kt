@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.LogicalExpression
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.LogicalOperator
 import me.ahoo.wow.api.query.MatchAll
+import me.ahoo.wow.api.query.MatchNone
 import me.ahoo.wow.api.query.PredicateExpression
 import me.ahoo.wow.api.query.PredicateOperator
 import me.ahoo.wow.api.query.Query
@@ -43,14 +44,15 @@ data class QueryAuthority(
     val subjectId: String? = null,
     val tenantId: String? = null,
     val ownerId: String? = null,
-    val spaceIds: Set<String> = emptySet(),
+    // null is unrestricted, empty denies every space, non-empty is an allowlist.
+    val spaceIds: Set<String>? = null,
     val permissions: Set<String> = emptySet()
 ) {
     init {
         require(subjectId == null || subjectId.isNotBlank()) { "subjectId cannot be blank." }
         require(tenantId == null || tenantId.isNotBlank()) { "tenantId cannot be blank." }
         require(ownerId == null || ownerId.isNotBlank()) { "ownerId cannot be blank." }
-        require(spaceIds.none(String::isBlank)) { "spaceIds cannot contain blank values." }
+        require(spaceIds?.none(String::isBlank) != false) { "spaceIds cannot contain blank values." }
         require(permissions.none(String::isBlank)) { "permissions cannot contain blank values." }
     }
 
@@ -68,7 +70,7 @@ object QueryContexts {
     @JvmStatic
     fun withAuthority(authority: QueryAuthority): (Context) -> Context {
         val snapshot = authority.copy(
-            spaceIds = authority.spaceIds.toSet(),
+            spaceIds = authority.spaceIds?.toSet(),
             permissions = authority.permissions.toSet()
         )
         return { context -> context.put(AUTHORITY_KEY, snapshot) }
@@ -173,18 +175,22 @@ internal class SystemQueryPolicy(
         val authority = context.authority
         mandatory += scopeEquals("tenantId", requested.tenantId, authority.tenantId)
         mandatory += scopeEquals("ownerId", requested.ownerId, authority.ownerId)
-        when {
-            requested.spaceId != null -> {
-                val spaceId = checkNotNull(requested.spaceId)
-                if (spaceId !in authority.spaceIds) deny()
-                mandatory += equals("spaceId", spaceId)
-            }
+        when (val allowedSpaces = authority.spaceIds) {
+            null -> requested.spaceId?.let { mandatory += equals("spaceId", it) }
+            else -> when {
+                requested.spaceId != null -> {
+                    val spaceId = checkNotNull(requested.spaceId)
+                    if (spaceId !in allowedSpaces) deny()
+                    mandatory += equals("spaceId", spaceId)
+                }
 
-            authority.spaceIds.isNotEmpty() -> mandatory += PredicateExpression(
-                LogicalField("spaceId"),
-                PredicateOperator.IN,
-                authority.spaceIds.sorted().map(JsonNodeFactory.instance::stringNode)
-            )
+                allowedSpaces.isEmpty() -> mandatory += MatchNone
+                else -> mandatory += PredicateExpression(
+                    LogicalField("spaceId"),
+                    PredicateOperator.IN,
+                    allowedSpaces.sorted().map(JsonNodeFactory.instance::stringNode)
+                )
+            }
         }
         when (requested.deletion) {
             DeletionScope.DEFAULT,

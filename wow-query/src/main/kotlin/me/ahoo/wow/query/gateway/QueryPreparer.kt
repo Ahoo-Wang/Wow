@@ -53,6 +53,7 @@ import me.ahoo.wow.query.schema.QueryValueKind
 import reactor.core.publisher.Mono
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.JsonNodeFactory
+import java.time.Clock
 import java.time.DayOfWeek
 import java.time.Duration
 import java.time.Instant
@@ -75,7 +76,8 @@ data class QueryLimits(
 internal class QueryPreparer(
     private val policy: QueryPolicy,
     private val limits: QueryLimits,
-    private val zoneId: ZoneId
+    private val zoneId: ZoneId,
+    private val clock: Clock
 ) {
     fun prepare(
         metadata: AggregateMetadata<*, *>,
@@ -109,7 +111,7 @@ internal class QueryPreparer(
                 size = size,
                 limit = limit
             )
-            enforceDeadline(policy.evaluate(context), call.subscribedAt, admissionDeadline)
+            enforceDeadline(policy.evaluate(context), admissionDeadline)
                 .map { authorization ->
                     secure(metadata, schema, normalized, operation, resultKind, authorization, page, size, limit, call)
                 }
@@ -137,14 +139,15 @@ internal class QueryPreparer(
         capabilities.forEach { capability ->
             if (authorization.capabilities[capability] != CapabilityDecision.GRANT) policyDenied()
         }
-        val resultFields = resultFields(query.projection, schema)
+        val legacy = query.filter.containsLegacyCondition()
+        val resultFields = resultFields(query.projection, schema, legacy)
         val requiredFields = linkedSetOf<LogicalField>().apply {
-            if (query.filter.containsLegacyCondition()) {
+            if (legacy) {
                 addAll(schema.fields.keys)
             } else {
                 addAll(expressionFields(query.filter))
+                addAll(query.sort.map { it.field })
             }
-            addAll(query.sort.map { it.field })
             when (resultKind) {
                 QueryResultKind.SNAPSHOT -> addAll(schema.fields.keys)
                 QueryResultKind.RECORD -> addAll(resultFields)
@@ -194,6 +197,10 @@ internal class QueryPreparer(
             QueryProjection.All -> QueryProjection.All
             is QueryProjection.Include -> QueryProjection.Include(projection.fields.toSet())
             is QueryProjection.Exclude -> QueryProjection.Exclude(projection.fields.toSet())
+            is QueryProjection.Legacy -> projection.copy(
+                include = projection.include.toList(),
+                exclude = projection.exclude.toList()
+            )
         },
         sort = query.sort.toList(),
         scope = query.scope.copy(),
@@ -383,10 +390,13 @@ internal class QueryPreparer(
     ) {
         validateExpression(query.filter, schema)
         if (resultKind == QueryResultKind.SNAPSHOT && query.projection != QueryProjection.All) invalidQuery()
-        resultFields(query.projection, schema)
-        query.sort.forEach { sort ->
-            val field = schema[sort.field] ?: invalidQuery()
-            if (!field.sortable) invalidQuery()
+        val legacy = query.filter.containsLegacyCondition()
+        resultFields(query.projection, schema, legacy)
+        if (!legacy) {
+            query.sort.forEach { sort ->
+                val field = schema[sort.field] ?: invalidQuery()
+                if (!field.sortable) invalidQuery()
+            }
         }
         validatePagination(page, size)
         if (limit != null && limit <= 0) {
@@ -481,7 +491,11 @@ internal class QueryPreparer(
         if (!valid) invalidQuery()
     }
 
-    private fun resultFields(projection: QueryProjection, schema: QuerySchema): Set<LogicalField> = when (projection) {
+    private fun resultFields(
+        projection: QueryProjection,
+        schema: QuerySchema,
+        legacy: Boolean
+    ): Set<LogicalField> = when (projection) {
         QueryProjection.All -> schema.fields.keys
         is QueryProjection.Include -> {
             if (projection.fields.any { schema[it]?.projectable != true }) invalidQuery()
@@ -495,6 +509,8 @@ internal class QueryPreparer(
         }.also {
             if (projection.fields.any { field -> schema[field]?.projectable != true }) invalidQuery()
         }
+
+        is QueryProjection.Legacy -> if (legacy) schema.fields.keys else invalidQuery()
     }
 
     private fun LogicalField.isDescendantOf(parent: LogicalField): Boolean = value.startsWith("${parent.value}.")
@@ -538,9 +554,9 @@ internal class QueryPreparer(
 
     private fun deadline(start: Instant, timeout: Duration?): Instant? = timeout?.let(start::plus)
 
-    private fun <T : Any> enforceDeadline(publisher: Mono<T>, startedAt: Instant, deadline: Instant?): Mono<T> {
+    private fun <T : Any> enforceDeadline(publisher: Mono<T>, deadline: Instant?): Mono<T> {
         if (deadline == null) return publisher
-        val remaining = Duration.between(startedAt, deadline)
+        val remaining = Duration.between(clock.instant(), deadline)
         if (remaining.isNegative || remaining.isZero) {
             return Mono.error(QueryException(QueryErrorCode.DEADLINE_EXCEEDED, QueryStage.POLICY))
         }

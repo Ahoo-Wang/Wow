@@ -119,7 +119,7 @@ internal class ElasticsearchQueryCompiler(private val snapshot: ElasticsearchExe
                 expression
             )
             PredicateOperator.IS_NULL -> unsupported()
-            PredicateOperator.IS_NOT_NULL -> exists(snapshot.field(logical).source)
+            PredicateOperator.IS_NOT_NULL -> unsupported()
 
             PredicateOperator.IS_TRUE -> term(checkNotNull(field), FieldValue.TRUE)
             PredicateOperator.IS_FALSE -> term(checkNotNull(field), FieldValue.FALSE)
@@ -141,23 +141,13 @@ internal class ElasticsearchQueryCompiler(private val snapshot: ElasticsearchExe
         values: List<JsonNode>
     ): Query {
         if (values.any(JsonNode::isNull)) unsupported()
-        val matches = mutableListOf<Query>()
-        val nonNull = values.filterNot(JsonNode::isNull)
-        if (nonNull.isNotEmpty()) {
-            matches += Query.of { query ->
-                query.terms { terms ->
-                    terms.field(field ?: notReady()).terms { value ->
-                        value.value(nonNull.map { fieldValue(logical, it) })
-                    }
+        return Query.of { query ->
+            query.terms { terms ->
+                terms.field(field ?: notReady()).terms { value ->
+                    value.value(values.map { fieldValue(logical, it) })
                 }
             }
         }
-        val any = if (matches.size == 1) {
-            matches.single()
-        } else {
-            or(matches)
-        }
-        return any
     }
 
     private fun range(logical: LogicalField, field: String?, kind: String, value: JsonNode): Query = Query.of { query ->
@@ -210,15 +200,9 @@ internal class ElasticsearchQueryCompiler(private val snapshot: ElasticsearchExe
         query.term { term -> term.field(field).value(value) }
     }
 
-    private fun exists(field: String): Query = Query.of { query -> query.exists { exists -> exists.field(field) } }
-
     private fun and(queries: List<Query>): Query = when (queries.size) {
         1 -> queries.single()
         else -> Query.of { query -> query.bool { bool -> bool.filter(queries) } }
-    }
-
-    private fun or(queries: List<Query>): Query = Query.of { query ->
-        query.bool { bool -> bool.should(queries).minimumShouldMatch("1") }
     }
 
     private fun fieldValue(logical: LogicalField, value: JsonNode): FieldValue {

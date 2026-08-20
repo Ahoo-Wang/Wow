@@ -48,6 +48,11 @@ class ElasticsearchSnapshotQueryBackend(
     internal var onPitOpened: (String) -> Unit = {}
     internal var onPitClosed: (String) -> Unit = {}
     internal var beforePitSearch: () -> Unit = {}
+    internal var onMappingLoaded: () -> Unit
+        get() = mapping.onLoaded
+        set(value) {
+            mapping.onLoaded = value
+        }
 
     override fun validate(query: SecuredQuery) {
         if (query.offset > Int.MAX_VALUE) unsupported()
@@ -230,6 +235,7 @@ class ElasticsearchSnapshotQueryBackend(
             PredicateOperator.NE,
             PredicateOperator.NOT_IN,
             PredicateOperator.IS_NULL,
+            PredicateOperator.IS_NOT_NULL,
             PredicateOperator.EXISTS,
             PredicateOperator.IS_EMPTY -> true
 

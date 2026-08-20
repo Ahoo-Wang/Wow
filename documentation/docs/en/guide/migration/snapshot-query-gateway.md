@@ -16,15 +16,16 @@ real indices, historical data, authorization, capacity, failure handling, and ro
 |---|---|
 | Legacy `SnapshotQueryService` / `Condition` | Runs through Gateway policies and result validation, but the original backend converter preserves historical backend semantics |
 | `IListQuery.limit == 0` | Remains unlimited by default; a global `maxRecords` ends it with `INCOMPLETE_RESULT` when the budget is reached |
+| Dynamic legacy projection/sort paths | Projection runs on raw paths after result policies; sort remains backend-validated and compiled |
 | Legacy projection mixes include and exclude | Returns `INVALID_QUERY` instead of silently dropping exclusions and widening the result |
 | `DeletionState.DELETED` / `ALL` | The adapter grants the legacy API's deletion access; new Gateway callers need `query:snapshot:deletion` explicitly |
 | A new Gateway storage route has no query backend | The application can start; a Gateway query on that route returns `BACKEND_NOT_READY` |
 | Legacy `NoOpSnapshotQueryService` | Preserves the public empty/zero result contract; production checks must verify routes instead of treating an empty result as proof that no data exists |
 | Recursive objects, maps, and dynamic state | The schema treats them as non-queryable opaque fields; provide an explicit `QuerySchemaProvider` to query their internals |
 
-`LegacyConditionExpression` is only for the in-process compatibility adapter; it is not part of the remote Query JSON
-protocol. New clients should use backend-neutral expressions such as `PredicateExpression`, `SearchExpression`, and
-`ElementMatchExpression`.
+`LegacyConditionExpression` and `QueryProjection.Legacy` are only for the in-process compatibility adapter; they are not
+part of the remote Query JSON protocol. New clients should use backend-neutral types such as `PredicateExpression`,
+`SearchExpression`, and `ElementMatchExpression`.
 
 ## Phase 1: Freeze the baseline
 
@@ -60,6 +61,9 @@ gateway.streamRecords(query)
         )
     )
 ```
+
+The authentication mapper must preserve all three `spaceIds` states: `null` applies no space restriction, an empty set
+means no space access, and a non-empty set is an allowlist. Do not translate “no space access” to `null`.
 
 Use at least two tenants and an unprivileged subject to prove that cross-tenant requests fail, scope only narrows,
 deleted/ALL access is denied without permission, and field policy covers filters, sorts, and projections. If the
@@ -101,8 +105,9 @@ actual index, not only the template.
   entry in a custom `ElasticsearchSnapshotQueryBackend`.
 - Full-text fields must be indexed text; the Gateway currently accepts standard-analyzer semantics only.
 - An `ElementMatchExpression` field must be mapped as `nested`; an ordinary object mapping returns `BACKEND_NOT_READY`.
-- The new Gateway rejects presence queries that cannot reliably distinguish null from missing with the current mapping.
-  Do not downgrade them to expressions such as `must_not exists` that can widen results.
+- The new Gateway rejects `NE`, `NOT_IN`, `IS_NULL`, `IS_NOT_NULL`, `EXISTS`, `IS_EMPTY`, and other presence queries that
+  cannot reliably distinguish null from missing with the current mapping. Do not downgrade them to expressions such as
+  `must_not exists` that can widen results.
 - `from + size` is at most 10000 by default. Use bounded streams for larger sets; streams use PIT and `search_after`
   for a stable read view.
 
@@ -112,8 +117,10 @@ new index/alias with the correct mapping and rebuild or perform a controlled rei
 existing text field into keyword in place.
 :::
 
-To customize PIT page size, keep-alive, result window, or exact subfields, provide your own backend bean. Auto-
-configuration backs off instead of creating a second bean of the same backend type.
+To customize PIT page size, keep-alive, result window, mapping-cache TTL, or exact subfields, provide your own backend
+bean. Auto-configuration backs off instead of creating a second bean of the same backend type. Mapping/settings are
+cached by resolved index for 30 seconds by default; monitor metadata transport errors as `BACKEND_FAILURE`, not mapping
+readiness failures.
 
 ## Phase 4: Rebuild and reconcile
 

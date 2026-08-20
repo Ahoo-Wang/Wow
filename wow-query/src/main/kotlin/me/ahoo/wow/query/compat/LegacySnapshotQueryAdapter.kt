@@ -23,7 +23,6 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.LegacyConditionExpression
 import me.ahoo.wow.api.query.LogicalField
-import me.ahoo.wow.api.query.MatchAll
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.PagedList
@@ -161,8 +160,8 @@ private fun Condition.toQuery(projection: Projection, sort: List<Sort>): Query {
 private fun Projection.toProjection(): QueryProjection {
     if (include.isNotEmpty() && exclude.isNotEmpty()) invalidQuery()
     return when {
-        include.isNotEmpty() -> QueryProjection.Include(include.mapTo(linkedSetOf(), ::LogicalField))
-        exclude.isNotEmpty() -> QueryProjection.Exclude(exclude.mapTo(linkedSetOf(), ::LogicalField))
+        include.isNotEmpty() -> QueryProjection.Legacy(include = include.toList())
+        exclude.isNotEmpty() -> QueryProjection.Legacy(exclude = exclude.toList())
         else -> QueryProjection.All
     }
 }
@@ -177,7 +176,7 @@ private fun List<Sort>.toSort(): List<QuerySort> = map { sort ->
 internal object LegacyConditionLowerer {
     fun lowerQuery(condition: Condition): Pair<QueryExpression, DeletionScope> {
         val guarded = condition.guard()
-        if (guarded.operator == Operator.DELETED) return MatchAll to guarded.deletionState().toScope()
+        if (guarded.operator == Operator.DELETED) return legacy(emptyList()) to guarded.deletionState().toScope()
         if (guarded.operator != Operator.AND) return legacy(listOf(guarded)) to DeletionScope.ACTIVE
         val deletions = guarded.children.filter { it.operator == Operator.DELETED }
         if (deletions.size != 1) return LegacyConditionExpression(guarded) to DeletionScope.ALL
@@ -185,14 +184,11 @@ internal object LegacyConditionLowerer {
         return legacy(remaining) to deletions.single().deletionState().toScope()
     }
 
-    private fun legacy(children: List<Condition>): QueryExpression = when (children.size) {
-        0 -> MatchAll
-        else -> LegacyConditionExpression(
-            Condition.and(
-                listOf(Condition.deleted(DeletionState.ALL)) + children
-            )
+    private fun legacy(children: List<Condition>): QueryExpression = LegacyConditionExpression(
+        Condition.and(
+            listOf(Condition.deleted(DeletionState.ALL)) + children
         )
-    }
+    )
 }
 
 private fun DeletionState.toScope(): DeletionScope = when (this) {

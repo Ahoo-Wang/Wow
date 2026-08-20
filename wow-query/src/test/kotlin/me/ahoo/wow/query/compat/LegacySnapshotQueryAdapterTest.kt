@@ -20,7 +20,6 @@ import me.ahoo.wow.api.query.ElementMatchExpression
 import me.ahoo.wow.api.query.LegacyConditionExpression
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.LogicalExpression
-import me.ahoo.wow.api.query.MatchAll
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.PredicateExpression
 import me.ahoo.wow.api.query.PredicateOperator
@@ -30,6 +29,7 @@ import me.ahoo.wow.api.query.QueryException
 import me.ahoo.wow.api.query.QueryExpression
 import me.ahoo.wow.api.query.QueryPage
 import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryRouter
@@ -78,6 +78,27 @@ class LegacySnapshotQueryAdapterTest {
     }
 
     @Test
+    fun `should preserve dynamic legacy projection and sort paths`() {
+        backend.record = record().apply {
+            (this["tags"] as ObjectNode).put("department", "sales")
+        }
+        adapter.dynamicSingle(
+            SingleQuery(
+                condition = Condition.ALL,
+                projection = Projection(include = listOf("tags.department")),
+                sort = listOf(Sort("tags.department", Sort.Direction.ASC))
+            )
+        ).test()
+            .assertNext { document ->
+                document.keys.assert().containsExactly("tags")
+                document.getNestedDocument("tags")["department"].assert().isEqualTo("sales")
+            }
+            .verifyComplete()
+
+        backend.lastQuery!!.sort.single().field.value.assert().isEqualTo("tags.department")
+    }
+
+    @Test
     fun `should reject mixed legacy projection before execution`() {
         val error = assertThrows<QueryException> {
             adapter.dynamicSingle(
@@ -111,7 +132,8 @@ class LegacySnapshotQueryAdapterTest {
         backend.lastQuery!!.filter.deletionOperators().assert().containsExactly(PredicateOperator.IS_TRUE)
 
         adapter.count(Condition.deleted(DeletionState.ALL)).test().expectNext(0).verifyComplete()
-        backend.lastQuery!!.filter.assert().isSameAs(MatchAll)
+        backend.lastQuery!!.filter.legacyCondition().children.single()
+            .deletionState().assert().isEqualTo(DeletionState.ALL)
     }
 
     @Test

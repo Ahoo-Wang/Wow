@@ -30,4 +30,11 @@ class ElasticsearchSnapshotQueryBackendTest {
         assertThrows<QueryException> { exactCount(response) }
             .code.assert().isEqualTo(QueryErrorCode.BACKEND_FAILURE)
     }
+
+    @Test
+    fun `should classify mapping transport errors as backend failures`() {
+        val mapped = mapMappingError(IllegalStateException("connection failed")) as QueryException
+
+        mapped.code.assert().isEqualTo(QueryErrorCode.BACKEND_FAILURE)
+    }
 }

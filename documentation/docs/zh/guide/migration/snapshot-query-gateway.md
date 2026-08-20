@@ -1,10 +1,10 @@
 ---
-title: Snapshot Query Gateway 迁移与生产门禁
+title: 快照查询网关迁移与生产门禁
 description: 升级旧查询服务、校验 MongoDB/Elasticsearch 语义并完成可回滚切流。
 outline: deep
 ---
 
-# Snapshot Query Gateway 迁移与生产门禁
+# 快照查询网关迁移与生产门禁
 
 本页适用于已经使用 `SnapshotQueryService` 的服务，以及准备把快照查询从 MongoDB 切换到
 Elasticsearch 的服务。完成编译、启动或单元测试不等于生产可用；生产准入需要真实索引、历史数据、
@@ -16,14 +16,15 @@ Elasticsearch 的服务。完成编译、启动或单元测试不等于生产可
 |---|---|
 | 旧 `SnapshotQueryService` / `Condition` | 经过 Gateway 的策略与结果校验，但仍由原后端 converter 编译，保留历史后端语义 |
 | `IListQuery.limit == 0` | 默认仍为无限流；配置全局 `maxRecords` 后会在达到预算时以 `INCOMPLETE_RESULT` 结束 |
+| 旧 projection/sort 动态路径 | projection 在结果策略之后按原始路径执行；sort 继续由所选后端验证和编译 |
 | 旧投影同时 include 与 exclude | 返回 `INVALID_QUERY`，避免静默丢弃 exclude 后扩大结果 |
 | `DeletionState.DELETED` / `ALL` | 兼容层授予旧接口所需的删除查询权限；新 Gateway 调用方必须显式持有 `query:snapshot:deletion` |
 | 新 Gateway 的 storage route 未配置查询后端 | 应用可以启动；实际 Gateway 查询返回 `BACKEND_NOT_READY` |
 | 旧 `NoOpSnapshotQueryService` | 为保持公共兼容性，仍返回空结果或 0；生产检查必须先确认 route，不能把空结果当作“确实无数据” |
 | 递归对象、Map 和动态状态 | Schema 将其作为不可查询的 opaque 字段；如需查询内部字段，应提供显式 `QuerySchemaProvider` |
 
-`LegacyConditionExpression` 只服务于进程内兼容层，不是远程 Query JSON 协议。新客户端应使用
-`PredicateExpression`、`SearchExpression`、`ElementMatchExpression` 等后端中立表达式。
+`LegacyConditionExpression` 与 `QueryProjection.Legacy` 只服务于进程内兼容层，不是远程 Query JSON 协议。
+新客户端应使用 `PredicateExpression`、`SearchExpression`、`ElementMatchExpression` 等后端中立类型。
 
 ## 第一阶段：固定基线
 
@@ -59,6 +60,9 @@ gateway.streamRecords(query)
         )
     )
 ```
+
+认证映射必须保留 `spaceIds` 三态：`null` 表示不施加空间限制，空集合表示没有任何空间权限，非空集合表示
+allowlist。不要把“没有空间权限”转换成 `null`。
 
 至少用两个租户和无权限主体验证：跨租户查询被拒绝、scope 只能收窄、deleted/ALL 无权限时被拒绝、
 字段策略在 filter/sort/projection 上都生效。应用自定义 `QueryPolicy` 时，任一 `DENY` 应保持最高优先级。
@@ -98,7 +102,8 @@ fun queryLimits() = QueryLimits(
   `ElasticsearchSnapshotQueryBackend` 的 `exactSubfields` 明确指定。
 - 全文字段必须是 indexed text；当前 Gateway 只接受 standard analyzer 语义。
 - `ElementMatchExpression` 对应字段必须为 `nested`，普通 object mapping 会返回 `BACKEND_NOT_READY`。
-- 新 Gateway 明确拒绝无法在现有 `_source`/mapping 上可靠区分 null 与 missing 的 presence 查询；不要降级成
+- 新 Gateway 明确拒绝 `NE`、`NOT_IN`、`IS_NULL`、`IS_NOT_NULL`、`EXISTS`、`IS_EMPTY` 等无法在现有
+  `_source`/mapping 上可靠区分 null 与 missing 的 presence 查询；不要降级成
   `must_not exists` 等可能扩大结果的表达式。
 - page 的 `from + size` 默认不超过 10000；更大结果集使用有界 stream，stream 通过 PIT 与
   `search_after` 保持同一次读取视图。
@@ -108,8 +113,9 @@ fun queryLimits() = QueryLimits(
 正确 mapping 后重建或受控 reindex；不要尝试把已有 text 字段原地改成 keyword。
 :::
 
-如果需要自定义 PIT 页大小、keep-alive、result window 或 exact 子字段，请提供自己的后端 Bean；自动配置
-会回退，不再创建第二个同类型 Bean。
+如果需要自定义 PIT 页大小、keep-alive、result window、mapping cache TTL 或 exact 子字段，请提供自己的
+后端 Bean；自动配置会回退，不再创建第二个同类型 Bean。mapping/settings 默认按实际 index 缓存 30 秒；
+元数据传输失败应按 `BACKEND_FAILURE` 监控，而不是按 mapping 未就绪处理。
 
 ## 第四阶段：重建与对账
 

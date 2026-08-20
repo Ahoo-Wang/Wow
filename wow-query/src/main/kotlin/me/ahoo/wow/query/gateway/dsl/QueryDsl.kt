@@ -31,6 +31,7 @@ import me.ahoo.wow.api.query.SearchExpression
 import me.ahoo.wow.serialization.JsonSerializer
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.JsonNodeFactory
+import java.time.Duration
 
 @DslMarker
 annotation class QueryDslMarker
@@ -71,6 +72,26 @@ class QueryScopeDsl {
 }
 
 fun queryScope(block: QueryScopeDsl.() -> Unit): QueryScope = QueryScopeDsl().apply(block).build()
+
+@QueryDslMarker
+class QueryBudgetDsl {
+    private var timeout: Duration? = null
+    private var maxRecords: Long? = null
+
+    fun timeout(value: Duration) {
+        require(timeout == null) { "timeout can only be set once." }
+        timeout = value
+    }
+
+    fun maxRecords(value: Long) {
+        require(maxRecords == null) { "maxRecords can only be set once." }
+        maxRecords = value
+    }
+
+    internal fun build(): QueryBudget = QueryBudget(timeout, maxRecords)
+}
+
+fun queryBudget(block: QueryBudgetDsl.() -> Unit): QueryBudget = QueryBudgetDsl().apply(block).build()
 
 @QueryDslMarker
 class ExpressionDsl {
@@ -221,6 +242,10 @@ open class SnapshotQueryDsl {
         this.budget = budget
     }
 
+    fun budget(block: QueryBudgetDsl.() -> Unit) {
+        budget(queryBudget(block))
+    }
+
     internal open fun build(): Query = Query(
         filter = filter ?: me.ahoo.wow.api.query.MatchAll,
         sort = sort ?: emptyList(),
@@ -272,6 +297,10 @@ class SnapshotCountQueryDsl {
     fun budget(budget: QueryBudget) {
         require(this.budget == null) { "budget can only be set once." }
         this.budget = budget
+    }
+
+    fun budget(block: QueryBudgetDsl.() -> Unit) {
+        budget(queryBudget(block))
     }
 
     internal fun build(): Query = Query(

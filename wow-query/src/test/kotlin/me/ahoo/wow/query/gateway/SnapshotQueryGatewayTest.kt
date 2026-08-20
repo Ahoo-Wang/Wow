@@ -16,10 +16,12 @@ package me.ahoo.wow.query.gateway
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.ElementMatchExpression
 import me.ahoo.wow.api.query.LogicalExpression
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.LogicalOperator
 import me.ahoo.wow.api.query.MatchAll
+import me.ahoo.wow.api.query.MatchNone
 import me.ahoo.wow.api.query.PredicateExpression
 import me.ahoo.wow.api.query.PredicateOperator
 import me.ahoo.wow.api.query.Query
@@ -30,6 +32,8 @@ import me.ahoo.wow.api.query.QueryExpression
 import me.ahoo.wow.api.query.QueryPage
 import me.ahoo.wow.api.query.QueryProjection
 import me.ahoo.wow.api.query.QueryScope
+import me.ahoo.wow.api.query.RelativeTimeExpression
+import me.ahoo.wow.api.query.RelativeTimeOperator
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
@@ -56,14 +60,18 @@ import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
+import reactor.kotlin.test.test
 import reactor.test.StepVerifier
 import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode
+import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneOffset
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 class SnapshotQueryGatewayTest {
     private val metadata = aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
@@ -164,6 +172,32 @@ class SnapshotQueryGatewayTest {
         )
             .expectNextCount(1)
             .verifyComplete()
+    }
+
+    @Test
+    fun `should treat an empty space allowlist as no access`() {
+        val captured = AtomicReference<SecuredQuery>()
+        val backend = object : QueryBackend {
+            override val id: String = "test"
+
+            override fun validate(query: SecuredQuery) {
+                captured.set(query)
+            }
+
+            override fun stream(query: SecuredQuery): Flux<ObjectNode> = Flux.empty()
+
+            override fun page(query: SecuredQuery): Mono<QueryPage<ObjectNode>> = Mono.just(QueryPage(emptyList(), 0))
+
+            override fun count(query: SecuredQuery): Mono<Long> = Mono.just(0)
+        }
+
+        gateway(backend).firstRecord()
+            .contextWrite(QueryContexts.withAuthority(QueryAuthority(subjectId = "user", spaceIds = emptySet())))
+            .test()
+            .verifyComplete()
+
+        val filter = captured.get().filter as LogicalExpression
+        filter.operands.assert().contains(MatchNone)
     }
 
     @Test
@@ -271,6 +305,93 @@ class SnapshotQueryGatewayTest {
             }
             .verify()
         routed.get().assert().isFalse()
+    }
+
+    @Test
+    fun `should include preparation time in the absolute deadline`() {
+        val subscribedAt = Instant.parse("2026-08-20T00:00:00Z")
+        val clock = mockk<Clock>()
+        every { clock.instant() } returnsMany listOf(subscribedAt, subscribedAt.plusSeconds(2))
+        val routed = AtomicBoolean()
+        val gateway = SnapshotQueryGatewayFactory.create(
+            schemaProvider = JacksonQuerySchemaProvider(JsonSerializer),
+            router = QueryRouter {
+                routed.set(true)
+                backend()
+            },
+            objectMapper = JsonSerializer,
+            clock = clock
+        ).create(metadata)
+
+        gateway.firstRecord(Query(budget = QueryBudget(timeout = Duration.ofSeconds(1))))
+            .test()
+            .expectErrorMatches { error ->
+                error is QueryException && error.code == QueryErrorCode.DEADLINE_EXCEEDED
+            }
+            .verify()
+
+        routed.get().assert().isFalse()
+    }
+
+    @Test
+    fun `should lower every relative time operator before routing`() {
+        val captured = mutableListOf<SecuredQuery>()
+        val fixedClock = Clock.fixed(Instant.parse("2026-08-20T12:00:00Z"), ZoneOffset.UTC)
+        val gateway = SnapshotQueryGatewayFactory.create(
+            schemaProvider = JacksonQuerySchemaProvider(JsonSerializer),
+            router = QueryRouter { backend(count = Mono.just(0), onValidate = captured::add) },
+            objectMapper = JsonSerializer,
+            clock = fixedClock,
+            zoneId = ZoneOffset.UTC
+        ).create(metadata)
+        val field = LogicalField("eventTime")
+        val seconds = JsonNodeFactory.instance.numberNode(8 * 60 * 60)
+        val days = JsonNodeFactory.instance.numberNode(7)
+        val expressions = listOf(
+            RelativeTimeExpression(field, RelativeTimeOperator.TODAY),
+            RelativeTimeExpression(field, RelativeTimeOperator.BEFORE_TODAY, listOf(seconds)),
+            RelativeTimeExpression(field, RelativeTimeOperator.TOMORROW, zoneId = "Asia/Shanghai"),
+            RelativeTimeExpression(field, RelativeTimeOperator.THIS_WEEK),
+            RelativeTimeExpression(field, RelativeTimeOperator.NEXT_WEEK),
+            RelativeTimeExpression(field, RelativeTimeOperator.LAST_WEEK),
+            RelativeTimeExpression(field, RelativeTimeOperator.THIS_MONTH),
+            RelativeTimeExpression(field, RelativeTimeOperator.LAST_MONTH),
+            RelativeTimeExpression(field, RelativeTimeOperator.RECENT_DAYS, listOf(days)),
+            RelativeTimeExpression(field, RelativeTimeOperator.EARLIER_DAYS, listOf(days))
+        )
+
+        expressions.forEach { expression ->
+            gateway.count(expression).test().expectNext(0).verifyComplete()
+        }
+
+        captured.assert().hasSize(expressions.size)
+        captured.any { it.filter.containsRelativeTime() }.assert().isFalse()
+    }
+
+    @Test
+    fun `should reject invalid relative time operands`() {
+        val gateway = gateway(backend())
+        val field = LogicalField("eventTime")
+        val expressions = listOf(
+            RelativeTimeExpression(
+                field,
+                RelativeTimeOperator.RECENT_DAYS,
+                listOf(JsonNodeFactory.instance.numberNode(0))
+            ),
+            RelativeTimeExpression(
+                field,
+                RelativeTimeOperator.BEFORE_TODAY,
+                listOf(JsonNodeFactory.instance.numberNode(24 * 60 * 60))
+            )
+        )
+
+        expressions.forEach { expression ->
+            gateway.count(expression).test()
+                .expectErrorMatches { error ->
+                    error is QueryException && error.code == QueryErrorCode.INVALID_QUERY
+                }
+                .verify()
+        }
     }
 
     @Test
@@ -439,17 +560,25 @@ class SnapshotQueryGatewayTest {
     private fun backend(
         stream: Flux<ObjectNode> = Flux.empty(),
         page: Mono<QueryPage<ObjectNode>> = Mono.just(QueryPage(emptyList(), 0)),
-        count: Mono<Long> = Mono.just(0)
+        count: Mono<Long> = Mono.just(0),
+        onValidate: (SecuredQuery) -> Unit = {}
     ): QueryBackend = object : QueryBackend {
         override val id: String = "test"
 
-        override fun validate(query: SecuredQuery) = Unit
+        override fun validate(query: SecuredQuery) = onValidate(query)
 
         override fun stream(query: SecuredQuery): Flux<ObjectNode> = stream
 
         override fun page(query: SecuredQuery): Mono<QueryPage<ObjectNode>> = page
 
         override fun count(query: SecuredQuery): Mono<Long> = count
+    }
+
+    private fun QueryExpression.containsRelativeTime(): Boolean = when (this) {
+        is RelativeTimeExpression -> true
+        is LogicalExpression -> operands.any { it.containsRelativeTime() }
+        is ElementMatchExpression -> predicate.containsRelativeTime()
+        else -> false
     }
 
     private fun record(): ObjectNode = JsonNodeFactory.instance.objectNode().apply {

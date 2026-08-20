@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.elasticsearch.query.gateway
 
+import co.elastic.clients.elasticsearch._types.ElasticsearchException
 import co.elastic.clients.elasticsearch._types.mapping.Property
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch.indices.GetIndicesSettingsRequest
@@ -30,20 +31,25 @@ import me.ahoo.wow.api.query.QueryStage
 import me.ahoo.wow.api.query.SearchExpression
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.query.backend.SecuredQuery
+import org.springframework.data.elasticsearch.RestStatusException
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
+import java.time.Duration
+import java.util.concurrent.ConcurrentHashMap
 
 data class ElasticsearchQueryBackendOptions(
     val exactSubfields: Map<LogicalField, String> = emptyMap(),
     val pitPageSize: Int = 256,
     val pitKeepAlive: String = "1m",
-    val maxResultWindow: Int = 10_000
+    val maxResultWindow: Int = 10_000,
+    val mappingCacheTtl: Duration = Duration.ofSeconds(30)
 ) {
     init {
         require(exactSubfields.values.none(String::isBlank)) { "Exact subfield cannot be blank." }
         require(pitPageSize > 0) { "pitPageSize must be positive." }
         require(pitKeepAlive.isNotBlank()) { "pitKeepAlive cannot be blank." }
         require(maxResultWindow > 0) { "maxResultWindow must be positive." }
+        require(!mappingCacheTtl.isNegative && !mappingCacheTtl.isZero) { "mappingCacheTtl must be positive." }
     }
 }
 
@@ -67,9 +73,28 @@ internal class ElasticsearchQueryMapping(
     private val client: ReactiveElasticsearchClient,
     private val options: ElasticsearchQueryBackendOptions
 ) {
+    private val viewsByIndex = ConcurrentHashMap<String, Mono<List<MappingView>>>()
+    internal var onLoaded: () -> Unit = {}
+
     fun snapshot(query: SecuredQuery): Mono<ElasticsearchExecutionSnapshot> {
         val index = query.target.toSnapshotIndexName()
-        return client.indices().getMapping(GetMappingRequest.of { request -> request.index(index) })
+        return views(index).map { views ->
+            val indices = views.map(MappingView::name)
+            val required = requiredFields(query)
+            val fields = required.associateWith { field -> bind(field, query, views) }
+            ElasticsearchExecutionSnapshot(indices, fields, query.schema)
+        }
+    }
+
+    private fun views(index: String): Mono<List<MappingView>> = viewsByIndex.computeIfAbsent(index) {
+        loadViews(index)
+            .doOnSuccess { onLoaded() }
+            .doOnError { viewsByIndex.remove(index) }
+            .cache(options.mappingCacheTtl)
+    }
+
+    private fun loadViews(index: String): Mono<List<MappingView>> =
+        client.indices().getMapping(GetMappingRequest.of { request -> request.index(index) })
             .flatMap { mappings ->
                 if (mappings.mappings().isEmpty()) {
                     return@flatMap Mono.error(notReadyException())
@@ -78,18 +103,14 @@ internal class ElasticsearchQueryMapping(
                     GetIndicesSettingsRequest.of { request -> request.index(index).includeDefaults(true) }
                 ).map { settings ->
                     val indices = mappings.mappings().keys.sorted()
-                    val views = indices.map { name ->
+                    indices.map { name ->
                         val mapping = mappings.mappings()[name]?.mappings() ?: notReady()
                         val indexSettings = settings.settings()[name]?.settings() ?: notReady()
-                        MappingView(mapping, indexSettings)
+                        MappingView(name, mapping, indexSettings)
                     }
-                    val required = requiredFields(query)
-                    val fields = required.associateWith { field -> bind(field, query, views) }
-                    ElasticsearchExecutionSnapshot(indices, fields, query.schema)
                 }
             }
-            .onErrorMap { error -> if (error is QueryException) error else notReady() }
-    }
+            .onErrorMap(::mapMappingError)
 
     private fun bind(
         logical: LogicalField,
@@ -262,7 +283,7 @@ internal class ElasticsearchQueryMapping(
             (searchAnalyzer == null || searchAnalyzer == STANDARD || configured[searchAnalyzer]?.isStandard == true)
     }
 
-    private data class MappingView(val mapping: TypeMapping, val settings: IndexSettings)
+    private data class MappingView(val name: String, val mapping: TypeMapping, val settings: IndexSettings)
 
     private enum class Usage {
         EXACT,
@@ -277,6 +298,15 @@ internal class ElasticsearchQueryMapping(
     }
 }
 
+internal fun mapMappingError(error: Throwable): Throwable = when {
+    error is QueryException -> error
+    error is RestStatusException && error.status == NOT_FOUND -> notReadyException()
+    error is ElasticsearchException && error.response().status() == NOT_FOUND -> notReadyException()
+    else -> QueryException(QueryErrorCode.BACKEND_FAILURE, QueryStage.BACKEND)
+}
+
 internal fun notReady(): Nothing = throw QueryException(QueryErrorCode.BACKEND_NOT_READY, QueryStage.BACKEND)
 
 private fun notReadyException(): QueryException = QueryException(QueryErrorCode.BACKEND_NOT_READY, QueryStage.BACKEND)
+
+private const val NOT_FOUND = 404

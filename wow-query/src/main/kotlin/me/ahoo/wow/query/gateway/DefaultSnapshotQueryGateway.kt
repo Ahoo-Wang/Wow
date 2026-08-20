@@ -65,7 +65,8 @@ internal class DefaultSnapshotQueryGatewayFactory(
     private val preparer = QueryPreparer(
         CompositeQueryPolicy(listOf(SystemQueryPolicy(limits.maximumBudget)) + policies),
         limits,
-        zoneId
+        zoneId,
+        clock
     )
     private val resultPolicy = QueryResultPolicyChain(resultPolicies.toList())
     private val materializer = QueryMaterializer(objectMapper)

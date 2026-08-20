@@ -45,6 +45,17 @@ sealed interface QueryProjection {
             require(fields.isNotEmpty()) { "Excluded fields cannot be empty." }
         }
     }
+
+    /** Compatibility-only projection for legacy backend field paths. */
+    data class Legacy(
+        val include: List<String> = emptyList(),
+        val exclude: List<String> = emptyList()
+    ) : QueryProjection {
+        init {
+            require(include.isNotEmpty() || exclude.isNotEmpty()) { "Legacy projection cannot be empty." }
+            require(include.isEmpty() || exclude.isEmpty()) { "Legacy projection cannot mix include and exclude." }
+        }
+    }
 }
 
 enum class QuerySortDirection {

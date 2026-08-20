@@ -22,7 +22,9 @@ import com.mongodb.event.CommandStartedEvent
 import com.mongodb.reactivestreams.client.MongoClients
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.query.ElementMatchExpression
+import me.ahoo.wow.api.query.LogicalExpression
 import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.LogicalOperator
 import me.ahoo.wow.api.query.PredicateExpression
 import me.ahoo.wow.api.query.PredicateOperator
 import me.ahoo.wow.api.query.Query
@@ -31,6 +33,7 @@ import me.ahoo.wow.api.query.QuerySortDirection
 import me.ahoo.wow.api.query.QueryErrorCode
 import me.ahoo.wow.api.query.QueryException
 import me.ahoo.wow.api.query.SearchExpression
+import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
@@ -117,6 +120,58 @@ class MongoSnapshotQueryGatewayTest {
             .test()
             .expectNext(1L)
             .verifyComplete()
+    }
+
+    @Test
+    fun `should compile portable predicates against MongoDB`() {
+        val id = JsonNodeFactory.instance.stringNode(aggregateId)
+        val other = JsonNodeFactory.instance.stringNode("other")
+        val version = LogicalField("version")
+        val idField = LogicalField("aggregateId")
+        val deleted = LogicalField("deleted")
+        val expressions = listOf(
+            predicate(idField, PredicateOperator.EQ, id),
+            predicate(idField, PredicateOperator.NE, other),
+            predicate(version, PredicateOperator.GT, JsonNodeFactory.instance.numberNode(-1)),
+            predicate(version, PredicateOperator.LT, JsonNodeFactory.instance.numberNode(Int.MAX_VALUE)),
+            predicate(version, PredicateOperator.GTE, JsonNodeFactory.instance.numberNode(0)),
+            predicate(version, PredicateOperator.LTE, JsonNodeFactory.instance.numberNode(Int.MAX_VALUE)),
+            predicate(
+                idField,
+                PredicateOperator.CONTAINS,
+                JsonNodeFactory.instance.stringNode(aggregateId.take(6)),
+                stringComparison = StringComparison.CASE_INSENSITIVE
+            ),
+            predicate(idField, PredicateOperator.IN, id, other),
+            predicate(idField, PredicateOperator.NOT_IN, other),
+            predicate(
+                version,
+                PredicateOperator.BETWEEN,
+                JsonNodeFactory.instance.numberNode(-1),
+                JsonNodeFactory.instance.numberNode(Int.MAX_VALUE)
+            ),
+            predicate(idField, PredicateOperator.STARTS_WITH, JsonNodeFactory.instance.stringNode(aggregateId.take(4))),
+            predicate(idField, PredicateOperator.ENDS_WITH, JsonNodeFactory.instance.stringNode(aggregateId.takeLast(4))),
+            predicate(idField, PredicateOperator.IS_NOT_NULL),
+            predicate(deleted, PredicateOperator.IS_FALSE),
+            predicate(idField, PredicateOperator.EXISTS),
+            LogicalExpression(
+                LogicalOperator.AND,
+                listOf(predicate(idField, PredicateOperator.EQ, id), predicate(deleted, PredicateOperator.IS_FALSE))
+            ),
+            LogicalExpression(
+                LogicalOperator.OR,
+                listOf(predicate(idField, PredicateOperator.EQ, id), predicate(idField, PredicateOperator.EQ, other))
+            ),
+            LogicalExpression(
+                LogicalOperator.NOR,
+                listOf(predicate(idField, PredicateOperator.EQ, other))
+            )
+        )
+
+        expressions.forEach { expression ->
+            gateway.count(expression).test().expectNext(1).verifyComplete()
+        }
     }
 
     @Test
@@ -228,4 +283,11 @@ class MongoSnapshotQueryGatewayTest {
         ),
         sort = listOf(QuerySort(LogicalField("aggregateId"), QuerySortDirection.ASC))
     )
+
+    private fun predicate(
+        field: LogicalField,
+        operator: PredicateOperator,
+        vararg values: tools.jackson.databind.JsonNode,
+        stringComparison: StringComparison = StringComparison.DEFAULT
+    ): PredicateExpression = PredicateExpression(field, operator, values.toList(), stringComparison)
 }

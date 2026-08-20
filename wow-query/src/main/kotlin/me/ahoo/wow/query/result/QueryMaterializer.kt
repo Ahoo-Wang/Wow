@@ -14,7 +14,6 @@
 package me.ahoo.wow.query.result
 
 import me.ahoo.wow.api.abac.AbacTags
-import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.QueryErrorCode
 import me.ahoo.wow.api.query.QueryException
@@ -56,31 +55,35 @@ internal class QueryMaterializer(private val objectMapper: ObjectMapper) {
 
     fun record(record: ObjectNode, projection: QueryProjection): ObjectNode = when (projection) {
         QueryProjection.All -> record
-        is QueryProjection.Include -> include(record, projection.fields)
-        is QueryProjection.Exclude -> exclude(record, projection.fields)
+        is QueryProjection.Include -> include(record, projection.fields.map { it.value })
+        is QueryProjection.Exclude -> exclude(record, projection.fields.map { it.value })
+        is QueryProjection.Legacy -> when {
+            projection.include.isNotEmpty() -> include(record, projection.include)
+            else -> exclude(record, projection.exclude)
+        }
     }
 
     private fun text(record: ObjectNode, field: String): String = record[field].stringValue()
 
     private fun time(record: ObjectNode, field: String): Long = Instant.parse(text(record, field)).toEpochMilli()
 
-    private fun include(source: ObjectNode, fields: Set<LogicalField>): ObjectNode {
+    private fun include(source: ObjectNode, fields: Collection<String>): ObjectNode {
         val selection = selection(fields)
         return project(source, selection) as? ObjectNode ?: JsonNodeFactory.instance.objectNode()
     }
 
-    private fun exclude(source: ObjectNode, fields: Set<LogicalField>): ObjectNode {
+    private fun exclude(source: ObjectNode, fields: Collection<String>): ObjectNode {
         val result = source.deepCopy()
         val selection = selection(fields)
         remove(result, selection)
         return result
     }
 
-    private fun selection(fields: Set<LogicalField>): Selection {
+    private fun selection(fields: Collection<String>): Selection {
         val root = Selection()
         fields.forEach { field ->
             var current = root
-            field.value.split('.').forEach { segment -> current = current.children.getOrPut(segment, ::Selection) }
+            field.split('.').forEach { segment -> current = current.children.getOrPut(segment, ::Selection) }
             current.selected = true
         }
         return root
