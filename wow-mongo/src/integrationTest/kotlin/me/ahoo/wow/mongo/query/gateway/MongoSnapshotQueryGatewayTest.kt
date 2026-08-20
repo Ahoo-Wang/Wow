@@ -31,7 +31,7 @@ import me.ahoo.wow.api.query.Query
 import me.ahoo.wow.api.query.QuerySort
 import me.ahoo.wow.api.query.QuerySortDirection
 import me.ahoo.wow.api.query.QueryErrorCode
-import me.ahoo.wow.api.query.QueryException
+import me.ahoo.wow.query.QueryException
 import me.ahoo.wow.api.query.SearchExpression
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot

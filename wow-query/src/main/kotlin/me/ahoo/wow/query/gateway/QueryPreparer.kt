@@ -26,7 +26,6 @@ import me.ahoo.wow.api.query.PredicateOperator
 import me.ahoo.wow.api.query.Query
 import me.ahoo.wow.api.query.QueryBudget
 import me.ahoo.wow.api.query.QueryErrorCode
-import me.ahoo.wow.api.query.QueryException
 import me.ahoo.wow.api.query.QueryExpression
 import me.ahoo.wow.api.query.QueryProjection
 import me.ahoo.wow.api.query.QueryStage
@@ -35,6 +34,7 @@ import me.ahoo.wow.api.query.RelativeTimeOperator
 import me.ahoo.wow.api.query.SearchExpression
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
+import me.ahoo.wow.query.QueryException
 import me.ahoo.wow.query.backend.SecuredQuery
 import me.ahoo.wow.query.policy.CapabilityDecision
 import me.ahoo.wow.query.policy.QueryAuthorization

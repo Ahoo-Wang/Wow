@@ -25,10 +25,10 @@ import me.ahoo.wow.api.query.LogicalExpression
 import me.ahoo.wow.api.query.PredicateExpression
 import me.ahoo.wow.api.query.PredicateOperator
 import me.ahoo.wow.api.query.QueryErrorCode
-import me.ahoo.wow.api.query.QueryException
 import me.ahoo.wow.api.query.QueryExpression
 import me.ahoo.wow.api.query.QueryPage
 import me.ahoo.wow.api.query.QueryStage
+import me.ahoo.wow.query.QueryException
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.SecuredQuery
 import me.ahoo.wow.serialization.JsonSerializer

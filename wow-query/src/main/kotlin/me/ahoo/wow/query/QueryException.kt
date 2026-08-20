@@ -11,27 +11,18 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.api.query
+package me.ahoo.wow.query
 
-enum class QueryErrorCode {
-    INVALID_QUERY,
-    POLICY_DENIED,
-    POLICY_FAILURE,
-    UNSUPPORTED_QUERY,
-    BACKEND_NOT_READY,
-    DEADLINE_EXCEEDED,
-    BUDGET_EXCEEDED,
-    RESULT_INVALID,
-    MATERIALIZATION_FAILED,
-    BACKEND_FAILURE,
-    INCOMPLETE_RESULT
-}
+import me.ahoo.wow.api.query.QueryErrorCode
+import me.ahoo.wow.api.query.QueryStage
+import me.ahoo.wow.exception.WowException
 
-enum class QueryStage {
-    PREPARATION,
-    POLICY,
-    ROUTING,
-    BACKEND,
-    RESULT_POLICY,
-    MATERIALIZATION
-}
+class QueryException(
+    val code: QueryErrorCode,
+    val stage: QueryStage,
+    cause: Throwable? = null
+) : WowException(
+    errorCode = code.name,
+    errorMsg = "Query failed: $code at $stage.",
+    cause = cause
+)

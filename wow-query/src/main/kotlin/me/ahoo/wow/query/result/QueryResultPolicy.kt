@@ -14,8 +14,8 @@
 package me.ahoo.wow.query.result
 
 import me.ahoo.wow.api.query.QueryErrorCode
-import me.ahoo.wow.api.query.QueryException
 import me.ahoo.wow.api.query.QueryStage
+import me.ahoo.wow.query.QueryException
 import me.ahoo.wow.query.backend.SecuredQuery
 import me.ahoo.wow.query.policy.QueryAuthority
 import me.ahoo.wow.query.schema.QueryCollectionKind

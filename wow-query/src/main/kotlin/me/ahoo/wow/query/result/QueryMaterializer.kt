@@ -16,10 +16,10 @@ package me.ahoo.wow.query.result
 import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.QueryErrorCode
-import me.ahoo.wow.api.query.QueryException
 import me.ahoo.wow.api.query.QueryProjection
 import me.ahoo.wow.api.query.QueryStage
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
+import me.ahoo.wow.query.QueryException
 import tools.jackson.core.type.TypeReference
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectMapper

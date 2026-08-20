@@ -28,9 +28,9 @@ import me.ahoo.wow.api.query.QueryBudget
 import me.ahoo.wow.api.query.QueryCapabilities
 import me.ahoo.wow.api.query.QueryCapabilityId
 import me.ahoo.wow.api.query.QueryErrorCode
-import me.ahoo.wow.api.query.QueryException
 import me.ahoo.wow.api.query.QueryExpression
 import me.ahoo.wow.api.query.QueryStage
+import me.ahoo.wow.query.QueryException
 import me.ahoo.wow.query.schema.QuerySchema
 import reactor.core.Exceptions
 import reactor.core.publisher.Flux

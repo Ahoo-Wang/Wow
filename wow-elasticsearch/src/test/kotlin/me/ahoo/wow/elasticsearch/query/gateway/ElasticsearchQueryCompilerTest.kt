@@ -25,12 +25,12 @@ import me.ahoo.wow.api.query.MatchNone
 import me.ahoo.wow.api.query.PredicateExpression
 import me.ahoo.wow.api.query.PredicateOperator
 import me.ahoo.wow.api.query.QueryErrorCode
-import me.ahoo.wow.api.query.QueryException
 import me.ahoo.wow.api.query.QuerySortDirection
 import me.ahoo.wow.api.query.RelativeTimeExpression
 import me.ahoo.wow.api.query.RelativeTimeOperator
 import me.ahoo.wow.api.query.SearchExpression
 import me.ahoo.wow.api.query.StringComparison
+import me.ahoo.wow.query.QueryException
 import me.ahoo.wow.query.backend.SecuredQuery
 import me.ahoo.wow.query.schema.JacksonQuerySchemaProvider
 import me.ahoo.wow.query.schema.QueryCollectionKind

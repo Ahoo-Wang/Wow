@@ -14,7 +14,6 @@ package me.ahoo.wow.spring.boot.starter.eventsourcing.routing
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.api.query.QueryErrorCode
-import me.ahoo.wow.api.query.QueryException
 import me.ahoo.wow.api.query.QueryStage
 import me.ahoo.wow.eventsourcing.AggregateEventStoreRegistry
 import me.ahoo.wow.eventsourcing.EventStore
@@ -22,6 +21,7 @@ import me.ahoo.wow.eventsourcing.RoutingEventStore
 import me.ahoo.wow.eventsourcing.snapshot.AggregateSnapshotStoreRegistry
 import me.ahoo.wow.eventsourcing.snapshot.RoutingSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import me.ahoo.wow.query.QueryException
 import me.ahoo.wow.query.backend.QueryRouter
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.RoutingEventStreamQueryServiceFactory

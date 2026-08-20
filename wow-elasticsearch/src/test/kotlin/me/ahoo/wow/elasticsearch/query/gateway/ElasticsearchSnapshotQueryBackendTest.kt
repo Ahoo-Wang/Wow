@@ -16,7 +16,7 @@ package me.ahoo.wow.elasticsearch.query.gateway
 import co.elastic.clients.elasticsearch.core.CountResponse
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.QueryErrorCode
-import me.ahoo.wow.api.query.QueryException
+import me.ahoo.wow.query.QueryException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 

@@ -28,7 +28,6 @@ import me.ahoo.wow.api.query.MatchNone
 import me.ahoo.wow.api.query.PredicateExpression
 import me.ahoo.wow.api.query.PredicateOperator
 import me.ahoo.wow.api.query.QueryErrorCode
-import me.ahoo.wow.api.query.QueryException
 import me.ahoo.wow.api.query.QueryExpression
 import me.ahoo.wow.api.query.QuerySortDirection
 import me.ahoo.wow.api.query.QueryStage
@@ -36,6 +35,7 @@ import me.ahoo.wow.api.query.RelativeTimeExpression
 import me.ahoo.wow.api.query.SearchExpression
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotConditionConverter
+import me.ahoo.wow.query.QueryException
 import me.ahoo.wow.query.backend.SecuredQuery
 import me.ahoo.wow.query.schema.QueryValueKind
 import tools.jackson.databind.JsonNode

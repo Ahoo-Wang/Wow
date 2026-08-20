@@ -18,13 +18,13 @@ import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.Query
 import me.ahoo.wow.api.query.QueryBudget
 import me.ahoo.wow.api.query.QueryErrorCode
-import me.ahoo.wow.api.query.QueryException
 import me.ahoo.wow.api.query.QueryExpression
 import me.ahoo.wow.api.query.QueryPage
 import me.ahoo.wow.api.query.QueryScope
 import me.ahoo.wow.api.query.QueryStage
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
+import me.ahoo.wow.query.QueryException
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryRouter
 import me.ahoo.wow.query.backend.SecuredQuery
