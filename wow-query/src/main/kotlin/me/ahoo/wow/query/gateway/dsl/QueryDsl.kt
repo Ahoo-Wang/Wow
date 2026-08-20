@@ -97,6 +97,9 @@ fun queryBudget(block: QueryBudgetDsl.() -> Unit): QueryBudget = QueryBudgetDsl(
 class ExpressionDsl {
     fun field(path: String): FieldReference = FieldReference(LogicalField(path))
 
+    fun fields(vararg paths: String): FieldSetReference =
+        FieldSetReference(paths.mapTo(linkedSetOf(), ::LogicalField))
+
     fun and(vararg expressions: QueryExpression): QueryExpression =
         LogicalExpression(LogicalOperator.AND, expressions.toList())
 
@@ -108,9 +111,6 @@ class ExpressionDsl {
 
     fun elementMatch(path: String, block: ExpressionDsl.() -> QueryExpression): QueryExpression =
         ElementMatchExpression(LogicalField(path), ExpressionDsl().block())
-
-    fun search(query: String, vararg fields: String): QueryExpression =
-        SearchExpression(query, fields.mapTo(linkedSetOf(), ::LogicalField))
 }
 
 class FieldReference internal constructor(internal val field: LogicalField) {
@@ -160,6 +160,10 @@ class FieldReference internal constructor(internal val field: LogicalField) {
 
     private fun predicate(operator: PredicateOperator, vararg values: Any?): QueryExpression =
         PredicateExpression(field, operator, values.map(::literal))
+}
+
+class FieldSetReference internal constructor(private val fields: Set<LogicalField>) {
+    infix fun search(query: String): QueryExpression = SearchExpression(query, fields)
 }
 
 private fun literal(value: Any?): JsonNode = when (value) {

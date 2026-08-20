@@ -123,7 +123,11 @@ class QueryDslTest {
         (dsl.nor(predicates.first()) as LogicalExpression).operator.assert().isEqualTo(LogicalOperator.NOR)
         (dsl.elementMatch("state.items") { field("sku") eq "sku-1" } is ElementMatchExpression)
             .assert().isTrue()
-        (dsl.search("text", "state.name", "state.description") is SearchExpression).assert().isTrue()
+        val search = dsl.fields("state.name", "state.description") search "text"
+        (search as SearchExpression).fields.assert().containsExactlyInAnyOrder(
+            LogicalField("state.name"),
+            LogicalField("state.description")
+        )
     }
 
     @Test

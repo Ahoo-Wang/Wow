@@ -190,7 +190,7 @@ filter {
 | `isTrue()` / `isFalse()` | `IS_TRUE` / `IS_FALSE` | 0 | Boolean |
 | `exists()` | `EXISTS` | 0 | Presence-capable fields |
 | `isEmpty()` | `IS_EMPTY` | 0 | Collections |
-| `field(path) search text` | `SearchExpression` | 1 | Full-text strings |
+| `field(path) search text` / `fields(paths) search text` | `SearchExpression` | 1 | Full-text strings |
 
 The table describes the portable schema model. A backend can still reject semantics it cannot implement safely. For
 example, Elasticsearch rejects selected null/missing presence operations; see [Backend constraints](#backend-constraints).
@@ -203,11 +203,10 @@ Single-field and multi-field full-text queries are written as:
 filter { field("state.name") search "wireless headset" }
 
 filter {
-    search(
-        "wireless headset",
+    fields(
         "state.name",
         "state.description"
-    )
+    ) search "wireless headset"
 }
 ```
 

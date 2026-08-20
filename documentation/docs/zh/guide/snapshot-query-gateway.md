@@ -185,7 +185,7 @@ filter {
 | `isTrue()` / `isFalse()` | `IS_TRUE` / `IS_FALSE` | 0 | Boolean |
 | `exists()` | `EXISTS` | 0 | 支持 presence 的字段 |
 | `isEmpty()` | `IS_EMPTY` | 0 | 集合 |
-| `field(path) search text` | `SearchExpression` | 1 | full-text 字符串 |
+| `field(path) search text` / `fields(paths) search text` | `SearchExpression` | 1 | full-text 字符串 |
 
 表中是 Schema 层允许的通用模型；后端可以进一步拒绝无法可靠实现的语义。例如 Elasticsearch 会拒绝部分
 null/missing presence 操作，详见[后端约束](#后端约束)。
@@ -198,11 +198,10 @@ null/missing presence 操作，详见[后端约束](#后端约束)。
 filter { field("state.name") search "wireless headset" }
 
 filter {
-    search(
-        "wireless headset",
+    fields(
         "state.name",
         "state.description"
-    )
+    ) search "wireless headset"
 }
 ```
 
