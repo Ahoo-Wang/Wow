@@ -52,8 +52,7 @@ class SnapshotQueryServiceRegistrar : QueryServiceRegistrar() {
         )
 
         val beanDefinitionBuilder = BeanDefinitionBuilder.rootBeanDefinition(snapshotQueryServiceType) {
-            val queryServiceFactory: SnapshotQueryServiceFactory =
-                appContext.getBeanProvider(SnapshotQueryServiceFactory::class.java).getOrNoOp()
+            val queryServiceFactory = appContext.getBean(SnapshotQueryServiceFactory::class.java)
             queryServiceFactory.create<Any>(namedAggregate)
         }
 

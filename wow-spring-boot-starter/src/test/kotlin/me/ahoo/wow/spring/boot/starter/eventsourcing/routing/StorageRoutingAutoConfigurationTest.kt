@@ -337,6 +337,20 @@ class StorageRoutingAutoConfigurationTest {
     }
 
     @Test
+    fun `named storage binding without query factory binding should fail startup`() {
+        routingContextRunner
+            .withPropertyValues(
+                "${StorageRoutingProperties.AGGREGATES}.audit.event.binding=store-only-event-store",
+            )
+            .run { context: AssertableApplicationContext ->
+                val failure = context.startupFailure
+                failure.assert().isInstanceOf(BeanCreationException::class.java)
+                failure!!.message.assert().contains("query service factory")
+                failure.message.assert().contains("store-only-event-store")
+            }
+    }
+
+    @Test
     fun `full aggregate key should not prepend current context`() {
         routingContextRunner
             .withPropertyValues(
@@ -428,6 +442,14 @@ class StorageRoutingAutoConfigurationTest {
             )
 
         @Bean
+        fun storeOnlyEventStoreBinding(stores: RecordingStores): EventStoreBinding =
+            EventStoreBinding(
+                name = "store-only-event-store",
+                storage = null,
+                eventStore = stores.archiveEventStore,
+            )
+
+        @Bean
         fun mongoSnapshotStoreBinding(stores: RecordingStores): SnapshotStoreBinding =
             SnapshotStoreBinding.storage(StorageType.MONGO, stores.mongoSnapshotStore)
 
@@ -466,6 +488,16 @@ class StorageRoutingAutoConfigurationTest {
             )
 
         @Bean
+        fun archiveEventStreamQueryServiceFactoryBinding(
+            stores: RecordingStores
+        ): EventStreamQueryServiceFactoryBinding =
+            EventStreamQueryServiceFactoryBinding(
+                name = "archive-event-store",
+                storage = null,
+                eventStreamQueryServiceFactory = stores.archiveEventStreamQueryServiceFactory,
+            )
+
+        @Bean
         fun mongoSnapshotQueryServiceFactory(stores: RecordingStores): SnapshotQueryServiceFactory =
             stores.mongoSnapshotQueryServiceFactory
 
@@ -486,6 +518,14 @@ class StorageRoutingAutoConfigurationTest {
                 StorageType.REDIS,
                 stores.redisSnapshotQueryServiceFactory
             )
+
+        @Bean
+        fun archiveSnapshotQueryServiceFactoryBinding(stores: RecordingStores): SnapshotQueryServiceFactoryBinding =
+            SnapshotQueryServiceFactoryBinding(
+                name = "archive-snapshot-store",
+                storage = null,
+                snapshotQueryServiceFactory = stores.archiveSnapshotQueryServiceFactory,
+            )
     }
 
     internal class RecordingStores {
@@ -497,8 +537,10 @@ class StorageRoutingAutoConfigurationTest {
         val archiveSnapshotStore = RecordingSnapshotStore("archive-snapshot")
         val mongoEventStreamQueryServiceFactory = RecordingEventStreamQueryServiceFactory()
         val redisEventStreamQueryServiceFactory = RecordingEventStreamQueryServiceFactory()
+        val archiveEventStreamQueryServiceFactory = RecordingEventStreamQueryServiceFactory()
         val mongoSnapshotQueryServiceFactory = RecordingSnapshotQueryServiceFactory()
         val redisSnapshotQueryServiceFactory = RecordingSnapshotQueryServiceFactory()
+        val archiveSnapshotQueryServiceFactory = RecordingSnapshotQueryServiceFactory()
     }
 
     internal class CloseDelegate(
