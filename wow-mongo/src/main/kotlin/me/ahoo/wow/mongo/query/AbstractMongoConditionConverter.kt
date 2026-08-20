@@ -16,6 +16,7 @@ package me.ahoo.wow.mongo.query
 import com.mongodb.client.model.Filters
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.query.converter.AbstractConditionConverter
 import me.ahoo.wow.query.converter.FieldConverter
@@ -34,10 +35,14 @@ abstract class AbstractMongoConditionConverter : AbstractConditionConverter<Bson
 
     protected open fun convertCondition(condition: Condition): Condition {
         val convertedField = fieldConverter.convert(condition.field)
-        if (convertedField == condition.field) {
+        val convertedChildren = when (condition.operator) {
+            Operator.AND, Operator.OR, Operator.NOR -> condition.children.map(::convertCondition)
+            else -> condition.children
+        }
+        if (convertedField == condition.field && convertedChildren == condition.children) {
             return condition
         }
-        return condition.copy(field = convertedField)
+        return condition.copy(field = convertedField, children = convertedChildren)
     }
 
     override fun convert(condition: Condition): Bson {
